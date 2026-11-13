@@ -25,7 +25,8 @@
 //! `ws::Ws` (the same TLS under a WebSocket, its listener on the accept
 //! loop of `pod-ws`), and with the feature `h2`, `h2::H2` (the same TLS
 //! under one POST of HTTP/2), and with the feature `quic`, `quic::Quic` (the
-//! same TLS under one stream of QUIC, over UDP or the caller's datagrams).
+//! same TLS under one stream of QUIC, over UDP or the caller's datagrams),
+//! and with the feature `udp`, `udp::Udp` (the same TLS over KCP over UDP).
 //! Each carrier says with
 //! [`Carrier::available`] why the host cannot use it, and a listener gives
 //! the key that its peer proved with [`Listener::accept_peer`]. The
@@ -65,6 +66,8 @@ mod state;
 mod stream;
 #[cfg(feature = "tcp")]
 pub mod tcp;
+#[cfg(feature = "udp")]
+pub mod udp;
 #[cfg(unix)]
 pub mod unix;
 #[cfg(feature = "ws")]

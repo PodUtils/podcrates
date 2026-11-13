@@ -1,0 +1,7 @@
+# The listener of the udp carrier starts a session at any datagram of a
+# new address, not at the first segment of a conversation alone (T-424).
+ENTRY=T-424
+GROUP=link
+EXPECT='the stranger started no session'
+RUN='cargo test -p pod-link --all-features --test udp datagrams_of_a_stranger_change_nothing'
+LIMIT=1800

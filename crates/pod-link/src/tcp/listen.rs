@@ -17,7 +17,7 @@ use tokio::sync::{Semaphore, mpsc};
 use tokio::task::{JoinHandle, JoinSet};
 use tokio_rustls::TlsAcceptor;
 
-use super::{ACCEPTED, ALPN, NAME, Tcp, check_alpn, err, proved, tls_error};
+use super::{ACCEPTED, NAME, Tcp, check_alpn, err, proved, tls_error};
 use crate::carrier::{Accepted, BoxIo, CarrierError, CarrierErrorKind, Listener, Pending};
 
 /// The result of one handshake.
@@ -50,7 +50,7 @@ pub(super) async fn bind(tcp: &Tcp, addr: SocketAddr) -> Result<TlsListener, Car
     if tcp.max_handshakes == 0 {
         return Err(err(CarrierErrorKind::Usage, "max_handshakes is 0: give 1 or more"));
     }
-    let config = peer::server_config(tcp.provider.clone(), tcp.identity.clone(), tcp.clients.clone(), &[ALPN])
+    let config = peer::server_config(tcp.provider.clone(), tcp.identity.clone(), tcp.clients.clone(), &[tcp.alpn])
         .map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
     let listener =
         tokio::net::TcpListener::bind(addr).await.map_err(|e| CarrierError::io(NAME, format!("bind {addr}"), e))?;
@@ -139,7 +139,9 @@ async fn handshake(acceptor: TlsAcceptor, tcp: TcpStream, from: SocketAddr, with
     let run = async {
         let mut tls = acceptor.accept(tcp).await.map_err(|e| tls_error(format!("the TLS handshake of {from}"), e))?;
         let conn = tls.get_ref().1;
-        check_alpn(conn.alpn_protocol(), &from)?;
+        // The configuration offers the one ALPN of the carrier.
+        let want = acceptor.config().alpn_protocols.first().map_or(&[][..], Vec::as_slice);
+        check_alpn(conn.alpn_protocol(), want, &from)?;
         let key = proved(conn.peer_certificates(), &from)?;
         let said = async {
             tls.write_all(&[ACCEPTED]).await?;

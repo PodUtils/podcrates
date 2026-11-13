@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/udp/listen.rs b/crates/pod-link/src/udp/listen.rs
+--- a/crates/pod-link/src/udp/listen.rs
++++ b/crates/pod-link/src/udp/listen.rs
+@@ -126,7 +126,7 @@
+ 
+ /// The first segment of a conversation: data with the sequence 0.
+ fn first_segment(datagram: &[u8]) -> bool {
+-    datagram.len() >= KCP_HEADER && datagram[4] == PUSH && datagram[12..16] == [0, 0, 0, 0]
++    datagram.len() >= KCP_HEADER
+ }
+ 
+ /// Read the socket, give each datagram to its session, and start a

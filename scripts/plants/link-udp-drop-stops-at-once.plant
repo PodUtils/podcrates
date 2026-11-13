@@ -1,0 +1,7 @@
+# The drop of a stream of the udp carrier ends its KCP task at once: the
+# bytes in flight never reach the peer (T-424).
+ENTRY=T-424
+GROUP=link
+EXPECT='the_bytes_before_a_drop_reach_the_peer stdout ----'
+RUN='cargo test -p pod-link --all-features --test udp the_bytes_before_a_drop_reach_the_peer'
+LIMIT=1800

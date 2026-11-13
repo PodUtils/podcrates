@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/tcp.rs b/crates/pod-link/src/tcp.rs
+--- a/crates/pod-link/src/tcp.rs
++++ b/crates/pod-link/src/tcp.rs
+@@ -141,7 +141,7 @@
+     /// whose key `peer` names. It gives the stream and the key that the
+     /// listener proved.
+     pub async fn connect(&self, target: &Target, peer: &KeyName) -> Result<(BoxIo, PublicKey), CarrierError> {
+-        let config = peer::client_config(self.provider.clone(), self.identity.clone(), peer.clone(), &[self.alpn])
++        let config = peer::client_config(self.provider.clone(), self.identity.clone(), peer.clone(), &[ALPN])
+             .map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
+         let name = server_name(target)?;
+         let label = self.way.label();

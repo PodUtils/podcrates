@@ -14,7 +14,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use common::quic::{OneName, UdpWay, at, bound, carrier};
+use common::dgram::{OneName, UdpWay};
+use common::quic::{at, bound, carrier};
 use common::tcp::{id, ring};
 use common::{LIMIT, echo, pattern};
 use pod_core::{Class, Target};

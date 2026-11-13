@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 405 entries: 119 open, 7 partial, 4 blocked, 275 done.
+`TODO/INDEX.md` holds 407 entries: 121 open, 7 partial, 4 blocked, 275 done.
 
 ## State
 
@@ -99,6 +99,8 @@ next entry.
       carrier, the fuzz target of the records, the ARQ of `pod-link` and
       the fix of PodUtils/podnet#524.
    c. The tag after: T-516 (the fuzz target of the ARQ of `pod-link`),
+      T-521 (the fuzz target of the input of KCP), T-520 (the default of
+      the congestion window of KCP, when podnet answers),
       T-422 (long-poll, SSE, chunked),
       T-424 (UDP with KCP), T-493 (DNS simplex), T-494 (S3
       simplex), T-495 (HTTP poll simplex), T-497 (ICMP echo), T-500 (an

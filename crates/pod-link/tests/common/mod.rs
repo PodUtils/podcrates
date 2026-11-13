@@ -4,12 +4,16 @@
 
 #![allow(dead_code)]
 
+#[cfg(any(feature = "quic", feature = "udp"))]
+pub mod dgram;
 #[cfg(feature = "h2")]
 pub mod h2;
 #[cfg(feature = "quic")]
 pub mod quic;
 #[cfg(feature = "tcp")]
 pub mod tcp;
+#[cfg(feature = "udp")]
+pub mod udp;
 #[cfg(feature = "ws")]
 pub mod ws;
 

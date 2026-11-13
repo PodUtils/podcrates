@@ -1,0 +1,7 @@
+# The dial of the tcp carrier offers the ALPN by default, not the one of
+# the carrier (podnet's `podnet/1`): the listener refuses it (T-424).
+ENTRY=T-424
+GROUP=link
+EXPECT='the dial of the same ALPN'
+RUN='cargo test -p pod-link --all-features --test tcp both_ends_take_the_alpn_of_the_carrier'
+LIMIT=1800

@@ -33,8 +33,8 @@ pod-incus = { workspace = true }
 # `schema` is out: it is for the tests that generate the JSON Schemas, and no binary turns it on.
 pod-job = { workspace = true }
 # `tcp`: the probe links to itself over TLS on the loopback; `quic` over
-# QUIC.
-pod-link = { workspace = true, features = ["tcp", "ws", "h2", "quic"] }
+# QUIC; `udp` over KCP.
+pod-link = { workspace = true, features = ["tcp", "ws", "h2", "quic", "udp"] }
 pod-netlab = { workspace = true }
 # `ipv4-fragmentation`: a datagram over the MTU, so that the fragmenter of
 # smoltcp links in.

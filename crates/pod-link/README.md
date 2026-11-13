@@ -11,7 +11,8 @@ calls C116, C117 and C120 to C124. T-396 added the tcp carrier (feature
 (feature `h2`; PodUtils/podnet#515; call C254), T-310 the selective-repeat
 ARQ for a carrier that loses datagrams (PodUtils/podnet#468, row E2-2;
 calls C262 to C265), T-423 the quic carrier (feature `quic`;
-PodUtils/podnet#515; call C270). The crate reads no environment, keeps no global
+PodUtils/podnet#515; call C270), T-424 the udp carrier with KCP (feature
+`udp`; PodUtils/podnet#515; calls C271 and C272). The crate reads no environment, keeps no global
 state and prints nothing.
 
 ## Use
@@ -96,6 +97,20 @@ let mut door = quic.listen("0.0.0.0:7000").await?;              // UDP
 let io = quic.dial("SHA256:...@relay.example:7000").await?;
 ```
 
+The udp carrier runs KCP over UDP (the wire of KCP, PodUtils/podnet#468
+row E2-1) and the same TLS above KCP:
+
+```rust
+use pod_link::udp::{KcpSettings, Udp};
+
+let mut udp = Udp::new(provider, identity).with_clients(keys);
+udp.kcp = KcpSettings { nodelay: false, ..KcpSettings::default() }; // KCP's congestion window
+let mut door = udp.listen("0.0.0.0:7000").await?;
+let io = udp.dial("SHA256:...@relay.example:7000").await?;
+// The same handshake over any datagrams of one peer (a shim of loss):
+let (io, key) = udp.connect_over(datagrams, &target, &key_name).await?;
+```
+
 ## API
 
 | Item | What |
@@ -110,7 +125,7 @@ let io = quic.dial("SHA256:...@relay.example:7000").await?;
 | `CarrierError`, `CarrierErrorKind` | `Usage` (64), `InUse` and `Unavailable` (69), `NotFound` (66), `Refused` (77), `Io`; into `pod_core::Failure` (the stage `Connect`) |
 | `memory::Memory`, `memory::pair` | the memory carrier: listeners by name in the value (a clone shares them), a ring of 64 KiB to 64 MiB in each direction (1 MiB by default); a full ring makes the writer wait |
 | `unix::Unix`, `unix::pair` | the unix socket carrier (`cfg(unix)`): a path of 1 to 107 bytes, a socket of mode 0600, the claim of the path, the peer's uid; a socket pair for one process |
-| `tcp::Tcp` (feature `tcp`) | the tcp carrier: `new(provider, identity, way)`, `with_clients(keys)`, `clients`; the fields `connect_timeout` (20 s), `handshake_timeout` (10 s), `max_handshakes` (64); `address(text)` (the key and the target of `KEY@HOST:PORT`); `connect(&target, &key)` (the stream and the key of the listener); `bind(addr)`; as a `Carrier`: `dial("KEY@HOST:PORT")`, `listen("IP:PORT")` |
+| `tcp::Tcp` (feature `tcp`) | the tcp carrier: `new(provider, identity, way)`, `with_clients(keys)`, `clients`; the fields `connect_timeout` (20 s), `handshake_timeout` (10 s), `max_handshakes` (64), `alpn` (`podlink/1`; podnet gives `podnet/1`, call C273); `address(text)` (the key and the target of `KEY@HOST:PORT`); `connect(&target, &key)` (the stream and the key of the listener); `bind(addr)`; as a `Carrier`: `dial("KEY@HOST:PORT")`, `listen("IP:PORT")` |
 | `tcp::TlsListener` | `local_addr`, `accept_key` (the stream and the key of the client); a `Listener` (`accept_peer` gives the key); a drop ends its handshakes under way |
 | `ws::Ws` (feature `ws`) | the ws carrier: `new(provider, identity, way)`, `with_clients(keys)`, `clients`; the fields `connect_timeout` (20 s), `handshake_timeout` (10 s, the TLS and the upgrade of a dial), `serve` (the deadlines and the caps of the accept loop of a listener, `pod_ws::serve::Serve`), `protocol` (the subprotocol of both ends; none by default), `beat` (`Beat`); `with_protocol(name)`; `check`; `address(text)` (the key and the URL of `KEY@wss://HOST[:PORT]/PATH`); `connect(&url, &key)`; `bind(addr)`; as a `Carrier`: `dial("KEY@wss://HOST[:PORT]/PATH")`, `listen("IP:PORT")` |
 | `ws::WsListener` | `local_addr`, `accept_key`; a `Listener`; a drop ends its accept loop |
@@ -123,6 +138,11 @@ let io = quic.dial("SHA256:...@relay.example:7000").await?;
 | `quic::Quic` (feature `quic`) | the quic carrier: `new(provider, identity)`, `with_clients(keys)`, `with_way(way)` (the dials send over `Dial::datagrams`), `with_resolver(resolver)`, `clients`; the fields `alpn` (`podlink/1`), `transport` (`pod_quic::Settings`: a silence of 30 s, a keepalive each 10 s), `connect_timeout` (20 s: the resolution and the datagrams of the way), `handshake_timeout` (10 s), `max_handshakes` (64), `linger` (10 s); `address(text)`; `connect(&target, &key)`; `bind(addr)`, `bind_over(datagrams)`; as a `Carrier`: `dial("KEY@HOST:PORT")`, `listen("IP:PORT")` |
 | `quic::QuicListener` | `local_addr`, `accept_key`; a `Listener`; a drop ends its handshakes under way and takes no new connection |
 | `quic::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES, SILENCE, KEEPALIVE, LINGER, transport}` | the constants of the quic carrier, and its transport by default |
+| `udp::Udp` (feature `udp`) | the udp carrier: `new(provider, identity)`, `with_clients(keys)`, `with_way(way)`, `with_resolver(resolver)`, `clients`; the fields `alpn` (`podlink/1`), `kcp` (`KcpSettings`), `connect_timeout` (20 s), `handshake_timeout` (10 s), `max_handshakes` (64); `address(text)`; `connect(&target, &key)`; `connect_over(datagrams, &target, &key)` and `accept_over(datagrams, &from)` (the handshake over any `datagram::Datagrams` of one peer); `bind(addr)`, `bind_over(datagrams)`; as a `Carrier`: `dial("KEY@HOST:PORT")`, `listen("IP:PORT")` |
+| `udp::UdpListener` | `local_addr`, `accept_key`; a `Listener`; a drop ends its handshakes under way and starts no session; the sessions that it gave live on |
+| `udp::KcpSettings`, `udp::KcpSettingsError` | `mtu` (1200), `segment` (1 KiB), `window` (256; 32 to 1024), `nodelay` (off: KCP's congestion window), `interval` (10 ms), `resend` (2), `idle` (20 s); `check` |
+| `udp::KcpStream` | KCP in stream mode over a `datagram::Datagrams` as one byte stream: `new(datagrams, conv, settings)` (`None` takes the conversation of the first datagram), `conv`. No end of its own; a shutdown returns when the peer acknowledged each byte; after a drop the task sends the bytes in flight |
+| `udp::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES, MTU, SEGMENT, MIN_WINDOW, MAX_WINDOW, IDLE, KCP_HEADER}` | the constants of the udp carrier |
 | `tcp::{Keys, Refusal, refusal}`, `tcp::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES}` | the shared set of client keys, the refusal of a key with the key seen, its finder in an error (from `pod_tls::peer`); the constants |
 | `frame` | `Frame`, `Decoder` (`new`, `with_preface`, `push`, `next`, `buffered`), `FrameError`, `PREFACE`, `HEADER`, `MAX_RECORD`, `kind` |
 | `arq::ArqStream` | the ARQ over a datagram carrier as one ordered byte stream (`AsyncRead` and `AsyncWrite`): `new(datagrams, settings)` starts its task on the current tokio runtime; `handle`. A write is one record; a shutdown sends the `FIN` and returns at its acknowledgement; a drop sends the `FIN`; when its frames are acknowledged, the task answers the peer until the peer is silent for two RTO ceilings (at most 64 s), then ends; an error also ends it |
@@ -144,6 +164,7 @@ let io = quic.dial("SHA256:...@relay.example:7000").await?;
 | `tcp` | the tcp carrier (`tcp`): `pod-tls`, rustls and tokio-rustls, with the provider of the caller, and the `async` feature of `pod-core` for the way out |
 | `ws` | the ws carrier (`ws`): `tcp`, and `pod-ws` with its feature `serve` |
 | `h2` | the h2 carrier (`h2`): `tcp`, h2, http and bytes, and `pod-ws` for the byte stream of an HTTP/2 stream |
+| `udp` | the udp carrier (`udp`): `tcp`, and `kcp` (KCP in pure Rust, with no feature) |
 | `quic` | the quic carrier (`quic`): `tcp`, and `pod-quic` (noq with no `ring` and no `aws-lc`; the TLS provider is the caller's) |
 
 ## The wire
@@ -481,6 +502,41 @@ feature `quic`):
   `link-quic-handshake-inline`, `link-quic-drop-closes-at-once`,
   `link-quic-way-unused` (`scripts/plants/`).
 
+The asks of PodUtils/podnet#515 for the UDP carrier with KCP
+(PodUtils/podnet@T-276, row E2-1 of PodUtils/podnet#468) and the tests
+that hold them (`tests/udp.rs`, `tests/udp_loss.rs`, feature `udp`):
+
+- [x] A link over KCP with TLS carries streams, and the dial goes over the
+  datagrams of the caller's way out: `a_link_over_kcp_carries_streams`.
+- [x] The pin of each key; another key is refused on each side, with the
+  key seen named (77): `the_dialer_refuses_a_listener_of_another_key_and_names_it`,
+  `the_listener_refuses_a_client_of_another_key_and_stays_open`.
+- [x] MTU 1200, segments of 1 KiB, a window of 32 to 1024, 20 s of
+  silence: `the_carrier_says_what_it_gives_and_why_it_cannot_run`,
+  `an_address_or_a_setting_out_of_its_form_is_a_usage_error`,
+  `a_peer_that_goes_silent_ends_the_stream_at_the_idle_limit`.
+- [x] Loss, reorder and duplicates on the `Lossy` shim:
+  `one_mib_crosses_each_way_with_no_loss`,
+  `one_mib_crosses_each_way_at_three_percent_loss_with_reorder_and_duplicates`;
+  8 MiB each way at 5 % loss and 1 % reorder with `nodelay`:
+  `eight_mib_cross_at_five_percent_loss_and_one_percent_reorder_with_nodelay`.
+- [ ] A run at 20 % loss within 3 times the clean time: not held with the
+  congestion window of KCP (podnet's default) and at 4.1 times with
+  `nodelay` on the shim (call C272); T-520 asks podnet.
+- [x] `available()` names a host that refuses UDP (69), and the carrier
+  then sends nothing: `the_carrier_says_what_it_gives_and_why_it_cannot_run`
+  (a provider with no TLS 1.3; a host with no UDP is not made here).
+- [x] A peer that stops in its handshake holds no other one:
+  `a_peer_that_stops_in_its_handshake_holds_no_other_one`; a silent
+  listener ends the dial: `a_silent_listener_ends_the_dial_at_its_time_limit`;
+  datagrams of a stranger start no session and change no link:
+  `datagrams_of_a_stranger_change_nothing`; the bytes before a drop reach
+  the peer: `the_bytes_before_a_drop_reach_the_peer`; a listener over the
+  caller's datagrams: `a_listener_runs_over_the_datagrams_of_the_caller`.
+- [x] A plant for each check: `link-udp-handshake-inline`,
+  `link-udp-stranger-starts-a-session`, `link-udp-drop-stops-at-once`,
+  `link-udp-idle-unchecked` (`scripts/plants/`).
+
 ## The adoption map
 
 | podnet | pod-link |
@@ -493,6 +549,7 @@ feature `quic`):
 | PodUtils/podnet@T-269: the WebSocket carrier, its server half | `ws::Ws` (feature `ws`): one row of the registry holds `Box::new(Ws::new(provider, identity, way).with_clients(keys))`; the dial address is `KEY@wss://HOST[:PORT]/PATH`; the listener is `listen("IP:PORT")` on the accept loop of `pod-ws`, with podnet's deadlines and caps in `Ws::serve` |
 | PodUtils/podnet@T-270: the HTTP/2 carrier, one bidirectional POST | `h2::H2` (feature `h2`): one row of the registry holds `Box::new(H2::new(provider, identity, way).with_clients(keys))`; the dial address is `KEY@https://HOST[:PORT]/PATH`; the listener is `listen("IP:PORT")`. podnet's `body_reader` and `body_writer` are `pod_ws::h2_road::duplex` here |
 | PodUtils/podnet@T-273: the QUIC carrier | `quic::Quic` (feature `quic`): one row of the registry holds `Box::new(Quic::new(provider, identity).with_clients(keys))` with `alpn = b"podnet/1"`, and `with_way(way)` when podnet's way carries UDP; the dial address is `KEY@HOST:PORT`; the listener is `listen("IP:PORT")` on UDP |
+| PodUtils/podnet@T-276: the UDP carrier with KCP | `udp::Udp` (feature `udp`): one row of the registry holds `Box::new(Udp::new(provider, identity).with_clients(keys))` with `alpn = b"podnet/1"` and podnet's `KcpSettings` (`--kcp-nodelay 1` is `nodelay: true`); the dial address is `KEY@HOST:PORT`; the listener is `listen("IP:PORT")`; podnet's shim tests take `connect_over` and `accept_over` over `datagram::lossy::Lossy` |
 | PodUtils/podnet@T-277: the selective-repeat ARQ for any lossy carrier | `arq::ArqStream` over a `datagram::Datagrams` (each lossy carrier of podnet gives one), then `Link::new` over the stream; `arq::ArqHandle::rekey_wanted` is the ask of the record layer (PodUtils/podnet@T-298) for a rekey; podnet's `tests/link_arq.rs` takes `datagram::lossy::Lossy` over `datagram::memory::pair` as its shim |
 | exit 64, 69, 77 of a carrier | `CarrierError::class().exit_code()` |
 | exit of a link | `Error::class().exit_code()`: a dead link 75, a broken protocol 76 |

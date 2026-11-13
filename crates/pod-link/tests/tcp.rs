@@ -3,7 +3,8 @@
 //! key of the client; a key is named in each form of `KeyName`; the
 //! carrier says why a host or a provider cannot use it; an address out of
 //! its form is a usage error; a peer that sends nothing holds no other
-//! handshake. The refusals are in `tests/tcp_refused.rs`.
+//! handshake; both ends take the ALPN of the carrier. The refusals are in
+//! `tests/tcp_refused.rs`.
 
 #![cfg(feature = "tcp")]
 
@@ -198,4 +199,25 @@ fn the_constants_of_the_carrier() {
     assert!(tcp.clients().list().is_empty(), "a new carrier takes no client");
     let shown = format!("{tcp:?}");
     assert!(shown.contains(&id(1).public().fingerprint()) && shown.contains("test-direct"), "{shown}");
+}
+
+#[tokio::test]
+async fn both_ends_take_the_alpn_of_the_carrier() {
+    pod_testkit::need_loopback!();
+    let (server, client) = (id(1), id(2));
+    let mut listening = carrier(1, Arc::new(Direct::default()), &[client.public()]);
+    listening.alpn = b"podnet/1";
+    let mut door = bound(&listening).await;
+    let address = at(&server.public(), &door);
+    let e = carrier(2, Arc::new(Direct::default()), &[]).dial(&address).await.err().expect("a dial of another ALPN");
+    assert_ne!(e.kind, CarrierErrorKind::Refused, "{e}");
+    let far = timeout(LIMIT, door.accept_key()).await.expect("in time").err().expect("an accept of another ALPN");
+    assert!(far.to_string().contains("TLS handshake"), "{far}");
+    let mut dialing = carrier(2, Arc::new(Direct::default()), &[]);
+    dialing.alpn = b"podnet/1";
+    let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
+    let (near, far) = timeout(LIMIT, both).await.expect("in time");
+    near.expect("the dial of the same ALPN");
+    assert_eq!(far.expect("the accept").1, client.public());
+    assert_eq!(Tcp::new(ring(), id(1), Arc::new(Direct::default())).alpn, tcp::ALPN);
 }

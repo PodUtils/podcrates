@@ -5417,6 +5417,12 @@ cargo test -p pod-link --all-features
 
 The first carrier over a shared path (T-424, T-498 or T-499) starts.
 
+## Correction
+
+2026-11-13, call C271: the udp carrier of T-424 runs the wire of KCP with
+the congestion window of KCP, not this ARQ. The first carrier of the ARQ
+over a shared path is T-498 or T-499.
+
 # T-516: `pod-link`: a fuzz target of the datagrams of the ARQ
 
 **Source:** T-310 (a finding of its work)
@@ -5444,4 +5450,65 @@ A target `link_arq`: the input is a list of datagrams, each given to one `Arq` w
 ```sh
 cargo check --manifest-path fuzz/Cargo.toml --bins
 cargo test -p pod-link --all-features
+```
+
+# T-520: `pod-link`: the default of the congestion window of KCP against podnet's gate of 20 % loss (PodUtils/podnet#515)
+
+**Source:** T-424 (call C272, a finding of its work); PodUtils/podnet#468, row E2-1.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Row E2-1 of PodUtils/podnet#468 says "Congestion control is the KCP default" and "`--kcp-nodelay 1` [...] is not the default", and its gate is "an 8 MiB round trip over a 5% drop and 1% reorder shim; a 20% drop run within 3 times the clean time". The congestion window of KCP falls to one segment at each loss of a retransmission, so at random loss its throughput falls far below the clean one: the two rules disagree. The udp carrier of T-424 keeps the congestion window by default (`KcpSettings::nodelay` off) and runs the gate of 8 MiB with `nodelay`.
+
+## Premise
+
+- Measured (2026-11-13, a debug build, the `Lossy` shim of a memory pair, 2 MiB each way): with the congestion window 0.13 s clean, 3.1 s at 1 % loss, 12.4 s at 5 %, 75 s at 20 %; with `nodelay` 0.11 s clean, 0.16 s at 5 %, 0.44 s at 20 % (4.1 times the clean time).
+- Not measured: a release build; UDP of the system with a real delay.
+
+## Approach
+
+Ask podnet (a COORD issue of podcrates `(to podnet)`) which default it wants: the congestion window of KCP (and a gate of 20 % with `nodelay`), or `nodelay` by default. Then set the default of `KcpSettings`, and add the run at 20 % loss with its bound of time (in a release build, or with a bound that a debug build holds) to `tests/udp_loss.rs`.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test udp_loss
+```
+
+## Start condition
+
+podnet answers the question, or starts its PodUtils/podnet@T-276.
+
+# T-521: `pod-link`: a fuzz target of the datagrams of the udp carrier (the input of KCP)
+
+**Source:** T-424 (a finding of its work)
+**Category:** chore
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The udp carrier of T-424 gives each datagram of its peer's address and conversation to `kcp::Kcp::input` (the crate `kcp` 0.6.0) before TLS checks a byte, and a stranger who knows the address and the conversation can send any bytes. The arithmetic of the crate overflows on some values: an `ACK` with an old time stamp gives a round trip near 2^31 ms, and `4 * rx_rttval` in `update_ack` overflows, which panics in a build with overflow checks (a debug build) and wraps in the release profile of the workspace. The task of `udp::KcpStream` ends the stream with an error when it ends by a panic (the test `a_datagram_that_breaks_kcp_ends_the_stream_with_an_error` of `crates/pod-link/tests/udp_loss.rs` gives one such `ACK`), but no fuzz target reads such datagrams.
+
+## Premise
+
+- Read: the source of `kcp` 0.6.0 (`src/kcp.rs`: `input`, `update_ack`, `parse_data`, `recv`); `crates/pod-link/src/udp/stream.rs`; `fuzz/fuzz_targets/link_frame.rs`.
+- Not measured: no fuzz run; no forged datagram in a test.
+
+## Approach
+
+A target `link_kcp`: the input is a list of datagrams with a clock that moves by a byte of the input, each given to `Kcp::input` of one end in stream mode, with `update`, `flush` and `recv` after each. Find each panic; where one comes from the crate, take a datagram that holds it into a test of `crates/pod-link/tests/udp_loss.rs` (the stream ends with an error, no other stream is hurt), and send the fix upstream or keep a check before `input` (the time stamp of an `ACK` within the last minute). The row of `fuzz/README.md` and the check of the fuzz workspace.
+
+## Prove
+
+```sh
+cargo check --manifest-path fuzz/Cargo.toml --bins
+cargo test -p pod-link --all-features --test udp_loss
 ```

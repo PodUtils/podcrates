@@ -38,7 +38,7 @@ use pod_quic::noq::crypto::rustls::QuicClientConfig;
 use pod_quic::noq::{self, VarInt};
 use pod_tls::peer::{self, Keys};
 use rustls::crypto::CryptoProvider;
-use tokio::time::{Instant, timeout, timeout_at};
+use tokio::time::timeout;
 
 pub use listen::QuicListener;
 
@@ -197,28 +197,6 @@ impl Quic {
         transport
     }
 
-    /// The address of `target`: the address itself, or the first address
-    /// of its name.
-    async fn resolve(&self, target: &Target) -> Result<SocketAddr, CarrierError> {
-        let (host, port) = match target {
-            Target::Addr(addr) => return Ok(*addr),
-            Target::Name { host, port } => (host, *port),
-        };
-        let deadline = Instant::now() + self.connect_timeout;
-        let found = match &self.resolver {
-            Some(resolver) => timeout_at(deadline, resolver.resolve(host, port, deadline))
-                .await
-                .map_err(|_| io_timeout(format!("the resolution of {host} took more than {:?}", self.connect_timeout)))?
-                .map_err(|f| pin::of_failure(NAME, target, &resolver.label(), f))?,
-            None => timeout_at(deadline, tokio::net::lookup_host((host.as_str(), port)))
-                .await
-                .map_err(|_| io_timeout(format!("the resolution of {host} took more than {:?}", self.connect_timeout)))?
-                .map_err(|e| CarrierError::io(NAME, format!("the resolution of {host}"), e))?
-                .collect(),
-        };
-        found.first().copied().ok_or_else(|| err(CarrierErrorKind::NotFound, format!("{host} has no address")))
-    }
-
     /// The endpoint of one dial toward `addr`.
     async fn endpoint(&self, target: &Target, addr: SocketAddr) -> Result<noq::Endpoint, CarrierError> {
         let failed = |label: &str, f| pin::of_failure(NAME, target, label, f);
@@ -243,7 +221,7 @@ impl Quic {
         let tls = peer::client_config(self.provider.clone(), self.identity.clone(), peer.clone(), &[self.alpn])
             .map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
         let crypto = QuicClientConfig::try_from(tls).map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
-        let addr = self.resolve(target).await?;
+        let addr = pin::resolve(NAME, self.resolver.as_deref(), target, self.connect_timeout).await?;
         let mut config = noq::ClientConfig::new(Arc::new(crypto));
         config.transport_config(Arc::new(self.transport_config(addr.is_ipv6(), 1)));
         let endpoint = self.endpoint(target, addr).await?;

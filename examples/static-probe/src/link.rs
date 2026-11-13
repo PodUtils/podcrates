@@ -1,8 +1,8 @@
 //! pod-link: two ends of a link over the memory carrier carry one stream,
-//! the unix carrier checks the host, and the tcp, the ws, the h2 and the
-//! quic carriers dial their own listeners over TLS with the pin of their
-//! key, so that the driver of a link, the frame codec and each carrier link
-//! in.
+//! the unix carrier checks the host, and the tcp, the ws, the h2, the quic
+//! and the udp carriers dial their own listeners over TLS with the pin of
+//! their key, so that the driver of a link, the frame codec and each
+//! carrier link in.
 
 use std::sync::Arc;
 
@@ -10,6 +10,7 @@ use pod_identity::{Identity, KeyName};
 use pod_link::h2::H2;
 use pod_link::quic::Quic;
 use pod_link::tcp::{Keys, Tcp};
+use pod_link::udp::Udp;
 use pod_link::ws::Ws;
 use pod_link::{Carrier, Link, Role, Settings};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -37,8 +38,9 @@ pub fn link(way: Arc<dyn pod_core::Dial>) -> String {
     let ws = runtime.block_on(ws(way.clone()));
     let h2 = runtime.block_on(h2(way));
     let quic = runtime.block_on(quic());
+    let udp = runtime.block_on(udp());
     format!(
-        "pod-link: {} bytes over the memory carrier, the unix carrier {unix}, the tcp carrier {tcp}, the ws carrier {ws}, the h2 carrier {h2}, the quic carrier {quic}",
+        "pod-link: {} bytes over the memory carrier, the unix carrier {unix}, the tcp carrier {tcp}, the ws carrier {ws}, the h2 carrier {h2}, the quic carrier {quic}, the udp carrier {udp}",
         echoed.map_or_else(|e| e.to_string(), |n| n.to_string())
     )
 }
@@ -116,6 +118,26 @@ async fn quic() -> String {
     let address = format!("{}@{}", key.hex(), door.local_addr());
     match tokio::join!(carrier.dial(&address), door.accept_key()) {
         (Ok(_), Ok((_, peer))) => format!("linked to {peer} over QUIC"),
+        (Err(e), _) | (_, Err(e)) => e.to_string(),
+    }
+}
+
+/// A dial of the udp carrier to its own listener: KCP over UDP, TLS above.
+async fn udp() -> String {
+    let identity = Arc::new(Identity::from_seed(&[15; 32]));
+    let key = identity.public();
+    let provider = Arc::new(pod_tls::crypto::provider());
+    let carrier = Udp::new(provider, identity).with_clients(Keys::new([KeyName::Key(key)]));
+    if let Err(e) = carrier.available() {
+        return e.to_string();
+    }
+    let mut door = match carrier.bind(([127, 0, 0, 1], 0).into()).await {
+        Ok(door) => door,
+        Err(e) => return e.to_string(),
+    };
+    let address = format!("{}@{}", key.hex(), door.local_addr());
+    match tokio::join!(carrier.dial(&address), door.accept_key()) {
+        (Ok(_), Ok((_, peer))) => format!("linked to {peer} over KCP"),
         (Err(e), _) | (_, Err(e)) => e.to_string(),
     }
 }

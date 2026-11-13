@@ -7,7 +7,9 @@
 use std::fmt;
 use std::io;
 
-use pod_core::{Class, Connected, Dial, Failure, Target};
+use std::net::SocketAddr;
+
+use pod_core::{Class, Connected, Dial, Failure, Resolve, Target};
 use pod_identity::{KeyName, PublicKey};
 use pod_tls::peer::{self, refusal};
 use rustls::pki_types::ServerName;
@@ -48,6 +50,45 @@ pub(crate) fn key_at<'a>(
         )
     })?;
     Ok((key, rest))
+}
+
+/// The address of `target` for a carrier of datagrams: the address
+/// itself, or the first address of its name from `resolver`, else from the
+/// system, within `limit`.
+#[cfg_attr(not(any(feature = "quic", feature = "udp")), allow(dead_code))]
+pub(crate) async fn resolve(
+    carrier: &'static str,
+    resolver: Option<&dyn Resolve>,
+    target: &Target,
+    limit: Duration,
+) -> Result<SocketAddr, CarrierError> {
+    let (host, port) = match target {
+        Target::Addr(addr) => return Ok(*addr),
+        Target::Name { host, port } => (host, *port),
+    };
+    let late = || {
+        CarrierError::new(
+            carrier,
+            CarrierErrorKind::Io(io::ErrorKind::TimedOut),
+            format!("the resolution of {host} took more than {limit:?}"),
+        )
+    };
+    let deadline = Instant::now() + limit;
+    let found = match resolver {
+        Some(resolver) => timeout_at(deadline, resolver.resolve(host, port, deadline))
+            .await
+            .map_err(|_| late())?
+            .map_err(|f| of_failure(carrier, target, &resolver.label(), f))?,
+        None => timeout_at(deadline, tokio::net::lookup_host((host.as_str(), port)))
+            .await
+            .map_err(|_| late())?
+            .map_err(|e| CarrierError::io(carrier, format!("the resolution of {host}"), e))?
+            .collect(),
+    };
+    found
+        .first()
+        .copied()
+        .ok_or_else(|| CarrierError::new(carrier, CarrierErrorKind::NotFound, format!("{host} has no address")))
 }
 
 /// A dial of `target` through `way` within `limit`. The tcp carrier has a

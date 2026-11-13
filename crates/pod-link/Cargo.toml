@@ -20,6 +20,9 @@ h2 = ["tcp", "dep:h2", "dep:http", "dep:bytes", "dep:pod-ws"]
 # The quic carrier: one bidirectional stream of a QUIC connection of
 # pod-quic, with the TLS and the pins of `tcp` (`quic`).
 quic = ["tcp", "dep:pod-quic"]
+# The udp carrier: KCP over UDP or the caller's datagrams, with the TLS and
+# the pins of `tcp` above it (`udp`).
+udp = ["tcp", "dep:kcp"]
 
 [dependencies]
 # The failure and its stage and class; the way out of the tcp carrier.
@@ -41,6 +44,9 @@ bytes = { workspace = true, optional = true }
 # QUIC of the quic carrier: noq with the TLS provider of the caller, over a
 # system socket or the datagrams of the caller's way out.
 pod-quic = { workspace = true, optional = true }
+# KCP of the udp carrier: the ARQ of ikcp in pure Rust, with its wire and
+# its congestion window (call C271). No feature: no tokio of its own.
+kcp = { version = "0.6", default-features = false, optional = true }
 # The driver of a link, the streams, the carriers and the keepalive's clock.
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros"] }
 tracing = { workspace = true }
