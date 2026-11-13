@@ -987,6 +987,7 @@ memfd, SUD, `openat2`, `/dev/kvm`, `/dev/fuse`, `/dev/net/tun`, cgroup).
 - Not measured: the JSON.
 - podrunner is a consumer (PodUtils/podvm#227 section 2.7). The host qualification that the design review (DR-15) gives to `pod doctor` comes from this report, and `podrunner doctor` reads it. The podvm driver reads `podvm probe --json`.
 - podswarm is a consumer (GitHub #82, podswarm P-5, read 2026-11-13): it asks for `report(&Findings) -> serde_json::Value` that validates against the schema of this entry, released with each tag. Its map to capabilities and its cache across runs are T-443; its new rows are T-444.
+- The first part is done (T-485, 2026-11-13, commit `5a2b5fd`): the module `report` of the feature `report` writes `Findings` and `Selection` as a JSON object with the number `schema` (1), and reads it back (calls C242, C243; the README of the crate, "The report"). The JSON Schema file in `schemas/`, the value `unknown` and the form that podswarm asks for go on that object.
 
 ## Approach
 
@@ -5421,7 +5422,7 @@ podswarm (Q15).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5461,3 +5462,44 @@ schema follows on the same object.
 ```sh
 cargo test -p pod-hostprobe --all-features
 ```
+
+## Done
+
+2026-11-13, commit `5a2b5fd`. `pod-hostprobe` has the module `report`
+(feature `report`, off by default; the serde and serde_json of the
+workspace). `report::write(&Findings, &Selection) -> String` gives one
+line of JSON, and `report::read(&str) -> Result<(Findings, Selection),
+ReadError>` gives the two back. The object (calls C242 and C243; the
+README, "The report", has each field):
+
+```text
+{"schema":1,
+ "findings":{"rows":[{"name","verdict","errno","reason"}],
+             "identity":{"uid","gid","groups","uid_map","gid_map","setgroups",
+                         "cap_eff","cap_prm","cap_bnd","seccomp","seccomp_filters",
+                         "no_new_privs","threads","unreadable"},
+             "writable":[{"path","source","verdict","errno","reason",
+                          "space":{"blocks_free","block_size","inodes_free"},
+                          "space_errno"}],
+             "self_exe"},
+ "selection":{"rung","rejected":[{"rung","evidence"}],
+              "controls_answered","control_notes"}}
+```
+
+Each row name of `read` is the `&'static str` of its entry of
+`probes::PROBES`. `read` refuses with a `ReadError`: `Form` (not a JSON
+object, a missing or an unknown field), `Version` (before the form),
+`UnknownRow`, `DuplicateRow`, `Word` (a verdict or a rung),
+`DenialWithoutErrno`. The new `Rung::requirement` gives the requirement
+of a rejected rung, and `Selection::choose` uses it.
+
+`cargo test -p pod-hostprobe --all-features`: 124 unit tests pass, 13 of
+them in `report` (the round trip `write`, `read`, `write` on a fake set and
+on the findings of this host under libtest, and each refusal);
+`tests/children.rs` reads back the report of the whole set of this host
+(66 rows, 7301 bytes) to the same text. The plant
+`hostprobe-report-reads-an-unknown-row` (a `read` that keeps the name of
+an unknown row) fails `a_row_that_probes_does_not_name_is_refused`. The
+static probe turns on `report`. podvm embeds the object under one key of
+its `report::document` and reads that key back (PodUtils/podvm@T-1746).
+The answer on PodUtils/podvm#291 goes with the tag that holds `report`.

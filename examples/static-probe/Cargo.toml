@@ -24,7 +24,8 @@ pod-enter = { workspace = true }
 pod-extract = { workspace = true }
 pod-gsr = { workspace = true, features = ["blocking"] }
 pod-guest = { workspace = true }
-pod-hostprobe = { workspace = true }
+# `report`: the probe writes the report of an empty set and reads it back.
+pod-hostprobe = { workspace = true, features = ["report"] }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
 pod-hold = { workspace = true, features = ["syn-hold"] }
 pod-identity = { workspace = true }
