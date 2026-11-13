@@ -20,11 +20,13 @@ is done. Git and the record keep finished work.
 - The last release: `v0.37.0` at `3c5a086` (the hand-off #134, open).
   The COORD issue of the freeze of `pod-warp` is #135: podnet took the
   crate at `f6abdc3`; podssh applies its trial patch and answers there. `main`
-  holds T-475, T-305, T-301 and T-503 for the next tag.
-- The nightly at `613058c` is red (run 43195242737): macOS and riscv64
-  are T-325 (done); the two Windows jobs did not compile
-  `crates/pod-relay/tests/reverse_plain.rs`. T-488 has the fix; a
-  dispatched nightly proves it, and T-325 and T-307.
+  holds T-475, T-305, T-301 and T-503 for the next tag. The release
+  `v0.38.0` is in work (`docs/releases/v0.38.0.md`); agents work on T-506
+  with T-510 and on T-310 in `.claude/worktrees/x506` and `y310`.
+- The nightly at `a627ab0` (run 43382143089) builds the tests on Windows
+  (T-488, done); three tests of `pod-services-watch` fail there (T-507:
+  the fix is on `main`, and the step `Test` takes `--no-fail-fast`). The
+  next nightly proves it and shows the rest of the Windows tests.
 - podswarm's tracker is PodUtils/podswarm#1 (moved from #107). githome
   builds its side of a live test (#83, 2026-11-13): it waits for T-106
   (the conformance binary of `pod-testkit`) and T-100 (`pod-broker`),
