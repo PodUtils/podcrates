@@ -201,6 +201,11 @@ debug = "line-tables-only"
 [profile.dev.package."*"]
 debug = false
 
+# The clock and the sequence numbers of KCP wrap by design, as in ikcp. The
+# test profile takes this from dev. fuzz/Cargo.toml keeps the checks.
+[profile.dev.package.kcp]
+overflow-checks = false
+
 [profile.release]
 opt-level = 3
 lto = "thin"

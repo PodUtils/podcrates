@@ -52,8 +52,12 @@ pod-job = { path = "../crates/pod-job" }
 # The expressions and the workflow files of GitHub Actions (T-251).
 pod-actions-expr = { path = "../crates/pod-actions-expr" }
 pod-actions-workflow = { path = "../crates/pod-actions-workflow" }
-# The frames of a link (T-300).
-pod-link = { path = "../crates/pod-link" }
+# The frames of a link (T-300), the reader of HTTP/1.1 and of SSE of the
+# poll carriers (feature `fuzzing`, T-518) and KCP of the udp carrier
+# (T-521).
+pod-link = { path = "../crates/pod-link", features = ["fuzzing", "udp"] }
+# The runtime of the target `link_kcp`, with a clock that the target moves.
+tokio = { version = "1", default-features = false, features = ["rt", "time", "test-util", "io-util"] }
 # The connect information of a Dev Tunnel (T-378).
 pod-devtunnel = { path = "../crates/pod-devtunnel" }
 # The counters of a network lab (T-207).
@@ -85,6 +89,9 @@ debug = 1
 # minutes (T-206, Done).
 [profile.dev.package."*"]
 opt-level = 2
+
+# The root workspace builds `kcp` with no overflow checks (T-526). This
+# workspace keeps them: `link_kcp` then exercises the guard of the task.
 
 [[bin]]
 name = "one_line"
@@ -390,6 +397,20 @@ bench = false
 [[bin]]
 name = "link_arq"
 path = "fuzz_targets/link_arq.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "link_poll_wire"
+path = "fuzz_targets/link_poll_wire.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "link_kcp"
+path = "fuzz_targets/link_kcp.rs"
 test = false
 doc = false
 bench = false

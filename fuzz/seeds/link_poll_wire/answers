@@ -1,0 +1,39 @@
+@HTTP/1.1 201 Created
+Cache-Control: no-store
+Content-Length: 0
+
+HTTP/1.1 202 Accepted
+Pod-Ack: 5
+Content-Length: 0
+
+HTTP/1.1 200 OK
+Pod-Fin: 1
+Content-Length: 3
+
+abcHTTP/1.1 204 No Content
+Cache-Control: no-store
+
+HTTP/1.1 200 OK
+Content-Type: text/event-stream
+Transfer-Encoding: chunked
+
+8
+: ping
+
+
+34
+id: 5
+data: aGVsbG8=
+
+id: 10
+data: d29y
+data: bGQ=
+
+
+11
+event: fin
+data
+
+
+0
+

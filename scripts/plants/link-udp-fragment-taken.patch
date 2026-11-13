@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/udp/stream.rs b/crates/pod-link/src/udp/stream.rs
+--- a/crates/pod-link/src/udp/stream.rs
++++ b/crates/pod-link/src/udp/stream.rs
+@@ -299,7 +299,7 @@
+             // A datagram of another form or conversation is dropped: a
+             // carrier of datagrams can give bytes of a stranger.
+             let taken = shared.with(|i| {
+-                let taken = !foreign(&datagram) && i.kcp.input(&datagram).is_ok();
++                let taken = i.kcp.input(&datagram).is_ok();
+                 if taken {
+                     i.heard = now();
+                     i.wake();

@@ -1,0 +1,8 @@
+# The udp carrier gives a fragment of a message of a stranger to KCP: the
+# reader of the crate kcp overflows on a fragment count of 255, or gives
+# the bytes of the fragment (T-521).
+ENTRY=T-521
+GROUP=link
+EXPECT='attempt to add with overflow|not of the fragment'
+RUN='cargo test -p pod-link --all-features --test udp_loss a_fragment_of_a_stranger'
+LIMIT=1800

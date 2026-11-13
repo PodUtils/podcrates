@@ -1,7 +1,7 @@
-# A panic of the task of KCP (a datagram that breaks the crate kcp) leaves
+# A panic of the task of KCP (a broken carrier, or the crate kcp) leaves
 # the stream of the udp carrier waiting for ever (T-424).
 ENTRY=T-424
 GROUP=link
 EXPECT='the end in time'
-RUN='cargo test -p pod-link --all-features --test udp_loss a_datagram_that_breaks_kcp_ends_the_stream_with_an_error'
+RUN='cargo test -p pod-link --all-features --test udp_loss a_panic_of_the_task_ends_the_stream_with_an_error'
 LIMIT=1800

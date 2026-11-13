@@ -122,20 +122,62 @@ async fn a_peer_that_goes_silent_ends_the_stream_at_the_idle_limit() {
     assert!(began.elapsed() >= Duration::from_millis(900), "not before the idle limit: {:?}", began.elapsed());
 }
 
-/// An `ACK` whose time stamp is 2^31 ms old overflows the arithmetic of
-/// the crate `kcp`, which panics in a build with overflow checks: the
-/// stream ends with an error and does not wait for ever (T-521).
-#[cfg(debug_assertions)]
+/// A carrier of datagrams that panics in `recv`.
+struct Panics;
+
+impl Datagrams for Panics {
+    fn mtu(&self) -> usize {
+        DEFAULT_MTU
+    }
+
+    fn send<'a>(&'a self, _: &'a [u8]) -> pod_link::datagram::DatagramFuture<'a, ()> {
+        Box::pin(async { Ok(()) })
+    }
+
+    fn recv(&self) -> pod_link::datagram::DatagramFuture<'_, Vec<u8>> {
+        Box::pin(async { panic!("a broken carrier") })
+    }
+}
+
+/// A panic of the task of KCP (a broken carrier, or the arithmetic of the
+/// crate `kcp` in a build with its overflow checks) ends the stream with
+/// an error: it does not wait for ever (T-521, T-526).
 #[tokio::test]
-async fn a_datagram_that_breaks_kcp_ends_the_stream_with_an_error() {
-    let (a, b) = pair(DEFAULT_MTU, DEFAULT_DEPTH);
-    let mut stream = KcpStream::new(a, Some(7), KcpSettings::default()).unwrap();
-    let mut ack = [0u8; 24];
-    ack[..4].copy_from_slice(&7u32.to_le_bytes());
-    ack[4] = 82;
-    ack[8..12].copy_from_slice(&0x8000_0000u32.to_le_bytes());
-    b.send(&ack).await.unwrap();
+async fn a_panic_of_the_task_ends_the_stream_with_an_error() {
+    let mut stream = KcpStream::new(Panics, Some(7), KcpSettings::default()).unwrap();
     let mut buf = [0u8; 16];
     let e = timeout(LIMIT, stream.read(&mut buf)).await.expect("the end in time").expect_err("a broken KCP");
     assert_eq!(e.kind(), std::io::ErrorKind::BrokenPipe, "{e}");
+}
+
+/// A KCP segment of the conversation 7: `cmd`, `frg`, `sn` and `data`.
+fn segment(cmd: u8, frg: u8, sn: u32, data: &[u8]) -> Vec<u8> {
+    let mut out = 7u32.to_le_bytes().to_vec();
+    out.extend_from_slice(&[cmd, frg]);
+    out.extend_from_slice(&256u16.to_le_bytes());
+    out.extend_from_slice(&[0; 4]);
+    out.extend_from_slice(&sn.to_le_bytes());
+    out.extend_from_slice(&[0; 4]);
+    out.extend_from_slice(&(data.len() as u32).to_le_bytes());
+    out.extend_from_slice(data);
+    out
+}
+
+/// A fragment of a message, which the stream mode of KCP does not send,
+/// does not go in: the reader of the crate `kcp` overflows on a fragment
+/// count of 255 and waits for ever for the others. A segment larger than
+/// one of this end is read whole, with no stall (T-521).
+#[tokio::test]
+async fn a_fragment_of_a_stranger_is_dropped_and_a_large_segment_is_read_whole() {
+    let (a, b) = pair(4096, DEFAULT_DEPTH);
+    let mut stream = KcpStream::new(a, Some(7), KcpSettings::default()).unwrap();
+    b.send(&segment(81, 255, 0, b"x")).await.unwrap();
+    let data = pattern(3, 2000);
+    b.send(&segment(81, 0, 0, &data)).await.unwrap();
+    let mut got = vec![0u8; data.len()];
+    timeout(LIMIT, stream.read_exact(&mut got))
+        .await
+        .expect("the segment in time")
+        .expect("the segment, with no stall");
+    assert!(got == data, "the bytes of the segment of sequence 0, not of the fragment");
 }

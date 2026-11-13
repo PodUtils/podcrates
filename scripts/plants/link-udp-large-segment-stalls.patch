@@ -1,0 +1,14 @@
+diff --git a/crates/pod-link/src/udp/stream.rs b/crates/pod-link/src/udp/stream.rs
+--- a/crates/pod-link/src/udp/stream.rs
++++ b/crates/pod-link/src/udp/stream.rs
+@@ -194,8 +194,8 @@
+                 if i.left.is_empty() {
+                     // A segment of the peer can be larger than one of this
+                     // end (a larger setting, or a stranger's): no stall.
+-                    let Ok(size) = i.kcp.peeksize() else { break };
+-                    let mut segment = vec![0u8; size];
++                    let Ok(_size) = i.kcp.peeksize() else { break };
++                    let mut segment = vec![0u8; i.segment];
+                     match i.kcp.recv(&mut segment) {
+                         Ok(n) => i.left.extend_from_slice(&segment[..n]),
+                         Err(_) => break,
