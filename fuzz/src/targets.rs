@@ -30,7 +30,13 @@ pub use relay::{relay_list, relay_pool};
 pub use session::{session_handover, session_record, udp_frame};
 pub use warp::warp_capsule;
 pub use wg::{wg_cookie, wg_response, wg_transport};
-pub use {job::job_offer, link::link_frame, netlab::netlab_counters, turn::stun_message, wormhole::mqtt_packet};
+pub use {
+    job::job_offer,
+    link::{ARQ_MTU, link_arq, link_frame},
+    netlab::netlab_counters,
+    turn::stun_message,
+    wormhole::mqtt_packet,
+};
 
 /// Text from a peer made safe for one line (`pod_core::text::one_line`;
 /// podssh `one_line`): no control or bidirectional formatting character
