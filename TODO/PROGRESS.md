@@ -10,7 +10,7 @@
   #137, COORD-077, open): T-508 (PodUtils/podnet#524), T-506, T-510,
   T-310. Each consumer took `v0.38.0` (#136, closed).
 - The consumers and their tags:
-  - podssh: `v0.38.0` (`e47d508`, PodUtils/podssh#228; its crates/podssh-warp is glue over `pod-warp` and holds fixes only (#135); its server of the HTTP road takes `http_road::window`; its
+  - podssh: `v0.39.0` (`5228b65`, PodUtils/podssh#229; its crates/podssh-warp is glue over `pod-warp` and holds fixes only (#135); its server of the HTTP road takes `http_road::window`; its
     PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT
     brokers of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay`
     (PodUtils/podssh@T-571). The trial of `pod-warp` passes at `286e98d3`

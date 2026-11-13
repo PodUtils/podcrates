@@ -47,7 +47,7 @@ is done. Git and the record keep finished work.
   workstream (T-300 to T-305, T-420 to T-424, T-310; #88, #106), then
   T-028 (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP
   (the owner's order). Write to podnet by COORD issues only.
-- podssh (on `v0.38.0`, `e47d508`, PodUtils/podssh#228; `pod-warp` taken): the live runs of its PodUtils/podssh@T-737 (the
+- podssh (on `v0.39.0`, `5228b65`, PodUtils/podssh#229; `pod-warp` taken): the live runs of its PodUtils/podssh@T-737 (the
   brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.39.0`, `69d7b14`, PodUtils/podrunner#84): its session
