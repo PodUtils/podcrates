@@ -6,7 +6,7 @@ use pod_core::Class;
 use pod_hostprobe::sys::{self, CBuf};
 
 use crate::abi::{GuestRoot, resolve_dir};
-use crate::entry::{NsMount, chroot_landed, ns_setup_step, refuse_workdir, workdir_kind};
+use crate::entry::{NS_JOIN_STEP, NsEntry, chroot_landed, ns_setup_step, refuse_workdir, workdir_kind};
 use crate::names::var_name;
 use crate::status::{NOT_FOUND, invocable_but_refused};
 use crate::userland::Maps;
@@ -30,7 +30,7 @@ const SETUP_FAILED: i32 = 125;
 /// candidates (the loader of the entry with no chroot). `userland` is
 /// `None` for the chroot sequence, and the table of the run for the
 /// sequence with `fchdir` only. `ns` carries the
-/// mount of the namespace rung, or nothing. One function, so the fork, the
+/// mounts of the namespace rung (its own, or a join), or nothing. One function, so the fork, the
 /// rules of the root and the readiness pipe are the same for each entry.
 ///
 /// Eight parameters, each one used: they are the fixed set of the fork
@@ -43,7 +43,7 @@ pub(crate) fn spawn_with(
     argv_exec: Option<Vec<CBuf>>,
     fd_exec: Option<i64>,
     userland: Option<&Maps>,
-    ns: Option<&NsMount>,
+    ns: Option<NsEntry<'_>>,
     err: &mut dyn Write,
 ) -> Result<Child> {
     // Before the fork. Each allocation of the child happens here: between
@@ -199,6 +199,13 @@ pub(crate) fn spawn_with(
                     sys::exit_group(SETUP_FAILED);
                 }
             }
+            // The join comes before the passed descriptors, so a pass onto
+            // the number of the pidfd cannot replace it.
+            if let Some(NsEntry::Join(pidfd)) = ns
+                && let Err(e) = sys::setns(pidfd, sys::CLONE_NEWNS)
+            {
+                report(NS_JOIN_STEP, e);
+            }
             for (child_fd, host_fd) in &plan.fds.pass {
                 if host_fd != child_fd {
                     let _ = sys::dup2(*host_fd, *child_fd);
@@ -213,7 +220,7 @@ pub(crate) fn spawn_with(
             // and recursive so that its mounts cannot reach the host, then
             // its private tmpfs on the `/tmp` of the image. A failure
             // reports its step, and the parent enters chroot.
-            if let Some(m) = ns {
+            if let Some(NsEntry::Own(m)) = ns {
                 if let Err(e) = sys::unshare(sys::CLONE_NEWNS) {
                     report(7, e);
                 }

@@ -24,6 +24,13 @@ The entries:
   standard error (`ns_proc_refused`), and the payload runs with no
   `/proc`, as on the chroot rung. The rung has no PID namespace: the
   payload's `/proc` shows the host's processes.
+* The joined entry (`spawn_joined`, for an exec): `setns` on the pidfd of
+  a running payload of the namespace rung joins its mount namespace, then
+  the chroot by path and the check of the rung. The payload of the exec
+  sees the `/tmp` and the `/proc` of the payload of the run; the entry
+  mounts nothing. A refused join (a kernel before 5.8, `EPERM`, a process
+  that ended) writes `ns_join_fallback_line` and enters
+  `spawn_namespace`.
 * The entry with no chroot (`spawn_userland`, `userland`): the loader of
   the image by host path, or a staged memfd for a static payload; the
   table of path maps for the interposer (`userland::Maps`: the root pair
@@ -204,6 +211,9 @@ tmpfs (the write lands on the tmpfs, not in the image), and a write into
 the same; a rule on a path that the tmpfs hides is a refusal by name; a
 write rule holds on the entry with no chroot. The namespace rung gives a
 payload a `/proc` with `noexec`, and the chroot sequence gives none. A
+joined entry opens a file that the running payload wrote in its `/tmp`;
+with the pidfd of a process that ended, it names the step and opens
+nothing. A
 host with no Landlock
 skips the runs of a confined payload. The tests of the rungs with a
 chroot skip as another user, so CI runs the binary as root
@@ -211,5 +221,6 @@ chroot skip as another user, so CI runs the binary as root
 plants `enter-confine-not-applied`,
 `enter-confine-rule-on-a-passed-number`, `enter-confine-rule-under-a-mount`,
 `enter-pipe-on-a-passed-number`, `enter-pass-onto-the-root`,
-`enter-own-number-stays-cloexec` and `enter-ns-proc-exec`
+`enter-own-number-stays-cloexec`, `enter-ns-proc-exec` and
+`enter-ns-join-skipped`
 (`scripts/plants/`) prove the checks.

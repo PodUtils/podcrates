@@ -145,6 +145,10 @@ fn the_setup_steps_name_themselves() {
     assert_eq!(ns_setup_step(2), None);
     assert_eq!(ns_setup_step(11), None);
     assert_eq!(ns_setup_step(NS_PROC_STEP), Some("mounting proc on /proc"));
+    assert_eq!(ns_setup_step(NS_JOIN_STEP), Some("setns(pidfd, CLONE_NEWNS)"));
+    let line = ns_join_fallback_line(&Names::DEFAULT, "setns(pidfd, CLONE_NEWNS) (ESRCH (3))");
+    assert!(line.starts_with("pod-enter: the entry does not share the mounts of the payload: setns"), "{line}");
+    assert!(line.ends_with("; entered a mount namespace of its own"), "{line}");
 }
 
 /// The guard compares the device and the inode.

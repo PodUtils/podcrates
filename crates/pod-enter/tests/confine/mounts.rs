@@ -6,7 +6,7 @@
 
 use pod_confine::{Access, Spec};
 use pod_enter::userland::Maps;
-use pod_enter::{RootDir, spawn, spawn_namespace, spawn_userland};
+use pod_enter::{RootDir, spawn, spawn_joined, spawn_namespace, spawn_userland};
 use pod_hostprobe::sys as k;
 use pod_testkit::host::skip_line;
 
@@ -167,5 +167,57 @@ pub fn a_fresh_proc_is_on_the_proc_of_the_namespace_rung() {
     assert!(!d.join("proc/self").exists(), "the proc mount reached the host");
     let r = run(&mut p, 0, |p| spawn(&root, p, &mut std::io::sink())).unwrap();
     assert_eq!(r.line.trim_end(), "/proc/self/status=-2", "chroot: {r:?}");
+    let _ = std::fs::remove_dir_all(d);
+}
+
+/// An entry that joins the mount namespace of a running payload sees its
+/// tmpfs: a file that the payload of the run writes in `/tmp` opens for
+/// the payload of the join. With the pidfd of a process that ended, the
+/// entry names the refused step and runs in a namespace of its own.
+pub fn a_joined_entry_sees_the_tmpfs_of_the_running_payload() {
+    if let Err(why) = pod_testkit::host::root() {
+        skip_line(&format!("the rungs with a chroot need chroot(2): {why}"));
+        return;
+    }
+    let d = dir("join");
+    image::build(&d);
+    let root = root_over_the_pipes(&text(&d));
+    let pipe = || {
+        let mut p = [0i32; 2];
+        k::pipe2(&mut p, k::O_CLOEXEC).unwrap();
+        (i64::from(p[0]), i64::from(p[1]))
+    };
+    let (wait_r, wait_w) = pipe();
+    let (line_r, line_w) = pipe();
+    let mut first = plan([image::GUEST_EXE, WRITER, "/tmp/shared"].map(String::from).to_vec(), None);
+    first.fds.pass = vec![(3, wait_r), (4, line_w)];
+    let mut banner = Vec::new();
+    let held = spawn_namespace(&root, &first, &mut banner).unwrap();
+    let _ = (k::close(wait_r), k::close(line_w));
+    let mut line = Vec::new();
+    let mut buf = [0u8; 64];
+    while let Ok(n @ 1..) = k::read(line_r, &mut buf) {
+        line.extend_from_slice(&buf[..n as usize]);
+    }
+    let pidfd = k::pidfd_open(held.pid).unwrap();
+    let mut p = plan([image::GUEST_EXE, READER, "/tmp/shared"].map(String::from).to_vec(), None);
+    let mut joined = Vec::new();
+    let r = run(&mut p, 0, |p| spawn_joined(&root, p, pidfd, &mut joined));
+    let _ = (k::close(wait_w), k::close(line_r));
+    assert_eq!(held.wait().unwrap(), 0);
+    if !banner.is_empty() {
+        skip_line(&format!("the namespace rung fell back to chroot: {}", String::from_utf8_lossy(&banner).trim_end()));
+        return;
+    }
+    assert_eq!(String::from_utf8_lossy(&line).trim_end(), "/tmp/shared=0");
+    let r = r.unwrap();
+    assert!(joined.is_empty(), "the join fell back: {}", String::from_utf8_lossy(&joined));
+    assert_eq!(r.line.trim_end(), "/tmp/shared=0", "joined: {r:?}");
+    let mut fell = Vec::new();
+    let r = run(&mut p, 0, |p| spawn_joined(&root, p, pidfd, &mut fell)).unwrap();
+    let fell = String::from_utf8_lossy(&fell);
+    assert!(fell.contains("setns(pidfd, CLONE_NEWNS) (ESRCH (3))"), "{fell}");
+    assert_eq!(r.line.trim_end(), "/tmp/shared=-2", "a namespace of its own: {r:?}");
+    let _ = k::close(pidfd);
     let _ = std::fs::remove_dir_all(d);
 }

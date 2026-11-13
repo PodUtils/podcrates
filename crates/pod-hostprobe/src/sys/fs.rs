@@ -38,6 +38,12 @@ pub fn unshare(flags: u64) -> Sysres {
     unsafe { sys(SYS_UNSHARE, [flags, 0, 0, 0, 0, 0]) }
 }
 
+/// `setns(2)` on a namespace descriptor or a pidfd (Linux 5.8 and later),
+/// with the type of the namespace to join.
+pub fn setns(fd: i64, nstype: u64) -> Sysres {
+    unsafe { sys(SYS_SETNS, [fd as u64, nstype, 0, 0, 0, 0]) }
+}
+
 pub fn chdir(path: &CBuf) -> Sysres {
     unsafe { sys(SYS_CHDIR, [path.ptr(), 0, 0, 0, 0, 0]) }
 }
