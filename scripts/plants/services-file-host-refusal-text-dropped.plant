@@ -1,0 +1,6 @@
+# The trip of a file host drops the text of a refusal (litterbox's 412
+# names its fault in it): the test of the refusal must fail.
+ENTRY=T-528
+GROUP=services
+EXPECT='test file_host::a_refusal_names_its_status_and_its_text \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- file_host::a_refusal_names_its_status_and_its_text --exact'

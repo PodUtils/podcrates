@@ -1,0 +1,12 @@
+diff --git a/crates/pod-services-watch/src/file_host.rs b/crates/pod-services-watch/src/file_host.rs
+--- a/crates/pod-services-watch/src/file_host.rs
++++ b/crates/pod-services-watch/src/file_host.rs
+@@ -109,7 +109,7 @@
+         let start = from + at;
+         let end = page[start..].find(['"', '\'', '<', '>', ' ', '\t', '\r', '\n']).map_or(page.len(), |e| start + e);
+         let link = &page[start..end];
+-        if path.len() > 1 && link.ends_with(path) {
++        if path.len() > 1 {
+             return Some(link.to_string());
+         }
+         from = end.max(start + 1);

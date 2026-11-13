@@ -1,0 +1,12 @@
+diff --git a/crates/pod-services/services/null-pointer-0x0.toml b/crates/pod-services/services/null-pointer-0x0.toml
+--- a/crates/pod-services/services/null-pointer-0x0.toml
++++ b/crates/pod-services/services/null-pointer-0x0.toml
+@@ -116,7 +116,7 @@
+ 
+ [[fact]]
+ name = "on-by-default"
+-value = false
++value = true
+ source = { url = "https://github.com/PodUtils/podssh/issues/230", read = 2026-11-13, note = "podssh's live run 43430909173 from a GitHub runner: the upload was busy at once (429 or 503 with no Retry-After); the runs of timerloggedout-spec/termux-monorepo#5254 got 503 twice on 2026-11-13" }
+ 
+ [[fact]]

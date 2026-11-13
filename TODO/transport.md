@@ -6590,6 +6590,11 @@ and compares a small file for each host) proves each form.
 
 ```sh
 cargo test -p pod-services --all-features
+cargo test -p pod-services-watch --all-features
+sh scripts/plant-each.sh services-file-host-any-link services-file-host-refusal-text-dropped services-file-host-refused-on-by-default
+POD_FILE_HOSTS= cargo test -p pod-services-watch --test file_host_live -- --ignored --nocapture
 ```
 
-and a run of the live step on GitHub.
+The last command is the step "pod-services, a round trip through each
+public file host" of `live.yml` (by hand: `gh workflow run live.yml -f
+relay=none -f file-hosts=`); it runs only on GitHub.

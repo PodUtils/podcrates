@@ -4,8 +4,8 @@
 # file as text, and the download is a POST to that URL. The third of the
 # four file hosts of PodUtils/podssh@T-738 (PodUtils/podssh#220). The
 # document front is the page that the watches read. answer, serves and
-# fetch-method are podssh's reading of 2026-11-12; the rest was read on
-# 2026-11-13.
+# the download are podssh's live run of 2026-11-13 (PodUtils/podssh#230);
+# the rest was read on 2026-11-13.
 id = "temp-sh"
 kind = "file-host"
 party = "temp.sh (one person)"
@@ -52,22 +52,22 @@ source = { url = "https://temp.sh/", read = 2026-11-13, note = "Files expire aft
 [[fact]]
 name = "answer"
 value = "text"
-source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading: the answer is the URL as text; not read here" }
+source = { url = "https://github.com/PodUtils/podssh/issues/230", read = 2026-11-13, note = "podssh's live run 43430909173: the answer was the URL as text, https://temp.sh/MtOWk/piece.bin" }
 
 [[fact]]
 name = "serves"
 value = ["temp.sh"]
-source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading; not read here" }
+source = { url = "https://github.com/PodUtils/podssh/issues/230", read = 2026-11-13, note = "podssh's live run 43430909173: the URL of the answer was on temp.sh" }
 
 [[fact]]
 name = "fetch-segment"
 value = ""
-source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading: the download is a request to the URL of the answer" }
+source = { url = "https://github.com/PodUtils/podssh/issues/230", read = 2026-11-13, note = "podssh's live run 43430909173: a request to the URL of the answer gave the 32768 bytes" }
 
 [[fact]]
 name = "fetch-method"
 value = "POST"
-source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading: the download is a POST to the URL of the answer; not read here" }
+source = { url = "https://github.com/PodUtils/podssh/issues/230", read = 2026-11-13, note = "podssh's live run 43430909173: a POST to the URL of the answer gave the 32768 bytes" }
 
 [[fact]]
 name = "delete"
@@ -90,6 +90,11 @@ source = { url = "https://temp.sh/", read = 2026-11-13, note = "About: I just ma
 name = "automated-uploads-refused"
 value = false
 source = { url = "https://temp.sh/", read = 2026-11-13, note = "the page has no terms; it gives a curl command and a ShareX setting" }
+
+[[fact]]
+name = "on-by-default"
+value = true
+source = { url = "https://github.com/PodUtils/podssh/issues/230", read = 2026-11-13, note = "podssh's live run 43430909173 from a GitHub runner: 32 KiB up in 568 ms and down in 419 ms by the catalog's form" }
 
 [[watch]]
 kind = "http-text"

@@ -14,6 +14,7 @@ pub mod answer;
 pub mod args;
 mod crate_file;
 mod dns;
+pub mod file_host;
 mod forward;
 mod github;
 mod heard;

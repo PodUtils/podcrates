@@ -150,9 +150,15 @@ pub fn kind_facts(kind: &str) -> Option<KindFacts> {
                 ("upload-bytes-most", "int"),
                 ("one-person", "bool"),
                 ("automated-uploads-refused", "bool"),
+                // False: a road takes the host only when its user names it
+                // (T-528).
+                ("on-by-default", "bool"),
             ],
             optional: &[
                 ("answer-pointer", "text"),
+                // The file is a GET of the link in the page at the URL of the
+                // answer that starts with this prefix (T-528).
+                ("fetch-link-prefix", "text"),
                 ("delete-token-header", "text"),
                 ("delete-token-field", "text"),
                 ("delete-fields", "texts"),

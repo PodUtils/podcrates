@@ -1,10 +1,19 @@
 # Litterbox: the temporary uploads of Catbox, with no account. An upload
-# is a multipart POST of the fields reqtype and time and one file to the
-# endpoint upload; the answer is the URL of the file as text, served from
+# is a multipart POST of the fields time, fileNameLength and reqtype and
+# one file to the endpoint upload, as the host's own upload form sends
+# them; the answer is the URL of the file as text, served from
 # litter.catbox.moe. The second of the four file hosts of
 # PodUtils/podssh@T-738 (PodUtils/podssh#220). The documents api and front
-# are the pages that the watches read. serves, answer and fetch-method are
+# are the pages that the watches read. serves and fetch-method are
 # podssh's reading of 2026-11-12; the rest was read on 2026-11-13.
+#
+# The upload answered 412 to podssh's live run from a GitHub runner on
+# 2026-11-13 (PodUtils/podssh#230), with the fields of the API page and a
+# User-Agent that names podssh. The API answers 412 with a text that names
+# the fault ("No request type given." to a GET); the run did not keep the
+# text. A WAF (BunkerWeb) is in front of the API since 2026-10. The live
+# step of live.yml (T-528) sends the fields of the upload form and prints
+# the text of a refusal.
 id = "litterbox"
 kind = "file-host"
 party = "Catbox LLC"
@@ -45,11 +54,13 @@ name = "file-field"
 value = "fileToUpload"
 source = { url = "https://litterbox.catbox.moe/tools.php", read = 2026-11-13, note = "reqtype=\"fileupload\" time=\"1h/12h/24h/72h\" fileToUpload=(file data here)" }
 
-# The shortest life: time is 1h, 12h, 24h or 72h.
+# The shortest life: time is 1h, 12h, 24h or 72h. fileNameLength (6 or 16)
+# is the length of the name of the file in its URL; the API page does not
+# name it, the upload form of the front page sends it (call C281).
 [[fact]]
 name = "fields"
-value = ["reqtype=fileupload", "time=1h"]
-source = { url = "https://litterbox.catbox.moe/tools.php", read = 2026-11-13, note = "Allowed values for \"time\" are 1h, 12h, 24h, and 72h." }
+value = ["time=1h", "fileNameLength=16", "reqtype=fileupload"]
+source = { url = "https://litterbox.catbox.moe/", read = 2026-11-13, note = "the upload form: <input type=\"hidden\" name=\"time\" value=\"1h\"> <input type=\"hidden\" name=\"fileNameLength\" value=\"16\"> <input type=\"hidden\" name=\"reqtype\" value=\"fileupload\">; tools.php: Allowed values for \"time\" are 1h, 12h, 24h, and 72h." }
 
 [[fact]]
 name = "life-seconds"
@@ -60,7 +71,7 @@ source = { url = "https://litterbox.catbox.moe/tools.php", read = 2026-11-13, no
 [[fact]]
 name = "answer"
 value = "text"
-source = { url = "https://github.com/PodUtils/podssh/issues/220", read = 2026-11-12, note = "podssh's reading: the answer is the URL as text; not read here" }
+source = { url = "https://litterbox.catbox.moe/resources/litterbox.catbox.moe.sxcu", read = 2026-11-13, note = "the ShareX setting of the API: \"ResponseType\": \"Text\"; the upload form shows the text of the answer as the URL" }
 
 [[fact]]
 name = "serves"
@@ -100,8 +111,13 @@ value = false
 source = { url = "https://catbox.moe/legal.php", read = 2026-11-13, note = "the terms refuse commercial use without prior approval and damaging items (bots among them), not uploads by a program" }
 
 [[fact]]
+name = "on-by-default"
+value = true
+source = { url = "https://catbox.moe/legal.php", read = 2026-11-13, note = "the terms refuse no upload by a program that is not commercial" }
+
+[[fact]]
 name = "note"
-value = "The terms of Catbox refuse commercial use without prior approval; the FAQ refuses .exe, .scr, .cpl, .doc* and .jar files, and Catbox keeps the IP address with each upload."
+value = "The terms of Catbox refuse commercial use without prior approval; the FAQ refuses .exe, .scr, .cpl, .doc* and .jar files, and Catbox keeps the IP address with each upload. The upload answered 412 to a GitHub runner on 2026-11-13 (PodUtils/podssh#230); the cause is not known."
 source = { url = "https://litterbox.catbox.moe/faq.php", read = 2026-11-13 }
 
 [[watch]]
@@ -118,6 +134,11 @@ contains = "Allowed values for \"time\" are 1h, 12h, 24h, and 72h."
 kind = "http-text"
 endpoint = "front"
 contains = "Temporary uploads up to 1 GB are allowed."
+
+[[watch]]
+kind = "http-text"
+endpoint = "front"
+contains = "<input type=\"hidden\" name=\"fileNameLength\" value=\"16\">"
 
 [[watch]]
 kind = "http-status"

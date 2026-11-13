@@ -4,9 +4,9 @@ name: live
 # the public DoH resolvers (on Thursdays and by hand: CoreDNS on the
 # loopback proves the client on each push, T-350), a host that offers
 # Multipath TCP, a public
-# registry, the WARP API and its front door, Alpine's mirror, and the public mailboxes of magic-wormhole and
+# registry, the WARP API and its front door, Alpine's mirror, the public mailboxes of magic-wormhole and
 # the public MQTT brokers (magic-wormhole's own servers run on each push in
-# ci.yml, T-354).
+# ci.yml, T-354), and the public file hosts of pod-services (T-528).
 # They run on Thursdays at an off-peak hour and by hand (docs/decisions.md,
 # C150, which replaces the daily runs of C24: the code of each client is
 # proven on each push against a stand-in, T-352), with egress to the relay
@@ -51,6 +51,10 @@ on:
         options:
           - none
           - mptcp
+      file-hosts:
+        description: "The file hosts of the round trip, ids by commas (empty: each host that is on by default)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -146,6 +150,22 @@ jobs:
             exit 0
           fi
           timeout 300 cargo test --locked -p pod-wormhole --all-features --test board_live -- --ignored --nocapture
+      # One file of 32 KiB up, down, compared and deleted where the host
+      # deletes, through each public file host of pod-services by the forms
+      # of its facts (T-528, PodUtils/podssh#230). The stand-ins prove the
+      # code on each push (ci.yml); this run proves the facts. A host that
+      # is not on by default (0x0.st) runs only when the input names it.
+      - name: pod-services, a round trip through each public file host
+        env:
+          EVENT: ${{ github.event_name }}
+          POD_FILE_HOSTS: ${{ inputs.file-hosts }}
+        run: |
+          set -eu
+          if [ "$EVENT" = schedule ] && [ "$(date -u +%u)" != 4 ]; then
+            echo "the public file hosts run on Thursdays and by hand"
+            exit 0
+          fi
+          timeout 900 cargo test --locked -p pod-services-watch --test file_host_live -- --ignored --nocapture
 
   relay:
     if: github.event_name == 'workflow_dispatch' && inputs.relay != 'none'

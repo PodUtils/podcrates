@@ -7,6 +7,7 @@ mod apis;
 mod common;
 mod data;
 mod dns;
+mod file_host;
 mod files;
 mod forward;
 mod http;

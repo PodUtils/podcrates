@@ -102,6 +102,7 @@ endpoint = "upload"
     for want in [
         "no fact \"fields\" (texts)",
         "no fact \"one-person\" (bool)",
+        "no fact \"on-by-default\" (bool)",
         "the fact \"file-field\" is of the type int, not text",
         "the fact \"delete\" is \"never\", not one of none, token-form",
         "the fact \"colour\" is not one of the kind \"file-host\"",
