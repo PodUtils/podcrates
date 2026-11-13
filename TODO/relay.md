@@ -3891,7 +3891,7 @@ PodUtils/podnet#521 (COORD-064 of podnet)
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3939,6 +3939,23 @@ counter, a rekey at 2^31 records or 1 GiB, the buckets 0, 128, 512, 1024
 and 2048, a bitmap of 1024 counters, and a RESUME with the token, the next
 counter and a fresh prefix, valid 10 minutes, used once, and three
 failures that end the link. Calls C255 to C258 give the rest.
+
+## Done
+
+2026-11-13, commit 0aee08a (the exporter, the suites and the records of
+`crates/pod-e2e/src/exporter.rs`, `crates/pod-e2e/src/record/mod.rs` and
+`Channel::agree`), and the commit after it (the seven plants).
+`cargo test -p pod-e2e --all-features`: 77 passed (the lib 38, with 15
+new; `tests/record.rs` 4, new: the same key at both ends, another key for
+another label, the initiator's first suite and no suite in common, records
+both ways over the stream of a real handshake, a document of the net
+before the suites). The plants `e2e-record-window-takes-a-repeat`,
+`e2e-exporter-of-the-hash-alone`, `e2e-record-resume-used-twice`,
+`e2e-record-pad-outside-the-aad`, `e2e-record-phase-unflipped`,
+`e2e-record-resume-never-late` and `e2e-agree-own-preference` each make
+their test fail (each run by hand); `sh scripts/plant-each.sh --apply`: 0
+stale. Not proven: a fuzz run of the opener (T-510); a carrier that loses
+or moves records (the tests give each record by hand).
 
 # T-303: `pod-relay`: research: the relay contract and an exchange of NAT traversal candidates between two peers (PodUtils/podnet#479)
 

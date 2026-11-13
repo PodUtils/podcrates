@@ -1,0 +1,12 @@
+diff --git a/crates/pod-e2e/src/channel.rs b/crates/pod-e2e/src/channel.rs
+--- a/crates/pod-e2e/src/channel.rs
++++ b/crates/pod-e2e/src/channel.rs
+@@ -172,7 +172,7 @@
+             .await
+             .map_err(|_| Error::Timeout("the peer's suites of records"))??;
+         let initiator = self.exporter.as_ref().is_some_and(Exporter::is_initiator);
+-        let (first, second) = if initiator { (offer, &theirs[..]) } else { (&theirs[..], offer) };
++        let (first, second) = (offer, &theirs[..]);
+         crate::record::agree(first, second).ok_or_else(|| {
+             let names = |s: &[Suite]| s.iter().map(|s| s.name()).collect::<Vec<_>>().join(", ");
+             Error::NoSuite(format!("this end offers {}; the peer {}", names(offer), names(&theirs)))

@@ -1,0 +1,11 @@
+diff --git a/crates/pod-e2e/src/record/open.rs b/crates/pod-e2e/src/record/open.rs
+--- a/crates/pod-e2e/src/record/open.rs
++++ b/crates/pod-e2e/src/record/open.rs
+@@ -154,7 +154,6 @@
+             inn.first = inn.window.next();
+         }
+         inn.prefix.copy_from_slice(&body[40..44]);
+-        inn.resume = index + 1;
+         inn.failures = 0;
+         inn.heard = now;
+         Ok(Opened::Resume { next })

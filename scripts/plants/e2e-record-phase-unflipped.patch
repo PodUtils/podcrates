@@ -1,0 +1,12 @@
+diff --git a/crates/pod-e2e/src/record/seal.rs b/crates/pod-e2e/src/record/seal.rs
+--- a/crates/pod-e2e/src/record/seal.rs
++++ b/crates/pod-e2e/src/record/seal.rs
+@@ -39,7 +39,7 @@
+         let header = Header {
+             version: VERSION,
+             kind,
+-            flags: flags | if out.epoch.phase() { PHASE } else { 0 },
++            flags,
+             stream,
+             counter: out.counter,
+             // MAX_LENGTH fits u32, and a padding is below the last bucket.

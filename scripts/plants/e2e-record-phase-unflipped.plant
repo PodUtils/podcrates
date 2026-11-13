@@ -1,0 +1,7 @@
+# A rekey does not flip the phase bit of the flags, so the receiver opens a
+# record of the new key with the old one; the test of a rekey that keeps
+# the stream must fail.
+ENTRY=T-301
+GROUP=e2e
+EXPECT='test record::tests::a_rekey_by_count_by_bytes_and_by_age_keeps_the_stream \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --lib -- record::tests::a_rekey_by_count_by_bytes_and_by_age_keeps_the_stream'

@@ -1,0 +1,7 @@
+# The replay window takes a counter whose bit is set, so a record that the
+# relay sends again opens twice; the test of a repeat refused and counted
+# must fail.
+ENTRY=T-301
+GROUP=e2e
+EXPECT='test record::tests::a_replayed_record_is_refused_and_counted_and_a_late_one_opens \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --lib -- record::tests::a_replayed_record_is_refused_and_counted_and_a_late_one_opens'
