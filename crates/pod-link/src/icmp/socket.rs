@@ -19,17 +19,28 @@ pub(super) struct RawIcmp {
     mtu: usize,
 }
 
+/// A raw ICMPv4 socket. A host with no privilege for it fails here.
+fn raw_socket() -> io::Result<OwnedFd> {
+    // SAFETY: a call of `socket` with constant arguments.
+    let raw = unsafe { libc::socket(libc::AF_INET, libc::SOCK_RAW | libc::SOCK_CLOEXEC, libc::IPPROTO_ICMP) };
+    if raw < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    // SAFETY: `raw` is a fresh, owned descriptor.
+    Ok(unsafe { OwnedFd::from_raw_fd(raw) })
+}
+
 impl RawIcmp {
+    /// Open a raw ICMPv4 socket and close it: the privilege test of
+    /// `available`, which can run with no tokio runtime.
+    pub(super) fn probe() -> io::Result<()> {
+        raw_socket().map(drop)
+    }
+
     /// Open a non-blocking raw ICMPv4 socket. A host with no privilege for it
-    /// fails here.
+    /// fails here. It must run in a tokio runtime.
     pub(super) fn open(mtu: usize) -> io::Result<RawIcmp> {
-        // SAFETY: a call of `socket` with constant arguments.
-        let raw = unsafe { libc::socket(libc::AF_INET, libc::SOCK_RAW | libc::SOCK_CLOEXEC, libc::IPPROTO_ICMP) };
-        if raw < 0 {
-            return Err(io::Error::last_os_error());
-        }
-        // SAFETY: `raw` is a fresh, owned descriptor.
-        let fd = unsafe { OwnedFd::from_raw_fd(raw) };
+        let fd = raw_socket()?;
         set_nonblocking(&fd)?;
         // SAFETY: `fd` owns the descriptor and keeps it open for the AsyncFd.
         let fd = unsafe { AsyncFd::register(fd) }?;

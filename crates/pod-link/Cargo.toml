@@ -32,6 +32,10 @@ dns = ["tcp", "dep:pod-dns"]
 # The ICMP echo carrier: the ARQ under the TLS of `tcp`, its frames in the
 # data of echo messages (`icmp`). The raw socket uses libc on unix.
 icmp = ["tcp"]
+# The reader of HTTP/1.1 and of SSE of the poll carriers is public in
+# `poll::fuzzing`, for the fuzz target `link_poll_wire` of fuzz/. No
+# consumer turns this on.
+fuzzing = ["poll"]
 
 [dependencies]
 # The failure and its stage and class; the way out of the tcp carrier.

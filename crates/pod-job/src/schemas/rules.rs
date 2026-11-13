@@ -96,6 +96,23 @@ fn the_offer_refuses_what_a_source_may_not_send() {
     }
 }
 
+/// The fields of the public report, in the order of the schema. The CPU
+/// time and the peak of resident memory are facts of the job, not of the
+/// host (T-527).
+const PUBLIC: [&str; 11] = [
+    "boundary",
+    "cpu_s",
+    "exit_reason",
+    "job_id",
+    "peak_rss_mib",
+    "refusal_code",
+    "schema",
+    "source",
+    "tier",
+    "unit_kind",
+    "wall_s",
+];
+
 /// The public report holds no host name and no detail of the boundary:
 /// only the class of the boundary and the kind of the unit.
 #[test]
@@ -104,9 +121,7 @@ fn the_public_report_holds_no_host_and_no_boundary_detail() {
     let schema = super::generated().into_iter().find(|(n, _)| *n == "run-report-public").expect("the report").1;
     let schema = schema.as_value();
     let keys: Vec<&String> = schema["properties"].as_object().expect("properties").keys().collect();
-    let public =
-        ["boundary", "exit_reason", "job_id", "refusal_code", "schema", "source", "tier", "unit_kind", "wall_s"];
-    assert_eq!(keys, public);
+    assert_eq!(keys, PUBLIC);
     assert_eq!(schema["additionalProperties"], json!(false));
 
     let mut reports = 0;
@@ -129,7 +144,7 @@ fn the_public_report_holds_no_host_and_no_boundary_detail() {
         }
         reports += 1;
     }
-    assert_eq!(reports, 4);
+    assert_eq!(reports, 5);
 
     // A detail added to a public report is refused by the types and by the
     // schema.
@@ -156,8 +171,7 @@ fn the_public_report_holds_no_host_and_no_boundary_detail() {
     }
 
     fn public_has(key: &str) -> bool {
-        ["boundary", "exit_reason", "job_id", "refusal_code", "schema", "source", "tier", "unit_kind", "wall_s"]
-            .contains(&key)
+        PUBLIC.contains(&key)
     }
 }
 

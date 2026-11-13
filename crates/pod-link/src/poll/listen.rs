@@ -56,6 +56,9 @@ pub struct Stats {
     pub shorts: u64,
     pub pushes: u64,
     pub no_push: u64,
+    /// The bytes down that the sessions keep now for their dialers, within
+    /// `Poll::max_bytes`.
+    pub held: u64,
 }
 
 #[derive(Default)]
@@ -76,7 +79,7 @@ impl Counters {
         counter.fetch_add(n, Ordering::Relaxed);
     }
 
-    fn snapshot(&self) -> Stats {
+    fn snapshot(&self, held: usize) -> Stats {
         let get = |c: &AtomicU64| c.load(Ordering::Relaxed);
         Stats {
             sessions: get(&self.sessions),
@@ -88,6 +91,7 @@ impl Counters {
             shorts: get(&self.shorts),
             pushes: get(&self.pushes),
             no_push: get(&self.no_push),
+            held: held as u64,
         }
     }
 }
@@ -129,7 +133,7 @@ pub(super) async fn bind(p: &Poll, addr: SocketAddr) -> Result<PollListener, Car
     let (out, results) = mpsc::channel(QUEUE);
     let serving = Arc::new(Serving {
         name,
-        table: Table::new(p.max_sessions, WINDOW, BATCH),
+        table: Table::new(p.max_sessions, p.max_bytes, WINDOW, BATCH),
         stats: Counters::default(),
         out,
         idle: p.idle,
@@ -149,7 +153,7 @@ impl PollListener {
 
     /// The counts of the listener.
     pub fn stats(&self) -> Stats {
-        self.serving.stats.snapshot()
+        self.serving.stats.snapshot(self.serving.table.held())
     }
 
     /// The next session of a client whose key is pinned, and that key. A

@@ -235,7 +235,7 @@ impl Carrier for Icmp {
         self.icmp.check().map_err(|e| err(CarrierErrorKind::Unavailable, format!("ICMP: {e}")))?;
         #[cfg(unix)]
         {
-            socket::RawIcmp::open(self.socket_mtu()).map(drop).map_err(listen::icmp_open)
+            socket::RawIcmp::probe().map_err(listen::icmp_open)
         }
         #[cfg(not(unix))]
         {

@@ -5602,7 +5602,7 @@ each week.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5627,6 +5627,10 @@ cargo test -p pod-link --all-features --test udp_loss
 
 podnet answers the question, or starts its PodUtils/podnet@T-276.
 
+## Done
+
+- 2026-11-13: podnet chose the congestion window of KCP by default (PodUtils/podnet#527); `KcpSettings::nodelay` stays off. `tests/udp_loss.rs` has the gate of row E2-1 in a release build: `eight_mib_cross_at_five_percent_loss_and_one_percent_reorder_with_the_defaults` (51 s measured, bound 120 s) and `twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time` (`nodelay` and a window of 1024 segments: 3.7 to 4.0 times measured, bound 5 times; call C284). A debug build ignores both. The job `gate` of `nightly.yml` runs them.
+
 # T-521: `pod-link`: a fuzz target of the datagrams of the udp carrier (the input of KCP)
 
 **Source:** T-424 (a finding of its work)
@@ -5634,7 +5638,7 @@ podnet answers the question, or starts its PodUtils/podnet@T-276.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5656,6 +5660,34 @@ cargo check --manifest-path fuzz/Cargo.toml --bins
 cargo test -p pod-link --all-features --test udp_loss
 ```
 
+## Done
+
+2026-11-13, commit `ee6f6bc`. The target `link_kcp`
+(`fuzz/src/targets/link.rs`, `fuzz/fuzz_targets/link_kcp.rs`) drives
+`udp::KcpStream` over scripted datagrams on a paused tokio clock: a byte
+of setup (the stream writes `setup * 64` bytes), then datagrams, each a
+step of the clock in tens of milliseconds, a length and its bytes. It
+checks: no panic outside the code of `kcp`; the stream ends with an
+error; no datagram that it sends passes 1200 bytes; after a panic in the
+code of `kcp` (a hook of the target lets it unwind), the guard of the
+carrier ends the stream with `BrokenPipe`, and no panic of `kcp` leaves
+the task of the carrier (call C279). The plant
+`link-udp-panic-hangs-the-stream` makes the fuzz test fail. The target
+found two defects of the carrier, fixed (call C280): a fragment of a
+message of a stranger made the reader of `kcp` overflow in the read of
+the caller, outside the guard (a datagram with a fragment now does not
+go in), and a segment larger than one of this end stopped the reader
+until the silence limit (a read now takes a segment of any size). The
+test `a_fragment_of_a_stranger_is_dropped_and_a_large_segment_is_read_whole`
+fails before each fix (plants `link-udp-fragment-taken` and
+`link-udp-large-segment-stalls`). The seeds (`fuzz/src/kcp_seeds.rs`): a
+transfer of a peer, an acknowledgement of a time stamp 2^31 ms old (a
+panic of `kcp` with overflow checks; the seed test checks the guard), and
+datagrams of a bad form. `cargo test -p pod-link --all-features --test
+udp_loss`: 6 passed; `cargo test --manifest-path fuzz/Cargo.toml --lib`:
+13 passed; `cargo check --manifest-path fuzz/Cargo.toml --bins` passes.
+The fix of `kcp` and its overflow checks are T-526.
+
 # T-517: `pod-link`: a cap of the bytes that the sessions of a poll listener hold
 
 **Source:** T-422 (a finding of its work)
@@ -5663,7 +5695,7 @@ cargo test -p pod-link --all-features --test udp_loss
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5684,6 +5716,27 @@ A field `Poll::max_bytes` (64 MiB by default): a budget of the listener that eac
 cargo test -p pod-link --all-features --test poll_lanes
 ```
 
+## Done
+
+2026-11-13, commit `f1c65fc`. `Poll::max_bytes` (64 MiB by default, at
+least `MIN_BYTES`, one batch) caps the bytes down that the sessions of a
+listener keep for their dialers (`crates/pod-link/src/poll/budget.rs`,
+call C278). A pump reads, then waits for the room of the bytes that it
+read; an acknowledgement and the end of a session give the bytes back; an
+open with no room for one batch gets 429; `Stats::held` gives the bytes
+kept now. The test
+`the_sessions_keep_no_more_bytes_than_the_cap_and_an_open_with_no_room_gets_429`
+has a cap of 1.5 MiB and three sessions that no dialer reads: the first
+keeps its window (1 MiB), the second 512 KiB, the third open gets 429;
+the acknowledgement of the first window gives its bytes back, the second
+session takes the rest of its window, and the third open gets 201; no
+count seen passes the cap. It passed 30 runs in a loop. The plants
+`link-poll-bytes-uncapped` and `link-poll-open-room-unchecked` make it
+fail. `cargo test -p pod-link --all-features --test poll_lanes`: 7
+passed; `cargo test -p pod-link --all-features`: 156 passed. The bytes
+outside the cap (the pipes of each session, the connections after their
+handshake) are T-525.
+
 # T-518: `pod-link`: a fuzz target of the HTTP/1.1 of the poll carriers
 
 **Source:** T-422 (a finding of its work)
@@ -5691,7 +5744,7 @@ cargo test -p pod-link --all-features --test poll_lanes
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5712,3 +5765,126 @@ A target `link_poll_wire`: the input is the bytes of one connection, given to `C
 cargo check --manifest-path fuzz/Cargo.toml --bins
 cargo test -p pod-link --all-features
 ```
+
+## Done
+
+2026-11-13, commit `ee6f6bc`. The target `link_poll_wire`
+(`fuzz/src/targets/link.rs`, `fuzz/fuzz_targets/link_poll_wire.rs`) reads
+the bytes of one connection with the reader of the poll carriers, public
+in `poll::fuzzing` under the feature `fuzzing` of `pod-link`: the first
+byte sets the size of each read (1 to 64 bytes, or whole for 0); each
+head, then its body of a Content-Length (at most one batch) or its chunks
+(at most two batches) into the reader of SSE. It checks: no panic; a head
+takes at most 4 KiB with its blank line; a chunk is not empty and has at
+most its limit; a body has its length; an event gives at most 8 KiB. It
+found a defect: a head over 4 KiB that one read brought whole went in.
+The reader now looks for the end of a head in the first 4 KiB alone; the
+new case of `a_long_head_and_a_large_chunk_are_refused` fails before the
+fix (plant `link-poll-long-head-taken`, which also makes the fuzz test
+fail). The seeds (`fuzz/src/poll_seeds.rs`, written by an ignored test):
+the requests of a dialer, the answers of a listener with a push of SSE, a
+chunked answer of raw bytes, and refused forms. `cargo test
+--manifest-path fuzz/Cargo.toml --lib`: 13 passed; `cargo check
+--manifest-path fuzz/Cargo.toml --bins` and clippy of the fuzz workspace
+pass; `cargo test -p pod-link --all-features`: 157 passed.
+
+# T-525: `pod-link`: the bytes of a poll listener outside `max_bytes` (the pipes of each session, the connections after their handshake)
+
+**Source:** T-517 (a finding of its work)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Poll::max_bytes` (T-517, call C278) caps the bytes down that the sessions of a poll listener keep for their dialers. Each session holds more bytes outside the cap: two pipes of `BATCH` (256 KiB each, `tokio::io::duplex` grows its buffer up to that size and keeps it) and the buffer of its pump (64 KiB), so 256 sessions can hold about 144 MiB besides the cap. A connection after its handshake is not counted: `max_handshakes` caps the handshakes alone, and each connection reads a body of up to `BATCH` before it answers. Each session and each connection comes from a pinned key, so a stranger cannot open one.
+
+## Premise
+
+- Read: `crates/pod-link/src/poll/session.rs` (the pipes and the pump), `crates/pod-link/src/poll/listen.rs` (the permit of a handshake drops after the handshake), `crates/pod-link/src/poll/answer.rs` (the body of a request).
+- Not measured: the memory of a listener with many sessions or connections.
+
+## Approach
+
+Make the pipes of a session on the listener smaller (the pump drains the pipe down into the bytes kept, so 64 KiB is enough; the pipe up takes a POST in parts), and measure the throughput of `tests/poll.rs` before and after. Add `Poll::max_connections` (1024 by default): a permit for each connection that lasts as long as it does; a connection past the cap closes after its accept. Count the body of a request in `max_bytes`, or give it its own cap. A test with a cap of 2 connections: the third closes, the first two stay.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test poll_lanes
+```
+
+# T-526: `pod-link`: the arithmetic of the crate `kcp` wraps by design: no overflow checks for it, and the fix upstream
+
+**Source:** T-521 (a finding of its work)
+**Category:** chore
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+The crate `kcp` 0.6.0 is a port of ikcp, whose clock (32 bits of milliseconds) and sequence numbers wrap: `timediff` subtracts two `u32` as `i32`. With overflow checks (the dev and test profiles of the workspace, a fuzz build), this panics on a forged segment of a stranger (call C279), and also on true traffic when the clock of one stream passes 2^31 ms (24.8 days) or a sequence number passes 2^31. The guard of the task of `udp::KcpStream` ends the stream with an error, so a debug build of a consumer loses a long stream. The release profile has no overflow checks and wraps as ikcp does.
+
+## Premise
+
+- Read: the source of `kcp` 0.6.0 (`timediff`, `update_ack`, `input`, `peeksize`); `crates/pod-link/src/udp/stream.rs`; the profiles of `Cargo.toml` and `fuzz/Cargo.toml`.
+- Not measured: a stream of more than 2^31 ms in a debug build.
+
+## Approach
+
+Set `[profile.dev.package.kcp] overflow-checks = false` in `Cargo.toml` (the test profile takes it from dev). The test `a_datagram_that_breaks_kcp_ends_the_stream_with_an_error` of `crates/pod-link/tests/udp_loss.rs` then needs another panic of the task (a carrier of datagrams that panics in `recv`), and its plant stays. Keep the overflow checks of `kcp` in `fuzz/Cargo.toml` so that `link_kcp` exercises the guard (C279). Send the fix to `kcp` upstream (`wrapping_sub` in `timediff`, `saturating_mul` in `update_ack`, a `u8` check in `peeksize`), and tell podnet to set the same profile in its workspace by a COORD issue.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test udp_loss
+cargo test --manifest-path fuzz/Cargo.toml --lib
+```
+
+## Done
+
+- Part, 2026-11-13: `Cargo.toml` sets `[profile.dev.package.kcp] overflow-checks = false`. The test `a_panic_of_the_task_ends_the_stream_with_an_error` uses a carrier that panics in `recv`; the plant `link-udp-panic-hangs-the-stream` moved to it and fails it. `fuzz/Cargo.toml` keeps the checks. Open: the fix upstream in `kcp`. #139 (COORD-079) asks podnet to set the same profile; podnet sets it with its take of the udp carrier (PodUtils/podnet#527).
+
+# T-531: `pod-netstack`: tests of a far end that closed first and of the packets held while the queue out is full (PodUtils/podssh#231)
+
+**Source:** PodUtils/podssh#231 (COORD-054 of podssh).
+**Category:** chore
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh removed two planted defects of PodUtils/podssh@T-599 (the stack inside WARP's tunnel), and their code is `pod-netstack`'s now. No test of `pod-netstack` holds either case:
+
+1. A far end that closed first: each byte queued toward it must go before the end. The tests of `close.rs` close from this end.
+2. Packets that the stack sends while the outbound queue is full: none must be lost when the queue drains. The tests of `device/tests.rs` check one token of the device, not the stack.
+
+The record of podssh (PodUtils/podssh@T-771) must name a test of each case that fails on a planted defect.
+
+## Premise
+
+- Read: `crates/pod-netstack/src/stack/service.rs` (`close_and_check`: a close waits until no byte waits in either direction, also in CLOSE-WAIT), `crates/pod-netstack/src/device.rs` (`LinkDevice::link` holds while the outbound queue is full; `transmit` gives no token then).
+- The code holds both cases. The gap is the tests.
+
+## Approach
+
+1. `close.rs`: the client shuts down its write side, and the server reads that end. Then the server writes 16 MiB and closes at once. The client must read each byte, then the end. The plant `netstack-close-wait-closes-at-once` closes the socket in CLOSE-WAIT with no wait: the bytes in the channel from the app are lost.
+2. `hold.rs`: a pump from the server that stops and starts again. With a window of 2 MiB, the outbound queue of the server fills (`LINK_OUTBOUND` packets) while the pump stands. Then the pump moves again. The device must drop no packet, the stack must hold, the client must read each byte and the end, and each packet that the stack sent must cross the link. The plant `netstack-link-drops-at-a-full-queue` gives the device of a link a bounded queue with no hold: the stack sends into the full queue, and the queue drops the packets.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --lib a_stream_whose_peer_closed_first_sends_each_queued_byte_then_the_end
+cargo test -p pod-netstack --lib the_packets_held_at_a_full_link_each_go_when_it_drains
+sh scripts/plant-each.sh netstack-close-wait-closes-at-once netstack-link-drops-at-a-full-queue
+```
+
+## Done
+
+2026-11-13, commit `2f643b1`. `cargo test -p pod-netstack --all-features`: 79 passed. `close.rs`: `a_stream_whose_peer_closed_first_sends_each_queued_byte_then_the_end` (the client shuts down first; the server writes 16 MiB and closes; the client reads each byte, then the end). `hold.rs`: `the_packets_held_at_a_full_link_each_go_when_it_drains` (the outbound queue of the server fills to `LINK_OUTBOUND` while the pump stands; then `tx_dropped` is 0, `tx_held` is more than 0, the client reads 4 MiB and the end, and the pump moved each packet that the device counted in `tx_packets`). The plant `netstack-close-wait-closes-at-once` fails the first test ("the end after the end of the peer lost 4230144 bytes"). The plant `netstack-link-drops-at-a-full-queue` fails the second test ("4714 packets dropped at the full queue"); no other test of the crate catches it, as `a_full_tunnel_queue_holds_the_stack` uses `LinkDevice::tunnel_bounded`, not `LinkDevice::link`.

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/poll/budget.rs b/crates/pod-link/src/poll/budget.rs
+--- a/crates/pod-link/src/poll/budget.rs
++++ b/crates/pod-link/src/poll/budget.rs
+@@ -44,7 +44,7 @@
+             notified.as_mut().enable();
+             {
+                 let mut held = self.held_mut();
+-                if self.max.saturating_sub(*held) >= n {
++                if *held < usize::MAX {
+                     *held += n;
+                     return Charge { budget: self.clone(), n };
+                 }

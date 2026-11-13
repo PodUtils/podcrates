@@ -170,13 +170,32 @@ impl std::fmt::Debug for KcpStream {
     }
 }
 
+/// The datagram has a segment that KCP's stream mode does not send: a
+/// fragment of a message (`frg` not 0). The reader of KCP adds 1 to `frg`
+/// in a `u8` (an overflow at 255) and waits for the other fragments for
+/// ever, so such a datagram of a stranger does not go in.
+fn foreign(datagram: &[u8]) -> bool {
+    let mut rest = datagram;
+    while rest.len() >= KCP_HEADER {
+        if rest[5] != 0 {
+            return true;
+        }
+        let len = u32::from_le_bytes([rest[20], rest[21], rest[22], rest[23]]) as usize;
+        rest = rest.get(KCP_HEADER.saturating_add(len)..).unwrap_or_default();
+    }
+    false
+}
+
 impl AsyncRead for KcpStream {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
         let polled = self.shared.with(|i| {
             let before = buf.filled().len();
-            let mut segment = vec![0u8; i.segment];
             while buf.remaining() > 0 {
                 if i.left.is_empty() {
+                    // A segment of the peer can be larger than one of this
+                    // end (a larger setting, or a stranger's): no stall.
+                    let Ok(size) = i.kcp.peeksize() else { break };
+                    let mut segment = vec![0u8; size];
                     match i.kcp.recv(&mut segment) {
                         Ok(n) => i.left.extend_from_slice(&segment[..n]),
                         Err(_) => break,
@@ -280,7 +299,7 @@ async fn drive<D: Datagrams>(shared: Arc<Shared>, carrier: D) {
             // A datagram of another form or conversation is dropped: a
             // carrier of datagrams can give bytes of a stranger.
             let taken = shared.with(|i| {
-                let taken = i.kcp.input(&datagram).is_ok();
+                let taken = !foreign(&datagram) && i.kcp.input(&datagram).is_ok();
                 if taken {
                     i.heard = now();
                     i.wake();

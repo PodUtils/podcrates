@@ -1,0 +1,7 @@
+# The budget of a poll listener gives room past its cap: the sessions keep
+# more bytes down than max_bytes (T-517).
+ENTRY=T-517
+GROUP=link
+EXPECT='past the cap'
+RUN='cargo test -p pod-link --all-features --test poll_lanes the_sessions_keep_no_more_bytes'
+LIMIT=1800

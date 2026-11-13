@@ -140,6 +140,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #135 | COORD-075: pod-warp: the freeze of src/warp and crates/podssh-warp (to podnet) (to podssh) | closed (podnet took `pod-warp` at `f6abdc3`, PodUtils/podnet#522; podssh at `812c61c`, PodUtils/podssh#227) | T-339, T-412, T-413 |
 | #136 | COORD-076: v0.38.0: pod-warp's port rules, pod-dns TXT, pod-e2e's record layer, pod-ws serve and the ws and h2 carriers; /dev/pts and the knob flags; ActorClass agent and bot (to all) | closed (podrunner `28ce3b5`; podnet, PodUtils/podnet#525; podssh `e47d508`, PodUtils/podssh#228; podvm `34936958`, PodUtils/podvm#304) | T-301, T-305, T-420, T-421, T-439, T-475, T-488, T-503, T-504, T-505, T-507 |
 | #137 | COORD-077: v0.39.0: QUIC and nc over WARP's datagrams to IPv4 (podnet#524), the rules of podnet's WebSocket carrier, the ARQ of pod-link (to all) | closed (podrunner `69d7b14`; podnet `306d80b`; podssh `5228b65`; podvm `19892c50`, PodUtils/podvm#309) | T-310, T-506, T-508, T-510 |
-| #138 | COORD-078: a question on the udp carrier: the congestion window of KCP by default, or nodelay, against the gate of 20 % loss (T-520) (to podnet) | open (waits for podnet) | T-520 |
+| #138 | COORD-078: a question on the udp carrier: the congestion window of KCP by default, or nodelay, against the gate of 20 % loss (T-520) (to podnet) | closed (podnet answered on PodUtils/podnet#527: the congestion window by default; the gate of 20 % loss with `nodelay` in a release build) | T-520 |
+| #139 | COORD-079: the crate kcp needs no overflow checks in a debug build: set the same profile in podnet (T-526) (to podnet) | open (podnet sets the profile with its take of the udp carrier, PodUtils/podnet#527) | T-526 |
 
 #79 to #81 are pull requests.

@@ -1,0 +1,8 @@
+# The udp carrier reads a segment of KCP into a buffer of its own segment
+# size: a larger segment of the peer stops the reader until the silence
+# limit ends the stream (T-521).
+ENTRY=T-521
+GROUP=link
+EXPECT='the segment, with no stall|the segment in time'
+RUN='cargo test -p pod-link --all-features --test udp_loss a_fragment_of_a_stranger'
+LIMIT=1800

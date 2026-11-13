@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 409 entries: 116 open, 7 partial, 4 blocked, 282 done.
+`TODO/INDEX.md` holds 413 entries: 113 open, 8 partial, 4 blocked, 288 done.
 
 ## State
 
@@ -97,14 +97,13 @@ next entry.
       `pod-link`; `v0.39.0` holds the rules of podnet's WebSocket
       carrier, the fuzz target of the records, the ARQ of `pod-link` and
       the fix of PodUtils/podnet#524.
-   c. The tag after: the poll carriers, the quic carrier, the udp carrier
-      with KCP, the DNS simplex carrier and the ICMP echo carrier of
-      `pod-link` (done); T-520 (the default of the congestion window of KCP,
-      when podnet answers), T-521 (the fuzz target of the input of KCP),
-      T-494 (S3 simplex), T-500 (an up and a down carrier).
+   c. The tag after: the poll carriers, the quic carrier and the udp
+      carrier with KCP of `pod-link` (done); T-526 (the fix of `kcp` upstream,
+      partial), T-494 (S3
+      simplex), T-500 (an up and a down carrier).
    d. Then: T-496 (DNS stream), T-498 (a WireGuard peer), T-499 (NAT
-      traversal with the relay), T-517 and T-518 (a cap of the bytes and
-      a fuzz target of the poll carriers), T-515 (the congestion window of the ARQ,
+      traversal with the relay), T-525 (the bytes of a poll listener
+      outside the cap of `max_bytes`), T-515 (the congestion window of the ARQ,
       with the first carrier over a shared path), T-514 (a stream-aware
       ARQ, when podnet asks), T-501 (`pod-turn` with RFC 6062), T-027,
       T-214 and T-215 (`pod-transit`, `pod-wormhole`).

@@ -7,7 +7,9 @@
 use std::sync::Arc;
 
 use pod_identity::{Identity, KeyName};
+use pod_link::dns::{Dns, DnsSettings};
 use pod_link::h2::H2;
+use pod_link::icmp::Icmp;
 use pod_link::poll::{Form, Poll};
 use pod_link::quic::Quic;
 use pod_link::tcp::{Keys, Tcp};
@@ -41,8 +43,10 @@ pub fn link(way: Arc<dyn pod_core::Dial>) -> String {
     let sse = runtime.block_on(poll(way));
     let quic = runtime.block_on(quic());
     let udp = runtime.block_on(udp());
+    let dns = runtime.block_on(dns());
+    let icmp = icmp();
     format!(
-        "pod-link: {} bytes over the memory carrier, the unix carrier {unix}, the tcp carrier {tcp}, the ws carrier {ws}, the h2 carrier {h2}, the sse carrier {sse}, the quic carrier {quic}, the udp carrier {udp}",
+        "pod-link: {} bytes over the memory carrier, the unix carrier {unix}, the tcp carrier {tcp}, the ws carrier {ws}, the h2 carrier {h2}, the sse carrier {sse}, the quic carrier {quic}, the udp carrier {udp}, the dns carrier {dns}, the icmp carrier {icmp}",
         echoed.map_or_else(|e| e.to_string(), |n| n.to_string())
     )
 }
@@ -165,6 +169,38 @@ async fn udp() -> String {
         (Ok(_), Ok((_, peer))) => format!("linked to {peer} over KCP"),
         (Err(e), _) | (_, Err(e)) => e.to_string(),
     }
+}
+
+/// A dial of the dns carrier to its own authoritative server on the
+/// loopback: the ARQ in queries and TXT answers, TLS above. The rate of
+/// queries is high, as the server is local.
+async fn dns() -> String {
+    let identity = Arc::new(Identity::from_seed(&[16; 32]));
+    let key = identity.public();
+    let provider = Arc::new(pod_tls::crypto::provider());
+    let mut carrier = Dns::new(provider, identity).with_clients(Keys::new([KeyName::Key(key)])).zone("probe.test");
+    carrier.dns = DnsSettings { queries_per_second: 20000.0, in_flight: 64, ..DnsSettings::default() };
+    if let Err(e) = carrier.available() {
+        return e.to_string();
+    }
+    let mut door = match carrier.bind(([127, 0, 0, 1], 0).into()).await {
+        Ok(door) => door,
+        Err(e) => return e.to_string(),
+    };
+    let carrier = carrier.to(door.local_addr());
+    let address = format!("{}@probe.test", key.hex());
+    match tokio::join!(carrier.dial(&address), door.accept_key()) {
+        (Ok(_), Ok((_, peer))) => format!("linked to {peer} over DNS"),
+        (Err(e), _) | (_, Err(e)) => e.to_string(),
+    }
+}
+
+/// The icmp carrier needs a raw socket (`CAP_NET_RAW`): the probe reports
+/// what it gives here.
+fn icmp() -> String {
+    let identity = Arc::new(Identity::from_seed(&[17; 32]));
+    let provider = Arc::new(pod_tls::crypto::provider());
+    Icmp::new(provider, identity).available().map_or_else(|e| e.to_string(), |()| "available".into())
 }
 
 #[cfg(unix)]

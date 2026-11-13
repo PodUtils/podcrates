@@ -215,3 +215,13 @@ async fn the_carrier_says_what_it_gives() {
     let e = Icmp::new(Arc::new(old), id(1)).available().expect_err("a provider with no TLS 1.3");
     assert_eq!(e.kind, CarrierErrorKind::Unavailable, "{e}");
 }
+
+/// `available` runs with no tokio runtime, as a probe of a host does: the
+/// test of the raw socket does not register it with tokio.
+#[test]
+fn available_needs_no_runtime() {
+    let result = Icmp::new(ring(), id(1)).available();
+    if let Err(e) = result {
+        assert_eq!(e.kind, CarrierErrorKind::Unavailable, "{e}");
+    }
+}

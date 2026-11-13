@@ -400,8 +400,11 @@ a listener off the stack's address, a refused connect, the wake of a
 write, the hooks, the close of each socket, a slow reader, a large
 download over two bounded links, the refused binds, a UDP send of two
 families), the close of a listener (`listener.rs`) and of a stream
-(`close.rs`: the queued bytes, the linger, the abort and its RST on the
-link, a reset after a full channel), the end of each socket by the stack
+(`close.rs`: the queued bytes, also after the peer closed first, the
+linger, the abort and its RST on the link, a reset after a full channel),
+the hold of a full link (`hold.rs`: each packet that the stack holds while
+the outbound queue is full goes when it drains, and none is dropped), the
+end of each socket by the stack
 (`reset.rs`: a reset of the consumer, a write that waits, a shutdown, a
 panic of the reactor), the TCP timeout, the keepalive and no Nagle
 (`timeout.rs`: the settings of a socket, a connect and a stream to a peer
@@ -424,9 +427,11 @@ of the rate; the plants `netstack-any-ip-not-set` and
 plants `netstack-dropped-listener-stays`,
 `netstack-dropped-stream-closes-at-once`,
 `netstack-dropped-stream-never-lingers`, `netstack-reset-with-no-room`,
-`netstack-syn-finds-no-listen-socket` and
-`netstack-syn-again-to-a-listen-socket` prove the tests of the close and
-of the listeners; `netstack-abort-frees-the-socket-at-once` proves the test
+`netstack-syn-finds-no-listen-socket`,
+`netstack-syn-again-to-a-listen-socket` and
+`netstack-close-wait-closes-at-once` prove the tests of the close and of
+the listeners; `netstack-link-drops-at-a-full-queue` proves the test of
+`hold.rs`; `netstack-abort-frees-the-socket-at-once` proves the test
 of the RST on the link. The plants `netstack-udp-backlog-lost-at-a-full-channel`,
 `netstack-udp-backlog-waits-for-the-tick`, `netstack-udp-loss-not-counted`,
 `netstack-udp-send-loss-not-counted`, `netstack-udp-over-the-limit-goes` and

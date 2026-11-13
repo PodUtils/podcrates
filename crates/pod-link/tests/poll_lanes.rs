@@ -3,7 +3,8 @@
 //! lane that fails ends on the dialer, each with an error; the simplex poll
 //! backs off while the link is quiet, and the long poll holds; a listener
 //! with no push gives the long poll; a push moves more than the window of
-//! the listener with no bytes up; the third 429 in a row ends a dial.
+//! the listener with no bytes up; the third 429 in a row ends a dial; the
+//! sessions of a listener keep no more bytes down than its cap (T-517).
 
 #![cfg(feature = "poll")]
 
@@ -15,7 +16,7 @@ use std::time::{Duration, Instant};
 use common::LIMIT;
 use common::poll::{Relay, at, bound, carrier, identity, key, post, raw};
 use common::tcp::Direct;
-use pod_link::poll::{self, Form};
+use pod_link::poll::{self, Form, PollListener};
 use pod_link::{Carrier, CarrierErrorKind};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
@@ -165,5 +166,66 @@ async fn a_push_moves_more_than_the_window_with_no_bytes_up() {
         read.unwrap();
         assert!(back == data, "{form:?}: the bytes came whole");
         assert_eq!(door.stats().pushes, 1, "{form:?}: one push carried each byte");
+    }
+}
+
+/// Wait until the sessions of `door` keep `bytes`; no count seen passes
+/// `max`.
+async fn kept(door: &PollListener, bytes: usize, max: usize) {
+    let wait = async {
+        loop {
+            let held = door.stats().held as usize;
+            assert!(held <= max, "{held} bytes kept, past the cap of {max}");
+            if held == bytes {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    };
+    let late = |_| panic!("{bytes} bytes kept in time: {:?}", door.stats());
+    timeout(LIMIT, wait).await.unwrap_or_else(late);
+}
+
+/// The status of `request` of the client 2 to the listener 1 at `local`.
+async fn ask(local: std::net::SocketAddr, request: String) -> u16 {
+    raw(&key(1), identity(2), local, &request).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_sessions_keep_no_more_bytes_than_the_cap_and_an_open_with_no_room_gets_429() {
+    pod_testkit::need_loopback!();
+    let mut listening = carrier(1, Arc::new(Direct::default()), &[key(2)], Form::Simplex);
+    let max = poll::WINDOW + poll::WINDOW / 2;
+    listening.max_bytes = max;
+    let mut door = bound(&listening).await;
+    let local = door.local_addr();
+    let ids =
+        ["0123456789abcdef0123456789abcde1", "0123456789abcdef0123456789abcde2", "0123456789abcdef0123456789abcde3"];
+    let open = |n: usize| post(&format!("/l/open?s={}", ids[n]));
+    let mut links = Vec::new();
+    for (n, after) in [(0, poll::WINDOW), (1, max)] {
+        let (status, accepted) = tokio::join!(ask(local, open(n)), timeout(LIMIT, door.accept_key()));
+        assert_eq!(status, 201, "the open of session {n}");
+        let (mut far, _) = accepted.expect("the accept in time").expect("the session");
+        // No dialer reads: the bytes stay on the listener.
+        links.push(tokio::spawn(async move {
+            far.write_all(&common::pattern(n as u32, poll::WINDOW)).await.unwrap();
+            far
+        }));
+        kept(&door, after, max).await;
+    }
+    assert_eq!(ask(local, open(2)).await, 429, "the third open finds no room");
+    assert_eq!(door.stats().busy, 1);
+    // The acknowledgement of the first window gives its bytes back: the
+    // second session takes the rest of its window, and the third open finds
+    // room.
+    let ack = format!("GET /l/out?s={}&since={} HTTP/1.1\r\nHost: test\r\n\r\n", ids[0], poll::WINDOW);
+    assert_eq!(ask(local, ack).await, 204);
+    kept(&door, poll::WINDOW, max).await;
+    let (status, accepted) = tokio::join!(ask(local, open(2)), timeout(LIMIT, door.accept_key()));
+    assert_eq!(status, 201, "the third open after the acknowledgement");
+    accepted.expect("the accept in time").expect("the third session");
+    for link in links {
+        let _far = timeout(LIMIT, link).await.expect("each window went in").unwrap();
     }
 }
