@@ -11,6 +11,8 @@
   (podnet), T-503, T-504 (podvm), T-505 (podrunner), T-488, T-507. Each
   consumer took `v0.37.0` (#134, closed) and podnet and podssh took
   `pod-warp` (#135, closed).
+  The release `v0.39.0` is in work (`docs/releases/v0.39.0.md`): T-508
+  (PodUtils/podnet#524), T-506, T-510, T-310.
 - The consumers and their tags:
   - podssh: `v0.37.0` (`812c61c`, PodUtils/podssh#227; its crates/podssh-warp is glue over `pod-warp` and holds fixes only (#135); its server of the HTTP road takes `http_road::window`; its
     PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT
@@ -25,7 +27,7 @@
   - podvm: `v0.37.0` (`b12ba476`, PodUtils/podvm#299; its PodUtils/podvm@T-1746 and PodUtils/podvm@T-1749 are low priority now; `pod-netlab` in its
     `podvm lab`; its relay over `pod_relay::blocking`, T-326; its fix of
     #102 is `655cf941`, PodUtils/podvm#289, in its `v0.2.0-beta.7`).
-  - podrunner: `v0.37.0` (`5fc53c4`, PodUtils/podrunner#79; its live gates start on a test organization, its DR-7): its local
+  - podrunner: `v0.38.0` (`28ce3b5`, PodUtils/podrunner#82; its live gates start on a test organization, its DR-7): its local
     mode takes `pod-actions-expr` and `pod-actions-workflow`
     (PodUtils/podrunner@T-046); its T-042 takes `pod-confine` through
     podvm's `--podvm-confine`; its T-048 takes `check_upstream`,
