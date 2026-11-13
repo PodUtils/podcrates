@@ -11,30 +11,44 @@ is done. Git and the record keep finished work.
 
 1. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
-2. Read the answer of podnet on #138 (T-520), then release the carriers
-   of `pod-link` on `main` (the poll carriers, `quic`, `udp`).
-3. Take the work order of `TODO/PROGRESS.md`, item 1.
+2. Read the answer of podnet on #139 (the profile of `kcp`, T-526) and the
+   takes of `v0.40.0` on its hand-off issue.
+3. Take the work order of `TODO/PROGRESS.md`: the red runs first (T-535,
+   T-536, T-537), then the link carriers after the tag (item 3c).
 
 ## In flight
 
 - The last release: `v0.39.0` at `4c2d17c` (the hand-off #137, closed:
-  each consumer took it). `main` holds T-516, T-422, T-495, T-423 and
-  T-424 for the next tag. #138 asks podnet for the default of KCP (T-520).
-- The nightly at `d8c8ae6` (run 43417105533) passes on Windows (both
-  jobs), macOS and each cross target but riscv64 (T-488, T-507, done).
-  riscv64 failed two bounds of `pod-warp` under qemu-user (T-532, done).
+  each consumer took it). `v0.40.0` is in release at `3d6bbf0`
+  (`docs/releases/v0.40.0.md`): the poll, quic, udp, dns and icmp carriers
+  of `pod-link`, `cpu_s` and `peak_rss_mib` of `pod-job`, the forms of the
+  file hosts.
+- Each agent of this session is merged into `main`. The open threads of
+  this session:
+  - T-529 (partial): the live round trip of the file hosts. It waits for
+    the answer to PodUtils/podssh#230 with the tag `v0.40.0`.
+  - T-533 (open): scripts/agent/check-macos.sh, a local check of the
+    build for macOS.
+  - T-526 (partial): the fix of `kcp` upstream. podnet sets the profile of
+    `kcp` with its take of the udp carrier (#139, PodUtils/podnet#527).
+- The red runs that the record knows:
+  - `nightly.yml` at `72632b2` (run 43451625236): macOS failed to build
+    the icmp carrier (`3d6bbf0` fixes it); riscv64 and armv7 fail bounds
+    of the tests of `pod-link` (T-535).
+  - `ci.yml` at `3d6bbf0` (run 43459943301): a random failure of the
+    test of `pod-oci` against the distribution registry (T-536).
+  - `services.yml` at `4c2d17c` (run 43402100735): a tox node gives no
+    TCP relay (T-537). The run had no first "no answer", so T-351 still
+    waits for its proof.
+  - `plants.yml` at `6b183f6` (run 43448941361): the plant
+    `link-udp-fragment-taken` was missed; its `EXPECT` takes the stall
+    now (T-521, Correction). The next run of `plants.yml` proves it.
 - podswarm's tracker is PodUtils/podswarm#1 (moved from #107). githome
-  builds its side of a live test (#83, 2026-11-13): it waits for T-106
-  (the conformance binary of `pod-testkit`) and T-100 (`pod-broker`),
-  which stay in M8 under the ruling "Open questions".
-- `services.yml` at `613058c` is red; T-323 (done) has its fixes. The next
-  scheduled run proves them, and T-351.
-- `pod-warp`: the trial of podnet (T-412, at `9c1fc4b` with `v0.35.0`) passes each of its 23 steps; the trial of podssh
-  (T-413, at `286e98d3` with `v0.36.0`) passes each of its 24 steps, with
-  T-480 in the crate after `v0.36.0`. When a tag holds T-480, move the
-  tags of `adoption/podssh/pod-warp.patch` to it and post the COORD issue
-  of the freeze `(to podnet) (to podssh)`; its text is
-  `docs/releases/pod-warp-freeze.md`.
+  builds its side of a live test (#83): it waits for T-106 (the
+  conformance binary of `pod-testkit`) and T-100 (`pod-broker`), which
+  stay in M8 under the ruling "Open questions".
+- `pod-warp`: podnet and podssh took the crate in `v0.37.0`; their WARP
+  code holds fixes only (#135). T-339 (partial) holds the rest.
 - The disk of a cloud session is small: `target/debug/incremental` grows
   to some GB. Run the workspace tests with `CARGO_INCREMENTAL=0` when the
   disk is short.
@@ -42,30 +56,28 @@ is done. Git and the record keep finished work.
 
 ## What waits
 
-- podvm (on `v0.39.0`, `19892c50`, PodUtils/podvm#309; `v0.2.0-beta.8` out): T-330 (its pair
-  commands); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
-  `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
-  podvm by COORD issues only.
-- podnet (on `v0.39.0`, `306d80b`, PodUtils/podnet#526; `pod-warp` taken): its link
-  workstream (T-300 to T-305, T-420 to T-424, T-310; #88, #106), then
-  T-028 (`pod-warp`) and T-029 (`pod-cloudflare`) on the chain to WARP
-  (the owner's order). Write to podnet by COORD issues only.
-- podssh (on `v0.39.0`, `5228b65`, PodUtils/podssh#229; `pod-warp` taken): the live runs of its PodUtils/podssh@T-737 (the
-  brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
+- podvm (on `v0.39.0`, `19892c50`, PodUtils/podvm#309; `v0.2.0-beta.8`
+  out): T-330 (its pair commands); T-207 (`pod-netlab`, #70) for
+  PodUtils/podvm@T-1662; `exec_attached` of `pod-incus` if
+  PodUtils/podvm@T-1722 asks. Write to podvm by COORD issues only.
+- podnet (on `v0.39.0`, `306d80b`, PodUtils/podnet#526; `pod-warp`
+  taken): the rest of its link workstream (#133: T-494, T-500, then group
+  d), then T-029 (`pod-cloudflare`) on the chain to WARP (the owner's
+  order). Write to podnet by COORD issues only.
+- podssh (on `v0.39.0`, `5228b65`, PodUtils/podssh#229; `pod-warp`
+  taken): the live runs of its PodUtils/podssh@T-737 (the brokers) and
+  PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.39.0`, `69d7b14`, PodUtils/podrunner#84): its session
-  runs again with podvm. Its PodUtils/podrunner@T-096 (an absolute `tar
-  -C`) takes podvm `v0.2.0-beta.7` (the fix of #102, PodUtils/podvm#289).
-  Write to it by an issue with `(to podrunner)` in the title.
+  runs with podvm. Its T-108 fills `cpu_s` and `peak_rss_mib` with
+  `v0.40.0` (PodUtils/podrunner#86). Write to it by an issue with
+  `(to podrunner)` in the title.
 - podswarm (#107 to #125): the owner's ruling "podswarm" (2026-11-13).
   T-439, T-444, T-447 and T-448 help a sibling and are in the work order;
   the other asks wait until the podswarm session starts.
 - `pod-git` (T-217 to T-220) is blocked: `PodUtils/podforge`, deferred
-  (the owner; #75). M8 (cfb and githome, #35 and #36) waits (the ruling
-  "Priority").
-- crates.io answers 404 for `pod-devtunnel` (2026-11-13): the owner
-  reserves it before a publish (T-387; `TODO/PROGRESS.md`, "Owner
-  actions").
+  (the owner; #75, #131). M8 (cfb and githome, #35 and #36) waits (the
+  ruling "Priority").
 
 ## Channels
 
