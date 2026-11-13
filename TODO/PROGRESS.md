@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 366 entries: 109 open, 6 partial, 5 blocked, 246 done.
+`TODO/INDEX.md` holds 366 entries: 108 open, 6 partial, 5 blocked, 247 done.
 
 ## State
 
@@ -143,8 +143,8 @@ next entry.
    T-028 and T-029 (item 3); T-361 goes with T-036 (item 8).
 10. **M7, the widened scope of podvm:** T-062 after M6; T-241 (the permissions of Landlock ABI 12).
 11. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
-   owner, 2026-11-09). T-425 (the asks of podswarm, #107 and #108) waits
-   for Q15. T-100, T-102 to T-120 wait, unless a
+   owner, 2026-11-09). T-430 to T-450, the asks of podswarm, wait for
+   Q15. T-100, T-102 to T-120 wait, unless a
    consumer needs one first (T-107 with M6). T-113 to T-116 wait for the first release on crates.io.
    The asks of PodUtils/podvm#227 for podrunner are in item 2. T-191 and
    T-194 (the proposals of PodUtils/podnet#437 for `pod-broker`, for the
@@ -161,12 +161,42 @@ None. The hand-off of each release is a COORD issue `(to all)` (`docs/maintenanc
 
 ## Questions for the owner
 
-- **Q15.** Where do the asks of podswarm (#107, #108; 20 asks to
-  podcrates and 16 rulings for the owner) go in the ruling "Priority"?
-  It blocks the placement of the entries of T-425. Recommendation:
-  podcrates records each ask as an entry now; the work waits behind
-  podvm, podnet, podssh and podrunner, as M8 does, until the owner gives
-  podswarm's rulings.
+- **Q15.** Where do the asks of podswarm (#107 to #125; 20 asks to
+  podcrates in the entries T-430 to T-450, and 16 rulings for the owner)
+  go in the ruling "Priority"? It blocks the start of T-430 to T-450.
+  Recommendation: podcrates records each ask as an entry now; the work
+  waits behind podvm, podnet, podssh and podrunner, as M8 does, until the
+  owner gives podswarm's rulings. The rulings (podswarm spec, file 26,
+  section 4; the recommendation of podswarm in brackets) and the asks
+  that each blocks:
+  - R-01: does the rule "no daemon" forbid a long-lived coordinator and
+    the holder? (no) P-2, P-3 (T-439, T-440).
+  - R-02: may the repository `PodUtils/podswarm` and its session exist?
+    (yes) each ask (T-430 to T-450).
+  - R-03: may podcrates hold the names `pod-proc`, `pod-tty`, `pod-fuse`,
+    `pod-cas`, `pod-view`, `pod-attest` and `pod-ssh`? (yes) P-1, P-11,
+    P-12, P-13, P-16, P-17, P-19, P-21 (T-430 to T-438).
+  - R-04: may a coordinator listen on TCP when the user gives
+    `--listen`? (yes, on request) P-2, P-3 (T-439, T-440).
+  - R-05: are the bundled C code (SQLite, zstd, mimalloc, BLAKE3) and the
+    crypto provider acceptable? (yes) P-12, P-19 (T-434, T-436).
+  - R-06: the platform order (Linux, then macOS, then Windows): the
+    Windows parts of P-1, P-11, P-13 (T-430, T-432, T-437).
+  - R-07: keep the alias `psw`? (only as a user choice) no ask.
+  - R-08: a batch with failed tasks exits 1? (yes) no ask.
+  - R-09: `-N` defaults to the core count? (yes) no ask.
+  - R-10: the shield `private` is the default on each remote machine?
+    (yes) the rows of P-6 for that shield (T-444).
+  - R-11: may `podswarm run` with no HOST pick the caller's machine?
+    (yes) no ask.
+  - R-12: does podswarm take over `podssh each`? (no) no ask.
+  - R-13: betas on the GitHub releases of podswarm, a signed
+    `SHA256SUMS`, no crates.io? (yes) P-21 (T-438).
+  - R-14: may a hosted relay of the owner be a default road? (no) no ask.
+  - R-15: are the asks of podswarm served before podvm, podnet, podssh
+    and podrunner? (no) each ask: it is this question.
+  - R-16: what comes back from a remote run? (what git sees; the
+    requester of the spec chose it on 2026-11-13) P-17 (T-435).
 
 Write each question as `- **Qn.** QUESTION`, with the entries that it
 blocks and a recommendation. Number the questions in sequence from Q15

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**366 entries: 109 open, 6 partial, 5 blocked, 246 done.**
+**366 entries: 108 open, 6 partial, 5 blocked, 247 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 70 | 85 |
-| P2 | 53 | 2 | 5 | 125 | 185 |
+| P2 | 52 | 2 | 5 | 126 | 185 |
 | P3 | 43 | 2 | 0 | 49 | 94 |
-| **All** | 109 | 6 | 5 | 246 | 366 |
+| **All** | 108 | 6 | 5 | 247 | 366 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -391,7 +391,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-422](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the HTTP/1.1 long-poll carrier, and the SSE and chunked-stream carrier (PodUtils/podnet#515) |
 | [T-423](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the QUIC carrier (PodUtils/podnet#515) |
 | [T-424](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the UDP carrier with KCP (PodUtils/podnet#515) |
-| [T-425](fleet.md) | P2 | M | M8 | chore | open | podswarm: record each ask of #107 and each file of the spec of #108 as entries, when the index of #107 is complete |
+| [T-425](fleet.md) | P2 | M | M8 | chore | done | podswarm: record each ask of #107 and each file of the spec of #108 as entries, when the index of #107 is complete |
 | [T-430](fleet.md) | P2 | L | M8 | feature | open | `pod-proc`: a spawner with keepers, the containment rungs, a fence and the tree kill on each target (GitHub #113) |
 | [T-431](fleet.md) | P3 | M | M8 | feature | open | `pod-proc`: the exec takeover of a new process (`PTRACE_SEIZE`, the stop at the exec, the stub) (GitHub #113) |
 | [T-432](fleet.md) | P2 | M | M8 | feature | open | `pod-tty`: the guard of the caller's terminal (raw mode, size, restore, escape line) on Unix and Windows (GitHub #111) |

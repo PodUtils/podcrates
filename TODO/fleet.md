@@ -1531,7 +1531,7 @@ cargo test -p pod-actions-expr --all-features
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1560,6 +1560,34 @@ answer to Q15; until then they wait, as M8 does.
 ```sh
 cargo todo check
 ```
+
+## Done
+
+2026-11-13: 21 entries for the 20 asks of podswarm to podcrates (P-1 has
+two). Commits `5e11651` and `dacc68f`, then the commit of the map, of Q15
+and of this section.
+
+- Read: GitHub #107 and its comment (the index is complete), #109 to
+  #125, the comments of podswarm on #1, #82 and #88, and the archive of
+  the spec (files 21, 22 and 26) in place of the comments of #108.
+- New crates: T-430 and T-431 (`pod-proc`), T-432 (`pod-tty`), T-433
+  (`pod-fuse`), T-434 (`pod-cas`), T-435 (`pod-view`), T-436
+  (`pod-attest`), T-437 (`pod-ssh`), T-438 (the seven names; crates.io
+  answered 404 for each on 2026-11-13).
+- Changes of crates: T-439 (`pod-ws`), T-440 (`pod-tls`), T-441
+  (`pod-proxy`), T-442 (`pod-link`), T-443 and T-444 (`pod-hostprobe`),
+  T-445 and T-446 (`pod-hold`), T-447 (`pod-guest`), T-448 (`pod-enter`),
+  T-449 (`pod-job`), T-450 (`pod-core`).
+- Overlap: the report with its schema (P-5) is T-107; its Premise names
+  podswarm, and T-443 holds the gap. P-3 is narrowed to the enrolment
+  mode (T-304 has the rest); P-10 to the argv form, the stderr pipe and
+  the wait.
+- Priority P2 for an ask that podswarm's M0 or M1 uses (spec, file 22,
+  sections 3 and 4: M1, the first remote release, builds on M0): 10
+  entries. P3 for the others: 11 entries. Each is M8 and waits for Q15.
+- The asks to podvm (#124) and to podnet (#125) are for those sessions.
+  The 16 rulings are under Q15 in `TODO/PROGRESS.md`.
+- `cargo todo check`: the record agrees.
 
 # T-430: `pod-proc`: a spawner with keepers, the containment rungs, a fence and the tree kill on each target (GitHub #113)
 
