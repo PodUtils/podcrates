@@ -52,7 +52,7 @@ is done. Git and the record keep finished work.
 - podssh (on `v0.38.0`, `e47d508`, PodUtils/podssh#228; `pod-warp` taken): the live runs of its PodUtils/podssh@T-737 (the
   brokers) and PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.38.0`, `28ce3b5`, PodUtils/podrunner#82): its session
+- podrunner (on `v0.39.0`, `69d7b14`, PodUtils/podrunner#84): its session
   runs again with podvm. Its PodUtils/podrunner@T-096 (an absolute `tar
   -C`) takes podvm `v0.2.0-beta.7` (the fix of #102, PodUtils/podvm#289).
   Write to it by an issue with `(to podrunner)` in the title.

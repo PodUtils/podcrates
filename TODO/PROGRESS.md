@@ -23,7 +23,7 @@
   - podvm: `v0.38.0` (`34936958`, PodUtils/podvm#304; its `v0.2.0-beta.8` is out; its PodUtils/podvm@T-1746 and PodUtils/podvm@T-1749 are low priority now; `pod-netlab` in its
     `podvm lab`; its relay over `pod_relay::blocking`, T-326; its fix of
     #102 is `655cf941`, PodUtils/podvm#289, in its `v0.2.0-beta.7`).
-  - podrunner: `v0.38.0` (`28ce3b5`, PodUtils/podrunner#82; its live gates start on a test organization, its DR-7): its local
+  - podrunner: `v0.39.0` (`69d7b14`, PodUtils/podrunner#84; its live gates start on a test organization, its DR-7): its local
     mode takes `pod-actions-expr` and `pod-actions-workflow`
     (PodUtils/podrunner@T-046); its T-042 takes `pod-confine` through
     podvm's `--podvm-confine`; its T-048 takes `check_upstream`,
