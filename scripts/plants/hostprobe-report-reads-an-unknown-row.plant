@@ -1,0 +1,8 @@
+# The reader of the report accepts a row that probes::PROBES does not name:
+# it leaks the name of the document as the name of the row. The test of
+# the refusal must fail (T-485).
+ENTRY=T-485
+GROUP=hostprobe
+EXPECT='test report::tests::a_row_that_probes_does_not_name_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-hostprobe --features report --lib report'
+LIMIT=1800

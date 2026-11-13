@@ -139,12 +139,17 @@ fn main() {
 /// pod-hostprobe is Linux only: on another target the crate is empty.
 #[cfg(target_os = "linux")]
 fn hostprobe() -> Option<String> {
+    use pod_hostprobe::{Findings, report, select::Selection};
+    // The reader of the report links in: an empty set reads back.
+    let empty = Findings::empty();
+    let text = report::write(&empty, &Selection::choose(&empty));
     Some(format!(
-        "pod-hostprobe: pid {}, ELF machine 0x{:x}, {} probes, {} free inodes at /",
+        "pod-hostprobe: pid {}, ELF machine 0x{:x}, {} probes, {} free inodes at /, report {}",
         pod_hostprobe::sys::getpid(),
         pod_hostprobe::binfmt::SELF_MACHINE,
         pod_hostprobe::probes::PROBES.len(),
-        pod_hostprobe::space::read("/").map_or_else(|e| e.to_string(), |h| h.free.inodes.to_string())
+        pod_hostprobe::space::read("/").map_or_else(|e| e.to_string(), |h| h.free.inodes.to_string()),
+        report::read(&text).map_or_else(|e| e.to_string(), |_| "reads back".to_string())
     ))
 }
 

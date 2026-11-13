@@ -13,6 +13,14 @@ pod-core = { workspace = true }
 # The layouts of the structs of the kernel and, on the architectures that
 # syscalls does not build for, the numbers of the calls.
 linux-raw-sys = { workspace = true }
+# The JSON object of the module `report`, behind the feature `report`.
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+
+[features]
+# The module `report`: the JSON object of `Findings` and `Selection`, and
+# its reader. Off by default: a probe that writes no report links no serde.
+report = ["dep:serde", "dep:serde_json"]
 
 # syscalls has the crate attribute `#![feature(asm_experimental_arch)]` on
 # mips, mips64, s390x, powerpc and powerpc64, so it does not build there on

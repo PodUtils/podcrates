@@ -31,7 +31,8 @@ s390x; mips and 32-bit powerpc refuse to compile).
 | `verdict` | `Verdict` (`Ok`, `Denied`, `Skip`), `Outcome`, the wire line `pod-hostprobe/1` (`encode`, `decode`), `Outcome::row` (the row format of the Go reference instrument) |
 | `child` | `Spawner`: `clone_accepted`, `run_probe` |
 | `probes` | `PROBES` (66 rows: census, attribution, machine, supervise), `Kind`, `Group`, `find`, `MACHINE_LEGS`, `SUPERVISE_LEGS`, `SUPERVISION_LEGS`, `chroot_usable`, `ptmx_usable`, `fuse_usable`, `PTMX`, `FUSE` |
-| `select` | `Rung`, `Strictness`, `Rejection`, `Selection` (`choose`, `meets`, `exit_code`, `STRICT_FLOOR`), `Provides`, `control_rows` |
+| `select` | `Rung` (`word`, `requirement`, `must_never_claim`), `Strictness`, `Rejection`, `Selection` (`choose`, `meets`, `exit_code`, `STRICT_FLOOR`), `Provides`, `control_rows` |
+| `report` (feature `report`) | `write(&Findings, &Selection) -> String`, `read(&str) -> Result<(Findings, Selection), ReadError>`, `SCHEMA`, `ReadError` (`Form`, `Version`, `UnknownRow`, `DuplicateRow`, `Word`, `DenialWithoutErrno`): the JSON object of one run (see "The report") |
 | `mounts` | `Mounts`: create, configure, attach, use; `summary`, `capability_note` |
 | `machine` | `assess`, `Assessment`, `Profile` (`Full`, `Tcg`), `Leg`, the leg names, `accelerators_in` |
 | `supervise` | `assess` (the mediation legs), `assess_supervision` (the lifecycle legs), `Assessment`, `Leg` |
@@ -52,6 +53,46 @@ The crate reads no variable of the environment. The caller gives the
 named directories of the write probe (`writable::candidates`), and a
 function that tells which variables are set (`interp::detect`). A probe
 child gets the environment of its parent as it is.
+
+## The report
+
+The feature `report` (serde and serde_json) gives the module `report`.
+`report::write` gives one line of JSON with no newline at the end: an
+object of the findings and the selection of one run. `report::read` gives
+them back, and `write`, then `read`, then `write` gives the same text.
+`read` accepts the keys in each order and each white space. A caller that
+writes a document of its own puts the object under one key and reads that
+key back with `read`, so the caller keeps one writer.
+
+The object holds what the run measured. It holds no constant of the crate
+and no value that another field gives: the name of an errno
+(`Errno::name`), the group of a row (`probes::find`), the requirement of a
+rejected rung (`Rung::requirement`), what a rung must never claim.
+
+| Field | Type | What |
+| --- | --- | --- |
+| `schema` | number | the version of the object, `report::SCHEMA` (1); the first key |
+| `findings.rows[]` | object | one for each row of `Findings::rows`, in its order |
+| `findings.rows[].name` | string | the name of a row of `probes::PROBES` |
+| `findings.rows[].verdict` | string | `ok`, `denied` or `skip` (`Verdict::word`) |
+| `findings.rows[].errno` | number or null | the errno; never null for `denied` |
+| `findings.rows[].reason` | string | the reason; empty for none |
+| `findings.identity` | object | `Identity`: `uid`, `gid` (numbers), `groups` (numbers), `uid_map`, `gid_map`, `setgroups`, `cap_eff`, `cap_prm`, `cap_bnd`, `seccomp`, `seccomp_filters`, `no_new_privs`, `threads` (string or null), `unreadable` (strings) |
+| `findings.writable[]` | object | one for each write probe: `path`, `source`, `verdict`, `errno`, `reason` (as a row), `space` (null, or `blocks_free`, `block_size`, `inodes_free`), `space_errno` (number or null) |
+| `findings.self_exe` | string | the path from which the probe children started |
+| `selection.rung` | string | the rung (`Rung::word`) |
+| `selection.rejected[]` | object | one for each rejected rung: `rung`, `evidence` |
+| `selection.controls_answered` | boolean | each control answered |
+| `selection.control_notes` | strings | the notes of the controls |
+
+`read` refuses, with a `ReadError`: a text that is not a JSON object, or
+an object with a missing or an unknown field (`Form`); a `schema` that is
+absent, not a number or not `SCHEMA` (`Version`, before the form); a row
+name that `probes::PROBES` does not name (`UnknownRow`) or that comes two
+times (`DuplicateRow`); a verdict or a rung that is not a word of the
+crate (`Word`); a `denied` with no errno (`DenialWithoutErrno`). Each row
+name of the result is the `&'static str` of its entry of `PROBES`. A
+change of the form of the object changes `SCHEMA`.
 
 ## Parity
 
@@ -75,7 +116,7 @@ Against podvm `crates/podvm-probe`, `crates/podvm-image/src/space.rs` and
 | [x] The raw system calls, the trap of powerpc64 and s390x, the shed of fds after a fork | `sys` |
 | [x] Blocks, inodes, the file-size ceiling, the choice of a destination | `space` |
 | [x] The exec probe of a directory | `exec` (also tries `ETXTBSY` again, within a bound) |
-| [x] `exit`, `json`, `report`, `nongoals` | stay in podvm: its CLI and its report |
+| [x] `exit`, `json`, `report`, `nongoals` | stay in podvm: its CLI and its report; podvm's report embeds the object of `report` (feature `report`) |
 | [x] The tests: 90 unit tests (all of the moved files but `the_banner_cell_names_the_errno_rather_than_the_word_denied`), 10 integration tests | yes, with their names; 2 new unit tests; `tests/children.rs` runs the rows |
 
 ## Adoption map (podvm)
@@ -96,6 +137,7 @@ Against podvm `crates/podvm-probe`, `crates/podvm-image/src/space.rs` and
 | `podvm_probe::writable::probe()` | `pod_hostprobe::writable::probe(&writable::candidates(&named))`; podvm reads `PODVM_STORE` and then `writable::VARIABLES`, and gives each set value as `(value, "$NAME")` |
 | `podvm_probe::{binfmt, machine, mounts, supervise, child, identity}` | `pod_hostprobe::{binfmt, machine, mounts, supervise, child, identity}` (`child::Spawner::new(&settings)`) |
 | `podvm_probe::{exit, report, nongoals, json}` | stay in podvm |
+| the findings and the selection in podvm's `report::document`, read back by the probe cache | `pod_hostprobe::report::write` under one key of the document, and `report::read` of that key (feature `report`) |
 | `podvm_image::space::{read, require, choose, mib, dir_bytes, file_ceiling, Have, Free, Candidate}` | `pod_hostprobe::space::*`; `require(&settings, ...)`; the error is a `pod_core::Failure`, which podvm maps to its `Error::NoSpace` (`Class::Unavailable`) and `Error::Store` (`Class::Usage`) |
 | `podvm_image::exec_probe::{probe_store_exec, try_exec, ExecProbe, ExecVerdict}` | `pod_hostprobe::exec::{probe_dir_exec, try_exec, ExecProbe, ExecVerdict}`; `probe_dir_exec(&settings, dir)` |
 | the gate paths of `crates/podvm-gate` (`podvm-probe` tests, `namespace`, `namespace_base`) | the adoption patch changes them |
