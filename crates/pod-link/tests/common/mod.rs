@@ -6,6 +6,8 @@
 
 #[cfg(feature = "h2")]
 pub mod h2;
+#[cfg(feature = "quic")]
+pub mod quic;
 #[cfg(feature = "tcp")]
 pub mod tcp;
 #[cfg(feature = "ws")]

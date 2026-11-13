@@ -1,0 +1,20 @@
+diff --git a/crates/pod-link/src/quic/io.rs b/crates/pod-link/src/quic/io.rs
+--- a/crates/pod-link/src/quic/io.rs
++++ b/crates/pod-link/src/quic/io.rs
+@@ -92,13 +92,9 @@
+         };
+         // A close at once would drop the bytes that the peer did not
+         // acknowledge: the close waits for them.
+-        runtime.spawn(async move {
+-            let _ = tokio::time::timeout(linger, send.stopped()).await;
+-            conn.close(VarInt::from_u32(0), b"");
+-            if let Some(endpoint) = endpoint {
+-                let _ = tokio::time::timeout(CLOSE_WAIT, endpoint.wait_idle()).await;
+-            }
+-        });
++        let _ = (runtime, linger, endpoint);
++        conn.close(VarInt::from_u32(0), b"");
++        drop(send);
+     }
+ }
+ 

@@ -1,0 +1,29 @@
+diff --git a/crates/pod-link/src/quic/listen.rs b/crates/pod-link/src/quic/listen.rs
+--- a/crates/pod-link/src/quic/listen.rs
++++ b/crates/pod-link/src/quic/listen.rs
+@@ -135,13 +135,13 @@
+ /// Take the connections and shake hands with each, at most `limit` at
+ /// once. The drop of this task drops the handshakes under way.
+ async fn serve(endpoint: Endpoint, limit: Arc<Semaphore>, shake: Shake, out: mpsc::Sender<Shaken>) {
+-    let mut shakes = JoinSet::new();
++    let mut shakes = JoinSet::<()>::new();
+     loop {
+         let Ok(permit) = limit.clone().acquire_owned().await else { return };
+         while shakes.try_join_next().is_some() {}
+         let Some(incoming) = endpoint.accept().await else { return };
+         let (shake, out) = (shake.clone(), out.clone());
+-        shakes.spawn(async move {
++        let () = async move {
+             let from = incoming.remote_address();
+             let result = tokio::time::timeout(shake.within, handshake(incoming, from, &shake)).await;
+             let result = result.unwrap_or_else(|_| {
+@@ -152,7 +152,8 @@
+             });
+             let _ = out.send(result).await;
+             drop(permit);
+-        });
++        }
++        .await;
+     }
+ }
+ 

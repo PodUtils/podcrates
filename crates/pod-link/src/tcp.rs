@@ -127,17 +127,7 @@ impl Tcp {
     /// The key of the listener and its address in a dial address
     /// `KEY@HOST:PORT`.
     pub fn address(address: &str) -> Result<(KeyName, Target), CarrierError> {
-        let (key, target) = address.split_once('@').ok_or_else(|| {
-            err(CarrierErrorKind::Usage, format!("{address:?}: give KEY@HOST:PORT, with the key of the listener"))
-        })?;
-        let key = KeyName::parse(key).ok_or_else(|| {
-            err(
-                CarrierErrorKind::Usage,
-                format!(
-                    "{key:?} is no key: give the key in hex or base32, its SHA256: fingerprint or its display form"
-                ),
-            )
-        })?;
+        let (key, target) = pin::key_at(NAME, address, "KEY@HOST:PORT")?;
         let target = target.parse::<Target>().map_err(|e| err(CarrierErrorKind::Usage, e.text().to_string()))?;
         Ok((key, target))
     }

@@ -1,0 +1,7 @@
+# The dial of the quic carrier sends from a socket of the system, not over
+# the datagrams of the caller's way out (T-423).
+ENTRY=T-423
+GROUP=link
+EXPECT='the dial goes over the datagrams of the way out'
+RUN='cargo test -p pod-link --all-features --test quic a_link_over_quic_carries_streams'
+LIMIT=1800

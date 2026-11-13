@@ -1,0 +1,7 @@
+# The listener of the quic carrier runs each handshake in its accept loop:
+# a peer that stops in its handshake holds each other one (T-423).
+ENTRY=T-423
+GROUP=link
+EXPECT='the good client is not held'
+RUN='cargo test -p pod-link --all-features --test quic a_peer_that_stops_in_its_handshake_holds_no_other_one'
+LIMIT=1800

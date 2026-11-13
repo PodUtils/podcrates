@@ -2194,6 +2194,7 @@ dependencies = [
  "pod-core",
  "pod-identity",
  "pod-proxy",
+ "pod-quic",
  "pod-session",
  "pod-testkit",
  "pod-tls",

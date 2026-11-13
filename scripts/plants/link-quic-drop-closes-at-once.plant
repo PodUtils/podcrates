@@ -1,0 +1,7 @@
+# The drop of a stream of the quic carrier closes its connection at once:
+# the bytes that the peer did not acknowledge are lost (T-423).
+ENTRY=T-423
+GROUP=link
+EXPECT='the_bytes_before_a_drop_reach_the_peer stdout ----'
+RUN='cargo test -p pod-link --all-features --test quic the_bytes_before_a_drop_reach_the_peer'
+LIMIT=1800

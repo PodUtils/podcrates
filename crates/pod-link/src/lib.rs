@@ -24,7 +24,9 @@
 //! pinning the Ed25519 key of the other), and with the feature `ws`,
 //! `ws::Ws` (the same TLS under a WebSocket, its listener on the accept
 //! loop of `pod-ws`), and with the feature `h2`, `h2::H2` (the same TLS
-//! under one POST of HTTP/2). Each carrier says with
+//! under one POST of HTTP/2), and with the feature `quic`, `quic::Quic` (the
+//! same TLS under one stream of QUIC, over UDP or the caller's datagrams).
+//! Each carrier says with
 //! [`Carrier::available`] why the host cannot use it, and a listener gives
 //! the key that its peer proved with [`Listener::accept_peer`]. The
 //! registry of the carriers, their order and their flags are the
@@ -56,6 +58,8 @@ mod link;
 pub mod memory;
 #[cfg(feature = "tcp")]
 mod pin;
+#[cfg(feature = "quic")]
+pub mod quic;
 mod settings;
 mod state;
 mod stream;
