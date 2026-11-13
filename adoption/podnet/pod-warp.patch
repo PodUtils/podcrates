@@ -1,0 +1,1280 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 59140b0..fcd6fa9 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -68,63 +68,69 @@ podnet-serve = { path = "crates/podnet-serve", version = "0.4.0-beta.8" }
+ podnet-vnet = { path = "crates/podnet-vnet", version = "0.4.0-beta.8" }
+ # TLS of PodUtils/podcrates: the roots, the client configurations and the
+ # split of the ClientHello, with podnet's settings (src/trust.rs), on ring.
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The HTTP date of a time (the log of detach, the tests of the clock); the
+ # dial, the resolver and the failures of pod-proxy.
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The way out of each TCP connection (src/egress.rs: the proxies, Digest, the
+ # race of addresses, the proxy of a tool's file), the HTTP client
+ # (src/fetch.rs) and the credentials of a served proxy, of PodUtils/podcrates,
+ # with podnet's settings.
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The resolver of each direct dial (src/resolve.rs): an IP address, the pins
+ # of --resolve, the system and DNS over HTTPS, with podnet's settings.
+-pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-dns = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The services of other parties: the relay, the edge of Cloudflare's tunnels
+ # and its roots, the quick tunnels, WARP, 1.1.1.1 and Pinggy, as data with
+ # their sources.
+-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The WebSocket of `connect`, of the forward endpoint and their bridge
+ # (src/ws.rs), of PodUtils/podcrates, with podnet's dial, TLS context and
+ # user agent, and the limits of tokio-tungstenite.
+-pod-ws = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-ws = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # QUIC (the edge, QUIC over WARP, MASQUE over HTTP/3) on noq, of
+ # PodUtils/podcrates: the endpoints and their keys in pure Rust, and the
+ # socket over the UDP of the userspace stack under WARP (src/warp/quic.rs).
+-pod-quic = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-quic = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The ioctl number of TUNSETIFF for the target (src/warp/tun.rs), of the
+ # hold of PodUtils/podcrates (podnet-netns has its core).
+-pod-hold = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-hold = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The WireGuard initiator of WARP, sans I/O, of PodUtils/podcrates: the
+ # handshake, the cookie, the transport messages and the timers of
+ # src/warp/wg.rs, on ring.
+-pod-wg = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-wg = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++# WARP of PodUtils/podcrates: the registration, the identity and its file,
++# the doors, MASQUE over HTTP/2 and HTTP/3, WireGuard and the carried device,
++# the relay leg, the stack and its settings, the proxy, the resolvers, the
++# forward, nc, the session replaced when it closes, the exit, the socket of a
++# running proxy, the TUN and its routes. The glue is src/warp/.
++pod-warp = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The client of the WebSocket-to-TCP relay of PodUtils/podcrates
+ # (src/ws_relay.rs, src/relay_reverse.rs): the hosts, their pool and their
+ # failover, the tokens, the pairs, the node and the operator of the reverse
+ # road. plain-ws: http:// and ws:// to a relay on the loopback, as podnet
+ # took them before (a stand-in relay of the tests); a host off the loopback
+ # stays refused before any connection.
+-pod-relay = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0", features = ["pair", "plain-ws"] }
++pod-relay = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0", features = ["pair", "plain-ws"] }
+ # The link of the link workstream, of PodUtils/podcrates (call C120 to C124):
+ # many streams over one carrier byte stream with credit windows and a
+ # keepalive, and the carriers (unix, memory) behind one trait. The glue is
+ # src/link.rs, the registry of the carriers src/carriers.rs.
+-pod-link = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-link = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The key of an install (call C118): the Ed25519 seed in a key file, the
+ # fingerprints, the allow list. The glue is src/identity.rs.
+-pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-identity = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The resumable layer (T-263): offsets that never reset, a 256-bit secret
+ # and the 10-minute window. The glue is src/session.rs.
+-pod-session = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-session = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The TURN client (RFC 8656) over UDP and TLS of PodUtils/podcrates: the
+ # network turn://HOST:PORT (src/networks/turn.rs) allocates with it.
+-pod-turn = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-turn = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The Dev Tunnels client (management read, relay WebSocket, SSH with no user
+ # authentication, direct-tcpip streams, bounded reconnect) of
+ # PodUtils/podcrates: the network devtunnel://TUNNEL (src/networks/devtunnel.rs)
+ # opens streams with it.
+-pod-devtunnel = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-devtunnel = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ anyhow = "1"
+ axum ={ version = "0.8", features = ["multipart"] }
+ base64 = "0.23"
+@@ -172,7 +178,7 @@ serde_json = "1"
+ # 65507 bytes in both directions over each MTU (a guest wire). Each interface
+ # of smoltcp in the binary holds a buffer of 64 KiB for the fragments that it
+ # sends, and smoltcp puts together one datagram at a time.
+-pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0", features = ["ipv4-fragmentation"] }
++pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0", features = ["ipv4-fragmentation"] }
+ # The version of pod-netstack of PodUtils/podcrates: WARP (src/warp/ip.rs)
+ # drives its link device (vnet::device) with it.
+ smoltcp = { version = "0.14", default-features = false, features = [
+@@ -247,10 +253,10 @@ full = ["tcp", "quic", "s3", "icmp", "ss", "trojan", "c-abi"]
+ 
+ [dev-dependencies]
+ # The responder of the tests of WireGuard (src/warp/wg/standin.rs).
+-pod-wg = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0", features = ["standin"] }
++pod-wg = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0", features = ["standin"] }
+ # The stand-in of the management API and of the relay on the loopback
+ # (tests/devtunnel_network.rs, src/networks/devtunnel_tests.rs).
+-pod-devtunnel = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0", features = ["standin"] }
++pod-devtunnel = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0", features = ["standin"] }
+ tempfile = "3"
+ tokio = { version = "1", features = ["test-util"] }
+ 
+diff --git a/crates/podnet-core/Cargo.toml b/crates/podnet-core/Cargo.toml
+index cd58364..6f0bd69 100644
+--- a/crates/podnet-core/Cargo.toml
++++ b/crates/podnet-core/Cargo.toml
+@@ -22,9 +22,9 @@ path = "src/lib.rs"
+ [dependencies]
+ # The clock of an HTTP date, the services of other parties and the TLS
+ # context, of PodUtils/podcrates at the git tag of the root.
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
+-pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ anyhow = "1"
+ futures = "0.3"
+ getrandom = "0.4"
+@@ -65,4 +65,4 @@ tempfile = "3"
+ tokio = { version = "1", features = ["test-util"] }
+ # need_loopback! and need_localhost! of the tests (T-046), from the test kit
+ # of PodUtils/podcrates at the git tag of the root.
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+diff --git a/crates/podnet-netns/Cargo.toml b/crates/podnet-netns/Cargo.toml
+index c72aa21..e9b68d1 100644
+--- a/crates/podnet-netns/Cargo.toml
++++ b/crates/podnet-netns/Cargo.toml
+@@ -25,21 +25,21 @@ anyhow = "1"
+ base64 = "0.23"
+ libc = "0.2"
+ # The dialer and the datagrams of the front door (door.rs).
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The SOCKS5 datagram path (UDP ASSOCIATE, the command 0x83, the frames and
+ # the datagram header) of PodUtils/podcrates, at the git tag of the root.
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The generic core of the hold of PodUtils/podcrates: the seccomp filter,
+ # the receive of a notification, the memory of the child, the reply, the
+ # table of the sockets with the flow budget, the dial state of a connect,
+ # the netns entry, the TUN, the veth wire, the SYN packets and (syn-hold)
+ # the hold of each SYN of the router on the stack of pod-netstack.
+-pod-hold = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0", features = ["syn-hold"] }
++pod-hold = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0", features = ["syn-hold"] }
+ serde_json = "1"
+ # The userspace stack of the router (its config, its streams): the TUN or
+ # the veth wire, under the hold of pod-hold. A build needs
+ # SMOLTCP_IFACE_MAX_ADDR_COUNT = "8" (`.cargo/config.toml` of the workspace).
+-pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ tokio = { version = "1", features = [
+     "macros",
+     "rt-multi-thread",
+@@ -54,6 +54,6 @@ tracing = "0.1"
+ 
+ [dev-dependencies]
+ # need_loopback! of the tests of the door.
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ tempfile = "3"
+ tokio = { version = "1", features = ["test-util"] }
+diff --git a/crates/podnet-serve/Cargo.toml b/crates/podnet-serve/Cargo.toml
+index 770d6b7..c5df084 100644
+--- a/crates/podnet-serve/Cargo.toml
++++ b/crates/podnet-serve/Cargo.toml
+@@ -22,11 +22,11 @@ path = "src/lib.rs"
+ podnet-core = { path = "../podnet-core", version = "0.4.0-beta.8" }
+ # The TLS client of an origin, and the credentials of a served proxy, of
+ # PodUtils/podcrates at the git tag of the root.
+-pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
+-pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-tls = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
++pod-proxy = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ # The check of the owner and the mode of the users file of the file
+ # server (T-089); a crate of the workspace, at the git tag of the root.
+-pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-core = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ anyhow = "1"
+ axum = { version = "0.8", features = ["multipart"] }
+ # The Basic credentials of the users of the file server (T-089).
+@@ -79,6 +79,6 @@ uuid = { version = "1", features = ["v4", "serde"] }
+ 
+ [dev-dependencies]
+ # need_loopback! of the tests; a crate of the workspace.
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+ tempfile = "3"
+ tokio = { version = "1", features = ["test-util"] }
+diff --git a/crates/podnet-todo/Cargo.toml b/crates/podnet-todo/Cargo.toml
+index c9ee9ac..751cebf 100644
+--- a/crates/podnet-todo/Cargo.toml
++++ b/crates/podnet-todo/Cargo.toml
+@@ -9,4 +9,4 @@ license = "0BSD"
+ publish = false
+ 
+ [dependencies]
+-pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0" }
++pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0" }
+diff --git a/crates/podnet-vnet/Cargo.toml b/crates/podnet-vnet/Cargo.toml
+index 0fd9789..674dfbb 100644
+--- a/crates/podnet-vnet/Cargo.toml
++++ b/crates/podnet-vnet/Cargo.toml
+@@ -34,7 +34,7 @@ serde_json = "1"
+ # 65507 bytes in both directions over each MTU (a guest wire). Each interface
+ # of smoltcp in the binary holds a buffer of 64 KiB for the fragments that it
+ # sends, and smoltcp puts together one datagram at a time.
+-pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0", features = ["ipv4-fragmentation"] }
++pod-netstack = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0", features = ["ipv4-fragmentation"] }
+ # The version of pod-netstack and the features of the root crate (Cargo.toml
+ # of podnet): the proof of `net doctor` (stack/proof.rs) drives the link
+ # device of pod-netstack with it.
+@@ -67,4 +67,4 @@ tempfile = "3"
+ tokio = { version = "1", features = ["test-util"] }
+ # need_loopback! of the tests, from the test kit of PodUtils/podcrates at
+ # the git tag of the root.
+-pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.34.0", version = "0.34.0" }
++pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.35.0", version = "0.35.0" }
+diff --git a/src/cli/cmd/warp/mod.rs b/src/cli/cmd/warp/mod.rs
+index 0dc04b1..94f4288 100644
+--- a/src/cli/cmd/warp/mod.rs
++++ b/src/cli/cmd/warp/mod.rs
+@@ -53,12 +53,11 @@ pub(crate) async fn warp(mut args: WarpArgs) -> Result<()> {
+         podnet::warp::live::set_split(split);
+     }
+     // Issue 141: the name, the model and the locale of a new device.
+-    podnet::warp::register::DeviceHints {
++    podnet::warp::hints::set(podnet::warp::register::DeviceHints {
+         name: args.device_name.clone(),
+         model: args.device_model.clone(),
+         locale: args.device_locale.clone(),
+-    }
+-    .set()
++    })
+     .fault(Fault::Usage)?;
+     // These commands use the running instance of podnet warp up.
+     if up::before_client(&args).await? {
+diff --git a/src/warp/capsule.rs b/src/warp/capsule.rs
+index 43fd24f..8d07f0e 100644
+--- a/src/warp/capsule.rs
++++ b/src/warp/capsule.rs
+@@ -1,301 +1,3 @@
+-//! RFC 9297 capsules and the CONNECT-IP capsule types of RFC 9484.
+-//!
+-//! Over HTTP/2 there are no QUIC datagrams, so IP packets travel inside
+-//! `CAPSULE_CONNECT_IP_DATA` capsules in the request body's DATA frames. The
+-//! framing is a pair of QUIC variable-length integers (RFC 9000 §16) — the
+-//! capsule type and the value length — followed by the value.
++//! The capsules of RFC 9297 and the types of RFC 9484: `pod-warp`'s.
+ 
+-use bytes::{BufMut, Bytes};
+-
+-/// An IP packet. The only capsule type that carries traffic.
+-pub const CAPSULE_DATA: u64 = 0x00;
+-/// The tunnel assigning an address to the client.
+-pub const CAPSULE_ADDRESS_ASSIGN: u64 = 0x01;
+-/// The client asking for an address.
+-pub const CAPSULE_ADDRESS_REQUEST: u64 = 0x02;
+-/// The tunnel advertising a route.
+-pub const CAPSULE_ROUTE_ADVERTISEMENT: u64 = 0x03;
+-
+-/// Write a QUIC variable-length integer.
+-pub fn put_varint(out: &mut impl BufMut, value: u64) {
+-    if value < 64 {
+-        out.put_u8(value as u8);
+-    } else if value < 16_384 {
+-        out.put_u8(0x40 | (value >> 8) as u8);
+-        out.put_u8(value as u8);
+-    } else if value < 1_073_741_824 {
+-        out.put_u8(0x80 | (value >> 24) as u8);
+-        out.put_u8((value >> 16) as u8);
+-        out.put_u8((value >> 8) as u8);
+-        out.put_u8(value as u8);
+-    } else {
+-        out.put_u8(0xC0 | (value >> 56) as u8);
+-        out.put_u8((value >> 48) as u8);
+-        out.put_u8((value >> 40) as u8);
+-        out.put_u8((value >> 32) as u8);
+-        out.put_u8((value >> 24) as u8);
+-        out.put_u8((value >> 16) as u8);
+-        out.put_u8((value >> 8) as u8);
+-        out.put_u8(value as u8);
+-    }
+-}
+-
+-/// Read a QUIC variable-length integer, returning `(value, bytes_consumed)`.
+-pub fn get_varint(input: &[u8]) -> Option<(u64, usize)> {
+-    let first = *input.first()?;
+-    let len = 1usize << (first >> 6);
+-    if input.len() < len {
+-        return None;
+-    }
+-    let mut value = (first & 0x3f) as u64;
+-    for &byte in &input[1..len] {
+-        value = (value << 8) | byte as u64;
+-    }
+-    Some((value, len))
+-}
+-
+-/// Encode one capsule into `out`.
+-pub fn put_capsule(out: &mut impl BufMut, capsule_type: u64, value: &[u8]) {
+-    put_varint(out, capsule_type);
+-    put_varint(out, value.len() as u64);
+-    out.put_slice(value);
+-}
+-
+-/// A streaming decoder for a capsule-framed byte stream.
+-///
+-/// Chunks are pushed as they arrive; whole capsules are consumed as they
+-/// complete, so a capsule split across DATA frames reassembles without copying
+-/// the payload twice.
+-///
+-/// A capsule longer than [`MAX_CAPSULE_LEN`] stops the decoder (issue 123):
+-/// [`error`](Self::error) then names it, and no more bytes are kept.
+-#[derive(Default)]
+-pub struct CapsuleDecoder {
+-    buf: Vec<u8>,
+-    error: Option<String>,
+-    /// The addresses of the last ADDRESS_ASSIGN capsule (issue 121).
+-    assigned: Option<Vec<(std::net::IpAddr, u8)>>,
+-}
+-
+-/// The addresses of an ADDRESS_ASSIGN value (RFC 9484 section 4.7.1):
+-/// request id (varint), IP version (1 byte), address (4 or 16 bytes),
+-/// prefix length (1 byte), repeated. `None` for a value that does not
+-/// parse: the layout of the front door is not known for sure.
+-pub fn parse_address_assign(mut value: &[u8]) -> Option<Vec<(std::net::IpAddr, u8)>> {
+-    let mut out = Vec::new();
+-    while !value.is_empty() {
+-        let (_, n) = get_varint(value)?;
+-        value = &value[n..];
+-        let (&version, rest) = value.split_first()?;
+-        let len = match version {
+-            4 => 4,
+-            6 => 16,
+-            _ => return None,
+-        };
+-        if rest.len() < len + 1 {
+-            return None;
+-        }
+-        let ip = match version {
+-            4 => std::net::IpAddr::from(<[u8; 4]>::try_from(&rest[..4]).ok()?),
+-            _ => std::net::IpAddr::from(<[u8; 16]>::try_from(&rest[..16]).ok()?),
+-        };
+-        out.push((ip, rest[len]));
+-        value = &rest[len + 1..];
+-    }
+-    Some(out)
+-}
+-
+-/// The longest capsule value that the decoder takes. An IP packet of the
+-/// tunnel is at most the MTU (1280); an HTTP/2 DATA frame of the front door
+-/// is at most 16 KiB. 64 KiB leaves room for control capsules.
+-pub const MAX_CAPSULE_LEN: u64 = 64 * 1024;
+-
+-impl CapsuleDecoder {
+-    pub fn new() -> Self {
+-        Self::default()
+-    }
+-
+-    pub fn push(&mut self, data: &[u8]) {
+-        if self.error.is_none() {
+-            self.buf.extend_from_slice(data);
+-        }
+-    }
+-
+-    /// Why the decoder stopped: a capsule over the limit. The stream is
+-    /// then unusable.
+-    pub fn error(&self) -> Option<&str> {
+-        self.error.as_deref()
+-    }
+-
+-    /// Yield the next complete capsule, or `None` if more bytes are needed.
+-    pub fn next_capsule(&mut self) -> Option<(u64, Bytes)> {
+-        if self.error.is_some() {
+-            return None;
+-        }
+-        let (capsule_type, type_len) = get_varint(&self.buf)?;
+-        let (length, len_len) = get_varint(&self.buf[type_len..])?;
+-        if length > MAX_CAPSULE_LEN {
+-            self.error = Some(format!(
+-                "a capsule of type {capsule_type} claims {length} bytes (the limit is {MAX_CAPSULE_LEN})"
+-            ));
+-            self.buf = Vec::new();
+-            return None;
+-        }
+-        let header = type_len + len_len;
+-        let total = header + length as usize;
+-        if self.buf.len() < total {
+-            return None;
+-        }
+-        let value = Bytes::copy_from_slice(&self.buf[header..total]);
+-        self.buf.drain(..total);
+-        Some((capsule_type, value))
+-    }
+-
+-    /// Yield the next IP packet, skipping the control capsules. An
+-    /// ADDRESS_ASSIGN is kept for [`take_assigned`](Self::take_assigned).
+-    pub fn next_packet(&mut self) -> Option<Bytes> {
+-        loop {
+-            let (capsule_type, value) = self.next_capsule()?;
+-            if capsule_type == CAPSULE_DATA && !value.is_empty() {
+-                return Some(value);
+-            }
+-            if capsule_type == CAPSULE_ADDRESS_ASSIGN {
+-                match parse_address_assign(&value) {
+-                    Some(addrs) => self.assigned = Some(addrs),
+-                    None => {
+-                        tracing::debug!(len = value.len(), "an ADDRESS_ASSIGN that does not parse")
+-                    }
+-                }
+-            }
+-        }
+-    }
+-
+-    /// The addresses of an ADDRESS_ASSIGN that came since the last call.
+-    pub fn take_assigned(&mut self) -> Option<Vec<(std::net::IpAddr, u8)>> {
+-        self.assigned.take()
+-    }
+-
+-    pub fn buffered(&self) -> usize {
+-        self.buf.len()
+-    }
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-    use bytes::BytesMut;
+-
+-    // Issue 121: an ADDRESS_ASSIGN is parsed and kept.
+-    #[test]
+-    fn an_address_assign_is_kept() {
+-        let mut value = vec![0x01, 4, 172, 16, 0, 2, 32];
+-        value.extend([0x02, 6]);
+-        value.extend(
+-            "2606:4700:110:8a36::2"
+-                .parse::<std::net::Ipv6Addr>()
+-                .unwrap()
+-                .octets(),
+-        );
+-        value.push(128);
+-        let mut d = CapsuleDecoder::new();
+-        d.push(&frame(CAPSULE_ADDRESS_ASSIGN, &value));
+-        d.push(&frame(CAPSULE_DATA, b"\x45packet"));
+-        assert_eq!(&d.next_packet().unwrap()[..], b"\x45packet");
+-        let assigned = d.take_assigned().unwrap();
+-        assert_eq!(assigned[0], ("172.16.0.2".parse().unwrap(), 32));
+-        assert_eq!(assigned[1].1, 128);
+-        assert!(d.take_assigned().is_none());
+-        assert!(parse_address_assign(&[0x01, 9, 1]).is_none());
+-        assert!(parse_address_assign(&[0x01, 4, 1, 2]).is_none());
+-    }
+-
+-    // Issue 123: a length over the limit stops the decoder, and the bytes
+-    // after it are not kept. Before, the buffer grew without a limit.
+-    #[test]
+-    fn a_capsule_over_the_limit_stops_the_decoder() {
+-        let mut d = CapsuleDecoder::new();
+-        let mut head = BytesMut::new();
+-        put_varint(&mut head, CAPSULE_DATA);
+-        put_varint(&mut head, 1 << 30);
+-        d.push(&head);
+-        assert!(d.next_packet().is_none());
+-        assert!(d.error().unwrap().contains("1073741824"), "{:?}", d.error());
+-        for _ in 0..16 {
+-            d.push(&[0u8; 65536]);
+-        }
+-        assert_eq!(d.buffered(), 0);
+-        assert!(d.next_packet().is_none());
+-    }
+-
+-    #[test]
+-    fn a_capsule_at_the_limit_decodes() {
+-        let value = vec![0x45u8; MAX_CAPSULE_LEN as usize];
+-        let mut d = CapsuleDecoder::new();
+-        d.push(&frame(CAPSULE_DATA, &value));
+-        assert_eq!(d.next_packet().unwrap().len(), value.len());
+-        assert!(d.error().is_none());
+-    }
+-
+-    fn frame(capsule_type: u64, value: &[u8]) -> Vec<u8> {
+-        let mut out = BytesMut::new();
+-        put_capsule(&mut out, capsule_type, value);
+-        out.to_vec()
+-    }
+-
+-    /// The DATA capsule of the WARP front door holds a bare IP packet: no
+-    /// context ID before it (RFC 9484 has one, a varint 0).
+-    #[test]
+-    fn a_data_capsule_has_no_context_id() {
+-        let packet = b"\x45\x00\x00\x14ipv4";
+-        let mut buf = BytesMut::new();
+-        put_capsule(&mut buf, CAPSULE_DATA, packet);
+-        assert_eq!(buf[0], 0x00, "the type");
+-        assert_eq!(buf[1] as usize, packet.len(), "the length");
+-        assert_eq!(
+-            &buf[2..],
+-            packet,
+-            "the packet starts at once (0x45), no 0x00 context ID"
+-        );
+-        let mut d = CapsuleDecoder::new();
+-        d.push(&buf);
+-        assert_eq!(&d.next_packet().unwrap()[..], packet);
+-    }
+-
+-    #[test]
+-    fn varint_boundaries() {
+-        for value in [0u64, 63, 64, 16_383, 16_384, 1_073_741_823, 1_073_741_824] {
+-            let mut buf = BytesMut::new();
+-            put_varint(&mut buf, value);
+-            let (got, len) = get_varint(&buf).unwrap();
+-            assert_eq!(got, value);
+-            assert_eq!(len, buf.len());
+-        }
+-    }
+-
+-    #[test]
+-    fn capsule_roundtrip() {
+-        let packet = b"\x45\x00\x00\x14hello";
+-        let mut d = CapsuleDecoder::new();
+-        d.push(&frame(CAPSULE_DATA, packet));
+-        assert_eq!(&d.next_packet().unwrap()[..], packet);
+-        assert!(d.next_packet().is_none());
+-    }
+-
+-    #[test]
+-    fn control_capsules_are_skipped() {
+-        let mut d = CapsuleDecoder::new();
+-        d.push(&frame(CAPSULE_ADDRESS_ASSIGN, b"\x00\x01"));
+-        d.push(&frame(CAPSULE_DATA, b"\x45\x00"));
+-        assert_eq!(&d.next_packet().unwrap()[..], b"\x45\x00");
+-    }
+-
+-    #[test]
+-    fn a_capsule_split_across_chunks_reassembles() {
+-        let full = frame(CAPSULE_DATA, b"\x45\x00\x00\x14payload");
+-        let mut d = CapsuleDecoder::new();
+-        d.push(&full[..3]);
+-        assert!(d.next_packet().is_none());
+-        d.push(&full[3..]);
+-        assert_eq!(&d.next_packet().unwrap()[..], b"\x45\x00\x00\x14payload");
+-    }
+-}
++pub use pod_warp::capsule::*;
+diff --git a/src/warp/door.rs b/src/warp/door.rs
+deleted file mode 100644
+index aaf410e..0000000
+--- a/src/warp/door.rs
++++ /dev/null
+@@ -1,90 +0,0 @@
+-//! The order of the front door addresses of the MASQUE session.
+-
+-use std::net::SocketAddr;
+-
+-/// The order of the front door addresses: the one that worked last first,
+-/// then the others; IPv6 only with an IPv6 route (or a proxy or a relay,
+-/// which reach it for podnet). With no door that worked and no IPv4 route
+-/// (`v4_route` false), the IPv6 doors go first: an IPv4 door can only fail
+-/// with `Network unreachable` (T-169).
+-pub(super) fn endpoint_order(
+-    all: Vec<SocketAddr>,
+-    won: Option<SocketAddr>,
+-    bad: Option<SocketAddr>,
+-    ipv6: bool,
+-    v4_route: bool,
+-) -> Vec<SocketAddr> {
+-    let mut out: Vec<SocketAddr> = all.into_iter().filter(|a| a.is_ipv4() || ipv6).collect();
+-    let won = won.filter(|w| Some(*w) != bad);
+-    if let Some(won) = won {
+-        if let Some(i) = out.iter().position(|a| *a == won) {
+-            out.swap(0, i);
+-        }
+-    } else if !v4_route {
+-        out.sort_by_key(|a| a.is_ipv4());
+-    }
+-    // Issue 133: a door that carried no packet goes last.
+-    if let Some(bad) = bad {
+-        if let Some(i) = out.iter().position(|a| *a == bad) {
+-            let door = out.remove(i);
+-            out.push(door);
+-        }
+-    }
+-    out
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-
+-    // Issue 124: the address that worked goes first; IPv6 only with a
+-    // route.
+-    #[test]
+-    fn the_order_of_the_front_door_addresses() {
+-        let v4: SocketAddr = "162.159.198.2:443".parse().unwrap();
+-        let v6: SocketAddr = "[2606:4700:103::2]:443".parse().unwrap();
+-        assert_eq!(
+-            endpoint_order(vec![v4, v6], None, None, true, true),
+-            [v4, v6]
+-        );
+-        assert_eq!(
+-            endpoint_order(vec![v4, v6], Some(v6), None, true, true),
+-            [v6, v4]
+-        );
+-        assert_eq!(endpoint_order(vec![v4, v6], None, None, false, true), [v4]);
+-        assert_eq!(
+-            endpoint_order(vec![v4, v6], Some(v6), None, false, true),
+-            [v4]
+-        );
+-        // Issue 133: a door that carried no packet goes last, also when it
+-        // won the handshake.
+-        assert_eq!(
+-            endpoint_order(vec![v4, v6], Some(v4), Some(v4), true, true),
+-            [v6, v4]
+-        );
+-        assert_eq!(
+-            endpoint_order(vec![v4, v6], None, Some(v4), true, true),
+-            [v6, v4]
+-        );
+-    }
+-
+-    // T-169: with no IPv4 route, the IPv6 door goes first; a door that won
+-    // keeps its place.
+-    #[test]
+-    fn endpoint_order_puts_v6_first_without_a_v4_route() {
+-        let v4: SocketAddr = "162.159.198.2:443".parse().unwrap();
+-        let v6: SocketAddr = "[2606:4700:103::2]:443".parse().unwrap();
+-        assert_eq!(
+-            endpoint_order(vec![v4, v6], None, None, true, false),
+-            [v6, v4]
+-        );
+-        assert_eq!(
+-            endpoint_order(vec![v4, v6], Some(v4), None, true, false),
+-            [v4, v6]
+-        );
+-        assert_eq!(
+-            endpoint_order(vec![v4, v6], None, None, true, true),
+-            [v4, v6]
+-        );
+-    }
+-}
+diff --git a/src/warp/hints.rs b/src/warp/hints.rs
+index f01da74..93163b2 100644
+--- a/src/warp/hints.rs
++++ b/src/warp/hints.rs
+@@ -1,16 +1,9 @@
+-//! The hints of a new WARP device (issue 141), moved out of `register.rs`.
++//! The hints of a new WARP device (issue 141): podnet's flags and
++//! variables into `pod_warp::DeviceHints`.
+ 
+-use anyhow::{bail, Result};
++use anyhow::Result;
+ 
+-/// The name, the model and the locale that a new device declares (issue
+-/// 141). The default gives the bytes of before: model `PC`, locale
+-/// `en_US`, no name.
+-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+-pub struct DeviceHints {
+-    pub name: Option<String>,
+-    pub model: Option<String>,
+-    pub locale: Option<String>,
+-}
++pub use pod_warp::DeviceHints;
+ 
+ /// The variables of [`DeviceHints`].
+ pub const DEVICE_NAME_VARIABLE: &str = "PODNET_WARP_DEVICE_NAME";
+@@ -19,54 +12,25 @@ pub const DEVICE_LOCALE_VARIABLE: &str = "PODNET_WARP_DEVICE_LOCALE";
+ 
+ static HINTS: std::sync::OnceLock<DeviceHints> = std::sync::OnceLock::new();
+ 
+-impl DeviceHints {
+-    /// The hints of the variables.
+-    pub fn from_env() -> Self {
+-        let var = |k: &str| std::env::var(k).ok().filter(|v| !v.trim().is_empty());
+-        Self {
+-            name: var(DEVICE_NAME_VARIABLE),
+-            model: var(DEVICE_MODEL_VARIABLE),
+-            locale: var(DEVICE_LOCALE_VARIABLE),
+-        }
+-    }
+-
+-    /// A name of 1 to 64 printable characters, a model of 1 to 32, a
+-    /// locale as `ll_CC`.
+-    pub fn check(&self) -> Result<()> {
+-        let printable = |s: &str| s.chars().all(|c| !c.is_control());
+-        if let Some(name) = &self.name {
+-            if name.is_empty() || name.chars().count() > 64 || !printable(name) {
+-                bail!("the device name has 1 to 64 printable characters: {name:?}");
+-            }
+-        }
+-        if let Some(model) = &self.model {
+-            if model.is_empty() || model.chars().count() > 32 || !printable(model) {
+-                bail!("the device model has 1 to 32 printable characters: {model:?}");
+-            }
+-        }
+-        if let Some(locale) = &self.locale {
+-            let b = locale.as_bytes();
+-            let ok = b.len() == 5
+-                && b[..2].iter().all(u8::is_ascii_lowercase)
+-                && b[2] == b'_'
+-                && b[3..].iter().all(u8::is_ascii_uppercase);
+-            if !ok {
+-                bail!("the device locale is as en_US: {locale:?}");
+-            }
+-        }
+-        Ok(())
++/// The hints of the variables.
++pub fn from_env() -> DeviceHints {
++    let var = |k: &str| std::env::var(k).ok().filter(|v| !v.trim().is_empty());
++    DeviceHints {
++        name: var(DEVICE_NAME_VARIABLE),
++        model: var(DEVICE_MODEL_VARIABLE),
++        locale: var(DEVICE_LOCALE_VARIABLE),
+     }
++}
+ 
+-    /// Set the hints of this process (the flags). A later call does
+-    /// nothing.
+-    pub fn set(self) -> Result<()> {
+-        self.check()?;
+-        let _ = HINTS.set(self);
+-        Ok(())
+-    }
++/// Set the hints of this process (the flags). A bad hint is a usage
++/// error. A later call does nothing.
++pub fn set(hints: DeviceHints) -> Result<()> {
++    hints.check().map_err(super::failed)?;
++    let _ = HINTS.set(hints);
++    Ok(())
++}
+ 
+-    /// The hints of this process: the flags, else the variables.
+-    pub fn current() -> Self {
+-        HINTS.get().cloned().unwrap_or_else(Self::from_env)
+-    }
++/// The hints of this process: the flags, else the variables.
++pub fn current() -> DeviceHints {
++    HINTS.get().cloned().unwrap_or_else(from_env)
+ }
+diff --git a/src/warp/mod.rs b/src/warp/mod.rs
+index ce8ab2f..23eaa0b 100644
+--- a/src/warp/mod.rs
++++ b/src/warp/mod.rs
+@@ -32,15 +32,13 @@
+ //! ```
+ 
+ pub mod capsule;
+-mod door;
+-use door::endpoint_order;
+ mod enrol;
+ pub mod exit;
+ pub mod export;
+ pub mod find;
+ pub mod forward;
+ pub mod h3;
+-mod hints;
++pub mod hints;
+ pub mod identity;
+ pub mod ip;
+ pub mod l4;
+@@ -71,6 +69,32 @@ use anyhow::{bail, Context, Result};
+ 
+ use crate::egress::Proxy;
+ 
++/// A failure of `pod-warp` as an error of podnet: the class of the failure
++/// gives the exit code (`crate::exit`).
++pub fn failed(failure: pod_core::Failure) -> anyhow::Error {
++    use crate::exit::Fault;
++    use pod_core::Class;
++    let fault = match failure.class {
++        Class::Usage => Fault::Usage,
++        Class::Config | Class::Revoked => Fault::Config,
++        Class::NotFound => Fault::NoInput,
++        Class::TempFail => Fault::TempFail,
++        _ => Fault::Unavailable,
++    };
++    crate::exit::fault(fault, anyhow::Error::new(failure))
++}
++
++/// `?` for a result of `pod-warp`, with the class of [`failed`].
++pub trait Warped<T> {
++    fn warped(self) -> Result<T>;
++}
++
++impl<T> Warped<T> for std::result::Result<T, pod_core::Failure> {
++    fn warped(self) -> Result<T> {
++        self.map_err(failed)
++    }
++}
++
+ /// A registered WARP device with a MASQUE identity ready to dial.
+ pub struct WarpClient {
+     device: Device,
+@@ -113,36 +137,9 @@ fn door_file_of(identity: &std::path::Path) -> std::path::PathBuf {
+ /// tag of WireGuard (32), and its padding (at most 15).
+ pub const CARRY_MTU: usize = 1200;
+ 
+-/// A door in the door file is used for this time.
+-const DOOR_TTL: std::time::Duration = std::time::Duration::from_secs(7 * 24 * 3600);
+-
+-/// The door of the text of a door file, when it is recent (less than
+-/// [`DOOR_TTL`] before `now`) and one of `candidates` (issue 133).
+-fn door_from(
+-    text: &str,
+-    now: u64,
+-    candidates: &[std::net::SocketAddr],
+-) -> Option<std::net::SocketAddr> {
+-    let doc: serde_json::Value = serde_json::from_str(text).ok()?;
+-    if doc["schema"] != 1 {
+-        return None;
+-    }
+-    let at = doc["at"].as_u64()?;
+-    if at > now || now - at >= DOOR_TTL.as_secs() {
+-        return None;
+-    }
+-    let door: std::net::SocketAddr = doc["door"].as_str()?.parse().ok()?;
+-    candidates.contains(&door).then_some(door)
+-}
+-
+-/// The delay of the relay after the start of the direct path.
+-const RELAY_DELAY: std::time::Duration = std::time::Duration::from_secs(3);
+-/// The delay of the relay when the relay worked last: a direct path that
+-/// works opens in less.
+-const RELAY_DELAY_KNOWN: std::time::Duration = std::time::Duration::from_millis(500);
++use pod_warp::door::door_from;
+ 
+-/// A leg in the leg file is used for this time.
+-const LEG_TTL: std::time::Duration = std::time::Duration::from_secs(6 * 3600);
++use pod_warp::leg::{RELAY_DELAY, RELAY_DELAY_KNOWN};
+ 
+ /// The leg file of an identity file: `warp.json` gives `warp-leg.json`.
+ fn leg_file_of(identity: &std::path::Path) -> std::path::PathBuf {
+@@ -153,18 +150,7 @@ fn leg_file_of(identity: &std::path::Path) -> std::path::PathBuf {
+     identity.with_file_name(format!("{stem}-leg.json"))
+ }
+ 
+-/// True when the text of a leg file says that the relay `relay` worked
+-/// less than [`LEG_TTL`] before `now` (unix seconds).
+-fn relay_first_from(text: &str, now: u64, relay: &str) -> bool {
+-    let Ok(doc) = serde_json::from_str::<serde_json::Value>(text) else {
+-        return false;
+-    };
+-    doc["leg"] == "relay"
+-        && doc["relay"] == relay
+-        && doc["at"]
+-            .as_u64()
+-            .is_some_and(|at| at <= now && now - at < LEG_TTL.as_secs())
+-}
++use pod_warp::leg::relay_first_from;
+ 
+ fn unix_now() -> u64 {
+     std::time::SystemTime::now()
+@@ -385,18 +371,16 @@ impl WarpClient {
+         if old.and_then(|t| door_from(&t, now, &[door])).is_some() {
+             return;
+         }
+-        let text =
+-            serde_json::json!({"schema": 1, "door": door.to_string(), "at": now}).to_string();
++        let text = pod_warp::door::door_text(door, now);
+         if let Err(err) = write_private(&path, text.as_bytes()) {
+             tracing::debug!(error = %err, path = %path.display(), "the door file is not written");
+         }
+     }
+ 
+     /// Keep the leg that worked. A failure to write is not an error.
+-    fn write_leg(&self, leg: &str, relay: &crate::ws_relay::Relay) {
++    fn write_leg(&self, leg: pod_warp::Leg, relay: &crate::ws_relay::Relay) {
+         let Some(path) = &self.leg_file else { return };
+-        let text =
+-            serde_json::json!({"leg": leg, "at": unix_now(), "relay": relay.url()}).to_string();
++        let text = pod_warp::leg::leg_text(leg, unix_now(), &relay.url());
+         if let Err(err) = write_private(path, text.as_bytes()) {
+             tracing::debug!(error = %err, path = %path.display(), "the leg file is not written");
+         }
+@@ -677,7 +661,7 @@ impl WarpClient {
+                         crate::decisions::count("masque", "direct");
+                         if relay_first {
+                             self.relay_first.store(false, Ordering::SeqCst);
+-                            self.write_leg("direct", &relay);
++                            self.write_leg(pod_warp::Leg::Direct, &relay);
+                         }
+                         return Ok(session);
+                     }
+@@ -696,7 +680,7 @@ impl WarpClient {
+                         crate::decisions::count("masque", if relay_first { "relay_first" } else { "relay" });
+                         if !relay_first {
+                             self.relay_first.store(true, Ordering::SeqCst);
+-                            self.write_leg("relay", &relay);
++                            self.write_leg(pod_warp::Leg::Relay, &relay);
+                         }
+                         return Ok(session);
+                     }
+@@ -780,8 +764,12 @@ impl WarpClient {
+                 let v4_route = relay.is_some()
+                     || self.proxy.is_some()
+                     || crate::resolve::has_default_route(false);
++                let routes = pod_warp::Routes {
++                    v4: v4_route,
++                    v6: ipv6,
++                };
+                 let order =
+-                    endpoint_order(self.device.masque_endpoints(), won, bad, ipv6, v4_route);
++                    pod_warp::door::endpoint_order(self.device.masque_endpoints(), won, bad, routes);
+                 if order.is_empty() {
+                     vec![endpoint]
+                 } else {
+@@ -842,40 +830,7 @@ impl WarpClient {
+     }
+ }
+ 
+-/// Write `bytes` to `path` with mode 0600: to a new file beside it, then a
+-/// rename. No other user can read the file at any time, and a reader never
+-/// sees half a file.
+-pub(crate) fn write_private(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+-    use std::io::Write;
+-    use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
+-    if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+-        std::fs::DirBuilder::new()
+-            .recursive(true)
+-            .mode(0o700)
+-            .create(parent)?;
+-    }
+-    let name = path
+-        .file_name()
+-        .ok_or_else(|| std::io::Error::other("the path has no file name"))?;
+-    let mut tmp_name = std::ffi::OsString::from(".");
+-    tmp_name.push(name);
+-    tmp_name.push(format!(".{}.tmp", std::process::id()));
+-    let tmp = path.with_file_name(tmp_name);
+-    let result = (|| {
+-        let mut file = std::fs::OpenOptions::new()
+-            .write(true)
+-            .create_new(true)
+-            .mode(0o600)
+-            .open(&tmp)?;
+-        file.write_all(bytes)?;
+-        file.sync_all()?;
+-        std::fs::rename(&tmp, path)
+-    })();
+-    if result.is_err() {
+-        let _ = std::fs::remove_file(&tmp);
+-    }
+-    result
+-}
++pub(crate) use pod_warp::files::write_private;
+ 
+ /// `write_private` for the commands of the binary.
+ pub fn write_private_file(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+@@ -888,71 +843,18 @@ mod private_file_tests {
+ 
+     mod foreign;
+ 
+-    // Issue 133: the door file is used when it is recent and names a door
+-    // of the device.
++    // The door file of an identity file.
+     #[test]
+-    fn the_door_file() {
+-        let v4: std::net::SocketAddr = "162.159.198.2:443".parse().unwrap();
+-        let v6: std::net::SocketAddr = "[2606:4700:103::2]:443".parse().unwrap();
+-        let doc = |door: &str, at: u64, schema: u64| {
+-            serde_json::json!({"schema": schema, "door": door, "at": at}).to_string()
+-        };
+-        let now = 1_800_000_000;
+-        let doors = [v4, v6];
+-        assert_eq!(
+-            door_from(&doc("[2606:4700:103::2]:443", now - 60, 1), now, &doors),
+-            Some(v6)
+-        );
+-        assert_eq!(
+-            door_from(&doc("162.159.198.2:443", now - 8 * 86400, 1), now, &doors),
+-            None
+-        );
+-        assert_eq!(
+-            door_from(&doc("192.0.2.1:443", now - 60, 1), now, &doors),
+-            None
+-        );
+-        assert_eq!(
+-            door_from(&doc("162.159.198.2:443", now - 60, 2), now, &doors),
+-            None
+-        );
+-        assert_eq!(door_from("{", now, &doors), None);
++    fn the_door_file_of_an_identity_file() {
+         assert_eq!(
+             door_file_of(std::path::Path::new("/s/warp.json")),
+             std::path::Path::new("/s/warp-door.json")
+         );
+     }
+ 
+-    // Issue 126: a relay that worked in the last hours goes first; an old
+-    // entry, another relay or a bad file does not.
++    // The leg file of an identity file.
+     #[test]
+-    fn the_leg_file_puts_a_recent_relay_first() {
+-        let relay = "https://relay.example";
+-        let doc = |leg: &str, at: u64, r: &str| {
+-            serde_json::json!({"leg": leg, "at": at, "relay": r}).to_string()
+-        };
+-        let now = 1_800_000_000;
+-        assert!(relay_first_from(&doc("relay", now - 60, relay), now, relay));
+-        assert!(!relay_first_from(
+-            &doc("direct", now - 60, relay),
+-            now,
+-            relay
+-        ));
+-        assert!(!relay_first_from(
+-            &doc("relay", now - 7 * 3600, relay),
+-            now,
+-            relay
+-        ));
+-        assert!(!relay_first_from(
+-            &doc("relay", now - 60, "https://other"),
+-            now,
+-            relay
+-        ));
+-        assert!(!relay_first_from(
+-            &doc("relay", now + 60, relay),
+-            now,
+-            relay
+-        ));
+-        assert!(!relay_first_from("not json", now, relay));
++    fn the_leg_file_of_an_identity_file() {
+         assert_eq!(
+             leg_file_of(std::path::Path::new("/s/warp.json")),
+             std::path::Path::new("/s/warp-leg.json")
+diff --git a/src/warp/register.rs b/src/warp/register.rs
+index c3c41fd..8e09273 100644
+--- a/src/warp/register.rs
++++ b/src/warp/register.rs
+@@ -347,7 +347,7 @@ pub async fn create_device(proxy: Option<&Proxy>) -> Result<Device> {
+ /// Register a WireGuard device with the X25519 public key `key` (base64).
+ /// `warp export` (issue 148) keeps the private half.
+ pub async fn create_device_with_key(key: &str, proxy: Option<&Proxy>) -> Result<Device> {
+-    let hints = DeviceHints::current();
++    let hints = super::hints::current();
+     hints.check()?;
+     let body = RegistrationRequest {
+         key: key.to_string(),
+@@ -412,7 +412,7 @@ pub async fn enrol_masque(
+         key: spki_b64.to_string(),
+         key_type: "secp256r1".into(),
+         tunnel_type: "masque".into(),
+-        name: DeviceHints::current().name,
++        name: super::hints::current().name,
+     };
+     let resp = with_json(
+         request("PATCH", &format!("/reg/{device_id}"), Some(token), proxy),
+diff --git a/src/warp/route.rs b/src/warp/route.rs
+index 91d2223..20cc516 100644
+--- a/src/warp/route.rs
++++ b/src/warp/route.rs
+@@ -23,198 +23,12 @@ use anyhow::{bail, Context as _, Result};
+ pub mod resolv;
+ use resolv::Dns;
+ 
+-/// The gateway and the device of the IPv4 default route.
+-#[derive(Clone, Debug, PartialEq, Eq)]
+-pub struct Gateway {
+-    pub dev: String,
+-    pub gateway: Ipv4Addr,
+-}
+-
+-/// The default route of `/proc/net/route` (the lowest metric).
+-pub fn parse_route_table(text: &str) -> Option<Gateway> {
+-    let mut best: Option<(u32, Gateway)> = None;
+-    for line in text.lines().skip(1) {
+-        let f: Vec<&str> = line.split_whitespace().collect();
+-        if f.len() < 8 || f[1] != "00000000" || f[7] != "00000000" {
+-            continue;
+-        }
+-        let Ok(gw) = u32::from_str_radix(f[2], 16) else {
+-            continue;
+-        };
+-        let metric = f[6].parse().unwrap_or(u32::MAX);
+-        let gateway = Ipv4Addr::from(gw.to_le_bytes());
+-        if gateway.is_unspecified() {
+-            continue;
+-        }
+-        if best.as_ref().is_none_or(|(m, _)| metric < *m) {
+-            best = Some((
+-                metric,
+-                Gateway {
+-                    dev: f[0].to_string(),
+-                    gateway,
+-                },
+-            ));
+-        }
+-    }
+-    best.map(|(_, g)| g)
+-}
+-
+-/// A route of `/proc/net/route` (an UP route; REJECT routes are skipped).
+-#[derive(Clone, Debug, PartialEq, Eq)]
+-pub struct Entry {
+-    pub dev: String,
+-    pub dest: Ipv4Addr,
+-    pub mask: Ipv4Addr,
+-    pub gateway: Ipv4Addr,
+-    pub metric: u32,
+-}
+-
+-/// The UP routes of `/proc/net/route`.
+-pub fn parse_entries(text: &str) -> Vec<Entry> {
+-    let hex = |f: &str| {
+-        u32::from_str_radix(f, 16)
+-            .ok()
+-            .map(|v| Ipv4Addr::from(v.to_le_bytes()))
+-    };
+-    text.lines()
+-        .skip(1)
+-        .filter_map(|line| {
+-            let f: Vec<&str> = line.split_whitespace().collect();
+-            if f.len() < 8 {
+-                return None;
+-            }
+-            let flags = u32::from_str_radix(f[3], 16).ok()?;
+-            if flags & 0x1 == 0 || flags & 0x200 != 0 {
+-                return None;
+-            }
+-            Some(Entry {
+-                dev: f[0].to_string(),
+-                dest: hex(f[1])?,
+-                gateway: hex(f[2])?,
+-                metric: f[6].parse().unwrap_or(u32::MAX),
+-                mask: hex(f[7])?,
+-            })
+-        })
+-        .collect()
+-}
+-
+-/// What an address of the MASQUE connection needs so that the default
+-/// routes of the TUN (`0/1` and `128/1`) do not capture it (issue 105).
+-#[derive(Clone, Debug, PartialEq, Eq)]
+-pub enum Exempt {
+-    /// Nothing: a loopback address, or a route more specific than /1 (an
+-    /// on-link subnet, for example) wins over the TUN.
+-    No,
+-    /// A host route through this device (and gateway).
+-    Via {
+-        dev: String,
+-        gateway: Option<Ipv4Addr>,
+-    },
+-    /// No route at all: the address cannot be kept outside the tunnel.
+-    Unreachable,
+-}
+-
+-/// The plan for `ip` with the routes `entries`, not counting the routes of
+-/// the TUN `tun`.
+-pub fn plan_exempt(ip: Ipv4Addr, entries: &[Entry], tun: &str) -> Exempt {
+-    if ip.is_loopback() {
+-        return Exempt::No;
+-    }
+-    let best = entries
+-        .iter()
+-        .filter(|e| e.dev != tun && u32::from(ip) & u32::from(e.mask) == u32::from(e.dest))
+-        .max_by_key(|e| (u32::from(e.mask).count_ones(), std::cmp::Reverse(e.metric)));
+-    match best {
+-        None => Exempt::Unreachable,
+-        Some(e) if u32::from(e.mask).count_ones() >= 2 => Exempt::No,
+-        Some(e) => Exempt::Via {
+-            dev: e.dev.clone(),
+-            gateway: (!e.gateway.is_unspecified()).then_some(e.gateway),
+-        },
+-    }
+-}
+-
+-/// A route of `/proc/net/ipv6_route` (an UP route; REJECT routes are
+-/// skipped).
+-#[derive(Clone, Debug, PartialEq, Eq)]
+-pub struct Entry6 {
+-    pub dev: String,
+-    pub dest: Ipv6Addr,
+-    pub prefix: u8,
+-    pub gateway: Ipv6Addr,
+-    pub metric: u32,
+-}
+-
+-/// The UP routes of `/proc/net/ipv6_route`: dest, dest length, source,
+-/// source length, next hop, metric, refcount, use, flags, device.
+-pub fn parse_entries6(text: &str) -> Vec<Entry6> {
+-    let addr = |f: &str| {
+-        u128::from_str_radix(f, 16)
+-            .ok()
+-            .filter(|_| f.len() == 32)
+-            .map(Ipv6Addr::from)
+-    };
+-    text.lines()
+-        .filter_map(|line| {
+-            let f: Vec<&str> = line.split_whitespace().collect();
+-            if f.len() < 10 {
+-                return None;
+-            }
+-            let flags = u32::from_str_radix(f[8], 16).ok()?;
+-            if flags & 0x1 == 0 || flags & 0x200 != 0 {
+-                return None;
+-            }
+-            Some(Entry6 {
+-                dest: addr(f[0])?,
+-                prefix: u8::from_str_radix(f[1], 16).ok()?,
+-                gateway: addr(f[4])?,
+-                metric: u32::from_str_radix(f[5], 16).unwrap_or(u32::MAX),
+-                dev: f[9].to_string(),
+-            })
+-        })
+-        .collect()
+-}
+-
+-/// [`Exempt`] for an IPv6 address.
+-#[derive(Clone, Debug, PartialEq, Eq)]
+-pub enum Exempt6 {
+-    No,
+-    Via {
+-        dev: String,
+-        gateway: Option<Ipv6Addr>,
+-    },
+-    Unreachable,
+-}
+-
+-/// What an IPv6 address of the MASQUE connection needs, as
+-/// [`plan_exempt`] (the IPv6-only kit, 0001: before, only IPv4 addresses
+-/// were kept outside the TUN).
+-pub fn plan_exempt6(ip: Ipv6Addr, entries: &[Entry6], tun: &str) -> Exempt6 {
+-    if ip.is_loopback() {
+-        return Exempt6::No;
+-    }
+-    let bits = u128::from(ip);
+-    let best = entries
+-        .iter()
+-        .filter(|e| e.dev != tun && e.dev != "lo")
+-        .filter(|e| {
+-            let mask = if e.prefix == 0 {
+-                0
+-            } else {
+-                u128::MAX << (128 - u32::from(e.prefix.min(128)))
+-            };
+-            bits & mask == u128::from(e.dest) & mask
+-        })
+-        .max_by_key(|e| (e.prefix, std::cmp::Reverse(e.metric)));
+-    match best {
+-        None => Exempt6::Unreachable,
+-        Some(e) if e.prefix >= 2 => Exempt6::No,
+-        Some(e) => Exempt6::Via {
+-            dev: e.dev.clone(),
+-            gateway: (!e.gateway.is_unspecified()).then_some(e.gateway),
+-        },
+-    }
+-}
++/// The parse of the route tables and the plan of each exempt address:
++/// `pod-warp`'s.
++pub use pod_warp::route::{
++    parse_entries, parse_entries6, parse_route_table, plan_exempt, plan_exempt6, Entry, Entry6,
++    Exempt, Exempt6, Gateway,
++};
+ 
+ pub fn default_gateway() -> Option<Gateway> {
+     parse_route_table(&std::fs::read_to_string("/proc/net/route").ok()?)
+@@ -243,13 +57,7 @@ fn sin(addr: Ipv4Addr) -> libc::sockaddr {
+     unsafe { std::mem::transmute::<libc::sockaddr_in, libc::sockaddr>(sin) }
+ }
+ 
+-fn mask(prefix: u8) -> Ipv4Addr {
+-    if prefix == 0 {
+-        Ipv4Addr::UNSPECIFIED
+-    } else {
+-        Ipv4Addr::from(u32::MAX << (32 - u32::from(prefix)))
+-    }
+-}
++use pod_warp::route::mask;
+ 
+ /// Add (`SIOCADDRT`) or delete (`SIOCDELRT`) an IPv4 route.
+ fn route4(add: bool, dst: Ipv4Addr, prefix: u8, via: Option<Ipv4Addr>, dev: &str) -> Result<()> {
