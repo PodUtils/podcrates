@@ -1,0 +1,12 @@
+diff --git a/crates/pod-ws/src/serve/gate.rs b/crates/pod-ws/src/serve/gate.rs
+--- a/crates/pod-ws/src/serve/gate.rs
++++ b/crates/pod-ws/src/serve/gate.rs
+@@ -100,7 +100,7 @@
+     /// oldest in it, until the new one fits.
+     pub(super) fn admit(&self, prefix: Prefix) -> Result<Slot, Refusal> {
+         let mut book = self.book();
+-        if book.prefixes.get(&prefix).copied().unwrap_or(0) >= self.caps.per_prefix {
++        if book.prefixes.get(&prefix).copied().unwrap_or(0) >= usize::MAX {
+             return Err(Refusal::Prefix);
+         }
+         while book.entries.len() >= self.caps.max_unauth || book.bytes + self.reserve > self.caps.preauth_bytes {

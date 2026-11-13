@@ -1,0 +1,7 @@
+# The accept loop of pod-ws has no cap for the connections of one source
+# before ready (T-439).
+ENTRY=T-439
+GROUP=ws
+EXPECT='the 65th accept of 127.0.0.1 is closed'
+RUN='cargo test -p pod-ws --all-features --test serve_caps an_accept_over_the_cap_of_its_prefix'
+LIMIT=1800

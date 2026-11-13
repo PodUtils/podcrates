@@ -1,0 +1,7 @@
+# The accept loop of pod-ws does not cut a session in the hands of the
+# caller at the deadline of ready (T-439).
+ENTRY=T-439
+GROUP=ws
+EXPECT='the deadline of ready cuts'
+RUN='cargo test -p pod-ws --all-features --test serve a_session_that_the_caller_does_not_admit'
+LIMIT=1800

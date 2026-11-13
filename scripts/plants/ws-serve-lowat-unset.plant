@@ -1,0 +1,7 @@
+# The accept loop of pod-ws sets no TCP_NOTSENT_LOWAT on an accepted
+# socket (T-439).
+ENTRY=T-439
+GROUP=ws
+EXPECT='TCP_NOTSENT_LOWAT on the accepted socket'
+RUN='cargo test -p pod-ws --all-features --test serve each_accepted_socket_has_nodelay'
+LIMIT=1800

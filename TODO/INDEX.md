@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**385 entries: 114 open, 7 partial, 4 blocked, 260 done.**
+**385 entries: 113 open, 7 partial, 4 blocked, 261 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 3 | 0 | 72 | 88 |
 | P2 | 53 | 3 | 4 | 136 | 196 |
-| P3 | 48 | 1 | 0 | 50 | 99 |
-| **All** | 114 | 7 | 4 | 260 | 385 |
+| P3 | 47 | 1 | 0 | 51 | 99 |
+| **All** | 113 | 7 | 4 | 261 | 385 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -405,7 +405,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-436](fleet.md) | P3 | L | M8 | feature | open | `pod-attest`: the check of an SEV-SNP report and the expected measurement of a guest set (GitHub #115) |
 | [T-437](fleet.md) | P3 | L | M8 | feature | open | `pod-ssh`: an SSH client library on `russh` (host key policy, auth chain, exec channel) (GitHub #112) |
 | [T-438](fleet.md) | P2 | S | M8 | release | done | The names `pod-proc`, `pod-tty`, `pod-fuse`, `pod-cas`, `pod-view`, `pod-attest` and `pod-ssh` on crates.io (GitHub #1) |
-| [T-439](transport.md) | P3 | M | M1 | feature | open | `pod-ws`: a module `serve` with an accept loop, stage deadlines and caps for each address (GitHub #116) |
+| [T-439](transport.md) | P3 | M | M1 | feature | done | `pod-ws`: a module `serve` with an accept loop, stage deadlines and caps for each address (GitHub #116) |
 | [T-440](transport.md) | P3 | S | M8 | feature | open | `pod-tls`: an enrolment mode of the client verifier of `peer` that admits any Ed25519 key and reports it (GitHub #117) |
 | [T-441](transport.md) | P2 | S | M8 | feature | open | `pod-proxy`: `ChildIo::spawn_args` with no shell, a stderr pipe and a wait future (GitHub #120) |
 | [T-442](relay.md) | P2 | M | M8 | feature | open | `pod-link`: a first stream whose frames go before the data of the others, and a change of the windows on a live link (GitHub #88) |

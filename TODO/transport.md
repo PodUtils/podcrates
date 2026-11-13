@@ -6086,7 +6086,7 @@ place: the counts of `docs/live-calls.md` (176 watches of 81 files) and of
 **Milestone:** M1
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6145,6 +6145,17 @@ next accept from it closes and one from 127.0.0.2 is taken; with
 ## Start condition
 
 It goes with T-420 (the server half of the WebSocket carrier).
+
+## Done
+
+2026-11-13, commit 3ada550: `pod_ws::serve` (feature `serve`) with
+`Deadlines`, `Caps`, `Serve`, `Accepted` (with the head and the socket
+options), `PreAuth` and `serve`; calls C250 to C252. `cargo test -p pod-ws
+--all-features`: 0 failed; `tests/serve.rs` 10 passed (1,000 upgrades
+with at most 64 before `ready` in 30 s), `tests/serve_caps.rs` 3 passed,
+6 unit tests. The plants `ws-serve-head-deadline-skipped`,
+`ws-serve-evict-oldest-of-all`, `ws-serve-prefix-uncapped`,
+`ws-serve-ready-not-cut` and `ws-serve-lowat-unset` are caught.
 
 # T-440: `pod-tls`: an enrolment mode of the client verifier of `peer` that admits any Ed25519 key and reports it (GitHub #117)
 
