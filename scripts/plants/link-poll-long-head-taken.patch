@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/poll/wire.rs b/crates/pod-link/src/poll/wire.rs
+--- a/crates/pod-link/src/poll/wire.rs
++++ b/crates/pod-link/src/poll/wire.rs
+@@ -117,7 +117,7 @@
+         loop {
+             // A read can bring more than the longest head: look in that
+             // part alone.
+-            let within = &self.buf[..self.buf.len().min(MAX_HEAD)];
++            let within = &self.buf[..];
+             if let Some(at) = within.windows(4).position(|w| w == b"\r\n\r\n") {
+                 let text = std::str::from_utf8(&self.buf[..at]).map_err(|_| bad("a head that is not UTF-8"))?;
+                 let head = Head::parse(text)?;

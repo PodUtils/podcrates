@@ -26,6 +26,10 @@ udp = ["tcp", "dep:kcp"]
 # The carriers over requests of HTTP/1.1 with the TLS of `tcp`: the long
 # poll, SSE, a chunked stream and the simplex poll (`poll`).
 poll = ["tcp", "dep:pod-ws", "dep:base64"]
+# The reader of HTTP/1.1 and of SSE of the poll carriers is public in
+# `poll::fuzzing`, for the fuzz target `link_poll_wire` of fuzz/. No
+# consumer turns this on.
+fuzzing = ["poll"]
 
 [dependencies]
 # The failure and its stage and class; the way out of the tcp carrier.

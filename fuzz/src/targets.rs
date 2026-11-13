@@ -25,6 +25,8 @@ mod wormhole;
 pub use actions::{actions_expr, actions_workflow};
 pub use devtunnel::devtunnel_connect_info;
 pub use e2e::{e2e_frame, e2e_handover, e2e_proof, e2e_record};
+#[cfg(test)]
+pub(crate) use link::run_kcp;
 pub use podvm::{elf_header, extract_layer, oci_challenge, oci_manifest, squashfs_image};
 pub use relay::{relay_list, relay_pool};
 pub use session::{session_handover, session_record, udp_frame};
@@ -32,7 +34,7 @@ pub use warp::warp_capsule;
 pub use wg::{wg_cookie, wg_response, wg_transport};
 pub use {
     job::job_offer,
-    link::{ARQ_MTU, link_arq, link_frame},
+    link::{ARQ_MTU, KCP_MTU, link_arq, link_frame, link_kcp, link_poll_wire},
     netlab::netlab_counters,
     turn::stun_message,
     wormhole::mqtt_packet,

@@ -139,3 +139,35 @@ async fn a_datagram_that_breaks_kcp_ends_the_stream_with_an_error() {
     let e = timeout(LIMIT, stream.read(&mut buf)).await.expect("the end in time").expect_err("a broken KCP");
     assert_eq!(e.kind(), std::io::ErrorKind::BrokenPipe, "{e}");
 }
+
+/// A KCP segment of the conversation 7: `cmd`, `frg`, `sn` and `data`.
+fn segment(cmd: u8, frg: u8, sn: u32, data: &[u8]) -> Vec<u8> {
+    let mut out = 7u32.to_le_bytes().to_vec();
+    out.extend_from_slice(&[cmd, frg]);
+    out.extend_from_slice(&256u16.to_le_bytes());
+    out.extend_from_slice(&[0; 4]);
+    out.extend_from_slice(&sn.to_le_bytes());
+    out.extend_from_slice(&[0; 4]);
+    out.extend_from_slice(&(data.len() as u32).to_le_bytes());
+    out.extend_from_slice(data);
+    out
+}
+
+/// A fragment of a message, which the stream mode of KCP does not send,
+/// does not go in: the reader of the crate `kcp` overflows on a fragment
+/// count of 255 and waits for ever for the others. A segment larger than
+/// one of this end is read whole, with no stall (T-521).
+#[tokio::test]
+async fn a_fragment_of_a_stranger_is_dropped_and_a_large_segment_is_read_whole() {
+    let (a, b) = pair(4096, DEFAULT_DEPTH);
+    let mut stream = KcpStream::new(a, Some(7), KcpSettings::default()).unwrap();
+    b.send(&segment(81, 255, 0, b"x")).await.unwrap();
+    let data = pattern(3, 2000);
+    b.send(&segment(81, 0, 0, &data)).await.unwrap();
+    let mut got = vec![0u8; data.len()];
+    timeout(LIMIT, stream.read_exact(&mut got))
+        .await
+        .expect("the segment in time")
+        .expect("the segment, with no stall");
+    assert!(got == data, "the bytes of the segment of sequence 0, not of the fragment");
+}

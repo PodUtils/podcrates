@@ -1,0 +1,20 @@
+POST /l/open?s=0123456789abcdef0123456789abcdef HTTP/1.1
+Host: h
+Content-Length: 0
+
+POST /l/up?s=0123456789abcdef0123456789abcdef&seq=0&ack=0 HTTP/1.1
+Host: h
+Content-Type: application/octet-stream
+Content-Length: 5
+
+helloPOST /l/down?s=0123456789abcdef0123456789abcdef&since=0&hold=25 HTTP/1.1
+Host: h
+Content-Length: 0
+
+GET /l/out?s=0123456789abcdef0123456789abcdef&since=0 HTTP/1.1
+Host: h
+
+GET /l/push?s=0123456789abcdef0123456789abcdef&since=0 HTTP/1.1
+Host: h
+Accept: text/event-stream
+

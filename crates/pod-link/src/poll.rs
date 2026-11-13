@@ -49,6 +49,14 @@ mod pipes;
 mod session;
 mod wire;
 
+/// The reader of HTTP/1.1 and of SSE, for the fuzz target `link_poll_wire`
+/// (feature `fuzzing`). It is no API.
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub mod fuzzing {
+    pub use super::wire::{Conn, EVENT, Event, Events, Head, MAX_HEAD};
+}
+
 use std::fmt;
 use std::net::SocketAddr;
 use std::sync::Arc;

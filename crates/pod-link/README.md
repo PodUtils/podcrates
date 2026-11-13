@@ -187,6 +187,7 @@ let io = sse.dial("SHA256:...@https://relay.example/link").await?;
 | `udp` | the udp carrier (`udp`): `tcp`, and `kcp` (KCP in pure Rust, with no feature) |
 | `quic` | the quic carrier (`quic`): `tcp`, and `pod-quic` (noq with no `ring` and no `aws-lc`; the TLS provider is the caller's) |
 | `poll` | the poll carriers (`poll`): `tcp`, `pod-ws` for the URL, and base64 for the events of SSE |
+| `fuzzing` | `poll`, and the reader of HTTP/1.1 and of SSE of the poll carriers in `poll::fuzzing`, for the fuzz target `link_poll_wire`; no API, and no consumer turns it on |
 
 ## The wire
 
@@ -554,9 +555,18 @@ that hold them (`tests/udp.rs`, `tests/udp_loss.rs`, feature `udp`):
   `datagrams_of_a_stranger_change_nothing`; the bytes before a drop reach
   the peer: `the_bytes_before_a_drop_reach_the_peer`; a listener over the
   caller's datagrams: `a_listener_runs_over_the_datagrams_of_the_caller`.
+- [x] A datagram that breaks the code of `kcp` ends the stream with an
+  error: `a_datagram_that_breaks_kcp_ends_the_stream_with_an_error`; a
+  fragment of a message (the stream mode sends none) does not go in, and a
+  segment larger than one of this end is read whole (T-521, call C280):
+  `a_fragment_of_a_stranger_is_dropped_and_a_large_segment_is_read_whole`;
+  the fuzz target `link_kcp` gives the stream datagrams of a stranger
+  (call C279).
 - [x] A plant for each check: `link-udp-handshake-inline`,
   `link-udp-stranger-starts-a-session`, `link-udp-drop-stops-at-once`,
-  `link-udp-idle-unchecked` (`scripts/plants/`).
+  `link-udp-idle-unchecked`, `link-udp-panic-hangs-the-stream`,
+  `link-udp-fragment-taken`, `link-udp-large-segment-stalls`
+  (`scripts/plants/`).
 
 The asks of PodUtils/podnet#515 and #521 for the long poll, SSE and the
 chunked stream (PodUtils/podnet@T-271, PodUtils/podnet@T-272) and the
@@ -603,8 +613,11 @@ simplex poll (PodUtils/podnet@T-280), and the tests that hold them
   `link-poll-no-backoff`, `link-poll-no-expiry`,
   `link-poll-first-busy-fatal`, `link-poll-hold-unheld`,
   `link-poll-handshake-inline`, `link-poll-push-refusal-fatal`,
-  `link-poll-bytes-uncapped`, `link-poll-open-room-unchecked`
-  (`scripts/plants/`).
+  `link-poll-bytes-uncapped`, `link-poll-open-room-unchecked`,
+  `link-poll-long-head-taken` (`scripts/plants/`).
+- [x] The reader of HTTP/1.1 refuses a head of more than 4 KiB also when
+  one read brings it whole (T-518): `a_long_head_and_a_large_chunk_are_refused`;
+  the fuzz target `link_poll_wire` reads the bytes of connections.
 
 ## The adoption map
 

@@ -8,10 +8,10 @@ use base64::Engine as _;
 use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
 
 /// The longest head of a request or an answer.
-pub(super) const MAX_HEAD: usize = 4 << 10;
+pub const MAX_HEAD: usize = 4 << 10;
 
 /// The most bytes of one event of SSE, decoded.
-pub(super) const EVENT: usize = 8 << 10;
+pub const EVENT: usize = 8 << 10;
 
 /// The comment of SSE that keeps a stream alive, and that opens it.
 pub(super) const PING: &[u8] = b": ping\n\n";
@@ -28,7 +28,7 @@ fn bad(text: impl Into<String>) -> io::Error {
 
 /// The head of a request or of an answer.
 #[derive(Debug)]
-pub(super) struct Head {
+pub struct Head {
     /// The request line or the status line.
     pub line: String,
     fields: Vec<(String, String)>,
@@ -88,7 +88,7 @@ impl Head {
 }
 
 /// A connection with the bytes that it read past the last message.
-pub(super) struct Conn<S> {
+pub struct Conn<S> {
     pub io: S,
     buf: Vec<u8>,
 }
@@ -105,16 +105,26 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Conn<S> {
         Ok(n)
     }
 
-    /// The next head; none at an end of the stream before its first byte.
+    /// The bytes read past the last message.
+    #[cfg(feature = "fuzzing")]
+    pub fn buffered(&self) -> usize {
+        self.buf.len()
+    }
+
+    /// The next head of at most [`MAX_HEAD`] bytes with its blank line;
+    /// none at an end of the stream before its first byte.
     pub async fn head(&mut self) -> io::Result<Option<Head>> {
         loop {
-            if let Some(at) = self.buf.windows(4).position(|w| w == b"\r\n\r\n") {
+            // A read can bring more than the longest head: look in that
+            // part alone.
+            let within = &self.buf[..self.buf.len().min(MAX_HEAD)];
+            if let Some(at) = within.windows(4).position(|w| w == b"\r\n\r\n") {
                 let text = std::str::from_utf8(&self.buf[..at]).map_err(|_| bad("a head that is not UTF-8"))?;
                 let head = Head::parse(text)?;
                 self.buf.drain(..at + 4);
                 return Ok(Some(head));
             }
-            if self.buf.len() > MAX_HEAD {
+            if self.buf.len() >= MAX_HEAD {
                 return Err(bad(format!("a head of more than {MAX_HEAD} bytes")));
             }
             if self.fill().await? == 0 {
@@ -254,7 +264,7 @@ pub(super) fn event(end: u64, data: &[u8]) -> Vec<u8> {
 
 /// What a block of SSE gives.
 #[derive(Debug, PartialEq, Eq)]
-pub(super) enum Event {
+pub enum Event {
     /// Comments alone.
     Ping,
     /// The bytes of the link.
@@ -265,7 +275,7 @@ pub(super) enum Event {
 
 /// The reader of the events of SSE from the chunks of a body.
 #[derive(Default)]
-pub(super) struct Events {
+pub struct Events {
     text: Vec<u8>,
 }
 
@@ -279,6 +289,8 @@ impl Events {
         Ok(())
     }
 
+    // A read that can fail, not an iterator.
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> io::Result<Option<Event>> {
         let Some(at) = self.text.windows(2).position(|w| w == b"\n\n") else { return Ok(None) };
         let block: Vec<u8> = self.text.drain(..at + 2).collect();
@@ -342,6 +354,19 @@ mod tests {
         far.write_all(&vec![b'a'; MAX_HEAD + 10]).await.unwrap();
         let e = Conn::new(near).head().await.unwrap_err();
         assert_eq!(e.kind(), io::ErrorKind::InvalidData);
+        // A head that comes whole in one read is refused as well.
+        let (near, mut far) = tokio::io::duplex(1 << 16);
+        let mut long = format!("GET / HTTP/1.1\r\nX: {}\r\n\r\n", "a".repeat(MAX_HEAD)).into_bytes();
+        long.extend_from_slice(b"GET / HTTP/1.1\r\n\r\n");
+        far.write_all(&long).await.unwrap();
+        let e = Conn::new(near).head().await.expect_err("a head over 4 KiB in one read");
+        assert_eq!(e.kind(), io::ErrorKind::InvalidData);
+        let (near, mut far) = tokio::io::duplex(1 << 16);
+        let mut most = format!("GET / HTTP/1.1\r\nX: {}", "a".repeat(MAX_HEAD - 23)).into_bytes();
+        most.extend_from_slice(b"\r\n\r\n");
+        assert_eq!(most.len(), MAX_HEAD);
+        far.write_all(&most).await.unwrap();
+        assert!(Conn::new(near).head().await.unwrap().is_some(), "a head of 4 KiB with its blank line");
         let (near, mut far) = tokio::io::duplex(1 << 16);
         far.write_all(&chunk(&[0; 100])).await.unwrap();
         assert!(Conn::new(near).chunk(99).await.is_err());

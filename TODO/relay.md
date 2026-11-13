@@ -5714,3 +5714,32 @@ Make the pipes of a session on the listener smaller (the pump drains the pipe do
 ```sh
 cargo test -p pod-link --all-features --test poll_lanes
 ```
+
+# T-526: `pod-link`: the arithmetic of the crate `kcp` wraps by design: no overflow checks for it, and the fix upstream
+
+**Source:** T-521 (a finding of its work)
+**Category:** chore
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The crate `kcp` 0.6.0 is a port of ikcp, whose clock (32 bits of milliseconds) and sequence numbers wrap: `timediff` subtracts two `u32` as `i32`. With overflow checks (the dev and test profiles of the workspace, a fuzz build), this panics on a forged segment of a stranger (call C279), and also on true traffic when the clock of one stream passes 2^31 ms (24.8 days) or a sequence number passes 2^31. The guard of the task of `udp::KcpStream` ends the stream with an error, so a debug build of a consumer loses a long stream. The release profile has no overflow checks and wraps as ikcp does.
+
+## Premise
+
+- Read: the source of `kcp` 0.6.0 (`timediff`, `update_ack`, `input`, `peeksize`); `crates/pod-link/src/udp/stream.rs`; the profiles of `Cargo.toml` and `fuzz/Cargo.toml`.
+- Not measured: a stream of more than 2^31 ms in a debug build.
+
+## Approach
+
+Set `[profile.dev.package.kcp] overflow-checks = false` in `Cargo.toml` (the test profile takes it from dev). The test `a_datagram_that_breaks_kcp_ends_the_stream_with_an_error` of `crates/pod-link/tests/udp_loss.rs` then needs another panic of the task (a carrier of datagrams that panics in `recv`), and its plant stays. Keep the overflow checks of `kcp` in `fuzz/Cargo.toml` so that `link_kcp` exercises the guard (C279). Send the fix to `kcp` upstream (`wrapping_sub` in `timediff`, `saturating_mul` in `update_ack`, a `u8` check in `peeksize`), and tell podnet to set the same profile in its workspace by a COORD issue.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test udp_loss
+cargo test --manifest-path fuzz/Cargo.toml --lib
+```
