@@ -8,10 +8,10 @@ use std::time::Duration;
 
 use tokio::io::{AsyncWriteExt, DuplexStream, ReadHalf, WriteHalf};
 
-use super::OFFSET;
 use super::answer::Head;
-use super::client::{End, LIMIT, Retry, Shared, closed, forgotten, gather, retry_after};
+use super::client::{End, LIMIT, Retry, Shared, Then, closed, gather, refused};
 use super::conn::Conn;
+use super::{OFFSET, SEQ};
 
 /// How much longer than the wait that it asks an answer down may take.
 const SLACK: Duration = Duration::from_secs(15);
@@ -19,11 +19,13 @@ const SLACK: Duration = Duration::from_secs(15);
 /// The caller's bytes up, until its stream ends or the session does.
 pub(super) async fn up(mut conn: Conn, s: Arc<Shared>, mut from_app: ReadHalf<DuplexStream>) {
     let mut buf = vec![0u8; s.batch];
-    let mut seq: u64 = 0;
+    let (mut seq, mut sent) = (0u64, 0u64);
     loop {
         let (n, fin) = gather(&mut from_app, &mut buf).await;
-        let query = if fin { format!("seq={seq}&fin=1") } else { format!("seq={seq}") };
-        if let Err(end) = batch(&mut conn, &s, &s.path("up", &query), &buf[..n]).await {
+        sent += n as u64;
+        // The last batch carries the count of the bytes up (invariant 9).
+        let query = if fin { format!("seq={seq}&fin=1&total={sent}") } else { format!("seq={seq}") };
+        if let Err(end) = batch(&mut conn, &s, seq, &s.path("up", &query), &buf[..n]).await {
             return s.end(end);
         }
         seq += 1;
@@ -33,8 +35,9 @@ pub(super) async fn up(mut conn: Conn, s: Arc<Shared>, mut from_app: ReadHalf<Du
     }
 }
 
-/// One batch up, sent again until the role stored it.
-pub(super) async fn batch(conn: &mut Conn, s: &Shared, path: &str, body: &[u8]) -> Result<(), End> {
+/// The batch `seq` up, sent again, the same, until the role acknowledged
+/// it: the acknowledgement names the batch (invariant 6).
+pub(super) async fn batch(conn: &mut Conn, s: &Shared, seq: u64, path: &str, body: &[u8]) -> Result<(), End> {
     let head = s.request("POST", path, Some(body.len()));
     let mut tries = Retry::start();
     loop {
@@ -48,24 +51,46 @@ pub(super) async fn batch(conn: &mut Conn, s: &Shared, path: &str, body: &[u8]) 
         let words = conn.drop_body(&answer, LIMIT).await;
         s.heard(&answer);
         match answer.status {
-            200 | 204 => return Ok(()),
-            410 => return Err(closed(&answer)),
-            404 => return Err(forgotten()),
+            200 | 204 => return acknowledged(&answer, seq),
+            410 => return Err(closed(&answer, s)),
             // The role's window is full, or a hop's own trouble: the same
             // batch again.
-            408 | 429 | 502 | 503 | 504 => {
-                tries.again(&format!("HTTP {} {words}", answer.status), retry_after(&answer)).await?
-            }
-            status => {
-                return Err(End::Failed(format!("the relay refused a batch of the HTTP road: HTTP {status} {words}")));
-            }
+            _ => match refused(&answer, &words, "a batch") {
+                Then::Again(why, at_least) => tries.again(&why, at_least).await?,
+                Then::Stop(end) => return Err(end),
+            },
         }
     }
 }
 
+/// Whether the answer to the batch `seq` acknowledges that batch.
+pub(super) fn acknowledged(answer: &Head, seq: u64) -> Result<(), End> {
+    match answer.number(SEQ) {
+        Some(acked) if acked == seq => Ok(()),
+        Some(acked) => Err(End::Failed(format!("the relay acknowledged the batch {acked}, where {seq} went"))),
+        None => Err(End::Failed(format!("the relay's answer to the batch {seq} names no batch"))),
+    }
+}
+
 /// The target's bytes down to the caller, until the session ends or the
-/// caller is gone.
-pub(super) async fn down(mut conn: Conn, s: Arc<Shared>, mut to_app: WriteHalf<DuplexStream>) {
+/// caller is gone. An end that the bytes up found stops them too, so that
+/// the caller's stream ends.
+pub(super) async fn down(conn: Conn, s: Arc<Shared>, mut to_app: WriteHalf<DuplexStream>) {
+    let ended = s.ended.clone();
+    tokio::select! {
+        biased;
+        () = ended.wait() => {}
+        pumped = pump(conn, &s, &mut to_app) => match pumped {
+            Some(end) => s.end(end),
+            None => return,
+        },
+    }
+    let _ = to_app.shutdown().await;
+}
+
+/// The requests down, until the session's end; `None` once the caller is
+/// gone.
+async fn pump(mut conn: Conn, s: &Shared, to_app: &mut WriteHalf<DuplexStream>) -> Option<End> {
     let mut at: u64 = 0;
     let mut tries = Retry::start();
     let limit = s.wait + SLACK;
@@ -88,8 +113,9 @@ pub(super) async fn down(mut conn: Conn, s: Arc<Shared>, mut to_app: WriteHalf<D
                         "the relay sent the bytes of the HTTP road from another offset than {at}"
                     ));
                 }
-                let Some(came) = carried(&mut conn, &answer, &mut to_app, limit).await else { return };
+                let came = carried(&mut conn, &answer, to_app, limit).await?;
                 at += came;
+                s.came_down(at);
                 // A body cut before its first byte is no answer.
                 if came > 0 {
                     tries.reset();
@@ -103,24 +129,22 @@ pub(super) async fn down(mut conn: Conn, s: Arc<Shared>, mut to_app: WriteHalf<D
             }
             410 => {
                 let _ = conn.drop_body(&answer, LIMIT).await;
-                break closed(&answer);
+                break closed(&answer, s);
             }
-            404 => break forgotten(),
-            408 | 429 | 502 | 503 | 504 => {
+            _ => {
                 let words = conn.drop_body(&answer, LIMIT).await;
-                let why = format!("HTTP {} {words}", answer.status);
-                if let Err(end) = tries.again(&why, retry_after(&answer)).await {
-                    break end;
+                match refused(&answer, &words, "the bytes down") {
+                    Then::Again(why, at_least) => {
+                        if let Err(end) = tries.again(&why, at_least).await {
+                            break end;
+                        }
+                    }
+                    Then::Stop(end) => break end,
                 }
-            }
-            status => {
-                let words = conn.drop_body(&answer, LIMIT).await;
-                break End::Failed(format!("the relay refused the bytes down of the HTTP road: HTTP {status} {words}"));
             }
         }
     };
-    s.end(end);
-    let _ = to_app.shutdown().await;
+    Some(end)
 }
 
 /// The bytes of an answer down, to the caller as they come: how many came,

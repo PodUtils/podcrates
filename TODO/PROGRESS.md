@@ -1,19 +1,17 @@
 # Progress
 
-`TODO/INDEX.md` holds 372 entries: 110 open, 7 partial, 5 blocked, 250 done.
+`TODO/INDEX.md` holds 373 entries: 110 open, 7 partial, 5 blocked, 251 done.
 
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.34.0` at `ee514e7` (`docs/releases/v0.34.0.md`; ci
-  43296178785, adoption 43293590861 of its parent, release 43299070040;
-  the hand-off #104, COORD-065, open): the TCP carrier of `pod-link` and
-  the pin of `pod-tls` (T-304, T-396, PodUtils/podnet#513), T-335, T-394,
-  T-355. `v0.33.0` (#103): podnet and podssh took it; podvm and podrunner
-  wait.
-- `v0.35.0` is prepared on `main` (the version, `docs/releases/v0.35.0.md`,
-  the text of its hand-off): `pod-warp` (T-336 to T-339, T-406), T-393,
-  T-395, T-353, T-380, T-358, T-416, T-417.
+- Last release: `v0.35.0` at `311c6bb` (`docs/releases/v0.35.0.md`; ci
+  43343818563, adoption 43342289219 at `ba24e5d`, release 43346093416,
+  publish 43346161122; the hand-off #127, COORD-069, open): `pod-warp`
+  (T-336 to T-339, T-406), T-393, T-395, T-353, T-380, T-358, T-416,
+  T-417. Each consumer took `v0.34.0` (#104, closed).
+- `main` holds T-476 (the invariants 6 to 10 of the HTTP road; a change
+  of its wire) for the next tag.
 - The consumers and their tags:
   - podssh: `v0.34.0` (`287e23b`, PodUtils/podssh#219; its PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT brokers
     of `code::run` (PodUtils/podssh@T-737) and `syncthing-relay` (PodUtils/podssh@T-571).
@@ -67,8 +65,8 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-1. **The defects and asks of the consumers:** T-476 (the invariants 6 to
-   10 of the HTTP road of `pod-relay`, PodUtils/podssh#221); T-381 (the options of
+1. **The defects and asks of the consumers:** T-477 (the deadlock of
+   the serial form of the HTTP road, PodUtils/podssh#222); T-381 (the options of
    RFC 8489 and RFC 8656 that `pod-turn` leaves out; coturn on the
    loopback proves the client on each push, so a test against coturn goes
    with each option), T-403 (the SHA-256 credentials against a server of
@@ -154,7 +152,7 @@ next entry.
 
 ## Calls made without a ruling
 
-`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181 and C185 to C221; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
+`docs/decisions.md`, "Calls made without a ruling", has each call (C1 to C95, C100 to C112, C115 to C125, C130 to C142, C145 to C153, C155, C156, C160 to C181, C185 to C221 and C230 to C232; C78, C79, C96 to C99, C143, C144, C154 and C157 to C159 are not used), and the work goes on with it until the owner rules otherwise.
 
 ## Owner actions
 

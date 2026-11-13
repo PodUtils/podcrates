@@ -16,24 +16,18 @@ is done. Git and the record keep finished work.
 
 ## In flight
 
-- The last release: `v0.34.0` at `ee514e7` (the hand-off #104, open).
-  `v0.33.0` (#103): podnet and podssh took it; podvm and podrunner wait.
 - T-327: `v0.32.0` carries the flush of the operator to podnet
   (PodUtils/podnet#502, #92); podnet's `live.yml` proves it.
-- `v0.35.0` is prepared on `main`. Finish its release (`docs/maintenance.md`,
-  "A release"): `ci` and `adoption` at the head, `release.yml` with no
-  input, then with `version=0.35.0`; the dry run of `publish.yml`; post
-  `docs/releases/v0.35.0-handoff.md` as COORD-069 `(to all)` (fill
-  `COMMIT`, the run ids and the time) and map it.
+- The last release: `v0.35.0` at `311c6bb` (the hand-off #127, open).
+  `main` holds T-476 for the next tag.
 - podswarm (#107 to #125): its asks to podcrates are T-430 to T-450; they
   wait for the owner's Q15 (`TODO/PROGRESS.md`), with its 16 rulings.
-- An agent of this session in a worktree under `.claude/worktrees/`: T-416
-  and T-417 (podssh's asks; free ids 418 and 419, calls C218 to C221).
-  Merge each branch after `scripts/agent/check.sh` passes
+- Agents of this session work in worktrees under `.claude/worktrees/` on
+  T-477 and T-413. Merge each branch after `scripts/agent/check.sh` passes
   on the merge.
-- Next for `pod-warp`: T-412 and T-413 (the adoption trials of podnet and
-  podssh). When both pass and a tag holds them, post the COORD issue of
-  the freeze `(to podnet) (to podssh)`; its text is
+- `pod-warp`: the trial of podnet (T-412) passes; the trial of podssh is
+  T-413. When both pass and a tag holds them, post the COORD issue of the
+  freeze `(to podnet) (to podssh)`; its text is
   `docs/releases/pod-warp-freeze.md`.
 - The disk of a cloud session is small: `target/debug/incremental` grows
   to some GB. Run the workspace tests with `CARGO_INCREMENTAL=0` when the

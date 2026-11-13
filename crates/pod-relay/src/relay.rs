@@ -209,7 +209,7 @@ pub fn parse_relay_list(value: &str) -> Result<Vec<Relay>, String> {
 ///
 /// With the feature `plain-ws`, `http://` and `ws://` name a stand-in relay
 /// on the loopback (port 80 unless stated), for the tests of an embedder,
-/// which open its sessions with [`crate::open::open_on_loopback`]; a host
+/// which open its sessions with `crate::open::open_on_loopback`; a host
 /// that is not the loopback is refused.
 pub fn parse_relay(value: &str) -> Result<Relay, String> {
     let bad = |why: String| format!("bad relay {value:?}: {why}");

@@ -1,0 +1,14 @@
+--- a/crates/pod-relay/src/http_road/window.rs
++++ b/crates/pod-relay/src/http_road/window.rs
+@@ -102,11 +102,6 @@
+     /// Store the batch `seq`, the last when `total` is given: the bytes up
+     /// of the whole session, which the bytes stored must equal.
+     pub fn store(&mut self, seq: u64, batch: Vec<u8>, total: Option<u64>) -> Stored {
+-        // A number stored before: the same answer again, so a client whose
+-        // acknowledgement was lost stops at once.
+-        if seq < self.next {
+-            return Stored::Again(seq);
+-        }
+         if seq > self.next || self.fin {
+             return Stored::Conflict(self.next);
+         }

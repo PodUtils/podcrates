@@ -4611,7 +4611,7 @@ The owner answers Q15.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4639,6 +4639,81 @@ acknowledgement ends a 20 MiB session with equal digests, with at most
 one resend for each lost acknowledgement; with (6) removed it fails (a
 plant). podssh's tests `http_road` and `http_road_quick` run again at its
 take.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```
+
+## Done
+
+2026-11-13, commit 1fb1a7e. podcrates holds the client of the road and,
+for the role's server, `http_road::window` (`Up`, `Refusal`), which
+podssh's `serve::http_road` takes now and `pod-relay-serve` (T-036) takes
+with the role (C230). Each invariant, in the client and in the window:
+(6) a change: a batch stored before gets `Stored::Again`, the same `204`
+with `X-Seq`; the client fails an acknowledgement that names no batch or
+another. Before, podssh's role answered a duplicate `204` already, and
+the client took any `204`. (7) a test of what held: the window stores
+before it acknowledges and refuses `full` with no move; the client's
+offset down names only bytes that the caller's pipe holds. (8) a change:
+`X-Refuse` names `full`, `unknown session` or `not allowed`; the client
+sends the same batch again after `full` and stops at once for the other
+two. (9) a change: the last batch carries `total=BYTES`, and a total that
+differs ends the session `1002 count mismatch`; the `410` of `1000`
+carries `X-Total`, and the client fails a `1000` with no count or another
+count. (10) a test only: each batch is keyed by (session, `seq`), and a
+resend carries the key and the body of its first send; the road keeps no
+retry log on disk (C232). A defect, fixed in place: in the split form,
+the bytes down went on after the bytes up ended the session, so the
+caller's stream did not end. `tests/http_road_acks.rs` (6 tests) runs
+the client against a stand-in role in memory over the window, on a
+paused clock: with each third acknowledgement dropped after the batch is
+stored, 20 MiB each way end with equal digests in each form, and with
+one resend at most for each lost acknowledgement. The plant
+`relay-t476-duplicate-not-acknowledged` removes (6) from the window; the
+test fails (the session ends `1002 count mismatch`). The change of the
+wire (C231): `X-Seq`, `X-Refuse`, `total=` and `X-Total`; the role's
+server must send them at its take of this version, else each session of
+the road fails. The README of `pod-relay` lists the ten invariants and
+the change. `cargo test -p pod-relay --all-features` passes.
+
+# T-477: `pod-relay`: the serial form of the HTTP road deadlocks when the bytes down block the bytes up (PodUtils/podssh#222)
+
+**Source:** PodUtils/podssh#222 (COORD-047), the CLI test of PodUtils/podssh@T-319.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`http_road::serial::run` carries both directions in one task. It writes
+the bytes of each answer to the app with `to_app.write_all(..).await`.
+When the app does not read them at once, that write blocks, and the task
+reads no more bytes up. An SSH client sends its window adjustments up
+before it reads more, so an `ssh` session over the serial form logs in
+and then moves nothing (podssh: 20 MiB each way, no progress in 240 s;
+the split form takes 23 s).
+
+## Premise
+
+- Read: PodUtils/podssh#222 (2026-11-13), with podssh's tested change
+  (a task of its own writes the bytes down, by an unbounded channel; the
+  serial `ssh` test passes in 25 s); `crates/pod-relay/src/http_road/serial.rs`.
+- Not measured: the memory that the bytes down take when the app is slow.
+
+## Approach
+
+A task of its own writes the bytes down to the app, by a bounded channel:
+when it is full, the session sends no new exchange (it holds the bytes
+down that it took), and it never stops reading the app's bytes up. The
+end of the session drops the channel and waits for the writer. A test in
+`pod-relay`: a client whose writer waits for its reader, as SSH's does,
+ends a session of 20 MiB each way over the serial form; a plant that
+writes down in the same task fails it.
 
 ## Prove
 

@@ -11,8 +11,9 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
 use super::OFFSET;
-use super::client::{End, LIMIT, Retry, Shared, closed, forgotten, gather_more, retry_after};
+use super::client::{End, LIMIT, Retry, Shared, Then, closed, gather_more, refused};
 use super::conn::Conn;
+use super::split::acknowledged;
 
 /// The first pause after an exchange that carried nothing.
 const PAUSE_FIRST: Duration = Duration::from_millis(50);
@@ -21,7 +22,7 @@ const PAUSE_FIRST: Duration = Duration::from_millis(50);
 pub(super) async fn run(mut conn: Conn, s: Arc<Shared>, ours: DuplexStream) {
     let (mut from_app, mut to_app) = tokio::io::split(ours);
     let mut buf = vec![0u8; s.batch];
-    let (mut seq, mut at) = (0u64, 0u64);
+    let (mut seq, mut at, mut sent) = (0u64, 0u64, 0u64);
     // A batch in `buf` that the role has not stored: its length, and whether
     // it is the last.
     let mut waiting: Option<(usize, bool)> = None;
@@ -38,12 +39,14 @@ pub(super) async fn run(mut conn: Conn, s: Arc<Shared>, ours: DuplexStream) {
                 };
                 open = !fin;
                 waiting = Some((n, fin));
+                sent += n as u64;
             }
         } else if waiting.is_none() {
             tokio::time::sleep(pause).await;
         }
         let query = match waiting {
-            Some((_, true)) => format!("seq={seq}&at={at}&wait=0&fin=1"),
+            // The last batch carries the count of the bytes up (invariant 9).
+            Some((_, true)) => format!("seq={seq}&at={at}&wait=0&fin=1&total={sent}"),
             Some((_, false)) => format!("seq={seq}&at={at}&wait=0"),
             None => format!("at={at}&wait=0"),
         };
@@ -70,6 +73,10 @@ pub(super) async fn run(mut conn: Conn, s: Arc<Shared>, ours: DuplexStream) {
                 // from the same offset.
                 let took = waiting.take().is_some();
                 if took {
+                    if let Err(end) = acknowledged(&answer, seq) {
+                        conn.after(false);
+                        break end;
+                    }
                     seq += 1;
                 }
                 let came = match answer.status {
@@ -93,25 +100,25 @@ pub(super) async fn run(mut conn: Conn, s: Arc<Shared>, ours: DuplexStream) {
                         return;
                     }
                     at += came.len() as u64;
+                    s.came_down(at);
                 }
                 tries.reset();
                 pause = if took || !came.is_empty() { Duration::ZERO } else { next_pause(pause, s.poll_max) };
             }
             410 => {
                 let _ = conn.drop_body(&answer, LIMIT).await;
-                break closed(&answer);
+                break closed(&answer, &s);
             }
-            404 => break forgotten(),
-            408 | 429 | 502 | 503 | 504 => {
+            _ => {
                 let words = conn.drop_body(&answer, LIMIT).await;
-                let why = format!("HTTP {} {words}", answer.status);
-                if let Err(end) = tries.again(&why, retry_after(&answer)).await {
-                    break end;
+                match refused(&answer, &words, "an exchange") {
+                    Then::Again(why, at_least) => {
+                        if let Err(end) = tries.again(&why, at_least).await {
+                            break end;
+                        }
+                    }
+                    Then::Stop(end) => break end,
                 }
-            }
-            status => {
-                let words = conn.drop_body(&answer, LIMIT).await;
-                break End::Failed(format!("the relay refused an exchange of the HTTP road: HTTP {status} {words}"));
             }
         }
     };
