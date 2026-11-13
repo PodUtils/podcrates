@@ -3,7 +3,9 @@
 
 mod common;
 
-use common::{LIMIT, scratch};
+use common::LIMIT;
+#[cfg(unix)]
+use common::scratch;
 use pod_link::memory::{self, Memory};
 use pod_link::{Carrier, CarrierErrorKind, Facts};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};

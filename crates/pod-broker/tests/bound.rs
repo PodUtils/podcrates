@@ -5,11 +5,13 @@
 
 mod common;
 
+#[cfg(unix)]
 use std::time::Duration;
 
 use common::*;
 
 const ONLY_A: &str = r#"{"schema":1,"mode":"allow","allow":[{"host":"a.example"}]}"#;
+#[cfg(unix)]
 const ONLY_B: &str = r#"{"schema":1,"mode":"allow","allow":[{"host":"b.example"}]}"#;
 
 /// A CONNECT with no `Proxy-Authorization`, as `podnet pod -x
@@ -18,6 +20,7 @@ fn bare(target: &str) -> String {
     format!("CONNECT {target} HTTP/1.1\r\nHost: {target}\r\n\r\n")
 }
 
+#[cfg(unix)]
 fn with_auth(target: &str, auth: &str) -> String {
     format!("CONNECT {target} HTTP/1.1\r\nHost: {target}\r\n{auth}\r\n")
 }

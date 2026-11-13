@@ -7,7 +7,9 @@ mod common;
 use std::time::Duration;
 
 use common::*;
-use serde_json::{Value, json};
+#[cfg(unix)]
+use serde_json::Value;
+use serde_json::json;
 use tokio::io::AsyncReadExt;
 
 fn load_line(job: &str, token: &str, ttl: u64) -> String {

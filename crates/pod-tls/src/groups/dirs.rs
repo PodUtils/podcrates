@@ -29,7 +29,9 @@ impl GroupFile for Dirs {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::groups::{HEADER, Kept};
+    #[cfg(unix)]
+    use crate::groups::HEADER;
+    use crate::groups::Kept;
 
     /// A test's directory of its own, gone when the test ends.
     struct Scratch(PathBuf);
@@ -46,6 +48,7 @@ mod tests {
         Scratch(dir)
     }
 
+    #[cfg(unix)]
     fn now_ms() -> i64 {
         let since = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
         i64::try_from(since.as_millis()).unwrap_or(i64::MAX)

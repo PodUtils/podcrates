@@ -101,6 +101,8 @@ fn the_file_is_private_and_reads_back() {
         partial: true,
         background_ms: 1,
     };
+    // The mode of the file is checked on Unix alone.
+    #[cfg_attr(not(unix), allow(unused_variables))]
     let path = save_in(&dirs, &rank).unwrap();
     assert_eq!(load_from(&dirs), Some(rank.clone()));
     assert_eq!(rank.first().map(|h| h.host.as_str()), Some("a"));
