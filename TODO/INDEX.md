@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**344 entries: 87 open, 6 partial, 5 blocked, 246 done.**
+**345 entries: 88 open, 6 partial, 5 blocked, 246 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 13 | 2 | 0 | 70 | 85 |
-| P2 | 42 | 2 | 5 | 125 | 174 |
+| P2 | 43 | 2 | 5 | 125 | 175 |
 | P3 | 32 | 2 | 0 | 49 | 83 |
-| **All** | 87 | 6 | 5 | 246 | 344 |
+| **All** | 88 | 6 | 5 | 246 | 345 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -391,3 +391,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-422](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the HTTP/1.1 long-poll carrier, and the SSE and chunked-stream carrier (PodUtils/podnet#515) |
 | [T-423](relay.md) | P2 | M | M2 | feature | open | `pod-link`: the QUIC carrier (PodUtils/podnet#515) |
 | [T-424](relay.md) | P2 | L | M2 | feature | open | `pod-link`: the UDP carrier with KCP (PodUtils/podnet#515) |
+| [T-425](fleet.md) | P2 | M | M8 | chore | open | podswarm: record each ask of #107 and each file of the spec of #108 as entries, when the index of #107 is complete |

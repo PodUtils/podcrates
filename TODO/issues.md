@@ -109,5 +109,21 @@ numbers. `TODO/RULES.md` gives the rules.
 | #104 | COORD-065: v0.34.0: the TCP carrier of pod-link with the pin of an Ed25519 key, podnet's ip.rs settings, closed WARP sessions fail their flows (to all) | open (podssh `287e23b`, PodUtils/podssh#219; podnet `ef8c901`, PodUtils/podnet#515; podvm and podrunner wait) | T-304, T-335, T-355, T-394, T-396 |
 | #105 | COORD-066: the answer to PodUtils/podssh#220: the kind file-host (T-416) and a board over pod_wormhole::mqtt (T-417) (to podssh) | open (T-416 and T-417 open) | T-416, T-417 |
 | #106 | COORD-067: the answer to PodUtils/podnet#515: the next carriers of pod-link in your order (T-420 to T-424, T-310) (to podnet) | open (the entries are open) | T-310, T-420, T-421, T-422, T-423, T-424 |
+| #107 | podswarm: meta tracker of the spec and of the asks of podswarm to PodUtils (crates, repository, consumers) | open (its index is not complete; Q15) | T-425 |
+| #108 | podswarm: the text of the spec (one comment for each file) | open (its index is not complete) | T-425 |
+| #109 | pod-cas: add a BLAKE3 content store with resume, placement, sweep and tree manifests (podswarm P-12) | open (an ask of podswarm; Q15) | T-425 |
+| #110 | pod-fuse: add a FUSE server with no libfuse, with the write opcodes and invalidation (podswarm P-16) | open (an ask of podswarm; Q15) | T-425 |
+| #111 | pod-tty: add a guard of the local terminal with raw mode, restore and the escape line (podswarm P-11) | open (an ask of podswarm; Q15) | T-425 |
+| #112 | pod-ssh: add an SSH client library with a host key policy, an auth chain and an exec channel (podswarm P-13) | open (an ask of podswarm; Q15) | T-425 |
+| #113 | pod-proc: add portable process control with a spawner, a keeper, containment rungs and a tree kill (podswarm P-1) | open (an ask of podswarm; Q15) | T-425 |
+| #114 | pod-view: add a live view of a directory with records, a frame codec and an ordered write-back log (podswarm P-17) | open (an ask of podswarm; Q15) | T-425 |
+| #115 | pod-attest: add the check of an SEV-SNP attestation report and the expected measurement of a guest set (podswarm P-19) | open (an ask of podswarm; Q15) | T-425 |
+| #116 | pod-ws: add a serve module with an accept loop, stage deadlines and caps per address (podswarm P-2) | open (an ask of podswarm; Q15) | T-425 |
+| #117 | pod-tls: add an enrolment mode to the client verifier of peer that admits any Ed25519 key and reports it (podswarm P-3) | open (an ask of podswarm; Q15) | T-425 |
+| #118 | pod-job: add LimitMode::Polled for a limit that a keeper measures and enforces by a kill (podswarm P-8) | open (an ask of podswarm; Q15) | T-425 |
+| #119 | pod-core: add Stage::Task for a failure of a task or its process tree (podswarm P-9) | open (an ask of podswarm; Q15) | T-425 |
+| #120 | pod-proxy: add ChildIo::spawn_args with no shell, a stderr pipe and a wait future (podswarm P-10) | open (an ask of podswarm; Q15) | T-425 |
+| #121 | pod-hold: grow the seccomp hold into a shared trap: a marker, ENOSYS calls, argv reads and a plan before exec (podswarm P-14, P-15) | open (an ask of podswarm; Q15) | T-425 |
+| #122 | pod-guest: add a Linux flavour of plan::argv with one virtio-serial channel, one raw disk, mem-lock and an SNP variant (podswarm P-18) | open (an ask of podswarm; Q15) | T-425 |
 
 #79 to #81 are pull requests.

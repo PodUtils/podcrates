@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 344 entries: 87 open, 6 partial, 5 blocked, 246 done.
+`TODO/INDEX.md` holds 345 entries: 88 open, 6 partial, 5 blocked, 246 done.
 
 ## State
 
@@ -143,7 +143,8 @@ next entry.
    T-028 and T-029 (item 3); T-361 goes with T-036 (item 8).
 10. **M7, the widened scope of podvm:** T-062 after M6; T-241 (the permissions of Landlock ABI 12).
 11. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
-   owner, 2026-11-09). T-100, T-102 to T-120 wait, unless a
+   owner, 2026-11-09). T-425 (the asks of podswarm, #107 and #108) waits
+   for Q15. T-100, T-102 to T-120 wait, unless a
    consumer needs one first (T-107 with M6). T-113 to T-116 wait for the first release on crates.io.
    The asks of PodUtils/podvm#227 for podrunner are in item 2. T-191 and
    T-194 (the proposals of PodUtils/podnet#437 for `pod-broker`, for the
@@ -160,7 +161,12 @@ None. The hand-off of each release is a COORD issue `(to all)` (`docs/maintenanc
 
 ## Questions for the owner
 
-None open.
+- **Q15.** Where do the asks of podswarm (#107, #108; 20 asks to
+  podcrates and 16 rulings for the owner) go in the ruling "Priority"?
+  It blocks the placement of the entries of T-425. Recommendation:
+  podcrates records each ask as an entry now; the work waits behind
+  podvm, podnet, podssh and podrunner, as M8 does, until the owner gives
+  podswarm's rulings.
 
 Write each question as `- **Qn.** QUESTION`, with the entries that it
 blocks and a recommendation. Number the questions in sequence from Q15

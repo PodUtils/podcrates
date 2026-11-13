@@ -1523,3 +1523,40 @@ cargo test -p pod-actions-expr --all-features
 - Test `a_template_gives_its_parts_in_order` (an expression with `}}` in a
   string literal among them). `cargo test -p pod-actions-expr
   --all-features`: 46 passed; clippy is clean.
+
+# T-425: podswarm: record each ask of #107 and each file of the spec of #108 as entries, when the index of #107 is complete
+
+**Source:** GitHub #107 and #108 (podswarm, a new consumer).
+**Category:** chore
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podswarm files 33 asks to PodUtils in #107 (20 to podcrates, P-nn; 8 to
+podvm; 5 to podnet) and the text of its spec in the comments of #108. It
+names 16 rulings that the owner gives before podswarm has code. The
+issues and comments are still being filed: the body of #107 says that its
+index is not complete. The record has no entry for an ask of podswarm.
+
+## Premise
+
+- Read: the bodies of #107 and #108 (2026-11-13 00:23 and 00:25 UTC).
+- Not measured: the asks themselves (not yet indexed).
+
+## Approach
+
+When a comment on #107 says that the index is complete: read each ask
+P-nn and the files of the spec that it names; write one entry for each
+ask (a new crate, a feature, a fix) with its Problem and Approach, and map
+each issue in `TODO/issues.md` and `TODO/github.txt`. The asks to podvm
+and podnet are for those sessions. Place the entries by the owner's
+answer to Q15; until then they wait, as M8 does.
+
+## Prove
+
+```sh
+cargo todo check
+```
