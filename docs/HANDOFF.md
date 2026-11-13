@@ -11,13 +11,15 @@ is done. Git and the record keep finished work.
 
 1. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
-2. Record the takes of `v0.39.0` (#137).
+2. Read the answer of podnet on #138 (T-520), then release the carriers
+   of `pod-link` on `main` (the poll carriers, `quic`, `udp`).
 3. Take the work order of `TODO/PROGRESS.md`, item 1.
 
 ## In flight
 
-- The last release: `v0.39.0` at `4c2d17c` (the hand-off #137, open).
-  Each consumer took `v0.38.0` (#136, closed).
+- The last release: `v0.39.0` at `4c2d17c` (the hand-off #137, closed:
+  each consumer took it). `main` holds T-516, T-422, T-495, T-423 and
+  T-424 for the next tag. #138 asks podnet for the default of KCP (T-520).
 - The nightly at `d8c8ae6` (run 43417105533) passes on Windows (both
   jobs), macOS and each cross target (T-488, T-507, done).
 - podswarm's tracker is PodUtils/podswarm#1 (moved from #107). githome
@@ -39,7 +41,7 @@ is done. Git and the record keep finished work.
 
 ## What waits
 
-- podvm (on `v0.38.0`, `34936958`, PodUtils/podvm#304; `v0.2.0-beta.8` out): T-330 (its pair
+- podvm (on `v0.39.0`, `19892c50`, PodUtils/podvm#309; `v0.2.0-beta.8` out): T-330 (its pair
   commands); T-207 (`pod-netlab`, #70) for PodUtils/podvm@T-1662;
   `exec_attached` of `pod-incus` if PodUtils/podvm@T-1722 asks. Write to
   podvm by COORD issues only.

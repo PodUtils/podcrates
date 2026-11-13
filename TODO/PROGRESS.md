@@ -7,8 +7,8 @@
 - `docs/HANDOFF.md` has what is in flight and what waits.
 - Last release: `v0.39.0` at `4c2d17c` (`docs/releases/v0.39.0.md`; ci
   43399257316, adoption 43399257385, release 43405496549; the hand-off
-  #137, COORD-077, open): T-508 (PodUtils/podnet#524), T-506, T-510,
-  T-310. Each consumer took `v0.38.0` (#136, closed).
+  #137, COORD-077, closed: each consumer took it): T-508
+  (PodUtils/podnet#524), T-506, T-510, T-310.
 - The consumers and their tags:
   - podssh: `v0.39.0` (`5228b65`, PodUtils/podssh#229; its crates/podssh-warp is glue over `pod-warp` and holds fixes only (#135); its server of the HTTP road takes `http_road::window`; its
     PodUtils/podssh@T-755 is on its `main` over `pod-devtunnel`): the MQTT
@@ -20,7 +20,7 @@
     relay client is glue over `pod-relay`; its netns router holds each SYN
     with `pod_hold::syn_hold`). The trial of `pod-warp` passes at
     `9c1fc4b` (T-412); the take waits for the freeze.
-  - podvm: `v0.38.0` (`34936958`, PodUtils/podvm#304; its `v0.2.0-beta.8` is out; its PodUtils/podvm@T-1746 and PodUtils/podvm@T-1749 are low priority now; `pod-netlab` in its
+  - podvm: `v0.39.0` (`19892c50`, PodUtils/podvm#309; its channel of a guest runs on `pod-link`; its `v0.2.0-beta.8` is out; its PodUtils/podvm@T-1746 and PodUtils/podvm@T-1749 are low priority now; `pod-netlab` in its
     `podvm lab`; its relay over `pod_relay::blocking`, T-326; its fix of
     #102 is `655cf941`, PodUtils/podvm#289, in its `v0.2.0-beta.7`).
   - podrunner: `v0.39.0` (`69d7b14`, PodUtils/podrunner#84; its live gates start on a test organization, its DR-7): its local
