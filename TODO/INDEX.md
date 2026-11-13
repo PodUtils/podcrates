@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**412 entries: 115 open, 8 partial, 4 blocked, 285 done.**
+**413 entries: 115 open, 8 partial, 4 blocked, 286 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 3 | 0 | 77 | 92 |
-| P2 | 56 | 3 | 4 | 150 | 213 |
+| P2 | 56 | 3 | 4 | 151 | 214 |
 | P3 | 47 | 2 | 0 | 56 | 105 |
-| **All** | 115 | 8 | 4 | 285 | 412 |
+| **All** | 115 | 8 | 4 | 286 | 413 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -459,3 +459,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-525](relay.md) | P3 | S | M2 | feature | open | `pod-link`: the bytes of a poll listener outside `max_bytes` (the pipes of each session, the connections after their handshake) |
 | [T-526](relay.md) | P3 | S | M2 | chore | partial | `pod-link`: the arithmetic of the crate `kcp` wraps by design: no overflow checks for it, and the fix upstream |
 | [T-527](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: the CPU time and the peak of resident memory of a job in `run-report.v1` (githome's G-06, #83) |
+| [T-531](relay.md) | P2 | S | M2 | chore | done | `pod-netstack`: tests of a far end that closed first and of the packets held while the queue out is full (PodUtils/podssh#231) |

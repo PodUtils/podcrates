@@ -1,0 +1,9 @@
+# The peer closed first (CLOSE-WAIT), and a close of the app closes the
+# socket at once: smoltcp then takes no byte to send, and the bytes in the
+# channel from the app are lost (PodUtils/podssh#231, case 1). The far end
+# must read each byte before the end.
+ENTRY=T-531
+GROUP=netstack
+EXPECT='the end after the end of the peer lost'
+RUN='cargo test -p pod-netstack --lib a_stream_whose_peer_closed_first_sends_each_queued_byte_then_the_end'
+LIMIT=900

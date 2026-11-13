@@ -1,6 +1,7 @@
 //! The close of a stream (T-231, PodUtils/podnet#457): a dropped or closed
-//! stream sends each queued byte, then its FIN, and frees its socket; a
-//! dropped stream whose peer makes no progress is freed after the linger.
+//! stream sends each queued byte, then its FIN, and frees its socket, also
+//! after the peer closed first; a dropped stream whose peer makes no
+//! progress is freed after the linger.
 
 use super::*;
 
@@ -76,6 +77,45 @@ async fn a_dropped_stream_sends_each_queued_byte_then_the_end() {
 #[tokio::test]
 async fn a_closed_stream_sends_each_queued_byte_then_the_end() {
     download(TcpStream::close).await;
+}
+
+/// The client closes its write side first, and the server reads that end.
+/// Then the server writes 16 MiB and closes at once, with bytes in the
+/// channel to the reactor: the client reads each byte, then the end. A close
+/// in CLOSE-WAIT that does not wait for these bytes loses them.
+#[tokio::test]
+async fn a_stream_whose_peer_closed_first_sends_each_queued_byte_then_the_end() {
+    let (mut server_net, mut client_net, pumps) = linked(StackConfig::default());
+    let addr = at(LOCAL_IP, 8447);
+    let mut listener = server_net.listen(addr).await.unwrap();
+    let (resting, _) = server_net.socket_count();
+    let mut client = client_net.connect(addr).await.unwrap();
+    tokio::time::timeout(Duration::from_secs(3), client.established()).await.expect("no handshake").unwrap();
+    let mut stream = tokio::time::timeout(Duration::from_secs(3), listener.accept()).await.expect("no accept").unwrap();
+    client.shutdown();
+    let mut nothing = Vec::new();
+    tokio::time::timeout(Duration::from_secs(3), stream.read_to_end(&mut nothing))
+        .await
+        .expect("the server reads no end of the client in 3 s")
+        .unwrap();
+    assert!(nothing.is_empty(), "{} bytes before the end of the client", nothing.len());
+    let server = tokio::spawn(async move {
+        let block: Vec<u8> = (0..64 * 1024).map(byte).collect();
+        for _ in 0..SIZE / block.len() {
+            stream.write_all(&block).await.unwrap();
+        }
+        stream.close();
+    });
+    let received = read_all(&mut client).await;
+    assert_eq!(received, SIZE, "the end after the end of the peer lost {} bytes", SIZE - received);
+    server.await.unwrap();
+    drop(client);
+    assert_eq!(settle(&server_net, resting).await, resting, "the socket of the ended stream stays");
+    for pump in pumps {
+        pump.abort();
+    }
+    server_net.shutdown().await;
+    client_net.shutdown().await;
 }
 
 /// A dropped stream to a dead peer, with bytes queued: the stack aborts it

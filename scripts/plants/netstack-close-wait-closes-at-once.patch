@@ -1,0 +1,19 @@
+diff --git a/crates/pod-netstack/src/stack/service.rs b/crates/pod-netstack/src/stack/service.rs
+--- a/crates/pod-netstack/src/stack/service.rs
++++ b/crates/pod-netstack/src/stack/service.rs
+@@ -211,13 +211,8 @@ fn close_and_check(conn: &mut Conn, sockets: &mut SocketSet<'static>, timeout: O
+     // in SYN-SENT at once, which resets the connection and loses the data
+     // that the app wrote first.
+     let handshake_done = !matches!(state, tcp::State::SynSent | tcp::State::SynReceived | tcp::State::Listen);
+-    if conn.closing
+-        && handshake_done
+-        && send_queue == 0
+-        && recv_queue == 0
+-        && conn.pending.is_empty()
+-        && conn.from_app.is_empty()
+-    {
++    let drained = send_queue == 0 && recv_queue == 0 && conn.pending.is_empty() && conn.from_app.is_empty();
++    if conn.closing && handshake_done && (drained || state == tcp::State::CloseWait) {
+         socket.close();
+     }
+     // An aborted socket stays until smoltcp sent its RST: it forgets the
