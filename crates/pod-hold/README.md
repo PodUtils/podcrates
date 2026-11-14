@@ -28,6 +28,24 @@ user notification itself is 5.0); unprivileged user namespaces, and
 `/dev/net/tun` or a veth pair (the `veth` module, packet sockets) in the
 namespace, for the netns hold.
 
+## The socket rules
+
+`Calls::sockets()` refuses two parts of `socket` with `EPERM` in the
+kernel: their packets go out of the host past each upstream of the hold.
+The supervisor gets no notification of a refused socket. Each part has its
+own opt-in (calls C301, C364 to C367):
+
+| Part | The sockets | Opt-in |
+| --- | --- | --- |
+| raw | `AF_INET` and `AF_INET6` with `SOCK_RAW` or `SOCK_PACKET` (any flag, any protocol); `AF_PACKET` and `AF_XDP` of each type | `Calls::allow_raw()` |
+| ping | `AF_INET` and `AF_INET6` with `SOCK_DGRAM` (any flag) and `IPPROTO_ICMP` or `IPPROTO_ICMPV6` | `Calls::allow_ping()` |
+
+A socket of an allowed part goes on as each other `socket` call: to the
+supervisor, when the list stops `socket`, never straight to the kernel.
+The handler then refuses the families and the protocols that it does not
+give (for example `AF_PACKET` under podnet's `--allow-raw icmp`).
+`Calls::of` has no rule.
+
 ## The wire of the netns hold
 
 The child of the netns hold makes its wire after `lo`, with
@@ -103,7 +121,7 @@ turns the feature on sets `SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"` in its
 | Module | Contents |
 | --- | --- |
 | `abi` | The structures of the kernel (`SeccompNotif`, `SeccompNotifResp`, `SeccompNotifAddfd`), the ioctl numbers from their encoding (`Encoding::NATIVE`: powerpc and mips put the direction at bit 29), `TUNSETIFF`, `AUDIT_ARCH_NATIVE` and `X32_SYSCALL_BIT` (from `pod_hostprobe::sys`, the one table of the workspace), `SYS_ACCEPT`. |
-| `filter` | `Calls::sockets()` (the 21 calls of podnet's pod; a raw socket and an ICMP socket get `EPERM`), `Calls::of(&[nr])` (no socket refused), `Calls::allow_raw()` (the opt-in of raw IP: podnet's `--allow-raw icmp`; T-544), `Calls::denies_raw()`, `Calls::program()` (the BPF program: a foreign ABI and x32 get `ENOSYS`; `socketcall` gets `ENOSYS` on i386 and powerpc64; `socket(AF_INET or AF_INET6, SOCK_RAW with any flag, any protocol)` and `socket(AF_INET or AF_INET6, SOCK_DGRAM, IPPROTO_ICMP or IPPROTO_ICMPV6)` get `EPERM` unless allowed; a `recvfrom` with no source runs in the kernel), `install(&calls)` (`no_new_privs`, then the filter; the notification descriptor). |
+| `filter` | `Calls::sockets()` (the 21 calls of podnet's pod; the raw part and the ping part of `socket` get `EPERM`), `Calls::of(&[nr])` (no socket refused), `Calls::allow_raw()` (the opt-in of the raw part: podnet's `--allow-raw icmp`; T-544, T-558), `Calls::allow_ping()` (the opt-in of the ping part, for a supervisor that answers a ping socket; T-574), `Calls::denies_raw()`, `Calls::denies_ping()`, `Calls::program()` (the BPF program: a foreign ABI and x32 get `ENOSYS`; `socketcall` gets `ENOSYS` on i386 and powerpc64; the parts of the section "The socket rules" get `EPERM` unless allowed; a `recvfrom` with no source runs in the kernel), `install(&calls)` (`no_new_privs`, then the filter; the notification descriptor). |
 | `spawn` | `resolve(name, path)` (as `execvp`, with the `PATH` of the caller), `Program::new` and `Program::with_env` (made before the fork), `start(program, &calls)` (a helper thread installs the filter and forks; the child calls only `execve`): `Started { listener, pid, hold }`. |
 | `listen` | `Listener::new(fd, access)` on the reactor of tokio; `recv().await` gives the next `Notification { id, pid, nr, args, memory }`, or `None` when no task uses the filter. The memory is opened for each call, and `SECCOMP_IOCTL_NOTIF_ID_VALID` after the open checks that the task still waits. `filter_unused(fd)`. |
 | `mem` | `Memory::open(pid, access)` (`/proc/PID/mem` read-write, else read-only with `process_vm_writev`), `Memory::of_fd` (a memfd stands in for the task), `read`, `write`, `read_word`, `write_to`, `process_vm_writable`; `Access` (`write_open`, `vm_write`); `memfd(bytes)` with the feature `fuzzing` or in tests. |
@@ -127,7 +145,7 @@ turns the feature on sets `SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"` in its
 
 | Setting | Default | podnet |
 | --- | --- | --- |
-| `Calls` | `Calls::sockets()`: a raw socket and an ICMP socket get `EPERM` | the same; `Calls::sockets().allow_raw()` with `--allow-raw icmp` |
+| `Calls` | `Calls::sockets()`: the raw part and the ping part get `EPERM` | `Calls::sockets().allow_ping()` (its supervisor answers a ping socket); `.allow_raw()` too with `--allow-raw icmp` |
 | `mem::Access` | write open, then `process_vm_writev` | `PODNET_NETNS_TEST_MEM` (`no-fd`, `none`) stays a variable of podnet and gives the `Access` |
 | the ceiling of `Table::new(root, ceiling)` | none: the caller gives it (`derived_ceiling(nofile().1)` after `raise_nofile`) | `--flow-budget N`, else the derived ceiling |
 | `netns::Tun` | `eth0`, 10.66.255.255/31, gateway 10.66.255.254, MTU 1500 | the same |
@@ -304,7 +322,8 @@ podnet took these rows at `98d8a71` (tag `v0.29.0`; the trial patch
 ## Tests
 
 `cargo test -p pod-hold`: the unit tests of each module (a BPF run of the
-program, the ioctl numbers of both encodings, the memory of a memfd and of
+program, with each part of the socket rules, each family and each
+opt-in, `each_part_of_the_socket_rules_has_its_own_opt_in`; the ioctl numbers of both encodings, the memory of a memfd and of
 this process, the codec and the read of an address, the table and its
 sweep, the descriptor passing, the levels, the frames and the ARP answer
 of the veth wire, the `RTM_NEWLINK` request, the names of the wire). No
@@ -312,9 +331,14 @@ unit test makes an interface: each name check comes before a system call.
 `tests/hold.rs` (no libtest: the binary is the payload too): a refused
 connect fails with the errno of the reply, a socket call gets the
 descriptor of the supervisor, a namespace gives its TUN to the parent,
-and a raw ICMP socket gets `EPERM` from the filter with no notification,
+a raw ICMP socket gets `EPERM` from the filter with no notification,
 and with `Calls::allow_raw` reaches the supervisor and the kernel
-(`a_raw_icmp_socket_gets_eperm_unless_the_hold_allows_it`).
+(`a_raw_icmp_socket_gets_eperm_unless_the_hold_allows_it`), and each
+socket of the raw part (`AF_INET` and `AF_INET6` with `SOCK_RAW`,
+`AF_PACKET` of two types, `AF_INET` with `SOCK_PACKET`) and of the ping
+part (both families) gets `EPERM` with no notification unless its own
+opt-in lets it reach the supervisor
+(`each_part_of_the_socket_rules_has_its_own_opt_in`).
 `tests/veth.rs` (no libtest): `veth_wire_carries_a_tcp_flow`, podnet's
 test with a stack of `pod-netstack` in the place of the pod: the child
 makes the veth wire in a new namespace, sends a datagram to the gateway,
@@ -351,6 +375,10 @@ stops a test at its time limit.
 The plants `hold-reply-errno-positive`, `hold-address-read-past-length`,
 `hold-filter-foreign-abi-passes`, `hold-veth-arp-any-address` and
 `hold-veth-offloads-on` (`scripts/plants/`) prove the core checks;
+`hold-t544-raw-not-denied`, `hold-t544-type-flags-kept`,
+`hold-t558-packet-let-through`, `hold-t558-inet-sock-packet-let-through`,
+`hold-t574-ping-refused-when-allowed` and
+`hold-t574-raw-opt-in-opens-ping` prove the tests of the socket rules;
 `hold-syn-accepted-before-the-dial` and
 `hold-syn-past-the-budget-to-the-stack` prove the tests of the hold of a
 SYN.

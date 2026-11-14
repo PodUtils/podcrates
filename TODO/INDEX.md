@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**472 entries: 130 open, 7 partial, 5 blocked, 330 done.**
+**472 entries: 128 open, 7 partial, 5 blocked, 332 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 14 | 3 | 0 | 88 | 105 |
-| P2 | 60 | 2 | 4 | 182 | 248 |
+| P2 | 58 | 2 | 4 | 184 | 248 |
 | P3 | 56 | 2 | 1 | 58 | 117 |
-| **All** | 130 | 7 | 5 | 330 | 472 |
+| **All** | 128 | 7 | 5 | 332 | 472 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -488,7 +488,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-555](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `7122cc7` is red for podssh: its test pins five tox relays, and T-537 left four |
 | [T-556](transport.md) | P2 | S | M1 | feature | done | `pod-services`: serv00's public Piping Server as the third of the kind `piping` (PodUtils/podssh#238) |
 | [T-557](relay.md) | P3 | S | M2 | defect | open | `pod-link`: the listener of the dns, icmp, udp and ws carriers gets no `KeyRefused` when the dialer refuses its key |
-| [T-558](relay.md) | P2 | S | M6 | defect | open | `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open |
+| [T-558](relay.md) | P2 | S | M6 | defect | done | `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open |
 | [T-559](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the client of the HTTP road's one-POST form (PodUtils/podssh#239) |
 | [T-560](relay.md) | P3 | S | M2 | feature | open | `pod-relay`: the one-POST form of the HTTP road over HTTP/2 |
 | [T-561](relay.md) | P1 | S | M2 | feature | done | `pod-wg`: the preshared key of a handshake (PodUtils/podnet#547) |
@@ -504,7 +504,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-571](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `e830136` is red for podnet: the field `preshared` of `pod_wg::Keys` |
 | [T-572](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-workflow`: the filters of `on:` (types, branches, tags, paths and their -ignore forms) (PodUtils/podrunner#97) |
 | [T-573](podvm.md) | P1 | M | M6 | feature | done | `pod-supervise`: a foreground holder, so that a run that the caller waits for is Running (PodUtils/podvm#339) |
-| [T-574](relay.md) | P2 | S | M6 | feature | open | `pod-hold`: a filter that refuses raw sockets and lets ping sockets reach the supervisor (PodUtils/podnet#550) |
+| [T-574](relay.md) | P2 | S | M6 | feature | done | `pod-hold`: a filter that refuses raw sockets and lets ping sockets reach the supervisor (PodUtils/podnet#550) |
 | [T-575](transport.md) | P3 | S | M1 | docs | done | `pod-services`: the README names the scheme `tcp` of an endpoint (PodUtils/podnet#550) |
 | [T-576](fleet.md) | P2 | L | M8 | feature | done | `pod-actions-workflow`: the calls of reusable workflows in `Run` (inputs, secrets, outputs, limits) (PodUtils/podrunner#98) |
 | [T-577](fleet.md) | P3 | S | M8 | feature | done | `pod-actions-workflow`: the `workflows` filter of `workflow_run` |

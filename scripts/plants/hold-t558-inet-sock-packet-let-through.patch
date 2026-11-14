@@ -1,0 +1,10 @@
+--- a/crates/pod-hold/src/filter.rs
++++ b/crates/pod-hold/src/filter.rs
+@@ -227,7 +227,6 @@
+     ops.push((BPF_ALU_AND_K, SOCK_TYPE_MASK, At::Next, At::Next));
+     if raw {
+         ops.push(jeq(libc::SOCK_RAW as u32, At::Deny, At::Next));
+-        ops.push(jeq(SOCK_PACKET, At::Deny, At::Next));
+     }
+     if ping {
+         ops.push(jeq(libc::SOCK_DGRAM as u32, At::Next, At::End));

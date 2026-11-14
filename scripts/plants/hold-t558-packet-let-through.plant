@@ -1,0 +1,6 @@
+# The raw part of the socket rules lets AF_PACKET through: a packet socket of a held child reaches the supervisor; its test must fail.
+ENTRY=T-558
+GROUP=hold
+EXPECT='socket\(17, 0x[0-9a-f]+, [0-9]+\): the filter answers EPERM, with no notification'
+RUN='cargo test -p pod-hold --test hold'
+LIMIT=1800

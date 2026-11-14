@@ -1,0 +1,10 @@
+--- a/crates/pod-hold/src/filter.rs
++++ b/crates/pod-hold/src/filter.rs
+@@ -217,7 +217,6 @@
+     let jeq = |k: u32, jt: At, jf: At| (BPF_JEQ_K, k, jt, jf);
+     let mut ops = vec![jeq(libc::SYS_socket as u32, At::Next, At::End), (BPF_LD_ABS_W, arg(0), At::Next, At::Next)];
+     if raw {
+-        ops.push(jeq(libc::AF_PACKET as u32, At::Deny, At::Next));
+         ops.push(jeq(AF_XDP, At::Deny, At::Next));
+     }
+     ops.push(jeq(libc::AF_INET as u32, At::Kind, At::Next));

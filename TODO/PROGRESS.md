@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 472 entries: 130 open, 7 partial, 5 blocked, 330 done.
+`TODO/INDEX.md` holds 472 entries: 128 open, 7 partial, 5 blocked, 332 done.
 
 ## State
 
@@ -72,14 +72,15 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-First: `v0.42.0` with the asks on `main` (#141, #142, PodUtils/podssh#234,
-#236, #238, #239, PodUtils/podrunner#91). Then the link carriers of M2
-for podnet (item 3c): T-526, T-494, T-500 and T-525. Then the items
-below, in order.
+First: `v0.44.0` with the asks on `main` (#148, #150, PodUtils/podrunner#97,
+#98, PodUtils/podnet#550, PodUtils/podssh#242). The defects of podvm's QA
+report: T-580 to T-582 (an agent), then T-583 to T-586 (PodUtils/podvm#344
+to #347). podrunner's additions to its two crates: T-587, T-588
+(PodUtils/podrunner#99). Then the link carriers of M2 for podnet (item
+3c): T-526, T-494, T-500 and T-525. Then the items below, in order.
 
 1. **The defects and asks of the consumers:** T-566 (a fuzz target of
-   `pod-actions-results`); T-558 (`AF_PACKET`
-   in the rule of `pod-hold`); T-557 (`KeyRefused` on the listener of
+   `pod-actions-results`); T-578 (a check of the keys of `on:`); T-557 (`KeyRefused` on the listener of
    four carriers); T-540 (a test of the
    termios mode of `pod-term` against a kernel pty); T-550, T-551 and
    T-554 (Nostr, WebTorrent's trackers and ntfy as meeting points of a

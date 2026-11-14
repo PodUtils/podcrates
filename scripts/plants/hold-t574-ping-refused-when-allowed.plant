@@ -1,0 +1,6 @@
+# The program refuses the ping part also with Calls::allow_ping: a ping socket of a held child does not reach the supervisor; its test must fail.
+ENTRY=T-574
+GROUP=hold
+EXPECT='socket\(2, 0x[0-9a-f]+, 1\): the opt-in gives the call to the supervisor'
+RUN='cargo test -p pod-hold --test hold'
+LIMIT=1800
