@@ -2519,7 +2519,7 @@ cargo test --manifest-path fuzz/Cargo.toml --lib
 **Milestone:** M8
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2539,3 +2539,7 @@ Add `Trigger::workflow: Option<&str>` and `Event::workflows`. A name matches who
 cargo test -p pod-actions-workflow --test on
 sh scripts/plant-each.sh actions-workflow-workflows-ignored
 ```
+
+## Done
+
+2026-11-14. The commit `1018c9a` (`pod-actions-workflow: the workflows filter of workflow_run (T-577)`). `Trigger::workflow` and `Event::workflows` (call C350). `cargo test -p pod-actions-workflow --all-features`: 55 passed (the new test `workflow_run_takes_the_workflows_that_it_names`). The plant `actions-workflow-workflows-ignored` fails that test, by hand. clippy of the crate and of the fuzz library, `cargo doc` of the crate with `-D warnings` and `cargo fmt --all --check`: clean.
