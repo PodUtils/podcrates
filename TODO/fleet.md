@@ -2358,3 +2358,44 @@ cargo test -p pod-job --all-features
 ## Done
 
 2026-11-14. `ContainerRoute::Engine` and `UnitNeed::container_engine`; `schemas/unit-capability.v1.schema.json` and `schemas/job-offer.v1.schema.json` written again; the examples `unit-capability/valid-engine.json` and `job-offer/valid-engine-need.json` (18 valid, 22 invalid). The plant `job-container-engine-dropped` (no variant `engine`) fails `each_example_passes_or_fails_for_its_reason` on `valid-engine.json`.
+
+# T-565: `pod-actions-results`: the ArtifactService of the results API and its blob routes, one store for each run (PodUtils/podrunner#95)
+
+**Source:** PodUtils/podrunner#95 (COORD-035 of podrunner; PodUtils/podrunner@T-119).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podrunner asks for a crate `pod-actions-results` from crates/podrunner-broker-fake/src/artifacts.rs of PodUtils/podrunner@T-119 (commit `0ff670d`; 0BSD). githome and a forge mode need the same service; the cache service of PodUtils/podrunner@T-120 is the next part of the same API. The ask:
+
+- Serve the twirp JSON routes of `github.actions.results.api.v1.ArtifactService`: `CreateArtifact`, `FinalizeArtifact`, `ListArtifacts`, `GetSignedArtifactURL` and `DeleteArtifact`.
+- Serve the block blob calls of the signed URLs: a whole PUT, `comp=block` and `comp=blocklist`.
+- One store serves each run. Each URL carries a random signature. A name is unique in a run. The finalize checks the size and the SHA-256. A run has a limit of bytes.
+
+The measured facts of the ask: `actions/download-artifact@v4` refuses a `google.protobuf.StringValue` that is not a plain string in the JSON; the client reads its run and job ids from the `Actions.Results:RUN:JOB` scope of `ACTIONS_RUNTIME_TOKEN`; runner v2.338.2 sets `ACTIONS_RESULTS_URL` from `ResultsServiceUrl` in the data of the `SystemVssConnection` endpoint. podrunner keeps its code until a tag of podcrates has the crate; nothing is blocked.
+
+## Premise
+
+- Read (2026-11-14): PodUtils/podrunner#95; podrunner at `0ff670d`: crates/podrunner-broker-fake/src/artifacts.rs, src/artifacts/tests.rs (5 tests), src/lib.rs (the broker's `serve`, which gives each request to `ArtifactStore::route` before its own routes), src/message.rs (the job token with `Actions.Results:1:2`, and `ResultsServiceUrl`), its Cargo.toml, and PodUtils/podrunner@T-119.
+- The source checks a name at `CreateArtifact` only: `FinalizeArtifact`, `GetSignedArtifactURL` and `DeleteArtifact` join any name to the directory of the store. It reads `/dev/urandom` and keeps a signature of zeros when the read fails. It compares a signature with `!=`. It reads a whole blob into memory at the block list, at the finalize and at the download.
+- Measured: `https://crates.io/api/v1/crates/pod-actions-results` answered 404 on 2026-11-14: the name is not reserved.
+- Not measured here: a run of the v4 actions against the crate (podrunner's parity row `07-artifacts.yml` does it on the adoption).
+
+## Approach
+
+A new crate with no HTTP server: `ArtifactStore::answer(method, path, body, base)` gives a typed `Answer` (the zip of a download as an open file), and `route` keeps podrunner's form (call C325). The layout `DIR/NAME/` stays; the upload moves into the directory of its name, and each call checks its name (C326). The signature comes from `pod_core::entropy` and is compared in constant time (C327). The defects of the wire are fixed, each with a test (C328). `token::backend_ids` and `results_scope` hold the scope of the runtime token (C329). The README holds the facts of the wire. The name on crates.io is an action of the owner (`docs/design.md`, section 10).
+
+## Prove
+
+```sh
+cargo test -p pod-actions-results --all-features
+cargo clippy -p pod-actions-results --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh results-sha256-unchecked results-no-limit results-sig-length-only results-digest-wrapped results-name-escapes
+python3 -I scripts/check-probe.py --no-tree
+python3 -I scripts/check-publish-order.py
+python3 -I scripts/check-design-paths.py
+```

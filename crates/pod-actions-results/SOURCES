@@ -3,10 +3,13 @@
 # commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
 # compares each with the default branch of its repository.
 
-repo PodUtils/podrunner 0ff670da4f298065ae4fc2d2bbb04d18fb1196bd
+repo PodUtils/podrunner 8088f68e80a1c72592a71106460070868548345c
 # T-565 (PodUtils/podrunner#95): the ArtifactService of the results API and
 # the blob routes of its signed URLs. The broker that serves them stays in
-# podrunner. src/token.rs and tests/store.rs are new here.
+# podrunner. src/token.rs and tests/store.rs are new here. The import is
+# of 0ff670d; at 8088f68 artifacts.rs differs from it only in the
+# visibility of seven helpers (the cache service of
+# PodUtils/podrunner@T-120 calls them), so the block reads 8088f68.
 dir crates/podrunner-broker-fake/src/artifacts
-file b293231631d9e30c18553022418b9ff17f7f83eb crates/podrunner-broker-fake/src/artifacts.rs -> crates/pod-actions-results/src/lib.rs crates/pod-actions-results/src/store.rs crates/pod-actions-results/src/service.rs crates/pod-actions-results/src/blob.rs crates/pod-actions-results/src/wire.rs
+file 1097934026ef4bd2bf474e7f73d17120c2a83acd crates/podrunner-broker-fake/src/artifacts.rs -> crates/pod-actions-results/src/lib.rs crates/pod-actions-results/src/store.rs crates/pod-actions-results/src/service.rs crates/pod-actions-results/src/blob.rs crates/pod-actions-results/src/wire.rs
 file f4af84cb0c3d9c334c5359a3d1702b6cab0432a5 crates/podrunner-broker-fake/src/artifacts/tests.rs -> crates/pod-actions-results/src/tests.rs

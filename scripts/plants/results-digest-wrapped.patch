@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-results/src/service.rs b/crates/pod-actions-results/src/service.rs
+--- a/crates/pod-actions-results/src/service.rs
++++ b/crates/pod-actions-results/src/service.rs
+@@ -129,7 +129,7 @@
+             "workflow_run_backend_id": v["workflow_run_backend_id"],
+             "workflow_job_run_backend_id": v["workflow_job_run_backend_id"],
+             "database_id": id.to_string(), "name": name, "size": len.to_string(),
+-            "created_at": rfc3339(now), "digest": digest, "sig": pending.sig,
++            "created_at": rfc3339(now), "digest": { "value": digest }, "sig": pending.sig,
+         });
+         // The record goes in last, by a rename: an artifact with a record
+         // has its zip.

@@ -1,0 +1,11 @@
+diff --git a/crates/pod-actions-results/src/service.rs b/crates/pod-actions-results/src/service.rs
+--- a/crates/pod-actions-results/src/service.rs
++++ b/crates/pod-actions-results/src/service.rs
+@@ -116,6 +116,7 @@
+         }
+         if let Some(h) = plain(&v["hash"]).as_str()
+             && h != digest
++            && h.is_empty()
+         {
+             return twirp(400, "invalid_argument", format!("{name:?}: hash {h}, the blob has {digest}"));
+         }

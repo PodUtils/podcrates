@@ -1,0 +1,8 @@
+# The digest of ListArtifacts is a google.protobuf.StringValue in the form
+# {"value": ...}, which download-artifact@v4 refuses (T-565,
+# PodUtils/podrunner#95).
+ENTRY=T-565
+GROUP=actions
+EXPECT='a wrapper is a plain string'
+RUN='cargo test -p pod-actions-results --all-features --lib'
+LIMIT=900

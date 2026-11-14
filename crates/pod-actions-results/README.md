@@ -1,0 +1,178 @@
+# pod-actions-results
+
+The ArtifactService of the results API of GitHub Actions, which
+`actions/upload-artifact@v4` and `actions/download-artifact@v4` call at
+`ACTIONS_RESULTS_URL`: the twirp JSON calls of
+`github.actions.results.api.v1.ArtifactService` (`CreateArtifact`,
+`FinalizeArtifact`, `ListArtifacts`, `GetSignedArtifactURL`,
+`DeleteArtifact`) and the block blob calls of the signed URLs (a whole
+`PUT`, `comp=block`, `comp=blocklist`, and the `GET` of the zip). One store
+serves each run, so a job reads the artifact of an earlier job. T-565 made
+it from podrunner's `crates/podrunner-broker-fake/src/artifacts.rs`
+(PodUtils/podrunner#95); githome and a forge mode need the same service.
+
+The crate has no HTTP server and does no network I/O: the caller gives each
+request to the store and writes the answer. It reads no environment. The
+store writes only in its directory.
+
+## Use
+
+```rust
+use pod_actions_results::{ArtifactStore, Payload, LIMIT};
+
+let store = Arc::new(ArtifactStore::new(&run_dir.join("artifacts"), LIMIT)?);
+// In the server of each broker of the run, for each request:
+match store.answer(&method, &path_and_query, &body, "http://10.0.2.2:8080/") {
+    Some(answer) => {
+        // answer.status, answer.content_type
+        match answer.body {
+            Payload::Bytes(bytes) => { /* write the bytes */ }
+            Payload::File(file, len) => { /* stream `len` bytes of `file` */ }
+        }
+    }
+    None => { /* another route of the server */ }
+}
+```
+
+`base` is the URL of the server as the client sees it, with a `/` at the
+end; each signed URL starts with it. The server reads the whole body of a
+request: a block of the client is 8 MiB, and podrunner's broker takes a
+body of up to 16 MiB. The server gives `base` to the job as
+`ACTIONS_RESULTS_URL` (see "The facts of the wire").
+
+## API
+
+| Item | What |
+| --- | --- |
+| `ArtifactStore::new(dir, limit)` | the store of one run in `dir`, with a limit of `limit` bytes; the signatures take the random bytes of the system |
+| `ArtifactStore::with_entropy(dir, limit, entropy)` | the same with a `pod_core::entropy::Entropy`; when it fails, `CreateArtifact` fails with 500 `internal` |
+| `ArtifactStore::answer(method, path, body, base)` | the `Answer` to a request of the service or of a blob, or `None` for another route; `path` keeps its query |
+| `ArtifactStore::route(method, path, body, base)` | the same as `(status, bytes)` in memory (podrunner's form) |
+| `ArtifactStore::list`, `dir`, `used` | each artifact of the run by name, as `ListArtifacts` gives it (no signature); the directory; the bytes that the clients sent |
+| `Answer { status, content_type, body }`, `Answer::into_bytes` | an answer; `Payload::Bytes`, or `Payload::File(file, len)`: the zip of a download, open for read |
+| `CONTENT_JSON`, `CONTENT_BLOB`, `CONTENT_TEXT` | the content types of a twirp answer, of a zip, and of a blob route's text |
+| `SERVICE`, `BLOBS` | the path of each call (`SERVICE` and the method) and of each blob (`BLOBS`, `upload/ID` or `download/ID`, `?sig=`) |
+| `LIMIT` | the default limit of a run: 4 GiB |
+| `token::backend_ids(token)`, `BackendIds { run, job }` | the run and job ids of the scope `Actions.Results:RUN:JOB` in the claim `scp` of a runtime token, read as the client reads them (no check of the signature) |
+| `token::results_scope(run, job)`, `token::RESULTS_SCOPE` | the scope for a token that a broker or a forge mints |
+
+## The rules
+
+* The store keeps `DIR/NAME/artifact.zip` (the zip of the client, as
+  GitHub gives it) and `DIR/NAME/artifact.json` (the record: the ids of the
+  run and of the job, the id, the name, the size, the time, the digest and
+  the signature of the download). An upload that is not finalized is in
+  `DIR/NAME/.upload-ID/`. The record goes in last, by a rename.
+* A name is unique in a run, as on GitHub: a second `CreateArtifact` of a
+  finalized name gets 409 `already_exists`; a finalize gets 409 when the
+  name took a record in the meantime. A new `CreateArtifact` of a name that
+  is not finalized drops the earlier upload, its URL and its blocks.
+* A name is not empty, has at most 255 bytes, is not `.` or `..`, and has
+  no control character and none of `" : < > | * ? \ /` (the characters
+  that the client refuses). Each call checks it, and a name is one normal
+  component of a path: no request reaches a file outside `DIR`. A record
+  must hold its own name: on a file system that folds case, `Data` is not
+  the artifact `data`.
+* Each upload URL and each download URL carries its own signature: 16
+  random bytes in hex. The store compares it in constant time. A wrong
+  signature gets 403.
+* The finalize reads the blob in parts, and checks its size and its
+  SHA-256 (`sha256:HEX`) against `size` and `hash` of the request. A
+  mismatch gets 400 `invalid_argument`, and the upload stays for another
+  finalize. No blob gets 412 `failed_precondition`.
+* The limit counts each byte that a client sends in a block or a whole
+  blob, in each artifact of the run. The join of a block list counts none,
+  and a delete gives none back. A call over the limit gets 413.
+* A block id has at most 88 bytes (64 bytes before the base64, the limit
+  of Azure); its file is its id in hex. A block list joins its blocks in
+  order, in parts; a missing block gets 400.
+* The ids of artifacts count up from 1. A store opened again over the
+  artifacts of an earlier run starts above the highest id.
+
+## The facts of the wire
+
+podrunner measured these with runner v2.338.2 and the v4 actions
+(PodUtils/podrunner@T-119, PodUtils/podrunner#95):
+
+* `actions/download-artifact@v4` refuses a `google.protobuf.StringValue`
+  that is not a plain string in the JSON: the `digest` of
+  `ListArtifacts` is `"sha256:..."`, never `{"value": "sha256:..."}`. A
+  request is read in both forms (`name_filter`, `id_filter`, `hash`). An
+  int64 is a string in the JSON, and a request is read as a string or a
+  number. Tests: `an_artifact_goes_up_in_blocks_and_comes_down_whole`,
+  `each_field_of_an_answer_is_a_plain_value`,
+  `a_wrapper_or_a_plain_string_is_read_in_a_request`.
+* The client reads its run and job ids (`workflow_run_backend_id`,
+  `workflow_job_run_backend_id`) from the scope `Actions.Results:RUN:JOB`
+  of the claim `scp` of `ACTIONS_RUNTIME_TOKEN`. A broker or a forge that
+  mints the token puts the scope in it. Test:
+  `the_scope_of_the_runtime_token_names_the_run_and_the_job`.
+* Runner v2.338.2 sets `ACTIONS_RESULTS_URL` from `ResultsServiceUrl` in
+  the `data` of the endpoint `SystemVssConnection` of the job message. The
+  broker writes that key; this crate does not read the job message.
+
+## Parity
+
+Against podrunner `crates/podrunner-broker-fake/src/artifacts.rs` at
+`0ff670d`:
+
+| podrunner | Here |
+| --- | --- |
+| [x] `ArtifactStore::new`, `list`, `route`, `LIMIT` | the same names; `list` gives no signature |
+| [x] the five calls of the service and the blob routes | `service.rs`, `blob.rs` |
+| [x] the five tests of `artifacts/tests.rs`, each with its name | `src/tests.rs` |
+| [x] `DIR/NAME/artifact.zip` and `artifact.json` | the same; the upload moves from `DIR/.pending/ID/` to `DIR/NAME/.upload-ID/` |
+| [x] the random signature of `/dev/urandom` | `pod_core::entropy`; no random bytes is a failure, never a signature of zeros |
+| [x] the SHA-256 of ring | sha2 (pure Rust) |
+| [x] `rfc3339` | `pod_core::clock::rfc3339` |
+
+Differences from the source, each with a test (call C325 to C329):
+
+* `ArtifactStore::answer` gives the zip of a download as an open file
+  (`a_download_is_a_file_to_stream`); the block list and the finalize read
+  a blob in parts, never whole.
+* Each call checks the name; a name was checked at `CreateArtifact` only,
+  so `DeleteArtifact` of `..` removed a directory outside the store when it
+  held an `artifact.json` (`a_name_outside_the_store_is_refused`). The
+  upload is in the directory of its name: `.pending` was a valid name.
+* The signature is compared in constant time, and a store with no random
+  bytes makes no URL (`the_signature_is_compared_in_full`,
+  `no_random_bytes_gives_no_upload_url`).
+* A finalize refuses a name that has a record
+  (`a_finalize_refuses_a_name_that_another_writer_took`); a record of
+  another name is not the artifact
+  (`a_record_of_another_name_is_not_the_artifact`); a store opened again
+  keeps its ids (`a_store_opened_again_keeps_its_ids`); a new upload of a
+  name removes the blocks of the earlier one
+  (`a_new_upload_of_a_name_drops_the_earlier_one`).
+* A block id over 88 bytes, a call with no block id and an unknown `comp`
+  get 400, and a refused or failed write counts no byte
+  (`a_block_id_has_a_limit_and_a_block_list_its_blocks`,
+  `the_limit_counts_each_byte_of_the_run`).
+* `failed_precondition` has the status of twirp, 412 (podrunner: 400).
+
+## Adoption map
+
+| Consumer | Old | New |
+| --- | --- | --- |
+| podrunner | `podrunner_broker_fake::artifacts::{ArtifactStore, LIMIT}` | `pod_actions_results::{ArtifactStore, LIMIT}` |
+| podrunner | `store.route(method, path, body, base)` in `serve` of the broker | the same call; or `store.answer(...)` to stream a download and to send its content type |
+| podrunner | the `ring` digest and `/dev/urandom` of `artifacts.rs` | removed |
+| podrunner | `DIR/.pending/` of an `--artifacts DIR` | `DIR/NAME/.upload-ID/` while an upload is not finalized |
+| podrunner | `crates/podrunner-broker-fake/src/artifacts.rs` and `src/artifacts/tests.rs` | removed; `pod-actions-results = { git = "https://github.com/PodUtils/podcrates", tag = "vX.Y.Z" }` |
+
+## Tests
+
+`cargo test -p pod-actions-results`: the 5 tests of podrunner
+(`src/tests.rs`) and 14 tests of the public API (`tests/store.rs`). The
+plants of the group `actions`: `results-sha256-unchecked` (the finalize
+takes any digest), `results-no-limit` (the run has no limit),
+`results-sig-length-only` (the compare of a signature reads the length
+alone), `results-digest-wrapped` (the `digest` of a list as
+`{"value": ...}`) and `results-name-escapes` (a name is a path).
+
+## Sources
+
+`SOURCES` lists each imported file with its blob. The import is of
+podrunner at `0ff670d`; `SOURCES` reads `8088f68`, where `artifacts.rs`
+differs only in the visibility of its helpers.

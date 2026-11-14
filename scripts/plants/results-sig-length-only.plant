@@ -1,0 +1,7 @@
+# The compare of the signature of a blob URL reads its length alone: each
+# signature of the right length opens the upload (T-565).
+ENTRY=T-565
+GROUP=actions
+EXPECT='the_signature_is_compared_in_full'
+RUN='cargo test -p pod-actions-results --all-features --test store'
+LIMIT=900

@@ -1,0 +1,18 @@
+[package]
+name = "pod-actions-results"
+description = "The ArtifactService of the results API of GitHub Actions (twirp JSON) and the block blob routes of its signed URLs, over one store for each run, for a broker or a forge that serves actions/upload-artifact@v4 and actions/download-artifact@v4."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The entropy of the signatures, and the time of an artifact. No tokio.
+pod-core = { workspace = true }
+# The requests and the answers of the twirp JSON routes.
+serde_json = { workspace = true }
+# The digest that the finalize checks: pure Rust.
+sha2 = { workspace = true }
+# The claims of the runtime token (token::backend_ids).
+base64 = { workspace = true }

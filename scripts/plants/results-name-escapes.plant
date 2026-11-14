@@ -1,0 +1,7 @@
+# A name of an artifact is a path: a call reaches a directory outside the
+# store (T-565).
+ENTRY=T-565
+GROUP=actions
+EXPECT='a_name_outside_the_store_is_refused'
+RUN='cargo test -p pod-actions-results --all-features --test store'
+LIMIT=900

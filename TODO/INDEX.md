@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**445 entries: 116 open, 7 partial, 6 blocked, 316 done.**
+**446 entries: 117 open, 7 partial, 6 blocked, 316 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 85 | 99 |
-| P2 | 53 | 2 | 4 | 173 | 232 |
+| P2 | 54 | 2 | 4 | 173 | 233 |
 | P3 | 52 | 2 | 2 | 56 | 112 |
-| **All** | 116 | 7 | 6 | 316 | 445 |
+| **All** | 117 | 7 | 6 | 316 | 446 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -492,3 +492,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-559](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the client of the HTTP road's one-POST form (PodUtils/podssh#239) |
 | [T-560](relay.md) | P3 | S | M2 | feature | blocked | `pod-relay`: the one-POST form of the HTTP road over HTTP/2 |
 | [T-563](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `b0533d0` is red for podssh: `Route::One` of `pod-relay` breaks a match of its role |
+| [T-565](fleet.md) | P2 | M | M8 | feature | open | `pod-actions-results`: the ArtifactService of the results API and its blob routes, one store for each run (PodUtils/podrunner#95) |

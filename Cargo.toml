@@ -25,6 +25,7 @@ crates-io = false
 # No default feature here: a crate that needs the async parts of pod-core
 # (its feature `async`) names it, so that pod-tls builds with no tokio.
 pod-actions-expr = { path = "crates/pod-actions-expr", version = "0.42.0" }
+pod-actions-results = { path = "crates/pod-actions-results", version = "0.42.0" }
 pod-actions-workflow = { path = "crates/pod-actions-workflow", version = "0.42.0" }
 pod-broker = { path = "crates/pod-broker", version = "0.42.0" }
 pod-confine = { path = "crates/pod-confine", version = "0.42.0" }
