@@ -1,0 +1,11 @@
+--- a/crates/pod-enter/src/launch.rs
++++ b/crates/pod-enter/src/launch.rs
+@@ -53,7 +53,7 @@
+     }
+     // A limit given two times: the second could fail in the child with
+     // `EPERM` after the first lowered the hard value.
+-    if let Some(r) = crate::limits::repeated(&plan.limits) {
++    if let Some(r) = crate::limits::repeated(&plan.limits[..0]) {
+         return Err(Error::LimitTwice(r));
+     }
+     let nul = |what: String| Error::runtime(Class::Usage, what);

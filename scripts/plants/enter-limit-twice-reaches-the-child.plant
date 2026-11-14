@@ -1,0 +1,8 @@
+# The entry does not check the plan for a limit given two times: the child
+# applies both, and the second fails with EPERM or replaces the first
+# (T-584).
+ENTRY=T-584
+GROUP=enter
+EXPECT='unwrap_err|setrlimit\(RLIMIT_NOFILE\)'
+RUN='cargo test -p pod-enter --all-features --lib two_limits_of_one_resource_are_refused_by_name_before_the_fork'
+LIMIT=1800

@@ -137,6 +137,45 @@ fn more_limits_than_the_most_are_refused_before_the_fork() {
     let _ = std::fs::remove_dir_all(d);
 }
 
+#[test]
+fn repeated_names_the_first_resource_given_two_times() {
+    let l = |resource, v| Limit { resource, soft: v, hard: v };
+    assert_eq!(repeated(&[]), None);
+    assert_eq!(repeated(&[l(Resource::Nofile, 64), l(Resource::Core, 0)]), None);
+    assert_eq!(
+        repeated(&[l(Resource::Nofile, 64), l(Resource::Core, 0), l(Resource::Nofile, 128)]),
+        Some(Resource::Nofile)
+    );
+    assert_eq!(
+        repeated(&[l(Resource::Core, 0), l(Resource::Nproc, 9), l(Resource::Nproc, 8), l(Resource::Core, 1)]),
+        Some(Resource::Nproc)
+    );
+}
+
+/// `--ulimit nofile=64 --ulimit nofile=128`: the second limit could not
+/// raise the hard value that the first lowered. The entry refuses the plan
+/// before the fork, with the resource, and the payload does not run.
+#[test]
+fn two_limits_of_one_resource_are_refused_by_name_before_the_fork() {
+    let d = dir("twice");
+    let mark = d.join("ran");
+    let limits = vec![
+        Limit { resource: Resource::Nofile, soft: 64, hard: 64 },
+        Limit { resource: Resource::Nofile, soft: 128, hard: 128 },
+    ];
+    let p = plan(limits, false);
+    let m = Maps::of_root(d.to_str().unwrap());
+    let root = RootDir::open(m.rootfs()).unwrap();
+    let argv = vec!["/bin/sh".to_string(), "-c".to_string(), format!("touch {}", mark.display())];
+    let e = spawn_userland(&root, &p, &m, argv, "userland", None, &mut std::io::sink()).unwrap_err();
+    assert!(matches!(e, crate::Error::LimitTwice(Resource::Nofile)), "{e:?}");
+    assert!(e.to_string().contains("two limits of RLIMIT_NOFILE (nofile)"), "{e}");
+    assert_eq!(e.payload_code(), None);
+    assert_eq!(pod_core::Failure::from(e).class, pod_core::Class::Usage);
+    assert!(!mark.exists(), "the payload ran");
+    let _ = std::fs::remove_dir_all(d);
+}
+
 /// With `die_with_parent`, the payload ends when the thread that forked it
 /// exits (T-205): a supervisor that is killed leaves no payload. The
 /// payload writes its pid and sleeps; the thread that spawned it returns.
