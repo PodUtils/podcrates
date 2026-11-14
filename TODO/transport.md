@@ -6948,3 +6948,36 @@ hand: `services-t552-url-past-quote`,
 was remade on the new code and caught. Not run: the live watch of each
 service (SSH needs the egress of `services.yml`); podssh's live run of
 `last-roads-live.yml` checks srv.us's derived name.
+
+# T-575: `pod-services`: the README names the scheme `tcp` of an endpoint (PodUtils/podnet#550)
+
+**Source:** PodUtils/podnet#550 (COORD-077 of podnet, note 2).
+**Category:** docs
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The rule of the key `scheme` in the README of `pod-services` lists `https`, `wss`, `wisp+wss`, `ssh`, `ssh+tls`, `stun`, `udp`, `tls` and `quic`, but 8 endpoints of the service files have the scheme `tcp` (for example `magic-wormhole-transit`, `bore`, `tox-tcp-relay`). `Endpoint::url` gives them as `tcp://HOST:PORT`. podnet's parser of a transit relay refused that form and dropped the relay with no word, until podnet's fix (df08245).
+
+## Premise
+
+- Read: PodUtils/podnet#550; `crates/pod-services/README.md`; `grep -h '^scheme = ' crates/pod-services/services/*.toml | sort | uniq -c`.
+
+## Approach
+
+Add `tcp` (a TCP connection with no TLS) to the rule of `scheme`, and say that `url` gives `tcp://HOST:PORT` for it, so that a consumer's parser takes that form.
+
+## Prove
+
+```sh
+grep -h '^scheme = ' crates/pod-services/services/*.toml | sort -u
+```
+
+Each scheme that the command prints is in the rule of `scheme` of the README.
+
+## Done
+
+2026-11-14. The rule of `scheme` in `crates/pod-services/README.md` lists `tcp` with the form that `Endpoint::url` gives (`tcp://HOST:PORT`). The service files use the schemes `https`, `quic`, `ssh`, `ssh+tls`, `stun`, `tcp`, `tls`, `udp`, `wisp+wss` and `wss`; each is in the rule.

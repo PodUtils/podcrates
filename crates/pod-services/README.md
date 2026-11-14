@@ -53,7 +53,7 @@ A word is a lower-case letter, then lower-case letters, digits and single
 | --- | --- | --- |
 | `name` | the name in its service | a word; once in a file |
 | `role` | a group of endpoints (`v4`, `v6`, `seed`, `region`, `h2`, `quic`) | optional word |
-| `scheme` | `https`, `wss`, `wisp+wss`, `ssh`, `ssh+tls`, `stun`, `udp`, `tls`, `quic` | a URI scheme in lower case |
+| `scheme` | `https`, `wss`, `wisp+wss`, `ssh`, `ssh+tls`, `stun`, `udp`, `tcp` (a TCP connection with no TLS; `url` gives `tcp://HOST:PORT`), `tls`, `quic` | a URI scheme in lower case |
 | `host` | a name (a last `.` is a name that is fully qualified), or an IP address with no brackets | required |
 | `port` | the port | 1 to 65535; required |
 | `path` | the path | optional; starts with `/`, no space |

@@ -12,17 +12,16 @@ is done. Git and the record keep finished work.
 1. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
 2. Read the answer of podnet on #139 (the profile of `kcp`, T-526) and the
-   takes of `v0.42.0` on its hand-off issue #145.
-3. Cut `v0.43.0` with T-561, T-562 (#144, PodUtils/podnet#547), T-564
-   and T-565 (PodUtils/podrunner#94, #95), and answer them with its tag.
-   Then the work order of `TODO/PROGRESS.md`.
+   takes of `v0.43.0` on its hand-off issue.
+3. Merge the agents' work for PodUtils/podrunner#97 and #98 and for
+   PodUtils/podvm#339 when it is done, and cut `v0.44.0` with it. Then the work order of
+   `TODO/PROGRESS.md`.
 
 ## In flight
 
-- The last release: `v0.42.0` at `b6983fc` (ci 43551994302, adoption
-  43551994287, release 43554090429; the hand-off #145, COORD-085): the
-  asks of each consumer (#141 and #142, closed). `v0.41.0` at `bb39935`:
-  each consumer took it (#143, closed).
+- `v0.42.0` at `b6983fc`: each consumer took it (#145, closed; podssh at
+  `7e457b4`, PodUtils/podssh#241; podnet at `654c0f1`,
+  PodUtils/podnet#550).
 - On `main` for `v0.43.0`: T-561 and T-562 (`pod-wg`, #144), T-564 and
   T-565 (the new crates `pod-actions-store` and `pod-actions-results`).
   The owner reserves their names on crates.io ("Owner actions" of
@@ -59,12 +58,12 @@ is done. Git and the record keep finished work.
   out): T-330 (its pair commands); T-207 (`pod-netlab`, #70) for
   PodUtils/podvm@T-1662; `exec_attached` of `pod-incus` if
   PodUtils/podvm@T-1722 asks. Write to podvm by COORD issues only.
-- podnet (on `v0.41.0`, `095955c`, PodUtils/podnet#546; `pod-warp`
-  taken): the rest of its link workstream (#133: T-494, T-500, then group
+- podnet (on `v0.42.0`, `654c0f1`, PodUtils/podnet#550; T-574 for its
+  filter of raw sockets): the rest of its link workstream (#133: T-494, T-500, then group
   d), then T-029 (`pod-cloudflare`) on the chain to WARP (the owner's
   order). Write to podnet by COORD issues only.
-- podssh (on `v0.41.0`, `6f77eaa`, PodUtils/podssh#240; `pod-warp`
-  taken): the live runs of its PodUtils/podssh@T-737 (the brokers) and
+- podssh (on `v0.42.0`, `7e457b4`, PodUtils/podssh#241; T-560 is open,
+  as its role serves the one form over HTTP/2): the live runs of its PodUtils/podssh@T-737 (the brokers) and
   PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
 - podrunner (on `v0.42.0`, `05ceaec`, PodUtils/podrunner#96): its session

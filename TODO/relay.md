@@ -6775,7 +6775,7 @@ egress proxy of this session takes no TCP to port 4001. The first run of
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
@@ -6784,11 +6784,11 @@ The client of the one-POST form (T-559) runs over HTTP/1.1 only. podssh asks for
 ## Premise
 
 - Read: the report of T-559; calls C310 to C313; `crates/pod-relay/src/http_road/one.rs`.
-- podssh's role serves the form over HTTP/1.1 only, and answers 411 to it on another; its HTTP/2 form is the next step of PodUtils/podssh@T-622.
+- podssh's role serves the form over HTTP/2 on one stream since its commit `44bdf8a` (crates/podssh-relay/src/serve/http2/one.rs; its test tests/relay_serve_h2.rs, 4 MiB each way; PodUtils/podssh#241).
 
 ## Approach
 
-When the role serves it: offer `h2,http/1.1` on the connection of the one form only. That needs a dial that reports the result of ALPN (`Dial` gives a `BoxIo` today). Then one stream of `h2` with a request body that streams, as `pod-services-watch/src/xhttp.rs` uses the crate `h2`. A test against a stand-in of TLS with `h2`.
+Offer `h2,http/1.1` on the connection of the one form only. That needs a dial that reports the result of ALPN (`Dial` gives a `BoxIo` today). Then one stream of `h2` with a request body that streams, as `pod-services-watch/src/xhttp.rs` uses the crate `h2`. A test against a stand-in of TLS with `h2`.
 
 ## Prove
 
@@ -6796,9 +6796,6 @@ When the role serves it: offer `h2,http/1.1` on the connection of the one form o
 cargo test -p pod-relay --all-features --test http_road_one
 ```
 
-## Blocker
-
-podssh's role serves the one form over HTTP/2 (PodUtils/podssh@T-622).
 
 # T-561: `pod-wg`: the preshared key of a handshake (PodUtils/podnet#547)
 
@@ -6955,3 +6952,30 @@ plants (each checked by hand: the test fails at its assertion):
 `cargo clippy -p pod-wg -p pod-warp --all-targets --all-features -- -D
 warnings` and the clippy of `fuzz/`: clean. Not done: a test against
 another WireGuard implementation (no UDP egress here).
+
+# T-574: `pod-hold`: a filter that refuses raw sockets and lets ping sockets reach the supervisor (PodUtils/podnet#550)
+
+**Source:** PodUtils/podnet#550 (COORD-077 of podnet, note 1; PodUtils/podnet@T-334).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Calls::sockets()` refuses `SOCK_RAW` of `AF_INET` and `AF_INET6` and the ping sockets (`SOCK_DGRAM` with `IPPROTO_ICMP` or `IPPROTO_ICMPV6`) in the kernel filter (T-544). podnet emulates ping sockets in its supervisor (a ping to the gateway of the pod), so it uses `Calls::sockets().allow_raw()` and refuses `SOCK_RAW` in the supervisor. podnet asks for a form that refuses only `SOCK_RAW` in the kernel filter and lets the ping sockets reach the supervisor, with `allow_raw()` as the opt-in of the raw part.
+
+## Premise
+
+- Read: PodUtils/podnet#550; `crates/pod-hold/src/filter.rs` (`deny_raw`); T-544 and call C301; T-558 (`AF_PACKET`, the same rule).
+
+## Approach
+
+Split the rule in two: the raw part (`SOCK_RAW` of `AF_INET` and `AF_INET6`, and `AF_PACKET` of T-558) and the ping part. A method of `Calls` lets the ping part through to the notification or to the kernel, and `allow_raw()` keeps its meaning for the raw part. Do T-558 in the same work. Cases of the BPF unit test, a test of a held child for each part, and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-hold --all-features
+```
