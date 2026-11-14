@@ -46,7 +46,7 @@ fn ends(points: Vec<Point>, seen: &Seen) -> Brokers {
 /// A code of another nameplate than `code`'s, with its words.
 fn other_nameplate(code: &Code) -> Code {
     let plate = if code.nameplate() == "1000" { "1001" } else { "1000" };
-    Code::make(plate, &mut pod_core::entropy::OsEntropy).unwrap()
+    Code::make(plate, pod_wormhole::WORDS, &mut pod_core::entropy::OsEntropy).unwrap()
 }
 
 /// The code of `code`'s nameplate with its last word another of its list.
@@ -200,9 +200,31 @@ async fn no_broker_that_answers_is_unreachable() {
     need_loopback!();
     let ends = ends(vec![point(&nobody_there())], &Seen::default());
     assert!(matches!(mqtt::opened(&ends, versions()).await.map(|_| ()), Err(Failed::Unreachable(_))));
-    let code = Code::make("1234", &mut pod_core::entropy::OsEntropy).unwrap();
+    let code = Code::make("1234", pod_wormhole::WORDS, &mut pod_core::entropy::OsEntropy).unwrap();
     let met = mqtt::joined(&ends, &code, versions(), Duration::from_secs(1)).await.map(|_| ());
     assert!(matches!(met, Err(Failed::Unreachable(_))), "{met:?}");
+}
+
+#[tokio::test]
+async fn a_code_of_the_words_asked_for_pairs_at_a_broker_and_a_count_out_of_bounds_reaches_none() {
+    need_loopback!();
+    for (name, url, _keep) in brokers("words").await {
+        let mut ends = ends(vec![point(&url)], &Seen::default());
+        ends.config.words = 6;
+        let (mut giver, code) = mqtt::opened(&ends, versions()).await.expect("a code");
+        assert_eq!(code.words(), 6, "{name}");
+        let (taker, heard) = meet(&ends, &mut giver, &code, LIMIT).await;
+        assert!(heard, "{name}");
+        let mut taker = taker.expect("the taker");
+        assert_eq!(giver.confirm(LIMIT).await.unwrap(), versions(), "{name}");
+        assert_eq!(taker.confirm(LIMIT).await.unwrap(), versions(), "{name}");
+        giver.close(Mood::Happy).await;
+        taker.close(Mood::Happy).await;
+    }
+    let mut ends = ends(vec![point(&nobody_there())], &Seen::default());
+    ends.config.words = 1;
+    let refused = mqtt::opened(&ends, versions()).await.err();
+    assert_eq!(refused, Some(Failed::Mine("a new code has 2 to 8 words, not 1".into())), "before a dial");
 }
 
 /// Each public broker of `pod-services` takes the topic, the client id

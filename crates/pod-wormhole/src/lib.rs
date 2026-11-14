@@ -52,5 +52,5 @@ pub use config::Config;
 pub use failed::Failed;
 pub use meet::{Ends, joined, opened};
 pub use message::{hex, unhex};
-pub use phrase::{Code, WORDS};
+pub use phrase::{Code, WORDS, WORDS_LEAST, WORDS_MOST};
 pub use wormhole::Wormhole;

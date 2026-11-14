@@ -6,7 +6,9 @@
 //! mailbox that lists other codes find nobody; a third end is refused while
 //! two hold the code; a message that the mailbox changed ends the exchange;
 //! no event and no `Debug` holds the code. The two ends derive one key for
-//! a purpose, and another for another purpose. A peer of magic-wormhole's
+//! a purpose, and another for another purpose. A code of the count of
+//! words that the giver asks for meets; a count out of bounds reaches no
+//! mailbox. A peer of magic-wormhole's
 //! own Python library and this crate finish the `pake` and `version`
 //! phases, derive one transit key, and move a message each way, either one
 //! giving the code, and a wrong code fails both.
@@ -152,6 +154,31 @@ async fn an_end_of_another_application_never_meets_the_code() {
         let met = joined(&other, &code, versions(), Duration::from_secs(2)).await;
         assert_eq!(met.err(), Some(Failed::Nobody), "{name}");
         giver.close(Mood::Lonely).await;
+    }
+}
+
+#[tokio::test]
+async fn a_code_of_the_words_asked_for_meets_and_a_count_out_of_bounds_reaches_no_mailbox() {
+    need_loopback!();
+    for (name, url, _keep) in mailboxes("words").await {
+        let mut ends = ends(vec![url.clone()], &Seen::default());
+        ends.config.words = 5;
+        let (mut giver, code) = opened(&ends, versions()).await.expect("a code");
+        assert_eq!(code.words(), 5, "{name}");
+        let typed = Code::parse(code.for_terminal()).expect("the taker types it");
+        let mut taker = joined(&ends, &typed, versions(), Duration::from_secs(5)).await.expect("the taker");
+        assert!(giver.agree(LIMIT).await.unwrap(), "{name}");
+        assert_eq!(giver.confirm(LIMIT).await.unwrap(), versions(), "{name}");
+        assert_eq!(taker.confirm(LIMIT).await.unwrap(), versions(), "{name}");
+        giver.close(Mood::Happy).await;
+        taker.close(Mood::Happy).await;
+    }
+    for words in [1, 9] {
+        let mut ends = ends(vec![nobody_there()], &Seen::default());
+        ends.config.words = words;
+        let refused = opened(&ends, versions()).await.err();
+        let why = format!("a new code has 2 to 8 words, not {words}");
+        assert_eq!(refused, Some(Failed::Mine(why)), "before a dial");
     }
 }
 

@@ -20,7 +20,7 @@ caller's protocol over a `Wormhole`; the exchange of podssh goes to
 
 | Module | What |
 | --- | --- |
-| `config` | `Config { appid, client_name, client_version, way, trust, connect_timeout, answer_limit, limits, events }`, `Config::new(appid, client_name, client_version, way)`, `CONNECT_TIMEOUT`, `ANSWER_LIMIT`, `LIMITS` |
+| `config` | `Config { appid, client_name, client_version, way, trust, connect_timeout, answer_limit, limits, words, events }`, `Config::new(appid, client_name, client_version, way)`, `CONNECT_TIMEOUT`, `ANSWER_LIMIT`, `LIMITS` |
 | `mailbox` | `Mailbox`: `connect(&url, &config, side)`, `list`, `allocate`, `claim`, `open`, `add`, `release`, `close`, `end`, `message(wait)`, `appid`, `shown`, `motd`; `Mood` (`Happy`, `Lonely`, `Scary`, `Errory`); `Message`; `crowded(&Failed)`; `ANSWER_LIMIT`, `KEPT_MOST` |
 | `wormhole` | `Wormhole`: `open(place, side, nameplate, id, &code, versions)` (a `Mailbox` or a `mqtt::Broker`), `agree(wait)`, `confirm(wait)`, `send`, `receive(wait)`, `close(mood)`, `fail(mood, failed)`, `shown`, `derive_key(purpose, len)` (magic-wormhole's `derive_key` of the agreed key: the transit key is `derive_key("APPID/transit-key", 32)`); `derive_key(&key, purpose, len)`, `phase_key`, `seal`, `open_sealed`, `NONCE`, `TAG`, `HELD_MOST`, `DERIVED_MOST` |
 | `meet` | `Ends { mailboxes, config }`, `opened(&ends, versions)` (a new code at the first mailbox that answers), `joined(&ends, &code, versions, giver_wait)` (the giver's wormhole, the key made), `or_close` |
@@ -29,7 +29,7 @@ caller's protocol over a `Wormhole`; the exchange of podssh goes to
 | `mqtt::broker` | `Broker`: `connect(&point, &config, side, topic, role, resend)`, `add`, `message(wait)`, `disconnect`, `end`, `appid`, `inbox`, `shown`; `client_id`, `refusal`, `PING_EVERY`, `KEPT_MOST` |
 | `mqtt::packet` | the pure codec of MQTT 3.1.1: `Packet` (`Connect`, `ConnAck`, `Publish` with its `retain` flag, `Subscribe`, `SubAck`, `PingReq`, `PingResp`, `Disconnect`), `Connect`, `encode`, `decode(bytes, most)`, `encode_length`, `kind_name`, `Malformed`, `LENGTH_MOST`, `REFUSED` |
 | `place` | `Place` (`Mailbox`, `Broker`; `From` each): `shown`, `noun`, `appid`, and the steps of a wormhole at either |
-| `phrase` | `Code`: `make(nameplate, &mut dyn Entropy)`, `parse(typed)`, `nameplate`, `password`, `for_terminal`, `words`; `nameplate_ok`, `WORDS`, `WORDS_MOST`, `NAMEPLATE_MOST`, `TYPED_MOST` |
+| `phrase` | `Code`: `make(nameplate, words, &mut dyn Entropy)` (`Failed::Mine` for a count out of `check_words`), `parse(typed)`, `nameplate`, `password`, `for_terminal`, `words`; `check_words` (2 to 8), `nameplate_ok`, `WORDS` (3, the default), `WORDS_LEAST`, `WORDS_MOST`, `NAMEPLATE_MOST`, `TYPED_MOST` |
 | `words` | the PGP word list (`EVEN`, `ODD`, `list`, `word`, `find`) |
 | `message` | the pure reading of a mailbox's messages: `object`, `message_of`, `pake_of`, `words`, `hex`, `unhex`, `Message`, `WORDS_MOST` |
 | `failed` | `Failed` (`Unreachable`, `Refused`, `Expired`, `Nobody`, `WrongCode`, `Peer`, `Mine`, `Broken`, `NoRandom`), `stage_and_class()`, `From<Failed> for pod_core::Failure` |
@@ -117,6 +117,7 @@ prints nothing.
 | The roots of a `wss://` mailbox | `Config::trust` |
 | The bound of each step of a dial (20 s) | `Config::connect_timeout` |
 | The bound of the answer to a command (30 s) | `Config::answer_limit` |
+| The words of a new code (3; 2 to 8), as magic-wormhole's `--code-length` | `Config::words`; `opened` refuses another count before a dial |
 | The largest frame (256 KiB) and message (1 MiB) of a mailbox | `Config::limits` |
 | The lines for the user | `Config::events` (`pod_core::Events`): `wormhole.mailbox` (warn; a mailbox that failed, why), `wormhole.broker` (warn; a broker that failed, why) and `wormhole.motd` (info; the mailbox's words). No event holds the code or a password |
 | The mailbox URLs, their order, `--pair-mailbox`, `PODSSH_PAIR_MAILBOX`, the public ones | the caller: `Ends::mailboxes` (`pod-services` has the public ones) |
@@ -214,7 +215,9 @@ makes a skip a failure. `tests/board.rs` runs the board on the same
 brokers (the stand-in keeps retained messages): a put, a take, a second
 put, a clear and a take after the clear; a note put while a take waits; a
 topic or a payload out of bounds refused before a connection; a refused
-login. `tests/live.rs` is `#[ignore]`: two ends meet at
+login. A code of 5 words over each mailbox and of 6 words over each
+broker meets; a count out of bounds fails before a dial.
+`tests/live.rs` is `#[ignore]`: two ends meet at
 each public mailbox and pair at each public broker of `pod-services`
 (`live.yml`). `tests/board_live.rs` is `#[ignore]`: a board puts, takes
 and clears a note at each public broker (`live.yml`, each Thursday).
@@ -226,8 +229,9 @@ POD_WORMHOLE_TEST_PYTHON=.venv/bin/python POD_WORMHOLE_TEST_SERVER=required carg
 
 The plants `wormhole-version-unchecked`, `wormhole-held-unbounded`,
 `wormhole-mqtt-topic-constant`, `wormhole-mqtt-no-resend`,
-`wormhole-board-clear-not-retained`, `wormhole-board-clear-not-empty` and
-`wormhole-derived-key-salted` (`scripts/plants/`) prove six of the tests. The fuzz target
+`wormhole-board-clear-not-retained`, `wormhole-board-clear-not-empty`,
+`wormhole-derived-key-salted` and `wormhole-code-words-fixed`
+(`scripts/plants/`) prove seven of the tests. The fuzz target
 `mailbox_message` runs the pure reading of a mailbox's messages and the
 parser of a typed code; `mqtt_packet` runs the codec of MQTT and the topic.
 

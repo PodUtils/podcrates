@@ -5964,7 +5964,7 @@ sh scripts/plant-each.sh wormhole-derived-key-salted
 
 ## Done
 
-2026-11-14, this commit (the subject `pod-wormhole: Wormhole::derive_key`).
+2026-11-14, commit 8924ae3.
 `Wormhole::derive_key(purpose, len)` gives
 `Result<Zeroizing<Vec<u8>>, Failed>`: `Failed::Broken("no key was agreed")`
 before `agree`, `Failed::Mine` past `DERIVED_MOST` (8160); the pure
@@ -5984,3 +5984,69 @@ the stand-in and on magic-wormhole's mailbox server; each test that uses
 it equal to this crate's. The plant `wormhole-derived-key-salted` fails
 `a_derived_key_is_magic_wormholes_by_purpose_and_length` (checked by hand:
 FAILED); `sh scripts/plant-each.sh --apply`: 0 stale.
+
+# T-547: `pod-wormhole`: the count of words of a new code in `Config`, as magic-wormhole's `--code-length` (PodUtils/podnet#535)
+
+**Source:** PodUtils/podnet#535 (COORD-072 of podnet), ask 3.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+magic-wormhole takes `--code-length N`. `meet::Ends` and `Config` fix the
+code at 3 words. podnet asks for the count in `Ends` or `Config`, so that
+podnet can give `--words N`.
+
+## Premise
+
+- Read 2026-11-14, magic-wormhole at
+  `657bd5d51c67db2109219ff57b7d997afa57261f`:
+  magic-wormhole/magic-wormhole:src/wormhole/cli/cli.py, `--code-length`
+  (`-c`, NUMWORDS) defaults to 2 for `send` and `receive --allocate` and
+  is `int(...)` with no bound; magic-wormhole/magic-wormhole:src/wormhole/_wordlist.py,
+  `choose_words(length)` draws `length` words, odd first, with no bound. So
+  magic-wormhole takes any count; 0 gives a code with no secret.
+- `crates/pod-wormhole/src/phrase.rs`: `Code::make` draws `WORDS` (3)
+  words; `Code::parse` takes 1 to `WORDS_MOST` (8) words. `meet::opened`
+  and `mqtt::opened` make the code.
+
+## Approach
+
+`Config::words` (default `WORDS`, 3: the default of the crate stays).
+`Code::make(nameplate, words, entropy)` takes the count;
+`phrase::check_words` holds it to `WORDS_LEAST` (2) to `WORDS_MOST` (8)
+and refuses others with `Failed::Mine` (call C295). `meet::opened` checks
+the count before it dials a mailbox, and `mqtt::opened` before a broker.
+A taker reads the count from the code. Tests: a unit test of each count
+and of the bounds; a code of 5 words over each mailbox, and of 6 words over
+each broker, meets and confirms; a count out of bounds fails before a
+dial. The plant `wormhole-code-words-fixed` makes `meet::opened` draw
+`WORDS` words.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+sh scripts/plant-each.sh wormhole-code-words-fixed
+```
+
+## Done
+
+2026-11-14, the commit after 8924ae3 (the subject
+`pod-wormhole: the count of words of a new code`). `Config::words`
+(default `WORDS`, 3); `Code::make(nameplate, words, entropy)`;
+`phrase::check_words` (2 to 8, else `Failed::Mine`); `meet::opened` and
+`mqtt::opened` refuse a count out of bounds before a dial (C295).
+`cargo test -p pod-wormhole --all-features` with magic-wormhole's mailbox
+server and `POD_WORMHOLE_TEST_SERVER=required`: 78 passed, 3 ignored. New:
+`a_new_code_has_the_words_asked_for_within_its_bounds` (each count from 2
+to 8 is made and parsed back; 0, 1 and 9 are refused);
+`a_code_of_the_words_asked_for_meets_and_a_count_out_of_bounds_reaches_no_mailbox`
+(5 words over the stand-in and magic-wormhole's server; 1 and 9 fail with
+`Failed::Mine` at a URL where nothing listens);
+`a_code_of_the_words_asked_for_pairs_at_a_broker_and_a_count_out_of_bounds_reaches_none`
+(6 words over the stand-in broker). The plant `wormhole-code-words-fixed`
+fails the test of the mailboxes (checked by hand: "left: 3, right: 5").
