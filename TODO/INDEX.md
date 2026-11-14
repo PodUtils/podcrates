@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**490 entries: 128 open, 8 partial, 5 blocked, 349 done.**
+**490 entries: 125 open, 8 partial, 5 blocked, 352 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 15 | 3 | 0 | 93 | 111 |
+| P1 | 12 | 3 | 0 | 96 | 111 |
 | P2 | 57 | 2 | 4 | 193 | 256 |
 | P3 | 56 | 3 | 1 | 61 | 121 |
-| **All** | 128 | 8 | 5 | 349 | 490 |
+| **All** | 125 | 8 | 5 | 352 | 490 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -520,10 +520,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-587](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99) |
 | [T-588](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-results`: the CacheService and the replacement of an artifact on a rerun (PodUtils/podrunner#99) |
 | [T-589](relay.md) | P2 | S | M2 | feature | done | `pod-netstack`: `bind_udp` with port 0 takes an ephemeral port (PodUtils/podnet#552) |
-| [T-590](podvm.md) | P1 | M | M7 | feature | open | `pod-guest`: `fetch::store` resumes a download by Range, checks the size and the sha256, and has a ceiling for each entry (PodUtils/podvm#350, item 1) |
+| [T-590](podvm.md) | P1 | M | M7 | feature | done | `pod-guest`: `fetch::store` resumes a download by Range, checks the size and the sha256, and has a ceiling for each entry (PodUtils/podvm#350, item 1) |
 | [T-591](podvm.md) | P1 | M | M7 | feature | done | `pod-udf`: a new crate that reads UDF and gives the extent of a file in an ISO (PodUtils/podvm#350, item 2) |
-| [T-592](podvm.md) | P1 | S | M7 | defect | open | `pod-guest`: the agent runs the command in a child `cmd /c`, writes a `WQREADY` marker, and has a keep-alive mode (PodUtils/podvm#350, item 3) |
-| [T-593](podvm.md) | P1 | M | M7 | feature | open | `pod-guest`: the options of a plan: a NIC with `hostfwd`, virtio devices, CD-ROM and USB media, VNC, a serial channel, the Hyper-V flags (PodUtils/podvm#350, item 4) |
+| [T-592](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: the agent runs the command in a child `cmd /c`, writes a `WQREADY` marker, and has a keep-alive mode (PodUtils/podvm#350, item 3) |
+| [T-593](podvm.md) | P1 | M | M7 | feature | done | `pod-guest`: the options of a plan: a NIC with `hostfwd`, virtio devices, CD-ROM and USB media, VNC, a serial channel, the Hyper-V flags (PodUtils/podvm#350, item 4) |
 | [T-594](podvm.md) | P2 | M | M7 | feature | done | `pod-qga`: a new crate, a client of the QEMU Guest Agent over a Unix socket (PodUtils/podvm#350, item 5) |
 | [T-595](podvm.md) | P2 | M | M7 | feature | open | `pod-guest`: the provision waits for a ready guest in place of a fixed sleep (PodUtils/podvm#350, item 6) |
 | [T-596](podvm.md) | P3 | M | M7 | feature | open | `pod-guest`: a warm start from a saved state, with a fingerprint and a fallback to a cold boot (PodUtils/podvm#350, item 7) |

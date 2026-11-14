@@ -1,0 +1,8 @@
+# The default options give the guest user-mode networking: the mailbox run
+# is no longer the only channel (T-593, PodUtils/podvm#350). The test of
+# the default line must fail.
+ENTRY=T-593
+GROUP=guest
+EXPECT='test plan::options::tests::the_default_options_give_the_mailbox_run_with_no_network \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- plan::options::tests::the_default_options_give_the_mailbox_run_with_no_network'
+LIMIT=1800

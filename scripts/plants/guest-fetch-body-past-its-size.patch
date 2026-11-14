@@ -1,0 +1,13 @@
+diff --git a/crates/pod-guest/src/fetch.rs b/crates/pod-guest/src/fetch.rs
+index 1f5596e..b4d98e6 100644
+--- a/crates/pod-guest/src/fetch.rs
++++ b/crates/pod-guest/src/fetch.rs
+@@ -200,7 +200,7 @@ impl Part {
+             if after > self.limit {
+                 return Err(End::Refuse(Refusal::OverCeiling { ceiling: self.limit }.failure()));
+             }
+-            if let Some(e) = end.filter(|e| after > *e) {
++            if let Some(e) = end.filter(|e| after > *e && false) {
+                 return Err(End::Refuse(Refusal::Size { declared: e, got: after }.failure()));
+             }
+             self.file.write_all(&buf[..n]).map_err(|e| End::Refuse(io_at(&self.path, e)))?;

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-guest/src/plan/options.rs b/crates/pod-guest/src/plan/options.rs
+index ba0d83b..ccb6cc3 100644
+--- a/crates/pod-guest/src/plan/options.rs
++++ b/crates/pod-guest/src/plan/options.rs
+@@ -199,7 +199,7 @@ impl Options {
+     pub fn check(&self) -> Result<()> {
+         if let Nic::User(u) = &self.nic {
+             for (i, f) in u.forwards.iter().enumerate() {
+-                if f.host_port == 0 || f.guest_port == 0 {
++                if f.guest_port == 0 && f.host_port == 0 {
+                     return Err(usage(format!("the forward {} has a port 0", f.spec())));
+                 }
+                 let twice =

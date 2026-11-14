@@ -18,4 +18,5 @@ sha2 = { workspace = true }
 xz4rust = { workspace = true }
 
 [dev-dependencies]
-pod-testkit = { workspace = true }
+# The HTTP stand-in of the tests of the store.
+pod-testkit = { workspace = true, features = ["stand"] }

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-guest/src/agent.rs b/crates/pod-guest/src/agent.rs
+index f4411aa..bdf204b 100644
+--- a/crates/pod-guest/src/agent.rs
++++ b/crates/pod-guest/src/agent.rs
+@@ -96,7 +96,7 @@ goto :eof
+ set WQNONCE=
+ for /f "usebackq delims=" %%t in ("%WQ%\WQGO.TXT") do if not defined WQNONCE set WQNONCE=%%t
+ if not defined WQNONCE goto :eof
+-cmd /c %WQ%\WQCMD.CMD < NUL > %WQ%\WQOUT.TXT 2> %WQ%\WQERR.TXT
++call %WQ%\WQCMD.CMD < NUL > %WQ%\WQOUT.TXT 2> %WQ%\WQERR.TXT
+ set WQRC=%errorlevel%
+ >%WQ%\WQCODE.TXT echo %WQRC% %WQNONCE%
+ del %WQ%\WQGO.TXT >nul 2>&1

@@ -22,12 +22,18 @@ fn plan_over(scratch: &Path, emulator: &Path) -> Plan {
         monitor: scratch.join("qmp.sock"),
         memory_mib: 512,
         cpus: 1,
+        options: Default::default(),
         emu_args: Vec::new(),
     }
 }
 
 fn request() -> Request {
-    Request { command: "ver & echo hi".into(), token: "tok-1".into(), timeout: Duration::from_secs(10) }
+    Request {
+        command: "ver & echo hi".into(),
+        token: "tok-1".into(),
+        timeout: Duration::from_secs(10),
+        mode: agent::Mode::Once,
+    }
 }
 
 /// True when `pid` is gone or a zombie that no process reaped yet.
@@ -196,6 +202,22 @@ fn the_mailbox_carries_the_marker_the_command_and_the_token() {
     assert!(m.get(agent::CODE).is_none());
     let b = fat16::PART_LBA * fat16::SECTOR;
     assert_eq!(&m.image()[b + 3..b + 11], b"PODVM   ", "the OEM name of the settings");
+}
+
+/// The keep-alive mode is a file on the mailbox: the installed agent is
+/// the same for each mode.
+#[test]
+fn the_keep_alive_mode_is_a_file_on_the_mailbox_and_a_run_refuses_it() {
+    assert!(mailbox(&settings(), agent::AGENT_CMD, &request()).unwrap().get(agent::KEEP).is_none());
+    let mut keep = request();
+    keep.mode = agent::Mode::KeepAlive;
+    assert_eq!(mailbox(&settings(), agent::AGENT_CMD, &keep).unwrap().get(agent::KEEP), Some(Vec::new()));
+    // The guest of this mode does not power off: a run would end at its
+    // limit, so it is refused before the boot.
+    let dir = std::env::temp_dir().join(format!("pod-guest-keep-{}", std::process::id()));
+    let e = run(&settings(), &plan_over(&dir, Path::new("/nonexistent/qemu")), &keep).unwrap_err();
+    assert_eq!(e.class, Class::Usage, "{e}");
+    assert!(e.to_string().contains("keep-alive"), "{e}");
 }
 
 #[test]

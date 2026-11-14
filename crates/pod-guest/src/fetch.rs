@@ -1,30 +1,43 @@
-//! The store of a base image: bounded, with a digest, and all or nothing.
+//! The store of a base image: bounded, with a digest, resumable, and all or
+//! nothing at the destination.
 //!
-//! Three bounds, and each is a refusal, never a truncation. Before the
-//! transfer: a declared length over the ceiling. During the transfer: the
-//! bytes past the ceiling (the limit of the caller and `RLIMIT_FSIZE`). At
-//! the end: a digest that is not the pinned one. A refusal removes the
-//! partial file, so that no later run trusts a truncated image under the
-//! name of the destination.
+//! The bytes go to `NAME.part` ([`partial`]). A break resumes with
+//! `Range: bytes=N-`: a `206` continues the file, a `200` starts it again
+//! from zero. The destination gets its name only after the size and the
+//! sha256 match ([`store`]).
 //!
-//! The ceiling applies to the declared length and to the bytes that come:
-//! an origin can declare 10 MB and send 10 GB, or declare nothing.
+//! Four bounds, and each is a refusal, never a truncation. Before the
+//! transfer: a declared size over the ceiling. During the transfer: the
+//! bytes past the ceiling (the limit of the caller and `RLIMIT_FSIZE`), and
+//! the bytes past the size that the origin declared. At the end: a digest
+//! that is not the pinned one. A refusal of the bytes removes the partial
+//! file; a break keeps it, so that a later call resumes.
 //!
-//! The transport is not in this module: [`store`] takes a `Read`, so the
-//! policy (the ceilings, the digest, the cleanup) is tested with no
-//! network, and the HTTP call is the caller's.
+//! The ceiling applies to the declared size and to the bytes that come: an
+//! origin can declare 10 MB and send 10 GB, or declare nothing.
+//!
+//! The transport is not in this module: [`store`] takes an [`Origin`], so
+//! the policy (the ranges, the ceilings, the digest, the cleanup) is tested
+//! against a stand-in, and the HTTP client is the caller's.
 
-use std::io::Read;
-use std::path::Path;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
 
-use pod_core::{Class, Failure, Stage};
+use pod_core::Failure;
 use sha2::{Digest, Sha256};
 
 use crate::{Result, io_at};
 
+mod range;
+mod refusal;
+
+pub use range::{Span, parse_content_range};
+pub use refusal::{Refusal, refusal};
+
 /// How much can be written, in bytes. `max_bytes` is the limit of the
-/// caller and `fsize` is `RLIMIT_FSIZE`; both apply, and `u64::MAX` is no
-/// limit.
+/// caller for this entry and `fsize` is `RLIMIT_FSIZE`; both apply, and
+/// `u64::MAX` is no limit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Ceiling {
     pub max_bytes: u64,
@@ -38,63 +51,53 @@ impl Ceiling {
     }
 }
 
-/// Why the store refused: the cause of the [`Failure`] of [`store`].
-/// [`refusal`] finds it in a failure.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Refusal {
-    /// The origin declared more than the ceiling, before the first byte was
-    /// written.
-    DeclaredTooLarge { declared: u64, ceiling: u64 },
-    /// The bytes came past the ceiling: the origin lied, or declared no
-    /// length.
-    OverCeiling { ceiling: u64 },
-    /// The digest is not the pinned one.
-    Digest { want: String, got: String },
+/// The answer of an origin to one GET: the status, two headers as the
+/// origin wrote them, and the body.
+#[derive(Debug)]
+pub struct Reply<B> {
+    pub status: u16,
+    /// `Content-Length`.
+    pub length: Option<u64>,
+    /// `Content-Range`, unparsed.
+    pub range: Option<String>,
+    /// The bytes of the body. Its end, or an error, is the end of the reply.
+    pub body: B,
 }
 
-impl std::fmt::Display for Refusal {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Refusal::DeclaredTooLarge { declared, ceiling } => write!(
-                f,
-                "the origin declares {declared} bytes, over the {ceiling}-byte ceiling, so nothing was downloaded"
-            ),
-            Refusal::OverCeiling { ceiling } => write!(
-                f,
-                "the transfer passed the {ceiling}-byte ceiling, so it was stopped and the partial file removed"
-            ),
-            Refusal::Digest { want, got } => write!(f, "sha256 mismatch: pinned {want}, downloaded {got}"),
-        }
+/// The source of the bytes: the caller's HTTP client.
+pub trait Origin {
+    type Body: Read;
+    /// Send one GET. With `from > 0`, the request carries
+    /// `Range: bytes=FROM-`. An error is a break: [`store`] tries again.
+    fn get(&mut self, from: u64) -> std::io::Result<Reply<Self::Body>>;
+}
+
+/// An origin of one stream that cannot resume: the first GET gives the
+/// stream with the status `200` and the declared size; each later GET is an
+/// error.
+#[derive(Debug)]
+pub struct Stream<R> {
+    reader: Option<R>,
+    declared: Option<u64>,
+}
+
+impl<R: Read> Stream<R> {
+    pub fn new(reader: R, declared: Option<u64>) -> Stream<R> {
+        Stream { reader: Some(reader), declared }
     }
 }
 
-impl std::error::Error for Refusal {}
-
-impl Refusal {
-    /// The failure of this refusal: [`Class::Policy`] for a ceiling,
-    /// [`Class::Protocol`] for a digest.
-    pub fn failure(self) -> Failure {
-        let class = match self {
-            Refusal::DeclaredTooLarge { .. } | Refusal::OverCeiling { .. } => Class::Policy,
-            Refusal::Digest { .. } => Class::Protocol,
-        };
-        Failure::caused(Stage::Host, class, self.to_string(), self)
+impl<R: Read> Origin for Stream<R> {
+    type Body = R;
+    fn get(&mut self, _from: u64) -> std::io::Result<Reply<R>> {
+        let body = self.reader.take().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::Unsupported, "a stream does not resume after a break")
+        })?;
+        Ok(Reply { status: 200, length: self.declared, range: None, body })
     }
 }
 
-/// The [`Refusal`] in the chain of `f`, when the store refused.
-pub fn refusal(f: &Failure) -> Option<&Refusal> {
-    let mut next = std::error::Error::source(f);
-    while let Some(e) = next {
-        if let Some(r) = e.downcast_ref::<Refusal>() {
-            return Some(r);
-        }
-        next = e.source();
-    }
-    None
-}
-
-/// Refuse a declared length over the ceiling. `None` is an origin that
+/// Refuse a declared size over the ceiling. `None` is an origin that
 /// declared nothing: the check during the transfer bounds it.
 pub fn check_declared(declared: Option<u64>, ceiling: Ceiling) -> Result<()> {
     let limit = ceiling.effective();
@@ -104,181 +107,274 @@ pub fn check_declared(declared: Option<u64>, ceiling: Ceiling) -> Result<()> {
     }
 }
 
-/// The name of the partial file of `dest`: the pid is in it, so that two
-/// processes that store the same destination write two files. Two writers
-/// in one file give a digest that matches nothing.
-pub fn partial(dest: &Path) -> std::path::PathBuf {
-    dest.with_file_name(format!(
-        "{}.{}.part",
-        dest.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "image".to_string()),
-        std::process::id()
-    ))
+/// The partial file of `dest`: `NAME.part` beside it. The name is fixed, so
+/// that a later call resumes it; a lock on the file keeps a second writer
+/// out ([`Refusal::Busy`]).
+pub fn partial(dest: &Path) -> PathBuf {
+    let name = dest.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "image".to_string());
+    dest.with_file_name(format!("{name}.part"))
 }
 
-/// Write `src` to `dest` and return its sha256 in lower-case hex.
+/// The statuses that are a break, not an answer: a later try can work.
+fn transient(status: u16) -> bool {
+    matches!(status, 408 | 429 | 500..=599)
+}
+
+/// The end of one transfer: a break keeps the partial file, a refusal
+/// removes it.
+enum End {
+    Break(String),
+    Refuse(Failure),
+}
+
+/// The state of one store: the open partial file, its digest so far, and
+/// what the origin declared.
+struct Part {
+    path: PathBuf,
+    file: File,
+    hasher: Sha256,
+    have: u64,
+    /// The size of the whole object, when an answer declared it.
+    total: Option<u64>,
+    limit: u64,
+}
+
+impl Part {
+    /// Start the file again from zero.
+    fn restart(&mut self) -> Result<()> {
+        self.file.set_len(0).map_err(|e| io_at(&self.path, e))?;
+        self.file.seek(SeekFrom::Start(0)).map_err(|e| io_at(&self.path, e))?;
+        self.hasher = Sha256::new();
+        self.have = 0;
+        self.total = None;
+        Ok(())
+    }
+
+    /// Hash the first `len` bytes of the file, the bytes of an earlier call,
+    /// and continue after them.
+    fn rehash(&mut self, len: u64) -> Result<()> {
+        let mut buf = vec![0u8; 1 << 20];
+        let mut from = (&self.file).take(len);
+        loop {
+            match from.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => self.hasher.update(&buf[..n]),
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(e) => return Err(io_at(&self.path, e)),
+            }
+        }
+        self.have = self.file.stream_position().map_err(|e| io_at(&self.path, e))?;
+        Ok(())
+    }
+
+    /// Take the size of the object from an answer. A size that differs from
+    /// an earlier answer is another object.
+    fn declare(&mut self, total: Option<u64>, ceiling: Ceiling) -> std::result::Result<(), End> {
+        check_declared(total, ceiling).map_err(End::Refuse)?;
+        match (self.total, total) {
+            (Some(was), Some(now)) if was != now => {
+                Err(End::Refuse(Refusal::Size { declared: was, got: now }.failure()))
+            }
+            (None, Some(now)) => {
+                self.total = Some(now);
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    /// Copy one body to the file, to its end or to `end` (the offset where
+    /// the answer said that it stops). `Ok(true)`: the body ended where it
+    /// said; `Ok(false)`: it ended with no size, the end of the object.
+    fn copy(&mut self, body: &mut impl Read, end: Option<u64>) -> std::result::Result<bool, End> {
+        let mut buf = vec![0u8; 1 << 20];
+        loop {
+            let n = match body.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => n,
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(e) => return Err(End::Break(format!("read: {e}"))),
+            };
+            // `n` is at most the size of the buffer: it fits in a u64.
+            let after = self.have.saturating_add(n as u64);
+            if after > self.limit {
+                return Err(End::Refuse(Refusal::OverCeiling { ceiling: self.limit }.failure()));
+            }
+            if let Some(e) = end.filter(|e| after > *e) {
+                return Err(End::Refuse(Refusal::Size { declared: e, got: after }.failure()));
+            }
+            self.file.write_all(&buf[..n]).map_err(|e| End::Refuse(io_at(&self.path, e)))?;
+            self.hasher.update(&buf[..n]);
+            self.have = after;
+        }
+        match end {
+            Some(e) if self.have < e => Err(End::Break(format!("the body ended at byte {} of {e}", self.have))),
+            Some(_) => Ok(true),
+            None => Ok(false),
+        }
+    }
+}
+
+/// Fetch the object of `origin` to `dest` and return its sha256 in
+/// lower-case hex.
 ///
-/// On each refusal the partial file is removed, so that no later run finds
-/// a truncated image under the name of the destination. `want` is the
-/// pinned digest, or `None` when the caller pinned none; the digest comes
-/// back in both cases, so that the caller can record it.
-pub fn store<R: Read>(
-    mut src: R,
-    declared: Option<u64>,
+/// The bytes go to [`partial`]`(dest)`. A break (an error of the origin, a
+/// body that ends before its declared size, a status `408`, `429` or `5xx`)
+/// takes one of `tries` and resumes with `Range: bytes=N-`; a `206` must
+/// start at `N` ([`Refusal::Range`]), a `200` starts again from zero. A
+/// partial file of an earlier call is resumed only when `want` pins the
+/// digest: with no pin, a resume can join two versions of the object.
+///
+/// The destination gets its name only after the size of the file is the
+/// declared size and the digest is `want`. A refusal of the bytes (a
+/// ceiling, a size, a range, a digest) removes the partial file; a break
+/// on the last try ([`Refusal::Broken`]) and another status
+/// ([`Refusal::Status`]) keep it. `want` is the pinned digest, or `None`;
+/// the digest comes back in both cases, so that the caller can record it.
+pub fn store<O: Origin>(
+    origin: &mut O,
     dest: &Path,
     want: Option<&str>,
     ceiling: Ceiling,
+    tries: u32,
 ) -> Result<String> {
-    check_declared(declared, ceiling)?;
-    let limit = ceiling.effective();
-    let tmp = partial(dest);
-    let mut hasher = Sha256::new();
-    let mut written: u64 = 0;
-    let mut out = std::fs::File::create(&tmp).map_err(|e| io_at(&tmp, e))?;
-    let mut buf = vec![0u8; 1 << 20];
-    let result = loop {
-        let n = match src.read(&mut buf) {
-            Ok(0) => break Ok(()),
-            Ok(n) => n,
-            Err(e) => break Err(Failure::caused(Stage::Host, Class::of_io(e.kind()), format!("read: {e}"), e)),
-        };
-        // `n` is at most the size of the buffer, so it fits in a u64 on
-        // each target.
-        written = written.saturating_add(n as u64);
-        if written > limit {
-            break Err(Refusal::OverCeiling { ceiling: limit }.failure());
+    let path = partial(dest);
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&path)
+        .map_err(|e| io_at(&path, e))?;
+    match file.try_lock() {
+        Ok(()) => {}
+        Err(std::fs::TryLockError::WouldBlock) => return Err(Refusal::Busy { part: path }.failure()),
+        Err(std::fs::TryLockError::Error(e)) => return Err(io_at(&path, e)),
+    }
+    let mut part = Part { path, file, hasher: Sha256::new(), have: 0, total: None, limit: ceiling.effective() };
+    match transfer(origin, &mut part, want.is_some(), ceiling, tries.max(1)) {
+        Ok(()) => {}
+        Err(end) => {
+            let f = match end {
+                End::Break(last) => {
+                    Refusal::Broken { have: part.have, total: part.total, tries: tries.max(1), last }.failure()
+                }
+                End::Refuse(f) => f,
+            };
+            // A partial file with no byte is no resume.
+            if part.have == 0 || !refusal(&f).is_some_and(Refusal::keeps_part) {
+                let _ = std::fs::remove_file(&part.path);
+            }
+            return Err(f);
         }
-        hasher.update(&buf[..n]);
-        if let Err(e) = std::io::Write::write_all(&mut out, &buf[..n]) {
-            break Err(io_at(&tmp, e));
-        }
-    };
+    }
     // The output type of `sha2` 0.11 has no `LowerHex`, so the hex is
     // written here.
-    let got: String = hasher.finalize().iter().map(|b| format!("{b:02x}")).collect();
-    let refusal = match result {
-        Err(e) => Some(e),
-        Ok(()) => match want {
-            Some(w) if !w.eq_ignore_ascii_case(&got) => {
-                Some(Refusal::Digest { want: w.to_string(), got: got.clone() }.failure())
-            }
-            _ => None,
-        },
-    };
-    drop(out);
-    if let Some(e) = refusal {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(e);
+    let got: String = part.hasher.finalize().iter().map(|b| format!("{b:02x}")).collect();
+    if let Some(w) = want.filter(|w| !w.eq_ignore_ascii_case(&got)) {
+        let _ = std::fs::remove_file(&part.path);
+        return Err(Refusal::Digest { want: w.to_string(), got }.failure());
     }
-    std::fs::rename(&tmp, dest).map_err(|e| io_at(dest, e))?;
+    part.file.sync_all().map_err(|e| io_at(&part.path, e))?;
+    std::fs::rename(&part.path, dest).map_err(|e| io_at(dest, e))?;
     Ok(got)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::Cursor;
-
-    /// The sha256 of the empty stream: the vector that matches.
-    const EMPTY_SHA256: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-    /// A sha256 that matches nothing: the vector of a mismatch.
-    const WRONG_SHA256: &str = "0000000000000000000000000000000000000000000000000000000000000000";
-
-    fn ceiling(max: u64, fsize: u64) -> Ceiling {
-        Ceiling { max_bytes: max, fsize }
+/// The loop of the answers, to the end of the object or to the end of the
+/// tries.
+fn transfer<O: Origin>(
+    origin: &mut O,
+    part: &mut Part,
+    resume: bool,
+    ceiling: Ceiling,
+    tries: u32,
+) -> std::result::Result<(), End> {
+    let refuse = End::Refuse;
+    if resume {
+        let len = part.file.metadata().map_err(|e| refuse(io_at(&part.path, e)))?.len();
+        if len > part.limit {
+            part.restart().map_err(refuse)?;
+        } else {
+            // The digest covers the whole file: hash the bytes of the
+            // earlier call first.
+            part.rehash(len).map_err(refuse)?;
+        }
+    } else {
+        part.restart().map_err(refuse)?;
     }
-
-    #[test]
-    fn the_effective_ceiling_is_the_smaller_of_the_two() {
-        assert_eq!(ceiling(10, 4).effective(), 4);
-        assert_eq!(ceiling(4, 10).effective(), 4);
-        assert_eq!(ceiling(u64::MAX, u64::MAX).effective(), u64::MAX);
+    let mut breaks = 0u32;
+    let mut last = String::new();
+    while breaks < tries {
+        if part.total.is_some_and(|t| part.have == t) {
+            return Ok(());
+        }
+        let reply = match origin.get(part.have) {
+            Ok(r) => r,
+            Err(e) => {
+                breaks += 1;
+                last = format!("the origin: {e}");
+                continue;
+            }
+        };
+        let mut body = reply.body;
+        let end = match reply.status {
+            200 => {
+                if part.have > 0 {
+                    part.restart().map_err(refuse)?;
+                }
+                part.declare(reply.length, ceiling)?;
+                reply.length
+            }
+            206 => {
+                let span = reply.range.as_deref().and_then(parse_content_range);
+                let Some(Span { start, end: Some(last_byte), total }) = span.filter(|s| s.start == part.have) else {
+                    let got = reply.range.unwrap_or_default();
+                    return Err(refuse(Refusal::Range { from: part.have, got }.failure()));
+                };
+                let size = last_byte.saturating_sub(start).saturating_add(1);
+                if reply.length.is_some_and(|l| l != size) || total.is_some_and(|t| last_byte >= t) {
+                    let got = reply.range.unwrap_or_default();
+                    return Err(refuse(Refusal::Range { from: part.have, got }.failure()));
+                }
+                part.declare(total, ceiling)?;
+                Some(last_byte.saturating_add(1))
+            }
+            416 => {
+                // The range starts past the end: the object is whole when
+                // its size is the size of the file, else start again.
+                let total = reply.range.as_deref().and_then(parse_content_range).and_then(|s| s.total);
+                if total == Some(part.have) && part.have > 0 {
+                    part.declare(total, ceiling)?;
+                    return Ok(());
+                }
+                part.restart().map_err(refuse)?;
+                breaks += 1;
+                last = "the origin answered 416".to_string();
+                continue;
+            }
+            s if transient(s) => {
+                breaks += 1;
+                last = format!("the origin answered {s}");
+                continue;
+            }
+            s => return Err(refuse(Refusal::Status { status: s }.failure())),
+        };
+        match part.copy(&mut body, end) {
+            Ok(true) => {}
+            // No size: the end of the body is the end of the object.
+            Ok(false) => return Ok(()),
+            Err(End::Break(why)) => {
+                breaks += 1;
+                last = why;
+            }
+            Err(e) => return Err(e),
+        }
     }
-
-    #[test]
-    fn a_declared_length_over_the_ceiling_refuses_before_any_byte_is_written() {
-        let e = check_declared(Some(1 << 30), ceiling(1 << 20, u64::MAX)).unwrap_err();
-        assert!(matches!(refusal(&e), Some(Refusal::DeclaredTooLarge { .. })), "{e}");
-        assert_eq!(e.class, Class::Policy);
-        assert!(format!("{e}").contains("nothing was downloaded"), "{e}");
-        // At the ceiling is allowed; over it is not.
-        assert!(check_declared(Some(1024), ceiling(1024, u64::MAX)).is_ok());
-        // The check during the transfer bounds a length that was not declared.
-        assert!(check_declared(None, ceiling(1, 1)).is_ok());
+    if part.total.is_some_and(|t| part.have == t) {
+        return Ok(());
     }
-
-    #[test]
-    fn an_undeclared_transfer_is_stopped_at_the_ceiling_and_the_partial_removed() {
-        let dir = std::env::temp_dir().join(format!("pod-guest-fetch-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let dest = dir.join("big.img");
-        let body = vec![7u8; 4096];
-        let e = store(Cursor::new(body), None, &dest, None, ceiling(1000, u64::MAX)).unwrap_err();
-        assert_eq!(refusal(&e), Some(&Refusal::OverCeiling { ceiling: 1000 }), "{e}");
-        assert!(!dest.exists(), "nothing is left at the destination");
-        assert!(!partial(&dest).exists(), "and no partial either");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn the_file_size_bound_binds_even_when_the_caller_asked_for_more() {
-        let dir = std::env::temp_dir().join(format!("pod-guest-fsize-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let dest = dir.join("fsize.img");
-        let body = vec![0u8; 2048];
-        let e = store(Cursor::new(body), None, &dest, None, ceiling(u64::MAX, 1024)).unwrap_err();
-        assert_eq!(refusal(&e), Some(&Refusal::OverCeiling { ceiling: 1024 }), "{e}");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn a_good_download_lands_and_reports_its_digest() {
-        let dir = std::env::temp_dir().join(format!("pod-guest-ok-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let dest = dir.join("ok.img");
-        // The sha256 of an empty stream.
-        let got = store(Cursor::new(Vec::new()), Some(0), &dest, Some(EMPTY_SHA256), ceiling(1024, 1024)).unwrap();
-        assert!(got.starts_with("e3b0c442"), "{got}");
-        assert_eq!(std::fs::read(&dest).unwrap().len(), 0);
-        // The digest ignores the case: a pin can have either case.
-        let d2 = dir.join("ok2.img");
-        assert!(
-            store(
-                Cursor::new(b"guest".to_vec()),
-                None,
-                &d2,
-                Some("2D7C5F0E1B1E4B1E9C0F1A2B3C4D5E6F708192A3B4C5D6E7F8091A2B3C4D5E6F"),
-                ceiling(1024, 1024),
-            )
-            .is_err()
-        );
-        assert!(!d2.exists(), "a mismatched download leaves nothing behind");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn a_digest_mismatch_names_both_digests_and_removes_the_file() {
-        let dir = std::env::temp_dir().join(format!("pod-guest-bad-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let dest = dir.join("bad.img");
-        let e = store(Cursor::new(b"payload".to_vec()), None, &dest, Some(WRONG_SHA256), ceiling(1 << 20, u64::MAX))
-            .unwrap_err();
-        assert!(matches!(refusal(&e), Some(Refusal::Digest { .. })), "{e}");
-        assert_eq!(e.class, Class::Protocol);
-        let msg = format!("{e}");
-        assert!(msg.contains("0000") && msg.contains("sha256"), "{msg}");
-        assert!(!dest.exists());
-        assert!(!partial(&dest).exists());
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn two_fetches_of_one_destination_do_not_share_a_partial_file() {
-        // The name has the pid, so the file of this process is not the
-        // file of another process.
-        let dest = Path::new("/tmp/x/base.vhdx");
-        let p = partial(dest);
-        assert!(p.to_string_lossy().ends_with(".part"));
-        assert!(p.to_string_lossy().contains(&std::process::id().to_string()), "{p:?}");
-        assert_ne!(p, dest.with_extension("part"), "not the shared fixed name");
-    }
+    Err(End::Break(last))
 }
+
+#[cfg(test)]
+mod tests;

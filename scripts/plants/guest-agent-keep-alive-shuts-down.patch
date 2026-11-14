@@ -1,0 +1,12 @@
+diff --git a/crates/pod-guest/src/agent.rs b/crates/pod-guest/src/agent.rs
+index f4411aa..d870811 100644
+--- a/crates/pod-guest/src/agent.rs
++++ b/crates/pod-guest/src/agent.rs
+@@ -100,7 +100,6 @@ cmd /c %WQ%\WQCMD.CMD < NUL > %WQ%\WQOUT.TXT 2> %WQ%\WQERR.TXT
+ set WQRC=%errorlevel%
+ >%WQ%\WQCODE.TXT echo %WQRC% %WQNONCE%
+ del %WQ%\WQGO.TXT >nul 2>&1
+-if exist %WQ%\WQKEEP.TXT goto idle
+ shutdown /s /t 0 /f
+ goto :eof
+ :idle

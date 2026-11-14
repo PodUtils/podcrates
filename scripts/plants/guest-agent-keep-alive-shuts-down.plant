@@ -1,0 +1,8 @@
+# The agent shuts the guest down after each command, also with WQKEEP.TXT
+# on the mailbox: the keep-alive mode ends after its first command
+# (T-592). The walk of the agent must fail.
+ENTRY=T-592
+GROUP=guest
+EXPECT='test agent::tests::the_keep_alive_mode_runs_each_next_token_and_does_not_shut_down \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- agent::tests::the_keep_alive_mode_runs_each_next_token_and_does_not_shut_down'
+LIMIT=1800

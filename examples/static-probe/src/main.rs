@@ -190,14 +190,15 @@ fn guest() -> Option<String> {
         command: "ver".into(),
         token: pod_guest::agent::nonce().unwrap_or_else(|e| e.to_string()),
         timeout: std::time::Duration::from_secs(1),
+        mode: pod_guest::Mode::Once,
     };
     let files = pod_guest::mailbox(&s, pod_guest::agent::AGENT_CMD, &request)
         .map_or_else(|e| e.to_string(), |m| m.list().len().to_string());
     // An empty stream: the store and its digest link in.
     let dest = std::env::temp_dir().join(format!("static-probe-guest-{}.img", std::process::id()));
     let ceiling = pod_guest::Ceiling { max_bytes: 1, fsize: u64::MAX };
-    let digest =
-        pod_guest::fetch::store(std::io::empty(), Some(0), &dest, None, ceiling).unwrap_or_else(|e| e.to_string());
+    let mut origin = pod_guest::fetch::Stream::new(std::io::empty(), Some(0));
+    let digest = pod_guest::fetch::store(&mut origin, &dest, None, ceiling, 1).unwrap_or_else(|e| e.to_string());
     let _ = std::fs::remove_file(&dest);
     // An image of 96 zero bytes that the optimizer cannot see: the squashfs
     // reader and its xz decoder link in.
@@ -218,6 +219,7 @@ fn guest() -> Option<String> {
             monitor: "qmp.sock".into(),
             memory_mib: 512,
             cpus: 1,
+            options: Default::default(),
             emu_args: Vec::new(),
         })
         .len()

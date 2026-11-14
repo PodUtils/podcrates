@@ -1,0 +1,8 @@
+# The store takes a 206 from any offset: the bytes of another range join
+# the partial file at the wrong place (T-590, PodUtils/podvm#350). The
+# test of the wrong sizes and ranges must fail.
+ENTRY=T-590
+GROUP=guest
+EXPECT='test fetch::tests::stand::a_wrong_size_or_range_is_refused_and_the_partial_removed \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- fetch::tests::stand::a_wrong_size_or_range_is_refused_and_the_partial_removed'
+LIMIT=1800

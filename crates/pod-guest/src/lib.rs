@@ -54,10 +54,10 @@ use std::time::{Duration, Instant};
 
 use pod_core::{Class, Failure, Stage};
 
-pub use agent::Code;
+pub use agent::{Code, Mode};
 pub use fat16::Fat16;
 pub use fetch::{Ceiling, Refusal};
-pub use plan::{Accel, Plan, accel_for, argv, convert_argv, overlay_argv};
+pub use plan::{Accel, Options, Plan, accel_for, argv, convert_argv, overlay_argv};
 pub use provision::provision;
 pub use scratch::{RunGuard, cleanup, scratch_dir, scratch_of};
 
@@ -137,6 +137,9 @@ pub struct Request {
     pub token: String,
     /// The limit of the boot and the run. At the limit the emulator stops.
     pub timeout: Duration,
+    /// What the agent does after the command: shut the guest down (the
+    /// default), or keep it up and poll for the next token.
+    pub mode: agent::Mode,
 }
 
 /// The result of a guest run.
@@ -241,6 +244,9 @@ pub fn mailbox(s: &Settings, agent_cmd: &str, request: &Request) -> Result<Fat16
     m.put(agent::SETUP_NAME, agent::SETUP_CMD.as_bytes())?;
     m.put(agent::CMD, agent::command_file(&request.command).as_bytes())?;
     m.put(agent::GO, request.token.as_bytes())?;
+    if request.mode == agent::Mode::KeepAlive {
+        m.put(agent::KEEP, b"")?;
+    }
     Ok(m)
 }
 
@@ -301,7 +307,17 @@ pub fn stage(
 /// The agent powers the machine off only after it wrote the exit code. A
 /// timeout is a command that still runs or a guest that did not reach the
 /// mailbox: both are failures ([`Timeout`]).
+///
+/// A request of [`agent::Mode::KeepAlive`] is refused with [`Class::Usage`]:
+/// its guest does not power off. The caller of that mode starts the
+/// emulator ([`emulator::spawn_emulator`]) and polls the mailbox.
 pub fn run(s: &Settings, plan: &Plan, request: &Request) -> Result<Outcome> {
+    if request.mode == agent::Mode::KeepAlive {
+        return Err(failure(
+            Class::Usage,
+            "a keep-alive request does not power the guest off, and a run waits for the power-off",
+        ));
+    }
     // No pipe that nobody reads: an emulator that writes more than one pipe
     // buffer blocks. The error stream goes to a file in the per-run
     // directory, which `cleanup` removes.

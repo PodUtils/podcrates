@@ -1,0 +1,14 @@
+diff --git a/crates/pod-guest/src/fetch.rs b/crates/pod-guest/src/fetch.rs
+index 1f5596e..aa459b6 100644
+--- a/crates/pod-guest/src/fetch.rs
++++ b/crates/pod-guest/src/fetch.rs
+@@ -319,9 +319,6 @@ fn transfer<O: Origin>(
+         let mut body = reply.body;
+         let end = match reply.status {
+             200 => {
+-                if part.have > 0 {
+-                    part.restart().map_err(refuse)?;
+-                }
+                 part.declare(reply.length, ceiling)?;
+                 reply.length
+             }

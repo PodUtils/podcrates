@@ -1,0 +1,8 @@
+# The store appends a 200 to the partial file of a Range: the whole object
+# comes after the old bytes, and the digest matches nothing (T-590). The
+# test of a 200 to a Range must fail.
+ENTRY=T-590
+GROUP=guest
+EXPECT='test fetch::tests::stand::a_200_to_a_range_starts_the_file_again_from_zero \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- fetch::tests::stand::a_200_to_a_range_starts_the_file_again_from_zero'
+LIMIT=1800
