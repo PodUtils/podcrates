@@ -20,7 +20,7 @@ use crate::common::{NAME, endpoint, fact, file, one, text, tls_raw};
 
 /// What the front of the stand-in does with a request.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Front {
+pub(crate) enum Front {
     /// It gives the request to the client through a channel
     /// `forwarded-tcpip`, and the client's answer back.
     Forward,
