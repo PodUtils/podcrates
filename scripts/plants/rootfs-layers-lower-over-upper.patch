@@ -1,0 +1,12 @@
+diff --git a/crates/pod-rootfs/src/write/layers.rs b/crates/pod-rootfs/src/write/layers.rs
+index ee0dc20..84ccf97 100644
+--- a/crates/pod-rootfs/src/write/layers.rs
++++ b/crates/pod-rootfs/src/write/layers.rs
+@@ -231,6 +231,7 @@ impl Layers<'_> {
+         let low = stat(&place.lower).filter(|st| !whiteout(st));
+         let (upper_holds, lower_holds) = (up.is_some(), low.is_some());
+         let hit = match up {
++            _ if low.is_some() => low.map(|st| Hit { layer: Layer::Lower, st }),
+             Some(st) if whiteout(&st) => None,
+             Some(st) => Some(Hit { layer: Layer::Upper, st }),
+             None => low.map(|st| Hit { layer: Layer::Lower, st }),

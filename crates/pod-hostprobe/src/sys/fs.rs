@@ -144,6 +144,18 @@ pub fn makedev(major: u64, minor: u64) -> u64 {
     ((major & 0xfff) << 8) | (minor & 0xff) | ((minor & !0xffu64) << 12) | ((major & !0xfffu64) << 32)
 }
 
+/// `fgetxattr(2)`: the value of the attribute `name` of the file of `fd`
+/// into `buf`, and its length. A value longer than `buf` is `ERANGE`.
+pub fn fgetxattr(fd: i64, name: &CBuf, buf: &mut [u8]) -> Sysres {
+    unsafe { sys(SYS_FGETXATTR, [fd as u64, name.ptr(), buf.as_mut_ptr() as u64, buf.len() as u64, 0, 0]) }
+}
+
+/// `fsetxattr(2)`: set the attribute `name` of the file of `fd` to
+/// `value`. `flags` 0 makes or replaces it.
+pub fn fsetxattr(fd: i64, name: &CBuf, value: &[u8], flags: u64) -> Sysres {
+    unsafe { sys(SYS_FSETXATTR, [fd as u64, name.ptr(), value.as_ptr() as u64, value.len() as u64, flags, 0]) }
+}
+
 pub fn symlinkat(target: &CBuf, dirfd: i64, path: &CBuf) -> Sysres {
     unsafe { sys(SYS_SYMLINKAT, [target.ptr(), dirfd as u64, path.ptr(), 0, 0, 0]) }
 }

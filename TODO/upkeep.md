@@ -1545,3 +1545,32 @@ The run of `adoption.yml` at the next head passes for podssh.
 ## Done
 
 2026-11-14. The hunk is in `adoption/podssh/pod-warp.patch`; `docs/releases/v0.42.0.md` names it. The two lines that it adds move a citation of podssh's record (its TODO/relay.md cites that file at line 142 at `286e98d3`; the arm moves it to 144): a second hunk of the patch moves it, as `cargo todo remap` does (`adoption.yml` run 43550476602). The adoption run at the next head proves it.
+
+# T-571: `adoption.yml` at `e830136` is red for podnet: the field `preshared` of `pod_wg::Keys`
+
+**Source:** `adoption.yml` run 43555358813 at `e830136` (job `adoption (podnet)`).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+T-561 adds the field `preshared` to `pod_wg::Keys`. podnet builds `Keys` with a struct literal in src/networks/wg.rs and in src/warp/wg.rs (the file of its trial), so its build fails: E0063, missing field `preshared`.
+
+## Premise
+
+- Read: the log of the job; podnet's src/networks/wg.rs and src/warp/wg.rs at the commit of the trial (`9c1fc4b`), with the trial's patch applied.
+
+## Approach
+
+`adoption/podnet/pod-warp.patch` sets `preshared: None` in each literal, which keeps podnet's behaviour (no preshared key). The run file remaps src/networks/wg.rs, so each citation of podnet's record follows the added line. The notes of `v0.43.0` name the field under "Breaking".
+
+## Prove
+
+The run of `adoption.yml` at the next head passes for podnet.
+
+## Done
+
+2026-11-14. The two hunks are in `adoption/podnet/pod-warp.patch`, and `adoption/podnet/pod-warp.run` remaps src/networks/wg.rs. The adoption run at the next head proves it.

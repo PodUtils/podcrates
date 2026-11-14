@@ -1,0 +1,17 @@
+diff --git a/crates/pod-rootfs/src/write/layers/ops.rs b/crates/pod-rootfs/src/write/layers/ops.rs
+index 25be17a..ba2a558 100644
+--- a/crates/pod-rootfs/src/write/layers/ops.rs
++++ b/crates/pod-rootfs/src/write/layers/ops.rs
+@@ -102,7 +102,11 @@ impl Layers<'_> {
+             Some(h) if !is_type(&h.st, sys::S_IFREG) => {
+                 return Err(error::policy(format!("{rel} is not a regular file; the crate does not change its mode")));
+             }
+-            Some(h) if h.layer == Layer::Lower => self.copy_up(&place, &name)?,
++            Some(h) if h.layer == Layer::Lower => {
++                let c = cbuf(&name)?;
++                sys::fchmodat(place.fd(Layer::Lower), &c, mode as u64, 0).map_err(|e| error::sys(rel, e))?;
++                return Ok(());
++            }
+             Some(_) => {}
+         }
+         let up = self.upper_dir(&place)?;

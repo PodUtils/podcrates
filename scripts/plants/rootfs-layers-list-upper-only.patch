@@ -1,0 +1,13 @@
+diff --git a/crates/pod-rootfs/src/write/layers/ops.rs b/crates/pod-rootfs/src/write/layers/ops.rs
+index 25be17a..ef8544c 100644
+--- a/crates/pod-rootfs/src/write/layers/ops.rs
++++ b/crates/pod-rootfs/src/write/layers/ops.rs
+@@ -173,7 +173,7 @@ impl Layers<'_> {
+         };
+         let mut names = BTreeSet::new();
+         let mut hidden = BTreeSet::new();
+-        for (layer, fd) in [(Layer::Upper, &place.upper), (Layer::Lower, &place.lower)] {
++        for (layer, fd) in [(Layer::Upper, &place.upper)] {
+             let Some(fd) = fd else {
+                 continue;
+             };
