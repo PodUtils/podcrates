@@ -19,13 +19,13 @@ is done. Git and the record keep finished work.
 
 ## In flight
 
-- `v0.42.0` at `b6983fc`: each consumer took it (#145, closed; podssh at
-  `7e457b4`, PodUtils/podssh#241; podnet at `654c0f1`,
-  PodUtils/podnet#550).
-- On `main` for `v0.43.0`: T-561 and T-562 (`pod-wg`, #144), T-564 and
-  T-565 (the new crates `pod-actions-store` and `pod-actions-results`).
-  The owner reserves their names on crates.io ("Owner actions" of
-  `TODO/PROGRESS.md`).
+- The last release: `v0.43.0` at `ccbea49` (ci 43562056951, adoption
+  43562056931, release 43564313833; the hand-off #149, COORD-089).
+  `v0.42.0` at `b6983fc`: each consumer took it (#145, closed).
+- On `main` for `v0.44.0`: T-573 (the foreground hold of
+  `pod-supervise`, #148). The owner reserves the names of
+  `pod-actions-store` and `pod-actions-results` on crates.io ("Owner
+  actions" of `TODO/PROGRESS.md`).
 - Each agent of this session is merged into `main`. The open threads of
   this session:
   - T-539 is in `v0.41.0`; T-540 (open) tests it against a kernel pty.
