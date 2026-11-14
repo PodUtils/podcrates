@@ -7361,3 +7361,30 @@ Before an extraction into a tree that is not empty, walk the tree once and add t
 ```sh
 cargo test -p pod-extract --all-features
 ```
+
+# T-609: `pod-broker`: a 502 names the status of the upstream proxy or the dial error, and a 403 of `no-rule` names the half of the rule that failed (PodUtils/podvm#359)
+
+**Source:** PodUtils/podvm#359 (COORD-108 of podvm; PodUtils/podvm@T-1820; an external QA report of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A `CONNECT example.com:443` that `--allow example.com` permits answered `502 Bad Gateway: the far end failed` on the host of the QA report; most likely its upstream proxy refused, and nothing in the answer says so. A `GET http://example.com/` with `--allow example.com` gets `403 denied by the rule policy:no-rule`, because the default ports are `[443]`, and the text gives no clue that `--ports 80` is the fix.
+
+## Premise
+
+- Read: PodUtils/podvm#359; the answers of `pod-broker` (the 502 of a failed dial, the 403 of the rule policy).
+
+## Approach
+
+A 502 names the status line of the upstream proxy, or the dial error, and the proxy that it dialed through, with no body and no credential (for example `502 Bad Gateway: the upstream proxy answered "403 Forbidden"`). A 403 of `no-rule` names whether the host or the port failed, and the ports that the rule takes. Tests of both texts; a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --all-features
+```

@@ -6981,3 +6981,30 @@ Each scheme that the command prints is in the rule of `scheme` of the README.
 ## Done
 
 2026-11-14. The rule of `scheme` in `crates/pod-services/README.md` lists `tcp` with the form that `Endpoint::url` gives (`tcp://HOST:PORT`). The service files use the schemes `https`, `quic`, `ssh`, `ssh+tls`, `stun`, `tcp`, `tls`, `udp`, `wisp+wss` and `wss`; each is in the rule.
+
+# T-611: `pod-services`: the host `software-download.microsoft.com` of the Windows evaluation media (PodUtils/podvm#361)
+
+**Source:** PodUtils/podvm#361 (COORD-110 of podvm; PodUtils/podvm@T-1679, PodUtils/podvm@T-1861).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm fetches the ISO of `windows:2019` from `software-download.microsoft.com` with a pinned sha256. `pod-services` does not list the host, so podvm's test `each_host_that_podvm_names_is_in_pod_services` keeps it in its list of waits.
+
+## Premise
+
+- Read: PodUtils/podvm#361; `crates/pod-services/services/` (the form of a service file) and its README.
+
+## Approach
+
+Add a service file for the host with the role "Windows evaluation media" (scheme `https`, port 443), as the other download hosts are listed. A test of the list passes; the watch of the service, if the kind has one.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+```
