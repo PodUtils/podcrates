@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/http_road/client.rs b/crates/pod-relay/src/http_road/client.rs
+index 7ef8f2e..413c0fd 100644
+--- a/crates/pod-relay/src/http_road/client.rs
++++ b/crates/pod-relay/src/http_road/client.rs
+@@ -339,7 +339,7 @@ pub async fn open(
+             Err(one::Failed::NotCarried(why)) if form == Some(Form::One) => {
+                 return Err(ConnectError::Http(format!("the one-POST form of the HTTP road did not go: {why}")));
+             }
+-            Err(one::Failed::NotCarried(why)) => road.learned.keep(&road.authority, &why),
++            Err(one::Failed::NotCarried(_)) => {}
+         }
+     }
+     let mut first = Conn::new(road.dial.clone());

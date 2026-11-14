@@ -1,0 +1,7 @@
+# A plant of T-559 (the client of the HTTP road's one-POST form in pod-relay):
+# the caller's end sends no last chunk, so the target never ends; the test
+# of the bytes each way must fail.
+ENTRY=T-559
+GROUP=relay
+EXPECT='test the_one_form_carries_4_mib_each_way_straight_and_through_a_hop_that_streams \.\.\. FAILED'
+RUN='cargo test -p pod-relay --test http_road_one -- the_one_form_carries_4_mib_each_way_straight_and_through_a_hop_that_streams'

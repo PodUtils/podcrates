@@ -1,9 +1,11 @@
 //! The client of the road: the open, then the tasks of the session in the
-//! split form (`split.rs`) or the serial form (`serial.rs`),
-//! between a pipe in memory, whose other end is the caller's stream, and the
-//! relay host. With no form asked, the split form is tried first: its second
-//! connection must answer a first request within a bound, else the session
-//! goes on in the serial form on the first connection (podssh Q44).
+//! one-POST form ([`super::one`]), the split form (`split.rs`) or the serial
+//! form (`serial.rs`), between a pipe in memory, whose other end is the
+//! caller's stream, and the relay host. With no form asked, the one-POST
+//! form goes first where the host may serve it and the run did not learn
+//! that its way holds it; then the split form: its second connection must
+//! answer a first request within a bound, else the session goes on in the
+//! serial form on the first connection (podssh Q44).
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -16,8 +18,10 @@ use zeroize::Zeroizing;
 
 use super::answer::Head;
 use super::conn::{BoxIo, Conn, Dial, Dialing, request};
+use super::one::{self, Learned};
 use super::window::Refusal;
-use super::{DOWN_MAX, Form, KEY, OPEN, REFUSE, SESSION, TOTAL, Tuning, WAIT_MAX, is_id, is_key};
+use super::{DOWN_MAX, Form, Forms, KEY, ONE, OPEN, REFUSE, SESSION, TOTAL, Tuning, WAIT_MAX, is_id, is_key};
+use crate::context::Context;
 use crate::relay::Relay;
 
 /// The bound of each step of the open, and of the split form's first
@@ -42,6 +46,12 @@ pub struct Road {
     pub authority: String,
     /// The `User-Agent` of each request: the caller's.
     pub user_agent: String,
+    /// The forms that the host's `limits.http.forms` names; none while the
+    /// host is not known.
+    pub forms: Option<Forms>,
+    /// The hosts whose way held the one-POST form: the run's, where the
+    /// road takes them from its context.
+    pub learned: Arc<Learned>,
 }
 
 impl Road {
@@ -57,7 +67,22 @@ impl Road {
                 Ok(Box::new(tls) as BoxIo)
             })
         });
-        Road { dial, authority: relay.name(), user_agent }
+        Road { dial, authority: relay.name(), user_agent, forms: None, learned: Arc::default() }
+    }
+
+    /// The same road with the forms that the host's `limits.http.forms`
+    /// names (`pool::Limits::http_forms`).
+    pub fn with_forms(mut self, forms: Option<Forms>) -> Road {
+        self.forms = forms;
+        self
+    }
+
+    /// The same road with what the run of `ctx` learned of each host, so
+    /// that a way that held the one-POST form takes the split form at once
+    /// for the rest of the run.
+    pub fn in_run(mut self, ctx: &Context) -> Road {
+        self.learned = ctx.http_road_learned();
+        self
     }
 }
 
@@ -287,9 +312,11 @@ fn open_path(target: &Target<'_>) -> Result<String, ConnectError> {
     Ok(path)
 }
 
-/// Open a session to `target` on `road` with `token`, in `form`, or the
-/// split form, then the serial one, when none is asked. A refusal of the
-/// role keeps its status and words, as the WebSocket road's does.
+/// Open a session to `target` on `road` with `token`, in `form`, or, when
+/// none is asked, the one-POST form, then the split form, then the serial
+/// one. A refusal of the role keeps its status and words, as the WebSocket
+/// road's does. The one-POST form that gets no mark in time is kept as held
+/// for the host in `road.learned`.
 pub async fn open(
     road: &Road,
     target: &Target<'_>,
@@ -301,6 +328,20 @@ pub async fn open(
         return Err(ConnectError::Config("the relay token contains a line break".into()));
     }
     let path = open_path(target)?;
+    let one_first = match form {
+        Some(form) => form == Form::One,
+        None => road.forms.is_none_or(|forms| forms.has(Form::One)) && road.learned.held(&road.authority).is_none(),
+    };
+    if one_first {
+        match one::open(road, &path.replacen(OPEN, ONE, 1), token).await {
+            Ok(opened) => return Ok(opened),
+            Err(one::Failed::Stop(e)) => return Err(e),
+            Err(one::Failed::NotCarried(why)) if form == Some(Form::One) => {
+                return Err(ConnectError::Http(format!("the one-POST form of the HTTP road did not go: {why}")));
+            }
+            Err(one::Failed::NotCarried(why)) => road.learned.keep(&road.authority, &why),
+        }
+    }
     let mut first = Conn::new(road.dial.clone());
     let head = request("POST", &road.user_agent, &road.authority, &path, &[("X-Relay-Token", token)], Some(0));
     let answer = first.ask(&head, &[], LIMIT).await?;
@@ -336,7 +377,7 @@ pub async fn open(
     let chosen = match form {
         Some(Form::Serial) => None,
         Some(Form::Split) => Some(Conn::new(road.dial.clone())),
-        None => second(road, &shared).await,
+        Some(Form::One) | None => second(road, &shared).await,
     };
     let form = match chosen {
         Some(second) => {

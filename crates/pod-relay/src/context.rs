@@ -2,8 +2,9 @@
 //! out, the places of the cache, the settings, the sink of the events, and
 //! the state that the sessions of one run share (the gates of each origin,
 //! the limits of the relay in use, the races of the rank, the pool of HTTP/2
-//! connections, what the QUIC road learned of each host, the tokens of the
-//! run). The crate keeps no
+//! connections, what the QUIC road learned of each host, the hosts whose
+//! way holds the HTTP road's one-POST form, the tokens of the run). The
+//! crate keeps no
 //! process state: a binary makes one `Context` and clones it, and a test
 //! makes its own.
 
@@ -54,6 +55,7 @@ struct Shared {
     in_use: RwLock<Limits>,
     races: Arc<Races>,
     h2: pod_ws::h2_road::Pool,
+    held: Arc<crate::http_road::one::Learned>,
     tokens: crate::token::RunTokens,
     #[cfg(feature = "quic")]
     quic: Mutex<std::collections::HashMap<String, (std::time::Instant, crate::quic_road::dial::Learned)>>,
@@ -123,6 +125,12 @@ impl Context {
     /// The pool of HTTP/2 connections of the run, each host's apart.
     pub fn h2_pool(&self) -> &pod_ws::h2_road::Pool {
         &self.shared.h2
+    }
+
+    /// What the HTTP road's one-POST form learned of each host in the run
+    /// ([`crate::http_road::client::Road::in_run`]).
+    pub fn http_road_learned(&self) -> Arc<crate::http_road::one::Learned> {
+        self.shared.held.clone()
     }
 
     /// Keep `limits` as the run's, for the budgets of its sessions.

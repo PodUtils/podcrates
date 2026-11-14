@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**442 entries: 117 open, 8 partial, 5 blocked, 312 done.**
+**444 entries: 117 open, 8 partial, 6 blocked, 313 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 84 | 98 |
-| P2 | 54 | 3 | 4 | 170 | 231 |
-| P3 | 52 | 2 | 1 | 56 | 111 |
-| **All** | 117 | 8 | 5 | 312 | 442 |
+| P2 | 54 | 3 | 4 | 171 | 232 |
+| P3 | 52 | 2 | 2 | 56 | 112 |
+| **All** | 117 | 8 | 6 | 313 | 444 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -489,3 +489,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-556](transport.md) | P2 | S | M1 | feature | done | `pod-services`: serv00's public Piping Server as the third of the kind `piping` (PodUtils/podssh#238) |
 | [T-557](relay.md) | P3 | S | M2 | defect | open | `pod-link`: the listener of the dns, icmp, udp and ws carriers gets no `KeyRefused` when the dialer refuses its key |
 | [T-558](relay.md) | P2 | S | M6 | defect | open | `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open |
+| [T-559](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the client of the HTTP road's one-POST form (PodUtils/podssh#239) |
+| [T-560](relay.md) | P3 | S | M2 | feature | blocked | `pod-relay`: the one-POST form of the HTTP road over HTTP/2 |
