@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/forward.rs
++++ b/crates/pod-services-watch/src/forward.rs
+@@ -218,7 +218,7 @@
+             self.step(&what, handle.tcpip_forward(ADDRESS, self.port)).await?;
+             self.step("the session channel", handle.channel_open_session()).await?
+         };
+-        match relay.command() {
++        match None::<&str> {
+             Some(command) => self.step(&format!("the command {command:?}"), channel.exec(true, command)).await?,
+             None => self.step("the shell", channel.request_shell(true)).await?,
+         }

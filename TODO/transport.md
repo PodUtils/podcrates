@@ -6799,3 +6799,89 @@ A test, where `/dev/ptmx` opens (else it skips with the reason, as `need_loopbac
 ```sh
 cargo test -p pod-term --all-features
 ```
+
+# T-552: `pod-services`: the services `srv-us` and `tunnl-gg` of the kind `ssh-tunnel` (PodUtils/podssh#236)
+
+**Source:** PodUtils/podssh#236 (COORD-059 of podssh; PodUtils/podssh@T-566, PodUtils/podssh@T-567)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh's tunnel of HTTP made by `ssh -R` has a word for srv.us and one for
+tunnl.gg (the operator's ruling Q78 of podssh: last fallbacks). Each word
+reads its server and its facts from the catalog, as `localhost-run` does,
+and has no server until the catalog names one. The ask:
+
+1. `srv-us` (kind `ssh-tunnel`): srv.us, whose HTTPS name a client derives
+   from the node's key: SHA-256 of the key's wire form, a zero byte and the
+   forward's port in decimal; its first 16 bytes in base32, lower case.
+   The endpoint is `ssh` at `srv.us:22`, with the facts `user = "nomatch"`,
+   `remote-port = 1`, `tunnel-zone = "srv.us"` and `url-match`. No
+   `host-key-sha256`: srv.us publishes none.
+2. `tunnl-gg` (kind `ssh-tunnel`): tunnl.gg, a random name for each
+   connection, given on the first line of the command `output=json`. The
+   endpoint is `ssh` at `proxy.tunnl.gg:22`, with the facts
+   `host-key-sha256 = "SHA256:5uQ6VobmUpY4wyMmm5jnAwFtt3aX06WYDDM4ER+2WUw"`
+   (its README), `tunnel-zone = "tunnl.gg"`, `keepalive-seconds = 30`,
+   `free-tunnel-minutes = 1440` and `url-match`. Cloudflare files
+   `tunnl.gg` as "Anonymizer"; a note may say so.
+
+The TOML of each, with each fact's source, is in podssh's TODO/mesh.md at
+`cfb01c0` (the `## Correction` of PodUtils/podssh@T-566 and of
+PodUtils/podssh@T-567). podssh asks
+whether the watch `forward-url` asks a command: it asks a shell, whose
+banner for tunnl.gg is drawn for a terminal.
+
+## Premise
+
+- Read on 2026-11-14 through web.pkgforge.dev: podssh's TODO/mesh.md at
+  `cfb01c0`; xmit-dev/srv.us:README.md and xmit-dev/srv.us:backend/main.go
+  at `c153c354`; klipitkas/tunnl.gg:README.md, pkg/server/ssh.go,
+  pkg/server/auth.go, pkg/server/http.go, pkg/config/config.go and
+  pkg/subdomain/subdomain.go at `ea47661c`. Each fact of the ask holds
+  there.
+- Read: srv.us's `msgs` channel has no buffer, and its reader waits for a
+  session; the main loop writes the line of a forward to `msgs` before it
+  answers the forward. A client that waits for the answer before it opens
+  a session waits for ever. A session with no forward after 1 s closes.
+  `pod-services-watch`'s `forward-url` asks the forward first and waits.
+- Read: tunnl.gg's shell gets a banner with colour escapes around the URL;
+  `output=json` gets one JSON line with no space after the URL. The reader
+  `forward::Banner` ends a word at a space or a control byte only, so the
+  URL of the JSON line ran on to the end of the line.
+- Measured on 2026-11-14 from this sandbox: IANA's RDAP bootstrap
+  (publication 2026-10-28) has no server for `.us` and `.gg`;
+  `https://rdap.org/domain/srv.us` and `.../tunnl.gg` answer 404;
+  `https://srv.us/` and `https://tunnl.gg/` verify. Not measured: SSH to
+  either server (the egress of the sandbox has no port 22).
+- The facts `user`, `remote-port`, `url-match`, `keepalive-seconds` and
+  `free-tunnel-minutes` are facts of a forward relay already
+  (`crates/pod-services/README.md`, "SSH forward relays").
+
+## Approach
+
+1. Two files, `services/srv-us.toml` and `services/tunnl-gg.toml`, in the
+   style of `localhost-run.toml`, each fact with the URL of its source at
+   the pinned commit and the date of the read.
+2. Two new facts of a forward relay (C298): `command` (tunnl.gg's
+   `output=json`) and `session-first` (srv.us), with
+   `Relay::command` and `Relay::session_first`. The watch `forward-url`
+   opens the session first where the fact holds, and asks the command in
+   place of a shell where the fact is there.
+3. `forward::Banner` ends a URL at a byte that RFC 3986 keeps out of a
+   URL.
+4. Watches: `ssh-banner`, `forward-url` (port 1 for srv.us), `github-file`,
+   `ssh-host-key` (tunnl.gg), and `tls-name` of an endpoint `site` in
+   place of `rdap` (C299).
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+cargo test -p pod-services-watch --all-features
+sh scripts/plant-each.sh services-t552-url-past-quote services-t552-forward-before-session services-t552-shell-not-command
+```
