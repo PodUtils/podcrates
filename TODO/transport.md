@@ -6779,7 +6779,7 @@ The answer to PodUtils/podssh#232 with the tag is the parent session's.
 **Milestone:** M3
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6799,6 +6799,25 @@ A test, where `/dev/ptmx` opens (else it skips with the reason, as `need_loopbac
 ```sh
 cargo test -p pod-term --all-features
 ```
+
+## Done
+
+2026-11-14, commit f9f7339. `crates/pod-term/tests/termios_kernel.rs`
+(Linux; `libc` as a dev-dependency of Linux; call C361): 53 cases of
+`tests/termios.rs` and `tests/termios_modes.rs` given to `Tty` and to a
+new pty of the kernel for each case (`posix_openpt`, `tcsetattr` with
+`TCSANOW`, `TCSADRAIN` or `TCSAFLUSH`). After each step (input from the
+user, a new state, output of the child) the reads of the slave (one line
+each in the canonical mode) and of the master (the echo and the output)
+equal the bytes of `Tty`. Left out: the flow control, the signals
+themselves (their echo and flush are compared), the window size, the
+values that are data only. A host where `/dev/ptmx` does not open skips
+the test with the reason. Each case agrees with the kernel of this host
+(Linux 6.18.44), in 2.3 s. `cargo test -p pod-term --all-features`: 232
+passed. The plant `term-termios-kernel-onlcr` (`ONLCR` gives a bare
+newline) makes 30 of the 53 cases differ, each named with its step
+(checked by hand). `cargo clippy -p pod-term --all-targets --all-features
+-- -D warnings` and its `cargo doc` with `-D warnings`: clean.
 
 # T-556: `pod-services`: serv00's public Piping Server as the third of the kind `piping` (PodUtils/podssh#238)
 

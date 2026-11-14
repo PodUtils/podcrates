@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**483 entries: 132 open, 7 partial, 5 blocked, 339 done.**
+**483 entries: 131 open, 7 partial, 5 blocked, 340 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 3 | 0 | 90 | 110 |
 | P2 | 60 | 2 | 4 | 187 | 253 |
-| P3 | 55 | 2 | 1 | 60 | 118 |
-| **All** | 132 | 7 | 5 | 339 | 483 |
+| P3 | 54 | 2 | 1 | 61 | 118 |
+| **All** | 131 | 7 | 5 | 340 | 483 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -470,7 +470,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-537](upkeep.md) | P2 | S | M5 | defect | done | `services.yml` at `4c2d17c` is red: the tox node `node-3091c6be` gives no TCP relay |
 | [T-538](upkeep.md) | P3 | S | M5 | docs | blocked | The rule of attribution of a comment on GitHub: the documents of podcrates and the practice of its sessions differ |
 | [T-539](transport.md) | P2 | M | M3 | feature | done | `pod-term`: a line discipline that follows a termios state, for the tty of `podssh serve` with no /dev/ptmx (PodUtils/podssh#232) |
-| [T-540](transport.md) | P3 | S | M3 | chore | open | `pod-term`: a test of `termios::Tty` against a pty of the kernel, where one opens |
+| [T-540](transport.md) | P3 | S | M3 | chore | done | `pod-term`: a test of `termios::Tty` against a pty of the kernel, where one opens |
 | [T-541](relay.md) | P1 | S | M2 | defect | done | `pod-link`: the dns and icmp carriers stop at the wrap of the sequence of the ARQ: `dgram_tls` never calls `rekeyed` (PodUtils/podnet#540) |
 | [T-542](relay.md) | P2 | S | M2 | feature | done | `pod-link`: one typed marker for "the peer refused the key of this end" on each carrier (PodUtils/podnet#533) |
 | [T-543](relay.md) | P2 | S | M2 | defect | done | `pod-link`: the dns carrier and the TC bit: each answer keeps to the size of its query, and a cut answer does not stall the link (PodUtils/podnet#533) |

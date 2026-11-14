@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 483 entries: 132 open, 7 partial, 5 blocked, 339 done.
+`TODO/INDEX.md` holds 483 entries: 131 open, 7 partial, 5 blocked, 340 done.
 
 ## State
 
@@ -81,9 +81,8 @@ T-593, then T-594 to T-596. T-589 (PodUtils/podnet#552). Then the link carriers 
 3c): T-526, T-494, T-500 and T-525. Then the items below, in order.
 
 1. **The defects and asks of the consumers:** T-566 (a fuzz target of
-   `pod-actions-results`); T-578 (a check of the keys of `on:`); T-557 (`KeyRefused` on the listener of
-   four carriers); T-540 (a test of the
-   termios mode of `pod-term` against a kernel pty); T-550, T-551 and
+   `pod-actions-results`); T-557 (`KeyRefused` on the listener of
+   four carriers); T-550, T-551 and
    T-554 (Nostr, WebTorrent's trackers and ntfy as meeting points of a
    code, PodUtils/podssh#235, #237); T-489 (a client of
    `pod-devtunnel` with no user token); T-381 (the options of
