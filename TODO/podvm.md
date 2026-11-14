@@ -974,7 +974,7 @@ has the same fault in its frozen `PodUtils/podvm:crates/podvm-probe/src/sys/raw.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -999,6 +999,34 @@ a filter answers `EPERM`.
 ```sh
 cargo test -p pod-hostprobe --all-features
 ```
+
+## Done
+
+2026-11-14, commit `af39707` (the first part: T-485, commit `5a2b5fd`).
+`schemas/hostprobe-report.v1.schema.json` (JSON Schema 2020-12) is the
+schema of the object of `report::write`, generated from its wire types
+by schemars (calls C308, C309). The feature `schema` (`report` and
+schemars, in `scripts/check-probe.py` ALLOWED: no binary carries it)
+gives `report::schema()` and `report::SCHEMA_ID`, so podvm validates
+`probe --json` against the schema of the tag with no copy
+(PodUtils/podvm#239). The `$id` names the version `v1`, and the field
+`schema` of the report is the constant 1. A verdict, a rung and a row
+name are an `enum` of the words of the crate; a `denied` row or write
+probe needs an integer `errno`; an object has no other field. A row name
+that comes two times fails `read` only. No word `unknown` in the report:
+a row keeps its verdict and its errno (a filter's `EPERM` is `denied`
+with errno 1), and `unknown` is a value of a capability of T-443; the
+form `report(&Findings) -> serde_json::Value` of podswarm goes with T-443
+(call C309, the ruling "podswarm").
+
+Tests (`cargo test -p pod-hostprobe --all-features`): the file equals the
+schema of the types; the `$id` names the version that the report
+carries; `tests/examples/report/` has 2 valid and 10 invalid reports, and
+each gets the same verdict from `read` and from boon (the reason of each
+in `tests/examples/expect.json`); the object of `write` on the fixture of
+the module validates. The plants `hostprobe-schema-any-verdict` (a
+verdict of any string) and `hostprobe-schema-denial-unchecked` (no
+`errno` for a denial) fail the test of the examples.
 
 # T-108: `pod-confine`: Landlock, a seccomp deny filter, no_new_privs and rlimits from one profile (GitHub #35)
 
@@ -5115,10 +5143,11 @@ probe child, to keep the start of a worker in its time budget.
   has the line form; `assess(&Findings)` in
   `crates/pod-hostprobe/src/machine.rs` maps the findings for the machine
   rung only. No serde, no JSON, no schema, no cache.
-- The first part of the ask (`report(&Findings)`, a JSON form that
-  validates against a schema in the directory `schemas`) is T-107 (open):
-  it is not written again here. This entry is the gap: the map and the
-  cache.
+- The JSON object of the findings with its schema
+  (`schemas/hostprobe-report.v1.schema.json`, `report::schema()`) is
+  T-107 (done): it is not written again here. This entry is the gap: the
+  map, the cache, and the form `report(&Findings) -> serde_json::Value`
+  of the ask (call C309).
 - Not measured: the time of a full probe run on a worker.
 - The owner's ruling "podswarm" (2026-11-13, `docs/decisions.md`; call
   C245): this ask helps podswarm alone: podvm keeps its own cache of the

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**425 entries: 111 open, 8 partial, 5 blocked, 301 done.**
+**425 entries: 111 open, 7 partial, 5 blocked, 302 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 82 | 96 |
-| P2 | 52 | 3 | 4 | 161 | 220 |
+| P2 | 52 | 2 | 4 | 162 | 220 |
 | P3 | 48 | 2 | 1 | 56 | 107 |
-| **All** | 111 | 8 | 5 | 301 | 425 |
+| **All** | 111 | 7 | 5 | 302 | 425 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -153,7 +153,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-104](fleet.md) | P1 | M | M8 | feature | open | `pod-release`: the release index, its writer for CI and its verifier (GitHub #35, #36) |
 | [T-105](foundation.md) | P1 | M | M8 | feature | open | `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35) |
 | [T-106](fleet.md) | P2 | M | M8 | feature | open | `pod-testkit`: the stand-ins of the edge, the relay and the WARP API as binaries for a consumer's CI (GitHub #35, #36) |
-| [T-107](podvm.md) | P2 | S | M6 | feature | partial | `pod-hostprobe`: a JSON report with a published schema (GitHub #35) |
+| [T-107](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: a JSON report with a published schema (GitHub #35) |
 | [T-108](podvm.md) | P1 | M | M7 | feature | done | `pod-confine`: Landlock, a seccomp deny filter, no_new_privs and rlimits from one profile (GitHub #35) |
 | [T-109](podvm.md) | P2 | S | M7 | research | done | Research: the hold of each connect of a payload, from the `podnet-netns` of podnet, for podvm (GitHub #35, #36) |
 | [T-110](relay.md) | P1 | M | M2 | feature | open | `pod-session`: the held link to a server that is not a podssh relay (GitHub #35) |
