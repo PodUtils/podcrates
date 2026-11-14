@@ -347,3 +347,92 @@ async fn udp_to_ipv4_on_an_ipv6_tunnel_is_refused() {
     echoes(&edge, &*datagrams, echo_v6(), ours[0]).await;
     assert_eq!(edge.watch.families[0].load(Ordering::SeqCst), 0, "an IPv4 packet left");
 }
+
+/// A certificate of `key` whose issuer is `O=Let's Encrypt, CN=YE1`, as
+/// WARP's door showed one in place of its key (PodUtils/podssh#234). The
+/// client checks the key alone, so the signature is the key's own.
+fn issued_by_lets_encrypt(key: &DeviceKey) -> Vec<u8> {
+    use pod_warp::der::{BIT_STRING, ECDSA_SHA256_ALG, INTEGER, SEQUENCE, VERSION_TAG, time, tlv};
+    let attribute = |oid: u8, value: &str| {
+        let pair = [tlv(0x06, &[0x55, 0x04, oid]), tlv(0x0c, value.as_bytes())].concat();
+        tlv(0x31, &tlv(SEQUENCE, &pair))
+    };
+    let issuer = tlv(SEQUENCE, &[attribute(0x0a, "Let's Encrypt"), attribute(0x03, "YE1")].concat());
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+    let algorithm = tlv(SEQUENCE, &ECDSA_SHA256_ALG);
+    let tbs = tlv(
+        SEQUENCE,
+        &[
+            tlv(VERSION_TAG, &tlv(INTEGER, &[2])),
+            tlv(INTEGER, &[1]),
+            algorithm.clone(),
+            issuer,
+            tlv(SEQUENCE, &[time(now - 60), time(now + 86_400)].concat()),
+            tlv(SEQUENCE, &[]),
+            key.spki(),
+        ]
+        .concat(),
+    );
+    let signature = tlv(BIT_STRING, &[&[0u8][..], &key.sign(&tbs)].concat());
+    tlv(SEQUENCE, &[tbs, algorithm, signature].concat())
+}
+
+/// The moved dial of the test, as a dial through a proxy names itself.
+struct Proxied(Arc<common::Moved>);
+
+impl Dial for Proxied {
+    fn label(&self) -> String {
+        "http://10.0.0.1:3128".into()
+    }
+
+    fn proxy_label(&self, _: &Target) -> Option<String> {
+        Some(self.label())
+    }
+
+    fn dial<'a>(
+        &'a self,
+        target: &'a Target,
+        deadline: tokio::time::Instant,
+    ) -> pod_core::BoxFuture<'a, Result<pod_core::Connected, pod_core::Failure>> {
+        self.0.dial(target, deadline)
+    }
+}
+
+/// The door shows a certificate of another issuer, also after the record
+/// is read again: the line names the door and the issuer, says that WARP's
+/// side shows one at times and that a later try tells it apart, and names
+/// a proxy only on a road through one (PodUtils/podssh#234). With no API,
+/// the line names the issuer too.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_door_that_shows_another_certificate_names_its_issuer_and_a_proxy_only_on_its_road() {
+    pod_testkit::need_loopback!();
+    let (_api, served, edge, moved) = world(dead()).await;
+    let base = format!("http://{}", served.addr());
+    let (mut settings, _) = common::settings(&base, moved.clone());
+    settings.door = Door::Pinned(Target::Addr(edge.addr));
+    let warp = Warp::register(settings).await.unwrap();
+    let key = DeviceKey::generate().unwrap();
+    edge.show_certificate(key.clone(), issued_by_lets_encrypt(&key));
+    let line = warp.open_session().await.err().unwrap().chain();
+    assert!(line.contains(&edge.addr.to_string()) && line.contains("O=Let's Encrypt, CN=YE1"), "{line}");
+    assert!(line.contains("does not match either") && line.contains("a later try passes then"), "{line}");
+    assert!(!line.to_lowercase().contains("proxy"), "a direct road names no proxy: {line}");
+
+    let (mut settings, _) = common::settings(&base, Arc::new(Proxied(moved.clone())));
+    settings.door = Door::Pinned(Target::Addr(edge.addr));
+    let proxied = Warp::from_parts(settings, warp.device().clone(), warp.identity().clone());
+    let line = proxied.open_session().await.err().unwrap().chain();
+    assert!(line.contains("O=Let's Encrypt, CN=YE1"), "{line}");
+    assert!(line.contains("the proxy http://10.0.0.1:3128 re-terminates TLS: then each try fails"), "{line}");
+
+    // WARP's API fails in the same minutes: the record is not read again.
+    let (mut settings, _) = common::settings(&format!("http://{}", dead()), moved);
+    settings.door = Door::Pinned(Target::Addr(edge.addr));
+    let no_api = Warp::from_parts(settings, warp.device().clone(), warp.identity().clone());
+    let line = no_api.open_session().await.err().unwrap().chain();
+    assert!(
+        line.contains("O=Let's Encrypt, CN=YE1") && line.contains("reading the device record again failed"),
+        "{line}"
+    );
+    assert!(line.contains("a later try passes then") && !line.to_lowercase().contains("proxy"), "{line}");
+}

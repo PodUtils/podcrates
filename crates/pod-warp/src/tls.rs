@@ -22,6 +22,10 @@ use crate::identity::{Identity, unix_now};
 /// the pinned key of the device record.
 pub const PIN_MISMATCH: &str = "MASQUE peer key does not match the pinned key";
 
+/// The words before the issuer of the certificate that the front door
+/// showed in place of the pinned key.
+pub const SHOWN: &str = "the door showed a certificate of ";
+
 /// The ALPN of MASQUE over HTTP/2.
 pub const ALPN_H2: &[u8] = b"h2";
 
@@ -44,7 +48,8 @@ impl ServerCertVerifier for PinnedKey {
         let got = crate::identity::spki_from_cert(end_entity.as_ref())
             .ok_or_else(|| rustls::Error::General("unparsable peer certificate".into()))?;
         if got != self.expected {
-            return Err(rustls::Error::General(PIN_MISMATCH.into()));
+            let issuer = crate::der::issuer_words(end_entity.as_ref());
+            return Err(rustls::Error::General(format!("{PIN_MISMATCH}; {SHOWN}{issuer}")));
         }
         Ok(ServerCertVerified::assertion())
     }

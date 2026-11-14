@@ -168,7 +168,7 @@ pub fn connect_status(data: &[u8]) {
 /// Hello is whole by its own lengths, within its bound, from an answer or
 /// from a record's data alone. A TXT or CNAME answer (`pod_dns::txt`) has
 /// the TC bit of its header, strings of 255 bytes at most and CNAME targets
-/// of a name's length.
+/// of a name's length. The size that a query takes is 512 or more.
 pub fn dns_wire(data: &[u8]) {
     use pod_dns::{NXDOMAIN, https, txt, wire};
     const NAME: &str = "tcp.ssh.relay.ajam.dev";
@@ -213,6 +213,7 @@ pub fn dns_wire(data: &[u8]) {
             }
         }
     }
+    assert!(txt::asked_size(data).is_none_or(|size| size >= txt::PLAIN_SIZE));
     let start = data.first().map_or(0, |&b| usize::from(b) % data.len().max(1));
     if let Ok((name, end)) = wire::read_name(data, start) {
         assert!(end <= data.len() && name.len() <= 253, "{name:?} ends at {end}");

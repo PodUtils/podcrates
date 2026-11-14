@@ -167,7 +167,7 @@ let io = Icmp::new(provider, identity).dial("SHA256:...@198.51.100.7").await?;
 | `Error` | each failure by name; `class` (for the exit code), `io_kind`; into `std::io::Error` (a stream's error) and into `pod_core::Failure` (the stage `Session`) |
 | `ResetCode`, `GoAwayCode` | `CANCEL`, `REFUSED`, `PROTOCOL`; `NORMAL`, `PROTOCOL`. A caller's own reset codes start at 16 |
 | `Carrier`, `Listener`, `Facts`, `Accepted` | the trait of a carrier: `name`, `facts` (ordered, reliable, duplex, unit, cost), `available`, `dial`, `listen`; the accept side: `accept`, and `accept_peer` (the stream and the Ed25519 key that the peer proved, `None` for a carrier that proves no key); `BoxIo` is the byte stream that they give |
-| `CarrierError`, `CarrierErrorKind` | `Usage` (64), `InUse` and `Unavailable` (69), `NotFound` (66), `Refused` (77), `Io`; into `pod_core::Failure` (the stage `Connect`) |
+| `CarrierError`, `CarrierErrorKind` | `Usage` (64), `InUse` and `Unavailable` (69), `NotFound` (66), `Refused` (77: this end refused the peer, a key that its pin does not name), `KeyRefused` (77: the peer refused the key of this end; the same on each carrier that pins keys, T-542, call C293), `Io`; into `pod_core::Failure` (the stage `Connect`) |
 | `memory::Memory`, `memory::pair` | the memory carrier: listeners by name in the value (a clone shares them), a ring of 64 KiB to 64 MiB in each direction (1 MiB by default); a full ring makes the writer wait |
 | `unix::Unix`, `unix::pair` | the unix socket carrier (`cfg(unix)`): a path of 1 to 107 bytes, a socket of mode 0600, the claim of the path, the peer's uid; a socket pair for one process |
 | `tcp::Tcp` (feature `tcp`) | the tcp carrier: `new(provider, identity, way)`, `with_clients(keys)`, `clients`; the fields `connect_timeout` (20 s), `handshake_timeout` (10 s), `max_handshakes` (64), `alpn` (`podlink/1`; podnet gives `podnet/1`, call C273); `address(text)` (the key and the target of `KEY@HOST:PORT`); `connect(&target, &key)` (the stream and the key of the listener); `bind(addr)`; as a `Carrier`: `dial("KEY@HOST:PORT")`, `listen("IP:PORT")` |
@@ -190,7 +190,7 @@ let io = Icmp::new(provider, identity).dial("SHA256:...@198.51.100.7").await?;
 | `udp::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES, MTU, SEGMENT, MIN_WINDOW, MAX_WINDOW, IDLE, KCP_HEADER}` | the constants of the udp carrier |
 | `dns::Dns` (feature `dns`) | the DNS simplex carrier: `new(provider, identity)`, `with_clients(keys)`, `to(server)` (the UDP address a dial sends its queries to), `zone(name)` (a listener's zone), `with_way(way)`, `clients`; the fields `server`, `zone`, `alpn` (`podlink/1`), `arq` (`arq::ArqSettings`), `dns` (`DnsSettings`), `handshake_timeout` (20 s), `max_handshakes` (64); `address(text)` (the key and the zone of `KEY@ZONE`); `connect(&zone, &key)`; `connect_over(datagrams, &target, &key)` and `accept_over(datagrams, &from)`; `bind(addr)`, `bind_over(socket)`; as a `Carrier`: `dial("KEY@ZONE")`, `listen("IP:PORT")`, the cost `Highest` |
 | `dns::DnsListener` | `local_addr`, `accept_key`; a `Listener`; a drop ends its handshakes under way and starts no session; the sessions that it gave live on |
-| `dns::DnsSettings`, `dns::DnsSettingsError` | `queries_per_second` (20), `in_flight` (8), `query_timeout` (2 s), `poll_min` (5 ms), `poll_max` (2 s), `answer` (1232), `depth` (256); `check` |
+| `dns::DnsSettings`, `dns::DnsSettingsError` | `queries_per_second` (20), `in_flight` (8), `query_timeout` (2 s), `poll_min` (5 ms), `poll_max` (2 s), `answer` (1232: the EDNS0 size of each query of a dialer, and the largest answer of a listener; an answer also keeps to the size of its query, 512 bytes with no EDNS0), `depth` (256); `check` |
 | `dns::{NAME, ALPN, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES, settings::EDNS_SIZE}` | the constants of the dns carrier |
 | `icmp::Icmp` (feature `icmp`) | the ICMP echo carrier: `new(provider, identity)`, `with_clients(keys)`, `with_resolver(resolver)`, `clients`; the fields `alpn` (`podlink/1`), `arq`, `icmp` (`IcmpSettings`), `connect_timeout` (20 s), `handshake_timeout` (20 s), `max_handshakes` (64); `address(text)` (the key and the target of `KEY@HOST`); `connect(&target, &key)` (unix); `connect_over(datagrams, &target, &key)` and `accept_over(datagrams, &from)`; `bind(ip)` (unix); as a `Carrier`: `dial("KEY@HOST")`, `listen("IPv4")`, the cost `High` |
 | `icmp::IcmpListener` (unix) | `local_ip`, `accept_key`; a `Listener`; a drop ends its handshakes under way and starts no session |
@@ -340,7 +340,9 @@ byte stream and knows nothing of the ARQ. Each number is big-endian:
   `rekey_ahead` frames before the wrap the ARQ asks for a rekey
   (`ArqHandle::rekey_wanted`), and new frames wait at the wrap until the
   caller calls `rekeyed`. The frames in flight go on. The two ends must
-  start at the same `start`.
+  start at the same `start`. The dns and icmp carriers answer each ask at
+  once: TLS above the ARQ has nonces of its own, so the sequence of the ARQ
+  is no nonce, and no direction stops at the wrap (T-541, call C290).
 - A datagram of another form, a frame out of the window, and an `ACK` of a
   frame not sent are dropped and counted. Fragments in sequence that
   disagree (an index or a count) end the ARQ with `ArqError::Protocol`.
@@ -463,7 +465,12 @@ with TLS 1.3) and the tests that hold them (`tests/tcp.rs`,
   `a_key_named_by_its_fingerprint_or_its_display_form_dials`.
 - [x] Another key is refused at the handshake on each side, with the key
   seen named (77): `the_dialer_refuses_a_listener_of_another_key_and_names_it`,
-  `the_listener_refuses_a_client_of_another_key_and_stays_open`.
+  `the_listener_refuses_a_client_of_another_key_and_stays_open`. The end
+  whose key was refused gets `KeyRefused` (T-542): the dialer on each
+  carrier that pins keys (tcp, ws, h2, quic, udp, poll, dns, icmp), and
+  the listener on tcp, h2, quic and poll. Plants:
+  `link-key-refused-untyped`, `link-key-refused-alert-untyped`,
+  `link-quic-key-refused-untyped`.
 - [x] TLS 1.2 is refused on each side:
   `a_client_of_tls_1_2_is_refused_by_the_listener`,
   `a_listener_of_tls_1_2_is_refused_by_the_dialer`.
@@ -682,8 +689,21 @@ that hold them (`tests/dns.rs`, `tests/dns_loss.rs`, feature `dns`):
   `the_carrier_says_what_it_gives_and_why_it_cannot_run`.
 - [x] Loss, reorder and duplicates on the `Lossy` shim, and the end of a
   silent peer at the timeout of the ARQ: `tests/dns_loss.rs`.
+- [x] Each direction crosses the wrap of the sequence of the ARQ at loss
+  (T-541): `bytes_cross_the_wrap_of_the_sequence_at_loss`.
+- [x] The size of an answer and the TC bit (T-543, calls C291 and C292;
+  `tests/dns_resolver.rs`, a stand-in resolver on the loopback): a query
+  with no EDNS0 gets 512 bytes or less and no OPT record
+  (`a_query_with_no_edns_gets_an_answer_of_512_bytes_or_less`); a query
+  of 1232 gets answers within it
+  (`a_query_with_edns_gets_an_answer_within_its_size`); answers cut with
+  the TC bit do not stall the link (`a_cut_answer_does_not_stall_the_link`),
+  and the dialer takes the whole records before the cut
+  (`dns::client::tests::a_cut_answer_gives_its_whole_records`).
 - [x] A plant for each check: `dns-down-needs-the-txt`,
-  `dns-wire-base32-roundtrip` (`scripts/plants/`).
+  `dns-wire-base32-roundtrip`, `link-dgram-wrap-waits`,
+  `dns-answer-past-the-query-size`, `dns-cut-answer-dropped`
+  (`scripts/plants/`).
 
 The asks of PodUtils/podnet#521 for the ICMP echo carrier
 (PodUtils/podnet@T-282, row E3-2 of PodUtils/podnet#469) and the tests
@@ -693,6 +713,8 @@ that hold them (`tests/icmp.rs`, `tests/icmp_raw.rs`, feature `icmp`):
   loss and at 3 % loss with reorder and duplicates:
   `bytes_cross_each_way_with_no_loss`,
   `bytes_cross_each_way_at_three_percent_loss_with_reorder_and_duplicates`.
+- [x] Each direction crosses the wrap of the sequence of the ARQ at loss
+  (T-541): `bytes_cross_the_wrap_of_the_sequence_at_loss`.
 - [x] The keys are proven on each side, and a refused key is named:
   `the_keys_are_proven_on_each_side`, `a_refused_key_is_named_on_each_side`.
 - [x] A silent peer ends the link: `a_peer_that_goes_silent_ends_the_link`;
@@ -706,7 +728,7 @@ that hold them (`tests/icmp.rs`, `tests/icmp_raw.rs`, feature `icmp`):
   test prints a skip line where the host refuses the socket:
   `a_link_over_a_raw_socket_carries_a_stream_or_skips`.
 - [x] A plant for each check: `icmp-echo-session-filter`,
-  `icmp-wire-checksum` (`scripts/plants/`).
+  `icmp-wire-checksum`, `link-dgram-wrap-waits` (`scripts/plants/`).
 
 ## The adoption map
 
@@ -716,7 +738,7 @@ that hold them (`tests/icmp.rs`, `tests/icmp_raw.rs`, feature `icmp`):
 | PodUtils/podnet@T-264: the registry of carriers with an `available()` reason | stays in podnet (call C117); each row holds a `Box<dyn Carrier>` and adds podnet's facts (privilege, build feature); the cost class is `Facts::cost` |
 | PodUtils/podnet@T-274: the unix socket carrier; `bind_private` and `claim_unix_path` of `PodUtils/podnet:crates/podnet-netns/src/listen.rs`; `--allow-other-uid` | `unix::Unix` (`allow_other_uid`), `unix::pair` |
 | PodUtils/podnet@T-275: the memory carrier | `memory::Memory`, `memory::pair` |
-| PodUtils/podnet@T-268: the TCP carrier with TLS 1.3 and the pin of each key | `tcp::Tcp` (feature `tcp`): one row of the registry holds `Box::new(Tcp::new(provider, identity, way).with_clients(keys))`; podnet's dialer (its proxy and egress) is the `way`; `available()` is the reason of the row; the accept side is `listen("IP:PORT")` and `accept_peer()`, whose `peer` podnet compares with `peer:FINGERPRINT`; a refused key is `CarrierErrorKind::Refused` (77) and `tcp::refusal(&error)` gives the key seen |
+| PodUtils/podnet@T-268: the TCP carrier with TLS 1.3 and the pin of each key | `tcp::Tcp` (feature `tcp`): one row of the registry holds `Box::new(Tcp::new(provider, identity, way).with_clients(keys))`; podnet's dialer (its proxy and egress) is the `way`; `available()` is the reason of the row; the accept side is `listen("IP:PORT")` and `accept_peer()`, whose `peer` podnet compares with `peer:FINGERPRINT`; a key that this end refused is `CarrierErrorKind::Refused` (77) and `tcp::refusal(&error)` gives the key seen; a key of this end that the peer refused is `CarrierErrorKind::KeyRefused` (77) on each carrier (T-542) |
 | PodUtils/podnet@T-269: the WebSocket carrier, its server half | `ws::Ws` (feature `ws`): one row of the registry holds `Box::new(Ws::new(provider, identity, way).with_clients(keys))`; the dial address is `KEY@wss://HOST[:PORT]/PATH`; the listener is `listen("IP:PORT")` on the accept loop of `pod-ws`, with podnet's deadlines and caps in `Ws::serve` |
 | PodUtils/podnet@T-270: the HTTP/2 carrier, one bidirectional POST | `h2::H2` (feature `h2`): one row of the registry holds `Box::new(H2::new(provider, identity, way).with_clients(keys))`; the dial address is `KEY@https://HOST[:PORT]/PATH`; the listener is `listen("IP:PORT")`. podnet's `body_reader` and `body_writer` are `pod_ws::h2_road::duplex` here |
 | PodUtils/podnet@T-273: the QUIC carrier | `quic::Quic` (feature `quic`): one row of the registry holds `Box::new(Quic::new(provider, identity).with_clients(keys))` with `alpn = b"podnet/1"`, and `with_way(way)` when podnet's way carries UDP; the dial address is `KEY@HOST:PORT`; the listener is `listen("IP:PORT")` on UDP |

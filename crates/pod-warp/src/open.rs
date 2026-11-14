@@ -129,7 +129,7 @@ impl Warp {
                     settings.report.decision("warp.door", if i == 0 { "first" } else { "other" });
                     return Ok(session);
                 }
-                Err(err) if is_pin_mismatch(&err) => return self.open_after_mismatch(err, way).await,
+                Err(err) if is_pin_mismatch(&err) => return self.open_after_mismatch(err, way, door).await,
                 Err(err) => {
                     if let Some(next) = candidates.get(i + 1) {
                         let text = format!("the front door {door} failed ({}); {next} is tried", err.chain());
@@ -153,14 +153,17 @@ impl Warp {
         }
     }
 
-    /// The front door showed another key than the pinned one (a new device,
-    /// or a new key of the door): read the record again and try its door.
-    async fn open_after_mismatch(&self, err: Failure, way: &Way) -> Result<MasqueSession, Failure> {
+    /// The front door `shown` showed another key than the pinned one (a new
+    /// device, or a new key of the door): read the record again and try its
+    /// door. When that fails too, the line says why a door shows another
+    /// certificate ([`why_shown`]).
+    async fn open_after_mismatch(&self, err: Failure, way: &Way, shown: &Target) -> Result<MasqueSession, Failure> {
         let settings = &self.settings;
         let text = format!("the MASQUE key is not the pinned key ({}); the device record is read again", err.chain());
         settings.report.event(Event::warn("warp.pin", text));
         let fresh = register::get_device(&settings.api, &self.device.id, &self.device.token).await.map_err(|e| {
-            Failure::caused(e.stage, e.class, "reading the device record again after a key mismatch", e)
+            let text = format!("{}; reading the device record again failed. {}", err.text(), why_shown(way, shown));
+            Failure::caused(e.stage, e.class, text, e)
         })?;
         let pinned = pin_of(&fresh)?;
         let door = match &settings.door {
@@ -181,9 +184,30 @@ impl Warp {
                     return Ok(session);
                 }
                 Err(e) if attempt == 0 && is_pin_mismatch(&e) => last = e,
+                Err(e) if is_pin_mismatch(&e) => {
+                    let text = format!(
+                        "{}; the key of the device record read again does not match either. {}",
+                        e.text(),
+                        why_shown(way, &door)
+                    );
+                    return Err(Failure::caused(e.stage, e.class, text, e));
+                }
                 Err(e) => return Err(e),
             }
         }
         Err(last)
+    }
+}
+
+/// Why a front door shows a certificate in place of WARP's key, and what
+/// tells the causes apart. A proxy is named only where the way to `door`
+/// goes through one: a line that blames a proxy that is not there sends
+/// the user to look for it (PodUtils/podssh#234).
+fn why_shown(way: &Way, door: &Target) -> String {
+    let warp = "WARP's side shows such a certificate at times, while its API fails in the same minutes; \
+                a later try passes then";
+    match way.dial.proxy_label(door) {
+        Some(proxy) => format!("{warp}. Or the proxy {proxy} re-terminates TLS: then each try fails"),
+        None => format!("{warp}."),
     }
 }

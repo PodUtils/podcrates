@@ -160,3 +160,22 @@ fn a_server_reads_a_question_and_builds_an_answer() {
     // A query with no question is refused.
     assert!(super::question(&q[..4]).is_err());
 }
+
+/// The EDNS0 size of a query: its OPT record, at least 512; none with no
+/// OPT record, and none for a message cut in its question or its records.
+#[test]
+fn a_server_reads_the_size_that_a_query_takes() {
+    let q = query(1, "a.t.example", TXT, Some(EDNS_SIZE)).unwrap();
+    assert_eq!(asked_size(&q), Some(EDNS_SIZE));
+    assert_eq!(asked_size(&query(1, "a.t.example", TXT, Some(4096)).unwrap()), Some(4096));
+    assert_eq!(asked_size(&query(1, "a.t.example", TXT, None).unwrap()), None);
+    // An OPT record under 512 counts as 512.
+    let mut small = q.clone();
+    let at = small.len() - 8;
+    small[at..at + 2].copy_from_slice(&100u16.to_be_bytes());
+    assert_eq!(asked_size(&small), Some(PLAIN_SIZE));
+    // A message cut in its OPT record, or in its question.
+    assert_eq!(asked_size(&q[..q.len() - 3]), None);
+    assert_eq!(asked_size(&q[..14]), None);
+    assert_eq!(asked_size(&[]), None);
+}

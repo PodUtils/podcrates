@@ -1,7 +1,8 @@
 //! The ICMP echo carrier (T-497, PodUtils/podnet#469 row E3-2). The framing
 //! of the echo messages runs over a memory pair (the `Lossy` shim), with the
 //! ARQ and TLS, with no privilege: a link carries streams; the bytes cross
-//! whole at loss, reorder and duplicates; a silent peer ends the link; the
+//! whole at loss, reorder and duplicates, also across the wrap of the
+//! sequence of the ARQ (T-541); a silent peer ends the link; the
 //! keys are pinned on each side and a refused key is named; an echo of the
 //! wrong session or the wrong kind is dropped. The real raw socket runs the
 //! same framing; its test skips with a reason where the host has no
@@ -107,6 +108,17 @@ async fn bytes_cross_each_way_at_three_percent_loss_with_reorder_and_duplicates(
     assert!(sa.reordered + sb.reordered > 0 && sa.duplicated + sb.duplicated > 0, "{sa:?} {sb:?}");
 }
 
+/// The first sequence is 64 frames before the wrap, so each direction
+/// wraps in the transfer: the carrier answers the rekey of the ARQ, and
+/// no direction stops at the wrap.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn bytes_cross_the_wrap_of_the_sequence_at_loss() {
+    let faults = Faults { loss: 0.03, reorder: 0.01, duplicate: 0.01 };
+    let arq = ArqSettings { start: u32::MAX - 63, rekey_ahead: 256, ..ArqSettings::default() };
+    let (near, far, _a, _b) = ends(faults, arq).await;
+    cross(near.unwrap().0, far.unwrap().0, 128 << 10).await;
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_keys_are_proven_on_each_side() {
     let (near, far, _a, _b) = ends(Faults::NONE, ArqSettings::default()).await;
@@ -129,7 +141,8 @@ async fn a_refused_key_is_named_on_each_side() {
         async { tokio::join!(dialing.connect_over(up, &target, &key), listening.accept_over(down, &"the peer")) };
     let (near, far) = timeout(limit(), both).await.expect("the refusal in time");
     let near = near.err().expect("the dialer learns of the refusal");
-    assert_eq!(near.kind, CarrierErrorKind::Refused, "{near}");
+    assert_eq!(near.kind, CarrierErrorKind::KeyRefused, "{near}");
+    assert_eq!(near.class().exit_code(), 77);
     assert!(near.to_string().contains(&client.public().fingerprint()), "names this key: {near}");
     let far = far.err().expect("the listener refuses the client");
     assert_eq!(refusal(&far), Some(Refusal::Unpinned(client.public())), "{far}");

@@ -1,0 +1,6 @@
+# The calls of a hold of each socket deny no raw socket: a raw ICMP socket of a held child reaches the supervisor; its test must fail.
+ENTRY=T-544
+GROUP=hold
+EXPECT='the filter answers EPERM, with no notification'
+RUN='cargo test -p pod-hold --test hold'
+LIMIT=1800

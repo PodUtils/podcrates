@@ -112,6 +112,14 @@ pub trait Dial: Send + Sync {
     /// The name of the way for a log line (`direct`, `socks5h://proxy:1080`).
     fn label(&self) -> String;
 
+    /// The proxy that a dial of `target` goes through, as a line names it.
+    /// None: no proxy, or a way that does not say. A line that blames a
+    /// proxy names one only where this gives one.
+    fn proxy_label(&self, target: &Target) -> Option<String> {
+        let _ = target;
+        None
+    }
+
     /// Connect to `target` before `deadline`.
     fn dial<'a>(&'a self, target: &'a Target, deadline: Instant) -> BoxFuture<'a, Result<Connected, Failure>>;
 

@@ -109,7 +109,8 @@ async fn the_listener_refuses_a_client_of_another_key_and_stays_open() {
     let address = at(&server.public(), &door);
     let other = carrier(4, Arc::new(Direct::default()), &[]);
     let near = other.dial(&address).await.err().expect("a client of another key dialed");
-    assert_eq!(near.kind, CarrierErrorKind::Refused, "the dialer learns of the refusal at the dial: {near}");
+    assert_eq!(near.kind, CarrierErrorKind::KeyRefused, "the dialer learns of the refusal at the dial: {near}");
+    assert_eq!(near.class().exit_code(), 77);
     assert!(near.to_string().contains(&stranger.public().fingerprint()), "{near}");
 
     let good = carrier(2, Arc::new(Direct::default()), &[]);

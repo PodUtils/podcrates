@@ -68,6 +68,20 @@ impl<'a> Relay<'a> {
     pub fn keepalive(&self) -> Option<Duration> {
         u64::try_from(self.service.int("keepalive-seconds")?).ok().map(Duration::from_secs)
     }
+
+    /// The command of the session channel in place of a shell (the fact
+    /// `command`): the relay writes the URL in a form for programs. None:
+    /// a shell.
+    pub fn command(&self) -> Option<&'a str> {
+        self.service.text("command")
+    }
+
+    /// Whether the session channel must open before the remote forward
+    /// (the fact `session-first`): the relay answers the forward only after
+    /// a session is open. False when the fact is not there.
+    pub fn session_first(&self) -> bool {
+        self.service.bool("session-first").unwrap_or(false)
+    }
 }
 
 /// Which URL of a banner is the URL of the tunnel: a URL that holds each
@@ -187,12 +201,19 @@ fn ends_word(byte: u8) -> bool {
     byte == b' ' || byte.is_ascii_control()
 }
 
-/// The URL in a word: from its first `http://` or `https://` to its end,
-/// with no mark of a sentence at the end, and a host after the scheme.
-/// None for a word with no URL, or with a URL that is not UTF-8.
+/// The bytes that RFC 3986 keeps out of a URL. One ends the URL of a word:
+/// a JSON line has no space after the quote that closes a URL.
+const NOT_IN_URL: &[u8] = b"\"<>\\^`{|}";
+
+/// The URL in a word: from its first `http://` or `https://` to its end or
+/// to a byte of [`NOT_IN_URL`], with no mark of a sentence at the end, and
+/// a host after the scheme. None for a word with no URL, or with a URL that
+/// is not UTF-8.
 fn url_of(word: &[u8]) -> Option<&str> {
     let start = [&b"http://"[..], b"https://"].iter().filter_map(|scheme| find(word, scheme)).min()?;
-    let url = std::str::from_utf8(&word[start..]).ok()?;
+    let word = &word[start..];
+    let end = word.iter().position(|b| NOT_IN_URL.contains(b)).unwrap_or(word.len());
+    let url = std::str::from_utf8(&word[..end]).ok()?;
     let url = url.trim_end_matches(['.', ',', ';', ':', '!', '?', ')', ']', '}', '>', '"', '\'']);
     let (_, host) = url.split_once("://")?;
     (!host.is_empty() && !host.starts_with('/')).then_some(url)

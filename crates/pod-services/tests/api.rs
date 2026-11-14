@@ -268,6 +268,34 @@ fn the_tunnels_of_localhost_run_localtunnel_and_bore() {
     assert!(lt.watches().iter().any(|w| w.kind() == "tls-name"));
 }
 
+/// The last fallbacks of podssh of T-552 (PodUtils/podssh#236): SSH on 22,
+/// the facts of their sources, the key that tunnl.gg publishes, and the
+/// site, whose name a watch checks: neither domain has an RDAP server.
+#[test]
+fn the_tunnels_of_srv_us_and_tunnl_gg() {
+    for (id, host, site) in [("srv-us", "srv.us", "srv.us"), ("tunnl-gg", "proxy.tunnl.gg", "tunnl.gg")] {
+        let service = pod_services::get(id).expect(id);
+        let ssh = service.endpoint("ssh").unwrap();
+        assert_eq!((service.kind(), ssh.scheme(), ssh.host(), ssh.port()), ("ssh-tunnel", "ssh", host, 22), "{id}");
+        let https = service.endpoint("site").unwrap();
+        assert_eq!((https.scheme(), https.host(), https.port()), ("https", site, 443), "{id}");
+        let kinds: Vec<&str> = service.watches().iter().map(|w| w.kind()).collect();
+        assert!(kinds.contains(&"tls-name") && !kinds.contains(&"rdap"), "{id}: {kinds:?}");
+        assert_eq!(service.text("tunnel-zone"), Some(site), "{id}");
+    }
+    let srv_us = pod_services::get("srv-us").unwrap();
+    assert_eq!((srv_us.text("user"), srv_us.int("remote-port")), (Some("nomatch"), Some(1)));
+    assert_eq!(srv_us.bool("session-first"), Some(true));
+    // srv.us publishes no host key: podssh's live run reads it first.
+    assert!(srv_us.fact("host-key-sha256").is_none());
+    let tunnl = pod_services::get("tunnl-gg").unwrap();
+    assert_eq!(tunnl.text("host-key-sha256"), Some("SHA256:5uQ6VobmUpY4wyMmm5jnAwFtt3aX06WYDDM4ER+2WUw"));
+    assert_eq!(tunnl.text("command"), Some("output=json"));
+    assert!(tunnl.fact("user").is_none(), "tunnl.gg takes any user but stable and pro");
+    let watched = tunnl.watches().iter().any(|w| w.kind() == "ssh-host-key");
+    assert!(watched, "no watch of the key of tunnl.gg");
+}
+
 /// The demo of Sandhole (T-186, PodUtils/podssh@T-743): SSH on 22 and plain
 /// SSH on 443, one host key watched on each port, and the tunnel zone.
 #[test]

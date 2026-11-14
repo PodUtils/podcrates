@@ -32,9 +32,14 @@ fn err(name: &'static str, kind: CarrierErrorKind, text: impl Into<String>) -> C
     CarrierError::new(name, kind, text)
 }
 
-/// The ARQ over `datagrams`, within its limits.
+/// The ARQ over `datagrams`, within its limits. TLS above it seals each
+/// record with a nonce of its own, so the sequence of the ARQ is no nonce:
+/// the ARQ wraps with no rekey, and no direction stops at the wrap (call
+/// C290).
 fn stream<D: Datagrams>(name: &'static str, datagrams: D, arq: ArqSettings) -> Result<ArqStream, CarrierError> {
-    ArqStream::new(datagrams, arq).map_err(|e| err(name, CarrierErrorKind::Usage, format!("ARQ: {e}")))
+    let stream = ArqStream::new(datagrams, arq).map_err(|e| err(name, CarrierErrorKind::Usage, format!("ARQ: {e}")))?;
+    stream.wrap_freely();
+    Ok(stream)
 }
 
 /// The TLS of a listener of a datagram carrier: the provider, the identity,

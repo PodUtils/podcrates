@@ -64,7 +64,7 @@ proxy.
 | `route::{has_default_route, default_route_in, by_family, ROUTES_V4, ROUTES_V6}` | the family of this host's default route (Linux), and the resolvers of that family first |
 | `Settings`, `parse_pins`, `Nxdomain` (`End`, `NextOperator`), `EACH`, `CONNECT` | the settings (below) |
 | `wire` (`query`, `query_param`, `addrs`, `srv`, `read_name`, `code`, `A`, `AAAA`, `SRV`, `HTTPS`) | RFC 1035's messages as RFC 8484 carries them; by hand, fuzzed |
-| `txt` (`query(id, name, kind, edns)`, `read(msg, id, name, kind)`, `question(msg)`, `answer(id, name, kind, records, edns)`, `Answer` (`id`, `truncated`, `rcode`, `edns`, `records`; `txt`, `cnames`), `Record` (`Txt`, `Cname`), `TXT`, `CNAME`, `OPT`, `PLAIN_SIZE`, `EDNS_SIZE`) | a query with an ID and an EDNS0 size, and the TXT and CNAME records, the TC bit, the full RCODE and the server's size of its answer, for a carrier of bytes over DNS (PodUtils/podnet#479); the server halves: the ID, the name and the type of a question, and an answer of TXT or CNAME records with an OPT record (T-493, for the dns carrier of `pod-link`); the transport is the caller's; by hand, fuzzed |
+| `txt` (`query(id, name, kind, edns)`, `read(msg, id, name, kind)`, `question(msg)`, `asked_size(msg)`, `answer(id, name, kind, records, edns)`, `Answer` (`id`, `truncated`, `rcode`, `edns`, `records`; `txt`, `cnames`), `Record` (`Txt`, `Cname`), `TXT`, `CNAME`, `OPT`, `PLAIN_SIZE`, `EDNS_SIZE`) | a query with an ID and an EDNS0 size, and the TXT and CNAME records, the TC bit, the full RCODE and the server's size of its answer, for a carrier of bytes over DNS (PodUtils/podnet#479); the server halves: the ID, the name and the type of a question, the EDNS0 size of a query (T-543), and an answer of TXT or CNAME records with an OPT record (T-493, for the dns carrier of `pod-link`); the transport is the caller's; by hand, fuzzed |
 | `json` (`parse_answer`, `parse_srv`, `srv_of`) | the JSON form |
 | `https` (`from_json`, `from_wire`, `from_rdata`, `check_list`, `ECH_KEY`, `MAX_LIST`) | the HTTPS record (RFC 9460) and its ECH list |
 | `h2` (`config_h2`, `get_over`) | one GET over HTTP/2 |
@@ -173,12 +173,13 @@ by hand (`live.yml`).
 The reader of TXT and CNAME answers (`txt`, T-305): `txt::tests` (the
 query with its OPT record, the strings and the CNAME targets, the full
 RCODE, the cut that needs the TC bit, the foreign answers, and the
-question and the answer of a server: `a_server_reads_a_question_and_builds_an_answer`) and
+question and the answer of a server: `a_server_reads_a_question_and_builds_an_answer`; the EDNS0 size of a query, none with no OPT record: `a_server_reads_the_size_that_a_query_takes`) and
 `tests/txt_udp.rs` (a stand-in authoritative server on the loopback cuts
 an answer at 512 bytes with no EDNS0 and sends it whole with a size of
 1232; the same answer is whole over TCP). The fuzz target `dns_wire`
 reads each input as a TXT and a CNAME answer, with the seeds `txt-edns`
-and `txt-cut`. Plants: `dns-txt-cut-taken`, `dns-txt-opt-not-sent`.
+and `txt-cut`. Plants: `dns-txt-cut-taken`, `dns-txt-opt-not-sent`,
+`dns-txt-asked-size-under-512`.
 
 ## Changes for podssh
 
