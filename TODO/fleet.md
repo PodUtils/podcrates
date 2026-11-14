@@ -2645,7 +2645,7 @@ cargo test --manifest-path fuzz/Cargo.toml --lib
 **Milestone:** M8
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2664,3 +2664,25 @@ Keep `parse` as it is, so that podrunner's local runs do not change. Add `Workfl
 ```sh
 cargo test -p pod-actions-workflow --all-features
 ```
+
+## Done
+
+2026-11-14, commit a8e299b. `Workflow::check() -> Vec<Error>` gives each
+fault of `on:` that GitHub refuses, all of them in the order of the file:
+an event that GitHub does not know (`ErrorKind::UnknownEvent`), a key
+that its event does not take (`ErrorKind::KeyNotTaken`, as `tags` on
+`pull_request`), a filter beside its `-ignore` form, a filter of `!`
+patterns only, a bad pattern, a value of another kind, and a `schedule`
+that is not a list of `cron` entries. `event_keys(event)` gives the keys
+of each event, from "Events that trigger workflows" and "Workflow syntax"
+of github/docs (call C360). `parse`, `triggers` and `takes` do not change.
+`tests/check.rs`, 6 tests: each of the 64 examples of `on:` of the two
+documents passes; a key that its event does not take on 8 events; a filter
+with its `-ignore` form on 5 events; an unknown event in the three forms
+of `on:`; `schedule`; six faults of one file in their order, with their
+paths. `cargo test -p pod-actions-workflow --all-features`: 71 passed.
+The plant `actions-workflow-check-pr-takes-tags` (`pull_request` takes
+`tags`) fails 3 tests of `tests/check.rs`, with the one of its `EXPECT`
+(checked by hand). `cargo clippy -p pod-actions-workflow --all-targets
+--all-features -- -D warnings` and its `cargo doc` with `-D warnings`:
+clean.

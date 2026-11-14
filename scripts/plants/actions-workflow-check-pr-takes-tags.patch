@@ -1,0 +1,11 @@
+--- a/crates/pod-actions-workflow/src/check.rs
++++ b/crates/pod-actions-workflow/src/check.rs
+@@ -17,7 +17,7 @@ pub fn event_keys(event: &str) -> Option<&'static [&'static str]> {
+     const NONE: &[&str] = &[];
+     Some(match event {
+         "push" => &["branches", "branches-ignore", "tags", "tags-ignore", "paths", "paths-ignore"],
+-        "pull_request" | "pull_request_target" => &["types", "branches", "branches-ignore", "paths", "paths-ignore"],
++        "pull_request" | "pull_request_target" => &["types", "branches", "branches-ignore", "tags", "paths", "paths-ignore"],
+         "merge_group" => &["types", "branches", "branches-ignore"],
+         "workflow_run" => &["types", "workflows", "branches", "branches-ignore"],
+         "workflow_call" => &["inputs", "outputs", "secrets"],

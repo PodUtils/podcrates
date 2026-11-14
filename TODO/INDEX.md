@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**483 entries: 133 open, 7 partial, 5 blocked, 338 done.**
+**483 entries: 132 open, 7 partial, 5 blocked, 339 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 3 | 0 | 90 | 110 |
 | P2 | 60 | 2 | 4 | 187 | 253 |
-| P3 | 56 | 2 | 1 | 59 | 118 |
-| **All** | 133 | 7 | 5 | 338 | 483 |
+| P3 | 55 | 2 | 1 | 60 | 118 |
+| **All** | 132 | 7 | 5 | 339 | 483 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -508,7 +508,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-575](transport.md) | P3 | S | M1 | docs | done | `pod-services`: the README names the scheme `tcp` of an endpoint (PodUtils/podnet#550) |
 | [T-576](fleet.md) | P2 | L | M8 | feature | done | `pod-actions-workflow`: the calls of reusable workflows in `Run` (inputs, secrets, outputs, limits) (PodUtils/podrunner#98) |
 | [T-577](fleet.md) | P3 | S | M8 | feature | done | `pod-actions-workflow`: the `workflows` filter of `workflow_run` |
-| [T-578](fleet.md) | P3 | S | M8 | feature | open | `pod-actions-workflow`: a check of the keys and the filters of `on:`, as GitHub refuses a file |
+| [T-578](fleet.md) | P3 | S | M8 | feature | done | `pod-actions-workflow`: a check of the keys and the filters of `on:`, as GitHub refuses a file |
 | [T-579](relay.md) | P2 | S | M2 | defect | done | `pod-session`: a spare link that moved no byte backs off before the next (PodUtils/podssh#242) |
 | [T-580](podvm.md) | P1 | S | M6 | defect | done | `pod-rootfs`: an image with no CA bundle gets the host bundle when `host_cas` is false (PodUtils/podvm#341) |
 | [T-581](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a file of mode 4755, 2755 or 6755 loses its setuid and setgid bits (PodUtils/podvm#342) |
