@@ -1,0 +1,11 @@
+diff --git a/crates/pod-extract/src/remove.rs b/crates/pod-extract/src/remove.rs
+--- a/crates/pod-extract/src/remove.rs
++++ b/crates/pod-extract/src/remove.rs
+@@ -171,7 +171,6 @@
+     };
+     // The pass after the last layer can close a directory (0555), and the
+     // owner cannot remove an entry of a directory that has no owner write.
+-    open_for_write(fd.0);
+     for e in sys::getdents64(fd.0).unwrap_or_default() {
+         let child = String::from_utf8_lossy(&e.name).into_owned();
+         remove_at(fd.0, &child)?;

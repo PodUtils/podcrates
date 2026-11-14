@@ -13,6 +13,7 @@ use std::io::Cursor;
 
 use crate::apply::{Ids, apply_layer};
 use crate::error::io;
+use crate::modes::DirModes;
 use crate::remove;
 use crate::safety::Dir;
 use crate::sidecar::Sidecar;
@@ -44,6 +45,9 @@ impl Scratch {
 
 impl Drop for Scratch {
     fn drop(&mut self) {
+        // The crate's own removal opens a directory that the image closed
+        // (0555); `remove_dir_all` as a user cannot empty it.
+        let _ = crate::remove_tree(&self.0);
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
@@ -138,16 +142,32 @@ fn layer(entries: &[E]) -> Vec<u8> {
     b.into_inner().unwrap()
 }
 
-/// Run the steps of each layer, whiteouts first, as [`crate::extract`] does.
+/// Run the steps of each layer, whiteouts first, and the pass after the last
+/// layer, as [`crate::extract`] does.
 fn run(dir: &std::path::Path, layers: &[Vec<u8>]) -> crate::Result<u64> {
+    steps(dir, layers, true)
+}
+
+/// [`run`] with no pass after the last layer: the tree between two layers.
+fn run_open(dir: &std::path::Path, layers: &[Vec<u8>]) -> crate::Result<u64> {
+    steps(dir, layers, false)
+}
+
+fn steps(dir: &std::path::Path, layers: &[Vec<u8>], last_pass: bool) -> crate::Result<u64> {
     let root = Dir::open(&dir.to_string_lossy())?;
     let side = dir.join(".meta.jsonl");
     let mut sc = Sidecar::create(&side).map_err(io)?;
+    let mut dirs = DirModes::new();
     let mut removed = 0;
     for (n, l) in layers.iter().enumerate() {
         let ops = remove::collect(&format!("sha256:layer{n}"), &mut Cursor::new(l.clone()))?;
         removed += remove::apply(&root, &ops)?;
-        apply_layer(&root, &format!("sha256:layer{n}"), &mut Cursor::new(l.clone()), Ids::current(), &mut sc)?;
+        dirs.forget(&ops);
+        let st = apply_layer(&root, &format!("sha256:layer{n}"), &mut Cursor::new(l.clone()), Ids::current(), &mut sc)?;
+        dirs.record(&st.dir_modes);
+    }
+    if last_pass {
+        dirs.set(&root)?;
     }
     sc.finish().map_err(io)?;
     Ok(removed)
@@ -411,9 +431,11 @@ fn a_read_only_directory_in_one_layer_can_be_written_into_by_the_next() {
     assert_eq!(std::fs::read(s.path().join("ro/added")).unwrap(), b"ok");
 }
 
+mod dirmodes;
 mod records;
 mod setid;
 mod umask;
+mod user;
 mod whiteouts;
 
 /// A layer whose first entry is the root as a directory with an empty name

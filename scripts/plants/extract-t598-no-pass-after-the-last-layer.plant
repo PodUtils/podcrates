@@ -1,0 +1,7 @@
+# Nothing runs after the last layer: a directory of mode 0555 in the
+# image keeps the owner bits of the permission pass (T-598).
+ENTRY=T-598
+GROUP=extract
+EXPECT='does not have the mode of the image after the last layer'
+RUN='cargo test -p pod-extract --all-features --lib drive::dirmodes'
+LIMIT=1800

@@ -1,0 +1,7 @@
+# A directory entry over a symlink of an earlier layer keeps the symlink,
+# and the next entry through it is refused (T-598).
+ENTRY=T-598
+GROUP=extract
+EXPECT='the directory entry over the symlink did not apply'
+RUN='cargo test -p pod-extract --all-features --lib drive::dirmodes'
+LIMIT=1800

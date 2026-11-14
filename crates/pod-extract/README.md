@@ -29,7 +29,11 @@ does not call the `unpack()` of a library. Seven rules:
    stay. The umask of the process does not change a mode: each file gets
    its mode through its descriptor after the last write, and each
    directory that the layer wrote gets the mode of the layer (with the
-   owner bits) through a descriptor opened with `O_NOFOLLOW`.
+   owner bits) through a descriptor opened with `O_NOFOLLOW`. After the
+   last layer, each directory entry of the extraction gets the mode of the
+   image (the last layer that names it wins), the deepest first, through
+   the same descriptor: a directory of mode 0555 in the image is 0555 in
+   the tree.
 7. **Whiteouts first.** The whiteouts of a layer apply to the tree before
    the entries of that layer. Hard links resolve in the destination.
 
@@ -51,12 +55,13 @@ not change while the process runs).
 | `Layer` | one layer in the order of the manifest: `digest` (`sha256:<hex>`), `media_type` (it gives the compression), `size` (of the blob), `blob` (the path in the store of the caller) |
 | `Place`, `Place::under(base)` | the three paths of an extraction: `rootfs`, `sidecar`, `marker`; `under` gives `base/rootfs`, `base/.meta.jsonl`, `base/.extracted` (`ROOTFS_NAME`, `SIDECAR_NAME`, `DONE_MARKER`) |
 | `extract(&settings, image, &layers, &place) -> Result<Extracted>` | the space check (blocks and inodes, before the loop), then for each layer: the whiteouts, then the entries, each pass with the digest check; the marker last; on a failure the partial tree is removed |
-| `Extracted` | `rootfs`, `sidecar`, `layers`, `entries`, `removed`, `uncompressed_bytes`, `uncompressed_estimated`, `skipped`, `skipped_kinds`, `sidecar_rows`, `ownership_dropped`, `first_dropped` |
-| `Place::{is_extracted, remove}`, `remove_tree(path)` | the marker decides, not the directory; the removal takes the marker first and never follows a symlink out of the tree |
+| `Extracted` | `rootfs`, `sidecar`, `layers`, `entries`, `removed`, `uncompressed_bytes`, `uncompressed_estimated`, `skipped`, `skipped_kinds`, `sidecar_rows`, `ownership_dropped`, `dir_modes` (the directories that the pass after the last layer set), `first_dropped` |
+| `Place::{is_extracted, remove}`, `remove_tree(path)` | the marker decides, not the directory; the removal takes the marker first, never follows a symlink out of the tree, and adds the owner bits to a directory that the image closed (0555) before it empties it |
 | `LAYER_EVENT` | `extract.layer`: `<12 hex digits>: Extracted (N entries, M whiteouts)` |
 | `Refused`, `refused(&failure)` | the cause of a refused entry: `layer`, `entry`, `refusal` |
 | `Mismatch`, `mismatch(&failure)` | the cause of a blob that does not agree with its digest: `what`, `want`, `got` |
-| `apply` | `apply_layer(root, digest, stream, ids, sidecar)`, `LayerStats`, `Ids::current()` |
+| `apply` | `apply_layer(root, digest, stream, ids, sidecar)`, `LayerStats` (with `dir_modes`: each directory entry of the layer and its mode), `Ids::current()` |
+| `modes` | `DirModes` (`new`, `record(&stats.dir_modes)`, `forget(&ops)`, `set(root)`, `len`, `is_empty`): the mode of the image of each directory, the last layer wins, set after the last layer |
 | `layer` | `Compression::of(media_type)` (tar, `+gzip`, `.tar.gzip`, `+zstd`), `open_hashed(path, c)`, `HashedStream::digest`, `uncompressed_size(path, c, compressed)` (exact for gzip under 4 GiB, an estimate with its flag for the others) |
 | `remove` | `collect(layer, stream)`, `apply(root, ops)`, `Op`, `remove_at(parent_fd, name)` |
 | `safety` | `components`, `is_archive_root`, `rebase_symlink_target`, `Refusal`, `Dir`, `Resolve::{Auto, Walk, InRoot}`, `open_parent`, `open_parent_with`, `have_openat2` |
@@ -94,6 +99,7 @@ Against podvm `crates/podvm-extract` at `e8e5beb`:
 | [x] A file mode without owner write | the same; when the kernel refuses the final `fchmod`, the sidecar records the mode that stayed (podvm recorded none) |
 | [x] A file mode with a bit of `0o7000` (4755, 2755, 6755) | set again with `fchmod` after the last write, as a write by a process with no `CAP_FSETID` clears `S_ISUID` and `S_ISGID` (podvm lost them as a user that is not root, PodUtils/podvm#342); the mode on the descriptor is read back, and a mode that the kernel did not keep (`S_ISGID` of a group that the process is not in) goes into the sidecar as `applied.mode` |
 | [x] The umask of the process | the mode of the image stays under each umask: each file gets `fchmod` after the last write, also when its mode is the mode of the open, and each directory that a layer wrote gets `mode | 0o700` in the permission pass, also when nothing is widened (podvm cut 0755 to 0750 under a umask of 027); a later layer that names a directory again sets its mode. The pass opens each directory with `O_DIRECTORY` and `O_NOFOLLOW` and calls `fchmod`: `fchmodat` of the name followed a symlink that a later entry of the layer put there, to a file of the host |
+| [x] The mode of a directory after the last layer | the mode of the image, set after the last layer (podvm left the widened owner bits: 0555 stayed 0755, PodUtils/podvm#354); a directory entry over a symlink or a file of an earlier layer removes that name and makes the directory (podvm kept the symlink); a directory that exists gets the owner bits, so an extraction over a closed tree passes |
 | [x] Whiteouts | the same; a whiteout gets the lexical check, and a whiteout of `.` or `..` refuses the layer (podvm removed the entries of the directory above the destination for `.wh...`) |
 | [x] The tests: 47 unit tests | 47 with their names (the store fixtures are blob files and a `Place`); 3 new |
 
@@ -139,6 +145,26 @@ a file of the host
 (`the_permission_pass_does_not_follow_a_symlink_at_the_name_of_a_directory`).
 The plants: `extract-t597-file-mode-set-only-when-it-differs`,
 `extract-t597-pass-only-widens`, `extract-t597-pass-follows-a-symlink`.
+
+`drive::dirmodes` (PodUtils/podvm#354): after the last layer, a directory
+has the mode of the image (0555 and 1777 stay, and a later layer that
+names a directory again closes it), through `extract`
+(`each_directory_has_the_mode_of_the_image_after_the_last_layer`). A
+directory entry over a symlink of an earlier layer makes the directory,
+and the target of the symlink outside the tree does not change
+(`a_directory_entry_over_a_symlink_of_an_earlier_layer_is_a_directory`).
+A directory that a whiteout removed does not get its old mode
+(`a_directory_that_a_whiteout_removed_does_not_get_its_old_mode`). A
+second extraction over a tree that the first closed passes, a whiteout
+in a closed directory applies, and `Place::remove` removes the closed
+tree (`a_second_extraction_over_a_closed_tree_passes`; as root it runs
+`worker_extracts_over_a_closed_tree` as uid 1000). The plants:
+`extract-t598-no-pass-after-the-last-layer`,
+`extract-t598-directory-kept-over-a-symlink`,
+`extract-t598-existing-directory-not-opened`,
+`extract-t598-whiteout-keeps-the-old-mode`,
+`extract-t598-whiteout-parent-not-opened`,
+`extract-t598-removal-does-not-open-a-closed-directory`.
 
 ## Sources
 

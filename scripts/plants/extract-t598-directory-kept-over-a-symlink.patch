@@ -1,0 +1,12 @@
+diff --git a/crates/pod-extract/src/apply.rs b/crates/pod-extract/src/apply.rs
+--- a/crates/pod-extract/src/apply.rs
++++ b/crates/pod-extract/src/apply.rs
+@@ -255,7 +255,7 @@
+             let _ = sys::close(fd);
+             return Ok(());
+         }
+-        Err(e) if e == sys::ENOTDIR || e == sys::ELOOP => {}
++        Err(e) if e == sys::ENOTDIR || e == sys::ELOOP => return Ok(()),
+         Err(e) => return Err(error::sys(format!("cannot open the directory {name:?}"), e)),
+     }
+     // A symlink or a file of an earlier layer. The image says directory

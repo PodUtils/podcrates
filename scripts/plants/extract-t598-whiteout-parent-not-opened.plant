@@ -1,0 +1,8 @@
+# A whiteout in a closed directory does not open it, so the removal
+# fails with EACCES (T-598). The proof runs as uid 1000 when the test
+# runs as root.
+ENTRY=T-598
+GROUP=extract
+EXPECT='a whiteout in a closed directory failed'
+RUN='cargo test -p pod-extract --all-features --lib drive::dirmodes'
+LIMIT=1800

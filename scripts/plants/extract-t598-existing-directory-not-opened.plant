@@ -1,0 +1,8 @@
+# A directory that exists does not get the owner bits, so a second
+# extraction over a closed tree fails with EACCES (T-598). The proof runs
+# as uid 1000 when the test runs as root.
+ENTRY=T-598
+GROUP=extract
+EXPECT='the second extraction over a closed tree failed'
+RUN='cargo test -p pod-extract --all-features --lib drive::dirmodes'
+LIMIT=1800
