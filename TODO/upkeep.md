@@ -1582,7 +1582,7 @@ The run of `adoption.yml` at the next head passes for podnet.
 **Milestone:** M5
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1601,6 +1601,18 @@ The ARQ of `link` takes `MAX_RETRIES` (16) and a ceiling of 2 s: a lost frame ge
 ```sh
 cargo test -p pod-link --all-features --test dns_resolver
 ```
+
+## Done
+
+2026-11-14, commit 7873f38. The ARQ of `link` of
+`crates/pod-link/tests/dns_resolver.rs` takes `MAX_RETRIES` and a ceiling
+of 2 s (call C459). The other ARQ settings of the tests of `pod-link` are
+`fast_arq` (`tests/common/dns.rs`, `tests/common/icmp.rs`), whose tests
+check the ARQ timeout of a silent peer: they stay. `cargo test -p pod-link
+--all-features` passed; `--test dns_resolver` passed 10 runs in a loop.
+No plant: the change gives a test more time and changes no behaviour of
+the crate. The nightly run at the next head proves it on
+`windows-11-arm`.
 
 # T-608: `upstream.yml` is red: the sources of `pod-warp`, `pod-netstack` and `pod-gsr` changed
 
