@@ -35,6 +35,9 @@ taken d23ce4ea7b053a4d2cde721e40e73e84d1424bd3
 file 4a7434696480dd5d5e25689f1399dbaace9a9a15 crates/podnet-vnet/src/lib.rs -> crates/pod-netstack/src/lib.rs
 
 repo PodUtils/podnet e0465600ac77c7e12ac372658016d96f5eff9a2a
+# podnet took the stack of its WARP at f6abdc3 (its take of v0.37.0 with
+# pod-warp: src/warp/ip.rs is glue over pod_warp::WarpNet).
+taken f6abdc364096a1815a808a389bcdd112a00650e8
 # T-335: the settings of the stack of podnet's WARP that are of the stack:
 # the congestion controller of each TCP socket (`cc`, `set_cc`), the burst
 # limit of the link (`tcp_burst`, LinkDevice::with_max_burst) and the
