@@ -1,0 +1,8 @@
+# The git forge reads `HEAD` as a tag or a branch: a checkout with no ref
+# does not resolve to the default branch (T-587, PodUtils/podrunner#99). It
+# needs git in PATH.
+ENTRY=T-587
+GROUP=actions
+EXPECT='HEAD is the default branch'
+RUN='cargo test -p pod-actions-store --test git git_resolves_head_to_the_default_branch'
+LIMIT=900

@@ -1,0 +1,7 @@
+# The cache removes no entry over its limit: the store grows with no bound
+# (T-588, PodUtils/podrunner#99).
+ENTRY=T-588
+GROUP=actions
+EXPECT='cache::tests::the_oldest_entry_goes_first_over_the_limit stdout'
+RUN='cargo test -p pod-actions-results --all-features --lib cache::'
+LIMIT=900

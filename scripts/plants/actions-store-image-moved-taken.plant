@@ -1,0 +1,7 @@
+# An image tag that names another digest than the lock is taken: the run
+# uses an image that the lock does not pin (T-587, PodUtils/podrunner#99).
+ENTRY=T-587
+GROUP=actions
+EXPECT='a moved tag fails'
+RUN='cargo test -p pod-actions-store --lib images::'
+LIMIT=900

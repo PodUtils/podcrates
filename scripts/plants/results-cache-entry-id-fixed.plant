@@ -1,0 +1,7 @@
+# The id of an entry of the cache is the counter of the store: two runs over
+# one store give one id (T-588, PodUtils/podrunner#99).
+ENTRY=T-588
+GROUP=actions
+EXPECT='two runs over one store give two ids'
+RUN='cargo test -p pod-actions-results --all-features --test cache'
+LIMIT=900

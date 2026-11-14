@@ -21,8 +21,10 @@ pub const CONTENT_TEXT: &str = "text/plain; charset=utf-8";
 pub enum Payload {
     /// Bytes in memory: a JSON document of the service, or a short text.
     Bytes(Vec<u8>),
-    /// The zip of an artifact, open for read, and its length in bytes. The
-    /// caller streams it: an artifact can be larger than the memory.
+    /// A file open for read at the first byte to send (the zip of an
+    /// artifact, or the part of an entry of the cache that a `Range` names),
+    /// and the number of bytes to send. The caller streams it: a file can be
+    /// larger than the memory.
     File(File, u64),
 }
 
@@ -33,6 +35,9 @@ pub struct Answer {
     pub status: u16,
     /// The value of `Content-Type`.
     pub content_type: &'static str,
+    /// The other headers: `Accept-Ranges` and `Content-Range` of a download
+    /// of the cache.
+    pub headers: Vec<(&'static str, String)>,
     pub body: Payload,
 }
 
@@ -42,9 +47,9 @@ impl Answer {
     pub fn into_bytes(self) -> (u16, Vec<u8>) {
         match self.body {
             Payload::Bytes(b) => (self.status, b),
-            Payload::File(mut f, len) => {
+            Payload::File(f, len) => {
                 let mut out = Vec::with_capacity(usize::try_from(len).unwrap_or(0));
-                match f.read_to_end(&mut out) {
+                match f.take(len).read_to_end(&mut out) {
                     Ok(_) => (self.status, out),
                     Err(e) => (500, e.to_string().into_bytes()),
                 }
@@ -57,16 +62,17 @@ impl Answer {
 /// HTTP status.
 pub(crate) fn twirp(status: u16, code: &str, msg: String) -> Answer {
     let body = json!({ "code": code, "msg": msg }).to_string().into_bytes();
-    Answer { status, content_type: CONTENT_JSON, body: Payload::Bytes(body) }
+    Answer { status, content_type: CONTENT_JSON, headers: Vec::new(), body: Payload::Bytes(body) }
 }
 
 pub(crate) fn ok(v: Value) -> Answer {
-    Answer { status: 200, content_type: CONTENT_JSON, body: Payload::Bytes(v.to_string().into_bytes()) }
+    let body = Payload::Bytes(v.to_string().into_bytes());
+    Answer { status: 200, content_type: CONTENT_JSON, headers: Vec::new(), body }
 }
 
 /// An answer of a blob route: no body, or the reason as text.
 pub(crate) fn text(status: u16, msg: impl Into<Vec<u8>>) -> Answer {
-    Answer { status, content_type: CONTENT_TEXT, body: Payload::Bytes(msg.into()) }
+    Answer { status, content_type: CONTENT_TEXT, headers: Vec::new(), body: Payload::Bytes(msg.into()) }
 }
 
 /// A name of an artifact: the characters that the client refuses, and no

@@ -1,0 +1,8 @@
+# The download of an artifact names one byte past the end of its zip: the
+# fuzz target actions_results finds it on its seed of an artifact in
+# blocks, past the finalize (T-566).
+ENTRY=T-566
+GROUP=fuzz
+EXPECT='bytes at [0-9]+ of'
+RUN='cargo test --manifest-path fuzz/Cargo.toml --lib each_target_survives_mutations'
+LIMIT=1800

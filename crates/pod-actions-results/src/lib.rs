@@ -14,14 +14,42 @@
 //! random signature, compared in constant time. The finalize checks the
 //! size and the SHA-256 that the client sends. The bytes of a run have a
 //! limit. A wrapper of protobuf (`google.protobuf.StringValue`) is a plain
-//! string in its JSON; a request is read in both forms.
+//! string in its JSON; a request is read in both forms. A store that
+//! [`ArtifactStore::replacing`] gives serves a rerun: an artifact of a name
+//! that is there already is replaced.
+//!
+//! The [`cache`] module serves the CacheService of the same API to
+//! `actions/cache@v4` over a [`CacheStore`] that stays across runs.
 
 mod blob;
+pub mod cache;
 mod service;
 mod store;
 pub mod token;
 mod wire;
 
+/// The readers of the input of a client, for the fuzz target
+/// `actions_results` of `fuzz/`.
+#[cfg(feature = "fuzzing")]
+pub mod fuzzing {
+    /// The value of `key` in a query string, percent-decoded.
+    pub fn query(q: &str, key: &str) -> Option<String> {
+        crate::wire::query(q, key)
+    }
+
+    /// The block ids of a block list, in order.
+    pub fn block_list(xml: &str) -> Vec<String> {
+        crate::wire::block_list(xml)
+    }
+
+    /// The first and the last byte of `len` bytes that a `Range` header
+    /// names.
+    pub fn range(header: &str, len: u64) -> Option<(u64, u64)> {
+        crate::cache::range(header, len)
+    }
+}
+
+pub use cache::CacheStore;
 pub use store::ArtifactStore;
 pub use token::{BackendIds, backend_ids, results_scope};
 pub use wire::{Answer, CONTENT_BLOB, CONTENT_JSON, CONTENT_TEXT, Payload};

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-results/src/service.rs b/crates/pod-actions-results/src/service.rs
+--- a/crates/pod-actions-results/src/service.rs
++++ b/crates/pod-actions-results/src/service.rs
+@@ -59,7 +59,7 @@
+         let Some(at) = self.at(name) else { return bad_name(name) };
+         let mut st = self.lock();
+         if self.meta(name).is_some() {
+-            if !self.replace {
++            if !self.replace || self.replace {
+                 return exists(name);
+             }
+             // The directory of the name holds its uploads too: the loop

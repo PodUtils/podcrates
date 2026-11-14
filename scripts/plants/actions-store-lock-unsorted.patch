@@ -1,8 +1,7 @@
 diff --git a/crates/pod-actions-store/src/lock.rs b/crates/pod-actions-store/src/lock.rs
-index c4a5b8a..61a98a3 100644
 --- a/crates/pod-actions-store/src/lock.rs
 +++ b/crates/pod-actions-store/src/lock.rs
-@@ -87,7 +87,7 @@ impl Lock {
+@@ -110,7 +110,7 @@
      /// must start with `#`.
      pub fn render_with(&self, header: &str) -> String {
          let mut out = header.to_string();
@@ -10,4 +9,4 @@ index c4a5b8a..61a98a3 100644
 +        for (key, pin) in self.pins.iter().rev() {
              out.push_str(&format!("{key} {} {}\n", pin.commit, pin.digest));
          }
-         out
+         for (image, digest) in &self.images {

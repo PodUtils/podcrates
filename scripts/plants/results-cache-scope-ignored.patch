@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-results/src/cache.rs b/crates/pod-actions-results/src/cache.rs
+--- a/crates/pod-actions-results/src/cache.rs
++++ b/crates/pod-actions-results/src/cache.rs
+@@ -170,7 +170,7 @@
+     /// The entry for a key and its restore keys, of one version.
+     fn lookup(&self, key: &str, restore: &[&str], version: &str) -> Option<Value> {
+         let entries = self.entries();
+-        self.scopes.iter().find_map(|scope| {
++        self.scopes.iter().take(1).find_map(|scope| {
+             let all: Vec<&Value> = entries
+                 .iter()
+                 .filter(|e| e["version"] == version && e["scope"].as_str().unwrap_or("") == scope)

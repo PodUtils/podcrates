@@ -1,0 +1,7 @@
+# A digest of the source of images goes into the lock unchecked: the lock
+# that it writes does not read back (T-587, PodUtils/podrunner#99).
+ENTRY=T-587
+GROUP=actions
+EXPECT='no digest is refused'
+RUN='cargo test -p pod-actions-store --lib images::'
+LIMIT=900

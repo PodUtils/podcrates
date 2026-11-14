@@ -1,0 +1,26 @@
+POST /twirp/github.actions.results.api.v1.ArtifactService/CreateArtifact
+{"name":"logs","version":4,"workflow_run_backend_id":"1","workflow_job_run_backend_id":"2"}
+%%
+PUT /_artifacts/upload/1?sig=11111111111111111111111111111111&comp=block&blockid=YQ%3D%3D
+hello 
+%%
+PUT /_artifacts/upload/1?sig=11111111111111111111111111111111&comp=block&blockid=Yg%3D%3D
+world
+%%
+PUT /_artifacts/upload/1?sig=11111111111111111111111111111111&comp=blocklist
+<?xml version="1.0"?><BlockList><Latest>YQ==</Latest><Latest>Yg==</Latest></BlockList>
+%%
+POST /twirp/github.actions.results.api.v1.ArtifactService/FinalizeArtifact
+{"name":"logs","size":"11"}
+%%
+POST /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts
+{"name_filter":{"value":"logs"}}
+%%
+POST /twirp/github.actions.results.api.v1.ArtifactService/GetSignedArtifactURL
+{"name":"logs"}
+%%
+GET /_artifacts/download/1?sig=11111111111111111111111111111111
+
+%%
+POST /twirp/github.actions.results.api.v1.ArtifactService/DeleteArtifact
+{"name":"logs"}

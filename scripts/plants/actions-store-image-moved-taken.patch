@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-store/src/images.rs b/crates/pod-actions-store/src/images.rs
+--- a/crates/pod-actions-store/src/images.rs
++++ b/crates/pod-actions-store/src/images.rs
+@@ -120,7 +120,7 @@
+             (Some(d), Mode::Offline) => d,
+             (Some(d), _) => {
+                 let now = pull(image)?;
+-                if now != d {
++                if now != d && now.is_empty() {
+                     return Err(Error::ImageMoved {
+                         image: image.clone(),
+                         lock: lock_name.to_string(),

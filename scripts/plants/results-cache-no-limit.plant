@@ -1,0 +1,7 @@
+# The limit of the cache counts one body alone: an upload in blocks passes
+# the limit (T-588, PodUtils/podrunner#99).
+ENTRY=T-588
+GROUP=actions
+EXPECT='the blocks of an upload hold the limit'
+RUN='cargo test -p pod-actions-results --all-features --test cache'
+LIMIT=900

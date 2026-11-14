@@ -1716,6 +1716,16 @@ name = "pod-actions-expr"
 version = "0.44.0"
 
 [[package]]
+name = "pod-actions-results"
+version = "0.43.0"
+dependencies = [
+ "base64",
+ "pod-core",
+ "serde_json",
+ "sha2 0.11.1",
+]
+
+[[package]]
 name = "pod-actions-workflow"
 version = "0.44.0"
 dependencies = [
@@ -2136,6 +2146,7 @@ dependencies = [
  "bytes",
  "libfuzzer-sys",
  "pod-actions-expr",
+ "pod-actions-results",
  "pod-actions-workflow",
  "pod-broker",
  "pod-core",

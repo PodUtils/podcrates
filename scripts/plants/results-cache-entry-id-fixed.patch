@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-results/src/cache/service.rs b/crates/pod-actions-results/src/cache/service.rs
+--- a/crates/pod-actions-results/src/cache/service.rs
++++ b/crates/pod-actions-results/src/cache/service.rs
+@@ -86,7 +86,7 @@
+         // Random: two runs over one store must not give one id. The id is
+         // an int64 of protobuf: decimal digits, never hex.
+         let entry_id = match self.random(&mut st, 8).map(|h| u64::from_str_radix(&h, 16)) {
+-            Ok(Ok(n)) => (n & i64::MAX as u64).to_string(),
++            Ok(Ok(_)) => id.to_string(),
+             Ok(Err(e)) => return refused(e.to_string()),
+             Err(e) => return refused(format!("no random bytes: {e}")),
+         };

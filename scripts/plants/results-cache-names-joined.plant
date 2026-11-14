@@ -1,0 +1,8 @@
+# The directory of an entry of the cache is a digest of its scope, key and
+# version joined by a newline: a key with a newline takes the entry of
+# another key (T-588, PodUtils/podrunner#99).
+ENTRY=T-588
+GROUP=actions
+EXPECT='the key and the version are not joined'
+RUN='cargo test -p pod-actions-results --all-features --test cache'
+LIMIT=900

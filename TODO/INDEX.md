@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**483 entries: 135 open, 7 partial, 5 blocked, 336 done.**
+**484 entries: 132 open, 7 partial, 5 blocked, 340 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 17 | 3 | 0 | 90 | 110 |
-| P2 | 61 | 2 | 4 | 186 | 253 |
-| P3 | 57 | 2 | 1 | 58 | 118 |
-| **All** | 135 | 7 | 5 | 336 | 483 |
+| P2 | 59 | 2 | 4 | 188 | 253 |
+| P3 | 56 | 2 | 1 | 60 | 119 |
+| **All** | 132 | 7 | 5 | 340 | 484 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -496,7 +496,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-563](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `b0533d0` is red for podssh: `Route::One` of `pod-relay` breaks a match of its role |
 | [T-564](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-store`: the actions by tag, a sorted lock of commits and digests, a store of tarballs and a git forge (PodUtils/podrunner#94) |
 | [T-565](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-results`: the ArtifactService of the results API and its blob routes, one store for each run (PodUtils/podrunner#95) |
-| [T-566](fleet.md) | P3 | S | M8 | chore | open | `pod-actions-results`: a fuzz target of the input of a stranger |
+| [T-566](fleet.md) | P3 | S | M8 | chore | done | `pod-actions-results`: a fuzz target of the input of a stranger |
 | [T-567](podvm.md) | P2 | M | M6 | feature | done | `pod-rootfs`: the completion of a root of two layers, the lower layer read-only (PodUtils/podvm#326) |
 | [T-568](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: a reason of `abi` carries its own verdict label, and a static object reads "names  in DT_NEEDED" (PodUtils/podvm#331) |
 | [T-569](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: `probe_dir_exec` names the filesystem on each `EACCES`, also on a mount that is not noexec (PodUtils/podvm#335) |
@@ -517,8 +517,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-584](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a plan with two limits of one resource fails with `EPERM` (PodUtils/podvm#345) |
 | [T-585](podvm.md) | P2 | S | M6 | defect | open | `pod-oci`: the grammar of an insecure registry host, and a platform list with no repeat and no attestation (PodUtils/podvm#346) |
 | [T-586](podvm.md) | P3 | M | M6 | defect | open | `pod-netlab`: the texts of a knob give the value as written, with its unit and range; the differences from sand-net (PodUtils/podvm#347) |
-| [T-587](fleet.md) | P2 | M | M8 | feature | open | `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99) |
-| [T-588](fleet.md) | P2 | M | M8 | feature | open | `pod-actions-results`: the CacheService and the replacement of an artifact on a rerun (PodUtils/podrunner#99) |
+| [T-587](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99) |
+| [T-588](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-results`: the CacheService and the replacement of an artifact on a rerun (PodUtils/podrunner#99) |
 | [T-589](relay.md) | P2 | S | M2 | feature | open | `pod-netstack`: `bind_udp` with port 0 takes an ephemeral port (PodUtils/podnet#552) |
 | [T-590](podvm.md) | P1 | M | M7 | feature | open | `pod-guest`: `fetch::store` resumes a download by Range, checks the size and the sha256, and has a ceiling for each entry (PodUtils/podvm#350, item 1) |
 | [T-591](podvm.md) | P1 | M | M7 | feature | open | `pod-udf`: a new crate that reads UDF and gives the extent of a file in an ISO (PodUtils/podvm#350, item 2) |
@@ -530,3 +530,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-597](podvm.md) | P2 | S | M6 | defect | done | `pod-extract`: the umask of the process changes the modes of the tree, and the sidecar does not record it |
 | [T-598](podvm.md) | P1 | S | M6 | defect | open | `pod-extract`: each directory has the mode of the image after the last layer, and a directory entry replaces a non-directory of an earlier layer (PodUtils/podvm#354) |
 | [T-599](podvm.md) | P2 | S | M6 | defect | open | `pod-extract`: the `./` member of an archive is not counted as an entry that the crate could not make (PodUtils/podvm#352) |
+| [T-600](fleet.md) | P3 | S | M8 | defect | done | `pod-actions-results`: an upload directory of a crashed run stays under `.pending` of the cache |

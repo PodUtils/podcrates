@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-results/src/cache/blob.rs b/crates/pod-actions-results/src/cache/blob.rs
+--- a/crates/pod-actions-results/src/cache/blob.rs
++++ b/crates/pod-actions-results/src/cache/blob.rs
+@@ -64,7 +64,7 @@
+         let Ok(mut f) = File::open(self.dir_of(&e).join("blob")) else { return text(404, Vec::new()) };
+         let Ok(len) = f.metadata().map(|m| m.len()) else { return text(404, Vec::new()) };
+         let ranges = vec![("Accept-Ranges", "bytes".to_string())];
+-        let Some(h) = header else {
++        let Some(h) = header.filter(|_| false) else {
+             return Answer { status: 200, content_type: CONTENT_BLOB, headers: ranges, body: Payload::File(f, len) };
+         };
+         match range(h, len) {

@@ -59,7 +59,14 @@ impl ArtifactStore {
         let Some(at) = self.at(name) else { return bad_name(name) };
         let mut st = self.lock();
         if self.meta(name).is_some() {
-            return exists(name);
+            if !self.replace {
+                return exists(name);
+            }
+            // The directory of the name holds its uploads too: the loop
+            // below drops their records.
+            if let Err(e) = fs::remove_dir_all(&at) {
+                return twirp(500, "internal", e.to_string());
+            }
         }
         // A new upload of a name drops the earlier one that was not
         // finalized, with its blocks.

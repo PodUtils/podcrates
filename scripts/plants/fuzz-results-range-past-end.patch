@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-results/src/cache/blob.rs b/crates/pod-actions-results/src/cache/blob.rs
+--- a/crates/pod-actions-results/src/cache/blob.rs
++++ b/crates/pod-actions-results/src/cache/blob.rs
+@@ -74,7 +74,7 @@
+                 }
+                 let mut headers = ranges;
+                 headers.push(("Content-Range", format!("bytes {a}-{b}/{len}")));
+-                Answer { status: 206, content_type: CONTENT_BLOB, headers, body: Payload::File(f, b - a + 1) }
++                Answer { status: 206, content_type: CONTENT_BLOB, headers, body: Payload::File(f, b - a + 2) }
+             }
+             None => {
+                 let mut a = text(416, Vec::new());

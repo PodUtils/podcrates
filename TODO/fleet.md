@@ -2452,7 +2452,7 @@ python3 -I scripts/check-design-paths.py
 **Milestone:** M8
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2472,6 +2472,10 @@ A feature `fuzzing` that gives `query`, `block_list` and `backend_ids`, and a ta
 cargo test --manifest-path fuzz/Cargo.toml --lib
 ```
 
+## Done
+
+2026-11-14. The commit that names T-566. The feature `fuzzing` of `pod-actions-results` gives `fuzzing::{query, block_list, range}` (call C432), and it is in ALLOWED of `scripts/check-probe.py`. The target `actions_results` (`fuzz/src/targets/results.rs`, `fuzz/fuzz_targets/actions_results.rs`) reads the four parsers, then a script of up to 24 requests to an `ArtifactStore` and a `CacheStore` with a fixed random source in a scratch directory (call C433). Its 4 seeds (`fuzz/seeds/actions_results/`): an artifact in blocks with each call, a cache entry with three ranges, names that are paths with other refusals, and a runtime token with a block list. `fuzz/README.md` lists it; the seeds test (`each_target_has_a_binary_and_seeds`) and `each_target_survives_mutations` take it from `TARGETS`. `cargo test --manifest-path fuzz/Cargo.toml --lib`: 13 passed, 4 ignored; clippy of the fuzz library with `-D warnings`: clean. Plants, each caught by hand on the mutations of the seeds: `fuzz-results-range-past-end` and `fuzz-results-download-past-end` (`12 bytes at 0 of 11`: the seeds reach the download past the signature and the finalize).
+
 # T-587: `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99)
 
 **Source:** PodUtils/podrunner#99 (COORD-039 of podrunner; PodUtils/podrunner@T-130, PodUtils/podrunner@T-133).
@@ -2479,7 +2483,7 @@ cargo test --manifest-path fuzz/Cargo.toml --lib
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2499,6 +2503,15 @@ Import the changes of the three files at podrunner's commit (`scripts/check-sour
 cargo test -p pod-actions-store --all-features
 ```
 
+## Done
+
+2026-11-14. The commit that names T-587: podrunner's additions at `872b43f` (`SOURCES`: 6 files, 0 changes).
+
+- `crates/pod-actions-store`: `Lock::images` and the lines `docker://NAME:TAG sha256:HEX`; `store::{checkout_target, workflow_trees, add_trees}`; `HEAD` in `Git::resolve`; the module `images` (`ImageSource`, `by_tag`, `workflow_images`, `resolve`); `Error::{Checkout, Tree, ImageExpression, Registry, ImageMoved, ImageNotLocked}`, `CheckoutFault`, `LineFault::ImageForm` (calls C376 to C378). `images::PodvmPull` stays in podrunner. A lock line of an image must be in the form of `by_tag`, and a digest of a source must be `sha256:HEX` (C378). The static probe calls `workflow_images` and reads back a lock with an image line.
+- `cargo test -p pod-actions-store --all-features`: 18 unit tests (podrunner's 3 new tests with their names: `a_checkout_of_another_repository_is_a_tree_to_pin`, `the_images_of_a_workflow_that_a_tag_names`, `a_tag_is_pinned_by_the_lock_and_a_moved_tag_fails_by_name`; and `each_fault_of_a_checkout_is_typed_and_a_tree_keeps_the_rules_of_the_lock`, `an_image_is_named_by_tag_and_the_lock_reads_its_pins_back`), 4 tests of `Git` (`git_resolves_head_to_the_default_branch` is new), 1 doc test; passed.
+- Plants, each caught by hand: `actions-store-lock-images-dropped` (`an image line: `), `actions-store-checkout-expression-taken` (`Expression`), `actions-store-git-head-unresolved` (`HEAD is the default branch`), `actions-store-image-moved-taken` (`a moved tag fails`), `actions-store-image-digest-unchecked` (`no digest is refused`). The patch of `actions-store-lock-unsorted` is made again for the new `render_with`; it is caught (`sorted: `). `sh scripts/plant-each.sh --apply`: 0 stale.
+- clippy of the crate and of `static-probe`, rustfmt and `cargo doc` with `-D warnings`: clean; `check-size.py`: 0 faults; `check-probe.py`: 40 crates, 0 faults; `check-design-paths.py`: ok; `check-sources.py pod-actions-store`: 6 files, 0 changes at `872b43f`.
+
 # T-588: `pod-actions-results`: the CacheService and the replacement of an artifact on a rerun (PodUtils/podrunner#99)
 
 **Source:** PodUtils/podrunner#99 (COORD-039 of podrunner; PodUtils/podrunner@T-120, PodUtils/podrunner@T-125, PodUtils/podrunner@T-135).
@@ -2506,7 +2519,7 @@ cargo test -p pod-actions-store --all-features
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2525,6 +2538,48 @@ Import `cache.rs` as a module of the crate and `replacing` into `ArtifactStore`,
 ```sh
 cargo test -p pod-actions-results --all-features
 ```
+
+## Done
+
+2026-11-14. The commit that names T-588: podrunner's additions at `872b43f` (`SOURCES`: 4 files, 0 changes).
+
+- `crates/pod-actions-results`: `ArtifactStore::replacing`; the module `cache` with `CacheStore` (`new`, `with_entropy`, `with_scopes`, `answer`, `route`, `entries`, `dir`), `cache::{SERVICE, BLOBS, LIMIT, Routed}`; the field `Answer::headers`, and `Payload::File` at the first byte to send (calls C379 to C382). The digest of `ListArtifacts` stays a plain string (`results-digest-wrapped` is caught). The fixes against the source: a signature of the `Entropy` compared in constant time, the limits of a block id, the reads in parts, the limit over the uploads that are not finalized, a decimal random entry id, an order of the entries with no tie, the digest of `[scope, key, version]` as JSON, a record only in its own directory (C380 to C382). The static probe calls `CreateCacheEntry`.
+- `cargo test -p pod-actions-results --all-features`: 11 unit tests (the 5 tests of the artifacts and the 6 tests of the cache of podrunner, each with its name; the two sleeps of 1.1 s are gone), 15 tests of `tests/store.rs` (`a_rerun_replaces_an_artifact_of_the_same_name` is new), 6 tests of `tests/cache.rs` (new); passed.
+- Plants, each caught by hand: `results-replace-ignored` (`already_exists`), `results-cache-scope-ignored`, `results-cache-range-whole` and `results-cache-no-eviction` (their tests of podrunner fail), `results-cache-entry-id-fixed` (`two runs over one store give two ids`), `results-cache-no-limit` (`the blocks of an upload hold the limit`), `results-cache-names-joined` (`the key and the version are not joined`), `results-cache-record-anywhere` (`the copy names another directory`); `results-digest-wrapped` and `results-sig-length-only` are still caught. `sh scripts/plant-each.sh --apply`: 0 stale.
+- clippy of the crate and of `static-probe`, rustfmt and `cargo doc` with `-D warnings`: clean; `check-size.py`: 0 faults; `check-sources.py pod-actions-results`: 4 files, 0 changes at `872b43f`. T-566 (the fuzz target of the crate) is open: no fuzz target to change.
+
+# T-600: `pod-actions-results`: an upload directory of a crashed run stays under `.pending` of the cache
+
+**Source:** T-588 (a finding of its work).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The cache store of `pod-actions-results` stays across runs. Each upload that is not finalized has a directory `DIR/.pending/RANDOM/` with its blocks and its blob. A run that crashes, or a client that never finalizes, leaves that directory, and no later store removes it: the disk use grows with no bound. A store cannot remove each directory of `.pending` when it opens, because two stores (two runs) can share one directory, and the other store can have an upload in progress.
+
+## Premise
+
+- Read: `crates/pod-actions-results/src/cache.rs`, `src/cache/service.rs`, `src/cache/blob.rs` after T-588.
+- Not measured: how long a real upload of `actions/cache@v4` takes; a large cache of 10 GB in blocks of 8 MiB takes minutes, not hours.
+
+## Approach
+
+`CacheStore::sweep(now)` removes each directory of `.pending` that the store does not hold and whose newest time of change (the directory, its `blocks` and its `blob`) is older than `PENDING_AGE` (one day) before `now`. `CacheStore::new` and `with_entropy` call it with the time of the system. A test gives `sweep` a time in the future, and, on Unix, sets the time of a directory back to prove the sweep of `new`. A plant takes the age away.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-results --all-features --test cache
+sh scripts/plant-each.sh results-cache-pending-kept
+```
+
+## Done
+
+2026-11-14. The commit that names T-600. `cache::PENDING_AGE` (one day) and `CacheStore::sweep(now)`: it removes each upload of `DIR/.pending/` that the store does not hold and whose directory, `blocks` and `blob` did not change for `PENDING_AGE`; `new` and `with_entropy` call it with the time of the system (call C431). `cargo test -p pod-actions-results --all-features`: 11 unit tests, 15 tests of `tests/store.rs`, 8 tests of `tests/cache.rs` (`an_upload_that_no_run_finalizes_goes_after_a_day` and, on Unix, `a_new_store_removes_the_stale_uploads_of_a_crashed_run` are new); passed. The plant `results-cache-pending-kept` is caught by hand (`a stale upload is removed`); `sh scripts/plant-each.sh --apply`: 0 stale. clippy of the crate, rustfmt and `cargo doc` with `-D warnings`: clean.
 
 # T-572: `pod-actions-workflow`: the filters of `on:` (types, branches, tags, paths and their -ignore forms) (PodUtils/podrunner#97)
 

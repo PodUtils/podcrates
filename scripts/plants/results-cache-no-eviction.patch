@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-results/src/cache.rs b/crates/pod-actions-results/src/cache.rs
+--- a/crates/pod-actions-results/src/cache.rs
++++ b/crates/pod-actions-results/src/cache.rs
+@@ -226,7 +226,7 @@
+     fn evict(&self) {
+         let mut entries = self.entries();
+         let mut total: u64 = entries.iter().filter_map(|e| e["size"].as_u64()).sum();
+-        while total > self.limit {
++        while total > self.limit && total == 0 {
+             let Some(old) = entries.pop() else { break };
+             let _ = fs::remove_dir_all(self.dir_of(&old));
+             total = total.saturating_sub(old["size"].as_u64().unwrap_or(0));

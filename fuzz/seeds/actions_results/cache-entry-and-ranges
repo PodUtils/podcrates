@@ -1,0 +1,20 @@
+POST /twirp/github.actions.results.api.v1.CacheService/CreateCacheEntry
+{"key":"deps-linux-abc","version":"v1"}
+%%
+PUT /_cache/upload/1?sig=11111111111111111111111111111111
+0123456789
+%%
+POST /twirp/github.actions.results.api.v1.CacheService/FinalizeCacheEntryUpload
+{"key":"deps-linux-abc","version":"v1","size_bytes":"10"}
+%%
+POST /twirp/github.actions.results.api.v1.CacheService/GetCacheEntryDownloadURL
+{"key":"deps-linux-x","restore_keys":["deps-linux-"],"version":"v1"}
+%%
+GET /_cache/download/1229782938247303441?sig=11111111111111111111111111111111 bytes=2-5
+
+%%
+GET /_cache/download/1229782938247303441?sig=11111111111111111111111111111111 bytes=-3
+
+%%
+GET /_cache/download/1229782938247303441?sig=11111111111111111111111111111111 bytes=40-
+

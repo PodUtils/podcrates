@@ -12,8 +12,22 @@ use crate::store::Mode;
 pub enum LineFault {
     /// The line is not `OWNER/REPO@REF COMMIT sha256:HEX`.
     Form,
-    /// The reference is on an earlier line too.
+    /// The line of an image is not `docker://NAME:TAG sha256:HEX`.
+    ImageForm,
+    /// The reference or the image is on an earlier line too.
     Again(String),
+}
+
+/// What is wrong with a field of `with:` of a checkout of another
+/// repository.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CheckoutFault {
+    /// An expression: the host resolves each tree before the first job.
+    Expression,
+    /// Not a string.
+    NotString,
+    /// `repository` is not `OWNER/REPO`.
+    NotRepository,
 }
 
 /// A failure of this crate.
@@ -45,6 +59,21 @@ pub enum Error {
     NotStored { key: String, commit: String },
     /// A tarball whose digest is not the digest of the lock.
     Digest { key: String, commit: String, lock: String, digest: String, pinned: String },
+    /// A field (`repository` or `ref`) of `with:` of a checkout of another
+    /// repository, with its value.
+    Checkout { field: &'static str, value: String, fault: CheckoutFault },
+    /// A tree of a checkout that is not `OWNER/REPO@REF`.
+    Tree { tree: String },
+    /// An image of a workflow that is an expression, with its line.
+    ImageExpression { image: String, line: u32 },
+    /// The source of images did not pull an image, or did not give a
+    /// digest `sha256:HEX`.
+    Registry { image: String, reason: String },
+    /// An image tag that names another digest than the lock.
+    ImageMoved { image: String, lock: String, pinned: String, now: String },
+    /// An image that the lock does not have, in a mode that refuses a
+    /// change of the lock.
+    ImageNotLocked { image: String, lock: String, mode: Mode },
 }
 
 impl Error {
@@ -57,6 +86,7 @@ impl fmt::Display for LineFault {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             LineFault::Form => f.write_str("not `OWNER/REPO@REF COMMIT sha256:HEX`"),
+            LineFault::ImageForm => f.write_str("not `docker://NAME:TAG sha256:HEX`"),
             LineFault::Again(key) => write!(f, "`{key}` again"),
         }
     }
@@ -88,6 +118,27 @@ impl fmt::Display for Error {
             }
             Error::Digest { key, commit, lock, digest, pinned } => {
                 write!(f, "the tarball of `{key}` ({commit}) has {digest}, but {lock} has {pinned}")
+            }
+            Error::Checkout { field, value, fault: CheckoutFault::Expression } => {
+                write!(f, "the `{field}` of a checkout of another repository must be plain, not {value:?}")
+            }
+            Error::Checkout { field, fault: CheckoutFault::NotString, .. } => {
+                write!(f, "the `{field}` of a checkout must be a string")
+            }
+            Error::Checkout { field, value, fault: CheckoutFault::NotRepository } => {
+                write!(f, "the `{field}` of a checkout is not OWNER/REPO: {value:?}")
+            }
+            Error::Tree { tree } => write!(f, "the checkout `{tree}` is not OWNER/REPO@REF"),
+            Error::ImageExpression { image, line } => {
+                write!(f, "line {line}: the image {image:?} is an expression; name it, or pin it by digest")
+            }
+            Error::Registry { image, reason } => write!(f, "the image `{image}`: {reason}"),
+            Error::ImageMoved { image, lock, pinned, now } => write!(
+                f,
+                "the image `{image}` moved: {lock} has {pinned}, the registry has {now}; remove its line from {lock} to take {now}"
+            ),
+            Error::ImageNotLocked { image, lock, mode } => {
+                write!(f, "the image `{image}` is not in {lock}, and the {mode} mode refuses a change of {lock}")
             }
         }
     }

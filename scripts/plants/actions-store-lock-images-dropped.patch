@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-store/src/lock.rs b/crates/pod-actions-store/src/lock.rs
+--- a/crates/pod-actions-store/src/lock.rs
++++ b/crates/pod-actions-store/src/lock.rs
+@@ -113,7 +113,7 @@
+         for (key, pin) in &self.pins {
+             out.push_str(&format!("{key} {} {}\n", pin.commit, pin.digest));
+         }
+-        for (image, digest) in &self.images {
++        for (image, digest) in self.images.iter().take(0) {
+             out.push_str(&format!("docker://{image} {digest}\n"));
+         }
+         out

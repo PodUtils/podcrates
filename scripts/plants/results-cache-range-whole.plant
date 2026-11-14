@@ -1,0 +1,7 @@
+# A download of the cache gives the whole entry for a Range: the concurrent
+# download of the client joins wrong bytes (T-588, PodUtils/podrunner#99).
+ENTRY=T-588
+GROUP=actions
+EXPECT='cache::tests::a_download_takes_a_range stdout'
+RUN='cargo test -p pod-actions-results --all-features --lib cache::'
+LIMIT=900

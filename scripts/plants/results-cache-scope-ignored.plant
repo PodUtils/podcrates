@@ -1,0 +1,7 @@
+# A lookup of the cache reads the scope of the ref alone: a branch does not
+# read the entries of the default branch (T-588, PodUtils/podrunner#99).
+ENTRY=T-588
+GROUP=actions
+EXPECT='cache::tests::a_lookup_reads_the_scope_of_the_ref_then_that_of_the_default_branch stdout'
+RUN='cargo test -p pod-actions-results --all-features --lib cache::'
+LIMIT=900
