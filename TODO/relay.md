@@ -6807,7 +6807,7 @@ podssh's role serves the one form over HTTP/2 (PodUtils/podssh@T-622).
 **Milestone:** M2
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -6847,3 +6847,21 @@ loopback. The plant `wg-psk-step-skipped`. Call C314.
 cargo test -p pod-wg --all-features
 sh scripts/plant-each.sh wg-psk-step-skipped
 ```
+
+## Done
+
+2026-11-14, commit 2caef52. `Keys::preshared: Option<[u8; 32]>` (`None`:
+the zero key); `Initiation::finish` mixes it in at the psk step of the
+response; the stand-in's `respond_preshared` and `start_preshared` (call
+C314). `cargo test -p pod-wg --all-features`: 22 passed, with
+`handshake::tests::a_handshake_with_a_preshared_key` (both sides pass; one
+side only, either side, and two different keys fail as
+`Error::ResponseNotAuthentic`; `Debug` of `Keys` is `Keys { .. }`),
+`handshake::tests::the_vector_of_a_handshake_with_a_preshared_key` (the
+initiation, the response and both session keys on fixed values, as an
+independent Python program of the Noise steps computed them; the empty
+payload and the send key of the zero key from the same program) and
+`standin::tests::the_standin_takes_a_preshared_key` (the loopback). The
+plant `wg-psk-step-skipped` (the zero key in `finish`) fails both
+handshake tests (checked by hand: 2 failed). `cargo clippy -p pod-wg -p
+pod-warp --all-targets --all-features -- -D warnings`: clean.
