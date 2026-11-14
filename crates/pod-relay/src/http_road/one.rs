@@ -8,6 +8,14 @@
 //! to the target. The answer's last chunk is the target's end; an answer
 //! that ends with no last chunk is a cut, never a clean end. The drop of the
 //! connection ends the session at the role, so the form needs no `close`.
+//!
+//! Where the road's dial offers ALPN ([`super::client::Road::dial_alpn`])
+//! and the host chooses `h2`, the form is one stream of HTTP/2
+//! (`one_h2.rs`): its DATA up is the body, its DATA down the answer,
+//! the request's `END_STREAM` the caller's end and the answer's the
+//! target's; a reset of the stream is a cut. A role that asks for HTTP/1.1
+//! on that stream (`HTTP_1_1_REQUIRED`) gets the form again on a connection
+//! of HTTP/1.1.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -19,19 +27,19 @@ use tokio::sync::oneshot;
 
 use super::answer::{self, Body, Framing};
 use super::client::{End, Ended, LIMIT, Opened, Road, gather};
-use super::conn::{BoxIo, request};
-use super::{Form, MARK};
+use super::conn::{BoxIo, H2, request};
+use super::{Form, MARK, one_h2};
 
 /// How long the mark may take after the request's head went. The role
 /// sends it before it reads the body, so only a hop that holds the request
 /// keeps it longer.
 pub const MARK_WAIT: Duration = Duration::from_secs(2);
 /// The most bytes of the caller in one chunk up.
-const CHUNK: usize = 64 * 1024;
+pub(super) const CHUNK: usize = 64 * 1024;
 /// The pipe in memory, each way.
-const PIPE: usize = 256 * 1024;
+pub(super) const PIPE: usize = 256 * 1024;
 /// The longest body of a refusal that is read.
-const REFUSAL_MAX: usize = 16 * 1024;
+pub(super) const REFUSAL_MAX: usize = 16 * 1024;
 /// The body's last chunk, with no trailer.
 const LAST: &[u8] = b"0\r\n\r\n";
 
@@ -69,17 +77,60 @@ enum Heard {
 
 /// The statuses of a role or a hop that does not serve the form, which the
 /// split form may pass.
-fn not_served(status: u16) -> bool {
+pub(super) fn not_served(status: u16) -> bool {
     matches!(status, 400 | 404 | 405 | 411 | 413 | 501 | 505)
 }
 
+/// The words of a dial that took too long.
+fn dial_late() -> Failed {
+    Failed::Stop(ConnectError::Timeout { step: "the connection to the relay host", after: LIMIT })
+}
+
+/// The words of a refusal whose body is `body`, as the open of the split
+/// form says them: the body on one line, else the reason of the status.
+pub(super) fn words(body: &[u8], reason: &str) -> String {
+    let words: String = pod_core::text::one_line(&String::from_utf8_lossy(body)).chars().take(200).collect();
+    if words.is_empty() { reason.to_string() } else { words }
+}
+
+/// A refusal of the form: one that the split form may pass, or the role's
+/// refusal, which another form gets too.
+pub(super) fn refused(status: u16, body: String) -> Failed {
+    if not_served(status) {
+        Failed::NotCarried(format!("HTTP {status} {body}"))
+    } else {
+        Failed::Stop(ConnectError::Refused { status, body })
+    }
+}
+
+/// No mark came within [`MARK_WAIT`].
+pub(super) fn no_mark() -> Failed {
+    let secs = MARK_WAIT.as_secs();
+    Failed::NotCarried(format!(
+        "no mark of the relay in {secs} s: a hop on the way holds the request's body to its end"
+    ))
+}
+
 /// Open the form at `path` on `road` with `token`: the session, once the
-/// mark came within [`MARK_WAIT`].
+/// mark came within [`MARK_WAIT`]. One stream of HTTP/2 where the road's
+/// dial offers ALPN and the host chooses `h2`; else HTTP/1.1.
 pub(super) async fn open(road: &Road, path: &str, token: &str) -> Result<Opened, Failed> {
+    if let Some(dial) = &road.dial_alpn {
+        let dialed = tokio::time::timeout(LIMIT, dial()).await.map_err(|_| dial_late())?.map_err(Failed::Stop)?;
+        if dialed.alpn.as_deref() != Some(H2) {
+            return on_http1(road, path, token, dialed.io).await;
+        }
+        // `None`: the role asks for HTTP/1.1 on this stream.
+        if let Some(opened) = one_h2::open(road, path, token, dialed.io).await {
+            return opened;
+        }
+    }
     let dialed = tokio::time::timeout(LIMIT, (road.dial)()).await;
-    let mut io = dialed
-        .map_err(|_| Failed::Stop(ConnectError::Timeout { step: "the connection to the relay host", after: LIMIT }))?
-        .map_err(Failed::Stop)?;
+    on_http1(road, path, token, dialed.map_err(|_| dial_late())?.map_err(Failed::Stop)?).await
+}
+
+/// The form on `io`, a connection of HTTP/1.1.
+async fn on_http1(road: &Road, path: &str, token: &str, mut io: BoxIo) -> Result<Opened, Failed> {
     let headers = [("X-Relay-Token", token), ("Transfer-Encoding", "chunked")];
     let head = request("POST", &road.user_agent, &road.authority, path, &headers, None);
     let sent = tokio::time::timeout(LIMIT, async {
@@ -101,10 +152,7 @@ pub(super) async fn open(road: &Road, path: &str, token: &str) -> Result<Opened,
         Ok(Err(_)) => Heard::NotCarried("the answer ended before its mark".into()),
         Err(_) => {
             down.abort();
-            let secs = MARK_WAIT.as_secs();
-            return Err(Failed::NotCarried(format!(
-                "no mark of the relay in {secs} s: a hop on the way holds the request's body to its end"
-            )));
+            return Err(no_mark());
         }
     };
     match heard {
@@ -112,13 +160,9 @@ pub(super) async fn open(road: &Road, path: &str, token: &str) -> Result<Opened,
             tokio::spawn(up(write, from_app, ended.clone()));
             Ok(Opened { stream: app, ended, form: Form::One })
         }
-        Heard::Refused { status, body } if not_served(status) => {
-            down.abort();
-            Err(Failed::NotCarried(format!("HTTP {status} {body}")))
-        }
         Heard::Refused { status, body } => {
             down.abort();
-            Err(Failed::Stop(ConnectError::Refused { status, body }))
+            Err(refused(status, body))
         }
         Heard::NotCarried(why) => {
             down.abort();
@@ -145,12 +189,8 @@ async fn down(
     };
     let mut body = Body::new(&mut read, &mut buf, head.framing);
     if head.status != 200 {
-        // As the open of the split form says a refusal: its words, else the reason.
         let read = tokio::time::timeout(LIMIT, body.all(REFUSAL_MAX)).await;
-        let words =
-            pod_core::text::one_line(&String::from_utf8_lossy(&read.ok().and_then(Result::ok).unwrap_or_default()));
-        let words: String = words.chars().take(200).collect();
-        let body = if words.is_empty() { head.reason.clone() } else { words };
+        let body = words(&read.ok().and_then(Result::ok).unwrap_or_default(), &head.reason);
         let _ = tell.send(Heard::Refused { status: head.status, body });
         return;
     }

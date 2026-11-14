@@ -2333,9 +2333,13 @@ name = "pod-relay"
 version = "0.44.0"
 dependencies = [
  "base64 0.23.1",
+ "bytes",
  "ed25519-dalek 2.2.0",
+ "h2",
  "hmac 0.13.0",
+ "http",
  "noq",
+ "p256",
  "pod-core",
  "pod-dns",
  "pod-e2e",
@@ -2351,10 +2355,12 @@ dependencies = [
  "proptest",
  "rand 0.10.3",
  "rustls",
+ "rustls-pki-types",
  "serde",
  "serde_json",
  "sha2 0.11.1",
  "tokio",
+ "tokio-rustls",
  "tracing",
  "zeroize",
 ]
@@ -2438,6 +2444,7 @@ name = "pod-term"
 version = "0.44.0"
 dependencies = [
  "anstyle-parse",
+ "libc",
  "pod-testkit",
  "proptest",
  "unicode-width",

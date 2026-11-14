@@ -1,0 +1,8 @@
+# A plant of T-560 (the one-POST form of the HTTP road over HTTP/2 in
+# pod-relay): a reset that asks for HTTP/1.1 is a way that does not carry the
+# form, so the client takes the split form; the test of the role that asks
+# for HTTP/1.1 must fail.
+ENTRY=T-560
+GROUP=relay
+EXPECT='test a_role_that_asks_for_http1_gets_the_form_again_on_http1 \.\.\. FAILED'
+RUN='cargo test -p pod-relay --all-features --test http_road_one_h2 -- a_role_that_asks_for_http1_gets_the_form_again_on_http1'

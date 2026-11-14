@@ -31,7 +31,7 @@ handshake and what the layer defends against.
 | `link` | `Link` (a session past its handshake, record by record), `Event`, `LinkError`, `LinkParts` |
 | `client`, `far` | the two ends over tokio streams: `client::start`, `Client`, `Outcome`, `Rewound` (`Rewound::new(first, link)`: the link with bytes that a router read given back first); `far::accept`, `accept_with_room`, `serve`, `serve_admitted`, `Accepted`, `FarError` |
 | `pump` | one link of a session: `run`, `Carry`, `Watch`, `End`, `Ended`, `PING_EVERY`, `DEAD_AFTER` |
-| `resume`, `beside`, `race` | the client's session across links (`resume::run`, `Next`, `Note`, `RESUME_DEADLINE`, `MOVE_BYTES`, `MOVE_AGE`); the spare link; the race of roads to one far end (`race`, `in_turn`, `each_timed`) |
+| `resume`, `beside`, `race` | the client's session across links (`resume::run`, `Next`, `Note`, `RESUME_DEADLINE`, `MOVE_BYTES`, `MOVE_AGE`); the spare link (`spare_after`, `SpareWait`, `Position`, `SPARE_AFTER`, `SPARE_SOONEST`, `SPARE_QUIET`, `SPARE_EVERY`); the race of roads to one far end (`race`, `in_turn`, `each_timed`) |
 | `keep`, `budget`, `sessions` | `Keeper` (the far end's sessions across links: `new`, `with_tell`, `census`, `admit`, `run_new`, `run_resumed`, `hand_over`, `hand_over_with`, `take_over`); `Census`, `Told`, `Tell`, `refusal`, `filling`, `holders` |
 | `deadline`, `hearing`, `round_trip`, `once`, `half_close` | the deadline of each end, what the client heard, the round trip of a link, `once.v1`, `end.v1` |
 | `handover` | `LayerState::{encode, decode}`, `Handed`, `Moved`, `Movable` (for `tokio::net::TcpStream`), `Moving`, `scope`, `current` |
@@ -128,7 +128,10 @@ lines through `Keeper::with_tell` to podnet's events.
 files of podssh on duplex pipes and the loopback (a stand-in relay,
 targets on `127.0.0.1:0`, the paused clock of tokio for the heartbeat and
 the deadlines), and `tests/session_budget.rs` (what a closing session and
-a closed one hold of the budget). The plants of podssh's layer are
+a closed one hold of the budget), and `tests/session_spare_backoff.rs` (a
+spare on a road that answers the handshake at once and holds each other
+byte for 5 s or 13 s: the wait of the next spare doubles until a link
+carries the bytes). The plants of podssh's layer are
 `scripts/plants/session-*` (group `session`). The fuzz targets `session_record`, `session_handover` and
 `udp_frame` read the records, the state of a handover and the UDP framing.
 

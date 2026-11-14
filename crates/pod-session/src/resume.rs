@@ -174,6 +174,7 @@ where
     let mut carry = Carry::new(settings.link(&established)).with_hearing(hearing.clone());
     let moves = lock(&carry.state).moves();
     let heartbeat = lock(&carry.state).heartbeat();
+    let mut spare_wait = beside::SpareWait::default();
     loop {
         let watch = Watch::moving_at(if moves { settings.move_bytes } else { 0 }).within(settings.window);
         let started = Instant::now();
@@ -193,6 +194,7 @@ where
                 heartbeat,
                 move_at: started + settings.move_age,
                 closing,
+                wait: spare_wait,
                 watch: &watch,
                 state: &state,
                 hearing: &hearing,
@@ -247,6 +249,7 @@ where
                 Ok(Ok((new, new_decoder, resent))) => {
                     // The far end's `ACCEPT` answers each question.
                     hearing.heard();
+                    spare_wait.after(why, &carry.state);
                     note(match why {
                         Beside::Move => Note::Moved { bytes, age: started.elapsed(), resent },
                         Beside::Spare(_) => Note::Resumed { resent, after: lost.elapsed() },

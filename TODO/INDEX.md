@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**492 entries: 127 open, 8 partial, 5 blocked, 352 done.**
+**492 entries: 123 open, 8 partial, 5 blocked, 356 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 3 | 0 | 96 | 111 |
-| P2 | 59 | 2 | 4 | 193 | 258 |
-| P3 | 56 | 3 | 1 | 61 | 121 |
-| **All** | 127 | 8 | 5 | 352 | 492 |
+| P2 | 58 | 2 | 4 | 194 | 258 |
+| P3 | 53 | 3 | 1 | 64 | 121 |
+| **All** | 123 | 8 | 5 | 356 | 492 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -470,7 +470,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-537](upkeep.md) | P2 | S | M5 | defect | done | `services.yml` at `4c2d17c` is red: the tox node `node-3091c6be` gives no TCP relay |
 | [T-538](upkeep.md) | P3 | S | M5 | docs | blocked | The rule of attribution of a comment on GitHub: the documents of podcrates and the practice of its sessions differ |
 | [T-539](transport.md) | P2 | M | M3 | feature | done | `pod-term`: a line discipline that follows a termios state, for the tty of `podssh serve` with no /dev/ptmx (PodUtils/podssh#232) |
-| [T-540](transport.md) | P3 | S | M3 | chore | open | `pod-term`: a test of `termios::Tty` against a pty of the kernel, where one opens |
+| [T-540](transport.md) | P3 | S | M3 | chore | done | `pod-term`: a test of `termios::Tty` against a pty of the kernel, where one opens |
 | [T-541](relay.md) | P1 | S | M2 | defect | done | `pod-link`: the dns and icmp carriers stop at the wrap of the sequence of the ARQ: `dgram_tls` never calls `rekeyed` (PodUtils/podnet#540) |
 | [T-542](relay.md) | P2 | S | M2 | feature | done | `pod-link`: one typed marker for "the peer refused the key of this end" on each carrier (PodUtils/podnet#533) |
 | [T-543](relay.md) | P2 | S | M2 | defect | done | `pod-link`: the dns carrier and the TC bit: each answer keeps to the size of its query, and a cut answer does not stall the link (PodUtils/podnet#533) |
@@ -490,7 +490,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-557](relay.md) | P3 | S | M2 | defect | done | `pod-link`: the listener of the dns, icmp, udp and ws carriers gets no `KeyRefused` when the dialer refuses its key |
 | [T-558](relay.md) | P2 | S | M6 | defect | done | `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open |
 | [T-559](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the client of the HTTP road's one-POST form (PodUtils/podssh#239) |
-| [T-560](relay.md) | P3 | S | M2 | feature | open | `pod-relay`: the one-POST form of the HTTP road over HTTP/2 |
+| [T-560](relay.md) | P3 | S | M2 | feature | done | `pod-relay`: the one-POST form of the HTTP road over HTTP/2 |
 | [T-561](relay.md) | P1 | S | M2 | feature | done | `pod-wg`: the preshared key of a handshake (PodUtils/podnet#547) |
 | [T-562](relay.md) | P2 | M | M2 | feature | done | `pod-wg`: a responder sans I/O for a list of peers (PodUtils/podnet#547) |
 | [T-563](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `b0533d0` is red for podssh: `Route::One` of `pod-relay` breaks a match of its role |
@@ -508,8 +508,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-575](transport.md) | P3 | S | M1 | docs | done | `pod-services`: the README names the scheme `tcp` of an endpoint (PodUtils/podnet#550) |
 | [T-576](fleet.md) | P2 | L | M8 | feature | done | `pod-actions-workflow`: the calls of reusable workflows in `Run` (inputs, secrets, outputs, limits) (PodUtils/podrunner#98) |
 | [T-577](fleet.md) | P3 | S | M8 | feature | done | `pod-actions-workflow`: the `workflows` filter of `workflow_run` |
-| [T-578](fleet.md) | P3 | S | M8 | feature | open | `pod-actions-workflow`: a check of the keys and the filters of `on:`, as GitHub refuses a file |
-| [T-579](relay.md) | P2 | S | M2 | defect | open | `pod-session`: a spare link that moved no byte backs off before the next (PodUtils/podssh#242) |
+| [T-578](fleet.md) | P3 | S | M8 | feature | done | `pod-actions-workflow`: a check of the keys and the filters of `on:`, as GitHub refuses a file |
+| [T-579](relay.md) | P2 | S | M2 | defect | done | `pod-session`: a spare link that moved no byte backs off before the next (PodUtils/podssh#242) |
 | [T-580](podvm.md) | P1 | S | M6 | defect | done | `pod-rootfs`: an image with no CA bundle gets the host bundle when `host_cas` is false (PodUtils/podvm#341) |
 | [T-581](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a file of mode 4755, 2755 or 6755 loses its setuid and setgid bits (PodUtils/podvm#342) |
 | [T-582](podvm.md) | P2 | S | M6 | defect | done | `pod-supervise`: `start` keeps the end fields of the run before, and a `Dead` record keeps its pid (PodUtils/podvm#343) |

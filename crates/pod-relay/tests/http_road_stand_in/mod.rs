@@ -142,6 +142,7 @@ impl StandIn {
         });
         Road {
             dial,
+            dial_alpn: None,
             authority: "relay.test".into(),
             user_agent: "pod-relay/test".into(),
             forms: None,
@@ -161,7 +162,7 @@ impl StandIn {
     }
 
     /// The requests of one connection, until it ends or an answer is dropped.
-    async fn serve(self: Arc<Self>, mut io: DuplexStream) {
+    pub async fn serve(self: Arc<Self>, mut io: DuplexStream) {
         let mut buf = Vec::new();
         while let Some((target, headers, body)) = read_request(&mut io, &mut buf).await {
             if route(target.split('?').next().unwrap_or_default()) == Some(Route::One) {

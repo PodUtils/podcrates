@@ -1,0 +1,7 @@
+# T-579: the wait of a spare does not grow after a spare that moved no byte,
+# so on a road that holds the session's bytes for 5 s each link gets a spare
+# before its bytes come through: the test of the 5 s road must fail.
+ENTRY=T-579
+GROUP=session
+EXPECT='test a_spare_on_a_road_that_holds_each_byte_for_5_s_lets_the_session_move \.\.\. FAILED'
+RUN='cargo test -p pod-session --test session_spare_backoff -- a_spare_on_a_road_that_holds_each_byte_for_5_s'

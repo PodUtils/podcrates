@@ -19,3 +19,8 @@ proptest = { version = "1.11", default-features = false, features = ["std"] }
 # A terminal's parser of another project, for the tests of where a stream of
 # output may start: the state machine of vte.
 anstyle-parse = "1.0.0"
+
+# The pty of the kernel that tests/termios_kernel.rs compares with
+# `termios::Tty`: posix_openpt, tcsetattr, poll.
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+libc = "0.2"

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 492 entries: 127 open, 8 partial, 5 blocked, 352 done.
+`TODO/INDEX.md` holds 492 entries: 123 open, 8 partial, 5 blocked, 356 done.
 
 ## State
 
@@ -73,13 +73,12 @@ podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
 First: `v0.45.0` with the asks on `main` and in the agents' branches
-(#151, #153, PodUtils/podssh#242, PodUtils/podnet#552). T-604 (`pod-rootfs` with the closed modes of the image, before the tag). The Windows guest of podvm (#152): T-595 and T-596; T-601, T-602,
+(#151, #153, PodUtils/podnet#552). T-604 (`pod-rootfs` with the closed modes of the image, before the tag). The Windows guest of podvm (#152): T-595 and T-596; T-601, T-602,
 T-603. Then the link carriers
 of M2 for podnet (item 3c): T-526, T-494, T-500 and T-525. Then the items
 below, in order.
 
-1. **The defects and asks of the consumers:** T-578 (a check of the keys of `on:`); T-540 (a test of the
-   termios mode of `pod-term` against a kernel pty); T-550, T-551 and
+1. **The defects and asks of the consumers:** T-550, T-551 and
    T-554 (Nostr, WebTorrent's trackers and ntfy as meeting points of a
    code, PodUtils/podssh#235, #237); T-489 (a client of
    `pod-devtunnel` with no user token); T-381 (the options of

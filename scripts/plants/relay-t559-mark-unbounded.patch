@@ -1,13 +1,13 @@
 diff --git a/crates/pod-relay/src/http_road/one.rs b/crates/pod-relay/src/http_road/one.rs
-index cc38a56..22dfbcc 100644
+index b15502e..2cf9bb6 100644
 --- a/crates/pod-relay/src/http_road/one.rs
 +++ b/crates/pod-relay/src/http_road/one.rs
-@@ -25,7 +25,7 @@ use super::{Form, MARK};
+@@ -33,7 +33,7 @@ use super::{Form, MARK, one_h2};
  /// How long the mark may take after the request's head went. The role
  /// sends it before it reads the body, so only a hop that holds the request
  /// keeps it longer.
 -pub const MARK_WAIT: Duration = Duration::from_secs(2);
 +pub const MARK_WAIT: Duration = Duration::from_secs(20);
  /// The most bytes of the caller in one chunk up.
- const CHUNK: usize = 64 * 1024;
+ pub(super) const CHUNK: usize = 64 * 1024;
  /// The pipe in memory, each way.

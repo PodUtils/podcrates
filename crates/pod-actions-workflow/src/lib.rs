@@ -7,6 +7,9 @@
 //! [`Workflow::takes`] reads the filters of `on` (`types`, `branches`,
 //! `tags`, `paths` and their `-ignore` forms) and tells whether the
 //! workflow takes an event ([`Trigger`]), as GitHub decides it.
+//! [`Workflow::check`] gives each fault of `on:` that GitHub refuses: an
+//! unknown event, a key that its event does not take, a filter beside its
+//! `-ignore` form.
 //!
 //! The expansion ([`Run`]) evaluates the expressions of the job level with
 //! `pod-actions-expr`: the condition of a job with the results of its needs,
@@ -51,6 +54,7 @@
 //! ```
 
 mod call;
+mod check;
 mod data;
 mod error;
 mod expand;
@@ -65,6 +69,7 @@ mod run;
 pub mod yaml;
 
 pub use call::{Call, CallLimits, Called, Secrets};
+pub use check::event_keys;
 pub use error::{Error, ErrorKind, Warning};
 pub use expand::{Run, plan, plan_with};
 pub use graph::Graph;

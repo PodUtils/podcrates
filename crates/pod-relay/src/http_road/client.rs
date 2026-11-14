@@ -17,7 +17,7 @@ use tokio::time::Instant;
 use zeroize::Zeroizing;
 
 use super::answer::Head;
-use super::conn::{BoxIo, Conn, Dial, Dialing, request};
+use super::conn::{ALPN_OFFER, BoxIo, Conn, Dial, DialAlpn, Dialed, Dialing, DialingAlpn, request};
 use super::one::{self, Learned};
 use super::window::Refusal;
 use super::{DOWN_MAX, Form, Forms, KEY, ONE, OPEN, REFUSE, SESSION, TOTAL, Tuning, WAIT_MAX, is_id, is_key};
@@ -42,7 +42,12 @@ const PAUSE_MAX: Duration = Duration::from_secs(2);
 /// Where the road goes: how to reach the relay host, and its name in `Host`.
 #[derive(Clone)]
 pub struct Road {
+    /// The dial of each form on HTTP/1.1: it offers no ALPN.
     pub dial: Dial,
+    /// The dial of the one-POST form, which offers `h2` and `http/1.1` and
+    /// says which the host chose: one stream of HTTP/2 where it chose `h2`.
+    /// None: the form goes on [`Road::dial`], on HTTP/1.1.
+    pub dial_alpn: Option<DialAlpn>,
     pub authority: String,
     /// The `User-Agent` of each request: the caller's.
     pub user_agent: String,
@@ -60,14 +65,24 @@ impl Road {
     pub fn tls(way: &Way, relay: &Relay, trust: &Trust, limit: Duration) -> Road {
         let (host, port, trust, way) = (relay.host.clone(), relay.port, trust.clone(), way.clone());
         let user_agent = way.user_agent.clone();
+        let (dial_host, dial_trust, dial_way) = (host.clone(), trust.clone(), way.clone());
         let dial: Dial = Arc::new(move || -> Dialing {
-            let (host, trust, way) = (host.clone(), trust.clone(), way.clone());
+            let (host, trust, way) = (dial_host.clone(), dial_trust.clone(), dial_way.clone());
             Box::pin(async move {
                 let (tls, _) = way.open_tls(&host, port, &host, &trust, limit, &[]).await?;
                 Ok(Box::new(tls) as BoxIo)
             })
         });
-        Road { dial, authority: relay.name(), user_agent, forms: None, learned: Arc::default() }
+        let dial_alpn: DialAlpn = Arc::new(move || -> DialingAlpn {
+            let (host, trust, way) = (host.clone(), trust.clone(), way.clone());
+            Box::pin(async move {
+                let (tls, _) = way.open_tls(&host, port, &host, &trust, limit, ALPN_OFFER).await?;
+                let alpn = tls.get_ref().1.alpn_protocol().map(<[u8]>::to_vec);
+                Ok(Dialed { io: Box::new(tls) as BoxIo, alpn })
+            })
+        });
+        let (authority, forms, learned) = (relay.name(), None, Arc::default());
+        Road { dial, dial_alpn: Some(dial_alpn), authority, user_agent, forms, learned }
     }
 
     /// The same road with the forms that the host's `limits.http.forms`

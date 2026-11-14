@@ -1,0 +1,10 @@
+--- a/crates/pod-relay/src/http_road/one_h2.rs
++++ b/crates/pod-relay/src/http_road/one_h2.rs
+@@ -94,7 +94,6 @@ pub(super) async fn open(road: &Road, path: &str, token: &str, io: BoxIo) -> Opt
+ async fn heard(response: ResponseFuture) -> Heard {
+     let response = match response.await {
+         Ok(response) => response,
+-        Err(e) if e.reason() == Some(Reason::HTTP_1_1_REQUIRED) => return Heard::Http1,
+         Err(e) => return Heard::Failed(Failed::NotCarried(format!("the answer of HTTP/2 failed: {e}"))),
+     };
+     let status = response.status();

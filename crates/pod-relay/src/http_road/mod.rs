@@ -50,7 +50,11 @@
 //!   chunks as they come. The body's last chunk is TCP's half-close to the
 //!   target; the answer's last chunk is the target's end; an answer with no
 //!   last chunk is a cut. A hop that holds a body to its end holds the mark
-//!   too, and the client then takes the split form ([`one`]).
+//!   too, and the client then takes the split form ([`one`]). Where TLS
+//!   chose `h2`, the form is one stream of HTTP/2: the same request with
+//!   no `Transfer-Encoding`, its DATA up and the answer's DATA down with no
+//!   chunks; the request's `END_STREAM` is the body's last chunk, the
+//!   answer's is its last chunk, and a reset of the stream is a cut.
 //! - Once the session ended, `410` with `X-Close: CODE REASON`, the close
 //!   codes and reasons of the forward road (`docs/relay.md`): `1000 target
 //!   closed` once the client has each byte of a target that ended, with
@@ -67,6 +71,7 @@ pub mod answer;
 pub mod client;
 pub mod conn;
 pub mod one;
+mod one_h2;
 mod serial;
 mod split;
 pub mod window;

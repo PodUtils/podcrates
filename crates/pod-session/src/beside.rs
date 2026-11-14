@@ -15,6 +15,13 @@
 //! new link at a time, and one spare each 10 s at most. Measured through the
 //! stand-in proxy's `--move` with a fixed 3 s: a resume 3.0 to 3.2 s
 //! after a new address, where the heartbeat alone took 35 s.
+//!
+//! A road that holds the session's bytes for longer than a spare waits
+//! (a third party's tunnel of HTTP) would get a spare on each link, each
+//! before the replayed bytes come through. So the wait doubles after a
+//! spare that took the session when the session moved no byte before the
+//! next silence, up to [`DEAD_AFTER`], and the first byte that moves sets
+//! it back ([`SpareWait`]).
 
 use std::future::Future;
 use std::sync::Mutex;
@@ -29,7 +36,7 @@ use tokio::time::Instant;
 use super::client;
 use super::hearing::Hearing;
 use super::link::Link;
-use super::pump::{End, Ended, Watch};
+use super::pump::{DEAD_AFTER, End, Ended, Watch};
 use super::resume::{Greeted, Next, Note, greeted};
 
 /// The most that a question of this side waits, with nothing from the far
@@ -73,6 +80,8 @@ pub(super) struct Plan<'a> {
     pub move_at: Instant,
     /// Whether the session was closing already: no link opens beside it.
     pub closing: bool,
+    /// The wait of a spare after the spares that took the session.
+    pub wait: SpareWait,
     pub watch: &'a Watch,
     pub state: &'a Mutex<Link>,
     pub hearing: &'a Hearing,
@@ -101,7 +110,7 @@ where
             // The pump tells when the link passes its bytes.
             _ = plan.watch.due.notified(), if moves => Beside::Move,
             () = tokio::time::sleep_until(plan.move_at), if moves => Beside::Move,
-            quiet = silence(plan.hearing, plan.heartbeat, last_spare), if plan.spares => Beside::Spare(quiet),
+            quiet = silence(&plan, last_spare), if plan.spares => Beside::Spare(quiet),
             else => std::future::pending::<Beside>().await,
         };
         // A session whose application ended is closing: its `CLOSE` goes on
@@ -189,18 +198,70 @@ pub fn spare_after(round_trip: Option<Duration>) -> Duration {
     }
 }
 
+/// Where the session is: the bytes that this side received, and the bytes
+/// of this side that the far end acknowledged. Both only grow.
+pub type Position = (u64, u64);
+
+/// The position of the session that `state` carries.
+pub(super) fn position(state: &Mutex<Link>) -> Position {
+    let link = lock(state);
+    (link.received(), link.acknowledged())
+}
+
+/// The wait of a spare across the links of a session. A spare that took the
+/// session at a position that the session has not left since doubles the
+/// wait; the first byte that moves the session sets it back.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct SpareWait {
+    /// Where the last spare took the session, with no move of it since the
+    /// spare before.
+    taken_at: Option<Position>,
+    /// How many times the wait doubles at that position.
+    doubled: u32,
+}
+
+impl SpareWait {
+    /// A spare took the session at `at`: the wait doubles once more when the
+    /// spare before took it at the same position, else once.
+    pub fn took(&mut self, at: Position) {
+        self.doubled = if self.taken_at == Some(at) { self.doubled.saturating_add(1) } else { 1 };
+        self.taken_at = Some(at);
+    }
+
+    /// A new link took the session, for `why`: a spare counts.
+    pub(super) fn after(&mut self, why: Beside, state: &Mutex<Link>) {
+        if let Beside::Spare(_) = why {
+            self.took(position(state));
+        }
+    }
+
+    /// How long a question waits before a spare opens, at `now`, on a link
+    /// whose own wait is `base`: `base` doubled for each spare that took the
+    /// session at `now` with no move, [`DEAD_AFTER`] at most; `base` once
+    /// the session moved.
+    pub fn wait(&self, base: Duration, now: Position) -> Duration {
+        if self.taken_at != Some(now) {
+            return base;
+        }
+        let times = 1u32.checked_shl(self.doubled).unwrap_or(u32::MAX);
+        base.saturating_mul(times).min(DEAD_AFTER).max(base)
+    }
+}
+
 /// Until the link is silent: a question waited [`spare_after`] the link's
-/// round trip, or, with a heartbeat, nothing came for [`SPARE_QUIET`]; and
-/// [`SPARE_EVERY`] after the last spare. How long nothing came.
-async fn silence(hearing: &Hearing, heartbeat: bool, last_spare: Option<Instant>) -> Duration {
+/// round trip, or, with a heartbeat, nothing came for [`SPARE_QUIET`]; each
+/// as long at least as the [`SpareWait`] of the session; and [`SPARE_EVERY`]
+/// after the last spare. How long nothing came.
+async fn silence(plan: &Plan<'_>, last_spare: Option<Instant>) -> Duration {
+    let hearing = plan.hearing;
     if let Some(last) = last_spare {
         tokio::time::sleep_until(last + SPARE_EVERY).await;
     }
     loop {
         let now = Instant::now();
         let quiet = hearing.quiet(now);
-        let after = spare_after(hearing.round_trip());
-        if hearing.silent(now, after).is_some() || (heartbeat && quiet >= SPARE_QUIET) {
+        let after = plan.wait.wait(spare_after(hearing.round_trip()), position(plan.state));
+        if hearing.silent(now, after).is_some() || (plan.heartbeat && quiet >= SPARE_QUIET.max(after)) {
             return quiet;
         }
         // The next look comes at the instant that a waiting question reaches
@@ -228,5 +289,33 @@ mod tests {
         assert_eq!(spare_after(Some(MS * 500)), MS * 1500);
         assert_eq!(spare_after(Some(MS * 1100)), SPARE_AFTER, "a slow link: the ceiling");
         assert_eq!(spare_after(Some(Duration::MAX)), SPARE_AFTER, "no overflow");
+    }
+
+    #[test]
+    fn the_wait_doubles_after_each_spare_that_moved_nothing_up_to_dead_after_and_a_move_sets_it_back() {
+        let mut wait = SpareWait::default();
+        let base = SPARE_AFTER;
+        assert_eq!(wait.wait(base, (0, 0)), base, "no spare took the session yet");
+        wait.took((10, 20));
+        assert_eq!(wait.wait(base, (10, 20)), base * 2, "the session did not move since the spare");
+        assert_eq!(wait.wait(base, (11, 20)), base, "a byte came");
+        assert_eq!(wait.wait(base, (10, 21)), base, "the far end acknowledged a byte");
+        wait.took((10, 20));
+        assert_eq!(wait.wait(base, (10, 20)), base * 4);
+        wait.took((10, 20));
+        assert_eq!(wait.wait(base, (10, 20)), base * 8);
+        wait.took((10, 20));
+        assert_eq!(wait.wait(base, (10, 20)), DEAD_AFTER, "the heartbeat's limit at most");
+        for _ in 0..40 {
+            wait.took((10, 20));
+        }
+        assert_eq!(wait.wait(base, (10, 20)), DEAD_AFTER, "no overflow");
+        assert_eq!(wait.wait(SPARE_SOONEST, (10, 20)), DEAD_AFTER);
+        assert_eq!(wait.wait(DEAD_AFTER * 2, (10, 20)), DEAD_AFTER * 2, "never under the link's own wait");
+        // A spare that takes the session after a move starts again at two.
+        wait.took((10, 30));
+        assert_eq!(wait.wait(base, (10, 30)), base * 2);
+        wait.took((10, 30));
+        assert_eq!(wait.wait(SPARE_SOONEST, (10, 30)), SPARE_SOONEST * 4, "the wait of a fast link doubles too");
     }
 }

@@ -2,9 +2,10 @@ diff --git a/crates/pod-session/src/resume.rs b/crates/pod-session/src/resume.rs
 index edb8b9d..edc1a20 100644
 --- a/crates/pod-session/src/resume.rs
 +++ b/crates/pod-session/src/resume.rs
-@@ -166,7 +166,7 @@ where
+@@ -166,8 +166,8 @@ where
      let moves = lock(&carry.state).moves();
      let heartbeat = lock(&carry.state).heartbeat();
+     let mut spare_wait = beside::SpareWait::default();
      loop {
 -        let watch = Watch::moving_at(if moves { settings.move_bytes } else { 0 }).within(settings.window);
 +        let watch = Watch::moving_at(0).within(settings.window);

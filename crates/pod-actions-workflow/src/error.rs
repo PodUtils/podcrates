@@ -65,6 +65,14 @@ pub enum ErrorKind {
         pattern: String,
         why: &'static str,
     },
+    /// An event of `on:` that GitHub does not know.
+    UnknownEvent(String),
+    /// A key that its event of `on:` does not take, as `tags` on
+    /// `pull_request`.
+    KeyNotTaken {
+        event: String,
+        key: String,
+    },
     /// The source of a called workflow gave no text.
     CallText {
         uses: String,
@@ -130,6 +138,8 @@ impl fmt::Display for ErrorKind {
                 write!(f, "`{key}` needs a pattern with no `!`; use `{key}-ignore` to exclude")
             }
             ErrorKind::BadPattern { pattern, why } => write!(f, "the pattern `{pattern}`: {why}"),
+            ErrorKind::UnknownEvent(event) => write!(f, "`{event}` is not an event of GitHub"),
+            ErrorKind::KeyNotTaken { event, key } => write!(f, "the event `{event}` takes no `{key}`"),
             ErrorKind::CallText { uses, why } => write!(f, "the called workflow `{uses}`: {why}"),
             ErrorKind::InCalled { uses, error } => write!(f, "in the called workflow `{uses}`: {error}"),
             ErrorKind::CallLimit { what, max } => write!(f, "a run has at most {max} {what}"),
