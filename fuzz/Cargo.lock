@@ -1717,7 +1717,7 @@ version = "0.44.0"
 
 [[package]]
 name = "pod-actions-results"
-version = "0.43.0"
+version = "0.44.0"
 dependencies = [
  "base64",
  "pod-core",
