@@ -33,8 +33,9 @@ is done. Git and the record keep finished work.
 - Agents in worktrees of `.claude/worktrees/` (their branches merge into
   `main` when they are done): `qa580` (T-580 to T-582, #150), `qa584`
   (T-584, T-585, T-583, T-586, #151), `sess579` (T-579, then T-560),
-  `actions587` (T-587, T-588, PodUtils/podrunner#99). T-589
-  (PodUtils/podnet#552) has no agent yet.
+  `actions587` (T-587, T-588, PodUtils/podrunner#99), `guest590` (T-592,
+  T-590, T-593: the Windows guest, #152), `udf591` (T-589, then the new
+  crate `pod-udf`, T-591).
 - The open threads of this session:
   - T-539 is in `v0.41.0`; T-540 (open) tests it against a kernel pty.
   - T-557 (open): a finding of T-542.

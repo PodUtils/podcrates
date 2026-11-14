@@ -154,5 +154,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #149 | COORD-089: v0.43.0: pod-wg for podnet; pod-actions-store and pod-actions-results for podrunner; pod-rootfs, pod-enter and pod-hostprobe for podvm (to all) | open (podrunner took it at `51f9e6b`, PodUtils/podrunner#99; podvm at `b0bb87f1`, PodUtils/podvm#348; podnet at `c8ccc40`, PodUtils/podnet#552; waits for podssh) | T-561, T-562, T-564, T-565, T-567, T-568, T-569, T-570, T-571 |
 | #150 | COORD-090: the answer to PodUtils/podvm#341, #342 and #343: three defects of the QA report (to podvm) | open (until a tag carries the entries) | T-580, T-581, T-582 |
 | #151 | COORD-091: the answer to PodUtils/podvm#344 to #347: four more defects of the QA report (to podvm) | open (until a tag carries the entries) | T-583, T-584, T-585, T-586 |
+| #152 | COORD-092: the answer to PodUtils/podvm#350: the Windows guest (to podvm) | open (until a tag carries items 1 to 4) | T-590, T-591, T-592, T-593, T-594, T-595, T-596 |
 
 #79 to #81 are pull requests.
