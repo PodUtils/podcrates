@@ -3,10 +3,16 @@
 //! through `http_road::window::Up`, the role's window; its target takes each
 //! batch at once into a digest, and sends the bytes of `Plan::down`. It
 //! keeps a record of each request, so that a test can count the batches
-//! sent again and the acknowledgements that it dropped.
+//! sent again and the acknowledgements that it dropped. It serves the
+//! one-POST form too (`one.rs`), and `hop.rs` puts a hop between the client
+//! and it: one that passes bytes as they come, or one that holds a body in
+//! chunks to its end.
 
 // Each test file of the road takes a part of the stand-in.
 #![allow(dead_code)]
+
+pub mod hop;
+mod one;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -52,11 +58,33 @@ pub struct Plan {
     pub refuse_up: Option<Refusal>,
     /// Added to the count of the bytes down at the target's end.
     pub total_skew: u64,
+    /// How the stand-in answers the one-POST form.
+    pub one: One,
+}
+
+/// How the stand-in answers the one-POST form.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum One {
+    /// As the role: the mark, then the bytes each way.
+    Serve,
+    /// `404`, as a role that serves no such form.
+    Absent,
+    /// As the role, but the connection ends with no last chunk after this
+    /// many bytes down.
+    CutAfter(usize),
 }
 
 impl Default for Plan {
     fn default() -> Self {
-        Plan { down: Vec::new(), drop_every: 0, room: 8, target_reads: true, refuse_up: None, total_skew: 0 }
+        Plan {
+            down: Vec::new(),
+            drop_every: 0,
+            room: 8,
+            target_reads: true,
+            refuse_up: None,
+            total_skew: 0,
+            one: One::Serve,
+        }
     }
 }
 
@@ -81,6 +109,11 @@ pub struct Record {
     /// The requests `up`: the batches that went with no bytes down.
     pub ups: u64,
     pub ended: Option<(u16, String)>,
+    /// The requests of the one-POST form, the token of the last one, and
+    /// whether a body of the form came to its last chunk.
+    pub ones: u64,
+    pub one_token: Option<String>,
+    pub one_up_ended: bool,
 }
 
 /// The stand-in: its plan, the role's window and its record.
@@ -107,7 +140,13 @@ impl StandIn {
                 Ok(Box::new(ours) as BoxIo)
             })
         });
-        Road { dial, authority: "relay.test".into(), user_agent: "pod-relay/test".into() }
+        Road {
+            dial,
+            authority: "relay.test".into(),
+            user_agent: "pod-relay/test".into(),
+            forms: None,
+            learned: Arc::default(),
+        }
     }
 
     /// `f` with the record.
@@ -125,6 +164,9 @@ impl StandIn {
     async fn serve(self: Arc<Self>, mut io: DuplexStream) {
         let mut buf = Vec::new();
         while let Some((target, headers, body)) = read_request(&mut io, &mut buf).await {
+            if route(target.split('?').next().unwrap_or_default()) == Some(Route::One) {
+                return one::serve(self, io, buf, &headers).await;
+            }
             let Some(answer) = self.answer(&target, &headers, body).await else { return };
             if io.write_all(&answer).await.is_err() {
                 return;

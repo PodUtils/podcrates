@@ -43,6 +43,14 @@
 //!   not read the bytes down that the client holds, the serial form sends
 //!   its batches by `up` alone, on the same connection.
 //! - `POST /v1/http/s/ID/close` ends the session at once.
+//! - One-POST: `POST /v1/http/one/HOST/PORT[?family=4|6]` with the forward
+//!   token and a body in chunks, on one connection: the role answers `200`
+//!   at once, in chunks, whose first bytes are [`MARK`]; then each chunk up
+//!   goes to the target as it comes, and the target's bytes come down in
+//!   chunks as they come. The body's last chunk is TCP's half-close to the
+//!   target; the answer's last chunk is the target's end; an answer with no
+//!   last chunk is a cut. A hop that holds a body to its end holds the mark
+//!   too, and the client then takes the split form ([`one`]).
 //! - Once the session ended, `410` with `X-Close: CODE REASON`, the close
 //!   codes and reasons of the forward road (`docs/relay.md`): `1000 target
 //!   closed` once the client has each byte of a target that ended, with
@@ -58,6 +66,7 @@
 pub mod answer;
 pub mod client;
 pub mod conn;
+pub mod one;
 mod serial;
 mod split;
 pub mod window;
@@ -68,6 +77,11 @@ use std::time::Duration;
 pub const PREFIX: &str = "/v1/http/";
 pub const OPEN: &str = "/v1/http/open/";
 pub const SESSION: &str = "/v1/http/s/";
+/// The one-POST form's path, before `HOST/PORT`.
+pub const ONE: &str = "/v1/http/one/";
+/// The first bytes of the one-POST form's answer: no hop holds the answer,
+/// nor the request's body.
+pub const MARK: &[u8] = b"podssh-http-one 1\n";
 /// The headers of the road.
 pub const KEY: &str = "X-Session-Key";
 pub const ACK: &str = "X-Ack";
@@ -90,21 +104,50 @@ pub const DOWN_MAX: usize = 1 << 20;
 /// and of a quick tunnel's node.
 pub const WAIT_MAX: Duration = Duration::from_secs(25);
 
-/// The two forms of the road (podssh Q44).
+/// The forms of the road (podssh Q44, podssh T-622).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Form {
     /// The bytes down on one connection and the bytes up on another, at once.
     Split,
     /// One exchange after another on one connection.
     Serial,
+    /// One POST whose body is the way up and whose answer is the way down.
+    One,
 }
 
 impl Form {
+    /// The form's name, as `limits.http.forms` and a report give it.
     pub fn name(self) -> &'static str {
         match self {
             Form::Split => "split",
             Form::Serial => "serial",
+            Form::One => "one",
         }
+    }
+
+    /// The form of `name`, in any case.
+    pub fn parse(name: &str) -> Option<Form> {
+        [Form::Split, Form::Serial, Form::One].into_iter().find(|f| f.name().eq_ignore_ascii_case(name.trim()))
+    }
+
+    fn bit(self) -> u8 {
+        1 << self as u8
+    }
+}
+
+/// The forms that a host serves, as its `limits.http.forms` names them.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(transparent)]
+pub struct Forms(u8);
+
+impl Forms {
+    /// The forms of `names`; a name that is no form is left out.
+    pub fn of<'a>(names: impl IntoIterator<Item = &'a str>) -> Forms {
+        Forms(names.into_iter().filter_map(Form::parse).fold(0, |bits, form| bits | form.bit()))
+    }
+
+    pub fn has(self, form: Form) -> bool {
+        self.0 & form.bit() != 0
     }
 }
 
@@ -121,6 +164,8 @@ pub enum Kind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Route {
     Open,
+    /// The one-POST form's request.
+    One,
     /// The session's id, and what is asked of it.
     Session(String, Kind),
 }
@@ -129,6 +174,9 @@ pub enum Route {
 pub fn route(path: &str) -> Option<Route> {
     if path.starts_with(OPEN) {
         return Some(Route::Open);
+    }
+    if path.starts_with(ONE) {
+        return Some(Route::One);
     }
     let rest = path.strip_prefix(SESSION)?;
     let (id, what) = rest.split_once('/')?;
@@ -239,6 +287,7 @@ mod tests {
     fn each_path_of_the_road_has_its_route_and_another_none() {
         let id = "0123456789abcdef0123456789abcdef";
         assert_eq!(route("/v1/http/open/github.com/22"), Some(Route::Open));
+        assert_eq!(route("/v1/http/one/github.com/22"), Some(Route::One));
         assert_eq!(route(&format!("/v1/http/s/{id}/up")), Some(Route::Session(id.into(), Kind::Up)));
         assert_eq!(route(&format!("/v1/http/s/{id}/down")), Some(Route::Session(id.into(), Kind::Down)));
         assert_eq!(route(&format!("/v1/http/s/{id}/x")), Some(Route::Session(id.into(), Kind::Exchange)));
@@ -247,6 +296,19 @@ mod tests {
             assert_eq!(route(bad), None, "{bad}");
         }
         assert_eq!(route(&format!("/v1/http/s/{id}/other")), None);
+    }
+
+    #[test]
+    fn each_form_has_its_name_and_a_set_of_forms_reads_the_names() {
+        for form in [Form::Split, Form::Serial, Form::One] {
+            assert_eq!(Form::parse(form.name()), Some(form));
+        }
+        assert_eq!(Form::parse(" ONE "), Some(Form::One));
+        assert_eq!(Form::parse("auto"), None);
+        let forms = Forms::of(["split", "serial", "later"]);
+        assert!(forms.has(Form::Split) && forms.has(Form::Serial) && !forms.has(Form::One));
+        assert!(Forms::of(["one"]).has(Form::One) && !Forms::default().has(Form::Split));
+        assert_eq!(MARK.len(), 18);
     }
 
     #[test]

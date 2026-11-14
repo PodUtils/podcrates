@@ -58,6 +58,10 @@ pub struct Limits {
     pub max_session_ms: Option<u64>,
     pub max_session_bytes: Option<u64>,
     pub max_frame_bytes: Option<u64>,
+    /// The forms of the HTTP road that `limits.http.forms` names; none when
+    /// the body names no list.
+    #[serde(default)]
+    pub http_forms: Option<crate::http_road::Forms>,
 }
 
 /// The `limits` of a `/relays.json` body: a value that is missing, not a
@@ -70,6 +74,10 @@ pub fn parse_limits(body: &[u8]) -> Limits {
         max_session_ms: get("max_session_ms"),
         max_session_bytes: get("max_session_bytes"),
         max_frame_bytes: get("max_frame_bytes"),
+        http_forms: doc
+            .pointer("/limits/http/forms")
+            .and_then(|v| v.as_array())
+            .map(|names| crate::http_road::Forms::of(names.iter().filter_map(|name| name.as_str()))),
     }
 }
 
@@ -344,8 +352,16 @@ mod tests {
                 max_session_ms: Some(43_200_000),
                 max_session_bytes: Some(64 << 20),
                 max_frame_bytes: Some(262_144),
+                http_forms: None,
             }
         );
+        let http = br#"{"limits":{"http":{"forms":["split","serial","one"]}}}"#;
+        let forms = parse_limits(http).http_forms.expect("the forms");
+        assert!(forms.has(crate::http_road::Form::One) && forms.has(crate::http_road::Form::Split));
+        let older = br#"{"limits":{"http":{"forms":["split","serial"]}}}"#;
+        assert!(!parse_limits(older).http_forms.unwrap().has(crate::http_road::Form::One));
+        let kept = serde_json::to_string(&CachedPool { fetched_ms: 1, hosts: vec![], limits: parse_limits(http) });
+        assert_eq!(serde_json::from_str::<CachedPool>(&kept.unwrap()).unwrap().limits.http_forms, Some(forms));
         let odd = br#"{"limits":{"idle_timeout_ms":0,"max_session_bytes":"64 MiB","max_frame_bytes":-1}}"#;
         assert_eq!(parse_limits(odd), Limits::default(), "0, a string and a negative are left out");
         assert_eq!(parse_limits(b"not json"), Limits::default());
