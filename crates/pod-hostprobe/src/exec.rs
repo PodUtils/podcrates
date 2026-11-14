@@ -8,7 +8,12 @@
 //! **The probe executes, it does not stat.** A mode bit says the file may
 //! be executed; only the kernel answers whether the mount lets it. The probe
 //! writes a tiny script, marks it executable, and runs it: `EACCES` from that
-//! run is the `noexec` answer, whatever the bits say.
+//! run is the kernel's refusal, whatever the bits say.
+//!
+//! **`EACCES` alone does not name the cause.** A `noexec` mount refuses
+//! with it, and so does a policy on the path or on the file (an LSM, a
+//! seccomp filter, a sandbox). The probe reads the flags of the mount with
+//! `statfs(2)`: it names the filesystem only where the mount is `noexec`.
 //!
 //! **A failed probe never reads as a broken image.** The verdict is
 //! `Executable` or `Denied` with the directory named, and anything that stops
@@ -25,6 +30,7 @@ use std::sync::atomic::AtomicU64;
 use pod_core::{Class, Failure, Stage};
 
 use crate::Settings;
+use crate::sys::{CBuf, ST_NOEXEC, statfs};
 
 type Result<T> = std::result::Result<T, Failure>;
 
@@ -64,8 +70,8 @@ const PROBE_SCRIPT: &[u8] = b"#!/bin/sh\nexit 0\n";
 
 /// Attempt to execute the file at `path`, and report what the kernel said.
 ///
-/// `EACCES` is the `noexec` answer and returns `Denied`: the bit checks
-/// cannot give it, only the run can. A run that starts is `Executable`,
+/// `EACCES` returns `Denied`: the bit checks cannot give it, only the run
+/// can. It does not tell a `noexec` mount from a policy on the path. A run that starts is `Executable`,
 /// whatever status it exits with, because the kernel already answered the
 /// only question asked. Anything else (no file, no interpreter, no memory)
 /// is an `Error` naming the path, never a verdict.
@@ -102,7 +108,8 @@ const BUSY_PAUSE: std::time::Duration = std::time::Duration::from_millis(2);
 /// Writes a tiny script, marks it executable, runs it, and removes it. The
 /// removal runs on every path: a probe that litters the store it is checking
 /// is a second defect filed under the first. The detail of a denial names
-/// `settings.directory_setting`.
+/// the cause that the flags of the mount establish ([`denial_cause`]), and
+/// `settings.directory_setting` where the remedy is to move the directory.
 pub fn probe_dir_exec(settings: &Settings, dir: &Path) -> Result<ExecProbe> {
     let name = format!(
         ".pod-hostprobe-exec.{}.{}",
@@ -116,15 +123,45 @@ pub fn probe_dir_exec(settings: &Settings, dir: &Path) -> Result<ExecProbe> {
     let (ok, detail) = match verdict {
         Ok(ExecVerdict::Executable) => (true, format!("{}: a created file executes", dir.display())),
         Ok(ExecVerdict::Denied { reason }) => {
-            let remedy = match &settings.directory_setting {
-                Some(name) => format!("move the directory off this filesystem, for example with {name}"),
-                None => "move the directory off this filesystem".to_string(),
-            };
-            (false, format!("{}: a created file does not execute ({reason}); {remedy}", dir.display()))
+            let cause = denial_cause(mount_noexec(dir), settings.directory_setting.as_deref());
+            (false, format!("{}: a created file does not execute ({reason}); {cause}", dir.display()))
         }
         Err(e) => return Err(e),
     };
     Ok(ExecProbe { dir: dir.to_path_buf(), ok, detail })
+}
+
+/// The `noexec` flag of the mount that holds `dir`, from `statfs(2)`.
+/// `None` where the call fails or the kernel did not fill `f_flags` (an
+/// emulator): that is not the same answer as `false`.
+fn mount_noexec(dir: &Path) -> Option<bool> {
+    let path = CBuf::new(&dir.to_string_lossy())?;
+    statfs(&path).ok()?.flag(ST_NOEXEC)
+}
+
+/// The cause and the remedy of an `EACCES` from the run, from the `noexec`
+/// flag of the mount (`None`: not known).
+///
+/// Only a `noexec` mount is fixed by a move to another filesystem. Where
+/// the mount is not `noexec`, a policy on the path or on the file refuses
+/// the run, and a move off the filesystem can fix nothing.
+fn denial_cause(noexec: Option<bool>, setting: Option<&str>) -> String {
+    let move_off = match setting {
+        Some(name) => format!("move the directory off this filesystem, for example with {name}"),
+        None => "move the directory off this filesystem".to_string(),
+    };
+    match noexec {
+        Some(true) => format!("the mount of the directory is noexec; {move_off}"),
+        Some(false) => "the mount of the directory is not noexec, so a policy on the path or on the file \
+             refuses the run (an LSM such as SELinux, AppArmor or Landlock, a seccomp filter, or a \
+             sandbox); check the policy of this path and the audit log of the kernel"
+            .to_string(),
+        None => format!(
+            "the flags of the mount could not be read, so the cause is not known: a noexec mount, or a \
+             policy on the path or on the file (an LSM, a seccomp filter, a sandbox); if the mount is \
+             noexec, {move_off}; else check the policy of this path"
+        ),
+    }
 }
 
 /// Mark `path` executable and run it. Separate from [`probe_dir_exec`] so
@@ -220,6 +257,73 @@ mod tests {
         wait.recv().unwrap();
         assert_eq!(try_exec(&path).unwrap(), ExecVerdict::Executable);
         closer.join().unwrap();
+    }
+
+    /// The flag of the mount decides the remedy: only a `noexec` mount gets
+    /// the move off the filesystem, and a mount that is not `noexec` names
+    /// a policy on the path and never the move (PodUtils/podvm#335).
+    #[test]
+    fn the_flag_of_the_mount_decides_the_remedy() {
+        let noexec = denial_cause(Some(true), Some("$STORE"));
+        assert!(noexec.contains("is noexec"), "{noexec}");
+        assert!(noexec.contains("move the directory off this filesystem, for example with $STORE"), "{noexec}");
+        let policy = denial_cause(Some(false), Some("$STORE"));
+        assert!(policy.contains("is not noexec") && policy.contains("a policy on the path"), "{policy}");
+        assert!(policy.contains("check the policy of this path"), "{policy}");
+        assert!(!policy.contains("move") && !policy.contains("$STORE"), "no move where the mount executes: {policy}");
+        let unknown = denial_cause(None, None);
+        assert!(unknown.contains("not known") && unknown.contains("if the mount is noexec"), "{unknown}");
+        assert!(unknown.contains("move the directory off this filesystem;"), "{unknown}");
+    }
+
+    /// End to end on a real `noexec` mount: the probe reads the flag of the
+    /// mount it refused on, and names the filesystem. It needs root to
+    /// mount a tmpfs.
+    #[test]
+    fn a_noexec_mount_is_named_by_the_probe() {
+        pod_testkit::need_root!();
+        pod_testkit::need_tool!("/bin/sh");
+        let d = scratch("noexec-mount");
+        let at = CBuf::new(&d.to_string_lossy()).unwrap();
+        let (src, fs, data) = (CBuf::new("tmpfs").unwrap(), CBuf::new("tmpfs").unwrap(), CBuf::new("").unwrap());
+        if let Err(e) = crate::sys::mount_data(&src, &at, &fs, crate::sys::MS_NOEXEC, &data) {
+            pod_testkit::host::skip_line(&format!("a tmpfs does not mount here ({})", e.name()));
+            return;
+        }
+        let probe = probe_dir_exec(&Settings::default(), &d);
+        let _ = crate::sys::umount_detach(&at);
+        let probe = probe.unwrap();
+        assert!(!probe.ok, "a file on a noexec tmpfs ran: {}", probe.detail);
+        assert!(probe.detail.contains("is noexec; move the directory off this filesystem"), "{}", probe.detail);
+    }
+
+    /// `mount_noexec` reads the mount that holds the directory: its answer
+    /// agrees with the line of that mount in `/proc/self/mounts`. A `statfs`
+    /// of the wrong path or a wrong bit fails here.
+    #[test]
+    fn the_noexec_flag_agrees_with_the_mount_table() {
+        let d = scratch("noexec-flag");
+        let Ok(mounts) = std::fs::read_to_string("/proc/self/mounts") else {
+            return;
+        };
+        // The last line of a mount point that holds the directory is the
+        // mount on top, which `statfs(2)` answers for.
+        let mut want = None;
+        for line in mounts.lines() {
+            let f: Vec<&str> = line.split(' ').collect();
+            let (Some(point), Some(opts)) = (f.get(1), f.get(3)) else {
+                continue;
+            };
+            if point.contains('\\') || !d.starts_with(point) {
+                continue;
+            }
+            want = Some(opts.split(',').any(|o| o == "noexec"));
+        }
+        let (Some(want), Some(got)) = (want, mount_noexec(&d)) else {
+            // No line, or an emulator that fills no `f_flags`.
+            return;
+        };
+        assert_eq!(got, want, "statfs of {} against /proc/self/mounts", d.display());
     }
 
     /// A probe that cannot write is an error naming the path, never a `no`

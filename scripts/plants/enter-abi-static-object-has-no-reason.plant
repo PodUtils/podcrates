@@ -1,0 +1,6 @@
+# pod-enter: a static object gets no reason of its own and reads as "names  in DT_NEEDED, so it was built against unknown"; its test must fail.
+ENTRY=T-568
+GROUP=enter
+EXPECT='test abi::tests::labels::a_static_object_is_refused_as_static \.\.\. FAILED'
+RUN='cargo test -p pod-enter --lib -- abi::tests::labels::a_static_object_is_refused_as_static --exact'
+LIMIT=1800

@@ -24,6 +24,10 @@
 //! reads a regular file only: a fifo or a device of the image at a path of a
 //! configuration file does not stop the completion.
 //!
+//! A root of two layers ([`Root::layers`]) has the same operations: a read
+//! sees the upper layer over the lower one, and each write goes to the upper
+//! layer ([`layers`]).
+//!
 //! This module is the only place of the crate that opens a path of the root.
 
 use std::path::{Path, PathBuf};
@@ -102,10 +106,12 @@ impl Drop for Fd {
     }
 }
 
-/// A descriptor of the root, and the operations of the completion.
+/// A descriptor of the root, and the operations of the completion. With an
+/// upper layer, `dir` is the lower layer, and only reads open it.
 pub struct Root {
     dir: Dir,
     path: PathBuf,
+    upper: Option<layers::Upper>,
 }
 
 /// Refuse a path that is not relative to the root: `..`, an absolute path,
@@ -119,11 +125,36 @@ impl Root {
         let text =
             rootfs.to_str().ok_or_else(|| error::usage(format!("the root {} is not UTF-8", rootfs.display())))?;
         let dir = Dir::open(text)?;
-        Ok(Root { dir, path: rootfs.to_path_buf() })
+        Ok(Root { dir, path: rootfs.to_path_buf(), upper: None })
     }
 
+    /// A root of two layers, as overlayfs mounts them: each read sees
+    /// `upper` over `lower`, and each write goes to `upper`. `lower` is
+    /// never opened for write.
+    pub fn layers(lower: &Path, upper: &Path) -> Result<Root> {
+        let mut root = Root::open(lower)?;
+        root.upper = Some(layers::Upper::open(lower, upper)?);
+        Ok(root)
+    }
+
+    /// The root, or the lower layer of two.
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    /// The upper layer, where a root has two.
+    pub fn upper(&self) -> Option<&Path> {
+        self.upper.as_ref().map(|u| u.path.as_path())
+    }
+
+    /// The directory that takes each write: the root, or the upper layer.
+    pub fn written(&self) -> &Path {
+        self.upper().unwrap_or(&self.path)
+    }
+
+    /// The two layers, where the root has them. Each operation asks first.
+    fn two(&self) -> Option<layers::Layers<'_>> {
+        self.upper.as_ref().map(|upper| layers::Layers { lower: &self.dir, upper })
     }
 
     pub(crate) fn fd(&self) -> i64 {
@@ -155,6 +186,9 @@ impl Root {
 
     /// What is at `rel`, with no follow of the last component.
     pub fn kind(&self, rel: &str) -> Result<Kind> {
+        if let Some(l) = self.two() {
+            return l.kind(rel);
+        }
         let Ok((parent, name)) = self.parent(rel, false)? else {
             return Ok(Kind::Missing);
         };
@@ -162,27 +196,19 @@ impl Root {
         let Ok(st) = sys::fstatat(parent.fd(), &c, sys::AT_SYMLINK_NOFOLLOW) else {
             return Ok(Kind::Missing);
         };
-        Ok(match st.st_mode & sys::S_IFMT {
-            sys::S_IFREG => Kind::Regular { len: st.st_size as u64, mode: st.st_mode & 0o7777 },
-            sys::S_IFDIR => Kind::Dir,
-            0o020000 => {
-                let (major, minor) = split_dev(st.st_rdev);
-                Kind::CharDev { major, minor }
-            }
-            sys::S_IFLNK => {
-                let t = sys::readlinkat(parent.fd(), &c)
-                    .map(|b| String::from_utf8_lossy(&b).to_string())
-                    .unwrap_or_default();
-                Kind::Symlink(t)
-            }
-            other => Kind::Other(other),
-        })
+        Ok(kind_of(parent.fd(), &c, &st))
     }
 
     /// Read the regular file at `rel`, with no follow of the last component.
     /// `None`: no file, or not a regular file. A file over [`READ_LIMIT`] is
     /// a failure.
     pub fn read(&self, rel: &str) -> Result<Option<Vec<u8>>> {
+        if let Some(l) = self.two() {
+            return match l.open_read(rel, false)? {
+                Some(fd) => read_regular(&fd, rel),
+                None => Ok(None),
+            };
+        }
         let Ok((parent, name)) = self.parent(rel, false)? else {
             return Ok(None);
         };
@@ -218,31 +244,17 @@ impl Root {
             self.set_mode(rel, mode)?;
             return Ok(Wrote::Replaced);
         }
-        let (parent, name) = match self.parent(rel, true)? {
-            Ok(x) => x,
-            Err(why) => return Err(error::policy(format!("{rel}: the crate does not write through this path: {why}"))),
-        };
-        let c = cbuf(&name)?;
-        // One unlink for a symlink, a dangling symlink and a file. ENOENT is
-        // the usual case.
-        match sys::unlinkat(parent.fd(), &c, 0) {
-            Ok(_) => {}
-            Err(e) if e == sys::ENOENT => {}
-            Err(e) if e == sys::EISDIR => {
-                return Err(error::policy(format!(
-                    "{rel} is a directory in this image; the crate does not replace a directory with a file"
-                )));
-            }
-            Err(e) => return Err(error::sys(format!("cannot remove the existing {rel}"), e)),
+        if let Some(l) = self.two() {
+            l.replace(rel, bytes, mode)?;
+        } else {
+            let (parent, name) = match self.parent(rel, true)? {
+                Ok(x) => x,
+                Err(why) => return Err(not_through(rel, &why)),
+            };
+            let c = cbuf(&name)?;
+            clear(parent.fd(), &c, rel)?;
+            create(parent.fd(), &c, rel, bytes, mode)?;
         }
-        let flags = sys::O_WRONLY | sys::O_CREAT | sys::O_EXCL | sys::O_NOFOLLOW | sys::O_CLOEXEC;
-        let fd = Fd(sys::openat(parent.fd(), &c, flags, mode as u64)
-            .map_err(|e| error::sys(format!("cannot create {rel}"), e))?);
-        write_all(&fd, bytes, rel)?;
-        // The mode is set after the create: the umask removes bits from the
-        // mode of an open, and the payload must be able to write
-        // `/etc/passwd` again.
-        sys::fchmod(fd.0, mode as u64).map_err(|e| error::sys(format!("cannot set the mode of {rel}"), e))?;
         Ok(match existing {
             Kind::Missing => Wrote::Created,
             _ => Wrote::Replaced,
@@ -254,6 +266,9 @@ impl Root {
     /// replaced the file after the check, also to an absolute target on the
     /// host.
     pub(crate) fn set_mode(&self, rel: &str, mode: u32) -> Result<()> {
+        if let Some(l) = self.two() {
+            return l.set_mode(rel, mode);
+        }
         let (parent, name) = match self.parent(rel, false)? {
             Ok(x) => x,
             Err(why) => {
@@ -302,6 +317,54 @@ impl Root {
 /// The flags of each open of a file that the crate reads: no wait on a fifo,
 /// no controlling terminal.
 pub(crate) const READ_FLAGS: u64 = sys::O_RDONLY | sys::O_NONBLOCK | sys::O_NOCTTY | sys::O_CLOEXEC;
+
+/// The [`Kind`] of the entry `c` of `parent`, from its stat.
+pub(crate) fn kind_of(parent: i64, c: &CBuf, st: &sys::Stat) -> Kind {
+    match st.st_mode & sys::S_IFMT {
+        sys::S_IFREG => Kind::Regular { len: st.st_size as u64, mode: st.st_mode & 0o7777 },
+        sys::S_IFDIR => Kind::Dir,
+        0o020000 => {
+            let (major, minor) = split_dev(st.st_rdev);
+            Kind::CharDev { major, minor }
+        }
+        sys::S_IFLNK => {
+            let t = sys::readlinkat(parent, c).map(|b| String::from_utf8_lossy(&b).to_string()).unwrap_or_default();
+            Kind::Symlink(t)
+        }
+        other => Kind::Other(other),
+    }
+}
+
+/// The refusal of a write whose directory the crate does not reach.
+pub(crate) fn not_through(rel: &str, why: &str) -> pod_core::Failure {
+    error::policy(format!("{rel}: the crate does not write through this path: {why}"))
+}
+
+/// Remove what is at `c` in `parent` before a create: one unlink for a
+/// symlink, a dangling symlink and a file. ENOENT is the usual case.
+pub(crate) fn clear(parent: i64, c: &CBuf, rel: &str) -> Result<()> {
+    match sys::unlinkat(parent, c, 0) {
+        Ok(_) => Ok(()),
+        Err(e) if e == sys::ENOENT => Ok(()),
+        Err(e) if e == sys::EISDIR => Err(error::policy(format!(
+            "{rel} is a directory in this image; the crate does not replace a directory with a file"
+        ))),
+        Err(e) => Err(error::sys(format!("cannot remove the existing {rel}"), e)),
+    }
+}
+
+/// Make the file `c` in `parent` with `O_EXCL | O_NOFOLLOW`, write `bytes`
+/// and set `mode`.
+pub(crate) fn create(parent: i64, c: &CBuf, rel: &str, bytes: &[u8], mode: u32) -> Result<()> {
+    let flags = sys::O_WRONLY | sys::O_CREAT | sys::O_EXCL | sys::O_NOFOLLOW | sys::O_CLOEXEC;
+    let fd = Fd(sys::openat(parent, c, flags, mode as u64).map_err(|e| error::sys(format!("cannot create {rel}"), e))?);
+    write_all(&fd, bytes, rel)?;
+    // The mode is set after the create: the umask removes bits from the
+    // mode of an open, and the payload must be able to write `/etc/passwd`
+    // again.
+    sys::fchmod(fd.0, mode as u64).map_err(|e| error::sys(format!("cannot set the mode of {rel}"), e))?;
+    Ok(())
+}
 
 /// The major and the minor number of a device number of the kernel.
 pub(crate) fn split_dev(rdev: u64) -> (u64, u64) {
@@ -353,6 +416,9 @@ pub(crate) fn write_all(fd: &Fd, bytes: &[u8], rel: &str) -> Result<()> {
 }
 
 mod follow;
+pub mod layers;
+
+pub use layers::{LayerRefusal, layer_refusal};
 
 #[cfg(test)]
 mod tests;

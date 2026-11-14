@@ -1,0 +1,7 @@
+# A mode change of a file of the lower layer goes to the lower layer, with
+# no copy-up (T-567, PodUtils/podvm#326).
+ENTRY=T-567
+GROUP=rootfs
+EXPECT='the completion changed the lower layer'
+RUN='cargo test -p pod-rootfs --lib write::layers::tests::complete'
+LIMIT=900

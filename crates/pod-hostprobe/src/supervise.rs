@@ -79,19 +79,16 @@ impl Assessment {
     }
 
     /// The refusal, naming every missing leg with what it measured. `None`
-    /// where the tier holds.
+    /// where the tier holds. `; ` separates the legs, as in
+    /// [`crate::machine::Assessment::refusal`]: the reason of a skipped leg
+    /// is a sentence.
     pub fn refusal(&self) -> Option<String> {
         if self.missing.is_empty() {
             return None;
         }
-        let mut out = String::from(self.scope);
-        out.push_str(" refused:");
-        for leg in &self.legs {
-            if self.missing.contains(&leg.name) {
-                out.push_str(&format!(" {}", leg.detail()));
-            }
-        }
-        Some(out)
+        let legs: Vec<String> =
+            self.legs.iter().filter(|leg| self.missing.contains(&leg.name)).map(|leg| leg.detail()).collect();
+        Some(format!("{} refused: {}", self.scope, legs.join("; ")))
     }
 }
 
@@ -188,6 +185,12 @@ mod tests {
         assert!(refusal.contains("seccomp(NEW_LISTENER) [supervise]=EACCES"), "{refusal}");
         assert!(refusal.contains("ptrace(PTRACE_TRACEME) [supervise]=skip"), "{refusal}");
         assert!(refusal.find("seccomp").unwrap() < refusal.find("ptrace").unwrap(), "{refusal}");
+        assert_eq!(
+            refusal,
+            "supervise tier refused: seccomp(NEW_LISTENER) [supervise]=EACCES; \
+             ptrace(PTRACE_TRACEME) [supervise]=skip: no ptrace here",
+            "`; ` separates the legs"
+        );
     }
 
     /// Two clear legs hold supervision: the

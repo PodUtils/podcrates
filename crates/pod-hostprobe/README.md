@@ -34,15 +34,15 @@ s390x; mips and 32-bit powerpc refuse to compile).
 | `select` | `Rung` (`word`, `requirement`, `must_never_claim`), `Strictness`, `Rejection`, `Selection` (`choose`, `meets`, `exit_code`, `STRICT_FLOOR`), `Provides`, `control_rows` |
 | `report` (feature `report`) | `write(&Findings, &Selection) -> String`, `read(&str) -> Result<(Findings, Selection), ReadError>`, `SCHEMA`, `ReadError` (`Form`, `Version`, `UnknownRow`, `DuplicateRow`, `Word`, `DenialWithoutErrno`); `schema() -> serde_json::Value` and `SCHEMA_ID` (feature `schema`): the JSON object of one run and its JSON Schema (see "The report") |
 | `mounts` | `Mounts`: create, configure, attach, use; `summary`, `capability_note` |
-| `machine` | `assess`, `Assessment`, `Profile` (`Full`, `Tcg`), `Leg`, the leg names, `accelerators_in` |
-| `supervise` | `assess` (the mediation legs), `assess_supervision` (the lifecycle legs), `Assessment`, `Leg` |
+| `machine` | `assess`, `Assessment`, `Profile` (`Full`, `Tcg`), `Leg`, the leg names, `accelerators_in`. `Assessment::refusal` is one sentence with its verdict (`machine tier refused: LEG; LEG`): a printer adds no verdict word before it |
+| `supervise` | `assess` (the mediation legs), `assess_supervision` (the lifecycle legs), `Assessment`, `Leg`. `Assessment::refusal` has the same shape (`supervise tier refused: LEG; LEG`) |
 | `identity` | `Identity`, `read`, `is_single_id_map`, `ConfinementKey`, `confinement_key(&Identity, &Interpreter)` |
 | `interp` | `detect(is_set) -> Interpreter`, `QEMU_VARS`, `qemu_comm`: is an emulator in the way (a variable of qemu-user, the name `qemu-*` of the process, or a `binfmt_misc` registration of this machine) |
 | `binfmt` | `registrations`, `Registration`, `machine_for`, `SELF_MACHINE`, `BINFMT_DIR` |
 | `writable` | `candidates(named)`, `probe(candidates)`, `WriteProbe`, `FIXED`, `VARIABLES` |
 | `space` | `read`, `require(&Settings, ...)`, `choose`, `file_ceiling`, `dir_bytes`, `mib`: blocks and inodes before a write |
-| `exec` | `probe_dir_exec(&Settings, dir)`, `try_exec`: can a file created under a directory execute (`noexec`) |
-| `sys` | the raw system calls: `Errno`, the `SYS_*` numbers, the constants, `CBuf`, the wrappers, `clone_fork`, `shed_after_fork`, `close_in_children`; `mount_data` is `mount(2)` with the data of the file system; `statfs` gives `Statfs { f_bsize, f_bavail, f_files, f_ffree, f_flags, f_type }` from the `struct statfs64` of the kernel on each target (`statfs64(2)` on a 32-bit target), with `Statfs::flag` and the mount flags `ST_RDONLY`, `ST_NOSUID`, `ST_NODEV`, `ST_NOEXEC`, `ST_SYNCHRONOUS`, `ST_VALID`, `ST_MANDLOCK`, `ST_NOATIME`, `ST_NODIRATIME`, `ST_RELATIME`, and the magics `OVERLAYFS_SUPER_MAGIC` and `PROC_SUPER_MAGIC` of `f_type`. Landlock (`sys/landlock.rs`): `landlock_abi`, `landlock_create_ruleset`, `landlock_add_path_rule`, `landlock_add_port_rule`, `landlock_restrict_self`, the rights `LANDLOCK_ACCESS_*` and the structs of `linux_raw_sys::landlock`; `connect`, `sockaddr_in`. seccomp (`sys/seccomp.rs`): the one table of the audit arch of the build target (`AUDIT_ARCH_NATIVE`, `X32_SYSCALL_BIT`; `pod-hold` and `pod-confine` read it), `SockFilter`, `SockFprog`, the BPF opcodes, `bpf_stmt`, `bpf_jump`, the offsets of `seccomp_data` (`seccomp_arg_low` follows the byte order), `CLONE_FLAGS_ARG`, `seccomp_set_filter`. Each wrapper is one system call on a struct of the caller, so a child between its fork and its exec can call it |
+| `exec` | `probe_dir_exec(&Settings, dir)`, `try_exec`: can a file created under a directory execute. On `EACCES` the detail reads the `noexec` flag of the mount (`statfs`): only a `noexec` mount gets the move off the filesystem; a mount that is not `noexec` names a policy on the path or on the file (an LSM, a seccomp filter, a sandbox); a flag that cannot be read names both |
+| `sys` | the raw system calls: `Errno`, the `SYS_*` numbers, the constants, `CBuf`, the wrappers, `clone_fork`, `shed_after_fork`, `close_in_children`; `mount_data` is `mount(2)` with the data of the file system; `fgetxattr` and `fsetxattr` read and set an extended attribute through a descriptor; `statfs` gives `Statfs { f_bsize, f_bavail, f_files, f_ffree, f_flags, f_type }` from the `struct statfs64` of the kernel on each target (`statfs64(2)` on a 32-bit target), with `Statfs::flag` and the mount flags `ST_RDONLY`, `ST_NOSUID`, `ST_NODEV`, `ST_NOEXEC`, `ST_SYNCHRONOUS`, `ST_VALID`, `ST_MANDLOCK`, `ST_NOATIME`, `ST_NODIRATIME`, `ST_RELATIME`, and the magics `OVERLAYFS_SUPER_MAGIC` and `PROC_SUPER_MAGIC` of `f_type`. Landlock (`sys/landlock.rs`): `landlock_abi`, `landlock_create_ruleset`, `landlock_add_path_rule`, `landlock_add_port_rule`, `landlock_restrict_self`, the rights `LANDLOCK_ACCESS_*` and the structs of `linux_raw_sys::landlock`; `connect`, `sockaddr_in`. seccomp (`sys/seccomp.rs`): the one table of the audit arch of the build target (`AUDIT_ARCH_NATIVE`, `X32_SYSCALL_BIT`; `pod-hold` and `pod-confine` read it), `SockFilter`, `SockFprog`, the BPF opcodes, `bpf_stmt`, `bpf_jump`, the offsets of `seccomp_data` (`seccomp_arg_low` follows the byte order), `CLONE_FLAGS_ARG`, `seccomp_set_filter`. Each wrapper is one system call on a struct of the caller, so a child between its fork and its exec can call it |
 
 A failure of `space` and `exec` is a `pod_core::Failure` at
 `Stage::Host`: `Class::Usage` for a path with a NUL, `Class::Unavailable`
@@ -170,6 +170,18 @@ namespace starts with `pod_testkit::need_userns!()`, and a test that runs
 it, the test skips with a line `skipping, REASON`. `tests/children.rs`
 has no libtest: it reads the child flag first and runs the whole set in a
 private mount namespace where it can get one.
+
+`exec::tests::the_flag_of_the_mount_decides_the_remedy` checks the
+sentence of each value of the `noexec` flag, and the plant
+`hostprobe-exec-always-names-the-filesystem` proves it.
+`the_noexec_flag_agrees_with_the_mount_table` checks the flag against
+`/proc/self/mounts`, and `a_noexec_mount_is_named_by_the_probe` (root)
+probes a `noexec` tmpfs.
+`machine::tests::the_legs_of_a_refusal_are_separated_where_a_reason_ends`
+and `supervise::tests::the_refusal_names_every_missing_leg_in_run_order`
+check that `; ` separates the legs of a refusal and that the verdict comes
+one time; the plants `hostprobe-machine-legs-run-together` and
+`hostprobe-supervise-legs-run-together` prove them.
 
 ## Sources
 

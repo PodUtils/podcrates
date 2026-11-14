@@ -32,6 +32,44 @@ writes what the payload reads, before the payload starts. Three rules:
 The completion is idempotent, and the caller runs it before each start: a
 root can be shared between containers.
 
+## Two layers
+
+With `Settings::upper`, the root of `complete` is the lower layer of a root
+of two layers, as overlayfs mounts them (`write::Root::layers`,
+`write::layers`):
+
+* A read sees `upper` over `lower`: an entry of `upper` hides the same name
+  of `lower`, a directory that both hold is one directory, and a listing is
+  the union. A whiteout of `upper` (a character device 0:0) hides its name;
+  an opaque directory of `upper` (`trusted.overlay.opaque` or
+  `user.overlay.opaque` is `y`) hides the lower directory.
+* A write goes to `upper` only. A change of a file that only `lower` holds
+  copies it up first (the bytes, the owner where the process may set it,
+  the mode), then changes the copy. A new entry is made in `upper`, and each
+  parent directory that only `lower` holds is copied up with its mode and
+  owner. A file of `lower` that a step replaces is not copied: the new file
+  of `upper` hides it.
+* A remove of an entry that `lower` holds is refused with
+  `LayerRefusal::Remove` (`Class::Unsupported`): only a whiteout removes it,
+  and the crate makes none. A new directory over a whiteout of `upper` that
+  hides an entry of `lower` is refused with `LayerRefusal::Opaque`.
+* `lower` is only opened for read. Two layers that hold each other are a
+  `Usage` failure.
+
+Each path of two layers resolves in the crate, one component at a time from
+a descriptor of each layer: a directory opens with `O_NOFOLLOW`, and a link
+of the merged view is followed in the process, held in the root (an absolute
+target starts at the root, `..` at the root stays there, 40 links at most).
+The kernel follows no link of a layer, so no `openat2(2)` is necessary. The
+mount table of `mtab` and the space check of the device shims take the
+path of `upper`, which takes the writes.
+
+Two steps remove: the device step removes a symlink at a device path before
+the node (on two layers a link of `lower` stays hidden under the new entry,
+and the row is the same), and the CA directory step removes an old
+certificate file of the crate (on two layers, one of `lower` is refused,
+and the row of `ca-hash-dir` is a failed row with the refusal).
+
 The crate is Linux only (`#![cfg(target_os = "linux")]`): on another target
 it is empty. It reads no variable and prints nothing. It makes no network
 request: the caller answers the question "does this mirror speak HTTPS"
@@ -68,13 +106,14 @@ multiarch directory of them (`*-linux-gnu*`), a `ld-musl-*.so.1` or
 
 | Item | What |
 | --- | --- |
-| `complete(rootfs, &settings, &mut probe) -> Result<Report>` | each fixup, in order; the failure is a root that does not open or a name that cannot be used |
-| `Settings` | `names`, `host` (the `pod_hostprobe::Settings` of the space message), `container_name`, `add_hosts`, `source_fixup`, `host_cas`, `steps`, `host_bundle`, `host_resolv_conf`, `mounts`, `originals` |
+| `complete(rootfs, &settings, &mut probe) -> Result<Report>` | each fixup, in order; the failure is a root that does not open or a name that cannot be used; with `Settings::upper`, `rootfs` is the lower layer of two |
+| `Settings` | `names`, `host` (the `pod_hostprobe::Settings` of the space message), `container_name`, `add_hosts`, `source_fixup`, `host_cas`, `steps`, `host_bundle`, `host_resolv_conf`, `mounts`, `originals`, `upper` |
 | `Names` | `tool` (the head comment of each written file), `comment` (before a line that the crate comments out), `apt_drop_in`, `host_ca_marker`, `host_ca_prefix`, `scratch_prefix`; a second run finds the files of the first by these names |
 | `HostBundle` | `path`, `announced_by` (the variable that named it), `bytes`; the caller finds it (`pod_oci::trust::host_bundle` does) |
 | `Report`, `Fixup`, `Step`, `Action`, `Libc`, `IDS` | the record; `Report::{degradations, changed, failed}`; `Action::{word, changed}`; `IDS` lists each id |
 | `reach::{Probe, Answer, Fixed, is_name}` | the question of the caller (a `FnMut(&str) -> Answer` is a `Probe`), asked one time for each host; `Fixed` answers with no request |
-| `write::{Root, Kind, Wrote, Reach, READ_LIMIT}` | the door: `open`, `kind`, `read`, `read_text`, `write`, `reach`, `mknod_char`, `char_opens`, `dir_following`, `read_following`, `write_following`, `mkdirs`, `list`, `unlink`, `symlink` |
+| `write::{Root, Kind, Wrote, Reach, READ_LIMIT}` | the door: `open`, `layers`, `path`, `upper`, `written`, `kind`, `read`, `read_text`, `write`, `reach`, `mknod_char`, `char_opens`, `dir_following`, `read_following`, `write_following`, `mkdirs`, `list`, `unlink`, `symlink` |
+| `write::{LayerRefusal, layer_refusal}` | what two layers refuse (`Remove`, `Opaque`), the cause of a `Class::Unsupported` failure, and its read from a `Failure` |
 | `devices::{DEVICES, FD_LINKS, FILLED_BYTES, SHIM_HEADROOM_BYTES}`, `pkg::{BUNDLE_PATHS, CAPATH_DIRS, ZYPP_SERVICE_DIRS}`, `sources::{SOURCE_FILES, SOURCE_DIRS}`, `identity::{probe_libc, prepend_files}`, `net::topology` | the tables and the pure parts |
 
 Each failure is a `pod_core::Failure` at `Stage::Host`: `Policy` (a path
@@ -156,6 +195,24 @@ closure. The device tests take the arm of the host (a real node where
 `mknod` is permitted, else a shim) and check what each row claims against
 the disk. The test of a `nodev` file system needs root and a mount
 namespace of its own thread, and stops with a skip line elsewhere.
+
+The tests of two layers (`src/write/layers/tests.rs`): an entry of the
+upper layer hides the same name of the lower layer; a listing is the
+union, a whiteout hides a name, a new directory over a whiteout of a lower
+entry is refused, an opaque directory hides the lower one (a skip line
+where the host refuses a whiteout or a `user.` attribute); a change of a
+lower file copies it up with its mode, and its parents with theirs; a
+remove of a lower entry is refused with its type; a link resolves in the
+merged view; layers that hold each other are refused; and the whole
+completion of a fixture image on two layers gives the tree and the rows of
+the completion of one root that holds the same tree, leaves the lower layer
+with its digest (with the times), and changes nothing on a second run.
+`tests/two_layers.rs` is the acceptance test of podvm (PodUtils/podvm#327):
+the merged view against the completion of a copy, the lower layer, and an
+upper layer with no unchanged copy; the first stops with a line `SKIP:`
+where `mknod(2)` is refused, as each run draws new bytes for the random
+shims. The plants: `rootfs-layers-write-to-lower`,
+`rootfs-layers-list-upper-only`, `rootfs-layers-lower-over-upper`.
 
 ## Sources
 

@@ -146,6 +146,12 @@ pub struct Settings {
     /// in the root, and the crate then puts back what the payload wrote.
     /// `None`: the crate does not change a package source.
     pub originals: Option<PathBuf>,
+    /// The upper layer of a root of two layers, as overlayfs mounts them.
+    /// With it, the root of [`complete`] is the lower layer: each read sees
+    /// this layer over it, each write goes to this layer, and the lower
+    /// layer is never opened for write ([`write::layers`]). `None`: one
+    /// root, which takes the writes.
+    pub upper: Option<PathBuf>,
 }
 
 impl Default for Settings {
@@ -162,12 +168,14 @@ impl Default for Settings {
             host_resolv_conf: PathBuf::from("/etc/resolv.conf"),
             mounts: PathBuf::from("/proc/self/mounts"),
             originals: None,
+            upper: None,
         }
     }
 }
 
 /// Prepare the root file system at `rootfs` for a payload, and say what was
-/// done. `probe` answers if a mirror speaks HTTPS.
+/// done. `probe` answers if a mirror speaks HTTPS. With
+/// [`Settings::upper`], `rootfs` is the lower layer of two.
 ///
 /// A fixup that the crate cannot apply is a [`Action::Failed`] row, not a
 /// failure: a root that did not get a resolver can still be of use to the
@@ -175,7 +183,10 @@ impl Default for Settings {
 /// setting that cannot be used.
 pub fn complete(rootfs: &Path, settings: &Settings, probe: &mut dyn reach::Probe) -> Result<Report> {
     check_names(&settings.names)?;
-    let root = write::Root::open(rootfs)?;
+    let root = match &settings.upper {
+        Some(upper) => write::Root::layers(rootfs, upper)?,
+        None => write::Root::open(rootfs)?,
+    };
     let mut r = Report { libc: identity::probe_libc(&root)?, ..Report::default() };
 
     // The identity fixups see the root as the image shipped it, and the

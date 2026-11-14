@@ -331,3 +331,25 @@ fn an_open_with_o_nonblock_does_not_wait_for_a_fifo_writer() {
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(opened, Ok(true), "the open of a fifo with O_NONBLOCK waited or failed");
 }
+
+/// A `user.` attribute set through a descriptor comes back through it, and
+/// a missing one is an errno, not an empty value. A file system with no
+/// user attributes is a skip.
+#[test]
+fn an_extended_attribute_comes_back_through_the_descriptor() {
+    let dir = std::env::temp_dir().join(format!("pod-hostprobe-xattr-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let fd = open(&CBuf::new(dir.to_str().unwrap()).unwrap(), O_RDONLY | O_DIRECTORY | O_CLOEXEC, 0).unwrap();
+    let name = CBuf::new("user.pod-hostprobe.test").unwrap();
+    let mut buf = [0u8; 8];
+    assert!(fgetxattr(fd, &name, &mut buf).is_err(), "an attribute that nobody set has no value");
+    match fsetxattr(fd, &name, b"y", 0) {
+        Ok(_) => {
+            assert_eq!(fgetxattr(fd, &name, &mut buf), Ok(1));
+            assert_eq!(buf[0], b'y');
+        }
+        Err(e) => pod_testkit::host::skip_line(&format!("this file system refuses user attributes: {}", e.name())),
+    }
+    let _ = close(fd);
+    let _ = std::fs::remove_dir_all(&dir);
+}

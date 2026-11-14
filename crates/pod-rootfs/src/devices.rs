@@ -80,6 +80,11 @@ fn displace_link(root: &Root, path: &str, target: &str) -> std::result::Result<S
     match root.unlink(path) {
         Ok(true) => Ok(format!("a symlink to {target}")),
         Ok(false) => Err(refused("it is gone, or its directory is out of reach".to_string())),
+        // On two layers the new entry is made in the upper layer, where no
+        // link is, and it hides the link of the lower layer.
+        Err(e) if crate::write::layer_refusal(&e).is_some() => {
+            Ok(format!("a symlink to {target} of the lower layer, which the new entry of the upper layer hides"))
+        }
         Err(e) => Err(refused(e.to_string())),
     }
 }
@@ -162,7 +167,7 @@ fn run(root: &Root, settings: &Settings) -> Result<Vec<Fixup>> {
                 if filler.is_none() {
                     pod_hostprobe::space::require(
                         &settings.host,
-                        &root.path().to_string_lossy(),
+                        &root.written().to_string_lossy(),
                         "the /dev shims",
                         (FILLED_BYTES * 3) as u64,
                         4,
@@ -172,7 +177,16 @@ fn run(root: &Root, settings: &Settings) -> Result<Vec<Fixup>> {
                 let (zeros, rand) = filler.get_or_insert_with(|| {
                     (vec![0u8; FILLED_BYTES], random_bytes(FILLED_BYTES).unwrap_or_else(|_| vec![0u8; FILLED_BYTES]))
                 });
-                out.extend(shim_for(root, path, &why, displaced.as_deref(), zeros, rand)?);
+                let mut rows = shim_for(root, path, &why, displaced.as_deref(), zeros, rand)?;
+                // A removed symlink leaves the path empty, as for the node
+                // above; on two layers the link of the lower layer stays,
+                // hidden, and the row says the same.
+                if matches!(k, Kind::Symlink(_)) {
+                    for f in rows.iter_mut().filter(|f| f.action == Action::Rewrote) {
+                        f.action = Action::Created;
+                    }
+                }
+                out.extend(rows);
             }
         }
     }

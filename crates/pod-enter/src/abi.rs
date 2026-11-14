@@ -114,7 +114,8 @@ pub struct Versioned {
 ///
 /// A named reason, never dropped. A libc that the reader cannot parse is a
 /// refusal with a reason, never a pass: a skip must not read as a denial
-/// or as a pass.
+/// or as a pass. The reason carries no verdict word: a caller that labels
+/// it adds its own.
 #[derive(Debug)]
 pub struct Unreadable(pub String);
 
@@ -179,6 +180,10 @@ pub fn interp_of_file(path: &str) -> Result<Option<String>, Unreadable> {
 ///
 /// Two outcomes, and a caller can act on each. A refusal names the libc of
 /// the root file system and the libc that the object was built against.
+///
+/// The reason of a refusal carries no verdict word (`refused:`, `note:`):
+/// each caller adds its own label (`refused:`, `declined:`), and a second
+/// label inside the reason can say a different verdict.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Verdict {
     Admitted,
@@ -228,8 +233,8 @@ pub fn admits(object: &Elf, libc: &Elf) -> Verdict {
             && !libc.declares.iter().any(|d| d == v)
         {
             return refuse(format!(
-                "{} imports `{}` at version `{v}`, and {} declares {}. refused: This \
-                     is a build host newer than the target: the loader refuses \
+                "{} imports `{}` at version `{v}`, and {} declares {}. This is a \
+                     build host newer than the target: the loader refuses \
                      naming the version, whatever the NAME resolves to",
                 object.path,
                 want.name,
@@ -243,8 +248,8 @@ pub fn admits(object: &Elf, libc: &Elf) -> Verdict {
         }
         if !libc.defines(want) {
             return refuse(format!(
-                "{} imports `{}`, which {} does not define. note: Read from .dynsym: \
-                 a shipped libc is stripped and its .symtab defines nothing",
+                "{} imports `{}`, which {} does not define. The check reads .dynsym, \
+                 because a shipped libc is stripped and its .symtab defines nothing",
                 object.path, want.name, libc.path
             ));
         }
@@ -265,29 +270,50 @@ fn pair_gates(object: &Elf, libc: &Elf) -> Option<Verdict> {
             object.path, object.machine, libc.path, libc.machine
         ));
     }
+    if let Some(v) = static_gate(object) {
+        return Some(v);
+    }
     let (want, have) = (Flavour::of_needed(&object.needed), libc.flavour());
     if have == Flavour::Unknown {
         return refuse(format!(
             "the C library in {} could not be identified: it declares no known \
-             SONAME and its name is not a known one either. refused: an object that \
+             SONAME and its name is not a known one either. An object that \
              cannot be checked is not preloaded",
             libc.path
         ));
     }
     if want != have {
+        let built = match want {
+            Flavour::Unknown => "and no known C library is among them, while".to_string(),
+            w => format!("so it was built against {}, and", w.word()),
+        };
         return refuse(format!(
-            "{} names {} in DT_NEEDED, so it was built against {}, and this \
-             rootfs carries {} ({}). refused: A preloaded object is loaded by the \
-             payload's OWN loader and resolves its imports against the payload's \
-             libc, so this one cannot serve it",
+            "{} names {} in DT_NEEDED, {built} this rootfs carries {} ({}). \
+             A preloaded object is loaded by the payload's OWN loader and \
+             resolves its imports against the payload's libc, so this one \
+             cannot serve it",
             object.path,
             object.needed.join(", "),
-            want.word(),
             have.word(),
             libc.path
         ));
     }
     None
+}
+
+/// The refusal of a static object, which names no library in `DT_NEEDED`.
+///
+/// Its own sentence: a list of its needs is empty, and "built against
+/// unknown" sends the reader to look for a libc and not at the static link.
+fn static_gate(object: &Elf) -> Option<Verdict> {
+    object.needed.is_empty().then(|| {
+        Verdict::Refused(format!(
+            "{} names no library in DT_NEEDED, so it is linked statically. No C \
+             library serves it, and a preloaded object cannot serve it either: \
+             a static program has no loader that loads one",
+            object.path
+        ))
+    })
 }
 
 /// The highest version in `declares`, for the message.

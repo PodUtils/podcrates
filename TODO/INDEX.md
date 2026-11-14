@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**451 entries: 117 open, 7 partial, 6 blocked, 321 done.**
+**455 entries: 117 open, 7 partial, 6 blocked, 325 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 87 | 101 |
-| P2 | 53 | 2 | 4 | 176 | 235 |
+| P2 | 53 | 2 | 4 | 180 | 239 |
 | P3 | 53 | 2 | 2 | 56 | 113 |
-| **All** | 117 | 7 | 6 | 321 | 451 |
+| **All** | 117 | 7 | 6 | 325 | 455 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -497,4 +497,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-564](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-store`: the actions by tag, a sorted lock of commits and digests, a store of tarballs and a git forge (PodUtils/podrunner#94) |
 | [T-565](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-results`: the ArtifactService of the results API and its blob routes, one store for each run (PodUtils/podrunner#95) |
 | [T-566](fleet.md) | P3 | S | M8 | chore | open | `pod-actions-results`: a fuzz target of the input of a stranger |
+| [T-567](podvm.md) | P2 | M | M6 | feature | done | `pod-rootfs`: the completion of a root of two layers, the lower layer read-only (PodUtils/podvm#326) |
+| [T-568](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: a reason of `abi` carries its own verdict label, and a static object reads "names  in DT_NEEDED" (PodUtils/podvm#331) |
+| [T-569](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: `probe_dir_exec` names the filesystem on each `EACCES`, also on a mount that is not noexec (PodUtils/podvm#335) |
+| [T-570](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: the refusal of the machine tier runs its legs together (PodUtils/podvm#337) |
 | [T-571](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `e830136` is red for podnet: the field `preshared` of `pod_wg::Keys` |

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-hostprobe/src/exec.rs b/crates/pod-hostprobe/src/exec.rs
+--- a/crates/pod-hostprobe/src/exec.rs
++++ b/crates/pod-hostprobe/src/exec.rs
+@@ -150,7 +150,7 @@
+         Some(name) => format!("move the directory off this filesystem, for example with {name}"),
+         None => "move the directory off this filesystem".to_string(),
+     };
+-    match noexec {
++    match noexec.map(|_| true) {
+         Some(true) => format!("the mount of the directory is noexec; {move_off}"),
+         Some(false) => "the mount of the directory is not noexec, so a policy on the path or on the file \
+              refuses the run (an LSM such as SELinux, AppArmor or Landlock, a seccomp filter, or a \

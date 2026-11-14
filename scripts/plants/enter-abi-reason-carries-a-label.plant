@@ -1,0 +1,6 @@
+# pod-enter: the refusal of a libc family that does not match carries its own `refused:` label, so a printer that adds its label prints the verdict two times; its test must fail.
+ENTRY=T-568
+GROUP=enter
+EXPECT='test abi::tests::labels::no_refusal_of_admits_carries_a_label \.\.\. FAILED'
+RUN='cargo test -p pod-enter --lib -- abi::tests::labels::no_refusal_of_admits_carries_a_label --exact'
+LIMIT=1800

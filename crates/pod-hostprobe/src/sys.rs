@@ -336,6 +336,10 @@ pub const SYS_MKNODAT: i64 = nr!(mknodat, __NR_mknodat);
 /// Linux 5.6. A kernel without it answers `ENOSYS`, which is why
 /// a caller keeps an `O_NOFOLLOW` walk beside it and does not require it.
 pub const SYS_OPENAT2: i64 = nr!(openat2, __NR_openat2);
+/// The extended attributes of a file: the opaque mark of an overlayfs
+/// directory lives there.
+pub const SYS_FGETXATTR: i64 = nr!(fgetxattr, __NR_fgetxattr);
+pub const SYS_FSETXATTR: i64 = nr!(fsetxattr, __NR_fsetxattr);
 
 // -------------------------------------------- resource limits
 //

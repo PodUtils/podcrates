@@ -3,6 +3,7 @@
 //! The files exist so that `resolve_in` walks real links; the reader maps
 //! each resolved path to a fake ELF, so no ELF bytes are crafted.
 
+use super::super::tests::labels::assert_unlabeled;
 use super::super::tests::{fake, tiny_elf};
 use super::*;
 use std::cell::RefCell;
@@ -176,6 +177,7 @@ fn a_version_is_checked_against_its_provider_file() {
     let why = refused(admits_set(&object(), &set));
     assert!(why.contains("`dlsym`") && why.contains("from libdl.so.2"), "{why}");
     assert!(why.contains("GLIBC_2.34"), "{why}");
+    assert_unlabeled(&why);
 }
 
 /// An import no member defines names its provider in the decline.
@@ -187,6 +189,7 @@ fn a_missing_definition_names_the_provider() {
     let set = fx.set(&object()).expect("the closure resolves");
     let why = refused(admits_set(&object(), &set));
     assert!(why.contains("`_Unwind_Resume`") && why.contains("from libgcc_s.so.1"), "{why}");
+    assert_unlabeled(&why);
 }
 
 /// A loader link that resolves only on the host is not read. The image's
@@ -232,4 +235,16 @@ fn a_musl_set_is_its_loader() {
     let _ = std::fs::remove_dir_all(&root);
     assert_eq!(set.members.len(), 1);
     assert_eq!(admits_set(&obj, &set), Verdict::Admitted);
+}
+
+/// A static object is refused as static against a link set too, not as a
+/// set with no C library: it needs none.
+#[test]
+fn a_static_object_is_refused_as_static_against_a_link_set() {
+    let fx = Fixture::new("static", bookworm());
+    let obj = fake("/bin/static", None, &[], &[], &[]);
+    let set = fx.set(&obj).expect("the loader alone resolves");
+    let why = refused(admits_set(&obj, &set));
+    assert!(why.contains("linked statically"), "{why}");
+    assert_unlabeled(&why);
 }

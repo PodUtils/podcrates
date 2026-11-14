@@ -1,0 +1,7 @@
+# An entry of the lower layer shows over the same name of the upper layer
+# (T-567, PodUtils/podvm#326).
+ENTRY=T-567
+GROUP=rootfs
+EXPECT='the upper layer hides the lower one'
+RUN='cargo test -p pod-rootfs --lib write::layers::tests::an_entry_of_upper_hides_the_same_name_of_lower'
+LIMIT=900

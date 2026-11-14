@@ -5980,3 +5980,354 @@ tells the filter's answer from the kernel's. Plants, each caught by hand:
 `hold-t544-raw-not-denied` (the held test) and
 `hold-t544-type-flags-kept` (the BPF test). `check-windows.sh` and
 `check-macos.sh`: 0 faults.
+
+# T-568: `pod-enter`: a reason of `abi` carries its own verdict label, and a static object reads "names  in DT_NEEDED" (PodUtils/podvm#331)
+
+**Source:** PodUtils/podvm#331 (COORD-091 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The reason of `Verdict::Refused(String)` is a sentence, and each printer
+adds its own label: podvm's `system abi` prints `refused: {why}`, and its
+interposer tier prints `podvm {verb}: interpose: declined for {argv0:?}:
+{why}`. Six reasons of `crates/pod-enter/src/abi.rs` and
+`crates/pod-enter/src/abi/closure.rs` hold a label of their own
+(`. refused: ...`, `. note: Read from .dynsym: ...`), so the output says
+"refused" two times, or "declined" and then "refused". podvm measured:
+
+```
+refused: /workspace/bin/podvm names  in DT_NEEDED, so it was built against unknown, and this rootfs carries glibc (/usr/lib/libc.so.6). refused: A preloaded object is loaded by the payload's OWN loader and resolves its imports against the payload's libc, so this one cannot serve it
+```
+
+A static object (no `DT_NEEDED`) gives `names  in DT_NEEDED` (the join of
+an empty list) and "built against unknown", which sends the reader to look
+for a libc and not at the static link.
+
+## Premise
+
+- Read: `crates/pod-enter/src/abi.rs` (`admits`, `pair_gates`),
+  `crates/pod-enter/src/abi/closure.rs` (`admits_set`, `link_set`),
+  `crates/pod-enter/src/abi/elf.rs` and `crates/pod-enter/src/abi/image.rs`
+  (the reasons of `Unreadable`).
+- Not measured here: podvm's printers. The report quotes them.
+
+## Approach
+
+Remove each label inside a reason and keep each sentence whole. A static
+object gets its own refusal (`static_gate`), in `admits` after the
+architecture and in `admits_set` before the C library of the set. Needs
+that name no C library say so, not "built against unknown". Tests: no
+reason of each path holds `refused:`, `note:` or `declined:`, or a gap of
+two spaces; the static case names the static link. Two plants.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --lib abi::
+sh scripts/plant-each.sh enter-abi-reason-carries-a-label enter-abi-static-object-has-no-reason
+```
+
+## Done
+
+2026-11-14. The commit that names T-568.
+
+- The six reasons of the report lose their label; each sentence stays
+  whole (`. This is a build host ...`, `. The check reads .dynsym, because
+  ...`, `. An object that cannot be checked ...`, `. A preloaded object
+  ...`, `. The loader checks the version ...`). The two reasons of
+  `Unreadable` (`elf.rs`, `image.rs`) lose their `refused:` too (C335).
+- `static_gate`: an object with no `DT_NEEDED` is refused with "names no
+  library in DT_NEEDED, so it is linked statically. No C library serves
+  it, and a preloaded object cannot serve it either: a static program has
+  no loader that loads one". `admits` runs it after the architecture,
+  `admits_set` before the C library of the set. Needs that name no C
+  library read "and no known C library is among them", not "built against
+  unknown".
+- Tests (`abi::tests::labels`): `a_static_object_is_refused_as_static`,
+  `no_refusal_of_admits_carries_a_label` (the architecture, an unknown
+  libc, the family, needs with no libc, the version, the symbol),
+  `no_reason_of_an_unreadable_object_carries_a_label`; in
+  `abi::closure::tests`: `a_static_object_is_refused_as_static_against_a_link_set`,
+  and the version and definition refusals of `admits_set` check the labels.
+  `cargo test -p pod-enter --all-features`: 181 passed in the library, and
+  each other target passed.
+- Plants: `enter-abi-reason-carries-a-label` (`refused:` back in the
+  family refusal) fails `no_refusal_of_admits_carries_a_label`;
+  `enter-abi-static-object-has-no-reason` (no static gate) fails
+  `a_static_object_is_refused_as_static`. Each was applied and run by hand.
+
+# T-569: `pod-hostprobe`: `probe_dir_exec` names the filesystem on each `EACCES`, also on a mount that is not noexec (PodUtils/podvm#335)
+
+**Source:** PodUtils/podvm#335 (COORD-092 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`probe_dir_exec` of `crates/pod-hostprobe/src/exec.rs` gives the remedy
+"move the directory off this filesystem, for example with $PODVM_STORE"
+on each `ExecVerdict::Denied`. It reads no flag of the mount, and the
+module doc says "`EACCES` from that run is the `noexec` answer". `EACCES`
+from `execve` has more causes: a policy on the path or on the file (an
+LSM, a seccomp filter, a sandbox). podvm measured a host with no `noexec`
+mount (`grep -c noexec /proc/self/mounts` is 0), where one directory
+refuses the run and three directories on the same device execute:
+
+```
+store_exec: no: /state/home/.local/share/podvm: a created file does not execute (/state/home/.local/share/podvm/.pod-hostprobe-exec.29370.0: execve refused with EACCES (Permission denied (os error 13))); move the directory off this filesystem, for example with $PODVM_STORE
+```
+
+The remedy cannot work there. podvm prints the detail as it is in
+`podvm doctor store_exec` and in each verb that enters the store.
+
+## Premise
+
+- Read: `crates/pod-hostprobe/src/exec.rs`, `crates/pod-hostprobe/src/sys/proc.rs`
+  (`statfs`, `Statfs::flag`, `ST_NOEXEC`, `ST_VALID`).
+- Not measured here: a host with a policy that refuses one path. The
+  report gives the measurement.
+
+## Approach
+
+On `Denied`, read the `noexec` flag of the mount of the directory with
+`sys::statfs` and `Statfs::flag(ST_NOEXEC)`. `denial_cause(flag,
+setting)` maps it to the sentence: `noexec` names the mount and the move
+off the filesystem; not `noexec` names a policy on the path or on the
+file and what to check, with no move; a flag that cannot be read (`None`:
+an error, or no `ST_VALID`) names both causes. Fix the doc of the module
+and of `try_exec`. Tests: each branch of `denial_cause`, the flag against
+`/proc/self/mounts`, and a real `noexec` tmpfs as root. A plant that
+always names the filesystem.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features --lib exec::
+sh scripts/plant-each.sh hostprobe-exec-always-names-the-filesystem
+```
+
+## Done
+
+2026-11-14. The commit that names T-569.
+
+- `exec::mount_noexec(dir)` reads the flag (`None` where `statfs` fails or
+  the kernel did not fill `f_flags`). `exec::denial_cause` gives: for
+  `noexec`, "the mount of the directory is noexec; move the directory off
+  this filesystem, for example with SETTING"; for a mount that is not
+  `noexec`, "the mount of the directory is not noexec, so a policy on the
+  path or on the file refuses the run (an LSM such as SELinux, AppArmor or
+  Landlock, a seccomp filter, or a sandbox); check the policy of this path
+  and the audit log of the kernel"; for no flag, both causes and the move
+  only "if the mount is noexec" (C336). The doc of the module and of
+  `try_exec` no longer says that `EACCES` is the `noexec` answer.
+- Tests: `the_flag_of_the_mount_decides_the_remedy` (each branch; no
+  "move" and no setting where the mount is not `noexec`),
+  `the_noexec_flag_agrees_with_the_mount_table`, and
+  `a_noexec_mount_is_named_by_the_probe` (root: a `noexec` tmpfs on the
+  scratch directory; it ran here as root and did not skip).
+  `cargo test -p pod-hostprobe --all-features`: 132 passed in the
+  library, and each other target passed.
+- Plant `hostprobe-exec-always-names-the-filesystem` (the flag ignored,
+  each denial named as `noexec`) fails
+  `the_flag_of_the_mount_decides_the_remedy`; applied and run by hand.
+
+# T-570: `pod-hostprobe`: the refusal of the machine tier runs its legs together (PodUtils/podvm#337)
+
+**Source:** PodUtils/podvm#337 (COORD-093 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`Assessment::refusal` of `crates/pod-hostprobe/src/machine.rs` joins its
+legs with one space. The reason of a skipped leg is a sentence, so the
+name of the next leg runs into it:
+
+```
+podvm windows: machine tier refused: qemu-system-x86_64 --version=skip: no qemu-system-x86_64 on PATH, so the emulator leg could not run open(/dev/kvm, O_RDWR)=ENOENT qemu-system-x86_64 -accel help=skip: no qemu-system-x86_64 on PATH, so the accelerator list could not be read
+```
+
+`podvm probe` also prints the verdict two times
+(`refused: machine tier refused: ...`): podvm's report
+(PodUtils/podvm:crates/podvm-probe/src/report.rs, `machine_block`) adds
+`refused: ` before the string. The expected output separates the legs with
+`; ` and has one verdict word.
+
+## Premise
+
+- Read: `crates/pod-hostprobe/src/machine.rs` (`refusal`,
+  `refusal_detail`), `crates/pod-hostprobe/src/supervise.rs` (`refusal`,
+  the same join), `crates/pod-hostprobe/src/report.rs` and
+  `crates/pod-hostprobe/src/report/` (the JSON reader and writer of
+  podcrates: it holds no refusal and prints no verdict word).
+- Not measured here: podvm's printers. The report quotes them.
+
+## Approach
+
+Join the legs with `; ` after `machine tier refused: `. The supervise
+tier has the same join: fix it in place. podcrates's report prints no
+`refused:` before the string, so the double comes from podvm's printer
+alone: podvm drops its own prefix (C337). Tests pin the separator and one
+verdict word; a plant puts the space back.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features --lib -- machine:: supervise::
+sh scripts/plant-each.sh hostprobe-machine-legs-run-together hostprobe-supervise-legs-run-together
+```
+
+## Done
+
+2026-11-14. The commit that names T-570.
+
+- `machine::Assessment::refusal` gives `machine tier refused: LEG; LEG;
+  LEG`; `supervise::Assessment::refusal` gives `SCOPE refused: LEG; LEG`
+  (the same join, fixed in place). podvm's case now reads
+  `machine tier refused: qemu-system-x86_64 --version=skip: no
+  qemu-system-x86_64 on PATH, so the emulator leg could not run;
+  open(/dev/kvm, O_RDWR)=ENOENT; qemu-system-x86_64 -accel help=skip: ...`.
+  The JSON field `tiers.machine.refusal` of podvm carries the same string.
+- The double verdict: podcrates's `report` module prints no refusal and
+  no `refused:`. The `refused: ` before the string is in podvm's printer
+  (PodUtils/podvm:crates/podvm-probe/src/report.rs, `machine_block`), and
+  podvm drops it (C337). podcrates keeps the verdict in the string.
+- Tests: `machine::tests::the_legs_of_a_refusal_are_separated_where_a_reason_ends`
+  (the three legs of podvm's case, the whole string, one `refused`) and
+  `supervise::tests::the_refusal_names_every_missing_leg_in_run_order`
+  (the whole string). `cargo test -p pod-hostprobe --all-features`: each
+  test passed.
+- Plants `hostprobe-machine-legs-run-together` and
+  `hostprobe-supervise-legs-run-together` (a space between legs again)
+  fail their tests; each was applied and run by hand.
+
+# T-567: `pod-rootfs`: the completion of a root of two layers, the lower layer read-only (PodUtils/podvm#326)
+
+**Source:** PodUtils/podvm#326 (COORD-090 of podvm; PodUtils/podvm@T-1749), PodUtils/podvm#327 (COORD-091, the acceptance test), #146.
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+podvm completes the root of each run before the entry with
+`pod_rootfs::complete`: `/etc/hosts`, `/etc/resolv.conf`, `/etc/passwd`
+and `/etc/group`, `/etc/mtab`, the CA bundle and the directories it scans,
+the sources of each package manager, the device shims and the links of
+`/dev/fd`, and a read of `lib/` for the C library. Each step works on one
+root path. With the overlay root of T-486
+(`Root::Overlay { lower, upper: Upper::Dir { upper, work } }`) the lower
+layer is the shared extracted image and must not change; each write must
+land in `upper`. A copy-up of a fixed list of paths in podvm breaks at the
+first new path, and cannot serve a scan of a directory that both layers
+hold (`etc/ssl/certs`, `etc/apt/sources.list.d`).
+
+The ask: a form of the completion for two layers. (1) A read (a file, a
+link, a stat, a listing) sees `upper` over `lower`; an entry of `upper`
+hides the same name of `lower`; a listing is the union. (2) A write goes
+to `upper` only; a change of a file that only `lower` holds copies it up
+first (mode, owner where the process may set it, link target); a new file,
+link or directory is made in `upper`, with its parent directories copied
+up (their modes). (3) A remove of an entry that only `lower` holds is
+refused with a typed error; say whether a step removes. (4) `lower` is
+never opened for write; a test holds it to a digest. podvm sent its
+acceptance test (PodUtils/podvm#327) for `crates/pod-rootfs/tests/`.
+
+## Premise
+
+- Read: PodUtils/podvm#326 and #327 (2026-11-14); each module of
+  `crates/pod-rootfs` (each path of the root goes through `write::Root`);
+  `pod_extract::safety` (the `InRoot` walk); the digest of
+  `crates/pod-enter/tests/confine/overlay.rs` (T-486).
+- Measured on this host (Linux 6.18, ext4, as root, and as root with no
+  `CAP_MKNOD`): a whiteout (`mknod` 0:0) and a `user.` attribute are
+  permitted.
+- Not measured: a mount of overlayfs over an upper layer that the crate
+  completed (podvm's Prove of PodUtils/podvm@T-1749 does it).
+
+## Approach
+
+1. `Settings::upper: Option<PathBuf>`; with it, `complete` opens
+   `write::Root::layers(lower, upper)`. Each operation of `Root` asks for
+   the two layers first, so each step works unchanged.
+2. `write::layers`: the resolution of a path in the merged view, one
+   component at a time from a descriptor of each layer (`O_NOFOLLOW`), a
+   link followed in the process, held in the root; whiteouts and opaque
+   directories honored; a copy-up of a file (bytes, owner, mode) and of
+   each parent directory (mode, owner); `LayerRefusal::{Remove, Opaque}`.
+3. `pod-hostprobe::sys`: `fgetxattr` and `fsetxattr` for the opaque mark.
+4. Tests: the whole completion of a fixture on two layers against the
+   completion of one root that holds the same tree, the digest of `lower`
+   with its times, the union, the hiding, the copy-up with its mode, the
+   typed refusal; podvm's acceptance test; three plants.
+
+## Prove
+
+```sh
+cargo test -p pod-rootfs --all-features
+cargo test -p pod-hostprobe --all-features --lib sys::tests
+sh scripts/plant-each.sh rootfs-layers-write-to-lower rootfs-layers-list-upper-only rootfs-layers-lower-over-upper
+sh scripts/agent/check-windows.sh
+sh scripts/agent/check-macos.sh
+```
+
+## Done
+
+2026-11-14, commit f98067e. `pod-rootfs` completes a root of two layers
+(calls C330 to C334): `Settings::upper`, `write::Root::{layers, upper,
+written}`, `write::layers`, `write::{LayerRefusal, layer_refusal}`. A read
+sees `upper` over `lower` (a whiteout and an opaque directory of `upper`
+honored), a listing is the union, each write goes to `upper`, a change of
+a file of `lower` copies it up first (bytes, owner, mode), each parent
+directory is copied up with its mode and owner, and `lower` only opens for
+read. A path resolves one component at a time with `O_NOFOLLOW` from a
+descriptor of each layer, each link of the merged view followed in the
+process, held in the root. `pod-hostprobe::sys` has `fgetxattr` and
+`fsetxattr`.
+
+The steps that remove: the device step removes a symlink at a device
+path before the node (on two layers a link of `lower` stays, hidden under
+the new node or shim, and the row is the row of one root), and
+`ca-hash-dir` removes an old certificate file of the crate (on two
+layers, one of `lower` is refused with `LayerRefusal::Remove`, and the
+row is a failed row with the refusal). A replace (`Root::write`) of an
+entry of `lower` is no remove: the new file of `upper` hides it.
+
+`cargo test -p pod-rootfs --all-features`: 81 unit tests and the 3 tests
+of `tests/two_layers.rs` passed, as root and as root with no `CAP_MKNOD`
+(the shim path; the first test of podvm then stops with `SKIP:`, C334).
+New: `write::layers::tests::{an_entry_of_upper_hides_the_same_name_of_lower,
+a_listing_of_two_layers_is_the_union, a_change_of_a_lower_file_copies_it_up_with_its_mode,
+a_remove_of_a_lower_entry_is_refused_with_its_type, a_link_resolves_in_the_merged_view,
+layers_that_hold_each_other_are_refused}` and
+`write::layers::tests::complete::two_layers_complete_as_one_root_and_the_lower_layer_keeps_its_digest`
+(a fixture with a read-only passwd, links into `/proc` and out of the
+root, a symlinked `lib` and trust store, a hash-indexed CA directory,
+`http://` sources in a file and in a directory that both layers hold, and
+a link at `dev/null`: the merged view is the tree of the completion of one
+root, the rows agree, the lower layer keeps its digest with the times,
+the upper layer holds no whiteout and no unchanged copy, and a second run
+changes nothing). The test of the copy-up also makes a new directory
+under a directory of `lower` alone, which the first test of podvm needs
+(`etc/apt/apt.conf.d`). `cargo
+test -p pod-hostprobe --all-features --lib sys::tests`:
+`an_extended_attribute_comes_back_through_the_descriptor` passed. Plants,
+each caught by hand: `rootfs-layers-write-to-lower` (a mode change of a
+lower file goes to `lower`: "the completion changed the lower layer"),
+`rootfs-layers-list-upper-only` ("a listing is the union of both
+layers"), `rootfs-layers-lower-over-upper` ("the upper layer hides the
+lower one"); `sh scripts/plant-each.sh --apply`: 0 stale.
+`check-windows.sh` and `check-macos.sh`: 0 faults.

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-enter/src/abi.rs b/crates/pod-enter/src/abi.rs
+--- a/crates/pod-enter/src/abi.rs
++++ b/crates/pod-enter/src/abi.rs
+@@ -306,7 +306,7 @@
+ /// Its own sentence: a list of its needs is empty, and "built against
+ /// unknown" sends the reader to look for a libc and not at the static link.
+ fn static_gate(object: &Elf) -> Option<Verdict> {
+-    object.needed.is_empty().then(|| {
++    (object.needed.is_empty() && false).then(|| {
+         Verdict::Refused(format!(
+             "{} names no library in DT_NEEDED, so it is linked statically. No C \
+              library serves it, and a preloaded object cannot serve it either: \
