@@ -150,6 +150,18 @@ fn statfs_reads_the_wide_struct_on_each_width() {
     assert!(ffree <= files, "f_ffree {ffree}, f_files {files}");
 }
 
+/// `f_type` is the magic of the file system: a proc on `/proc` gives
+/// `PROC_SUPER_MAGIC`. A field read at the wrong offset gives another
+/// number.
+#[test]
+fn statfs_reads_the_magic_of_the_file_system() {
+    let Ok(fs) = statfs(&CBuf::new("/proc/self").expect("a path")) else {
+        pod_testkit::host::skip_line("this host has no /proc");
+        return;
+    };
+    assert_eq!(fs.f_type, PROC_SUPER_MAGIC, "f_type {:#x} of /proc/self", fs.f_type);
+}
+
 /// `f_flags` is the field of the kernel on each width: `/` has
 /// `ST_VALID`, and each mount of this process has the `ro`, `nosuid`,
 /// `nodev` and `noexec` of its line in `/proc/self/mounts` (`/proc` is

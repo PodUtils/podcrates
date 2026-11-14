@@ -1,0 +1,9 @@
+# The join of an overlay root checks the landing of a tree: the chroot on
+# the overlay of the run is refused, and the entry falls back to an
+# overlay root of its own that does not see the writes of the run
+# (T-486). The test runs as root (sudo -n on a runner).
+ENTRY=T-486
+GROUP=confine
+EXPECT='test a_joined_entry_sees_the_overlay_of_the_running_payload \.\.\. FAILED'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

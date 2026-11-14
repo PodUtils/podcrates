@@ -13,6 +13,10 @@
 //!
 //! Each conversion from a type of the crate destructures the type with no
 //! `..`: a new field does not compile until the object carries it.
+//!
+//! The feature `schema` gives [`schema()`], the JSON Schema of the object,
+//! generated from the wire types; `schemas/hostprobe-report.v1.schema.json`
+//! of the repository is that schema ([`SCHEMA_ID`]).
 
 use serde::{Deserialize, Serialize};
 
@@ -67,14 +71,17 @@ impl std::error::Error for ReadError {}
 // The wire form. The order of the fields is the order of the text.
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 struct Document {
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "schema::version"))]
     schema: u32,
     findings: WireFindings,
     selection: WireSelection,
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 struct WireFindings {
     rows: Vec<WireRow>,
@@ -84,15 +91,26 @@ struct WireFindings {
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
+#[cfg_attr(
+    any(test, feature = "schema"),
+    schemars(extend(
+        "if" = { "properties": { "verdict": { "const": "denied" } } },
+        "then" = { "required": ["errno"], "properties": { "errno": { "type": "integer" } } }
+    ))
+)]
 #[serde(deny_unknown_fields)]
 struct WireRow {
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "schema::row_name"))]
     name: String,
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "schema::verdict"))]
     verdict: String,
     errno: Option<i32>,
     reason: String,
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 struct WireIdentity {
     uid: i64,
@@ -112,10 +130,19 @@ struct WireIdentity {
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
+#[cfg_attr(
+    any(test, feature = "schema"),
+    schemars(extend(
+        "if" = { "properties": { "verdict": { "const": "denied" } } },
+        "then" = { "required": ["errno"], "properties": { "errno": { "type": "integer" } } }
+    ))
+)]
 #[serde(deny_unknown_fields)]
 struct WireWrite {
     path: String,
     source: String,
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "schema::verdict"))]
     verdict: String,
     errno: Option<i32>,
     reason: String,
@@ -124,6 +151,7 @@ struct WireWrite {
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 struct WireSpace {
     blocks_free: u64,
@@ -132,8 +160,10 @@ struct WireSpace {
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 struct WireSelection {
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "schema::rung"))]
     rung: String,
     rejected: Vec<WireRejection>,
     controls_answered: bool,
@@ -141,8 +171,10 @@ struct WireSelection {
 }
 
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 struct WireRejection {
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "schema::rung"))]
     rung: String,
     evidence: String,
 }
@@ -373,6 +405,11 @@ fn rung_of(word: &str) -> Result<Rung, ReadError> {
         .find(|r| r.word() == word)
         .ok_or_else(|| ReadError::Word { field: "rung", word: word.to_string() })
 }
+
+#[cfg(any(test, feature = "schema"))]
+mod schema;
+#[cfg(feature = "schema")]
+pub use schema::{SCHEMA_ID, schema};
 
 #[cfg(test)]
 mod tests;

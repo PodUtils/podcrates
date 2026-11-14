@@ -1,0 +1,12 @@
+{
+  "report/invalid-denial-without-errno.json": "a denial with no errno at \"unshare(CLONE_NEWUSER)\"",
+  "report/invalid-duplicate-row.json": "two times",
+  "report/invalid-missing-field.json": "missing field `self_exe`",
+  "report/invalid-rejected-rung-word.json": "the report has rung \"kvm\"",
+  "report/invalid-rung-word.json": "the report has rung \"vm\"",
+  "report/invalid-unknown-field.json": "unknown field `extra`",
+  "report/invalid-unknown-row.json": "which no probe names",
+  "report/invalid-verdict-word.json": "the report has verdict \"maybe\"",
+  "report/invalid-version.json": "the report has schema 2",
+  "report/invalid-write-denial-without-errno.json": "a denial with no errno at \"/state\""
+}

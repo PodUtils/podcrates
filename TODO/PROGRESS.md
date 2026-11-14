@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 444 entries: 117 open, 8 partial, 6 blocked, 313 done.
+`TODO/INDEX.md` holds 444 entries: 116 open, 7 partial, 6 blocked, 315 done.
 
 ## State
 
@@ -36,7 +36,7 @@
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
 - Partial: T-028 and T-339 (`pod-warp`), T-040 (the trials of podvm),
-  T-107 (the report of `pod-hostprobe`), T-207 (`pod-netlab`), T-351
+  T-207 (`pod-netlab`), T-351
   (`services.yml`), T-378 (`pod-devtunnel`), T-526 (the fix of `kcp`
   upstream).
   Open defects: T-131
@@ -72,15 +72,12 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-First: the asks of the consumers in work (item 1): T-486 and T-107 for
-podvm (#142). Then the link
-carriers of M2 for podnet (item 3c): T-526, T-494, T-500 and T-525.
-Then the items below, in order.
+First: `v0.42.0` with the asks on `main` (#141, #142, PodUtils/podssh#234,
+#236, #238, #239, PodUtils/podrunner#91). Then the link carriers of M2
+for podnet (item 3c): T-526, T-494, T-500 and T-525. Then the items
+below, in order.
 
-1. **The defects and asks of the consumers:** T-486 (an overlay root in
-   the namespace rung of `pod-enter`, PodUtils/podvm#294, #142) and
-   T-107 (the schema of the report of `pod-hostprobe`), in this order;
-   T-558 (`AF_PACKET`
+1. **The defects and asks of the consumers:** T-558 (`AF_PACKET`
    in the rule of `pod-hold`); T-557 (`KeyRefused` on the listener of
    four carriers); T-540 (a test of the
    termios mode of `pod-term` against a kernel pty); T-550, T-551 and
@@ -137,8 +134,7 @@ Then the items below, in order.
    (PodUtils/podvm@T-1662 waits for it and for the module set of the
    modloop, which `pod-guest` has); T-347 after both, then T-348;
    `exec_attached` of `pod-incus` when PodUtils/podvm@T-1722 asks for it.
-   T-107 (partial: the report of `pod-hostprobe` is in; the JSON Schema in
-   `schemas/` for PodUtils/podvm@T-1714 remains); T-448 (a wrong fact of
+   T-448 (a wrong fact of
    FUSE in `pod-enter`); T-444 (the probe rows of
    the namespace and FUSE rungs; the rows of podswarm alone wait). T-040
    (the trials of podvm) goes with each import. podvm's open takes
@@ -178,7 +174,7 @@ Then the items below, in order.
    #130) waits too. The asks of podswarm that help podswarm alone
    (T-430 to T-437, T-440 to T-443, T-445, T-446, T-449, T-450) wait
    until the podswarm session starts (the ruling "podswarm"). T-100, T-102 to T-120 wait, unless a
-   consumer needs one first (T-107 is in item 4). T-113 to T-116 wait for the first release on crates.io.
+   consumer needs one first. T-113 to T-116 wait for the first release on crates.io.
    The asks of PodUtils/podvm#227 for podrunner are in item 2. T-191 and
    T-194 (the proposals of PodUtils/podnet#437 for `pod-broker`, for the
    egress of podrunner) wait too; each goes to item 2 when podrunner asks

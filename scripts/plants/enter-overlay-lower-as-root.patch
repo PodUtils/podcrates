@@ -1,0 +1,11 @@
+--- a/crates/pod-enter/src/ns_overlay.rs
++++ b/crates/pod-enter/src/ns_overlay.rs
+@@ -160,7 +160,7 @@
+         // keeps the owner of the namespace, as a tree that the run fills.
+         let _ = sys::fchownat(sys::AT_FDCWD as i64, &s.upper, s.uid, s.gid, 0);
+     }
+-    sys::mount_data(&m.fstype, target, &m.fstype, 0, &m.options).map_err(|e| (NS_OVERLAY_STEP, e))?;
++    sys::mount(&CBuf::new(".").unwrap(), target, &sys::cempty(), sys::MS_BIND).map_err(|e| (NS_OVERLAY_STEP, e))?;
+     Ok(())
+ }
+ 

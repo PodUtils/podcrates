@@ -32,7 +32,7 @@ s390x; mips and 32-bit powerpc refuse to compile).
 | `child` | `Spawner`: `clone_accepted`, `run_probe` |
 | `probes` | `PROBES` (66 rows: census, attribution, machine, supervise), `Kind`, `Group`, `find`, `MACHINE_LEGS`, `SUPERVISE_LEGS`, `SUPERVISION_LEGS`, `chroot_usable`, `ptmx_usable`, `fuse_usable`, `PTMX`, `FUSE` |
 | `select` | `Rung` (`word`, `requirement`, `must_never_claim`), `Strictness`, `Rejection`, `Selection` (`choose`, `meets`, `exit_code`, `STRICT_FLOOR`), `Provides`, `control_rows` |
-| `report` (feature `report`) | `write(&Findings, &Selection) -> String`, `read(&str) -> Result<(Findings, Selection), ReadError>`, `SCHEMA`, `ReadError` (`Form`, `Version`, `UnknownRow`, `DuplicateRow`, `Word`, `DenialWithoutErrno`): the JSON object of one run (see "The report") |
+| `report` (feature `report`) | `write(&Findings, &Selection) -> String`, `read(&str) -> Result<(Findings, Selection), ReadError>`, `SCHEMA`, `ReadError` (`Form`, `Version`, `UnknownRow`, `DuplicateRow`, `Word`, `DenialWithoutErrno`); `schema() -> serde_json::Value` and `SCHEMA_ID` (feature `schema`): the JSON object of one run and its JSON Schema (see "The report") |
 | `mounts` | `Mounts`: create, configure, attach, use; `summary`, `capability_note` |
 | `machine` | `assess`, `Assessment`, `Profile` (`Full`, `Tcg`), `Leg`, the leg names, `accelerators_in` |
 | `supervise` | `assess` (the mediation legs), `assess_supervision` (the lifecycle legs), `Assessment`, `Leg` |
@@ -42,7 +42,7 @@ s390x; mips and 32-bit powerpc refuse to compile).
 | `writable` | `candidates(named)`, `probe(candidates)`, `WriteProbe`, `FIXED`, `VARIABLES` |
 | `space` | `read`, `require(&Settings, ...)`, `choose`, `file_ceiling`, `dir_bytes`, `mib`: blocks and inodes before a write |
 | `exec` | `probe_dir_exec(&Settings, dir)`, `try_exec`: can a file created under a directory execute (`noexec`) |
-| `sys` | the raw system calls: `Errno`, the `SYS_*` numbers, the constants, `CBuf`, the wrappers, `clone_fork`, `shed_after_fork`, `close_in_children`; `statfs` gives `Statfs { f_bsize, f_bavail, f_files, f_ffree, f_flags }` from the `struct statfs64` of the kernel on each target (`statfs64(2)` on a 32-bit target), with `Statfs::flag` and the mount flags `ST_RDONLY`, `ST_NOSUID`, `ST_NODEV`, `ST_NOEXEC`, `ST_SYNCHRONOUS`, `ST_VALID`, `ST_MANDLOCK`, `ST_NOATIME`, `ST_NODIRATIME`, `ST_RELATIME`. Landlock (`sys/landlock.rs`): `landlock_abi`, `landlock_create_ruleset`, `landlock_add_path_rule`, `landlock_add_port_rule`, `landlock_restrict_self`, the rights `LANDLOCK_ACCESS_*` and the structs of `linux_raw_sys::landlock`; `connect`, `sockaddr_in`. seccomp (`sys/seccomp.rs`): the one table of the audit arch of the build target (`AUDIT_ARCH_NATIVE`, `X32_SYSCALL_BIT`; `pod-hold` and `pod-confine` read it), `SockFilter`, `SockFprog`, the BPF opcodes, `bpf_stmt`, `bpf_jump`, the offsets of `seccomp_data` (`seccomp_arg_low` follows the byte order), `CLONE_FLAGS_ARG`, `seccomp_set_filter`. Each wrapper is one system call on a struct of the caller, so a child between its fork and its exec can call it |
+| `sys` | the raw system calls: `Errno`, the `SYS_*` numbers, the constants, `CBuf`, the wrappers, `clone_fork`, `shed_after_fork`, `close_in_children`; `mount_data` is `mount(2)` with the data of the file system; `statfs` gives `Statfs { f_bsize, f_bavail, f_files, f_ffree, f_flags, f_type }` from the `struct statfs64` of the kernel on each target (`statfs64(2)` on a 32-bit target), with `Statfs::flag` and the mount flags `ST_RDONLY`, `ST_NOSUID`, `ST_NODEV`, `ST_NOEXEC`, `ST_SYNCHRONOUS`, `ST_VALID`, `ST_MANDLOCK`, `ST_NOATIME`, `ST_NODIRATIME`, `ST_RELATIME`, and the magics `OVERLAYFS_SUPER_MAGIC` and `PROC_SUPER_MAGIC` of `f_type`. Landlock (`sys/landlock.rs`): `landlock_abi`, `landlock_create_ruleset`, `landlock_add_path_rule`, `landlock_add_port_rule`, `landlock_restrict_self`, the rights `LANDLOCK_ACCESS_*` and the structs of `linux_raw_sys::landlock`; `connect`, `sockaddr_in`. seccomp (`sys/seccomp.rs`): the one table of the audit arch of the build target (`AUDIT_ARCH_NATIVE`, `X32_SYSCALL_BIT`; `pod-hold` and `pod-confine` read it), `SockFilter`, `SockFprog`, the BPF opcodes, `bpf_stmt`, `bpf_jump`, the offsets of `seccomp_data` (`seccomp_arg_low` follows the byte order), `CLONE_FLAGS_ARG`, `seccomp_set_filter`. Each wrapper is one system call on a struct of the caller, so a child between its fork and its exec can call it |
 
 A failure of `space` and `exec` is a `pod_core::Failure` at
 `Stage::Host`: `Class::Usage` for a path with a NUL, `Class::Unavailable`
@@ -93,6 +93,23 @@ times (`DuplicateRow`); a verdict or a rung that is not a word of the
 crate (`Word`); a `denied` with no errno (`DenialWithoutErrno`). Each row
 name of the result is the `&'static str` of its entry of `PROBES`. A
 change of the form of the object changes `SCHEMA`.
+
+The JSON Schema (2020-12) of the object is
+`schemas/hostprobe-report.v1.schema.json` of the repository, released
+with each tag. The feature `schema` (the feature `report` and schemars)
+gives `report::schema()`, the same schema as a `serde_json::Value`, and
+`report::SCHEMA_ID`, its `$id`: a consumer validates a report against it
+with no copy of the file. The schema comes from the wire types: `schema`
+is the constant `SCHEMA`, a verdict, a rung and the name of a row are an
+`enum` of the words of the crate, a `denied` row or write probe needs an
+integer `errno`, and an object has no other field. Only a row name that
+comes two times passes the schema and fails `read`. A test holds the file
+to the types: after a change of a wire type, write it again with
+`POD_HOSTPROBE_WRITE_SCHEMAS=1 cargo test -p pod-hostprobe --all-features
+schema`. `tests/examples/report/` has two valid reports and ten invalid
+ones; `tests/examples/expect.json` gives the reason of each, and each
+example gets the same verdict from `read` and from a validator of JSON
+Schema (boon).
 
 ## Parity
 

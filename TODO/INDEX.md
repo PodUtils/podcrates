@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**444 entries: 117 open, 8 partial, 6 blocked, 313 done.**
+**444 entries: 116 open, 7 partial, 6 blocked, 315 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 84 | 98 |
-| P2 | 54 | 3 | 4 | 171 | 232 |
+| P2 | 53 | 2 | 4 | 173 | 232 |
 | P3 | 52 | 2 | 2 | 56 | 112 |
-| **All** | 117 | 8 | 6 | 313 | 444 |
+| **All** | 116 | 7 | 6 | 315 | 444 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -153,7 +153,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-104](fleet.md) | P1 | M | M8 | feature | open | `pod-release`: the release index, its writer for CI and its verifier (GitHub #35, #36) |
 | [T-105](foundation.md) | P1 | M | M8 | feature | open | `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35) |
 | [T-106](fleet.md) | P2 | M | M8 | feature | open | `pod-testkit`: the stand-ins of the edge, the relay and the WARP API as binaries for a consumer's CI (GitHub #35, #36) |
-| [T-107](podvm.md) | P2 | S | M6 | feature | partial | `pod-hostprobe`: a JSON report with a published schema (GitHub #35) |
+| [T-107](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: a JSON report with a published schema (GitHub #35) |
 | [T-108](podvm.md) | P1 | M | M7 | feature | done | `pod-confine`: Landlock, a seccomp deny filter, no_new_privs and rlimits from one profile (GitHub #35) |
 | [T-109](podvm.md) | P2 | S | M7 | research | done | Research: the hold of each connect of a payload, from the `podnet-netns` of podnet, for podvm (GitHub #35, #36) |
 | [T-110](relay.md) | P1 | M | M2 | feature | open | `pod-session`: the held link to a server that is not a podssh relay (GitHub #35) |
@@ -426,7 +426,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-481](adapters.md) | P2 | M | M3 | feature | open | `pod-warp`: a session to a connect-ip server of the user's own over HTTP/3 (RFC 9484) |
 | [T-482](relay.md) | P2 | S | M2 | defect | open | `pod-netstack`: a stream dropped before its handshake ends finishes the handshake later |
 | [T-485](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: a reader of the report beside its writer, so that `podvm run` reads its probe cache (PodUtils/podvm#291) |
-| [T-486](podvm.md) | P2 | M | M6 | feature | open | `pod-enter`: an overlay root in the namespace rung, the image read-only under a tmpfs upper layer (PodUtils/podvm#294) |
+| [T-486](podvm.md) | P2 | M | M6 | feature | done | `pod-enter`: an overlay root in the namespace rung, the image read-only under a tmpfs upper layer (PodUtils/podvm#294) |
 | [T-488](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `613058c` fails to compile on Windows: `reverse_plain.rs` of `pod-relay` binds a Unix socket with no `cfg(unix)` |
 | [T-489](transport.md) | P2 | S | M1 | feature | open | `pod-devtunnel`: a client with no user token, for a tunnel with anonymous access or with a connect token |
 | [T-490](transport.md) | P3 | L | M8 | feature | open | `pod-tls`: the server half of ECH, a ClientHello in the shape of a browser, and the measure of the handshake (GitHub #130, deferred) |

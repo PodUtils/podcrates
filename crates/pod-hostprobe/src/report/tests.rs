@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 
 /// A set in which each field of the object has a value that is not its
 /// default, so that a field that `write` or `read` drops changes the text.
-fn fake() -> (Findings, Selection) {
+pub(crate) fn fake() -> (Findings, Selection) {
     let findings = Findings {
         rows: vec![
             ("unshare(CLONE_NEWNS)", Outcome::denied(sys::EPERM)),

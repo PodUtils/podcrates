@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "findings": {
+    "rows": [
+      {
+        "name": "unshare(CLONE_NEWNS)",
+        "verdict": "ok",
+        "errno": null,
+        "reason": ""
+      },
+      {
+        "name": "unshare(CLONE_NEWUSER)",
+        "verdict": "denied",
+        "errno": 1,
+        "reason": ""
+      },
+      {
+        "name": "chroot(/tmp)",
+        "verdict": "ok",
+        "errno": null,
+        "reason": ""
+      },
+      {
+        "name": "mount(tmpfs,/mnt)",
+        "verdict": "skip",
+        "errno": 2,
+        "reason": "no /mnt"
+      },
+      {
+        "name": "memfd_create+exec",
+        "verdict": "ok",
+        "errno": null,
+        "reason": ""
+      }
+    ],
+    "identity": {
+      "uid": 0,
+      "gid": 0,
+      "groups": [
+        0
+      ],
+      "uid_map": "0 1000 1",
+      "gid_map": "0 1000 1",
+      "setgroups": "deny",
+      "cap_eff": "000001ffffffffff",
+      "cap_prm": "000001ffffffffff",
+      "cap_bnd": "000001ffffffffff",
+      "seccomp": "0",
+      "seccomp_filters": "0",
+      "no_new_privs": "0",
+      "threads": "1",
+      "unreadable": []
+    },
+    "writable": [
+      {
+        "path": "/tmp",
+        "source": "fixed",
+        "verdict": "ok",
+        "errno": null,
+        "reason": "",
+        "space": {
+          "blocks_free": 1000,
+          "block_size": 4096,
+          "inodes_free": 500
+        },
+        "space_errno": null
+      },
+      {
+        "path": "/state",
+        "source": "$HOME",
+        "verdict": "denied",
+        "errno": 13,
+        "reason": "",
+        "space": null,
+        "space_errno": 2
+      }
+    ],
+    "self_exe": "/proc/self/exe",
+    "extra": 1
+  },
+  "selection": {
+    "rung": "namespace",
+    "rejected": [],
+    "controls_answered": true,
+    "control_notes": []
+  }
+}

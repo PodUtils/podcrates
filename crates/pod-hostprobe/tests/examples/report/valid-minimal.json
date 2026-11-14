@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "findings": {
+    "rows": [],
+    "identity": {
+      "uid": 1000,
+      "gid": 1000,
+      "groups": [],
+      "uid_map": null,
+      "gid_map": null,
+      "setgroups": null,
+      "cap_eff": null,
+      "cap_prm": null,
+      "cap_bnd": null,
+      "seccomp": null,
+      "seccomp_filters": null,
+      "no_new_privs": null,
+      "threads": null,
+      "unreadable": [
+        "/proc/self/status: EACCES"
+      ]
+    },
+    "writable": [],
+    "self_exe": "/proc/self/exe"
+  },
+  "selection": {
+    "rung": "unsupported",
+    "rejected": [
+      {
+        "rung": "namespace",
+        "evidence": "unshare(CLONE_NEWNS): EPERM"
+      },
+      {
+        "rung": "chroot",
+        "evidence": "chroot(/tmp): EPERM"
+      }
+    ],
+    "controls_answered": false,
+    "control_notes": [
+      "kcmp(2) is absent"
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+# The schema of the report takes each string as a verdict: a report with
+# the verdict "maybe" passes the schema, and read refuses it (T-107).
+ENTRY=T-107
+GROUP=hostprobe
+EXPECT='test report::schema::tests::each_example_passes_or_fails_for_its_reason \.\.\. FAILED'
+RUN='cargo test -p pod-hostprobe --all-features --lib report::schema'

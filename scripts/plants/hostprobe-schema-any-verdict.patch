@@ -1,0 +1,13 @@
+--- a/crates/pod-hostprobe/src/report/schema.rs
++++ b/crates/pod-hostprobe/src/report/schema.rs
+@@ -30,8 +30,8 @@
+ 
+ /// A verdict: a word of [`crate::verdict::Verdict::word`].
+ pub(super) fn verdict(_: &mut SchemaGenerator) -> Schema {
+-    let words: Vec<&str> = VERDICTS.iter().map(|v| v.word()).collect();
+-    json_schema!({ "type": "string", "enum": words })
++    let _ = VERDICTS;
++    json_schema!({ "type": "string" })
+ }
+ 
+ /// A rung: a word of [`crate::select::Rung::word`].

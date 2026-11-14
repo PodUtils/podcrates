@@ -1,0 +1,8 @@
+# A refused overlay mount enters chroot on the lower directory in place of
+# the typed refusal: the payload runs on the image (T-486). The test runs
+# as root (sudo -n on a runner).
+ENTRY=T-486
+GROUP=confine
+EXPECT='test a_refused_overlay_mount_is_a_typed_error \.\.\. FAILED'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

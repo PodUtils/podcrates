@@ -24,8 +24,12 @@
 //! The caller refuses a foreign architecture: this rung does not prove
 //! `binfmt_misc` with no chroot.
 
-use crate::abi::GuestRoot;
-use crate::{Names, memfd};
+use pod_core::Class;
+use pod_hostprobe::sys::CBuf;
+
+use crate::abi::{GuestRoot, resolve_dir};
+use crate::entry::refuse_workdir;
+use crate::{Error, Names, RootDir, memfd};
 
 /// Which no-chroot family a payload takes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -330,6 +334,46 @@ pub fn host_env(
 pub mod ldconf;
 mod maps;
 pub use maps::*;
+
+/// The working directory of an entry with no chroot, resolved through the
+/// table before the fork: `None` for the root itself, a path relative to
+/// the descriptor of the root file system where the root pair serves it,
+/// or the host path of a volume where a volume serves it.
+///
+/// The walk follows each link as the guest kernel does and keeps the
+/// guest path, so the child never follows a link of the image on the
+/// host. A table whose root is not `root.path` is refused: the relative
+/// path would name a directory of another tree.
+pub(crate) fn userland_workdir(root: &RootDir, maps: &Maps, working_dir: &str) -> crate::Result<Option<CBuf>> {
+    if maps.rootfs().trim_end_matches('/') != root.path.trim_end_matches('/') {
+        return Err(Error::runtime(
+            Class::Usage,
+            format!(
+                "the table of path maps has the root {:?}, and the entry holds the root {:?}",
+                maps.rootfs(),
+                root.path
+            ),
+        ));
+    }
+    let guest = if working_dir.is_empty() { "/" } else { working_dir };
+    let (host, parts) = resolve_dir(maps, guest).map_err(|kind| {
+        let volume = maps.volume_label(guest);
+        refuse_workdir(
+            working_dir,
+            &format!("in the image's rootfs {:?} or its volumes", root.path),
+            kind,
+            volume.as_deref(),
+        )
+    })?;
+    let text = if maps.in_volume(&parts) {
+        host.display().to_string()
+    } else if parts.is_empty() {
+        return Ok(None);
+    } else {
+        parts.join("/")
+    };
+    CBuf::new(&text).map(Some).ok_or_else(|| Error::runtime(Class::Usage, "the working directory contains a NUL byte"))
+}
 
 #[cfg(test)]
 mod tests;

@@ -82,6 +82,37 @@ pub fn reader(paths: &[String]) -> i32 {
     0
 }
 
+/// The first argument of the binary as the payload that changes its
+/// root.
+pub const CHANGER: &str = "changer";
+
+/// The payload that changes its root: `+PATH` writes `PATH` into a new or
+/// truncated file, `-PATH` removes a file, `dPATH` makes a directory. It
+/// writes `ARG=RESULT` for each (0, or the negative errno) in one line.
+pub fn changer(args: &[String]) -> i32 {
+    let mut line = String::new();
+    for a in args {
+        let (op, p) = a.split_at(1);
+        let c = CBuf::new(p).expect("no NUL");
+        let r = match op {
+            "+" => k::open(&c, k::O_CREAT | k::O_WRONLY | k::O_TRUNC | k::O_CLOEXEC, 0o644).and_then(|fd| {
+                let w = k::write(fd, p.as_bytes());
+                let _ = k::close(fd);
+                w
+            }),
+            "-" => k::unlink(&c),
+            "d" => k::mkdir(&c, 0o755),
+            _ => return 2,
+        };
+        line.push_str(&format!("{a}={} ", code(r)));
+    }
+    let _ = k::write(4, format!("{}\n", line.trim_end()).as_bytes());
+    let _ = k::close(4);
+    let mut b = [0u8; 1];
+    while let Ok(1..) = k::read(3, &mut b) {}
+    0
+}
+
 /// What one run gave: the line of the payload, its `NoNewPrivs` and
 /// `Seccomp` lines, its mount points with their options (from its
 /// `mountinfo`), and its exit code.

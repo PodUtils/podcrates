@@ -1,0 +1,11 @@
+--- a/crates/pod-hostprobe/src/report.rs
++++ b/crates/pod-hostprobe/src/report.rs
+@@ -96,7 +96,7 @@
+     any(test, feature = "schema"),
+     schemars(extend(
+         "if" = { "properties": { "verdict": { "const": "denied" } } },
+-        "then" = { "required": ["errno"], "properties": { "errno": { "type": "integer" } } }
++        "then" = {}
+     ))
+ )]
+ #[serde(deny_unknown_fields)]

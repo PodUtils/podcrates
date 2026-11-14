@@ -1,0 +1,6 @@
+# The schema of the report takes a denied row with no errno, which read
+# refuses (T-107).
+ENTRY=T-107
+GROUP=hostprobe
+EXPECT='test report::schema::tests::each_example_passes_or_fails_for_its_reason \.\.\. FAILED'
+RUN='cargo test -p pod-hostprobe --all-features --lib report::schema'

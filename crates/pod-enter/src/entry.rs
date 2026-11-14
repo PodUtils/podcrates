@@ -11,6 +11,9 @@ use pod_hostprobe::sys::{self, CBuf};
 use crate::abi::{GuestRoot, ResolveKind};
 use crate::launch::spawn_with;
 use crate::ns_optional::{NS_PROC_STEP, NS_PTS_STEP, Optional, optional_mounts};
+use crate::ns_overlay::{
+    NS_OVERLAY_DIRS_STEP, NS_OVERLAY_STEP, NS_OVERLAY_TMPFS_STEP, OverlayMount, Root, spawn_namespace_root,
+};
 use crate::userland::Maps;
 use crate::{Child, ENTERED_RUNG, Error, Names, Plan, Result, RootDir, ladder};
 
@@ -135,14 +138,28 @@ pub fn run_ladder(
 pub struct NsMount {
     pub(crate) tmp_target: CBuf,
     pub(crate) optional: Vec<Optional>,
+    /// The overlay root, first after the private remount, where the root
+    /// is an overlay ([`crate::Root::Overlay`]).
+    pub(crate) overlay: Option<OverlayMount>,
 }
 
 /// The mounts of the namespace rung: its own, or the mount namespace of
-/// a running process, by its pidfd.
+/// a running process, by its pidfd (and true where its root is an
+/// overlay).
 #[derive(Clone, Copy)]
 pub(crate) enum NsEntry<'a> {
     Own(&'a NsMount),
-    Join(i64),
+    Join(i64, bool),
+}
+
+impl NsEntry<'_> {
+    /// Is the root an overlay: the landing check then asks for one.
+    pub(crate) fn overlay(&self) -> bool {
+        match self {
+            NsEntry::Own(m) => m.overlay.is_some(),
+            NsEntry::Join(_, overlay) => *overlay,
+        }
+    }
 }
 
 /// The step byte of the join of a mount namespace.
@@ -271,6 +288,9 @@ pub fn ns_setup_step(step: u8) -> Option<&'static str> {
         NS_PROC_STEP => Some("mounting proc on /proc"),
         NS_PTS_STEP => Some("binding /dev/pts on /dev/pts"),
         NS_JOIN_STEP => Some("setns(pidfd, CLONE_NEWNS)"),
+        NS_OVERLAY_TMPFS_STEP => Some("mounting the tmpfs of the overlay layers"),
+        NS_OVERLAY_DIRS_STEP => Some("making the upper and work directories"),
+        NS_OVERLAY_STEP => Some("mounting overlay on the root"),
         _ => None,
     }
 }
@@ -295,7 +315,7 @@ pub fn spawn_namespace(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Resu
     let Some(target) = CBuf::new(&target) else {
         return chroot(err, "the /tmp mount point contains a NUL byte");
     };
-    let mount = NsMount { tmp_target: target, optional: optional_mounts(&root.path, names) };
+    let mount = NsMount { tmp_target: target, optional: optional_mounts(&root.path, names), overlay: None };
     match spawn_with(root, plan, Rung::Namespace.word(), None, None, None, Some(NsEntry::Own(&mount)), err) {
         Err(Error::NsSetup { step, errno }) => {
             chroot(err, &format!("the namespace rung refused at {step} ({} ({}))", errno.name(), errno.0))
@@ -312,11 +332,20 @@ pub fn spawn_namespace(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Resu
 /// names the step and enters a mount namespace of its own with
 /// [`spawn_namespace`], which can fall back to chroot in turn.
 pub fn spawn_joined(root: &RootDir, plan: &Plan, pidfd: i64, err: &mut dyn Write) -> Result<Child> {
-    match spawn_with(root, plan, Rung::Namespace.word(), None, None, None, Some(NsEntry::Join(pidfd)), err) {
+    spawn_joined_root(Root::Tree(root), plan, pidfd, err)
+}
+
+/// [`spawn_joined`] on a [`Root`]. For an overlay root, the chroot must
+/// land on an overlay that is not the lower directory, and a refused join
+/// enters an overlay root of its own ([`spawn_namespace_root`]), which
+/// never falls back to chroot.
+pub fn spawn_joined_root(root: Root<'_>, plan: &Plan, pidfd: i64, err: &mut dyn Write) -> Result<Child> {
+    let join = NsEntry::Join(pidfd, matches!(root, Root::Overlay { .. }));
+    match spawn_with(root.dir(), plan, Rung::Namespace.word(), None, None, None, Some(join), err) {
         Err(Error::NsSetup { step, errno }) => {
             let cause = format!("{step} ({} ({}))", errno.name(), errno.0);
             let _ = writeln!(err, "{}", ns_join_fallback_line(&plan.names, &cause));
-            spawn_namespace(root, plan, err)
+            spawn_namespace_root(root, plan, err)
         }
         other => other,
     }
