@@ -26,13 +26,35 @@ The entries:
   to the payload's standard error (`ns_refused_line`), and the payload
   runs with no `/proc` or `/dev/pts`, as on the chroot rung. The rung has no PID namespace: the
   payload's `/proc` shows the host's processes.
+* The overlay root of the namespace rung (`spawn_namespace_root`,
+  `run_namespace_root` with `Root::Overlay { lower, upper }`): the
+  caller's tree is the read-only lower layer of an overlay, so a shared
+  extracted image needs no copy for each run. The upper layer is a
+  private tmpfs of the run (`Upper::Tmpfs { size }`, the writes go away
+  with the run) or a directory of the caller with an empty work directory
+  on its file system (`Upper::Dir { upper, work }`). The child changes its
+  working directory to the held lower descriptor before the unshare,
+  mounts the tmpfs of the layers on the root path, makes the upper and
+  work directories in it (the upper one with the mode of the lower root),
+  and mounts overlayfs on the root path with `lowerdir=.`: the lower layer
+  is the descriptor, not a path (`overlay_options`; `overlay_escape`
+  escapes `,`, `:` and `\` of a path). Then the rung goes on as for a
+  tree. The landing check asks for an overlay (`OVERLAYFS_SUPER_MAGIC`)
+  whose device is not the device of the lower directory. A refusal at any
+  step (an older kernel, a host policy, a lower layer that overlayfs does
+  not take) is `Error::Overlay { step, errno }`, which names `overlay`,
+  before the payload starts: there is no fallback to chroot, which would
+  run the payload on the lower directory. `Root::Tree` is
+  `spawn_namespace`.
 * The joined entry (`spawn_joined`, for an exec): `setns` on the pidfd of
   a running payload of the namespace rung joins its mount namespace, then
   the chroot by path and the check of the rung. The payload of the exec
   sees the `/tmp` and the `/proc` of the payload of the run; the entry
   mounts nothing. A refused join (a kernel before 5.8, `EPERM`, a process
   that ended) writes `ns_join_fallback_line` and enters
-  `spawn_namespace`.
+  `spawn_namespace`. `spawn_joined_root` takes a `Root`: for an overlay
+  root the chroot must land on an overlay that is not the lower
+  directory, and a refused join enters an overlay root of its own.
 * The entry with no chroot (`spawn_userland`, `userland`): the loader of
   the image by host path, or a staged memfd for a static payload; the
   table of path maps for the interposer (`userland::Maps`: the root pair
@@ -101,10 +123,11 @@ each entry takes; the payload owns the standard output.
 | `Plan { argv, env, working_dir, fds, banner, path_dirs, names, limits, no_new_privs, die_with_parent, confine }`, `Program` | what the payload will be; `Plan::{argv_for, env_for(&names, ..), set_active_mode(&names, ..), path_from, program, program_candidates, DEFAULT_PATH}`; `confine: Option<pod_confine::Spec>` (guest paths on a rung with a chroot, host paths on the entry with no chroot) |
 | `limits` | `Limit { resource, soft, hard }`, `Resource` (`from_word` of docker's `--ulimit` word, `word`, `number` of the kernel of this architecture, `name`), `INFINITY`, `MOST` (64): the child of each entry sets each limit (`prlimit64` on itself) and then `PR_SET_NO_NEW_PRIVS` where `Plan::no_new_privs` asks, after the root change and the `chdir`, before the exec; a refused call stops the payload and is named (`setrlimit(RLIMIT_NOFILE): EPERM`) |
 | `RootDir::open`, `Fds`, `Child`, `Bounded` | the held root; the descriptors of the payload (a passed descriptor onto the number of the root or of the memfd is refused before the fork; the readiness pipe moves clear of each passed number, and the child opens the paths of the rules of the confinement after the passes; a descriptor passed onto its own number loses its close-on-exec flag, so the payload holds it); a started payload (`wait`, `wait_forwarding`, `wait_bounded`) |
-| `spawn`, `run`, `spawn_ladder`, `run_ladder`, `spawn_userland`, `run_userland`, `spawn_namespace`, `run_namespace`, `spawn_selected`, `run_selected` | the entries; a `run_*` waits and forwards SIGINT and SIGTERM. `spawn_userland` and `run_userland` take `&Maps` after the plan: the working directory resolves through it before the fork, and a table whose root is not `root.path` is refused |
+| `spawn`, `run`, `spawn_ladder`, `run_ladder`, `spawn_userland`, `run_userland`, `spawn_namespace`, `run_namespace`, `spawn_namespace_root`, `run_namespace_root`, `spawn_joined`, `spawn_joined_root`, `spawn_selected`, `run_selected` | the entries; a `run_*` waits and forwards SIGINT and SIGTERM. `spawn_userland` and `run_userland` take `&Maps` after the plan: the working directory resolves through it before the fork, and a table whose root is not `root.path` is refused |
+| `Root` (`Tree(&RootDir)`, `Overlay { lower, upper }`, `dir`), `Upper` (`Tmpfs { size }`, 0 is the default of the kernel; `Dir { upper, work }`, both absolute), `overlay_escape`, `overlay_options`, `OVERLAY_OPTIONS_MOST` (4095: longer options are a refusal before the fork), `NS_OVERLAY_TMPFS_STEP`, `NS_OVERLAY_DIRS_STEP`, `NS_OVERLAY_STEP` | the overlay root of the namespace rung |
 | `ENTERED_RUNG`, `entered_rung`, `entered_word` | the rung that a selection of `pod_hostprobe::select` enters |
 | `check_workdir(&root, ..)` (`root` is a `GuestRoot`: a path or a `Maps`; a missing directory inside a volume names the volume `HOST:GUEST`, and the image otherwise), `ns_tmp_target`, `ns_fallback_line(&names, ..)`, `ns_setup_step`, `chroot_landed`, `NsMount` | the checks of the entries, pure where they can be |
-| `Error`, `Result`, `status` | `Runtime(Failure)`, `CannotInvoke`, `NotFound`, `NsSetup`; `Error::{runtime, payload_code, code_or}`; `status::{CANNOT_INVOKE, NOT_FOUND, exit_status}` |
+| `Error`, `Result`, `status` | `Runtime(Failure)`, `CannotInvoke`, `NotFound`, `NsSetup`, `Overlay { step, errno }` (`Class::Unsupported` as a `Failure`); `Error::{runtime, payload_code, code_or}`; `status::{CANNOT_INVOKE, NOT_FOUND, exit_status}` |
 | `ladder` | `Mode` (`parse(&names, ..)`, `name`, `ORDER`), `Availability` (`refusal_reason(&names, ..)`), `choose(&names, ..)`, `resolve_payload`, `guest_exe` (the resolved guest path), `guest_invoked` (the `$0` that the kernel gives: the unresolved join of the `PATH` directory), `payload_head` (a `Payload { path, len, head }` with `file()`: the head for the decision, the open file for the stage). Each of the four takes a `GuestRoot` (a path or a `Maps`) |
 | `memfd` | `memfd_create`, `stage(&names, bytes)` (bytes in hand), `stage_file(&names, file)` and `stage_file_with(&names, file, each)` (a copy in chunks of `STAGE_CHUNK`, 1 MiB; `each` sees each chunk, for a digest), `seal`, `write_full`, `exec_fd`, `eligible`, `MemfdRefusal`, `ScriptRefusal`, `script_refusal`, `first_shebang_line`, `has_shebang`, `shebang_parts` (the interpreter and its one argument, as the kernel parses a `#!` line in `SHEBANG_HEAD`, 256 bytes), `is_executable`, the `MFD_*` flags; `probe::{memfd_exec, answer(&names, ..), MemfdExec, Standing, Answer, read_sysctl, TRAMPOLINE}` |
 | `stage` | `copy_tree`, `stage_tmpfs`, `release_tmpfs`, `cache_dir`, `stage_cache(&names, ..)`, `Refusal` |
@@ -215,14 +238,31 @@ write rule holds on the entry with no chroot. The namespace rung gives a
 payload a `/proc` with `noexec`, and the chroot sequence gives none. A
 joined entry opens a file that the running payload wrote in its `/tmp`;
 with the pidfd of a process that ended, it names the step and opens
-nothing. A
+nothing. On an overlay root (the path of the image holds `,` and `:`),
+a payload that writes a new file, changes and removes files of the image
+and makes a directory under `/` sees each change, the image keeps its
+digest (mode, owner, size, link target and bytes of each path), and a
+second run sees the image as it was; a lower directory under the most
+overlays that the kernel stacks is a refusal (`Error::Overlay` at
+`mounting overlay on the root: EINVAL`), and the payload does not run; a
+joined entry sees the writes of the running payload under `/`, and with
+the pidfd of a process that ended enters an overlay root of its own.
+`tests/overlay_root.rs` is podvm's acceptance test of the overlay root
+(PodUtils/podvm#323) with an upper directory of the caller: the writes
+are in the upper layer, the image is the same byte for byte, and a file
+that was only read did not go up. It runs a static busybox
+(`PODVM_T486_BUSYBOX`, else `/bin/busybox`) and skips with a line
+`SKIP:` with none, or where the rung refuses the overlay root. A
 host with no Landlock
 skips the runs of a confined payload. The tests of the rungs with a
-chroot skip as another user, so CI runs the binary as root
-(`scripts/ci/root-enter-confine-tests.sh`; a skip line fails it). The
+chroot skip as another user, so CI runs the two binaries as root, with
+the package `busybox-static` (`scripts/ci/root-enter-confine-tests.sh`;
+a skip line fails it). The
 plants `enter-confine-not-applied`,
 `enter-confine-rule-on-a-passed-number`, `enter-confine-rule-under-a-mount`,
 `enter-pipe-on-a-passed-number`, `enter-pass-onto-the-root`,
 `enter-own-number-stays-cloexec`, `enter-ns-proc-exec`,
-`enter-ns-join-skipped` and `enter-ns-pts-unbound`
+`enter-ns-join-skipped`, `enter-ns-pts-unbound`,
+`enter-overlay-lower-as-root`, `enter-overlay-falls-back` and
+`enter-overlay-join-as-tree`
 (`scripts/plants/`) prove the checks.

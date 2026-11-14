@@ -1,0 +1,11 @@
+--- a/crates/pod-enter/src/ns_overlay.rs
++++ b/crates/pod-enter/src/ns_overlay.rs
+@@ -195,7 +195,7 @@
+     let overlay = Some(OverlayMount::new(lower, upper)?);
+     let mount = NsMount { tmp_target, optional: optional_mounts(&lower.path, &plan.names), overlay };
+     match spawn_with(lower, plan, Rung::Namespace.word(), None, None, None, Some(NsEntry::Own(&mount)), err) {
+-        Err(Error::NsSetup { step, errno }) => Err(Error::Overlay { step: overlay_step(step), errno }),
++        Err(Error::NsSetup { .. }) => crate::spawn(lower, plan, err),
+         other => other,
+     }
+ }

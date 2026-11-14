@@ -6,6 +6,8 @@
 mod image;
 #[path = "mounts.rs"]
 mod mounts;
+#[path = "overlay.rs"]
+mod overlay;
 #[path = "payload.rs"]
 mod payload;
 
@@ -25,9 +27,10 @@ pub fn main() {
         Some(PAYLOAD) => std::process::exit(payload::payload(&args[2..])),
         Some(WRITER) => std::process::exit(payload::writer(&args[2..])),
         Some(READER) => std::process::exit(payload::reader(&args[2..])),
+        Some(payload::CHANGER) => std::process::exit(payload::changer(&args[2..])),
         _ => {}
     }
-    let tests: [(&str, fn()); 13] = [
+    let tests: [(&str, fn()); 16] = [
         ("the_entry_with_no_chroot_confines_with_host_paths", the_entry_with_no_chroot_confines_with_host_paths),
         ("a_passed_descriptor_takes_the_place_of_no_rule", a_passed_descriptor_takes_the_place_of_no_rule),
         ("a_passed_descriptor_takes_the_place_of_no_pipe", a_passed_descriptor_takes_the_place_of_no_pipe),
@@ -52,6 +55,15 @@ pub fn main() {
         (
             "the_pts_of_the_host_are_bound_on_the_namespace_rung",
             mounts::the_pts_of_the_host_are_bound_on_the_namespace_rung,
+        ),
+        (
+            "an_overlay_root_leaves_the_lower_directory_unchanged",
+            overlay::an_overlay_root_leaves_the_lower_directory_unchanged,
+        ),
+        ("a_refused_overlay_mount_is_a_typed_error", overlay::a_refused_overlay_mount_is_a_typed_error),
+        (
+            "a_joined_entry_sees_the_overlay_of_the_running_payload",
+            overlay::a_joined_entry_sees_the_overlay_of_the_running_payload,
         ),
     ];
     let mut failed = 0;

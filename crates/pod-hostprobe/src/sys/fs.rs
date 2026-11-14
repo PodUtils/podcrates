@@ -16,6 +16,12 @@ pub fn mount(source: &CBuf, target: &CBuf, fstype: &CBuf, flags: u64) -> Sysres 
     unsafe { sys(SYS_MOUNT, [source.ptr(), target.ptr(), fstype.ptr(), flags, 0, 0]) }
 }
 
+/// `mount(2)` with the data of the file system (`size=` of a tmpfs, the
+/// layers of an overlay).
+pub fn mount_data(source: &CBuf, target: &CBuf, fstype: &CBuf, flags: u64, data: &CBuf) -> Sysres {
+    unsafe { sys(SYS_MOUNT, [source.ptr(), target.ptr(), fstype.ptr(), flags, data.ptr(), 0]) }
+}
+
 pub fn umount(target: &CBuf) -> Sysres {
     unsafe { sys(SYS_UMOUNT2, [target.ptr(), 0, 0, 0, 0, 0]) }
 }

@@ -1,0 +1,9 @@
+# The overlay root binds the lower directory on the root path in place of
+# the overlay: the payload would run on the image, writable. The landing
+# check refuses it, so the test of the digest of the lower directory
+# fails (T-486). The test runs as root (sudo -n on a runner).
+ENTRY=T-486
+GROUP=confine
+EXPECT='test an_overlay_root_leaves_the_lower_directory_unchanged \.\.\. FAILED'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

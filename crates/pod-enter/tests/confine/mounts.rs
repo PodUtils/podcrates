@@ -33,7 +33,7 @@ fn chroot_rungs() -> bool {
 
 /// The root descriptor above 3 and 4, the numbers of the pipes of `run`:
 /// a passed descriptor onto the number of the root is refused.
-fn root_over_the_pipes(path: &str) -> RootDir {
+pub fn root_over_the_pipes(path: &str) -> RootDir {
     let null = k::CBuf::new("/dev/null").unwrap();
     let mut held = Vec::new();
     while held.last().is_none_or(|&fd| fd < 4) {

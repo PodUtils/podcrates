@@ -391,6 +391,11 @@ pub const MS_SLAVE: u64 = 0x0008_0000;
 /// tmpfs cannot propagate to the host.
 pub const MS_PRIVATE: u64 = 0x0004_0000;
 
+/// The `f_type` of `statfs(2)` on an overlay mount and on a proc
+/// (`include/uapi/linux/magic.h`).
+pub const OVERLAYFS_SUPER_MAGIC: u64 = 0x794c_7630;
+pub const PROC_SUPER_MAGIC: u64 = 0x9fa0;
+
 pub const S_IFMT: u32 = 0o170000;
 pub const S_IFCHR: u64 = 0o0020000;
 pub const S_IFIFO: u64 = 0o0010000;

@@ -5,7 +5,6 @@ use std::io::Write;
 use pod_core::Class;
 use pod_hostprobe::sys::{self, CBuf};
 
-use crate::abi::{GuestRoot, resolve_dir};
 use crate::entry::{NS_JOIN_STEP, NsEntry, chroot_landed, ns_setup_step, refuse_workdir, workdir_kind};
 use crate::names::var_name;
 use crate::status::{NOT_FOUND, invocable_but_refused};
@@ -111,7 +110,7 @@ pub(crate) fn spawn_with(
     // the wrong directory with exit 0. A NUL byte failed at the `CBuf`
     // above. With no chroot the check is the resolution through the table.
     let workdir_host = match userland {
-        Some(maps) => userland_workdir(root, maps, &plan.working_dir)?,
+        Some(maps) => crate::userland::userland_workdir(root, maps, &plan.working_dir)?,
         None => {
             if let Err(kind) = workdir_kind(root.path.as_str(), &plan.working_dir) {
                 return Err(refuse_workdir(
@@ -196,7 +195,7 @@ pub(crate) fn spawn_with(
             }
             // The join comes before the passed descriptors, so a pass onto
             // the number of the pidfd cannot replace it.
-            if let Some(NsEntry::Join(pidfd)) = ns
+            if let Some(NsEntry::Join(pidfd, _)) = ns
                 && let Err(e) = sys::setns(pidfd, sys::CLONE_NEWNS)
             {
                 report(NS_JOIN_STEP, e);
@@ -216,11 +215,26 @@ pub(crate) fn spawn_with(
             // its private tmpfs on the `/tmp` of the image. A failure
             // reports its step, and the parent enters chroot.
             if let Some(NsEntry::Own(m)) = ns {
+                // The lower layer of an overlay is the working directory:
+                // the unshare moves it into the new namespace, and a
+                // descriptor of the old one does not mount there.
+                if m.overlay.is_some()
+                    && let Err(e) = sys::fchdir(root.fd())
+                {
+                    report(crate::ns_overlay::NS_OVERLAY_STEP, e);
+                }
                 if let Err(e) = sys::unshare(sys::CLONE_NEWNS) {
                     report(7, e);
                 }
                 if let Err(e) = sys::mount(&empty, &slash, &empty, sys::MS_REC | sys::MS_PRIVATE) {
                     report(8, e);
+                }
+                // The overlay root on the root path, before each mount
+                // under it (`ns_overlay`).
+                if let Some(o) = &m.overlay
+                    && let Err((step, e)) = crate::ns_overlay::mount(o, &rootpath)
+                {
+                    report(step, e);
                 }
                 if let Err(e) = sys::mount(&tmpfs, &m.tmp_target, &tmpfs, 0) {
                     report(9, e);
@@ -259,10 +273,15 @@ pub(crate) fn spawn_with(
                 // path, so it works after the chroot; `EXDEV` names a
                 // landing on another file. `slash`, not `dot`: the working
                 // directory can be the `WorkingDir` of the image.
-                if ns.is_some() {
+                // An overlay root lands on an overlay, never on the lower.
+                if let Some(n) = ns {
                     let anchored = sys::fstatat(root.fd(), &empty, sys::AT_EMPTY_PATH).ok();
-                    let landed = sys::fstatat(sys::AT_FDCWD as i64, &slash, 0).ok();
-                    if !matches!((anchored, landed), (Some(a), Some(b)) if chroot_landed(&a, &b)) {
+                    let ok = match anchored {
+                        Some(a) if n.overlay() => crate::ns_overlay::landed(&a, &slash),
+                        Some(a) => sys::fstatat(sys::AT_FDCWD as i64, &slash, 0).is_ok_and(|b| chroot_landed(&a, &b)),
+                        None => false,
+                    };
+                    if !ok {
                         report(10, sys::EXDEV);
                     }
                 }
@@ -395,46 +414,6 @@ fn clear_of_passes(plan: &Plan, fd: i64) -> Result<i64> {
     let moved = sys::fcntl(fd, sys::F_DUPFD_CLOEXEC, above as u64);
     let _ = sys::close(fd);
     moved.map_err(|e| errno_failure("moving the readiness pipe clear of the passed descriptors failed", e))
-}
-
-/// The working directory of an entry with no chroot, resolved through the
-/// table before the fork: `None` for the root itself, a path relative to
-/// the descriptor of the root file system where the root pair serves it,
-/// or the host path of a volume where a volume serves it.
-///
-/// The walk follows each link as the guest kernel does and keeps the
-/// guest path, so the child never follows a link of the image on the
-/// host. A table whose root is not `root.path` is refused: the relative
-/// path would name a directory of another tree.
-fn userland_workdir(root: &RootDir, maps: &Maps, working_dir: &str) -> Result<Option<CBuf>> {
-    if maps.rootfs().trim_end_matches('/') != root.path.trim_end_matches('/') {
-        return Err(Error::runtime(
-            Class::Usage,
-            format!(
-                "the table of path maps has the root {:?}, and the entry holds the root {:?}",
-                maps.rootfs(),
-                root.path
-            ),
-        ));
-    }
-    let guest = if working_dir.is_empty() { "/" } else { working_dir };
-    let (host, parts) = resolve_dir(maps, guest).map_err(|kind| {
-        let volume = maps.volume_label(guest);
-        refuse_workdir(
-            working_dir,
-            &format!("in the image's rootfs {:?} or its volumes", root.path),
-            kind,
-            volume.as_deref(),
-        )
-    })?;
-    let text = if maps.in_volume(&parts) {
-        host.display().to_string()
-    } else if parts.is_empty() {
-        return Ok(None);
-    } else {
-        parts.join("/")
-    };
-    CBuf::new(&text).map(Some).ok_or_else(|| Error::runtime(Class::Usage, "the working directory contains a NUL byte"))
 }
 
 /// The error for a step that the child reported.

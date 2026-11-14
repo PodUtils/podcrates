@@ -38,12 +38,13 @@ jobs:
           persist-credentials: false
       - name: Toolchain
         run: sh scripts/retry.sh rustup toolchain install
-      # The plant of the convert of pod-guest runs qemu-img and qemu-io.
-      - name: qemu-utils
+      # The plant of the convert of pod-guest runs qemu-img and qemu-io; the
+      # plants of the overlay root of pod-enter run a static busybox.
+      - name: qemu-utils and busybox-static
         run: |
           set -eu
           sh scripts/retry.sh sudo apt-get update
-          sh scripts/retry.sh sudo apt-get install -y --no-install-recommends qemu-utils
+          sh scripts/retry.sh sudo apt-get install -y --no-install-recommends qemu-utils busybox-static
           qemu-img --version
       - name: Each plant is caught
         run: sh scripts/plant-each.sh

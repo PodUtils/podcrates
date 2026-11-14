@@ -157,7 +157,7 @@ pub fn ppoll(fds: &mut [PollFd], timeout_ms: i64) -> Sysres {
     }
 }
 
-/// The five `statfs` fields this project reads, widened to one shape.
+/// The six `statfs` fields this project reads, widened to one shape.
 ///
 /// **The kernel's own `struct statfs64` is the buffer**, taken per
 /// architecture from `linux_raw_sys`, and this is a normalised view built from
@@ -174,6 +174,8 @@ pub struct Statfs {
     /// ...). The kernel sets `ST_VALID` beside them where it fills this
     /// field; a value without `ST_VALID` tells nothing.
     pub f_flags: u64,
+    /// The magic number of the file system (`OVERLAYFS_SUPER_MAGIC`, ...).
+    pub f_type: u64,
 }
 
 impl Statfs {
@@ -252,6 +254,8 @@ pub fn statfs(path: &CBuf) -> Result<Statfs, Errno> {
         // A signed `long` on most 64-bit targets, a `u32` on the 32-bit
         // ones and on s390x: the flags are small and positive on each.
         f_flags: raw.f_flags as u64,
+        // A magic is 32 bits; a signed 32-bit `long` would sign-extend it.
+        f_type: (raw.f_type as u64) & 0xffff_ffff,
     })
 }
 

@@ -61,6 +61,7 @@ mod entry;
 mod launch;
 mod names;
 mod ns_optional;
+mod ns_overlay;
 
 use std::io::Write;
 
@@ -73,6 +74,10 @@ pub use entry::*;
 pub use limits::{Limit, Resource};
 pub use names::Names;
 pub use ns_optional::{NS_PROC_STEP, NS_PTS_STEP, ns_proc_refused, ns_proc_target, ns_pts_target, ns_refused_line};
+pub use ns_overlay::{
+    NS_OVERLAY_DIRS_STEP, NS_OVERLAY_STEP, NS_OVERLAY_TMPFS_STEP, OVERLAY_OPTIONS_MOST, Root, Upper, overlay_escape,
+    overlay_options, run_namespace_root, spawn_namespace_root,
+};
 pub use plan::{Plan, Program};
 pub use status::exit_status;
 
@@ -130,6 +135,14 @@ pub enum Error {
         step: &'static str,
         errno: sys::Errno,
     },
+    /// The overlay root was refused ([`Root::Overlay`]): an older kernel,
+    /// a host policy, a lower layer that overlayfs does not take. The
+    /// payload did not start, and it never runs on the lower directory.
+    Overlay {
+        /// The step that failed: the unshare, a mount, the landing check.
+        step: &'static str,
+        errno: sys::Errno,
+    },
 }
 
 impl Error {
@@ -144,7 +157,7 @@ impl Error {
         match self {
             Error::CannotInvoke(_) => Some(status::CANNOT_INVOKE),
             Error::NotFound(_) => Some(status::NOT_FOUND),
-            Error::Runtime(_) | Error::NsSetup { .. } => None,
+            Error::Runtime(_) | Error::NsSetup { .. } | Error::Overlay { .. } => None,
         }
     }
 
@@ -163,6 +176,12 @@ impl std::fmt::Display for Error {
             Error::NsSetup { step, errno } => {
                 write!(f, "namespace setup failed at {step}: {} ({})", errno.name(), errno.0)
             }
+            Error::Overlay { step, errno } => write!(
+                f,
+                "the overlay root was refused at {step}: {} ({}); the payload did not run",
+                errno.name(),
+                errno.0
+            ),
         }
     }
 }
@@ -185,13 +204,16 @@ impl From<Failure> for Error {
 impl From<Error> for Failure {
     /// One failure for a caller that does not need the code of the shell:
     /// a refused program is `Class::Refused`, a missing one
-    /// `Class::NotFound`, and a refused namespace `Class::Unsupported`.
+    /// `Class::NotFound`, and a refused namespace or overlay root
+    /// `Class::Unsupported`.
     fn from(e: Error) -> Failure {
         match e {
             Error::Runtime(f) => f,
             Error::CannotInvoke(s) => Failure::new(Stage::Host, Class::Refused, s),
             Error::NotFound(s) => Failure::new(Stage::Host, Class::NotFound, s),
-            e @ Error::NsSetup { .. } => Failure::new(Stage::Host, Class::Unsupported, e.to_string()),
+            e @ (Error::NsSetup { .. } | Error::Overlay { .. }) => {
+                Failure::new(Stage::Host, Class::Unsupported, e.to_string())
+            }
         }
     }
 }
