@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**480 entries: 136 open, 7 partial, 5 blocked, 332 done.**
+**480 entries: 134 open, 7 partial, 5 blocked, 334 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 18 | 3 | 0 | 88 | 109 |
-| P2 | 61 | 2 | 4 | 184 | 251 |
+| P1 | 17 | 3 | 0 | 89 | 109 |
+| P2 | 60 | 2 | 4 | 185 | 251 |
 | P3 | 57 | 2 | 1 | 58 | 118 |
-| **All** | 136 | 7 | 5 | 332 | 480 |
+| **All** | 134 | 7 | 5 | 334 | 480 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -519,9 +519,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-586](podvm.md) | P3 | M | M6 | defect | open | `pod-netlab`: the texts of a knob give the value as written, with its unit and range; the differences from sand-net (PodUtils/podvm#347) |
 | [T-587](fleet.md) | P2 | M | M8 | feature | open | `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99) |
 | [T-588](fleet.md) | P2 | M | M8 | feature | open | `pod-actions-results`: the CacheService and the replacement of an artifact on a rerun (PodUtils/podrunner#99) |
-| [T-589](relay.md) | P2 | S | M2 | feature | open | `pod-netstack`: `bind_udp` with port 0 takes an ephemeral port (PodUtils/podnet#552) |
+| [T-589](relay.md) | P2 | S | M2 | feature | done | `pod-netstack`: `bind_udp` with port 0 takes an ephemeral port (PodUtils/podnet#552) |
 | [T-590](podvm.md) | P1 | M | M7 | feature | open | `pod-guest`: `fetch::store` resumes a download by Range, checks the size and the sha256, and has a ceiling for each entry (PodUtils/podvm#350, item 1) |
-| [T-591](podvm.md) | P1 | M | M7 | feature | open | `pod-udf`: a new crate that reads UDF and gives the extent of a file in an ISO (PodUtils/podvm#350, item 2) |
+| [T-591](podvm.md) | P1 | M | M7 | feature | done | `pod-udf`: a new crate that reads UDF and gives the extent of a file in an ISO (PodUtils/podvm#350, item 2) |
 | [T-592](podvm.md) | P1 | S | M7 | defect | open | `pod-guest`: the agent runs the command in a child `cmd /c`, writes a `WQREADY` marker, and has a keep-alive mode (PodUtils/podvm#350, item 3) |
 | [T-593](podvm.md) | P1 | M | M7 | feature | open | `pod-guest`: the options of a plan: a NIC with `hostfwd`, virtio devices, CD-ROM and USB media, VNC, a serial channel, the Hyper-V flags (PodUtils/podvm#350, item 4) |
 | [T-594](podvm.md) | P2 | M | M7 | feature | open | `pod-qga`: a new crate, a client of the QEMU Guest Agent over a Unix socket (PodUtils/podvm#350, item 5) |

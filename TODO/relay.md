@@ -7076,7 +7076,7 @@ cargo test -p pod-session --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7095,3 +7095,11 @@ Port 0 in `bind_udp` (and `bind_udp_any`) takes a free port of the ephemeral ran
 ```sh
 cargo test -p pod-netstack --all-features
 ```
+
+## Done
+
+2026-11-14, commit 5bd7246. `NetStack::bind_udp` and `bind_udp_any` with port 0 take a free port of 49152 to 65535: the first port to try is the port that `connect` takes (`ephemeral_port` of the id of the socket and `random_seed`); a port that a UDP socket (also one that drains its queue) or the gateway service holds moves the choice to the next port, with a wrap; a range with no free port is `AddrInUse` (call C403). `UdpSocket::local_addr` gives the port. podnet can drop its own choice of ports from 49152 (PodUtils/podnet#552).
+
+- `cargo test -p pod-netstack --all-features`: 82 passed (3 new in `src/stack/tests/ephemeral.rs`: `a_bind_of_port_zero_takes_a_free_port`, `a_bind_of_any_address_and_port_zero_takes_a_free_port`, `a_bind_of_port_zero_skips_a_held_port`). `a_refused_bind_frees_its_socket` no longer binds UDP port 0.
+- Plants, each caught by hand: `netstack-udp-port-zero-refused` and `netstack-udp-port-zero-takes-a-held-port` (`a bind of port 0`).
+- clippy, rustfmt and `cargo doc` are clean; the README has the section "UDP", "Port 0".
