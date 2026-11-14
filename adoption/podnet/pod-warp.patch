@@ -15155,10 +15155,10 @@ index 8fd6f8c..0000000
 -    }
 -}
 diff --git a/src/warp/wg.rs b/src/warp/wg.rs
-index 1733854..b71dece 100644
+index 1733854..6096cdb 100644
 --- a/src/warp/wg.rs
 +++ b/src/warp/wg.rs
-@@ -1,346 +1,70 @@
+@@ -1,346 +1,71 @@
 -//! WireGuard for the WARP tunnel (issue 152). The Noise IKpsk2 handshake,
 -//! the cookie, the transport messages and the timers are the crate pod-wg
 -//! of PodUtils/podcrates, sans I/O (the WireGuard paper, section 5.4, and
@@ -15358,6 +15358,7 @@ index 1733854..b71dece 100644
 +            private,
 +            peer_public,
 +            reserved: device.reserved().unwrap_or([0; 3]),
++            preshared: None,
 +        },
 +        endpoint,
 +        v4: device.config.interface.addresses.v4.parse().ok(),
@@ -15770,3 +15771,15 @@ index d675b2a..7853101 100644
      });
      std::fs::write(path, record.to_string()).unwrap();
      std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).unwrap();
+diff --git a/src/networks/wg.rs b/src/networks/wg.rs
+index 6951e3b..386e7cf 100644
+--- a/src/networks/wg.rs
++++ b/src/networks/wg.rs
+@@ -74,6 +74,7 @@ fn read(path: &Path) -> Result<Config, Failure> {
+             private: conf.interface.private_key.0,
+             peer_public: peer.public_key,
+             reserved: peer.reserved,
++            preshared: None,
+         },
+         endpoint: (endpoint.host.clone(), endpoint.port),
+         v4,
