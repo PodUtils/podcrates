@@ -1,0 +1,11 @@
+--- a/crates/pod-relay/src/http_road/client.rs
++++ b/crates/pod-relay/src/http_road/client.rs
+@@ -76,7 +76,7 @@ impl Road {
+         let dial_alpn: DialAlpn = Arc::new(move || -> DialingAlpn {
+             let (host, trust, way) = (host.clone(), trust.clone(), way.clone());
+             Box::pin(async move {
+-                let (tls, _) = way.open_tls(&host, port, &host, &trust, limit, ALPN_OFFER).await?;
++                let (tls, _) = way.open_tls(&host, port, &host, &trust, limit, &[]).await?;
+                 let alpn = tls.get_ref().1.alpn_protocol().map(<[u8]>::to_vec);
+                 Ok(Dialed { io: Box::new(tls) as BoxIo, alpn })
+             })

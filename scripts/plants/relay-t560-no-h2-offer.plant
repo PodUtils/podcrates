@@ -1,0 +1,7 @@
+# A plant of T-560 (the one-POST form of the HTTP road over HTTP/2 in
+# pod-relay): the dial of the form offers no ALPN, so the form never goes on
+# HTTP/2; the test of the stream must fail.
+ENTRY=T-560
+GROUP=relay
+EXPECT='test the_one_form_carries_4_mib_each_way_on_one_stream_of_h2 \.\.\. FAILED'
+RUN='cargo test -p pod-relay --all-features --test http_road_one_h2 -- the_one_form_carries_4_mib_each_way_on_one_stream_of_h2'

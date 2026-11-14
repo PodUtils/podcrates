@@ -1,0 +1,11 @@
+--- a/crates/pod-relay/src/http_road/one_h2.rs
++++ b/crates/pod-relay/src/http_road/one_h2.rs
+@@ -152,7 +152,7 @@ async fn pump(recv: &mut RecvStream, to_app: &mut WriteHalf<DuplexStream>, first
+         let _ = recv.flow_control().release_capacity(taken);
+         bytes = match recv.data().await {
+             Some(Ok(data)) => data,
+-            None => return End::Closed { code: 1000, reason: "target closed".into() },
++            None | Some(Err(_)) => return End::Closed { code: 1000, reason: "target closed".into() },
+             Some(Err(e)) => {
+                 return End::Failed(format!("the relay cut the answer of the HTTP road's one-POST form: {e}"));
+             }

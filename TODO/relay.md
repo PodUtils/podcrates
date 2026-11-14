@@ -6775,7 +6775,7 @@ egress proxy of this session takes no TCP to port 4001. The first run of
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6795,6 +6795,36 @@ Offer `h2,http/1.1` on the connection of the one form only. That needs a dial th
 ```sh
 cargo test -p pod-relay --all-features --test http_road_one
 ```
+
+## Done
+
+2026-11-14, commit bfeacab. The connection of the one-POST form offers
+`h2` and `http/1.1` by ALPN: `Road::dial_alpn: Option<DialAlpn>` beside
+`Road::dial`, `conn::{DialAlpn, DialingAlpn, Dialed, ALPN_OFFER, H2}`;
+`Road::tls` sets it (call C358, which replaces C311). Where the host
+chooses `h2`, the form is one stream of HTTP/2 (`http_road/one_h2.rs`),
+framed as podssh's role serves it at `44bdf8a` (call C359): DATA each
+way, the request's `END_STREAM` the caller's end, the answer's the
+target's end (`1000 target closed`), a reset a cut, `MARK_WAIT` on the
+head and the mark. Where the host chooses `http/1.1` or nothing, the form
+goes on the same connection over HTTP/1.1; a reset with
+`HTTP_1_1_REQUIRED` sends the form once more on a connection with no
+ALPN. `tests/http_road_one_h2.rs`, 6 passed, from `Road::tls` to a
+stand-in of TLS on the loopback whose HTTP/2 is h2's own server: 4 MiB
+each way on one stream with equal digests (one connection of `h2`, one
+stream, the token, no `transfer-encoding`); a reset after 256 KiB is a
+cut; a host that chooses `http/1.1` carries the form on the same
+connection; a role that asks for HTTP/1.1 gets the form on a second
+connection; a `403` keeps its words; with no mark the split form after 2
+s to 4 s, and the host learned. Looped 15 times with no failure. The
+plants, each proved by hand: `relay-t560-no-h2-offer` (the stream test
+fails: ALPN `None`), `relay-t560-reset-is-an-end` (the cut test fails:
+`Closed`), `relay-t560-http1-not-asked-again` (the test of the role that
+asks for HTTP/1.1 fails: `Split`). The plant `relay-t559-mark-unbounded`
+takes the new context of `one.rs`. `cargo test -p pod-relay
+--all-features`: 422 passed. `cargo clippy -p pod-relay --all-targets
+--all-features -- -D warnings`, the check of Windows and of macOS:
+clean.
 
 
 # T-561: `pod-wg`: the preshared key of a handshake (PodUtils/podnet#547)

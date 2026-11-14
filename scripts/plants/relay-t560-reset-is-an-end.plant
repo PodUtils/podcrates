@@ -1,0 +1,7 @@
+# A plant of T-560 (the one-POST form of the HTTP road over HTTP/2 in
+# pod-relay): a reset of the stream reads as the target's end; the test of the
+# cut must fail.
+ENTRY=T-560
+GROUP=relay
+EXPECT='test a_reset_of_the_stream_is_a_cut \.\.\. FAILED'
+RUN='cargo test -p pod-relay --all-features --test http_road_one_h2 -- a_reset_of_the_stream_is_a_cut'
