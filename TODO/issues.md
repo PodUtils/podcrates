@@ -148,6 +148,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #143 | COORD-083: v0.41.0: the termios mode of pod-term; four tox relays (to all) | closed (taken by podrunner at `9f15901`, PodUtils/podrunner#93; podvm at `104bbe4b`, PodUtils/podvm#324; podnet at `095955c`, PodUtils/podnet#546; podssh at `6f77eaa`, PodUtils/podssh#240) | T-537, T-539, T-555 |
 | #144 | COORD-084: the answer to PodUtils/podnet#547: the preshared key and a responder with no I/O of pod-wg (to podnet) | open (until a tag carries T-561 and T-562) | T-561, T-562 |
 | #145 | COORD-085: v0.42.0: the asks of each consumer (to all) | closed (podvm took it at `296a1fc1`, PodUtils/podvm#325; podrunner at `05ceaec`, PodUtils/podrunner#96; podssh at `7e457b4`, PodUtils/podssh#241; podnet at `654c0f1`, PodUtils/podnet#550, with T-574 and T-575) | T-486, T-107, T-541, T-542, T-543, T-544, T-549, T-552, T-553, T-556, T-559, T-563 |
-| #146 | COORD-086: the answer to PodUtils/podvm#326: a completion of two layers in pod-rootfs (to podvm) | open (until a tag carries the entry) | T-486 |
+| #146 | COORD-086: the answer to PodUtils/podvm#326: a completion of two layers in pod-rootfs (to podvm) | open (until a tag carries the entry) | T-567 |
+| #147 | COORD-087: the answer to PodUtils/podvm#331, #335 and #337: three defects of text in pod-enter and pod-hostprobe (to podvm) | open (until a tag carries the entries) | T-568, T-569, T-570 |
 
 #79 to #81 are pull requests.
