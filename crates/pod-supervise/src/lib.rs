@@ -4,7 +4,7 @@
 //!
 //! The running state is the state of the launcher. [`table`] is the record,
 //! and [`launcher`] is the only writer of `running` into it, with the
-//! [`foreground`] hold of a payload that the caller waits for itself: the
+//! [`foreground()`] hold of a payload that the caller waits for itself: the
 //! hold takes the place of the launcher (the lock, the control socket, the
 //! end). Nothing reads
 //! membership from `/proc`, and nothing decides "running" by a sleep and a
