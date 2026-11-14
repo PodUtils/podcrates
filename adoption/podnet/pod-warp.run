@@ -19,7 +19,7 @@
 # the binary for x86_64 musl, built with zig (a debug build: the release
 # profile takes LTO), with podnet's static check of it.
 cargo run -q -p podnet-todo -- remap Cargo.lock > /dev/null
-cargo run -q -p podnet-todo -- remap src/networks/wg.rs > /dev/null
+cargo run -q -p podnet-todo -- remap src/networks/wg.rs src/wg_quick_tests.rs > /dev/null
 cargo run -q -p podnet-todo -- check
 python3 scripts/check-size.py
 python3 scripts/check-layers.py

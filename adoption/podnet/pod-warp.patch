@@ -15783,3 +15783,15 @@ index 6951e3b..386e7cf 100644
          },
          endpoint: (endpoint.host.clone(), endpoint.port),
          v4,
+diff --git a/src/wg_quick_tests.rs b/src/wg_quick_tests.rs
+index cb2e9da..d605e61 100644
+--- a/src/wg_quick_tests.rs
++++ b/src/wg_quick_tests.rs
+@@ -30,6 +30,7 @@ fn peer_of(conf: &wg_quick::WgQuick) -> wg::Peer {
+             private: conf.interface.private_key.0,
+             peer_public: peer.public_key,
+             reserved: peer.reserved,
++            preshared: None,
+         },
+         endpoint: peer.endpoint.as_ref().unwrap().socket_addr().unwrap(),
+         v4,

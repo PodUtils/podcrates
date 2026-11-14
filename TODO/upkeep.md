@@ -1557,7 +1557,7 @@ The run of `adoption.yml` at the next head passes for podssh.
 
 ## Problem
 
-T-561 adds the field `preshared` to `pod_wg::Keys`. podnet builds `Keys` with a struct literal in src/networks/wg.rs and in src/warp/wg.rs (the file of its trial), so its build fails: E0063, missing field `preshared`.
+T-561 adds the field `preshared` to `pod_wg::Keys`. podnet builds `Keys` with a struct literal in src/networks/wg.rs, in src/warp/wg.rs (the file of its trial) and in the test src/wg_quick_tests.rs, so its build fails: E0063, missing field `preshared`.
 
 ## Premise
 
@@ -1565,7 +1565,7 @@ T-561 adds the field `preshared` to `pod_wg::Keys`. podnet builds `Keys` with a 
 
 ## Approach
 
-`adoption/podnet/pod-warp.patch` sets `preshared: None` in each literal, which keeps podnet's behaviour (no preshared key). The run file remaps src/networks/wg.rs, so each citation of podnet's record follows the added line. The notes of `v0.43.0` name the field under "Breaking".
+`adoption/podnet/pod-warp.patch` sets `preshared: None` in each literal, which keeps podnet's behaviour (no preshared key). The run file remaps the changed files of podnet, so each citation of podnet's record follows the added line. The notes of `v0.43.0` name the field under "Breaking".
 
 ## Prove
 
@@ -1573,4 +1573,4 @@ The run of `adoption.yml` at the next head passes for podnet.
 
 ## Done
 
-2026-11-14. The two hunks are in `adoption/podnet/pod-warp.patch`, and `adoption/podnet/pod-warp.run` remaps src/networks/wg.rs. The adoption run at the next head proves it.
+2026-11-14. The hunks of the three literals are in `adoption/podnet/pod-warp.patch`, and `adoption/podnet/pod-warp.run` remaps src/networks/wg.rs and src/wg_quick_tests.rs. The run at `5db4d56` (43558133970) built podnet and failed on the test literal; a search of each Rust file of podnet at `9c1fc4b` finds no other. The adoption run at the next head proves it.
