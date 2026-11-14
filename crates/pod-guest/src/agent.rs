@@ -19,6 +19,15 @@
 //! The agent deletes the token after it writes the result. A run that is
 //! killed between the two runs the command again at the next boot; it does
 //! not lose it.
+//!
+//! The command runs in a child `cmd /c`, not with `call`: an `exit` in the
+//! command ends the child, and the agent still writes the result and stops
+//! the guest. The stdin of the command is `NUL`.
+//!
+//! The agent writes [`READY`] when it finds the mailbox, before it reads the
+//! token. With [`KEEP`] on the mailbox ([`Mode::KeepAlive`]) the agent does
+//! not shut the guest down: after each command it polls the mailbox for the
+//! next token, about one time each second.
 
 /// The file that marks the mailbox volume. The agent looks for it on each
 /// drive letter: Windows gives the letter, and it can change between boots.
@@ -38,8 +47,33 @@ pub const CODE: &str = "WQCODE.TXT";
 pub const AGENT: &str = "C:\\Windows\\System32\\wqagent.cmd";
 /// The report of the installer: the result of a provision boot.
 pub const SETUP: &str = "SETUP.TXT";
+/// The marker that the agent writes when it finds the mailbox, before it
+/// reads the token: the agent runs and the guest has booted.
+pub const READY: &str = "WQREADY.TXT";
+/// The content of [`READY`].
+pub const READY_TEXT: &str = "WQREADY";
+/// The file of the keep-alive mode: with it on the mailbox, the agent does
+/// not shut the guest down and polls for the next token.
+pub const KEEP: &str = "WQKEEP.TXT";
+
+/// What the agent does after a command.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Mode {
+    /// Write the result and shut the guest down. The host reads the result
+    /// after the emulator exits.
+    #[default]
+    Once,
+    /// Write the result, keep the guest up, and poll the mailbox for the
+    /// next token ([`KEEP`] on the mailbox). The guest does not power off,
+    /// so [`crate::run`] refuses this mode: the caller polls the mailbox.
+    KeepAlive,
+}
 
 /// The agent. Each boot runs it, and it does nothing when no token waits.
+///
+/// `cmd /c` runs the command in a child shell, so that an `exit` in the
+/// command does not end the agent. `WQRC` keeps the exit code before the
+/// next line changes `%errorlevel%`.
 pub const AGENT_CMD: &str = r#"@echo off
 if defined WQ_ACTIVE goto :eof
 set WQ_ACTIVE=1
@@ -53,14 +87,25 @@ if %WQTRIES% GEQ 600 goto :eof
 ping -n 2 127.0.0.1 >nul
 goto probe
 :found
-if not exist %WQ%\WQGO.TXT goto :eof
+>%WQ%\WQREADY.TXT echo WQREADY
+:next
+if exist %WQ%\WQGO.TXT goto take
+if exist %WQ%\WQKEEP.TXT goto idle
+goto :eof
+:take
 set WQNONCE=
 for /f "usebackq delims=" %%t in ("%WQ%\WQGO.TXT") do if not defined WQNONCE set WQNONCE=%%t
 if not defined WQNONCE goto :eof
-call %WQ%\WQCMD.CMD < NUL > %WQ%\WQOUT.TXT 2> %WQ%\WQERR.TXT
->%WQ%\WQCODE.TXT echo %errorlevel% %WQNONCE%
+cmd /c %WQ%\WQCMD.CMD < NUL > %WQ%\WQOUT.TXT 2> %WQ%\WQERR.TXT
+set WQRC=%errorlevel%
+>%WQ%\WQCODE.TXT echo %WQRC% %WQNONCE%
 del %WQ%\WQGO.TXT >nul 2>&1
+if exist %WQ%\WQKEEP.TXT goto idle
 shutdown /s /t 0 /f
+goto :eof
+:idle
+ping -n 2 127.0.0.1 >nul
+goto next
 "#;
 
 /// The installer, for one run. It copies [`AGENT_CMD`] into the image and
@@ -97,8 +142,8 @@ pub const SETUP_NAME: &str = "WA.CMD";
 /// argv with each element in quotes makes `ver & echo hi` one token, and
 /// `cmd.exe` refuses it with exit 123.
 ///
-/// The file ends with `exit /b %errorlevel%`: the agent reads
-/// `%errorlevel%` after `call`, and with no such line a command that fails
+/// The file ends with `exit /b %errorlevel%`: the agent reads the exit
+/// code of the child `cmd /c`, and with no such line a command that fails
 /// returns the code of an earlier step.
 pub fn command_file(command: &str) -> String {
     let mut s = String::from("@echo off\r\n");
@@ -131,6 +176,11 @@ pub fn quote(arg: &str) -> String {
         return arg.to_string();
     }
     format!("\"{}\"", arg.replace('"', "\"\""))
+}
+
+/// True when the agent wrote [`READY`] to the mailbox `m`.
+pub fn ready(m: &crate::Fat16) -> bool {
+    m.get(READY).is_some_and(|b| String::from_utf8_lossy(&b).trim() == READY_TEXT)
 }
 
 /// An exit code and its token, as [`CODE`] holds them.
@@ -171,114 +221,4 @@ pub fn nonce_from(e: &mut impl pod_core::entropy::Entropy) -> crate::Result<Stri
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_token_is_hex_and_fresh() {
-        let a = nonce().unwrap();
-        let b = nonce().unwrap();
-        assert_eq!(a.len(), 32);
-        assert!(a.chars().all(|c| c.is_ascii_hexdigit()), "{a}");
-        assert_ne!(a, b, "two runs must not share a token");
-    }
-
-    /// A source that gives no bytes is a failure, never a weaker token.
-    #[test]
-    fn a_dry_random_source_gives_no_token() {
-        struct Dry;
-        impl pod_core::entropy::Entropy for Dry {
-            fn fill(&mut self, _: &mut [u8]) -> Result<(), pod_core::entropy::NoRandom> {
-                Err(pod_core::entropy::NoRandom)
-            }
-        }
-        let e = nonce_from(&mut Dry).unwrap_err();
-        assert_eq!(e.class, pod_core::Class::Unavailable);
-        assert!(e.to_string().contains("no random bytes"), "{e}");
-    }
-
-    #[test]
-    fn a_cmd_slash_c_prefix_drops_and_an_empty_command_is_ver() {
-        let v = |xs: &[&str]| xs.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        assert_eq!(command_from_argv(&v(&["cmd", "/c", "ver"])), "ver");
-        assert_eq!(command_from_argv(&v(&["cmd", "/c", "dir", "/zzz"])), "dir /zzz");
-        assert_eq!(command_from_argv(&v(&["ver"])), "ver");
-        assert_eq!(command_from_argv(&v(&[])), "ver");
-        assert_eq!(command_from_argv(&v(&["cmd", "/c"])), "ver");
-        // A bare `cmd` is not a prefix and stays as it is.
-        assert_eq!(command_from_argv(&v(&["cmd", "/c"])), "ver");
-        assert_eq!(command_from_argv(&v(&["cmd"])), "cmd");
-    }
-
-    #[test]
-    fn the_agent_waits_for_a_token_and_deletes_it_last() {
-        assert!(AGENT_CMD.contains("WQGO.TXT"));
-        assert!(AGENT_CMD.contains("WQCODE.TXT"));
-        assert!(AGENT_CMD.contains("shutdown /s"));
-        // The agent removes the token after it writes the result.
-        let code = AGENT_CMD.find("WQCODE.TXT").expect("writes the code");
-        let del = AGENT_CMD.find("del %WQ%\\WQGO.TXT").expect("deletes the token");
-        assert!(code < del, "code is written before the token is removed");
-        // 600 tries of about one second each: the agent waits for a slow boot.
-        assert!(AGENT_CMD.contains("GEQ 600"));
-    }
-
-    #[test]
-    fn the_agent_is_reentrant_and_refuses_to_recurse() {
-        // `call` makes the batch return; with no `call`, control does not
-        // come back and the token stays.
-        assert!(AGENT_CMD.contains("call %WQ%\\WQCMD.CMD"));
-        assert!(AGENT_CMD.contains("if defined WQ_ACTIVE goto :eof"));
-    }
-
-    #[test]
-    fn the_installer_registers_the_boot_task_and_starts_its_scheduler() {
-        assert!(SETUP_CMD.contains("schtasks /create"));
-        assert!(SETUP_CMD.contains("/sc onstart"));
-        assert!(SETUP_CMD.contains("/ru SYSTEM"));
-        assert!(SETUP_CMD.contains("sc config schedule start= auto"));
-        assert!(SETUP_CMD.contains("wqagent.cmd"));
-        // The guest powers itself off, so that its FAT writes are on the
-        // disk before the host reads SETUP.TXT.
-        assert!(SETUP_CMD.trim_end().ends_with("shutdown /s /t 0 /f"));
-    }
-
-    #[test]
-    fn every_name_the_protocol_uses_is_8_3() {
-        // The mailbox writer refuses each other name.
-        for n in [MARKER, GO, CMD, OUT, ERR, CODE, AGENT_NAME, SETUP_NAME, SETUP] {
-            assert!(n.len() <= 12, "{n} is longer than 8.3");
-            let (base, ext) = n.split_once('.').expect("has an extension");
-            assert!(base.len() <= 8 && ext.len() <= 3, "{n} is not 8.3");
-        }
-    }
-
-    #[test]
-    fn a_command_file_preserves_the_exit_code() {
-        let f = command_file("ver");
-        assert!(f.contains("ver"));
-        assert!(f.ends_with("exit /b %errorlevel%\r\n"), "{f:?}");
-    }
-
-    /// The line goes into the batch as it is, so that `cmd.exe` sees its own
-    /// operators. A line in quotes as one token gives exit 123 in the guest.
-    #[test]
-    fn a_command_line_is_written_verbatim_and_not_as_one_quoted_token() {
-        let f = command_file("ver & echo hi & dir C:\\Windows");
-        let line = f.lines().nth(1).expect("the command is the second line");
-        assert_eq!(line, "ver & echo hi & dir C:\\Windows");
-        assert!(!line.starts_with('"'), "the line is not one quoted token");
-        assert!(!f.contains("\"ver &"), "{f:?}");
-        // A caller that needs one argument in quotes has the helper.
-        assert_eq!(quote("C:\\Program Files\\x"), "\"C:\\Program Files\\x\"");
-    }
-
-    #[test]
-    fn the_code_file_parses_into_a_code_and_a_token() {
-        assert_eq!(parse_code("0 run-token-21\r\n"), Some(Code { code: 0, token: "run-token-21".into() }));
-        assert_eq!(parse_code("1"), Some(Code { code: 1, token: String::new() }));
-        assert_eq!(parse_code("  17 spaced token  "), Some(Code { code: 17, token: "spaced token".into() }));
-        assert_eq!(parse_code("nonsense"), None);
-        assert_eq!(parse_code(""), None);
-    }
-}
+mod tests;

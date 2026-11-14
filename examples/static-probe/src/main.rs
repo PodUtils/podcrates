@@ -186,6 +186,7 @@ fn guest() -> Option<String> {
         command: "ver".into(),
         token: pod_guest::agent::nonce().unwrap_or_else(|e| e.to_string()),
         timeout: std::time::Duration::from_secs(1),
+        mode: pod_guest::Mode::Once,
     };
     let files = pod_guest::mailbox(&s, pod_guest::agent::AGENT_CMD, &request)
         .map_or_else(|e| e.to_string(), |m| m.list().len().to_string());

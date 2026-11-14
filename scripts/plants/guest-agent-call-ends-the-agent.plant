@@ -1,0 +1,9 @@
+# The agent runs the command with `call` in its own shell: an `exit` in
+# the command ends the agent before it writes the result, and the run
+# times out (T-592, PodUtils/podvm#350). The test of the agent line must
+# fail.
+ENTRY=T-592
+GROUP=guest
+EXPECT='test agent::tests::an_exit_in_the_command_ends_a_child_shell_and_not_the_agent \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- agent::tests::an_exit_in_the_command_ends_a_child_shell_and_not_the_agent'
+LIMIT=1800

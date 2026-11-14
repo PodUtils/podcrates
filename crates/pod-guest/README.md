@@ -25,8 +25,12 @@ the stop:
 * UEFI: q35, OVMF (code read-only, a copy of the variable store for each
   run), two NVMe disks (the overlay; the mailbox with
   `cache=writethrough`). A `cmd.exe` agent, which a provision boot installs
-  as an `onstart` scheduled task, runs the command and powers the guest
-  off.
+  as an `onstart` scheduled task, writes `WQREADY.TXT` when it finds the
+  mailbox, runs the command in a child `cmd /c` (stdin `NUL`; an `exit` in
+  the command ends the child, not the agent), writes the result and powers
+  the guest off. With `WQKEEP.TXT` on the mailbox (`Mode::KeepAlive`) the
+  agent keeps the guest up and polls for the next token; a last command
+  with no `WQKEEP.TXT` powers the guest off.
 * DOS: FreeDOS 1.4 on `pc` with SeaBIOS and two IDE disks. The crate types
   the boot keys and two lines into the console through QMP and polls the
   mailbox for the result.
@@ -49,13 +53,13 @@ skip where no `qemu-system-x86_64` is on `PATH` (the KVM one also where
 | `Settings` | `scratch_root` (the directory of the per-run directories), `scratch_prefix`, `keep` (keep each per-run directory), `marker` (the content of `WQMARK.TXT`), `oem` (the OEM name of the volume, 8 characters at most). `Settings::new(root)` gives `pod-guest-`, no keep, `pod-guest`, `PODGUEST` |
 | `Plan`, `Accel`, `accel_for(Option<Profile>)` | the description of one run (emulator, accelerator, firmware, overlay, mailbox, serial log, QMP socket, memory, CPUs, more arguments); `Accel::{word, cpu}` (`kvm`/`host`, `tcg`/`max`) |
 | `argv(&plan)`, `overlay_argv`, `convert_argv`, `plan::base_format` | the UEFI machine line with no program; `qemu-img create -f qcow2 -F FMT -b BASE`; `qemu-img convert -f qcow2 -O qcow2 OVERLAY OUT` (a new image with no backing file; `qemu-img commit` has no output file, PodUtils/podvm#277) |
-| `Request`, `Outcome`, `mailbox(&s, agent, &request)`, `outcome(&fat16, token)` | the command, the token and the limit; the code, the token and the streams; the mailbox of a run; the result of a mailbox (`None`: the guest wrote no result) |
-| `stage(&s, qemu_img, base, &plan, agent, &request)`, `run(&s, &plan, &request)`, `stop(&plan)` | the mailbox file and the overlay; the boot to the power-off and the result, with the error stream of the emulator in the per-run directory; QMP `quit` |
+| `Request`, `Mode`, `Outcome`, `mailbox(&s, agent, &request)`, `outcome(&fat16, token)` | the command, the token, the limit and the mode (`Once` by default; `KeepAlive` puts `WQKEEP.TXT` on the mailbox); the code, the token and the streams; the mailbox of a run; the result of a mailbox (`None`: the guest wrote no result) |
+| `stage(&s, qemu_img, base, &plan, agent, &request)`, `run(&s, &plan, &request)`, `stop(&plan)` | the mailbox file and the overlay; the boot to the power-off and the result, with the error stream of the emulator in the per-run directory (a `KeepAlive` request is `Usage`: its guest does not power off); QMP `quit` |
 | `provision(&s, qemu_img, base, &plan, out, wait)` | one boot that types the installer into the console, then the convert into `out`; returns `SETUP.TXT` |
 | `scratch_dir(&s, tag)`, `scratch_of(&plan)`, `cleanup(&s, &plan)`, `RunGuard::arm(&s, &plan)` | the per-run directory `PREFIX` + pid + `-TAG`, mode 0700; the directory of the mailbox; its removal (only a directory with the prefix, not with `keep`); the removal on drop |
 | `Stop`, `Timeout { after, stop }`, `timeout_of(&failure)` | the end of a stopped emulator; the cause of a run at its limit |
 | `emulator` | `run_steps(argv)` (a tool to its end; a failure names the program and its stderr), `spawn_emulator(&plan, args, stderr)` (a process group of its own), `stop_emulator`, `stop_with` (QMP `quit`, `SIGKILL` to the group, a bounded reap), `QUIT_WAIT`, `STOP_WAIT` |
-| `agent` | the file names of the protocol (`MARKER`, `GO`, `CMD`, `OUT`, `ERR`, `CODE`, `SETUP`, `AGENT_NAME`, `SETUP_NAME`, `AGENT`), `AGENT_CMD`, `SETUP_CMD`, `command_file`, `command_from_argv`, `quote`, `Code`, `parse_code`, `nonce()`, `nonce_from(&mut Entropy)` |
+| `agent` | the file names of the protocol (`MARKER`, `GO`, `CMD`, `OUT`, `ERR`, `CODE`, `SETUP`, `READY`, `KEEP`, `AGENT_NAME`, `SETUP_NAME`, `AGENT`), `READY_TEXT`, `Mode`, `ready(&fat16)` (the agent wrote `WQREADY.TXT`), `AGENT_CMD`, `SETUP_CMD`, `command_file`, `command_from_argv`, `quote`, `Code`, `parse_code`, `nonce()`, `nonce_from(&mut Entropy)` |
 | `dos` | `argv`, `stage(&s, ...)`, `run(&plan, batch, token, timeout)`, `batch_from_argv`, `DEFAULT_MEM_MIB`, `CPUS`, `DEFAULT_TIMEOUT_SECS`, the boot waits `TO_MENU_MS`, `TO_PROCEED_MS`, `TO_PROMPT_MS`, `MBOX_DRIVE`, `BAT` |
 | `fat16` | `Fat16` (`new`, `with_oem`, `from_image`, `put`, `get`, `list`, `is_mailbox`, `image`), `format`, `format_with`, `oem_bytes`, the geometry (16 MiB behind an MBR at LBA 2048, 4 KiB clusters), `LABEL`, `OEM` |
 | `fetch` | `Ceiling { max_bytes, fsize }`, `check_declared`, `store(reader, declared, dest, want, ceiling)` (the sha256 in hex; a per-process partial file, removed on each refusal), `partial`, `Refusal`, `refusal(&failure)` |
@@ -169,6 +173,11 @@ Against podvm `crates/podvm-windows` at `6cd3442`:
 ## Tests
 
 `cargo test -p pod-guest`. The unit tests use a temporary directory each.
+The tests of the agent walk `AGENT_CMD` line by line over a mailbox of
+names and texts (`src/agent/tests.rs`): the order of the marker, the
+command, the result and the shutdown, the keep-alive loop over three
+tokens, and the 600 tries with no mailbox. A line that the walk does not
+know fails the test.
 The tests with a fake emulator run `/bin/sh` and skip with a line
 `skipping, REASON` where it is missing. A stop test reads a script with
 `/bin/sh`, so that no test executes a file that a test thread just wrote
