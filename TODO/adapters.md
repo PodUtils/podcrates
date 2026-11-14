@@ -219,6 +219,13 @@ podcrates.
   (`RelayBudget::meter_for` of `pod-relay`) for the edge leg; podnet sends
   no fix of the frozen file for it.
 
+- podnet's fuzz run 43590953876 found a panic in `Reader::bytes` of
+  `src/cloudflare/capnp.rs`: a byte list past its segment, from input of
+  the Cloudflare edge (PodUtils/podnet#555, item 2; the crash input is in
+  that issue). podnet fixes it in its frozen file and names the commit
+  on #156: the import takes that fix, with a bound check of each reader
+  of a list and the crash input as a test.
+
 ## Approach
 
 The procedure of `docs/design.md`, section 8, with podnet's files only.
