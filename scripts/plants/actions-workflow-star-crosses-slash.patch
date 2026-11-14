@@ -1,0 +1,11 @@
+--- a/crates/pod-actions-workflow/src/pattern.rs
++++ b/crates/pod-actions-workflow/src/pattern.rs
+@@ -146,7 +146,7 @@
+                             Count::Many => hit && (next[i + 1] || cur[i + 1]),
+                         }
+                     }
+-                    Token::Star => next[i] || (c.is_some_and(|c| c != '/') && cur[i + 1]),
++                    Token::Star => next[i] || (c.is_some() && cur[i + 1]),
+                     Token::Any => next[i] || (c.is_some() && cur[i + 1]),
+                     Token::Dirs => {
+                         dir = dir || (c == Some('/') && next[i + 1]);

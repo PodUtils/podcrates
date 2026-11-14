@@ -1,0 +1,11 @@
+--- a/crates/pod-actions-workflow/src/on.rs
++++ b/crates/pod-actions-workflow/src/on.rs
+@@ -117,7 +117,7 @@
+             }
+         }
+         if let (Some(names), Some(workflow)) = (&self.workflows, t.workflow)
+-            && !names.iter().any(|n| n == workflow)
++            && names.is_empty() && workflow.is_empty()
+         {
+             return false;
+         }

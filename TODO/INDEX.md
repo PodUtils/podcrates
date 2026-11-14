@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**468 entries: 129 open, 7 partial, 5 blocked, 327 done.**
+**472 entries: 130 open, 7 partial, 5 blocked, 330 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 14 | 3 | 0 | 88 | 105 |
-| P2 | 60 | 2 | 4 | 180 | 246 |
-| P3 | 55 | 2 | 1 | 57 | 115 |
-| **All** | 129 | 7 | 5 | 327 | 468 |
+| P2 | 60 | 2 | 4 | 182 | 248 |
+| P3 | 56 | 2 | 1 | 58 | 117 |
+| **All** | 130 | 7 | 5 | 330 | 472 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -502,9 +502,13 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-569](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: `probe_dir_exec` names the filesystem on each `EACCES`, also on a mount that is not noexec (PodUtils/podvm#335) |
 | [T-570](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: the refusal of the machine tier runs its legs together (PodUtils/podvm#337) |
 | [T-571](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `e830136` is red for podnet: the field `preshared` of `pod_wg::Keys` |
+| [T-572](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-workflow`: the filters of `on:` (types, branches, tags, paths and their -ignore forms) (PodUtils/podrunner#97) |
 | [T-573](podvm.md) | P1 | M | M6 | feature | done | `pod-supervise`: a foreground holder, so that a run that the caller waits for is Running (PodUtils/podvm#339) |
 | [T-574](relay.md) | P2 | S | M6 | feature | open | `pod-hold`: a filter that refuses raw sockets and lets ping sockets reach the supervisor (PodUtils/podnet#550) |
 | [T-575](transport.md) | P3 | S | M1 | docs | done | `pod-services`: the README names the scheme `tcp` of an endpoint (PodUtils/podnet#550) |
+| [T-576](fleet.md) | P2 | L | M8 | feature | done | `pod-actions-workflow`: the calls of reusable workflows in `Run` (inputs, secrets, outputs, limits) (PodUtils/podrunner#98) |
+| [T-577](fleet.md) | P3 | S | M8 | feature | done | `pod-actions-workflow`: the `workflows` filter of `workflow_run` |
+| [T-578](fleet.md) | P3 | S | M8 | feature | open | `pod-actions-workflow`: a check of the keys and the filters of `on:`, as GitHub refuses a file |
 | [T-579](relay.md) | P2 | S | M2 | defect | open | `pod-session`: a spare link that moved no byte backs off before the next (PodUtils/podssh#242) |
 | [T-580](podvm.md) | P1 | S | M6 | defect | open | `pod-rootfs`: an image with no CA bundle gets the host bundle when `host_cas` is false (PodUtils/podvm#341) |
 | [T-581](podvm.md) | P1 | S | M6 | defect | open | `pod-extract`: a file of mode 4755, 2755 or 6755 loses its setuid and setgid bits (PodUtils/podvm#342) |

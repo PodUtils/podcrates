@@ -1,10 +1,15 @@
 //! pod-actions-workflow and pod-actions-expr: a workflow with a matrix and
 //! a need, its dry run, and one expression, so that the YAML reader, the
-//! model, the matrix, the parser and the evaluator link in. pod-actions-store:
+//! model, the matrix, the parser and the evaluator link in; the filters of
+//! `on:` for one push, so that the patterns link in; one call of a reusable
+//! workflow, so that the expansion of calls links in. pod-actions-store:
 //! the `uses:` of the workflow, the digest of a tar, and a lock read back.
 
 const WORKFLOW: &str = "
-on: push
+on:
+  push:
+    branches: ['releases/**', '!releases/**-alpha']
+    paths-ignore: ['docs/**']
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -34,14 +39,48 @@ pub fn actions() -> String {
                     .map(|(id, o)| match o {
                         pod_actions_workflow::Outcome::Run(cells) => format!("{id}: {} cells", cells.len()),
                         pod_actions_workflow::Outcome::Skipped(skip) => skip.to_string(),
+                        pod_actions_workflow::Outcome::Called(calls) => format!("{id}: {} calls", calls.len()),
                     })
                     .collect();
                 outcomes.join("; ")
             },
         );
+    let paths = ["src/main.rs".to_string()];
+    let push = pod_actions_workflow::Trigger {
+        git_ref: Some("refs/heads/releases/v1"),
+        paths: Some(&paths),
+        ..pod_actions_workflow::Trigger::new("push")
+    };
+    let takes = pod_actions_workflow::parse(WORKFLOW)
+        .and_then(|p| p.workflow.takes(&push))
+        .map_or_else(|e| e.to_string(), |t| t.to_string());
     let value = pod_actions_expr::evaluate("format('{0}', toJSON(fromJSON('[1, 2]')[1]))", &Default::default())
         .map_or_else(|e| e.to_string(), |v| v.to_text());
-    format!("pod-actions-workflow: {jobs}; pod-actions-expr: {value}; pod-actions-store: {}", store())
+    format!(
+        "pod-actions-workflow: {jobs}; takes a push: {takes}; calls: {}; pod-actions-expr: {value}; pod-actions-store: {}",
+        calls(),
+        store()
+    )
+}
+
+/// The source of the called workflow: one fixed text.
+struct Fixed;
+
+impl pod_actions_workflow::Called for Fixed {
+    fn text(&self, _uses: &str, _from: Option<&str>) -> Result<String, String> {
+        Ok("on:\n  workflow_call:\n    inputs:\n      who: {type: string, required: true}\njobs:\n  greet:\n    runs-on: linux\n    steps:\n      - run: echo ${{ inputs.who }}\n".into())
+    }
+}
+
+/// A dry run of a job that calls a workflow: the ids of the jobs.
+fn calls() -> String {
+    let text = "on: push\njobs:\n  call:\n    uses: ./greet.yml\n    with:\n      who: probe\n";
+    let success = pod_actions_workflow::JobResult::Success;
+    pod_actions_workflow::parse(text)
+        .and_then(|p| {
+            pod_actions_workflow::plan_with(&p.workflow, Default::default(), success, std::sync::Arc::new(Fixed))
+        })
+        .map_or_else(|e| e.to_string(), |all| all.iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>().join(","))
 }
 
 /// The `uses:` of a workflow, the digest of an empty tar, and a lock of one

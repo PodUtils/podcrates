@@ -1,0 +1,11 @@
+--- a/crates/pod-actions-workflow/src/expand.rs
++++ b/crates/pod-actions-workflow/src/expand.rs
+@@ -348,7 +348,7 @@
+         let at = |kind| Error::new(&path, Some(job.mark), kind);
+         let limits = self.base.calls;
+         let depth = self.scopes[s].depth + 1;
+-        if depth > limits.levels {
++        if depth > limits.levels && limits.levels == 0 {
+             return Err(at(ErrorKind::CallLimit { what: "levels of workflows", max: limits.levels }));
+         }
+         let new = !self.uses.iter().any(|u| u == uses);

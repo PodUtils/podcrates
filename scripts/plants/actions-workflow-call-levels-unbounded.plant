@@ -1,0 +1,7 @@
+# The limit on the levels of called workflows does not hold: a
+# workflow that calls itself calls with no end (T-576, PodUtils/podrunner#98).
+ENTRY=T-576
+GROUP=actions
+EXPECT='the limit of levels stops the loop'
+RUN='cargo test -p pod-actions-workflow --test call'
+LIMIT=900

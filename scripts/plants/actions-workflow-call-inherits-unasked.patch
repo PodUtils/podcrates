@@ -1,0 +1,12 @@
+--- a/crates/pod-actions-workflow/src/call.rs
++++ b/crates/pod-actions-workflow/src/call.rs
+@@ -251,6 +251,9 @@
+         let fail =
+             |name: &str, why: &str| Error::new(&path, mark, ErrorKind::Secret { name: name.into(), why: why.into() });
+         let mut items = Vec::new();
++        if job.secrets.is_none() {
++            return Ok(from.clone());
++        }
+         if let Some(node) = &job.secrets {
+             match &node.kind {
+                 Kind::String(s) if s == "inherit" => return Ok(from.clone()),

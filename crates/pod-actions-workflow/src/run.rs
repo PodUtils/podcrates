@@ -5,21 +5,30 @@ use std::fmt;
 
 use pod_actions_expr::{Limits, Value};
 
+use crate::call::{Call, CallLimits, Secrets};
+
 /// The contexts of a run that do not change: `github` (a local stand-in
 /// that the caller makes), `vars` and `inputs`. Each is an empty object by
-/// default.
+/// default. `calls` bounds the calls of reusable workflows.
 #[derive(Clone, Debug)]
 pub struct Base {
     pub github: Value,
     pub vars: Value,
     pub inputs: Value,
     pub limits: Limits,
+    pub calls: CallLimits,
 }
 
 impl Default for Base {
     fn default() -> Base {
         let empty = || Value::object(Vec::<(String, Value)>::new());
-        Base { github: empty(), vars: empty(), inputs: empty(), limits: Limits::default() }
+        Base {
+            github: empty(),
+            vars: empty(),
+            inputs: empty(),
+            limits: Limits::default(),
+            calls: CallLimits::default(),
+        }
     }
 }
 
@@ -87,10 +96,11 @@ pub struct RunsOn {
 /// matrix.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Instance {
-    /// The id of the job.
+    /// The id of the job: `CALLER/CALLEE` for a called job.
     pub job: String,
     /// The name to show: `name` evaluated, or the id; the values of the
-    /// cell follow in parentheses where `name` does not read `matrix`.
+    /// cell follow in parentheses where `name` does not read `matrix`. A
+    /// called job has the name of its caller first: `CALLER / CALLEE`.
     pub name: String,
     /// The cell: the `matrix` context; null with no matrix.
     pub matrix: Value,
@@ -101,12 +111,18 @@ pub struct Instance {
     pub needs: Value,
     /// `runs-on`, evaluated; none for a reusable workflow.
     pub runs_on: Option<RunsOn>,
-    /// The reusable workflow that the job calls: named, not expanded.
+    /// The reusable workflow that the job calls, for a run with no
+    /// [`Called`](crate::Called) source: named, not expanded.
     pub uses: Option<String>,
     /// `timeout-minutes`, evaluated: 360 by default.
     pub timeout_minutes: f64,
     /// `continue-on-error`, evaluated: false by default.
     pub continue_on_error: bool,
+    /// The `inputs` context of the job: the run's, or the inputs of the
+    /// call for a called job.
+    pub inputs: Value,
+    /// The secrets that the job may read.
+    pub secrets: Secrets,
 }
 
 /// A job that does not run, with its reason: its condition was false.
@@ -149,4 +165,7 @@ pub enum Outcome {
     Run(Vec<Instance>),
     /// Its condition was false: it ends as `skipped`.
     Skipped(Skip),
+    /// It calls a reusable workflow: one call for each cell. The called
+    /// jobs are now jobs of the run; the job ends when they end.
+    Called(Vec<Call>),
 }

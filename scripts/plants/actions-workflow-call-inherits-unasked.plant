@@ -1,0 +1,7 @@
+# A call with no `secrets:` passes each secret of its caller, as
+# `secrets: inherit` does (T-576, PodUtils/podrunner#98).
+ENTRY=T-576
+GROUP=actions
+EXPECT='secrets_are_passed_by_name_inherited_only_when_asked_and_checked'
+RUN='cargo test -p pod-actions-workflow --test call'
+LIMIT=900

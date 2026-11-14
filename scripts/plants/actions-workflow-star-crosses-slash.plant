@@ -1,0 +1,7 @@
+# `*` matches a `/` as `**` does: `*` takes `a/b` (T-572,
+# PodUtils/podrunner#97).
+ENTRY=T-572
+GROUP=actions
+EXPECT='must not match a/b'
+RUN='cargo test -p pod-actions-workflow --test on'
+LIMIT=900
