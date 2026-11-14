@@ -108,7 +108,7 @@ const BUSY_PAUSE: std::time::Duration = std::time::Duration::from_millis(2);
 /// Writes a tiny script, marks it executable, runs it, and removes it. The
 /// removal runs on every path: a probe that litters the store it is checking
 /// is a second defect filed under the first. The detail of a denial names
-/// the cause that the flags of the mount establish ([`denial_cause`]), and
+/// the cause that the flags of the mount establish (`denial_cause`), and
 /// `settings.directory_setting` where the remedy is to move the directory.
 pub fn probe_dir_exec(settings: &Settings, dir: &Path) -> Result<ExecProbe> {
     let name = format!(
