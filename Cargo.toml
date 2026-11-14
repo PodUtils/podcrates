@@ -48,6 +48,7 @@ pod-netlab = { path = "crates/pod-netlab", version = "0.44.0" }
 pod-netstack = { path = "crates/pod-netstack", version = "0.44.0" }
 pod-oci = { path = "crates/pod-oci", version = "0.44.0" }
 pod-proxy = { path = "crates/pod-proxy", version = "0.44.0" }
+pod-qga = { path = "crates/pod-qga", version = "0.44.0" }
 pod-quic = { path = "crates/pod-quic", version = "0.44.0" }
 pod-relay = { path = "crates/pod-relay", version = "0.44.0" }
 pod-session = { path = "crates/pod-session", version = "0.44.0" }

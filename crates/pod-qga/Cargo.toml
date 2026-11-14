@@ -1,0 +1,21 @@
+[package]
+name = "pod-qga"
+description = "A blocking client of the QEMU Guest Agent over a Unix socket: the delimited sync on connect, ping, exec and its status, the file calls with base64 bodies, and shutdown, each with a bound and a typed error."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The typed failure and its class, the text made safe to print, the
+# entropy of the id of a sync. No tokio: the client blocks.
+pod-core = { workspace = true }
+# The JSON of each request and each answer.
+serde_json = { workspace = true }
+# The bytes of a file and of the output of a command.
+base64 = { workspace = true }
+
+[dev-dependencies]
+# The socket path of a stand-in agent.
+pod-testkit = { workspace = true }

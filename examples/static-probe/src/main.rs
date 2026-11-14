@@ -8,6 +8,7 @@ mod devtunnel;
 mod hold;
 mod link;
 mod netlab;
+mod qga;
 mod relay;
 mod relay_client;
 mod turn;
@@ -121,6 +122,7 @@ fn main() {
     lines.push(relay_client::relay());
     lines.push(job());
     lines.push(incus());
+    lines.push(qga::qga());
     lines.push(actions::actions());
     lines.push(actions::results());
     lines.push(netlab::netlab());

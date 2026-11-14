@@ -1977,6 +1977,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-qga"
+version = "0.44.0"
+dependencies = [
+ "base64",
+ "pod-core",
+ "serde_json",
+]
+
+[[package]]
 name = "pod-quic"
 version = "0.44.0"
 dependencies = [
@@ -2168,6 +2177,7 @@ dependencies = [
  "pod-netlab",
  "pod-oci",
  "pod-proxy",
+ "pod-qga",
  "pod-quic",
  "pod-relay",
  "pod-session",

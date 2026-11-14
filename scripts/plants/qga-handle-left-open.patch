@@ -1,0 +1,13 @@
+diff --git a/crates/pod-qga/src/client.rs b/crates/pod-qga/src/client.rs
+--- a/crates/pod-qga/src/client.rs
++++ b/crates/pod-qga/src/client.rs
+@@ -272,6 +272,9 @@
+     pub fn read_file(&mut self, path: &str, limit: u64) -> Result<Vec<u8>> {
+         let handle = self.file_open(path, OpenMode::Read)?;
+         let read = self.read_all(handle, path, limit);
++        if read.is_err() {
++            return read;
++        }
+         let closed = self.file_close(handle);
+         let data = read?;
+         closed?;

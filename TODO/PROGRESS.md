@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 485 entries: 126 open, 8 partial, 5 blocked, 346 done.
+`TODO/INDEX.md` holds 485 entries: 125 open, 8 partial, 5 blocked, 347 done.
 
 ## State
 
@@ -75,7 +75,7 @@ next entry.
 First: `v0.45.0` with the asks on `main` and in the agents' branches
 (#151, #153, PodUtils/podssh#242, PodUtils/podnet#552). T-598 and T-599
 (`pod-extract`, #153). The Windows guest of podvm (#152): T-590, T-592,
-T-593, then T-594 to T-596; T-601. Then the link carriers
+T-593, then T-595 and T-596; T-601. Then the link carriers
 of M2 for podnet (item 3c): T-526, T-494, T-500 and T-525. Then the items
 below, in order.
 
@@ -187,8 +187,8 @@ below, in order.
 
 ## Owner actions
 
-- Reserve `pod-actions-store` (T-564), `pod-actions-results` (T-565) and
-  `pod-udf` (T-591) on crates.io at `0.0.0` with the repository of
+- Reserve `pod-actions-store` (T-564), `pod-actions-results` (T-565),
+  `pod-udf` (T-591) and `pod-qga` (T-594) on crates.io at `0.0.0` with the repository of
   podcrates (the ruling "crates.io names"). A release by a git tag does
   not wait for them.
 - The owner reserved `pod-devtunnel` and `podswarm` on crates.io (T-387).

@@ -76,6 +76,8 @@ pod-enter = { path = "../crates/pod-enter" }
 pod-guest = { path = "../crates/pod-guest" }
 # The UDF reader of an ISO (T-591).
 pod-udf = { path = "../crates/pod-udf" }
+# The answers of the QEMU Guest Agent (T-594).
+pod-qga = { path = "../crates/pod-qga" }
 # The feature `fuzzing` gives the readers of a response, a cookie reply and
 # a transport message on fixed keys.
 pod-wg = { path = "../crates/pod-wg", features = ["fuzzing"] }
@@ -451,6 +453,13 @@ bench = false
 [[bin]]
 name = "stun_message"
 path = "fuzz_targets/stun_message.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "qga_answer"
+path = "fuzz_targets/qga_answer.rs"
 test = false
 doc = false
 bench = false

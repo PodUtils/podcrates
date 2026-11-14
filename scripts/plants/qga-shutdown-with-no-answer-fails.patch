@@ -1,0 +1,12 @@
+diff --git a/crates/pod-qga/src/client.rs b/crates/pod-qga/src/client.rs
+--- a/crates/pod-qga/src/client.rs
++++ b/crates/pod-qga/src/client.rs
+@@ -342,7 +342,7 @@
+                 Ok(Answer::Return(_)) => Ok(()),
+                 Err(why) => Err(Error::protocol(CALL, why)),
+             },
+-            Err(Stop::Timeout | Stop::Closed) => Ok(()),
++            Err(Stop::Timeout) => Ok(()),
+             Err(s) => Err(self.stopped(CALL, s)),
+         }
+     }
