@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**462 entries: 123 open, 7 partial, 5 blocked, 327 done.**
+**462 entries: 120 open, 7 partial, 5 blocked, 330 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 3 | 0 | 88 | 104 |
-| P2 | 56 | 2 | 4 | 180 | 242 |
+| P1 | 11 | 3 | 0 | 90 | 104 |
+| P2 | 55 | 2 | 4 | 181 | 242 |
 | P3 | 54 | 2 | 1 | 57 | 114 |
-| **All** | 123 | 7 | 5 | 327 | 462 |
+| **All** | 120 | 7 | 5 | 330 | 462 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -506,6 +506,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-574](relay.md) | P2 | S | M6 | feature | open | `pod-hold`: a filter that refuses raw sockets and lets ping sockets reach the supervisor (PodUtils/podnet#550) |
 | [T-575](transport.md) | P3 | S | M1 | docs | done | `pod-services`: the README names the scheme `tcp` of an endpoint (PodUtils/podnet#550) |
 | [T-579](relay.md) | P2 | S | M2 | defect | open | `pod-session`: a spare link that moved no byte backs off before the next (PodUtils/podssh#242) |
-| [T-580](podvm.md) | P1 | S | M6 | defect | open | `pod-rootfs`: an image with no CA bundle gets the host bundle when `host_cas` is false (PodUtils/podvm#341) |
-| [T-581](podvm.md) | P1 | S | M6 | defect | open | `pod-extract`: a file of mode 4755, 2755 or 6755 loses its setuid and setgid bits (PodUtils/podvm#342) |
-| [T-582](podvm.md) | P2 | S | M6 | defect | open | `pod-supervise`: `start` keeps the end fields of the run before, and a `Dead` record keeps its pid (PodUtils/podvm#343) |
+| [T-580](podvm.md) | P1 | S | M6 | defect | done | `pod-rootfs`: an image with no CA bundle gets the host bundle when `host_cas` is false (PodUtils/podvm#341) |
+| [T-581](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a file of mode 4755, 2755 or 6755 loses its setuid and setgid bits (PodUtils/podvm#342) |
+| [T-582](podvm.md) | P2 | S | M6 | defect | done | `pod-supervise`: `start` keeps the end fields of the run before, and a `Dead` record keeps its pid (PodUtils/podvm#343) |
