@@ -2471,3 +2471,57 @@ A feature `fuzzing` that gives `query`, `block_list` and `backend_ids`, and a ta
 ```sh
 cargo test --manifest-path fuzz/Cargo.toml --lib
 ```
+
+# T-587: `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99)
+
+**Source:** PodUtils/podrunner#99 (COORD-039 of podrunner; PodUtils/podrunner@T-130, PodUtils/podrunner@T-133).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod-actions-store` is the copy of podrunner's code at `241acb8` (T-564). podrunner added code since then, so it cannot take the crate yet: image lines in the lock (`docker://NAME:TAG sha256:HEX`, `Lock::images`), a checkout of another repository pinned and kept as an action with no action file (`checkout_target`, `workflow_trees`, `add_trees`), the resolve of `REF` = `HEAD` in `Git` (`git ls-remote URL HEAD`), and the images of a workflow by tag with their resolve against the lock (`images.rs`, `ImageSource`, `by_tag`).
+
+## Premise
+
+- Read: PodUtils/podrunner#99; on podrunner's main: PodUtils/podrunner:crates/podrunner-local/src/lock.rs, src/store.rs, src/images.rs and their tests; T-564 and calls C320 to C324.
+
+## Approach
+
+Import the changes of the three files at podrunner's commit (`scripts/check-sources.py`), with the rules of the crate (a typed `Error`, no network in a unit test). `images` is its own module. Keep podrunner's names and tests. Tests and a plant for each addition.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-store --all-features
+```
+
+# T-588: `pod-actions-results`: the CacheService and the replacement of an artifact on a rerun (PodUtils/podrunner#99)
+
+**Source:** PodUtils/podrunner#99 (COORD-039 of podrunner; PodUtils/podrunner@T-120, PodUtils/podrunner@T-125, PodUtils/podrunner@T-135).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod-actions-results` is the copy of podrunner's code at `0ff670d` (T-565). podrunner added since then: the CacheService (v2) of its fake broker, with the scopes of a ref (`with_scopes`), a random entry id, `Range` downloads and eviction at the limit (`cache.rs`); and `ArtifactStore::replacing`, so that a rerun replaces an artifact of the same name. A measured fact: `actions/download-artifact@v4` takes the digest as a plain string.
+
+## Premise
+
+- Read: PodUtils/podrunner#99; on podrunner's main: PodUtils/podrunner:crates/podrunner-broker-fake/src/cache.rs, src/artifacts.rs and their tests; T-565 and calls C325 to C329.
+
+## Approach
+
+Import `cache.rs` as a module of the crate and `replacing` into `ArtifactStore`, with the rules of the crate. Keep the digest a plain string in `wire::Answer` (the plant `results-digest-wrapped` holds it). Tests and a plant for each addition.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-results --all-features
+```

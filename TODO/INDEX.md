@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**462 entries: 123 open, 7 partial, 5 blocked, 327 done.**
+**468 entries: 129 open, 7 partial, 5 blocked, 327 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 3 | 0 | 88 | 104 |
-| P2 | 56 | 2 | 4 | 180 | 242 |
-| P3 | 54 | 2 | 1 | 57 | 114 |
-| **All** | 123 | 7 | 5 | 327 | 462 |
+| P1 | 14 | 3 | 0 | 88 | 105 |
+| P2 | 60 | 2 | 4 | 180 | 246 |
+| P3 | 55 | 2 | 1 | 57 | 115 |
+| **All** | 129 | 7 | 5 | 327 | 468 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -509,3 +509,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-580](podvm.md) | P1 | S | M6 | defect | open | `pod-rootfs`: an image with no CA bundle gets the host bundle when `host_cas` is false (PodUtils/podvm#341) |
 | [T-581](podvm.md) | P1 | S | M6 | defect | open | `pod-extract`: a file of mode 4755, 2755 or 6755 loses its setuid and setgid bits (PodUtils/podvm#342) |
 | [T-582](podvm.md) | P2 | S | M6 | defect | open | `pod-supervise`: `start` keeps the end fields of the run before, and a `Dead` record keeps its pid (PodUtils/podvm#343) |
+| [T-583](podvm.md) | P1 | M | M6 | defect | open | `pod-confine` and `pod-enter`: an `exec=` rule does not deny a program that the image's loader starts (PodUtils/podvm#344) |
+| [T-584](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a plan with two limits of one resource fails with `EPERM` (PodUtils/podvm#345) |
+| [T-585](podvm.md) | P2 | S | M6 | defect | open | `pod-oci`: the grammar of an insecure registry host, and a platform list with no repeat and no attestation (PodUtils/podvm#346) |
+| [T-586](podvm.md) | P3 | M | M6 | defect | open | `pod-netlab`: the texts of a knob give the value as written, with its unit and range; the differences from sand-net (PodUtils/podvm#347) |
+| [T-587](fleet.md) | P2 | M | M8 | feature | open | `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99) |
+| [T-588](fleet.md) | P2 | M | M8 | feature | open | `pod-actions-results`: the CacheService and the replacement of an artifact on a rerun (PodUtils/podrunner#99) |

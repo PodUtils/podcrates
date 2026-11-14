@@ -6533,3 +6533,114 @@ Clear `exit_code`, `finished_at`, `end` and `noticed` when the launcher (or the 
 ```sh
 cargo test -p pod-supervise --all-features
 ```
+
+# T-583: `pod-confine` and `pod-enter`: an `exec=` rule does not deny a program that the image's loader starts (PodUtils/podvm#344)
+
+**Source:** PodUtils/podvm#344 (COORD-098 of podvm; PodUtils/podvm@T-1819; an external QA report of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+On podvm's loader family (the userland rung) the kernel executes the loader of the image from a system directory. Landlock checks `EXECUTE` on the loader and only `READ` on the program, so a script and a dynamic ELF outside the `exec=` paths of `--podvm-confine` run. The QA report also says that a static ELF under a granted `exec=/tmp` is denied; the report contradicts itself there.
+
+## Premise
+
+- Read: PodUtils/podvm#344; the rules of `exec=` in `pod-confine` (the Landlock rules: the handled set and the grants) and in `pod-enter` (the userland rung and its loader).
+
+## Approach
+
+1. Check that `LANDLOCK_ACCESS_FS_EXECUTE` is in the handled set and is granted on each `exec=` path; a test settles the case of a static ELF under `exec=`.
+2. Add an API that answers whether a resolved program may run under the exec table of the rules, so that podvm's interposer checks it before it maps the program (Landlock cannot see that exec).
+3. Tests of a static ELF, a dynamic ELF and a script, inside and outside an `exec=` path, on the kernel rung and through the API.
+
+## Prove
+
+```sh
+cargo test -p pod-confine -p pod-enter --all-features
+```
+
+# T-584: `pod-enter`: a plan with two limits of one resource fails with `EPERM` (PodUtils/podvm#345)
+
+**Source:** PodUtils/podvm#345 (COORD-099 of podvm; PodUtils/podvm@T-1827; an external QA report of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podvm run --ulimit nofile=64 --ulimit nofile=128` fails in the child: `pod-enter` applies the two entries in order, the first lowers the hard limit to 64, and the second cannot raise it (`EPERM`). docker keeps the last value. podvm now coalesces the entries itself.
+
+## Premise
+
+- Read: PodUtils/podvm#345; `crates/pod-enter/src/limits.rs` and its tests.
+
+## Approach
+
+Refuse a plan with two entries for one resource before the child starts, with a typed error that names the resource, so that each caller coalesces first. A test and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
+```
+
+# T-585: `pod-oci`: the grammar of an insecure registry host, and a platform list with no repeat and no attestation (PodUtils/podvm#346)
+
+**Source:** PodUtils/podvm#346 (COORD-100 of podvm; PodUtils/podvm@T-1842, PodUtils/podvm@T-1836; an external QA report of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`normalise_host` (`crates/pod-oci/src/transport.rs`) refuses only a URL and a `/`, so it takes a host with a space or a `!`. The `NoPlatform` refusal of an index lists `windows/amd64` twice, as it does not show `os.version`, and lists the attestation manifests as `unknown/unknown`.
+
+## Premise
+
+- Read: PodUtils/podvm#346; `crates/pod-oci/src/transport.rs` (`normalise_host`); `crates/pod-oci/src/spec.rs` (`NoPlatform`, the list `offered`).
+
+## Approach
+
+A host is a DNS name or an IP literal (IPv6 in brackets), with an optional port; anything else is refused with a typed error. The list `offered` has no duplicate, no entry with the annotation `vnd.docker.reference.type: attestation-manifest`, and `os.version` where the index gives it. Tests and a plant for each.
+
+## Prove
+
+```sh
+cargo test -p pod-oci --all-features
+```
+
+# T-586: `pod-netlab`: the texts of a knob give the value as written, with its unit and range; the differences from sand-net (PodUtils/podvm#347)
+
+**Source:** PodUtils/podvm#347 (COORD-101 of podvm; PodUtils/podvm@T-1837, PodUtils/podvm@T-1847; an external QA report of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The errors of the knobs give the scaled value with no unit (`--loss 101` reads "loss 10100 is out of its range 1 to 2000"), do not name the value (`--tcp 70000`), call a negative number "not a whole number", and say that `--cgnat` "needs nat44" where the scenario `cgnat` uses `both`. The surface differs from sand-net: 12 scenarios are missing (`corp-proxy-pod`, `vpn-*`, `warp-*`), five value sets differ, `--icmp allow` is refused, and `--loss` stops at 20 percent.
+
+## Premise
+
+- Read: PodUtils/podvm#347; `crates/pod-netlab/src/knobs/flags.rs`, `crates/pod-netlab/src/knobs/check.rs`; the list of scenarios; podvm's issue 260 (COORD-041, the lab guest of PodUtils/podvm@T-1662).
+
+## Approach
+
+1. Each error gives the value as the user wrote it, its unit and its range. A negative number gets its own text. The text of `--cgnat` agrees with the scenario.
+2. For each difference from sand-net: add the scenario or the value, or write the reason in the README of the crate. Tests of the texts, and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-netlab --all-features
+```
