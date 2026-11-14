@@ -1,0 +1,7 @@
+# A file whose mode is the mode of its open gets no fchmod, so the umask
+# of the process cuts its mode (T-597).
+ENTRY=T-597
+GROUP=extract
+EXPECT='the umask changed the mode of d/x'
+RUN='cargo test -p pod-extract --all-features --lib drive::umask'
+LIMIT=1800

@@ -26,7 +26,10 @@ does not call the `unpack()` of a library. Seven rules:
    above the root is refused.
 6. **The owner bits are widened between layers** on the directories that
    the layer wrote, so that the next layer can write. Group and other bits
-   stay.
+   stay. The umask of the process does not change a mode: each file gets
+   its mode through its descriptor after the last write, and each
+   directory that the layer wrote gets the mode of the layer (with the
+   owner bits) through a descriptor opened with `O_NOFOLLOW`.
 7. **Whiteouts first.** The whiteouts of a layer apply to the tree before
    the entries of that layer. Hard links resolve in the destination.
 
@@ -90,6 +93,7 @@ Against podvm `crates/podvm-extract` at `e8e5beb`:
 | [x] The ids of the process | the same, masked to 32 bits for a 32-bit target |
 | [x] A file mode without owner write | the same; when the kernel refuses the final `fchmod`, the sidecar records the mode that stayed (podvm recorded none) |
 | [x] A file mode with a bit of `0o7000` (4755, 2755, 6755) | set again with `fchmod` after the last write, as a write by a process with no `CAP_FSETID` clears `S_ISUID` and `S_ISGID` (podvm lost them as a user that is not root, PodUtils/podvm#342); the mode on the descriptor is read back, and a mode that the kernel did not keep (`S_ISGID` of a group that the process is not in) goes into the sidecar as `applied.mode` |
+| [x] The umask of the process | the mode of the image stays under each umask: each file gets `fchmod` after the last write, also when its mode is the mode of the open, and each directory that a layer wrote gets `mode | 0o700` in the permission pass, also when nothing is widened (podvm cut 0755 to 0750 under a umask of 027); a later layer that names a directory again sets its mode. The pass opens each directory with `O_DIRECTORY` and `O_NOFOLLOW` and calls `fchmod`: `fchmodat` of the name followed a symlink that a later entry of the layer put there, to a file of the host |
 | [x] Whiteouts | the same; a whiteout gets the lexical check, and a whiteout of `.` or `..` refuses the layer (podvm removed the entries of the directory above the destination for `.wh...`) |
 | [x] The tests: 47 unit tests | 47 with their names (the store fixtures are blob files and a `Place`); 3 new |
 
@@ -123,6 +127,18 @@ cannot start that child): the three modes stay, and in a directory of
 group 0 with `S_ISGID` the sidecar records 0755 and 4755, the modes that
 the kernel kept. The plants: `extract-t581-set-id-bits-not-set-again`,
 `extract-t581-kept-mode-not-recorded`.
+
+`drive::umask::the_modes_of_the_image_stay_under_a_umask_of_027` runs the
+test binary again (`drive::umask::worker_extracts_under_a_umask_of_027`),
+as the umask belongs to the whole process: under a umask of 027, the
+modes 0755, 0644, 0775 and 0664 of files and directories stay, and the
+sidecar claims no other mode. A later layer sets the mode of a directory
+again (`a_later_layer_sets_the_mode_of_a_directory_again`), and the
+permission pass does not follow a symlink at the name of a directory to
+a file of the host
+(`the_permission_pass_does_not_follow_a_symlink_at_the_name_of_a_directory`).
+The plants: `extract-t597-file-mode-set-only-when-it-differs`,
+`extract-t597-pass-only-widens`, `extract-t597-pass-follows-a-symlink`.
 
 ## Sources
 

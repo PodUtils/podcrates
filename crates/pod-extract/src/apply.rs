@@ -315,21 +315,18 @@ fn write_file(parent: &Dir, name: &str, mode: u32, r: &mut dyn Read) -> Result<O
     // close. An `fchmodat` of the name resolves it again, in a tree that this
     // process still writes.
     let want_final = mode & 0o7777;
-    // Two cases set the mode again now that the content is written: the mode
-    // of the image has no owner write, or it has a bit of 0o7000, which a
-    // write by a process with no CAP_FSETID clears.
-    let set = want_final != want || want_final & SET_ID_BITS != 0;
-    let refused = set && sys::fchmod(fd, u64::from(want_final)).is_err();
-    let kept = if set { kept_mode(fd, want_final, refused.then_some(want)) } else { None };
+    // Each time, not only when the mode differs from the open: the umask of
+    // the process cut the mode of the open, a mode of the image with no
+    // owner write is set only now, and a write by a process with no
+    // CAP_FSETID cleared S_ISUID and S_ISGID.
+    let refused = sys::fchmod(fd, u64::from(want_final)).is_err();
+    let kept = kept_mode(fd, want_final, refused.then_some(want));
     let _ = sys::close(fd);
     if let Some(e) = err {
         return Err(e);
     }
     Ok(kept)
 }
-
-/// The set-user-ID, set-group-ID and sticky bits.
-const SET_ID_BITS: u32 = 0o7000;
 
 /// The mode that stayed on the descriptor when it is not `want`, for the
 /// sidecar. Read back, not assumed: the kernel clears `S_ISGID` with no
@@ -357,13 +354,14 @@ fn kept_mode(fd: i64, want: u32, fallback: Option<u32>) -> Option<u32> {
 /// wrote.** Wider group or other bits change what the image means for a
 /// payload that reads modes. **No `chgrp`**: the crate extracts as the only
 /// mapped id already.
+///
+/// **Each directory, not only the widened ones**: the umask of the process
+/// cut the mode of `mkdirat`, and a directory that an earlier layer made
+/// keeps its mode until this pass sets the mode of this layer.
 fn repermission(root: &Dir, dirs: &[(Vec<String>, u32)]) -> Result<u64> {
     let mut widened = 0;
     for (parts, mode) in dirs {
         let want = mode | 0o700;
-        if want == *mode {
-            continue;
-        }
         let refs: Vec<&str> = parts.iter().map(|s| s.as_str()).collect();
         let Ok(Ok((parent, name))) = safety::open_parent(root, &refs, false) else {
             continue;
@@ -371,9 +369,19 @@ fn repermission(root: &Dir, dirs: &[(Vec<String>, u32)]) -> Result<u64> {
         let Some(n) = sys::CBuf::new(&name) else {
             continue;
         };
-        if sys::fchmodat(parent.fd(), &n, u64::from(want & 0o7777), 0).is_ok() {
+        // Through a descriptor of the directory, never `fchmodat` of the
+        // name: a later entry of the layer can put a symlink at the name, and
+        // `fchmodat` follows it to a file of the host. A name that is not a
+        // directory now is not changed.
+        let Ok(fd) =
+            sys::openat(parent.fd(), &n, sys::O_RDONLY | sys::O_DIRECTORY | sys::O_NOFOLLOW | sys::O_CLOEXEC, 0)
+        else {
+            continue;
+        };
+        if sys::fchmod(fd, u64::from(want & 0o7777)).is_ok() && want != *mode {
             widened += 1;
         }
+        let _ = sys::close(fd);
     }
     Ok(widened)
 }

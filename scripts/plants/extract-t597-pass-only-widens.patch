@@ -1,0 +1,13 @@
+diff --git a/crates/pod-extract/src/apply.rs b/crates/pod-extract/src/apply.rs
+--- a/crates/pod-extract/src/apply.rs
++++ b/crates/pod-extract/src/apply.rs
+@@ -362,6 +362,9 @@
+     let mut widened = 0;
+     for (parts, mode) in dirs {
+         let want = mode | 0o700;
++        if want == *mode {
++            continue;
++        }
+         let refs: Vec<&str> = parts.iter().map(|s| s.as_str()).collect();
+         let Ok(Ok((parent, name))) = safety::open_parent(root, &refs, false) else {
+             continue;

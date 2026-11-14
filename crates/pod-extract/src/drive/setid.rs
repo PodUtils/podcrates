@@ -20,29 +20,9 @@ fn set_id_layer() -> Vec<u8> {
     ])
 }
 
-/// The mode on disk of each file, and the applied mode of its sidecar row
-/// (`None` when the row has none).
-fn kept(dir: &std::path::Path) -> Vec<(String, u32, Option<String>)> {
-    use std::os::unix::fs::PermissionsExt;
-    let m = meta(dir);
-    ["bin/su", "bin/wall", "bin/both"]
-        .iter()
-        .map(|p| {
-            let disk = std::fs::metadata(dir.join(p)).unwrap().permissions().mode() & 0o7777;
-            let row = m
-                .lines()
-                .find(|l| l.contains(&format!(r#""path":"{p}""#)))
-                .unwrap_or_else(|| panic!("no sidecar row for {p} in:\n{m}"));
-            let applied = row.split(r#""applied":{"#).nth(1).and_then(|a| a.split('}').next()).unwrap_or("");
-            let mode = applied.split(r#""mode":""#).nth(1).map(|v| v[..4].to_string());
-            ((*p).to_string(), disk, mode)
-        })
-        .collect()
-}
-
 /// Each file keeps the mode of the image, and its row claims no other.
 fn assert_exact(dir: &std::path::Path, who: &str) {
-    let got = kept(dir);
+    let got = kept(dir, &["bin/su", "bin/wall", "bin/both"]);
     let want = [("bin/su", 0o4755), ("bin/wall", 0o2755), ("bin/both", 0o6755)];
     for ((p, disk, applied), (_, mode)) in got.iter().zip(want) {
         assert_eq!(*disk, mode, "{p} lost its set-id bits as {who}: {disk:04o}, not {mode:04o}");
@@ -121,7 +101,7 @@ fn worker_extracts_as_a_user() {
     // process, with no error. The sidecar says what stayed.
     let shared = std::path::Path::new(&shared);
     run(shared, &[set_id_layer()]).unwrap();
-    let got: Vec<(String, u32, Option<String>)> = kept(shared);
+    let got = kept(shared, &["bin/su", "bin/wall", "bin/both"]);
     let want = [("bin/su", 0o4755, None), ("bin/wall", 0o755, Some("0755")), ("bin/both", 0o4755, Some("4755"))];
     for ((p, disk, applied), (_, mode, row)) in got.iter().zip(want) {
         assert_eq!(*disk, mode, "{p} in a directory of group 0: {disk:04o}, not {mode:04o}");

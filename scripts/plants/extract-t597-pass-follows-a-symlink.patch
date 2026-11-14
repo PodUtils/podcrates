@@ -1,0 +1,20 @@
+diff --git a/crates/pod-extract/src/apply.rs b/crates/pod-extract/src/apply.rs
+--- a/crates/pod-extract/src/apply.rs
++++ b/crates/pod-extract/src/apply.rs
+@@ -373,15 +373,9 @@
+         // name: a later entry of the layer can put a symlink at the name, and
+         // `fchmodat` follows it to a file of the host. A name that is not a
+         // directory now is not changed.
+-        let Ok(fd) =
+-            sys::openat(parent.fd(), &n, sys::O_RDONLY | sys::O_DIRECTORY | sys::O_NOFOLLOW | sys::O_CLOEXEC, 0)
+-        else {
+-            continue;
+-        };
+-        if sys::fchmod(fd, u64::from(want & 0o7777)).is_ok() && want != *mode {
++        if sys::fchmodat(parent.fd(), &n, u64::from(want & 0o7777), 0).is_ok() && want != *mode {
+             widened += 1;
+         }
+-        let _ = sys::close(fd);
+     }
+     Ok(widened)
+ }
