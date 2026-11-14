@@ -12716,3 +12716,15 @@ diff --git a/crates/podssh-relay/src/serve/http_road/mod.rs b/crates/podssh-rela
              Some(Route::Open) => open(&mut stream, &head, &cfg, keep).await,
              Some(Route::Session(id, kind)) => match sessions::find(&id, head.header(KEY), &cfg) {
                  None => write(&mut stream, refuse(404, "http: no such session", &[], keep), keep).await,
+diff --git a/TODO/relay.md b/TODO/relay.md
+--- a/TODO/relay.md
++++ b/TODO/relay.md
+@@ -4237,7 +4237,7 @@ Read at `2042200`:
+ - Each road of the role goes through `Policy::plan`: `/connect/`
+   (`crates/podssh-relay/src/serve/forward.rs:100`), the resumable layer
+   (`crates/podssh-relay/src/serve/layer.rs:185`), the HTTP road
+-  (`crates/podssh-relay/src/serve/http_road/mod.rs:142`) and `/trace`
++  (`crates/podssh-relay/src/serve/http_road/mod.rs:144`) and `/trace`
+   (`crates/podssh-relay/src/serve/docs.rs:135`); one change there serves each.
+ - podssh has this list already for an exit: `podssh node --exit --routes` takes ranges
+   (`crates/podssh-cli/src/node_exit.rs:91`), each a `Range` of `ADDR/BITS` or one address

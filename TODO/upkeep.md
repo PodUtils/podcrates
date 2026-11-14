@@ -1544,4 +1544,4 @@ The run of `adoption.yml` at the next head passes for podssh.
 
 ## Done
 
-2026-11-14. The hunk is in `adoption/podssh/pod-warp.patch`; `docs/releases/v0.42.0.md` names it. The adoption run at the next head proves it.
+2026-11-14. The hunk is in `adoption/podssh/pod-warp.patch`; `docs/releases/v0.42.0.md` names it. The two lines that it adds move a citation of podssh's record (its TODO/relay.md cites line 142 of that file, now 144): a second hunk of the patch moves it, as `cargo todo remap` does (`adoption.yml` run 43550476602). The adoption run at the next head proves it.
