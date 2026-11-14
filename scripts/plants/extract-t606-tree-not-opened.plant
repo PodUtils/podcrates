@@ -1,0 +1,8 @@
+# An extraction does not open the tree of an earlier extraction, so a
+# directory of mode 0311 stops the next one (T-606). The proof runs as
+# uid 1000 when the test runs as root.
+ENTRY=T-606
+GROUP=extract
+EXPECT='an extraction over a directory with no owner read failed'
+RUN='cargo test -p pod-extract --all-features --lib drive::dirmodes'
+LIMIT=1800

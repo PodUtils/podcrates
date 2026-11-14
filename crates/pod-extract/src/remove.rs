@@ -165,13 +165,9 @@ pub fn remove_at(parent: i64, name: &str) -> Result<bool> {
         Err(e) => return Err(error::sys(format!("cannot remove {name:?}"), e)),
     }
     // A directory. Empty it, then remove it.
-    let fd = match sys::openat(parent, &n, sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC | sys::O_NOFOLLOW, 0) {
-        Ok(fd) => DirFd(fd),
-        Err(_) => return Ok(false),
+    let Some(fd) = open_closed(parent, &n).map(DirFd) else {
+        return Ok(false);
     };
-    // The pass after the last layer can close a directory (0555), and the
-    // owner cannot remove an entry of a directory that has no owner write.
-    open_for_write(fd.0);
     for e in sys::getdents64(fd.0).unwrap_or_default() {
         let child = String::from_utf8_lossy(&e.name).into_owned();
         remove_at(fd.0, &child)?;
@@ -192,4 +188,32 @@ fn open_for_write(fd: i64) {
     {
         let _ = sys::fchmod(fd, u64::from(st.st_mode & 0o7777 | 0o700));
     }
+}
+
+/// Open the directory `n` of `parent` with `O_NOFOLLOW`, and add the owner
+/// bits to it. `None`: not a directory, or it does not open.
+///
+/// The pass after the last layer can close a directory (0555), and the
+/// owner cannot list or change a directory with no owner read or write. A
+/// directory with no owner read (0311) does not open for a read: an
+/// `O_PATH` descriptor needs no permission, and a mode change through its
+/// link in `/proc/self/fd` changes that directory and no other.
+pub(crate) fn open_closed(parent: i64, n: &sys::CBuf) -> Option<i64> {
+    let flags = sys::O_RDONLY | sys::O_DIRECTORY | sys::O_NOFOLLOW | sys::O_CLOEXEC;
+    let fd = match sys::openat(parent, n, flags, 0) {
+        Ok(fd) => fd,
+        Err(e) if e == sys::EACCES => {
+            let p =
+                sys::openat(parent, n, sys::O_PATH | sys::O_DIRECTORY | sys::O_NOFOLLOW | sys::O_CLOEXEC, 0).ok()?;
+            let st = sys::fstatat(p, &sys::cempty(), sys::AT_EMPTY_PATH);
+            if let (Ok(st), Some(link)) = (st, sys::CBuf::new(&format!("/proc/self/fd/{p}"))) {
+                let _ = sys::fchmodat(sys::AT_FDCWD as i64, &link, u64::from(st.st_mode & 0o7777 | 0o700), 0);
+            }
+            let _ = sys::close(p);
+            sys::openat(parent, n, flags, 0).ok()?
+        }
+        Err(_) => return None,
+    };
+    open_for_write(fd);
+    Some(fd)
 }

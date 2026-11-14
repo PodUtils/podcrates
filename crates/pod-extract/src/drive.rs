@@ -163,6 +163,7 @@ fn run_open(dir: &std::path::Path, layers: &[Vec<u8>]) -> crate::Result<u64> {
 
 fn steps(dir: &std::path::Path, layers: &[Vec<u8>], last_pass: bool) -> crate::Result<u64> {
     let root = Dir::open(&dir.to_string_lossy())?;
+    crate::modes::open_tree(&root)?;
     let side = dir.join(".meta.jsonl");
     let mut sc = Sidecar::create(&side).map_err(io)?;
     let mut dirs = DirModes::new();

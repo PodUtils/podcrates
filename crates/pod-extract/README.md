@@ -55,13 +55,13 @@ not change while the process runs).
 | `Layer` | one layer in the order of the manifest: `digest` (`sha256:<hex>`), `media_type` (it gives the compression), `size` (of the blob), `blob` (the path in the store of the caller) |
 | `Place`, `Place::under(base)` | the three paths of an extraction: `rootfs`, `sidecar`, `marker`; `under` gives `base/rootfs`, `base/.meta.jsonl`, `base/.extracted` (`ROOTFS_NAME`, `SIDECAR_NAME`, `DONE_MARKER`) |
 | `extract(&settings, image, &layers, &place) -> Result<Extracted>` | the space check (blocks and inodes, before the loop), then for each layer: the whiteouts, then the entries, each pass with the digest check; the marker last; on a failure the partial tree is removed |
-| `Extracted` | `rootfs`, `sidecar`, `layers`, `entries`, `removed`, `uncompressed_bytes`, `uncompressed_estimated`, `skipped`, `skipped_kinds`, `sidecar_rows`, `ownership_dropped`, `dir_modes` (the directories that the pass after the last layer set), `first_dropped` |
+| `Extracted` | `rootfs`, `sidecar`, `layers`, `entries`, `removed`, `uncompressed_bytes`, `uncompressed_estimated`, `skipped`, `skipped_kinds`, `sidecar_rows`, `ownership_dropped`, `dir_modes` (the directories that the pass after the last layer set), `dirs_opened` (the closed directories of a tree that was there before, opened first), `first_dropped` |
 | `Place::{is_extracted, remove}`, `remove_tree(path)` | the marker decides, not the directory; the removal takes the marker first, never follows a symlink out of the tree, and adds the owner bits to a directory that the image closed (0555) before it empties it |
 | `LAYER_EVENT` | `extract.layer`: `<12 hex digits>: Extracted (N entries, M whiteouts)` |
 | `Refused`, `refused(&failure)` | the cause of a refused entry: `layer`, `entry`, `refusal` |
 | `Mismatch`, `mismatch(&failure)` | the cause of a blob that does not agree with its digest: `what`, `want`, `got` |
 | `apply` | `apply_layer(root, digest, stream, ids, sidecar)`, `LayerStats` (`entries`: the members read; `skipped`, `skipped_kinds`: the entries of a type that the crate does not make, not the root member; `dir_modes`: each directory entry of the layer and its mode), `Ids::current()` |
-| `modes` | `DirModes` (`new`, `record(&stats.dir_modes)`, `forget(&ops)`, `set(root)`, `len`, `is_empty`): the mode of the image of each directory, the last layer wins, set after the last layer |
+| `modes` | `DirModes` (`new`, `record(&stats.dir_modes)`, `forget(&ops)`, `set(root)`, `len`, `is_empty`): the mode of the image of each directory, the last layer wins, set after the last layer; `open_tree(root)`: the owner bits on each directory of a tree that was there before, with `O_NOFOLLOW`, also of a directory with no owner read |
 | `layer` | `Compression::of(media_type)` (tar, `+gzip`, `.tar.gzip`, `+zstd`), `open_hashed(path, c)`, `HashedStream::digest`, `uncompressed_size(path, c, compressed)` (exact for gzip under 4 GiB, an estimate with its flag for the others) |
 | `remove` | `collect(layer, stream)`, `apply(root, ops)`, `Op`, `remove_at(parent_fd, name)` |
 | `safety` | `components`, `is_archive_root`, `rebase_symlink_target`, `Refusal`, `Dir`, `Resolve::{Auto, Walk, InRoot}`, `open_parent`, `open_parent_with` (with `InRoot` and `make_dirs`, a closed parent opens for the one make), `have_openat2`, `OwnerBits` (`add(fd)`, `was`: the owner bits of a closed directory for one step, its mode back on drop) |
@@ -165,7 +165,13 @@ tree (`a_second_extraction_over_a_closed_tree_passes`; as root it runs
 `extract-t598-existing-directory-not-opened`,
 `extract-t598-whiteout-keeps-the-old-mode`,
 `extract-t598-whiteout-parent-not-opened`,
-`extract-t598-removal-does-not-open-a-closed-directory`.
+`extract-t598-removal-does-not-open-a-closed-directory`. An extraction
+over a tree with a directory of mode 0311 passes, an entry under a closed
+parent that the layer does not name lands, and `Place::remove` removes
+the tree (`an_extraction_over_a_tree_that_its_owner_cannot_read_passes`;
+as root it runs `worker_extracts_over_a_tree_it_cannot_read` as uid
+1000). The plants: `extract-t606-tree-not-opened`,
+`extract-t606-no-open-without-read`.
 
 `drive::the_root_member_is_not_a_skipped_entry` (PodUtils/podvm#352): a
 layer with `./` and a file has 2 entries and 0 skipped; a layer with `./`
