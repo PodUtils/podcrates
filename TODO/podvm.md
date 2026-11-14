@@ -5821,7 +5821,7 @@ moves to the new module and still fails its test.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5878,3 +5878,25 @@ sh scripts/plant-each.sh hold-t544-raw-not-denied hold-t544-type-flags-kept
 sh scripts/agent/check-windows.sh
 sh scripts/agent/check-macos.sh
 ```
+
+## Done
+
+2026-11-14, commit 456bcd8. `Calls::sockets()` refuses in the kernel,
+with `EPERM`, `socket(AF_INET or AF_INET6, SOCK_RAW with any flag, any
+protocol)` and a ping socket (`SOCK_DGRAM` with `IPPROTO_ICMP` or
+`IPPROTO_ICMPV6`); `Calls::allow_raw()` is the opt-in (C301), and
+`Calls::denies_raw()` says which. podnet maps `--allow-raw icmp` to
+`Calls::sockets().allow_raw()`.
+
+`cargo test -p pod-hold --all-features`: each test passed. New:
+`filter::tests::a_raw_socket_and_an_icmp_socket_get_eperm_unless_allowed`
+(a BPF run of each family, type with flags, protocol, a high word of
+garbage, and the calls after the rule) and, in `tests/hold.rs`,
+`a_raw_icmp_socket_gets_eperm_unless_the_hold_allows_it`: a held child
+gets `EPERM` and the supervisor gets no notification; with the opt-in
+the supervisor sees the `socket` call with `SOCK_RAW`, proceeds with it,
+and the kernel of this host (root) opened the socket. The notification
+tells the filter's answer from the kernel's. Plants, each caught by hand:
+`hold-t544-raw-not-denied` (the held test) and
+`hold-t544-type-flags-kept` (the BPF test). `check-windows.sh` and
+`check-macos.sh`: 0 faults.
