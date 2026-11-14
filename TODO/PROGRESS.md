@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 480 entries: 136 open, 7 partial, 5 blocked, 332 done.
+`TODO/INDEX.md` holds 481 entries: 134 open, 7 partial, 5 blocked, 335 done.
 
 ## State
 
@@ -74,9 +74,10 @@ next entry.
 
 First: `v0.44.0` with the asks on `main` (#148, #150, PodUtils/podrunner#97,
 #98, PodUtils/podnet#550, PodUtils/podssh#242). The defects of podvm's QA
-report: T-580 to T-582 (an agent), then T-583 to T-586 (PodUtils/podvm#344
-to #347). podrunner's additions to its two crates: T-587, T-588
-(PodUtils/podrunner#99). Then the link carriers of M2 for podnet (item
+report: T-583 to T-586 (PodUtils/podvm#344 to #347) and T-597.
+podrunner's additions to its two crates: T-587, T-588
+(PodUtils/podrunner#99). The Windows guest of podvm (#152): T-590 to
+T-593, then T-594 to T-596. T-589 (PodUtils/podnet#552). Then the link carriers of M2 for podnet (item
 3c): T-526, T-494, T-500 and T-525. Then the items below, in order.
 
 1. **The defects and asks of the consumers:** T-566 (a fuzz target of

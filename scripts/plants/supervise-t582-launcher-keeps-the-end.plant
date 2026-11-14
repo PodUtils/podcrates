@@ -1,0 +1,7 @@
+# The launcher writes Running and keeps the exit code, the end time and the
+# end of the run before (T-582, PodUtils/podvm#343).
+ENTRY=T-582
+GROUP=supervise
+EXPECT='keeps the exit code of the run before'
+RUN='cargo test -p pod-supervise --all-features --test lifecycle'
+LIMIT=900

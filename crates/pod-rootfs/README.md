@@ -93,7 +93,7 @@ under an emulator.
 | `pacman`, `pacman-keyring` | `DownloadUser` lines become comments; with no keyring, two steps (`pacman-key --init`, `--populate`) |
 | `apt`, `apt-sandbox` | a drop-in with `APT::Sandbox::User "root"` |
 | `zypper`, `zypper-index` | says if a RIS index is there (the source fixup changes it too) |
-| `ca-bundle` | the host bundle at each usual path whose directory is there when the image has none; appended (with a marker line) when the image has one and a variable of the host named the bundle |
+| `ca-bundle` | the host bundle at each usual path whose directory is there when the image has none; appended (with a marker line) when the image has one and a variable of the host named the bundle; with `host_cas` off, neither: a `Skipped` degraded row and no write |
 | `ca-hash-dir` | each named root that a hash-indexed CA directory of the image does not hold, one file for each, and a step `openssl rehash DIR` where a file of the crate has no link or changed |
 | `source-scheme`, `source-reach` | `http://` package sources of apt, apk, pacman, yum, zypper (with its RIS index) and xbps to `https://`, the scheme only, where the probe of the caller says that the host speaks HTTPS; only a DNS name is asked about; the original goes to `Settings::originals` and comes back when `source_fixup` is off |
 
@@ -213,6 +213,11 @@ upper layer with no unchanged copy; the first stops with a line `SKIP:`
 where `mknod(2)` is refused, as each run draws new bytes for the random
 shims. The plants: `rootfs-layers-write-to-lower`,
 `rootfs-layers-list-upper-only`, `rootfs-layers-lower-over-upper`.
+
+With `host_cas` off, an image with no CA bundle gets no file and a
+`Skipped` degraded row, also when the host gives a bundle, named or not
+(`no_host_cas_writes_no_host_bundle_into_an_image_with_none`, PodUtils/podvm#341).
+The plant: `rootfs-t580-no-bundle-ignores-host-cas`.
 
 ## Sources
 

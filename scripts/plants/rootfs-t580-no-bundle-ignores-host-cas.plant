@@ -1,0 +1,7 @@
+# With host_cas off, an image with no CA bundle gets the bundle of the host
+# (T-580, PodUtils/podvm#341).
+ENTRY=T-580
+GROUP=rootfs
+EXPECT='the host bundle was written into the image'
+RUN='cargo test -p pod-rootfs --all-features --lib pkg::tests::no_host_cas_writes_no_host_bundle_into_an_image_with_none'
+LIMIT=900

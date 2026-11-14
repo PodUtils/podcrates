@@ -151,6 +151,16 @@ mod steps {
         assert_eq!((c.state, c.exit_code), (State::Exited, Some(143)));
         assert_eq!(wait::<Any>(s, "signal", 0).expect("wait").1, Some(143));
         assert!(sys::kill(pid, 0).is_err(), "the payload still runs");
+        // A hold again: the record has no end of the run before
+        // (PodUtils/podvm#343).
+        let mut child = payload();
+        let hold = foreground::<Any>(s, "signal", child.id() as i64).expect("a hold again");
+        let c = get::<Any>(s, "signal").expect("get");
+        assert_eq!((c.state, c.pid), (State::Running, Some(child.id() as i64)));
+        assert_eq!(c.exit_code, None, "a held record keeps the exit code of the run before");
+        assert!(c.finished_at.is_none() && c.end.is_none() && c.noticed.is_none(), "{c:?}");
+        child.kill().expect("the kill of the payload");
+        hold.finish(exit_status(child.wait().expect("the reap").into_raw())).expect("finish");
         remove::<Any>(s, "signal", false).expect("remove");
     }
 
@@ -196,6 +206,7 @@ mod steps {
         let c = t.containers.iter().find(|c| c.name == "dropped").expect("the record");
         assert_eq!(c.state, State::Dead, "a drop with no finish left the record");
         assert!(c.noticed.is_some() && c.exit_code.is_none());
+        assert_eq!((c.pid, c.launcher_pid), (None, None), "a dead record names a pid");
         assert_eq!(wait::<Any>(s, "dropped", 0).expect("wait").1, None);
         let _ = child.kill();
         let _ = child.wait();
@@ -237,6 +248,7 @@ mod steps {
         let _ = holder.wait();
         let c = until(s, "orphan", |c| c.state == State::Dead);
         assert!(c.exit_code.is_none() && c.noticed.is_some());
+        assert_eq!((c.pid, c.launcher_pid), (None, None), "a dead record names a pid");
         let _ = sys::kill(payload, 9);
         remove::<Any>(s, "orphan", false).expect("remove");
     }

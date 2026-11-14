@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**480 entries: 136 open, 7 partial, 5 blocked, 332 done.**
+**481 entries: 134 open, 7 partial, 5 blocked, 335 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 18 | 3 | 0 | 88 | 109 |
-| P2 | 61 | 2 | 4 | 184 | 251 |
+| P1 | 16 | 3 | 0 | 90 | 109 |
+| P2 | 61 | 2 | 4 | 185 | 252 |
 | P3 | 57 | 2 | 1 | 58 | 118 |
-| **All** | 136 | 7 | 5 | 332 | 480 |
+| **All** | 134 | 7 | 5 | 335 | 481 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -510,9 +510,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-577](fleet.md) | P3 | S | M8 | feature | done | `pod-actions-workflow`: the `workflows` filter of `workflow_run` |
 | [T-578](fleet.md) | P3 | S | M8 | feature | open | `pod-actions-workflow`: a check of the keys and the filters of `on:`, as GitHub refuses a file |
 | [T-579](relay.md) | P2 | S | M2 | defect | open | `pod-session`: a spare link that moved no byte backs off before the next (PodUtils/podssh#242) |
-| [T-580](podvm.md) | P1 | S | M6 | defect | open | `pod-rootfs`: an image with no CA bundle gets the host bundle when `host_cas` is false (PodUtils/podvm#341) |
-| [T-581](podvm.md) | P1 | S | M6 | defect | open | `pod-extract`: a file of mode 4755, 2755 or 6755 loses its setuid and setgid bits (PodUtils/podvm#342) |
-| [T-582](podvm.md) | P2 | S | M6 | defect | open | `pod-supervise`: `start` keeps the end fields of the run before, and a `Dead` record keeps its pid (PodUtils/podvm#343) |
+| [T-580](podvm.md) | P1 | S | M6 | defect | done | `pod-rootfs`: an image with no CA bundle gets the host bundle when `host_cas` is false (PodUtils/podvm#341) |
+| [T-581](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a file of mode 4755, 2755 or 6755 loses its setuid and setgid bits (PodUtils/podvm#342) |
+| [T-582](podvm.md) | P2 | S | M6 | defect | done | `pod-supervise`: `start` keeps the end fields of the run before, and a `Dead` record keeps its pid (PodUtils/podvm#343) |
 | [T-583](podvm.md) | P1 | M | M6 | defect | open | `pod-confine` and `pod-enter`: an `exec=` rule does not deny a program that the image's loader starts (PodUtils/podvm#344) |
 | [T-584](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a plan with two limits of one resource fails with `EPERM` (PodUtils/podvm#345) |
 | [T-585](podvm.md) | P2 | S | M6 | defect | open | `pod-oci`: the grammar of an insecure registry host, and a platform list with no repeat and no attestation (PodUtils/podvm#346) |
@@ -527,3 +527,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-594](podvm.md) | P2 | M | M7 | feature | open | `pod-qga`: a new crate, a client of the QEMU Guest Agent over a Unix socket (PodUtils/podvm#350, item 5) |
 | [T-595](podvm.md) | P2 | M | M7 | feature | open | `pod-guest`: the provision waits for a ready guest in place of a fixed sleep (PodUtils/podvm#350, item 6) |
 | [T-596](podvm.md) | P3 | M | M7 | feature | open | `pod-guest`: a warm start from a saved state, with a fingerprint and a fallback to a cold boot (PodUtils/podvm#350, item 7) |
+| [T-597](podvm.md) | P2 | S | M6 | defect | open | `pod-extract`: the umask of the process changes the modes of the tree, and the sidecar does not record it |

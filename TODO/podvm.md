@@ -6460,7 +6460,7 @@ each caught by hand with its EXPECT text:
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6480,6 +6480,18 @@ When `host_cas` is false, the branch with no bundle gives the same `Skipped` row
 cargo test -p pod-rootfs --all-features
 ```
 
+## Done
+
+2026-11-14, commit 5502330. With `Settings::host_cas` false, `ca_bundle`
+writes no file into an image with no CA bundle and gives one row
+`ca-bundle`, `Skipped` and degraded, that names the bundle of the host it
+did not write (call C369). `cargo test -p pod-rootfs --all-features`: 82
+unit tests and 3 tests of `two_layers` passed, with
+`no_host_cas_writes_no_host_bundle_into_an_image_with_none` (a bundle
+named by `SSL_CERT_FILE`, and one that no variable named), which fails on
+the code before the fix. Plant `rootfs-t580-no-bundle-ignores-host-cas`,
+caught by hand with its EXPECT text; `plant-each.sh --apply`: 0 stale. `check-size.py`, `check-windows.sh` and `check-macos.sh`: 0 faults.
+
 # T-581: `pod-extract`: a file of mode 4755, 2755 or 6755 loses its setuid and setgid bits (PodUtils/podvm#342)
 
 **Source:** PodUtils/podvm#342 (COORD-096 of podvm; PodUtils/podvm@T-1813; an external QA report of podvm).
@@ -6487,7 +6499,7 @@ cargo test -p pod-rootfs --all-features
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6507,6 +6519,22 @@ After the last write, call `fchmod(fd, mode & 0o7777)` when the mode has a bit o
 cargo test -p pod-extract --all-features
 ```
 
+## Done
+
+2026-11-14, commit bc89311. A regular file whose mode has a bit of
+`0o7000` gets `fchmod` on its descriptor after the last write; the mode
+of the descriptor is read back, and a mode that the kernel did not keep
+goes into the sidecar as `applied.mode` (calls C370, C371).
+`cargo test -p pod-extract --all-features`: 58 unit tests passed, with
+`drive::setid::set_id_bits_survive_the_write` (4755, 2755 and 6755 as
+root, then the test binary again as uid 1000 and gid 1000:
+`drive::setid::worker_extracts_as_a_user`; in a directory of group 0
+with `S_ISGID` the sidecar records 0755 and 4755). On the code before
+the fix the worker fails: `bin/su` is 0755, not 4755. Plants
+`extract-t581-set-id-bits-not-set-again` and
+`extract-t581-kept-mode-not-recorded`, each caught by hand with its
+EXPECT text; `plant-each.sh --apply`: 0 stale. `check-size.py`, `check-windows.sh` and `check-macos.sh`: 0 faults.
+
 # T-582: `pod-supervise`: `start` keeps the end fields of the run before, and a `Dead` record keeps its pid (PodUtils/podvm#343)
 
 **Source:** PodUtils/podvm#343 (COORD-097 of podvm; PodUtils/podvm@T-1807; an external QA report of podvm).
@@ -6514,7 +6542,7 @@ cargo test -p pod-extract --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6533,6 +6561,25 @@ Clear `exit_code`, `finished_at`, `end` and `noticed` when the launcher (or the 
 ```sh
 cargo test -p pod-supervise --all-features
 ```
+
+## Done
+
+2026-11-14, commit d019392. `Container::mark_running` (the launcher, a
+foreground hold, the value of `start`) clears `exit_code`,
+`finished_at`, `end` and `noticed`; `Container::mark_dead` (the
+reconcile with a free lock or no lock file, the drop of a hold) clears
+`pid` and `launcher_pid` and sets `finished_at` when it has none (calls
+C372, C373). `cargo test -p pod-supervise --all-features`: 31 unit tests
+(with `table::tests::a_new_run_clears_the_end_and_a_dead_record_names_no_pid`),
+`foreground` 6 steps (a hold again after an exit of 143; no pid on each
+`Dead`), `lifecycle` 5 steps (a `start` again after an exit of 143; no
+pid on `Dead`), `tree` 7 steps, each passed; `lifecycle` and
+`foreground` fail on the code before the fix. Plants
+`supervise-t582-run-keeps-the-exit-code`,
+`supervise-t582-dead-keeps-the-pid`,
+`supervise-t582-launcher-keeps-the-end`, each caught by hand with its
+EXPECT text; the patch of `supervise-t573-drop-writes-nothing` follows
+the new code of the drop. `plant-each.sh --apply`: 0 stale. `check-size.py`, `check-windows.sh` and `check-macos.sh`: 0 faults.
 
 # T-583: `pod-confine` and `pod-enter`: an `exec=` rule does not deny a program that the image's loader starts (PodUtils/podvm#344)
 
@@ -6832,4 +6879,31 @@ Save: QMP `migrate` to `exec:` or a file after the guest is ready in keep-alive 
 
 ```sh
 cargo test -p pod-guest --all-features
+```
+
+# T-597: `pod-extract`: the umask of the process changes the modes of the tree, and the sidecar does not record it
+
+**Source:** T-581 (a finding of its work).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod-extract` does not set the umask of the process and does not set a mode again to undo it. A file whose image mode equals its open mode and has no bit of `0o7000` gets no `fchmod`, so with a umask of 027 a file of mode 0755 lands as 0750. A directory has the same fault: `mkdirat(mode | 0o700)` applies the umask, and the pass of the permissions between layers only adds owner bits. The tree differs from the image, and the sidecar does not record it.
+
+## Premise
+
+- Read: the report of T-581 and calls C370, C371; `crates/pod-extract/src/apply.rs` (the open of a file, the `fchmod` after the write), the creation of a directory and the pass of the permissions.
+
+## Approach
+
+Set the mode of each file through its descriptor after the write in each case, and set each directory to its image mode with `fchmodat` in the pass of the permissions (or call `umask(0)` around the extraction, if the crate owns the process; record the choice as a call). A mode that the kernel does not keep goes into the sidecar, as T-581 does. A test extracts under umask 027 in a child process (the umask belongs to the whole process) and checks that 0755 and 0644 stay; a plant that the test catches.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
 ```

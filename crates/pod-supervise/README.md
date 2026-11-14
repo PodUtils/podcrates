@@ -12,8 +12,10 @@ the launcher. Four rules:
    sleep and a look.
 2. A launcher (or a hold) holds the lock of its container for its whole
    life. A lock that another process can take is a launcher that is
-   gone: the record becomes `Dead`, with the time of the notice and no
-   exit code.
+   gone: the record becomes `Dead`, with the time of the notice, no
+   exit code and no `pid` or `launcher_pid` (a pid is used again).
+   A record that runs (a launcher or a hold) has no `exit_code`,
+   `finished_at`, `end` or `noticed` of the run before.
 3. Nothing waits on a timer. Readiness is a pipe that the `execve` of the
    payload closes; the end of the payload is `ppoll` on its pidfd; each
    wait has a bound and its own result for the bound.
@@ -139,6 +141,16 @@ SIGKILL; a wait before `finish` gets the bound, and a wait at `finish`
 gets its code, also after a `kill` of the reaped payload; a drop with no
 `finish` writes `Dead`; a holder process that is killed leaves a `Dead`
 record. It skips on a kernel with no `pidfd_open`.
+
+The end fields (PodUtils/podvm#343): a `start` again after an exit of 143
+(`lifecycle`) and a hold again (`foreground`) give a `Running` record
+with no exit code, end time, `end` or notice; each `Dead` record (a
+killed launcher, a killed holder, a drop) has no pid; the unit test
+`table::tests::a_new_run_clears_the_end_and_a_dead_record_names_no_pid`
+checks both rules, also for a record with no lock file. The plants:
+`supervise-t582-run-keeps-the-exit-code`,
+`supervise-t582-dead-keeps-the-pid`,
+`supervise-t582-launcher-keeps-the-end`.
 
 ## Sources
 

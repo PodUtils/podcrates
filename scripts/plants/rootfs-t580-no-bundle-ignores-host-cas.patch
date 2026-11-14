@@ -1,0 +1,12 @@
+diff --git a/crates/pod-rootfs/src/pkg/bundle.rs b/crates/pod-rootfs/src/pkg/bundle.rs
+--- a/crates/pod-rootfs/src/pkg/bundle.rs
++++ b/crates/pod-rootfs/src/pkg/bundle.rs
+@@ -86,7 +86,7 @@
+         };
+         // Off means no host root in the trust of the container: a bundle of
+         // the host can hold an intercepting CA.
+-        if !settings.host_cas {
++        if !settings.host_cas && false {
+             return Ok(vec![
+                 Fixup::new("ca-bundle", BUNDLE_PATHS[0], Action::Skipped)
+                     .why(format!(
