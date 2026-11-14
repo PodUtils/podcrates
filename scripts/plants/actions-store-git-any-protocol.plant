@@ -1,0 +1,7 @@
+# The git command takes each protocol that a ref, a redirect or a submodule
+# names, not only the protocol of the base (T-613).
+ENTRY=T-613
+GROUP=actions
+EXPECT='the_git_command_takes_the_proxy_of_the_grant_and_https_only'
+RUN='cargo test -p pod-actions-store --all-features --lib store::tests::the_git_command_takes_the_proxy_of_the_grant_and_https_only'
+LIMIT=900

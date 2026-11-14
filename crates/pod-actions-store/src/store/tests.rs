@@ -11,6 +11,8 @@ struct Fake {
     files: RefCell<BTreeMap<String, Vec<(String, String)>>>,
     resolves: Cell<u32>,
     tars: Cell<u32>,
+    /// The keys that come from a directory of the caller.
+    local: RefCell<BTreeSet<String>>,
 }
 
 impl Fake {
@@ -31,6 +33,10 @@ impl Forge for Fake {
         self.tars.set(self.tars.get() + 1);
         let files = self.files.borrow().get(commit).cloned().ok_or("no commit")?;
         Ok(tar_of(&files))
+    }
+
+    fn is_local(&self, key: &str) -> bool {
+        self.local.borrow().contains(key)
     }
 }
 
@@ -269,4 +275,54 @@ fn each_fault_of_a_checkout_is_typed_and_a_tree_keeps_the_rules_of_the_lock() {
     add_trees(&["o/lib@HEAD".to_string()], same, &s, &f, Mode::Online, "L").unwrap();
     assert_eq!(f.tars.get(), tars);
     let _ = std::fs::remove_dir_all(&s.dir);
+}
+
+/// A reference from a directory of the caller goes to the store and never
+/// to the lock, also offline; a remote action that it names keeps the rules
+/// of the lock.
+#[test]
+fn a_local_reference_goes_to_the_store_and_not_to_the_lock() {
+    let (f, s) = (forge(), store());
+    let composite = "runs:\n  using: composite\n  steps:\n    - uses: o/inner@v2\n";
+    f.add("me/tool@main", C, &[("action.yml", composite)]);
+    f.local.borrow_mut().insert("me/tool@main".into());
+    let e = resolve(&uses(&["me/tool@main"]), &Lock::default(), &s, &f, Mode::Offline, "L").unwrap_err();
+    assert!(matches!(&e, Error::NotLocked { key, .. } if key == "o/inner@v2"), "{e:?}");
+    assert!(s.path("me/tool", C).is_file(), "the local tar is not in the store");
+    let r = resolve(&uses(&["me/tool@main"]), &Lock::default(), &s, &f, Mode::Online, "L").unwrap();
+    assert_eq!(r.commits["me/tool@main"], C);
+    assert!(!r.lock.pins.contains_key("me/tool@main"), "a local reference is in the lock: {:?}", r.lock.pins);
+    assert!(r.lock.pins.contains_key("o/inner@v2"));
+    let _ = std::fs::remove_dir_all(&s.dir);
+}
+
+#[test]
+fn the_git_command_takes_the_proxy_of_the_grant_and_https_only() {
+    let mut git = crate::Git::new("https://github.com/", "scratch");
+    git.proxy = Some("http://127.0.0.1:9".into());
+    let c = git.command(&["ls-remote", "https://github.com/a/b"], None);
+    let env: BTreeMap<String, Option<String>> = c
+        .get_envs()
+        .map(|(k, v)| (k.to_string_lossy().into_owned(), v.map(|v| v.to_string_lossy().into_owned())))
+        .collect();
+    let config: Vec<(String, String)> = (0..env["GIT_CONFIG_COUNT"].as_deref().unwrap().parse::<usize>().unwrap())
+        .map(|i| {
+            (
+                env[&format!("GIT_CONFIG_KEY_{i}")].clone().unwrap(),
+                env[&format!("GIT_CONFIG_VALUE_{i}")].clone().unwrap(),
+            )
+        })
+        .collect();
+    let has = |k: &str, v: &str| config.contains(&(k.to_string(), v.to_string()));
+    assert!(has("http.proxy", "http://127.0.0.1:9"), "{config:?}");
+    assert!(has("protocol.allow", "never") && has("protocol.https.allow", "always"), "{config:?}");
+    assert!(has("fetch.recurseSubmodules", "false"), "{config:?}");
+    assert_eq!(env["HTTPS_PROXY"], None, "the proxy of the environment is removed");
+    let plain = crate::Git::new("http://git.example/", "scratch");
+    let c = plain.command(&["ls-remote"], None);
+    assert!(c.get_envs().any(|(k, v)| k == "GIT_CONFIG_KEY_1" && v.is_some_and(|v| v == "protocol.http.allow")));
+    assert!(!c.get_envs().any(|(k, _)| k == "HTTPS_PROXY"), "no proxy: the environment stays");
+    let local = crate::Git::new("file:///srv/git/", "scratch");
+    let c = local.command(&["ls-remote"], None);
+    assert!(c.get_envs().any(|(k, v)| k == "GIT_CONFIG_KEY_1" && v.is_some_and(|v| v == "protocol.file.allow")));
 }

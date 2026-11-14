@@ -539,3 +539,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-606](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: a second extraction over a closed tree fails on a directory with no owner read or under a closed parent that the layer does not name |
 | [T-607](upkeep.md) | P1 | S | M5 | defect | done | the nightly run at `f6479c7` is red on `windows-11-arm`: the ARQ of a test of `pod-link` through a resolver gives up in 7 s |
 | [T-608](upkeep.md) | P1 | S | M5 | defect | done | `upstream.yml` is red: the sources of `pod-warp`, `pod-netstack` and `pod-gsr` changed |
+| [T-613](fleet.md) | P2 | S | M8 | feature | open | `pod-actions-store` and `pod-actions-results`: podrunner's changes after `872b43f` (T-139, T-149, T-154 of podrunner) |

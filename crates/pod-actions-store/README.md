@@ -59,8 +59,8 @@ let (pins, changed) = images::resolve(&tags, &mut r.lock, &source, Mode::Online,
 | `images::workflow_images` | each image of `container:`, `services:` and `docker://` steps that a tag names, sorted, each once |
 | `images::resolve(images, lock, source, mode, lock_name)` | each image pinned by the lock and the source: `("docker://NAME:TAG", "NAME@sha256:HEX")`, and whether the lock changed |
 | `store::Mode` | `Online` (resolve and fetch what is missing, check each tag of the lock), `Frozen` (refuse a change of the lock, fetch only a tarball that the lock pins), `Offline` (the lock and the store only) |
-| `store::Forge` | `resolve(repo, ref)` to a commit (`HEAD`: the default branch), `tar(repo, commit)` (uncompressed, one top directory) |
-| `store::Git` (also `Git`) | the forge of git as a program: `base`, `scratch`, `program`; `Git::new(base, scratch)` |
+| `store::Forge` | `resolve(repo, ref)` to a commit (`HEAD`: the default branch), `tar(repo, commit)` (uncompressed, one top directory); `is_local(key)` (default `false`): the reference comes from a directory of the caller, and goes to the store and never to the lock, in each mode |
+| `store::Git` (also `Git`) | the forge of git as a program: `base`, `scratch`, `program`, `proxy`; `Git::new(base, scratch)`; `command(args, dir)`, the git command that each call runs |
 | `store::Store`, `archive_name` | the tarballs `DIR/OWNER_REPO/SHA.tar.gz`, the layout of the archive cache of the runner; `path` |
 | `store::digest` | `sha256:HEX` of bytes |
 | `Error`, `LineFault`, `CheckoutFault` | each failure with its reference, its commit or its file (below) |
@@ -110,8 +110,15 @@ let (pins, changed) = images::resolve(&tags, &mut r.lock, &source, Mode::Online,
   branch. `HEAD` is `git ls-remote URL HEAD`, the default branch. `tar` makes a directory of its own under `scratch`, does `git
   init`, `git fetch --depth 1 URL COMMIT` and `git archive --format=tar
   --prefix=OWNER-REPO-SHORT/ FETCH_HEAD`, and removes the directory. git
-  runs with `GIT_TERMINAL_PROMPT=0` and `GIT_CONFIG_NOSYSTEM=1`, and takes
-  the proxy of the host from its environment.
+  runs with `GIT_TERMINAL_PROMPT=0` and `GIT_CONFIG_NOSYSTEM=1`, and with
+  `GIT_CONFIG_*` for `protocol.allow=never`, `protocol.SCHEME.allow=always`
+  (the scheme of `base`; `file` for a path), `fetch.recurseSubmodules` and
+  `submodule.recurse` false. With `proxy`, git takes `http.proxy` and no
+  proxy variable of the environment; with none, the proxy of the
+  environment.
+* A reference that `Forge::is_local` names: its commit (it must be a full
+  commit id) and its tar go to the store, and the lock does not change, in
+  each mode. A remote action that it names keeps the rules of the lock.
 
 ## Errors
 
@@ -131,8 +138,8 @@ let (pins, changed) = images::resolve(&tags, &mut r.lock, &source, Mode::Online,
 
 ## Parity
 
-Against podrunner `crates/podrunner-local` at `241acb8` (T-564) and
-`872b43f` (T-587):
+Against podrunner `crates/podrunner-local` at `241acb8` (T-564),
+`872b43f` (T-587) and `9dbefd1` (T-613):
 
 | podrunner | Here |
 | --- | --- |
@@ -145,10 +152,13 @@ Against podrunner `crates/podrunner-local` at `241acb8` (T-564) and
 | [ ] `images::PodvmPull` (`podvm pull` and `podvm images`) | stays in podrunner: the source of images is the consumer's |
 | [x] `src/store/tests.rs`: the eight tests, each with its name | `src/store/tests.rs`, with four tests more |
 | [x] `src/images/tests.rs`: the two tests, each with its name | `src/images/tests.rs`, with one test more |
+| [x] `Forge::is_local` and the local branch of the fetch (`de6850e`, T-139 of podrunner) | `Forge::is_local`, with the test `a_local_reference_goes_to_the_store_and_not_to_the_lock` (new) |
+| [x] `Git::proxy`, `Git::command` and its test (`afa619d`, T-154 of podrunner) | `git.rs`, with the test `the_git_command_takes_the_proxy_of_the_grant_and_https_only`; the scheme of a `file://` base is allowed too |
+| [ ] `src/fetch.rs` (the relay of an egress grant) and the live test through it | stay in podrunner: the grant and its relay are podrunner's egress module |
 | [x] `tests/store.rs`: the live test | `tests/store.rs`, in the job `live` of `live.yml` |
 
 Differences from the source, each in a call of `docs/decisions.md` (C320
-to C324, C376 to C378):
+to C324, C376 to C378, C462 to C463):
 
 * An error is `Error`, not a `String`; its text names no flag of a command
   (`--frozen`, `--offline`).
@@ -174,7 +184,8 @@ to C324, C376 to C378):
 | podrunner | `podrunner_local::lock::{Lock, Pin, is_commit}` | `pod_actions_store::lock::` with the same names |
 | podrunner | `podrunner_local::lock::LOCK_FILE` and the header that names `podrunner run` | podrunner keeps the name; `Lock::write_with(path, HEADER)` with its header |
 | podrunner | `podrunner_local::store::{Forge, Mode, Resolved, Store, resolve, digest}` | `pod_actions_store::store::` with the same names |
-| podrunner | `podrunner_local::store::Git { base }` | `pod_actions_store::store::Git::new(base, scratch)` |
+| podrunner | `podrunner_local::store::Git { base, proxy }` | `pod_actions_store::store::Git::new(base, scratch)`, then `git.proxy = proxy` |
+| podrunner | `podrunner_local::localrepo::Local` (`Forge` with `is_local`) | stays in podrunner, as a `Forge` of `pod_actions_store` |
 | podrunner | `workflow_uses(&w)` | `workflow_uses(&w, &["actions/checkout"])` |
 | podrunner | an error `String` (`--frozen`, `--offline` in the text) | `pod_actions_store::Error`; podrunner matches `NotLocked { mode, .. }` and `NotStored` for the words of its flags |
 | podrunner | `podrunner_local::store::{checkout_target, workflow_trees, add_trees}` | `pod_actions_store::store::` with the same names and parameters; the error is `Error` |
@@ -189,7 +200,8 @@ to C324, C376 to C378):
 line by its number, a file written whole); the resolve against a forge in
 memory that counts its calls (a composite action by tag, a moved tag, the
 offline and frozen modes, a tarball that differs from the lock, the digest
-of the uncompressed tar, a forge that gives no commit id); the checkouts of
+of the uncompressed tar, a forge that gives no commit id, a local reference that stays out of the
+lock); the git command (the protocol of the base, the proxy); the checkouts of
 other repositories (each fault of `with:`, a tree pinned with no action
 file, a moved tree); the images by tag against a registry in memory (the
 images of a workflow, a moved tag, the modes, a digest that is not
@@ -208,7 +220,9 @@ Plants (`scripts/plants/`): `actions-store-lock-unsorted`,
 `actions-store-lock-images-dropped`,
 `actions-store-checkout-expression-taken`,
 `actions-store-git-head-unresolved`, `actions-store-image-moved-taken`,
-`actions-store-image-digest-unchecked` (T-587).
+`actions-store-image-digest-unchecked` (T-587);
+`actions-store-local-reference-locked`, `actions-store-git-any-protocol`
+(T-613).
 
 ## Sources
 

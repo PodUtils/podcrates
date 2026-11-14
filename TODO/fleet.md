@@ -2719,3 +2719,31 @@ Keep `parse` as it is, so that podrunner's local runs do not change. Add `Workfl
 ```sh
 cargo test -p pod-actions-workflow --all-features
 ```
+
+# T-613: `pod-actions-store` and `pod-actions-results`: podrunner's changes after `872b43f` (T-139, T-149, T-154 of podrunner)
+
+**Source:** T-608 (a finding of its work).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`scripts/check-sources.py` reports 3 changes of `pod-actions-store` and 1 of `pod-actions-results` against podrunner at `872b43f`: podrunner's `de6850e` (PodUtils/podrunner@T-139, `--local-repository`), `afa619d` (PodUtils/podrunner@T-154, the fetch through one egress grant) and `9dbefd1` (PodUtils/podrunner@T-149, `--web`) changed the files of the two crates after the pin. podrunner keeps its copy until it takes the crates, so each change that it needs must be in the crates first.
+
+## Premise
+
+- Read: the three commits of podrunner (a local clone); PodUtils/podrunner:crates/podrunner-local/src/store.rs, src/store/tests.rs, tests/store.rs, src/localrepo.rs, src/fetch.rs and PodUtils/podrunner:crates/podrunner-broker-fake/src/artifacts.rs at `9dbefd1`.
+
+## Approach
+
+Port each change that a consumer of the crate needs, with its test and a plant; for each other change, write the reason. Move the pins and the blob ids, and run `check-sources.py` on both crates until each reports 0.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-store -p pod-actions-results --all-features
+python3 -I scripts/check-sources.py pod-actions-store pod-actions-results
+```

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-store/src/store.rs b/crates/pod-actions-store/src/store.rs
+--- a/crates/pod-actions-store/src/store.rs
++++ b/crates/pod-actions-store/src/store.rs
+@@ -300,7 +300,7 @@
+     // A directory of the caller: a made-up commit that changes with the
+     // directory, so the lock does not hold it, and the forge of a remote
+     // is not asked, also offline.
+-    if forge.is_local(at.key) {
++    if false && forge.is_local(at.key) {
+         let commit = forge.resolve(repo, at.r).map_err(forged)?;
+         if !is_commit(&commit) {
+             return Err(forged(format!("`{key}`: the forge gave `{commit}`, not a commit id")));

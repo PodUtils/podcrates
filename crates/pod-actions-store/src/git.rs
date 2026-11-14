@@ -1,7 +1,8 @@
 //! The forge of git as a program: `git ls-remote` resolves a ref (`HEAD`:
 //! the default branch), and a shallow fetch of the commit gives `git
-//! archive`. git takes the proxy of the host from its environment; the
-//! crate sets nothing of it.
+//! archive`. git takes the protocol of the base only, and no submodule.
+//! With [`Git::proxy`] git takes only that proxy; with none, the proxy of
+//! the environment of the host.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -19,22 +20,58 @@ pub struct Git {
     pub scratch: PathBuf,
     /// The git program: `git` in `PATH` by default.
     pub program: PathBuf,
+    /// The proxy of each fetch, as `http://127.0.0.1:PORT` (the relay of an
+    /// egress grant). With it, git takes no proxy of the environment.
+    /// `None`: the proxy of the environment.
+    pub proxy: Option<String>,
 }
+
+/// The variables of the proxy that git and curl read.
+const PROXY_VARS: [&str; 8] =
+    ["http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "all_proxy", "ALL_PROXY", "no_proxy", "NO_PROXY"];
 
 impl Git {
     pub fn new(base: impl Into<String>, scratch: impl Into<PathBuf>) -> Git {
-        Git { base: base.into(), scratch: scratch.into(), program: PathBuf::from("git") }
+        Git { base: base.into(), scratch: scratch.into(), program: PathBuf::from("git"), proxy: None }
     }
 
-    fn run(&self, args: &[&str], dir: Option<&Path>) -> Result<Vec<u8>, String> {
+    /// The protocol of the base: its scheme, or `file` for a path.
+    fn scheme(&self) -> &str {
+        self.base.split_once("://").map_or("file", |(s, _)| s)
+    }
+
+    /// The git command: no prompt, no file of the system, only the protocol
+    /// of the base (no submodule, no other scheme that a ref or a redirect
+    /// names), and the proxy through `GIT_CONFIG_*`, with no file of the
+    /// user changed.
+    pub fn command(&self, args: &[&str], dir: Option<&Path>) -> Command {
         let mut c = Command::new(&self.program);
         if let Some(d) = dir {
             c.arg("-C").arg(d);
         }
-        let out = c
-            .args(args)
-            .env("GIT_TERMINAL_PROMPT", "0")
-            .env("GIT_CONFIG_NOSYSTEM", "1")
+        let mut config = vec![
+            ("protocol.allow".to_string(), "never".to_string()),
+            (format!("protocol.{}.allow", self.scheme()), "always".to_string()),
+            ("fetch.recurseSubmodules".to_string(), "false".to_string()),
+            ("submodule.recurse".to_string(), "false".to_string()),
+        ];
+        if let Some(p) = &self.proxy {
+            config.push(("http.proxy".into(), p.clone()));
+            for v in PROXY_VARS {
+                c.env_remove(v);
+            }
+        }
+        c.env("GIT_CONFIG_COUNT", config.len().to_string());
+        for (i, (k, v)) in config.iter().enumerate() {
+            c.env(format!("GIT_CONFIG_KEY_{i}"), k).env(format!("GIT_CONFIG_VALUE_{i}"), v);
+        }
+        c.args(args).env("GIT_TERMINAL_PROMPT", "0").env("GIT_CONFIG_NOSYSTEM", "1");
+        c
+    }
+
+    fn run(&self, args: &[&str], dir: Option<&Path>) -> Result<Vec<u8>, String> {
+        let out = self
+            .command(args, dir)
             .stdin(Stdio::null())
             .output()
             .map_err(|e| format!("{}: {e}", self.program.display()))?;
