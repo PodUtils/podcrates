@@ -1,0 +1,13 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podrunner 241acb864a6e2ded0f3cf58b839b40fc56b2b823
+# T-564 (PodUtils/podrunner#94): the lock file and the store of the actions
+# by tag of PodUtils/podrunner@T-118. The other files of
+# crates/podrunner-local (the local job source) stay in podrunner.
+file 7438e7e4443cd4fa46decb44c9becc34ee5d91b3 crates/podrunner-local/src/lock.rs -> crates/pod-actions-store/src/lock.rs
+file 50ea61603bdd75a4088a19824de98ad418d9c189 crates/podrunner-local/src/store.rs -> crates/pod-actions-store/src/store.rs crates/pod-actions-store/src/git.rs crates/pod-actions-store/src/error.rs
+file 5bcdc5bf51244431aff864ff7480ae34e7efa6be crates/podrunner-local/src/store/tests.rs -> crates/pod-actions-store/src/store/tests.rs
+file a9f5c62ae89ddb0076d4e5010350e5979a5f7fd3 crates/podrunner-local/tests/store.rs -> crates/pod-actions-store/tests/store.rs
