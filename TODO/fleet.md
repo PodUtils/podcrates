@@ -2551,7 +2551,7 @@ sh scripts/plant-each.sh actions-workflow-workflows-ignored
 **Milestone:** M8
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2573,3 +2573,13 @@ cargo test -p pod-actions-workflow --all-features
 sh scripts/plant-each.sh actions-workflow-call-inputs-unchecked actions-workflow-call-inherits-unasked actions-workflow-call-levels-unbounded actions-workflow-call-outputs-dropped
 cargo test --manifest-path fuzz/Cargo.toml --lib
 ```
+
+## Done
+
+2026-11-14. The commit `406750a` (`pod-actions-workflow: the calls of reusable workflows in Run (T-576)`).
+
+- `crates/pod-actions-workflow`: the trait `Called` (`text(uses, from)`), `Run::with_called`, `Outcome::Called(Vec<Call>)`, `Call` (`job`, `name`, `uses`, `matrix`, `inputs`, `secrets`, `jobs`), `Secrets` (`Run`, `Passed { from, items }`, `names`), `CallLimits` in `Base::calls`, `plan_with`, `Instance::{inputs, secrets}`; `ErrorKind::{CallText, InCalled, CallLimit, Input, Secret}` (calls C351 to C356). New files `src/call.rs` (316 lines) and `src/instance.rs` (164 lines); `src/expand.rs` has 449 lines.
+- `cargo test -p pod-actions-workflow --all-features`: 65 passed (10 new in `tests/call.rs`). `cargo test --manifest-path fuzz/Cargo.toml --lib`: 13 passed; the fuzz target `actions_workflow` runs `plan_with` with a source that gives the input again. The static probe runs one call.
+- Plants, each caught by hand: `actions-workflow-call-inputs-unchecked` (`with_is_checked_against_the_inputs_of_the_called_workflow`), `actions-workflow-call-inherits-unasked` (`secrets_are_passed_by_name_inherited_only_when_asked_and_checked`), `actions-workflow-call-levels-unbounded` (`the limit of levels stops the loop`), `actions-workflow-call-outputs-dropped` (`the_outputs_of_the_called_workflow_are_needs_of_the_jobs_after_the_call`); `sh scripts/plant-each.sh --apply`: 0 stale.
+- `cargo fmt --all --check`, clippy of the crate, of `static-probe` and of the fuzz library, `cargo doc` of the crate with `-D warnings`: clean. `scripts/check-size.py`: 0 faults; `scripts/check-probe.py --no-tree`: 40 crates, 0 faults; `scripts/check-design-paths.py`: ok; `scripts/agent/check-windows.sh`: 0 faults.
+- Next: podrunner takes the expansion at the next tag (PodUtils/podrunner@T-131).
