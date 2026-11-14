@@ -279,6 +279,13 @@ impl Edge {
         self.shown.set(keys);
     }
 
+    /// Show the certificate `cert` of `key` from now on (a certificate of
+    /// another issuer, as a door showed in place of WARP's key).
+    pub fn show_certificate(&self, key: DeviceKey, cert: Vec<u8>) {
+        let certified = Arc::new(CertifiedKey::new(vec![CertificateDer::from(cert)], key.signer()));
+        *self.shown.keys.lock().unwrap_or_else(PoisonError::into_inner) = VecDeque::from([(key, certified)]);
+    }
+
     /// The TLS handshakes that asked for the stand-in's certificate.
     pub fn hellos(&self) -> usize {
         self.shown.hellos.load(Ordering::SeqCst)

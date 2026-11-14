@@ -3365,7 +3365,7 @@ of the review, the kernel refused `bbr` (ENOENT), and the socket kept
   `:79-92` (`Settings::new`) and `:264-273` (`Dialer::tuned` calls
   `lowat::set` and writes `TCP_NOTSENT_LOWAT is not set` at debug). They
   agree with the review. `Dialer::tuned` runs on each stream of
-  `Dialer::open` (`:250`) and of the dial of addresses (`:348`).
+  `Dialer::open` (`:250`) and of the dial of addresses (`:353`).
 - Read: `crates/pod-proxy/src/stream.rs:20-28`. `tuned` changes only a TCP
   stream: on the direct road, the socket to the target; through an HTTP or
   SOCKS5 proxy, the socket to the proxy; through a proxy on a Unix socket

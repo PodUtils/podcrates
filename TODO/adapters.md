@@ -1759,3 +1759,79 @@ canonical forms now (`same_peer`, the test
 `an_answer_in_the_mapped_form_is_the_target`, the plant
 `warp-nc-mapped-answer-dropped`).
 
+
+# T-549: `pod-warp`: name the certificate that the front door showed when its key is not the pinned one (PodUtils/podssh#234)
+
+**Source:** PodUtils/podssh#234 (COORD-057 of podssh; PodUtils/podssh@T-585)
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh's message: in WARP's live runs (`warp-live.yml` run 41563996906;
+`quick-tunnel-live.yml` run 41564000406, 2026-11-03), WARP's endpoint
+showed a certificate of `O=Let's Encrypt, CN=YE1` in place of WARP's key,
+once on a road with no proxy and once through a proxy that passes port
+443 and terminates no TLS. Both times WARP's API failed too (500 to the
+device's record), and a later try passed. podssh's old road said "a proxy
+re-terminates TLS", which sent a user to look for a proxy that was not
+there.
+
+At `v0.40.0`, `pod-warp` reads the record again on a mismatch
+(`open_after_mismatch`) and ends with "TLS handshake with the MASQUE front
+door DOOR: MASQUE peer key does not match the pinned key". That blames no
+proxy, but it does not say what the door showed, or what to do. The ask:
+
+1. When the second try fails too, the line names the issuer of the
+   certificate that the door showed (`der::issuer_words`). It says that
+   WARP's side (with its API failing in the same minutes) or a proxy that
+   re-terminates TLS can show one, and that a later try tells them apart:
+   WARP's side passes on a later try, and a proxy fails each time. It names
+   a proxy only where the road went through one.
+2. A test against the stand-in edge with another certificate and no proxy:
+   the line names the endpoint and the issuer, and no proxy. A plant with
+   the proxy's words on the direct road fails it.
+
+## Premise
+
+- Read: `crates/pod-warp/src/open.rs` (`open_after_mismatch`),
+  `crates/pod-warp/src/tls.rs` (`PIN_MISMATCH`, the verifier `PinnedKey`),
+  `crates/pod-warp/src/der.rs` (`issuer_words`, used nowhere), and the
+  stand-in edge of `crates/pod-warp/tests/common/edge.rs`, which shows
+  self-signed certificates with an empty issuer.
+- Read: when WARP's API fails, the read of the record fails first, and the
+  line said "reading the device record again after a key mismatch" with
+  no word of the door's certificate. That is the measured case of the ask.
+- Read: `pod_core::Dial` has a `label` and no way to say whether a dial of
+  a target goes through a proxy; `pod_proxy::Dialer` decides it for each
+  target (`proxy_at`, with `NO_PROXY`).
+- The freeze of T-339, T-412 and T-413 holds the consumers' WARP modules
+  (podnet's src/warp, podssh's crates/podssh-warp) to fixes, not the
+  crate: both consumers took `pod-warp`, and a change of a text of the
+  crate is allowed (AGENTS.md, section 1).
+
+## Approach
+
+1. `tls.rs`: the verifier's failure names the issuer of the certificate
+   that the door showed (`SHOWN`, `der::issuer_words`).
+2. `pod_core::Dial::proxy_label(target)`: the proxy that a dial of a
+   target goes through, by its label; none by default. `pod_proxy::Dialer`
+   gives it from its decision (C300).
+3. `open.rs`: when the key of the record read again does not match either,
+   and when the read of the record fails, the line adds why: WARP's side
+   shows such a certificate at times while its API fails, and a later try
+   passes then; and, only where the way to the door goes through a proxy,
+   that the proxy may re-terminate TLS, and then each try fails.
+4. `Edge::show_certificate` in the stand-in edge, and a test with a
+   certificate of `O=Let's Encrypt, CN=YE1`: no proxy, a proxy, and no API.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features --test net
+cargo test -p pod-proxy --all-features --test dial
+sh scripts/plant-each.sh warp-t549-proxy-on-direct-road warp-t549-issuer-unnamed
+```

@@ -324,3 +324,16 @@ async fn a_refused_dial_of_an_address_names_it_once() {
     assert_eq!(text.matches(&target).count(), 1, "{text}");
     assert!(text.starts_with(&format!("could not connect to {target}: ")), "{text}");
 }
+
+/// The proxy that a dial goes through, by its label, for a line that blames
+/// a proxy (PodUtils/podssh#234): none for a direct dial.
+#[test]
+fn the_proxy_of_a_dial_is_named_by_its_label_and_a_direct_dial_has_none() {
+    use pod_core::{Dial, Target};
+    let target = Target::new("162.159.198.1", 443);
+    let direct = Dialer::new(Settings::new("podssh", ProxyChoice::Direct), Arc::new(System::new()));
+    assert_eq!(direct.proxy_label(&target), None);
+    let proxy = pod_proxy::Proxy::parse("http://10.0.0.1:3128").unwrap();
+    let via = Dialer::new(Settings::new("podssh", ProxyChoice::Via(proxy)), Arc::new(System::new()));
+    assert_eq!(via.proxy_label(&target).as_deref(), Some("http://10.0.0.1:3128"));
+}
