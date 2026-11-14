@@ -1,7 +1,7 @@
 //! The fuzz targets of `pod-actions-expr` and `pod-actions-workflow`.
 
 use pod_actions_expr::{Condition, Contexts, Expr, Template, Value};
-use pod_actions_workflow::{Base, JobResult, Run, plan};
+use pod_actions_workflow::{Base, JobResult, Run, Trigger, plan};
 
 use crate::text;
 
@@ -55,12 +55,27 @@ pub fn actions_expr(data: &[u8]) {
 
 /// A workflow file (`pod_actions_workflow::parse`, then a dry run; new in
 /// `pod-actions-workflow`, T-251): untrusted YAML. No panic; the limits of
-/// the YAML hold against aliases; a file that parses has a graph or an
-/// error by name, and its dry run gives each job once.
+/// the YAML hold against aliases; the filters of `on:` (T-572) read and
+/// decide; a file that parses has a graph or an error by name, and its dry
+/// run gives each job once.
 pub fn actions_workflow(data: &[u8]) {
     let Some(input) = text(data) else { return };
     let Ok(parsed) = pod_actions_workflow::parse(input) else { return };
     let workflow = parsed.workflow;
+    if let Ok(on) = workflow.triggers() {
+        let paths = ["src/a.rs".to_string(), "docs/README.md".to_string()];
+        for event in &on.events {
+            for git_ref in ["refs/heads/releases/v1", "refs/tags/v1.0"] {
+                let t = Trigger {
+                    action: Some("opened"),
+                    git_ref: Some(git_ref),
+                    paths: Some(&paths),
+                    ..Trigger::new(&event.name)
+                };
+                assert_eq!(Some(on.takes(&t)), workflow.takes(&t).ok(), "{input:?}");
+            }
+        }
+    }
     let Ok(run) = Run::new(&workflow, Base::default()) else { return };
     let order: Vec<String> = run.graph().order().map(str::to_string).collect();
     assert_eq!(order.len(), workflow.jobs.len());

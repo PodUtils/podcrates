@@ -2471,3 +2471,33 @@ A feature `fuzzing` that gives `query`, `block_list` and `backend_ids`, and a ta
 ```sh
 cargo test --manifest-path fuzz/Cargo.toml --lib
 ```
+
+# T-572: `pod-actions-workflow`: the filters of `on:` (types, branches, tags, paths and their -ignore forms) (PodUtils/podrunner#97)
+
+**Source:** PodUtils/podrunner#97 (COORD-037 of podrunner).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podrunner runs each workflow of a directory whose `on:` takes an event, as GitHub does (PodUtils/podrunner@T-125). `pod-actions-workflow` keeps `on:` as a `Node`, and `Workflow::events()` gives only the names of the events. podrunner asks for a function that tells whether a workflow takes an event, with the rules of GitHub's "Workflow syntax": `types`, `branches`, `branches-ignore`, `tags`, `tags-ignore`, `paths`, `paths-ignore`; the patterns `*`, `**`, `?`, `+`, `[]` and `!`, in order; a filter with its `-ignore` form refused; a push with only tags filters does not run for a branch, and the reverse; `paths` after `branches`. githome needs the same decision for its own events.
+
+## Premise
+
+- Read: PodUtils/podrunner#97; `crates/pod-actions-workflow/src/lib.rs`, `src/model.rs`, `src/read.rs`, `src/error.rs`, `src/data.rs`; `docs/design.md`, section 1 and the row of the crate.
+- The rules come from GitHub's documents "Workflow syntax for GitHub Actions" (`on.<event>.types`, `on.<push|pull_request>.<branches|tags|paths>`, "Filter pattern cheat sheet") and "Events that trigger workflows" (the default types of `pull_request`). No run against GitHub here.
+
+## Approach
+
+A module `on` with `Trigger` (podrunner's fields), `On`, `Event` and `Filter`, and a module `pattern` with `Pattern` (a compiler of the patterns and a matcher of patterns times length). `Workflow::takes` and `Workflow::triggers`. Three typed errors: `FilterWithIgnore`, `OnlyNegated`, `BadPattern`. Record the calls C340 to C344. Tests with the examples of the documents for each filter; plants for the order of `!`, a `*` that crosses `/`, the tags-only rule and a filter with its `-ignore` form. The static probe and the fuzz target `actions_workflow` call the filters.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-workflow --all-features
+sh scripts/plant-each.sh actions-workflow-bang-order-ignored actions-workflow-star-crosses-slash actions-workflow-tags-only-takes-branches actions-workflow-filter-with-ignore-taken
+cargo test --manifest-path fuzz/Cargo.toml --lib
+```

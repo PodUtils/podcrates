@@ -55,6 +55,16 @@ pub enum ErrorKind {
     Value(String),
     /// A call of the expansion in a wrong order.
     Usage(String),
+    /// An event of `on:` with a filter and its `-ignore` form: `branches`,
+    /// `tags` or `paths`.
+    FilterWithIgnore(&'static str),
+    /// A filter of `on:` with no pattern that has no `!`.
+    OnlyNegated(&'static str),
+    /// A pattern of a filter of `on:` that does not parse, and why.
+    BadPattern {
+        pattern: String,
+        why: &'static str,
+    },
 }
 
 impl Error {
@@ -86,6 +96,11 @@ impl fmt::Display for ErrorKind {
             ErrorKind::Matrix(why) => write!(f, "matrix: {why}"),
             ErrorKind::Value(why) => f.write_str(why),
             ErrorKind::Usage(why) => f.write_str(why),
+            ErrorKind::FilterWithIgnore(key) => write!(f, "an event has `{key}` or `{key}-ignore`, not both"),
+            ErrorKind::OnlyNegated(key) => {
+                write!(f, "`{key}` needs a pattern with no `!`; use `{key}-ignore` to exclude")
+            }
+            ErrorKind::BadPattern { pattern, why } => write!(f, "the pattern `{pattern}`: {why}"),
         }
     }
 }

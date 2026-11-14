@@ -5,6 +5,9 @@
 //! (`run` or `uses`, `with`, `env`, `shell`, `if` and the rest). An unknown
 //! key stays in the `extra` list of its place and has a [`Warning`]. A job
 //! that calls a reusable workflow (`uses:`) is named, not expanded.
+//! [`Workflow::takes`] reads the filters of `on` (`types`, `branches`,
+//! `tags`, `paths` and their `-ignore` forms) and tells whether the
+//! workflow takes an event ([`Trigger`]), as GitHub decides it.
 //!
 //! The expansion ([`Run`]) evaluates the expressions of the job level with
 //! `pod-actions-expr`: the condition of a job with the results of its needs,
@@ -50,6 +53,8 @@ mod expand;
 mod graph;
 pub mod matrix;
 mod model;
+mod on;
+mod pattern;
 mod read;
 mod run;
 pub mod yaml;
@@ -58,6 +63,8 @@ pub use error::{Error, ErrorKind, Warning};
 pub use expand::{Run, plan};
 pub use graph::Graph;
 pub use model::{Defaults, Job, Step, Strategy, Workflow};
+pub use on::{DEFAULT_PR_TYPES, Event, Filter, On, Trigger};
+pub use pattern::Pattern;
 pub use run::{Base, Done, Instance, JobResult, Outcome, RunsOn, Skip};
 pub use yaml::{Key, Kind, Limits, Mark, Node};
 

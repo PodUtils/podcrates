@@ -1,0 +1,18 @@
+--- a/crates/pod-actions-workflow/src/on.rs
++++ b/crates/pod-actions-workflow/src/on.rs
+@@ -68,13 +68,8 @@
+     /// The patterns hold `name`: the last pattern that matches decides, so
+     /// a later `!` removes a match and a later pattern adds it again.
+     pub fn matches(&self, name: &str) -> bool {
+-        let mut hit = false;
+-        for p in &self.patterns {
+-            if p.matches(name) {
+-                hit = !p.negated;
+-            }
+-        }
+-        hit
++        let hit = self.patterns.iter().any(|p| !p.negated && p.matches(name));
++        hit && !self.patterns.iter().any(|p| p.negated && p.matches(name))
+     }
+ 
+     /// The filter lets `name` through.

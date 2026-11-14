@@ -1,0 +1,7 @@
+# A `!` pattern removes its match wherever it stands: a later pattern no
+# longer adds the name again (T-572, PodUtils/podrunner#97).
+ENTRY=T-572
+GROUP=actions
+EXPECT='a_later_bang_removes_a_match_and_a_later_pattern_adds_it_again'
+RUN='cargo test -p pod-actions-workflow --test on'
+LIMIT=900
