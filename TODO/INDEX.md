@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**458 entries: 120 open, 7 partial, 5 blocked, 326 done.**
+**458 entries: 118 open, 7 partial, 5 blocked, 328 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 87 | 101 |
-| P2 | 55 | 2 | 4 | 180 | 241 |
+| P2 | 53 | 2 | 4 | 182 | 241 |
 | P3 | 54 | 2 | 1 | 57 | 114 |
-| **All** | 120 | 7 | 5 | 326 | 458 |
+| **All** | 118 | 7 | 5 | 328 | 458 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -488,7 +488,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-555](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `7122cc7` is red for podssh: its test pins five tox relays, and T-537 left four |
 | [T-556](transport.md) | P2 | S | M1 | feature | done | `pod-services`: serv00's public Piping Server as the third of the kind `piping` (PodUtils/podssh#238) |
 | [T-557](relay.md) | P3 | S | M2 | defect | open | `pod-link`: the listener of the dns, icmp, udp and ws carriers gets no `KeyRefused` when the dialer refuses its key |
-| [T-558](relay.md) | P2 | S | M6 | defect | open | `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open |
+| [T-558](relay.md) | P2 | S | M6 | defect | done | `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open |
 | [T-559](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the client of the HTTP road's one-POST form (PodUtils/podssh#239) |
 | [T-560](relay.md) | P3 | S | M2 | feature | open | `pod-relay`: the one-POST form of the HTTP road over HTTP/2 |
 | [T-561](relay.md) | P1 | S | M2 | feature | done | `pod-wg`: the preshared key of a handshake (PodUtils/podnet#547) |
@@ -502,6 +502,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-569](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: `probe_dir_exec` names the filesystem on each `EACCES`, also on a mount that is not noexec (PodUtils/podvm#335) |
 | [T-570](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: the refusal of the machine tier runs its legs together (PodUtils/podvm#337) |
 | [T-571](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `e830136` is red for podnet: the field `preshared` of `pod_wg::Keys` |
-| [T-574](relay.md) | P2 | S | M6 | feature | open | `pod-hold`: a filter that refuses raw sockets and lets ping sockets reach the supervisor (PodUtils/podnet#550) |
+| [T-574](relay.md) | P2 | S | M6 | feature | done | `pod-hold`: a filter that refuses raw sockets and lets ping sockets reach the supervisor (PodUtils/podnet#550) |
 | [T-575](transport.md) | P3 | S | M1 | docs | done | `pod-services`: the README names the scheme `tcp` of an endpoint (PodUtils/podnet#550) |
 | [T-579](relay.md) | P2 | S | M2 | defect | open | `pod-session`: a spare link that moved no byte backs off before the next (PodUtils/podssh#242) |
