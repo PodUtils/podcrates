@@ -1,0 +1,6 @@
+# On the quic carrier, a close with an alert of a refused certificate
+# gives `Refused`, not `KeyRefused`, on each side (T-542).
+ENTRY=T-542
+GROUP=link
+EXPECT='right: KeyRefused'
+RUN='cargo test -p pod-link --all-features --no-fail-fast --test quic refuses'

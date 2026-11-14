@@ -103,7 +103,7 @@ turns the feature on sets `SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"` in its
 | Module | Contents |
 | --- | --- |
 | `abi` | The structures of the kernel (`SeccompNotif`, `SeccompNotifResp`, `SeccompNotifAddfd`), the ioctl numbers from their encoding (`Encoding::NATIVE`: powerpc and mips put the direction at bit 29), `TUNSETIFF`, `AUDIT_ARCH_NATIVE` and `X32_SYSCALL_BIT` (from `pod_hostprobe::sys`, the one table of the workspace), `SYS_ACCEPT`. |
-| `filter` | `Calls::sockets()` (the 21 calls of podnet's pod), `Calls::of(&[nr])`, `Calls::program()` (the BPF program: a foreign ABI and x32 get `ENOSYS`; `socketcall` gets `ENOSYS` on i386 and powerpc64; a `recvfrom` with no source runs in the kernel), `install(&calls)` (`no_new_privs`, then the filter; the notification descriptor). |
+| `filter` | `Calls::sockets()` (the 21 calls of podnet's pod; a raw socket and an ICMP socket get `EPERM`), `Calls::of(&[nr])` (no socket refused), `Calls::allow_raw()` (the opt-in of raw IP: podnet's `--allow-raw icmp`; T-544), `Calls::denies_raw()`, `Calls::program()` (the BPF program: a foreign ABI and x32 get `ENOSYS`; `socketcall` gets `ENOSYS` on i386 and powerpc64; `socket(AF_INET or AF_INET6, SOCK_RAW with any flag, any protocol)` and `socket(AF_INET or AF_INET6, SOCK_DGRAM, IPPROTO_ICMP or IPPROTO_ICMPV6)` get `EPERM` unless allowed; a `recvfrom` with no source runs in the kernel), `install(&calls)` (`no_new_privs`, then the filter; the notification descriptor). |
 | `spawn` | `resolve(name, path)` (as `execvp`, with the `PATH` of the caller), `Program::new` and `Program::with_env` (made before the fork), `start(program, &calls)` (a helper thread installs the filter and forks; the child calls only `execve`): `Started { listener, pid, hold }`. |
 | `listen` | `Listener::new(fd, access)` on the reactor of tokio; `recv().await` gives the next `Notification { id, pid, nr, args, memory }`, or `None` when no task uses the filter. The memory is opened for each call, and `SECCOMP_IOCTL_NOTIF_ID_VALID` after the open checks that the task still waits. `filter_unused(fd)`. |
 | `mem` | `Memory::open(pid, access)` (`/proc/PID/mem` read-write, else read-only with `process_vm_writev`), `Memory::of_fd` (a memfd stands in for the task), `read`, `write`, `read_word`, `write_to`, `process_vm_writable`; `Access` (`write_open`, `vm_write`); `memfd(bytes)` with the feature `fuzzing` or in tests. |
@@ -127,7 +127,7 @@ turns the feature on sets `SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"` in its
 
 | Setting | Default | podnet |
 | --- | --- | --- |
-| `Calls` | `Calls::sockets()` | the same |
+| `Calls` | `Calls::sockets()`: a raw socket and an ICMP socket get `EPERM` | the same; `Calls::sockets().allow_raw()` with `--allow-raw icmp` |
 | `mem::Access` | write open, then `process_vm_writev` | `PODNET_NETNS_TEST_MEM` (`no-fd`, `none`) stays a variable of podnet and gives the `Access` |
 | the ceiling of `Table::new(root, ceiling)` | none: the caller gives it (`derived_ceiling(nofile().1)` after `raise_nofile`) | `--flow-budget N`, else the derived ceiling |
 | `netns::Tun` | `eth0`, 10.66.255.255/31, gateway 10.66.255.254, MTU 1500 | the same |
@@ -311,7 +311,10 @@ of the veth wire, the `RTM_NEWLINK` request, the names of the wire). No
 unit test makes an interface: each name check comes before a system call.
 `tests/hold.rs` (no libtest: the binary is the payload too): a refused
 connect fails with the errno of the reply, a socket call gets the
-descriptor of the supervisor, and a namespace gives its TUN to the parent.
+descriptor of the supervisor, a namespace gives its TUN to the parent,
+and a raw ICMP socket gets `EPERM` from the filter with no notification,
+and with `Calls::allow_raw` reaches the supervisor and the kernel
+(`a_raw_icmp_socket_gets_eperm_unless_the_hold_allows_it`).
 `tests/veth.rs` (no libtest): `veth_wire_carries_a_tcp_flow`, podnet's
 test with a stack of `pod-netstack` in the place of the pod: the child
 makes the veth wire in a new namespace, sends a datagram to the gateway,

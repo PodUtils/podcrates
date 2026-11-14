@@ -39,6 +39,11 @@ pub enum ContainerRoute {
     None,
     /// The container hooks of the runner (podrunner's call C2).
     Hooks,
+    /// A container engine of the unit's own, inside its boundary: the runner
+    /// uses it as on a GitHub-hosted runner (`DOCKER_HOST` of a socket inside
+    /// the unit, never a socket of the host), for `services:`, `docker build`
+    /// and Dockerfile actions (T-553, PodUtils/podrunner#91).
+    Engine,
     Unknown,
 }
 

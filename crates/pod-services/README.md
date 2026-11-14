@@ -111,7 +111,7 @@ T-324). The kinds that the files name now:
 | `proxy-banner` | `fact`, `target` | a session through the share link of the fact gives the SSH banner of the service `target` |
 | `ssh-banner` | `endpoint` | the server sends an SSH banner |
 | `transit-relay` | `endpoint` (scheme `tcp`) | two connections of one random token (`please relay TOKEN for side SIDE`) each get `ok`, and the bytes that the first sends come out of the second: magic-wormhole's transit relay |
-| `forward-url` | `endpoint`; `port` (80 if none), `seconds` (45 if none), `prove` (true if none) | a session with the forward relay (a key made for the run, the fact `user` or the word `pod-services-watch`, a remote forward of the port, a shell) gives a banner with a URL that the rule of the relay accepts ("SSH forward relays"); with `prove`, a GET of the URL reaches the forward of the session: the client answers it with a word of the run |
+| `forward-url` | `endpoint`; `port` (80 if none), `seconds` (45 if none), `prove` (true if none) | a session with the forward relay (a key made for the run, the fact `user` or the word `pod-services-watch`, a remote forward of the port and a session channel, the session first with the fact `session-first`, a shell or the command of the fact `command`) gives a banner with a URL that the rule of the relay accepts ("SSH forward relays"); with `prove`, a GET of the URL reaches the forward of the session: the client answers it with a word of the run |
 | `ssh-host-key` | `endpoint`, `fact` | the SSH host key of the endpoint has the SHA-256 fingerprint of the fact |
 | `github-ssh-keys` | `url`, `pointer`, `fact` | GitHub's published fingerprints equal the fact |
 | `github-release` | `repo`, `fact`, `max-age-days` | the newest release; the age of the pinned tag |
@@ -168,7 +168,7 @@ pointer = "/limits"
 | `Rank` (`value`, `source`), `Watch` (`kind`, `args`, `arg(name)`), `Arg` (`name`, `value`) | |
 | `Catalog::new()`, `Catalog::get`, `Catalog::of_kind`, `Catalog::iter`, `Catalog::overlay` | the built-in set with the overlay of the consumer |
 | `Catalog::lay(label, text)`, `Catalog::with_overlay(files)`, `OverlayError` (`label`, `field`, `why`, `class()`) | feature `overlay` |
-| `forward::Relay` (`of`, `service`, `endpoints`, `user`, `url_rule`, `session_limit`, `keepalive`) | a service read as an SSH forward relay ("SSH forward relays"); `of` gives none for another service |
+| `forward::Relay` (`of`, `service`, `endpoints`, `user`, `url_rule`, `session_limit`, `remote_port`, `keepalive`, `command`, `session_first`) | a service read as an SSH forward relay ("SSH forward relays"); `of` gives none for another service |
 | `forward::UrlRule` (`matches`, `skips`; `accepts`, `pick`) | the rule of the URL of a tunnel: each text of `matches`, no text of `skips` |
 | `forward::Banner` (`new`, `push`, `finish`, `url`, `held`, `MOST_HELD`) | the reader of a banner in chunks: the first URL that the rule accepts |
 | `Text`, `List<T>` | `Cow<'static, str>` and `Cow<'static, [T]>`: the built-in set borrows from the binary, an overlay owns its values |
@@ -225,6 +225,7 @@ let relay = services.of_kind("relay").next();
 | `n0-pkarr` | `pkarr` | `relay` | |
 | `ppng-piping` | `piping` | `server` | |
 | `onrender-piping` | `piping` | `server` | `streams-request-body`, `idle-stop-minutes` |
+| `serv00-piping` | `piping` | `server` | `streams-request-body`, `note` |
 | `magic-wormhole-mailbox`, `leastauthority-mailbox` | `mailbox` | `mailbox` | |
 | `leastauthority-transit` | `transit` | `relay` (`wss`, port 443) | |
 | `magic-wormhole-transit` | `transit` | `relay` (`tcp`, `transit.magic-wormhole.io:4001`: magic-wormhole's default transit relay, the handshake of `transit_server.py`) | |
@@ -244,6 +245,8 @@ let relay = services.of_kind("relay").next();
 | `gosuda-portal` | `portal-relay` | `gosunuts`, `dawnfullstack` (role `relay`) | `identity`, `note` (a candidate: the public URL of a lease failed TLS); no rank (T-376) |
 | `localhost-run` | `ssh-tunnel` | `ssh` | `user` (`nokey`: a free tunnel with no key), `url-match`, `keepalive-seconds`, `host-key-sha256` (read by podssh's live run) |
 | `sandhole` | `ssh-tunnel` | `ssh-443` (plain SSH on the HTTPS port), `ssh` | `url-match`, `remote-port` (80: port 0 is refused), `host-key-sha256`, `tunnel-zone` |
+| `srv-us` | `ssh-tunnel` | `ssh` (`srv.us:22`), `site` (`https`, 443: the name that `tls-name` checks) | `user` (`nomatch`), `remote-port` (1: the name hashes the key and the port), `tunnel-zone`, `url-match`, `session-first` (true); no `host-key-sha256`: srv.us publishes none (PodUtils/podssh@T-566) |
+| `tunnl-gg` | `ssh-tunnel` | `ssh` (`proxy.tunnl.gg:22`), `site` (`https`, `tunnl.gg:443`) | `host-key-sha256` (its README), `tunnel-zone`, `keepalive-seconds`, `free-tunnel-minutes`, `url-match`, `command` (`output=json`); any user but `stable` and `pro` (PodUtils/podssh@T-567) |
 | `openbare-xyz` | `bare-node` | `bare` (`https://openbare.xyz/bare/`, a TompHTTP Bare v3 server) | `service`, `protocol`, `websocket-upgrade` (500: no WebSocket passes the edge) |
 | `localtunnel` | `localtunnel` | `api` | `tunnel-zone` |
 | `bore` | `tcp-tunnel` | `control` (`tcp://bore.pub:7835`) | `control-port`, `tunnel-hours` |
@@ -293,7 +296,9 @@ relay, and an overlay file of the same facts is a relay of the user's own.
 | `user` | text | the SSH user of a free tunnel; none: the relay takes any user | `user()` |
 | `free-tunnel-minutes` | int, `min` | the relay ends a free tunnel after this time; none: no source states a limit | `session_limit()` |
 | `keepalive-seconds` | int, `s` | the keepalive of the relay's own command; none: no source states one | `keepalive()` |
-| `remote-port` | int | the port of the remote forward that the relay takes (a relay that refuses port 0); none: the consumer's choice | `remote_port()` |
+| `remote-port` | int | the port of the remote forward that the relay takes (a relay that refuses port 0, or hashes the port into the name); none: the consumer's choice | `remote_port()` |
+| `command` | text | the command of the session channel in place of a shell (an `exec` request): the relay writes the URL in a form for programs; none: a shell | `command()` |
+| `session-first` | bool | true: the relay answers the remote forward only after a session channel is open, so the session opens first; none: the forward first, as OpenSSH asks | `session_first()` |
 
 The endpoints of the scheme `ssh` are plain SSH on TCP, in the order to
 try (`endpoints()`): an endpoint on port 443 comes first. An endpoint of
@@ -306,6 +311,8 @@ source states is not in the file.
 | `serveo` | `ssh-443` (443), `ssh` (22) | any | `https://`, `.serveousercontent.com` | `console.serveo.net` | | 30 |
 | `localhost-run` | `ssh` (22) | `nokey` | `https://`, `.lhr.life` | | | 60 |
 | `sandhole` | `ssh-443` (443), `ssh` (22) | any | `https://`, `.demo.sandhole.com.br` | | | |
+| `srv-us` | `ssh` (22) | `nomatch` | `https://`, `.srv.us/` | | | |
+| `tunnl-gg` | `ssh` (22) | any | `https://`, `.tunnl.gg` | | 1440 | 30 |
 
 `ssh-j` is of the kind `ssh-tunnel` too, but it gives no URL (a jump and
 a forward by name): it has none of these facts. `tuns-sh` gives a URL, but
@@ -328,6 +335,8 @@ the zone is a finding.
 | `serveo` | `ssh-443` | `https://serveo.net/docs/`: "myapp.serveousercontent.com" (the placeholder of a reserved hostname) |
 | `localhost-run` | `ssh`, the user `nokey` | `https://localhost.run/`: `.lhr.life` |
 | `sandhole` | `ssh-443` | none: the zone comes from podssh's runs |
+| `srv-us` | `ssh`, port 1, the user `nomatch`, the session first | none: `github-file` holds the user `nomatch` in `backend/main.go` |
+| `tunnl-gg` | `ssh`, the command `output=json` | none: `github-file` holds the host and the key in the README |
 
 The rule is the one of podnet's flags `--url-match` and `--url-skip`: a
 URL is the tunnel's when it holds each text of `url-match` and no text of
@@ -350,7 +359,9 @@ banner.finish().map(str::to_string) // the channel closed: the held word is whol
   reader holds the word that a chunk cut, and no more of its line.
 * The URL of a word starts at `http://` or `https://`; the marks of a
   sentence at its end (`.`, `,`, `)`, `]`, `>`, a quote) are not part of
-  it, and it has a host after the scheme.
+  it, and it has a host after the scheme. A byte that RFC 3986 keeps out
+  of a URL (`"`, `<`, `>`, a backslash, `^`, a backtick, `{`, `|`, `}`)
+  ends it: tunnl.gg's JSON line has no space after its URL.
 * A word of more than `Banner::MOST_HELD` (2048) bytes is no URL: the
   reader passes over it to its end, so a banner with no end of line holds
   no more than that.
@@ -595,17 +606,19 @@ podvm's own rows in `docs/research/services/podvm-inventory.md`), at
 
 * `src/schema_tests.rs` (12): each rule of the schema refuses its fault
   with the file and the field; the built-in files pass the same reader.
-* `tests/api.rs` (20): by id, by kind and by rank, the roles, the
+* `tests/api.rs` (21): by id, by kind and by rank, the roles, the
   accessors, a source and a date for each value, the watches, and the
   values of single services.
 * `tests/actions.rs` (3): the hosts of GitHub Actions and the pin of the
   official runner, each with its source and its watch.
-* `tests/forward.rs` (5): each service of the kind `ssh-tunnel` is a
+* `tests/forward.rs` (7): each service of the kind `ssh-tunnel` is a
   forward relay or is named as not one; each forward relay has the facts
   of its reader, of their types, from a document or a measurement, 443
-  first; the values of each relay; the rule of each relay picks the URL of
-  the banner that its source shows, in chunks of each size, and refuses
-  the other URLs of the service.
+  first; one watch of its banner; the values of each relay (also
+  `command` and `session-first`); the rule of each relay picks the URL of
+  the banner that its source shows (also srv.us's line and tunnl.gg's
+  JSON line and shell banner), in chunks of each size, and refuses the
+  other URLs of the service; the port of the remote forward.
 * `tests/banner.rs` (10): the reader `forward::Banner`: a URL that two
   chunks cut at each byte, the dashboard skipped, each text of match and
   no text of skip, a line with no URL, a banner of 1 MB with no end of

@@ -1,8 +1,8 @@
 //! The DNS carrier over datagrams that are lost, reordered and duplicated
 //! (T-493; PodUtils/podnet#468, row E2-3): the handshake of the carrier over
 //! the `Lossy` shim of a memory pair, with the ARQ and TLS, carries the
-//! bytes whole and in order; a peer that goes silent ends the link at the
-//! ARQ timeout. The DNS wire of queries and TXT answers runs in
+//! bytes whole and in order, also across the wrap of the sequence of the
+//! ARQ (T-541); a peer that goes silent ends the link at the ARQ timeout. The DNS wire of queries and TXT answers runs in
 //! `tests/dns.rs` against a real authoritative server on the loopback.
 
 #![cfg(feature = "dns")]
@@ -90,6 +90,17 @@ async fn bytes_cross_each_way_at_three_percent_loss_with_reorder_and_duplicates(
     let (sa, sb) = (a.stats(), b.stats());
     assert!(sa.lost + sb.lost > 0, "the shim lost datagrams: {sa:?} {sb:?}");
     assert!(sa.reordered + sb.reordered > 0 && sa.duplicated + sb.duplicated > 0, "{sa:?} {sb:?}");
+}
+
+/// The first sequence is 64 frames before the wrap, so each direction
+/// wraps in the transfer: the carrier answers the rekey of the ARQ, and
+/// no direction stops at the wrap.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn bytes_cross_the_wrap_of_the_sequence_at_loss() {
+    let faults = Faults { loss: 0.03, reorder: 0.01, duplicate: 0.01 };
+    let arq = ArqSettings { start: u32::MAX - 63, rekey_ahead: 256, ..ArqSettings::default() };
+    let (near, far, _a, _b) = ends(faults, arq).await;
+    cross(near, far, 128 << 10).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

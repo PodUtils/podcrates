@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 428 entries: 112 open, 8 partial, 5 blocked, 303 done.
+`TODO/INDEX.md` holds 442 entries: 117 open, 8 partial, 5 blocked, 312 done.
 
 ## State
 
@@ -72,12 +72,21 @@ online"): the work for podrunner and podnet comes first, then podssh and
 podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
-First: the link carriers of M2 for podnet (item 3c): T-526, T-494, T-500 and T-525. Then the items below, in order.
+First: the asks of the consumers in work (item 1): T-486 and T-107 for
+podvm (#142). Then the link
+carriers of M2 for podnet (item 3c): T-526, T-494, T-500 and T-525.
+Then the items below, in order.
 
-1. **The defects and asks of the consumers:** T-540 (a test of the
-   termios mode of `pod-term` against a kernel pty); T-489 (a client of
-   `pod-devtunnel` with no user token); T-486 (an overlay root in
-   the namespace rung of `pod-enter`, PodUtils/podvm#294); T-381 (the options of
+1. **The defects and asks of the consumers:** T-486 (an overlay root in
+   the namespace rung of `pod-enter`, PodUtils/podvm#294, #142) and
+   T-107 (the schema of the report of `pod-hostprobe`), in this order;
+   T-558 (`AF_PACKET`
+   in the rule of `pod-hold`); T-557 (`KeyRefused` on the listener of
+   four carriers); T-540 (a test of the
+   termios mode of `pod-term` against a kernel pty); T-550, T-551 and
+   T-554 (Nostr, WebTorrent's trackers and ntfy as meeting points of a
+   code, PodUtils/podssh#235, #237); T-489 (a client of
+   `pod-devtunnel` with no user token); T-381 (the options of
    RFC 8489 and RFC 8656 that `pod-turn` leaves out; coturn on the
    loopback proves the client on each push, so a test against coturn goes
    with each option), T-403 (the SHA-256 credentials against a server of

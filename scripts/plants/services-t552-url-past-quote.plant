@@ -1,0 +1,6 @@
+# The reader of a banner: the URL of a word runs past a quote, as in tunnl.gg's JSON line; its test must fail.
+ENTRY=T-552
+GROUP=services
+EXPECT='test the_rule_of_each_relay_picks_the_url_of_the_banner_of_its_source \.\.\. FAILED'
+RUN='cargo test -p pod-services --test forward -- the_rule_of_each_relay_picks_the_url_of_the_banner_of_its_source --exact'
+LIMIT=1800

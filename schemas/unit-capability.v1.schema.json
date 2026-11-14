@@ -125,6 +125,11 @@
           "description": "The container hooks of the runner (podrunner's call C2).",
           "type": "string",
           "const": "hooks"
+        },
+        {
+          "description": "A container engine of the unit's own, inside its boundary: the runner\nuses it as on a GitHub-hosted runner (`DOCKER_HOST` of a socket inside\nthe unit, never a socket of the host), for `services:`, `docker build`\nand Dockerfile actions (T-553, PodUtils/podrunner#91).",
+          "type": "string",
+          "const": "engine"
         }
       ]
     },

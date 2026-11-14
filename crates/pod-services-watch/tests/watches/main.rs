@@ -10,6 +10,7 @@ mod dns;
 mod file_host;
 mod files;
 mod forward;
+mod forward_order;
 mod http;
 mod ssh;
 mod transit;

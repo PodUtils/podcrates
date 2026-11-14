@@ -12,23 +12,30 @@ is done. Git and the record keep finished work.
 1. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
 2. Read the answer of podnet on #139 (the profile of `kcp`, T-526) and the
-   takes of `v0.40.0` on its hand-off issue #140.
-3. Take the work order of `TODO/PROGRESS.md`: the link carriers (item
-   3c), then item 1. T-539 is on `main` for the next tag:
-   answer PodUtils/podssh#232 with that tag.
+   takes of `v0.41.0` on its hand-off issue #143.
+3. Merge the local branches w-worm545 (`pod-wormhole` for podnet, #141)
+   and w-enter486 (T-486 and T-107 for podvm, #142) when their agents
+   finish. Then cut `v0.42.0` and answer #141, #142,
+   PodUtils/podssh#234, #236, #238 and PodUtils/podrunner#91 with its
+   tag. Then the work order of `TODO/PROGRESS.md`.
 
 ## In flight
 
 - The last release: `v0.40.0` at `1335e9a` (ci 43467923338, adoption
   43467923371, release 43474412563; the hand-off #140, COORD-080): the
   poll, quic, udp, dns and icmp carriers of `pod-link`, `cpu_s` and
-  `peak_rss_mib` of `pod-job`, the forms of the file hosts. The takes of
-  `v0.39.0`: each consumer (#137, closed).
+  `peak_rss_mib` of `pod-job`, the forms of the file hosts. Each consumer
+  took it (#140, closed). `v0.41.0` at `bb39935` (ci 43538302195,
+  adoption 43538302204, release 43541097888; the hand-off #143,
+  COORD-083): the termios mode of `pod-term` (T-539), four tox relays
+  (T-537, T-555).
+- On `main` for `v0.42.0`: T-541 to T-544, T-549, T-552, T-553, T-556.
+  In work on local branches: the asks of `pod-wormhole` for podnet
+  (w-worm545, #141); T-486 and T-107 (w-enter486, for podvm, #142).
 - Each agent of this session is merged into `main`. The open threads of
   this session:
-  - T-539 (done, on `main` for the next tag): the termios mode of
-    `pod-term` (PodUtils/podssh#232); T-540 (open) tests it against a
-    kernel pty.
+  - T-539 is in `v0.41.0`; T-540 (open) tests it against a kernel pty.
+  - T-557 and T-558 (open): findings of T-542 and T-544.
   - T-526 (partial): the fix of `kcp` upstream. podnet sets the profile of
     `kcp` with its take of the udp carrier (#139, PodUtils/podnet#527).
 - The red runs of this session have fixes on `main`: T-532 and T-535
@@ -61,7 +68,7 @@ is done. Git and the record keep finished work.
   taken): the rest of its link workstream (#133: T-494, T-500, then group
   d), then T-029 (`pod-cloudflare`) on the chain to WARP (the owner's
   order). Write to podnet by COORD issues only.
-- podssh (on `v0.39.0`, `5228b65`, PodUtils/podssh#229; `pod-warp`
+- podssh (on `v0.40.0`, `61658e4`, PodUtils/podssh#233; `pod-warp`
   taken): the live runs of its PodUtils/podssh@T-737 (the brokers) and
   PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.

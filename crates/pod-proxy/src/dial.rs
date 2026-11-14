@@ -299,6 +299,11 @@ impl Dial for Dialer {
         }
     }
 
+    /// The label of the proxy of [`Dialer::proxy_at`] for `target`.
+    fn proxy_label(&self, target: &Target) -> Option<String> {
+        self.decide(Scheme::Https, &target.host(), Some(target.port())).0.ok().flatten().map(|p| p.label())
+    }
+
     /// The error of the dial is the cause of the failure, so that a caller
     /// reads it back ([`crate::Cut::of_failure`]).
     fn dial<'a>(&'a self, target: &'a Target, deadline: Instant) -> BoxFuture<'a, Result<Connected, Failure>> {

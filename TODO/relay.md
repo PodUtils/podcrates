@@ -6206,3 +6206,447 @@ magic-wormhole-transit` here: `github-file` holds (`public_relay.py` holds
 the host); `transit-relay` failed with a reset after the dial, as the
 egress proxy of this session takes no TCP to port 4001. The first run of
 `services.yml` on a GitHub runner is the live measurement.
+
+# T-550: `pod-wormhole`: Nostr's ephemeral events as a meeting point of the pairing by a code (PodUtils/podssh#235)
+
+**Source:** PodUtils/podssh#235 (COORD-058 of podssh; PodUtils/podssh@T-545)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A pairing by a short code meets at magic-wormhole's mailboxes, then at the
+public MQTT brokers (`pod_wormhole::mqtt`, T-261). podssh's ruling Q77
+adds two more meeting points, in this order after the mailboxes. The first
+is Nostr's ephemeral events: an event kind of the ephemeral range (20000
+to 29999), tagged from the code's nameplate, at public relays over
+`wss://` on 443. A peer subscribes with a filter for that tag, and the
+code's PAKE messages go as the events' content. The ask:
+
+- In `pod-wormhole`: the transport beside `mqtt`.
+- In `pod-services`: the public Nostr relays, of a new kind, with the
+  facts that say whose they are.
+- In `pod-relay`'s runs of a code: the places in order (mailboxes, Nostr,
+  trackers, brokers, as Q77 ruled), with the third party's line before
+  the first byte, as `BROKER_WORDS` does.
+- Tests against a stand-in or the software's own server (a Nostr relay
+  such as `nostr-rs-relay`), and one short live pairing from GitHub
+  Actions.
+
+## Premise
+
+- Read: `crates/pod-wormhole/src/mqtt.rs`. A broker is a `Place`
+  (`place.rs`) that says the messages of the mailbox (`wormhole.rs`):
+  SPAKE2 keyed by the whole code, then sealed phases. The topic comes from
+  the AppID and the nameplate alone (`mqtt::topic`), never from the words;
+  the giver draws the nameplate (`mqtt::nameplate`); each end reads the
+  topic with the tag of its direction (`Role::topics`); the taker sends
+  its messages again each `RESEND` until the giver answers, as a message
+  at QoS 0 that reaches no subscriber is gone.
+- Read: `crates/pod-relay/src/code/run.rs`. `Ends` has the mailboxes,
+  then the brokers; the event `relay.code.broker` with `BROKER_WORDS`
+  comes before the first broker.
+- Known, not read for this entry: NIP-01 of Nostr. A client sends
+  `["EVENT", event]`, `["REQ", id, filter]` and `["CLOSE", id]`; a relay
+  sends `["EVENT", id, event]`, `["OK", ...]`, `["EOSE", id]` and
+  `["NOTICE", ...]`. An event's id is the SHA-256 of
+  `[0, pubkey, created_at, kind, tags, content]`, and its `sig` is a
+  BIP-340 Schnorr signature on secp256k1 by `pubkey`. A relay keeps no
+  event of the ephemeral range; it gives one to the subscribers of the
+  moment. A relay's NIP-11 document (`Accept: application/nostr+json`)
+  states its limits (`max_message_length`, `max_subscriptions`,
+  `min_pow_difficulty`, `auth_required`, `payment_required`).
+- The workspace has no secp256k1 Schnorr signer. Not measured: a public
+  relay, from this sandbox.
+
+## Approach
+
+1. Read first: NIP-01, NIP-11, NIP-13 and NIP-42 at pinned commits of
+   `nostr-protocol/nips`, and the source of `nostr-rs-relay` at the tag
+   of the stand-in: the size limit of an event, the rate limits, and
+   which public relays need neither proof of work nor AUTH.
+2. `pod_wormhole::nostr`, beside `mqtt`, over `pod-ws` (`wss://`, 443):
+   a key of secp256k1 made for each pairing (a pure-Rust signer, which
+   links statically, with a call for the new dependency), events of one
+   ephemeral kind, one single-letter tag whose value is `mqtt::topic` of
+   the nameplate with the tag of the direction, and a `REQ` with that tag,
+   the kind and `since` at the code's start. The content is the message of
+   the mailbox, as `mqtt::Broker` carries it. The taker sends again each
+   `RESEND` until the giver answers. `Place` gains the relay; the
+   ends of `meet.rs` take the relays in order.
+3. `pod-services`: the kind `nostr-relay` (endpoint `relay`, `wss`,
+   443), with the facts of each relay's NIP-11 document and its party;
+   watches: `websocket-upgrade` and an `http-json` of the NIP-11
+   document; a table of the kind in `pod-services-watch` (`kind_facts`).
+4. `pod-relay`: `Ends` takes an ordered list of places of each kind; the
+   runs try the mailboxes, Nostr, the trackers (T-551), then the brokers
+   (Q77), with an event before the first relay, `NOSTR_WORDS`, as
+   `BROKER_WORDS`. podssh's glue gives the switches.
+5. Tests: an offline stand-in relay for `cargo test` (the tag filter, an
+   event of another nameplate not delivered, a bad signature refused), and
+   `nostr-rs-relay` at a pinned tag in CI, as `scripts/ci/mosquitto-tests.sh`
+   runs Mosquitto. A plant: the tag from a constant, and the test of two
+   codes fails. One short live pairing through each public relay of the
+   catalog in `live.yml`.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+cargo test -p pod-relay --all-features --test pair_code
+cargo test -p pod-services --all-features
+cargo test -p pod-wormhole --all-features --test live -- --ignored
+```
+
+# T-551: `pod-wormhole`: WebTorrent's trackers as a meeting point of the pairing by a code (PodUtils/podssh#235)
+
+**Source:** PodUtils/podssh#235 (COORD-058 of podssh; PodUtils/podssh@T-695)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The second meeting point of podssh's ruling Q77, after Nostr (T-550) and
+before the MQTT brokers: WebTorrent's trackers. A tracker passes any JSON
+between the peers of one `info_hash`, as offers and answers (podssh's
+docs/carriers.md, the verdict of PodUtils/podssh@T-546). The `info_hash`
+comes from the nameplate (20 characters), with a random `peer_id`. The
+waiting end announces with no offer and announces again each interval; the
+other end sends the messages as offers, and the answers carry the replies.
+Each message carries the nameplate's tag, and a lost one is sent again; no
+copy is kept, so a message that reaches no peer must be repeated. The ask:
+
+- In `pod-wormhole`: the transport beside `mqtt`.
+- In `pod-services`: the public trackers, of a new kind, with the facts
+  that say whose they are. PodUtils/podssh@T-546 found each default
+  tracker listed as "Questionable Content" in a filter list; podssh's
+  manual says so, from a fact of the catalog.
+- In `pod-relay`'s runs of a code: the place in Q77's order, with the
+  third party's line before the first byte.
+- Tests against `webtorrent/bittorrent-tracker` at a pinned release, and
+  one short live pairing from GitHub Actions.
+
+## Premise
+
+- Read: `crates/pod-wormhole/src/mqtt.rs` and
+  `crates/pod-relay/src/code/run.rs`, as T-550 says.
+- Read through web.pkgforge.dev on 2026-11-14: the newest release of
+  `webtorrent/bittorrent-tracker` is `v11.2.3` (2026-05-25).
+- Known, not read for this entry: the WebSocket protocol of
+  bittorrent-tracker. A client sends `{"action":"announce", "info_hash",
+  "peer_id", "numwant", "offers":[{"offer", "offer_id"}], ...}`; the
+  tracker gives each offer to other peers of the `info_hash` with the
+  sender's `peer_id`; a peer's `answer` with `to_peer_id` and `offer_id`
+  goes to that peer; an announce answer names the `interval`. The
+  `info_hash` and the `peer_id` are 20 characters each. A giver can speak
+  only in an answer to an offer.
+- Not measured: a public tracker, from this sandbox.
+
+## Approach
+
+1. Read first: `server.js`, `lib/server/parse-websocket.js` and
+   `lib/server/swarm.js` of bittorrent-tracker at `v11.2.3` (or the
+   release of the start): the checks of an offer and an answer, the most
+   offers of one announce, the size of a message, and the interval.
+2. `pod_wormhole::tracker`, beside `mqtt`, over `pod-ws`: the
+   `info_hash` is 20 characters from `mqtt::topic` of the nameplate (a
+   hash, in hex), never from the words; a random `peer_id` for each
+   pairing. The giver announces with no offer, again each interval. The
+   taker sends each message of the mailbox as an offer, with the tag of
+   the nameplate, and again each `RESEND` until it has the answer; the
+   giver answers each offer with its next message or an empty one, so
+   that the taker's offers carry the giver's words back. `Place` gains the
+   tracker.
+3. `pod-services`: the kind `webtorrent-tracker` (endpoint `tracker`,
+   `wss`, 443), with each tracker's party, and the fact of the filter list
+   (its name, its category, the date of the read; PodUtils/podssh@T-546)
+   that podssh's manual shows; watches: `websocket-upgrade`.
+4. `pod-relay`: the place after Nostr and before the brokers (Q77), with
+   an event `TRACKER_WORDS` before the first tracker.
+5. Tests: an offline stand-in tracker for `cargo test` (two `info_hash`
+   values kept apart, a lost offer sent again), and bittorrent-tracker at
+   the pinned release in CI from a hashed npm lock file. A plant: the
+   giver that answers with no message, and the test of the exchange
+   fails. One short live pairing through each public tracker of the
+   catalog in `live.yml`.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+cargo test -p pod-relay --all-features --test pair_code
+cargo test -p pod-services --all-features
+cargo test -p pod-wormhole --all-features --test live -- --ignored
+```
+
+# T-554: `pod-wormhole`: an ntfy topic as a meeting point of the pairing where a proxy refuses the WebSocket upgrade (PodUtils/podssh#237)
+
+**Source:** PodUtils/podssh#237 (COORD-060 of podssh; PodUtils/podssh@T-496)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each meeting point of the pairing by a code is a WebSocket: the mailboxes
+of magic-wormhole, and the MQTT brokers over a WebSocket. Behind a proxy
+that refuses the upgrade, a node and an operator cannot pair, though the
+Piping Server road carries their sessions there afterwards. podssh read
+(its docs/carriers.md, "Meeting points", 2026-11-02): ntfy.sh can be used
+with no account, under rate limits, and its topics are public; its limits
+are 4,096 bytes a message, 60 requests at once then one each 5 s, and 250
+messages a day; a topic is read as a JSON stream by a GET (`TOPIC/json`),
+polled with `poll=1` and `since=`, and written by a POST; the server is
+Apache-2.0 and GPLv2, and release v2.36.0 publishes `checksums.txt`. The
+ask:
+
+- In `pod-wormhole`: a transport of the code's messages over an ntfy
+  topic. Each message is one JSON body of a side, a phase and the payload,
+  under 4,096 bytes. The topic derives from the nameplate alone, never
+  from the words that SPAKE2 takes. The other side's messages are read as
+  a JSON stream with `since=` at the code's start. One connection: on
+  HTTP/2 the stream's GET and the POSTs share it; on HTTP/1.1 a poll and a
+  POST take turns.
+- In `pod-relay`'s runs of a code: after the mailboxes, or first where a
+  probe found the upgrade refused (as the Piping Server road is), with the
+  third party's line before the first byte. podssh's glue gives the switch
+  (`PODSSH_PAIR_NTFY`).
+- In `pod-services`: ntfy.sh, of a new kind, with its limits as facts.
+- Tests against ntfy's own server (v2.36.0, checked against its
+  `checksums.txt`), and one short live pairing from GitHub Actions.
+
+## Premise
+
+- Read: `crates/pod-wormhole/src/mqtt.rs` and
+  `crates/pod-relay/src/code/run.rs`, as T-550 says;
+  `crates/pod-relay/src/http_road/mod.rs` says how a run learns that the
+  upgrade was refused.
+- Read: the client of `pod-proxy` speaks HTTP/1.1; `h2` is in the
+  workspace (`pod-link`'s `h2` carrier, `pod-dns`'s DoH).
+- Read through web.pkgforge.dev on 2026-11-14: the newest release of
+  `binwiederhier/ntfy` is `v2.37.2` (2026-11-04), with `checksums.txt`;
+  `v2.37.0` and `v2.37.1` came on 2026-11-02.
+- Not measured: ntfy.sh, from this sandbox.
+
+## Approach
+
+1. Read first: ntfy's documents of publishing and subscribing and its
+   server's limits at the tag of the stand-in: the JSON stream and its
+   `since=` (a time or a message id), `poll=1`, the size of a message,
+   and the rate limits of a visitor with no account.
+2. `pod_wormhole::ntfy`, beside `mqtt`, over HTTPS on 443: the topic is
+   `mqtt::topic` of the nameplate with the tag of the direction, never
+   from the words. Each message of the mailbox is one POST of a JSON body
+   (side, phase, payload) under 4,096 bytes; a longer one fails before
+   the send. The reader takes the other side's messages from
+   `TOPIC/json?since=START` and drops its own. On HTTP/2 (ALPN `h2`, over
+   `h2` as the DoH of `pod-dns` does) one connection holds the stream and
+   the POSTs; on HTTP/1.1 one connection polls (`poll=1`, `since=` of the
+   last id) and posts in turns, within the rate limit. `Place` gains the
+   topic.
+3. `pod-services`: the kind `ntfy-server` (endpoint `server`, `https`,
+   443) with `message-bytes-most`, `requests-burst`,
+   `request-refill-seconds`, `messages-per-day` and `account-required`,
+   each from its source; watches: `http-status` of the root and an
+   `http-text` of the document of the limits.
+4. `pod-relay`: the place after the mailboxes, or first where the run
+   found the upgrade refused, with an event `NTFY_WORDS` before the first
+   byte, as `BROKER_WORDS`. With T-550 and T-551, the default order is
+   the mailboxes, ntfy, Nostr, the trackers, the brokers; podssh's glue
+   can give another.
+5. Tests: an offline stand-in of the two routes for `cargo test` (a
+   message of 4,097 bytes refused, the poll after `since=`, the turns on
+   HTTP/1.1), and ntfy's server at v2.36.0 or newer in CI, its archive
+   checked against `checksums.txt` before it runs. A plant: the topic
+   from the whole code, and the test that the topic holds no word fails.
+   One short live pairing through ntfy.sh in `live.yml`.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+cargo test -p pod-relay --all-features --test pair_code
+cargo test -p pod-services --all-features
+cargo test -p pod-wormhole --all-features --test live -- --ignored
+```
+
+# T-541: `pod-link`: the dns and icmp carriers stop at the wrap of the sequence of the ARQ: `dgram_tls` never calls `rekeyed` (PodUtils/podnet#540)
+
+**Source:** PodUtils/podnet#540 (COORD-074 of podnet, PodUtils/podnet@T-277).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet: "`pod_link::arq` asks for a rekey before its sequence wraps, and holds the frames at the wrap until the caller calls `rekeyed`. [...] The `dns` and `icmp` carriers run the ARQ inside the crate, under `dgram_tls`, and `dgram_tls` never calls `rekeyed`. So a `dns` or an `icmp` link stops at the wrap of one direction, after about 4 TiB of that direction. The sequence of the ARQ is not a nonce (TLS above it has its own), so the answer can be to let the wrap pass." The ask: answer the rekey in `dgram_tls`, and test that a `dns` or `icmp` link over the lossy shim crosses the wrap, with a small sequence space for the test.
+
+## Premise
+
+- Read: `crates/pod-link/src/arq/send.rs` (`rekey_due`, `rekeyed`, `can_send`: a new frame waits at the wrap until `wrap_ok`), `crates/pod-link/src/arq/stream.rs` (the task of `ArqStream`; only `ArqHandle::rekeyed` answers), `crates/pod-link/src/dgram_tls.rs` (the one user of `ArqStream` in the crate: the dns and icmp carriers). The udp carrier runs KCP, not this ARQ.
+- `ArqSettings::start` sets the first sequence, so a test starts 64 frames before the wrap (as `tests/arq.rs`, `the_bytes_wait_at_the_wrap_until_the_rekey`, does).
+- Not measured: a link of 4 TiB.
+
+## Approach
+
+1. `ArqStream::wrap_freely` (in the crate): the task of the ARQ calls `Arq::rekeyed` in its send loop at each ask, before it takes the datagrams to send. A task in `dgram_tls` that waits on `rekey_wanted` would not end with the ARQ, so the answer is in the task of the ARQ.
+2. `dgram_tls::stream` calls it on each ARQ that it starts, with a comment that tells why (call C290).
+3. Tests: a dns link and an icmp link over the `Lossy` shim (3 % loss, reorder, duplicates) start 64 frames before the wrap and move 128 KiB each way. The plant `link-dgram-wrap-waits` removes the call: the transfer stops at the wrap.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test dns_loss --test icmp bytes_cross_the_wrap_of_the_sequence_at_loss
+sh scripts/plant-each.sh link-dgram-wrap-waits
+```
+
+## Done
+
+2026-11-14, commit `59668bb`. `ArqStream::wrap_freely` (in the crate): the task of the ARQ calls `rekeyed` at each ask; `dgram_tls::stream` sets it on each ARQ of the dns and icmp carriers (call C290). `cargo test -p pod-link --all-features`: 183 passed, 2 ignored. `bytes_cross_the_wrap_of_the_sequence_at_loss` (`tests/dns_loss.rs`, `tests/icmp.rs`): the first sequence is 64 frames before the wrap, and 128 KiB cross each way at 3 % loss with reorder and duplicates. The plant `link-dgram-wrap-waits` (the call removed) fails each test after 60 s ("the transfer in time: Elapsed"). No other in-crate user of `ArqStream` exists; the udp carrier runs KCP.
+
+# T-543: `pod-link`: the dns carrier and the TC bit: each answer keeps to the size of its query, and a cut answer does not stall the link (PodUtils/podnet#533)
+
+**Source:** PodUtils/podnet#533 (COORD-071 of podnet, ask 2; PodUtils/podnet@T-278).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet: "A resolver can truncate an answer (the flag `TC`); the client then asks again over TCP/53. The `dns` carrier of v0.40.0 has no such rule. If a resolver on the path truncates the TXT answers of the carrier, the link stalls. Please add the TC rule, or say that the carrier keeps each answer under the size that a resolver does not truncate (and the size)."
+
+## Premise
+
+- Read: `crates/pod-link/src/dns/server.rs` (`drain` fills each answer to `DnsSettings::answer`, 1232, with an OPT record also when the query has none), `crates/pod-link/src/dns/client.rs` (each query sends EDNS0 with `answer`; `txt::read` of a cut answer gives the whole records before the cut; a query that fails gives no datagram, and the ARQ sends again), `crates/pod-dns/src/txt.rs` (`question` gives no EDNS0 size).
+- The listener did not read the size of the query: a resolver that sends no EDNS0 toward the server takes 512 bytes, and the listener sent up to 1232. That resolver then cuts the answer at each batch down.
+- Not measured: a public resolver.
+
+## Approach
+
+1. `pod_dns::txt::asked_size(msg)`: the EDNS0 size of a query, at least 512, or `None` with no OPT record.
+2. The listener keeps each answer to `min(asked or 512, answer)`, and puts an OPT record in an answer only when the query had one (call C291). One datagram always fits in 512 bytes.
+3. The dialer takes the whole records of a cut answer and goes on (`dns::client::datagrams`); no query goes again over TCP/53 (call C292).
+4. Tests: a stand-in resolver on the loopback that removes the OPT record of each query (answers of 512 bytes or less, none with an OPT record), that sends it whole (answers within 1232 and over 512), and that cuts each second answer with the TC bit (the link moves 32 KiB each way). A unit test of the dialer reads a cut answer. Plants: `dns-answer-past-the-query-size`, `dns-cut-answer-dropped`, `dns-txt-asked-size-under-512`.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features --lib a_server_reads_the_size_that_a_query_takes
+cargo test -p pod-link --all-features --test dns_resolver
+cargo test -p pod-link --all-features --lib a_cut_answer_gives_its_whole_records
+sh scripts/plant-each.sh dns-answer-past-the-query-size dns-cut-answer-dropped dns-txt-asked-size-under-512
+```
+
+## Done
+
+2026-11-14, commit `8181d12`. `pod_dns::txt::asked_size` gives the EDNS0 size of a query (at least 512; none with no OPT record). The listener of the dns carrier keeps each answer to that size (512 with none) and to `DnsSettings::answer` (1232), with an OPT record only when the query had one (call C291). The dialer takes the whole records of a cut answer and goes on; no query goes again over TCP/53 (call C292). `cargo test -p pod-dns -p pod-link --all-features`: 264 passed, 6 ignored. `tests/dns_resolver.rs` (a stand-in resolver on the loopback): `a_query_with_no_edns_gets_an_answer_of_512_bytes_or_less`, `a_query_with_edns_gets_an_answer_within_its_size` (answers over 512 and within 1232), `a_cut_answer_does_not_stall_the_link` (each third answer cut, to no record or in its second record; 32 KiB each way); 40 runs in a loop passed. Unit tests: `a_cut_answer_gives_its_whole_records`, `a_server_reads_the_size_that_a_query_takes`. Plants: `dns-answer-past-the-query-size` fails the first test ("an answer of 1206 bytes to a query with no EDNS0"); `dns-cut-answer-dropped` fails `a_cut_answer_gives_its_whole_records` (left `[]`); `dns-txt-asked-size-under-512` fails `a_server_reads_the_size_that_a_query_takes` (left `Some(100)`). The integration test of the cut passes under `dns-cut-answer-dropped` (in 16 s, not 1 s): the ARQ recovers the dropped records, so the unit test is the check of that rule. The plant `dns-down-needs-the-txt` (T-493) moved to `dns::client::datagrams` and fails as before ("the handshake ... took more than 20s").
+
+# T-542: `pod-link`: one typed marker for "the peer refused the key of this end" on each carrier (PodUtils/podnet#533)
+
+**Source:** PodUtils/podnet#533 (COORD-071 of podnet, ask 1; PodUtils/podnet@T-273).
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet: "podnet exits 77 when the peer refuses the key of this end. On `quic`, the refusal reaches podnet only as a `noq::ConnectionError` (a close of the connection), so `src/link.rs` reads that close to find it; without that, podnet exited 69. Please give each carrier one typed marker for 'the peer refused the key of this end' (for example a variant of `pod_link::Error`, or an error kind that each carrier maps to), so that the caller does not read the errors of the transport."
+
+## Premise
+
+- Read: `crates/pod-link/src/carrier.rs` (`CarrierErrorKind::Refused` holds each refusal: the pin of this end, another user, a refusal of the way out, and the refusal of the key of this end), `crates/pod-link/src/pin.rs` (`answer_error` maps the alert of a refused certificate to `Refused`; `tls_error` maps a `pod_tls::peer::Refusal` to `Refused` and an alert to `Io`), `crates/pod-link/src/quic/io.rs` (`connection_error` maps a close with such an alert code to `Refused`), `crates/pod-link/src/poll/lane.rs` (a `Refused` lane is fatal).
+- The tests named `the_listener_refuses_a_client_of_another_key_and_stays_open` and `a_refused_key_is_named_on_each_side` check `Refused` on the dialer: a caller cannot tell the two refusals apart by the kind.
+
+## Approach
+
+1. `CarrierErrorKind::KeyRefused`, of the class `Refused` (77) (call C293).
+2. `pin::answer_error` and `pin::tls_error` map the alert of a refused certificate to it; `quic::io::connection_error` maps the close with that alert code to it. The poll carrier treats it as `Refused`.
+3. Tests: the dialer whose key the listener refused gets `KeyRefused` on tcp, ws, h2, quic, udp, poll, dns and icmp; the listener whose key the dialer refused gets `KeyRefused` where the alert reaches it. Plants: `link-key-refused-untyped`, `link-key-refused-alert-untyped`, `link-quic-key-refused-untyped`.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test tcp_refused --test ws --test h2 --test quic --test udp --test poll --test dns --test icmp refuse
+sh scripts/plant-each.sh link-key-refused-untyped link-key-refused-alert-untyped link-quic-key-refused-untyped
+```
+
+## Done
+
+2026-11-14, commit `8895ca2`. `CarrierErrorKind::KeyRefused` (class `Refused`, 77) is the typed refusal of the key of this end (call C293); `pin::answer_error`, `pin::tls_error` and `quic::io::connection_error` map to it, and the poll carrier ends a lane at it. `cargo test -p pod-dns -p pod-link --all-features`: 264 passed, 6 ignored. The dialer whose key the listener refused gets `KeyRefused` with exit code 77 in `the_listener_refuses_a_client_of_another_key_and_stays_open` (tcp, ws, h2, quic, udp, poll, dns) and `a_refused_key_is_named_on_each_side` (icmp). The listener whose key the dialer refused gets `KeyRefused` in `the_dialer_refuses_a_listener_of_another_key_and_names_it` on tcp, h2, quic and poll. Plants: `link-key-refused-untyped` fails the dialer's check on tcp, ws, h2, udp, poll, dns and icmp ("right: KeyRefused"); `link-key-refused-alert-untyped` fails the listener's check on tcp; `link-quic-key-refused-untyped` fails both checks on quic. Not proven: the listener's side on dns and icmp (the listener reads the end of the stream before the alert: always on dns, at times on icmp), on udp (the handshake of the listener times out) and on ws (the accept gives no error of a handshake); the parent has the finding.
+
+# T-557: `pod-link`: the listener of the dns, icmp, udp and ws carriers gets no `KeyRefused` when the dialer refuses its key
+
+**Source:** T-542 (a finding of its work; PodUtils/podnet#533).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-542 gives `CarrierErrorKind::KeyRefused` to the end whose key the peer refused. When the dialer refuses the key of the listener, the accept of the listener gets it on tcp, h2, quic and poll only:
+
+- dns: the listener always reads the end of the stream before the TLS alert (`Io(UnexpectedEof)`);
+- icmp: the same, at times;
+- udp: the handshake of the listener ends at its time limit (10 s);
+- ws: `accept_key` gives no error for the failed handshake in 30 s.
+
+## Premise
+
+- Read: the report of T-542; `crates/pod-link/src/dgram_tls.rs`, `src/arq/stream.rs`, `src/udp/stream.rs`, `src/ws.rs`.
+- Not measured: whether the alert of the dialer reaches `ArqStream::poll_write`, or KCP, before the stream closes.
+
+## Approach
+
+1. Trace whether the alert reaches `ArqStream::poll_write` when `dgram_tls::connect` fails, and whether the write can return pending; flush it before the end.
+2. udp: flush KCP before the stream drops.
+3. ws: give a failed handshake out through `accept_key`.
+4. Then add the checks of the listener side for the four carriers, with a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+# T-558: `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open
+
+**Source:** T-544 (a finding of its work; PodUtils/podnet#538).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-544 refuses `socket(AF_INET or AF_INET6, SOCK_RAW, ...)` and ping sockets in a held child. A payload with `CAP_NET_RAW` can still send frames out of the host through `socket(AF_PACKET, SOCK_RAW or SOCK_DGRAM, ...)`.
+
+## Premise
+
+- Read: the report of T-544; `crates/pod-hold/src/filter.rs` (`deny_raw`).
+
+## Approach
+
+Add `AF_PACKET` (each type) to the rule, under the opt-in of T-544 or a separate one. Ask podnet by a COORD issue whether `--allow-raw` covers it. A case of the BPF unit test, a test of a held child (`EPERM` with no notification), and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-hold --all-features
+```

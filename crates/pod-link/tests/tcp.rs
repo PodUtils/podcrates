@@ -210,7 +210,7 @@ async fn both_ends_take_the_alpn_of_the_carrier() {
     let mut door = bound(&listening).await;
     let address = at(&server.public(), &door);
     let e = carrier(2, Arc::new(Direct::default()), &[]).dial(&address).await.err().expect("a dial of another ALPN");
-    assert_ne!(e.kind, CarrierErrorKind::Refused, "{e}");
+    assert!(!matches!(e.kind, CarrierErrorKind::Refused | CarrierErrorKind::KeyRefused), "{e}");
     let far = timeout(limit(), door.accept_key()).await.expect("in time").err().expect("an accept of another ALPN");
     assert!(far.to_string().contains("TLS handshake"), "{far}");
     let mut dialing = carrier(2, Arc::new(Direct::default()), &[]);

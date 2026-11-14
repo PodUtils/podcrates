@@ -1,0 +1,7 @@
+# The dialer of the dns carrier drops an answer with the TC bit: the whole
+# records before the cut are lost, and each datagram in them goes again
+# (T-543).
+ENTRY=T-543
+GROUP=link
+EXPECT='test dns::client::tests::a_cut_answer_gives_its_whole_records \.\.\. FAILED'
+RUN='cargo test -p pod-link --all-features --lib a_cut_answer_gives_its_whole_records'

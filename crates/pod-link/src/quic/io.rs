@@ -168,8 +168,8 @@ fn answer_error(target: &Target, own: &PublicKey, e: ConnectionError) -> Carrier
 
 /// A failed connection as an error of the carrier: a key that the pin of
 /// this end refused, with its typed [`pod_tls::peer::Refusal`]; a key of
-/// this end that the peer refused; the silence; else the kind of I/O that
-/// fits.
+/// this end that the peer refused (`KeyRefused`); the silence; else the
+/// kind of I/O that fits.
 pub(super) fn connection_error(
     text: String,
     e: ConnectionError,
@@ -190,7 +190,7 @@ pub(super) fn connection_error(
         }
         ConnectionError::ConnectionClosed(close) if refused_by_peer(close.error_code) => CarrierError::with_source(
             NAME,
-            CarrierErrorKind::Refused,
+            CarrierErrorKind::KeyRefused,
             format!("the peer at {peer} refused the key of this end, {}", own.fingerprint()),
             io::Error::new(io::ErrorKind::PermissionDenied, e),
         ),

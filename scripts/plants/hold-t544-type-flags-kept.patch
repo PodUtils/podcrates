@@ -1,0 +1,11 @@
+--- a/crates/pod-hold/src/filter.rs
++++ b/crates/pod-hold/src/filter.rs
+@@ -184,7 +184,7 @@
+         jump(BPF_JEQ_K, libc::AF_INET as u32, 1, 0),
+         jump(BPF_JEQ_K, libc::AF_INET6 as u32, 0, 8),
+         stmt(BPF_LD_ABS_W, arg(1)),
+-        stmt(BPF_ALU_AND_K, SOCK_TYPE_MASK),
++        stmt(BPF_ALU_AND_K, u32::MAX),
+         jump(BPF_JEQ_K, libc::SOCK_RAW as u32, 4, 0),
+         jump(BPF_JEQ_K, libc::SOCK_DGRAM as u32, 0, 4),
+         stmt(BPF_LD_ABS_W, arg(2)),

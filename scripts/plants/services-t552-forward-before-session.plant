@@ -1,0 +1,6 @@
+# The watch kind forward-url: the forward comes before the session also where the fact session-first holds; its test must fail.
+ENTRY=T-552
+GROUP=services
+EXPECT='test forward::forward_url_opens_the_session_first_where_the_relay_says_so \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- forward::forward_url_opens_the_session_first_where_the_relay_says_so --exact'
+LIMIT=1800

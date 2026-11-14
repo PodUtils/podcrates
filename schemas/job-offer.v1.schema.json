@@ -374,6 +374,11 @@
           "type": "boolean",
           "default": false
         },
+        "container_engine": {
+          "description": "The job needs a container engine inside the unit (`services:`, a\nDockerfile action): placement sends it only to a kind whose\ncapability is `container: engine`.",
+          "type": "boolean",
+          "default": false
+        },
         "kvm": {
           "type": "boolean",
           "default": false

@@ -16,6 +16,10 @@
 //!   question of each query, takes the datagram up, and answers with the
 //!   datagrams down of the session. A new session id starts a session and
 //!   its handshake ([`DnsListener`]).
+//! * An answer keeps to the EDNS0 size of its query (512 bytes with no OPT
+//!   record) and to [`DnsSettings::answer`], so a resolver on the path does
+//!   not cut it. A cut answer (the TC bit) gives the whole records before
+//!   the cut; the ARQ sends the rest again (calls C291, C292).
 //! * The dial address is `KEY@ZONE`; the UDP address of the server is a
 //!   field of the carrier ([`Dns::to`], or the datagrams of the caller's way
 //!   out, [`Dns::with_way`]). The listen address is `IP:PORT`, and the zone
