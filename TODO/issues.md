@@ -155,5 +155,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #150 | COORD-090: the answer to PodUtils/podvm#341, #342 and #343: three defects of the QA report (to podvm) | open (until a tag carries the entries) | T-580, T-581, T-582 |
 | #151 | COORD-091: the answer to PodUtils/podvm#344 to #347: four more defects of the QA report (to podvm) | open (until a tag carries the entries) | T-583, T-584, T-585, T-586 |
 | #152 | COORD-092: the answer to PodUtils/podvm#350: the Windows guest (to podvm) | open (until a tag carries items 1 to 4) | T-590, T-591, T-592, T-593, T-594, T-595, T-596 |
+| #153 | COORD-093: the answer to PodUtils/podvm#352 and #354: pod-extract (to podvm) | open (until a tag carries the entries) | T-597, T-598, T-599 |
 
 #79 to #81 are pull requests.
