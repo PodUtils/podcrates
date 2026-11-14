@@ -6807,7 +6807,7 @@ cargo test -p pod-term --all-features
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6885,3 +6885,32 @@ cargo test -p pod-services --all-features
 cargo test -p pod-services-watch --all-features
 sh scripts/plant-each.sh services-t552-url-past-quote services-t552-forward-before-session services-t552-shell-not-command
 ```
+
+## Done
+
+2026-11-14, commit af592b6. `services/srv-us.toml` and
+`services/tunnl-gg.toml`, each fact with its source at the pinned commit
+of the service's repository (`xmit-dev/srv.us` at `c153c354`,
+`klipitkas/tunnl.gg` at `ea47661c`), read on 2026-11-14. Each fact of the
+ask held in its source. New facts of a forward relay (C298): `command`
+(`output=json` for tunnl.gg) and `session-first` (true for srv.us), read
+by `Relay::command` and `Relay::session_first`; the watch `forward-url`
+opens the session first where the fact holds and asks the command in
+place of a shell. `forward::Banner` ends a URL at a byte that RFC 3986
+keeps out of a URL. Watches: `ssh-banner`, `forward-url` (port 1 for
+srv.us), `github-file`, `ssh-host-key` (tunnl.gg), `tls-name` of the
+endpoint `site` in place of `rdap` (C299). The note of the filter list
+of tunnl.gg is in the comment of its file.
+
+`cargo test -p pod-services --all-features` and
+`cargo test -p pod-services-watch --all-features`: 170 passed, none
+failed (new: `the_tunnels_of_srv_us_and_tunnl_gg`; the samples of srv.us
+and tunnl.gg in `tests/forward.rs`;
+`forward_url_opens_the_session_first_where_the_relay_says_so` and
+`forward_url_asks_the_command_of_the_relay`). Plants, each caught by
+hand: `services-t552-url-past-quote`,
+`services-t552-forward-before-session`,
+`services-t552-shell-not-command`; `services-forward-url-skips-dropped`
+was remade on the new code and caught. Not run: the live watch of each
+service (SSH needs the egress of `services.yml`); podssh's live run of
+`last-roads-live.yml` checks srv.us's derived name.

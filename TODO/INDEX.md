@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**425 entries: 113 open, 8 partial, 5 blocked, 299 done.**
+**425 entries: 112 open, 8 partial, 5 blocked, 300 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 81 | 95 |
-| P2 | 54 | 3 | 4 | 160 | 221 |
+| P2 | 53 | 3 | 4 | 161 | 221 |
 | P3 | 48 | 2 | 1 | 56 | 107 |
-| **All** | 113 | 8 | 5 | 299 | 425 |
+| **All** | 112 | 8 | 5 | 300 | 425 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -471,4 +471,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-538](upkeep.md) | P3 | S | M5 | docs | blocked | The rule of attribution of a comment on GitHub: the documents of podcrates and the practice of its sessions differ |
 | [T-539](transport.md) | P2 | M | M3 | feature | done | `pod-term`: a line discipline that follows a termios state, for the tty of `podssh serve` with no /dev/ptmx (PodUtils/podssh#232) |
 | [T-540](transport.md) | P3 | S | M3 | chore | open | `pod-term`: a test of `termios::Tty` against a pty of the kernel, where one opens |
-| [T-552](transport.md) | P2 | S | M1 | feature | open | `pod-services`: the services `srv-us` and `tunnl-gg` of the kind `ssh-tunnel` (PodUtils/podssh#236) |
+| [T-552](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `srv-us` and `tunnl-gg` of the kind `ssh-tunnel` (PodUtils/podssh#236) |
