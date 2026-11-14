@@ -6652,7 +6652,7 @@ cargo test -p pod-netlab --all-features
 **Milestone:** M7
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6671,6 +6671,34 @@ Write to `NAME.part`; on a new call, send `Range: bytes=N-` and take a `206` (a 
 ```sh
 cargo test -p pod-guest --all-features
 ```
+
+## Done
+
+2026-11-14, commit 8e4b3ca. `pod_guest::fetch::store(&mut origin, dest,
+want, ceiling, tries)` takes an `Origin` (`get(from) -> Reply { status,
+length, range, body }`, the caller's HTTP client; `Stream::new(reader,
+declared)` for one reader) and writes `NAME.part` under an exclusive lock
+(`Refusal::Busy`). A break resumes with `Range: bytes=N-`; a `206` must
+start at `N` and agree with its `Content-Length`; a `200` starts again
+from zero; a `416` of the size of the file is a whole file. The size of
+the object stays the same in each answer and a body does not pass it
+(`Refusal::Size`); the ceiling of the entry holds for the declared size,
+a `Content-Range` total and the bytes; the sha256 covers the whole file,
+and the rename comes after the check. A partial file of an earlier call
+resumes only with a pinned digest. New: `Reply`, `Stream`, `Span`,
+`parse_content_range`, `Refusal::{Size, Range, Status, Broken, Busy}`,
+`Refusal::keeps_part`. Calls C395 to C398.
+
+`cargo test -p pod-guest --all-features`: 104 unit tests passed at the
+commit (7 tests of the store keep their names; 9 new, 7 of them against
+the HTTP stand-in of `pod-testkit`: a break and a resume, a later call
+pinned and not pinned, a `200` to a Range, a body past its
+`Content-Length`, a `206` from another offset, a `Content-Range` against
+its `Content-Length`, a size that changes, a range over the ceiling, a
+`416` of a whole file, `404` and `503`); the stand tests passed 30 runs
+in a loop. Plants: `guest-fetch-range-offset-unchecked`,
+`guest-fetch-200-to-a-range-appends`, `guest-fetch-body-past-its-size`,
+each caught by hand.
 
 # T-591: `pod-udf`: a new crate that reads UDF and gives the extent of a file in an ISO (PodUtils/podvm#350, item 2)
 
@@ -6706,7 +6734,7 @@ cargo test -p pod-udf --all-features
 **Milestone:** M7
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6726,6 +6754,24 @@ Run the command as `cmd /c %WQ%\WQCMD.CMD < NUL > ... 2> ...` and record its exi
 cargo test -p pod-guest --all-features
 ```
 
+## Done
+
+2026-11-14, commit fad33d8. The agent runs `cmd /c %WQ%\WQCMD.CMD < NUL >
+... 2> ...` and keeps the exit code in `WQRC`; it writes `WQREADY.TXT`
+(`agent::READY`, `agent::ready(&fat16)`) when it finds the mailbox. With
+`WQKEEP.TXT` on the mailbox (`agent::KEEP`, `Request::mode =
+Mode::KeepAlive`) it runs each next token and does not shut down; a last
+command with no `WQKEEP.TXT` shuts the guest down. `Mode::Once` is the
+default. `run` refuses `KeepAlive` with `Usage`. Calls C393 and C394.
+
+`cargo test -p pod-guest --all-features`: 95 unit tests passed at the
+commit (6 new; the tests of the agent move to `src/agent/tests.rs` with
+their names, and a walk of `AGENT_CMD` line by line proves the order,
+the keep-alive loop over three tokens, the reentry guard and the 600
+tries). Plants: `guest-agent-call-ends-the-agent` (the old `call`; the new
+test fails on it), `guest-agent-keep-alive-shuts-down`, each caught by
+hand.
+
 # T-593: `pod-guest`: the options of a plan: a NIC with `hostfwd`, virtio devices, CD-ROM and USB media, VNC, a serial channel, the Hyper-V flags (PodUtils/podvm#350, item 4)
 
 **Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
@@ -6733,7 +6779,7 @@ cargo test -p pod-guest --all-features
 **Milestone:** M7
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6752,6 +6798,23 @@ Typed options of the plan, each one to its QEMU arguments, with `-nic none` the 
 ```sh
 cargo test -p pod-guest --all-features
 ```
+
+## Done
+
+2026-11-14, commit 91f5fcd. `Plan::options: Options` (`plan::options`):
+`nic` (`Nic::None` by default; `Nic::User(UserNet { model, forwards,
+restrict })` with `hostfwd`), `virtio`, `media` (CD-ROM on AHCI, USB on
+`qemu-xhci`, `boot`), `vnc`, `usb_tablet`, `serial_socket`, `channels`
+(virtio-serial, `QGA_CHANNEL`), `hyperv` (`HYPERV_FLAGS` under KVM).
+`Options::default()` gives the old line, argument for argument;
+`Options::check()` refuses each bad value with `Usage`, and `spawn_uefi`
+calls it. A comma in a path of an option list is doubled, also in the
+drives of the plan (a finding). Calls C399 to C401.
+
+`cargo test -p pod-guest --all-features`: 115 unit tests passed at the
+commit (11 new: the default line, each option and each refusal, the check
+at the start of the emulator). Plants: `guest-plan-default-has-network`,
+`guest-plan-forward-port-unchecked`, each caught by hand.
 
 # T-594: `pod-qga`: a new crate, a client of the QEMU Guest Agent over a Unix socket (PodUtils/podvm#350, item 5)
 
