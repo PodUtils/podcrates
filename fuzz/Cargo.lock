@@ -2057,6 +2057,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-udf"
+version = "0.43.0"
+
+[[package]]
 name = "pod-warp"
 version = "0.43.0"
 dependencies = [
@@ -2158,6 +2162,7 @@ dependencies = [
  "pod-session",
  "pod-tls",
  "pod-turn",
+ "pod-udf",
  "pod-warp",
  "pod-wg",
  "pod-wormhole",

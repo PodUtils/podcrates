@@ -1,0 +1,12 @@
+diff --git a/crates/pod-udf/src/icb.rs b/crates/pod-udf/src/icb.rs
+--- a/crates/pod-udf/src/icb.rs
++++ b/crates/pod-udf/src/icb.rs
+@@ -141,7 +141,7 @@
+                 }
+                 out.push(Ad { kind, len, lbn, partition });
+             }
+-            let Some(next) = next else { return Ok(out) };
++            let Some(next) = next.filter(|_| false) else { return Ok(out) };
+             continued += 1;
+             if out.len() + continued > limit {
+                 return Err(over());

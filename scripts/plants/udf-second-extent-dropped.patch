@@ -1,0 +1,11 @@
+diff --git a/crates/pod-udf/src/icb.rs b/crates/pod-udf/src/icb.rs
+--- a/crates/pod-udf/src/icb.rs
++++ b/crates/pod-udf/src/icb.rs
+@@ -140,6 +140,7 @@
+                     return Err(over());
+                 }
+                 out.push(Ad { kind, len, lbn, partition });
++                break;
+             }
+             let Some(next) = next else { return Ok(out) };
+             continued += 1;

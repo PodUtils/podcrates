@@ -330,6 +330,7 @@ with a study entry, as M4 does.
 | `pod-pcap` | packet capture, counters and connection logs with no `CAP_NET_RAW`; a pcap writer: PodUtils/podvm#182 | pod-core |
 | `pod-sandprobe` | the security probe inside a payload, and the compare of two reports against a list of expected differences: PodUtils/podvm#186 | pod-core, pod-hostprobe |
 | `pod-incus` | a client of the REST API of incus on its Unix socket, with no `incus` binary (T-179, PodUtils/podvm#253): the server facts, the import of an image from a stream, the instances and their state, exec with `record-output` or with its websockets, the console log, the files, the operations and their wait; the floor is incus 6.0 LTS. New code from the API of lxc/incus at `63377d9b`. The back end, the conversion of an OCI image and the start of a user's `incusd` stay in podvm | pod-core, pod-proxy, pod-ws |
+| `pod-udf` | a reader of UDF (ECMA-167, UDF 1.02 to 2.60, with the metadata partition) that gives the byte ranges of a file in an ISO, so that a client fetches one file of a Windows ISO by Range requests (T-591, PodUtils/podvm#350). No I/O of its own: the caller gives a `ReadAt`. New code from the specifications | none |
 
 Names held, with no crate: `pod-wireguard`, `pod-quick`, `pod-udp`,
 `pod-mailbox`, `pod-reverse`, `podcrates`, `podutils`, `pod-utils`,
@@ -413,7 +414,8 @@ The check:
 * `examples/static-probe` depends on each crate with each feature and
   calls one function of each (`fuzzing` is out). `examples/static-probe-lean`
   builds the crates that need no tokio (pod-core and pod-tls with no
-  default feature, pod-wg, pod-confine).
+  default feature, pod-wg, pod-confine, the STUN codec of pod-turn,
+  pod-udf).
   `scripts/check-probe.py` checks that each feature of a library crate is in
   a probe or in its allowance list, and that tokio is not in the tree of the
   lean probe. CI builds it in release on each target on

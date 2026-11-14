@@ -1,0 +1,12 @@
+diff --git a/crates/pod-udf/src/udf.rs b/crates/pod-udf/src/udf.rs
+--- a/crates/pod-udf/src/udf.rs
++++ b/crates/pod-udf/src/udf.rs
+@@ -182,7 +182,7 @@
+             if name == ".." {
+                 return Err(Error::Path { path: path.into(), reason: "a `..` component" });
+             }
+-            if names.len() == self.limits.depth {
++            if names.len() == self.limits.depth && false {
+                 return Err(Error::Limit { what: "components of a path", limit: self.limits.depth as u64 });
+             }
+             names.push(name);

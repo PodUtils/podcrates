@@ -1,0 +1,7 @@
+# The map of a metadata partition keeps the first extent of the metadata
+# file only: a file entry in the second extent is not found (T-591).
+ENTRY=T-591
+GROUP=udf
+EXPECT='an extent past the end of its partition'
+RUN='cargo test -p pod-udf --lib a_metadata_partition_maps_each_block'
+LIMIT=900

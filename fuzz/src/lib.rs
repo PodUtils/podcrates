@@ -57,6 +57,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("extract_layer", targets::extract_layer),
     ("elf_header", targets::elf_header),
     ("squashfs_image", targets::squashfs_image),
+    ("udf_image", targets::udf_image),
     ("wg_response", targets::wg_response),
     ("wg_cookie", targets::wg_cookie),
     ("wg_transport", targets::wg_transport),

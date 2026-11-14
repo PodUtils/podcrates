@@ -1,0 +1,7 @@
+# The reader stops at an allocation descriptor of type 3: the allocation
+# extent descriptor that continues the list is not read (T-591).
+ENTRY=T-591
+GROUP=udf
+EXPECT='allocation descriptors end before the size of the file'
+RUN='cargo test -p pod-udf --lib allocation_extents_continue_the_list'
+LIMIT=900

@@ -21,3 +21,5 @@ pod-wg = { workspace = true }
 pod-confine = { workspace = true }
 # The codec of STUN alone, as pod-proxy takes it: no tokio, no TLS.
 pod-turn = { workspace = true, features = ["stun"] }
+# The UDF reader: std only.
+pod-udf = { workspace = true }

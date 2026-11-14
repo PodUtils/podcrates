@@ -1,0 +1,7 @@
+# The reader keeps the first allocation descriptor of a file only: a file
+# of two extents loses its second part (T-591).
+ENTRY=T-591
+GROUP=udf
+EXPECT='allocation descriptors end before the size of the file'
+RUN='cargo test -p pod-udf --lib a_file_of_two_extents_gives_both_in_order'
+LIMIT=900
