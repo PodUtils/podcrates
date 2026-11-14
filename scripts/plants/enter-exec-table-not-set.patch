@@ -1,0 +1,11 @@
+--- a/crates/pod-enter/src/confine.rs
++++ b/crates/pod-enter/src/confine.rs
+@@ -43,7 +43,7 @@
+ /// and each one resolves as Landlock opens it.
+ pub(crate) fn exec_var(plan: &Plan, userland: bool) -> Result<Option<String>> {
+     match &plan.confine {
+-        Some(spec) if userland => {
++        Some(spec) if !userland => {
+             Ok(Some(format!("{}={}", plan.names.exec_table, spec.exec_table().resolved().encode()?)))
+         }
+         _ => Ok(None),

@@ -69,14 +69,18 @@ pub(crate) fn spawn_with(
     // run starts with no request.
     let names = &plan.names;
     let active_var = format!("{}={active}", names.mode_active);
+    // The exec table of a confinement with no chroot, for the interposer;
+    // a value of the caller never reaches the payload.
+    let exec_var = crate::confine::exec_var(plan, userland.is_some())?;
     let envp_owned: Vec<CBuf> = plan
         .env
         .iter()
         .filter(|e| {
             let name = var_name(e);
-            name != names.mode_request && name != names.mode_active
+            name != names.mode_request && name != names.mode_active && name != names.exec_table
         })
         .chain(std::iter::once(&active_var))
+        .chain(exec_var.iter())
         .map(|e| CBuf::new(e).ok_or_else(|| nul(format!("the environment {e:?} contains a NUL"))))
         .collect::<Result<_>>()?;
     let chroot = userland.is_none();

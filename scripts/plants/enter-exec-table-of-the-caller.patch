@@ -1,0 +1,11 @@
+--- a/crates/pod-enter/src/launch.rs
++++ b/crates/pod-enter/src/launch.rs
+@@ -77,7 +77,7 @@
+         .iter()
+         .filter(|e| {
+             let name = var_name(e);
+-            name != names.mode_request && name != names.mode_active && name != names.exec_table
++            name != names.mode_request && name != names.mode_active
+         })
+         .chain(std::iter::once(&active_var))
+         .chain(exec_var.iter())

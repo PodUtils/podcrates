@@ -31,6 +31,12 @@ pub struct Names {
     /// interposer reads this variable for the loader of each dynamic
     /// child.
     pub lib_path: &'static str,
+    /// The variable of the exec table of a confined payload on the entry
+    /// with no chroot (`pod_confine::ExecTable::encode`). The entry sets
+    /// it where the plan has a confinement and removes each other value;
+    /// the interposer checks each program that it routes through the
+    /// loader against it (`pod_confine::exec::allows_in`).
+    pub exec_table: &'static str,
     /// The variable of the device list of a container record.
     pub device_spec: &'static str,
     /// The variable of the device table that the interposer serves.
@@ -56,6 +62,7 @@ impl Names {
         cache: "POD_ENTER_CACHE",
         maps: "POD_ENTER_MAPS",
         lib_path: "POD_ENTER_LIB_PATH",
+        exec_table: "POD_ENTER_EXEC_TABLE",
         device_spec: "POD_ENTER_DEVICE_SPEC",
         device_fds: "POD_ENTER_DEVICE_FDS",
         cache_marker: ".pod-enter-cache-complete",

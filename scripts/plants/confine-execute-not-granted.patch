@@ -1,0 +1,11 @@
+--- a/crates/pod-confine/src/spec.rs
++++ b/crates/pod-confine/src/spec.rs
+@@ -53,7 +53,7 @@
+             r |= WRITE_RIGHTS;
+         }
+         if self.contains(Access::EXECUTE) {
+-            r |= u64::from(k::LANDLOCK_ACCESS_FS_EXECUTE);
++            r |= 0;
+         }
+         r
+     }

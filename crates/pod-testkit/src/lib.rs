@@ -7,6 +7,8 @@
 //! * [`need_userns!`] and [`need_tool!`]: a test that needs a user and a
 //!   mount namespace, or a tool of the host, skips with a reason on a host
 //!   that has none.
+//! * `elf`: a static ELF made in the test (x86_64 and aarch64), and
+//!   the check of a dynamic one (Linux only).
 //! * [`screen`] (feature `screen`): the terminal oracle, a model of a VT
 //!   terminal that tells what a person sees after a stream of bytes.
 //! * [`stand`] (feature `stand`): the stand-ins of the services of other
@@ -18,6 +20,8 @@
 //! A stand-in of this kit speaks bytes and HTTP only, and takes no type of
 //! a pod crate, so that each crate can dev-depend on the kit.
 
+#[cfg(target_os = "linux")]
+pub mod elf;
 pub mod host;
 #[cfg(feature = "masque")]
 pub mod masque;

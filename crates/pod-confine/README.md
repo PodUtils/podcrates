@@ -72,6 +72,7 @@ the host.
 | `Spec::compile(abi)`, `Spec::compile_in(abi, root_fd)` | a `Compiled` (`abi`, `handled_fs`, `handled_net`, `scoped`, `rules` with `fd`, `allowed`, `path`, `ports`, `filter`; it closes its descriptors when it drops); `keep_clear_of(&numbers)` moves each rule off a number that the child takes for a `dup2`; `close_paths()` closes the descriptor of each rule (`fd` is then -1) and keeps its path; `open_paths()` opens the path of each rule with no descriptor in the view of the caller (in the child, after its mounts and its root change), with no allocation, or gives `Err(Refusal)` of `OpenPath` |
 | `apply(&Compiled)` | the confinement of this thread and of each process that it makes later; `Err(Refusal { call, index, errno })` |
 | `Call`, `Refusal` | the call (`NoNewPrivs`, `CreateRuleset`, `AddPathRule`, `AddPortRule`, `RestrictSelf`, `Seccomp`, `CapGet`, `CapBoundingDrop`, `CapSet`, `CapAmbientClear`, `OpenPath`; `name`, `code` 1 to 11, `from_code`); `Refusal::to_bytes` and `from_bytes` (five bytes for a pipe from a child), `describe(&compiled)` (the call, the path or the port of the rule, the errno), `failure(&compiled)` |
+| `exec` | `ExecTable` (`Spec::exec_table()`: the path of each rule with `EXECUTE`, once, with no trailing `/`; `resolved()` (each host path that exists through `realpath`), `paths`, `allows(program)`, `encode` (the paths joined by `exec::SEP`, `:`; a path with `:` or NUL is a refusal by name, `Class::Usage`), `decode`), `exec::allows_in(table, program)` (the same answer on the text, with no allocation and no other item of the crate, for an object that takes no dependency) |
 | `check()`, `probe()` | the ABI where a confinement loads here; `check` names the call and the errno of a refusal |
 | `MIN_ABI` (3), `NET_ABI` (4), `SCOPE_ABI` (6), `UNIX_ABI` (9), `UDP_ABI` (10), `spec::handled_fs(abi)`, `spec::FILE_RIGHTS`, `spec::CONNECT_TCP`, `spec::BIND_TCP`, `spec::UDP_RIGHTS`, `spec::SCOPES`, `MOST_RULES` | the bounds, the rights and the scopes of each ABI |
 
@@ -89,6 +90,25 @@ rule, so the kernel denies a bind, a connect and a send of each UDP
 socket, also one that the filter does not see. The values of the rights
 of ABI 9 and 10 come from `linux/landlock.h` of Linux 7.4; this host has
 ABI 7, so only the compile is tested for them.
+
+### The exec table
+
+The ruleset handles `EXECUTE` at each ABI (`handled_fs`), and a rule with
+`Access::EXECUTE` gives it on its path. The kernel checks it on each file
+that it executes: the program, its `PT_INTERP` loader, a script and the
+interpreter of its `#!` line. It does not check a file that a process
+maps or reads: a loader that runs a program given as its argument, an
+interpreter that runs a script given as its argument, and a program that
+a caller copied into a memfd (a memfd is on no path of a rule, and
+Landlock allows its exec). The entry with no chroot of `pod-enter` runs
+each payload that way. `ExecTable::allows(program)` gives the answer of
+the rules for a resolved, absolute program: the program is a path of the
+table or is under one, at a `/`; a program with a `.` or `..` component,
+or a relative one, gets `false`; an empty table allows nothing. A caller
+asks it for each file that the kernel would execute (for a script: the
+script and its interpreter) before it starts the loader or the
+interpreter, or stages the memfd. The table cannot stop a payload that
+runs the loader itself, as the loader must execute.
 
 ### The capabilities
 
@@ -211,3 +231,14 @@ under the one of a check, or no MPTCP skips the check with a line
 `skipping, REASON`. The plants of the group `confine` (`scripts/plants/`)
 prove the checks. `pod-enter`'s `tests/confine.rs`
 runs the same checks through the entry.
+
+`tests/exec.rs` (PodUtils/podvm#344): a confined child executes a static
+ELF (`pod_testkit::elf`), a dynamic ELF (a copy of `true` of the host)
+and a script, from a directory with execute and from one with read only:
+the three run in the first and fail with `EACCES` in the second, and
+`ExecTable::allows` gives the same answer for each. `exec::tests` checks
+the table: each execute path once, the boundary at a `/` (`/usrx` is not
+under `/usr`), a path with `..`, an empty table, `encode`, `decode` and
+`allows_in`, and a link in a rule path. The plants
+`confine-exec-table-no-boundary`, `confine-execute-not-handled` and
+`confine-execute-not-granted` prove them.

@@ -20,6 +20,10 @@ consumer that wants it. It is never a dependency of a release binary.
 * `host::loopback()`, `host::localhost()`, `host::userns()`: the probes,
   each run once for each test binary. `host::tool(TOOL)` and
   `host::root()` look each time.
+* `elf::static_exit0()`: a static ELF of x86_64 or aarch64 (one
+  `PT_LOAD`, no `PT_INTERP`) that calls `exit_group(0)`, for a test of an
+  exec with no tool of the host; `None` on another architecture.
+  `elf::is_dynamic(bytes)`: a 64-bit ELF with `PT_INTERP`. Linux only.
 
 A stand-in of this kit speaks bytes and HTTP only, and takes no type of a
 pod crate, so that each crate can dev-depend on the kit.
