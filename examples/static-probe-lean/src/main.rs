@@ -10,7 +10,7 @@ fn main() {
     let tls_config = tls.client_config(&roots).expect("a client configuration");
     println!("pod-core: {} {}", pod_core::text::one_line("probe\nline"), pod_core::clock::utc_minutes(0));
     println!("pod-tls: {} roots, {} suites", roots.count, tls_config.crypto_provider().cipher_suites.len());
-    let keys = pod_wg::Keys { private: [1; 32], peer_public: [2; 32], reserved: [0; 3] };
+    let keys = pod_wg::Keys { private: [1; 32], peer_public: [2; 32], reserved: [0; 3], preshared: None };
     let init = pod_wg::initiate(&keys).map_or_else(|e| e.to_string(), |i| format!("{} bytes", i.message.len()));
     println!("pod-wg: an initiation of {init}");
     let key = pod_turn::stun::long_term_key("probe", "probe.example", "probe");
