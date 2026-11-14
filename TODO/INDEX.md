@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**426 entries: 112 open, 8 partial, 5 blocked, 301 done.**
+**427 entries: 112 open, 8 partial, 5 blocked, 302 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 82 | 96 |
-| P2 | 53 | 3 | 4 | 161 | 221 |
+| P2 | 53 | 3 | 4 | 162 | 222 |
 | P3 | 48 | 2 | 1 | 56 | 107 |
-| **All** | 112 | 8 | 5 | 301 | 426 |
+| **All** | 112 | 8 | 5 | 302 | 427 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -473,3 +473,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-540](transport.md) | P3 | S | M3 | chore | open | `pod-term`: a test of `termios::Tty` against a pty of the kernel, where one opens |
 | [T-553](fleet.md) | P2 | S | M8 | feature | done | `pod-job`: the container route `engine` and the need `container_engine`, for a container engine inside the unit (PodUtils/podrunner#91) |
 | [T-555](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `7122cc7` is red for podssh: its test pins five tox relays, and T-537 left four |
+| [T-556](transport.md) | P2 | S | M1 | feature | done | `pod-services`: serv00's public Piping Server as the third of the kind `piping` (PodUtils/podssh#238) |

@@ -6799,3 +6799,37 @@ A test, where `/dev/ptmx` opens (else it skips with the reason, as `need_loopbac
 ```sh
 cargo test -p pod-term --all-features
 ```
+
+# T-556: `pod-services`: serv00's public Piping Server as the third of the kind `piping` (PodUtils/podssh#238)
+
+**Source:** PodUtils/podssh#238 (COORD-061 of podssh; PodUtils/podssh@T-575, its ruling Q78).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh's road of Piping Server tries each service of the kind `piping` in the order of the ranks. The catalog has two: ppng.io and piping.onrender.com. podssh asks for a third as a last fallback: a public Piping Server on serv00.
+
+## Premise
+
+- Read: PodUtils/podssh#238; `crates/pod-services/services/onrender-piping.toml`.
+- Measured: `https://p.kokoro.serv00.net/version` answered 1.12.9 from a cloud session of podcrates on 2026-11-14.
+- Not read: the terms of serv00 (its pages of terms answered 404 here); the note cites podssh's reading.
+
+## Approach
+
+`serv00-piping.toml` in the style of `onrender-piping.toml`: rank 2, the endpoint `server`, `streams-request-body = false` from podssh's measure, a note on the terms, a watch of `/version`.
+
+## Prove
+
+```sh
+cargo test -p pod-services
+cargo run -q -p pod-services-watch -- --service serv00-piping
+```
+
+## Done
+
+2026-11-14. `crates/pod-services/services/serv00-piping.toml`; the test `the_piping_servers_come_in_their_order` names the three servers; the README lists it. The watch holds: `/version` answered 200.

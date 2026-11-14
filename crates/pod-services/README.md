@@ -224,6 +224,7 @@ let relay = services.of_kind("relay").next();
 | `n0-pkarr` | `pkarr` | `relay` | |
 | `ppng-piping` | `piping` | `server` | |
 | `onrender-piping` | `piping` | `server` | `streams-request-body`, `idle-stop-minutes` |
+| `serv00-piping` | `piping` | `server` | `streams-request-body`, `note` |
 | `magic-wormhole-mailbox`, `leastauthority-mailbox` | `mailbox` | `mailbox` | |
 | `leastauthority-transit` | `transit` | `relay` | |
 | `opentunnel` | `opentunnel` | `api` | `tunnel-zone` |
