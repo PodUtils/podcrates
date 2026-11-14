@@ -1,0 +1,8 @@
+# The dns and icmp carriers do not answer the rekey of the ARQ: the frames
+# of each direction wait at the wrap of the sequence, and the transfer
+# stops (T-541).
+ENTRY=T-541
+GROUP=link
+EXPECT='the transfer in time'
+RUN='cargo test -p pod-link --all-features --no-fail-fast --test dns_loss --test icmp bytes_cross_the_wrap_of_the_sequence_at_loss'
+LIMIT=1800

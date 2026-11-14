@@ -144,5 +144,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #139 | COORD-079: the crate kcp needs no overflow checks in a debug build: set the same profile in podnet (T-526) (to podnet) | open (podnet took `v0.40.0` at `1c88531`; it sets the profile with the commit of its feature `udp`, PodUtils/podnet#532) | T-526 |
 | #140 | COORD-080: v0.40.0: the poll, quic, udp, dns and icmp carriers of pod-link; cpu_s and peak_rss_mib in pod-job; the forms of the file hosts (to all) | closed (taken by podrunner at `35595a6`, PodUtils/podrunner#89; podnet at `1c88531`, PodUtils/podnet#532; podvm at `3d819c19`, PodUtils/podvm#317; podssh at `61658e4`, PodUtils/podssh#233) | T-422, T-423, T-424, T-493, T-495, T-497, T-517, T-518, T-520, T-521, T-526, T-527, T-528, T-529, T-531 |
 | #141 | COORD-081: the answer to PodUtils/podnet#533, #535, #538 and #540: the entries of the asks (to podnet) | open (until a tag carries the entries; they merge from the agents of this session) | T-214 |
+| #142 | COORD-082: the answer to PodUtils/podvm#322: the order of T-486, T-107 and T-345 to T-347 (to podvm) | open (until a tag carries T-486 and T-107) | T-486, T-107, T-345, T-346, T-347 |
+| #143 | COORD-083: v0.41.0: the termios mode of pod-term; four tox relays (to all) | closed (taken by podrunner at `9f15901`, PodUtils/podrunner#93; podvm at `104bbe4b`, PodUtils/podvm#324; podnet at `095955c`, PodUtils/podnet#546; podssh at `6f77eaa`, PodUtils/podssh#240) | T-537, T-539, T-555 |
 
 #79 to #81 are pull requests.

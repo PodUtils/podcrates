@@ -1,0 +1,11 @@
+--- a/crates/pod-warp/src/open.rs
++++ b/crates/pod-warp/src/open.rs
+@@ -206,7 +206,7 @@
+ fn why_shown(way: &Way, door: &Target) -> String {
+     let warp = "WARP's side shows such a certificate at times, while its API fails in the same minutes; \
+                 a later try passes then";
+-    match way.dial.proxy_label(door) {
++    match way.dial.proxy_label(door).or_else(|| Some(way.dial.label())) {
+         Some(proxy) => format!("{warp}. Or the proxy {proxy} re-terminates TLS: then each try fails"),
+         None => format!("{warp}."),
+     }

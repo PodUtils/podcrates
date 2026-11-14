@@ -120,8 +120,13 @@ pub enum CarrierErrorKind {
     Unavailable,
     /// No listener is at the address.
     NotFound,
-    /// The peer is not allowed: another user, for example.
+    /// The peer is not allowed: another user, a key that the pin of this
+    /// end does not name, for example.
     Refused,
+    /// The peer refused the key of this end: its pin does not name it. The
+    /// same on each carrier that pins keys, on the dial and on the accept
+    /// (call C293).
+    KeyRefused,
     /// Another failure of I/O.
     Io(io::ErrorKind),
 }
@@ -173,7 +178,7 @@ impl CarrierError {
             CarrierErrorKind::Usage => Class::Usage,
             CarrierErrorKind::InUse | CarrierErrorKind::Unavailable => Class::Unavailable,
             CarrierErrorKind::NotFound => Class::NotFound,
-            CarrierErrorKind::Refused => Class::Refused,
+            CarrierErrorKind::Refused | CarrierErrorKind::KeyRefused => Class::Refused,
             CarrierErrorKind::Io(kind) => Class::of_io(kind),
         }
     }

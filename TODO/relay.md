@@ -2240,6 +2240,13 @@ change of the crate; `podnet-relay-v1` and `piping-v1` are tests of it.
 The piping servers and the mailboxes become services of `pod-services`.
 A stand-in of the transit relay for the tests. An interop test against
 the Python magic-wormhole in `live.yml` (PodUtils/podnet@T-106).
+The source of the transfer layer when this entry starts: podnet's
+src/transfer/ at its commit `d5c38c1` (the transfer messages, the transit
+handshake and records, the hints, the zip writer and reader, the receive
+rules of PodUtils/podnet#436); podnet then takes the crate and keeps fixes
+only (PodUtils/podnet#535, ask 5). `Wormhole::derive_key` (T-545) gives
+the transit key, `pod_wormhole::standin` (T-546) the mailbox of the tests,
+and the service `magic-wormhole-transit` (T-548) the TCP transit relay.
 
 ## Prove
 
@@ -5898,3 +5905,748 @@ sh scripts/plant-each.sh netstack-close-wait-closes-at-once netstack-link-drops-
 ## Done
 
 2026-11-13, commit `2f643b1`. `cargo test -p pod-netstack --all-features`: 79 passed. `close.rs`: `a_stream_whose_peer_closed_first_sends_each_queued_byte_then_the_end` (the client shuts down first; the server writes 16 MiB and closes; the client reads each byte, then the end). `hold.rs`: `the_packets_held_at_a_full_link_each_go_when_it_drains` (the outbound queue of the server fills to `LINK_OUTBOUND` while the pump stands; then `tx_dropped` is 0, `tx_held` is more than 0, the client reads 4 MiB and the end, and the pump moved each packet that the device counted in `tx_packets`). The plant `netstack-close-wait-closes-at-once` fails the first test ("the end after the end of the peer lost 4230144 bytes"). The plant `netstack-link-drops-at-a-full-queue` fails the second test ("4714 packets dropped at the full queue"); no other test of the crate catches it, as `a_full_tunnel_queue_holds_the_stack` uses `LinkDevice::tunnel_bounded`, not `LinkDevice::link`.
+
+# T-545: `pod-wormhole`: `Wormhole::derive_key`, magic-wormhole's derived key, for the transit key of podnet's transfer (PodUtils/podnet#535)
+
+**Source:** PodUtils/podnet#535 (COORD-072 of podnet), ask 1; it blocks PodUtils/podnet@T-103 and the file part of PodUtils/podnet@T-106.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+magic-wormhole derives the transit key from the wormhole key:
+`derive_key(purpose, length)` with the purpose `<appid>/transit-key`. The
+`Wormhole` of `pod-wormhole` gives no such call, and the key is private.
+podnet now sends a random transit key inside its sealed `transit` message:
+this works podnet to podnet, but a Python `wormhole` client cannot read it,
+so a file or a directory does not move between podnet and Python. podnet
+asks for `Wormhole::derive_key(purpose: &str, len: usize) -> Vec<u8>`
+(HKDF-SHA256 of the shared key, as magic-wormhole's `derive_key`).
+
+## Premise
+
+- Read 2026-11-14, magic-wormhole at
+  `657bd5d51c67db2109219ff57b7d997afa57261f` (its default branch):
+  magic-wormhole/magic-wormhole:src/wormhole/_key.py,
+  `derive_key(key, purpose, length=SecretBox.KEY_SIZE)` returns
+  `HKDF(key, length, CTXinfo=purpose)`;
+  magic-wormhole/magic-wormhole:src/wormhole/util.py, `HKDF(skm, outlen,
+  salt=None, CTXinfo=b"")` is RFC 5869 HKDF with SHA-256: no salt, the
+  purpose as the info. magic-wormhole/magic-wormhole:src/wormhole/wormhole.py,
+  `derive_key(self, purpose, length)` takes a `str`, raises `NoKeyError`
+  with no key, and gives `derive_key(self._key, to_bytes(purpose), length)`;
+  `to_bytes` is the UTF-8 of the NFC form.
+  magic-wormhole/magic-wormhole:src/wormhole/test/test_keys.py,
+  `test_derive_key`: the key `588ba9ee...131ef1` gives
+  `835b5df8...ee1b2a` for `purpose1` (32 bytes) and `f2238e84315b47eb6279`
+  for `purpose2` (10 bytes).
+- The release 0.24.0 of the Python library (`scripts/ci/wormhole-servers.txt`)
+  has the same `derive_key`, and gives the same two vectors here.
+- `crates/pod-wormhole/src/wormhole.rs` makes the key of each phase with
+  HKDF-SHA256 and no salt already (`phase_key`).
+
+## Approach
+
+`wormhole::derive_key(&key, purpose, len)`: HKDF-SHA256, no salt, the
+purpose as the info, `len` bytes in a `Zeroizing<Vec<u8>>`; `None` past
+`DERIVED_MOST` (255 blocks of 32, the bound of HKDF-SHA256).
+`Wormhole::derive_key(&self, purpose: &str, len)` over the agreed key:
+`Failed::Broken` before `agree`, `Failed::Mine` past the bound (call C294).
+A unit test with the vectors of `test_keys.py`; the test of two ends over
+each mailbox derives one key at both ends and another for another purpose;
+the peer of the Python library prints its transit key
+(`APPID/transit-key`, 32 bytes), and the two tests of the library compare
+it with this crate's. The plant `wormhole-derived-key-salted` gives the
+purpose as the salt.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+sh scripts/plant-each.sh wormhole-derived-key-salted
+```
+
+## Done
+
+2026-11-14, commit 8924ae3.
+`Wormhole::derive_key(purpose, len)` gives
+`Result<Zeroizing<Vec<u8>>, Failed>`: `Failed::Broken("no key was agreed")`
+before `agree`, `Failed::Mine` past `DERIVED_MOST` (8160); the pure
+`wormhole::derive_key(&key, purpose, len)` gives `None` past it (C294).
+`cargo test -p pod-wormhole --all-features` with the Python packages of
+`scripts/ci/wormhole-servers.txt` and `POD_WORMHOLE_TEST_SERVER=required`:
+75 passed, 3 ignored (the live ones). New: the unit test
+`a_derived_key_is_magic_wormholes_by_purpose_and_length` (the two vectors
+of magic-wormhole's `test_keys.py`; 0 bytes; the first 32 of 8160 bytes;
+`None` at 8161); `two_ends_of_one_code_agree_a_key_and_move_a_message_each_way`
+derives one transit key at both ends and another for another purpose, on
+the stand-in and on magic-wormhole's mailbox server; each test that uses
+`two` holds `Failed::Broken` before `agree`; the peer of magic-wormhole
+0.24.0 prints its `derive_key("APPID/transit-key", 32)`, and
+`a_peer_of_magic_wormholes_python_library_takes_this_crate_s_code` and
+`this_crate_takes_a_code_that_magic_wormholes_python_library_gives` find
+it equal to this crate's. The plant `wormhole-derived-key-salted` fails
+`a_derived_key_is_magic_wormholes_by_purpose_and_length` (checked by hand:
+FAILED); `sh scripts/plant-each.sh --apply`: 0 stale.
+
+# T-547: `pod-wormhole`: the count of words of a new code in `Config`, as magic-wormhole's `--code-length` (PodUtils/podnet#535)
+
+**Source:** PodUtils/podnet#535 (COORD-072 of podnet), ask 3.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+magic-wormhole takes `--code-length N`. `meet::Ends` and `Config` fix the
+code at 3 words. podnet asks for the count in `Ends` or `Config`, so that
+podnet can give `--words N`.
+
+## Premise
+
+- Read 2026-11-14, magic-wormhole at
+  `657bd5d51c67db2109219ff57b7d997afa57261f`:
+  magic-wormhole/magic-wormhole:src/wormhole/cli/cli.py, `--code-length`
+  (`-c`, NUMWORDS) defaults to 2 for `send` and `receive --allocate` and
+  is `int(...)` with no bound; magic-wormhole/magic-wormhole:src/wormhole/_wordlist.py,
+  `choose_words(length)` draws `length` words, odd first, with no bound. So
+  magic-wormhole takes any count; 0 gives a code with no secret.
+- `crates/pod-wormhole/src/phrase.rs`: `Code::make` draws `WORDS` (3)
+  words; `Code::parse` takes 1 to `WORDS_MOST` (8) words. `meet::opened`
+  and `mqtt::opened` make the code.
+
+## Approach
+
+`Config::words` (default `WORDS`, 3: the default of the crate stays).
+`Code::make(nameplate, words, entropy)` takes the count;
+`phrase::check_words` holds it to `WORDS_LEAST` (2) to `WORDS_MOST` (8)
+and refuses others with `Failed::Mine` (call C295). `meet::opened` checks
+the count before it dials a mailbox, and `mqtt::opened` before a broker.
+A taker reads the count from the code. Tests: a unit test of each count
+and of the bounds; a code of 5 words over each mailbox, and of 6 words over
+each broker, meets and confirms; a count out of bounds fails before a
+dial. The plant `wormhole-code-words-fixed` makes `meet::opened` draw
+`WORDS` words.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+sh scripts/plant-each.sh wormhole-code-words-fixed
+```
+
+## Done
+
+2026-11-14, commit 8e70d5f. `Config::words`
+(default `WORDS`, 3); `Code::make(nameplate, words, entropy)`;
+`phrase::check_words` (2 to 8, else `Failed::Mine`); `meet::opened` and
+`mqtt::opened` refuse a count out of bounds before a dial (C295).
+`cargo test -p pod-wormhole --all-features` with magic-wormhole's mailbox
+server and `POD_WORMHOLE_TEST_SERVER=required`: 78 passed, 3 ignored. New:
+`a_new_code_has_the_words_asked_for_within_its_bounds` (each count from 2
+to 8 is made and parsed back; 0, 1 and 9 are refused);
+`a_code_of_the_words_asked_for_meets_and_a_count_out_of_bounds_reaches_no_mailbox`
+(5 words over the stand-in and magic-wormhole's server; 1 and 9 fail with
+`Failed::Mine` at a URL where nothing listens);
+`a_code_of_the_words_asked_for_pairs_at_a_broker_and_a_count_out_of_bounds_reaches_none`
+(6 words over the stand-in broker). The plant `wormhole-code-words-fixed`
+fails the test of the mailboxes (checked by hand: "left: 3, right: 5").
+`examples/static-probe/src/main.rs` calls `Code::make` with `WORDS` (the
+commit after 8c2d5ad; 8e70d5f left it with the old signature).
+
+# T-546: `pod-wormhole`: the stand-in mailbox behind the feature `standin`, for the tests of a consumer (PodUtils/podnet#535)
+
+**Source:** PodUtils/podnet#535 (COORD-072 of podnet), ask 2.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The stand-in mailbox of `pod-wormhole` is private to its tests, and
+`pod-testkit` has none. podnet wrote its own
+(podnet's tests/transfer_harness/mod.rs). podnet asks for one behind a
+feature (for example `standin`), as `pod-wg` and `pod-devtunnel` do.
+
+## Premise
+
+- Read: `crates/pod-devtunnel/Cargo.toml` and `crates/pod-wg/Cargo.toml`
+  (a feature `standin`, a module `src/standin.rs` under
+  `#[cfg(feature = "standin")]`, the tests that need it under
+  `required-features`); `scripts/check-probe.py` (each feature is in a
+  static probe or in ALLOWED: the probe turns on `standin` of `pod-wg` and
+  `pod-devtunnel`, as it runs a client against them).
+- The stand-in of the tests of this crate (tests/harness/stand_in.rs at
+  `8e70d5f`) uses `pod-proxy` (the head of the upgrade), the server half
+  of `pod-ws`, and tokio's `net`, `io-util`, `sync` and `rt`. Each test
+  file of the crate includes the harness. `pod-relay` keeps a copy of the
+  same file (`crates/pod-relay/tests/mailbox_harness/`).
+
+## Approach
+
+`src/standin.rs` under the feature `standin` (the optional `pod-proxy` and
+tokio's features): `start()` and `scripted(script)` give an `io::Result`,
+and no call panics (call C296). The harness of the tests re-exports it with
+wrappers that fail the test; each test file has `required-features =
+["standin"]`, and the plants and `scripts/ci/mosquitto-tests.sh` run with
+`--features standin`. `pod-relay`'s harness takes it as a dev-dependency in
+place of its copy. `scripts/check-probe.py`: ALLOWED, as no binary needs it.
+The plant `wormhole-standin-not-crowded` lets a third side claim a
+nameplate on the stand-in.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --features standin
+cargo test -p pod-relay --all-features --test pair_code
+python3 scripts/check-probe.py
+sh scripts/plant-each.sh wormhole-standin-not-crowded
+```
+
+## Done
+
+2026-11-14, commit dc122c6.
+`pod_wormhole::standin` (feature `standin`): `start()`, `Stand` (`url`,
+`moods`, `tamper`, `nameplates`), `scripted(script)`, `welcome()`; no
+`unwrap` (C296). `tests/harness/` re-exports it; the six test files have
+`required-features = ["standin"]`; the plants of the group `wormhole` and
+`scripts/ci/mosquitto-tests.sh` run with `--features standin`.
+`pod-relay`'s `tests/mailbox_harness/` takes it as a dev-dependency, and its
+copy is gone. `python3 scripts/check-probe.py --no-tree`: 0 faults (the
+feature is in ALLOWED). `cargo test -p pod-wormhole --all-features` with
+magic-wormhole's mailbox server: 78 passed, 3 ignored; `cargo test -p
+pod-wormhole` with no feature: the 37 unit tests;
+`cargo test -p pod-relay --all-features --test pair_code`: 10 passed. The
+plant `wormhole-standin-not-crowded` fails
+`a_third_end_is_refused_while_two_hold_the_code` on the stand-in (checked
+by hand: "a third end of the code was not refused").
+
+# T-548: `pod-services`: magic-wormhole's TCP transit relay as a service of the kind `transit`, with the watch `transit-relay` (PodUtils/podnet#535)
+
+**Source:** PodUtils/podnet#535 (COORD-072 of podnet), ask 4.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`pod-services` lists the WebSocket transit relay of Least Authority only.
+magic-wormhole's default transit relay is
+`tcp:transit.magic-wormhole.io:4001`. podnet asks for it as a `transit`
+service (with its measurement), so that podnet adds no host of its own
+(podnet's ruling: Services crate).
+
+## Premise
+
+- Read 2026-11-14: magic-wormhole/magic-wormhole:src/wormhole/cli/public_relay.py
+  at `657bd5d51c67db2109219ff57b7d997afa57261f`, `TRANSIT_RELAY =
+  "tcp:transit.magic-wormhole.io:4001"`;
+  magic-wormhole/magic-wormhole-transit-relay:src/wormhole_transit_relay/transit_server.py
+  at `6d50be62c118df74d8f0a042662fbc407dfd5849`: each end sends
+  `please relay TOKEN for side SIDE\n` (TOKEN 64 hex digits, SIDE 16); the
+  relay answers `ok\n` to both when the two ends of a token come, then
+  carries the bytes of each to the other.
+- `crates/pod-services/services/leastauthority-transit.toml`: the kind
+  `transit`, the endpoint `relay` (`wss`), the watch `websocket-upgrade`;
+  the kind has no table of facts. No watch kind speaks the handshake of a
+  transit relay.
+- Not measured: the relay from a GitHub runner (the egress of this
+  session is an HTTPS proxy; the first run of `services.yml` measures it).
+  The watch was run against magic-wormhole-transit-relay 0.5.0 on the
+  loopback.
+
+## Approach
+
+`services/magic-wormhole-transit.toml`: the endpoint `relay` (`tcp`,
+`transit.magic-wormhole.io`, 4001), no rank, the watches `github-file`
+(`public_relay.py` names the host) and `transit-relay`. The new watch kind
+`transit-relay` is both ends: two connections of one random token each get
+`ok`, and a line of the run from the first comes out of the second. The
+kind `transit` gets a table in `schema::kind_facts`: the endpoint `relay`,
+no fact; the scheme of the endpoint tells TCP from WebSocket (call C297).
+Tests against a transit relay of the test, against bad relays, and against
+magic-wormhole's own relay in `scripts/ci/mailbox-tests.sh`. The plant
+`services-transit-bytes-not-compared`. A row L40 in `docs/live-calls.md`.
+
+## Prove
+
+```sh
+cargo test -p pod-services -p pod-services-watch --all-features
+sh scripts/plant-each.sh services-transit-bytes-not-compared
+cargo run -q -p pod-services-watch -- --service magic-wormhole-transit
+```
+
+## Done
+
+2026-11-14, commit 8c2d5ad. The service
+`magic-wormhole-transit` (kind `transit`; `relay`: `tcp`,
+`transit.magic-wormhole.io`, 4001; no rank), the watch kind
+`transit-relay` (`crates/pod-services-watch/src/transit.rs`), the table of
+the kind `transit` (C297), the row L40 of `docs/live-calls.md`.
+`cargo test -p pod-services -p pod-services-watch --all-features`: 97 and
+73 passed. `tests/watches/transit.rs`:
+`transit_relay_pairs_two_ends_and_carries_the_bytes_of_one_to_the_other`
+(a relay of the test holds; relays that carry nothing, carry other bytes
+or answer `impatient`, and an endpoint of `wss`, fail with their words);
+`transit_relay_holds_against_magic_wormholes_own_relay` passed against
+magic-wormhole-transit-relay 0.5.0 on the loopback
+(`POD_WORMHOLE_TEST_SERVER=required`). The plant
+`services-transit-bytes-not-compared` fails the first test (checked by
+hand). `cargo run -q -p pod-services-watch -- --service
+magic-wormhole-transit` here: `github-file` holds (`public_relay.py` holds
+the host); `transit-relay` failed with a reset after the dial, as the
+egress proxy of this session takes no TCP to port 4001. The first run of
+`services.yml` on a GitHub runner is the live measurement.
+
+# T-550: `pod-wormhole`: Nostr's ephemeral events as a meeting point of the pairing by a code (PodUtils/podssh#235)
+
+**Source:** PodUtils/podssh#235 (COORD-058 of podssh; PodUtils/podssh@T-545)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A pairing by a short code meets at magic-wormhole's mailboxes, then at the
+public MQTT brokers (`pod_wormhole::mqtt`, T-261). podssh's ruling Q77
+adds two more meeting points, in this order after the mailboxes. The first
+is Nostr's ephemeral events: an event kind of the ephemeral range (20000
+to 29999), tagged from the code's nameplate, at public relays over
+`wss://` on 443. A peer subscribes with a filter for that tag, and the
+code's PAKE messages go as the events' content. The ask:
+
+- In `pod-wormhole`: the transport beside `mqtt`.
+- In `pod-services`: the public Nostr relays, of a new kind, with the
+  facts that say whose they are.
+- In `pod-relay`'s runs of a code: the places in order (mailboxes, Nostr,
+  trackers, brokers, as Q77 ruled), with the third party's line before
+  the first byte, as `BROKER_WORDS` does.
+- Tests against a stand-in or the software's own server (a Nostr relay
+  such as `nostr-rs-relay`), and one short live pairing from GitHub
+  Actions.
+
+## Premise
+
+- Read: `crates/pod-wormhole/src/mqtt.rs`. A broker is a `Place`
+  (`place.rs`) that says the messages of the mailbox (`wormhole.rs`):
+  SPAKE2 keyed by the whole code, then sealed phases. The topic comes from
+  the AppID and the nameplate alone (`mqtt::topic`), never from the words;
+  the giver draws the nameplate (`mqtt::nameplate`); each end reads the
+  topic with the tag of its direction (`Role::topics`); the taker sends
+  its messages again each `RESEND` until the giver answers, as a message
+  at QoS 0 that reaches no subscriber is gone.
+- Read: `crates/pod-relay/src/code/run.rs`. `Ends` has the mailboxes,
+  then the brokers; the event `relay.code.broker` with `BROKER_WORDS`
+  comes before the first broker.
+- Known, not read for this entry: NIP-01 of Nostr. A client sends
+  `["EVENT", event]`, `["REQ", id, filter]` and `["CLOSE", id]`; a relay
+  sends `["EVENT", id, event]`, `["OK", ...]`, `["EOSE", id]` and
+  `["NOTICE", ...]`. An event's id is the SHA-256 of
+  `[0, pubkey, created_at, kind, tags, content]`, and its `sig` is a
+  BIP-340 Schnorr signature on secp256k1 by `pubkey`. A relay keeps no
+  event of the ephemeral range; it gives one to the subscribers of the
+  moment. A relay's NIP-11 document (`Accept: application/nostr+json`)
+  states its limits (`max_message_length`, `max_subscriptions`,
+  `min_pow_difficulty`, `auth_required`, `payment_required`).
+- The workspace has no secp256k1 Schnorr signer. Not measured: a public
+  relay, from this sandbox.
+
+## Approach
+
+1. Read first: NIP-01, NIP-11, NIP-13 and NIP-42 at pinned commits of
+   `nostr-protocol/nips`, and the source of `nostr-rs-relay` at the tag
+   of the stand-in: the size limit of an event, the rate limits, and
+   which public relays need neither proof of work nor AUTH.
+2. `pod_wormhole::nostr`, beside `mqtt`, over `pod-ws` (`wss://`, 443):
+   a key of secp256k1 made for each pairing (a pure-Rust signer, which
+   links statically, with a call for the new dependency), events of one
+   ephemeral kind, one single-letter tag whose value is `mqtt::topic` of
+   the nameplate with the tag of the direction, and a `REQ` with that tag,
+   the kind and `since` at the code's start. The content is the message of
+   the mailbox, as `mqtt::Broker` carries it. The taker sends again each
+   `RESEND` until the giver answers. `Place` gains the relay; the
+   ends of `meet.rs` take the relays in order.
+3. `pod-services`: the kind `nostr-relay` (endpoint `relay`, `wss`,
+   443), with the facts of each relay's NIP-11 document and its party;
+   watches: `websocket-upgrade` and an `http-json` of the NIP-11
+   document; a table of the kind in `pod-services-watch` (`kind_facts`).
+4. `pod-relay`: `Ends` takes an ordered list of places of each kind; the
+   runs try the mailboxes, Nostr, the trackers (T-551), then the brokers
+   (Q77), with an event before the first relay, `NOSTR_WORDS`, as
+   `BROKER_WORDS`. podssh's glue gives the switches.
+5. Tests: an offline stand-in relay for `cargo test` (the tag filter, an
+   event of another nameplate not delivered, a bad signature refused), and
+   `nostr-rs-relay` at a pinned tag in CI, as `scripts/ci/mosquitto-tests.sh`
+   runs Mosquitto. A plant: the tag from a constant, and the test of two
+   codes fails. One short live pairing through each public relay of the
+   catalog in `live.yml`.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+cargo test -p pod-relay --all-features --test pair_code
+cargo test -p pod-services --all-features
+cargo test -p pod-wormhole --all-features --test live -- --ignored
+```
+
+# T-551: `pod-wormhole`: WebTorrent's trackers as a meeting point of the pairing by a code (PodUtils/podssh#235)
+
+**Source:** PodUtils/podssh#235 (COORD-058 of podssh; PodUtils/podssh@T-695)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The second meeting point of podssh's ruling Q77, after Nostr (T-550) and
+before the MQTT brokers: WebTorrent's trackers. A tracker passes any JSON
+between the peers of one `info_hash`, as offers and answers (podssh's
+docs/carriers.md, the verdict of PodUtils/podssh@T-546). The `info_hash`
+comes from the nameplate (20 characters), with a random `peer_id`. The
+waiting end announces with no offer and announces again each interval; the
+other end sends the messages as offers, and the answers carry the replies.
+Each message carries the nameplate's tag, and a lost one is sent again; no
+copy is kept, so a message that reaches no peer must be repeated. The ask:
+
+- In `pod-wormhole`: the transport beside `mqtt`.
+- In `pod-services`: the public trackers, of a new kind, with the facts
+  that say whose they are. PodUtils/podssh@T-546 found each default
+  tracker listed as "Questionable Content" in a filter list; podssh's
+  manual says so, from a fact of the catalog.
+- In `pod-relay`'s runs of a code: the place in Q77's order, with the
+  third party's line before the first byte.
+- Tests against `webtorrent/bittorrent-tracker` at a pinned release, and
+  one short live pairing from GitHub Actions.
+
+## Premise
+
+- Read: `crates/pod-wormhole/src/mqtt.rs` and
+  `crates/pod-relay/src/code/run.rs`, as T-550 says.
+- Read through web.pkgforge.dev on 2026-11-14: the newest release of
+  `webtorrent/bittorrent-tracker` is `v11.2.3` (2026-05-25).
+- Known, not read for this entry: the WebSocket protocol of
+  bittorrent-tracker. A client sends `{"action":"announce", "info_hash",
+  "peer_id", "numwant", "offers":[{"offer", "offer_id"}], ...}`; the
+  tracker gives each offer to other peers of the `info_hash` with the
+  sender's `peer_id`; a peer's `answer` with `to_peer_id` and `offer_id`
+  goes to that peer; an announce answer names the `interval`. The
+  `info_hash` and the `peer_id` are 20 characters each. A giver can speak
+  only in an answer to an offer.
+- Not measured: a public tracker, from this sandbox.
+
+## Approach
+
+1. Read first: `server.js`, `lib/server/parse-websocket.js` and
+   `lib/server/swarm.js` of bittorrent-tracker at `v11.2.3` (or the
+   release of the start): the checks of an offer and an answer, the most
+   offers of one announce, the size of a message, and the interval.
+2. `pod_wormhole::tracker`, beside `mqtt`, over `pod-ws`: the
+   `info_hash` is 20 characters from `mqtt::topic` of the nameplate (a
+   hash, in hex), never from the words; a random `peer_id` for each
+   pairing. The giver announces with no offer, again each interval. The
+   taker sends each message of the mailbox as an offer, with the tag of
+   the nameplate, and again each `RESEND` until it has the answer; the
+   giver answers each offer with its next message or an empty one, so
+   that the taker's offers carry the giver's words back. `Place` gains the
+   tracker.
+3. `pod-services`: the kind `webtorrent-tracker` (endpoint `tracker`,
+   `wss`, 443), with each tracker's party, and the fact of the filter list
+   (its name, its category, the date of the read; PodUtils/podssh@T-546)
+   that podssh's manual shows; watches: `websocket-upgrade`.
+4. `pod-relay`: the place after Nostr and before the brokers (Q77), with
+   an event `TRACKER_WORDS` before the first tracker.
+5. Tests: an offline stand-in tracker for `cargo test` (two `info_hash`
+   values kept apart, a lost offer sent again), and bittorrent-tracker at
+   the pinned release in CI from a hashed npm lock file. A plant: the
+   giver that answers with no message, and the test of the exchange
+   fails. One short live pairing through each public tracker of the
+   catalog in `live.yml`.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+cargo test -p pod-relay --all-features --test pair_code
+cargo test -p pod-services --all-features
+cargo test -p pod-wormhole --all-features --test live -- --ignored
+```
+
+# T-554: `pod-wormhole`: an ntfy topic as a meeting point of the pairing where a proxy refuses the WebSocket upgrade (PodUtils/podssh#237)
+
+**Source:** PodUtils/podssh#237 (COORD-060 of podssh; PodUtils/podssh@T-496)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each meeting point of the pairing by a code is a WebSocket: the mailboxes
+of magic-wormhole, and the MQTT brokers over a WebSocket. Behind a proxy
+that refuses the upgrade, a node and an operator cannot pair, though the
+Piping Server road carries their sessions there afterwards. podssh read
+(its docs/carriers.md, "Meeting points", 2026-11-02): ntfy.sh can be used
+with no account, under rate limits, and its topics are public; its limits
+are 4,096 bytes a message, 60 requests at once then one each 5 s, and 250
+messages a day; a topic is read as a JSON stream by a GET (`TOPIC/json`),
+polled with `poll=1` and `since=`, and written by a POST; the server is
+Apache-2.0 and GPLv2, and release v2.36.0 publishes `checksums.txt`. The
+ask:
+
+- In `pod-wormhole`: a transport of the code's messages over an ntfy
+  topic. Each message is one JSON body of a side, a phase and the payload,
+  under 4,096 bytes. The topic derives from the nameplate alone, never
+  from the words that SPAKE2 takes. The other side's messages are read as
+  a JSON stream with `since=` at the code's start. One connection: on
+  HTTP/2 the stream's GET and the POSTs share it; on HTTP/1.1 a poll and a
+  POST take turns.
+- In `pod-relay`'s runs of a code: after the mailboxes, or first where a
+  probe found the upgrade refused (as the Piping Server road is), with the
+  third party's line before the first byte. podssh's glue gives the switch
+  (`PODSSH_PAIR_NTFY`).
+- In `pod-services`: ntfy.sh, of a new kind, with its limits as facts.
+- Tests against ntfy's own server (v2.36.0, checked against its
+  `checksums.txt`), and one short live pairing from GitHub Actions.
+
+## Premise
+
+- Read: `crates/pod-wormhole/src/mqtt.rs` and
+  `crates/pod-relay/src/code/run.rs`, as T-550 says;
+  `crates/pod-relay/src/http_road/mod.rs` says how a run learns that the
+  upgrade was refused.
+- Read: the client of `pod-proxy` speaks HTTP/1.1; `h2` is in the
+  workspace (`pod-link`'s `h2` carrier, `pod-dns`'s DoH).
+- Read through web.pkgforge.dev on 2026-11-14: the newest release of
+  `binwiederhier/ntfy` is `v2.37.2` (2026-11-04), with `checksums.txt`;
+  `v2.37.0` and `v2.37.1` came on 2026-11-02.
+- Not measured: ntfy.sh, from this sandbox.
+
+## Approach
+
+1. Read first: ntfy's documents of publishing and subscribing and its
+   server's limits at the tag of the stand-in: the JSON stream and its
+   `since=` (a time or a message id), `poll=1`, the size of a message,
+   and the rate limits of a visitor with no account.
+2. `pod_wormhole::ntfy`, beside `mqtt`, over HTTPS on 443: the topic is
+   `mqtt::topic` of the nameplate with the tag of the direction, never
+   from the words. Each message of the mailbox is one POST of a JSON body
+   (side, phase, payload) under 4,096 bytes; a longer one fails before
+   the send. The reader takes the other side's messages from
+   `TOPIC/json?since=START` and drops its own. On HTTP/2 (ALPN `h2`, over
+   `h2` as the DoH of `pod-dns` does) one connection holds the stream and
+   the POSTs; on HTTP/1.1 one connection polls (`poll=1`, `since=` of the
+   last id) and posts in turns, within the rate limit. `Place` gains the
+   topic.
+3. `pod-services`: the kind `ntfy-server` (endpoint `server`, `https`,
+   443) with `message-bytes-most`, `requests-burst`,
+   `request-refill-seconds`, `messages-per-day` and `account-required`,
+   each from its source; watches: `http-status` of the root and an
+   `http-text` of the document of the limits.
+4. `pod-relay`: the place after the mailboxes, or first where the run
+   found the upgrade refused, with an event `NTFY_WORDS` before the first
+   byte, as `BROKER_WORDS`. With T-550 and T-551, the default order is
+   the mailboxes, ntfy, Nostr, the trackers, the brokers; podssh's glue
+   can give another.
+5. Tests: an offline stand-in of the two routes for `cargo test` (a
+   message of 4,097 bytes refused, the poll after `since=`, the turns on
+   HTTP/1.1), and ntfy's server at v2.36.0 or newer in CI, its archive
+   checked against `checksums.txt` before it runs. A plant: the topic
+   from the whole code, and the test that the topic holds no word fails.
+   One short live pairing through ntfy.sh in `live.yml`.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+cargo test -p pod-relay --all-features --test pair_code
+cargo test -p pod-services --all-features
+cargo test -p pod-wormhole --all-features --test live -- --ignored
+```
+
+# T-541: `pod-link`: the dns and icmp carriers stop at the wrap of the sequence of the ARQ: `dgram_tls` never calls `rekeyed` (PodUtils/podnet#540)
+
+**Source:** PodUtils/podnet#540 (COORD-074 of podnet, PodUtils/podnet@T-277).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet: "`pod_link::arq` asks for a rekey before its sequence wraps, and holds the frames at the wrap until the caller calls `rekeyed`. [...] The `dns` and `icmp` carriers run the ARQ inside the crate, under `dgram_tls`, and `dgram_tls` never calls `rekeyed`. So a `dns` or an `icmp` link stops at the wrap of one direction, after about 4 TiB of that direction. The sequence of the ARQ is not a nonce (TLS above it has its own), so the answer can be to let the wrap pass." The ask: answer the rekey in `dgram_tls`, and test that a `dns` or `icmp` link over the lossy shim crosses the wrap, with a small sequence space for the test.
+
+## Premise
+
+- Read: `crates/pod-link/src/arq/send.rs` (`rekey_due`, `rekeyed`, `can_send`: a new frame waits at the wrap until `wrap_ok`), `crates/pod-link/src/arq/stream.rs` (the task of `ArqStream`; only `ArqHandle::rekeyed` answers), `crates/pod-link/src/dgram_tls.rs` (the one user of `ArqStream` in the crate: the dns and icmp carriers). The udp carrier runs KCP, not this ARQ.
+- `ArqSettings::start` sets the first sequence, so a test starts 64 frames before the wrap (as `tests/arq.rs`, `the_bytes_wait_at_the_wrap_until_the_rekey`, does).
+- Not measured: a link of 4 TiB.
+
+## Approach
+
+1. `ArqStream::wrap_freely` (in the crate): the task of the ARQ calls `Arq::rekeyed` in its send loop at each ask, before it takes the datagrams to send. A task in `dgram_tls` that waits on `rekey_wanted` would not end with the ARQ, so the answer is in the task of the ARQ.
+2. `dgram_tls::stream` calls it on each ARQ that it starts, with a comment that tells why (call C290).
+3. Tests: a dns link and an icmp link over the `Lossy` shim (3 % loss, reorder, duplicates) start 64 frames before the wrap and move 128 KiB each way. The plant `link-dgram-wrap-waits` removes the call: the transfer stops at the wrap.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test dns_loss --test icmp bytes_cross_the_wrap_of_the_sequence_at_loss
+sh scripts/plant-each.sh link-dgram-wrap-waits
+```
+
+## Done
+
+2026-11-14, commit `59668bb`. `ArqStream::wrap_freely` (in the crate): the task of the ARQ calls `rekeyed` at each ask; `dgram_tls::stream` sets it on each ARQ of the dns and icmp carriers (call C290). `cargo test -p pod-link --all-features`: 183 passed, 2 ignored. `bytes_cross_the_wrap_of_the_sequence_at_loss` (`tests/dns_loss.rs`, `tests/icmp.rs`): the first sequence is 64 frames before the wrap, and 128 KiB cross each way at 3 % loss with reorder and duplicates. The plant `link-dgram-wrap-waits` (the call removed) fails each test after 60 s ("the transfer in time: Elapsed"). No other in-crate user of `ArqStream` exists; the udp carrier runs KCP.
+
+# T-543: `pod-link`: the dns carrier and the TC bit: each answer keeps to the size of its query, and a cut answer does not stall the link (PodUtils/podnet#533)
+
+**Source:** PodUtils/podnet#533 (COORD-071 of podnet, ask 2; PodUtils/podnet@T-278).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet: "A resolver can truncate an answer (the flag `TC`); the client then asks again over TCP/53. The `dns` carrier of v0.40.0 has no such rule. If a resolver on the path truncates the TXT answers of the carrier, the link stalls. Please add the TC rule, or say that the carrier keeps each answer under the size that a resolver does not truncate (and the size)."
+
+## Premise
+
+- Read: `crates/pod-link/src/dns/server.rs` (`drain` fills each answer to `DnsSettings::answer`, 1232, with an OPT record also when the query has none), `crates/pod-link/src/dns/client.rs` (each query sends EDNS0 with `answer`; `txt::read` of a cut answer gives the whole records before the cut; a query that fails gives no datagram, and the ARQ sends again), `crates/pod-dns/src/txt.rs` (`question` gives no EDNS0 size).
+- The listener did not read the size of the query: a resolver that sends no EDNS0 toward the server takes 512 bytes, and the listener sent up to 1232. That resolver then cuts the answer at each batch down.
+- Not measured: a public resolver.
+
+## Approach
+
+1. `pod_dns::txt::asked_size(msg)`: the EDNS0 size of a query, at least 512, or `None` with no OPT record.
+2. The listener keeps each answer to `min(asked or 512, answer)`, and puts an OPT record in an answer only when the query had one (call C291). One datagram always fits in 512 bytes.
+3. The dialer takes the whole records of a cut answer and goes on (`dns::client::datagrams`); no query goes again over TCP/53 (call C292).
+4. Tests: a stand-in resolver on the loopback that removes the OPT record of each query (answers of 512 bytes or less, none with an OPT record), that sends it whole (answers within 1232 and over 512), and that cuts each second answer with the TC bit (the link moves 32 KiB each way). A unit test of the dialer reads a cut answer. Plants: `dns-answer-past-the-query-size`, `dns-cut-answer-dropped`, `dns-txt-asked-size-under-512`.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features --lib a_server_reads_the_size_that_a_query_takes
+cargo test -p pod-link --all-features --test dns_resolver
+cargo test -p pod-link --all-features --lib a_cut_answer_gives_its_whole_records
+sh scripts/plant-each.sh dns-answer-past-the-query-size dns-cut-answer-dropped dns-txt-asked-size-under-512
+```
+
+## Done
+
+2026-11-14, commit `8181d12`. `pod_dns::txt::asked_size` gives the EDNS0 size of a query (at least 512; none with no OPT record). The listener of the dns carrier keeps each answer to that size (512 with none) and to `DnsSettings::answer` (1232), with an OPT record only when the query had one (call C291). The dialer takes the whole records of a cut answer and goes on; no query goes again over TCP/53 (call C292). `cargo test -p pod-dns -p pod-link --all-features`: 264 passed, 6 ignored. `tests/dns_resolver.rs` (a stand-in resolver on the loopback): `a_query_with_no_edns_gets_an_answer_of_512_bytes_or_less`, `a_query_with_edns_gets_an_answer_within_its_size` (answers over 512 and within 1232), `a_cut_answer_does_not_stall_the_link` (each third answer cut, to no record or in its second record; 32 KiB each way); 40 runs in a loop passed. Unit tests: `a_cut_answer_gives_its_whole_records`, `a_server_reads_the_size_that_a_query_takes`. Plants: `dns-answer-past-the-query-size` fails the first test ("an answer of 1206 bytes to a query with no EDNS0"); `dns-cut-answer-dropped` fails `a_cut_answer_gives_its_whole_records` (left `[]`); `dns-txt-asked-size-under-512` fails `a_server_reads_the_size_that_a_query_takes` (left `Some(100)`). The integration test of the cut passes under `dns-cut-answer-dropped` (in 16 s, not 1 s): the ARQ recovers the dropped records, so the unit test is the check of that rule. The plant `dns-down-needs-the-txt` (T-493) moved to `dns::client::datagrams` and fails as before ("the handshake ... took more than 20s").
+
+# T-542: `pod-link`: one typed marker for "the peer refused the key of this end" on each carrier (PodUtils/podnet#533)
+
+**Source:** PodUtils/podnet#533 (COORD-071 of podnet, ask 1; PodUtils/podnet@T-273).
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet: "podnet exits 77 when the peer refuses the key of this end. On `quic`, the refusal reaches podnet only as a `noq::ConnectionError` (a close of the connection), so `src/link.rs` reads that close to find it; without that, podnet exited 69. Please give each carrier one typed marker for 'the peer refused the key of this end' (for example a variant of `pod_link::Error`, or an error kind that each carrier maps to), so that the caller does not read the errors of the transport."
+
+## Premise
+
+- Read: `crates/pod-link/src/carrier.rs` (`CarrierErrorKind::Refused` holds each refusal: the pin of this end, another user, a refusal of the way out, and the refusal of the key of this end), `crates/pod-link/src/pin.rs` (`answer_error` maps the alert of a refused certificate to `Refused`; `tls_error` maps a `pod_tls::peer::Refusal` to `Refused` and an alert to `Io`), `crates/pod-link/src/quic/io.rs` (`connection_error` maps a close with such an alert code to `Refused`), `crates/pod-link/src/poll/lane.rs` (a `Refused` lane is fatal).
+- The tests named `the_listener_refuses_a_client_of_another_key_and_stays_open` and `a_refused_key_is_named_on_each_side` check `Refused` on the dialer: a caller cannot tell the two refusals apart by the kind.
+
+## Approach
+
+1. `CarrierErrorKind::KeyRefused`, of the class `Refused` (77) (call C293).
+2. `pin::answer_error` and `pin::tls_error` map the alert of a refused certificate to it; `quic::io::connection_error` maps the close with that alert code to it. The poll carrier treats it as `Refused`.
+3. Tests: the dialer whose key the listener refused gets `KeyRefused` on tcp, ws, h2, quic, udp, poll, dns and icmp; the listener whose key the dialer refused gets `KeyRefused` where the alert reaches it. Plants: `link-key-refused-untyped`, `link-key-refused-alert-untyped`, `link-quic-key-refused-untyped`.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test tcp_refused --test ws --test h2 --test quic --test udp --test poll --test dns --test icmp refuse
+sh scripts/plant-each.sh link-key-refused-untyped link-key-refused-alert-untyped link-quic-key-refused-untyped
+```
+
+## Done
+
+2026-11-14, commit `8895ca2`. `CarrierErrorKind::KeyRefused` (class `Refused`, 77) is the typed refusal of the key of this end (call C293); `pin::answer_error`, `pin::tls_error` and `quic::io::connection_error` map to it, and the poll carrier ends a lane at it. `cargo test -p pod-dns -p pod-link --all-features`: 264 passed, 6 ignored. The dialer whose key the listener refused gets `KeyRefused` with exit code 77 in `the_listener_refuses_a_client_of_another_key_and_stays_open` (tcp, ws, h2, quic, udp, poll, dns) and `a_refused_key_is_named_on_each_side` (icmp). The listener whose key the dialer refused gets `KeyRefused` in `the_dialer_refuses_a_listener_of_another_key_and_names_it` on tcp, h2, quic and poll. Plants: `link-key-refused-untyped` fails the dialer's check on tcp, ws, h2, udp, poll, dns and icmp ("right: KeyRefused"); `link-key-refused-alert-untyped` fails the listener's check on tcp; `link-quic-key-refused-untyped` fails both checks on quic. Not proven: the listener's side on dns and icmp (the listener reads the end of the stream before the alert: always on dns, at times on icmp), on udp (the handshake of the listener times out) and on ws (the accept gives no error of a handshake); the parent has the finding.
+
+# T-557: `pod-link`: the listener of the dns, icmp, udp and ws carriers gets no `KeyRefused` when the dialer refuses its key
+
+**Source:** T-542 (a finding of its work; PodUtils/podnet#533).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-542 gives `CarrierErrorKind::KeyRefused` to the end whose key the peer refused. When the dialer refuses the key of the listener, the accept of the listener gets it on tcp, h2, quic and poll only:
+
+- dns: the listener always reads the end of the stream before the TLS alert (`Io(UnexpectedEof)`);
+- icmp: the same, at times;
+- udp: the handshake of the listener ends at its time limit (10 s);
+- ws: `accept_key` gives no error for the failed handshake in 30 s.
+
+## Premise
+
+- Read: the report of T-542; `crates/pod-link/src/dgram_tls.rs`, `src/arq/stream.rs`, `src/udp/stream.rs`, `src/ws.rs`.
+- Not measured: whether the alert of the dialer reaches `ArqStream::poll_write`, or KCP, before the stream closes.
+
+## Approach
+
+1. Trace whether the alert reaches `ArqStream::poll_write` when `dgram_tls::connect` fails, and whether the write can return pending; flush it before the end.
+2. udp: flush KCP before the stream drops.
+3. ws: give a failed handshake out through `accept_key`.
+4. Then add the checks of the listener side for the four carriers, with a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+# T-558: `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open
+
+**Source:** T-544 (a finding of its work; PodUtils/podnet#538).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-544 refuses `socket(AF_INET or AF_INET6, SOCK_RAW, ...)` and ping sockets in a held child. A payload with `CAP_NET_RAW` can still send frames out of the host through `socket(AF_PACKET, SOCK_RAW or SOCK_DGRAM, ...)`.
+
+## Premise
+
+- Read: the report of T-544; `crates/pod-hold/src/filter.rs` (`deny_raw`).
+
+## Approach
+
+Add `AF_PACKET` (each type) to the rule, under the opt-in of T-544 or a separate one. Ask podnet by a COORD issue whether `--allow-raw` covers it. A case of the BPF unit test, a test of a held child (`EPERM` with no notification), and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-hold --all-features
+```

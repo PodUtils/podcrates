@@ -1,0 +1,12 @@
+diff --git a/crates/pod-dns/src/txt.rs b/crates/pod-dns/src/txt.rs
+--- a/crates/pod-dns/src/txt.rs
++++ b/crates/pod-dns/src/txt.rs
+@@ -85,7 +85,7 @@
+     for _ in 0..records {
+         let Raw { rtype, class, start, len, .. } = record_at(msg, at).ok()??;
+         if rtype == OPT {
+-            return Some(class.max(PLAIN_SIZE));
++            return Some(class);
+         }
+         at = start + len;
+     }

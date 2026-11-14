@@ -4,4 +4,4 @@
 ENTRY=T-022
 GROUP=wormhole
 EXPECT='test a_wrong_code_ends_both_ends_and_spends_the_code \.\.\. FAILED'
-RUN='cargo test -p pod-wormhole --test mailbox -- a_wrong_code_ends_both_ends_and_spends_the_code'
+RUN='cargo test -p pod-wormhole --features standin --test mailbox -- a_wrong_code_ends_both_ends_and_spends_the_code'

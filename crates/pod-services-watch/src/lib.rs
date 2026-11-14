@@ -29,6 +29,7 @@ mod sha;
 mod ssh;
 mod stun;
 mod tls;
+mod transit;
 mod ws;
 mod xhttp;
 
@@ -183,6 +184,7 @@ kind!(CrateFile, "crate-file", crate_file::check);
 kind!(Rdap, "rdap", rdap::check);
 kind!(OciPing, "oci-ping", oci::ping);
 kind!(OciDigest, "oci-digest", oci::digest);
+kind!(TransitRelay, "transit-relay", transit::relay);
 
 /// Each watch kind of this crate.
 pub fn kinds() -> &'static [&'static dyn Watch] {
@@ -212,6 +214,7 @@ pub fn kinds() -> &'static [&'static dyn Watch] {
         &Rdap,
         &OciPing,
         &OciDigest,
+        &TransitRelay,
     ]
 }
 

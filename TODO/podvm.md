@@ -5893,3 +5893,90 @@ has `/dev/pts`, `/dev/pts/ptmx` opens, and no bind reaches the host; on
 the chroot sequence the open fails with ENOENT. The plant
 `enter-ns-pts-unbound` fails the test; the plant `enter-ns-proc-exec`
 moves to the new module and still fails its test.
+
+# T-544: `pod-hold`: a seccomp rule that refuses a raw socket and an ICMP socket, with an opt-in (PodUtils/podnet#538)
+
+**Source:** PodUtils/podnet#538 (COORD-073 of podnet; PodUtils/podnet@T-334)
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet's message: podnet added the `icmp` carrier of `pod-link`
+(PodUtils/podnet@T-282): a raw `AF_INET`/`SOCK_RAW`/`IPPROTO_ICMP`
+socket, behind `--allow-raw icmp`. The seccomp backend of `pod-hold`
+(podnet's `pod --backend seccomp`) passes a
+`socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)` to the kernel unchanged: no rule
+denies it and no rule emulates it. A program in a pod with `CAP_NET_RAW`
+thus sends ICMP straight out of the host, past the upstream of the pod.
+
+The ask: a rule for `AF_INET`/`AF_INET6` with `SOCK_RAW` (and
+`IPPROTO_ICMP`/`IPPROTO_ICMPV6`): deny it with `EPERM` by default, with an
+opt-in for a caller that gives it (podnet maps `--allow-raw icmp` of the
+pod to it). A test: a raw ICMP socket in a held child gets `EPERM`, and
+with the opt-in it opens. podnet's crates/podnet-netns/src/rules.rs is
+frozen for the take, so podnet does not add the rule itself.
+
+## Premise
+
+- Read: `crates/pod-hold/src/filter.rs`. `Calls::sockets()` stops
+  `socket` with `SECCOMP_RET_USER_NOTIF`, and the consumer's handler
+  answers it. The crate has no rule on the arguments of `socket`.
+- Read: the kernel reads the type of `socket` as an `int` and masks
+  `SOCK_TYPE_MASK` (`0xf`) out of the flags `SOCK_CLOEXEC` and
+  `SOCK_NONBLOCK`; a filter must mask the same.
+- Read: a ping socket (`SOCK_DGRAM` with `IPPROTO_ICMP` or
+  `IPPROTO_ICMPV6`) also sends ICMP out of the host, with no
+  `CAP_NET_RAW`, where `net.ipv4.ping_group_range` lets the group in.
+- Measured on this host: a held child under the seccomp listener runs (no
+  `SKIP:` line), and as root the kernel opens a raw ICMP socket.
+
+## Approach
+
+1. A rule in the BPF program, before the list: `socket(AF_INET or
+   AF_INET6, type & SOCK_TYPE_MASK == SOCK_RAW, any protocol)` and
+   `socket(AF_INET or AF_INET6, SOCK_DGRAM, IPPROTO_ICMP or
+   IPPROTO_ICMPV6)` return `SECCOMP_RET_ERRNO | EPERM` (C301). The kernel
+   answers, so no notification reaches the supervisor.
+2. `Calls::sockets()` has the rule; `Calls::of` has none (a list of the
+   caller); `Calls::allow_raw()` is the opt-in: the call then goes on as
+   each other `socket`, to the supervisor.
+3. Tests: the BPF run of the rule (each family, type with flags, protocol,
+   the high word of an argument, the other calls); a held child with a raw
+   ICMP socket: `EPERM` and no notification by default; with the opt-in,
+   the supervisor sees the call and proceeds with it, and the answer is the
+   kernel's.
+
+## Prove
+
+```sh
+cargo test -p pod-hold --all-features
+sh scripts/plant-each.sh hold-t544-raw-not-denied hold-t544-type-flags-kept
+sh scripts/agent/check-windows.sh
+sh scripts/agent/check-macos.sh
+```
+
+## Done
+
+2026-11-14, commit 456bcd8. `Calls::sockets()` refuses in the kernel,
+with `EPERM`, `socket(AF_INET or AF_INET6, SOCK_RAW with any flag, any
+protocol)` and a ping socket (`SOCK_DGRAM` with `IPPROTO_ICMP` or
+`IPPROTO_ICMPV6`); `Calls::allow_raw()` is the opt-in (C301), and
+`Calls::denies_raw()` says which. podnet maps `--allow-raw icmp` to
+`Calls::sockets().allow_raw()`.
+
+`cargo test -p pod-hold --all-features`: each test passed. New:
+`filter::tests::a_raw_socket_and_an_icmp_socket_get_eperm_unless_allowed`
+(a BPF run of each family, type with flags, protocol, a high word of
+garbage, and the calls after the rule) and, in `tests/hold.rs`,
+`a_raw_icmp_socket_gets_eperm_unless_the_hold_allows_it`: a held child
+gets `EPERM` and the supervisor gets no notification; with the opt-in
+the supervisor sees the `socket` call with `SOCK_RAW`, proceeds with it,
+and the kernel of this host (root) opened the socket. The notification
+tells the filter's answer from the kernel's. Plants, each caught by hand:
+`hold-t544-raw-not-denied` (the held test) and
+`hold-t544-type-flags-kept` (the BPF test). `check-windows.sh` and
+`check-macos.sh`: 0 faults.

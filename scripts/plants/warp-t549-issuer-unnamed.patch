@@ -1,0 +1,11 @@
+--- a/crates/pod-warp/src/tls.rs
++++ b/crates/pod-warp/src/tls.rs
+@@ -48,7 +48,7 @@
+         let got = crate::identity::spki_from_cert(end_entity.as_ref())
+             .ok_or_else(|| rustls::Error::General("unparsable peer certificate".into()))?;
+         if got != self.expected {
+-            let issuer = crate::der::issuer_words(end_entity.as_ref());
++            let issuer = "the door";
+             return Err(rustls::Error::General(format!("{PIN_MISMATCH}; {SHOWN}{issuer}")));
+         }
+         Ok(ServerCertVerified::assertion())

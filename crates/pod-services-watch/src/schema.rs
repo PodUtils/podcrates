@@ -56,7 +56,7 @@ pub fn arguments(kind: &str) -> Option<Arguments> {
         "dns-srv" => args(&["fact", "role"], &[], &[]),
         "dns-addresses" => args(&["role", "facts"], &[], &[]),
         "doh-answer" => args(&["form", "name", "type"], &[], &[]),
-        "stun-binding" | "ssh-banner" => args(&["endpoint"], &[], &[]),
+        "stun-binding" | "ssh-banner" | "transit-relay" => args(&["endpoint"], &[], &[]),
         "websocket-upgrade" => args(&["endpoint"], &[], &["protocol"]),
         "forward-banner" => args(&["template", "target"], &[], &[]),
         "forward-url" => args(&["endpoint"], &[], &["port", "seconds", "prove"]),
@@ -176,6 +176,9 @@ pub fn kind_facts(kind: &str) -> Option<KindFacts> {
                 ("delete", "token-form", &["delete-token-header", "delete-token-field", "delete-fields"]),
             ],
         },
+        // magic-wormhole's transit relays (PodUtils/podnet#535): the scheme
+        // of `relay` tells TCP (`tcp`) from WebSocket (`wss`); no fact.
+        "transit" => KindFacts { endpoints: &["relay"], need: &[], optional: &[], words: &[], when: &[] },
         _ => return None,
     })
 }

@@ -4,4 +4,4 @@
 ENTRY=T-261
 GROUP=wormhole
 EXPECT='test the_taker_sends_its_first_message_again_until_the_giver_answers \.\.\. FAILED'
-RUN='cargo test -p pod-wormhole --test broker -- the_taker_sends_its_first_message_again_until_the_giver_answers --exact'
+RUN='cargo test -p pod-wormhole --features standin --test broker -- the_taker_sends_its_first_message_again_until_the_giver_answers --exact'

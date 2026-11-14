@@ -1,0 +1,95 @@
+# tunnl.gg's SSH tunnels: a last fallback of podssh (PodUtils/podssh@T-567),
+# a random HTTPS name for a remote forward over SSH, with no account and no
+# key. The command output=json writes the tunnel on its first line.
+# Cloudflare's filter files tunnl.gg as "Anonymizer" (podssh's
+# docs/carriers.md, "The verdicts of T-566 and T-567").
+id = "tunnl-gg"
+kind = "ssh-tunnel"
+party = "tunnl.gg (klipitkas/tunnl.gg)"
+about = "tunnl.gg: an HTTPS name for a remote forward over SSH, with no account and no key"
+
+[[endpoint]]
+name = "ssh"
+scheme = "ssh"
+host = "proxy.tunnl.gg"
+port = 22
+source = { url = "https://github.com/klipitkas/tunnl.gg/blob/ea47661c5bc75554a5ec4393636c07241836c0d0/README.md", read = 2026-11-14, note = "ssh -t -R 80:localhost:8080 proxy.tunnl.gg; SSH_ADDR :22 (SSH listen address)" }
+
+# The site of the service: a browser's warning page and the limit page.
+[[endpoint]]
+name = "site"
+scheme = "https"
+host = "tunnl.gg"
+port = 443
+source = { url = "https://github.com/klipitkas/tunnl.gg/blob/ea47661c5bc75554a5ec4393636c07241836c0d0/pkg/server/http.go", read = 2026-11-14, note = "warningURL := fmt.Sprintf(\"https://%s/#/warning?redirect=%s&subdomain=%s\", ...)" }
+
+# The Ed25519 key of the server, as its README publishes it.
+[[fact]]
+name = "host-key-sha256"
+value = "SHA256:5uQ6VobmUpY4wyMmm5jnAwFtt3aX06WYDDM4ER+2WUw"
+source = { url = "https://github.com/klipitkas/tunnl.gg/blob/ea47661c5bc75554a5ec4393636c07241836c0d0/README.md", read = 2026-11-14, note = "The ED25519 key of proxy.tunnl.gg is: SHA256:5uQ6VobmUpY4wyMmm5jnAwFtt3aX06WYDDM4ER+2WUw; also a DNSSEC-signed SSHFP record" }
+
+# Each tunnel is a random name ADJECTIVE-NOUN-HEX under this zone, new at
+# each connection.
+[[fact]]
+name = "tunnel-zone"
+value = "tunnl.gg"
+source = { url = "https://github.com/klipitkas/tunnl.gg/blob/ea47661c5bc75554a5ec4393636c07241836c0d0/pkg/server/ssh.go", read = 2026-11-14, note = "url := fmt.Sprintf(\"https://%s.%s\", sub, s.domain); README: DOMAIN tunnl.gg by default; pkg/subdomain/subdomain.go: adjective-noun-hex" }
+
+[[fact]]
+name = "keepalive-seconds"
+value = 30
+unit = "s"
+source = { url = "https://github.com/klipitkas/tunnl.gg/blob/ea47661c5bc75554a5ec4393636c07241836c0d0/README.md", read = 2026-11-14, note = "ssh -n -T -o ServerAliveInterval=30 -R 80:localhost:3000 stable@proxy.tunnl.gg output=json" }
+
+[[fact]]
+name = "free-tunnel-minutes"
+value = 1440
+unit = "min"
+source = { url = "https://github.com/klipitkas/tunnl.gg/blob/ea47661c5bc75554a5ec4393636c07241836c0d0/README.md", read = 2026-11-14, note = "Max tunnel lifetime: 24 hours, absolute limit; Inactivity timeout: 2 hours" }
+
+# The facts of a forward relay (README, "SSH forward relays"). A shell gets
+# a banner drawn for a terminal; the command output=json gets one JSON
+# line with the URL.
+[[fact]]
+name = "url-match"
+value = ["https://", ".tunnl.gg"]
+source = { url = "https://github.com/klipitkas/tunnl.gg/blob/ea47661c5bc75554a5ec4393636c07241836c0d0/README.md", read = 2026-11-14, note = "{\"event\":\"tunnel\",\"url\":\"https://brave-fox-7c41e09b.tunnl.gg\",\"subdomain\":\"brave-fox-7c41e09b\",...}" }
+
+[[fact]]
+name = "command"
+value = "output=json"
+source = { url = "https://github.com/klipitkas/tunnl.gg/blob/ea47661c5bc75554a5ec4393636c07241836c0d0/README.md", read = 2026-11-14, note = "With output=json, the session prints one JSON object per line instead of the banner; for scripts without a terminal, use -T with output=json" }
+
+[[watch]]
+kind = "ssh-banner"
+endpoint = "ssh"
+
+[[watch]]
+kind = "ssh-host-key"
+endpoint = "ssh"
+fact = "host-key-sha256"
+
+# The command output=json writes a URL that the rule accepts.
+[[watch]]
+kind = "forward-url"
+endpoint = "ssh"
+
+# The README still publishes the host and the key.
+[[watch]]
+kind = "github-file"
+repo = "klipitkas/tunnl.gg"
+path = "README.md"
+endpoint = "ssh"
+
+[[watch]]
+kind = "github-file"
+repo = "klipitkas/tunnl.gg"
+path = "README.md"
+facts = ["host-key-sha256"]
+
+# The domain serves its name. No rdap watch: .gg has no RDAP server in
+# IANA's bootstrap, and rdap.org answers 404.
+[[watch]]
+kind = "tls-name"
+endpoint = "site"

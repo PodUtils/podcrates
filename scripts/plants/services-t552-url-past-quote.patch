@@ -1,0 +1,11 @@
+--- a/crates/pod-services/src/forward.rs
++++ b/crates/pod-services/src/forward.rs
+@@ -212,7 +212,7 @@
+ fn url_of(word: &[u8]) -> Option<&str> {
+     let start = [&b"http://"[..], b"https://"].iter().filter_map(|scheme| find(word, scheme)).min()?;
+     let word = &word[start..];
+-    let end = word.iter().position(|b| NOT_IN_URL.contains(b)).unwrap_or(word.len());
++    let end = word.len();
+     let url = std::str::from_utf8(&word[..end]).ok()?;
+     let url = url.trim_end_matches(['.', ',', ';', ':', '!', '?', ')', ']', '}', '>', '"', '\'']);
+     let (_, host) = url.split_once("://")?;

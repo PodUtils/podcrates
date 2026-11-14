@@ -82,7 +82,8 @@ async fn the_listener_refuses_a_client_of_another_key_and_stays_open() {
     let both = async { tokio::join!(other.dial(&address), door.accept_key()) };
     let (near, far) = timeout(limit(), both).await.expect("the refusal in time");
     let near = near.err().expect("a client of another key dialed");
-    assert_eq!(near.kind, CarrierErrorKind::Refused, "the dialer learns of the refusal at the dial: {near}");
+    assert_eq!(near.kind, CarrierErrorKind::KeyRefused, "the dialer learns of the refusal at the dial: {near}");
+    assert_eq!(near.class().exit_code(), 77);
     assert!(near.to_string().contains(&stranger.public().fingerprint()), "{near}");
     let far = far.err().expect("the listener took a client of another key");
     assert_eq!(far.kind, CarrierErrorKind::Refused, "{far}");

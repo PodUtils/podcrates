@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/forward.rs
++++ b/crates/pod-services-watch/src/forward.rs
+@@ -210,7 +210,7 @@
+     async fn run(&self, handle: &mut Handle<Client>, service: &Service, relay: &Relay<'_>, net: &Net) -> Checked {
+         let method = self.authenticate(handle).await?;
+         let what = format!("the remote forward of port {}", self.port);
+-        let mut channel = if relay.session_first() {
++        let mut channel = if false && relay.session_first() {
+             let channel = self.step("the session channel", handle.channel_open_session()).await?;
+             self.step(&what, handle.tcpip_forward(ADDRESS, self.port)).await?;
+             channel

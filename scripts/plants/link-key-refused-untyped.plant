@@ -1,0 +1,7 @@
+# A dialer whose key the listener refused gets `Refused`, not
+# `KeyRefused`: the caller cannot tell it from a key that this end
+# refused (T-542).
+ENTRY=T-542
+GROUP=link
+EXPECT='right: KeyRefused'
+RUN='cargo test -p pod-link --all-features --test tcp_refused the_listener_refuses_a_client_of_another_key_and_stays_open'

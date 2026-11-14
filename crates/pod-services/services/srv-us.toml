@@ -1,0 +1,83 @@
+# srv.us's SSH tunnels: a last fallback of podssh (PodUtils/podssh@T-566).
+# srv.us derives the HTTPS name of a remote forward from the key of the
+# login and the port of the forward, with no account. A login needs a key,
+# any key. The site publishes no host key: podssh's live run reads it.
+id = "srv-us"
+kind = "ssh-tunnel"
+party = "srv.us (xmit-dev/srv.us)"
+about = "srv.us: an HTTPS name for a remote forward over SSH, derived from the client's key, with no account"
+
+[[endpoint]]
+name = "ssh"
+scheme = "ssh"
+host = "srv.us"
+port = 22
+source = { url = "https://github.com/xmit-dev/srv.us/blob/c153c354fbb622dfa786e73e8f767e50449ba8d1/README.md", read = 2026-11-14, note = "ssh srv.us -R 1:localhost:3000; backend/main.go: sshPort = flag.Int(\"ssh-port\", 22, ...)" }
+
+# The HTTPS port of the server: the pastebin at the root and each tunnel.
+[[endpoint]]
+name = "site"
+scheme = "https"
+host = "srv.us"
+port = 443
+source = { url = "https://github.com/xmit-dev/srv.us/blob/c153c354fbb622dfa786e73e8f767e50449ba8d1/backend/main.go", read = 2026-11-14, note = "httpsPort = flag.Int(\"https-port\", 443, ...); README: curl --data-binary @- https://srv.us" }
+
+# The user nomatch skips the lookups of the GitHub and GitLab keys of a
+# login of that name.
+[[fact]]
+name = "user"
+value = "nomatch"
+source = { url = "https://github.com/xmit-dev/srv.us/blob/c153c354fbb622dfa786e73e8f767e50449ba8d1/backend/main.go", read = 2026-11-14, note = "if *githubSubdomains && conn.User() != \"nomatch\"; README: if they do match but you do not want to use this feature, use ssh nomatch@srv.us" }
+
+# The name hashes the port of the forward: podssh's node and client agree
+# on the port of the README.
+[[fact]]
+name = "remote-port"
+value = 1
+source = { url = "https://github.com/xmit-dev/srv.us/blob/c153c354fbb622dfa786e73e8f767e50449ba8d1/backend/main.go", read = 2026-11-14, note = "endpointURLs: sha256(key.Marshal() || 0 || strconv.Itoa(port)), its first 16 bytes in lower-case base32 with no padding, under the domain; README: ssh srv.us -R 1:localhost:3000" }
+
+# Each tunnel is a name of 26 characters under this zone.
+[[fact]]
+name = "tunnel-zone"
+value = "srv.us"
+source = { url = "https://github.com/xmit-dev/srv.us/blob/c153c354fbb622dfa786e73e8f767e50449ba8d1/backend/main.go", read = 2026-11-14, note = "fmt.Sprintf(\"%s.%s\", b32, *domain); domain = flag.String(\"domain\", \"srv.us\", ...)" }
+
+# The facts of a forward relay (README, "SSH forward relays"). The line of
+# a forward of port P is "P: https://NAME.srv.us/", then the aliases of a
+# GitHub or GitLab login, which nomatch leaves out.
+[[fact]]
+name = "url-match"
+value = ["https://", ".srv.us/"]
+source = { url = "https://github.com/xmit-dev/srv.us/blob/c153c354fbb622dfa786e73e8f767e50449ba8d1/README.md", read = 2026-11-14, note = "1: https://qp556ma755ktlag5b2xyt334ae.srv.us/, https://pcarrier.gh.srv.us/; backend/main.go: msgs <- fmt.Sprintf(\"%d: %s\", payload.BindPort, ...)" }
+
+# The server answers a forward after it writes the line of the forward to
+# a session: a client that waits for the answer before it opens a session
+# waits for ever. A session with no forward after 1 s closes.
+[[fact]]
+name = "session-first"
+value = true
+source = { url = "https://github.com/xmit-dev/srv.us/blob/c153c354fbb622dfa786e73e8f767e50449ba8d1/backend/main.go", read = 2026-11-14, note = "We want to have at least one session opened so we can send messages to it; msgs is unbuffered and its reader waits for outputReadyCh; <-time.After(1 * time.Second): if requested == 0, reportStatus(channel, 1)" }
+
+[[watch]]
+kind = "ssh-banner"
+endpoint = "ssh"
+
+# The banner of a session as the user nomatch, with the forward of the
+# port of the fact remote-port, holds a URL that the rule accepts.
+[[watch]]
+kind = "forward-url"
+endpoint = "ssh"
+port = 1
+
+# The code still skips the lookups for the user nomatch.
+[[watch]]
+kind = "github-file"
+repo = "xmit-dev/srv.us"
+path = "backend/main.go"
+facts = ["user"]
+
+# The domain serves its name. No rdap watch: .us has no RDAP server in
+# IANA's bootstrap, and rdap.org answers 404.
+[[watch]]
+kind = "tls-name"
+endpoint = "site"

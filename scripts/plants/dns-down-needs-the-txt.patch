@@ -1,12 +1,12 @@
 diff --git a/crates/pod-link/src/dns/client.rs b/crates/pod-link/src/dns/client.rs
 --- a/crates/pod-link/src/dns/client.rs
 +++ b/crates/pod-link/src/dns/client.rs
-@@ -177,7 +177,7 @@
-     driver.pending.lock().unwrap_or_else(PoisonError::into_inner).remove(&id);
-     let Ok(Ok(message)) = result else { return Ok(Vec::new()) };
-     match txt::read(&message, id, &name, txt::TXT) {
--        Ok(answer) => Ok(answer.txt()),
-+        Ok(_answer) => Ok(Vec::new()),
-         Err(_) => Ok(Vec::new()),
-     }
+@@ -184,7 +184,7 @@
+ /// query goes again: the ARQ sends the lost datagrams again (call C292). A
+ /// foreign or bad answer gives none.
+ fn datagrams(message: &[u8], id: u16, name: &str) -> Vec<Vec<u8>> {
+-    txt::read(message, id, name, txt::TXT).map(|answer| answer.txt()).unwrap_or_default()
++    txt::read(message, id, name, txt::TXT).map(|_answer| Vec::new()).unwrap_or_default()
  }
+ 
+ #[cfg(test)]

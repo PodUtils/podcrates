@@ -166,7 +166,8 @@ pub fn nameplate(entropy: &mut dyn Entropy) -> Result<String, NoRandom> {
 pub async fn opened(brokers: &Brokers, versions: Value) -> Result<(Wormhole, Code), Failed> {
     let side = new_side()?;
     let plate = nameplate(&mut OsEntropy).map_err(|_| Failed::NoRandom)?;
-    let code = Code::make(&plate, &mut OsEntropy).map_err(|_| Failed::NoRandom)?;
+    // A count of words out of its bounds fails here, before a broker.
+    let code = Code::make(&plate, brokers.config.words, &mut OsEntropy)?;
     let topic = topic(&brokers.config.appid, &plate);
     let mut missed = Vec::new();
     for point in &brokers.points {

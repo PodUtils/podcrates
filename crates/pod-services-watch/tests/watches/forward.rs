@@ -20,7 +20,7 @@ use crate::common::{NAME, endpoint, fact, file, one, text, tls_raw};
 
 /// What the front of the stand-in does with a request.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Front {
+pub(crate) enum Front {
     /// It gives the request to the client through a channel
     /// `forwarded-tcpip`, and the client's answer back.
     Forward,
@@ -36,35 +36,45 @@ const PAGE: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 19\r\nConnection: close
 
 /// What the stand-in does.
 #[derive(Clone, Default)]
-struct Script {
+pub(crate) struct Script {
     /// The banner, one chunk for each message of the channel.
-    chunks: Vec<&'static [u8]>,
+    pub(crate) chunks: Vec<&'static [u8]>,
     /// The end of the shell after the banner.
-    close: bool,
+    pub(crate) close: bool,
     /// The stand-in refuses a key and takes no key.
-    no_key: bool,
+    pub(crate) no_key: bool,
     /// The stand-in refuses a key and no key, and takes keyboard-interactive
     /// after one round with a prompt and an empty answer (Serveo's
     /// anonymous login).
-    interactive: bool,
+    pub(crate) interactive: bool,
     /// The stand-in refuses the remote forward.
-    no_forward: bool,
+    pub(crate) no_forward: bool,
     /// The front, and the URL of it at the end of the banner.
-    front: Option<Front>,
+    pub(crate) front: Option<Front>,
+    /// The stand-in refuses a remote forward before a session channel is
+    /// open (srv.us answers such a forward never).
+    pub(crate) session_first: bool,
+    /// The stand-in writes the banner on a command alone; a shell gets a
+    /// banner with no URL (tunnl.gg with no terminal).
+    pub(crate) command_only: bool,
 }
 
 /// What the stand-in saw of the client.
 #[derive(Debug, Default)]
-struct Seen {
+pub(crate) struct Seen {
     /// The user of each try of the authentication.
-    users: Vec<String>,
+    pub(crate) users: Vec<String>,
     /// The algorithm of the key of the client.
-    key: Option<String>,
+    pub(crate) key: Option<String>,
     /// The address and the port of the remote forward.
-    forward: Option<(String, u32)>,
-    shell: bool,
+    pub(crate) forward: Option<(String, u32)>,
+    pub(crate) shell: bool,
+    /// The command of an `exec` request.
+    pub(crate) command: Option<String>,
+    /// A session channel was open.
+    pub(crate) session: bool,
     /// The requests that the front took.
-    requests: usize,
+    pub(crate) requests: usize,
 }
 
 struct Relay {
@@ -117,8 +127,9 @@ impl server::Handler for Relay {
     }
 
     async fn tcpip_forward(&mut self, address: &str, port: &mut u32, _: &mut Session) -> Result<bool, Self::Error> {
-        self.seen.lock().unwrap().forward = Some((address.to_string(), *port));
-        Ok(!self.script.no_forward)
+        let mut seen = self.seen.lock().unwrap();
+        seen.forward = Some((address.to_string(), *port));
+        Ok(!self.script.no_forward && (seen.session || !self.script.session_first))
     }
 
     async fn channel_open_session(
@@ -127,12 +138,34 @@ impl server::Handler for Relay {
         reply: ChannelOpenHandle,
         _: &mut Session,
     ) -> Result<(), Self::Error> {
+        self.seen.lock().unwrap().session = true;
         reply.accept().await;
         Ok(())
     }
 
+    async fn exec_request(
+        &mut self,
+        channel: ChannelId,
+        data: &[u8],
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.seen.lock().unwrap().command = Some(String::from_utf8_lossy(data).into_owned());
+        self.banner(channel, session)
+    }
+
     async fn shell_request(&mut self, channel: ChannelId, session: &mut Session) -> Result<(), Self::Error> {
         self.seen.lock().unwrap().shell = true;
+        if self.script.command_only {
+            session.channel_success(channel)?;
+            return session.data(channel, b"\x1b[1;32m  Tunnel is live\x1b[0m\r\n".to_vec());
+        }
+        self.banner(channel, session)
+    }
+}
+
+impl Relay {
+    /// The banner of the script, its front and its end.
+    fn banner(&mut self, channel: ChannelId, session: &mut Session) -> Result<(), russh::Error> {
         session.channel_success(channel)?;
         for chunk in &self.script.chunks {
             session.data(channel, chunk.to_vec())?;
@@ -193,7 +226,7 @@ fn serve_front(kind: Front, seen: Arc<Mutex<Seen>>, asks: tmpsc::UnboundedSender
 
 /// A stand-in relay for one session: its port, what it saw, and the end of
 /// the session.
-async fn relay(script: Script) -> (u16, Arc<Mutex<Seen>>, oneshot::Receiver<()>) {
+pub(crate) async fn relay(script: Script) -> (u16, Arc<Mutex<Seen>>, oneshot::Receiver<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("a listener");
     let port = listener.local_addr().expect("an address").port();
     // The host key of the stand-in, made for the test.
@@ -233,7 +266,7 @@ async fn relay(script: Script) -> (u16, Arc<Mutex<Seen>>, oneshot::Receiver<()>)
 /// A relay file: its endpoint, the rule (each of `https://` and
 /// `.tunnel.test`, none of `dashboard.`), `more` facts and the watch with
 /// `args`.
-fn relay_file(id: &str, port: u16, more: &str, args: &str) -> String {
+pub(crate) fn relay_file(id: &str, port: u16, more: &str, args: &str) -> String {
     let body = endpoint("ssh", "ssh", "127.0.0.1", port, "")
         + &fact("url-match", r#"["https://", ".tunnel.test"]"#)
         + &fact("url-skip", r#"["dashboard."]"#)
@@ -244,7 +277,7 @@ fn relay_file(id: &str, port: u16, more: &str, args: &str) -> String {
 }
 
 /// The client ended the session: the stand-in saw its end.
-async fn ended(end: oneshot::Receiver<()>) {
+pub(crate) async fn ended(end: oneshot::Receiver<()>) {
     tokio::time::timeout(Duration::from_secs(10), end).await.expect("the end of the session").expect("an end");
 }
 

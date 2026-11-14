@@ -1,0 +1,35 @@
+# A third public Piping Server, on the free hosting of serv00: a consumer
+# asks it when ppng.io and piping.onrender.com failed (PodUtils/podssh#238).
+id = "serv00-piping"
+kind = "piping"
+party = "a user of serv00 (kokoro), on the free hosting of serv00"
+about = "A public Piping Server on the free hosting of serv00"
+
+[rank]
+value = 2
+source = { ruling = "PodUtils/podssh#238: the ruling Q78 of podssh, a last fallback after piping.onrender.com", read = 2026-11-14 }
+
+[[endpoint]]
+name = "server"
+scheme = "https"
+host = "p.kokoro.serv00.net"
+port = 443
+source = { url = "https://p.kokoro.serv00.net/version", read = 2026-11-14, note = "/version answered 1.12.9; the name with www. serves too (podssh)" }
+
+# The server gives the body of a request to the receiver only when the
+# request ends: a road through it sends numbered pieces, not a stream.
+[[fact]]
+name = "streams-request-body"
+value = false
+source = { measured = "a POST of FIRST, a pause of 6 s, then SECOND: the GET got both lines at 8.1 s, as the POST ended; ppng.io through the same proxy gave FIRST at 2.8 s (PodUtils/podssh#238)", read = 2026-11-14 }
+
+[[fact]]
+name = "note"
+value = "The terms of serv00 forbid tunnels. The ruling Q78 of podssh makes the server a last fallback, whatever its terms."
+source = { ruling = "PodUtils/podssh#238: the ruling Q78 of podssh", read = 2026-11-14 }
+
+[[watch]]
+kind = "http-status"
+endpoint = "server"
+path = "/version"
+status = 200

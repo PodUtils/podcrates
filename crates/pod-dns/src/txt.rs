@@ -68,6 +68,30 @@ pub fn question(msg: &[u8]) -> Result<(u16, String, u16), String> {
     Ok((word(0), name.to_ascii_lowercase(), kind))
 }
 
+/// The EDNS0 size of the query `msg`: the size of its OPT record, at least
+/// 512 (RFC 6891, section 6.2.5). `None` when it has no OPT record: the
+/// answer then takes [`PLAIN_SIZE`] bytes and no OPT record. A message that
+/// ends in its question or its records gives `None`. For a server that
+/// answers [`query`].
+pub fn asked_size(msg: &[u8]) -> Option<u16> {
+    let header = msg.get(..HEADER)?;
+    let word = |at: usize| u16::from_be_bytes([header[at], header[at + 1]]);
+    let mut at = HEADER;
+    for _ in 0..word(4) {
+        let (_, end) = read_name(msg, at).ok()?;
+        at = end + 4;
+    }
+    let records = u32::from(word(6)) + u32::from(word(8)) + u32::from(word(10));
+    for _ in 0..records {
+        let Raw { rtype, class, start, len, .. } = record_at(msg, at).ok()??;
+        if rtype == OPT {
+            return Some(class.max(PLAIN_SIZE));
+        }
+        at = start + len;
+    }
+    None
+}
+
 /// An answer to the query `id` for `name` of type `kind`, with one record
 /// for each item of `records` (each cut into strings of 255 bytes for TXT),
 /// recursion available, no error, and an OPT record of `edns` bytes when

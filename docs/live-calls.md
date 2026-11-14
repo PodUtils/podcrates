@@ -75,7 +75,7 @@ of the workflow.
 
 ### `services.yml`
 
-`crates/pod-services-watch` runs 176 watches of 81 service files each day
+`crates/pod-services-watch` runs 179 watches of 82 service files each day
 and by hand. A watch is a check of a fact of another party: each one is
 **keep live** by its purpose. Its offline tests run each watch kind against
 the stand-ins of `crates/pod-testkit/src/stand.rs`
@@ -94,6 +94,7 @@ the stand-ins of `crates/pod-testkit/src/stand.rs`
 | L20 | `doh`, `doh-answer`, `dns-addresses`, `dns-srv` | Cloudflare, Google, Quad9, argotunnel.com | IPv6: yes, skipped by the route probe | keep live | these watches take the liveness of L1 |
 | L21 | `proxy-banner`, `proxy-list` | 8 Trojan and VLESS nodes; 3 lists on raw.githubusercontent.com | unknown: timeouts in 4 runs | keep live | a "no answer" is a finding on the second run in a row (T-351, call C153) |
 | L37 | `http-text`, `http-status`, `tls-name` of the kind `file-host` | tmpfiles.org, litterbox.catbox.moe, temp.sh, 0x0.st | 0x0.st: yes, its upload answered 429 or 503 at once to a GitHub runner (PodUtils/podssh#230); litterbox's upload answered 412; the reads: no; 0x0.st answers 500 to automated reads, so its watch is `tls-name` alone | keep live | the pages of the facts (with the fields of litterbox's upload form) and the status of a GET of each upload form; no upload: the round trip is L39 (T-416, T-528) |
+| L40 | `transit-relay` | transit.magic-wormhole.io:4001 (TCP) | unknown: the first scheduled run measures it | keep live | magic-wormhole-transit-relay 0.5.0 on the loopback proves the code of the watch (`crates/pod-services-watch/tests/watches/transit.rs`, in `scripts/ci/mailbox-tests.sh`; T-548) |
 | L22 | `scripts/services/edge-facts.sh` (job `measure`) | region1 and region2.v2.argotunnel.com on 7844, 443, 8443, 80 | no | keep live | the facts of the edge that `pod-cloudflare` needs |
 
 ### Other workflows

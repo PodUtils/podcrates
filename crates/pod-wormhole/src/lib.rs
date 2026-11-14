@@ -22,6 +22,8 @@
 //!   the mailbox or the broker under a [`Wormhole`].
 //! * [`phrase`] and [`words`]: the code, the nameplate and the words of the
 //!   PGP list; [`message`]: the pure reading of a mailbox's messages.
+//! * `standin` (feature `standin`): a mailbox on the loopback for the tests
+//!   of this crate and of a consumer.
 //!
 //! **The names are the caller's.** The AppID (nameplates and mailboxes of
 //! another application never meet it), the client's name and version, the
@@ -45,6 +47,8 @@ pub mod message;
 pub mod mqtt;
 pub mod phrase;
 pub mod place;
+#[cfg(feature = "standin")]
+pub mod standin;
 pub mod words;
 pub mod wormhole;
 
@@ -52,5 +56,5 @@ pub use config::Config;
 pub use failed::Failed;
 pub use meet::{Ends, joined, opened};
 pub use message::{hex, unhex};
-pub use phrase::{Code, WORDS};
+pub use phrase::{Code, WORDS, WORDS_LEAST, WORDS_MOST};
 pub use wormhole::Wormhole;

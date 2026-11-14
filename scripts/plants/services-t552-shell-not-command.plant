@@ -1,0 +1,6 @@
+# The watch kind forward-url: a shell in place of the command of the fact command; its test must fail.
+ENTRY=T-552
+GROUP=services
+EXPECT='test forward::forward_url_asks_the_command_of_the_relay \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- forward::forward_url_asks_the_command_of_the_relay --exact'
+LIMIT=1800
