@@ -39,7 +39,10 @@ impl Root {
     ) -> Result<std::result::Result<(), String>> {
         if let Some(l) = self.two() {
             return match l.upper_parent(rel, true)? {
-                Ok((up, name)) => mknod_in(up.0, rel, &name, mode, major, minor, scratch_prefix),
+                Ok((up, name)) => {
+                    let _open = OwnerBits::add(up.0);
+                    mknod_in(up.0, rel, &name, mode, major, minor, scratch_prefix)
+                }
                 Err(why) => Ok(Err(why)),
             };
         }
@@ -47,6 +50,7 @@ impl Root {
             Ok(x) => x,
             Err(why) => return Ok(Err(why)),
         };
+        let _open = OwnerBits::add(parent.fd());
         mknod_in(parent.fd(), rel, &name, mode, major, minor, scratch_prefix)
     }
 
@@ -85,6 +89,21 @@ impl Root {
         }
         let c = cbuf(rel)?;
         Ok(sys::openat2(self.fd(), &c, &in_root(flags, mode)).map(Fd).map_err(|e| format!("{rel}: {}", e.name())))
+    }
+
+    /// The directory of `rel`, each link followed and held in the root.
+    /// `None`: out of reach, or no `openat2`.
+    fn parent_following(&self, rel: &str) -> Result<Option<Fd>> {
+        let parts = Self::parts(rel)?;
+        if !safety::have_openat2() {
+            return Ok(None);
+        }
+        let dir = match parts.split_last() {
+            Some((_, dirs)) if !dirs.is_empty() => dirs.join("/"),
+            _ => ".".to_string(),
+        };
+        let flags = sys::O_RDONLY | sys::O_DIRECTORY | sys::O_CLOEXEC;
+        Ok(sys::openat2(self.fd(), &cbuf(&dir)?, &in_root(flags, 0)).ok().map(Fd))
     }
 
     /// Can the crate reach a DIRECTORY at `rel`, with a follow of the last
@@ -142,7 +161,12 @@ impl Root {
             // The copy of the upper layer: a file of the lower layer is
             // copied up first.
             Some(l) => l.open_write(rel, flags, mode)?,
-            None => self.open_following(rel, flags, mode)?,
+            None => {
+                // A new file needs a directory that the owner can write.
+                let parent = if existed.is_none() { self.parent_following(rel)? } else { None };
+                let _open = parent.as_ref().map(|p| OwnerBits::add(p.0));
+                self.open_following(rel, flags, mode)?
+            }
         };
         let fd = match opened {
             Ok(fd) => fd,
@@ -210,6 +234,7 @@ impl Root {
             return Ok(false);
         };
         let c = cbuf(&name)?;
+        let _open = OwnerBits::add(parent.fd());
         match sys::unlinkat(parent.fd(), &c, 0) {
             Ok(_) => Ok(true),
             Err(e) if e == sys::ENOENT => Ok(false),
@@ -228,6 +253,7 @@ impl Root {
             Err(why) => return Ok(Err(why)),
         };
         let (c, t) = (cbuf(&name)?, cbuf(target)?);
+        let _open = OwnerBits::add(parent.fd());
         Ok(sys::symlinkat(&t, parent.fd(), &c).map(|_| ()).map_err(|e| e.name()))
     }
 }

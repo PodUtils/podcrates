@@ -1,0 +1,7 @@
+# On two layers, a write does not open the closed directory of the upper
+# layer (a copy of etc at 0555), so the replace fails with EACCES (T-604).
+ENTRY=T-604
+GROUP=rootfs
+EXPECT='a fixup failed in a closed directory'
+RUN='cargo test -p pod-rootfs --all-features --lib closed::'
+LIMIT=1800

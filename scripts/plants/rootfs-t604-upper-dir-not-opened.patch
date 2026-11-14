@@ -1,0 +1,10 @@
+--- a/crates/pod-rootfs/src/write/layers/ops.rs
++++ b/crates/pod-rootfs/src/write/layers/ops.rs
+@@ -83,7 +83,6 @@
+             )));
+         }
+         let up = self.upper_dir(&place)?;
+-        let _open = OwnerBits::add(up.0);
+         let c = cbuf(&name)?;
+         if e.upper_holds {
+             clear(up.0, &c, rel)?;

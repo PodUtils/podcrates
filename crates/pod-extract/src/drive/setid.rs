@@ -80,4 +80,15 @@ fn worker_extracts_as_a_user() {
         assert_eq!(*disk, mode, "{p} in a directory of group 0: {disk:04o}, not {mode:04o}");
         assert_eq!(applied.as_deref(), row, "{p}: the sidecar does not record the mode that stayed");
     }
+    // A directory of group 0 too: the pass after the last layer cannot set
+    // S_ISGID on it, and one more row records the mode that stayed (T-605).
+    let sub = shared.join("dirs");
+    std::fs::create_dir(&sub).unwrap();
+    run(&sub, &[layer(&[E::Dir("sg/", 0o2755), E::Dir("plain/", 0o755)])]).unwrap();
+    let got = kept(&sub, &["sg", "plain"]);
+    let want = [("sg", 0o755, Some("0755")), ("plain", 0o755, None)];
+    for ((p, disk, applied), (_, mode, row)) in got.iter().zip(want) {
+        assert_eq!(*disk, mode, "the directory {p} in a directory of group 0: {disk:04o}, not {mode:04o}");
+        assert_eq!(applied.as_deref(), row, "the directory {p}: the sidecar does not record the mode that stayed");
+    }
 }

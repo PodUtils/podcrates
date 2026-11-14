@@ -188,6 +188,46 @@ impl Drop for Dir {
     }
 }
 
+/// A directory opened for the writes of one step: the owner bits go on
+/// through its descriptor when one of them is off, and the mode comes back
+/// on drop.
+///
+/// A finished tree keeps the modes of the image (a directory of 0555), and
+/// a user that owns a directory with no owner write cannot make or remove
+/// an entry in it. The caller keeps the descriptor open until the drop.
+pub struct OwnerBits {
+    fd: i64,
+    was: Option<u32>,
+}
+
+impl OwnerBits {
+    /// Add the owner bits to the directory of `fd` where one is off. A
+    /// failure changes nothing, and it shows at the write that follows.
+    pub fn add(fd: i64) -> OwnerBits {
+        let was = match sys::fstatat(fd, &sys::cempty(), sys::AT_EMPTY_PATH) {
+            Ok(st) if st.st_mode & sys::S_IFMT == sys::S_IFDIR && st.st_mode & 0o700 != 0o700 => {
+                let m = st.st_mode & 0o7777;
+                sys::fchmod(fd, u64::from(m | 0o700)).ok().map(|_| m)
+            }
+            _ => None,
+        };
+        OwnerBits { fd, was }
+    }
+
+    /// The mode that the drop sets back, where the owner bits were added.
+    pub fn was(&self) -> Option<u32> {
+        self.was
+    }
+}
+
+impl Drop for OwnerBits {
+    fn drop(&mut self) {
+        if let Some(m) = self.was {
+            let _ = sys::fchmod(self.fd, u64::from(m));
+        }
+    }
+}
+
 /// Which mechanism resolves a component.
 ///
 /// **Without this enum the walk is dead code on each machine that runs the

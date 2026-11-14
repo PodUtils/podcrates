@@ -11,9 +11,10 @@ use std::collections::BTreeMap;
 
 use pod_hostprobe::sys;
 
-use crate::error::Result;
+use crate::error::{self, Result};
 use crate::remove::Op;
 use crate::safety::{self, Dir};
+use crate::sidecar::Sidecar;
 
 /// The mode of the image of each directory entry of the extraction, by its
 /// path. The last layer that names a directory wins: a later layer can name
@@ -72,7 +73,12 @@ impl DirModes {
     /// `O_NOFOLLOW`: `fchmodat` of the name follows a symlink out of the
     /// tree. A path that is no longer a directory is not the directory of
     /// the image, and the pass skips it.
-    pub fn set(&self, root: &Dir) -> Result<u64> {
+    ///
+    /// The mode is read back: the kernel drops `S_ISGID` with no error where
+    /// the group of the directory is not a group of the process. A mode
+    /// that the kernel did not keep goes into `sidecar` as one more row of
+    /// the directory, with `applied.mode`.
+    pub fn set(&self, root: &Dir, sidecar: &mut Sidecar) -> Result<u64> {
         let mut order: Vec<(&Vec<String>, u32)> = self.0.iter().map(|(p, m)| (p, *m)).collect();
         order.sort_by(|a, b| b.0.len().cmp(&a.0.len()).then_with(|| a.0.cmp(b.0)));
         let mut set = 0;
@@ -88,12 +94,57 @@ impl DirModes {
             let Ok(fd) = sys::openat(parent.fd(), &n, flags, 0) else {
                 continue;
             };
-            if sys::fchmod(fd, u64::from(mode & 0o7777)).is_ok() {
+            let want = mode & 0o7777;
+            if sys::fchmod(fd, u64::from(want)).is_ok() {
                 set += 1;
             }
+            let kept = sys::fstatat(fd, &sys::cempty(), sys::AT_EMPTY_PATH).map(|st| st.st_mode & 0o7777);
             let _ = sys::close(fd);
+            if let Ok(k) = kept
+                && k != want
+            {
+                sidecar.kept_dir(&parts.join("/"), k).map_err(error::io)?;
+            }
         }
         Ok(set)
+    }
+}
+
+/// Add the owner bits to each directory of the tree that an earlier
+/// extraction left at the destination, before the first layer. Give the
+/// number of directories changed.
+///
+/// That tree has the modes of its image: a directory with no owner read
+/// (0311) does not open for the walk of a later entry, and a closed parent
+/// (0555) that the new layers do not name refuses each entry below it. A
+/// later layer that names a directory sets its mode again, and the pass
+/// after the last layer sets the mode of the image.
+///
+/// Each directory opens with `O_NOFOLLOW`, as the removal opens one:
+/// a symlink of the old tree is not followed out of it.
+pub fn open_tree(root: &Dir) -> Result<u64> {
+    let mut changed = 0;
+    open_below(root.fd(), &mut changed);
+    Ok(changed)
+}
+
+fn open_below(fd: i64, changed: &mut u64) {
+    for e in sys::getdents64(fd).unwrap_or_default() {
+        if e.d_type != sys::DT_DIR && e.d_type != sys::DT_UNKNOWN {
+            continue;
+        }
+        let Some(n) = sys::CBuf::new(&String::from_utf8_lossy(&e.name)) else {
+            continue;
+        };
+        let before = sys::fstatat(fd, &n, sys::AT_SYMLINK_NOFOLLOW).map(|st| st.st_mode & 0o7777);
+        let Some(child) = crate::remove::open_closed(fd, &n) else {
+            continue;
+        };
+        if before.is_ok_and(|m| m & 0o700 != 0o700) {
+            *changed += 1;
+        }
+        open_below(child, changed);
+        let _ = sys::close(child);
     }
 }
 

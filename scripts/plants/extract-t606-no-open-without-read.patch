@@ -1,0 +1,11 @@
+--- a/crates/pod-extract/src/remove.rs
++++ b/crates/pod-extract/src/remove.rs
+@@ -202,7 +202,7 @@
+     let flags = sys::O_RDONLY | sys::O_DIRECTORY | sys::O_NOFOLLOW | sys::O_CLOEXEC;
+     let fd = match sys::openat(parent, n, flags, 0) {
+         Ok(fd) => fd,
+-        Err(e) if e == sys::EACCES => {
++        Err(e) if e == sys::EACCES && e != sys::EACCES => {
+             let p =
+                 sys::openat(parent, n, sys::O_PATH | sys::O_DIRECTORY | sys::O_NOFOLLOW | sys::O_CLOEXEC, 0).ok()?;
+             let st = sys::fstatat(p, &sys::cempty(), sys::AT_EMPTY_PATH);

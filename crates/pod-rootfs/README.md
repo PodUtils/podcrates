@@ -19,7 +19,12 @@ writes what the payload reads, before the payload starts. Three rules:
    stop the completion. The CA trust store of the image is the one place
    where the last component is followed, held in the root, as the crate
    adds to a file of the image there. A mode changes through an
-   `O_NOFOLLOW` descriptor, never by name.
+   `O_NOFOLLOW` descriptor, never by name. A directory that the image
+   closed for its owner (`/etc` at 0555) gets the owner bits through its
+   descriptor for one write, and its mode of the image comes back after
+   that write (`pod_extract::safety::OwnerBits`); on two layers this is
+   the directory of the upper layer, a copy-up of the lower one with its
+   mode.
 2. **Each fixup is a row.** A `Report` has one `Fixup` for each file (an
    id, the path, the `Action`, a detail, and `degraded` where the result
    is not what a host with the real thing gives), and the `Step`s: the
@@ -87,7 +92,7 @@ under an emulator.
 | `dev-fd-link` | `/dev/stdin`, `/dev/stdout`, `/dev/stderr`, `/dev/fd` as links into `/proc/self/fd` where absent; a link of the image stays |
 | `resolv.conf` | the resolver of the host, each time (`Settings::host_resolv_conf`) |
 | `hosts` | `localhost`, the container name, the added hosts (`name:address`, split at the first colon; each part one word) |
-| `identity` | a minimal `/etc/passwd` and `/etc/group` where absent; the owner write bit on a read-only file of the image; a file behind a link inside the root stays |
+| `identity` | a minimal `/etc/passwd` and `/etc/group` where absent; the owner write bit on a read-only file of the image; a file behind a link inside the root stays; a degraded row where the image closed `/etc` for its owner, as `useradd` makes its new file and its lock there |
 | `nsswitch` | on glibc, a minimal `nsswitch.conf` where absent, or `files` first on the `passwd` and `group` lines; musl is left alone |
 | `mtab` | where `/etc/mtab` is absent or a link: one line for the file system of the root, from the mount table of the host (`Settings::mounts`), and each mount under the root |
 | `pacman`, `pacman-keyring` | `DownloadUser` lines become comments; with no keyring, two steps (`pacman-key --init`, `--populate`) |
@@ -112,7 +117,7 @@ multiarch directory of them (`*-linux-gnu*`), a `ld-musl-*.so.1` or
 | `HostBundle` | `path`, `announced_by` (the variable that named it), `bytes`; the caller finds it (`pod_oci::trust::host_bundle` does) |
 | `Report`, `Fixup`, `Step`, `Action`, `Libc`, `IDS` | the record; `Report::{degradations, changed, failed}`; `Action::{word, changed}`; `IDS` lists each id |
 | `reach::{Probe, Answer, Fixed, is_name}` | the question of the caller (a `FnMut(&str) -> Answer` is a `Probe`), asked one time for each host; `Fixed` answers with no request |
-| `write::{Root, Kind, Wrote, Reach, READ_LIMIT}` | the door: `open`, `layers`, `path`, `upper`, `written`, `kind`, `read`, `read_text`, `write`, `reach`, `mknod_char`, `char_opens`, `dir_following`, `read_following`, `write_following`, `mkdirs`, `list`, `unlink`, `symlink` |
+| `write::{Root, Kind, Wrote, Reach, READ_LIMIT}` | the door: `open`, `layers`, `path`, `upper`, `written`, `kind`, `read`, `read_text`, `write`, `reach`, `mknod_char`, `char_opens`, `dir_following`, `dir_mode`, `read_following`, `write_following`, `mkdirs`, `list`, `unlink`, `symlink` |
 | `write::{LayerRefusal, layer_refusal}` | what two layers refuse (`Remove`, `Opaque`), the cause of a `Class::Unsupported` failure, and its read from a `Failure` |
 | `devices::{DEVICES, FD_LINKS, FILLED_BYTES, SHIM_HEADROOM_BYTES}`, `pkg::{BUNDLE_PATHS, CAPATH_DIRS, ZYPP_SERVICE_DIRS}`, `sources::{SOURCE_FILES, SOURCE_DIRS}`, `identity::{probe_libc, prepend_files}`, `net::topology` | the tables and the pure parts |
 
@@ -218,6 +223,16 @@ With `host_cas` off, an image with no CA bundle gets no file and a
 `Skipped` degraded row, also when the host gives a bundle, named or not
 (`no_host_cas_writes_no_host_bundle_into_an_image_with_none`, PodUtils/podvm#341).
 The plant: `rootfs-t580-no-bundle-ignores-host-cas`.
+
+The completion of a root whose `/etc` and `/etc/apt` are 0555 writes each
+file (also the new directory `etc/apt/apt.conf.d`), gives no `Failed`
+row, sets 0555 back, and its `identity` row names the closed `/etc`; on
+one root and on two layers
+(`closed::a_closed_etc_is_completed_and_keeps_its_mode`; as root it runs
+`closed::worker_completes_a_closed_etc` as uid 1000). The plants:
+`rootfs-t604-closed-dir-not-opened`, `rootfs-t604-mode-not-set-back`,
+`rootfs-t604-upper-dir-not-opened`, `rootfs-t604-make-in-closed-dir`,
+`rootfs-t604-identity-ignores-the-directory`.
 
 ## Sources
 

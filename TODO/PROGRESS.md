@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 494 entries: 123 open, 8 partial, 5 blocked, 358 done.
+`TODO/INDEX.md` holds 494 entries: 120 open, 8 partial, 5 blocked, 361 done.
 
 ## State
 
@@ -73,7 +73,7 @@ podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
 First: `v0.45.0` with the asks on `main` and in the agents' branches
-(#151, #153, PodUtils/podnet#552). T-604 (`pod-rootfs` with the closed modes of the image, before the tag). The Windows guest of podvm (#152): T-595 and T-596; T-601, T-602,
+(#151, #153, PodUtils/podnet#552). The Windows guest of podvm (#152): T-595 and T-596; T-601, T-602,
 T-603. Then the link carriers
 of M2 for podnet (item 3c): T-526, T-494, T-500 and T-525. Then the items
 below, in order.

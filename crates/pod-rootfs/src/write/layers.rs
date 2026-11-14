@@ -32,7 +32,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use pod_core::{Class, Failure, Stage};
-use pod_extract::safety::Dir;
+use pod_extract::safety::{Dir, OwnerBits};
 use pod_hostprobe::sys;
 
 use super::{Fd, READ_FLAGS, Root, fstat, write_all};
@@ -362,6 +362,7 @@ impl Layers<'_> {
             return Err(refuse(LayerRefusal::Opaque(rel)));
         }
         let up = self.upper_dir(place)?;
+        let _open = OwnerBits::add(up.0);
         let c = cbuf(name)?;
         if e.upper_holds {
             super::clear(up.0, &c, &rel)?;
@@ -395,11 +396,15 @@ impl Layers<'_> {
                 }
                 None => {
                     let cc = cbuf(c)?;
+                    // A copy of a closed directory of the lower layer keeps
+                    // its mode (0555): it opens for this one make.
+                    let open = OwnerBits::add(cur.0);
                     match sys::mkdirat(cur.0, &cc, 0o700) {
                         Ok(_) => {}
                         Err(e) if e == sys::EEXIST => {}
                         Err(e) => return Err(error::sys(format!("cannot copy up the directory {c:?}"), e)),
                     }
+                    drop(open);
                     let u = child_dir(cur.0, c)?
                         .ok_or_else(|| error::policy(format!("{c:?} of the upper layer is not a directory")))?;
                     let mode = match &lc {
@@ -439,6 +444,7 @@ impl Layers<'_> {
             return Err(error::policy(format!("{rel} is not a regular file; the crate does not copy it up")));
         }
         let up = self.upper_dir(place)?;
+        let _open = OwnerBits::add(up.0);
         let flags = sys::O_WRONLY | sys::O_CREAT | sys::O_EXCL | sys::O_NOFOLLOW | sys::O_CLOEXEC;
         let dst = Fd(sys::openat(up.0, &c, flags, 0o600).map_err(|e| error::sys(format!("cannot copy up {rel}"), e))?);
         let copied = copy_bytes(&src, &dst, &rel).and_then(|()| {

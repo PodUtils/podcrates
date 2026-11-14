@@ -7,8 +7,9 @@ use super::*;
 
 const TAR: &str = "application/vnd.oci.image.layer.v1.tar";
 
-/// The variable that makes the worker below run.
+/// The variables that make the workers below run.
 const WORKER: &str = "POD_EXTRACT_TEST_CLOSED_TREE";
+const UNREAD: &str = "POD_EXTRACT_TEST_UNREAD_TREE";
 
 fn mode(p: &std::path::Path) -> u32 {
     use std::os::unix::fs::PermissionsExt;
@@ -148,4 +149,56 @@ fn closed_tree_as_a_user() {
     crate::extract(&settings, DIGEST, &image, &p).unwrap();
     let removed = p.remove().unwrap_or_else(|e| panic!("the removal of a closed tree failed: {}", e.chain()));
     assert!(removed && !p.rootfs.exists(), "the removal of a closed tree left {}", p.rootfs.display());
+}
+
+/// A tree of an earlier extraction with a directory of mode 0311 (no owner
+/// read) and a closed parent that the next layers do not name: a second
+/// extraction passes, and the tree is removed (T-606). As root, the worker
+/// runs as uid 1000.
+#[test]
+fn an_extraction_over_a_tree_that_its_owner_cannot_read_passes() {
+    use std::os::unix::fs::PermissionsExt;
+    if Ids::current().uid != 0 {
+        unread_tree_as_a_user();
+        return;
+    }
+    let s = Scratch::new("unread-child");
+    std::fs::set_permissions(s.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+    user::as_uid_1000(&s, "drive::dirmodes::worker_extracts_over_a_tree_it_cannot_read", UNREAD, "1".as_ref());
+}
+
+/// The half that runs as uid 1000. It does nothing with no [`UNREAD`].
+#[test]
+fn worker_extracts_over_a_tree_it_cannot_read() {
+    if std::env::var_os(UNREAD).is_none() {
+        return;
+    }
+    assert_ne!(Ids::current().uid, 0, "the worker must not run as root: it then proves nothing");
+    unread_tree_as_a_user();
+}
+
+fn unread_tree_as_a_user() {
+    let s = Scratch::new("unread-user");
+    let p = place(&s, DIGEST);
+    let settings = crate::Settings::default();
+    let image = layers(&s, &[&[E::Dir("x/", 0o311), E::File("x/f", b"f", 0o644), E::Dir("p/", 0o555)]]);
+    crate::extract(&settings, DIGEST, &image, &p).unwrap();
+    assert_eq!(mode(&p.rootfs.join("x")), 0o311);
+    crate::extract(&settings, DIGEST, &image, &p)
+        .unwrap_or_else(|e| panic!("an extraction over a directory with no owner read failed: {}", e.chain()));
+    assert_eq!(mode(&p.rootfs.join("x")), 0o311);
+
+    // Another image over the same tree names no `p/`: its file goes into the
+    // closed `p` of the first image.
+    let other = layers(&s, &[&[E::File("p/b", b"b", 0o644)]]);
+    let done = crate::extract(&settings, DIGEST, &other, &p).unwrap_or_else(|e| {
+        panic!("an entry under a closed parent that the layer does not name failed: {}", e.chain())
+    });
+    assert_eq!(std::fs::read(p.rootfs.join("p/b")).unwrap(), b"b");
+    assert_eq!(done.dirs_opened, 2, "x and p");
+
+    crate::extract(&settings, DIGEST, &image, &p).unwrap();
+    let removed =
+        p.remove().unwrap_or_else(|e| panic!("the removal of a tree with a 0311 directory failed: {}", e.chain()));
+    assert!(removed && !p.rootfs.exists(), "the removal left {}", p.rootfs.display());
 }

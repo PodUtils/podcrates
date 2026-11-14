@@ -7288,7 +7288,7 @@ cargo test -p pod-guest --all-features
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7308,6 +7308,30 @@ T-598 gives each directory the exact mode of the image after the last layer. `po
 cargo test -p pod-rootfs --all-features
 ```
 
+## Done
+
+2026-11-14, commit 8d99721. Each write of the completion adds the owner
+bits to its directory through the descriptor where one is off, and sets
+the mode of the image back after the write
+(`pod_extract::safety::OwnerBits`); on two layers the same for the
+directory of the upper layer, a copy-up of a closed directory of the
+lower layer with its mode, and for the copy-up of a directory into a
+closed one. The walk of `Resolve::InRoot` with `make_dirs` opens a
+closed parent for the one `mkdirat`. The `identity` row is degraded where
+`/etc` has no owner write or search, and names its mode (C427).
+`Root::dir_mode` is new. `cargo test -p pod-rootfs --all-features`: 84
+unit tests and 3 integration tests passed, with
+`closed::a_closed_etc_is_completed_and_keeps_its_mode` (a musl root with
+`etc` and `etc/apt` at 0555, as uid 1000: no `Failed` row, `resolv.conf`,
+`hosts`, `mtab` and the new `etc/apt/apt.conf.d` are written, 0555 comes
+back, and the `identity` row names the closed `etc`; on one root and on
+two layers, the lower layer unchanged). `cargo test -p pod-extract
+--all-features`: 70 unit tests passed. Plants
+`rootfs-t604-closed-dir-not-opened`, `rootfs-t604-mode-not-set-back`,
+`rootfs-t604-upper-dir-not-opened`, `rootfs-t604-make-in-closed-dir` and
+`rootfs-t604-identity-ignores-the-directory`, each caught by hand with
+its EXPECT text.
+
 # T-605: `pod-extract`: the sidecar does not record the mode that the kernel kept on a directory
 
 **Source:** T-598 (a finding of its work).
@@ -7315,7 +7339,7 @@ cargo test -p pod-rootfs --all-features
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7335,6 +7359,21 @@ Read back each mode in `DirModes::set` and record `applied.mode` in the row of t
 cargo test -p pod-extract --all-features
 ```
 
+## Done
+
+2026-11-14, commit 06c2327. `DirModes::set` reads the mode of each
+directory back; a mode that the kernel did not keep is one more row of
+the directory in the sidecar with `applied.mode` (`Sidecar::push_dir`,
+`Sidecar::kept_dir`); the last row of a path holds (C429). `cargo test -p
+pod-extract --all-features`: 73 unit tests passed, with the worker of
+`drive::setid` (as uid 1000, a directory of 2755 in a directory of group
+0 keeps 0755, and its last row records `applied.mode` 0755; one of 0755
+gets no second row) and
+`sidecar::tests::a_kept_directory_mode_is_one_more_row_of_the_directory`.
+Plant `extract-t605-kept-dir-mode-not-recorded`, caught by hand with its
+EXPECT text; the patch of `extract-t598-no-pass-after-the-last-layer`
+follows the new signature and is caught again.
+
 # T-606: `pod-extract`: a second extraction over a closed tree fails on a directory with no owner read or under a closed parent that the layer does not name
 
 **Source:** T-598 (a finding of its work).
@@ -7342,7 +7381,7 @@ cargo test -p pod-extract --all-features
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7361,6 +7400,24 @@ Before an extraction into a tree that is not empty, walk the tree once and add t
 ```sh
 cargo test -p pod-extract --all-features
 ```
+
+## Done
+
+2026-11-14, commit ff1fd6f. Before the first layer the extraction adds
+the owner bits to each directory of the tree at the destination
+(`modes::open_tree`, `Extracted::dirs_opened`), each opened with
+`O_NOFOLLOW`; a directory with no owner read gets its mode through the
+`/proc/self/fd` link of an `O_PATH` descriptor. The removal opens a
+directory the same way (C428). `cargo test -p pod-extract
+--all-features`: 72 unit tests passed, with
+`drive::dirmodes::an_extraction_over_a_tree_that_its_owner_cannot_read_passes`
+(as uid 1000: a second extraction over a directory of 0311 passes and
+0311 comes back; an entry under a closed parent that the layer does not
+name lands; `dirs_opened` is 2; `Place::remove` removes the tree). Plants
+`extract-t606-tree-not-opened` and `extract-t606-no-open-without-read`,
+each caught by hand with its EXPECT text; the patch of
+`extract-t598-removal-does-not-open-a-closed-directory` follows the new
+code and is caught again.
 
 # T-609: `pod-broker`: a 502 names the status of the upstream proxy or the dial error, and a 403 of `no-rule` names the half of the rule that failed (PodUtils/podvm#359)
 

@@ -52,6 +52,8 @@ pub mod sources;
 pub mod write;
 
 #[cfg(test)]
+mod closed;
+#[cfg(test)]
 mod testing;
 
 use std::path::{Path, PathBuf};

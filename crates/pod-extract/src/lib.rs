@@ -129,6 +129,9 @@ pub struct Extracted {
     /// How many directories the pass after the last layer set to the mode
     /// of the image ([`modes::DirModes::set`]).
     pub dir_modes: u64,
+    /// How many directories of a tree that was there before the extraction
+    /// got the owner bits ([`modes::open_tree`]).
+    pub dirs_opened: u64,
     /// The first entry that lost an id. The report of the caller names it.
     pub first_dropped: Option<sidecar::FirstDropped>,
 }
@@ -182,6 +185,9 @@ pub fn extract(settings: &Settings, image: &str, layers: &[Layer], place: &Place
     )?;
 
     let root = safety::Dir::open(&rootfs)?;
+    // A tree of an earlier extraction can hold the closed directories of
+    // its image (0555, 0311).
+    let opened = modes::open_tree(&root)?;
     let mut side = sidecar::Sidecar::create(&place.sidecar).map_err(error::io)?;
     let ids = apply::Ids::current();
 
@@ -198,6 +204,7 @@ pub fn extract(settings: &Settings, image: &str, layers: &[Layer], place: &Place
         sidecar_rows: 0,
         ownership_dropped: 0,
         dir_modes: 0,
+        dirs_opened: opened,
         first_dropped: None,
     };
 
@@ -279,7 +286,7 @@ fn extract_layers(
     }
     // One time, after the last layer: the owner bits of a directory let the
     // next layer write, and a later layer can name a directory again.
-    total.dir_modes = dirs.set(root)?;
+    total.dir_modes = dirs.set(root, side)?;
     Ok(())
 }
 

@@ -203,9 +203,8 @@ pub fn apply_layer(
 
         // The sidecar row, for each entry that was made.
         let (applied_uid, applied_gid, reason) = resolve_ids(uid, gid, ids);
-        sidecar
-            .push(&Meta { path: parts.join("/"), uid, gid, mode, applied_uid, applied_gid, reason, applied_mode })
-            .map_err(error::io)?;
+        let row = Meta { path: parts.join("/"), uid, gid, mode, applied_uid, applied_gid, reason, applied_mode };
+        if kind.is_dir() { sidecar.push_dir(&row) } else { sidecar.push(&row) }.map_err(error::io)?;
     }
 
     // The permission pass, after the layer and on what this layer wrote.

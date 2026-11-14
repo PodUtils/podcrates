@@ -163,6 +163,7 @@ fn run_open(dir: &std::path::Path, layers: &[Vec<u8>]) -> crate::Result<u64> {
 
 fn steps(dir: &std::path::Path, layers: &[Vec<u8>], last_pass: bool) -> crate::Result<u64> {
     let root = Dir::open(&dir.to_string_lossy())?;
+    crate::modes::open_tree(&root)?;
     let side = dir.join(".meta.jsonl");
     let mut sc = Sidecar::create(&side).map_err(io)?;
     let mut dirs = DirModes::new();
@@ -175,7 +176,7 @@ fn steps(dir: &std::path::Path, layers: &[Vec<u8>], last_pass: bool) -> crate::R
         dirs.record(&st.dir_modes);
     }
     if last_pass {
-        dirs.set(&root)?;
+        dirs.set(&root, &mut sc)?;
     }
     sc.finish().map_err(io)?;
     Ok(removed)
@@ -194,9 +195,10 @@ fn kept(dir: &std::path::Path, paths: &[&str]) -> Vec<(String, u32, Option<Strin
         .iter()
         .map(|p| {
             let disk = std::fs::symlink_metadata(dir.join(p)).unwrap().permissions().mode() & 0o7777;
+            // The last row of a path holds.
             let row = m
                 .lines()
-                .find(|l| l.contains(&format!(r#""path":"{p}""#)))
+                .rfind(|l| l.contains(&format!(r#""path":"{p}""#)))
                 .unwrap_or_else(|| panic!("no sidecar row for {p} in:\n{m}"));
             let applied = row.split(r#""applied":{"#).nth(1).and_then(|a| a.split('}').next()).unwrap_or("");
             let mode = applied.split(r#""mode":""#).nth(1).map(|v| v[..4].to_string());

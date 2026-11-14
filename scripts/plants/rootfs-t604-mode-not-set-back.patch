@@ -1,0 +1,11 @@
+--- a/crates/pod-extract/src/safety.rs
++++ b/crates/pod-extract/src/safety.rs
+@@ -222,7 +222,7 @@
+ 
+ impl Drop for OwnerBits {
+     fn drop(&mut self) {
+-        if let Some(m) = self.was {
++        if let Some(m) = self.was.filter(|_| false) {
+             let _ = sys::fchmod(self.fd, u64::from(m));
+         }
+     }

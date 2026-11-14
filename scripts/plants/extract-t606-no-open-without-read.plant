@@ -1,0 +1,8 @@
+# A directory with no owner read is not opened through an O_PATH
+# descriptor, so the walk skips it and the next extraction stops there
+# (T-606). The proof runs as uid 1000 when the test runs as root.
+ENTRY=T-606
+GROUP=extract
+EXPECT='an extraction over a directory with no owner read failed'
+RUN='cargo test -p pod-extract --all-features --lib drive::dirmodes'
+LIMIT=1800

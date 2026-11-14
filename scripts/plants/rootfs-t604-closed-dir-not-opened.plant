@@ -1,0 +1,8 @@
+# A write of the completion does not open a closed directory, so
+# etc/resolv.conf and etc/hosts fail with EACCES as a user (T-604). The
+# proof runs as uid 1000 when the test runs as root.
+ENTRY=T-604
+GROUP=rootfs
+EXPECT='a fixup failed in a closed directory'
+RUN='cargo test -p pod-rootfs --all-features --lib closed::'
+LIMIT=1800
