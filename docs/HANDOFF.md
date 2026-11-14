@@ -22,8 +22,9 @@ is done. Git and the record keep finished work.
 - The last release: `v0.40.0` at `1335e9a` (ci 43467923338, adoption
   43467923371, release 43474412563; the hand-off #140, COORD-080): the
   poll, quic, udp, dns and icmp carriers of `pod-link`, `cpu_s` and
-  `peak_rss_mib` of `pod-job`, the forms of the file hosts. The takes of
-  `v0.39.0`: each consumer (#137, closed).
+  `peak_rss_mib` of `pod-job`, the forms of the file hosts. Each consumer
+  took it (#140, closed). `v0.41.0` (the termios mode of `pod-term`) is in
+  release.
 - Each agent of this session is merged into `main`. The open threads of
   this session:
   - T-539 (done, on `main` for the next tag): the termios mode of
@@ -61,7 +62,7 @@ is done. Git and the record keep finished work.
   taken): the rest of its link workstream (#133: T-494, T-500, then group
   d), then T-029 (`pod-cloudflare`) on the chain to WARP (the owner's
   order). Write to podnet by COORD issues only.
-- podssh (on `v0.39.0`, `5228b65`, PodUtils/podssh#229; `pod-warp`
+- podssh (on `v0.40.0`, `61658e4`, PodUtils/podssh#233; `pod-warp`
   taken): the live runs of its PodUtils/podssh@T-737 (the brokers) and
   PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.

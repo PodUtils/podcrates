@@ -1486,3 +1486,33 @@ sh scripts/ci/registry-tests.sh
 ## Done
 
 2026-11-13. `listens` in `tests/common/distribution/server.rs`; `start` takes a new port when the registry ends. `scripts/ci/registry-tests.sh` with the pinned registry: 5 passed.
+
+# T-555: `adoption.yml` at `7122cc7` is red for podssh: its test pins five tox relays, and T-537 left four
+
+**Source:** `adoption.yml` run 43476670647 at `7122cc7` (job `adoption (podssh)`); the same at `3ace9ed` (run 43480013909).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The trial of podssh runs `cargo test -p podssh-cli --features warp --lib`. Its test `tox::tests::the_listed_relays_read_with_their_keys` asks for at least five relays in the service `tox-tcp-relay`. T-537 removed the node at 205.185.115.131, which is down, so the catalog lists four. podssh's main has the same assertion, so podssh's own tests fail when it takes the tag that holds T-537.
+
+## Premise
+
+- Read: the log of job 132062164377; podssh's crates/podssh-cli/src/tox.rs at the commit of the trial (`286e98d3`) and at its main.
+- The catalog is right: the node list of 2026-11-13 gives four nodes with 443 and TCP up.
+
+## Approach
+
+`adoption/podssh/pod-warp.patch` takes a hunk that asks for at least four relays. The notes and the hand-off of `v0.41.0` tell podssh to change its test in the same way.
+
+## Prove
+
+The run of `adoption.yml` at the next head passes for podssh.
+
+## Done
+
+2026-11-14. The hunk is in `adoption/podssh/pod-warp.patch`; `docs/releases/v0.41.0.md` names the change under "Breaking". The adoption run at the next head proves it.
