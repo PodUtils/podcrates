@@ -8,6 +8,8 @@ use std::time::Duration;
 use pod_core::{Events, NoEvents};
 use pod_ws::{Limits, Trust, Way};
 
+use crate::phrase::WORDS;
+
 /// How long a mailbox may take to answer a command.
 pub const ANSWER_LIMIT: Duration = Duration::from_secs(30);
 /// How long the dial of a mailbox, its TLS and its upgrade may take, each.
@@ -37,6 +39,10 @@ pub struct Config {
     pub answer_limit: Duration,
     /// The largest frame and message of a mailbox ([`LIMITS`]).
     pub limits: Limits,
+    /// The words of a new code after its nameplate ([`WORDS`]), as
+    /// magic-wormhole's `--code-length`: [`crate::phrase::check_words`] holds it.
+    /// A taker reads the count from the code.
+    pub words: usize,
     /// Where the lines for the user go: the words of a mailbox, a mailbox
     /// that failed. No event holds the code.
     pub events: Arc<dyn Events>,
@@ -44,8 +50,8 @@ pub struct Config {
 
 impl Config {
     /// The settings for `appid`, the client `name` and `version`, through
-    /// `way`, with the roots of the default trust, the bounds above and no
-    /// event sink.
+    /// `way`, with the roots of the default trust, the bounds above, codes
+    /// of [`WORDS`] words and no event sink.
     pub fn new(
         appid: impl Into<String>,
         client_name: impl Into<String>,
@@ -61,6 +67,7 @@ impl Config {
             connect_timeout: CONNECT_TIMEOUT,
             answer_limit: ANSWER_LIMIT,
             limits: LIMITS,
+            words: WORDS,
             events: Arc::new(NoEvents),
         }
     }
@@ -68,6 +75,11 @@ impl Config {
 
 impl fmt::Debug for Config {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Config").field("appid", &self.appid).field("client", &self.client_name).finish()
+        let client = &self.client_name;
+        f.debug_struct("Config")
+            .field("appid", &self.appid)
+            .field("client", client)
+            .field("words", &self.words)
+            .finish()
     }
 }

@@ -1,0 +1,8 @@
+# The stand-in mailbox of the feature standin lets a third side claim a
+# nameplate that two sides hold, so a consumer's test of a third end runs
+# against a mailbox that is not magic-wormhole's; the test of a third end
+# must fail on the stand-in.
+ENTRY=T-546
+GROUP=wormhole
+EXPECT='test a_third_end_is_refused_while_two_hold_the_code \.\.\. FAILED'
+RUN='cargo test -p pod-wormhole --features standin --test mailbox -- a_third_end_is_refused_while_two_hold_the_code'

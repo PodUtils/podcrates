@@ -1,0 +1,7 @@
+# The giver draws the default count of words whatever the caller asks for,
+# so a caller's --code-length does nothing; the test of a code of 5 words
+# must fail.
+ENTRY=T-547
+GROUP=wormhole
+EXPECT='test a_code_of_the_words_asked_for_meets_and_a_count_out_of_bounds_reaches_no_mailbox \.\.\. FAILED'
+RUN='cargo test -p pod-wormhole --features standin --test mailbox -- a_code_of_the_words_asked_for_meets_and_a_count_out_of_bounds_reaches_no_mailbox'

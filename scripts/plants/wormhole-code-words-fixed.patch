@@ -1,0 +1,12 @@
+diff --git a/crates/pod-wormhole/src/meet.rs b/crates/pod-wormhole/src/meet.rs
+--- a/crates/pod-wormhole/src/meet.rs
++++ b/crates/pod-wormhole/src/meet.rs
+@@ -58,7 +58,7 @@
+                 continue;
+             }
+         };
+-        let code = Code::make(&nameplate, ends.config.words, &mut OsEntropy)?;
++        let code = Code::make(&nameplate, crate::WORDS, &mut OsEntropy)?;
+         let hole = Wormhole::open(mailbox, side, nameplate, id, &code, versions).await?;
+         return Ok((hole, code));
+     }

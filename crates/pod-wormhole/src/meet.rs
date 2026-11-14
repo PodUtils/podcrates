@@ -16,6 +16,7 @@ use serde_json::Value;
 use crate::config::Config;
 use crate::mailbox::{Mailbox, Mood, crowded};
 use crate::message::hex;
+use crate::phrase::check_words;
 use crate::wormhole::Wormhole;
 use crate::{Code, Failed};
 
@@ -28,8 +29,10 @@ pub struct Ends {
 
 /// A new code at the first mailbox of `ends` that answers, and its
 /// wormhole, this end's `pake` added: what a giver shows. `versions` goes in
-/// its version phase.
+/// its version phase. A count of words out of its bounds
+/// ([`crate::phrase::check_words`]) fails before a mailbox is reached.
 pub async fn opened(ends: &Ends, versions: Value) -> Result<(Wormhole, Code), Failed> {
+    check_words(ends.config.words)?;
     let side = new_side()?;
     let mut missed = Vec::new();
     for url in &ends.mailboxes {
@@ -55,7 +58,7 @@ pub async fn opened(ends: &Ends, versions: Value) -> Result<(Wormhole, Code), Fa
                 continue;
             }
         };
-        let code = Code::make(&nameplate, &mut OsEntropy).map_err(|_| Failed::NoRandom)?;
+        let code = Code::make(&nameplate, ends.config.words, &mut OsEntropy)?;
         let hole = Wormhole::open(mailbox, side, nameplate, id, &code, versions).await?;
         return Ok((hole, code));
     }

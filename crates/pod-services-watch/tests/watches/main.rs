@@ -13,5 +13,6 @@ mod forward;
 mod forward_order;
 mod http;
 mod ssh;
+mod transit;
 mod ws;
 mod xhttp;

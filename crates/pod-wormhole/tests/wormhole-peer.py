@@ -7,7 +7,8 @@ rendezvous by a short code: software that this crate did not write.
 
 `give` allocates a code of three words and prints `code CODE`; `take` reads
 the code from stdin, never from argv. Each then prints `versions JSON` (the
-other end's app_versions), sends `from python` as its first message, prints
+other end's app_versions), `derived HEX` (`derive_key` of `APPID/transit-key`,
+32 bytes), sends `from python` as its first message, prints
 `got HEX` of the other end's first message, and closes. A code that does not
 match prints `wrong`. Each line is flushed as it is printed.
 
@@ -46,6 +47,7 @@ def main(reactor, url, appid, mode):
             pass
         return
     say("versions", json.dumps(versions, sort_keys=True))
+    say("derived", w.derive_key(appid + "/transit-key", 32).hex())
     w.send_message(b"from python")
     message = yield w.get_message()
     say("got", message.hex())
