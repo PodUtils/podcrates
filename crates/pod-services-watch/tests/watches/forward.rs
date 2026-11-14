@@ -20,7 +20,7 @@ use crate::common::{NAME, endpoint, fact, file, one, text, tls_raw};
 
 /// What the front of the stand-in does with a request.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Front {
+pub(crate) enum Front {
     /// It gives the request to the client through a channel
     /// `forwarded-tcpip`, and the client's answer back.
     Forward,
@@ -36,45 +36,45 @@ const PAGE: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 19\r\nConnection: close
 
 /// What the stand-in does.
 #[derive(Clone, Default)]
-struct Script {
+pub(crate) struct Script {
     /// The banner, one chunk for each message of the channel.
-    chunks: Vec<&'static [u8]>,
+    pub(crate) chunks: Vec<&'static [u8]>,
     /// The end of the shell after the banner.
-    close: bool,
+    pub(crate) close: bool,
     /// The stand-in refuses a key and takes no key.
-    no_key: bool,
+    pub(crate) no_key: bool,
     /// The stand-in refuses a key and no key, and takes keyboard-interactive
     /// after one round with a prompt and an empty answer (Serveo's
     /// anonymous login).
-    interactive: bool,
+    pub(crate) interactive: bool,
     /// The stand-in refuses the remote forward.
-    no_forward: bool,
+    pub(crate) no_forward: bool,
     /// The front, and the URL of it at the end of the banner.
-    front: Option<Front>,
+    pub(crate) front: Option<Front>,
     /// The stand-in refuses a remote forward before a session channel is
     /// open (srv.us answers such a forward never).
-    session_first: bool,
+    pub(crate) session_first: bool,
     /// The stand-in writes the banner on a command alone; a shell gets a
     /// banner with no URL (tunnl.gg with no terminal).
-    command_only: bool,
+    pub(crate) command_only: bool,
 }
 
 /// What the stand-in saw of the client.
 #[derive(Debug, Default)]
-struct Seen {
+pub(crate) struct Seen {
     /// The user of each try of the authentication.
-    users: Vec<String>,
+    pub(crate) users: Vec<String>,
     /// The algorithm of the key of the client.
-    key: Option<String>,
+    pub(crate) key: Option<String>,
     /// The address and the port of the remote forward.
-    forward: Option<(String, u32)>,
-    shell: bool,
+    pub(crate) forward: Option<(String, u32)>,
+    pub(crate) shell: bool,
     /// The command of an `exec` request.
-    command: Option<String>,
+    pub(crate) command: Option<String>,
     /// A session channel was open.
-    session: bool,
+    pub(crate) session: bool,
     /// The requests that the front took.
-    requests: usize,
+    pub(crate) requests: usize,
 }
 
 struct Relay {
@@ -226,7 +226,7 @@ fn serve_front(kind: Front, seen: Arc<Mutex<Seen>>, asks: tmpsc::UnboundedSender
 
 /// A stand-in relay for one session: its port, what it saw, and the end of
 /// the session.
-async fn relay(script: Script) -> (u16, Arc<Mutex<Seen>>, oneshot::Receiver<()>) {
+pub(crate) async fn relay(script: Script) -> (u16, Arc<Mutex<Seen>>, oneshot::Receiver<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("a listener");
     let port = listener.local_addr().expect("an address").port();
     // The host key of the stand-in, made for the test.
@@ -266,7 +266,7 @@ async fn relay(script: Script) -> (u16, Arc<Mutex<Seen>>, oneshot::Receiver<()>)
 /// A relay file: its endpoint, the rule (each of `https://` and
 /// `.tunnel.test`, none of `dashboard.`), `more` facts and the watch with
 /// `args`.
-fn relay_file(id: &str, port: u16, more: &str, args: &str) -> String {
+pub(crate) fn relay_file(id: &str, port: u16, more: &str, args: &str) -> String {
     let body = endpoint("ssh", "ssh", "127.0.0.1", port, "")
         + &fact("url-match", r#"["https://", ".tunnel.test"]"#)
         + &fact("url-skip", r#"["dashboard."]"#)
@@ -277,7 +277,7 @@ fn relay_file(id: &str, port: u16, more: &str, args: &str) -> String {
 }
 
 /// The client ended the session: the stand-in saw its end.
-async fn ended(end: oneshot::Receiver<()>) {
+pub(crate) async fn ended(end: oneshot::Receiver<()>) {
     tokio::time::timeout(Duration::from_secs(10), end).await.expect("the end of the session").expect("an end");
 }
 
@@ -453,51 +453,4 @@ async fn forward_url_finds_a_url_that_is_a_page_of_the_relay() {
     assert!(now.contains("HTTP 200 with no word of the run: \"a page of the relay\""), "{now}");
     ended(end).await;
     assert_eq!(seen.lock().unwrap().requests, 1);
-}
-
-/// A relay that answers a forward only after a session opens (srv.us,
-/// T-552): with the fact `session-first`, the client opens the session
-/// before it asks for the forward of the port of the watch. With no fact,
-/// the stand-in refuses the forward.
-#[tokio::test]
-async fn forward_url_opens_the_session_first_where_the_relay_says_so() {
-    pod_testkit::need_loopback!();
-    let chunks: Vec<&'static [u8]> = vec![b"1: https://abc.tunnel.test/\r\n"];
-    let script = Script { chunks, session_first: true, ..Script::default() };
-    let (port, seen, end) = relay(script.clone()).await;
-    let more = fact("user", "\"nomatch\"") + &fact("session-first", "true");
-    let report = one(&relay_file("s1", port, &more, "port = 1\nprove = false\n")).await;
-    let all = text(&report);
-    assert!(report.holds() && all.contains("as nomatch (a key of the run): the banner names the tunnel"), "{all}");
-    ended(end).await;
-    assert_eq!(seen.lock().unwrap().forward, Some(("localhost".to_string(), 1)));
-
-    let (port, seen, end) = relay(script).await;
-    let report = one(&relay_file("s2", port, &fact("user", "\"nomatch\""), "port = 1\nprove = false\n")).await;
-    let all = text(&report);
-    assert!(all.contains("FAILED s2 forward-url") && all.contains("the remote forward of port 1"), "{all}");
-    ended(end).await;
-    assert!(!seen.lock().unwrap().shell);
-}
-
-/// A relay whose shell banner has no URL with no terminal, and whose
-/// command writes one JSON line (tunnl.gg's `output=json`, T-552): the
-/// client asks the command of the fact `command`, and no shell.
-#[tokio::test]
-async fn forward_url_asks_the_command_of_the_relay() {
-    pod_testkit::need_loopback!();
-    let chunks: Vec<&'static [u8]> =
-        vec![b"{\"event\":\"tunnel\",\"url\":\"https://brave-fox-7c41e09b.tunnel.test\",\"subdomain\":\"brave-fox-7c41e09b\"}\n"];
-    let (port, seen, end) = relay(Script { chunks, no_key: true, command_only: true, ..Script::default() }).await;
-    let report = one(&relay_file("c1", port, &fact("command", "\"output=json\""), "prove = false\n")).await;
-    let all = text(&report);
-    assert!(
-        report.holds()
-            && all.contains("(no key): the banner names the tunnel on the host brave-fox-7c41e09b.tunnel.test"),
-        "{all}"
-    );
-    ended(end).await;
-    let seen = seen.lock().unwrap();
-    assert_eq!(seen.command.as_deref(), Some("output=json"));
-    assert!(!seen.shell);
 }

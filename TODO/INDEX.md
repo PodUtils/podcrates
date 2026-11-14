@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**439 entries: 117 open, 8 partial, 5 blocked, 309 done.**
+**444 entries: 117 open, 8 partial, 6 blocked, 313 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 11 | 3 | 0 | 83 | 97 |
-| P2 | 54 | 3 | 4 | 168 | 229 |
-| P3 | 52 | 2 | 1 | 56 | 111 |
-| **All** | 117 | 8 | 5 | 309 | 439 |
+| P1 | 11 | 3 | 0 | 84 | 98 |
+| P2 | 54 | 3 | 4 | 171 | 232 |
+| P3 | 52 | 2 | 2 | 56 | 112 |
+| **All** | 117 | 8 | 6 | 313 | 444 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -475,6 +475,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-542](relay.md) | P2 | S | M2 | feature | done | `pod-link`: one typed marker for "the peer refused the key of this end" on each carrier (PodUtils/podnet#533) |
 | [T-543](relay.md) | P2 | S | M2 | defect | done | `pod-link`: the dns carrier and the TC bit: each answer keeps to the size of its query, and a cut answer does not stall the link (PodUtils/podnet#533) |
 | [T-544](podvm.md) | P2 | S | M1 | feature | done | `pod-hold`: a seccomp rule that refuses a raw socket and an ICMP socket, with an opt-in (PodUtils/podnet#538) |
+| [T-545](relay.md) | P1 | S | M2 | feature | done | `pod-wormhole`: `Wormhole::derive_key`, magic-wormhole's derived key, for the transit key of podnet's transfer (PodUtils/podnet#535) |
+| [T-546](relay.md) | P2 | S | M2 | feature | done | `pod-wormhole`: the stand-in mailbox behind the feature `standin`, for the tests of a consumer (PodUtils/podnet#535) |
+| [T-547](relay.md) | P2 | S | M2 | feature | done | `pod-wormhole`: the count of words of a new code in `Config`, as magic-wormhole's `--code-length` (PodUtils/podnet#535) |
+| [T-548](relay.md) | P2 | S | M2 | feature | done | `pod-services`: magic-wormhole's TCP transit relay as a service of the kind `transit`, with the watch `transit-relay` (PodUtils/podnet#535) |
 | [T-549](adapters.md) | P2 | S | M3 | feature | done | `pod-warp`: name the certificate that the front door showed when its key is not the pinned one (PodUtils/podssh#234) |
 | [T-550](relay.md) | P3 | M | M2 | feature | open | `pod-wormhole`: Nostr's ephemeral events as a meeting point of the pairing by a code (PodUtils/podssh#235) |
 | [T-551](relay.md) | P3 | M | M2 | feature | open | `pod-wormhole`: WebTorrent's trackers as a meeting point of the pairing by a code (PodUtils/podssh#235) |
@@ -486,3 +490,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-557](relay.md) | P3 | S | M2 | defect | open | `pod-link`: the listener of the dns, icmp, udp and ws carriers gets no `KeyRefused` when the dialer refuses its key |
 | [T-558](relay.md) | P2 | S | M6 | defect | open | `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open |
 | [T-559](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the client of the HTTP road's one-POST form (PodUtils/podssh#239) |
+| [T-560](relay.md) | P3 | S | M2 | feature | blocked | `pod-relay`: the one-POST form of the HTTP road over HTTP/2 |

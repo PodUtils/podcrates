@@ -75,6 +75,8 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 pod-testkit = { workspace = true }
+# The stand-in mailbox of the tests of the pairing by code.
+pod-wormhole = { workspace = true, features = ["standin"] }
 # The way of the tests: a direct dial and TLS on ring.
 rustls = { workspace = true, features = ["ring"] }
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }

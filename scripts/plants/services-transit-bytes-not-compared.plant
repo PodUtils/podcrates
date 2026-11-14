@@ -1,0 +1,8 @@
+# The watch kind transit-relay takes any bytes at the second end as the
+# bytes of the first, so a relay that changes what it carries holds; its
+# test must fail.
+ENTRY=T-548
+GROUP=services
+EXPECT='test transit::transit_relay_pairs_two_ends_and_carries_the_bytes_of_one_to_the_other \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- transit::transit_relay_pairs_two_ends_and_carries_the_bytes_of_one_to_the_other --exact'
+LIMIT=1800

@@ -72,7 +72,7 @@ another kind.
 | `Net` (`context`, `dial`, `trust`, `client`, `dns`, `services`, `bases`, `github_token`, `today`, `limit`), `Bases` (`public`, `at`) | the way out of each check: the runner fills it, a test gives its stand-ins |
 | `args::Args` | the arguments of a watch and the values that they name |
 | `schema::arguments(kind)`, `schema::faults(service, watch, is_service)` | the arguments of each watch kind, and the faults of one watch |
-| `schema::kind_facts(kind)` (`KindFacts`: `endpoints`, `need`, `optional`, `words`, `when`), `schema::service_faults(service)` | the endpoints and the facts of a service kind with a table (`file-host`, T-416), and the faults of one service: a missing endpoint or fact, a type, a word, a fact that the kind does not name, a fact that a word needs |
+| `schema::kind_facts(kind)` (`KindFacts`: `endpoints`, `need`, `optional`, `words`, `when`), `schema::service_faults(service)` | the endpoints and the facts of a service kind with a table (`file-host`, T-416; `transit`, T-548), and the faults of one service: a missing endpoint or fact, a type, a word, a fact that the kind does not name, a fact that a word needs |
 | `file_host::trip(service, net, bytes, boundary)` (`Trip`: `url`, `fetched`, `deleted`, `lines`), `file_host::multipart`, `answer_url`, `fetch_url`, `page_link`, `served` | the round trip of one file host by the facts of its kind (T-528): the upload form, the URL of the answer, the download (by a segment, or by the link of the page at the URL), the compare, the delete by token. A refusal names its status and the start of its text |
 
 The library reads no variable and no file, and prints nothing.
@@ -93,6 +93,7 @@ kind. Each kind goes through the dial of `pod-proxy` and the TLS of
 | `websocket-upgrade`, `forward-banner` | `ws.rs` | the upgrade of `pod-ws`, which offers the subprotocol of `protocol`; a forwarder's target in the query, in a first text frame (`{"Host":...,"Port":...}`), or in a Wisp CONNECT |
 | `proxy-banner` | `proxy.rs`, `xhttp.rs` | Trojan and VLESS over TCP (`tcp`, `raw`), and VLESS over XHTTP (`xhttp`, `splithttp`) in the mode `packet-up`, with or without TLS. XHTTP follows the client of Xray-core at `c43ee98ec7c5a9d34b32cedf891b4c8707e9c8b0`: a streamed GET of `PATH/SESSION` for the downloads, a POST of `PATH/SESSION/SEQ` for each upload (the VLESS request in the upload of sequence 0), the padding `x_padding` in the query of a `Referer`, a random UUID as the session id; `auto` is `packet-up`. TLS offers the `alpn` of the link, else `h2` and `http/1.1`; the protocol that the server chose gives HTTP/1.1 (a connection for the GET, one for the POST) or HTTP/2 (two streams of one connection); with no choice, the version of Xray's client. Skipped: another transport or security, the XHTTP modes `stream-up` and `stream-one`, HTTP/3, the XHTTP `extra` settings, a VLESS `flow` or `encryption` |
 | `forward-url` | `forward.rs` | an SSH session of russh (call C88) over the dial, within 45 s (`seconds`): the authentication with an Ed25519 key made for the run, then with no key, then keyboard-interactive with an empty answer to each prompt (Serveo's anonymous login; T-272); the user of the fact `user`, else `pod-services-watch`; a remote forward (`tcpip-forward`) of `localhost` and the port (`port`, 80 if none) to no local server, and a session channel: the forward first, or the session first where the fact `session-first` holds (srv.us answers a forward only after a session opens, T-552); a shell, and no terminal, as podnet's `ssh-relay`, or the command of the fact `command` (an `exec` request: tunnl.gg's `output=json`); the data of the channel through `pod_services::forward::Banner` with the rule of the service. It reports the host of the URL. A banner with other URLs and none that the rule accepts is a fact `url-match` that moved; a banner with no URL is a failure. Then, unless `prove = false`, a GET of the URL through the dial within 20 s (T-267): the client takes each channel `forwarded-tcpip` and answers its request with a word of the run (from the fingerprint of the key of the run); an answer with no word is a fact `url-match` that moved. The close follows the URL, the end of the shell or the bound. It accepts each host key: `ssh-host-key` checks the key, and the session sends no secret |
+| `transit-relay` | `transit.rs` | two TCP connections of the dial, each with `please relay TOKEN for side SIDE` (a random token of 32 bytes, a random side of 8 for each), `ok` at each within the limit, then a line of the run from the first end to the second; an answer other than `ok` (`impatient`, `bad handshake`) is a failure with its words; an endpoint of another scheme than `tcp` is a failure |
 | `ssh-banner`, `ssh-host-key` | `ssh.rs` | the banner, after the banner of the client (a server can wait for it); the host key of the reply of curve25519-sha256, one exchange for each kind of key (Ed25519, ECDSA, RSA). The watch reads the key that the server offers; it does not check a signature |
 | `github-release`, `github-files`, `github-file`, `tls-roots` | `github.rs` | GitHub's API (the newest release, the release of a tag) and its raw files (at a tag, or at `HEAD`) |
 | `crate-file` | `crate_file.rs` | the newest stable version on crates.io, its `.crate` archive, the member file |
@@ -112,7 +113,8 @@ fact or a service that the data does not have (`schema::faults`). A run
 checks the same before the network.
 
 A service kind can have a table of its facts (`schema::kind_facts`; the
-kind `file-host` has one). `data::each_service_has_the_facts_of_its_kind`
+kinds `file-host` and `transit` have one: a `transit` service has the
+endpoint `relay`, whose scheme tells TCP from WebSocket, and no fact). `data::each_service_has_the_facts_of_its_kind`
 fails when a built-in service of such a kind misses an endpoint or a fact
 of the table, has a fact of another type or a word that the table does
 not name, or has a fact that the table does not name. A run checks the
@@ -151,6 +153,15 @@ stand-in of each form of the catalog: a text answer with a delete by token
 the page in place of the file with the form of before T-528, a page with
 no link of this file, and a refusal with its status and its text
 (litterbox's 412).
+
+`tests/watches/transit.rs`: `transit-relay` against a transit relay of
+the test (two ends of a token, `ok` to both, the bytes of each to the
+other), against relays that answer `impatient`, carry nothing or carry
+other bytes, against an endpoint of the scheme `wss`, and against
+magic-wormhole's own transit relay (magic-wormhole-transit-relay, in
+Python) where `POD_WORMHOLE_TEST_PYTHON` has it;
+`POD_WORMHOLE_TEST_SERVER=required` makes a skip a failure
+(`scripts/ci/mailbox-tests.sh`).
 
 `tests/file_host_live.rs` (`#[ignore]`): the live round trip of 32 KiB
 through each file host that is on by default, or through the hosts that

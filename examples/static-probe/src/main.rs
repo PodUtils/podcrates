@@ -439,7 +439,7 @@ fn wormhole() -> String {
     let dialer = pod_proxy::Dialer::new(settings, std::sync::Arc::new(pod_proxy::resolve::System::new()));
     let way = pod_ws::Way::new(std::sync::Arc::new(tls), std::sync::Arc::new(dialer), "static-probe");
     let config = pod_wormhole::Config::new("example.org/static-probe", "static-probe", "0", way);
-    let Ok(code) = pod_wormhole::Code::make("7", &mut pod_core::entropy::OsEntropy) else {
+    let Ok(code) = pod_wormhole::Code::make("7", pod_wormhole::WORDS, &mut pod_core::entropy::OsEntropy) else {
         return "pod-wormhole: no random bytes".into();
     };
     let sealed = pod_wormhole::wormhole::seal(&[7; 32], b"probe").map_or(0, |bytes| bytes.len());

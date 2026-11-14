@@ -110,6 +110,7 @@ T-324). The kinds that the files name now:
 | `forward-banner` | `template`, `target` | a forward to the endpoint of the service `target` gives its SSH banner |
 | `proxy-banner` | `fact`, `target` | a session through the share link of the fact gives the SSH banner of the service `target` |
 | `ssh-banner` | `endpoint` | the server sends an SSH banner |
+| `transit-relay` | `endpoint` (scheme `tcp`) | two connections of one random token (`please relay TOKEN for side SIDE`) each get `ok`, and the bytes that the first sends come out of the second: magic-wormhole's transit relay |
 | `forward-url` | `endpoint`; `port` (80 if none), `seconds` (45 if none), `prove` (true if none) | a session with the forward relay (a key made for the run, the fact `user` or the word `pod-services-watch`, a remote forward of the port and a session channel, the session first with the fact `session-first`, a shell or the command of the fact `command`) gives a banner with a URL that the rule of the relay accepts ("SSH forward relays"); with `prove`, a GET of the URL reaches the forward of the session: the client answers it with a word of the run |
 | `ssh-host-key` | `endpoint`, `fact` | the SSH host key of the endpoint has the SHA-256 fingerprint of the fact |
 | `github-ssh-keys` | `url`, `pointer`, `fact` | GitHub's published fingerprints equal the fact |
@@ -226,7 +227,8 @@ let relay = services.of_kind("relay").next();
 | `onrender-piping` | `piping` | `server` | `streams-request-body`, `idle-stop-minutes` |
 | `serv00-piping` | `piping` | `server` | `streams-request-body`, `note` |
 | `magic-wormhole-mailbox`, `leastauthority-mailbox` | `mailbox` | `mailbox` | |
-| `leastauthority-transit` | `transit` | `relay` | |
+| `leastauthority-transit` | `transit` | `relay` (`wss`, port 443) | |
+| `magic-wormhole-transit` | `transit` | `relay` (`tcp`, `transit.magic-wormhole.io:4001`: magic-wormhole's default transit relay, the handshake of `transit_server.py`) | |
 | `opentunnel` | `opentunnel` | `api` | `tunnel-zone` |
 | `cloudflare-tunnel-edge` | `tunnel-edge` | `h2-region1`, `h2-region2` (role `h2`), `quic-region1`, `quic-region2` (role `quic`) | `srv-name`, `srv-target-zone`, `static-addresses`, `probe-address`, `warp-probe-address`, `roots` (`files/cloudflare-edge-roots.pem`), `roots-first-end`, `cloudflared-repository`, `cloudflared-tag`, `cloudflared-commit`, `cloudflared-released`, `cloudflared-files` |
 | `trycloudflare` | `quick-tunnel` | `api` | `tunnel-zone` |

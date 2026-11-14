@@ -1,5 +1,5 @@
-//! The mailboxes of the tests, on the loopback: a stand-in in Rust
-//! ([`stand_in`]), and magic-wormhole's own mailbox server (magic-wormhole-
+//! The mailboxes of the tests, on the loopback: the stand-in in Rust of
+//! pod-wormhole's feature `standin` ([`stand_in`]), and magic-wormhole's own mailbox server (magic-wormhole-
 //! mailbox-server, in Python, on Twisted and Autobahn): pod-wormhole's
 //! harness (`crates/pod-wormhole/tests/harness/`), whose peer of the Python
 //! library stays there. The Python server is software that this crate did
@@ -22,7 +22,16 @@ use std::time::{Duration, Instant};
 use pod_wormhole::Config;
 use pod_ws::url::WsUrl;
 
-pub mod stand_in;
+/// pod-wormhole's stand-in, each start a failure of the test when the
+/// loopback gives no port.
+pub mod stand_in {
+    pub use pod_wormhole::standin::*;
+
+    /// A stand-in on a free port of the loopback.
+    pub async fn start() -> Stand {
+        pod_wormhole::standin::start().await.expect("a port of the loopback")
+    }
+}
 // The MQTT brokers of pod-wormhole's tests (a stand-in, and Mosquitto),
 // for the runs that meet at a broker (T-277).
 #[cfg(feature = "plain-ws")]

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 439 entries: 117 open, 8 partial, 5 blocked, 309 done.
+`TODO/INDEX.md` holds 444 entries: 117 open, 8 partial, 6 blocked, 313 done.
 
 ## State
 
@@ -73,15 +73,14 @@ podvm. An entry that waits for another session stays as it is; take the
 next entry.
 
 First: the asks of the consumers in work (item 1): T-486 and T-107 for
-podvm (#142), then the asks of `pod-wormhole` for podnet (#141, on a
-local branch). Then the link
+podvm (#142). Then the link
 carriers of M2 for podnet (item 3c): T-526, T-494, T-500 and T-525.
 Then the items below, in order.
 
 1. **The defects and asks of the consumers:** T-486 (an overlay root in
    the namespace rung of `pod-enter`, PodUtils/podvm#294, #142) and
    T-107 (the schema of the report of `pod-hostprobe`), in this order;
-   the asks of `pod-wormhole` for podnet (#141); T-558 (`AF_PACKET`
+   T-558 (`AF_PACKET`
    in the rule of `pod-hold`); T-557 (`KeyRefused` on the listener of
    four carriers); T-540 (a test of the
    termios mode of `pod-term` against a kernel pty); T-550, T-551 and

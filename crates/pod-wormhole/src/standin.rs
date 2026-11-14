@@ -1,16 +1,18 @@
-//! A mailbox in Rust, on the loopback, that speaks the server protocol of
-//! magic-wormhole's mailbox server, version 1, for the tests that need no
-//! Python: `bind`, `list`, `allocate`, `claim`, `open`, `add`, `release` and
-//! `close`, with an `ack` for each command, a nameplate of at most two
-//! sides (`crowded` for a third), a mailbox that each side opens and closes,
-//! and each message sent to each side that has the mailbox open, the
-//! sender's too. One application's nameplates are never another's. A test
-//! can tamper with the body of a phase, and reads the moods of the closes.
-//! [`scripted`] gives one connection to a script, for the faults.
+//! A mailbox in Rust, on the loopback, for the tests of this crate and of a
+//! consumer (feature `standin`). It speaks the server protocol of
+//! magic-wormhole's mailbox server, version 1: `bind`, `list`, `allocate`,
+//! `claim`, `open`, `add`, `release` and `close`, with an `ack` for each
+//! command, a nameplate of at most two sides (`crowded` for a third), a
+//! mailbox that each side opens and closes, and each message sent to each
+//! side that has the mailbox open, the sender's too. One application's
+//! nameplates are never another's. A test can tamper with the body of a
+//! phase, and reads the moods of the closes. [`scripted`] gives one
+//! connection to a script, for the faults. No binary needs it.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::future::Future;
-use std::sync::{Arc, Mutex};
+use std::io;
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use pod_proxy::http::request;
 use pod_ws::url::WsUrl;
@@ -48,7 +50,17 @@ struct State {
     counter: u64,
 }
 
-/// A running stand-in.
+/// The state, also after a task of the stand-in panicked.
+fn locked(state: &Mutex<State>) -> MutexGuard<'_, State> {
+    state.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// The URL of a mailbox at `port` of the loopback.
+fn url_at(port: u16) -> io::Result<WsUrl> {
+    WsUrl::parse(&format!("ws://127.0.0.1:{port}/v1")).map_err(|e| io::Error::other(e.to_string()))
+}
+
+/// A running stand-in; dropped, it stops.
 pub struct Stand {
     /// Its WebSocket, `ws://127.0.0.1:PORT/v1`.
     pub url: WsUrl,
@@ -59,18 +71,18 @@ pub struct Stand {
 impl Stand {
     /// The moods of each close so far, as (side, mood).
     pub fn moods(&self) -> Vec<(String, String)> {
-        self.state.lock().unwrap().moods.clone()
+        locked(&self.state).moods.clone()
     }
 
     /// From now on, flip a bit in the body of each message of `phase`: a
     /// mailbox that changes what it carries.
     pub fn tamper(&self, phase: &str) {
-        self.state.lock().unwrap().tamper = Some(phase.to_string());
+        locked(&self.state).tamper = Some(phase.to_string());
     }
 
     /// The nameplates held now at `appid`.
     pub fn nameplates(&self, appid: &str) -> Vec<String> {
-        let state = self.state.lock().unwrap();
+        let state = locked(&self.state);
         state.spaces.get(appid).map(|s| s.plates.keys().cloned().collect()).unwrap_or_default()
     }
 }
@@ -82,9 +94,9 @@ impl Drop for Stand {
 }
 
 /// A stand-in on a free port of the loopback.
-pub async fn start() -> Stand {
-    let listener = TcpListener::bind("127.0.0.1:0").await.expect("a port of the loopback");
-    let port = listener.local_addr().expect("its address").port();
+pub async fn start() -> io::Result<Stand> {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let url = url_at(listener.local_addr()?.port())?;
     let state = Arc::new(Mutex::new(State::default()));
     let shared = state.clone();
     let task = tokio::spawn(async move {
@@ -92,25 +104,25 @@ pub async fn start() -> Stand {
             tokio::spawn(serve(tcp, shared.clone()));
         }
     });
-    Stand { url: WsUrl::parse(&format!("ws://127.0.0.1:{port}/v1")).unwrap(), state, task }
+    Ok(Stand { url, state, task })
 }
 
 /// A listener that gives its first connection, upgraded, to `script`, and
 /// no other: the URL, and the task of the script.
-pub async fn scripted<F, Fut>(script: F) -> (WsUrl, JoinHandle<()>)
+pub async fn scripted<F, Fut>(script: F) -> io::Result<(WsUrl, JoinHandle<()>)>
 where
     F: FnOnce(RelaySession<TcpStream>) -> Fut + Send + 'static,
     Fut: Future<Output = ()> + Send + 'static,
 {
-    let listener = TcpListener::bind("127.0.0.1:0").await.expect("a port of the loopback");
-    let port = listener.local_addr().expect("its address").port();
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let url = url_at(listener.local_addr()?.port())?;
     let task = tokio::spawn(async move {
         let Ok((tcp, _)) = listener.accept().await else { return };
         if let Some(session) = upgraded(tcp).await {
             script(session).await;
         }
     });
-    (WsUrl::parse(&format!("ws://127.0.0.1:{port}/v1")).unwrap(), task)
+    Ok((url, task))
 }
 
 async fn upgraded(mut tcp: TcpStream) -> Option<RelaySession<TcpStream>> {
@@ -155,7 +167,7 @@ async fn serve(tcp: TcpStream, state: Arc<Mutex<State>>) {
         }
         let Ok(command) = serde_json::from_slice::<Value>(&f.payload) else { break };
         let _ = tx.send(json!({ "type": "ack", "id": command["id"] }).to_string());
-        let mut state = state.lock().unwrap();
+        let mut state = locked(&state);
         for reply in handle(&mut state, &mut conn, &tx, &command) {
             let _ = tx.send(reply.to_string());
         }
@@ -188,7 +200,10 @@ fn handle(state: &mut State, conn: &mut Conn, tx: &Tx, command: &Value) -> Vec<V
             vec![json!({ "type": "nameplates", "nameplates": all })]
         }
         "allocate" => {
-            let free = (1u32..).map(|n| n.to_string()).find(|n| !space.plates.contains_key(n)).unwrap();
+            // At most two sides hold each nameplate, so a free one is found
+            // within the count of the nameplates and one more.
+            let free = (1..=space.plates.len() + 1).map(|n| n.to_string()).find(|n| !space.plates.contains_key(n));
+            let Some(free) = free else { return error("no free nameplate", command) };
             space.plates.entry(free.clone()).or_default().0.insert(side);
             vec![json!({ "type": "allocated", "nameplate": free })]
         }
@@ -213,7 +228,7 @@ fn handle(state: &mut State, conn: &mut Conn, tx: &Tx, command: &Value) -> Vec<V
         }
         "add" => {
             let Some(id) = mailbox_of(space, &side) else { return error("no open mailbox", command) };
-            let mailbox = space.boxes.get_mut(&id).unwrap();
+            let Some(mailbox) = space.boxes.get_mut(&id) else { return error("no open mailbox", command) };
             let mut body = text("body");
             if tamper.as_deref() == Some(text("phase").as_str()) {
                 let last = body.pop().unwrap_or('0');

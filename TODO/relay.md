@@ -2240,6 +2240,13 @@ change of the crate; `podnet-relay-v1` and `piping-v1` are tests of it.
 The piping servers and the mailboxes become services of `pod-services`.
 A stand-in of the transit relay for the tests. An interop test against
 the Python magic-wormhole in `live.yml` (PodUtils/podnet@T-106).
+The source of the transfer layer when this entry starts: podnet's
+src/transfer/ at its commit `d5c38c1` (the transfer messages, the transit
+handshake and records, the hints, the zip writer and reader, the receive
+rules of PodUtils/podnet#436); podnet then takes the crate and keeps fixes
+only (PodUtils/podnet#535, ask 5). `Wormhole::derive_key` (T-545) gives
+the transit key, `pod_wormhole::standin` (T-546) the mailbox of the tests,
+and the service `magic-wormhole-transit` (T-548) the TCP transit relay.
 
 ## Prove
 
@@ -6459,3 +6466,336 @@ held form"), `relay-t559-no-last-chunk` (no last chunk up; the transfer
 test runs out of its bound), `relay-t559-cut-is-an-end` (a cut read as
 the end; the cut test fails). `cargo test -p pod-relay --all-features`:
 no failure.
+
+# T-545: `pod-wormhole`: `Wormhole::derive_key`, magic-wormhole's derived key, for the transit key of podnet's transfer (PodUtils/podnet#535)
+
+**Source:** PodUtils/podnet#535 (COORD-072 of podnet), ask 1; it blocks PodUtils/podnet@T-103 and the file part of PodUtils/podnet@T-106.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+magic-wormhole derives the transit key from the wormhole key:
+`derive_key(purpose, length)` with the purpose `<appid>/transit-key`. The
+`Wormhole` of `pod-wormhole` gives no such call, and the key is private.
+podnet now sends a random transit key inside its sealed `transit` message:
+this works podnet to podnet, but a Python `wormhole` client cannot read it,
+so a file or a directory does not move between podnet and Python. podnet
+asks for `Wormhole::derive_key(purpose: &str, len: usize) -> Vec<u8>`
+(HKDF-SHA256 of the shared key, as magic-wormhole's `derive_key`).
+
+## Premise
+
+- Read 2026-11-14, magic-wormhole at
+  `657bd5d51c67db2109219ff57b7d997afa57261f` (its default branch):
+  magic-wormhole/magic-wormhole:src/wormhole/_key.py,
+  `derive_key(key, purpose, length=SecretBox.KEY_SIZE)` returns
+  `HKDF(key, length, CTXinfo=purpose)`;
+  magic-wormhole/magic-wormhole:src/wormhole/util.py, `HKDF(skm, outlen,
+  salt=None, CTXinfo=b"")` is RFC 5869 HKDF with SHA-256: no salt, the
+  purpose as the info. magic-wormhole/magic-wormhole:src/wormhole/wormhole.py,
+  `derive_key(self, purpose, length)` takes a `str`, raises `NoKeyError`
+  with no key, and gives `derive_key(self._key, to_bytes(purpose), length)`;
+  `to_bytes` is the UTF-8 of the NFC form.
+  magic-wormhole/magic-wormhole:src/wormhole/test/test_keys.py,
+  `test_derive_key`: the key `588ba9ee...131ef1` gives
+  `835b5df8...ee1b2a` for `purpose1` (32 bytes) and `f2238e84315b47eb6279`
+  for `purpose2` (10 bytes).
+- The release 0.24.0 of the Python library (`scripts/ci/wormhole-servers.txt`)
+  has the same `derive_key`, and gives the same two vectors here.
+- `crates/pod-wormhole/src/wormhole.rs` makes the key of each phase with
+  HKDF-SHA256 and no salt already (`phase_key`).
+
+## Approach
+
+`wormhole::derive_key(&key, purpose, len)`: HKDF-SHA256, no salt, the
+purpose as the info, `len` bytes in a `Zeroizing<Vec<u8>>`; `None` past
+`DERIVED_MOST` (255 blocks of 32, the bound of HKDF-SHA256).
+`Wormhole::derive_key(&self, purpose: &str, len)` over the agreed key:
+`Failed::Broken` before `agree`, `Failed::Mine` past the bound (call C294).
+A unit test with the vectors of `test_keys.py`; the test of two ends over
+each mailbox derives one key at both ends and another for another purpose;
+the peer of the Python library prints its transit key
+(`APPID/transit-key`, 32 bytes), and the two tests of the library compare
+it with this crate's. The plant `wormhole-derived-key-salted` gives the
+purpose as the salt.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+sh scripts/plant-each.sh wormhole-derived-key-salted
+```
+
+## Done
+
+2026-11-14, commit 8924ae3.
+`Wormhole::derive_key(purpose, len)` gives
+`Result<Zeroizing<Vec<u8>>, Failed>`: `Failed::Broken("no key was agreed")`
+before `agree`, `Failed::Mine` past `DERIVED_MOST` (8160); the pure
+`wormhole::derive_key(&key, purpose, len)` gives `None` past it (C294).
+`cargo test -p pod-wormhole --all-features` with the Python packages of
+`scripts/ci/wormhole-servers.txt` and `POD_WORMHOLE_TEST_SERVER=required`:
+75 passed, 3 ignored (the live ones). New: the unit test
+`a_derived_key_is_magic_wormholes_by_purpose_and_length` (the two vectors
+of magic-wormhole's `test_keys.py`; 0 bytes; the first 32 of 8160 bytes;
+`None` at 8161); `two_ends_of_one_code_agree_a_key_and_move_a_message_each_way`
+derives one transit key at both ends and another for another purpose, on
+the stand-in and on magic-wormhole's mailbox server; each test that uses
+`two` holds `Failed::Broken` before `agree`; the peer of magic-wormhole
+0.24.0 prints its `derive_key("APPID/transit-key", 32)`, and
+`a_peer_of_magic_wormholes_python_library_takes_this_crate_s_code` and
+`this_crate_takes_a_code_that_magic_wormholes_python_library_gives` find
+it equal to this crate's. The plant `wormhole-derived-key-salted` fails
+`a_derived_key_is_magic_wormholes_by_purpose_and_length` (checked by hand:
+FAILED); `sh scripts/plant-each.sh --apply`: 0 stale.
+
+# T-547: `pod-wormhole`: the count of words of a new code in `Config`, as magic-wormhole's `--code-length` (PodUtils/podnet#535)
+
+**Source:** PodUtils/podnet#535 (COORD-072 of podnet), ask 3.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+magic-wormhole takes `--code-length N`. `meet::Ends` and `Config` fix the
+code at 3 words. podnet asks for the count in `Ends` or `Config`, so that
+podnet can give `--words N`.
+
+## Premise
+
+- Read 2026-11-14, magic-wormhole at
+  `657bd5d51c67db2109219ff57b7d997afa57261f`:
+  magic-wormhole/magic-wormhole:src/wormhole/cli/cli.py, `--code-length`
+  (`-c`, NUMWORDS) defaults to 2 for `send` and `receive --allocate` and
+  is `int(...)` with no bound; magic-wormhole/magic-wormhole:src/wormhole/_wordlist.py,
+  `choose_words(length)` draws `length` words, odd first, with no bound. So
+  magic-wormhole takes any count; 0 gives a code with no secret.
+- `crates/pod-wormhole/src/phrase.rs`: `Code::make` draws `WORDS` (3)
+  words; `Code::parse` takes 1 to `WORDS_MOST` (8) words. `meet::opened`
+  and `mqtt::opened` make the code.
+
+## Approach
+
+`Config::words` (default `WORDS`, 3: the default of the crate stays).
+`Code::make(nameplate, words, entropy)` takes the count;
+`phrase::check_words` holds it to `WORDS_LEAST` (2) to `WORDS_MOST` (8)
+and refuses others with `Failed::Mine` (call C295). `meet::opened` checks
+the count before it dials a mailbox, and `mqtt::opened` before a broker.
+A taker reads the count from the code. Tests: a unit test of each count
+and of the bounds; a code of 5 words over each mailbox, and of 6 words over
+each broker, meets and confirms; a count out of bounds fails before a
+dial. The plant `wormhole-code-words-fixed` makes `meet::opened` draw
+`WORDS` words.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+sh scripts/plant-each.sh wormhole-code-words-fixed
+```
+
+## Done
+
+2026-11-14, commit 8e70d5f. `Config::words`
+(default `WORDS`, 3); `Code::make(nameplate, words, entropy)`;
+`phrase::check_words` (2 to 8, else `Failed::Mine`); `meet::opened` and
+`mqtt::opened` refuse a count out of bounds before a dial (C295).
+`cargo test -p pod-wormhole --all-features` with magic-wormhole's mailbox
+server and `POD_WORMHOLE_TEST_SERVER=required`: 78 passed, 3 ignored. New:
+`a_new_code_has_the_words_asked_for_within_its_bounds` (each count from 2
+to 8 is made and parsed back; 0, 1 and 9 are refused);
+`a_code_of_the_words_asked_for_meets_and_a_count_out_of_bounds_reaches_no_mailbox`
+(5 words over the stand-in and magic-wormhole's server; 1 and 9 fail with
+`Failed::Mine` at a URL where nothing listens);
+`a_code_of_the_words_asked_for_pairs_at_a_broker_and_a_count_out_of_bounds_reaches_none`
+(6 words over the stand-in broker). The plant `wormhole-code-words-fixed`
+fails the test of the mailboxes (checked by hand: "left: 3, right: 5").
+`examples/static-probe/src/main.rs` calls `Code::make` with `WORDS` (the
+commit after 8c2d5ad; 8e70d5f left it with the old signature).
+
+# T-546: `pod-wormhole`: the stand-in mailbox behind the feature `standin`, for the tests of a consumer (PodUtils/podnet#535)
+
+**Source:** PodUtils/podnet#535 (COORD-072 of podnet), ask 2.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The stand-in mailbox of `pod-wormhole` is private to its tests, and
+`pod-testkit` has none. podnet wrote its own
+(podnet's tests/transfer_harness/mod.rs). podnet asks for one behind a
+feature (for example `standin`), as `pod-wg` and `pod-devtunnel` do.
+
+## Premise
+
+- Read: `crates/pod-devtunnel/Cargo.toml` and `crates/pod-wg/Cargo.toml`
+  (a feature `standin`, a module `src/standin.rs` under
+  `#[cfg(feature = "standin")]`, the tests that need it under
+  `required-features`); `scripts/check-probe.py` (each feature is in a
+  static probe or in ALLOWED: the probe turns on `standin` of `pod-wg` and
+  `pod-devtunnel`, as it runs a client against them).
+- The stand-in of the tests of this crate (tests/harness/stand_in.rs at
+  `8e70d5f`) uses `pod-proxy` (the head of the upgrade), the server half
+  of `pod-ws`, and tokio's `net`, `io-util`, `sync` and `rt`. Each test
+  file of the crate includes the harness. `pod-relay` keeps a copy of the
+  same file (`crates/pod-relay/tests/mailbox_harness/`).
+
+## Approach
+
+`src/standin.rs` under the feature `standin` (the optional `pod-proxy` and
+tokio's features): `start()` and `scripted(script)` give an `io::Result`,
+and no call panics (call C296). The harness of the tests re-exports it with
+wrappers that fail the test; each test file has `required-features =
+["standin"]`, and the plants and `scripts/ci/mosquitto-tests.sh` run with
+`--features standin`. `pod-relay`'s harness takes it as a dev-dependency in
+place of its copy. `scripts/check-probe.py`: ALLOWED, as no binary needs it.
+The plant `wormhole-standin-not-crowded` lets a third side claim a
+nameplate on the stand-in.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --features standin
+cargo test -p pod-relay --all-features --test pair_code
+python3 scripts/check-probe.py
+sh scripts/plant-each.sh wormhole-standin-not-crowded
+```
+
+## Done
+
+2026-11-14, commit dc122c6.
+`pod_wormhole::standin` (feature `standin`): `start()`, `Stand` (`url`,
+`moods`, `tamper`, `nameplates`), `scripted(script)`, `welcome()`; no
+`unwrap` (C296). `tests/harness/` re-exports it; the six test files have
+`required-features = ["standin"]`; the plants of the group `wormhole` and
+`scripts/ci/mosquitto-tests.sh` run with `--features standin`.
+`pod-relay`'s `tests/mailbox_harness/` takes it as a dev-dependency, and its
+copy is gone. `python3 scripts/check-probe.py --no-tree`: 0 faults (the
+feature is in ALLOWED). `cargo test -p pod-wormhole --all-features` with
+magic-wormhole's mailbox server: 78 passed, 3 ignored; `cargo test -p
+pod-wormhole` with no feature: the 37 unit tests;
+`cargo test -p pod-relay --all-features --test pair_code`: 10 passed. The
+plant `wormhole-standin-not-crowded` fails
+`a_third_end_is_refused_while_two_hold_the_code` on the stand-in (checked
+by hand: "a third end of the code was not refused").
+
+# T-548: `pod-services`: magic-wormhole's TCP transit relay as a service of the kind `transit`, with the watch `transit-relay` (PodUtils/podnet#535)
+
+**Source:** PodUtils/podnet#535 (COORD-072 of podnet), ask 4.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`pod-services` lists the WebSocket transit relay of Least Authority only.
+magic-wormhole's default transit relay is
+`tcp:transit.magic-wormhole.io:4001`. podnet asks for it as a `transit`
+service (with its measurement), so that podnet adds no host of its own
+(podnet's ruling: Services crate).
+
+## Premise
+
+- Read 2026-11-14: magic-wormhole/magic-wormhole:src/wormhole/cli/public_relay.py
+  at `657bd5d51c67db2109219ff57b7d997afa57261f`, `TRANSIT_RELAY =
+  "tcp:transit.magic-wormhole.io:4001"`;
+  magic-wormhole/magic-wormhole-transit-relay:src/wormhole_transit_relay/transit_server.py
+  at `6d50be62c118df74d8f0a042662fbc407dfd5849`: each end sends
+  `please relay TOKEN for side SIDE\n` (TOKEN 64 hex digits, SIDE 16); the
+  relay answers `ok\n` to both when the two ends of a token come, then
+  carries the bytes of each to the other.
+- `crates/pod-services/services/leastauthority-transit.toml`: the kind
+  `transit`, the endpoint `relay` (`wss`), the watch `websocket-upgrade`;
+  the kind has no table of facts. No watch kind speaks the handshake of a
+  transit relay.
+- Not measured: the relay from a GitHub runner (the egress of this
+  session is an HTTPS proxy; the first run of `services.yml` measures it).
+  The watch was run against magic-wormhole-transit-relay 0.5.0 on the
+  loopback.
+
+## Approach
+
+`services/magic-wormhole-transit.toml`: the endpoint `relay` (`tcp`,
+`transit.magic-wormhole.io`, 4001), no rank, the watches `github-file`
+(`public_relay.py` names the host) and `transit-relay`. The new watch kind
+`transit-relay` is both ends: two connections of one random token each get
+`ok`, and a line of the run from the first comes out of the second. The
+kind `transit` gets a table in `schema::kind_facts`: the endpoint `relay`,
+no fact; the scheme of the endpoint tells TCP from WebSocket (call C297).
+Tests against a transit relay of the test, against bad relays, and against
+magic-wormhole's own relay in `scripts/ci/mailbox-tests.sh`. The plant
+`services-transit-bytes-not-compared`. A row L40 in `docs/live-calls.md`.
+
+## Prove
+
+```sh
+cargo test -p pod-services -p pod-services-watch --all-features
+sh scripts/plant-each.sh services-transit-bytes-not-compared
+cargo run -q -p pod-services-watch -- --service magic-wormhole-transit
+```
+
+## Done
+
+2026-11-14, commit 8c2d5ad. The service
+`magic-wormhole-transit` (kind `transit`; `relay`: `tcp`,
+`transit.magic-wormhole.io`, 4001; no rank), the watch kind
+`transit-relay` (`crates/pod-services-watch/src/transit.rs`), the table of
+the kind `transit` (C297), the row L40 of `docs/live-calls.md`.
+`cargo test -p pod-services -p pod-services-watch --all-features`: 97 and
+73 passed. `tests/watches/transit.rs`:
+`transit_relay_pairs_two_ends_and_carries_the_bytes_of_one_to_the_other`
+(a relay of the test holds; relays that carry nothing, carry other bytes
+or answer `impatient`, and an endpoint of `wss`, fail with their words);
+`transit_relay_holds_against_magic_wormholes_own_relay` passed against
+magic-wormhole-transit-relay 0.5.0 on the loopback
+(`POD_WORMHOLE_TEST_SERVER=required`). The plant
+`services-transit-bytes-not-compared` fails the first test (checked by
+hand). `cargo run -q -p pod-services-watch -- --service
+magic-wormhole-transit` here: `github-file` holds (`public_relay.py` holds
+the host); `transit-relay` failed with a reset after the dial, as the
+egress proxy of this session takes no TCP to port 4001. The first run of
+`services.yml` on a GitHub runner is the live measurement.
+
+# T-560: `pod-relay`: the one-POST form of the HTTP road over HTTP/2
+
+**Source:** T-559 (a finding of its work; item 3 of PodUtils/podssh#239).
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+The client of the one-POST form (T-559) runs over HTTP/1.1 only. podssh asks for HTTP/2 where ALPN gives `h2`: one stream, on one connection.
+
+## Premise
+
+- Read: the report of T-559; calls C310 to C313; `crates/pod-relay/src/http_road/one.rs`.
+- podssh's role serves the form over HTTP/1.1 only, and answers 411 to it on another; its HTTP/2 form is the next step of PodUtils/podssh@T-622.
+
+## Approach
+
+When the role serves it: offer `h2,http/1.1` on the connection of the one form only. That needs a dial that reports the result of ALPN (`Dial` gives a `BoxIo` today). Then one stream of `h2` with a request body that streams, as `pod-services-watch/src/xhttp.rs` uses the crate `h2`. A test against a stand-in of TLS with `h2`.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features --test http_road_one
+```
+
+## Blocker
+
+podssh's role serves the one form over HTTP/2 (PodUtils/podssh@T-622).

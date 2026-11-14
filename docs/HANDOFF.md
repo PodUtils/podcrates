@@ -60,19 +60,19 @@ is done. Git and the record keep finished work.
 
 ## What waits
 
-- podvm (on `v0.40.0`, `3d819c19`, PodUtils/podvm#317; `v0.2.0-beta.12`
+- podvm (on `v0.41.0`, `104bbe4b`, PodUtils/podvm#324; `v0.2.0-beta.14`
   out): T-330 (its pair commands); T-207 (`pod-netlab`, #70) for
   PodUtils/podvm@T-1662; `exec_attached` of `pod-incus` if
   PodUtils/podvm@T-1722 asks. Write to podvm by COORD issues only.
-- podnet (on `v0.40.0`, `1c88531`, PodUtils/podnet#532; `pod-warp`
+- podnet (on `v0.41.0`, `095955c`, PodUtils/podnet#546; `pod-warp`
   taken): the rest of its link workstream (#133: T-494, T-500, then group
   d), then T-029 (`pod-cloudflare`) on the chain to WARP (the owner's
   order). Write to podnet by COORD issues only.
-- podssh (on `v0.40.0`, `61658e4`, PodUtils/podssh#233; `pod-warp`
+- podssh (on `v0.41.0`, `6f77eaa`, PodUtils/podssh#240; `pod-warp`
   taken): the live runs of its PodUtils/podssh@T-737 (the brokers) and
   PodUtils/podssh@T-571 (`syncthing-relay`); `sandhole` and
   `openbare-xyz` wait for PodUtils/podssh@T-743 and PodUtils/podssh@T-740.
-- podrunner (on `v0.40.0`, `35595a6`, PodUtils/podrunner#89): its session
+- podrunner (on `v0.41.0`, `9f15901`, PodUtils/podrunner#93): its session
   runs with podvm. Its T-108 fills `cpu_s` and `peak_rss_mib` with
   `v0.40.0` (PodUtils/podrunner#86). Write to it by an issue with
   `(to podrunner)` in the title.
