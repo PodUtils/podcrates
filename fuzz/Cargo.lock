@@ -2004,8 +2004,11 @@ name = "pod-relay"
 version = "0.44.0"
 dependencies = [
  "base64",
+ "bytes",
  "ed25519-dalek 2.2.0",
+ "h2",
  "hmac 0.13.0",
+ "http",
  "pod-core",
  "pod-dns",
  "pod-e2e",
