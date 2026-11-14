@@ -7133,7 +7133,7 @@ cargo test -p pod-netstack --all-features
 **Milestone:** M2
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7155,3 +7155,12 @@ Refuse the user info, as the ask's first choice: a Unix path that starts with `/
 cargo test -p pod-proxy --all-features --lib proxy::tests
 cargo test --manifest-path fuzz/Cargo.toml --lib
 ```
+
+## Done
+
+2026-11-14, commit db133bd. `Proxy::parse_with` refuses a Unix path that starts with `//` (a host; `///PATH` stays a path) or holds `@`: the error is `a proxy on a Unix socket has no host, no user and no password (no // and no @ after unix:): SCHEME+unix:/PATH`, with the scheme only (call C475; C476 for `///PATH`). A control character in a Unix path is an error (C477). The label, the Display and the Debug of a proxy command show its first word that is not an assignment, and `exec:...` when that word holds `@` (C478). Each text of the crate that names a proxy (`label`, `Display`, `Debug`, `kind_text`, the errors of the parser, and the `DialError` texts, which take the `Display`) holds no user and no password. The fuzz target `proxy_url` checks that no `@` reaches the label, the Display or the Debug form, and that a Unix path has no host; its new seeds are `unix-authority` (podnet's crash input), `unix-at` and `unix-empty-host` (C479).
+
+- `cargo test -p pod-proxy --all-features`: all passed (2 new in `crates/pod-proxy/src/proxy/tests.rs`: `a_unix_proxy_has_no_host_and_no_user`, `the_label_and_the_errors_of_a_spec_hold_no_secret`, a table of 26 forms of a spec with a user and a password, each parsed as a variable and as the user's value).
+- `cargo test --manifest-path fuzz/Cargo.toml --lib`: 13 passed, 4 ignored.
+- Plants, each caught by hand: `proxy-unix-host-in-label` (`a_unix_proxy_has_no_host_and_no_user`), `proxy-exec-assignment-shown` (`the_label_and_the_errors_of_a_spec_hold_no_secret`), `fuzz-proxy-unix-user-shown` (the fuzz target on the seed `unix-at`).
+- clippy of `pod-proxy` and of the fuzz library, rustfmt, `cargo doc` and `scripts/agent/check-windows.sh` and `scripts/agent/check-macos.sh` are clean; the README of `pod-proxy` lists the new tests, and `fuzz/README.md` the checks of `proxy_url`.

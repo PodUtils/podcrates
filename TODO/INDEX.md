@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**492 entries: 127 open, 8 partial, 5 blocked, 352 done.**
+**493 entries: 127 open, 8 partial, 5 blocked, 353 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 12 | 3 | 0 | 96 | 111 |
+| P1 | 12 | 3 | 0 | 97 | 112 |
 | P2 | 59 | 2 | 4 | 193 | 258 |
 | P3 | 56 | 3 | 1 | 61 | 121 |
-| **All** | 127 | 8 | 5 | 352 | 492 |
+| **All** | 127 | 8 | 5 | 353 | 493 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -539,4 +539,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-606](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: a second extraction over a closed tree fails on a directory with no owner read or under a closed parent that the layer does not name |
 | [T-609](podvm.md) | P2 | S | M6 | defect | open | `pod-broker`: a 502 names the status of the upstream proxy or the dial error, and a 403 of `no-rule` names the half of the rule that failed (PodUtils/podvm#359) |
 | [T-611](transport.md) | P2 | S | M1 | feature | open | `pod-services`: the host `software-download.microsoft.com` of the Windows evaluation media (PodUtils/podvm#361) |
-| [T-612](relay.md) | P1 | S | M2 | defect | open | `pod-proxy`: the label of a unix proxy shows the user info of its URL (PodUtils/podnet#555) |
+| [T-612](relay.md) | P1 | S | M2 | defect | done | `pod-proxy`: the label of a unix proxy shows the user info of its URL (PodUtils/podnet#555) |
