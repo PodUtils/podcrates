@@ -5988,7 +5988,7 @@ tells the filter's answer from the kernel's. Plants, each caught by hand:
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -6052,3 +6052,51 @@ sh scripts/plant-each.sh rootfs-layers-write-to-lower rootfs-layers-list-upper-o
 sh scripts/agent/check-windows.sh
 sh scripts/agent/check-macos.sh
 ```
+
+## Done
+
+2026-11-14, commit f98067e. `pod-rootfs` completes a root of two layers
+(calls C330 to C334): `Settings::upper`, `write::Root::{layers, upper,
+written}`, `write::layers`, `write::{LayerRefusal, layer_refusal}`. A read
+sees `upper` over `lower` (a whiteout and an opaque directory of `upper`
+honored), a listing is the union, each write goes to `upper`, a change of
+a file of `lower` copies it up first (bytes, owner, mode), each parent
+directory is copied up with its mode and owner, and `lower` only opens for
+read. A path resolves one component at a time with `O_NOFOLLOW` from a
+descriptor of each layer, each link of the merged view followed in the
+process, held in the root. `pod-hostprobe::sys` has `fgetxattr` and
+`fsetxattr`.
+
+The steps that remove: the device step removes a symlink at a device
+path before the node (on two layers a link of `lower` stays, hidden under
+the new node or shim, and the row is the row of one root), and
+`ca-hash-dir` removes an old certificate file of the crate (on two
+layers, one of `lower` is refused with `LayerRefusal::Remove`, and the
+row is a failed row with the refusal). A replace (`Root::write`) of an
+entry of `lower` is no remove: the new file of `upper` hides it.
+
+`cargo test -p pod-rootfs --all-features`: 81 unit tests and the 3 tests
+of `tests/two_layers.rs` passed, as root and as root with no `CAP_MKNOD`
+(the shim path; the first test of podvm then stops with `SKIP:`, C334).
+New: `write::layers::tests::{an_entry_of_upper_hides_the_same_name_of_lower,
+a_listing_of_two_layers_is_the_union, a_change_of_a_lower_file_copies_it_up_with_its_mode,
+a_remove_of_a_lower_entry_is_refused_with_its_type, a_link_resolves_in_the_merged_view,
+layers_that_hold_each_other_are_refused}` and
+`write::layers::tests::complete::two_layers_complete_as_one_root_and_the_lower_layer_keeps_its_digest`
+(a fixture with a read-only passwd, links into `/proc` and out of the
+root, a symlinked `lib` and trust store, a hash-indexed CA directory,
+`http://` sources in a file and in a directory that both layers hold, and
+a link at `dev/null`: the merged view is the tree of the completion of one
+root, the rows agree, the lower layer keeps its digest with the times,
+the upper layer holds no whiteout and no unchanged copy, and a second run
+changes nothing). The test of the copy-up also makes a new directory
+under a directory of `lower` alone, which the first test of podvm needs
+(`etc/apt/apt.conf.d`). `cargo
+test -p pod-hostprobe --all-features --lib sys::tests`:
+`an_extended_attribute_comes_back_through_the_descriptor` passed. Plants,
+each caught by hand: `rootfs-layers-write-to-lower` (a mode change of a
+lower file goes to `lower`: "the completion changed the lower layer"),
+`rootfs-layers-list-upper-only` ("a listing is the union of both
+layers"), `rootfs-layers-lower-over-upper` ("the upper layer hides the
+lower one"); `sh scripts/plant-each.sh --apply`: 0 stale.
+`check-windows.sh` and `check-macos.sh`: 0 faults.
