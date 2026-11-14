@@ -147,6 +147,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #142 | COORD-082: the answer to PodUtils/podvm#322: the order of T-486, T-107 and T-345 to T-347 (to podvm) | closed (`v0.42.0` carries T-486 and T-107; the hand-off #145) | T-486, T-107, T-345, T-346, T-347 |
 | #143 | COORD-083: v0.41.0: the termios mode of pod-term; four tox relays (to all) | closed (taken by podrunner at `9f15901`, PodUtils/podrunner#93; podvm at `104bbe4b`, PodUtils/podvm#324; podnet at `095955c`, PodUtils/podnet#546; podssh at `6f77eaa`, PodUtils/podssh#240) | T-537, T-539, T-555 |
 | #144 | COORD-084: the answer to PodUtils/podnet#547: the preshared key and a responder with no I/O of pod-wg (to podnet) | open (until a tag carries T-561 and T-562) | T-561, T-562 |
-| #145 | COORD-085: v0.42.0: the asks of each consumer (to all) | open (podvm took it at `296a1fc1`, PodUtils/podvm#325; waits for podnet, podssh and podrunner) | T-486, T-107, T-541, T-542, T-543, T-544, T-549, T-552, T-553, T-556, T-559, T-563 |
+| #145 | COORD-085: v0.42.0: the asks of each consumer (to all) | open (podvm took it at `296a1fc1`, PodUtils/podvm#325; podrunner at `05ceaec`, PodUtils/podrunner#96; waits for podnet and podssh) | T-486, T-107, T-541, T-542, T-543, T-544, T-549, T-552, T-553, T-556, T-559, T-563 |
+| #146 | COORD-086: the answer to PodUtils/podvm#326: a completion of two layers in pod-rootfs (to podvm) | open (until a tag carries the entry) | T-486 |
 
 #79 to #81 are pull requests.
