@@ -57,6 +57,7 @@ ends when they end; `finish` of the caller is an error.
 | `Step` | `id`, `name`, `condition`, `run` or `uses`, `with`, `env`, `shell`, `working_directory`, `continue_on_error`, `timeout_minutes`, `mark`, `extra` |
 | `Trigger`, `Workflow::takes`, `Workflow::triggers` | the decision whether the workflow takes an event: `event`, `action` (the `types` value), `git_ref` (`refs/heads/X`, `refs/tags/X`, or a branch name; for a pull request the base branch), `paths` (the changed files), `workflow` (for `workflow_run`, the name of the workflow that ran; T-577); `None` is not known and passes its filter (T-572, PodUtils/podrunner#97) |
 | `On`, `Event`, `Filter`, `Pattern`, `DEFAULT_PR_TYPES` | the events of `on:` with their filters, read once: `On::read`, `On::takes`, `Event::takes`; `Filter::matches` (the last pattern that matches decides), `Filter::takes`; `Pattern::parse`, `Pattern::matches` |
+| `Workflow::check`, `event_keys` | each fault of `on:` that GitHub refuses, all of them in the order of the file: an event that GitHub does not know (`UnknownEvent`), a key that its event does not take (`KeyNotTaken`, as `tags` on `pull_request`), a filter beside its `-ignore` form, a filter of `!` patterns only, a bad pattern, a value of another kind, a `schedule` that is not a list of `cron` entries; `parse` and `takes` do not change. `event_keys(event)`: the keys that an event takes, `None` for an unknown event |
 | `Node`, `Kind`, `Key`, `Mark` | a value of the file with its line and column: `to_value` (as written), `evaluate` (each `${{ }}` evaluated), `text`, `get`, `entries` |
 | `Warning` | an unknown key: its path, its name, its place |
 | `Graph` | `new` (a missing need and a cycle are errors by name), `order`, `edges`, `needs`, `ancestors` |
@@ -154,14 +155,19 @@ errors, the matrix examples of the documents, the graph and the
 expansion; the filters of `on:` with the examples of the documents
 (`tests/on.rs`: each filter, `workflows` of `workflow_run`, the cheat
 sheet of paths, the order of `!`, paths after branches, a filter with its
-`-ignore` form refused) and the patterns (`src/pattern.rs`); the calls of
+`-ignore` form refused) and the patterns (`src/pattern.rs`); the check
+of `on:` (`tests/check.rs`: each of the 64 examples of `on:` in "Events
+that trigger workflows" and "Workflow syntax" passes; a key that its
+event does not take, a filter with its `-ignore` form, an unknown event,
+`schedule`, each fault in the order of the file); the calls of
 reusable workflows with the examples of "Reusing workflows"
 (`tests/call.rs`: inputs and secrets, `with` and `secrets` checked,
 outputs, results, a matrix of calls, nesting, the limits, the errors of a
 called file). Each of these plants fails a test: `actions-workflow-*`
 (`bang-order-ignored`, `star-crosses-slash`, `tags-only-takes-branches`,
 `filter-with-ignore-taken`, `workflows-ignored`, `call-inputs-unchecked`,
-`call-inherits-unasked`, `call-levels-unbounded`, `call-outputs-dropped`).
+`call-inherits-unasked`, `call-levels-unbounded`, `call-outputs-dropped`,
+`check-pr-takes-tags`).
 The fuzz target `actions_workflow` (`fuzz/`) runs the parse, the filters
 of `on:`, the dry run, and a dry run where each call calls the same text,
 on untrusted YAML.

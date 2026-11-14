@@ -204,7 +204,7 @@ impl Event {
 
 /// The filter `key` or `key-ignore` of an event: both are an error, and a
 /// filter of `!` patterns only too, as GitHub refuses them.
-fn filter(event: &Node, path: &str, key: &'static str) -> Result<Option<Filter>, Error> {
+pub(crate) fn filter(event: &Node, path: &str, key: &'static str) -> Result<Option<Filter>, Error> {
     let ignore_key = format!("{key}-ignore");
     let (node, ignore, name) = match (event.get(key), event.get(&ignore_key)) {
         (Some(_), Some(other)) => {
@@ -229,7 +229,7 @@ fn filter(event: &Node, path: &str, key: &'static str) -> Result<Option<Filter>,
 /// A string or a list of strings, each with its place. A number or a
 /// boolean is refused: YAML reads `1.0` as a number, so a pattern must be
 /// quoted to keep its text.
-fn strings(node: &Node, path: &str, what: &'static str) -> Result<Vec<(String, Mark)>, Error> {
+pub(crate) fn strings(node: &Node, path: &str, what: &'static str) -> Result<Vec<(String, Mark)>, Error> {
     let one = |n: &Node| match &n.kind {
         Kind::String(s) => Ok((s.clone(), n.mark)),
         _ => Err(Error::new(path, Some(n.mark), ErrorKind::Type(what))),

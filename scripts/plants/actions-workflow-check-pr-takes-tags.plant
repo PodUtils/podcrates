@@ -1,0 +1,7 @@
+# The check of on: lets pull_request and pull_request_target take tags and
+# tags-ignore, which GitHub refuses (T-578).
+ENTRY=T-578
+GROUP=actions
+EXPECT='tags_on_a_pull_request_and_other_keys_that_an_event_does_not_take_are_faults'
+RUN='cargo test -p pod-actions-workflow --all-features --test check'
+LIMIT=900
