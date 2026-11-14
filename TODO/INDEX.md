@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**436 entries: 115 open, 8 partial, 5 blocked, 308 done.**
+**438 entries: 117 open, 8 partial, 5 blocked, 308 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 83 | 97 |
-| P2 | 53 | 3 | 4 | 167 | 227 |
-| P3 | 51 | 2 | 1 | 56 | 110 |
-| **All** | 115 | 8 | 5 | 308 | 436 |
+| P2 | 54 | 3 | 4 | 167 | 228 |
+| P3 | 52 | 2 | 1 | 56 | 111 |
+| **All** | 117 | 8 | 5 | 308 | 438 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -483,3 +483,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-554](relay.md) | P3 | M | M2 | feature | open | `pod-wormhole`: an ntfy topic as a meeting point of the pairing where a proxy refuses the WebSocket upgrade (PodUtils/podssh#237) |
 | [T-555](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `7122cc7` is red for podssh: its test pins five tox relays, and T-537 left four |
 | [T-556](transport.md) | P2 | S | M1 | feature | done | `pod-services`: serv00's public Piping Server as the third of the kind `piping` (PodUtils/podssh#238) |
+| [T-557](relay.md) | P3 | S | M2 | defect | open | `pod-link`: the listener of the dns, icmp, udp and ws carriers gets no `KeyRefused` when the dialer refuses its key |
+| [T-558](relay.md) | P2 | S | M6 | defect | open | `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open |

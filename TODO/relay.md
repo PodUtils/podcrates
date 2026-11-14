@@ -6279,3 +6279,66 @@ sh scripts/plant-each.sh link-key-refused-untyped link-key-refused-alert-untyped
 ## Done
 
 2026-11-14, commit `8895ca2`. `CarrierErrorKind::KeyRefused` (class `Refused`, 77) is the typed refusal of the key of this end (call C293); `pin::answer_error`, `pin::tls_error` and `quic::io::connection_error` map to it, and the poll carrier ends a lane at it. `cargo test -p pod-dns -p pod-link --all-features`: 264 passed, 6 ignored. The dialer whose key the listener refused gets `KeyRefused` with exit code 77 in `the_listener_refuses_a_client_of_another_key_and_stays_open` (tcp, ws, h2, quic, udp, poll, dns) and `a_refused_key_is_named_on_each_side` (icmp). The listener whose key the dialer refused gets `KeyRefused` in `the_dialer_refuses_a_listener_of_another_key_and_names_it` on tcp, h2, quic and poll. Plants: `link-key-refused-untyped` fails the dialer's check on tcp, ws, h2, udp, poll, dns and icmp ("right: KeyRefused"); `link-key-refused-alert-untyped` fails the listener's check on tcp; `link-quic-key-refused-untyped` fails both checks on quic. Not proven: the listener's side on dns and icmp (the listener reads the end of the stream before the alert: always on dns, at times on icmp), on udp (the handshake of the listener times out) and on ws (the accept gives no error of a handshake); the parent has the finding.
+
+# T-557: `pod-link`: the listener of the dns, icmp, udp and ws carriers gets no `KeyRefused` when the dialer refuses its key
+
+**Source:** T-542 (a finding of its work; PodUtils/podnet#533).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-542 gives `CarrierErrorKind::KeyRefused` to the end whose key the peer refused. When the dialer refuses the key of the listener, the accept of the listener gets it on tcp, h2, quic and poll only:
+
+- dns: the listener always reads the end of the stream before the TLS alert (`Io(UnexpectedEof)`);
+- icmp: the same, at times;
+- udp: the handshake of the listener ends at its time limit (10 s);
+- ws: `accept_key` gives no error for the failed handshake in 30 s.
+
+## Premise
+
+- Read: the report of T-542; `crates/pod-link/src/dgram_tls.rs`, `src/arq/stream.rs`, `src/udp/stream.rs`, `src/ws.rs`.
+- Not measured: whether the alert of the dialer reaches `ArqStream::poll_write`, or KCP, before the stream closes.
+
+## Approach
+
+1. Trace whether the alert reaches `ArqStream::poll_write` when `dgram_tls::connect` fails, and whether the write can return pending; flush it before the end.
+2. udp: flush KCP before the stream drops.
+3. ws: give a failed handshake out through `accept_key`.
+4. Then add the checks of the listener side for the four carriers, with a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features
+```
+
+# T-558: `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open
+
+**Source:** T-544 (a finding of its work; PodUtils/podnet#538).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-544 refuses `socket(AF_INET or AF_INET6, SOCK_RAW, ...)` and ping sockets in a held child. A payload with `CAP_NET_RAW` can still send frames out of the host through `socket(AF_PACKET, SOCK_RAW or SOCK_DGRAM, ...)`.
+
+## Premise
+
+- Read: the report of T-544; `crates/pod-hold/src/filter.rs` (`deny_raw`).
+
+## Approach
+
+Add `AF_PACKET` (each type) to the rule, under the opt-in of T-544 or a separate one. Ask podnet by a COORD issue whether `--allow-raw` covers it. A case of the BPF unit test, a test of a held child (`EPERM` with no notification), and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-hold --all-features
+```
