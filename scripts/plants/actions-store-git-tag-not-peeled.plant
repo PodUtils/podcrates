@@ -1,0 +1,8 @@
+# The git forge takes the line of an annotated tag, not its peeled line:
+# the reference names the tag object, not the commit (T-564,
+# PodUtils/podrunner#94). It needs git in PATH.
+ENTRY=T-564
+GROUP=actions
+EXPECT='an annotated tag gives its commit'
+RUN='cargo test -p pod-actions-store --test git git_resolves_a_tag_an_annotated_tag_and_a_branch'
+LIMIT=900

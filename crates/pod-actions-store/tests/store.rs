@@ -1,12 +1,12 @@
-//! The actions by tag against github.com (T-118): a composite action by tag
-//! that names a second action by tag gives both commits, both tarballs and
-//! a lock; a second run takes the lock and the store, and `--offline` asks
-//! the forge nothing. Ignored by default: it needs git and github.com.
+//! The actions by tag against github.com: a composite action by tag that
+//! names a second action by tag gives both commits, both tarballs and a
+//! lock; a second run takes the lock and the store, and the offline mode
+//! asks the forge nothing. Ignored by default: it needs git and github.com.
 //!
-//!   cargo test -p podrunner-local --test store -- --ignored --nocapture
+//!   cargo test -p pod-actions-store --test store -- --ignored --nocapture
 
-use podrunner_local::lock::{Lock, is_commit};
-use podrunner_local::store::{Forge, Git, Mode, Store, resolve};
+use pod_actions_store::lock::{Lock, is_commit};
+use pod_actions_store::store::{Forge, Git, Mode, Store, resolve};
 
 /// A forge that may not be asked.
 struct Refuse;
@@ -21,12 +21,12 @@ impl Forge for Refuse {
 }
 
 #[test]
-#[ignore]
+#[ignore = "network: git and github.com"]
 fn a_composite_action_by_tag_and_the_action_that_it_names_by_tag() {
-    let dir = std::env::temp_dir().join(format!("podrunner-store-live-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("pod-actions-store-live-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    let store = Store { dir: dir.clone() };
-    let git = Git { base: "https://github.com/".into() };
+    let store = Store { dir: dir.join("store") };
+    let git = Git::new("https://github.com/", dir.join("scratch"));
     let uses = vec!["actions/upload-pages-artifact@v3".to_string()];
     let r = resolve(&uses, &Lock::default(), &store, &git, Mode::Online, "L").unwrap();
     println!("{}", r.lock.render());

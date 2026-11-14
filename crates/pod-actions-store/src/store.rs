@@ -1,21 +1,25 @@
-//! The actions of a run by tag (T-118). Before the first job, `podrunner
-//! run` collects each `uses: OWNER/REPO[/PATH]@REF` of the workflow and of
-//! each composite action that it gets, resolves each one to a commit, and
-//! keeps the tarball of each commit in a store: `DIR/OWNER_REPO/SHA.tar.gz`,
-//! the layout that the fake broker serves (T-091). The lock file pins each
-//! reference by commit and by the SHA-256 of the tar; a tag that moved, or a
-//! tarball that differs from the lock, fails the run by name. The host does
-//! each fetch; a unit never fetches an action.
+//! The actions of a run by tag. Before the first job, the consumer collects
+//! each `uses: OWNER/REPO[/PATH]@REF` of the workflow ([`workflow_uses`]);
+//! [`resolve`] follows each composite action that it gets, resolves each
+//! reference to a commit, and keeps the tarball of each commit in a store:
+//! `DIR/OWNER_REPO/SHA.tar.gz`, the layout of the archive cache of the
+//! runner. The lock pins each reference by commit and by the SHA-256 of the
+//! tar; a tag that moved, or a tarball that differs from the lock, fails the
+//! run by name. The host does each fetch; a unit never fetches an action.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use pod_actions_workflow::{Kind, Limits, Node, Workflow};
+use pod_actions_workflow::{Kind, Limits, Workflow};
+use sha2::{Digest, Sha256};
 
+use crate::error::Error;
+pub use crate::git::Git;
 use crate::lock::{Lock, Pin, is_commit};
 
-/// A forge that resolves a reference and gives the tar of a commit.
+/// A forge that resolves a reference and gives the tar of a commit. An
+/// error is text for the user; [`resolve`] gives it as [`Error::Forge`].
 pub trait Forge {
     /// The commit of `REF` (a tag or a branch) of `OWNER/REPO`.
     fn resolve(&self, repo: &str, r: &str) -> Result<String, String>;
@@ -34,8 +38,18 @@ pub enum Mode {
     Offline,
 }
 
-/// The result: each `OWNER/REPO@REF` of the run and its commit, for the
-/// launch route of the fake broker, and the lock after the run.
+impl std::fmt::Display for Mode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Mode::Online => "online",
+            Mode::Frozen => "frozen",
+            Mode::Offline => "offline",
+        })
+    }
+}
+
+/// The result: each `OWNER/REPO@REF` of the run and its commit, and the
+/// lock after the run.
 #[derive(Debug, Default)]
 pub struct Resolved {
     pub commits: BTreeMap<String, String>,
@@ -54,14 +68,15 @@ fn split(uses: &str) -> Option<(String, String, String)> {
     Some((format!("{owner}/{repo}"), parts.next().unwrap_or("").trim_matches('/').to_string(), r.to_string()))
 }
 
-/// Each `uses:` of a repository in the steps of the workflow. The stand-in
-/// of `actions/checkout` (T-092) takes no tarball.
-pub fn workflow_uses(w: &Workflow) -> Vec<String> {
+/// Each `uses:` of a repository in the steps of the workflow, but a
+/// repository `OWNER/REPO` of `except` (an action that the consumer gives
+/// in its own way, as a stand-in of `actions/checkout`).
+pub fn workflow_uses(w: &Workflow, except: &[&str]) -> Vec<String> {
     let mut out = Vec::new();
     for job in &w.jobs {
         for s in &job.steps {
             match s.uses.as_deref() {
-                Some(u) if u.starts_with("actions/checkout@") => {}
+                Some(u) if except.iter().any(|r| u.split_once('@').is_some_and(|(t, _)| t == *r)) => {}
                 Some(u) if remote(u) => out.push(u.to_string()),
                 _ => {}
             }
@@ -74,24 +89,17 @@ fn remote(uses: &str) -> bool {
     !uses.starts_with("./") && !uses.starts_with("docker://")
 }
 
-fn get<'a>(n: &'a Node, key: &str) -> Option<&'a Node> {
-    match &n.kind {
-        Kind::Map(e) => e.iter().find(|(k, _)| k.name == key).map(|(_, v)| v),
-        _ => None,
-    }
-}
-
 /// Each `uses:` of a repository in the steps of a composite `action.yml`.
 fn composite_uses(text: &str) -> Result<Vec<String>, String> {
     let root = pod_actions_workflow::yaml::load(text, Limits::default()).map_err(|e| e.to_string())?;
-    let Some(runs) = get(&root, "runs") else { return Ok(Vec::new()) };
-    if !matches!(get(runs, "using").map(|n| &n.kind), Some(Kind::String(u)) if u == "composite") {
+    let Some(runs) = root.get("runs") else { return Ok(Vec::new()) };
+    if !matches!(runs.get("using").map(|n| &n.kind), Some(Kind::String(u)) if u == "composite") {
         return Ok(Vec::new());
     }
-    let Some(Kind::Seq(steps)) = get(runs, "steps").map(|n| &n.kind) else { return Ok(Vec::new()) };
+    let Some(Kind::Seq(steps)) = runs.get("steps").map(|n| &n.kind) else { return Ok(Vec::new()) };
     Ok(steps
         .iter()
-        .filter_map(|s| match get(s, "uses").map(|n| &n.kind) {
+        .filter_map(|s| match s.get("uses").map(|n| &n.kind) {
             Some(Kind::String(u)) if remote(u) => Some(u.clone()),
             _ => None,
         })
@@ -117,9 +125,17 @@ fn action_file(tar: &[u8], path: &str) -> Result<Option<String>, String> {
     Ok(None)
 }
 
+/// `sha256:HEX` of `bytes`: the digest of a lock covers the uncompressed
+/// tar, so the version of git or of gzip does not change it.
 pub fn digest(bytes: &[u8]) -> String {
-    let d = ring::digest::digest(&ring::digest::SHA256, bytes);
-    format!("sha256:{}", d.as_ref().iter().map(|b| format!("{b:02x}")).collect::<String>())
+    let d = Sha256::digest(bytes);
+    format!("sha256:{}", d.iter().map(|b| format!("{b:02x}")).collect::<String>())
+}
+
+/// The name of a tarball in the store: `OWNER_REPO/SHA.tar.gz`; `/` becomes
+/// `_`, as in the archive cache of the runner.
+pub fn archive_name(repo: &str, commit: &str) -> String {
+    format!("{}/{commit}.tar.gz", repo.replace('/', "_"))
 }
 
 /// The store of tarballs: `DIR/OWNER_REPO/SHA.tar.gz`.
@@ -129,22 +145,22 @@ pub struct Store {
 
 impl Store {
     pub fn path(&self, repo: &str, commit: &str) -> PathBuf {
-        self.dir.join(podrunner_broker_fake::actions::archive_name(repo, commit))
+        self.dir.join(archive_name(repo, commit))
     }
 
     /// The uncompressed tar of a commit in the store, if there is one.
-    fn get(&self, repo: &str, commit: &str) -> Result<Option<Vec<u8>>, String> {
+    fn get(&self, repo: &str, commit: &str) -> Result<Option<Vec<u8>>, Error> {
         let path = self.path(repo, commit);
         let Ok(file) = std::fs::File::open(&path) else { return Ok(None) };
         let mut tar = Vec::new();
-        flate2::read::GzDecoder::new(file).read_to_end(&mut tar).map_err(|e| format!("{}: {e}", path.display()))?;
+        flate2::read::GzDecoder::new(file).read_to_end(&mut tar).map_err(|e| Error::file(&path, &e))?;
         Ok(Some(tar))
     }
 
     /// Keep a tar, compressed, through a temporary file.
-    fn put(&self, repo: &str, commit: &str, tar: &[u8]) -> Result<(), String> {
+    fn put(&self, repo: &str, commit: &str, tar: &[u8]) -> Result<(), Error> {
         let path = self.path(repo, commit);
-        let fail = |e: std::io::Error| format!("{}: {e}", path.display());
+        let fail = |e: std::io::Error| Error::file(&path, &e);
         std::fs::create_dir_all(path.parent().expect("a directory of the repository")).map_err(fail)?;
         let tmp = path.with_extension(format!("tmp{}", std::process::id()));
         let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
@@ -164,7 +180,7 @@ pub fn resolve(
     forge: &dyn Forge,
     mode: Mode,
     lock_name: &str,
-) -> Result<Resolved, String> {
+) -> Result<Resolved, Error> {
     let mut out = Resolved { lock: lock.clone(), ..Resolved::default() };
     let mut queue: VecDeque<String> = uses.iter().cloned().collect();
     let mut seen = BTreeSet::new();
@@ -173,78 +189,82 @@ pub fn resolve(
         if !seen.insert(u.clone()) {
             continue;
         }
-        let (repo, path, r) = split(&u).ok_or_else(|| format!("`uses: {u}` is not OWNER/REPO[/PATH]@REF"))?;
+        let (repo, path, r) = split(&u).ok_or_else(|| Error::Uses { uses: u.clone() })?;
         let key = format!("{repo}@{r}");
         if !tars.contains_key(&key) {
-            let (commit, tar) = fetch(&repo, &r, &key, &mut out, store, forge, mode, lock_name)?;
+            let at = At { repo: &repo, r: &r, key: &key, lock_name };
+            let (commit, tar) = fetch(&at, &mut out, store, forge, mode)?;
             out.commits.insert(key.clone(), commit);
             tars.insert(key.clone(), tar);
         }
-        let text = action_file(&tars[&key], &path).map_err(|e| format!("the tarball of `{key}`: {e}"))?;
+        let text = action_file(&tars[&key], &path).map_err(|reason| Error::Tarball { key: key.clone(), reason })?;
         let Some(text) = text else {
-            return Err(format!("`uses: {u}`: the tarball has no action.yml at `{path}`"));
+            return Err(Error::NoAction { uses: u, path });
         };
-        queue.extend(composite_uses(&text).map_err(|e| format!("the action.yml of `{u}`: {e}"))?);
+        queue.extend(composite_uses(&text).map_err(|reason| Error::Action { uses: u.clone(), reason })?);
     }
     Ok(out)
 }
 
+/// One reference: `OWNER/REPO`, its ref, its key in the lock, and the name
+/// of the lock for the errors.
+struct At<'a> {
+    repo: &'a str,
+    r: &'a str,
+    key: &'a str,
+    lock_name: &'a str,
+}
+
 /// The commit and the tar of one reference.
-#[allow(clippy::too_many_arguments)]
 fn fetch(
-    repo: &str,
-    r: &str,
-    key: &str,
+    at: &At<'_>,
     out: &mut Resolved,
     store: &Store,
     forge: &dyn Forge,
     mode: Mode,
-    lock_name: &str,
-) -> Result<(String, Vec<u8>), String> {
-    let pin = out.lock.pins.get(key).cloned();
+) -> Result<(String, Vec<u8>), Error> {
+    let (repo, key, lock) = (at.repo, at.key.to_string(), at.lock_name.to_string());
+    let forged = |reason| Error::Forge { repo: repo.to_string(), reason };
+    let not_locked = || Error::NotLocked { key: key.clone(), lock: lock.clone(), mode };
+    let pin = out.lock.pins.get(at.key).cloned();
     let commit = match (&pin, mode) {
-        _ if is_commit(r) => r.to_ascii_lowercase(),
+        _ if is_commit(at.r) => at.r.to_ascii_lowercase(),
         (Some(p), Mode::Offline) => p.commit.clone(),
         (Some(p), _) => {
-            let now = forge.resolve(repo, r)?;
+            let now = forge.resolve(repo, at.r).map_err(forged)?;
             if now != p.commit {
-                return Err(format!(
-                    "`{key}` moved: {lock_name} has {}, the forge has {now}; remove its line from {lock_name} to take {now}",
-                    p.commit
-                ));
+                return Err(Error::Moved { key, lock, pinned: p.commit.clone(), now });
             }
             now
         }
-        (None, Mode::Offline) => return Err(format!("`{key}` is not in {lock_name}; run once with no --offline")),
-        (None, Mode::Frozen) => return Err(format!("`{key}` is not in {lock_name}, and --frozen refuses a change")),
-        (None, Mode::Online) => forge.resolve(repo, r)?,
+        // A reference that the lock does not have: refused before the forge.
+        (None, Mode::Offline | Mode::Frozen) => return Err(not_locked()),
+        (None, Mode::Online) => forge.resolve(repo, at.r).map_err(forged)?,
     };
+    // The commit names a file of the store: take only a full commit id.
+    if !is_commit(&commit) {
+        return Err(forged(format!("`{key}`: the forge gave `{commit}`, not a commit id")));
+    }
     if let Some(p) = &pin
         && p.commit != commit
     {
-        return Err(format!("`{key}` names {commit}, but {lock_name} has {}", p.commit));
+        return Err(Error::Pinned { key, lock, commit, pinned: p.commit.clone() });
     }
     let (tar, fresh) = match store.get(repo, &commit)? {
         Some(tar) => (tar, false),
-        None if mode == Mode::Offline => {
-            return Err(format!("`{key}`: {} is not in the store, and --offline fetches nothing", commit));
-        }
-        None if mode == Mode::Frozen && pin.is_none() => {
-            return Err(format!("`{key}` is not in {lock_name}, and --frozen refuses a change"));
-        }
-        None => (forge.tar(repo, &commit)?, true),
+        None if mode == Mode::Offline => return Err(Error::NotStored { key, commit }),
+        None if mode == Mode::Frozen && pin.is_none() => return Err(not_locked()),
+        None => (forge.tar(repo, &commit).map_err(forged)?, true),
     };
     let d = digest(&tar);
     match &pin {
         Some(p) if p.digest != d => {
-            return Err(format!("the tarball of `{key}` ({commit}) has {d}, but {lock_name} has {}", p.digest));
+            return Err(Error::Digest { key, commit, lock, digest: d, pinned: p.digest.clone() });
         }
         Some(_) => {}
-        None if mode == Mode::Frozen => {
-            return Err(format!("`{key}` is not in {lock_name}, and --frozen refuses a change"));
-        }
+        None if mode == Mode::Frozen => return Err(not_locked()),
         None => {
-            out.lock.pins.insert(key.to_string(), Pin { commit: commit.clone(), digest: d });
+            out.lock.pins.insert(key, Pin { commit: commit.clone(), digest: d });
             out.changed = true;
         }
     }
@@ -252,63 +272,6 @@ fn fetch(
         store.put(repo, &commit, &tar)?;
     }
     Ok((commit, tar))
-}
-
-/// The forge of git over HTTPS: `git ls-remote` resolves a ref, and a
-/// shallow fetch of the commit gives `git archive`. git takes the proxy of
-/// the host from its environment.
-pub struct Git {
-    /// The base of the repositories, as `https://github.com/`.
-    pub base: String,
-}
-
-fn git(args: &[&str], dir: Option<&Path>) -> Result<Vec<u8>, String> {
-    let mut c = std::process::Command::new("git");
-    if let Some(d) = dir {
-        c.arg("-C").arg(d);
-    }
-    let out = c
-        .args(args)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_CONFIG_NOSYSTEM", "1")
-        .stdin(std::process::Stdio::null())
-        .output()
-        .map_err(|e| format!("git: {e}"))?;
-    if !out.status.success() {
-        let err = String::from_utf8_lossy(&out.stderr);
-        return Err(format!("git {}: {}", args[0], err.trim()));
-    }
-    Ok(out.stdout)
-}
-
-impl Forge for Git {
-    fn resolve(&self, repo: &str, r: &str) -> Result<String, String> {
-        let url = format!("{}{repo}", self.base);
-        let tag = format!("refs/tags/{r}");
-        let head = format!("refs/heads/{r}");
-        let text = String::from_utf8(git(&["ls-remote", &url, &tag, &format!("{tag}^{{}}"), &head], None)?)
-            .map_err(|e| e.to_string())?;
-        let find = |name: &str| text.lines().find_map(|l| l.split_once('\t').filter(|(_, n)| *n == name).map(|x| x.0));
-        // An annotated tag names a tag object: its peeled line names the commit.
-        find(&format!("{tag}^{{}}"))
-            .or_else(|| find(&tag))
-            .or_else(|| find(&head))
-            .map(str::to_string)
-            .ok_or_else(|| format!("`{repo}@{r}`: {url} has no tag or branch `{r}`"))
-    }
-
-    fn tar(&self, repo: &str, commit: &str) -> Result<Vec<u8>, String> {
-        let dir = std::env::temp_dir().join(format!("podrunner-fetch-{}-{commit}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        let url = format!("{}{repo}", self.base);
-        let prefix = format!("--prefix={}-{}/", repo.replace('/', "-"), &commit[..7]);
-        let r = git(&["init", "-q"], Some(&dir))
-            .and_then(|_| git(&["fetch", "-q", "--depth", "1", &url, commit], Some(&dir)))
-            .and_then(|_| git(&["archive", "--format=tar", &prefix, "FETCH_HEAD"], Some(&dir)));
-        let _ = std::fs::remove_dir_all(&dir);
-        r.map_err(|e| format!("`{repo}` at {commit}: {e}"))
-    }
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 445 entries: 116 open, 7 partial, 6 blocked, 316 done.
+`TODO/INDEX.md` holds 446 entries: 116 open, 7 partial, 6 blocked, 317 done.
 
 ## State
 
@@ -187,8 +187,10 @@ below, in order.
 
 ## Owner actions
 
-- None open. The owner reserved `pod-devtunnel` and `podswarm` on
-  crates.io (T-387).
+- Reserve `pod-actions-store` on crates.io at `0.0.0` with the repository
+  of podcrates (T-564; the ruling "crates.io names"). A release by a git
+  tag does not wait for it.
+- The owner reserved `pod-devtunnel` and `podswarm` on crates.io (T-387).
 
 The hand-off of each release is a COORD issue `(to all)`
 (`docs/maintenance.md`, "A release").

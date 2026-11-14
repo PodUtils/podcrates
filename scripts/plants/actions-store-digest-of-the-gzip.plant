@@ -1,0 +1,7 @@
+# The digest of the lock covers the gzip of the tar, so the version of
+# gzip changes it (T-564, PodUtils/podrunner#94).
+ENTRY=T-564
+GROUP=actions
+EXPECT='the_digest_is_of_the_uncompressed_tar'
+RUN='cargo test -p pod-actions-store --lib store::tests::the_digest_is_of_the_uncompressed_tar'
+LIMIT=900

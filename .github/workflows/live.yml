@@ -6,7 +6,8 @@ name: live
 # Multipath TCP, a public
 # registry, the WARP API and its front door, Alpine's mirror, the public mailboxes of magic-wormhole and
 # the public MQTT brokers (magic-wormhole's own servers run on each push in
-# ci.yml, T-354), and the public file hosts of pod-services (T-528).
+# ci.yml, T-354), the public file hosts of pod-services (T-528), and two
+# actions by tag from github.com (pod-actions-store, T-564).
 # They run on Thursdays at an off-peak hour and by hand (docs/decisions.md,
 # C150, which replaces the daily runs of C24: the code of each client is
 # proven on each push against a stand-in, T-352), with egress to the relay
@@ -105,6 +106,10 @@ jobs:
       # A rate limit of the registry (429) is a skip that the log names.
       - name: pod-oci, a pull of the pinned guest userland from ECR Public
         run: cargo test --locked -p pod-oci --test live -- --ignored --nocapture
+      # A composite action by tag and the action that it names, by git over
+      # HTTPS; a local bare repository proves the git forge on each push.
+      - name: pod-actions-store, two actions by tag from github.com
+        run: cargo test --locked -p pod-actions-store --test store -- --ignored --nocapture
       # A new device at the WARP API, a session at its front door that Live
       # holds, the trace of 1.1.1.1 over HTTPS through it, and the removal of
       # the device (T-339). The stand-in API and edge prove the code on each

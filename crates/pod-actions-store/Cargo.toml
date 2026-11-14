@@ -1,0 +1,22 @@
+[package]
+name = "pod-actions-store"
+description = "The actions of a GitHub Actions workflow by tag: the resolve of each uses through each composite action, a sorted lock file of commits and SHA-256 digests, a store of tarballs, and a git forge."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The `uses:` of a workflow and the YAML of a composite `action.yml`.
+pod-actions-workflow = { workspace = true }
+# The entry API, to find the `action.yml` of a reference in its tar.
+tar = { workspace = true }
+# The tarballs of the store: the Rust backend, not the C backend.
+flate2 = { workspace = true }
+# The digest of the uncompressed tar of a commit.
+sha2 = { workspace = true }
+
+[dev-dependencies]
+# need_tool!("git") for the tests of the git forge.
+pod-testkit = { workspace = true }

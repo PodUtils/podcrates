@@ -1,0 +1,14 @@
+diff --git a/crates/pod-actions-store/src/git.rs b/crates/pod-actions-store/src/git.rs
+index 1cf6edf..86e3d97 100644
+--- a/crates/pod-actions-store/src/git.rs
++++ b/crates/pod-actions-store/src/git.rs
+@@ -69,8 +69,7 @@ impl Forge for Git {
+             .map_err(|e| e.to_string())?;
+         let find = |name: &str| text.lines().find_map(|l| l.split_once('\t').filter(|(_, n)| *n == name).map(|x| x.0));
+         // An annotated tag names a tag object: its peeled line names the commit.
+-        find(&format!("{tag}^{{}}"))
+-            .or_else(|| find(&tag))
++        find(&tag)
+             .or_else(|| find(&head))
+             .map(str::to_string)
+             .ok_or_else(|| format!("`{repo}@{r}`: {url} has no tag or branch `{r}`"))
