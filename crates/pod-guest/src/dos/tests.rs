@@ -63,6 +63,7 @@ fn the_dos_mailbox_carries_both_batch_spellings_and_the_token() {
         monitor: dir.join("qmp.sock"),
         memory_mib: 512,
         cpus: 2,
+        options: Default::default(),
         emu_args: Vec::new(),
     };
     let mut s = Settings::new(std::env::temp_dir());

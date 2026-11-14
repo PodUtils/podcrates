@@ -20,6 +20,10 @@ use std::path::{Path, PathBuf};
 
 use pod_hostprobe::machine::Profile;
 
+pub mod options;
+
+pub use options::{Channel, Forward, Medium, MediumKind, Nic, NicModel, Options, Proto, UserNet, Virtio};
+
 /// Which accelerator to ask the emulator for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Accel {
@@ -89,6 +93,10 @@ pub struct Plan {
     /// Guest memory in MiB.
     pub memory_mib: u64,
     pub cpus: u32,
+    /// The NIC, the devices, the media, VNC, the serial socket, the
+    /// channels and the Hyper-V flags of the UEFI flavour ([`argv`]); the
+    /// DOS flavour does not read them. The default is the mailbox run.
+    pub options: Options,
     /// More arguments of the emulator, at the end of the line, so that a
     /// caller can override each value above.
     pub emu_args: Vec<String>,
@@ -101,8 +109,11 @@ pub struct Plan {
 /// writes the command into the image file and reads the result from it; a
 /// write-back cache can hold a result that the file does not have yet.
 ///
-/// `-nic none`: the guest gets no network. A caller that wants user-mode
-/// networking asks for it in [`Plan::emu_args`].
+/// `-nic none`: the guest gets no network, unless [`Plan::options`] asks
+/// for user-mode networking ([`Nic::User`]).
+///
+/// The argv does not check the options: [`Options::check`] does, and the
+/// start of the emulator calls it.
 pub fn argv(p: &Plan) -> Vec<String> {
     let mut a: Vec<String> = Vec::new();
     let mut push = |s: &str| a.push(s.to_string());
@@ -111,7 +122,7 @@ pub fn argv(p: &Plan) -> Vec<String> {
     push("-accel");
     push(p.accel.word());
     push("-cpu");
-    push(p.accel.cpu());
+    push(&p.options.cpu(p.accel));
     push("-smp");
     push(&p.cpus.to_string());
     push("-m");
@@ -119,15 +130,15 @@ pub fn argv(p: &Plan) -> Vec<String> {
     push("-L");
     push(&p.share.to_string_lossy());
     push("-drive");
-    push(&format!("if=pflash,format=raw,readonly=on,file={}", p.firmware_code.display()));
+    push(&format!("if=pflash,format=raw,readonly=on,file={}", options::escape(&p.firmware_code)));
     push("-drive");
-    push(&format!("if=pflash,format=raw,file={}", p.firmware_vars.display()));
+    push(&format!("if=pflash,format=raw,file={}", options::escape(&p.firmware_vars)));
     push("-drive");
-    push(&format!("if=none,id=root,file={},format=qcow2", p.root.display()));
+    push(&format!("if=none,id=root,file={},format=qcow2", options::escape(&p.root)));
     push("-device");
     push("nvme,drive=root,serial=wqroot");
     push("-drive");
-    push(&format!("if=none,id=mbox,file={},format=raw,cache=writethrough", p.mailbox.display()));
+    push(&format!("if=none,id=mbox,file={},format=raw,cache=writethrough", options::escape(&p.mailbox)));
     push("-device");
     push("nvme,drive=mbox,serial=wqmbox");
     push("-vga");
@@ -140,9 +151,10 @@ pub fn argv(p: &Plan) -> Vec<String> {
     // machine off; each other end is the timeout of the host.
     push("-no-reboot");
     push("-nic");
-    push("none");
-    push("-serial");
-    push(&format!("file:{}", p.serial.display()));
+    push(&p.options.nic());
+    p.options.devices(&mut a);
+    p.options.serial(&p.serial, &mut a);
+    let mut push = |s: &str| a.push(s.to_string());
     // QMP, not HMP: a refusal is an `"error"` member, not a line on a debug
     // console.
     push("-qmp");
@@ -230,6 +242,7 @@ mod tests {
             monitor: "/run/guest/mon.sock".into(),
             memory_mib: 6144,
             cpus: 4,
+            options: Options::default(),
             emu_args: Vec::new(),
         }
     }

@@ -57,7 +57,7 @@ use pod_core::{Class, Failure, Stage};
 pub use agent::{Code, Mode};
 pub use fat16::Fat16;
 pub use fetch::{Ceiling, Refusal};
-pub use plan::{Accel, Plan, accel_for, argv, convert_argv, overlay_argv};
+pub use plan::{Accel, Options, Plan, accel_for, argv, convert_argv, overlay_argv};
 pub use provision::provision;
 pub use scratch::{RunGuard, cleanup, scratch_dir, scratch_of};
 

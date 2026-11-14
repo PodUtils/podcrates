@@ -1,0 +1,8 @@
+# The check of a forward takes a port 0 on one side: the emulator then
+# refuses the line, or listens on a random port (T-593). The test of the
+# refused forwards must fail.
+ENTRY=T-593
+GROUP=guest
+EXPECT='test plan::options::tests::a_port_0_or_a_port_of_the_host_two_times_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- plan::options::tests::a_port_0_or_a_port_of_the_host_two_times_is_refused'
+LIMIT=1800

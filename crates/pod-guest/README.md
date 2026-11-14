@@ -11,8 +11,9 @@ rules:
 2. The base image is never written. A run writes to an overlay; a
    provision converts the overlay into a new standalone image with no
    backing file.
-3. The mailbox is the only channel. The guest has no network
-   (`-nic none`). The host writes the command and a random token before the
+3. The mailbox is the channel of a run. By default the guest has no
+   network (`-nic none`); `Plan::options` can give it one ("The options of
+   a plan"). The host writes the command and a random token before the
    boot, and reads the exit code, stdout and stderr after the guest stops.
    A result with another token is refused.
 4. A run that times out is stopped and reported, never `Ok`. The stop says
@@ -52,6 +53,7 @@ skip where no `qemu-system-x86_64` is on `PATH` (the KVM one also where
 | --- | --- |
 | `Settings` | `scratch_root` (the directory of the per-run directories), `scratch_prefix`, `keep` (keep each per-run directory), `marker` (the content of `WQMARK.TXT`), `oem` (the OEM name of the volume, 8 characters at most). `Settings::new(root)` gives `pod-guest-`, no keep, `pod-guest`, `PODGUEST` |
 | `Plan`, `Accel`, `accel_for(Option<Profile>)` | the description of one run (emulator, accelerator, firmware, overlay, mailbox, serial log, QMP socket, memory, CPUs, more arguments); `Accel::{word, cpu}` (`kvm`/`host`, `tcg`/`max`) |
+| `Options` (`plan::options`): `nic` (`Nic::None` by default, `Nic::User(UserNet { model, forwards, restrict })`), `virtio`, `media` (`Medium { kind, path, readonly, boot }`), `vnc`, `usb_tablet`, `serial_socket`, `channels` (`Channel { name, socket }`), `hyperv`; `check()`; `Forward::{local, spec}`, `Proto`, `NicModel`, `Virtio`, `MediumKind`, `escape`, `QGA_CHANNEL`, `HYPERV_FLAGS`, `MAX_SOCKET_PATH`, `MAX_CDROMS` | the options of a full guest of the UEFI flavour ("The options of a plan") |
 | `argv(&plan)`, `overlay_argv`, `convert_argv`, `plan::base_format` | the UEFI machine line with no program; `qemu-img create -f qcow2 -F FMT -b BASE`; `qemu-img convert -f qcow2 -O qcow2 OVERLAY OUT` (a new image with no backing file; `qemu-img commit` has no output file, PodUtils/podvm#277) |
 | `Request`, `Mode`, `Outcome`, `mailbox(&s, agent, &request)`, `outcome(&fat16, token)` | the command, the token, the limit and the mode (`Once` by default; `KeepAlive` puts `WQKEEP.TXT` on the mailbox); the code, the token and the streams; the mailbox of a run; the result of a mailbox (`None`: the guest wrote no result) |
 | `stage(&s, qemu_img, base, &plan, agent, &request)`, `run(&s, &plan, &request)`, `stop(&plan)` | the mailbox file and the overlay; the boot to the power-off and the result, with the error stream of the emulator in the per-run directory (a `KeepAlive` request is `Usage`: its guest does not power off); QMP `quit` |
@@ -85,6 +87,33 @@ kind.
 The FAT16 reader does not trust the volume that the guest wrote: a cluster
 outside the volume, a loop in a chain, or a size that the chain does not
 hold reads as no file.
+
+## The options of a plan
+
+`Plan::options` (`Options::default()`: the mailbox run) adds to the line
+of the UEFI flavour. The DOS flavour does not read them.
+
+| Option | Arguments |
+| --- | --- |
+| `nic: Nic::User(UserNet { model, forwards, restrict })` | `-nic user,model=e1000e` (or `virtio-net-pci`)`[,restrict=on],hostfwd=tcp:127.0.0.1:HOST-:GUEST...` in place of `-nic none`; `Forward::local` listens on the loopback of the host |
+| `virtio: [Rng, Balloon, Keyboard, Tablet]` | `-device virtio-rng-pci` (and so on), each one time |
+| `media: [Medium { kind: Cdrom, .. }]` | `-drive if=none,id=cdN,media=cdrom,readonly=on,format=raw,file=PATH`, `-device ide-cd,drive=cdN,bus=ide.N`; at most 6 (the AHCI ports of q35) |
+| `media: [Medium { kind: Usb, .. }]` | `-device qemu-xhci,id=xhci` one time, `-drive if=none,id=usbN,format=FMT[,readonly=on],file=PATH` (`FMT` from the name, `plan::base_format`), `-device usb-storage,bus=xhci.0,drive=usbN,removable=on` |
+| `Medium::boot` | `,bootindex=0` on the device; at most one medium |
+| `vnc: Some(SOCKET)` | `-vnc unix:SOCKET`; `-display none` stays |
+| `usb_tablet: true` | `-device usb-tablet,bus=xhci.0` (an absolute pointer that Windows knows with no driver) |
+| `serial_socket: Some(SOCKET)` | `-chardev socket,id=serial0,path=SOCKET,server=on,wait=off,logfile=SERIAL,logappend=on`, `-serial chardev:serial0` in place of `-serial file:SERIAL` |
+| `channels: [Channel { name, socket }]` | `-device virtio-serial-pci,id=vser` one time, `-chardev socket,id=chanN,path=SOCKET,server=on,wait=off`, `-device virtserialport,bus=vser.0,chardev=chanN,name=NAME` (`QGA_CHANNEL` for the guest agent) |
+| `hyperv: true` | `-cpu host,hv_relaxed,hv_vapic,hv_spinlocks=0x1fff,hv_vpindex,hv_runtime,hv_synic,hv_stimer,hv_reset,hv_frequencies,hv_time,hv_tlbflush,hv_ipi` under KVM; under TCG the CPU stays `max` |
+
+`Options::check()` refuses with `Usage`: a port 0, one port of the host
+forwarded two times for one protocol and address, a socket path that is
+empty, longer than 107 bytes or has a NUL, a medium with no path, more
+than 6 CD-ROMs, two media that boot first, a virtio device two times, and
+a channel name that is empty, has a byte other than ASCII letters, digits,
+`.`, `_` and `-`, or comes two times. The start of the emulator calls it.
+A comma in a path of an option list (`-drive`, `-chardev`, `-vnc`) is
+written as two commas.
 
 ## The store
 

@@ -52,6 +52,7 @@ pub fn spawn_emulator(plan: &Plan, args: &[String], stderr: Stdio) -> Result<Chi
 /// Start the guest of the UEFI flavour, whose machine line is
 /// [`crate::plan::argv`].
 pub(crate) fn spawn_uefi(plan: &Plan, stderr: Stdio) -> Result<Child> {
+    plan.options.check()?;
     spawn_emulator(plan, &crate::argv(plan), stderr)
 }
 

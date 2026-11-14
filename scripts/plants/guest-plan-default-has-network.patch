@@ -1,0 +1,13 @@
+diff --git a/crates/pod-guest/src/plan/options.rs b/crates/pod-guest/src/plan/options.rs
+index ba0d83b..17c68b4 100644
+--- a/crates/pod-guest/src/plan/options.rs
++++ b/crates/pod-guest/src/plan/options.rs
+@@ -252,7 +252,7 @@ impl Options {
+     /// The value of `-nic`.
+     pub(crate) fn nic(&self) -> String {
+         match &self.nic {
+-            Nic::None => "none".to_string(),
++            Nic::None => "user,model=e1000e".to_string(),
+             Nic::User(u) => {
+                 let mut s = format!("user,model={}", u.model.word());
+                 if u.restrict {

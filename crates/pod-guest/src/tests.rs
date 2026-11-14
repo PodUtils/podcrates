@@ -22,6 +22,7 @@ fn plan_over(scratch: &Path, emulator: &Path) -> Plan {
         monitor: scratch.join("qmp.sock"),
         memory_mib: 512,
         cpus: 1,
+        options: Default::default(),
         emu_args: Vec::new(),
     }
 }

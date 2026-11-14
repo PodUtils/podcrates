@@ -215,6 +215,7 @@ fn guest() -> Option<String> {
             monitor: "qmp.sock".into(),
             memory_mib: 512,
             cpus: 1,
+            options: Default::default(),
             emu_args: Vec::new(),
         })
         .len()
