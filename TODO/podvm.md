@@ -6888,7 +6888,7 @@ cargo test -p pod-guest --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6907,3 +6907,27 @@ Set the mode of each file through its descriptor after the write in each case, a
 ```sh
 cargo test -p pod-extract --all-features
 ```
+
+## Done
+
+2026-11-14, commit 5b41ffb. Each file gets `fchmod` after the last write,
+also when its mode is the mode of the open, and its mode is read back
+(C374). The permission pass sets each directory that the layer wrote to
+`mode | 0o700`, so a later layer that names a directory again sets its
+mode too (C375). The crate does not call `umask(0)`. The pass changes a
+directory through a descriptor opened with `O_DIRECTORY` and
+`O_NOFOLLOW`: `fchmodat` of the name followed a symlink that a later
+entry of the layer put there, and changed the mode of a file of the host
+(C413). `cargo test -p pod-extract --all-features`: 62 unit tests passed,
+with `drive::umask::the_modes_of_the_image_stay_under_a_umask_of_027`
+(the test binary again under a umask of 027: 0755, 0644, 0775 and 0664
+of files and directories stay, and the sidecar claims no other mode),
+`a_later_layer_sets_the_mode_of_a_directory_again` and
+`the_permission_pass_does_not_follow_a_symlink_at_the_name_of_a_directory`.
+Each fails on the code before the fix. Plants
+`extract-t597-file-mode-set-only-when-it-differs`,
+`extract-t597-pass-only-widens` and `extract-t597-pass-follows-a-symlink`,
+each caught by hand with its EXPECT text; the patch of
+`extract-t581-set-id-bits-not-set-again` follows the new code and is
+caught again. `plant-each.sh --apply`: 0 stale. `check-size.py`,
+`check-windows.sh` and `check-macos.sh`: 0 faults.

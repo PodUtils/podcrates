@@ -1,0 +1,12 @@
+diff --git a/crates/pod-extract/src/apply.rs b/crates/pod-extract/src/apply.rs
+--- a/crates/pod-extract/src/apply.rs
++++ b/crates/pod-extract/src/apply.rs
+@@ -319,7 +319,7 @@
+     // the process cut the mode of the open, a mode of the image with no
+     // owner write is set only now, and a write by a process with no
+     // CAP_FSETID cleared S_ISUID and S_ISGID.
+-    let refused = sys::fchmod(fd, u64::from(want_final)).is_err();
++    let refused = (want_final != want || want_final & 0o7000 != 0) && sys::fchmod(fd, u64::from(want_final)).is_err();
+     let kept = kept_mode(fd, want_final, refused.then_some(want));
+     let _ = sys::close(fd);
+     if let Some(e) = err {

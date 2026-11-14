@@ -1,12 +1,12 @@
 diff --git a/crates/pod-extract/src/apply.rs b/crates/pod-extract/src/apply.rs
 --- a/crates/pod-extract/src/apply.rs
 +++ b/crates/pod-extract/src/apply.rs
-@@ -318,7 +318,7 @@
-     // Two cases set the mode again now that the content is written: the mode
-     // of the image has no owner write, or it has a bit of 0o7000, which a
-     // write by a process with no CAP_FSETID clears.
--    let set = want_final != want || want_final & SET_ID_BITS != 0;
-+    let set = want_final != want;
-     let refused = set && sys::fchmod(fd, u64::from(want_final)).is_err();
-     let kept = if set { kept_mode(fd, want_final, refused.then_some(want)) } else { None };
+@@ -319,7 +319,7 @@
+     // the process cut the mode of the open, a mode of the image with no
+     // owner write is set only now, and a write by a process with no
+     // CAP_FSETID cleared S_ISUID and S_ISGID.
+-    let refused = sys::fchmod(fd, u64::from(want_final)).is_err();
++    let refused = want_final != want && sys::fchmod(fd, u64::from(want_final)).is_err();
+     let kept = kept_mode(fd, want_final, refused.then_some(want));
      let _ = sys::close(fd);
+     if let Some(e) = err {

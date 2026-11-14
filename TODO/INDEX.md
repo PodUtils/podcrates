@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**481 entries: 134 open, 7 partial, 5 blocked, 335 done.**
+**481 entries: 133 open, 7 partial, 5 blocked, 336 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 16 | 3 | 0 | 90 | 109 |
-| P2 | 61 | 2 | 4 | 185 | 252 |
+| P2 | 60 | 2 | 4 | 186 | 252 |
 | P3 | 57 | 2 | 1 | 58 | 118 |
-| **All** | 134 | 7 | 5 | 335 | 481 |
+| **All** | 133 | 7 | 5 | 336 | 481 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -527,4 +527,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-594](podvm.md) | P2 | M | M7 | feature | open | `pod-qga`: a new crate, a client of the QEMU Guest Agent over a Unix socket (PodUtils/podvm#350, item 5) |
 | [T-595](podvm.md) | P2 | M | M7 | feature | open | `pod-guest`: the provision waits for a ready guest in place of a fixed sleep (PodUtils/podvm#350, item 6) |
 | [T-596](podvm.md) | P3 | M | M7 | feature | open | `pod-guest`: a warm start from a saved state, with a fingerprint and a fallback to a cold boot (PodUtils/podvm#350, item 7) |
-| [T-597](podvm.md) | P2 | S | M6 | defect | open | `pod-extract`: the umask of the process changes the modes of the tree, and the sidecar does not record it |
+| [T-597](podvm.md) | P2 | S | M6 | defect | done | `pod-extract`: the umask of the process changes the modes of the tree, and the sidecar does not record it |

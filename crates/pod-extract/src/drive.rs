@@ -157,6 +157,26 @@ fn meta(dir: &std::path::Path) -> String {
     std::fs::read_to_string(dir.join(".meta.jsonl")).unwrap_or_default()
 }
 
+/// The mode on disk of each path, and the applied mode of its sidecar row
+/// (`None` when the row has none).
+fn kept(dir: &std::path::Path, paths: &[&str]) -> Vec<(String, u32, Option<String>)> {
+    use std::os::unix::fs::PermissionsExt;
+    let m = meta(dir);
+    paths
+        .iter()
+        .map(|p| {
+            let disk = std::fs::symlink_metadata(dir.join(p)).unwrap().permissions().mode() & 0o7777;
+            let row = m
+                .lines()
+                .find(|l| l.contains(&format!(r#""path":"{p}""#)))
+                .unwrap_or_else(|| panic!("no sidecar row for {p} in:\n{m}"));
+            let applied = row.split(r#""applied":{"#).nth(1).and_then(|a| a.split('}').next()).unwrap_or("");
+            let mode = applied.split(r#""mode":""#).nth(1).map(|v| v[..4].to_string());
+            ((*p).to_string(), disk, mode)
+        })
+        .collect()
+}
+
 /// The cause of a refused extraction, or a panic that says what came.
 fn refusal_of<T: std::fmt::Debug>(r: crate::Result<T>) -> crate::Refused {
     match r {
@@ -393,6 +413,7 @@ fn a_read_only_directory_in_one_layer_can_be_written_into_by_the_next() {
 
 mod records;
 mod setid;
+mod umask;
 mod whiteouts;
 
 /// A layer whose first entry is the root as a directory with an empty name
