@@ -220,6 +220,44 @@ impl AsyncWrite for ArqStream {
         polled
     }
 
+    /// Each buffer in one call, in order. rustls writes the alert of a
+    /// failed handshake with one vectored write and no second try; a write
+    /// of the first buffer alone would leave the alert out (T-557).
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[io::IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        let polled = self.shared.with(|i| {
+            let mut n = 0;
+            for buf in bufs.iter().filter(|b| !b.is_empty()) {
+                match i.arq.write(buf) {
+                    Err(e) if n == 0 => return Poll::Ready(Err(io::Error::from(e))),
+                    Err(_) => break,
+                    Ok(k) => {
+                        n += k;
+                        if k < buf.len() {
+                            break;
+                        }
+                    }
+                }
+            }
+            if n == 0 && bufs.iter().any(|b| !b.is_empty()) {
+                i.writer = Some(cx.waker().clone());
+                return Poll::Pending;
+            }
+            Poll::Ready(Ok(n))
+        });
+        if matches!(polled, Poll::Ready(Ok(n)) if n > 0) {
+            self.shared.sender.notify_one();
+        }
+        polled
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        true
+    }
+
     fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         Poll::Ready(self.shared.with(|i| i.arq.error().cloned()).map_or(Ok(()), |e| Err(e.into())))
     }

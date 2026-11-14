@@ -1,7 +1,10 @@
 //! The accept side of the ws carrier: the accept loop of `pod-ws` on one
 //! listener, with the TLS that pins the key of each client. A session waits
 //! for [`WsListener::accept_key`] before `ready`: it holds a slot of the
-//! caps, and the deadline of `ready` cuts a session that waits too long.
+//! caps, and the deadline of `ready` cuts a session that waits too long. A
+//! client that refused the key of this listener is an error of one accept
+//! (`KeyRefused`), as on the tcp carrier; each other failed handshake is
+//! skipped (call C390).
 
 use std::io;
 use std::net::SocketAddr;
@@ -14,12 +17,20 @@ use tokio::task::JoinHandle;
 
 use super::{ALPN, Beat, NAME, Ws, carry, err};
 use crate::carrier::{Accepted, BoxIo, CarrierError, CarrierErrorKind, Listener, Pending};
+use crate::pin;
+
+/// What the accept loop gives to the listener.
+enum Event {
+    Session(Box<Session>),
+    /// A client refused the key of this listener in its TLS handshake.
+    KeyRefused(CarrierError),
+}
 
 /// A listener of the ws carrier. Its drop ends the accept loop and each
 /// connection that did not reach an accept.
 pub struct WsListener {
     local: SocketAddr,
-    sessions: mpsc::UnboundedReceiver<Session>,
+    sessions: mpsc::UnboundedReceiver<Event>,
     task: JoinHandle<()>,
     beat: Beat,
 }
@@ -41,10 +52,19 @@ pub(super) async fn bind(ws: &Ws, addr: SocketAddr) -> Result<WsListener, Carrie
     let local = listener.local_addr().map_err(|e| CarrierError::io(NAME, format!("the address of {addr}"), e))?;
     let (out, sessions) = mpsc::unbounded_channel();
     let task = tokio::spawn(async move {
+        let refused = out.clone();
         let on = move |session| {
-            let _ = out.send(session);
+            let _ = out.send(Event::Session(Box::new(session)));
         };
-        if let Err(e) = pod_ws::serve::serve(vec![listener], config, cfg, on).await {
+        let failed = move |from: SocketAddr, e: io::Error| {
+            let e = pin::tls_error(NAME, format!("the TLS handshake of {from}"), e);
+            if e.kind == CarrierErrorKind::KeyRefused {
+                let _ = refused.send(Event::KeyRefused(e));
+            } else {
+                tracing::debug!(error = %e, "a TLS handshake of a ws listener failed");
+            }
+        };
+        if let Err(e) = pod_ws::serve::serve_reporting(vec![listener], config, cfg, on, failed).await {
             tracing::debug!(error = %e, "the accept loop of a ws listener ended");
         }
     });
@@ -58,10 +78,17 @@ impl WsListener {
     }
 
     /// The next client whose key is pinned, and that key. A session that a
-    /// deadline or an eviction cut while it waited is skipped.
+    /// deadline or an eviction cut while it waited is skipped. A client that
+    /// refused the key of this listener is an error of one accept
+    /// (`KeyRefused`): the listener stays open.
     pub async fn accept_key(&mut self) -> Result<(BoxIo, PublicKey), CarrierError> {
         loop {
-            let Some(session) = self.sessions.recv().await else {
+            let session = match self.sessions.recv().await {
+                Some(Event::Session(session)) => Some(*session),
+                Some(Event::KeyRefused(e)) => return Err(e),
+                None => None,
+            };
+            let Some(session) = session else {
                 return Err(err(
                     CarrierErrorKind::Io(io::ErrorKind::BrokenPipe),
                     "the accept loop of the listener ended",

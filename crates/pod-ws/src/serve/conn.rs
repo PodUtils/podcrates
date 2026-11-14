@@ -31,6 +31,8 @@ pub(super) struct Conn {
     pub(super) acceptor: TlsAcceptor,
     pub(super) cfg: Arc<Serve>,
     pub(super) out: mpsc::UnboundedSender<Accepted>,
+    /// The loop's channel of the TLS handshakes that failed.
+    pub(super) tls_failed: mpsc::UnboundedSender<(SocketAddr, std::io::Error)>,
     /// The accept.
     pub(super) start: Instant,
 }
@@ -42,7 +44,7 @@ type Shaken = (RelaySession<ServedStream>, Option<PublicKey>, Request);
 /// cut it at an eviction, at its deadline of `ready`, or at a drop of its
 /// gate with no `ready`.
 pub(super) async fn run(conn: Conn) {
-    let Conn { gate, slot: Slot { id, mut evicted }, tcp, from, acceptor, cfg, out, start } = conn;
+    let Conn { gate, slot: Slot { id, mut evicted }, tcp, from, acceptor, cfg, out, tls_failed, start } = conn;
     let options = tune(&tcp, cfg.lowat);
     // A second handle of the socket: its shutdown cuts the session in the
     // hands of the caller.
@@ -50,12 +52,18 @@ pub(super) async fn run(conn: Conn) {
     let end = start + cfg.deadlines.ready;
     let shaken = tokio::select! {
         biased;
-        _ = &mut evicted => Err("evicted".to_string()),
+        _ = &mut evicted => Err(Why::Other("evicted".to_string())),
         shaken = shake(&gate, id, tcp, &acceptor, &cfg, start, end) => shaken,
     };
     let (session, key, request) = match shaken {
         Ok(shaken) => shaken,
-        Err(why) => {
+        Err(Why::Tls(e)) => {
+            tracing::debug!(%from, error = %e, "a connection before ready is cut: TLS");
+            gate.release(id);
+            let _ = tls_failed.send((from, e));
+            return;
+        }
+        Err(Why::Other(why)) => {
             tracing::debug!(%from, why, "a connection before ready is cut");
             gate.release(id);
             return;
@@ -118,6 +126,19 @@ fn notsent_lowat(_: &TcpStream) -> Option<u32> {
     None
 }
 
+/// Why the stages cut a connection: its TLS handshake failed (the caller
+/// sees the error), or another stage ended it.
+enum Why {
+    Tls(std::io::Error),
+    Other(String),
+}
+
+impl From<String> for Why {
+    fn from(why: String) -> Why {
+        Why::Other(why)
+    }
+}
+
 /// The stages of one connection, each within its deadline and within
 /// `end`, the deadline of `ready`.
 async fn shake(
@@ -128,13 +149,11 @@ async fn shake(
     cfg: &Serve,
     start: Instant,
     end: Instant,
-) -> Result<Shaken, String> {
+) -> Result<Shaken, Why> {
     let d = &cfg.deadlines;
     let at = (start + d.tls).min(end);
-    let mut tls = timeout_at(at, acceptor.accept(tcp))
-        .await
-        .map_err(|_| "the deadline of TLS".to_string())?
-        .map_err(|e| format!("TLS: {e}"))?;
+    let mut tls =
+        timeout_at(at, acceptor.accept(tcp)).await.map_err(|_| "the deadline of TLS".to_string())?.map_err(Why::Tls)?;
     let key = pod_tls::peer::peer_key(tls.get_ref().1.peer_certificates());
     gate.advance(id, Stage::Head);
 
@@ -147,7 +166,7 @@ async fn shake(
                 let answer = request::refusal(status, &e.to_string(), &[]);
                 let _ = timeout_at(at, tls.write_all(&answer)).await;
             }
-            return Err(format!("the head: {e}"));
+            return Err(format!("the head: {e}").into());
         }
     };
     let checked = server::check_upgrade(&request)
@@ -156,7 +175,7 @@ async fn shake(
         Ok(key_ws) => key_ws,
         Err(refused) => {
             let _ = timeout_at(at, tls.write_all(&refused.answer())).await;
-            return Err(format!("the upgrade: {} {}", refused.status, refused.why));
+            return Err(format!("the upgrade: {} {}", refused.status, refused.why).into());
         }
     };
 

@@ -1,0 +1,11 @@
+--- a/crates/pod-ws/src/serve/conn.rs
++++ b/crates/pod-ws/src/serve/conn.rs
+@@ -60,7 +60,7 @@
+         Err(Why::Tls(e)) => {
+             tracing::debug!(%from, error = %e, "a connection before ready is cut: TLS");
+             gate.release(id);
+-            let _ = tls_failed.send((from, e));
++            drop((tls_failed, e));
+             return;
+         }
+         Err(Why::Other(why)) => {

@@ -236,10 +236,29 @@ pub async fn serve<F>(
     listeners: Vec<TcpListener>,
     tls: Arc<rustls::ServerConfig>,
     cfg: Serve,
-    mut on: F,
+    on: F,
 ) -> Result<(), Failure>
 where
     F: FnMut(Accepted) + Send,
+{
+    serve_reporting(listeners, tls, cfg, on, |_, _| {}).await
+}
+
+/// [`serve`], and give each TLS handshake that failed to `failed`: the
+/// address of the peer and the error of TLS. The error holds the
+/// `rustls::Error` of the handshake, so the caller can tell an alert of the
+/// peer (a client that refused the certificate of this server) from noise.
+/// The loop closes the connection as [`serve`] does.
+pub async fn serve_reporting<F, G>(
+    listeners: Vec<TcpListener>,
+    tls: Arc<rustls::ServerConfig>,
+    cfg: Serve,
+    mut on: F,
+    mut failed: G,
+) -> Result<(), Failure>
+where
+    F: FnMut(Accepted) + Send,
+    G: FnMut(SocketAddr, std::io::Error) + Send,
 {
     cfg.check().map_err(|why| Failure::new(Stage::WebSocket, Class::Usage, why))?;
     if listeners.is_empty() {
@@ -250,6 +269,7 @@ where
     let acceptor = TlsAcceptor::from(tls);
     let (incoming_tx, mut incoming) = mpsc::channel(INCOMING);
     let (out, mut sessions) = mpsc::unbounded_channel();
+    let (tls_failed, mut tls_failures) = mpsc::unbounded_channel();
     let mut tasks = JoinSet::new();
     for listener in listeners {
         tasks.spawn(accept_each(listener, incoming_tx.clone()));
@@ -258,6 +278,7 @@ where
     loop {
         tokio::select! {
             Some(accepted) = sessions.recv() => on(accepted),
+            Some((from, e)) = tls_failures.recv() => failed(from, e),
             Some((tcp, from)) = incoming.recv() => {
                 while tasks.try_join_next().is_some() {}
                 let start = tokio::time::Instant::now();
@@ -271,6 +292,7 @@ where
                             acceptor: acceptor.clone(),
                             cfg: cfg.clone(),
                             out: out.clone(),
+                            tls_failed: tls_failed.clone(),
                             start,
                         };
                         tasks.spawn(conn::run(conn));

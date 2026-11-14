@@ -1,0 +1,11 @@
+--- a/crates/pod-link/src/ws/listen.rs
++++ b/crates/pod-link/src/ws/listen.rs
+@@ -58,7 +58,7 @@
+         };
+         let failed = move |from: SocketAddr, e: io::Error| {
+             let e = pin::tls_error(NAME, format!("the TLS handshake of {from}"), e);
+-            if e.kind == CarrierErrorKind::KeyRefused {
++            if e.kind == CarrierErrorKind::KeyRefused && false {
+                 let _ = refused.send(Event::KeyRefused(e));
+             } else {
+                 tracing::debug!(error = %e, "a TLS handshake of a ws listener failed");

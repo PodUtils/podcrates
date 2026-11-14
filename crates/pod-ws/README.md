@@ -25,7 +25,7 @@ The base is podssh's `crates/podssh-ws` (its WebSocket parts); podnet's
 | `cleartext` | `connect`, `tls_failed`, `probe(&way, host, port, wait)`, `Heard`, `PROBE_PATH`, `PLAIN_TO_TLS` |
 | `url` | `WsUrl` (`parse`, `shown`, `host_header`), `request_target`, `request`, `offering`, `asking`, `Asking { protocol, authorization, alpn, limits }`, `Stream`, `Carried`, `dial`, `dial_offering`, `dial_asking`, `failure` |
 | `server` | `check_upgrade`, `check_upgrade_or_raw`, `Upgrade`, `Refused`, `asks_upgrade`, `switching`, `switching_to(key, protocol)`, `switching_raw`, `session`; the subprotocol: `offers`, `check_protocol` (426 that names it), `is_protocol_name` (visible ASCII with no comma) |
-| `serve` | feature `serve`: `serve(listeners, tls, cfg, on)`, the accept loop over the caller's listeners and TLS server configuration; `Serve { deadlines, caps, lowat, limits, idle, protocol }` (`reserve`, `check`), `Deadlines { tls, head, first, ready }`, `Caps { max_unauth, per_prefix, preauth_bytes, head_bytes, head_lines }`, `Accepted { session, peer, key, request, options, gate }`, `PreAuth::ready` (false when a deadline or an eviction cut the session first), `Options { nodelay, notsent_lowat }`, `ServedStream` |
+| `serve` | feature `serve`: `serve(listeners, tls, cfg, on)`, the accept loop over the caller's listeners and TLS server configuration; `serve_reporting(listeners, tls, cfg, on, failed)`, the same loop that also gives each failed TLS handshake to `failed` (the address of the peer and the error, with its `rustls::Error`: a client that refused the certificate of the server sends an alert); `Serve { deadlines, caps, lowat, limits, idle, protocol }` (`reserve`, `check`), `Deadlines { tls, head, first, ready }`, `Caps { max_unauth, per_prefix, preauth_bytes, head_bytes, head_lines }`, `Accepted { session, peer, key, request, options, gate }`, `PreAuth::ready` (false when a deadline or an eviction cut the session first), `Options { nodelay, notsent_lowat }`, `ServedStream` |
 | `bridge` | `bridge(session, io, &dyn Tally)`, `dial(url, &way, &trust, timeout, authorization)`, `connect_bridge`, `Tally`, `NoTally`, `DIAL_TIMEOUT` |
 | `wake` | `Wake`, `Reading`, `slept`, `TICK`, `LATE` |
 | `plain` | feature `plain-ws`: `connect_loopback` |
@@ -163,7 +163,11 @@ The adoption trials are `adoption/podssh/pod-ws.patch` and
 `cargo test -p pod-ws --all-features`. The tests run on the loopback
 (`need_loopback!`) with TLS on ring and certificates minted in pure Rust
 (`pod-tls`'s `tests/common/cert_for_test.rs`). No test reads the network
-or sets a variable.
+or sets a variable. `serve_reporting` is proved through the ws carrier
+of `pod-link`: its listener gets `KeyRefused` from the alert of a client
+that refused its key (`tests/ws.rs`,
+`the_dialer_refuses_a_listener_of_another_key_and_names_it`; plant
+`ws-serve-tls-failure-unreported`).
 
 ## Sources
 

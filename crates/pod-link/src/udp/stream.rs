@@ -245,6 +245,54 @@ impl AsyncWrite for KcpStream {
         polled
     }
 
+    /// Each buffer in one call, in order, within the bound of one write.
+    /// rustls writes the alert of a failed handshake with one vectored
+    /// write and no second try; a write of the first buffer alone would
+    /// leave the alert out (T-557).
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        bufs: &[io::IoSlice<'_>],
+    ) -> Poll<io::Result<usize>> {
+        let polled = self.shared.with(|i| {
+            if let Some(e) = i.error() {
+                return Poll::Ready(Err(e));
+            }
+            if bufs.iter().all(|b| b.is_empty()) {
+                return Poll::Ready(Ok(0));
+            }
+            if i.kcp.wait_snd() >= i.queue {
+                i.writer = Some(cx.waker().clone());
+                return Poll::Pending;
+            }
+            let mut room = WRITE_SEGMENTS * i.segment;
+            let mut n = 0;
+            for buf in bufs.iter().filter(|b| !b.is_empty()) {
+                let take = buf.len().min(room);
+                match i.kcp.send(&buf[..take]) {
+                    Err(e) if n == 0 => return Poll::Ready(Err(io::Error::from(e))),
+                    Err(_) => break,
+                    Ok(k) => {
+                        n += k;
+                        room -= k.min(room);
+                        if k < buf.len() || room == 0 {
+                            break;
+                        }
+                    }
+                }
+            }
+            Poll::Ready(Ok(n))
+        });
+        if matches!(polled, Poll::Ready(Ok(n)) if n > 0) {
+            self.shared.sender.notify_one();
+        }
+        polled
+    }
+
+    fn is_write_vectored(&self) -> bool {
+        true
+    }
+
     fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         Poll::Ready(self.shared.with(|i| i.error()).map_or(Ok(()), Err))
     }
