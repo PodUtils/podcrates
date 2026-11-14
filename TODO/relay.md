@@ -6873,7 +6873,7 @@ pod-warp --all-targets --all-features -- -D warnings`: clean.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -6927,3 +6927,31 @@ cargo test -p pod-wg --all-features
 cargo test --manifest-path fuzz/Cargo.toml --lib
 sh scripts/plant-each.sh wg-responder-timestamp-unchecked wg-responder-unknown-key-answered wg-responder-mac2-unchecked wg-responder-session-never-expires
 ```
+
+## Done
+
+2026-11-14, commit c4f04bd. `Responder`, `Peer`, `Incoming` and the
+constants `REJECT_AFTER`, `KEEPALIVE_TIMEOUT`, `COOKIE_SECRET_AGE`,
+`INITIATION_GAP`, `REJECT_AFTER_MESSAGES` (`crates/pod-wg/src/responder.rs`,
+`crates/pod-wg/src/responder/peer.rs`), on the steps of
+`crates/pod-wg/src/respond.rs`; nine new `Error` variants; calls C315 to
+C319. The stand-in keeps its form and runs on the steps of the responder.
+`cargo test -p pod-wg --all-features`: 28 passed, with
+`responder::tests::several_peers_at_once_with_the_initiator_of_the_crate`
+(three peers, one with a preshared key; no send before the confirmation; a
+rekey of a `Tunnel` with the old session kept until the peer sends in the
+new one), `a_replayed_initiation_is_refused` (the same bytes, an older and
+an equal stamp; the flood gap), `an_unknown_key_gets_nothing` (and a bad
+mac1, a bad body, the wrong lengths and types; `Debug`),
+`a_cookie_under_load_and_the_retry_with_mac2` (another address and a new
+secret get a cookie reply again), `a_session_expires_after_180_s` (both
+ways, and a session that waits) and
+`a_keepalive_when_the_responder_sent_nothing` (no initiation from 100 s to
+400 s). `cargo test --manifest-path fuzz/Cargo.toml --lib`: 13 passed,
+with the new target `wg_initiation` on its seeds and 2000 mutations. The
+plants (each checked by hand: the test fails at its assertion):
+`wg-responder-timestamp-unchecked`, `wg-responder-unknown-key-answered`,
+`wg-responder-mac2-unchecked`, `wg-responder-session-never-expires`.
+`cargo clippy -p pod-wg -p pod-warp --all-targets --all-features -- -D
+warnings` and the clippy of `fuzz/`: clean. Not done: a test against
+another WireGuard implementation (no UDP egress here).

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**446 entries: 116 open, 8 partial, 6 blocked, 316 done.**
+**446 entries: 116 open, 7 partial, 6 blocked, 317 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 85 | 99 |
-| P2 | 53 | 3 | 4 | 173 | 233 |
+| P2 | 53 | 2 | 4 | 174 | 233 |
 | P3 | 52 | 2 | 2 | 56 | 112 |
-| **All** | 116 | 8 | 6 | 316 | 446 |
+| **All** | 116 | 7 | 6 | 317 | 446 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -492,4 +492,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-559](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the client of the HTTP road's one-POST form (PodUtils/podssh#239) |
 | [T-560](relay.md) | P3 | S | M2 | feature | blocked | `pod-relay`: the one-POST form of the HTTP road over HTTP/2 |
 | [T-561](relay.md) | P1 | S | M2 | feature | done | `pod-wg`: the preshared key of a handshake (PodUtils/podnet#547) |
-| [T-562](relay.md) | P2 | M | M2 | feature | partial | `pod-wg`: a responder sans I/O for a list of peers (PodUtils/podnet#547) |
+| [T-562](relay.md) | P2 | M | M2 | feature | done | `pod-wg`: a responder sans I/O for a list of peers (PodUtils/podnet#547) |
