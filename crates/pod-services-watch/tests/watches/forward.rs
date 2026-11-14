@@ -51,6 +51,12 @@ struct Script {
     no_forward: bool,
     /// The front, and the URL of it at the end of the banner.
     front: Option<Front>,
+    /// The stand-in refuses a remote forward before a session channel is
+    /// open (srv.us answers such a forward never).
+    session_first: bool,
+    /// The stand-in writes the banner on a command alone; a shell gets a
+    /// banner with no URL (tunnl.gg with no terminal).
+    command_only: bool,
 }
 
 /// What the stand-in saw of the client.
@@ -63,6 +69,10 @@ struct Seen {
     /// The address and the port of the remote forward.
     forward: Option<(String, u32)>,
     shell: bool,
+    /// The command of an `exec` request.
+    command: Option<String>,
+    /// A session channel was open.
+    session: bool,
     /// The requests that the front took.
     requests: usize,
 }
@@ -117,8 +127,9 @@ impl server::Handler for Relay {
     }
 
     async fn tcpip_forward(&mut self, address: &str, port: &mut u32, _: &mut Session) -> Result<bool, Self::Error> {
-        self.seen.lock().unwrap().forward = Some((address.to_string(), *port));
-        Ok(!self.script.no_forward)
+        let mut seen = self.seen.lock().unwrap();
+        seen.forward = Some((address.to_string(), *port));
+        Ok(!self.script.no_forward && (seen.session || !self.script.session_first))
     }
 
     async fn channel_open_session(
@@ -127,12 +138,34 @@ impl server::Handler for Relay {
         reply: ChannelOpenHandle,
         _: &mut Session,
     ) -> Result<(), Self::Error> {
+        self.seen.lock().unwrap().session = true;
         reply.accept().await;
         Ok(())
     }
 
+    async fn exec_request(
+        &mut self,
+        channel: ChannelId,
+        data: &[u8],
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.seen.lock().unwrap().command = Some(String::from_utf8_lossy(data).into_owned());
+        self.banner(channel, session)
+    }
+
     async fn shell_request(&mut self, channel: ChannelId, session: &mut Session) -> Result<(), Self::Error> {
         self.seen.lock().unwrap().shell = true;
+        if self.script.command_only {
+            session.channel_success(channel)?;
+            return session.data(channel, b"\x1b[1;32m  Tunnel is live\x1b[0m\r\n".to_vec());
+        }
+        self.banner(channel, session)
+    }
+}
+
+impl Relay {
+    /// The banner of the script, its front and its end.
+    fn banner(&mut self, channel: ChannelId, session: &mut Session) -> Result<(), russh::Error> {
         session.channel_success(channel)?;
         for chunk in &self.script.chunks {
             session.data(channel, chunk.to_vec())?;
@@ -420,4 +453,51 @@ async fn forward_url_finds_a_url_that_is_a_page_of_the_relay() {
     assert!(now.contains("HTTP 200 with no word of the run: \"a page of the relay\""), "{now}");
     ended(end).await;
     assert_eq!(seen.lock().unwrap().requests, 1);
+}
+
+/// A relay that answers a forward only after a session opens (srv.us,
+/// T-552): with the fact `session-first`, the client opens the session
+/// before it asks for the forward of the port of the watch. With no fact,
+/// the stand-in refuses the forward.
+#[tokio::test]
+async fn forward_url_opens_the_session_first_where_the_relay_says_so() {
+    pod_testkit::need_loopback!();
+    let chunks: Vec<&'static [u8]> = vec![b"1: https://abc.tunnel.test/\r\n"];
+    let script = Script { chunks, session_first: true, ..Script::default() };
+    let (port, seen, end) = relay(script.clone()).await;
+    let more = fact("user", "\"nomatch\"") + &fact("session-first", "true");
+    let report = one(&relay_file("s1", port, &more, "port = 1\nprove = false\n")).await;
+    let all = text(&report);
+    assert!(report.holds() && all.contains("as nomatch (a key of the run): the banner names the tunnel"), "{all}");
+    ended(end).await;
+    assert_eq!(seen.lock().unwrap().forward, Some(("localhost".to_string(), 1)));
+
+    let (port, seen, end) = relay(script).await;
+    let report = one(&relay_file("s2", port, &fact("user", "\"nomatch\""), "port = 1\nprove = false\n")).await;
+    let all = text(&report);
+    assert!(all.contains("FAILED s2 forward-url") && all.contains("the remote forward of port 1"), "{all}");
+    ended(end).await;
+    assert!(!seen.lock().unwrap().shell);
+}
+
+/// A relay whose shell banner has no URL with no terminal, and whose
+/// command writes one JSON line (tunnl.gg's `output=json`, T-552): the
+/// client asks the command of the fact `command`, and no shell.
+#[tokio::test]
+async fn forward_url_asks_the_command_of_the_relay() {
+    pod_testkit::need_loopback!();
+    let chunks: Vec<&'static [u8]> =
+        vec![b"{\"event\":\"tunnel\",\"url\":\"https://brave-fox-7c41e09b.tunnel.test\",\"subdomain\":\"brave-fox-7c41e09b\"}\n"];
+    let (port, seen, end) = relay(Script { chunks, no_key: true, command_only: true, ..Script::default() }).await;
+    let report = one(&relay_file("c1", port, &fact("command", "\"output=json\""), "prove = false\n")).await;
+    let all = text(&report);
+    assert!(
+        report.holds()
+            && all.contains("(no key): the banner names the tunnel on the host brave-fox-7c41e09b.tunnel.test"),
+        "{all}"
+    );
+    ended(end).await;
+    let seen = seen.lock().unwrap();
+    assert_eq!(seen.command.as_deref(), Some("output=json"));
+    assert!(!seen.shell);
 }

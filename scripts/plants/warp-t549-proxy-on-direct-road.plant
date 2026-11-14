@@ -1,0 +1,6 @@
+# The line of a door that shows another certificate: the proxy's words on a direct road (the label of the dial); its test must fail.
+ENTRY=T-549
+GROUP=warp
+EXPECT='test a_door_that_shows_another_certificate_names_its_issuer_and_a_proxy_only_on_its_road \.\.\. FAILED'
+RUN='cargo test -p pod-warp --test net -- a_door_that_shows_another_certificate_names_its_issuer_and_a_proxy_only_on_its_road --exact'
+LIMIT=1800

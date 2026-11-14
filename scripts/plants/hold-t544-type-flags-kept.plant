@@ -1,0 +1,6 @@
+# The rule of a raw socket reads the type with its flags: SOCK_RAW with SOCK_CLOEXEC passes; its test must fail.
+ENTRY=T-544
+GROUP=hold
+EXPECT='test filter::tests::a_raw_socket_and_an_icmp_socket_get_eperm_unless_allowed \.\.\. FAILED'
+RUN='cargo test -p pod-hold --lib -- filter::tests::a_raw_socket_and_an_icmp_socket_get_eperm_unless_allowed'
+LIMIT=1800

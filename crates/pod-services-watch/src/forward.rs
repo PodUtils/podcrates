@@ -1,11 +1,13 @@
 //! `forward-url`: a session with an SSH forward relay, as podnet's
 //! `ssh-relay` opens one: a key made for the run, the user of the service,
-//! a remote forward, a shell, and the banner of the shell read with the
-//! rule of the URL of the service (`pod_services::forward`). A banner with
-//! no URL that the rule accepts is a finding. Then a GET of the URL proves
-//! it: the client answers each request that the relay forwards with a word
-//! of the run, and an answer with no word is a finding (the URL is a page
-//! of the relay, not the tunnel). The session ends after the proof.
+//! a remote forward and a session channel (the session first where the
+//! relay says so), a shell or the command of the relay, and its banner
+//! read with the rule of the URL of the service (`pod_services::forward`).
+//! A banner with no URL that the rule accepts is a finding. Then a GET of
+//! the URL proves it: the client answers each request that the relay
+//! forwards with a word of the run, and an answer with no word is a finding
+//! (the URL is a page of the relay, not the tunnel). The session ends after
+//! the proof.
 
 use std::future::Future;
 use std::sync::Arc;
@@ -170,7 +172,7 @@ pub async fn url(service: &Service, watch: &Watch, net: &Net) -> Checked {
     };
     let client = Client { word, answered };
     let mut handle = session.step("the SSH handshake", client::connect_stream(Arc::new(config), io, client)).await?;
-    let result = session.run(&mut handle, service, relay.url_rule(), net).await;
+    let result = session.run(&mut handle, service, &relay, net).await;
     // The close: the relay ends the tunnel with the session.
     let _ = handle.disconnect(Disconnect::ByApplication, "", "en").await;
     let _ = tokio::time::timeout(net.limit, handle).await;
@@ -202,15 +204,25 @@ impl Session<'_> {
         }
     }
 
-    /// The authentication, the forward, the shell and its banner, then the
-    /// proof of the URL.
-    async fn run(&self, handle: &mut Handle<Client>, service: &Service, rule: UrlRule, net: &Net) -> Checked {
+    /// The authentication, the forward and the session channel in the
+    /// order of the relay, the shell or the command of the relay and its
+    /// banner, then the proof of the URL.
+    async fn run(&self, handle: &mut Handle<Client>, service: &Service, relay: &Relay<'_>, net: &Net) -> Checked {
         let method = self.authenticate(handle).await?;
         let what = format!("the remote forward of port {}", self.port);
-        self.step(&what, handle.tcpip_forward(ADDRESS, self.port)).await?;
-        let mut channel = self.step("the session channel", handle.channel_open_session()).await?;
-        self.step("the shell", channel.request_shell(true)).await?;
-        let mut read = Read { banner: Banner::new(rule), out: Vec::new(), err: Vec::new(), refused: false };
+        let mut channel = if relay.session_first() {
+            let channel = self.step("the session channel", handle.channel_open_session()).await?;
+            self.step(&what, handle.tcpip_forward(ADDRESS, self.port)).await?;
+            channel
+        } else {
+            self.step(&what, handle.tcpip_forward(ADDRESS, self.port)).await?;
+            self.step("the session channel", handle.channel_open_session()).await?
+        };
+        match relay.command() {
+            Some(command) => self.step(&format!("the command {command:?}"), channel.exec(true, command)).await?,
+            None => self.step("the shell", channel.request_shell(true)).await?,
+        }
+        let mut read = Read { banner: Banner::new(relay.url_rule()), out: Vec::new(), err: Vec::new(), refused: false };
         loop {
             let Ok(message) = tokio::time::timeout_at(self.deadline, channel.wait()).await else {
                 return Err(read.no_url(self, service, &format!("no URL within {:?}", self.limit)));
