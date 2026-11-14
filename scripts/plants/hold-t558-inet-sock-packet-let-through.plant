@@ -1,0 +1,6 @@
+# The raw part of the socket rules lets socket(AF_INET, SOCK_PACKET) through, which the kernel makes a packet socket; its test must fail.
+ENTRY=T-558
+GROUP=hold
+EXPECT='test filter::tests::each_part_of_the_socket_rules_has_its_own_opt_in \.\.\. FAILED'
+RUN='cargo test -p pod-hold --lib -- filter::tests::each_part_of_the_socket_rules_has_its_own_opt_in'
+LIMIT=1800

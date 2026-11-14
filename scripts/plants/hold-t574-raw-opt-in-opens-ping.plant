@@ -1,0 +1,6 @@
+# Calls::allow_raw also lets the ping part through, as before the split; its test must fail.
+ENTRY=T-574
+GROUP=hold
+EXPECT='test filter::tests::each_part_of_the_socket_rules_has_its_own_opt_in \.\.\. FAILED'
+RUN='cargo test -p pod-hold --lib -- filter::tests::each_part_of_the_socket_rules_has_its_own_opt_in'
+LIMIT=1800

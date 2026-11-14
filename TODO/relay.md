@@ -6348,6 +6348,7 @@ Add `AF_PACKET` (each type) to the rule, under the opt-in of T-544 or a separate
 
 ```sh
 cargo test -p pod-hold --all-features
+sh scripts/plant-each.sh hold-t558-packet-let-through hold-t558-inet-sock-packet-let-through
 ```
 
 # T-559: `pod-relay`: the client of the HTTP road's one-POST form (PodUtils/podssh#239)
@@ -6978,6 +6979,9 @@ Split the rule in two: the raw part (`SOCK_RAW` of `AF_INET` and `AF_INET6`, and
 
 ```sh
 cargo test -p pod-hold --all-features
+sh scripts/plant-each.sh hold-t574-ping-refused-when-allowed hold-t574-raw-opt-in-opens-ping
+sh scripts/agent/check-windows.sh
+sh scripts/agent/check-macos.sh
 ```
 
 # T-579: `pod-session`: a spare link that moved no byte backs off before the next (PodUtils/podssh#242)

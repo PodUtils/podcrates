@@ -15,18 +15,19 @@ pub struct Calls {
     numbers: Vec<libc::c_long>,
     /// A `recvfrom` with no source buffer runs in the kernel with no stop.
     recvfrom_with_source_only: bool,
-    /// The filter refuses a raw socket and an ICMP socket of `AF_INET` and
-    /// `AF_INET6` with `EPERM` ([`Calls::allow_raw`]).
+    /// The filter refuses the raw part with `EPERM` ([`Calls::allow_raw`]).
     deny_raw: bool,
+    /// The filter refuses the ping part with `EPERM` ([`Calls::allow_ping`]).
+    deny_ping: bool,
 }
 
 impl Calls {
     /// The calls of a hold of each socket of a payload: the socket calls,
     /// `close`, and the three calls of `io_uring`, whose operations do not
-    /// go through the filter (the handler refuses them). A raw socket and
-    /// an ICMP socket of `AF_INET` and `AF_INET6` get `EPERM` in the
-    /// kernel: their packets go out of the host past each upstream of the
-    /// hold. [`Calls::allow_raw`] lets them through.
+    /// go through the filter (the handler refuses them). The sockets of the
+    /// raw part ([`Calls::allow_raw`]) and of the ping part
+    /// ([`Calls::allow_ping`]) get `EPERM` in the kernel: their packets go
+    /// out of the host past each upstream of the hold.
     pub fn sockets() -> Calls {
         Calls {
             numbers: vec![
@@ -55,28 +56,45 @@ impl Calls {
             ],
             recvfrom_with_source_only: true,
             deny_raw: true,
+            deny_ping: true,
         }
     }
 
     /// A list of the caller. `recvfrom` in it stops each call; no socket is
     /// refused.
     pub fn of(numbers: &[libc::c_long]) -> Calls {
-        Calls { numbers: numbers.to_vec(), recvfrom_with_source_only: false, deny_raw: false }
+        Calls { numbers: numbers.to_vec(), recvfrom_with_source_only: false, deny_raw: false, deny_ping: false }
     }
 
-    /// The opt-in of a caller that gives the payload raw IP (podnet's
-    /// `--allow-raw icmp`): a `socket` of `AF_INET` or `AF_INET6` with
-    /// `SOCK_RAW`, or with `SOCK_DGRAM` and `IPPROTO_ICMP` or
-    /// `IPPROTO_ICMPV6` (a ping socket), goes on as each other `socket`
-    /// call, to the supervisor when the list stops `socket`.
+    /// The opt-in of the raw part, for a caller that gives the payload raw
+    /// network access (podnet's `--allow-raw icmp`): `socket(AF_INET or
+    /// AF_INET6, SOCK_RAW or SOCK_PACKET with any flag, any protocol)`,
+    /// `socket(AF_PACKET, any type, any protocol)` and `socket(AF_XDP,
+    /// ...)` go on as each other `socket` call, to the supervisor when the
+    /// list stops `socket`. The supervisor then refuses the families and
+    /// the protocols that it does not give.
     pub fn allow_raw(mut self) -> Calls {
         self.deny_raw = false;
         self
     }
 
-    /// True when the filter refuses a raw socket and an ICMP socket.
+    /// The opt-in of the ping part, for a supervisor that answers a ping
+    /// socket itself: `socket(AF_INET or AF_INET6, SOCK_DGRAM with any
+    /// flag, IPPROTO_ICMP or IPPROTO_ICMPV6)` goes on as each other
+    /// `socket` call, to the supervisor when the list stops `socket`.
+    pub fn allow_ping(mut self) -> Calls {
+        self.deny_ping = false;
+        self
+    }
+
+    /// True when the filter refuses the raw part.
     pub fn denies_raw(&self) -> bool {
         self.deny_raw
+    }
+
+    /// True when the filter refuses the ping part.
+    pub fn denies_ping(&self) -> bool {
+        self.deny_ping
     }
 
     /// The numbers of the stopped calls.
@@ -115,6 +133,11 @@ const LOW: u32 = if cfg!(target_endian = "big") { 4 } else { 0 };
 /// `SOCK_TYPE_MASK`: the bits of the type without `SOCK_CLOEXEC` and
 /// `SOCK_NONBLOCK`.
 const SOCK_TYPE_MASK: u32 = 0xf;
+/// `SOCK_PACKET`: the kernel makes a packet socket of `socket(AF_INET,
+/// SOCK_PACKET, ...)`. The same value on each target.
+const SOCK_PACKET: u32 = 10;
+/// `AF_XDP`: frames to a device, past the IP stack. Not in each libc.
+const AF_XDP: u32 = 44;
 
 fn stmt(code: u16, k: u32) -> libc::sock_filter {
     libc::sock_filter { code, jt: 0, jf: 0, k }
@@ -147,8 +170,8 @@ fn program(calls: &Calls) -> Vec<libc::sock_filter> {
         filter.push(jump(BPF_JEQ_K, libc::SYS_socketcall as u32, 0, 1));
         filter.push(stmt(BPF_RET_K, RET_ERRNO | libc::ENOSYS as u32));
     }
-    if calls.deny_raw {
-        filter.extend(deny_raw());
+    if calls.deny_raw || calls.deny_ping {
+        filter.extend(deny_sockets(calls.deny_raw, calls.deny_ping));
     }
     for &syscall in &calls.numbers {
         if syscall == libc::SYS_recvfrom && calls.recvfrom_with_source_only {
@@ -172,27 +195,70 @@ fn program(calls: &Calls) -> Vec<libc::sock_filter> {
     filter
 }
 
-/// The rule of a raw socket and of an ICMP socket: `socket(AF_INET or
-/// AF_INET6, SOCK_RAW with any flag, any protocol)` and `socket(AF_INET or
-/// AF_INET6, SOCK_DGRAM, IPPROTO_ICMP or IPPROTO_ICMPV6)` get `EPERM`. The
-/// accumulator holds the number of the call before the rule and after it.
-fn deny_raw() -> [libc::sock_filter; 13] {
+/// A target of a jump in [`deny_sockets`].
+#[derive(Clone, Copy)]
+enum At {
+    Next,
+    Kind,
+    Deny,
+    End,
+}
+
+/// The rules of the raw part and of the ping part of `socket`; each gives
+/// `EPERM`. The raw part: `AF_PACKET` and `AF_XDP` of each type, and
+/// `SOCK_RAW` and `SOCK_PACKET` (with any flag, any protocol) of `AF_INET`
+/// and `AF_INET6`. The ping part: `SOCK_DGRAM` (with any flag) and
+/// `IPPROTO_ICMP` or `IPPROTO_ICMPV6` of `AF_INET` and `AF_INET6`. The
+/// accumulator holds the number of the call before the rules and after
+/// them.
+fn deny_sockets(raw: bool, ping: bool) -> Vec<libc::sock_filter> {
+    debug_assert!(raw || ping, "a block with no rule refuses each socket of AF_INET");
     let arg = |n: u32| 16 + n * 8 + LOW;
-    [
-        jump(BPF_JEQ_K, libc::SYS_socket as u32, 0, 11),
-        stmt(BPF_LD_ABS_W, arg(0)),
-        jump(BPF_JEQ_K, libc::AF_INET as u32, 1, 0),
-        jump(BPF_JEQ_K, libc::AF_INET6 as u32, 0, 8),
-        stmt(BPF_LD_ABS_W, arg(1)),
-        stmt(BPF_ALU_AND_K, SOCK_TYPE_MASK),
-        jump(BPF_JEQ_K, libc::SOCK_RAW as u32, 4, 0),
-        jump(BPF_JEQ_K, libc::SOCK_DGRAM as u32, 0, 4),
-        stmt(BPF_LD_ABS_W, arg(2)),
-        jump(BPF_JEQ_K, libc::IPPROTO_ICMP as u32, 1, 0),
-        jump(BPF_JEQ_K, libc::IPPROTO_ICMPV6 as u32, 0, 1),
-        stmt(BPF_RET_K, RET_ERRNO | libc::EPERM as u32),
-        stmt(BPF_LD_ABS_W, 0),
-    ]
+    let jeq = |k: u32, jt: At, jf: At| (BPF_JEQ_K, k, jt, jf);
+    let mut ops = vec![jeq(libc::SYS_socket as u32, At::Next, At::End), (BPF_LD_ABS_W, arg(0), At::Next, At::Next)];
+    if raw {
+        ops.push(jeq(libc::AF_PACKET as u32, At::Deny, At::Next));
+        ops.push(jeq(AF_XDP, At::Deny, At::Next));
+    }
+    ops.push(jeq(libc::AF_INET as u32, At::Kind, At::Next));
+    ops.push(jeq(libc::AF_INET6 as u32, At::Next, At::End));
+    let kind = ops.len();
+    ops.push((BPF_LD_ABS_W, arg(1), At::Next, At::Next));
+    ops.push((BPF_ALU_AND_K, SOCK_TYPE_MASK, At::Next, At::Next));
+    if raw {
+        ops.push(jeq(libc::SOCK_RAW as u32, At::Deny, At::Next));
+        ops.push(jeq(SOCK_PACKET, At::Deny, At::Next));
+    }
+    if ping {
+        ops.push(jeq(libc::SOCK_DGRAM as u32, At::Next, At::End));
+        ops.push((BPF_LD_ABS_W, arg(2), At::Next, At::Next));
+        ops.push(jeq(libc::IPPROTO_ICMP as u32, At::Deny, At::Next));
+        ops.push(jeq(libc::IPPROTO_ICMPV6 as u32, At::Deny, At::Next));
+    }
+    // A socket that no rule names goes past the refusal.
+    if let Some(last) = ops.last_mut() {
+        last.3 = At::End;
+    }
+    let deny = ops.len();
+    let mut block: Vec<libc::sock_filter> = ops
+        .iter()
+        .enumerate()
+        .map(|(at, &(code, k, jt, jf))| {
+            let to = |target: At| {
+                let skip = match target {
+                    At::Next => 0,
+                    At::Kind => kind - at - 1,
+                    At::Deny => deny - at - 1,
+                    At::End => deny - at,
+                };
+                u8::try_from(skip).expect("a short block")
+            };
+            if code == BPF_JEQ_K { jump(code, k, to(jt), to(jf)) } else { stmt(code, k) }
+        })
+        .collect();
+    block.push(stmt(BPF_RET_K, RET_ERRNO | libc::EPERM as u32));
+    block.push(stmt(BPF_LD_ABS_W, 0));
+    block
 }
 
 /// Set `no_new_privs` on this thread and install the filter of `calls` on
