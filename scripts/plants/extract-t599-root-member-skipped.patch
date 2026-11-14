@@ -1,0 +1,12 @@
+diff --git a/crates/pod-extract/src/apply.rs b/crates/pod-extract/src/apply.rs
+--- a/crates/pod-extract/src/apply.rs
++++ b/crates/pod-extract/src/apply.rs
+@@ -121,6 +121,8 @@
+         // is still refused, as the crate cannot put it anywhere. It is not
+         // in `skipped`: the image lost nothing (PodUtils/podvm#352).
+         if safety::is_root_entry(&path, header.entry_type().is_dir()) {
++            st.skipped += 1;
++            st.skipped_kinds.push("ArchiveRoot".to_string());
+             continue;
+         }
+         let parts = match safety::components(&path) {

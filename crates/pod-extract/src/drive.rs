@@ -69,6 +69,8 @@ enum E<'a> {
     /// A directory whose name is written into the header past the check
     /// of the writer: `tar::Builder` refuses an empty path.
     RawDir(&'a str, u32),
+    /// A fifo, which the crate does not make.
+    Fifo(&'a str),
 }
 
 /// Build one uncompressed layer.
@@ -136,6 +138,12 @@ fn layer(entries: &[E]) -> Vec<u8> {
                 }
                 h.set_cksum();
                 b.append(&h, std::io::empty()).unwrap();
+            }
+            E::Fifo(p) => {
+                h.set_entry_type(tar::EntryType::Fifo);
+                h.set_mode(0o644);
+                h.set_size(0);
+                b.append_data(&mut h, p, std::io::empty()).unwrap();
             }
         }
     }
@@ -450,4 +458,21 @@ fn a_root_directory_with_an_empty_name_is_the_root() {
     assert_eq!(std::fs::read(s.path().join("THIRD-PARTY-LICENSES.txt")).unwrap(), b"text");
     let r = refusal_of(run(s.path(), &[layer(&[E::Raw("", b"x")])]));
     assert_eq!(r.entry, "");
+}
+
+/// The `./` member names the destination: an entry, and not a thing that the
+/// crate could not make (PodUtils/podvm#352). A fifo still is one.
+#[test]
+fn the_root_member_is_not_a_skipped_entry() {
+    let s = Scratch::new("rootskip");
+    let root = Dir::open(&s.path().to_string_lossy()).unwrap();
+    let mut sc = Sidecar::create(&s.path().join(".meta.jsonl")).unwrap();
+    let mut apply =
+        |l: Vec<u8>| apply_layer(&root, "sha256:root", &mut Cursor::new(l), Ids::current(), &mut sc).unwrap();
+    let st = apply(layer(&[E::RawDir("./", 0o755), E::File("f", b"f", 0o644)]));
+    assert_eq!((st.entries, st.skipped), (2, 0), "the root member counted as skipped: {:?}", st.skipped_kinds);
+    assert!(st.skipped_kinds.is_empty(), "the root member counted as skipped: {:?}", st.skipped_kinds);
+    let st = apply(layer(&[E::RawDir("./", 0o755), E::Fifo("p")]));
+    assert_eq!((st.entries, st.skipped), (2, 1));
+    assert_eq!(st.skipped_kinds, ["Fifo"], "the fifo is not named, or the root member is");
 }

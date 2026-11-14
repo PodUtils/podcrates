@@ -25,6 +25,8 @@ use crate::whiteout::{self, Kind};
 /// What one layer did, for the transcript and for the record.
 #[derive(Debug, Default, Clone)]
 pub struct LayerStats {
+    /// The members of the archive that the crate read, the root member
+    /// (`./`) and the whiteouts included.
     pub entries: u64,
     pub files: u64,
     pub dirs: u64,
@@ -34,7 +36,8 @@ pub struct LayerStats {
     pub opaques: u64,
     /// The entries of a type that the crate does not make, counted and named:
     /// a device node in a layer is a thing that the crate could not make, and
-    /// a caller that sees `0` then has a false count.
+    /// a caller that sees `0` then has a false count. The root member is not
+    /// one: it names the destination, which exists.
     pub skipped: u64,
     pub skipped_kinds: Vec<String>,
     /// How many directories the permission pass of this layer widened.
@@ -115,13 +118,9 @@ pub fn apply_layer(
         // Debian images of `public.ecr.aws` have it; a refusal there refuses
         // each layer of each Debian image. A directory with an empty name is
         // the root too (PodUtils/podvm#261). Another entry with an empty name
-        // is still refused, as the crate cannot put it anywhere.
+        // is still refused, as the crate cannot put it anywhere. It is not
+        // in `skipped`: the image lost nothing (PodUtils/podvm#352).
         if safety::is_root_entry(&path, header.entry_type().is_dir()) {
-            st.skipped += 1;
-            let k = "ArchiveRoot".to_string();
-            if !st.skipped_kinds.contains(&k) {
-                st.skipped_kinds.push(k);
-            }
             continue;
         }
         let parts = match safety::components(&path) {

@@ -60,7 +60,7 @@ not change while the process runs).
 | `LAYER_EVENT` | `extract.layer`: `<12 hex digits>: Extracted (N entries, M whiteouts)` |
 | `Refused`, `refused(&failure)` | the cause of a refused entry: `layer`, `entry`, `refusal` |
 | `Mismatch`, `mismatch(&failure)` | the cause of a blob that does not agree with its digest: `what`, `want`, `got` |
-| `apply` | `apply_layer(root, digest, stream, ids, sidecar)`, `LayerStats` (with `dir_modes`: each directory entry of the layer and its mode), `Ids::current()` |
+| `apply` | `apply_layer(root, digest, stream, ids, sidecar)`, `LayerStats` (`entries`: the members read; `skipped`, `skipped_kinds`: the entries of a type that the crate does not make, not the root member; `dir_modes`: each directory entry of the layer and its mode), `Ids::current()` |
 | `modes` | `DirModes` (`new`, `record(&stats.dir_modes)`, `forget(&ops)`, `set(root)`, `len`, `is_empty`): the mode of the image of each directory, the last layer wins, set after the last layer |
 | `layer` | `Compression::of(media_type)` (tar, `+gzip`, `.tar.gzip`, `+zstd`), `open_hashed(path, c)`, `HashedStream::digest`, `uncompressed_size(path, c, compressed)` (exact for gzip under 4 GiB, an estimate with its flag for the others) |
 | `remove` | `collect(layer, stream)`, `apply(root, ops)`, `Op`, `remove_at(parent_fd, name)` |
@@ -100,6 +100,7 @@ Against podvm `crates/podvm-extract` at `e8e5beb`:
 | [x] A file mode with a bit of `0o7000` (4755, 2755, 6755) | set again with `fchmod` after the last write, as a write by a process with no `CAP_FSETID` clears `S_ISUID` and `S_ISGID` (podvm lost them as a user that is not root, PodUtils/podvm#342); the mode on the descriptor is read back, and a mode that the kernel did not keep (`S_ISGID` of a group that the process is not in) goes into the sidecar as `applied.mode` |
 | [x] The umask of the process | the mode of the image stays under each umask: each file gets `fchmod` after the last write, also when its mode is the mode of the open, and each directory that a layer wrote gets `mode | 0o700` in the permission pass, also when nothing is widened (podvm cut 0755 to 0750 under a umask of 027); a later layer that names a directory again sets its mode. The pass opens each directory with `O_DIRECTORY` and `O_NOFOLLOW` and calls `fchmod`: `fchmodat` of the name followed a symlink that a later entry of the layer put there, to a file of the host |
 | [x] The mode of a directory after the last layer | the mode of the image, set after the last layer (podvm left the widened owner bits: 0555 stayed 0755, PodUtils/podvm#354); a directory entry over a symlink or a file of an earlier layer removes that name and makes the directory (podvm kept the symlink); a directory that exists gets the owner bits, so an extraction over a closed tree passes |
+| [x] The root member of an archive (`./`) | an entry that names the destination: it counts in `entries` and not in `skipped` (podvm counted it as a skipped `ArchiveRoot`, PodUtils/podvm#352) |
 | [x] Whiteouts | the same; a whiteout gets the lexical check, and a whiteout of `.` or `..` refuses the layer (podvm removed the entries of the directory above the destination for `.wh...`) |
 | [x] The tests: 47 unit tests | 47 with their names (the store fixtures are blob files and a `Place`); 3 new |
 
@@ -165,6 +166,11 @@ tree (`a_second_extraction_over_a_closed_tree_passes`; as root it runs
 `extract-t598-whiteout-keeps-the-old-mode`,
 `extract-t598-whiteout-parent-not-opened`,
 `extract-t598-removal-does-not-open-a-closed-directory`.
+
+`drive::the_root_member_is_not_a_skipped_entry` (PodUtils/podvm#352): a
+layer with `./` and a file has 2 entries and 0 skipped; a layer with `./`
+and a fifo has 1 skipped, named `Fifo`. The plant:
+`extract-t599-root-member-skipped`.
 
 ## Sources
 
