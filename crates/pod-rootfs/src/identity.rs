@@ -80,8 +80,30 @@ pub(crate) fn passwd_and_group(root: &Root, r: &mut Report) {
     crate::record(r, "identity", run_identity(root));
 }
 
+/// The mode of `etc` where the image closed it for its owner. `useradd`
+/// makes its new file and its lock in `etc`, so a writable `etc/passwd`
+/// alone does not let a payload with no `CAP_DAC_OVERRIDE` add a user.
+fn closed_etc(root: &Root) -> Result<Option<u32>> {
+    Ok(root.dir_mode("etc")?.filter(|m| m & 0o300 != 0o300))
+}
+
+/// The row of a file that the crate leaves, degraded where `etc` is closed.
+fn kept(path: &str, why: String, closed: Option<u32>) -> Fixup {
+    let f = Fixup::new("identity", path, Action::Unchanged);
+    match closed {
+        None => f.why(why),
+        Some(m) => f
+            .why(format!(
+                "the image ships it, but the directory etc has mode {m:04o}: the useradd of a payload with no \
+                 CAP_DAC_OVERRIDE cannot make its new file and its lock there. The crate keeps the mode of the image"
+            ))
+            .degraded(),
+    }
+}
+
 fn run_identity(root: &Root) -> Result<Vec<Fixup>> {
     let mut out = Vec::new();
+    let closed = closed_etc(root)?;
     for (path, body) in [("etc/passwd", MINIMAL_PASSWD), ("etc/group", MINIMAL_GROUP)] {
         match root.kind(path)? {
             Kind::Regular { mode, .. } if mode & 0o200 == 0 => {
@@ -89,17 +111,27 @@ fn run_identity(root: &Root) -> Result<Vec<Fixup>> {
                 // `useradd` cannot write. The crate sets the owner write bit.
                 let bytes = root.read(path)?.unwrap_or_default();
                 let w = root.write(path, &bytes, (mode & 0o7777) | 0o200)?;
-                out.push(Fixup::new("identity", path, crate::act(w)).why(format!(
+                let mut why = format!(
                     "the image shipped it with mode {:04o}, which its own useradd cannot write. The content is the \
                      same; the owner write bit is set, so a package that makes a service user succeeds and the \
                      change stays",
                     mode & 0o7777
-                )));
+                );
+                let mut f = Fixup::new("identity", path, crate::act(w));
+                if let Some(m) = closed {
+                    why.push_str(&format!(
+                        ". The directory etc has mode {m:04o}, so the useradd of a payload with no CAP_DAC_OVERRIDE \
+                         still cannot make its new file and its lock there"
+                    ));
+                    f = f.degraded();
+                }
+                out.push(f.why(why));
             }
-            Kind::Regular { .. } => out.push(
-                Fixup::new("identity", path, Action::Unchanged)
-                    .why("the image ships it, and it is writable, so the useradd of the payload works"),
-            ),
+            Kind::Regular { .. } => out.push(kept(
+                path,
+                "the image ships it, and it and its directory are writable, so the useradd of the payload works".into(),
+                closed,
+            )),
             // A symlink to a file inside the root is the file of the image:
             // the payload reads it through the link.
             Kind::Symlink(t) if root.read_following(path)?.is_some() => out.push(

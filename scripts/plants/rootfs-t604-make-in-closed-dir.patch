@@ -1,0 +1,11 @@
+--- a/crates/pod-extract/src/safety/walk.rs
++++ b/crates/pod-extract/src/safety/walk.rs
+@@ -57,7 +57,7 @@
+                 let c = cbuf(d)?;
+                 // A finished root keeps the modes of the image: a closed
+                 // parent (0555) is opened for this one make.
+-                let open = OwnerBits::add(cur.fd());
++                let open = ();
+                 match sys::mkdirat(cur.fd(), &c, 0o755) {
+                     Ok(_) => {}
+                     Err(e) if e == sys::EEXIST => {}

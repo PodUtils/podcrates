@@ -1,0 +1,6 @@
+# The identity row says that useradd works while etc is closed (T-604).
+ENTRY=T-604
+GROUP=rootfs
+EXPECT='the identity row does not name the closed directory'
+RUN='cargo test -p pod-rootfs --all-features --lib closed::'
+LIMIT=1800

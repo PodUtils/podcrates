@@ -1,0 +1,7 @@
+# A directory opened for a write keeps the owner bits, so etc is not the
+# mode of the image after the completion (T-604).
+ENTRY=T-604
+GROUP=rootfs
+EXPECT='the mode of the image did not come back'
+RUN='cargo test -p pod-rootfs --all-features --lib closed::'
+LIMIT=1800

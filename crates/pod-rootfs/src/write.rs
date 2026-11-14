@@ -32,7 +32,7 @@
 
 use std::path::{Path, PathBuf};
 
-use pod_extract::safety::{self, Dir, Resolve};
+use pod_extract::safety::{self, Dir, OwnerBits, Resolve};
 use pod_hostprobe::sys::{self, CBuf};
 
 use crate::error::{self, Result, cbuf};
@@ -252,6 +252,7 @@ impl Root {
                 Err(why) => return Err(not_through(rel, &why)),
             };
             let c = cbuf(&name)?;
+            let _open = OwnerBits::add(parent.fd());
             clear(parent.fd(), &c, rel)?;
             create(parent.fd(), &c, rel, bytes, mode)?;
         }
@@ -284,6 +285,21 @@ impl Root {
         }
         sys::fchmod(fd.0, mode as u64).map_err(|e| error::sys(format!("cannot set the mode of {rel}"), e))?;
         Ok(())
+    }
+
+    /// The mode of the directory at `rel`, each link followed and held in
+    /// the root. `None`: no directory that the crate can reach.
+    pub fn dir_mode(&self, rel: &str) -> Result<Option<u32>> {
+        if let Some(l) = self.two() {
+            return l.dir_mode(rel);
+        }
+        let mut all = Self::parts(rel)?;
+        all.push(".");
+        let Ok(Ok((dir, _))) = safety::open_parent_with(&self.dir, &all, false, Resolve::InRoot) else {
+            return Ok(None);
+        };
+        let empty = CBuf::new("").ok_or_else(|| error::usage("an empty name"))?;
+        Ok(sys::fstatat(dir.fd(), &empty, sys::AT_EMPTY_PATH).ok().map(|st| st.st_mode & 0o7777))
     }
 
     /// Which of the three [`Reach`] answers is true of `dir`.

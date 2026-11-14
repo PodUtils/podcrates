@@ -55,11 +55,15 @@ pub(super) fn in_root_parent(
                 // Made in the RESOLVED parent, by its name. The name does not
                 // exist, so the make goes through no link.
                 let c = cbuf(d)?;
+                // A finished root keeps the modes of the image: a closed
+                // parent (0555) is opened for this one make.
+                let open = OwnerBits::add(cur.fd());
                 match sys::mkdirat(cur.fd(), &c, 0o755) {
                     Ok(_) => {}
                     Err(e) if e == sys::EEXIST => {}
                     Err(e) => return Err(error::sys(format!("cannot create the directory {d:?}"), e)),
                 }
+                drop(open);
                 match open_at_root(&acc)? {
                     Ok(next) => cur = next,
                     Err(e) => return Ok(Err(Refusal::Escapes(format!("{d:?}: {}", e.name())))),

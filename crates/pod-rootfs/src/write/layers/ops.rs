@@ -4,6 +4,7 @@
 
 use std::collections::{BTreeSet, VecDeque};
 
+use pod_extract::safety::OwnerBits;
 use pod_hostprobe::sys::{self, CBuf};
 
 use super::{Entry, Layer, LayerRefusal, Layers, Place, is_type, own, refuse, reopen, whiteout};
@@ -82,6 +83,7 @@ impl Layers<'_> {
             )));
         }
         let up = self.upper_dir(&place)?;
+        let _open = OwnerBits::add(up.0);
         let c = cbuf(&name)?;
         if e.upper_holds {
             clear(up.0, &c, rel)?;
@@ -125,6 +127,16 @@ impl Layers<'_> {
         Ok(Ok((self.upper_dir(&place)?, name)))
     }
 
+    /// [`Root::dir_mode`]: the mode of the directory that the merged view
+    /// shows, of the upper layer where it holds one.
+    pub(crate) fn dir_mode(&self, rel: &str) -> Result<Option<u32>> {
+        let Some(place) = self.dir(rel)? else {
+            return Ok(None);
+        };
+        let fd = place.upper.as_ref().or(place.lower.as_ref());
+        Ok(fd.and_then(|f| fstat(f, rel).ok()).map(|st| st.st_mode & 0o7777))
+    }
+
     /// The directory of the merged view at `rel`, each link followed.
     pub(crate) fn dir(&self, rel: &str) -> Result<Option<Place>> {
         let parts = Root::parts(rel)?;
@@ -148,6 +160,7 @@ impl Layers<'_> {
             _ => {}
         }
         let up = self.upper_dir(&place)?;
+        let _open = OwnerBits::add(up.0);
         let c = cbuf(&name)?;
         if e.hit.is_none() && e.upper_holds {
             clear(up.0, &c, rel)?;
@@ -211,6 +224,7 @@ impl Layers<'_> {
         if e.lower_holds {
             return Err(refuse(LayerRefusal::Remove(rel.to_string())));
         }
+        let _open = OwnerBits::add(place.fd(Layer::Upper));
         match sys::unlinkat(place.fd(Layer::Upper), &cbuf(&name)?, 0) {
             Ok(_) => Ok(true),
             Err(x) if x == sys::ENOENT => Ok(false),
@@ -227,6 +241,7 @@ impl Layers<'_> {
             return Ok(Err(sys::EEXIST.name()));
         }
         let up = self.upper_dir(&place)?;
+        let _open = OwnerBits::add(up.0);
         let (c, t) = (cbuf(&name)?, cbuf(target)?);
         if e.upper_holds {
             clear(up.0, &c, rel)?;

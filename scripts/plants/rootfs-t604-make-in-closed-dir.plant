@@ -1,0 +1,7 @@
+# The walk does not open a closed parent to make a directory in it, so
+# the drop-in of apt fails in etc/apt at 0555 (T-604).
+ENTRY=T-604
+GROUP=rootfs
+EXPECT='a fixup failed in a closed directory'
+RUN='cargo test -p pod-rootfs --all-features --lib closed::'
+LIMIT=1800

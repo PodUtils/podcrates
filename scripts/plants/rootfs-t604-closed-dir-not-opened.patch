@@ -1,0 +1,10 @@
+--- a/crates/pod-rootfs/src/write.rs
++++ b/crates/pod-rootfs/src/write.rs
+@@ -252,7 +252,6 @@
+                 Err(why) => return Err(not_through(rel, &why)),
+             };
+             let c = cbuf(&name)?;
+-            let _open = OwnerBits::add(parent.fd());
+             clear(parent.fd(), &c, rel)?;
+             create(parent.fd(), &c, rel, bytes, mode)?;
+         }

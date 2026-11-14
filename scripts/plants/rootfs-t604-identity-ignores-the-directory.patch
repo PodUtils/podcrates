@@ -1,0 +1,11 @@
+--- a/crates/pod-rootfs/src/identity.rs
++++ b/crates/pod-rootfs/src/identity.rs
+@@ -84,7 +84,7 @@
+ /// makes its new file and its lock in `etc`, so a writable `etc/passwd`
+ /// alone does not let a payload with no `CAP_DAC_OVERRIDE` add a user.
+ fn closed_etc(root: &Root) -> Result<Option<u32>> {
+-    Ok(root.dir_mode("etc")?.filter(|m| m & 0o300 != 0o300))
++    Ok(root.dir_mode("etc")?.filter(|_| false))
+ }
+ 
+ /// The row of a file that the crate leaves, degraded where `etc` is closed.
