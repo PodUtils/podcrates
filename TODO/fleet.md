@@ -2511,3 +2511,31 @@ cargo test --manifest-path fuzz/Cargo.toml --lib
 - Plants, each caught by hand: `actions-workflow-bang-order-ignored` (`a_later_bang_removes_a_match_and_a_later_pattern_adds_it_again`), `actions-workflow-star-crosses-slash` (`must not match a/b`), `actions-workflow-tags-only-takes-branches` (`a_filter_of_one_kind_of_ref_stops_the_other_kind`), `actions-workflow-filter-with-ignore-taken` (`a_filter_with_its_ignore_form_is_refused`); `sh scripts/plant-each.sh --apply`: 0 stale.
 - `cargo fmt --all --check`, clippy of the crate, of `static-probe` and of the fuzz library, and `cargo doc` of the crate with `-D warnings`: clean. `scripts/check-size.py`: 0 faults; `scripts/check-probe.py --no-tree`: 40 crates, 0 faults; `scripts/check-design-paths.py`: ok; `scripts/agent/check-windows.sh`: 0 faults.
 - Next: podrunner takes `Workflow::takes` at the next tag (PodUtils/podrunner@T-125).
+
+# T-577: `pod-actions-workflow`: the `workflows` filter of `workflow_run`
+
+**Source:** T-572 (a finding of its work).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Workflow::takes` (T-572) does not read `on.workflow_run.workflows`: `Trigger` has no field for the name of the workflow that ran. A `workflow_run` workflow thus runs after each workflow, not only after the ones that it names.
+
+## Premise
+
+- Read: `crates/pod-actions-workflow/src/on.rs`; GitHub's "Events that trigger workflows" (`workflow_run`: `workflows`, `types`, `branches`, `branches-ignore`).
+
+## Approach
+
+Add `Trigger::workflow: Option<&str>` and `Event::workflows`. A name matches whole, with case; `None` passes. `branches` applies to the head branch of the run that ended, as `git_ref` gives it. A test and the plant `actions-workflow-workflows-ignored`; call C350.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-workflow --test on
+sh scripts/plant-each.sh actions-workflow-workflows-ignored
+```

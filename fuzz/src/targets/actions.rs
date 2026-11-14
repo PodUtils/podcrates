@@ -70,6 +70,7 @@ pub fn actions_workflow(data: &[u8]) {
                     action: Some("opened"),
                     git_ref: Some(git_ref),
                     paths: Some(&paths),
+                    workflow: Some("Build"),
                     ..Trigger::new(&event.name)
                 };
                 assert_eq!(Some(on.takes(&t)), workflow.takes(&t).ok(), "{input:?}");

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**452 entries: 117 open, 7 partial, 6 blocked, 322 done.**
+**453 entries: 118 open, 7 partial, 6 blocked, 322 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 87 | 101 |
 | P2 | 53 | 2 | 4 | 177 | 236 |
-| P3 | 53 | 2 | 2 | 56 | 113 |
-| **All** | 117 | 7 | 6 | 322 | 452 |
+| P3 | 54 | 2 | 2 | 56 | 114 |
+| **All** | 118 | 7 | 6 | 322 | 453 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -499,3 +499,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-566](fleet.md) | P3 | S | M8 | chore | open | `pod-actions-results`: a fuzz target of the input of a stranger |
 | [T-571](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `e830136` is red for podnet: the field `preshared` of `pod_wg::Keys` |
 | [T-572](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-workflow`: the filters of `on:` (types, branches, tags, paths and their -ignore forms) (PodUtils/podrunner#97) |
+| [T-577](fleet.md) | P3 | S | M8 | feature | open | `pod-actions-workflow`: the `workflows` filter of `workflow_run` |

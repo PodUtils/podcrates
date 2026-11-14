@@ -1,8 +1,8 @@
 //! The events of `on:` with their filters, and the decision whether a
 //! workflow takes an event, by the rules of GitHub's "Workflow syntax"
 //! (`on.<event>.types`, `branches`, `tags`, `paths` and their `-ignore`
-//! forms). The other keys of an event (`inputs`, `workflows`, the list of
-//! `schedule`) are not filters here.
+//! forms, `workflows` of `workflow_run`). The other keys of an event
+//! (`inputs`, the list of `schedule`) are not filters here.
 
 use crate::error::{Error, ErrorKind};
 use crate::model::Workflow;
@@ -22,6 +22,8 @@ pub struct Trigger<'a> {
     pub git_ref: Option<&'a str>,
     /// The changed files, from the root of the repository.
     pub paths: Option<&'a [String]>,
+    /// For `workflow_run`: the name of the workflow that ran.
+    pub workflow: Option<&'a str>,
 }
 
 impl<'a> Trigger<'a> {
@@ -51,6 +53,9 @@ pub struct Event {
     pub tags: Option<Filter>,
     /// `paths` or `paths-ignore`.
     pub paths: Option<Filter>,
+    /// `workflows` (of `workflow_run`): the names of the workflows, each
+    /// matched whole and with case.
+    pub workflows: Option<Vec<String>>,
 }
 
 /// The types of a pull request event with no `types`, as in GitHub.
@@ -111,6 +116,11 @@ impl Event {
                 return false;
             }
         }
+        if let (Some(names), Some(workflow)) = (&self.workflows, t.workflow)
+            && !names.iter().any(|n| n == workflow)
+        {
+            return false;
+        }
         let mut tag = false;
         if let Some(git_ref) = t.git_ref {
             // With a filter of one kind of ref only, the other kind does
@@ -169,7 +179,7 @@ impl On {
 
 impl Event {
     fn bare(name: &str, mark: Mark) -> Event {
-        Event { name: name.to_string(), mark, types: None, branches: None, tags: None, paths: None }
+        Event { name: name.to_string(), mark, types: None, branches: None, tags: None, paths: None, workflows: None }
     }
 
     fn read(name: &str, mark: Mark, node: &Node, path: &str) -> Result<Event, Error> {
@@ -184,6 +194,10 @@ impl Event {
         e.branches = filter(node, path, "branches")?;
         e.tags = filter(node, path, "tags")?;
         e.paths = filter(node, path, "paths")?;
+        if let Some(names) = node.get("workflows") {
+            let names = strings(names, &format!("{path}.workflows"), "a workflow name or a list of names")?;
+            e.workflows = Some(names.into_iter().map(|(text, _)| text).collect());
+        }
         Ok(e)
     }
 }

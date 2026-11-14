@@ -45,7 +45,7 @@ order, each job that runs ends with the given result and no output.
 | `Job` | `id`, `mark`, `name`, `runs_on`, `needs`, `condition` (the `if:`), `strategy`, `env`, `defaults`, `timeout_minutes`, `cancel_timeout_minutes`, `continue_on_error`, `container`, `services`, `outputs`, `environment`, `permissions`, `concurrency`, `snapshot`, `uses` (a reusable workflow: named, not expanded), `with`, `secrets`, `steps`, `extra` |
 | `Strategy`, `Defaults` | `matrix`, `fail_fast`, `max_parallel`; `defaults.run` (`shell`, `working_directory`) |
 | `Step` | `id`, `name`, `condition`, `run` or `uses`, `with`, `env`, `shell`, `working_directory`, `continue_on_error`, `timeout_minutes`, `mark`, `extra` |
-| `Trigger`, `Workflow::takes`, `Workflow::triggers` | the decision whether the workflow takes an event: `event`, `action` (the `types` value), `git_ref` (`refs/heads/X`, `refs/tags/X`, or a branch name; for a pull request the base branch), `paths` (the changed files); `None` is not known and passes its filter (T-572, PodUtils/podrunner#97) |
+| `Trigger`, `Workflow::takes`, `Workflow::triggers` | the decision whether the workflow takes an event: `event`, `action` (the `types` value), `git_ref` (`refs/heads/X`, `refs/tags/X`, or a branch name; for a pull request the base branch), `paths` (the changed files), `workflow` (for `workflow_run`, the name of the workflow that ran; T-577); `None` is not known and passes its filter (T-572, PodUtils/podrunner#97) |
 | `On`, `Event`, `Filter`, `Pattern`, `DEFAULT_PR_TYPES` | the events of `on:` with their filters, read once: `On::read`, `On::takes`, `Event::takes`; `Filter::matches` (the last pattern that matches decides), `Filter::takes`; `Pattern::parse`, `Pattern::matches` |
 | `Node`, `Kind`, `Key`, `Mark` | a value of the file with its line and column: `to_value` (as written), `evaluate` (each `${{ }}` evaluated), `text`, `get`, `entries` |
 | `Warning` | an unknown key: its path, its name, its place |
@@ -98,7 +98,9 @@ order, each job that runs ends with the given result and no output.
   not run; with neither, each ref runs. `paths` applies after them and
   not to a tag: one changed file that the filter lets through runs the
   workflow (`paths-ignore`: one file that is not ignored); an empty list
-  of files runs nothing. In a list, the last pattern that matches decides.
+  of files runs nothing. `workflows` (of `workflow_run`) holds the name
+  of the workflow that ran, whole and with case, with no pattern. In a
+  list, the last pattern that matches decides.
   A pattern: `*` (no `/`), `**`, `**/` (zero or more directories), `?`
   and `+` (zero or one, one or more of the character or set before),
   `[...]` (ranges in `a-z`, `A-Z`, `0-9`), `\` (the next character is
@@ -111,7 +113,7 @@ order, each job that runs ends with the given result and no output.
   line of JSON).
 
 Not measured: the conformance against GitHub (no run here). Not covered:
-the `workflows` filter of `workflow_run`, the `inputs` of
+the `inputs` of
 `workflow_dispatch`, the times of `schedule` (the caller decides them),
 the expansion of a reusable workflow, the `workflow_call` inputs and
 outputs, `concurrency`, `environment`, `env` of a job and `container`
@@ -123,12 +125,14 @@ outputs, `concurrency`, `environment`, `env` of a job and `container`
 `cargo test -p pod-actions-workflow`: the YAML layer, the model and its
 errors, the matrix examples of the documents, the graph and the
 expansion; the filters of `on:` with the examples of the documents
-(`tests/on.rs`: each filter, the cheat sheet of paths, the order of `!`,
+(`tests/on.rs`: each filter, `workflows` of `workflow_run`, the cheat
+sheet of paths, the order of `!`,
 paths after branches, a filter with its `-ignore` form refused) and the
 patterns (`src/pattern.rs`). The plants `actions-workflow-bang-order-ignored`,
 `actions-workflow-star-crosses-slash`,
-`actions-workflow-tags-only-takes-branches` and
-`actions-workflow-filter-with-ignore-taken` prove them. The fuzz target
+`actions-workflow-tags-only-takes-branches`,
+`actions-workflow-filter-with-ignore-taken` and
+`actions-workflow-workflows-ignored` prove them. The fuzz target
 `actions_workflow` (`fuzz/`) runs the parse, the filters of `on:` and the
 dry run on untrusted YAML.
 

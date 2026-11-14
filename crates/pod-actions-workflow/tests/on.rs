@@ -169,3 +169,27 @@ fn a_bad_filter_is_refused_by_name() {
     let w = workflow("  push:\n    branches-ignore: ['!main']");
     assert!(push(&w, "refs/heads/dev"));
 }
+
+#[test]
+fn workflow_run_takes_the_workflows_that_it_names() {
+    let w =
+        workflow("  workflow_run:\n    workflows: [Build, 'Run Tests']\n    types: [completed]\n    branches: [main]");
+    let run = |name, branch| {
+        let t = Trigger {
+            action: Some("completed"),
+            git_ref: Some(branch),
+            workflow: Some(name),
+            ..Trigger::new("workflow_run")
+        };
+        w.takes(&t).unwrap()
+    };
+    assert!(run("Build", "main") && run("Run Tests", "main"));
+    assert!(!run("Deploy", "main") && !run("build", "main") && !run("Build", "dev"));
+    let requested = Trigger { action: Some("requested"), workflow: Some("Build"), ..Trigger::new("workflow_run") };
+    assert!(!w.takes(&requested).unwrap());
+    // A workflow name that the caller does not know passes `workflows`.
+    assert!(w.takes(&Trigger::new("workflow_run")).unwrap());
+    let one = workflow("  workflow_run:\n    workflows: Build");
+    assert!(!one.takes(&Trigger { workflow: Some("Lint"), ..Trigger::new("workflow_run") }).unwrap());
+    assert!(matches!(error("  workflow_run:\n    workflows: [1]"), ErrorKind::Type(_)));
+}
