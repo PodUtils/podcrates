@@ -72,6 +72,7 @@ body of up to 16 MiB. The server gives `base` to the job as
 | `ArtifactStore::answer(method, path, body, base)` | the `Answer` to a request of the service or of a blob, or `None` for another route; `path` keeps its query |
 | `ArtifactStore::route(method, path, body, base)` | the same as `(status, bytes)` in memory (podrunner's form) |
 | `ArtifactStore::list`, `dir`, `used` | each artifact of the run by name, as `ListArtifacts` gives it (no signature); the directory; the bytes that the clients sent |
+| `ArtifactStore::zip_of(name)` | the zip of the finalized artifact `name` (a view of the run); `None` for a name that is not valid or an artifact with no record |
 | `Answer { status, content_type, headers, body }`, `Answer::into_bytes` | an answer; `headers`: the other headers (`Accept-Ranges`, `Content-Range` of the cache); `Payload::Bytes`, or `Payload::File(file, len)`: a file open at the first byte to send, and the number of bytes to send |
 | `CONTENT_JSON`, `CONTENT_BLOB`, `CONTENT_TEXT` | the content types of a twirp answer, of a zip, and of a blob route's text |
 | `SERVICE`, `BLOBS` | the path of each call (`SERVICE` and the method) and of each blob (`BLOBS`, `upload/ID` or `download/ID`, `?sig=`) |
@@ -181,7 +182,8 @@ podrunner measured these with runner v2.338.2 and the v4 actions
 ## Parity
 
 Against podrunner `crates/podrunner-broker-fake/src/artifacts.rs` at
-`0ff670d` (T-565), and `artifacts.rs` and `cache.rs` at `872b43f` (T-588):
+`0ff670d` (T-565), `artifacts.rs` and `cache.rs` at `872b43f` (T-588), and
+`artifacts.rs` at `9dbefd1` (T-613):
 
 | podrunner | Here |
 | --- | --- |
@@ -193,6 +195,7 @@ Against podrunner `crates/podrunner-broker-fake/src/artifacts.rs` at
 | [x] the SHA-256 of ring | sha2 (pure Rust) |
 | [x] `rfc3339` | `pod_core::clock::rfc3339` |
 | [x] `ArtifactStore::replacing` | the same |
+| [x] `ArtifactStore::zip_of` (`9dbefd1`, T-149 of podrunner) | the same, with the check of a name of the store (one normal component); a name that starts with `.` is a name of an artifact here (no `.pending` in the store), with the test `the_zip_of_a_finalized_artifact_and_of_nothing_else` (new) |
 | [x] `cache::CacheStore` (`new`, `with_scopes`, `entries`, `route`), `cache::LIMIT` | the module `cache`; `route` takes the `Range` header as podrunner's `header` |
 | [x] the six tests of `cache/tests.rs`, each with its name | `src/cache/tests.rs`, with no sleep |
 
@@ -258,7 +261,8 @@ Differences of the cache from the source (calls C379 to C382):
 ## Tests
 
 `cargo test -p pod-actions-results`: the 5 tests of the artifacts of
-podrunner (`src/tests.rs`), the 6 tests of the cache of podrunner
+podrunner and `the_zip_of_a_finalized_artifact_and_of_nothing_else`
+(`src/tests.rs`), the 6 tests of the cache of podrunner
 (`src/cache/tests.rs`), 15 tests of the public API of the artifacts
 (`tests/store.rs`) and 8 of the cache (`tests/cache.rs`). The plants of
 the group `actions`: `results-sha256-unchecked` (the finalize
@@ -274,7 +278,9 @@ and `results-replace-ignored` (a rerun keeps the artifact),
 `results-cache-no-limit` (the limit counts one body),
 `results-cache-names-joined` (the digest of an entry joins its names) and
 `results-cache-record-anywhere` (a record counts in any directory)
-(T-588); `results-cache-pending-kept` (the sweep removes nothing) (T-600).
+(T-588); `results-cache-pending-kept` (the sweep removes nothing) (T-600);
+`actions-results-zip-of-a-half-artifact` (`zip_of` gives the zip of an
+artifact with no record) (T-613).
 
 The fuzz target `actions_results` (`fuzz/`, T-566) reads a query, a
 block list, a runtime token and a `Range`, then gives a script of

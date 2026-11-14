@@ -1,0 +1,7 @@
+# A reference from a directory of the caller goes through the lock: offline
+# it is refused, and online it is pinned (T-613).
+ENTRY=T-613
+GROUP=actions
+EXPECT='key: "me/tool@main"'
+RUN='cargo test -p pod-actions-store --all-features --lib store::tests::a_local_reference_goes_to_the_store_and_not_to_the_lock'
+LIMIT=900

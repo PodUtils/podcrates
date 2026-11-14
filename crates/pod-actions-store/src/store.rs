@@ -26,6 +26,11 @@ pub trait Forge {
     fn resolve(&self, repo: &str, r: &str) -> Result<String, String>;
     /// The uncompressed tar of `commit`, with one top directory.
     fn tar(&self, repo: &str, commit: &str) -> Result<Vec<u8>, String>;
+    /// `OWNER/REPO@REF` comes from a directory of the caller: its commit
+    /// and its tar go to the store, never to the lock, in each mode.
+    fn is_local(&self, _key: &str) -> bool {
+        false
+    }
 }
 
 /// How a run may change the lock and the store.
@@ -292,6 +297,20 @@ fn fetch(
     let (repo, key, lock) = (at.repo, at.key.to_string(), at.lock_name.to_string());
     let forged = |reason| Error::Forge { repo: repo.to_string(), reason };
     let not_locked = || Error::NotLocked { key: key.clone(), lock: lock.clone(), mode };
+    // A directory of the caller: a made-up commit that changes with the
+    // directory, so the lock does not hold it, and the forge of a remote
+    // is not asked, also offline.
+    if forge.is_local(at.key) {
+        let commit = forge.resolve(repo, at.r).map_err(forged)?;
+        if !is_commit(&commit) {
+            return Err(forged(format!("`{key}`: the forge gave `{commit}`, not a commit id")));
+        }
+        let tar = forge.tar(repo, &commit).map_err(forged)?;
+        if store.get(repo, &commit)?.is_none() {
+            store.put(repo, &commit, &tar)?;
+        }
+        return Ok((commit, tar));
+    }
     let pin = out.lock.pins.get(at.key).cloned();
     let commit = match (&pin, mode) {
         _ if is_commit(at.r) => at.r.to_ascii_lowercase(),

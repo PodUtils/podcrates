@@ -3,7 +3,12 @@
 # commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
 # compares each with the default branch of its repository.
 
-repo PodUtils/podrunner 872b43f53d355908942f3fd4598ab0fad7f72515
+repo PodUtils/podrunner 9dbefd17ce7cd2269e40f1875f993738e3019971
+# T-613: de6850e gives Forge::is_local (a local reference goes to the
+# store, not to the lock); afa619d gives Git::proxy and Git::command (the
+# protocol of the base only, no submodule). Its fetch through an egress
+# grant (fetch.rs) and the live test through it stay in podrunner: the
+# relay and the grant are podrunner's egress module.
 # T-564 (PodUtils/podrunner#94): the lock file and the store of the actions
 # by tag of PodUtils/podrunner@T-118, imported at 241acb8. T-587
 # (PodUtils/podrunner#99): the image lines of the lock, the checkouts of
@@ -12,8 +17,8 @@ repo PodUtils/podrunner 872b43f53d355908942f3fd4598ab0fad7f72515
 # images.rs and the other files of crates/podrunner-local (the local job
 # source) stay in podrunner.
 file 8f38cfd3cbd375e05e62862384e2ba49c40872bc crates/podrunner-local/src/lock.rs -> crates/pod-actions-store/src/lock.rs
-file 1ce40b4368e9934cbe7d093e93ed43c13df95b79 crates/podrunner-local/src/store.rs -> crates/pod-actions-store/src/store.rs crates/pod-actions-store/src/git.rs crates/pod-actions-store/src/error.rs
-file 70c7ec74b33198f387719e61c8abd7fb7e4fdd90 crates/podrunner-local/src/store/tests.rs -> crates/pod-actions-store/src/store/tests.rs
+file 89695e11bebf579ee1642965b138391784685039 crates/podrunner-local/src/store.rs -> crates/pod-actions-store/src/store.rs crates/pod-actions-store/src/git.rs crates/pod-actions-store/src/error.rs
+file 6347f4e965e6c73bf15bbf5d66701340d4919304 crates/podrunner-local/src/store/tests.rs -> crates/pod-actions-store/src/store/tests.rs
 file 9d9e9ab74159038f9057d0b62bc1d97fc5534f22 crates/podrunner-local/src/images.rs -> crates/pod-actions-store/src/images.rs crates/pod-actions-store/src/error.rs
 file f063e1bf7c4b18046b8072d839868d7fefff953c crates/podrunner-local/src/images/tests.rs -> crates/pod-actions-store/src/images/tests.rs
-file a9f5c62ae89ddb0076d4e5010350e5979a5f7fd3 crates/podrunner-local/tests/store.rs -> crates/pod-actions-store/tests/store.rs
+file 622222c725d39094f7305ba6c081c56566e05924 crates/podrunner-local/tests/store.rs -> crates/pod-actions-store/tests/store.rs

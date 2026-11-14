@@ -3,7 +3,9 @@
 # commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
 # compares each with the default branch of its repository.
 
-repo PodUtils/podrunner 872b43f53d355908942f3fd4598ab0fad7f72515
+repo PodUtils/podrunner 9dbefd17ce7cd2269e40f1875f993738e3019971
+# T-613: 9dbefd1 gives ArtifactStore::zip_of (the zip of a finalized
+# artifact, for the web view of a local run).
 # T-565 (PodUtils/podrunner#95): the ArtifactService of the results API and
 # the blob routes of its signed URLs, imported at 0ff670d. T-588
 # (PodUtils/podrunner#99): `ArtifactStore::replacing` of
@@ -13,7 +15,7 @@ repo PodUtils/podrunner 872b43f53d355908942f3fd4598ab0fad7f72515
 # tests/store.rs and tests/cache.rs are new here.
 dir crates/podrunner-broker-fake/src/artifacts
 dir crates/podrunner-broker-fake/src/cache
-file 04fd47f53b5a251712395b0e203b6c34884f9ea0 crates/podrunner-broker-fake/src/artifacts.rs -> crates/pod-actions-results/src/lib.rs crates/pod-actions-results/src/store.rs crates/pod-actions-results/src/service.rs crates/pod-actions-results/src/blob.rs crates/pod-actions-results/src/wire.rs
+file b52ec2e919c8dc6e4579b9360eef6b08c29e5336 crates/podrunner-broker-fake/src/artifacts.rs -> crates/pod-actions-results/src/lib.rs crates/pod-actions-results/src/store.rs crates/pod-actions-results/src/service.rs crates/pod-actions-results/src/blob.rs crates/pod-actions-results/src/wire.rs
 file f4af84cb0c3d9c334c5359a3d1702b6cab0432a5 crates/podrunner-broker-fake/src/artifacts/tests.rs -> crates/pod-actions-results/src/tests.rs
 file f79bd20996f1a4e0ad747877908add4cce1d5915 crates/podrunner-broker-fake/src/cache.rs -> crates/pod-actions-results/src/cache.rs crates/pod-actions-results/src/cache/service.rs crates/pod-actions-results/src/cache/blob.rs
 file 88e1ccc8459108caa4fdc5ac2ba8e02772d2cebd crates/podrunner-broker-fake/src/cache/tests.rs -> crates/pod-actions-results/src/cache/tests.rs
