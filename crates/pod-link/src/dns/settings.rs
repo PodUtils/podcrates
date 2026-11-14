@@ -30,7 +30,10 @@ pub struct DnsSettings {
     /// doubles from [`DnsSettings::poll_min`] to here and resets at the next
     /// datagram up. podnet's backoff ceiling, 2 s.
     pub poll_max: Duration,
-    /// The largest answer that the listener builds, its OPT record included.
+    /// The EDNS0 size that the dialer sends with each query, and the
+    /// largest answer that the listener builds, its OPT record included. An
+    /// answer also keeps to the size of its query: 512 bytes when the query
+    /// has no OPT record.
     pub answer: u16,
     /// The datagrams that wait in each direction before more are lost.
     pub depth: usize,

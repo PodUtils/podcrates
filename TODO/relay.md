@@ -5906,7 +5906,7 @@ sh scripts/plant-each.sh netstack-close-wait-closes-at-once netstack-link-drops-
 **Milestone:** M2
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5929,4 +5929,43 @@ podnet: "`pod_link::arq` asks for a rekey before its sequence wraps, and holds t
 ```sh
 cargo test -p pod-link --all-features --test dns_loss --test icmp bytes_cross_the_wrap_of_the_sequence_at_loss
 sh scripts/plant-each.sh link-dgram-wrap-waits
+```
+
+## Done
+
+2026-11-14, commit `59668bb`. `ArqStream::wrap_freely` (in the crate): the task of the ARQ calls `rekeyed` at each ask; `dgram_tls::stream` sets it on each ARQ of the dns and icmp carriers (call C290). `cargo test -p pod-link --all-features`: 183 passed, 2 ignored. `bytes_cross_the_wrap_of_the_sequence_at_loss` (`tests/dns_loss.rs`, `tests/icmp.rs`): the first sequence is 64 frames before the wrap, and 128 KiB cross each way at 3 % loss with reorder and duplicates. The plant `link-dgram-wrap-waits` (the call removed) fails each test after 60 s ("the transfer in time: Elapsed"). No other in-crate user of `ArqStream` exists; the udp carrier runs KCP.
+
+# T-543: `pod-link`: the dns carrier and the TC bit: each answer keeps to the size of its query, and a cut answer does not stall the link (PodUtils/podnet#533)
+
+**Source:** PodUtils/podnet#533 (COORD-071 of podnet, ask 2; PodUtils/podnet@T-278).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet: "A resolver can truncate an answer (the flag `TC`); the client then asks again over TCP/53. The `dns` carrier of v0.40.0 has no such rule. If a resolver on the path truncates the TXT answers of the carrier, the link stalls. Please add the TC rule, or say that the carrier keeps each answer under the size that a resolver does not truncate (and the size)."
+
+## Premise
+
+- Read: `crates/pod-link/src/dns/server.rs` (`drain` fills each answer to `DnsSettings::answer`, 1232, with an OPT record also when the query has none), `crates/pod-link/src/dns/client.rs` (each query sends EDNS0 with `answer`; `txt::read` of a cut answer gives the whole records before the cut; a query that fails gives no datagram, and the ARQ sends again), `crates/pod-dns/src/txt.rs` (`question` gives no EDNS0 size).
+- The listener did not read the size of the query: a resolver that sends no EDNS0 toward the server takes 512 bytes, and the listener sent up to 1232. That resolver then cuts the answer at each batch down.
+- Not measured: a public resolver.
+
+## Approach
+
+1. `pod_dns::txt::asked_size(msg)`: the EDNS0 size of a query, at least 512, or `None` with no OPT record.
+2. The listener keeps each answer to `min(asked or 512, answer)`, and puts an OPT record in an answer only when the query had one (call C291). One datagram always fits in 512 bytes.
+3. The dialer takes the whole records of a cut answer and goes on (`dns::client::datagrams`); no query goes again over TCP/53 (call C292).
+4. Tests: a stand-in resolver on the loopback that removes the OPT record of each query (answers of 512 bytes or less, none with an OPT record), that sends it whole (answers within 1232 and over 512), and that cuts each second answer with the TC bit (the link moves 32 KiB each way). A unit test of the dialer reads a cut answer. Plants: `dns-answer-past-the-query-size`, `dns-cut-answer-dropped`, `dns-txt-asked-size-under-512`.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features --lib a_server_reads_the_size_that_a_query_takes
+cargo test -p pod-link --all-features --test dns_resolver
+cargo test -p pod-link --all-features --lib a_cut_answer_gives_its_whole_records
+sh scripts/plant-each.sh dns-answer-past-the-query-size dns-cut-answer-dropped dns-txt-asked-size-under-512
 ```

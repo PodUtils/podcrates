@@ -190,7 +190,7 @@ let io = Icmp::new(provider, identity).dial("SHA256:...@198.51.100.7").await?;
 | `udp::{NAME, ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES, MTU, SEGMENT, MIN_WINDOW, MAX_WINDOW, IDLE, KCP_HEADER}` | the constants of the udp carrier |
 | `dns::Dns` (feature `dns`) | the DNS simplex carrier: `new(provider, identity)`, `with_clients(keys)`, `to(server)` (the UDP address a dial sends its queries to), `zone(name)` (a listener's zone), `with_way(way)`, `clients`; the fields `server`, `zone`, `alpn` (`podlink/1`), `arq` (`arq::ArqSettings`), `dns` (`DnsSettings`), `handshake_timeout` (20 s), `max_handshakes` (64); `address(text)` (the key and the zone of `KEY@ZONE`); `connect(&zone, &key)`; `connect_over(datagrams, &target, &key)` and `accept_over(datagrams, &from)`; `bind(addr)`, `bind_over(socket)`; as a `Carrier`: `dial("KEY@ZONE")`, `listen("IP:PORT")`, the cost `Highest` |
 | `dns::DnsListener` | `local_addr`, `accept_key`; a `Listener`; a drop ends its handshakes under way and starts no session; the sessions that it gave live on |
-| `dns::DnsSettings`, `dns::DnsSettingsError` | `queries_per_second` (20), `in_flight` (8), `query_timeout` (2 s), `poll_min` (5 ms), `poll_max` (2 s), `answer` (1232), `depth` (256); `check` |
+| `dns::DnsSettings`, `dns::DnsSettingsError` | `queries_per_second` (20), `in_flight` (8), `query_timeout` (2 s), `poll_min` (5 ms), `poll_max` (2 s), `answer` (1232: the EDNS0 size of each query of a dialer, and the largest answer of a listener; an answer also keeps to the size of its query, 512 bytes with no EDNS0), `depth` (256); `check` |
 | `dns::{NAME, ALPN, HANDSHAKE_TIMEOUT, MAX_HANDSHAKES, settings::EDNS_SIZE}` | the constants of the dns carrier |
 | `icmp::Icmp` (feature `icmp`) | the ICMP echo carrier: `new(provider, identity)`, `with_clients(keys)`, `with_resolver(resolver)`, `clients`; the fields `alpn` (`podlink/1`), `arq`, `icmp` (`IcmpSettings`), `connect_timeout` (20 s), `handshake_timeout` (20 s), `max_handshakes` (64); `address(text)` (the key and the target of `KEY@HOST`); `connect(&target, &key)` (unix); `connect_over(datagrams, &target, &key)` and `accept_over(datagrams, &from)`; `bind(ip)` (unix); as a `Carrier`: `dial("KEY@HOST")`, `listen("IPv4")`, the cost `High` |
 | `icmp::IcmpListener` (unix) | `local_ip`, `accept_key`; a `Listener`; a drop ends its handshakes under way and starts no session |
@@ -686,8 +686,19 @@ that hold them (`tests/dns.rs`, `tests/dns_loss.rs`, feature `dns`):
   silent peer at the timeout of the ARQ: `tests/dns_loss.rs`.
 - [x] Each direction crosses the wrap of the sequence of the ARQ at loss
   (T-541): `bytes_cross_the_wrap_of_the_sequence_at_loss`.
+- [x] The size of an answer and the TC bit (T-543, calls C291 and C292;
+  `tests/dns_resolver.rs`, a stand-in resolver on the loopback): a query
+  with no EDNS0 gets 512 bytes or less and no OPT record
+  (`a_query_with_no_edns_gets_an_answer_of_512_bytes_or_less`); a query
+  of 1232 gets answers within it
+  (`a_query_with_edns_gets_an_answer_within_its_size`); answers cut with
+  the TC bit do not stall the link (`a_cut_answer_does_not_stall_the_link`),
+  and the dialer takes the whole records before the cut
+  (`dns::client::tests::a_cut_answer_gives_its_whole_records`).
 - [x] A plant for each check: `dns-down-needs-the-txt`,
-  `dns-wire-base32-roundtrip`, `link-dgram-wrap-waits` (`scripts/plants/`).
+  `dns-wire-base32-roundtrip`, `link-dgram-wrap-waits`,
+  `dns-answer-past-the-query-size`, `dns-cut-answer-dropped`
+  (`scripts/plants/`).
 
 The asks of PodUtils/podnet#521 for the ICMP echo carrier
 (PodUtils/podnet@T-282, row E3-2 of PodUtils/podnet#469) and the tests

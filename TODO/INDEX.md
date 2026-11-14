@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**425 entries: 113 open, 8 partial, 5 blocked, 299 done.**
+**426 entries: 113 open, 8 partial, 5 blocked, 300 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 12 | 3 | 0 | 81 | 96 |
-| P2 | 53 | 3 | 4 | 160 | 220 |
+| P1 | 11 | 3 | 0 | 82 | 96 |
+| P2 | 54 | 3 | 4 | 160 | 221 |
 | P3 | 48 | 2 | 1 | 56 | 107 |
-| **All** | 113 | 8 | 5 | 299 | 425 |
+| **All** | 113 | 8 | 5 | 300 | 426 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -471,4 +471,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-538](upkeep.md) | P3 | S | M5 | docs | blocked | The rule of attribution of a comment on GitHub: the documents of podcrates and the practice of its sessions differ |
 | [T-539](transport.md) | P2 | M | M3 | feature | done | `pod-term`: a line discipline that follows a termios state, for the tty of `podssh serve` with no /dev/ptmx (PodUtils/podssh#232) |
 | [T-540](transport.md) | P3 | S | M3 | chore | open | `pod-term`: a test of `termios::Tty` against a pty of the kernel, where one opens |
-| [T-541](relay.md) | P1 | S | M2 | defect | open | `pod-link`: the dns and icmp carriers stop at the wrap of the sequence of the ARQ: `dgram_tls` never calls `rekeyed` (PodUtils/podnet#540) |
+| [T-541](relay.md) | P1 | S | M2 | defect | done | `pod-link`: the dns and icmp carriers stop at the wrap of the sequence of the ARQ: `dgram_tls` never calls `rekeyed` (PodUtils/podnet#540) |
+| [T-543](relay.md) | P2 | S | M2 | defect | open | `pod-link`: the dns carrier and the TC bit: each answer keeps to the size of its query, and a cut answer does not stall the link (PodUtils/podnet#533) |

@@ -119,6 +119,7 @@ impl ArqStream {
     /// with no wait. Only for a layer above that seals each byte with
     /// nonces of its own (TLS): a sequence of the ARQ used again then
     /// opens no nonce again.
+    #[cfg_attr(not(any(feature = "dns", feature = "icmp")), allow(dead_code))]
     pub(crate) fn wrap_freely(&self) {
         self.shared.with(|i| i.free_wrap = true);
         self.shared.sender.notify_one();
