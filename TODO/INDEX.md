@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**427 entries: 112 open, 8 partial, 5 blocked, 302 done.**
+**430 entries: 115 open, 8 partial, 5 blocked, 302 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 81 | 95 |
 | P2 | 53 | 3 | 4 | 163 | 223 |
-| P3 | 48 | 2 | 1 | 56 | 107 |
-| **All** | 112 | 8 | 5 | 302 | 427 |
+| P3 | 51 | 2 | 1 | 56 | 110 |
+| **All** | 115 | 8 | 5 | 302 | 430 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -473,4 +473,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-540](transport.md) | P3 | S | M3 | chore | open | `pod-term`: a test of `termios::Tty` against a pty of the kernel, where one opens |
 | [T-544](podvm.md) | P2 | S | M1 | feature | done | `pod-hold`: a seccomp rule that refuses a raw socket and an ICMP socket, with an opt-in (PodUtils/podnet#538) |
 | [T-549](adapters.md) | P2 | S | M3 | feature | done | `pod-warp`: name the certificate that the front door showed when its key is not the pinned one (PodUtils/podssh#234) |
+| [T-550](relay.md) | P3 | M | M2 | feature | open | `pod-wormhole`: Nostr's ephemeral events as a meeting point of the pairing by a code (PodUtils/podssh#235) |
+| [T-551](relay.md) | P3 | M | M2 | feature | open | `pod-wormhole`: WebTorrent's trackers as a meeting point of the pairing by a code (PodUtils/podssh#235) |
 | [T-552](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `srv-us` and `tunnl-gg` of the kind `ssh-tunnel` (PodUtils/podssh#236) |
+| [T-554](relay.md) | P3 | M | M2 | feature | open | `pod-wormhole`: an ntfy topic as a meeting point of the pairing where a proxy refuses the WebSocket upgrade (PodUtils/podssh#237) |
