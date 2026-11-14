@@ -1,0 +1,7 @@
+# ONLCR gives a bare newline: the kernel pty gives `\r\n`, and the test that
+# compares Tty with it must fail (T-540).
+ENTRY=T-540
+GROUP=term
+EXPECT='test tty_gives_the_bytes_of_a_kernel_pty_for_each_case \.\.\. FAILED'
+RUN='cargo test -p pod-term --all-features --test termios_kernel'
+LIMIT=900

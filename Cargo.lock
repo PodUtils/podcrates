@@ -2434,6 +2434,7 @@ name = "pod-term"
 version = "0.44.0"
 dependencies = [
  "anstyle-parse",
+ "libc",
  "pod-testkit",
  "proptest",
  "unicode-width",

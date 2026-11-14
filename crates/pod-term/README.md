@@ -27,7 +27,7 @@ dials nothing and spawns nothing. It has no pod dependency.
 | The grammar of output and its ring | yes |
 | The tests: 176 (unit, discipline, keys, motion, oracle, calibration, properties, grammar, window, plants) | yes, with their names |
 | The plants C, D and E (`tests/plants.rs`) | yes: `scripts/plants/term-plant-*.plant`; the switch is `POD_TERM_PLANT` |
-| The termios discipline (T-539, for `podssh serve` with no `/dev/ptmx`) | new here: 55 tests (`termios`, `termios_modes`); the plants `term-termios-*` (canonical editing, echo, signals, input mapping, output mapping) |
+| The termios discipline (T-539, for `podssh serve` with no `/dev/ptmx`) | new here: 55 tests (`termios`, `termios_modes`), and `termios_kernel` (T-540, Linux): 53 cases of those two files given to `Tty` and to a pty of the kernel (`posix_openpt`, `tcsetattr`), the bytes for the child and the user equal after each step, skipped with its reason where `/dev/ptmx` does not open; the plants `term-termios-*` (canonical editing, echo, signals, input mapping, output mapping, and `term-termios-kernel-onlcr` against the kernel) |
 
 ## Adoption map
 
