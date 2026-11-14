@@ -1,0 +1,15 @@
+diff --git a/crates/pod-relay/src/http_road/one.rs b/crates/pod-relay/src/http_road/one.rs
+index cc38a56..1559e47 100644
+--- a/crates/pod-relay/src/http_road/one.rs
++++ b/crates/pod-relay/src/http_road/one.rs
+@@ -191,8 +191,8 @@ async fn pump(body: &mut Body<'_, ReadHalf<BoxIo>>, to_app: &mut WriteHalf<Duple
+         bytes = match body.next().await {
+             Ok(Some(bytes)) => bytes,
+             Ok(None) => return End::Closed { code: 1000, reason: "target closed".into() },
+-            Err(why) => {
+-                return End::Failed(format!("the relay cut the answer of the HTTP road's one-POST form: {why}"));
++            Err(_why) => {
++                return End::Closed { code: 1000, reason: "target closed".into() };
+             }
+         };
+     }

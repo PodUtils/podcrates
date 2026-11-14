@@ -6342,3 +6342,120 @@ Add `AF_PACKET` (each type) to the rule, under the opt-in of T-544 or a separate
 ```sh
 cargo test -p pod-hold --all-features
 ```
+
+# T-559: `pod-relay`: the client of the HTTP road's one-POST form (PodUtils/podssh#239)
+
+**Source:** PodUtils/podssh#239 (COORD-062 of podssh, for PodUtils/podssh@T-622).
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+podssh's relay role serves a third form of the HTTP road
+(crates/podssh-relay/src/serve/http_road/one.rs of podssh; podssh's
+docs/relay.md, "The relay role's HTTP road"):
+`POST /v1/http/one/HOST/PORT[?family=4|6]`, HTTP/1.1,
+`Transfer-Encoding: chunked`, the forward token in `X-Relay-Token`, the
+open's checks and refusals (`X-Refuse`). `200` at once, its answer in
+chunks, whose first bytes are the mark `podssh-http-one 1\n`; then each
+chunk up goes to the target as it comes, and the target's bytes come down
+in chunks as they come, on that one connection. The body's last chunk is
+TCP's half-close to the target; the target's end is the answer's last
+chunk; a limit met ends the connection with no last chunk (a cut).
+`/relays.json` names it in `limits.http`: `forms` adds `one`.
+
+The ask: the client of the form in `pod-relay`'s `http_road`. (1) The
+form first where the HTTP road is taken and the host's `limits.http.forms`
+names `one` (or the host is not known yet), on one connection. (2) A bound
+of 2 s on the mark: no mark ends that request and takes the split form,
+and the result is kept for the egress for the rest of the run. (3) HTTP/2
+where ALPN gives `h2`, else HTTP/1.1 with chunked bodies both ways.
+(4) `Form::One`: `PODSSH_HTTP_ROAD=one` asks for it alone; `auto` tries
+it first; `split` and `serial` leave it out. (5) The form's name where
+podssh says the form that carried (`doctor`'s line `forward`).
+
+## Premise
+
+- Read: PodUtils/podssh#239; podssh's docs/relay.md (the HTTP road),
+  crates/podssh-relay/src/serve/http_road/one.rs and
+  crates/podssh-relay/tests/http_road_one.rs; podssh's
+  crates/podssh-cli/src/http_road.rs and its `doctor`, which print
+  `Opened::form.name()`; `crates/pod-relay/src/http_road/`.
+- The role refuses the form on other than HTTP/1.1 (`411`), and sends the
+  mark after its dial of the target, before it reads the body.
+- The road's forms offer no ALPN (`Road::tls` passes none), so no form
+  of the road speaks HTTP/2 now.
+- Not measured: the form through a real proxy; podssh measured 20 MiB each
+  way with curl at its role.
+
+## Approach
+
+`http_road::one`: the request's head with `Transfer-Encoding: chunked`,
+then a bound of 2 s on the answer's head and mark. Each write of the
+caller goes up as a chunk; the caller's end is the last chunk; the
+answer's last chunk is the target's end, and an answer with none is a
+failure. `Form::One`; `client::open` with no form asked takes it first
+where `Road::forms` names it or is not known and `Road::learned` does not
+hold the host; else the split form, then the serial one. Tests against the
+stand-in role of `tests/`, with a hop in memory that streams and one that
+holds a body in chunks to its end.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --test http_road_one
+cargo test -p pod-relay --all-features
+sh scripts/plant-each.sh relay-t559-mark-unbounded relay-t559-held-forgotten relay-t559-no-last-chunk relay-t559-cut-is-an-end
+```
+
+## Done
+
+2026-11-14, commit 0ea3c5e (the client and its tests) and the next (the
+bound of the test, the plants, the record). `http_road::one`: the request
+`POST /v1/http/one/HOST/PORT[?family]` of HTTP/1.1 with the token in
+`X-Relay-Token` and `Transfer-Encoding: chunked`, then `MARK_WAIT` (2 s)
+on the answer's head and mark (C310). Each write of the caller goes up as
+a chunk; the caller's end is the last chunk. The answer's last chunk is
+the target's end, `End::Closed { 1000, "target closed" }`; an answer with
+no last chunk is `End::Failed` ("the relay cut the answer"). A refusal of
+the role keeps its status and words (`ConnectError::Refused`), as the
+open of the split form. `Form::One` (`name` "one", the name that podssh's
+`doctor` and `ssh` print from `Opened::form`), `Form::parse`, `Forms`.
+`client::open`: no form asked takes the one-POST form first where
+`Road::forms` names `one` or is none and `Road::learned` does not hold the
+host; no mark, a host that serves no such form, or an answer with no mark
+takes the split form, then the serial one, and keeps the host in
+`Road::learned`; `Road::in_run(&ctx)` makes that the run's
+(`Context::http_road_learned`, C312); `Road::with_forms` takes
+`pool::Limits::http_forms`, which `parse_limits` now reads from
+`limits.http.forms` and the pool's cache keeps. `Form::One` asked alone
+fails there with `ConnectError::Http` ("the one-POST form of the HTTP
+road did not go: no mark of the relay in 2 s: a hop on the way holds the
+request's body to its end"); `Form::Split` and `Form::Serial` never try
+it. HTTP/2: the form offers no ALPN, as the other forms, so it is
+HTTP/1.1 alone (C311): podssh's role serves the form on HTTP/1.1 alone,
+and an offer of `h2` would never carry it there. T-478: the one-POST form
+has no such gap: a caller that is gone ends the session and drops the
+connection, and the role ends the session as its body is cut (C313).
+`tests/http_road_one.rs`, 5 passed, on a paused clock against the
+stand-in role of `tests/http_road_stand_in/` (now with the form, `one.rs`,
+and a hop in memory, `hop.rs`, that streams or holds a body in chunks to
+its end): 4 MiB each way with equal digests, straight and through the
+hop that streams, on one request with the token; through the holding hop
+the split form after 2 s (within 3 s), 1 MiB each way, and the next open
+of the run at once with one try of the form in all; a cut answer fails
+after the 256 KiB before the cut; `Form::One` alone fails with words
+that name the mark and the hop; a role with no such form (`404`), a
+host whose forms do not name it, and the forms `split` and `serial`
+asked send no request of the form. Unit tests: the forms and their
+names, the route, the chunk, the memory, `limits.http.forms`. The plants,
+each proved by hand: `relay-t559-mark-unbounded` (a bound of 20 s; the
+fallback test fails: "took the split form after 20s"),
+`relay-t559-held-forgotten` (the memory not kept; "the run keeps the
+held form"), `relay-t559-no-last-chunk` (no last chunk up; the transfer
+test runs out of its bound), `relay-t559-cut-is-an-end` (a cut read as
+the end; the cut test fails). `cargo test -p pod-relay --all-features`:
+no failure.

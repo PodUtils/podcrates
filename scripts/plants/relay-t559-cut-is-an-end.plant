@@ -1,0 +1,7 @@
+# A plant of T-559 (the client of the HTTP road's one-POST form in pod-relay):
+# an answer with no last chunk reads as the target's end; the test of the
+# cut must fail.
+ENTRY=T-559
+GROUP=relay
+EXPECT='test an_answer_of_the_one_form_cut_with_no_last_chunk_is_an_error \.\.\. FAILED'
+RUN='cargo test -p pod-relay --test http_road_one -- an_answer_of_the_one_form_cut_with_no_last_chunk_is_an_error'

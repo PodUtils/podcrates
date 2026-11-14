@@ -1,0 +1,7 @@
+# A plant of T-559 (the client of the HTTP road's one-POST form in pod-relay):
+# the bound on the mark is 20 s, not 2 s; the test of the fallback within the
+# bound must fail.
+ENTRY=T-559
+GROUP=relay
+EXPECT='test through_a_holding_hop_the_client_takes_the_split_form_within_the_bound_and_keeps_it \.\.\. FAILED'
+RUN='cargo test -p pod-relay --test http_road_one -- through_a_holding_hop_the_client_takes_the_split_form_within_the_bound_and_keeps_it'

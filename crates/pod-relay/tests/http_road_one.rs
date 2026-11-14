@@ -15,7 +15,6 @@ use std::time::Duration;
 use http_road_stand_in::hop::{Hop, through};
 use http_road_stand_in::{One, Plan, StandIn, pattern};
 use pod_relay::http_road::client::{End, Opened, Road, Target, open};
-use pod_relay::http_road::one::MARK_WAIT;
 use pod_relay::http_road::{Form, Forms, Tuning};
 use pod_ws::ConnectError;
 use sha2::{Digest, Sha256};
@@ -26,6 +25,8 @@ const MIB: usize = 1 << 20;
 /// Far longer than a session that moves: a session that never ends fails
 /// the test here.
 const BOUND: Duration = Duration::from_secs(600);
+/// The bound on the mark that the ask names (PodUtils/podssh#239).
+const MARK_BOUND: Duration = Duration::from_secs(2);
 const TARGET: Target<'static> = Target { host: "target.test", port: 22, family: None };
 
 async fn opened(road: &Road, form: Option<Form>) -> Result<Opened, ConnectError> {
@@ -105,7 +106,7 @@ async fn through_a_holding_hop_the_client_takes_the_split_form_within_the_bound_
     let session = opened(&road, None).await.expect("the open");
     let took = started.elapsed();
     assert_eq!(session.form, Form::Split);
-    assert!(took >= MARK_WAIT && took < MARK_WAIT + Duration::from_secs(1), "took the split form after {took:?}");
+    assert!(took >= MARK_BOUND && took < MARK_BOUND + Duration::from_secs(1), "took the split form after {took:?}");
     let held = road.learned.held("relay.test").expect("the run keeps the held form");
     assert!(held.contains("no mark"), "{held}");
     let (got, count, end) = carry(session, up.clone()).await;
@@ -119,7 +120,7 @@ async fn through_a_holding_hop_the_client_takes_the_split_form_within_the_bound_
     again.learned = road.learned.clone();
     let started = Instant::now();
     assert_eq!(opened(&again, None).await.expect("the open").form, Form::Split);
-    assert!(started.elapsed() < MARK_WAIT, "the next open waited {:?} for a mark", started.elapsed());
+    assert!(started.elapsed() < MARK_BOUND, "the next open waited {:?} for a mark", started.elapsed());
     assert_eq!(chunked.load(Ordering::SeqCst) + again_chunked.load(Ordering::SeqCst), 1, "one try of the form");
 }
 
@@ -144,7 +145,7 @@ async fn the_one_form_alone_fails_with_a_clear_error_through_a_holding_hop() {
     let (road, _) = through(stand_in.road(), Hop::Holds);
     let started = Instant::now();
     let failed = opened(&road, Some(Form::One)).await.err().expect("no session");
-    assert!(started.elapsed() < MARK_WAIT + Duration::from_secs(1), "{:?}", started.elapsed());
+    assert!(started.elapsed() < MARK_BOUND + Duration::from_secs(1), "{:?}", started.elapsed());
     let words = failed.to_string();
     assert!(words.contains("one-POST form") && words.contains("no mark") && words.contains("holds"), "{words}");
     assert_eq!(stand_in.record(|r| (r.ones, r.sent.len())), (0, 0), "no form went");
