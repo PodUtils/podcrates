@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**434 entries: 115 open, 8 partial, 5 blocked, 306 done.**
+**436 entries: 115 open, 8 partial, 5 blocked, 308 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 83 | 97 |
-| P2 | 53 | 3 | 4 | 165 | 225 |
+| P2 | 53 | 3 | 4 | 167 | 227 |
 | P3 | 51 | 2 | 1 | 56 | 110 |
-| **All** | 115 | 8 | 5 | 306 | 434 |
+| **All** | 115 | 8 | 5 | 308 | 436 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -479,5 +479,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-550](relay.md) | P3 | M | M2 | feature | open | `pod-wormhole`: Nostr's ephemeral events as a meeting point of the pairing by a code (PodUtils/podssh#235) |
 | [T-551](relay.md) | P3 | M | M2 | feature | open | `pod-wormhole`: WebTorrent's trackers as a meeting point of the pairing by a code (PodUtils/podssh#235) |
 | [T-552](transport.md) | P2 | S | M1 | feature | done | `pod-services`: the services `srv-us` and `tunnl-gg` of the kind `ssh-tunnel` (PodUtils/podssh#236) |
+| [T-553](fleet.md) | P2 | S | M8 | feature | done | `pod-job`: the container route `engine` and the need `container_engine`, for a container engine inside the unit (PodUtils/podrunner#91) |
 | [T-554](relay.md) | P3 | M | M2 | feature | open | `pod-wormhole`: an ntfy topic as a meeting point of the pairing where a proxy refuses the WebSocket upgrade (PodUtils/podssh#237) |
 | [T-555](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `7122cc7` is red for podssh: its test pins five tox relays, and T-537 left four |
+| [T-556](transport.md) | P2 | S | M1 | feature | done | `pod-services`: serv00's public Piping Server as the third of the kind `piping` (PodUtils/podssh#238) |

@@ -2327,3 +2327,34 @@ job, not of the host. New examples `run-report/valid-usage.json` and
 `run-report-public/valid-usage.json` (16 valid and 22 invalid in all).
 `cargo test -p pod-job --all-features`: each passes. A struct literal of
 `RunReport` or `PublicReport` in a consumer needs the two fields.
+
+# T-553: `pod-job`: the container route `engine` and the need `container_engine`, for a container engine inside the unit (PodUtils/podrunner#91)
+
+**Source:** PodUtils/podrunner#91 (COORD-031 of podrunner; PodUtils/podrunner@T-103, githome's G-09).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`services:`, `docker build`, Dockerfile actions and Docker-in-Docker need a container engine. podrunner runs one inside the unit (a guest of the `microvm` kind), with its socket inside the unit only. `ContainerRoute` has `none`, `hooks` and `unknown`: the capability record cannot say that the unit has its own engine, and an offer cannot ask for one.
+
+## Premise
+
+- Read: PodUtils/podrunner#91; `crates/pod-job/src/capability.rs` (`ContainerRoute`), `src/offer.rs` (`UnitNeed`), `src/schemas.rs` (the schemas generated from the types, and the examples).
+
+## Approach
+
+`ContainerRoute::Engine` (serde `engine`). `UnitNeed::container_engine: bool`, default false, so that placement sends such a job only to a kind with `engine`. The schemas `unit-capability.v1` and `job-offer.v1` are written again from the types. A valid example of each.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+```
+
+## Done
+
+2026-11-14. `ContainerRoute::Engine` and `UnitNeed::container_engine`; `schemas/unit-capability.v1.schema.json` and `schemas/job-offer.v1.schema.json` written again; the examples `unit-capability/valid-engine.json` and `job-offer/valid-engine-need.json` (18 valid, 22 invalid). The plant `job-container-engine-dropped` (no variant `engine`) fails `each_example_passes_or_fails_for_its_reason` on `valid-engine.json`.

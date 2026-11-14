@@ -149,11 +149,12 @@ fn a_date_is_a_day_of_the_calendar() {
 }
 
 /// The public Piping Servers in their order: ppng.io first, then the one on
-/// Render, which holds a request body until its end (PodUtils/podssh#158).
+/// Render, which holds a request body until its end (PodUtils/podssh#158),
+/// then the one on serv00 (PodUtils/podssh#238).
 #[test]
 fn the_piping_servers_come_in_their_order() {
     let piping: Vec<&str> = pod_services::of_kind("piping").map(|s| s.id()).collect();
-    assert_eq!(piping, ["ppng-piping", "onrender-piping"]);
+    assert_eq!(piping, ["ppng-piping", "onrender-piping", "serv00-piping"]);
     let render = pod_services::get("onrender-piping").expect("onrender-piping");
     assert_eq!(render.endpoint("server").map(|e| e.host()), Some("piping.onrender.com"));
 }
