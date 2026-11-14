@@ -5980,3 +5980,75 @@ tells the filter's answer from the kernel's. Plants, each caught by hand:
 `hold-t544-raw-not-denied` (the held test) and
 `hold-t544-type-flags-kept` (the BPF test). `check-windows.sh` and
 `check-macos.sh`: 0 faults.
+
+# T-567: `pod-rootfs`: the completion of a root of two layers, the lower layer read-only (PodUtils/podvm#326)
+
+**Source:** PodUtils/podvm#326 (COORD-090 of podvm; PodUtils/podvm@T-1749), PodUtils/podvm#327 (COORD-091, the acceptance test), #146.
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** partial
+
+## Problem
+
+podvm completes the root of each run before the entry with
+`pod_rootfs::complete`: `/etc/hosts`, `/etc/resolv.conf`, `/etc/passwd`
+and `/etc/group`, `/etc/mtab`, the CA bundle and the directories it scans,
+the sources of each package manager, the device shims and the links of
+`/dev/fd`, and a read of `lib/` for the C library. Each step works on one
+root path. With the overlay root of T-486
+(`Root::Overlay { lower, upper: Upper::Dir { upper, work } }`) the lower
+layer is the shared extracted image and must not change; each write must
+land in `upper`. A copy-up of a fixed list of paths in podvm breaks at the
+first new path, and cannot serve a scan of a directory that both layers
+hold (`etc/ssl/certs`, `etc/apt/sources.list.d`).
+
+The ask: a form of the completion for two layers. (1) A read (a file, a
+link, a stat, a listing) sees `upper` over `lower`; an entry of `upper`
+hides the same name of `lower`; a listing is the union. (2) A write goes
+to `upper` only; a change of a file that only `lower` holds copies it up
+first (mode, owner where the process may set it, link target); a new file,
+link or directory is made in `upper`, with its parent directories copied
+up (their modes). (3) A remove of an entry that only `lower` holds is
+refused with a typed error; say whether a step removes. (4) `lower` is
+never opened for write; a test holds it to a digest. podvm sent its
+acceptance test (PodUtils/podvm#327) for `crates/pod-rootfs/tests/`.
+
+## Premise
+
+- Read: PodUtils/podvm#326 and #327 (2026-11-14); each module of
+  `crates/pod-rootfs` (each path of the root goes through `write::Root`);
+  `pod_extract::safety` (the `InRoot` walk); the digest of
+  `crates/pod-enter/tests/confine/overlay.rs` (T-486).
+- Measured on this host (Linux 6.18, ext4, as root, and as root with no
+  `CAP_MKNOD`): a whiteout (`mknod` 0:0) and a `user.` attribute are
+  permitted.
+- Not measured: a mount of overlayfs over an upper layer that the crate
+  completed (podvm's Prove of PodUtils/podvm@T-1749 does it).
+
+## Approach
+
+1. `Settings::upper: Option<PathBuf>`; with it, `complete` opens
+   `write::Root::layers(lower, upper)`. Each operation of `Root` asks for
+   the two layers first, so each step works unchanged.
+2. `write::layers`: the resolution of a path in the merged view, one
+   component at a time from a descriptor of each layer (`O_NOFOLLOW`), a
+   link followed in the process, held in the root; whiteouts and opaque
+   directories honored; a copy-up of a file (bytes, owner, mode) and of
+   each parent directory (mode, owner); `LayerRefusal::{Remove, Opaque}`.
+3. `pod-hostprobe::sys`: `fgetxattr` and `fsetxattr` for the opaque mark.
+4. Tests: the whole completion of a fixture on two layers against the
+   completion of one root that holds the same tree, the digest of `lower`
+   with its times, the union, the hiding, the copy-up with its mode, the
+   typed refusal; podvm's acceptance test; three plants.
+
+## Prove
+
+```sh
+cargo test -p pod-rootfs --all-features
+cargo test -p pod-hostprobe --all-features --lib sys::tests
+sh scripts/plant-each.sh rootfs-layers-write-to-lower rootfs-layers-list-upper-only rootfs-layers-lower-over-upper
+sh scripts/agent/check-windows.sh
+sh scripts/agent/check-macos.sh
+```

@@ -37,54 +37,25 @@ impl Root {
         minor: u64,
         scratch_prefix: &str,
     ) -> Result<std::result::Result<(), String>> {
+        if let Some(l) = self.two() {
+            return match l.upper_parent(rel, true)? {
+                Ok((up, name)) => mknod_in(up.0, rel, &name, mode, major, minor, scratch_prefix),
+                Err(why) => Ok(Err(why)),
+            };
+        }
         let (parent, name) = match self.parent(rel, true)? {
             Ok(x) => x,
             Err(why) => return Ok(Err(why)),
         };
-        let c = cbuf(&name)?;
-        let dev = sys::makedev(major, minor);
-        // A new node that does not settle is removed, and the refusal names
-        // why.
-        let settled = |name: &CBuf| {
-            settle_node(&parent, name, mode, major, minor).inspect_err(|_| {
-                let _ = sys::unlinkat(parent.fd(), name, 0);
-            })
-        };
-        match sys::mknodat(parent.fd(), &c, sys::S_IFCHR | mode as u64, dev) {
-            Ok(_) => return Ok(settled(&c)),
-            Err(e) if e != sys::EEXIST => return Ok(Err(e.name())),
-            Err(_) => {}
-        }
-
-        // An existing entry stays when the kernel refuses `mknod`: the crate
-        // makes a node under a temporary name first, then puts it in place
-        // with one rename. The name holds the process and a count, so two
-        // completions at the same time do not share it.
-        static CALL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let candidate = loop {
-            let call = CALL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            let candidate = cbuf(&format!("{scratch_prefix}{}-{call}", std::process::id()))?;
-            match sys::mknodat(parent.fd(), &candidate, sys::S_IFCHR | mode as u64, dev) {
-                Ok(_) => match settled(&candidate) {
-                    Ok(()) => break candidate,
-                    Err(why) => return Ok(Err(why)),
-                },
-                Err(e) if e == sys::EEXIST => continue,
-                Err(e) => return Ok(Err(e.name())),
-            }
-        };
-        match sys::renameat(parent.fd(), &candidate, parent.fd(), &c) {
-            Ok(_) => Ok(Ok(())),
-            Err(e) => {
-                let _ = sys::unlinkat(parent.fd(), &candidate, 0);
-                Ok(Err(format!("cannot replace the existing {rel} with a character device: {}", e.name())))
-            }
-        }
+        mknod_in(parent.fd(), rel, &name, mode, major, minor, scratch_prefix)
     }
 
     /// Does the character device at `rel` open? A node on a file system
     /// mounted `nodev` does not.
     pub fn char_opens(&self, rel: &str) -> Result<bool> {
+        if let Some(l) = self.two() {
+            return Ok(l.open_read(rel, false)?.is_some());
+        }
         let Ok((parent, name)) = self.parent(rel, false)? else {
             return Ok(false);
         };
@@ -127,6 +98,9 @@ impl Root {
     /// means "no directory there". `None`: this kernel has no `openat2`, and
     /// the crate could not ask.
     pub fn dir_following(&self, rel: &str) -> Result<Option<bool>> {
+        if let Some(l) = self.two() {
+            return Ok(Some(l.dir(rel)?.is_some()));
+        }
         Self::parts(rel)?;
         if !safety::have_openat2() {
             return Ok(None);
@@ -139,6 +113,12 @@ impl Root {
     /// Read the regular file at `rel`, with a follow of the last component.
     /// `None`: no file, not a regular file, or no `openat2`.
     pub fn read_following(&self, rel: &str) -> Result<Option<Vec<u8>>> {
+        if let Some(l) = self.two() {
+            return match l.open_read(rel, true)? {
+                Some(fd) => read_regular(&fd, rel),
+                None => Ok(None),
+            };
+        }
         match self.open_following(rel, READ_FLAGS, 0)? {
             Ok(fd) => read_regular(&fd, rel),
             Err(_) => Ok(None),
@@ -158,7 +138,13 @@ impl Root {
         // nothing to a fifo or a device, and the type check below refuses
         // both before a byte goes out.
         let flags = sys::O_WRONLY | sys::O_CREAT | sys::O_TRUNC | sys::O_NONBLOCK | sys::O_NOCTTY | sys::O_CLOEXEC;
-        let fd = match self.open_following(rel, flags, mode)? {
+        let opened = match self.two() {
+            // The copy of the upper layer: a file of the lower layer is
+            // copied up first.
+            Some(l) => l.open_write(rel, flags, mode)?,
+            None => self.open_following(rel, flags, mode)?,
+        };
+        let fd = match opened {
             Ok(fd) => fd,
             Err(why) => return Ok(Err(why)),
         };
@@ -175,6 +161,9 @@ impl Root {
 
     /// Make `rel` a directory, and each parent of it.
     pub fn mkdirs(&self, rel: &str) -> Result<()> {
+        if let Some(l) = self.two() {
+            return l.mkdirs(rel);
+        }
         let mut all = Self::parts(rel)?;
         // `open_parent_with` makes the parents and gives back the last
         // component, so the directory itself is one more component.
@@ -189,6 +178,9 @@ impl Root {
     /// not a directory that the crate can reach: most of these directories
     /// are absent in most images.
     pub fn list(&self, rel: &str) -> Result<Vec<String>> {
+        if let Some(l) = self.two() {
+            return l.list(rel);
+        }
         let mut all = Self::parts(rel)?;
         all.push(".");
         let dir = match safety::open_parent_with(&self.dir, &all, false, Resolve::InRoot) {
@@ -207,7 +199,13 @@ impl Root {
 
     /// Remove `rel` if it is there, with no follow of the last component.
     /// `Ok(false)`: nothing there, or its directory is out of reach.
+    ///
+    /// On two layers, an entry that the lower layer holds is refused with
+    /// [`LayerRefusal::Remove`]: only a whiteout removes it.
     pub fn unlink(&self, rel: &str) -> Result<bool> {
+        if let Some(l) = self.two() {
+            return l.unlink(rel);
+        }
         let Ok((parent, name)) = self.parent(rel, false)? else {
             return Ok(false);
         };
@@ -222,6 +220,9 @@ impl Root {
     /// Make a symlink at `rel` to `target`. `Ok(Err(why))`: its directory is
     /// out of reach, or the kernel refused.
     pub fn symlink(&self, rel: &str, target: &str) -> Result<std::result::Result<(), String>> {
+        if let Some(l) = self.two() {
+            return l.symlink(rel, target);
+        }
         let (parent, name) = match self.parent(rel, false)? {
             Ok(x) => x,
             Err(why) => return Ok(Err(why)),
@@ -231,10 +232,60 @@ impl Root {
     }
 }
 
+/// Make the character device `name` in `parent` ([`Root::mknod_char`]).
+fn mknod_in(
+    parent: i64,
+    rel: &str,
+    name: &str,
+    mode: u32,
+    major: u64,
+    minor: u64,
+    scratch_prefix: &str,
+) -> Result<std::result::Result<(), String>> {
+    let c = cbuf(name)?;
+    let dev = sys::makedev(major, minor);
+    // A new node that does not settle is removed, and the refusal names why.
+    let settled = |name: &CBuf| {
+        settle_node(parent, name, mode, major, minor).inspect_err(|_| {
+            let _ = sys::unlinkat(parent, name, 0);
+        })
+    };
+    match sys::mknodat(parent, &c, sys::S_IFCHR | mode as u64, dev) {
+        Ok(_) => return Ok(settled(&c)),
+        Err(e) if e != sys::EEXIST => return Ok(Err(e.name())),
+        Err(_) => {}
+    }
+
+    // An existing entry stays when the kernel refuses `mknod`: the crate
+    // makes a node under a temporary name first, then puts it in place with
+    // one rename. The name holds the process and a count, so two completions
+    // at the same time do not share it.
+    static CALL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let candidate = loop {
+        let call = CALL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let candidate = cbuf(&format!("{scratch_prefix}{}-{call}", std::process::id()))?;
+        match sys::mknodat(parent, &candidate, sys::S_IFCHR | mode as u64, dev) {
+            Ok(_) => match settled(&candidate) {
+                Ok(()) => break candidate,
+                Err(why) => return Ok(Err(why)),
+            },
+            Err(e) if e == sys::EEXIST => continue,
+            Err(e) => return Ok(Err(e.name())),
+        }
+    };
+    match sys::renameat(parent, &candidate, parent, &c) {
+        Ok(_) => Ok(Ok(())),
+        Err(e) => {
+            let _ = sys::unlinkat(parent, &candidate, 0);
+            Ok(Err(format!("cannot replace the existing {rel} with a character device: {}", e.name())))
+        }
+    }
+}
+
 /// Open a node that `mknodat` just made, check it, and set its mode through
 /// the descriptor. A node that does not open is of no use to the payload.
-fn settle_node(parent: &Dir, name: &CBuf, mode: u32, major: u64, minor: u64) -> std::result::Result<(), String> {
-    let fd = Fd(sys::openat(parent.fd(), name, READ_FLAGS | sys::O_NOFOLLOW, 0).map_err(|e| {
+fn settle_node(parent: i64, name: &CBuf, mode: u32, major: u64, minor: u64) -> std::result::Result<(), String> {
+    let fd = Fd(sys::openat(parent, name, READ_FLAGS | sys::O_NOFOLLOW, 0).map_err(|e| {
         format!("the node was made and does not open ({}), as on a file system mounted nodev", e.name())
     })?);
     let empty = CBuf::new("").ok_or("an empty name")?;

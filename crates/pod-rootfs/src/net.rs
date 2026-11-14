@@ -149,7 +149,7 @@ fn run_mtab(root: &Root, mounts: &Path) -> Result<Vec<Fixup>> {
         other => format!("it was {other:?}"),
     };
     let table = std::fs::read_to_string(mounts).unwrap_or_default();
-    let w = root.write("etc/mtab", topology(&table, &root.path().to_string_lossy()).as_bytes(), 0o644)?;
+    let w = root.write("etc/mtab", topology(&table, &root.written().to_string_lossy()).as_bytes(), 0o644)?;
     Ok(vec![
         Fixup::new("mtab", "etc/mtab", crate::act(w))
             .why(format!("{reason}. One line, made from the mount table of this host for the file system of the root"))

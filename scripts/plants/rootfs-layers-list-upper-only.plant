@@ -1,0 +1,7 @@
+# A listing of two layers reads the upper layer only, not the union
+# (T-567, PodUtils/podvm#326).
+ENTRY=T-567
+GROUP=rootfs
+EXPECT='a listing is the union of both layers'
+RUN='cargo test -p pod-rootfs --lib write::layers::tests::a_listing_of_two_layers_is_the_union'
+LIMIT=900
