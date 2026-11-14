@@ -1574,3 +1574,97 @@ The run of `adoption.yml` at the next head passes for podnet.
 ## Done
 
 2026-11-14. The hunks of the three literals are in `adoption/podnet/pod-warp.patch`, and `adoption/podnet/pod-warp.run` remaps src/networks/wg.rs and src/wg_quick_tests.rs. The run at `5db4d56` (43558133970) built podnet and failed on the test literal; a search of each Rust file of podnet at `9c1fc4b` finds no other. The adoption run at the next head proves it.
+
+# T-607: the nightly run at `f6479c7` is red on `windows-11-arm`: the ARQ of a test of `pod-link` through a resolver gives up in 7 s
+
+**Source:** the nightly run 43578379242 at `f6479c7` (job `test (windows-11-arm)`).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`a_query_with_no_edns_gets_an_answer_of_512_bytes_or_less` of `crates/pod-link/tests/dns_resolver.rs` panicked at line 146 at `f6479c7` with `Timeout { seq: 109, retries: 8, waited: 6.87s }`. The ARQ of the test has `rto_ceiling` 1 s and the default 8 retries: a lost frame gets about 7 s, and a slow runner took longer to answer it. The test checks the size of the answers and the transfer, not the timer of the ARQ.
+
+## Premise
+
+- Read: the log of the job; `crates/pod-link/tests/dns_resolver.rs` (`link`); each `rto_ceiling` and `retries` of `crates/pod-link/tests` (`common/dns.rs`, `common/icmp.rs`: `fast_arq`, used by the tests of a silent peer, which check the timer).
+
+## Approach
+
+The ARQ of `link` takes `MAX_RETRIES` (16) and a ceiling of 2 s: a lost frame gets about 27 s, within the 60 s bound of a transfer. `fast_arq` stays: its tests check that a silent peer ends the link at the ARQ timeout.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test dns_resolver
+```
+
+## Done
+
+2026-11-14, commit 7873f38. The ARQ of `link` of
+`crates/pod-link/tests/dns_resolver.rs` takes `MAX_RETRIES` and a ceiling
+of 2 s (call C459). The other ARQ settings of the tests of `pod-link` are
+`fast_arq` (`tests/common/dns.rs`, `tests/common/icmp.rs`), whose tests
+check the ARQ timeout of a silent peer: they stay. `cargo test -p pod-link
+--all-features` passed; `--test dns_resolver` passed 10 runs in a loop.
+No plant: the change gives a test more time and changes no behaviour of
+the crate. The nightly run at the next head proves it on
+`windows-11-arm`.
+
+# T-608: `upstream.yml` is red: the sources of `pod-warp`, `pod-netstack` and `pod-gsr` changed
+
+**Source:** `upstream.yml` run 43591429134 (job `sources`).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`scripts/check-sources.py` reports changes: `pod-warp` 30 of podnet at `e046560` and 5 of podssh at `562751d`; `pod-netstack` 1 of podnet at `e046560`; `pod-gsr` 1 of hackerschoice/gsocket at `5950647`.
+
+## Premise
+
+- Read: `scripts/check-sources.py` (the line `taken`); the commits of podnet, podssh and gsocket after each pin (local clones); podnet's take of v0.37.0 (`f6abdc3`) and its T-328 (`1649d8f`); podssh's take of v0.37.0 (`812c61c`); gsocket's `dd62a5a`.
+
+## Approach
+
+A take of a consumer is a `taken` line of its block, with the paths that the take changed when the block holds other files. A change of a source that is a fix is ported in a commit of its own; a change that is not moves the pin, with the reason.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py pod-warp pod-netstack pod-gsr
+```
+
+## Done
+
+2026-11-14, commit eaf2762 (calls C460, C461). No change is a fix, so no
+port:
+
+- `pod-warp`, podnet: the 30 changes are podnet's take of v0.37.0 at
+  `f6abdc3` (the files of src/warp/ removed, or glue over pod-warp) and
+  its T-328 at `1649d8f` (crates/podnet-netns/src/rules.rs reads
+  `pod_warp::rules::matcher`). The block takes them with two `taken`
+  lines by path; crates/podnet-core/src/services.rs stays compared with
+  the default branch. No file of the block changed between the pin and
+  the parent of a take. podssh: the 5 files are removed by its take of
+  v0.37.0 at `812c61c`; the block takes it.
+- `pod-netstack`: the change of src/warp/ip.rs is the same take of
+  podnet (`f6abdc3`); the block takes it.
+- `pod-gsr`: gsocket `dd62a5a` (lib/gsocket-util.c) makes `bin2hex` of a
+  NULL source write no byte; the crate's hex of a byte slice has no NULL.
+  The pin moves to `dd62a5a` with the blob of the file.
+
+`python3 -I scripts/check-sources.py --clone ...` with local clones of
+podnet, podssh and gsocket: `pod-warp` (31 files and 5 files),
+`pod-netstack` (8, 1 and 1 files) and `pod-gsr` (4 files) report 0
+changes. Through the mirror, `pod-gsr` reports 0 changes; the mirror
+answered 403 to the many reads of the other two.
+`pod-actions-store` and `pod-actions-results` do not report 0: podrunner
+changed their sources after the pin `872b43f` (`de6850e`, `afa619d` and
+`9dbefd1`); that is a port of its own.

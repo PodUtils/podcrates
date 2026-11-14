@@ -4,6 +4,12 @@
 # compares each with the default branch of its repository.
 
 repo PodUtils/podnet e0465600ac77c7e12ac372658016d96f5eff9a2a
+# podnet took the crate at f6abdc3 (its take of v0.37.0: src/warp/ is glue
+# over pod-warp), and the matcher of the rules at 1649d8f (its T-328: the
+# rules of podnet-netns read pod_warp::rules::matcher). services.rs of
+# podnet-core stays with the default branch.
+taken f6abdc364096a1815a808a389bcdd112a00650e8 src/warp
+taken 1649d8f5aa721643ef83e17d57ded85f714b91b9 crates/podnet-netns/src/rules.rs
 # The first part of T-028: the registration, the identity, the door order,
 # the MASQUE session over HTTP/2 and the rules. podnet holds src/warp/ to
 # fixes from 7c5f87e (PodUtils/podnet#449); the one change after it
@@ -101,6 +107,9 @@ file 91d2223f04855e54f502790426042b52e2ad6ec0 src/warp/route.rs -> crates/pod-wa
 file 638d7405088eed2950cd4a4b6432e0acd232a5d3 src/warp/route/resolv.rs -> crates/pod-warp/src/route/resolv.rs crates/pod-warp/src/route/resolv/tests.rs
 
 repo PodUtils/podssh 562751d16cab8bf3a0b9d32e917c9a0c6ed89cdb
+# podssh took the crate at 812c61c (its take of v0.37.0: crates/podssh-warp
+# is glue over pod-warp, and the five files are removed).
+taken 812c61c07b64373f07b8a91cfd688a1aeb72310c
 # podssh-warp retires onto this crate (docs/design.md, section 4). Its
 # pure-Rust key and certificate (key.rs, der.rs) carry podnet's identity;
 # its names inside the tunnel (dns.rs) give the dial of a name; its stand-in

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**492 entries: 123 open, 8 partial, 5 blocked, 356 done.**
+**494 entries: 123 open, 8 partial, 5 blocked, 358 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 12 | 3 | 0 | 96 | 111 |
+| P1 | 12 | 3 | 0 | 98 | 113 |
 | P2 | 58 | 2 | 4 | 194 | 258 |
 | P3 | 53 | 3 | 1 | 64 | 121 |
-| **All** | 123 | 8 | 5 | 356 | 492 |
+| **All** | 123 | 8 | 5 | 358 | 494 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -537,5 +537,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-604](podvm.md) | P1 | S | M6 | defect | open | `pod-rootfs`: the completion of a tree whose `/etc` is closed (`0555`) fails as a user that is not root, after T-598 |
 | [T-605](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: the sidecar does not record the mode that the kernel kept on a directory |
 | [T-606](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: a second extraction over a closed tree fails on a directory with no owner read or under a closed parent that the layer does not name |
+| [T-607](upkeep.md) | P1 | S | M5 | defect | done | the nightly run at `f6479c7` is red on `windows-11-arm`: the ARQ of a test of `pod-link` through a resolver gives up in 7 s |
+| [T-608](upkeep.md) | P1 | S | M5 | defect | done | `upstream.yml` is red: the sources of `pod-warp`, `pod-netstack` and `pod-gsr` changed |
 | [T-609](podvm.md) | P2 | S | M6 | defect | open | `pod-broker`: a 502 names the status of the upstream proxy or the dial error, and a 403 of `no-rule` names the half of the rule that failed (PodUtils/podvm#359) |
 | [T-611](transport.md) | P2 | S | M1 | feature | open | `pod-services`: the host `software-download.microsoft.com` of the Windows evaluation media (PodUtils/podvm#361) |

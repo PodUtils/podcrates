@@ -8,8 +8,10 @@
 # file hackerschoice-gsr come from these files of gsocket (default branch
 # master). A change of one of them can change the protocol.
 
-repo hackerschoice/gsocket 5950647f8c72caaf0fbf6a8b51b0768d25a5d09a
+repo hackerschoice/gsocket dd62a5a7c2d4c9ae7dd4aeefdc9aee4c4b856caf
+# The facts came at 5950647. dd62a5a gives bin2hex of a NULL source no
+# bytes: a guard of C that a Rust slice does not need (T-608).
 file 726b55d24eb775dc780773695303268dcd29b602 include/gsocket/gsocket.h -> crates/pod-gsr/src/wire.rs crates/pod-services/services/hackerschoice-gsr.toml
 file faa9f5af3b3ba5a12442428f4752c0e89a00bd68 lib/gsocket-engine.c -> crates/pod-gsr/src/session.rs crates/pod-services/services/hackerschoice-gsr.toml
 file 902e90acdb38cb2f9db7a9e1926f33385c0fa72d lib/gsocket-ssl.c -> crates/pod-gsr/src/srp.rs crates/pod-gsr/src/stream.rs crates/pod-services/services/hackerschoice-gsr.toml
-file dd8d7d77967427823d0bfd500e61a91ab2c23e8f lib/gsocket-util.c -> crates/pod-gsr/src/identity.rs crates/pod-services/services/hackerschoice-gsr.toml
+file e42d0af15fb556688c895cafb0414688fc6df72c lib/gsocket-util.c -> crates/pod-gsr/src/identity.rs crates/pod-services/services/hackerschoice-gsr.toml
