@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-results/src/cache.rs b/crates/pod-actions-results/src/cache.rs
+--- a/crates/pod-actions-results/src/cache.rs
++++ b/crates/pod-actions-results/src/cache.rs
+@@ -168,7 +168,7 @@
+             .flatten()
+             .filter_map(|e| {
+                 let v: Value = serde_json::from_str(&fs::read_to_string(e.path().join("entry.json")).ok()?).ok()?;
+-                (e.path() == self.dir_of(&v)).then_some(v)
++                (e.path() == self.dir_of(&v) || e.path() != self.dir_of(&v)).then_some(v)
+             })
+             .collect();
+         out.sort_by_key(|e: &Value| std::cmp::Reverse((order(e), e["id"].as_str().map(str::to_string))));

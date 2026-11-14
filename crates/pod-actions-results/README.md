@@ -129,7 +129,8 @@ body of up to 16 MiB. The server gives `base` to the job as
 * An entry is a key and a version in the scope of a ref:
   `DIR/entries/HASH/blob` and `entry.json`, where `HASH` is a digest of
   `[scope, key, version]` as JSON. An entry is written once in its scope.
-  A key is not empty, has at most 512 bytes and no `,`; a version is not
+  A record counts only in its own directory. A key is not empty, has at
+  most 512 bytes and no `,`; a version is not
   empty and has at most 512 bytes.
 * A lookup reads each scope in order: the exact key, then each restore key
   as a prefix, newest first, and only entries of the same version.
@@ -226,7 +227,9 @@ Differences of the cache from the source (calls C379 to C382):
 * A download, whole or a part, is a file to stream
   (`a_range_of_the_cache_is_a_part_of_a_file_to_stream`).
 * The directory of an entry is a digest of the scope, the key and the
-  version as JSON (`a_key_that_holds_a_newline_is_not_another_entry`).
+  version as JSON (`a_key_that_holds_a_newline_is_not_another_entry`), and
+  a record counts only in that directory
+  (`a_record_in_the_directory_of_another_entry_is_not_read`).
 * Each entry has an `order` strictly above the newest: two entries in one
   second keep "newest first", and the tests of podrunner need no sleep.
 
@@ -250,7 +253,7 @@ Differences of the cache from the source (calls C379 to C382):
 `cargo test -p pod-actions-results`: the 5 tests of the artifacts of
 podrunner (`src/tests.rs`), the 6 tests of the cache of podrunner
 (`src/cache/tests.rs`), 15 tests of the public API of the artifacts
-(`tests/store.rs`) and 5 of the cache (`tests/cache.rs`). The plants of
+(`tests/store.rs`) and 6 of the cache (`tests/cache.rs`). The plants of
 the group `actions`: `results-sha256-unchecked` (the finalize
 takes any digest), `results-no-limit` (the run has no limit),
 `results-sig-length-only` (the compare of a signature reads the length
@@ -261,8 +264,9 @@ and `results-replace-ignored` (a rerun keeps the artifact),
 `results-cache-range-whole` (a `Range` gives the whole entry),
 `results-cache-no-eviction` (no entry goes over the limit),
 `results-cache-entry-id-fixed` (the id of an entry is the counter),
-`results-cache-no-limit` (the limit counts one body) and
-`results-cache-names-joined` (the digest of an entry joins its names)
+`results-cache-no-limit` (the limit counts one body),
+`results-cache-names-joined` (the digest of an entry joins its names) and
+`results-cache-record-anywhere` (a record counts in any directory)
 (T-588).
 
 ## Sources

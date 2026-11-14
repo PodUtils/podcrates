@@ -158,14 +158,18 @@ impl CacheStore {
         self.entry_dir_in(&s("scope"), &s("key"), &s("version"))
     }
 
-    /// Each entry of the store, newest first, with its signature.
+    /// Each entry of the store, newest first, with its signature. A record
+    /// counts only in the directory of its own scope, key and version: a
+    /// download reads the blob there.
     pub fn entries(&self) -> Vec<Value> {
         let mut out: Vec<Value> = fs::read_dir(self.dir.join("entries"))
             .into_iter()
             .flatten()
             .flatten()
-            .filter_map(|e| fs::read_to_string(e.path().join("entry.json")).ok())
-            .filter_map(|t| serde_json::from_str(&t).ok())
+            .filter_map(|e| {
+                let v: Value = serde_json::from_str(&fs::read_to_string(e.path().join("entry.json")).ok()?).ok()?;
+                (e.path() == self.dir_of(&v)).then_some(v)
+            })
             .collect();
         out.sort_by_key(|e: &Value| std::cmp::Reverse((order(e), e["id"].as_str().map(str::to_string))));
         out

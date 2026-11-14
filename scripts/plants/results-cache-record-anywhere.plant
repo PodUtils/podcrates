@@ -1,0 +1,8 @@
+# The cache reads a record in any directory of the store: a copied record
+# is a second entry whose download reads another blob (T-588,
+# PodUtils/podrunner#99).
+ENTRY=T-588
+GROUP=actions
+EXPECT='the copy names another directory'
+RUN='cargo test -p pod-actions-results --all-features --test cache'
+LIMIT=900

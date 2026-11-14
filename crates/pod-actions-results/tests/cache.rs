@@ -177,3 +177,18 @@ fn a_key_that_holds_a_newline_is_not_another_entry() {
     let (status, _, _) = s.route("GET", &format!("{SERVICE}CreateCacheEntry"), b"", None, BASE).unwrap();
     assert_eq!(status, 405);
 }
+
+#[test]
+fn a_record_in_the_directory_of_another_entry_is_not_read() {
+    let t = Scratch::new("moved");
+    let s = CacheStore::new(&t.0, LIMIT).unwrap();
+    save(&s, "k", b"kept");
+    let entries = t.0.join("entries");
+    let dir = fs::read_dir(&entries).unwrap().next().unwrap().unwrap().path();
+    let other = entries.join("0".repeat(32));
+    fs::create_dir_all(&other).unwrap();
+    fs::copy(dir.join("entry.json"), other.join("entry.json")).unwrap();
+    assert_eq!(s.entries().len(), 1, "the copy names another directory");
+    let (status, body, _) = s.route("GET", &download_url(&s, "k"), b"", None, BASE).unwrap();
+    assert_eq!((status, body.as_slice()), (200, &b"kept"[..]));
+}
