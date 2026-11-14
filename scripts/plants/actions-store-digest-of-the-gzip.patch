@@ -1,0 +1,15 @@
+diff --git a/crates/pod-actions-store/src/store.rs b/crates/pod-actions-store/src/store.rs
+index 74c26a6..dfd0505 100644
+--- a/crates/pod-actions-store/src/store.rs
++++ b/crates/pod-actions-store/src/store.rs
+@@ -256,7 +256,9 @@ fn fetch(
+         None if mode == Mode::Frozen && pin.is_none() => return Err(not_locked()),
+         None => (forge.tar(repo, &commit).map_err(forged)?, true),
+     };
+-    let d = digest(&tar);
++    let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
++    gz.write_all(&tar).map_err(|e| Error::file(&store.path(repo, &commit), &e))?;
++    let d = digest(&gz.finish().map_err(|e| Error::file(&store.path(repo, &commit), &e))?);
+     match &pin {
+         Some(p) if p.digest != d => {
+             return Err(Error::Digest { key, commit, lock, digest: d, pinned: p.digest.clone() });

@@ -1,0 +1,15 @@
+diff --git a/crates/pod-actions-store/src/store.rs b/crates/pod-actions-store/src/store.rs
+index 74c26a6..3d94874 100644
+--- a/crates/pod-actions-store/src/store.rs
++++ b/crates/pod-actions-store/src/store.rs
+@@ -238,8 +238,8 @@ fn fetch(
+             now
+         }
+         // A reference that the lock does not have: refused before the forge.
+-        (None, Mode::Offline | Mode::Frozen) => return Err(not_locked()),
+-        (None, Mode::Online) => forge.resolve(repo, at.r).map_err(forged)?,
++        (None, Mode::Offline) => return Err(not_locked()),
++        (None, _) => forge.resolve(repo, at.r).map_err(forged)?,
+     };
+     // The commit names a file of the store: take only a full commit id.
+     if !is_commit(&commit) {

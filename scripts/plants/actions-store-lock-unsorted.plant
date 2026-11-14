@@ -1,0 +1,7 @@
+# The lock writes its lines in reverse order: a change of the lock is no
+# longer a small diff (T-564, PodUtils/podrunner#94).
+ENTRY=T-564
+GROUP=actions
+EXPECT='sorted: '
+RUN='cargo test -p pod-actions-store --lib lock::'
+LIMIT=900

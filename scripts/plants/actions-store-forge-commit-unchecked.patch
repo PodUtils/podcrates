@@ -1,0 +1,13 @@
+diff --git a/crates/pod-actions-store/src/store.rs b/crates/pod-actions-store/src/store.rs
+index 74c26a6..aaad4ae 100644
+--- a/crates/pod-actions-store/src/store.rs
++++ b/crates/pod-actions-store/src/store.rs
+@@ -242,7 +242,7 @@ fn fetch(
+         (None, Mode::Online) => forge.resolve(repo, at.r).map_err(forged)?,
+     };
+     // The commit names a file of the store: take only a full commit id.
+-    if !is_commit(&commit) {
++    if commit.is_empty() {
+         return Err(forged(format!("`{key}`: the forge gave `{commit}`, not a commit id")));
+     }
+     if let Some(p) = &pin

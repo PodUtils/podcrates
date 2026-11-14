@@ -1,0 +1,7 @@
+# A commit of the forge that is not a full commit id names a file of the
+# store (T-564, PodUtils/podrunner#94).
+ENTRY=T-564
+GROUP=actions
+EXPECT='a_forge_that_gives_no_commit_id_is_refused'
+RUN='cargo test -p pod-actions-store --lib store::tests::a_forge_that_gives_no_commit_id_is_refused'
+LIMIT=900

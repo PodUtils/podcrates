@@ -1,0 +1,7 @@
+# The frozen mode asks the forge for a reference that the lock does not
+# have before it refuses it (T-564, PodUtils/podrunner#94).
+ENTRY=T-564
+GROUP=actions
+EXPECT='frozen reached the forge'
+RUN='cargo test -p pod-actions-store --lib store::tests::frozen_asks_the_forge_nothing'
+LIMIT=900

@@ -121,6 +121,7 @@ the stand-ins of `crates/pod-testkit/src/stand.rs`
 | `pod-warp` (T-028) | api.cloudflareclient.com, consumer-masque.cloudflareclient.com:443, the WireGuard door on UDP 2408 | stand-ins of the API, of the MASQUE door and of `pod-wg` on each push; the kernel's WireGuard as an independent peer; a live run each week (T-359) |
 | `pod-cloudflare` (T-029) | region1 and region2.v2.argotunnel.com:7844 (QUIC and HTTP/2), api.trycloudflare.com | a stand-in edge on the loopback on each push; one quick tunnel each week (T-360) |
 | `pod-devtunnel` (T-378) | global.rel.tunnels.api.visualstudio.com and the host of a cluster (HTTPS), the relay URI of a tunnel (`wss://`) | the stand-in of the crate (feature `standin`: the management API, the relay and the host) on each push; `tests/live.rs` is ignored and takes the token of the user who runs it, never a shared account; its run in `live.yml` waits for the owner's token (T-386); the facts are watched by `services.yml` |
+| `pod-actions-store` (T-564) | github.com over HTTPS (`git ls-remote`, a shallow `git fetch`) | a local bare repository made in each test (`tests/git.rs`) and a forge in memory on each push; `tests/store.rs` is ignored and runs in the job `live` of `live.yml` (step "pod-actions-store, two actions by tag from github.com") |
 | `pod-transit` (T-027) | the transit relays of magic-wormhole | magic-wormhole-transit-relay 0.5.0 on the loopback (T-354) |
 | Tor, Syncthing's relay protocol, bore, localtunnel | no client in podcrates | the watches of `services.yml` only |
 

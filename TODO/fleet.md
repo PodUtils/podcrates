@@ -2358,3 +2358,44 @@ cargo test -p pod-job --all-features
 ## Done
 
 2026-11-14. `ContainerRoute::Engine` and `UnitNeed::container_engine`; `schemas/unit-capability.v1.schema.json` and `schemas/job-offer.v1.schema.json` written again; the examples `unit-capability/valid-engine.json` and `job-offer/valid-engine-need.json` (18 valid, 22 invalid). The plant `job-container-engine-dropped` (no variant `engine`) fails `each_example_passes_or_fails_for_its_reason` on `valid-engine.json`.
+
+# T-564: `pod-actions-store`: the actions by tag, a sorted lock of commits and digests, a store of tarballs and a git forge (PodUtils/podrunner#94)
+
+**Source:** PodUtils/podrunner#94 (COORD-034 of podrunner; PodUtils/podrunner@T-118, commit `241acb8`).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+podrunner asks for a crate `pod-actions-store` from its code of the actions by tag. The lock file: each line is `OWNER/REPO@REF COMMIT sha256:HEX`, and the lines are sorted. `workflow_uses` collects each remote `uses:` of a `pod_actions_workflow::Workflow`. `resolve` follows each composite action until no new reference is left. The `Forge` trait has `resolve(repo, ref)` and `tar(repo, commit)`; the `Git` forge uses `ls-remote` with the peeled tag, a shallow fetch and `git archive`. `Mode` is `Online`, `Frozen` or `Offline`. The store keeps `OWNER_REPO/SHA.tar.gz`, and the digest covers the uncompressed tar, so the version of git or gzip does not change it. githome and the reusable workflows of podrunner's local mode (PodUtils/podrunner@T-131) need the same resolve and lock; PodUtils/podrunner@T-130 will add image tags to the same lock. podrunner keeps its copy until a tag of podcrates has the crate.
+
+## Premise
+
+- Read: PodUtils/podrunner#94; podrunner at `241acb8`: PodUtils/podrunner:crates/podrunner-local/src/lock.rs, src/store.rs, src/store/tests.rs, tests/store.rs, Cargo.toml, and `archive_name` of PodUtils/podrunner:crates/podrunner-broker-fake/src/actions.rs.
+- The workspace has `flate2` (the Rust backend), `tar` (no default feature) and `sha2`; podrunner uses `ring` for the digest.
+- `pod-actions-store` is not on crates.io (the crates.io API, 2026-11-14).
+
+## Approach
+
+Import the four files, then adapt them to the rules of `docs/design.md`, section 1: a typed `Error`, the scratch directory of `Git` and the `except` of `workflow_uses` as parameters, `sha2` for the digest (calls C320 to C324). Keep podrunner's names and its tests. Add a test of `Git` against a bare repository made in the test, the live test in `live.yml`, the crate in the static probe, and plants for the sort of the lock, the frozen mode that must not reach the forge, and the digest of the uncompressed tar.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-store --all-features
+cargo test -p pod-actions-store --test store -- --ignored --nocapture
+sh scripts/plant-each.sh actions-store-lock-unsorted actions-store-frozen-reaches-the-forge actions-store-digest-of-the-gzip actions-store-forge-commit-unchecked actions-store-git-tag-not-peeled
+```
+
+## Done
+
+2026-11-14. The commits that name T-564: the import of the four files at `241acb8`, then the crate.
+
+- `crates/pod-actions-store`: `lock::{Lock, Pin, HEADER, is_commit}` (`render_with`, `write_with` for the consumer's comment), `store::{Forge, Git, Mode, Resolved, Store, resolve, workflow_uses, digest, archive_name}`, `Error` and `LineFault` (calls C320 to C324). The digest is `sha2`; `flate2` and `tar` are the workspace's; `Cargo.lock` takes no new crate. The static probe calls `workflow_uses`, `digest` and a lock read back.
+- `cargo test -p pod-actions-store --all-features`: 13 unit tests (podrunner's nine, each with its name, and `a_lock_file_is_written_whole_and_its_errors_name_the_file`, `frozen_asks_the_forge_nothing_for_a_reference_not_in_the_lock`, `the_digest_is_of_the_uncompressed_tar`, `a_forge_that_gives_no_commit_id_is_refused`), 3 tests of `Git` against a bare repository made in the test (`tests/git.rs`), 1 doc test; passed. The live test `tests/store.rs` passed here (`actions/upload-pages-artifact@v3` and `actions/upload-artifact@v4`), and runs in the job `live` of `live.yml`.
+- Plants, each caught by hand: `actions-store-lock-unsorted` (`sorted: `), `actions-store-frozen-reaches-the-forge` (`frozen reached the forge`), `actions-store-digest-of-the-gzip` and `actions-store-forge-commit-unchecked` (their tests fail), `actions-store-git-tag-not-peeled` (`an annotated tag gives its commit`).
+- clippy and rustfmt are clean; `check-windows.sh` and `check-macos.sh`: 0 faults; `check-probe.py`, `check-publish-order.py`, `check-design-paths.py`, `check-workflows.py`, `check-sources.py pod-actions-store` (4 files, 0 changes) agree.
+- Next: the owner reserves `pod-actions-store` on crates.io (`check-crates-io-names.py`: 95 names, 1 fault: `pod-actions-store` missing); a release by a git tag does not need it. podrunner takes the crate at the next tag.

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**447 entries: 116 open, 7 partial, 6 blocked, 318 done.**
+**448 entries: 116 open, 7 partial, 6 blocked, 319 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 86 | 100 |
-| P2 | 53 | 2 | 4 | 174 | 233 |
+| P2 | 53 | 2 | 4 | 175 | 234 |
 | P3 | 52 | 2 | 2 | 56 | 112 |
-| **All** | 116 | 7 | 6 | 318 | 447 |
+| **All** | 116 | 7 | 6 | 319 | 448 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -494,3 +494,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-561](relay.md) | P1 | S | M2 | feature | done | `pod-wg`: the preshared key of a handshake (PodUtils/podnet#547) |
 | [T-562](relay.md) | P2 | M | M2 | feature | done | `pod-wg`: a responder sans I/O for a list of peers (PodUtils/podnet#547) |
 | [T-563](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `b0533d0` is red for podssh: `Route::One` of `pod-relay` breaks a match of its role |
+| [T-564](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-store`: the actions by tag, a sorted lock of commits and digests, a store of tarballs and a git forge (PodUtils/podrunner#94) |
