@@ -1,0 +1,7 @@
+# The hold takes a lock that is not the lock of the container: the
+# reconcile finds the lock free and writes Dead over a live hold (T-573).
+ENTRY=T-573
+GROUP=supervise
+EXPECT='the reconcile took the record of a live hold'
+RUN='cargo test -p pod-supervise --test foreground'
+LIMIT=1800

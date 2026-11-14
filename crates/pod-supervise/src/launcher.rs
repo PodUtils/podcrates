@@ -160,6 +160,16 @@ where
     X: Clone + Serialize + DeserializeOwned,
     F: FnOnce(&Container<X>, Launch<'_>) -> std::result::Result<Payload, String>,
 {
+    // The fork below runs code of this crate in the child. A thread of a
+    // foreground hold can hold a lock of the allocator at the fork, and the
+    // child then stops in it.
+    if crate::foreground::live() > 0 {
+        return Err(failure(
+            Class::Usage,
+            "this process holds a foreground payload, and its thread makes a fork unsafe. Finish the \
+             hold (`Foreground::finish`) before a start",
+        ));
+    }
     let dir = table::dir(s, &container.id);
     crate::private_dir(&dir).map_err(|e| crate::io_at(&dir, e))?;
 
@@ -324,8 +334,8 @@ fn serve(listener: &UnixListener, pidfd: i64, pid: i64, failed_code: i32, wall: 
         {
             let left = at.saturating_duration_since(Instant::now());
             if left.is_zero() {
-                // `kill` is safe here, as in `handle`: the parent, before the
-                // reap.
+                // `kill` is safe here, as for a `SIG` request: the parent,
+                // before the reap.
                 let _ = sys::kill(pid, 9);
                 walled = true;
             } else {
@@ -361,7 +371,16 @@ fn serve(listener: &UnixListener, pidfd: i64, pid: i64, failed_code: i32, wall: 
         if fds[1].revents & (sys::POLLIN | sys::POLLHUP) != 0
             && let Ok((stream, _)) = listener.accept()
         {
-            handle(stream, pid, &mut waiters);
+            // `kill`, not `pidfd_send_signal`, and safe here only: this
+            // process is the parent of the payload and did not reap it, so
+            // the pid still names it. A second process could not say that.
+            handle(
+                stream,
+                |sig| {
+                    let _ = sys::kill(pid, sig);
+                },
+                &mut waiters,
+            );
         }
         // The reap of the descendants that ended. It can take the payload
         // too: then its status comes from here.
@@ -380,7 +399,13 @@ fn serve(listener: &UnixListener, pidfd: i64, pid: i64, failed_code: i32, wall: 
     }
 }
 
-fn handle(stream: UnixStream, pid: i64, waiters: &mut Vec<UnixStream>) {
+/// Answer one control message: `SIG N` goes to `send`, and `WAIT` joins
+/// `waiters`, which get the exit code at the end. The launcher and a
+/// foreground hold ([`crate::foreground`]) share it.
+pub(crate) fn handle(stream: UnixStream, send: impl Fn(i64), waiters: &mut Vec<UnixStream>) {
+    // A bound on the read of the request: a client that connects and sends
+    // nothing must not stop the watch of the payload.
+    let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(CTL_READ_MS)));
     let mut line = String::new();
     let mut reader = BufReader::new(match stream.try_clone() {
         Ok(s) => s,
@@ -392,11 +417,7 @@ fn handle(stream: UnixStream, pid: i64, waiters: &mut Vec<UnixStream>) {
     let mut w = &stream;
     let text = line.trim();
     if let Some(n) = text.strip_prefix(CTL_SIGNAL) {
-        let sig: i64 = n.trim().parse().unwrap_or(15);
-        // `kill`, not `pidfd_send_signal`, and safe here only: this process
-        // is the parent of the payload and did not reap it, so the pid still
-        // names it. A second process could not say that.
-        let _ = sys::kill(pid, sig);
+        send(n.trim().parse().unwrap_or(15));
         let _ = writeln!(w, "ok");
         return;
     }
@@ -409,8 +430,22 @@ fn handle(stream: UnixStream, pid: i64, waiters: &mut Vec<UnixStream>) {
     let _ = writeln!(w, "err unknown request");
 }
 
-/// The state that the launcher writes into the record of `id`.
-fn record<X>(s: &Settings, id: &str, f: impl FnOnce(&mut Container<X>)) -> Result<()>
+/// The bound of the read of one control request.
+const CTL_READ_MS: u64 = 2_000;
+
+/// The control socket of `id`, bound. A stale one of a launcher that was
+/// killed goes first: nothing listens on it, and it would make `bind` fail
+/// for a container that starts again.
+pub(crate) fn listen(s: &Settings, id: &str) -> std::result::Result<UnixListener, String> {
+    let _ = std::fs::remove_file(table::control_path(s, id));
+    // The directory stays open until after the bind (`control_via_fd`).
+    let (_dir, bind_path) = table::control_via_fd(s, id).map_err(|e| e.to_string())?;
+    UnixListener::bind(&bind_path).map_err(|e| format!("binding the control socket: {e}"))
+}
+
+/// The state that the launcher (or a foreground hold) writes into the
+/// record of `id`.
+pub(crate) fn record<X>(s: &Settings, id: &str, f: impl FnOnce(&mut Container<X>)) -> Result<()>
 where
     X: Clone + Serialize + DeserializeOwned,
 {
@@ -423,7 +458,7 @@ where
 }
 
 /// The record of a payload that ended with `code`.
-fn ended<X>(c: &mut Container<X>, code: i32) {
+pub(crate) fn ended<X>(c: &mut Container<X>, code: i32) {
     c.state = State::Exited;
     c.exit_code = Some(code);
     c.finished_at = Some(table::now());

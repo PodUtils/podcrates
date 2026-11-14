@@ -2196,7 +2196,7 @@ A signal of the launcher reaches one pid. A grandchild of a payload survives `po
 
 ## Premise
 
-- Read: `crates/pod-supervise/src/launcher.rs:389` is `let _ = sys::kill(pid, sig);`, in the control handler of the launcher. It signals one pid. This agrees with the issue.
+- Read: `crates/pod-supervise/src/launcher.rs:380` is `let _ = sys::kill(pid, sig);`, in the control handler of the launcher. It signals one pid. This agrees with the issue.
 - Read: no entry of `TODO/` names a tree kill, a subreaper or a count of residual processes. This agrees with the issue.
 - Read: `crates/pod-supervise/src` sets no `RLIMIT_FSIZE`.
 - Not measured: the survival of a grandchild. Not run: the .NET runner under any `RLIMIT_FSIZE` (the design review measured that it dies at start below 2 TiB, M1 and M2, correction C21 of the review).
@@ -6331,3 +6331,124 @@ lower file goes to `lower`: "the completion changed the lower layer"),
 layers"), `rootfs-layers-lower-over-upper` ("the upper layer hides the
 lower one"); `sh scripts/plant-each.sh --apply`: 0 stale.
 `check-windows.sh` and `check-macos.sh`: 0 faults.
+
+# T-573: `pod-supervise`: a foreground holder, so that a run that the caller waits for is Running (PodUtils/podvm#339)
+
+**Source:** PodUtils/podvm#339 (COORD-094 of podvm; PodUtils/podvm@T-1786, PodUtils/podvm#330)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** M
+**Status:** done
+
+## Problem
+
+A beta tester's defect of podvm. A foreground `podvm run` is recorded
+`Created` for the whole life of its payload. `pod_supervise::create`
+writes `Created`, and only the detached launcher writes `Running`
+(`crates/pod-supervise/src/launcher/supervise.rs`). So while the payload
+runs: `ps` hides it (`list` filters `Running`), `system df` counts 0
+running, `kill` refuses ("is created and not running"), `wait` refuses,
+and `stop` returns `Ok((c, false))` at once: `podvm stop NAME` prints the
+name and exits 0, and stops nothing.
+
+In `pod-supervise`, `Running` means a launcher: it holds `lock_path(id)`
+for its life (the whole test of `reconcile`), and `kill`, `stop` and
+`wait` reach it through `launcher::signal` and `launcher::wait` on its
+socket. A foreground run has no launcher. A `Running` that podvm writes
+into the table reads as `Dead` at the next reconcile (no lock held), or
+makes `stop` fail to connect.
+
+The ask: a holder for a payload that the caller runs itself
+(`foreground(&settings, &id, payload_pid)` takes the lock and writes
+`Running`, the pid and `started_at`; `finish(exit_code)` writes `Exited`,
+the code and `finished_at`; a drop with no `finish` writes `Dead`). It
+holds `lock_path(id)` for its life; it serves the socket protocol of the
+launcher on a thread (`SIG` to the payload, `WAIT` answered with the code
+of `finish`); `kill`, `stop` and `wait` then work with no change, and
+`ps` lists the run `Up`. podvm's Prove: `ps` lists the run while it
+sleeps, `system df` counts it running, `kill` and `wait` work, and `stop`
+ends the payload within its grace and exits 0 only then.
+
+## Premise
+
+- Read: `crates/pod-supervise/src/lib.rs` (the verbs: `kill` and `stop`
+  ask `State::Running`, then talk to the socket),
+  `crates/pod-supervise/src/table.rs` (`reconcile` takes the lock of
+  each `Running` record; held means alive),
+  `crates/pod-supervise/src/launcher.rs` (`handle`: `SIG N` is
+  `kill(pid)`, safe only for the parent before the reap; `WAIT` is held
+  until the end), `crates/pod-supervise/src/launcher/supervise.rs` (the
+  order: the lock, the socket, the record `Running`; at the end the
+  record, the removal of the socket, the answers, the release of the
+  lock), `crates/pod-supervise/src/lock.rs`, the test
+  `nothing_on_the_spawn_path_can_spawn_a_thread` (the crate starts no
+  thread).
+- Read: the launcher signals the payload only, not its process group
+  (`crates/pod-supervise/src/lib.rs`: "`stop` and `kill` signal the
+  payload only").
+- Read: `flock` locks belong to the open file description, so a
+  `reconcile` in the process of the hold also sees the lock held.
+- Not measured: a foreground run of podvm with the hold (podvm's own
+  Prove).
+
+## Approach
+
+1. `pod_supervise::foreground::<X>(&s, want, payload_pid) ->
+   Result<Foreground<X>>`: a reconcile and a find, a refusal of a
+   `Running` record, a pidfd of the payload, the lock of the container,
+   the control socket (`launcher::listen`, shared with the launcher), the
+   thread of the server, then the record `Running` with `pid`,
+   `launcher_pid` (the process of the hold) and `started_at` (C345).
+2. The thread answers each request with `launcher::handle` (shared with
+   the launcher): `SIG N` is `pidfd_send_signal` on the pidfd (C346), a
+   `WAIT` is held. A stop pipe ends the thread: `exit N` from `finish`, or
+   nothing from a drop.
+3. `Foreground::finish(code)`: the record `Exited` (the launcher's
+   `ended`), the removal of the socket, the code to each waiter, the join
+   of the thread, then the release of the lock (C347). A drop with no
+   `finish` writes `Dead` (`noticed`, `finished_at`), then the same close
+   with no answer: a waiter reads the record again.
+4. The thread is the one thread of the crate. `launcher::start` refuses
+   while a hold lives in the process (C348). The hold applies no
+   `wall_ms`, kills no tree and writes no `end` (C349).
+5. `pod_hostprobe::sys::pidfd_send_signal`, with its test.
+6. A read bound (2 s) on each control request, in the launcher too: a
+   client that connects and sends nothing stopped the watch of the
+   payload, and would stop the `finish` of a hold.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features
+cargo test -p pod-hostprobe --all-features --lib -- sys::tests::a_pidfd_signals_its_process_and_not_a_reaped_one
+sh scripts/plant-each.sh supervise-t573-hold-takes-no-lock supervise-t573-drop-writes-nothing supervise-t573-wait-answered-at-once supervise-t573-start-not-refused
+sh scripts/agent/check-windows.sh
+sh scripts/agent/check-macos.sh
+```
+
+## Done
+
+2026-11-14, commit c00d5fa. `pod_supervise::foreground::<X>(&s, want,
+payload_pid) -> Result<Foreground<X>>` and `Foreground::finish(code) ->
+Result<()>` (`crates/pod-supervise/src/foreground.rs`); a drop with no
+`finish` writes `Dead`. The hold takes the lock of the container, serves
+the control socket on one thread (`launcher::listen` and
+`launcher::handle`, shared with the launcher; `SIG` through
+`pod_hostprobe::sys::pidfd_send_signal`, new), and writes `Running`;
+`start` refuses while a hold lives. Calls C345 to C349.
+
+`cargo test -p pod-supervise --all-features`: 30 unit tests,
+`tests/foreground.rs` 6 steps (a held payload is `Up` and `reconcile`
+keeps it; a second hold and a `start` are refused; `kill` reaches it;
+`stop` with a grace of 10 s ends it with no SIGKILL; a wait before
+`finish` gets the bound and a wait at `finish` gets its code; a drop
+writes `Dead`; a killed holder process reads `Dead`), `lifecycle` 5
+steps, `tree` 7 steps, each passed. The foreground binary passed 30 runs
+in a loop. `cargo test -p pod-hostprobe --all-features`: 130 unit tests
+passed, with `a_pidfd_signals_its_process_and_not_a_reaped_one`. Plants,
+each caught by hand with its EXPECT text:
+`supervise-t573-hold-takes-no-lock`, `supervise-t573-drop-writes-nothing`,
+`supervise-t573-wait-answered-at-once`,
+`supervise-t573-start-not-refused`; `plant-each.sh --apply`: 0 stale.
+`check-size.py`, `check-windows.sh` and `check-macos.sh`: 0 faults.
