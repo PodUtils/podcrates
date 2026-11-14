@@ -1,0 +1,11 @@
+--- a/crates/pod-extract/src/modes.rs
++++ b/crates/pod-extract/src/modes.rs
+@@ -101,7 +101,7 @@
+             let kept = sys::fstatat(fd, &sys::cempty(), sys::AT_EMPTY_PATH).map(|st| st.st_mode & 0o7777);
+             let _ = sys::close(fd);
+             if let Ok(k) = kept
+-                && k != want
++                && k != k
+             {
+                 sidecar.kept_dir(&parts.join("/"), k).map_err(error::io)?;
+             }

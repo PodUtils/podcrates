@@ -61,11 +61,11 @@ not change while the process runs).
 | `Refused`, `refused(&failure)` | the cause of a refused entry: `layer`, `entry`, `refusal` |
 | `Mismatch`, `mismatch(&failure)` | the cause of a blob that does not agree with its digest: `what`, `want`, `got` |
 | `apply` | `apply_layer(root, digest, stream, ids, sidecar)`, `LayerStats` (`entries`: the members read; `skipped`, `skipped_kinds`: the entries of a type that the crate does not make, not the root member; `dir_modes`: each directory entry of the layer and its mode), `Ids::current()` |
-| `modes` | `DirModes` (`new`, `record(&stats.dir_modes)`, `forget(&ops)`, `set(root)`, `len`, `is_empty`): the mode of the image of each directory, the last layer wins, set after the last layer; `open_tree(root)`: the owner bits on each directory of a tree that was there before, with `O_NOFOLLOW`, also of a directory with no owner read |
+| `modes` | `DirModes` (`new`, `record(&stats.dir_modes)`, `forget(&ops)`, `set(root, sidecar)`, `len`, `is_empty`): the mode of the image of each directory, the last layer wins, set after the last layer and read back, a mode that the kernel did not keep is one more row of the directory with `applied.mode`; `open_tree(root)`: the owner bits on each directory of a tree that was there before, with `O_NOFOLLOW`, also of a directory with no owner read |
 | `layer` | `Compression::of(media_type)` (tar, `+gzip`, `.tar.gzip`, `+zstd`), `open_hashed(path, c)`, `HashedStream::digest`, `uncompressed_size(path, c, compressed)` (exact for gzip under 4 GiB, an estimate with its flag for the others) |
 | `remove` | `collect(layer, stream)`, `apply(root, ops)`, `Op`, `remove_at(parent_fd, name)` |
 | `safety` | `components`, `is_archive_root`, `rebase_symlink_target`, `Refusal`, `Dir`, `Resolve::{Auto, Walk, InRoot}`, `open_parent`, `open_parent_with` (with `InRoot` and `make_dirs`, a closed parent opens for the one make), `have_openat2`, `OwnerBits` (`add(fd)`, `was`: the owner bits of a closed directory for one step, its mode back on drop) |
-| `sidecar` | `Meta` (`to_json`), `Sidecar` (`create`, `push`, `finish`, `dropped`, `first_dropped`), `FirstDropped`, `json_string` |
+| `sidecar` | `Meta` (`to_json`), `Sidecar` (`create`, `push`, `push_dir`, `kept_dir`, `finish`, `dropped`, `first_dropped`), `FirstDropped`, `json_string`; the last row of a path holds |
 | `whiteout` | `classify`, `Kind`, `basename`, `dirname_parts`, `WH`, `OPQ` |
 
 `Resolve::InRoot` is for a writer of a FINISHED root file system (the
@@ -132,8 +132,11 @@ binary again as uid 1000 and gid 1000
 (`drive::setid::worker_extracts_as_a_user`; a skip line where the host
 cannot start that child): the three modes stay, and in a directory of
 group 0 with `S_ISGID` the sidecar records 0755 and 4755, the modes that
-the kernel kept. The plants: `extract-t581-set-id-bits-not-set-again`,
-`extract-t581-kept-mode-not-recorded`.
+the kernel kept. A directory of 2755 there keeps 0755, and one more row of the directory
+records `applied.mode` 0755 (T-605). The plants:
+`extract-t581-set-id-bits-not-set-again`,
+`extract-t581-kept-mode-not-recorded`,
+`extract-t605-kept-dir-mode-not-recorded`.
 
 `drive::umask::the_modes_of_the_image_stay_under_a_umask_of_027` runs the
 test binary again (`drive::umask::worker_extracts_under_a_umask_of_027`),

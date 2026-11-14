@@ -1,11 +1,10 @@
-diff --git a/crates/pod-extract/src/lib.rs b/crates/pod-extract/src/lib.rs
 --- a/crates/pod-extract/src/lib.rs
 +++ b/crates/pod-extract/src/lib.rs
-@@ -279,7 +279,7 @@
+@@ -286,7 +286,7 @@
      }
      // One time, after the last layer: the owner bits of a directory let the
      // next layer write, and a later layer can name a directory again.
--    total.dir_modes = dirs.set(root)?;
+-    total.dir_modes = dirs.set(root, side)?;
 +    total.dir_modes = 0;
      Ok(())
  }

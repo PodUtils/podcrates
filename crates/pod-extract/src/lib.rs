@@ -286,7 +286,7 @@ fn extract_layers(
     }
     // One time, after the last layer: the owner bits of a directory let the
     // next layer write, and a later layer can name a directory again.
-    total.dir_modes = dirs.set(root)?;
+    total.dir_modes = dirs.set(root, side)?;
     Ok(())
 }
 

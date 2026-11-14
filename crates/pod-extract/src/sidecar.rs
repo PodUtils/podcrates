@@ -114,6 +114,8 @@ pub struct Sidecar {
     written: u64,
     dropped: u64,
     first_dropped: Option<FirstDropped>,
+    /// The last row of each directory, for [`Sidecar::kept_dir`].
+    dirs: std::collections::HashMap<String, Meta>,
 }
 
 impl Sidecar {
@@ -123,6 +125,7 @@ impl Sidecar {
             written: 0,
             dropped: 0,
             first_dropped: None,
+            dirs: std::collections::HashMap::new(),
         })
     }
 
@@ -141,6 +144,28 @@ impl Sidecar {
             }
         }
         writeln!(self.out, "{}", m.to_json())
+    }
+
+    /// [`Sidecar::push`] for a directory: the row is kept for
+    /// [`Sidecar::kept_dir`].
+    pub fn push_dir(&mut self, m: &Meta) -> std::io::Result<()> {
+        self.push(m)?;
+        self.dirs.insert(m.path.clone(), m.clone());
+        Ok(())
+    }
+
+    /// One more row for the directory `path`, with the mode that the kernel
+    /// kept after the pass of the last layer. The last row of a path holds,
+    /// as for a directory that a later layer names again. False: no
+    /// directory row of that path.
+    pub fn kept_dir(&mut self, path: &str, applied_mode: u32) -> std::io::Result<bool> {
+        let Some(m) = self.dirs.get(path) else {
+            return Ok(false);
+        };
+        let row = Meta { applied_mode: Some(applied_mode), ..m.clone() };
+        self.written += 1;
+        writeln!(self.out, "{}", row.to_json())?;
+        Ok(true)
     }
 
     pub fn finish(mut self) -> std::io::Result<(u64, u64)> {
@@ -203,6 +228,33 @@ mod tests {
             m.to_json(),
             r#"{"path":"usr/lib","uid":0,"gid":0,"mode":"0555","applied":{"uid":0,"gid":0,"mode":"0755"}}"#
         );
+    }
+
+    /// The row of a directory again, with the mode that stayed; a path
+    /// with no directory row gets none.
+    #[test]
+    fn a_kept_directory_mode_is_one_more_row_of_the_directory() {
+        let path = std::env::temp_dir().join(format!("pod-extract-keptdir-{}", std::process::id()));
+        let mut sc = Sidecar::create(&path).unwrap();
+        let m = Meta {
+            path: "var/mail".into(),
+            uid: 0,
+            gid: 8,
+            mode: 0o2775,
+            applied_uid: 0,
+            applied_gid: 0,
+            reason: Some("gid 8 unmapped".into()),
+            applied_mode: None,
+        };
+        sc.push_dir(&m).unwrap();
+        assert!(sc.kept_dir("var/mail", 0o775).unwrap());
+        assert!(!sc.kept_dir("var/spool", 0o755).unwrap());
+        assert_eq!(sc.dropped(), 1, "the second row is not a second dropped id");
+        assert_eq!(sc.finish().unwrap(), (2, 1));
+        let text = std::fs::read_to_string(&path).unwrap();
+        let _ = std::fs::remove_file(&path);
+        let last = text.lines().last().unwrap();
+        assert!(last.contains(r#""mode":"2775","applied":{"uid":0,"gid":0,"mode":"0775"}"#), "{last}");
     }
 
     #[test]

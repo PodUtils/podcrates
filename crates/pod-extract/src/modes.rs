@@ -11,9 +11,10 @@ use std::collections::BTreeMap;
 
 use pod_hostprobe::sys;
 
-use crate::error::Result;
+use crate::error::{self, Result};
 use crate::remove::Op;
 use crate::safety::{self, Dir};
+use crate::sidecar::Sidecar;
 
 /// The mode of the image of each directory entry of the extraction, by its
 /// path. The last layer that names a directory wins: a later layer can name
@@ -72,7 +73,12 @@ impl DirModes {
     /// `O_NOFOLLOW`: `fchmodat` of the name follows a symlink out of the
     /// tree. A path that is no longer a directory is not the directory of
     /// the image, and the pass skips it.
-    pub fn set(&self, root: &Dir) -> Result<u64> {
+    ///
+    /// The mode is read back: the kernel drops `S_ISGID` with no error where
+    /// the group of the directory is not a group of the process. A mode
+    /// that the kernel did not keep goes into `sidecar` as one more row of
+    /// the directory, with `applied.mode`.
+    pub fn set(&self, root: &Dir, sidecar: &mut Sidecar) -> Result<u64> {
         let mut order: Vec<(&Vec<String>, u32)> = self.0.iter().map(|(p, m)| (p, *m)).collect();
         order.sort_by(|a, b| b.0.len().cmp(&a.0.len()).then_with(|| a.0.cmp(b.0)));
         let mut set = 0;
@@ -88,10 +94,17 @@ impl DirModes {
             let Ok(fd) = sys::openat(parent.fd(), &n, flags, 0) else {
                 continue;
             };
-            if sys::fchmod(fd, u64::from(mode & 0o7777)).is_ok() {
+            let want = mode & 0o7777;
+            if sys::fchmod(fd, u64::from(want)).is_ok() {
                 set += 1;
             }
+            let kept = sys::fstatat(fd, &sys::cempty(), sys::AT_EMPTY_PATH).map(|st| st.st_mode & 0o7777);
             let _ = sys::close(fd);
+            if let Ok(k) = kept
+                && k != want
+            {
+                sidecar.kept_dir(&parts.join("/"), k).map_err(error::io)?;
+            }
         }
         Ok(set)
     }

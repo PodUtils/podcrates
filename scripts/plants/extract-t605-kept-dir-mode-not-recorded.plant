@@ -1,0 +1,8 @@
+# The pass after the last layer does not read the mode of a directory
+# back, so the sidecar does not record an S_ISGID that the kernel dropped
+# (T-605). The proof runs as uid 1000 when the test runs as root.
+ENTRY=T-605
+GROUP=extract
+EXPECT='the sidecar does not record the mode that stayed'
+RUN='cargo test -p pod-extract --all-features --lib drive::setid'
+LIMIT=1800
