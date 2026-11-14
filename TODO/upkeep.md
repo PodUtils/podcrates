@@ -1668,3 +1668,30 @@ answered 403 to the many reads of the other two.
 `pod-actions-store` and `pod-actions-results` do not report 0: podrunner
 changed their sources after the pin `872b43f` (`de6850e`, `afa619d` and
 `9dbefd1`); that is a port of its own.
+
+# T-614: CI: a job that runs as root the tests that start a worker of uid 1000
+
+**Source:** T-605 (a finding of its work).
+**Category:** chore
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The proofs of T-581 and T-605 run only when the tests run as root, which can start a worker of uid 1000 (the set-id bits of a file, the `S_ISGID` that the kernel drops from a directory). The GitHub runner is not root, so CI skips these assertions.
+
+## Premise
+
+- Read: the reports of T-581 and T-605; `.github/workflows/ci.yml`; the tests that print `SKIP:` when they are not root.
+
+## Approach
+
+A job of `ci.yml` (or `nightly.yml`) runs those tests of `pod-extract` and `pod-rootfs` with `sudo -E` (the runner has passwordless sudo), so that the worker of uid 1000 runs. The job fails on a `SKIP:` line of those tests.
+
+## Prove
+
+```sh
+python3 scripts/check-workflows.py
+```

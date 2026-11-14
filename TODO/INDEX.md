@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**494 entries: 120 open, 8 partial, 5 blocked, 361 done.**
+**496 entries: 122 open, 8 partial, 5 blocked, 361 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 99 | 113 |
 | P2 | 58 | 2 | 4 | 194 | 258 |
-| P3 | 51 | 3 | 1 | 66 | 121 |
-| **All** | 120 | 8 | 5 | 361 | 494 |
+| P3 | 53 | 3 | 1 | 66 | 123 |
+| **All** | 122 | 8 | 5 | 361 | 496 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -541,3 +541,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-608](upkeep.md) | P1 | S | M5 | defect | done | `upstream.yml` is red: the sources of `pod-warp`, `pod-netstack` and `pod-gsr` changed |
 | [T-609](podvm.md) | P2 | S | M6 | defect | open | `pod-broker`: a 502 names the status of the upstream proxy or the dial error, and a 403 of `no-rule` names the half of the rule that failed (PodUtils/podvm#359) |
 | [T-611](transport.md) | P2 | S | M1 | feature | open | `pod-services`: the host `software-download.microsoft.com` of the Windows evaluation media (PodUtils/podvm#361) |
+| [T-614](upkeep.md) | P3 | S | M5 | chore | open | CI: a job that runs as root the tests that start a worker of uid 1000 |
+| [T-615](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: `open_tree` and the removal hold one descriptor for each level of depth |

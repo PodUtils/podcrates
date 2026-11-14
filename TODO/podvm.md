@@ -7445,3 +7445,30 @@ A 502 names the status line of the upstream proxy, or the dial error, and the pr
 ```sh
 cargo test -p pod-broker --all-features
 ```
+
+# T-615: `pod-extract`: `open_tree` and the removal hold one descriptor for each level of depth
+
+**Source:** T-606 (a finding of its work).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`open_tree` (T-606) and `remove_at` keep one open descriptor for each level of depth. A tree deeper than the limit of descriptors (about 1024) stops them early.
+
+## Premise
+
+- Read: the report of T-606 and call C428; `crates/pod-extract/src/modes.rs` (`open_tree`) and the removal (`remove_at`).
+
+## Approach
+
+Walk the tree with no ancestor held open (an explicit stack of paths reopened from the root with `O_NOFOLLOW` at each level, or `openat` from a held parent only), and refuse a tree past a depth limit with a typed error. A test with a tree deeper than a lowered `RLIMIT_NOFILE`; a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```
