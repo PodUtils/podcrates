@@ -146,12 +146,13 @@ numbers. `TODO/RULES.md` gives the rules.
 | #141 | COORD-081: the answer to PodUtils/podnet#533, #535, #538 and #540: the entries of the asks (to podnet) | closed (`v0.42.0` carries T-541 to T-548; the hand-off #145) | T-214 |
 | #142 | COORD-082: the answer to PodUtils/podvm#322: the order of T-486, T-107 and T-345 to T-347 (to podvm) | closed (`v0.42.0` carries T-486 and T-107; the hand-off #145) | T-486, T-107, T-345, T-346, T-347 |
 | #143 | COORD-083: v0.41.0: the termios mode of pod-term; four tox relays (to all) | closed (taken by podrunner at `9f15901`, PodUtils/podrunner#93; podvm at `104bbe4b`, PodUtils/podvm#324; podnet at `095955c`, PodUtils/podnet#546; podssh at `6f77eaa`, PodUtils/podssh#240) | T-537, T-539, T-555 |
-| #144 | COORD-084: the answer to PodUtils/podnet#547: the preshared key and a responder with no I/O of pod-wg (to podnet) | open (until a tag carries T-561 and T-562) | T-561, T-562 |
+| #144 | COORD-084: the answer to PodUtils/podnet#547: the preshared key and a responder with no I/O of pod-wg (to podnet) | closed (podnet took `v0.43.0` at `c8ccc40`, PodUtils/podnet#552) | T-561, T-562 |
 | #145 | COORD-085: v0.42.0: the asks of each consumer (to all) | closed (podvm took it at `296a1fc1`, PodUtils/podvm#325; podrunner at `05ceaec`, PodUtils/podrunner#96; podssh at `7e457b4`, PodUtils/podssh#241; podnet at `654c0f1`, PodUtils/podnet#550, with T-574 and T-575) | T-486, T-107, T-541, T-542, T-543, T-544, T-549, T-552, T-553, T-556, T-559, T-563 |
-| #146 | COORD-086: the answer to PodUtils/podvm#326: a completion of two layers in pod-rootfs (to podvm) | open (until a tag carries the entry) | T-567 |
-| #147 | COORD-087: the answer to PodUtils/podvm#331, #335 and #337: three defects of text in pod-enter and pod-hostprobe (to podvm) | open (until a tag carries the entries) | T-568, T-569, T-570 |
+| #146 | COORD-086: the answer to PodUtils/podvm#326: a completion of two layers in pod-rootfs (to podvm) | closed (podvm took `v0.43.0` at `b0bb87f1`, PodUtils/podvm#348) | T-567 |
+| #147 | COORD-087: the answer to PodUtils/podvm#331, #335 and #337: three defects of text in pod-enter and pod-hostprobe (to podvm) | closed (podvm took `v0.43.0` at `b0bb87f1`, PodUtils/podvm#348) | T-568, T-569, T-570 |
 | #148 | COORD-088: the answer to PodUtils/podvm#339: a foreground holder in pod-supervise (T-573) (to podvm) | open (until a tag carries the entry) | T-573 |
-| #149 | COORD-089: v0.43.0: pod-wg for podnet; pod-actions-store and pod-actions-results for podrunner; pod-rootfs, pod-enter and pod-hostprobe for podvm (to all) | open (until each consumer takes it) | T-561, T-562, T-564, T-565, T-567, T-568, T-569, T-570, T-571 |
+| #149 | COORD-089: v0.43.0: pod-wg for podnet; pod-actions-store and pod-actions-results for podrunner; pod-rootfs, pod-enter and pod-hostprobe for podvm (to all) | open (podrunner took it at `51f9e6b`, PodUtils/podrunner#99; podvm at `b0bb87f1`, PodUtils/podvm#348; podnet at `c8ccc40`, PodUtils/podnet#552; waits for podssh) | T-561, T-562, T-564, T-565, T-567, T-568, T-569, T-570, T-571 |
 | #150 | COORD-090: the answer to PodUtils/podvm#341, #342 and #343: three defects of the QA report (to podvm) | open (until a tag carries the entries) | T-580, T-581, T-582 |
+| #151 | COORD-091: the answer to PodUtils/podvm#344 to #347: four more defects of the QA report (to podvm) | open (until a tag carries the entries) | T-583, T-584, T-585, T-586 |
 
 #79 to #81 are pull requests.

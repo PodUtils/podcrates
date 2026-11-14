@@ -7068,3 +7068,30 @@ When a spare took the session and the acknowledged position did not move before 
 ```sh
 cargo test -p pod-session --all-features
 ```
+
+# T-589: `pod-netstack`: `bind_udp` with port 0 takes an ephemeral port (PodUtils/podnet#552)
+
+**Source:** PodUtils/podnet#552 (COORD-078 of podnet; a defect of PodUtils/podnet@T-117).
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`NetStack::bind_udp` refuses port 0. podnet's UDP over a `wg:FILE` network bound port 0 and never worked; podnet now picks free ports from 49152 itself. `connect` picks an ephemeral port; `bind_udp` should do the same.
+
+## Premise
+
+- Read: PodUtils/podnet#552; `crates/pod-netstack/src/stack.rs` (`bind_udp`, `bind_udp_any`), `crates/pod-netstack/src/stack/udp_service.rs` (`bind_udp`, `bindable`), and the choice of an ephemeral port of `connect`.
+
+## Approach
+
+Port 0 in `bind_udp` (and `bind_udp_any`) takes a free port of the ephemeral range, with the rule of `connect`, and `local_addr` gives the port that it took. A second bind of port 0 takes another port. Tests and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --all-features
+```

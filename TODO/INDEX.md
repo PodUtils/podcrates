@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**472 entries: 128 open, 7 partial, 5 blocked, 332 done.**
+**473 entries: 129 open, 7 partial, 5 blocked, 332 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 14 | 3 | 0 | 88 | 105 |
-| P2 | 58 | 2 | 4 | 184 | 248 |
+| P2 | 59 | 2 | 4 | 184 | 249 |
 | P3 | 56 | 2 | 1 | 58 | 117 |
-| **All** | 128 | 7 | 5 | 332 | 472 |
+| **All** | 129 | 7 | 5 | 332 | 473 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -519,3 +519,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-586](podvm.md) | P3 | M | M6 | defect | open | `pod-netlab`: the texts of a knob give the value as written, with its unit and range; the differences from sand-net (PodUtils/podvm#347) |
 | [T-587](fleet.md) | P2 | M | M8 | feature | open | `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99) |
 | [T-588](fleet.md) | P2 | M | M8 | feature | open | `pod-actions-results`: the CacheService and the replacement of an artifact on a rerun (PodUtils/podrunner#99) |
+| [T-589](relay.md) | P2 | S | M2 | feature | open | `pod-netstack`: `bind_udp` with port 0 takes an ephemeral port (PodUtils/podnet#552) |

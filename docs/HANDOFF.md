@@ -21,15 +21,23 @@ is done. Git and the record keep finished work.
 
 - The last release: `v0.43.0` at `ccbea49` (ci 43562056951, adoption
   43562056931, release 43564313833; the hand-off #149, COORD-089).
-  `v0.42.0` at `b6983fc`: each consumer took it (#145, closed).
-- On `main` for `v0.44.0`: T-573 (the foreground hold of
-  `pod-supervise`, #148). The owner reserves the names of
-  `pod-actions-store` and `pod-actions-results` on crates.io ("Owner
-  actions" of `TODO/PROGRESS.md`).
-- Each agent of this session is merged into `main`. The open threads of
-  this session:
+  Takes: podrunner `51f9e6b`, podvm `b0bb87f1`, podnet `c8ccc40`; podssh
+  waits. `v0.42.0` at `b6983fc`: each consumer took it (#145, closed).
+- On `main` for `v0.44.0`: T-573 (#148), T-572, T-576, T-577
+  (PodUtils/podrunner#97, #98), T-574 and T-558 (`pod-hold`: the raw part
+  and the ping part; podnet's `Calls::sockets().allow_raw()` now refuses
+  ping sockets: its form is `.allow_ping()`, PodUtils/podnet#550). The
+  owner reserves the names of `pod-actions-store` and
+  `pod-actions-results` on crates.io ("Owner actions" of
+  `TODO/PROGRESS.md`).
+- Agents in worktrees of `.claude/worktrees/` (their branches merge into
+  `main` when they are done): `qa580` (T-580 to T-582, #150), `qa584`
+  (T-584, T-585, T-583, T-586, #151), `sess579` (T-579, then T-560),
+  `actions587` (T-587, T-588, PodUtils/podrunner#99). T-589
+  (PodUtils/podnet#552) has no agent yet.
+- The open threads of this session:
   - T-539 is in `v0.41.0`; T-540 (open) tests it against a kernel pty.
-  - T-557 and T-558 (open): findings of T-542 and T-544.
+  - T-557 (open): a finding of T-542.
   - T-526 (partial): the fix of `kcp` upstream. podnet sets the profile of
     `kcp` with its take of the udp carrier (#139, PodUtils/podnet#527).
 - The red runs of this session have fixes on `main`: T-532 and T-535
