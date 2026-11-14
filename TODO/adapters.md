@@ -1767,7 +1767,7 @@ canonical forms now (`same_peer`, the test
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1835,3 +1835,29 @@ cargo test -p pod-warp --all-features --test net
 cargo test -p pod-proxy --all-features --test dial
 sh scripts/plant-each.sh warp-t549-proxy-on-direct-road warp-t549-issuer-unnamed
 ```
+
+## Done
+
+2026-11-14, commit 2343c05. A key of the front door that is not the
+pinned key now fails with "MASQUE peer key does not match the pinned key;
+the door showed a certificate of ISSUER" (`tls::SHOWN`,
+`der::issuer_words`). When the key of the record read again does not
+match either, the line adds "the key of the device record read again does
+not match either. WARP's side shows such a certificate at times, while its
+API fails in the same minutes; a later try passes then."; where the way to
+the door goes through a proxy, it adds "Or the proxy P re-terminates TLS:
+then each try fails". When the read of the record fails, the line names
+the door's issuer with the same words. `pod_core::Dial::proxy_label` and
+its `pod_proxy::Dialer` implementation say whether a dial goes through a
+proxy (C300).
+
+`cargo test -p pod-core -p pod-proxy -p pod-warp --all-features`: 471
+passed, none failed. New: `a_door_that_shows_another_certificate_names_its_issuer_and_a_proxy_only_on_its_road`
+(the stand-in edge shows a certificate of `O=Let's Encrypt, CN=YE1`: on
+the direct road the line names the door and the issuer and no proxy;
+through a dial with a proxy it names the proxy; with no API it names the
+issuer), and
+`the_proxy_of_a_dial_is_named_by_its_label_and_a_direct_dial_has_none`.
+Plants, each caught by hand: `warp-t549-proxy-on-direct-road` (the label
+of the dial as a proxy on the direct road), `warp-t549-issuer-unnamed`;
+`warp-pin-unchecked` was remade on the new code and caught.
