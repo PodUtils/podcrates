@@ -6644,3 +6644,192 @@ The errors of the knobs give the scaled value with no unit (`--loss 101` reads "
 ```sh
 cargo test -p pod-netlab --all-features
 ```
+
+# T-590: `pod-guest`: `fetch::store` resumes a download by Range, checks the size and the sha256, and has a ceiling for each entry (PodUtils/podvm#350, item 1)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm runs Windows and DOS guests from media that it fetches itself (the owner of podvm accepts the terms of the vendors; podvm's ruling "Windows media"). A medium of some GB breaks off on a slow line, and `pod_guest::fetch::store` starts again from zero. podvm asks for a `.part` file, a resume after a break by Range, a check of the size against `Content-Length`, a sha256 check at the end, and a ceiling for each entry (PodUtils/podvm@T-1862). podvm adds the check of free disk, of `RLIMIT_FSIZE` and the progress line in its own wrapper.
+
+## Premise
+
+- Read: PodUtils/podvm#350; `crates/pod-guest/src/fetch.rs`.
+
+## Approach
+
+Write to `NAME.part`; on a new call, send `Range: bytes=N-` and take a `206` (a `200` starts again from zero); check `Content-Range` and the total size against `Content-Length`; check the sha256 over the whole file; rename to `NAME` only after the check. A ceiling of bytes for each entry refuses a larger body with a typed error. Tests against a local HTTP stand-in that breaks the body once, gives `200` to a Range, and gives a wrong size; plants.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
+
+# T-591: `pod-udf`: a new crate that reads UDF and gives the extent of a file in an ISO (PodUtils/podvm#350, item 2)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A Windows ISO holds `ValidationOS.vhdx` (about 0.9 GB) in a 2.5 GB image. With the extent of the file in the image, a client fetches only that extent by Range requests. podvm asks for a UDF reader that finds a file by its path and gives its extents (PodUtils/podvm@T-1863). If podcrates declines, podvm vendors winquick's `udf.rs` (Apache-2.0).
+
+## Premise
+
+- Read: PodUtils/podvm#350; ECMA-167 and the UDF 2.60 specification (the anchor volume descriptor at sector 256, the partition and logical volume descriptors, the file set descriptor, file entries and extended file entries, the file identifier descriptors, short and long allocation descriptors).
+
+## Approach
+
+A new crate `pod-udf` with no I/O of its own: a trait that reads sectors at an offset, so that a caller reads from a file or by Range requests. `find(path) -> Extents` (the byte ranges in the image, in order, and the size). UDF 1.02 to 2.60 as Windows ISOs use them; metadata partitions where a Windows ISO has one. Typed errors, a limit on the depth and on the count of entries. Tests with a small UDF image built in the test or kept under `tests/data` (made by a tool, with its command written beside it); a fuzz target; the static probe.
+
+## Prove
+
+```sh
+cargo test -p pod-udf --all-features
+```
+
+# T-592: `pod-guest`: the agent runs the command in a child `cmd /c`, writes a `WQREADY` marker, and has a keep-alive mode (PodUtils/podvm#350, item 3)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** defect
+**Milestone:** M7
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The agent of `pod-guest` runs the command with `call %WQ%\WQCMD.CMD`, so a payload that ends in `exit` stops the agent before it writes its results and shuts the guest down, and the run times out (PodUtils/podvm@T-1864). podvm also needs a marker that the agent is ready, and a mode that keeps the guest up after the command, for a warm start and `exec` later.
+
+## Premise
+
+- Read: PodUtils/podvm#350; `crates/pod-guest/src/agent.rs` (`AGENT_CMD` and its tests).
+
+## Approach
+
+Run the command as `cmd /c %WQ%\WQCMD.CMD < NUL > ... 2> ...` and record its exit code; write `WQREADY` to the mailbox when the agent starts; a keep-alive mode does not run `shutdown` and waits for the next command. stdin of the command stays NUL. Tests of the text of the agent, and a run in the DOS or the emulator test where the crate has one; plants.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
+
+# T-593: `pod-guest`: the options of a plan: a NIC with `hostfwd`, virtio devices, CD-ROM and USB media, VNC, a serial channel, the Hyper-V flags (PodUtils/podvm#350, item 4)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A plan of `pod-guest` gives a mailbox run with `-nic none`. A full Windows guest needs a NIC (`user` with `hostfwd`), virtio devices, CD-ROM and USB media, a VNC socket, a serial channel and the Hyper-V flags (PodUtils/podvm@T-1865).
+
+## Premise
+
+- Read: PodUtils/podvm#350; `crates/pod-guest/src/plan.rs` (the argv of QEMU).
+
+## Approach
+
+Typed options of the plan, each one to its QEMU arguments, with `-nic none` the default of the mailbox run. Each option is checked (a `hostfwd` port, a path of a socket). Tests of the argv for each option and for the default; plants.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
+
+# T-594: `pod-qga`: a new crate, a client of the QEMU Guest Agent over a Unix socket (PodUtils/podvm#350, item 5)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm needs `exec`, `cp` and a graceful `stop` for a full Windows guest. The QEMU Guest Agent gives them over a Unix socket (PodUtils/podvm@T-1868).
+
+## Premise
+
+- Read: PodUtils/podvm#350; the QEMU Guest Agent protocol (`guest-sync-delimited`, `guest-ping`, `guest-exec`, `guest-exec-status`, `guest-file-open`, `guest-file-read`, `guest-file-write`, `guest-file-close`, `guest-shutdown`); `crates/pod-guest/src/qmp.rs` (the client of QMP in the workspace).
+
+## Approach
+
+A new crate `pod-qga` with a typed client of these calls, the sync on connect, a bound on each call, and typed errors. Tests against a stand-in of the agent on a Unix socket; a fuzz target of the answers.
+
+## Prove
+
+```sh
+cargo test -p pod-qga --all-features
+```
+
+# T-595: `pod-guest`: the provision waits for a ready guest in place of a fixed sleep (PodUtils/podvm#350, item 6)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`setup` of the provision of `pod-guest` sleeps a fixed time. podvm asks for a readiness poll: a mailbox marker, serial text, or a change of the screen (PodUtils/podvm@T-1873). Later, an NTFS and hive writer for an offline setup, after podvm measures whether `AutoRun` fires on the x64 image.
+
+## Premise
+
+- Read: PodUtils/podvm#350; `crates/pod-guest/src/provision.rs`; T-592 (the `WQREADY` marker).
+
+## Approach
+
+A readiness of the provision: the `WQREADY` marker of T-592, a text on the serial channel of T-593, or a change of the screen through QMP `screendump`; a deadline with a typed error. The NTFS and hive writer waits for podvm's measure. Tests against stand-ins; plants.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
+
+# T-596: `pod-guest`: a warm start from a saved state, with a fingerprint and a fallback to a cold boot (PodUtils/podvm#350, item 7)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A Windows guest takes long to boot. podvm asks to freeze a booted guest with `migrate` to a file and to restore it with `-incoming`, with a fingerprint of QEMU and the base, and a cold boot when the fingerprint differs (PodUtils/podvm@T-1874). ValidationOS first; it needs the keep-alive mode of T-592.
+
+## Premise
+
+- Read: PodUtils/podvm#350; `crates/pod-guest/src/qmp.rs`, `plan.rs`; T-592.
+
+## Approach
+
+Save: QMP `migrate` to `exec:` or a file after the guest is ready in keep-alive mode; the fingerprint is the QEMU version, the machine options of the plan and the digest of the base. Restore: `-incoming` with the same options; a different fingerprint or a failed restore boots cold. Tests of the fingerprint and of the argv; a live test where QEMU is present.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
