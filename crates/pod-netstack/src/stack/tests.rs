@@ -8,6 +8,7 @@ mod any;
 mod burst;
 mod checksum;
 mod close;
+mod ephemeral;
 mod hold;
 mod hooks;
 mod link;
@@ -232,13 +233,13 @@ async fn ipv6_loopback_round_trip() {
     net.shutdown().await;
 }
 
-/// A listen, a connect or a bind that smoltcp refuses (port 0) frees the
-/// socket that it added to the set.
+/// A listen or a connect that smoltcp refuses (port 0) frees the socket
+/// that it added to the set. A UDP bind of port 0 takes a free port
+/// (`tests/udp.rs`).
 #[tokio::test]
 async fn a_refused_bind_frees_its_socket() {
     let mut net = NetStack::loopback();
     assert!(net.listen(at(LOCAL_IP, 0)).await.is_err());
-    assert!(net.bind_udp(at(LOCAL_IP, 0)).await.is_err());
     assert!(net.connect(at(LOCAL_IP, 0)).await.is_err());
     assert_eq!(net.socket_count().0, 0, "a refused socket stays in the set");
     // A refused listen leaves the address free for a later listen.

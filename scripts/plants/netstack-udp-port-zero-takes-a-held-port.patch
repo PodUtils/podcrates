@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/udp_service.rs b/crates/pod-netstack/src/stack/udp_service.rs
+--- a/crates/pod-netstack/src/stack/udp_service.rs
++++ b/crates/pod-netstack/src/stack/udp_service.rs
+@@ -389,7 +389,7 @@
+                 ..local
+             })
+             .find(|candidate| {
+-                !self.udp.values().any(|conn| conn.local.overlaps(*candidate))
++                !self.udp.values().any(|conn| conn.local.overlaps(*candidate) && false)
+                     && self.gateway_local().is_none_or(|gateway| !gateway.overlaps(*candidate))
+             })
+             .ok_or_else(|| refuse(io::ErrorKind::AddrInUse, "each port of the dynamic range holds a UDP socket".into()))

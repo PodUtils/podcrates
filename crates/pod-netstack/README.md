@@ -30,7 +30,7 @@ SMOLTCP_IFACE_MAX_ADDR_COUNT = "8"
 
 | Item | Contents |
 | --- | --- |
-| `NetStack` | `loopback()`, `loopback_with(config)`, `over_link(config)` (each spawns its reactor: call it in a runtime of tokio); `listen`, `connect`, `connect_from`, `bind_udp` (each takes `impl Into<SocketAddr>`); `listen_any(port)`, `bind_udp_any(port)` (on each address: the section "Any IP"); `link_in`, `link_out` (the queues of a pump); `stats`, `device_stats`, `socket_count` (live and peak); `take_events`; `shutdown`; `Drop` stops the reactor; `reset_all(reason)` and `resetter() -> StackReset` (the section "Close"); `stop_reason`, `stopped()` (a future of the cause of the stop of the reactor, also a panic). |
+| `NetStack` | `loopback()`, `loopback_with(config)`, `over_link(config)` (each spawns its reactor: call it in a runtime of tokio); `listen`, `connect`, `connect_from`, `bind_udp` (each takes `impl Into<SocketAddr>`); `listen_any(port)`, `bind_udp_any(port)` (on each address: the section "Any IP"); a UDP bind of port 0 takes a free port (the section "UDP"); `link_in`, `link_out` (the queues of a pump); `stats`, `device_stats`, `socket_count` (live and peak); `take_events`; `shutdown`; `Drop` stops the reactor; `reset_all(reason)` and `resetter() -> StackReset` (the section "Close"); `stop_reason`, `stopped()` (a future of the cause of the stop of the reactor, also a panic). |
 | `StackConfig` | The settings (below). |
 | `StackEvent` | `ListenerBound`, `Accepted`, `Connected`, `Refused`, `Closed`, `Datagram`. |
 | `NetStats`, `NetStatsSnapshot` | `accepted`, `connected`, `refused`, `closed`, `datagrams`, `dropped` (an inbound SYN that the stack dropped at `max_connections`; the peer sends it again), `udp_rx_dropped`, `udp_tx_dropped`, `udp_oversize` (the section "UDP"). |
@@ -121,6 +121,12 @@ T-257 to T-259 (PodUtils/podnet#464):
 * **The drop.** The drop of a `UdpSocket` or a `UdpDatagrams` sends the
   datagrams that it queued, then frees its smoltcp socket and its port. A
   link that takes nothing for `StackConfig::linger` frees it too.
+* **Port 0** (T-589, PodUtils/podnet#552). `bind_udp` and `bind_udp_any`
+  with port 0 take a free port of the dynamic range, 49152 to 65535. The
+  first port to try is the port that `connect` takes (the id of the socket
+  and `random_seed`); a port that a socket holds, also one that drains its
+  queue, moves the choice to the next port. `UdpSocket::local_addr` gives
+  the port. A range with no free port is `AddrInUse`.
 
 ## Listeners
 
@@ -313,8 +319,10 @@ With podnet `crates/podnet-vnet` at `f7ed86b` (the files are the same at
     (`a_slow_reader_gets_each_byte_and_the_end`; the plant
     `netstack-receive-with-no-room`). The end of the stream and the
     handshake are sent again at the next pass when the channel was full.
-  * A listen, a connect or a bind that smoltcp refuses removes the socket
-    that it added to the set (`a_refused_bind_frees_its_socket`).
+  * A listen or a connect that smoltcp refuses removes the socket that
+    it added to the set (`a_refused_bind_frees_its_socket`).
+  * A UDP bind of port 0 takes a free port (T-589). podnet's `bind_udp`
+    refused port 0.
   * UDP (T-257 to T-259; the section "UDP"): podnet's reactor took a
     datagram from smoltcp with no room in the channel to the app and lost
     it, counted no lost datagram, sent a datagram over the MTU with `Ok`
@@ -412,7 +420,8 @@ that is gone, an idle stream to a live peer, a reset of the peer), a burst of SY
 once, a full accept queue, `max_connections`, a SYN sent again; no RST on
 the link), UDP over a link (`udp.rs`: a burst with no reader, the counters,
 the size of a datagram for each build, the fragments, the drop of a
-socket), any IP between a router and a
+socket), a UDP bind of port 0 (`ephemeral.rs`: two free ports, on one
+address and on each address, a held port skipped), any IP between a router and a
 program over a link (`any.rs`:
 TCP and UDP to each destination, any IP off, a listener off the router's
 address, the ports that a socket on each address shares), the checksums
@@ -435,7 +444,10 @@ the listeners; `netstack-link-drops-at-a-full-queue` proves the test of
 of the RST on the link. The plants `netstack-udp-backlog-lost-at-a-full-channel`,
 `netstack-udp-backlog-waits-for-the-tick`, `netstack-udp-loss-not-counted`,
 `netstack-udp-send-loss-not-counted`, `netstack-udp-over-the-limit-goes` and
-`netstack-dropped-udp-socket-stays` prove the tests of UDP. The plants
+`netstack-dropped-udp-socket-stays` prove the tests of UDP;
+`netstack-udp-port-zero-refused` and
+`netstack-udp-port-zero-takes-a-held-port` prove the tests of
+`ephemeral.rs`. The plants
 `netstack-reset-wakes-no-write` and `netstack-stop-reads-a-clean-end`
 prove the tests of `reset.rs`. The plants `netstack-tcp-timeout-not-set`
 and `netstack-peer-reset-read-as-timeout` prove the tests of

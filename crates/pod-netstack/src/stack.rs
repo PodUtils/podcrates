@@ -223,7 +223,9 @@ impl NetStack {
         rx.await.map_err(|_| self.shut_down())?
     }
 
-    /// Bind a UDP socket.
+    /// Bind a UDP socket. Port 0 takes a free port of the dynamic range
+    /// (49152 to 65535), with the rule of [`NetStack::connect`];
+    /// [`UdpSocket::local_addr`] gives the port that it took.
     pub async fn bind_udp(&self, addr: impl Into<SocketAddr>) -> io::Result<UdpSocket> {
         self.bind_udp_on(Local::of(addr.into())).await
     }
@@ -235,6 +237,7 @@ impl NetStack {
     /// `local_addr` is `[::]:port`. A socket on one address of the same
     /// port is `AddrInUse`, both ways; the gateway service keeps its
     /// address, and the socket takes the other destinations of the port.
+    /// Port 0 takes a free port, as [`NetStack::bind_udp`] does.
     pub async fn bind_udp_any(&self, port: u16) -> io::Result<UdpSocket> {
         self.bind_udp_on(Local { ip: None, port }).await
     }
