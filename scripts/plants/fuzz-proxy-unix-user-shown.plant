@@ -1,0 +1,7 @@
+# A proxy on a Unix socket takes a path with `@`, which its label shows: the
+# fuzz target proxy_url finds it on its seed unix-at (T-612).
+ENTRY=T-612
+GROUP=fuzz
+EXPECT='unix:/run/a@b.sock. shows'
+RUN='cargo test --manifest-path fuzz/Cargo.toml --lib each_target_survives_mutations'
+LIMIT=1800

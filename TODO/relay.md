@@ -7174,3 +7174,42 @@ cargo test -p pod-netstack --all-features
 - `cargo test -p pod-netstack --all-features`: 82 passed (3 new in `src/stack/tests/ephemeral.rs`: `a_bind_of_port_zero_takes_a_free_port`, `a_bind_of_any_address_and_port_zero_takes_a_free_port`, `a_bind_of_port_zero_skips_a_held_port`). `a_refused_bind_frees_its_socket` no longer binds UDP port 0.
 - Plants, each caught by hand: `netstack-udp-port-zero-refused` and `netstack-udp-port-zero-takes-a-held-port` (`a bind of port 0`).
 - clippy, rustfmt and `cargo doc` are clean; the README has the section "UDP", "Port 0".
+
+# T-612: `pod-proxy`: the label of a unix proxy shows the user info of its URL (PodUtils/podnet#555)
+
+**Source:** PodUtils/podnet#555 (COORD-079 of podnet, item 1; podnet's fuzz run 43590953876).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The text of the issue, with a made-up password written as PW: `Proxy::parse("socks5h+unix://user:PW@x")` succeeds, and the carrier is `Unix("//user:PW@x")`. `Proxy::label()` prints the path whole. A password that a user writes in the URL form appears in each line that names the proxy (`proxy socks5h+unix://user:PW@x`, and `could not reach the proxy unix://user:PW@x: ...`). The fuzz target `proxy_url` of podnet asserts that a label holds no `@`; its crash input is `socks5+unix://ss@proxy:2]:/`. The ask: a `+unix` (or `unix:`) proxy whose path starts with `//` or holds `@` is a usage error (the URL form of a unix proxy has no authority), or its user info is parsed as credentials and kept out of `label()`, `carrier_text()` and the error texts. A test: the label and each error of such a spec hold no secret.
+
+## Premise
+
+- Read: PodUtils/podnet#555; `crates/pod-proxy/src/proxy/parse.rs` (`Proxy::parse_with`: the `+unix:` and `://unix:` forms take each path that starts with `/`), `crates/pod-proxy/src/proxy.rs` (`label`, `Display`, `Debug` and `carrier_text` show the path whole, and the first word of a command), the texts of `DialError` (`crates/pod-proxy/src/error.rs`, `crates/pod-proxy/src/stream.rs`, `crates/pod-proxy/src/socks5.rs`, `crates/pod-proxy/src/connect.rs`: each names the proxy by its `Display`), and the fuzz target `proxy_url` (`fuzz/src/targets.rs`: it checks the `@` of the label of a proxy on TCP only).
+- A proxy on a Unix socket never has credentials: `Proxy::elsewhere` makes it with none, and no setter adds them. No consumer gives a user to a SOCKS5 proxy on a Unix socket.
+- Not measured: podnet's fuzz run itself; the crash input is in the issue.
+
+## Approach
+
+Refuse the user info, as the ask's first choice: a Unix path that starts with `//` (a host, but `///PATH`, an empty host) or that holds `@` is a usage error whose text names the scheme only. Grep each text that shows a proxy, a carrier or a spec, and keep each user and password out of it. Tests: the crash input, a table of specs (Unix, HTTP, SOCKS5, commands, with `]`, `%40` and `@@`) whose label, Display, Debug and errors hold no secret. The fuzz target `proxy_url` checks the `@` of each form that a proxy shows, with the crash input as a seed. Plants.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features --lib proxy::tests
+cargo test --manifest-path fuzz/Cargo.toml --lib
+```
+
+## Done
+
+2026-11-14, commit db133bd. `Proxy::parse_with` refuses a Unix path that starts with `//` (a host; `///PATH` stays a path) or holds `@`: the error is `a proxy on a Unix socket has no host, no user and no password (no // and no @ after unix:): SCHEME+unix:/PATH`, with the scheme only (call C475; C476 for `///PATH`). A control character in a Unix path is an error (C477). The label, the Display and the Debug of a proxy command show its first word that is not an assignment, and `exec:...` when that word holds `@` (C478). Each text of the crate that names a proxy (`label`, `Display`, `Debug`, `kind_text`, the errors of the parser, and the `DialError` texts, which take the `Display`) holds no user and no password. The fuzz target `proxy_url` checks that no `@` reaches the label, the Display or the Debug form, and that a Unix path has no host; its new seeds are `unix-authority` (podnet's crash input), `unix-at` and `unix-empty-host` (C479).
+
+- `cargo test -p pod-proxy --all-features`: all passed (2 new in `crates/pod-proxy/src/proxy/tests.rs`: `a_unix_proxy_has_no_host_and_no_user`, `the_label_and_the_errors_of_a_spec_hold_no_secret`, a table of 26 forms of a spec with a user and a password, each parsed as a variable and as the user's value).
+- `cargo test --manifest-path fuzz/Cargo.toml --lib`: 13 passed, 4 ignored.
+- Plants, each caught by hand: `proxy-unix-host-in-label` (`a_unix_proxy_has_no_host_and_no_user`), `proxy-exec-assignment-shown` (`the_label_and_the_errors_of_a_spec_hold_no_secret`), `fuzz-proxy-unix-user-shown` (the fuzz target on the seed `unix-at`).
+- clippy of `pod-proxy` and of the fuzz library, rustfmt, `cargo doc` and `scripts/agent/check-windows.sh` and `scripts/agent/check-macos.sh` are clean; the README of `pod-proxy` lists the new tests, and `fuzz/README.md` the checks of `proxy_url`.

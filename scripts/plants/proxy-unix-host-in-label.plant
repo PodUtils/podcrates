@@ -1,0 +1,7 @@
+# A proxy on a Unix socket takes a host after unix: (`SCHEME+unix://HOST`),
+# and its label shows it whole; the test of the Unix carrier must fail.
+ENTRY=T-612
+GROUP=proxy
+EXPECT='test proxy::tests::a_unix_proxy_has_no_host_and_no_user \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --lib'
+LIMIT=1800

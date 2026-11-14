@@ -5,7 +5,9 @@
 //!   gives), `socks5` and `socks5h` ([`SOCKS_PORT`]). The user and the
 //!   password are percent-decoded; a bad escape is an error.
 //! * `SCHEME+unix:/PATH` and `SCHEME://unix:/PATH`: the proxy on a Unix
-//!   socket, at an absolute path.
+//!   socket, at an absolute path with no `@` and no control character. A
+//!   host or a user (`SCHEME+unix://USER@HOST/PATH`) is an error: the label
+//!   shows the path, and a socket takes no credentials. `///PATH` is a path.
 //! * `SCHEME+exec:COMMAND`: the proxy at the stdin and the stdout of a
 //!   command, taken only when the caller says that the user gave the value
 //!   on purpose; a variable that other programs read must not start a
@@ -66,6 +68,18 @@ impl Proxy {
         if let Some((scheme, path)) = unix {
             if !path.starts_with('/') {
                 return Err(format!("the Unix socket of a proxy is an absolute path: {scheme}+unix:/PATH"));
+            }
+            // The label shows the path whole. In the URL form, `//` starts a
+            // host and `@` ends a user and a password, which a socket has not.
+            // `///PATH` has an empty host, as `unix:///PATH` of other tools.
+            if (path.starts_with("//") && !path.starts_with("///")) || path.contains('@') {
+                return Err(format!(
+                    "a proxy on a Unix socket has no host, no user and no password (no // and no @ after unix:): \
+                     {scheme}+unix:/PATH"
+                ));
+            }
+            if path.chars().any(char::is_control) {
+                return Err("the Unix socket path of a proxy holds a control character".into());
             }
             return Proxy::elsewhere(scheme, Carrier::Unix(PathBuf::from(path)), http_port);
         }

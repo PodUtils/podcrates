@@ -50,7 +50,7 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | `http_head` | `pod-proxy` | `http::parse_head` | podssh `http_head` |
 | `http_chunked` | `pod-proxy` | `http::decode_chunked` | podssh `http_chunked` |
 | `socks5_answer` | `pod-proxy` | `fuzz_exchange` (feature `fuzzing`) | podssh `socks5_answer` |
-| `proxy_url` | `pod-proxy` | `Proxy::parse` | podssh `proxy_url` and podnet `proxy_url`, one target |
+| `proxy_url` | `pod-proxy` | `Proxy::parse`: no `@` in the label, the Display and the Debug form, and no host in a Unix path | podssh `proxy_url` and podnet `proxy_url`, one target; the seed `unix-authority` is a crash of podnet's fuzz run (T-612, PodUtils/podnet#555) |
 | `no_proxy` | `pod-proxy` | `env::no_proxy_matches`, `NoProxy` | podssh `no_proxy` and podnet `no_proxy`, one target |
 | `connect_status` | `pod-proxy` | `http::parse_status_line`, `digest::challenge_in`, `proxy_auth::schemes` | podssh `connect_status` and podnet `connect_response_head`, one target |
 | `dns_wire` | `pod-dns` | `wire::{addrs, srv, read_name}`, `https::{from_wire, from_rdata, check_list}` | podssh `dns_wire` (at `a791553`) |

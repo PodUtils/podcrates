@@ -88,8 +88,8 @@ pub struct Proxy {
 /// projects that name it.
 pub type HttpProxy = Proxy;
 
-/// The Debug form shows no credentials, and of a command its first word
-/// only: they go to logs and reports.
+/// The Debug form shows no credentials, and of a command one word only
+/// (the program, not an assignment): they go to logs and reports.
 impl std::fmt::Debug for Proxy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Proxy")
@@ -103,8 +103,8 @@ impl std::fmt::Debug for Proxy {
 }
 
 /// `host:port` of a proxy on TCP, `unix:/PATH`, or `exec:WORD ...` (the
-/// first word of a command, which can hold a secret): the credentials
-/// never appear in a message.
+/// first word of a command that is not an assignment and holds no `@`; the
+/// rest can hold a secret): the credentials never appear in a message.
 impl std::fmt::Display for Proxy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.carrier {
@@ -179,7 +179,10 @@ impl Proxy {
         match &self.carrier {
             Carrier::Tcp => "tcp".into(),
             Carrier::Unix(path) => format!("unix:{}", path.display()),
-            Carrier::Exec(command) => format!("exec:{} ...", command.split_whitespace().next().unwrap_or_default()),
+            Carrier::Exec(command) => match command_word(command) {
+                Some(word) => format!("exec:{word} ..."),
+                None => "exec:...".into(),
+            },
         }
     }
 
@@ -214,4 +217,11 @@ impl Proxy {
             None => String::new(),
         }
     }
+}
+
+/// The word of a command that a message shows: the first word that is not
+/// an assignment (`TOKEN=VALUE cmd` sets a secret for `cmd`), unless it
+/// holds `@`, as a user of a host or of a URL does.
+fn command_word(command: &str) -> Option<&str> {
+    command.split_whitespace().find(|word| !word.contains('=')).filter(|word| !word.contains('@'))
 }
