@@ -7163,3 +7163,138 @@ Keep a small image made by a real tool under `tests/data`, with its command besi
 ```sh
 cargo test -p pod-udf --all-features
 ```
+
+# T-602: `pod-guest`: the next command of a guest in keep-alive mode reaches the agent through a mounted FAT mailbox
+
+**Source:** T-592 (a finding of its work).
+**Category:** research
+**Milestone:** M7
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+In keep-alive mode (T-592) the agent finds its next command by a poll of the FAT mailbox while Windows has that volume mounted. Windows caches the volume, so a write of a new `WQGO.TXT` by the host may never reach the agent. No real guest has proved it.
+
+## Premise
+
+- Read: the report of T-592 and calls C393 to C401; `crates/pod-guest/src/agent.rs`; `.github/workflows/guest.yml`.
+
+## Approach
+
+Prove it in `guest.yml` on a real image. If the cache hides the write, send the next commands through `pod-qga` (T-594), or swap the mailbox medium through QMP between commands, or give a new mailbox at a warm restore (T-596). Record the result as a call.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
+
+# T-603: `pod-guest`: the host removes a file of the FAT mailbox, and a poll of the outcome reads an old token as no result yet
+
+**Source:** T-592 (a finding of its work).
+**Category:** defect
+**Milestone:** M7
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Fat16` has no way to remove a file, so the host cannot drop a stale `WQCODE.TXT` or the file `WQKEEP.TXT`. `outcome()` takes a code with an older token as a `Protocol` error, not as no result yet, so a poller of a guest in keep-alive mode gets an error for the command before.
+
+## Premise
+
+- Read: the report of T-592; `crates/pod-guest/src/fat16.rs` and `agent.rs` (`outcome`).
+
+## Approach
+
+Add `Fat16::remove(name)` and a poll form of `outcome` that gives `None` for an older token. Tests and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
+
+# T-604: `pod-rootfs`: the completion of a tree whose `/etc` is closed (`0555`) fails as a user that is not root, after T-598
+
+**Source:** T-598 (a finding of its work).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-598 gives each directory the exact mode of the image after the last layer. `pod_rootfs::complete` as uid 1000 on a tree with `/etc` at `0555` then gives three `Failed` rows (`resolv.conf`, `hosts`, `mtab`: `EACCES`); before T-598 such an `/etc` was `0755` in the tree. The row of `identity` says "it is writable, so the useradd of the payload works", which is false for a closed directory. A payload that runs without `CAP_DAC_OVERRIDE` meets the same closed modes (a Fedora `/root` of `0550`). This must be fixed before a tag carries T-598.
+
+## Premise
+
+- Read: the report of T-598 and calls C423 to C426; `crates/pod-rootfs/src/write/` (the steps of the completion and `write::Root`), the row of `identity`.
+
+## Approach
+
+`pod-rootfs` opens a closed directory for its own write through a descriptor (owner bits) and sets the mode of the image back after the step, in each case and on two layers (T-567: the copy-up of the directory in the upper layer). The row of `identity` checks the mode of the directory too. Record the rule as a call. Tests as uid 1000 with `/etc` at `0555` (the worker of T-581 shows how); a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-rootfs --all-features
+```
+
+# T-605: `pod-extract`: the sidecar does not record the mode that the kernel kept on a directory
+
+**Source:** T-598 (a finding of its work).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The kernel drops `S_ISGID` from a directory whose group is not a group of the process, with no error. The pass after the last layer (T-598) does not read the mode back, so the sidecar can record a mode that is not on disk. This is the side of the directories of T-581.
+
+## Premise
+
+- Read: the report of T-598; `crates/pod-extract/src/modes.rs` (`DirModes::set`) and the sidecar.
+
+## Approach
+
+Read back each mode in `DirModes::set` and record `applied.mode` in the row of the directory in the sidecar (write the row there, or update it). A test and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```
+
+# T-606: `pod-extract`: a second extraction over a closed tree fails on a directory with no owner read or under a closed parent that the layer does not name
+
+**Source:** T-598 (a finding of its work).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+After T-598 a tree keeps the closed modes of the image. A directory whose mode has no owner read (for example `0311`) makes the next extraction fail at the open of its descriptor, and a closed parent that a new layer does not name as an entry refuses the write of its children.
+
+## Premise
+
+- Read: the report of T-598 and call C424; `crates/pod-extract/src/apply.rs`.
+
+## Approach
+
+Before an extraction into a tree that is not empty, walk the tree once and add the owner bits to each directory through descriptors (`O_NOFOLLOW`); the pass after the last layer sets the modes back. A test of each case, and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```
