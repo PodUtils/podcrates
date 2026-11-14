@@ -37,7 +37,8 @@
 //!   [`Poll::idle`].
 //!
 //! A key that is not pinned is a [`CarrierErrorKind::Refused`] error (77)
-//! that names the key that the peer proved.
+//! that names the key that the peer proved. A peer that refuses the key of this
+//! end gives [`CarrierErrorKind::KeyRefused`] (77).
 
 mod answer;
 mod budget;

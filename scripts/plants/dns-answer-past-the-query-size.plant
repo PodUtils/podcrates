@@ -1,0 +1,7 @@
+# The listener of the dns carrier builds each answer to its own size, not
+# to the size of the query: a query with no EDNS0 gets more than 512
+# bytes, and a resolver cuts it (T-543).
+ENTRY=T-543
+GROUP=link
+EXPECT='to a query with no EDNS0'
+RUN='cargo test -p pod-link --all-features --test dns_resolver a_query_with_no_edns_gets_an_answer_of_512_bytes_or_less'

@@ -1,0 +1,6 @@
+# The EDNS0 size of a query keeps a size under 512: a server would build
+# answers under the size that RFC 6891 gives as the least (T-543).
+ENTRY=T-543
+GROUP=dns
+EXPECT='test txt::tests::a_server_reads_the_size_that_a_query_takes \.\.\. FAILED'
+RUN='cargo test -p pod-dns --all-features --lib a_server_reads_the_size_that_a_query_takes'

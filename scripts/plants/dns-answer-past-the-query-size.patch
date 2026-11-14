@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/dns/server.rs b/crates/pod-link/src/dns/server.rs
+--- a/crates/pod-link/src/dns/server.rs
++++ b/crates/pod-link/src/dns/server.rs
+@@ -256,7 +256,7 @@
+     // The answer keeps to the size that the query takes, 512 bytes with no
+     // OPT record, so a resolver on the path does not cut it (call C291).
+     let asked = txt::asked_size(query);
+-    let size = asked.unwrap_or(txt::PLAIN_SIZE).min(settings.answer);
++    let size = settings.answer;
+     let records = drain(entry, &name, size, asked.is_some());
+     let refs: Vec<&[u8]> = records.iter().map(Vec::as_slice).collect();
+     if let Ok(message) = txt::answer(id, &name, txt::TXT, &refs, asked.map(|_| settings.answer)) {

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/pin.rs b/crates/pod-link/src/pin.rs
+--- a/crates/pod-link/src/pin.rs
++++ b/crates/pod-link/src/pin.rs
+@@ -168,7 +168,7 @@
+     match refused_alert(&e) {
+         Some(alert) => CarrierError::with_source(
+             carrier,
+-            CarrierErrorKind::KeyRefused,
++            CarrierErrorKind::Refused,
+             format!("the listener at {target} refused the key of this end, {} ({alert:?})", own.fingerprint()),
+             e,
+         ),
