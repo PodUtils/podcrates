@@ -36,6 +36,10 @@ pub struct Platform {
     pub os: String,
     #[serde(default)]
     pub variant: Option<String>,
+    /// The version of the OS (`10.0.17763.6532`): a Windows index gives one
+    /// entry for each version of one `windows/amd64`.
+    #[serde(rename = "os.version", default)]
+    pub os_version: Option<String>,
 }
 
 impl Platform {
@@ -52,7 +56,22 @@ impl Platform {
             _ => format!("{}/{}", self.os, self.architecture),
         }
     }
+
+    /// The word with the version of the OS, in the form of containerd's
+    /// `platforms.FormatAll`: `windows(10.0.17763.6532)/amd64`. The word of
+    /// a platform with no `os.version` is [`Platform::word`].
+    pub fn full_word(&self) -> String {
+        match self.os_version.as_deref().filter(|v| !v.is_empty()) {
+            Some(v) => format!("{}({v}){}", self.os, &self.word()[self.os.len()..]),
+            None => self.word(),
+        }
+    }
 }
+
+/// The annotation of an attestation manifest of BuildKit (its value
+/// [`ATTESTATION`]): an entry of an index that is no image.
+pub const REFERENCE_TYPE: &str = "vnd.docker.reference.type";
+pub const ATTESTATION: &str = "attestation-manifest";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Descriptor {
@@ -71,6 +90,12 @@ pub struct Descriptor {
 impl Descriptor {
     pub fn parsed_digest(&self) -> Result<Digest> {
         Digest::parse(&self.digest)
+    }
+
+    /// Whether this entry of an index is an attestation manifest
+    /// ([`REFERENCE_TYPE`] is [`ATTESTATION`]), not an image.
+    pub fn is_attestation(&self) -> bool {
+        self.annotations.get(REFERENCE_TYPE).is_some_and(|v| v == ATTESTATION)
     }
 }
 
@@ -219,13 +244,18 @@ fn from_slice<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T> {
 /// ignores the variant: `linux/arm/v7` and `linux/arm/v6` are different
 /// images. Only when no entry matched with its variant does an entry with no
 /// variant match, so that `linux/arm64` finds a `linux/arm64/v8` entry. No
-/// match is [`Refusal::NoPlatform`] (`Class::NotFound`).
+/// match is [`Refusal::NoPlatform`] (`Class::NotFound`): its list names
+/// each platform one time, with its `os.version` ([`Platform::full_word`]),
+/// and no attestation manifest.
 pub fn select_platform<'a>(index: &'a Index, want: &crate::platform::Platform) -> Result<&'a Descriptor> {
     let mut offered: Vec<String> = Vec::new();
     let mut loose: Option<&'a Descriptor> = None;
     for m in &index.manifests {
-        // An attestation entry has no platform, or `unknown/unknown`. It is
-        // not a candidate and the error does not name it.
+        // An attestation entry has no platform, or `unknown/unknown` and the
+        // annotation. It is not a candidate and the error does not name it.
+        if m.is_attestation() {
+            continue;
+        }
         let Some(p) = &m.platform else { continue };
         let v = p.variant.as_deref().filter(|s| !s.is_empty());
         if want.os == p.os && want.arch == p.architecture {
@@ -237,7 +267,10 @@ pub fn select_platform<'a>(index: &'a Index, want: &crate::platform::Platform) -
                 _ => loose = loose.or(Some(m)),
             }
         }
-        offered.push(p.word());
+        let word = p.full_word();
+        if !offered.contains(&word) {
+            offered.push(word);
+        }
     }
     if let Some(m) = loose {
         return Ok(m);
@@ -299,6 +332,46 @@ mod tests {
         let text = format!("{e}");
         assert!(text.contains("linux/arm64/v8"), "{text}");
         assert!(text.contains("linux/amd64"), "{text}");
+    }
+
+    /// PodUtils/podvm#346: a Windows index named `windows/amd64` two times
+    /// and its attestations as `unknown/unknown`. The list names each
+    /// platform one time, with its `os.version`, and no attestation.
+    #[test]
+    fn the_offered_list_has_no_repeat_no_attestation_and_the_os_version() {
+        let entry = |d: char, platform: &str, extra: &str| {
+            format!(
+                r#"{{"mediaType":"application/vnd.oci.image.manifest.v1+json","digest":"sha256:{}","size":1,
+                   "platform":{platform}{extra}}}"#,
+                d.to_string().repeat(64)
+            )
+        };
+        let att = r#","annotations":{"vnd.docker.reference.type":"attestation-manifest",
+                                     "vnd.docker.reference.digest":"sha256:x"}"#;
+        let doc = format!(
+            r#"{{"schemaVersion":2,"mediaType":"application/vnd.oci.image.index.v1+json","manifests":[{}]}}"#,
+            [
+                entry('a', r#"{"architecture":"amd64","os":"windows","os.version":"10.0.17763.6532"}"#, ""),
+                entry('b', r#"{"architecture":"amd64","os":"windows","os.version":"10.0.20348.2849"}"#, ""),
+                entry('f', r#"{"architecture":"amd64","os":"linux"}"#, att),
+                entry('c', r#"{"architecture":"amd64","os":"linux"}"#, ""),
+                entry('d', r#"{"architecture":"amd64","os":"linux"}"#, ""),
+                entry('e', r#"{"architecture":"unknown","os":"unknown"}"#, att),
+            ]
+            .join(",")
+        );
+        let Fetched::Index(index) = Fetched::parse(doc.as_bytes(), None).unwrap() else {
+            panic!("parsed as a manifest");
+        };
+        let e = select_platform(&index, &p("linux/arm64")).unwrap_err();
+        let Some(Refusal::NoPlatform { offered, .. }) = crate::refusal(&e) else {
+            panic!("wrong variant: {e}");
+        };
+        assert_eq!(offered, "windows(10.0.17763.6532)/amd64, windows(10.0.20348.2849)/amd64, linux/amd64", "{e}");
+        // An attestation with the platform of an image, before the image,
+        // is not a candidate either.
+        assert!(select_platform(&index, &p("linux/amd64")).unwrap().digest.ends_with("cccc"));
+        assert!(index.manifests[5].is_attestation() && !index.manifests[0].is_attestation());
     }
 
     /// `linux/arm64` and `linux/arm64/v8` are one platform, written two ways,

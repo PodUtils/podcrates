@@ -8,7 +8,7 @@
 //! local file, a credential helper or a store of the caller.
 //!
 //! The classes: `Usage` for a value that the caller wrote (a reference, a
-//! digest, a platform, a host); `NotFound` for a missing manifest, blob or
+//! digest, a platform, a host: [`Refusal::Host`]); `NotFound` for a missing manifest, blob or
 //! platform; `Refused` for a refused credential; `TempFail` for a limit of
 //! the rate; `Policy` for a refusal by a limit of the crate or of the
 //! policy; `Protocol` for a document or an answer that breaks the
@@ -32,6 +32,10 @@ pub enum Refusal {
     /// platform and the offered ones, comma-joined. A pull of each tag skips
     /// such a tag; a pull of one tag fails on it.
     NoPlatform { want: String, offered: String },
+    /// A host of the policy of insecure registries that is not a DNS name
+    /// or an IP address (IPv6 in brackets) with an optional port: the host
+    /// as written, trimmed, and why ([`crate::transport::normalise_host`]).
+    Host { host: String, why: String },
 }
 
 impl fmt::Display for Refusal {
@@ -43,6 +47,11 @@ impl fmt::Display for Refusal {
             Refusal::NoPlatform { want, offered } => {
                 write!(f, "this index offers no {want} manifest. It offers: {offered}")
             }
+            Refusal::Host { host, why } => write!(
+                f,
+                "--insecure-registry takes a host (a DNS name, an IPv4 address or an IPv6 address in \
+                 brackets, with an optional :PORT), and {host:?} {why}"
+            ),
         }
     }
 }
@@ -56,6 +65,7 @@ impl Refusal {
         let class = match self {
             Refusal::Digest { .. } => Class::Protocol,
             Refusal::NoPlatform { .. } => Class::NotFound,
+            Refusal::Host { .. } => Class::Usage,
         };
         Failure::caused(Stage::Registry, class, self.to_string(), self)
     }

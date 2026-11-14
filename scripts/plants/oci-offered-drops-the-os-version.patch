@@ -1,0 +1,11 @@
+--- a/crates/pod-oci/src/spec.rs
++++ b/crates/pod-oci/src/spec.rs
+@@ -267,7 +267,7 @@
+                 _ => loose = loose.or(Some(m)),
+             }
+         }
+-        let word = p.full_word();
++        let word = p.word();
+         if !offered.contains(&word) {
+             offered.push(word);
+         }

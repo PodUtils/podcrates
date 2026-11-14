@@ -177,23 +177,12 @@ impl Reference {
     }
 }
 
-/// A registry host: labels of letters, digits and hyphens with dots between
-/// them, and an optional `:port`. Narrower than a URI authority on purpose:
-/// no user information and no path get to a URL.
+/// A registry host: a DNS name, an IPv4 address or an IPv6 address in
+/// brackets, and an optional `:port` (`crate::host`, the grammar of an
+/// insecure host too). Narrower than a URI authority on purpose: no user
+/// information and no path get to a URL.
 fn is_domain(head: &str) -> bool {
-    let (host, port) = match head.rsplit_once(':') {
-        Some((h, p)) => (h, Some(p)),
-        None => (head, None),
-    };
-    if let Some(p) = port
-        && (p.is_empty() || !p.bytes().all(|b| b.is_ascii_digit()))
-    {
-        return false;
-    }
-    !host.is_empty()
-        && host
-            .split('.')
-            .all(|label| !label.is_empty() && label.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'))
+    crate::host::defect(head).is_none()
 }
 
 impl fmt::Display for Reference {

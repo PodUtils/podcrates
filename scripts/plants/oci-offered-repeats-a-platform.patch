@@ -1,0 +1,11 @@
+--- a/crates/pod-oci/src/spec.rs
++++ b/crates/pod-oci/src/spec.rs
+@@ -268,7 +268,7 @@
+             }
+         }
+         let word = p.full_word();
+-        if !offered.contains(&word) {
++        if !word.is_empty() {
+             offered.push(word);
+         }
+     }

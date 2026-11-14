@@ -18,7 +18,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::error::{Result, usage};
+use crate::error::{Refusal, Result, usage};
 
 /// What a caller asked for, resolved once and then carried by value.
 #[derive(Debug, Clone, Default)]
@@ -133,29 +133,30 @@ impl Policy {
     }
 }
 
-/// A host, never a URL. `--insecure-registry https://x/` is a frequent
-/// mistake: it gets a refusal by name, not a key that matches nothing.
+/// A host, never a URL: a DNS name, an IPv4 address or an IPv6 address in
+/// brackets, with an optional port (`localhost:5000`, `[::1]:5000`), the
+/// grammar of the domain of a [`crate::Reference`]. Anything else is
+/// [`Refusal::Host`] (`Class::Usage`) with the reason.
+/// `--insecure-registry https://x/` is a frequent mistake: it gets a
+/// refusal by name, not a key that matches nothing.
 pub fn normalise_host(h: &str) -> Result<String> {
     let h = h.trim();
+    let refuse = |why: String| Err(Refusal::Host { host: h.to_string(), why }.failure());
     if h.is_empty() {
-        return Err(usage("an empty --insecure-registry names nothing. Write a host, for example localhost:5000"));
+        return refuse("is empty and names nothing; write a host, for example localhost:5000".into());
     }
     for bad in ["http://", "https://"] {
         if let Some(rest) = h.strip_prefix(bad) {
-            return Err(usage(format!(
-                "--insecure-registry takes a HOST and not a URL: write \
-                 {:?} rather than {h:?}",
-                rest.trim_end_matches('/')
-            )));
+            return refuse(format!("is a URL: write {:?} rather than {h:?}", rest.trim_end_matches('/')));
         }
     }
     if h.contains('/') {
-        return Err(usage(format!(
-            "--insecure-registry takes a host, optionally with a port, and \
-             {h:?} contains a path"
-        )));
+        return refuse("contains a path".into());
     }
-    Ok(h.to_string())
+    match crate::host::defect(h) {
+        Some(why) => refuse(why),
+        None => Ok(h.to_string()),
+    }
 }
 
 /// The hosts of a file of hosts: one host per line, `#` starts a comment.
@@ -230,6 +231,27 @@ mod tests {
         assert!(normalise_host("localhost:5000/v2").is_err());
         assert!(normalise_host("  ").is_err());
         assert_eq!(normalise_host(" localhost:5000 ").unwrap(), "localhost:5000");
+    }
+
+    /// PodUtils/podvm#346: a host with a space or a `!` was taken, and
+    /// matched no reference. Each refusal is typed and names the host.
+    #[test]
+    fn a_host_is_a_name_or_an_address_with_an_optional_port() {
+        for h in ["localhost:5000", "reg.lan", "10.0.0.2:5000", "[::1]:5000", "[fe80::1]"] {
+            assert_eq!(normalise_host(h).unwrap(), h);
+        }
+        for h in ["reg lan", "reg!.lan", "::1", "reg.lan:99999", "reg..lan", "https://reg.lan/", "", "a/b"] {
+            let e = normalise_host(h).unwrap_err();
+            assert_eq!(e.class, pod_core::Class::Usage, "{h:?}: {e}");
+            let Some(Refusal::Host { host, why: _ }) = crate::refusal(&e) else {
+                panic!("{h:?}: not a typed refusal: {e}");
+            };
+            assert_eq!(host, h, "{e}");
+            assert!(e.to_string().starts_with("--insecure-registry takes a host"), "{e}");
+        }
+        // An IPv6 host that the policy takes is one that a reference names.
+        let r = crate::Reference::parse("[::1]:5000/team/app:1").unwrap();
+        assert_eq!(r.endpoint(), normalise_host("[::1]:5000").unwrap());
     }
 
     #[test]

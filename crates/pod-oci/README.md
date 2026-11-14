@@ -38,17 +38,17 @@ empty. It has no `unsafe` and no C of its own.
 
 | Item | What |
 | --- | --- |
-| `reference` | `Reference::parse` (docker's rules: `alpine` is `docker.io/library/alpine:latest`; `http://` is kept in `plain_http`, not refused), `endpoint`, `manifest_selector`, `display_repository`, `canonical_repository`; `DEFAULT_DOMAIN`, `DEFAULT_ENDPOINT`, `HUB_ALIASES`, `OFFICIAL_PREFIX`, `DEFAULT_TAG` |
+| `reference` | `Reference::parse` (docker's rules: `alpine` is `docker.io/library/alpine:latest`; `http://` is kept in `plain_http`, not refused; a domain is a DNS name, an IPv4 address or an IPv6 address in brackets, with an optional port from 1 to 65535), `endpoint`, `manifest_selector`, `display_repository`, `canonical_repository`; `DEFAULT_DOMAIN`, `DEFAULT_ENDPOINT`, `HUB_ALIASES`, `OFFICIAL_PREFIX`, `DEFAULT_TAG` |
 | `digest` | `Digest` (`parse`, `of`, `algorithm`, `hex`, `short`, `blob_path`), `Verifier` (`new`, `written`, `digest`, `finish(what, want, size)`), `SHA256`, `hex_of` |
-| `spec` | `Index`, `Manifest` (`stored_bytes`), `Descriptor` (`parsed_digest`), `Config`, `RunConfig`, `Platform` (of a descriptor), `Fetched::parse(bytes, header)`, `select_platform(&index, &want)`, `ACCEPT`, `MEDIA_OCI_INDEX`, `MEDIA_OCI_MANIFEST`, `MEDIA_DOCKER_LIST`, `MEDIA_DOCKER_MANIFEST`, `OS` |
+| `spec` | `Index`, `Manifest` (`stored_bytes`), `Descriptor` (`parsed_digest`, `is_attestation`), `Config`, `RunConfig`, `Platform` (of a descriptor, with `os_version`; `word`, `full_word`: `windows(10.0.17763.6532)/amd64`), `Fetched::parse(bytes, header)`, `select_platform(&index, &want)` (the list of `NoPlatform` names each platform one time, by `full_word`, and no attestation manifest), `REFERENCE_TYPE`, `ATTESTATION`, `ACCEPT`, `MEDIA_OCI_INDEX`, `MEDIA_OCI_MANIFEST`, `MEDIA_DOCKER_LIST`, `MEDIA_DOCKER_MANIFEST`, `OS` |
 | `platform` | `Platform` (`host`, `wanted(flag, defaults)`, `parse`, `matches`, `is_host`), `OS`, `HOST_ARCH`, `HOST_VARIANT` |
 | `credentials` | `Credential`, `Logins` (`lookup(host)`), `NoLogins`, `Files` (`new(home, runtime_dir)`, `store_login`, `remove_login`; a `Logins`), `lookup_in`, `store_login_in`, `remove_login_in`, `basic_header`, `parse_auth_json`, `upsert_auth_json`, `delete_auth_json`, `server_host`, `helper_login`, `helper_store`, `helper_erase` |
-| `transport` | `Policy` (`resolve(hosts, tls_verify)`, `with_tls_verify`, `with_insecure`, `is_insecure`, `verify`, `first`, `after_connect_failure`, `permits_explicit_http`, `disclosure`, `named`, `http_fallback`), `Decision`, `normalise_host`, `parse_hosts(text, label)` |
+| `transport` | `Policy` (`resolve(hosts, tls_verify)`, `with_tls_verify`, `with_insecure`, `is_insecure`, `verify`, `first`, `after_connect_failure`, `permits_explicit_http`, `disclosure`, `named`, `http_fallback`), `Decision`, `normalise_host` (the grammar of a domain of a reference; anything else is `Refusal::Host` with the reason), `parse_hosts(text, label)` |
 | `trust` | `host_bundle(var)` (the first file of `BUNDLE_VARS`, then of `BUNDLE_PATHS`, with a certificate), `HostBundle { path, announced_by, bytes }`, `roots(bundle)` (the bundle alone, else the compiled-in roots of `pod-tls`, with the reason in `source`) |
 | `registry` | `Client` (`new(http, verified)`, `with_policy`, `with_insecure`, `with_logins`, `with_events`, `with_file_ceiling`, `manifest`, `tags`, `blob`, `policy`), `FetchedManifest`, `Restart` (for `Vec<u8>` and `File`), `redact`, `MANIFEST_CEILING`, `TAGS_CEILING` |
 | `pull` | `resolve(&mut client, &reference, &platform)` to `Resolved { top, manifest_digest, manifest_bytes, manifest }`; `Blobs` (`stage`, `commit`, `discard`), `Job`, `Step`, `Report`, `fetch_parallel(&blobs, &jobs, workers, fetch)`, `over_ceiling`, `FETCH_WORKERS` |
 | `layout` | `OCI_LAYOUT`, `REF_ANNOTATION`, `MEDIA_UNTAR`, `allowed_entry`, `index_json` |
-| `error` | `Result`, `Refusal::{Digest, NoPlatform}` (`failure`), `refusal(&failure)` |
+| `error` | `Result`, `Refusal::{Digest, NoPlatform, Host}` (`failure`), `refusal(&failure)` |
 | `REDIRECTS` | the redirects of one request (5), which `pod-proxy` follows |
 
 Each failure is a `pod_core::Failure`. A request with no answer keeps the
@@ -65,7 +65,7 @@ plain HTTP, `Policy`; a
 digest or a document that breaks the protocol `Protocol`; schema 1, an
 index in an index or a scheme other than `Bearer` and `Basic`
 `Unsupported`; a registry named insecure with no trust for it `Config`.
-`Refusal::Digest` and `Refusal::NoPlatform` are the typed causes; a
+`Refusal::Digest`, `Refusal::NoPlatform` and `Refusal::Host` (`Usage`) are the typed causes; a
 caller reads them with `refusal(&failure)` (a pull of each tag skips a
 tag with `NoPlatform`).
 
@@ -126,6 +126,16 @@ run the registry fixture of `tests/common/registry.rs` (plain HTTP on
 loopback) and a stand-in CONNECT proxy; each test gives its own proxy
 variables to the client, and no test changes the environment of the
 process. No test reaches a registry on the internet.
+
+The grammar of a host (`host::tests`, `transport::tests`) takes a name,
+an IPv4 address and an IPv6 address in brackets with a port, and refuses
+a space, a `!`, an IPv6 address with no brackets, a port out of its range
+and an empty label, each with its reason; a `NoPlatform` list of an
+index of two Windows versions, a repeated platform and attestation
+manifests names each platform one time, with its `os.version`, and no
+attestation (`spec::tests`). The plants `oci-insecure-host-any-text`,
+`oci-offered-repeats-a-platform`, `oci-offered-names-an-attestation` and
+`oci-offered-drops-the-os-version` prove them.
 
 `tests/distribution.rs` (T-353): the client against the CNCF
 distribution registry on 127.0.0.1, with a configuration, certificates

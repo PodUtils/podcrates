@@ -1,0 +1,11 @@
+--- a/crates/pod-oci/src/transport.rs
++++ b/crates/pod-oci/src/transport.rs
+@@ -153,7 +153,7 @@
+     if h.contains('/') {
+         return refuse("contains a path".into());
+     }
+-    match crate::host::defect(h) {
++    match None::<String> {
+         Some(why) => refuse(why),
+         None => Ok(h.to_string()),
+     }
