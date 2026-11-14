@@ -120,7 +120,7 @@ impl DirModes {
 /// later layer that names a directory sets its mode again, and the pass
 /// after the last layer sets the mode of the image.
 ///
-/// Each directory opens with `O_NOFOLLOW` ([`crate::remove::open_closed`]):
+/// Each directory opens with `O_NOFOLLOW`, as the removal opens one:
 /// a symlink of the old tree is not followed out of it.
 pub fn open_tree(root: &Dir) -> Result<u64> {
     let mut changed = 0;
