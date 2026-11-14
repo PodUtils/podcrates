@@ -119,6 +119,14 @@ impl ArtifactStore {
         out
     }
 
+    /// The zip of the finalized artifact `name`, as the client uploaded it
+    /// (for a view of the run); `None` for a name that is not valid or an
+    /// artifact that is not finalized.
+    pub fn zip_of(&self, name: &str) -> Option<Vec<u8>> {
+        self.meta(name)?;
+        fs::read(self.at(name)?.join("artifact.zip")).ok()
+    }
+
     /// Each artifact of the run, by name, as `ListArtifacts` gives it: the
     /// signature of the download stays in the store.
     pub fn list(&self) -> Vec<Value> {

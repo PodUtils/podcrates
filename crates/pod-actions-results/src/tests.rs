@@ -117,3 +117,22 @@ fn the_time_is_rfc3339_in_utc() {
     assert_eq!(rfc3339(1_700_000_000), "2023-11-14T22:13:20Z");
     assert_eq!(rfc3339(951_782_400), "2000-02-29T00:00:00Z");
 }
+
+/// The zip of a finalized artifact, for a view of the run; nothing for an
+/// artifact that is not finalized or a name with a path part.
+#[test]
+fn the_zip_of_a_finalized_artifact_and_of_nothing_else() {
+    let (s, dir) = store(LIMIT);
+    let data = b"the zip of the client".to_vec();
+    assert_eq!(upload(&s, "data", &data).0, 200);
+    assert_eq!(s.zip_of("data"), Some(data));
+    let (status, _) = call(&s, "CreateArtifact", json!({ "name": "open", "version": 4 }));
+    assert_eq!(status, 200);
+    // A zip with no record: a finalize that stopped between its two renames.
+    fs::create_dir_all(dir.join("half")).unwrap();
+    fs::write(dir.join("half").join("artifact.zip"), b"half").unwrap();
+    for name in ["half", "open", "nosuch", "", "..", "../data", "data/artifact.zip", "/etc"] {
+        assert_eq!(s.zip_of(name), None, "{name:?}");
+    }
+    let _ = fs::remove_dir_all(&dir);
+}
