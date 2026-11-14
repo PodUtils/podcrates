@@ -6056,6 +6056,8 @@ to 8 is made and parsed back; 0, 1 and 9 are refused);
 `a_code_of_the_words_asked_for_pairs_at_a_broker_and_a_count_out_of_bounds_reaches_none`
 (6 words over the stand-in broker). The plant `wormhole-code-words-fixed`
 fails the test of the mailboxes (checked by hand: "left: 3, right: 5").
+`examples/static-probe/src/main.rs` calls `Code::make` with `WORDS` (the
+commit after 8c2d5ad; 8e70d5f left it with the old signature).
 
 # T-546: `pod-wormhole`: the stand-in mailbox behind the feature `standin`, for the tests of a consumer (PodUtils/podnet#535)
 
@@ -6185,8 +6187,7 @@ cargo run -q -p pod-services-watch -- --service magic-wormhole-transit
 
 ## Done
 
-2026-11-14, the commit after dc122c6 (the subject
-`pod-services: magic-wormhole's TCP transit relay`). The service
+2026-11-14, commit 8c2d5ad. The service
 `magic-wormhole-transit` (kind `transit`; `relay`: `tcp`,
 `transit.magic-wormhole.io`, 4001; no rank), the watch kind
 `transit-relay` (`crates/pod-services-watch/src/transit.rs`), the table of
