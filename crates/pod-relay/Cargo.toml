@@ -62,6 +62,11 @@ pod-quic = { workspace = true, optional = true }
 noq = { workspace = true, optional = true }
 rustls = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros"] }
+# The one-POST form of the HTTP road on one stream of HTTP/2 (http_road/one_h2.rs):
+# h2 and its types, pure Rust, which pod-ws takes already.
+h2 = { workspace = true }
+http = { workspace = true }
+bytes = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 rand = { workspace = true }
@@ -84,3 +89,8 @@ tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", 
 proptest = { version = "1", default-features = false, features = ["std"] }
 # The digests of the bytes that the tests carry.
 sha2 = { workspace = true }
+# The stand-in of TLS with `h2` (tests/http_road_one_h2.rs): its acceptor, and
+# the certificate of pod-tls tests/common/cert_for_test.rs, minted in pure Rust.
+tokio-rustls = { workspace = true }
+p256 = { workspace = true }
+rustls-pki-types = { workspace = true }

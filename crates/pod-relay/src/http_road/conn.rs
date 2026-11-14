@@ -24,6 +24,22 @@ pub type Dialing = Pin<Box<dyn Future<Output = Result<BoxIo, ConnectError>> + Se
 /// How to reach the relay host: TLS through the proxy, or a test's TCP.
 pub type Dial = Arc<dyn Fn() -> Dialing + Send + Sync>;
 
+/// A connection, and the protocol that its TLS chose by ALPN; none when it
+/// chose none, or with no TLS.
+pub struct Dialed {
+    pub io: BoxIo,
+    pub alpn: Option<Vec<u8>>,
+}
+/// A dial in progress that says the choice of ALPN.
+pub type DialingAlpn = Pin<Box<dyn Future<Output = Result<Dialed, ConnectError>> + Send>>;
+/// How to reach the relay host with `h2` and `http/1.1` offered by ALPN: the
+/// connection of the one-POST form ([`super::one`]).
+pub type DialAlpn = Arc<dyn Fn() -> DialingAlpn + Send + Sync>;
+/// The ALPN offer of [`DialAlpn`], HTTP/2 first.
+pub const ALPN_OFFER: &[&[u8]] = &[H2, b"http/1.1"];
+/// The ALPN of HTTP/2.
+pub const H2: &[u8] = b"h2";
+
 /// The most bytes of an answer that the road reads whole and drops.
 const DROPPED_MAX: usize = 64 * 1024;
 

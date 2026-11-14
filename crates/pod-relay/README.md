@@ -48,7 +48,7 @@ and prints nothing.
 | `token`, `cache` | `obtain`, `kept` (the token of the settings, the run or the cache, with no mint), `MintContext`, `Token`, `TokenError`, `token_key`, `remember`, `forget` (the tokens of a run); `Cache`, `Cached`, `valid_token` |
 | `open`, `failover`, `failures`, `gate` | the opener (`open`; `open_on_loopback` with the feature `plain-ws`), the modes of a failover, the record of each host's faults, the gate of each origin |
 | `rank`, `rank_list`, `rank_auto` | the rank of the hosts, the order of the default list, the rank in a session's background (`Races`) |
-| `h2_road`, `quic_road`, `http_road`, `cleartext`, `forward_layer` | the roads to a relay; `http_road`: `Form` (`Split`, `Serial`, `One`; `name`, `parse`), `Forms`, `client::{open, Road (with_forms, in_run), Opened}`, `one::{Learned, MARK_WAIT}` (`Context::http_road_learned`) |
+| `h2_road`, `quic_road`, `http_road`, `cleartext`, `forward_layer` | the roads to a relay; `http_road`: `Form` (`Split`, `Serial`, `One`; `name`, `parse`), `Forms`, `client::{open, Road (dial, dial_alpn, with_forms, in_run), Opened}`, `conn::{Dial, DialAlpn, Dialed, ALPN_OFFER, H2}`, `one::{Learned, MARK_WAIT}` (`Context::http_road_learned`) |
 | `health`, `addresses`, `keyed` | `/health` of a host; the addresses that carried a session; a request that the relay asks this client's key to sign |
 | `pair` (feature `pair`) | `PairContext`, `create`, `status`, `stop`, `revoke`, `halt`, `rotate`, the stores of a pair and of an operator's part, `newest` (the stored pair with the most time left, or the next one), `Pair::for_node` (a node's part of the name and the node token that its user gives, call C130) |
 | `reverse` (feature `pair`) | `run` (the node), `NodeConfig`, `NodeState`, `Handler`, `TcpHandler`, `UdpHandler`, `local::{Target, LocalHandler}`, `channel` and `ChannelHandler` (each session to a service of the process, T-150), `Layered`, `E2e`, `routes::Routes`, `operator` (`OperatorLimits::eof_idle`, `EOF_IDLE`), `serve`, `Settings` (`half_close`, `drain`), `HALF_CLOSE_IDLE`, `DRAIN`, `wire::{Wire, Door, Carrier}`, the codecs |
@@ -183,12 +183,27 @@ such form, the client takes the split form, and `Road::learned` keeps that
 for the host; `Road::in_run(&ctx)` makes it the run's. `Form::One` asked
 alone fails there with words that name the mark. The drop of the
 connection ends the session at the role, so the form needs no `close`.
-The form offers no ALPN, as the other forms: HTTP/1.1 alone (call C311).
-`tests/http_road_one.rs` (5 tests) runs it against the stand-in role,
-straight, through a hop that streams and through a hop that holds a body
-in chunks to its end (`tests/http_road_stand_in/hop.rs`); the plants
+The connection of the form offers `h2` and `http/1.1` by ALPN
+(`Road::dial_alpn`, T-560, PodUtils/podssh#241, call C358): where the host
+chooses `h2`, the form is one stream of HTTP/2, as podssh's role serves it
+since its commit `44bdf8a`: DATA up and down with no chunks, the request's
+`END_STREAM` the caller's end, the answer's the target's, a reset a cut.
+Where the host chooses `http/1.1` or nothing, the form goes on the same
+connection over HTTP/1.1; a role that asks for HTTP/1.1 on the stream
+(`HTTP_1_1_REQUIRED`) gets the form again on a connection that offers no
+ALPN. The other forms offer no ALPN. `tests/http_road_one.rs` (5 tests)
+runs it against the stand-in role, straight, through a hop that streams
+and through a hop that holds a body in chunks to its end
+(`tests/http_road_stand_in/hop.rs`); the plants
 `relay-t559-mark-unbounded`, `relay-t559-held-forgotten`,
 `relay-t559-no-last-chunk` and `relay-t559-cut-is-an-end`.
+`tests/http_road_one_h2.rs` (6 tests) runs `Road::tls` against a stand-in
+of TLS on the loopback whose HTTP/2 is h2's own server: 4 MiB each way on
+one stream, a reset as a cut, a host that chooses `http/1.1`, a role that
+asks for HTTP/1.1, a refusal of `403` with its words, and the split form
+after 2 s with no mark on the stream; the plants
+`relay-t560-no-h2-offer`, `relay-t560-reset-is-an-end` and
+`relay-t560-http1-not-asked-again`.
 
 ## Features
 
@@ -407,7 +422,8 @@ grants, the pairing by code at a stand-in mailbox, the limits of a pool's
 body, the failover, the forward opener over plain `ws://` to a stand-in
 relay (podnet's `bytes_go_through_a_local_relay`), the HTTP road against a
 stand-in role in memory (its invariants 6 to 10, and the one-POST form
-through a hop that streams and one that holds a body). The tests that reach the live relay or the public
+through a hop that streams and one that holds a body), and the one-POST
+form over HTTP/2 against a stand-in of TLS with `h2`. The tests that reach the live relay or the public
 mailboxes are `#[ignore]` (19). `live.yml` runs `pair_code_live` each
 Thursday, and one of the others by hand (its input `relay`; `until` for
 `reverse_drops_live`). It runs `pair_code` each day against
