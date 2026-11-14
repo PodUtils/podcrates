@@ -150,5 +150,6 @@ numbers. `TODO/RULES.md` gives the rules.
 | #145 | COORD-085: v0.42.0: the asks of each consumer (to all) | closed (podvm took it at `296a1fc1`, PodUtils/podvm#325; podrunner at `05ceaec`, PodUtils/podrunner#96; podssh at `7e457b4`, PodUtils/podssh#241; podnet at `654c0f1`, PodUtils/podnet#550, with T-574 and T-575) | T-486, T-107, T-541, T-542, T-543, T-544, T-549, T-552, T-553, T-556, T-559, T-563 |
 | #146 | COORD-086: the answer to PodUtils/podvm#326: a completion of two layers in pod-rootfs (to podvm) | open (until a tag carries the entry) | T-567 |
 | #147 | COORD-087: the answer to PodUtils/podvm#331, #335 and #337: three defects of text in pod-enter and pod-hostprobe (to podvm) | open (until a tag carries the entries) | T-568, T-569, T-570 |
+| #148 | COORD-088: the answer to PodUtils/podvm#339: a foreground holder in pod-supervise (T-573) (to podvm) | open (until a tag carries the entry) | T-573 |
 
 #79 to #81 are pull requests.
