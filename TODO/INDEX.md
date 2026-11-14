@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**483 entries: 135 open, 7 partial, 5 blocked, 336 done.**
+**483 entries: 133 open, 7 partial, 5 blocked, 338 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 17 | 3 | 0 | 90 | 110 |
-| P2 | 61 | 2 | 4 | 186 | 253 |
+| P1 | 16 | 3 | 0 | 91 | 110 |
+| P2 | 60 | 2 | 4 | 187 | 253 |
 | P3 | 57 | 2 | 1 | 58 | 118 |
-| **All** | 135 | 7 | 5 | 336 | 483 |
+| **All** | 133 | 7 | 5 | 338 | 483 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -528,5 +528,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-595](podvm.md) | P2 | M | M7 | feature | open | `pod-guest`: the provision waits for a ready guest in place of a fixed sleep (PodUtils/podvm#350, item 6) |
 | [T-596](podvm.md) | P3 | M | M7 | feature | open | `pod-guest`: a warm start from a saved state, with a fingerprint and a fallback to a cold boot (PodUtils/podvm#350, item 7) |
 | [T-597](podvm.md) | P2 | S | M6 | defect | done | `pod-extract`: the umask of the process changes the modes of the tree, and the sidecar does not record it |
-| [T-598](podvm.md) | P1 | S | M6 | defect | open | `pod-extract`: each directory has the mode of the image after the last layer, and a directory entry replaces a non-directory of an earlier layer (PodUtils/podvm#354) |
-| [T-599](podvm.md) | P2 | S | M6 | defect | open | `pod-extract`: the `./` member of an archive is not counted as an entry that the crate could not make (PodUtils/podvm#352) |
+| [T-598](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: each directory has the mode of the image after the last layer, and a directory entry replaces a non-directory of an earlier layer (PodUtils/podvm#354) |
+| [T-599](podvm.md) | P2 | S | M6 | defect | done | `pod-extract`: the `./` member of an archive is not counted as an entry that the crate could not make (PodUtils/podvm#352) |
