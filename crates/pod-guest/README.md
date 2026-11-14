@@ -62,7 +62,7 @@ skip where no `qemu-system-x86_64` is on `PATH` (the KVM one also where
 | `agent` | the file names of the protocol (`MARKER`, `GO`, `CMD`, `OUT`, `ERR`, `CODE`, `SETUP`, `READY`, `KEEP`, `AGENT_NAME`, `SETUP_NAME`, `AGENT`), `READY_TEXT`, `Mode`, `ready(&fat16)` (the agent wrote `WQREADY.TXT`), `AGENT_CMD`, `SETUP_CMD`, `command_file`, `command_from_argv`, `quote`, `Code`, `parse_code`, `nonce()`, `nonce_from(&mut Entropy)` |
 | `dos` | `argv`, `stage(&s, ...)`, `run(&plan, batch, token, timeout)`, `batch_from_argv`, `DEFAULT_MEM_MIB`, `CPUS`, `DEFAULT_TIMEOUT_SECS`, the boot waits `TO_MENU_MS`, `TO_PROCEED_MS`, `TO_PROMPT_MS`, `MBOX_DRIVE`, `BAT` |
 | `fat16` | `Fat16` (`new`, `with_oem`, `from_image`, `put`, `get`, `list`, `is_mailbox`, `image`), `format`, `format_with`, `oem_bytes`, the geometry (16 MiB behind an MBR at LBA 2048, 4 KiB clusters), `LABEL`, `OEM` |
-| `fetch` | `Ceiling { max_bytes, fsize }`, `check_declared`, `store(reader, declared, dest, want, ceiling)` (the sha256 in hex; a per-process partial file, removed on each refusal), `partial`, `Refusal`, `refusal(&failure)` |
+| `fetch` | `Ceiling { max_bytes, fsize }` (the ceiling of one entry), `check_declared`, `Origin` (`get(from) -> Reply`: the caller's HTTP client; `from > 0` sends `Range: bytes=FROM-`), `Reply { status, length, range, body }`, `Stream::new(reader, declared)` (an origin of one stream that does not resume), `store(&mut origin, dest, want, ceiling, tries)` (the sha256 in hex; see "The store"), `partial` (`NAME.part`), `Span`, `parse_content_range`, `Refusal` (`DeclaredTooLarge`, `OverCeiling`, `Digest`, `Size`, `Range`, `Status`, `Broken`, `Busy`; `keeps_part`), `refusal(&failure)` |
 | `qmp` | `Monitor` (`connect`, `call`, `keys`, `quit`), `send_key`, `is_event`, `response_ok`, `key(char)` (the `send-key` name and shift for a US layout), `HOLD_MS` |
 | `modloop` | `modules(reader, kernel_release, names) -> ModuleSet` (`release`, `modules`: each `Module { path, name, bytes }` in load order, `builtin`, `dep`, `size()`), `Fault`, `fault(&failure)`, `MAX_SET`, `RELEASE_DIRS` |
 | `squashfs` | `Image::open(reader)` (`superblock`, `root`, `inode(reference)`, `entries(&dir)`, `lookup(path)`, `file_at(path)`, `read(&file)`, `ids`, `export(number)`), `Superblock::parse`, `Compressor`, `Inode`, `Kind`, `Dir`, `File`, `Entry`, `listing(bytes)`, `Fault`, `fault(&failure)`, the ceilings `MAX_FILE`, `MAX_LISTING`, `MAX_LINK` |
@@ -70,8 +70,12 @@ skip where no `qemu-system-x86_64` is on `PATH` (the KVM one also where
 Each failure is a `pod_core::Failure` at `Stage::Host`. A failure of I/O
 keeps its cause, with the text `PATH: CAUSE`. The classes: `Timeout` (a run
 at its limit, with the cause `Timeout`; a QMP socket that did not appear),
-`Policy` (a ceiling of the store, with the cause `Refusal`), `Protocol` (a
-digest that is not the pinned one, a result that does not parse or has
+`Policy` (a ceiling of the store, with the cause `Refusal`), `TempFail` (a
+store that broke on each try, or whose partial file another store holds),
+`NotFound` and `Refused` (a status `404` or `410`, `401` or `403` of the
+origin of a store), `Protocol` (a
+digest that is not the pinned one, a size or a range of the origin that does
+not agree, another status, a result that does not parse or has
 another token, a guest that powered off with no result, a QMP refusal),
 `Usage` (a name that is not 8.3, an OEM name that does not fit, a character
 with no key, an empty argv), `Unavailable` (a tool that failed, a full
@@ -81,6 +85,34 @@ kind.
 The FAT16 reader does not trust the volume that the guest wrote: a cluster
 outside the volume, a loop in a chain, or a size that the chain does not
 hold reads as no file.
+
+## The store
+
+`fetch::store(&mut origin, dest, want, ceiling, tries)` writes the object
+of the caller's HTTP client to `dest`:
+
+* The bytes go to `NAME.part` beside `dest`, under an exclusive lock
+  (`Refusal::Busy` for a second store). `dest` gets its name only after
+  the size and the sha256 match.
+* A break (an error of the origin, a body that ends before its declared
+  size, a status `408`, `429` or `5xx`) takes one of `tries` and resumes
+  with `Range: bytes=N-`. A `206` must start at `N`, and its
+  `Content-Length` must be the size of its `Content-Range`
+  (`Refusal::Range`). A `200` starts the file again from zero. A `416`
+  with the size of the file (`bytes */SIZE`) is a whole file.
+* The size of the object comes from `Content-Length` of a `200` or the
+  total of a `Content-Range`. It must stay the same in each answer, and a
+  body must not pass it (`Refusal::Size`). The ceiling of the entry holds
+  for the declared size and for the bytes that come.
+* A partial file of an earlier call is resumed only when `want` pins the
+  digest: with no pin, a resume can join two versions of the object.
+* A refusal of the bytes (a ceiling, a size, a range, a digest) removes the
+  partial file. A break on the last try (`Refusal::Broken`, `TempFail`) and
+  another status keep it, so that a later call resumes. A partial file with
+  no byte goes.
+
+The caller adds the check of free disk, `RLIMIT_FSIZE` (in `Ceiling`) and
+the progress line.
 
 ## The modloop
 
@@ -148,7 +180,7 @@ Against podvm `crates/podvm-windows` at `6cd3442`:
 | [x] `agent` (the scripts, the names, `command_file`, `command_from_argv`, `quote`, `parse_code`, `nonce`) | the same; `nonce` gives a `Result` and takes `pod_core::entropy` |
 | [x] `dos` (the machine line, the stage, the boot keys, the typed lines, the poll) | the same; a line with a character that has no key is refused before the first key (podvm typed the part before it) |
 | [x] `fat16` | the same; `put` gives a `Failure`; the OEM name is a setting; a chain that leaves the volume, loops or does not hold its size reads as `None` (podvm read past the image and panicked) |
-| [x] `fetch` (`Ceiling`, `check_declared`, `store`, `FetchError`) | the same; `FetchError` is the cause `Refusal` of a `Failure` |
+| [x] `fetch` (`Ceiling`, `check_declared`, `store`, `FetchError`) | `FetchError` is the cause `Refusal` of a `Failure`; `store` takes an `Origin` (`Stream` for one reader) and resumes by Range (PodUtils/podvm#350) |
 | [x] `qmp` | the same; `keys` of `lib.rs` is `qmp::key` |
 | [x] The tests: 60 unit tests | 58 with their names; the tests of `base_cache` and `cap_status` stay in podvm; 7 new |
 
@@ -186,6 +218,17 @@ The tests with a fake emulator run `/bin/sh` and skip with a line
 the QMP handshake and a request, stops it and checks that no emulator
 stays; they skip as the text above says. `guest.yml` runs them on a runner with
 QEMU, each week and by hand (`docs/design.md`, section 9).
+
+The tests of the store (`src/fetch/tests/stand.rs`) run against the HTTP
+stand-in of `pod-testkit` on the loopback, with a small HTTP/1.1 client
+whose body is the rest of the connection, so that the store and not the
+client checks each size: a body that breaks once and resumes by Range, a
+partial file of an earlier call (pinned and not pinned), a `200` to a
+Range, a body past its `Content-Length`, a `206` from another offset, a
+`Content-Range` that disagrees with its `Content-Length`, an object whose
+size changes between two answers, a range over the ceiling, a `416` of a
+whole file, a `404` and a `503` on each try. They skip where the host has
+no loopback.
 
 The tests of the modloop build their images with the test writer of
 `src/squashfs/writer.rs` (stored metadata in blocks of a chosen size, so

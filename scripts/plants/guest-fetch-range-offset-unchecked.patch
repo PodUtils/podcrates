@@ -1,0 +1,13 @@
+diff --git a/crates/pod-guest/src/fetch.rs b/crates/pod-guest/src/fetch.rs
+index 1f5596e..c88a9ca 100644
+--- a/crates/pod-guest/src/fetch.rs
++++ b/crates/pod-guest/src/fetch.rs
+@@ -327,7 +327,7 @@ fn transfer<O: Origin>(
+             }
+             206 => {
+                 let span = reply.range.as_deref().and_then(parse_content_range);
+-                let Some(Span { start, end: Some(last_byte), total }) = span.filter(|s| s.start == part.have) else {
++                let Some(Span { start, end: Some(last_byte), total }) = span else {
+                     let got = reply.range.unwrap_or_default();
+                     return Err(refuse(Refusal::Range { from: part.have, got }.failure()));
+                 };
