@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-results/src/cache/sweep.rs b/crates/pod-actions-results/src/cache/sweep.rs
+--- a/crates/pod-actions-results/src/cache/sweep.rs
++++ b/crates/pod-actions-results/src/cache/sweep.rs
+@@ -36,7 +36,7 @@
+                 continue;
+             }
+             let path = e.path();
+-            if changed(&path).is_some_and(|t| t < limit) && fs::remove_dir_all(&path).is_ok() {
++            if changed(&path).is_some_and(|t| t < limit && t > now) && fs::remove_dir_all(&path).is_ok() {
+                 removed += 1;
+             }
+         }

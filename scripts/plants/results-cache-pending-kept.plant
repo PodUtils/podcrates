@@ -1,0 +1,7 @@
+# The sweep of the cache removes no upload: the directory of an upload of a
+# crashed run stays under .pending (T-600).
+ENTRY=T-600
+GROUP=actions
+EXPECT='a stale upload is removed'
+RUN='cargo test -p pod-actions-results --all-features --test cache'
+LIMIT=900

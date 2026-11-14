@@ -80,6 +80,7 @@ body of up to 16 MiB. The server gives `base` to the job as
 | `CacheStore::with_scopes(scopes)` | the scopes of the run: a new entry goes into the first; a lookup reads each in order |
 | `CacheStore::answer(method, path, body, range, base)` | the `Answer` to a request of the CacheService or of a blob of the cache, or `None`; `range` is the `Range` header of a download |
 | `CacheStore::route(method, path, body, range, base)`, `cache::Routed` | the same as `(status, bytes, headers)` in memory (podrunner's form, its `cache::Answer`) |
+| `CacheStore::sweep(now)`, `cache::PENDING_AGE` | remove each upload under `.pending` that the store does not hold and that did not change for a day before `now`; `new` calls it |
 | `CacheStore::entries`, `dir` | each entry, newest first, with its signature; the directory |
 | `cache::SERVICE`, `cache::BLOBS`, `cache::LIMIT` | the path of each call and of each blob of the cache; the default limit, 10 GB as GitHub keeps for a repository |
 | `token::backend_ids(token)`, `BackendIds { run, job }` | the run and job ids of the scope `Actions.Results:RUN:JOB` in the claim `scp` of a runtime token, read as the client reads them (no check of the signature) |
@@ -141,6 +142,11 @@ body of up to 16 MiB. The server gives `base` to the job as
   (a block id of at most 88 bytes) and `comp=blocklist` (joined in parts).
   The finalize reads the blob in parts and checks its size. The record
   goes in last, by a rename.
+* An upload that is not finalized is in `DIR/.pending/RANDOM/`. A store
+  that opens removes each upload that it does not hold and whose
+  directory, blocks and blob did not change for `PENDING_AGE` (one day):
+  the upload of a crashed run. An upload of another store over the same
+  directory changes more often, and stays.
 * The limit counts the bytes of the uploads that are not finalized (413
   over it), and the entries: after a finalize, the oldest entries go until
   the store is within the limit.
@@ -253,7 +259,7 @@ Differences of the cache from the source (calls C379 to C382):
 `cargo test -p pod-actions-results`: the 5 tests of the artifacts of
 podrunner (`src/tests.rs`), the 6 tests of the cache of podrunner
 (`src/cache/tests.rs`), 15 tests of the public API of the artifacts
-(`tests/store.rs`) and 6 of the cache (`tests/cache.rs`). The plants of
+(`tests/store.rs`) and 8 of the cache (`tests/cache.rs`). The plants of
 the group `actions`: `results-sha256-unchecked` (the finalize
 takes any digest), `results-no-limit` (the run has no limit),
 `results-sig-length-only` (the compare of a signature reads the length
@@ -267,7 +273,7 @@ and `results-replace-ignored` (a rerun keeps the artifact),
 `results-cache-no-limit` (the limit counts one body),
 `results-cache-names-joined` (the digest of an entry joins its names) and
 `results-cache-record-anywhere` (a record counts in any directory)
-(T-588).
+(T-588); `results-cache-pending-kept` (the sweep removes nothing) (T-600).
 
 ## Sources
 

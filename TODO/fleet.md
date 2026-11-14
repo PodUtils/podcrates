@@ -2544,6 +2544,39 @@ cargo test -p pod-actions-results --all-features
 - Plants, each caught by hand: `results-replace-ignored` (`already_exists`), `results-cache-scope-ignored`, `results-cache-range-whole` and `results-cache-no-eviction` (their tests of podrunner fail), `results-cache-entry-id-fixed` (`two runs over one store give two ids`), `results-cache-no-limit` (`the blocks of an upload hold the limit`), `results-cache-names-joined` (`the key and the version are not joined`), `results-cache-record-anywhere` (`the copy names another directory`); `results-digest-wrapped` and `results-sig-length-only` are still caught. `sh scripts/plant-each.sh --apply`: 0 stale.
 - clippy of the crate and of `static-probe`, rustfmt and `cargo doc` with `-D warnings`: clean; `check-size.py`: 0 faults; `check-sources.py pod-actions-results`: 4 files, 0 changes at `872b43f`. T-566 (the fuzz target of the crate) is open: no fuzz target to change.
 
+# T-600: `pod-actions-results`: an upload directory of a crashed run stays under `.pending` of the cache
+
+**Source:** T-588 (a finding of its work).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The cache store of `pod-actions-results` stays across runs. Each upload that is not finalized has a directory `DIR/.pending/RANDOM/` with its blocks and its blob. A run that crashes, or a client that never finalizes, leaves that directory, and no later store removes it: the disk use grows with no bound. A store cannot remove each directory of `.pending` when it opens, because two stores (two runs) can share one directory, and the other store can have an upload in progress.
+
+## Premise
+
+- Read: `crates/pod-actions-results/src/cache.rs`, `src/cache/service.rs`, `src/cache/blob.rs` after T-588.
+- Not measured: how long a real upload of `actions/cache@v4` takes; a large cache of 10 GB in blocks of 8 MiB takes minutes, not hours.
+
+## Approach
+
+`CacheStore::sweep(now)` removes each directory of `.pending` that the store does not hold and whose newest time of change (the directory, its `blocks` and its `blob`) is older than `PENDING_AGE` (one day) before `now`. `CacheStore::new` and `with_entropy` call it with the time of the system. A test gives `sweep` a time in the future, and, on Unix, sets the time of a directory back to prove the sweep of `new`. A plant takes the age away.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-results --all-features --test cache
+sh scripts/plant-each.sh results-cache-pending-kept
+```
+
+## Done
+
+2026-11-14. The commit that names T-600. `cache::PENDING_AGE` (one day) and `CacheStore::sweep(now)`: it removes each upload of `DIR/.pending/` that the store does not hold and whose directory, `blocks` and `blob` did not change for `PENDING_AGE`; `new` and `with_entropy` call it with the time of the system (call C431). `cargo test -p pod-actions-results --all-features`: 11 unit tests, 15 tests of `tests/store.rs`, 8 tests of `tests/cache.rs` (`an_upload_that_no_run_finalizes_goes_after_a_day` and, on Unix, `a_new_store_removes_the_stale_uploads_of_a_crashed_run` are new); passed. The plant `results-cache-pending-kept` is caught by hand (`a stale upload is removed`); `sh scripts/plant-each.sh --apply`: 0 stale. clippy of the crate, rustfmt and `cargo doc` with `-D warnings`: clean.
+
 # T-572: `pod-actions-workflow`: the filters of `on:` (types, branches, tags, paths and their -ignore forms) (PodUtils/podrunner#97)
 
 **Source:** PodUtils/podrunner#97 (COORD-037 of podrunner).

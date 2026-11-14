@@ -27,6 +27,9 @@ use crate::wire::{Answer, hex, ok, text};
 
 mod blob;
 mod service;
+mod sweep;
+
+pub use sweep::PENDING_AGE;
 
 /// The path of each call of the service: `SERVICE` and the method.
 pub const SERVICE: &str = "/twirp/github.actions.results.api.v1.CacheService/";
@@ -67,7 +70,7 @@ struct Inner {
 /// The store keeps each entry in `DIR/entries/HASH/` (`blob` and
 /// `entry.json`), where `HASH` is a digest of the scope, the key and the
 /// version, so no key is a path. An upload that is not finalized is in
-/// `DIR/.pending/`.
+/// `DIR/.pending/`, until a sweep removes it.
 pub struct CacheStore {
     dir: PathBuf,
     limit: u64,
@@ -101,12 +104,15 @@ impl CacheStore {
 
     /// A store with the random source `entropy`. When the source fails,
     /// `CreateCacheEntry` and the finalize fail: a signature or an id is
-    /// never made of weaker bytes.
+    /// never made of weaker bytes. An upload of an earlier run that did not
+    /// change for [`PENDING_AGE`] goes ([`CacheStore::sweep`]).
     pub fn with_entropy(dir: &Path, limit: u64, entropy: impl Entropy + Send + 'static) -> io::Result<CacheStore> {
         fs::create_dir_all(dir.join(".pending"))?;
         fs::create_dir_all(dir.join("entries"))?;
         let inner = Inner { next: 0, pending: BTreeMap::new(), entropy: Box::new(entropy) };
-        Ok(CacheStore { dir: dir.to_path_buf(), limit, scopes: vec![String::new()], inner: Mutex::new(inner) })
+        let store = CacheStore { dir: dir.to_path_buf(), limit, scopes: vec![String::new()], inner: Mutex::new(inner) };
+        store.sweep(SystemTime::now());
+        Ok(store)
     }
 
     /// The scopes of the run: a new entry goes into the first; a lookup

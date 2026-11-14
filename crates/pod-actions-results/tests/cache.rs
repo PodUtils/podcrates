@@ -6,8 +6,9 @@ use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::time::{Duration, SystemTime};
 
-use pod_actions_results::cache::{BLOBS, CacheStore, LIMIT, SERVICE};
+use pod_actions_results::cache::{BLOBS, CacheStore, LIMIT, PENDING_AGE, SERVICE};
 use pod_actions_results::{CONTENT_BLOB, Payload};
 use pod_core::entropy::{Entropy, NoRandom};
 use serde_json::{Value, json};
@@ -191,4 +192,41 @@ fn a_record_in_the_directory_of_another_entry_is_not_read() {
     assert_eq!(s.entries().len(), 1, "the copy names another directory");
     let (status, body, _) = s.route("GET", &download_url(&s, "k"), b"", None, BASE).unwrap();
     assert_eq!((status, body.as_slice()), (200, &b"kept"[..]));
+}
+
+#[test]
+fn an_upload_that_no_run_finalizes_goes_after_a_day() {
+    let t = Scratch::new("sweep");
+    let s = CacheStore::new(&t.0, LIMIT).unwrap();
+    let up = create(&s, "held");
+    assert_eq!(s.route("PUT", &format!("{up}&comp=block&blockid=YQ=="), b"1", None, BASE).unwrap().0, 201);
+    let pending = t.0.join(".pending");
+    let crashed = pending.join("crashed");
+    fs::create_dir_all(crashed.join("blocks")).unwrap();
+    fs::write(crashed.join("blob"), b"left").unwrap();
+    let now = SystemTime::now();
+    assert_eq!(s.sweep(now), 0, "a fresh upload of another run stays");
+    assert_eq!(s.sweep(now + PENDING_AGE - Duration::from_secs(60)), 0, "younger than a day stays");
+    assert_eq!(s.sweep(now + PENDING_AGE + Duration::from_secs(60)), 1, "a stale upload is removed");
+    assert!(!crashed.exists());
+    assert_eq!(fs::read_dir(&pending).unwrap().count(), 1, "the upload that the store holds stays");
+    assert_eq!(s.route("PUT", &format!("{up}&comp=block&blockid=Yg=="), b"2", None, BASE).unwrap().0, 201);
+}
+
+/// The sweep of `new`: a directory of an upload with a time of a day and
+/// more ago goes. Unix only: Windows opens no directory as a file.
+#[cfg(unix)]
+#[test]
+fn a_new_store_removes_the_stale_uploads_of_a_crashed_run() {
+    let t = Scratch::new("sweep-new");
+    drop(CacheStore::new(&t.0, LIMIT).unwrap());
+    let pending = t.0.join(".pending");
+    let (old, fresh) = (pending.join("old"), pending.join("fresh"));
+    fs::create_dir_all(&old).unwrap();
+    fs::create_dir_all(&fresh).unwrap();
+    let past = SystemTime::now() - PENDING_AGE - Duration::from_secs(3600);
+    fs::File::open(&old).unwrap().set_modified(past).unwrap();
+    drop(CacheStore::new(&t.0, LIMIT).unwrap());
+    assert!(!old.exists(), "a stale upload is removed at the open");
+    assert!(fresh.exists());
 }
