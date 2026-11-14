@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 449 entries: 116 open, 7 partial, 6 blocked, 320 done.
+`TODO/INDEX.md` holds 450 entries: 117 open, 7 partial, 6 blocked, 320 done.
 
 ## State
 
@@ -77,7 +77,8 @@ First: `v0.42.0` with the asks on `main` (#141, #142, PodUtils/podssh#234,
 for podnet (item 3c): T-526, T-494, T-500 and T-525. Then the items
 below, in order.
 
-1. **The defects and asks of the consumers:** T-558 (`AF_PACKET`
+1. **The defects and asks of the consumers:** T-566 (a fuzz target of
+   `pod-actions-results`); T-558 (`AF_PACKET`
    in the rule of `pod-hold`); T-557 (`KeyRefused` on the listener of
    four carriers); T-540 (a test of the
    termios mode of `pod-term` against a kernel pty); T-550, T-551 and

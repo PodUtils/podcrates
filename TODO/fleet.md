@@ -2444,3 +2444,30 @@ python3 -I scripts/check-design-paths.py
 ## Done
 
 2026-11-14. The import commit (podrunner at `0ff670d`, the blobs of `SOURCES`) and the commit `pod-actions-results: the ArtifactService of the results API and its blob routes, one store for each run`. `ArtifactStore` (`new`, `with_entropy`, `answer`, `route`, `list`, `dir`, `used`), `Answer` and `Payload`, `SERVICE`, `BLOBS`, `LIMIT`, `token::{backend_ids, results_scope}` (calls C325 to C329). `cargo test -p pod-actions-results --all-features`: 5 tests of podrunner with their names, 14 tests of the public API. Each plant fails its test: `results-sha256-unchecked` (`a_wrong_digest_or_size_fails_the_finalize`), `results-no-limit` (`an_upload_needs_its_signature_and_the_run_has_a_limit`), `results-sig-length-only` (`the_signature_is_compared_in_full`), `results-digest-wrapped` ("a wrapper is a plain string"), `results-name-escapes` (`a_name_outside_the_store_is_refused`); `sh scripts/plant-each.sh --apply`: 0 stale. clippy of the crate and `cargo fmt --all --check`: clean. `scripts/check-probe.py --no-tree`: 39 crates, 0 faults; `scripts/check-publish-order.py`: 41 crates, no cycle; `scripts/check-design-paths.py`: ok; `scripts/check-size.py`: 0 faults; `scripts/check-sources.py pod-actions-results`: 0 changes at `8088f68` (the file differs from `0ff670d` only in the visibility of its helpers); `scripts/agent/check-windows.sh` and `scripts/agent/check-macos.sh`: 0 faults each. `scripts/check-crates-io-names.py`: 95 names, 1 fault, `pod-actions-results` missing: the owner reserves it (TODO/PROGRESS.md, "Owner actions").
+
+# T-566: `pod-actions-results`: a fuzz target of the input of a stranger
+
+**Source:** T-565 (a finding of its work).
+**Category:** chore
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod-actions-results` reads input of the client of a run: the query of a signed URL, the XML of a block list, the JSON bodies of the twirp calls and the claims of `ACTIONS_RUNTIME_TOKEN`. No fuzz target reads them; the other actions crates have one (`fuzz/src/targets/actions.rs`).
+
+## Premise
+
+- Read: the report of T-565; `crates/pod-actions-results/src/wire.rs`, `src/token.rs`, `src/blob.rs`.
+
+## Approach
+
+A feature `fuzzing` that gives `query`, `block_list` and `backend_ids`, and a target that feeds them bytes and runs one `ArtifactStore::answer` over a scratch store. List it in `fuzz/README.md` and in the seeds test; the feature goes in ALLOWED of `scripts/check-probe.py`.
+
+## Prove
+
+```sh
+cargo test --manifest-path fuzz/Cargo.toml --lib
+```

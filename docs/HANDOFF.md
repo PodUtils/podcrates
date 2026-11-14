@@ -12,26 +12,21 @@ is done. Git and the record keep finished work.
 1. Start the watcher (`sh scripts/agent/watch-org.sh 90` under the Monitor
    tool) and read the open COORD issues `(to podcrates)`.
 2. Read the answer of podnet on #139 (the profile of `kcp`, T-526) and the
-   takes of `v0.41.0` on its hand-off issue #143.
-3. Merge the local branches w-worm545 (`pod-wormhole` for podnet, #141)
-   and w-enter486 (T-486 and T-107 for podvm, #142) when their agents
-   finish. Then cut `v0.42.0` and answer #141, #142,
-   PodUtils/podssh#234, #236, #238 and PodUtils/podrunner#91 with its
-   tag. Then the work order of `TODO/PROGRESS.md`.
+   takes of `v0.42.0` on its hand-off issue #145.
+3. Cut `v0.43.0` with T-561, T-562 (#144, PodUtils/podnet#547), T-564
+   and T-565 (PodUtils/podrunner#94, #95), and answer them with its tag.
+   Then the work order of `TODO/PROGRESS.md`.
 
 ## In flight
 
-- The last release: `v0.40.0` at `1335e9a` (ci 43467923338, adoption
-  43467923371, release 43474412563; the hand-off #140, COORD-080): the
-  poll, quic, udp, dns and icmp carriers of `pod-link`, `cpu_s` and
-  `peak_rss_mib` of `pod-job`, the forms of the file hosts. Each consumer
-  took it (#140, closed). `v0.41.0` at `bb39935` (ci 43538302195,
-  adoption 43538302204, release 43541097888; the hand-off #143,
-  COORD-083): the termios mode of `pod-term` (T-539), four tox relays
-  (T-537, T-555).
-- On `main` for `v0.42.0`: T-541 to T-544, T-549, T-552, T-553, T-556.
-  In work on local branches: the asks of `pod-wormhole` for podnet
-  (w-worm545, #141); T-486 and T-107 (w-enter486, for podvm, #142).
+- The last release: `v0.42.0` at `b6983fc` (ci 43551994302, adoption
+  43551994287, release 43554090429; the hand-off #145, COORD-085): the
+  asks of each consumer (#141 and #142, closed). `v0.41.0` at `bb39935`:
+  each consumer took it (#143, closed).
+- On `main` for `v0.43.0`: T-561 and T-562 (`pod-wg`, #144), T-564 and
+  T-565 (the new crates `pod-actions-store` and `pod-actions-results`).
+  The owner reserves their names on crates.io ("Owner actions" of
+  `TODO/PROGRESS.md`).
 - Each agent of this session is merged into `main`. The open threads of
   this session:
   - T-539 is in `v0.41.0`; T-540 (open) tests it against a kernel pty.
