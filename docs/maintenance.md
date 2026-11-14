@@ -288,7 +288,11 @@ fourth argument of the script names the list when it is elsewhere.
   `CARGO_TARGET_DIR` in the scratchpad: an artifact of a worktree holds
   its absolute paths (`include_str!` of `pod-services`,
   `CARGO_MANIFEST_DIR` of `pod-job`), and a shared `target/` fails in the
-  main checkout after the worktree goes.
+  main checkout after the worktree goes. Also, cargo hashes a path crate
+  by its path relative to the workspace root: two trees in one target dir
+  give their artifacts the same names, and a build of one tree takes the
+  artifact of the other as fresh. A build of `main` then checks the code
+  of a worktree. Remove the target dir of an agent when it finishes.
 * Each version bump makes a new copy of each workspace crate in
   `target/debug`. Before the check of a bump, remove `target/debug` when
   `df -h /` shows less than 25 GB free.
