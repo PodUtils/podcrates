@@ -125,6 +125,29 @@ moved, fails. Each scenario has a counter that must move (`forwarded`), so
 a flushed policy chain fails, also where the guest measured what the lab
 expects. The plant `netlab-judge-ignores-counters` proves it.
 
+## The refusals of a knob
+
+A value out of its range names the value as the flag wrote it, with the
+unit of the knob, and the range in the same unit: `loss 101% is out of
+its range 0.01% to 20%`, `tcp port 70000 is out of its range 1 to
+65535`, `mtu 1000 bytes is out of its range 1280 bytes to 1499 bytes`. A
+knob set made in code names the value that it holds. A negative number
+has its own text: `flag --delay: the value -5 is negative; give 1 ms to
+10000 ms`. A word that is not a value names the value and lists the
+words. A word that is not a flag where a flag goes is refused as such.
+The text of `--cgnat` names both NATs that it takes: `cgnat needs a NAT of
+ipv4 (--nat nat44 or --nat both)`.
+
+## The differences from sand-net (PodUtils/podvm#347)
+
+| Difference | State |
+| --- | --- |
+| 12 scenarios: `vpn-full`, `vpn-split`, `vpn-v6-only`, `vpn-udp-blocked`, `vpn-bypass-policy`, `vpn-leak`, `vpn-killswitch`, `warp-uplink`, `warp-v6-only`, `warp-no-udp`, `warp-443-only`, `corp-proxy-pod` | Not here: each one needs a knob of PodUtils/podvm#180 (`--vpn`, `--killswitch`, `--vpn-down`, `--uplink warp`, `--cfrs-pod`) and a WireGuard server in the world, a live uplink or `podnet pod`. They are not offline labs: T-348. |
+| `--icmp allow` | Done: `allow` is a word for `pass`. `Knobs::flags` writes `pass`. |
+| `--loss` stops at 20 % | Kept (call C146): past 20 % a TCP probe does not end in its time limit, so the verdict of a probe could not be derived. Issue 178 gives no upper bound of sand-net. |
+| `--nat64` alone has no DNS64 | Kept: issue 178 gives DNS64 as a flag of its own (`--dns64`); `nat64-dns64` sets both. |
+| The knob sets of `symmetric-nat`, `pmtu-ok` and `pmtu-blackhole` (MTU 1400), `cgnat` and `cgnat-dnat` (NAT on both families), `nat64-dns64` and `nat64-web` (NAT66 on), `locked-443` and `corp-proxy` (DNS on) | Kept until a source of sand-net's values exists: issue 178 gives the knob sets of `lossy-mobile` and `satellite` only, sand-net's source is gone, and each other set comes from the name of its scenario (call C145). The QA report of podvm names other values with no source (T-586). |
+
 ## Parity with issue 178
 
 Each line is done, or names its entry.
@@ -139,7 +162,7 @@ none|nat44|nat66|both`, `--nat-flags persistent|random|fully-random`,
 `--policy open|web|web-nodns|only443|blackout`, `--tcp`, `--udp` (a
 list of ports; `none` is the empty list, and a missing list is empty),
 `--no-dns`, `--broken v4-drop|v4-reject|v6-drop|v6-reject`, `--mtu
-1280..1499`, `--icmp drop`, `--delay`, `--loss`, `--rate` (netem on the
+1280..1499`, `--icmp pass|allow|drop`, `--delay`, `--loss`, `--rate` (netem on the
 router), `--dnat` (2222 to 2200), `--hairpin`, `--ping allow|drop`,
 `--nat64` (tayga, 2001:db8:64::/96, pool 192.168.255.0/24), `--cgnat` (a
 fourth namespace, 100.64.0.2): done, each with its flag. `--dns64` of the
@@ -226,3 +249,9 @@ wrong answer fail). `cargo test -p pod-netlab --test nft -- --ignored`
 loads the ruleset of each scenario into a real nft in a new user and
 network namespace and reads its counters back. The fuzz target
 `netlab_counters` reads the text of the counters.
+
+`tests/knobs.rs` holds the texts of the refusals (PodUtils/podvm#347):
+each knob out of its range with the value as written, its unit and its
+range; a negative number; a bad word with the value; a stray word; the
+text of `--cgnat` against the scenario `cgnat`; `--icmp allow`. The plant
+`netlab-range-text-no-unit` proves them.

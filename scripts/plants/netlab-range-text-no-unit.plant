@@ -1,0 +1,7 @@
+# A refusal of a range gives the value of a flag with no unit, as the
+# old text of --loss did: "mtu 99999 is out of its range" (T-586).
+ENTRY=T-586
+GROUP=netlab
+EXPECT='mtu 99999 is out of its range'
+RUN='cargo test -p pod-netlab --all-features --test knobs a_refused_value_names_the_range_or_the_words'
+LIMIT=1800

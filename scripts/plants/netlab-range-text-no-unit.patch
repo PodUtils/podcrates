@@ -1,0 +1,11 @@
+--- a/crates/pod-netlab/src/knobs/check.rs
++++ b/crates/pod-netlab/src/knobs/check.rs
+@@ -136,7 +136,7 @@
+     pub(super) fn refuse(&self, written: &str) -> KnobError {
+         KnobError::OutOfRange {
+             knob: self.knob,
+-            value: format!("{written}{}", self.unit),
++            value: written.to_string(),
+             min: (self.text)(self.min),
+             max: (self.text)(self.max),
+         }
