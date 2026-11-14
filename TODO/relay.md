@@ -6294,7 +6294,7 @@ sh scripts/plant-each.sh link-key-refused-untyped link-key-refused-alert-untyped
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6322,6 +6322,28 @@ T-542 gives `CarrierErrorKind::KeyRefused` to the end whose key the peer refused
 ```sh
 cargo test -p pod-link --all-features
 ```
+
+## Done
+
+2026-11-14, commit 3305394. The listener of each carrier that pins keys
+now gets `KeyRefused` (77) when the dialer refused its key. dns, icmp
+and udp: the alert of the dialer was lost, not late: tokio-rustls makes
+one last vectored write after a failed handshake, and `ArqStream` and
+`KcpStream` wrote its first buffer only (the change-cipher-spec, 6
+bytes). Both now write each buffer of a vectored write (calls C391,
+C392). ws: the new `pod_ws::serve::serve_reporting` gives each failed
+TLS handshake to the caller, and the ws listener gives the refusal of
+its key as an error of one accept (call C390).
+
+`cargo test -p pod-link -p pod-ws --all-features`: pod-link 188 passed,
+2 ignored; pod-ws passes. `the_dialer_refuses_a_listener_of_another_key_and_names_it`
+of tests/dns.rs, tests/icmp.rs (new), tests/udp.rs and tests/ws.rs
+checks the listener; each fails on the old code and passed 20 runs of
+20. Plants `link-arq-vectored-first-only`, `link-kcp-vectored-first-only`
+("right: KeyRefused"), `link-ws-key-refused-skipped` and
+`ws-serve-tls-failure-unreported` ("the refusal in time"): each fails
+its test.
+
 
 # T-558: `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open
 
