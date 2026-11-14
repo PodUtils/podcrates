@@ -1,0 +1,7 @@
+# The `workflows` filter of `workflow_run` lets each workflow through
+# (T-577).
+ENTRY=T-577
+GROUP=actions
+EXPECT='workflow_run_takes_the_workflows_that_it_names'
+RUN='cargo test -p pod-actions-workflow --test on'
+LIMIT=900

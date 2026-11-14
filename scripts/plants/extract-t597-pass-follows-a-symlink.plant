@@ -1,0 +1,7 @@
+# The permission pass sets the mode by name with fchmodat, which follows a
+# symlink that a later entry put at the name to a file of the host (T-597).
+ENTRY=T-597
+GROUP=extract
+EXPECT='followed the symlink to a file of the host'
+RUN='cargo test -p pod-extract --all-features --lib drive::umask'
+LIMIT=1800

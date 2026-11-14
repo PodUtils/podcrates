@@ -1,0 +1,10 @@
+--- a/crates/pod-hold/src/filter.rs
++++ b/crates/pod-hold/src/filter.rs
+@@ -75,6 +75,7 @@
+     /// the protocols that it does not give.
+     pub fn allow_raw(mut self) -> Calls {
+         self.deny_raw = false;
++        self.deny_ping = false;
+         self
+     }
+ 

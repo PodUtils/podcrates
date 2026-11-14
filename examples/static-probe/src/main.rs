@@ -164,10 +164,12 @@ fn hostprobe() -> Option<String> {
 fn supervise() -> Option<String> {
     let s = pod_supervise::Settings::new(std::env::temp_dir().join("static-probe-supervise"));
     Some(format!(
-        "pod-supervise: name {}, {} records",
+        "pod-supervise: name {}, {} records, a hold of no record: {}",
         pod_supervise::generated_name(&s, &pod_supervise::new_id()),
         pod_supervise::table::read::<pod_supervise::table::Any>(&s)
-            .map_or_else(|e| e.to_string(), |t| t.containers.len().to_string())
+            .map_or_else(|e| e.to_string(), |t| t.containers.len().to_string()),
+        pod_supervise::foreground::<pod_supervise::table::Any>(&s, "static-probe-none", 1)
+            .map_or_else(|e| format!("{:?}", e.class), |h| h.id().to_string())
     ))
 }
 

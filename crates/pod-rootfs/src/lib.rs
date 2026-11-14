@@ -130,7 +130,8 @@ pub struct Settings {
     /// puts back the original of each source that an earlier run changed.
     pub source_fixup: bool,
     /// Append the host bundle to the trust store of the image, when a
-    /// variable named the bundle.
+    /// variable named the bundle, and write it into an image that has no
+    /// bundle. When false, the crate writes neither.
     pub host_cas: bool,
     /// The caller runs the [`Step`]s. When false, a fixup that needs a
     /// command is not done, and its row says what the payload does not get.

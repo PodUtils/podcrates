@@ -28,3 +28,9 @@ harness = false
 [[test]]
 name = "tree"
 harness = false
+
+# A foreground hold: the verbs on a payload that the test waits for. No
+# libtest, for the reason of `lifecycle`.
+[[test]]
+name = "foreground"
+harness = false

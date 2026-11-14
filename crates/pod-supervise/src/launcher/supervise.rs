@@ -73,22 +73,12 @@ where
         }
     };
 
-    // The control socket. A stale one of a launcher that was killed goes
-    // first: nothing listens on it, and it would make `bind` fail for a
-    // container that starts again.
+    // The control socket.
     let ctl_path = table::control_path(s, &container.id);
-    let _ = std::fs::remove_file(&ctl_path);
-    let (_ctl_dir, bind_path) = match table::control_via_fd(s, &container.id) {
-        Ok(x) => x,
-        Err(e) => {
-            say(&format!("err {e}"));
-            return 1;
-        }
-    };
-    let listener = match UnixListener::bind(&bind_path) {
+    let listener = match listen(s, &container.id) {
         Ok(l) => l,
         Err(e) => {
-            say(&format!("err binding the control socket: {e}"));
+            say(&format!("err {e}"));
             return 1;
         }
     };
@@ -150,13 +140,7 @@ where
     };
 
     let launcher_pid = sys::getpid();
-    if let Err(e) = record::<X>(s, &container.id, |c| {
-        c.state = State::Running;
-        c.pid = Some(pid);
-        c.launcher_pid = Some(launcher_pid);
-        c.started_at = Some(table::now());
-        c.end = None;
-    }) {
+    if let Err(e) = record::<X>(s, &container.id, |c| c.mark_running(pid, launcher_pid)) {
         say(&format!("err recording the container as running: {e}"));
         let _ = sys::kill(pid, 9);
         return 1;

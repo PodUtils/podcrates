@@ -1,0 +1,14 @@
+--- a/crates/pod-actions-workflow/src/on.rs
++++ b/crates/pod-actions-workflow/src/on.rs
+@@ -193,10 +193,7 @@
+ fn filter(event: &Node, path: &str, key: &'static str) -> Result<Option<Filter>, Error> {
+     let ignore_key = format!("{key}-ignore");
+     let (node, ignore, name) = match (event.get(key), event.get(&ignore_key)) {
+-        (Some(_), Some(other)) => {
+-            return Err(Error::new(path, Some(other.mark), ErrorKind::FilterWithIgnore(key)));
+-        }
+-        (Some(node), None) => (node, false, key.to_string()),
++        (Some(node), _) => (node, false, key.to_string()),
+         (None, Some(node)) => (node, true, ignore_key),
+         (None, None) => return Ok(None),
+     };

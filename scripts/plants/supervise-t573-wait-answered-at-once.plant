@@ -1,0 +1,6 @@
+# The hold answers a wait at once, before finish gave the code (T-573).
+ENTRY=T-573
+GROUP=supervise
+EXPECT='a wait was answered before finish'
+RUN='cargo test -p pod-supervise --test foreground'
+LIMIT=1800

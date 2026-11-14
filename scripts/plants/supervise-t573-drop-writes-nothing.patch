@@ -1,0 +1,15 @@
+--- a/crates/pod-supervise/src/foreground.rs
++++ b/crates/pod-supervise/src/foreground.rs
+@@ -196,12 +196,6 @@
+         if self.live.is_none() {
+             return;
+         }
+-        let now = table::now();
+-        let _ = launcher::record::<X>(&self.s, &self.id, |c| {
+-            if c.state == State::Running {
+-                c.mark_dead(&now);
+-            }
+-        });
+         self.close(None);
+     }
+ }

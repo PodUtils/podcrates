@@ -2196,7 +2196,7 @@ A signal of the launcher reaches one pid. A grandchild of a payload survives `po
 
 ## Premise
 
-- Read: `crates/pod-supervise/src/launcher.rs:389` is `let _ = sys::kill(pid, sig);`, in the control handler of the launcher. It signals one pid. This agrees with the issue.
+- Read: `crates/pod-supervise/src/launcher.rs:380` is `let _ = sys::kill(pid, sig);`, in the control handler of the launcher. It signals one pid. This agrees with the issue.
 - Read: no entry of `TODO/` names a tree kill, a subreaper or a count of residual processes. This agrees with the issue.
 - Read: `crates/pod-supervise/src` sets no `RLIMIT_FSIZE`.
 - Not measured: the survival of a grandchild. Not run: the .NET runner under any `RLIMIT_FSIZE` (the design review measured that it dies at start below 2 TiB, M1 and M2, correction C21 of the review).
@@ -6331,3 +6331,662 @@ lower file goes to `lower`: "the completion changed the lower layer"),
 layers"), `rootfs-layers-lower-over-upper` ("the upper layer hides the
 lower one"); `sh scripts/plant-each.sh --apply`: 0 stale.
 `check-windows.sh` and `check-macos.sh`: 0 faults.
+
+# T-573: `pod-supervise`: a foreground holder, so that a run that the caller waits for is Running (PodUtils/podvm#339)
+
+**Source:** PodUtils/podvm#339 (COORD-094 of podvm; PodUtils/podvm@T-1786, PodUtils/podvm#330)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** M
+**Status:** done
+
+## Problem
+
+A beta tester's defect of podvm. A foreground `podvm run` is recorded
+`Created` for the whole life of its payload. `pod_supervise::create`
+writes `Created`, and only the detached launcher writes `Running`
+(`crates/pod-supervise/src/launcher/supervise.rs`). So while the payload
+runs: `ps` hides it (`list` filters `Running`), `system df` counts 0
+running, `kill` refuses ("is created and not running"), `wait` refuses,
+and `stop` returns `Ok((c, false))` at once: `podvm stop NAME` prints the
+name and exits 0, and stops nothing.
+
+In `pod-supervise`, `Running` means a launcher: it holds `lock_path(id)`
+for its life (the whole test of `reconcile`), and `kill`, `stop` and
+`wait` reach it through `launcher::signal` and `launcher::wait` on its
+socket. A foreground run has no launcher. A `Running` that podvm writes
+into the table reads as `Dead` at the next reconcile (no lock held), or
+makes `stop` fail to connect.
+
+The ask: a holder for a payload that the caller runs itself
+(`foreground(&settings, &id, payload_pid)` takes the lock and writes
+`Running`, the pid and `started_at`; `finish(exit_code)` writes `Exited`,
+the code and `finished_at`; a drop with no `finish` writes `Dead`). It
+holds `lock_path(id)` for its life; it serves the socket protocol of the
+launcher on a thread (`SIG` to the payload, `WAIT` answered with the code
+of `finish`); `kill`, `stop` and `wait` then work with no change, and
+`ps` lists the run `Up`. podvm's Prove: `ps` lists the run while it
+sleeps, `system df` counts it running, `kill` and `wait` work, and `stop`
+ends the payload within its grace and exits 0 only then.
+
+## Premise
+
+- Read: `crates/pod-supervise/src/lib.rs` (the verbs: `kill` and `stop`
+  ask `State::Running`, then talk to the socket),
+  `crates/pod-supervise/src/table.rs` (`reconcile` takes the lock of
+  each `Running` record; held means alive),
+  `crates/pod-supervise/src/launcher.rs` (`handle`: `SIG N` is
+  `kill(pid)`, safe only for the parent before the reap; `WAIT` is held
+  until the end), `crates/pod-supervise/src/launcher/supervise.rs` (the
+  order: the lock, the socket, the record `Running`; at the end the
+  record, the removal of the socket, the answers, the release of the
+  lock), `crates/pod-supervise/src/lock.rs`, the test
+  `nothing_on_the_spawn_path_can_spawn_a_thread` (the crate starts no
+  thread).
+- Read: the launcher signals the payload only, not its process group
+  (`crates/pod-supervise/src/lib.rs`: "`stop` and `kill` signal the
+  payload only").
+- Read: `flock` locks belong to the open file description, so a
+  `reconcile` in the process of the hold also sees the lock held.
+- Not measured: a foreground run of podvm with the hold (podvm's own
+  Prove).
+
+## Approach
+
+1. `pod_supervise::foreground::<X>(&s, want, payload_pid) ->
+   Result<Foreground<X>>`: a reconcile and a find, a refusal of a
+   `Running` record, a pidfd of the payload, the lock of the container,
+   the control socket (`launcher::listen`, shared with the launcher), the
+   thread of the server, then the record `Running` with `pid`,
+   `launcher_pid` (the process of the hold) and `started_at` (C345).
+2. The thread answers each request with `launcher::handle` (shared with
+   the launcher): `SIG N` is `pidfd_send_signal` on the pidfd (C346), a
+   `WAIT` is held. A stop pipe ends the thread: `exit N` from `finish`, or
+   nothing from a drop.
+3. `Foreground::finish(code)`: the record `Exited` (the launcher's
+   `ended`), the removal of the socket, the code to each waiter, the join
+   of the thread, then the release of the lock (C347). A drop with no
+   `finish` writes `Dead` (`noticed`, `finished_at`), then the same close
+   with no answer: a waiter reads the record again.
+4. The thread is the one thread of the crate. `launcher::start` refuses
+   while a hold lives in the process (C348). The hold applies no
+   `wall_ms`, kills no tree and writes no `end` (C349).
+5. `pod_hostprobe::sys::pidfd_send_signal`, with its test.
+6. A read bound (2 s) on each control request, in the launcher too: a
+   client that connects and sends nothing stopped the watch of the
+   payload, and would stop the `finish` of a hold.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features
+cargo test -p pod-hostprobe --all-features --lib -- sys::tests::a_pidfd_signals_its_process_and_not_a_reaped_one
+sh scripts/plant-each.sh supervise-t573-hold-takes-no-lock supervise-t573-drop-writes-nothing supervise-t573-wait-answered-at-once supervise-t573-start-not-refused
+sh scripts/agent/check-windows.sh
+sh scripts/agent/check-macos.sh
+```
+
+## Done
+
+2026-11-14, commit c00d5fa. `pod_supervise::foreground::<X>(&s, want,
+payload_pid) -> Result<Foreground<X>>` and `Foreground::finish(code) ->
+Result<()>` (`crates/pod-supervise/src/foreground.rs`); a drop with no
+`finish` writes `Dead`. The hold takes the lock of the container, serves
+the control socket on one thread (`launcher::listen` and
+`launcher::handle`, shared with the launcher; `SIG` through
+`pod_hostprobe::sys::pidfd_send_signal`, new), and writes `Running`;
+`start` refuses while a hold lives. Calls C345 to C349.
+
+`cargo test -p pod-supervise --all-features`: 30 unit tests,
+`tests/foreground.rs` 6 steps (a held payload is `Up` and `reconcile`
+keeps it; a second hold and a `start` are refused; `kill` reaches it;
+`stop` with a grace of 10 s ends it with no SIGKILL; a wait before
+`finish` gets the bound and a wait at `finish` gets its code; a drop
+writes `Dead`; a killed holder process reads `Dead`), `lifecycle` 5
+steps, `tree` 7 steps, each passed. The foreground binary passed 30 runs
+in a loop. `cargo test -p pod-hostprobe --all-features`: 130 unit tests
+passed, with `a_pidfd_signals_its_process_and_not_a_reaped_one`. Plants,
+each caught by hand with its EXPECT text:
+`supervise-t573-hold-takes-no-lock`, `supervise-t573-drop-writes-nothing`,
+`supervise-t573-wait-answered-at-once`,
+`supervise-t573-start-not-refused`; `plant-each.sh --apply`: 0 stale.
+`check-size.py`, `check-windows.sh` and `check-macos.sh`: 0 faults.
+
+# T-580: `pod-rootfs`: an image with no CA bundle gets the host bundle when `host_cas` is false (PodUtils/podvm#341)
+
+**Source:** PodUtils/podvm#341 (COORD-095 of podvm; PodUtils/podvm@T-1818; an external QA report of podvm, finding F-18).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`ca_bundle` in `crates/pod-rootfs/src/pkg/bundle.rs` writes `settings.host_bundle` to each usual path whose directory exists when the image has no bundle, and it does not read `settings.host_cas` on that path. Only the path of an image that has a bundle reads `host_cas`. So `podvm run --no-host-cas` of an image with no CA bundle still gets the host bundle, which can hold an intercepting CA that `SSL_CERT_FILE` names.
+
+## Premise
+
+- Read: PodUtils/podvm#341; `crates/pod-rootfs/src/pkg/bundle.rs` (`ca_bundle`, the branch `present.is_empty()`).
+
+## Approach
+
+When `host_cas` is false, the branch with no bundle gives the same `Skipped` row (degraded) as when the host gives no bundle, and writes no file. A test: an image with no bundle, `host_cas` false and a host bundle given, writes no file. A plant that the test catches.
+
+## Prove
+
+```sh
+cargo test -p pod-rootfs --all-features
+```
+
+## Done
+
+2026-11-14, commit 5502330. With `Settings::host_cas` false, `ca_bundle`
+writes no file into an image with no CA bundle and gives one row
+`ca-bundle`, `Skipped` and degraded, that names the bundle of the host it
+did not write (call C369). `cargo test -p pod-rootfs --all-features`: 82
+unit tests and 3 tests of `two_layers` passed, with
+`no_host_cas_writes_no_host_bundle_into_an_image_with_none` (a bundle
+named by `SSL_CERT_FILE`, and one that no variable named), which fails on
+the code before the fix. Plant `rootfs-t580-no-bundle-ignores-host-cas`,
+caught by hand with its EXPECT text; `plant-each.sh --apply`: 0 stale. `check-size.py`, `check-windows.sh` and `check-macos.sh`: 0 faults.
+
+# T-581: `pod-extract`: a file of mode 4755, 2755 or 6755 loses its setuid and setgid bits (PodUtils/podvm#342)
+
+**Source:** PodUtils/podvm#342 (COORD-096 of podvm; PodUtils/podvm@T-1813; an external QA report of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`crates/pod-extract/src/apply.rs` opens a file with `want = (mode | 0o600) & 0o7777` and calls `fchmod(fd, want_final)` after the content only when `want_final != want`. For a mode of 4755, 2755 or 6755 the two are equal, so no `fchmod` runs, and the `write` of the content as a user that is not root has already cleared `S_ISUID` and `S_ISGID`. As uid 1000, 11 programs of `debian:bookworm-slim` lose their setuid or setgid bit.
+
+## Premise
+
+- Read: PodUtils/podvm#342; `crates/pod-extract/src/apply.rs` (the open with `want`, the `fchmod` of `want_final`, the sidecar of a widened mode).
+
+## Approach
+
+After the last write, call `fchmod(fd, mode & 0o7777)` when the mode has a bit of `0o7000`, also when it is equal to `want`. A mode that the kernel refuses goes into the sidecar, as the widened mode does. Tests of 4755, 2755 and 6755 as the user of the test, and as root where the test runs as root. A plant that the test catches.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```
+
+## Done
+
+2026-11-14, commit bc89311. A regular file whose mode has a bit of
+`0o7000` gets `fchmod` on its descriptor after the last write; the mode
+of the descriptor is read back, and a mode that the kernel did not keep
+goes into the sidecar as `applied.mode` (calls C370, C371).
+`cargo test -p pod-extract --all-features`: 58 unit tests passed, with
+`drive::setid::set_id_bits_survive_the_write` (4755, 2755 and 6755 as
+root, then the test binary again as uid 1000 and gid 1000:
+`drive::setid::worker_extracts_as_a_user`; in a directory of group 0
+with `S_ISGID` the sidecar records 0755 and 4755). On the code before
+the fix the worker fails: `bin/su` is 0755, not 4755. Plants
+`extract-t581-set-id-bits-not-set-again` and
+`extract-t581-kept-mode-not-recorded`, each caught by hand with its
+EXPECT text; `plant-each.sh --apply`: 0 stale. `check-size.py`, `check-windows.sh` and `check-macos.sh`: 0 faults.
+
+# T-582: `pod-supervise`: `start` keeps the end fields of the run before, and a `Dead` record keeps its pid (PodUtils/podvm#343)
+
+**Source:** PodUtils/podvm#343 (COORD-097 of podvm; PodUtils/podvm@T-1807; an external QA report of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`start` sets `state`, `launcher_pid` and `pid`, and keeps `exit_code`, `finished_at`, `end` and `noticed` of the run before. So `podvm inspect` of a restarted container shows `running` with the exit code 143 of the run before. `reconcile` writes `Dead` and keeps `pid`, so the record names a pid that is not its process.
+
+## Premise
+
+- Read: PodUtils/podvm#343; `crates/pod-supervise/src/lib.rs` (`start`, `reconcile`), `launcher/supervise.rs` and `foreground.rs` (T-573: the hold writes the same records).
+
+## Approach
+
+Clear `exit_code`, `finished_at`, `end` and `noticed` when the launcher (or the foreground hold of T-573) reports that the payload runs. Clear `pid` and `launcher_pid` when the record becomes `Dead`. A test of each, and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features
+```
+
+## Done
+
+2026-11-14, commit d019392. `Container::mark_running` (the launcher, a
+foreground hold, the value of `start`) clears `exit_code`,
+`finished_at`, `end` and `noticed`; `Container::mark_dead` (the
+reconcile with a free lock or no lock file, the drop of a hold) clears
+`pid` and `launcher_pid` and sets `finished_at` when it has none (calls
+C372, C373). `cargo test -p pod-supervise --all-features`: 31 unit tests
+(with `table::tests::a_new_run_clears_the_end_and_a_dead_record_names_no_pid`),
+`foreground` 6 steps (a hold again after an exit of 143; no pid on each
+`Dead`), `lifecycle` 5 steps (a `start` again after an exit of 143; no
+pid on `Dead`), `tree` 7 steps, each passed; `lifecycle` and
+`foreground` fail on the code before the fix. Plants
+`supervise-t582-run-keeps-the-exit-code`,
+`supervise-t582-dead-keeps-the-pid`,
+`supervise-t582-launcher-keeps-the-end`, each caught by hand with its
+EXPECT text; the patch of `supervise-t573-drop-writes-nothing` follows
+the new code of the drop. `plant-each.sh --apply`: 0 stale. `check-size.py`, `check-windows.sh` and `check-macos.sh`: 0 faults.
+
+# T-583: `pod-confine` and `pod-enter`: an `exec=` rule does not deny a program that the image's loader starts (PodUtils/podvm#344)
+
+**Source:** PodUtils/podvm#344 (COORD-098 of podvm; PodUtils/podvm@T-1819; an external QA report of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+On podvm's loader family (the userland rung) the kernel executes the loader of the image from a system directory. Landlock checks `EXECUTE` on the loader and only `READ` on the program, so a script and a dynamic ELF outside the `exec=` paths of `--podvm-confine` run. The QA report also says that a static ELF under a granted `exec=/tmp` is denied; the report contradicts itself there.
+
+## Premise
+
+- Read: PodUtils/podvm#344; the rules of `exec=` in `pod-confine` (the Landlock rules: the handled set and the grants) and in `pod-enter` (the userland rung and its loader).
+
+## Approach
+
+1. Check that `LANDLOCK_ACCESS_FS_EXECUTE` is in the handled set and is granted on each `exec=` path; a test settles the case of a static ELF under `exec=`.
+2. Add an API that answers whether a resolved program may run under the exec table of the rules, so that podvm's interposer checks it before it maps the program (Landlock cannot see that exec).
+3. Tests of a static ELF, a dynamic ELF and a script, inside and outside an `exec=` path, on the kernel rung and through the API.
+
+## Prove
+
+```sh
+cargo test -p pod-confine -p pod-enter --all-features
+```
+
+# T-584: `pod-enter`: a plan with two limits of one resource fails with `EPERM` (PodUtils/podvm#345)
+
+**Source:** PodUtils/podvm#345 (COORD-099 of podvm; PodUtils/podvm@T-1827; an external QA report of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podvm run --ulimit nofile=64 --ulimit nofile=128` fails in the child: `pod-enter` applies the two entries in order, the first lowers the hard limit to 64, and the second cannot raise it (`EPERM`). docker keeps the last value. podvm now coalesces the entries itself.
+
+## Premise
+
+- Read: PodUtils/podvm#345; `crates/pod-enter/src/limits.rs` and its tests.
+
+## Approach
+
+Refuse a plan with two entries for one resource before the child starts, with a typed error that names the resource, so that each caller coalesces first. A test and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
+```
+
+# T-585: `pod-oci`: the grammar of an insecure registry host, and a platform list with no repeat and no attestation (PodUtils/podvm#346)
+
+**Source:** PodUtils/podvm#346 (COORD-100 of podvm; PodUtils/podvm@T-1842, PodUtils/podvm@T-1836; an external QA report of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`normalise_host` (`crates/pod-oci/src/transport.rs`) refuses only a URL and a `/`, so it takes a host with a space or a `!`. The `NoPlatform` refusal of an index lists `windows/amd64` twice, as it does not show `os.version`, and lists the attestation manifests as `unknown/unknown`.
+
+## Premise
+
+- Read: PodUtils/podvm#346; `crates/pod-oci/src/transport.rs` (`normalise_host`); `crates/pod-oci/src/spec.rs` (`NoPlatform`, the list `offered`).
+
+## Approach
+
+A host is a DNS name or an IP literal (IPv6 in brackets), with an optional port; anything else is refused with a typed error. The list `offered` has no duplicate, no entry with the annotation `vnd.docker.reference.type: attestation-manifest`, and `os.version` where the index gives it. Tests and a plant for each.
+
+## Prove
+
+```sh
+cargo test -p pod-oci --all-features
+```
+
+# T-586: `pod-netlab`: the texts of a knob give the value as written, with its unit and range; the differences from sand-net (PodUtils/podvm#347)
+
+**Source:** PodUtils/podvm#347 (COORD-101 of podvm; PodUtils/podvm@T-1837, PodUtils/podvm@T-1847; an external QA report of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The errors of the knobs give the scaled value with no unit (`--loss 101` reads "loss 10100 is out of its range 1 to 2000"), do not name the value (`--tcp 70000`), call a negative number "not a whole number", and say that `--cgnat` "needs nat44" where the scenario `cgnat` uses `both`. The surface differs from sand-net: 12 scenarios are missing (`corp-proxy-pod`, `vpn-*`, `warp-*`), five value sets differ, `--icmp allow` is refused, and `--loss` stops at 20 percent.
+
+## Premise
+
+- Read: PodUtils/podvm#347; `crates/pod-netlab/src/knobs/flags.rs`, `crates/pod-netlab/src/knobs/check.rs`; the list of scenarios; podvm's issue 260 (COORD-041, the lab guest of PodUtils/podvm@T-1662).
+
+## Approach
+
+1. Each error gives the value as the user wrote it, its unit and its range. A negative number gets its own text. The text of `--cgnat` agrees with the scenario.
+2. For each difference from sand-net: add the scenario or the value, or write the reason in the README of the crate. Tests of the texts, and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-netlab --all-features
+```
+
+# T-590: `pod-guest`: `fetch::store` resumes a download by Range, checks the size and the sha256, and has a ceiling for each entry (PodUtils/podvm#350, item 1)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm runs Windows and DOS guests from media that it fetches itself (the owner of podvm accepts the terms of the vendors; podvm's ruling "Windows media"). A medium of some GB breaks off on a slow line, and `pod_guest::fetch::store` starts again from zero. podvm asks for a `.part` file, a resume after a break by Range, a check of the size against `Content-Length`, a sha256 check at the end, and a ceiling for each entry (PodUtils/podvm@T-1862). podvm adds the check of free disk, of `RLIMIT_FSIZE` and the progress line in its own wrapper.
+
+## Premise
+
+- Read: PodUtils/podvm#350; `crates/pod-guest/src/fetch.rs`.
+
+## Approach
+
+Write to `NAME.part`; on a new call, send `Range: bytes=N-` and take a `206` (a `200` starts again from zero); check `Content-Range` and the total size against `Content-Length`; check the sha256 over the whole file; rename to `NAME` only after the check. A ceiling of bytes for each entry refuses a larger body with a typed error. Tests against a local HTTP stand-in that breaks the body once, gives `200` to a Range, and gives a wrong size; plants.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
+
+# T-591: `pod-udf`: a new crate that reads UDF and gives the extent of a file in an ISO (PodUtils/podvm#350, item 2)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A Windows ISO holds `ValidationOS.vhdx` (about 0.9 GB) in a 2.5 GB image. With the extent of the file in the image, a client fetches only that extent by Range requests. podvm asks for a UDF reader that finds a file by its path and gives its extents (PodUtils/podvm@T-1863). If podcrates declines, podvm vendors winquick's `udf.rs` (Apache-2.0).
+
+## Premise
+
+- Read: PodUtils/podvm#350; ECMA-167 and the UDF 2.60 specification (the anchor volume descriptor at sector 256, the partition and logical volume descriptors, the file set descriptor, file entries and extended file entries, the file identifier descriptors, short and long allocation descriptors).
+
+## Approach
+
+A new crate `pod-udf` with no I/O of its own: a trait that reads sectors at an offset, so that a caller reads from a file or by Range requests. `find(path) -> Extents` (the byte ranges in the image, in order, and the size). UDF 1.02 to 2.60 as Windows ISOs use them; metadata partitions where a Windows ISO has one. Typed errors, a limit on the depth and on the count of entries. Tests with a small UDF image built in the test or kept under `tests/data` (made by a tool, with its command written beside it); a fuzz target; the static probe.
+
+## Prove
+
+```sh
+cargo test -p pod-udf --all-features
+```
+
+# T-592: `pod-guest`: the agent runs the command in a child `cmd /c`, writes a `WQREADY` marker, and has a keep-alive mode (PodUtils/podvm#350, item 3)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** defect
+**Milestone:** M7
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The agent of `pod-guest` runs the command with `call %WQ%\WQCMD.CMD`, so a payload that ends in `exit` stops the agent before it writes its results and shuts the guest down, and the run times out (PodUtils/podvm@T-1864). podvm also needs a marker that the agent is ready, and a mode that keeps the guest up after the command, for a warm start and `exec` later.
+
+## Premise
+
+- Read: PodUtils/podvm#350; `crates/pod-guest/src/agent.rs` (`AGENT_CMD` and its tests).
+
+## Approach
+
+Run the command as `cmd /c %WQ%\WQCMD.CMD < NUL > ... 2> ...` and record its exit code; write `WQREADY` to the mailbox when the agent starts; a keep-alive mode does not run `shutdown` and waits for the next command. stdin of the command stays NUL. Tests of the text of the agent, and a run in the DOS or the emulator test where the crate has one; plants.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
+
+# T-593: `pod-guest`: the options of a plan: a NIC with `hostfwd`, virtio devices, CD-ROM and USB media, VNC, a serial channel, the Hyper-V flags (PodUtils/podvm#350, item 4)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A plan of `pod-guest` gives a mailbox run with `-nic none`. A full Windows guest needs a NIC (`user` with `hostfwd`), virtio devices, CD-ROM and USB media, a VNC socket, a serial channel and the Hyper-V flags (PodUtils/podvm@T-1865).
+
+## Premise
+
+- Read: PodUtils/podvm#350; `crates/pod-guest/src/plan.rs` (the argv of QEMU).
+
+## Approach
+
+Typed options of the plan, each one to its QEMU arguments, with `-nic none` the default of the mailbox run. Each option is checked (a `hostfwd` port, a path of a socket). Tests of the argv for each option and for the default; plants.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
+
+# T-594: `pod-qga`: a new crate, a client of the QEMU Guest Agent over a Unix socket (PodUtils/podvm#350, item 5)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm needs `exec`, `cp` and a graceful `stop` for a full Windows guest. The QEMU Guest Agent gives them over a Unix socket (PodUtils/podvm@T-1868).
+
+## Premise
+
+- Read: PodUtils/podvm#350; the QEMU Guest Agent protocol (`guest-sync-delimited`, `guest-ping`, `guest-exec`, `guest-exec-status`, `guest-file-open`, `guest-file-read`, `guest-file-write`, `guest-file-close`, `guest-shutdown`); `crates/pod-guest/src/qmp.rs` (the client of QMP in the workspace).
+
+## Approach
+
+A new crate `pod-qga` with a typed client of these calls, the sync on connect, a bound on each call, and typed errors. Tests against a stand-in of the agent on a Unix socket; a fuzz target of the answers.
+
+## Prove
+
+```sh
+cargo test -p pod-qga --all-features
+```
+
+# T-595: `pod-guest`: the provision waits for a ready guest in place of a fixed sleep (PodUtils/podvm#350, item 6)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`setup` of the provision of `pod-guest` sleeps a fixed time. podvm asks for a readiness poll: a mailbox marker, serial text, or a change of the screen (PodUtils/podvm@T-1873). Later, an NTFS and hive writer for an offline setup, after podvm measures whether `AutoRun` fires on the x64 image.
+
+## Premise
+
+- Read: PodUtils/podvm#350; `crates/pod-guest/src/provision.rs`; T-592 (the `WQREADY` marker).
+
+## Approach
+
+A readiness of the provision: the `WQREADY` marker of T-592, a text on the serial channel of T-593, or a change of the screen through QMP `screendump`; a deadline with a typed error. The NTFS and hive writer waits for podvm's measure. Tests against stand-ins; plants.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
+
+# T-596: `pod-guest`: a warm start from a saved state, with a fingerprint and a fallback to a cold boot (PodUtils/podvm#350, item 7)
+
+**Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A Windows guest takes long to boot. podvm asks to freeze a booted guest with `migrate` to a file and to restore it with `-incoming`, with a fingerprint of QEMU and the base, and a cold boot when the fingerprint differs (PodUtils/podvm@T-1874). ValidationOS first; it needs the keep-alive mode of T-592.
+
+## Premise
+
+- Read: PodUtils/podvm#350; `crates/pod-guest/src/qmp.rs`, `plan.rs`; T-592.
+
+## Approach
+
+Save: QMP `migrate` to `exec:` or a file after the guest is ready in keep-alive mode; the fingerprint is the QEMU version, the machine options of the plan and the digest of the base. Restore: `-incoming` with the same options; a different fingerprint or a failed restore boots cold. Tests of the fingerprint and of the argv; a live test where QEMU is present.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
+
+# T-597: `pod-extract`: the umask of the process changes the modes of the tree, and the sidecar does not record it
+
+**Source:** T-581 (a finding of its work).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`pod-extract` does not set the umask of the process and does not set a mode again to undo it. A file whose image mode equals its open mode and has no bit of `0o7000` gets no `fchmod`, so with a umask of 027 a file of mode 0755 lands as 0750. A directory has the same fault: `mkdirat(mode | 0o700)` applies the umask, and the pass of the permissions between layers only adds owner bits. The tree differs from the image, and the sidecar does not record it.
+
+## Premise
+
+- Read: the report of T-581 and calls C370, C371; `crates/pod-extract/src/apply.rs` (the open of a file, the `fchmod` after the write), the creation of a directory and the pass of the permissions.
+
+## Approach
+
+Set the mode of each file through its descriptor after the write in each case, and set each directory to its image mode with `fchmodat` in the pass of the permissions (or call `umask(0)` around the extraction, if the crate owns the process; record the choice as a call). A mode that the kernel does not keep goes into the sidecar, as T-581 does. A test extracts under umask 027 in a child process (the umask belongs to the whole process) and checks that 0755 and 0644 stay; a plant that the test catches.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```
+
+## Done
+
+2026-11-14, commit 5b41ffb. Each file gets `fchmod` after the last write,
+also when its mode is the mode of the open, and its mode is read back
+(C374). The permission pass sets each directory that the layer wrote to
+`mode | 0o700`, so a later layer that names a directory again sets its
+mode too (C375). The crate does not call `umask(0)`. The pass changes a
+directory through a descriptor opened with `O_DIRECTORY` and
+`O_NOFOLLOW`: `fchmodat` of the name followed a symlink that a later
+entry of the layer put there, and changed the mode of a file of the host
+(C413). `cargo test -p pod-extract --all-features`: 62 unit tests passed,
+with `drive::umask::the_modes_of_the_image_stay_under_a_umask_of_027`
+(the test binary again under a umask of 027: 0755, 0644, 0775 and 0664
+of files and directories stay, and the sidecar claims no other mode),
+`a_later_layer_sets_the_mode_of_a_directory_again` and
+`the_permission_pass_does_not_follow_a_symlink_at_the_name_of_a_directory`.
+Each fails on the code before the fix. Plants
+`extract-t597-file-mode-set-only-when-it-differs`,
+`extract-t597-pass-only-widens` and `extract-t597-pass-follows-a-symlink`,
+each caught by hand with its EXPECT text; the patch of
+`extract-t581-set-id-bits-not-set-again` follows the new code and is
+caught again. `plant-each.sh --apply`: 0 stale. `check-size.py`,
+`check-windows.sh` and `check-macos.sh`: 0 faults.
+
+# T-598: `pod-extract`: each directory has the mode of the image after the last layer, and a directory entry replaces a non-directory of an earlier layer (PodUtils/podvm#354)
+
+**Source:** PodUtils/podvm#354 (COORD-107 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm's invariant: after the extraction, a directory in the tree is the directory that the image names, with the mode that the image names, and no write lands outside the tree. T-597 sets the mode of each file again, sets each directory that a layer wrote to `mode | 0o700`, sets a directory again when a later layer names it, and changes modes through an `O_NOFOLLOW` descriptor. Two parts remain:
+
+1. The pass keeps the owner bits (`| 0o700`) so that the next layer can write; nothing runs after the last layer, so a directory of mode `0555` in the image stays `0755` in the tree, while the sidecar records `0555`.
+2. A directory entry over a symlink (or another non-directory) that an earlier layer left at its name is not applied: `mkdirat` gives `EEXIST`, `make_dir` takes it as done, and the tree keeps the symlink while the sidecar records a directory.
+
+podvm also measured that a second extraction over a tree whose directories are closed (`0555`) fails with `EACCES`, so a directory that exists must open for the write.
+
+## Premise
+
+- Read: PodUtils/podvm#354 (its patch and its measures, "The invariant" and items 2 to 4); the Done section of T-597 and calls C374, C375, C413; `crates/pod-extract/src/apply.rs` (`make_dir`, the pass of the permissions, `extract_layers`).
+
+## Approach
+
+After the last layer, set each directory that the extraction wrote to the mode of the image (the last layer that names it wins), through an `O_NOFOLLOW` descriptor, deepest first. A directory entry over a name that is not a directory removes that name first, as the crate replaces a file. On `EEXIST` of a directory, open it for the write (owner bits) until the last pass. Tests: a `0555` directory stays `0555` after the extraction; a directory entry over a symlink of an earlier layer gives a directory and no change outside the tree; a second extraction over a closed tree passes. A plant for each.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```
+
+# T-599: `pod-extract`: the `./` member of an archive is not counted as an entry that the crate could not make (PodUtils/podvm#352)
+
+**Source:** PodUtils/podvm#352 (COORD-106 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`LayerStats::skipped` holds the entries of a type that the crate does not make. The `./` member of an archive names the destination, which exists, and its branch in `crates/pod-extract/src/apply.rs` is an entry, not a refusal; but it adds to `skipped` with the name `ArchiveRoot`. podvm then prints "1 entries were not materialised (ArchiveRoot)" for an image that lost nothing.
+
+## Premise
+
+- Read: PodUtils/podvm#352; `crates/pod-extract/src/apply.rs` (the branch of the root, `LayerStats`).
+
+## Approach
+
+The root member adds nothing to `skipped` and names nothing there; a fifo and a socket still count. Whether `entries` counts the members read or the entries written stays as it is (record the rule as a call). A test with a layer that holds `./` and a file, and with a layer that holds a fifo; a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```

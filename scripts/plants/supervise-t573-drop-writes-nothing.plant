@@ -1,0 +1,7 @@
+# A drop with no finish writes nothing: the record says Running until a
+# later reconcile (T-573).
+ENTRY=T-573
+GROUP=supervise
+EXPECT='a drop with no finish left the record'
+RUN='cargo test -p pod-supervise --test foreground'
+LIMIT=1800

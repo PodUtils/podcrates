@@ -3,7 +3,10 @@
 //! logs).
 //!
 //! The running state is the state of the launcher. [`table`] is the record,
-//! and [`launcher`] is the only writer of `running` into it. Nothing reads
+//! and [`launcher`] is the only writer of `running` into it, with the
+//! [`foreground()`] hold of a payload that the caller waits for itself: the
+//! hold takes the place of the launcher (the lock, the control socket, the
+//! end). Nothing reads
 //! membership from `/proc`, and nothing decides "running" by a sleep and a
 //! look. A launcher that was killed leaves its record
 //! [`table::State::Dead`], with the time that a later call noticed it, not
@@ -22,6 +25,7 @@
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 pub mod end;
+pub mod foreground;
 pub mod launcher;
 pub mod lock;
 pub mod logs;
@@ -33,6 +37,7 @@ use pod_core::{Class, Failure, Stage};
 use serde::{Serialize, de::DeserializeOwned};
 use table::{Container, State};
 
+pub use foreground::{Foreground, foreground};
 pub use logs::{follow, follow_from, follow_tail, logs, tail_offset};
 
 pub type Result<T> = std::result::Result<T, Failure>;
@@ -221,9 +226,7 @@ where
     }
     let (launcher, pid) = launcher::start(s, &c, enter)?;
     let mut out = c;
-    out.state = State::Running;
-    out.launcher_pid = Some(launcher);
-    out.pid = Some(pid);
+    out.mark_running(pid, launcher);
     Ok(out)
 }
 

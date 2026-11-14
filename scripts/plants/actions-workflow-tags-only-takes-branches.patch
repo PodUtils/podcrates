@@ -1,0 +1,11 @@
+--- a/crates/pod-actions-workflow/src/on.rs
++++ b/crates/pod-actions-workflow/src/on.rs
+@@ -116,7 +116,7 @@
+             // With a filter of one kind of ref only, the other kind does
+             // not run; with neither, each ref runs.
+             let ok = match split_ref(git_ref) {
+-                Ref::Branch(name) => self.branches.as_ref().map_or(self.tags.is_none(), |f| f.takes(name)),
++                Ref::Branch(name) => self.branches.as_ref().map_or(true, |f| f.takes(name)),
+                 Ref::Tag(name) => {
+                     tag = true;
+                     self.tags.as_ref().map_or(self.branches.is_none(), |f| f.takes(name))

@@ -1,0 +1,11 @@
+--- a/crates/pod-hold/src/filter.rs
++++ b/crates/pod-hold/src/filter.rs
+@@ -171,7 +171,7 @@
+         filter.push(stmt(BPF_RET_K, RET_ERRNO | libc::ENOSYS as u32));
+     }
+     if calls.deny_raw || calls.deny_ping {
+-        filter.extend(deny_sockets(calls.deny_raw, calls.deny_ping));
++        filter.extend(deny_sockets(calls.deny_raw, true));
+     }
+     for &syscall in &calls.numbers {
+         if syscall == libc::SYS_recvfrom && calls.recvfrom_with_source_only {

@@ -2471,3 +2471,196 @@ A feature `fuzzing` that gives `query`, `block_list` and `backend_ids`, and a ta
 ```sh
 cargo test --manifest-path fuzz/Cargo.toml --lib
 ```
+
+# T-587: `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99)
+
+**Source:** PodUtils/podrunner#99 (COORD-039 of podrunner; PodUtils/podrunner@T-130, PodUtils/podrunner@T-133).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod-actions-store` is the copy of podrunner's code at `241acb8` (T-564). podrunner added code since then, so it cannot take the crate yet: image lines in the lock (`docker://NAME:TAG sha256:HEX`, `Lock::images`), a checkout of another repository pinned and kept as an action with no action file (`checkout_target`, `workflow_trees`, `add_trees`), the resolve of `REF` = `HEAD` in `Git` (`git ls-remote URL HEAD`), and the images of a workflow by tag with their resolve against the lock (`images.rs`, `ImageSource`, `by_tag`).
+
+## Premise
+
+- Read: PodUtils/podrunner#99; on podrunner's main: PodUtils/podrunner:crates/podrunner-local/src/lock.rs, src/store.rs, src/images.rs and their tests; T-564 and calls C320 to C324.
+
+## Approach
+
+Import the changes of the three files at podrunner's commit (`scripts/check-sources.py`), with the rules of the crate (a typed `Error`, no network in a unit test). `images` is its own module. Keep podrunner's names and tests. Tests and a plant for each addition.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-store --all-features
+```
+
+# T-588: `pod-actions-results`: the CacheService and the replacement of an artifact on a rerun (PodUtils/podrunner#99)
+
+**Source:** PodUtils/podrunner#99 (COORD-039 of podrunner; PodUtils/podrunner@T-120, PodUtils/podrunner@T-125, PodUtils/podrunner@T-135).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod-actions-results` is the copy of podrunner's code at `0ff670d` (T-565). podrunner added since then: the CacheService (v2) of its fake broker, with the scopes of a ref (`with_scopes`), a random entry id, `Range` downloads and eviction at the limit (`cache.rs`); and `ArtifactStore::replacing`, so that a rerun replaces an artifact of the same name. A measured fact: `actions/download-artifact@v4` takes the digest as a plain string.
+
+## Premise
+
+- Read: PodUtils/podrunner#99; on podrunner's main: PodUtils/podrunner:crates/podrunner-broker-fake/src/cache.rs, src/artifacts.rs and their tests; T-565 and calls C325 to C329.
+
+## Approach
+
+Import `cache.rs` as a module of the crate and `replacing` into `ArtifactStore`, with the rules of the crate. Keep the digest a plain string in `wire::Answer` (the plant `results-digest-wrapped` holds it). Tests and a plant for each addition.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-results --all-features
+```
+
+# T-572: `pod-actions-workflow`: the filters of `on:` (types, branches, tags, paths and their -ignore forms) (PodUtils/podrunner#97)
+
+**Source:** PodUtils/podrunner#97 (COORD-037 of podrunner).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+podrunner runs each workflow of a directory whose `on:` takes an event, as GitHub does (PodUtils/podrunner@T-125). `pod-actions-workflow` keeps `on:` as a `Node`, and `Workflow::events()` gives only the names of the events. podrunner asks for a function that tells whether a workflow takes an event, with the rules of GitHub's "Workflow syntax": `types`, `branches`, `branches-ignore`, `tags`, `tags-ignore`, `paths`, `paths-ignore`; the patterns `*`, `**`, `?`, `+`, `[]` and `!`, in order; a filter with its `-ignore` form refused; a push with only tags filters does not run for a branch, and the reverse; `paths` after `branches`. githome needs the same decision for its own events.
+
+## Premise
+
+- Read: PodUtils/podrunner#97; `crates/pod-actions-workflow/src/lib.rs`, `src/model.rs`, `src/read.rs`, `src/error.rs`, `src/data.rs`; `docs/design.md`, section 1 and the row of the crate.
+- The rules come from GitHub's documents "Workflow syntax for GitHub Actions" (`on.<event>.types`, `on.<push|pull_request>.<branches|tags|paths>`, "Filter pattern cheat sheet") and "Events that trigger workflows" (the default types of `pull_request`). No run against GitHub here.
+
+## Approach
+
+A module `on` with `Trigger` (podrunner's fields), `On`, `Event` and `Filter`, and a module `pattern` with `Pattern` (a compiler of the patterns and a matcher of patterns times length). `Workflow::takes` and `Workflow::triggers`. Three typed errors: `FilterWithIgnore`, `OnlyNegated`, `BadPattern`. Record the calls C340 to C344. Tests with the examples of the documents for each filter; plants for the order of `!`, a `*` that crosses `/`, the tags-only rule and a filter with its `-ignore` form. The static probe and the fuzz target `actions_workflow` call the filters.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-workflow --all-features
+sh scripts/plant-each.sh actions-workflow-bang-order-ignored actions-workflow-star-crosses-slash actions-workflow-tags-only-takes-branches actions-workflow-filter-with-ignore-taken
+cargo test --manifest-path fuzz/Cargo.toml --lib
+```
+
+## Done
+
+2026-11-14. The commit `ace4fbd` (`pod-actions-workflow: the filters of on: and Workflow::takes (T-572)`).
+
+- `crates/pod-actions-workflow`: `Trigger` (`event`, `action`, `git_ref`, `paths`; `Trigger::new`), `Workflow::takes(&Trigger) -> Result<bool, Error>`, `Workflow::triggers() -> Result<On, Error>`, `On` (`read`, `takes`), `Event` (`takes`), `Filter` (`matches`, `takes`), `Pattern` (`parse`, `matches`), `DEFAULT_PR_TYPES`; `ErrorKind::{FilterWithIgnore, OnlyNegated, BadPattern}` (calls C340 to C344). The static probe decides one push; the fuzz target `actions_workflow` reads the filters of each file that parses.
+- `cargo test -p pod-actions-workflow --all-features`: 54 passed (9 new in `tests/on.rs` with the examples of the documents, 3 new unit tests of the patterns). `cargo test --manifest-path fuzz/Cargo.toml --lib`: 13 passed.
+- Plants, each caught by hand: `actions-workflow-bang-order-ignored` (`a_later_bang_removes_a_match_and_a_later_pattern_adds_it_again`), `actions-workflow-star-crosses-slash` (`must not match a/b`), `actions-workflow-tags-only-takes-branches` (`a_filter_of_one_kind_of_ref_stops_the_other_kind`), `actions-workflow-filter-with-ignore-taken` (`a_filter_with_its_ignore_form_is_refused`); `sh scripts/plant-each.sh --apply`: 0 stale.
+- `cargo fmt --all --check`, clippy of the crate, of `static-probe` and of the fuzz library, and `cargo doc` of the crate with `-D warnings`: clean. `scripts/check-size.py`: 0 faults; `scripts/check-probe.py --no-tree`: 40 crates, 0 faults; `scripts/check-design-paths.py`: ok; `scripts/agent/check-windows.sh`: 0 faults.
+- Next: podrunner takes `Workflow::takes` at the next tag (PodUtils/podrunner@T-125).
+
+# T-577: `pod-actions-workflow`: the `workflows` filter of `workflow_run`
+
+**Source:** T-572 (a finding of its work).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`Workflow::takes` (T-572) does not read `on.workflow_run.workflows`: `Trigger` has no field for the name of the workflow that ran. A `workflow_run` workflow thus runs after each workflow, not only after the ones that it names.
+
+## Premise
+
+- Read: `crates/pod-actions-workflow/src/on.rs`; GitHub's "Events that trigger workflows" (`workflow_run`: `workflows`, `types`, `branches`, `branches-ignore`).
+
+## Approach
+
+Add `Trigger::workflow: Option<&str>` and `Event::workflows`. A name matches whole, with case; `None` passes. `branches` applies to the head branch of the run that ended, as `git_ref` gives it. A test and the plant `actions-workflow-workflows-ignored`; call C350.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-workflow --test on
+sh scripts/plant-each.sh actions-workflow-workflows-ignored
+```
+
+## Done
+
+2026-11-14. The commit `1018c9a` (`pod-actions-workflow: the workflows filter of workflow_run (T-577)`). `Trigger::workflow` and `Event::workflows` (call C350). `cargo test -p pod-actions-workflow --all-features`: 55 passed (the new test `workflow_run_takes_the_workflows_that_it_names`). The plant `actions-workflow-workflows-ignored` fails that test, by hand. clippy of the crate and of the fuzz library, `cargo doc` of the crate with `-D warnings` and `cargo fmt --all --check`: clean.
+
+# T-576: `pod-actions-workflow`: the calls of reusable workflows in `Run` (inputs, secrets, outputs, limits) (PodUtils/podrunner#98)
+
+**Source:** PodUtils/podrunner#98 (COORD-038 of podrunner).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** L
+**Status:** done
+
+## Problem
+
+podrunner runs a job that calls a workflow (`jobs.<id>.uses: ./.github/workflows/x.yml` or `OWNER/REPO/.github/workflows/x.yml@REF`, PodUtils/podrunner@T-131, blocked on this entry). `pod-actions-workflow` names the call (`Job::uses`, `Job::with`, `Job::secrets`) but does not expand it. podrunner asks for the expansion in `Run`, as GitHub does it ("Reusing workflows"): the caller gives the text of each called workflow; each called job becomes a job of the run (`CALLER/CALLEE`, named `CALLER / CALLEE`); `with:` is checked against `on.workflow_call.inputs`; `secrets:` or `secrets: inherit` give the names of the secrets; `on.workflow_call.outputs` become `needs.<caller>.outputs`; the caller ends with the result of GitHub; GitHub's limits on nesting and on the count of called workflows are refused by name. githome runs the same calls.
+
+## Premise
+
+- Read: PodUtils/podrunner#98; `crates/pod-actions-workflow/src/expand.rs`, `src/run.rs`, `src/graph.rs`, `src/model.rs`, `tests/expand.rs`.
+- The rules come from GitHub's "Reusing workflows" (the examples of inputs and secrets, of a matrix, of outputs, of nested calls; the limits) and "Contexts" (`inputs`, `secrets`, `jobs` of `on.workflow_call.outputs`). No run against GitHub here.
+
+## Approach
+
+`src/call.rs`: the trait `Called`, `CallLimits`, `Secrets`, `Call`, and the interface of `on.workflow_call` with its checks. `Run` keeps one scope for each workflow of the run (the top one and each call) and one node for each job; `expand` of a caller with a source reads, checks and adds the called jobs; the end of the last called job ends the caller. Move the concrete jobs to `src/instance.rs` to keep each file under 500 lines. Calls C351 to C356. Tests with the examples of the documents; plants for the inputs not checked, `secrets: inherit` given with no `secrets:`, the levels not bounded and the outputs dropped. The static probe and the fuzz target run a call.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-workflow --all-features
+sh scripts/plant-each.sh actions-workflow-call-inputs-unchecked actions-workflow-call-inherits-unasked actions-workflow-call-levels-unbounded actions-workflow-call-outputs-dropped
+cargo test --manifest-path fuzz/Cargo.toml --lib
+```
+
+## Done
+
+2026-11-14. The commit `406750a` (`pod-actions-workflow: the calls of reusable workflows in Run (T-576)`).
+
+- `crates/pod-actions-workflow`: the trait `Called` (`text(uses, from)`), `Run::with_called`, `Outcome::Called(Vec<Call>)`, `Call` (`job`, `name`, `uses`, `matrix`, `inputs`, `secrets`, `jobs`), `Secrets` (`Run`, `Passed { from, items }`, `names`), `CallLimits` in `Base::calls`, `plan_with`, `Instance::{inputs, secrets}`; `ErrorKind::{CallText, InCalled, CallLimit, Input, Secret}` (calls C351 to C356). New files `src/call.rs` (316 lines) and `src/instance.rs` (164 lines); `src/expand.rs` has 449 lines.
+- `cargo test -p pod-actions-workflow --all-features`: 65 passed (10 new in `tests/call.rs`). `cargo test --manifest-path fuzz/Cargo.toml --lib`: 13 passed; the fuzz target `actions_workflow` runs `plan_with` with a source that gives the input again. The static probe runs one call.
+- Plants, each caught by hand: `actions-workflow-call-inputs-unchecked` (`with_is_checked_against_the_inputs_of_the_called_workflow`), `actions-workflow-call-inherits-unasked` (`secrets_are_passed_by_name_inherited_only_when_asked_and_checked`), `actions-workflow-call-levels-unbounded` (`the limit of levels stops the loop`), `actions-workflow-call-outputs-dropped` (`the_outputs_of_the_called_workflow_are_needs_of_the_jobs_after_the_call`); `sh scripts/plant-each.sh --apply`: 0 stale.
+- `cargo fmt --all --check`, clippy of the crate, of `static-probe` and of the fuzz library, `cargo doc` of the crate with `-D warnings`: clean. `scripts/check-size.py`: 0 faults; `scripts/check-probe.py --no-tree`: 40 crates, 0 faults; `scripts/check-design-paths.py`: ok; `scripts/agent/check-windows.sh`: 0 faults.
+- Next: podrunner takes the expansion at the next tag (PodUtils/podrunner@T-131).
+
+# T-578: `pod-actions-workflow`: a check of the keys and the filters of `on:`, as GitHub refuses a file
+
+**Source:** T-572 (a finding of its work; call C340).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Workflow::parse` does not read the filters of `on:` (call C340). A file that GitHub refuses still parses: `branches` with `branches-ignore`, `tags` on `pull_request`, or a key that its event does not take. Only `Workflow::takes` and `Workflow::triggers` find the first two faults, and nothing refuses a key that is not valid for its event.
+
+## Premise
+
+- Read: the report of T-572; calls C340 to C344; the file src/on.rs of the crate (T-572).
+
+## Approach
+
+Keep `parse` as it is, so that podrunner's local runs do not change. Add `Workflow::check() -> Vec<Problem>` (or a result with each fault): the keys that each event takes (the GitHub docs, "Events that trigger workflows"), and `triggers()` read once. podrunner and githome call it where they want GitHub's refusal. Tests with the examples of the docs, and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-workflow --all-features
+```

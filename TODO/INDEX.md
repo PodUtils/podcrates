@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**458 entries: 118 open, 7 partial, 5 blocked, 328 done.**
+**483 entries: 133 open, 7 partial, 5 blocked, 338 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 11 | 3 | 0 | 87 | 101 |
-| P2 | 54 | 2 | 4 | 181 | 241 |
-| P3 | 53 | 2 | 1 | 58 | 114 |
-| **All** | 118 | 7 | 5 | 328 | 458 |
+| P1 | 17 | 3 | 0 | 90 | 110 |
+| P2 | 60 | 2 | 4 | 187 | 253 |
+| P3 | 56 | 2 | 1 | 59 | 118 |
+| **All** | 133 | 7 | 5 | 338 | 483 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -488,7 +488,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-555](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `7122cc7` is red for podssh: its test pins five tox relays, and T-537 left four |
 | [T-556](transport.md) | P2 | S | M1 | feature | done | `pod-services`: serv00's public Piping Server as the third of the kind `piping` (PodUtils/podssh#238) |
 | [T-557](relay.md) | P3 | S | M2 | defect | open | `pod-link`: the listener of the dns, icmp, udp and ws carriers gets no `KeyRefused` when the dialer refuses its key |
-| [T-558](relay.md) | P2 | S | M6 | defect | open | `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open |
+| [T-558](relay.md) | P2 | S | M6 | defect | done | `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open |
 | [T-559](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the client of the HTTP road's one-POST form (PodUtils/podssh#239) |
 | [T-560](relay.md) | P3 | S | M2 | feature | done | `pod-relay`: the one-POST form of the HTTP road over HTTP/2 |
 | [T-561](relay.md) | P1 | S | M2 | feature | done | `pod-wg`: the preshared key of a handshake (PodUtils/podnet#547) |
@@ -502,6 +502,31 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-569](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: `probe_dir_exec` names the filesystem on each `EACCES`, also on a mount that is not noexec (PodUtils/podvm#335) |
 | [T-570](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: the refusal of the machine tier runs its legs together (PodUtils/podvm#337) |
 | [T-571](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `e830136` is red for podnet: the field `preshared` of `pod_wg::Keys` |
-| [T-574](relay.md) | P2 | S | M6 | feature | open | `pod-hold`: a filter that refuses raw sockets and lets ping sockets reach the supervisor (PodUtils/podnet#550) |
+| [T-572](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-workflow`: the filters of `on:` (types, branches, tags, paths and their -ignore forms) (PodUtils/podrunner#97) |
+| [T-573](podvm.md) | P1 | M | M6 | feature | done | `pod-supervise`: a foreground holder, so that a run that the caller waits for is Running (PodUtils/podvm#339) |
+| [T-574](relay.md) | P2 | S | M6 | feature | done | `pod-hold`: a filter that refuses raw sockets and lets ping sockets reach the supervisor (PodUtils/podnet#550) |
 | [T-575](transport.md) | P3 | S | M1 | docs | done | `pod-services`: the README names the scheme `tcp` of an endpoint (PodUtils/podnet#550) |
+| [T-576](fleet.md) | P2 | L | M8 | feature | done | `pod-actions-workflow`: the calls of reusable workflows in `Run` (inputs, secrets, outputs, limits) (PodUtils/podrunner#98) |
+| [T-577](fleet.md) | P3 | S | M8 | feature | done | `pod-actions-workflow`: the `workflows` filter of `workflow_run` |
+| [T-578](fleet.md) | P3 | S | M8 | feature | open | `pod-actions-workflow`: a check of the keys and the filters of `on:`, as GitHub refuses a file |
 | [T-579](relay.md) | P2 | S | M2 | defect | done | `pod-session`: a spare link that moved no byte backs off before the next (PodUtils/podssh#242) |
+| [T-580](podvm.md) | P1 | S | M6 | defect | done | `pod-rootfs`: an image with no CA bundle gets the host bundle when `host_cas` is false (PodUtils/podvm#341) |
+| [T-581](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a file of mode 4755, 2755 or 6755 loses its setuid and setgid bits (PodUtils/podvm#342) |
+| [T-582](podvm.md) | P2 | S | M6 | defect | done | `pod-supervise`: `start` keeps the end fields of the run before, and a `Dead` record keeps its pid (PodUtils/podvm#343) |
+| [T-583](podvm.md) | P1 | M | M6 | defect | open | `pod-confine` and `pod-enter`: an `exec=` rule does not deny a program that the image's loader starts (PodUtils/podvm#344) |
+| [T-584](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a plan with two limits of one resource fails with `EPERM` (PodUtils/podvm#345) |
+| [T-585](podvm.md) | P2 | S | M6 | defect | open | `pod-oci`: the grammar of an insecure registry host, and a platform list with no repeat and no attestation (PodUtils/podvm#346) |
+| [T-586](podvm.md) | P3 | M | M6 | defect | open | `pod-netlab`: the texts of a knob give the value as written, with its unit and range; the differences from sand-net (PodUtils/podvm#347) |
+| [T-587](fleet.md) | P2 | M | M8 | feature | open | `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99) |
+| [T-588](fleet.md) | P2 | M | M8 | feature | open | `pod-actions-results`: the CacheService and the replacement of an artifact on a rerun (PodUtils/podrunner#99) |
+| [T-589](relay.md) | P2 | S | M2 | feature | open | `pod-netstack`: `bind_udp` with port 0 takes an ephemeral port (PodUtils/podnet#552) |
+| [T-590](podvm.md) | P1 | M | M7 | feature | open | `pod-guest`: `fetch::store` resumes a download by Range, checks the size and the sha256, and has a ceiling for each entry (PodUtils/podvm#350, item 1) |
+| [T-591](podvm.md) | P1 | M | M7 | feature | open | `pod-udf`: a new crate that reads UDF and gives the extent of a file in an ISO (PodUtils/podvm#350, item 2) |
+| [T-592](podvm.md) | P1 | S | M7 | defect | open | `pod-guest`: the agent runs the command in a child `cmd /c`, writes a `WQREADY` marker, and has a keep-alive mode (PodUtils/podvm#350, item 3) |
+| [T-593](podvm.md) | P1 | M | M7 | feature | open | `pod-guest`: the options of a plan: a NIC with `hostfwd`, virtio devices, CD-ROM and USB media, VNC, a serial channel, the Hyper-V flags (PodUtils/podvm#350, item 4) |
+| [T-594](podvm.md) | P2 | M | M7 | feature | open | `pod-qga`: a new crate, a client of the QEMU Guest Agent over a Unix socket (PodUtils/podvm#350, item 5) |
+| [T-595](podvm.md) | P2 | M | M7 | feature | open | `pod-guest`: the provision waits for a ready guest in place of a fixed sleep (PodUtils/podvm#350, item 6) |
+| [T-596](podvm.md) | P3 | M | M7 | feature | open | `pod-guest`: a warm start from a saved state, with a fingerprint and a fallback to a cold boot (PodUtils/podvm#350, item 7) |
+| [T-597](podvm.md) | P2 | S | M6 | defect | done | `pod-extract`: the umask of the process changes the modes of the tree, and the sidecar does not record it |
+| [T-598](podvm.md) | P1 | S | M6 | defect | open | `pod-extract`: each directory has the mode of the image after the last layer, and a directory entry replaces a non-directory of an earlier layer (PodUtils/podvm#354) |
+| [T-599](podvm.md) | P2 | S | M6 | defect | open | `pod-extract`: the `./` member of an archive is not counted as an entry that the crate could not make (PodUtils/podvm#352) |

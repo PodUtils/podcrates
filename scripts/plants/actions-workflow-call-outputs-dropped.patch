@@ -1,0 +1,11 @@
+--- a/crates/pod-actions-workflow/src/expand.rs
++++ b/crates/pod-actions-workflow/src/expand.rs
+@@ -217,7 +217,7 @@
+                 return Ok(());
+             }
+             let ended = self.end_scope(s).map_err(|e| self.in_scope(s, e))?;
+-            let outputs = ended.outputs.clone();
++            let outputs = Vec::new();
+             self.scopes[s].ended = Some(ended);
+             let State::Calling(cells) = &self.nodes[caller].state else {
+                 return Err(usage(format!("the job `{}` does not call", self.nodes[caller].id)));

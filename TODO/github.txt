@@ -148,7 +148,13 @@
 141 issue closed
 142 issue closed
 143 issue closed
-144 issue open
+144 issue closed
 145 issue closed
-146 issue open
-147 issue open
+146 issue closed
+147 issue closed
+148 issue open
+149 issue closed
+150 issue open
+151 issue open
+152 issue open
+153 issue open

@@ -92,20 +92,23 @@ fn a_recvfrom_with_no_source_runs_in_the_kernel() {
     assert_eq!(run(&own, &call(libc::SYS_recvfrom, [0; 6])), RET_USER_NOTIF);
 }
 
+/// The answer of `filter` to `socket(family, kind, protocol)`, with a high
+/// word of garbage in each argument: the kernel reads an int.
+fn socket(filter: &[libc::sock_filter], family: i32, kind: i32, protocol: i32) -> u32 {
+    let arg = |v: i32| u64::from(v as u32) | 0xdead_0000_0000_0000;
+    run(filter, &call(libc::SYS_socket, [arg(family), arg(kind), arg(protocol), 0, 0, 0]))
+}
+
 // socket(AF_INET or AF_INET6, SOCK_RAW with any flag, any protocol) and a
 // ping socket get EPERM in the kernel (PodUtils/podnet#538); the other
-// sockets and the other calls go on as before. The opt-in lets them go to
+// sockets and the other calls go on as before. The opt-ins let them go to
 // the supervisor.
 #[test]
 fn a_raw_socket_and_an_icmp_socket_get_eperm_unless_allowed() {
     let deny = Calls::sockets();
-    let allow = Calls::sockets().allow_raw();
+    let allow = Calls::sockets().allow_raw().allow_ping();
     assert!(deny.denies_raw() && !allow.denies_raw() && !Calls::of(&[libc::SYS_socket]).denies_raw());
-    let socket = |filter: &[libc::sock_filter], family: i32, kind: i32, protocol: i32| {
-        // A high word of garbage: the kernel reads an int.
-        let arg = |v: i32| u64::from(v as u32) | 0xdead_0000_0000_0000;
-        run(filter, &call(libc::SYS_socket, [arg(family), arg(kind), arg(protocol), 0, 0, 0]))
-    };
+    assert!(deny.denies_ping() && !allow.denies_ping() && !Calls::of(&[libc::SYS_socket]).denies_ping());
     let eperm = RET_ERRNO | libc::EPERM as u32;
     let flags = libc::SOCK_CLOEXEC | libc::SOCK_NONBLOCK;
     let refused = [
@@ -138,4 +141,66 @@ fn a_raw_socket_and_an_icmp_socket_get_eperm_unless_allowed() {
     // A list of the caller refuses no socket.
     let own = Calls::of(&[libc::SYS_socket]).program();
     assert_eq!(socket(&own, libc::AF_INET, libc::SOCK_RAW, libc::IPPROTO_ICMP), RET_USER_NOTIF);
+}
+
+/// The raw part: each family and type that sends frames or IP packets of
+/// its own (PodUtils/podcrates T-558).
+const RAW_PART: [(i32, i32, i32); 8] = [
+    (libc::AF_INET, libc::SOCK_RAW | libc::SOCK_NONBLOCK, libc::IPPROTO_ICMP),
+    (libc::AF_INET6, libc::SOCK_RAW, libc::IPPROTO_RAW),
+    (libc::AF_PACKET, libc::SOCK_RAW, 0x0300),
+    (libc::AF_PACKET, libc::SOCK_DGRAM | libc::SOCK_CLOEXEC, 0x0008),
+    (libc::AF_PACKET, libc::SOCK_STREAM, 0),
+    (libc::AF_INET, SOCK_PACKET as i32, 0x0300),
+    (libc::AF_INET6, SOCK_PACKET as i32 | libc::SOCK_CLOEXEC, 0),
+    (AF_XDP as i32, libc::SOCK_RAW, 0),
+];
+
+/// The ping part.
+const PING_PART: [(i32, i32, i32); 4] = [
+    (libc::AF_INET, libc::SOCK_DGRAM, libc::IPPROTO_ICMP),
+    (libc::AF_INET6, libc::SOCK_DGRAM | libc::SOCK_NONBLOCK, libc::IPPROTO_ICMPV6),
+    (libc::AF_INET, libc::SOCK_DGRAM | libc::SOCK_CLOEXEC, libc::IPPROTO_ICMPV6),
+    (libc::AF_INET6, libc::SOCK_DGRAM, libc::IPPROTO_ICMP),
+];
+
+// Each part has its own opt-in (PodUtils/podnet#550): the raw part gets
+// EPERM unless allow_raw, the ping part gets EPERM unless allow_ping, and
+// an allowed socket goes to the supervisor. No rule names the sockets of
+// the other families and types.
+#[test]
+fn each_part_of_the_socket_rules_has_its_own_opt_in() {
+    let eperm = RET_ERRNO | libc::EPERM as u32;
+    let others = [
+        (libc::AF_INET, libc::SOCK_DGRAM, libc::IPPROTO_UDP),
+        (libc::AF_INET, libc::SOCK_DGRAM, 0),
+        (libc::AF_INET6, libc::SOCK_STREAM | libc::SOCK_CLOEXEC, 0),
+        (libc::AF_INET, libc::SOCK_SEQPACKET, libc::IPPROTO_ICMP),
+        (libc::AF_NETLINK, libc::SOCK_RAW, 0),
+        (libc::AF_UNIX, libc::SOCK_DGRAM, 0),
+        (libc::AF_UNIX, SOCK_PACKET as i32, 0),
+    ];
+    for calls in [
+        Calls::sockets(),
+        Calls::sockets().allow_raw(),
+        Calls::sockets().allow_ping(),
+        Calls::sockets().allow_ping().allow_raw(),
+    ] {
+        let filter = calls.program();
+        let (raw, ping) = (calls.denies_raw(), calls.denies_ping());
+        for (part, denied) in [(&RAW_PART[..], raw), (&PING_PART[..], ping), (&others[..], false)] {
+            let want = if denied { eperm } else { RET_USER_NOTIF };
+            for &(family, kind, protocol) in part {
+                let what = format!("socket({family}, {kind:#x}, {protocol}) with raw {raw}, ping {ping}");
+                assert_eq!(socket(&filter, family, kind, protocol), want, "{what}");
+            }
+        }
+        // The rules give the number of the call back to the list.
+        let packet = [libc::AF_PACKET as u64, libc::SOCK_RAW as u64, 0, 0, 0, 0];
+        assert_eq!(run(&filter, &call(libc::SYS_bind, packet)), RET_USER_NOTIF);
+        assert_eq!(run(&filter, &call(libc::SYS_write, packet)), RET_ALLOW);
+    }
+    // Each opt-in clears its own part only.
+    assert!(!Calls::sockets().allow_raw().denies_raw() && Calls::sockets().allow_raw().denies_ping());
+    assert!(Calls::sockets().allow_ping().denies_raw() && !Calls::sockets().allow_ping().denies_ping());
 }

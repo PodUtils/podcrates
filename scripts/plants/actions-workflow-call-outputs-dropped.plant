@@ -1,0 +1,7 @@
+# The outputs of a called workflow do not reach the needs of the
+# jobs after the call (T-576, PodUtils/podrunner#98).
+ENTRY=T-576
+GROUP=actions
+EXPECT='the_outputs_of_the_called_workflow_are_needs_of_the_jobs_after_the_call'
+RUN='cargo test -p pod-actions-workflow --test call'
+LIMIT=900

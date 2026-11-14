@@ -112,6 +112,32 @@ fn no_host_cas_leaves_the_image_trust_store_byte_identical() {
     assert_eq!(std::fs::read_to_string(&p).unwrap(), "# THE IMAGE OWN ROOTS\n");
 }
 
+/// With the host CA fixup off, an image with no bundle gets no file of the
+/// host, named or not: the bundle of the host can hold an intercepting CA.
+#[test]
+fn no_host_cas_writes_no_host_bundle_into_an_image_with_none() {
+    if no_in_root() {
+        return;
+    }
+    let mut unnamed = announced(SELF_SIGNED_PEM);
+    if let Some(h) = unnamed.host_bundle.as_mut() {
+        h.announced_by = None;
+    }
+    for (name, given) in [("pkg-canonenamed", announced(SELF_SIGNED_PEM)), ("pkg-canoneplain", unnamed)] {
+        let d = Scratch::new(name);
+        std::fs::create_dir_all(d.at("etc/ssl/certs")).unwrap();
+        std::fs::create_dir_all(d.at("etc/pki/tls/certs")).unwrap();
+        let settings = Settings { host_cas: false, ..given };
+        let fs = ca_bundle(&d.root(), &settings).unwrap();
+        for p in BUNDLE_PATHS {
+            assert!(!d.at(p).exists(), "the host bundle was written into the image at {p} with host_cas off");
+        }
+        assert_eq!(fs.len(), 1, "{fs:?}");
+        assert_eq!(fs[0].action, Action::Skipped, "{:?}", fs[0]);
+        assert!(fs[0].degraded, "{:?}", fs[0]);
+    }
+}
+
 /// A byte of the bundle of the image that is not UTF-8 stays. podvm's code
 /// read the bundle as lossy text and wrote each such byte as U+FFFD.
 #[test]

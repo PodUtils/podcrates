@@ -1,0 +1,6 @@
+# A start forks while a hold and its thread live in the process (T-573).
+ENTRY=T-573
+GROUP=supervise
+EXPECT='a start while a hold lives was not refused'
+RUN='cargo test -p pod-supervise --test foreground'
+LIMIT=1800

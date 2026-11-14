@@ -1,0 +1,8 @@
+# The permission pass sets only the directories that it widens, so the
+# umask cuts the mode of a directory and a later layer does not set it
+# again (T-597).
+ENTRY=T-597
+GROUP=extract
+EXPECT='the umask changed the mode of d:'
+RUN='cargo test -p pod-extract --all-features --lib drive::umask'
+LIMIT=1800

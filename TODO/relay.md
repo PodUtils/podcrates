@@ -6330,7 +6330,7 @@ cargo test -p pod-link --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6348,7 +6348,36 @@ Add `AF_PACKET` (each type) to the rule, under the opt-in of T-544 or a separate
 
 ```sh
 cargo test -p pod-hold --all-features
+sh scripts/plant-each.sh hold-t558-packet-let-through hold-t558-inet-sock-packet-let-through
 ```
+
+## Done
+
+2026-11-14, commit c498ab0 (with T-574). The raw part of the socket rules
+of `Calls::sockets()` has `AF_PACKET` of each type, under
+`Calls::allow_raw()` (C365): the kernel answers `EPERM`, and the
+supervisor gets no notification. Two findings are in the same rule
+(C367): the kernel makes a packet socket of `socket(AF_INET, SOCK_PACKET,
+...)` (as root on the test host it opened under the opt-in), and `AF_XDP`
+sends frames to a device; both get `EPERM` (`AF_INET6` with `SOCK_PACKET`
+too). No COORD issue to podnet: the opt-in gives the call to the
+supervisor (C366), so podnet's handler refuses `AF_PACKET` under
+`--allow-raw icmp`; the parent tells podnet in its answer to
+PodUtils/podnet#550.
+
+`cargo test -p pod-hold --all-features`: 61 unit tests passed; 5 tests of
+`tests/hold.rs` and 1 of `tests/veth.rs` passed, with no `SKIP:` line.
+New: `filter::tests::each_part_of_the_socket_rules_has_its_own_opt_in`
+(a BPF run of `AF_PACKET` of three types, `AF_XDP`, `SOCK_PACKET` of
+both families, each with each opt-in) and, in `tests/hold.rs`,
+`each_part_of_the_socket_rules_has_its_own_opt_in` (a held child:
+`AF_PACKET` with `SOCK_RAW` and `SOCK_DGRAM` and `AF_INET` with
+`SOCK_PACKET` get `EPERM` with no notification, and reach the supervisor
+with `allow_raw`). Plants, each caught by hand:
+`hold-t558-packet-let-through` (the held test) and
+`hold-t558-inet-sock-packet-let-through` (the BPF test).
+`plant-each.sh --apply`: 0 stale. `check-windows.sh` and
+`check-macos.sh`: 0 faults.
 
 # T-559: `pod-relay`: the client of the HTTP road's one-POST form (PodUtils/podssh#239)
 
@@ -6990,7 +7019,7 @@ another WireGuard implementation (no UDP egress here).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7008,7 +7037,40 @@ Split the rule in two: the raw part (`SOCK_RAW` of `AF_INET` and `AF_INET6`, and
 
 ```sh
 cargo test -p pod-hold --all-features
+sh scripts/plant-each.sh hold-t574-ping-refused-when-allowed hold-t574-raw-opt-in-opens-ping
+sh scripts/agent/check-windows.sh
+sh scripts/agent/check-macos.sh
 ```
+
+## Done
+
+2026-11-14, commit c498ab0 (with T-558). The socket rules have two parts,
+each with its own opt-in (C364): the raw part (`SOCK_RAW` and
+`SOCK_PACKET` of `AF_INET` and `AF_INET6`, `AF_PACKET` and `AF_XDP` of
+each type) and the ping part (`SOCK_DGRAM` with `IPPROTO_ICMP` or
+`IPPROTO_ICMPV6` of `AF_INET` and `AF_INET6`). `Calls::sockets()`
+refuses both with `EPERM` in the kernel. The API: `Calls::allow_raw()`
+(the raw part only), `Calls::allow_ping()` (new), `Calls::denies_raw()`,
+`Calls::denies_ping()` (new). An allowed socket goes to the user
+notification, never straight to the kernel (C366). podnet's ask is
+`Calls::sockets().allow_ping()`, with `.allow_raw()` under `--allow-raw
+icmp`; `Calls::sockets().allow_raw()` alone now refuses the ping part.
+
+`cargo test -p pod-hold --all-features`: 61 unit tests passed; 5 tests of
+`tests/hold.rs` and 1 of `tests/veth.rs` passed, with no `SKIP:` line.
+New: `filter::tests::each_part_of_the_socket_rules_has_its_own_opt_in`
+(a BPF run of each part, each family, the type flags and the other
+sockets with `Calls::sockets()`, `allow_raw`, `allow_ping` and both) and,
+in `tests/hold.rs`, `each_part_of_the_socket_rules_has_its_own_opt_in`
+(a held child: a refused socket gets `EPERM` with no notification; an
+allowed one reaches the supervisor, which proceeds; the kernel of this
+host answered the ping socket of `AF_INET` with `EACCES` (no ping group)
+and `AF_INET6` with `EAFNOSUPPORT`). Plants, each caught by hand:
+`hold-t574-ping-refused-when-allowed` (the held test) and
+`hold-t574-raw-opt-in-opens-ping` (the BPF test); the two plants of T-544
+follow the new code and are caught. `plant-each.sh --apply`: 0 stale.
+`check-windows.sh` and `check-macos.sh`: 0 faults. `cargo doc` of
+`pod-hold` with `-D warnings`: clean.
 
 # T-579: `pod-session`: a spare link that moved no byte backs off before the next (PodUtils/podssh#242)
 
@@ -7055,3 +7117,30 @@ both tests of the road fail: a spare each 3 s, and no byte moves in
 120 s. The plant `session-t579-spare-wait-fixed` (the wait does not
 double) fails the test of the 5 s road (checked by hand). `cargo clippy
 -p pod-session --all-targets --all-features -- -D warnings`: clean.
+
+# T-589: `pod-netstack`: `bind_udp` with port 0 takes an ephemeral port (PodUtils/podnet#552)
+
+**Source:** PodUtils/podnet#552 (COORD-078 of podnet; a defect of PodUtils/podnet@T-117).
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`NetStack::bind_udp` refuses port 0. podnet's UDP over a `wg:FILE` network bound port 0 and never worked; podnet now picks free ports from 49152 itself. `connect` picks an ephemeral port; `bind_udp` should do the same.
+
+## Premise
+
+- Read: PodUtils/podnet#552; `crates/pod-netstack/src/stack.rs` (`bind_udp`, `bind_udp_any`), `crates/pod-netstack/src/stack/udp_service.rs` (`bind_udp`, `bindable`), and the choice of an ephemeral port of `connect`.
+
+## Approach
+
+Port 0 in `bind_udp` (and `bind_udp_any`) takes a free port of the ephemeral range, with the rule of `connect`, and `local_addr` gives the port that it took. A second bind of port 0 takes another port. Tests and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-netstack --all-features
+```

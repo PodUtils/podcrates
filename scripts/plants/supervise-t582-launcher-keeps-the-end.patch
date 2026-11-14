@@ -1,0 +1,18 @@
+diff --git a/crates/pod-supervise/src/launcher/supervise.rs b/crates/pod-supervise/src/launcher/supervise.rs
+--- a/crates/pod-supervise/src/launcher/supervise.rs
++++ b/crates/pod-supervise/src/launcher/supervise.rs
+@@ -140,7 +140,13 @@
+     };
+ 
+     let launcher_pid = sys::getpid();
+-    if let Err(e) = record::<X>(s, &container.id, |c| c.mark_running(pid, launcher_pid)) {
++    if let Err(e) = record::<X>(s, &container.id, |c| {
++        c.state = State::Running;
++        c.pid = Some(pid);
++        c.launcher_pid = Some(launcher_pid);
++        c.started_at = Some(table::now());
++        c.end = None;
++    }) {
+         say(&format!("err recording the container as running: {e}"));
+         let _ = sys::kill(pid, 9);
+         return 1;

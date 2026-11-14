@@ -1,0 +1,11 @@
+--- a/crates/pod-actions-workflow/src/call.rs
++++ b/crates/pod-actions-workflow/src/call.rs
+@@ -232,7 +232,7 @@
+             let value = match given.get(&input.name) {
+                 Some(Value::Null) | None if input.required => return Err(fail(&input.name, "is required".into())),
+                 Some(Value::Null) | None => input.default.clone().unwrap_or_else(|| input.kind.zero()),
+-                Some(value) => input.kind.take(value).ok_or_else(|| {
++                Some(value) => Some(value.clone()).ok_or_else(|| {
+                     let got = format!("{} {}", value.kind(), value.to_json_line());
+                     fail(&input.name, format!("must be a {}, not the {got}", input.kind.name()))
+                 })?,

@@ -1,11 +1,11 @@
 --- a/crates/pod-hold/src/filter.rs
 +++ b/crates/pod-hold/src/filter.rs
-@@ -54,7 +54,7 @@
+@@ -55,7 +55,7 @@
                  libc::SYS_shutdown,
              ],
              recvfrom_with_source_only: true,
 -            deny_raw: true,
 +            deny_raw: false,
+             deny_ping: true,
          }
      }
- 

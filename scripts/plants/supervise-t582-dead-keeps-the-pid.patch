@@ -1,0 +1,12 @@
+diff --git a/crates/pod-supervise/src/table.rs b/crates/pod-supervise/src/table.rs
+--- a/crates/pod-supervise/src/table.rs
++++ b/crates/pod-supervise/src/table.rs
+@@ -147,8 +147,6 @@
+         self.state = State::Dead;
+         self.noticed = Some(now.to_string());
+         self.finished_at.get_or_insert_with(|| now.to_string());
+-        self.pid = None;
+-        self.launcher_pid = None;
+     }
+ }
+ 
