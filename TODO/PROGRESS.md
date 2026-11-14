@@ -190,9 +190,10 @@ T-593, then T-594 to T-596. T-589 (PodUtils/podnet#552). Then the link carriers 
 
 ## Owner actions
 
-- Reserve `pod-actions-store` (T-564) and `pod-actions-results` (T-565)
-  on crates.io at `0.0.0` with the repository of podcrates (the ruling
-  "crates.io names"). A release by a git tag does not wait for them.
+- Reserve `pod-actions-store` (T-564), `pod-actions-results` (T-565)
+  and `pod-qga` (T-594) on crates.io at `0.0.0` with the repository of
+  podcrates (the ruling "crates.io names"). A release by a git tag does
+  not wait for them.
 - The owner reserved `pod-devtunnel` and `podswarm` on crates.io (T-387).
 
 The hand-off of each release is a COORD issue `(to all)`

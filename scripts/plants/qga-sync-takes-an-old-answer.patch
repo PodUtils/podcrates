@@ -1,0 +1,12 @@
+diff --git a/crates/pod-qga/src/client.rs b/crates/pod-qga/src/client.rs
+--- a/crates/pod-qga/src/client.rs
++++ b/crates/pod-qga/src/client.rs
+@@ -149,7 +149,7 @@
+                 Err(s) => return Err(self.stopped(CALL, s)),
+             };
+             match wire::answer(&bytes) {
+-                Ok(Answer::Return(v)) if wire::sync_id(&v).ok() == Some(id) => {
++                Ok(Answer::Return(v)) if wire::sync_id(&v).is_ok() => {
+                     self.synced = true;
+                     return Ok(());
+                 }

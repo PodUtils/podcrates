@@ -1,0 +1,7 @@
+# A shutdown that the agent obeys (no answer, then the end of the
+# connection) reads as a failure (T-594).
+ENTRY=T-594
+GROUP=qga
+EXPECT='shutdown: Error'
+RUN='cargo test -p pod-qga --all-features --test agent a_shutdown_with_no_answer_is_done_and_a_refusal_is_an_error'
+LIMIT=900

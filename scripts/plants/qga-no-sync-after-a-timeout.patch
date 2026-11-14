@@ -1,0 +1,11 @@
+diff --git a/crates/pod-qga/src/client.rs b/crates/pod-qga/src/client.rs
+--- a/crates/pod-qga/src/client.rs
++++ b/crates/pod-qga/src/client.rs
+@@ -115,7 +115,6 @@
+     /// The error of a read or a write that stopped. The stream is no longer
+     /// in step with the answers, so the next call syncs first.
+     fn stopped(&mut self, call: &str, stop: Stop) -> Error {
+-        self.synced = false;
+         let kind = match stop {
+             Stop::Timeout => ErrorKind::Timeout { after: self.settings.call_timeout },
+             Stop::Closed => ErrorKind::Closed,

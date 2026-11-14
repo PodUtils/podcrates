@@ -15,6 +15,7 @@ mod job;
 mod link;
 mod netlab;
 mod podvm;
+mod qga;
 mod relay;
 mod session;
 mod turn;
@@ -28,6 +29,7 @@ pub use e2e::{e2e_frame, e2e_handover, e2e_proof, e2e_record};
 #[cfg(test)]
 pub(crate) use link::run_kcp;
 pub use podvm::{elf_header, extract_layer, oci_challenge, oci_manifest, squashfs_image};
+pub use qga::qga_answer;
 pub use relay::{relay_list, relay_pool};
 pub use session::{session_handover, session_record, udp_frame};
 pub use warp::warp_capsule;

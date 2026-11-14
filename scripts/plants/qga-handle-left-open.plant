@@ -1,0 +1,7 @@
+# read_file returns at a failed read and leaves the handle of the agent
+# open (T-594).
+ENTRY=T-594
+GROUP=qga
+EXPECT='the handle stayed open'
+RUN='cargo test -p pod-qga --all-features --test agent a_file_over_the_limit_is_refused_and_its_handle_is_closed'
+LIMIT=900

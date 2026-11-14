@@ -44,6 +44,7 @@ pod-netstack = { workspace = true, features = ["ipv4-fragmentation"] }
 pod-oci = { workspace = true }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
 pod-proxy = { workspace = true, features = ["blocking", "ech"] }
+pod-qga = { workspace = true }
 pod-quic = { workspace = true }
 # `fuzzing` and `plain-ws` are out: they are for the fuzz targets of fuzz/ and
 # the tests of an embedder, and no binary turns them on.

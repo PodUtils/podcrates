@@ -1,0 +1,7 @@
+# The sync takes a delimited answer with another id, an answer of an
+# older sync, as its own (T-594).
+ENTRY=T-594
+GROUP=qga
+EXPECT='no sync'
+RUN='cargo test -p pod-qga --all-features --test faults a_sync_that_never_gets_its_id_ends_at_its_bound'
+LIMIT=900

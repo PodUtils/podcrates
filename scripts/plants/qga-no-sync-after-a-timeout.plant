@@ -1,0 +1,7 @@
+# A call that ends at its bound leaves the client marked in step, so the
+# next call reads the late answer of the call before (T-594).
+ENTRY=T-594
+GROUP=qga
+EXPECT='the next exec read the late answer of the first'
+RUN='cargo test -p pod-qga --all-features --test faults a_late_answer_is_not_the_answer_of_the_next_call'
+LIMIT=900

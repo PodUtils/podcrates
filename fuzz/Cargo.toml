@@ -71,6 +71,8 @@ pod-extract = { path = "../crates/pod-extract" }
 pod-enter = { path = "../crates/pod-enter" }
 # The squashfs modloop of a guest kernel (T-206).
 pod-guest = { path = "../crates/pod-guest" }
+# The answers of the QEMU Guest Agent (T-594).
+pod-qga = { path = "../crates/pod-qga" }
 # The feature `fuzzing` gives the readers of a response, a cookie reply and
 # a transport message on fixed keys.
 pod-wg = { path = "../crates/pod-wg", features = ["fuzzing"] }
@@ -432,6 +434,13 @@ bench = false
 [[bin]]
 name = "stun_message"
 path = "fuzz_targets/stun_message.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "qga_answer"
+path = "fuzz_targets/qga_answer.rs"
 test = false
 doc = false
 bench = false
