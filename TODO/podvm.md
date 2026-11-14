@@ -2196,7 +2196,7 @@ A signal of the launcher reaches one pid. A grandchild of a payload survives `po
 
 ## Premise
 
-- Read: `crates/pod-supervise/src/launcher.rs:414` is `let _ = sys::kill(pid, sig);`, in the control handler of the launcher. It signals one pid. This agrees with the issue.
+- Read: `crates/pod-supervise/src/launcher.rs:380` is `let _ = sys::kill(pid, sig);`, in the control handler of the launcher. It signals one pid. This agrees with the issue.
 - Read: no entry of `TODO/` names a tree kill, a subreaper or a count of residual processes. This agrees with the issue.
 - Read: `crates/pod-supervise/src` sets no `RLIMIT_FSIZE`.
 - Not measured: the survival of a grandchild. Not run: the .NET runner under any `RLIMIT_FSIZE` (the design review measured that it dies at start below 2 TiB, M1 and M2, correction C21 of the review).
@@ -5988,7 +5988,7 @@ tells the filter's answer from the kernel's. Plants, each caught by hand:
 **Milestone:** M6
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6075,3 +6075,29 @@ sh scripts/plant-each.sh supervise-t573-hold-takes-no-lock supervise-t573-drop-w
 sh scripts/agent/check-windows.sh
 sh scripts/agent/check-macos.sh
 ```
+
+## Done
+
+2026-11-14, commit c00d5fa. `pod_supervise::foreground::<X>(&s, want,
+payload_pid) -> Result<Foreground<X>>` and `Foreground::finish(code) ->
+Result<()>` (`crates/pod-supervise/src/foreground.rs`); a drop with no
+`finish` writes `Dead`. The hold takes the lock of the container, serves
+the control socket on one thread (`launcher::listen` and
+`launcher::handle`, shared with the launcher; `SIG` through
+`pod_hostprobe::sys::pidfd_send_signal`, new), and writes `Running`;
+`start` refuses while a hold lives. Calls C345 to C349.
+
+`cargo test -p pod-supervise --all-features`: 30 unit tests,
+`tests/foreground.rs` 6 steps (a held payload is `Up` and `reconcile`
+keeps it; a second hold and a `start` are refused; `kill` reaches it;
+`stop` with a grace of 10 s ends it with no SIGKILL; a wait before
+`finish` gets the bound and a wait at `finish` gets its code; a drop
+writes `Dead`; a killed holder process reads `Dead`), `lifecycle` 5
+steps, `tree` 7 steps, each passed. The foreground binary passed 30 runs
+in a loop. `cargo test -p pod-hostprobe --all-features`: 130 unit tests
+passed, with `a_pidfd_signals_its_process_and_not_a_reaped_one`. Plants,
+each caught by hand with its EXPECT text:
+`supervise-t573-hold-takes-no-lock`, `supervise-t573-drop-writes-nothing`,
+`supervise-t573-wait-answered-at-once`,
+`supervise-t573-start-not-refused`; `plant-each.sh --apply`: 0 stale.
+`check-size.py`, `check-windows.sh` and `check-macos.sh`: 0 faults.
