@@ -15,6 +15,7 @@ fn cells(outcome: Outcome) -> Vec<Instance> {
     match outcome {
         Outcome::Run(cells) => cells,
         Outcome::Skipped(skip) => panic!("{skip}"),
+        Outcome::Called(calls) => panic!("{calls:?}"),
     }
 }
 
@@ -136,6 +137,7 @@ fn outcomes(build: JobResult) -> Vec<(String, String)> {
                 "run".to_string()
             }
             Outcome::Skipped(skip) => skip.to_string(),
+            Outcome::Called(_) => unreachable!(),
         };
         out.push((id.to_string(), text));
     }
@@ -283,7 +285,7 @@ jobs:
         .iter()
         .flat_map(|(_, o)| match o {
             Outcome::Run(cells) => cells.iter().map(|c| c.name.clone()).collect(),
-            Outcome::Skipped(_) => Vec::new(),
+            Outcome::Skipped(_) | Outcome::Called(_) => Vec::new(),
         })
         .collect();
     assert_eq!(
@@ -319,7 +321,7 @@ fn runs_on_in_its_forms() {
     let all = plan(&workflow(text), Base::default(), JobResult::Success).unwrap();
     let runs_on = |i: usize| match &all[i].1 {
         Outcome::Run(c) => c[0].runs_on.clone().unwrap(),
-        Outcome::Skipped(_) => panic!(),
+        Outcome::Skipped(_) | Outcome::Called(_) => panic!(),
     };
     assert_eq!(runs_on(0), RunsOn { group: Some("big".into()), labels: vec!["linux".into(), "x64".into()] });
     assert_eq!(runs_on(1), RunsOn { group: Some("small".into()), labels: Vec::new() });

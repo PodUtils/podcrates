@@ -65,6 +65,35 @@ pub enum ErrorKind {
         pattern: String,
         why: &'static str,
     },
+    /// The source of a called workflow gave no text.
+    CallText {
+        uses: String,
+        why: String,
+    },
+    /// An error of a called workflow: of its file, or of the expansion of
+    /// one of its jobs.
+    InCalled {
+        uses: String,
+        error: Box<Error>,
+    },
+    /// A call passes a limit of GitHub: the levels of workflows, or the
+    /// count of different called workflows.
+    CallLimit {
+        what: &'static str,
+        max: usize,
+    },
+    /// A value of `with:` that the called workflow does not take: not an
+    /// input, of another type, or a required input not given.
+    Input {
+        name: String,
+        why: String,
+    },
+    /// A secret of `secrets:` that the called workflow does not declare, or
+    /// a required secret not given.
+    Secret {
+        name: String,
+        why: String,
+    },
 }
 
 impl Error {
@@ -101,6 +130,12 @@ impl fmt::Display for ErrorKind {
                 write!(f, "`{key}` needs a pattern with no `!`; use `{key}-ignore` to exclude")
             }
             ErrorKind::BadPattern { pattern, why } => write!(f, "the pattern `{pattern}`: {why}"),
+            ErrorKind::CallText { uses, why } => write!(f, "the called workflow `{uses}`: {why}"),
+            ErrorKind::InCalled { uses, error } => write!(f, "in the called workflow `{uses}`: {error}"),
+            ErrorKind::CallLimit { what, max } => write!(f, "a run has at most {max} {what}"),
+            ErrorKind::Input { name, why } if name.is_empty() => f.write_str(why),
+            ErrorKind::Input { name, why } => write!(f, "the input `{name}` {why}"),
+            ErrorKind::Secret { name, why } => write!(f, "the secret `{name}` {why}"),
         }
     }
 }

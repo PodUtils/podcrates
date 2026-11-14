@@ -2543,3 +2543,33 @@ sh scripts/plant-each.sh actions-workflow-workflows-ignored
 ## Done
 
 2026-11-14. The commit `1018c9a` (`pod-actions-workflow: the workflows filter of workflow_run (T-577)`). `Trigger::workflow` and `Event::workflows` (call C350). `cargo test -p pod-actions-workflow --all-features`: 55 passed (the new test `workflow_run_takes_the_workflows_that_it_names`). The plant `actions-workflow-workflows-ignored` fails that test, by hand. clippy of the crate and of the fuzz library, `cargo doc` of the crate with `-D warnings` and `cargo fmt --all --check`: clean.
+
+# T-576: `pod-actions-workflow`: the calls of reusable workflows in `Run` (inputs, secrets, outputs, limits) (PodUtils/podrunner#98)
+
+**Source:** PodUtils/podrunner#98 (COORD-038 of podrunner).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podrunner runs a job that calls a workflow (`jobs.<id>.uses: ./.github/workflows/x.yml` or `OWNER/REPO/.github/workflows/x.yml@REF`, PodUtils/podrunner@T-131, blocked on this entry). `pod-actions-workflow` names the call (`Job::uses`, `Job::with`, `Job::secrets`) but does not expand it. podrunner asks for the expansion in `Run`, as GitHub does it ("Reusing workflows"): the caller gives the text of each called workflow; each called job becomes a job of the run (`CALLER/CALLEE`, named `CALLER / CALLEE`); `with:` is checked against `on.workflow_call.inputs`; `secrets:` or `secrets: inherit` give the names of the secrets; `on.workflow_call.outputs` become `needs.<caller>.outputs`; the caller ends with the result of GitHub; GitHub's limits on nesting and on the count of called workflows are refused by name. githome runs the same calls.
+
+## Premise
+
+- Read: PodUtils/podrunner#98; `crates/pod-actions-workflow/src/expand.rs`, `src/run.rs`, `src/graph.rs`, `src/model.rs`, `tests/expand.rs`.
+- The rules come from GitHub's "Reusing workflows" (the examples of inputs and secrets, of a matrix, of outputs, of nested calls; the limits) and "Contexts" (`inputs`, `secrets`, `jobs` of `on.workflow_call.outputs`). No run against GitHub here.
+
+## Approach
+
+`src/call.rs`: the trait `Called`, `CallLimits`, `Secrets`, `Call`, and the interface of `on.workflow_call` with its checks. `Run` keeps one scope for each workflow of the run (the top one and each call) and one node for each job; `expand` of a caller with a source reads, checks and adds the called jobs; the end of the last called job ends the caller. Move the concrete jobs to `src/instance.rs` to keep each file under 500 lines. Calls C351 to C356. Tests with the examples of the documents; plants for the inputs not checked, `secrets: inherit` given with no `secrets:`, the levels not bounded and the outputs dropped. The static probe and the fuzz target run a call.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-workflow --all-features
+sh scripts/plant-each.sh actions-workflow-call-inputs-unchecked actions-workflow-call-inherits-unasked actions-workflow-call-levels-unbounded actions-workflow-call-outputs-dropped
+cargo test --manifest-path fuzz/Cargo.toml --lib
+```

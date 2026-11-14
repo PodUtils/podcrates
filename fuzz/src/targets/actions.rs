@@ -1,7 +1,9 @@
 //! The fuzz targets of `pod-actions-expr` and `pod-actions-workflow`.
 
 use pod_actions_expr::{Condition, Contexts, Expr, Template, Value};
-use pod_actions_workflow::{Base, JobResult, Run, Trigger, plan};
+use std::sync::Arc;
+
+use pod_actions_workflow::{Base, CallLimits, Called, JobResult, Run, Trigger, plan, plan_with};
 
 use crate::text;
 
@@ -57,7 +59,8 @@ pub fn actions_expr(data: &[u8]) {
 /// `pod-actions-workflow`, T-251): untrusted YAML. No panic; the limits of
 /// the YAML hold against aliases; the filters of `on:` (T-572) read and
 /// decide; a file that parses has a graph or an error by name, and its dry
-/// run gives each job once.
+/// run gives each job once; a dry run where each call calls the same text
+/// (T-576) gives each job once, within small limits.
 pub fn actions_workflow(data: &[u8]) {
     let Some(input) = text(data) else { return };
     let Ok(parsed) = pod_actions_workflow::parse(input) else { return };
@@ -83,5 +86,22 @@ pub fn actions_workflow(data: &[u8]) {
     if let Ok(all) = plan(&workflow, Base::default(), JobResult::Success) {
         let ids: Vec<&str> = all.iter().map(|(id, _)| id.as_str()).collect();
         assert_eq!(ids, order.iter().map(String::as_str).collect::<Vec<_>>());
+    }
+    let calls = CallLimits { levels: 3, workflows: 4, jobs: 300 };
+    let base = Base { calls, ..Base::default() };
+    if let Ok(all) = plan_with(&workflow, base, JobResult::Success, Arc::new(Same(input.to_string()))) {
+        let mut ids: Vec<&str> = all.iter().map(|(id, _)| id.as_str()).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), all.len(), "{input:?}");
+    }
+}
+
+/// Each call gives the text of the input again.
+struct Same(String);
+
+impl Called for Same {
+    fn text(&self, _uses: &str, _from: Option<&str>) -> Result<String, String> {
+        Ok(self.0.clone())
     }
 }

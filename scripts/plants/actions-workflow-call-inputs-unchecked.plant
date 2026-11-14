@@ -1,0 +1,7 @@
+# A value of `with:` takes any type: a boolean input gets a string
+# (T-576, PodUtils/podrunner#98).
+ENTRY=T-576
+GROUP=actions
+EXPECT='with_is_checked_against_the_inputs_of_the_called_workflow'
+RUN='cargo test -p pod-actions-workflow --test call'
+LIMIT=900
