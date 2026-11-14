@@ -5,9 +5,9 @@ The WireGuard initiator of WARP, sans I/O: the code of podnet's
 PodUtils/podnet#447 cut it.
 
 The crate is this side of a WireGuard tunnel as the initiator: the handshake
-(Noise IKpsk2 with no pre-shared key), the cookie of a responder under load,
-the transport messages with the window of their counters, and the timers of
-a tunnel (the rekey, its resend, a dead path, the keepalive). It owns no
+(Noise IKpsk2, with a preshared key or the zero key), the cookie of a
+responder under load, the transport messages with the window of their
+counters, and the timers of a tunnel (the rekey, its resend, a dead path, the keepalive). It owns no
 socket, no task and no clock. The caller sends and receives the bytes, and
 gives the time `now` of its monotonic clock to each call that reads a timer.
 podnet keeps its driver: the UDP socket of the host or of its userspace
@@ -23,7 +23,7 @@ are the crate's: ring has neither.
 
 | Item | Contents |
 | --- | --- |
-| `Keys` | `private`, `peer_public`, `reserved` (bytes 1 to 3 of each message: WARP's `client_id`; zero for WireGuard); `public()`. `Debug` shows no key. |
+| `Keys` | `private`, `peer_public`, `reserved` (bytes 1 to 3 of each message: WARP's `client_id`; zero for WireGuard), `preshared` (`PresharedKey` of a wg-quick file; `None` is the zero key); `public()`. `Debug` shows no key. |
 | `initiate(keys)` | An `Initiation` with random bytes of the system and the timestamp of the wall clock now. |
 | `initiate_from(keys, entropy, timestamp)` | The ephemeral key and the index from the caller's `pod_core::entropy::Entropy`; the timestamp from `Stamps`. |
 | `initiate_with(keys, ephemeral, sender, timestamp)` | The same values give the same message. |
@@ -37,7 +37,7 @@ are the crate's: ring has neither.
 | `MSG_INITIATION`, `MSG_RESPONSE`, `MSG_COOKIE`, `MSG_DATA`; `INITIATION_LEN`, `RESPONSE_LEN`, `COOKIE_REPLY_LEN` | The types and the lengths of the messages. |
 | `REKEY_AFTER` (120 s), `REKEY_TIMEOUT` (5 s), `HANDSHAKE_DEAD` (20 s), `KEEPALIVE` (25 s), `COOKIE_AGE` (115 s) | The timers. |
 | `Error` | Each failure, with podnet's text; `class()`; `Failure::from`. |
-| `standin` (feature `standin`) | The responder of the tests: `respond`, `respond_with`, `cookie_reply`, `session`, `keys`, `start(reserved, path) -> (Keys, SocketAddr)`, `start_under_load` (a cookie reply to each initiation with no mac2 of its cookie), `serve`, `DataPath` (`All`, `NeedsReserved`, `Dead`). On the loopback it answers each handshake, sends each packet back, and answers a TCP SYN with its SYN-ACK. |
+| `standin` (feature `standin`) | The responder of the tests: `respond`, `respond_with`, `respond_preshared` (with a preshared key), `cookie_reply`, `session`, `keys`, `start(reserved, path) -> (Keys, SocketAddr)`, `start_preshared` (with a new preshared key in the `Keys`), `start_under_load` (a cookie reply to each initiation with no mac2 of its cookie), `serve`, `DataPath` (`All`, `NeedsReserved`, `Dead`). On the loopback it answers each handshake, sends each packet back, and answers a TCP SYN with its SYN-ACK. |
 | `fuzzing` (feature `fuzzing`) | The readers of a response, a cookie reply and a transport message on fixed keys, for the fuzz targets of `fuzz/`. |
 
 ## The timers
@@ -62,6 +62,19 @@ wall clock is read once, and the monotonic time since then is added. A step
 back of the wall clock does not move a timestamp back, and two initiations
 at one instant do not share one; the responder drops an initiation whose
 timestamp is not past the last that it took.
+
+## The preshared key
+
+`Keys::preshared` is the psk step of Noise IKpsk2 (the WireGuard paper,
+section 5.4.3): `(C, τ, κ) = Kdf3(C, Q)` and `H = Hash(H || τ)` in the
+response, after its DH steps. `None` is the zero key of WireGuard. The
+initiation does not depend on the key: `Initiation::finish` mixes it in, and
+a response of a peer with another key, or with none, fails as
+`Error::ResponseNotAuthentic`. No published WireGuard vector has a preshared
+key on fixed keys: the vector of the test
+(`the_vector_of_a_handshake_with_a_preshared_key`) is the output of an
+independent program, the Noise steps written out on Python's hashlib, hmac
+and `cryptography` (call C314).
 
 ## The cookie
 
@@ -143,12 +156,15 @@ The differences, each a fix or a new part:
 
 ## Tests
 
-`cargo test -p pod-wg --all-features`: 19 tests (the vectors of BLAKE2s, its
+`cargo test -p pod-wg --all-features`: 22 tests (the vectors of BLAKE2s, its
 HMAC and the KDF, of HChaCha20, XChaCha20-Poly1305 against RustCrypto's;
 the handshake and the transport messages; the mac1 and the payload of a
-response; an initiation from known values; the cookie; the timers, a rekey
+response; an initiation from known values; the preshared key on both sides,
+on one side and two keys, and its vector; the cookie; the timers, a rekey
 with the previous session, a bad response, a cookie in a rekey; the
-stand-in on the loopback, also under load; the classes of the errors). The fuzz targets
+stand-in on the loopback, also under load and with a preshared key; the
+classes of the errors). The fuzz targets
 `wg_response`, `wg_cookie` and `wg_transport` (`fuzz/`). The plants
 `wg-mac1-unchecked`, `wg-replayed-counter-taken`, `wg-timestamp-goes-back`,
-`wg-bad-response-resets-the-dead-time`, `wg-cookie-mac2-missing`.
+`wg-bad-response-resets-the-dead-time`, `wg-cookie-mac2-missing`,
+`wg-psk-step-skipped`.

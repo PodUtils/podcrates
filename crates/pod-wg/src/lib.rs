@@ -2,15 +2,15 @@
 //!
 //! The crate makes and reads the bytes of each message of WireGuard (the
 //! WireGuard paper and wireguard.com/protocol), on this side as the
-//! initiator: the handshake (Noise IKpsk2 with no pre-shared key), the
+//! initiator: the handshake (Noise IKpsk2, with a preshared key or none), the
 //! cookie of a responder under load, the transport messages with the window
 //! of their counters, and the timers of a tunnel (the rekey, its resend, a
 //! dead path, the keepalive). It owns no socket, no task and no clock: the
 //! caller sends and receives the bytes, and gives the time `now` of its
 //! monotonic clock to each call that reads a timer.
 //!
-//! - [`Keys`]: the keys of a device and of its peer, and WARP's reserved
-//!   bytes (bytes 1 to 3 of each message).
+//! - [`Keys`]: the keys of a device and of its peer, their preshared key,
+//!   and WARP's reserved bytes (bytes 1 to 3 of each message).
 //! - [`initiate`], [`initiate_from`], [`initiate_with`]: an
 //!   [`Initiation`]; [`Initiation::finish`] reads the response into a
 //!   [`Session`].

@@ -9,7 +9,12 @@ use crate::{Cookie, Error, Initiation, Keys, Session, initiate_with, standin};
 /// The keys of the initiator, and the private key of the responder.
 pub fn keys() -> (Keys, [u8; 32]) {
     let peer_private = [2; 32];
-    let keys = Keys { private: [1; 32], peer_public: crate::crypto::x25519_base(&peer_private), reserved: [7, 8, 9] };
+    let keys = Keys {
+        private: [1; 32],
+        peer_public: crate::crypto::x25519_base(&peer_private),
+        reserved: [7, 8, 9],
+        preshared: None,
+    };
     (keys, peer_private)
 }
 

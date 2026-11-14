@@ -95,7 +95,12 @@ mod tests {
     use crate::handshake::{INITIATION_LEN, initiate_with};
 
     fn keys() -> Keys {
-        Keys { private: [1; 32], peer_public: crate::crypto::x25519_base(&[2; 32]), reserved: [7, 8, 9] }
+        Keys {
+            private: [1; 32],
+            peer_public: crate::crypto::x25519_base(&[2; 32]),
+            reserved: [7, 8, 9],
+            preshared: None,
+        }
     }
 
     /// The cookie of a reply opens with the mac1 of its initiation; a

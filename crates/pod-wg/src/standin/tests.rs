@@ -76,3 +76,23 @@ async fn the_standin_under_load_takes_the_mac2_of_its_cookie() {
     let response = recv(&sock).await;
     assert!(next.finish(&keys, &response, Instant::now()).is_ok());
 }
+
+/// The stand-in with a preshared key answers the client that holds it, and
+/// its response fails the check of a client with no key.
+#[tokio::test]
+async fn the_standin_takes_a_preshared_key() {
+    pod_testkit::need_loopback!();
+    let (keys, endpoint) = start_preshared([0; 3], DataPath::All).await;
+    assert!(keys.preshared.is_some());
+    let sock = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    sock.connect(endpoint).await.unwrap();
+    let init = initiate(&keys).unwrap();
+    sock.send(&init.message).await.unwrap();
+    let response = recv(&sock).await;
+    assert!(init.finish(&keys, &response, Instant::now()).is_ok());
+    let plain = Keys { preshared: None, ..keys.clone() };
+    let init = initiate(&plain).unwrap();
+    sock.send(&init.message).await.unwrap();
+    let response = recv(&sock).await;
+    assert!(matches!(init.finish(&plain, &response, Instant::now()), Err(crate::Error::ResponseNotAuthentic)));
+}

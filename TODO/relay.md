@@ -6799,3 +6799,51 @@ cargo test -p pod-relay --all-features --test http_road_one
 ## Blocker
 
 podssh's role serves the one form over HTTP/2 (PodUtils/podssh@T-622).
+
+# T-561: `pod-wg`: the preshared key of a handshake (PodUtils/podnet#547)
+
+**Source:** PodUtils/podnet#547 (COORD-076 of podnet), ask 2; it blocks PodUtils/podnet@T-337.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+podnet asks: "`Keys` takes an optional preshared key, and the initiation
+and `Initiation::finish` mix it in (the psk step of Noise IKpsk2).
+podnet's `wg:FILE` refuses `PresharedKey` until then." The initiator of
+`pod-wg` always uses the zero key, so a peer with a `PresharedKey` refuses
+each handshake.
+
+## Premise
+
+- Read: `crates/pod-wg/src/handshake.rs` (`Keys`, `initiate_with`,
+  `Initiation::finish`: `kdf::<3>` over 32 zero bytes after the DH steps of
+  the response), `crates/pod-wg/src/standin.rs` (the same zero key).
+- The WireGuard paper, section 5.4.3: the response computes
+  `(C, τ, κ) = Kdf3(C, Q)` and `H = Hash(H || τ)` after `Kdf1(C, DH(...))`
+  of its ephemeral key with both keys of the initiator; `Q` is zero when
+  the peers have no preshared key. The initiation (section 5.4.2) has no
+  step with `Q`.
+- No published WireGuard handshake with a preshared key on fixed keys was
+  found: the tests of wireguard-go (`noise_test.go`) and of boringtun make
+  random keys, and the selftests of the kernel module have no handshake.
+
+## Approach
+
+`Keys::preshared: Option<[u8; 32]>` (`None`: the zero key);
+`Initiation::finish` mixes it in at the psk step. The stand-in gets
+`respond_preshared` and `start_preshared`. Tests: both sides with one key;
+one side only and two keys fail with `Error::ResponseNotAuthentic`; a
+vector from an independent program (the Noise steps on Python's hashlib,
+hmac and `cryptography`), with the zero key too; the stand-in on the
+loopback. The plant `wg-psk-step-skipped`. Call C314.
+
+## Prove
+
+```sh
+cargo test -p pod-wg --all-features
+sh scripts/plant-each.sh wg-psk-step-skipped
+```
