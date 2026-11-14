@@ -1,0 +1,12 @@
+diff --git a/crates/pod-hostprobe/src/machine.rs b/crates/pod-hostprobe/src/machine.rs
+--- a/crates/pod-hostprobe/src/machine.rs
++++ b/crates/pod-hostprobe/src/machine.rs
+@@ -128,7 +128,7 @@
+             .filter(|leg| self.tcg_blocked_by.contains(&leg.name) || (leg.name == KVM_LEG && !kvm_holds))
+             .map(|leg| refusal_detail(&self.legs, leg))
+             .collect();
+-        Some(format!("machine tier refused: {}", legs.join("; ")))
++        Some(format!("machine tier refused: {}", legs.join(" ")))
+     }
+ 
+     /// True where the tun leg holds: the TCG profile carries real tun

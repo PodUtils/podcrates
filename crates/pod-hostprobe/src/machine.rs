@@ -112,18 +112,23 @@ impl Assessment {
     /// they measured: the required legs that did not hold, and the kvm
     /// leg where no kvm acceleration holds with them. `None` where a
     /// profile holds.
+    ///
+    /// The string states its verdict one time ("machine tier refused:"),
+    /// so a printer adds no verdict word before it. `; ` separates the
+    /// legs: the reason of a skipped leg is a sentence, and a space alone
+    /// runs the name of the next leg into it.
     pub fn refusal(&self) -> Option<String> {
         if self.profile.is_some() {
             return None;
         }
         let kvm_holds = accel_usable(&self.legs, "kvm");
-        let mut out = String::from("machine tier refused:");
-        for leg in &self.legs {
-            if self.tcg_blocked_by.contains(&leg.name) || (leg.name == KVM_LEG && !kvm_holds) {
-                out.push_str(&format!(" {}", refusal_detail(&self.legs, leg)));
-            }
-        }
-        Some(out)
+        let legs: Vec<String> = self
+            .legs
+            .iter()
+            .filter(|leg| self.tcg_blocked_by.contains(&leg.name) || (leg.name == KVM_LEG && !kvm_holds))
+            .map(|leg| refusal_detail(&self.legs, leg))
+            .collect();
+        Some(format!("machine tier refused: {}", legs.join("; ")))
     }
 
     /// True where the tun leg holds: the TCG profile carries real tun
@@ -352,6 +357,28 @@ mod tests {
         assert_eq!(a.tcg_blocked_by, vec!["qemu-system-x86_64 --version", "qemu-system-x86_64 -accel help"]);
         let refusal = a.refusal().expect("a refusal prints");
         assert!(refusal.contains("no qemu-system-x86_64 on PATH"), "{refusal}");
+    }
+
+    /// PodUtils/podvm#337: the legs are separated where the reason of a leg
+    /// ends, and the verdict comes one time. A space alone ran "could not
+    /// run" into the name of the next leg.
+    #[test]
+    fn the_legs_of_a_refusal_are_separated_where_a_reason_ends() {
+        let mut rows = all_ok();
+        let emu = "no qemu-system-x86_64 on PATH, so the emulator leg could not run";
+        let accel = "no qemu-system-x86_64 on PATH, so the accelerator list could not be read";
+        rows[0] = ("qemu-system-x86_64 --version", Outcome::skip(Some(sys::ENOENT), emu));
+        rows[1] = ("open(/dev/kvm, O_RDWR)", Outcome::denied(sys::ENOENT));
+        rows[5] = ("qemu-system-x86_64 -accel help", Outcome::skip(Some(sys::ENOENT), accel));
+        let refusal = assess(&findings(&rows)).refusal().expect("a refusal prints");
+        assert_eq!(
+            refusal,
+            format!(
+                "machine tier refused: qemu-system-x86_64 --version=skip: {emu}; \
+                 open(/dev/kvm, O_RDWR)=ENOENT; qemu-system-x86_64 -accel help=skip: {accel}"
+            )
+        );
+        assert_eq!(refusal.matches("refused").count(), 1, "{refusal}");
     }
 
     #[test]

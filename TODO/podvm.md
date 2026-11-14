@@ -6138,3 +6138,76 @@ sh scripts/plant-each.sh hostprobe-exec-always-names-the-filesystem
 - Plant `hostprobe-exec-always-names-the-filesystem` (the flag ignored,
   each denial named as `noexec`) fails
   `the_flag_of_the_mount_decides_the_remedy`; applied and run by hand.
+
+# T-570: `pod-hostprobe`: the refusal of the machine tier runs its legs together (PodUtils/podvm#337)
+
+**Source:** PodUtils/podvm#337 (COORD-093 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`Assessment::refusal` of `crates/pod-hostprobe/src/machine.rs` joins its
+legs with one space. The reason of a skipped leg is a sentence, so the
+name of the next leg runs into it:
+
+```
+podvm windows: machine tier refused: qemu-system-x86_64 --version=skip: no qemu-system-x86_64 on PATH, so the emulator leg could not run open(/dev/kvm, O_RDWR)=ENOENT qemu-system-x86_64 -accel help=skip: no qemu-system-x86_64 on PATH, so the accelerator list could not be read
+```
+
+`podvm probe` also prints the verdict two times
+(`refused: machine tier refused: ...`): podvm's report
+(PodUtils/podvm:crates/podvm-probe/src/report.rs, `machine_block`) adds
+`refused: ` before the string. The expected output separates the legs with
+`; ` and has one verdict word.
+
+## Premise
+
+- Read: `crates/pod-hostprobe/src/machine.rs` (`refusal`,
+  `refusal_detail`), `crates/pod-hostprobe/src/supervise.rs` (`refusal`,
+  the same join), `crates/pod-hostprobe/src/report.rs` and
+  `crates/pod-hostprobe/src/report/` (the JSON reader and writer of
+  podcrates: it holds no refusal and prints no verdict word).
+- Not measured here: podvm's printers. The report quotes them.
+
+## Approach
+
+Join the legs with `; ` after `machine tier refused: `. The supervise
+tier has the same join: fix it in place. podcrates's report prints no
+`refused:` before the string, so the double comes from podvm's printer
+alone: podvm drops its own prefix (C337). Tests pin the separator and one
+verdict word; a plant puts the space back.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features --lib -- machine:: supervise::
+sh scripts/plant-each.sh hostprobe-machine-legs-run-together hostprobe-supervise-legs-run-together
+```
+
+## Done
+
+2026-11-14. The commit that names T-570.
+
+- `machine::Assessment::refusal` gives `machine tier refused: LEG; LEG;
+  LEG`; `supervise::Assessment::refusal` gives `SCOPE refused: LEG; LEG`
+  (the same join, fixed in place). podvm's case now reads
+  `machine tier refused: qemu-system-x86_64 --version=skip: no
+  qemu-system-x86_64 on PATH, so the emulator leg could not run;
+  open(/dev/kvm, O_RDWR)=ENOENT; qemu-system-x86_64 -accel help=skip: ...`.
+  The JSON field `tiers.machine.refusal` of podvm carries the same string.
+- The double verdict: podcrates's `report` module prints no refusal and
+  no `refused:`. The `refused: ` before the string is in podvm's printer
+  (PodUtils/podvm:crates/podvm-probe/src/report.rs, `machine_block`), and
+  podvm drops it (C337). podcrates keeps the verdict in the string.
+- Tests: `machine::tests::the_legs_of_a_refusal_are_separated_where_a_reason_ends`
+  (the three legs of podvm's case, the whole string, one `refused`) and
+  `supervise::tests::the_refusal_names_every_missing_leg_in_run_order`
+  (the whole string). `cargo test -p pod-hostprobe --all-features`: each
+  test passed.
+- Plants `hostprobe-machine-legs-run-together` and
+  `hostprobe-supervise-legs-run-together` (a space between legs again)
+  fail their tests; each was applied and run by hand.

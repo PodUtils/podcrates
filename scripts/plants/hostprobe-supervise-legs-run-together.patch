@@ -1,0 +1,12 @@
+diff --git a/crates/pod-hostprobe/src/supervise.rs b/crates/pod-hostprobe/src/supervise.rs
+--- a/crates/pod-hostprobe/src/supervise.rs
++++ b/crates/pod-hostprobe/src/supervise.rs
+@@ -88,7 +88,7 @@
+         }
+         let legs: Vec<String> =
+             self.legs.iter().filter(|leg| self.missing.contains(&leg.name)).map(|leg| leg.detail()).collect();
+-        Some(format!("{} refused: {}", self.scope, legs.join("; ")))
++        Some(format!("{} refused: {}", self.scope, legs.join(" ")))
+     }
+ }
+ 

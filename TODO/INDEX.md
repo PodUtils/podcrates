@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**452 entries: 117 open, 7 partial, 6 blocked, 322 done.**
+**453 entries: 117 open, 7 partial, 6 blocked, 323 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 86 | 100 |
-| P2 | 53 | 2 | 4 | 178 | 237 |
+| P2 | 53 | 2 | 4 | 179 | 238 |
 | P3 | 53 | 2 | 2 | 56 | 113 |
-| **All** | 117 | 7 | 6 | 322 | 452 |
+| **All** | 117 | 7 | 6 | 323 | 453 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -499,3 +499,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-566](fleet.md) | P3 | S | M8 | chore | open | `pod-actions-results`: a fuzz target of the input of a stranger |
 | [T-568](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: a reason of `abi` carries its own verdict label, and a static object reads "names  in DT_NEEDED" (PodUtils/podvm#331) |
 | [T-569](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: `probe_dir_exec` names the filesystem on each `EACCES`, also on a mount that is not noexec (PodUtils/podvm#335) |
+| [T-570](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: the refusal of the machine tier runs its legs together (PodUtils/podvm#337) |

@@ -34,8 +34,8 @@ s390x; mips and 32-bit powerpc refuse to compile).
 | `select` | `Rung` (`word`, `requirement`, `must_never_claim`), `Strictness`, `Rejection`, `Selection` (`choose`, `meets`, `exit_code`, `STRICT_FLOOR`), `Provides`, `control_rows` |
 | `report` (feature `report`) | `write(&Findings, &Selection) -> String`, `read(&str) -> Result<(Findings, Selection), ReadError>`, `SCHEMA`, `ReadError` (`Form`, `Version`, `UnknownRow`, `DuplicateRow`, `Word`, `DenialWithoutErrno`); `schema() -> serde_json::Value` and `SCHEMA_ID` (feature `schema`): the JSON object of one run and its JSON Schema (see "The report") |
 | `mounts` | `Mounts`: create, configure, attach, use; `summary`, `capability_note` |
-| `machine` | `assess`, `Assessment`, `Profile` (`Full`, `Tcg`), `Leg`, the leg names, `accelerators_in` |
-| `supervise` | `assess` (the mediation legs), `assess_supervision` (the lifecycle legs), `Assessment`, `Leg` |
+| `machine` | `assess`, `Assessment`, `Profile` (`Full`, `Tcg`), `Leg`, the leg names, `accelerators_in`. `Assessment::refusal` is one sentence with its verdict (`machine tier refused: LEG; LEG`): a printer adds no verdict word before it |
+| `supervise` | `assess` (the mediation legs), `assess_supervision` (the lifecycle legs), `Assessment`, `Leg`. `Assessment::refusal` has the same shape (`supervise tier refused: LEG; LEG`) |
 | `identity` | `Identity`, `read`, `is_single_id_map`, `ConfinementKey`, `confinement_key(&Identity, &Interpreter)` |
 | `interp` | `detect(is_set) -> Interpreter`, `QEMU_VARS`, `qemu_comm`: is an emulator in the way (a variable of qemu-user, the name `qemu-*` of the process, or a `binfmt_misc` registration of this machine) |
 | `binfmt` | `registrations`, `Registration`, `machine_for`, `SELF_MACHINE`, `BINFMT_DIR` |
@@ -177,6 +177,11 @@ sentence of each value of the `noexec` flag, and the plant
 `the_noexec_flag_agrees_with_the_mount_table` checks the flag against
 `/proc/self/mounts`, and `a_noexec_mount_is_named_by_the_probe` (root)
 probes a `noexec` tmpfs.
+`machine::tests::the_legs_of_a_refusal_are_separated_where_a_reason_ends`
+and `supervise::tests::the_refusal_names_every_missing_leg_in_run_order`
+check that `; ` separates the legs of a refusal and that the verdict comes
+one time; the plants `hostprobe-machine-legs-run-together` and
+`hostprobe-supervise-legs-run-together` prove them.
 
 ## Sources
 

@@ -1,0 +1,6 @@
+# pod-hostprobe: the refusal of the supervise tier joins its legs with a space, so the name of a leg runs into the reason of the leg before it; its test must fail (T-570).
+ENTRY=T-570
+GROUP=hostprobe
+EXPECT='test supervise::tests::the_refusal_names_every_missing_leg_in_run_order \.\.\. FAILED'
+RUN='cargo test -p pod-hostprobe --lib -- supervise::tests::the_refusal_names_every_missing_leg_in_run_order --exact'
+LIMIT=1800
