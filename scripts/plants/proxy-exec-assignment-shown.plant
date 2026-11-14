@@ -1,0 +1,7 @@
+# The label of a proxy command shows its first word, also an assignment
+# (`TOKEN=VALUE cmd`); the test of the secrets of a spec must fail.
+ENTRY=T-612
+GROUP=proxy
+EXPECT='test proxy::tests::the_label_and_the_errors_of_a_spec_hold_no_secret \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --lib'
+LIMIT=1800

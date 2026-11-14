@@ -135,3 +135,79 @@ fn a_carrier_word_after_the_scheme_is_no_carrier() {
     assert_eq!((p.kind_text(), p.to_string(), p.outcome()), ("socks5+exec".into(), "exec:nc ...".into(), "exec"));
     assert_eq!(p.url(), "socks5+exec:nc gw 1080");
 }
+
+// The URL form of a Unix socket has no host and no user: the label shows the
+// path whole (PodUtils/podnet#555; the crash input of podnet's `proxy_url`).
+#[test]
+fn a_unix_proxy_has_no_host_and_no_user() {
+    for spec in [
+        "socks5+unix://ss@proxy:2]:/",
+        "socks5h+unix://u:pw@x",
+        "socks5h+unix://x/run/w.sock",
+        "socks5h+unix://",
+        "socks5h://unix://u:pw@x/run/w.sock",
+        "socks5h+unix:/run/alice@x.sock",
+        "socks5h+unix:/run/w\n.sock",
+    ] {
+        assert!(Proxy::parse(spec).is_err(), "{spec:?} was accepted");
+    }
+    for spec in ["socks5h+unix:///run/w.sock", "socks5h://unix:///run/w.sock"] {
+        let p = Proxy::parse(spec).unwrap_or_else(|e| panic!("{spec}: {e}"));
+        assert_eq!(p.carrier(), &Carrier::Unix("///run/w.sock".into()));
+        assert_eq!(Proxy::parse(&p.url()), Ok(p.clone()));
+    }
+}
+
+/// Each form of a spec with a user and a password: no text of a proxy that
+/// parses, and no error of one that does not, holds the user or the password.
+#[test]
+fn the_label_and_the_errors_of_a_spec_hold_no_secret() {
+    // `{U}` stands for the user and the password, and `{P}` for the
+    // password, so that a scanner of secrets finds no URL with a password in
+    // the source.
+    const PASSWORD: &str = "hunter2";
+    let forms = [
+        "socks5+unix://ss@proxy:2]:/",
+        "socks5h+unix://{U}@x",
+        "socks5h+unix://{U}@x/run/w.sock",
+        "socks5h+unix:/run/{U}@x",
+        "socks5h+unix:{U}@/run/w.sock",
+        "socks5h://unix://{U}@x",
+        "socks5h://unix:/{U}@x",
+        "ftp+unix://{U}@x",
+        "{U}@proxy+unix:/run/w.sock",
+        "http://{U}@proxy.example:3128",
+        "http://{U}]@proxy.example:3128",
+        "http://{U}%40@proxy.example:3128",
+        "http://{U}@@proxy.example:3128",
+        "http://{U}@proxy.example:3128]",
+        "http://{U}@[::1",
+        "http://{U}@[::1]x",
+        "http://{U}@pr:xy:1",
+        "http://{U}@proxy.example:99999",
+        "http://{U}@proxy.example/p",
+        "http://{U}%zz@proxy.example",
+        "http://{U}@",
+        "socks5://:{P}@proxy.example",
+        "socks5h://{U}@[::1]:1080",
+        "socks4://{U}@proxy.example",
+        "socks5h+exec:TOKEN={P} nc gw 1080",
+        "http+exec:{U}@gw nc 127.0.0.1 3128",
+    ];
+    for form in forms {
+        let spec = form.replace("{U}", &format!("alice:{PASSWORD}")).replace("{P}", PASSWORD);
+        for (trusted, parsed) in [(false, Proxy::parse(&spec)), (true, Proxy::parse_trusted(&spec))] {
+            let texts = match &parsed {
+                Ok(p) => vec![p.label(), p.to_string(), format!("{p:?}"), p.kind_text()],
+                Err(e) => vec![e.clone()],
+            };
+            for text in texts {
+                let held = text.contains(PASSWORD) || text.contains("alice") || text.contains("ss@");
+                assert!(!held, "{form:?} (trusted: {trusted}): {text:?}");
+            }
+            if let Ok(p) = &parsed {
+                assert!(!p.label().contains('@'), "{form:?}: {}", p.label());
+            }
+        }
+    }
+}

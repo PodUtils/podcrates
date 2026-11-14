@@ -107,20 +107,24 @@ pub fn socks5_answer(data: &[u8]) {
 /// shows only its host and port, and its URL, which carries the
 /// credentials again for a library, parses back to the same proxy. podnet:
 /// the label of a line has no user and no password. A proxy on a Unix
-/// socket has no credentials, and a variable never names a command.
+/// socket has no credentials and no host, and a variable never names a
+/// command. No `@` of a user reaches the label, the Display or the Debug
+/// form (podnet's crash `socks5+unix://ss@proxy:2]:/`).
 pub fn proxy_url(data: &[u8]) {
     let Some(url) = text(data) else { return };
     let Ok(proxy) = Proxy::parse(url) else { return };
     match proxy.carrier() {
-        Carrier::Tcp => {
-            assert_eq!(proxy.to_string(), authority(&proxy.host, proxy.port));
-            assert!(!proxy.label().contains('@'), "{}", proxy.label());
-        }
+        Carrier::Tcp => assert_eq!(proxy.to_string(), authority(&proxy.host, proxy.port)),
         Carrier::Unix(path) => {
             assert!(!proxy.has_credentials());
             assert_eq!(proxy.to_string(), format!("unix:{}", path.display()));
+            let path = path.to_string_lossy();
+            assert!(!path.starts_with("//") || path.starts_with("///"), "a host in {url:?}");
         }
         Carrier::Exec(_) => panic!("Proxy::parse took a command from {url:?}"),
+    }
+    for shown in [proxy.label(), proxy.to_string(), format!("{proxy:?}")] {
+        assert!(!shown.contains('@'), "{url:?} shows {shown:?}");
     }
     assert_eq!(Proxy::parse(&proxy.url()), Ok(proxy.clone()), "{}", proxy.url());
 }

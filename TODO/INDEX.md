@@ -539,3 +539,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-606](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: a second extraction over a closed tree fails on a directory with no owner read or under a closed parent that the layer does not name |
 | [T-609](podvm.md) | P2 | S | M6 | defect | open | `pod-broker`: a 502 names the status of the upstream proxy or the dial error, and a 403 of `no-rule` names the half of the rule that failed (PodUtils/podvm#359) |
 | [T-611](transport.md) | P2 | S | M1 | feature | open | `pod-services`: the host `software-download.microsoft.com` of the Windows evaluation media (PodUtils/podvm#361) |
+| [T-612](relay.md) | P1 | S | M2 | defect | open | `pod-proxy`: the label of a unix proxy shows the user info of its URL (PodUtils/podnet#555) |

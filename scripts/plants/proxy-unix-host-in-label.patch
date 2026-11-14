@@ -1,0 +1,13 @@
+diff --git a/crates/pod-proxy/src/proxy/parse.rs b/crates/pod-proxy/src/proxy/parse.rs
+index 5804ad7..2b684d2 100644
+--- a/crates/pod-proxy/src/proxy/parse.rs
++++ b/crates/pod-proxy/src/proxy/parse.rs
+@@ -72,7 +72,7 @@ impl Proxy {
+             // The label shows the path whole. In the URL form, `//` starts a
+             // host and `@` ends a user and a password, which a socket has not.
+             // `///PATH` has an empty host, as `unix:///PATH` of other tools.
+-            if (path.starts_with("//") && !path.starts_with("///")) || path.contains('@') {
++            if path.contains('@') {
+                 return Err(format!(
+                     "a proxy on a Unix socket has no host, no user and no password (no // and no @ after unix:): \
+                      {scheme}+unix:/PATH"

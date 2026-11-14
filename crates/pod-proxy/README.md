@@ -218,9 +218,9 @@ New tests: `env` (3), `error` (1), `resolve` (2), `dial_race`
 | The proxy of a tool's file when no variable is set (git `http.proxy`, npm `https-proxy`/`proxy`, pip `proxy`, `/etc/environment`), read one time; a value that does not parse is passed over with a warning | [x] `detect`, `Environment::or_detected` (once by the consumer, no `OnceLock`); `HOME` and the files through the caller's readers; the file is the origin (`Origin::File`) |
 | A proxy URL: `http` (8080 with no port), `socks5`, `socks5h` (1080), any case; `https://` and SOCKS4 refused with their words; no path, query or fragment, with the words of percent-encoding; an escape of two hex digits; credentials in UTF-8; RFC 1929 lengths; the port 0 refused; a host in brackets is IPv6; a host with a character that no name holds refused | [x] `Proxy::parse_with(spec, commands, 8080)` (`Rules::http_port`); the forms of `proxy/parse.rs` |
 | `socks5://` resolves the name here (the pins, the system, DoH) and sends the address; `socks5h://` sends the name; the words name `socks5h://` when the name does not resolve | [x] `socks5`, through the dialer's resolver; `Dial::names_inside` false for `socks5://` |
-| A proxy on a Unix socket: `SCHEME+unix:/PATH`, `SCHEME://unix:/PATH`, an absolute path | [x] `Carrier::Unix`, `Stream::Unix` (Unix hosts) |
+| A proxy on a Unix socket: `SCHEME+unix:/PATH`, `SCHEME://unix:/PATH`, an absolute path | [x] `Carrier::Unix`, `Stream::Unix` (Unix hosts); a path with a host (`//HOST`, but `///PATH`), an `@` or a control character is refused, so that no user or password reaches the label (T-612) |
 | A proxy at a command, `SCHEME+exec:COMMAND` (`sh -c`, one process for each connection, its stderr the process's, killed at the drop), only from `--proxy` and `PODNET_PROXY` | [x] `Carrier::Exec`, `ChildIo`, `Proxy::parse_trusted`, `Origin::User` |
-| The Display of a proxy: `scheme://host:port`, `scheme+unix:/PATH`, `scheme+exec:WORD ...`; Debug and Display with no credentials | [x] `Proxy::label`; `Display` stays `host:port` (podssh) for a proxy on TCP; Debug shows `<hidden>` |
+| The Display of a proxy: `scheme://host:port`, `scheme+unix:/PATH`, `scheme+exec:WORD ...`; Debug and Display with no credentials | [x] `Proxy::label`; `Display` stays `host:port` (podssh) for a proxy on TCP; Debug shows `<hidden>`; the word of a command is its first word that is not an assignment, and none when it holds `@` (`exec:...`) |
 | `secret_parts`: the user and password text, the password as written and decoded, a command whole; none for a URL with no user | [x] `Proxy::secret_parts` |
 | `host()`, `carrier()`, `kind()`, `kind_text()`, `scheme()`, `address()`, `has_credentials()` | [x] the same names; `host` is a field |
 | HTTP CONNECT: `Host`, `Proxy-Connection: keep-alive`, Basic from the URL, the head read to its end and no further | [x] `connect`; the bound of the head is podssh's 16 KiB (podnet: 8 KiB) |
@@ -275,6 +275,15 @@ New tests of the adoption trials: `tests/http.rs`
 (podssh's second proxy reads the schemes of its `407`), `tests/egress.rs`
 `a_failed_dial_keeps_the_kind_of_its_last_error` (podnet's doctor reads a
 refusal of this host by the kind of its error).
+
+New tests of T-612 (PodUtils/podnet#555): `src/proxy/tests.rs`
+`a_unix_proxy_has_no_host_and_no_user` (podnet's crash input
+`socks5+unix://ss@proxy:2]:/`, a user and a password after `+unix://` and
+`://unix://`, an `@` and a control character in the path; `///PATH` parses
+back) and `the_label_and_the_errors_of_a_spec_hold_no_secret` (26 forms of
+a spec with a user and a password, each parsed as a variable and as the
+user's value: no label, Display, Debug, kind or error holds the user or the
+password, and no label holds `@`).
 
 ## Changes for podssh
 

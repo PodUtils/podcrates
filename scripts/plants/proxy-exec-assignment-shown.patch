@@ -1,0 +1,11 @@
+diff --git a/crates/pod-proxy/src/proxy.rs b/crates/pod-proxy/src/proxy.rs
+index b88757e..b14c660 100644
+--- a/crates/pod-proxy/src/proxy.rs
++++ b/crates/pod-proxy/src/proxy.rs
+@@ -223,5 +223,5 @@ impl Proxy {
+ /// an assignment (`TOKEN=VALUE cmd` sets a secret for `cmd`), unless it
+ /// holds `@`, as a user of a host or of a URL does.
+ fn command_word(command: &str) -> Option<&str> {
+-    command.split_whitespace().find(|word| !word.contains('=')).filter(|word| !word.contains('@'))
++    command.split_whitespace().next()
+ }
