@@ -1621,7 +1621,7 @@ the crate. The nightly run at the next head proves it on
 **Milestone:** M5
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1640,3 +1640,31 @@ A take of a consumer is a `taken` line of its block, with the paths that the tak
 ```sh
 python3 -I scripts/check-sources.py pod-warp pod-netstack pod-gsr
 ```
+
+## Done
+
+2026-11-14, commit eaf2762 (calls C460, C461). No change is a fix, so no
+port:
+
+- `pod-warp`, podnet: the 30 changes are podnet's take of v0.37.0 at
+  `f6abdc3` (the files of src/warp/ removed, or glue over pod-warp) and
+  its T-328 at `1649d8f` (crates/podnet-netns/src/rules.rs reads
+  `pod_warp::rules::matcher`). The block takes them with two `taken`
+  lines by path; crates/podnet-core/src/services.rs stays compared with
+  the default branch. No file of the block changed between the pin and
+  the parent of a take. podssh: the 5 files are removed by its take of
+  v0.37.0 at `812c61c`; the block takes it.
+- `pod-netstack`: the change of src/warp/ip.rs is the same take of
+  podnet (`f6abdc3`); the block takes it.
+- `pod-gsr`: gsocket `dd62a5a` (lib/gsocket-util.c) makes `bin2hex` of a
+  NULL source write no byte; the crate's hex of a byte slice has no NULL.
+  The pin moves to `dd62a5a` with the blob of the file.
+
+`python3 -I scripts/check-sources.py --clone ...` with local clones of
+podnet, podssh and gsocket: `pod-warp` (31 files and 5 files),
+`pod-netstack` (8, 1 and 1 files) and `pod-gsr` (4 files) report 0
+changes. Through the mirror, `pod-gsr` reports 0 changes; the mirror
+answered 403 to the many reads of the other two.
+`pod-actions-store` and `pod-actions-results` do not report 0: podrunner
+changed their sources after the pin `872b43f` (`de6850e`, `afa619d` and
+`9dbefd1`); that is a port of its own.
