@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**492 entries: 125 open, 8 partial, 5 blocked, 354 done.**
+**493 entries: 125 open, 8 partial, 5 blocked, 355 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 12 | 3 | 0 | 98 | 113 |
-| P2 | 57 | 2 | 4 | 193 | 256 |
+| P2 | 57 | 2 | 4 | 194 | 257 |
 | P3 | 56 | 3 | 1 | 61 | 121 |
-| **All** | 125 | 8 | 5 | 354 | 492 |
+| **All** | 125 | 8 | 5 | 355 | 493 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -539,4 +539,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-606](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: a second extraction over a closed tree fails on a directory with no owner read or under a closed parent that the layer does not name |
 | [T-607](upkeep.md) | P1 | S | M5 | defect | done | the nightly run at `f6479c7` is red on `windows-11-arm`: the ARQ of a test of `pod-link` through a resolver gives up in 7 s |
 | [T-608](upkeep.md) | P1 | S | M5 | defect | done | `upstream.yml` is red: the sources of `pod-warp`, `pod-netstack` and `pod-gsr` changed |
-| [T-613](fleet.md) | P2 | S | M8 | feature | open | `pod-actions-store` and `pod-actions-results`: podrunner's changes after `872b43f` (T-139, T-149, T-154 of podrunner) |
+| [T-613](fleet.md) | P2 | S | M8 | feature | done | `pod-actions-store` and `pod-actions-results`: podrunner's changes after `872b43f` (T-139, T-149, T-154 of podrunner) |

@@ -2727,7 +2727,7 @@ cargo test -p pod-actions-workflow --all-features
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2747,3 +2747,35 @@ Port each change that a consumer of the crate needs, with its test and a plant; 
 cargo test -p pod-actions-store -p pod-actions-results --all-features
 python3 -I scripts/check-sources.py pod-actions-store pod-actions-results
 ```
+
+## Done
+
+2026-11-14, commits 0457efc (`pod-actions-store`) and 87daa5a
+(`pod-actions-results`); calls C462 and C463. Each change of podrunner is
+one that it needs, and is ported:
+
+- `de6850e` (PodUtils/podrunner@T-139): `Forge::is_local(key)`, default
+  `false`; a local reference goes to the store and never to the lock, in
+  each mode, and a remote action that it names keeps the rules of the
+  lock. Test `a_local_reference_goes_to_the_store_and_not_to_the_lock`.
+- `afa619d` (PodUtils/podrunner@T-154): `Git::proxy` and `Git::command`:
+  the protocol of the base only (`file` for a base with no scheme), no
+  submodule, and with a proxy only that proxy. Test
+  `the_git_command_takes_the_proxy_of_the_grant_and_https_only`
+  (podrunner's, with a `file://` case). Not ported: its `fetch.rs` (the
+  relay of an egress grant) and the live test through it, which are
+  podrunner's egress module.
+- `9dbefd1` (PodUtils/podrunner@T-149): `ArtifactStore::zip_of(name)`,
+  with the check of a name of the store; an artifact with no record gives
+  none. Test `the_zip_of_a_finalized_artifact_and_of_nothing_else`.
+
+`cargo test -p pod-actions-store --all-features`: 20 unit tests, 4 tests
+of git, 1 doc test. `cargo test -p pod-actions-results --all-features`:
+12 unit tests, 8 tests of the cache, 15 of the store. Plants, each caught
+by hand: `actions-store-local-reference-locked`,
+`actions-store-git-any-protocol`, `actions-results-zip-of-a-half-artifact`;
+`plant-each.sh --apply`: 0 stale. clippy, rustfmt and `cargo doc` with
+`-D warnings` are clean; `check-windows.sh` and `check-macos.sh`: 0
+faults. The pins move to podrunner `9dbefd1`; `check-sources.py`:
+`pod-actions-store` 6 files, `pod-actions-results` 4 files, 0 changes
+each, through the mirror and with a clone.
