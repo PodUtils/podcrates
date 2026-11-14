@@ -296,6 +296,9 @@ fourth argument of the script names the list when it is elsewhere.
 * Each version bump makes a new copy of each workspace crate in
   `target/debug`. Before the check of a bump, remove `target/debug` when
   `df -h /` shows less than 25 GB free.
+* While agents build, run the full check and each agent build with
+  `CARGO_INCREMENTAL=0`: the incremental data of the tests of `main` grows
+  to 5 GB, and the disk fills during the test step.
 * Gate a commit and a push on the exit code of each check (`cmd && git
   commit`), never on a pipe into `tail`. After a change of code, run
   clippy of the crate too, not only its tests.
