@@ -6452,3 +6452,84 @@ each caught by hand with its EXPECT text:
 `supervise-t573-wait-answered-at-once`,
 `supervise-t573-start-not-refused`; `plant-each.sh --apply`: 0 stale.
 `check-size.py`, `check-windows.sh` and `check-macos.sh`: 0 faults.
+
+# T-580: `pod-rootfs`: an image with no CA bundle gets the host bundle when `host_cas` is false (PodUtils/podvm#341)
+
+**Source:** PodUtils/podvm#341 (COORD-095 of podvm; PodUtils/podvm@T-1818; an external QA report of podvm, finding F-18).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`ca_bundle` in `crates/pod-rootfs/src/pkg/bundle.rs` writes `settings.host_bundle` to each usual path whose directory exists when the image has no bundle, and it does not read `settings.host_cas` on that path. Only the path of an image that has a bundle reads `host_cas`. So `podvm run --no-host-cas` of an image with no CA bundle still gets the host bundle, which can hold an intercepting CA that `SSL_CERT_FILE` names.
+
+## Premise
+
+- Read: PodUtils/podvm#341; `crates/pod-rootfs/src/pkg/bundle.rs` (`ca_bundle`, the branch `present.is_empty()`).
+
+## Approach
+
+When `host_cas` is false, the branch with no bundle gives the same `Skipped` row (degraded) as when the host gives no bundle, and writes no file. A test: an image with no bundle, `host_cas` false and a host bundle given, writes no file. A plant that the test catches.
+
+## Prove
+
+```sh
+cargo test -p pod-rootfs --all-features
+```
+
+# T-581: `pod-extract`: a file of mode 4755, 2755 or 6755 loses its setuid and setgid bits (PodUtils/podvm#342)
+
+**Source:** PodUtils/podvm#342 (COORD-096 of podvm; PodUtils/podvm@T-1813; an external QA report of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`crates/pod-extract/src/apply.rs` opens a file with `want = (mode | 0o600) & 0o7777` and calls `fchmod(fd, want_final)` after the content only when `want_final != want`. For a mode of 4755, 2755 or 6755 the two are equal, so no `fchmod` runs, and the `write` of the content as a user that is not root has already cleared `S_ISUID` and `S_ISGID`. As uid 1000, 11 programs of `debian:bookworm-slim` lose their setuid or setgid bit.
+
+## Premise
+
+- Read: PodUtils/podvm#342; `crates/pod-extract/src/apply.rs` (the open with `want`, the `fchmod` of `want_final`, the sidecar of a widened mode).
+
+## Approach
+
+After the last write, call `fchmod(fd, mode & 0o7777)` when the mode has a bit of `0o7000`, also when it is equal to `want`. A mode that the kernel refuses goes into the sidecar, as the widened mode does. Tests of 4755, 2755 and 6755 as the user of the test, and as root where the test runs as root. A plant that the test catches.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```
+
+# T-582: `pod-supervise`: `start` keeps the end fields of the run before, and a `Dead` record keeps its pid (PodUtils/podvm#343)
+
+**Source:** PodUtils/podvm#343 (COORD-097 of podvm; PodUtils/podvm@T-1807; an external QA report of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`start` sets `state`, `launcher_pid` and `pid`, and keeps `exit_code`, `finished_at`, `end` and `noticed` of the run before. So `podvm inspect` of a restarted container shows `running` with the exit code 143 of the run before. `reconcile` writes `Dead` and keeps `pid`, so the record names a pid that is not its process.
+
+## Premise
+
+- Read: PodUtils/podvm#343; `crates/pod-supervise/src/lib.rs` (`start`, `reconcile`), `launcher/supervise.rs` and `foreground.rs` (T-573: the hold writes the same records).
+
+## Approach
+
+Clear `exit_code`, `finished_at`, `end` and `noticed` when the launcher (or the foreground hold of T-573) reports that the payload runs. Clear `pid` and `launcher_pid` when the record becomes `Dead`. A test of each, and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features
+```
