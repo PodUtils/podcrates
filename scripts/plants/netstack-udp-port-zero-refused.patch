@@ -1,0 +1,12 @@
+diff --git a/crates/pod-netstack/src/stack/udp_service.rs b/crates/pod-netstack/src/stack/udp_service.rs
+--- a/crates/pod-netstack/src/stack/udp_service.rs
++++ b/crates/pod-netstack/src/stack/udp_service.rs
+@@ -319,7 +319,7 @@
+     }
+ 
+     pub(super) fn bind_udp(&mut self, local: Local) -> io::Result<UdpSocket> {
+-        let local = if local.port == 0 { self.free_udp_port(local)? } else { local };
++        let local = if local.port == 0 && false { self.free_udp_port(local)? } else { local };
+         self.bindable(local)?;
+         let addr = local.addr();
+         // A socket that the app dropped holds its port until its queued

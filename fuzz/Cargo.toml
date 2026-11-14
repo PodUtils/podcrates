@@ -74,6 +74,8 @@ pod-extract = { path = "../crates/pod-extract" }
 pod-enter = { path = "../crates/pod-enter" }
 # The squashfs modloop of a guest kernel (T-206).
 pod-guest = { path = "../crates/pod-guest" }
+# The UDF reader of an ISO (T-591).
+pod-udf = { path = "../crates/pod-udf" }
 # The feature `fuzzing` gives the readers of a response, a cookie reply and
 # a transport message on fixed keys.
 pod-wg = { path = "../crates/pod-wg", features = ["fuzzing"] }
@@ -323,6 +325,13 @@ bench = false
 [[bin]]
 name = "squashfs_image"
 path = "fuzz_targets/squashfs_image.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "udf_image"
+path = "fuzz_targets/udf_image.rs"
 test = false
 doc = false
 bench = false

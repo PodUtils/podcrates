@@ -1,0 +1,7 @@
+# The reader does not check the CRC of a descriptor: a changed byte of a
+# file entry goes through (T-591).
+ENTRY=T-591
+GROUP=udf
+EXPECT='not a fault of the file entry'
+RUN='cargo test -p pod-udf --lib a_corrupt_descriptor_is_refused'
+LIMIT=900

@@ -1,0 +1,14 @@
+diff --git a/crates/pod-udf/src/udf.rs b/crates/pod-udf/src/udf.rs
+--- a/crates/pod-udf/src/udf.rs
++++ b/crates/pod-udf/src/udf.rs
+@@ -241,7 +241,9 @@
+             }
+             let mut ranges = Vec::new();
+             physical.map(0, ad.lbn, len, icb.offset, &mut ranges)?;
+-            extents.push(MetaExtent { file, lbn: ad.lbn, len });
++            if extents.is_empty() {
++                extents.push(MetaExtent { file, lbn: ad.lbn, len });
++            }
+         }
+         file += len;
+     }

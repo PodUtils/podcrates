@@ -60,6 +60,7 @@ pod-tls = { path = "crates/pod-tls", version = "0.44.0" }
 # No default feature here: pod-proxy takes the codec of STUN alone (feature
 # `stun`); a crate that needs the TURN client names the feature `turn`.
 pod-turn = { path = "crates/pod-turn", version = "0.44.0", default-features = false }
+pod-udf = { path = "crates/pod-udf", version = "0.44.0" }
 pod-warp = { path = "crates/pod-warp", version = "0.44.0" }
 pod-wg = { path = "crates/pod-wg", version = "0.44.0" }
 pod-wormhole = { path = "crates/pod-wormhole", version = "0.44.0" }

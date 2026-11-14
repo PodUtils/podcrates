@@ -1,5 +1,6 @@
-//! A binary that links pod-core, pod-tls, pod-wg, pod-confine and the STUN
-//! codec of pod-turn with no default feature, so that no tokio is in it.
+//! A binary that links pod-core, pod-tls, pod-wg, pod-confine, the STUN
+//! codec of pod-turn and pod-udf with no default feature, so that no tokio
+//! is in it.
 //! `scripts/check-static.sh` checks the binary on each target, and
 //! `scripts/check-probe.py` checks the tree (docs/design.md, section 7).
 
@@ -16,6 +17,8 @@ fn main() {
     let key = pod_turn::stun::long_term_key("probe", "probe.example", "probe");
     let signed = pod_turn::stun::signed(&pod_turn::stun::binding_request(&[7; 12]), &key);
     println!("pod-turn: a signed Binding request of {} bytes", signed.len());
+    let udf = pod_udf::Udf::open(&[0u8; 4096][..]).map_or_else(|e| e.to_string(), |u| u.block_size().to_string());
+    println!("pod-udf: {udf}");
     confine();
 }
 

@@ -319,6 +319,7 @@ impl Core {
     }
 
     pub(super) fn bind_udp(&mut self, local: Local) -> io::Result<UdpSocket> {
+        let local = if local.port == 0 { self.free_udp_port(local)? } else { local };
         self.bindable(local)?;
         let addr = local.addr();
         // A socket that the app dropped holds its port until its queued
@@ -373,6 +374,25 @@ impl Core {
             cause,
             kick: DropKick(self.kick.clone()),
         })
+    }
+
+    /// `local` on a free port of the dynamic range. The first port to try
+    /// comes from the rule of `connect`; a port that a socket holds (also
+    /// one that drains its queue) moves the choice to the next port.
+    fn free_udp_port(&self, local: Local) -> io::Result<Local> {
+        let first = ephemeral_port(self.next_id, self.config.random_seed);
+        let range = EPHEMERAL_FIRST..=u16::MAX;
+        let size = range.len() as u32;
+        (0..size)
+            .map(|step| Local {
+                port: EPHEMERAL_FIRST + ((u32::from(first - EPHEMERAL_FIRST) + step) % size) as u16,
+                ..local
+            })
+            .find(|candidate| {
+                !self.udp.values().any(|conn| conn.local.overlaps(*candidate))
+                    && self.gateway_local().is_none_or(|gateway| !gateway.overlaps(*candidate))
+            })
+            .ok_or_else(|| refuse(io::ErrorKind::AddrInUse, "each port of the dynamic range holds a UDP socket".into()))
     }
 }
 

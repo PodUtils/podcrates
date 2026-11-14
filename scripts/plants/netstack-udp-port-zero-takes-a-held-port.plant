@@ -1,0 +1,7 @@
+# The choice of a port for a UDP bind of port 0 does not skip a port that a
+# socket holds: the bind is AddrInUse (PodUtils/podnet#552).
+ENTRY=T-589
+GROUP=netstack
+EXPECT='a bind of port 0'
+RUN='cargo test -p pod-netstack --lib a_bind_of_port_zero_skips_a_held_port'
+LIMIT=900

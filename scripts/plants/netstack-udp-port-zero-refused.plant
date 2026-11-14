@@ -1,0 +1,7 @@
+# A UDP bind of port 0 goes to smoltcp, which refuses it: no ephemeral port
+# (PodUtils/podnet#552). The bind must take a free port.
+ENTRY=T-589
+GROUP=netstack
+EXPECT='a bind of port 0'
+RUN='cargo test -p pod-netstack --lib a_bind_of_port_zero_takes_a_free_port'
+LIMIT=900

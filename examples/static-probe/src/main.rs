@@ -11,6 +11,7 @@ mod netlab;
 mod relay;
 mod relay_client;
 mod turn;
+mod udf;
 mod warp;
 
 fn main() {
@@ -124,6 +125,7 @@ fn main() {
     lines.push(actions::results());
     lines.push(netlab::netlab());
     lines.push(turn::turn());
+    lines.push(udf::udf());
     let direct = pod_proxy::Dialer::new(
         pod_proxy::Settings::new("static-probe", pod_proxy::ProxyChoice::Direct),
         std::sync::Arc::new(pod_proxy::resolve::System::new()),

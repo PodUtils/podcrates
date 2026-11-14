@@ -6792,7 +6792,7 @@ cargo test -p pod-guest --all-features
 **Milestone:** M7
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6811,6 +6811,16 @@ A new crate `pod-udf` with no I/O of its own: a trait that reads sectors at an o
 ```sh
 cargo test -p pod-udf --all-features
 ```
+
+## Done
+
+2026-11-14, commit 0ac0022. The new crate `pod-udf`: `Udf::open(reader)`, `Udf::open_with(reader, Limits)`, `Udf::find(path) -> Extents { size, parts: Vec<Extent> }` (`Extent::Data { offset, len }`, `Extent::Zero { len }`; `Extents::range()` for a file of one part), `Udf::list(path) -> Vec<Entry>`, `Udf::read(&extents, max)`, `find(reader, path)`; the trait `ReadAt::read_at(offset, buf)` with `Seeker(R: Read + Seek)`; `Error` and `TagFault`. ECMA-167 with UDF 1.02 to 2.60: the anchor at block 256 (2048, 512 or 4096 bytes), the main and the reserve volume descriptor sequence, partition maps of type 1 and the metadata partition (its mirror stands in), file entries and extended file entries with `short_ad`, `long_ad`, data in the entry and allocation extent descriptors, names in OSTA compressed unicode (8, 16, 254, 255), each tag checked. Calls C404 to C408. New code from the specifications; no dependency.
+
+- `cargo test -p pod-udf --all-features`: 17 unit tests and 1 doc test, against images of the writer of the tests (`src/tests/writer.rs`; no `mkisofs`, `genisoimage` or `xorriso` on the host): a file in a subdirectory, each revision with `short_ad` and `long_ad`, a metadata partition whose file has two extents, a missing path, a file of two extents and a hole, an embedded file, names with no regard to case and in UTF-16, the limits, no anchor and a failed reader, a `Seeker`, the CRC; a corrupt descriptor (CRC, checksum, location), the reserve sequence, the metadata mirror, allocation extent descriptors (a continued list, a loop to the limit), the unsupported structures. 1 ignored test writes the fuzz seeds.
+- Plants, each caught by hand: `udf-crc-unchecked`, `udf-second-extent-dropped`, `udf-metadata-first-extent-only`, `udf-reserve-sequence-unused`, `udf-allocation-extent-not-followed`, `udf-depth-unbounded`.
+- The fuzz target `udf_image` (sparse records; 3 seeds of the test writer): 600,000 mutations with no panic, in a scratch build of the target body on stable Rust. The static probe and the lean probe call the reader.
+- clippy, rustfmt and `cargo doc` are clean; `check-size.py`, `check-probe.py --no-tree`, `check-publish-order.py`, `check-design-paths.py` agree; `check-windows.sh` and `check-macos.sh`: 0 faults.
+- Next: the owner reserves `pod-udf` on crates.io (TODO/PROGRESS.md, "Owner actions"); podvm takes the crate at the next tag (PodUtils/podvm@T-1863).
 
 # T-592: `pod-guest`: the agent runs the command in a child `cmd /c`, writes a `WQREADY` marker, and has a keep-alive mode (PodUtils/podvm#350, item 3)
 
@@ -7055,4 +7065,31 @@ The root member adds nothing to `skipped` and names nothing there; a fifo and a 
 
 ```sh
 cargo test -p pod-extract --all-features
+```
+
+# T-601: `pod-udf`: a test against images that a real mastering tool made
+
+**Source:** T-591 (a finding of its work).
+**Category:** chore
+**Milestone:** M7
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Each test image of `pod-udf` comes from a writer in its own tests, which follows the same reading of the specification as the reader. A misreading in both, or a quirk of a real mastering tool (oscdimg, mkisofs, xorriso, mkudffs), passes each test.
+
+## Premise
+
+- Read: the report of T-591 and calls C404 to C408; `crates/pod-udf/src/tests/writer.rs`.
+
+## Approach
+
+Keep a small image made by a real tool under `tests/data`, with its command beside it, or build one in CI with `xorriso -as mkisofs -udf` (UDF 1.02) and `mkudffs --udfrev=0x0250` (a metadata partition). Run `find` on a known path and compare the bytes. A live test against a Windows ISO by Range requests comes later.
+
+## Prove
+
+```sh
+cargo test -p pod-udf --all-features
 ```

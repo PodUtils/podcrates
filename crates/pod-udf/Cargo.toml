@@ -1,0 +1,12 @@
+[package]
+name = "pod-udf"
+description = "A reader of UDF (ECMA-167, UDF 1.02 to 2.60) that finds a file in an image and gives its byte ranges, with no I/O of its own: the caller reads the bytes, from a file or by HTTP Range requests."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# No dependency: the reader is std only, so that a synchronous consumer and
+# the lean static probe take it with no runtime.
+[dependencies]

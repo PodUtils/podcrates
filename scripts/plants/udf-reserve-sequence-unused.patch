@@ -1,0 +1,12 @@
+diff --git a/crates/pod-udf/src/volume.rs b/crates/pod-udf/src/volume.rs
+--- a/crates/pod-udf/src/volume.rs
++++ b/crates/pod-udf/src/volume.rs
+@@ -101,7 +101,7 @@
+ pub(crate) fn descriptors<R: ReadAt>(reader: &mut R, anchor: &Anchor, limits: &Limits) -> Result<Descriptors, Error> {
+     match sequence(reader, anchor.block, anchor.main, limits) {
+         Ok(found) => Ok(found),
+-        Err(main) => sequence(reader, anchor.block, anchor.reserve, limits).map_err(|_| main),
++        Err(main) => Err(main),
+     }
+ }
+ 

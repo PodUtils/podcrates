@@ -1,0 +1,7 @@
+# A bad main volume descriptor sequence fails the open: the reserve
+# sequence does not stand in (T-591).
+ENTRY=T-591
+GROUP=udf
+EXPECT='the reserve sequence stands in'
+RUN='cargo test -p pod-udf --lib the_reserve_sequence_stands_in_for_a_bad_main'
+LIMIT=900

@@ -430,9 +430,12 @@ impl Core {
     }
 }
 
+/// The first port of the dynamic range; the range ends at 65535.
+pub(super) const EPHEMERAL_FIRST: u16 = 49152;
+
 pub(super) fn ephemeral_port(id: u32, seed: u64) -> u16 {
-    // 49152..=65535 is the dynamic range; the id and the seed mix, so that a
-    // restart does not reuse the same ports.
+    // The id and the seed mix, so that a restart does not reuse the same
+    // ports.
     let mixed = (id as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15) ^ seed;
-    49152 + (mixed % (65535 - 49152 + 1)) as u16
+    EPHEMERAL_FIRST + (mixed % (u64::from(u16::MAX - EPHEMERAL_FIRST) + 1)) as u16
 }

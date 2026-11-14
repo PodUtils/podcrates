@@ -1,0 +1,6 @@
+# A path of any depth is walked: no bound of `Limits::depth` (T-591).
+ENTRY=T-591
+GROUP=udf
+EXPECT='not the bound of depth'
+RUN='cargo test -p pod-udf --lib the_limits_hold'
+LIMIT=900
