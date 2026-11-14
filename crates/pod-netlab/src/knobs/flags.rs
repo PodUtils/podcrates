@@ -2,37 +2,59 @@
 //! gives them to `Knobs::parse_flags`, and `Knobs::flags` writes a knob
 //! set back as flags (a scenario as its command line).
 
-use super::check::{Contradiction, DELAY_MS, MTU, RATE_KBIT};
+use super::check::{Contradiction, DELAY_K, LOSS_K, MTU_K, RATE_K, Ranged, port_k};
 use super::{Broken, Icmp, KnobError, Knobs, Nat, NatFlags, Ping, Policy, Stack, loss_text};
 
 fn bad(flag: &str, why: impl Into<String>) -> KnobError {
     KnobError::BadFlag { flag: flag.to_string(), why: why.into() }
 }
 
-/// A whole number of type `T`. A number of digits that `T` cannot hold
-/// names the range of the knob (`range`), not a fault of the form.
-fn number<T: TryFrom<u64>>(flag: &str, value: &str, (min, max): (u64, u64)) -> Result<T, KnobError> {
-    let out_of_range = || bad(flag, format!("the value is out of its range {min} to {max}"));
-    if value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
-        return Err(bad(flag, "the value is not a whole number"));
-    }
-    let n: u64 = value.parse().map_err(|_| out_of_range())?;
-    T::try_from(n).map_err(|_| out_of_range())
+/// The refusal of a value with a `-` before its digits: its own text, with
+/// the range, as "not a number" would mislead.
+fn negative(flag: &str, value: &str, k: &Ranged) -> Option<KnobError> {
+    let digits = value.strip_prefix('-')?;
+    let digits = digits.split('.').all(|d| !d.is_empty() && d.bytes().all(|b| b.is_ascii_digit()));
+    digits.then(|| bad(flag, format!("the value {value} is negative; give {} to {}", (k.text)(k.min), (k.text)(k.max))))
 }
 
-/// A percent with at most two decimals (`5`, `0.25`) in hundredths.
+/// A whole number of the knob `k`, of type `T`. A value out of the range
+/// (also one that `u64` cannot hold) names the value as written, with the
+/// unit of the knob, and the range.
+fn number<T: TryFrom<u64>>(flag: &str, value: &str, k: &Ranged) -> Result<T, KnobError> {
+    if let Some(e) = negative(flag, value, k) {
+        return Err(e);
+    }
+    if value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(bad(flag, format!("the value {value:?} is not a whole number")));
+    }
+    let n: u64 = value.parse().map_err(|_| k.refuse(value))?;
+    if !(k.min..=k.max).contains(&n) {
+        return Err(k.refuse(value));
+    }
+    T::try_from(n).map_err(|_| k.refuse(value))
+}
+
+/// A percent with at most two decimals (`5`, `0.25`) in hundredths, in the
+/// range of `--loss`.
 fn percent(flag: &str, value: &str) -> Result<u16, KnobError> {
     let value = value.strip_suffix('%').unwrap_or(value);
-    let (whole, frac) = value.split_once('.').unwrap_or((value, ""));
-    let digits = |s: &str| !s.is_empty() && s.len() <= 5 && s.bytes().all(|b| b.is_ascii_digit());
-    if !digits(whole) || frac.len() > 2 || !(frac.is_empty() || digits(frac)) {
-        return Err(bad(flag, "the value is not a percent with at most two decimals"));
+    if let Some(e) = negative(flag, value, &LOSS_K) {
+        return Err(e);
     }
-    // At most five digits: no overflow of `u32`.
-    let whole: u32 = number(flag, whole, (0, u32::MAX.into()))?;
-    let frac: u32 =
-        if frac.is_empty() { 0 } else { number::<u32>(flag, frac, (0, 99))? * if frac.len() == 1 { 10 } else { 1 } };
-    u16::try_from(whole * 100 + frac).map_err(|_| bad(flag, "the percent is too large"))
+    let (whole, frac) = value.split_once('.').unwrap_or((value, ""));
+    let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
+    if !digits(whole) || frac.len() > 2 || !(frac.is_empty() || digits(frac)) {
+        return Err(bad(flag, format!("the value {value:?} is not a percent with at most two decimals")));
+    }
+    let refuse = || LOSS_K.refuse(value);
+    let whole: u64 = whole.parse().map_err(|_| refuse())?;
+    let frac: u64 = if frac.is_empty() { 0 } else { frac.parse::<u64>().map_err(|_| refuse())? };
+    let frac = if value.split_once('.').is_some_and(|(_, f)| f.len() == 1) { frac * 10 } else { frac };
+    let bp = whole.checked_mul(100).and_then(|w| w.checked_add(frac)).ok_or_else(refuse)?;
+    if !(LOSS_K.min..=LOSS_K.max).contains(&bp) {
+        return Err(refuse());
+    }
+    u16::try_from(bp).map_err(|_| refuse())
 }
 
 /// The word of an empty list of `--tcp` or `--udp`: an empty value does
@@ -43,16 +65,19 @@ fn port_list(flag: &str, value: &str) -> Result<Vec<u16>, KnobError> {
     if value.is_empty() || value == NO_PORTS {
         return Ok(Vec::new());
     }
-    value.split(',').map(|p| number(flag, p, (1, u16::MAX.into()))).collect()
+    let k = port_k(if flag == "--udp" { "udp port" } else { "tcp port" });
+    value.split(',').map(|p| number(flag, p, &k)).collect()
 }
 
 fn word<T>(flag: &str, value: &str, read: fn(&str) -> Option<T>, words: &[&str]) -> Result<T, KnobError> {
-    read(value).ok_or_else(|| bad(flag, format!("the value is not one of: {}", words.join(", "))))
+    read(value).ok_or_else(|| bad(flag, format!("the value {value:?} is not one of: {}", words.join(", "))))
 }
 
-/// A range of a knob in `u64`, for the text of a number out of it.
-fn wide<T: Into<u64>>((min, max): (T, T)) -> (u64, u64) {
-    (min.into(), max.into())
+/// The words of `--icmp`: `allow` is sand-net's word for `pass`.
+const ICMP_WORDS: [&str; 3] = ["pass", "allow", "drop"];
+
+fn icmp_of(w: &str) -> Option<Icmp> {
+    Icmp::from_word(if w == "allow" { "pass" } else { w })
 }
 
 impl Knobs {
@@ -78,6 +103,9 @@ impl Knobs {
                 *on = flag != "--no-dns";
                 continue;
             }
+            if !flag.starts_with("--") {
+                return Err(bad(flag, "the word is not a flag: each value follows its flag"));
+            }
             let value = args.next().ok_or_else(|| bad(flag, "the flag needs a value"))?;
             match flag {
                 "--stack" => knobs.stack = word(flag, value, Stack::from_word, Stack::WORDS)?,
@@ -87,15 +115,11 @@ impl Knobs {
                 "--tcp" => lists.get_or_insert_with(Default::default).0 = port_list(flag, value)?,
                 "--udp" => lists.get_or_insert_with(Default::default).1 = port_list(flag, value)?,
                 "--broken" => knobs.broken = Some(word(flag, value, Broken::from_word, Broken::WORDS)?),
-                "--mtu" => knobs.mtu = Some(number(flag, value, wide(MTU))?),
-                "--icmp" => knobs.icmp = word(flag, value, Icmp::from_word, Icmp::WORDS)?,
-                "--delay" => {
-                    knobs.delay_ms = Some(number(flag, value.strip_suffix("ms").unwrap_or(value), wide(DELAY_MS))?)
-                }
+                "--mtu" => knobs.mtu = Some(number(flag, value, &MTU_K)?),
+                "--icmp" => knobs.icmp = word(flag, value, icmp_of, &ICMP_WORDS)?,
+                "--delay" => knobs.delay_ms = Some(number(flag, value.strip_suffix("ms").unwrap_or(value), &DELAY_K)?),
                 "--loss" => knobs.loss_bp = Some(percent(flag, value)?),
-                "--rate" => {
-                    knobs.rate_kbit = Some(number(flag, value.strip_suffix("kbit").unwrap_or(value), wide(RATE_KBIT))?)
-                }
+                "--rate" => knobs.rate_kbit = Some(number(flag, value.strip_suffix("kbit").unwrap_or(value), &RATE_K)?),
                 "--ping" => knobs.ping = word(flag, value, Ping::from_word, Ping::WORDS)?,
                 _ => return Err(bad(flag, "the flag is not a knob")),
             }

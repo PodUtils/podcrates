@@ -33,6 +33,7 @@
 pub mod credentials;
 pub mod digest;
 pub mod error;
+mod host;
 pub mod layout;
 mod net;
 pub mod platform;

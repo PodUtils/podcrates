@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**484 entries: 132 open, 7 partial, 5 blocked, 340 done.**
+**484 entries: 127 open, 8 partial, 5 blocked, 344 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 17 | 3 | 0 | 90 | 110 |
-| P2 | 59 | 2 | 4 | 188 | 253 |
-| P3 | 56 | 2 | 1 | 60 | 119 |
-| **All** | 132 | 7 | 5 | 340 | 484 |
+| P1 | 16 | 3 | 0 | 91 | 110 |
+| P2 | 57 | 2 | 4 | 190 | 253 |
+| P3 | 54 | 3 | 1 | 61 | 119 |
+| **All** | 127 | 8 | 5 | 344 | 484 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -487,7 +487,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-554](relay.md) | P3 | M | M2 | feature | open | `pod-wormhole`: an ntfy topic as a meeting point of the pairing where a proxy refuses the WebSocket upgrade (PodUtils/podssh#237) |
 | [T-555](upkeep.md) | P1 | S | M5 | defect | done | `adoption.yml` at `7122cc7` is red for podssh: its test pins five tox relays, and T-537 left four |
 | [T-556](transport.md) | P2 | S | M1 | feature | done | `pod-services`: serv00's public Piping Server as the third of the kind `piping` (PodUtils/podssh#238) |
-| [T-557](relay.md) | P3 | S | M2 | defect | open | `pod-link`: the listener of the dns, icmp, udp and ws carriers gets no `KeyRefused` when the dialer refuses its key |
+| [T-557](relay.md) | P3 | S | M2 | defect | done | `pod-link`: the listener of the dns, icmp, udp and ws carriers gets no `KeyRefused` when the dialer refuses its key |
 | [T-558](relay.md) | P2 | S | M6 | defect | done | `pod-hold`: the rule of raw sockets leaves `AF_PACKET` open |
 | [T-559](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: the client of the HTTP road's one-POST form (PodUtils/podssh#239) |
 | [T-560](relay.md) | P3 | S | M2 | feature | open | `pod-relay`: the one-POST form of the HTTP road over HTTP/2 |
@@ -513,10 +513,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-580](podvm.md) | P1 | S | M6 | defect | done | `pod-rootfs`: an image with no CA bundle gets the host bundle when `host_cas` is false (PodUtils/podvm#341) |
 | [T-581](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a file of mode 4755, 2755 or 6755 loses its setuid and setgid bits (PodUtils/podvm#342) |
 | [T-582](podvm.md) | P2 | S | M6 | defect | done | `pod-supervise`: `start` keeps the end fields of the run before, and a `Dead` record keeps its pid (PodUtils/podvm#343) |
-| [T-583](podvm.md) | P1 | M | M6 | defect | open | `pod-confine` and `pod-enter`: an `exec=` rule does not deny a program that the image's loader starts (PodUtils/podvm#344) |
-| [T-584](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a plan with two limits of one resource fails with `EPERM` (PodUtils/podvm#345) |
-| [T-585](podvm.md) | P2 | S | M6 | defect | open | `pod-oci`: the grammar of an insecure registry host, and a platform list with no repeat and no attestation (PodUtils/podvm#346) |
-| [T-586](podvm.md) | P3 | M | M6 | defect | open | `pod-netlab`: the texts of a knob give the value as written, with its unit and range; the differences from sand-net (PodUtils/podvm#347) |
+| [T-583](podvm.md) | P1 | M | M6 | defect | done | `pod-confine` and `pod-enter`: an `exec=` rule does not deny a program that the image's loader starts (PodUtils/podvm#344) |
+| [T-584](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: a plan with two limits of one resource fails with `EPERM` (PodUtils/podvm#345) |
+| [T-585](podvm.md) | P2 | S | M6 | defect | done | `pod-oci`: the grammar of an insecure registry host, and a platform list with no repeat and no attestation (PodUtils/podvm#346) |
+| [T-586](podvm.md) | P3 | M | M6 | defect | partial | `pod-netlab`: the texts of a knob give the value as written, with its unit and range; the differences from sand-net (PodUtils/podvm#347) |
 | [T-587](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99) |
 | [T-588](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-results`: the CacheService and the replacement of an artifact on a rerun (PodUtils/podrunner#99) |
 | [T-589](relay.md) | P2 | S | M2 | feature | open | `pod-netstack`: `bind_udp` with port 0 takes an ephemeral port (PodUtils/podnet#552) |

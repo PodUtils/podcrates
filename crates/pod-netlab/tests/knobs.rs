@@ -118,31 +118,72 @@ fn the_flags_of_sand_net_read() {
     assert!(k.dnat && k.hairpin && !k.dns);
     assert_eq!(Knobs::parse_flags(&["--loss", "0.25"]).unwrap().loss_bp, Some(25));
     assert_eq!(Knobs::parse_flags(&["--loss", "0.5"]).unwrap().loss_bp, Some(50));
-    for bad in [&["--stack"][..], &["--stack", "v5"], &["--mtu", "big"], &["--loss", "1.234"], &["--fwd", "x"]] {
+    for bad in [&["--stack"][..], &["--stack", "v5"], &["--mtu", "big"], &["--loss", "1.234"], &["--fwd", "x"], &["x"]]
+    {
         assert!(matches!(Knobs::parse_flags(bad), Err(KnobError::BadFlag { .. })), "{bad:?}");
     }
     assert!(matches!(Knobs::parse_flags(&["--mtu", "1000"]), Err(KnobError::OutOfRange { .. })));
 }
 
-/// A refused value says why: a number past its type names the range of
-/// the knob, and a bad word lists the words of the flag.
+/// A refused value says why (PodUtils/podvm#347): a number out of its
+/// range names the value as written, with its unit, and the range; a
+/// negative number has its own text; a bad word names the value and lists
+/// the words of the flag.
 #[test]
 fn a_refused_value_names_the_range_or_the_words() {
     let text = |args: &[&str]| Knobs::parse_flags(args).unwrap_err().to_string();
-    assert_eq!(text(&["--mtu", "99999"]), "flag --mtu: the value is out of its range 1280 to 1499");
-    assert_eq!(text(&["--mtu", "99999999999999999999999"]), "flag --mtu: the value is out of its range 1280 to 1499");
-    assert_eq!(text(&["--mtu", "big"]), "flag --mtu: the value is not a whole number");
-    assert_eq!(text(&["--mtu", "-1"]), "flag --mtu: the value is not a whole number");
-    assert_eq!(text(&["--tcp", "22,70000"]), "flag --tcp: the value is out of its range 1 to 65535");
-    assert_eq!(text(&["--nat", "bogus"]), "flag --nat: the value is not one of: none, nat44, nat66, both");
+    assert_eq!(text(&["--mtu", "99999"]), "mtu 99999 bytes is out of its range 1280 bytes to 1499 bytes");
+    assert_eq!(
+        text(&["--mtu", "99999999999999999999999"]),
+        "mtu 99999999999999999999999 bytes is out of its range 1280 bytes to 1499 bytes"
+    );
+    assert_eq!(text(&["--mtu", "1000"]), "mtu 1000 bytes is out of its range 1280 bytes to 1499 bytes");
+    assert_eq!(text(&["--loss", "101"]), "loss 101% is out of its range 0.01% to 20%");
+    assert_eq!(text(&["--loss", "20.5%"]), "loss 20.5% is out of its range 0.01% to 20%");
+    assert_eq!(text(&["--loss", "0"]), "loss 0% is out of its range 0.01% to 20%");
+    assert_eq!(text(&["--delay", "20000ms"]), "delay 20000 ms is out of its range 1 ms to 10000 ms");
+    assert_eq!(text(&["--rate", "10"]), "rate 10 kbit/s is out of its range 64 kbit/s to 10000000 kbit/s");
+    assert_eq!(text(&["--tcp", "22,70000"]), "tcp port 70000 is out of its range 1 to 65535");
+    assert_eq!(text(&["--udp", "0"]), "udp port 0 is out of its range 1 to 65535");
+    assert_eq!(text(&["--mtu", "big"]), "flag --mtu: the value \"big\" is not a whole number");
+    assert_eq!(text(&["--mtu", "-1"]), "flag --mtu: the value -1 is negative; give 1280 bytes to 1499 bytes");
+    assert_eq!(text(&["--delay", "-5"]), "flag --delay: the value -5 is negative; give 1 ms to 10000 ms");
+    assert_eq!(text(&["--loss", "-1"]), "flag --loss: the value -1 is negative; give 0.01% to 20%");
+    assert_eq!(text(&["--loss", "-0.5%"]), "flag --loss: the value -0.5 is negative; give 0.01% to 20%");
+    assert_eq!(text(&["--nat", "bogus"]), "flag --nat: the value \"bogus\" is not one of: none, nat44, nat66, both");
     assert_eq!(
         text(&["--policy", "x"]),
-        "flag --policy: the value is not one of: open, web, web-nodns, only443, blackout"
+        "flag --policy: the value \"x\" is not one of: open, web, web-nodns, only443, blackout"
     );
+    assert_eq!(text(&["--nat", "both", "extra"]), "flag extra: the word is not a flag: each value follows its flag");
+    // A knob set made in code names the value that it holds.
+    let k = Knobs { loss_bp: Some(2_001), ..Knobs::default() };
+    assert_eq!(k.check().unwrap_err().to_string(), "loss 20.01% is out of its range 0.01% to 20%");
     assert_eq!(
         Knobs::parse_flags(&["--udp", "none", "--tcp", "22"]).unwrap().policy,
         Policy::Ports { tcp: vec![22], udp: vec![] }
     );
+}
+
+/// The text of `--cgnat` names each NAT that the scenario `cgnat` takes.
+#[test]
+fn the_text_of_cgnat_agrees_with_its_scenario() {
+    let e = Knobs::parse_flags(&["--nat", "nat66", "--cgnat"]).unwrap_err().to_string();
+    assert_eq!(e, "contradictory knobs: cgnat needs a NAT of ipv4 (--nat nat44 or --nat both)");
+    let cgnat = pod_netlab::scenario("cgnat").unwrap().knobs;
+    assert!(e.contains(&format!("--nat {}", cgnat.nat.word())), "{e}");
+    for nat in ["nat44", "both"] {
+        assert!(Knobs::parse_flags(&["--nat", nat, "--cgnat"]).is_ok(), "{nat}");
+    }
+}
+
+/// `allow` is sand-net's word for `--icmp pass`.
+#[test]
+fn icmp_takes_allow_as_pass() {
+    assert_eq!(Knobs::parse_flags(&["--icmp", "allow"]).unwrap().icmp, Icmp::Pass);
+    assert_eq!(Knobs::parse_flags(&["--icmp", "pass"]).unwrap().icmp, Icmp::Pass);
+    let e = Knobs::parse_flags(&["--icmp", "open"]).unwrap_err().to_string();
+    assert_eq!(e, "flag --icmp: the value \"open\" is not one of: pass, allow, drop");
 }
 
 #[test]

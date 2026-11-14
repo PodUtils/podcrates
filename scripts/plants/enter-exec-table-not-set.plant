@@ -1,0 +1,7 @@
+# The entry with no chroot does not give the exec table to the payload,
+# so the interposer checks nothing (T-583).
+ENTRY=T-583
+GROUP=confine
+EXPECT='left: "unset"'
+RUN='cargo test -p pod-enter --all-features --lib the_payload_gets_the_exec_table_and_no_value_of_the_caller'
+LIMIT=1800

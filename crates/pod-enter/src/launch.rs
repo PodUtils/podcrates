@@ -44,6 +44,18 @@ pub(crate) fn spawn_with(
     // Before the fork. Each allocation of the child happens here: between
     // `clone` and `execve` only async-signal-safe work is permitted, so
     // nothing after the fork allocates, formats or takes a lock.
+    // The child names a refused limit by its index in one byte.
+    if plan.limits.len() > crate::limits::MOST {
+        return Err(Error::runtime(
+            Class::Usage,
+            format!("{} resource limits; a payload takes at most {}", plan.limits.len(), crate::limits::MOST),
+        ));
+    }
+    // A limit given two times: the second could fail in the child with
+    // `EPERM` after the first lowered the hard value.
+    if let Some(r) = crate::limits::repeated(&plan.limits) {
+        return Err(Error::LimitTwice(r));
+    }
     let nul = |what: String| Error::runtime(Class::Usage, what);
     let argv_owned: Vec<CBuf> = plan
         .argv
@@ -57,14 +69,18 @@ pub(crate) fn spawn_with(
     // run starts with no request.
     let names = &plan.names;
     let active_var = format!("{}={active}", names.mode_active);
+    // The exec table of a confinement with no chroot, for the interposer;
+    // a value of the caller never reaches the payload.
+    let exec_var = crate::confine::exec_var(plan, userland.is_some())?;
     let envp_owned: Vec<CBuf> = plan
         .env
         .iter()
         .filter(|e| {
             let name = var_name(e);
-            name != names.mode_request && name != names.mode_active
+            name != names.mode_request && name != names.mode_active && name != names.exec_table
         })
         .chain(std::iter::once(&active_var))
+        .chain(exec_var.iter())
         .map(|e| CBuf::new(e).ok_or_else(|| nul(format!("the environment {e:?} contains a NUL"))))
         .collect::<Result<_>>()?;
     let chroot = userland.is_none();
@@ -160,14 +176,7 @@ pub(crate) fn spawn_with(
     })?;
 
     // The limits as numbers, made before the fork: the child only reads
-    // them. The child names a refused limit by its index in one byte.
-    if plan.limits.len() > crate::limits::MOST {
-        let _ = (sys::close(read_end), sys::close(write_end));
-        return Err(Error::runtime(
-            Class::Usage,
-            format!("{} resource limits; a payload takes at most {}", plan.limits.len(), crate::limits::MOST),
-        ));
-    }
+    // them.
     let limits: Vec<(u64, u64, u64)> = plan.limits.iter().map(|l| (l.resource.number(), l.soft, l.hard)).collect();
 
     // The parent of the child, for its check after `PR_SET_PDEATHSIG`.

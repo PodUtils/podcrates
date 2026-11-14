@@ -36,7 +36,7 @@ impl Contradiction {
         match self {
             Contradiction::Nat64NeedsV6 => "nat64 needs the v6 stack".into(),
             Contradiction::CgnatNeedsV4 => "cgnat needs the v4 stack".into(),
-            Contradiction::CgnatNeedsNat44 => "cgnat needs nat44".into(),
+            Contradiction::CgnatNeedsNat44 => "cgnat needs a NAT of ipv4 (--nat nat44 or --nat both)".into(),
             Contradiction::HairpinNeedsDnat => "hairpin needs dnat".into(),
             Contradiction::Dns64NeedsNat64 => "dns64 needs nat64".into(),
             Contradiction::NatFlagsNeedNat => "nat-flags need a nat".into(),
@@ -56,12 +56,14 @@ impl Contradiction {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum KnobError {
     Contradiction(Contradiction),
-    /// A value out of the range of its knob.
+    /// A value out of the range of its knob: the value as the flag gave
+    /// it (or as the knob holds it), the ends of the range, each with its
+    /// unit (`101%`, `0.01%`, `20%`).
     OutOfRange {
         knob: &'static str,
-        value: u64,
-        min: u64,
-        max: u64,
+        value: String,
+        min: String,
+        max: String,
     },
     /// A port that a list of `--tcp` or `--udp` names two times, or port 0.
     BadPort {
@@ -117,11 +119,66 @@ pub const LOSS_BP: (u16, u16) = (1, 2_000);
 /// The range of `--rate` in kbit/s.
 pub const RATE_KBIT: (u32, u32) = (64, 10_000_000);
 
-fn range(knob: &'static str, value: Option<u64>, (min, max): (u64, u64)) -> Result<(), KnobError> {
-    match value {
-        Some(v) if v < min || v > max => Err(KnobError::OutOfRange { knob, value: v, min, max }),
-        _ => Ok(()),
+/// A knob with a number: its name in a refusal, the unit after a number
+/// as written, the text of a number that the knob holds, and its range in
+/// the unit that the knob holds.
+#[derive(Clone, Copy)]
+pub(super) struct Ranged {
+    pub(super) knob: &'static str,
+    pub(super) unit: &'static str,
+    pub(super) text: fn(u64) -> String,
+    pub(super) min: u64,
+    pub(super) max: u64,
+}
+
+impl Ranged {
+    /// The refusal of a number as the flag wrote it, with no unit.
+    pub(super) fn refuse(&self, written: &str) -> KnobError {
+        KnobError::OutOfRange {
+            knob: self.knob,
+            value: format!("{written}{}", self.unit),
+            min: (self.text)(self.min),
+            max: (self.text)(self.max),
+        }
     }
+
+    fn check(&self, value: Option<u64>) -> Result<(), KnobError> {
+        match value {
+            Some(v) if !(self.min..=self.max).contains(&v) => Err(KnobError::OutOfRange {
+                knob: self.knob,
+                value: (self.text)(v),
+                min: (self.text)(self.min),
+                max: (self.text)(self.max),
+            }),
+            _ => Ok(()),
+        }
+    }
+}
+
+pub(super) const MTU_K: Ranged =
+    Ranged { knob: "mtu", unit: " bytes", text: |n| format!("{n} bytes"), min: MTU.0 as u64, max: MTU.1 as u64 };
+pub(super) const DELAY_K: Ranged =
+    Ranged { knob: "delay", unit: " ms", text: |n| format!("{n} ms"), min: DELAY_MS.0 as u64, max: DELAY_MS.1 as u64 };
+/// `--loss`: the knob holds hundredths of a percent, and its text is a
+/// percent.
+pub(super) const LOSS_K: Ranged = Ranged {
+    knob: "loss",
+    unit: "%",
+    text: |n| super::loss_text(u16::try_from(n).unwrap_or(u16::MAX)),
+    min: LOSS_BP.0 as u64,
+    max: LOSS_BP.1 as u64,
+};
+pub(super) const RATE_K: Ranged = Ranged {
+    knob: "rate",
+    unit: " kbit/s",
+    text: |n| format!("{n} kbit/s"),
+    min: RATE_KBIT.0 as u64,
+    max: RATE_KBIT.1 as u64,
+};
+
+/// A port of a list of `--tcp` or `--udp`.
+pub(super) const fn port_k(knob: &'static str) -> Ranged {
+    Ranged { knob, unit: "", text: |n| n.to_string(), min: 1, max: u16::MAX as u64 }
 }
 
 fn ports(knob: &'static str, list: &[u16]) -> Result<(), KnobError> {
@@ -139,10 +196,10 @@ fn ports(knob: &'static str, list: &[u16]) -> Result<(), KnobError> {
 impl Knobs {
     /// Refuse a value out of its range and each contradiction.
     pub fn check(&self) -> Result<(), KnobError> {
-        range("mtu", self.mtu.map(u64::from), (MTU.0.into(), MTU.1.into()))?;
-        range("delay", self.delay_ms.map(u64::from), (DELAY_MS.0.into(), DELAY_MS.1.into()))?;
-        range("loss", self.loss_bp.map(u64::from), (LOSS_BP.0.into(), LOSS_BP.1.into()))?;
-        range("rate", self.rate_kbit.map(u64::from), (RATE_KBIT.0.into(), RATE_KBIT.1.into()))?;
+        MTU_K.check(self.mtu.map(u64::from))?;
+        DELAY_K.check(self.delay_ms.map(u64::from))?;
+        LOSS_K.check(self.loss_bp.map(u64::from))?;
+        RATE_K.check(self.rate_kbit.map(u64::from))?;
         if let Policy::Ports { tcp, udp } = &self.policy {
             ports("tcp", tcp)?;
             ports("udp", udp)?;

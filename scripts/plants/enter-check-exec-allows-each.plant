@@ -1,0 +1,7 @@
+# check_exec lets each program run, also one outside each execute path
+# that the loader of the entry with no chroot maps (T-583).
+ENTRY=T-583
+GROUP=confine
+EXPECT='unwrap_err'
+RUN='cargo test -p pod-enter --all-features --lib check_exec_answers_for_each_kind_of_program_inside_and_outside'
+LIMIT=1800

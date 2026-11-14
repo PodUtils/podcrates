@@ -1,0 +1,7 @@
+# The list of a NoPlatform refusal names a platform each time an entry
+# of the index gives it (T-585).
+ENTRY=T-585
+GROUP=oci
+EXPECT='linux/amd64, linux/amd64'
+RUN='cargo test -p pod-oci --all-features --lib the_offered_list_has_no_repeat_no_attestation_and_the_os_version'
+LIMIT=1800

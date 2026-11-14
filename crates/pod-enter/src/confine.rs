@@ -1,6 +1,7 @@
 //! The confinement of a payload (`Plan.confine`, `pod-confine`): the
 //! compile before the fork, the refusal that the child writes to the
-//! readiness pipe, and its sentence in the parent.
+//! readiness pipe, and its sentence in the parent; the exec table of the
+//! entry with no chroot ([`check_exec`]).
 
 use pod_confine::{Compiled, Refusal};
 
@@ -36,6 +37,42 @@ pub(crate) fn compile(plan: &Plan, root: Option<&RootDir>) -> Result<Option<Comp
     Ok(Some(compiled))
 }
 
+/// The entry `NAME=TABLE` of the exec table of `plan` for the payload of
+/// the entry with no chroot (`names.exec_table`), or `None` with no
+/// confinement or on a rung with a chroot. There the spec has host paths,
+/// and each one resolves as Landlock opens it.
+pub(crate) fn exec_var(plan: &Plan, userland: bool) -> Result<Option<String>> {
+    match &plan.confine {
+        Some(spec) if userland => {
+            Ok(Some(format!("{}={}", plan.names.exec_table, spec.exec_table().resolved().encode()?)))
+        }
+        _ => Ok(None),
+    }
+}
+
+/// Whether the plan's confinement lets the program at the host path
+/// `program` run, for a caller of the entry with no chroot. There the
+/// kernel executes the loader of the image and only maps the program, and
+/// runs the interpreter of a script with the script as an argument:
+/// Landlock checks `EXECUTE` on the loader and the interpreter alone. The
+/// caller checks the payload (for a script: the script and its
+/// interpreter) before [`crate::spawn_userland`], and before it stages a
+/// static payload into a memfd. `Ok` with no confinement. A program
+/// outside each execute path is [`Error::CannotInvoke`] (126, as `EACCES`
+/// of the kernel), and a program that does not resolve is
+/// [`Error::NotFound`] (127).
+pub fn check_exec(plan: &Plan, program: &str) -> Result<()> {
+    let Some(spec) = &plan.confine else { return Ok(()) };
+    let real = std::fs::canonicalize(program).map_err(|e| Error::NotFound(format!("{program}: {e}")))?;
+    let real = real.to_string_lossy();
+    if spec.exec_table().resolved().allows(&real) {
+        return Ok(());
+    }
+    Err(Error::CannotInvoke(format!(
+        "{program}: the confinement allows no exec of {real}: it is outside each execute path (EACCES)"
+    )))
+}
+
 /// The message of the child for a refusal: [`STEP`], then the refusal.
 /// No allocation: the child writes it between its fork and its exec.
 pub(crate) fn message(r: Refusal) -> [u8; 6] {
@@ -60,3 +97,6 @@ pub(crate) fn failure(compiled: Option<&Compiled>, msg: &[u8; 6]) -> Error {
         ),
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -1,0 +1,7 @@
+# The ruleset does not handle EXECUTE: a program outside each execute
+# path runs on the kernel rung (T-583).
+ENTRY=T-583
+GROUP=confine
+EXPECT='read/(static|dynamic|script)'
+RUN='cargo test -p pod-confine --all-features --test exec'
+LIMIT=1800

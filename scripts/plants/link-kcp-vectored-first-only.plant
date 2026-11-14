@@ -1,0 +1,8 @@
+# The KCP stream writes only the first buffer of a vectored write: the
+# alert of a failed handshake of the dialer stays out, and the handshake of
+# the udp listener ends at its time limit (T-557).
+ENTRY=T-557
+GROUP=link
+EXPECT='right: KeyRefused'
+RUN='cargo test -p pod-link --all-features --test udp the_dialer_refuses_a_listener_of_another_key_and_names_it'
+LIMIT=1800

@@ -63,13 +63,19 @@ async fn a_link_over_dns_carries_streams() {
 async fn the_dialer_refuses_a_listener_of_another_key_and_names_it() {
     pod_testkit::need_loopback!();
     let (server, client, stranger) = (id(1), id(2), id(3));
-    let door = bound(&carrier(1, &[client.public()])).await;
+    let mut door = bound(&carrier(1, &[client.public()])).await;
     let dialing = carrier(2, &[]).to(door.local_addr());
-    let e = dialing.dial(&at(&stranger.public())).await.err().expect("a dial took another key");
+    let address = at(&stranger.public());
+    let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
+    let (e, far) = timeout(limit(), both).await.expect("the refusal in time");
+    let e = e.err().expect("a dial took another key");
     assert_eq!(e.kind, CarrierErrorKind::Refused, "{e}");
     assert_eq!(e.class().exit_code(), 77);
     assert_eq!(refusal(&e), Some(Refusal::Unpinned(server.public())), "{e}");
     assert!(e.to_string().contains(&server.public().fingerprint()), "the error names the key seen: {e}");
+    let far = far.err().expect("the listener took a dialer that refused its key");
+    assert_eq!(far.kind, CarrierErrorKind::KeyRefused, "the listener learns that its key was refused: {far}");
+    assert_eq!(far.class().exit_code(), 77);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

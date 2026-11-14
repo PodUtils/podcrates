@@ -1,0 +1,11 @@
+--- a/crates/pod-confine/src/spec.rs
++++ b/crates/pod-confine/src/spec.rs
+@@ -101,7 +101,7 @@
+     if abi == 0 {
+         return 0;
+     }
+-    let mut r = (k::LANDLOCK_ACCESS_FS_MAKE_SYM << 1) as u64 - 1;
++    let mut r = ((k::LANDLOCK_ACCESS_FS_MAKE_SYM << 1) as u64 - 1) & !u64::from(k::LANDLOCK_ACCESS_FS_EXECUTE);
+     if abi >= 2 {
+         r |= u64::from(k::LANDLOCK_ACCESS_FS_REFER);
+     }

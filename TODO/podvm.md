@@ -6588,7 +6588,7 @@ the new code of the drop. `plant-each.sh --apply`: 0 stale. `check-size.py`, `ch
 **Milestone:** M6
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6610,6 +6610,31 @@ On podvm's loader family (the userland rung) the kernel executes the loader of t
 cargo test -p pod-confine -p pod-enter --all-features
 ```
 
+## Done
+
+2026-11-14, commit 9413cab. The kernel rung holds: `EXECUTE` is in the
+handled set at each ABI, and a rule with `Access::EXECUTE` grants it; a
+static ELF, a dynamic ELF and a script run under an execute path and
+fail with `EACCES` outside it (Linux 6.18, ABI 7). The static ELF of the
+report runs under its execute path. The entry with no chroot does not
+hold: the loader, the interpreter and a memfd run each program outside
+the execute paths (measured). New: `pod_confine::ExecTable`
+(`Spec::exec_table`, `resolved`, `allows`, `encode`, `decode`),
+`pod_confine::exec::allows_in` (no allocation, for a copy in podvm's
+interposer), `pod_enter::Names::exec_table` (`POD_ENTER_EXEC_TABLE`,
+set for a confined payload of the entry with no chroot, each value of
+the caller removed), `pod_enter::check_exec(&plan, program)`
+(`Error::CannotInvoke`, 126), `pod_testkit::elf`. Calls C386 and C387.
+
+`cargo test -p pod-confine -p pod-enter --all-features`: pod-confine 37
+unit tests (`exec::tests` 4) and `tests/exec.rs` 1; pod-enter 186 unit
+tests (`confine::tests` 3) and the integration tests; no skip of the
+new tests on this host. Plants `confine-exec-table-no-boundary`,
+`confine-execute-not-handled`, `confine-execute-not-granted`,
+`enter-check-exec-allows-each`, `enter-exec-table-not-set` and
+`enter-exec-table-of-the-caller`: each fails its test with its EXPECT
+text.
+
 # T-584: `pod-enter`: a plan with two limits of one resource fails with `EPERM` (PodUtils/podvm#345)
 
 **Source:** PodUtils/podvm#345 (COORD-099 of podvm; PodUtils/podvm@T-1827; an external QA report of podvm).
@@ -6617,7 +6642,7 @@ cargo test -p pod-confine -p pod-enter --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6637,6 +6662,18 @@ Refuse a plan with two entries for one resource before the child starts, with a 
 cargo test -p pod-enter --all-features
 ```
 
+## Done
+
+2026-11-14, commit f222da5. Each entry refuses a plan with two limits of
+one resource before the fork with the new `Error::LimitTwice(Resource)`
+(`Class::Usage` as a `Failure`); `limits::repeated` gives the resource to
+a caller. The check of `MOST` moved before the banner. Call C383.
+
+`cargo test -p pod-enter --all-features`: 183 unit tests (2 new in
+`limits::tests`) and the integration tests. The new test fails on the
+old code with `setrlimit(RLIMIT_NOFILE): EPERM`. Plant
+`enter-limit-twice-reaches-the-child` fails it.
+
 # T-585: `pod-oci`: the grammar of an insecure registry host, and a platform list with no repeat and no attestation (PodUtils/podvm#346)
 
 **Source:** PodUtils/podvm#346 (COORD-100 of podvm; PodUtils/podvm@T-1842, PodUtils/podvm@T-1836; an external QA report of podvm).
@@ -6644,7 +6681,7 @@ cargo test -p pod-enter --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6664,6 +6701,24 @@ A host is a DNS name or an IP literal (IPv6 in brackets), with an optional port;
 cargo test -p pod-oci --all-features
 ```
 
+## Done
+
+2026-11-14, commit cf68521. `normalise_host` and the domain of a
+reference take one grammar (`host`): a DNS name, an IPv4 address or an
+IPv6 address in brackets, with an optional port from 1 to 65535; each
+other text is `Refusal::Host { host, why }` (`Class::Usage`). An IPv6
+registry in brackets now parses as a reference. The list `offered` of
+`NoPlatform` has no repeat, no attestation manifest (no candidate
+either), and `os.version` (`windows(10.0.17763.6532)/amd64`). New:
+`spec::Platform::os_version`, `Platform::full_word`,
+`Descriptor::is_attestation`, `REFERENCE_TYPE`, `ATTESTATION`. Calls
+C384 and C385.
+
+`cargo test -p pod-oci --all-features`: 94 unit tests (4 new) and the
+integration tests. Plants `oci-insecure-host-any-text`,
+`oci-offered-repeats-a-platform`, `oci-offered-names-an-attestation`
+and `oci-offered-drops-the-os-version`: each fails its test.
+
 # T-586: `pod-netlab`: the texts of a knob give the value as written, with its unit and range; the differences from sand-net (PodUtils/podvm#347)
 
 **Source:** PodUtils/podvm#347 (COORD-101 of podvm; PodUtils/podvm@T-1837, PodUtils/podvm@T-1847; an external QA report of podvm).
@@ -6671,7 +6726,7 @@ cargo test -p pod-oci --all-features
 **Milestone:** M6
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -6685,6 +6740,17 @@ The errors of the knobs give the scaled value with no unit (`--loss 101` reads "
 
 1. Each error gives the value as the user wrote it, its unit and its range. A negative number gets its own text. The text of `--cgnat` agrees with the scenario.
 2. For each difference from sand-net: add the scenario or the value, or write the reason in the README of the crate. Tests of the texts, and a plant.
+
+## Decision
+
+Calls C388 and C389. Done in commit 405ee36 (2026-11-14; `tests/knobs.rs` 15 tests, plant `netlab-range-text-no-unit`): the texts (the value as written with its
+unit and range, a negative number, a bad word with its value, a stray
+word, `--cgnat`), `--icmp allow`, and the reason of each other
+difference in the README of the crate. Open: the five knob sets of the
+QA report (`symmetric-nat`, `pmtu-*`, `cgnat*`, `nat64-*`, `locked-443`
+and `corp-proxy`). Issue 178 gives no source for them, and sand-net's
+source is gone: podvm gives the source of the values of the report, or
+the sets stay as call C145 derived them.
 
 ## Prove
 

@@ -70,6 +70,7 @@ use pod_hostprobe::select::Rung;
 use pod_hostprobe::sys::{self, CBuf};
 
 pub use child::Bounded;
+pub use confine::check_exec;
 pub use entry::*;
 pub use limits::{Limit, Resource};
 pub use names::Names;
@@ -143,6 +144,10 @@ pub enum Error {
         step: &'static str,
         errno: sys::Errno,
     },
+    /// The plan gives two limits of one resource ([`limits::repeated`]).
+    /// The payload did not start. The caller keeps one limit for each
+    /// resource.
+    LimitTwice(Resource),
 }
 
 impl Error {
@@ -157,7 +162,7 @@ impl Error {
         match self {
             Error::CannotInvoke(_) => Some(status::CANNOT_INVOKE),
             Error::NotFound(_) => Some(status::NOT_FOUND),
-            Error::Runtime(_) | Error::NsSetup { .. } | Error::Overlay { .. } => None,
+            Error::Runtime(_) | Error::NsSetup { .. } | Error::Overlay { .. } | Error::LimitTwice(_) => None,
         }
     }
 
@@ -182,6 +187,9 @@ impl std::fmt::Display for Error {
                 errno.name(),
                 errno.0
             ),
+            Error::LimitTwice(r) => {
+                write!(f, "the plan gives two limits of {} ({}); give one limit for each resource", r.name(), r.word())
+            }
         }
     }
 }
@@ -204,8 +212,8 @@ impl From<Failure> for Error {
 impl From<Error> for Failure {
     /// One failure for a caller that does not need the code of the shell:
     /// a refused program is `Class::Refused`, a missing one
-    /// `Class::NotFound`, and a refused namespace or overlay root
-    /// `Class::Unsupported`.
+    /// `Class::NotFound`, a refused namespace or overlay root
+    /// `Class::Unsupported`, and a limit given two times `Class::Usage`.
     fn from(e: Error) -> Failure {
         match e {
             Error::Runtime(f) => f,
@@ -214,6 +222,7 @@ impl From<Error> for Failure {
             e @ (Error::NsSetup { .. } | Error::Overlay { .. }) => {
                 Failure::new(Stage::Host, Class::Unsupported, e.to_string())
             }
+            e @ Error::LimitTwice(_) => Failure::new(Stage::Host, Class::Usage, e.to_string()),
         }
     }
 }

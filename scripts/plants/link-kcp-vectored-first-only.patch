@@ -1,0 +1,11 @@
+--- a/crates/pod-link/src/udp/stream.rs
++++ b/crates/pod-link/src/udp/stream.rs
+@@ -267,7 +267,7 @@
+             }
+             let mut room = WRITE_SEGMENTS * i.segment;
+             let mut n = 0;
+-            for buf in bufs.iter().filter(|b| !b.is_empty()) {
++            for buf in bufs.iter().filter(|b| !b.is_empty()).take(1) {
+                 let take = buf.len().min(room);
+                 match i.kcp.send(&buf[..take]) {
+                     Err(e) if n == 0 => return Poll::Ready(Err(io::Error::from(e))),

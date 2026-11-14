@@ -1,0 +1,7 @@
+# normalise_host takes each text with no slash and no scheme: a host with
+# a space or a `!` is taken and matches no reference (T-585).
+ENTRY=T-585
+GROUP=oci
+EXPECT='unwrap_err'
+RUN='cargo test -p pod-oci --all-features --lib a_host_is_a_name_or_an_address_with_an_optional_port'
+LIMIT=1800

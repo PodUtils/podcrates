@@ -1,0 +1,7 @@
+# An attestation manifest is a candidate and is in the list of a
+# NoPlatform refusal, as unknown/unknown (T-585).
+ENTRY=T-585
+GROUP=oci
+EXPECT='unknown/unknown|ffff'
+RUN='cargo test -p pod-oci --all-features --lib the_offered_list_has_no_repeat_no_attestation_and_the_os_version'
+LIMIT=1800

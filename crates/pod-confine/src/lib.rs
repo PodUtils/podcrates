@@ -36,12 +36,14 @@
 mod apply;
 mod compile;
 pub mod deny;
+pub mod exec;
 mod probe;
 pub mod spec;
 
 pub use apply::{Call, Refusal, apply};
 pub use compile::{Compiled, MOST_RULES, Rule};
 pub use deny::{Arg, Deny};
+pub use exec::ExecTable;
 pub use probe::{check, probe};
 pub use spec::{Access, DOCKER_CAPS, PathRule, Spec};
 

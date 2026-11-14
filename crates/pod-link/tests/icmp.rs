@@ -148,6 +148,28 @@ async fn a_refused_key_is_named_on_each_side() {
     assert_eq!(refusal(&far), Some(Refusal::Unpinned(client.public())), "{far}");
 }
 
+/// The dialer pins another key than the listener's: the listener learns
+/// that its key was refused (T-557).
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_dialer_refuses_a_listener_of_another_key_and_names_it() {
+    let (a, b) = pair(DEFAULT_MTU, DEFAULT_DEPTH);
+    let (server, client, stranger) = (id(1), id(2), id(3));
+    let listening = carrier(1, &[client.public()]);
+    let dialing = carrier(2, &[]);
+    let up = EchoFrames::client(a, SESSION, SESSION as u16);
+    let down = EchoFrames::server(b, SESSION, SESSION as u16);
+    let target = Target::Addr("127.0.0.1:0".parse().unwrap());
+    let key = KeyName::Key(stranger.public());
+    let both =
+        async { tokio::join!(dialing.connect_over(up, &target, &key), listening.accept_over(down, &"the peer")) };
+    let (near, far) = timeout(limit(), both).await.expect("the refusal in time");
+    let near = near.err().expect("the dialer took a listener of another key");
+    assert_eq!(refusal(&near), Some(Refusal::Unpinned(server.public())), "{near}");
+    let far = far.err().expect("the listener took a dialer that refused its key");
+    assert_eq!(far.kind, CarrierErrorKind::KeyRefused, "the listener learns that its key was refused: {far}");
+    assert_eq!(far.class().exit_code(), 77);
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_peer_that_goes_silent_ends_the_link() {
     let (near, _far, _a, b) = ends(Faults::NONE, fast_arq()).await;

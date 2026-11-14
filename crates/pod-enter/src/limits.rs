@@ -86,5 +86,18 @@ pub struct Limit {
     pub hard: u64,
 }
 
+/// The resource of the first limit that `limits` gives two times, or
+/// `None`. The entry refuses such a plan with [`crate::Error::LimitTwice`]:
+/// the child applies the limits in order, and a first entry that lowers the
+/// hard value makes the second fail with `EPERM`. The caller coalesces the
+/// entries first (docker keeps the last one).
+pub fn repeated(limits: &[Limit]) -> Option<Resource> {
+    limits
+        .iter()
+        .enumerate()
+        .find(|(at, l)| limits[..*at].iter().any(|e| e.resource == l.resource))
+        .map(|(_, l)| l.resource)
+}
+
 #[cfg(test)]
 mod tests;

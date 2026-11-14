@@ -468,9 +468,17 @@ with TLS 1.3) and the tests that hold them (`tests/tcp.rs`,
   `the_listener_refuses_a_client_of_another_key_and_stays_open`. The end
   whose key was refused gets `KeyRefused` (T-542): the dialer on each
   carrier that pins keys (tcp, ws, h2, quic, udp, poll, dns, icmp), and
-  the listener on tcp, h2, quic and poll. Plants:
-  `link-key-refused-untyped`, `link-key-refused-alert-untyped`,
-  `link-quic-key-refused-untyped`.
+  the listener on each of them too (T-557: dns, icmp, udp and ws in
+  `the_dialer_refuses_a_listener_of_another_key_and_names_it`). The ARQ
+  stream (dns, icmp) and the KCP stream (udp) write each buffer of a
+  vectored write, as rustls writes the alert of a failed handshake with
+  one vectored write and no second try. The ws listener gives a client
+  that refused its key as an error of one accept (`KeyRefused`), through
+  `pod_ws::serve::serve_reporting`, and skips each other failed handshake
+  (call C390). Plants: `link-key-refused-untyped`,
+  `link-key-refused-alert-untyped`, `link-quic-key-refused-untyped`,
+  `link-arq-vectored-first-only`, `link-kcp-vectored-first-only`,
+  `link-ws-key-refused-skipped`, `ws-serve-tls-failure-unreported`.
 - [x] TLS 1.2 is refused on each side:
   `a_client_of_tls_1_2_is_refused_by_the_listener`,
   `a_listener_of_tls_1_2_is_refused_by_the_dialer`.

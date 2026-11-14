@@ -1,0 +1,11 @@
+--- a/crates/pod-oci/src/spec.rs
++++ b/crates/pod-oci/src/spec.rs
+@@ -253,7 +253,7 @@
+     for m in &index.manifests {
+         // An attestation entry has no platform, or `unknown/unknown` and the
+         // annotation. It is not a candidate and the error does not name it.
+-        if m.is_attestation() {
++        if m.is_attestation() && false {
+             continue;
+         }
+         let Some(p) = &m.platform else { continue };

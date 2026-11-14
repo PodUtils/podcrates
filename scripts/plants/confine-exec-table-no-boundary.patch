@@ -1,0 +1,11 @@
+--- a/crates/pod-confine/src/exec.rs
++++ b/crates/pod-confine/src/exec.rs
+@@ -119,7 +119,7 @@
+     if rule == b"/" {
+         return true;
+     }
+-    program.starts_with(rule) && matches!(program.get(rule.len()), None | Some(b'/'))
++    program.starts_with(rule)
+ }
+ 
+ /// `path` with no empty component and no trailing `/`; `/` stays `/`.

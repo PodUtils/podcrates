@@ -1,0 +1,7 @@
+# The exec table takes a path that only starts with the bytes of a rule
+# path: /usrx is under /usr (T-583).
+ENTRY=T-583
+GROUP=confine
+EXPECT='/usrx/bin/true|/opt/toolbox'
+RUN='cargo test -p pod-confine --all-features --lib a_program_runs_under_an_execute_path_and_nowhere_else'
+LIMIT=1800
