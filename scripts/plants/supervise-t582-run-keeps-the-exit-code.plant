@@ -1,0 +1,7 @@
+# A record that runs again keeps the exit code of the run before (T-582,
+# PodUtils/podvm#343).
+ENTRY=T-582
+GROUP=supervise
+EXPECT='keeps the exit code of the run before'
+RUN='cargo test -p pod-supervise --all-features --lib table::tests::a_new_run_clears_the_end_and_a_dead_record_names_no_pid'
+LIMIT=900

@@ -145,6 +145,18 @@ mod steps {
         kill::<Any>(s, "signal", 15).expect("kill");
         let c = until(s, "signal", |c| c.state == State::Exited);
         assert_eq!(c.exit_code, Some(143));
+        assert!(c.end.is_some(), "the launcher wrote no end");
+        // A start again: the record of the launcher has no end of the run
+        // before (PodUtils/podvm#343).
+        let back = start(s, "signal", enter).expect("a start again");
+        let c = get::<Any>(s, "signal").expect("get");
+        assert_eq!(c.state, State::Running);
+        for (what, r) in [("the start", &back), ("the record", &c)] {
+            assert_eq!(r.exit_code, None, "{what} of a running container keeps the exit code of the run before");
+            assert!(r.finished_at.is_none() && r.end.is_none() && r.noticed.is_none(), "{what}: {r:?}");
+        }
+        kill::<Any>(s, "signal", 9).expect("kill");
+        assert_eq!(until(s, "signal", |c| c.state == State::Exited).exit_code, Some(137));
         remove::<Any>(s, "signal", false).expect("remove");
     }
 
@@ -158,6 +170,7 @@ mod steps {
         let c = until(s, "orphan", |c| c.state == State::Dead);
         let _ = pod_hostprobe::sys::kill(payload, 9);
         assert!(c.exit_code.is_none() && c.noticed.is_some());
+        assert_eq!((c.pid, c.launcher_pid), (None, None), "a dead record names a pid");
         assert!(c.status().contains("not watching"), "{}", c.status());
         let (_, code) = wait::<Any>(s, "orphan", 0).unwrap();
         assert_eq!(code, None, "a dead record made up an exit code");

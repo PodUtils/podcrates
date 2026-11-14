@@ -1,0 +1,11 @@
+diff --git a/crates/pod-supervise/src/table.rs b/crates/pod-supervise/src/table.rs
+--- a/crates/pod-supervise/src/table.rs
++++ b/crates/pod-supervise/src/table.rs
+@@ -135,7 +135,6 @@
+         self.pid = Some(pid);
+         self.launcher_pid = Some(launcher_pid);
+         self.started_at = Some(now());
+-        self.exit_code = None;
+         self.finished_at = None;
+         self.end = None;
+         self.noticed = None;

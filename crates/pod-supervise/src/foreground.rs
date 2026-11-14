@@ -138,13 +138,7 @@ where
     let mut hold =
         Foreground { s: s.clone(), id: c.id.clone(), live: Some(Live { lock, stop: stop_w, server }), of: PhantomData };
     let holder = sys::getpid();
-    let wrote = launcher::record::<X>(s, &c.id, |c| {
-        c.state = State::Running;
-        c.pid = Some(payload_pid);
-        c.launcher_pid = Some(holder);
-        c.started_at = Some(table::now());
-        c.end = None;
-    });
+    let wrote = launcher::record::<X>(s, &c.id, |c| c.mark_running(payload_pid, holder));
     if let Err(e) = wrote {
         // The record never said `Running`: no `Dead` either.
         hold.close(None);
@@ -205,9 +199,7 @@ where
         let now = table::now();
         let _ = launcher::record::<X>(&self.s, &self.id, |c| {
             if c.state == State::Running {
-                c.state = State::Dead;
-                c.noticed = Some(now.clone());
-                c.finished_at.get_or_insert(now);
+                c.mark_dead(&now);
             }
         });
         self.close(None);

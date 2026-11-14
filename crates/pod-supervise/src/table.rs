@@ -75,9 +75,11 @@ pub struct Container<X> {
     pub finished_at: Option<String>,
     pub state: State,
     /// The pid of the payload. For a report only: nothing addresses a
-    /// process by it, because a pid is used again.
+    /// process by it, because a pid is used again. `None` when the record
+    /// is not `Running`.
     pub pid: Option<i64>,
-    /// The launcher that holds the pidfd and the lock.
+    /// The launcher that holds the pidfd and the lock. `None` when the
+    /// record is not `Running`.
     pub launcher_pid: Option<i64>,
     pub exit_code: Option<i32>,
     /// When a later call noticed that the payload ended with no watcher.
@@ -126,6 +128,29 @@ impl<X> Container<X> {
             },
             State::Dead => "Dead (exited while the launcher was not watching)".to_string(),
         }
+    }
+
+    /// The record of a payload that runs now. The end fields of the run
+    /// before go: a record that reads `running` with an exit code is false.
+    pub(crate) fn mark_running(&mut self, pid: i64, launcher_pid: i64) {
+        self.state = State::Running;
+        self.pid = Some(pid);
+        self.launcher_pid = Some(launcher_pid);
+        self.started_at = Some(now());
+        self.exit_code = None;
+        self.finished_at = None;
+        self.end = None;
+        self.noticed = None;
+    }
+
+    /// The record of a payload that ended with no watcher. The pids go: a
+    /// pid is used again, and no process of this record has it now.
+    pub(crate) fn mark_dead(&mut self, now: &str) {
+        self.state = State::Dead;
+        self.noticed = Some(now.to_string());
+        self.finished_at.get_or_insert_with(|| now.to_string());
+        self.pid = None;
+        self.launcher_pid = None;
     }
 }
 
@@ -311,17 +336,12 @@ where
             }
             let path = lock_path(s, &c.id);
             if !path.exists() {
-                c.state = State::Dead;
-                c.noticed = Some(now.clone());
+                c.mark_dead(&now);
                 continue;
             }
             // The whole test: a launcher holds this lock for its whole life.
             match Lock::try_exclusive(&path) {
-                Ok(Some(_free)) => {
-                    c.state = State::Dead;
-                    c.noticed = Some(now.clone());
-                    c.finished_at.get_or_insert_with(|| now.clone());
-                }
+                Ok(Some(_free)) => c.mark_dead(&now),
                 // Held: the launcher is alive and the record is true.
                 Ok(None) => {}
                 // The question failed. That is no answer, so the record

@@ -140,13 +140,7 @@ where
     };
 
     let launcher_pid = sys::getpid();
-    if let Err(e) = record::<X>(s, &container.id, |c| {
-        c.state = State::Running;
-        c.pid = Some(pid);
-        c.launcher_pid = Some(launcher_pid);
-        c.started_at = Some(table::now());
-        c.end = None;
-    }) {
+    if let Err(e) = record::<X>(s, &container.id, |c| c.mark_running(pid, launcher_pid)) {
         say(&format!("err recording the container as running: {e}"));
         let _ = sys::kill(pid, 9);
         return 1;

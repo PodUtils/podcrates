@@ -141,6 +141,50 @@ fn a_running_record_with_a_free_lock_is_dead_and_a_held_lock_keeps_it_running() 
     let _ = std::fs::remove_dir_all(&s.root);
 }
 
+/// A record that runs again has no end of the run before, and a `Dead`
+/// record names no pid: a pid is used again (PodUtils/podvm#343).
+#[test]
+fn a_new_run_clears_the_end_and_a_dead_record_names_no_pid() {
+    let mut x = c("a", "n", State::Exited);
+    x.exit_code = Some(143);
+    x.finished_at = Some("then".into());
+    x.noticed = Some("then".into());
+    x.end = Some(crate::end::End {
+        reason: crate::end::Reason::Signal,
+        run_ms: 1,
+        user_ms: 0,
+        system_ms: 0,
+        max_rss_kib: 0,
+        residual_processes: crate::end::Residual::Count(0),
+    });
+    x.mark_running(20, 10);
+    assert_eq!((x.state, x.pid, x.launcher_pid), (State::Running, Some(20), Some(10)));
+    assert!(x.started_at.is_some(), "a run has no start time");
+    assert_eq!(x.exit_code, None, "a running record keeps the exit code of the run before");
+    assert!(x.finished_at.is_none() && x.end.is_none() && x.noticed.is_none(), "{x:?}");
+
+    let s = scratch("deadpid");
+    std::fs::create_dir_all(&s.root).unwrap();
+    let mut free = c("aaa1", "free", State::Running);
+    free.mark_running(20, 10);
+    let mut nolock = c("ccc3", "nolock", State::Running);
+    nolock.mark_running(21, 11);
+    update(&s, |t: &mut Table<Fields>| {
+        *t = Table { version: TABLE_VERSION, containers: vec![free.clone(), nolock.clone()] };
+        Ok::<_, Failure>(())
+    })
+    .unwrap();
+    std::fs::create_dir_all(dir(&s, "aaa1")).unwrap();
+    std::fs::write(lock_path(&s, "aaa1"), b"").unwrap();
+    let r: Table<Fields> = reconcile(&s).unwrap();
+    for d in &r.containers {
+        assert_eq!(d.state, State::Dead, "{}", d.name);
+        assert_eq!((d.pid, d.launcher_pid), (None, None), "the dead record {} names a pid", d.name);
+        assert!(d.noticed.is_some() && d.finished_at.is_some() && d.exit_code.is_none(), "{d:?}");
+    }
+    let _ = std::fs::remove_dir_all(&s.root);
+}
+
 /// A crafted id cannot name a directory out of the directory of the
 /// containers.
 #[test]

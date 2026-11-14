@@ -226,9 +226,7 @@ where
     }
     let (launcher, pid) = launcher::start(s, &c, enter)?;
     let mut out = c;
-    out.state = State::Running;
-    out.launcher_pid = Some(launcher);
-    out.pid = Some(pid);
+    out.mark_running(pid, launcher);
     Ok(out)
 }
 
