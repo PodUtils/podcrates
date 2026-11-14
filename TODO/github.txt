@@ -152,9 +152,9 @@
 145 issue closed
 146 issue closed
 147 issue closed
-148 issue open
+148 issue closed
 149 issue closed
-150 issue open
+150 issue closed
 151 issue open
 152 issue open
 153 issue open

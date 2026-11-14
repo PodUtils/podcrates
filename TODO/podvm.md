@@ -7472,3 +7472,30 @@ Walk the tree with no ancestor held open (an explicit stack of paths reopened fr
 ```sh
 cargo test -p pod-extract --all-features
 ```
+
+# T-616: `pod-supervise`: the thread of the foreground hold blocks the shutdown signals
+
+**Source:** PodUtils/podvm#362 (COORD-111 of podvm, a note on T-573; PodUtils/podvm@T-1708).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The thread that serves the socket of a foreground hold (T-573) leaves SIGINT and SIGTERM unblocked. A signal to the process can land on that thread with the default action, and the caller ends while its payload runs. podvm blocks the shutdown signals while `foreground` starts its thread, so that the thread takes the blocked mask.
+
+## Premise
+
+- Read: PodUtils/podvm#362; `crates/pod-supervise/src/foreground.rs` (the start of the thread); call C348.
+
+## Approach
+
+The hold blocks SIGINT, SIGTERM, SIGHUP and SIGQUIT in the mask of its own thread (`pthread_sigmask` at the start of the thread, or around its spawn), so that a signal to the process goes to a thread of the caller. A test: a process with a hold that gets SIGTERM from outside runs its own handler (or the main thread's default) and not an end on the thread of the hold; a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features
+```
