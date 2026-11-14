@@ -16,3 +16,8 @@ serde_json = { workspace = true }
 sha2 = { workspace = true }
 # The claims of the runtime token (token::backend_ids).
 base64 = { workspace = true }
+
+[features]
+# The readers of a query, of a block list and of a `Range`, for the fuzz
+# target of fuzz/; no consumer turns it on.
+fuzzing = []

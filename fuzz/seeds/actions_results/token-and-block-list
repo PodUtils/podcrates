@@ -1,0 +1,4 @@
+x.eyJzY3AiOiJBY3Rpb25zLkdlbmVyaWNSZWFkOjEgQWN0aW9ucy5SZXN1bHRzOnJ1bi0xOmpvYi0yIn0.y
+%%
+PUT /_cache/upload/1?sig=11111111111111111111111111111111&comp=blocklist
+<BlockList><Latest> YQ== </Latest><Committed>Yg==</Uncommitted></BlockList>

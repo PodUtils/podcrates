@@ -2452,7 +2452,7 @@ python3 -I scripts/check-design-paths.py
 **Milestone:** M8
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2471,6 +2471,10 @@ A feature `fuzzing` that gives `query`, `block_list` and `backend_ids`, and a ta
 ```sh
 cargo test --manifest-path fuzz/Cargo.toml --lib
 ```
+
+## Done
+
+2026-11-14. The commit that names T-566. The feature `fuzzing` of `pod-actions-results` gives `fuzzing::{query, block_list, range}` (call C432), and it is in ALLOWED of `scripts/check-probe.py`. The target `actions_results` (`fuzz/src/targets/results.rs`, `fuzz/fuzz_targets/actions_results.rs`) reads the four parsers, then a script of up to 24 requests to an `ArtifactStore` and a `CacheStore` with a fixed random source in a scratch directory (call C433). Its 4 seeds (`fuzz/seeds/actions_results/`): an artifact in blocks with each call, a cache entry with three ranges, names that are paths with other refusals, and a runtime token with a block list. `fuzz/README.md` lists it; the seeds test (`each_target_has_a_binary_and_seeds`) and `each_target_survives_mutations` take it from `TARGETS`. `cargo test --manifest-path fuzz/Cargo.toml --lib`: 13 passed, 4 ignored; clippy of the fuzz library with `-D warnings`: clean. Plants, each caught by hand on the mutations of the seeds: `fuzz-results-range-past-end` and `fuzz-results-download-past-end` (`12 bytes at 0 of 11`: the seeds reach the download past the signature and the finalize).
 
 # T-587: `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99)
 

@@ -1,0 +1,23 @@
+POST /twirp/github.actions.results.api.v1.ArtifactService/CreateArtifact
+{"name":"../escape"}
+%%
+POST /twirp/github.actions.results.api.v1.ArtifactService/DeleteArtifact
+{"name":".."}
+%%
+POST /twirp/github.actions.results.api.v1.ArtifactService/CreateArtifact
+{"name":".pending"}
+%%
+PUT /_artifacts/upload/1?sig=11111111111111111111111111111111
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+%%
+POST /twirp/github.actions.results.api.v1.ArtifactService/FinalizeArtifact
+{"name":".pending","size":3,"hash":"sha256:00"}
+%%
+POST /twirp/github.actions.results.api.v1.CacheService/CreateCacheEntry
+{"key":"a,b","version":"v"}
+%%
+PUT /_artifacts/upload/9?sig=00
+x
+%%
+GET /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts
+

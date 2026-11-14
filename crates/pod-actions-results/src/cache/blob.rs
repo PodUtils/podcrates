@@ -10,7 +10,7 @@ use crate::wire::{Answer, CONTENT_BLOB, Payload, block_list, query, same, text};
 
 /// The part of `len` bytes that a `Range: bytes=A-B` header names: the
 /// first and the last byte.
-pub(super) fn range(header: &str, len: u64) -> Option<(u64, u64)> {
+pub(crate) fn range(header: &str, len: u64) -> Option<(u64, u64)> {
     let (a, b) = header.trim().strip_prefix("bytes=")?.split_once('-')?;
     let (start, end) = match (a.trim(), b.trim()) {
         ("", n) => (len.checked_sub(n.parse().ok()?)?, len.checked_sub(1)?),

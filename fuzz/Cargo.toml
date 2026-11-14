@@ -52,6 +52,9 @@ pod-job = { path = "../crates/pod-job" }
 # The expressions and the workflow files of GitHub Actions (T-251).
 pod-actions-expr = { path = "../crates/pod-actions-expr" }
 pod-actions-workflow = { path = "../crates/pod-actions-workflow" }
+# The feature `fuzzing` gives the readers of a query, of a block list and of
+# a `Range` of the results API (T-566).
+pod-actions-results = { path = "../crates/pod-actions-results", features = ["fuzzing"] }
 # The frames of a link (T-300), the reader of HTTP/1.1 and of SSE of the
 # poll carriers (feature `fuzzing`, T-518) and KCP of the udp carrier
 # (T-521).
@@ -383,6 +386,13 @@ bench = false
 [[bin]]
 name = "actions_workflow"
 path = "fuzz_targets/actions_workflow.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "actions_results"
+path = "fuzz_targets/actions_results.rs"
 test = false
 doc = false
 bench = false

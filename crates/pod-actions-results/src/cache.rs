@@ -26,6 +26,8 @@ use sha2::{Digest, Sha256};
 use crate::wire::{Answer, hex, ok, text};
 
 mod blob;
+#[cfg(feature = "fuzzing")]
+pub(crate) use blob::range;
 mod service;
 mod sweep;
 

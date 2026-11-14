@@ -83,6 +83,7 @@ body of up to 16 MiB. The server gives `base` to the job as
 | `CacheStore::sweep(now)`, `cache::PENDING_AGE` | remove each upload under `.pending` that the store does not hold and that did not change for a day before `now`; `new` calls it |
 | `CacheStore::entries`, `dir` | each entry, newest first, with its signature; the directory |
 | `cache::SERVICE`, `cache::BLOBS`, `cache::LIMIT` | the path of each call and of each blob of the cache; the default limit, 10 GB as GitHub keeps for a repository |
+| `fuzzing::{query, block_list, range}` (feature `fuzzing`) | the readers of a query, of a block list and of a `Range`, for the fuzz target `actions_results` of `fuzz/`; no consumer turns it on |
 | `token::backend_ids(token)`, `BackendIds { run, job }` | the run and job ids of the scope `Actions.Results:RUN:JOB` in the claim `scp` of a runtime token, read as the client reads them (no check of the signature) |
 | `token::results_scope(run, job)`, `token::RESULTS_SCOPE` | the scope for a token that a broker or a forge mints |
 
@@ -274,6 +275,13 @@ and `results-replace-ignored` (a rerun keeps the artifact),
 `results-cache-names-joined` (the digest of an entry joins its names) and
 `results-cache-record-anywhere` (a record counts in any directory)
 (T-588); `results-cache-pending-kept` (the sweep removes nothing) (T-600).
+
+The fuzz target `actions_results` (`fuzz/`, T-566) reads a query, a
+block list, a runtime token and a `Range`, then gives a script of
+requests to an `ArtifactStore` and a `CacheStore` in a scratch
+directory. Its plants: `fuzz-results-range-past-end` and
+`fuzz-results-download-past-end` (a file of an answer names a byte past
+its end).
 
 ## Sources
 

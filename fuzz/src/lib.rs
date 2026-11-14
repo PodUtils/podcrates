@@ -65,6 +65,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("relay_pool", targets::relay_pool),
     ("actions_expr", targets::actions_expr),
     ("actions_workflow", targets::actions_workflow),
+    ("actions_results", targets::actions_results),
     ("link_frame", targets::link_frame),
     ("link_arq", targets::link_arq),
     ("link_poll_wire", targets::link_poll_wire),

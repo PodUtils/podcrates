@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-results/src/blob.rs b/crates/pod-actions-results/src/blob.rs
+--- a/crates/pod-actions-results/src/blob.rs
++++ b/crates/pod-actions-results/src/blob.rs
+@@ -86,7 +86,7 @@
+         let file = File::open(at.join("artifact.zip")).and_then(|f| Ok((f.metadata()?.len(), f)));
+         match file {
+             Ok((len, f)) => {
+-                Answer { status: 200, content_type: CONTENT_BLOB, headers: Vec::new(), body: Payload::File(f, len) }
++                Answer { status: 200, content_type: CONTENT_BLOB, headers: Vec::new(), body: Payload::File(f, len + 1) }
+             }
+             Err(_) => text(404, Vec::new()),
+         }
