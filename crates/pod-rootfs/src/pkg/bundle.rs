@@ -59,7 +59,8 @@ fn not_written(why: String) -> String {
 ///
 /// A bundle found at a default path is the store of a distribution and says
 /// nothing of an interception: the crate adds nothing to the trust store of
-/// an image for it. `Settings::host_cas` off refuses the named case too.
+/// an image for it. `Settings::host_cas` off refuses both cases: the row is
+/// `Skipped` and degraded, and no file is written.
 pub(crate) fn ca_bundle(root: &Root, settings: &Settings) -> Result<Vec<Fixup>> {
     let marker = &settings.names.host_ca_marker;
     // Read THROUGH a link: `/etc/ssl/ca-bundle.pem` is a symlink to
@@ -83,6 +84,19 @@ pub(crate) fn ca_bundle(root: &Root, settings: &Settings) -> Result<Vec<Fixup>> 
                     .degraded(),
             ]);
         };
+        // Off means no host root in the trust of the container: a bundle of
+        // the host can hold an intercepting CA.
+        if !settings.host_cas {
+            return Ok(vec![
+                Fixup::new("ca-bundle", BUNDLE_PATHS[0], Action::Skipped)
+                    .why(format!(
+                        "the host CA fixup is off: the image has no CA bundle, and the bundle of the host ({}) is not \
+                         written into it. An https source in it does not verify",
+                        h.path
+                    ))
+                    .degraded(),
+            ]);
+        }
         // EACH usual path whose directory is there, not one: void-musl
         // ships `/etc/ssl/certs/` as a hashed directory with no bundle, and
         // its OpenSSL reads `/etc/ssl/cert.pem`. A directory that is not
