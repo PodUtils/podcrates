@@ -1,0 +1,9 @@
+# The kernel drops S_ISGID of a file whose group is not a group of the
+# process, and the sidecar does not record the mode that stayed (T-581,
+# PodUtils/podvm#342). The proof runs as uid 1000 when the test runs as
+# root.
+ENTRY=T-581
+GROUP=extract
+EXPECT='the sidecar does not record the mode that stayed'
+RUN='cargo test -p pod-extract --all-features --lib drive::setid'
+LIMIT=1800

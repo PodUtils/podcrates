@@ -36,8 +36,10 @@ pub struct Meta {
     /// Absent when nothing was dropped: the usual case for a file that the
     /// image gives to the extracting id.
     pub reason: Option<String>,
-    /// The image asked for `mode`; this is the wider mode that stayed on disk,
-    /// recorded so that an export can put the mode of the image back.
+    /// The image asked for `mode`; this is the mode that stayed on disk when
+    /// it is not `mode` (wider with no owner write set back, or with no
+    /// `S_ISUID` or `S_ISGID` that the kernel refused), recorded so that an
+    /// export can put the mode of the image back.
     pub applied_mode: Option<u32>,
 }
 

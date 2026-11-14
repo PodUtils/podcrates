@@ -392,6 +392,7 @@ fn a_read_only_directory_in_one_layer_can_be_written_into_by_the_next() {
 }
 
 mod records;
+mod setid;
 mod whiteouts;
 
 /// A layer whose first entry is the root as a directory with an empty name

@@ -260,8 +260,8 @@ fn replace(parent: &Dir, name: &str) -> Result<()> {
 }
 
 /// Write one regular file. Returns the mode that stayed on the file when it is
-/// not the mode of the image (the mode of the image without owner write could
-/// not be set back after the write).
+/// not the mode of the image: the kernel refused the mode of the image after
+/// the write, or dropped its `S_ISUID` or `S_ISGID`.
 fn write_file(parent: &Dir, name: &str, mode: u32, r: &mut dyn Read) -> Result<Option<u32>> {
     replace(parent, name)?;
     let n = cbuf(name)?;
@@ -315,15 +315,32 @@ fn write_file(parent: &Dir, name: &str, mode: u32, r: &mut dyn Read) -> Result<O
     // close. An `fchmodat` of the name resolves it again, in a tree that this
     // process still writes.
     let want_final = mode & 0o7777;
-    // The mode of the image has no owner write: it is set now that the
-    // content is written. When the kernel refuses it, the widened mode stays,
-    // and the sidecar records it.
-    let widened = if want_final != want && sys::fchmod(fd, u64::from(want_final)).is_err() { Some(want) } else { None };
+    // Two cases set the mode again now that the content is written: the mode
+    // of the image has no owner write, or it has a bit of 0o7000, which a
+    // write by a process with no CAP_FSETID clears.
+    let set = want_final != want || want_final & SET_ID_BITS != 0;
+    let refused = set && sys::fchmod(fd, u64::from(want_final)).is_err();
+    let kept = if set { kept_mode(fd, want_final, refused.then_some(want)) } else { None };
     let _ = sys::close(fd);
     if let Some(e) = err {
         return Err(e);
     }
-    Ok(widened)
+    Ok(kept)
+}
+
+/// The set-user-ID, set-group-ID and sticky bits.
+const SET_ID_BITS: u32 = 0o7000;
+
+/// The mode that stayed on the descriptor when it is not `want`, for the
+/// sidecar. Read back, not assumed: the kernel clears `S_ISGID` with no
+/// error when the group of the file is not a group of this process.
+/// `fallback` is the answer when the read fails.
+fn kept_mode(fd: i64, want: u32, fallback: Option<u32>) -> Option<u32> {
+    match sys::fstatat(fd, &sys::cempty(), sys::AT_EMPTY_PATH) {
+        Ok(st) if st.st_mode & 0o7777 == want => None,
+        Ok(st) => Some(st.st_mode & 0o7777),
+        Err(_) => fallback,
+    }
 }
 
 /// The permission pass between layers, or the next layer fails.

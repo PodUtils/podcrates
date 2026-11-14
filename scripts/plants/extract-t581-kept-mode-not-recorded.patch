@@ -1,0 +1,12 @@
+diff --git a/crates/pod-extract/src/apply.rs b/crates/pod-extract/src/apply.rs
+--- a/crates/pod-extract/src/apply.rs
++++ b/crates/pod-extract/src/apply.rs
+@@ -338,7 +338,7 @@
+ fn kept_mode(fd: i64, want: u32, fallback: Option<u32>) -> Option<u32> {
+     match sys::fstatat(fd, &sys::cempty(), sys::AT_EMPTY_PATH) {
+         Ok(st) if st.st_mode & 0o7777 == want => None,
+-        Ok(st) => Some(st.st_mode & 0o7777),
++        Ok(_) => None,
+         Err(_) => fallback,
+     }
+ }

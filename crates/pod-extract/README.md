@@ -89,6 +89,7 @@ Against podvm `crates/podvm-extract` at `e8e5beb`:
 | [x] The digest check of each pass | the same; a digest that is not sha256 is refused by name (podvm gave a mismatch) |
 | [x] The ids of the process | the same, masked to 32 bits for a 32-bit target |
 | [x] A file mode without owner write | the same; when the kernel refuses the final `fchmod`, the sidecar records the mode that stayed (podvm recorded none) |
+| [x] A file mode with a bit of `0o7000` (4755, 2755, 6755) | set again with `fchmod` after the last write, as a write by a process with no `CAP_FSETID` clears `S_ISUID` and `S_ISGID` (podvm lost them as a user that is not root, PodUtils/podvm#342); the mode on the descriptor is read back, and a mode that the kernel did not keep (`S_ISGID` of a group that the process is not in) goes into the sidecar as `applied.mode` |
 | [x] Whiteouts | the same; a whiteout gets the lexical check, and a whiteout of `.` or `..` refuses the layer (podvm removed the entries of the directory above the destination for `.wh...`) |
 | [x] The tests: 47 unit tests | 47 with their names (the store fixtures are blob files and a `Place`); 3 new |
 
@@ -113,6 +114,15 @@ header past the check of `tar::Builder`), run the real extraction and look
 at the tree. No test needs root, a namespace or the network. The walk and
 `openat2` refuse the same traversal on one kernel; the test that asserts
 `openat2` skips under an emulator that does not translate it.
+
+`drive::setid::set_id_bits_survive_the_write` extracts files of mode 4755,
+2755 and 6755 as the user of the test. As root it also runs the test
+binary again as uid 1000 and gid 1000
+(`drive::setid::worker_extracts_as_a_user`; a skip line where the host
+cannot start that child): the three modes stay, and in a directory of
+group 0 with `S_ISGID` the sidecar records 0755 and 4755, the modes that
+the kernel kept. The plants: `extract-t581-set-id-bits-not-set-again`,
+`extract-t581-kept-mode-not-recorded`.
 
 ## Sources
 
