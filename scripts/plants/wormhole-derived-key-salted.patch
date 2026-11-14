@@ -1,0 +1,12 @@
+diff --git a/crates/pod-wormhole/src/wormhole.rs b/crates/pod-wormhole/src/wormhole.rs
+--- a/crates/pod-wormhole/src/wormhole.rs
++++ b/crates/pod-wormhole/src/wormhole.rs
+@@ -290,7 +290,7 @@
+ /// past [`DERIVED_MOST`].
+ pub fn derive_key(key: &[u8; 32], purpose: &[u8], len: usize) -> Option<Zeroizing<Vec<u8>>> {
+     let mut out = Zeroizing::new(vec![0u8; len]);
+-    Hkdf::<Sha256>::new(None, key).expand(purpose, &mut out).ok()?;
++    Hkdf::<Sha256>::new(Some(purpose), key).expand(b"", &mut out).ok()?;
+     Some(out)
+ }
+ 

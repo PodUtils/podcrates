@@ -5898,3 +5898,89 @@ sh scripts/plant-each.sh netstack-close-wait-closes-at-once netstack-link-drops-
 ## Done
 
 2026-11-13, commit `2f643b1`. `cargo test -p pod-netstack --all-features`: 79 passed. `close.rs`: `a_stream_whose_peer_closed_first_sends_each_queued_byte_then_the_end` (the client shuts down first; the server writes 16 MiB and closes; the client reads each byte, then the end). `hold.rs`: `the_packets_held_at_a_full_link_each_go_when_it_drains` (the outbound queue of the server fills to `LINK_OUTBOUND` while the pump stands; then `tx_dropped` is 0, `tx_held` is more than 0, the client reads 4 MiB and the end, and the pump moved each packet that the device counted in `tx_packets`). The plant `netstack-close-wait-closes-at-once` fails the first test ("the end after the end of the peer lost 4230144 bytes"). The plant `netstack-link-drops-at-a-full-queue` fails the second test ("4714 packets dropped at the full queue"); no other test of the crate catches it, as `a_full_tunnel_queue_holds_the_stack` uses `LinkDevice::tunnel_bounded`, not `LinkDevice::link`.
+
+# T-545: `pod-wormhole`: `Wormhole::derive_key`, magic-wormhole's derived key, for the transit key of podnet's transfer (PodUtils/podnet#535)
+
+**Source:** PodUtils/podnet#535 (COORD-072 of podnet), ask 1; it blocks PodUtils/podnet@T-103 and the file part of PodUtils/podnet@T-106.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+magic-wormhole derives the transit key from the wormhole key:
+`derive_key(purpose, length)` with the purpose `<appid>/transit-key`. The
+`Wormhole` of `pod-wormhole` gives no such call, and the key is private.
+podnet now sends a random transit key inside its sealed `transit` message:
+this works podnet to podnet, but a Python `wormhole` client cannot read it,
+so a file or a directory does not move between podnet and Python. podnet
+asks for `Wormhole::derive_key(purpose: &str, len: usize) -> Vec<u8>`
+(HKDF-SHA256 of the shared key, as magic-wormhole's `derive_key`).
+
+## Premise
+
+- Read 2026-11-14, magic-wormhole at
+  `657bd5d51c67db2109219ff57b7d997afa57261f` (its default branch):
+  magic-wormhole/magic-wormhole:src/wormhole/_key.py,
+  `derive_key(key, purpose, length=SecretBox.KEY_SIZE)` returns
+  `HKDF(key, length, CTXinfo=purpose)`;
+  magic-wormhole/magic-wormhole:src/wormhole/util.py, `HKDF(skm, outlen,
+  salt=None, CTXinfo=b"")` is RFC 5869 HKDF with SHA-256: no salt, the
+  purpose as the info. magic-wormhole/magic-wormhole:src/wormhole/wormhole.py,
+  `derive_key(self, purpose, length)` takes a `str`, raises `NoKeyError`
+  with no key, and gives `derive_key(self._key, to_bytes(purpose), length)`;
+  `to_bytes` is the UTF-8 of the NFC form.
+  magic-wormhole/magic-wormhole:src/wormhole/test/test_keys.py,
+  `test_derive_key`: the key `588ba9ee...131ef1` gives
+  `835b5df8...ee1b2a` for `purpose1` (32 bytes) and `f2238e84315b47eb6279`
+  for `purpose2` (10 bytes).
+- The release 0.24.0 of the Python library (`scripts/ci/wormhole-servers.txt`)
+  has the same `derive_key`, and gives the same two vectors here.
+- `crates/pod-wormhole/src/wormhole.rs` makes the key of each phase with
+  HKDF-SHA256 and no salt already (`phase_key`).
+
+## Approach
+
+`wormhole::derive_key(&key, purpose, len)`: HKDF-SHA256, no salt, the
+purpose as the info, `len` bytes in a `Zeroizing<Vec<u8>>`; `None` past
+`DERIVED_MOST` (255 blocks of 32, the bound of HKDF-SHA256).
+`Wormhole::derive_key(&self, purpose: &str, len)` over the agreed key:
+`Failed::Broken` before `agree`, `Failed::Mine` past the bound (call C294).
+A unit test with the vectors of `test_keys.py`; the test of two ends over
+each mailbox derives one key at both ends and another for another purpose;
+the peer of the Python library prints its transit key
+(`APPID/transit-key`, 32 bytes), and the two tests of the library compare
+it with this crate's. The plant `wormhole-derived-key-salted` gives the
+purpose as the salt.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+sh scripts/plant-each.sh wormhole-derived-key-salted
+```
+
+## Done
+
+2026-11-14, this commit (the subject `pod-wormhole: Wormhole::derive_key`).
+`Wormhole::derive_key(purpose, len)` gives
+`Result<Zeroizing<Vec<u8>>, Failed>`: `Failed::Broken("no key was agreed")`
+before `agree`, `Failed::Mine` past `DERIVED_MOST` (8160); the pure
+`wormhole::derive_key(&key, purpose, len)` gives `None` past it (C294).
+`cargo test -p pod-wormhole --all-features` with the Python packages of
+`scripts/ci/wormhole-servers.txt` and `POD_WORMHOLE_TEST_SERVER=required`:
+75 passed, 3 ignored (the live ones). New: the unit test
+`a_derived_key_is_magic_wormholes_by_purpose_and_length` (the two vectors
+of magic-wormhole's `test_keys.py`; 0 bytes; the first 32 of 8160 bytes;
+`None` at 8161); `two_ends_of_one_code_agree_a_key_and_move_a_message_each_way`
+derives one transit key at both ends and another for another purpose, on
+the stand-in and on magic-wormhole's mailbox server; each test that uses
+`two` holds `Failed::Broken` before `agree`; the peer of magic-wormhole
+0.24.0 prints its `derive_key("APPID/transit-key", 32)`, and
+`a_peer_of_magic_wormholes_python_library_takes_this_crate_s_code` and
+`this_crate_takes_a_code_that_magic_wormholes_python_library_gives` find
+it equal to this crate's. The plant `wormhole-derived-key-salted` fails
+`a_derived_key_is_magic_wormholes_by_purpose_and_length` (checked by hand:
+FAILED); `sh scripts/plant-each.sh --apply`: 0 stale.

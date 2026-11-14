@@ -5,10 +5,11 @@
 //! second use, a giver nobody takes, a code of another application and a
 //! mailbox that lists other codes find nobody; a third end is refused while
 //! two hold the code; a message that the mailbox changed ends the exchange;
-//! no event and no `Debug` holds the code. A peer of magic-wormhole's own
-//! Python library and this crate finish the `pake` and `version` phases and
-//! a message each way, either one giving the code, and a wrong code fails
-//! both.
+//! no event and no `Debug` holds the code. The two ends derive one key for
+//! a purpose, and another for another purpose. A peer of magic-wormhole's
+//! own Python library and this crate finish the `pake` and `version`
+//! phases, derive one transit key, and move a message each way, either one
+//! giving the code, and a wrong code fails both.
 
 mod harness;
 
@@ -47,10 +48,17 @@ fn hex(bytes: &[u8]) -> String {
     pod_wormhole::hex(bytes)
 }
 
+/// The key of the transit of magic-wormhole's file transfer, in hex.
+fn transit_key(hole: &Wormhole) -> String {
+    hex(&hole.derive_key(&format!("{APPID}/transit-key"), 32).expect("a key"))
+}
+
 /// A giver's wormhole and a taker's of one code at `url`, each with its key.
 async fn two(url: &WsUrl, seen: &Seen) -> (Wormhole, Wormhole, Code) {
     let ends = ends(vec![url.clone()], seen);
     let (mut giver, code) = opened(&ends, versions()).await.expect("a code");
+    let no_key = giver.derive_key("a purpose", 32).err();
+    assert_eq!(no_key, Some(Failed::Broken("no key was agreed".into())), "no derived key before the key");
     let taker = joined(&ends, &code, versions(), Duration::from_secs(5)).await.expect("the taker");
     assert!(giver.agree(LIMIT).await.unwrap(), "the giver hears the taker's pake");
     (giver, taker, code)
@@ -63,6 +71,10 @@ async fn two_ends_of_one_code_agree_a_key_and_move_a_message_each_way() {
         let (mut giver, mut taker, _) = two(&url, &Seen::default()).await;
         assert_eq!(giver.confirm(LIMIT).await.unwrap(), versions(), "{name}");
         assert_eq!(taker.confirm(LIMIT).await.unwrap(), versions(), "{name}");
+        assert_eq!(transit_key(&giver), transit_key(&taker), "{name}: one derived key at both ends");
+        let other = giver.derive_key("another purpose", 32).unwrap();
+        assert_ne!(hex(&other), transit_key(&giver), "{name}: another purpose, another key");
+        assert_eq!(taker.derive_key("another purpose", 10).unwrap()[..], other[..10], "{name}");
         giver.send(b"the offer").await.unwrap();
         assert_eq!(taker.receive(LIMIT).await.unwrap(), b"the offer", "{name}");
         taker.send(b"the answer").await.unwrap();
@@ -265,6 +277,7 @@ async fn a_peer_of_magic_wormholes_python_library_takes_this_crate_s_code() {
         assert_eq!(hole.receive(LIMIT).await.unwrap(), b"from python", "{name}");
         hole.close(Mood::Happy).await;
         assert_eq!(peer.after("versions").as_deref(), Some(r#"{"pod-wormhole-test": 1}"#), "{name}: {}", peer.said());
+        assert_eq!(peer.after("derived"), Some(transit_key(&hole)), "{name}: {}", peer.said());
         assert_eq!(peer.after("got"), Some(hex(b"from rust")), "{name}: {}", peer.said());
     }
 }
@@ -287,6 +300,7 @@ async fn this_crate_takes_a_code_that_magic_wormholes_python_library_gives() {
         hole.send(b"from rust").await.unwrap();
         assert_eq!(hole.receive(LIMIT).await.unwrap(), b"from python", "{name}");
         hole.close(Mood::Happy).await;
+        assert_eq!(peer.after("derived"), Some(transit_key(&hole)), "{name}: {}", peer.said());
         assert_eq!(peer.after("got"), Some(hex(b"from rust")), "{name}: {}", peer.said());
     }
 }

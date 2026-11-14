@@ -41,6 +41,8 @@ pub const TAG: usize = 16;
 pub const HELD_MOST: usize = 256;
 /// The label of the key of each phase.
 const PHASE_LABEL: &[u8] = b"wormhole:phase:";
+/// The most bytes of one derived key: HKDF-SHA256 gives 255 blocks of 32.
+pub const DERIVED_MOST: usize = 255 * 32;
 
 /// Two ends of one code at one meeting point, from the key on.
 pub struct Wormhole {
@@ -190,6 +192,19 @@ impl Wormhole {
         Ok(plain)
     }
 
+    /// A key of `len` bytes for `purpose`, from the key that the two ends
+    /// agreed, as magic-wormhole's `derive_key` makes it: the peer derives
+    /// the same bytes, and another purpose gives other bytes. Its file
+    /// transfer takes `APPID/transit-key` for the key of the transit.
+    /// magic-wormhole takes the NFC form of the purpose: give it in NFC
+    /// (each ASCII text is). No key before [`Wormhole::agree`]; the key is
+    /// proven only by [`Wormhole::confirm`].
+    pub fn derive_key(&self, purpose: &str, len: usize) -> Result<Zeroizing<Vec<u8>>, Failed> {
+        let Some(key) = self.key.as_ref() else { return Err(Failed::Broken("no key was agreed".into())) };
+        let why = || Failed::Mine(format!("a derived key of {len} bytes is longer than {DERIVED_MOST}"));
+        derive_key(key, purpose.as_bytes(), len).ok_or_else(why)
+    }
+
     /// Release the nameplate while this side holds it, close the mailbox
     /// with `mood`, and end the connection; once.
     pub async fn close(&mut self, mood: Mood) {
@@ -270,6 +285,15 @@ pub fn phase_key(key: &[u8; 32], side: &str, phase: &str) -> Zeroizing<[u8; 32]>
     out
 }
 
+/// `len` bytes of `key` for `purpose`, as magic-wormhole's `derive_key`
+/// makes them (HKDF-SHA256 with no salt, the purpose as its info); `None`
+/// past [`DERIVED_MOST`].
+pub fn derive_key(key: &[u8; 32], purpose: &[u8], len: usize) -> Option<Zeroizing<Vec<u8>>> {
+    let mut out = Zeroizing::new(vec![0u8; len]);
+    Hkdf::<Sha256>::new(None, key).expand(purpose, &mut out).ok()?;
+    Some(out)
+}
+
 /// `plain` sealed under `key`: a random nonce, then SecretBox's tag and the
 /// ciphertext, as PyNaCl's `SecretBox.encrypt` writes them.
 pub fn seal(key: &[u8; 32], plain: &[u8]) -> Result<Vec<u8>, Failed> {
@@ -329,6 +353,7 @@ impl rand_core_06::CryptoRng for Drawn<'_> {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::message::unhex;
     use pod_core::entropy::NoRandom;
 
     // Computed with Python's hmac and hashlib (HKDF by RFC 5869 written out,
@@ -343,6 +368,21 @@ mod tests {
         assert_eq!(hex(&phase_key(&key, "0123456789", "version")[..]), VERSION_KEY);
         assert_eq!(hex(&phase_key(&key, "0123456789", "0")[..]), PHASE_0_KEY);
         assert_eq!(hex(&phase_key(&key, "abcdefabcd", "version")[..]), OTHER_SIDE_KEY);
+    }
+
+    const MAIN: &str = "588ba9eef353778b074413a0140205d90d7479e36e0dd4ee35bb729d26131ef1";
+
+    // magic-wormhole's own vectors: `test_derive_key` of its
+    // `src/wormhole/test/test_keys.py`.
+    #[test]
+    fn a_derived_key_is_magic_wormholes_by_purpose_and_length() {
+        let key: [u8; 32] = unhex(MAIN).unwrap().try_into().unwrap();
+        let one = derive_key(&key, b"purpose1", 32).unwrap();
+        assert_eq!(hex(&one), "835b5df80ce9ca46908e8524fb308649122cfbcefbeaa7e65061c6ef08ee1b2a");
+        assert_eq!(hex(&derive_key(&key, b"purpose2", 10).unwrap()), "f2238e84315b47eb6279");
+        assert_eq!(derive_key(&key, b"purpose1", 0).unwrap().len(), 0);
+        assert_eq!(derive_key(&key, b"purpose1", DERIVED_MOST).unwrap()[..32], one[..]);
+        assert!(derive_key(&key, b"purpose1", DERIVED_MOST + 1).is_none());
     }
 
     #[test]

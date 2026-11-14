@@ -1,0 +1,7 @@
+# The derived key takes the purpose as the salt of HKDF, not as its info, so
+# it is no key of magic-wormhole's derive_key and a Python peer derives
+# another transit key; the test of magic-wormhole's vectors must fail.
+ENTRY=T-545
+GROUP=wormhole
+EXPECT='test wormhole::tests::a_derived_key_is_magic_wormholes_by_purpose_and_length \.\.\. FAILED'
+RUN='cargo test -p pod-wormhole --lib -- wormhole::tests::a_derived_key_is_magic_wormholes_by_purpose_and_length'

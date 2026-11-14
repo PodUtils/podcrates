@@ -22,7 +22,7 @@ caller's protocol over a `Wormhole`; the exchange of podssh goes to
 | --- | --- |
 | `config` | `Config { appid, client_name, client_version, way, trust, connect_timeout, answer_limit, limits, events }`, `Config::new(appid, client_name, client_version, way)`, `CONNECT_TIMEOUT`, `ANSWER_LIMIT`, `LIMITS` |
 | `mailbox` | `Mailbox`: `connect(&url, &config, side)`, `list`, `allocate`, `claim`, `open`, `add`, `release`, `close`, `end`, `message(wait)`, `appid`, `shown`, `motd`; `Mood` (`Happy`, `Lonely`, `Scary`, `Errory`); `Message`; `crowded(&Failed)`; `ANSWER_LIMIT`, `KEPT_MOST` |
-| `wormhole` | `Wormhole`: `open(place, side, nameplate, id, &code, versions)` (a `Mailbox` or a `mqtt::Broker`), `agree(wait)`, `confirm(wait)`, `send`, `receive(wait)`, `close(mood)`, `fail(mood, failed)`, `shown`; `phase_key`, `seal`, `open_sealed`, `NONCE`, `TAG`, `HELD_MOST` |
+| `wormhole` | `Wormhole`: `open(place, side, nameplate, id, &code, versions)` (a `Mailbox` or a `mqtt::Broker`), `agree(wait)`, `confirm(wait)`, `send`, `receive(wait)`, `close(mood)`, `fail(mood, failed)`, `shown`, `derive_key(purpose, len)` (magic-wormhole's `derive_key` of the agreed key: the transit key is `derive_key("APPID/transit-key", 32)`); `derive_key(&key, purpose, len)`, `phase_key`, `seal`, `open_sealed`, `NONCE`, `TAG`, `HELD_MOST`, `DERIVED_MOST` |
 | `meet` | `Ends { mailboxes, config }`, `opened(&ends, versions)` (a new code at the first mailbox that answers), `joined(&ends, &code, versions, giver_wait)` (the giver's wormhole, the key made), `or_close` |
 | `mqtt` | `Brokers { points, config, resend }`, `Brokers::new(points, config)`, `Point { url, login }`, `Login { user, password }` (no `Debug` shows the password), `opened(&brokers, versions)` (a new code at the first broker that answers, the giver subscribed), `joined(&brokers, &code, versions, giver_wait)` (the taker's wormhole, the key made), `topic(appid, nameplate)`, `nameplate(&mut dyn Entropy)`, `Role` (`Giver`, `Taker`; `topics`), `PROTOCOL`, `KEEP_ALIVE`, `RESEND`, `NAMEPLATE_DIGITS`, `PAYLOAD_MOST`, `TO_GIVER`, `TO_TAKER` |
 | `mqtt::board` | `Board { point, config }` (also `mqtt::Board`): `new(point, config)`, `put(topic, payload)`, `take(topic, wait)` (`Ok(None)`: no note within the wait), `clear(topic)`, `shown`; `check_topic`, `check_payload`, `TOPIC_MOST` |
@@ -198,7 +198,10 @@ The adoption trial is `adoption/podssh/pod-wormhole.patch` with its `.run`,
 (`need_loopback!`): the wormhole over a stand-in mailbox in Rust and, where
 Python has `magic-wormhole-mailbox-server` and `magic-wormhole`, over
 magic-wormhole's own server, with a peer of its own library giving and
-taking the code. `POD_WORMHOLE_TEST_SERVER=required` turns a skip for want
+taking the code. Both ends derive one key for a purpose; the peer of the
+library derives the same transit key (`APPID/transit-key`); the unit test
+`a_derived_key_is_magic_wormholes_by_purpose_and_length` holds the vectors of
+magic-wormhole's `test_keys.py`. `POD_WORMHOLE_TEST_SERVER=required` turns a skip for want
 of Python into a failure; `POD_WORMHOLE_TEST_PYTHON` names the interpreter.
 `tests/faults.rs` scripts a mailbox that goes wrong. `tests/broker.rs`
 runs the MQTT meeting point over a stand-in broker in Rust
@@ -223,8 +226,8 @@ POD_WORMHOLE_TEST_PYTHON=.venv/bin/python POD_WORMHOLE_TEST_SERVER=required carg
 
 The plants `wormhole-version-unchecked`, `wormhole-held-unbounded`,
 `wormhole-mqtt-topic-constant`, `wormhole-mqtt-no-resend`,
-`wormhole-board-clear-not-retained` and `wormhole-board-clear-not-empty`
-(`scripts/plants/`) prove five of the tests. The fuzz target
+`wormhole-board-clear-not-retained`, `wormhole-board-clear-not-empty` and
+`wormhole-derived-key-salted` (`scripts/plants/`) prove six of the tests. The fuzz target
 `mailbox_message` runs the pure reading of a mailbox's messages and the
 parser of a typed code; `mqtt_packet` runs the codec of MQTT and the topic.
 
