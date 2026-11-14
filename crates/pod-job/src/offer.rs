@@ -92,6 +92,11 @@ pub struct UnitNeed {
     pub min_boundary: Option<Boundary>,
     #[serde(default)]
     pub container: bool,
+    /// The job needs a container engine inside the unit (`services:`, a
+    /// Dockerfile action): placement sends it only to a kind whose
+    /// capability is `container: engine`.
+    #[serde(default)]
+    pub container_engine: bool,
     #[serde(default)]
     pub kvm: bool,
 }

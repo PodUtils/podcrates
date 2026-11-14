@@ -1,0 +1,11 @@
+diff --git a/crates/pod-job/src/capability.rs b/crates/pod-job/src/capability.rs
+--- a/crates/pod-job/src/capability.rs
++++ b/crates/pod-job/src/capability.rs
+@@ -43,7 +43,6 @@ pub enum ContainerRoute {
+     /// uses it as on a GitHub-hosted runner (`DOCKER_HOST` of a socket inside
+     /// the unit, never a socket of the host), for `services:`, `docker build`
+     /// and Dockerfile actions (T-553, PodUtils/podrunner#91).
+-    Engine,
+     Unknown,
+ }
+ 

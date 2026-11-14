@@ -37,8 +37,8 @@ failure.
 | `ARCHES` | `x86_64`, `aarch64` |
 | `JobId`, `UnitId`, `UnitIds`, `IdError`, `JOB_ID_MAX` | the id of a job from a source (`[A-Za-z0-9._-]{1,128}`, not `.` or `..`, never a path), the id of a unit (`u-N`) and the counter that makes it |
 | `Tier`, `RefusalCode` | the tier of a job; the refusal codes (`ALL`, `as_str`, `is_wait`) |
-| `JobOffer`, `JobOffer::check(scaleset)` | the offer; `offer::{TrustInputs, Event, ActorClass, Visibility, UnitNeed, LIMITS, is_digest}` |
-| `Capability`, `Capability::check`, `Capability::limit(name)` | the capability record; `Boundary`, `Principal`, `ContainerRoute`, `SecretDelivery`, `CredentialStore`, `TreeKill`, `EgressHold`, `LimitMode`, `Fact` |
+| `JobOffer`, `JobOffer::check(scaleset)` | the offer; `offer::{TrustInputs, Event, ActorClass, Visibility, UnitNeed, LIMITS, is_digest}`; `UnitNeed::container_engine`: the job needs a container engine inside the unit |
+| `Capability`, `Capability::check`, `Capability::limit(name)` | the capability record; `Boundary`, `Principal`, `ContainerRoute` (`none`, `hooks`, `engine`, `unknown`), `SecretDelivery`, `CredentialStore`, `TreeKill`, `EgressHold`, `LimitMode`, `Fact` |
 | `RunReport`, `RunReport::check`, `RunReport::public` | the full report; `cpu_s` and `peak_rss_mib` of the unit (`Option<Residual>`: a count, or `unknown`; absent when no unit ran; T-527, PodUtils/podrunner#86); `UnitFields`, `ExitReason` (`limit`: the unit ended the job over a bound of its limits), `Residual`, `report::Unknown`; `claim_to_first_step_s` and `job_images` (digests; `check` refuses a tag) are private: `public()` leaves them out |
 | `PublicReport`, `PublicReport::check` | the public report, with `cpu_s` and `peak_rss_mib` (they name no host) |
 

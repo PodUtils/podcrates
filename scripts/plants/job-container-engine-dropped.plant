@@ -1,0 +1,7 @@
+# The capability record has no container route engine: a unit with its own
+# container engine cannot say so (T-553, PodUtils/podrunner#91).
+ENTRY=T-553
+GROUP=job
+EXPECT='valid-engine.json'
+RUN='cargo test -p pod-job --all-features --lib schemas'
+LIMIT=900
