@@ -6987,7 +6987,7 @@ cargo test -p pod-hold --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7006,3 +7006,22 @@ When a spare took the session and the acknowledged position did not move before 
 ```sh
 cargo test -p pod-session --all-features
 ```
+
+## Done
+
+2026-11-14, commit 3254189. `beside::SpareWait` (`took`, `wait`) and
+`beside::Position`: after a spare that took the session at the position
+of the spare before, the next spare waits double, `DEAD_AFTER` at most;
+the first byte that moves the session (received, or acknowledged by the
+far end) sets the wait back. The wait is the floor of the question's
+wait and of the heartbeat's quiet. Call C357. `cargo test -p pod-session
+--all-features`: 154 passed, with
+`beside::tests::the_wait_doubles_after_each_spare_that_moved_nothing_up_to_dead_after_and_a_move_sets_it_back`
+and `tests/session_spare_backoff.rs` (2 tests: a road that answers the
+handshake at once and holds each other record for 5 s, then 13 s; 1 MiB
+each way comes in under 10 s after one spare, and in under 40 s after
+spares that waited 3 s, 6 s and 12 s). On the code before the change
+both tests of the road fail: a spare each 3 s, and no byte moves in
+120 s. The plant `session-t579-spare-wait-fixed` (the wait does not
+double) fails the test of the 5 s road (checked by hand). `cargo clippy
+-p pod-session --all-targets --all-features -- -D warnings`: clean.

@@ -1,0 +1,11 @@
+--- a/crates/pod-session/src/beside.rs
++++ b/crates/pod-session/src/beside.rs
+@@ -243,7 +243,7 @@ impl SpareWait {
+         if self.taken_at != Some(now) {
+             return base;
+         }
+-        let times = 1u32.checked_shl(self.doubled).unwrap_or(u32::MAX);
++        let times = 1u32;
+         base.saturating_mul(times).min(DEAD_AFTER).max(base)
+     }
+ }
