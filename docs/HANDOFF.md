@@ -19,23 +19,20 @@ is done. Git and the record keep finished work.
 
 ## In flight
 
-- The last release: `v0.43.0` at `ccbea49` (ci 43562056951, adoption
-  43562056931, release 43564313833; the hand-off #149, COORD-089).
-  Each consumer took it (#149, closed): podrunner `51f9e6b`, podvm
-  `b0bb87f1`, podnet `c8ccc40`, podssh `b88985f`. `v0.42.0` at `b6983fc`: each consumer took it (#145, closed).
-- On `main` for `v0.44.0`: T-573 (#148), T-572, T-576, T-577
-  (PodUtils/podrunner#97, #98), T-574 and T-558 (`pod-hold`: the raw part
-  and the ping part; podnet's `Calls::sockets().allow_raw()` now refuses
-  ping sockets: its form is `.allow_ping()`, PodUtils/podnet#550). The
-  owner reserves the names of `pod-actions-store` and
-  `pod-actions-results` on crates.io ("Owner actions" of
-  `TODO/PROGRESS.md`).
-- Agents in worktrees of `.claude/worktrees/` (their branches merge into
-  `main` when they are done): `qa580` (T-580 to T-582, #150), `qa584`
-  (T-584, T-585, T-583, T-586, #151), `sess579` (T-579, then T-560),
-  `actions587` (T-587, T-588, PodUtils/podrunner#99), `guest590` (T-592,
-  T-590, T-593: the Windows guest, #152), `udf591` (T-589, then the new
-  crate `pod-udf`, T-591).
+- The last release: `v0.44.0` at `f6479c7` (ci 43577839745, adoption
+  43573763912 at `45a79ee`, release 43593582526; the hand-off #154,
+  COORD-094): the fix of security of T-597 in `pod-extract`. `v0.43.0` at
+  `ccbea49`: each consumer took it (#149, closed).
+- On `main` for `v0.45.0`: T-583 to T-586 (#151), T-557, T-587, T-588,
+  T-600, T-566 (PodUtils/podrunner#99), T-589 (PodUtils/podnet#552),
+  T-591 `pod-udf` and T-594 `pod-qga` (#152). The owner reserves the names
+  of `pod-actions-store`, `pod-actions-results`, `pod-udf` and `pod-qga`
+  on crates.io ("Owner actions" of `TODO/PROGRESS.md`).
+- Branches of agents in `.claude/worktrees/` (they merge into `main` when
+  done): `sess579` (T-579, T-560 done; T-578, T-540), `guest590` (T-590,
+  T-592, T-593 done), `extract598` (T-598, T-599 done; T-604 next: a
+  closed `/etc` breaks the completion of `pod-rootfs` as a user that is
+  not root, and must be fixed before `v0.45.0`).
 - The open threads of this session:
   - T-539 is in `v0.41.0`; T-540 (open) tests it against a kernel pty.
   - T-557 (open): a finding of T-542.
