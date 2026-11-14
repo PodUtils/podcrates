@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-store/src/images.rs b/crates/pod-actions-store/src/images.rs
+--- a/crates/pod-actions-store/src/images.rs
++++ b/crates/pod-actions-store/src/images.rs
+@@ -102,7 +102,7 @@
+         let d = source.pull(image).map_err(|reason| Error::Registry { image: image.clone(), reason })?;
+         // The digest goes into the lock and into a reference: take only the
+         // form that the lock reads back.
+-        if !is_digest(&d) {
++        if !is_digest(&d) && d.is_empty() {
+             return Err(Error::Registry { image: image.clone(), reason: format!("`{d}` is not sha256:HEX") });
+         }
+         Ok(d)

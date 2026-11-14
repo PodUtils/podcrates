@@ -2479,7 +2479,7 @@ cargo test --manifest-path fuzz/Cargo.toml --lib
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2498,6 +2498,15 @@ Import the changes of the three files at podrunner's commit (`scripts/check-sour
 ```sh
 cargo test -p pod-actions-store --all-features
 ```
+
+## Done
+
+2026-11-14. The commit that names T-587: podrunner's additions at `872b43f` (`SOURCES`: 6 files, 0 changes).
+
+- `crates/pod-actions-store`: `Lock::images` and the lines `docker://NAME:TAG sha256:HEX`; `store::{checkout_target, workflow_trees, add_trees}`; `HEAD` in `Git::resolve`; the module `images` (`ImageSource`, `by_tag`, `workflow_images`, `resolve`); `Error::{Checkout, Tree, ImageExpression, Registry, ImageMoved, ImageNotLocked}`, `CheckoutFault`, `LineFault::ImageForm` (calls C376 to C378). `images::PodvmPull` stays in podrunner. A lock line of an image must be in the form of `by_tag`, and a digest of a source must be `sha256:HEX` (C378). The static probe calls `workflow_images` and reads back a lock with an image line.
+- `cargo test -p pod-actions-store --all-features`: 18 unit tests (podrunner's 3 new tests with their names: `a_checkout_of_another_repository_is_a_tree_to_pin`, `the_images_of_a_workflow_that_a_tag_names`, `a_tag_is_pinned_by_the_lock_and_a_moved_tag_fails_by_name`; and `each_fault_of_a_checkout_is_typed_and_a_tree_keeps_the_rules_of_the_lock`, `an_image_is_named_by_tag_and_the_lock_reads_its_pins_back`), 4 tests of `Git` (`git_resolves_head_to_the_default_branch` is new), 1 doc test; passed.
+- Plants, each caught by hand: `actions-store-lock-images-dropped` (`an image line: `), `actions-store-checkout-expression-taken` (`Expression`), `actions-store-git-head-unresolved` (`HEAD is the default branch`), `actions-store-image-moved-taken` (`a moved tag fails`), `actions-store-image-digest-unchecked` (`no digest is refused`). The patch of `actions-store-lock-unsorted` is made again for the new `render_with`; it is caught (`sorted: `). `sh scripts/plant-each.sh --apply`: 0 stale.
+- clippy of the crate and of `static-probe`, rustfmt and `cargo doc` with `-D warnings`: clean; `check-size.py`: 0 faults; `check-probe.py`: 40 crates, 0 faults; `check-design-paths.py`: ok; `check-sources.py pod-actions-store`: 6 files, 0 changes at `872b43f`.
 
 # T-588: `pod-actions-results`: the CacheService and the replacement of an artifact on a rerun (PodUtils/podrunner#99)
 

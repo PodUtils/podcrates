@@ -1,0 +1,8 @@
+# A checkout of another repository takes an expression in its `with:`:
+# the host cannot resolve the tree before the first job (T-587,
+# PodUtils/podrunner#99).
+ENTRY=T-587
+GROUP=actions
+EXPECT='Expression'
+RUN='cargo test -p pod-actions-store --lib store::tests::each_fault_of_a_checkout'
+LIMIT=900

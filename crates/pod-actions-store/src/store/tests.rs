@@ -211,3 +211,62 @@ fn a_forge_that_gives_no_commit_id_is_refused() {
     assert_eq!(f.tars.get(), 0);
     assert!(!s.dir.exists(), "nothing is written for a bad commit");
 }
+
+#[test]
+fn a_checkout_of_another_repository_is_a_tree_to_pin() {
+    let with = |text: &str| pod_actions_workflow::yaml::load(text, Limits::default()).unwrap();
+    let t = |text: &str| checkout_target(Some(&with(text)), "me/app");
+    assert_eq!(t("repository: o/lib\nref: v2\n").unwrap().as_deref(), Some("o/lib@v2"));
+    assert_eq!(t("repository: o/lib\n").unwrap().as_deref(), Some("o/lib@HEAD"));
+    assert_eq!(t("repository: Me/App\n").unwrap(), None, "the repository of the run is the local tree");
+    assert_eq!(t("repository: ${{ github.repository }}\n").unwrap(), None);
+    assert_eq!(t("path: x\n").unwrap(), None);
+    assert!(t("repository: ${{ inputs.repo }}\n").unwrap_err().to_string().contains("plain"));
+    assert!(t("repository: o/lib\nref: ${{ inputs.ref }}\n").unwrap_err().to_string().contains("plain"));
+    assert!(t("repository: nothing\n").unwrap_err().to_string().contains("OWNER/REPO"));
+    let text = "on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/checkout@v4\n        with:\n          repository: o/lib\n          ref: v2\n";
+    let w = pod_actions_workflow::parse(text).unwrap().workflow;
+    assert_eq!(workflow_trees(&w, "me/app").unwrap(), ["o/lib@v2"]);
+    // A tree is pinned and kept as an action is, with no action file.
+    let (f, s) = (forge(), store());
+    f.add("o/lib@v2", C, &[("README", "no action here")]);
+    let r = add_trees(&["o/lib@v2".to_string()], Resolved::default(), &s, &f, Mode::Online, "L").unwrap();
+    assert_eq!((r.commits["o/lib@v2"].as_str(), r.changed), (C, true));
+    assert!(s.path("o/lib", C).is_file());
+    let _ = std::fs::remove_dir_all(&s.dir);
+}
+
+#[test]
+fn each_fault_of_a_checkout_is_typed_and_a_tree_keeps_the_rules_of_the_lock() {
+    let with = |text: &str| pod_actions_workflow::yaml::load(text, Limits::default()).unwrap();
+    let t = |text: &str| checkout_target(Some(&with(text)), "me/app");
+    let fault = |text: &str| match t(text) {
+        Err(Error::Checkout { field, fault, .. }) => (field, fault),
+        other => panic!("{text}: {other:?}"),
+    };
+    assert_eq!(fault("repository: ${{ inputs.repo }}\n"), ("repository", CheckoutFault::Expression));
+    assert_eq!(fault("repository: o/lib\nref: ${{ inputs.ref }}\n"), ("ref", CheckoutFault::Expression));
+    assert_eq!(fault("repository: [o, lib]\n"), ("repository", CheckoutFault::NotString));
+    assert_eq!(fault("repository: o//lib\n"), ("repository", CheckoutFault::NotRepository));
+    assert_eq!(checkout_target(None, "me/app").unwrap(), None, "no `with:` is the local tree");
+    let (f, s) = (forge(), store());
+    let e = add_trees(&["nothing".to_string()], Resolved::default(), &s, &f, Mode::Online, "L").unwrap_err();
+    assert_eq!(e, Error::Tree { tree: "nothing".into() });
+    // A tree that the lock does not have: frozen refuses it before the forge.
+    let e = add_trees(&["o/lib@HEAD".to_string()], Resolved::default(), &s, &f, Mode::Frozen, "L").unwrap_err();
+    assert!(matches!(e, Error::NotLocked { mode: Mode::Frozen, .. }), "{e:?}");
+    assert_eq!(f.resolves.get(), 0);
+    // A tree that moved fails by name, as an action does.
+    f.add("o/lib@HEAD", A, &[("README", "one")]);
+    let r = add_trees(&["o/lib@HEAD".to_string()], Resolved::default(), &s, &f, Mode::Online, "L").unwrap();
+    f.add("o/lib@HEAD", B, &[("README", "two")]);
+    let again = Resolved { lock: r.lock.clone(), ..Resolved::default() };
+    let e = add_trees(&["o/lib@HEAD".to_string()], again, &s, &f, Mode::Online, "L").unwrap_err();
+    assert!(matches!(&e, Error::Moved { key, .. } if key == "o/lib@HEAD"), "{e:?}");
+    // A tree that is an action of the run already is not fetched again.
+    let tars = f.tars.get();
+    let same = Resolved { lock: r.lock.clone(), commits: r.commits.clone(), changed: false };
+    add_trees(&["o/lib@HEAD".to_string()], same, &s, &f, Mode::Online, "L").unwrap();
+    assert_eq!(f.tars.get(), tars);
+    let _ = std::fs::remove_dir_all(&s.dir);
+}

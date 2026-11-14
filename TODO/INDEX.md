@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**472 entries: 128 open, 7 partial, 5 blocked, 332 done.**
+**472 entries: 127 open, 7 partial, 5 blocked, 333 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 14 | 3 | 0 | 88 | 105 |
-| P2 | 58 | 2 | 4 | 184 | 248 |
+| P2 | 57 | 2 | 4 | 185 | 248 |
 | P3 | 56 | 2 | 1 | 58 | 117 |
-| **All** | 128 | 7 | 5 | 332 | 472 |
+| **All** | 127 | 7 | 5 | 333 | 472 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -517,5 +517,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-584](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a plan with two limits of one resource fails with `EPERM` (PodUtils/podvm#345) |
 | [T-585](podvm.md) | P2 | S | M6 | defect | open | `pod-oci`: the grammar of an insecure registry host, and a platform list with no repeat and no attestation (PodUtils/podvm#346) |
 | [T-586](podvm.md) | P3 | M | M6 | defect | open | `pod-netlab`: the texts of a knob give the value as written, with its unit and range; the differences from sand-net (PodUtils/podvm#347) |
-| [T-587](fleet.md) | P2 | M | M8 | feature | open | `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99) |
+| [T-587](fleet.md) | P2 | M | M8 | feature | done | `pod-actions-store`: podrunner's additions since the import (image lines of the lock, checkouts, `HEAD`, images by tag) (PodUtils/podrunner#99) |
 | [T-588](fleet.md) | P2 | M | M8 | feature | open | `pod-actions-results`: the CacheService and the replacement of an artifact on a rerun (PodUtils/podrunner#99) |

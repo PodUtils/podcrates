@@ -1,6 +1,7 @@
-//! The forge of git as a program: `git ls-remote` resolves a ref, and a
-//! shallow fetch of the commit gives `git archive`. git takes the proxy of
-//! the host from its environment; the crate sets nothing of it.
+//! The forge of git as a program: `git ls-remote` resolves a ref (`HEAD`:
+//! the default branch), and a shallow fetch of the commit gives `git
+//! archive`. git takes the proxy of the host from its environment; the
+//! crate sets nothing of it.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -63,6 +64,14 @@ impl Git {
 impl Forge for Git {
     fn resolve(&self, repo: &str, r: &str) -> Result<String, String> {
         let url = format!("{}{repo}", self.base);
+        // HEAD: the default branch of the repository (a checkout with no ref).
+        if r == "HEAD" {
+            let text = String::from_utf8(self.run(&["ls-remote", &url, "HEAD"], None)?).map_err(|e| e.to_string())?;
+            return text
+                .lines()
+                .find_map(|l| l.split_once('\t').filter(|(_, n)| *n == "HEAD").map(|x| x.0.to_string()))
+                .ok_or_else(|| format!("`{repo}@HEAD`: {url} has no HEAD"));
+        }
         let tag = format!("refs/tags/{r}");
         let head = format!("refs/heads/{r}");
         let text = String::from_utf8(self.run(&["ls-remote", &url, &tag, &format!("{tag}^{{}}"), &head], None)?)

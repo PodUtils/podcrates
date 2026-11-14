@@ -1,0 +1,7 @@
+# The lock writes no image line: an image by tag is pulled again on each
+# run and is never pinned (T-587, PodUtils/podrunner#99).
+ENTRY=T-587
+GROUP=actions
+EXPECT='an image line: '
+RUN='cargo test -p pod-actions-store --lib lock::'
+LIMIT=900

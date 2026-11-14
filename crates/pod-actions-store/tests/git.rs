@@ -101,6 +101,19 @@ fn git_resolves_a_tag_an_annotated_tag_and_a_branch() {
 }
 
 #[test]
+fn git_resolves_head_to_the_default_branch() {
+    pod_testkit::need_tool!("git");
+    let r = repos("head");
+    let g = r.forge();
+    assert_eq!(g.resolve("o/r", "HEAD").expect("HEAD is the default branch"), r.third);
+    let bare = r.root.join("o/r");
+    git(&bare, &["symbolic-ref", "HEAD", "refs/heads/none"]);
+    let e = g.resolve("o/r", "HEAD").unwrap_err();
+    assert!(e.contains("has no HEAD"), "{e}");
+    let _ = std::fs::remove_dir_all(&r.root);
+}
+
+#[test]
 fn git_gives_the_tar_of_a_commit_with_one_top_directory() {
     pod_testkit::need_tool!("git");
     let r = repos("tar");

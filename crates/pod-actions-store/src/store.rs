@@ -11,17 +11,18 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use pod_actions_workflow::{Kind, Limits, Workflow};
+use pod_actions_workflow::{Kind, Limits, Node, Workflow};
 use sha2::{Digest, Sha256};
 
-use crate::error::Error;
+use crate::error::{CheckoutFault, Error};
 pub use crate::git::Git;
 use crate::lock::{Lock, Pin, is_commit};
 
 /// A forge that resolves a reference and gives the tar of a commit. An
 /// error is text for the user; [`resolve`] gives it as [`Error::Forge`].
 pub trait Forge {
-    /// The commit of `REF` (a tag or a branch) of `OWNER/REPO`.
+    /// The commit of `REF` (a tag or a branch) of `OWNER/REPO`; `HEAD` is
+    /// the default branch (a checkout with no ref).
     fn resolve(&self, repo: &str, r: &str) -> Result<String, String>;
     /// The uncompressed tar of `commit`, with one top directory.
     fn tar(&self, repo: &str, commit: &str) -> Result<Vec<u8>, String>;
@@ -83,6 +84,71 @@ pub fn workflow_uses(w: &Workflow, except: &[&str]) -> Vec<String> {
         }
     }
     out
+}
+
+/// The repository of a checkout of another repository: `OWNER/REPO@REF` of
+/// `with: repository` and `with: ref` (`HEAD` when no ref), or `None` for
+/// the repository of the run (`self_repo`, by any case), which is the
+/// consumer's own tree. An expression is refused: the host resolves each
+/// tree before the first job.
+pub fn checkout_target(with: Option<&Node>, self_repo: &str) -> Result<Option<String>, Error> {
+    let value = |field: &'static str| -> Result<Option<String>, Error> {
+        let fail = |value: &str, fault| Error::Checkout { field, value: value.to_string(), fault };
+        match with.and_then(|w| w.get(field)).map(|n| &n.kind) {
+            None => Ok(None),
+            Some(Kind::String(v)) if v.trim() == "${{ github.repository }}" && field == "repository" => Ok(None),
+            Some(Kind::String(v)) if v.contains("${{") => Err(fail(v, CheckoutFault::Expression)),
+            Some(Kind::String(v)) => Ok(Some(v.trim().to_string())),
+            Some(_) => Err(fail("", CheckoutFault::NotString)),
+        }
+    };
+    let Some(repo) = value("repository")? else { return Ok(None) };
+    if repo.eq_ignore_ascii_case(self_repo) {
+        return Ok(None);
+    }
+    if repo.split('/').count() != 2 || repo.split('/').any(str::is_empty) {
+        return Err(Error::Checkout { field: "repository", value: repo, fault: CheckoutFault::NotRepository });
+    }
+    Ok(Some(format!("{repo}@{}", value("ref")?.unwrap_or_else(|| "HEAD".into()))))
+}
+
+/// Each checkout of another repository in the steps of the workflow
+/// (`uses: actions/checkout@REF` with `with: repository`).
+pub fn workflow_trees(w: &Workflow, self_repo: &str) -> Result<Vec<String>, Error> {
+    let mut out = Vec::new();
+    for job in &w.jobs {
+        for s in &job.steps {
+            if s.uses.as_deref().is_some_and(|u| u.starts_with("actions/checkout@"))
+                && let Some(t) = checkout_target(s.with.as_ref(), self_repo)?
+            {
+                out.push(t);
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// Resolve and keep each tree of `trees` (`OWNER/REPO@REF`) after the
+/// actions of `out`: pinned and kept as an action is, with no action file
+/// to read.
+pub fn add_trees(
+    trees: &[String],
+    mut out: Resolved,
+    store: &Store,
+    forge: &dyn Forge,
+    mode: Mode,
+    lock_name: &str,
+) -> Result<Resolved, Error> {
+    for t in trees {
+        let (repo, _, r) = split(t).ok_or_else(|| Error::Tree { tree: t.clone() })?;
+        let key = format!("{repo}@{r}");
+        if !out.commits.contains_key(&key) {
+            let at = At { repo: &repo, r: &r, key: &key, lock_name };
+            let (commit, _) = fetch(&at, &mut out, store, forge, mode)?;
+            out.commits.insert(key, commit);
+        }
+    }
+    Ok(out)
 }
 
 fn remote(uses: &str) -> bool {
