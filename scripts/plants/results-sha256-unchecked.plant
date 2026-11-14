@@ -1,0 +1,7 @@
+# The finalize of an artifact takes a blob whose SHA-256 is not the one
+# that the client sent (T-565, PodUtils/podrunner#95).
+ENTRY=T-565
+GROUP=actions
+EXPECT='a_wrong_digest_or_size_fails_the_finalize'
+RUN='cargo test -p pod-actions-results --all-features --lib'
+LIMIT=900

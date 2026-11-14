@@ -60,3 +60,20 @@ fn store() -> String {
         pod_actions_store::Lock::parse(&lock.render()).map_or_else(|e| e.to_string(), |l| l.pins.len().to_string());
     format!("{uses}; {digest}; {back} pin")
 }
+
+/// pod-actions-results: a store in a scratch directory and one call of the
+/// service, so that the routes, the digest and the entropy link in.
+pub fn results() -> String {
+    let dir = std::env::temp_dir().join(format!("static-probe-results-{}", std::process::id()));
+    let line = match pod_actions_results::ArtifactStore::new(&dir, pod_actions_results::LIMIT) {
+        Ok(store) => {
+            let path = format!("{}CreateArtifact", pod_actions_results::SERVICE);
+            let answer = store.route("POST", &path, br#"{"name":"probe"}"#, "http://127.0.0.1/");
+            format!("CreateArtifact {}", answer.map_or(0, |(status, _)| status))
+        }
+        Err(e) => e.to_string(),
+    };
+    let _ = std::fs::remove_dir_all(&dir);
+    let ids = pod_actions_results::backend_ids("a.e30.b").is_some();
+    format!("pod-actions-results: {line}; token ids: {ids}")
+}

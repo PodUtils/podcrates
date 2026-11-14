@@ -1,0 +1,7 @@
+# The artifacts of a run have no limit of bytes (T-565,
+# PodUtils/podrunner#95).
+ENTRY=T-565
+GROUP=actions
+EXPECT='an_upload_needs_its_signature_and_the_run_has_a_limit'
+RUN='cargo test -p pod-actions-results --all-features --lib'
+LIMIT=900

@@ -121,6 +121,7 @@ fn main() {
     lines.push(job());
     lines.push(incus());
     lines.push(actions::actions());
+    lines.push(actions::results());
     lines.push(netlab::netlab());
     lines.push(turn::turn());
     let direct = pod_proxy::Dialer::new(

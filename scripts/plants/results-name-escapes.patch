@@ -1,0 +1,19 @@
+diff --git a/crates/pod-actions-results/src/store.rs b/crates/pod-actions-results/src/store.rs
+--- a/crates/pod-actions-results/src/store.rs
++++ b/crates/pod-actions-results/src/store.rs
+@@ -78,14 +78,7 @@
+     /// not valid. A valid name is one normal component of a path: never a
+     /// parent, a root or a prefix.
+     pub(crate) fn at(&self, name: &str) -> Option<PathBuf> {
+-        if !valid(name) {
+-            return None;
+-        }
+-        let mut parts = Path::new(name).components();
+-        match (parts.next(), parts.next()) {
+-            (Some(Component::Normal(_)), None) => Some(self.dir.join(name)),
+-            _ => None,
+-        }
++        Some(self.dir.join(name))
+     }
+ 
+     /// The metadata of the finalized artifact `name`, with its signature.

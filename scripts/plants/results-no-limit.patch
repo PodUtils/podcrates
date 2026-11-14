@@ -1,0 +1,13 @@
+diff --git a/crates/pod-actions-results/src/blob.rs b/crates/pod-actions-results/src/blob.rs
+--- a/crates/pod-actions-results/src/blob.rs
++++ b/crates/pod-actions-results/src/blob.rs
+@@ -62,9 +62,6 @@
+         };
+         // The limit counts each byte that a client sends in a block or a
+         // whole blob; the join of a block list sends none.
+-        if st.used + body.len() as u64 > self.limit {
+-            return text(413, format!("the artifacts of the run are over {} bytes", self.limit));
+-        }
+         match fs::write(target, body) {
+             Ok(()) => {
+                 st.used += body.len() as u64;
