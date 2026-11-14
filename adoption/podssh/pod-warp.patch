@@ -12681,3 +12681,24 @@ diff --git a/crates/podssh-cli/src/channel.rs b/crates/podssh-cli/src/channel.rs
              (Fault::SessionFault, e.to_string())
          }
          e2e::Error::Cut | e2e::Error::Io(_) => return None,
+diff --git a/crates/podssh-cli/src/tox.rs b/crates/podssh-cli/src/tox.rs
+index c5f50e2..ea938fb 100644
+--- a/crates/podssh-cli/src/tox.rs
++++ b/crates/podssh-cli/src/tox.rs
+@@ -180,13 +180,13 @@ mod tests {
+         }
+     }
+ 
+-    /// `pod-services` of podcrates v0.28.0 lists five relays on 443, each with
+-    /// its node's key: none is left out as a row that does not read.
++    /// `pod-services` of podcrates lists four relays on 443 since v0.41.0, each
++    /// with its node's key: none is left out as a row that does not read.
+     #[test]
+     fn the_listed_relays_read_with_their_keys() {
+         let relays = listed();
+         assert_eq!(relays.len(), pod_services::get(SERVICE_ID).map_or(0, |s| s.endpoints().len()), "a relay left out");
+-        assert!(relays.len() >= 5, "{relays:?}");
++        assert!(relays.len() >= 4, "{relays:?}");
+         assert!(relays.iter().all(|r| r.at.port() == 443 && r.key != [0; KEY]));
+     }
+ 

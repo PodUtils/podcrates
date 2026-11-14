@@ -8,5 +8,5 @@ diff --git a/crates/pod-link/src/quic/io.rs b/crates/pod-link/src/quic/io.rs
 -        ConnectionError::ConnectionClosed(close) if refused_by_peer(close.error_code) => CarrierError::with_source(
 +        ConnectionError::ConnectionClosed(close) if refused_by_peer(close.error_code) && false => CarrierError::with_source(
              NAME,
-             CarrierErrorKind::Refused,
+             CarrierErrorKind::KeyRefused,
              format!("the peer at {peer} refused the key of this end, {}", own.fingerprint()),

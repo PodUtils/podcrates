@@ -176,8 +176,36 @@ async fn query(driver: &Driver, counter: u32, payload: &[u8]) -> io::Result<Vec<
     // Remove a waiter that timed out or failed.
     driver.pending.lock().unwrap_or_else(PoisonError::into_inner).remove(&id);
     let Ok(Ok(message)) = result else { return Ok(Vec::new()) };
-    match txt::read(&message, id, &name, txt::TXT) {
-        Ok(answer) => Ok(answer.txt()),
-        Err(_) => Ok(Vec::new()),
+    Ok(datagrams(&message, id, &name))
+}
+
+/// The datagrams down in the answer `message` to the query `id` for `name`.
+/// A cut answer (the TC bit) gives the whole records before the cut, and no
+/// query goes again: the ARQ sends the lost datagrams again (call C292). A
+/// foreign or bad answer gives none.
+fn datagrams(message: &[u8], id: u16, name: &str) -> Vec<Vec<u8>> {
+    txt::read(message, id, name, txt::TXT).map(|answer| answer.txt()).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A cut answer gives each whole record before the cut; a cut answer
+    /// with no record gives none.
+    #[test]
+    fn a_cut_answer_gives_its_whole_records() {
+        let name = "abc.l.test";
+        let records: &[&[u8]] = &[b"one", b"two", &[7u8; 100]];
+        let mut msg = txt::answer(9, name, txt::TXT, records, None).unwrap();
+        assert_eq!(datagrams(&msg, 9, name).len(), 3);
+        // The TC bit, and the last record cut in its data.
+        msg[2] |= 0x02;
+        msg.truncate(msg.len() - 50);
+        assert_eq!(datagrams(&msg, 9, name), vec![b"one".to_vec(), b"two".to_vec()]);
+        let mut empty = txt::answer(9, name, txt::TXT, &[], None).unwrap();
+        empty[2] |= 0x02;
+        assert!(datagrams(&empty, 9, name).is_empty());
+        assert!(datagrams(&msg, 8, name).is_empty(), "another ID");
     }
 }

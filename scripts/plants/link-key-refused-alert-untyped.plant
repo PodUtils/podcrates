@@ -1,0 +1,6 @@
+# A listener whose key the dialer refused gets `Refused` from the alert of
+# the handshake, not `KeyRefused` (T-542).
+ENTRY=T-542
+GROUP=link
+EXPECT='right: KeyRefused'
+RUN='cargo test -p pod-link --all-features --test tcp_refused the_dialer_refuses_a_listener_of_another_key_and_names_it'

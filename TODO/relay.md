@@ -6169,3 +6169,113 @@ cargo test -p pod-relay --all-features --test pair_code
 cargo test -p pod-services --all-features
 cargo test -p pod-wormhole --all-features --test live -- --ignored
 ```
+
+# T-541: `pod-link`: the dns and icmp carriers stop at the wrap of the sequence of the ARQ: `dgram_tls` never calls `rekeyed` (PodUtils/podnet#540)
+
+**Source:** PodUtils/podnet#540 (COORD-074 of podnet, PodUtils/podnet@T-277).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet: "`pod_link::arq` asks for a rekey before its sequence wraps, and holds the frames at the wrap until the caller calls `rekeyed`. [...] The `dns` and `icmp` carriers run the ARQ inside the crate, under `dgram_tls`, and `dgram_tls` never calls `rekeyed`. So a `dns` or an `icmp` link stops at the wrap of one direction, after about 4 TiB of that direction. The sequence of the ARQ is not a nonce (TLS above it has its own), so the answer can be to let the wrap pass." The ask: answer the rekey in `dgram_tls`, and test that a `dns` or `icmp` link over the lossy shim crosses the wrap, with a small sequence space for the test.
+
+## Premise
+
+- Read: `crates/pod-link/src/arq/send.rs` (`rekey_due`, `rekeyed`, `can_send`: a new frame waits at the wrap until `wrap_ok`), `crates/pod-link/src/arq/stream.rs` (the task of `ArqStream`; only `ArqHandle::rekeyed` answers), `crates/pod-link/src/dgram_tls.rs` (the one user of `ArqStream` in the crate: the dns and icmp carriers). The udp carrier runs KCP, not this ARQ.
+- `ArqSettings::start` sets the first sequence, so a test starts 64 frames before the wrap (as `tests/arq.rs`, `the_bytes_wait_at_the_wrap_until_the_rekey`, does).
+- Not measured: a link of 4 TiB.
+
+## Approach
+
+1. `ArqStream::wrap_freely` (in the crate): the task of the ARQ calls `Arq::rekeyed` in its send loop at each ask, before it takes the datagrams to send. A task in `dgram_tls` that waits on `rekey_wanted` would not end with the ARQ, so the answer is in the task of the ARQ.
+2. `dgram_tls::stream` calls it on each ARQ that it starts, with a comment that tells why (call C290).
+3. Tests: a dns link and an icmp link over the `Lossy` shim (3 % loss, reorder, duplicates) start 64 frames before the wrap and move 128 KiB each way. The plant `link-dgram-wrap-waits` removes the call: the transfer stops at the wrap.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test dns_loss --test icmp bytes_cross_the_wrap_of_the_sequence_at_loss
+sh scripts/plant-each.sh link-dgram-wrap-waits
+```
+
+## Done
+
+2026-11-14, commit `59668bb`. `ArqStream::wrap_freely` (in the crate): the task of the ARQ calls `rekeyed` at each ask; `dgram_tls::stream` sets it on each ARQ of the dns and icmp carriers (call C290). `cargo test -p pod-link --all-features`: 183 passed, 2 ignored. `bytes_cross_the_wrap_of_the_sequence_at_loss` (`tests/dns_loss.rs`, `tests/icmp.rs`): the first sequence is 64 frames before the wrap, and 128 KiB cross each way at 3 % loss with reorder and duplicates. The plant `link-dgram-wrap-waits` (the call removed) fails each test after 60 s ("the transfer in time: Elapsed"). No other in-crate user of `ArqStream` exists; the udp carrier runs KCP.
+
+# T-543: `pod-link`: the dns carrier and the TC bit: each answer keeps to the size of its query, and a cut answer does not stall the link (PodUtils/podnet#533)
+
+**Source:** PodUtils/podnet#533 (COORD-071 of podnet, ask 2; PodUtils/podnet@T-278).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet: "A resolver can truncate an answer (the flag `TC`); the client then asks again over TCP/53. The `dns` carrier of v0.40.0 has no such rule. If a resolver on the path truncates the TXT answers of the carrier, the link stalls. Please add the TC rule, or say that the carrier keeps each answer under the size that a resolver does not truncate (and the size)."
+
+## Premise
+
+- Read: `crates/pod-link/src/dns/server.rs` (`drain` fills each answer to `DnsSettings::answer`, 1232, with an OPT record also when the query has none), `crates/pod-link/src/dns/client.rs` (each query sends EDNS0 with `answer`; `txt::read` of a cut answer gives the whole records before the cut; a query that fails gives no datagram, and the ARQ sends again), `crates/pod-dns/src/txt.rs` (`question` gives no EDNS0 size).
+- The listener did not read the size of the query: a resolver that sends no EDNS0 toward the server takes 512 bytes, and the listener sent up to 1232. That resolver then cuts the answer at each batch down.
+- Not measured: a public resolver.
+
+## Approach
+
+1. `pod_dns::txt::asked_size(msg)`: the EDNS0 size of a query, at least 512, or `None` with no OPT record.
+2. The listener keeps each answer to `min(asked or 512, answer)`, and puts an OPT record in an answer only when the query had one (call C291). One datagram always fits in 512 bytes.
+3. The dialer takes the whole records of a cut answer and goes on (`dns::client::datagrams`); no query goes again over TCP/53 (call C292).
+4. Tests: a stand-in resolver on the loopback that removes the OPT record of each query (answers of 512 bytes or less, none with an OPT record), that sends it whole (answers within 1232 and over 512), and that cuts each second answer with the TC bit (the link moves 32 KiB each way). A unit test of the dialer reads a cut answer. Plants: `dns-answer-past-the-query-size`, `dns-cut-answer-dropped`, `dns-txt-asked-size-under-512`.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features --lib a_server_reads_the_size_that_a_query_takes
+cargo test -p pod-link --all-features --test dns_resolver
+cargo test -p pod-link --all-features --lib a_cut_answer_gives_its_whole_records
+sh scripts/plant-each.sh dns-answer-past-the-query-size dns-cut-answer-dropped dns-txt-asked-size-under-512
+```
+
+## Done
+
+2026-11-14, commit `8181d12`. `pod_dns::txt::asked_size` gives the EDNS0 size of a query (at least 512; none with no OPT record). The listener of the dns carrier keeps each answer to that size (512 with none) and to `DnsSettings::answer` (1232), with an OPT record only when the query had one (call C291). The dialer takes the whole records of a cut answer and goes on; no query goes again over TCP/53 (call C292). `cargo test -p pod-dns -p pod-link --all-features`: 264 passed, 6 ignored. `tests/dns_resolver.rs` (a stand-in resolver on the loopback): `a_query_with_no_edns_gets_an_answer_of_512_bytes_or_less`, `a_query_with_edns_gets_an_answer_within_its_size` (answers over 512 and within 1232), `a_cut_answer_does_not_stall_the_link` (each third answer cut, to no record or in its second record; 32 KiB each way); 40 runs in a loop passed. Unit tests: `a_cut_answer_gives_its_whole_records`, `a_server_reads_the_size_that_a_query_takes`. Plants: `dns-answer-past-the-query-size` fails the first test ("an answer of 1206 bytes to a query with no EDNS0"); `dns-cut-answer-dropped` fails `a_cut_answer_gives_its_whole_records` (left `[]`); `dns-txt-asked-size-under-512` fails `a_server_reads_the_size_that_a_query_takes` (left `Some(100)`). The integration test of the cut passes under `dns-cut-answer-dropped` (in 16 s, not 1 s): the ARQ recovers the dropped records, so the unit test is the check of that rule. The plant `dns-down-needs-the-txt` (T-493) moved to `dns::client::datagrams` and fails as before ("the handshake ... took more than 20s").
+
+# T-542: `pod-link`: one typed marker for "the peer refused the key of this end" on each carrier (PodUtils/podnet#533)
+
+**Source:** PodUtils/podnet#533 (COORD-071 of podnet, ask 1; PodUtils/podnet@T-273).
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet: "podnet exits 77 when the peer refuses the key of this end. On `quic`, the refusal reaches podnet only as a `noq::ConnectionError` (a close of the connection), so `src/link.rs` reads that close to find it; without that, podnet exited 69. Please give each carrier one typed marker for 'the peer refused the key of this end' (for example a variant of `pod_link::Error`, or an error kind that each carrier maps to), so that the caller does not read the errors of the transport."
+
+## Premise
+
+- Read: `crates/pod-link/src/carrier.rs` (`CarrierErrorKind::Refused` holds each refusal: the pin of this end, another user, a refusal of the way out, and the refusal of the key of this end), `crates/pod-link/src/pin.rs` (`answer_error` maps the alert of a refused certificate to `Refused`; `tls_error` maps a `pod_tls::peer::Refusal` to `Refused` and an alert to `Io`), `crates/pod-link/src/quic/io.rs` (`connection_error` maps a close with such an alert code to `Refused`), `crates/pod-link/src/poll/lane.rs` (a `Refused` lane is fatal).
+- The tests named `the_listener_refuses_a_client_of_another_key_and_stays_open` and `a_refused_key_is_named_on_each_side` check `Refused` on the dialer: a caller cannot tell the two refusals apart by the kind.
+
+## Approach
+
+1. `CarrierErrorKind::KeyRefused`, of the class `Refused` (77) (call C293).
+2. `pin::answer_error` and `pin::tls_error` map the alert of a refused certificate to it; `quic::io::connection_error` maps the close with that alert code to it. The poll carrier treats it as `Refused`.
+3. Tests: the dialer whose key the listener refused gets `KeyRefused` on tcp, ws, h2, quic, udp, poll, dns and icmp; the listener whose key the dialer refused gets `KeyRefused` where the alert reaches it. Plants: `link-key-refused-untyped`, `link-key-refused-alert-untyped`, `link-quic-key-refused-untyped`.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test tcp_refused --test ws --test h2 --test quic --test udp --test poll --test dns --test icmp refuse
+sh scripts/plant-each.sh link-key-refused-untyped link-key-refused-alert-untyped link-quic-key-refused-untyped
+```
+
+## Done
+
+2026-11-14, commit `8895ca2`. `CarrierErrorKind::KeyRefused` (class `Refused`, 77) is the typed refusal of the key of this end (call C293); `pin::answer_error`, `pin::tls_error` and `quic::io::connection_error` map to it, and the poll carrier ends a lane at it. `cargo test -p pod-dns -p pod-link --all-features`: 264 passed, 6 ignored. The dialer whose key the listener refused gets `KeyRefused` with exit code 77 in `the_listener_refuses_a_client_of_another_key_and_stays_open` (tcp, ws, h2, quic, udp, poll, dns) and `a_refused_key_is_named_on_each_side` (icmp). The listener whose key the dialer refused gets `KeyRefused` in `the_dialer_refuses_a_listener_of_another_key_and_names_it` on tcp, h2, quic and poll. Plants: `link-key-refused-untyped` fails the dialer's check on tcp, ws, h2, udp, poll, dns and icmp ("right: KeyRefused"); `link-key-refused-alert-untyped` fails the listener's check on tcp; `link-quic-key-refused-untyped` fails both checks on quic. Not proven: the listener's side on dns and icmp (the listener reads the end of the stream before the alert: always on dns, at times on icmp), on udp (the handshake of the listener times out) and on ws (the accept gives no error of a handshake); the parent has the finding.

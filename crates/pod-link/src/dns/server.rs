@@ -253,9 +253,13 @@ async fn answer(
         // A full queue loses the datagram, as a lossy carrier does.
         let _ = entry.up.try_send(payload);
     }
-    let records = drain(entry, &name, settings.answer);
+    // The answer keeps to the size that the query takes, 512 bytes with no
+    // OPT record, so a resolver on the path does not cut it (call C291).
+    let asked = txt::asked_size(query);
+    let size = asked.unwrap_or(txt::PLAIN_SIZE).min(settings.answer);
+    let records = drain(entry, &name, size, asked.is_some());
     let refs: Vec<&[u8]> = records.iter().map(Vec::as_slice).collect();
-    if let Ok(message) = txt::answer(id, &name, txt::TXT, &refs, Some(settings.answer)) {
+    if let Ok(message) = txt::answer(id, &name, txt::TXT, &refs, asked.map(|_| settings.answer)) {
         let _ = pod_core::datagrams::send_to(&**socket, &message, from).await;
     }
     if entry.up.is_closed() {
@@ -263,15 +267,18 @@ async fn answer(
     }
 }
 
-/// The datagrams down that fit in an answer of `answer` bytes for `name`.
-/// Leftover datagrams wait in the session for the next query.
-fn drain(entry: &mut Entry, name: &str, answer: u16) -> Vec<Vec<u8>> {
+/// The datagrams down that fit in an answer of `answer` bytes for `name`,
+/// with an OPT record when `opt`. Leftover datagrams wait in the session
+/// for the next query. The first datagram goes also over the size: a name
+/// of 253 bytes, the OPT record and the largest datagram of the carrier
+/// (147 bytes, [`wire::payload_mtu`]) make 442 bytes, so it fits in 512.
+fn drain(entry: &mut Entry, name: &str, answer: u16, opt: bool) -> Vec<Vec<u8>> {
     while let Ok(datagram) = entry.down.try_recv() {
         entry.held.push_back(datagram);
     }
     // A pointer to the name costs two bytes; the header, the question and the
     // OPT record are the fixed part.
-    let fixed = 12 + name.len() + 2 + 4 + 11;
+    let fixed = 12 + name.len() + 2 + 4 + if opt { 11 } else { 0 };
     let budget = usize::from(answer).saturating_sub(fixed);
     let mut used = 0;
     let mut records = Vec::new();
