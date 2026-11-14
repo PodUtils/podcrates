@@ -6807,7 +6807,7 @@ cargo test -p pod-guest --all-features
 **Milestone:** M7
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6826,6 +6826,36 @@ A new crate `pod-qga` with a typed client of these calls, the sync on connect, a
 ```sh
 cargo test -p pod-qga --all-features
 ```
+
+## Done
+
+2026-11-14, commit 3fb02ba. The new crate `crates/pod-qga`, new code from
+the schema `qga/qapi-schema.json` of QEMU (calls C414 to C421):
+
+- `Client::connect(Settings)` and `Client::sync` (the byte 0xFF, then
+  `guest-sync-delimited` with a new id; old answers are dropped),
+  `ping`, `exec`, `exec_status`, `wait_exec`, `file_open`, `file_read`,
+  `file_write`, `file_close`, `read_file`, `write_file`, `shutdown`; a
+  bound on each call and a size limit on each answer; `Error` with its
+  call, `ErrorKind` and its class. `wire` (the requests, the answers and
+  the typed returns) builds on each target; the client is on Unix only.
+  No tokio; `Cargo.lock` takes no new crate.
+- `cargo test -p pod-qga --all-features`: 9 unit tests, `tests/agent.rs`
+  9 tests and `tests/faults.rs` 8 tests against a stand-in agent on a
+  Unix socket, each passed; 30 runs in a loop passed. The fuzz target
+  `qga_answer` with 8 seeds; `cargo test --manifest-path fuzz/Cargo.toml
+  --lib`: 13 passed. The static probe calls the crate.
+- Plants, each caught by hand with its EXPECT text:
+  `qga-no-sync-after-a-timeout`, `qga-sync-takes-an-old-answer`,
+  `qga-handle-left-open`, `qga-shutdown-with-no-answer-fails`;
+  `plant-each.sh --apply`: 0 stale.
+- clippy, rustfmt and `cargo doc` with `-D warnings` are clean;
+  `check-windows.sh` and `check-macos.sh`: 0 faults; `check-size.py`,
+  `check-probe.py --no-tree`, `check-publish-order.py`,
+  `check-design-paths.py` agree.
+- Next: the owner reserves `pod-qga` on crates.io (Owner actions); podvm
+  takes the crate at the next tag.
+
 
 # T-595: `pod-guest`: the provision waits for a ready guest in place of a fixed sleep (PodUtils/podvm#350, item 6)
 

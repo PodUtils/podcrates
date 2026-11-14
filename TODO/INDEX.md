@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**481 entries: 133 open, 7 partial, 5 blocked, 336 done.**
+**481 entries: 132 open, 7 partial, 5 blocked, 337 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 16 | 3 | 0 | 90 | 109 |
-| P2 | 60 | 2 | 4 | 186 | 252 |
+| P2 | 59 | 2 | 4 | 187 | 252 |
 | P3 | 57 | 2 | 1 | 58 | 118 |
-| **All** | 133 | 7 | 5 | 336 | 481 |
+| **All** | 132 | 7 | 5 | 337 | 481 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -524,7 +524,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-591](podvm.md) | P1 | M | M7 | feature | open | `pod-udf`: a new crate that reads UDF and gives the extent of a file in an ISO (PodUtils/podvm#350, item 2) |
 | [T-592](podvm.md) | P1 | S | M7 | defect | open | `pod-guest`: the agent runs the command in a child `cmd /c`, writes a `WQREADY` marker, and has a keep-alive mode (PodUtils/podvm#350, item 3) |
 | [T-593](podvm.md) | P1 | M | M7 | feature | open | `pod-guest`: the options of a plan: a NIC with `hostfwd`, virtio devices, CD-ROM and USB media, VNC, a serial channel, the Hyper-V flags (PodUtils/podvm#350, item 4) |
-| [T-594](podvm.md) | P2 | M | M7 | feature | open | `pod-qga`: a new crate, a client of the QEMU Guest Agent over a Unix socket (PodUtils/podvm#350, item 5) |
+| [T-594](podvm.md) | P2 | M | M7 | feature | done | `pod-qga`: a new crate, a client of the QEMU Guest Agent over a Unix socket (PodUtils/podvm#350, item 5) |
 | [T-595](podvm.md) | P2 | M | M7 | feature | open | `pod-guest`: the provision waits for a ready guest in place of a fixed sleep (PodUtils/podvm#350, item 6) |
 | [T-596](podvm.md) | P3 | M | M7 | feature | open | `pod-guest`: a warm start from a saved state, with a fingerprint and a fallback to a cold boot (PodUtils/podvm#350, item 7) |
 | [T-597](podvm.md) | P2 | S | M6 | defect | done | `pod-extract`: the umask of the process changes the modes of the tree, and the sidecar does not record it |
