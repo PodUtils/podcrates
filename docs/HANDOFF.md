@@ -21,8 +21,8 @@ is done. Git and the record keep finished work.
 
 - The last release: `v0.43.0` at `ccbea49` (ci 43562056951, adoption
   43562056931, release 43564313833; the hand-off #149, COORD-089).
-  Takes: podrunner `51f9e6b`, podvm `b0bb87f1`, podnet `c8ccc40`; podssh
-  waits. `v0.42.0` at `b6983fc`: each consumer took it (#145, closed).
+  Each consumer took it (#149, closed): podrunner `51f9e6b`, podvm
+  `b0bb87f1`, podnet `c8ccc40`, podssh `b88985f`. `v0.42.0` at `b6983fc`: each consumer took it (#145, closed).
 - On `main` for `v0.44.0`: T-573 (#148), T-572, T-576, T-577
   (PodUtils/podrunner#97, #98), T-574 and T-558 (`pod-hold`: the raw part
   and the ping part; podnet's `Calls::sockets().allow_raw()` now refuses

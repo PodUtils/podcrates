@@ -6931,3 +6931,62 @@ each caught by hand with its EXPECT text; the patch of
 `extract-t581-set-id-bits-not-set-again` follows the new code and is
 caught again. `plant-each.sh --apply`: 0 stale. `check-size.py`,
 `check-windows.sh` and `check-macos.sh`: 0 faults.
+
+# T-598: `pod-extract`: each directory has the mode of the image after the last layer, and a directory entry replaces a non-directory of an earlier layer (PodUtils/podvm#354)
+
+**Source:** PodUtils/podvm#354 (COORD-107 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm's invariant: after the extraction, a directory in the tree is the directory that the image names, with the mode that the image names, and no write lands outside the tree. T-597 sets the mode of each file again, sets each directory that a layer wrote to `mode | 0o700`, sets a directory again when a later layer names it, and changes modes through an `O_NOFOLLOW` descriptor. Two parts remain:
+
+1. The pass keeps the owner bits (`| 0o700`) so that the next layer can write; nothing runs after the last layer, so a directory of mode `0555` in the image stays `0755` in the tree, while the sidecar records `0555`.
+2. A directory entry over a symlink (or another non-directory) that an earlier layer left at its name is not applied: `mkdirat` gives `EEXIST`, `make_dir` takes it as done, and the tree keeps the symlink while the sidecar records a directory.
+
+podvm also measured that a second extraction over a tree whose directories are closed (`0555`) fails with `EACCES`, so a directory that exists must open for the write.
+
+## Premise
+
+- Read: PodUtils/podvm#354 (its patch and its measures, "The invariant" and items 2 to 4); the Done section of T-597 and calls C374, C375, C413; `crates/pod-extract/src/apply.rs` (`make_dir`, the pass of the permissions, `extract_layers`).
+
+## Approach
+
+After the last layer, set each directory that the extraction wrote to the mode of the image (the last layer that names it wins), through an `O_NOFOLLOW` descriptor, deepest first. A directory entry over a name that is not a directory removes that name first, as the crate replaces a file. On `EEXIST` of a directory, open it for the write (owner bits) until the last pass. Tests: a `0555` directory stays `0555` after the extraction; a directory entry over a symlink of an earlier layer gives a directory and no change outside the tree; a second extraction over a closed tree passes. A plant for each.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```
+
+# T-599: `pod-extract`: the `./` member of an archive is not counted as an entry that the crate could not make (PodUtils/podvm#352)
+
+**Source:** PodUtils/podvm#352 (COORD-106 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`LayerStats::skipped` holds the entries of a type that the crate does not make. The `./` member of an archive names the destination, which exists, and its branch in `crates/pod-extract/src/apply.rs` is an entry, not a refusal; but it adds to `skipped` with the name `ArchiveRoot`. podvm then prints "1 entries were not materialised (ArchiveRoot)" for an image that lost nothing.
+
+## Premise
+
+- Read: PodUtils/podvm#352; `crates/pod-extract/src/apply.rs` (the branch of the root, `LayerStats`).
+
+## Approach
+
+The root member adds nothing to `skipped` and names nothing there; a fifo and a socket still count. Whether `entries` counts the members read or the entries written stays as it is (record the rule as a call). A test with a layer that holds `./` and a file, and with a layer that holds a fifo; a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```
