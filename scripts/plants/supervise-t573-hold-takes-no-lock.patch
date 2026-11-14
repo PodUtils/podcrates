@@ -1,0 +1,11 @@
+--- a/crates/pod-supervise/src/foreground.rs
++++ b/crates/pod-supervise/src/foreground.rs
+@@ -108,7 +108,7 @@
+     crate::private_dir(&dir).map_err(|e| crate::io_at(&dir, e))?;
+     // The lock before the write of `Running`, as in the launcher.
+     let lock_path = table::lock_path(s, &c.id);
+-    let Some(lock) = Lock::try_exclusive(&lock_path)? else {
++    let Some(lock) = Lock::try_exclusive(&lock_path.with_extension("other"))? else {
+         return Err(failure(
+             Class::Usage,
+             format!("{} is already running: another process holds {}", c.name, lock_path.display()),

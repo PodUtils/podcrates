@@ -461,6 +461,9 @@ pub use fs::*;
 mod proc;
 pub use proc::*;
 
+mod pidfd;
+pub use pidfd::*;
+
 mod statx;
 pub use statx::statx_at;
 

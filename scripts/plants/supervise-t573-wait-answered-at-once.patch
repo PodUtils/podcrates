@@ -1,0 +1,12 @@
+--- a/crates/pod-supervise/src/foreground.rs
++++ b/crates/pod-supervise/src/foreground.rs
+@@ -243,6 +243,9 @@
+                 },
+                 &mut waiters,
+             );
++            for mut w in waiters.drain(..) {
++                let _ = writeln!(w, "exit 0");
++            }
+         }
+     };
+     // With no code, each waiter gets the end of the stream, and `wait`

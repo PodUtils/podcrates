@@ -25,6 +25,11 @@ fn nothing_on_the_spawn_path_can_spawn_a_thread() {
             if path.extension().and_then(|e| e.to_str()) != Some("rs") {
                 continue;
             }
+            // The one thread of the crate: the server of a foreground hold.
+            // It is off this path: `start` refuses while a hold lives.
+            if path.file_name().and_then(|n| n.to_str()) == Some("foreground.rs") {
+                continue;
+            }
             let text = std::fs::read_to_string(&path).expect("a source file");
             looked += 1;
             for (n, line) in text.lines().enumerate() {

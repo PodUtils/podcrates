@@ -331,3 +331,26 @@ fn an_open_with_o_nonblock_does_not_wait_for_a_fifo_writer() {
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(opened, Ok(true), "the open of a fifo with O_NONBLOCK waited or failed");
 }
+
+/// A pidfd signals its own process while it lives, and answers `ESRCH`
+/// after the reap: the pid then names no process of the pidfd.
+#[test]
+fn a_pidfd_signals_its_process_and_not_a_reaped_one() {
+    pod_testkit::need_tool!("sleep");
+    let mut child = std::process::Command::new("sleep").arg("30").spawn().expect("sleep");
+    let pidfd = match pidfd_open(child.id() as i64) {
+        Ok(fd) => fd,
+        Err(e) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            pod_testkit::host::skip_line(&format!("no pidfd_open on this kernel: {}", e.name()));
+            return;
+        }
+    };
+    assert_eq!(pidfd_send_signal(pidfd, 0), Ok(0), "signal 0 to a live process");
+    pidfd_send_signal(pidfd, SIGTERM as i64).expect("SIGTERM to a live process");
+    let status = child.wait().expect("the reap");
+    assert!(!status.success(), "the SIGTERM of the pidfd did not reach the child");
+    assert_eq!(pidfd_send_signal(pidfd, 0), Err(ESRCH), "a reaped process took a signal");
+    let _ = close(pidfd);
+}

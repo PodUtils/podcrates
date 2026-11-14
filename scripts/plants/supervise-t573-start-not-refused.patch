@@ -1,0 +1,11 @@
+--- a/crates/pod-supervise/src/launcher.rs
++++ b/crates/pod-supervise/src/launcher.rs
+@@ -163,7 +163,7 @@
+     // The fork below runs code of this crate in the child. A thread of a
+     // foreground hold can hold a lock of the allocator at the fork, and the
+     // child then stops in it.
+-    if crate::foreground::live() > 0 {
++    if crate::foreground::live() > 1 {
+         return Err(failure(
+             Class::Usage,
+             "this process holds a foreground payload, and its thread makes a fork unsafe. Finish the \

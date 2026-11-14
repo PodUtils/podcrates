@@ -6,11 +6,14 @@ and writes the state into a table. The verbs of the lifecycle (create,
 start, kill, stop, wait, remove, the logs) work on that table and talk to
 the launcher. Four rules:
 
-1. The running state is the state of the launcher. Nothing reads it from
-   `/proc`, and nothing decides "running" by a sleep and a look.
-2. A launcher holds the lock of its container for its whole life. A lock
-   that another process can take is a launcher that is gone: the record
-   becomes `Dead`, with the time of the notice and no exit code.
+1. The running state is the state of the launcher, or of a foreground
+   hold (`foreground`) for a payload that the caller waits for itself.
+   Nothing reads it from `/proc`, and nothing decides "running" by a
+   sleep and a look.
+2. A launcher (or a hold) holds the lock of its container for its whole
+   life. A lock that another process can take is a launcher that is
+   gone: the record becomes `Dead`, with the time of the notice and no
+   exit code.
 3. Nothing waits on a timer. Readiness is a pipe that the `execve` of the
    payload closes; the end of the payload is `ppoll` on its pidfd; each
    wait has a bound and its own result for the bound.
@@ -18,7 +21,9 @@ the launcher. Four rules:
    (`PR_SET_PDEATHSIG` fires at the exit of a thread). The entry of the
    caller sets `PR_SET_PDEATHSIG(SIGKILL)` in the child of the payload
    (`pod-enter`: `Plan.die_with_parent`), so a payload ends with a
-   launcher that is killed (T-205).
+   launcher that is killed (T-205). The one thread of the crate is the
+   server of a foreground hold, and `start` refuses while a hold lives in
+   the process.
 5. The launcher is the child subreaper of the payload's tree: a
    descendant whose parent ends comes to the launcher, also after a
    `setsid` or a double fork. At the end of the payload the launcher
@@ -44,6 +49,7 @@ target it is empty. It takes the raw system calls from `pod-hostprobe`
 | `end` | `End { reason, run_ms, user_ms, system_ms, max_rss_kib, residual_processes }` in `Container::end`; `Reason` (`exit`, `signal`, `wall`); `Residual` (`Count(n)` or `Unknown`, JSON a number or `"unknown"`). `user_ms`, `system_ms` and `max_rss_kib` are `getrusage(RUSAGE_CHILDREN)` of the launcher after the kill; `max_rss_kib` is the largest one process, not a sum |
 | `create(&s, name, argv, env, working_dir, of) -> Container<X>` | a `created` record with the fields `of` of the caller, and its directory; a name that is in use is refused |
 | `start(&s, want, enter) -> Container<X>` | forks a detached launcher and returns when the payload runs; `enter(&Container<X>, Launch) -> Result<Payload, String>` runs in the launcher and starts the payload |
+| `foreground(&s, want, payload_pid) -> Foreground<X>` | the hold of a payload that the caller started and waits for (no launcher): the lock of the container, the control socket on one thread (`SIG` through a pidfd of the payload, `WAIT` answered at `finish`), then the record `Running` with `pid`, `launcher_pid` (this process) and `started_at`. `Foreground::finish(code)` writes `Exited` and the code, answers each waiter, then releases the lock; a drop with no `finish` writes `Dead`. `id()`. Start the payload first; the caller reaps it. A hold applies no `wall_ms`, kills no tree and writes no `end`; `start` refuses while a hold lives |
 | `kill`, `stop`, `wait`, `remove`, `list`, `get`, `matching` | the verbs; `stop(&s, want, ms)` is SIGTERM, a bounded wait, then SIGKILL (a zero bound is SIGKILL at once), and gives `true` when SIGKILL ended it; `wait` gives `None` at the bound, never a guess |
 | `logs`, `follow`, `follow_from`, `follow_tail`, `tail_offset` | the log of the payload's stdout and stderr; a follow polls each 100 ms until a terminal state, with one last read |
 | `new_id`, `generated_name(&s, id)`, `KILL_WAIT_MS` | a random id of 64 hex characters; `PREFIX_` and 12 characters of it |
@@ -55,8 +61,8 @@ target it is empty. It takes the raw system calls from `pod-hostprobe`
 Each failure is a `pod_core::Failure` at `Stage::Host`. A failure of I/O
 keeps its cause, with the text `PATH: CAUSE`. The classes: `Usage` (a
 name in use, a state that refuses the verb, a prefix of two ids, a path
-with a NUL), `NotFound` (no such container), `Unavailable` (no launcher
-listens, a fork failed, no slot for a lock), `TempFail` (a lock held after
+with a NUL, a start while a hold lives), `NotFound` (no such container), `Unavailable` (no launcher
+listens, a fork failed, no slot for a lock, no pidfd for a hold), `TempFail` (a lock held after
 the bound), `Protocol` (a table that does not parse, an answer of a
 launcher that does not parse).
 
@@ -125,7 +131,14 @@ grandchild that calls `setsid` and ignores SIGTERM: the kill leaves 0
 processes; with `kill_tree` false the count is 1 or more (the positive
 control); with no `/proc` the count is `unknown`; a wall bound of 800 ms
 ends the tree within the bound and `TREE_KILL_MS`; the payload has the
-`RLIMIT_FSIZE` of its starter.
+`RLIMIT_FSIZE` of its starter. `foreground` (no libtest: a step forks)
+runs a payload that the test reaps under a hold: `list` gives it `Up` and
+`reconcile` keeps it; a second hold and a `start` are refused while it
+lives; `kill` reaches it; `stop` with a grace of 10 s ends it with no
+SIGKILL; a wait before `finish` gets the bound, and a wait at `finish`
+gets its code, also after a `kill` of the reaped payload; a drop with no
+`finish` writes `Dead`; a holder process that is killed leaves a `Dead`
+record. It skips on a kernel with no `pidfd_open`.
 
 ## Sources
 
