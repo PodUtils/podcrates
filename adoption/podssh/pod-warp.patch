@@ -12702,3 +12702,17 @@ index c5f50e2..ea938fb 100644
          assert!(relays.iter().all(|r| r.at.port() == 443 && r.key != [0; KEY]));
      }
  
+diff --git a/crates/podssh-relay/src/serve/http_road/mod.rs b/crates/podssh-relay/src/serve/http_road/mod.rs
+--- a/crates/podssh-relay/src/serve/http_road/mod.rs
++++ b/crates/podssh-relay/src/serve/http_road/mod.rs
+@@ -85,7 +85,9 @@ where
+             Err(None) => return None,
+         };
+         let kept = match asked {
+-            None => write(&mut stream, refuse(404, &format!("{path}: not found"), &[], keep), keep).await,
++            None | Some(Route::One) => {
++                write(&mut stream, refuse(404, &format!("{path}: not found"), &[], keep), keep).await
++            }
+             Some(Route::Open) => open(&mut stream, &head, &cfg, keep).await,
+             Some(Route::Session(id, kind)) => match sessions::find(&id, head.header(KEY), &cfg) {
+                 None => write(&mut stream, refuse(404, "http: no such session", &[], keep), keep).await,

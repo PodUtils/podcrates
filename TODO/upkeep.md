@@ -1516,3 +1516,32 @@ The run of `adoption.yml` at the next head passes for podssh.
 ## Done
 
 2026-11-14. The hunk is in `adoption/podssh/pod-warp.patch`; `docs/releases/v0.41.0.md` names the change under "Breaking". The adoption run at the next head proves it.
+
+# T-563: `adoption.yml` at `b0533d0` is red for podssh: `Route::One` of `pod-relay` breaks a match of its role
+
+**Source:** `adoption.yml` run 43548582479 at `b0533d0` (job `adoption (podssh)`).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+T-559 adds the variant `One` to `pod_relay::http_road::Route`, and `http_road::route` gives it for `/v1/http/one/`. podssh's role matches `route()` with no wildcard (crates/podssh-relay/src/serve/http_road/mod.rs), so its build fails: E0004, `Some(Route::One)` not covered. podssh's main has the same match; its own one form serves the path before `route()`.
+
+## Premise
+
+- Read: the log of job 132305529047; podssh's crates/podssh-relay/src/serve/http_road/mod.rs at the commit of the trial (`286e98d3`) and at its main.
+
+## Approach
+
+`adoption/podssh/pod-warp.patch` takes a hunk: `None | Some(Route::One)` answer 404, as the trial's commit has no one form. The hunk has podssh's format (rustfmt with its `rustfmt.toml`). The notes and the hand-off of `v0.42.0` name the change under "Breaking": podssh adds an arm for `Route::One`.
+
+## Prove
+
+The run of `adoption.yml` at the next head passes for podssh.
+
+## Done
+
+2026-11-14. The hunk is in `adoption/podssh/pod-warp.patch`; `docs/releases/v0.42.0.md` names it. The adoption run at the next head proves it.
