@@ -167,7 +167,7 @@ let io = Icmp::new(provider, identity).dial("SHA256:...@198.51.100.7").await?;
 | `Error` | each failure by name; `class` (for the exit code), `io_kind`; into `std::io::Error` (a stream's error) and into `pod_core::Failure` (the stage `Session`) |
 | `ResetCode`, `GoAwayCode` | `CANCEL`, `REFUSED`, `PROTOCOL`; `NORMAL`, `PROTOCOL`. A caller's own reset codes start at 16 |
 | `Carrier`, `Listener`, `Facts`, `Accepted` | the trait of a carrier: `name`, `facts` (ordered, reliable, duplex, unit, cost), `available`, `dial`, `listen`; the accept side: `accept`, and `accept_peer` (the stream and the Ed25519 key that the peer proved, `None` for a carrier that proves no key); `BoxIo` is the byte stream that they give |
-| `CarrierError`, `CarrierErrorKind` | `Usage` (64), `InUse` and `Unavailable` (69), `NotFound` (66), `Refused` (77), `Io`; into `pod_core::Failure` (the stage `Connect`) |
+| `CarrierError`, `CarrierErrorKind` | `Usage` (64), `InUse` and `Unavailable` (69), `NotFound` (66), `Refused` (77: this end refused the peer, a key that its pin does not name), `KeyRefused` (77: the peer refused the key of this end; the same on each carrier that pins keys, T-542, call C293), `Io`; into `pod_core::Failure` (the stage `Connect`) |
 | `memory::Memory`, `memory::pair` | the memory carrier: listeners by name in the value (a clone shares them), a ring of 64 KiB to 64 MiB in each direction (1 MiB by default); a full ring makes the writer wait |
 | `unix::Unix`, `unix::pair` | the unix socket carrier (`cfg(unix)`): a path of 1 to 107 bytes, a socket of mode 0600, the claim of the path, the peer's uid; a socket pair for one process |
 | `tcp::Tcp` (feature `tcp`) | the tcp carrier: `new(provider, identity, way)`, `with_clients(keys)`, `clients`; the fields `connect_timeout` (20 s), `handshake_timeout` (10 s), `max_handshakes` (64), `alpn` (`podlink/1`; podnet gives `podnet/1`, call C273); `address(text)` (the key and the target of `KEY@HOST:PORT`); `connect(&target, &key)` (the stream and the key of the listener); `bind(addr)`; as a `Carrier`: `dial("KEY@HOST:PORT")`, `listen("IP:PORT")` |
@@ -465,7 +465,12 @@ with TLS 1.3) and the tests that hold them (`tests/tcp.rs`,
   `a_key_named_by_its_fingerprint_or_its_display_form_dials`.
 - [x] Another key is refused at the handshake on each side, with the key
   seen named (77): `the_dialer_refuses_a_listener_of_another_key_and_names_it`,
-  `the_listener_refuses_a_client_of_another_key_and_stays_open`.
+  `the_listener_refuses_a_client_of_another_key_and_stays_open`. The end
+  whose key was refused gets `KeyRefused` (T-542): the dialer on each
+  carrier that pins keys (tcp, ws, h2, quic, udp, poll, dns, icmp), and
+  the listener on tcp, h2, quic and poll. Plants:
+  `link-key-refused-untyped`, `link-key-refused-alert-untyped`,
+  `link-quic-key-refused-untyped`.
 - [x] TLS 1.2 is refused on each side:
   `a_client_of_tls_1_2_is_refused_by_the_listener`,
   `a_listener_of_tls_1_2_is_refused_by_the_dialer`.
@@ -733,7 +738,7 @@ that hold them (`tests/icmp.rs`, `tests/icmp_raw.rs`, feature `icmp`):
 | PodUtils/podnet@T-264: the registry of carriers with an `available()` reason | stays in podnet (call C117); each row holds a `Box<dyn Carrier>` and adds podnet's facts (privilege, build feature); the cost class is `Facts::cost` |
 | PodUtils/podnet@T-274: the unix socket carrier; `bind_private` and `claim_unix_path` of `PodUtils/podnet:crates/podnet-netns/src/listen.rs`; `--allow-other-uid` | `unix::Unix` (`allow_other_uid`), `unix::pair` |
 | PodUtils/podnet@T-275: the memory carrier | `memory::Memory`, `memory::pair` |
-| PodUtils/podnet@T-268: the TCP carrier with TLS 1.3 and the pin of each key | `tcp::Tcp` (feature `tcp`): one row of the registry holds `Box::new(Tcp::new(provider, identity, way).with_clients(keys))`; podnet's dialer (its proxy and egress) is the `way`; `available()` is the reason of the row; the accept side is `listen("IP:PORT")` and `accept_peer()`, whose `peer` podnet compares with `peer:FINGERPRINT`; a refused key is `CarrierErrorKind::Refused` (77) and `tcp::refusal(&error)` gives the key seen |
+| PodUtils/podnet@T-268: the TCP carrier with TLS 1.3 and the pin of each key | `tcp::Tcp` (feature `tcp`): one row of the registry holds `Box::new(Tcp::new(provider, identity, way).with_clients(keys))`; podnet's dialer (its proxy and egress) is the `way`; `available()` is the reason of the row; the accept side is `listen("IP:PORT")` and `accept_peer()`, whose `peer` podnet compares with `peer:FINGERPRINT`; a key that this end refused is `CarrierErrorKind::Refused` (77) and `tcp::refusal(&error)` gives the key seen; a key of this end that the peer refused is `CarrierErrorKind::KeyRefused` (77) on each carrier (T-542) |
 | PodUtils/podnet@T-269: the WebSocket carrier, its server half | `ws::Ws` (feature `ws`): one row of the registry holds `Box::new(Ws::new(provider, identity, way).with_clients(keys))`; the dial address is `KEY@wss://HOST[:PORT]/PATH`; the listener is `listen("IP:PORT")` on the accept loop of `pod-ws`, with podnet's deadlines and caps in `Ws::serve` |
 | PodUtils/podnet@T-270: the HTTP/2 carrier, one bidirectional POST | `h2::H2` (feature `h2`): one row of the registry holds `Box::new(H2::new(provider, identity, way).with_clients(keys))`; the dial address is `KEY@https://HOST[:PORT]/PATH`; the listener is `listen("IP:PORT")`. podnet's `body_reader` and `body_writer` are `pod_ws::h2_road::duplex` here |
 | PodUtils/podnet@T-273: the QUIC carrier | `quic::Quic` (feature `quic`): one row of the registry holds `Box::new(Quic::new(provider, identity).with_clients(keys))` with `alpn = b"podnet/1"`, and `with_way(way)` when podnet's way carries UDP; the dial address is `KEY@HOST:PORT`; the listener is `listen("IP:PORT")` on UDP |

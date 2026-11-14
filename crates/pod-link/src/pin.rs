@@ -127,33 +127,48 @@ pub(crate) fn of_failure(carrier: &'static str, target: &Target, label: &str, fa
     CarrierError::with_source(carrier, kind, text, io::Error::other(failure))
 }
 
-/// A failed handshake: `Refused` with the key that the peer proved, when
-/// the pin refused it.
-pub(crate) fn tls_error(carrier: &'static str, text: String, e: io::Error) -> CarrierError {
-    match refusal(&e) {
-        Some(found) => CarrierError::with_source(carrier, CarrierErrorKind::Refused, format!("{text}: {found}"), e),
-        None => CarrierError::io(carrier, text, e),
-    }
-}
-
-/// The error of the wait for the first answer of the listener: an alert
-/// of a refused certificate is a refusal of the key of this end.
-pub(crate) fn answer_error(carrier: &'static str, target: &Target, own: &PublicKey, e: io::Error) -> CarrierError {
+/// The alert of TLS in `e` with which the peer refused the certificate of
+/// this end.
+fn refused_alert(e: &io::Error) -> Option<rustls::AlertDescription> {
     use rustls::AlertDescription as A;
-    let alert = match e.get_ref().and_then(|inner| inner.downcast_ref::<rustls::Error>()) {
-        Some(rustls::Error::AlertReceived(alert)) => Some(*alert),
-        _ => None,
-    };
-    match alert {
-        Some(
+    match e.get_ref().and_then(|inner| inner.downcast_ref::<rustls::Error>()) {
+        Some(rustls::Error::AlertReceived(
             alert @ (A::CertificateUnknown
             | A::BadCertificate
             | A::AccessDenied
             | A::UnsupportedCertificate
             | A::CertificateRequired),
-        ) => CarrierError::with_source(
+        )) => Some(*alert),
+        _ => None,
+    }
+}
+
+/// A failed handshake: `Refused` with the key that the peer proved, when
+/// the pin of this end refused it; `KeyRefused` when the peer refused the
+/// key of this end.
+pub(crate) fn tls_error(carrier: &'static str, text: String, e: io::Error) -> CarrierError {
+    if let Some(found) = refusal(&e) {
+        return CarrierError::with_source(carrier, CarrierErrorKind::Refused, format!("{text}: {found}"), e);
+    }
+    match refused_alert(&e) {
+        Some(alert) => CarrierError::with_source(
             carrier,
-            CarrierErrorKind::Refused,
+            CarrierErrorKind::KeyRefused,
+            format!("{text}: the peer refused the key of this end ({alert:?})"),
+            e,
+        ),
+        None => CarrierError::io(carrier, text, e),
+    }
+}
+
+/// The error of the wait for the first answer of the listener: an alert
+/// of a refused certificate is a refusal of the key of this end
+/// (`KeyRefused`).
+pub(crate) fn answer_error(carrier: &'static str, target: &Target, own: &PublicKey, e: io::Error) -> CarrierError {
+    match refused_alert(&e) {
+        Some(alert) => CarrierError::with_source(
+            carrier,
+            CarrierErrorKind::KeyRefused,
             format!("the listener at {target} refused the key of this end, {} ({alert:?})", own.fingerprint()),
             e,
         ),

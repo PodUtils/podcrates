@@ -54,7 +54,7 @@ impl Dialing {
             CarrierErrorKind::InUse => io::ErrorKind::AddrInUse,
             CarrierErrorKind::Unavailable => io::ErrorKind::ConnectionRefused,
             CarrierErrorKind::NotFound => io::ErrorKind::NotFound,
-            CarrierErrorKind::Refused => io::ErrorKind::PermissionDenied,
+            CarrierErrorKind::Refused | CarrierErrorKind::KeyRefused => io::ErrorKind::PermissionDenied,
             CarrierErrorKind::Io(kind) => kind,
         };
         self.ends.fail(kind, e.to_string());
@@ -234,7 +234,11 @@ impl Lane {
 }
 
 fn again_or_refused(e: CarrierError) -> Failed {
-    if e.kind == CarrierErrorKind::Refused { Failed::Fatal(e) } else { Failed::Again(e) }
+    if matches!(e.kind, CarrierErrorKind::Refused | CarrierErrorKind::KeyRefused) {
+        Failed::Fatal(e)
+    } else {
+        Failed::Again(e)
+    }
 }
 
 /// The backoff of a lane: 100 ms doubled up to 5 s after each failure,

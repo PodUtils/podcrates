@@ -141,7 +141,8 @@ async fn a_refused_key_is_named_on_each_side() {
         async { tokio::join!(dialing.connect_over(up, &target, &key), listening.accept_over(down, &"the peer")) };
     let (near, far) = timeout(limit(), both).await.expect("the refusal in time");
     let near = near.err().expect("the dialer learns of the refusal");
-    assert_eq!(near.kind, CarrierErrorKind::Refused, "{near}");
+    assert_eq!(near.kind, CarrierErrorKind::KeyRefused, "{near}");
+    assert_eq!(near.class().exit_code(), 77);
     assert!(near.to_string().contains(&client.public().fingerprint()), "names this key: {near}");
     let far = far.err().expect("the listener refuses the client");
     assert_eq!(refusal(&far), Some(Refusal::Unpinned(client.public())), "{far}");

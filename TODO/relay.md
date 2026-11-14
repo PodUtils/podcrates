@@ -5973,3 +5973,34 @@ sh scripts/plant-each.sh dns-answer-past-the-query-size dns-cut-answer-dropped d
 ## Done
 
 2026-11-14, commit `8181d12`. `pod_dns::txt::asked_size` gives the EDNS0 size of a query (at least 512; none with no OPT record). The listener of the dns carrier keeps each answer to that size (512 with none) and to `DnsSettings::answer` (1232), with an OPT record only when the query had one (call C291). The dialer takes the whole records of a cut answer and goes on; no query goes again over TCP/53 (call C292). `cargo test -p pod-dns -p pod-link --all-features`: 264 passed, 6 ignored. `tests/dns_resolver.rs` (a stand-in resolver on the loopback): `a_query_with_no_edns_gets_an_answer_of_512_bytes_or_less`, `a_query_with_edns_gets_an_answer_within_its_size` (answers over 512 and within 1232), `a_cut_answer_does_not_stall_the_link` (each third answer cut, to no record or in its second record; 32 KiB each way); 40 runs in a loop passed. Unit tests: `a_cut_answer_gives_its_whole_records`, `a_server_reads_the_size_that_a_query_takes`. Plants: `dns-answer-past-the-query-size` fails the first test ("an answer of 1206 bytes to a query with no EDNS0"); `dns-cut-answer-dropped` fails `a_cut_answer_gives_its_whole_records` (left `[]`); `dns-txt-asked-size-under-512` fails `a_server_reads_the_size_that_a_query_takes` (left `Some(100)`). The integration test of the cut passes under `dns-cut-answer-dropped` (in 16 s, not 1 s): the ARQ recovers the dropped records, so the unit test is the check of that rule. The plant `dns-down-needs-the-txt` (T-493) moved to `dns::client::datagrams` and fails as before ("the handshake ... took more than 20s").
+
+# T-542: `pod-link`: one typed marker for "the peer refused the key of this end" on each carrier (PodUtils/podnet#533)
+
+**Source:** PodUtils/podnet#533 (COORD-071 of podnet, ask 1; PodUtils/podnet@T-273).
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet: "podnet exits 77 when the peer refuses the key of this end. On `quic`, the refusal reaches podnet only as a `noq::ConnectionError` (a close of the connection), so `src/link.rs` reads that close to find it; without that, podnet exited 69. Please give each carrier one typed marker for 'the peer refused the key of this end' (for example a variant of `pod_link::Error`, or an error kind that each carrier maps to), so that the caller does not read the errors of the transport."
+
+## Premise
+
+- Read: `crates/pod-link/src/carrier.rs` (`CarrierErrorKind::Refused` holds each refusal: the pin of this end, another user, a refusal of the way out, and the refusal of the key of this end), `crates/pod-link/src/pin.rs` (`answer_error` maps the alert of a refused certificate to `Refused`; `tls_error` maps a `pod_tls::peer::Refusal` to `Refused` and an alert to `Io`), `crates/pod-link/src/quic/io.rs` (`connection_error` maps a close with such an alert code to `Refused`), `crates/pod-link/src/poll/lane.rs` (a `Refused` lane is fatal).
+- The tests named `the_listener_refuses_a_client_of_another_key_and_stays_open` and `a_refused_key_is_named_on_each_side` check `Refused` on the dialer: a caller cannot tell the two refusals apart by the kind.
+
+## Approach
+
+1. `CarrierErrorKind::KeyRefused`, of the class `Refused` (77) (call C293).
+2. `pin::answer_error` and `pin::tls_error` map the alert of a refused certificate to it; `quic::io::connection_error` maps the close with that alert code to it. The poll carrier treats it as `Refused`.
+3. Tests: the dialer whose key the listener refused gets `KeyRefused` on tcp, ws, h2, quic, udp, poll, dns and icmp; the listener whose key the dialer refused gets `KeyRefused` where the alert reaches it. Plants: `link-key-refused-untyped`, `link-key-refused-alert-untyped`, `link-quic-key-refused-untyped`.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test tcp_refused --test ws --test h2 --test quic --test udp --test poll --test dns --test icmp refuse
+sh scripts/plant-each.sh link-key-refused-untyped link-key-refused-alert-untyped link-quic-key-refused-untyped
+```
