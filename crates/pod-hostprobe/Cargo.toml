@@ -16,11 +16,17 @@ linux-raw-sys = { workspace = true }
 # The JSON object of the module `report`, behind the feature `report`.
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
+# The JSON Schema of the report, behind the feature `schema`.
+schemars = { workspace = true, optional = true }
 
 [features]
 # The module `report`: the JSON object of `Findings` and `Selection`, and
 # its reader. Off by default: a probe that writes no report links no serde.
 report = ["dep:serde", "dep:serde_json"]
+# `report::schema`: the JSON Schema of the report, generated from its
+# types (`schemas/hostprobe-report.v1.schema.json`). For the tests of a
+# consumer that validate a report; no binary turns it on.
+schema = ["report", "dep:schemars"]
 
 # syscalls has the crate attribute `#![feature(asm_experimental_arch)]` on
 # mips, mips64, s390x, powerpc and powerpc64, so it does not build there on
@@ -35,6 +41,10 @@ syscalls = { workspace = true }
 # A path only: pod-testkit depends on this crate, and cargo publish drops a
 # dev-dependency with no version (scripts/check-publish-order.py).
 pod-testkit = { path = "../pod-testkit" }
+# The tests of the schema: the derive of each wire type, and a validator
+# of JSON Schema 2020-12 for the examples of tests/examples/.
+schemars = { workspace = true }
+boon = { workspace = true }
 
 # The probe children of the whole set: a test binary with no libtest, so
 # that it reads the flag of a child before anything else.

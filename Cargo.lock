@@ -2147,9 +2147,11 @@ dependencies = [
 name = "pod-hostprobe"
 version = "0.41.0"
 dependencies = [
+ "boon",
  "linux-raw-sys",
  "pod-core",
  "pod-testkit",
+ "schemars",
  "serde",
  "serde_json",
  "syscalls",
