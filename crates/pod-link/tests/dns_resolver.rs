@@ -16,7 +16,7 @@ use std::time::Duration;
 use common::dns::{at, bound, carrier};
 use common::tcp::id;
 use common::{limit, pattern};
-use pod_link::arq::ArqSettings;
+use pod_link::arq::{ArqSettings, MAX_RETRIES};
 use pod_link::dns::EDNS_SIZE;
 use pod_link::{BoxIo, Carrier};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -116,12 +116,15 @@ async fn resolver(server: SocketAddr, path: Path) -> (SocketAddr, Arc<Seen>) {
 
 /// A link of the DNS carrier through a resolver along `path`. The RTO of
 /// the ARQ is short, so a datagram that a cut answer held goes again soon.
+/// The most retries and a ceiling of 2 s give a lost frame about 27 s,
+/// within the 60 s of a transfer, so a slow host does not end the link.
 async fn link(path: Path) -> (BoxIo, BoxIo, Arc<Seen>) {
     let (server, client) = (id(1), id(2));
     let arq = ArqSettings {
         rto_initial: Duration::from_millis(200),
         rto_floor: Duration::from_millis(50),
-        rto_ceiling: Duration::from_secs(1),
+        rto_ceiling: Duration::from_secs(2),
+        retries: MAX_RETRIES,
         ..ArqSettings::default()
     };
     let (mut listening, mut dialing) = (carrier(1, &[client.public()]), carrier(2, &[]));

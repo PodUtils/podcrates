@@ -1574,3 +1574,57 @@ The run of `adoption.yml` at the next head passes for podnet.
 ## Done
 
 2026-11-14. The hunks of the three literals are in `adoption/podnet/pod-warp.patch`, and `adoption/podnet/pod-warp.run` remaps src/networks/wg.rs and src/wg_quick_tests.rs. The run at `5db4d56` (43558133970) built podnet and failed on the test literal; a search of each Rust file of podnet at `9c1fc4b` finds no other. The adoption run at the next head proves it.
+
+# T-607: the nightly run at `f6479c7` is red on `windows-11-arm`: the ARQ of a test of `pod-link` through a resolver gives up in 7 s
+
+**Source:** the nightly run 43578379242 at `f6479c7` (job `test (windows-11-arm)`).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`a_query_with_no_edns_gets_an_answer_of_512_bytes_or_less` of `crates/pod-link/tests/dns_resolver.rs` panicked at line 146 at `f6479c7` with `Timeout { seq: 109, retries: 8, waited: 6.87s }`. The ARQ of the test has `rto_ceiling` 1 s and the default 8 retries: a lost frame gets about 7 s, and a slow runner took longer to answer it. The test checks the size of the answers and the transfer, not the timer of the ARQ.
+
+## Premise
+
+- Read: the log of the job; `crates/pod-link/tests/dns_resolver.rs` (`link`); each `rto_ceiling` and `retries` of `crates/pod-link/tests` (`common/dns.rs`, `common/icmp.rs`: `fast_arq`, used by the tests of a silent peer, which check the timer).
+
+## Approach
+
+The ARQ of `link` takes `MAX_RETRIES` (16) and a ceiling of 2 s: a lost frame gets about 27 s, within the 60 s bound of a transfer. `fast_arq` stays: its tests check that a silent peer ends the link at the ARQ timeout.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test dns_resolver
+```
+
+# T-608: `upstream.yml` is red: the sources of `pod-warp`, `pod-netstack` and `pod-gsr` changed
+
+**Source:** `upstream.yml` run 43591429134 (job `sources`).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`scripts/check-sources.py` reports changes: `pod-warp` 30 of podnet at `e046560` and 5 of podssh at `562751d`; `pod-netstack` 1 of podnet at `e046560`; `pod-gsr` 1 of hackerschoice/gsocket at `5950647`.
+
+## Premise
+
+- Read: `scripts/check-sources.py` (the line `taken`); the commits of podnet, podssh and gsocket after each pin (local clones); podnet's take of v0.37.0 (`f6abdc3`) and its T-328 (`1649d8f`); podssh's take of v0.37.0 (`812c61c`); gsocket's `dd62a5a`.
+
+## Approach
+
+A take of a consumer is a `taken` line of its block, with the paths that the take changed when the block holds other files. A change of a source that is a fix is ported in a commit of its own; a change that is not moves the pin, with the reason.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py pod-warp pod-netstack pod-gsr
+```
