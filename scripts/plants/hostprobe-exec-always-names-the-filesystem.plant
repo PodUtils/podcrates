@@ -1,0 +1,6 @@
+# pod-hostprobe: the exec probe names the filesystem on each EACCES, also where the mount is not noexec and a policy on the path refuses the run; the test of the remedy must fail (T-569).
+ENTRY=T-569
+GROUP=hostprobe
+EXPECT='test exec::tests::the_flag_of_the_mount_decides_the_remedy \.\.\. FAILED'
+RUN='cargo test -p pod-hostprobe --lib -- exec::tests::the_flag_of_the_mount_decides_the_remedy --exact'
+LIMIT=1800

@@ -6060,3 +6060,81 @@ sh scripts/plant-each.sh enter-abi-reason-carries-a-label enter-abi-static-objec
   family refusal) fails `no_refusal_of_admits_carries_a_label`;
   `enter-abi-static-object-has-no-reason` (no static gate) fails
   `a_static_object_is_refused_as_static`. Each was applied and run by hand.
+
+# T-569: `pod-hostprobe`: `probe_dir_exec` names the filesystem on each `EACCES`, also on a mount that is not noexec (PodUtils/podvm#335)
+
+**Source:** PodUtils/podvm#335 (COORD-092 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`probe_dir_exec` of `crates/pod-hostprobe/src/exec.rs` gives the remedy
+"move the directory off this filesystem, for example with $PODVM_STORE"
+on each `ExecVerdict::Denied`. It reads no flag of the mount, and the
+module doc says "`EACCES` from that run is the `noexec` answer". `EACCES`
+from `execve` has more causes: a policy on the path or on the file (an
+LSM, a seccomp filter, a sandbox). podvm measured a host with no `noexec`
+mount (`grep -c noexec /proc/self/mounts` is 0), where one directory
+refuses the run and three directories on the same device execute:
+
+```
+store_exec: no: /state/home/.local/share/podvm: a created file does not execute (/state/home/.local/share/podvm/.pod-hostprobe-exec.29370.0: execve refused with EACCES (Permission denied (os error 13))); move the directory off this filesystem, for example with $PODVM_STORE
+```
+
+The remedy cannot work there. podvm prints the detail as it is in
+`podvm doctor store_exec` and in each verb that enters the store.
+
+## Premise
+
+- Read: `crates/pod-hostprobe/src/exec.rs`, `crates/pod-hostprobe/src/sys/proc.rs`
+  (`statfs`, `Statfs::flag`, `ST_NOEXEC`, `ST_VALID`).
+- Not measured here: a host with a policy that refuses one path. The
+  report gives the measurement.
+
+## Approach
+
+On `Denied`, read the `noexec` flag of the mount of the directory with
+`sys::statfs` and `Statfs::flag(ST_NOEXEC)`. `denial_cause(flag,
+setting)` maps it to the sentence: `noexec` names the mount and the move
+off the filesystem; not `noexec` names a policy on the path or on the
+file and what to check, with no move; a flag that cannot be read (`None`:
+an error, or no `ST_VALID`) names both causes. Fix the doc of the module
+and of `try_exec`. Tests: each branch of `denial_cause`, the flag against
+`/proc/self/mounts`, and a real `noexec` tmpfs as root. A plant that
+always names the filesystem.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features --lib exec::
+sh scripts/plant-each.sh hostprobe-exec-always-names-the-filesystem
+```
+
+## Done
+
+2026-11-14. The commit that names T-569.
+
+- `exec::mount_noexec(dir)` reads the flag (`None` where `statfs` fails or
+  the kernel did not fill `f_flags`). `exec::denial_cause` gives: for
+  `noexec`, "the mount of the directory is noexec; move the directory off
+  this filesystem, for example with SETTING"; for a mount that is not
+  `noexec`, "the mount of the directory is not noexec, so a policy on the
+  path or on the file refuses the run (an LSM such as SELinux, AppArmor or
+  Landlock, a seccomp filter, or a sandbox); check the policy of this path
+  and the audit log of the kernel"; for no flag, both causes and the move
+  only "if the mount is noexec" (C336). The doc of the module and of
+  `try_exec` no longer says that `EACCES` is the `noexec` answer.
+- Tests: `the_flag_of_the_mount_decides_the_remedy` (each branch; no
+  "move" and no setting where the mount is not `noexec`),
+  `the_noexec_flag_agrees_with_the_mount_table`, and
+  `a_noexec_mount_is_named_by_the_probe` (root: a `noexec` tmpfs on the
+  scratch directory; it ran here as root and did not skip).
+  `cargo test -p pod-hostprobe --all-features`: 132 passed in the
+  library, and each other target passed.
+- Plant `hostprobe-exec-always-names-the-filesystem` (the flag ignored,
+  each denial named as `noexec`) fails
+  `the_flag_of_the_mount_decides_the_remedy`; applied and run by hand.
