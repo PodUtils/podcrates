@@ -1,0 +1,12 @@
+diff --git a/crates/pod-wg/src/handshake.rs b/crates/pod-wg/src/handshake.rs
+--- a/crates/pod-wg/src/handshake.rs
++++ b/crates/pod-wg/src/handshake.rs
+@@ -181,7 +181,7 @@
+         [c] = kdf::<1>(&c, &x25519(&keys.private, &e_pub));
+         // The psk step of IKpsk2: the initiation does not depend on the
+         // preshared key, the response does.
+-        let mut psk = keys.psk();
++        let mut psk = [0u8; 32];
+         let [c4, tau, k] = kdf::<3>(&c, &psk);
+         psk.zeroize();
+         c = c4;

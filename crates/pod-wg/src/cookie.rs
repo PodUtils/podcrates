@@ -13,7 +13,7 @@ use zeroize::Zeroize;
 
 use crate::Error;
 use crate::blake2s::{hash, mac};
-use crate::crypto::xopen;
+use crate::crypto::{xopen, xseal};
 use crate::handshake::{Initiation, Keys, MSG_COOKIE};
 
 /// The length of a cookie reply.
@@ -39,6 +39,18 @@ pub(crate) fn mac2(cookie: &[u8; 16], message: &[u8]) -> [u8; 16] {
         zeroed[1..4].fill(0);
     }
     mac(cookie, &[&zeroed])
+}
+
+/// The cookie reply to the initiation `init`: `cookie` sealed with `key`
+/// (the [`cookie_key`] of the responder), under `nonce`, with the mac1 of
+/// `init` as its associated data.
+pub(crate) fn reply(key: &[u8; 32], init: &[u8], cookie: &[u8; 16], nonce: &[u8; 24]) -> Vec<u8> {
+    let mut m = Vec::with_capacity(COOKIE_REPLY_LEN);
+    m.extend_from_slice(&[MSG_COOKIE, 0, 0, 0]);
+    m.extend_from_slice(&init[4..8]);
+    m.extend_from_slice(nonce);
+    m.extend_from_slice(&xseal(key, nonce, cookie, &init[116..132]));
+    m
 }
 
 /// The cookie of a reply, and the time it came.
@@ -95,7 +107,12 @@ mod tests {
     use crate::handshake::{INITIATION_LEN, initiate_with};
 
     fn keys() -> Keys {
-        Keys { private: [1; 32], peer_public: crate::crypto::x25519_base(&[2; 32]), reserved: [7, 8, 9] }
+        Keys {
+            private: [1; 32],
+            peer_public: crate::crypto::x25519_base(&[2; 32]),
+            reserved: [7, 8, 9],
+            preshared: None,
+        }
     }
 
     /// The cookie of a reply opens with the mac1 of its initiation; a

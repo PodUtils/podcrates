@@ -1,0 +1,12 @@
+diff --git a/crates/pod-wg/src/responder.rs b/crates/pod-wg/src/responder.rs
+--- a/crates/pod-wg/src/responder.rs
++++ b/crates/pod-wg/src/responder.rs
+@@ -165,7 +165,7 @@
+         }
+         let initiator = opened.initiator;
+         let timestamp = opened.timestamp(&self.private, &initiator, init);
+-        let Some(peer) = found else { return Incoming::Dropped(Error::UnknownPeer) };
++        let peer = found.unwrap_or(0);
+         let Some(timestamp) = timestamp else { return Incoming::Dropped(Error::InitiationNotAuthentic) };
+         let state = &mut self.peers[peer];
+         if state.last_timestamp.is_some_and(|last| timestamp <= last) {

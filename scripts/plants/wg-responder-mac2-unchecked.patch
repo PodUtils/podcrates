@@ -1,0 +1,12 @@
+diff --git a/crates/pod-wg/src/responder.rs b/crates/pod-wg/src/responder.rs
+--- a/crates/pod-wg/src/responder.rs
++++ b/crates/pod-wg/src/responder.rs
+@@ -144,7 +144,7 @@
+                 Ok(cookie) => cookie,
+                 Err(e) => return Incoming::Dropped(e),
+             };
+-            if !same(&mac2(&cookie, &init[..132]), &init[132..]) {
++            if init[132..] == [0; 16] {
+                 return match random::<24>(self.entropy.as_mut()) {
+                     Ok(nonce) => Incoming::CookieReply(reply(&self.cookie_key, init, &cookie, &nonce)),
+                     Err(e) => Incoming::Dropped(e),

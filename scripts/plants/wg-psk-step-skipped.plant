@@ -1,0 +1,6 @@
+# The response is read with the zero key in place of the preshared key of
+# the keys: a peer with another key passes; the tests of the key must fail.
+ENTRY=T-561
+GROUP=wg
+EXPECT='test handshake::tests::a_handshake_with_a_preshared_key \.\.\. FAILED'
+RUN='cargo test -p pod-wg --lib -- handshake::tests::a_handshake_with_a_preshared_key handshake::tests::the_vector_of_a_handshake_with_a_preshared_key'

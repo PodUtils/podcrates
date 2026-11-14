@@ -1,16 +1,19 @@
-//! pod-wg: the WireGuard initiator of WARP, sans I/O.
+//! pod-wg: WireGuard sans I/O, the initiator of WARP and a responder.
 //!
 //! The crate makes and reads the bytes of each message of WireGuard (the
 //! WireGuard paper and wireguard.com/protocol), on this side as the
-//! initiator: the handshake (Noise IKpsk2 with no pre-shared key), the
+//! initiator: the handshake (Noise IKpsk2, with a preshared key or none), the
 //! cookie of a responder under load, the transport messages with the window
 //! of their counters, and the timers of a tunnel (the rekey, its resend, a
 //! dead path, the keepalive). It owns no socket, no task and no clock: the
 //! caller sends and receives the bytes, and gives the time `now` of its
-//! monotonic clock to each call that reads a timer.
+//! monotonic clock to each call that reads a timer. [`Responder`] is the
+//! other side for a list of peers: it reads the initiations, answers a
+//! cookie reply under load, and carries the transport messages of each
+//! peer, with no I/O as well.
 //!
-//! - [`Keys`]: the keys of a device and of its peer, and WARP's reserved
-//!   bytes (bytes 1 to 3 of each message).
+//! - [`Keys`]: the keys of a device and of its peer, their preshared key,
+//!   and WARP's reserved bytes (bytes 1 to 3 of each message).
 //! - [`initiate`], [`initiate_from`], [`initiate_with`]: an
 //!   [`Initiation`]; [`Initiation::finish`] reads the response into a
 //!   [`Session`].
@@ -21,6 +24,9 @@
 //! - [`Tunnel`]: the current and the previous session, the rekey and the
 //!   keepalive; [`Stamps`]: the timestamps of the initiations, which never go
 //!   back.
+//! - [`Responder`]: a private key and a list of [`Peer`]s;
+//!   [`Responder::receive`] gives an [`Incoming`], [`Responder::send`] and
+//!   [`Responder::tick`] the messages out.
 //! - `standin` (feature `standin`): a responder for the tests of a
 //!   consumer, in memory and on the loopback.
 //!
@@ -37,6 +43,8 @@ mod error;
 #[cfg(feature = "fuzzing")]
 pub mod fuzzing;
 mod handshake;
+mod respond;
+mod responder;
 mod session;
 #[cfg(any(test, feature = "standin"))]
 pub mod standin;
@@ -48,6 +56,10 @@ pub use error::Error;
 pub use handshake::{
     INITIATION_LEN, Initiation, Keys, MSG_COOKIE, MSG_DATA, MSG_INITIATION, MSG_RESPONSE, RESPONSE_LEN, initiate,
     initiate_from, initiate_with,
+};
+pub use responder::{
+    COOKIE_SECRET_AGE, INITIATION_GAP, Incoming, KEEPALIVE_TIMEOUT, Peer, REJECT_AFTER, REJECT_AFTER_MESSAGES,
+    Responder,
 };
 pub use session::Session;
 pub use tunnel::{HANDSHAKE_DEAD, KEEPALIVE, Outgoing, REKEY_AFTER, REKEY_TIMEOUT, Received, Tunnel};

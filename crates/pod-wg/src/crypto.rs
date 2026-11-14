@@ -92,7 +92,6 @@ fn xkey(k: &[u8; 32], nonce: &[u8; 24]) -> ([u8; 32], aead::Nonce) {
 
 /// XChaCha20-Poly1305 of `plain`, with the tag appended: the seal of a
 /// cookie, which only a responder makes.
-#[cfg(any(test, feature = "standin"))]
 pub(crate) fn xseal(k: &[u8; 32], nonce: &[u8; 24], plain: &[u8], ad: &[u8]) -> Vec<u8> {
     let (mut subkey, n) = xkey(k, nonce);
     let mut out = plain.to_vec();

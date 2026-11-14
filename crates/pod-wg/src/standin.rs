@@ -9,12 +9,10 @@ use std::time::Instant;
 
 use pod_core::entropy::OsEntropy;
 
-use crate::blake2s::{hash, kdf};
 use crate::cookie::{cookie_key, mac2};
-use crate::crypto::{open, random, seal, x25519, x25519_base, xseal};
-use crate::handshake::{
-    CONSTRUCTION, IDENTIFIER, INITIATION_LEN, Keys, MSG_COOKIE, MSG_DATA, MSG_INITIATION, MSG_RESPONSE, mac1,
-};
+use crate::crypto::{open, random, seal, x25519_base};
+use crate::handshake::{INITIATION_LEN, Keys, MSG_DATA, MSG_INITIATION, mac1};
+use crate::respond::open_static;
 use crate::session::Session;
 
 /// What the stand-in does with the data messages.
@@ -53,43 +51,30 @@ pub fn respond_with(
     e_priv: &[u8; 32],
     sender: u32,
 ) -> (Vec<u8>, [u8; 32], [u8; 32], u32) {
+    respond_preshared(peer_private, initiator_public, None, init, e_priv, sender)
+}
+
+/// [`respond_with`] with the preshared key `preshared` (`None`: the zero
+/// key), as [`crate::Keys::preshared`] of the initiator.
+///
+/// # Panics
+///
+/// When the initiation fails a check, as [`respond`].
+pub fn respond_preshared(
+    peer_private: &[u8; 32],
+    initiator_public: &[u8; 32],
+    preshared: Option<&[u8; 32]>,
+    init: &[u8],
+    e_priv: &[u8; 32],
+    sender: u32,
+) -> (Vec<u8>, [u8; 32], [u8; 32], u32) {
     let peer_public = x25519_base(peer_private);
     assert_eq!(init.len(), INITIATION_LEN);
     assert_eq!(mac1(&peer_public, &init[..116]), init[116..132]);
-    let mut c = hash(&[CONSTRUCTION]);
-    let mut h = hash(&[&c, IDENTIFIER]);
-    h = hash(&[&h, &peer_public]);
-    let e_pub: [u8; 32] = init[8..40].try_into().unwrap();
-    [c] = kdf::<1>(&c, &e_pub);
-    h = hash(&[&h, &e_pub]);
-    let [c2, k] = kdf::<2>(&c, &x25519(peer_private, &e_pub));
-    c = c2;
-    let s_pub = open(&k, 0, &init[40..88], &h).unwrap();
-    assert_eq!(s_pub, initiator_public);
-    h = hash(&[&h, &init[40..88]]);
-    let [c3, k] = kdf::<2>(&c, &x25519(peer_private, initiator_public));
-    c = c3;
-    let time = open(&k, 0, &init[88..116], &h).unwrap();
-    assert_eq!(time.len(), 12);
-    h = hash(&[&h, &init[88..116]]);
-    let e_r = x25519_base(e_priv);
-    [c] = kdf::<1>(&c, &e_r);
-    h = hash(&[&h, &e_r]);
-    [c] = kdf::<1>(&c, &x25519(e_priv, &e_pub));
-    [c] = kdf::<1>(&c, &x25519(e_priv, initiator_public));
-    let [c4, tau, k] = kdf::<3>(&c, &[0u8; 32]);
-    c = c4;
-    h = hash(&[&h, &tau]);
-    let empty = seal(&k, 0, &[], &h);
-    let mut m = vec![MSG_RESPONSE, 0, 0, 0];
-    m.extend_from_slice(&sender.to_le_bytes());
-    m.extend_from_slice(&init[4..8]);
-    m.extend_from_slice(&e_r);
-    m.extend_from_slice(&empty);
-    let mac = mac1(initiator_public, &m);
-    m.extend_from_slice(&mac);
-    m.extend_from_slice(&[0; 16]);
-    let [recv_key, send_key] = kdf::<2>(&c, &[]);
+    let mut opened = open_static(peer_private, init).expect("the static key opens");
+    assert_eq!(&opened.initiator, initiator_public);
+    opened.timestamp(peer_private, initiator_public, init).expect("the timestamp opens");
+    let (m, send_key, recv_key) = opened.respond(initiator_public, preshared.unwrap_or(&[0; 32]), e_priv, sender);
     (m, send_key, recv_key, sender)
 }
 
@@ -97,11 +82,7 @@ pub fn respond_with(
 /// `cookie` sealed with the key of `responder_public`, under `nonce`, with
 /// the mac1 of `init`.
 pub fn cookie_reply(responder_public: &[u8; 32], init: &[u8], cookie: &[u8; 16], nonce: &[u8; 24]) -> Vec<u8> {
-    let mut m = vec![MSG_COOKIE, 0, 0, 0];
-    m.extend_from_slice(&init[4..8]);
-    m.extend_from_slice(nonce);
-    m.extend_from_slice(&xseal(&cookie_key(responder_public), nonce, cookie, &init[116..132]));
-    m
+    crate::cookie::reply(&cookie_key(responder_public), init, cookie, nonce)
 }
 
 /// A session with `key` in both directions, for a test of [`Session::seal`].
@@ -117,6 +98,7 @@ pub fn keys(reserved: [u8; 3]) -> (Keys, [u8; 32]) {
         private: random::<32>(&mut OsEntropy).expect("random bytes"),
         peer_public: x25519_base(&peer_private),
         reserved,
+        preshared: None,
     };
     (keys, peer_private)
 }
@@ -132,6 +114,18 @@ pub async fn start(reserved: [u8; 3], path: DataPath) -> (Keys, SocketAddr) {
     (keys, endpoint)
 }
 
+/// Start the stand-in on the loopback with a new preshared key: the keys of
+/// the client hold it in [`Keys::preshared`].
+pub async fn start_preshared(reserved: [u8; 3], path: DataPath) -> (Keys, SocketAddr) {
+    let (mut keys, peer_private) = self::keys(reserved);
+    let preshared = random::<32>(&mut OsEntropy).expect("random bytes");
+    keys.preshared = Some(preshared);
+    let sock = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = sock.local_addr().unwrap();
+    tokio::spawn(serve_with(sock, peer_private, keys.public(), path, None, Some(preshared)));
+    (keys, endpoint)
+}
+
 /// Start the stand-in on the loopback under load: it answers an initiation
 /// with no mac2 of its cookie with a cookie reply, and an initiation with
 /// it as [`start`] does.
@@ -140,22 +134,24 @@ pub async fn start_under_load(reserved: [u8; 3], path: DataPath) -> (Keys, Socke
     let sock = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
     let endpoint = sock.local_addr().unwrap();
     let cookie = random::<16>(&mut OsEntropy).expect("random bytes");
-    tokio::spawn(serve_with(sock, peer_private, keys.public(), path, Some(cookie)));
+    tokio::spawn(serve_with(sock, peer_private, keys.public(), path, Some(cookie), None));
     (keys, endpoint)
 }
 
 /// Serve the client of `client_public` on `sock`.
 pub async fn serve(sock: tokio::net::UdpSocket, peer_private: [u8; 32], client_public: [u8; 32], path: DataPath) {
-    serve_with(sock, peer_private, client_public, path, None).await
+    serve_with(sock, peer_private, client_public, path, None, None).await
 }
 
-/// Serve as [`serve`] does; with `cookie`, under load.
+/// Serve as [`serve`] does; with `cookie`, under load; with `preshared`,
+/// the preshared key of the client.
 async fn serve_with(
     sock: tokio::net::UdpSocket,
     peer_private: [u8; 32],
     client_public: [u8; 32],
     path: DataPath,
     cookie: Option<[u8; 16]>,
+    preshared: Option<[u8; 32]>,
 ) {
     // For each client address: the send key, the receive key, the index
     // of the client and the send counter.
@@ -177,7 +173,9 @@ async fn serve_with(
                 let _ = sock.send_to(&reply, from).await;
                 continue;
             }
-            let (response, send, recv, _) = respond(&peer_private, &client_public, m);
+            let e_priv = random::<32>(&mut OsEntropy).expect("random bytes");
+            let (response, send, recv, _) =
+                respond_preshared(&peer_private, &client_public, preshared.as_ref(), m, &e_priv, 77);
             let receiver: [u8; 4] = m[4..8].try_into().unwrap();
             sessions.insert(from, (send, recv, receiver, 0u64));
             let _ = sock.send_to(&response, from).await;

@@ -1,6 +1,7 @@
-//! The handshake: Noise IKpsk2 with no pre-shared key (the WireGuard paper,
-//! section 5.4, and wireguard.com/protocol). This side is the initiator: it
-//! sends an initiation, and a response of the peer gives the [`Session`].
+//! The handshake: Noise IKpsk2 (the WireGuard paper, section 5.4, and
+//! wireguard.com/protocol), with the preshared key of [`Keys`] or a zero
+//! key. This side is the initiator: it sends an initiation, and a response
+//! of the peer gives the [`Session`].
 //!
 //! WARP reads bytes 1 to 3 of each message as the `client_id` of a device
 //! (`Keys::reserved`). It writes them after the MAC, and its front door
@@ -38,11 +39,19 @@ pub struct Keys {
     pub peer_public: [u8; 32],
     /// Bytes 1 to 3 of each message (WARP: the `client_id`).
     pub reserved: [u8; 3],
+    /// The preshared key of the two peers (`PresharedKey` of a wg-quick
+    /// file); `None` is the zero key of WireGuard.
+    pub preshared: Option<[u8; 32]>,
 }
 
 impl Keys {
     pub fn public(&self) -> [u8; 32] {
         x25519_base(&self.private)
+    }
+
+    /// The key of the psk step: the preshared key, or zero.
+    pub(crate) fn psk(&self) -> [u8; 32] {
+        self.preshared.unwrap_or([0; 32])
     }
 }
 
@@ -170,9 +179,14 @@ impl Initiation {
         h = hash(&[&h, &e_pub]);
         [c] = kdf::<1>(&c, &x25519(&self.ephemeral, &e_pub));
         [c] = kdf::<1>(&c, &x25519(&keys.private, &e_pub));
-        let [c4, tau, k] = kdf::<3>(&c, &[0u8; 32]);
+        // The psk step of IKpsk2: the initiation does not depend on the
+        // preshared key, the response does.
+        let mut psk = keys.psk();
+        let [c4, tau, k] = kdf::<3>(&c, &psk);
+        psk.zeroize();
         c = c4;
         h = hash(&[&h, &tau]);
+        // A response of a peer with another preshared key fails here.
         open(&k, 0, empty, &h).ok_or(Error::ResponseNotAuthentic)?;
         let [send_key, recv_key] = kdf::<2>(&c, &[]);
         c.zeroize();

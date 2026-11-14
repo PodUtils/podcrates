@@ -1759,7 +1759,6 @@ canonical forms now (`same_peer`, the test
 `an_answer_in_the_mapped_form_is_the_target`, the plant
 `warp-nc-mapped-answer-dropped`).
 
-
 # T-549: `pod-warp`: name the certificate that the front door showed when its key is not the pinned one (PodUtils/podssh#234)
 
 **Source:** PodUtils/podssh#234 (COORD-057 of podssh; PodUtils/podssh@T-585)

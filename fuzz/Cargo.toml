@@ -346,6 +346,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "wg_initiation"
+path = "fuzz_targets/wg_initiation.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "warp_capsule"
 path = "fuzz_targets/warp_capsule.rs"
 test = false
