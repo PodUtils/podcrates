@@ -2240,6 +2240,13 @@ change of the crate; `podnet-relay-v1` and `piping-v1` are tests of it.
 The piping servers and the mailboxes become services of `pod-services`.
 A stand-in of the transit relay for the tests. An interop test against
 the Python magic-wormhole in `live.yml` (PodUtils/podnet@T-106).
+The source of the transfer layer when this entry starts: podnet's
+src/transfer/ at its commit `d5c38c1` (the transfer messages, the transit
+handshake and records, the hints, the zip writer and reader, the receive
+rules of PodUtils/podnet#436); podnet then takes the crate and keeps fixes
+only (PodUtils/podnet#535, ask 5). `Wormhole::derive_key` (T-545) gives
+the transit key, `pod_wormhole::standin` (T-546) the mailbox of the tests,
+and the service `magic-wormhole-transit` (T-548) the TCP transit relay.
 
 ## Prove
 
@@ -6103,8 +6110,7 @@ sh scripts/plant-each.sh wormhole-standin-not-crowded
 
 ## Done
 
-2026-11-14, the commit after 8e70d5f (the subject
-`pod-wormhole: the stand-in mailbox behind the feature standin`).
+2026-11-14, commit dc122c6.
 `pod_wormhole::standin` (feature `standin`): `start()`, `Stand` (`url`,
 `moods`, `tamper`, `nameplates`), `scripted(script)`, `welcome()`; no
 `unwrap` (C296). `tests/harness/` re-exports it; the six test files have
@@ -6119,3 +6125,83 @@ pod-wormhole` with no feature: the 37 unit tests;
 plant `wormhole-standin-not-crowded` fails
 `a_third_end_is_refused_while_two_hold_the_code` on the stand-in (checked
 by hand: "a third end of the code was not refused").
+
+# T-548: `pod-services`: magic-wormhole's TCP transit relay as a service of the kind `transit`, with the watch `transit-relay` (PodUtils/podnet#535)
+
+**Source:** PodUtils/podnet#535 (COORD-072 of podnet), ask 4.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`pod-services` lists the WebSocket transit relay of Least Authority only.
+magic-wormhole's default transit relay is
+`tcp:transit.magic-wormhole.io:4001`. podnet asks for it as a `transit`
+service (with its measurement), so that podnet adds no host of its own
+(podnet's ruling: Services crate).
+
+## Premise
+
+- Read 2026-11-14: magic-wormhole/magic-wormhole:src/wormhole/cli/public_relay.py
+  at `657bd5d51c67db2109219ff57b7d997afa57261f`, `TRANSIT_RELAY =
+  "tcp:transit.magic-wormhole.io:4001"`;
+  magic-wormhole/magic-wormhole-transit-relay:src/wormhole_transit_relay/transit_server.py
+  at `6d50be62c118df74d8f0a042662fbc407dfd5849`: each end sends
+  `please relay TOKEN for side SIDE\n` (TOKEN 64 hex digits, SIDE 16); the
+  relay answers `ok\n` to both when the two ends of a token come, then
+  carries the bytes of each to the other.
+- `crates/pod-services/services/leastauthority-transit.toml`: the kind
+  `transit`, the endpoint `relay` (`wss`), the watch `websocket-upgrade`;
+  the kind has no table of facts. No watch kind speaks the handshake of a
+  transit relay.
+- Not measured: the relay from a GitHub runner (the egress of this
+  session is an HTTPS proxy; the first run of `services.yml` measures it).
+  The watch was run against magic-wormhole-transit-relay 0.5.0 on the
+  loopback.
+
+## Approach
+
+`services/magic-wormhole-transit.toml`: the endpoint `relay` (`tcp`,
+`transit.magic-wormhole.io`, 4001), no rank, the watches `github-file`
+(`public_relay.py` names the host) and `transit-relay`. The new watch kind
+`transit-relay` is both ends: two connections of one random token each get
+`ok`, and a line of the run from the first comes out of the second. The
+kind `transit` gets a table in `schema::kind_facts`: the endpoint `relay`,
+no fact; the scheme of the endpoint tells TCP from WebSocket (call C297).
+Tests against a transit relay of the test, against bad relays, and against
+magic-wormhole's own relay in `scripts/ci/mailbox-tests.sh`. The plant
+`services-transit-bytes-not-compared`. A row L40 in `docs/live-calls.md`.
+
+## Prove
+
+```sh
+cargo test -p pod-services -p pod-services-watch --all-features
+sh scripts/plant-each.sh services-transit-bytes-not-compared
+cargo run -q -p pod-services-watch -- --service magic-wormhole-transit
+```
+
+## Done
+
+2026-11-14, the commit after dc122c6 (the subject
+`pod-services: magic-wormhole's TCP transit relay`). The service
+`magic-wormhole-transit` (kind `transit`; `relay`: `tcp`,
+`transit.magic-wormhole.io`, 4001; no rank), the watch kind
+`transit-relay` (`crates/pod-services-watch/src/transit.rs`), the table of
+the kind `transit` (C297), the row L40 of `docs/live-calls.md`.
+`cargo test -p pod-services -p pod-services-watch --all-features`: 97 and
+73 passed. `tests/watches/transit.rs`:
+`transit_relay_pairs_two_ends_and_carries_the_bytes_of_one_to_the_other`
+(a relay of the test holds; relays that carry nothing, carry other bytes
+or answer `impatient`, and an endpoint of `wss`, fail with their words);
+`transit_relay_holds_against_magic_wormholes_own_relay` passed against
+magic-wormhole-transit-relay 0.5.0 on the loopback
+(`POD_WORMHOLE_TEST_SERVER=required`). The plant
+`services-transit-bytes-not-compared` fails the first test (checked by
+hand). `cargo run -q -p pod-services-watch -- --service
+magic-wormhole-transit` here: `github-file` holds (`public_relay.py` holds
+the host); `transit-relay` failed with a reset after the dial, as the
+egress proxy of this session takes no TCP to port 4001. The first run of
+`services.yml` on a GitHub runner is the live measurement.

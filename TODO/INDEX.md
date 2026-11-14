@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**427 entries: 112 open, 8 partial, 5 blocked, 302 done.**
+**428 entries: 112 open, 8 partial, 5 blocked, 303 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 3 | 0 | 82 | 96 |
-| P2 | 53 | 3 | 4 | 162 | 222 |
+| P2 | 53 | 3 | 4 | 163 | 223 |
 | P3 | 48 | 2 | 1 | 56 | 107 |
-| **All** | 112 | 8 | 5 | 302 | 427 |
+| **All** | 112 | 8 | 5 | 303 | 428 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -474,3 +474,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-545](relay.md) | P1 | S | M2 | feature | done | `pod-wormhole`: `Wormhole::derive_key`, magic-wormhole's derived key, for the transit key of podnet's transfer (PodUtils/podnet#535) |
 | [T-546](relay.md) | P2 | S | M2 | feature | done | `pod-wormhole`: the stand-in mailbox behind the feature `standin`, for the tests of a consumer (PodUtils/podnet#535) |
 | [T-547](relay.md) | P2 | S | M2 | feature | done | `pod-wormhole`: the count of words of a new code in `Config`, as magic-wormhole's `--code-length` (PodUtils/podnet#535) |
+| [T-548](relay.md) | P2 | S | M2 | feature | done | `pod-services`: magic-wormhole's TCP transit relay as a service of the kind `transit`, with the watch `transit-relay` (PodUtils/podnet#535) |

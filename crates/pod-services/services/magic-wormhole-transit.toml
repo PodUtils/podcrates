@@ -1,0 +1,29 @@
+# magic-wormhole's public transit relay over TCP on port 4001: the default
+# relay of its file transfer (`--transit-helper`), and of podnet's transfer
+# (PodUtils/podnet#535). The two ends of a transfer that cannot reach each
+# other meet here by one token, and the relay carries their bytes; the ends
+# seal each record, so the relay sees the sizes and the times. No account.
+id = "magic-wormhole-transit"
+kind = "transit"
+party = "magic-wormhole (its author's server)"
+about = "The public transit relay of magic-wormhole, over TCP on port 4001"
+
+[[endpoint]]
+name = "relay"
+scheme = "tcp"
+host = "transit.magic-wormhole.io"
+port = 4001
+source = { url = "https://github.com/magic-wormhole/magic-wormhole/blob/657bd5d51c67db2109219ff57b7d997afa57261f/src/wormhole/cli/public_relay.py", read = 2026-11-14, note = "TRANSIT_RELAY = \"tcp:transit.magic-wormhole.io:4001\"" }
+
+# The default branch of magic-wormhole still names the host.
+[[watch]]
+kind = "github-file"
+repo = "magic-wormhole/magic-wormhole"
+path = "src/wormhole/cli/public_relay.py"
+endpoint = "relay"
+
+# Two ends of one token are paired and carry bytes (the handshake of
+# magic-wormhole-transit-relay's transit_server.py at 6d50be6).
+[[watch]]
+kind = "transit-relay"
+endpoint = "relay"

@@ -12,5 +12,6 @@ mod files;
 mod forward;
 mod http;
 mod ssh;
+mod transit;
 mod ws;
 mod xhttp;
