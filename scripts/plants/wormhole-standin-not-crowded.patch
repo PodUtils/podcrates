@@ -1,0 +1,13 @@
+diff --git a/crates/pod-wormhole/src/standin.rs b/crates/pod-wormhole/src/standin.rs
+--- a/crates/pod-wormhole/src/standin.rs
++++ b/crates/pod-wormhole/src/standin.rs
+@@ -209,9 +209,6 @@
+         }
+         "claim" => {
+             let plate = space.plates.entry(text("nameplate")).or_default();
+-            if !plate.0.contains(&side) && plate.0.len() >= 2 {
+-                return error("crowded", command);
+-            }
+             plate.0.insert(side);
+             let id = format!("mb{}", text("nameplate"));
+             space.boxes.entry(id.clone()).or_default();

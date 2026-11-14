@@ -4,4 +4,4 @@
 ENTRY=T-547
 GROUP=wormhole
 EXPECT='test a_code_of_the_words_asked_for_meets_and_a_count_out_of_bounds_reaches_no_mailbox \.\.\. FAILED'
-RUN='cargo test -p pod-wormhole --test mailbox -- a_code_of_the_words_asked_for_meets_and_a_count_out_of_bounds_reaches_no_mailbox'
+RUN='cargo test -p pod-wormhole --features standin --test mailbox -- a_code_of_the_words_asked_for_meets_and_a_count_out_of_bounds_reaches_no_mailbox'

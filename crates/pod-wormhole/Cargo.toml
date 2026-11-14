@@ -7,12 +7,20 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+# The stand-in mailbox on the loopback (src/standin.rs): for the tests of
+# this crate and of a consumer; no binary needs it.
+standin = ["dep:pod-proxy", "tokio/net", "tokio/io-util", "tokio/sync", "tokio/rt"]
+
 [dependencies]
 # The failure with its stage and class, the events, the entropy, the text
 # made safe to print.
 pod-core = { workspace = true, features = ["async"] }
-# The WebSocket to the mailbox, through the caller's way out.
+# The WebSocket to the mailbox, through the caller's way out; the server
+# half for the stand-in.
 pod-ws = { workspace = true }
+# The head of an upgrade, for the stand-in.
+pod-proxy = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["time"] }
 serde_json = { workspace = true }
 # Pure Rust, no C. SPAKE2 of the RustCrypto PAKEs, on the curve25519-dalek 4
@@ -35,3 +43,28 @@ rustls = { workspace = true, features = ["ring"] }
 # The public mailboxes of the live test.
 pod-services = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }
+
+# The tests that run a mailbox on the loopback: the stand-in.
+[[test]]
+name = "board"
+required-features = ["standin"]
+
+[[test]]
+name = "board_live"
+required-features = ["standin"]
+
+[[test]]
+name = "broker"
+required-features = ["standin"]
+
+[[test]]
+name = "faults"
+required-features = ["standin"]
+
+[[test]]
+name = "live"
+required-features = ["standin"]
+
+[[test]]
+name = "mailbox"
+required-features = ["standin"]

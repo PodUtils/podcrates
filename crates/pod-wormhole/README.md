@@ -33,6 +33,7 @@ caller's protocol over a `Wormhole`; the exchange of podssh goes to
 | `words` | the PGP word list (`EVEN`, `ODD`, `list`, `word`, `find`) |
 | `message` | the pure reading of a mailbox's messages: `object`, `message_of`, `pake_of`, `words`, `hex`, `unhex`, `Message`, `WORDS_MOST` |
 | `failed` | `Failed` (`Unreachable`, `Refused`, `Expired`, `Nobody`, `WrongCode`, `Peer`, `Mine`, `Broken`, `NoRandom`), `stage_and_class()`, `From<Failed> for pod_core::Failure` |
+| `standin` (feature `standin`) | a mailbox on the loopback that speaks the server protocol of version 1: `start()` gives a `Stand` (`url`, `moods`, `tamper(phase)`, `nameplates(appid)`; dropped, it stops); `scripted(script)` gives one upgraded connection to a script; `welcome()` |
 
 A giver calls `opened`, shows the code (`Code::for_terminal`), calls
 `Wormhole::agree` and `confirm`, then sends and receives phases; a taker
@@ -100,7 +101,12 @@ that a stranger cannot guess.
 
 ## Features
 
-None. The crate is pure Rust (SPAKE2 of the RustCrypto PAKEs on
+| Feature | What |
+| --- | --- |
+| none (default) | the client |
+| `standin` | `standin`: the stand-in mailbox on the loopback, for the tests of this crate and of a consumer (`pod-relay`'s, podnet's); a consumer turns it on in `[dev-dependencies]`; no binary needs it (`scripts/check-probe.py`, ALLOWED) |
+
+The crate is pure Rust (SPAKE2 of the RustCrypto PAKEs on
 curve25519-dalek 4, `crypto_secretbox`, HKDF and SHA-2): no C, and it links
 static on each target. The WebSocket and its way out are `pod-ws`'s.
 
@@ -156,7 +162,7 @@ Against podssh `crates/podssh-relay/src/code/` at `c5636c9`:
 | [x] `crate::open::CONNECT_TIMEOUT`, `ProxyChoice` | `Config::connect_timeout`, `Config::way` |
 | [x] `OsEntropy` | `pod_core::entropy::OsEntropy`; a draw that fails is `Failed::NoRandom`, never a weaker scalar |
 | [x] The tests of the five files, each with its name | the unit tests of the modules; the three tests of the Python library lose the word podssh in their names |
-| [x] `tests/mailbox_harness`, `scripts/wormhole-peer.py` | `tests/harness/` (the Python server and peer), with a stand-in mailbox in Rust (`tests/harness/stand_in.rs`) |
+| [x] `tests/mailbox_harness`, `scripts/wormhole-peer.py` | `tests/harness/` (the Python server and peer), with a stand-in mailbox in Rust (`src/standin.rs`, feature `standin`) |
 | [ ] The tests of `tests/pair_code.rs` that run the exchange; the role's mailbox | `pod-relay`, `pod-relay-serve` |
 | [x] No fuzz target in podssh | the target `mailbox_message` in `fuzz/` |
 
@@ -189,14 +195,18 @@ Differences from the source, each with a test:
 | podssh | none (PodUtils/podssh@T-737, new) | `pod_wormhole::mqtt::{opened, joined}` when no mailbox answers, with `Brokers` of the services of the kind `mqtt-broker` (`endpoint("broker")`, the facts `user` and `password`); `PODSSH_MQTT=no` and the line that names the third party are podssh's |
 | podssh | none (PodUtils/podssh@T-738, new) | `pod_wormhole::mqtt::Board` (`put`, `take`, `clear`) at the brokers of the kind `mqtt-broker`, for the URL of each piece of the resumable layer as a sealed note; the host of each piece is a service of the kind `file-host` of `pod-services` |
 | podnet | none: podnet has no wormhole code | its transfer (T-102) takes `pod-wormhole` with its own `Config` (`appid`, `"podnet"`, its `Way`) |
+| podnet | `tests/transfer_harness/mod.rs`, its own stand-in mailbox | `pod_wormhole::standin` (`[dev-dependencies]`, feature `standin`) |
+| podnet | a random transit key in its sealed `transit` message | `Wormhole::derive_key("APPID/transit-key", 32)`, as magic-wormhole's transfer |
+| podnet | a code of 3 words | `Config::words` for `--words N` |
 
 The adoption trial is `adoption/podssh/pod-wormhole.patch` with its `.run`,
 `.commit` and `.needs` (it applies after `pod-quic`'s patch).
 
 ## Tests
 
-`cargo test -p pod-wormhole`. The tests run on the loopback
-(`need_loopback!`): the wormhole over a stand-in mailbox in Rust and, where
+`cargo test -p pod-wormhole --features standin` (each test file but the
+unit tests needs the feature). The tests run on the loopback
+(`need_loopback!`): the wormhole over the stand-in mailbox in Rust and, where
 Python has `magic-wormhole-mailbox-server` and `magic-wormhole`, over
 magic-wormhole's own server, with a peer of its own library giving and
 taking the code. Both ends derive one key for a purpose; the peer of the
@@ -224,14 +234,14 @@ and clears a note at each public broker (`live.yml`, each Thursday).
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install magic-wormhole-mailbox-server magic-wormhole
-POD_WORMHOLE_TEST_PYTHON=.venv/bin/python POD_WORMHOLE_TEST_SERVER=required cargo test -p pod-wormhole
+POD_WORMHOLE_TEST_PYTHON=.venv/bin/python POD_WORMHOLE_TEST_SERVER=required cargo test -p pod-wormhole --features standin
 ```
 
 The plants `wormhole-version-unchecked`, `wormhole-held-unbounded`,
 `wormhole-mqtt-topic-constant`, `wormhole-mqtt-no-resend`,
 `wormhole-board-clear-not-retained`, `wormhole-board-clear-not-empty`,
-`wormhole-derived-key-salted` and `wormhole-code-words-fixed`
-(`scripts/plants/`) prove seven of the tests. The fuzz target
+`wormhole-derived-key-salted`, `wormhole-code-words-fixed` and
+`wormhole-standin-not-crowded` (`scripts/plants/`) prove eight of the tests. The fuzz target
 `mailbox_message` runs the pure reading of a mailbox's messages and the
 parser of a typed code; `mqtt_packet` runs the codec of MQTT and the topic.
 

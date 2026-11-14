@@ -34,7 +34,7 @@ while True:
         time.sleep(0.5)
 EOF
 out=$(POD_WORMHOLE_TEST_MQTT=required POD_WORMHOLE_TEST_BROKER="ws://127.0.0.1:$port/mqtt" \
-    cargo test --locked -p pod-wormhole --test broker --test board -- --nocapture 2>&1) || { printf '%s\n' "$out"; exit 1; }
+    cargo test --locked -p pod-wormhole --features standin --test broker --test board -- --nocapture 2>&1) || { printf '%s\n' "$out"; exit 1; }
 printf '%s\n' "$out"
 if ! printf '%s\n' "$out" | grep -q '^Eclipse Mosquitto: two ends paired'; then
     echo "mosquitto-tests: no test paired two ends through Mosquitto" >&2

@@ -1,5 +1,5 @@
-//! The mailboxes of the tests, on the loopback: a stand-in in Rust
-//! ([`stand_in`]), magic-wormhole's own mailbox server (magic-wormhole-
+//! The mailboxes of the tests, on the loopback: the stand-in in Rust of the
+//! feature `standin` ([`stand_in`]), magic-wormhole's own mailbox server (magic-wormhole-
 //! mailbox-server, in Python, on Twisted and Autobahn), and a peer of
 //! magic-wormhole's own Python library (`wormhole-peer.py`). The Python ones
 //! are software that this crate did not write. A host with no Python, or
@@ -30,7 +30,33 @@ use pod_wormhole::Config;
 use pod_ws::url::WsUrl;
 
 pub mod broker;
-pub mod stand_in;
+
+/// The stand-in of the feature `standin`, each start a failure of the test
+/// when the loopback gives no port.
+pub mod stand_in {
+    use std::future::Future;
+
+    use pod_ws::RelaySession;
+    use pod_ws::url::WsUrl;
+    use tokio::net::TcpStream;
+    use tokio::task::JoinHandle;
+
+    pub use pod_wormhole::standin::*;
+
+    /// A stand-in on a free port of the loopback.
+    pub async fn start() -> Stand {
+        pod_wormhole::standin::start().await.expect("a port of the loopback")
+    }
+
+    /// A listener that gives its first connection, upgraded, to `script`.
+    pub async fn scripted<F, Fut>(script: F) -> (WsUrl, JoinHandle<()>)
+    where
+        F: FnOnce(RelaySession<TcpStream>) -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
+        pod_wormhole::standin::scripted(script).await.expect("a port of the loopback")
+    }
+}
 
 /// How long a server may take to listen, and a peer to say a line.
 pub const LIMIT: Duration = Duration::from_secs(60);

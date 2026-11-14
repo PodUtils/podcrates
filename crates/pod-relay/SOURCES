@@ -26,7 +26,8 @@ taken 0872c2c61df2eb7f948bf4c8ba2755aae86f440b
 # reverse_restart.rs and http_road.rs run the relay role (serve/): they go
 # with pod-relay-serve. tests/e2e_harness/mod.rs is pod-e2e's adapted copy
 # of podssh's harness; tests/mailbox_harness/ is pod-wormhole's harness
-# with no peer (podssh's ran the role's mailbox); tests/support/ is new.
+# with no peer (podssh's ran the role's mailbox), over the stand-in of
+# pod-wormhole's feature `standin`; tests/support/ is new.
 dir crates/podssh-relay/src/pool
 dir crates/podssh-relay/src/forward_layer
 dir crates/podssh-relay/src/pair

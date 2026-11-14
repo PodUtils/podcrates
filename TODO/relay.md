@@ -6035,8 +6035,7 @@ sh scripts/plant-each.sh wormhole-code-words-fixed
 
 ## Done
 
-2026-11-14, the commit after 8924ae3 (the subject
-`pod-wormhole: the count of words of a new code`). `Config::words`
+2026-11-14, commit 8e70d5f. `Config::words`
 (default `WORDS`, 3); `Code::make(nameplate, words, entropy)`;
 `phrase::check_words` (2 to 8, else `Failed::Mine`); `meet::opened` and
 `mqtt::opened` refuse a count out of bounds before a dial (C295).
@@ -6050,3 +6049,73 @@ to 8 is made and parsed back; 0, 1 and 9 are refused);
 `a_code_of_the_words_asked_for_pairs_at_a_broker_and_a_count_out_of_bounds_reaches_none`
 (6 words over the stand-in broker). The plant `wormhole-code-words-fixed`
 fails the test of the mailboxes (checked by hand: "left: 3, right: 5").
+
+# T-546: `pod-wormhole`: the stand-in mailbox behind the feature `standin`, for the tests of a consumer (PodUtils/podnet#535)
+
+**Source:** PodUtils/podnet#535 (COORD-072 of podnet), ask 2.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The stand-in mailbox of `pod-wormhole` is private to its tests, and
+`pod-testkit` has none. podnet wrote its own
+(podnet's tests/transfer_harness/mod.rs). podnet asks for one behind a
+feature (for example `standin`), as `pod-wg` and `pod-devtunnel` do.
+
+## Premise
+
+- Read: `crates/pod-devtunnel/Cargo.toml` and `crates/pod-wg/Cargo.toml`
+  (a feature `standin`, a module `src/standin.rs` under
+  `#[cfg(feature = "standin")]`, the tests that need it under
+  `required-features`); `scripts/check-probe.py` (each feature is in a
+  static probe or in ALLOWED: the probe turns on `standin` of `pod-wg` and
+  `pod-devtunnel`, as it runs a client against them).
+- The stand-in of the tests of this crate (tests/harness/stand_in.rs at
+  `8e70d5f`) uses `pod-proxy` (the head of the upgrade), the server half
+  of `pod-ws`, and tokio's `net`, `io-util`, `sync` and `rt`. Each test
+  file of the crate includes the harness. `pod-relay` keeps a copy of the
+  same file (`crates/pod-relay/tests/mailbox_harness/`).
+
+## Approach
+
+`src/standin.rs` under the feature `standin` (the optional `pod-proxy` and
+tokio's features): `start()` and `scripted(script)` give an `io::Result`,
+and no call panics (call C296). The harness of the tests re-exports it with
+wrappers that fail the test; each test file has `required-features =
+["standin"]`, and the plants and `scripts/ci/mosquitto-tests.sh` run with
+`--features standin`. `pod-relay`'s harness takes it as a dev-dependency in
+place of its copy. `scripts/check-probe.py`: ALLOWED, as no binary needs it.
+The plant `wormhole-standin-not-crowded` lets a third side claim a
+nameplate on the stand-in.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --features standin
+cargo test -p pod-relay --all-features --test pair_code
+python3 scripts/check-probe.py
+sh scripts/plant-each.sh wormhole-standin-not-crowded
+```
+
+## Done
+
+2026-11-14, the commit after 8e70d5f (the subject
+`pod-wormhole: the stand-in mailbox behind the feature standin`).
+`pod_wormhole::standin` (feature `standin`): `start()`, `Stand` (`url`,
+`moods`, `tamper`, `nameplates`), `scripted(script)`, `welcome()`; no
+`unwrap` (C296). `tests/harness/` re-exports it; the six test files have
+`required-features = ["standin"]`; the plants of the group `wormhole` and
+`scripts/ci/mosquitto-tests.sh` run with `--features standin`.
+`pod-relay`'s `tests/mailbox_harness/` takes it as a dev-dependency, and its
+copy is gone. `python3 scripts/check-probe.py --no-tree`: 0 faults (the
+feature is in ALLOWED). `cargo test -p pod-wormhole --all-features` with
+magic-wormhole's mailbox server: 78 passed, 3 ignored; `cargo test -p
+pod-wormhole` with no feature: the 37 unit tests;
+`cargo test -p pod-relay --all-features --test pair_code`: 10 passed. The
+plant `wormhole-standin-not-crowded` fails
+`a_third_end_is_refused_while_two_hold_the_code` on the stand-in (checked
+by hand: "a third end of the code was not refused").

@@ -5,4 +5,4 @@
 ENTRY=T-417
 GROUP=wormhole
 EXPECT='test a_board_puts_takes_and_clears_a_note \.\.\. FAILED'
-RUN='cargo test -p pod-wormhole --test board -- a_board_puts_takes_and_clears_a_note --exact'
+RUN='cargo test -p pod-wormhole --features standin --test board -- a_board_puts_takes_and_clears_a_note --exact'

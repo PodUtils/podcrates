@@ -4,4 +4,4 @@
 ENTRY=T-022
 GROUP=wormhole
 EXPECT='test a_mailbox_that_sends_more_than_it_was_asked_for_ends_the_exchange \.\.\. FAILED'
-RUN='cargo test -p pod-wormhole --test faults -- a_mailbox_that_sends_more_than_it_was_asked_for_ends_the_exchange'
+RUN='cargo test -p pod-wormhole --features standin --test faults -- a_mailbox_that_sends_more_than_it_was_asked_for_ends_the_exchange'

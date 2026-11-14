@@ -4,4 +4,4 @@
 ENTRY=T-261
 GROUP=wormhole
 EXPECT='test a_message_on_the_topic_of_another_code_is_not_delivered \.\.\. FAILED'
-RUN='cargo test -p pod-wormhole --test broker -- a_message_on_the_topic_of_another_code_is_not_delivered --exact'
+RUN='cargo test -p pod-wormhole --features standin --test broker -- a_message_on_the_topic_of_another_code_is_not_delivered --exact'
