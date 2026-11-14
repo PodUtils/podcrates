@@ -26,8 +26,8 @@ impl Elf {
         let (msb, class64) = (r.msb, r.class64);
         let machine = r.machine().ok_or_else(|| why("truncated header".into()))?;
         let sections = r.sections().ok_or_else(|| {
-            why("no section table could be read. refused: an object that cannot be \
-                 checked is not preloaded"
+            why("no section table could be read. An object that cannot be checked \
+                 is not preloaded"
                 .into())
         })?;
         let interp = r.interp().map_err(why)?;

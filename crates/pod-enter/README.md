@@ -66,6 +66,9 @@ The entries:
 * The reader of ELF files (`abi`): the C library of an image from the
   `PT_INTERP` of the payload, the `DT_NEEDED` closure of an object, and
   the check of a preload against the symbols and versions of `.dynsym`.
+  The reason of a `Verdict::Refused` and of an `Unreadable` carries no
+  verdict word (`refused:`, `note:`): the caller adds its label. A static
+  object (no `DT_NEEDED`) gets a refusal that names the static link.
 
 Each entry can confine its payload (`Plan::confine`, a `pod_confine::Spec`:
 Landlock rules for the paths and the TCP ports, a seccomp deny filter and
@@ -265,4 +268,8 @@ plants `enter-confine-not-applied`,
 `enter-ns-join-skipped`, `enter-ns-pts-unbound`,
 `enter-overlay-lower-as-root`, `enter-overlay-falls-back` and
 `enter-overlay-join-as-tree`
-(`scripts/plants/`) prove the checks.
+(`scripts/plants/`) prove the checks. `abi::tests::labels` checks that no
+reason of `admits`, `admits_set` and `Unreadable` holds a label of a
+printer, and that a static object is refused as static; the plants
+`enter-abi-reason-carries-a-label` and
+`enter-abi-static-object-has-no-reason` prove it.

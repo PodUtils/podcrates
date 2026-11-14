@@ -1,0 +1,12 @@
+diff --git a/crates/pod-enter/src/abi.rs b/crates/pod-enter/src/abi.rs
+--- a/crates/pod-enter/src/abi.rs
++++ b/crates/pod-enter/src/abi.rs
+@@ -289,7 +289,7 @@
+         };
+         return refuse(format!(
+             "{} names {} in DT_NEEDED, {built} this rootfs carries {} ({}). \
+-             A preloaded object is loaded by the payload's OWN loader and \
++             refused: A preloaded object is loaded by the payload's OWN loader and \
+              resolves its imports against the payload's libc, so this one \
+              cannot serve it",
+             object.path,

@@ -106,7 +106,7 @@ impl<'a> Src<'a> {
         over.get().then(|| {
             format!(
                 "its tables need more than the {READ_CEILING} bytes that the reader holds for one file. \
-                 refused: an object that cannot be checked is not preloaded"
+                 An object that cannot be checked is not preloaded"
             )
         })
     }

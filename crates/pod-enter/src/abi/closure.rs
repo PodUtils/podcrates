@@ -179,6 +179,11 @@ fn find(
 /// file that the reference names, and its name against every member. A
 /// refusal names the provider that would satisfy the import.
 pub fn admits_set(object: &Elf, set: &LinkSet) -> Verdict {
+    // Before the C library of the set: a static object needs none, so "no C
+    // library" would name the wrong cause.
+    if let Some(v) = static_gate(object) {
+        return v;
+    }
     let Some(libc) = set.libc() else {
         return Verdict::Refused(format!(
             "the link set read inside the image for {} holds no C library ({})",
@@ -207,7 +212,7 @@ pub fn admits_set(object: &Elf, set: &LinkSet) -> Verdict {
                 };
                 return Verdict::Refused(format!(
                     "{} imports `{}` at version `{v}` from {}, and {who} declares {}. \
-                     refused: the loader checks the version against that file",
+                     The loader checks the version against that file",
                     object.path,
                     want.name,
                     from.unwrap_or("the link set"),
@@ -222,8 +227,8 @@ pub fn admits_set(object: &Elf, set: &LinkSet) -> Verdict {
         if !set.defines(want) {
             return Verdict::Refused(format!(
                 "{} imports `{}`{}{}, which no library of the link set defines ({}). \
-                 note: Read from .dynsym: a shipped library is stripped and its \
-                 .symtab defines nothing",
+                 The check reads .dynsym, because a shipped library is stripped \
+                 and its .symtab defines nothing",
                 object.path,
                 want.name,
                 at.map(|v| format!(" at version `{v}`")).unwrap_or_default(),

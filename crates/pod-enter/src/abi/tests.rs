@@ -1,6 +1,8 @@
 use super::*;
 use std::os::unix::process::CommandExt;
 
+pub(super) mod labels;
+
 /// `resolve_in` never lists a directory that it gets.
 ///
 /// The test stages a root file system whose directories deny a listing

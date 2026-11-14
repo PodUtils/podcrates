@@ -5980,3 +5980,83 @@ tells the filter's answer from the kernel's. Plants, each caught by hand:
 `hold-t544-raw-not-denied` (the held test) and
 `hold-t544-type-flags-kept` (the BPF test). `check-windows.sh` and
 `check-macos.sh`: 0 faults.
+
+# T-568: `pod-enter`: a reason of `abi` carries its own verdict label, and a static object reads "names  in DT_NEEDED" (PodUtils/podvm#331)
+
+**Source:** PodUtils/podvm#331 (COORD-091 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The reason of `Verdict::Refused(String)` is a sentence, and each printer
+adds its own label: podvm's `system abi` prints `refused: {why}`, and its
+interposer tier prints `podvm {verb}: interpose: declined for {argv0:?}:
+{why}`. Six reasons of `crates/pod-enter/src/abi.rs` and
+`crates/pod-enter/src/abi/closure.rs` hold a label of their own
+(`. refused: ...`, `. note: Read from .dynsym: ...`), so the output says
+"refused" two times, or "declined" and then "refused". podvm measured:
+
+```
+refused: /workspace/bin/podvm names  in DT_NEEDED, so it was built against unknown, and this rootfs carries glibc (/usr/lib/libc.so.6). refused: A preloaded object is loaded by the payload's OWN loader and resolves its imports against the payload's libc, so this one cannot serve it
+```
+
+A static object (no `DT_NEEDED`) gives `names  in DT_NEEDED` (the join of
+an empty list) and "built against unknown", which sends the reader to look
+for a libc and not at the static link.
+
+## Premise
+
+- Read: `crates/pod-enter/src/abi.rs` (`admits`, `pair_gates`),
+  `crates/pod-enter/src/abi/closure.rs` (`admits_set`, `link_set`),
+  `crates/pod-enter/src/abi/elf.rs` and `crates/pod-enter/src/abi/image.rs`
+  (the reasons of `Unreadable`).
+- Not measured here: podvm's printers. The report quotes them.
+
+## Approach
+
+Remove each label inside a reason and keep each sentence whole. A static
+object gets its own refusal (`static_gate`), in `admits` after the
+architecture and in `admits_set` before the C library of the set. Needs
+that name no C library say so, not "built against unknown". Tests: no
+reason of each path holds `refused:`, `note:` or `declined:`, or a gap of
+two spaces; the static case names the static link. Two plants.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --lib abi::
+sh scripts/plant-each.sh enter-abi-reason-carries-a-label enter-abi-static-object-has-no-reason
+```
+
+## Done
+
+2026-11-14. The commit that names T-568.
+
+- The six reasons of the report lose their label; each sentence stays
+  whole (`. This is a build host ...`, `. The check reads .dynsym, because
+  ...`, `. An object that cannot be checked ...`, `. A preloaded object
+  ...`, `. The loader checks the version ...`). The two reasons of
+  `Unreadable` (`elf.rs`, `image.rs`) lose their `refused:` too (C335).
+- `static_gate`: an object with no `DT_NEEDED` is refused with "names no
+  library in DT_NEEDED, so it is linked statically. No C library serves
+  it, and a preloaded object cannot serve it either: a static program has
+  no loader that loads one". `admits` runs it after the architecture,
+  `admits_set` before the C library of the set. Needs that name no C
+  library read "and no known C library is among them", not "built against
+  unknown".
+- Tests (`abi::tests::labels`): `a_static_object_is_refused_as_static`,
+  `no_refusal_of_admits_carries_a_label` (the architecture, an unknown
+  libc, the family, needs with no libc, the version, the symbol),
+  `no_reason_of_an_unreadable_object_carries_a_label`; in
+  `abi::closure::tests`: `a_static_object_is_refused_as_static_against_a_link_set`,
+  and the version and definition refusals of `admits_set` check the labels.
+  `cargo test -p pod-enter --all-features`: 181 passed in the library, and
+  each other target passed.
+- Plants: `enter-abi-reason-carries-a-label` (`refused:` back in the
+  family refusal) fails `no_refusal_of_admits_carries_a_label`;
+  `enter-abi-static-object-has-no-reason` (no static gate) fails
+  `a_static_object_is_refused_as_static`. Each was applied and run by hand.
