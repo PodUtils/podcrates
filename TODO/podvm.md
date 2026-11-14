@@ -5533,7 +5533,7 @@ The answer on PodUtils/podvm#291 goes with the tag that holds `report`.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5572,6 +5572,57 @@ directory writable must fail the first test.
 ```sh
 cargo test -p pod-enter --all-features
 ```
+
+## Done
+
+2026-11-14, commit `4ff6441`. `pod-enter` has the overlay root of the
+namespace rung (calls C305, C306, C307): `Root::{Tree(&RootDir),
+Overlay { lower, upper }}`, `Upper::{Tmpfs { size }, Dir { upper, work }}`,
+`spawn_namespace_root`, `run_namespace_root`, `spawn_joined_root`
+(`spawn_namespace` and `spawn_joined` stay for a tree). The child sets its
+working directory to the held lower descriptor before the unshare,
+mounts a tmpfs (`size=N,mode=0700`) on the root path, makes `upper` (with
+the mode and owner of the lower root) and `work` in it, and mounts
+overlayfs on the root path with `lowerdir=.` and the escaped upper and
+work paths (`overlay_options`, `overlay_escape`). The rung then mounts its
+tmpfs on `/tmp`, its proc and its bind of `/dev/pts` in the overlay, and
+the landing check asks for `OVERLAYFS_SUPER_MAGIC` on a device that is
+not the device of the lower directory. Each refusal is
+`Error::Overlay { step, errno }` (`the overlay root was refused at STEP:
+ERRNO; the payload did not run`, `Class::Unsupported`); there is no
+fallback to chroot. `pod-hostprobe::sys` has `mount_data`,
+`Statfs::f_type`, `OVERLAYFS_SUPER_MAGIC` and `PROC_SUPER_MAGIC`. A
+finding fixed in place: a descriptor opened in the old mount namespace
+does not mount as a lower layer in the new one (`overlayfs: failed to
+clone lowerpath`), so the working directory moves before the unshare.
+`userland_workdir` moved to `userland.rs` to keep `launch.rs` under 500
+lines.
+
+The proof on this host (Linux 6.18, ext4, as root; an overlay mount in a
+user namespace, `unshare -Urm`, works here too): `tests/confine.rs` runs
+16 tests with no skip. The new ones: a payload that writes a file,
+changes and removes files of the image and makes a directory under `/`
+(the path of the image holds `,` and `:`) sees each change, the image
+keeps its digest (mode, owner, size, link target and bytes of each path),
+and a second run sees the image as it was; a lower directory under the
+most overlays that the kernel stacks gives `Error::Overlay` at `mounting
+overlay on the root: EINVAL`, and the payload does not run; a joined
+entry sees the writes of the running payload, and with the pidfd of a
+process that ended enters an overlay root of its own. podvm's acceptance
+test (PodUtils/podvm#323) is `tests/overlay_root.rs` (call C307: the
+adapter calls `run_namespace_root` with `Upper::Dir`, an inner
+`#![cfg]`, `vec!`). It passes with the static busybox of Ubuntu's
+`busybox-static`, and skips with a line `SKIP:` with no static busybox or
+where the rung refuses. 5 unit tests (the escape, the options, the step
+names, the refusal, a relative upper directory) and a test of
+`Statfs::f_type`. `scripts/ci/root-enter-confine-tests.sh` runs both
+binaries as root and fails on a skip line; `ci.yml` and `plants.yml`
+install `busybox-static`. The plants `enter-overlay-lower-as-root` (a
+bind of the lower directory in place of the overlay),
+`enter-overlay-falls-back` (chroot on the lower directory at a refusal)
+and `enter-overlay-join-as-tree` (the join checks the landing of a tree)
+each fail their test; `enter-ns-join-skipped` follows the new form of
+`NsEntry::Join`.
 
 # T-491: `pod-enter`: a fresh proc on the `/proc` of the image in the namespace rung (PodUtils/podvm#296)
 
