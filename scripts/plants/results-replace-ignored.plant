@@ -1,0 +1,7 @@
+# The store of a rerun keeps an artifact of the same name: a job that runs
+# again fails its upload with 409 (T-588, PodUtils/podrunner#99).
+ENTRY=T-588
+GROUP=actions
+EXPECT='already_exists'
+RUN='cargo test -p pod-actions-results --all-features --test store a_rerun_replaces_an_artifact_of_the_same_name'
+LIMIT=900

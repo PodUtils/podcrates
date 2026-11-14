@@ -10,16 +10,16 @@ use crate::wire::{Answer, CONTENT_BLOB, Payload, block_list, hex, query, same, t
 
 /// The longest block id, in bytes: Azure takes at most 64 bytes before the
 /// base64, and 88 after it. The file of a block has its id in hex.
-const BLOCK_ID_MAX: usize = 88;
+pub(crate) const BLOCK_ID_MAX: usize = 88;
 
 /// The file of a block in the upload directory `up`.
-fn block_file(up: &Path, block: &str) -> std::path::PathBuf {
+pub(crate) fn block_file(up: &Path, block: &str) -> std::path::PathBuf {
     up.join("blocks").join(hex(block.as_bytes()))
 }
 
 /// Join the blocks of `ids` into the blob of the upload `up`, in parts: a
 /// blob can be larger than the memory.
-fn join(up: &Path, ids: &[String]) -> Answer {
+pub(crate) fn join(up: &Path, ids: &[String]) -> Answer {
     let part = up.join("blob.part");
     let mut out = match File::create(&part) {
         Ok(f) => f,
@@ -85,7 +85,9 @@ impl ArtifactStore {
         let Some(at) = m["name"].as_str().and_then(|n| self.at(n)) else { return text(404, Vec::new()) };
         let file = File::open(at.join("artifact.zip")).and_then(|f| Ok((f.metadata()?.len(), f)));
         match file {
-            Ok((len, f)) => Answer { status: 200, content_type: CONTENT_BLOB, body: Payload::File(f, len) },
+            Ok((len, f)) => {
+                Answer { status: 200, content_type: CONTENT_BLOB, headers: Vec::new(), body: Payload::File(f, len) }
+            }
             Err(_) => text(404, Vec::new()),
         }
     }

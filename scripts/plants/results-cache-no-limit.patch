@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-results/src/cache/blob.rs b/crates/pod-actions-results/src/cache/blob.rs
+--- a/crates/pod-actions-results/src/cache/blob.rs
++++ b/crates/pod-actions-results/src/cache/blob.rs
+@@ -42,7 +42,7 @@
+         // The uploads that are not finalized hold the limit too: an entry
+         // over the limit in blocks never reaches the disk.
+         let held: u64 = st.pending.values().map(|p| p.bytes).sum();
+-        if held.saturating_add(body.len() as u64) > self.limit {
++        if held.min(0).saturating_add(body.len() as u64) > self.limit {
+             return text(413, format!("the uploads of the cache are over {} bytes", self.limit));
+         }
+         match fs::write(target, body) {

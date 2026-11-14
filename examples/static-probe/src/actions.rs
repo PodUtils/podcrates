@@ -117,6 +117,16 @@ pub fn results() -> String {
         Err(e) => e.to_string(),
     };
     let _ = std::fs::remove_dir_all(&dir);
+    let dir = std::env::temp_dir().join(format!("static-probe-cache-{}", std::process::id()));
+    let cache = match pod_actions_results::CacheStore::new(&dir, pod_actions_results::cache::LIMIT) {
+        Ok(store) => {
+            let path = format!("{}CreateCacheEntry", pod_actions_results::cache::SERVICE);
+            let answer = store.route("POST", &path, br#"{"key":"k","version":"v"}"#, None, "http://127.0.0.1/");
+            format!("CreateCacheEntry {}", answer.map_or(0, |(status, _, _)| status))
+        }
+        Err(e) => e.to_string(),
+    };
+    let _ = std::fs::remove_dir_all(&dir);
     let ids = pod_actions_results::backend_ids("a.e30.b").is_some();
-    format!("pod-actions-results: {line}; token ids: {ids}")
+    format!("pod-actions-results: {line}; {cache}; token ids: {ids}")
 }

@@ -36,6 +36,8 @@ pub(crate) struct Inner {
 pub struct ArtifactStore {
     pub(crate) dir: PathBuf,
     pub(crate) limit: u64,
+    /// A rerun replaces an artifact of the same name.
+    pub(crate) replace: bool,
     pub(crate) inner: Mutex<Inner>,
 }
 
@@ -52,12 +54,20 @@ impl ArtifactStore {
     pub fn with_entropy(dir: &Path, limit: u64, entropy: impl Entropy + Send + 'static) -> io::Result<ArtifactStore> {
         fs::create_dir_all(dir)?;
         let inner = Inner { next: 0, pending: BTreeMap::new(), used: 0, entropy: Box::new(entropy) };
-        let mut store = ArtifactStore { dir: dir.to_path_buf(), limit, inner: Mutex::new(inner) };
+        let mut store = ArtifactStore { dir: dir.to_path_buf(), limit, replace: false, inner: Mutex::new(inner) };
         // A store opened again over the artifacts of an earlier run gives
         // each new upload an id above theirs: an id names one artifact.
         let top = store.metas().iter().filter_map(|m| m["database_id"].as_str()?.parse::<u64>().ok()).max();
         store.inner.get_mut().unwrap_or_else(PoisonError::into_inner).next = top.unwrap_or(0);
         Ok(store)
+    }
+
+    /// The store of a rerun: a `CreateArtifact` of a name that has an
+    /// artifact removes it first, so a job that runs again replaces its
+    /// artifacts.
+    pub fn replacing(mut self) -> ArtifactStore {
+        self.replace = true;
+        self
     }
 
     /// The directory of the store.

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-results/src/cache.rs b/crates/pod-actions-results/src/cache.rs
+--- a/crates/pod-actions-results/src/cache.rs
++++ b/crates/pod-actions-results/src/cache.rs
+@@ -140,7 +140,7 @@
+     /// The directory of an entry: a digest of its scope, key and version,
+     /// each as a string of JSON, so that no two of them give one name.
+     fn entry_dir_in(&self, scope: &str, key: &str, version: &str) -> PathBuf {
+-        let d = hex(&Sha256::digest(json!([scope, key, version]).to_string().as_bytes()));
++        let d = hex(&Sha256::digest(format!("{scope}\n{key}\n{version}").as_bytes()));
+         self.dir.join("entries").join(&d[..32])
+     }
+ 

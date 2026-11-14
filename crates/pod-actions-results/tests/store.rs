@@ -303,3 +303,22 @@ fn the_finalize_checks_the_sha256_in_a_plain_string() {
     assert_eq!(call(&s, "FinalizeArtifact", right).0, 200, "the upload stays for a second finalize");
     assert!(Path::new(&t.0.join("data").join("artifact.zip")).exists());
 }
+
+#[test]
+fn a_rerun_replaces_an_artifact_of_the_same_name() {
+    let t = Scratch::new("rerun");
+    let s = ArtifactStore::new(&t.0, LIMIT).unwrap();
+    upload(&s, "logs", b"first");
+    let (status, v) = call(&s, "CreateArtifact", json!({ "name": "logs" }));
+    assert_eq!(status, 409, "a run keeps its names: {v}");
+    drop(s);
+    let rerun = ArtifactStore::new(&t.0, LIMIT).unwrap().replacing();
+    upload(&rerun, "logs", b"second");
+    let (status, body) = rerun.route("GET", &download_url(&rerun, "logs"), b"", BASE).unwrap();
+    assert_eq!((status, body.as_slice()), (200, &b"second"[..]), "the rerun replaces the artifact");
+    let list = rerun.list();
+    assert_eq!(list.len(), 1, "{list:?}");
+    assert_eq!(list[0]["database_id"], "2", "the new artifact has a new id");
+    let (status, v) = call(&rerun, "CreateArtifact", json!({ "name": "../x" }));
+    assert_eq!(status, 400, "a rerun checks the name: {v}");
+}
