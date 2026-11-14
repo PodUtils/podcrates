@@ -1,0 +1,7 @@
+# A whiteout does not forget the mode of the directory that it removed,
+# and a directory made again below a file gets that mode (T-598).
+ENTRY=T-598
+GROUP=extract
+EXPECT='did not forget its mode of 0555'
+RUN='cargo test -p pod-extract --all-features --lib drive::dirmodes'
+LIMIT=1800

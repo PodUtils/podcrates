@@ -84,6 +84,8 @@ pub fn apply(root: &Dir, ops: &[Op]) -> Result<u64> {
                 let Ok(Ok((parent, last))) = safety::open_parent(root, &parts, false) else {
                     continue;
                 };
+                // A tree of an earlier extraction can have closed directories.
+                open_for_write(parent.fd());
                 if remove_at(parent.fd(), &last)? {
                     removed += 1;
                 }
@@ -116,6 +118,7 @@ pub fn apply(root: &Dir, ops: &[Op]) -> Result<u64> {
                 // directory and remove each entry). An opaque marker that
                 // removed its own directory would remove the place that the
                 // next entries write into.
+                open_for_write(d.0);
                 for e in sys::getdents64(d.0).unwrap_or_default() {
                     let name = String::from_utf8_lossy(&e.name).into_owned();
                     if remove_at(d.0, &name)? {
@@ -166,6 +169,9 @@ pub fn remove_at(parent: i64, name: &str) -> Result<bool> {
         Ok(fd) => DirFd(fd),
         Err(_) => return Ok(false),
     };
+    // The pass after the last layer can close a directory (0555), and the
+    // owner cannot remove an entry of a directory that has no owner write.
+    open_for_write(fd.0);
     for e in sys::getdents64(fd.0).unwrap_or_default() {
         let child = String::from_utf8_lossy(&e.name).into_owned();
         remove_at(fd.0, &child)?;
@@ -175,5 +181,15 @@ pub fn remove_at(parent: i64, name: &str) -> Result<bool> {
         Ok(_) => Ok(true),
         Err(e) if e == sys::ENOENT => Ok(false),
         Err(e) => Err(error::sys(format!("cannot remove the directory {name:?}"), e)),
+    }
+}
+
+/// Add the owner bits to the directory of `fd` when one is off. A failure
+/// shows at the first removal in it.
+fn open_for_write(fd: i64) {
+    if let Ok(st) = sys::fstatat(fd, &sys::cempty(), sys::AT_EMPTY_PATH)
+        && st.st_mode & 0o700 != 0o700
+    {
+        let _ = sys::fchmod(fd, u64::from(st.st_mode & 0o7777 | 0o700));
     }
 }

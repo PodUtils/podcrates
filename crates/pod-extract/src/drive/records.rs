@@ -7,7 +7,8 @@ fn re_permissioning_widens_the_owner_and_leaves_group_and_other_alone() {
     use std::os::unix::fs::PermissionsExt;
     let s = Scratch::new("ownerbits");
     let one = layer(&[E::Dir("d/", 0o555)]);
-    run(s.path(), &[one]).unwrap();
+    // The tree between two layers: the pass after the last layer sets 0555.
+    run_open(s.path(), &[one]).unwrap();
     let m = std::fs::metadata(s.path().join("d")).unwrap().permissions().mode() & 0o777;
     assert_eq!(m & 0o700, 0o700, "owner rwx must be on: got {m:04o}");
     assert_eq!(m & 0o077, 0o055, "group and other must be untouched: got {m:04o}");
@@ -98,7 +99,7 @@ fn one_layer(s: &Scratch, entries: &[E]) -> Vec<crate::Layer> {
 }
 
 /// A blob in the scratch directory, named by its digest.
-fn stored(s: &Scratch, blob: &[u8], media_type: &str) -> crate::Layer {
+pub(super) fn stored(s: &Scratch, blob: &[u8], media_type: &str) -> crate::Layer {
     let digest = sha256(blob);
     let path = s.path().join("blobs").join(digest.replace(':', "_"));
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -107,7 +108,7 @@ fn stored(s: &Scratch, blob: &[u8], media_type: &str) -> crate::Layer {
 }
 
 /// The place of the image `digest` in the scratch directory.
-fn place(s: &Scratch, digest: &str) -> crate::Place {
+pub(super) fn place(s: &Scratch, digest: &str) -> crate::Place {
     crate::Place::under(&s.path().join("rootfs").join(digest.replace(':', "_")))
 }
 

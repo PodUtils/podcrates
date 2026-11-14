@@ -6932,7 +6932,6 @@ the schema `qga/qapi-schema.json` of QEMU (calls C414 to C421):
 - Next: the owner reserves `pod-qga` on crates.io (Owner actions); podvm
   takes the crate at the next tag.
 
-
 # T-595: `pod-guest`: the provision waits for a ready guest in place of a fixed sleep (PodUtils/podvm#350, item 6)
 
 **Source:** PodUtils/podvm#350 (COORD-103 of podvm; the Windows guest of podvm).
@@ -7045,7 +7044,7 @@ caught again. `plant-each.sh --apply`: 0 stale. `check-size.py`,
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7070,6 +7069,34 @@ After the last layer, set each directory that the extraction wrote to the mode o
 cargo test -p pod-extract --all-features
 ```
 
+## Done
+
+2026-11-14, commit 195e11d. After the last layer, each directory entry of
+the extraction gets the mode of the image, the deepest first, through a
+descriptor opened with `O_DIRECTORY` and `O_NOFOLLOW`
+(`modes::DirModes`; the last layer that names a directory wins; a
+whiteout forgets the directories that it removed); `Extracted::dir_modes`
+gives the count (C423). A directory entry over a symlink or a file of an
+earlier layer removes that name and makes the directory; a directory
+that exists gets the owner bits through the same descriptor, so an
+extraction over a closed tree passes (C424). The removal of a name adds
+the owner bits to each directory that it empties, and a whiteout to the
+directory of its name, so `Place::remove`, `remove_tree` and a whiteout
+work on a closed tree (C425). `cargo test -p pod-extract --all-features`:
+69 unit tests passed, with `drive::dirmodes` (0555 and 1777 stay, a later
+layer closes a directory again, through `extract`; a directory entry
+over a symlink of an earlier layer gives a directory and no change
+outside the tree; a whiteout forgets the mode; a second extraction over
+a closed tree, a whiteout in a closed directory and the removal of the
+closed tree pass as uid 1000, the worker run by hand with `setpriv`
+too) and `modes::tests`. Six plants (`extract-t598-*`), each caught by
+hand with its EXPECT text. `pod-rootfs` (the only caller in the
+workspace): 82 unit tests and 3 integration tests passed. Its completion
+of a tree whose `/etc` is 0555, measured as uid 1000, gives three
+`Failed` rows (`resolv.conf`, `hosts`, `mtab`: `EACCES`); with `/etc`
+0755 it gives none. Before this entry such an `/etc` was 0755 in the
+tree.
+
 # T-599: `pod-extract`: the `./` member of an archive is not counted as an entry that the crate could not make (PodUtils/podvm#352)
 
 **Source:** PodUtils/podvm#352 (COORD-106 of podvm).
@@ -7077,7 +7104,7 @@ cargo test -p pod-extract --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7096,6 +7123,19 @@ The root member adds nothing to `skipped` and names nothing there; a fifo and a 
 ```sh
 cargo test -p pod-extract --all-features
 ```
+
+## Done
+
+2026-11-14, commit 1834657. The root member of an archive adds nothing
+to `LayerStats::skipped` and names nothing in `skipped_kinds`; a fifo, a
+socket and a device node still count; `entries` stays the count of the
+members read (C426). `cargo test -p pod-extract --all-features`: 70 unit
+tests passed, with `drive::the_root_member_is_not_a_skipped_entry` (`./`
+and a file: 2 entries, 0 skipped; `./` and a fifo: 1 skipped, named
+`Fifo`). Plant `extract-t599-root-member-skipped`, caught by hand with
+its EXPECT text; the patch of `extract-empty-root-refused` follows the
+new code and is caught again. `plant-each.sh --apply`: 0 stale.
+`check-size.py`, `check-windows.sh` and `check-macos.sh`: 0 faults.
 
 # T-601: `pod-udf`: a test against images that a real mastering tool made
 

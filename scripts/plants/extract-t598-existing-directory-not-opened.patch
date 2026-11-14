@@ -1,0 +1,11 @@
+diff --git a/crates/pod-extract/src/apply.rs b/crates/pod-extract/src/apply.rs
+--- a/crates/pod-extract/src/apply.rs
++++ b/crates/pod-extract/src/apply.rs
+@@ -251,7 +251,6 @@
+     match sys::openat(parent.fd(), &n, flags, 0) {
+         Ok(fd) => {
+             // A refusal shows at the first write below this directory.
+-            let _ = sys::fchmod(fd, open);
+             let _ = sys::close(fd);
+             return Ok(());
+         }

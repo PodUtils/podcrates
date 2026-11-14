@@ -13,6 +13,7 @@ use std::io::Cursor;
 
 use crate::apply::{Ids, apply_layer};
 use crate::error::io;
+use crate::modes::DirModes;
 use crate::remove;
 use crate::safety::Dir;
 use crate::sidecar::Sidecar;
@@ -44,6 +45,9 @@ impl Scratch {
 
 impl Drop for Scratch {
     fn drop(&mut self) {
+        // The crate's own removal opens a directory that the image closed
+        // (0555); `remove_dir_all` as a user cannot empty it.
+        let _ = crate::remove_tree(&self.0);
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
@@ -65,6 +69,8 @@ enum E<'a> {
     /// A directory whose name is written into the header past the check
     /// of the writer: `tar::Builder` refuses an empty path.
     RawDir(&'a str, u32),
+    /// A fifo, which the crate does not make.
+    Fifo(&'a str),
 }
 
 /// Build one uncompressed layer.
@@ -133,21 +139,43 @@ fn layer(entries: &[E]) -> Vec<u8> {
                 h.set_cksum();
                 b.append(&h, std::io::empty()).unwrap();
             }
+            E::Fifo(p) => {
+                h.set_entry_type(tar::EntryType::Fifo);
+                h.set_mode(0o644);
+                h.set_size(0);
+                b.append_data(&mut h, p, std::io::empty()).unwrap();
+            }
         }
     }
     b.into_inner().unwrap()
 }
 
-/// Run the steps of each layer, whiteouts first, as [`crate::extract`] does.
+/// Run the steps of each layer, whiteouts first, and the pass after the last
+/// layer, as [`crate::extract`] does.
 fn run(dir: &std::path::Path, layers: &[Vec<u8>]) -> crate::Result<u64> {
+    steps(dir, layers, true)
+}
+
+/// [`run`] with no pass after the last layer: the tree between two layers.
+fn run_open(dir: &std::path::Path, layers: &[Vec<u8>]) -> crate::Result<u64> {
+    steps(dir, layers, false)
+}
+
+fn steps(dir: &std::path::Path, layers: &[Vec<u8>], last_pass: bool) -> crate::Result<u64> {
     let root = Dir::open(&dir.to_string_lossy())?;
     let side = dir.join(".meta.jsonl");
     let mut sc = Sidecar::create(&side).map_err(io)?;
+    let mut dirs = DirModes::new();
     let mut removed = 0;
     for (n, l) in layers.iter().enumerate() {
         let ops = remove::collect(&format!("sha256:layer{n}"), &mut Cursor::new(l.clone()))?;
         removed += remove::apply(&root, &ops)?;
-        apply_layer(&root, &format!("sha256:layer{n}"), &mut Cursor::new(l.clone()), Ids::current(), &mut sc)?;
+        dirs.forget(&ops);
+        let st = apply_layer(&root, &format!("sha256:layer{n}"), &mut Cursor::new(l.clone()), Ids::current(), &mut sc)?;
+        dirs.record(&st.dir_modes);
+    }
+    if last_pass {
+        dirs.set(&root)?;
     }
     sc.finish().map_err(io)?;
     Ok(removed)
@@ -411,9 +439,11 @@ fn a_read_only_directory_in_one_layer_can_be_written_into_by_the_next() {
     assert_eq!(std::fs::read(s.path().join("ro/added")).unwrap(), b"ok");
 }
 
+mod dirmodes;
 mod records;
 mod setid;
 mod umask;
+mod user;
 mod whiteouts;
 
 /// A layer whose first entry is the root as a directory with an empty name
@@ -428,4 +458,21 @@ fn a_root_directory_with_an_empty_name_is_the_root() {
     assert_eq!(std::fs::read(s.path().join("THIRD-PARTY-LICENSES.txt")).unwrap(), b"text");
     let r = refusal_of(run(s.path(), &[layer(&[E::Raw("", b"x")])]));
     assert_eq!(r.entry, "");
+}
+
+/// The `./` member names the destination: an entry, and not a thing that the
+/// crate could not make (PodUtils/podvm#352). A fifo still is one.
+#[test]
+fn the_root_member_is_not_a_skipped_entry() {
+    let s = Scratch::new("rootskip");
+    let root = Dir::open(&s.path().to_string_lossy()).unwrap();
+    let mut sc = Sidecar::create(&s.path().join(".meta.jsonl")).unwrap();
+    let mut apply =
+        |l: Vec<u8>| apply_layer(&root, "sha256:root", &mut Cursor::new(l), Ids::current(), &mut sc).unwrap();
+    let st = apply(layer(&[E::RawDir("./", 0o755), E::File("f", b"f", 0o644)]));
+    assert_eq!((st.entries, st.skipped), (2, 0), "the root member counted as skipped: {:?}", st.skipped_kinds);
+    assert!(st.skipped_kinds.is_empty(), "the root member counted as skipped: {:?}", st.skipped_kinds);
+    let st = apply(layer(&[E::RawDir("./", 0o755), E::Fifo("p")]));
+    assert_eq!((st.entries, st.skipped), (2, 1));
+    assert_eq!(st.skipped_kinds, ["Fifo"], "the fifo is not named, or the root member is");
 }

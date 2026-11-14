@@ -25,6 +25,8 @@ use crate::whiteout::{self, Kind};
 /// What one layer did, for the transcript and for the record.
 #[derive(Debug, Default, Clone)]
 pub struct LayerStats {
+    /// The members of the archive that the crate read, the root member
+    /// (`./`) and the whiteouts included.
     pub entries: u64,
     pub files: u64,
     pub dirs: u64,
@@ -34,11 +36,16 @@ pub struct LayerStats {
     pub opaques: u64,
     /// The entries of a type that the crate does not make, counted and named:
     /// a device node in a layer is a thing that the crate could not make, and
-    /// a caller that sees `0` then has a false count.
+    /// a caller that sees `0` then has a false count. The root member is not
+    /// one: it names the destination, which exists.
     pub skipped: u64,
     pub skipped_kinds: Vec<String>,
     /// How many directories the permission pass of this layer widened.
     pub widened: u64,
+    /// Each directory entry of this layer, with the mode of the image, in
+    /// the order of the layer. The pass after the last layer sets these
+    /// modes ([`crate::modes::DirModes`]).
+    pub dir_modes: Vec<(Vec<String>, u32)>,
 }
 
 /// The ids that this process applies, read one time.
@@ -111,13 +118,9 @@ pub fn apply_layer(
         // Debian images of `public.ecr.aws` have it; a refusal there refuses
         // each layer of each Debian image. A directory with an empty name is
         // the root too (PodUtils/podvm#261). Another entry with an empty name
-        // is still refused, as the crate cannot put it anywhere.
+        // is still refused, as the crate cannot put it anywhere. It is not
+        // in `skipped`: the image lost nothing (PodUtils/podvm#352).
         if safety::is_root_entry(&path, header.entry_type().is_dir()) {
-            st.skipped += 1;
-            let k = "ArchiveRoot".to_string();
-            if !st.skipped_kinds.contains(&k) {
-                st.skipped_kinds.push(k);
-            }
             continue;
         }
         let parts = match safety::components(&path) {
@@ -207,6 +210,7 @@ pub fn apply_layer(
 
     // The permission pass, after the layer and on what this layer wrote.
     st.widened = repermission(root, &wrote_dirs)?;
+    st.dir_modes = wrote_dirs;
     Ok(st)
 }
 
@@ -230,12 +234,35 @@ fn resolve_ids(uid: u64, gid: u64, ids: Ids) -> (u64, u64, Option<String>) {
 fn make_dir(parent: &Dir, name: &str, mode: u32) -> Result<()> {
     let n = cbuf(name)?;
     // Made with the owner bits on. A directory made 0555 cannot take the next
-    // entry of THIS layer, and the permission pass comes after the layer.
-    match sys::mkdirat(parent.fd(), &n, u64::from(mode | 0o700) & 0o7777) {
-        Ok(_) => Ok(()),
-        Err(e) if e == sys::EEXIST => Ok(()),
-        Err(e) => Err(error::sys(format!("cannot create the directory {name:?}"), e)),
+    // entry of THIS layer. The pass after the last layer sets the mode of
+    // the image.
+    let open = u64::from(mode | 0o700) & 0o7777;
+    match sys::mkdirat(parent.fd(), &n, open) {
+        Ok(_) => return Ok(()),
+        Err(e) if e == sys::EEXIST => {}
+        Err(e) => return Err(error::sys(format!("cannot create the directory {name:?}"), e)),
     }
+    // A directory of an earlier layer, or of an earlier extraction whose
+    // last pass closed it (0555): it gets the owner bits, or the entries
+    // below it cannot be written. Through a descriptor with `O_NOFOLLOW`:
+    // a mode change by the name follows a symlink out of the tree.
+    let flags = sys::O_RDONLY | sys::O_DIRECTORY | sys::O_NOFOLLOW | sys::O_CLOEXEC;
+    match sys::openat(parent.fd(), &n, flags, 0) {
+        Ok(fd) => {
+            // A refusal shows at the first write below this directory.
+            let _ = sys::fchmod(fd, open);
+            let _ = sys::close(fd);
+            return Ok(());
+        }
+        Err(e) if e == sys::ENOTDIR || e == sys::ELOOP => {}
+        Err(e) => return Err(error::sys(format!("cannot open the directory {name:?}"), e)),
+    }
+    // A symlink or a file of an earlier layer. The image says directory
+    // here: remove the name first, as for a file, then make the directory.
+    replace(parent, name)?;
+    sys::mkdirat(parent.fd(), &n, open)
+        .map(|_| ())
+        .map_err(|e| error::sys(format!("cannot create the directory {name:?}"), e))
 }
 
 /// Remove the entry at this name before the write.
@@ -358,6 +385,9 @@ fn kept_mode(fd: i64, want: u32, fallback: Option<u32>) -> Option<u32> {
 /// **Each directory, not only the widened ones**: the umask of the process
 /// cut the mode of `mkdirat`, and a directory that an earlier layer made
 /// keeps its mode until this pass sets the mode of this layer.
+///
+/// The widened owner bits stay until the pass after the last layer
+/// ([`crate::modes::DirModes::set`]).
 fn repermission(root: &Dir, dirs: &[(Vec<String>, u32)]) -> Result<u64> {
     let mut widened = 0;
     for (parts, mode) in dirs {

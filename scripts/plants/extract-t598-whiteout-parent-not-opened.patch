@@ -1,0 +1,11 @@
+diff --git a/crates/pod-extract/src/remove.rs b/crates/pod-extract/src/remove.rs
+--- a/crates/pod-extract/src/remove.rs
++++ b/crates/pod-extract/src/remove.rs
+@@ -85,7 +85,6 @@
+                     continue;
+                 };
+                 // A tree of an earlier extraction can have closed directories.
+-                open_for_write(parent.fd());
+                 if remove_at(parent.fd(), &last)? {
+                     removed += 1;
+                 }

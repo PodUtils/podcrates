@@ -20,7 +20,8 @@
 //! 5. An absolute symlink target is **relative to the root file system**: it
 //!    is not a refusal ([`safety::rebase_symlink_target`]).
 //! 6. The owner bits are **widened between layers**, or the next layer cannot
-//!    write ([`apply`]).
+//!    write ([`apply`]). After the last layer, each directory gets the mode
+//!    of the image ([`modes`]).
 //! 7. The whiteouts of a layer apply **before** the entries of that layer,
 //!    and hard links and symlinks stay links ([`remove`]).
 //!
@@ -46,6 +47,7 @@ pub mod apply;
 mod drive;
 pub mod error;
 pub mod layer;
+pub mod modes;
 mod place;
 pub mod remove;
 pub mod safety;
@@ -124,6 +126,9 @@ pub struct Extracted {
     pub skipped_kinds: Vec<String>,
     pub sidecar_rows: u64,
     pub ownership_dropped: u64,
+    /// How many directories the pass after the last layer set to the mode
+    /// of the image ([`modes::DirModes::set`]).
+    pub dir_modes: u64,
     /// The first entry that lost an id. The report of the caller names it.
     pub first_dropped: Option<sidecar::FirstDropped>,
 }
@@ -192,6 +197,7 @@ pub fn extract(settings: &Settings, image: &str, layers: &[Layer], place: &Place
         skipped_kinds: Vec::new(),
         sidecar_rows: 0,
         ownership_dropped: 0,
+        dir_modes: 0,
         first_dropped: None,
     };
 
@@ -230,6 +236,7 @@ fn extract_layers(
     side: &mut sidecar::Sidecar,
     total: &mut Extracted,
 ) -> Result<()> {
+    let mut dirs = modes::DirModes::new();
     for (l, c) in plan {
         // The whiteouts of this layer apply to the tree of the layers before
         // it, before the entries of this layer: a layer can then remove a
@@ -246,11 +253,13 @@ fn extract_layers(
         drop(first);
         verified(&hash1, &l.digest, &l.blob)?;
         total.removed += remove::apply(root, &ops)?;
+        dirs.forget(&ops);
 
         let (mut second, hash2) = layer::open_hashed(&l.blob, *c)?;
         let st = apply::apply_layer(root, &l.digest, &mut second, ids, side)?;
         drop(second);
         verified(&hash2, &l.digest, &l.blob)?;
+        dirs.record(&st.dir_modes);
         total.entries += st.entries;
         total.skipped += st.skipped;
         for k in st.skipped_kinds {
@@ -268,6 +277,9 @@ fn extract_layers(
             ),
         ));
     }
+    // One time, after the last layer: the owner bits of a directory let the
+    // next layer write, and a later layer can name a directory again.
+    total.dir_modes = dirs.set(root)?;
     Ok(())
 }
 

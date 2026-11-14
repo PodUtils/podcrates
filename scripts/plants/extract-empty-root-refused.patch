@@ -1,11 +1,11 @@
 --- a/crates/pod-extract/src/apply.rs
 +++ b/crates/pod-extract/src/apply.rs
-@@ -112,7 +112,7 @@
-         // each layer of each Debian image. A directory with an empty name is
+@@ -120,7 +120,7 @@
          // the root too (PodUtils/podvm#261). Another entry with an empty name
-         // is still refused, as the crate cannot put it anywhere.
+         // is still refused, as the crate cannot put it anywhere. It is not
+         // in `skipped`: the image lost nothing (PodUtils/podvm#352).
 -        if safety::is_root_entry(&path, header.entry_type().is_dir()) {
 +        if safety::is_archive_root(&path) {
-             st.skipped += 1;
-             let k = "ArchiveRoot".to_string();
-             if !st.skipped_kinds.contains(&k) {
+             continue;
+         }
+         let parts = match safety::components(&path) {

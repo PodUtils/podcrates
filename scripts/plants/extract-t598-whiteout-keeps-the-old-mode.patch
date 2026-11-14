@@ -1,0 +1,12 @@
+diff --git a/crates/pod-extract/src/modes.rs b/crates/pod-extract/src/modes.rs
+--- a/crates/pod-extract/src/modes.rs
++++ b/crates/pod-extract/src/modes.rs
+@@ -40,7 +40,7 @@
+     /// entry (a file below it) is not the directory of the earlier layer,
+     /// and it does not get that mode.
+     pub fn forget(&mut self, ops: &[Op]) {
+-        for op in ops {
++        for op in &ops[..0] {
+             match op {
+                 Op::Remove { dir, name } => {
+                     let mut gone = dir.clone();
