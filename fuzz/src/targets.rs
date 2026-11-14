@@ -31,7 +31,7 @@ pub use podvm::{elf_header, extract_layer, oci_challenge, oci_manifest, squashfs
 pub use relay::{relay_list, relay_pool};
 pub use session::{session_handover, session_record, udp_frame};
 pub use warp::warp_capsule;
-pub use wg::{wg_cookie, wg_response, wg_transport};
+pub use wg::{wg_cookie, wg_initiation, wg_response, wg_transport};
 pub use {
     job::job_offer,
     link::{ARQ_MTU, KCP_MTU, link_arq, link_frame, link_kcp, link_poll_wire},

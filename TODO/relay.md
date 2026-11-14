@@ -6865,3 +6865,65 @@ payload and the send key of the zero key from the same program) and
 plant `wg-psk-step-skipped` (the zero key in `finish`) fails both
 handshake tests (checked by hand: 2 failed). `cargo clippy -p pod-wg -p
 pod-warp --all-targets --all-features -- -D warnings`: clean.
+
+# T-562: `pod-wg`: a responder sans I/O for a list of peers (PodUtils/podnet#547)
+
+**Source:** PodUtils/podnet#547 (COORD-076 of podnet), ask 1; it blocks PodUtils/podnet@T-125.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** partial
+
+## Problem
+
+podnet asks for a responder with no I/O for `podnet wg serve`: "a private
+key and a list of peer public keys, each with an optional preshared key;
+read an initiation: check mac1, decrypt the static key and find it in the
+list (an unknown key gets no answer), and refuse a timestamp that is not
+newer than the last one of that peer; under load (a flag of the caller): a
+cookie reply, from a secret that changes each 120 s; transport messages of
+several peers at once, found by the receiver index; the timers of the
+responder: refuse after 180 s, keepalive, no rekey that the responder
+starts; a `Debug` that shows no key, and a fuzz target of the read of an
+initiation." The only responder of `pod-wg` is the stand-in: it panics on
+a bad initiation, takes one client key, has no replay check of the
+timestamp, one fixed cookie and no timers.
+
+## Premise
+
+- Read: `crates/pod-wg/src/standin.rs` (the steps of the responder, with
+  `assert!` on each check), `crates/pod-wg/src/session.rs` (`Session` and
+  its window of counters, which the responder takes as it is),
+  `crates/pod-wg/src/cookie.rs` (mac2 over zero reserved bytes).
+- The WireGuard paper, sections 5.1 (the timestamp), 5.4.4 and 5.4.7 (mac1,
+  mac2 and the cookie of the source address under a secret of 120 s), 5.4.6
+  (the responder sends after the first transport message of the
+  initiator), 6 (REJECT_AFTER_TIME 180 s, KEEPALIVE_TIMEOUT 10 s,
+  REJECT_AFTER_MESSAGES; only the initiator rekeys). The flood rule of 50
+  initiations a second of one peer is the Linux kernel's (`noise.c`,
+  `INITIATIONS_PER_SECOND`), from memory of its source, not read in this
+  session.
+- Not measured: the responder against a WireGuard of another
+  implementation (wireguard-go, the kernel); the egress of this session
+  takes no UDP.
+
+## Approach
+
+`Responder` (`src/responder.rs`, `src/responder/peer.rs`) on the steps of
+`src/respond.rs`, which the stand-in also takes. `receive(message, from,
+under_load, now) -> Incoming`; `send(peer, packets, now)`; `tick(now)`.
+Tests: the initiator of the crate against it (several peers, a rekey of a
+`Tunnel`, a replay, an unknown key, a cookie under load and its retry, the
+expiry at 180 s, the keepalive and no initiation). The fuzz target
+`wg_initiation`. The plants `wg-responder-timestamp-unchecked`,
+`wg-responder-unknown-key-answered`, `wg-responder-mac2-unchecked`,
+`wg-responder-session-never-expires`. Calls C315 to C319.
+
+## Prove
+
+```sh
+cargo test -p pod-wg --all-features
+cargo test --manifest-path fuzz/Cargo.toml --lib
+sh scripts/plant-each.sh wg-responder-timestamp-unchecked wg-responder-unknown-key-answered wg-responder-mac2-unchecked wg-responder-session-never-expires
+```

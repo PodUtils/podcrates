@@ -9,12 +9,10 @@ use std::time::Instant;
 
 use pod_core::entropy::OsEntropy;
 
-use crate::blake2s::{hash, kdf};
 use crate::cookie::{cookie_key, mac2};
-use crate::crypto::{open, random, seal, x25519, x25519_base, xseal};
-use crate::handshake::{
-    CONSTRUCTION, IDENTIFIER, INITIATION_LEN, Keys, MSG_COOKIE, MSG_DATA, MSG_INITIATION, MSG_RESPONSE, mac1,
-};
+use crate::crypto::{open, random, seal, x25519_base};
+use crate::handshake::{INITIATION_LEN, Keys, MSG_DATA, MSG_INITIATION, mac1};
+use crate::respond::open_static;
 use crate::session::Session;
 
 /// What the stand-in does with the data messages.
@@ -73,40 +71,10 @@ pub fn respond_preshared(
     let peer_public = x25519_base(peer_private);
     assert_eq!(init.len(), INITIATION_LEN);
     assert_eq!(mac1(&peer_public, &init[..116]), init[116..132]);
-    let mut c = hash(&[CONSTRUCTION]);
-    let mut h = hash(&[&c, IDENTIFIER]);
-    h = hash(&[&h, &peer_public]);
-    let e_pub: [u8; 32] = init[8..40].try_into().unwrap();
-    [c] = kdf::<1>(&c, &e_pub);
-    h = hash(&[&h, &e_pub]);
-    let [c2, k] = kdf::<2>(&c, &x25519(peer_private, &e_pub));
-    c = c2;
-    let s_pub = open(&k, 0, &init[40..88], &h).unwrap();
-    assert_eq!(s_pub, initiator_public);
-    h = hash(&[&h, &init[40..88]]);
-    let [c3, k] = kdf::<2>(&c, &x25519(peer_private, initiator_public));
-    c = c3;
-    let time = open(&k, 0, &init[88..116], &h).unwrap();
-    assert_eq!(time.len(), 12);
-    h = hash(&[&h, &init[88..116]]);
-    let e_r = x25519_base(e_priv);
-    [c] = kdf::<1>(&c, &e_r);
-    h = hash(&[&h, &e_r]);
-    [c] = kdf::<1>(&c, &x25519(e_priv, &e_pub));
-    [c] = kdf::<1>(&c, &x25519(e_priv, initiator_public));
-    let [c4, tau, k] = kdf::<3>(&c, preshared.unwrap_or(&[0u8; 32]));
-    c = c4;
-    h = hash(&[&h, &tau]);
-    let empty = seal(&k, 0, &[], &h);
-    let mut m = vec![MSG_RESPONSE, 0, 0, 0];
-    m.extend_from_slice(&sender.to_le_bytes());
-    m.extend_from_slice(&init[4..8]);
-    m.extend_from_slice(&e_r);
-    m.extend_from_slice(&empty);
-    let mac = mac1(initiator_public, &m);
-    m.extend_from_slice(&mac);
-    m.extend_from_slice(&[0; 16]);
-    let [recv_key, send_key] = kdf::<2>(&c, &[]);
+    let mut opened = open_static(peer_private, init).expect("the static key opens");
+    assert_eq!(&opened.initiator, initiator_public);
+    opened.timestamp(peer_private, initiator_public, init).expect("the timestamp opens");
+    let (m, send_key, recv_key) = opened.respond(initiator_public, preshared.unwrap_or(&[0; 32]), e_priv, sender);
     (m, send_key, recv_key, sender)
 }
 
@@ -114,11 +82,7 @@ pub fn respond_preshared(
 /// `cookie` sealed with the key of `responder_public`, under `nonce`, with
 /// the mac1 of `init`.
 pub fn cookie_reply(responder_public: &[u8; 32], init: &[u8], cookie: &[u8; 16], nonce: &[u8; 24]) -> Vec<u8> {
-    let mut m = vec![MSG_COOKIE, 0, 0, 0];
-    m.extend_from_slice(&init[4..8]);
-    m.extend_from_slice(nonce);
-    m.extend_from_slice(&xseal(&cookie_key(responder_public), nonce, cookie, &init[116..132]));
-    m
+    crate::cookie::reply(&cookie_key(responder_public), init, cookie, nonce)
 }
 
 /// A session with `key` in both directions, for a test of [`Session::seal`].

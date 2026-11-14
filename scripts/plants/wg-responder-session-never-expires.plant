@@ -1,0 +1,6 @@
+# A session of the responder carries past REJECT_AFTER_TIME; the test of the
+# expiry must fail.
+ENTRY=T-562
+GROUP=wg
+EXPECT='test responder::tests::a_session_expires_after_180_s \.\.\. FAILED'
+RUN='cargo test -p pod-wg --lib -- responder::tests::a_session_expires_after_180_s'

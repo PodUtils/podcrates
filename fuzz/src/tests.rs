@@ -132,8 +132,9 @@ fn the_seeds_of_the_session_targets_read() {
 }
 
 /// The seeds of the targets of pod-wg reach past the first check: the
-/// response, the cookie reply and the transport messages of the fixed keys
-/// are taken, also with other reserved bytes and another mac2.
+/// response, the cookie reply, the transport messages and the initiation
+/// of the fixed keys are taken, also with other reserved bytes and another
+/// mac2; an initiation of another key reaches the list of peers.
 #[test]
 fn the_seeds_of_the_wg_targets_read() {
     use pod_wg::fuzzing::{cookie, finish, open};
@@ -150,4 +151,14 @@ fn the_seeds_of_the_wg_targets_read() {
         open(&read("wg_transport", name)).0.unwrap_or_else(|e| panic!("{name}: {e}"));
     }
     assert!(open(&read("wg_transport", "other_session")).0.is_err());
+    use pod_wg::fuzzing::respond;
+    use pod_wg::{Error, Incoming};
+    for name in ["initiation", "reserved_and_mac2"] {
+        let got = respond(&read("wg_initiation", name)).0;
+        assert!(matches!(got, Incoming::Response { peer: 0, .. }), "{name}: {got:?}");
+    }
+    let got = respond(&read("wg_initiation", "unknown_key")).0;
+    assert!(matches!(got, Incoming::Dropped(Error::UnknownPeer)), "{got:?}");
+    let got = respond(&read("wg_initiation", "mac1_changed")).0;
+    assert!(matches!(got, Incoming::Dropped(Error::InitiationMac1)), "{got:?}");
 }

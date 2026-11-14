@@ -1,0 +1,7 @@
+# Under load, the responder takes any mac2 that is not zero: the mac2 of the
+# cookie of another address gets a response; the test of the cookie must
+# fail.
+ENTRY=T-562
+GROUP=wg
+EXPECT='test responder::tests::a_cookie_under_load_and_the_retry_with_mac2 \.\.\. FAILED'
+RUN='cargo test -p pod-wg --lib -- responder::tests::a_cookie_under_load_and_the_retry_with_mac2'

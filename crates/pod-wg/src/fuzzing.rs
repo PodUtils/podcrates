@@ -2,9 +2,11 @@
 //! targets of fuzz/ (feature `fuzzing`): a target gives any bytes, and
 //! checks the answer against the one message that each reader takes.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
-use crate::{Cookie, Error, Initiation, Keys, Session, initiate_with, standin};
+use pod_core::entropy::{Entropy, NoRandom};
+
+use crate::{Cookie, Error, Incoming, Initiation, Keys, Peer, Responder, Session, initiate_with, standin};
 
 /// The keys of the initiator, and the private key of the responder.
 pub fn keys() -> (Keys, [u8; 32]) {
@@ -63,4 +65,38 @@ pub fn open(bytes: &[u8]) -> (Result<Vec<u8>, Error>, Result<Vec<u8>, Error>) {
     let mut s = standin::session(TRANSPORT_KEY);
     let first = s.open(bytes);
     (first, s.open(bytes))
+}
+
+/// Random bytes that are the same in each run: a fuzz target must give the
+/// same answer to the same input.
+struct Counting(u8);
+
+impl Entropy for Counting {
+    fn fill(&mut self, buf: &mut [u8]) -> Result<(), NoRandom> {
+        for b in buf {
+            self.0 = self.0.wrapping_add(1);
+            *b = self.0;
+        }
+        Ok(())
+    }
+}
+
+/// The responder of the private key of [`keys`], with the initiator of
+/// [`keys`] as its one peer.
+fn responder() -> Responder {
+    let (keys, peer_private) = keys();
+    let peer = Peer { public: keys.public(), preshared: None };
+    Responder::with_entropy(peer_private, vec![peer], Box::new(Counting(0)))
+}
+
+/// Read `bytes` as a datagram to a new [`Responder`]: the answer, the answer
+/// to the same bytes one second later, and the answer of a new responder
+/// under load. [`initiation`] is the one initiation that it answers.
+pub fn respond(bytes: &[u8]) -> (Incoming, Incoming, Incoming) {
+    let from = std::net::SocketAddr::from(([192, 0, 2, 1], 51820));
+    let now = Instant::now();
+    let mut r = responder();
+    let first = r.receive(bytes, from, false, now);
+    let again = r.receive(bytes, from, false, now + Duration::from_secs(1));
+    (first, again, responder().receive(bytes, from, true, now))
 }

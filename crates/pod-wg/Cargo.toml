@@ -1,6 +1,6 @@
 [package]
 name = "pod-wg"
-description = "The WireGuard initiator of WARP, sans I/O: the handshake, the cookie of a responder under load, the transport messages with the window of their counters, and the timers of a tunnel on the caller's clock; with a stand-in responder for the tests of a consumer."
+description = "WireGuard sans I/O: the initiator of WARP (the handshake with an optional preshared key, the cookie of a responder under load, the transport messages with the window of their counters, the timers of a tunnel on the caller's clock), and a responder for a list of peers; with a stand-in responder for the tests of a consumer."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

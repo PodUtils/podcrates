@@ -39,6 +39,28 @@ pub enum Error {
     Dead(Duration),
     /// The system gave no random bytes for a key or an index.
     NoRandom,
+    /// An initiation of another length.
+    NotInitiation,
+    /// A message that a responder does not take: a response, a cookie
+    /// reply, another type.
+    NotForResponder,
+    /// The mac1 of an initiation is not the MAC of its bytes with the key of
+    /// this responder.
+    InitiationMac1,
+    /// The static key or the timestamp of an initiation does not
+    /// authenticate.
+    InitiationNotAuthentic,
+    /// An initiation of a static key that is not a peer of the responder.
+    UnknownPeer,
+    /// An initiation whose timestamp is not after the last one of its peer:
+    /// a replay.
+    OldTimestamp,
+    /// An initiation that came too soon after the last one of its peer.
+    Flood,
+    /// A session past REJECT_AFTER_TIME, or past its count of messages.
+    Expired,
+    /// No session to the peer: it must make a handshake.
+    NoSession,
 }
 
 impl Error {
@@ -54,9 +76,16 @@ impl Error {
             | Error::NotTransport
             | Error::OtherSession
             | Error::NotAuthentic
-            | Error::Replayed(_) => Class::Protocol,
-            Error::Dead(_) => Class::Timeout,
-            Error::NoRandom => Class::Unavailable,
+            | Error::Replayed(_)
+            | Error::NotInitiation
+            | Error::NotForResponder
+            | Error::InitiationMac1
+            | Error::InitiationNotAuthentic
+            | Error::OldTimestamp => Class::Protocol,
+            Error::UnknownPeer => Class::Refused,
+            Error::Flood => Class::TempFail,
+            Error::Dead(_) | Error::Expired => Class::Timeout,
+            Error::NoRandom | Error::NoSession => Class::Unavailable,
         }
     }
 }
@@ -78,6 +107,15 @@ impl fmt::Display for Error {
             Error::Replayed(counter) => write!(f, "a WireGuard message that came before (counter {counter})"),
             Error::Dead(after) => write!(f, "no WireGuard handshake answer in {} s", after.as_secs()),
             Error::NoRandom => f.write_str("the system gave no random bytes for WireGuard"),
+            Error::NotInitiation => f.write_str("not a WireGuard handshake initiation"),
+            Error::NotForResponder => f.write_str("a WireGuard message that a responder does not take"),
+            Error::InitiationMac1 => f.write_str("the mac1 of the WireGuard initiation is wrong"),
+            Error::InitiationNotAuthentic => f.write_str("a WireGuard initiation that does not authenticate"),
+            Error::UnknownPeer => f.write_str("a WireGuard initiation of a key that is not a peer"),
+            Error::OldTimestamp => f.write_str("a WireGuard initiation that came before (its timestamp)"),
+            Error::Flood => f.write_str("a WireGuard initiation too soon after the last one of its peer"),
+            Error::Expired => f.write_str("the WireGuard session is too old"),
+            Error::NoSession => f.write_str("no WireGuard session to the peer"),
         }
     }
 }
@@ -103,6 +141,11 @@ mod tests {
             (Error::Replayed(5), Class::Protocol),
             (Error::Dead(Duration::from_secs(20)), Class::Timeout),
             (Error::NoRandom, Class::Unavailable),
+            (Error::OldTimestamp, Class::Protocol),
+            (Error::UnknownPeer, Class::Refused),
+            (Error::Flood, Class::TempFail),
+            (Error::Expired, Class::Timeout),
+            (Error::NoSession, Class::Unavailable),
         ];
         for (e, want) in cases {
             let text = e.to_string();

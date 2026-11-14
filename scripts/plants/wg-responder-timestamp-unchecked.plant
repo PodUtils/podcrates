@@ -1,0 +1,7 @@
+# The responder takes an initiation whose timestamp is not after the last one
+# of its peer: a replayed initiation gets a response; the test of the replay
+# must fail.
+ENTRY=T-562
+GROUP=wg
+EXPECT='test responder::tests::a_replayed_initiation_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-wg --lib -- responder::tests::a_replayed_initiation_is_refused'

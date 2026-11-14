@@ -1,11 +1,11 @@
-//! The fuzz targets of the WireGuard initiator (`pod-wg`, feature
-//! `fuzzing`; new in `pod-wg`, T-024). The bytes come from the network: a
-//! response and a cookie reply to this side's initiation, and a transport
-//! message to a session. Each reader runs on fixed keys, so that a target
-//! knows the one message that it takes.
+//! The fuzz targets of WireGuard (`pod-wg`, feature `fuzzing`; new in
+//! `pod-wg`, T-024 and T-562). The bytes come from the network: a response
+//! and a cookie reply to this side's initiation, a transport message to a
+//! session, and an initiation to the responder. Each reader runs on fixed
+//! keys, so that a target knows the one message that it takes.
 
-use pod_wg::Error;
-use pod_wg::fuzzing::{cookie, cookie_reply, finish, open, response};
+use pod_wg::fuzzing::{cookie, cookie_reply, finish, initiation, keys, open, respond, response};
+use pod_wg::{Cookie, Error, Incoming};
 
 /// True when `data` is `valid`, but for the bytes from `start` to `end`
 /// (not included) of each pair of `free`.
@@ -54,5 +54,46 @@ pub fn wg_transport(data: &[u8]) {
             assert!(matches!(second, Err(Error::Replayed(c)) if c == counter), "{second:?}");
         }
         Err(_) => assert!(second.is_err()),
+    }
+}
+
+/// An initiation to the responder (`pod_wg::fuzzing::respond`,
+/// `Responder::receive`): it gets a response only when it is the initiation
+/// of the peer, but for the reserved bytes (1 to 3) and mac2 (132 to 147:
+/// the responder is not under load), and the response finishes the
+/// handshake. The same bytes again are a replay. Under load, each
+/// initiation whose mac1 holds gets a cookie reply, of any key (the reply
+/// comes before the static key is read), and no other bytes get an answer;
+/// the reply to the initiation of the peer opens.
+pub fn wg_initiation(data: &[u8]) {
+    let (first, again, loaded) = respond(data);
+    let valid = initiation();
+    let taken = same_but(data, &valid.message, &[(1, 4), (132, 148)]);
+    let mac1_holds = data.len() == pod_wg::INITIATION_LEN
+        && data[0] == pod_wg::MSG_INITIATION
+        && !matches!(first, Incoming::Dropped(Error::InitiationMac1));
+    let now = std::time::Instant::now();
+    match first {
+        Incoming::Response { peer, message } => {
+            assert!(taken);
+            assert_eq!(peer, 0);
+            valid.finish(&keys().0, &message, now).expect("the response finishes the handshake");
+            assert!(matches!(again, Incoming::Dropped(Error::OldTimestamp)), "{again:?}");
+        }
+        Incoming::Dropped(_) => {
+            assert!(!taken);
+            assert!(matches!(again, Incoming::Dropped(_)), "{again:?}");
+        }
+        other => panic!("{other:?}"),
+    }
+    match loaded {
+        Incoming::CookieReply(reply) => {
+            assert!(mac1_holds);
+            if taken {
+                Cookie::open(&keys().0, &valid, &reply, now).expect("the cookie opens");
+            }
+        }
+        Incoming::Dropped(_) => assert!(!mac1_holds),
+        other => panic!("under load: {other:?}"),
     }
 }

@@ -1,8 +1,9 @@
 # pod-wg
 
-The WireGuard initiator of WARP, sans I/O: the code of podnet's
+WireGuard sans I/O. The initiator of WARP: the code of podnet's
 `src/warp/wg.rs` that makes and reads the bytes of WireGuard, as
-PodUtils/podnet#447 cut it.
+PodUtils/podnet#447 cut it. The responder for a list of peers
+(`Responder`), for `podnet wg serve` (PodUtils/podnet#547).
 
 The crate is this side of a WireGuard tunnel as the initiator: the handshake
 (Noise IKpsk2, with a preshared key or the zero key), the cookie of a
@@ -36,9 +37,13 @@ are the crate's: ring has neither.
 | `Stamps` | `new(wall, start)`, `next(now)`: the TAI64N timestamp of an initiation. |
 | `MSG_INITIATION`, `MSG_RESPONSE`, `MSG_COOKIE`, `MSG_DATA`; `INITIATION_LEN`, `RESPONSE_LEN`, `COOKIE_REPLY_LEN` | The types and the lengths of the messages. |
 | `REKEY_AFTER` (120 s), `REKEY_TIMEOUT` (5 s), `HANDSHAKE_DEAD` (20 s), `KEEPALIVE` (25 s), `COOKIE_AGE` (115 s) | The timers. |
+| `Responder` | `new(private, peers)`, `with_entropy(private, peers, entropy)`; `receive(message, from, under_load, now) -> Incoming`, `send(peer, packets, now)`, `tick(now) -> Vec<(peer, message)>`; `public()`, `peers()`, `session(peer)`. `Debug` shows no key. |
+| `Peer` | `public`, `preshared` (`None`: the zero key). `Debug` shows no key. |
+| `Incoming` | `Response { peer, message }`, `CookieReply(message)` (each to send to the source), `Packet { peer, packet }`, `Keepalive { peer }`, `Dropped(Error)` (no answer). |
+| `REJECT_AFTER` (180 s), `KEEPALIVE_TIMEOUT` (10 s), `COOKIE_SECRET_AGE` (120 s), `INITIATION_GAP` (20 ms), `REJECT_AFTER_MESSAGES` | The timers and the limits of the responder. |
 | `Error` | Each failure, with podnet's text; `class()`; `Failure::from`. |
 | `standin` (feature `standin`) | The responder of the tests: `respond`, `respond_with`, `respond_preshared` (with a preshared key), `cookie_reply`, `session`, `keys`, `start(reserved, path) -> (Keys, SocketAddr)`, `start_preshared` (with a new preshared key in the `Keys`), `start_under_load` (a cookie reply to each initiation with no mac2 of its cookie), `serve`, `DataPath` (`All`, `NeedsReserved`, `Dead`). On the loopback it answers each handshake, sends each packet back, and answers a TCP SYN with its SYN-ACK. |
-| `fuzzing` (feature `fuzzing`) | The readers of a response, a cookie reply and a transport message on fixed keys, for the fuzz targets of `fuzz/`. |
+| `fuzzing` (feature `fuzzing`) | The readers of a response, a cookie reply, a transport message and an initiation to the responder (`respond`) on fixed keys, for the fuzz targets of `fuzz/`. |
 
 ## The timers
 
@@ -76,6 +81,43 @@ key on fixed keys: the vector of the test
 independent program, the Noise steps written out on Python's hashlib, hmac
 and `cryptography` (call C314).
 
+## The responder
+
+`Responder` is the side of `podnet wg serve` (PodUtils/podnet#547): a
+private key, a list of peers with their preshared keys, and no socket, task
+or clock. The caller gives each datagram with its source address and `now`,
+and sends each `Response` and `CookieReply` back to that source.
+
+* An initiation: mac1 with the key of the responder; under load (the flag of
+  the caller), the mac2 of the cookie of the source address, else a cookie
+  reply; the static key, compared with each peer; the timestamp, which must
+  be after the last one taken from that peer (TAI64N), and not within
+  `INITIATION_GAP` of it (50 initiations a second, as the Linux kernel
+  has it). A key that is not listed gets no answer: the responder reads its
+  timestamp with the key of the initiation, as for a listed key, and
+  compares each key in a time that does not depend on its bytes, so the time
+  of a drop does not tell which keys are listed. Each MAC is compared so too.
+* The cookie is the MAC of the address (its IP bytes and its port, big
+  endian) with a random secret that changes after `COOKIE_SECRET_AGE`. Under
+  load, an initiation of any key with a good mac1 gets a cookie reply, as
+  in WireGuard: the reply only asks for the round trip.
+* The session of a response waits until the first transport message of the
+  peer in it (the key confirmation); then it is the current session, and the
+  one before it the previous one. Each transport message finds its peer and
+  its session by its receiver index, with the window of counters of
+  `Session::open`.
+* The timers: a session carries no message `REJECT_AFTER` (180 s) after its
+  handshake, or past `REJECT_AFTER_MESSAGES`; `send` is then
+  `Error::Expired`, and `tick` removes it. `tick` gives one keepalive
+  `KEEPALIVE_TIMEOUT` (10 s) after a packet of the peer when nothing went
+  out to it since. The responder never sends an initiation: each rekey is
+  the initiator's.
+
+The stand-in is kept for the tests of a consumer (its `respond` panics on a
+bad initiation, and it serves one client); its handshake runs on the steps
+of the responder (`src/respond.rs`), which the vector of the preshared key
+pins.
+
 ## The cookie
 
 A responder under load answers an initiation with a cookie reply (the
@@ -93,9 +135,11 @@ of another tunnel moves it with `Failure::at`.
 
 | Error | Class |
 | --- | --- |
-| `NotResponse`, `OtherHandshake`, `Mac1`, `ResponseNotAuthentic`, `NotCookie`, `CookieNotAuthentic`, `NotTransport`, `OtherSession`, `NotAuthentic`, `Replayed` | `Protocol` |
-| `Dead` | `Timeout` |
-| `NoRandom` | `Unavailable` |
+| `NotResponse`, `OtherHandshake`, `Mac1`, `ResponseNotAuthentic`, `NotCookie`, `CookieNotAuthentic`, `NotTransport`, `OtherSession`, `NotAuthentic`, `Replayed`, `NotInitiation`, `NotForResponder`, `InitiationMac1`, `InitiationNotAuthentic`, `OldTimestamp` | `Protocol` |
+| `UnknownPeer` | `Refused` |
+| `Flood` | `TempFail` |
+| `Dead`, `Expired` | `Timeout` |
+| `NoRandom`, `NoSession` | `Unavailable` |
 
 ## Features and settings
 
@@ -156,15 +200,20 @@ The differences, each a fix or a new part:
 
 ## Tests
 
-`cargo test -p pod-wg --all-features`: 22 tests (the vectors of BLAKE2s, its
+`cargo test -p pod-wg --all-features`: 28 tests (the vectors of BLAKE2s, its
 HMAC and the KDF, of HChaCha20, XChaCha20-Poly1305 against RustCrypto's;
 the handshake and the transport messages; the mac1 and the payload of a
 response; an initiation from known values; the preshared key on both sides,
 on one side and two keys, and its vector; the cookie; the timers, a rekey
 with the previous session, a bad response, a cookie in a rekey; the
 stand-in on the loopback, also under load and with a preshared key; the
-classes of the errors). The fuzz targets
-`wg_response`, `wg_cookie` and `wg_transport` (`fuzz/`). The plants
+responder against the initiator of the crate: several peers at once with a
+rekey of a `Tunnel`, a replayed initiation, an unknown key, a cookie under
+load and its retry, the expiry at 180 s, the keepalive and no initiation;
+the classes of the errors). The fuzz targets
+`wg_response`, `wg_cookie`, `wg_transport` and `wg_initiation` (`fuzz/`). The plants
 `wg-mac1-unchecked`, `wg-replayed-counter-taken`, `wg-timestamp-goes-back`,
 `wg-bad-response-resets-the-dead-time`, `wg-cookie-mac2-missing`,
-`wg-psk-step-skipped`.
+`wg-psk-step-skipped`, `wg-responder-timestamp-unchecked`,
+`wg-responder-unknown-key-answered`, `wg-responder-mac2-unchecked`,
+`wg-responder-session-never-expires`.

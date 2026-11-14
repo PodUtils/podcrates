@@ -1,0 +1,6 @@
+# The responder takes a key that is not in its list as its first peer: a
+# stranger gets a response; the test of the unknown key must fail.
+ENTRY=T-562
+GROUP=wg
+EXPECT='test responder::tests::an_unknown_key_gets_nothing \.\.\. FAILED'
+RUN='cargo test -p pod-wg --lib -- responder::tests::an_unknown_key_gets_nothing'

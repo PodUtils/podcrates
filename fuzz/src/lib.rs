@@ -72,6 +72,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("devtunnel_connect_info", targets::devtunnel_connect_info),
     ("netlab_counters", targets::netlab_counters),
     ("stun_message", targets::stun_message),
+    ("wg_initiation", targets::wg_initiation),
 ];
 
 /// Whether `text` is safe on one line of a terminal, as
