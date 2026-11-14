@@ -64,7 +64,7 @@ is done. Git and the record keep finished work.
   out): T-330 (its pair commands); T-207 (`pod-netlab`, #70) for
   PodUtils/podvm@T-1662; `exec_attached` of `pod-incus` if
   PodUtils/podvm@T-1722 asks. Write to podvm by COORD issues only.
-- podnet (on `v0.40.0`, `1c88531`, PodUtils/podnet#532; `pod-warp`
+- podnet (on `v0.41.0`, `095955c`, PodUtils/podnet#546; `pod-warp`
   taken): the rest of its link workstream (#133: T-494, T-500, then group
   d), then T-029 (`pod-cloudflare`) on the chain to WARP (the owner's
   order). Write to podnet by COORD issues only.
