@@ -6979,3 +6979,30 @@ Split the rule in two: the raw part (`SOCK_RAW` of `AF_INET` and `AF_INET6`, and
 ```sh
 cargo test -p pod-hold --all-features
 ```
+
+# T-579: `pod-session`: a spare link that moved no byte backs off before the next (PodUtils/podssh#242)
+
+**Source:** PodUtils/podssh#242 (COORD-065 of podssh; PodUtils/podssh@T-781).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A road that holds the bytes of the far end for longer than `spare_after` (localhost.run holds them for 13 s and more) starts a loop: the link is silent, a spare link opens beside it and takes the session, the node replays the same unacknowledged bytes (192 to 256 KiB) into the same third party, and the silence comes again. In podssh's live runs (42989086142, 42994885604, 43560494966) the session moved none of its 1 MiB in 120 s. podssh now sets `spare_links: false` for a race of third parties' tunnels of HTTP (its commit `77ab640`).
+
+## Premise
+
+- Read: PodUtils/podssh#242; `crates/pod-session/src/beside.rs`, the settings `spare_after` and `DEAD_AFTER`, and the record of the acknowledged position.
+
+## Approach
+
+When a spare took the session and the acknowledged position did not move before the next silence, double the wait before the next spare, up to `DEAD_AFTER`. Reset the wait at the first byte that moves the acknowledged position. A test with a stand-in link that holds each byte for 5 s: the session makes progress with spares on. A plant: the wait does not grow.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features
+```
