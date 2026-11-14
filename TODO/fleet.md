@@ -2479,7 +2479,7 @@ cargo test --manifest-path fuzz/Cargo.toml --lib
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2501,3 +2501,13 @@ cargo test -p pod-actions-workflow --all-features
 sh scripts/plant-each.sh actions-workflow-bang-order-ignored actions-workflow-star-crosses-slash actions-workflow-tags-only-takes-branches actions-workflow-filter-with-ignore-taken
 cargo test --manifest-path fuzz/Cargo.toml --lib
 ```
+
+## Done
+
+2026-11-14. The commit `ace4fbd` (`pod-actions-workflow: the filters of on: and Workflow::takes (T-572)`).
+
+- `crates/pod-actions-workflow`: `Trigger` (`event`, `action`, `git_ref`, `paths`; `Trigger::new`), `Workflow::takes(&Trigger) -> Result<bool, Error>`, `Workflow::triggers() -> Result<On, Error>`, `On` (`read`, `takes`), `Event` (`takes`), `Filter` (`matches`, `takes`), `Pattern` (`parse`, `matches`), `DEFAULT_PR_TYPES`; `ErrorKind::{FilterWithIgnore, OnlyNegated, BadPattern}` (calls C340 to C344). The static probe decides one push; the fuzz target `actions_workflow` reads the filters of each file that parses.
+- `cargo test -p pod-actions-workflow --all-features`: 54 passed (9 new in `tests/on.rs` with the examples of the documents, 3 new unit tests of the patterns). `cargo test --manifest-path fuzz/Cargo.toml --lib`: 13 passed.
+- Plants, each caught by hand: `actions-workflow-bang-order-ignored` (`a_later_bang_removes_a_match_and_a_later_pattern_adds_it_again`), `actions-workflow-star-crosses-slash` (`must not match a/b`), `actions-workflow-tags-only-takes-branches` (`a_filter_of_one_kind_of_ref_stops_the_other_kind`), `actions-workflow-filter-with-ignore-taken` (`a_filter_with_its_ignore_form_is_refused`); `sh scripts/plant-each.sh --apply`: 0 stale.
+- `cargo fmt --all --check`, clippy of the crate, of `static-probe` and of the fuzz library, and `cargo doc` of the crate with `-D warnings`: clean. `scripts/check-size.py`: 0 faults; `scripts/check-probe.py --no-tree`: 40 crates, 0 faults; `scripts/check-design-paths.py`: ok; `scripts/agent/check-windows.sh`: 0 faults.
+- Next: podrunner takes `Workflow::takes` at the next tag (PodUtils/podrunner@T-125).
