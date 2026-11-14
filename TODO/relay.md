@@ -5898,3 +5898,35 @@ sh scripts/plant-each.sh netstack-close-wait-closes-at-once netstack-link-drops-
 ## Done
 
 2026-11-13, commit `2f643b1`. `cargo test -p pod-netstack --all-features`: 79 passed. `close.rs`: `a_stream_whose_peer_closed_first_sends_each_queued_byte_then_the_end` (the client shuts down first; the server writes 16 MiB and closes; the client reads each byte, then the end). `hold.rs`: `the_packets_held_at_a_full_link_each_go_when_it_drains` (the outbound queue of the server fills to `LINK_OUTBOUND` while the pump stands; then `tx_dropped` is 0, `tx_held` is more than 0, the client reads 4 MiB and the end, and the pump moved each packet that the device counted in `tx_packets`). The plant `netstack-close-wait-closes-at-once` fails the first test ("the end after the end of the peer lost 4230144 bytes"). The plant `netstack-link-drops-at-a-full-queue` fails the second test ("4714 packets dropped at the full queue"); no other test of the crate catches it, as `a_full_tunnel_queue_holds_the_stack` uses `LinkDevice::tunnel_bounded`, not `LinkDevice::link`.
+
+# T-541: `pod-link`: the dns and icmp carriers stop at the wrap of the sequence of the ARQ: `dgram_tls` never calls `rekeyed` (PodUtils/podnet#540)
+
+**Source:** PodUtils/podnet#540 (COORD-074 of podnet, PodUtils/podnet@T-277).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet: "`pod_link::arq` asks for a rekey before its sequence wraps, and holds the frames at the wrap until the caller calls `rekeyed`. [...] The `dns` and `icmp` carriers run the ARQ inside the crate, under `dgram_tls`, and `dgram_tls` never calls `rekeyed`. So a `dns` or an `icmp` link stops at the wrap of one direction, after about 4 TiB of that direction. The sequence of the ARQ is not a nonce (TLS above it has its own), so the answer can be to let the wrap pass." The ask: answer the rekey in `dgram_tls`, and test that a `dns` or `icmp` link over the lossy shim crosses the wrap, with a small sequence space for the test.
+
+## Premise
+
+- Read: `crates/pod-link/src/arq/send.rs` (`rekey_due`, `rekeyed`, `can_send`: a new frame waits at the wrap until `wrap_ok`), `crates/pod-link/src/arq/stream.rs` (the task of `ArqStream`; only `ArqHandle::rekeyed` answers), `crates/pod-link/src/dgram_tls.rs` (the one user of `ArqStream` in the crate: the dns and icmp carriers). The udp carrier runs KCP, not this ARQ.
+- `ArqSettings::start` sets the first sequence, so a test starts 64 frames before the wrap (as `tests/arq.rs`, `the_bytes_wait_at_the_wrap_until_the_rekey`, does).
+- Not measured: a link of 4 TiB.
+
+## Approach
+
+1. `ArqStream::wrap_freely` (in the crate): the task of the ARQ calls `Arq::rekeyed` in its send loop at each ask, before it takes the datagrams to send. A task in `dgram_tls` that waits on `rekey_wanted` would not end with the ARQ, so the answer is in the task of the ARQ.
+2. `dgram_tls::stream` calls it on each ARQ that it starts, with a comment that tells why (call C290).
+3. Tests: a dns link and an icmp link over the `Lossy` shim (3 % loss, reorder, duplicates) start 64 frames before the wrap and move 128 KiB each way. The plant `link-dgram-wrap-waits` removes the call: the transfer stops at the wrap.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test dns_loss --test icmp bytes_cross_the_wrap_of_the_sequence_at_loss
+sh scripts/plant-each.sh link-dgram-wrap-waits
+```

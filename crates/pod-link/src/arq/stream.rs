@@ -43,6 +43,8 @@ struct Inner {
     idle_since: Option<std::time::Instant>,
     /// The silence of the peer that ends the task after the drop.
     quiet: Duration,
+    /// The task answers each rekey of the ARQ itself ([`ArqStream::wrap_freely`]).
+    free_wrap: bool,
 }
 
 impl Inner {
@@ -101,6 +103,7 @@ impl ArqStream {
             heard: now(),
             idle_since: None,
             quiet: settings.rto_ceiling * QUIET_RTOS,
+            free_wrap: false,
         };
         let shared = Arc::new(Shared { inner: Mutex::new(inner), sender: Notify::new(), rekey: Notify::new() });
         let task = tokio::spawn(drive(shared.clone(), carrier));
@@ -110,6 +113,15 @@ impl ArqStream {
     /// A handle that stays when the stream moves.
     pub fn handle(&self) -> ArqHandle {
         ArqHandle { shared: self.shared.clone() }
+    }
+
+    /// The task calls [`Arq::rekeyed`] at each ask, so the sequence wraps
+    /// with no wait. Only for a layer above that seals each byte with
+    /// nonces of its own (TLS): a sequence of the ARQ used again then
+    /// opens no nonce again.
+    pub(crate) fn wrap_freely(&self) {
+        self.shared.with(|i| i.free_wrap = true);
+        self.shared.sender.notify_one();
     }
 }
 
@@ -316,6 +328,9 @@ fn step(i: &mut Inner, out: &mut Vec<Vec<u8>>) -> (Option<std::time::Instant>, b
     let now = now();
     if i.arq.poll_timeout().is_some_and(|at| at <= now) {
         i.arq.on_timeout(now);
+    }
+    if i.free_wrap && i.arq.rekey_due() {
+        i.arq.rekeyed();
     }
     while out.len() < BATCH {
         let Some(d) = i.arq.poll_transmit(now) else { break };

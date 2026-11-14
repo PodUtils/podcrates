@@ -340,7 +340,9 @@ byte stream and knows nothing of the ARQ. Each number is big-endian:
   `rekey_ahead` frames before the wrap the ARQ asks for a rekey
   (`ArqHandle::rekey_wanted`), and new frames wait at the wrap until the
   caller calls `rekeyed`. The frames in flight go on. The two ends must
-  start at the same `start`.
+  start at the same `start`. The dns and icmp carriers answer each ask at
+  once: TLS above the ARQ has nonces of its own, so the sequence of the ARQ
+  is no nonce, and no direction stops at the wrap (T-541, call C290).
 - A datagram of another form, a frame out of the window, and an `ACK` of a
   frame not sent are dropped and counted. Fragments in sequence that
   disagree (an index or a count) end the ARQ with `ArqError::Protocol`.
@@ -682,8 +684,10 @@ that hold them (`tests/dns.rs`, `tests/dns_loss.rs`, feature `dns`):
   `the_carrier_says_what_it_gives_and_why_it_cannot_run`.
 - [x] Loss, reorder and duplicates on the `Lossy` shim, and the end of a
   silent peer at the timeout of the ARQ: `tests/dns_loss.rs`.
+- [x] Each direction crosses the wrap of the sequence of the ARQ at loss
+  (T-541): `bytes_cross_the_wrap_of_the_sequence_at_loss`.
 - [x] A plant for each check: `dns-down-needs-the-txt`,
-  `dns-wire-base32-roundtrip` (`scripts/plants/`).
+  `dns-wire-base32-roundtrip`, `link-dgram-wrap-waits` (`scripts/plants/`).
 
 The asks of PodUtils/podnet#521 for the ICMP echo carrier
 (PodUtils/podnet@T-282, row E3-2 of PodUtils/podnet#469) and the tests
@@ -693,6 +697,8 @@ that hold them (`tests/icmp.rs`, `tests/icmp_raw.rs`, feature `icmp`):
   loss and at 3 % loss with reorder and duplicates:
   `bytes_cross_each_way_with_no_loss`,
   `bytes_cross_each_way_at_three_percent_loss_with_reorder_and_duplicates`.
+- [x] Each direction crosses the wrap of the sequence of the ARQ at loss
+  (T-541): `bytes_cross_the_wrap_of_the_sequence_at_loss`.
 - [x] The keys are proven on each side, and a refused key is named:
   `the_keys_are_proven_on_each_side`, `a_refused_key_is_named_on_each_side`.
 - [x] A silent peer ends the link: `a_peer_that_goes_silent_ends_the_link`;
@@ -706,7 +712,7 @@ that hold them (`tests/icmp.rs`, `tests/icmp_raw.rs`, feature `icmp`):
   test prints a skip line where the host refuses the socket:
   `a_link_over_a_raw_socket_carries_a_stream_or_skips`.
 - [x] A plant for each check: `icmp-echo-session-filter`,
-  `icmp-wire-checksum` (`scripts/plants/`).
+  `icmp-wire-checksum`, `link-dgram-wrap-waits` (`scripts/plants/`).
 
 ## The adoption map
 
