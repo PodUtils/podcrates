@@ -23,6 +23,7 @@ fn run(filter: &[libc::sock_filter], data: &SeccompData) -> u32 {
             }
             BPF_JEQ_K => pc += usize::from(if acc == ins.k { ins.jt } else { ins.jf }),
             BPF_JGE_K => pc += usize::from(if acc >= ins.k { ins.jt } else { ins.jf }),
+            BPF_ALU_AND_K => acc &= ins.k,
             BPF_RET_K => return ins.k,
             code => panic!("the test runs no BPF code {code:#x}"),
         }
@@ -89,4 +90,52 @@ fn a_recvfrom_with_no_source_runs_in_the_kernel() {
     // A list of the caller stops each recvfrom.
     let own = Calls::of(&[libc::SYS_recvfrom]).program();
     assert_eq!(run(&own, &call(libc::SYS_recvfrom, [0; 6])), RET_USER_NOTIF);
+}
+
+// socket(AF_INET or AF_INET6, SOCK_RAW with any flag, any protocol) and a
+// ping socket get EPERM in the kernel (PodUtils/podnet#538); the other
+// sockets and the other calls go on as before. The opt-in lets them go to
+// the supervisor.
+#[test]
+fn a_raw_socket_and_an_icmp_socket_get_eperm_unless_allowed() {
+    let deny = Calls::sockets();
+    let allow = Calls::sockets().allow_raw();
+    assert!(deny.denies_raw() && !allow.denies_raw() && !Calls::of(&[libc::SYS_socket]).denies_raw());
+    let socket = |filter: &[libc::sock_filter], family: i32, kind: i32, protocol: i32| {
+        // A high word of garbage: the kernel reads an int.
+        let arg = |v: i32| u64::from(v as u32) | 0xdead_0000_0000_0000;
+        run(filter, &call(libc::SYS_socket, [arg(family), arg(kind), arg(protocol), 0, 0, 0]))
+    };
+    let eperm = RET_ERRNO | libc::EPERM as u32;
+    let flags = libc::SOCK_CLOEXEC | libc::SOCK_NONBLOCK;
+    let refused = [
+        (libc::AF_INET, libc::SOCK_RAW, libc::IPPROTO_ICMP),
+        (libc::AF_INET, libc::SOCK_RAW | flags, libc::IPPROTO_ICMP),
+        (libc::AF_INET6, libc::SOCK_RAW | libc::SOCK_CLOEXEC, libc::IPPROTO_ICMPV6),
+        (libc::AF_INET, libc::SOCK_RAW, libc::IPPROTO_RAW),
+        (libc::AF_INET6, libc::SOCK_RAW, libc::IPPROTO_TCP),
+        (libc::AF_INET, libc::SOCK_DGRAM | flags, libc::IPPROTO_ICMP),
+        (libc::AF_INET6, libc::SOCK_DGRAM, libc::IPPROTO_ICMPV6),
+    ];
+    for (family, kind, protocol) in refused {
+        let what = format!("socket({family}, {kind:#x}, {protocol})");
+        assert_eq!(socket(&deny.program(), family, kind, protocol), eperm, "{what}");
+        assert_eq!(socket(&allow.program(), family, kind, protocol), RET_USER_NOTIF, "{what} with the opt-in");
+    }
+    for (family, kind, protocol) in [
+        (libc::AF_INET, libc::SOCK_STREAM, 0),
+        (libc::AF_INET6, libc::SOCK_DGRAM | flags, libc::IPPROTO_UDP),
+        (libc::AF_UNIX, libc::SOCK_DGRAM, 0),
+        (libc::AF_NETLINK, libc::SOCK_RAW, 0),
+    ] {
+        assert_eq!(socket(&deny.program(), family, kind, protocol), RET_USER_NOTIF, "socket({family}, {kind:#x})");
+    }
+    // The rule gives the number of the call back to the list.
+    let filter = deny.program();
+    let raw = [libc::AF_INET as u64, libc::SOCK_RAW as u64, 1, 0, 0, 0];
+    assert_eq!(run(&filter, &call(libc::SYS_connect, raw)), RET_USER_NOTIF);
+    assert_eq!(run(&filter, &call(libc::SYS_write, raw)), RET_ALLOW);
+    // A list of the caller refuses no socket.
+    let own = Calls::of(&[libc::SYS_socket]).program();
+    assert_eq!(socket(&own, libc::AF_INET, libc::SOCK_RAW, libc::IPPROTO_ICMP), RET_USER_NOTIF);
 }

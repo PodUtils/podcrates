@@ -46,6 +46,14 @@ fn payload_socket() -> i32 {
     }
 }
 
+/// The payload: open a raw ICMP socket, with flags in its type. The exit
+/// code is 0 for a socket, else the errno.
+fn payload_raw() -> i32 {
+    let kind = libc::SOCK_RAW | libc::SOCK_CLOEXEC | libc::SOCK_NONBLOCK;
+    // SAFETY: a plain system call.
+    if unsafe { libc::socket(libc::AF_INET, kind, libc::IPPROTO_ICMP) } < 0 { errno() } else { 0 }
+}
+
 fn wait(pid: i32) -> i32 {
     let mut status = 0;
     // SAFETY: waitpid of a child of this process.
@@ -115,6 +123,43 @@ fn a_socket_call_gets_the_descriptor_of_the_supervisor() {
     println!("ok: a_socket_call_gets_the_descriptor_of_the_supervisor");
 }
 
+/// A raw ICMP socket under the calls of a hold of each socket: the filter
+/// answers `EPERM`, and no notification reaches the supervisor. With
+/// `Calls::allow_raw`, the call reaches the supervisor (which proceeds
+/// with it), and the answer is the kernel's: a socket, or the kernel's own
+/// `EPERM` or `EACCES` on a host that gives no `CAP_NET_RAW` and no ping
+/// group. The notification tells the two answers apart
+/// (PodUtils/podnet#538).
+fn a_raw_icmp_socket_gets_eperm_unless_the_hold_allows_it() {
+    for (calls, allowed) in [(Calls::sockets(), false), (Calls::sockets().allow_raw(), true)] {
+        let Some(started) = payload("payload-raw", &calls) else { return };
+        let pid = started.pid;
+        let raw = runtime().block_on(async {
+            let listener = Listener::new(started.listener, Access::default()).expect("a listener");
+            let mut raw = 0;
+            loop {
+                let next = tokio::time::timeout(Duration::from_secs(10), listener.recv()).await.expect("in time");
+                let Some(n) = next else { break };
+                let kind = (n.args[1] as i32) & 0xf;
+                if n.nr as libc::c_long == libc::SYS_socket && kind == libc::SOCK_RAW {
+                    raw += 1;
+                }
+                reply::proceed(listener.raw(), n.id).expect("the reply");
+            }
+            raw
+        });
+        let code = wait(pid);
+        if allowed {
+            assert_eq!(raw, 1, "the opt-in gives the call to the supervisor");
+            assert!([0, libc::EPERM, libc::EACCES].contains(&code), "the kernel's answer: {code}");
+            println!("the kernel answered the allowed raw socket with {code} (0: a socket)");
+        } else {
+            assert_eq!((raw, code), (0, libc::EPERM), "the filter answers EPERM, with no notification");
+        }
+    }
+    println!("ok: a_raw_icmp_socket_gets_eperm_unless_the_hold_allows_it");
+}
+
 /// The netns hold: a child enters a new network namespace, makes the TUN,
 /// and gives it to the parent; the parent maps the ids.
 fn a_namespace_gives_its_tun_to_the_parent() {
@@ -171,6 +216,7 @@ pub fn main() {
     match args.get(1).map(String::as_str) {
         Some("payload-connect") => std::process::exit(payload_connect(9)),
         Some("payload-socket") => std::process::exit(payload_socket()),
+        Some("payload-raw") => std::process::exit(payload_raw()),
         _ => {}
     }
     // The fork of the namespace test comes first, while the process has one
@@ -178,4 +224,5 @@ pub fn main() {
     a_namespace_gives_its_tun_to_the_parent();
     a_refused_connect_fails_with_the_errno_of_the_reply();
     a_socket_call_gets_the_descriptor_of_the_supervisor();
+    a_raw_icmp_socket_gets_eperm_unless_the_hold_allows_it();
 }
