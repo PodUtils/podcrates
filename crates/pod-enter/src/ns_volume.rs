@@ -331,6 +331,39 @@ pub(crate) fn failure(plan: &Plan, step: u8, e: Errno, at: u8) -> Option<Error> 
     Some(Error::runtime(class, format!("{text}; the payload did not run")))
 }
 
+/// The components of a working directory under `/tmp` on the namespace
+/// rung, for [`make_workdir`]: the tmpfs of the rung hides a directory that
+/// the caller made in the image (PodUtils/podvm#569). Empty elsewhere.
+pub(crate) fn tmp_workdir_parts(plan: &Plan) -> Vec<CBuf> {
+    let w = plan.working_dir.as_str();
+    if !w.starts_with("/tmp/") {
+        return Vec::new();
+    }
+    guest_parts(w).map(|parts| parts.iter().filter_map(|p| CBuf::new(p)).collect()).unwrap_or_default()
+}
+
+/// In the child, after the chroot: make each missing component of `parts`
+/// from `/` with no link on the way, and `fchdir` into the last one. No
+/// allocation.
+pub(crate) fn make_workdir(slash: &CBuf, parts: &[CBuf]) -> std::result::Result<(), Errno> {
+    let flags = sys::O_PATH | sys::O_DIRECTORY | sys::O_NOFOLLOW | sys::O_CLOEXEC;
+    let mut dir = sys::open(slash, flags, 0)?;
+    for p in parts {
+        if let Err(e) = sys::mkdirat(dir, p, 0o755)
+            && e != sys::EEXIST
+        {
+            let _ = sys::close(dir);
+            return Err(e);
+        }
+        let next = sys::openat(dir, p, flags, 0);
+        let _ = sys::close(dir);
+        dir = next?;
+    }
+    let r = sys::fchdir(dir);
+    let _ = sys::close(dir);
+    r.map(drop)
+}
+
 /// Check the working directory before the fork, on a rung with a chroot: a
 /// directory of the image, of the upper directory of an overlay root over
 /// it (`upper`, [`crate::ns_upper`]), or of the host side of a volume that

@@ -90,6 +90,9 @@ fn image(bb: &Path, tag: &str) -> PathBuf {
     }
     fs::set_permissions(&root, fs::Permissions::from_mode(0o755)).unwrap();
     fs::write(root.join("tmp/of-the-image"), "x").unwrap();
+    // A working directory of the image under /tmp, which the tmpfs of the
+    // rung hides (PodUtils/podvm#569).
+    fs::create_dir_all(root.join("tmp/wd/deep")).unwrap();
     fs::copy(bb, root.join("bin/busybox")).unwrap();
     fs::set_permissions(root.join("bin/busybox"), fs::Permissions::from_mode(0o755)).unwrap();
     for applet in ["sh", "id", "uname", "test", "touch", "grep", "sleep", "head", "wc", "cat", "ls"] {
@@ -282,6 +285,14 @@ fn as_the_caller(root: &Path) {
     assert!(!err.contains("entered chroot instead"), "{err}");
     assert!(!err.contains("runs with no /proc"), "{err}");
     assert!(!root.join("tmp/new").exists(), "the write of the payload landed in the /tmp of the image");
+    // A working directory under /tmp: the child makes it in the tmpfs.
+    let mut p = plan("test \"$(pwd)\" = /tmp/wd/deep || exit 3; touch made || exit 4", Some(NAME));
+    p.working_dir = "/tmp/wd/deep".to_string();
+    let mut err = Vec::new();
+    let code = run_namespace(&dir, &p, &mut err);
+    let err = String::from_utf8_lossy(&err);
+    assert_eq!(code.map_err(|e| e.to_string()), Ok(0), "a working directory under /tmp: {err}");
+    assert!(!root.join("tmp/wd/deep/made").exists(), "the write landed in the image");
 }
 
 /// The `/dev` of [`devices_of_the_host`], of the caller of the test: the

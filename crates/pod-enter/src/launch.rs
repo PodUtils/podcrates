@@ -91,6 +91,7 @@ pub(crate) fn spawn_with(
         .ok_or_else(|| nul("the working directory contains a NUL byte".to_string()))?;
     let slash = CBuf::new("/").expect("a literal");
     let dot = CBuf::new(".").expect("a literal");
+    let tmp_workdir = if ns.is_some() { crate::ns_volume::tmp_workdir_parts(plan) } else { Vec::new() };
     let tmpfs = CBuf::new("tmpfs").expect("a literal");
     // The empty path through which `execveat` execs a descriptor.
     let empty = sys::cempty();
@@ -307,7 +308,13 @@ pub(crate) fn spawn_with(
                 // The `WorkingDir` of the image. The check before the fork
                 // is the usual refusal; this reports a directory that went
                 // missing after it, and the payload does not run from `/`.
-                if let Err(e) = sys::chdir(&workdir) {
+                // Under the tmpfs of the namespace rung, a directory of the
+                // image is hidden: the child makes it there.
+                if let Err(e) = sys::chdir(&workdir)
+                    && !(e == sys::ENOENT
+                        && !tmp_workdir.is_empty()
+                        && crate::ns_volume::make_workdir(&slash, &tmp_workdir).is_ok())
+                {
                     report(11, e);
                 }
                 // The device and inode check: the chroot by path of the
