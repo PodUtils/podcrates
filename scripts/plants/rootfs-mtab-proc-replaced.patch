@@ -1,0 +1,12 @@
+diff --git a/crates/pod-rootfs/src/net.rs b/crates/pod-rootfs/src/net.rs
+--- a/crates/pod-rootfs/src/net.rs
++++ b/crates/pod-rootfs/src/net.rs
+@@ -136,7 +136,7 @@ fn run_mtab(root: &Root, mounts: &Path, entry_mounts_proc: bool) -> Result<Vec<F
+             ]);
+         }
+         Kind::Symlink(t)
+-            if entry_mounts_proc && (t.starts_with("/proc/") || t.trim_start_matches("../").starts_with("proc/")) =>
++            if entry_mounts_proc && false && (t.starts_with("/proc/") || t.trim_start_matches("../").starts_with("proc/")) =>
+         {
+             return Ok(vec![
+                 Fixup::new("mtab", "etc/mtab", Action::Unchanged)

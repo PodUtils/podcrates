@@ -1,0 +1,6 @@
+# pod-rootfs: a link of etc/mtab into /proc is replaced, and degraded, also where the entry mounts /proc (T-889).
+ENTRY=T-889
+GROUP=rootfs
+EXPECT='mtab_keeps_a_link_into_proc_where_the_entry_mounts_proc'
+RUN='cargo test -p pod-rootfs --all-features --lib net'
+LIMIT=900
