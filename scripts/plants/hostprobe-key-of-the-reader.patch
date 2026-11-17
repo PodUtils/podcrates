@@ -1,0 +1,13 @@
+diff --git a/crates/pod-hostprobe/src/identity.rs b/crates/pod-hostprobe/src/identity.rs
+--- a/crates/pod-hostprobe/src/identity.rs
++++ b/crates/pod-hostprobe/src/identity.rs
+@@ -90,7 +90,8 @@ pub fn read() -> Identity {
+ /// namespace of its own gives the pid of its outer process, so that its
+ /// key of the cache repeats (PodUtils/podvm#569).
+ pub fn read_of(pid: i64) -> Identity {
+-    read_proc(&format!("/proc/{pid}"), Identity::default(), true)
++    let _ = pid;
++    read_proc("/proc/self", Identity::default(), true)
+ }
+ 
+ /// The maps and the status of the process of the directory `dir` of

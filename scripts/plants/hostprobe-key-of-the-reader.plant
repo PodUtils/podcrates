@@ -1,0 +1,6 @@
+# pod-hostprobe: the identity of a given process reads the reader's own /proc/self (T-890).
+ENTRY=T-890
+GROUP=hostprobe
+EXPECT='a pid with no process reads nothing'
+RUN='cargo test -p pod-hostprobe --all-features --lib identity'
+LIMIT=900
