@@ -2127,7 +2127,7 @@ Open: the step counter of a scope (VF-2), which needs a call in each loop of a h
 **Milestone:** M0
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2146,6 +2146,14 @@ A module `pod_core::lock`: an exclusive or shared lock of a file for the life of
 ```sh
 cargo test -p pod-core --all-features lock
 ```
+
+## Correction
+
+`pod_supervise::lock` keeps its own `Lock`: it registers each descriptor to close in each child of `clone_fork`, a rule of its fork path on Linux, which a lock for each system does not have.
+
+## Done
+
+2026-11-17, 67bcafed4, 66d8b39fd: `pod_core::lock::FileLock` with `Mode` (exclusive, shared): `try_lock` (`Ok(None)` where another process holds a lock that excludes it) and `lock_within` (a wait with a bound; at the bound a refusal of class `Unavailable` that names the file). It is `std::fs::File::lock` (stable since Rust 1.89): `flock(2)` on Linux and the BSDs, so it interoperates with the `flock` locks of the consumers, and `LockFileEx` on Windows. The file opens read and write, made where absent, mode 0600 and `O_NOFOLLOW` on Unix, close-on-exec. Tests in `crates/pod-core/src/lock_tests.rs`: modes, a bounded wait, a link at the path refused; clippy with and with no default feature. Plant `core-lock-follows-a-link`, caught. Not run here: Windows (CI builds `pod-core` for it). The consumers replace their copies at their take: podssh `known_hosts/lock.rs` and `detach/lock.rs`, podrunner `src/lock.rs`, podnet's instance lock.
 
 # T-878: `pod-core`: one injectable clock, in place of the copies of podrunner and of three crates
 
