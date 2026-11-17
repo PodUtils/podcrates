@@ -10067,7 +10067,7 @@ cargo test -p pod-supervise --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10086,6 +10086,10 @@ A setting "the entry mounts /proc"; with it, a link of `etc/mtab` into `/proc` s
 ```sh
 cargo test -p pod-rootfs --all-features
 ```
+
+## Done
+
+2026-11-17, 1dc30c45a, 419594d81: `pod_rootfs::Settings::entry_mounts_proc` (false by default). With it, `etc/mtab` as a link to `/proc/...` or a relative `proc/...` (after `../`) stays: `Unchanged`, not degraded, "a symlink to T, which resolves in the /proc that the entry mounts". Without it the link is replaced, as before. Test `mtab_keeps_a_link_into_proc_where_the_entry_mounts_proc` (an absolute and a relative link stay with the setting, and are replaced without it); the tests of `net` pass. Plant `rootfs-mtab-proc-replaced`, caught. podvm sets it on the namespace rung.
 
 # T-890: `pod-hostprobe`: the confinement key reads the namespaces of the reading process (PodUtils/podvm#569)
 
