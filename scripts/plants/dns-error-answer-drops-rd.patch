@@ -1,0 +1,12 @@
+diff --git a/crates/pod-dns/src/txt.rs b/crates/pod-dns/src/txt.rs
+--- a/crates/pod-dns/src/txt.rs
++++ b/crates/pod-dns/src/txt.rs
+@@ -169,7 +169,7 @@ pub fn error_answer(request: &[u8], rcode: u8) -> Result<Vec<u8>, String> {
+     }
+     let mut out = request[..end].to_vec();
+     // QR set, the opcode and RD kept, AA and TC clear; RA set, Z clear.
+-    out[2] = 0x80 | (request[2] & 0x79);
++    out[2] = 0x80 | (request[2] & 0x78);
+     out[3] = 0x80 | rcode;
+     out[6..12].fill(0);
+     Ok(out)

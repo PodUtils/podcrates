@@ -1,0 +1,6 @@
+# pod-dns: an error answer drops the RD flag of the request (T-898).
+ENTRY=T-898
+GROUP=dns
+EXPECT='RD kept'
+RUN='cargo test -p pod-dns --all-features --lib txt'
+LIMIT=900
