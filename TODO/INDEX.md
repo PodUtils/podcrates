@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**736 entries: 137 open, 21 partial, 7 blocked, 571 done.**
+**737 entries: 137 open, 21 partial, 7 blocked, 572 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 161 | 179 |
 | P2 | 61 | 3 | 4 | 295 | 363 |
-| P3 | 66 | 10 | 3 | 113 | 192 |
-| **All** | 137 | 21 | 7 | 571 | 736 |
+| P3 | 66 | 10 | 3 | 114 | 193 |
+| **All** | 137 | 21 | 7 | 572 | 737 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -783,3 +783,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-901](roads.md) | P3 | S | M3 | feature | open | `pod-ws`: a request of the upgrade with no token header, for a probe (PodUtils/podnet#652) |
 | [T-902](fleet.md) | P2 | S | M5 | defect | done | `pod-actions-store`: `Lock::parse` keeps a digest in uppercase, and each fetch then fails (PodUtils/podrunner#288) |
 | [T-903](roads.md) | P2 | S | M2 | defect | done | `pod-dns`: one line of 1000 characters, where each resolver of DNS over HTTPS failed alike (PodUtils/podssh#313) |
+| [T-904](relay.md) | P3 | S | M2 | defect | done | `pod-relay`: a relay that issues no token names no way to give one (PodUtils/podssh#313) |

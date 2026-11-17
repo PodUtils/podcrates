@@ -9969,3 +9969,34 @@ cargo test -p pod-relay --all-features --lib open::tests
 ## Done
 
 2026-11-17, 9e286138e: `OpenError::lines` (now in `crates/pod-relay/src/open_lines.rs`) gives one line for a refusal of the policy, `the relay's policy does not allow T (HTTP S)`, and one line for a `502`, `the relay could not reach T: CAUSE`, where CAUSE is the relay's words (one line, by `pod_core::text::one_line`) with each leading `relay:`, `cannot reach`, T and `:` taken out; `(HTTP 502)` when nothing is left. A token of the environment that the relay rejected and a proxy's refusal keep their second line, as each adds a fact. Test: `a_refusal_says_its_cause_once` in `crates/pod-relay/src/open_tests.rs` (the line of each refusal, and two lines for the token). The tests of `pod-relay` pass. Plant `relay-refusal-says-its-cause-twice` (the relay's whole words after the target), caught.
+
+# T-904: `pod-relay`: a relay that issues no token names no way to give one (PodUtils/podssh#313)
+
+**Source:** PodUtils/podssh#313 (COORD-116 of podssh, item 2).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A relay that mints for no one gives `this relay does not issue tokens (HTTP 503); ask its operator for one and give it as the relay token`: the line names no way to give it.
+
+## Premise
+
+- Read: PodUtils/podssh#313; `crates/pod-relay/src/token.rs`, `src/settings.rs` (`Names::token`).
+
+## Approach
+
+The line names `Names::token`, the words of the consumer for its token (podssh: `PODSSH_RELAY_TOKEN`).
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features --lib token
+```
+
+## Done
+
+2026-11-17, 9e16f1886, 6c39d9102: `TokenError::NotIssued { give }`: the mint fills `give` from `Settings::names.token`, and the line ends `give it in GIVE` (podssh sets `PODSSH_RELAY_TOKEN`; the default reads "the relay token setting"). Test `a_relay_that_issues_no_token_names_where_to_give_one`; 230 tests of the library of `pod-relay` pass, and workspace clippy is clean. Plant `relay-token-way-unnamed`, caught. Breaking: `TokenError::NotIssued` has a field.
