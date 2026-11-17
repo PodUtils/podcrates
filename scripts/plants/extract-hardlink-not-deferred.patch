@@ -1,0 +1,12 @@
+diff --git a/crates/pod-extract/src/apply.rs b/crates/pod-extract/src/apply.rs
+--- a/crates/pod-extract/src/apply.rs
++++ b/crates/pod-extract/src/apply.rs
+@@ -191,7 +191,7 @@ pub fn apply_layer(
+                 Ok(_) => st.hardlinks += 1,
+                 // A target that comes later in the layer: the link waits for
+                 // the end of the layer (PodUtils/podvm#569).
+-                Err(e) if e == sys::ENOENT => {
++                Err(e) if e == sys::ENOENT && false => {
+                     later.push(Later {
+                         path: path.clone(),
+                         target: target.clone(),

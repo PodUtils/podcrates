@@ -1,0 +1,6 @@
+# pod-extract: a hard link before its target in the layer fails at once (T-895).
+ENTRY=T-895
+GROUP=extract
+EXPECT='a_hard_link_before_its_target_waits_for_the_end_of_the_layer'
+RUN='cargo test -p pod-extract --all-features --lib drive::a_hard_link_before_its_target_waits_for_the_end_of_the_layer'
+LIMIT=900
