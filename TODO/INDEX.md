@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**728 entries: 132 open, 21 partial, 7 blocked, 568 done.**
+**728 entries: 131 open, 21 partial, 7 blocked, 569 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 161 | 179 |
-| P2 | 59 | 3 | 4 | 292 | 358 |
+| P2 | 58 | 3 | 4 | 293 | 358 |
 | P3 | 63 | 10 | 3 | 113 | 189 |
-| **All** | 132 | 21 | 7 | 568 | 728 |
+| **All** | 131 | 21 | 7 | 569 | 728 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -757,7 +757,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-875](podvm.md) | P2 | S | M6 | feature | done | `pod-supervise`: `run -d --rm` keeps the record and the tree after the end (PodUtils/podvm#568) |
 | [T-876](podvm.md) | P2 | M | M6 | feature | done | `pod-enter`: a volume whose source a link cannot redirect between the check of the caller and the bind (PodUtils/podvm#568) |
 | [T-877](foundation.md) | P1 | M | M0 | feature | done | `pod-core`: one advisory file lock for each system, in place of four copies in the consumers |
-| [T-878](foundation.md) | P2 | S | M0 | feature | open | `pod-core`: one injectable clock, in place of the copies of podrunner and of three crates |
+| [T-878](foundation.md) | P2 | S | M0 | feature | done | `pod-core`: one injectable clock, in place of the copies of podrunner and of three crates |
 | [T-879](foundation.md) | P2 | M | M0 | feature | open | `pod-detach`: the detach of a command by a re-exec, from podnet, in place of podssh's near copy |
 | [T-880](foundation.md) | P2 | M | M0 | feature | open | `pod-release`: the self-update of a binary (fetch, verify, replace, trial run), from podnet and podssh |
 | [T-881](foundation.md) | P2 | S | M0 | feature | open | `pod-tls`: the CA bundle that the environment names, in place of three lists in the consumers |

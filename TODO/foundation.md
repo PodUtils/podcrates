@@ -2162,7 +2162,7 @@ cargo test -p pod-core --all-features lock
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2181,6 +2181,14 @@ podrunner has PodUtils/podrunner:crates/podrunner-clock/src/lib.rs (a `Clock` tr
 ```sh
 cargo test -p pod-core --all-features clock
 ```
+
+## Correction
+
+`pod-turn` keeps its own `Clock`: it is a timer of tokio (`tokio::time::Instant`, which a test pauses, and `sleep_until`), not a clock of the system.
+
+## Done
+
+2026-11-17, 87ef5672b, 8bb1fe328: `pod_core::clock::Clock` (`now`, a monotonic `Instant`; `wall`, a `SystemTime`, by default the system's), `SystemClock`, and `ManualClock` (`new`, `at(wall)`, `advance(by)`: both times move only by an advance). `pod-tls` takes it in place of its own trait (`pod_tls::ech::Clock` is now `pod_core::clock::Clock`). Test `a_manual_clock_moves_only_when_it_is_moved`; the tests of `ech` of `pod-tls` pass. Plant `core-manual-clock-still`, caught. podrunner replaces `podrunner-clock` at its take.
 
 # T-879: `pod-detach`: the detach of a command by a re-exec, from podnet, in place of podssh's near copy
 
