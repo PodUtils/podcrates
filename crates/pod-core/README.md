@@ -14,6 +14,7 @@ this crate depends on no other pod crate.
 | `metered` | `Metered`: a stream that counts its bytes and signals at a limit |
 | `files` | the private files of a program and of a user: `App` (its name and its variable), `places_from`, `candidate_dirs_from`, `chosen_from`, `Places` with the places passed over in another user's tree, `store_file_in_first`, `load_file_from`, `read_private`, `read_own`, `create_private`, `create_new_private`, `private_dir`, `safe_name`, the owners and the access lists of Unix and Windows |
 | `entropy` | `Entropy`, `OsEntropy`, `NoRandom`: the random source, which a test can plant |
+| `lock` | `FileLock` (`try_lock`, `lock_within`, `path`, `mode`, `file`) and `Mode`: an advisory lock of a file for the life of a value, `flock(2)` on Unix and `LockFileEx` on Windows, with no link at the last component, close-on-exec, and a bounded wait whose refusal names the file |
 | `backoff` | `backoff(retry)`, `CONNECT_TIMEOUT` |
 | `clock` | the hint of a refused certificate, HTTP dates, `utc_minutes` |
 | `text` | `one_line`, `multi_line`: text of a peer, safe to print |

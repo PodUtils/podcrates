@@ -11,6 +11,8 @@
 //! * [`files`]: the private files of a program and of a user, in the
 //!   places of its [`files::App`];
 //! * [`entropy`]: the random source, which a test can plant;
+//! * [`lock`]: an advisory lock of a file for the life of a value, on each
+//!   system;
 //! * [`metered`], [`quota`], [`pick`], [`backoff`], [`clock`], [`text`],
 //!   [`names`]: the small helpers.
 //!
@@ -28,6 +30,7 @@ pub mod entropy;
 pub mod event;
 pub mod failure;
 pub mod files;
+pub mod lock;
 #[cfg(feature = "async")]
 pub mod metered;
 pub mod names;
