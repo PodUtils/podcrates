@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/token.rs b/crates/pod-relay/src/token.rs
+--- a/crates/pod-relay/src/token.rs
++++ b/crates/pod-relay/src/token.rs
+@@ -87,7 +87,8 @@ impl std::fmt::Display for TokenError {
+                 write!(f, "the relay is rate-limiting token minting; retry shortly")
+             }
+             TokenError::NotIssued { give } => {
+-                write!(f, "this relay does not issue tokens (HTTP 503); ask its operator for one and give it in {give}")
++                let _ = give;
++                write!(f, "this relay does not issue tokens (HTTP 503); ask its operator for one and give it as the relay token")
+             }
+             TokenError::Failed { status, detail } => write!(f, "minting a relay token failed: HTTP {status}{detail}"),
+         }

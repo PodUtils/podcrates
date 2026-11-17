@@ -1,0 +1,6 @@
+# pod-relay: a relay that issues no token names no way to give one (T-904).
+ENTRY=T-904
+GROUP=relay
+EXPECT='a_relay_that_issues_no_token_names_where_to_give_one'
+RUN='cargo test -p pod-relay --all-features --lib token'
+LIMIT=900
