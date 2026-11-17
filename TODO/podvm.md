@@ -9885,7 +9885,7 @@ cargo test -p pod-supervise --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9904,3 +9904,7 @@ An option of `VolumeBind`: a base that the caller names. `pod-enter` opens the s
 ```sh
 cargo test -p pod-enter --all-features volume
 ```
+
+## Done
+
+2026-11-17, 657e5af28, 6f64fabf1: `VolumeBind::host_base: Option<String>` (and `VolumeBind` is `Default`). With a base, `host` must be the base or under it; before the fork `prepare` opens it with `openat2(O_PATH, RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS)` from the base, and a link under the base (`ELOOP`, `EXDEV`) is a `Policy` refusal that names the volume: `its host path holds a symbolic link under its base`. In the child the source opens again the same way, and `mount_fd_on_fd` binds `/proc/self/fd/SRC` onto `/proc/self/fd/POINT`: a link made in the source after the open cannot redirect the bind. A refusal in the child is the step 48 (`NS_VOLUME_SOURCE_STEP`), named by the volume. Tests: `a_host_path_under_its_base_holds_no_link` (a link as the last component and on the way are refused, the base itself and a plain path open, a path out of the base is a usage error); the read-only volume of `the_namespace_rung_binds_the_volumes_of_a_plan` binds by its descriptor under its base, as root and as uid 65534 (`sh scripts/ci/userns-tests.sh`: 31 tests passed). Plant `enter-volume-base-not-checked`, caught; `enter-volume-ro-writable` follows the new code, caught.
