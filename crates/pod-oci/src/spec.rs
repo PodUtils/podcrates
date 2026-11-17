@@ -268,7 +268,7 @@ fn ranked<'w>(arch: &str, want: &'w str) -> Vec<&'w str> {
 /// each platform one time, with its `os.version` ([`Platform::full_word`]),
 /// and no attestation manifest. An ask with no variant takes the first
 /// entry of its OS and architecture; an ask with a variant takes the best
-/// entry of [`ranked`], the first in the index where two rank the same.
+/// entry of `ranked`, the first in the index where two rank the same.
 pub fn select_platform<'a>(index: &'a Index, want: &crate::platform::Platform) -> Result<&'a Descriptor> {
     let mut offered: Vec<String> = Vec::new();
     let mut best: Option<(usize, &'a Descriptor)> = None;
