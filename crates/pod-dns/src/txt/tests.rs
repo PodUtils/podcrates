@@ -179,3 +179,23 @@ fn a_server_reads_the_size_that_a_query_takes() {
     assert_eq!(asked_size(&q[..14]), None);
     assert_eq!(asked_size(&[]), None);
 }
+
+/// An error answer copies the id, the opcode, RD and the question of the
+/// request, sets QR, RA and the RCODE, and holds no record
+/// (PodUtils/podnet#652).
+#[test]
+fn an_error_answer_copies_the_request() {
+    let mut q = crate::wire::query("a.example", TXT).unwrap();
+    q[..2].copy_from_slice(&0x1234u16.to_be_bytes());
+    let a = error_answer(&q, RCODE_NXDOMAIN).unwrap();
+    assert_eq!(&a[..2], &[0x12, 0x34]);
+    assert_eq!(a[2] & 0x80, 0x80, "QR");
+    assert_eq!(a[2] & 0x01, q[2] & 0x01, "RD kept");
+    assert_eq!(a[3], 0x80 | RCODE_NXDOMAIN);
+    assert_eq!(&a[4..6], &[0, 1]);
+    assert_eq!(&a[6..12], &[0; 6]);
+    assert_eq!(&a[12..], &q[12..], "the question");
+    assert_eq!(error_answer(&q, RCODE_SERVFAIL).unwrap()[3] & 0x0f, RCODE_SERVFAIL);
+    assert!(error_answer(&a, RCODE_SERVFAIL).is_err(), "an answer is no request");
+    assert!(error_answer(&q[..14], RCODE_SERVFAIL).is_err(), "a cut question");
+}

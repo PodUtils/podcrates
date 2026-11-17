@@ -132,6 +132,49 @@ pub fn answer(id: u16, name: &str, kind: u16, records: &[&[u8]], edns: Option<u1
     Ok(out)
 }
 
+/// The RCODE of a server failure (RFC 1035).
+pub const RCODE_SERVFAIL: u8 = 2;
+/// The RCODE of a name that does not exist (RFC 1035).
+pub const RCODE_NXDOMAIN: u8 = 3;
+/// The RCODE of a refusal of the server (RFC 1035).
+pub const RCODE_REFUSED: u8 = 5;
+
+/// An answer of `rcode` with no record to the query `request`: its id, its
+/// opcode, its RD flag and its one question, with QR and RA set, as RFC 1035
+/// asks of a server (PodUtils/podnet#652). A request that is not a query
+/// of one question with a name of labels is an error.
+pub fn error_answer(request: &[u8], rcode: u8) -> Result<Vec<u8>, String> {
+    if rcode > 15 {
+        return Err(format!("an RCODE of {rcode}: the header holds 0 to 15"));
+    }
+    if request.len() < 12 || request[2] & 0x80 != 0 || u16::from_be_bytes([request[4], request[5]]) != 1 {
+        return Err("the request is not a query of one question".into());
+    }
+    // The question: labels to the root label, then the type and the class.
+    let mut at = 12;
+    loop {
+        let len = usize::from(*request.get(at).ok_or("the name of the question is cut")?);
+        if len == 0 {
+            at += 1;
+            break;
+        }
+        if len > 63 {
+            return Err("the name of the question is not of labels".into());
+        }
+        at += 1 + len;
+    }
+    let end = at + 4;
+    if end > request.len() {
+        return Err("the question is cut".into());
+    }
+    let mut out = request[..end].to_vec();
+    // QR set, the opcode and RD kept, AA and TC clear; RA set, Z clear.
+    out[2] = 0x80 | (request[2] & 0x79);
+    out[3] = 0x80 | rcode;
+    out[6..12].fill(0);
+    Ok(out)
+}
+
 /// The data of a TXT record of `bytes`: each 255 bytes as one character
 /// string, with a last string for the rest (and one empty string for no
 /// byte, so an empty record has a length of 1).
