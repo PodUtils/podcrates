@@ -31,18 +31,9 @@ pub const COOL: Duration = Duration::from_secs(300);
 /// The names kept in each map.
 pub const MOST: usize = 256;
 
-/// What the cache reads the time from: the system's, or a test's.
-pub trait Clock: Send + Sync {
-    fn now(&self) -> Instant;
-}
-
-struct SystemClock;
-
-impl Clock for SystemClock {
-    fn now(&self) -> Instant {
-        Instant::now()
-    }
-}
+/// What the cache reads the time from: the system's, or a test's. The one
+/// clock of `pod-core` (T-878).
+pub use pod_core::clock::{Clock, SystemClock};
 
 /// What a name gives a connection.
 #[derive(Debug, Clone, PartialEq, Eq)]

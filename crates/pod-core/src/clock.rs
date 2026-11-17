@@ -4,10 +4,79 @@
 //! gives its reading. And HTTP's dates both ways, and a time to the minute
 //! for a person, so that each crate reads and writes them with one calendar.
 
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::Mutex;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAYS: [&str; 7] = ["Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"];
+
+/// A source of the time, which a test can plant: the monotonic time for a
+/// bound or an age, and the wall clock for a date. One trait in place of
+/// the copies of the consumers (the owner's ruling "Shared code").
+pub trait Clock: Send + Sync {
+    /// The monotonic time now.
+    fn now(&self) -> Instant;
+    /// The wall clock now.
+    fn wall(&self) -> SystemTime {
+        SystemTime::now()
+    }
+}
+
+/// The clock of the system.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SystemClock;
+
+impl Clock for SystemClock {
+    fn now(&self) -> Instant {
+        Instant::now()
+    }
+}
+
+/// A clock that moves only when a test moves it: both times are their start
+/// and the sum of each [`ManualClock::advance`].
+#[derive(Debug)]
+pub struct ManualClock {
+    start: Instant,
+    wall: SystemTime,
+    moved: Mutex<Duration>,
+}
+
+impl ManualClock {
+    /// A clock at the time of its make.
+    pub fn new() -> ManualClock {
+        ManualClock::at(SystemTime::now())
+    }
+
+    /// A clock whose wall clock starts at `wall`.
+    pub fn at(wall: SystemTime) -> ManualClock {
+        ManualClock { start: Instant::now(), wall, moved: Mutex::new(Duration::ZERO) }
+    }
+
+    /// Move both times on by `by`.
+    pub fn advance(&self, by: Duration) {
+        let mut moved = self.moved.lock().unwrap_or_else(|e| e.into_inner());
+        *moved += by;
+    }
+
+    fn moved(&self) -> Duration {
+        *self.moved.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
+impl Default for ManualClock {
+    fn default() -> ManualClock {
+        ManualClock::new()
+    }
+}
+
+impl Clock for ManualClock {
+    fn now(&self) -> Instant {
+        self.start + self.moved()
+    }
+    fn wall(&self) -> SystemTime {
+        self.wall + self.moved()
+    }
+}
 
 /// The words for a certificate that this host's clock refused, with the
 /// clock's reading `now`.
@@ -106,6 +175,22 @@ pub fn rfc3339(t: SystemTime) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A manual clock moves both of its times by each advance, and only
+    /// then; the clock of the system moves on its own.
+    #[test]
+    fn a_manual_clock_moves_only_when_it_is_moved() {
+        let wall = UNIX_EPOCH + Duration::from_secs(1_000_000);
+        let c = ManualClock::at(wall);
+        let (t0, w0) = (c.now(), c.wall());
+        assert_eq!(w0, wall);
+        assert_eq!((c.now(), c.wall()), (t0, w0));
+        c.advance(Duration::from_secs(90));
+        assert_eq!(c.now() - t0, Duration::from_secs(90));
+        assert_eq!(c.wall(), wall + Duration::from_secs(90));
+        let s: &dyn Clock = &SystemClock;
+        assert!(s.now() <= Instant::now());
+    }
     use std::time::Duration;
 
     // The values of Python's datetime.fromtimestamp(t, timezone.utc).

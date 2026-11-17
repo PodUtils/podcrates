@@ -16,7 +16,7 @@ this crate depends on no other pod crate.
 | `entropy` | `Entropy`, `OsEntropy`, `NoRandom`: the random source, which a test can plant |
 | `lock` | `FileLock` (`try_lock`, `lock_within`, `path`, `mode`, `file`) and `Mode`: an advisory lock of a file for the life of a value, `flock(2)` on Unix and `LockFileEx` on Windows, with no link at the last component, close-on-exec, and a bounded wait whose refusal names the file |
 | `backoff` | `backoff(retry)`, `CONNECT_TIMEOUT` |
-| `clock` | the hint of a refused certificate, HTTP dates, `utc_minutes` |
+| `clock` | `Clock` (the monotonic time and the wall clock, which a test can plant), `SystemClock`, `ManualClock`; the hint of a refused certificate, HTTP dates, `utc_minutes`, `rfc3339` |
 | `text` | `one_line`, `multi_line`: text of a peer, safe to print |
 | `names` | the checks of a host, a target and a node name |
 
