@@ -18,6 +18,41 @@ harness, `gh api` or `api.github.com` only when the service fails. Add a
 changing query parameter to each read (`?n=$RANDOM`). Writes to GitHub
 stay on the MCP tools of GitHub. Give this rule to each subagent.
 
+## Shared code first (the owner's ruling, 2026-11-17)
+
+Before you write a capability (a dialer, a proxy client, a DNS path, a
+retry, a lock of a shared file, a probe of the host, a parser of the help,
+an installer step, a stand-in for a test), search for it:
+
+1. In podcrates: `docs/design.md` (the table of crates) and each crate's
+   `README.md`. Where a crate has it, take the crate. Where it has most of
+   it, ask podcrates for the extension by a COORD issue `(to podcrates)`;
+   do not write a second copy beside it.
+2. In each sibling (podssh, podnet, podvm, podrunner). Where a sibling has
+   it, do not copy it: ask podcrates for it by a COORD issue. A module of a
+   sibling that a second project needs moves to podcrates, and both take
+   it from there.
+3. Where nobody has it and a second project can need it, ask podcrates
+   first. Write it in your own repository only when it is specific to it.
+
+Each copy that exists today is an entry of the record of podcrates that
+ends with one copy in podcrates.
+
+## Quality first (the owner's ruling, 2026-11-17)
+
+- Write code that fails safe at each edge: an input (not UTF-8, too large,
+  out of range), a file that another process shares (a lock and a unique
+  name: a pid is not unique across PID namespaces), a peer that answers
+  wrong or not at all, a proxy, a resolver, the host. Each edge has a
+  check and a second path, also where the first path works today.
+- Each failure gives one line that is true (what happened, not what was
+  asked), and a documented exit code. No panic reaches the user.
+- A test pins a class of fault: one table-driven test where a family of
+  cases has one rule (the help, the parser and the manual against one
+  table). Do not add a test for each case by reflex.
+- "Ready" comes from a run on a constrained host and an outside pass with
+  the binary and the documents only, not from your own checks.
+
 ## Talk with the other sessions of PodUtils
 
 A session of a repository of PodUtils can run with no messages to the
