@@ -1,0 +1,6 @@
+# pod-core: the manual clock does not move by an advance (T-878).
+ENTRY=T-878
+GROUP=core
+EXPECT='a_manual_clock_moves_only_when_it_is_moved'
+RUN='cargo test -p pod-core --all-features --lib clock'
+LIMIT=900

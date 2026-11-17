@@ -1,0 +1,13 @@
+diff --git a/crates/pod-core/src/clock.rs b/crates/pod-core/src/clock.rs
+--- a/crates/pod-core/src/clock.rs
++++ b/crates/pod-core/src/clock.rs
+@@ -55,7 +55,8 @@ impl ManualClock {
+     /// Move both times on by `by`.
+     pub fn advance(&self, by: Duration) {
+         let mut moved = self.moved.lock().unwrap_or_else(|e| e.into_inner());
+-        *moved += by;
++        let _ = by;
++        *moved += Duration::ZERO;
+     }
+ 
+     fn moved(&self) -> Duration {
