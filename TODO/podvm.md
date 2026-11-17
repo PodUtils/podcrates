@@ -10105,7 +10105,7 @@ cargo test -p pod-hostprobe --all-features identity
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10124,6 +10124,10 @@ An `O_EXCL` name with a random nonce, as T-873. A test with a file at the old pa
 ```sh
 cargo test -p pod-hostprobe --all-features
 ```
+
+## Done
+
+2026-11-17, be4af27ad, bc0e8b4a9: `probes::scratch::unique(base)` gives `BASE.PID.NONCE` (8 bytes of `getrandom`, the clock where it gives none). Each scratch path of a probe takes it, not only the one that podvm named: `exec(/tmp/execprobe)`, the two rows of `mknod`, the rows of `chown`, and `move_mount` (whose directory now goes after the probe). The row names stay. The create stays exclusive. Test `a_scratch_path_is_new_for_each_probe` (two names differ; a file at the old fixed path does not make the row of exec a skip); the tests of `pod-hostprobe` pass. Plant `hostprobe-scratch-path-fixed`, caught.
 
 # T-892: `pod-hostprobe`: the never-claim text of the namespace rung is out of date (PodUtils/podvm#569)
 
