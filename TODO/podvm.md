@@ -9908,3 +9908,327 @@ cargo test -p pod-enter --all-features volume
 ## Done
 
 2026-11-17, 657e5af28, 6f64fabf1: `VolumeBind::host_base: Option<String>` (and `VolumeBind` is `Default`). With a base, `host` must be the base or under it; before the fork `prepare` opens it with `openat2(O_PATH, RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS)` from the base, and a link under the base (`ELOOP`, `EXDEV`) is a `Policy` refusal that names the volume: `its host path holds a symbolic link under its base`. In the child the source opens again the same way, and `mount_fd_on_fd` binds `/proc/self/fd/SRC` onto `/proc/self/fd/POINT`: a link made in the source after the open cannot redirect the bind. A refusal in the child is the step 48 (`NS_VOLUME_SOURCE_STEP`), named by the volume. Tests: `a_host_path_under_its_base_holds_no_link` (a link as the last component and on the way are refused, the base itself and a plain path open, a path out of the base is a usage error); the read-only volume of `the_namespace_rung_binds_the_volumes_of_a_plan` binds by its descriptor under its base, as root and as uid 65534 (`sh scripts/ci/userns-tests.sh`: 31 tests passed). Plant `enter-volume-base-not-checked`, caught; `enter-volume-ro-writable` follows the new code, caught.
+
+# T-884: `pod-enter`: SIGHUP is not blocked and forwarded to the payload (PodUtils/podvm#569)
+
+**Source:** PodUtils/podvm#569 (COORD-182 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`child.rs` blocks and forwards SIGINT and SIGTERM, not SIGHUP: SIGHUP takes the default action in pid 2, and the payload and `--podvm-ns-reaper` stay after the run ended (podvm #562).
+
+## Premise
+
+- Read: PodUtils/podvm#569.
+
+## Approach
+
+Add SIGHUP to the set that the entry blocks and forwards, and to `sigblock_shutdown` of `pod-hostprobe` where it has one. A test: a SIGHUP to the entry reaches the payload, and nothing stays.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
+```
+
+# T-885: `pod-enter`: a fallback to chroot is not returned to the caller (PodUtils/podvm#569)
+
+**Source:** PodUtils/podvm#569 (COORD-182 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+An image with no `/tmp` mount point makes the entry fall back to chroot, but the caller fixed the rung before the entry, so its record says `namespace`, and `--strict` passes (podvm #547).
+
+## Premise
+
+- Read: PodUtils/podvm#569.
+
+## Approach
+
+The entry returns the rung that it entered (and why it fell back), so the caller can record it and refuse it under `--strict`. A test with an image that has no `/tmp`.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
+```
+
+# T-886: `pod-enter`: a working directory under `/tmp` gives ENOENT (PodUtils/podvm#569)
+
+**Source:** PodUtils/podvm#569 (COORD-182 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The caller makes `-w /tmp/NEW` in the tree; the child mounts the tmpfs on `/tmp` (step 9) before the `chdir` (step 11), which hides it (podvm #512).
+
+## Premise
+
+- Read: PodUtils/podvm#569.
+
+## Approach
+
+After the tmpfs and the volumes, the child makes the working directory (`mkdir -p` through the root, with no link) where it is under a mount of the rung. A test.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
+```
+
+# T-887: `pod-supervise`: `logs -f` ends at a restart (PodUtils/podvm#569)
+
+**Source:** PodUtils/podvm#569 (COORD-182 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The poll of 100 ms sees the state `Exited` between the stop and the start of a restart, drains once and returns (podvm #550).
+
+## Premise
+
+- Read: PodUtils/podvm#569.
+
+## Approach
+
+End the follow only when, after the drain, the start time and the pid of the record did not change. A test with a restart.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features
+```
+
+# T-888: `pod-supervise`: the log, the lock and the memo of a container follow a symbolic link (PodUtils/podvm#569)
+
+**Source:** PodUtils/podvm#569 (COORD-182 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A link at `containers/ID/log` sends the output of the payload to the target of the link (podvm #536).
+
+## Premise
+
+- Read: PodUtils/podvm#569.
+
+## Approach
+
+Open the log, the lock and the memo with `O_NOFOLLOW` through the descriptor of `table::contained()`. A test with a link at each.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features
+```
+
+# T-889: `pod-rootfs`: `run_mtab` says /proc is not mounted, where the entry mounts it (PodUtils/podvm#569)
+
+**Source:** PodUtils/podvm#569 (COORD-182 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`net.rs` `run_mtab` reports "/proc is not mounted in the root" where the entry of the namespace rung mounts it, so `--strict=all` refuses each run (podvm #557).
+
+## Premise
+
+- Read: PodUtils/podvm#569.
+
+## Approach
+
+A setting "the entry mounts /proc"; with it, a link of `etc/mtab` into `/proc` stays and is no degradation. A test.
+
+## Prove
+
+```sh
+cargo test -p pod-rootfs --all-features
+```
+
+# T-890: `pod-hostprobe`: the confinement key reads the namespaces of the reading process (PodUtils/podvm#569)
+
+**Source:** PodUtils/podvm#569 (COORD-182 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`identity::confinement_key` reads `/proc/self/ns/mnt`, `uid_map` and the capabilities of the reader. podvm reads it in its own new user and mount namespace, so the key never repeats and `--cached` never serves (podvm #558).
+
+## Premise
+
+- Read: PodUtils/podvm#569.
+
+## Approach
+
+A key of a given process (`/proc/PID/...`); podvm passes the pid of its outer process. A test that two reads of one process give one key.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features identity
+```
+
+# T-891: `pod-hostprobe`: the census probe of exec uses the fixed path `/tmp/execprobe` (PodUtils/podvm#569)
+
+**Source:** PodUtils/podvm#569 (COORD-182 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A file that stays at `/tmp/execprobe` (a killed probe, another tool) makes each later probe skip the row of exec (podvm #561).
+
+## Premise
+
+- Read: PodUtils/podvm#569.
+
+## Approach
+
+An `O_EXCL` name with a random nonce, as T-873. A test with a file at the old path.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features
+```
+
+# T-892: `pod-hostprobe`: the never-claim text of the namespace rung is out of date (PodUtils/podvm#569)
+
+**Source:** PodUtils/podvm#569 (COORD-182 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`select.rs` says the namespace rung has no "user, pid or network isolation, or a /proc filesystem"; since `v0.63.0` and `v0.66.0` a run on that rung has a user, a PID and a UTS namespace and its own `/proc` (podvm #546).
+
+## Premise
+
+- Read: PodUtils/podvm#569.
+
+## Approach
+
+A text built from the namespaces that the entry opened. A test of each form.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features select
+```
+
+# T-893: `pod-guest`: QEMU starts in its own process group with no `PR_SET_PDEATHSIG` (PodUtils/podvm#569)
+
+**Source:** PodUtils/podvm#569 (COORD-182 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A SIGTERM to the run leaves QEMU running, and a Ctrl-C to the group misses it (podvm #566).
+
+## Premise
+
+- Read: PodUtils/podvm#569.
+
+## Approach
+
+`PR_SET_PDEATHSIG(SIGKILL)` in `pre_exec` of the emulator, checked against the parent's pid after the set. A test with a stand-in emulator.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features
+```
+
+# T-894: `pod-oci`: a wanted platform variant matches an entry with no variant (PodUtils/podvm#569)
+
+**Source:** PodUtils/podvm#569 (COORD-182 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`spec.rs` matches `linux/amd64/v3` to an entry of plain `linux/amd64` (podvm #528, #544).
+
+## Premise
+
+- Read: PodUtils/podvm#569.
+
+## Approach
+
+A strict match of the variant, with the fallback of docker only where it holds (`arm/v7` and no variant for `arm64`), named. A table-driven test.
+
+## Prove
+
+```sh
+cargo test -p pod-oci --all-features spec
+```
+
+# T-895: `pod-extract`: a hard link to a later member says "already extracted" (PodUtils/podvm#569)
+
+**Source:** PodUtils/podvm#569 (COORD-182 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`apply.rs` gives "cannot link X to Y, which the layer says is already extracted: ENOENT" for a hard link whose target comes later in the layer (podvm #525).
+
+## Premise
+
+- Read: PodUtils/podvm#569.
+
+## Approach
+
+Defer a hard link whose target is not there yet to the end of the layer, and say "not yet in the layer" where it stays missing. A test.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```
