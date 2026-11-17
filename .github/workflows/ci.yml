@@ -75,6 +75,10 @@ jobs:
       # default feature, so with no tokio (T-063).
       - name: The crates with no tokio
         run: cargo clippy --locked -p pod-core -p pod-tls --no-default-features --features pod-tls/pure,pod-tls/rsa -- -D warnings
+      # Each crate alone with its default features, as a consumer takes it
+      # (T-870): the steps above turn on each feature.
+      - name: Each crate with its default features
+        run: sh scripts/ci/each-crate.sh
       # The fuzz targets (fuzz/, a workspace of its own, which the steps
       # above do not read) build on stable Rust; the build script of
       # libFuzzer needs the C++ compiler of the runner. No --locked:

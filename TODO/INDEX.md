@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**702 entries: 127 open, 21 partial, 7 blocked, 547 done.**
+**703 entries: 128 open, 21 partial, 7 blocked, 547 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 152 | 170 |
-| P2 | 55 | 3 | 4 | 282 | 344 |
+| P2 | 56 | 3 | 4 | 282 | 345 |
 | P3 | 62 | 10 | 3 | 111 | 186 |
-| **All** | 127 | 21 | 7 | 547 | 702 |
+| **All** | 128 | 21 | 7 | 547 | 703 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -749,3 +749,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-867](fleet.md) | P2 | S | M0 | feature | done | `pod-manual`: a check of each example of the model against the consumer's parser (PodUtils/podnet#649) |
 | [T-868](podvm.md) | P3 | S | M6 | chore | done | `pod-enter`: a test of the fallback where the kernel refuses the devpts instance of the unit |
 | [T-869](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: `OpenError::lines` says the cause of a refusal twice (PodUtils/podssh#309) |
+| [T-870](upkeep.md) | P2 | S | M0 | chore | open | CI: each crate builds alone with its default features |

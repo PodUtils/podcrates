@@ -3197,3 +3197,30 @@ cargo test -p pod-broker --all-features --test names
 ## Done
 
 2026-11-17, afbb70c9f: in `check`, a refusal of `resolve_once` (rule `resolve`: a failure, no address, or a timeout) in names mode gives no address, and the connection's note sets `upstream_resolved`; `connect` sends the name as before, and the audit line holds `"resolved":"upstream"` with no `addr`. Test: `names_mode_sends_a_name_that_only_the_upstream_resolves` (with a resolver that gives no address: names mode makes a tunnel to the name and says `resolved: upstream`; a name that the policy does not allow, and `localhost`, are still 403 with no dial; address mode is 502 with no dial). The tests of `pod-broker` pass. Plant `broker-names-mode-needs-a-local-resolver`, caught. Call C777.
+
+# T-870: CI: each crate builds alone with its default features
+
+**Source:** T-869 (a `cfg` of the feature `plain-ws` moved onto the module of `OpenError::lines`).
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The lint and test jobs of `ci.yml` build the workspace with `--all-features`, and only `pod-core` and `pod-tls` also build with no default feature. A consumer takes each crate with its default features. A `cfg` of a feature on the wrong item passes each check of CI and breaks each consumer: in T-869, `mod lines` took the `#[cfg(feature = "plain-ws")]` of `mod plain`, and `pod-relay` did not build with its default features; the check of `pod-cloudflare`, which takes `pod-relay` with fewer features, found it before a push.
+
+## Premise
+
+- Read: `.github/workflows/ci.yml` (the job `lint`).
+
+## Approach
+
+`scripts/ci/each-crate.sh`: `cargo check --locked -p CRATE` for each member of the workspace, with its default features; a step of the job `lint` runs it.
+
+## Prove
+
+```sh
+sh scripts/ci/each-crate.sh
+```
