@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**728 entries: 141 open, 21 partial, 7 blocked, 559 done.**
+**728 entries: 140 open, 21 partial, 7 blocked, 560 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 12 | 8 | 0 | 159 | 179 |
+| P1 | 11 | 8 | 0 | 160 | 179 |
 | P2 | 64 | 3 | 4 | 287 | 358 |
 | P3 | 65 | 10 | 3 | 111 | 189 |
-| **All** | 141 | 21 | 7 | 559 | 728 |
+| **All** | 140 | 21 | 7 | 560 | 728 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -764,7 +764,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-882](foundation.md) | P3 | M | M0 | chore | open | One reader and writer of an HTTP/1.1 head, in place of the copies in podrunner and in five crates |
 | [T-883](fleet.md) | P2 | S | M0 | defect | done | the installer core: one proxy line for one proxy, and a default prefix on a noexec mount (PodUtils/podnet#650) |
 | [T-884](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: SIGHUP is not blocked and forwarded to the payload (PodUtils/podvm#569) |
-| [T-885](podvm.md) | P1 | S | M6 | defect | open | `pod-enter`: a fallback to chroot is not returned to the caller (PodUtils/podvm#569) |
+| [T-885](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: a fallback to chroot is not returned to the caller (PodUtils/podvm#569) |
 | [T-886](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a working directory under `/tmp` gives ENOENT (PodUtils/podvm#569) |
 | [T-887](podvm.md) | P2 | S | M6 | defect | open | `pod-supervise`: `logs -f` ends at a restart (PodUtils/podvm#569) |
 | [T-888](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise`: the log, the lock and the memo of a container follow a symbolic link (PodUtils/podvm#569) |

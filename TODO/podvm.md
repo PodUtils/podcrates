@@ -9947,7 +9947,7 @@ cargo test -p pod-enter --all-features
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9966,6 +9966,10 @@ The entry returns the rung that it entered (and why it fell back), so the caller
 ```sh
 cargo test -p pod-enter --all-features
 ```
+
+## Done
+
+2026-11-17, 0c5f4d60c, 961f36409: `Child` has `entered: Option<Rung>`, the rung that the entry entered (`spawn_with` sets it from the word of the rung that it enters; the fallback to chroot enters with the word of `ENTERED_RUNG`, so a caller that selected the namespace rung sees `Some(Chroot)`). `Child::of(pid)` makes a child of no entry (`entered: None`). A strict caller compares `entered` with the rung that it selected. Tests: `the_child_names_the_rung_that_it_entered` (each word gives its rung back), and the run of a caller with no capabilities (`tests/userns.rs`) checks `entered == Some(Namespace)`; `sh scripts/ci/userns-tests.sh` passed (31 tests). Not run: a real fallback to chroot (it needs root, and the userns tests of CI run as a user). Plant `enter-entered-rung-unnamed`, caught. Breaking: a literal `Child { pid }` takes `Child::of(pid)`.
 
 # T-886: `pod-enter`: a working directory under `/tmp` gives ENOENT (PodUtils/podvm#569)
 
