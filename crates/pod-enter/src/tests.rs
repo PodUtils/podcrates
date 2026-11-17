@@ -360,7 +360,7 @@ fn a_sighup_of_the_waiter_reaches_the_payload() {
         let tid = unsafe { sys::sys(sys::SYS_GETTID, [0; 6]) }.expect("gettid");
         tx.send(tid).unwrap();
         let mut err = Vec::new();
-        let code = Child { pid }.wait_forwarding(&mut err);
+        let code = Child::of(pid).wait_forwarding(&mut err);
         (code, String::from_utf8_lossy(&err).into_owned())
     });
     let tid = rx.recv().unwrap();
@@ -369,4 +369,18 @@ fn a_sighup_of_the_waiter_reaches_the_payload() {
     let (code, err) = waiter.join().unwrap();
     assert_eq!(code.map_err(|e| e.to_string()), Ok(129), "{err}");
     assert!(err.contains("forwarded SIGHUP"), "{err}");
+}
+
+/// The child of an entry names the rung that it entered: the fallback to
+/// chroot enters with the word of [`ENTERED_RUNG`], so a caller that
+/// selected the namespace rung sees `Chroot` (PodUtils/podvm#569).
+#[test]
+fn the_child_names_the_rung_that_it_entered() {
+    use pod_hostprobe::select::Rung;
+    for r in [Rung::Namespace, Rung::Supervise, Rung::Chroot, Rung::Userland, Rung::Interpose, Rung::Unsupported] {
+        assert_eq!(crate::rung_of(r.word()), Some(r), "{r:?}");
+    }
+    assert_eq!(crate::rung_of(ENTERED_RUNG.word()), Some(Rung::Chroot));
+    assert_eq!(crate::rung_of("no-such-rung"), None);
+    assert_eq!(Child::of(7).entered, None);
 }

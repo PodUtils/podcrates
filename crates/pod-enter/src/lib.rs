@@ -354,9 +354,30 @@ pub fn run(root: &RootDir, plan: &Plan, err: &mut dyn Write) -> Result<i32> {
 /// the exec arrives on the pipe as an errno and becomes an [`Error`], so a
 /// caller never has to decide whether a process that it cannot see yet
 /// starts or is already dead.
+///
+/// `entered` is the rung that the entry entered, which a fallback can make
+/// weaker than the rung that the caller selected (an image with no `/tmp`
+/// mount point falls back to chroot): the caller records this one, and a
+/// strict caller refuses a weaker one (PodUtils/podvm#569). `None` for a
+/// child that no entry of a rung made.
 #[derive(Debug)]
 pub struct Child {
     pub pid: i64,
+    pub entered: Option<Rung>,
+}
+
+impl Child {
+    /// A child that no entry of a rung made: a payload to wait for.
+    pub fn of(pid: i64) -> Child {
+        Child { pid, entered: None }
+    }
+}
+
+/// The rung of `word`, as [`Rung::word`] gives it.
+pub(crate) fn rung_of(word: &str) -> Option<Rung> {
+    [Rung::Namespace, Rung::Supervise, Rung::Chroot, Rung::Userland, Rung::Interpose, Rung::Unsupported]
+        .into_iter()
+        .find(|r| r.word() == word)
 }
 
 #[cfg(test)]

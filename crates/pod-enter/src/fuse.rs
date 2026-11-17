@@ -262,7 +262,7 @@ pub fn serve_tree(store_root: &Path, backing: &Path) -> Result<ActiveMount, stag
 fn wait_for_server(pid: i64, read_end: i64, dir: &Path, fd: i64) -> Result<ActiveMount, stage::Refusal> {
     let kill_and_clean = |dir: &Path| {
         let _ = sys::kill(pid, 9);
-        let _ = crate::Child { pid }.wait_bounded(5_000);
+        let _ = crate::Child::of(pid).wait_bounded(5_000);
         if let Some(target) = CBuf::new(&dir.to_string_lossy()) {
             let _ = sys::umount(&target);
         }
@@ -292,7 +292,7 @@ fn wait_for_server(pid: i64, read_end: i64, dir: &Path, fd: i64) -> Result<Activ
         }
         // The mount call refused: the child's errno travels in the word.
         Some(n) => {
-            let _ = crate::Child { pid }.wait_bounded(5_000);
+            let _ = crate::Child::of(pid).wait_bounded(5_000);
             if let Some(target) = CBuf::new(&dir.to_string_lossy()) {
                 let _ = sys::umount(&target);
             }
@@ -353,7 +353,7 @@ pub fn release_mount(mounted: &ActiveMount) {
     // SIGKILL, not SIGTERM: the server blocks and catches no signal, and a
     // server after its payload must stop, not flush.
     let _ = sys::kill(mounted.pid, 9);
-    let _ = crate::Child { pid: mounted.pid }.wait_bounded(5_000);
+    let _ = crate::Child::of(mounted.pid).wait_bounded(5_000);
     if let Some(target) = CBuf::new(&mounted.dir.to_string_lossy()) {
         let _ = sys::umount(&target);
     }

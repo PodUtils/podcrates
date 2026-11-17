@@ -271,9 +271,13 @@ fn as_the_caller(root: &Path) {
          grep -q ' /proc [a-z]*,nosuid,nodev,noexec' /proc/self/mountinfo || exit 9"
     );
     let mut err = Vec::new();
-    let code = run_namespace(&dir, &plan(&script, Some(NAME)), &mut err);
+    let child = spawn_namespace(&dir, &plan(&script, Some(NAME)), &mut err);
+    // The rung that the entry entered, which the caller records.
+    let entered = child.as_ref().ok().and_then(|c| c.entered);
+    let code = child.and_then(|c| c.wait_forwarding(&mut err));
     let err = String::from_utf8_lossy(&err);
     assert_eq!(code.map_err(|e| e.to_string()), Ok(0), "the payload as uid {}: {err}", nobody::NOBODY);
+    assert_eq!(entered, Some(pod_hostprobe::select::Rung::Namespace), "{err}");
     assert_eq!(err.matches("the banner").count(), 1, "the banner goes out one time: {err}");
     assert!(!err.contains("entered chroot instead"), "{err}");
     assert!(!err.contains("runs with no /proc"), "{err}");

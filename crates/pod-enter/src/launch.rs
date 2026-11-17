@@ -439,7 +439,7 @@ pub(crate) fn spawn_with(
     };
     let _ = sys::close(read_end);
     if got == 0 {
-        return Ok(Child { pid });
+        return Ok(Child { pid, entered: crate::rung_of(active) });
     }
     // The child failed before its exec and said where. It has exited, so
     // the parent reaps it here and leaves no zombie.
