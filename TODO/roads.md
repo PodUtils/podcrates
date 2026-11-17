@@ -1871,3 +1871,34 @@ A form of `build_request` with no token (an `Option` of the token), for a probe;
 ```sh
 cargo test -p pod-ws --all-features handshake
 ```
+
+# T-903: `pod-dns`: one line of 1000 characters, where each resolver of DNS over HTTPS failed alike (PodUtils/podssh#313)
+
+**Source:** PodUtils/podssh#313 (COORD-116 of podssh, item 1).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A name that does not resolve, on a host whose way intercepts DNS over HTTPS by address, gives one line that names each resolver with the same TLS failure (six times, 1032 characters).
+
+## Premise
+
+- Read: PodUtils/podssh#313; `crates/pod-dns/src/lookup.rs`, `src/ask.rs`, `src/order.rs`.
+
+## Approach
+
+Fold the failures of the resolvers: a failure that each had in the same words (with the address of each taken out) is said once with the count; a resolver is named alone only where its failure differs. A test holds the length for six resolvers that fail alike.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features --lib lookup
+```
+
+## Done
+
+2026-11-17, b4d5cbb3b, 3eb3182d3: `lookup::fold` gives `each of N resolvers failed: CAUSE` where each resolver failed in the same words, with the address of each resolver in its own words taken out ("the address of the resolver"); else one part for each failure, `N resolvers (A, B): CAUSE` for a shared one and `A: CAUSE` for one alone, and a reason of no resolver (`out of time`) as it is. Test `the_failures_that_read_alike_are_said_once` (six alike: under 200 characters and no address; five alike and two others). The tests of `pod-dns` pass. Plant `dns-each-resolver-said-alone`, caught.

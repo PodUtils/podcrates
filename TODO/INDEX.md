@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**735 entries: 137 open, 21 partial, 7 blocked, 570 done.**
+**736 entries: 137 open, 21 partial, 7 blocked, 571 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 161 | 179 |
-| P2 | 61 | 3 | 4 | 294 | 362 |
+| P2 | 61 | 3 | 4 | 295 | 363 |
 | P3 | 66 | 10 | 3 | 113 | 192 |
-| **All** | 137 | 21 | 7 | 570 | 735 |
+| **All** | 137 | 21 | 7 | 571 | 736 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -782,3 +782,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-900](fleet.md) | P3 | S | M3 | feature | open | The installer core: more downloaders, or a ruling, and the newest tag with an optional token (PodUtils/podnet#652) |
 | [T-901](roads.md) | P3 | S | M3 | feature | open | `pod-ws`: a request of the upgrade with no token header, for a probe (PodUtils/podnet#652) |
 | [T-902](fleet.md) | P2 | S | M5 | defect | done | `pod-actions-store`: `Lock::parse` keeps a digest in uppercase, and each fetch then fails (PodUtils/podrunner#288) |
+| [T-903](roads.md) | P2 | S | M2 | defect | done | `pod-dns`: one line of 1000 characters, where each resolver of DNS over HTTPS failed alike (PodUtils/podssh#313) |
