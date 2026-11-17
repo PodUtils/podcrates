@@ -36,24 +36,56 @@ where
             continue;
         }
         if Instant::now() >= deadline {
-            reasons.push("out of time".to_string());
+            reasons.push((String::new(), "out of time".to_string()));
             break;
         }
-        match ask(i, at).await {
+        match ask(i, at.clone()).await {
             Ok((ips, _)) => return Ok(ips),
             Err(e) if e.why.ends_with(NXDOMAIN) && rule == Nxdomain::End => return Err(e.why),
             Err(e) if e.why.ends_with(NXDOMAIN) => {
                 said.push(operator);
-                reasons.push(e.why);
+                reasons.push((at, e.why));
             }
-            Err(e) => reasons.push(e.why),
+            Err(e) => reasons.push((at, e.why)),
         }
     }
     if !said.is_empty() {
         let verb = if said.len() > 1 { "say" } else { "says" };
         return Err(format!("{} {verb} that {host} does not exist", said.join(" and ")));
     }
-    Err(if reasons.is_empty() { "no resolver answered".into() } else { reasons.join("; ") })
+    Err(if reasons.is_empty() { "no resolver answered".into() } else { fold(&reasons) })
+}
+
+/// One line of the failures of the resolvers, each `(address, why)`: a
+/// failure that each resolver had in the same words is said once with the
+/// count, and a resolver is named alone only where its failure differs
+/// (PodUtils/podssh#313). The address of a resolver in its own words is
+/// taken out first, so that a TLS failure that names it reads alike.
+pub(crate) fn fold(reasons: &[(String, String)]) -> String {
+    let mut groups: Vec<(String, Vec<&str>)> = Vec::new();
+    for (at, why) in reasons {
+        let cause = if at.is_empty() {
+            why.clone()
+        } else {
+            let rest = why.strip_prefix(at.as_str()).map_or(why.as_str(), |r| r.trim_start_matches(':').trim_start());
+            rest.replace(at.as_str(), "the address of the resolver")
+        };
+        match groups.iter_mut().find(|g| g.0 == cause) {
+            Some(g) => g.1.push(at),
+            None => groups.push((cause, vec![at])),
+        }
+    }
+    if let [(cause, ats)] = &groups[..]
+        && ats.len() > 1
+    {
+        return format!("each of {} resolvers failed: {cause}", ats.len());
+    }
+    let one = |(cause, ats): &(String, Vec<&str>)| match &ats[..] {
+        [""] => cause.clone(),
+        [at] => format!("{at}: {cause}"),
+        _ => format!("{} resolvers ({}): {cause}", ats.len(), ats.join(", ")),
+    };
+    groups.iter().map(one).collect::<Vec<_>>().join("; ")
 }
 
 #[cfg(test)]
@@ -62,6 +94,31 @@ mod tests {
     use std::time::Duration;
 
     use super::*;
+
+    /// Six resolvers that fail alike give one short line with the count; a
+    /// resolver that fails in other words is named alone
+    /// (PodUtils/podssh#313).
+    #[test]
+    fn the_failures_that_read_alike_are_said_once() {
+        let ips = ["1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4", "9.9.9.9", "149.112.112.112"];
+        let tls = |ip: &str| {
+            format!(
+                "{ip}: TLS: invalid peer certificate: certificate not valid for name \"{ip}\"; certificate is only \
+                 valid for DnsName(\"default.domain\")"
+            )
+        };
+        let all: Vec<(String, String)> = ips.iter().map(|ip| (ip.to_string(), tls(ip))).collect();
+        let line = fold(&all);
+        assert!(line.starts_with("each of 6 resolvers failed: TLS: invalid peer certificate"), "{line}");
+        assert!(line.len() < 200, "{} characters: {line}", line.len());
+        assert!(!line.contains("1.1.1.1"), "{line}");
+        let mut mixed = all.clone();
+        mixed[5] = ("149.112.112.112".to_string(), "149.112.112.112: timed out".to_string());
+        mixed.push((String::new(), "out of time".to_string()));
+        let line = fold(&mixed);
+        assert!(line.starts_with("5 resolvers (1.1.1.1, 1.0.0.1, 8.8.8.8, 8.8.4.4, 9.9.9.9): TLS"), "{line}");
+        assert!(line.contains("; 149.112.112.112: timed out; out of time"), "{line}");
+    }
 
     fn deadline() -> Instant {
         Instant::now() + Duration::from_secs(10)
