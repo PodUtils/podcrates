@@ -1,0 +1,11 @@
+diff --git a/crates/pod-supervise/src/launcher.rs b/crates/pod-supervise/src/launcher.rs
+--- a/crates/pod-supervise/src/launcher.rs
++++ b/crates/pod-supervise/src/launcher.rs
+@@ -190,7 +190,6 @@ where
+         .create(true)
+         .append(true)
+         .mode(0o600)
+-        .custom_flags(sys::O_NOFOLLOW as i32)
+         .open(&log_path)
+         .map_err(|e| {
+             Failure::caused(Stage::Host, Class::of_io(e.kind()), format!("opening the container log: {e}"), e)

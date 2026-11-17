@@ -1,0 +1,6 @@
+# pod-supervise: the log of a container follows a link, so the output of the payload goes to its target (T-888).
+ENTRY=T-888
+GROUP=supervise
+EXPECT='a run with a link at its log started'
+RUN='cargo test -p pod-supervise --all-features --test lifecycle'
+LIMIT=900
