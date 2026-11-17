@@ -9753,3 +9753,138 @@ sh scripts/ci/userns-tests.sh
 ## Done
 
 2026-11-17, 7daec6f87, 648ee1d8b. The test `a_refused_devpts_instance_falls_back_to_the_host_s_pts` (`tests/userns.rs`, `tests/userns/pts.rs`) needs no change of the product: a seccomp filter on the thread of the test (`pod_confine::Deny` on `mount(2)` with the flags `DEVPTS_FLAGS`, `EPERM`), which the child takes, refuses the mount of the instance and no other mount. As uid 65534 with no capabilities, the payload gets the line of `devpts_refused` with errno 1, `/dev/pts` and `/dev/ptmx` are on the device of the host's devpts, and an open of `/dev/ptmx` passes exactly where the host's `/dev/pts/ptmx` lets each user read and write it. The test found a defect of T-864: the bind of the host's `/dev/ptmx` never opens (`ENOENT`, also with the host's devpts bound beside it; a test by hand with `unshare -Urm` as uid 65534 on kernel 6.18 gave the same). Fix: `ns_dev_bind` has one plan of `/dev/ptmx`, the `ptmx` of the devpts on the image's `/dev/pts` (`NS_PTMX_BIND_STEP`, its step now `binding the ptmx of the devpts on /dev/pts`), and `bind_each` takes no `own_pts`. On a host with `ptmxmode=000` (the hosts of CI and of the cloud), that `ptmx` does not open for the caller: the line of the refusal tells the consumer that the unit has the host's devpts. `sh scripts/ci/userns-tests.sh` passed (31 tests); 242 unit tests of `pod-enter` pass. Plant `enter-userns-devpts-fallback-unbound` (the fallback binds nothing on `/dev/pts`: exit 41), caught; `enter-userns-no-own-devpts` follows the fallback (exit 42: `/dev/pts` is the host's), caught.
+
+# T-872: `pod-supervise`: the temp file of the table of containers keeps no lock, so a sweep of another process deletes it before its rename (PodUtils/podvm#568)
+
+**Source:** PodUtils/podvm#568 (COORD-181 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The table is written to `staging/containers.json.PID.NANOS.partial` and renamed, with no `flock` on the temp file. podvm's `Store::open` sweeps each `.partial` that it can lock, so a second podvm process deleted the file before its rename: `run -d` of a fast payload ended `Dead` with no exit code in 6 of 10 runs, and `run` failed with `containers.json: No such file or directory`. The launcher also drops a failed write of the end of a run (`let _ = record(..)`).
+
+## Premise
+
+- Read: PodUtils/podvm#568; `crates/pod-supervise/src/table.rs` (the write of the table), `src/launcher.rs` (the record of the end).
+
+## Approach
+
+Hold an exclusive `flock` on the temp file from its create to its rename. Retry a failed write of the end of a run a few times, and keep the end in a side file that the reconcile reads when each try fails. Tests: a sweep that locks each `.partial` it can does not delete a file that a write holds; an end whose first write fails is in the table after the reconcile; a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features
+```
+
+# T-873: `pod-hostprobe`: the probe file of `probe_dir_exec` has a name that two processes of two PID namespaces share (PodUtils/podvm#568)
+
+**Source:** PodUtils/podvm#568 (COORD-181 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`exec::probe_dir_exec` names its file `.pod-hostprobe-exec.PID.SEQ`. Each foreground run of podvm is pid 2 in its own PID namespace, so 6 of 12 parallel runs used one file, and one run removed it under another (`No such file or directory`).
+
+## Premise
+
+- Read: PodUtils/podvm#568; `crates/pod-hostprobe/src/exec.rs` (`probe_dir_exec`).
+
+## Approach
+
+Create the probe file with `O_CREAT | O_EXCL` and a random nonce in its name, and try again with a new nonce on `EEXIST`. Tests: two probes of one directory with the same pid and sequence take two files; a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features exec
+```
+
+# T-874: `pod-oci`: a credential helper gets `ServerURL` `https://HOST/v2/`, not the key of the configuration (PodUtils/podvm#568)
+
+**Source:** PodUtils/podvm#568 (COORD-181 of podvm).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+docker and podman give a credential helper the server key of the configuration (`HOST`, or `https://index.docker.io/v1/` for Docker Hub) for `get`, `store` and `erase`. `pod-oci` gives `https://HOST/v2/`, so a helper that keys on the configured name finds nothing.
+
+## Premise
+
+- Read: PodUtils/podvm#568; `crates/pod-oci/src/credentials.rs`.
+
+## Approach
+
+Give the helper the key of the configuration that matched (the `auths` key or the `credHelpers` key), and `https://index.docker.io/v1/` for Docker Hub. Tests: the input of the helper for a registry, for Docker Hub and for a key with a scheme; a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-oci --all-features credentials
+```
+
+# T-875: `pod-supervise`: `run -d --rm` keeps the record and the tree after the end (PodUtils/podvm#568)
+
+**Source:** PodUtils/podvm#568 (COORD-181 of podvm).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A detached run has no field for `--rm`: after its end, its record and its tree stay. podvm refuses `-d --rm` by name until the launcher removes them.
+
+## Premise
+
+- Read: PodUtils/podvm#568; `crates/pod-supervise/src/launcher.rs`, `src/table.rs` (the detached record), `src/end.rs`.
+
+## Approach
+
+A field `rm` of the detached record. After the end is written and each waiter has its answer, the launcher removes the record and the tree. Tests: a detached run with `rm` leaves no record and no tree; a waiter gets the exit code first; a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features
+```
+
+# T-876: `pod-enter`: a volume whose source a link cannot redirect between the check of the caller and the bind (PodUtils/podvm#568)
+
+**Source:** PodUtils/podvm#568 (COORD-181 of podvm).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The job of a unit can make a symbolic link in a `-v` source after podrunner checked the source and before `pod-enter` binds it (PodUtils/podrunner#277). `Plan::volumes` binds a path.
+
+## Premise
+
+- Read: PodUtils/podvm#568; `crates/pod-enter/src/ns_volume.rs`, `Plan::volumes` (`VolumeBind`).
+
+## Approach
+
+An option of `VolumeBind`: a base that the caller names. `pod-enter` opens the source with `openat2(RESOLVE_NO_SYMLINKS | RESOLVE_BENEATH)` under that base, before the fork, and binds the descriptor (`/proc/self/fd/N` or `move_mount`), not the path. A refused open is a refusal that names the volume. Tests: a source with a link under the base is refused by name; a plain source binds; a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features volume
+```
