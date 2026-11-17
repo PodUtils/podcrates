@@ -1,0 +1,6 @@
+# pod-enter: where the kernel refuses the devpts instance, the rung binds nothing on /dev/pts and so no /dev/ptmx; the test of the fallback must fail where /dev/ptmx is missing (T-868).
+ENTRY=T-868
+GROUP=enter
+EXPECT='left: Ok\(41\)'
+RUN='sh scripts/ci/userns-tests.sh'
+LIMIT=1800

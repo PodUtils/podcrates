@@ -1,6 +1,6 @@
-# pod-enter: the namespace rung in a user namespace binds the host's /dev/pts and binds no /dev/ptmx; the live test as a caller with no capabilities must fail where /dev/ptmx is missing (T-864).
+# pod-enter: the namespace rung in a user namespace mounts no devpts instance and binds the host's /dev/pts; the live test as a caller with no capabilities must fail where /dev/pts is the host's (T-864).
 ENTRY=T-864
 GROUP=enter
-EXPECT='left: Ok\(41\)'
+EXPECT='left: Ok\(42\)'
 RUN='sh scripts/ci/userns-tests.sh'
 LIMIT=1800
