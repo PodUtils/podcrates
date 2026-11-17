@@ -2119,3 +2119,165 @@ Part 2, 588312f: `a_turn_of_the_arq_blocks_on_nothing` in `crates/pod-link/tests
 Open: the step counter of a scope (VF-2), which needs a call in each loop of a hot path behind a feature that is off in a release, and a bound in the test: the turn of the ARQ and the parse of a frame of `pod-ws` and of `pod-e2e`.
 
 
+
+# T-877: `pod-core`: one advisory file lock for each system, in place of four copies in the consumers
+
+**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
+**Category:** feature
+**Milestone:** M0
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Four projects each hold their own advisory file lock: podssh (PodUtils/podssh:crates/podssh-ssh/src/known_hosts/lock.rs, Unix and Windows; PodUtils/podssh:crates/podssh-cli/src/detach/lock.rs), podrunner (PodUtils/podrunner:crates/podrunner/src/lock.rs, a `flock` held for the life of a value) and podnet (its instance lock). The one shared lock, `pod_supervise::lock`, is Linux only and takes `pod-hostprobe`.
+
+## Premise
+
+- Read: the paths above, at the head of each consumer's `main`.
+
+## Approach
+
+A module `pod_core::lock`: an exclusive or shared lock of a file for the life of a value, on Linux, macOS (`flock`) and Windows (`LockFileEx`), with a try and a bounded wait, a refusal that names the file and the holder where the system tells it, and no inheritance by a child. `pod_supervise::lock` takes it. Each consumer replaces its copy at its take; the hand-off names each path.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features lock
+```
+
+# T-878: `pod-core`: one injectable clock, in place of the copies of podrunner and of three crates
+
+**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
+**Category:** feature
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podrunner has PodUtils/podrunner:crates/podrunner-clock/src/lib.rs (a `Clock` trait, a system clock and a manual clock for tests). In podcrates, `crates/pod-turn/src/client/settings.rs` and `crates/pod-tls/src/ech/cache.rs` each define their own `Clock`.
+
+## Premise
+
+- Read: the paths above, at the head of each consumer's `main`.
+
+## Approach
+
+`pod_core::clock::Clock` (the time now, a monotonic instant) with `SystemClock` and `ManualClock`; `pod-turn` and `pod-tls` take it; podrunner replaces its crate at its take.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features clock
+```
+
+# T-879: `pod-detach`: the detach of a command by a re-exec, from podnet, in place of podssh's near copy
+
+**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
+**Category:** feature
+**Milestone:** M0
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet (PodUtils/podnet:crates/podnet-core/src/detach.rs, 799 lines, with `detach/spawn.rs`, `supervise.rs`, `unix.rs`, `foreground.rs`) and podssh (PodUtils/podssh:crates/podssh-cli/src/detach/, 11 files) each built the same model: the child starts again with a flag, a ready line on a pipe, `setsid`, a log file and a lock. `docs/design.md` kept podnet's in podnet when podssh had none; now two projects hold it.
+
+## Premise
+
+- Read: the paths above, at the head of each consumer's `main`.
+
+## Approach
+
+Move podnet's module to a crate `pod-detach` by the procedure of one crate (the trial of podnet and of podssh), with the lock of T-877. podnet and podssh take it and drop their copies.
+
+## Prove
+
+```sh
+cargo test -p pod-detach --all-features
+```
+
+# T-880: `pod-release`: the self-update of a binary (fetch, verify, replace, trial run), from podnet and podssh
+
+**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
+**Category:** feature
+**Milestone:** M0
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet (PodUtils/podnet:src/update.rs, 635 lines, with `src/update/cosign.rs`) and podssh (PodUtils/podssh:crates/podssh-cli/src/update/: `fetch`, `release`, `replace`, `sigstore`, `keep`, `trial`) each built the update of a running binary with a check of a signed `SHA256SUMS`. T-104 plans `pod-release` with the verifier alone.
+
+## Premise
+
+- Read: the paths above, at the head of each consumer's `main`.
+
+## Approach
+
+Extend T-104: `pod-release` takes the fetch of a release, the check of its signature and sum, the replace of the running binary, the kept old binary and the trial run, from the better of the two copies (the trial of each). podnet and podssh take it.
+
+## Prove
+
+```sh
+cargo test -p pod-release --all-features
+```
+
+# T-881: `pod-tls`: the CA bundle that the environment names, in place of three lists in the consumers
+
+**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
+**Category:** feature
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podrunner (PodUtils/podrunner:crates/podrunner-egress/src/dns.rs `resolver_via`, PodUtils/podrunner:crates/podrunner-local/src/exec/proxy.rs `CA_VARS`) and podvm (PodUtils/podvm:crates/podvm-image, `host_bundle_bytes`) each list the variables of a CA bundle (`SSL_CERT_FILE`, `CURL_CA_BUNDLE`, `REQUESTS_CA_BUNDLE` and more) and pick one. `pod_tls::Settings::extra_bundle` takes only a path.
+
+## Premise
+
+- Read: the paths above, at the head of each consumer's `main`.
+
+## Approach
+
+`pod_tls::env_bundle(env)`: the variables in one order, the first that names a readable file, and why each other was not taken; `Settings::from_env` uses it. The consumers drop their lists at their take.
+
+## Prove
+
+```sh
+cargo test -p pod-tls --all-features env_bundle
+```
+
+# T-882: One reader and writer of an HTTP/1.1 head, in place of the copies in podrunner and in five crates
+
+**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
+**Category:** chore
+**Milestone:** M0
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podrunner (PodUtils/podrunner:crates/podrunner-hook/src/http.rs, which podrunner-remote takes) and, in podcrates, `crates/pod-incus/src/wire.rs`, `crates/pod-piping/src/http1.rs`, `crates/pod-cloudflare/src/proxy/head.rs`, `crates/pod-egress/src/vless/h1.rs` and several stand-ins each read and write the head of an HTTP/1.1 message by hand, each with its own bounds.
+
+## Premise
+
+- Read: the paths above, at the head of each consumer's `main`.
+
+## Approach
+
+One module (in `pod-core` or a small crate) with the bounds of a head (size, line count), the parse of a status line, a request line and the header fields, and the write; each crate of podcrates takes it, and podrunner at its take. A fuzz target.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```

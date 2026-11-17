@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**709 entries: 127 open, 21 partial, 7 blocked, 554 done.**
+**715 entries: 133 open, 21 partial, 7 blocked, 554 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 10 | 8 | 0 | 155 | 173 |
-| P2 | 55 | 3 | 4 | 286 | 348 |
-| P3 | 62 | 10 | 3 | 111 | 186 |
-| **All** | 127 | 21 | 7 | 554 | 709 |
+| P1 | 11 | 8 | 0 | 155 | 174 |
+| P2 | 59 | 3 | 4 | 286 | 352 |
+| P3 | 63 | 10 | 3 | 111 | 187 |
+| **All** | 133 | 21 | 7 | 554 | 715 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -756,3 +756,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-874](podvm.md) | P2 | S | M6 | defect | done | `pod-oci`: a credential helper gets `ServerURL` `https://HOST/v2/`, not the key of the configuration (PodUtils/podvm#568) |
 | [T-875](podvm.md) | P2 | S | M6 | feature | done | `pod-supervise`: `run -d --rm` keeps the record and the tree after the end (PodUtils/podvm#568) |
 | [T-876](podvm.md) | P2 | M | M6 | feature | done | `pod-enter`: a volume whose source a link cannot redirect between the check of the caller and the bind (PodUtils/podvm#568) |
+| [T-877](foundation.md) | P1 | M | M0 | feature | open | `pod-core`: one advisory file lock for each system, in place of four copies in the consumers |
+| [T-878](foundation.md) | P2 | S | M0 | feature | open | `pod-core`: one injectable clock, in place of the copies of podrunner and of three crates |
+| [T-879](foundation.md) | P2 | M | M0 | feature | open | `pod-detach`: the detach of a command by a re-exec, from podnet, in place of podssh's near copy |
+| [T-880](foundation.md) | P2 | M | M0 | feature | open | `pod-release`: the self-update of a binary (fetch, verify, replace, trial run), from podnet and podssh |
+| [T-881](foundation.md) | P2 | S | M0 | feature | open | `pod-tls`: the CA bundle that the environment names, in place of three lists in the consumers |
+| [T-882](foundation.md) | P3 | M | M0 | chore | open | One reader and writer of an HTTP/1.1 head, in place of the copies in podrunner and in five crates |
