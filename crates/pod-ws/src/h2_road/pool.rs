@@ -93,6 +93,11 @@ where
     Driven { open, retired, task }
 }
 
+/// The runtime of the caller.
+fn runtime() -> Option<tokio::runtime::Id> {
+    tokio::runtime::Handle::try_current().ok().map(|h| h.id())
+}
+
 /// Until `open` has been 0 for [`IDLE`].
 async fn idle(open: Arc<AtomicUsize>) {
     let mut quiet = Duration::ZERO;
@@ -124,6 +129,9 @@ pub(super) struct Conn {
     /// No session more: it ended, idled out, went away or went silent.
     retired: Arc<AtomicBool>,
     task: tokio::task::AbortHandle,
+    /// The runtime that drives it: its task ends with that runtime, so only
+    /// a session of the same runtime takes it (PodUtils/podssh#310).
+    runtime: Option<tokio::runtime::Id>,
     /// Its PING: HTTP/2 sends one at a time.
     ping: Arc<tokio::sync::Mutex<h2::PingPong>>,
     /// The round trip of its first PING.
@@ -145,7 +153,8 @@ impl Conn {
         let used = Arc::new(AtomicBool::new(false));
         let ping = Arc::new(tokio::sync::Mutex::new(pinged.ping));
         let (open, retired) = (driven.open, driven.retired);
-        Conn { sender, peer, serial: 0, open, most, used, retired, task, ping, rtt: pinged.rtt }
+        let runtime = runtime();
+        Conn { sender, peer, serial: 0, open, most, used, retired, task, runtime, ping, rtt: pinged.rtt }
     }
 
     /// Whether it answers a PING within `limit` and the larger of
@@ -176,8 +185,10 @@ impl Conn {
         self.retired.store(true, Ordering::SeqCst);
     }
 
+    /// It takes no session more: retired, or its task ended (also with
+    /// the runtime that drove it).
     fn retired(&self) -> bool {
-        self.retired.load(Ordering::SeqCst)
+        self.retired.load(Ordering::SeqCst) || self.task.is_finished()
     }
 
     fn room(&self) -> bool {
@@ -296,7 +307,8 @@ impl Pool {
         }
         state.lacks = None;
         state.conns.retain(|c| !c.retired());
-        if let Some(conn) = state.conns.iter().find(|c| c.serial > after && c.room()) {
+        let here = runtime();
+        if let Some(conn) = state.conns.iter().find(|c| c.serial > after && c.runtime == here && c.room()) {
             let (place, shared) = conn.take();
             return Ok(Got::Place { conn: conn.clone(), place, shared });
         }

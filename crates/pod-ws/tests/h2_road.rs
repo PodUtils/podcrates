@@ -71,6 +71,9 @@ struct Seen {
 
 mod common;
 
+#[path = "h2_road/runtimes.rs"]
+mod runtimes;
+
 /// The pool of the tests: each test has its own port, so its own hosts.
 static POOL: h2_road::Pool = h2_road::Pool::new();
 

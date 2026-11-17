@@ -1813,3 +1813,30 @@ now (`scripts/plants/iroh-record-no-derp.plant`, and `iroh-record-name-not-read`
 `iroh-quic-unset`, `iroh-share-while-made` beside it), each caught by its run
 here. The README's
 adoption map names each change above.
+
+# T-871: `pod-ws`: a shared HTTP/2 connection dies with the runtime that opened it (PodUtils/podssh#310)
+
+**Source:** PodUtils/podssh#310 (COORD-113 of podssh, PodUtils/podssh@T-811).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_ws::h2_road::pool::drive` drives each pooled HTTP/2 connection with `tokio::spawn`, on the runtime that opened it. The pool is shared by the process (`pod_relay::Context`'s `Shared::h2`). A consumer that runs sessions on more than one runtime shares a connection whose task ends when the opener's runtime drops: each other session's stream on it breaks. podssh's `each` against its relay role lost the links of two hosts of three, also inside the handshake of the layer.
+
+## Premise
+
+- Read: PodUtils/podssh#310; `crates/pod-ws/src/h2_road/pool.rs` (`drive`, `Conn`, `Pool::place`).
+
+## Approach
+
+Each connection keeps the id of the runtime that drives it (`tokio::runtime::Handle::id`); a session takes a kept connection only of its own runtime, and a connection whose task ended (also with its runtime) counts as retired. What the pool knows of a host (it takes HTTP/1.1) stays shared. A test: a session on runtime A, one on runtime B gets a connection of its own, A drops, and B's session carries bytes.
+
+## Prove
+
+```sh
+cargo test -p pod-ws --all-features --test h2_road
+```
