@@ -41,6 +41,12 @@ pub const NS_VOLUME_LINK_STEP: u8 = 34;
 pub const NS_VOLUME_BIND_STEP: u8 = 35;
 /// The step byte of the read-only remount of the bind.
 pub const NS_VOLUME_REMOUNT_STEP: u8 = 36;
+/// The step byte of the open of a host path under its base with no link
+/// (`VolumeBind::host_base`).
+pub const NS_VOLUME_SOURCE_STEP: u8 = 48;
+
+/// The walk of a host path under its base: no link, nothing above it.
+const BENEATH: u64 = sys::RESOLVE_BENEATH | sys::RESOLVE_NO_SYMLINKS;
 
 /// The most volumes of a plan: the child names a refused volume by its
 /// index in one byte.
@@ -57,6 +63,9 @@ pub(crate) struct Prepared {
     /// The host side is a directory: the mount point is a directory.
     dir: bool,
     read_only: bool,
+    /// The base and the path under it, where the host path opens with no
+    /// link (`VolumeBind::host_base`).
+    beneath: Option<(CBuf, CBuf)>,
 }
 
 /// The volumes of a plan for the child, built before the fork.
@@ -130,10 +139,58 @@ pub(crate) fn prepare(plan: &Plan, root: &RootDir, without: Option<&str>) -> Res
             errno_failure(&format!("the host path of the volume {} {what}", volume_label(v)), e)
         })?;
         let dir = st.st_mode & sys::S_IFMT == sys::S_IFDIR;
-        out.list.push(Prepared { host, parts: parts_c, dir, read_only: v.read_only });
+        let beneath = match &v.host_base {
+            None => None,
+            Some(base) => Some(beneath(v, base).map_err(|why| usage(v, &why))?),
+        };
+        if let Some((base, rel)) = &beneath {
+            // The check before the fork, for a refusal that names the
+            // volume; the child opens it again.
+            let fd = open_beneath(base, rel).map_err(|e| {
+                let what = if e == sys::ELOOP || e == sys::EXDEV { "holds a symbolic link" } else { "does not open" };
+                Error::runtime(
+                    if e == sys::ELOOP || e == sys::EXDEV { Class::Policy } else { errno_class(e) },
+                    format!(
+                        "the volume {} is refused: its host path {what} under its base ({} ({}))",
+                        volume_label(v),
+                        e.name(),
+                        e.0
+                    ),
+                )
+            })?;
+            let _ = sys::close(fd);
+        }
+        out.list.push(Prepared { host, parts: parts_c, dir, read_only: v.read_only, beneath });
         seen.push(parts);
     }
     Ok(out)
+}
+
+/// The base and the path under it of a volume with `host_base`, or why not.
+fn beneath(v: &VolumeBind, base: &str) -> std::result::Result<(CBuf, CBuf), String> {
+    let base = base.trim_end_matches('/');
+    if !base.starts_with('/') {
+        return Err("has a host base that is not an absolute path".to_string());
+    }
+    let rel = if v.host == base {
+        "."
+    } else {
+        match v.host.strip_prefix(base).and_then(|r| r.strip_prefix('/')) {
+            Some(r) if !r.is_empty() => r,
+            _ => return Err("has a host path that is not under its host base".to_string()),
+        }
+    };
+    let nul = || "has a NUL byte".to_string();
+    Ok((CBuf::new(if base.is_empty() { "/" } else { base }).ok_or_else(nul)?, CBuf::new(rel).ok_or_else(nul)?))
+}
+
+/// An `O_PATH` descriptor of `rel` under `base`, with no link on the way.
+/// No allocation.
+fn open_beneath(base: &CBuf, rel: &CBuf) -> sys::Sysres {
+    let dir = sys::open(base, sys::O_PATH | sys::O_DIRECTORY | sys::O_CLOEXEC, 0)?;
+    let fd = sys::openat2(dir, rel, &OpenHow { flags: sys::O_PATH | sys::O_CLOEXEC, mode: 0, resolve: BENEATH });
+    let _ = sys::close(dir);
+    fd
 }
 
 /// The flags of the read-only remount of a bind whose mount has the
@@ -209,7 +266,21 @@ fn point(root: i64, v: &Prepared) -> std::result::Result<i64, (u8, Errno)> {
 /// The bind of one volume, and its remount where it is read-only.
 fn bind_one(root: i64, v: &Prepared, empty: &CBuf) -> std::result::Result<(), (u8, Errno)> {
     let fd = point(root, v)?;
-    let bound = mount_on_fd(&v.host, fd, sys::MS_BIND | sys::MS_REC, empty);
+    let bound = match &v.beneath {
+        None => mount_on_fd(&v.host, fd, sys::MS_BIND | sys::MS_REC, empty),
+        // The source by its descriptor: the path can change after the open.
+        Some((base, rel)) => match open_beneath(base, rel) {
+            Ok(src) => {
+                let r = crate::ns_dev_bind::mount_fd_on_fd(src, fd, sys::MS_BIND | sys::MS_REC, empty);
+                let _ = sys::close(src);
+                r
+            }
+            Err(e) => {
+                let _ = sys::close(fd);
+                return Err((NS_VOLUME_SOURCE_STEP, e));
+            }
+        },
+    };
     let _ = sys::close(fd);
     bound.map_err(|e| (NS_VOLUME_BIND_STEP, e))?;
     if !v.read_only {
@@ -245,12 +316,14 @@ pub(crate) fn bind_each(v: &Volumes) -> std::result::Result<(), (u8, Errno, u8)>
 /// The refusal of a volume that the child reported, or `None` where the
 /// step is not a step of a volume.
 pub(crate) fn failure(plan: &Plan, step: u8, e: Errno, at: u8) -> Option<Error> {
-    if !(NS_VOLUME_POINT_STEP..=NS_VOLUME_REMOUNT_STEP).contains(&step) {
+    if !(NS_VOLUME_POINT_STEP..=NS_VOLUME_REMOUNT_STEP).contains(&step) && step != NS_VOLUME_SOURCE_STEP {
         return None;
     }
     let words = ns_setup_step(step)?;
     let label = plan.volumes.get(usize::from(at)).map_or_else(|| format!("number {at}"), volume_label);
-    let (class, text) = if step == NS_VOLUME_LINK_STEP {
+    let (class, text) = if step == NS_VOLUME_LINK_STEP
+        || (step == NS_VOLUME_SOURCE_STEP && (e == sys::ELOOP || e == sys::EXDEV))
+    {
         (Class::Policy, format!("the volume {label} is refused: {words} ({} ({}))", e.name(), e.0))
     } else {
         (errno_class(e), format!("the volume {label} could not be bound: {words} failed with {} ({})", e.name(), e.0))

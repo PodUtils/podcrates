@@ -154,7 +154,12 @@ pub fn layered(root: &Path, vols: &Path) {
     fs::create_dir_all(host.join("sub")).unwrap();
     let mut p = plan("test -e /only/in && exit 25; test \"$(pwd)\" = /only/sub || exit 26; exit 0", None);
     p.working_dir = "/only/sub".to_string();
-    p.volumes = vec![VolumeBind { host: host.to_str().unwrap().to_string(), guest: "/only".into(), read_only: false }];
+    p.volumes = vec![VolumeBind {
+        host: host.to_str().unwrap().to_string(),
+        guest: "/only".into(),
+        read_only: false,
+        host_base: None,
+    }];
     if landlock.is_ok() {
         p.confine = Some(spec().allow("/only/sub", Access::READ));
     }

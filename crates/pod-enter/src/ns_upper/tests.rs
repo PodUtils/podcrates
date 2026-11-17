@@ -142,7 +142,8 @@ fn a_volume_hides_both_layers() {
     let host = l.dir.join("host");
     std::fs::create_dir_all(&host).unwrap();
     std::fs::write(host.join("h"), "h").unwrap();
-    let bind = VolumeBind { host: text(&host).to_string(), guest: "/vol".to_string(), read_only: false };
+    let bind =
+        VolumeBind { host: text(&host).to_string(), guest: "/vol".to_string(), read_only: false, host_base: None };
     let v = view(&l, vec![bind]);
     assert_eq!(resolve_in(&v, "/vol/h"), Ok(host.join("h")));
     assert_eq!(resolve_in(&v, "/vol/u"), Err(ResolveKind::Absent), "the file of the upper layer under the volume");

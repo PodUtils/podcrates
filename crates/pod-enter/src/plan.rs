@@ -92,11 +92,20 @@ pub struct Plan {
 /// image. `read_only` remounts the bind read-only and keeps each flag of
 /// the mount that a user namespace locks. The mounts under `host` keep
 /// their own flags, as docker's `ro`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// `host_base`: a directory that the caller checked, which holds `host`.
+/// Then `host` opens under it with `openat2(RESOLVE_BENEATH |
+/// RESOLVE_NO_SYMLINKS)`, before the fork and again in the child, and the
+/// bind takes that descriptor, not the path: a link that the job of a unit
+/// makes in the source after the check of the caller cannot redirect the
+/// bind (PodUtils/podrunner#277). A link under the base is a refusal that
+/// names the volume.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct VolumeBind {
     pub host: String,
     pub guest: String,
     pub read_only: bool,
+    pub host_base: Option<String>,
 }
 
 impl Plan {

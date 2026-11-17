@@ -332,6 +332,9 @@ pub fn ns_setup_step(step: u8) -> Option<&'static str> {
         }
         crate::ns_volume::NS_VOLUME_BIND_STEP => Some("binding the host path of a volume"),
         crate::ns_volume::NS_VOLUME_REMOUNT_STEP => Some("remounting the bind of a read-only volume read-only"),
+        crate::ns_volume::NS_VOLUME_SOURCE_STEP => {
+            Some("opening the host path of a volume under its base with no symbolic link")
+        }
         _ => crate::ns_user::step_name(step).or_else(|| crate::ns_pid::step_name(step)),
     }
 }

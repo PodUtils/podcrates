@@ -212,6 +212,7 @@ fn a_rule_resolves_through_the_volumes() {
         host: text(&d.join(host)),
         guest: guest.to_string(),
         read_only: false,
+        host_base: None,
     };
     let volumes = vec![bind("cv", "/cv"), bind("rw", "/data"), bind("up", "/up/deep")];
     let maps = Maps::of_binds(&root.path, &volumes);

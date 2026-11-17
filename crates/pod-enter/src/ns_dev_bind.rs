@@ -238,6 +238,14 @@ pub(crate) fn mount_on_fd(source: &CBuf, fd: i64, flags: u64, empty: &CBuf) -> s
     unsafe { sys::sys(sys::SYS_MOUNT, [source.ptr(), target, empty.ptr(), flags, 0, 0]) }
 }
 
+/// `mount(2)` of the file of the descriptor `src` onto the file of the
+/// descriptor `fd`: no path of either can change after its open.
+pub(crate) fn mount_fd_on_fd(src: i64, fd: i64, flags: u64, empty: &CBuf) -> sys::Sysres {
+    let (mut from, mut onto) = ([0u8; 32], [0u8; 32]);
+    let (source, target) = (fd_path(src, &mut from), fd_path(fd, &mut onto));
+    unsafe { sys::sys(sys::SYS_MOUNT, [source, target, empty.ptr(), flags, 0, 0]) }
+}
+
 /// The mount point at `name` in the directory `dev`: an `O_PATH` descriptor
 /// of a regular file or of a character device, never of a link.
 fn mount_point(dev: i64, d: &Device, empty: &CBuf) -> Result<i64, Errno> {

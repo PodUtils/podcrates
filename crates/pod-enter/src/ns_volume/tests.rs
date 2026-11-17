@@ -28,7 +28,7 @@ fn plan(volumes: Vec<VolumeBind>) -> Plan {
 }
 
 fn vol(host: &str, guest: &str, read_only: bool) -> VolumeBind {
-    VolumeBind { host: host.to_string(), guest: guest.to_string(), read_only }
+    VolumeBind { host: host.to_string(), guest: guest.to_string(), read_only, host_base: None }
 }
 
 /// A fresh directory of this test.
@@ -166,6 +166,7 @@ fn the_walk_makes_the_mount_point_and_refuses_a_link() {
         parts: guest_parts(guest).unwrap().iter().map(|p| CBuf::new(p).unwrap()).collect(),
         dir,
         read_only: false,
+        beneath: None,
     };
     let walk = |guest: &str, dir: bool| {
         point(root, &prepared(guest, dir)).map(|fd| {
@@ -206,5 +207,34 @@ fn a_working_directory_in_a_volume_resolves_in_the_volume() {
     p.working_dir = "/work/v/sub".to_string();
     let e = check_workdir(&root, &p, None).err().unwrap().to_string();
     assert!(e.contains("is not a directory in the image"), "{e}");
+    let _ = fs::remove_dir_all(&d);
+}
+
+/// A volume with `host_base` opens its host path under the base with no
+/// link: a link anywhere under the base is a refusal that names the
+/// volume, and a path out of the base is a usage error
+/// (PodUtils/podrunner#277).
+#[test]
+fn a_host_path_under_its_base_holds_no_link() {
+    let d = scratch("beneath");
+    fs::create_dir_all(d.join("base/job/data")).unwrap();
+    fs::create_dir_all(d.join("img")).unwrap();
+    std::os::unix::fs::symlink("/etc", d.join("base/job/out")).unwrap();
+    let root = RootDir::open(d.join("img").to_str().unwrap()).unwrap();
+    let text = |p: std::path::PathBuf| p.to_str().unwrap().to_string();
+    let with = |host: std::path::PathBuf| {
+        let mut v = vol(&text(host), "/v", false);
+        v.host_base = Some(text(d.join("base")));
+        prepare(&plan(vec![v]), &root, None)
+    };
+    assert!(with(d.join("base/job/data")).is_ok());
+    assert!(with(d.join("base")).is_ok(), "the base itself");
+    let linked = with(d.join("base/job/out")).err().expect("a link under the base");
+    assert_eq!(class_of(&linked), Some(Class::Policy), "{linked}");
+    assert!(linked.to_string().contains("holds a symbolic link under its base"), "{linked}");
+    let through = with(d.join("base/job/out/hostname")).err().expect("a path through a link");
+    assert_eq!(class_of(&through), Some(Class::Policy), "{through}");
+    let out = with(d.join("img")).err().expect("a path out of the base");
+    assert!(out.to_string().contains("not under its host base"), "{out}");
     let _ = fs::remove_dir_all(&d);
 }

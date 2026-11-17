@@ -64,7 +64,7 @@ fn image_of_the_volumes(root: &Path, for_nobody: bool) {
 }
 
 fn bind(host: &Path, guest: &str, read_only: bool) -> VolumeBind {
-    VolumeBind { host: host.to_str().unwrap().to_string(), guest: guest.to_string(), read_only }
+    VolumeBind { host: host.to_str().unwrap().to_string(), guest: guest.to_string(), read_only, host_base: None }
 }
 
 /// The test in the process over the tmpfs: a volume that the payload reads
@@ -91,9 +91,12 @@ pub fn body(root: &Path, vols: &Path) {
          test \"$(cat /ro/keep)\" = keep || exit 7; grep ' /ro ' /proc/self/mountinfo > /data/ro-line || exit 8; \
          test \"$(cat /etc/volume.conf)\" = conf || exit 9; echo m > /new/deep/dir/m || exit 10";
     let mut p = plan(script, None);
+    // The read-only volume opens under its base with no link, and binds by
+    // its descriptor (`host_base`, PodUtils/podrunner#277).
+    let beneath = VolumeBind { host_base: Some(vols.to_str().unwrap().to_string()), ..bind(&ro, "/ro", true) };
     p.volumes = vec![
         bind(&rw, "/data", false),
-        bind(&ro, "/ro", true),
+        beneath,
         bind(&made, "/new/deep/dir", false),
         bind(&file, "/etc/volume.conf", false),
     ];
