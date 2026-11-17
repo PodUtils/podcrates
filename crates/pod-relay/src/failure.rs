@@ -23,7 +23,7 @@ pub fn token(e: &TokenError) -> (Stage, Class) {
         TokenError::BadEnvironment => (Stage::Relay, Class::Usage),
         TokenError::Connect(c) => of_connect(c),
         TokenError::RateLimited { .. } => (Stage::Relay, Class::TempFail),
-        TokenError::NotIssued => (Stage::Relay, Class::Unsupported),
+        TokenError::NotIssued { .. } => (Stage::Relay, Class::Unsupported),
         TokenError::Failed { .. } => (Stage::Relay, Class::Unavailable),
     }
 }
@@ -114,7 +114,7 @@ mod tests {
             (OpenError::Deadline, Class::Timeout),
             (OpenError::Held { left: None }, Class::TempFail),
             (OpenError::Token(TokenError::BadEnvironment), Class::Usage),
-            (OpenError::Token(TokenError::NotIssued), Class::Unsupported),
+            (OpenError::Token(TokenError::NotIssued { give: String::new() }), Class::Unsupported),
             (OpenError::Token(TokenError::RateLimited { retry_after: None }), Class::TempFail),
         ];
         for (e, want) in cases {

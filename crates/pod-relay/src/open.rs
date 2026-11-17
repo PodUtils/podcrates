@@ -62,7 +62,7 @@ impl OpenError {
         match self {
             OpenError::Offline => false,
             OpenError::Deadline | OpenError::Held { .. } => true,
-            OpenError::Token(TokenError::BadEnvironment | TokenError::NotIssued) => false,
+            OpenError::Token(TokenError::BadEnvironment | TokenError::NotIssued { .. }) => false,
             OpenError::Token(_) => true,
             OpenError::Connect { error, .. } => match error {
                 ConnectError::Config(_) => false,

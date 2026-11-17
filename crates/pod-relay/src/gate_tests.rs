@@ -131,7 +131,7 @@ fn each_end_has_its_verdict() {
     assert_eq!(verdict(&Ok(())), Verdict::Alive);
     assert_eq!(verdict::<()>(&Err(refused(403, "forward: x:25 not in the ALLOW list"))), Verdict::Alive);
     assert_eq!(verdict::<()>(&Err(refused(502, "relay: cannot reach x:22"))), Verdict::Alive);
-    assert_eq!(verdict::<()>(&Err(OpenError::Token(TokenError::NotIssued))), Verdict::Alive);
+    assert_eq!(verdict::<()>(&Err(OpenError::Token(TokenError::NotIssued { give: String::new() }))), Verdict::Alive);
     for host_s in [refused(503, "paused"), refused(429, "slow down"), OpenError::Deadline, refused_dial()] {
         assert_eq!(verdict::<()>(&Err(host_s)), Verdict::Failed(None));
     }

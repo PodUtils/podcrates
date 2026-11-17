@@ -60,3 +60,14 @@ async fn a_token_of_the_run_with_little_time_left_is_not_taken() {
     let given = ctx.clone().with_settings(crate::Settings { token: Some(TOKEN.into()), ..Default::default() });
     assert_eq!(take(&given, &relay).await.expect("the given token").origin, Origin::Environment);
 }
+
+/// A relay that issues no token names where the user gives one, in the
+/// words of the consumer (`Names::token`; PodUtils/podssh#313).
+#[test]
+fn a_relay_that_issues_no_token_names_where_to_give_one() {
+    let e = TokenError::NotIssued { give: "PODSSH_RELAY_TOKEN".into() };
+    let line = e.to_string();
+    assert!(line.ends_with("ask its operator for one and give it in PODSSH_RELAY_TOKEN"), "{line}");
+    let default = TokenError::NotIssued { give: crate::Names::default().token };
+    assert!(default.to_string().ends_with("give it in the relay token setting"), "{default}");
+}

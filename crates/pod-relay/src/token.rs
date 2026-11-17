@@ -67,8 +67,10 @@ pub enum TokenError {
     Connect(ConnectError),
     /// `429`: the relay is limiting how fast tokens are minted.
     RateLimited { retry_after: Option<String> },
-    /// `503`: this relay does not issue tokens.
-    NotIssued,
+    /// `503`: this relay does not issue tokens. `give`: where the user gives
+    /// one, in the words of the consumer (`Names::token`; podssh:
+    /// `PODSSH_RELAY_TOKEN`).
+    NotIssued { give: String },
     /// Any other answer.
     Failed { status: u16, detail: String },
 }
@@ -84,11 +86,8 @@ impl std::fmt::Display for TokenError {
             TokenError::RateLimited { retry_after: None } => {
                 write!(f, "the relay is rate-limiting token minting; retry shortly")
             }
-            TokenError::NotIssued => {
-                write!(
-                    f,
-                    "this relay does not issue tokens (HTTP 503); ask its operator for one and give it as the relay token"
-                )
+            TokenError::NotIssued { give } => {
+                write!(f, "this relay does not issue tokens (HTTP 503); ask its operator for one and give it in {give}")
             }
             TokenError::Failed { status, detail } => write!(f, "minting a relay token failed: HTTP {status}{detail}"),
         }
@@ -272,7 +271,7 @@ async fn mint(ctx: &MintContext<'_>) -> Result<(String, i64), TokenError> {
             Ok((parsed.token, parsed.expires))
         }
         429 => Err(TokenError::RateLimited { retry_after: response.header_text("retry-after", 64) }),
-        503 => Err(TokenError::NotIssued),
+        503 => Err(TokenError::NotIssued { give: ctx.ctx.settings.names.token.clone() }),
         status => {
             let body = response.body_text(200);
             Err(TokenError::Failed {

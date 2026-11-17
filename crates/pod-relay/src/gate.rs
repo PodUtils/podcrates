@@ -65,9 +65,8 @@ pub fn verdict<T>(result: &Result<T, OpenError>) -> Verdict {
         return Verdict::Failed(retry_after(e));
     }
     match e {
-        OpenError::Connect { error: ConnectError::Refused { .. }, .. } | OpenError::Token(TokenError::NotIssued) => {
-            Verdict::Alive
-        }
+        OpenError::Connect { error: ConnectError::Refused { .. }, .. }
+        | OpenError::Token(TokenError::NotIssued { .. }) => Verdict::Alive,
         _ => Verdict::Neither,
     }
 }

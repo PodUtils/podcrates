@@ -281,7 +281,10 @@ mod tests {
         ];
         let tried: Vec<String> = hosts_for(&hosts, &attempts).into_iter().map(|r| r.host).collect();
         assert_eq!(tried, [default, "b.example"], "a host of each deployment, in order");
-        assert!(!may_help(&OpenError::Deadline) && !may_help(&OpenError::Token(TokenError::NotIssued)));
+        assert!(
+            !may_help(&OpenError::Deadline)
+                && !may_help(&OpenError::Token(TokenError::NotIssued { give: String::new() }))
+        );
         assert!(hosts_for(&hosts, &[]).is_empty(), "no failure, no road");
     }
 
