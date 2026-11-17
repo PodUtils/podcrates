@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**737 entries: 134 open, 21 partial, 7 blocked, 575 done.**
+**737 entries: 133 open, 21 partial, 7 blocked, 576 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 161 | 179 |
 | P2 | 59 | 3 | 4 | 297 | 363 |
-| P3 | 65 | 10 | 3 | 115 | 193 |
-| **All** | 134 | 21 | 7 | 575 | 737 |
+| P3 | 64 | 10 | 3 | 116 | 193 |
+| **All** | 133 | 21 | 7 | 576 | 737 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -777,7 +777,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-895](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: a hard link to a later member says "already extracted" (PodUtils/podvm#569) |
 | [T-896](foundation.md) | P2 | S | M3 | feature | done | `pod-proxy`: the handshake of SOCKS5 and of CONNECT on a stream that the caller holds (a hop of a chain) (PodUtils/podnet#652) |
 | [T-897](foundation.md) | P2 | M | M3 | feature | open | `pod-proxy`: the server checks a user and a password by a callback; one SOCKS server for podnet and podssh (PodUtils/podnet#652) |
-| [T-898](foundation.md) | P3 | S | M3 | feature | open | `pod-dns`: an answer with an RCODE that copies the flags of the request (PodUtils/podnet#652) |
+| [T-898](foundation.md) | P3 | S | M3 | feature | done | `pod-dns`: an answer with an RCODE that copies the flags of the request (PodUtils/podnet#652) |
 | [T-899](fleet.md) | P2 | M | M3 | feature | open | `pod-hostprobe`: rows of a network namespace with a veth, a write of another process's memory, and the binds of AF_UNIX, abstract, VSOCK and NETLINK sockets (PodUtils/podnet#652) |
 | [T-900](fleet.md) | P3 | S | M3 | feature | open | The installer core: more downloaders, or a ruling, and the newest tag with an optional token (PodUtils/podnet#652) |
 | [T-901](roads.md) | P3 | S | M3 | feature | done | `pod-ws`: a request of the upgrade with no token header, for a probe (PodUtils/podnet#652) |

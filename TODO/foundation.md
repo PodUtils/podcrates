@@ -2371,7 +2371,7 @@ cargo test -p pod-proxy --all-features
 **Milestone:** M3
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2390,3 +2390,7 @@ podnet's fake DNS (PodUtils/podnet:crates/podnet-netns/src/dns.rs) writes its ow
 ```sh
 cargo test -p pod-dns --all-features
 ```
+
+## Done
+
+2026-11-17, 14b712ed9, d222783c5: `pod_dns::txt::error_answer(request, rcode)` (and `RCODE_SERVFAIL`, `RCODE_NXDOMAIN`, `RCODE_REFUSED`): the id, the opcode, RD and the one question of the request, with QR and RA set, AA, TC and Z clear, the RCODE, and no record; a request that is not a query of one question of labels, a cut question, and an RCODE over 15 are errors. Test `an_error_answer_copies_the_request`. Plant `dns-error-answer-drops-rd`, caught.
