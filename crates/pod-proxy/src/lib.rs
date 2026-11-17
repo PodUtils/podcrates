@@ -80,3 +80,10 @@ pub use race::{dial_addrs, group_errors, interleave};
 pub use socks5::fuzz_exchange;
 pub use socks5::udp;
 pub use stream::{ChildIo, Stream};
+
+/// The handshakes of a proxy on a stream that the caller holds: a hop of
+/// a chain, whose order stays the caller's (PodUtils/podnet#652).
+pub mod hop {
+    pub use crate::connect::{Ask, handshake as connect};
+    pub use crate::socks5::handshake as socks5;
+}

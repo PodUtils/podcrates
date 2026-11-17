@@ -8,7 +8,7 @@ use base64::Engine as _;
 use pod_core::Stage;
 use pod_core::entropy::OsEntropy;
 use pod_core::text::one_line;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::error::DialError;
 use crate::host::authority;
@@ -25,7 +25,7 @@ const MAX_REASON_BODY: usize = 512;
 
 /// The words of the consumer in a CONNECT and in its refusal.
 #[derive(Clone, Copy)]
-pub(crate) struct Ask<'a> {
+pub struct Ask<'a> {
     /// The program, in the words of a 407.
     pub app: &'a str,
     /// The `User-Agent` of the request; none is sent with `None`.
@@ -38,6 +38,36 @@ enum Answer {
     Open,
     /// A 407 with a Digest challenge that the credentials can answer.
     Digest(crate::digest::Challenge),
+}
+
+/// The CONNECT of `host:port` on `stream`, a connection to `proxy` that
+/// the caller holds (a hop of a chain, PodUtils/podnet#652), with the Basic
+/// credentials of `proxy`, within `within`. A proxy that asks for Digest is
+/// a refusal that says so: its answer goes on a new connection, which only
+/// the caller of the hop can open.
+pub async fn handshake<S: AsyncRead + AsyncWrite + Unpin>(
+    stream: &mut S,
+    ask: Ask<'_>,
+    proxy: &Proxy,
+    host: &str,
+    port: u16,
+    within: std::time::Duration,
+) -> Result<(), DialError> {
+    let target = authority(host, port);
+    let basic = proxy.credentials().map(|(user, password)| {
+        let encoded = base64::engine::general_purpose::STANDARD.encode(format!("{user}:{password}").as_bytes());
+        format!("Basic {encoded}")
+    });
+    let bound = (tokio::time::Instant::now() + within, within);
+    match exchange(stream, bound, ask, proxy, &target, basic.as_deref(), Sent::Basic).await? {
+        Answer::Open => Ok(()),
+        Answer::Digest(_) => Err(DialError::ProxyRefused {
+            proxy: proxy.to_string(),
+            target,
+            status: 407,
+            reason: "the proxy asks for Digest, which needs a new connection: a hop answers Basic only".into(),
+        }),
+    }
 }
 
 /// Connect to the proxy and ask it for a tunnel to `host:port`.
@@ -54,10 +84,13 @@ pub(crate) async fn connect_via(
         format!("Basic {encoded}")
     });
     let mut stream = open_proxy(leg, proxy).await?;
-    let challenge = match exchange(&mut stream, leg, ask, proxy, &target, basic.as_deref(), Sent::Basic).await? {
-        Answer::Open => return Ok(stream),
-        Answer::Digest(challenge) => challenge,
-    };
+    let challenge =
+        match exchange(&mut stream, (leg.deadline, leg.budget), ask, proxy, &target, basic.as_deref(), Sent::Basic)
+            .await?
+        {
+            Answer::Open => return Ok(stream),
+            Answer::Digest(challenge) => challenge,
+        };
     // A Digest proxy: the answer to its challenge goes on a new connection.
     // A challenge comes only after Basic, which only credentials send.
     let (user, password) = proxy.credentials().unwrap_or_default();
@@ -67,7 +100,7 @@ pub(crate) async fn connect_via(
     })?;
     let answer = crate::digest::authorization(&challenge, user, password, "CONNECT", &target, &nonce, 1);
     let mut stream = open_proxy(leg, proxy).await?;
-    match exchange(&mut stream, leg, ask, proxy, &target, Some(&answer), Sent::Digest).await? {
+    match exchange(&mut stream, (leg.deadline, leg.budget), ask, proxy, &target, Some(&answer), Sent::Digest).await? {
         Answer::Open => Ok(stream),
         // A Digest answer gets no challenge back; a 407 is a refusal.
         Answer::Digest(_) => Err(DialError::ProxyRefused {
@@ -83,9 +116,9 @@ pub(crate) async fn connect_via(
 /// which is `sent`. A 407 with a Digest challenge, after Basic with the
 /// credentials of the URL, gives the challenge.
 #[allow(clippy::too_many_arguments)]
-async fn exchange(
-    stream: &mut Stream,
-    leg: Leg<'_>,
+async fn exchange<S: AsyncRead + AsyncWrite + Unpin>(
+    stream: &mut S,
+    (deadline, budget): (tokio::time::Instant, std::time::Duration),
     ask: Ask<'_>,
     proxy: &Proxy,
     target: &str,
@@ -107,11 +140,11 @@ async fn exchange(
         stream.flush().await?;
         read_head_exact(stream).await
     };
-    let head = tokio::time::timeout_at(leg.deadline, exchange)
+    let head = tokio::time::timeout_at(deadline, exchange)
         .await
         .map_err(|_| DialError::Timeout {
             step: format!("the CONNECT exchange with {proxy_name}"),
-            after: leg.budget,
+            after: budget,
             stage: Stage::Proxy,
         })?
         .map_err(|e| DialError::ProxyProtocol { proxy: proxy_name.clone(), detail: e.to_string() })?;
@@ -133,7 +166,7 @@ async fn exchange(
     } else {
         // The proxy's own words, as "not on the egress allowlist", are
         // often in its body.
-        let body = tokio::time::timeout_at(leg.deadline, first_line_of_body(stream, &head)).await.unwrap_or_default();
+        let body = tokio::time::timeout_at(deadline, first_line_of_body(stream, &head)).await.unwrap_or_default();
         let mut parts: Vec<String> = Vec::new();
         for part in [reason, body] {
             if !part.is_empty() && !parts.contains(&part) {

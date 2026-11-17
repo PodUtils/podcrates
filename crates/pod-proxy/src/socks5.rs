@@ -91,9 +91,47 @@ pub(crate) async fn connect(
                 .ok_or_else(|| DialError::Resolve { host: host.to_string(), detail: "no address".into() })?;
             attempt(leg, app, proxy, Target::Addr(addr), port)
                 .await
-                .map_err(|e| failure(proxy, &authority(&addr.to_string(), port), e, leg))
+                .map_err(|e| failure(proxy, &authority(&addr.to_string(), port), e, leg.budget))
         }
-        result => result.map_err(|e| failure(proxy, &authority(host, port), e, leg)),
+        result => result.map_err(|e| failure(proxy, &authority(host, port), e, leg.budget)),
+    }
+}
+
+/// The SOCKS5 handshake for `host:port` on `stream`, a connection to
+/// `proxy` that the caller holds (a hop of a chain, PodUtils/podnet#652):
+/// the greeting, the user and password of `proxy`, and CONNECT, within
+/// `within`. A name goes to the proxy; `socks5://`, which resolves a name
+/// on this host, takes an address only here. The order of the hops is the
+/// caller's.
+pub async fn handshake<S: AsyncRead + AsyncWrite + Unpin>(
+    stream: &mut S,
+    app: &str,
+    proxy: &Proxy,
+    host: &str,
+    port: u16,
+    within: std::time::Duration,
+) -> Result<(), DialError> {
+    let bare = host.trim_start_matches('[').trim_end_matches(']');
+    let target = match bare.parse::<IpAddr>() {
+        Ok(addr) => Target::Addr(addr),
+        Err(_) if proxy.kind == (ProxyKind::Socks5 { remote_dns: false }) => {
+            return Err(DialError::InvalidTarget(format!(
+                "{host}: socks5:// resolves a name on this host, which a hop of a chain cannot; give socks5h:// or an address"
+            )));
+        }
+        Err(_) if host.len() > 255 => {
+            return Err(DialError::InvalidTarget(format!("{host:?} is longer than the 255 bytes of SOCKS5")));
+        }
+        Err(_) => Target::Name(host),
+    };
+    let work = async {
+        greet(stream, app, proxy).await?;
+        request(stream, target, port).await
+    };
+    match tokio::time::timeout(within, work).await {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(step)) => Err(failure(proxy, &authority(host, port), Some(step), within)),
+        Err(_) => Err(failure(proxy, &authority(host, port), None, within)),
     }
 }
 
@@ -136,9 +174,9 @@ async fn resolve_here(leg: Leg<'_>, name: &str, port: u16) -> Result<IpAddr, Dia
 
 /// The error of a failed attempt, in the terms of an HTTP proxy's, so that
 /// the failover and the exit codes treat both the same.
-fn failure(proxy: &Proxy, target: &str, step: Option<Step>, leg: Leg<'_>) -> DialError {
+fn failure(proxy: &Proxy, target: &str, step: Option<Step>, budget: std::time::Duration) -> DialError {
     let proxy_name = proxy.to_string();
-    let (after, stage) = (leg.budget, Stage::Proxy);
+    let (after, stage) = (budget, Stage::Proxy);
     match step {
         None => DialError::Timeout { step: format!("the SOCKS5 exchange with {proxy_name}"), after, stage },
         Some(Step::Unreachable(DialError::Timeout { .. })) => {
