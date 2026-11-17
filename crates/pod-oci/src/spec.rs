@@ -235,21 +235,44 @@ fn from_slice<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T> {
         .map_err(|e| registry(Class::Protocol, format!("the registry's document does not parse: {e}")))
 }
 
+/// The variants of the entries that `want` takes, best first, as
+/// containerd orders them: a CPU of a variant runs the images of the
+/// variants below it, and an entry with no variant last. `linux/amd64/v3`
+/// takes `v3`, then `v2`, then `v1` or no variant (call C778); a variant
+/// above the wanted one is never taken.
+fn ranked<'w>(arch: &str, want: &'w str) -> Vec<&'w str> {
+    const AMD64: [&str; 4] = ["v4", "v3", "v2", "v1"];
+    const ARM: [&str; 4] = ["v8", "v7", "v6", "v5"];
+    let below = |ladder: &'static [&'static str]| -> Vec<&'w str> {
+        match ladder.iter().position(|v| *v == want) {
+            Some(at) => ladder[at..].to_vec(),
+            None => vec![want],
+        }
+    };
+    let mut out = match arch {
+        "amd64" => below(&AMD64),
+        "arm" => below(&ARM),
+        "arm64" if want != "v8" => vec![want, "v8"],
+        _ => vec![want],
+    };
+    out.push("");
+    out
+}
+
 /// Pick the entry for one platform out of an index.
 ///
 /// Never "the first one". The registry orders an index, and its head can be
 /// an arm64 root file system that then fails with `Exec format error`.
 ///
-/// Two passes, in this order. A match of the variant wins over a match that
-/// ignores the variant: `linux/arm/v7` and `linux/arm/v6` are different
-/// images. Only when no entry matched with its variant does an entry with no
-/// variant match, so that `linux/arm64` finds a `linux/arm64/v8` entry. No
-/// match is [`Refusal::NoPlatform`] (`Class::NotFound`): its list names
+/// No match is [`Refusal::NoPlatform`] (`Class::NotFound`): its list names
 /// each platform one time, with its `os.version` ([`Platform::full_word`]),
-/// and no attestation manifest.
+/// and no attestation manifest. An ask with no variant takes the first
+/// entry of its OS and architecture; an ask with a variant takes the best
+/// entry of [`ranked`], the first in the index where two rank the same.
 pub fn select_platform<'a>(index: &'a Index, want: &crate::platform::Platform) -> Result<&'a Descriptor> {
     let mut offered: Vec<String> = Vec::new();
-    let mut loose: Option<&'a Descriptor> = None;
+    let mut best: Option<(usize, &'a Descriptor)> = None;
+    let wanted = want.variant.as_deref().filter(|s| !s.is_empty());
     for m in &index.manifests {
         // An attestation entry has no platform, or `unknown/unknown` and the
         // annotation. It is not a candidate and the error does not name it.
@@ -257,14 +280,16 @@ pub fn select_platform<'a>(index: &'a Index, want: &crate::platform::Platform) -
             continue;
         }
         let Some(p) = &m.platform else { continue };
-        let v = p.variant.as_deref().filter(|s| !s.is_empty());
+        let v = p.variant.as_deref().unwrap_or("");
         if want.os == p.os && want.arch == p.architecture {
-            match (want.variant.as_deref(), v) {
-                (Some(a), Some(b)) if a == b => return Ok(m),
-                (Some(_), Some(_)) => {}
-                // One side gave no variant: a candidate, not yet the answer.
-                // A match of the variant later in the index wins.
-                _ => loose = loose.or(Some(m)),
+            let rank = match wanted {
+                None => Some(0),
+                Some(w) => ranked(&p.architecture, w).iter().position(|r| *r == v),
+            };
+            if let Some(rank) = rank
+                && best.is_none_or(|(b, _)| rank < b)
+            {
+                best = Some((rank, m));
             }
         }
         let word = p.full_word();
@@ -272,7 +297,7 @@ pub fn select_platform<'a>(index: &'a Index, want: &crate::platform::Platform) -
             offered.push(word);
         }
     }
-    if let Some(m) = loose {
+    if let Some((_, m)) = best {
         return Ok(m);
     }
     Err(Refusal::NoPlatform {
@@ -432,5 +457,42 @@ mod tests {
     fn a_schema_one_manifest_is_refused_by_name() {
         let e = Fetched::parse(br#"{"schemaVersion":1,"name":"library/alpine"}"#, None).unwrap_err();
         assert!(format!("{e}").contains("schema 1"), "{e}");
+    }
+
+    /// The variants that an ask takes, best first, as containerd orders them
+    /// (PodUtils/podvm#569, call C778): a lower variant runs on a higher
+    /// CPU, a higher one never on a lower CPU, and no variant comes last.
+    #[test]
+    fn a_wanted_variant_takes_the_best_compatible_entry() {
+        let index = |entries: &[(&str, &str)]| -> Index {
+            let list: Vec<String> = entries
+                .iter()
+                .enumerate()
+                .map(|(i, (arch, v))| {
+                    let variant = if v.is_empty() { String::new() } else { format!(r#","variant":"{v}""#) };
+                    format!(
+                        r#"{{"mediaType":"application/vnd.oci.image.manifest.v1+json","digest":"sha256:{i:064}","size":1,"platform":{{"architecture":"{arch}","os":"linux"{variant}}}}}"#
+                    )
+                })
+                .collect();
+            let text = format!(r#"{{"schemaVersion":2,"manifests":[{}]}}"#, list.join(","));
+            serde_json::from_str(&text).expect("an index")
+        };
+        let pick = |ix: &Index, want: &str| {
+            let want = crate::platform::Platform::parse(want).expect("a platform");
+            select_platform(ix, &want)
+                .ok()
+                .map(|d| d.platform.as_ref().and_then(|p| p.variant.clone()).unwrap_or_default())
+        };
+        let amd = index(&[("amd64", ""), ("amd64", "v2"), ("amd64", "v4")]);
+        assert_eq!(pick(&amd, "linux/amd64/v3").as_deref(), Some("v2"), "v2 runs on a v3 CPU, v4 never");
+        assert_eq!(pick(&amd, "linux/amd64/v2").as_deref(), Some("v2"));
+        assert_eq!(pick(&amd, "linux/amd64/v1").as_deref(), Some(""), "no variant is v1");
+        assert_eq!(pick(&amd, "linux/amd64").as_deref(), Some(""), "an ask with no variant takes the first");
+        let arm = index(&[("arm", "v5"), ("arm", "v7")]);
+        assert_eq!(pick(&arm, "linux/arm/v6").as_deref(), Some("v5"));
+        assert_eq!(pick(&arm, "linux/arm/v8").as_deref(), Some("v7"));
+        assert_eq!(pick(&index(&[("arm", "v7")]), "linux/arm/v6"), None, "a higher variant is never taken");
+        assert_eq!(pick(&index(&[("arm64", "")]), "linux/arm64/v8").as_deref(), Some(""));
     }
 }
