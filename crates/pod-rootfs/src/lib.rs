@@ -144,6 +144,10 @@ pub struct Settings {
     pub host_resolv_conf: PathBuf,
     /// The mount table of the host.
     pub mounts: PathBuf,
+    /// The entry of the payload mounts a `/proc` in the root (the namespace
+    /// rung of `pod-enter`): a link of `etc/mtab` into `/proc` then
+    /// resolves, stays as it is, and is no degradation (PodUtils/podvm#569).
+    pub entry_mounts_proc: bool,
     /// The directory for the originals of the package sources that the
     /// crate changes. Keep it outside the root: a payload can change a file
     /// in the root, and the crate then puts back what the payload wrote.
@@ -170,6 +174,7 @@ impl Default for Settings {
             host_bundle: None,
             host_resolv_conf: PathBuf::from("/etc/resolv.conf"),
             mounts: PathBuf::from("/proc/self/mounts"),
+            entry_mounts_proc: false,
             originals: None,
             upper: None,
         }

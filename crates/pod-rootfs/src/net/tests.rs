@@ -12,12 +12,32 @@ fn mtab_replaces_an_escaping_symlink_and_the_canary_survives() {
     let canary = outside.at("canary");
     std::fs::write(&canary, b"host\n").unwrap();
     std::os::unix::fs::symlink(&canary, d.at("etc/mtab")).unwrap();
-    let fs = run_mtab(&d.root(), Path::new("/proc/self/mounts")).unwrap();
+    let fs = run_mtab(&d.root(), Path::new("/proc/self/mounts"), false).unwrap();
     assert_eq!(fs[0].action, Action::Rewrote);
     assert!(fs[0].detail.contains("REPLACED the link"), "{:?}", fs[0]);
     assert_eq!(std::fs::read(&canary).unwrap(), b"host\n");
     let got = std::fs::read_to_string(d.at("etc/mtab")).unwrap();
     assert!(got.contains(" / "), "{got}");
+}
+
+/// Where the entry mounts `/proc` (the namespace rung), a link of
+/// `etc/mtab` into it stays, and is no degradation; without that setting
+/// it is replaced, as before (PodUtils/podvm#569).
+#[test]
+fn mtab_keeps_a_link_into_proc_where_the_entry_mounts_proc() {
+    if no_in_root() {
+        return;
+    }
+    for target in ["/proc/self/mounts", "../proc/self/mounts"] {
+        let d = Scratch::new("net-mtabproc");
+        std::os::unix::fs::symlink(target, d.at("etc/mtab")).unwrap();
+        let fs = run_mtab(&d.root(), Path::new("/proc/self/mounts"), true).unwrap();
+        assert_eq!(fs[0].action, Action::Unchanged, "{:?}", fs[0]);
+        assert!(!fs[0].degraded, "{:?}", fs[0]);
+        assert_eq!(std::fs::read_link(d.at("etc/mtab")).unwrap(), Path::new(target));
+        let fs = run_mtab(&d.root(), Path::new("/proc/self/mounts"), false).unwrap();
+        assert_eq!(fs[0].action, Action::Rewrote, "{:?}", fs[0]);
+    }
 }
 
 /// An image that ships a working file keeps it.
@@ -28,7 +48,7 @@ fn mtab_leaves_a_regular_file_alone() {
     }
     let d = Scratch::new("net-mtabreg");
     std::fs::write(d.at("etc/mtab"), b"mine\n").unwrap();
-    let fs = run_mtab(&d.root(), Path::new("/proc/self/mounts")).unwrap();
+    let fs = run_mtab(&d.root(), Path::new("/proc/self/mounts"), false).unwrap();
     assert_eq!(fs[0].action, Action::Unchanged);
     assert_eq!(std::fs::read(d.at("etc/mtab")).unwrap(), b"mine\n");
 }

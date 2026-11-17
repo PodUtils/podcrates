@@ -114,10 +114,10 @@ fn run_hosts(root: &Root, settings: &Settings) -> Result<Vec<Fixup>> {
 // a working regular file stays.
 
 pub(crate) fn mtab(root: &Root, settings: &Settings, r: &mut Report) {
-    crate::record(r, "mtab", run_mtab(root, &settings.mounts));
+    crate::record(r, "mtab", run_mtab(root, &settings.mounts, settings.entry_mounts_proc));
 }
 
-fn run_mtab(root: &Root, mounts: &Path) -> Result<Vec<Fixup>> {
+fn run_mtab(root: &Root, mounts: &Path, entry_mounts_proc: bool) -> Result<Vec<Fixup>> {
     let k = root.kind("etc/mtab")?;
     // A distroless or a scratch image has no `/etc`, and a new `/etc` for a
     // mount table is a directory that nothing asked for.
@@ -133,6 +133,14 @@ fn run_mtab(root: &Root, mounts: &Path) -> Result<Vec<Fixup>> {
             return Ok(vec![
                 Fixup::new("mtab", "etc/mtab", Action::Unchanged)
                     .why("the image ships a regular file here, and it stays"),
+            ]);
+        }
+        Kind::Symlink(t)
+            if entry_mounts_proc && (t.starts_with("/proc/") || t.trim_start_matches("../").starts_with("proc/")) =>
+        {
+            return Ok(vec![
+                Fixup::new("mtab", "etc/mtab", Action::Unchanged)
+                    .why(format!("a symlink to {t}, which resolves in the /proc that the entry mounts")),
             ]);
         }
         Kind::Missing => "it was absent".to_string(),
