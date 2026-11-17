@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**704 entries: 129 open, 21 partial, 7 blocked, 547 done.**
+**704 entries: 128 open, 21 partial, 7 blocked, 548 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 11 | 8 | 0 | 152 | 171 |
+| P1 | 10 | 8 | 0 | 153 | 171 |
 | P2 | 56 | 3 | 4 | 282 | 345 |
 | P3 | 62 | 10 | 3 | 111 | 186 |
-| **All** | 129 | 21 | 7 | 547 | 704 |
+| **All** | 128 | 21 | 7 | 548 | 704 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -750,4 +750,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-868](podvm.md) | P3 | S | M6 | chore | done | `pod-enter`: a test of the fallback where the kernel refuses the devpts instance of the unit |
 | [T-869](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: `OpenError::lines` says the cause of a refusal twice (PodUtils/podssh#309) |
 | [T-870](upkeep.md) | P2 | S | M0 | chore | open | CI: each crate builds alone with its default features |
-| [T-871](roads.md) | P1 | S | M2 | defect | open | `pod-ws`: a shared HTTP/2 connection dies with the runtime that opened it (PodUtils/podssh#310) |
+| [T-871](roads.md) | P1 | S | M2 | defect | done | `pod-ws`: a shared HTTP/2 connection dies with the runtime that opened it (PodUtils/podssh#310) |
