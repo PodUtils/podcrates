@@ -10005,7 +10005,7 @@ cargo test -p pod-enter --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10024,6 +10024,10 @@ End the follow only when, after the drain, the start time and the pid of the rec
 ```sh
 cargo test -p pod-supervise --all-features
 ```
+
+## Done
+
+2026-11-17, 96c2f088c, 793b10a6e: `follow_once` gives the record where the container ended; after the final drain, `follow_from` reads the record again and ends only where `ended_for_good` holds (an end state, the same start and the same finish); else the run started again, and the follow goes on from its offset. Test `a_restart_does_not_end_the_follow` (the same ended run ends; a run that started again, and one that started and ended again, do not); the tests of `pod-supervise` pass. Plant `supervise-follow-ends-at-a-restart`, caught.
 
 # T-888: `pod-supervise`: the log, the lock and the memo of a container follow a symbolic link (PodUtils/podvm#569)
 
