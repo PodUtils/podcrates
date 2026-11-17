@@ -69,7 +69,9 @@ impl Lock {
                 if crate::images::by_tag(image).as_deref() != Some(image) || !is_digest(digest) {
                     return Err(bad(LineFault::ImageForm));
                 }
-                if images.insert(image.to_string(), digest.to_string()).is_some() {
+                // One form of a digest: the store compares the lowercase hex
+                // of the SHA-256 (PodUtils/podrunner#288).
+                if images.insert(image.to_string(), digest.to_ascii_lowercase()).is_some() {
                     return Err(bad(LineFault::Again(format!("docker://{image}"))));
                 }
                 continue;
@@ -81,7 +83,7 @@ impl Lock {
             if !ok || !is_commit(commit) || !is_digest(digest) {
                 return Err(bad(LineFault::Form));
             }
-            let pin = Pin { commit: commit.to_ascii_lowercase(), digest: digest.to_string() };
+            let pin = Pin { commit: commit.to_ascii_lowercase(), digest: digest.to_ascii_lowercase() };
             if pins.insert(key.to_string(), pin).is_some() {
                 return Err(bad(LineFault::Again(key.to_string())));
             }
@@ -193,5 +195,23 @@ mod tests {
         let e = Lock::read(&path).unwrap_err();
         assert!(matches!(&e, Error::Line { path: Some(p), line: 2, fault: LineFault::Form } if *p == path), "{e:?}");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A digest in uppercase hex gives the same pin as in lowercase: the
+    /// store compares the lowercase SHA-256 (PodUtils/podrunner#288).
+    #[test]
+    fn a_digest_in_uppercase_is_the_same_pin() {
+        let (c, d) = ("a".repeat(40), "b".repeat(64));
+        let lower = format!("actions/checkout@v4 {c} sha256:{d}\ndocker://redis:7 sha256:{d}\n");
+        let upper = format!(
+            "actions/checkout@v4 {} sha256:{}\ndocker://redis:7 sha256:{}\n",
+            c.to_uppercase(),
+            d.to_uppercase(),
+            d.to_uppercase()
+        );
+        let (a, b) = (Lock::parse(&lower).unwrap(), Lock::parse(&upper).unwrap());
+        assert_eq!(a.pins, b.pins);
+        assert_eq!(a.images, b.images);
+        assert!(b.pins.values().all(|p| p.digest == format!("sha256:{d}")));
     }
 }
