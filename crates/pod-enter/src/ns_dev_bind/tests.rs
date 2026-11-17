@@ -120,8 +120,8 @@ fn the_binds_of_an_image() {
 }
 
 /// `/dev/ptmx` takes a bind only where the image has a `/dev/pts`
-/// directory: of the `ptmx` of the new instance, or of the host's node. A
-/// link at `/dev/ptmx` takes neither.
+/// directory: of the `ptmx` of the devpts there, never of the host's
+/// `/dev/ptmx`. A link at `/dev/ptmx` takes none.
 #[test]
 fn the_binds_of_ptmx() {
     let root = std::env::temp_dir().join(format!("pod-enter-dev-bind-ptmx-{}", std::process::id()));
@@ -132,20 +132,16 @@ fn the_binds_of_ptmx() {
     std::fs::create_dir_all(root.join("dev/pts")).unwrap();
     let d = devices(&dir, &Names::DEFAULT);
     let p = d.ptmx.expect("a /dev/pts: a bind of /dev/ptmx");
-    let own = p.own.as_ref().expect("the ptmx of the new instance");
+    let own = p.as_ref().expect("the ptmx of the devpts on /dev/pts");
     assert_eq!(text(&own.source), format!("{}/dev/pts/ptmx", root.display()));
     assert!(own.create, "the image has no /dev/ptmx");
     assert_eq!(own.remount & (sys::MS_NODEV | sys::MS_RDONLY), 0);
     let line = String::from_utf8_lossy(&own.bind_refused).into_owned();
-    assert!(line.contains("/dev/ptmx: binding the ptmx of the new devpts instance failed"), "{line}");
-    let host = host_node(&CBuf::new("/dev/ptmx").unwrap()).is_some();
-    assert_eq!(p.host.as_ref().is_ok_and(|h| text(&h.source) == "/dev/ptmx"), host);
+    assert!(line.contains("/dev/ptmx: binding the ptmx of the devpts on /dev/pts failed"), "{line}");
     std::os::unix::fs::symlink("pts/ptmx", root.join("dev/ptmx")).unwrap();
     let p = devices(&dir, &Names::DEFAULT).ptmx.unwrap();
-    for b in [&p.own, &p.host] {
-        let line = String::from_utf8_lossy(b.as_ref().err().expect("no bind over a link")).into_owned();
-        assert!(line.contains("/dev/ptmx: the image holds a symbolic link"), "{line}");
-    }
+    let line = String::from_utf8_lossy(p.as_ref().err().expect("no bind over a link")).into_owned();
+    assert!(line.contains("/dev/ptmx: the image holds a symbolic link"), "{line}");
     let _ = std::fs::remove_dir_all(&root);
 }
 

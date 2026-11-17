@@ -112,9 +112,12 @@ The entries:
   empty file as the mount point where the image has none, and remounts
   the bind `nosuid` and `noexec`. Where the kernel refuses the instance,
   the child writes one line (`devpts_refused`: `the namespace rung binds
-  the host's /dev/pts and /dev/ptmx: mounting a new devpts instance on
+  the host's /dev/pts and its ptmx: mounting a new devpts instance on
   /dev/pts failed with errno N`), binds the host's `/dev/pts` as before,
-  and binds the host's `/dev/ptmx` as a device. A link at `/dev/ptmx`
+  and binds its `ptmx` on `/dev/ptmx`, which opens only where the host's
+  `ptmxmode` lets the caller open it. A bind of the host's `/dev/ptmx`
+  never opens: the kernel looks for the devpts at `pts` beside that node
+  in the same mount. A link at `/dev/ptmx`
   takes one line and no bind. The rung as root keeps the bind of the
   host's `/dev/pts`.
 * The volumes of a plan on the namespace rung (`Plan::volumes`, a

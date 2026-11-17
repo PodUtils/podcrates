@@ -97,12 +97,10 @@ pub(crate) fn optional_mounts(root: &str, names: &Names) -> Vec<Optional> {
 /// the host's devices come after (`ns_dev_bind`).
 pub(crate) fn mount_each(ns: &crate::entry::NsMount) {
     let user = ns.user.is_some();
-    let mut own_pts = false;
     for m in &ns.optional {
         if let Some(n) = m.devpts.as_ref().filter(|_| user)
             && n.mount(&m.target).is_ok()
         {
-            own_pts = true;
             continue;
         }
         let Err(e) = sys::mount(&m.source, &m.target, &m.fstype, m.flags) else { continue };
@@ -113,7 +111,7 @@ pub(crate) fn mount_each(ns: &crate::entry::NsMount) {
         refused_line(&m.refused, e);
     }
     if let Some(devices) = ns.devices.as_ref().filter(|_| user) {
-        crate::ns_dev_bind::bind_each(devices, own_pts);
+        crate::ns_dev_bind::bind_each(devices);
     }
 }
 

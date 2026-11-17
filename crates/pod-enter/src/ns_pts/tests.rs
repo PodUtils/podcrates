@@ -27,7 +27,7 @@ fn the_steps_and_the_refused_line() {
     let line = devpts_refused(&Names::DEFAULT);
     assert!(
         line.ends_with(
-            ": the namespace rung binds the host's /dev/pts and /dev/ptmx: mounting a new devpts instance on \
+            ": the namespace rung binds the host's /dev/pts and its ptmx: mounting a new devpts instance on \
              /dev/pts failed with errno "
         ),
         "{line}"

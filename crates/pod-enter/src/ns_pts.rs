@@ -11,7 +11,8 @@
 //!
 //! Where the kernel refuses the new instance, the child writes one line,
 //! binds the host's `/dev/pts` as on a rung with no user namespace
-//! (`ns_optional`), and binds the host's `/dev/ptmx`.
+//! (`ns_optional`), and binds its `ptmx` on `/dev/ptmx`. That `ptmx` opens
+//! only where the host's `ptmxmode` lets the caller open it.
 
 use pod_hostprobe::sys::{self, CBuf, Errno};
 
@@ -44,7 +45,7 @@ pub(crate) struct NewPts {
 /// child adds the number of the errno and a newline.
 pub fn devpts_refused(names: &Names) -> String {
     let step = ns_setup_step(NS_DEVPTS_STEP).unwrap_or("the mount of a new devpts instance");
-    format!("{}: the namespace rung binds the host's /dev/pts and /dev/ptmx: {step} failed with errno ", names.product)
+    format!("{}: the namespace rung binds the host's /dev/pts and its ptmx: {step} failed with errno ", names.product)
 }
 
 /// The `ptmx` of the new instance on the `/dev/pts` target `pts`.

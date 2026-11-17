@@ -197,6 +197,11 @@ fn a_caller_with_no_capabilities_gets_a_pty() {
 }
 
 #[test]
+fn a_refused_devpts_instance_falls_back_to_the_host_s_pts() {
+    as_nobody("a_refused_devpts_instance_falls_back_to_the_host_s_pts", "pts", pts::a_refused_instance);
+}
+
+#[test]
 fn the_namespace_rung_binds_the_volumes_of_a_plan() {
     volumes::as_root_and_nobody("the_namespace_rung_binds_the_volumes_of_a_plan", volumes::body);
 }

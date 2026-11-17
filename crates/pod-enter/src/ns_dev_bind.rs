@@ -17,8 +17,10 @@
 //! refused step writes one line, and the rung goes on (as `ns_optional`).
 //!
 //! Where the image has a `/dev/pts` directory, `/dev/ptmx` takes a bind
-//! too: of the `ptmx` of the new devpts instance (`ns_pts`), or of the
-//! host's node where the kernel refused that instance.
+//! too: of the `ptmx` of the devpts on that directory, the new instance
+//! (`ns_pts`) or, where the kernel refused it, the host's devpts. Not the
+//! host's `/dev/ptmx`: a bind of that one node never opens, as the kernel
+//! looks for the devpts at `pts` beside it in the same mount.
 
 use pod_hostprobe::sys::{self, CBuf, Errno};
 
@@ -122,17 +124,10 @@ pub(crate) struct Devices {
     binds: Vec<Device>,
     /// The lines of the paths that the child does not bind.
     skipped: Vec<Vec<u8>>,
-    /// The bind of `/dev/ptmx`, where the image has a `/dev/pts` directory.
-    ptmx: Option<Ptmx>,
-}
-
-/// The two binds of `/dev/ptmx`, built before the fork: the child takes
-/// one. `Err` holds the line of a path that the child does not bind.
-pub(crate) struct Ptmx {
-    /// The `ptmx` of the new devpts instance.
-    own: Result<Device, Vec<u8>>,
-    /// The host's `/dev/ptmx`, where the kernel refused the new instance.
-    host: Result<Device, Vec<u8>>,
+    /// The bind of `/dev/ptmx`, where the image has a `/dev/pts` directory:
+    /// of the `ptmx` of the devpts on it. `Err` holds the line of a path
+    /// that the child does not bind.
+    ptmx: Option<Result<Device, Vec<u8>>>,
 }
 
 /// The start of the line of a refused step at `/dev/NAME`.
@@ -184,11 +179,7 @@ pub(crate) fn devices(root: &crate::RootDir, names: &Names) -> Devices {
     if let Some(pts) = crate::ns_optional::ns_pts_target(&root.path) {
         let kind = kind_at(dev, "ptmx");
         let source = lit(&crate::ns_pts::ptmx_of(&pts));
-        let own = plan_one(names, "ptmx", source, kind, Some(false), crate::ns_pts::NS_PTMX_BIND_STEP);
-        let source = lit("/dev/ptmx");
-        let host = host_node(&source);
-        let host = plan_one(names, "ptmx", source, kind, host, NS_DEV_BIND_STEP);
-        out.ptmx = Some(Ptmx { own, host });
+        out.ptmx = Some(plan_one(names, "ptmx", source, kind, Some(false), crate::ns_pts::NS_PTMX_BIND_STEP));
     }
     let _ = sys::close(dev);
     out
@@ -304,14 +295,13 @@ fn bind_one(dev: i64, d: &Device, empty: &CBuf) {
 }
 
 /// In the child, in a user namespace of the rung, after the optional
-/// mounts: each line of a skipped path, then each bind. `own_pts`: the new
-/// devpts instance is on `/dev/pts`, and its `ptmx` goes on `/dev/ptmx`.
-/// No allocation.
-pub(crate) fn bind_each(devices: &Devices, own_pts: bool) {
+/// mounts: each line of a skipped path, then each bind. The `ptmx` of the
+/// devpts on `/dev/pts` goes on `/dev/ptmx`. No allocation.
+pub(crate) fn bind_each(devices: &Devices) {
     for line in &devices.skipped {
         let _ = sys::write(2, line);
     }
-    let ptmx = devices.ptmx.as_ref().map(|p| if own_pts { &p.own } else { &p.host });
+    let ptmx = devices.ptmx.as_ref();
     if let Some(Err(line)) = ptmx {
         let _ = sys::write(2, line);
     }

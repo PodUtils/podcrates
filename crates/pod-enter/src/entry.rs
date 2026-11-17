@@ -316,7 +316,7 @@ pub fn ns_setup_step(step: u8) -> Option<&'static str> {
         crate::ns_dev_bind::NS_DEV_BIND_STEP => Some("binding the host's device"),
         crate::ns_dev_bind::NS_DEV_REMOUNT_STEP => Some("remounting the bind of a device nosuid and noexec"),
         crate::ns_pts::NS_DEVPTS_STEP => Some("mounting a new devpts instance on /dev/pts"),
-        crate::ns_pts::NS_PTMX_BIND_STEP => Some("binding the ptmx of the new devpts instance"),
+        crate::ns_pts::NS_PTMX_BIND_STEP => Some("binding the ptmx of the devpts on /dev/pts"),
         NS_JOIN_STEP => Some("setns(pidfd, CLONE_NEWNS)"),
         crate::ns_join::NS_JOIN_USER_STEP => Some("setns(pidfd, CLONE_NEWUSER | CLONE_NEWNS)"),
         NS_OVERLAY_TMPFS_STEP => Some("mounting the tmpfs of the overlay layers"),
