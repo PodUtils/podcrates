@@ -1,6 +1,7 @@
 //! The mounts of the namespace rung that do not stop it: a fresh proc on
 //! the `/proc` of the image, and a bind of the host's `/dev/pts` on the
-//! `/dev/pts` of the image. Each is made where the image has that
+//! `/dev/pts` of the image (in a user namespace, first a new devpts
+//! instance: `ns_pts`). Each is made where the image has that
 //! directory (not a link). A refused one writes one line to the payload's
 //! standard error, and the payload runs as on the chroot rung.
 //!
@@ -15,6 +16,7 @@ use pod_hostprobe::sys::{self, CBuf};
 use crate::entry::{decimal, ns_dir_target, ns_setup_step};
 use crate::names::Names;
 use crate::ns_proc_bind::Fallback;
+use crate::ns_pts::NewPts;
 
 /// The step byte of the proc mount. It names its step but never goes to
 /// the readiness pipe: a refused proc mount does not stop the rung.
@@ -37,6 +39,9 @@ pub(crate) struct Optional {
     refused: Vec<u8>,
     /// What the child does at `EPERM` in a user namespace.
     fallback: Fallback,
+    /// The new devpts instance that replaces the bind in a user namespace
+    /// (`ns_pts`).
+    devpts: Option<NewPts>,
 }
 
 /// The `/proc` of the image as a mount target, with the rule of
@@ -73,24 +78,33 @@ pub(crate) fn optional_mounts(root: &str, names: &Names) -> Vec<Optional> {
     if let Some(target) = ns_proc_target(root).and_then(|t| CBuf::new(&t)) {
         let refused = ns_proc_refused(names).into_bytes();
         let fallback = crate::ns_proc_bind::fallback(names);
-        out.push(Optional { source: lit("proc"), target, fstype: lit("proc"), flags: PROC_FLAGS, refused, fallback });
+        let (source, fstype) = (lit("proc"), lit("proc"));
+        out.push(Optional { source, target, fstype, flags: PROC_FLAGS, refused, fallback, devpts: None });
     }
     if let Some(target) = ns_pts_target(root).and_then(|t| CBuf::new(&t)) {
         let refused = ns_refused_line(names, "/dev/pts", NS_PTS_STEP).into_bytes();
         let flags = sys::MS_BIND | sys::MS_REC;
-        let fallback = Fallback::None;
-        out.push(Optional { source: lit("/dev/pts"), target, fstype: sys::cempty(), flags, refused, fallback });
+        let (fallback, devpts) = (Fallback::None, Some(NewPts::new(names)));
+        out.push(Optional { source: lit("/dev/pts"), target, fstype: sys::cempty(), flags, refused, fallback, devpts });
     }
     out
 }
 
 /// Make each optional mount, in the child after the tmpfs on `/tmp`: no
 /// allocation. A refused one writes its line and the next one goes on.
-/// In a user namespace of the rung, `EPERM` calls for the fallback of the
-/// mount, and the host's devices come after (`ns_dev_bind`).
+/// In a user namespace of the rung, `/dev/pts` is first a new devpts
+/// instance (`ns_pts`), `EPERM` calls for the fallback of the mount, and
+/// the host's devices come after (`ns_dev_bind`).
 pub(crate) fn mount_each(ns: &crate::entry::NsMount) {
     let user = ns.user.is_some();
+    let mut own_pts = false;
     for m in &ns.optional {
+        if let Some(n) = m.devpts.as_ref().filter(|_| user)
+            && n.mount(&m.target).is_ok()
+        {
+            own_pts = true;
+            continue;
+        }
         let Err(e) = sys::mount(&m.source, &m.target, &m.fstype, m.flags) else { continue };
         if user && e == sys::EPERM && !matches!(m.fallback, Fallback::None) {
             crate::ns_proc_bind::bind(&m.fallback, &m.target);
@@ -99,7 +113,7 @@ pub(crate) fn mount_each(ns: &crate::entry::NsMount) {
         refused_line(&m.refused, e);
     }
     if let Some(devices) = ns.devices.as_ref().filter(|_| user) {
-        crate::ns_dev_bind::bind_each(devices);
+        crate::ns_dev_bind::bind_each(devices, own_pts);
     }
 }
 

@@ -15,6 +15,10 @@
 //! through the descriptor of `/dev`), never onto a path that a link can
 //! redirect: a link in the image never sends a mount out of the image. A
 //! refused step writes one line, and the rung goes on (as `ns_optional`).
+//!
+//! Where the image has a `/dev/pts` directory, `/dev/ptmx` takes a bind
+//! too: of the `ptmx` of the new devpts instance (`ns_pts`), or of the
+//! host's node where the kernel refused that instance.
 
 use pod_hostprobe::sys::{self, CBuf, Errno};
 
@@ -118,6 +122,17 @@ pub(crate) struct Devices {
     binds: Vec<Device>,
     /// The lines of the paths that the child does not bind.
     skipped: Vec<Vec<u8>>,
+    /// The bind of `/dev/ptmx`, where the image has a `/dev/pts` directory.
+    ptmx: Option<Ptmx>,
+}
+
+/// The two binds of `/dev/ptmx`, built before the fork: the child takes
+/// one. `Err` holds the line of a path that the child does not bind.
+pub(crate) struct Ptmx {
+    /// The `ptmx` of the new devpts instance.
+    own: Result<Device, Vec<u8>>,
+    /// The host's `/dev/ptmx`, where the kernel refused the new instance.
+    host: Result<Device, Vec<u8>>,
 }
 
 /// The start of the line of a refused step at `/dev/NAME`.
@@ -152,36 +167,65 @@ fn host_node(path: &CBuf) -> Option<bool> {
 pub(crate) fn devices(root: &crate::RootDir, names: &Names) -> Devices {
     let lit = |s: &str| CBuf::new(s).expect("a literal");
     let dir = CBuf::new(&format!("{}/dev", root.path.trim_end_matches('/'))).unwrap_or_else(sys::cempty);
-    let mut out = Devices { dir, empty: sys::cempty(), binds: Vec::new(), skipped: Vec::new() };
+    let mut out = Devices { dir, empty: sys::cempty(), binds: Vec::new(), skipped: Vec::new(), ptmx: None };
     let flags = sys::O_PATH | sys::O_DIRECTORY | sys::O_NOFOLLOW | sys::O_CLOEXEC;
     let Ok(dev) = sys::openat(root.fd(), &lit("dev"), flags, 0) else {
         out.skipped.push(no_dev_line(names).into_bytes());
         return out;
     };
     for name in DEVICES {
-        let kind = match sys::fstatat(dev, &lit(name), sys::AT_SYMLINK_NOFOLLOW) {
-            Ok(st) => kind_of(st.st_mode),
-            Err(e) if e == sys::ENOENT => Kind::Missing,
-            Err(_) => Kind::Unreadable,
-        };
         let source = lit(&format!("/dev/{name}"));
         let host = host_node(&source);
-        match choose(kind, host.is_some()) {
-            Choice::Bind { create } => out.binds.push(Device {
-                label: name,
-                source,
-                name: lit(name),
-                create,
-                remount: remount_flags(host == Some(true)),
-                point_refused: refused_start(names, name, NS_DEV_POINT_STEP).into_bytes(),
-                bind_refused: refused_start(names, name, NS_DEV_BIND_STEP).into_bytes(),
-                remount_refused: refused_start(names, name, NS_DEV_REMOUNT_STEP).into_bytes(),
-            }),
-            Choice::Skip(why) => out.skipped.push(skipped_line(names, name, why).into_bytes()),
+        match plan_one(names, name, source, kind_at(dev, name), host, NS_DEV_BIND_STEP) {
+            Ok(d) => out.binds.push(d),
+            Err(line) => out.skipped.push(line),
         }
+    }
+    if let Some(pts) = crate::ns_optional::ns_pts_target(&root.path) {
+        let kind = kind_at(dev, "ptmx");
+        let source = lit(&crate::ns_pts::ptmx_of(&pts));
+        let own = plan_one(names, "ptmx", source, kind, Some(false), crate::ns_pts::NS_PTMX_BIND_STEP);
+        let source = lit("/dev/ptmx");
+        let host = host_node(&source);
+        let host = plan_one(names, "ptmx", source, kind, host, NS_DEV_BIND_STEP);
+        out.ptmx = Some(Ptmx { own, host });
     }
     let _ = sys::close(dev);
     out
+}
+
+/// The kind of `name` in the directory `dev` of the image, not followed.
+fn kind_at(dev: i64, name: &str) -> Kind {
+    match sys::fstatat(dev, &CBuf::new(name).expect("a literal"), sys::AT_SYMLINK_NOFOLLOW) {
+        Ok(st) => kind_of(st.st_mode),
+        Err(e) if e == sys::ENOENT => Kind::Missing,
+        Err(_) => Kind::Unreadable,
+    }
+}
+
+/// The bind of `source` on `/dev/NAME`, or the line of no bind. `host`:
+/// the source is a character device, on a read-only mount or not.
+fn plan_one(
+    names: &Names,
+    name: &'static str,
+    source: CBuf,
+    kind: Kind,
+    host: Option<bool>,
+    bind_step: u8,
+) -> Result<Device, Vec<u8>> {
+    match choose(kind, host.is_some()) {
+        Choice::Bind { create } => Ok(Device {
+            label: name,
+            source,
+            name: CBuf::new(name).expect("a literal"),
+            create,
+            remount: remount_flags(host == Some(true)),
+            point_refused: refused_start(names, name, NS_DEV_POINT_STEP).into_bytes(),
+            bind_refused: refused_start(names, name, bind_step).into_bytes(),
+            remount_refused: refused_start(names, name, NS_DEV_REMOUNT_STEP).into_bytes(),
+        }),
+        Choice::Skip(why) => Err(skipped_line(names, name, why).into_bytes()),
+    }
 }
 
 /// `/proc/self/fd/FD` with its NUL in `buf`, with no allocation.
@@ -260,12 +304,19 @@ fn bind_one(dev: i64, d: &Device, empty: &CBuf) {
 }
 
 /// In the child, in a user namespace of the rung, after the optional
-/// mounts: each line of a skipped path, then each bind. No allocation.
-pub(crate) fn bind_each(devices: &Devices) {
+/// mounts: each line of a skipped path, then each bind. `own_pts`: the new
+/// devpts instance is on `/dev/pts`, and its `ptmx` goes on `/dev/ptmx`.
+/// No allocation.
+pub(crate) fn bind_each(devices: &Devices, own_pts: bool) {
     for line in &devices.skipped {
         let _ = sys::write(2, line);
     }
-    if devices.binds.is_empty() {
+    let ptmx = devices.ptmx.as_ref().map(|p| if own_pts { &p.own } else { &p.host });
+    if let Some(Err(line)) = ptmx {
+        let _ = sys::write(2, line);
+    }
+    let ptmx = ptmx.and_then(|p| p.as_ref().ok());
+    if devices.binds.is_empty() && ptmx.is_none() {
         return;
     }
     let flags = sys::O_PATH | sys::O_DIRECTORY | sys::O_NOFOLLOW | sys::O_CLOEXEC;
@@ -273,13 +324,14 @@ pub(crate) fn bind_each(devices: &Devices) {
     let dev = match sys::open(&devices.dir, flags, 0) {
         Ok(fd) => fd,
         Err(e) => {
-            for d in &devices.binds {
+            for d in devices.binds.iter().chain(ptmx) {
                 refused_line(&d.point_refused, e);
             }
             return;
         }
     };
-    for d in &devices.binds {
+    // `/dev/ptmx` comes after the mount on `/dev/pts`: its source is there.
+    for d in devices.binds.iter().chain(ptmx) {
         bind_one(dev, d, empty);
     }
     let _ = sys::close(dev);

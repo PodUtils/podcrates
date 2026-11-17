@@ -100,6 +100,23 @@ The entries:
   line to the payload's standard error and the rung goes on; a refused
   remount removes the bind. The bind needs the host's `/proc` before the
   chroot. The rung as root binds nothing: there `mknod` works.
+* A pty on the namespace rung through a user namespace (`ns_pts`,
+  PodUtils/podvm#469). The host's devpts usually has `ptmxmode=000`, and
+  the image holds no `/dev/ptmx`, so `openpty` fails with the bind of the
+  host's `/dev/pts`. In a user namespace, where the image has a
+  `/dev/pts` directory, the child mounts a new devpts instance there in
+  place of that bind (`DEVPTS_OPTIONS`: `newinstance,ptmxmode=0666,mode=0620`,
+  no `gid=`: the group `tty` of the host has no id there; `nosuid` and
+  `noexec`; `NS_DEVPTS_STEP` 46). Then, with the devices, it binds the
+  `ptmx` of the instance on `/dev/ptmx` (`NS_PTMX_BIND_STEP` 47), with an
+  empty file as the mount point where the image has none, and remounts
+  the bind `nosuid` and `noexec`. Where the kernel refuses the instance,
+  the child writes one line (`devpts_refused`: `the namespace rung binds
+  the host's /dev/pts and /dev/ptmx: mounting a new devpts instance on
+  /dev/pts failed with errno N`), binds the host's `/dev/pts` as before,
+  and binds the host's `/dev/ptmx` as a device. A link at `/dev/ptmx`
+  takes one line and no bind. The rung as root keeps the bind of the
+  host's `/dev/pts`.
 * The volumes of a plan on the namespace rung (`Plan::volumes`, a
   `Vec<VolumeBind { host, guest, read_only }>`, PodUtils/podvm#440), as
   root and through a user namespace, in their order. Before the banner
@@ -314,6 +331,7 @@ each entry takes; the payload owns the standard output.
 | `NS_USER_STEP`, `NS_SETGROUPS_STEP`, `NS_UID_MAP_STEP`, `NS_GID_MAP_STEP`, `calls_for_user_namespace`, `both_refused` | the namespace rung through a user namespace (PodUtils/podvm#406): the steps in `ns_setup_step`, the refusal that calls for the retry (`EPERM` of `unshare(CLONE_NEWNS)`), the cause of the fallback line |
 | `NS_NESTED_USER_STEP`, `NS_NESTED_SETGROUPS_STEP`, `NS_NESTED_UID_MAP_STEP`, `NS_NESTED_GID_MAP_STEP` | the steps 37 to 40 of the nested user namespace of a caller that is uid 0 of a user namespace (PodUtils/podvm#452); a refused one is `Error::Runtime` with the ids of the plan, not `NsSetup` |
 | `DEVICES`, `Kind`, `kind_of`, `Choice`, `choose`, `NS_DEV_POINT_STEP`, `NS_DEV_BIND_STEP`, `NS_DEV_REMOUNT_STEP`, `ns_dev_refused_start(&names, ..)`, `ns_dev_skipped_line(&names, ..)`, `no_dev_line(&names)` | the device nodes of the host on the namespace rung through a user namespace (PodUtils/podvm#414): the choice of each path, the steps in `ns_setup_step`, the lines |
+| `DEVPTS_OPTIONS`, `DEVPTS_FLAGS`, `NS_DEVPTS_STEP`, `NS_PTMX_BIND_STEP`, `devpts_refused(&names)`, `ptmx_of` | a devpts instance of the unit and its `/dev/ptmx` on the namespace rung through a user namespace (PodUtils/podvm#469): the options, the steps in `ns_setup_step`, the line of a refused instance |
 | `NS_VOLUME_POINT_STEP`, `NS_VOLUME_LINK_STEP`, `NS_VOLUME_BIND_STEP`, `NS_VOLUME_REMOUNT_STEP`, `VOLUMES_MOST`, `volume_label`, `volume_guest_parts`, `volume_remount_flags` | the volumes of the namespace rung (PodUtils/podvm#440): the steps 33 to 36 in `ns_setup_step` (a refused one is `Error::Runtime` with the volume, not `NsSetup`), at most 255 volumes, `HOST:GUEST[:ro]`, the components of a guest path or why it is not one, the flags of the read-only remount for the `f_flags` of `statfs` |
 | `uts` | `NS_UTS_STEP`, `NS_HOSTNAME_STEP` (the steps of `unshare(CLONE_NEWUTS)` and `sethostname` in `ns_setup_step`), `MOST` (64 bytes): the host name of the payload on the namespace rung (PodUtils/podvm#403) |
 | `userland` | `Family`, `LoaderPlan` (`inhibit_cache`: the loader is glibc 2.16 or later, so a caller can give `--inhibit-cache`), `lib_dirs` (the loader's directory, the standard ones with `/usr/local/lib`, then the image's `/etc/ld.so.conf` or `/etc/ld-musl-ARCH.path`; each resolved inside the image), `takes_inhibit_cache`, `ldconf` (`configured_dirs`, the bounds `MOST_FILES`, `MOST_DEPTH`, `MOST_DIRS`, `MOST_BYTES`), `invocation_path`, `loader_argv_for`, `loader_plan` (the three take a `GuestRoot`), `host_env(&names, ..)`; `Volume { guest, host }`, `Maps` (`of_root(rootfs)`, `of_binds(rootfs, &binds)` (the table of the `VolumeBind`s of the namespace rung, with no rule of the interposer), `new(&names, rootfs, &volumes)` with the refusals of more than `MAX_MAP_PAIRS - 1` volumes (by the name of `names.maps`), of a guest side that is not absolute, is `/`, is not a normal path, repeats one, or is a reserved path of `names` or is under one (by name), and of a host side that is not absolute; `rootfs`, `volumes`, `volume_at`), `userland_maps_table(&names, &maps)` (the root pair, then each volume pair), `userland_volume_table(&names, &maps)` (the volume pairs only), `MAX_MAP_SIDE` (4096 bytes), `MAX_MAP_PAIRS` (32): each side that the variable cannot spell is refused with its own name (the rootfs path, the guest side or the host side of the volume) |
@@ -440,7 +458,11 @@ leaves there, the payload reads 2000000 bytes of `/dev/urandom` and of
 `/dev/random`, `/dev/null` and `/dev/tty` are character devices, a write
 to `/dev/full` fails with `ENOSPC`, the bind of `/dev/urandom` is
 `nosuid` and `noexec` and not `nodev`, and a link at `/dev/zero` stays a
-link with one line. Its test of the volumes (`tests/userns/volumes.rs`)
+link with one line. With a `/dev/pts` directory and no `/dev/ptmx` in the
+image (`tests/userns/pts.rs`), `/dev/ptmx` is a character device whose
+bind is `nosuid` and `noexec`, `/dev/pts` is not on the device of the
+host's, its `ptmx` has mode 0666, an open of `/dev/ptmx` gives
+`/dev/pts/0` as the one pty, and no line of a refusal goes out. Its test of the volumes (`tests/userns/volumes.rs`)
 runs as root and as the caller with no capabilities, each over a tmpfs
 with `nosuid`, `nodev`, `noexec` and `noatime` that holds the host sides
 (`pod_testkit::nobody::again_over_a_flagged_tmpfs`): the payload reads and

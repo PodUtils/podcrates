@@ -131,7 +131,8 @@ pub fn run_ladder(
 ///
 /// One private tmpfs on the `/tmp` of the image: the mount that a run
 /// keeps apart from the host. Then the mounts that do not stop the rung
-/// (`ns_optional`): a fresh proc and a bind of the host's `/dev/pts`. A PID
+/// (`ns_optional`): a fresh proc and a bind of the host's `/dev/pts` (in a
+/// user namespace, a new devpts instance: `ns_pts`). A PID
 /// namespace only where the plan asks for one (`ns_pid`), and no network
 /// namespace: the banner says so. A user namespace only for
 /// a caller that cannot make the mount namespace in its own (`ns_user`).
@@ -314,6 +315,8 @@ pub fn ns_setup_step(step: u8) -> Option<&'static str> {
         crate::ns_dev_bind::NS_DEV_POINT_STEP => Some("opening the mount point of a device of the host"),
         crate::ns_dev_bind::NS_DEV_BIND_STEP => Some("binding the host's device"),
         crate::ns_dev_bind::NS_DEV_REMOUNT_STEP => Some("remounting the bind of a device nosuid and noexec"),
+        crate::ns_pts::NS_DEVPTS_STEP => Some("mounting a new devpts instance on /dev/pts"),
+        crate::ns_pts::NS_PTMX_BIND_STEP => Some("binding the ptmx of the new devpts instance"),
         NS_JOIN_STEP => Some("setns(pidfd, CLONE_NEWNS)"),
         crate::ns_join::NS_JOIN_USER_STEP => Some("setns(pidfd, CLONE_NEWUSER | CLONE_NEWNS)"),
         NS_OVERLAY_TMPFS_STEP => Some("mounting the tmpfs of the overlay layers"),

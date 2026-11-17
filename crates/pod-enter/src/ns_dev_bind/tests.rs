@@ -118,3 +118,39 @@ fn the_binds_of_an_image() {
     assert_eq!(d.skipped, vec![no_dev_line(&Names::DEFAULT).into_bytes()]);
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// `/dev/ptmx` takes a bind only where the image has a `/dev/pts`
+/// directory: of the `ptmx` of the new instance, or of the host's node. A
+/// link at `/dev/ptmx` takes neither.
+#[test]
+fn the_binds_of_ptmx() {
+    let root = std::env::temp_dir().join(format!("pod-enter-dev-bind-ptmx-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("dev")).unwrap();
+    let dir = crate::RootDir::open(root.to_str().unwrap()).unwrap();
+    assert!(devices(&dir, &Names::DEFAULT).ptmx.is_none(), "no /dev/pts: no bind of /dev/ptmx");
+    std::fs::create_dir_all(root.join("dev/pts")).unwrap();
+    let d = devices(&dir, &Names::DEFAULT);
+    let p = d.ptmx.expect("a /dev/pts: a bind of /dev/ptmx");
+    let own = p.own.as_ref().expect("the ptmx of the new instance");
+    assert_eq!(text(&own.source), format!("{}/dev/pts/ptmx", root.display()));
+    assert!(own.create, "the image has no /dev/ptmx");
+    assert_eq!(own.remount & (sys::MS_NODEV | sys::MS_RDONLY), 0);
+    let line = String::from_utf8_lossy(&own.bind_refused).into_owned();
+    assert!(line.contains("/dev/ptmx: binding the ptmx of the new devpts instance failed"), "{line}");
+    let host = host_node(&CBuf::new("/dev/ptmx").unwrap()).is_some();
+    assert_eq!(p.host.as_ref().is_ok_and(|h| text(&h.source) == "/dev/ptmx"), host);
+    std::os::unix::fs::symlink("pts/ptmx", root.join("dev/ptmx")).unwrap();
+    let p = devices(&dir, &Names::DEFAULT).ptmx.unwrap();
+    for b in [&p.own, &p.host] {
+        let line = String::from_utf8_lossy(b.as_ref().err().expect("no bind over a link")).into_owned();
+        assert!(line.contains("/dev/ptmx: the image holds a symbolic link"), "{line}");
+    }
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// The text of a C string of a plan.
+fn text(c: &CBuf) -> String {
+    // SAFETY: a `CBuf` holds its NUL, and lives while the text is read.
+    unsafe { std::ffi::CStr::from_ptr(c.ptr() as *const std::ffi::c_char) }.to_string_lossy().into_owned()
+}

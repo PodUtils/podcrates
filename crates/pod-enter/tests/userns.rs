@@ -14,7 +14,8 @@
 //! (T-786, `userns/ids.rs`); a caller that is uid 0 of a user namespace
 //! gets them through a nested one (T-787, `userns/nested.rs`). With a PID
 //! namespace, the payload sees the processes of its run alone (T-806,
-//! `userns/pid.rs`).
+//! `userns/pid.rs`). The unit gets a devpts instance of its own and a
+//! `/dev/ptmx` that opens (PodUtils/podvm#469, `userns/pts.rs`).
 //!
 //! As root, the test makes the image and starts its own binary again as
 //! uid and gid 65534 with no groups (`pod_testkit::nobody`). The test of
@@ -49,6 +50,8 @@ mod ids;
 mod nested;
 #[path = "userns/pid.rs"]
 mod pid;
+#[path = "userns/pts.rs"]
+mod pts;
 #[path = "userns/upper.rs"]
 mod upper;
 #[path = "userns/volumes.rs"]
@@ -131,6 +134,9 @@ fn as_nobody(test: &str, tag: &str, body: fn(&Path)) {
     if tag == "dev" {
         dev_of_the_image(&root);
     }
+    if tag == "pts" {
+        pts::of_the_image(&root);
+    }
     if tag == "ids" || tag == "nested" {
         ids::of_the_image(&root);
     }
@@ -183,6 +189,11 @@ fn a_caller_with_no_capabilities_enters_the_namespace_rung() {
 #[test]
 fn a_caller_with_no_capabilities_gets_the_devices_of_the_host() {
     as_nobody("a_caller_with_no_capabilities_gets_the_devices_of_the_host", "dev", devices_of_the_host);
+}
+
+#[test]
+fn a_caller_with_no_capabilities_gets_a_pty() {
+    as_nobody("a_caller_with_no_capabilities_gets_a_pty", "pts", pts::a_pty);
 }
 
 #[test]

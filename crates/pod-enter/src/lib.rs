@@ -67,6 +67,7 @@ mod ns_optional;
 mod ns_overlay;
 mod ns_pid;
 mod ns_proc_bind;
+mod ns_pts;
 mod ns_upper;
 mod ns_user;
 mod ns_volume;
@@ -97,6 +98,7 @@ pub use ns_overlay::{
 };
 pub use ns_pid::{FORWARDED as PID_FORWARDED, NS_PID_FORK_STEP, NS_PID_STEP, NS_PID_USER_STEP};
 pub use ns_proc_bind::{NS_PROC_BIND_STEP, NS_PROC_REMOUNT_STEP, proc_of_this_pid_namespace};
+pub use ns_pts::{DEVPTS_FLAGS, DEVPTS_OPTIONS, NS_DEVPTS_STEP, NS_PTMX_BIND_STEP, devpts_refused, ptmx_of};
 pub use ns_user::{
     NS_GID_MAP_STEP, NS_NESTED_GID_MAP_STEP, NS_NESTED_SETGROUPS_STEP, NS_NESTED_UID_MAP_STEP, NS_NESTED_USER_STEP,
     NS_SETGROUPS_STEP, NS_UID_MAP_STEP, NS_USER_STEP, both_refused, calls_for_user_namespace,
