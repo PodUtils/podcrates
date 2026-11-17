@@ -5257,3 +5257,30 @@ cargo test -p pod-manual --all-features
 
 2026-11-17, f9ddb6e37: `pod_manual::check::examples(manual, parse)`: each example whose program is the manual's (after the variables that the shell sets) goes to the consumer's `parse` as the words after the program, as a POSIX shell splits them (quotes and a backslash hold; `|`, `;`, `&`, `<` and `>` end the command); a refusal is a finding with the example and the parser's words, and a quote that does not end is a finding too; an example of another program is not read. With `check::flags` (each command and flag of the model against the parser), a consumer tests each promise of its help. Tests: `a_line_splits_as_a_shell_splits_it`, `an_example_that_the_parser_refuses_is_a_finding`. The tests of `pod-manual` pass. Plant `manual-examples-not-parsed`, caught.
 
+
+# T-883: the installer core: one proxy line for one proxy, and a default prefix on a noexec mount (PodUtils/podnet#650)
+
+**Source:** PodUtils/podnet#650 (COORD-103 of podnet; PodUtils/podnet#645, confirmed by podnet; PodUtils/podnet@T-469).
+**Category:** defect
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`inst_proxy` of `scripts/install/core-net.sh` prints one line for `https_proxy` and one for `http_proxy`: where both name one proxy (the usual case), `--dry-run` prints the same line twice. The default prefix (`$XDG_BIN_HOME`, else `~/.local/bin`) can be on a noexec mount; the install then stops, where another default could run programs.
+
+## Premise
+
+- Read: PodUtils/podnet#650; `scripts/install/core.sh` (`inst_resolve_prefix`, `inst_check_prefix`), `scripts/install/core-net.sh` (`inst_proxy`), `scripts/install/test.sh`.
+
+## Approach
+
+One line for each distinct proxy. A default prefix that cannot run programs gives way to the next default (`~/.local/bin`, `~/bin`), with one line that names the first and why; a prefix of `--prefix` never does, and where no default runs programs the refusal names `--prefix DIR`. A directory that the check made and cannot use goes again. Tests in `scripts/install/test.sh`: the dry run with both variables on one proxy has one line; in the lab `noexec-tmp`, `XDG_BIN_HOME` on `/tmp` gives way to `~/.local/bin`.
+
+## Prove
+
+```sh
+sh scripts/install/test.sh --case dryrun --case labs
+```
