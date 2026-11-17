@@ -10024,7 +10024,7 @@ cargo test -p pod-supervise --all-features
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10043,6 +10043,10 @@ Open the log, the lock and the memo with `O_NOFOLLOW` through the descriptor of 
 ```sh
 cargo test -p pod-supervise --all-features
 ```
+
+## Done
+
+2026-11-17, 75d5cdfeb, bd7822ccb: the launcher refuses a container whose directory is not inside the containers (`table::contained`), and opens the log with `O_NOFOLLOW`; `logs` reads it with `O_NOFOLLOW`; each `Lock` opens its file with `O_NOFOLLOW`, so a link at the lock of a container (or of the table) is refused. The "memo" of the ask is podvm's: pod-supervise has no such file. Test: the lifecycle step `a_link_at_the_log_or_the_lock_is_refused` (a link at the log and at the lock: the start fails, and the target of the link stays as it was); the tests of `pod-supervise` pass. Plant `supervise-log-follows-a-link`, caught.
 
 # T-889: `pod-rootfs`: `run_mtab` says /proc is not mounted, where the entry mounts it (PodUtils/podvm#569)
 
