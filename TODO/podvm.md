@@ -9819,7 +9819,7 @@ cargo test -p pod-hostprobe --all-features exec
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9838,6 +9838,10 @@ Give the helper the key of the configuration that matched (the `auths` key or th
 ```sh
 cargo test -p pod-oci --all-features credentials
 ```
+
+## Done
+
+2026-11-17, ae1c6384f, 4428352d3: `credentials::helper_server(host)` gives the `ServerURL` of docker and podman: the host as the configuration names it, or `HUB_SERVER` (`https://index.docker.io/v1/`) for each name of Docker Hub (`docker.io`, `index.docker.io`, `registry-1.docker.io`); `lookup_in`, `store_login_in` and `remove_login_in` give it to `get`, `store` and `erase`. `credHelpers` finds the helper of Docker Hub by `index.docker.io`, the name that docker writes, for each name of the hub. Tests: `a_helper_gets_the_server_key_of_docker`, `the_helper_of_docker_hub_is_found_by_each_of_its_names`; the tests of `credentials` pass. Not run: a real helper (no helper on the host of the tests). Plant `oci-helper-gets-the-api-url`, caught.
 
 # T-875: `pod-supervise`: `run -d --rm` keeps the record and the tree after the end (PodUtils/podvm#568)
 
