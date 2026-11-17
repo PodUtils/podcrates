@@ -183,10 +183,11 @@ async fn a_syn_sent_again_reaches_its_own_socket() {
     let lost = Arc::new(AtomicUsize::new(0));
     let count = lost.clone();
     // The first two SYN-ACKs of the socket of the handshake (by its initial
-    // sequence number) are lost: the client sends its SYN again before any
-    // SYN-ACK reaches it. A second socket of the 4-tuple answers that SYN at
-    // once with another number, and its SYN-ACK passes; the socket of the
-    // handshake gets through with its third SYN-ACK.
+    // sequence number) are lost, so the client sends its SYN again before a
+    // SYN-ACK reaches it, and each SYN-ACK of another number is lost. A
+    // second socket that takes the SYN sent again then holds the 4-tuple
+    // when the third SYN-ACK of the first one passes: the ACK of the client
+    // goes to the wrong socket each time, not by the order of two timers.
     let first = Arc::new(std::sync::Mutex::new(None::<[u8; 4]>));
     let first_syn_acks = move |packet: &[u8]| {
         // A TCP SYN-ACK in an IPv4 packet with no options.
@@ -195,7 +196,7 @@ async fn a_syn_sent_again_reaches_its_own_socket() {
         }
         let seq: [u8; 4] = packet[24..28].try_into().unwrap();
         let isn = *first.lock().unwrap().get_or_insert(seq);
-        isn == seq && count.fetch_add(1, Ordering::Relaxed) < 2
+        isn != seq || count.fetch_add(1, Ordering::Relaxed) < 2
     };
     let (server, client, gate, pumps) = gated(StackConfig::default(), first_syn_acks);
     gate.notify_one();
