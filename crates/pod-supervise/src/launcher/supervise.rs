@@ -166,10 +166,7 @@ where
         max_rss_kib: usage.max_rss_kib,
         residual_processes: residual,
     };
-    let _ = record::<X>(s, &container.id, |c| {
-        ended(c, served.code);
-        c.end = Some(end);
-    });
+    record_end::<X>(s, &container.id, served.code, end);
     let _ = std::fs::remove_file(&ctl_path);
     for mut w in served.waiters {
         let _ = writeln!(w, "exit {}", served.code);
@@ -177,4 +174,31 @@ where
     drop(payload.keep);
     drop(lock);
     0
+}
+
+/// The tries of the write of the end, and the pause between two.
+const END_TRIES: u32 = 5;
+const END_PAUSE: std::time::Duration = std::time::Duration::from_millis(200);
+
+/// Write the end of the run into the record of `id`, with a few tries; where
+/// each fails, beside the record (`end_note`), where the reconcile reads it.
+/// A run never ends `Dead` only because one write of the table failed
+/// (PodUtils/podvm#568).
+pub(crate) fn record_end<X>(s: &Settings, id: &str, code: i32, end: End)
+where
+    X: Clone + Serialize + DeserializeOwned,
+{
+    for i in 0..END_TRIES {
+        if i > 0 {
+            std::thread::sleep(END_PAUSE);
+        }
+        let wrote = record::<X>(s, id, |c| {
+            ended(c, code);
+            c.end = Some(end);
+        });
+        if wrote.is_ok() {
+            return;
+        }
+    }
+    let _ = crate::end_note::write(s, id, &crate::end_note::Note { code, end: Some(end) });
 }

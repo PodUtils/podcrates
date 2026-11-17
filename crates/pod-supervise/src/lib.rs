@@ -25,6 +25,7 @@
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 pub mod end;
+pub mod end_note;
 pub mod foreground;
 pub mod launcher;
 pub mod lock;

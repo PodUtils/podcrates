@@ -271,9 +271,53 @@ pub fn read<X: DeserializeOwned>(s: &Settings) -> Result<Table<X>> {
     }
 }
 
+/// The tries of a write whose temp file a sweep of another process took.
+const WRITE_TRIES: u32 = 8;
+
 fn write<X: Serialize>(s: &Settings, table: &Table<X>) -> Result<()> {
     let path = table_path(s);
     let bytes = encode(s, table)?;
+    let mut tries = 0;
+    loop {
+        tries += 1;
+        match write_once(s, &path, &bytes) {
+            // The temp file went before its rename: a sweep that took the
+            // lock in the moment before this writer did. A new file.
+            Err(Gone(_)) if tries < WRITE_TRIES => continue,
+            Err(Gone(e)) => return Err(e),
+            Ok(r) => return r,
+        }
+    }
+}
+
+/// A temp file that went before its rename.
+struct Gone(Failure);
+
+/// A new file at `tmp`, mode 0600, under its exclusive lock, which a sweep
+/// of the staging directory needs to take a `.partial`
+/// (PodUtils/podvm#568). The file is made under a name that no sweep reads
+/// (`.new`), locked, and then named `tmp`: a sweep never sees it unlocked.
+fn create_locked(tmp: &std::path::Path) -> Result<std::fs::File> {
+    let mut fresh = tmp.as_os_str().to_owned();
+    fresh.push(".new");
+    let fresh = std::path::PathBuf::from(fresh);
+    let _ = std::fs::remove_file(&fresh);
+    let file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&fresh);
+    let file = file.map_err(|e| io_at(&fresh, e))?;
+    let fd = std::os::fd::AsRawFd::as_raw_fd(&file) as i64;
+    let locked = pod_hostprobe::sys::flock(fd, pod_hostprobe::sys::LOCK_EX | pod_hostprobe::sys::LOCK_NB);
+    let named = match locked {
+        Ok(_) => std::fs::rename(&fresh, tmp).map_err(|e| io_at(tmp, e)),
+        Err(e) => Err(failure(Class::Unavailable, format!("{}: flock: {}", fresh.display(), e.name()))),
+    };
+    if let Err(e) = named {
+        let _ = std::fs::remove_file(&fresh);
+        return Err(e);
+    }
+    Ok(file)
+}
+
+fn write_once(s: &Settings, path: &std::path::Path, bytes: &[u8]) -> std::result::Result<Result<()>, Gone> {
     // A new file and a rename, never a change in place.
     let tmp = s.root.join(STAGING_DIR).join(format!(
         "{TABLE_FILE}.{}.{}.partial",
@@ -287,19 +331,26 @@ fn write<X: Serialize>(s: &Settings, table: &Table<X>) -> Result<()> {
     // each record. A new file, so the mode is this one and not of a file
     // that a crash left.
     let _ = std::fs::remove_file(&tmp);
-    let written = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(&tmp)
-        .and_then(|mut f| std::io::Write::write_all(&mut f, &bytes).and_then(|()| f.sync_all()));
-    written.map_err(|e| io_at(&tmp, e))?;
-    std::fs::rename(&tmp, &path).map_err(|e| io_at(&path, e))?;
+    let mut file = match create_locked(&tmp) {
+        Ok(f) => f,
+        Err(e) => return Ok(Err(e)),
+    };
+    let written = std::io::Write::write_all(&mut file, bytes).and_then(|()| file.sync_all());
+    if let Err(e) = written {
+        let _ = std::fs::remove_file(&tmp);
+        return Ok(Err(io_at(&tmp, e)));
+    }
+    match std::fs::rename(&tmp, path) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Err(Gone(io_at(&tmp, e))),
+        Err(e) => return Ok(Err(io_at(path, e))),
+        Ok(()) => {}
+    }
+    drop(file);
     // The new name on disk (T-192); a failed sync leaves the table in place.
     if let Some(dir) = path.parent() {
         let _ = std::fs::File::open(dir).and_then(|d| d.sync_all());
     }
-    Ok(())
+    Ok(Ok(()))
 }
 
 /// Read the table, give it to `f`, and write what `f` leaves.
@@ -341,12 +392,12 @@ where
             }
             let path = lock_path(s, &c.id);
             if !path.exists() {
-                c.mark_dead(&now);
+                gone(s, c, &now);
                 continue;
             }
             // The whole test: a launcher holds this lock for its whole life.
             match Lock::try_exclusive(&path) {
-                Ok(Some(_free)) => c.mark_dead(&now),
+                Ok(Some(_free)) => gone(s, c, &now),
                 // Held: the launcher is alive and the record is true.
                 Ok(None) => {}
                 // The question failed. That is no answer, so the record
@@ -356,6 +407,18 @@ where
         }
         Ok::<_, Failure>(table.clone())
     })
+}
+
+/// The record of a launcher that is gone: its end where it left one in a
+/// side file (`end_note`), else `Dead`.
+fn gone<X>(s: &Settings, c: &mut Container<X>, now: &str) {
+    match crate::end_note::take(s, &c.id) {
+        Some(note) => {
+            crate::launcher::ended(c, note.code);
+            c.end = note.end;
+        }
+        None => c.mark_dead(now),
+    }
 }
 
 /// The record that `want` names: a name, a full id, or a prefix of one id.

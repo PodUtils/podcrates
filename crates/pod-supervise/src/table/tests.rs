@@ -198,3 +198,81 @@ fn a_crafted_id_names_no_directory_outside_the_containers() {
     assert!(contained(&s, "absent").is_none());
     let _ = std::fs::remove_dir_all(&s.root);
 }
+
+/// The temp file of a write is under its lock from its create: a sweep that
+/// asks for the lock does not get it (PodUtils/podvm#568).
+#[test]
+fn the_temp_file_of_a_write_is_locked() {
+    let s = scratch("locked");
+    std::fs::create_dir_all(&s.root).unwrap();
+    let tmp = s.root.join("t.partial");
+    let file = create_locked(&tmp).expect("a new file");
+    let other = std::fs::File::open(&tmp).unwrap();
+    let fd = std::os::fd::AsRawFd::as_raw_fd(&other) as i64;
+    let op = pod_hostprobe::sys::LOCK_EX | pod_hostprobe::sys::LOCK_NB;
+    assert!(pod_hostprobe::sys::flock(fd, op).is_err(), "a sweep got the lock of a live temp file");
+    drop(file);
+    assert!(pod_hostprobe::sys::flock(fd, op).is_ok(), "the lock goes with the writer");
+    let _ = std::fs::remove_dir_all(&s.root);
+}
+
+/// A sweep of the staging directory by another process, which deletes each
+/// `.partial` whose lock it gets, never takes the temp file of a write, and
+/// each write lands (PodUtils/podvm#568).
+#[test]
+fn a_sweep_never_takes_the_temp_file_of_a_write() {
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    let s = scratch("sweep");
+    std::fs::create_dir_all(s.root.join(STAGING_DIR)).unwrap();
+    let (stop, taken) = (std::sync::Arc::new(AtomicBool::new(false)), std::sync::Arc::new(AtomicUsize::new(0)));
+    let sweeper = {
+        let (staging, stop, taken) = (s.root.join(STAGING_DIR), stop.clone(), taken.clone());
+        std::thread::spawn(move || {
+            while !stop.load(Ordering::SeqCst) {
+                for entry in std::fs::read_dir(&staging).into_iter().flatten().flatten() {
+                    let path = entry.path();
+                    if !path.to_string_lossy().ends_with(".partial") {
+                        continue;
+                    }
+                    let Ok(file) = std::fs::File::open(&path) else { continue };
+                    let fd = std::os::fd::AsRawFd::as_raw_fd(&file) as i64;
+                    let op = pod_hostprobe::sys::LOCK_EX | pod_hostprobe::sys::LOCK_NB;
+                    if pod_hostprobe::sys::flock(fd, op).is_ok() && std::fs::remove_file(&path).is_ok() {
+                        taken.fetch_add(1, Ordering::SeqCst);
+                    }
+                }
+            }
+        })
+    };
+    for i in 0..200 {
+        update(&s, |x: &mut Table<Fields>| {
+            x.containers.push(c(&format!("id{i:04}"), &format!("n{i}"), State::Exited));
+            Ok::<_, Failure>(())
+        })
+        .unwrap();
+    }
+    stop.store(true, Ordering::SeqCst);
+    sweeper.join().unwrap();
+    assert_eq!(taken.load(Ordering::SeqCst), 0, "the sweep took the temp file of a write");
+    assert_eq!(read::<Fields>(&s).unwrap().containers.len(), 200, "each write landed");
+    let _ = std::fs::remove_dir_all(&s.root);
+}
+
+/// A launcher that could not write the end of its run leaves it beside the
+/// record: the reconcile gives the record its exit code, not `Dead`.
+#[test]
+fn the_reconcile_reads_the_end_that_a_launcher_left_beside_the_record() {
+    let s = scratch("end-note");
+    std::fs::create_dir_all(&s.root).unwrap();
+    update(&s, |x: &mut Table<Fields>| {
+        x.containers = vec![c("ddd4", "noted", State::Running)];
+        Ok::<_, Failure>(())
+    })
+    .unwrap();
+    std::fs::create_dir_all(dir(&s, "ddd4")).unwrap();
+    crate::end_note::write(&s, "ddd4", &crate::end_note::Note { code: 7, end: None }).unwrap();
+    let r: Table<Fields> = reconcile(&s).unwrap();
+    assert_eq!((r.containers[0].state, r.containers[0].exit_code), (State::Exited, Some(7)));
+    assert!(!dir(&s, "ddd4").join(crate::end_note::END_FILE).exists(), "the note goes once read");
+    let _ = std::fs::remove_dir_all(&s.root);
+}
