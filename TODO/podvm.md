@@ -9916,7 +9916,7 @@ cargo test -p pod-enter --all-features volume
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9935,6 +9935,10 @@ Add SIGHUP to the set that the entry blocks and forwards, and to `sigblock_shutd
 ```sh
 cargo test -p pod-enter --all-features
 ```
+
+## Done
+
+2026-11-17, 058c5c1d3, 1f2c23cc8: `sys::SHUTDOWN_SIGNALS` holds SIGHUP beside SIGINT and SIGTERM, so `sigblock_shutdown` and `signalfd_shutdown` block and read it: `Child::wait_forwarding` of `pod-enter` forwards it to the payload and names it (`signal_name`), and the launcher of `pod-supervise`, which reads the same set, forwards it too. The init of a PID namespace forwarded SIGHUP before. `sys::SYS_TGKILL` and `SYS_GETTID` are new. Tests: `a_sighup_of_the_waiter_reaches_the_payload` (a `tgkill` of SIGHUP to the waiting thread ends the payload with 129, and the line names SIGHUP); the test of the mask holds 16387. The tests of `pod-enter`, `pod-hostprobe` and `pod-supervise` pass. Plant `enter-sighup-not-forwarded`, caught.
 
 # T-885: `pod-enter`: a fallback to chroot is not returned to the caller (PodUtils/podvm#569)
 
