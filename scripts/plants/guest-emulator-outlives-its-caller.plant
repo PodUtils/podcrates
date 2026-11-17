@@ -1,0 +1,6 @@
+# pod-guest: the emulator has no PR_SET_PDEATHSIG, so it outlives the thread that started it (T-893).
+ENTRY=T-893
+GROUP=guest
+EXPECT='the emulator outlived its thread'
+RUN='cargo test -p pod-guest --all-features --lib tests::the_emulator_ends_with_the_thread_that_started_it'
+LIMIT=900

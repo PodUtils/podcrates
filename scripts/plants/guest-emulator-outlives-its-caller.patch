@@ -1,0 +1,11 @@
+diff --git a/crates/pod-guest/src/emulator.rs b/crates/pod-guest/src/emulator.rs
+--- a/crates/pod-guest/src/emulator.rs
++++ b/crates/pod-guest/src/emulator.rs
+@@ -53,7 +53,6 @@ pub fn spawn_emulator(plan: &Plan, args: &[String], stderr: Stdio) -> Result<Chi
+     use std::os::unix::process::CommandExt;
+     let mut cmd = Command::new(&plan.emulator);
+     cmd.args(args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(stderr).process_group(0);
+-    pod_hostprobe::sys::die_with_parent(&mut cmd);
+     cmd.spawn().map_err(|e| io_at(&plan.emulator, e))
+ }
+ 
