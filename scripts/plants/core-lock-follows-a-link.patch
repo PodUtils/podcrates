@@ -1,0 +1,12 @@
+diff --git a/crates/pod-core/src/lock.rs b/crates/pod-core/src/lock.rs
+--- a/crates/pod-core/src/lock.rs
++++ b/crates/pod-core/src/lock.rs
+@@ -102,7 +102,7 @@ fn open(path: &Path) -> Result<File, Failure> {
+     #[cfg(unix)]
+     {
+         use std::os::unix::fs::OpenOptionsExt;
+-        options.mode(0o600).custom_flags(libc::O_NOFOLLOW);
++        options.mode(0o600);
+     }
+     options.open(path).map_err(|e| io(path, "opening the lock file", e))
+ }

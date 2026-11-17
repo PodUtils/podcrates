@@ -1,0 +1,6 @@
+# pod-core: the lock of a file follows a link at its path, so it locks the target (T-877).
+ENTRY=T-877
+GROUP=core
+EXPECT='a_link_at_the_path_is_refused'
+RUN='cargo test -p pod-core --all-features --lib lock'
+LIMIT=900
