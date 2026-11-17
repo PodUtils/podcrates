@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**716 entries: 134 open, 21 partial, 7 blocked, 554 done.**
+**716 entries: 133 open, 21 partial, 7 blocked, 555 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 8 | 0 | 155 | 174 |
-| P2 | 60 | 3 | 4 | 286 | 353 |
+| P2 | 59 | 3 | 4 | 287 | 353 |
 | P3 | 63 | 10 | 3 | 111 | 187 |
-| **All** | 134 | 21 | 7 | 554 | 716 |
+| **All** | 133 | 21 | 7 | 555 | 716 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -762,4 +762,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-880](foundation.md) | P2 | M | M0 | feature | open | `pod-release`: the self-update of a binary (fetch, verify, replace, trial run), from podnet and podssh |
 | [T-881](foundation.md) | P2 | S | M0 | feature | open | `pod-tls`: the CA bundle that the environment names, in place of three lists in the consumers |
 | [T-882](foundation.md) | P3 | M | M0 | chore | open | One reader and writer of an HTTP/1.1 head, in place of the copies in podrunner and in five crates |
-| [T-883](fleet.md) | P2 | S | M0 | defect | open | the installer core: one proxy line for one proxy, and a default prefix on a noexec mount (PodUtils/podnet#650) |
+| [T-883](fleet.md) | P2 | S | M0 | defect | done | the installer core: one proxy line for one proxy, and a default prefix on a noexec mount (PodUtils/podnet#650) |

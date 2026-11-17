@@ -5265,7 +5265,7 @@ cargo test -p pod-manual --all-features
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5284,3 +5284,7 @@ One line for each distinct proxy. A default prefix that cannot run programs give
 ```sh
 sh scripts/install/test.sh --case dryrun --case labs
 ```
+
+## Done
+
+2026-11-17, a5609a8f6: `inst_proxy` prints one line for each distinct proxy. `inst_check_prefix` tries the prefix by `inst_try_prefix` (made, writable, runs a program); a default prefix (no `--prefix`) whose test program does not run gives way to `~/.local/bin`, then `~/bin`, with the line `FIRST cannot run programs (WHY): the install goes to DIR`; a directory that the try made and cannot use goes again; where none runs programs, and for each prefix of `--prefix`, the refusal stays as before and names `--prefix DIR`. Tests in `scripts/install/test.sh`: the dry run with `http_proxy` and `https_proxy` on one proxy has its line once; in the lab `noexec-tmp`, `XDG_BIN_HOME=/tmp/podlab-bin` gives way to `~/.local/bin`, which holds the program. Each of the two fails on the installer before the change (run by hand). `sh scripts/install/test.sh --case dryrun --case labs --case proxy --case first --case pins` passed (shellcheck: not on this host, CI runs it). podnet takes the new copy of `core.sh` and `core-net.sh` at the tag.
