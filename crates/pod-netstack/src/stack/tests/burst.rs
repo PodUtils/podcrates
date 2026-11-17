@@ -182,11 +182,22 @@ async fn a_syn_past_the_connection_limit_waits() {
 async fn a_syn_sent_again_reaches_its_own_socket() {
     let lost = Arc::new(AtomicUsize::new(0));
     let count = lost.clone();
-    // A TCP SYN-ACK in an IPv4 packet with no options.
-    let first_syn_ack = move |packet: &[u8]| {
-        packet.len() >= 40 && packet[9] == 6 && packet[33] & 0x12 == 0x12 && count.fetch_add(1, Ordering::Relaxed) == 0
+    // The first two SYN-ACKs of the socket of the handshake (by its initial
+    // sequence number) are lost: the client sends its SYN again before any
+    // SYN-ACK reaches it. A second socket of the 4-tuple answers that SYN at
+    // once with another number, and its SYN-ACK passes; the socket of the
+    // handshake gets through with its third SYN-ACK.
+    let first = Arc::new(std::sync::Mutex::new(None::<[u8; 4]>));
+    let first_syn_acks = move |packet: &[u8]| {
+        // A TCP SYN-ACK in an IPv4 packet with no options.
+        if packet.len() < 40 || packet[9] != 6 || packet[33] & 0x12 != 0x12 {
+            return false;
+        }
+        let seq: [u8; 4] = packet[24..28].try_into().unwrap();
+        let isn = *first.lock().unwrap().get_or_insert(seq);
+        isn == seq && count.fetch_add(1, Ordering::Relaxed) < 2
     };
-    let (server, client, gate, pumps) = gated(StackConfig::default(), first_syn_ack);
+    let (server, client, gate, pumps) = gated(StackConfig::default(), first_syn_acks);
     gate.notify_one();
     // The listener on port 1 takes the first slot of the set, and frees it.
     let first = server.listen(at(LOCAL_IP, 1)).await.unwrap();
@@ -197,7 +208,7 @@ async fn a_syn_sent_again_reaches_its_own_socket() {
     assert_eq!(settle(&server, resting).await, resting);
     let mut stream = client.connect(at(LOCAL_IP, 443)).await.unwrap();
     tokio::time::timeout(Duration::from_secs(10), stream.established()).await.expect("no handshake").unwrap();
-    assert!(lost.load(Ordering::Relaxed) >= 2, "the pump saw no second SYN-ACK");
+    assert!(lost.load(Ordering::Relaxed) >= 3, "the pump saw no third SYN-ACK of the handshake");
     let mut accepted =
         tokio::time::timeout(Duration::from_secs(5), listener.accept()).await.expect("no accept").unwrap();
     stream.write_all(b"ping").await.unwrap();
