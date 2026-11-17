@@ -235,7 +235,12 @@ c_dryrun() {
     expect "dry run: $mirror/$asset to $work/p-dry/$bin" "the dry run names the file"
     [ ! -e "$work/p-dry" ] || fail "the dry run made the prefix"
     [ "$(gets /good/)" = "$g" ] || fail "the dry run downloaded"
-    ok "dryrun: the plan, no file and no download"
+    # The two variables of one proxy give one line (PodUtils/podnet#650).
+    env="http_proxy=http://127.0.0.1:9 https_proxy=http://127.0.0.1:9"
+    run sh "$work/p-dry" --dry-run || fail "the dry run with a proxy"
+    reset
+    [ "$(grep -c '^.*proxy: http://127.0.0.1:9$' "$work/out")" = 1 ] || fail "the proxy line is not there once"
+    ok "dryrun: the plan, no file and no download; one line for one proxy"
 }
 
 c_upgrade() {
@@ -428,6 +433,22 @@ c_labs() {
         reset
         ok "labs: $prof: a first and a second run"
     done
+    rm -rf "$work/home/.local"
+    # A default prefix on a noexec mount gives way to the next default, with
+    # a line (PodUtils/podnet#650).
+    lab=noexec-tmp env="XDG_BIN_HOME=/tmp/podlab-bin"
+    run sh ''
+    rc=$?
+    reset
+    if [ "$rc" = 125 ]; then
+        skip labs "labs: this host cannot hold noexec-tmp"
+    else
+        [ "$rc" = 0 ] || fail "the install with a default prefix on noexec"
+        expect 'cannot run programs \(its file system is mounted with noexec\): the install goes to .*/home/\.local/bin' \
+            "the line of the next default"
+        [ -x "$work/home/.local/bin/$bin" ] || fail "the install into the next default"
+        ok "labs: noexec-tmp: a default prefix on noexec gives way to ~/.local/bin"
+    fi
     rm -rf "$work/home/.local"
 }
 
