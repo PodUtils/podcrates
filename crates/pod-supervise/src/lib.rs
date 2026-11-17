@@ -171,6 +171,7 @@ where
         noticed: None,
         wall_ms: None,
         end: None,
+        rm: false,
         of,
     };
     table::update(s, |t: &mut table::Table<X>| {
@@ -349,6 +350,21 @@ where
             Ok((c, code))
         }
     }
+}
+
+/// Remove the record of `want` and its directory when its run ends: the
+/// launcher does it after it writes the end and answers each waiter
+/// (`run -d --rm`, PodUtils/podvm#568). Set it before the start.
+pub fn auto_remove<X>(s: &Settings, want: &str) -> Result<Container<X>>
+where
+    X: Clone + Serialize + DeserializeOwned,
+{
+    let c = get::<X>(s, want)?;
+    if c.state == State::Running {
+        return Err(failure(Class::Usage, format!("{} is running: set the removal before the start", c.name)));
+    }
+    launcher::record::<X>(s, &c.id, |r| r.rm = true)?;
+    get::<X>(s, &c.id)
 }
 
 /// Remove the record of a container and its own directory. `force` kills a

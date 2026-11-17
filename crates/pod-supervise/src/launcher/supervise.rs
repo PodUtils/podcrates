@@ -171,6 +171,18 @@ where
     for mut w in served.waiters {
         let _ = writeln!(w, "exit {}", served.code);
     }
+    // `--rm`: the record and the tree go after each waiter has its code. The
+    // flag is read again: it is the record's, not of the start.
+    let rm = table::read::<X>(s).ok().and_then(|t| t.containers.iter().find(|c| c.id == container.id).map(|c| c.rm));
+    if rm == Some(true) {
+        let _ = table::update(s, |t: &mut table::Table<X>| {
+            t.containers.retain(|c| c.id != container.id);
+            Ok::<_, Failure>(())
+        });
+        if let Some(dir) = table::contained(s, &container.id) {
+            let _ = std::fs::remove_dir_all(dir);
+        }
+    }
     drop(payload.keep);
     drop(lock);
     0

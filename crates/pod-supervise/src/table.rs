@@ -95,6 +95,10 @@ pub struct Container<X> {
     /// clears it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub end: Option<crate::end::End>,
+    /// Remove the record and its directory after the end of the run, once
+    /// each waiter has its answer (`run -d --rm`; [`crate::auto_remove`]).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub rm: bool,
     #[serde(flatten)]
     pub of: X,
 }

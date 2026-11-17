@@ -25,8 +25,9 @@ fn main() {
     steps::a_signal_reaches_the_payload(&s);
     steps::a_killed_launcher_leaves_a_dead_record(&s);
     steps::an_entry_that_fails_gives_its_text(&s);
+    steps::a_run_with_rm_leaves_no_record_after_its_waiter(&s);
     let _ = std::fs::remove_dir_all(&s.root);
-    println!("lifecycle: 5 steps passed");
+    println!("lifecycle: 6 steps passed");
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -40,7 +41,7 @@ mod steps {
 
     use pod_supervise::launcher::{Launch, Payload};
     use pod_supervise::table::{Any, Container, State};
-    use pod_supervise::{Settings, create, get, kill, logs, remove, start, stop, wait};
+    use pod_supervise::{Settings, auto_remove, create, get, kill, logs, remove, start, stop, wait};
 
     /// The descriptor `n` of the payload, as a copy of the descriptor that
     /// the launcher passes.
@@ -185,5 +186,24 @@ mod steps {
         let c = get::<Any>(s, "refused").unwrap();
         assert_eq!(c.state, State::Created, "a failed entry changed the record");
         remove::<Any>(s, "refused", false).expect("remove");
+    }
+
+    /// `run -d --rm` (PodUtils/podvm#568): a waiter gets the exit code, and
+    /// then the record and the directory of the container are gone.
+    pub fn a_run_with_rm_leaves_no_record_after_its_waiter(s: &Settings) {
+        made(s, "rm", "sleep 1; exit 4");
+        let c = auto_remove::<Any>(s, "rm").expect("auto_remove");
+        assert!(c.rm);
+        let dir = pod_supervise::table::dir(s, &c.id);
+        start(s, "rm", enter).expect("start");
+        let (_, code) = wait::<Any>(s, "rm", 10_000).expect("wait");
+        assert_eq!(code, Some(4), "the waiter gets the code before the removal");
+        let start = Instant::now();
+        while get::<Any>(s, "rm").is_ok() && start.elapsed() < Duration::from_secs(10) {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let gone = get::<Any>(s, "rm").expect_err("the record of a run with rm stays");
+        assert_eq!(gone.class, pod_core::Class::NotFound);
+        assert!(!dir.exists(), "the directory of a run with rm stays: {}", dir.display());
     }
 }
