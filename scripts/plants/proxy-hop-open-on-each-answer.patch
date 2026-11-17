@@ -1,0 +1,12 @@
+diff --git a/crates/pod-proxy/src/connect.rs b/crates/pod-proxy/src/connect.rs
+--- a/crates/pod-proxy/src/connect.rs
++++ b/crates/pod-proxy/src/connect.rs
+@@ -151,7 +151,7 @@ async fn exchange<S: AsyncRead + AsyncWrite + Unpin>(
+ 
+     let (status, reason) = crate::http::parse_status_line(&head)
+         .map_err(|detail| DialError::ProxyProtocol { proxy: proxy_name.clone(), detail })?;
+-    if (200..300).contains(&status) {
++    if (200..500).contains(&status) {
+         return Ok(Answer::Open);
+     }
+     let reason = if status == 407 {

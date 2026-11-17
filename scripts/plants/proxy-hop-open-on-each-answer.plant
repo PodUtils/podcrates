@@ -1,0 +1,6 @@
+# pod-proxy: a CONNECT opens on a refusal of the proxy too (T-896).
+ENTRY=T-896
+GROUP=proxy
+EXPECT='a_connect_hop_opens_on_200_and_refuses_on_403'
+RUN='cargo test -p pod-proxy --all-features --test hop'
+LIMIT=900
