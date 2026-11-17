@@ -1,0 +1,6 @@
+# pod-hostprobe: the exec probe takes its fixed path again, so a file there makes the row a skip (T-891).
+ENTRY=T-891
+GROUP=hostprobe
+EXPECT='a file at the old path decides the row'
+RUN='cargo test -p pod-hostprobe --all-features --lib probes::tests::a_scratch_path_is_new_for_each_probe'
+LIMIT=900

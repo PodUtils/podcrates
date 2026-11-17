@@ -1,0 +1,12 @@
+diff --git a/crates/pod-hostprobe/src/probes/census.rs b/crates/pod-hostprobe/src/probes/census.rs
+--- a/crates/pod-hostprobe/src/probes/census.rs
++++ b/crates/pod-hostprobe/src/probes/census.rs
+@@ -287,7 +287,7 @@ pub(super) fn p_exec_file() -> Outcome {
+     if let Err(o) = need_sh() {
+         return o;
+     }
+-    let target = unique(EXEC_TARGET);
++    let target = EXEC_TARGET.to_string();
+     let fd = match create_exclusive(&target, 0o755) {
+         Ok(fd) => fd,
+         Err(sys::EEXIST) => return already_there(&target),
