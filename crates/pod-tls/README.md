@@ -17,6 +17,7 @@ shares it.
 
 | Item | What |
 | --- | --- |
+| `env_bundle(get)`, `BUNDLE_VARS`, `EnvBundle`, `Passed` | the CA bundle that the environment names: `SSL_CERT_FILE`, `CURL_CA_BUNDLE`, `REQUESTS_CA_BUNDLE`, `NODE_EXTRA_CA_CERTS`, `GIT_SSL_CAINFO`, `AWS_CA_BUNDLE` in that order; the first that names a readable file, and why each set variable before it was passed over; the caller decides whether it adds to the roots or replaces them |
 | `Context::new(provider, settings)` | the TLS of a binary: the provider, the `Settings`, the configuration kept for each trust (16 at most, a CA file that changed by time or length is read again), the roots of the context (read one time), the groups that servers took, the state of ECH |
 | `Context::config_for(&trust)`, `roots_for`, `default_roots`, `client_config(&roots)` | the configuration of a trust, kept so that TLS resumes; the roots of a trust |
 | `Context::tls_over(stream, name, &trust, limit)`, `connect_over(..)` | a verified handshake over an open stream; a `pod_core::Failure` at `Stage::Tls` on failure |

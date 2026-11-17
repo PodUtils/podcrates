@@ -36,6 +36,7 @@ pub mod ech;
 
 pub mod bundle;
 mod context;
+mod env_bundle;
 mod error;
 pub mod fragment;
 pub mod groups;
@@ -52,6 +53,7 @@ mod validity;
 mod wrap;
 
 pub use context::{Context, Settings, client_config};
+pub use env_bundle::{BUNDLE_VARS, EnvBundle, Passed, env_bundle};
 pub use error::Error;
 pub use hint::{Words, clock_hint, clock_refused, handshake_error, handshake_failure, handshake_hint};
 pub use roots::{CaFile, Roots};
