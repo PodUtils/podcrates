@@ -5,7 +5,7 @@ use std::path::Path;
 
 use serde::{Serialize, de::DeserializeOwned};
 
-use crate::table::{self, State};
+use crate::table::{self, Container, State};
 use crate::{Result, Settings, get, io_at};
 
 /// The captured output of a container. A container that wrote nothing has
@@ -53,14 +53,26 @@ where
     let mut offset = append_from(&path, start, out)?;
     loop {
         std::thread::sleep(POLL);
-        let (next, done) = follow_once::<X>(s, want, &path, offset, out)?;
+        let (next, ended) = follow_once::<X>(s, want, &path, offset, out)?;
         offset = next;
-        if done {
+        if let Some(ended) = ended {
             std::thread::sleep(FINAL_DRAIN);
-            append_from(&path, offset, out)?;
-            return Ok(());
+            offset = append_from(&path, offset, out)?;
+            // A restart passes through `Exited` between its stop and its
+            // start: the follow goes on where the run started again
+            // (PodUtils/podvm#569).
+            if ended_for_good(&ended, &get::<X>(s, want)?) {
+                return Ok(());
+            }
         }
     }
+}
+
+/// Whether a run that read as ended at `seen` is still the same ended run in
+/// `now`: an end state and the same start. A new start, or a state that is
+/// not an end, is a restart.
+pub(crate) fn ended_for_good<X>(seen: &Container<X>, now: &Container<X>) -> bool {
+    terminal(now.state) && now.started_at == seen.started_at && now.finished_at == seen.finished_at
 }
 
 /// The byte offset where the last `n` lines of `bytes` start.
@@ -113,8 +125,8 @@ fn writing(e: std::io::Error) -> pod_core::Failure {
     )
 }
 
-/// One step of the poll: append what came, and whether the container
-/// ended. The last read stays in [`follow_from`]: a write in the same
+/// One step of the poll: append what came, and the record where the
+/// container ended. The last read stays in [`follow_from`]: a write in the same
 /// moment as the change of state comes between this read and that one.
 ///
 /// A step, not a loop, so that a test drives the arrivals one by one: the
@@ -126,12 +138,13 @@ pub(crate) fn follow_once<X>(
     path: &Path,
     offset: u64,
     out: &mut dyn Write,
-) -> Result<(u64, bool)>
+) -> Result<(u64, Option<Container<X>>)>
 where
     X: Clone + Serialize + DeserializeOwned,
 {
     let offset = append_from(path, offset, out)?;
-    Ok((offset, terminal(get::<X>(s, want)?.state)))
+    let c = get::<X>(s, want)?;
+    Ok((offset, terminal(c.state).then_some(c)))
 }
 
 /// A state at which `follow` stops: the run ended, watched or not.

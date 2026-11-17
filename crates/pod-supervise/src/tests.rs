@@ -116,7 +116,7 @@ fn follow_prints_arrivals_then_stops_at_exit() {
     std::fs::write(&log, b"first\n").unwrap();
     let mut out = Vec::new();
     let (o1, done1) = logs::follow_once::<Fields>(&s, "f1", &log, 0, &mut out).unwrap();
-    assert!(!done1, "a created container is not terminal");
+    assert!(done1.is_none(), "a created container is not terminal");
     assert_eq!(out, b"first\n");
     append(&s, &c.id, b"second\n");
     table::update(&s, |t: &mut table::Table<Fields>| {
@@ -126,9 +126,32 @@ fn follow_prints_arrivals_then_stops_at_exit() {
     })
     .unwrap();
     let (_, done2) = logs::follow_once::<Fields>(&s, "f1", &log, o1, &mut out).unwrap();
-    assert!(done2, "an exited container ends the follow");
+    assert!(done2.is_some(), "an exited container ends the follow");
     assert_eq!(out, b"first\nsecond\n");
     assert_eq!(logs::<Fields>(&s, "f1").unwrap(), b"first\nsecond\n");
+    let _ = std::fs::remove_dir_all(&s.root);
+}
+
+/// A restart passes through `Exited`: the follow ends only where the run
+/// that read as ended is still the same ended run after the drain
+/// (PodUtils/podvm#569).
+#[test]
+fn a_restart_does_not_end_the_follow() {
+    let s = scratch("follow-restart");
+    let mut seen = make(&s, "f2", "sha256:0", Vec::new());
+    seen.state = table::State::Exited;
+    seen.started_at = Some("2026-11-17T10:00:00Z".into());
+    seen.finished_at = Some("2026-11-17T10:00:05Z".into());
+    assert!(logs::ended_for_good(&seen, &seen.clone()), "the same ended run");
+    let mut running = seen.clone();
+    running.state = table::State::Running;
+    running.started_at = Some("2026-11-17T10:00:06Z".into());
+    running.finished_at = None;
+    assert!(!logs::ended_for_good(&seen, &running), "a run that started again");
+    let mut again = running.clone();
+    again.state = table::State::Exited;
+    again.finished_at = Some("2026-11-17T10:00:07Z".into());
+    assert!(!logs::ended_for_good(&seen, &again), "a run that started and ended again");
     let _ = std::fs::remove_dir_all(&s.root);
 }
 
