@@ -127,7 +127,7 @@ fn no_list_a_changed_byte_and_no_trust_take_nothing() {
 
 #[test]
 fn a_member_is_due_once_a_day() {
-    let ask = |asked_ms: i64| Ask { host: "h".into(), key: "k".into(), asked_ms, serial: None, why: None };
+    let ask = |asked_ms: i64| Ask { host: "h".into(), key: "k".into(), asked_ms, serial: None, why: None, meet: None };
     assert!(due(None, NOW_MS), "never asked");
     assert!(!due(Some(&ask(NOW_MS)), NOW_MS));
     assert!(!due(Some(&ask(NOW_MS - 23 * HOUR_MS)), NOW_MS));
@@ -185,11 +185,134 @@ async fn an_ask_is_kept_before_it_is_made() {
 fn the_file_keeps_its_newest_asks_alone() {
     let mut asks = Asks::default();
     for i in 0..(MAX_ASKS as i64 + 4) {
-        asks.put(Ask { host: format!("h{i}"), key: "k".into(), asked_ms: i, serial: None, why: None });
+        asks.put(Ask { host: format!("h{i}"), key: "k".into(), asked_ms: i, serial: None, why: None, meet: None });
     }
     assert_eq!(asks.asks.len(), MAX_ASKS);
     assert!(asks.asks.iter().all(|a| a.asked_ms >= 4), "the oldest went first");
     // One ask for each host and key: a new one takes the old one's place.
-    asks.put(Ask { host: "h5".into(), key: "k".into(), asked_ms: 99, serial: Some(1), why: None });
+    asks.put(Ask { host: "h5".into(), key: "k".into(), asked_ms: 99, serial: Some(1), why: None, meet: None });
     assert_eq!(asks.asks.iter().filter(|a| a.host == "h5").count(), 1);
+}
+
+/// A `/relays.json` body with `meet` set to `meet` beside the signed list.
+fn body_meet(by: &Identity, meet: serde_json::Value) -> Vec<u8> {
+    let mut doc: serde_json::Value = serde_json::from_slice(&body(by, 7)).unwrap();
+    doc["meet"] = meet;
+    serde_json::to_vec(&doc).unwrap()
+}
+
+/// `meet` of a body as the member `lab` (port 8443) reads it.
+fn meet_of(meet: serde_json::Value) -> Option<Meet> {
+    let k = key(0x51);
+    Meet::of_body(&body_meet(&k, meet), &lab(&k))
+}
+
+fn both(iroh: Option<&str>, derp: Option<&str>) -> Option<Meet> {
+    Some(Meet { iroh: iroh.map(str::to_string), derp: derp.map(str::to_string) })
+}
+
+const IROH: &str = "https://relay-a.example.org:8443/";
+const DERP: &str = "relay-a.example.org:8443";
+
+#[test]
+fn the_meeting_points_of_the_member_s_own_host_are_read() {
+    let probe = "/generate_204";
+    assert_eq!(meet_of(json!({ "iroh": IROH, "derp": DERP, "probe": probe })), both(Some(IROH), Some(DERP)));
+    assert_eq!(meet_of(json!({ "iroh": IROH, "derp": null, "probe": probe })), both(Some(IROH), None));
+    assert_eq!(meet_of(json!({ "iroh": null, "derp": DERP })), both(None, Some(DERP)));
+    // Each road off, `meet` missing, or no JSON: no meeting point.
+    assert_eq!(meet_of(json!({ "iroh": null, "derp": null, "probe": null })), None);
+    assert_eq!(meet_of(json!(null)), None);
+    let k = key(0x51);
+    assert_eq!(Meet::of_body(&body(&k, 7), &lab(&k)), None, "no meet");
+    assert_eq!(Meet::of_body(b"<html>", &lab(&k)), None, "no JSON");
+    // The case of the letters and a written port aside; the member's own
+    // form is kept, not the peer's text.
+    let loud = meet_of(json!({ "iroh": "HTTPS://Relay-A.Example.ORG:8443", "derp": "RELAY-A.example.org:8443" }));
+    assert_eq!(loud, both(Some(IROH), Some(DERP)));
+    let on_443 = Member { host: Relay { host: "relay-a.example.org".into(), port: 443 }, ..lab(&k) };
+    let meet = Meet::checked(Some("https://relay-a.example.org:443/"), Some("relay-a.example.org"), &on_443);
+    assert_eq!(meet, both(Some("https://relay-a.example.org/"), Some("relay-a.example.org")));
+}
+
+#[test]
+fn a_meeting_point_off_the_member_s_own_host_is_dropped() {
+    let foreign = [
+        "https://relay-x.example.org:8443/",
+        "https://relay-a.example.org.evil.example:8443/",
+        "https://relay-a.example.org/",
+        "https://relay-a.example.org:443/",
+        "https://evil.example@relay-a.example.org:8443/",
+        "https://relay-a.example.org:8443@evil.example/",
+        "https://relay-a.example.org:8443/relay",
+        "https://relay-a.example.org:8443//",
+        "https://relay-a.example.org:8443/?to=evil.example",
+        "http://relay-a.example.org:8443/",
+        "wss://relay-a.example.org:8443/",
+        "relay-a.example.org:8443",
+        "",
+    ];
+    for iroh in foreign {
+        assert_eq!(meet_of(json!({ "iroh": iroh, "derp": DERP })), both(None, Some(DERP)), "iroh {iroh:?}");
+    }
+    let foreign =
+        ["derp.evil.example", "relay-a.example.org", "relay-a.example.org:443", IROH, "relay-a.example.org:8443/", ""];
+    for derp in foreign {
+        assert_eq!(meet_of(json!({ "iroh": IROH, "derp": derp })), both(Some(IROH), None), "derp {derp:?}");
+    }
+    // A value that is no text is dropped too.
+    assert_eq!(meet_of(json!({ "iroh": ["x"], "derp": 8443 })), None);
+}
+
+#[test]
+fn the_cache_keeps_the_meeting_points_and_reads_a_file_of_the_form_before() {
+    let mut asks = Asks::default();
+    let meet = both(Some(IROH), None);
+    asks.put(Ask { host: "h".into(), key: "k".into(), asked_ms: 1, serial: Some(3), why: None, meet: meet.clone() });
+    let text = serde_json::to_string(&asks).unwrap();
+    let back: Asks = serde_json::from_str(&text).unwrap();
+    assert_eq!(back.asks, asks.asks);
+    assert_eq!(back.asks[0].meet, meet);
+    let old: Asks =
+        serde_json::from_str(r#"{"asks":[{"host":"h","key":"k","asked_ms":1,"serial":3,"why":null}]}"#).unwrap();
+    assert_eq!((old.asks[0].serial, old.asks[0].meet.clone()), (Some(3), None));
+}
+
+#[tokio::test]
+async fn the_daily_ask_keeps_the_member_s_meeting_points() {
+    let (k, dirs) = (key(0x51), dirs("meet"));
+    let members = [lab(&k)];
+    let meet = json!({ "iroh": IROH, "derp": "derp.evil.example", "probe": "/generate_204" });
+    let answer = |_: Relay, _: Duration| {
+        let body = body_meet(&key(0x51), meet.clone());
+        async move { Ok(body) }
+    };
+    assert_eq!(meet_in(at(&dirs), &members[0]), None, "never asked");
+    assert_eq!(ask_due_with(at(&dirs), &members, &trusting(&[&k]), NOW_MS, answer).await, 1);
+    assert_eq!(meet_in(at(&dirs), &members[0]), both(Some(IROH), None), "the foreign DERP name dropped");
+    // The meeting points need no list: a host whose list fails keeps them.
+    let next = NOW_MS + 25 * HOUR_MS;
+    let unsigned =
+        |_: Relay, _: Duration| async { Ok(serde_json::to_vec(&json!({ "meet": { "derp": DERP } })).unwrap()) };
+    assert_eq!(ask_due_with(at(&dirs), &members, &trusting(&[&k]), next, unsigned).await, 0);
+    assert_eq!(meet_in(at(&dirs), &members[0]), both(None, Some(DERP)));
+    // An ask that fails forgets them until the next answer.
+    let later = next + 25 * HOUR_MS;
+    let down = |_: Relay, _: Duration| async { Err("connection refused".to_string()) };
+    ask_due_with(at(&dirs), &members, &trusting(&[&k]), later, down).await;
+    assert_eq!(meet_in(at(&dirs), &members[0]), None);
+}
+
+#[test]
+fn a_kept_meeting_point_is_checked_again_when_read() {
+    let (k, dirs) = (key(0x51), dirs("meet-file"));
+    let member = lab(&k);
+    let mut asks = Asks::default();
+    let (host, print) = (relay_name(&member.host), member.key.fingerprint());
+    let meet = both(Some("https://evil.example/"), Some(DERP));
+    asks.put(Ask { host, key: print, asked_ms: NOW_MS, serial: None, why: None, meet });
+    store(at(&dirs), &asks).unwrap();
+    assert_eq!(meet_in(at(&dirs), &member), both(None, Some(DERP)));
+    // Another member's key at the same host reads none of it.
+    assert_eq!(meet_in(at(&dirs), &lab(&key(0x52))), None);
 }

@@ -44,7 +44,7 @@ and prints nothing.
 | `budget` | `RelayBudget`: `meter` (bytes and an age), `meter_for` (the budgets of the run's relay), `spent` |
 | `stream` | `of`: a forward session as a byte stream (`pod_core::BoxedIo`) |
 | `relay` | `Relay` (`name`, `url`: an IPv6 address in brackets), `RelayList`, `parse_relay` (`[ADDR]:PORT`), `select_relays`, `parse_relay_list`, `url_host`, `forward_path`, `node_path`, `operator_path`, the budgets (`byte_budget`, `byte_budget_under`, `time_budget`, `idle_secs`), the limits of the default deployment |
-| `pool` | `alternates`, `refresh`, `parse_pool`, `parse_limits`, `Limits` (`http_forms`: `limits.http.forms`), `same_deployment`; `signed` (the signed lists, `Keys`), `kept` (the lists kept), `members` (the relay members of a net) |
+| `pool` | `alternates`, `refresh`, `parse_pool`, `parse_limits`, `Limits` (`http_forms`: `limits.http.forms`), `same_deployment`; `signed` (the signed lists, `Keys`), `kept` (the lists kept), `members` (the relay members of a net; `members::meet`, `Meet`: the meeting points of a member, iroh and DERP, on its own host) |
 | `token`, `cache` | `obtain`, `kept` (the token of the settings, the run or the cache, with no mint), `MintContext`, `Token`, `TokenError`, `token_key`, `remember`, `forget` (the tokens of a run); `Cache`, `Cached`, `valid_token` |
 | `open`, `failover`, `failures`, `gate` | the opener (`open`; `open_on_loopback` with the feature `plain-ws`), the modes of a failover, the record of each host's faults, the gate of each origin |
 | `rank`, `rank_list`, `rank_auto`, `rates` | the rank of the hosts, the order of the default list, the rank in a session's background (`Races`); the delivered rate of each host (`stream::of_measured`, `rates::order`), an order in shadow (T-814) |

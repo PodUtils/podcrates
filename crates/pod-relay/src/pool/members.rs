@@ -9,6 +9,10 @@
 //! joins no list by it: the role's list names where sessions go. The binary
 //! reads the net and gives the members (`Settings::members`), as it gives
 //! the keys, so that no SSH code comes into the library.
+//!
+//! The same read keeps the member's meeting points, `meet` of its
+//! `/relays.json` ([`Meet`]): a member of the net lists that host first as
+//! its iroh relay and its DERP home.
 
 use std::future::Future;
 use std::path::PathBuf;
@@ -65,6 +69,58 @@ pub struct Ask {
     /// Why no list was taken. Neither: the run that asked ended first.
     #[serde(default)]
     pub why: Option<String>,
+    /// The meeting points that the answer named on the member's own host.
+    /// A file of the form before has none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub meet: Option<Meet>,
+}
+
+/// The meeting points of a relay member, from `meet` of its `/relays.json`:
+/// each on the member's own host, else dropped, so that a member cannot
+/// send the net's traffic to another party.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Meet {
+    /// iroh's relay URL, `https://NAME/` (iroh adds `/relay` itself).
+    #[serde(default)]
+    pub iroh: Option<String>,
+    /// The DERP home, `NAME`, as `podssh ts --ts-relay` takes it.
+    #[serde(default)]
+    pub derp: Option<String>,
+}
+
+impl Meet {
+    /// The values of `meet` that name `member`'s own host, each written in
+    /// the member's own form [`Relay::name`] and never in the peer's text;
+    /// `None` when no value holds.
+    pub fn checked(iroh: Option<&str>, derp: Option<&str>, member: &Member) -> Option<Meet> {
+        let name = member.host.name();
+        let iroh = iroh.filter(|v| iroh_holds(v, &member.host)).map(|_| format!("https://{name}/"));
+        let derp = derp.filter(|v| own_authority(v, &member.host)).map(|_| name);
+        (iroh.is_some() || derp.is_some()).then_some(Meet { iroh, derp })
+    }
+
+    /// `meet` of a `/relays.json` body that `member`'s host served.
+    pub fn of_body(body: &[u8], member: &Member) -> Option<Meet> {
+        let doc: serde_json::Value = serde_json::from_slice(body).ok()?;
+        let meet = doc.get("meet")?;
+        let text = |key: &str| meet.get(key).and_then(serde_json::Value::as_str);
+        Meet::checked(text("iroh"), text("derp"), member)
+    }
+}
+
+/// Whether `value` is `https://` and `host`'s authority, with one `/` or
+/// none after it: no path, no user, no query.
+fn iroh_holds(value: &str, host: &Relay) -> bool {
+    let Some(scheme) = value.get(..8) else { return false };
+    let rest = &value[8..];
+    scheme.eq_ignore_ascii_case("https://") && own_authority(rest.strip_suffix('/').unwrap_or(rest), host)
+}
+
+/// Whether `value` is `host`'s authority, the case of the letters aside:
+/// its name ([`Relay::name`]), or `HOST:PORT` with its own port.
+fn own_authority(value: &str, host: &Relay) -> bool {
+    let with_port = format!("{}:{}", crate::relay::url_host(&host.host), host.port);
+    value.eq_ignore_ascii_case(&host.name()) || value.eq_ignore_ascii_case(&with_port)
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -109,6 +165,18 @@ pub fn due(last: Option<&Ask>, now_ms: i64) -> bool {
 /// The last ask of `member` that the cache keeps.
 pub fn last_ask(cache: &Cache, member: &Member) -> Option<Ask> {
     load(Some(cache.dirs())).of(member).cloned()
+}
+
+/// The meeting points of `member` that its last answer named, checked again
+/// against its host as the binary gives it now.
+pub fn meet(cache: &Cache, member: &Member) -> Option<Meet> {
+    meet_in(Some(cache.dirs()), member)
+}
+
+/// [`meet`] with the cache's directories given (for tests).
+pub fn meet_in(dirs: Dirs<'_>, member: &Member) -> Option<Meet> {
+    let kept = load(dirs).of(member)?.meet.clone()?;
+    Meet::checked(kept.iroh.as_deref(), kept.derp.as_deref(), member)
 }
 
 /// The list of a `/relays.json` body that `member`'s host served, taken by
@@ -184,13 +252,14 @@ where
             continue;
         }
         let (host, key) = (relay_name(&member.host), member.key.fingerprint());
-        asks.put(Ask { host: host.clone(), key: key.clone(), asked_ms: now_ms, serial: None, why: None });
+        asks.put(Ask { host: host.clone(), key: key.clone(), asked_ms: now_ms, serial: None, why: None, meet: None });
         if store(dirs, &asks).is_err() {
             break;
         }
-        let taken = match ask(member.host.clone(), STEP.min(left)).await {
-            Ok(body) => take_from(dirs, member, &body, keys, now_ms),
-            Err(why) => Err(why),
+        // The meeting points need no list: each names the member's own host.
+        let (taken, meet) = match ask(member.host.clone(), STEP.min(left)).await {
+            Ok(body) => (take_from(dirs, member, &body, keys, now_ms), Meet::of_body(&body, member)),
+            Err(why) => (Err(why), None),
         };
         kept += usize::from(matches!(taken, Ok(Taken::Kept(_))));
         let (serial, why) = match &taken {
@@ -198,7 +267,7 @@ where
             Err(why) => (None, Some(pod_core::text::one_line(why))),
         };
         let mut asks = load(dirs);
-        asks.put(Ask { host, key, asked_ms: now_ms, serial, why });
+        asks.put(Ask { host, key, asked_ms: now_ms, serial, why, meet });
         let _ = store(dirs, &asks);
     }
     kept
