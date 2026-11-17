@@ -21,7 +21,7 @@ inst_proxy() {
     # One line for each proxy: the two variables often name the same one.
     inst_seen=''
     for inst_v in "${https_proxy:-}" "${http_proxy:-}"; do
-        [ -n "$inst_v" ] && [ "$inst_v" != "$inst_seen" ] || continue
+        if [ -z "$inst_v" ] || [ "$inst_v" = "$inst_seen" ]; then continue; fi
         inst_seen=$inst_v
         # The credential of the proxy is not shown.
         inst_say "proxy: $(printf '%s' "$inst_v" | sed 's#^\([A-Za-z0-9+.-]*://\)[^@/]*@#\1#')"
