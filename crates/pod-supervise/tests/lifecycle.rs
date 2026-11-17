@@ -26,8 +26,9 @@ fn main() {
     steps::a_killed_launcher_leaves_a_dead_record(&s);
     steps::an_entry_that_fails_gives_its_text(&s);
     steps::a_run_with_rm_leaves_no_record_after_its_waiter(&s);
+    steps::a_link_at_the_log_or_the_lock_is_refused(&s);
     let _ = std::fs::remove_dir_all(&s.root);
-    println!("lifecycle: 6 steps passed");
+    println!("lifecycle: 7 steps passed");
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -205,5 +206,29 @@ mod steps {
         let gone = get::<Any>(s, "rm").expect_err("the record of a run with rm stays");
         assert_eq!(gone.class, pod_core::Class::NotFound);
         assert!(!dir.exists(), "the directory of a run with rm stays: {}", dir.display());
+    }
+
+    /// A link at the log or at the lock of a container is refused: the
+    /// output of the payload never goes to the target of a link, and the
+    /// target stays as it was (PodUtils/podvm#569).
+    pub fn a_link_at_the_log_or_the_lock_is_refused(s: &Settings) {
+        let target = s.root.join("outside-target");
+        for file in ["log", "lock"] {
+            std::fs::write(&target, "kept").unwrap();
+            let name = format!("link-{file}");
+            let c = made(s, &name, "echo leaked");
+            let dir = pod_supervise::table::dir(s, &c.id);
+            std::fs::create_dir_all(&dir).unwrap();
+            let _ = std::fs::remove_file(dir.join(file));
+            std::os::unix::fs::symlink(&target, dir.join(file)).unwrap();
+            let refused = start(s, &name, enter);
+            assert!(refused.is_err(), "a run with a link at its {file} started");
+            assert_eq!(
+                std::fs::read_to_string(&target).unwrap(),
+                "kept",
+                "the target of the link at the {file} changed"
+            );
+            let _ = remove::<Any>(s, &name, true);
+        }
     }
 }

@@ -60,7 +60,9 @@ impl Lock {
         // fork, and the child then holds the `flock` for its own life.
         // [`Lock::hand_to_payload`] is the one deliberate exception, made one
         // call before the `execve` that it is for.
-        let flags = sys::O_RDWR | sys::O_CREAT | sys::O_CLOEXEC;
+        // `O_NOFOLLOW`: a link at the path of a lock never sends the lock
+        // or its create to another file (PodUtils/podvm#569).
+        let flags = sys::O_RDWR | sys::O_CREAT | sys::O_CLOEXEC | sys::O_NOFOLLOW;
         sys::open(&c, flags, 0o644).map_err(|e| errno_failure("opening the lock", path, e))
     }
 

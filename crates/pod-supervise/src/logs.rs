@@ -143,7 +143,10 @@ fn terminal(state: State) -> bool {
 /// is an empty log (see [`logs`]); a shorter file sets the offset back.
 fn append_from(path: &Path, offset: u64, out: &mut dyn Write) -> Result<u64> {
     use std::io::{Read, Seek, SeekFrom};
-    let mut f = match std::fs::File::open(path) {
+    use std::os::unix::fs::OpenOptionsExt;
+    // A link at the log is not read: it could name any file of the user.
+    let opened = std::fs::OpenOptions::new().read(true).custom_flags(pod_hostprobe::sys::O_NOFOLLOW as i32).open(path);
+    let mut f = match opened {
         Ok(f) => f,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(offset),
         Err(e) => return Err(io_at(path, e)),

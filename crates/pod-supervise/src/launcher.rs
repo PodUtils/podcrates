@@ -175,11 +175,26 @@ where
 
     // The log opens here, before a root changes, and its descriptors go to
     // the payload.
+    // The directory of the container must be inside the containers, and
+    // the log is no link: a link there would send the output of the payload
+    // to its target (PodUtils/podvm#569).
+    if table::contained(s, &container.id).is_none() {
+        return Err(failure(
+            Class::Policy,
+            format!("the directory of {} is not inside the containers", container.name),
+        ));
+    }
     let log_path = table::log_path(s, &container.id);
     // Mode 0600: the log holds what the payload prints.
-    let log = std::fs::OpenOptions::new().create(true).append(true).mode(0o600).open(&log_path).map_err(|e| {
-        Failure::caused(Stage::Host, Class::of_io(e.kind()), format!("opening the container log: {e}"), e)
-    })?;
+    let log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .mode(0o600)
+        .custom_flags(sys::O_NOFOLLOW as i32)
+        .open(&log_path)
+        .map_err(|e| {
+            Failure::caused(Stage::Host, Class::of_io(e.kind()), format!("opening the container log: {e}"), e)
+        })?;
 
     // The ready pipe from the launcher to this process. `O_CLOEXEC` is
     // necessary: without it the payload gets the write end through its
