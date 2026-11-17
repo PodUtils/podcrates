@@ -433,10 +433,10 @@ fn spawn_pool_refresh(ctx: Context, relay: Relay, primary: String, trust: Trust)
     });
 }
 
-#[cfg(feature = "plain-ws")]
 #[path = "open_lines.rs"]
 mod lines;
 
+#[cfg(feature = "plain-ws")]
 #[path = "open_plain.rs"]
 mod plain;
 
