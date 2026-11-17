@@ -5288,3 +5288,57 @@ sh scripts/install/test.sh --case dryrun --case labs
 ## Done
 
 2026-11-17, a5609a8f6: `inst_proxy` prints one line for each distinct proxy. `inst_check_prefix` tries the prefix by `inst_try_prefix` (made, writable, runs a program); a default prefix (no `--prefix`) whose test program does not run gives way to `~/.local/bin`, then `~/bin`, with the line `FIRST cannot run programs (WHY): the install goes to DIR`; a directory that the try made and cannot use goes again; where none runs programs, and for each prefix of `--prefix`, the refusal stays as before and names `--prefix DIR`. Tests in `scripts/install/test.sh`: the dry run with `http_proxy` and `https_proxy` on one proxy has its line once; in the lab `noexec-tmp`, `XDG_BIN_HOME=/tmp/podlab-bin` gives way to `~/.local/bin`, which holds the program. Each of the two fails on the installer before the change (run by hand). `sh scripts/install/test.sh --case dryrun --case labs --case proxy --case first --case pins` passed (shellcheck: not on this host, CI runs it). podnet takes the new copy of `core.sh` and `core-net.sh` at the tag.
+
+# T-899: `pod-hostprobe`: rows of a network namespace with a veth, a write of another process's memory, and the binds of AF_UNIX, abstract, VSOCK and NETLINK sockets (PodUtils/podnet#652)
+
+**Source:** PodUtils/podnet#652 (COORD-105 of podnet; ask 3 of #221).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet's doctors (PodUtils/podnet:crates/podnet-netns/src/doctor.rs, PodUtils/podnet:crates/podnet-vnet/src/doctor.rs) probe these themselves. T-866 added `clone(CLONE_NEWUSER|NEWNET)` and `process_vm_writev(own pid)`.
+
+## Premise
+
+- Read: PodUtils/podnet#652.
+
+## Approach
+
+Rows: `unshare(CLONE_NEWNET)+veth` (in a user namespace), `write(/proc/CHILD/mem)` and `process_vm_writev(child pid)` of a child, and the binds of AF_UNIX (path), abstract, VSOCK and NETLINK sockets. The schema of the report names them. podnet reads the rows.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features
+```
+
+# T-900: The installer core: more downloaders, or a ruling, and the newest tag with an optional token (PodUtils/podnet#652)
+
+**Source:** PodUtils/podnet#652 (COORD-105 of podnet; ask 3 of #221).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet's PodUtils/podnet:scripts/install.sh has its own downloaders (aria2c, httpie, python, perl) and finds the newest tag through the GitHub API or `releases.atom`; the core of podcrates has curl, wget, python3 and busybox, and takes a version.
+
+## Premise
+
+- Read: PodUtils/podnet#652.
+
+## Approach
+
+Decide the downloaders (a call: curl, wget, python3 and busybox cover the hosts of the labs; or add the others), and add a lookup of the newest tag (`releases.atom`, then the API with an optional token from the environment, never in argv), tested in the labs.
+
+## Prove
+
+```sh
+sh scripts/install/test.sh
+```

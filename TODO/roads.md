@@ -1844,3 +1844,30 @@ cargo test -p pod-ws --all-features --test h2_road
 ## Done
 
 2026-11-17, 4473c58f0, 0f7c155f8: each `Conn` of the pool keeps the id of the runtime that drives it (`tokio::runtime::Handle::id`, stable); `Pool::place` gives a session a kept connection only of the caller's runtime, and a connection whose task ended (also with its runtime) counts as retired, so it leaves the pool. What the pool knows of a host (it takes HTTP/1.1) stays shared by each runtime. Test `a_session_takes_only_a_connection_of_its_own_runtime` (`crates/pod-ws/tests/h2_road/runtimes.rs`): a stand-in on a third runtime; a session of runtime A and one of runtime B each open a TLS connection; A drops; B's session carries 64 KiB each way, and a second session of B shares B's connection (two TLS connections in all). The tests of `h2_road` pass. Plant `ws-h2-pool-across-runtimes` (a session takes a connection of any runtime), caught.
+
+# T-901: `pod-ws`: a request of the upgrade with no token header, for a probe (PodUtils/podnet#652)
+
+**Source:** PodUtils/podnet#652 (COORD-105 of podnet; ask 3 of #221).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet's doctor (PodUtils/podnet:src/doctor/lane_probes.rs) builds its own WebSocket upgrade: `build_request*` of `pod-ws` always writes the token header.
+
+## Premise
+
+- Read: PodUtils/podnet#652.
+
+## Approach
+
+A form of `build_request` with no token (an `Option` of the token), for a probe; a test that the request has no `X-Relay-Token`. podnet drops its builder.
+
+## Prove
+
+```sh
+cargo test -p pod-ws --all-features handshake
+```

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**728 entries: 131 open, 21 partial, 7 blocked, 569 done.**
+**734 entries: 137 open, 21 partial, 7 blocked, 569 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 161 | 179 |
-| P2 | 58 | 3 | 4 | 293 | 358 |
-| P3 | 63 | 10 | 3 | 113 | 189 |
-| **All** | 131 | 21 | 7 | 569 | 728 |
+| P2 | 61 | 3 | 4 | 293 | 361 |
+| P3 | 66 | 10 | 3 | 113 | 192 |
+| **All** | 137 | 21 | 7 | 569 | 734 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -775,3 +775,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-893](podvm.md) | P1 | S | M6 | defect | done | `pod-guest`: QEMU starts in its own process group with no `PR_SET_PDEATHSIG` (PodUtils/podvm#569) |
 | [T-894](podvm.md) | P2 | S | M6 | defect | done | `pod-oci`: a wanted platform variant matches an entry with no variant (PodUtils/podvm#569) |
 | [T-895](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: a hard link to a later member says "already extracted" (PodUtils/podvm#569) |
+| [T-896](foundation.md) | P2 | S | M3 | feature | open | `pod-proxy`: the handshake of SOCKS5 and of CONNECT on a stream that the caller holds (a hop of a chain) (PodUtils/podnet#652) |
+| [T-897](foundation.md) | P2 | M | M3 | feature | open | `pod-proxy`: the server checks a user and a password by a callback; one SOCKS server for podnet and podssh (PodUtils/podnet#652) |
+| [T-898](foundation.md) | P3 | S | M3 | feature | open | `pod-dns`: an answer with an RCODE that copies the flags of the request (PodUtils/podnet#652) |
+| [T-899](fleet.md) | P2 | M | M3 | feature | open | `pod-hostprobe`: rows of a network namespace with a veth, a write of another process's memory, and the binds of AF_UNIX, abstract, VSOCK and NETLINK sockets (PodUtils/podnet#652) |
+| [T-900](fleet.md) | P3 | S | M3 | feature | open | The installer core: more downloaders, or a ruling, and the newest tag with an optional token (PodUtils/podnet#652) |
+| [T-901](roads.md) | P3 | S | M3 | feature | open | `pod-ws`: a request of the upgrade with no token header, for a probe (PodUtils/podnet#652) |

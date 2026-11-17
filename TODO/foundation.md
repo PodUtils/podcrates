@@ -2297,3 +2297,84 @@ One module (in `pod-core` or a small crate) with the bounds of a head (size, lin
 ```sh
 cargo test --workspace --all-features
 ```
+
+# T-896: `pod-proxy`: the handshake of SOCKS5 and of CONNECT on a stream that the caller holds (a hop of a chain) (PodUtils/podnet#652)
+
+**Source:** PodUtils/podnet#652 (COORD-105 of podnet; ask 3 of #221).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet's PodUtils/podnet:crates/podnet-netns/src/upstream.rs and PodUtils/podnet:src/link_chain.rs do the SOCKS5 and CONNECT handshakes of each hop of a chain themselves: `socks5::connect` and `connect::connect_via` of `pod-proxy` are `pub(crate)`.
+
+## Premise
+
+- Read: PodUtils/podnet#652.
+
+## Approach
+
+A public call for each handshake on a stream of the caller (`socks5::handshake(stream, target, credentials)`, `connect::handshake(stream, target, auth)`), with the bounds and the masked refusals of the crate. The order of the hops stays the caller's. podnet drops its copies.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features
+```
+
+# T-897: `pod-proxy`: the server checks a user and a password by a callback; one SOCKS server for podnet and podssh (PodUtils/podnet#652)
+
+**Source:** PodUtils/podnet#652 (COORD-105 of podnet; ask 3 of #221).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet's PodUtils/podnet:crates/podnet-netns/src/socks.rs (the SOCKS5 and HTTP proxy server of the front doors) and podssh's PodUtils/podssh:crates/podssh-ssh/src/socks.rs (SOCKS4 and 5) are two servers beside `pod-proxy`'s `serve`, which takes only a fixed `Credentials` value.
+
+## Premise
+
+- Read: PodUtils/podnet#652.
+
+## Approach
+
+`serve` takes a check of the user and the password by a callback (podnet's `CheckUser`), and SOCKS4 where podssh needs it; the trials of podnet and podssh; both drop their servers.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features
+```
+
+# T-898: `pod-dns`: an answer with an RCODE that copies the flags of the request (PodUtils/podnet#652)
+
+**Source:** PodUtils/podnet#652 (COORD-105 of podnet; ask 3 of #221).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet's fake DNS (PodUtils/podnet:crates/podnet-netns/src/dns.rs) writes its own SERVFAIL and NXDOMAIN answers: `txt::answer` of `pod-dns` cannot give an RCODE.
+
+## Premise
+
+- Read: PodUtils/podnet#652.
+
+## Approach
+
+`wire::answer_rcode(request, rcode)` (and a form of `txt::answer` with an RCODE) that copies the id, the question and the flags of the request, as RFC 1035 asks. podnet drops its writer.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features
+```
