@@ -2199,7 +2199,7 @@ cargo test -p pod-cloudflare -p pod-services --all-features
 **Milestone:** M3
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2223,3 +2223,8 @@ grep -rn 'cloudflare::Protocol\|fn resolved\|fn candidates' crates/pod-cloudflar
 cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings
 cargo test -p pod-cloudflare --all-features
 ```
+
+## Done
+
+2026-11-17, b03940f88: `config::Protocol` is the one type of the edge protocol, with `parse` and now `as_str` (the name, as cloudflared writes it). `cloudflare::Protocol` (with its `candidates`) and `config::Protocol::resolved` are gone: no caller in the crate, and a search of the code of PodUtils on GitHub found none (podssh's own `resolved` and `candidates` are of other types). The test `config::tests::protocols_parse_the_way_cloudflared_spells_them` replaces the two tests of the removed type, and checks that `parse(as_str())` gives the value back. The Prove grep finds nothing; clippy and the tests of `pod-cloudflare` pass. The notes of the next release name the removal.
+
