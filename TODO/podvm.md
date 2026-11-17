@@ -9783,7 +9783,7 @@ cargo test -p pod-supervise --all-features
 
 ## Done
 
-2026-11-17, 2b7acb6a3, 217c00611: the write of the table makes its temp file under a name that no sweep reads (`.partial.new`), takes its exclusive `flock`, and only then names it `.partial` (`create_locked`): a sweep of the staging directory never sees it unlocked, and the lock holds until the rename. A rename whose temp file went anyway starts the write again with a new file (8 tries). The launcher writes the end of a run with 5 tries, 200 ms apart (`record_end`); where each fails, it writes `end.json` beside the record (`end_note`), and `reconcile` gives a gone launcher's record that exit code and end in place of `Dead`. Tests: `the_temp_file_of_a_write_is_locked`; `a_sweep_never_takes_the_temp_file_of_a_write` (a thread that deletes each `.partial` whose lock it gets, beside 200 writes: it takes none, and each write lands); `the_reconcile_reads_the_end_that_a_launcher_left_beside_the_record`. Not tested: the tries of `record_end` (no failure of the table can be made for a test as root). Plant `supervise-table-temp-unlocked` (no lock), caught.
+2026-11-17, 2b7acb6a3, 217c00611: the write of the table makes its temp file under a name that no sweep reads (`.partial.new`), takes its exclusive `flock`, and only then names it `.partial` (`create_locked`): a sweep of the staging directory never sees it unlocked, and the lock holds until the rename. A rename whose temp file went anyway starts the write again with a new file (8 tries). The launcher writes the end of a run with 5 tries, 200 ms apart (`record_end`); where each fails, it writes `end.json` beside the record (`end_note`), and `reconcile` gives a gone launcher's record that exit code and end in place of `Dead`. Tests: `the_temp_file_of_a_write_is_locked`; `a_sweep_never_takes_the_temp_file_of_a_write` (`tests/sweep.rs`, 00757e62c; a thread that deletes each `.partial` whose lock it gets, beside 200 writes: it takes none, and each write lands); `the_reconcile_reads_the_end_that_a_launcher_left_beside_the_record`. Not tested: the tries of `record_end` (no failure of the table can be made for a test as root). Plant `supervise-table-temp-unlocked` (no lock), caught.
 
 # T-873: `pod-hostprobe`: the probe file of `probe_dir_exec` has a name that two processes of two PID namespaces share (PodUtils/podvm#568)
 
@@ -9854,7 +9854,7 @@ cargo test -p pod-oci --all-features credentials
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9873,6 +9873,10 @@ A field `rm` of the detached record. After the end is written and each waiter ha
 ```sh
 cargo test -p pod-supervise --all-features
 ```
+
+## Done
+
+2026-11-17, 184f2dc62, 4536f72df: `Container::rm` (`serde(default)`, left out of the file when false, so a table of the form before reads) and `pod_supervise::auto_remove(s, want)`, which sets it on a record that is not running (a running one is a refusal: set it before the start). After the end of a detached run, the launcher writes the end, answers each waiter with `exit CODE`, reads `rm` from the record again, and removes the record and the directory of the container. Test: the lifecycle step `a_run_with_rm_leaves_no_record_after_its_waiter` (a waiter gets 4, then `get` is `NotFound` and the directory is gone); the tests of `pod-supervise` pass. Plant `supervise-rm-keeps-the-record`, caught. podvm can drop its refusal of `-d --rm` with the take.
 
 # T-876: `pod-enter`: a volume whose source a link cannot redirect between the check of the caller and the bind (PodUtils/podvm#568)
 

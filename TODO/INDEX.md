@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**709 entries: 129 open, 21 partial, 7 blocked, 552 done.**
+**709 entries: 128 open, 21 partial, 7 blocked, 553 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 155 | 173 |
-| P2 | 57 | 3 | 4 | 284 | 348 |
+| P2 | 56 | 3 | 4 | 285 | 348 |
 | P3 | 62 | 10 | 3 | 111 | 186 |
-| **All** | 129 | 21 | 7 | 552 | 709 |
+| **All** | 128 | 21 | 7 | 553 | 709 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -754,5 +754,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-872](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise`: the temp file of the table of containers keeps no lock, so a sweep of another process deletes it before its rename (PodUtils/podvm#568) |
 | [T-873](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`: the probe file of `probe_dir_exec` has a name that two processes of two PID namespaces share (PodUtils/podvm#568) |
 | [T-874](podvm.md) | P2 | S | M6 | defect | done | `pod-oci`: a credential helper gets `ServerURL` `https://HOST/v2/`, not the key of the configuration (PodUtils/podvm#568) |
-| [T-875](podvm.md) | P2 | S | M6 | feature | open | `pod-supervise`: `run -d --rm` keeps the record and the tree after the end (PodUtils/podvm#568) |
+| [T-875](podvm.md) | P2 | S | M6 | feature | done | `pod-supervise`: `run -d --rm` keeps the record and the tree after the end (PodUtils/podvm#568) |
 | [T-876](podvm.md) | P2 | M | M6 | feature | open | `pod-enter`: a volume whose source a link cannot redirect between the check of the caller and the bind (PodUtils/podvm#568) |
