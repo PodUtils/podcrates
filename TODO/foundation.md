@@ -2251,7 +2251,7 @@ cargo test -p pod-release --all-features
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2270,6 +2270,14 @@ podrunner (PodUtils/podrunner:crates/podrunner-egress/src/dns.rs `resolver_via`,
 ```sh
 cargo test -p pod-tls --all-features env_bundle
 ```
+
+## Correction
+
+No `Settings::from_env`: the caller decides whether the file of the environment is its CA file used alone or a bundle that adds, as podrunner and podvm each do now.
+
+## Done
+
+2026-11-17, 6c57a754c, 5e550216f: `pod_tls::env_bundle(get)` reads `BUNDLE_VARS` (`SSL_CERT_FILE`, `CURL_CA_BUNDLE`, `REQUESTS_CA_BUNDLE`, `NODE_EXTRA_CA_CERTS`, `GIT_SSL_CAINFO`, `AWS_CA_BUNDLE`) in that order through the caller's `get`, and gives the first that names a file which opens for read (`EnvBundle { var, path }`) and each set variable before it that was passed over, with why (`Passed`: empty, not a file, not readable); a variable after the one taken is not read. Test `the_first_readable_bundle_of_the_order_is_taken`; clippy with the features of a synchronous consumer. Plant `tls-env-bundle-takes-a-directory`, caught. podrunner (`exec/proxy.rs`, `podrunner-egress/src/dns.rs`) and podvm (`podvm-image` `host_bundle_bytes`) replace their lists at their take.
 
 # T-882: One reader and writer of an HTTP/1.1 head, in place of the copies in podrunner and in five crates
 

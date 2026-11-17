@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**737 entries: 136 open, 21 partial, 7 blocked, 573 done.**
+**737 entries: 135 open, 21 partial, 7 blocked, 574 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 161 | 179 |
-| P2 | 60 | 3 | 4 | 296 | 363 |
+| P2 | 59 | 3 | 4 | 297 | 363 |
 | P3 | 66 | 10 | 3 | 114 | 193 |
-| **All** | 136 | 21 | 7 | 573 | 737 |
+| **All** | 135 | 21 | 7 | 574 | 737 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -760,7 +760,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-878](foundation.md) | P2 | S | M0 | feature | done | `pod-core`: one injectable clock, in place of the copies of podrunner and of three crates |
 | [T-879](foundation.md) | P2 | M | M0 | feature | open | `pod-detach`: the detach of a command by a re-exec, from podnet, in place of podssh's near copy |
 | [T-880](foundation.md) | P2 | M | M0 | feature | open | `pod-release`: the self-update of a binary (fetch, verify, replace, trial run), from podnet and podssh |
-| [T-881](foundation.md) | P2 | S | M0 | feature | open | `pod-tls`: the CA bundle that the environment names, in place of three lists in the consumers |
+| [T-881](foundation.md) | P2 | S | M0 | feature | done | `pod-tls`: the CA bundle that the environment names, in place of three lists in the consumers |
 | [T-882](foundation.md) | P3 | M | M0 | chore | open | One reader and writer of an HTTP/1.1 head, in place of the copies in podrunner and in five crates |
 | [T-883](fleet.md) | P2 | S | M0 | defect | done | the installer core: one proxy line for one proxy, and a default prefix on a noexec mount (PodUtils/podnet#650) |
 | [T-884](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: SIGHUP is not blocked and forwarded to the payload (PodUtils/podvm#569) |
