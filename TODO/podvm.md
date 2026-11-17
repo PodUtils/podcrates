@@ -10218,7 +10218,7 @@ cargo test -p pod-guest --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10237,6 +10237,14 @@ A strict match of the variant, with the fallback of docker only where it holds (
 ```sh
 cargo test -p pod-oci --all-features spec
 ```
+
+## Correction
+
+The Approach (a strict match) is not taken: docker and podman take a lower variant and no variant for a wanted one, as a CPU of a variant runs them (call C778).
+
+## Done
+
+2026-11-17, 7c4049e02, 066d4cb80: `select_platform` ranks each entry of the wanted OS and architecture by `ranked(arch, want)`, containerd's order (amd64 `v3`: `v3`, `v2`, `v1`, no variant; arm `v7`: `v7`, `v6`, `v5`, no variant; arm64: the wanted, `v8`, no variant), and takes the best, the first in the index where two rank the same; a variant above the wanted one is never taken, and an ask with no variant takes the first entry. Before, a wanted `v3` took no `v2` entry and took the first entry with no variant. `linux/amd64/v3` still resolves to `linux/amd64` where the index has no `v3` or `v2`: the platform of the manifest says so, and podvm records it. Test `a_wanted_variant_takes_the_best_compatible_entry` (a table of amd64, arm and arm64); the tests of `pod-oci` pass. Plant `oci-variant-loose-match`, caught.
 
 # T-895: `pod-extract`: a hard link to a later member says "already extracted" (PodUtils/podvm#569)
 
