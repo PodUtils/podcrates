@@ -1,0 +1,6 @@
+# pod-ws: a session of one runtime takes a pooled connection that another runtime drives (T-871).
+ENTRY=T-871
+GROUP=ws
+EXPECT='B takes no connection of A'
+RUN='cargo test -p pod-ws --all-features --test h2_road a_session_takes_only_a_connection_of_its_own_runtime'
+LIMIT=1800

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-ws/src/h2_road/pool.rs b/crates/pod-ws/src/h2_road/pool.rs
+--- a/crates/pod-ws/src/h2_road/pool.rs
++++ b/crates/pod-ws/src/h2_road/pool.rs
+@@ -308,7 +308,7 @@ impl Pool {
+         state.lacks = None;
+         state.conns.retain(|c| !c.retired());
+         let here = runtime();
+-        if let Some(conn) = state.conns.iter().find(|c| c.serial > after && c.runtime == here && c.room()) {
++        if let Some(conn) = state.conns.iter().find(|c| c.serial > after && c.room()) {
+             let (place, shared) = conn.take();
+             return Ok(Got::Place { conn: conn.clone(), place, shared });
+         }
