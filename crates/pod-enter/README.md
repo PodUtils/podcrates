@@ -504,6 +504,7 @@ host root before that, the payload with the ids stays 0.
 in CI and fails on a skip. The plants `enter-userns-not-tried`,
 `enter-userns-no-maps`, `enter-userns-banner-twice`,
 `enter-userns-dev-bind-over-link`, `enter-userns-dev-no-remount`,
+`enter-userns-no-own-devpts`,
 `enter-volume-skipped`, `enter-volume-ro-writable`,
 `enter-volume-flags-dropped`, `enter-volume-through-a-link`,
 `enter-confine-volume-in-the-image`,

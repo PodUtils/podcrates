@@ -1,0 +1,30 @@
+diff --git a/crates/pod-enter/src/ns_dev_bind.rs b/crates/pod-enter/src/ns_dev_bind.rs
+index 6310ab4..c788bb2 100644
+--- a/crates/pod-enter/src/ns_dev_bind.rs
++++ b/crates/pod-enter/src/ns_dev_bind.rs
+@@ -311,7 +311,7 @@ pub(crate) fn bind_each(devices: &Devices, own_pts: bool) {
+     for line in &devices.skipped {
+         let _ = sys::write(2, line);
+     }
+-    let ptmx = devices.ptmx.as_ref().map(|p| if own_pts { &p.own } else { &p.host });
++    let ptmx = devices.ptmx.as_ref().filter(|_| false).map(|p| if own_pts { &p.own } else { &p.host });
+     if let Some(Err(line)) = ptmx {
+         let _ = sys::write(2, line);
+     }
+diff --git a/crates/pod-enter/src/ns_optional.rs b/crates/pod-enter/src/ns_optional.rs
+index 3f3eaf1..2ebe6f4 100644
+--- a/crates/pod-enter/src/ns_optional.rs
++++ b/crates/pod-enter/src/ns_optional.rs
+@@ -99,12 +99,6 @@ pub(crate) fn mount_each(ns: &crate::entry::NsMount) {
+     let user = ns.user.is_some();
+     let mut own_pts = false;
+     for m in &ns.optional {
+-        if let Some(n) = m.devpts.as_ref().filter(|_| user)
+-            && n.mount(&m.target).is_ok()
+-        {
+-            own_pts = true;
+-            continue;
+-        }
+         let Err(e) = sys::mount(&m.source, &m.target, &m.fstype, m.flags) else { continue };
+         if user && e == sys::EPERM && !matches!(m.fallback, Fallback::None) {
+             crate::ns_proc_bind::bind(&m.fallback, &m.target);
