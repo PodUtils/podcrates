@@ -5342,3 +5342,34 @@ Decide the downloaders (a call: curl, wget, python3 and busybox cover the hosts 
 ```sh
 sh scripts/install/test.sh
 ```
+
+# T-902: `pod-actions-store`: `Lock::parse` keeps a digest in uppercase, and each fetch then fails (PodUtils/podrunner#288)
+
+**Source:** PodUtils/podrunner#288 (COORD-082 of podrunner; PodUtils/podrunner#284).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`Lock::parse` accepts a digest in uppercase hex and keeps the text as written; the store compares it with the lowercase SHA-256 of the tarball, so each action of such a lock fails with "the tarball's SHA-256 differs". The same holds for the digest of a `docker://` line.
+
+## Premise
+
+- Read: PodUtils/podrunner#288; `crates/pod-actions-store/src/lock.rs`.
+
+## Approach
+
+Lowercase each digest in `parse`, as the commit is. A test: a line in uppercase gives the same pin as in lowercase.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-store --all-features --lib lock
+```
+
+## Done
+
+2026-11-17, 02d77fd97, 4a1dd17b8: `Lock::parse` keeps each digest of a pin and of a `docker://` line in lowercase. Test `a_digest_in_uppercase_is_the_same_pin`; the tests of `lock` pass. Plant `actions-store-digest-case-kept`, caught.
