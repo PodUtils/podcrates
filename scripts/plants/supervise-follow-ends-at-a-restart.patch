@@ -1,0 +1,13 @@
+diff --git a/crates/pod-supervise/src/logs.rs b/crates/pod-supervise/src/logs.rs
+--- a/crates/pod-supervise/src/logs.rs
++++ b/crates/pod-supervise/src/logs.rs
+@@ -72,7 +72,8 @@ where
+ /// `now`: an end state and the same start. A new start, or a state that is
+ /// not an end, is a restart.
+ pub(crate) fn ended_for_good<X>(seen: &Container<X>, now: &Container<X>) -> bool {
+-    terminal(now.state) && now.started_at == seen.started_at && now.finished_at == seen.finished_at
++    let _ = seen;
++    terminal(now.state)
+ }
+ 
+ /// The byte offset where the last `n` lines of `bytes` start.

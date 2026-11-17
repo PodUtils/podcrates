@@ -1,0 +1,6 @@
+# pod-supervise: logs -f ends at each Exited, also the one between the stop and the start of a restart (T-887).
+ENTRY=T-887
+GROUP=supervise
+EXPECT='a run that started and ended again'
+RUN='cargo test -p pod-supervise --all-features --lib tests::a_restart_does_not_end_the_follow'
+LIMIT=900
