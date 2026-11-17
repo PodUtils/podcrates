@@ -1,0 +1,12 @@
+diff --git a/crates/pod-relay/src/open_lines.rs b/crates/pod-relay/src/open_lines.rs
+--- a/crates/pod-relay/src/open_lines.rs
++++ b/crates/pod-relay/src/open_lines.rs
+@@ -27,7 +27,7 @@ impl OpenError {
+                     }
+                     ConnectError::Refused { status: 502, body } => {
+                         return vec![match unreachable_cause(body, target) {
+-                            Some(cause) => format!("the relay could not reach {target}: {cause}"),
++                            Some(_) => format!("the relay could not reach {target}: {body}"),
+                             None => format!("the relay could not reach {target} (HTTP 502)"),
+                         }];
+                     }

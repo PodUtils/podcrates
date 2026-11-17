@@ -1,0 +1,6 @@
+# A relay's 502 is one line that names its target once (T-869).
+ENTRY=T-869
+GROUP=relay
+EXPECT='a_refusal_says_its_cause_once'
+RUN='cargo test -p pod-relay --all-features --lib open::tests'
+LIMIT=1800

@@ -9946,7 +9946,7 @@ cargo test -p pod-relay --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9965,3 +9965,7 @@ A refusal of the policy is one line: `the relay's policy does not allow T (HTTP 
 ```sh
 cargo test -p pod-relay --all-features --lib open::tests
 ```
+
+## Done
+
+2026-11-17, d57ddb75a: `OpenError::lines` (now in `crates/pod-relay/src/open_lines.rs`) gives one line for a refusal of the policy, `the relay's policy does not allow T (HTTP S)`, and one line for a `502`, `the relay could not reach T: CAUSE`, where CAUSE is the relay's words (one line, by `pod_core::text::one_line`) with each leading `relay:`, `cannot reach`, T and `:` taken out; `(HTTP 502)` when nothing is left. A token of the environment that the relay rejected and a proxy's refusal keep their second line, as each adds a fact. Test: `a_refusal_says_its_cause_once` in `crates/pod-relay/src/open_tests.rs` (the line of each refusal, and two lines for the token). The tests of `pod-relay` pass. Plant `relay-refusal-says-its-cause-twice` (the relay's whole words after the target), caught.
