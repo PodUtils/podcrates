@@ -103,8 +103,7 @@ pub fn lookup_in(docker_config: &Path, containers_auth: &Path, host: &str) -> Re
     // The helper comes before the files: a file that names a helper for
     // this host gives the trust to it, and the files beside it do not win.
     if let Some(name) = helper_for(docker_config, containers_auth, host) {
-        let server = format!("https://{host}/v2/");
-        return helper_login(&name, &server).map(Some);
+        return helper_login(&name, &helper_server(host)).map(Some);
     }
     if let Some(cred) = read_auth_file(containers_auth).get(host).cloned() {
         return Ok(Some(cred));
@@ -178,7 +177,9 @@ fn helper_for(docker_config: &Path, containers_auth: &Path, host: &str) -> Optio
         let Ok(doc) = serde_json::from_str::<serde_json::Value>(&text) else {
             continue;
         };
-        if let Some(name) = doc.get("credHelpers").and_then(|h| h.get(host)).and_then(|h| h.as_str()) {
+        let helpers = doc.get("credHelpers");
+        let named = |key: &str| helpers.and_then(|h| h.get(key)).and_then(|h| h.as_str());
+        if let Some(name) = named(host).or_else(|| is_hub(host).then(|| named(HUB_HOST)).flatten()) {
             return Some(name.into());
         }
         if let Some(name) = doc.get("credsStore").and_then(|h| h.as_str()) {
@@ -203,8 +204,7 @@ pub fn store_login_in(
     // host gets no file entry beside it. Nothing is written unless the
     // helper answers.
     if let Some(name) = helper_for(docker_config, containers_auth, host) {
-        let server_url = format!("https://{host}/v2/");
-        return helper_store(&name, &server_url, username, password);
+        return helper_store(&name, &helper_server(host), username, password);
     }
     // One home: the file that holds this host wins, else docker's.
     let target = if read_auth_file(containers_auth).contains_key(host) { containers_auth } else { docker_config };
@@ -227,8 +227,7 @@ pub fn remove_login_in(docker_config: &Path, containers_auth: &Path, server: &st
     // The helper first, as for the read and the store: a file entry beside
     // a named helper does not decide the logout.
     if let Some(name) = helper_for(docker_config, containers_auth, host) {
-        let server_url = format!("https://{host}/v2/");
-        helper_erase(&name, &server_url)?;
+        helper_erase(&name, &helper_server(host))?;
         return Ok(true);
     }
     // One home, in the order of the read: the containers file wins where
@@ -294,6 +293,26 @@ pub fn upsert_auth_json(text: &str, server: &str, username: &str, password: &str
     }
     doc["auths"][server]["auth"] = serde_json::Value::String(encoded);
     serde_json::to_string(&doc).unwrap_or_default()
+}
+
+/// The name of Docker Hub in the files of docker (`ConvertToHostname`).
+const HUB_HOST: &str = "index.docker.io";
+
+/// The server of Docker Hub that docker gives a credential helper.
+pub const HUB_SERVER: &str = "https://index.docker.io/v1/";
+
+/// Whether `host` names Docker Hub.
+fn is_hub(host: &str) -> bool {
+    host == crate::reference::DEFAULT_DOMAIN
+        || host == crate::reference::DEFAULT_ENDPOINT
+        || crate::reference::HUB_ALIASES.contains(&host)
+}
+
+/// The `ServerURL` that a credential helper gets for `host`, as docker and
+/// podman give it: the host, or [`HUB_SERVER`] for Docker Hub. A helper
+/// keys its logins on that value (PodUtils/podvm#568).
+pub fn helper_server(host: &str) -> String {
+    if is_hub(host) { HUB_SERVER.to_string() } else { host.to_string() }
 }
 
 /// The key of a server as the user names it, with no scheme and no path:

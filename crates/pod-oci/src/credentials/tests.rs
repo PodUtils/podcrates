@@ -303,3 +303,30 @@ fn a_refusal_of_a_helper_has_its_stage_and_class() {
     let err = helper_login("pod-oci-no-such-helper-xyz", "https://x/v2/").expect_err("a missing helper fails");
     assert_eq!((err.stage, err.class), (pod_core::Stage::Host, pod_core::Class::Unavailable));
 }
+
+/// A helper gets the key of docker and podman: the host, or the server of
+/// Docker Hub for each of its names; never the `/v2/` URL of the API.
+#[test]
+fn a_helper_gets_the_server_key_of_docker() {
+    assert_eq!(helper_server("registry.example:5000"), "registry.example:5000");
+    assert_eq!(helper_server("ghcr.io"), "ghcr.io");
+    for hub in ["docker.io", "index.docker.io", "registry-1.docker.io"] {
+        assert_eq!(helper_server(hub), "https://index.docker.io/v1/", "{hub}");
+    }
+    assert_eq!(helper_server(server_host("https://index.docker.io/v1/")), HUB_SERVER);
+}
+
+/// `credHelpers` names Docker Hub by `index.docker.io`, as docker writes it:
+/// each name of the hub finds that helper.
+#[test]
+fn the_helper_of_docker_hub_is_found_by_each_of_its_names() {
+    let dir = std::env::temp_dir().join(format!("pod-oci-hub-helper-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let docker = dir.join("config.json");
+    std::fs::write(&docker, r#"{"credHelpers":{"index.docker.io":"hub-helper"}}"#).unwrap();
+    for host in ["docker.io", "index.docker.io", "registry-1.docker.io"] {
+        assert_eq!(helper_for(&docker, &dir.join("none.json"), host).as_deref(), Some("hub-helper"), "{host}");
+    }
+    assert_eq!(helper_for(&docker, &dir.join("none.json"), "ghcr.io"), None);
+    let _ = std::fs::remove_dir_all(&dir);
+}
