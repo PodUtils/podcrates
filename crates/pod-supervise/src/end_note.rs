@@ -17,17 +17,12 @@ pub struct Note {
     pub end: Option<End>,
 }
 
-/// Write the end of the run of `id` beside its record. Mode 0600, a new
-/// file and a rename, as the table.
+/// Write the end of the run of `id` beside its record: mode 0600, by the
+/// durable replace of `pod-core`.
 pub fn write(s: &Settings, id: &str, note: &Note) -> std::io::Result<()> {
-    use std::os::unix::fs::OpenOptionsExt;
-    let dir = crate::table::dir(s, id);
-    let tmp = dir.join(format!("{END_FILE}.{}.partial", std::process::id()));
-    let _ = std::fs::remove_file(&tmp);
     let bytes = serde_json::to_vec(note).map_err(std::io::Error::other)?;
-    let mut file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&tmp)?;
-    std::io::Write::write_all(&mut file, &bytes).and_then(|()| file.sync_all())?;
-    std::fs::rename(&tmp, dir.join(END_FILE))
+    let path = crate::table::dir(s, id).join(END_FILE);
+    pod_core::files::replace_private(&path, &bytes, 0o600, false).map(drop)
 }
 
 /// The end of the run of `id`, where its launcher left one; the file goes.
