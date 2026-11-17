@@ -97,51 +97,6 @@ pub const RPC_STREAM_SIGNATURE: [u8; 6] = [0x52, 0xBB, 0x82, 0x5C, 0xDB, 0x65];
 /// The protocol version that follows the data-stream signature.
 pub const DATA_STREAM_VERSION: &[u8] = b"01";
 
-/// Which edge transport to use.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Protocol {
-    /// Try QUIC. When QUIC does not connect, use HTTP/2.
-    Auto,
-    /// QUIC only. It needs UDP.
-    Quic,
-    /// HTTP/2 only. It uses TCP, so it works where UDP is blocked.
-    Http2,
-}
-
-impl Protocol {
-    /// Parse a value of `--protocol`, as cloudflared accepts it.
-    pub fn parse(s: &str) -> Result<Protocol, Failure> {
-        match s.to_ascii_lowercase().as_str() {
-            "auto" | "" => Ok(Protocol::Auto),
-            "quic" => Ok(Protocol::Quic),
-            "http2" | "h2" => Ok(Protocol::Http2),
-            other => Err(Failure::new(
-                Stage::Host,
-                Class::Usage,
-                format!("unknown protocol {other:?}; expected auto, quic or http2"),
-            )),
-        }
-    }
-
-    /// The name, as cloudflared writes it.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Protocol::Auto => "auto",
-            Protocol::Quic => "quic",
-            Protocol::Http2 => "http2",
-        }
-    }
-
-    /// The transports to try, in order.
-    pub fn candidates(&self) -> Vec<Protocol> {
-        match self {
-            Protocol::Auto => vec![Protocol::Quic, Protocol::Http2],
-            Protocol::Quic => vec![Protocol::Quic],
-            Protocol::Http2 => vec![Protocol::Http2],
-        }
-    }
-}
-
 /// The IP version of an edge address.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EdgeIpVersion {
@@ -318,25 +273,6 @@ mod tests {
         // From tunnelrpc/quic/protocol.go: dataStreamProtocolSignature.
         assert_eq!(DATA_STREAM_SIGNATURE, [0x0A, 0x36, 0xCD, 0x12, 0xA1, 0x3E]);
         assert_eq!(DATA_STREAM_VERSION, b"01");
-    }
-
-    #[test]
-    fn protocols_parse_the_way_cloudflared_spells_them() {
-        assert_eq!(Protocol::parse("auto").unwrap(), Protocol::Auto);
-        assert_eq!(Protocol::parse("QUIC").unwrap(), Protocol::Quic);
-        assert_eq!(Protocol::parse("http2").unwrap(), Protocol::Http2);
-        assert_eq!(Protocol::parse("h2").unwrap(), Protocol::Http2);
-        assert_eq!(Protocol::parse("").unwrap(), Protocol::Auto);
-        assert!(Protocol::parse("carrier-pigeon").is_err());
-    }
-
-    #[test]
-    fn auto_tries_quic_first_then_falls_back_to_http2() {
-        // QUIC first, because it is faster where it works. HTTP/2 second,
-        // because it is the only option when UDP is blocked.
-        assert_eq!(Protocol::Auto.candidates(), vec![Protocol::Quic, Protocol::Http2]);
-        assert_eq!(Protocol::Quic.candidates(), vec![Protocol::Quic]);
-        assert_eq!(Protocol::Http2.candidates(), vec![Protocol::Http2]);
     }
 
     #[test]

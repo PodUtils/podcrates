@@ -408,3 +408,17 @@ fn a_file_with_no_credentials_gives_an_event() {
     assert_eq!(seen[0].kind, "config.quick");
     assert!(seen[0].text.contains("a quick tunnel starts"), "{}", seen[0].text);
 }
+
+/// `--protocol` takes the spellings of cloudflared, and gives its name back.
+#[test]
+fn protocols_parse_the_way_cloudflared_spells_them() {
+    for (text, want) in
+        [("auto", Protocol::Auto), ("QUIC", Protocol::Quic), ("http2", Protocol::Http2), ("h2", Protocol::Http2)]
+    {
+        assert_eq!(Protocol::parse(text).unwrap(), want, "{text}");
+    }
+    assert!(Protocol::parse("carrier-pigeon").is_err());
+    for p in [Protocol::Auto, Protocol::Quic, Protocol::Http2] {
+        assert_eq!(Protocol::parse(p.as_str()).unwrap(), p);
+    }
+}

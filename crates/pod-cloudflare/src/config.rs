@@ -123,12 +123,12 @@ impl Protocol {
         }
     }
 
-    /// The protocol of the value: `auto` gives QUIC, the first protocol that
-    /// `auto` tries.
-    pub fn resolved(self) -> Protocol {
+    /// The name, as cloudflared writes it.
+    pub fn as_str(self) -> &'static str {
         match self {
-            Protocol::Auto => Protocol::Quic,
-            other => other,
+            Protocol::Auto => "auto",
+            Protocol::Quic => "quic",
+            Protocol::Http2 => "http2",
         }
     }
 }
