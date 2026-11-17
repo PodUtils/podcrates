@@ -1,0 +1,6 @@
+# pod-actions-store: a digest of a lock in uppercase stays so, and each fetch then fails (T-902).
+ENTRY=T-902
+GROUP=actions
+EXPECT='a_digest_in_uppercase_is_the_same_pin'
+RUN='cargo test -p pod-actions-store --all-features --lib lock'
+LIMIT=900

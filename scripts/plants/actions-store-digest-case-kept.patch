@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-store/src/lock.rs b/crates/pod-actions-store/src/lock.rs
+--- a/crates/pod-actions-store/src/lock.rs
++++ b/crates/pod-actions-store/src/lock.rs
+@@ -83,7 +83,7 @@ impl Lock {
+             if !ok || !is_commit(commit) || !is_digest(digest) {
+                 return Err(bad(LineFault::Form));
+             }
+-            let pin = Pin { commit: commit.to_ascii_lowercase(), digest: digest.to_ascii_lowercase() };
++            let pin = Pin { commit: commit.to_ascii_lowercase(), digest: digest.to_string() };
+             if pins.insert(key.to_string(), pin).is_some() {
+                 return Err(bad(LineFault::Again(key.to_string())));
+             }
