@@ -3205,7 +3205,7 @@ cargo test -p pod-broker --all-features --test names
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3224,3 +3224,8 @@ The lint and test jobs of `ci.yml` build the workspace with `--all-features`, an
 ```sh
 sh scripts/ci/each-crate.sh
 ```
+
+## Done
+
+2026-11-17, 88f2830ed: `scripts/ci/each-crate.sh` runs `cargo check --locked -p CRATE` for each member of the workspace (from `cargo metadata`), with its default features, and names each crate that does not build; the job `lint` of `ci.yml` runs it after the crates with no tokio. It passes on the workspace. The slip of T-869 fails it: `pod-relay` has no default feature, so `cargo check -p pod-relay` builds with no `plain-ws`, where `mod lines` was gone.
+
