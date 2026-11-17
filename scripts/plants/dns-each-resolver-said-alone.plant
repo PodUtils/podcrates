@@ -1,0 +1,6 @@
+# pod-dns: six resolvers that fail alike are each named with their failure, in one long line (T-903).
+ENTRY=T-903
+GROUP=dns
+EXPECT='the_failures_that_read_alike_are_said_once'
+RUN='cargo test -p pod-dns --all-features --lib lookup'
+LIMIT=900
