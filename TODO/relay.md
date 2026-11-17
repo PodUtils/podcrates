@@ -9915,7 +9915,7 @@ cargo test -p pod-piping --all-features --lib probe
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9934,3 +9934,7 @@ podssh's relay role advertises its meeting points in `/relays.json` as `meet` (`
 ```sh
 cargo test -p pod-relay --all-features
 ```
+
+## Done
+
+2026-11-17, aaf9273b5, 5ebd04b57: `pool::members::Meet { iroh: Option<String>, derp: Option<String> }`; `Meet::of_body(body, &Member)` reads `meet` of the `/relays.json` body that the daily ask already fetches; `Meet::checked(iroh, derp, &Member)` keeps a value only when it names the member's own host; `members::meet(cache, &Member)` (and `meet_in(dirs, &Member)`) gives the kept points, checked again on each read, `None` when no value holds. `Ask` keeps `meet` in `relay-members.json` (`serde(default)`: a file of the form before reads, with no `meet`). The rule of the host: the authority must be, the case of the letters aside, `Relay::name` of the member (`HOST`, or `HOST:PORT` when the port is not 443) or `HOST:PORT` with the member's own port; iroh is `https://` + that authority + one `/` or none (no path, user, query, other scheme); DERP is that authority alone. A kept value is the member's own form (`https://NAME/`, `NAME`), never the peer's text. `probe` is not kept. The points need no signed list: each names the host that the net names already; an ask that fails keeps none until the next answer. A cache from before the change gets the points on the member's next daily ask. Tests in `pool/members_tests.rs`: `the_meeting_points_of_the_member_s_own_host_are_read`, `a_meeting_point_off_the_member_s_own_host_is_dropped`, `the_cache_keeps_the_meeting_points_and_reads_a_file_of_the_form_before`, `the_daily_ask_keeps_the_member_s_meeting_points` (through `ask_due_with` with a stand-in `/relays.json`), `a_kept_meeting_point_is_checked_again_when_read`. Plant `relay-member-meet-off-its-host` (the peer's text kept unchecked), caught.
