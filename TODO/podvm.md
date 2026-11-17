@@ -9788,7 +9788,7 @@ cargo test -p pod-supervise --all-features
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9807,6 +9807,10 @@ Create the probe file with `O_CREAT | O_EXCL` and a random nonce in its name, an
 ```sh
 cargo test -p pod-hostprobe --all-features exec
 ```
+
+## Done
+
+2026-11-17, 1799f7a3f, b67dc1005: `probe_dir_exec` creates its file with `create_new` (`O_CREAT | O_EXCL`) and mode 0600 (`create_probe`), under a name with the pid, the sequence and a nonce of 8 random bytes of the system (the clock where the system gives none); a name that exists takes the next one, 8 names at most. Test `a_probe_file_never_takes_the_file_of_another`: a name that another run holds is skipped and its file stays as it was; each name taken is an error; two names differ. The tests of `exec` pass. Plant `hostprobe-exec-probe-overwrites` (a create that truncates), caught.
 
 # T-874: `pod-oci`: a credential helper gets `ServerURL` `https://HOST/v2/`, not the key of the configuration (PodUtils/podvm#568)
 
