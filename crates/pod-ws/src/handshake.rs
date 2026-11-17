@@ -60,6 +60,16 @@ pub fn build_request(host_header: &str, path: &str, token: &str, key: &str) -> V
 /// [`build_request`] with the headers of the caller in `extra`, after the
 /// token; in memory that is wiped, as it holds the token and the values.
 pub fn build_request_with(host_header: &str, path: &str, token: &str, key: &str, extra: &Extra) -> Zeroizing<Vec<u8>> {
+    request(host_header, path, Some(token), key, extra)
+}
+
+/// [`build_request_with`] with no token header: the upgrade of a probe that
+/// holds no token, as a doctor sends it (PodUtils/podnet#652).
+pub fn build_probe_request(host_header: &str, path: &str, key: &str, extra: &Extra) -> Zeroizing<Vec<u8>> {
+    request(host_header, path, None, key, extra)
+}
+
+fn request(host_header: &str, path: &str, token: Option<&str>, key: &str, extra: &Extra) -> Zeroizing<Vec<u8>> {
     let mut req =
         Zeroizing::new(Vec::with_capacity(512 + extra.iter().map(|(n, v)| n.len() + v.len() + 4).sum::<usize>()));
     req.extend_from_slice(format!("GET {path} HTTP/1.1\r\n").as_bytes());
@@ -67,8 +77,10 @@ pub fn build_request_with(host_header: &str, path: &str, token: &str, key: &str,
     req.extend_from_slice(b"Upgrade: websocket\r\nConnection: Upgrade\r\n");
     req.extend_from_slice(format!("Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n").as_bytes());
     // The token, in a header. See the module comment.
-    for part in [TOKEN_HEADER, ": ", token, "\r\n"] {
-        req.extend_from_slice(part.as_bytes());
+    if let Some(token) = token {
+        for part in [TOKEN_HEADER, ": ", token, "\r\n"] {
+            req.extend_from_slice(part.as_bytes());
+        }
     }
     extra.write(&mut req);
     // A reverse socket's dialect, so that a relay role that reads another
@@ -320,6 +332,18 @@ pub fn masking_key_from(random: &mut dyn Entropy) -> Result<[u8; 4], WsError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A probe's upgrade holds no token header and is the request of a
+    /// session in each other line (PodUtils/podnet#652).
+    #[test]
+    fn a_probe_request_holds_no_token() {
+        let extra = Extra::default();
+        let probe = build_probe_request("relay.example", "/connect/a/22", "a2V5", &extra);
+        let text = String::from_utf8(probe.to_vec()).unwrap();
+        assert!(!text.contains(TOKEN_HEADER), "{text}");
+        let session = String::from_utf8(build_request("relay.example", "/connect/a/22", "tok", "a2V5")).unwrap();
+        assert_eq!(session.replace("X-Relay-Token: tok\r\n", ""), text);
+    }
 
     fn request(path: &str) -> String {
         String::from_utf8(build_request("relay.example:443", path, "tok", "k")).expect("ASCII")
