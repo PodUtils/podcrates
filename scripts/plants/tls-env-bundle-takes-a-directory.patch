@@ -1,0 +1,12 @@
+diff --git a/crates/pod-tls/src/env_bundle.rs b/crates/pod-tls/src/env_bundle.rs
+--- a/crates/pod-tls/src/env_bundle.rs
++++ b/crates/pod-tls/src/env_bundle.rs
+@@ -39,7 +39,7 @@ pub fn env_bundle(get: impl Fn(&str) -> Option<String>) -> (Option<EnvBundle>, V
+         }
+         let path = PathBuf::from(&value);
+         let why = match std::fs::metadata(&path) {
+-            Ok(m) if !m.is_file() => Some(format!("{value} is not a file")),
++            Ok(m) if !m.is_file() && false => Some(format!("{value} is not a file")),
+             Ok(_) => std::fs::File::open(&path).err().map(|e| format!("{value} cannot be read: {e}")),
+             Err(e) => Some(format!("{value} cannot be read: {e}")),
+         };

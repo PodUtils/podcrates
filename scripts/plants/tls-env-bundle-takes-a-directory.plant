@@ -1,0 +1,6 @@
+# pod-tls: the bundle of the environment takes a directory as a file (T-881).
+ENTRY=T-881
+GROUP=tls
+EXPECT='the_first_readable_bundle_of_the_order_is_taken'
+RUN='cargo test -p pod-tls --all-features --lib env_bundle'
+LIMIT=900
