@@ -1,9 +1,8 @@
 diff --git a/crates/pod-enter/src/ns_volume.rs b/crates/pod-enter/src/ns_volume.rs
-index 5f9bf3d7..873faebb 100644
 --- a/crates/pod-enter/src/ns_volume.rs
 +++ b/crates/pod-enter/src/ns_volume.rs
-@@ -212,7 +212,7 @@ fn bind_one(root: i64, v: &Prepared, empty: &CBuf) -> std::result::Result<(), (u
-     let bound = mount_on_fd(&v.host, fd, sys::MS_BIND | sys::MS_REC, empty);
+@@ -283,7 +283,7 @@ fn bind_one(root: i64, v: &Prepared, empty: &CBuf) -> std::result::Result<(), (u
+     };
      let _ = sys::close(fd);
      bound.map_err(|e| (NS_VOLUME_BIND_STEP, e))?;
 -    if !v.read_only {
