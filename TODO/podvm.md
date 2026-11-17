@@ -9691,7 +9691,7 @@ cargo test -p pod-guest --all-features --lib agent
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9706,6 +9706,39 @@ On the namespace rung, `/dev/pts` is the bind of the host's devpts (`ns_optional
 1. In a user namespace, mount a new devpts instance on the `/dev/pts` of the image (`newinstance,ptmxmode=0666,mode=0620`), and make `/dev/ptmx` a bind of `/dev/pts/ptmx`, with its mount point made where the image has none.
 2. Where the mount is refused, keep the bind of the host's `/dev/pts`, also bind the host's `/dev/ptmx`, and write the refused line, so that the consumer names a unit with no pty.
 3. A test in the userns tests: an `openpty` in the unit passes; a plant.
+
+## Prove
+
+```sh
+sh scripts/ci/userns-tests.sh
+```
+
+## Done
+
+2026-11-17, e6edfe903; the plant in 0b93b2c7c. `pod-enter`: the module `ns_pts`. In a user namespace of the rung, where the image has a `/dev/pts` directory, the child mounts a new devpts instance there in place of the bind of the host's `/dev/pts` (`DEVPTS_OPTIONS` `newinstance,ptmxmode=0666,mode=0620`, no `gid=`: the group `tty` of the host has no id in the user namespace; `MS_NOSUID | MS_NOEXEC`; `NS_DEVPTS_STEP` 46), after the tmpfs on `/tmp` and the proc, and before the chroot. Then `ns_dev_bind::bind_each`, after the devices, binds `/dev/pts/ptmx` of the instance on the image's `/dev/ptmx` (`NS_PTMX_BIND_STEP` 47) through the descriptor of `/dev`, with an empty file as the mount point where the image has none, and remounts the bind `nosuid` and `noexec`. Where the kernel refuses the instance, the child writes `PRODUCT: the namespace rung binds the host's /dev/pts and /dev/ptmx: mounting a new devpts instance on /dev/pts failed with errno N` (`devpts_refused`), binds the host's `/dev/pts` as before, and binds the host's `/dev/ptmx` as a device (`NS_DEV_BIND_STEP` 31). A link at `/dev/ptmx` takes one line and no bind; an image with no `/dev/pts` directory takes neither mount. The rung as root keeps the bind of the host's `/dev/pts`. Tests: 3 unit tests of `ns_pts` (the options, the steps, the line) and `ns_dev_bind::the_binds_of_ptmx`; 242 unit tests of `pod-enter` pass. `tests/userns/pts.rs` (`a_caller_with_no_capabilities_gets_a_pty`), as uid 65534 with no capabilities (kernel 6.18, a host devpts with `ptmxmode=000`): `/dev/ptmx` is a character device, `/dev/pts` is not on the device of the host's, `/dev/pts/ptmx` has mode 0666, an open of `/dev/ptmx` gives `/dev/pts/0` as the one pty, the bind of `/dev/ptmx` is `nosuid` and `noexec`, and the payload gets no line. `sh scripts/ci/userns-tests.sh` passed (13 tests of `tests/userns.rs`); `cargo test -p pod-enter --all-features` passed. Plant `enter-userns-no-own-devpts` (exit 41: no `/dev/ptmx`), caught; the patches of `enter-ns-pts-unbound` and `enter-userns-proc-not-bound` follow the new code, and both are caught. Not measured: a host whose kernel refuses the new instance (the fallback and its line): T-868.
+
+# T-868: `pod-enter`: a test of the fallback where the kernel refuses the devpts instance of the unit
+
+**Source:** T-864 (PodUtils/podvm#469).
+**Category:** chore
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On the namespace rung in a user namespace, where the kernel refuses the new devpts instance (`ns_pts`), the child writes the line of `devpts_refused`, binds the host's `/dev/pts` and binds the host's `/dev/ptmx`. No test runs this path: the kernels of CI and of the cloud host mount the instance. A defect of the fallback (no line, no bind of `/dev/ptmx`, a bind in the wrong order) passes each check.
+
+## Premise
+
+- Read: `crates/pod-enter/src/ns_pts.rs`, `src/ns_optional.rs` (`mount_each`), `src/ns_dev_bind.rs` (`bind_each`, `Ptmx`), `tests/userns/pts.rs`.
+
+## Approach
+
+1. Find a way to make the kernel refuse the mount of devpts in the user namespace of a test with no change of the product: a lab of `pod-lab` (a seccomp filter that refuses `mount(2)` with the type `devpts` is not possible, as seccomp does not read strings; an LSM or an older kernel can), or a fault switch that only a test build has.
+2. A test in `tests/userns/pts.rs`: the payload gets the line, `/dev/pts` is the host's, `/dev/ptmx` is the host's node, and an open of `/dev/ptmx` passes.
+3. A plant of the fallback.
 
 ## Prove
 
