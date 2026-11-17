@@ -22,6 +22,10 @@ use crate::safety::{self, Dir};
 use crate::sidecar::{Meta, Sidecar};
 use crate::whiteout::{self, Kind};
 
+#[path = "apply_later.rs"]
+mod later;
+use later::{Later, link_later};
+
 /// What one layer did, for the transcript and for the record.
 #[derive(Debug, Default, Clone)]
 pub struct LayerStats {
@@ -88,6 +92,8 @@ pub fn apply_layer(
     // Only the directories that THIS layer wrote get the permission pass, so
     // the mode of a directory that the layer did not touch stays.
     let mut wrote_dirs: Vec<(Vec<String>, u32)> = Vec::new();
+    // The hard links whose target comes later in the layer.
+    let mut later: Vec<Later> = Vec::new();
 
     let mut ar = tar::Archive::new(stream);
     // `entries()`: each decision below is made here, not by the library.
@@ -181,10 +187,24 @@ pub fn apply_layer(
             replace(&parent, &name)?;
             let tn = cbuf(&tname)?;
             let n = cbuf(&name)?;
-            sys::linkat(tparent.fd(), &tn, parent.fd(), &n, 0).map_err(|e| {
-                error::sys(format!("cannot link {path:?} to {target:?}, which the layer says is already extracted"), e)
-            })?;
-            st.hardlinks += 1;
+            match sys::linkat(tparent.fd(), &tn, parent.fd(), &n, 0) {
+                Ok(_) => st.hardlinks += 1,
+                // A target that comes later in the layer: the link waits for
+                // the end of the layer (PodUtils/podvm#569).
+                Err(e) if e == sys::ENOENT => {
+                    later.push(Later {
+                        path: path.clone(),
+                        target: target.clone(),
+                        parts: parts.iter().map(|p| p.to_string()).collect(),
+                        tparts: tparts.iter().map(|p| p.to_string()).collect(),
+                        uid,
+                        gid,
+                        mode,
+                    });
+                    continue;
+                }
+                Err(e) => return Err(error::sys(format!("cannot link {path:?} to {target:?}"), e)),
+            }
         } else if kind.is_file() {
             let m = write_file(&parent, &name, mode, &mut entry)?;
             applied_mode = m;
@@ -205,6 +225,23 @@ pub fn apply_layer(
         let (applied_uid, applied_gid, reason) = resolve_ids(uid, gid, ids);
         let row = Meta { path: parts.join("/"), uid, gid, mode, applied_uid, applied_gid, reason, applied_mode };
         if kind.is_dir() { sidecar.push_dir(&row) } else { sidecar.push(&row) }.map_err(error::io)?;
+    }
+
+    for l in later {
+        link_later(root, digest, &l)?;
+        st.hardlinks += 1;
+        let (applied_uid, applied_gid, reason) = resolve_ids(l.uid, l.gid, ids);
+        let row = Meta {
+            path: l.parts.join("/"),
+            uid: l.uid,
+            gid: l.gid,
+            mode: l.mode,
+            applied_uid,
+            applied_gid,
+            reason,
+            applied_mode: None,
+        };
+        sidecar.push(&row).map_err(error::io)?;
     }
 
     // The permission pass, after the layer and on what this layer wrote.

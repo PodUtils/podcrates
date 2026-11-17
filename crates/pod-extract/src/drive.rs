@@ -407,6 +407,23 @@ fn a_hard_link_within_the_destination_is_materialised() {
     assert_eq!(a.ino(), b.ino(), "a hard link must share the inode");
 }
 
+/// A hard link before its target in the layer is made at the end of the
+/// layer; a target that never comes is named as missing, not as "already
+/// extracted" (PodUtils/podvm#569).
+#[test]
+fn a_hard_link_before_its_target_waits_for_the_end_of_the_layer() {
+    use std::os::unix::fs::MetadataExt;
+    let s = Scratch::new("hardlater");
+    let l = layer(&[E::Hardlink("copy", "orig"), E::File("orig", b"shared", 0o644)]);
+    run(s.path(), &[l]).unwrap();
+    let (a, b) = (std::fs::metadata(s.path().join("orig")).unwrap(), std::fs::metadata(s.path().join("copy")).unwrap());
+    assert_eq!(a.ino(), b.ino(), "a hard link must share the inode");
+    let s = Scratch::new("hardnever");
+    let e = run(s.path(), &[layer(&[E::Hardlink("copy", "never")])]).expect_err("a target that never comes");
+    let text = format!("{e:?}");
+    assert!(text.contains("not in the layer") && !text.contains("already extracted"), "{text}");
+}
+
 /// A hard link whose target is outside the destination is refused.
 #[test]
 fn a_hard_link_out_of_the_destination_is_refused() {
