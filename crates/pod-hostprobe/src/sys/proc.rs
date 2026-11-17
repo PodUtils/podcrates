@@ -418,3 +418,23 @@ pub fn set_no_new_privs() -> Sysres {
 pub fn set_pdeathsig(signal: u64) -> Sysres {
     unsafe { sys(SYS_PRCTL, [PR_SET_PDEATHSIG, signal, 0, 0, 0, 0]) }
 }
+
+/// Give the child of `cmd` `PR_SET_PDEATHSIG(SIGKILL)` between its fork and
+/// its exec, for a crate with no unsafe code. The kernel sends it when the
+/// thread that spawns `cmd` ends, so spawn from a thread that lives as long
+/// as the child. A parent that ended before the set fails the spawn: the
+/// child would never get the signal.
+pub fn die_with_parent(cmd: &mut std::process::Command) {
+    use std::os::unix::process::CommandExt;
+    let parent = getpid();
+    // SAFETY: two system calls between the fork and the exec, and no
+    // allocation (`from_raw_os_error` boxes nothing).
+    unsafe {
+        cmd.pre_exec(move || {
+            if set_pdeathsig(9).is_err() || getppid() != parent {
+                return Err(std::io::Error::from_raw_os_error(ESRCH.0));
+            }
+            Ok(())
+        });
+    }
+}

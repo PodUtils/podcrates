@@ -42,10 +42,18 @@ pub fn run_steps(argv: &[String]) -> Result<ExitStatus> {
 ///
 /// The argv is the caller's: each flavour has its own machine line
 /// ([`crate::plan::argv`], [`crate::dos::argv`]).
+///
+/// The emulator gets `PR_SET_PDEATHSIG(SIGKILL)`: in its own group, a signal
+/// to the group of the caller (a Ctrl-C) misses it, and a caller that ends
+/// on a signal would leave it running (PodUtils/podvm#569). The kernel sends
+/// it when the THREAD that spawned the emulator ends, so call this from a
+/// thread that lives as long as the emulator (the main thread). A parent
+/// that ended before the set is caught: the child then exits at once.
 pub fn spawn_emulator(plan: &Plan, args: &[String], stderr: Stdio) -> Result<Child> {
     use std::os::unix::process::CommandExt;
     let mut cmd = Command::new(&plan.emulator);
     cmd.args(args).stdin(Stdio::null()).stdout(Stdio::null()).stderr(stderr).process_group(0);
+    pod_hostprobe::sys::die_with_parent(&mut cmd);
     cmd.spawn().map_err(|e| io_at(&plan.emulator, e))
 }
 

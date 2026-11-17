@@ -437,3 +437,33 @@ fn a_real_emulator_under_kvm_answers_qmp_and_leaves_no_process() {
     }
     real_emulator_answers_qmp("kvm", "qemu-kvm");
 }
+
+/// The emulator has `PR_SET_PDEATHSIG(SIGKILL)`: when the thread that
+/// started it ends, the kernel kills it, so a caller that ends on a signal
+/// leaves no emulator (PodUtils/podvm#569).
+#[test]
+fn the_emulator_ends_with_the_thread_that_started_it() {
+    use std::os::unix::process::ExitStatusExt;
+    pod_testkit::need_tool!("/bin/sh");
+    pod_testkit::need_tool!("sleep");
+    let s = settings();
+    let scratch = scratch_dir(&s, "pdeathsig").expect("a scratch directory");
+    let plan = plan_over(&scratch, Path::new("/bin/sh"));
+    let args = ["-c".to_string(), "exec sleep 30".to_string()];
+    let mut child = std::thread::spawn(move || emulator::spawn_emulator(&plan, &args, Stdio::null()))
+        .join()
+        .unwrap()
+        .expect("the fake emulator starts");
+    let start = Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        assert!(
+            start.elapsed() < pod_testkit::host::scaled(Duration::from_secs(10)),
+            "the emulator outlived its thread"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    assert_eq!(status.signal(), Some(9), "{status}");
+}
