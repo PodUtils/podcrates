@@ -1,0 +1,6 @@
+# A relay member's meet names its own host alone (T-865).
+ENTRY=T-865
+GROUP=relay
+EXPECT='a_meeting_point_off_the_member_s_own_host_is_dropped'
+RUN='cargo test -p pod-relay --all-features --lib pool::members'
+LIMIT=1800

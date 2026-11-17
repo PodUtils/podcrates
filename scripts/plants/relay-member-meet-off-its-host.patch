@@ -1,0 +1,16 @@
+diff --git a/crates/pod-relay/src/pool/members.rs b/crates/pod-relay/src/pool/members.rs
+index 0f1bcae..a410d61 100644
+--- a/crates/pod-relay/src/pool/members.rs
++++ b/crates/pod-relay/src/pool/members.rs
+@@ -94,8 +94,9 @@ impl Meet {
+     /// `None` when no value holds.
+     pub fn checked(iroh: Option<&str>, derp: Option<&str>, member: &Member) -> Option<Meet> {
+         let name = member.host.name();
+-        let iroh = iroh.filter(|v| iroh_holds(v, &member.host)).map(|_| format!("https://{name}/"));
+-        let derp = derp.filter(|v| own_authority(v, &member.host)).map(|_| name);
++        let iroh = iroh.map(str::to_string);
++        let derp = derp.map(str::to_string);
++        let _ = (name, iroh_holds, own_authority);
+         (iroh.is_some() || derp.is_some()).then_some(Meet { iroh, derp })
+     }
+ 
