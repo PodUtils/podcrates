@@ -82,24 +82,46 @@ pub fn read() -> Identity {
         Err(e) => id.unreadable.push(format!("getgroups(2): {} ({})", e.name(), e.0)),
     }
 
-    for (path, slot) in [
-        ("/proc/self/uid_map", &mut id.uid_map),
-        ("/proc/self/gid_map", &mut id.gid_map),
-        ("/proc/self/setgroups", &mut id.setgroups),
-    ] {
-        match read_trimmed(path) {
+    read_proc("/proc/self", id, false)
+}
+
+/// The identity of the process `pid`, from `/proc/PID`: its ids from the
+/// lines `Uid`, `Gid` and `Groups` of its status. A caller that reads in a
+/// namespace of its own gives the pid of its outer process, so that its
+/// key of the cache repeats (PodUtils/podvm#569).
+pub fn read_of(pid: i64) -> Identity {
+    read_proc(&format!("/proc/{pid}"), Identity::default(), true)
+}
+
+/// The maps and the status of the process of the directory `dir` of
+/// `/proc`; with `ids`, also its uid, gid and groups.
+fn read_proc(dir: &str, mut id: Identity, ids: bool) -> Identity {
+    for (name, slot) in [("uid_map", &mut id.uid_map), ("gid_map", &mut id.gid_map), ("setgroups", &mut id.setgroups)] {
+        match read_trimmed(&format!("{dir}/{name}")) {
             Ok(v) => *slot = Some(v),
             Err(why) => id.unreadable.push(why),
         }
     }
-
-    match std::fs::read_to_string("/proc/self/status") {
+    let status = format!("{dir}/status");
+    match std::fs::read_to_string(&status) {
         Ok(text) => {
             for line in text.lines() {
                 let Some((key, value)) = line.split_once(':') else {
                     continue;
                 };
                 let value = value.trim().to_string();
+                // The real id: the first of the four of the line.
+                let first = || value.split_whitespace().next().and_then(|v| v.parse::<i64>().ok());
+                match key {
+                    "Uid" if ids => id.uid = first().unwrap_or(id.uid),
+                    "Gid" if ids => id.gid = first().unwrap_or(id.gid),
+                    "Groups" if ids => {
+                        let mut g: Vec<i32> = value.split_whitespace().filter_map(|v| v.parse().ok()).collect();
+                        g.sort_unstable();
+                        id.groups = g;
+                    }
+                    _ => {}
+                }
                 // Selected by NAME: a reader of structured output selects
                 // by name, never by position.
                 let slot = match key {
@@ -115,7 +137,7 @@ pub fn read() -> Identity {
                 *slot = Some(value);
             }
         }
-        Err(e) => id.unreadable.push(format!("/proc/self/status: {e}")),
+        Err(e) => id.unreadable.push(format!("{status}: {e}")),
     }
     id
 }
@@ -214,9 +236,19 @@ impl ConfinementKey {
 /// checks it. Two readers of one file drift, and the copy the check trusts is
 /// the wrong one.
 pub fn confinement_key(id: &Identity, interpreter: &crate::interp::Interpreter) -> ConfinementKey {
+    key_with(id, interpreter, MNT_NS_PATH)
+}
+
+/// [`confinement_key`] of the process `pid`: its identity ([`read_of`])
+/// and its mount namespace, not those of the reader.
+pub fn confinement_key_of(pid: i64, interpreter: &crate::interp::Interpreter) -> ConfinementKey {
+    key_with(&read_of(pid), interpreter, &format!("/proc/{pid}/ns/mnt"))
+}
+
+fn key_with(id: &Identity, interpreter: &crate::interp::Interpreter, mnt: &str) -> ConfinementKey {
     ConfinementKey {
         boot_id: read_trimmed(BOOT_ID_PATH).ok(),
-        mnt_ns: crate::sys::CBuf::new(MNT_NS_PATH).and_then(|p| crate::sys::readlink(&p).ok()),
+        mnt_ns: crate::sys::CBuf::new(mnt).and_then(|p| crate::sys::readlink(&p).ok()),
         uid_map: id.uid_map.clone(),
         gid_map: id.gid_map.clone(),
         setgroups: id.setgroups.clone(),
@@ -235,6 +267,42 @@ pub fn confinement_key(id: &Identity, interpreter: &crate::interp::Interpreter) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The key of a given process is the key that the process reads of
+    /// itself: a caller in a namespace of its own reads the key of its
+    /// outer process by its pid (PodUtils/podvm#569).
+    #[test]
+    fn the_key_of_a_pid_is_the_key_that_the_process_reads() {
+        let interp = crate::interp::detect(&|_| false);
+        let pid = crate::sys::getpid();
+        let (own, of) = (confinement_key(&read(), &interp), confinement_key_of(pid, &interp));
+        assert_eq!(own.differences(&of), Vec::<&str>::new());
+        let (a, b) = (read(), read_of(pid));
+        assert_eq!((a.uid, a.gid, a.groups), (b.uid, b.gid, b.groups));
+        let none = read_of(i64::from(i32::MAX));
+        assert!(!none.unreadable.is_empty(), "a pid with no process reads nothing");
+        // Another process: a child with `no_new_privs`, which this process
+        // does not have, reads as such by its pid.
+        if read().no_new_privs.as_deref() != Some("0") {
+            return;
+        }
+        let Ok(mut child) = std::process::Command::new("setpriv").args(["--no-new-privs", "sleep", "5"]).spawn() else {
+            return;
+        };
+        let pid = i64::from(child.id());
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let mut seen = None;
+        while std::time::Instant::now() < deadline {
+            seen = read_of(pid).no_new_privs;
+            if seen.as_deref() == Some("1") {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        let _ = child.kill();
+        let _ = child.wait();
+        assert_eq!(seen.as_deref(), Some("1"), "the status of the child, not of the reader");
+    }
 
     #[test]
     fn a_single_range_of_one_id_is_recognised() {
