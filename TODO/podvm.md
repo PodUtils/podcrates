@@ -10171,7 +10171,7 @@ cargo test -p pod-hostprobe --all-features select
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10190,6 +10190,10 @@ A SIGTERM to the run leaves QEMU running, and a Ctrl-C to the group misses it (p
 ```sh
 cargo test -p pod-guest --all-features
 ```
+
+## Done
+
+2026-11-17, b5ca5c03e, a62c7c3cf: `pod_hostprobe::sys::die_with_parent(&mut Command)` sets `PR_SET_PDEATHSIG(SIGKILL)` between the fork and the exec, and fails the spawn where the parent ended before the set (`getppid` against the pid before the fork); `pod-guest` (no unsafe code) calls it in `spawn_emulator`, which keeps its own process group. The kernel sends the signal when the THREAD that spawned the emulator ends: the doc of `spawn_emulator` says to call it from a thread that lives as long as the emulator. Test `the_emulator_ends_with_the_thread_that_started_it` (an emulator spawned from a thread that ends dies on SIGKILL); 177 tests of `pod-guest` pass. Plant `guest-emulator-outlives-its-caller`, caught. podvm: spawn the emulator from the main thread (or one that lives as long as the run).
 
 # T-894: `pod-oci`: a wanted platform variant matches an entry with no variant (PodUtils/podvm#569)
 
