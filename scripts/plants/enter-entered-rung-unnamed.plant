@@ -1,0 +1,6 @@
+# pod-enter: the child of an entry names no rung, so a fallback to chroot does not reach the caller (T-885).
+ENTRY=T-885
+GROUP=enter
+EXPECT='left: None'
+RUN='sh scripts/ci/userns-tests.sh'
+LIMIT=1800
