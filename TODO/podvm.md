@@ -10253,7 +10253,7 @@ The Approach (a strict match) is not taken: docker and podman take a lower varia
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10272,3 +10272,7 @@ Defer a hard link whose target is not there yet to the end of the layer, and say
 ```sh
 cargo test -p pod-extract --all-features
 ```
+
+## Done
+
+2026-11-17, 0cb1e7317, 674714959: a hard link whose target is not there yet (`ENOENT` at `linkat`) waits for the end of its layer (`apply_later.rs`: `Later`, `link_later`), and is made then with the same checks (no link on the way, no target outside the root); its sidecar row comes then. A target that is still missing gives `cannot link P to T: the target is not in the layer or before it`; another failure names the link with no claim about the layer. Test `a_hard_link_before_its_target_waits_for_the_end_of_the_layer` (the link shares the inode of a target that comes after it; a target that never comes is named as missing); the tests of `pod-extract` pass. Plant `extract-hardlink-not-deferred`, caught.

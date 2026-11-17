@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**728 entries: 136 open, 21 partial, 7 blocked, 564 done.**
+**728 entries: 135 open, 21 partial, 7 blocked, 565 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 8 | 0 | 160 | 179 |
 | P2 | 61 | 3 | 4 | 290 | 358 |
-| P3 | 64 | 10 | 3 | 112 | 189 |
-| **All** | 136 | 21 | 7 | 564 | 728 |
+| P3 | 63 | 10 | 3 | 113 | 189 |
+| **All** | 135 | 21 | 7 | 565 | 728 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -774,4 +774,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-892](podvm.md) | P3 | S | M6 | defect | done | `pod-hostprobe`: the never-claim text of the namespace rung is out of date (PodUtils/podvm#569) |
 | [T-893](podvm.md) | P1 | S | M6 | defect | done | `pod-guest`: QEMU starts in its own process group with no `PR_SET_PDEATHSIG` (PodUtils/podvm#569) |
 | [T-894](podvm.md) | P2 | S | M6 | defect | done | `pod-oci`: a wanted platform variant matches an entry with no variant (PodUtils/podvm#569) |
-| [T-895](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: a hard link to a later member says "already extracted" (PodUtils/podvm#569) |
+| [T-895](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: a hard link to a later member says "already extracted" (PodUtils/podvm#569) |
