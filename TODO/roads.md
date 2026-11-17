@@ -1852,7 +1852,7 @@ cargo test -p pod-ws --all-features --test h2_road
 **Milestone:** M3
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1871,6 +1871,10 @@ A form of `build_request` with no token (an `Option` of the token), for a probe;
 ```sh
 cargo test -p pod-ws --all-features handshake
 ```
+
+## Done
+
+2026-11-17, 424690190, f4150e03b: `pod_ws::handshake::build_probe_request(host, path, key, extra)`: the upgrade with no `X-Relay-Token` line, and each other line as `build_request_with` writes it (one writer of the request, with the token as an option). Test `a_probe_request_holds_no_token` (no token header; the request of a session less its token line is the probe's). Plant `ws-probe-sends-a-token`, caught.
 
 # T-903: `pod-dns`: one line of 1000 characters, where each resolver of DNS over HTTPS failed alike (PodUtils/podssh#313)
 

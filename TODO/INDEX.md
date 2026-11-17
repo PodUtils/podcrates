@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**737 entries: 135 open, 21 partial, 7 blocked, 574 done.**
+**737 entries: 134 open, 21 partial, 7 blocked, 575 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 161 | 179 |
 | P2 | 59 | 3 | 4 | 297 | 363 |
-| P3 | 66 | 10 | 3 | 114 | 193 |
-| **All** | 135 | 21 | 7 | 574 | 737 |
+| P3 | 65 | 10 | 3 | 115 | 193 |
+| **All** | 134 | 21 | 7 | 575 | 737 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -780,7 +780,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-898](foundation.md) | P3 | S | M3 | feature | open | `pod-dns`: an answer with an RCODE that copies the flags of the request (PodUtils/podnet#652) |
 | [T-899](fleet.md) | P2 | M | M3 | feature | open | `pod-hostprobe`: rows of a network namespace with a veth, a write of another process's memory, and the binds of AF_UNIX, abstract, VSOCK and NETLINK sockets (PodUtils/podnet#652) |
 | [T-900](fleet.md) | P3 | S | M3 | feature | open | The installer core: more downloaders, or a ruling, and the newest tag with an optional token (PodUtils/podnet#652) |
-| [T-901](roads.md) | P3 | S | M3 | feature | open | `pod-ws`: a request of the upgrade with no token header, for a probe (PodUtils/podnet#652) |
+| [T-901](roads.md) | P3 | S | M3 | feature | done | `pod-ws`: a request of the upgrade with no token header, for a probe (PodUtils/podnet#652) |
 | [T-902](fleet.md) | P2 | S | M5 | defect | done | `pod-actions-store`: `Lock::parse` keeps a digest in uppercase, and each fetch then fails (PodUtils/podrunner#288) |
 | [T-903](roads.md) | P2 | S | M2 | defect | done | `pod-dns`: one line of 1000 characters, where each resolver of DNS over HTTPS failed alike (PodUtils/podssh#313) |
 | [T-904](relay.md) | P3 | S | M2 | defect | done | `pod-relay`: a relay that issues no token names no way to give one (PodUtils/podssh#313) |
