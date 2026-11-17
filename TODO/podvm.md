@@ -9978,7 +9978,7 @@ cargo test -p pod-enter --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9997,6 +9997,10 @@ After the tmpfs and the volumes, the child makes the working directory (`mkdir -
 ```sh
 cargo test -p pod-enter --all-features
 ```
+
+## Done
+
+2026-11-17, 584061289, 59cb4eb56: on the namespace rung, the components of a working directory under `/tmp` are built before the fork (`ns_volume::tmp_workdir_parts`); where the `chdir` after the chroot fails with `ENOENT`, the child makes each missing component from `/` (`mkdirat`, then `openat` with `O_NOFOLLOW`: no link on the way), as the ids of the payload, and `fchdir`s into it (`make_workdir`, no allocation); a failure there is the step 11 as before. Test: the run of a caller with no capabilities (`tests/userns.rs`) starts a payload in `/tmp/wd/deep`, a directory of the image that the tmpfs hides, and its write lands in the tmpfs, not in the image; `sh scripts/ci/userns-tests.sh` passed (31 tests). Plant `enter-tmp-workdir-hidden`, caught.
 
 # T-887: `pod-supervise`: `logs -f` ends at a restart (PodUtils/podvm#569)
 
