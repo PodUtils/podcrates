@@ -1,0 +1,6 @@
+# pod-lab: the hold of bind-netns-vm-denied refuses each TCP connect too; the lab must say that its part does not hold (T-866).
+ENTRY=T-866
+GROUP=lab
+EXPECT='bind-netns-vm-denied: the lab bind-netns-vm-denied does not hold'
+RUN='cargo test -p pod-lab --all-features --test lab'
+LIMIT=1800
