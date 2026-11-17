@@ -1,0 +1,6 @@
+# pod-supervise: the temp file of the table keeps no lock, so a sweep of the staging directory takes it (T-872).
+ENTRY=T-872
+GROUP=supervise
+EXPECT='a sweep got the lock of a live temp file'
+RUN='cargo test -p pod-supervise --all-features --lib table'
+LIMIT=900
