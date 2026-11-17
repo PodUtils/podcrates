@@ -10156,7 +10156,7 @@ cargo test -p pod-hostprobe --all-features
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10175,6 +10175,10 @@ A text built from the namespaces that the entry opened. A test of each form.
 ```sh
 cargo test -p pod-hostprobe --all-features select
 ```
+
+## Done
+
+2026-11-17, 881c3cb8b, b4b815473: `select::Opened { user, pid, proc }` and `Rung::must_never_claim_with(opened)`: for the namespace rung, "network isolation" and each of user isolation, pid isolation and a /proc filesystem that the entry did not open; the other rungs keep their text. `must_never_claim()` stays the conservative text for a caller that does not know what the entry opened (a never-claim must not claim more). Test `the_never_claim_follows_what_the_entry_opened`; the tests of `select` pass. Plant `hostprobe-never-claim-fixed`, caught. podvm builds `Opened` from its plan (`userns_ids`, `pid_namespace`) and the lines of the entry.
 
 # T-893: `pod-guest`: QEMU starts in its own process group with no `PR_SET_PDEATHSIG` (PodUtils/podvm#569)
 
