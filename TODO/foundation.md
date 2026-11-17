@@ -2305,7 +2305,7 @@ cargo test --workspace --all-features
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2324,6 +2324,10 @@ A public call for each handshake on a stream of the caller (`socks5::handshake(s
 ```sh
 cargo test -p pod-proxy --all-features
 ```
+
+## Done
+
+2026-11-17, 8948d21c9, 3a63482eb: `pod_proxy::hop::socks5(stream, app, proxy, host, port, within)` and `hop::connect(stream, Ask, proxy, host, port, within)`, on a stream of any type (`AsyncRead + AsyncWrite + Unpin`) that the caller holds. SOCKS5: the greeting with the user and password of the proxy, then CONNECT; a name goes to the proxy, and `socks5://` (names resolved here) takes an address only, refused before a byte goes out. CONNECT: Basic credentials; a 2xx opens, another status is `ProxyRefused` with the proxy's words, and a Digest challenge is a refusal that says that its answer needs a new connection. The exchanges of the crate are now generic over the stream and take a deadline (`exchange`, `failure`); the dials of the crate keep their behaviour. Tests `crates/pod-proxy/tests/hop.rs` (a SOCKS5 hop with a name, `socks5://` with a name refused, CONNECT on 200 and 403); the tests of `pod-proxy` pass. Plant `proxy-hop-open-on-each-answer`, caught.
 
 # T-897: `pod-proxy`: the server checks a user and a password by a callback; one SOCKS server for podnet and podssh (PodUtils/podnet#652)
 
