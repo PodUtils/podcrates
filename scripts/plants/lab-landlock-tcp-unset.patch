@@ -1,6 +1,7 @@
+diff --git a/crates/pod-lab/src/hold.rs b/crates/pod-lab/src/hold.rs
 --- a/crates/pod-lab/src/hold.rs
 +++ b/crates/pod-lab/src/hold.rs
-@@ -110,7 +110,8 @@
+@@ -110,7 +110,8 @@ pub fn landlock_tcp(connect: &[u16]) -> Result<(), String> {
          return Err(format!("the Landlock ABI is {abi}; a TCP rule needs ABI 4"));
      }
      let net = (k::LANDLOCK_ACCESS_NET_BIND_TCP | k::LANDLOCK_ACCESS_NET_CONNECT_TCP) as u64;
@@ -9,4 +10,4 @@
 +    Ok(())
  }
  
- /// `rights` on each path except `path` and the directories above it: for
+ /// A Landlock ruleset that handles the TCP bind alone, with no port: each
