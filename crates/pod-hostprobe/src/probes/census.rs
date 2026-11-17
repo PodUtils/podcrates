@@ -146,14 +146,14 @@ pub(super) fn p_ptrace() -> Outcome {
 }
 
 pub(super) fn p_mknod_real() -> Outcome {
-    mknod_at("/tmp/nodprobe", sys::DEV_1_3)
+    mknod_at(&unique("/tmp/nodprobe"), sys::DEV_1_3)
 }
 
 pub(super) fn p_mknod_whiteout() -> Outcome {
     // makedev(0,0) is WHITEOUT_DEV and `vfs_mknod` exempts it from the
     // capability check, which is why it tests nothing on its own and why
     // the census needs the pair.
-    mknod_at("/tmp/wprobe", 0)
+    mknod_at(&unique("/tmp/wprobe"), 0)
 }
 
 fn mknod_at(path: &str, dev: u64) -> Outcome {
@@ -203,14 +203,15 @@ const CHOWN_TARGET: &str = "/tmp/chown-probe-target";
 /// process give a file an id it does not map?), and the entry point is the
 /// evidence under it.
 fn chown_probe(e: sys::Entry, uid: u64, gid: u64) -> Outcome {
-    if let Err(o) = make_scratch(CHOWN_TARGET) {
+    let target = unique(CHOWN_TARGET);
+    if let Err(o) = make_scratch(&target) {
         return o;
     }
-    let p = c(CHOWN_TARGET);
+    let p = c(&target);
     let at_flags = if e.name.contains("AT_SYMLINK_NOFOLLOW") { sys::AT_SYMLINK_NOFOLLOW } else { 0 };
     let args = if e.via_at { [sys::AT_FDCWD, p.ptr(), uid, gid, at_flags, 0] } else { [p.ptr(), uid, gid, 0, 0, 0] };
     let r = unsafe { sys::sys(e.nr, args) };
-    unscratch(CHOWN_TARGET);
+    unscratch(&target);
     Outcome::from(r)
 }
 
@@ -286,22 +287,20 @@ pub(super) fn p_exec_file() -> Outcome {
     if let Err(o) = need_sh() {
         return o;
     }
-    if exists(EXEC_TARGET) {
-        return already_there(EXEC_TARGET);
-    }
-    let fd = match create_exclusive(EXEC_TARGET, 0o755) {
+    let target = unique(EXEC_TARGET);
+    let fd = match create_exclusive(&target, 0o755) {
         Ok(fd) => fd,
-        Err(sys::EEXIST) => return already_there(EXEC_TARGET),
-        Err(e) => return precondition(&format!("creating {EXEC_TARGET}"), e),
+        Err(sys::EEXIST) => return already_there(&target),
+        Err(e) => return precondition(&format!("creating {target}"), e),
     };
     let r = sys::write(fd, b"#!/bin/sh\nexit 0\n");
     let _ = sys::close(fd);
     if let Err(e) = r {
-        unscratch(EXEC_TARGET);
-        return precondition(&format!("writing {EXEC_TARGET}"), e);
+        unscratch(&target);
+        return precondition(&format!("writing {target}"), e);
     }
-    let out = run_payload(EXEC_TARGET);
-    unscratch(EXEC_TARGET);
+    let out = run_payload(&target);
+    unscratch(&target);
     out
 }
 

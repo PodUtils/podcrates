@@ -182,17 +182,15 @@ pub(super) fn a_move_mount_bogus() -> Outcome {
 }
 
 pub(super) fn a_move_mount_real() -> Outcome {
-    const DEST: &str = "/tmp/mm-probe";
+    let dest_path = unique("/tmp/mm-probe");
     let mfd = match detached_tmpfs() {
         Ok(fd) => fd,
         Err((e, step)) => return precondition(step.label(), e),
     };
-    let dest = c(DEST);
-    if let Err(e) = sys::mkdir(&dest, 0o755)
-        && e != sys::EEXIST
-    {
+    let dest = c(&dest_path);
+    if let Err(e) = sys::mkdir(&dest, 0o755) {
         let _ = sys::close(mfd);
-        return precondition(&format!("mkdir {DEST}"), e);
+        return precondition(&format!("mkdir {dest_path}"), e);
     }
     let empty = sys::cempty();
     let r = unsafe {
@@ -202,18 +200,21 @@ pub(super) fn a_move_mount_real() -> Outcome {
         )
     };
     let _ = sys::close(mfd);
-    match r {
+    let out = match r {
         Err(e) => Outcome::denied(e),
         Ok(_) => match unsafe { sys::sys(sys::SYS_UMOUNT2, [dest.ptr(), 0, 0, 0, 0, 0]) } {
             Ok(_) => Outcome::ok(),
             Err(e) => Outcome::ok_with(format!(
-                "note: the tmpfs attached at {DEST} could not be removed: umount2 \
+                "note: the tmpfs attached at {dest_path} could not be removed: umount2 \
                  answered {} ({}). It is still mounted.",
                 e.name(),
                 e.0
             )),
         },
-    }
+    };
+    // The directory of this run goes with it; a mount that stays keeps it.
+    let _ = std::fs::remove_dir(&dest_path);
+    out
 }
 
 pub(super) fn a_openat_detached() -> Outcome {

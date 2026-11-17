@@ -260,3 +260,20 @@ fn the_rows_that_send_a_packet_are_off_by_default() {
         assert!(o.reason.contains("Settings::network"), "{name}: {}", o.reason);
     }
 }
+
+/// Each scratch path of a probe is new: two names differ, and a file at the
+/// fixed path of before (left by a killed probe or another tool) does not
+/// make the row of exec a skip (PodUtils/podvm#569).
+#[test]
+fn a_scratch_path_is_new_for_each_probe() {
+    let (a, b) = (scratch::unique("/tmp/execprobe"), scratch::unique("/tmp/execprobe"));
+    assert_ne!(a, b);
+    assert!(a.starts_with(&format!("/tmp/execprobe.{}.", sys::getpid())), "{a}");
+    let old = "/tmp/execprobe";
+    let made = !std::path::Path::new(old).exists() && std::fs::write(old, b"left by another run").is_ok();
+    let out = census::p_exec_file();
+    if made {
+        let _ = std::fs::remove_file(old);
+    }
+    assert_ne!(out.errno, Some(sys::EEXIST), "a file at the old path decides the row: {out:?}");
+}
