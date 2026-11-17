@@ -1,0 +1,6 @@
+# pod-supervise: a detached run with rm keeps its record and its directory after the end (T-875).
+ENTRY=T-875
+GROUP=supervise
+EXPECT='the record of a run with rm stays'
+RUN='cargo test -p pod-supervise --all-features --test lifecycle'
+LIMIT=900

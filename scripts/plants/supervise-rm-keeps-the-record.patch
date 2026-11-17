@@ -1,0 +1,12 @@
+diff --git a/crates/pod-supervise/src/launcher/supervise.rs b/crates/pod-supervise/src/launcher/supervise.rs
+--- a/crates/pod-supervise/src/launcher/supervise.rs
++++ b/crates/pod-supervise/src/launcher/supervise.rs
+@@ -174,7 +174,7 @@ where
+     // `--rm`: the record and the tree go after each waiter has its code. The
+     // flag is read again: it is the record's, not of the start.
+     let rm = table::read::<X>(s).ok().and_then(|t| t.containers.iter().find(|c| c.id == container.id).map(|c| c.rm));
+-    if rm == Some(true) {
++    if rm == Some(true) && false {
+         let _ = table::update(s, |t: &mut table::Table<X>| {
+             t.containers.retain(|c| c.id != container.id);
+             Ok::<_, Failure>(())
