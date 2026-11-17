@@ -2290,7 +2290,7 @@ podrunner (PodUtils/podrunner:crates/podrunner-hook/src/http.rs, which podrunner
 
 ## Approach
 
-One module (in `pod-core` or a small crate) with the bounds of a head (size, line count), the parse of a status line, a request line and the header fields, and the write; each crate of podcrates takes it, and podrunner at its take. A fuzz target.
+One module (in `pod-core` or a small crate) with the bounds of a head (size, line count), the parse of a status line, a request line and the header fields, and the write; each crate of podcrates takes it, and podrunner at its take. Keep the two checks of podrunner's parser (its T-406, PodUtils/podrunner#289): an `Authorization` header is read as podrunner reads it, and a request line with a control character is refused. A fuzz target.
 
 ## Prove
 
