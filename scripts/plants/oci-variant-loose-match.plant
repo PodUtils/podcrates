@@ -1,0 +1,6 @@
+# pod-oci: a wanted variant takes any entry of its architecture, also a higher variant (T-894).
+ENTRY=T-894
+GROUP=oci
+EXPECT='a_wanted_variant_takes_the_best_compatible_entry'
+RUN='cargo test -p pod-oci --all-features --lib spec'
+LIMIT=900

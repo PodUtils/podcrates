@@ -1,0 +1,12 @@
+diff --git a/crates/pod-oci/src/spec.rs b/crates/pod-oci/src/spec.rs
+--- a/crates/pod-oci/src/spec.rs
++++ b/crates/pod-oci/src/spec.rs
+@@ -284,7 +284,7 @@ pub fn select_platform<'a>(index: &'a Index, want: &crate::platform::Platform) -
+         if want.os == p.os && want.arch == p.architecture {
+             let rank = match wanted {
+                 None => Some(0),
+-                Some(w) => ranked(&p.architecture, w).iter().position(|r| *r == v),
++                Some(w) => Some(usize::from(w != v)),
+             };
+             if let Some(rank) = rank
+                 && best.is_none_or(|(b, _)| rank < b)
