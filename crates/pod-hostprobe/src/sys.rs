@@ -302,6 +302,7 @@ pub const CLONE_NEWNS: u64 = 0x0002_0000;
 pub const CLONE_NEWUTS: u64 = 0x0400_0000;
 pub const CLONE_NEWUSER: u64 = 0x1000_0000;
 pub const CLONE_NEWPID: u64 = 0x2000_0000;
+pub const CLONE_NEWNET: u64 = 0x4000_0000;
 /// The exit signal of a child: 17, and 18 on mips, 20 on sparc.
 pub const SIGCHLD: u64 = linux_raw_sys::general::SIGCHLD as u64;
 /// The two shutdown signals that a waiter forwards, as numbers:

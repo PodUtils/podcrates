@@ -113,6 +113,16 @@ pub fn landlock_tcp(connect: &[u16]) -> Result<(), String> {
     ruleset(0, net, &[], connect)
 }
 
+/// A Landlock ruleset that handles the TCP bind alone, with no port: each
+/// TCP bind gives `EACCES`, and each TCP connect passes.
+pub fn landlock_bind() -> Result<(), String> {
+    let abi = k::landlock_abi().map_err(|e| words("Landlock", e))?;
+    if abi < 4 {
+        return Err(format!("the Landlock ABI is {abi}; a TCP rule needs ABI 4"));
+    }
+    ruleset(0, k::LANDLOCK_ACCESS_NET_BIND_TCP as u64, &[], &[])
+}
+
 /// `rights` on each path except `path` and the directories above it: for
 /// each directory from `/` down to `path`, a rule on each entry that is not
 /// the next step. The listing is the one of the start of the lab.

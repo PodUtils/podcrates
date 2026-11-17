@@ -356,3 +356,21 @@ pub(super) fn p_write_squash() -> Outcome {
         Err(e) => Outcome::denied(e),
     }
 }
+
+/// One byte of this process into another byte of this process through
+/// `process_vm_writev(2)`. The count is the check: one byte, or an errno.
+pub(super) fn p_process_vm_writev() -> Outcome {
+    let mark = [0x5au8; 1];
+    let mut target = [0u8; 1];
+    let local = [mark.as_ptr() as u64, 1u64];
+    let remote = [target.as_mut_ptr() as u64, 1u64];
+    let r = Outcome::from(unsafe {
+        sys::sys(
+            sys::SYS_PROCESS_VM_WRITEV,
+            [sys::getpid() as u64, local.as_ptr() as u64, 1, remote.as_ptr() as u64, 1, 0],
+        )
+    });
+    // The kernel wrote the byte behind the back of the compiler.
+    std::hint::black_box(&mut target);
+    r
+}

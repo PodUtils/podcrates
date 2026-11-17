@@ -143,6 +143,7 @@ comes from a stand-in.
 | `no-proxy-no-dns` | `no-resolver`, `literal-reaches` | inside the lab: a lookup fails, no `nameserver` line, `127.0.0.1:53` refused; TLS to `192.0.2.1:443` checks the address | a network lab |
 | `ws-upgrade-refused` | `upgrade-refused` | inside the lab: an HTTPS `GET` through the proxy 200, with `Upgrade: websocket` 403 | a network lab |
 | `ipv6-only` | `no-ipv4-route`, `ipv6-reaches` | inside the lab: `connect(192.0.2.1:443)` ENETUNREACH, `127.0.0.1:443` reaches; `[fd00:6c61:62::1]:443` reaches | a network lab |
+| `bind-netns-vm-denied` | `tcp-bind-refused`, `netns-refused`, `vm-write-refused`, `unix-allowed` | `bind(127.0.0.1:0)` EACCES and `connect(127.0.0.1:1)` allowed (inside the lab also: bind of `[::1]:0` EACCES); `clone(CLONE_NEWUSER|NEWNET)` EPERM or ENOSPC; `process_vm_writev(own pid)` EPERM; inside the lab: AF_UNIX allowed | Landlock of the TCP bind alone (ABI 4); seccomp of `unshare` and `clone` with `CLONE_NEWNET` and of `process_vm_writev`; the host |
 
 A part whose text says "Assumed:" holds the form of the class that podssh
 or podnet named, not a measurement of a real network.

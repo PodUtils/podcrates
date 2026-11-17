@@ -379,6 +379,7 @@ fn setup(
     });
     each(2, &|h| match h {
         Hold::LandlockTcp => Some(hold::landlock_tcp(connect)),
+        Hold::LandlockBind => Some(hold::landlock_bind()),
         Hold::Hide { path, rights } => Some(hold::hide(path, rights)),
         Hold::NoNewPrivs => Some(k::set_no_new_privs().map(|_| ()).map_err(|e| format!("prctl: {}", e.name()))),
         _ => None,
@@ -439,7 +440,7 @@ fn order(h: Hold) -> u8 {
     match h {
         _ if mounts::is_mount(h) => 0,
         Hold::Fds { .. } | Hold::NoCtty => 1,
-        Hold::LandlockTcp | Hold::Hide { .. } | Hold::NoNewPrivs => 2,
+        Hold::LandlockTcp | Hold::LandlockBind | Hold::Hide { .. } | Hold::NoNewPrivs => 2,
         Hold::DropCaps => 3,
         Hold::Seccomp(_) | Hold::ConfineDefaults => 4,
         _ => 5,

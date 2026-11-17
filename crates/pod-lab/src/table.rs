@@ -364,6 +364,12 @@ pub static PROFILES: &[Profile] = &[
     class("no-proxy-no-dns", "no proxy and no resolver; only IP literals connect", "podssh, podnet", NO_DNS_PARTS),
     class("ws-upgrade-refused", "the proxy refuses the WebSocket upgrade", "podssh, podnet", WS_PARTS),
     class("ipv6-only", "no IPv4 route; IPv6 reaches out", "podnet", IPV6_ONLY),
+    class(
+        "bind-netns-vm-denied",
+        "no TCP bind, a connect passes; no network namespace; process_vm_writev refused; AF_UNIX holds",
+        "podnet",
+        &[TCP_BIND_ONLY_REFUSED, NETNS_REFUSED, VM_WRITE_REFUSED, UNIX_ALLOWED],
+    ),
 ];
 
 /// The profile of this name in `profiles`.

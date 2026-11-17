@@ -125,6 +125,10 @@ pub static PROBES: &[Probe] = &[
     // one the `chroot` rung can still use, so the banner's `namespaces=` field
     // is a measurement rather than an assumption.
     Probe { name: "clone(CLONE_NEWUTS)", group: Group::Census, kind: Kind::Clone(UTS) },
+    // A network namespace of a caller with no capabilities comes through a
+    // user namespace: this row is the one way, also for root.
+    Probe { name: "clone(CLONE_NEWUSER|NEWNET)", group: Group::Census,
+            kind: Kind::Clone(sys::CLONE_NEWUSER | sys::CLONE_NEWNET) },
     Probe { name: "sethostname(in NEWUTS)", group: Group::Census,
             kind: Kind::Child { ns_flags: UTS, body: p_sethostname } },
     Probe { name: "mount(tmpfs,/mnt)", group: Group::Census,
@@ -145,6 +149,10 @@ pub static PROBES: &[Probe] = &[
             kind: Kind::Child { ns_flags: 0, body: p_pivot_root } },
     Probe { name: "ptrace(PTRACE_TRACEME)", group: Group::Census,
             kind: Kind::Child { ns_flags: 0, body: p_ptrace } },
+    // A write into the memory of a process: a supervisor that answers a
+    // call through the memory of its child needs it.
+    Probe { name: "process_vm_writev(own pid)", group: Group::Census,
+            kind: Kind::Child { ns_flags: 0, body: p_process_vm_writev } },
     // The mknod pair. Both, in the same directory: a
     // whiteout that succeeds where a real device number fails proves the
     // denial is capability-based, because no path-scoped policy can tell two

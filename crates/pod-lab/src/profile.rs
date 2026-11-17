@@ -173,6 +173,9 @@ pub enum Hold {
     /// A Landlock ruleset with no port rule refuses each TCP bind and each
     /// TCP connect (ABI 4).
     LandlockTcp,
+    /// A Landlock ruleset with no port rule refuses each TCP bind; a TCP
+    /// connect passes (ABI 4).
+    LandlockBind,
     /// A Landlock ruleset handles `rights` and gives them to each path
     /// except `path` and the directories above it.
     Hide { path: &'static str, rights: u64 },
@@ -224,6 +227,7 @@ impl Hold {
             }
             Hold::ConfineDefaults => "seccomp: the default deny list of pod-confine".to_string(),
             Hold::LandlockTcp => "Landlock: no TCP port".to_string(),
+            Hold::LandlockBind => "Landlock: no TCP bind".to_string(),
             Hold::Hide { path, .. } => format!("Landlock: {path} hidden"),
             Hold::Tmpfs { size: Some(n), noexec } => format!("tmpfs of {n} bytes on /tmp{}", noexec_word(noexec)),
             Hold::Tmpfs { size: None, noexec } => format!("tmpfs on /tmp{}", noexec_word(noexec)),

@@ -244,3 +244,30 @@ fn the_rows_that_send_a_packet_out_decide_the_network_parts() {
     ];
     assert_eq!(state(&verdict("proxy-per-name", &per_name), "answer-per-name"), State::Holds);
 }
+
+/// `bind-netns-vm-denied` on a report: the network namespace and the write
+/// of memory each read their row; a refused connect or an allowed write
+/// fails the profile (PodUtils/podnet#649).
+#[test]
+fn bind_netns_vm_denied_reads_each_row() {
+    const NETNS: &str = "clone(CLONE_NEWUSER|NEWNET)";
+    const WRITE: &str = "process_vm_writev(own pid)";
+    let host = [
+        (BIND, Outcome::denied(EACCES)),
+        (CONNECT, Outcome::ok()),
+        (NETNS, Outcome::denied(EPERM)),
+        (WRITE, Outcome::denied(EPERM)),
+    ];
+    let v = verdict("bind-netns-vm-denied", &host);
+    assert_eq!((state(&v, "netns-refused"), state(&v, "vm-write-refused")), (State::Holds, State::Holds), "{v:?}");
+    assert!(!v.fails(), "{v:?}");
+    let mut write = host.clone();
+    write[3] = (WRITE, Outcome::ok());
+    assert_eq!(state(&verdict("bind-netns-vm-denied", &write), "vm-write-refused"), State::Fails);
+    let mut connect = host.clone();
+    connect[1] = (CONNECT, Outcome::denied(EACCES));
+    assert_eq!(state(&verdict("bind-netns-vm-denied", &connect), "tcp-bind-refused"), State::Fails);
+    let mut netns = host;
+    netns[2] = (NETNS, Outcome::ok());
+    assert_eq!(state(&verdict("bind-netns-vm-denied", &netns), "netns-refused"), State::Fails);
+}

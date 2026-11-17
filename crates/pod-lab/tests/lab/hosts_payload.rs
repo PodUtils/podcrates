@@ -23,6 +23,7 @@ pub fn main(kind: &str) -> Out {
         "netadmin" => netadmin(),
         "ssl" => ssl(),
         "loopback" => loopback(),
+        "bindnetvm" => bind_netns_vm(),
         "caps" => {
             Ok(format!("CapEff {}", u64::from_str_radix(&status_field("CapEff")?, 16).map_err(|e| e.to_string())?))
         }
@@ -210,4 +211,34 @@ fn loopback() -> Out {
     let _ = std::fs::remove_dir_all(&dir);
     r.map_err(|e| format!("AF_UNIX: {e}"))?;
     Ok("no loopback, unix ok".to_string())
+}
+
+/// `bind-netns-vm-denied`: a TCP bind gives EACCES and a connect reaches
+/// the kernel (ECONNREFUSED: nothing listens), a network namespace and a
+/// write into the own memory give EPERM, and AF_UNIX holds.
+fn bind_netns_vm() -> Out {
+    match std::net::TcpListener::bind("127.0.0.1:0") {
+        Err(e) if e.raw_os_error() == Some(k::EACCES.0) => {}
+        r => return Err(format!("bind(127.0.0.1:0): {r:?}; the lab wants EACCES")),
+    }
+    match TcpStream::connect("127.0.0.1:1") {
+        Err(e) if e.kind() == ErrorKind::ConnectionRefused => {}
+        r => return Err(format!("connect(127.0.0.1:1): {r:?}; the lab wants ECONNREFUSED")),
+    }
+    let raw = |nr, a: [u64; 6]| unsafe { k::sys(nr, a) };
+    let net = k::CLONE_NEWUSER | k::CLONE_NEWNET;
+    want("unshare(CLONE_NEWUSER|CLONE_NEWNET)", raw(k::SYS_UNSHARE, [net, 0, 0, 0, 0, 0]), &[k::EPERM])?;
+    let (mark, mut target) = ([1u8], [0u8]);
+    let local = [mark.as_ptr() as u64, 1];
+    let remote = [target.as_mut_ptr() as u64, 1];
+    let iov = [k::getpid() as u64, local.as_ptr() as u64, 1, remote.as_ptr() as u64, 1, 0];
+    want("process_vm_writev(own pid)", raw(k::SYS_PROCESS_VM_WRITEV, iov), &[k::EPERM])?;
+    use std::os::unix::net::{UnixListener, UnixStream};
+    let dir = std::env::temp_dir().join(format!("pod-lab-bnv-{}", std::process::id()));
+    std::fs::create_dir(&dir).map_err(|e| e.to_string())?;
+    let path = dir.join("s");
+    let r = UnixListener::bind(&path).and_then(|l| UnixStream::connect(&path).map(|_| drop(l)));
+    let _ = std::fs::remove_dir_all(&dir);
+    r.map_err(|e| format!("AF_UNIX: {e}"))?;
+    Ok("bind refused, connect ok, no netns, no vm write, unix ok".to_string())
 }

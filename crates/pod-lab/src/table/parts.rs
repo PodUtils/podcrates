@@ -235,6 +235,54 @@ pub(super) const LOOPBACK_ABSENT: Part = Part {
     hold: Hold::NetNs,
 };
 
+/// `unshare` and `clone` with `CLONE_NEWNET` (`clone3` gets `ENOSYS`, as
+/// in [`NNP`]).
+const NETNS: u32 = k::CLONE_NEWNET as u32;
+const NETNS_OFF: &[Call] = &[
+    Call {
+        name: "unshare(CLONE_NEWNET)",
+        nr: k::SYS_UNSHARE,
+        errno: EPERM,
+        when: &[When::Bits { arg: 0, mask: NETNS }],
+    },
+    Call {
+        name: "clone(CLONE_NEWNET)",
+        nr: k::SYS_CLONE,
+        errno: EPERM,
+        when: &[When::Bits { arg: k::CLONE_FLAGS_ARG as u8, mask: NETNS }],
+    },
+    Call { name: "clone3", nr: k::SYS_CLONE3, errno: ENOSYS, when: &[] },
+];
+
+const VM_WRITE: &[Call] = &[Call { name: "process_vm_writev", nr: k::SYS_PROCESS_VM_WRITEV, errno: EPERM, when: &[] }];
+
+pub(super) const TCP_BIND_ONLY_REFUSED: Part = Part {
+    name: "tcp-bind-refused",
+    about: "a TCP bind of each family gives EACCES; a TCP connect passes",
+    observe: &[
+        row("bind(127.0.0.1:0)", Expect::Refused(&[EACCES])),
+        Observe::Lab(LabFact::Inet6BindRefused),
+        // The row reads ECONNREFUSED (nothing listens) as a connect that
+        // reached the kernel.
+        row("connect(127.0.0.1:1)", Expect::Allowed),
+    ],
+    hold: Hold::LandlockBind,
+};
+
+pub(super) const NETNS_REFUSED: Part = Part {
+    name: "netns-refused",
+    about: "no network namespace: clone with CLONE_NEWUSER and CLONE_NEWNET fails",
+    observe: &[row("clone(CLONE_NEWUSER|NEWNET)", Expect::Refused(&[EPERM, ENOSPC]))],
+    hold: Hold::Seccomp(NETNS_OFF),
+};
+
+pub(super) const VM_WRITE_REFUSED: Part = Part {
+    name: "vm-write-refused",
+    about: "process_vm_writev gives EPERM, also to the own process",
+    observe: &[row("process_vm_writev(own pid)", Expect::Refused(&[EPERM]))],
+    hold: Hold::Seccomp(VM_WRITE),
+};
+
 pub(super) const UNIX_ALLOWED: Part = Part {
     name: "unix-allowed",
     about: "socket, bind and connect of AF_UNIX succeed",

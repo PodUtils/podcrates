@@ -509,6 +509,14 @@ Held by: no\-ipv4\-route: a network namespace with no route out, a stand\-in
 server on an IPv6 address, an IPv6 default route; ipv6\-reaches: a network
 namespace with no route out, a stand\-in server on an IPv6 address, an IPv6
 default route. Source: podnet.
+.TP
+\fBbind\-netns\-vm\-denied\fR
+About: no TCP bind, a connect passes; no network namespace; process_vm_writev
+refused; AF_UNIX holds. Parts: tcp\-bind\-refused, netns\-refused,
+vm\-write\-refused, unix\-allowed. Held by: tcp\-bind\-refused: Landlock: no
+TCP bind; netns\-refused: seccomp: unshare(CLONE_NEWNET), clone(CLONE_NEWNET),
+clone3; vm\-write\-refused: seccomp: process_vm_writev; unix\-allowed: the
+host. Source: podnet.
 .SH "EXIT STATUS"
 .TP
 \fB0\fR (holds)

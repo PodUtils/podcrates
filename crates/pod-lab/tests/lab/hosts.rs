@@ -165,6 +165,20 @@ pub fn no_loopback() {
     case("no-loopback", "loopback", "no loopback, unix ok");
 }
 
+/// No TCP bind, no network namespace and no write of another process's
+/// memory together (PodUtils/podnet#649): Landlock of the TCP bind alone
+/// (ABI 4) and seccomp.
+pub fn bind_netns_vm_denied() {
+    match k::landlock_abi() {
+        Ok(abi) if abi >= 4 => {}
+        other => {
+            skip_line(&format!("bind-netns-vm-denied: the lab needs Landlock ABI 4; this host gives {other:?}"));
+            return;
+        }
+    }
+    case("bind-netns-vm-denied", "bindnetvm", "bind refused, connect ok, no netns, no vm write, unix ok");
+}
+
 /// A class of the machine tier of podvm: the run refuses it.
 pub fn a_machine_class_is_refused() {
     for name in ["cgroup-v1", "arm64-tcg"] {
@@ -186,5 +200,6 @@ pub fn all() {
     no_tun();
     ro_etc_ssl();
     no_loopback();
+    bind_netns_vm_denied();
     a_machine_class_is_refused();
 }

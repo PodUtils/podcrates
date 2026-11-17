@@ -39,10 +39,11 @@ fn each_profile_of_the_asks_is_in_the_table() {
         "no-proxy-no-dns",
         "ws-upgrade-refused",
         "ipv6-only",
+        "bind-netns-vm-denied",
     ] {
         assert!(names.contains(&want), "the table has no profile {want}");
     }
-    assert_eq!(names.len(), 34, "{names:?}");
+    assert_eq!(names.len(), 35, "{names:?}");
 }
 
 #[test]
@@ -145,6 +146,7 @@ fn the_classes_of_podssh_and_podnet_are_held_here() {
         "no-net-admin",
         "ro-etc-ssl",
         "no-loopback",
+        "bind-netns-vm-denied",
     ];
     for name in held {
         let p = find(PROFILES, name).expect("a profile");
@@ -234,6 +236,8 @@ fn a_row_sees_each_part_of_the_socket_and_file_classes() {
         ("no-proxy-no-dns", "no-resolver"),
         ("ws-upgrade-refused", "proxy-variable"),
         ("ipv6-only", "no-ipv4-route"),
+        ("bind-netns-vm-denied", "netns-refused"),
+        ("bind-netns-vm-denied", "vm-write-refused"),
     ];
     for (profile, name) in seen {
         let p = find(PROFILES, profile).expect("a profile");
