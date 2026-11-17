@@ -10094,7 +10094,7 @@ cargo test -p pod-rootfs --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10113,6 +10113,10 @@ A key of a given process (`/proc/PID/...`); podvm passes the pid of its outer pr
 ```sh
 cargo test -p pod-hostprobe --all-features identity
 ```
+
+## Done
+
+2026-11-17, da7a0f62a, 21567f2cf: `identity::read_of(pid)` reads the identity of a given process from `/proc/PID` (its maps, its status, and its uid, gid and groups from the lines `Uid`, `Gid` and `Groups`), and `confinement_key_of(pid, interpreter)` gives its key with its own mount namespace (`/proc/PID/ns/mnt`). `read()` and `confinement_key` are the case of `/proc/self` of the same reader. Test `the_key_of_a_pid_is_the_key_that_the_process_reads` (the key of this pid equals the own key; a pid with no process reads nothing; a child under `setpriv --no-new-privs` reads `NoNewPrivs` 1 where this process reads 0). Plant `hostprobe-key-of-the-reader`, caught. podvm passes the pid of its outer process.
 
 # T-891: `pod-hostprobe`: the census probe of exec uses the fixed path `/tmp/execprobe` (PodUtils/podvm#569)
 

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**728 entries: 139 open, 21 partial, 7 blocked, 561 done.**
+**728 entries: 138 open, 21 partial, 7 blocked, 562 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 8 | 0 | 160 | 179 |
-| P2 | 63 | 3 | 4 | 288 | 358 |
+| P2 | 62 | 3 | 4 | 289 | 358 |
 | P3 | 65 | 10 | 3 | 111 | 189 |
-| **All** | 139 | 21 | 7 | 561 | 728 |
+| **All** | 138 | 21 | 7 | 562 | 728 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -769,7 +769,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-887](podvm.md) | P2 | S | M6 | defect | done | `pod-supervise`: `logs -f` ends at a restart (PodUtils/podvm#569) |
 | [T-888](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise`: the log, the lock and the memo of a container follow a symbolic link (PodUtils/podvm#569) |
 | [T-889](podvm.md) | P2 | S | M6 | defect | open | `pod-rootfs`: `run_mtab` says /proc is not mounted, where the entry mounts it (PodUtils/podvm#569) |
-| [T-890](podvm.md) | P2 | S | M6 | defect | open | `pod-hostprobe`: the confinement key reads the namespaces of the reading process (PodUtils/podvm#569) |
+| [T-890](podvm.md) | P2 | S | M6 | defect | done | `pod-hostprobe`: the confinement key reads the namespaces of the reading process (PodUtils/podvm#569) |
 | [T-891](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`: the census probe of exec uses the fixed path `/tmp/execprobe` (PodUtils/podvm#569) |
 | [T-892](podvm.md) | P3 | S | M6 | defect | open | `pod-hostprobe`: the never-claim text of the namespace rung is out of date (PodUtils/podvm#569) |
 | [T-893](podvm.md) | P1 | S | M6 | defect | done | `pod-guest`: QEMU starts in its own process group with no `PR_SET_PDEATHSIG` (PodUtils/podvm#569) |
