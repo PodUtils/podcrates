@@ -81,40 +81,6 @@ impl OpenError {
             },
         }
     }
-
-    /// What to print, one message per line, with no prefix of a program.
-    /// `target` is the `host:port` the session was for.
-    pub fn lines(&self, target: &str) -> Vec<String> {
-        match self {
-            OpenError::Offline => vec!["the offline setting is on, so no connection goes anywhere".to_string()],
-            OpenError::Deadline => {
-                vec![format!("the relay host did not answer within {} s", HOST_DEADLINE.as_secs())]
-            }
-            OpenError::Held { left } => vec![format!("{}; trying the next host", crate::gate::words(*left))],
-            OpenError::Token(e) => vec![e.to_string()],
-            OpenError::Connect { error, origin } => {
-                let mut lines = vec![error.to_string()];
-                let hint = match error {
-                    ConnectError::Refused { status: 400 | 403, body } if is_policy_refusal(body) => {
-                        Some(format!("the relay's policy does not allow {target}"))
-                    }
-                    ConnectError::Refused { status: 403, .. } if *origin == Origin::Environment => {
-                        Some("the relay token that was given was rejected".to_string())
-                    }
-                    ConnectError::Refused { status: 502, .. } => Some(format!("the relay could not reach {target}")),
-                    ConnectError::Dial(DialError::ProxyRefused { status, .. }) if *status >= 500 => Some(format!(
-                        "the proxy could not reach the relay (it answered {status}); another relay host may work"
-                    )),
-                    ConnectError::Dial(DialError::ProxyRefused { .. }) => {
-                        Some("the proxy does not allow connections to the relay".to_string())
-                    }
-                    _ => None,
-                };
-                lines.extend(hint);
-                lines
-            }
-        }
-    }
 }
 
 /// The relay's wording for a policy refusal (spec: "not in the ALLOW list"),
@@ -468,6 +434,9 @@ fn spawn_pool_refresh(ctx: Context, relay: Relay, primary: String, trust: Trust)
 }
 
 #[cfg(feature = "plain-ws")]
+#[path = "open_lines.rs"]
+mod lines;
+
 #[path = "open_plain.rs"]
 mod plain;
 

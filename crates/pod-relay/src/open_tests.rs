@@ -130,3 +130,27 @@ fn the_open_of_a_session_can_run_in_a_spawned_task() {
     #[cfg(feature = "plain-ws")]
     spawnable(&open_on_loopback(&request, &mut notes));
 }
+
+/// A refusal of the policy and a `502` are one line each, which names the
+/// target once with the relay's cause (PodUtils/podssh#309); a refusal
+/// whose hint adds a fact keeps two lines.
+#[test]
+fn a_refusal_says_its_cause_once() {
+    let policy =
+        refused(403, "forward: no-such-host.invalid:2222 not in the ALLOW list: this relay dials no address of it");
+    assert_eq!(
+        policy.lines("no-such-host.invalid:2222"),
+        ["the relay's policy does not allow no-such-host.invalid:2222 (HTTP 403)"]
+    );
+    let far = refused(502, "relay: cannot reach 127.0.0.1:2299: 127.0.0.1:2299: Connection refused (os error 111)");
+    assert_eq!(
+        far.lines("127.0.0.1:2299"),
+        ["the relay could not reach 127.0.0.1:2299: Connection refused (os error 111)"]
+    );
+    assert_eq!(refused(502, "").lines("x:22"), ["the relay could not reach x:22 (HTTP 502)"]);
+    let token = OpenError::Connect {
+        error: pod_ws::ConnectError::Refused { status: 403, body: "missing or wrong token".into() },
+        origin: Origin::Environment,
+    };
+    assert_eq!(token.lines("x:22").len(), 2, "the hint names the token that was given");
+}
