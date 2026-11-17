@@ -1,0 +1,6 @@
+# pod-enter: a volume with host_base is not opened under its base before the fork, so a link under the base gives no refusal that names the volume (T-876).
+ENTRY=T-876
+GROUP=enter
+EXPECT='a_host_path_under_its_base_holds_no_link'
+RUN='cargo test -p pod-enter --all-features --lib ns_volume'
+LIMIT=900

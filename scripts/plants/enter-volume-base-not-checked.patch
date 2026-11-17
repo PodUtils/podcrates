@@ -1,0 +1,12 @@
+diff --git a/crates/pod-enter/src/ns_volume.rs b/crates/pod-enter/src/ns_volume.rs
+--- a/crates/pod-enter/src/ns_volume.rs
++++ b/crates/pod-enter/src/ns_volume.rs
+@@ -143,7 +143,7 @@ pub(crate) fn prepare(plan: &Plan, root: &RootDir, without: Option<&str>) -> Res
+             None => None,
+             Some(base) => Some(beneath(v, base).map_err(|why| usage(v, &why))?),
+         };
+-        if let Some((base, rel)) = &beneath {
++        if let Some((base, rel)) = beneath.as_ref().filter(|_| false) {
+             // The check before the fork, for a refusal that names the
+             // volume; the child opens it again.
+             let fd = open_beneath(base, rel).map_err(|e| {
