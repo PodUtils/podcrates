@@ -199,3 +199,20 @@ fn a_host_with_both_forms_reports_mount_only() {
     ]);
     assert_eq!(Provides::of(Selection::choose(&f).rung, &f).namespaces, "mount-only");
 }
+
+/// The never-claim of an entry follows what it opened: with a user and a
+/// PID namespace and its own `/proc`, the namespace rung claims no network
+/// isolation and nothing more; with none of them, each guard stays
+/// (PodUtils/podvm#569).
+#[test]
+fn the_never_claim_follows_what_the_entry_opened() {
+    let all = Opened { user: true, pid: true, proc: true };
+    assert_eq!(Rung::Namespace.must_never_claim_with(all), "network isolation");
+    let none = Rung::Namespace.must_never_claim_with(Opened::default());
+    for guard in ["network", "user", "pid", "/proc"] {
+        assert!(none.contains(guard), "{none}");
+    }
+    let some = Rung::Namespace.must_never_claim_with(Opened { user: true, pid: false, proc: true });
+    assert!(some.contains("pid") && !some.contains("user") && !some.contains("/proc"), "{some}");
+    assert_eq!(Rung::Chroot.must_never_claim_with(all), Rung::Chroot.must_never_claim());
+}

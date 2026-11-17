@@ -89,6 +89,39 @@ impl Rung {
     }
 }
 
+/// What an entry of the namespace rung opened beside its mount namespace:
+/// a user namespace, a PID namespace and a `/proc` of its own depend on the
+/// caller and the plan.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Opened {
+    pub user: bool,
+    pub pid: bool,
+    pub proc: bool,
+}
+
+impl Rung {
+    /// [`Rung::must_never_claim`] for an entry that opened `opened`: the
+    /// namespace rung never isolates the network, and claims no user, PID
+    /// or `/proc` isolation that the entry did not open
+    /// (PodUtils/podvm#569). The other rungs keep their text.
+    pub fn must_never_claim_with(self, opened: Opened) -> String {
+        if self != Rung::Namespace {
+            return self.must_never_claim().to_string();
+        }
+        let mut not = vec!["network isolation"];
+        if !opened.user {
+            not.push("user isolation");
+        }
+        if !opened.pid {
+            not.push("pid isolation");
+        }
+        if !opened.proc {
+            not.push("a /proc filesystem");
+        }
+        not.join(", or ")
+    }
+}
+
 /// `ruri`'s inversion, as one switch. Under [`Strictness::Refuse`] a rung
 /// below the requested floor is an error rather than a notice.
 #[derive(Clone, Copy, PartialEq, Eq)]
