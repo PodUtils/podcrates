@@ -1,0 +1,6 @@
+# pod-hostprobe: the never-claim of the namespace rung keeps its fixed text whatever the entry opened (T-892).
+ENTRY=T-892
+GROUP=hostprobe
+EXPECT='the_never_claim_follows_what_the_entry_opened'
+RUN='cargo test -p pod-hostprobe --all-features --lib select::tests::the_never_claim_follows_what_the_entry_opened'
+LIMIT=900

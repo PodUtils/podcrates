@@ -1,0 +1,12 @@
+diff --git a/crates/pod-hostprobe/src/select.rs b/crates/pod-hostprobe/src/select.rs
+--- a/crates/pod-hostprobe/src/select.rs
++++ b/crates/pod-hostprobe/src/select.rs
+@@ -105,7 +105,7 @@ impl Rung {
+     /// or `/proc` isolation that the entry did not open
+     /// (PodUtils/podvm#569). The other rungs keep their text.
+     pub fn must_never_claim_with(self, opened: Opened) -> String {
+-        if self != Rung::Namespace {
++        if self != Rung::Namespace || opened == opened {
+             return self.must_never_claim().to_string();
+         }
+         let mut not = vec!["network isolation"];
