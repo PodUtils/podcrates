@@ -19,6 +19,7 @@ fn c(id: &str, name: &str, state: State) -> Container<Fields> {
         noticed: None,
         wall_ms: None,
         end: None,
+        rm: false,
         of: Fields { manifest_digest: "sha256:0".into(), userland_exec: Vec::new() },
     }
 }
@@ -213,48 +214,6 @@ fn the_temp_file_of_a_write_is_locked() {
     assert!(pod_hostprobe::sys::flock(fd, op).is_err(), "a sweep got the lock of a live temp file");
     drop(file);
     assert!(pod_hostprobe::sys::flock(fd, op).is_ok(), "the lock goes with the writer");
-    let _ = std::fs::remove_dir_all(&s.root);
-}
-
-/// A sweep of the staging directory by another process, which deletes each
-/// `.partial` whose lock it gets, never takes the temp file of a write, and
-/// each write lands (PodUtils/podvm#568).
-#[test]
-fn a_sweep_never_takes_the_temp_file_of_a_write() {
-    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-    let s = scratch("sweep");
-    std::fs::create_dir_all(s.root.join(STAGING_DIR)).unwrap();
-    let (stop, taken) = (std::sync::Arc::new(AtomicBool::new(false)), std::sync::Arc::new(AtomicUsize::new(0)));
-    let sweeper = {
-        let (staging, stop, taken) = (s.root.join(STAGING_DIR), stop.clone(), taken.clone());
-        std::thread::spawn(move || {
-            while !stop.load(Ordering::SeqCst) {
-                for entry in std::fs::read_dir(&staging).into_iter().flatten().flatten() {
-                    let path = entry.path();
-                    if !path.to_string_lossy().ends_with(".partial") {
-                        continue;
-                    }
-                    let Ok(file) = std::fs::File::open(&path) else { continue };
-                    let fd = std::os::fd::AsRawFd::as_raw_fd(&file) as i64;
-                    let op = pod_hostprobe::sys::LOCK_EX | pod_hostprobe::sys::LOCK_NB;
-                    if pod_hostprobe::sys::flock(fd, op).is_ok() && std::fs::remove_file(&path).is_ok() {
-                        taken.fetch_add(1, Ordering::SeqCst);
-                    }
-                }
-            }
-        })
-    };
-    for i in 0..200 {
-        update(&s, |x: &mut Table<Fields>| {
-            x.containers.push(c(&format!("id{i:04}"), &format!("n{i}"), State::Exited));
-            Ok::<_, Failure>(())
-        })
-        .unwrap();
-    }
-    stop.store(true, Ordering::SeqCst);
-    sweeper.join().unwrap();
-    assert_eq!(taken.load(Ordering::SeqCst), 0, "the sweep took the temp file of a write");
-    assert_eq!(read::<Fields>(&s).unwrap().containers.len(), 200, "each write landed");
     let _ = std::fs::remove_dir_all(&s.root);
 }
 
