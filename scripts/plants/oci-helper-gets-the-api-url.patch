@@ -1,0 +1,12 @@
+diff --git a/crates/pod-oci/src/credentials.rs b/crates/pod-oci/src/credentials.rs
+--- a/crates/pod-oci/src/credentials.rs
++++ b/crates/pod-oci/src/credentials.rs
+@@ -312,7 +312,7 @@ fn is_hub(host: &str) -> bool {
+ /// podman give it: the host, or [`HUB_SERVER`] for Docker Hub. A helper
+ /// keys its logins on that value (PodUtils/podvm#568).
+ pub fn helper_server(host: &str) -> String {
+-    if is_hub(host) { HUB_SERVER.to_string() } else { host.to_string() }
++    if is_hub(host) { HUB_SERVER.to_string() } else { format!("https://{host}/v2/") }
+ }
+ 
+ /// The key of a server as the user names it, with no scheme and no path:

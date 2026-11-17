@@ -1,0 +1,6 @@
+# pod-oci: a credential helper gets the /v2/ URL of the API, not the key of the configuration (T-874).
+ENTRY=T-874
+GROUP=oci
+EXPECT='a_helper_gets_the_server_key_of_docker'
+RUN='cargo test -p pod-oci --all-features --lib credentials'
+LIMIT=900
