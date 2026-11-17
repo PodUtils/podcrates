@@ -1,0 +1,12 @@
+diff --git a/crates/pod-ws/src/handshake.rs b/crates/pod-ws/src/handshake.rs
+--- a/crates/pod-ws/src/handshake.rs
++++ b/crates/pod-ws/src/handshake.rs
+@@ -66,7 +66,7 @@ pub fn build_request_with(host_header: &str, path: &str, token: &str, key: &str,
+ /// [`build_request_with`] with no token header: the upgrade of a probe that
+ /// holds no token, as a doctor sends it (PodUtils/podnet#652).
+ pub fn build_probe_request(host_header: &str, path: &str, key: &str, extra: &Extra) -> Zeroizing<Vec<u8>> {
+-    request(host_header, path, None, key, extra)
++    request(host_header, path, Some(""), key, extra)
+ }
+ 
+ fn request(host_header: &str, path: &str, token: Option<&str>, key: &str, extra: &Extra) -> Zeroizing<Vec<u8>> {

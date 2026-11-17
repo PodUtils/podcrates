@@ -1,0 +1,6 @@
+# pod-ws: the upgrade of a probe sends a token header (T-901).
+ENTRY=T-901
+GROUP=ws
+EXPECT='a_probe_request_holds_no_token'
+RUN='cargo test -p pod-ws --all-features --lib handshake'
+LIMIT=900
