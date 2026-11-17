@@ -42,6 +42,7 @@ pub fn exit_status(status: i32) -> i32 {
 /// reap can name a signal that the forward did not see.
 pub(crate) fn signal_name(signo: i64) -> String {
     match signo {
+        n if n == sys::SIGHUP as i64 => "SIGHUP".to_string(),
         n if n == sys::SIGINT as i64 => "SIGINT".to_string(),
         n if n == sys::SIGTERM as i64 => "SIGTERM".to_string(),
         n => format!("signal {n}"),

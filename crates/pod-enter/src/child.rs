@@ -35,7 +35,7 @@ impl Child {
         Ok(exit_status(status))
     }
 
-    /// Reap the payload, and forward SIGINT and SIGTERM of this process to
+    /// Reap the payload, and forward SIGHUP, SIGINT and SIGTERM of this process to
     /// it first.
     ///
     /// A waiter in the foreground holds the terminal and the payload holds
@@ -87,7 +87,7 @@ impl Child {
     fn wait_unforwarded(&self, err: &mut dyn Write, why: &str) -> Result<i32> {
         let _ = writeln!(
             err,
-            "waiting without shutdown forwarding ({why}); a SIGINT or SIGTERM \
+            "waiting without shutdown forwarding ({why}); a SIGHUP, SIGINT or SIGTERM \
              to this process will not reach the payload"
         );
         self.wait()
@@ -112,13 +112,13 @@ impl Child {
             if fds[1].revents & (sys::POLLIN | sys::POLLHUP) != 0 {
                 let mut buf = [0u8; 128];
                 // `ssi_signo` is the first word. A short read is not a
-                // signal, and only SIGINT and SIGTERM can arrive: the mask
+                // signal, and only SIGHUP, SIGINT and SIGTERM can arrive: the mask
                 // holds those two bits only.
                 if let Ok(n) = sys::read(sfd, &mut buf)
                     && n >= 4
                 {
                     let signo = i64::from(u32::from_ne_bytes([buf[0], buf[1], buf[2], buf[3]]));
-                    if signo == sys::SIGINT as i64 || signo == sys::SIGTERM as i64 {
+                    if [sys::SIGHUP, sys::SIGINT, sys::SIGTERM].iter().any(|s| *s as i64 == signo) {
                         // ESRCH is not a failure: the payload exited
                         // between the read and the kill, and the pidfd
                         // half reaps it below.

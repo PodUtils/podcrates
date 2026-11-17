@@ -12,19 +12,21 @@ fn a_wait_status_becomes_dockers_exit_code() {
 
 #[test]
 fn forwarded_signals_are_named_and_unknown_ones_numbered() {
+    assert_eq!(signal_name(1), "SIGHUP");
     assert_eq!(signal_name(2), "SIGINT");
     assert_eq!(signal_name(15), "SIGTERM");
     assert_eq!(signal_name(9), "signal 9");
 }
 
 #[test]
-fn the_shutdown_mask_holds_exactly_the_forwarded_pair() {
-    // Signal number n is bit n-1: SIGINT is bit 1 (value 2) and SIGTERM
-    // is bit 14 (value 16384), so the word is 16386. The similar
+fn the_shutdown_mask_holds_exactly_the_forwarded_signals() {
+    // Signal number n is bit n-1: SIGHUP is bit 0 (value 1), SIGINT is
+    // bit 1 (value 2) and SIGTERM is bit 14 (value 16384), so the word is
+    // 16387. The similar
     // `(1 << SIGINT) | (1 << SIGTERM)` names bits 2 and 15 (SIGQUIT and
     // SIGSTKFLT): a mask with the wrong bits blocks no signal that
     // arrives, and the waiter dies on the real signal.
-    assert_eq!(sys::SHUTDOWN_SIGNALS, 2 | 16384);
+    assert_eq!(sys::SHUTDOWN_SIGNALS, 1 | 2 | 16384);
 }
 
 #[test]
@@ -341,4 +343,30 @@ fn a_descriptor_passed_onto_its_own_number_reaches_the_payload() {
     assert_eq!(child.wait().unwrap(), 0);
     assert_eq!(got, b"passed\n", "the payload did not hold descriptor {w}");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A SIGHUP to the waiter reaches the payload, as SIGINT and SIGTERM do: the
+/// payload ends with it and nothing stays (PodUtils/podvm#569).
+#[test]
+fn a_sighup_of_the_waiter_reaches_the_payload() {
+    let Ok(payload) = std::process::Command::new("sleep").arg("30").spawn() else { return };
+    let pid = i64::from(payload.id());
+    let (tx, rx) = std::sync::mpsc::channel();
+    let waiter = std::thread::spawn(move || {
+        // Blocked before the wait starts, so a SIGHUP that comes first waits
+        // for the signalfd and never ends the test process.
+        let mut old = 0u64;
+        sys::sigblock(sys::sigbit(sys::SIGHUP), &mut old).expect("the mask of SIGHUP");
+        let tid = unsafe { sys::sys(sys::SYS_GETTID, [0; 6]) }.expect("gettid");
+        tx.send(tid).unwrap();
+        let mut err = Vec::new();
+        let code = Child { pid }.wait_forwarding(&mut err);
+        (code, String::from_utf8_lossy(&err).into_owned())
+    });
+    let tid = rx.recv().unwrap();
+    let me = i64::from(std::process::id());
+    unsafe { sys::sys(sys::SYS_TGKILL, [me as u64, tid as u64, sys::SIGHUP, 0, 0, 0]) }.expect("tgkill");
+    let (code, err) = waiter.join().unwrap();
+    assert_eq!(code.map_err(|e| e.to_string()), Ok(129), "{err}");
+    assert!(err.contains("forwarded SIGHUP"), "{err}");
 }

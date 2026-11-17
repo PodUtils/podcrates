@@ -119,6 +119,8 @@ pub const SYS_EXECVE: i64 = nr!(execve, __NR_execve);
 pub const SYS_EXECVEAT: i64 = nr!(execveat, __NR_execveat);
 pub const SYS_WAIT4: i64 = nr!(wait4, __NR_wait4);
 pub const SYS_KILL: i64 = nr!(kill, __NR_kill);
+pub const SYS_TGKILL: i64 = nr!(tgkill, __NR_tgkill);
+pub const SYS_GETTID: i64 = nr!(gettid, __NR_gettid);
 pub const SYS_PTRACE: i64 = nr!(ptrace, __NR_ptrace);
 pub const SYS_SETSID: i64 = nr!(setsid, __NR_setsid);
 pub const SYS_GETRUSAGE: i64 = nr!(getrusage, __NR_getrusage);
@@ -305,8 +307,9 @@ pub const CLONE_NEWPID: u64 = 0x2000_0000;
 pub const CLONE_NEWNET: u64 = 0x4000_0000;
 /// The exit signal of a child: 17, and 18 on mips, 20 on sparc.
 pub const SIGCHLD: u64 = linux_raw_sys::general::SIGCHLD as u64;
-/// The two shutdown signals that a waiter forwards, as numbers:
-/// 2 is SIGINT (Ctrl-C on a terminal) and 15 is SIGTERM.
+/// The shutdown signals that a waiter forwards, as numbers: 1 is SIGHUP
+/// (the terminal or the session went away), 2 is SIGINT (Ctrl-C on a
+/// terminal) and 15 is SIGTERM.
 pub const SIGINT: u64 = linux_raw_sys::general::SIGINT as u64;
 pub const SIGTERM: u64 = linux_raw_sys::general::SIGTERM as u64;
 /// The signalfd/`sigprocmask` word: exactly those two signal numbers' bit
@@ -317,7 +320,10 @@ pub const SIGTERM: u64 = linux_raw_sys::general::SIGTERM as u64;
 /// value 16384); `(1 << SIGINT) | (1 << SIGTERM)` names bits 2 and 15
 /// (SIGQUIT and SIGSTKFLT), which would block nothing that arrives and
 /// leave the waiter dying on the real signals.
-pub const SHUTDOWN_SIGNALS: u64 = (1 << (SIGINT - 1)) | (1 << (SIGTERM - 1));
+///
+/// SIGHUP is in the set (PodUtils/podvm#569): with its default action the
+/// waiter ends and leaves its payload running with no parent.
+pub const SHUTDOWN_SIGNALS: u64 = (1 << (sigmask::SIGHUP - 1)) | (1 << (SIGINT - 1)) | (1 << (SIGTERM - 1));
 /// The other signals that an init of a PID namespace gives to its payload
 /// (`SIGHUP` and `SIGQUIT` are in `sigmask`).
 pub const SIGUSR1: u64 = linux_raw_sys::general::SIGUSR1 as u64;

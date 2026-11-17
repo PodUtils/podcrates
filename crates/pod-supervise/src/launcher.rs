@@ -328,7 +328,7 @@ fn reason(walled: bool, signaled: bool) -> Reason {
 fn serve(listener: &UnixListener, pidfd: i64, pid: i64, failed_code: i32, wall: Option<Instant>) -> Served {
     let mut waiters: Vec<UnixStream> = Vec::new();
     let mut walled = false;
-    // SIGINT and SIGTERM of the launcher are blocked and read from a
+    // SIGHUP, SIGINT and SIGTERM of the launcher are blocked and read from a
     // signalfd beside the pidfd, so a signal to the launcher goes to the
     // payload and does not leave it with no parent. The mask stays blocked
     // until the launcher exits: nothing else waits for those signals.
