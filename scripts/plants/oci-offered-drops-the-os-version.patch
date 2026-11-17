@@ -1,7 +1,8 @@
+diff --git a/crates/pod-oci/src/spec.rs b/crates/pod-oci/src/spec.rs
 --- a/crates/pod-oci/src/spec.rs
 +++ b/crates/pod-oci/src/spec.rs
-@@ -267,7 +267,7 @@
-                 _ => loose = loose.or(Some(m)),
+@@ -292,7 +292,7 @@ pub fn select_platform<'a>(index: &'a Index, want: &crate::platform::Platform) -
+                 best = Some((rank, m));
              }
          }
 -        let word = p.full_word();

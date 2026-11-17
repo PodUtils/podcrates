@@ -1,0 +1,6 @@
+# pod-enter: a working directory under /tmp is not made in the tmpfs of the rung, so the run fails with ENOENT (T-886).
+ENTRY=T-886
+GROUP=enter
+EXPECT='a working directory under /tmp'
+RUN='sh scripts/ci/userns-tests.sh'
+LIMIT=1800
