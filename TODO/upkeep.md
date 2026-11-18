@@ -3743,7 +3743,7 @@ cargo test --release -p pod-link --all-features --test udp_loss -- --include-ign
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3763,3 +3763,7 @@ A write error of a half after the far end closed is not the first cause: when th
 ```sh
 cargo test -p pod-link --all-features --test split
 ```
+
+## Done
+
+2026-11-18, commit "pod-link: a failed write or read of a split half waits for the LOST frame that names the lost half (T-950)". `split/run.rs`: a write that fails, a read that fails, or a carrier that ends is a cause that the close of the far end also gives; it waits the grace (a beat, at most 500 ms) for the reader to take a `LOST` frame that came before the close (`Shared::lose_later`). A silence, a `LOST` frame and a wrong frame end the session at once, as before. Not taken: a wait of `lost_after` or of two beats (30 s or 20 s with the beats of production before a reset ends the session). A reset that drops the `LOST` frame leaves the cause of the failed half. Two unit tests on the paused clock; the plant `link-split-write-error-names-its-half`. `tests/split.rs` passed in each of 8 runs here; it takes 37 s in place of 20 s, as each of the 240 rounds of its race waits one beat of the test.

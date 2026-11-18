@@ -7,7 +7,11 @@
 //! direction is the loss of its half: the session ends with
 //! [`super::Lost`], and no half takes over the bytes of the other. The end
 //! that saw the loss says it in a `LOST` frame on the other half, so that
-//! each end names the same half.
+//! each end names the same half. That end then closes its halves, so a
+//! write or a read of the other half at this end can fail before the
+//! `LOST` frame is read: such a failure waits a short time for the readers
+//! of this end to take a `LOST` frame that came before the close
+//! ([`Shared::lose_later`]).
 
 use std::io;
 use std::sync::{Arc, Mutex};
@@ -61,6 +65,19 @@ impl Shared {
         self.ends.fail_with(Arc::new(make));
     }
 
+    /// The loss of `half` for a cause that the close of the far end after
+    /// a loss of the other half also gives: a write or a read that fails,
+    /// or a carrier that ends. The `LOST` frame of the far end came before
+    /// its close and waits in a buffer of this end: its reader takes it in
+    /// [`grace`]. A reset that drops the frame leaves this cause, so the
+    /// session ends at once and not after a silence of `lost_after`.
+    async fn lose_later(&self, half: Half, why: String) {
+        let mut state = self.ends.watch();
+        if timeout(grace(self.timing), until(&mut state, &[State::Failed])).await.is_err() {
+            self.lose(half, why);
+        }
+    }
+
     fn progress(&self) -> Progress {
         *self.progress.borrow()
     }
@@ -99,6 +116,12 @@ async fn tell(w: &mut WriteHalf<BoxIo>, s: &Shared, own: Half) {
     }
 }
 
+/// The most time that a failure of a write or a read waits for a `LOST`
+/// frame that waits in a buffer: a beat, at most half a second.
+fn grace(timing: Timing) -> Duration {
+    timing.beat.min(Duration::from_millis(500))
+}
+
 /// The half of the body of a `LOST` frame.
 fn told(body: &[u8]) -> Half {
     if body == [1] { Half::Up } else { Half::Down }
@@ -114,7 +137,7 @@ async fn send_main(mut w: WriteHalf<BoxIo>, mut from: DuplexStream, half: Half, 
             read = from.read(&mut buf) => read,
             () = tokio::time::sleep(s.timing.beat) => {
                 if let Err(e) = wire::write(&mut w, kind::BEAT, &[]).await {
-                    return s.lose(half, format!("a beat: {e}"));
+                    return s.lose_later(half, format!("a beat: {e}")).await;
                 }
                 continue;
             }
@@ -130,7 +153,7 @@ async fn send_main(mut w: WriteHalf<BoxIo>, mut from: DuplexStream, half: Half, 
             Ok(n) => (kind::DATA, n),
         };
         if let Err(e) = wire::write(&mut w, kind, &buf[..n]).await {
-            return s.lose(half, format!("the bytes of this end: {e}"));
+            return s.lose_later(half, format!("the bytes of this end: {e}")).await;
         }
         if kind == kind::END {
             s.progress.send_modify(|p| p.sent_end = true);
@@ -157,8 +180,10 @@ async fn recv_main(mut r: ReadHalf<BoxIo>, mut to: DuplexStream, half: Half, s: 
         let frame = match frame {
             Err(_) if gone => (kind::END, Vec::new()),
             Err(_) => return s.lose(half, format!("no frame for {lost_after:?}")),
-            Ok(Err(e)) => return s.lose(half, format!("the bytes of the peer: {e}")),
-            Ok(Ok(None)) => return s.lose(half, "the carrier ended before the end of the bytes of the peer"),
+            Ok(Err(e)) => return s.lose_later(half, format!("the bytes of the peer: {e}")).await,
+            Ok(Ok(None)) => {
+                return s.lose_later(half, "the carrier ended before the end of the bytes of the peer".into()).await;
+            }
             Ok(Ok(Some(frame))) => frame,
         };
         match frame.0 {
@@ -190,7 +215,7 @@ async fn beat_back(mut w: WriteHalf<BoxIo>, half: Half, s: Arc<Shared>) {
         if let Err(e) = wire::write(&mut w, kind::BEAT, &[]).await {
             // A peer whose bytes ended may close its half.
             if !s.progress().got_end {
-                s.lose(half, format!("a beat: {e}"));
+                s.lose_later(half, format!("a beat: {e}")).await;
             }
             return;
         }
@@ -214,9 +239,59 @@ async fn hear_back(mut r: ReadHalf<BoxIo>, half: Half, s: Arc<Shared>) {
             Ok(Ok(Some((kind::LOST, body)))) => return s.lose(told(&body), "the peer lost it"),
             Ok(Ok(Some((other, _)))) => return s.lose(half, format!("a frame of type {other} in place of a beat")),
             Ok(Ok(None)) if ended(s.progress()) => return,
-            Ok(Ok(None)) => return s.lose(half, "the peer closed the carrier"),
+            Ok(Ok(None)) => return s.lose_later(half, "the peer closed the carrier".into()).await,
             Ok(Err(_)) if ended(s.progress()) => return,
-            Ok(Err(e)) => return s.lose(half, format!("the beats of the peer: {e}")),
+            Ok(Err(e)) => return s.lose_later(half, format!("the beats of the peer: {e}")).await,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn shared() -> Arc<Shared> {
+        let timing = Timing { beat: Duration::from_millis(50), lost_after: Duration::from_millis(400) };
+        Arc::new(Shared {
+            ends: Ends::new(),
+            progress: watch::channel(Progress::default()).0,
+            timing,
+            lost: Mutex::new(None),
+        })
+    }
+
+    fn lost(s: &Shared) -> Option<Half> {
+        *s.lost.lock().unwrap()
+    }
+
+    /// The far end saw the silence of the up half, said `LOST` on the down
+    /// half, and closed it: the failed beat on the down half comes before
+    /// the reader of the down half takes the `LOST` frame, which names the
+    /// half.
+    #[tokio::test(start_paused = true)]
+    async fn a_failed_write_waits_for_the_lost_frame_that_names_the_half() {
+        let s = shared();
+        let late = tokio::spawn({
+            let s = s.clone();
+            async move { s.lose_later(Half::Down, "a beat: broken pipe".into()).await }
+        });
+        tokio::time::sleep(Duration::from_millis(5)).await;
+        assert_eq!(lost(&s), None, "a failed write ended the session at once");
+        s.lose(Half::Up, "the peer lost it");
+        late.await.unwrap();
+        assert_eq!(lost(&s), Some(Half::Up));
+    }
+
+    /// With no `LOST` frame, the failure names its own half after the
+    /// grace, not after `lost_after`: a reset ends the session at once.
+    #[tokio::test(start_paused = true)]
+    async fn a_failed_write_alone_names_its_half_after_the_grace() {
+        let s = shared();
+        let started = tokio::time::Instant::now();
+        s.lose_later(Half::Down, "a beat: broken pipe".into()).await;
+        assert_eq!(lost(&s), Some(Half::Down));
+        assert_eq!(started.elapsed(), s.timing.beat);
+        let slow = Timing { beat: Duration::from_secs(10), lost_after: Duration::from_secs(30) };
+        assert_eq!(grace(slow), Duration::from_millis(500));
     }
 }

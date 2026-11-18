@@ -1,0 +1,14 @@
+--- a/crates/pod-link/src/split/run.rs
++++ b/crates/pod-link/src/split/run.rs
+@@ -72,10 +72,7 @@
+     /// [`grace`]. A reset that drops the frame leaves this cause, so the
+     /// session ends at once and not after a silence of `lost_after`.
+     async fn lose_later(&self, half: Half, why: String) {
+-        let mut state = self.ends.watch();
+-        if timeout(grace(self.timing), until(&mut state, &[State::Failed])).await.is_err() {
+-            self.lose(half, why);
+-        }
++        self.lose(half, why);
+     }
+ 
+     fn progress(&self) -> Progress {

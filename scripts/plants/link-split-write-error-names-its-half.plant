@@ -1,0 +1,8 @@
+# A failed write of a half ends the session at once with that half, before
+# the reader takes the LOST frame that the far end sent before its close:
+# the end names the wrong half (T-950).
+ENTRY=T-950
+GROUP=link
+EXPECT='a failed write ended the session at once'
+RUN='cargo test -p pod-link --all-features --lib split::run::tests::a_failed_write_waits_for_the_lost_frame_that_names_the_half'
+LIMIT=1800
