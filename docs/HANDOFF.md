@@ -29,10 +29,11 @@ is done. Git and the record keep finished work.
    (`TODO/PROGRESS.md`, "Work order"). Read each
    COORD issue of podrunner `(to podcrates)` first; podrunner can also send
    a direct message.
-4. cfb's channel is #223. podcrates keeps one reply comment there and edits
-   it, with the UTC time of each update and of each acknowledgement of
-   cfb. COORD-133 (#224) waits for podssh's answer: copy it into the reply
-   of #223, then close #224 with a line of the result.
+4. The channel of cfb and githome is #223. podcrates keeps one reply
+   comment to each there and edits it, with the UTC time of each update
+   and of each acknowledgement. cfb gets its CI from githome alone (its
+   R-051 and R-053); githome's asks G-30 to G-35 are T-921 to T-923, T-099,
+   T-100 and T-104.
 5. The open hand-off is COORD-132 (#222) for `v0.70.0` (`ed6d84c`). Record
    each take in its body, and close it when each consumer is on `v0.70.0`
    or later.

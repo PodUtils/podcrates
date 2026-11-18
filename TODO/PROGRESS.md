@@ -19,8 +19,8 @@
 - The CI work of githome and cfb (the work of podrunner) comes first from
   the next session of each project (the ruling "podrunner first",
   COORD-134, #225). cfb's channel is #223: podcrates answers in one comment
-  that it edits, with the UTC time of each update. COORD-133 (#224) waits
-  for podssh's answer.
+  that it edits, with the UTC time of each update. cfb gets its CI from
+  githome alone (cfb's R-051 and R-053).
 - Each session talks with podcrates by COORD issues (the ruling
   "Tonight"); podrunner can also send a direct message (the ruling "Direct
   messages with podrunner"). The rest of M8 waits (the ruling "Priority").
@@ -54,13 +54,13 @@ First: the red nightly (T-914, T-915, T-916). Then the asks of podrunner
 the next tag, which carries the fix of PodUtils/podrunner#290 and the work
 on `main`; T-882 (PodUtils/podrunner#289); T-923 (the fields of `pod-job`
 for podrunner and githome, #223 G-32); each new ask of podrunner. Then
-T-909 (on `wip/t909`; a gate of podssh's next beta, which cfb's CI host
-waits for, #223). Then the entries that a need of githome or cfb names for
-their CI: T-922 (the schemas, #223 G-31), T-921 (a fake GitHub, #223 G-30)
-with T-106 (G-10), T-104 with T-880 (one crate `pod-release`; A-X-13, #223
-G-34), T-100 (G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then
-the open asks of the consumers: T-879 (`pod-detach`), T-897, T-899, T-900,
-T-852, T-863, T-851. Then T-920.
+T-909 (partial, on `wip/t909`; a gate of podssh's next beta). Then the
+entries that a need of githome or cfb names for their CI: T-922 (the
+schemas, #223 G-31), T-921 (a fake GitHub, #223 G-30) with T-106 (G-10),
+T-104 with T-880 (one crate `pod-release`; A-X-13, #223 G-34), T-100
+(G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then the open asks
+of the consumers: T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
+T-851. Then T-920.
 Then the ruling "Discipline": T-692
 (`pod-lab`, part 2), T-700 (`pod-manual`: the take of each consumer; its
 findings T-704 and T-705), T-767 (a stalled resume of `pod-session`,
