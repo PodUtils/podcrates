@@ -168,7 +168,7 @@ crates of podvm) and M8 (the fleet).
 | --- | --- | --- | --- |
 | `pod-todo` | podssh `crates/podssh-todo` without `interop/` (base); the adaptations of podnet `crates/podnet-todo` as configuration (C5) | 3,600 | none; no external dependency |
 | `pod-core` | section 3 | 1,500 | none |
-| `pod-testkit` | podnet `tests/test_host/mod.rs` (`need_loopback!`, `need_localhost!`); podssh `crates/podssh-cli/tests/ssh_harness/` (feature `ssh`, russh 0.65 on ring). Later waves add the stand-ins, each behind a feature; a stand-in speaks bytes and HTTP only and takes no type of a pod crate, so that a crate can dev-depend on it | 2,200 | pod-hostprobe (the one detection of an emulator) |
+| `pod-testkit` | podnet `tests/test_host/mod.rs` (`need_loopback!`, `need_localhost!`); podssh `crates/podssh-cli/tests/ssh_harness/` (feature `ssh`, russh 0.65 on ring). Later waves add the stand-ins, each behind a feature; a stand-in speaks bytes and HTTP only and takes no type of a pod crate, so that a crate can dev-depend on it. The fake GitHub of a consumer's CI and its binary `pod-fake-github` (feature `github`, T-921, call C785): the App, the JIT runners, their broker after podrunner `crates/podrunner-broker-fake` at `d001608` (`SOURCES`), the `workflow_job` webhooks and a control API | 4,300 | pod-hostprobe (the one detection of an emulator); pod-time (feature `github`, the UTC times of the webhooks) |
 
 ### M1: wave 1, the transport (in this order)
 
@@ -549,7 +549,7 @@ pushes. No worktree branch is pushed.
 | `deny.yml`, `secrets.yml` | each push, each day | licences, advisories, sources; secret scan |
 | `plants.yml` | each push that changes a check, by hand | `scripts/plant-each.sh`, in six shards (`scripts/plant-shard.py`) |
 | `adoption.yml` | each push that changes a crate with a trial, by hand | section 8, step 7 |
-| `release.yml` | when a crate is done, by hand; then on the tag | section 10; a dry run with no input; the assets of `podlab` (static musl for x86_64 and aarch64, `podlab-install.sh` with its pins, the offline bundle, `SHA256SUMS`; `docs/install.md`), also in the dry run; with a version it makes the tag and starts itself on the tag, which signs `SHA256SUMS` (cosign, keyless) and makes the release |
+| `release.yml` | when a crate is done, by hand; then on the tag | section 10; a dry run with no input; the assets of `podlab` (static musl for x86_64 and aarch64, `podlab-install.sh` with its pins, the offline bundle, `SHA256SUMS`; `docs/install.md`) and of `pod-fake-github` of `pod-testkit` (static musl for x86_64 and aarch64, in `SHA256SUMS`), also in the dry run; with a version it makes the tag and starts itself on the tag, which signs `SHA256SUMS` (cosign, keyless) and makes the release |
 | `upstream.yml` | each day | `check-sources.py`; `check-zig-mirrors.py`; the job `cloudflared`: `crates/pod-cloudflare/tools/check-upstream.py` (the pin of cloudflared, with a planted sum) and `crates/pod-cloudflare/tools/check-header-oracle.sh` (the header encoding against cloudflared's Go code) |
 | `tor.yml` | each push of `crates/pod-tor`, each Tuesday, by hand | the road through Tor of `pod-tor` and an onion service against a private Tor network of C tor (chutney, `scripts/tor-net.sh`) on the runner |
 | `record-issues.yml` | each day | `TODO/github.txt` against GitHub |

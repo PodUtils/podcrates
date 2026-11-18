@@ -1504,7 +1504,7 @@ contract.
   replace.
 - Read: `crates/pod-core/src/files/closed_win.rs` (the private files of
   Windows) has no `MoveFileExW`.
-- Read: `scripts/check-size.py` runs in `.github/workflows/ci.yml:75` and
+- Read: `scripts/check-size.py` runs in `.github/workflows/ci.yml:76` and
   in `scripts/agent/check.sh:39`. A new check of the repository needs its
   plant in `scripts/plants` (T-003).
 - Found while reading: T-195 (two threads that store one name at once

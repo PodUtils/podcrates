@@ -4,3 +4,15 @@
 
 repo PodUtils/podnet b7682c5d62da73c772749088e52770a4390e9583
 file 7809394bc0037adbb38e500fc07cfd24a8d9717a tests/test_host/mod.rs -> crates/pod-testkit/src/host.rs
+
+repo PodUtils/podrunner d00160877a9e966f2e2e6a22fea551a5247e6f1d
+# T-921 (GitHub #223): the routes, the messages, the runner files and the
+# client assertion of podrunner's fake broker, cut to a job of `run:`
+# steps, for the fake GitHub of the feature `github`. The App, the JIT
+# configuration, the webhooks and the control API are new here.
+file bb862cf879556bbc5ebd717ce6cfaef0c370ef7c crates/podrunner-broker-fake/src/lib.rs -> crates/pod-testkit/src/github.rs crates/pod-testkit/src/github/broker.rs
+file 7b065ae4aa8bc942e10a5933f0a3d7a509900eb0 crates/podrunner-broker-fake/src/message.rs -> crates/pod-testkit/src/github/message.rs
+file 67bf02857d68678a65a85a31cce966a57b44f1e1 crates/podrunner-broker-fake/src/auth.rs -> crates/pod-testkit/src/github/broker.rs crates/pod-testkit/src/github/key.rs
+file 5e9475d1efd27617f7017a28d8c71fa40a3b790d crates/podrunner-broker-fake/src/results.rs -> crates/pod-testkit/src/github/broker.rs
+file 7e3b6fae98e9eec26bd63da344a6c0496c7adeab crates/podrunner-broker-fake/src/files.rs -> crates/pod-testkit/src/github/api.rs
+file 649663f6ee2720f3fb77ec933cd4d238f3f7d6e8 crates/podrunner-broker-fake/src/runner.rs -> crates/pod-testkit/src/github/key.rs

@@ -18,6 +18,15 @@ masque = ["dep:tokio", "dep:h2", "dep:http", "dep:bytes"]
 # An address where each TCP connect is refused, held by a bound socket that
 # does not listen (src/refused.rs), on tokio's TcpSocket.
 refused = ["dep:tokio", "tokio/net"]
+# The fake GitHub of a consumer's CI (src/github.rs) and its binary
+# pod-fake-github: the App, the JIT configuration, the `workflow_job`
+# webhooks and the runner broker, on the HTTP stand-in.
+github = ["stand", "dep:ring", "dep:serde_json", "dep:base64", "dep:pod-time"]
+
+[[bin]]
+name = "pod-fake-github"
+path = "src/bin/pod-fake-github.rs"
+required-features = ["github"]
 
 [dependencies]
 vt100 = { version = "0.18", optional = true }
@@ -25,6 +34,13 @@ tokio = { workspace = true, optional = true, features = ["io-util", "rt", "sync"
 h2 = { workspace = true, optional = true }
 http = { workspace = true, optional = true }
 bytes = { workspace = true, optional = true }
+# The fake GitHub: RS256 and HMAC-SHA256 of ring, the JSON of the API, the
+# base64 of a JWT and of a JIT configuration, and the UTC times of the
+# webhooks (pod-time: std alone, with no dependency on this kit).
+ring = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+base64 = { workspace = true, optional = true }
+pod-time = { workspace = true, optional = true }
 
 # The probe of a user and a mount namespace (need_userns!): fork, unshare,
 # mount.

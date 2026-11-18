@@ -5480,7 +5480,7 @@ cargo test -p pod-actions-workflow --all-features
 **Milestone:** M8
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5517,12 +5517,40 @@ its copies.
 ## Prove
 
 ```sh
+cargo test -p pod-testkit --features github --test github -- the_second_job_runs_on_the_runner_minted_for_the_first --exact
 cargo test -p pod-testkit --all-features
+sh scripts/plant-each.sh testkit-github-assignment-ignored testkit-github-jwt-life-unbounded
 ```
 
 A test queues two jobs of one repository with the same labels, gives the
 second job to the runner minted for the first, and reads both
-conclusions (the acceptance of G-30).
+conclusions (the acceptance of G-30). It runs the binary
+`pod-fake-github`. The `static` job of `ci.yml` checks the binary static
+on each Linux target.
+
+## Done
+
+2026-11-18, this branch. The feature `github` of `pod-testkit` (call
+C785) and its static binary `pod-fake-github`: the App (RS256 JWT of the
+made-up key `src/github/made-up-key.pem` to an installation token), the
+runners of a repository (`generate-jitconfig` with the three runner files
+in `encoded_jit_config`, the list, the delete, a job by id), the broker of
+each runner after podrunner's `podrunner-broker-fake` at `d001608`
+(`SOURCES`; the OAuth token of a client assertion, the session, the long
+poll, `acquirejob`, `renewjob`, `completejob`, the results service of the
+logs), the `workflow_job` webhooks `queued`, `in_progress` and
+`completed` with `X-Hub-Signature-256`, and the control API under
+`/_fake/` (queue, assign, the jobs, the runners, the deliveries).
+`stand::http_on` (a stand-in on the caller's listener) and `stand::call`
+(one HTTP/1.1 request) are new in the kit. `cargo test -p pod-testkit
+--all-features`: 9 unit tests with 7 new, and 3 new tests in
+`tests/github.rs` (the acceptance through the binary, the refusals of the
+App JWT and of the installation token, a runner that gets no job of
+another repository or label). The two plants fail their tests. CI builds
+the binary static on each Linux target, and `release.yml` attaches it for
+x86_64 and aarch64 musl in `SHA256SUMS`. The help and the manual of the
+binary from `pod-manual` are T-946. The take of podrunner in place of its
+fake broker is podrunner's, on the hand-off of the next tag.
 
 # T-922: The schemas of `schemas/` with one source each, a check of each against its types, and a line of each change (GitHub #223)
 
@@ -5818,4 +5846,49 @@ Add the target `source_line` to `fuzz/`: each line goes through `parse_request` 
 
 ```sh
 cargo +nightly fuzz run source_line -- -max_total_time=300
+```
+
+# T-946: `pod-fake-github`: the help and the manual from `pod-manual`, with the checks of each drift
+
+**Source:** T-921 (a finding of its work); the owner's ruling "Discipline" (2026-11-15)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The ruling "Discipline" says that each command line takes its help and
+its manual from `pod-manual`: `CLI man --no-pager`, a generated help, and
+a test of each drift. The binary `pod-fake-github` of `pod-testkit`
+(feature `github`) prints a help that it writes by hand. It has no `man`
+command, and no test compares its help with its parser. Its routes, its
+control API and its made-up credentials are only in
+`crates/pod-testkit/README.md`.
+
+## Premise
+
+- Read: `crates/pod-testkit/src/bin/pod-fake-github.rs`,
+  `crates/pod-manual/README.md`, the tests of `podlab`
+  (`crates/pod-lab/src/bin/podlab/tests.rs`).
+- Not measured: the size of the binary with `pod-manual` and `clap`.
+
+## Approach
+
+Give the binary a model of `pod-manual` (the options `--listen` and
+`--hook`, the exit codes 0, 1 and 2, a topic for each part: the App, the
+runners, the broker, the webhooks, the control API). The help and
+`pod-fake-github man [--no-pager | --roff | --json]` come from it. Its
+tests call `check::texts`, `check::model`, `check::exit_codes` and
+`check::flags`. The `static` job of `ci.yml` runs
+`pod-fake-github man --no-pager` and `scripts/check-man.sh` on it.
+`pod-testkit` then depends on `pod-manual` under the feature `github`;
+`scripts/check-publish-order.py` must accept the order.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --all-features
+python3 -I scripts/check-publish-order.py
 ```
