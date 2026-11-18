@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**779 entries: 144 open, 24 partial, 7 blocked, 604 done.**
+**781 entries: 146 open, 24 partial, 7 blocked, 604 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 10 | 8 | 0 | 172 | 190 |
+| P1 | 12 | 8 | 0 | 172 | 192 |
 | P2 | 68 | 6 | 4 | 311 | 389 |
 | P3 | 66 | 10 | 3 | 119 | 198 |
-| **All** | 144 | 24 | 7 | 604 | 779 |
+| **All** | 146 | 24 | 7 | 604 | 781 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -826,3 +826,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-944](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the head of a payload cannot give a `PT_INTERP` path that lies past it, so Fedora 42's programs do not run on the userland rung (PodUtils/podvm#589) |
 | [T-945](relay.md) | P2 | M | M2 | feature | done | `pod-session`: the client says no wait of its own, so a hang with the node's `session.stall` cannot tell a loss on the link from bytes held for the client's application (PodUtils/podssh#283, ask 4) |
 | [T-946](fleet.md) | P2 | S | M8 | feature | open | `pod-fake-github`: the help and the manual from `pod-manual`, with the checks of each drift |
+| [T-947](fleet.md) | P1 | S | M8 | feature | open | `pod-job`: `status.v1` has no `draining` of a source, no `max_units` and no `units` of a host, so podrunner keeps its own `Status` (PodUtils/podrunner#305) |
+| [T-948](fleet.md) | P1 | M | M8 | feature | open | `pod-testkit`: a fake of githome's source, as a program that podrunner's CI can pin (PodUtils/podrunner#306, githome's G-38 and G-40) |

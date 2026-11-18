@@ -5892,3 +5892,95 @@ tests call `check::texts`, `check::model`, `check::exit_codes` and
 cargo test -p pod-testkit --all-features
 python3 -I scripts/check-publish-order.py
 ```
+
+# T-947: `pod-job`: `status.v1` has no `draining` of a source, no `max_units` and no `units` of a host, so podrunner keeps its own `Status` (PodUtils/podrunner#305)
+
+**Source:** PodUtils/podrunner#305 (COORD-095; PodUtils/podrunner@T-501, PodUtils/podrunner@T-505 and PodUtils/podrunner@T-508)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_job::Status` and `pod_job::SourceStatus` refuse an unknown field.
+podrunner's `status` has three fields more: `SourceStatus::draining` (an
+operator drained the source: it takes no new offer), `Status::max_units`
+(the most units of the host across its kinds; none is no cap) and
+`Status::units` (the units that run now). podrunner cannot take
+`pod_job::Status`, so its `schemas/status.v1.json` stays, and PodUtils/podrunner@T-508
+waits.
+
+## Premise
+
+- Read: PodUtils/podrunner#305, `crates/pod-job/src/status.rs`,
+  `schemas/CHANGES.md`, the ruling "Schema ids" (an optional field keeps
+  the id).
+- Not read: podrunner's `Status` at `e5a3d10`.
+
+## Approach
+
+Add `draining: bool`, `max_units: Option<u32>` and `units: u32` with
+`#[serde(default)]` and a doc comment each. The schema `status.v1`
+comes from the types again; `schemas/CHANGES.md` takes one row `added`
+for each field with the tag `next`. A test: a status of before the
+change (no field of the three) reads with the defaults; a status with
+the three fields reads and writes back the same.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features status
+python3 -I scripts/check-schemas.py
+```
+
+# T-948: `pod-testkit`: a fake of githome's source, as a program that podrunner's CI can pin (PodUtils/podrunner#306, githome's G-38 and G-40)
+
+**Source:** PodUtils/podrunner#306 (COORD-096; githome's G-38 and G-40 on PodUtils/podrunner#292; PodUtils/podrunner@T-509)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome's G-38 asks for a test of githome's source in podrunner's CI that
+blocks a release of podrunner. podrunner cannot get githome's source:
+`PodUtils/githome` is not reachable from its sessions and CI, githome has
+no released bundle, and githome's session is offline until podrunner is
+complete. G-38 names a second path: a fake of githome's wire that
+`pod-testkit` keeps. podcrates has the types of the wire
+(`pod_job::source`, T-922) and a fake GitHub as a binary (T-921), but no
+fake of a source of jobs.
+
+## Premise
+
+- Read: PodUtils/podrunner#306, the rows G-38 and G-40 of
+  PodUtils/podrunner#292 (githome's wire: `/_runner/source/OP`, JSON),
+  `crates/pod-job/src/source/`, `crates/pod-testkit/src/github/` (T-921).
+- Not read: `PodUtils/podrunner:docs/contracts/source-driver.md` and
+  podrunner's `source-conformance` at the head of its `main`; githome's
+  own source.
+
+## Approach
+
+A feature `githome` of `pod-testkit` with the binary `pod-fake-githome`.
+`pod-fake-githome source` is a source program of kind `program`: it
+speaks `pod_job::source` on stdin and stdout, and answers as githome's
+source does by its wire of G-38: `hello` with its facts, `next` with
+the queued offers, `claim`, `mint`, `report`, `withdraw`, `release` and
+`assigned`, and the refusals of githome (each `SourceCode`). `pod-fake-githome serve`
+holds the state and a control API on loopback (queue a job, read the
+reports and the refusals), as the fake GitHub of T-921 does; the program
+reaches it by an address in its environment. Each release attaches the
+binary for x86_64 and aarch64 musl, in `SHA256SUMS`. A test runs the
+binary with the conformance steps of `source-conformance` that the entry
+reads from podrunner, and one job from offer to report.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --features githome --test githome
+```
