@@ -7709,7 +7709,7 @@ cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
 **Milestone:** M1
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7728,3 +7728,7 @@ Give the test a resolver of its own (a stand-in on the loopback, or a name that 
 ```sh
 cargo test -p pod-dns --all-features --lib resolver
 ```
+
+## Done
+
+2026-11-18: `each_lookup_is_one_decision_of_the_observer` (`crates/pod-dns/src/resolver.rs`) gives the system resolver a bound of 2 s and accepts `Unavailable` or `Timeout` for the lookup that the host answers: the test reads the decision of the observer (`fail`), and the class of the failure is the host's. A test with no host resolver at all would need a seam of the system resolver that the crate does not have; the decision of the observer does not depend on it. `cargo test -p pod-dns --all-features --lib resolver`: 14 passed.

@@ -260,12 +260,16 @@ mod tests {
         }
         let seen = Arc::new(Seen::default());
         let pins = vec![("pinned.test".to_string(), "192.0.2.9".parse().unwrap())];
-        let resolver = Resolver::new(Settings { pins, ..Settings::default() }).with_observer(seen.clone());
+        // The failed lookup asks the resolver of the host: a refusal or a
+        // silence, by the host. The test reads the decision, not its class.
+        let settings = Settings { pins, system: Some(Duration::from_secs(2)), ..Settings::default() };
+        let resolver = Resolver::new(settings).with_observer(seen.clone());
         let deadline = Instant::now() + Duration::from_secs(20);
         resolver.resolve("192.0.2.7", 443, deadline).await.unwrap();
         resolver.resolve("pinned.test", 443, deadline).await.unwrap();
         let failed = resolver.resolve("no+name.invalid", 443, deadline).await.unwrap_err();
-        assert_eq!((failed.stage, failed.class), (Stage::Dns, Class::Unavailable), "{failed}");
+        assert_eq!(failed.stage, Stage::Dns, "{failed}");
+        assert!(matches!(failed.class, Class::Unavailable | Class::Timeout), "{failed}");
         let seen = seen.0.lock().unwrap().clone();
         let words: Vec<(&str, &str)> = seen.iter().map(|(d, o)| (*d, o.as_str())).collect();
         assert_eq!(words, [("dns", "literal"), ("dns", "pin"), ("dns", "fail")]);
