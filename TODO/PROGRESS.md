@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 749 entries: 137 open, 22 partial, 7 blocked, 583 done.
+`TODO/INDEX.md` holds 752 entries: 140 open, 22 partial, 7 blocked, 583 done.
 
 ## State
 
@@ -102,7 +102,9 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
 8. **M3, the adapters:** T-028, T-030.
 9. **M4, the roads:** T-131 (a defect of `pod-gsr` on Windows ARM64)
    first; then T-036 (with T-856, the vectors of `tokens.json`), T-039.
-10. **M5, the upkeep:** T-789, T-766, T-780 (a test that reads the pipes
+10. **M5, the upkeep:** T-917 (the copies of product code that
+   `codegraph.py dups` finds), T-918 (the helpers that the tests copy);
+   T-789, T-766, T-780 (a test that reads the pipes
    of its child after the child ends), T-781 (the findings of the study of
    zmux for the consumers), T-779; T-312 (a code fence that is not closed
    in the record). A "port" entry for each change that

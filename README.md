@@ -28,11 +28,11 @@ the dependencies of each crate.
 | M0 | `pod-todo` (exists), `pod-core` (exists), `pod-testkit` (exists) |
 | M1 | `pod-identity` (exists), `pod-term` (exists), `pod-tls` (exists), `pod-proxy` (exists), `pod-dns` (exists), `pod-services` (exists), `pod-services-watch` (exists: the watches and their runner, `publish = false`), `pod-ws` (exists), `pod-turn` (exists: the STUN codec and a TURN client) |
 | M2 | `pod-quic` (exists), `pod-session` (exists), `pod-e2e` (exists), `pod-wormhole` (exists), `pod-netstack` (exists), `pod-wg` (exists), `pod-relay` (exists), `pod-link` (exists) |
-| M3 | `pod-transit` (exists), `pod-warp` (exists; T-028, partial), `pod-cloudflare` (exists; podnet took it, T-030 next), `pod-devtunnel` (exists; T-386, the live run, open) |
-| M4 | `pod-derp` (exists), `pod-piping` (exists), `pod-opentunnel` (exists), `pod-acme` (exists), `pod-egress` (exists), `pod-relay-serve`, `pod-iroh` (exists; T-037, the trial of podssh waits), `pod-tor` (exists; T-038, the trial of podssh waits), `pod-ts`, `pod-gsr` (exists) |
+| M3 | `pod-transit` (exists), `pod-warp` (exists; T-028, partial), `pod-cloudflare` (exists; T-030 open), `pod-devtunnel` (exists; T-386, the live run, open) |
+| M4 | `pod-derp` (exists), `pod-piping` (exists), `pod-opentunnel` (exists), `pod-acme` (exists), `pod-egress` (exists), `pod-relay-serve`, `pod-iroh` (exists), `pod-tor` (exists), `pod-ts`, `pod-gsr` (exists) |
 | M6 | `pod-hostprobe` (exists), `pod-supervise` (exists), `pod-guest` (exists), `pod-oci` (exists), `pod-extract` (exists), `pod-rootfs` (exists), `pod-enter` (exists) |
 | M7 | `pod-hold` (exists), `pod-incus` (exists), `pod-udf` (exists), `pod-microvm`, `pod-sud`, `pod-confine` (exists), `pod-netlab` (exists), `pod-pcap`, `pod-sandprobe`, `pod-qga` (exists) |
-| M8 | `pod-broker` (exists), `pod-job` (exists), `pod-actions-expr` (exists), `pod-actions-workflow` (exists), `pod-actions-results` (exists), `pod-actions-store` (exists), `pod-lab` (exists), `pod-manual` (exists; T-700, partial), `pod-unit`, `pod-control`, `pod-release` |
+| M8 | `pod-broker` (exists), `pod-job` (exists), `pod-actions-expr` (exists), `pod-actions-workflow` (exists), `pod-actions-results` (exists), `pod-actions-store` (exists), `pod-lab` (exists), `pod-manual` (exists; T-700, partial), `pod-unit`, `pod-control`, `pod-release`, `pod-detach`, `pod-time` |
 
 ## Documents
 

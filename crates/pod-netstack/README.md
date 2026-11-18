@@ -112,8 +112,8 @@ T-257 to T-259 (PodUtils/podnet#464):
   `UdpDatagrams`): IPv6 `mtu - 48` (smoltcp does not fragment IPv6); IPv4
   `mtu - 28`, or 65507 with the feature `ipv4-fragmentation`; each at most
   `udp_payload`. A send over it is `InvalidInput` and counted in
-  `udp_oversize` (1252 and 1232 bytes at MTU 1280). Before, the send was
-  `Ok` and smoltcp dropped the packet. Inbound: with no reassembly (IPv6;
+  `udp_oversize` (1252 and 1232 bytes at MTU 1280); smoltcp alone would
+  take the send and drop the packet. Inbound: with no reassembly (IPv6;
   IPv4 with no feature), the stack drops each IPv4 fragment before smoltcp
   (smoltcp would read it as a whole packet), and counts the first fragment
   of a datagram to a socket of the stack in `udp_oversize`; smoltcp answers
@@ -362,8 +362,8 @@ With podnet `crates/podnet-vnet` at `f7ed86b` (the files are the same at
 
 ### podnet
 
-podnet took the crate at `d23ce4e` (tag `v0.20.0`, PodUtils/podnet#445;
-the `taken` lines of `SOURCES`):
+The rows of podnet (tag `v0.20.0`, PodUtils/podnet#445; the `taken`
+lines of `SOURCES`):
 
 | Old (`crates/podnet-vnet/src/`) | New |
 | --- | --- |

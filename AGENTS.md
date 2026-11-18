@@ -93,6 +93,12 @@ everything must be statically compiled." (the owner, 2026-11-05)
 * `.claude/settings.json` allows all tools in `acceptEdits` mode. Do not
   ask for permission for routine commands.
 * Use shell tools (`git`, `curl`, `cargo`) before MCP tools.
+* Before you write a capability, search for it (the owner's ruling
+  "Shared code", `docs/decisions.md`):
+  `python3 -I scripts/codegraph.py similar WORDS`. Before a commit, read
+  `python3 -I scripts/codegraph.py new`: a "clone" or a "twin" line is
+  work that exists already. `codegraph.py dups` in CI fails on new
+  repeated work.
 * Web access (the owner, 2026-11-16): for each web or git search, fetch
   and read-only query (this includes the GitHub REST API, a raw file and a
   web search), use the services that <https://web.pkgforge.dev/llms.txt>
@@ -113,7 +119,8 @@ everything must be statically compiled." (the owner, 2026-11-05)
   ASD-STE100 Simplified Technical English: short sentences, active voice,
   one instruction for each sentence, approved words, no narrative.
 * Keep only technical content. Do not record history, stories or
-  opinions. Git keeps the history.
+  opinions. Git keeps the history. `scripts/check-history.py` (CI) fails
+  on narrative history in the documents of the current state.
 * A comment in the code tells why, in few words. Do not write session
   history, dates of measurements or line numbers of documents in the
   code.
@@ -217,6 +224,8 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 cargo todo check
 ```
+
+`sh scripts/agent/check.sh` runs these and the lint steps of CI.
 
 `docs/development.md` gives the rules of the code and the tests. CI runs
 the same and more (`docs/design.md`, section 9).

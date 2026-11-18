@@ -262,7 +262,7 @@ PodUtils/podnet#451, podnet's PodUtils/podnet@T-249):
 
 ### podnet
 
-podnet took these rows at `b759937` (tag `v0.15.0`):
+Part 1 (tag `v0.15.0`):
 
 | Old (`crates/podnet-netns/src/`) | New |
 | --- | --- |
@@ -280,8 +280,7 @@ podnet took these rows at `b759937` (tag `v0.15.0`):
 | `crates/podnet-netns/README.md`: "Linux 5.0 or newer" | Linux 5.14 (`SECCOMP_ADDFD_FLAG_SEND`) |
 | `podnet-netns/Cargo.toml`, `Cargo.toml` | add `pod-hold` (tag `v0.15.0`) |
 
-podnet took these rows at `e4d4049` (tag `v0.17.0`; T-169, T-170 step
-1, GitHub #59):
+Part 2 (tag `v0.17.0`; T-169, T-170 step 1, GitHub #59):
 
 | Old (`crates/podnet-netns/src/`) | New |
 | --- | --- |
@@ -291,8 +290,7 @@ podnet took these rows at `e4d4049` (tag `v0.17.0`; T-169, T-170 step
 | tests `parses_a_tcp_syn`, `the_rst_reply_answers_the_syn`, `a_header_shorter_than_20_bytes_is_no_syn`, `a_fragment_past_the_first_is_no_syn` (`lib.rs`) | here, with the same names |
 | each `pod-*` dependency | tag `v0.17.0` |
 
-podnet took these rows at `f107766` (tag `v0.26.0`; the trial patch
-`pod-hold-veth` of T-201, at podnet `db34bae`):
+Part 3 (tag `v0.26.0`; T-201, the veth wire):
 
 | Old (`crates/podnet-netns/src/`) | New |
 | --- | --- |
@@ -303,8 +301,7 @@ podnet took these rows at `f107766` (tag `v0.26.0`; the trial patch
 | `crates/podnet-netns/README.md` | names `pod_hold::netns` for the wire |
 | each `pod-*` dependency | tag `v0.25.0` |
 
-podnet took these rows at `98d8a71` (tag `v0.29.0`; the trial patch
-`pod-hold-syn` of T-170 step 2, at podnet `a7350b2`):
+Part 4 (tag `v0.29.0`; T-170 step 2, the hold of a SYN):
 
 | Old (`crates/podnet-netns/src/`) | New |
 | --- | --- |

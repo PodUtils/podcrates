@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**749 entries: 137 open, 22 partial, 7 blocked, 583 done.**
+**752 entries: 140 open, 22 partial, 7 blocked, 583 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 11 | 8 | 0 | 162 | 181 |
-| P2 | 62 | 4 | 4 | 303 | 373 |
-| P3 | 64 | 10 | 3 | 116 | 193 |
-| **All** | 137 | 22 | 7 | 583 | 749 |
+| P1 | 12 | 8 | 0 | 162 | 182 |
+| P2 | 63 | 4 | 4 | 303 | 374 |
+| P3 | 65 | 10 | 3 | 116 | 194 |
+| **All** | 140 | 22 | 7 | 583 | 752 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -796,3 +796,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-914](upkeep.md) | P1 | S | M5 | defect | open | `pod-cloudflare`: the reader of Cap'n Proto multiplies with overflow on a 32-bit target (the nightly at `62ce717`) |
 | [T-915](upkeep.md) | P2 | S | M5 | defect | open | `pod-cloudflare`: the test of the quick tunnel stand-in does not build on Windows and counts two registrations on macOS (the nightly at `62ce717`) |
 | [T-916](upkeep.md) | P2 | M | M5 | defect | open | The gate of no blocking call and eight time bounds fail under the emulation of QEMU (the nightly at `62ce717`) |
+| [T-917](upkeep.md) | P2 | M | M5 | chore | open | The copies of product code that `codegraph.py dups` finds: one place for each |
+| [T-918](upkeep.md) | P3 | M | M5 | chore | open | The helpers that the tests copy from file to file: one place for each |
+| [T-919](upkeep.md) | P1 | M | M0 | chore | open | A code graph, a check of repeated work and a check of narrative history in the documents |

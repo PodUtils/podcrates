@@ -3359,3 +3359,147 @@ cargo test -p pod-e2e --all-features --test allocations
 cargo test -p pod-link --all-features --test arq_machine
 cargo test -p pod-iroh --all-features --test road --test share --test tickets
 ```
+
+# T-917: The copies of product code that `codegraph.py dups` finds: one place for each
+
+**Source:** the first run of `python3 -I scripts/codegraph.py dups` (the ruling "Shared code").
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Nineteen function bodies of product code are in two files or more, token
+for token (`scripts/dups-baseline.txt`, the keys `clone:`). A fix in one
+copy misses the others. Among them:
+
+- `listen` of six carriers of `pod-link` (`dns.rs`, `h2.rs`, `quic.rs`,
+  `tcp.rs`, `udp.rs`, `ws.rs`), and `serve` of `h2/listen.rs` and
+  `tcp/listen.rs`;
+- `read_packet` and `write` of the MQTT board and broker of `pod-wormhole`;
+- `parse` of the Trojan and VLESS links, `dial` of Trojan, VLESS and
+  VMess, and `random_below` of meek and WebTunnel in `pod-egress`;
+  `check_answer` of WebTunnel beside `webtunnel_takes` of `pod-ws`;
+- `pem` of `pod-lab` and `pod-warp`; `attr` of `pod-hold` and `pod-lab`;
+  `tcp_packet` of `pod-warp` and `pod-wg`; the base64 value of
+  `pod-cloudflare` and `pod-turn`;
+- `carry_heard` of `pod-opentunnel` and `pod-piping`; `poll_read` of
+  `pod-opentunnel` and `pod-session`; `all` of `pod-piping` and
+  `pod-relay`; `status` of `pair.rs` and `pair/renew.rs`; `parse` of
+  `h2_road.rs` and `quic_road/mod.rs` in `pod-relay`;
+- `detail` of `machine.rs` and `supervise.rs` in `pod-hostprobe`;
+- `trusted` of `scripts/agent/watch.py` and `scripts/issue-sync.py`.
+
+## Premise
+
+- Read: the output of `codegraph.py dups` on `main`.
+- Not measured: whether each pair must stay the same (a copy that must
+  differ later is no clone to merge).
+
+## Approach
+
+For each key: move the body to the crate that both copies take (the
+lowest crate of `docs/design.md`, section 4, often `pod-core`), or to one
+module of the crate, and call it from each place. A pair that must stay
+two copies gets a comment that says why, and its key stays in the
+baseline with that reason. Remove each key from the baseline in the
+commit that removes the copy.
+
+## Prove
+
+```sh
+python3 -I scripts/codegraph.py dups
+cargo test --workspace --all-features
+```
+
+# T-918: The helpers that the tests copy from file to file: one place for each
+
+**Source:** the first run of `python3 -I scripts/codegraph.py dups` (the ruling "Shared code").
+**Category:** chore
+**Milestone:** M5
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Seventy-one function bodies of test code are in two files or more, token
+for token (`scripts/dups-baseline.txt`, the keys `test-clone:`): the
+scratch directory of a test, the reader of a root file, the `until` of a
+wait, the harness of the mailbox of `pod-relay` and `pod-wormhole`, the
+harness of `pod-e2e` and `pod-relay`, the far end of the tests of
+`pod-session`, and more. Most are in `pod-relay` (29 copies), `pod-link`
+(24), `pod-session` (17), `pod-egress` (12), `pod-iroh` and `pod-e2e`
+(11 each).
+
+## Premise
+
+- Read: the output of `codegraph.py dups` on `main`.
+- Not measured: which helpers differ only by a value that a parameter can
+  carry.
+
+## Approach
+
+A helper of more than one crate goes to `pod-testkit` (behind a feature
+when it needs a dependency); a helper of more than one test file of one
+crate goes to a shared module of its tests (`tests/common/mod.rs`). A test
+keeps its name and its assertions. Remove each key from the baseline in
+the commit that removes the copy.
+
+## Prove
+
+```sh
+python3 -I scripts/codegraph.py dups
+cargo test --workspace --all-features
+```
+
+# T-919: A code graph, a check of repeated work and a check of narrative history in the documents
+
+**Source:** the owner's ask of the housekeeping (a code graph, and mechanical checks that find work that a session did twice or missed); the rulings "Shared code" and "Writing".
+**Category:** chore
+**Milestone:** M0
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A session writes a capability that podcrates has already (the ruling
+"Shared code"), because no tool answers "what exists for X" across 53
+crates and 750 entries. No check finds a function body that a session
+copied into a second file, an entry that repeats another, a paragraph
+that two documents repeat, or a row of `docs/design.md` whose pod
+dependencies drifted from the code (ten rows had drifted). The documents
+of the current state collect narrative history (the take of each
+consumer with its commit, `state:` lines, "Before, ..."), against the
+rule "Writing".
+
+## Premise
+
+- Read: the scripts of `scripts/` (`check-loopback.py` has the scanner of
+  Rust that `check-private-replace.py` already takes), `TODO/INDEX.md`,
+  the documents of `check-history.py`, section 4 of `docs/design.md`.
+- Measured: a scan of the workspace reads 30577 items, 11140 bodies of 6
+  lines or more, 751 entries and 740 paragraphs in about 4 s.
+
+## Approach
+
+`scripts/codegraph.py` with `scripts/codegraph_scan.py` (standard
+library; the code view of `check-loopback.py`): `similar`, `find`,
+`crate`, `graph`, `build`; `dups` against `scripts/dups-baseline.txt`
+(each known finding with the entry that removes it: T-917, T-918); `new`,
+the hint of a change. `scripts/check-history.py` with an exception list
+that gives a reason for each line. Both run in `ci.yml` and in
+`scripts/agent/check.sh`, each with its self-test and its plant.
+
+## Prove
+
+```sh
+python3 -I scripts/codegraph.py --self-test
+python3 -I scripts/codegraph.py dups
+python3 -I scripts/check-history.py --self-test
+python3 -I scripts/check-history.py
+sh scripts/plant-each.sh codegraph-clone history-in-a-document
+```

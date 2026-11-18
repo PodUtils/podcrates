@@ -1,0 +1,8 @@
+# One line of each form of narrative history in a document: the check of
+# the documents must name each one.
+ENTRY=T-919
+GROUP=lint
+EXPECT='a take at a commit'
+RUN='python3 -I scripts/check-history.py --plant'
+LIMIT=60
+SWITCH=1

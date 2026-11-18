@@ -7,11 +7,14 @@
 # (scripts/check-publish-order.py), the rules of the workflows and each
 # workflow that a document names (scripts/check-workflows.py, as ci.yml
 # runs it), the wire vectors against docs/wire.md
-# (scripts/check-wire-vectors.py, with its plant), that each planted defect applies (scripts/plant-each.sh
-# --apply), and the static probes of
+# (scripts/check-wire-vectors.py, with its plant), no narrative history in
+# the documents (scripts/check-history.py), no new repeated work
+# (scripts/codegraph.py dups), that each planted defect applies (scripts/plant-each.sh
+# --apply), shellcheck of the installer when it is there, and the static probes of
 # x86_64 musl when zig is there (scripts/check-static.sh). Print each exit
-# code and the first faults; exit 1 on a fault. With the argument notest,
-# the tests are skipped.
+# code and the first faults; exit 1 on a fault. It also prints what the
+# change against origin/main looks like (scripts/codegraph.py new), as a
+# hint. With the argument notest, the tests are skipped.
 #
 #   sh scripts/agent/check.sh [notest]
 set -u
@@ -39,8 +42,18 @@ echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/siz
     python3 -I scripts/check-probe.py && python3 -I scripts/check-loopback.py &&
     python3 -I scripts/check-private-replace.py && python3 -I scripts/check-results.py &&
     python3 -I scripts/check-wire-vectors.py && python3 -I scripts/check-wire-vectors.py --plant &&
+    python3 -I scripts/check-history.py && python3 -I scripts/check-history.py --self-test &&
+    python3 -I scripts/codegraph.py dups && python3 -I scripts/codegraph.py --self-test &&
     sh scripts/plant-each.sh --apply; } > "$log/paths.log" 2>&1; p=$?
 echo "paths $p"; [ "$p" -eq 0 ] || { rc=1; head -20 "$log/paths.log"; }
+# What the change looks like: each new item with the existing items that
+# look like it, and each clone of an existing body. A hint, not a fault.
+python3 -I scripts/codegraph.py new --base origin/main 2>&1 | grep -v "^codegraph: 0 new items" | head -20
+if command -v shellcheck > /dev/null 2>&1; then
+    shellcheck -x --shell=sh scripts/install/core.sh scripts/install/core-net.sh scripts/install/podlab.sh \
+        scripts/install/test.sh scripts/install/test-cases.sh > "$log/shellcheck.log" 2>&1; sc=$?
+    echo "shellcheck $sc"; [ "$sc" -eq 0 ] || { rc=1; head -20 "$log/shellcheck.log"; }
+fi
 if [ -f examples/static-probe/Cargo.toml ] && command -v zig > /dev/null 2>&1; then
     t=x86_64-unknown-linux-musl
     # The binaries are in CARGO_TARGET_DIR when a worktree builds in its own.

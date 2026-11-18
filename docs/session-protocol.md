@@ -25,7 +25,12 @@ retry, a lock of a shared file, a probe of the host, a parser of the help,
 an installer step, a stand-in for a test), search for it:
 
 1. In podcrates: `docs/design.md` (the table of crates) and each crate's
-   `README.md`. Where a crate has it, take the crate. Where it has most of
+   `README.md`. In a shallow clone of podcrates at a tag,
+   `python3 -I scripts/codegraph.py similar WORDS` ranks each public
+   item, each entry of the record and each crate by the words (an
+   identifier counts as its words: `FileLock` is "file lock"), and
+   `codegraph.py crate NAME` gives the items of a crate. Where a crate has
+   it, take the crate. Where it has most of
    it, ask podcrates for the extension by a COORD issue `(to podcrates)`;
    do not write a second copy beside it.
 2. In each sibling (podssh, podnet, podvm, podrunner). Where a sibling has

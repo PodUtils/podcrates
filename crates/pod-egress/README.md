@@ -257,8 +257,7 @@ VLESS's, VMess's and Trojan's carriers share one dial of TCP and TLS
 | podssh | PodUtils/podssh:.github/workflows/vmess-interop.yml | `.github/workflows/vmess-interop.yml` of podcrates; podssh's `vless-interop.yml`, `trojan-interop.yml`, `outline-interop.yml` and `proxy-nodes-live.yml` drive its binary and stay |
 | podssh | the dependencies `hkdf`, `blake3`, `aes-gcm` and `chacha20poly1305` (dev) of podssh-ws | gone from podssh-ws: they serve this crate's roads |
 
-podssh took part 1 at `3f6a9fe` (`v0.51.0`) and parts 2 and 3 at `94ee6ac`
-(`v0.52.0`); its adoption trials left this repository.
+Part 1 is in `v0.51.0`; parts 2 and 3 are in `v0.52.0`.
 
 ## Tests
 

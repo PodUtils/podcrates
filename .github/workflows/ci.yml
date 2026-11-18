@@ -98,6 +98,14 @@ jobs:
         run: |
           python3 -I scripts/check-loopback.py
           python3 -I scripts/check-loopback.py --self-test
+      - name: No narrative history in the documents
+        run: |
+          python3 -I scripts/check-history.py
+          python3 -I scripts/check-history.py --self-test
+      - name: No new repeated work (clones, twin entries, repeated paragraphs, the deps of design.md)
+        run: |
+          python3 -I scripts/codegraph.py dups
+          python3 -I scripts/codegraph.py --self-test
       - name: No replace of a file outside the durable helper
         run: |
           python3 -I scripts/check-private-replace.py

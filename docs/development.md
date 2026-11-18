@@ -32,6 +32,21 @@ CI runs the same on each push, and more (`docs/design.md`, section 9).
 A Rust file has 500 lines or fewer. There is no allowlist: split a longer
 file. Do not remove comments to make a file shorter.
 
+## Repeated work
+
+* Search before you write (the ruling "Shared code"):
+  `python3 -I scripts/codegraph.py similar WORDS`. Take the item that
+  exists, or extend it; do not write a second copy beside it.
+* `python3 -I scripts/codegraph.py dups` (CI) fails on a new clone of a
+  function body (at least 6 lines, token for token; comments, layout and
+  the text of literals do not count), a new twin of an entry, a paragraph
+  in two documents, and a row of `docs/design.md`, section 4, whose pod
+  dependencies differ from its `Cargo.toml`. A test helper that two test
+  files need goes to `pod-testkit` or to a shared module of the tests.
+* `scripts/dups-baseline.txt` holds each known finding with the entry
+  that removes it. Remove the line in the commit that removes the copy:
+  a key that no longer occurs fails the check.
+
 ## Loopback ports
 
 Product code binds a loopback address only on port 0, or on an address that

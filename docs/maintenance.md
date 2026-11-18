@@ -77,6 +77,23 @@ the tools.
     Give the full SHA (`git rev-parse HEAD`).
   * Run the watchers under the Monitor tool (a monitor stops after 30
     min: start it again when it ends).
+* **The code graph** (`scripts/codegraph.py`; `docs/design.md`,
+  section 9):
+  * `similar WORDS`: search before you write (the ruling "Shared code").
+    It ranks each public item, entry, crate and script by the words.
+  * `find REGEX`, `crate NAME`, `graph [--dot]`, `build`: the items by
+    name, the surface and the users of a crate, the crate graph, the whole
+    graph as JSON.
+  * `new [--base REV]`: for each new item and entry of a change, the
+    existing ones that look like it, and each clone of an existing body.
+    `check.sh` prints it. Read it before a commit: a "clone" or a "twin"
+    line is work that exists already.
+  * `dups`: the check of repeated work against `scripts/dups-baseline.txt`.
+    A new finding is a fault: take the existing code, or move both copies
+    to one place. A baseline line needs the entry that removes it.
+* **The documents**: `scripts/check-history.py` fails on narrative history
+  in a document of the current state (a take at a commit, a `state:` line,
+  a time stamp, "Before, ", the work of one session).
 * **Other scripts** (in `scripts/`):
   * `cloud-setup.sh [TARGET...]`: the rustup targets, zig (from the
     mirrors of `zig-mirrors.txt`, through `fetch-zig.sh`) and

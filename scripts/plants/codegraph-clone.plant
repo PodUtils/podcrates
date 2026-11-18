@@ -1,0 +1,8 @@
+# A function body of product code in a second file: the check of repeated
+# work must name the new clone.
+ENTRY=T-919
+GROUP=lint
+EXPECT='new clone:'
+RUN='python3 -I scripts/codegraph.py dups --plant-clone'
+LIMIT=120
+SWITCH=1

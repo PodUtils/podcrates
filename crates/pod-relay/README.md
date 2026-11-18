@@ -400,9 +400,8 @@ in italics has podnet's name.
 | the tests of the files above | `tests/` here |
 | the plants of these files | scripts/plants/relay-* here, where their test is here |
 
-podssh took the crate at `0872c2c6` (T-025, PodUtils/podssh#206), from the
-patch of its trial on podssh `75a5031`. podssh-relay keeps each module name of the cut as glue over this
-crate: one `Context` of the process (`podssh_relay::context::{process, of}`),
+The glue of podssh (T-025, PodUtils/podssh#206): podssh-relay keeps each
+module name of the cut as glue over this crate: one `Context` of the process (`podssh_relay::context::{process, of}`),
 each variable read at each call, and a wrapper of the old signature for each
 free function. A struct literal of the CLI takes `ctx` in place of `proxy`;
 a node takes `podssh_relay::reverse::settings()`, whose `NodeState` is the
@@ -411,9 +410,8 @@ node with `Settings::default()` says no line.
 
 ### podnet
 
-podnet took these rows at `83e0c93` (tag `v0.30.0`; the trial patch
-`pod-relay` of T-026, at podnet `98d8a71`). The glue keeps podnet's module
-names as glue (`ws_relay`, `relay_reverse`) with one `Context` of the
+The glue of podnet (tag `v0.30.0`, T-026) keeps podnet's module names as
+glue (`ws_relay`, `relay_reverse`) with one `Context` of the
 process (`ws_relay::context()`), and removes `relay_pool.rs` and
 `relay_reverse/session.rs`.
 
@@ -437,9 +435,8 @@ process (`ws_relay::context()`), and removes `relay_pool.rs` and
 ### podvm
 
 The blocking facade: `pod_relay::blocking::Client::new(Config::new(ctx))`
-with podvm's `Context` (its way out, its cache, its settings). podvm took
-it at `15485d1b` (T-326, PodUtils/podvm#285; the trial at podvm
-`c5b61b45`, in the tag `v0.32.0`). podvm's module `mux` is the glue (calls
+with podvm's `Context` (its way out, its cache, its settings; T-326,
+PodUtils/podvm#285, tag `v0.32.0`). podvm's module `mux` is the glue (calls
 C130 to C134):
 
 | Old | New |
