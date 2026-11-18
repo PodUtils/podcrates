@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**773 entries: 146 open, 23 partial, 7 blocked, 597 done.**
+**774 entries: 147 open, 23 partial, 7 blocked, 597 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 8 | 0 | 170 | 189 |
-| P2 | 69 | 5 | 4 | 307 | 385 |
+| P2 | 70 | 5 | 4 | 307 | 386 |
 | P3 | 66 | 10 | 3 | 118 | 197 |
-| **All** | 146 | 23 | 7 | 597 | 773 |
+| **All** | 147 | 23 | 7 | 597 | 774 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -820,3 +820,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-938](upkeep.md) | P2 | S | M5 | defect | open | The riscv64 job of `nightly.yml` meets its limit of 90 minutes |
 | [T-939](relay.md) | P2 | M | M2 | defect | open | `pod-iroh` with `pod-session`: after a new address of the client on the relay-only path, no end resumes, and the bytes in flight are never sent again (PodUtils/podssh#283, ask 4) |
 | [T-940](fleet.md) | P2 | S | M8 | feature | open | `pod-job`: a fuzz target for one line of the source wire |
+| [T-941](foundation.md) | P2 | S | M0 | feature | open | `pod-core`: a lock of a file that other programs read, which on Windows refuses no reader (PodUtils/podssh#319) |

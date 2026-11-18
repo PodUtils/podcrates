@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 773 entries: 146 open, 23 partial, 7 blocked, 597 done.
+`TODO/INDEX.md` holds 774 entries: 147 open, 23 partial, 7 blocked, 597 done.
 
 ## State
 
@@ -66,7 +66,7 @@ T-104 with T-880 (one crate `pod-release`; A-X-13, #223 G-34), T-100
 (G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
-of the consumers: T-927 (PodUtils/podvm#584), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
+of the consumers: T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
 T-851. Then T-920.
 Then the ruling "Discipline": T-692
 (`pod-lab`, part 2), T-700 (`pod-manual`: the take of each consumer; its

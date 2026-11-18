@@ -2561,3 +2561,32 @@ cargo test -p pod-testkit --all-features --lib refused
 ## Done
 
 2026-11-18: `pod_testkit::refused` keeps the bound socket that does not listen where the kernel refuses a connect to it (Linux, Android, Windows); on the other systems it gives a port with no socket in 20000 to 39999, below the range of a bind to port 0 on macOS (49152 to 65535), checked once to refuse at once, and holds nothing (no test of this repository binds a fixed port of the loopback: `check-loopback.py`). Test `an_unbound_port_refuses_at_once` (the form of macOS, on each system: a refusal in less than 2 s); `a_refused_address_stays_refused_while_its_guard_lives` checks the bind of the held port only where a socket holds it. `cargo test -p pod-testkit --all-features --lib refused`: 2 passed on Linux. The proof on macOS is the next run of the macOS jobs (`nightly.yml` 44275593101 showed the timeout before the fix). `pod-proxy`'s `a_dial_of_one_refused_address_twice_names_it_once` waits no 10 s on macOS now.
+
+# T-941: `pod-core`: a lock of a file that other programs read, which on Windows refuses no reader (PodUtils/podssh#319)
+
+**Source:** PodUtils/podssh#319 (COORD-121 of podssh, the amendment on its T-820, the copies of `pod_core::lock`).
+**Category:** feature
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh locks `~/.ssh/known_hosts` with a lock of one byte far past the end of the file (`LockFileEx`), so that OpenSSH and the other readers of the file are never refused on Windows. `FileLock` locks the whole file, so podssh put its lock on a file beside it (`known_hosts.podssh-lock`); the Windows job of podssh's gate failed at podssh `59bdb39`, as the file stays in the user's `.ssh` directory. podssh keeps its own lock of `known_hosts` (`PodUtils/podssh:crates/podssh-ssh/src/known_hosts/lock.rs`) until `FileLock` has the mode.
+
+## Premise
+
+- Read: PodUtils/podssh#319; `crates/pod-core/src/lock.rs` (`std::fs::File::lock` takes the whole file on Windows).
+- Not read: `PodUtils/podssh:crates/podssh-ssh/src/known_hosts/lock.rs`.
+
+## Approach
+
+A mode of `FileLock` on a file that exists and that other programs read: it opens no new file and leaves none behind (as `try_lock_existing`); on Windows it locks one byte at the offset `u64::MAX - 1` with `LockFileEx` (exclusive or shared), so a read of the file is never refused; on Unix it is `flock(2)` as now. A test on Windows reads the file while the lock is held. podssh drops its copy at its take.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features --lib lock
+sh scripts/agent/check-windows.sh
+```
