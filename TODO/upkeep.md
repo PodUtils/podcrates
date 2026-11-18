@@ -3229,3 +3229,133 @@ sh scripts/ci/each-crate.sh
 
 2026-11-17, 488cf44df: `scripts/ci/each-crate.sh` runs `cargo check --locked -p CRATE` for each member of the workspace (from `cargo metadata`), with its default features, and names each crate that does not build; the job `lint` of `ci.yml` runs it after the crates with no tokio. It passes on the workspace. The slip of T-869 fails it: `pod-relay` has no default feature, so `cargo check -p pod-relay` builds with no `plain-ws`, where `mod lines` was gone.
 
+
+# T-914: `pod-cloudflare`: the reader of Cap'n Proto multiplies with overflow on a 32-bit target (the nightly at `62ce717`)
+
+**Source:** nightly run 44067754895 at `62ce717`, the jobs `cross (armv7-unknown-linux-musleabihf, arm)`, `cross (arm-unknown-linux-musleabihf, arm)` and `cross (i686-unknown-linux-musl)`.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`fuzzing::tests::each_target_survives_mutations` of `pod-cloudflare`
+panics on each 32-bit target: "attempt to multiply with overflow" at
+`crates/pod-cloudflare/src/cloudflare/capnp/reader.rs:132`, in
+`get_struct_list`. The product `count * size` is a `usize`: a count of
+2^30 and a size of 8 words overflow 32 bits. The edge sends this message,
+so a peer controls both values. A release build wraps the product, and the
+range check then reads a short range.
+
+## Premise
+
+- Read: the logs of the three jobs; `get_struct_list` (`count` is 30 bits
+  of the tag, `size` is two 16-bit counts).
+- Not measured: a release build on a 32-bit target with the planted
+  message.
+
+## Approach
+
+Compute the range in `u64` with `checked_mul`, and refuse an overflow as
+`Class::Protocol` before `check_range`. Read each other product and sum of
+the reader in the same way. Keep the fuzz test as the proof, and add the
+planted message of the overflow as a seed of the fuzz target
+`capnp_message`.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features --lib fuzzing
+cargo zigbuild --target i686-unknown-linux-musl -p pod-cloudflare --all-features --tests
+```
+
+# T-915: `pod-cloudflare`: the test of the quick tunnel stand-in does not build on Windows and counts two registrations on macOS (the nightly at `62ce717`)
+
+**Source:** nightly run 44067754895 at `62ce717`, the jobs `test (windows-2025)`, `test (windows-11-arm)` and `test (macos-15-intel)`.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+- Windows: `crates/pod-cloudflare/tests/quick_tunnel_standin.rs` uses
+  `std::os::unix::fs::PermissionsExt` with no `#[cfg(unix)]`
+  (`quick_tunnel_standin_checks_the_auth_user`): "cannot find `unix` in
+  `os`", so no test of the nightly job runs on Windows.
+- macOS: `quick_tunnel_standin_serves_a_visitor_over_http2` finds two
+  registrations at the stand-in edge, not one
+  (`crates/pod-cloudflare/tests/quick_tunnel_standin.rs:45`).
+
+## Premise
+
+- Read: the logs of the three jobs.
+- Not measured: why the tunnel registers a second connection on macOS (a
+  second leg of the race, or a retry after a reset of the first).
+
+## Approach
+
+Put the mode of the file behind `#[cfg(unix)]`. On macOS, read the second
+registration (its `conn_index`): when it is a second leg by design, the
+test holds each registration to the issued tunnel; when it is a retry,
+find the reset. Run `sh scripts/agent/check-windows.sh` and
+`sh scripts/agent/check-macos.sh` before the push.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
+sh scripts/agent/check-windows.sh
+```
+
+# T-916: The gate of no blocking call and eight time bounds fail under the emulation of QEMU (the nightly at `62ce717`)
+
+**Source:** nightly run 44067754895 at `62ce717`, the jobs `cross` of armv7, arm, aarch64, i686, loongarch64, powerpc64le and riscv64gc.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+- `pod_testkit::switches::count` (T-838) counts the voluntary switches of
+  the thread. Under qemu-user a computation makes hundreds:
+  `switches::tests::a_sleep_counts_and_a_computation_does_not` (6 jobs),
+  `a_seal_and_an_open_block_on_nothing` of `pod-e2e` (6 jobs, "369
+  voluntary switches in 1000 seals and opens") and
+  `a_turn_of_the_arq_blocks_on_nothing` of `pod-link` (7 jobs, "735
+  voluntary switches in 1000 turns").
+- Time bounds that the emulation outruns: `pod-iroh` `road.rs`
+  (`a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way`, 3
+  jobs), `share.rs` (2), `tickets.rs` (2, "no stream to the node:
+  connection lost"); `pod-relay` `caller_headers.rs` and
+  `http_road_one_h2.rs`; `pod-ws` `h2_road.rs` (eight sessions on one TLS
+  connection); `pod-egress` `vless.rs` (2); `pod-session`
+  `session_move.rs`; `pod-guest` `ready/tests.rs` (riscv64).
+
+## Premise
+
+- Read: the logs of the seven jobs.
+- Not measured: the counts of switches of a computation under each
+  emulator; which bounds of the eight tests are scaled by
+  `pod_testkit::scaled`.
+
+## Approach
+
+`switches::count` gives `None` when `pod_testkit::emulated()` is true, and
+the tests skip with the reason, as a skip of a missing capability does. Each time
+bound of the eight tests goes through `pod_testkit::scaled`. A test whose
+bound is scaled and still fails gets its cause found, not a larger bound.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --all-features --lib switches
+cargo test -p pod-e2e --all-features --test allocations
+cargo test -p pod-link --all-features --test arq_machine
+cargo test -p pod-iroh --all-features --test road --test share --test tickets
+```

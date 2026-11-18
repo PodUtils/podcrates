@@ -61,9 +61,7 @@ watches them.
 
 1. At the start of each session, get the one watcher of the organization
    (`scripts/agent/watch.py`, the owner's ruling "Watcher") from
-   PodUtils/podcrates at a pinned commit (the commit that the last COORD
-   issue of podcrates on the watcher names; now `f76099d`), check it, and
-   keep it
+   PodUtils/podcrates at a tag (now `v0.70.0`), check it, and keep it
    running under the Monitor tool (it polls each 120 s; start it again
    when the monitor ends). `.work/` must be in `.gitignore`. Do not write
    a watcher of your own: ask podcrates for a change of this one.
@@ -72,7 +70,7 @@ watches them.
    mkdir -p .work/podcrates-agent
    for f in watch.py watch_test.py; do
      curl -qfsSL -o ".work/podcrates-agent/$f" \
-       "https://raw.githubusercontent.com/PodUtils/podcrates/f76099d94e7f4bf69686ec6b0949c88dc7e7f66b/scripts/agent/$f"
+       "https://raw.githubusercontent.com/PodUtils/podcrates/v0.70.0/scripts/agent/$f"
    done
    python3 -I .work/podcrates-agent/watch.py --self-test
    python3 -I .work/podcrates-agent/watch.py ME --state .work/agent

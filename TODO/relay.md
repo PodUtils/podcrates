@@ -10040,7 +10040,7 @@ cargo test -p pod-session --all-features
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -10053,6 +10053,8 @@ The client moves a session to a new link at `MOVE_BYTES` (48 MiB) whatever the r
 ## Approach
 
 `Offer` carries the cap of its document, kept with it in the cache. `byte_budget_under` gives a budget under each cap (three quarters of it), with a floor of 1 MiB only where the cap is smaller. Tests for a cap of 1 MiB, 8 MiB and a large one, and an offer from the cache.
+
+Part 1 (`byte_budget_under`) is written on the branch `wip/t909` and is not tested. Part 2 (the cap in `Offer`) is not started.
 
 ## Prove
 

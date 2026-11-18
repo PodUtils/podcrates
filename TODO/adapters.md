@@ -1527,9 +1527,8 @@ sh scripts/adoption.sh podnet pod-warp
 ## Start condition
 
 T-406 is done (the L4 door is in `pod-warp`).
-The text of the COORD issue of the freeze is in
-`docs/releases/pod-warp-freeze.md`: post it when T-412 and T-413 pass and
-a tag holds `pod-warp`.
+The text of the COORD issue of the freeze is COORD-075 (#135): post it
+when T-412 and T-413 pass and a tag holds `pod-warp`.
 
 ## Done
 
@@ -1650,7 +1649,7 @@ clippy of the WARP feature and of `podssh-zerotier`, the tests of
 of the x86_64 musl binary of `iroh,warp,zerotier` (291 341 992 bytes,
 debug). A run takes 633 s on a warm target of 6.7 GB (no incremental
 files). Gaps: T-480 (done), T-481, T-482. The COORD issue of the freeze
-(`docs/releases/pod-warp-freeze.md`) goes with the tag that holds T-480.
+(COORD-075, #135) goes with the tag that holds T-480.
 
 # T-475: `pod-warp`: the rules `port:N=WAY` and `tcp:HOST:PORT=WAY` in the reader of the rules (PodUtils/podnet#518)
 

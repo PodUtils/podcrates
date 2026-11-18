@@ -70,7 +70,7 @@ the tools.
     since the last poll; the watcher then reads the comments of each item
     that changed. A failed read gets one more short try; a silence of
     10 min is said once. Each project runs this one
-    file from podcrates at a pinned commit (`docs/session-protocol.md`).
+    file from podcrates at a tag (`docs/session-protocol.md`).
   * `watch-runs.sh FULL_SHA [MIN_RUNS]`: each run of a commit when it
     ends, with the failed jobs and steps (`runs.py` reads the run list),
     and an exit when each run ended (a gate of a step of work).
@@ -162,7 +162,8 @@ A consumer writes the commit of its take as a COORD issue
    the clones must show 0 changes.
 2. Remove the trial files of that consumer (`adoption/CONSUMER/CRATE.*`).
 3. Set the entry to `done`.
-4. Close the hand-off issue when each consumer took its part.
+4. Close the hand-off issue when each consumer names its tag or a later
+   one (call C780, below).
 
 ## Talk between sessions
 
@@ -188,8 +189,8 @@ for each writer; no session sends a direct message (the ruling
 
 `docs/session-protocol.md` is the text of this protocol for the
 `AGENTS.md` of each repository of PodUtils: the watcher of the
-organization (`scripts/agent/watch.py` from podcrates at a pinned
-commit, with the name of the repository), the COORD issues to a reader or
+organization (`scripts/agent/watch.py` from podcrates at a tag, with
+the name of the repository), the COORD issues to a reader or
 `(to all)`, and the freeze and the hand-off of podcrates.
 
 ### The channel of a consumer session with no messages
@@ -330,8 +331,11 @@ fourth argument of the script names the list when it is elsewhere.
    the release.
 6. Write the hand-off: a COORD issue `(to all)` of this repository (the
    crates, the tag, the adoption map of each README, the step of each
-   consumer). Amend its body
-   at each take; close it when each consumer took its part.
+   consumer). Amend its body at each take. It closes when each consumer
+   names its tag or a later one (call C780). The hand-off of a new tag
+   names each part of an older tag that a consumer has not taken; the
+   older hand-off then closes with a line of the result that names the
+   new one. So one hand-off stays open.
 
 ## This sandbox
 
@@ -408,5 +412,22 @@ fourth argument of the script names the list when it is elsewhere.
 * After a consumer takes a crate: write the `taken` line in `SOURCES`,
   remove the trial files of `adoption/CONSUMER/CRATE.*` (a later tag
   breaks a trial that the consumer already took), and record the take on
-  the hand-off issue (amend its body; close it when each consumer took
-  its part).
+  the hand-off issue (amend its body; close it by call C780).
+* A new field of a struct that a consumer builds with all its fields, or
+  a new variant of an enum that a consumer matches with no wildcard,
+  breaks each adoption trial of that consumer. Read the code of the
+  consumers (a shallow clone in the scratchpad) before a change of a
+  public type, and add new items beside the old ones.
+* A cloud session runs as root; `ci.yml` runs the tests as a normal user.
+  A test that needs root, a capability or a user namespace that a runner
+  does not give skips with its reason; the root scripts of CI still run
+  it.
+* Clean the changed crates (`cargo clean -p CRATE`) before a fast clippy:
+  a cached clippy hides a warning.
+* `sh scripts/agent/check.sh` runs the lint steps of `ci.yml` too (the
+  scripts, the plants, `cargo doc`, `shellcheck` of the installer). Run
+  it before each push, not only the four checks of `AGENTS.md`.
+* A macOS arm64 job of `ci.yml` that no runner takes ("not acquired by
+  Runner") is no defect: run the failed jobs again.
+* The watcher can end on a broken answer of the mirror: start it again
+  when the Monitor reports an exit.
