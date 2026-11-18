@@ -1,0 +1,8 @@
+# The drain after a failed write drops the cause of the link: the relay's
+# Close with its code is said as `broken pipe`; the test of the relay's
+# Close over a failed write must fail.
+ENTRY=T-908
+GROUP=session
+EXPECT='test the_relays_close_wins_over_the_failed_write \.\.\. FAILED'
+RUN='cargo test -p pod-session --all-features --test session_close_over_write'
+LIMIT=1800

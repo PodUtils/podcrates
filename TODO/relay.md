@@ -10008,7 +10008,7 @@ cargo test -p pod-relay --all-features --lib token
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10027,6 +10027,10 @@ The drain keeps an `End::Lost(Some(_))` that `down` gave, over the error of the 
 ```sh
 cargo test -p pod-session --all-features
 ```
+
+## Done
+
+2026-11-18, 81b979b52. In the drain after `Written::Failed`, an `End::Lost(Some(_))` that `down` gives (the cause of the link: a relay's Close with its code and reason) wins over the error of the write; a drain that times out or gives `Lost(None)` keeps the error of the write. Test `tests/session_close_over_write.rs` `the_relays_close_wins_over_the_failed_write`: a link that the relay cuts while the application writes, the write fails at once with `broken pipe`, the relay's reason comes to the read 300 ms later; the end names `1009 session byte cap`. Plant `session-drain-drops-the-close`, caught.
 
 
 # T-909: `pod-relay`: the link budget of the layer under a small cap of the relay; the cap in `forward_layer::Offer` (PodUtils/podssh#314, ask 2)
