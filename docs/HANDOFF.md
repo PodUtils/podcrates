@@ -35,14 +35,15 @@ is done. Git and the record keep finished work.
    `ci.yml` that no runner takes ("not acquired by Runner") is no defect:
    run the failed jobs again.
 4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the red
-   nightly above, then T-922 (podrunner's wire into `pod-job`), then
-   T-909, then the entries for the CI of githome and cfb (T-921 with
+   nightly above, then T-909, then the entries for the CI of githome and cfb (T-921 with
    T-106, T-104 with T-880, T-100, T-105, T-103, T-102).
-5. podrunner's answer to COORD-135 (PodUtils/podrunner#294, at podrunner
-   `3a0cbbb`) is in T-922 (the types and files of `status.v1` and of the
-   source wire) and T-923 (the names and units of the new fields). Set
-   the order of the move with podrunner: the wire moves after podrunner's
-   T-486, T-493 and T-495.
+5. T-922 is on `main`, for the next tag: `pod_job::{Status, SourceStatus,
+   KindStatus, PinStatus}` and `pod_job::source` (the source wire of
+   podrunner at `ca8c308`), `schemas/status.v1`, `source-request.v1`,
+   `source-reply.v1`, and `schemas/CHANGES.md` with its check
+   (`scripts/check-schemas.py`). The hand-off of the next tag tells
+   podrunner what changes at its take (`crates/pod-job/README.md`, the
+   adoption map: `Done {}`, `Minted`, the strict `status.v1`).
 6. The channel of cfb and githome is #223. podcrates keeps one reply
    comment to each there (cfb: 6970315549; githome: 6970683028) and edits
    it, with the UTC time of each update and of each acknowledgement. cfb
