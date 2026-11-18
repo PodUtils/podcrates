@@ -6040,7 +6040,7 @@ podrunner's `source-conformance` has 15 tests since `b0f8a36`. Test 15, `a-cance
 ## Premise
 
 - Read: PodUtils/podrunner#310; `crates/pod-testkit/tests/githome.rs`; `crates/pod-testkit/src/githome/` (the rules of `release`: a report with no refusal code ends the job).
-- Not read: `PodUtils/podrunner:crates/podrunner-source/src/conformance.rs` and `docs/contracts/source-driver.md` (Tests) at `b0f8a36` or later.
+- Not read: `PodUtils/podrunner:crates/podrunner-source/src/conformance.rs` and `PodUtils/podrunner:docs/contracts/source-driver.md` (Tests) at `b0f8a36` or later.
 
 ## Approach
 
