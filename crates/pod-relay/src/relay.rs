@@ -69,10 +69,15 @@ pub fn byte_budget(ctx: &crate::context::Context, env: Option<&str>) -> u64 {
 
 /// The byte budget under a relay's `limits` (podssh T-342): the compiled-in one, or
 /// less with the same margin when the relay's `max_session_bytes` is
-/// smaller; a larger one never raises it. Then `env` lowers it.
+/// smaller; a larger one never raises it. A cap with no room for the margin
+/// and 1 MiB gets three quarters of it: each cap gets a budget under it
+/// (PodUtils/podssh#314). Then `env` lowers it.
 pub fn byte_budget_under(env: Option<&str>, limits: &crate::pool::Limits) -> u64 {
     let margin = session_byte_cap() - SESSION_BYTE_BUDGET;
-    let under = limits.max_session_bytes.and_then(|cap| cap.checked_sub(margin)).filter(|n| *n >= 1 << 20);
+    let under = limits.max_session_bytes.map(|cap| match cap.checked_sub(margin).filter(|n| *n >= 1 << 20) {
+        Some(n) => n,
+        None => cap / 4 * 3,
+    });
     let budget = under.map_or(SESSION_BYTE_BUDGET, |n| n.min(SESSION_BYTE_BUDGET));
     env.and_then(|v| v.trim().parse::<u64>().ok()).filter(|n| *n >= 1 << 20).map_or(budget, |n| n.min(budget))
 }

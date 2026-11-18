@@ -397,7 +397,14 @@ mod tests {
         assert_eq!(byte_budget_under(None, &with_bytes(32 << 20)), 28 << 20);
         assert_eq!(byte_budget_under(None, &with_bytes(128 << 20)), SESSION_BYTE_BUDGET);
         assert_eq!(byte_budget_under(None, &Limits::default()), SESSION_BYTE_BUDGET);
-        assert_eq!(byte_budget_under(None, &with_bytes(4 << 20)), SESSION_BYTE_BUDGET, "no room under it: left out");
+        // A cap with no room for the margin: three quarters of it, never
+        // the default over it (PodUtils/podssh#314).
+        assert_eq!(byte_budget_under(None, &with_bytes(4 << 20)), 3 << 20, "no room for the margin");
+        assert_eq!(byte_budget_under(None, &with_bytes(1 << 20)), 768 << 10, "a cap of 1 MiB");
+        assert_eq!(byte_budget_under(None, &with_bytes(8 << 20)), 4 << 20, "the margin still fits");
+        for cap in [1u64 << 20, 2 << 20, 5 << 20, 8 << 20, 9 << 20, 64 << 20] {
+            assert!(byte_budget_under(None, &with_bytes(cap)) < cap, "a budget under the cap {cap}");
+        }
         assert_eq!(byte_budget_under(Some("10485760"), &with_bytes(32 << 20)), 10 << 20, "the variable lowers it");
         assert_eq!(byte_budget_under(Some("104857600"), &with_bytes(32 << 20)), 28 << 20, "and never raises it");
         let with_ms = |ms: u64| Limits { max_session_ms: Some(ms), ..Limits::default() };
