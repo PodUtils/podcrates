@@ -16,7 +16,8 @@ fn the_next_step_follows_the_flags_of_the_edge() {
         )
     };
     let text = format!("{:#}", refused(false, 0));
-    assert!(text.contains("podnet speaks cloudflared 2026.10.7"), "{text}");
+    assert!(text.contains(&format!("podnet speaks {}", crate::cloudflare::speaks())), "{text}");
+    assert!(crate::cloudflare::speaks().starts_with("cloudflared 20"), "{text}");
     match policy.next(1, &refused(false, 0)) {
         Next::Stop(reason) => assert!(reason.contains("tunnel not found"), "{reason}"),
         other => panic!("{other:?}"),

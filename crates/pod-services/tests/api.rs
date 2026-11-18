@@ -86,7 +86,7 @@ fn a_fact_is_read_by_its_type() {
     assert_eq!(relay.texts("signed-list-keys"), Some(&[][..]), "an empty list of keys");
     let edge = pod_services::get("cloudflare-tunnel-edge").unwrap();
     assert_eq!(edge.date("roots-first-end").unwrap().to_string(), "2029-08-15");
-    assert_eq!(edge.date("cloudflared-released").map(|d| (d.year(), d.month(), d.day())), Some((2026, 10, 30)));
+    assert_eq!(edge.date("cloudflared-released").map(|d| (d.year(), d.month(), d.day())), Some((2026, 11, 17)));
     assert!(edge.text("roots").unwrap().contains("-----BEGIN CERTIFICATE-----"), "a file's text");
     assert_eq!(pod_services::get("quad9-doh").unwrap().bool("http2-only"), Some(true));
     assert_eq!(pod_services::get("quad9-doh").unwrap().text("json-path"), None, "Quad9 serves no JSON");

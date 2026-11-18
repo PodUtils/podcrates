@@ -102,18 +102,18 @@ source = { url = "https://github.com/cloudflare/cloudflared", read = 2026-11-06 
 
 [[fact]]
 name = "cloudflared-tag"
-value = "2026.10.7"
-source = { ruling = "the pins of the consumers: PodUtils/podnet src/cloudflare/cloudflared-pin.txt (2026.10.7); PodUtils/podssh crates/podssh-relay/src/quick/cloudflared-pin.txt (2026.10.6, and the sum of features.go of 2026.10.7, judged the same for podssh)", read = 2026-11-05 }
+value = "2026.11.1"
+source = { ruling = "the pin of pod-cloudflare: crates/pod-cloudflare/src/cloudflare/cloudflared-pin.txt (2026.11.1, from 2026.10.7 by T-930: only quick_tunnel.go changed)", read = 2026-11-18 }
 
 [[fact]]
 name = "cloudflared-commit"
-value = "872b241f94871665c1c157adefcf90c11f0ead96"
-source = { url = "https://api.github.com/repos/cloudflare/cloudflared/commits/2026.10.7", read = 2026-11-06, note = "read through the mirror forge.web.pkgforge.dev/github" }
+value = "518d7f7969b764df628bb4b1088f0f154901dc4e"
+source = { url = "https://api.github.com/repos/cloudflare/cloudflared/commits/2026.11.1", read = 2026-11-18, note = "read through the mirror forge.web.pkgforge.dev/github" }
 
 [[fact]]
 name = "cloudflared-released"
-value = 2026-10-30
-source = { url = "https://api.github.com/repos/cloudflare/cloudflared/releases/tags/2026.10.7", read = 2026-11-06, note = "published_at 2026-10-30T17:11:03Z, read through the mirror forge.web.pkgforge.dev/github" }
+value = 2026-11-17
+source = { url = "https://api.github.com/repos/cloudflare/cloudflared/releases/tags/2026.11.1", read = 2026-11-18, note = "published_at 2026-11-17T15:11:01Z, read through the mirror forge.web.pkgforge.dev/github" }
 
 [[fact]]
 name = "cloudflared-files"
@@ -127,10 +127,10 @@ value = [
     "source connection/control.go 280bbf5a7da15cc0e32131e10aac173fe8706ca460aade01277e448f2f09f963",
     "source connection/quic_connection.go 977a1b6504981931bcbb295776ec3b06605a3717a8b9579bf53fc82bbc6e65bb",
     "source tunnelrpc/registration_client.go d6799df9e3f598542671c1c86b25f06d5ac389aed543d3bf942078254b65c991",
-    "source cmd/cloudflared/tunnel/quick_tunnel.go 637457fc155436876ccf51407148dc5c74c4c8117a5ad23b8647428460b8082a",
+    "source cmd/cloudflared/tunnel/quick_tunnel.go 9cdabc42eb74ce0a692e2a61212d3f7a46c641f5f1f3ed3280afcd719e0a7af1",
     "source features/features.go 098fb887e189ac0640046ee1a7e71c7e74a44d35eea2e02f8f49cfbb219fcfd0",
 ]
-source = { measured = "the SHA-256 of each file at the tag 2026.10.7 (raw.githubusercontent.com/cloudflare/cloudflared/2026.10.7/PATH)", read = 2026-11-06, note = "each sum is the sum of the consumers' pins; connection/protocol.go is podssh's line, and is the same at 2026.10.6 and 2026.10.7" }
+source = { measured = "the SHA-256 of each file at the tag 2026.11.1 (raw.githubusercontent.com/cloudflare/cloudflared/2026.11.1/PATH)", read = 2026-11-18, note = "each sum is the sum of the pin of pod-cloudflare; at 2026.11.1 only cmd/cloudflared/tunnel/quick_tunnel.go changed (a quick tunnel no longer sets the protocol quic; pod-cloudflare keeps auto); connection/protocol.go is podssh's line, and is the same at 2026.10.6, 2026.10.7 and 2026.11.1" }
 
 [[watch]]
 kind = "dns-srv"

@@ -26,7 +26,7 @@ pub struct TunnelAuth {
 }
 
 /// The features that the client sends at registration: the default features of
-/// cloudflared 2026.10.7 (`features/features.go`). cloudflared removes the
+/// cloudflared 2026.11.1 (`features/features.go`, the same as at 2026.10.7). cloudflared removes the
 /// legacy features `serialized_headers`, `quick_reconnects`,
 /// `allow_remote_config`, `support_quic_eof` and `management_logs` before it
 /// sends the list (TUN-10904: the edge supports them with no flag). The client
@@ -35,7 +35,7 @@ pub struct TunnelAuth {
 /// a visitor).
 pub const FEATURES: [&str; 1] = ["support_datagram_v2"];
 
-/// The features that cloudflared 2026.10.7 removes as deprecated.
+/// The features that cloudflared 2026.11.1 removes as deprecated.
 pub const DEPRECATED_FEATURES: [&str; 7] = [
     "serialized_headers",
     "quick_reconnects",
