@@ -312,7 +312,10 @@ jobs:
           - { target: i686-unknown-linux-musl, runner: ubuntu-24.04, zig: true }
           - { target: loongarch64-unknown-linux-musl, runner: ubuntu-24.04, zig: true }
           - { target: powerpc64le-unknown-linux-musl, runner: ubuntu-24.04, zig: true }
-          - { target: aarch64-apple-darwin, runner: macos-15, zig: false }
+          # The arm64 probe builds on the Intel runner: no runner of the label
+          # macos-15 took the job in runs of a day (T-943). The check reads the
+          # Mach-O header, and nightly.yml runs the tests on arm64.
+          - { target: aarch64-apple-darwin, runner: macos-15-intel, zig: false }
           - { target: x86_64-apple-darwin, runner: macos-15-intel, zig: false }
           - { target: x86_64-pc-windows-msvc, runner: windows-2025, zig: false }
           - { target: aarch64-pc-windows-msvc, runner: windows-11-arm, zig: false }

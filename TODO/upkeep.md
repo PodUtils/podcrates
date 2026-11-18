@@ -3677,7 +3677,7 @@ The next run of `nightly.yml`: each cross job ends, none cancelled.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3695,3 +3695,7 @@ Read the annotations of a cancelled job. If the pool of arm64 runners is the cau
 ## Prove
 
 Three runs of `ci.yml` in a row with each job green.
+
+## Done
+
+2026-11-18, partial (the proof is three runs of `ci.yml` in a row with each job green): a fifth run (`32773e4`, 44346004330) showed the cause: the arm64 job stayed queued with no runner while the Intel job of the same run got one in 25 s. The matrix of the job `static` builds `aarch64-apple-darwin` on `macos-15-intel` (`--target aarch64-apple-darwin`); `scripts/check-static.sh` reads the Mach-O file with `otool -L`, which reads an arm64 file on an Intel host. The tests on arm64 stay in `nightly.yml` (`test (macos-15)`). `check-workflows.py`: 0 faults.

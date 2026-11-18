@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**776 entries: 148 open, 23 partial, 7 blocked, 598 done.**
+**776 entries: 147 open, 24 partial, 7 blocked, 598 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 8 | 0 | 170 | 189 |
-| P2 | 70 | 5 | 4 | 308 | 387 |
+| P2 | 69 | 6 | 4 | 308 | 387 |
 | P3 | 67 | 10 | 3 | 118 | 198 |
-| **All** | 148 | 23 | 7 | 598 | 776 |
+| **All** | 147 | 24 | 7 | 598 | 776 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -822,4 +822,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-940](fleet.md) | P2 | S | M8 | feature | open | `pod-job`: a fuzz target for one line of the source wire |
 | [T-941](foundation.md) | P2 | S | M0 | feature | open | `pod-core`: a lock of a file that other programs read, which on Windows refuses no reader (PodUtils/podssh#319) |
 | [T-942](relay.md) | P3 | S | M0 | defect | open | `pod-relay`: a kept offer of the layer loses `forward.liveness` |
-| [T-943](upkeep.md) | P2 | S | M5 | defect | open | The static job of `aarch64-apple-darwin` in `ci.yml` gets no runner, four runs in a row |
+| [T-943](upkeep.md) | P2 | S | M5 | defect | partial | The static job of `aarch64-apple-darwin` in `ci.yml` gets no runner, four runs in a row |
