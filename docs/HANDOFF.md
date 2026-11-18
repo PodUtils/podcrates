@@ -50,9 +50,10 @@ is done. Git and the record keep finished work.
    is offline until the CI of podrunner and githome is complete; it reads
    `docs/research/fleet/asks.md` and the block of #223 at its next start.
    githome's asks G-30 to G-35 are T-921 to T-923, T-099, T-100 and T-104.
-7. The open hand-off is COORD-137 (#228) for `v0.71.0` (`6dff7fc`). Record
-   each take in its body, and close it when each consumer is on `v0.71.0`
-   or later. Its body holds each take; podvm's take waits.
+7. No hand-off is open: each consumer took `v0.71.0` (COORD-137, #228,
+   closed). The next tag carries T-922, T-936 and the work on `main`;
+   its hand-off names what podrunner changes at its take (the adoption
+   map of `crates/pod-job/README.md`).
 8. In flight: T-909 (PodUtils/podssh#314 ask 2) on the branch `wip/t909`.
    Part 1 (a byte budget under each cap, `relay::byte_budget_under`) is
    written and not tested. Part 2 (the cap in `forward_layer::Offer`, kept

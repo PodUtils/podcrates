@@ -232,4 +232,4 @@
 225 issue open
 226 issue closed
 227 issue open
-228 issue open
+228 issue closed
