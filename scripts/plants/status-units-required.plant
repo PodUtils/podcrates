@@ -1,0 +1,7 @@
+# pod-job: `units` of status.v1 is required, so a status of podrunner
+# from before the field does not read (T-947).
+ENTRY=T-947
+GROUP=job
+EXPECT='missing field `units`'
+RUN='cargo test -p pod-job --all-features --lib status::tests::a_status_with_no_draining_max_units_or_units_reads_with_the_defaults'
+LIMIT=900

@@ -5900,7 +5900,7 @@ python3 -I scripts/check-publish-order.py
 **Milestone:** M8
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5934,6 +5934,10 @@ the three fields reads and writes back the same.
 cargo test -p pod-job --all-features status
 python3 -I scripts/check-schemas.py
 ```
+
+## Done
+
+2026-11-18, commit "pod-job: status.v1 takes draining, max_units and units (T-947)". `SourceStatus::draining`, `Status::max_units` and `Status::units` have `#[serde(default)]`; `schemas/status.v1.schema.json` comes from the types again, with three rows `added` in `schemas/CHANGES.md`. The example `status/valid-capacity.json` has the three fields; `valid-running.json` has none and reads with the defaults (two tests in `status.rs`). The plant `status-units-required` fails the test of the defaults.
 
 # T-948: `pod-testkit`: a fake of githome's source, as a program that podrunner's CI can pin (PodUtils/podrunner#306, githome's G-38 and G-40)
 

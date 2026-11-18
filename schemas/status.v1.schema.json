@@ -30,6 +30,16 @@
         "$ref": "#/$defs/KindStatus"
       }
     },
+    "max_units": {
+      "description": "The most units of the host across its kinds; `null` is no cap.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "default": null,
+      "minimum": 0
+    },
     "no_tier_served": {
       "description": "No unit kind of the host meets the floor of any source: no source\ngets an offer.",
       "type": "boolean"
@@ -55,6 +65,13 @@
       "description": "The reports that a source refused, in the spool.",
       "type": "integer",
       "format": "uint",
+      "minimum": 0
+    },
+    "units": {
+      "description": "The units that run on the host now.",
+      "type": "integer",
+      "format": "uint32",
+      "default": 0,
       "minimum": 0
     }
   },
@@ -357,6 +374,11 @@
             "format": "uint64",
             "minimum": 0
           }
+        },
+        "draining": {
+          "description": "An operator drained the source: it takes no new offer.",
+          "type": "boolean",
+          "default": false
         },
         "jobs": {
           "description": "The jobs of the source in each state that is not final.",

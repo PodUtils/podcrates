@@ -33,6 +33,9 @@ pub struct SourceStatus {
     /// `github-scaleset`, the key of `remote`), from its time of change.
     /// No value of the key is read.
     pub key_age_s: Option<u64>,
+    /// An operator drained the source: it takes no new offer.
+    #[serde(default)]
+    pub draining: bool,
 }
 
 /// One unit kind in the status.
@@ -79,6 +82,12 @@ pub struct Status {
     pub ended_without_completion: u64,
     /// The reports that a source refused, in the spool.
     pub spooled_reports: usize,
+    /// The most units of the host across its kinds; `null` is no cap.
+    #[serde(default)]
+    pub max_units: Option<u32>,
+    /// The units that run on the host now.
+    #[serde(default)]
+    pub units: u32,
 }
 
 impl Status {
@@ -92,5 +101,31 @@ impl Status {
             kind.probe.check().map_err(|e| format!("the probe of the kind {:?}: {e}", kind.name))?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Status;
+
+    fn example(name: &str) -> String {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/examples/status/");
+        std::fs::read_to_string(format!("{path}{name}")).expect("an example")
+    }
+
+    #[test]
+    fn a_status_with_no_draining_max_units_or_units_reads_with_the_defaults() {
+        let s: Status = serde_json::from_str(&example("valid-running.json")).unwrap();
+        assert!(!s.sources[0].draining);
+        assert_eq!((s.max_units, s.units), (None, 0));
+    }
+
+    #[test]
+    fn the_status_fields_of_capacity_read_and_write_back_the_same() {
+        let s: Status = serde_json::from_str(&example("valid-capacity.json")).unwrap();
+        assert!(s.sources[0].draining);
+        assert_eq!((s.max_units, s.units), (Some(4), 1));
+        let again: Status = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
+        assert_eq!(again, s);
     }
 }
