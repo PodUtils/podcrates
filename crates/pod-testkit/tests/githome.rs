@@ -202,16 +202,16 @@ fn host(arch: &str) -> HostFacts {
     }
 }
 
-/// The 14 tests of podrunner's `source-conformance`
+/// The 15 tests of podrunner's `source-conformance`
 /// (`docs/contracts/source-driver.md`), each with a fresh program on one
-/// `serve` with two queued jobs, as podrunner runs them. Each test gives its
-/// job back; the report and the release of test 7 end its job, so a run
-/// ends one job and leaves the other queued.
+/// `serve` with three queued jobs, as podrunner runs them. Each test gives
+/// its job back; the report and the release of tests 7 and 15 end their
+/// jobs, so a run ends two jobs and leaves the third queued.
 #[test]
 fn the_conformance_steps_of_podrunner_pass() {
     need_loopback!();
     let fake = serve();
-    let jobs = [fake.queue(json!({ "labels": ["podrunner"] })), fake.queue(json!({ "labels": ["podrunner"] }))];
+    let jobs = [(); 3].map(|()| fake.queue(json!({ "labels": ["podrunner"] })));
     // 1 hello-names-the-source
     let named = |r: Reply| match r {
         Reply::Hello { source, .. } if !source.is_empty() => source,
@@ -291,9 +291,17 @@ fn the_conformance_steps_of_podrunner_pass() {
     done(s.release(&job));
     // 14 hello-takes-the-facts-of-the-host
     assert_eq!(named(fake.source().hello(Some(host("x86_64")))), plain);
+    // 15 a-cancelled-job-is-reported-and-released
+    let mut s = fake.source();
+    let job = s.claimed();
+    assert!(matches!(s.mint(&job, "runner-u-1"), Reply::Credential { .. }));
+    done(s.report(&job, json!({ "exit_reason": "cancelled" })));
+    done(s.release(&job));
+    code(s.claim(&job, "runner-u-2"), SourceCode::UnknownJob);
     drop(s);
     assert_eq!(fake.status(&jobs[0]), "done", "test 7 reports the oldest job and releases it");
-    assert_eq!(fake.status(&jobs[1]), "queued", "each other test gave its job back");
+    assert_eq!(fake.status(&jobs[1]), "done", "test 15 reports the next job as cancelled and releases it");
+    assert_eq!(fake.status(&jobs[2]), "queued", "each other test gave its job back");
     let refusals = fake.log("refusals");
     assert_eq!(refusals.iter().filter(|r| r["code"] == "bad-request").count(), 5, "{refusals:?}");
 }

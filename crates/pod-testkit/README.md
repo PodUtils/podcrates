@@ -139,9 +139,9 @@ of `source` is a new session: one host of podrunner. Each credential of
 
 A job that the session does not hold is `unknown-job`, and a line that is
 not of the wire is `bad-request`. A queued job goes to each session until
-one claims it. A run of podrunner's `source-conformance` ends one job (its
-test 7 reports and releases it): queue two jobs, and one more for each
-run.
+one claims it. A run of podrunner's `source-conformance` ends two jobs
+(its tests 7 and 15 report and release them): queue three jobs, and two
+more for each further run.
 
 | Route of the control API | What |
 | --- | --- |
@@ -152,7 +152,7 @@ run.
 | `GET`, `PUT /_fake/settings` | `source`, `operator_controlled`, `unavailable`, `revoked` |
 | `GET /_fake/NAME` | the records `reports`, `refusals`, `withdrawals`, `releases`, `audits`, `mints`, `assignments`, `hosts`, in order |
 
-`crates/pod-testkit/tests/githome.rs` runs the binary: the 14 steps of
+`crates/pod-testkit/tests/githome.rs` runs the binary: the 15 steps of
 `source-conformance`, one job from its offer to its report, and the
 refusals with two hosts.
 

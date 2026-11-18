@@ -25,5 +25,10 @@ repo PodUtils/podrunner b1a1a28a023300f2777b07c7b4afb4f7078405ea
 # sessions, the host facts, the control API and the program are new here.
 file 319c0492ce02bd18fd4399ec9f8cf72f01f9235f crates/podrunner-fake/src/source.rs -> crates/pod-testkit/src/githome/wire.rs
 file 5a5c3a97f3b5962132bee859c957c20c64160988 crates/podrunner-fake/src/assigned.rs -> crates/pod-testkit/src/githome/offer.rs
-file 3f31133a40ca60b9f9c22cef6ccdff75aed28908 crates/podrunner-source/src/conformance.rs -> crates/pod-testkit/tests/githome.rs
-file d1a0bbf5ad922ce2bbc6a83619950d7167d7fe3b docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+
+repo PodUtils/podrunner 0fd22187646dd697d606bcb0560e8f59bac26cec
+# T-951 (PodUtils/podrunner#310): the 15 tests of the conformance suite
+# (test 15: a cancelled job is reported and released) and the contract,
+# for the test of the feature `githome`.
+file ca245513ff48f33196a89e7291c2dfc3e04757a4 crates/podrunner-source/src/conformance.rs -> crates/pod-testkit/tests/githome.rs
+file da3b246438d3b1fc4dd29c89373ec1098e2b1906 docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs

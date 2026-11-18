@@ -6031,7 +6031,7 @@ CI (PodUtils/podrunner@T-509) is podrunner's, on the hand-off of the next tag.
 **Milestone:** M8
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6051,3 +6051,7 @@ Read test 15 at podrunner's head. Add it to `the_conformance_steps_of_podrunner_
 ```sh
 cargo test -p pod-testkit --features githome --test githome
 ```
+
+## Done
+
+2026-11-18, commit "pod-testkit: pod-fake-githome passes test 15 of podrunner's source-conformance (T-951)". Test 15 at podrunner `0fd2218` (`a-cancelled-job-is-reported-and-released`): `the_conformance_steps_of_podrunner_pass` claims a job, mints, reports `exit_reason: cancelled`, releases, and gets `unknown-job` for a claim after it. The fake passes it with no change: a release after a report with no refusal code ends the job. The test queues three jobs; a run ends two (tests 7 and 15). `crates/pod-testkit/SOURCES` names `conformance.rs` and `source-driver.md` at `0fd2218`; the README says to queue three jobs.
