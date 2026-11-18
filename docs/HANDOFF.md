@@ -37,41 +37,29 @@ is done. Git and the record keep finished work.
 4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the red
    nightly above, then the entries for the CI of githome and cfb (T-106,
    T-104 with T-880, T-100, T-105, T-103, T-102).
-5. T-922 is on `main`, for the next tag: `pod_job::{Status, SourceStatus,
-   KindStatus, PinStatus}` and `pod_job::source` (the source wire of
-   podrunner at `ca8c308`), `schemas/status.v1`, `source-request.v1`,
-   `source-reply.v1`, and `schemas/CHANGES.md` with its check
-   (`scripts/check-schemas.py`). The hand-off of the next tag tells
-   podrunner what changes at its take (`crates/pod-job/README.md`, the
-   adoption map: `Done {}`, `Minted`, the strict `status.v1`).
-   T-921 is on `main` for the next tag too: the fake GitHub
-   `pod-fake-github` (feature `github` of `pod-testkit`, call C785), a
-   release asset for x86_64 and aarch64 musl. The hand-off tells githome
-   to pin it by its line of `SHA256SUMS` (G-30), and podrunner that its
-   routes can take the place of `podrunner-broker-fake` for a job of
-   `run:` steps (`crates/pod-testkit/README.md`).
-   T-948 is on `main` for the next tag too: the fake of githome's source
-   `pod-fake-githome` (feature `githome` of `pod-testkit`, call C786), a
-   release asset for x86_64 and aarch64 musl. The hand-off tells
-   podrunner, for PodUtils/podrunner@T-509 (G-38,
-   PodUtils/podrunner#306), to pin it by its line of `SHA256SUMS`, to run
-   `pod-fake-githome serve`, and to name `pod-fake-githome source` as the
-   program of a `[[source]]` with `POD_FAKE_GITHOME`
-   (`crates/pod-testkit/README.md`).
+5. The fakes of the CI of podrunner and githome are release assets of
+   `v0.73.0`: `pod-fake-github` (T-921, call C785; githome's G-30 and
+   G-40) and `pod-fake-githome` (T-948, call C786; githome's G-38 and
+   PodUtils/podrunner@T-509), each for x86_64 and aarch64 musl in the
+   signed `SHA256SUMS` (`crates/pod-testkit/README.md`). When podrunner
+   writes a step of githome's answers that differs from the fake, it is
+   an entry here.
 6. The channel of cfb and githome is #223. podcrates keeps one reply
    comment to each there (cfb: 6970315549; githome: 6970683028) and edits
    it, with the UTC time of each update and of each acknowledgement. cfb
    is offline until the CI of podrunner and githome is complete; it reads
    `docs/research/fleet/asks.md` and the block of #223 at its next start.
    githome's asks G-30 to G-35 are T-921 to T-923, T-099, T-100 and T-104.
-7. The hand-off of `v0.72.0` is open (COORD-138, #229): podrunner takes
-   T-922 (the adoption map of `crates/pod-job/README.md`) and T-882;
-   podvm takes T-944; podssh takes T-909 and T-939. Record each take on
-   #229, and close it when each consumer names the tag (call C780).
+7. Two hand-offs are open. `v0.72.0` (COORD-138, #229): podssh does not
+   name it yet; it takes T-909 and T-939. `v0.73.0` (COORD-140,
+   #231): podrunner takes T-947 (`pod_job::Status`) and T-948 (for
+   PodUtils/podrunner@T-509); podssh shows `Note::Stall` of T-945 at `-v`. Record each take
+   in the body of the issue, and close it when each consumer names the
+   tag (call C780).
 8. T-767 (PodUtils/podssh#283, partial) and T-939 (done as a guard, call
    C784: a link is lost when a PING waits 30 s and nothing moves): the
    eighth failure of podssh's gate did not come again on the loopback;
-   T-945 (done, on `main` for the next tag) gives the client's own line,
+   T-945 (done, in `v0.73.0`) gives the client's own line,
    `resume::Note::Stall`, which tells its cause; podssh shows it at `-v`
    at its take. T-768 goes with T-767.
 9. Then the work order of `TODO/PROGRESS.md`.
