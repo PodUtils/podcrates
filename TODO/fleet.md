@@ -5625,8 +5625,8 @@ peak of the disk, the bytes of the network, the bytes of the cache and
     enforce it gives the job `ENOSPC` at the size, another kind keeps the
     measured bound. podcrates reads that as the same meaning (the disk
     limit of the job), with the enforcement in `unit-capability.v1`
-    (`LimitMode`), so the id stays; the entry checks it against the rule
-    "Schema ids".
+    (`LimitMode`), so the id stays under the rule "Schema ids"; podrunner
+    agrees (PodUtils/podrunner#294).
   - `run-report.v1` (G-19, T-497; G-20): `host`, `unit_kind`,
     `boundary`, `image_digest` (`sha256:HEX`), `runner_version` (strings);
     `prepare_s`, `start_s`, `run_s`, `destroy_s` (integer seconds, rounded
