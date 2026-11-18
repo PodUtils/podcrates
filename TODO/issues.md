@@ -233,6 +233,6 @@ kinds and the rules.
 | #226 | coord | COORD-135: pod-job takes the schemas of podrunner's status and source wire, for githome's G-31 (T-922) (to podrunner) | closed (podrunner answered in PodUtils/podrunner#294; T-922 and T-923 hold the answer) | T-922, T-923 |
 | #227 | coord | COORD-136: the coordinator's order of the sessions of 2026-11-18: podrunner first; COORD issues are the one channel (to all) | open (the order of the sessions; it waits for the answer of each session) | T-914, T-915, T-916, T-907, T-882, T-923, T-909 |
 | #228 | coord | COORD-137: v0.71.0: pod-time, the fields of pod-job for githome and podrunner, two forms of FileLock, the state of an incus instance, and the asks of podssh and podnet (to all) | closed (each consumer took `v0.71.0`: podrunner `9e6bd57`, podvm `c213375`, podnet `ab3b826`, podssh `a6a3a3e`) | T-905, T-906, T-907, T-908, T-910, T-911, T-912, T-913, T-914, T-915, T-923, T-924, T-925, T-926 |
-| #229 | coord | COORD-138: v0.72.0: podrunner's status and source wire in pod-job, one reader of an HTTP/1.1 head, the layer under a small cap, PT_INTERP past the head (to all) | open (the take of each consumer) | T-882, T-909, T-922, T-930, T-936, T-939, T-944 |
+| #229 | coord | COORD-138: v0.72.0: podrunner's status and source wire in pod-job, one reader of an HTTP/1.1 head, the layer under a small cap, PT_INTERP past the head (to all) | open (podvm took `v0.72.0` at `b3ff9c3`; podrunner, podnet and podssh not yet) | T-882, T-909, T-922, T-930, T-936, T-939, T-944 |
 
 #79 to #81 are pull requests.
