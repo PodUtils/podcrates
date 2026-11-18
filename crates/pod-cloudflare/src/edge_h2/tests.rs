@@ -86,10 +86,11 @@ fn serializes_response_headers_for_the_edge() {
 #[tokio::test(flavor = "multi_thread")]
 async fn small_frames_of_slow_visitors_do_not_end_the_connection() {
     use crate::ingress::{ForwardTarget, IngressRule, OriginOptions, Service};
-    // A forward target that accepts and never reads.
-    let dir = tempfile::tempdir().unwrap();
-    let sock = dir.path().join("t.sock");
-    let listener = tokio::net::UnixListener::bind(&sock).unwrap();
+    // A forward target that accepts and never reads: TCP on the loopback,
+    // so that the test runs on each system.
+    pod_testkit::need_loopback!();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let target = listener.local_addr().unwrap().to_string();
     tokio::spawn(async move {
         let mut kept = Vec::new();
         while let Ok((s, _)) = listener.accept().await {
@@ -101,7 +102,7 @@ async fn small_frames_of_slow_visitors_do_not_end_the_connection() {
             .rule_with(IngressRule {
                 hostname: None,
                 path: Some(crate::ingress::PathPattern::prefix("/__podnet/ws")),
-                service: Service::Forward(ForwardTarget::Unix(sock.clone())),
+                service: Service::Forward(ForwardTarget::Tcp(target)),
                 origin: OriginOptions::default(),
             })
             .catch_all(Service::HelloWorld),
