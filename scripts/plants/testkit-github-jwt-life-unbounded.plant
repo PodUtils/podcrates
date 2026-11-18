@@ -1,0 +1,8 @@
+# The fake GitHub takes an App JWT that lives for more than ten minutes,
+# which GitHub refuses: a test of the App then passes a JWT that GitHub
+# does not take (T-921).
+ENTRY=T-921
+GROUP=actions
+EXPECT='test the_app_gets_a_token_only_with_a_good_jwt \.\.\. FAILED'
+RUN='cargo test -p pod-testkit --features github --test github -- the_app_gets_a_token_only_with_a_good_jwt --exact'
+LIMIT=1800

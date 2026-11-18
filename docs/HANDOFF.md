@@ -35,8 +35,8 @@ is done. Git and the record keep finished work.
    misses once with no change of its crate runs its test five times in
    its `.plant` (as `link-quic-drop-closes-at-once`).
 4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the red
-   nightly above, then the entries for the CI of githome and cfb (T-921 with
-   T-106, T-104 with T-880, T-100, T-105, T-103, T-102).
+   nightly above, then the entries for the CI of githome and cfb (T-106,
+   T-104 with T-880, T-100, T-105, T-103, T-102).
 5. T-922 is on `main`, for the next tag: `pod_job::{Status, SourceStatus,
    KindStatus, PinStatus}` and `pod_job::source` (the source wire of
    podrunner at `ca8c308`), `schemas/status.v1`, `source-request.v1`,
@@ -44,6 +44,12 @@ is done. Git and the record keep finished work.
    (`scripts/check-schemas.py`). The hand-off of the next tag tells
    podrunner what changes at its take (`crates/pod-job/README.md`, the
    adoption map: `Done {}`, `Minted`, the strict `status.v1`).
+   T-921 is on `main` for the next tag too: the fake GitHub
+   `pod-fake-github` (feature `github` of `pod-testkit`, call C785), a
+   release asset for x86_64 and aarch64 musl. The hand-off tells githome
+   to pin it by its line of `SHA256SUMS` (G-30), and podrunner that its
+   routes can take the place of `podrunner-broker-fake` for a job of
+   `run:` steps (`crates/pod-testkit/README.md`).
 6. The channel of cfb and githome is #223. podcrates keeps one reply
    comment to each there (cfb: 6970315549; githome: 6970683028) and edits
    it, with the UTC time of each update and of each acknowledgement. cfb

@@ -63,3 +63,42 @@ binary.
 | `Stand::addr()`, `Stand::port()`, `Stand::seen()` | the address; the bytes of each connection that ended |
 
 `crates/pod-services-watch/tests/watches/` uses each of them.
+
+## The fake GitHub (feature `github`)
+
+`pod_testkit::github::FakeGithub` and its static binary `pod-fake-github`:
+a GitHub on one TCP address for the CI of a consumer that drives a GitHub
+App and its runners with no account. Each release attaches
+`pod-fake-github-x86_64-unknown-linux-musl` and
+`pod-fake-github-aarch64-unknown-linux-musl` with their lines in
+`SHA256SUMS`. Build it with
+`cargo build --release -p pod-testkit --features github --bin pod-fake-github`.
+
+`pod-fake-github [--listen ADDRESS] [--hook URL]` prints its base URL
+(`http://127.0.0.1:PORT/`) on the first line of stdout, then serves until
+it is killed. Each credential is made up: the RSA key of
+`src/github/made-up-key.pem` (PKCS#1, the form of the key of an App), the
+webhook secret `pod-fake-github-made-up-webhook-secret`, and the random
+tokens of each run.
+
+| Part | Routes |
+| --- | --- |
+| The App | an RS256 JWT of the made-up key with `iss` 1, alive now and for ten minutes at most: `GET /repos/OWNER/REPO/installation` (installation 1 holds each repository), `POST /app/installations/1/access_tokens` (201, a token for one hour) |
+| The runners, with the installation token | `POST /repos/OWNER/REPO/actions/runners/generate-jitconfig` (`name`, `labels`; 201 with `runner` and `encoded_jit_config`, the base64 of a JSON map of `.runner`, `.credentials` and `.credentials_rsaparams`, each in base64; 409 for a name in use), `GET .../actions/runners`, `DELETE .../actions/runners/ID`, `GET .../actions/jobs/ID` |
+| The broker of each runner | `POST /_apis/oauth2/token` (a client assertion of the made-up key whose `sub` is the client id of a runner), `POST` and `DELETE /session`, `GET /message` (a long poll of 2 s), `POST /acquirejob`, `/renewjob`, `/completejob`, the results service of the logs under `/twirp/`; the routes that the official runner calls with `--jitconfig`, for a job of `run:` steps |
+| The webhooks | `workflow_job` with `queued`, `in_progress` (with `runner_id` and `runner_name`) and `completed` (with `conclusion`), in the order of the events, signed with `X-Hub-Signature-256` (HMAC-SHA256 of the webhook secret) |
+| The control API | `GET /_fake/app` (the App id, the installation id, the key in PEM, the webhook secret), `PUT /_fake/hook` (`url`, `secret`), `POST /_fake/jobs` (`repository`, `name`, `labels`, `steps`), `GET /_fake/jobs[/ID]`, `POST /_fake/jobs/ID/assign` (`runner_id`), `GET /_fake/runners`, `GET /_fake/deliveries` |
+
+A runner takes the queued job that `assign` gave it, else the oldest
+queued job of its repository with each label of the job, as GitHub gives
+a job to any idle runner with its labels. Each runner is ephemeral: it
+takes one job. The conclusion of the runner (`succeeded`, `failed`,
+`cancelled`, `skipped`) becomes the conclusion of GitHub (`success`,
+`failure`, `cancelled`, `skipped`). `crates/pod-testkit/tests/github.rs`
+runs the binary: two jobs of one repository with the same labels, the
+second job on the runner minted for the first, and both conclusions.
+
+| Consumer | Old path | New path |
+| --- | --- | --- |
+| githome | no fake GitHub (G-30) | `pod-fake-github` of the release, pinned by its SHA-256 |
+| podrunner | `crates/podrunner-broker-fake` (the broker of a JIT runner) | the routes of `pod-fake-github` for a job of `run:` steps |

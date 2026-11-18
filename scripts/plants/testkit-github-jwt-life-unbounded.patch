@@ -1,0 +1,13 @@
+diff --git a/crates/pod-testkit/src/github/api.rs b/crates/pod-testkit/src/github/api.rs
+index 5b15a22d..32461080 100644
+--- a/crates/pod-testkit/src/github/api.rs
++++ b/crates/pod-testkit/src/github/api.rs
+@@ -70,7 +70,7 @@ fn app(shared: &Shared, req: &Request) -> Result<(), Answer> {
+     if exp <= now {
+         return Err(refused("The JWT expired"));
+     }
+-    if iat > now + SKEW || exp > iat + JWT_LIFE {
++    if iat > now + SKEW || exp > iat + JWT_LIFE * 100 {
+         return Err(refused("The 'exp' claim of the JWT is too far in the future"));
+     }
+     Ok(())

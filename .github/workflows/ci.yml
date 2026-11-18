@@ -9,9 +9,10 @@ name: ci
 #   of the fuzz targets.
 # * record: the tests of pod-todo, and `cargo todo check`.
 # * static: the probe of each crate (examples/static-probe) on each target
-#   of the consumers, and podlab of pod-lab on each Linux target, checked
-#   by scripts/check-static.sh; the strings of podlab by
-#   scripts/check-strings.py, and its man page by scripts/check-man.sh.
+#   of the consumers, and podlab of pod-lab and pod-fake-github of
+#   pod-testkit on each Linux target, checked by scripts/check-static.sh;
+#   the strings of both by scripts/check-strings.py, and the man page of
+#   podlab by scripts/check-man.sh.
 # * install: the installer core (scripts/install/test.sh) with the
 #   installer of podlab as a release stamps it, against a mirror on the
 #   loopback, under dash, busybox sh and bash --posix, and in the labs of
@@ -367,6 +368,9 @@ jobs:
           # SOURCE_DATE_EPOCH: the date of its man page, the time of the commit.
           SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) \
             cargo zigbuild --locked --release --target ${{ matrix.target }} -p pod-lab --features cli --bin podlab
+          # The fake GitHub of pod-testkit that a consumer's CI pins.
+          cargo zigbuild --locked --release --target ${{ matrix.target }} -p pod-testkit --features github \
+            --bin pod-fake-github
       # The OpenSSL of pod-gsr builds from source: its Configure needs a
       # perl of Windows, not the perl of Git Bash.
       - name: A perl for OpenSSL
@@ -404,6 +408,14 @@ jobs:
           exe=target/${{ matrix.target }}/release/podlab
           sh scripts/check-static.sh "$exe"
           echo "| ${{ matrix.target }} podlab | $(wc -c < "$exe") bytes |" >> "$GITHUB_STEP_SUMMARY"
+      - name: pod-fake-github is static
+        if: matrix.zig
+        run: |
+          set -eu
+          exe=target/${{ matrix.target }}/release/pod-fake-github
+          sh scripts/check-static.sh "$exe"
+          python3 -I scripts/check-strings.py "$exe"
+          echo "| ${{ matrix.target }} pod-fake-github | $(wc -c < "$exe") bytes |" >> "$GITHUB_STEP_SUMMARY"
       # The text rules over the strings of the release binary (pod-manual).
       - name: The strings of podlab
         if: matrix.zig

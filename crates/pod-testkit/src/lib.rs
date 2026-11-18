@@ -22,6 +22,9 @@
 //!   `stand::warp`, the API of WARP.
 //! * [`masque`] (feature `masque`): the HTTP/2 part of a stand-in of WARP's
 //!   MASQUE front door, over a stream of the caller.
+//! * [`github`] (feature `github`): a fake GitHub for the CI of a
+//!   consumer (an App, JIT runners, their broker, `workflow_job` webhooks),
+//!   and its binary `pod-fake-github`.
 //!
 //! A stand-in of this kit speaks bytes and HTTP only, and takes no type of
 //! a pod crate, so that each crate can dev-depend on the kit.
@@ -29,6 +32,8 @@
 pub mod alloc;
 #[cfg(target_os = "linux")]
 pub mod elf;
+#[cfg(feature = "github")]
+pub mod github;
 pub mod host;
 pub mod listener;
 #[cfg(feature = "masque")]

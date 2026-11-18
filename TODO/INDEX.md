@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**778 entries: 144 open, 24 partial, 7 blocked, 603 done.**
+**779 entries: 144 open, 24 partial, 7 blocked, 604 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 11 | 8 | 0 | 171 | 190 |
-| P2 | 67 | 6 | 4 | 311 | 388 |
+| P1 | 10 | 8 | 0 | 172 | 190 |
+| P2 | 68 | 6 | 4 | 311 | 389 |
 | P3 | 66 | 10 | 3 | 119 | 198 |
-| **All** | 144 | 24 | 7 | 603 | 778 |
+| **All** | 144 | 24 | 7 | 604 | 779 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -800,7 +800,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-918](upkeep.md) | P3 | M | M5 | chore | open | The helpers that the tests copy from file to file: one place for each |
 | [T-919](upkeep.md) | P1 | M | M0 | chore | done | A code graph, a check of repeated work and a check of narrative history in the documents |
 | [T-920](upkeep.md) | P2 | S | M5 | defect | open | `pod-guest`: a monitor socket path longer than `sun_path` waits for the whole bound, then fails with a wrong reason |
-| [T-921](fleet.md) | P1 | L | M8 | feature | open | A fake GitHub as a binary for a consumer's CI: the App, the JIT configuration, the `workflow_job` webhooks and the runner broker (GitHub #223) |
+| [T-921](fleet.md) | P1 | L | M8 | feature | done | A fake GitHub as a binary for a consumer's CI: the App, the JIT configuration, the `workflow_job` webhooks and the runner broker (GitHub #223) |
 | [T-922](fleet.md) | P1 | M | M8 | feature | done | The schemas of `schemas/` with one source each, a check of each against its types, and a line of each change (GitHub #223) |
 | [T-923](fleet.md) | P1 | M | M8 | feature | done | `pod-job`: the fields of the job that githome and podrunner need (`trust_inputs.forge`, `limits.disk`, `cache`, the facts of a run report) (GitHub #223) |
 | [T-924](foundation.md) | P1 | S | M0 | feature | done | `pod-core`: a lock wait that a signal ends, and a lock file that the caller cannot write (PodUtils/podrunner#295) |
@@ -825,3 +825,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-943](upkeep.md) | P2 | S | M5 | defect | done | The static job of `aarch64-apple-darwin` in `ci.yml` gets no runner, four runs in a row |
 | [T-944](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the head of a payload cannot give a `PT_INTERP` path that lies past it, so Fedora 42's programs do not run on the userland rung (PodUtils/podvm#589) |
 | [T-945](relay.md) | P2 | M | M2 | feature | done | `pod-session`: the client says no wait of its own, so a hang with the node's `session.stall` cannot tell a loss on the link from bytes held for the client's application (PodUtils/podssh#283, ask 4) |
+| [T-946](fleet.md) | P2 | S | M8 | feature | open | `pod-fake-github`: the help and the manual from `pod-manual`, with the checks of each drift |

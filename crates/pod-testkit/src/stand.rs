@@ -8,6 +8,8 @@
 //!   function (an SSH server's first bytes, a proxy's exchange).
 //! * [`udp`]: a UDP server that answers each datagram with what the
 //!   caller's function gives (STUN).
+//! * [`call()`]: one HTTP/1.1 request of a test or of a stand-in to a
+//!   server on plain TCP.
 //!
 //! A stand-in speaks bytes alone. TLS is the caller's: the `wrap` of
 //! [`Stand::http_over`] and [`Stand::raw_over`] turns each accepted
@@ -16,7 +18,10 @@
 //! Each stand-in keeps the bytes that each connection sent
 //! ([`Stand::seen`]), so that a test can check what a client asked.
 
+mod call;
 pub mod warp;
+
+pub use call::call;
 
 use std::io::{self, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream, UdpSocket};
@@ -137,10 +142,28 @@ impl Stand {
         Stand::raw_over(move |io| serve_http(io, &handler), wrap)
     }
 
+    /// An HTTP stand-in on plain TCP on the caller's listener: a program
+    /// that serves on an address that its user gives.
+    pub fn http_on(
+        listener: TcpListener,
+        handler: impl Fn(&Request) -> Answer + Send + Sync + 'static,
+    ) -> io::Result<Stand> {
+        let handler: Handler = Arc::new(handler);
+        let wrap: Wrap = Arc::new(|tcp| Ok(Box::new(tcp) as Box<dyn Io>));
+        Stand::raw_on(listener, move |io| serve_http(io, &handler), wrap)
+    }
+
     /// A TCP stand-in whose connections `wrap` turns into the caller's
     /// stream, then `serve` takes.
     pub fn raw_over(serve: impl Fn(&mut dyn Io) + Send + Sync + 'static, wrap: Wrap) -> io::Result<Stand> {
-        let listener = TcpListener::bind("127.0.0.1:0")?;
+        Stand::raw_on(TcpListener::bind("127.0.0.1:0")?, serve, wrap)
+    }
+
+    fn raw_on(
+        listener: TcpListener,
+        serve: impl Fn(&mut dyn Io) + Send + Sync + 'static,
+        wrap: Wrap,
+    ) -> io::Result<Stand> {
         let addr = listener.local_addr()?;
         let seen = Arc::new(Mutex::new(Vec::new()));
         let kept = seen.clone();
@@ -291,11 +314,18 @@ fn reason(status: u16) -> &'static str {
     match status {
         101 => "Switching Protocols",
         200 => "OK",
+        201 => "Created",
+        202 => "Accepted",
+        204 => "No Content",
         206 => "Partial Content",
         301 => "Moved Permanently",
         302 => "Found",
+        400 => "Bad Request",
         401 => "Unauthorized",
+        403 => "Forbidden",
         404 => "Not Found",
+        409 => "Conflict",
+        422 => "Unprocessable Entity",
         _ => "Status",
     }
 }

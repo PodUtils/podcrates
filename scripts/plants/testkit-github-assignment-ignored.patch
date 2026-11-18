@@ -1,0 +1,19 @@
+diff --git a/crates/pod-testkit/src/github/broker.rs b/crates/pod-testkit/src/github/broker.rs
+index ba49e5ea..4b28096f 100644
+--- a/crates/pod-testkit/src/github/broker.rs
++++ b/crates/pod-testkit/src/github/broker.rs
+@@ -146,13 +146,7 @@ fn pick(st: &mut State, runner: u64) -> Option<u64> {
+         .jobs
+         .iter()
+         .filter(queued)
+-        .find(|j| j.assigned == Some(runner))
+-        .or_else(|| {
+-            st.jobs
+-                .iter()
+-                .filter(queued)
+-                .find(|j| j.assigned.is_none() && j.repo == r.repo && has_labels(&r.labels, &j.labels))
+-        })?
++        .find(|j| j.repo == r.repo && has_labels(&r.labels, &j.labels))?
+         .id;
+     if let Some(j) = st.job(job) {
+         j.status = Status::Given;
