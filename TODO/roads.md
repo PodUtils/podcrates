@@ -1906,3 +1906,34 @@ cargo test -p pod-dns --all-features --lib lookup
 ## Done
 
 2026-11-17, b4d5cbb3b, 3eb3182d3: `lookup::fold` gives `each of N resolvers failed: CAUSE` where each resolver failed in the same words, with the address of each resolver in its own words taken out ("the address of the resolver"); else one part for each failure, `N resolvers (A, B): CAUSE` for a shared one and `A: CAUSE` for one alone, and a reason of no resolver (`out of time`) as it is. Test `the_failures_that_read_alike_are_said_once` (six alike: under 200 characters and no address; five alike and two others). The tests of `pod-dns` pass. Plant `dns-each-resolver-said-alone`, caught.
+
+# T-911: `pod-proxy`: the same address twice in a race and in its error line (PodUtils/podssh#315, ask 1)
+
+**Source:** PodUtils/podssh#315 (COORD-118 of podssh, PodUtils/podssh@T-828), ask 1.
+**Category:** defect
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A resolver answer can hold an address twice (a pin and the system resolver). The race dials both, and the error line counts both: `2 addresses (127.0.0.1:9443, 127.0.0.1:9443): Connection refused`.
+
+## Premise
+
+- Read: PodUtils/podssh#315; `crates/pod-proxy/src/race.rs` (`dial`, `race`, `group_errors`).
+
+## Approach
+
+`race` takes each address once, in its first place; `group_errors` counts each address once. A test of each.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features
+```
+
+## Done
+
+2026-11-18, bb9c73d71. `race::distinct`: `race` takes each address once, in its first place (so `dial` and `dial_addrs` too); `group_errors` counts each address once. Tests `race::tests::an_address_twice_is_dialed_once_and_said_once` and `a_dial_of_one_refused_address_twice_names_it_once` (with `pod_testkit::refused`). Plant `proxy-race-address-twice`, caught.

@@ -1,0 +1,7 @@
+# An address that a resolver's answer holds twice is dialed twice and
+# counted twice in the error line; the test of an address twice must fail.
+ENTRY=T-911
+GROUP=proxy
+EXPECT='test race::tests::an_address_twice_is_dialed_once_and_said_once \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --lib -- race::tests'
+LIMIT=1800

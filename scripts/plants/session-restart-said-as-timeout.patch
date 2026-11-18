@@ -1,0 +1,12 @@
+diff --git a/crates/pod-session/src/deadline.rs b/crates/pod-session/src/deadline.rs
+--- a/crates/pod-session/src/deadline.rs
++++ b/crates/pod-session/src/deadline.rs
+@@ -92,7 +92,7 @@ pub fn away(lost_wall: SystemTime, now_wall: SystemTime, lost_for: Duration) ->
+ /// restart, and the words say so.
+ pub fn forgotten(why: &str, kept: Duration, away: &(Duration, String)) -> String {
+     let (gone, words) = away;
+-    if *gone < kept / 2 {
++    if *gone < kept / 2 && false {
+         return format!(
+             "{why}; the far end no longer knows the session, though this side was away for {words} of the {} that \
+              it keeps a lost session: it was likely restarted",

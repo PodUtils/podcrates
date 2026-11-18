@@ -1,0 +1,7 @@
+# A far end that lost a session by a restart, seconds after the loss, is
+# said to have timed it out; the test of the words of a restart must fail.
+ENTRY=T-912
+GROUP=session
+EXPECT='test a_far_end_that_lost_the_session_early_is_said_to_be_restarted \.\.\. FAILED'
+RUN='cargo test -p pod-session --all-features --test session_deadline'
+LIMIT=1800

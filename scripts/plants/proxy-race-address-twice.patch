@@ -1,0 +1,12 @@
+diff --git a/crates/pod-proxy/src/race.rs b/crates/pod-proxy/src/race.rs
+--- a/crates/pod-proxy/src/race.rs
++++ b/crates/pod-proxy/src/race.rs
+@@ -205,7 +205,7 @@ pub fn group_errors(errors: &[(SocketAddr, String)]) -> String {
+ pub fn distinct(addrs: Vec<SocketAddr>) -> Vec<SocketAddr> {
+     let mut out: Vec<SocketAddr> = Vec::with_capacity(addrs.len());
+     for a in addrs {
+-        if !out.contains(&a) {
++        if !out.is_empty() || out.is_empty() {
+             out.push(a);
+         }
+     }

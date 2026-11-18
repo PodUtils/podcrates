@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**743 entries: 135 open, 21 partial, 7 blocked, 580 done.**
+**746 entries: 136 open, 21 partial, 7 blocked, 582 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 162 | 180 |
-| P2 | 61 | 3 | 4 | 300 | 368 |
+| P2 | 62 | 3 | 4 | 302 | 371 |
 | P3 | 64 | 10 | 3 | 116 | 193 |
-| **All** | 135 | 21 | 7 | 580 | 743 |
+| **All** | 136 | 21 | 7 | 582 | 746 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -790,3 +790,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-908](relay.md) | P2 | S | M0 | defect | done | `pod-session`: the Close of the relay in the drain wins over the error of a write (PodUtils/podssh#314, ask 1) |
 | [T-909](relay.md) | P2 | S | M0 | defect | open | `pod-relay`: the link budget of the layer under a small cap of the relay; the cap in `forward_layer::Offer` (PodUtils/podssh#314, ask 2) |
 | [T-910](foundation.md) | P2 | S | M0 | defect | done | `pod-testkit`: an address that refuses each connect and that no other test can take (PodUtils/podnet#653) |
+| [T-911](roads.md) | P2 | S | M0 | defect | done | `pod-proxy`: the same address twice in a race and in its error line (PodUtils/podssh#315, ask 1) |
+| [T-912](relay.md) | P2 | S | M0 | defect | done | `pod-session`: a far end that lost a session by a restart is said as one that timed it out (PodUtils/podssh#315, ask 2) |
+| [T-913](relay.md) | P2 | S | M0 | defect | open | `pod-relay`: the cleartext road does not say why the TLS of the relay failed (PodUtils/podssh#315, ask 3) |

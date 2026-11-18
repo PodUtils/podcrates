@@ -10059,3 +10059,61 @@ The client moves a session to a new link at `MOVE_BYTES` (48 MiB) whatever the r
 ```sh
 cargo test -p pod-relay --all-features
 ```
+
+# T-912: `pod-session`: a far end that lost a session by a restart is said as one that timed it out (PodUtils/podssh#315, ask 2)
+
+**Source:** PodUtils/podssh#315 (COORD-118 of podssh, PodUtils/podssh@T-828), ask 2.
+**Category:** defect
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+After a restart of the far end, a resume 3 s after the loss gets `REFUSE` (an unknown session), and the client says that the far end forgot the session as it keeps one 10 min after a loss. The far end did not time the session out: it lost it.
+
+## Premise
+
+- Read: PodUtils/podssh#315; `crates/pod-session/src/deadline.rs` (`away`, `forgotten`), `src/resume.rs`.
+
+## Approach
+
+`away` gives the duration with its words. `forgotten` says "the far end no longer knows the session, though this side was away for A of the K that it keeps a lost session: it was likely restarted" when the time away is less than half of the deadline, and keeps today's words else. A test of both words and of a wall clock that went back.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features --test session_deadline
+```
+
+## Done
+
+2026-11-18, 70b205ed7. `deadline::away` gives `(Duration, String)`; `deadline::forgotten(why, kept, &away)` says "the far end no longer knows the session, though this side was away for A of the K that it keeps a lost session: it was likely restarted" when the time away is less than half of `kept`, and keeps the words of a timeout else. Test `a_far_end_that_lost_the_session_early_is_said_to_be_restarted` (3 s of 10 min, 4 h of 3 h, a wall clock that went back). Plant `session-restart-said-as-timeout`, caught.
+
+# T-913: `pod-relay`: the cleartext road does not say why the TLS of the relay failed (PodUtils/podssh#315, ask 3)
+
+**Source:** PodUtils/podssh#315 (COORD-118 of podssh, PodUtils/podssh@T-828), ask 3.
+**Category:** defect
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Where the TLS of a relay fails (a certificate for another name, an untrusted CA) and the cleartext road is tried, the line says only "the TLS of HOST failed on the way". A user behind a proxy that intercepts TLS, or with a mistyped name, cannot see which.
+
+## Premise
+
+- Read: PodUtils/podssh#315; `crates/pod-relay/src/cleartext.rs` (`over`), the caller that gives the failed hosts.
+
+## Approach
+
+The note of the cleartext road names the TLS failure of the host, in the words of the TLS road's own error ("a certificate for listed.test, not other.test", "a certificate that no trusted CA signed"). A test with a certificate for another name.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```
