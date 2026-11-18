@@ -8,8 +8,8 @@
 - Last release: `v0.73.0` at `1f1fd3f` (`docs/releases/v0.73.0.md`). Its
   hand-off is COORD-140 (#231); the hand-off of `v0.72.0` is COORD-138
   (#229).
-- The tag that the `main` of each consumer names: `v0.72.0` (podvm,
-  podrunner, podnet), `v0.71.0` (podssh). The details of each take are
+- The tag that the `main` of each consumer names: `v0.73.0` (podvm),
+  `v0.72.0` (podrunner, podnet), `v0.71.0` (podssh). The details of each take are
   on #231, #229 and #228.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
