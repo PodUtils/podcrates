@@ -1,0 +1,6 @@
+# pod-relay: a refusal of the relay's policy drops the relay's cause (T-926).
+ENTRY=T-926
+GROUP=relay
+EXPECT='a_refusal_says_its_cause_once'
+RUN='cargo test -p pod-relay --all-features --lib open'
+LIMIT=1800

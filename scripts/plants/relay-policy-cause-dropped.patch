@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/open_lines.rs b/crates/pod-relay/src/open_lines.rs
+--- a/crates/pod-relay/src/open_lines.rs
++++ b/crates/pod-relay/src/open_lines.rs
+@@ -84,7 +84,8 @@
+         "blocked",
+         ":",
+     ];
+-    cause_after(body, &echoes)
++    let _ = (body, echoes);
++    None
+ }
+ 
+ /// The one line of `body` after each leading part of `echoes`.

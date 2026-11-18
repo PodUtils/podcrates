@@ -140,7 +140,18 @@ fn a_refusal_says_its_cause_once() {
         refused(403, "forward: no-such-host.invalid:2222 not in the ALLOW list: this relay dials no address of it");
     assert_eq!(
         policy.lines("no-such-host.invalid:2222"),
-        ["the relay's policy does not allow no-such-host.invalid:2222 (HTTP 403)"]
+        ["the relay's policy does not allow no-such-host.invalid:2222: this relay dials no address of it (HTTP 403)"]
+    );
+    // The rule that refused stays (PodUtils/podssh#318); a refusal with no
+    // words past the echo keeps the short line.
+    let port = refused(403, "forward: 140.82.112.3:25 is blocked: port 25 is refused");
+    assert_eq!(
+        port.lines("140.82.112.3:25"),
+        ["the relay's policy does not allow 140.82.112.3:25: port 25 is refused (HTTP 403)"]
+    );
+    assert_eq!(
+        refused(403, "forward: x:25 not in the ALLOW list").lines("x:25"),
+        ["the relay's policy does not allow x:25 (HTTP 403)"]
     );
     let far = refused(502, "relay: cannot reach 127.0.0.1:2299: 127.0.0.1:2299: Connection refused (os error 111)");
     assert_eq!(

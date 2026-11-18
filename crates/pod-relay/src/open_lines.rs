@@ -23,7 +23,14 @@ impl OpenError {
                 // cause said twice (PodUtils/podssh#309).
                 match error {
                     ConnectError::Refused { status: status @ (400 | 403), body } if is_policy_refusal(body) => {
-                        return vec![format!("the relay's policy does not allow {target} (HTTP {status})")];
+                        // The relay's words name the rule that refused, and
+                        // so what the user can change (PodUtils/podssh#318).
+                        return vec![match policy_cause(body, target) {
+                            Some(cause) => {
+                                format!("the relay's policy does not allow {target}: {cause} (HTTP {status})")
+                            }
+                            None => format!("the relay's policy does not allow {target} (HTTP {status})"),
+                        }];
                     }
                     ConnectError::Refused { status: 502, body } => {
                         return vec![match unreachable_cause(body, target) {
@@ -57,9 +64,33 @@ impl OpenError {
 /// names the relay or the target again: `relay: cannot reach T: T: Connection
 /// refused` gives `Connection refused`. `None` when nothing is left.
 fn unreachable_cause(body: &str, target: &str) -> Option<String> {
+    cause_after(body, &["relay:", "cannot reach", target, ":"])
+}
+
+/// The cause in the words of a relay's refusal of its policy for `target`,
+/// with no part that names the relay, the target or the refusal again:
+/// `forward: T not in the ALLOW list: port 25 is refused` gives `port 25 is
+/// refused`. `None` when nothing is left.
+fn policy_cause(body: &str, target: &str) -> Option<String> {
+    let echoes = [
+        "relay:",
+        "forward:",
+        target,
+        "not in the ALLOW list",
+        "not in the allow list",
+        "is not allowed",
+        "not allowed",
+        "is blocked",
+        "blocked",
+        ":",
+    ];
+    cause_after(body, &echoes)
+}
+
+/// The one line of `body` after each leading part of `echoes`.
+fn cause_after(body: &str, echoes: &[&str]) -> Option<String> {
     let line = pod_core::text::one_line(body);
     let mut rest = line.as_str();
-    let echoes = ["relay:", "cannot reach", target, ":"];
     while let Some(after) = echoes.iter().filter(|p| !p.is_empty()).find_map(|p| rest.trim_start().strip_prefix(p)) {
         rest = after;
     }
