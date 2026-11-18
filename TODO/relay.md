@@ -10040,7 +10040,7 @@ cargo test -p pod-session --all-features
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -10054,13 +10054,24 @@ The client moves a session to a new link at `MOVE_BYTES` (48 MiB) whatever the r
 
 `Offer` carries the cap of its document, kept with it in the cache. `byte_budget_under` gives a budget under each cap (three quarters of it), with a floor of 1 MiB only where the cap is smaller. Tests for a cap of 1 MiB, 8 MiB and a large one, and an offer from the cache.
 
-Part 1 (`byte_budget_under`) is written on the branch `wip/t909` and is not tested. Part 2 (the cap in `Offer`) is not started.
+## Decision
+
+- Under a cap, `byte_budget_under` gives the larger of the cap less the margin (4 MiB) and three quarters of the cap. A larger cap never gets a smaller budget. The floor of 1 MiB stays on the variable alone: under a cap of less than 4/3 MiB, a floor leaves no room for the bytes in flight.
+- `Offer::move_bytes` gives the move bytes of the layer: `MOVE_BYTES`, or three quarters of a smaller cap. This is the rule of `MOVE_BYTES` under the default cap of 64 MiB (room for the bytes in flight and a second try). The margin of 4 MiB of the plain road is not sufficient for that.
 
 ## Prove
 
 ```sh
 cargo test -p pod-relay --all-features
 ```
+
+## Correction
+
+Measured on the code: the margin is 4 MiB (64 MiB less 60 MiB), not 8 MiB. Before the fix, a cap under 5 MiB got the default budget of 60 MiB, and a cap of 5 MiB to 8 MiB got 1 MiB to 4 MiB. Part 1 of `wip/t909` gave three quarters only where the margin did not fit: a cap of 4 MiB got 3 MiB and a cap of 5 MiB got 1 MiB (a larger cap, a smaller budget).
+
+## Done
+
+2026-11-18, e401e11b. `relay::byte_budget_under`: the larger of the cap less the margin and `relay::three_quarters(cap)`, never above `SESSION_BYTE_BUDGET` (a cap of 1 MiB gets 768 KiB, 4 MiB gets 3 MiB, 8 MiB gets 6 MiB, 16 MiB gets 12 MiB, 32 MiB gets 28 MiB). `forward_layer::Offer` has `max_session_bytes` (from `limits.max_session_bytes` of the same document, by `pool::parse_limits`) and `Offer::move_bytes()`; `forward_layer::kept` keeps the cap with the offer (a file of before it reads as no cap). Tests: `pool::tests::the_budgets_go_under_the_relays_limits_and_never_above_their_own` (each cap from 512 KiB to 80 MiB gets a budget under it and not under a smaller cap's), `forward_layer::offer::tests::the_offer_moves_the_session_under_the_cap_of_its_document` (1 MiB, 8 MiB, 1 TiB, no cap), `forward_layer::kept::tests::the_cap_of_a_session_is_kept_with_the_offer`, and `tests/layer_cap.rs` `a_session_moves_before_each_cap_of_the_relay` (a stand-in relay with a cap of 2 MiB, the offer from the cache, 8 MiB through an echo with equal digests, 4 moves or more, no link at its cap, no loss; 30 runs green). On the code before the fix, the budget test fails (a cap of 4 MiB gets 60 MiB) and the end-to-end test fails (4 links met the cap). Plant `relay-layer-budget-ignores-the-cap`, caught. podssh sets `Settings::move_bytes` from `Offer::move_bytes()` of the offer that it takes (read or kept).
 
 # T-912: `pod-session`: a far end that lost a session by a restart is said as one that timed it out (PodUtils/podssh#315, ask 2)
 
@@ -10182,4 +10193,32 @@ Two parts, each with a test on the loopback relay of `pod-iroh` that moves the c
 ```sh
 cargo test -p pod-iroh --all-features
 cargo test -p pod-session --all-features
+```
+
+# T-942: `pod-relay`: a kept offer of the layer loses `forward.liveness`
+
+**Source:** the review of T-909 (`crates/pod-relay/src/forward_layer/kept.rs`).
+**Category:** defect
+**Milestone:** M0
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`forward_layer::kept` keeps `layer`, `at`, `quic` and the cap of an offer, but not `liveness` (`forward.liveness`, T-845). An offer from the cache has `liveness: None`. A run that takes a kept offer keeps its own pace of Ping and the `PING` of the layer, so a relay that sleeps between frames stays awake on each idle link of that run.
+
+## Premise
+
+- Read: `crates/pod-relay/src/forward_layer/kept.rs` (`KeptOffer`, `keep`, `of_text`), `crates/pod-relay/src/forward_layer/offer.rs` (`Offer::liveness`).
+- Not read: whether podssh takes `liveness` from a kept offer in its glue.
+
+## Approach
+
+`KeptOffer` keeps the pace in milliseconds (`#[serde(default)]`; a file of before it reads as none), and `of_text` gives it back by the rule of `crate::liveness`. A unit test: an offer with a pace of 45 s, kept and read again, has the same pace.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features --lib forward_layer::kept
 ```

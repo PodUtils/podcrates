@@ -1,0 +1,6 @@
+# pod-relay: the byte budget and the move of the layer ignore a small cap of the relay, so each link of a session meets the cap; the end-to-end test under a stand-in relay with a cap of 2 MiB must fail (T-909, PodUtils/podssh#314).
+ENTRY=T-909
+GROUP=relay
+EXPECT='no link met its cap'
+RUN='cargo test -p pod-relay --all-features --test layer_cap a_session_moves_before_each_cap_of_the_relay'
+LIMIT=1800
