@@ -178,7 +178,11 @@ async fn moved(move_at: usize, cap: usize, paced: bool, len: usize) -> (Vec<Note
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_session_moves_before_each_cap() {
-    let (notes, capped) = moved(CAP * 3 / 4, CAP, true, 8 * MIB).await;
+    // Both directions count toward the cap. Under an emulator the
+    // handshake of the new link outlasts a margin of 256 KiB at the scaled
+    // pace, so the margin is 512 KiB there.
+    let move_at = if pod_testkit::host::emulated() { CAP / 2 } else { CAP * 3 / 4 };
+    let (notes, capped) = moved(move_at, CAP, true, 8 * MIB).await;
     let moves = notes.iter().filter(|n| matches!(n, Note::Moved { .. })).count();
     let losses: Vec<&Note> = notes.iter().filter(|n| !matches!(n, Note::Moved { .. })).collect();
     assert!(moves > 8, "{moves} moves for 16 MiB under a cap of 1 MiB");

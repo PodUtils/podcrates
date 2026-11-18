@@ -220,7 +220,7 @@ async fn opened(road: &Road, form: Option<Form>) -> Result<Opened, ConnectError>
 /// Send `up` through the session, then its end, and read the bytes down to
 /// their end: the digest of the bytes down, their count, and the end.
 async fn carry(opened: Opened, up: Vec<u8>) -> ([u8; 32], usize, End) {
-    let carried = tokio::time::timeout(LIMIT, async move {
+    let carried = tokio::time::timeout(pod_testkit::host::scaled(LIMIT), async move {
         let (mut from, mut to) = tokio::io::split(opened.stream);
         let writer = tokio::spawn(async move {
             for piece in up.chunks(48 * 1024) {

@@ -19,7 +19,7 @@ use pod_iroh::{Options, Udp};
 use pod_proxy::{Environment, ProxyChoice};
 use pod_tls::Trust;
 
-use common::{LIMIT, RELAY_ADDR, RELAY_NAME, proxy, relay};
+use common::{RELAY_ADDR, RELAY_NAME, limit, proxy, relay};
 
 /// An environment where only `ALL_PROXY`, set to `url`, names a proxy.
 fn all_proxy_alone(url: &str) -> ProxyChoice {
@@ -52,7 +52,7 @@ async fn all_proxy_reaches_the_relay_where_iroh_s_own_selection_does_not() {
     let environment = all_proxy_alone(&format!("http://{proxy}"));
 
     let endpoint = pod_iroh::bind(&from_environment(&relay_url, environment)).await.expect("an endpoint");
-    tokio::time::timeout(LIMIT, endpoint.online()).await.expect("the caller's selection reached the relay");
+    tokio::time::timeout(limit(), endpoint.online()).await.expect("the caller's selection reached the relay");
     assert!(tunnels.load(Ordering::SeqCst) > 0, "through the proxy");
     endpoint.close().await;
 
@@ -79,7 +79,7 @@ async fn a_socks5_proxy_in_all_proxy_reaches_the_relay_by_name() {
 
     let options = from_environment(&relay_url, environment);
     let endpoint = pod_iroh::bind(&options).await.expect("an endpoint through SOCKS5");
-    tokio::time::timeout(LIMIT, endpoint.online()).await.expect("the relay through the SOCKS5 proxy");
+    tokio::time::timeout(limit(), endpoint.online()).await.expect("the relay through the SOCKS5 proxy");
     endpoint.close().await;
     let seen = seen.lock().unwrap().clone();
     // The stand-in is the only way to the relay, so the relay dial and the
@@ -106,7 +106,7 @@ async fn a_socks5_proxy_without_h_gets_the_relay_s_address() {
     options.resolve =
         std::sync::Arc::new(pod_proxy::resolve::System::with_pins(vec![(RELAY_NAME.to_string(), pinned)]));
     let endpoint = pod_iroh::bind(&options).await.expect("an endpoint through SOCKS5");
-    tokio::time::timeout(LIMIT, endpoint.online()).await.expect("the relay through the SOCKS5 proxy");
+    tokio::time::timeout(limit(), endpoint.online()).await.expect("the relay through the SOCKS5 proxy");
     endpoint.close().await;
     let seen = seen.lock().unwrap().clone();
     assert!(!seen.is_empty(), "no tunnel through the stand-in");

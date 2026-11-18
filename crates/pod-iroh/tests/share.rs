@@ -23,7 +23,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
-use common::{LIMIT, options, proxy, relay};
+use common::{limit, options, proxy, relay};
 
 const PIPE: usize = 256 * 1024;
 const MIB: usize = 1 << 20;
@@ -67,7 +67,7 @@ struct Far {
 
 async fn far(relay: &RelayUrl, proxy: SocketAddr, client: PublicKey) -> Far {
     let endpoint = pod_iroh::bind(&options(relay, proxy, true)).await.expect("the far end");
-    tokio::time::timeout(LIMIT, endpoint.online()).await.expect("the far end has its home relay");
+    tokio::time::timeout(limit(), endpoint.online()).await.expect("the far end has its home relay");
     let (tx, targets) = mpsc::unbounded_channel::<DuplexStream>();
     let sessions = Arc::new(AtomicUsize::new(0));
     let opened = sessions.clone();
@@ -101,14 +101,14 @@ async fn dialer(relay: &RelayUrl, proxy: SocketAddr, secret: &SecretKey, node: E
 async fn session(stream: Stream) -> (DuplexStream, JoinHandle<Outcome>) {
     let mut entropy = OsEntropy;
     let started = client::start(stream, Ask::New, Settings::default(), &mut entropy);
-    let started = tokio::time::timeout(LIMIT, started).await.unwrap().expect("the layer's handshake");
+    let started = tokio::time::timeout(limit(), started).await.unwrap().expect("the layer's handshake");
     let (app, app_end) = tokio::io::duplex(PIPE);
     (app, tokio::spawn(started.run(app_end)))
 }
 
 /// The far end's next target.
 async fn next(targets: &mut mpsc::UnboundedReceiver<DuplexStream>) -> DuplexStream {
-    tokio::time::timeout(LIMIT, targets.recv()).await.unwrap().expect("a session's target")
+    tokio::time::timeout(limit(), targets.recv()).await.unwrap().expect("a session's target")
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -151,13 +151,13 @@ async fn two_sessions_of_one_process_share_one_connection_on_two_streams() {
     let copied = async { tokio::join!(exchange(copy_target, down.clone()), exchange(copy_app, up.clone())) };
     let typed =
         async { tokio::join!(exchange(terminal_target, b"echo".to_vec()), exchange(terminal_app, b"key!".to_vec())) };
-    let both = tokio::time::timeout(LIMIT, async { tokio::join!(copied, typed) }).await;
+    let both = tokio::time::timeout(limit(), async { tokio::join!(copied, typed) }).await;
     let ((at_target, at_client), (key, echo)) = both.expect("each session's bytes within the limit");
     assert_eq!(Sha256::digest(&at_target), Sha256::digest(&up), "the copy's bytes reached the node whole");
     assert_eq!(Sha256::digest(&at_client), Sha256::digest(&down), "the node's bytes reached the copy whole");
     assert_eq!((key.as_slice(), echo.as_slice()), (&b"key!"[..], &b"echo"[..]));
     for run in [terminal_run, copy_run] {
-        tokio::time::timeout(LIMIT, run).await.expect("the session ends").expect("its task");
+        tokio::time::timeout(limit(), run).await.expect("the session ends").expect("its task");
     }
 
     // One connection, two sessions: the second login opened no connection.
@@ -196,7 +196,7 @@ async fn a_copy_s_stream_goes_below_a_terminal_s_at_each_end_that_reads_its_lane
         if !lanes {
             far.set_alpns(vec![ALPN.to_vec()]);
         }
-        tokio::time::timeout(LIMIT, far.online()).await.expect("the far end has its home relay");
+        tokio::time::timeout(limit(), far.online()).await.expect("the far end has its home relay");
         let accepting = far.clone();
         let accepted = tokio::spawn(async move {
             let incoming = accepting.accept().await.expect("a connection");
@@ -209,7 +209,7 @@ async fn a_copy_s_stream_goes_below_a_terminal_s_at_each_end_that_reads_its_lane
         let dialer = Dialer::new(near.clone(), EndpointAddr::new(far.id()).with_relay_url(relay_url.clone()));
         let terminal = dialer.link_as(Lane::Interactive).await.expect("the terminal's stream");
         let copy = dialer.link_as(Lane::Bulk).await.expect("the copy's stream");
-        let (alpn, far_terminal, far_copy, _kept) = tokio::time::timeout(LIMIT, accepted).await.unwrap().unwrap();
+        let (alpn, far_terminal, far_copy, _kept) = tokio::time::timeout(limit(), accepted).await.unwrap().unwrap();
         assert_eq!((terminal.priority(), copy.priority()), (Some(0), Some(-1)), "this end's copy bytes go after");
         let (want_alpn, want_copy) = if lanes { (ALPN_LANES, Some(-1)) } else { (ALPN, Some(0)) };
         assert_eq!(alpn, want_alpn, "lanes: {lanes}");

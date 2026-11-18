@@ -165,7 +165,8 @@ fn a_screen_that_changed_and_settled_is_ready_and_a_still_one_is_not() {
     let d2 = dir("ready-still");
     let plan = plan_in(&d2);
     let dumps = screen_stand(&plan, vec![ppm(&[PROMPT])], 1);
-    let still = quick(vec![Sign::Screen { settle: Duration::ZERO }], Duration::from_millis(300));
+    let still =
+        quick(vec![Sign::Screen { settle: Duration::ZERO }], pod_testkit::host::scaled(Duration::from_millis(300)));
     let e = wait(&plan, &mut child.0, &still).unwrap_err();
     assert!(matches!(unready(&e), Some(Unready::Deadline { .. })), "{e}");
     assert_eq!(e.class, Class::Timeout);
@@ -211,7 +212,8 @@ fn a_black_screen_or_the_first_screen_again_is_not_ready() {
         let plan = plan_in(&d);
         let count = frames.len();
         let dumps = screen_stand(&plan, frames, 1);
-        let ready = quick(vec![Sign::Screen { settle: Duration::ZERO }], Duration::from_millis(300));
+        let ready =
+            quick(vec![Sign::Screen { settle: Duration::ZERO }], pod_testkit::host::scaled(Duration::from_millis(300)));
         let e = wait(&plan, &mut child.0, &ready).expect_err(name);
         assert!(matches!(unready(&e), Some(Unready::Deadline { .. })), "{name}: {e}");
         assert!(*dumps.lock().unwrap() > count, "{name}: each frame was read, and the last one again");

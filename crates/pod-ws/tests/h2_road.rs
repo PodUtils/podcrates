@@ -342,10 +342,16 @@ async fn eight_sessions_share_one_tls_connection_and_carry_4_mib_each_way() {
     let root = root_file("eight");
     let (port, seen) = stand_in(Offer::Extended).await;
     let mut tasks = Vec::new();
+    // Each session opens before bytes flow: under an emulator, the bytes of
+    // the first sessions delay the answer of a later CONNECT past the wait
+    // of the road, which then retires the connection by design.
+    let opened = Arc::new(tokio::sync::Barrier::new(8));
     for seed in 1..=8u64 {
         let config = config(port, &root);
+        let opened = opened.clone();
         tasks.push(tokio::spawn(async move {
             let (session, road) = connect(&config, TOKEN).await.expect("a session on the road");
+            opened.wait().await;
             each_way(session, per_session(), seed).await;
             road
         }));

@@ -28,7 +28,11 @@ pub const RELAY_NAME: &str = "relay.podssh.test";
 /// which gets an address: not on the loopback, which the dialer sends
 /// through no proxy. The stand-in proxy forwards it to the relay.
 pub const RELAY_ADDR: &str = "192.0.2.7";
-pub const LIMIT: Duration = Duration::from_secs(60);
+/// The bound that guards a hang of a test: 60 s on a kernel, more under
+/// an emulator, which runs QUIC and the crypto slower.
+pub fn limit() -> Duration {
+    pod_testkit::host::scaled(Duration::from_secs(60))
+}
 
 /// A relay server on the loopback, with no QUIC, and its URL under
 /// [`RELAY_NAME`]. The relay stops when the server is dropped.

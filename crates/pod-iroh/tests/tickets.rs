@@ -21,7 +21,7 @@ use pod_session::Settings;
 use pod_session::client::Outcome;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
-use common::{LIMIT, options, proxy, relay};
+use common::{limit, options, proxy, relay};
 
 /// The key of iroh's vector, in hex and in base32.
 const KEY: &str = "ae58ff8833241ac82d6ff7611046ed67b5072d142c588d0063e942d9a75502b6";
@@ -120,7 +120,7 @@ where
     G: Fn(&PublicKey) -> bool + Clone + Send + Sync + 'static,
 {
     let node = pod_iroh::bind(&options(relay, proxy, true)).await.expect("the node");
-    tokio::time::timeout(LIMIT, node.online()).await.expect("the node has its home relay");
+    tokio::time::timeout(limit(), node.online()).await.expect("the node has its home relay");
     let opened = Arc::new(AtomicUsize::new(0));
     let counted = opened.clone();
     let open = move || {
@@ -150,7 +150,7 @@ async fn session(client: &Endpoint, node: &Endpoint, relay: &iroh::RelayUrl) -> 
         let mut back = [0u8; 5];
         app.read_exact(&mut back).await.map(|_| back.to_vec())
     };
-    let (carried, echoed) = tokio::time::timeout(LIMIT, async {
+    let (carried, echoed) = tokio::time::timeout(limit(), async {
         tokio::join!(pod_iroh::carry(&dialer, app_end, Settings::default(), |_| {}), talk)
     })
     .await
@@ -162,7 +162,7 @@ async fn session(client: &Endpoint, node: &Endpoint, relay: &iroh::RelayUrl) -> 
 
 /// Whether a node whose clients `admit` lets in refuses a client that is not
 /// in the allowlist: no session, the refusal's code, and no target opened.
-async fn refuses_a_stranger<G>(name: &str, admit: impl FnOnce(PathBuf) -> G) -> bool
+async fn refuses_a_stranger<G>(name: &str, admit: impl FnOnce(PathBuf) -> G) -> (bool, String)
 where
     G: Fn(&PublicKey) -> bool + Clone + Send + Sync + 'static,
 {
@@ -175,7 +175,8 @@ where
     let got = session(&client, &node, &relay_url).await;
     client.close().await;
     node.close().await;
-    got == Err(Failure::Refused) && opened.load(Ordering::SeqCst) == 0
+    let opened = opened.load(Ordering::SeqCst);
+    (got == Err(Failure::Refused) && opened == 0, format!("the session gave {got:?}; {opened} targets opened"))
 }
 
 /// The node's own check: the allowlist file, read for each connection.
@@ -185,13 +186,15 @@ fn by_the_list(path: PathBuf) -> impl Fn(&PublicKey) -> bool + Clone + Send + Sy
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_node_refuses_a_client_that_is_not_in_its_allowlist() {
-    assert!(refuses_a_stranger("stranger", by_the_list).await, "a client that is not in the allowlist got in");
+    let (refused, what) = refuses_a_stranger("stranger", by_the_list).await;
+    assert!(refused, "a client that is not in the allowlist was not refused: {what}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_planted_node_that_admits_each_key_fails_the_check() {
     let each = |_: PathBuf| |_: &PublicKey| true;
-    assert!(!refuses_a_stranger("planted", each).await, "the check cannot tell a node that admits each key");
+    let (refused, what) = refuses_a_stranger("planted", each).await;
+    assert!(!refused, "the check cannot tell a node that admits each key: {what}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

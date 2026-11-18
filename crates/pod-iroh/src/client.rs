@@ -150,9 +150,23 @@ impl Dialer {
         let connection = self.connect().await?;
         self.linked.store(true, Ordering::SeqCst);
         watch_paths(&connection, self.direct.clone());
-        let stream = open_lane(&connection, lane).await;
+        let stream = match open_lane(&connection, lane).await {
+            Ok(stream) => Ok(stream),
+            // The node can close a new connection with its refusal before
+            // the first stream opens: the close says so, not the stream.
+            Err(e) => {
+                let reason = match connection.close_reason() {
+                    Some(reason) => Some(reason),
+                    None => tokio::time::timeout(CLOSE_WAIT, connection.closed()).await.ok(),
+                };
+                match reason {
+                    Some(reason) if refused(&reason) => Err(Failure::Refused),
+                    _ => Err(Failure::Failed(format!("no stream to the node: {e}"))),
+                }
+            }
+        };
         *slot = Some(connection);
-        stream.map_err(|e| Failure::Failed(format!("no stream to the node: {e}")))
+        stream
     }
 
     /// Whether the node refused this client, as the close of the connection

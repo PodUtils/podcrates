@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::sync::mpsc;
 
-use common::{LIMIT, options, proxy, relay};
+use common::{limit, options, proxy, relay};
 
 const PIPE: usize = 256 * 1024;
 const MIB: usize = 1 << 20;
@@ -56,7 +56,7 @@ async fn a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way() {
     let (proxy, tunnels) = proxy(relay_url.port().unwrap()).await;
 
     let far = pod_iroh::bind(&options(&relay_url, proxy, true)).await.expect("the far end");
-    tokio::time::timeout(LIMIT, far.online()).await.expect("the far end has its home relay");
+    tokio::time::timeout(limit(), far.online()).await.expect("the far end has its home relay");
     // Each new session's target: one end of a pipe, the other to the test.
     let (targets_tx, mut targets_rx) = mpsc::unbounded_channel::<DuplexStream>();
     let open = move || {
@@ -74,9 +74,9 @@ async fn a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way() {
     tokio::spawn(pod_iroh::far::serve(far.clone(), Settings::default(), 64 * MIB, open, admit));
 
     let addr = EndpointAddr::new(far.id()).with_relay_url(relay_url.clone());
-    let connection = tokio::time::timeout(LIMIT, near.connect(addr, ALPN)).await.unwrap().expect("a connection");
+    let connection = tokio::time::timeout(limit(), near.connect(addr, ALPN)).await.unwrap().expect("a connection");
     let stream = pod_iroh::open_session(&connection).await.expect("a session's stream");
-    let session = tokio::time::timeout(LIMIT, client::start(stream, Ask::New, Settings::default(), &mut OsEntropy))
+    let session = tokio::time::timeout(limit(), client::start(stream, Ask::New, Settings::default(), &mut OsEntropy))
         .await
         .unwrap()
         .expect("the layer's handshake");
@@ -84,16 +84,17 @@ async fn a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way() {
 
     let (app, app_end) = tokio::io::duplex(PIPE);
     let run = tokio::spawn(session.run(app_end));
-    let target = tokio::time::timeout(LIMIT, targets_rx.recv()).await.unwrap().expect("the session's target");
+    let target = tokio::time::timeout(limit(), targets_rx.recv()).await.unwrap().expect("the session's target");
     let up = pseudo_random(20 * MIB, 0x1205);
     let down = pseudo_random(20 * MIB, 0x5021);
-    let (at_target, at_client) =
-        tokio::time::timeout(LIMIT, async { tokio::join!(exchange(target, down.clone()), exchange(app, up.clone())) })
-            .await
-            .expect("20 MiB each way within the limit");
+    let (at_target, at_client) = tokio::time::timeout(limit(), async {
+        tokio::join!(exchange(target, down.clone()), exchange(app, up.clone()))
+    })
+    .await
+    .expect("20 MiB each way within the limit");
     assert_eq!(Sha256::digest(&at_target), Sha256::digest(&up), "the client's bytes reached the target whole");
     assert_eq!(Sha256::digest(&at_client), Sha256::digest(&down), "the target's bytes reached the client whole");
-    let outcome = tokio::time::timeout(LIMIT, run).await.unwrap().unwrap();
+    let outcome = tokio::time::timeout(limit(), run).await.unwrap().unwrap();
     assert!(
         matches!(&outcome, Outcome::Layer(ended) if matches!(ended.end, End::LocalEnd | End::Closed(_))),
         "{outcome:?}"

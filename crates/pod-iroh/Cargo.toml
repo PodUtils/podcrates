@@ -95,6 +95,8 @@ rcgen = { version = "0.14", optional = true }
 tokio-rustls = { workspace = true, optional = true }
 
 [dev-dependencies]
+# The bound of a hang, scaled under an emulator.
+pod-testkit = { workspace = true }
 # This crate with its test relay, for its own tests.
 pod-iroh = { path = ".", features = ["test-relay"] }
 rustls = { workspace = true, features = ["ring"] }

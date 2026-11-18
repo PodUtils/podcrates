@@ -92,4 +92,3 @@ test-clone:dc2feaccb16f66d2  T-918: crates/pod-link/tests/resume.rs copy_until a
 test-clone:e523d0edaf8d5dc5  T-918: crates/pod-relay/tests/mailbox_harness/mod.rs start and its copies
 test-clone:e6214a5384c58127  T-918: crates/pod-e2e/tests/session_handover.rs target and its copies
 test-clone:fb62a9f386deb98a  T-918: crates/pod-link/tests/h2.rs the_dialer_refuses_a_listener_of_another_key_and_names_it and its copies
-test-clone:fe89959b0b871548  T-918: crates/pod-egress/tests/trojan.rs carries and its copies

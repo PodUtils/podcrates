@@ -153,10 +153,14 @@ async fn the_http_road_carries_the_headers_on_each_request() {
             }
         }
     }
-    let one = heads.lock().unwrap().last().cloned().unwrap();
-    assert!(one.0.starts_with("/v1/http/one/"), "{:?}", one.0);
+    // The serial session that is open still polls: take the last head of
+    // the one form, not the last head.
+    let one = heads.lock().unwrap().iter().rev().find(|h| h.0.starts_with("/v1/http/one/")).cloned();
+    let one = one.expect("a head of the one form");
     assert_eq!(from(&one, "x-relay-token"), ["x-relay-token", "cf-access-client-id", "cf-access-client-secret"]);
-    let before = heads.lock().unwrap().len();
+    // The polls of the open serial session are not requests of these opens.
+    let opens = || heads.lock().unwrap().iter().filter(|h| !h.0.starts_with("/v1/http/s/")).count();
+    let before = opens();
     let bad = Headers::new(|_| vec![("CF-Access-Client-Secret", Zeroizing::new(format!("{SECRET}\r\nX: 1")))]);
     let e = open(&self::road(&heads, bad), &target, TOKEN, None, Tuning::default()).await.err().expect("refused");
     assert!(matches!(&e, ConnectError::Config(why) if why.contains("CF-Access-Client-Secret")), "{e:?}");
@@ -164,7 +168,7 @@ async fn the_http_road_carries_the_headers_on_each_request() {
     let own = Headers::new(|_| vec![("X-Session-Key", Zeroizing::new("x".into()))]);
     let e = open(&self::road(&heads, own), &target, TOKEN, None, Tuning::default()).await.err().expect("refused");
     assert!(e.to_string().contains("X-Session-Key"), "{e}");
-    assert_eq!(heads.lock().unwrap().len(), before, "no request");
+    assert_eq!(opens(), before, "no request");
 }
 
 /// The upgrade, where the request asks it: a 101 for its key, or the

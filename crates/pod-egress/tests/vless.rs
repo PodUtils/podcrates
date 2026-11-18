@@ -36,7 +36,9 @@ fn dial(trust: Trust, proxy: ProxyChoice, pipe: bool) -> Dial {
 
 async fn open(server: &Server, port: u16, root: &Path, proxy: ProxyChoice, pipe: bool) -> Result<Opened, VlessError> {
     let dial = dial(Trust::File(root.to_path_buf()), proxy, pipe);
-    tokio::time::timeout(LIMIT * 2, vless::open(server, "127.0.0.1", port, &dial)).await.expect("within the limit")
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT * 2), vless::open(server, "127.0.0.1", port, &dial))
+        .await
+        .expect("within the limit")
 }
 
 /// The target's version line, then `sent` echoed back.
@@ -54,7 +56,7 @@ async fn carries(opened: &mut Opened, sent: &[u8]) {
         };
         tokio::join!(up, async { read.read_exact(&mut back).await.unwrap() });
     };
-    tokio::time::timeout(LIMIT * 2, both).await.expect("the bytes within the limit");
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT * 2), both).await.expect("the bytes within the limit");
     assert_eq!(banner, BANNER);
     assert!(back == sent, "the bytes came back changed");
 }
@@ -190,7 +192,7 @@ async fn a_pipe_takes_the_stream_of_a_target_that_waits_for_its_client() {
     assert!(!opened.answered, "no answer before the client spoke");
     opened.stream.write_all(b"ping").await.unwrap();
     let mut back = [0u8; 4];
-    tokio::time::timeout(LIMIT, opened.stream.read_exact(&mut back)).await.unwrap().unwrap();
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), opened.stream.read_exact(&mut back)).await.unwrap().unwrap();
     assert_eq!(&back, b"ping");
     let ssh = open(&link, aim, &root, ProxyChoice::Direct, false).await.err().unwrap();
     assert!(matches!(ssh, VlessError::Silent(_)), "{}", ssh.line("x", "y"));
@@ -273,7 +275,7 @@ async fn a_vless_road_is_a_dialer_and_a_wrong_id_is_a_typed_failure() {
     };
     let dialer: &dyn pod_core::Dial = &road;
     assert!(dialer.names_inside());
-    let deadline = tokio::time::Instant::now() + LIMIT;
+    let deadline = tokio::time::Instant::now() + pod_testkit::host::scaled(LIMIT);
     let target = pod_core::Target::new("127.0.0.1", aim);
     let mut io = dialer.dial(&target, deadline).await.unwrap_or_else(|e| panic!("{e}")).io;
     let mut banner = vec![0u8; BANNER.len()];
@@ -283,7 +285,7 @@ async fn a_vless_road_is_a_dialer_and_a_wrong_id_is_a_typed_failure() {
         io.write_all(b"a dialer!").await.unwrap();
         io.read_exact(&mut back).await.unwrap();
     };
-    tokio::time::timeout(LIMIT, both).await.expect("the bytes within the limit");
+    tokio::time::timeout(pod_testkit::host::scaled(LIMIT), both).await.expect("the bytes within the limit");
     assert_eq!((banner.as_slice(), &back), (BANNER, b"a dialer!"));
     let other = "00000000-0000-4000-8000-000000000001";
     let wrong = vless::Road { server: server(ws, "type=ws&path=%2Fws", other), ..road.clone() };
