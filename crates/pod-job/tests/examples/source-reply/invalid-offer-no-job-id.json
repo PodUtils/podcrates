@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "reply": "events",
+  "events": [
+    {
+      "event": "offer",
+      "offer": {
+        "source": "s"
+      }
+    }
+  ]
+}

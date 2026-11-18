@@ -1,0 +1,11 @@
+--- a/crates/pod-broker/src/json_schema.rs
++++ b/crates/pod-broker/src/json_schema.rs
+@@ -62,8 +62,6 @@
+ /// policy has no allow rule. The examples of the schema are policies (a
+ /// test compiles each).
+ pub fn policy_rules(schema: &mut Schema) {
+-    schema.insert("if".into(), json!({ "properties": { "mode": { "const": "open" } } }));
+-    schema.insert("then".into(), json!({ "properties": { "allow": { "maxItems": 0 } } }));
+     let examples = json!([
+         { "schema": 1, "mode": "open", "deny": ["203.0.113.0/24"] },
+         {

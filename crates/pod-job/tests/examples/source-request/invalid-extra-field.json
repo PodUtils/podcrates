@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "op": "ack",
+  "job_id": "1234",
+  "extra": 1
+}

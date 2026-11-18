@@ -223,13 +223,15 @@ fn the_policy_of_an_offer_is_a_broker_policy() {
 /// is `NAME.vN.schema.json`, its `$id` is the URL of that file on `main`, it
 /// is JSON Schema 2020-12, and the object has a field `schema`, its first
 /// required key, whose value is the constant N. The records of this crate,
-/// the log line and the broker policy have the same rule. Each schema
-/// compiles in a validator on Rust's regex.
+/// the log line and the broker policy have the same rule; a schema of the
+/// source wire holds it in each branch of its union. Each schema compiles
+/// in a validator on Rust's regex. `CHANGES.md` is not a schema.
 #[test]
 fn each_schema_names_its_version_one_way() {
     let mut files: Vec<String> = std::fs::read_dir(root())
         .expect("schemas/")
         .map(|e| e.expect("an entry").file_name().to_string_lossy().into_owned())
+        .filter(|f| f.ends_with(".json"))
         .collect();
     files.sort();
     let mut names = Vec::new();
@@ -243,15 +245,22 @@ fn each_schema_names_its_version_one_way() {
         let schema: Value = serde_json::from_str(&text).unwrap_or_else(|e| panic!("{file}: {e}"));
         assert_eq!(schema["$id"], json!(format!("{ID}{file}")), "{file}");
         assert_eq!(schema["$schema"], json!("https://json-schema.org/draft/2020-12/schema"), "{file}");
-        assert_eq!(schema["additionalProperties"], json!(false), "{file}");
+        // A union of the source wire: each branch is an object of the wire.
+        let objects = match schema["oneOf"].as_array() {
+            Some(branches) if schema.get("properties").is_none() => branches.clone(),
+            _ => vec![schema.clone()],
+        };
         let mut compiler = boon::Compiler::new();
         for each in &files {
             let value = serde_json::from_str(&std::fs::read_to_string(root().join(each)).expect("a schema"));
             compiler.add_resource(&format!("{ID}{each}"), value.expect("a schema is JSON")).expect("a resource");
         }
         compiler.compile(&format!("{ID}{file}"), &mut boon::Schemas::new()).unwrap_or_else(|e| panic!("{file}: {e}"));
-        assert_eq!(schema["properties"]["schema"]["const"], json!(n), "{file}: schema is not the constant {n}");
-        assert_eq!(schema["required"][0], json!("schema"), "{file}: schema is not the first required key");
+        for object in &objects {
+            assert_eq!(object["additionalProperties"], json!(false), "{file}");
+            assert_eq!(object["properties"]["schema"]["const"], json!(n), "{file}: schema is not the constant {n}");
+            assert_eq!(object["required"][0], json!("schema"), "{file}: schema is not the first required key");
+        }
         names.push(name.to_string());
     }
     for record in RECORDS {

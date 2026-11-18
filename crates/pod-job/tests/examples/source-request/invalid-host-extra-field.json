@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "op": "hello",
+  "client": "podrunner",
+  "version": "0",
+  "host": {
+    "podrunner": "0.4.0",
+    "podvm": "0.2.0",
+    "arch": "x86_64",
+    "kvm": true,
+    "kinds": [
+      {
+        "name": "podvm",
+        "boundary": "guest",
+        "container": "engine",
+        "cpu": 4000,
+        "memory": 8589934592
+      }
+    ],
+    "gpu": true
+  }
+}

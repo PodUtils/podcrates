@@ -14,7 +14,8 @@ use std::path::{Path, PathBuf};
 use schemars::{JsonSchema, Schema};
 use serde_json::Value;
 
-use crate::{Capability, JobOffer, PublicReport, RunReport};
+use crate::source::{Reply, Request};
+use crate::{Capability, JobOffer, PublicReport, RunReport, Status};
 
 mod rules;
 
@@ -37,7 +38,8 @@ const REFERRED: [&str; 1] = ["broker-policy.v1.schema.json"];
 
 /// Each record: the name of its schema file and of its directory of
 /// examples.
-const RECORDS: [&str; 4] = ["job-offer", "unit-capability", "run-report", "run-report-public"];
+const RECORDS: [&str; 7] =
+    ["job-offer", "unit-capability", "run-report", "run-report-public", "status", "source-request", "source-reply"];
 
 /// The examples whose rule no schema can hold: the kind of a source is in
 /// the configuration of the runner, not in the offer.
@@ -55,6 +57,9 @@ fn generated() -> Vec<(&'static str, Schema)> {
         ("unit-capability", schema_of::<Capability>("unit-capability")),
         ("run-report", schema_of::<RunReport>("run-report")),
         ("run-report-public", schema_of::<PublicReport>("run-report-public")),
+        ("status", schema_of::<Status>("status")),
+        ("source-request", schema_of::<Request>("source-request")),
+        ("source-reply", schema_of::<Reply>("source-reply")),
     ]
 }
 
@@ -78,6 +83,9 @@ fn validate(record: &str, text: &str) -> Result<(), String> {
         "unit-capability" => read::<Capability>(text)?.check(),
         "run-report" => read::<RunReport>(text)?.check(),
         "run-report-public" => read::<PublicReport>(text)?.check(),
+        "status" => read::<Status>(text)?.check(),
+        "source-request" => crate::source::parse_request(text.as_bytes()).map(|_| ()).map_err(|e| e.to_string()),
+        "source-reply" => crate::source::parse_reply(text.as_bytes()).map(|_| ()).map_err(|e| e.to_string()),
         other => Err(format!("no record {other}")),
     }
 }
@@ -173,8 +181,8 @@ fn each_example_passes_or_fails_for_its_reason() {
             }
         }
     }
-    assert_eq!((valid, invalid), (20, 29));
-    assert_eq!(expect.len(), 29, "expect.json names a file that does not exist");
+    assert_eq!((valid, invalid), (40, 47));
+    assert_eq!(expect.len(), 47, "expect.json names a file that does not exist");
 }
 
 #[test]

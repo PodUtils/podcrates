@@ -1,0 +1,487 @@
+{
+  "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/source-reply.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "A reply of a source of jobs to podrunner (source-reply.v1)",
+  "description": "The reply of a source to one request.",
+  "oneOf": [
+    {
+      "description": "The reply to `hello`. A source that is not `operator_controlled`\ngets only the public report.",
+      "type": "object",
+      "properties": {
+        "operator_controlled": {
+          "type": "boolean"
+        },
+        "reply": {
+          "type": "string",
+          "const": "hello"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "reply",
+        "source",
+        "operator_controlled"
+      ]
+    },
+    {
+      "description": "The reply to `next`.",
+      "type": "object",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceEvent"
+          }
+        },
+        "reply": {
+          "type": "string",
+          "const": "events"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "reply",
+        "events"
+      ]
+    },
+    {
+      "description": "The reply to `mint`.",
+      "type": "object",
+      "properties": {
+        "credential": {
+          "$ref": "#/$defs/Minted"
+        },
+        "reply": {
+          "type": "string",
+          "const": "credential"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "reply",
+        "credential"
+      ]
+    },
+    {
+      "description": "The replies to `assigned`: run the job with these trust facts, or\nend it with a code.",
+      "type": "object",
+      "properties": {
+        "reply": {
+          "type": "string",
+          "const": "keep"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        },
+        "trust_inputs": {
+          "$ref": "#/$defs/TrustInputs"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "reply",
+        "trust_inputs"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "reply": {
+          "type": "string",
+          "const": "end"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "reply",
+        "code",
+        "detail"
+      ]
+    },
+    {
+      "description": "The reply to each other request. A variant with fields, so that\nserde refuses an unknown field of it: a unit variant takes any.",
+      "type": "object",
+      "properties": {
+        "reply": {
+          "type": "string",
+          "const": "done"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "reply"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/SourceCode"
+        },
+        "detail": {
+          "type": "string"
+        },
+        "reply": {
+          "type": "string",
+          "const": "error"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "reply",
+        "code",
+        "detail"
+      ]
+    }
+  ],
+  "$defs": {
+    "ActorClass": {
+      "description": "The relation of the actor to the organization: `member` (a person\nwith write access), `outside` (a person with none), `agent` (a change\nthat an agent made), `bot` (the forge itself, or an App that acts on\nits own), `unknown`.",
+      "type": "string",
+      "enum": [
+        "member",
+        "outside",
+        "agent",
+        "bot",
+        "unknown"
+      ]
+    },
+    "Event": {
+      "description": "The event that started the workflow. Each value that the tier rule does\nnot name is `other`; a value that the source cannot read is `unknown`.",
+      "type": "string",
+      "enum": [
+        "push",
+        "pull_request",
+        "pull_request_target",
+        "workflow_dispatch",
+        "schedule",
+        "merge_group",
+        "workflow_run",
+        "issue_comment",
+        "release",
+        "repository_dispatch",
+        "other",
+        "unknown"
+      ]
+    },
+    "Fact": {
+      "description": "A fact that is true, false or not known. `unknown` is read as false.",
+      "type": "string",
+      "enum": [
+        "yes",
+        "no",
+        "unknown"
+      ]
+    },
+    "Hidden": {
+      "description": "A secret text. `Debug` prints its length and no byte of it, and the drop\nwipes it.",
+      "type": "string"
+    },
+    "JobId": {
+      "type": "string",
+      "pattern": "^([A-Za-z0-9_-][A-Za-z0-9._-]{0,127}|\\.[A-Za-z0-9_-][A-Za-z0-9._-]{0,126}|\\.\\.[A-Za-z0-9._-]{1,126})$"
+    },
+    "Minted": {
+      "description": "The files that the runner needs for one job.",
+      "type": "object",
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MintedFile"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "files"
+      ]
+    },
+    "MintedFile": {
+      "description": "One file of a credential.",
+      "type": "object",
+      "properties": {
+        "content": {
+          "$ref": "#/$defs/Hidden"
+        },
+        "name": {
+          "description": "A plain file name; podrunner refuses a name with `/` or `..`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "content"
+      ]
+    },
+    "Offer": {
+      "description": "A job offer. The fields other than `job_id` are those of `job-offer.v1`\n([`crate::JobOffer`]); the wire keeps them as an object, and podrunner\nreads them with `JobOffer` after the wire.",
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/JobId"
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "job_id"
+      ]
+    },
+    "SourceCode": {
+      "description": "The class of a refusal of a source.",
+      "oneOf": [
+        {
+          "description": "A line that the wire refuses: too long, not JSON, an unknown `op`, a\nbad `job_id`, another `schema`.",
+          "type": "string",
+          "const": "bad-request"
+        },
+        {
+          "description": "No offer with this job id (never offered, withdrawn, or released).",
+          "type": "string",
+          "const": "unknown-job"
+        },
+        {
+          "description": "The job is claimed already.",
+          "type": "string",
+          "const": "already-claimed"
+        },
+        {
+          "description": "The operation needs a claim first.",
+          "type": "string",
+          "const": "not-claimed"
+        },
+        {
+          "description": "The source revoked the credential of podrunner (`source-revoked`).",
+          "type": "string",
+          "const": "source-revoked"
+        },
+        {
+          "description": "The source cannot give a credential now (`credential-unavailable`).",
+          "type": "string",
+          "const": "credential-unavailable"
+        },
+        {
+          "description": "The remote mint gave a credential for this job before: one for each\njob id.",
+          "type": "string",
+          "const": "credential-already-issued"
+        },
+        {
+          "description": "The source is not reachable.",
+          "type": "string",
+          "const": "unavailable"
+        }
+      ]
+    },
+    "SourceEvent": {
+      "description": "An event of a source.",
+      "oneOf": [
+        {
+          "description": "A job that podrunner can take.",
+          "type": "object",
+          "properties": {
+            "event": {
+              "type": "string",
+              "const": "offer"
+            },
+            "offer": {
+              "$ref": "#/$defs/Offer"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "event",
+            "offer"
+          ]
+        },
+        {
+          "description": "The forge cancelled a job.",
+          "type": "object",
+          "properties": {
+            "event": {
+              "type": "string",
+              "const": "cancel"
+            },
+            "job_id": {
+              "$ref": "#/$defs/JobId"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "event",
+            "job_id"
+          ]
+        },
+        {
+          "description": "The forge says that a job ended.",
+          "type": "object",
+          "properties": {
+            "event": {
+              "type": "string",
+              "const": "completed"
+            },
+            "job_id": {
+              "$ref": "#/$defs/JobId"
+            },
+            "result": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "event",
+            "job_id",
+            "result"
+          ]
+        },
+        {
+          "description": "The forge says that a runner took a job. podrunner compares the\nrunner name with the one of the unit (`job-mismatch`).",
+          "type": "object",
+          "properties": {
+            "event": {
+              "type": "string",
+              "const": "started"
+            },
+            "job_id": {
+              "$ref": "#/$defs/JobId"
+            },
+            "runner_name": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "event",
+            "job_id",
+            "runner_name"
+          ]
+        }
+      ]
+    },
+    "TrustInputs": {
+      "description": "The job metadata that the tier rule reads.",
+      "type": "object",
+      "properties": {
+        "actor_class": {
+          "$ref": "#/$defs/ActorClass"
+        },
+        "event": {
+          "$ref": "#/$defs/Event"
+        },
+        "forge": {
+          "description": "The host name of the forge of the job, for example `github.com`\n(G-16): a trust list of a forge reads it.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 253,
+          "pattern": "^[a-z0-9-]{1,63}(\\.[a-z0-9-]{1,63})*$"
+        },
+        "head_is_fork": {
+          "description": "`yes` when the head of a pull request is in a fork.",
+          "$ref": "#/$defs/Fact"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "owner_id": {
+          "description": "The numeric ids, when the source gives them: the intake check\ncompares them too.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "ref": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        },
+        "repo_id": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "repo_visibility": {
+          "$ref": "#/$defs/Visibility"
+        },
+        "run_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "workflow_ref": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "event",
+        "head_is_fork",
+        "actor_class",
+        "repo_visibility",
+        "owner",
+        "repo",
+        "run_id",
+        "ref",
+        "workflow_ref"
+      ]
+    },
+    "Visibility": {
+      "description": "The visibility of the repository.",
+      "type": "string",
+      "enum": [
+        "private",
+        "internal",
+        "public",
+        "unknown"
+      ]
+    }
+  }
+}

@@ -1,0 +1,6 @@
+# A schema file changes, and schemas/CHANGES.md has no new row for it.
+ENTRY=T-922
+GROUP=lint
+EXPECT='changed with no new row'
+RUN='python3 -I scripts/check-schemas.py'
+LIMIT=120

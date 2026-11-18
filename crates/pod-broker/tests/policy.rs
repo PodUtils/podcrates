@@ -158,9 +158,12 @@ fn the_json_schema_agrees_with_the_policy() {
             .unwrap();
     let schema: serde_json::Value = serde_json::from_str(&text).unwrap();
     assert_eq!(schema["properties"]["schema"]["const"], pod_broker::policy::SCHEMA);
-    assert_eq!(schema["properties"]["mode"]["enum"], serde_json::json!(["allow", "open"]));
-    let rule_keys: Vec<&String> =
-        schema["properties"]["allow"]["items"]["properties"].as_object().unwrap().keys().collect();
+    // The schema comes from the types (src/schemas.rs): the mode and the
+    // rule are definitions of it.
+    let modes: Vec<&serde_json::Value> =
+        schema["$defs"]["Mode"]["oneOf"].as_array().unwrap().iter().map(|m| &m["const"]).collect();
+    assert_eq!(modes, ["allow", "open"]);
+    let rule_keys: Vec<&String> = schema["$defs"]["Rule"]["properties"].as_object().unwrap().keys().collect();
     assert_eq!(rule_keys, ["host", "path", "ports"]);
     let keys: Vec<&String> = schema["properties"].as_object().unwrap().keys().collect();
     assert_eq!(keys, ["allow", "deny", "mode", "schema"], "in the order of a map with sorted keys");

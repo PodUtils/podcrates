@@ -1,0 +1,472 @@
+{
+  "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/source-request.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "A request of podrunner to a source of jobs (source-request.v1)",
+  "description": "A request of podrunner to a source.",
+  "oneOf": [
+    {
+      "description": "The first request; `host` holds the facts of the host.",
+      "type": "object",
+      "properties": {
+        "client": {
+          "type": "string"
+        },
+        "host": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostFacts"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "op": {
+          "type": "string",
+          "const": "hello"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "op",
+        "client",
+        "version"
+      ]
+    },
+    {
+      "description": "A long poll: up to `capacity` offers, within `wait_s` seconds.",
+      "type": "object",
+      "properties": {
+        "capacity": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "op": {
+          "type": "string",
+          "const": "next"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        },
+        "wait_s": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "op",
+        "capacity",
+        "wait_s"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/JobId"
+        },
+        "op": {
+          "type": "string",
+          "const": "ack"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "op",
+        "job_id"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/JobId"
+        },
+        "op": {
+          "type": "string",
+          "const": "claim"
+        },
+        "runner_name": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "op",
+        "job_id",
+        "runner_name"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/JobId"
+        },
+        "op": {
+          "type": "string",
+          "const": "mint"
+        },
+        "runner_name": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "op",
+        "job_id",
+        "runner_name"
+      ]
+    },
+    {
+      "description": "The run report of the job: `run-report.v1`, or `run-report-public.v1`\nfor a source that is not `operator_controlled`.",
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/JobId"
+        },
+        "op": {
+          "type": "string",
+          "const": "report"
+        },
+        "report": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "op",
+        "job_id",
+        "report"
+      ]
+    },
+    {
+      "description": "One audit line of the slots, or of a connection of a unit.",
+      "type": "object",
+      "properties": {
+        "line": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "op": {
+          "type": "string",
+          "const": "audit"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "op",
+        "line"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/JobId"
+        },
+        "op": {
+          "type": "string",
+          "const": "withdraw"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "op",
+        "job_id",
+        "reason"
+      ]
+    },
+    {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/JobId"
+        },
+        "op": {
+          "type": "string",
+          "const": "release"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "op",
+        "job_id"
+      ]
+    },
+    {
+      "description": "The forge gave the runner of `job_id` the job `real`.",
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/JobId"
+        },
+        "op": {
+          "type": "string",
+          "const": "assigned"
+        },
+        "real": {
+          "$ref": "#/$defs/RealJob"
+        },
+        "schema": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "op",
+        "job_id",
+        "real"
+      ]
+    }
+  ],
+  "$defs": {
+    "Boundary": {
+      "description": "The boundary between a job and the host, weakest first. `redirect`\nrewrites file paths and is no isolation against hostile code.",
+      "type": "string",
+      "enum": [
+        "none",
+        "redirect",
+        "confined",
+        "guest"
+      ]
+    },
+    "ContainerRoute": {
+      "description": "How a unit runs the containers of a job.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "unknown"
+          ]
+        },
+        {
+          "description": "No container: a job that needs one is refused\n(`container-not-supported`).",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "The container hooks of the runner (podrunner's call C2).",
+          "type": "string",
+          "const": "hooks"
+        },
+        {
+          "description": "A container engine of the unit's own, inside its boundary: the runner\nuses it as on a GitHub-hosted runner (`DOCKER_HOST` of a socket inside\nthe unit, never a socket of the host), for `services:`, `docker build`\nand Dockerfile actions (T-553, PodUtils/podrunner#91).",
+          "type": "string",
+          "const": "engine"
+        }
+      ]
+    },
+    "HostFacts": {
+      "description": "The facts of one host.",
+      "type": "object",
+      "properties": {
+        "arch": {
+          "type": "string"
+        },
+        "kinds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/KindFacts"
+          }
+        },
+        "kvm": {
+          "description": "`/dev/kvm` is there.",
+          "type": "boolean"
+        },
+        "podnet": {
+          "description": "The version of podnet of the kinds, when one names it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "podrunner": {
+          "description": "The version of podrunner.",
+          "type": "string"
+        },
+        "podvm": {
+          "description": "The version of podvm of the kinds, when one names it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "podrunner",
+        "arch",
+        "kvm",
+        "kinds"
+      ]
+    },
+    "JobId": {
+      "type": "string",
+      "pattern": "^([A-Za-z0-9_-][A-Za-z0-9._-]{0,127}|\\.[A-Za-z0-9_-][A-Za-z0-9._-]{0,126}|\\.\\.[A-Za-z0-9._-]{1,126})$"
+    },
+    "KindFacts": {
+      "description": "The facts of one unit kind of the host.",
+      "type": "object",
+      "properties": {
+        "boundary": {
+          "$ref": "#/$defs/Boundary"
+        },
+        "container": {
+          "$ref": "#/$defs/ContainerRoute"
+        },
+        "cpu": {
+          "description": "The largest values that a unit of the kind gets: CPU in\nmilli-cores, memory and disk in bytes, and processes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "disk": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "memory": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "name": {
+          "type": "string"
+        },
+        "pids": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "boundary",
+        "container"
+      ]
+    },
+    "RealJob": {
+      "description": "The facts of the job that the forge gave to a runner, as the job-started\nhook of the runner reads them (githome's G-15). The forge, not the\nsource, picks the queued job that a runner takes.",
+      "type": "object",
+      "properties": {
+        "actor": {
+          "type": "string"
+        },
+        "event": {
+          "type": "string"
+        },
+        "head_is_fork": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "head_repository": {
+          "description": "`OWNER/REPO` of the head of a pull request.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "job_id": {
+          "description": "The numeric id of the job at the forge, when the hook knows it.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "job_name": {
+          "description": "The key of the job in its workflow (`GITHUB_JOB`).",
+          "type": "string"
+        },
+        "repository": {
+          "description": "`OWNER/REPO`.",
+          "type": "string"
+        },
+        "run_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "job_name",
+        "event",
+        "repository",
+        "actor"
+      ]
+    }
+  }
+}

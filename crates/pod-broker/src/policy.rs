@@ -35,11 +35,12 @@ pub const PATH_NEEDS_TLS_END: &str = "policy:path-needs-tls-end";
 
 /// How a policy treats a target that no rule names.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
     /// Only the targets of an allow rule.
     Allow,
-    /// Each target that no deny holds.
+    /// Each target that no deny holds. An open policy has no allow rule.
     Open,
 }
 
@@ -52,32 +53,56 @@ impl Mode {
     }
 }
 
-/// One allow rule.
+/// One allow rule. The audit names a rule by its index, `allow[N]`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Rule {
-    /// A name, `*.NAME` (each name below it, on whole labels), or an
-    /// address.
+    /// A host name (matched in lower case, with no dot at its end), `*.NAME`
+    /// (each name below NAME, on whole labels, not NAME itself), an IPv4
+    /// address in four decimal parts, or an IPv6 address in brackets.
+    #[cfg_attr(any(test, feature = "schema"), schemars(length(min = 1, max = 255)))]
     pub host: String,
-    /// A path prefix on whole segments; none: each path.
+    /// A path prefix on whole segments: `/v1/repos` holds `/v1/repos` and
+    /// `/v1/repos/x`, not `/v1/reposx`. No dot segment, no empty segment and
+    /// no escape of a dot or a slash. None: each path. A tunnel (CONNECT)
+    /// shows no path: a rule with a path allows a tunnel only when the host
+    /// gives a TLS end that reads each request.
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(any(test, feature = "schema"), schemars(regex(pattern = r"^/[^?#\\]*$")))]
     pub path: Option<String>,
-    /// The ports; empty: each port.
+    /// The ports; empty: each port. Port 25 is denied in each mode.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(any(test, feature = "schema"), schemars(inner(range(min = 1))))]
     pub ports: Vec<u16>,
 }
 
-/// The policy of a job, as a job source writes it.
+/// The policy of a job, as a job source writes it
+/// (`schemas/broker-policy.v1.schema.json` comes from this type).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
+#[cfg_attr(any(test, feature = "schema"), schemars(
+    title = "The policy of one job of the egress broker (pod-broker), version 1",
+    description = "The JSON form of pod_broker::Policy; the TOML form has the same keys. The fixed denies of \
+        crates/pod-broker/README.md hold in each mode, and no policy lifts them. A policy that does not agree with \
+        this schema is a failure of the class usage (exit 64).",
+    transform = crate::json_schema::policy_rules
+))]
 #[serde(deny_unknown_fields)]
 pub struct Policy {
-    /// The version of the schema: [`SCHEMA`].
+    /// The version of the schema: [`SCHEMA`], as in each schema of
+    /// `schemas/`.
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::policy_version"))]
     pub schema: u32,
     pub mode: Mode,
+    /// The allow rules, in order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allow: Vec<Rule>,
-    /// Extra denies: a net, an address, a name or `*.NAME`.
+    /// Extra denies after the fixed ones: a net (`ADDR/PREFIX`), an
+    /// address, a name or `*.NAME`. The audit names an entry
+    /// `policy:deny[N]`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(any(test, feature = "schema"), schemars(inner(length(min = 1))))]
     pub deny: Vec<String>,
 }
 

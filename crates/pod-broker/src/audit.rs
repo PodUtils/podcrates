@@ -13,22 +13,44 @@ use pod_core::{Class, Stage};
 use serde::Serialize;
 use serde_json::{Map, Value};
 
-/// One audit line.
+/// One audit line. `schemas/log.v1.schema.json` comes from this type: it
+/// is the one writer of JSON log lines in podcrates.
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
+#[cfg_attr(
+    any(test, feature = "schema"),
+    schemars(
+        title = "One JSON log line of a tool of PodUtils",
+        description = "One object on each line. The classes and their exit codes are the table of \
+        crates/pod-core/README.md.",
+        deny_unknown_fields
+    )
+)]
 pub struct Line {
     /// The version of the log schema ([`pod_core::LOG_SCHEMA`]), the first
     /// key.
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::log_version"))]
     pub schema: u32,
     /// RFC 3339, UTC.
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::time"))]
     pub time: String,
+    /// One of [`pod_core::LOG_LEVELS`].
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::level"))]
     pub level: &'static str,
-    /// `broker.connection`, `broker.job.load`, `broker.job.drop`.
+    /// A dotted name: `broker.connection`, `broker.job.load`,
+    /// `broker.job.drop`.
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::event"))]
     pub event: &'static str,
-    /// An object: a missing key reads as `null`.
+    /// The values of the event, never a secret: an object, where a missing
+    /// key reads as `null`.
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::fields"))]
     pub fields: Value,
+    /// The name of the `pod_core::Stage` of a failure.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stage: Option<&'static str>,
+    /// The name of the `pod_core::Class` of a failure.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(any(test, feature = "schema"), schemars(with = "Option<crate::json_schema::ClassName>"))]
     pub class: Option<&'static str>,
 }
 

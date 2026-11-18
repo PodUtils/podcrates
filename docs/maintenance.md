@@ -334,7 +334,8 @@ fourth argument of the script names the list when it is elsewhere.
 ## A release
 
 1. Write `docs/releases/vX.Y.Z.md` (the crates that changed, each breaking
-   change), and set `version` of `[workspace.package]` to `X.Y.Z`.
+   change), and set `version` of `[workspace.package]` to `X.Y.Z`. Set the
+   tag `next` of each row of `schemas/CHANGES.md` to `vX.Y.Z`.
 2. Push, and wait for the green `ci` run of the commit.
 3. Run `release.yml` with no input (a dry run), then with
    `version=X.Y.Z`. It tags `vX.Y.Z` and starts itself on the tag. The

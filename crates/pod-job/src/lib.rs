@@ -1,8 +1,10 @@
 //! The records of the job of a CI runner (PodUtils/podrunner#17): the job
 //! offer of a source, the capability record of a unit kind, the run report
-//! and the public report, with their ids and the refusal codes. Each record
-//! starts with `"schema": 1` ([`SCHEMA`]). serde reads the form of a record;
-//! the `check` function of each record applies the other rules.
+//! and the public report, with their ids and the refusal codes; the status
+//! of a host ([`status`]) and the wire between podrunner and a source of
+//! jobs ([`source`]). Each record starts with `"schema": 1` ([`SCHEMA`]).
+//! serde reads the form of a record; the `check` function of each record
+//! applies the other rules.
 //!
 //! The JSON Schemas of `schemas/` come from these types (ruling Q-A8): a
 //! test writes them and compares them. The crate reads no environment, does
@@ -14,6 +16,8 @@ mod ids;
 pub mod offer;
 pub mod parts;
 pub mod report;
+pub mod source;
+pub mod status;
 
 #[cfg(any(test, feature = "schema"))]
 mod json_schema;
@@ -29,6 +33,7 @@ pub use ids::{IdError, JOB_ID_MAX, JobId, UnitId, UnitIds};
 pub use offer::JobOffer;
 pub use parts::{Assigned, Cache, CacheMode, Sandbox, Verdict};
 pub use report::{ExitReason, PublicReport, Residual, RunReport, UnitFields};
+pub use status::{KindStatus, PinStatus, SourceStatus, Status};
 
 /// The version of each record. A reader refuses another value. The name of
 /// each schema file and its `$id` carry the same number (`NAME.v1`).

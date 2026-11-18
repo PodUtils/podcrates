@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**772 entries: 147 open, 23 partial, 7 blocked, 595 done.**
+**773 entries: 147 open, 23 partial, 7 blocked, 596 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 12 | 8 | 0 | 169 | 189 |
-| P2 | 68 | 5 | 4 | 307 | 384 |
+| P1 | 11 | 8 | 0 | 170 | 189 |
+| P2 | 69 | 5 | 4 | 307 | 385 |
 | P3 | 67 | 10 | 3 | 117 | 197 |
-| **All** | 147 | 23 | 7 | 595 | 772 |
+| **All** | 147 | 23 | 7 | 596 | 773 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -801,7 +801,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-919](upkeep.md) | P1 | M | M0 | chore | done | A code graph, a check of repeated work and a check of narrative history in the documents |
 | [T-920](upkeep.md) | P2 | S | M5 | defect | open | `pod-guest`: a monitor socket path longer than `sun_path` waits for the whole bound, then fails with a wrong reason |
 | [T-921](fleet.md) | P1 | L | M8 | feature | open | A fake GitHub as a binary for a consumer's CI: the App, the JIT configuration, the `workflow_job` webhooks and the runner broker (GitHub #223) |
-| [T-922](fleet.md) | P1 | M | M8 | feature | open | The schemas of `schemas/` with one source each, a check of each against its types, and a line of each change (GitHub #223) |
+| [T-922](fleet.md) | P1 | M | M8 | feature | done | The schemas of `schemas/` with one source each, a check of each against its types, and a line of each change (GitHub #223) |
 | [T-923](fleet.md) | P1 | M | M8 | feature | done | `pod-job`: the fields of the job that githome and podrunner need (`trust_inputs.forge`, `limits.disk`, `cache`, the facts of a run report) (GitHub #223) |
 | [T-924](foundation.md) | P1 | S | M0 | feature | done | `pod-core`: a lock wait that a signal ends, and a lock file that the caller cannot write (PodUtils/podrunner#295) |
 | [T-925](fleet.md) | P1 | S | M7 | feature | done | `pod-incus`: the state of an instance, a profile with its devices, and the OOM count (PodUtils/podvm#582) |
@@ -819,3 +819,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-937](transport.md) | P3 | S | M1 | defect | open | `pod-dns`: a test of the resolver asks the resolver of the host (nightly 44275593101) |
 | [T-938](upkeep.md) | P2 | S | M5 | defect | open | The riscv64 job of `nightly.yml` meets its limit of 90 minutes |
 | [T-939](relay.md) | P2 | M | M2 | defect | open | `pod-iroh` with `pod-session`: after a new address of the client on the relay-only path, no end resumes, and the bytes in flight are never sent again (PodUtils/podssh#283, ask 4) |
+| [T-940](fleet.md) | P2 | S | M8 | feature | open | `pod-job`: a fuzz target for one line of the source wire |

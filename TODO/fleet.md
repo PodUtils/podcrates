@@ -5531,7 +5531,7 @@ conclusions (the acceptance of G-30).
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5596,6 +5596,39 @@ sh scripts/agent/check.sh
 ```
 
 A field added to a parser with no change of its schema fails the check.
+
+## Done
+
+2026-11-18, 2bdb075, 9e24a2b and the commit of the move (the three parts):
+
+1. Each file of `schemas/` comes from its types, with a test that fails on a
+   difference: `broker-policy.v1` from `pod_broker::Policy` and `log.v1`
+   from `pod_broker::Line` (`crates/pod-broker/src/schemas.rs`, with boon: 3
+   new tests; `pod_core::LOG_LEVELS` is new). Plants:
+   `broker-schema-not-written`, `broker-schema-open-with-rules`.
+2. `schemas/CHANGES.md`: 50 rows from v0.8.0 to `next` (each tag, schema,
+   field, kind and the SHA-256 of the file at the tag), with the fields of
+   T-923 in v0.71.0. `scripts/check-schemas.py` (ci.yml, lint job;
+   `scripts/agent/check.sh`) fails on a file with no row, on an added field
+   with no row `added`, and on a removed, newly required or retyped field
+   that keeps the id of the base tag. The release sets `next` to its tag
+   (`docs/maintenance.md`). Plants: `schemas-change-with-no-row`,
+   `schemas-removed-field-keeps-the-id`, `schemas-added-field-with-no-row`.
+3. The types of podrunner's `status.v1` and source wire (at `ca8c308`) are
+   in `pod-job`: `Status`, `SourceStatus`, `KindStatus`, `PinStatus`
+   (`src/status.rs`), `pod_job::source::{Request, Reply, Event, Offer,
+   RealJob, HostFacts, KindFacts, SourceCode, SourceError, Minted,
+   MintedFile, Hidden}` with the parse and write of a line
+   (`src/source/`). Schemas: `status.v1`, `source-request.v1`,
+   `source-reply.v1`; 40 valid and 47 invalid examples get the same verdict
+   from the types and from the schemas. The credential of the wire is
+   `Minted` of `pod-job` (`Hidden`: `Debug` masked, zeroized); podrunner's
+   `Credential` stays in podrunner. Fix: `Reply::Done` refused no unknown
+   field (a unit variant of a tagged enum); it is `Done {}`
+   (`an_unknown_field_is_refused` failed before the fix). Plants:
+   `source-done-takes-any-field`, `status-schema-not-written`. `pod-job`
+   lib: 23 tests. The adoption map for podrunner is in the README;
+   `SOURCES` has the block of `ca8c308`. A fuzz target of the wire is T-940.
 
 # T-923: `pod-job`: the fields of the job that githome and podrunner need (`trust_inputs.forge`, `limits.disk`, `cache`, the facts of a run report) (GitHub #223)
 
@@ -5759,3 +5792,30 @@ cargo clippy -p static-probe --all-targets --all-features -- -D warnings
 ## Done
 
 2026-11-18, 6dff7fc: the report of `job()` in `examples/static-probe/src/main.rs` comes from JSON through serde, so an optional field that `pod-job` adds needs no change of the probe. The run of the probe prints the refused report and its public form. `cargo clippy --workspace --all-targets --all-features -- -D warnings`: 0 faults. The scheduled nightly at `4161d8d` (run 44283168064) failed in each job that builds the workspace with this E0063; `6dff7fc` is the tag `v0.71.0`, with `ci` 44283332297 green.
+
+# T-940: `pod-job`: a fuzz target for one line of the source wire
+
+**Source:** T-922 (the source wire of podrunner moved to `pod_job::source`)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_job::source::parse_request` and `parse_reply` read lines from another process (a source, the scale-set sidecar, a remote mint). No fuzz target reads them; `job_offer` reads an offer alone.
+
+## Premise
+
+- Read: `crates/pod-job/src/source/mod.rs`, `fuzz/src/targets/job.rs`.
+
+## Approach
+
+Add the target `source_line` to `fuzz/`: each line goes through `parse_request` and `parse_reply`; a line that parses is written again with `request_line` or `reply_line` and reads back equal; the detail of each error holds no byte of the line longer than three bytes. Add it to the table of `fuzz/README.md` and to the stable test of the fuzz targets.
+
+## Prove
+
+```sh
+cargo +nightly fuzz run source_line -- -max_total_time=300
+```

@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "reply": "keep",
+  "trust_inputs": {
+    "event": "push",
+    "head_is_fork": "no",
+    "actor_class": "member",
+    "repo_visibility": "private",
+    "owner": "example-org",
+    "repo": "app",
+    "run_id": 1001,
+    "ref": "refs/heads/main",
+    "workflow_ref": "example-org/app/.github/workflows/ci.yml@refs/heads/main"
+  }
+}

@@ -1,0 +1,11 @@
+--- a/schemas/log.v1.schema.json
++++ b/schemas/log.v1.schema.json
+@@ -1,7 +1,7 @@
+ {
+   "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/log.v1.schema.json",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+-  "title": "One JSON log line of a tool of PodUtils",
++  "title": "One JSON log line",
+   "description": "One object on each line. The classes and their exit codes are the table of crates/pod-core/README.md.",
+   "type": "object",
+   "properties": {

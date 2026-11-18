@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "host": "host-a",
+  "draining": true,
+  "degraded": "the runner is too old",
+  "no_tier_served": true,
+  "sources": [],
+  "kinds": [],
+  "pins": [],
+  "ended_without_completion": 3,
+  "spooled_reports": 0
+}

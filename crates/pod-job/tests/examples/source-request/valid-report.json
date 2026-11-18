@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "op": "report",
+  "job_id": "1234",
+  "report": {
+    "schema": 1,
+    "exit_reason": "success"
+  }
+}

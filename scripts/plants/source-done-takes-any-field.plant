@@ -1,0 +1,7 @@
+# pod-job: the reply `done` of the source wire is a unit variant again, and
+# serde takes an unknown field of it (T-922).
+ENTRY=T-922
+GROUP=job
+EXPECT='an_unknown_field_is_refused|invalid-done-extra-field'
+RUN='cargo test -p pod-job --all-features --lib source'
+LIMIT=900

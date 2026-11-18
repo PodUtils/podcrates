@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "reply": "error",
+  "code": "credential-unavailable",
+  "detail": "later"
+}

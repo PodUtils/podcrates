@@ -13,7 +13,7 @@ dir schemas
 # secret.rs (Credential, CredentialFile, Secret) stays in podrunner: no
 # record of this crate holds a credential.
 skip crates/podrunner-schema/src/secret.rs
-# status.v1.json is the status of a host of podrunner, not a record of a job.
+# status.v1.json: the block of ca8c308 below holds it.
 skip schemas/status.v1.json
 file affd6c233e370683ee64e60f6e4c2e0b80ce7a15 crates/podrunner-schema/Cargo.toml -> crates/pod-job/Cargo.toml
 file 3864b2f1355da55cabfa9791c969a68be124a1ed crates/podrunner-schema/src/capability.rs -> crates/pod-job/src/capability.rs
@@ -59,3 +59,18 @@ file 74f5232263fc23b67a9708d327f6d6d91a3c6cdb schemas/job-offer.v1.json -> schem
 file 3b0e7a596d64b848d594f435335f38b93a827811 schemas/run-report-public.v1.json -> schemas/run-report-public.v1.schema.json
 file dc9adb5c9d70119ca09a357c86ece0c8596bceba schemas/run-report.v1.json -> schemas/run-report.v1.schema.json
 file 0cec5e3f6f8fada7d95c26bef2a810c8075347ea schemas/unit-capability.v1.json -> schemas/unit-capability.v1.schema.json
+
+repo PodUtils/podrunner ca8c3086afdcf44aed0e08d204de84aa8b9bdae2
+# T-922: the types of status.v1 and of the source wire, version 1, with the
+# tests of the wire. The engine (Slots, State), the trait JobSource, its
+# conformance tests, the pipe and the credential files (secret.rs) stay in
+# podrunner; the minted credential of the wire is Minted (src/source/minted.rs).
+file 3c130cc272355728839f3522e86e3d3929cd0c38 schemas/status.v1.json -> schemas/status.v1.schema.json
+file 01e3f2c4d29e73f61ea88e7e0803060c5fcde8c9 crates/podrunner-slots/src/status.rs -> crates/pod-job/src/status.rs
+file 9f18b8777109fc10234e120dd20cafb6fb36fb6d crates/podrunner-source/src/wire.rs -> crates/pod-job/src/source/mod.rs crates/pod-job/src/source/tests.rs
+file 489dbce35f3f64c9fda0dd7c9a10c52b209113a0 crates/podrunner-source/src/event.rs -> crates/pod-job/src/source/event.rs
+file 45d23773bfbd44a5acafc63c84101b9657d90b43 crates/podrunner-source/src/host.rs -> crates/pod-job/src/source/host.rs
+file 6291b6589db9f09500b98b775805b1d6a8450b09 crates/podrunner-source/src/lib.rs -> crates/pod-job/src/source/code.rs
+file f96672f9da20b972979178d543779b32fd2e85f0 crates/podrunner-source/src/tests.rs -> crates/pod-job/src/source/tests.rs
+file c136afb46b1e9e1b788eef4752d24f5e177223b3 crates/podrunner-schema/src/secret.rs -> crates/pod-job/src/source/minted.rs
+file 03f20bf3071b4fd3cfbe19735e6c82baa51a0155 docs/contracts/source-driver.md -> crates/pod-job/README.md

@@ -35,3 +35,5 @@ windows-sys = { version = "0.61", features = [
 # dev-dependency with no version (scripts/check-publish-order.py).
 pod-testkit = { path = "../pod-testkit" }
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "macros", "test-util"] }
+# The test of the log schema reads it as JSON.
+serde_json = { workspace = true }

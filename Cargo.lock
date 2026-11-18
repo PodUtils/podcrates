@@ -4728,10 +4728,12 @@ name = "pod-broker"
 version = "0.71.0"
 dependencies = [
  "base64 0.23.1",
+ "boon",
  "libc",
  "pod-core",
  "pod-proxy",
  "pod-testkit",
+ "schemars 1.2.3",
  "serde",
  "serde_json",
  "sha2 0.11.1",
@@ -4791,6 +4793,7 @@ dependencies = [
  "libc",
  "pod-testkit",
  "rand 0.10.3",
+ "serde_json",
  "tokio",
  "windows-sys 0.61.2",
 ]
@@ -5055,6 +5058,7 @@ dependencies = [
  "schemars 1.2.3",
  "serde",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]

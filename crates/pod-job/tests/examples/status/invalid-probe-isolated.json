@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "host": "host-a",
+  "draining": false,
+  "degraded": null,
+  "no_tier_served": false,
+  "sources": [
+    {
+      "name": "githome",
+      "tier": "trusted",
+      "arch": "x86_64",
+      "revoked": false,
+      "jobs": {
+        "running": 1
+      },
+      "refused": {
+        "arch-mismatch": 2
+      },
+      "trust_unknown": 0,
+      "credential_ages_s": [
+        40
+      ],
+      "key_age_s": null
+    }
+  ],
+  "kinds": [
+    {
+      "name": "podvm",
+      "slots": 2,
+      "busy": 1,
+      "probe": {
+        "schema": 1,
+        "kind": "podvm",
+        "arch": "x86_64",
+        "boundary": "isolated",
+        "principal": "shared",
+        "container": "none",
+        "net": "broker",
+        "secret_delivery": [
+          "files"
+        ],
+        "credential_store": "private-dir",
+        "mount_modes": [
+          "rw"
+        ],
+        "rootfs_fresh": "yes",
+        "tree_kill": "unverified",
+        "limits": {
+          "wall": "reported"
+        },
+        "egress_hold": "advisory",
+        "kvm": "no"
+      }
+    }
+  ],
+  "pins": [
+    {
+      "arch": "x86_64",
+      "reference": "runner@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "age_s": 3600
+    }
+  ],
+  "ended_without_completion": 0,
+  "spooled_reports": 0
+}

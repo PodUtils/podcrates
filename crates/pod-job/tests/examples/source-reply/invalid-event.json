@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "reply": "events",
+  "events": [
+    {
+      "event": "paused",
+      "job_id": "1234"
+    }
+  ]
+}
