@@ -21,19 +21,19 @@ is done. Git and the record keep finished work.
 3. The red scheduled runs and their entries:
    - `nightly.yml` 44275593101 at `2b11314` (the proof of T-916): the
      cross jobs of armv7, arm, aarch64, loongarch64 and powerpc64le pass.
-     Open: T-936 (P1, `refused()` gives a timeout on macOS), T-916 (i686
-     runs natively and counts 3 switches; two `pod-iroh` tests on
-     riscv64), T-933 (three tests of `pod-cloudflare` on Windows), T-934
-     (an exec proxy through `sh -c` on Windows), T-935 (two renames onto
-     one name on Windows), T-937 (a test of `pod-dns` that asks the host
-     resolver), T-938 (the riscv64 job meets its 90 minutes). T-789 and
-     T-766 stay. The scheduled run at `4161d8d` failed on the E0063 of
-     `static-probe` (T-929, fixed in `6dff7fc`).
+     Open: T-916 (i686 runs natively and counts 3 switches; two
+     `pod-iroh` tests on riscv64), T-934 (an exec proxy through `sh -c`
+     on Windows), T-935 (two renames onto one name on Windows), T-938 (the
+     riscv64 job meets its 90 minutes). T-933 (three tests of
+     `pod-cloudflare` on Windows) and T-936 (`refused()` on macOS) wait
+     for the proof of the next nightly run. T-789 and T-766 stay.
+   - `ci.yml`: T-943 builds the arm64 probe of macOS on the Intel runner;
+     it is partial until three runs of `ci.yml` in a row are green.
    - `upstream.yml`, the job `sources`: red on `pod-manual` until the
      port review of podssh's changes (T-863).
-   A new red run needs an entry before other work. A macOS arm64 job of
-   `ci.yml` that no runner takes ("not acquired by Runner") is no defect:
-   run the failed jobs again.
+   A new red run needs an entry before other work. A plant that a run
+   misses once with no change of its crate runs its test five times in
+   its `.plant` (as `link-quic-drop-closes-at-once`).
 4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the red
    nightly above, then T-939 (podssh's gate), then the entries for the CI of githome and cfb (T-921 with
    T-106, T-104 with T-880, T-100, T-105, T-103, T-102).
