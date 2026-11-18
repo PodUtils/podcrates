@@ -5602,7 +5602,7 @@ A field added to a parser with no change of its schema fails the check.
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5657,6 +5657,10 @@ cargo test -p pod-job --all-features
 ```
 
 The parser takes and gives each field, and the schema holds it.
+
+## Done
+
+2026-11-18: the optional fields of the Premise (`crates/pod-job/src/parts.rs`, `offer.rs`, `report.rs`), with the names and units of podrunner but two (call C783): the sandbox of G-36 is the object `sandbox` (`image`, `command`, `idle_s`, `max_s`), as `payload` is the digest of a payload already; the reason of an `unknown` fact is in `unknown_reasons`. `host`, `unit.unit_kind` and `unit.boundary` were in `run-report.v1`, and `limits.disk` in `job-offer.v1`. `check`: a forge that is not a lower-case host name, a sandbox image that is not `NAME@sha256:HEX`, an empty command, an image digest that is not `sha256:HEX`, a `log_tail` over 65536 bytes, a key of `unknown_reasons` that names no `unknown` measured field. The schemas hold each rule but the bytes of `log_tail` (a schema counts characters): `schemas/job-offer.v1.schema.json` and `schemas/run-report.v1.schema.json` written again; the ids stay `v1` (each field is optional). Examples: `job-offer/valid-forge-cache-sandbox.json`, `invalid-sandbox-image-tag.json`, `invalid-cache-mode.json`, `invalid-forge-url.json`; `run-report/valid-phases-and-bytes.json`, `invalid-reason-of-a-count.json`, `invalid-image-digest-tag.json`. `cargo test -p pod-job --all-features`: 17 passed (20 valid and 27 invalid examples, each with the verdict of the types and of the schema). Plant `job-unknown-reason-of-a-count`, caught.
 
 # T-925: `pod-incus`: the state of an instance, a profile with its devices, and the OOM count (PodUtils/podvm#582)
 

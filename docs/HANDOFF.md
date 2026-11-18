@@ -29,9 +29,8 @@ is done. Git and the record keep finished work.
    `ci.yml` that no runner takes ("not acquired by Runner") is no defect:
    run the failed jobs again.
 4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the tag
-   `v0.71.0` (T-905, T-906, T-907 `pod-time`, T-908, T-910 to T-913,
-   T-914, T-915, T-924 `FileLock`), then T-882, T-923, T-925 (`pod-incus`
-   for podvm, PodUtils/podvm#582), then T-909, then the entries for the CI
+   `v0.71.0` (T-905 to T-908, T-910 to T-915, T-923 to T-926), then
+   T-882, then T-909, then the entries for the CI
    of githome and cfb (T-922, T-921 with T-106, T-104 with T-880, T-100,
    T-105, T-103, T-102).
 5. podrunner's answer to COORD-135 (PodUtils/podrunner#294, at podrunner
