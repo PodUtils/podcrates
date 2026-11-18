@@ -26,7 +26,8 @@ consumer that wants it. It is never a dependency of a release binary.
   `elf::is_dynamic(bytes)`: a 64-bit ELF with `PT_INTERP`. Linux only.
 
 A stand-in of this kit speaks bytes and HTTP only, and takes no type of a
-pod crate, so that each crate can dev-depend on the kit.
+pod crate, so that each crate can dev-depend on the kit. The feature
+`githome` is the one exception: it speaks the source wire of `pod-job`.
 
 ## Adoption map
 
@@ -102,3 +103,59 @@ second job on the runner minted for the first, and both conclusions.
 | --- | --- | --- |
 | githome | no fake GitHub (G-30) | `pod-fake-github` of the release, pinned by its SHA-256 |
 | podrunner | `crates/podrunner-broker-fake` (the broker of a JIT runner) | the routes of `pod-fake-github` for a job of `run:` steps |
+
+## The fake of githome's source (feature `githome`)
+
+`pod_testkit::githome::FakeGithome` and its static binary
+`pod-fake-githome`: a source of jobs of githome for the CI of podrunner, on
+the source wire of `pod_job::source` (podrunner
+`docs/contracts/source-driver.md`). Each release attaches
+`pod-fake-githome-x86_64-unknown-linux-musl` and
+`pod-fake-githome-aarch64-unknown-linux-musl` with their lines in
+`SHA256SUMS`. Build it with
+`cargo build --release -p pod-testkit --features githome --bin pod-fake-githome`.
+
+`pod-fake-githome serve [--listen ADDRESS]` prints its base URL
+(`http://127.0.0.1:PORT/`) on the first line of stdout, then holds the
+state until it is killed. `pod-fake-githome source [--server URL]` is the
+program of a `[[source]]` table of the kind `program`: it reads one
+request line on stdin and writes one reply line on stdout. It finds
+`serve` by `--server` or by the variable `POD_FAKE_GITHOME`. Each start
+of `source` is a new session: one host of podrunner. Each credential of
+`mint` is made up (`.runner`, `.credentials` with the client id
+`pod-fake-githome-made-up-N`, `.credentials_rsaparams`).
+
+| Op | The rule |
+| --- | --- |
+| `hello` | `source` `githome` and `operator_controlled` true (the control API changes both); the host facts are kept |
+| `next` | the control events of the session, then up to `capacity` queued jobs that fit the host facts (the arch, KVM, a container) and that the session does not hold or refused; with nothing to give, a wait of `wait_s`, 10 s at most |
+| `ack` | a job that the session holds |
+| `claim` | a held job that no session claimed: else `already-claimed`, or `unknown-job` for a job that ended |
+| `mint` | the claim of the session for this runner name (`not-claimed`); one credential for each claim (`credential-already-issued`); a mint error of the control API, or `source-revoked` |
+| `report`, `assigned` | the claim of the session (`not-claimed`); `assigned` gives `keep` with the trust facts of the real job, or `end` `not-of-this-source` for another owner |
+| `audit` | each line |
+| `withdraw` | a held job that the session did not claim (`already-claimed`); a reason other than `wait-deadline`, `cancelled` or `conformance` keeps the job from the session |
+| `release` | a held job; no report, or `exit_reason` `lost`, queues the job again; a `refusal_code` queues it for the other sessions; another report ends it |
+
+A job that the session does not hold is `unknown-job`, and a line that is
+not of the wire is `bad-request`. A queued job goes to each session until
+one claims it. A run of podrunner's `source-conformance` ends one job (its
+test 7 reports and releases it): queue two jobs, and one more for each
+run.
+
+| Route of the control API | What |
+| --- | --- |
+| `POST /_fake/jobs` | the fields of a `job-offer.v1`, each optional, with `repository` (`OWNER/REPO`) and `tier` (`trusted` or `untrusted`), which give the trust inputs; 201 with the job |
+| `GET /_fake/jobs[/ID]` | each job: `status` (`queued`, `claimed`, `reported`, `done`, `cancelled`), `offer`, `claim`, `minted`, `refused_by` |
+| `POST /_fake/jobs/ID/cancel`, `/started` (`runner_name`), `/completed` (`result`) | the event of the forge to each session that holds the job |
+| `POST /_fake/jobs/ID/mint-error` | `code`: the next `mint` of the job fails with it |
+| `GET`, `PUT /_fake/settings` | `source`, `operator_controlled`, `unavailable`, `revoked` |
+| `GET /_fake/NAME` | the records `reports`, `refusals`, `withdrawals`, `releases`, `audits`, `mints`, `assignments`, `hosts`, in order |
+
+`crates/pod-testkit/tests/githome.rs` runs the binary: the 14 steps of
+`source-conformance`, one job from its offer to its report, and the
+refusals with two hosts.
+
+| Consumer | Old path | New path |
+| --- | --- | --- |
+| podrunner | no source of githome for its CI (PodUtils/podrunner@T-509, G-38) | `pod-fake-githome` of the release, pinned by its SHA-256, with `source-conformance --json` and a job through `serve` |

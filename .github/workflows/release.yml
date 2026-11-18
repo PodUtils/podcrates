@@ -12,7 +12,8 @@ name: release
 # the installer podlab-install.sh with the core inline and the pins of the
 # release, the offline bundle podlab-VERSION.tar.gz, the static musl
 # binaries pod-fake-github-TARGET of pod-testkit (the fake GitHub of a
-# consumer's CI) and SHA256SUMS; the
+# consumer's CI), pod-fake-githome-TARGET (the fake of githome's source of
+# jobs for podrunner's CI) and SHA256SUMS; the
 # release attaches them with SHA256SUMS.sigstore.json, the keyless cosign
 # signature of SHA256SUMS by this workflow at the tag (the form of podnet
 # and podssh).
@@ -100,13 +101,18 @@ jobs:
             sh scripts/check-static.sh "target/$t/release/pod-fake-github"
             python3 -I scripts/check-strings.py "target/$t/release/pod-fake-github"
             cp "target/$t/release/pod-fake-github" "dist/pod-fake-github-$t"
+            # The fake of githome's source that podrunner's CI pins by its SHA-256.
+            cargo zigbuild --locked --release --target "$t" -p pod-testkit --features githome --bin pod-fake-githome
+            sh scripts/check-static.sh "target/$t/release/pod-fake-githome"
+            python3 -I scripts/check-strings.py "target/$t/release/pod-fake-githome"
+            cp "target/$t/release/pod-fake-githome" "dist/pod-fake-githome-$t"
           done
           python3 -I scripts/install/pins.py sums dist podlab-x86_64-unknown-linux-musl podlab-aarch64-unknown-linux-musl
           python3 -I scripts/install/pins.py stamp scripts/install/podlab.sh --version "$v" --assets dist --out dist/podlab-install.sh
           python3 -I scripts/install/pins.py bundle "dist/podlab-$v.tar.gz" "podlab-$v" \
             dist/podlab-install.sh dist/podlab-x86_64-unknown-linux-musl dist/podlab-aarch64-unknown-linux-musl
           # SHA256SUMS of each published file.
-          (cd dist && sha256sum podlab-* pod-fake-github-* > SHA256SUMS.new && mv SHA256SUMS.new SHA256SUMS)
+          (cd dist && sha256sum podlab-* pod-fake-github-* pod-fake-githome-* > SHA256SUMS.new && mv SHA256SUMS.new SHA256SUMS)
           cat dist/SHA256SUMS
       # The published files themselves: the installer from the bundle, then
       # a second run that changes nothing.

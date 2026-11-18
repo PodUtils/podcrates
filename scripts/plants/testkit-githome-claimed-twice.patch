@@ -1,0 +1,14 @@
+--- a/crates/pod-testkit/src/githome/wire.rs
++++ b/crates/pod-testkit/src/githome/wire.rs
+@@ -155,10 +155,7 @@
+             let j = job(st, &job_id)?;
+             match j.status {
+                 Status::Done | Status::Cancelled => return Err(refused(SourceCode::UnknownJob, "the job ended")),
+-                Status::Claimed | Status::Reported => {
+-                    return Err(refused(SourceCode::AlreadyClaimed, "a runner claimed the job"));
+-                }
+-                Status::Queued => {}
++                Status::Claimed | Status::Reported | Status::Queued => {}
+             }
+             j.status = Status::Claimed;
+             j.claim = Some((id, runner_name));

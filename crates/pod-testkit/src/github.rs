@@ -41,6 +41,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{Value, json};
 
+use crate::fake::{body, json_answer};
 use crate::stand::{Answer, Request, Stand};
 pub use key::{Key, hub_signature};
 
@@ -201,19 +202,9 @@ fn route(shared: &Shared, req: &Request) -> Answer {
         .unwrap_or_else(|| error(404, "Not Found"))
 }
 
-/// A JSON answer.
-fn json_answer(status: u16, value: &Value) -> Answer {
-    Answer::new(status, value.to_string()).header("Content-Type", "application/json; charset=utf-8")
-}
-
 /// An error in the form of the REST API of GitHub.
 fn error(status: u16, message: &str) -> Answer {
     json_answer(status, &json!({ "message": message, "documentation_url": "https://docs.github.com/rest" }))
-}
-
-/// The JSON body of a request; `Null` when it is not JSON.
-fn body(req: &Request) -> Value {
-    serde_json::from_slice(&req.body).unwrap_or(Value::Null)
 }
 
 /// The credential of `Authorization: Bearer X` or `Authorization: token X`.

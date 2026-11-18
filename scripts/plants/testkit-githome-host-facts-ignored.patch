@@ -1,0 +1,10 @@
+--- a/crates/pod-testkit/src/githome/wire.rs
++++ b/crates/pod-testkit/src/githome/wire.rs
+@@ -120,7 +120,6 @@
+             j.status == Status::Queued
+                 && !s.held.contains_key(j.id())
+                 && !j.refused_by.contains(&id)
+-                && offer::fits(s.host.as_ref(), &j.offer)
+         })
+         .take(capacity as usize)
+         .collect();

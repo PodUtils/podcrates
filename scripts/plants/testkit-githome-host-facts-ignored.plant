@@ -1,0 +1,8 @@
+# The fake githome offers each queued job to each host and ignores the
+# facts of the host in hello: a host of x86_64 then gets a job of aarch64
+# that it must refuse (T-948).
+ENTRY=T-948
+GROUP=job
+EXPECT='test one_job_runs_from_its_offer_to_its_report \.\.\. FAILED'
+RUN='cargo test -p pod-testkit --features githome --test githome -- one_job_runs_from_its_offer_to_its_report --exact'
+LIMIT=1800
