@@ -5543,7 +5543,7 @@ logs), the `workflow_job` webhooks `queued`, `in_progress` and
 `/_fake/` (queue, assign, the jobs, the runners, the deliveries).
 `stand::http_on` (a stand-in on the caller's listener) and `stand::call`
 (one HTTP/1.1 request) are new in the kit. `cargo test -p pod-testkit
---all-features`: 9 unit tests with 7 new, and 3 new tests in
+--all-features`: 12 unit tests with 7 new, and 3 new tests in
 `tests/github.rs` (the acceptance through the binary, the refusals of the
 App JWT and of the installation token, a runner that gets no job of
 another repository or label). The two plants fail their tests. CI builds

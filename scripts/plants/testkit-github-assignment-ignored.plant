@@ -1,0 +1,8 @@
+# The fake GitHub gives a runner the oldest queued job of its labels and
+# ignores the job that the control API gave it: the second job of G-30
+# then does not go to the runner minted for the first (T-921).
+ENTRY=T-921
+GROUP=actions
+EXPECT='test the_second_job_runs_on_the_runner_minted_for_the_first \.\.\. FAILED'
+RUN='cargo test -p pod-testkit --features github --test github -- the_second_job_runs_on_the_runner_minted_for_the_first --exact'
+LIMIT=1800
