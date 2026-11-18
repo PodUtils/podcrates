@@ -3,5 +3,7 @@
 ENTRY=T-423
 GROUP=link
 EXPECT='the_bytes_before_a_drop_reach_the_peer stdout ----'
-RUN='cargo test -p pod-link --all-features --test quic the_bytes_before_a_drop_reach_the_peer'
+# A close at once can still deliver each byte on a fast loopback: the test
+# caught the plant in 19 of 20 runs. Five runs make a miss rare.
+RUN='for n in 1 2 3 4 5; do cargo test -p pod-link --all-features --test quic the_bytes_before_a_drop_reach_the_peer || exit 1; done'
 LIMIT=1800
