@@ -116,3 +116,31 @@ async fn the_console_log_comes_as_bytes() {
     let e = stand.client().console_log("web").await.unwrap_err();
     assert_eq!(e.incus_error(), Some("Instance is not running"));
 }
+
+/// The state of an instance, the default profile with the pool of its root
+/// disk, and the OOM kills of the metrics; a missing profile keeps the
+/// words of incus.
+#[tokio::test]
+async fn the_state_the_profile_and_the_oom_kills_of_an_instance() {
+    pod_testkit::need_loopback!();
+    let stand = Stand::start();
+    let client = stand.client();
+    client.create_instance(&NewInstance::container("web", Source::Alias("podvm/alpine".into()))).await.unwrap();
+    client.start("web").await.unwrap();
+    let state = client.instance_state("web").await.expect("the state");
+    assert_eq!((state.status.as_str(), state.processes), ("Running", 7));
+    assert_eq!((state.cpu.usage, state.memory.usage_peak), (1_500_000_000, 20_971_520));
+    assert_eq!(state.disk["root"].usage, 1_048_576);
+    assert_eq!(stand.seen("GET", "/1.0/instances/web/state").len(), 1);
+    let e = client.instance_state("nowhere").await.expect_err("no instance");
+    assert!(e.to_string().contains("Instance not found"), "{e}");
+
+    let profile = client.profile("default").await.expect("the profile");
+    assert_eq!(profile.devices["root"].get("pool").map(String::as_str), Some("fast"));
+    let e = client.profile("missing").await.expect_err("no profile");
+    assert_eq!(e.class(), Class::NotFound, "{e}");
+    assert!(e.to_string().contains("Profile not found"), "{e}");
+
+    assert_eq!(client.oom_kills("web").await.unwrap(), Some(2));
+    assert_eq!(client.oom_kills("other").await.unwrap(), None);
+}

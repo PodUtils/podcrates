@@ -230,6 +230,27 @@ pub async fn answer(shared: &Arc<Shared>, seen: Seen) -> Vec<u8> {
             drop(state);
             run(shared, "task", json!({}), Value::Null)
         }
+        ("GET", ["1.0", "instances", name, "state"]) => match shared.state.lock().unwrap().instances.get(*name) {
+            Some(instance) => sync(json!({
+                "status": instance["status"], "status_code": instance["status_code"],
+                "disk": {"root": {"usage": 1_048_576, "total": 0}},
+                "memory": {"usage": 10_485_760, "usage_peak": 20_971_520, "total": 0, "swap_usage": 0, "swap_usage_peak": 0},
+                "network": null, "pid": 4242, "processes": 7,
+                "cpu": {"usage": 1_500_000_000u64, "allocated_time": 0}
+            })),
+            None => error(404, "Instance not found"),
+        },
+        ("GET", ["1.0", "profiles", "default"]) => sync(json!({
+            "name": "default", "description": "Default Incus profile", "config": {},
+            "devices": {"root": {"path": "/", "pool": "fast", "type": "disk"}, "eth0": {"name": "eth0", "network": "incusbr0", "type": "nic"}},
+            "used_by": []
+        })),
+        ("GET", ["1.0", "profiles", _]) => error(404, "Profile not found"),
+        ("GET", ["1.0", "metrics"]) => {
+            let text = "# TYPE incus_memory_OOM_kills_total counter\n\
+                        incus_memory_OOM_kills_total{name=\"web\",project=\"default\",type=\"container\"} 2\n";
+            http(200, &[("Content-Type", "text/plain; version=0.0.4".into())], text.as_bytes())
+        }
         ("GET", ["1.0", "instances", _, "console"]) => {
             let console = shared.state.lock().unwrap().console.clone();
             http(200, &[("Content-Type", "application/octet-stream".into())], &console)

@@ -60,6 +60,9 @@ runs in the background returns after the wait for its operation.
 | `Client::instance` | `GET /1.0/instances/NAME` | `Instance` | 6.0 |
 | `Client::delete_instance` | `DELETE /1.0/instances/NAME`, then the wait | | 6.0 |
 | `Client::console_log` | `GET /1.0/instances/NAME/console` | bytes | 6.0, `console` |
+| `Client::instance_state` | `GET /1.0/instances/NAME/state` | `InstanceState` (`status`, `disk` of each device, `memory` with `usage_peak`, `cpu.usage` in nanoseconds, `processes`, `pid`) | 6.0 |
+| `Client::profile` | `GET /1.0/profiles/NAME` | `Profile` (`config`, `devices`: the `pool` of the `root` disk) | 6.0 |
+| `Client::oom_kills` | `GET /1.0/metrics`, the sample `incus_memory_OOM_kills_total` of the instance (the state has no OOM count) | `Option<u64>`; `None` where no sample names the instance | 6.0, `metrics` |
 | `Client::exec_recorded` | `POST /1.0/instances/NAME/exec` with `record-output`, the wait, `metadata.return`; `GET`, then `DELETE`, of the two logs that `metadata.output` names (`logs/exec-output/`) | `Exec`, `ExecOutput` (`exit_code`, `stdout`, `stderr`) | 6.0, `container_exec_recording`; `user`, `group`, `cwd`: `container_exec_user_group_cwd` |
 | `Client::exec_attached` | `POST /1.0/instances/NAME/exec` with `wait-for-websocket`; `GET /1.0/operations/ID/websocket?secret=` for `control`, `0`, `1`, `2` | `Attached` (`Stdin`, `Output`, `Control`, `wait`, `output`) | 6.0 |
 | `Client::get_file` | `GET /1.0/instances/NAME/files?path=` | `File` (`FileMeta` from `X-Incus-uid`, `-gid`, `-mode`, `-type`; `FileContent`: bytes, or the entries of a directory) | 6.0 |

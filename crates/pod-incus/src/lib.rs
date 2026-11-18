@@ -38,6 +38,7 @@ pub mod images;
 pub mod instances;
 pub mod operation;
 pub mod server;
+pub mod state;
 mod upload;
 pub mod wire;
 
@@ -50,4 +51,5 @@ pub use images::{ImageAlias, ImageData, ImageImport, ImportedImage};
 pub use instances::{Action, Devices, Instance, Kind, NewInstance, Source, StateChange};
 pub use operation::{Operation, status};
 pub use server::{Environment, NEEDED, Server};
+pub use state::{CpuState, DiskState, InstanceState, MemoryState, OOM_METRIC, Profile};
 pub use upload::Payload;

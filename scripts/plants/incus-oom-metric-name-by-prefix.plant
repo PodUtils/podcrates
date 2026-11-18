@@ -1,0 +1,6 @@
+# pod-incus: the OOM kills of an instance match the name of another instance that starts with it (T-925).
+ENTRY=T-925
+GROUP=incus
+EXPECT='the_oom_kills_of_one_instance_in_the_metrics'
+RUN='cargo test -p pod-incus --all-features --lib state'
+LIMIT=900

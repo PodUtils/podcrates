@@ -1,0 +1,12 @@
+diff --git a/crates/pod-incus/src/state.rs b/crates/pod-incus/src/state.rs
+--- a/crates/pod-incus/src/state.rs
++++ b/crates/pod-incus/src/state.rs
+@@ -103,7 +103,7 @@
+             Some(rest) => rest.split_once('}')?,
+             None => return None,
+         };
+-        let names_it = labels.split(',').any(|pair| pair.trim() == label);
++        let names_it = labels.split(',').any(|pair| pair.trim().starts_with(label.trim_end_matches('"')));
+         // A value may have a time stamp after it.
+         names_it.then(|| value.split_whitespace().next()?.parse().ok()).flatten()
+     })
