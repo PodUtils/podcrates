@@ -1,61 +1,127 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/broker-policy.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "The policy of one job of the egress broker (pod-broker), version 1",
   "description": "The JSON form of pod_broker::Policy; the TOML form has the same keys. The fixed denies of crates/pod-broker/README.md hold in each mode, and no policy lifts them. A policy that does not agree with this schema is a failure of the class usage (exit 64).",
   "type": "object",
-  "required": ["schema", "mode"],
   "properties": {
-    "schema": { "const": 1, "description": "The version of the schema, as in each schema of schemas/." },
-    "mode": {
-      "enum": ["allow", "open"],
-      "description": "allow: only the targets of an allow rule. open: each target that no deny holds; an open policy has no allow rule."
-    },
     "allow": {
+      "description": "The allow rules, in order.",
       "type": "array",
-      "description": "The allow rules, in order; the audit names a rule by its index, allow[N].",
       "items": {
-        "type": "object",
-        "required": ["host"],
-        "properties": {
-          "host": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255,
-            "description": "A host name (matched in lower case, with no dot at its end), *.NAME (each name below NAME, on whole labels, not NAME itself), an IPv4 address in four decimal parts, or an IPv6 address in brackets."
-          },
-          "path": {
-            "type": "string",
-            "pattern": "^/[^?#\\\\]*$",
-            "description": "A path prefix on whole segments: /v1/repos holds /v1/repos and /v1/repos/x, not /v1/reposx. No dot segment, no empty segment and no escape of a dot or a slash. A tunnel (CONNECT) shows no path: a rule with a path allows a tunnel only when the host gives a TLS end that reads each request."
-          },
-          "ports": {
-            "type": "array",
-            "items": { "type": "integer", "minimum": 1, "maximum": 65535 },
-            "description": "The ports of the rule; none or an empty list: each port. Port 25 is denied in each mode."
-          }
-        },
-        "additionalProperties": false
+        "$ref": "#/$defs/Rule"
       }
     },
     "deny": {
+      "description": "Extra denies after the fixed ones: a net (`ADDR/PREFIX`), an\naddress, a name or `*.NAME`. The audit names an entry\n`policy:deny[N]`.",
       "type": "array",
-      "description": "Extra denies after the fixed ones: a net (ADDR/PREFIX), an address, a name or *.NAME. The audit names an entry policy:deny[N].",
-      "items": { "type": "string", "minLength": 1 }
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "mode": {
+      "$ref": "#/$defs/Mode"
+    },
+    "schema": {
+      "description": "The version of the schema: [`SCHEMA`], as in each schema of\n`schemas/`.",
+      "type": "integer",
+      "const": 1
     }
   },
   "additionalProperties": false,
-  "if": { "properties": { "mode": { "const": "open" } } },
-  "then": { "properties": { "allow": { "maxItems": 0 } } },
   "examples": [
-    { "schema": 1, "mode": "open", "deny": ["203.0.113.0/24"] },
     {
-      "schema": 1,
-      "mode": "allow",
+      "deny": [
+        "203.0.113.0/24"
+      ],
+      "mode": "open",
+      "schema": 1
+    },
+    {
       "allow": [
-        { "host": "api.github.com", "path": "/repos/owner", "ports": [443] },
-        { "host": "*.githubusercontent.com" }
+        {
+          "host": "api.github.com",
+          "path": "/repos/owner",
+          "ports": [
+            443
+          ]
+        },
+        {
+          "host": "*.githubusercontent.com"
+        }
+      ],
+      "mode": "allow",
+      "schema": 1
+    }
+  ],
+  "if": {
+    "properties": {
+      "mode": {
+        "const": "open"
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "mode"
+  ],
+  "then": {
+    "properties": {
+      "allow": {
+        "maxItems": 0
+      }
+    }
+  },
+  "$defs": {
+    "Mode": {
+      "description": "How a policy treats a target that no rule names.",
+      "oneOf": [
+        {
+          "description": "Only the targets of an allow rule.",
+          "type": "string",
+          "const": "allow"
+        },
+        {
+          "description": "Each target that no deny holds. An open policy has no allow rule.",
+          "type": "string",
+          "const": "open"
+        }
+      ]
+    },
+    "Rule": {
+      "description": "One allow rule. The audit names a rule by its index, `allow[N]`.",
+      "type": "object",
+      "properties": {
+        "host": {
+          "description": "A host name (matched in lower case, with no dot at its end), `*.NAME`\n(each name below NAME, on whole labels, not NAME itself), an IPv4\naddress in four decimal parts, or an IPv6 address in brackets.",
+          "type": "string",
+          "maxLength": 255,
+          "minLength": 1
+        },
+        "path": {
+          "description": "A path prefix on whole segments: `/v1/repos` holds `/v1/repos` and\n`/v1/repos/x`, not `/v1/reposx`. No dot segment, no empty segment and\nno escape of a dot or a slash. None: each path. A tunnel (CONNECT)\nshows no path: a rule with a path allows a tunnel only when the host\ngives a TLS end that reads each request.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^/[^?#\\\\]*$"
+        },
+        "ports": {
+          "description": "The ports; empty: each port. Port 25 is denied in each mode.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 1
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "host"
       ]
     }
-  ]
+  }
 }

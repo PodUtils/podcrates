@@ -29,13 +29,14 @@ fn the_table_of_the_readme_is_the_code() {
 
 #[test]
 fn the_log_schema_names_each_class() {
-    let schema =
+    let text =
         std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../schemas/log.v1.schema.json")).unwrap();
+    let schema: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let classes = schema["properties"]["class"].to_string();
     for c in Class::ALL {
-        assert!(schema.contains(&format!("\"{}\"", c.name())), "the log schema lacks the class {}", c.name());
+        assert!(classes.contains(&format!("\"{}\"", c.name())), "the log schema lacks the class {}", c.name());
     }
-    let first = "\"required\": [\"schema\",";
-    assert!(schema.contains(first), "the log schema does not require the field schema first");
-    let constant = format!("\"schema\": {{ \"const\": {},", pod_core::LOG_SCHEMA);
-    assert!(schema.contains(&constant), "the log schema and pod_core::LOG_SCHEMA differ");
+    assert_eq!(schema["required"][0], "schema", "the log schema does not require the field schema first");
+    assert_eq!(schema["properties"]["schema"]["const"], pod_core::LOG_SCHEMA, "the log schema and LOG_SCHEMA differ");
+    assert_eq!(schema["properties"]["level"]["enum"], serde_json::json!(pod_core::LOG_LEVELS));
 }

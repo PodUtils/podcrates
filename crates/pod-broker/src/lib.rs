@@ -19,6 +19,9 @@
 //! * [`control`]: `load`, `drop` and `list` as JSON lines on a Unix socket
 //!   of mode 0600.
 //! * [`audit`]: one JSON line for each connection, with no secret value.
+//!
+//! `schemas/broker-policy.v1.schema.json` and `schemas/log.v1.schema.json`
+//! come from [`Policy`] and [`Line`]: a test writes them and compares them.
 //! * [`tunnel`]: the inside of an allowed tunnel; [`TunnelEnd`] is the seam
 //!   of the TLS end of T-100.
 //!
@@ -33,9 +36,13 @@ pub mod control;
 pub mod deny;
 mod forward;
 pub mod jobs;
+#[cfg(any(test, feature = "schema"))]
+mod json_schema;
 pub mod names;
 pub mod policy;
 mod prefixed;
+#[cfg(test)]
+mod schemas;
 mod serve;
 pub mod target;
 pub mod tunnel;

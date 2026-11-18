@@ -1,0 +1,7 @@
+# pod-broker: the schema of broker-policy.v1 loses the rule of an open
+# policy (no allow rule), and the reader keeps it: the verdicts differ.
+ENTRY=T-922
+GROUP=proxy
+EXPECT='the schema on'
+RUN='cargo test -p pod-broker --lib schemas::the_schema_and_the_reader_agree_on_each_policy'
+LIMIT=900

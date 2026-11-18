@@ -113,8 +113,12 @@ is `Class::Usage` (exit 64); a refusal of a deny or of the policy is
 
 ## The policy
 
-`schemas/broker-policy.v1.schema.json` is the JSON Schema. The TOML form
-has the same keys.
+`schemas/broker-policy.v1.schema.json` is the JSON Schema. It comes from
+the type `Policy` (`src/schemas.rs` writes it and compares it, with
+`schemas/log.v1.schema.json` from the audit `Line`; after a change of a
+type: `POD_BROKER_WRITE_SCHEMAS=1 cargo test -p pod-broker --lib schemas`).
+The feature `schema` gives the `JsonSchema` of the policy to the tests of a
+consumer. The TOML form has the same keys.
 
 ```json
 {

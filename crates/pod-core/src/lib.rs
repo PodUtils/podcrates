@@ -51,5 +51,9 @@ pub use failure::{Class, Failure, Stage};
 /// The version of `schemas/log.v1.schema.json`: the constant of the field
 /// `schema`, the first key of each JSON log line.
 pub const LOG_SCHEMA: u32 = 1;
+
+/// The values of the field `level` of a JSON log line
+/// (`schemas/log.v1.schema.json`), the most urgent first.
+pub const LOG_LEVELS: [&str; 5] = ["error", "warn", "info", "debug", "trace"];
 #[cfg(feature = "async")]
 pub use metered::Metered;

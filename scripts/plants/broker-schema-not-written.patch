@@ -1,0 +1,12 @@
+--- a/crates/pod-broker/src/policy.rs
++++ b/crates/pod-broker/src/policy.rs
+@@ -75,6 +75,9 @@
+     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+     #[cfg_attr(any(test, feature = "schema"), schemars(inner(range(min = 1))))]
+     pub ports: Vec<u16>,
++    /// A planted field that the schema does not have.
++    #[serde(default, skip_serializing_if = "Option::is_none")]
++    pub note: Option<String>,
+ }
+ 
+ /// The policy of a job, as a job source writes it

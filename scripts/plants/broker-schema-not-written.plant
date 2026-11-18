@@ -1,0 +1,7 @@
+# pod-broker: a field of the policy that the schema file of
+# broker-policy.v1 does not have; the test of the generated schemas fails.
+ENTRY=T-922
+GROUP=proxy
+EXPECT='broker-policy.v1.schema.json differs from the types'
+RUN='cargo test -p pod-broker --lib schemas::the_schemas_are_generated_from_the_types'
+LIMIT=900

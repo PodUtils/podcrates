@@ -26,10 +26,22 @@ base64 = { workspace = true }
 # The diagnostics, and the audit sink on tracing.
 tracing = { workspace = true }
 
+# The JSON Schemas of broker-policy.v1 and log.v1 come from the types, in
+# tests only. The feature `schema` gives the JsonSchema of the policy to the
+# tests of a consumer; no binary turns it on.
+schemars = { workspace = true, optional = true }
+
+[features]
+schema = ["dep:schemars"]
+
 # The user of the peer of the control socket (geteuid).
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
 [dev-dependencies]
 pod-testkit = { workspace = true }
+schemars = { workspace = true }
+# A validator of JSON Schema 2020-12: each policy and each audit line gets
+# the verdict of the types from the generated schemas too.
+boon = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "net", "time", "rt", "rt-multi-thread", "macros", "sync", "test-util"] }
