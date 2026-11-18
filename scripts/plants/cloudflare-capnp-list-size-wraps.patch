@@ -1,0 +1,17 @@
+diff --git a/crates/pod-cloudflare/src/cloudflare/capnp/reader.rs b/crates/pod-cloudflare/src/cloudflare/capnp/reader.rs
+--- a/crates/pod-cloudflare/src/cloudflare/capnp/reader.rs
++++ b/crates/pod-cloudflare/src/cloudflare/capnp/reader.rs
+@@ -131,11 +131,8 @@
+                 let size = usize::from(data) + usize::from(ptrs);
+                 // The peer sets both factors: a product in usize wraps on a
+                 // 32-bit target. A u64 holds 2^30 * 2^17 words.
+-                let words = count as u64 * size as u64;
+-                if words > list_words {
+-                    bail!(Stage::EdgeStream, Class::Protocol, "the elements of a struct list overrun its pointer");
+-                }
+-                self.msg.check_range(segment, start + 1, words)?;
++                let _ = list_words;
++                self.msg.check_range(segment, start + 1, (count * size) as u64)?;
+                 // An element of 0 words reads no word. Charge one word for
+                 // each element, as the reference implementation does. Then a
+                 // short message cannot make a long list.

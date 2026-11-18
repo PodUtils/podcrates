@@ -1,0 +1,6 @@
+# pod-cloudflare: the words of a struct list as a usize product, with no check against its pointer (T-914).
+ENTRY=T-914
+GROUP=cloudflare
+EXPECT='a_struct_list_whose_size_overflows_is_an_error'
+RUN='cargo test -p pod-cloudflare --all-features --lib capnp'
+LIMIT=1800
