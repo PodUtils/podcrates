@@ -5,6 +5,27 @@
   "description": "The full report (`run-report.v1`), for the operator.",
   "type": "object",
   "properties": {
+    "cache_read_bytes": {
+      "description": "The bytes that the job read from and wrote to its cache (G-20).",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Residual"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "cache_written_bytes": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Residual"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "claim_to_first_step_s": {
       "description": "The time from the claim to the hook of the job's first step, in\nseconds; absent when no step started. Not in the public report.",
       "type": [
@@ -16,6 +37,25 @@
     },
     "cpu_s": {
       "description": "The CPU time of the processes of the unit, user and system, from its\nstart to its destroy, in seconds: a count, or `unknown` when the host\ncannot measure it (never 0 for unknown). Absent when no unit ran.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Residual"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "destroy_s": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
+    "disk_peak_bytes": {
+      "description": "The highest use of the disk of the unit, in bytes (G-19, G-18).",
       "anyOf": [
         {
           "$ref": "#/$defs/Residual"
@@ -39,6 +79,14 @@
       "description": "The name of the host.",
       "type": "string"
     },
+    "image_digest": {
+      "description": "The digest of the image of the unit (`sha256:HEX`; G-19).",
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
     "job_id": {
       "$ref": "#/$defs/JobId"
     },
@@ -49,6 +97,34 @@
         "type": "string",
         "pattern": "^sha256:[0-9a-f]{64}$"
       }
+    },
+    "log_tail": {
+      "description": "The end of the log of a unit that failed before the runner\nconnected: UTF-8, at most [`LOG_TAIL_MAX`] bytes, each credential\nscrubbed by the writer.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "net_rx_bytes": {
+      "description": "The bytes of the network of the unit, through its egress module.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Residual"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "net_tx_bytes": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Residual"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "peak_rss_mib": {
       "description": "The highest resident memory of the processes of the unit during the\nrun, in MiB: a count, or `unknown`. Absent when no unit ran.",
@@ -61,6 +137,15 @@
         }
       ]
     },
+    "prepare_s": {
+      "description": "The phases of the unit, in seconds, each rounded up as `cpu_s`: the\nprepare, the start, the run of the job and the destroy (G-19).",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
     "refusal_code": {
       "anyOf": [
         {
@@ -71,6 +156,21 @@
         }
       ]
     },
+    "run_s": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
+    },
+    "runner_version": {
+      "description": "The version of the runner in the unit (G-19).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "schema": {
       "description": "The version of the record: `SCHEMA`, 1.",
       "type": "integer",
@@ -78,6 +178,14 @@
     },
     "source": {
       "type": "string"
+    },
+    "start_s": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint64",
+      "minimum": 0
     },
     "tier": {
       "description": "The tier, when the tier rule gave one.",
@@ -99,6 +207,24 @@
           "type": "null"
         }
       ]
+    },
+    "unknown_reasons": {
+      "description": "For each measured field that is `unknown`: why, in one line. A kind\nthat cannot measure a fact says `unknown` with a reason, never 0.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "propertyNames": {
+        "enum": [
+          "cpu_s",
+          "peak_rss_mib",
+          "disk_peak_bytes",
+          "net_rx_bytes",
+          "net_tx_bytes",
+          "cache_read_bytes",
+          "cache_written_bytes"
+        ]
+      }
     },
     "wall_s": {
       "description": "The time from the claim to the report, in seconds.",
@@ -160,6 +286,174 @@
             "type": "null"
           }
         }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "cpu_s"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "cpu_s": {
+            "const": "unknown"
+          }
+        },
+        "required": [
+          "cpu_s"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "peak_rss_mib"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "peak_rss_mib": {
+            "const": "unknown"
+          }
+        },
+        "required": [
+          "peak_rss_mib"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "disk_peak_bytes"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "disk_peak_bytes": {
+            "const": "unknown"
+          }
+        },
+        "required": [
+          "disk_peak_bytes"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "net_rx_bytes"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "net_rx_bytes": {
+            "const": "unknown"
+          }
+        },
+        "required": [
+          "net_rx_bytes"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "net_tx_bytes"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "net_tx_bytes": {
+            "const": "unknown"
+          }
+        },
+        "required": [
+          "net_tx_bytes"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "cache_read_bytes"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "cache_read_bytes": {
+            "const": "unknown"
+          }
+        },
+        "required": [
+          "cache_read_bytes"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "cache_written_bytes"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "cache_written_bytes": {
+            "const": "unknown"
+          }
+        },
+        "required": [
+          "cache_written_bytes"
+        ]
       }
     }
   ],

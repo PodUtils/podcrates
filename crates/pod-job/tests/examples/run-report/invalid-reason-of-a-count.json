@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "job_id": "j-1001",
+  "source": "fake-1",
+  "tier": "trusted",
+  "host": "host-a",
+  "exit_reason": "success",
+  "exit_code": 0,
+  "wall_s": 93,
+  "cpu_s": 1832,
+  "peak_rss_mib": "unknown",
+  "unit": {
+    "unit_id": "u-7",
+    "unit_kind": "podvm",
+    "boundary": "redirect",
+    "principal": "shared",
+    "egress_hold": "advisory",
+    "payload": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "residual_processes": 0,
+    "residual_files": 0
+  },
+  "image_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "runner_version": "2.329.0",
+  "prepare_s": 4,
+  "start_s": 2,
+  "run_s": 85,
+  "destroy_s": 1,
+  "disk_peak_bytes": 734003200,
+  "net_rx_bytes": "unknown",
+  "net_tx_bytes": "unknown",
+  "cache_read_bytes": 104857600,
+  "cache_written_bytes": 0,
+  "unknown_reasons": {
+    "peak_rss_mib": "the kind reads no memory peak",
+    "net_rx_bytes": "the unit has no egress module",
+    "net_tx_bytes": "the unit has no egress module",
+    "cpu_s": "a reason for a count"
+  }
+}

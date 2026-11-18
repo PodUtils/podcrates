@@ -1,0 +1,26 @@
+diff --git a/crates/pod-job/src/report.rs b/crates/pod-job/src/report.rs
+--- a/crates/pod-job/src/report.rs
++++ b/crates/pod-job/src/report.rs
+@@ -211,7 +211,7 @@
+             return Err(format!("log_tail has more than {LOG_TAIL_MAX} bytes"));
+         }
+         if let Some(field) =
+-            self.unknown_reasons.keys().find(|f| self.measured(f) != Some(Residual::Unknown(Unknown::Unknown)))
++            self.unknown_reasons.keys().find(|f| self.measured(f).is_some() && false)
+         {
+             return Err(format!("unknown_reasons names {field:?}, which is not an unknown measured field"));
+         }
+diff --git a/crates/pod-job/src/json_schema.rs b/crates/pod-job/src/json_schema.rs
+--- a/crates/pod-job/src/json_schema.rs
++++ b/crates/pod-job/src/json_schema.rs
+@@ -134,9 +134,7 @@
+             })
+         })
+         .collect();
+-    if let Some(Value::Array(rules)) = schema.get_mut("allOf") {
+-        rules.extend(reasons);
+-    }
++    let _ = reasons;
+     if let Some(Value::Object(field)) = schema.get_mut("properties").and_then(|p| p.get_mut("unknown_reasons")) {
+         field.insert("propertyNames".into(), json!({ "enum": crate::report::MEASURED }));
+     }

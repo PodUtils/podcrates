@@ -1,0 +1,6 @@
+# pod-job: unknown_reasons names a measured field that is a count, and the check and the schema take it (T-923).
+ENTRY=T-923
+GROUP=job
+EXPECT='invalid-reason-of-a-count'
+RUN='cargo test -p pod-job --all-features --lib schemas'
+LIMIT=900

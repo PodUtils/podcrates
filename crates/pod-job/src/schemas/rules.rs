@@ -144,7 +144,7 @@ fn the_public_report_holds_no_host_and_no_boundary_detail() {
         }
         reports += 1;
     }
-    assert_eq!(reports, 5);
+    assert_eq!(reports, 6);
 
     // A detail added to a public report is refused by the types and by the
     // schema.

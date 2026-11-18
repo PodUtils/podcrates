@@ -13,6 +13,17 @@
         "aarch64"
       ]
     },
+    "cache": {
+      "description": "The cache of the job (G-20).",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Cache"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "job_id": {
       "$ref": "#/$defs/JobId"
     },
@@ -76,6 +87,17 @@
         }
       ],
       "default": {}
+    },
+    "sandbox": {
+      "description": "A sandbox payload (G-36): an image by digest and a command.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Sandbox"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "schema": {
       "description": "The version of the record: `SCHEMA`, 1.",
@@ -270,6 +292,44 @@
         "guest"
       ]
     },
+    "Cache": {
+      "description": "The cache of a job (G-20): one key, and how the unit may use it.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "The key of the cache, chosen by the source.",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/CacheMode"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "mode"
+      ]
+    },
+    "CacheMode": {
+      "description": "How a unit may use the cache of its job.",
+      "oneOf": [
+        {
+          "description": "Read and write.",
+          "type": "string",
+          "const": "rw"
+        },
+        {
+          "description": "Read only.",
+          "type": "string",
+          "const": "ro"
+        },
+        {
+          "description": "No cache.",
+          "type": "string",
+          "const": "none"
+        }
+      ]
+    },
     "Event": {
       "description": "The event that started the workflow. Each value that the tier rule does\nnot name is `other`; a value that the source cannot read is `unknown`.",
       "type": "string",
@@ -301,6 +361,48 @@
       "type": "string",
       "pattern": "^([A-Za-z0-9_-][A-Za-z0-9._-]{0,127}|\\.[A-Za-z0-9_-][A-Za-z0-9._-]{0,126}|\\.\\.[A-Za-z0-9._-]{1,126})$"
     },
+    "Sandbox": {
+      "description": "A sandbox payload (G-36): an image by digest and a command, with the\nbounds of its idle time and of its run.",
+      "type": "object",
+      "properties": {
+        "command": {
+          "description": "The command and its arguments; at least one word.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "idle_s": {
+          "description": "After this time with no input or output, the unit ends the sandbox.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "image": {
+          "description": "`NAME@sha256:HEX`.",
+          "type": "string",
+          "pattern": "^.+@sha256:[0-9a-f]{64}$"
+        },
+        "max_s": {
+          "description": "After this time, the unit ends the sandbox.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "image",
+        "command"
+      ]
+    },
     "TrustInputs": {
       "description": "The job metadata that the tier rule reads.",
       "type": "object",
@@ -310,6 +412,15 @@
         },
         "event": {
           "$ref": "#/$defs/Event"
+        },
+        "forge": {
+          "description": "The host name of the forge of the job, for example `github.com`\n(G-16): a trust list of a forge reads it.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 253,
+          "pattern": "^[a-z0-9-]{1,63}(\\.[a-z0-9-]{1,63})*$"
         },
         "head_is_fork": {
           "description": "`yes` when the head of a pull request is in a fork.",

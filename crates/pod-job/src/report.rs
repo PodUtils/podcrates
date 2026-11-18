@@ -4,6 +4,8 @@
 //! boundary (the proof, the principal, the hold, the unit id, the payload,
 //! the residue): only the class of the boundary.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{Boundary, EgressHold, JobId, Principal, RefusalCode, SCHEMA, Tier, UnitId};
@@ -108,7 +110,60 @@ pub struct RunReport {
     pub refusal_code: Option<RefusalCode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unit: Option<UnitFields>,
+    /// The digest of the image of the unit (`sha256:HEX`; G-19).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::digest"))]
+    pub image_digest: Option<String>,
+    /// The version of the runner in the unit (G-19).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runner_version: Option<String>,
+    /// The phases of the unit, in seconds, each rounded up as `cpu_s`: the
+    /// prepare, the start, the run of the job and the destroy (G-19).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prepare_s: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_s: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_s: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub destroy_s: Option<u64>,
+    /// The highest use of the disk of the unit, in bytes (G-19, G-18).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disk_peak_bytes: Option<Residual>,
+    /// The bytes of the network of the unit, through its egress module.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub net_rx_bytes: Option<Residual>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub net_tx_bytes: Option<Residual>,
+    /// The bytes that the job read from and wrote to its cache (G-20).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_read_bytes: Option<Residual>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_written_bytes: Option<Residual>,
+    /// For each measured field that is `unknown`: why, in one line. A kind
+    /// that cannot measure a fact says `unknown` with a reason, never 0.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub unknown_reasons: BTreeMap<String, String>,
+    /// The end of the log of a unit that failed before the runner
+    /// connected: UTF-8, at most [`LOG_TAIL_MAX`] bytes, each credential
+    /// scrubbed by the writer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_tail: Option<String>,
 }
+
+/// The most bytes of `log_tail`.
+pub const LOG_TAIL_MAX: usize = 65_536;
+
+/// The fields of a run report that are a count or `unknown`.
+pub const MEASURED: [&str; 7] = [
+    "cpu_s",
+    "peak_rss_mib",
+    "disk_peak_bytes",
+    "net_rx_bytes",
+    "net_tx_bytes",
+    "cache_read_bytes",
+    "cache_written_bytes",
+];
 
 /// The public report (`run-report-public.v1`). It never names the host.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -149,7 +204,32 @@ impl RunReport {
         if let Some(image) = self.job_images.iter().find(|i| !crate::offer::is_digest(i)) {
             return Err(format!("the job image {image:?} is not sha256:HEX"));
         }
+        if let Some(image) = self.image_digest.as_deref().filter(|i| !crate::offer::is_digest(i)) {
+            return Err(format!("the image digest {image:?} is not sha256:HEX"));
+        }
+        if self.log_tail.as_ref().is_some_and(|t| t.len() > LOG_TAIL_MAX) {
+            return Err(format!("log_tail has more than {LOG_TAIL_MAX} bytes"));
+        }
+        if let Some(field) =
+            self.unknown_reasons.keys().find(|f| self.measured(f) != Some(Residual::Unknown(Unknown::Unknown)))
+        {
+            return Err(format!("unknown_reasons names {field:?}, which is not an unknown measured field"));
+        }
         rules(self.schema, self.exit_reason, self.refusal_code.is_some(), self.unit.is_some())
+    }
+
+    /// The measured field `name` of [`MEASURED`], where the report has it.
+    fn measured(&self, name: &str) -> Option<Residual> {
+        match name {
+            "cpu_s" => self.cpu_s,
+            "peak_rss_mib" => self.peak_rss_mib,
+            "disk_peak_bytes" => self.disk_peak_bytes,
+            "net_rx_bytes" => self.net_rx_bytes,
+            "net_tx_bytes" => self.net_tx_bytes,
+            "cache_read_bytes" => self.cache_read_bytes,
+            "cache_written_bytes" => self.cache_written_bytes,
+            _ => None,
+        }
     }
 
     /// The subset for a source that is not `operator_controlled`.

@@ -43,6 +43,18 @@ pub fn digest(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" })
 }
 
+/// The `forge` of the trust inputs: absent, or a host name in lower case
+/// (`parts::is_host_name`).
+pub fn host_name(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": ["string", "null"], "maxLength": 253, "pattern": "^[a-z0-9-]{1,63}(\\.[a-z0-9-]{1,63})*$" })
+}
+
+/// The `image` of a sandbox: `NAME@sha256:` and 64 lower-case hex digits
+/// (`parts::is_pinned_image`).
+pub fn pinned_image(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": "string", "pattern": "^.+@sha256:[0-9a-f]{64}$" })
+}
+
 /// The `job_images` of a report: digests (`offer::is_digest`), each once
 /// or more, in the order of the job.
 pub fn digests(_: &mut SchemaGenerator) -> Schema {
@@ -104,9 +116,30 @@ fn report_rules(schema: &mut Schema, unit: &[&str]) {
     schema.insert("allOf".into(), rules);
 }
 
-/// The rules of [`crate::RunReport::check`].
+/// The rules of [`crate::RunReport::check`]: those of each report, and
+/// each key of `unknown_reasons` names a measured field that is `unknown`.
+/// The bound of `log_tail` in bytes stays in the check: a schema counts
+/// characters.
 pub fn run_report_rules(schema: &mut Schema) {
     report_rules(schema, &["unit"]);
+    let reasons: Vec<Value> = crate::report::MEASURED
+        .iter()
+        .map(|name| {
+            json!({
+                "if": {
+                    "required": ["unknown_reasons"],
+                    "properties": { "unknown_reasons": { "required": [name] } }
+                },
+                "then": { "required": [name], "properties": { (*name): { "const": "unknown" } } }
+            })
+        })
+        .collect();
+    if let Some(Value::Array(rules)) = schema.get_mut("allOf") {
+        rules.extend(reasons);
+    }
+    if let Some(Value::Object(field)) = schema.get_mut("properties").and_then(|p| p.get_mut("unknown_reasons")) {
+        field.insert("propertyNames".into(), json!({ "enum": crate::report::MEASURED }));
+    }
 }
 
 /// The rules of [`crate::PublicReport::check`]: its unit is `unit_kind`

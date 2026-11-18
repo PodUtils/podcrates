@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+use crate::parts::{Cache, Sandbox, is_host_name};
 use crate::{ARCHES, Boundary, Fact, JobId, SCHEMA};
 
 /// The event that started the workflow. Each value that the tier rule does
@@ -80,6 +81,11 @@ pub struct TrustInputs {
     pub owner_id: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub repo_id: Option<u64>,
+    /// The host name of the forge of the job, for example `github.com`
+    /// (G-16): a trust list of a forge reads it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::host_name"))]
+    pub forge: Option<String>,
 }
 
 /// What the job needs of a unit, beyond its tier.
@@ -145,6 +151,12 @@ pub struct JobOffer {
     pub payload: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unit_need: Option<UnitNeed>,
+    /// The cache of the job (G-20).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache: Option<Cache>,
+    /// A sandbox payload (G-36): an image by digest and a command.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sandbox: Option<Sandbox>,
 }
 
 /// The names of the limits.
@@ -177,7 +189,10 @@ impl JobOffer {
         if let Some(why) = policy_fault(&self.policy) {
             return Err(format!("the policy is not a broker-policy.v1 policy: {why}"));
         }
-        Ok(())
+        if let Some(forge) = self.trust_inputs.forge.as_deref().filter(|f| !is_host_name(f)) {
+            return Err(format!("the forge {forge:?} is not a host name"));
+        }
+        self.sandbox.as_ref().map_or(Ok(()), Sandbox::check)
     }
 }
 

@@ -176,6 +176,24 @@ schema id silently (the owner's ruling "Schema ids", 2026-11-18):
 * An added optional field keeps the id. The hand-off COORD issue of its
   tag names it.
 
+The optional fields of `v0.71.0` (T-923; GitHub #223 G-16, G-18 to G-20,
+G-36; the names of PodUtils/podrunner#294):
+
+* `job-offer.v1`: `trust_inputs.forge` (the host name of the forge, in
+  lower case); `cache` (`key`, `mode`: `rw`, `ro` or `none`); `sandbox`
+  (`image` as `NAME@sha256:HEX`, `command` with one word or more,
+  `idle_s`, `max_s`). The existing `payload` keeps its meaning (a digest),
+  so the sandbox is its own field (call C783). `limits.disk` (bytes) was
+  there.
+* `run-report.v1`: `image_digest` (`sha256:HEX`), `runner_version`,
+  `prepare_s`, `start_s`, `run_s`, `destroy_s` (seconds, rounded up),
+  `disk_peak_bytes`, `net_rx_bytes`, `net_tx_bytes`, `cache_read_bytes`,
+  `cache_written_bytes` (a count or `unknown`), `unknown_reasons` (for
+  each measured field that is `unknown`, why; a key must name such a
+  field), `log_tail` (UTF-8, at most 65536 bytes, scrubbed by the writer).
+  `host`, `unit.unit_kind` and `unit.boundary` were there. None of them is
+  in the public report.
+
 ## Adoption map
 
 | Consumer | Old | New |
