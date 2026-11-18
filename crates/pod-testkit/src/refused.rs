@@ -85,8 +85,11 @@ mod tests {
         drop(guard);
     }
 
-    /// The form of macOS, on each system: a port with no
-    /// socket, out of the range of a bind to port 0, refuses at once.
+    /// The form of macOS: a port with no socket, out of the range of a bind
+    /// to port 0, refuses at once. Not on Windows, which answers a connect
+    /// to a closed port only after its retries of the SYN (some 2 s), and
+    /// which holds a bound socket instead.
+    #[cfg(not(windows))]
     #[test]
     fn an_unbound_port_refuses_at_once() {
         let at = unbound_port();

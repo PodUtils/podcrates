@@ -3703,3 +3703,59 @@ Three runs of `ci.yml` in a row with each job green.
 ## Done
 
 2026-11-18: a fifth run (`32773e4`, 44346004330) showed the cause: the arm64 job stayed queued with no runner while the Intel job of the same run got one in 25 s. The matrix of the job `static` builds `aarch64-apple-darwin` on `macos-15-intel` (`--target aarch64-apple-darwin`); `scripts/check-static.sh` reads the Mach-O file with `otool -L`, which reads an arm64 file on an Intel host. The tests on arm64 stay in `nightly.yml` (`test (macos-15)`). `check-workflows.py`: 0 faults. The proof: `ci.yml` at `25f9938` (44347947644), `3882ae2` (44355702336) and `d40abaf` (44365173268), three runs in a row, each job green.
+
+# T-949: `pod-link`: the gate of E2-1 at 20 % drop divides by a clean time of some 50 ms, so the noise of one run moves the factor past its bound (nightly 44388345504)
+
+**Source:** the nightly run 44388345504 at `2b01acf`, job `gate`
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time` of `crates/pod-link/tests/udp_loss.rs` failed: "E2-1, nodelay, 8388608 bytes each way: clean 47.491015ms, 20 % drop 380.223537ms, 8.01 times", against a bound of 8 (call C284). T-520 measured 3.7 to 4.0 times on a local host and 5.3 times on a GitHub runner. One run of each side gives the factor; a clean time of 47 ms makes the factor follow the noise of the scheduler of the runner.
+
+## Premise
+
+- Read: the log of the job; the test; T-520 and call C284.
+- Not measured: the spread of the clean time and of the lossy time on a GitHub runner.
+
+## Approach
+
+Run each side three times and divide the median of the lossy times by the median of the clean times; print each time. Keep the bound of call C284. Measure the factor in ten runs of the job `gate`, and write the spread in the Done section.
+
+## Prove
+
+```sh
+cargo test -p pod-link --release --test udp_loss twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time
+```
+
+# T-950: `pod-link`: when one half of a split session goes silent, the end that sees the far end close first names the other half as lost (windows-2025)
+
+**Source:** the nightly run 44388345504 at `2b01acf`, job `test (windows-2025)`
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`a_silent_up_half_ends_the_session_with_up_carrier_lost_on_each_side` of `crates/pod-link/tests/split.rs` failed on windows-2025: "the dialer: down-carrier lost: a beat: broken pipe", where the up half went silent. The listener sees the silence of the up half and ends the session; its down carrier closes. The next beat of the dialer on the down half then fails with a broken pipe before the dialer's own reader sees the silence of the up half, so the dialer names the down half. The user of the dialer reads the wrong cause. The timer of Windows (15.625 ms ticks) makes the order more likely; any host can give it.
+
+## Premise
+
+- Read: the log; the test; T-764 (an earlier fault of the same test on windows-2025: a bound of the time).
+- Not read: `crates/pod-link/src/split/run.rs` for the order of the beat writer and the silence reader on one end.
+
+## Approach
+
+A write error of a half after the far end closed is not the first cause: when the beat of one half fails, the end waits up to `lost_after` for the reader of the other half to name a loss, and takes the reader's cause when it comes. Or the far end sends its cause on the half that still works before it closes. A test with a far end that closes the down half at once after a silent up half: each side names the up half.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test split
+```

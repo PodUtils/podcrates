@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**781 entries: 144 open, 24 partial, 7 blocked, 606 done.**
+**783 entries: 146 open, 24 partial, 7 blocked, 606 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 174 | 192 |
-| P2 | 68 | 6 | 4 | 311 | 389 |
+| P2 | 70 | 6 | 4 | 311 | 391 |
 | P3 | 66 | 10 | 3 | 119 | 198 |
-| **All** | 144 | 24 | 7 | 606 | 781 |
+| **All** | 146 | 24 | 7 | 606 | 783 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -828,3 +828,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-946](fleet.md) | P2 | S | M8 | feature | open | `pod-fake-github` and `pod-fake-githome`: the help and the manual from `pod-manual`, with the checks of each drift |
 | [T-947](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: `status.v1` has no `draining` of a source, no `max_units` and no `units` of a host, so podrunner keeps its own `Status` (PodUtils/podrunner#305) |
 | [T-948](fleet.md) | P1 | M | M8 | feature | done | `pod-testkit`: a fake of githome's source, as a program that podrunner's CI can pin (PodUtils/podrunner#306, githome's G-38 and G-40) |
+| [T-949](upkeep.md) | P2 | S | M2 | defect | open | `pod-link`: the gate of E2-1 at 20 % drop divides by a clean time of some 50 ms, so the noise of one run moves the factor past its bound (nightly 44388345504) |
+| [T-950](upkeep.md) | P2 | M | M2 | defect | open | `pod-link`: when one half of a split session goes silent, the end that sees the far end close first names the other half as lost (windows-2025) |

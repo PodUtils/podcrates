@@ -2562,6 +2562,8 @@ cargo test -p pod-testkit --all-features --lib refused
 
 2026-11-18: `pod_testkit::refused` keeps the bound socket that does not listen where the kernel refuses a connect to it (Linux, Android, Windows); on the other systems it gives a port with no socket in 20000 to 39999, below the range of a bind to port 0 on macOS (49152 to 65535), checked once to refuse at once, and holds nothing (no test of this repository binds a fixed port of the loopback: `check-loopback.py`). Test `an_unbound_port_refuses_at_once` (the form of macOS, on each system: a refusal in less than 2 s); `a_refused_address_stays_refused_while_its_guard_lives` checks the bind of the held port only where a socket holds it. `cargo test -p pod-testkit --all-features --lib refused`: 2 passed on Linux. The proof on macOS is the next run of the macOS jobs (`nightly.yml` 44275593101 showed the timeout before the fix). `pod-proxy`'s `a_dial_of_one_refused_address_twice_names_it_once` waits no 10 s on macOS now.
 
+The nightly run 44388345504 failed `an_unbound_port_refuses_at_once` on windows-2025 and windows-11-arm: a connect to a closed port on Windows fails after the retries of its SYN, past the bound of 1 s. The form of macOS is not used on Windows, so the test does not run there.
+
 # T-941: `pod-core`: a lock of a file that other programs read, which on Windows refuses no reader (PodUtils/podssh#319)
 
 **Source:** PodUtils/podssh#319 (COORD-121 of podssh, the amendment on its T-820, the copies of `pod_core::lock`).
