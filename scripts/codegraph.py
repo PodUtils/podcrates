@@ -39,9 +39,10 @@ the baseline only shrinks. `--update-baseline` writes the keys of today
 with the reasons that the old baseline gave.
 
 `new` reads the change against REV (default `origin/main`, with the files
-that git does not track yet). For each new public item, each new `def` and
-each new entry, it names the existing items or entries that look like it,
-and each body that is a clone of an existing one. It exits 0, or 1 with
+that git does not track yet). For each new public item and each new `def`
+it names each existing item of another file whose name has most of the
+same words (two words or more), and each body that is a clone of an
+existing one; for each new entry, the entries with nearly the same title. It exits 0, or 1 with
 `--strict` when a new body is a clone or a new entry has a twin.
 
 Exit 0: no fault. Exit 1: a fault, one line for each. Exit 64: a usage
@@ -68,6 +69,10 @@ ROOT = Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "scripts" / "dups-baseline.txt"
 ENTRY_TWIN = 0.75
 NEW_LOOK = 0.55
+# Two names of two words or more, with this share of their words, look alike.
+NAME_LOOK = 0.66
+# The names that each script or crate has by convention: no hint for them.
+CONVENTION = frozenset({"self_test", "main", "usage", "from_str", "try_from", "as_str"})
 
 
 def usage() -> int:
@@ -340,7 +345,8 @@ def cmd_new(args: list[str], root: Path = ROOT) -> int:
     strict = "--strict" in args
     lines = changed_lines(root, base)
     items = scan.items(root)
-    docs = [d for d in documents(root)]
+    named = [it for it in items if not it.test and (it.public or it.kind == "def") and it.kind != "mod"]
+    o_words = {id(it): set(scan.words(it.name)) for it in named}
     by_body = defaultdict(list)
     for it in items:
         if it.body:
@@ -348,7 +354,7 @@ def cmd_new(args: list[str], root: Path = ROOT) -> int:
     hits = 0
     news = []
     for path, line in lines:
-        if m := NEW_RUST.match(line):
+        if path.endswith(".rs") and (m := NEW_RUST.match(line)):
             news.append((path, m.group(2)))
         elif path.endswith(".py") and (m := NEW_DEF.match(line)):
             news.append((path, m.group(1)))
@@ -359,13 +365,23 @@ def cmd_new(args: list[str], root: Path = ROOT) -> int:
             for o in twins:
                 hits += 1
                 print(f"codegraph: clone: {path}:{it.line} {name} has the body of {o.file}:{o.line} {o.name}")
-        looks = [(s, d) for s, d in rank(docs, scan.words(name) + scan.words(mine[0].doc if mine else ""), 6)
-                 if s >= NEW_LOOK and not d[2].startswith(path + ":")]
-        for s, (kind, label, where, _) in looks[:3]:
-            print(f"codegraph: look: {path} {name} is like {kind} {label} ({where}, {s:.2f})")
+        mine_words = set(scan.words(name))
+        if len(mine_words) < 2 or name in CONVENTION:
+            continue
+        looks = []
+        for o in named:
+            if o.file == path:
+                continue
+            j = jaccard(mine_words, o_words[id(o)])
+            if j >= NAME_LOOK:
+                looks.append((j, o))
+        looks.sort(key=lambda x: (-x[0], x[1].file))
+        for j, o in looks[:3]:
+            print(f"codegraph: look: {path} {name} is like {o.kind} {o.crate}::{o.module}::{o.name} "
+                  f"({o.file}:{o.line}, {j:.2f})".replace("::::", "::"))
     ents = scan.entries(root)
     for path, line in lines:
-        if m := NEW_ENTRY.match(line):
+        if path.startswith("TODO/") and (m := NEW_ENTRY.match(line)):
             mine = title_words(m.group(2))
             for e in ents:
                 if e.id == m.group(1):

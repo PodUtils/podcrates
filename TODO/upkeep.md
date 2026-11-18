@@ -3462,7 +3462,7 @@ cargo test --workspace --all-features
 **Milestone:** M0
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3503,3 +3503,7 @@ python3 -I scripts/check-history.py --self-test
 python3 -I scripts/check-history.py
 sh scripts/plant-each.sh codegraph-clone history-in-a-document
 ```
+
+## Done
+
+2026-11-18, f0013623: `scripts/codegraph.py` and `scripts/codegraph_scan.py` (`similar`, `find`, `crate`, `graph`, `build`, `dups`, `new`), `scripts/dups-baseline.txt` (90 keys: 19 with T-917, 71 with T-918), `scripts/check-history.py`; both in `ci.yml` and `scripts/agent/check.sh`. `codegraph.py --self-test` and `check-history.py --self-test` pass; `dups`: 90 known findings, no new one; `check-history.py`: 67 documents, no narrative history; `plant-each.sh codegraph-clone history-in-a-document`: 2 caught. `similar file lock` gives `pod_core::lock::FileLock` first. In the next commit, `new` compares the words of names (two words or more, a share of 0.66) and reads only `.rs`, `.py` and the entries of `TODO/`: against `v0.66.0` it prints 101 look-alikes for 727 new items, and no clone.
