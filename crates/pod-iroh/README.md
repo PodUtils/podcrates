@@ -31,6 +31,7 @@ the pure-Rust provider of `pod-tls`.
 | `ticket` | `parse` (`iroh:TICKET` or iroh's ticket alone), `format`, `of`, `home_relay`, `follow` |
 | `keys` | `load(places, place, entropy)`, `load_in`, `Key`, `identity_key`, `fingerprint`, `name`; the places of `pod_identity::file` |
 | `allow` | `Allowlist` (`parse`, `read`, `admits`, `bad_lines`); `REFUSED`, `REFUSED_REASON` |
+| `home_relay` | `say_changes(endpoint, say)`: a line when the connection to a home relay ends and iroh dials it again, one for each new cause of a failed dial, and one when it is back, with the time of the gap (PodUtils/podssh#283, ask 4); `Relays::look`, `Status` |
 | `relays` | `default_urls`, `defaults`, `parse_url`, `parse_list`, `select(flag, variable)`, `Source`; `ping`, `ping_kept`, `home(relays, trust, way)`; `ENV` |
 | `pkarr` | `Server`, `Choice`, `choice(value)`, `server_for`, `n0_relays`; `publish`, `lookup`, `lookup_with`, `read`; `keep`, `keep_roads` (a node's record, put again as its roads change); `Finder::new(server, trust, way)`; `record::{Roads, Record, packet, quick_name, pinggy_address, tunnel_name, onion_address, opentunnel_name}`; `ENV` |
 | `pinggy` | `Address` (`NAME#SHA256:PIN`), `Pin` (`of_spki`, `parse`), `is_name`: the form of a Pinggy address of a record (call C767) |
@@ -176,12 +177,15 @@ both, PodUtils/podssh@T-280).
 
 ## Tests
 
-`cargo test -p pod-iroh --all-features`: 70 tests, each with its name of
+`cargo test -p pod-iroh --all-features`: 72 tests, each with its name of
 the source. The unit tests: the credentials of a proxy, the probe of UDP
 against iroh's relay server, the arms of QUIC, the record and its checks,
 the choice of a server of pkarr, the notice of a refused version.
 `tests/road.rs` (a session through a stand-in CONNECT proxy and the relay,
-20 MiB each way), `tests/share.rs` (the lanes), `tests/tickets.rs` (iroh's
+20 MiB each way), `tests/new_address.rs` (the client's tunnels go silent
+in an echo of 8 MiB and its new address has no network for 45 s: the
+session resumes whole, and the lines of the home relay come),
+`tests/share.rs` (the lanes), `tests/tickets.rs` (iroh's
 own ticket and the allowlist), `tests/keys.rs`, `tests/relays.rs` (the
 order of the relays, `/ping`, SOCKS5 with a password),
 `tests/proxy_env.rs` (`ALL_PROXY` alone, SOCKS5 by name for `socks5h://`, by address for `socks5://`),

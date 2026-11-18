@@ -1,0 +1,13 @@
+diff --git a/crates/pod-iroh/src/home_relay.rs b/crates/pod-iroh/src/home_relay.rs
+index cfb2accd..b3fa8286 100644
+--- a/crates/pod-iroh/src/home_relay.rs
++++ b/crates/pod-iroh/src/home_relay.rs
+@@ -59,7 +59,7 @@ impl Relays {
+                 (true, false) => {
+                     let why = status.error.as_deref().map(|why| format!(" ({why})")).unwrap_or_default();
+                     lines.push(format!("the connection to the iroh relay {host} ended{why}; dialling it again"));
+-                    seen.lost = Some(now);
++                    seen.lost = None;
+                     seen.error = status.error.clone();
+                 }
+                 (false, true) => {

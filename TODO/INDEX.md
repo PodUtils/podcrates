@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**777 entries: 145 open, 25 partial, 7 blocked, 600 done.**
+**778 entries: 145 open, 25 partial, 7 blocked, 601 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 8 | 0 | 171 | 190 |
-| P2 | 68 | 7 | 4 | 308 | 387 |
+| P2 | 68 | 7 | 4 | 309 | 388 |
 | P3 | 66 | 10 | 3 | 119 | 198 |
-| **All** | 145 | 25 | 7 | 600 | 777 |
+| **All** | 145 | 25 | 7 | 601 | 778 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -818,9 +818,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-936](foundation.md) | P1 | S | M0 | defect | done | `pod-testkit`: `refused()` gives a timeout on macOS, not a refusal |
 | [T-937](transport.md) | P3 | S | M1 | defect | done | `pod-dns`: a test of the resolver asks the resolver of the host (nightly 44275593101) |
 | [T-938](upkeep.md) | P2 | S | M5 | defect | partial | The riscv64 job of `nightly.yml` meets its limit of 90 minutes |
-| [T-939](relay.md) | P2 | M | M2 | defect | open | `pod-iroh` with `pod-session`: after a new address of the client on the relay-only path, no end resumes, and the bytes in flight are never sent again (PodUtils/podssh#283, ask 4) |
+| [T-939](relay.md) | P2 | M | M2 | defect | done | `pod-iroh` with `pod-session`: after a new address of the client on the relay-only path, no end resumes, and the bytes in flight are never sent again (PodUtils/podssh#283, ask 4) |
 | [T-940](fleet.md) | P2 | S | M8 | feature | open | `pod-job`: a fuzz target for one line of the source wire |
 | [T-941](foundation.md) | P2 | S | M0 | feature | open | `pod-core`: a lock of a file that other programs read, which on Windows refuses no reader (PodUtils/podssh#319) |
 | [T-942](relay.md) | P3 | S | M0 | defect | open | `pod-relay`: a kept offer of the layer loses `forward.liveness` |
 | [T-943](upkeep.md) | P2 | S | M5 | defect | partial | The static job of `aarch64-apple-darwin` in `ci.yml` gets no runner, four runs in a row |
 | [T-944](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the head of a payload cannot give a `PT_INTERP` path that lies past it, so Fedora 42's programs do not run on the userland rung (PodUtils/podvm#589) |
+| [T-945](relay.md) | P2 | M | M2 | feature | open | `pod-session`: the client says no wait of its own, so a hang with the node's `session.stall` cannot tell a loss on the link from bytes held for the client's application (PodUtils/podssh#283, ask 4) |

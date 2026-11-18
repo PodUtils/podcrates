@@ -59,6 +59,9 @@ pub(super) struct Outbox {
     ping: AtomicU64,
     /// The values of the `PING`s asked for so far.
     pings: AtomicU64,
+    /// The oldest `PING` that waits for its `PONG`: its value, and when the
+    /// heartbeat asked for it.
+    unanswered: Mutex<Option<(u64, Instant)>>,
     finish: Mutex<Option<Finish>>,
     /// Whether this side's `CLOSE` went out on this link.
     closed: AtomicBool,
@@ -80,6 +83,7 @@ impl Outbox {
             pong: Mutex::new(None),
             ping: AtomicU64::new(0),
             pings: AtomicU64::new(0),
+            unanswered: Mutex::new(None),
             finish: Mutex::new(None),
             closed: AtomicBool::new(false),
             close_due: AtomicBool::new(false),
@@ -121,8 +125,24 @@ impl Outbox {
     pub(super) fn ping(&self) {
         let value = self.pings.fetch_add(1, Ordering::SeqCst) + 1;
         self.ping.store(value, Ordering::SeqCst);
-        *lock(&self.pinged) = Instant::now();
+        let now = Instant::now();
+        *lock(&self.pinged) = now;
+        lock(&self.unanswered).get_or_insert((value, now));
         self.wake.notify_one();
+    }
+
+    /// The far end's `PONG` of `value` came: it answers each `PING` up to it.
+    pub(super) fn ponged(&self, value: u64) {
+        let mut unanswered = lock(&self.unanswered);
+        if unanswered.is_some_and(|(oldest, _)| value >= oldest) {
+            *unanswered = None;
+        }
+    }
+
+    /// When the heartbeat asked for the oldest `PING` that waits for its
+    /// `PONG`; `None` while each is answered.
+    pub(super) fn unanswered_since(&self) -> Option<Instant> {
+        lock(&self.unanswered).map(|(_, asked)| asked)
     }
 
     /// Stop at the next record boundary, after `last`.

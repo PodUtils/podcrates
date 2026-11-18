@@ -1,0 +1,8 @@
+# T-939: the heartbeat takes no account of a PING that waits for its PONG,
+# so a link that still carries the far end's own PINGs, while the bytes of
+# this side no longer reach the far end, is never lost: the test of that
+# link must fail.
+ENTRY=T-939
+GROUP=session
+EXPECT='test a_link_whose_far_end_answers_no_ping_while_nothing_moves_is_lost \.\.\. FAILED'
+RUN='cargo test -p pod-session --test session_heartbeat -- a_link_whose_far_end_answers_no_ping_while_nothing_moves_is_lost'

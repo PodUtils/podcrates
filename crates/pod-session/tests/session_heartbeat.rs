@@ -1,8 +1,9 @@
 //! The heartbeat of the resumable layer, on tokio's paused clock:
 //! over 200 s of idle time each end sends a record at least each 10 s, so the
 //! relay never sees a quiet link; a link that carries nothing from the far
-//! end for 30 s is dead, so a resume can replace it; and a peer that did not
-//! name `heartbeat.v1` gets no `PING`.
+//! end for 30 s is dead, so a resume can replace it, and so is one whose far
+//! end answers no `PING` while the session does not move; and a peer that
+//! did not name `heartbeat.v1` gets no `PING`.
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -97,7 +98,14 @@ async fn an_idle_session_carries_a_record_each_way_each_10_s() {
 
 /// A far end that greets with `features`, accepts a new session, and then
 /// reads each byte and sends nothing more.
-async fn silent_far_end(mut far: DuplexStream, features: &[&str]) {
+async fn silent_far_end(far: DuplexStream, features: &[&str]) {
+    deaf_far_end(far, features, None).await
+}
+
+/// A far end that greets with `features`, accepts a new session, and then
+/// reads each byte and answers none: with `pings`, it sends a `PING` of its
+/// own at that pace, as a far end that this side's bytes no longer reach.
+async fn deaf_far_end(mut far: DuplexStream, features: &[&str], pings: Option<Duration>) {
     let hello = Hello {
         version: 1,
         role: Role::NODE,
@@ -121,10 +129,26 @@ async fn silent_far_end(mut far: DuplexStream, features: &[&str]) {
     ];
     let accept = Record::Accept(Acceptance::New { id: SessionId([9; 16]), public });
     far.write_all(&accept.to_bytes().unwrap()).await.unwrap();
-    while let Ok(n) = far.read(&mut buf).await {
-        if n == 0 {
-            return;
+    let (mut read, mut write) = tokio::io::split(far);
+    let pinging = async move {
+        let Some(every) = pings else { return std::future::pending().await };
+        for value in 1.. {
+            tokio::time::sleep(every).await;
+            if write.write_all(&Record::Ping { value }.to_bytes().unwrap()).await.is_err() {
+                return;
+            }
         }
+    };
+    let reading = async move {
+        while let Ok(n) = read.read(&mut buf).await {
+            if n == 0 {
+                return;
+            }
+        }
+    };
+    tokio::select! {
+        () = pinging => {}
+        () = reading => {}
     }
 }
 
@@ -142,6 +166,31 @@ async fn a_link_that_carries_nothing_for_30_s_is_dead() {
     assert_eq!(e.kind(), std::io::ErrorKind::TimedOut);
     assert!(e.to_string().contains("nothing came from the far end for 30 s"), "{e}");
     assert!(after >= DEAD_AFTER && after <= DEAD_AFTER + Duration::from_secs(1), "dead after {after:?}");
+}
+
+/// The far end's own `PING`s still come, but this side's bytes no longer
+/// reach it (PodUtils/podssh#283, ask 4): the link carries something each
+/// 10 s, so it is never silent, but the far end answers no `PING` and
+/// acknowledges nothing. That link is lost too, so a resume can replace
+/// it.
+#[tokio::test(start_paused = true)]
+async fn a_link_whose_far_end_answers_no_ping_while_nothing_moves_is_lost() {
+    let (client_link, far) = tokio::io::duplex(PIPE);
+    tokio::spawn(deaf_far_end(far, &["replay.v1", "heartbeat.v1"], Some(PING_EVERY)));
+    let client = client::start(client_link, Ask::New, Settings::default(), &mut OsEntropy).await.unwrap();
+    let (mut app, app_end) = tokio::io::duplex(PIPE);
+    app.write_all(b"bytes that the far end never acknowledges").await.unwrap();
+    let start = Instant::now();
+    let outcome = tokio::time::timeout(Duration::from_secs(300), client.run(app_end)).await;
+    let after = start.elapsed();
+    let outcome = outcome.expect("the link carried the far end's PINGs, and was never found lost");
+    let Outcome::Layer(ended) = outcome else { panic!("{outcome:?}") };
+    let End::Lost(Some(e)) = &ended.end else { panic!("{ended:?}") };
+    assert_eq!(e.kind(), std::io::ErrorKind::TimedOut);
+    assert!(e.to_string().contains("the far end answered no PING and acknowledged nothing for 30 s"), "{e}");
+    // The first `PING` goes after 10 s with nothing sent; its answer waits 30 s.
+    let bound = DEAD_AFTER + PING_EVERY + Duration::from_secs(1);
+    assert!(after >= DEAD_AFTER && after <= bound, "lost after {after:?}");
 }
 
 #[tokio::test(start_paused = true)]

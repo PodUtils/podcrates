@@ -13,7 +13,8 @@
 //! the sessions of a far end, to the client keys of its allowlist ([`allow`]);
 //! [`client`] dials a node by its ticket ([`ticket`]). Each end has its key in
 //! a private file ([`keys`]), and its home relay is the first of its list that
-//! answers ([`relays`]). A node keeps a record of its home relay at a server of
+//! answers ([`relays`]); [`home_relay`] says when its connection to that
+//! relay ends and is dialled again. A node keeps a record of its home relay at a server of
 //! pkarr, and a client whose ticket's relay does not reach the node asks it
 //! ([`pkarr`], PodUtils/podssh@T-350); the record names the node's other roads
 //! too, for a client with the node's key alone ([`pinggy`]: the form of a
@@ -35,6 +36,7 @@ pub mod allow;
 pub mod client;
 pub mod endpoint;
 pub mod far;
+pub mod home_relay;
 pub mod keys;
 pub mod pinggy;
 pub mod pkarr;

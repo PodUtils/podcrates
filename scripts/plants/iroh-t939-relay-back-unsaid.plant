@@ -1,0 +1,6 @@
+# T-939: the lines of the home relay forget the loss of the connection, so
+# its return gives no line: the test of the lines must fail.
+ENTRY=T-939
+GROUP=link
+EXPECT='test home_relay::tests::a_lost_connection_gives_a_line_each_new_cause_one_and_its_return_one \.\.\. FAILED'
+RUN='cargo test -p pod-iroh --all-features --lib -- home_relay::'

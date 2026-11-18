@@ -1,0 +1,13 @@
+diff --git a/crates/pod-session/src/pump.rs b/crates/pod-session/src/pump.rs
+index d5cb1dc0..ea94f378 100644
+--- a/crates/pod-session/src/pump.rs
++++ b/crates/pod-session/src/pump.rs
+@@ -442,7 +442,7 @@ async fn beat(outbox: &Outbox, heard: &Mutex<Instant>, hearing: &Hearing, state:
+             return End::Lost(Some(std::io::Error::new(std::io::ErrorKind::TimedOut, why)));
+         }
+         let unanswered = stood.unanswered(state, outbox.unanswered_since(), now);
+-        if unanswered.is_some_and(|since| now.duration_since(since) >= PING_ANSWER) {
++        if false && unanswered.is_some_and(|since| now.duration_since(since) >= PING_ANSWER) {
+             let why = format!("the far end answered no PING and acknowledged nothing for {} s", PING_ANSWER.as_secs());
+             return End::Lost(Some(std::io::Error::new(std::io::ErrorKind::TimedOut, why)));
+         }

@@ -80,6 +80,126 @@ pub async fn proxy(relay_port: u16) -> (SocketAddr, Arc<AtomicUsize>) {
     (addr, tunnels)
 }
 
+/// A stand-in CONNECT proxy whose client can change its address, as
+/// podssh's `fake-proxy.py --move`: after [`Moving::now`], each tunnel that
+/// was open goes silent, with no RST, and each new one works. The count of
+/// tunnels, and the switch.
+pub async fn moving_proxy(relay_port: u16) -> (SocketAddr, Arc<AtomicUsize>, Arc<Moving>) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("a port on the loopback");
+    let addr = listener.local_addr().unwrap();
+    let tunnels = Arc::new(AtomicUsize::new(0));
+    let moving = Arc::new(Moving::default());
+    let (counted, switch) = (tunnels.clone(), moving.clone());
+    tokio::spawn(async move {
+        while let Ok((client, _)) = listener.accept().await {
+            let (counted, switch) = (counted.clone(), switch.clone());
+            tokio::spawn(async move {
+                let _ = silent_after_move(client, relay_port, &counted, &switch).await;
+            });
+        }
+    });
+    (addr, tunnels, moving)
+}
+
+/// The switch of [`moving_proxy`]: the moves so far, and until when a new
+/// tunnel is refused.
+#[derive(Debug, Default)]
+pub struct Moving {
+    moves: AtomicUsize,
+    away_until: std::sync::Mutex<Option<tokio::time::Instant>>,
+}
+
+impl Moving {
+    /// The client's address changes: each open tunnel goes silent.
+    pub fn now(&self) {
+        self.moves.fetch_add(1, Ordering::SeqCst);
+    }
+
+    /// The client's address changes, and the new one has no network for
+    /// `away`: each new tunnel in that time is refused.
+    pub fn now_away(&self, away: Duration) {
+        *self.away_until.lock().unwrap() = Some(tokio::time::Instant::now() + away);
+        self.now();
+    }
+
+    fn away(&self) -> bool {
+        self.away_until.lock().unwrap().is_some_and(|until| tokio::time::Instant::now() < until)
+    }
+
+    fn count(&self) -> usize {
+        self.moves.load(Ordering::SeqCst)
+    }
+}
+
+async fn silent_after_move(
+    client: TcpStream,
+    relay_port: u16,
+    tunnels: &AtomicUsize,
+    moving: &Moving,
+) -> std::io::Result<()> {
+    if moving.away() {
+        return Ok(());
+    }
+    let Some((client, relay)) = open(client, relay_port, tunnels).await? else { return Ok(()) };
+    let born = moving.count();
+    let (client_r, client_w) = client.into_split();
+    let (relay_r, relay_w) = relay.into_split();
+    tokio::join!(pipe(client_r, relay_w, moving, born), pipe(relay_r, client_w, moving, born));
+    Ok(())
+}
+
+/// One way of a tunnel: after a move, its bytes go nowhere, and nothing
+/// tells either end, as with an address that is gone.
+async fn pipe<R, W>(mut from: R, mut to: W, moving: &Moving, born: usize)
+where
+    R: tokio::io::AsyncRead + Unpin,
+    W: tokio::io::AsyncWrite + Unpin,
+{
+    let mut buf = vec![0u8; 64 * 1024];
+    while let Ok(n) = from.read(&mut buf).await {
+        if n == 0 {
+            break;
+        }
+        if moving.count() != born {
+            // Held open: the sockets stay, and no byte passes.
+            let _hold = (from, to);
+            std::future::pending::<()>().await;
+            return;
+        }
+        if to.write_all(&buf[..n]).await.is_err() {
+            break;
+        }
+    }
+    let _ = to.shutdown().await;
+}
+
+/// The head of a CONNECT read, and the relay dialled: `None` for a request
+/// that is refused.
+async fn open(
+    mut client: TcpStream,
+    relay_port: u16,
+    tunnels: &AtomicUsize,
+) -> std::io::Result<Option<(TcpStream, TcpStream)>> {
+    let mut head = Vec::new();
+    let mut byte = [0u8; 1];
+    while !head.ends_with(b"\r\n\r\n") && head.len() < 16 * 1024 {
+        if client.read(&mut byte).await? == 0 {
+            return Ok(None);
+        }
+        head.push(byte[0]);
+    }
+    let head = String::from_utf8_lossy(&head).into_owned();
+    let line = head.lines().next().unwrap_or_default().to_string();
+    if line != format!("CONNECT {RELAY_NAME}:{relay_port} HTTP/1.1") {
+        client.write_all(b"HTTP/1.1 403 not on the egress allowlist\r\nContent-Length: 0\r\n\r\n").await?;
+        return Ok(None);
+    }
+    let relay = TcpStream::connect(("127.0.0.1", relay_port)).await?;
+    tunnels.fetch_add(1, Ordering::SeqCst);
+    client.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").await?;
+    Ok(Some((client, relay)))
+}
+
 async fn tunnel(mut client: TcpStream, relay_port: u16, tunnels: &AtomicUsize) -> std::io::Result<()> {
     let mut head = Vec::new();
     let mut byte = [0u8; 1];
