@@ -18,7 +18,8 @@
   `pod-session`).
 - The session of podcrates coordinates the five sessions: podcrates,
   podrunner (the flagship), podssh, podnet and podvm (the ruling
-  "Coordinator", call C781; `docs/HANDOFF.md` has the first steps).
+  "Coordinator" and "COORD only": COORD issues alone; COORD-136, #227,
+  has the order of the sessions).
 - The CI work of githome and cfb (the work of podrunner) comes first in
   each project (the ruling "podrunner first", COORD-134, #225). The
   channel of cfb and githome is #223: podcrates answers each in one
@@ -52,9 +53,9 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 "podrunner online" and "Sessions online", "The move of podssh" and
 "Discipline".
 
-First, as the coordinator: find or start the sessions of podrunner,
-podssh, podnet and podvm, and brief each (`docs/HANDOFF.md`). Route each
-ask between them, podrunner's first. Then, in podcrates: the red nightly
+First, as the coordinator: read the answers of the sessions of podrunner,
+podssh, podnet and podvm to COORD-136 (#227), and route each ask between
+them by COORD issues, podrunner's first. Then, in podcrates: the red nightly
 (T-914, T-915, T-916). Then the asks of podrunner
 (COORD-134, #225): T-907 (`pod-time`, PodUtils/podrunner#291, call C779);
 the next tag, which carries the fix of PodUtils/podrunner#290 and the work
@@ -64,7 +65,9 @@ T-909 (partial, on `wip/t909`; a gate of podssh's next beta). Then the
 entries that a need of githome or cfb names for their CI: T-922 (the
 schemas, #223 G-31), T-921 (a fake GitHub, #223 G-30) with T-106 (G-10),
 T-104 with T-880 (one crate `pod-release`; A-X-13, #223 G-34), T-100
-(G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then the open asks
+(G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then cfb's asks
+that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
+T-117. Then the open asks
 of the consumers: T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
 T-851. Then T-920.
 Then the ruling "Discipline": T-692

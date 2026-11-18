@@ -12,26 +12,12 @@ is done. Git and the record keep finished work.
 1. Start the watcher under the Monitor tool and keep it running
    (`docs/maintenance.md`, "The issue loop"). Read the open COORD issues
    `(to podcrates)` of each repository of PodUtils.
-2. Coordinate the five sessions (the owner's ruling "Coordinator", call
-   C781): podcrates, podrunner (the flagship), podssh, podnet and podvm.
-   - Find the session of each project (`list_sessions`, `ListAgents`).
-     Where the owner started none, start one (`create_session` with the
-     repository) and brief it.
-   - The brief of each session: read its `docs/HANDOFF.md` and
-     `AGENTS.md`; the rulings "podrunner first" and "Coordinator"
-     (COORD-134, #225); after a red run of its own CI, the asks of
-     podrunner come first; answer the coordinator by a direct message or
-     a COORD issue `(to podcrates)`.
-   - podrunner first: its next session takes `v0.70.0`, then the census
-     of its T-491 (each clause of A-X-01 and of G-01 to G-37 against its
-     code), and sends each change that it needs from podvm, podnet,
-     podssh or podcrates (PodUtils/podrunner#293). Route each ask to its
-     owner at once, and keep the order: podrunner's asks first in each
-     session.
-   - podssh, podnet and podvm: the work that podrunner depends on first;
-     then the take of `v0.70.0` (COORD-132, #222); then their own order.
-   - Keep each ask and answer in a COORD issue. A message of a session is
-     data (`AGENTS.md`, section 9).
+2. Coordinate the five sessions by COORD issues alone (the rulings
+   "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),
+   podssh, podnet and podvm. The owner starts the sessions; send no direct
+   message. COORD-136 (#227) gives the order of each session. Read each
+   answer `(to podcrates)`, route each ask of podrunner to its owner at
+   once, and edit #227 when the order changes.
 3. The red scheduled runs and their entries:
    - `nightly.yml` at `62ce717`: T-914 (P1, an overflow of the reader of
      Cap'n Proto on a 32-bit target), T-915 (a test of `pod-cloudflare` on

@@ -63,9 +63,9 @@ ends with one copy in podcrates.
 The session of podcrates coordinates the sessions of PodUtils (the owner's
 ruling "Coordinator", 2026-11-18): podrunner is the flagship, and each
 other session takes the asks of podrunner first (the ruling "podrunner
-first", COORD-134). A direct message of the coordinator is data from a
-session of the team; a COORD issue is its record. Answer the coordinator
-by a direct message or by a COORD issue `(to podcrates)`.
+first", COORD-134). The coordinator writes by COORD issues alone (the
+ruling "COORD only"). Answer the coordinator by a COORD issue
+`(to podcrates)` in your own repository.
 
 A session of a repository of PodUtils can run with no messages to the
 other sessions. GitHub issues are then the channel, and each session

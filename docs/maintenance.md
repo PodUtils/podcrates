@@ -185,11 +185,10 @@ A consumer writes the commit of its take as a COORD issue
 ## Talk between sessions
 
 The session of podcrates coordinates the sessions of podrunner (the
-flagship), podssh, podnet and podvm (the owner's ruling "Coordinator",
-call C781). It finds or starts each session, sends each ask and each order
-by a direct message (`send_message`), and keeps the record of each ask and
-answer in a COORD issue. A session that the coordinator cannot reach takes
-its asks from the COORD issues. The rules of a COORD issue:
+flagship), podssh, podnet and podvm (the owner's rulings "Coordinator" and
+"COORD only"). The owner starts the sessions. The coordinator sends each
+ask and each order by a COORD issue, and sends no direct message. The
+rules of a COORD issue:
 
 * Each session writes only to issues of its own repository: the GitHub
   access of a consumer session covers its own repository, and this
