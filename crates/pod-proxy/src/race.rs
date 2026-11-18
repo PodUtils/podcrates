@@ -107,6 +107,9 @@ pub(crate) async fn race(
     until: Instant,
     ask: &Option<Result<(), String>>,
 ) -> Result<(TcpStream, Multipath, SocketAddr), DialError> {
+    // A resolver's answer can hold an address twice (a pin and the system's
+    // answer): each is dialed once, in its first place.
+    let addrs = distinct(addrs);
     if let Some(plan) = leg.families {
         let order = crate::family::plan(&addrs, crate::family::Local::cached());
         let each = |addr| attempt(addr, ask.clone());
@@ -179,6 +182,7 @@ pub fn group_errors(errors: &[(SocketAddr, String)]) -> String {
     let mut groups: Vec<(&str, Vec<SocketAddr>)> = Vec::new();
     for (addr, text) in errors {
         match groups.iter_mut().find(|(t, _)| *t == text.as_str()) {
+            Some((_, addrs)) if addrs.contains(addr) => {}
             Some((_, addrs)) => addrs.push(*addr),
             None => groups.push((text, vec![*addr])),
         }
@@ -195,6 +199,17 @@ pub fn group_errors(errors: &[(SocketAddr, String)]) -> String {
         })
         .collect::<Vec<_>>()
         .join("; ")
+}
+
+/// Each address of `addrs` once, in the place where it first comes.
+pub fn distinct(addrs: Vec<SocketAddr>) -> Vec<SocketAddr> {
+    let mut out: Vec<SocketAddr> = Vec::with_capacity(addrs.len());
+    for a in addrs {
+        if !out.contains(&a) {
+            out.push(a);
+        }
+    }
+    out
 }
 
 /// Connect to the first of `addrs` that answers, with no proxy and no
@@ -265,6 +280,27 @@ mod tests {
              Permission denied (os error 13); 1.2.3.4:7844: refused"
         );
         assert_eq!(group_errors(&errors[..1]), format!("198.41.192.1:7844: {denied}"));
+    }
+
+    /// An address that an answer holds twice is dialed once and said once
+    /// (PodUtils/podssh#315).
+    #[test]
+    fn an_address_twice_is_dialed_once_and_said_once() {
+        let a = |s: &str| s.parse::<SocketAddr>().unwrap();
+        let addrs = vec![a("127.0.0.1:9443"), a("[::1]:9443"), a("127.0.0.1:9443"), a("10.0.0.1:1")];
+        assert_eq!(distinct(addrs), [a("127.0.0.1:9443"), a("[::1]:9443"), a("10.0.0.1:1")]);
+        let refused = "Connection refused (os error 111)".to_string();
+        let twice = [(a("127.0.0.1:9443"), refused.clone()), (a("127.0.0.1:9443"), refused.clone())];
+        assert_eq!(group_errors(&twice), format!("127.0.0.1:9443: {refused}"));
+    }
+
+    #[tokio::test]
+    async fn a_dial_of_one_refused_address_twice_names_it_once() {
+        let (_held, at) = pod_testkit::refused::refused();
+        let e = dial_addrs(&[at, at], Duration::from_secs(10)).await.expect_err("a refused address");
+        let text = e.to_string();
+        assert!(!text.contains("2 addresses"), "{text}");
+        assert!(text.contains(&at.to_string()), "{text}");
     }
 
     #[test]

@@ -47,7 +47,7 @@ tracing = { workspace = true }
 libc = "0.2"
 
 [dev-dependencies]
-pod-testkit = { workspace = true }
+pod-testkit = { workspace = true, features = ["refused"] }
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }
 # The tests of TLS run on ring.
 rustls = { workspace = true, features = ["ring"] }
