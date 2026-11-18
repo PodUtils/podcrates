@@ -147,6 +147,24 @@ pub fn run_report_rules(schema: &mut Schema) {
     }
 }
 
+/// The version of each object of the source wire: `parse` reads `schema`
+/// before serde, and `write` puts it first. Each branch of the union gets
+/// the property `schema` as the constant 1, required first.
+pub fn wire_version(schema: &mut Schema) {
+    let Some(Value::Array(branches)) = schema.get_mut("oneOf") else { return };
+    for branch in branches {
+        let Value::Object(branch) = branch else { continue };
+        if let Some(Value::Object(properties)) = branch.get_mut("properties") {
+            properties.insert("schema".into(), json!({ "type": "integer", "const": SCHEMA }));
+        }
+        let mut required = vec![json!("schema")];
+        if let Some(Value::Array(have)) = branch.get("required") {
+            required.extend(have.iter().cloned());
+        }
+        branch.insert("required".into(), required.into());
+    }
+}
+
 /// The rules of [`crate::PublicReport::check`]: its unit is `unit_kind`
 /// and `boundary`.
 pub fn public_report_rules(schema: &mut Schema) {

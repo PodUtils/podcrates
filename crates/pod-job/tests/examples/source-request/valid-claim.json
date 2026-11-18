@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "op": "claim",
+  "job_id": "1234",
+  "runner_name": "r-1"
+}

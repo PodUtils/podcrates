@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "op": "withdraw",
+  "job_id": "1234",
+  "reason": "wait-deadline"
+}

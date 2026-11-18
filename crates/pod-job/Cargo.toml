@@ -1,6 +1,6 @@
 [package]
 name = "pod-job"
-description = "The records of a CI runner's job: the job offer, the unit capability, the run report and the public report, with their ids, the refusal codes and the checks that serde does not do."
+description = "The records of a CI runner's job: the job offer, the unit capability, the run report and the public report, the status of a host and the wire of a job source, with their ids, the refusal codes and the checks that serde does not do."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,6 +11,8 @@ repository.workspace = true
 serde = { workspace = true }
 # The policy of an offer is a JSON object that the crate does not read.
 serde_json = { workspace = true }
+# The minted credential of the source wire is wiped at its drop.
+zeroize = { workspace = true }
 
 # The JSON Schemas of schemas/ come from the types, in tests only (ruling
 # Q-A8). The feature `schema` gives the JsonSchema of each type to the tests

@@ -1,0 +1,454 @@
+{
+  "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/status.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Status",
+  "description": "The status of a host (`status.v1`).",
+  "type": "object",
+  "properties": {
+    "degraded": {
+      "description": "Why the host is degraded: capacity 0 until an operator clears it.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "draining": {
+      "type": "boolean"
+    },
+    "ended_without_completion": {
+      "description": "The jobs that ended without a `completed` event of their source.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "host": {
+      "type": "string"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/KindStatus"
+      }
+    },
+    "no_tier_served": {
+      "description": "No unit kind of the host meets the floor of any source: no source\ngets an offer.",
+      "type": "boolean"
+    },
+    "pins": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PinStatus"
+      }
+    },
+    "schema": {
+      "description": "[`SCHEMA`].",
+      "type": "integer",
+      "const": 1
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SourceStatus"
+      }
+    },
+    "spooled_reports": {
+      "description": "The reports that a source refused, in the spool.",
+      "type": "integer",
+      "format": "uint",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "host",
+    "draining",
+    "no_tier_served",
+    "sources",
+    "kinds",
+    "pins",
+    "ended_without_completion",
+    "spooled_reports"
+  ],
+  "$defs": {
+    "Boundary": {
+      "description": "The boundary between a job and the host, weakest first. `redirect`\nrewrites file paths and is no isolation against hostile code.",
+      "type": "string",
+      "enum": [
+        "none",
+        "redirect",
+        "confined",
+        "guest"
+      ]
+    },
+    "Capability": {
+      "description": "The capability record of one unit kind (`unit-capability.v1`).",
+      "type": "object",
+      "properties": {
+        "arch": {
+          "description": "`x86_64` or `aarch64`.",
+          "type": "string",
+          "enum": [
+            "x86_64",
+            "aarch64"
+          ]
+        },
+        "boundary": {
+          "$ref": "#/$defs/Boundary"
+        },
+        "boundary_proof": {
+          "description": "The name of the proof of the boundary (a self-test, a probe), if any.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "container": {
+          "$ref": "#/$defs/ContainerRoute"
+        },
+        "credential_store": {
+          "$ref": "#/$defs/CredentialStore"
+        },
+        "egress_hold": {
+          "$ref": "#/$defs/EgressHold"
+        },
+        "kind": {
+          "description": "The unit kind: `fake`, `podvm`, `microvm`, `docker` or `host`.",
+          "type": "string"
+        },
+        "kvm": {
+          "$ref": "#/$defs/Fact"
+        },
+        "limits": {
+          "description": "One mode for each limit (`wall`, `cpu`, `memory`, `pids`, `disk`). A\nlimit with no entry is `none`.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/LimitMode"
+          },
+          "default": {}
+        },
+        "mount_modes": {
+          "description": "The modes of a mount that the unit can give: `rw`, `ro`.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "net": {
+          "description": "The way out of the unit: `broker`, `none`, or `host`.",
+          "type": "string"
+        },
+        "principal": {
+          "$ref": "#/$defs/Principal"
+        },
+        "rootfs_fresh": {
+          "$ref": "#/$defs/Fact"
+        },
+        "schema": {
+          "description": "The version of the record: `SCHEMA`, 1.",
+          "type": "integer",
+          "const": 1
+        },
+        "secret_delivery": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SecretDelivery"
+          }
+        },
+        "tree_kill": {
+          "$ref": "#/$defs/TreeKill"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "kind",
+        "arch",
+        "boundary",
+        "principal",
+        "container",
+        "net",
+        "secret_delivery",
+        "credential_store",
+        "mount_modes",
+        "rootfs_fresh",
+        "tree_kill",
+        "egress_hold",
+        "kvm"
+      ]
+    },
+    "ContainerRoute": {
+      "description": "How a unit runs the containers of a job.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "unknown"
+          ]
+        },
+        {
+          "description": "No container: a job that needs one is refused\n(`container-not-supported`).",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "The container hooks of the runner (podrunner's call C2).",
+          "type": "string",
+          "const": "hooks"
+        },
+        {
+          "description": "A container engine of the unit's own, inside its boundary: the runner\nuses it as on a GitHub-hosted runner (`DOCKER_HOST` of a socket inside\nthe unit, never a socket of the host), for `services:`, `docker build`\nand Dockerfile actions (T-553, PodUtils/podrunner#91).",
+          "type": "string",
+          "const": "engine"
+        }
+      ]
+    },
+    "CredentialStore": {
+      "description": "Where the credential files live while the unit runs.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "unknown"
+          ]
+        },
+        {
+          "description": "A directory of mode 0700 on the disk of the host.",
+          "type": "string",
+          "const": "private-dir"
+        },
+        {
+          "description": "A memory file system.",
+          "type": "string",
+          "const": "tmpfs"
+        }
+      ]
+    },
+    "EgressHold": {
+      "description": "How the network traffic of a unit reaches the egress broker.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "none",
+            "enforced"
+          ]
+        },
+        {
+          "description": "A redirect that a payload can go around.",
+          "type": "string",
+          "const": "advisory"
+        },
+        {
+          "description": "Read as `none`.",
+          "type": "string",
+          "const": "unknown"
+        }
+      ]
+    },
+    "Fact": {
+      "description": "A fact that is true, false or not known. `unknown` is read as false.",
+      "type": "string",
+      "enum": [
+        "yes",
+        "no",
+        "unknown"
+      ]
+    },
+    "KindStatus": {
+      "description": "One unit kind in the status.",
+      "type": "object",
+      "properties": {
+        "busy": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "name": {
+          "type": "string"
+        },
+        "probe": {
+          "description": "The capability record of the kind (`unit-capability.v1`).",
+          "$ref": "#/$defs/Capability"
+        },
+        "slots": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "slots",
+        "busy",
+        "probe"
+      ]
+    },
+    "LimitMode": {
+      "description": "How the unit applies one limit.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "enforced",
+            "none"
+          ]
+        },
+        {
+          "description": "Measured and reported, not enforced.",
+          "type": "string",
+          "const": "reported"
+        }
+      ]
+    },
+    "PinStatus": {
+      "description": "One pinned payload in the status.",
+      "type": "object",
+      "properties": {
+        "age_s": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "arch": {
+          "type": "string"
+        },
+        "reference": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "arch",
+        "reference",
+        "age_s"
+      ]
+    },
+    "Principal": {
+      "description": "Units and the control plane run as one uid (`shared`) or not.",
+      "type": "string",
+      "enum": [
+        "shared",
+        "distinct",
+        "unknown"
+      ]
+    },
+    "SecretDelivery": {
+      "description": "How a credential reaches the unit. There is no `env`: a credential never\ngoes into the environment.",
+      "type": "string",
+      "enum": [
+        "files",
+        "socket"
+      ]
+    },
+    "SourceStatus": {
+      "description": "One source in the status.",
+      "type": "object",
+      "properties": {
+        "arch": {
+          "type": "string"
+        },
+        "credential_ages_s": {
+          "description": "The age of the credential of each job that is not final, in\nseconds, oldest first.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          }
+        },
+        "jobs": {
+          "description": "The jobs of the source in each state that is not final.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          }
+        },
+        "key_age_s": {
+          "description": "The age of the key file of the source (the App key of\n`github-scaleset`, the key of `remote`), from its time of change.\nNo value of the key is read.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "name": {
+          "type": "string"
+        },
+        "refused": {
+          "description": "The refusals of the source, by code.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          }
+        },
+        "revoked": {
+          "type": "boolean"
+        },
+        "tier": {
+          "$ref": "#/$defs/Tier"
+        },
+        "trust_unknown": {
+          "description": "The offers whose trust inputs hold `unknown`: the source could not\nread the run or the membership.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "tier",
+        "arch",
+        "revoked",
+        "jobs",
+        "refused",
+        "trust_unknown",
+        "credential_ages_s"
+      ]
+    },
+    "Tier": {
+      "description": "The trust tier of a job. It comes from the trust inputs of an offer,\nnever from a label; `local` comes only from the configuration.",
+      "oneOf": [
+        {
+          "description": "A pull request from a fork.",
+          "type": "string",
+          "const": "untrusted"
+        },
+        {
+          "description": "A member job of a configured organization.",
+          "type": "string",
+          "const": "trusted"
+        },
+        {
+          "description": "Set only by the configuration.",
+          "type": "string",
+          "const": "local"
+        }
+      ]
+    },
+    "TreeKill": {
+      "description": "The kill of the whole process tree of a unit.",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "unverified",
+            "unknown"
+          ]
+        },
+        {
+          "description": "The conformance test of the tree kill (podrunner's test 3) passed\non this host.",
+          "type": "string",
+          "const": "verified"
+        }
+      ]
+    }
+  }
+}

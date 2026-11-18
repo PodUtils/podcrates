@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "op": "assigned",
+  "job_id": "1234",
+  "real": {
+    "run_id": 7,
+    "job_name": "build",
+    "event": "push",
+    "repository": "o/r",
+    "actor": "a",
+    "head_repository": "f/r",
+    "head_is_fork": true,
+    "job_id": 99
+  }
+}

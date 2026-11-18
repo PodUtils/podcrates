@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "op": "audit",
+  "line": {
+    "job_id": "1234",
+    "dropped": 4
+  }
+}

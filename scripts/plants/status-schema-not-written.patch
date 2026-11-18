@@ -1,0 +1,12 @@
+--- a/crates/pod-job/src/status.rs
++++ b/crates/pod-job/src/status.rs
+@@ -79,6 +79,9 @@
+     pub ended_without_completion: u64,
+     /// The reports that a source refused, in the spool.
+     pub spooled_reports: usize,
++    /// A planted field that the schema file does not have.
++    #[serde(default)]
++    pub uptime_s: u64,
+ }
+ 
+ impl Status {

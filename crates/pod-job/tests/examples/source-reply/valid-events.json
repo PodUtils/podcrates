@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "reply": "events",
+  "events": [
+    {
+      "event": "offer",
+      "offer": {
+        "job_id": "1234",
+        "schema": 1,
+        "source": "githome",
+        "arch": "x86_64"
+      }
+    },
+    {
+      "event": "cancel",
+      "job_id": "1235"
+    },
+    {
+      "event": "completed",
+      "job_id": "1236",
+      "result": "succeeded"
+    },
+    {
+      "event": "started",
+      "job_id": "1234",
+      "runner_name": "r-1"
+    }
+  ]
+}

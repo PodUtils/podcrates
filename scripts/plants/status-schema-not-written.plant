@@ -1,0 +1,7 @@
+# pod-job: a field of status.v1 that the schema file does not have; the
+# test of the generated schemas fails (T-922).
+ENTRY=T-922
+GROUP=job
+EXPECT='status.v1.schema.json differs from the types'
+RUN='cargo test -p pod-job --all-features --lib schemas::the_schemas_are_generated_from_the_types'
+LIMIT=900

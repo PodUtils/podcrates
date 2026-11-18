@@ -1,0 +1,11 @@
+--- a/crates/pod-job/src/source/mod.rs
++++ b/crates/pod-job/src/source/mod.rs
+@@ -147,7 +147,7 @@
+     },
+     /// The reply to each other request. A variant with fields, so that
+     /// serde refuses an unknown field of it: a unit variant takes any.
+-    Done {},
++    Done,
+     Error {
+         code: SourceCode,
+         detail: String,

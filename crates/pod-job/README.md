@@ -9,6 +9,9 @@ types and as JSON Schemas:
 | `unit-capability.v1`: what one unit kind of one host gives | `Capability` | `schemas/unit-capability.v1.schema.json` |
 | `run-report.v1`: the end of one job, for the operator | `RunReport` | `schemas/run-report.v1.schema.json` |
 | `run-report-public.v1`: the end of one job, for a source that is not `operator_controlled` | `PublicReport` | `schemas/run-report-public.v1.schema.json` |
+| `status.v1`: what the supervisor of a host of podrunner holds now | `Status` | `schemas/status.v1.schema.json` |
+| `source-request.v1`: a request of podrunner to a source of jobs | `source::Request` | `schemas/source-request.v1.schema.json` |
+| `source-reply.v1`: the reply of a source to one request | `source::Reply` | `schemas/source-reply.v1.schema.json` |
 
 The schemas come from the types (ruling Q-A8) and go out with each tag.
 githome (GitHub #36) and cfb (GitHub #35) pin them. The crate reads no
@@ -41,6 +44,12 @@ failure.
 | `Capability`, `Capability::check`, `Capability::limit(name)` | the capability record; `Boundary`, `Principal`, `ContainerRoute` (`none`, `hooks`, `engine`, `unknown`), `SecretDelivery`, `CredentialStore`, `TreeKill`, `EgressHold`, `LimitMode`, `Fact` |
 | `RunReport`, `RunReport::check`, `RunReport::public` | the full report; `cpu_s` and `peak_rss_mib` of the unit (`Option<Residual>`: a count, or `unknown`; absent when no unit ran; T-527, PodUtils/podrunner#86); `UnitFields`, `ExitReason` (`limit`: the unit ended the job over a bound of its limits), `Residual`, `report::Unknown`; `claim_to_first_step_s` and `job_images` (digests; `check` refuses a tag) are private: `public()` leaves them out |
 | `PublicReport`, `PublicReport::check` | the public report, with `cpu_s` and `peak_rss_mib` (they name no host) |
+| `Status`, `Status::check`, `SourceStatus`, `KindStatus`, `PinStatus` | the status of a host; `KindStatus::probe` is a `Capability`; `check` reads the version and the probe of each kind |
+| `source::{Request, Reply, OPS, LINE_MAX}` | the source wire: a request (tag `op`) and a reply (tag `reply`) |
+| `source::{parse_request, parse_reply, request_line, reply_line}` | read one line (each fault is `bad-request`, with no value of the line in its detail); write one line with `"schema": 1` first and its end of line |
+| `source::{Event, Offer, RealJob, HostFacts, KindFacts}` | the events of `next` (tag `event`), the real job of `assigned`, the facts of a host in `hello` |
+| `source::{SourceCode, SourceError}` | the refusal codes of a source (`ALL`, `as_str`) and a refusal |
+| `source::{Minted, MintedFile, Hidden}` | the credential of the reply `credential`: `Hidden` prints no byte in `Debug` and is wiped at its drop |
 
 ## Features
 
@@ -94,12 +103,38 @@ After a change of a type, write the schemas again and commit them:
 POD_JOB_WRITE_SCHEMAS=1 cargo test -p pod-job schemas
 ```
 
+## The source wire
+
+One request on one line, one reply on one line, UTF-8 JSON with `\n` at
+the end. Each object starts with `"schema": 1`; another value, no value, a
+line over 1 MiB (`LINE_MAX`), an unknown `op`, an unknown field and a bad
+`job_id` are `bad-request`. The two schemas are two files, one for each
+direction: a source reads `source-request.v1` and writes
+`source-reply.v1`, and podrunner the reverse. Each is a union on its own
+tag (`op`, `reply`), and the id of each can change alone. In each branch of
+a union, `schema` is the constant 1 and the first required key.
+
+The operations, the order of one job, the events and the conformance
+tests are the contract of podrunner (`docs/contracts/source-driver.md` of
+PodUtils/podrunner); the trait `JobSource`, its conformance suite and the
+pipe stay in podrunner.
+
+The credential: `Reply::Credential` holds a `Minted` of this crate
+(`files`, each `name` and `content`), not podrunner's `Credential`. A
+source in another language needs the form in the schema, so the form is
+here; the `content` is a `Hidden`, which prints no byte in `Debug` and is
+wiped (zeroize) at its drop. The writer of the files (mode 0600) and the
+check of a plain file name stay in podrunner (`secret.rs`), which converts
+a `Minted` to its `Credential`.
+
 ## The examples
 
-`tests/examples/RECORD/` holds 16 valid and 22 invalid examples (podrunner's
-draft); `tests/examples/expect.json` gives the reason of each invalid one.
-They are test data of the crate, not schemas: `schemas/` holds the
-`*.schema.json` files only (`docs/design.md`, section 2).
+`tests/examples/RECORD/` holds 40 valid and 47 invalid examples, for the
+seven records; `tests/examples/expect.json` gives the reason of each
+invalid one. A source-request or source-reply example goes through
+`parse_request` or `parse_reply`. They are test data of the crate, not
+schemas: `schemas/` holds the `*.schema.json` files and `CHANGES.md`
+(`docs/design.md`, section 2).
 
 ## The refusal codes
 
@@ -148,7 +183,14 @@ Against podrunner `crates/podrunner-schema` at `9ab7fd3`:
 | [x] `schemas/examples/` | `tests/examples/` |
 | [x] `docs/contracts/codes.md` | the table "The refusal codes" above |
 | [ ] `secret.rs`: `Credential`, `CredentialFile`, `Secret` | stays in podrunner: no record of this crate holds a credential |
-| [ ] `schemas/status.v1.json` | stays in podrunner: the status of a host of podrunner |
+| [x] `schemas/status.v1.json` (at `ca8c308`) | `schemas/status.v1.schema.json` |
+| [x] `podrunner-slots/src/status.rs`: `Status`, `SourceStatus`, `KindStatus`, `PinStatus` (at `ca8c308`) | `status.rs`, with `Status::check` (new); `Slots::status`, `key_age_s` and their tests stay in podrunner; `the_status_schema_is_generated_from_the_type` is `the_schemas_are_generated_from_the_types` here |
+| [x] `podrunner-source/src/wire.rs` (at `ca8c308`) | `source/mod.rs`; its test `an_unknown_field_is_refused` in `source/tests.rs` |
+| [x] `podrunner-source/src/event.rs`: `Offer`, `Event`, `RealJob` | `source/event.rs`; `Assigned` (the answer of `JobSource::assigned`) stays in podrunner |
+| [x] `podrunner-source/src/host.rs`: `HostFacts`, `KindFacts` | `source/host.rs` |
+| [x] `podrunner-source/src/lib.rs`: `SourceCode`, `SourceError` | `source/code.rs`, with `SourceCode::ALL` (new); `JobSource`, `Hello` stay in podrunner |
+| [x] `podrunner-source/src/tests.rs`: `a_request_round_trips_with_its_schema`, `bad_lines_are_bad_requests_and_name_no_value` | `source/tests.rs`, each with its name; the tests of the pipe and of the conformance suite stay in podrunner |
+| [ ] `secret.rs` as the credential of the wire | `source/minted.rs`: `Minted`, `MintedFile`, `Hidden` (see "The source wire") |
 | [x] No fuzz target in podrunner | the target `job_offer` in `fuzz/` |
 
 Differences from the source, each with a test:
@@ -163,6 +205,13 @@ Differences from the source, each with a test:
 * `PublicReport::check`: the version and the rules of a report. The
   draft read a public report with no check, so it took `schema: 2`.
 * The `$id` of each schema is its URL in podcrates.
+* `Reply::Done` is `Done {}`: serde takes any field of a unit variant of a
+  tagged enum, so `{"schema":1,"reply":"done","x":1}` passed
+  (`an_unknown_field_is_refused`). The wire form is the same.
+* `status.v1`: `schema` is the constant 1, an unknown field is refused, and
+  the types read a status too (`Deserialize`), so githome can read one.
+* `Minted` and `MintedFile` refuse an unknown field, as each object of the
+  wire does; `Hidden` is wiped at its drop.
 
 ## Versions of a record
 
@@ -214,12 +263,21 @@ G-36; the names of PodUtils/podrunner#294):
 | podrunner | `podrunner-schema = { features = ["schema"] }` in `[dev-dependencies]` (`podrunner-slots`) | `pod-job = { ..., features = ["schema"] }` in `[dev-dependencies]` |
 | podrunner | `schemas/{job-offer,unit-capability,run-report,run-report-public}.v1.json`, `schemas/examples/`, `PODRUNNER_WRITE_SCHEMAS` | removed: podcrates `schemas/NAME.v1.schema.json` at the tag, `crates/pod-job/tests/examples/`, `POD_JOB_WRITE_SCHEMAS` |
 | podrunner | `docs/contracts/codes.md` | a link to "The refusal codes" of this README; its test `the_table_of_codes_is_the_enum` moves here |
+| podrunner | `podrunner_slots::status::{Status, SourceStatus, KindStatus, PinStatus}` | `pod_job::` with the same names; `Slots::status` fills them |
+| podrunner | `schemas/status.v1.json`, the test `the_status_schema_is_generated_from_the_type` | removed: `schemas/status.v1.schema.json` of podcrates |
+| podrunner | `podrunner_source::wire::{Request, Reply, OPS, LINE_MAX, parse_request, parse_reply, request_line, reply_line}` | `pod_job::source::` with the same names; `Reply::Done` is `Reply::Done {}` |
+| podrunner | `podrunner_source::{Event, Offer, RealJob, HostFacts, KindFacts, SourceCode, SourceError}` | `pod_job::source::` with the same names (podrunner-source can re-export them) |
+| podrunner | `Reply::Credential { credential: Credential }` | `Reply::Credential { credential: pod_job::source::Minted }`; a conversion between `Minted` and `Credential` in podrunner |
+| podrunner | the tests `an_unknown_field_is_refused`, `a_request_round_trips_with_its_schema`, `bad_lines_are_bad_requests_and_name_no_value` | removed: they are in `pod-job` |
+| podrunner | `CHANGES.md` lines of the wire and of `status.v1` | `schemas/CHANGES.md` of podcrates (`source-request.v1`, `source-reply.v1`, `status.v1`) |
 
 ## Tests
 
 `cargo test -p pod-job`. The fuzz target `job_offer` reads an offer from
-untrusted bytes, checks it and encodes it again.
+untrusted bytes, checks it and encodes it again. The source wire has no
+fuzz target yet (T-940).
 
 ## Sources
 
-`SOURCES` lists each imported file with its blob: podrunner at `9ab7fd3`.
+`SOURCES` lists each imported file with its blob: podrunner at `9ab7fd3`
+(the four records), and at `ca8c308` (`status.v1` and the source wire).

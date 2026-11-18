@@ -1,12 +1,11 @@
-diff --git a/crates/pod-testkit/src/refused.rs b/crates/pod-testkit/src/refused.rs
 --- a/crates/pod-testkit/src/refused.rs
 +++ b/crates/pod-testkit/src/refused.rs
-@@ -20,7 +20,7 @@ pub struct Refused {
- pub fn refused() -> (Refused, SocketAddr) {
-     let socket = tokio::net::TcpSocket::new_v4().expect("a TCP socket");
-     socket.bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0))).expect("a port of the loopback");
--    let at = socket.local_addr().expect("its address");
-+    let at = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap().local_addr().unwrap();
-     (Refused { _socket: socket }, at)
- }
- 
+@@ -27,7 +27,7 @@
+     if HOLDS_A_BOUND_SOCKET {
+         let socket = tokio::net::TcpSocket::new_v4().expect("a TCP socket");
+         socket.bind(SocketAddr::from((Ipv4Addr::LOCALHOST, 0))).expect("a port of the loopback");
+-        let at = socket.local_addr().expect("its address");
++        let at = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap().local_addr().unwrap();
+         return (Refused { _socket: Some(socket) }, at);
+     }
+     (Refused { _socket: None }, unbound_port())

@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "op": "next",
+  "capacity": 2,
+  "wait_s": 30
+}
