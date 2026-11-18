@@ -371,10 +371,9 @@ where
                     // This side's `CLOSE` went, and the far end forgot the
                     // session: it had the `CLOSE`, and its answer was lost.
                     Ok(Err(Failed::Forgotten(_))) if carry.closing() => return Resumed::Over(End::LocalEnd),
-                    // The far end's deadline passed while this side was away,
-                    // longer than its own clock counted, as on a host that
-                    // slept, or the far end lost it well before (a restart):
-                    // the words say which, and how long by the wall clock.
+                    // The far end's deadline passed while this side was away
+                    // (a host that slept), or it lost the session before (a
+                    // restart): the words say which, by the wall clock.
                     Ok(Err(Failed::Forgotten(why))) => {
                         let kept = established.peer_deadline.unwrap_or(settings.resume_deadline);
                         let gone = away(lost_wall, (settings.wall_clock)(), lost.elapsed());
