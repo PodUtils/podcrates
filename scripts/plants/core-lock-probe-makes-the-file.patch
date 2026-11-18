@@ -1,0 +1,12 @@
+diff --git a/crates/pod-core/src/lock.rs b/crates/pod-core/src/lock.rs
+--- a/crates/pod-core/src/lock.rs
++++ b/crates/pod-core/src/lock.rs
+@@ -98,7 +98,7 @@
+     /// missing file is a refusal of class `NotFound`. For a probe of a lock
+     /// that must leave no file behind.
+     pub fn try_lock_existing(path: &Path, mode: Mode) -> Result<Option<FileLock>, Failure> {
+-        let file = open_with(path, false)?;
++        let file = open_with(path, true)?;
+         FileLock::try_file(file, path, mode)
+     }
+ 

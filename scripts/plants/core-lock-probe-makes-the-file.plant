@@ -1,0 +1,6 @@
+# pod-core: the probe of a lock makes the file where it is absent (T-924).
+ENTRY=T-924
+GROUP=core
+EXPECT='a_probe_of_a_lock_makes_no_file'
+RUN='cargo test -p pod-core --all-features --lib lock'
+LIMIT=1800
