@@ -1,19 +1,20 @@
 # Progress
 
-`TODO/INDEX.md` holds 762 entries: 140 open, 23 partial, 7 blocked, 592 done.
+`TODO/INDEX.md` holds 772 entries: 148 open, 23 partial, 7 blocked, 594 done.
 
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.70.0` at `ed6d84c` (`docs/releases/v0.70.0.md`). Its
-  hand-off is COORD-132 (#222).
+- Last release: `v0.71.0` at `6dff7fc` (`docs/releases/v0.71.0.md`). Its
+  hand-off is COORD-137.
 - The tag that the `main` of each consumer names: podssh `v0.69.0`,
   podnet `v0.69.0`, podrunner `v0.69.0`, podvm `v0.68.0`. The details of
   each take are on the hand-off issue.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
-- Open defects: T-916 (partial), T-789, T-766 (the nightly);
+- Open defects: T-936 (P1, `refused()` on macOS), T-916 (partial), T-933,
+  T-934, T-935, T-937, T-938, T-789, T-766 (the nightly);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
   `pod-session`).
 - The session of podcrates coordinates the five sessions: podcrates,
@@ -56,12 +57,15 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red nightly
-(T-916, partial: its proof is a run of `nightly.yml`). Then the asks of
-podrunner (COORD-134, #225): the next tag, which carries the fix of PodUtils/podrunner#290 and the work
-on `main`; each new ask of podrunner. Then
-T-909 (partial, on `wip/t909`; a gate of podssh's next beta). Then the
-entries that a need of githome or cfb names for their CI: T-922 (the
-schemas, #223 G-31), T-921 (a fake GitHub, #223 G-30) with T-106 (G-10),
+(T-936, T-916, T-933, T-935, T-934, T-937, T-938). Then the asks of
+podrunner (COORD-134, #225): T-922 (the move of podrunner's schemas and
+source wire into `pod-job`: the wire forms that it waited for are on
+podrunner's `main`, PodUtils/podrunner#295); each new
+ask of podrunner. Then
+T-909 (partial, on `wip/t909`; a gate of podssh's next beta) and T-939
+(the iroh road after a new address, PodUtils/podssh#283 ask 4; a failure of
+podssh's gate). Then the
+entries that a need of githome or cfb names for their CI: T-921 (a fake GitHub, #223 G-30) with T-106 (G-10),
 T-104 with T-880 (one crate `pod-release`; A-X-13, #223 G-34), T-100
 (G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
@@ -125,8 +129,10 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
 8. **M3, the adapters:** T-028, T-030.
 9. **M4, the roads:** T-131 (a defect of `pod-gsr` on Windows ARM64)
    first; then T-036 (with T-856, the vectors of `tokens.json`), T-039.
-10. **M5, the upkeep:** T-917 (the copies of product code that
-   `codegraph.py dups` finds), T-918 (the helpers that the tests copy);
+10. **M5, the upkeep:** T-932 (the temp files, PodUtils/podvm#567), T-917
+   (the copies of product code that `codegraph.py dups` finds), T-928 (the
+   other readers of an HTTP/1.1 head), T-918 (the helpers that the tests
+   copy); T-931 (the legs of a quick tunnel, with podnet);
    T-789, T-766, T-780 (a test that reads the pipes
    of its child after the child ends), T-781 (the findings of the study of
    zmux for the consumers), T-779; T-312 (a code fence that is not closed

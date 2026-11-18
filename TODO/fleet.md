@@ -5570,6 +5570,8 @@ podcrates.
   `host` of `hello`, G-17), with a line in its `CHANGES.md` (its T-510,
   githome's G-39).
 
+- podrunner, PodUtils/podrunner#295 (16:30 UTC): its T-486 is done (`6ab9b0f`: each egress line of a unit goes to `audit` of its source, at most 1000, then `{ job_id, dropped }`); T-495 is partial (`ca8c308`: `hello` carries an optional `host`; open: the version of podnet); T-493 is partial (PodUtils/podrunner@T-530, and `assigned` of T-923, now in `v0.71.0`). The wire forms of the three are on podrunner `main` and in `PodUtils/podrunner:docs/contracts/source-driver.md`: the move can take them now.
+
 ## Approach
 
 1. Each file of `schemas/` comes from its types, with a test that fails
@@ -5733,7 +5735,7 @@ cargo test -p pod-enter --all-features
 **Milestone:** M8
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5753,3 +5755,7 @@ The report of `job()` in `examples/static-probe/src/main.rs` gives each new opti
 ```sh
 cargo clippy -p static-probe --all-targets --all-features -- -D warnings
 ```
+
+## Done
+
+2026-11-18, 6dff7fc: the report of `job()` in `examples/static-probe/src/main.rs` comes from JSON through serde, so an optional field that `pod-job` adds needs no change of the probe. The run of the probe prints the refused report and its public form. `cargo clippy --workspace --all-targets --all-features -- -D warnings`: 0 faults. The scheduled nightly at `4161d8d` (run 44283168064) failed in each job that builds the workspace with this E0063; `6dff7fc` is the tag `v0.71.0`, with `ci` 44283332297 green.

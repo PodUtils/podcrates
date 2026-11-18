@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**762 entries: 140 open, 23 partial, 7 blocked, 592 done.**
+**772 entries: 148 open, 23 partial, 7 blocked, 594 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 13 | 8 | 0 | 167 | 188 |
-| P2 | 62 | 5 | 4 | 306 | 377 |
-| P3 | 65 | 10 | 3 | 117 | 195 |
-| **All** | 140 | 23 | 7 | 592 | 762 |
+| P1 | 13 | 8 | 0 | 168 | 189 |
+| P2 | 68 | 5 | 4 | 307 | 384 |
+| P3 | 67 | 10 | 3 | 117 | 197 |
+| **All** | 148 | 23 | 7 | 594 | 772 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -808,4 +808,14 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-926](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: a refusal of the relay's policy no longer says the relay's cause (PodUtils/podssh#318) |
 | [T-927](fleet.md) | P2 | S | M6 | feature | open | `pod-enter`: a new session with the pty as the controlling terminal of the payload (PodUtils/podvm#584) |
 | [T-928](foundation.md) | P3 | M | M0 | chore | open | The other readers of an HTTP/1.1 head take `pod_core::http1` |
-| [T-929](fleet.md) | P1 | S | M8 | defect | open | `static-probe`: the report of `pod-job` lacks the new fields of `RunReport`, so the workspace does not build |
+| [T-929](fleet.md) | P1 | S | M8 | defect | done | `static-probe`: the report of `pod-job` lacks the new fields of `RunReport`, so the workspace does not build |
+| [T-930](services.md) | P2 | S | M5 | defect | done | `pod-services`: the Syncthing relay DVWOU27 moved to 61.223.4.2; cloudflared 2026.11.1 changed `quick_tunnel.go` (services 44282821174) |
+| [T-931](adapters.md) | P3 | S | M3 | defect | open | `pod-cloudflare`: a quick tunnel opens two edge connections; cloudflared opens one |
+| [T-932](upkeep.md) | P2 | M | M5 | chore | open | A check of the temp files that the crates of podcrates make (PodUtils/podvm#567, lesson 5) |
+| [T-933](upkeep.md) | P2 | S | M5 | defect | open | `pod-cloudflare`: three tests fail on Windows, where they ran for the first time (nightly 44275593101) |
+| [T-934](transport.md) | P2 | S | M1 | defect | open | `pod-proxy`: an exec proxy runs `sh -c`, which breaks a Windows path and needs `sh` on Windows |
+| [T-935](foundation.md) | P2 | S | M0 | defect | open | `pod-core`: two renames onto one name at once give "Access is denied" on Windows |
+| [T-936](foundation.md) | P1 | S | M0 | defect | open | `pod-testkit`: `refused()` gives a timeout on macOS, not a refusal |
+| [T-937](transport.md) | P3 | S | M1 | defect | open | `pod-dns`: a test of the resolver asks the resolver of the host (nightly 44275593101) |
+| [T-938](upkeep.md) | P2 | S | M5 | defect | open | The riscv64 job of `nightly.yml` meets its limit of 90 minutes |
+| [T-939](relay.md) | P2 | M | M2 | defect | open | `pod-iroh` with `pod-session`: after a new address of the client on the relay-only path, no end resumes, and the bytes in flight are never sent again (PodUtils/podssh#283, ask 4) |

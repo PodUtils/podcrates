@@ -10154,3 +10154,32 @@ cargo test -p pod-relay --all-features --lib open
 ## Done
 
 2026-11-18: `policy_cause` and `cause_after` (`crates/pod-relay/src/open_lines.rs`; `unreachable_cause` takes `cause_after` too). `a_refusal_says_its_cause_once`: `forward: T not in the ALLOW list: this relay dials no address of it` gives `the relay's policy does not allow T: this relay dials no address of it (HTTP 403)`; `forward: 140.82.112.3:25 is blocked: port 25 is refused` gives `...: port 25 is refused (HTTP 403)`; a body with no cause past the echo keeps the short line. `cargo test -p pod-relay --all-features --lib open`: 16 passed. Plant `relay-policy-cause-dropped` (the cause dropped, as in `v0.70.0`), caught by that test.
+
+# T-939: `pod-iroh` with `pod-session`: after a new address of the client on the relay-only path, no end resumes, and the bytes in flight are never sent again (PodUtils/podssh#283, ask 4)
+
+**Source:** PodUtils/podssh#283 (COORD-091 of podssh), ask 4: the eighth failure of podssh's gate (podssh `5c254fb`, podcrates `v0.70.0`, run 44287863366, job `gate (m6)`, `iroh::the_iroh_road_survives_a_new_address` of `tests/m6_exit.rs`).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+On the iroh road with no UDP (the iroh relay carries each byte), the client's address changes. The session does not end within 600 s. The node says one line: `session b80089bd: the target sent no byte for 23 s, while it took 201 bytes of the client; this side sent 13758313 bytes, the client acknowledged 13247259; the replay buffer keeps 511054 bytes, room 3683250; no window`. No `session.resume` line comes. The client says nothing after its authentication, though its proxy logs 14 CONNECTs to the iroh relay from the new address. The 511,054 bytes in flight on the old path are lost between the iroh relay and the client, and the client's session never decides that its link is gone (the QUIC connection looks alive), so nothing asks for the replay.
+
+## Premise
+
+- Read: PodUtils/podssh#283, the section of the eighth failure.
+- Not read: how `pod-iroh` gives a path change of its endpoint to the link of `pod-session`; whether the client's session has a check of progress while the far end holds unacknowledged bytes.
+
+## Approach
+
+Two parts, each with a test on the loopback relay of `pod-iroh` that moves the client's address: (1) the client's session resumes when it gets no acknowledged progress for a bound while the far end holds bytes that it has not acknowledged (the node's stall line names that state); (2) a line at the client when its relay connection of iroh is dialled again. podssh's local loop of `m6_exit` checks the fix before its gate.
+
+## Prove
+
+```sh
+cargo test -p pod-iroh --all-features
+cargo test -p pod-session --all-features
+```

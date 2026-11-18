@@ -2501,3 +2501,59 @@ Each module takes `pod_core::http1` (`crlf_head_end` or `find_request` with its 
 cargo test -p pod-ws -p pod-egress -p pod-link -p pod-hostprobe -p pod-services-watch -p pod-testkit --all-features
 python3 -I scripts/codegraph.py dups
 ```
+
+# T-935: `pod-core`: two renames onto one name at once give "Access is denied" on Windows
+
+**Source:** nightly run 44275593101, `threads_that_store_one_name_at_once_leave_one_whole_body` on both Windows jobs (`crates/pod-core/tests/files.rs:249`: "Access is denied. (os error 5)").
+**Category:** defect
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The replace of `pod_core::files` uses `MoveFileExW(MOVEFILE_REPLACE_EXISTING)` (`crates/pod-core/src/files/replace.rs:124-132`). A rename onto a name that another rename or an open handle holds gives `ERROR_ACCESS_DENIED`, so two writers of one file at once fail where Unix replaces atomically.
+
+## Premise
+
+- Read: the log; `replace.rs`.
+- Not measured: `SetFileInformationByHandle` with `FILE_RENAME_FLAG_POSIX_SEMANTICS` on the two Windows runners.
+
+## Approach
+
+A rename with POSIX semantics where the file system takes it, else a bounded retry on `ERROR_ACCESS_DENIED` and `ERROR_SHARING_VIOLATION`, with one line at the bound.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features --test files
+```
+
+# T-936: `pod-testkit`: `refused()` gives a timeout on macOS, not a refusal
+
+**Source:** nightly run 44275593101, `refused::tests::a_refused_address_stays_refused_while_its_guard_lives` on both macOS jobs (`crates/pod-testkit/src/refused.rs:44`: `TimedOut`, not `ConnectionRefused`).
+**Category:** defect
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-910 holds a bound socket that does not listen. The kernel of macOS drops a SYN to it with no RST, so each connect waits for its timeout. `crates/pod-proxy/src/race.rs:299` (`a_dial_of_one_refused_address_twice_names_it_once`) passes there only because it checks the text, and each dial waits 10 s. podnet takes `refused()` in place of its `dead_port` helpers (PodUtils/podnet#653).
+
+## Premise
+
+- Read: the log; `crates/pod-testkit/src/refused.rs`.
+- Not measured: the answer of macOS to a SYN for a socket that listens with a backlog of 0, and for a port with no socket.
+
+## Approach
+
+Measure on the macOS runners: a port with no socket (bind, read the port, close), a socket that listens and accepts with `SO_LINGER` 0 (an RST after the connect, not `ECONNREFUSED`). Keep the guard where the system refuses a bound socket; give the next form on macOS, with the race of another bind written in the doc.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --all-features --lib refused
+```

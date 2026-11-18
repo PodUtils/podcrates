@@ -7673,3 +7673,58 @@ cargo test -p pod-tls --all-features --test roots
 ## Done
 
 2026-11-17, baec52a99: `roots_for(&Trust::Default)` gives the roots of `Context::roots()` where `Settings::ca_file` is set (the CA file alone, as `load` reads it), else the default roots; `config_for(&Trust::Default)` follows, so each road of `pod-ws` and `pod-relay` trusts the CA of the consumer. An absent or unusable CA file is the error of the file. Test: `the_default_trust_takes_the_ca_file_of_the_settings` (with each provider: the roots are the file alone; a handshake with a server that the test CA signs passes through `config_for(&Trust::Default)`; with no CA file it fails with `UnknownIssuer`; an absent file is an error that names `--ca-file`). The tests of `pod-tls` pass. Plant `tls-default-trust-ignores-the-ca-file`, caught. podnet can drop its own `ws_trust()` (its T-421) after the take; podssh passes `Trust::Default` too.
+
+# T-934: `pod-proxy`: an exec proxy runs `sh -c`, which breaks a Windows path and needs `sh` on Windows
+
+**Source:** nightly run 44275593101, `quick_tunnel_standin_goes_through_an_exec_proxy` on both Windows jobs: python3 opened `C:\UsersRUNNER~1AppDataLocalTemp.tmp…pipe.py`.
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_proxy::ChildIo::spawn` runs the command of an `exec:` proxy with `sh -c` (`crates/pod-proxy/src/stream.rs:134`). On Windows, Git's `sh` removes each backslash of an unquoted path, and a host with no `sh` cannot run an exec proxy at all. A user of Windows gets the fault, not only the test.
+
+## Premise
+
+- Read: the log; `crates/pod-proxy/src/stream.rs`. T-441 (a spawn with no shell, PodUtils/podswarm P-10) is related and waits for podswarm.
+
+## Approach
+
+On Windows, run the command with `cmd /C`, or split it into words with the rules of the Windows command line and spawn with no shell; keep `sh -c` on Unix. The test passes a path with backslashes.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features
+cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
+```
+
+# T-937: `pod-dns`: a test of the resolver asks the resolver of the host (nightly 44275593101)
+
+**Source:** nightly run 44275593101, `resolver::tests::each_lookup_is_one_decision_of_the_observer` on `test (macos-15-intel)`: "system resolver: no answer in 19 s" (`crates/pod-dns/src/resolver.rs:268`).
+**Category:** defect
+**Milestone:** M1
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The test asks the system resolver for `no+name.invalid` and expects `Unavailable`; a silent resolver of the runner gives `Timeout`. The result depends on the host.
+
+## Premise
+
+- Read: the log; `resolver.rs`.
+
+## Approach
+
+Give the test a resolver of its own (a stand-in on the loopback, or a name that the code refuses before a query), so the decision of the observer is tested with no host resolver.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features --lib resolver
+```

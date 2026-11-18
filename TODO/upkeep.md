@@ -3385,6 +3385,7 @@ cargo test -p pod-iroh --all-features --test road --test share --test tickets
 - The bounds that guard a hang go through `pod_testkit::host::scaled`: `pod-iroh` `tests/common/mod.rs` (`limit()`, 60 s; `road.rs`, `share.rs`, `tickets.rs`, `proxy_env.rs`), `pod-relay` `http_road_one_h2.rs` (the carry), `pod-egress` `vless.rs` (each timeout and the deadline of a dial), `pod-guest` `ready/tests.rs` (the two deadlines of 300 ms).
 - Not time bounds (the read of the logs of the seven jobs): `pod-relay` `caller_headers.rs` took the last head, which the polls of its open serial session can be (also on a native host): it takes the last head of the one form, and counts no poll as a request. `pod-ws` `h2_road.rs`: under the emulator the bytes of the first sessions delayed a later CONNECT past the wait of the road (`ANSWER_WAIT`), which retires the connection by design: the eight sessions open before the bytes flow. `pod-session` `session_move.rs`: the margin of 256 KiB before the cap is too short for the handshake at the scaled pace: 512 KiB under an emulator. `pod-iroh` `tickets.rs`: a node closed the new connection with its refusal before the first stream opened, and `Dialer::link_as` gave `Failed("no stream to the node: connection lost")`, so a refused client also got `Next::Retry`: `link_as` now reads the close reason (as `refused()`, `CLOSE_WAIT`) and gives `Refused`. The message of `refuses_a_stranger` names the result and the count of targets.
 - Not done: run the closure once before the count (`count` takes `FnOnce`; the subtraction of the major faults covers a fault of a page of the binary).
+- The proof run, `nightly.yml` 44275593101 at `2b11314`: the cross jobs of armv7, arm, aarch64, loongarch64 and powerpc64le pass. Left: on i686, which runs natively (no emulator, so `count` counts), `a_turn_of_the_arq_blocks_on_nothing` of `pod-link` counts 3 voluntary switches in 1000 turns, as in the run before (cause not measured: a lock of musl's allocator shared with the other test threads, or a cold first pass); on riscv64, `pod-iroh` `road.rs` breaks at about 120 s (`early eof`, a timer of the stack ends the session, not the bound of the test, which is 300 s there) and `share.rs` still meets its bound of 300 s (likely a stall, not a slow emulator). The riscv64 job met its limit of 90 minutes (T-938). The other failures of that run are new and have their entries (T-933 to T-937).
 
 # T-917: The copies of product code that `codegraph.py dups` finds: one place for each
 
@@ -3579,3 +3580,88 @@ in the same class).
 TMPDIR=/tmp/$(printf 'x%.0s' $(seq 90)) cargo test -p pod-guest --lib
 cargo test -p pod-guest --lib
 ```
+
+# T-932: A check of the temp files that the crates of podcrates make (PodUtils/podvm#567, lesson 5)
+
+**Source:** PodUtils/podvm#567 (COORD-180 of podvm, "lesson 5"; ask to podcrates, podssh and podnet).
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm's outside tester found faults of temp files in crates of podcrates (T-872: a temp file that a sweep saw before its rename; T-873: a probe file with a fixed name; T-891: a scratch path of a probe that was not new). podvm's lesson 5 asks each project to check each temp file of its own code: a new name (the pid and a nonce), an exclusive create, no link followed, a lock where another process can see it, and a removal on each path out.
+
+## Premise
+
+- Read: PodUtils/podvm#567; T-872, T-873, T-891.
+- Not read: each place in `crates/*/src` that makes a temp file or a scratch directory (`tempfile`, `create_dir`, `.tmp`, `std::env::temp_dir`).
+
+## Approach
+
+List each place with `python3 -I scripts/codegraph.py similar temp file scratch` and a search. Hold each to the five rules, or to one shared helper of `pod-core` where two or more copies make the same file (the ruling "Shared code"). A script of CI that fails on a new `temp_dir().join(` with a fixed name in product code, with its plant.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+sh scripts/agent/check.sh
+```
+
+# T-933: `pod-cloudflare`: three tests fail on Windows, where they ran for the first time (nightly 44275593101)
+
+**Source:** nightly run 44275593101 at `2b11314`, the jobs `test (windows-2025)` and `test (windows-11-arm)` (T-915 let the tests of the crate build there).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+- `origin::tests::no_tls_verify_needs_the_configuration_of_the_consumer` fails at `crates/pod-cloudflare/src/origin.rs:339`: its `UnixTls` half needs Unix; on Windows `dial_unix` gives `Class::Unsupported`, not `Policy`.
+- The process of the lib tests overflows its stack (`STATUS_STACK_OVERFLOW`), so 8 tests have no result: the thread of 256 KiB of `yaml::tests::a_deep_document_is_an_error` (`src/yaml/tests.rs:22-24`) is too small for 64 levels of a debug build on Windows. The depth cap holds; the stack of the test does not.
+- `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` fails at `tests/quick_tunnel_standin.rs:233` ("no QUIC packet came"); the assertion drops the error of `recv_from`, so the log cannot tell a timeout from another error.
+
+## Premise
+
+- Read: the logs of the two jobs (an agent's read of run 44275593101).
+- Not measured: the error of `recv_from` on Windows.
+
+## Approach
+
+Put the `UnixTls` half behind `#[cfg(unix)]`; give the thread of the deep document a stack that a debug build of each system holds (the test measures the cap, not the stack); print the `Err` of `recv_from`, then find its cause on Windows.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features
+sh scripts/agent/check-windows.sh
+```
+
+# T-938: The riscv64 job of `nightly.yml` meets its limit of 90 minutes
+
+**Source:** nightly run 44275593101: `cross (riscv64gc-unknown-linux-musl, riscv64)` was cancelled at 90 minutes, in `pod-proxy` `blocking_streamed`; 365 of about 448 test binaries ran. The run of 44067754895 took 88 minutes.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The job has no margin under `timeout-minutes: 90` (`.github/workflows/nightly.yml:189`), so a slow test of one night cancels the rest and hides their results.
+
+## Premise
+
+- Read: the job logs of both runs.
+
+## Approach
+
+Split the test binaries of the emulated targets into two jobs by crate, or raise the limit with the time of each binary in the log; keep each job under its limit with a margin of a quarter.
+
+## Prove
+
+The next run of `nightly.yml`: each cross job ends, none cancelled.

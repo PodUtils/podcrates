@@ -2227,3 +2227,30 @@ cargo test -p pod-cloudflare --all-features
 
 2026-11-17, 2781e1b1f: `config::Protocol` is the one type of the edge protocol, with `parse` and now `as_str` (the name, as cloudflared writes it). `cloudflare::Protocol` (with its `candidates`) and `config::Protocol::resolved` are gone: no caller in the crate, and a search of the code of PodUtils on GitHub found none (podssh's own `resolved` and `candidates` are of other types). The test `config::tests::protocols_parse_the_way_cloudflared_spells_them` replaces the two tests of the removed type, and checks that `parse(as_str())` gives the value back. The Prove grep finds nothing; clippy and the tests of `pod-cloudflare` pass. The notes of the next release name the removal.
 
+# T-931: `pod-cloudflare`: a quick tunnel opens two edge connections; cloudflared opens one
+
+**Source:** T-930 (the read of `cmd/cloudflared/tunnel/quick_tunnel.go` at `2026.11.1`); T-915 (two registrations at the stand-in edge).
+**Category:** defect
+**Milestone:** M3
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+cloudflared sets `HaConnections` to 1 for a quick tunnel ("Quick tunnels shouldn't be used for production usage, so, use a single connection instead"). `pod-cloudflare`'s `Config::default()` has `ha_connections: 2` for each tunnel, the quick tunnel too. The edge of `trycloudflare.com` gets two registrations for one quick tunnel.
+
+## Premise
+
+- Read: `quick_tunnel.go` at `2026.10.7` and `2026.11.1`; `crates/pod-cloudflare/src/config.rs` (`Config::default`); `src/tunnel.rs` (the HA legs).
+- Not read: podnet's reason for two legs of a quick tunnel, if it has one (its `src/` before the move).
+
+## Approach
+
+Ask podnet (a COORD issue) whether two legs of a quick tunnel are its choice. If not: a quick tunnel (`Credentials::Quick`) takes one connection unless the caller sets `ha_connections`; a named tunnel keeps 2.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
+```

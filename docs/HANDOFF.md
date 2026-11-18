@@ -19,20 +19,25 @@ is done. Git and the record keep finished work.
    answer `(to podcrates)`, route each ask of podrunner to its owner at
    once, and edit #227 when the order changes.
 3. The red scheduled runs and their entries:
-   - `nightly.yml` at `62ce717`: T-914 and T-915 are done. T-916 is
-     partial: the fixes are on `main`; its proof is a run of `nightly.yml`
-     (dispatch it, and read the cross jobs). T-789 (armv7) and T-766
-     (riscv64) stay.
+   - `nightly.yml` 44275593101 at `2b11314` (the proof of T-916): the
+     cross jobs of armv7, arm, aarch64, loongarch64 and powerpc64le pass.
+     Open: T-936 (P1, `refused()` gives a timeout on macOS), T-916 (i686
+     runs natively and counts 3 switches; two `pod-iroh` tests on
+     riscv64), T-933 (three tests of `pod-cloudflare` on Windows), T-934
+     (an exec proxy through `sh -c` on Windows), T-935 (two renames onto
+     one name on Windows), T-937 (a test of `pod-dns` that asks the host
+     resolver), T-938 (the riscv64 job meets its 90 minutes). T-789 and
+     T-766 stay. The scheduled run at `4161d8d` failed on the E0063 of
+     `static-probe` (T-929, fixed in `6dff7fc`).
    - `upstream.yml`, the job `sources`: red on `pod-manual` until the
      port review of podssh's changes (T-863).
    A new red run needs an entry before other work. A macOS arm64 job of
    `ci.yml` that no runner takes ("not acquired by Runner") is no defect:
    run the failed jobs again.
-4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the tag
-   `v0.71.0` (T-905 to T-908, T-910 to T-915, T-923 to T-926), then
-   T-882, then T-909, then the entries for the CI
-   of githome and cfb (T-922, T-921 with T-106, T-104 with T-880, T-100,
-   T-105, T-103, T-102).
+4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the red
+   nightly above, then T-922 (podrunner's wire into `pod-job`), then
+   T-909, then the entries for the CI of githome and cfb (T-921 with
+   T-106, T-104 with T-880, T-100, T-105, T-103, T-102).
 5. podrunner's answer to COORD-135 (PodUtils/podrunner#294, at podrunner
    `3a0cbbb`) is in T-922 (the types and files of `status.v1` and of the
    source wire) and T-923 (the names and units of the new fields). Set
@@ -44,17 +49,19 @@ is done. Git and the record keep finished work.
    is offline until the CI of podrunner and githome is complete; it reads
    `docs/research/fleet/asks.md` and the block of #223 at its next start.
    githome's asks G-30 to G-35 are T-921 to T-923, T-099, T-100 and T-104.
-7. The open hand-off is COORD-132 (#222) for `v0.70.0` (`ed6d84c`). Record
-   each take in its body, and close it when each consumer is on `v0.70.0`
-   or later. Takes not yet in its body: podnet `7573016`
-   (PodUtils/podnet#654), podrunner `9c67bb3` (PodUtils/podrunner#295).
+7. The open hand-off is COORD-137 (#228) for `v0.71.0` (`6dff7fc`). Record
+   each take in its body, and close it when each consumer is on `v0.71.0`
+   or later. podvm takes the parts of `v0.69.0` and `v0.70.0` with it.
+   C783 (the names of `sandbox` and `unknown_reasons` in `pod-job`) waits
+   for podrunner's yes.
 8. In flight: T-909 (PodUtils/podssh#314 ask 2) on the branch `wip/t909`.
    Part 1 (a byte budget under each cap, `relay::byte_budget_under`) is
    written and not tested. Part 2 (the cap in `forward_layer::Offer`, kept
    in the cache) is not started. Merge the branch into `main` after the
    checks pass, then ask for its delete.
-9. T-767 (PodUtils/podssh#283, partial) waits for podssh's next stall with
-   the lines `session.resume` and `session.stall`; T-768 goes with it.
+9. T-767 (PodUtils/podssh#283, partial): the eighth failure of podssh's
+   gate gave the node's `session.stall` line on the iroh road after a new
+   address; its ask 4 is T-939. T-768 goes with T-767.
 10. Then the work order of `TODO/PROGRESS.md`.
 11. Run `scripts/agent/check.sh` with a short `TMPDIR` (for example
     `TMPDIR=/tmp`): a long one makes the socket paths of `pod-guest` too
