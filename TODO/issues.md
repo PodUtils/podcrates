@@ -228,5 +228,6 @@ kinds and the rules.
 | #221 | coord | COORD-131: the rulings Shared code and Quality first, and the copies of shared code in each project (to all) | open (the copies of each consumer; T-879, T-880, T-882 open) | T-877, T-878, T-879, T-880, T-881, T-882 |
 | #222 | coord | COORD-132: v0.70.0: the outside QA fixes, the shared code of COORD-131, and the asks of each consumer of 2026-11-17 (to all) | open (the hand-off of `v0.70.0`) | T-857, T-858, T-859, T-860, T-861, T-862, T-864, T-865, T-866, T-867, T-869, T-871, T-872, T-877, T-878, T-881, T-883, T-896, T-898, T-901, T-902, T-903, T-904, T-905, T-906, T-908, T-910, T-911, T-912, T-913 |
 | #223 | coord | from cfb: cfb's channel for the state that it reads and its questions to podcrates (C-1 to C-5: a beta of podssh, the release index, the command of the host check, the source of truth of a tracker, the ruling Test accounts) | open (cfb's channel; podcrates answers in one comment that it edits) | T-104, T-106, T-107, T-880, T-909 |
+| #224 | coord | COORD-133: cfb asks whether a beta of podssh before its three gates can hold A-S-01 and A-S-02 (to podssh) | open (it waits for the answer of podssh; podcrates copies it into #223) | T-909, T-030, T-039, T-036 |
 
 #79 to #81 are pull requests.
