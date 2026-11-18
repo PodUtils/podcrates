@@ -2532,12 +2532,12 @@ cargo test -p pod-core --all-features --test files
 
 # T-936: `pod-testkit`: `refused()` gives a timeout on macOS, not a refusal
 
-**Source:** nightly run 44275593101, `refused::tests::a_refused_address_stays_refused_while_its_guard_lives` on both macOS jobs (`crates/pod-testkit/src/refused.rs:44`: `TimedOut`, not `ConnectionRefused`).
+**Source:** nightly run 44275593101, `refused::tests::a_refused_address_stays_refused_while_its_guard_lives` on both macOS jobs (`crates/pod-testkit/src/refused.rs:80`: `TimedOut`, not `ConnectionRefused`).
 **Category:** defect
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2557,3 +2557,7 @@ Measure on the macOS runners: a port with no socket (bind, read the port, close)
 ```sh
 cargo test -p pod-testkit --all-features --lib refused
 ```
+
+## Done
+
+2026-11-18: `pod_testkit::refused` keeps the bound socket that does not listen where the kernel refuses a connect to it (Linux, Android, Windows); on the other systems it gives a port with no socket in 20000 to 39999, below the range of a bind to port 0 on macOS (49152 to 65535), checked once to refuse at once, and holds nothing (no test of this repository binds a fixed port of the loopback: `check-loopback.py`). Test `an_unbound_port_refuses_at_once` (the form of macOS, on each system: a refusal in less than 2 s); `a_refused_address_stays_refused_while_its_guard_lives` checks the bind of the held port only where a socket holds it. `cargo test -p pod-testkit --all-features --lib refused`: 2 passed on Linux. The proof on macOS is the next run of the macOS jobs (`nightly.yml` 44275593101 showed the timeout before the fix). `pod-proxy`'s `a_dial_of_one_refused_address_twice_names_it_once` waits no 10 s on macOS now.
