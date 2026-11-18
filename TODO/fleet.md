@@ -5848,9 +5848,9 @@ Add the target `source_line` to `fuzz/`: each line goes through `parse_request` 
 cargo +nightly fuzz run source_line -- -max_total_time=300
 ```
 
-# T-946: `pod-fake-github`: the help and the manual from `pod-manual`, with the checks of each drift
+# T-946: `pod-fake-github` and `pod-fake-githome`: the help and the manual from `pod-manual`, with the checks of each drift
 
-**Source:** T-921 (a finding of its work); the owner's ruling "Discipline" (2026-11-15)
+**Source:** T-921 and T-948 (findings of their work); the owner's ruling "Discipline" (2026-11-15)
 **Category:** feature
 **Milestone:** M8
 **Priority:** P2
@@ -5865,11 +5865,14 @@ a test of each drift. The binary `pod-fake-github` of `pod-testkit`
 (feature `github`) prints a help that it writes by hand. It has no `man`
 command, and no test compares its help with its parser. Its routes, its
 control API and its made-up credentials are only in
-`crates/pod-testkit/README.md`.
+`crates/pod-testkit/README.md`. The binary `pod-fake-githome` (feature
+`githome`, T-948) has the same fault: a help that it writes by hand, no
+`man` command, and no test of its commands `serve` and `source`.
 
 ## Premise
 
 - Read: `crates/pod-testkit/src/bin/pod-fake-github.rs`,
+  `crates/pod-testkit/src/bin/pod-fake-githome.rs`,
   `crates/pod-manual/README.md`, the tests of `podlab`
   (`crates/pod-lab/src/bin/podlab/tests.rs`).
 - Not measured: the size of the binary with `pod-manual` and `clap`.
@@ -5883,8 +5886,11 @@ runners, the broker, the webhooks, the control API). The help and
 tests call `check::texts`, `check::model`, `check::exit_codes` and
 `check::flags`. The `static` job of `ci.yml` runs
 `pod-fake-github man --no-pager` and `scripts/check-man.sh` on it.
-`pod-testkit` then depends on `pod-manual` under the feature `github`;
-`scripts/check-publish-order.py` must accept the order.
+`pod-fake-githome` gets the same: a model with the commands `serve`
+(`--listen`) and `source` (`--server`, the variable `POD_FAKE_GITHOME`),
+and a topic for the wire, the control API and the records.
+`pod-testkit` then depends on `pod-manual` under the features `github`
+and `githome`; `scripts/check-publish-order.py` must accept the order.
 
 ## Prove
 
@@ -5946,7 +5952,7 @@ python3 -I scripts/check-schemas.py
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5988,3 +5994,32 @@ reads from podrunner, and one job from offer to report.
 ```sh
 cargo test -p pod-testkit --features githome --test githome
 ```
+
+## Done
+
+2026-11-18, this branch. The feature `githome` of `pod-testkit` (call
+C786) and its static binary `pod-fake-githome`. `pod-fake-githome serve
+[--listen ADDR]` prints its base URL and holds the state: the routes
+`/_runner/source/session` and `/_runner/source/OP` answer each operation
+of the source wire for one session, by `pod_job::source`; the control API
+under `/_fake/` queues a job (the fields of `job-offer.v1` with
+`repository` and `tier`), sends `cancel`, `started` and `completed`,
+plants a mint error, sets `unavailable` and `revoked`, and reads the jobs
+and the records `reports`, `refusals`, `withdrawals`, `releases`,
+`audits`, `mints`, `assignments` and `hosts`. `pod-fake-githome source
+[--server URL]` is the program of a `[[source]]` of the kind `program`;
+it finds `serve` by `POD_FAKE_GITHOME`. The rules come from podrunner's
+fake source and `assigned` and the contract at `b1a1a28` (`SOURCES`);
+the sessions, the host facts and the control API are new. The shared
+`json_answer` and `body` of the fakes moved to `src/fake.rs`. `cargo test
+-p pod-testkit --features githome --test githome`: 4 tests through the
+binary (the 14 steps of podrunner's `source-conformance`, one job from
+its offer to its report with the control API, the refusals and the
+settings with two hosts, the program with no server), 50 runs with no
+failure; 2 unit tests of the offers. The plants
+`testkit-githome-claimed-twice` and `testkit-githome-host-facts-ignored`
+fail their tests. CI builds the binary static on each Linux target, and
+`release.yml` attaches it for x86_64 and aarch64 musl in `SHA256SUMS`.
+`pod_job::source` and podrunner's contract agree. The help and the
+manual of the binary from `pod-manual` are T-946. The job of podrunner's
+CI (PodUtils/podrunner@T-509) is podrunner's, on the hand-off of the next tag.

@@ -50,6 +50,14 @@ is done. Git and the record keep finished work.
    to pin it by its line of `SHA256SUMS` (G-30), and podrunner that its
    routes can take the place of `podrunner-broker-fake` for a job of
    `run:` steps (`crates/pod-testkit/README.md`).
+   T-948 is on `main` for the next tag too: the fake of githome's source
+   `pod-fake-githome` (feature `githome` of `pod-testkit`, call C786), a
+   release asset for x86_64 and aarch64 musl. The hand-off tells
+   podrunner, for PodUtils/podrunner@T-509 (G-38,
+   PodUtils/podrunner#306), to pin it by its line of `SHA256SUMS`, to run
+   `pod-fake-githome serve`, and to name `pod-fake-githome source` as the
+   program of a `[[source]]` with `POD_FAKE_GITHOME`
+   (`crates/pod-testkit/README.md`).
 6. The channel of cfb and githome is #223. podcrates keeps one reply
    comment to each there (cfb: 6970315549; githome: 6970683028) and edits
    it, with the UTC time of each update and of each acknowledgement. cfb

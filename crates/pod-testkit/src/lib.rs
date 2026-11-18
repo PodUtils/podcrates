@@ -25,13 +25,22 @@
 //! * [`github`] (feature `github`): a fake GitHub for the CI of a
 //!   consumer (an App, JIT runners, their broker, `workflow_job` webhooks),
 //!   and its binary `pod-fake-github`.
+//! * [`githome`] (feature `githome`): a fake of githome's source of jobs for
+//!   the CI of podrunner, and its binary `pod-fake-githome`.
 //!
 //! A stand-in of this kit speaks bytes and HTTP only, and takes no type of
-//! a pod crate, so that each crate can dev-depend on the kit.
+//! a pod crate, so that each crate can dev-depend on the kit. The one
+//! exception is the feature `githome`: it speaks the source wire of
+//! `pod_job::source`, so that the fake and podrunner read one form of the
+//! wire. `pod-job` has no pod dependency and does not dev-depend on the kit.
 
 pub mod alloc;
 #[cfg(target_os = "linux")]
 pub mod elf;
+#[cfg(any(feature = "github", feature = "githome"))]
+mod fake;
+#[cfg(feature = "githome")]
+pub mod githome;
 #[cfg(feature = "github")]
 pub mod github;
 pub mod host;

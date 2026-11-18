@@ -52,6 +52,8 @@ ALLOWED = {
     ("pod-testkit", "masque"): "a crate of tests; it is not in a released binary",
     ("pod-testkit", "github"): "the fake GitHub of a consumer's CI; the static job of ci.yml checks its own "
                                "binary pod-fake-github, and no binary of a consumer carries it",
+    ("pod-testkit", "githome"): "the fake of githome's source of jobs for podrunner's CI; the static job of ci.yml "
+                                "checks its own binary pod-fake-githome, and no binary of a consumer carries it",
     ("pod-wormhole", "standin"): "the stand-in mailbox of the tests of this crate and of a consumer; "
                                  "a consumer turns it on in [dev-dependencies] only, and no binary carries it",
     ("pod-derp", "standin"): "the stand-in DERP server of the tests of this crate and of a consumer; "

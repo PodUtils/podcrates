@@ -1,0 +1,9 @@
+# The fake githome takes a second claim of a claimed job: two hosts of
+# podrunner then run one job, and the step 5 of podrunner's
+# source-conformance (a-job-is-claimed-once) passes a source that it must
+# refuse (T-948).
+ENTRY=T-948
+GROUP=job
+EXPECT='test the_conformance_steps_of_podrunner_pass \.\.\. FAILED'
+RUN='cargo test -p pod-testkit --features githome --test githome -- the_conformance_steps_of_podrunner_pass --exact'
+LIMIT=1800

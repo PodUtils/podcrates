@@ -5384,6 +5384,7 @@ dependencies = [
  "http",
  "libc",
  "pod-hostprobe",
+ "pod-job",
  "pod-time",
  "ring",
  "serde_json",

@@ -22,11 +22,20 @@ refused = ["dep:tokio", "tokio/net"]
 # pod-fake-github: the App, the JIT configuration, the `workflow_job`
 # webhooks and the runner broker, on the HTTP stand-in.
 github = ["stand", "dep:ring", "dep:serde_json", "dep:base64", "dep:pod-time"]
+# The fake of githome's source of jobs for the CI of podrunner
+# (src/githome.rs) and its binary pod-fake-githome: the state and a control
+# API on the HTTP stand-in, and a program of the source wire of pod-job.
+githome = ["stand", "dep:serde_json", "dep:pod-job"]
 
 [[bin]]
 name = "pod-fake-github"
 path = "src/bin/pod-fake-github.rs"
 required-features = ["github"]
+
+[[bin]]
+name = "pod-fake-githome"
+path = "src/bin/pod-fake-githome.rs"
+required-features = ["githome"]
 
 [dependencies]
 vt100 = { version = "0.18", optional = true }
@@ -41,6 +50,9 @@ ring = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 pod-time = { workspace = true, optional = true }
+# The fake githome: the types of the source wire and of the job offer, so
+# that the fake and podrunner read one form. pod-job has no pod dependency.
+pod-job = { workspace = true, optional = true }
 
 # The probe of a user and a mount namespace (need_userns!): fork, unshare,
 # mount.
