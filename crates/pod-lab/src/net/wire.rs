@@ -8,22 +8,12 @@ use std::os::fd::AsRawFd;
 /// The longest head of an HTTP message that a stand-in reads.
 const HEAD_MAX: usize = 16 * 1024;
 
-/// Read the head of an HTTP message, to the empty line. The bytes after
-/// it stay in the stream only where the peer waits for an answer, as each
-/// peer of the lab does.
+/// Read the head of an HTTP message, to the empty line, one byte at a time
+/// (`pod_core::http1::read_head_exact`). The bytes after it stay in the
+/// stream only where the peer waits for an answer, as each peer of the lab
+/// does.
 pub fn read_head(s: &mut impl Read) -> Result<String, String> {
-    let mut head = Vec::new();
-    let mut b = [0u8; 1];
-    while !head.ends_with(b"\r\n\r\n") {
-        match s.read(&mut b) {
-            Ok(0) => return Err("the peer closed before the end of the head".to_string()),
-            Ok(_) => head.push(b[0]),
-            Err(e) => return Err(format!("a read of the head: {e}")),
-        }
-        if head.len() > HEAD_MAX {
-            return Err("the head is too long".to_string());
-        }
-    }
+    let head = pod_core::http1::read_head_exact(s, HEAD_MAX).map_err(|e| format!("a read of the head: {e}"))?;
     String::from_utf8(head).map_err(|_| "the head is not text".to_string())
 }
 
@@ -44,11 +34,7 @@ pub fn header<'a>(head: &'a str, name: &str) -> Option<&'a str> {
 
 /// The status of an answer of HTTP/1.1: `HTTP/1.1 200 OK` gives 200.
 pub fn status(head: &str) -> Option<u16> {
-    let (version, code, _) = first_line(head);
-    if !version.starts_with("HTTP/") {
-        return None;
-    }
-    code.parse().ok()
+    pod_core::http1::parse_status_line(head).ok().map(|(status, _)| status)
 }
 
 /// The host and the port of the target of `CONNECT`: `name:443` or

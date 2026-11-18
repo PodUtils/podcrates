@@ -5066,6 +5066,7 @@ dependencies = [
  "linux-raw-sys",
  "p256 0.14.0",
  "pod-confine",
+ "pod-core",
  "pod-hostprobe",
  "pod-manual",
  "pod-testkit",

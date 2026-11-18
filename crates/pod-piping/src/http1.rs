@@ -4,6 +4,7 @@
 //! the sender's comes (nwtgck/piping-server:src/piping.ts), so a body is
 //! read piece by piece, never whole, and each piece goes on at once.
 
+use pod_core::http1::find;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
 /// The longest head of an answer, and the longest line of a chunk's size.
@@ -50,12 +51,7 @@ pub fn chunk(bytes: &[u8]) -> Vec<u8> {
 pub const LAST_CHUNK: &[u8] = b"0\r\n\r\n";
 
 /// How an answer's body ends.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Framing {
-    Length(u64),
-    Chunked,
-    UntilClose,
-}
+pub use pod_core::http1::Framing;
 
 /// An answer's head: its status, how its body ends, and whether its
 /// connection may carry another request after it.
@@ -67,40 +63,12 @@ pub struct Answer {
 }
 
 /// Read an answer's head from `io`, after the bytes in `buf`; the bytes after
-/// the head stay in `buf`. A `100 Continue` is passed over.
+/// the head stay in `buf`. Interim answers (`100 Continue`) are passed over,
+/// as `pod_proxy::http::read_head_in` reads them.
 pub async fn read_head<R: AsyncRead + Unpin>(io: &mut R, buf: &mut Vec<u8>) -> Result<Answer, String> {
-    loop {
-        let end = loop {
-            if let Some(end) = find(buf, b"\r\n\r\n") {
-                break end + 4;
-            }
-            if buf.len() > HEAD_LIMIT {
-                return Err("no end of the answer's head within 16 KiB".into());
-            }
-            if !fill(io, buf).await? {
-                return Err("the connection closed before the answer's head".into());
-            }
-        };
-        let text = String::from_utf8_lossy(&buf[..end]).into_owned();
-        buf.drain(..end);
-        let (status, _, headers) = pod_proxy::http::parse_head(&text)?;
-        if (100..200).contains(&status) {
-            continue;
-        }
-        let header = |name: &str| headers.iter().find(|(n, _)| n == name).map(|(_, v)| v.to_ascii_lowercase());
-        let length = header("content-length").and_then(|v| v.trim().parse::<u64>().ok());
-        let framing = if status == 204 || status == 304 {
-            Framing::Length(0)
-        } else if header("transfer-encoding").is_some_and(|v| v.contains("chunked")) {
-            Framing::Chunked
-        } else if let Some(length) = length {
-            Framing::Length(length)
-        } else {
-            Framing::UntilClose
-        };
-        let close = header("connection").is_some_and(|v| v.contains("close")) || text.starts_with("HTTP/1.0");
-        return Ok(Answer { status, framing, keep: !close && framing != Framing::UntilClose });
-    }
+    let (head, http11) = pod_proxy::http::read_head_in(io, buf, HEAD_LIMIT).await.map_err(|e| e.to_string())?;
+    let framing = Framing::of(head.status, &head.headers);
+    Ok(Answer { status: head.status, framing, keep: pod_core::http1::keeps(http11, &head.headers, framing) })
 }
 
 /// Where a body's reader is.
@@ -242,8 +210,4 @@ async fn fill<R: AsyncRead + Unpin>(io: &mut R, buf: &mut Vec<u8>) -> Result<boo
     let n = io.read(&mut chunk).await.map_err(|e| e.to_string())?;
     buf.extend_from_slice(&chunk[..n]);
     Ok(n > 0)
-}
-
-fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    haystack.windows(needle.len()).position(|w| w == needle)
 }

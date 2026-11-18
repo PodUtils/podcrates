@@ -36,6 +36,9 @@ pod-manual = { workspace = true, optional = true }
 pod-hostprobe = { workspace = true }
 # The BPF program of a seccomp deny list, and its default list.
 pod-confine = { workspace = true }
+# The head of an HTTP/1.1 message of the stand-ins: its read and its
+# status line, with no tokio.
+pod-core = { workspace = true }
 # The errno numbers of the build target.
 linux-raw-sys = { workspace = true, features = ["errno"] }
 # The TLS of the stand-ins of a network lab: the pure-Rust provider of
