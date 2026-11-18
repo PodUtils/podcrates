@@ -55,7 +55,9 @@ mod wrap;
 pub use context::{Context, Settings, client_config};
 pub use env_bundle::{BUNDLE_VARS, EnvBundle, Passed, env_bundle};
 pub use error::Error;
-pub use hint::{Words, clock_hint, clock_refused, handshake_error, handshake_failure, handshake_hint};
+pub use hint::{
+    Words, cause as handshake_cause, clock_hint, clock_refused, handshake_error, handshake_failure, handshake_hint,
+};
 pub use roots::{CaFile, Roots};
 pub use trust::{
     CallerConfig, ROOTS_PUBLISHED, ROOTS_VERSION, SYSTEM_BUNDLES, TlsRoots, Trust, roots_from_bundle,

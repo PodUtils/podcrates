@@ -80,9 +80,27 @@ pub fn hosts_for(hosts: &[Relay], attempts: &[(String, OpenError)]) -> Vec<Relay
     out
 }
 
+/// Why the TLS of `host` failed in `attempts`, in plain words where the
+/// words of TLS say it ([`pod_tls::handshake_cause`]: a certificate for another
+/// name, one that no trusted CA signed), else the text of the error.
+pub fn tls_cause(host: &str, attempts: &[(String, OpenError)]) -> String {
+    let failed = attempts.iter().filter(|(h, e)| h == host && may_help(e)).find_map(|(_, e)| match e {
+        OpenError::Connect { error, .. } | OpenError::Token(TokenError::Connect(error)) => Some(error),
+        _ => None,
+    });
+    match failed {
+        Some(error) => {
+            let text = error.to_string();
+            pod_tls::handshake_cause(&text).unwrap_or(text)
+        }
+        None => "no cause was kept".to_string(),
+    }
+}
+
 /// The road after the TLS road failed with `attempts`: the session of the
 /// first of [`hosts_for`] that opens, each within [`HOST_DEADLINE`], one at a
-/// time; `notes` hears each step.
+/// time; `notes` hears each step, with the cause of the TLS failure of each
+/// host ([`tls_cause`]).
 pub async fn last(
     ctx: &Context,
     hosts: &[Relay],
@@ -90,13 +108,18 @@ pub async fn last(
     path: &str,
     notes: &mut (dyn FnMut(&str) + Send),
 ) -> Option<(Relay, RelaySession)> {
-    over(ctx, hosts_for(hosts, attempts), path, notes).await
+    let tried = hosts_for(hosts, attempts).into_iter().map(|r| {
+        let cause = tls_cause(&r.host, attempts);
+        (r, cause)
+    });
+    over(ctx, tried.collect(), path, notes).await
 }
 
-/// The road to `tried`, in order, as [`last`] takes it.
+/// The road to `tried`, in order, each with the cause of its TLS failure,
+/// as [`last`] takes it.
 pub async fn over(
     ctx: &Context,
-    tried: Vec<Relay>,
+    tried: Vec<(Relay, String)>,
     path: &str,
     notes: &mut (dyn FnMut(&str) + Send),
 ) -> Option<(Relay, RelaySession)> {
@@ -112,12 +135,12 @@ pub async fn over(
         }
     }
     let (app, name) = (&ctx.settings.names.app, &ctx.settings.names.cleartext);
-    for relay in tried {
+    for (relay, cause) in tried {
         let shown = token::relay_name(&relay);
         notes(&format!(
-            "each relay host failed, and the TLS of {shown} failed on the way: {app} asks {shown} in cleartext for a \
-             token of one session, and opens the session with it; each hop reads the target and that token, and \
-             SSH inside stays end to end ({name}=no turns this off)"
+            "each relay host failed, and the TLS of {shown} failed on the way ({cause}): {app} asks {shown} in \
+             cleartext for a token of one session, and opens the session with it; each hop reads the target and \
+             that token, and SSH inside stays end to end ({name}=no turns this off)"
         ));
         match tokio::time::timeout(HOST_DEADLINE, attempt(ctx, &relay, path, CONNECT_TIMEOUT)).await {
             Ok(Ok(session)) => {
@@ -286,6 +309,19 @@ mod tests {
                 && !may_help(&OpenError::Token(TokenError::NotIssued { give: String::new() }))
         );
         assert!(hosts_for(&hosts, &[]).is_empty(), "no failure, no road");
+        // The cause of each host's TLS failure, in plain words where TLS
+        // says it (PodUtils/podssh#315).
+        assert_eq!(tls_cause(default, &attempts), "a certificate that no trusted CA signed");
+        assert!(tls_cause("b.example", &attempts).contains("reset"), "{}", tls_cause("b.example", &attempts));
+        let named = vec![(
+            "other.test".to_string(),
+            connect(ConnectError::Tls(
+                "invalid peer certificate: certificate not valid for name \"other.test\"; certificate is only \
+                 valid for DnsName(\"listed.test\")"
+                    .into(),
+            )),
+        )];
+        assert_eq!(tls_cause("other.test", &named), "a certificate for listed.test, not other.test");
     }
 
     fn answer(status: u16, body: &str) -> Response {

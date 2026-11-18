@@ -100,6 +100,59 @@ pub fn clock_hint(chain: &str) -> Option<String> {
         .then(|| pod_core::clock::hint(std::time::SystemTime::now()))
 }
 
+/// The cause of a failed handshake in a few plain words, from the text of
+/// its error (rustls's words, also inside a wrapper): a certificate for
+/// another name (with its names, as rustls gives them), one that no trusted
+/// CA signed, an expired one, one that is not valid yet. `None` for another
+/// failure: the caller keeps the text of the error.
+pub fn cause(text: &str) -> Option<String> {
+    let lower = text.to_ascii_lowercase();
+    if let Some(at) = text.find("not valid for name \"") {
+        let rest = &text[at + "not valid for name \"".len()..];
+        let want = rest.split('"').next().unwrap_or_default();
+        let names = rest.split_once("is only valid for ").map(|(_, n)| plain_names(n));
+        return Some(match names {
+            Some(names) if !names.is_empty() => format!("a certificate for {names}, not {want}"),
+            _ => format!("a certificate that is not for {want}"),
+        });
+    }
+    if lower.contains("notvalidforname") {
+        return Some("a certificate for another name".into());
+    }
+    if text.contains("UnknownIssuer") || lower.contains("unknown issuer") {
+        return Some("a certificate that no trusted CA signed".into());
+    }
+    if lower.contains("certificate expired") || text.contains("Expired") {
+        return Some("an expired certificate".into());
+    }
+    if lower.contains("not valid yet") || text.contains("NotValidYet") {
+        return Some("a certificate that is not valid yet".into());
+    }
+    if text.contains("Revoked") || lower.contains("certificate revoked") {
+        return Some("a revoked certificate".into());
+    }
+    None
+}
+
+/// The names that rustls lists after "is only valid for": `DnsName("a")`
+/// and `IpAddress(..)` as plain names, to the end of its list.
+fn plain_names(list: &str) -> String {
+    let end = list.find(';').unwrap_or(list.len());
+    list[..end]
+        .split(", ")
+        .flat_map(|part| part.split(" or "))
+        .map(|n| {
+            let n = n.trim();
+            match (n.find("(\""), n.rfind("\")")) {
+                (Some(a), Some(b)) if b > a => &n[a + 2..b],
+                _ => n,
+            }
+        })
+        .filter(|n| !n.is_empty())
+        .collect::<Vec<_>>()
+        .join(" or ")
+}
+
 /// The text of a failed handshake, with its hint when it has one.
 pub fn handshake_failure(error: &std::io::Error, words: &Words) -> String {
     match handshake_hint(error, words) {
@@ -122,6 +175,36 @@ pub fn handshake_error(error: std::io::Error, words: &Words) -> Failure {
 mod tests {
     use super::*;
     use rustls::{CertificateError, Error};
+
+    /// The cause in plain words, from rustls's own text of each refusal
+    /// (PodUtils/podssh#315).
+    #[test]
+    fn the_cause_of_a_handshake_in_plain_words() {
+        let name = |presented: Vec<String>| {
+            let expected = rustls::pki_types::ServerName::try_from("other.test").unwrap().to_owned();
+            Error::InvalidCertificate(CertificateError::NotValidForNameContext { expected, presented }).to_string()
+        };
+        let one = name(vec!["DnsName(\"listed.test\")".into()]);
+        assert_eq!(cause(&one).as_deref(), Some("a certificate for listed.test, not other.test"), "{one}");
+        let two = name(vec!["DnsName(\"a.test\")".into(), "DnsName(\"b.test\")".into()]);
+        assert_eq!(cause(&two).as_deref(), Some("a certificate for a.test or b.test, not other.test"), "{two}");
+        let none = name(Vec::new());
+        assert_eq!(cause(&none).as_deref(), Some("a certificate that is not for other.test"), "{none}");
+        let issuer = Error::InvalidCertificate(CertificateError::UnknownIssuer).to_string();
+        assert_eq!(
+            cause(&format!("invalid peer certificate: {issuer}")).as_deref(),
+            Some("a certificate that no trusted CA signed")
+        );
+        assert_eq!(
+            cause("invalid peer certificate: UnknownIssuer").as_deref(),
+            Some("a certificate that no trusted CA signed")
+        );
+        let expired = Error::InvalidCertificate(CertificateError::Expired).to_string();
+        assert_eq!(cause(&expired).as_deref(), Some("an expired certificate"), "{expired}");
+        let early = Error::InvalidCertificate(CertificateError::NotValidYet).to_string();
+        assert_eq!(cause(&early).as_deref(), Some("a certificate that is not valid yet"), "{early}");
+        assert_eq!(cause("connection reset by peer"), None);
+    }
 
     /// podssh's words.
     fn podssh() -> Words {
