@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**774 entries: 147 open, 23 partial, 7 blocked, 597 done.**
+**774 entries: 146 open, 24 partial, 7 blocked, 597 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 8 | 0 | 170 | 189 |
-| P2 | 70 | 5 | 4 | 307 | 386 |
+| P2 | 69 | 6 | 4 | 307 | 386 |
 | P3 | 66 | 10 | 3 | 118 | 197 |
-| **All** | 147 | 23 | 7 | 597 | 774 |
+| **All** | 146 | 24 | 7 | 597 | 774 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -812,7 +812,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-930](services.md) | P2 | S | M5 | defect | done | `pod-services`: the Syncthing relay DVWOU27 moved to 61.223.4.2; cloudflared 2026.11.1 changed `quick_tunnel.go` (services 44282821174) |
 | [T-931](adapters.md) | P3 | S | M3 | defect | done | `pod-cloudflare`: a quick tunnel opens two edge connections; cloudflared opens one |
 | [T-932](upkeep.md) | P2 | M | M5 | chore | open | A check of the temp files that the crates of podcrates make (PodUtils/podvm#567, lesson 5) |
-| [T-933](upkeep.md) | P2 | S | M5 | defect | open | `pod-cloudflare`: three tests fail on Windows, where they ran for the first time (nightly 44275593101) |
+| [T-933](upkeep.md) | P2 | S | M5 | defect | partial | `pod-cloudflare`: three tests fail on Windows, where they ran for the first time (nightly 44275593101) |
 | [T-934](transport.md) | P2 | S | M1 | defect | open | `pod-proxy`: an exec proxy runs `sh -c`, which breaks a Windows path and needs `sh` on Windows |
 | [T-935](foundation.md) | P2 | S | M0 | defect | open | `pod-core`: two renames onto one name at once give "Access is denied" on Windows |
 | [T-936](foundation.md) | P1 | S | M0 | defect | done | `pod-testkit`: `refused()` gives a timeout on macOS, not a refusal |

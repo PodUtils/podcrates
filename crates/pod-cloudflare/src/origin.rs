@@ -336,7 +336,9 @@ mod tests {
         assert!(err.to_string().contains("noTLSVerify"), "{err}");
         let unix = Service::UnixTls("/nonexistent/origin.sock".into());
         let err = origins.dial(&unix, &options).await.err().expect("a refused dial");
-        assert_eq!(err.class, Class::Policy, "{err}");
+        // A system with no Unix socket refuses the origin before its TLS.
+        let class = if cfg!(unix) { Class::Policy } else { Class::Unsupported };
+        assert_eq!(err.class, class, "{err}");
     }
 
     /// The warning of an origin with no check of its certificate is an

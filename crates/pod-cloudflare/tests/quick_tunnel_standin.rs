@@ -227,10 +227,21 @@ fn quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped() {
     let handle = standin.run(host, config).expect("the tunnel starts");
     assert_eq!(handle.leg(), "http2");
     assert!(said(&events, "the edge leg http2 won"), "{:?}", events.lock().unwrap());
-    // The QUIC leg sent its packets to the silent socket.
+    // The QUIC leg sent its packets to the silent socket. Windows can give a
+    // reset on a read of UDP: read again until a packet or the bound.
     silent.set_read_timeout(Some(Duration::from_millis(100))).unwrap();
     let mut buf = [0u8; 2048];
-    assert!(silent.recv_from(&mut buf).is_ok(), "no QUIC packet came");
+    let mut last = None;
+    for _ in 0..20 {
+        match silent.recv_from(&mut buf) {
+            Ok(_) => {
+                last = None;
+                break;
+            }
+            Err(e) => last = Some(e),
+        }
+    }
+    assert!(last.is_none(), "no QUIC packet came: {last:?}");
     standin.block_on(handle.shutdown());
 }
 

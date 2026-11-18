@@ -17,10 +17,12 @@ fn a_deep_document_is_an_error() {
     let items: String = (0..200).map(|i| format!("{}- a:\n", "  ".repeat(i))).collect();
     let err = format!("{:#}", parse(&items).unwrap_err());
     assert!(err.contains("nests deeper"), "{err}");
-    // A small stack: the cap stops the recursion before an overflow.
+    // A small stack for 3000 levels: the cap stops the recursion before an
+    // overflow. A debug build of Windows needs more than 256 KiB for the 64
+    // levels of the cap.
     let text = nested(3000);
     let result = std::thread::Builder::new()
-        .stack_size(256 * 1024)
+        .stack_size(2 * 1024 * 1024)
         .spawn(move || parse(&text).map(|_| ()).map_err(|e| e.to_string()))
         .unwrap()
         .join()
