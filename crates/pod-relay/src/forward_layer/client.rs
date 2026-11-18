@@ -461,7 +461,7 @@ mod tests {
         let asked = Relay { host: "relay.example.org".into(), port: 443 };
         let at = Relay { host: "relay-2.relay.example.org".into(), port: 443 };
         let ctx = crate::testing::context();
-        let offer = Offer { layer: true, at: Some(at.clone()), refused: None, quic: None, liveness: None };
+        let offer = Offer { layer: true, at: Some(at.clone()), ..Offer::default() };
         let dialer = Dialer::for_offer(&ctx, &asked, &offer, "github.com", 22, Trust::Default).unwrap();
         assert_eq!(dialer.relay(), &at);
         let unnamed = Offer { layer: true, ..Offer::default() };

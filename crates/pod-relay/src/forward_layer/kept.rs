@@ -31,6 +31,11 @@ struct KeptOffer {
     /// of before it.
     #[serde(default)]
     quic: Option<u16>,
+    /// `limits.max_session_bytes` of the same document, so that a run that
+    /// takes a kept offer moves its session before the cap with no read
+    /// (PodUtils/podssh#314); none in a file of before it.
+    #[serde(default)]
+    max_session_bytes: Option<u64>,
 }
 
 /// The cache file of `relay`'s offer.
@@ -42,7 +47,8 @@ pub fn file_name(relay: &Relay) -> String {
 /// file is no failure of the run, which reads the offer again next time.
 pub fn keep(cache: &Cache, relay: &Relay, offered: &Offer, now_ms: i64) {
     let at = offered.at.as_ref().map(|at| pod_proxy::host::authority(&at.host, at.port));
-    let kept = KeptOffer { read_ms: now_ms, layer: offered.layer, at, quic: offered.quic };
+    let (layer, quic, max_session_bytes) = (offered.layer, offered.quic, offered.max_session_bytes);
+    let kept = KeptOffer { read_ms: now_ms, layer, at, quic, max_session_bytes };
     if let Ok(body) = serde_json::to_vec(&kept) {
         let _ = cache.store_file(&file_name(relay), &body);
     }
@@ -62,7 +68,8 @@ fn of_text(text: &str, relay: &Relay, now_ms: i64) -> Option<Offer> {
     if !(0..=FRESH_MS).contains(&age) {
         return None;
     }
-    let mut offered = Offer { layer: kept.layer, quic: kept.quic, ..Offer::default() };
+    let (layer, quic, max_session_bytes) = (kept.layer, kept.quic, kept.max_session_bytes);
+    let mut offered = Offer { layer, quic, max_session_bytes, ..Offer::default() };
     if let Some(at) = &kept.at {
         match offer::named(relay, at) {
             Ok(holder) => offered.at = Some(holder),
@@ -96,7 +103,8 @@ mod tests {
     }
 
     fn text(read_ms: i64, layer: bool, at: Option<&str>) -> String {
-        serde_json::to_string(&KeptOffer { read_ms, layer, at: at.map(String::from), quic: None }).unwrap()
+        let at = at.map(String::from);
+        serde_json::to_string(&KeptOffer { read_ms, layer, at, quic: None, max_session_bytes: None }).unwrap()
     }
 
     #[test]
@@ -139,10 +147,32 @@ mod tests {
     fn the_port_of_quic_is_kept_with_the_offer() {
         let asked = relay("relay.example.org", 443);
         let now = 1_793_577_600_000;
-        let kept = KeptOffer { read_ms: now, layer: false, at: None, quic: Some(443) };
+        let kept = KeptOffer { read_ms: now, layer: false, at: None, quic: Some(443), max_session_bytes: None };
         let text = serde_json::to_string(&kept).unwrap();
         assert_eq!(of_text(&text, &asked, now).unwrap().quic, Some(443));
         let before = format!(r#"{{"read_ms":{now},"layer":true}}"#);
         assert_eq!(of_text(&before, &asked, now).unwrap().quic, None);
+    }
+
+    /// The cap of the host's sessions is kept with the offer: an offer from
+    /// the cache moves its session under it with no read, and a file of
+    /// before it reads as no cap (PodUtils/podssh#314).
+    #[test]
+    fn the_cap_of_a_session_is_kept_with_the_offer() {
+        let asked = relay("relay.example.org", 443);
+        let now = 1_793_577_600_000;
+        let body = br#"{"forward":{"layer":true},"limits":{"max_session_bytes":2097152}}"#;
+        let read = offer::of(body, &asked);
+        assert_eq!(read.max_session_bytes, Some(2 << 20));
+        let dir = std::env::temp_dir().join(format!("pod-relay-kept-cap-{}", std::process::id()));
+        let cache = Cache::in_dirs(vec![dir.clone()]);
+        keep(&cache, &asked, &read, now);
+        let from_the_cache = kept(&cache, &asked, now).expect("the kept offer");
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(from_the_cache, read, "the same offer, the cap too");
+        assert_eq!(from_the_cache.move_bytes(), 3 << 19, "three quarters of 2 MiB");
+        let before = format!(r#"{{"read_ms":{now},"layer":true}}"#);
+        let old = of_text(&before, &asked, now).unwrap();
+        assert_eq!((old.max_session_bytes, old.move_bytes()), (None, pod_session::resume::MOVE_BYTES));
     }
 }

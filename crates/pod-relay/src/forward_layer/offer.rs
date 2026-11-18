@@ -19,6 +19,7 @@ use crate::context::Context;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::relay::{Relay, parse_relay};
+use pod_session::resume::MOVE_BYTES;
 
 /// The longest name of a host that a refusal of it shows.
 const SHOWN_MOST: usize = 80;
@@ -41,6 +42,10 @@ pub struct Offer {
     /// (`forward.liveness`, by the rule of [`crate::liveness`]; podssh
     /// T-712); `None`: the client keeps its own.
     pub liveness: Option<std::time::Duration>,
+    /// The cap of the bytes of one session, both ways, of the same document
+    /// (`limits.max_session_bytes`, by the rule of
+    /// [`crate::pool::parse_limits`]); `None`: the host gave none.
+    pub max_session_bytes: Option<u64>,
 }
 
 impl Offer {
@@ -48,6 +53,16 @@ impl Offer {
     /// names, else `asked`, whose document made the offer.
     pub fn holder(&self, asked: &Relay) -> Relay {
         self.at.clone().unwrap_or_else(|| asked.clone())
+    }
+
+    /// The bytes of one link, both ways, at which the layer moves a session
+    /// to a new link (`pod_session::Settings::move_bytes`): pod-session's
+    /// [`MOVE_BYTES`], or three quarters of a smaller cap of the host, as
+    /// [`MOVE_BYTES`] is of the default relay's cap. The bytes in flight
+    /// and a second try then fit under the cap.
+    pub fn move_bytes(&self) -> u64 {
+        let under = self.max_session_bytes.map(crate::relay::three_quarters);
+        under.map_or(MOVE_BYTES, |n| n.min(MOVE_BYTES))
     }
 }
 
@@ -65,7 +80,8 @@ pub fn of(body: &[u8], asked: &Relay) -> Offer {
     let quic = forward.and_then(|forward| forward.get("quic")).and_then(serde_json::Value::as_u64);
     let quic = quic.and_then(|port| u16::try_from(port).ok()).filter(|port| *port != 0);
     let liveness = crate::liveness::pace(forward.and_then(|forward| forward.get(crate::liveness::MEMBER)));
-    let mut offer = Offer { layer, quic, liveness, ..Offer::default() };
+    let max_session_bytes = crate::pool::parse_limits(body).max_session_bytes;
+    let mut offer = Offer { layer, quic, liveness, max_session_bytes, ..Offer::default() };
     match forward.and_then(|forward| forward.get("host")) {
         None | Some(serde_json::Value::Null) => {}
         Some(serde_json::Value::String(name)) => match named(asked, name) {
@@ -159,6 +175,26 @@ mod tests {
         let fast = br#"{"forward":{"layer":true,"liveness":{"frame":"ws-ping","pingMs":5000}}}"#;
         assert_eq!(of(fast, &asked).liveness, None, "under 30 s is not taken");
         assert_eq!(of(br#"{"forward":{"layer":true}}"#, &asked).liveness, None);
+    }
+
+    /// `limits.max_session_bytes` of the same document: the layer moves at
+    /// three quarters of a small cap, and at pod-session's own bytes under
+    /// a large cap or none (PodUtils/podssh#314).
+    #[test]
+    fn the_offer_moves_the_session_under_the_cap_of_its_document() {
+        let asked = relay("relay.test", 443);
+        let with_cap = |cap: &str| format!(r#"{{"forward":{{"layer":true}},"limits":{{"max_session_bytes":{cap}}}}}"#);
+        for (cap, moves_at) in [(1u64 << 20, 768u64 << 10), (8 << 20, 6 << 20), (1 << 40, MOVE_BYTES)] {
+            let offer = of(with_cap(&cap.to_string()).as_bytes(), &asked);
+            assert_eq!(offer.max_session_bytes, Some(cap));
+            assert_eq!(offer.move_bytes(), moves_at, "under a cap of {cap}");
+        }
+        for odd in ["0", "\"1048576\"", "-1"] {
+            let offer = of(with_cap(odd).as_bytes(), &asked);
+            assert_eq!((offer.max_session_bytes, offer.move_bytes()), (None, MOVE_BYTES), "{odd}");
+        }
+        assert_eq!(of(br#"{"forward":{"layer":true}}"#, &asked).move_bytes(), MOVE_BYTES);
+        assert_eq!(Offer::default().move_bytes(), pod_session::Settings::default().move_bytes);
     }
 
     #[test]

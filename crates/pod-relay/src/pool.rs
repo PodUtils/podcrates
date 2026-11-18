@@ -397,12 +397,19 @@ mod tests {
         assert_eq!(byte_budget_under(None, &with_bytes(32 << 20)), 28 << 20);
         assert_eq!(byte_budget_under(None, &with_bytes(128 << 20)), SESSION_BYTE_BUDGET);
         assert_eq!(byte_budget_under(None, &Limits::default()), SESSION_BYTE_BUDGET);
-        // A cap with no room for the margin: three quarters of it, never
-        // the default over it (PodUtils/podssh#314).
+        // A cap with little or no room for the margin: three quarters of
+        // it, never the default over it (PodUtils/podssh#314).
         assert_eq!(byte_budget_under(None, &with_bytes(4 << 20)), 3 << 20, "no room for the margin");
         assert_eq!(byte_budget_under(None, &with_bytes(1 << 20)), 768 << 10, "a cap of 1 MiB");
-        assert_eq!(byte_budget_under(None, &with_bytes(8 << 20)), 4 << 20, "the margin still fits");
-        for cap in [1u64 << 20, 2 << 20, 5 << 20, 8 << 20, 9 << 20, 64 << 20] {
+        assert_eq!(byte_budget_under(None, &with_bytes(8 << 20)), 6 << 20, "a cap of 8 MiB");
+        assert_eq!(byte_budget_under(None, &with_bytes(16 << 20)), 12 << 20, "the two rules meet");
+        let mut before = 0;
+        for cap in (1u64..=160).map(|n| n << 19) {
+            let budget = byte_budget_under(None, &with_bytes(cap));
+            assert!(budget < cap && budget >= before, "a budget under the cap {cap}, not under a smaller cap's");
+            before = budget;
+        }
+        for cap in [1, 3, 4, 1000, u64::MAX] {
             assert!(byte_budget_under(None, &with_bytes(cap)) < cap, "a budget under the cap {cap}");
         }
         assert_eq!(byte_budget_under(Some("10485760"), &with_bytes(32 << 20)), 10 << 20, "the variable lowers it");
