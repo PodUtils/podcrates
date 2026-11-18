@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 756 entries: 143 open, 22 partial, 7 blocked, 584 done.
+`TODO/INDEX.md` holds 758 entries: 140 open, 23 partial, 7 blocked, 588 done.
 
 ## State
 
@@ -13,7 +13,7 @@
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
-- Open defects: T-914 (P1), T-915, T-916, T-789, T-766 (the nightly);
+- Open defects: T-916 (partial), T-789, T-766 (the nightly);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
   `pod-session`).
 - The session of podcrates coordinates the five sessions: podcrates,
@@ -56,11 +56,11 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red nightly
-(T-914, T-915, T-916). Then the asks of podrunner
-(COORD-134, #225): T-907 (`pod-time`, PodUtils/podrunner#291, call C779);
-the next tag, which carries the fix of PodUtils/podrunner#290 and the work
+(T-916, partial: its proof is a run of `nightly.yml`). Then the asks of
+podrunner (COORD-134, #225): the next tag, which carries the fix of PodUtils/podrunner#290 and the work
 on `main`; T-882 (PodUtils/podrunner#289); T-923 (the fields of `pod-job`
-for podrunner and githome, #223 G-32); each new ask of podrunner. Then
+for podrunner and githome, #223 G-32); T-925 (`pod-incus`, PodUtils/podvm#582,
+for PodUtils/podrunner#296); each new ask of podrunner. Then
 T-909 (partial, on `wip/t909`; a gate of podssh's next beta). Then the
 entries that a need of githome or cfb names for their CI: T-922 (the
 schemas, #223 G-31), T-921 (a fake GitHub, #223 G-30) with T-106 (G-10),

@@ -5447,7 +5447,7 @@ cargo test -p pod-actions-store --all-features
 **Milestone:** M0
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5465,8 +5465,13 @@ A module of zone files with no C library and no network: the zone of an IANA nam
 ## Prove
 
 ```sh
+cargo test -p pod-time
 cargo test -p pod-actions-workflow --all-features
 ```
+
+## Done
+
+2026-11-18: the crate `pod-time` (std alone). The import of `PodUtils/podrunner:crates/podrunner-local/src/cron.rs` at `d72b161` (`SOURCES`), then: `civil` (both ways, the weekday), the TZif reader (`tzif.rs`: versions 1 to 4, the 64-bit block, each count checked against the length before a read, a file of at most 1 MiB, a zone with leap seconds refused), the POSIX TZ string of the footer (`posix.rs`: `Jn`, `n`, `Mm.w.d`, rule times from -167 to 167 hours, quoted names; daylight time across the new year and all year), `Zone` (`load` from `$TZDIR`, else `/usr/share/zoneinfo`; `UTC` with no file; a name with `..`, a leading `/`, an empty part or a NUL refused; a host with no zone directory is `NoZoneFiles`; `offset_at`, `local`, `next_change`, `instants` as `One`, `Two` or `Gap`), and `Cron::next_in(zone, after)`: a local time in a gap runs once at the end of the gap, a repeated local time once at its first instance (call C779). `Cron::parse` gives `pod_time::Error` (kind `Cron`). The check of `pod-actions-workflow` takes `timezone` (a string; another type is "a zone name"). The fuzz target `tzif_zone` with the seeds of three zones of tzdata. `cargo test -p pod-time`: 4 and 10 passed (`tests/zone.rs`: no daylight time, the table then the footer, a gap, a repeat, a zone of the south, a table with no footer, the names, a directory, each prefix and each changed byte of a file, `Europe/Berlin` of the host).
 
 # T-921: A fake GitHub as a binary for a consumer's CI: the App, the JIT configuration, the `workflow_job` webhooks and the runner broker (GitHub #223)
 
@@ -5652,3 +5657,35 @@ cargo test -p pod-job --all-features
 ```
 
 The parser takes and gives each field, and the schema holds it.
+
+# T-925: `pod-incus`: the state of an instance, a profile with its devices, and the OOM count (PodUtils/podvm#582)
+
+**Source:** PodUtils/podvm#582 (COORD-186 of podvm), for asks 1, 2 and 6 of PodUtils/podrunner#296 (COORD-089 of podrunner; githome's G-12 and G-18).
+**Category:** feature
+**Milestone:** M7
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm's incus tier uses `pod-incus` of `v0.70.0`. Two reads that podrunner needs are not in its `Client`, and `get` and `run_json` are `pub(crate)`; by the ruling "Shared code", podvm writes no client of the incus API beside the crate.
+
+1. The state of an instance: `GET /1.0/instances/NAME/state`, with `cpu.usage` (nanoseconds of CPU time), `memory.usage` and `memory.usage_peak` (bytes), the usage of each disk device where the pool reports it, `processes` and `status`. podvm gives the CPU time and the peak memory of an instance in `inspect` and in the run report (PodUtils/podrunner@T-483).
+2. The pool of the root disk: the device `root` of `NewInstance::devices` must name the `pool` of the profile to set the `size` of the root disk (PodUtils/podrunner@T-482). podvm asks for `Client::profile(name)` (`GET /1.0/profiles/NAME`, with its `devices`), so that it copies the `root` device of the default profile and adds `size`. A refusal of the pool (a driver with no quota, for example `dir`) reaches podvm as an error with the words of incusd.
+3. The OOM count of an instance (cgroup v2 `memory.events` `oom_kill`), where the state carries it; else say that incusd does not report it.
+
+## Premise
+
+- Read: PodUtils/podvm#582; `crates/pod-incus/src/client.rs`, `src/instances.rs`.
+- Not read: the API document of incus for `InstanceState` and `Profile` at the version that podvm runs.
+
+## Approach
+
+`Client::instance_state(name) -> InstanceState` with the fields of ask 1 (each optional where incusd can omit it), `Client::profile(name) -> Profile` with its `devices` as a map of string maps, and an error of incusd kept with its words. Read the API document for an OOM field of the state; where there is none, say so in the doc and in the answer to podvm. Tests against the stand-in of incusd of the crate, with the JSON of the API document.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features
+```

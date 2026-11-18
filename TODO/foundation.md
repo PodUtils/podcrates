@@ -2427,3 +2427,38 @@ sh scripts/plant-each.sh testkit-refused-port-freed
 ## Done
 
 2026-11-18, e3118312d. `pod_testkit::refused::{refused, Refused}` (feature `refused`): a TCP socket bound to `127.0.0.1:0` that does not listen, held by the guard; the doc of `listener::free_port` names it. Test `refused::tests::a_refused_address_stays_refused_while_its_guard_lives`. Plant `testkit-refused-port-freed` (the address of a port that a bind let go), caught. podnet replaces its `dead_port` helpers at the take; podssh, podvm and podrunner can do the same.
+
+# T-924: `pod-core`: a lock wait that a signal ends, and a lock file that the caller cannot write (PodUtils/podrunner#295)
+
+**Source:** PodUtils/podrunner#295 (COORD-088 of podrunner, section 3; PodUtils/podrunner@T-513).
+**Category:** feature
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Two locks of podrunner's local mode still call `flock(2)` themselves, because `pod_core::lock::FileLock` cannot hold them:
+
+1. `run_local/concurrency.rs` (a group of `concurrency:`): the wait for the holder has no bound, and a signal ends it (a newer run of the group cancels the waiting run with SIGTERM, or the user presses Ctrl-C). `FileLock::lock_within` has a bound only.
+2. `exec/host.rs` (the lock of a runner directory): a lock file of another user opens read only when it cannot open for write, as `flock(2)` takes a read descriptor. `FileLock` opens each file for write and makes it where absent. The same holds for a probe that must make no file (`PodUtils/podrunner:crates/podrunner/src/lock.rs`, `is_free`: a read-only open with no create, then `File::try_lock`).
+
+## Premise
+
+- Read: PodUtils/podrunner#295; `crates/pod-core/src/lock.rs`.
+- A signal handler with `SA_RESTART` (tokio, signal-hook) restarts `flock(2)`, so an `EINTR` does not end a blocking wait reliably. A wait that reads a stop flag between tries ends for each kind of handler, and on Windows too.
+
+## Approach
+
+`FileLock::lock_until(path, mode, stop)`: a wait with no bound that reads `stop` between tries (a flag that the signal handler of the caller sets), and gives a refusal of class `TempFail` that names the file at a stop. The open of a lock file falls back to a read-only open (no create, `O_NOFOLLOW`, close-on-exec) where the write open is refused for permission or a read-only file system. `FileLock::try_lock_existing(path, mode)`: a probe that makes no file; a missing file is `NotFound`. podrunner takes them at the next tag and removes its last `libc::flock` calls.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features --lib lock
+```
+
+## Done
+
+2026-11-18: `FileLock::lock_until`, `FileLock::try_lock_existing` and the read-only fallback of the open (`crates/pod-core/src/lock.rs`). Tests `a_wait_with_no_bound_ends_at_a_stop` (a stop from another thread after 100 ms gives `TempFail` with the path; a release by another thread gives the lock), `a_probe_of_a_lock_makes_no_file` (no file made; `NotFound`; a held lock gives `None`), `a_lock_file_that_the_caller_cannot_write_opens_read_only` (a file of mode 0444, both modes; it skips as root, which writes each file). `cargo test -p pod-core --all-features --lib lock`: 6 passed; the read-only test as the user `nobody` (`setpriv --reuid=65534`): 1 passed.

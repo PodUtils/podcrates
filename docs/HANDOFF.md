@@ -19,21 +19,21 @@ is done. Git and the record keep finished work.
    answer `(to podcrates)`, route each ask of podrunner to its owner at
    once, and edit #227 when the order changes.
 3. The red scheduled runs and their entries:
-   - `nightly.yml` at `62ce717`: T-914 (P1, an overflow of the reader of
-     Cap'n Proto on a 32-bit target), T-915 (a test of `pod-cloudflare` on
-     Windows and macOS), T-916 (the gate of no blocking call and eight
-     time bounds under QEMU, and a switch on a loaded native host). T-789
-     (armv7) and T-766 (riscv64) stay.
+   - `nightly.yml` at `62ce717`: T-914 and T-915 are done. T-916 is
+     partial: the fixes are on `main`; its proof is a run of `nightly.yml`
+     (dispatch it, and read the cross jobs). T-789 (armv7) and T-766
+     (riscv64) stay.
    - `upstream.yml`, the job `sources`: red on `pod-manual` until the
      port review of podssh's changes (T-863).
    A new red run needs an entry before other work. A macOS arm64 job of
    `ci.yml` that no runner takes ("not acquired by Runner") is no defect:
    run the failed jobs again.
-4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): after a red
-   run, the asks of podrunner (T-907, the next tag with the fix of
-   PodUtils/podrunner#290, T-882, T-923), then T-909, then the entries for
-   the CI of githome and cfb (T-922, T-921 with T-106, T-104 with T-880,
-   T-100, T-105, T-103, T-102).
+4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the tag
+   `v0.71.0` (T-905, T-906, T-907 `pod-time`, T-908, T-910 to T-913,
+   T-914, T-915, T-924 `FileLock`), then T-882, T-923, T-925 (`pod-incus`
+   for podvm, PodUtils/podvm#582), then T-909, then the entries for the CI
+   of githome and cfb (T-922, T-921 with T-106, T-104 with T-880, T-100,
+   T-105, T-103, T-102).
 5. podrunner's answer to COORD-135 (PodUtils/podrunner#294, at podrunner
    `3a0cbbb`) is in T-922 (the types and files of `status.v1` and of the
    source wire) and T-923 (the names and units of the new fields). Set
@@ -47,18 +47,17 @@ is done. Git and the record keep finished work.
    githome's asks G-30 to G-35 are T-921 to T-923, T-099, T-100 and T-104.
 7. The open hand-off is COORD-132 (#222) for `v0.70.0` (`ed6d84c`). Record
    each take in its body, and close it when each consumer is on `v0.70.0`
-   or later.
+   or later. Takes not yet in its body: podnet `7573016`
+   (PodUtils/podnet#654), podrunner `9c67bb3` (PodUtils/podrunner#295).
 8. In flight: T-909 (PodUtils/podssh#314 ask 2) on the branch `wip/t909`.
    Part 1 (a byte budget under each cap, `relay::byte_budget_under`) is
    written and not tested. Part 2 (the cap in `forward_layer::Offer`, kept
    in the cache) is not started. Merge the branch into `main` after the
    checks pass, then ask for its delete.
-9. `main` holds for the next tag: T-905, T-906, T-908, T-910, T-911,
-   T-912, T-913 (COORD-132, section "On `main`").
-10. T-767 (PodUtils/podssh#283, partial) waits for podssh's next stall with
-    the lines `session.resume` and `session.stall`; T-768 goes with it.
-11. Then the work order of `TODO/PROGRESS.md`.
-12. Run `scripts/agent/check.sh` with a short `TMPDIR` (for example
+9. T-767 (PodUtils/podssh#283, partial) waits for podssh's next stall with
+   the lines `session.resume` and `session.stall`; T-768 goes with it.
+10. Then the work order of `TODO/PROGRESS.md`.
+11. Run `scripts/agent/check.sh` with a short `TMPDIR` (for example
     `TMPDIR=/tmp`): a long one makes the socket paths of `pod-guest` too
     long for `sun_path` (T-920).
 

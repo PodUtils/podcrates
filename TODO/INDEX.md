@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**756 entries: 143 open, 22 partial, 7 blocked, 584 done.**
+**758 entries: 140 open, 23 partial, 7 blocked, 588 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 14 | 8 | 0 | 163 | 185 |
-| P2 | 64 | 4 | 4 | 303 | 375 |
+| P1 | 14 | 8 | 0 | 165 | 187 |
+| P2 | 61 | 5 | 4 | 305 | 375 |
 | P3 | 65 | 10 | 3 | 116 | 194 |
-| **All** | 143 | 22 | 7 | 584 | 756 |
+| **All** | 140 | 23 | 7 | 588 | 758 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -786,16 +786,16 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-904](relay.md) | P3 | S | M2 | defect | done | `pod-relay`: a relay that issues no token names no way to give one (PodUtils/podssh#313) |
 | [T-905](fleet.md) | P2 | S | M0 | feature | done | `pod-lab`: a row of a failure in a lane: `podlab run --expect-exit CODE --expect-stderr TEXT` (PodUtils/podnet#649) |
 | [T-906](fleet.md) | P1 | S | M0 | defect | done | `pod-actions-store`: the ref of a checkout of another repository: empty, a full ref, a commit SHA (PodUtils/podrunner#290) |
-| [T-907](fleet.md) | P2 | M | M0 | feature | open | A reader of the zone files (TZif) and the cron of `on.schedule` in its `timezone` (PodUtils/podrunner#291) |
+| [T-907](fleet.md) | P2 | M | M0 | feature | done | A reader of the zone files (TZif) and the cron of `on.schedule` in its `timezone` (PodUtils/podrunner#291) |
 | [T-908](relay.md) | P2 | S | M0 | defect | done | `pod-session`: the Close of the relay in the drain wins over the error of a write (PodUtils/podssh#314, ask 1) |
 | [T-909](relay.md) | P2 | S | M0 | defect | partial | `pod-relay`: the link budget of the layer under a small cap of the relay; the cap in `forward_layer::Offer` (PodUtils/podssh#314, ask 2) |
 | [T-910](foundation.md) | P2 | S | M0 | defect | done | `pod-testkit`: an address that refuses each connect and that no other test can take (PodUtils/podnet#653) |
 | [T-911](roads.md) | P2 | S | M0 | defect | done | `pod-proxy`: the same address twice in a race and in its error line (PodUtils/podssh#315, ask 1) |
 | [T-912](relay.md) | P2 | S | M0 | defect | done | `pod-session`: a far end that lost a session by a restart is said as one that timed it out (PodUtils/podssh#315, ask 2) |
 | [T-913](relay.md) | P2 | S | M0 | defect | done | `pod-relay`: the cleartext road does not say why the TLS of the relay failed (PodUtils/podssh#315, ask 3) |
-| [T-914](upkeep.md) | P1 | S | M5 | defect | open | `pod-cloudflare`: the reader of Cap'n Proto multiplies with overflow on a 32-bit target (the nightly at `62ce717`) |
-| [T-915](upkeep.md) | P2 | S | M5 | defect | open | `pod-cloudflare`: the test of the quick tunnel stand-in does not build on Windows and counts two registrations on macOS (the nightly at `62ce717`) |
-| [T-916](upkeep.md) | P2 | M | M5 | defect | open | The gate of no blocking call and eight time bounds fail under the emulation of QEMU (the nightly at `62ce717`) |
+| [T-914](upkeep.md) | P1 | S | M5 | defect | done | `pod-cloudflare`: the reader of Cap'n Proto multiplies with overflow on a 32-bit target (the nightly at `62ce717`) |
+| [T-915](upkeep.md) | P2 | S | M5 | defect | done | `pod-cloudflare`: the test of the quick tunnel stand-in does not build on Windows and counts two registrations on macOS (the nightly at `62ce717`) |
+| [T-916](upkeep.md) | P2 | M | M5 | defect | partial | The gate of no blocking call and eight time bounds fail under the emulation of QEMU (the nightly at `62ce717`) |
 | [T-917](upkeep.md) | P2 | M | M5 | chore | open | The copies of product code that `codegraph.py dups` finds: one place for each |
 | [T-918](upkeep.md) | P3 | M | M5 | chore | open | The helpers that the tests copy from file to file: one place for each |
 | [T-919](upkeep.md) | P1 | M | M0 | chore | done | A code graph, a check of repeated work and a check of narrative history in the documents |
@@ -803,3 +803,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-921](fleet.md) | P1 | L | M8 | feature | open | A fake GitHub as a binary for a consumer's CI: the App, the JIT configuration, the `workflow_job` webhooks and the runner broker (GitHub #223) |
 | [T-922](fleet.md) | P1 | M | M8 | feature | open | The schemas of `schemas/` with one source each, a check of each against its types, and a line of each change (GitHub #223) |
 | [T-923](fleet.md) | P1 | M | M8 | feature | open | `pod-job`: the fields of the job that githome and podrunner need (`trust_inputs.forge`, `limits.disk`, `cache`, the facts of a run report) (GitHub #223) |
+| [T-924](foundation.md) | P1 | S | M0 | feature | done | `pod-core`: a lock wait that a signal ends, and a lock file that the caller cannot write (PodUtils/podrunner#295) |
+| [T-925](fleet.md) | P1 | S | M7 | feature | open | `pod-incus`: the state of an instance, a profile with its devices, and the OOM count (PodUtils/podvm#582) |

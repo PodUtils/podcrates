@@ -3237,7 +3237,7 @@ sh scripts/ci/each-crate.sh
 **Milestone:** M5
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3271,6 +3271,10 @@ cargo test -p pod-cloudflare --all-features --lib fuzzing
 cargo zigbuild --target i686-unknown-linux-musl -p pod-cloudflare --all-features --tests
 ```
 
+## Done
+
+2026-11-18, 30a5557: `get_struct_list` computes the words of the elements in `u64` (`count` of 30 bits times a size of 17 bits fits), and refuses a list whose elements overrun the word count of its pointer ("the elements of a struct list overrun its pointer"), before `check_range`. Each other product and sum of the reader was read: the counts of `decode` and `bytes` are `u64` or bounded by the 29 bits of a list count, and `split_segments` saturates. The test `a_struct_list_whose_size_overflows_is_an_error` (2^29 elements of 8 words, 2^32 words) and the seed `fuzz/seeds/capnp_message/struct_list_overflow`. On `i686-unknown-linux-musl` (a static test binary of `cargo zigbuild`, run on the x86_64 host): without the fix the test panics with "attempt to multiply with overflow" at `reader.rs:132`; with it, `capnp` 10 passed and `fuzzing` 2 passed.
+
 # T-915: `pod-cloudflare`: the test of the quick tunnel stand-in does not build on Windows and counts two registrations on macOS (the nightly at `62ce717`)
 
 **Source:** nightly run 44067754895 at `62ce717`, the jobs `test (windows-2025)`, `test (windows-11-arm)` and `test (macos-15-intel)`.
@@ -3278,7 +3282,7 @@ cargo zigbuild --target i686-unknown-linux-musl -p pod-cloudflare --all-features
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3311,6 +3315,10 @@ cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
 sh scripts/agent/check-windows.sh
 ```
 
+## Done
+
+2026-11-18, 537405b: the mode of the pass file of `quick_tunnel_standin_checks_the_auth_user` is behind `#[cfg(unix)]`. The two registrations of macOS are by design: `Config::default()` has `ha_connections: 2`, and the leg of `conn_index` 1 registers in the background (`tunnel.rs`, "The other HA legs register in the background"); a slow host shows it before the test reads the list (the log of the job: `conn_index` 0 and 1, the same tunnel and secret, both accepted). The test now takes one registration for each leg up to `ha_connections`, each with its own index, index 0 among them, and each with the issued account, secret and tunnel. A second Windows fault of the same class, which the first hid: `small_frames_of_slow_visitors_do_not_end_the_connection` (`crates/pod-cloudflare/src/edge_h2/tests.rs`) bound a `tokio::net::UnixListener`; its forward target is now TCP on the loopback, so it runs on each system (1 passed). `sh scripts/agent/check-windows.sh`: 0 faults. The macOS half is proven by the next run of `nightly.yml`.
+
 # T-916: The gate of no blocking call and eight time bounds fail under the emulation of QEMU (the nightly at `62ce717`)
 
 **Source:** nightly run 44067754895 at `62ce717`, the jobs `cross` of armv7, arm, aarch64, i686, loongarch64, powerpc64le and riscv64gc.
@@ -3318,7 +3326,7 @@ sh scripts/agent/check-windows.sh
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3368,6 +3376,15 @@ cargo test -p pod-e2e --all-features --test allocations
 cargo test -p pod-link --all-features --test arq_machine
 cargo test -p pod-iroh --all-features --test road --test share --test tickets
 ```
+
+## Done
+
+2026-11-18, partial (the proof is a run of `nightly.yml` on the cross jobs):
+
+- `pod_testkit::switches::count` (14de10e) gives `None` under an emulator (`host::emulated()`), and subtracts the major page faults of the thread (`ru_majflt`) from its voluntary switches; `a_sleep_counts_and_a_computation_does_not` checks the `None` under an emulator.
+- The bounds that guard a hang go through `pod_testkit::host::scaled`: `pod-iroh` `tests/common/mod.rs` (`limit()`, 60 s; `road.rs`, `share.rs`, `tickets.rs`, `proxy_env.rs`), `pod-relay` `http_road_one_h2.rs` (the carry), `pod-egress` `vless.rs` (each timeout and the deadline of a dial), `pod-guest` `ready/tests.rs` (the two deadlines of 300 ms).
+- Not time bounds (the read of the logs of the seven jobs): `pod-relay` `caller_headers.rs` took the last head, which the polls of its open serial session can be (also on a native host): it takes the last head of the one form, and counts no poll as a request. `pod-ws` `h2_road.rs`: under the emulator the bytes of the first sessions delayed a later CONNECT past the wait of the road (`ANSWER_WAIT`), which retires the connection by design: the eight sessions open before the bytes flow. `pod-session` `session_move.rs`: the margin of 256 KiB before the cap is too short for the handshake at the scaled pace: 512 KiB under an emulator. `pod-iroh` `tickets.rs`: a node closed the new connection with its refusal before the first stream opened, and `Dialer::link_as` gave `Failed("no stream to the node: connection lost")`, so a refused client also got `Next::Retry`: `link_as` now reads the close reason (as `refused()`, `CLOSE_WAIT`) and gives `Refused`. The message of `refuses_a_stranger` names the result and the count of targets.
+- Not done: run the closure once before the count (`count` takes `FnOnce`; the subtraction of the major faults covers a fault of a page of the binary).
 
 # T-917: The copies of product code that `codegraph.py dups` finds: one place for each
 
