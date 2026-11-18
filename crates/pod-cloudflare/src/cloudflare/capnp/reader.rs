@@ -121,7 +121,7 @@ impl<'a> StructReader<'a> {
     pub fn get_struct_list(&self, index: u16) -> Result<Vec<StructReader<'a>>> {
         match self.pointer(index)? {
             Target::Null => Ok(Vec::new()),
-            Target::List { segment, start, elem: ELEM_COMPOSITE, tag, .. } => {
+            Target::List { segment, start, elem: ELEM_COMPOSITE, tag, count: list_words } => {
                 if tag & 3 != 0 {
                     bail!(Stage::EdgeStream, Class::Protocol, "the tag of a struct list is not a struct pointer");
                 }
@@ -129,7 +129,13 @@ impl<'a> StructReader<'a> {
                 let data = ((tag >> 32) & 0xffff) as u16;
                 let ptrs = (tag >> 48) as u16;
                 let size = usize::from(data) + usize::from(ptrs);
-                self.msg.check_range(segment, start + 1, (count * size) as u64)?;
+                // The peer sets both factors: a product in usize wraps on a
+                // 32-bit target. A u64 holds 2^30 * 2^17 words.
+                let words = count as u64 * size as u64;
+                if words > list_words {
+                    bail!(Stage::EdgeStream, Class::Protocol, "the elements of a struct list overrun its pointer");
+                }
+                self.msg.check_range(segment, start + 1, words)?;
                 // An element of 0 words reads no word. Charge one word for
                 // each element, as the reference implementation does. Then a
                 // short message cannot make a long list.

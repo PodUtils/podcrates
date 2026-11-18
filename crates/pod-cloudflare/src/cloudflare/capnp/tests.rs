@@ -84,6 +84,22 @@ fn fuzz_a_zero_size_struct_list_is_charged() {
     assert!(format!("{err:#}").contains("read limit"), "{err:#}");
 }
 
+/// A composite list whose tag gives 2^29 elements of 8 words: the product
+/// is 2^32 words, 0 in a 32-bit usize. The reader refuses it on each target.
+fn overflowing_struct_list() -> Vec<u8> {
+    let list = 1 | (7u64 << 32) | (1u64 << 35); // composite, 1 word
+    let tag = (1u64 << 29) << 2 | (8u64 << 32);
+    framed(&[struct_ptr(0, 1, 0, 1), list, tag, 0])
+}
+
+#[test]
+fn a_struct_list_whose_size_overflows_is_an_error() {
+    let (message, _) = Message::parse(&overflowing_struct_list()).unwrap().unwrap();
+    let err = message.root().unwrap().get_struct_list(0).unwrap_err();
+    assert!(format!("{err:#}").contains("overrun"), "{err:#}");
+    crate::fuzzing::capnp_message(&overflowing_struct_list());
+}
+
 #[test]
 fn a_struct_round_trips() {
     let mut b = Builder::new();
