@@ -30,7 +30,7 @@ handshake and what the layer defends against.
 | `handshake` | `ClientHandshake`, `FarHandshake`, `Established`, `Ask`, `Step`, `HandshakeError` (sans-IO) |
 | `link` | `Link` (a session past its handshake, record by record), `Event`, `LinkError`, `LinkParts` |
 | `client`, `far` | the two ends over tokio streams: `client::start`, `Client`, `Outcome`, `Rewound` (`Rewound::new(first, link)`: the link with bytes that a router read given back first); `far::accept`, `accept_with_room`, `serve`, `serve_admitted`, `serve_admitted_by` (the link named for the line of a resume), `Accepted` (`by(name)`, `link_name`), `FarError` |
-| `pump` | one link of a session: `run`, `Carry`, `Watch`, `End`, `Ended`, `PING_EVERY`, `DEAD_AFTER` |
+| `pump` | one link of a session: `run`, `Carry`, `Watch`, `End`, `Ended`, `PING_EVERY`, `DEAD_AFTER`, `PING_ANSWER` (a link whose far end answers no `PING` for 30 s while the session does not move is lost, also while the far end's own records come: PodUtils/podssh#283, ask 4) |
 | `resume`, `beside`, `race` | the client's session across links (`resume::run`, `Next`, `Note`, `RESUME_DEADLINE`, `MOVE_BYTES`, `MOVE_AGE`); the spare link (`spare_after`, `SpareWait`, `Position`, `SPARE_AFTER`, `SPARE_SOONEST`, `SPARE_QUIET`, `SPARE_EVERY`); the race of roads to one far end (`race`, `in_turn`, `each_timed`) |
 | `keep`, `budget`, `sessions` | `Keeper` (the far end's sessions across links: `new`, `with_tell`, `census`, `admit`, `run_new`, `run_resumed`, `hand_over`, `hand_over_with`, `take_over`), `keep::RESUME` (the kind of the line of each resume); `Census`, `Told`, `Tell`, `refusal`, `filling`, `holders` |
 | `deadline`, `hearing`, `round_trip`, `once`, `half_close` | the deadline of each end, what the client heard, the round trip of a link, `once.v1`, `end.v1` |
@@ -188,7 +188,9 @@ a closed one hold of the budget), `tests/session_resume_again.rs` and
 new link that ends before the greeting, then a resume about 1.1 s later,
 with the old link ended or still alive at the far end; a spare beside a
 stopped relay host, then a reset of each open link and a second resume at
-once; bytes both ways, whole, and the far end's line of each resume), and `tests/session_spare_backoff.rs` (a
+once; bytes both ways, whole, and the far end's line of each resume),
+`tests/session_heartbeat.rs` (with a far end whose own `PING`s come, but
+which answers none of this side's), and `tests/session_spare_backoff.rs` (a
 spare on a road that answers the handshake at once and holds each other
 byte for 5 s or 13 s: the wait of the next spare doubles until a link
 carries the bytes). The plants of podssh's layer are

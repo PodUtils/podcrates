@@ -119,6 +119,9 @@ where
                     hearing.timed(sample);
                 }
             }
+            if let Record::Pong { value, .. } = record {
+                outbox.ponged(value);
+            }
             // The bytes held are said under the same lock as the record, so
             // that no acknowledgement in between covers bytes not written.
             let event = {

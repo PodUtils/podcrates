@@ -27,6 +27,7 @@
 mod down;
 mod outbox;
 mod parts;
+mod progress;
 mod stall;
 mod up;
 mod watch;
@@ -46,6 +47,7 @@ use super::decode::Decoder;
 use super::hearing::Hearing;
 use super::link::{Link, LinkError};
 use outbox::{Finish, Outbox, Written};
+use progress::Stood;
 use stall::Waits;
 pub use stall::{STALL, STALL_AFTER, Stall};
 pub use watch::Watch;
@@ -68,6 +70,10 @@ pub const PING_EVERY: Duration = Duration::from_secs(10);
 /// A link that carried nothing from the far end for three intervals is
 /// dead, and a resume replaces it.
 pub const DEAD_AFTER: Duration = Duration::from_secs(30);
+/// A link whose far end answers no `PING` for as long, while the session
+/// does not move, is dead too: its far end answers a `PING` at once, so this
+/// side's bytes no longer reach it.
+pub const PING_ANSWER: Duration = DEAD_AFTER;
 /// How long a retired link is held for its far end to end it: more than the
 /// far end's 30 s for a handshake, after which it drops each link.
 const LINGER_RETIRED: Duration = Duration::from_secs(35);
@@ -284,8 +290,9 @@ where
             app_shut,
         );
         let writer = outbox::write(&mut link_w, &mut data_rx, &outbox, state, watch, hearing);
-        let beat =
-            async { if heartbeat { beat(&outbox, &heard, hearing).await } else { std::future::pending().await } };
+        let beat = async {
+            if heartbeat { beat(&outbox, &heard, hearing, state).await } else { std::future::pending().await }
+        };
         let stalls = stall::look(&waits, state, watch.window, watch.stall.as_ref());
         tokio::pin!(up, down, writer, beat, stalls);
         let mut app_ended = false;
@@ -412,19 +419,31 @@ async fn finish<F: Future<Output = Written> + Unpin>(outbox: &Outbox, last: Fini
 /// record is payload to the relay, so the pings also keep its idle cut away;
 /// the far end's `PONG` carries its received offset, an acknowledgement.
 ///
+/// The link ends too when a `PING` waits [`DEAD_AFTER`] for its `PONG` and
+/// the session does not move in that time (PodUtils/podssh#283, ask 4): the
+/// far end reads each record as it comes and answers a `PING` at once, so a
+/// link that still carries the far end's own records, while this side's
+/// bytes no longer reach it, carries the session no more.
+///
 /// A `PING` goes at once too when the hearing asks for one (a spare link
 /// opened beside this one), and when a tick of the clocks comes late, as
 /// after a sleep of the host, which the monotonic clock of the bounds above
 /// does not count: the far end's answer, or its silence, then tells within
 /// the bound of a spare link whether the link outlived the sleep.
-async fn beat(outbox: &Outbox, heard: &Mutex<Instant>, hearing: &Hearing) -> End {
+async fn beat(outbox: &Outbox, heard: &Mutex<Instant>, hearing: &Hearing, state: &Mutex<Link>) -> End {
     use pod_ws::wake::{Reading, Wake};
     let mut wake = Wake::new(Reading::now());
+    let mut stood = Stood::new(state);
     loop {
         let now = Instant::now();
         let last_heard = *lock(heard);
         if now.duration_since(last_heard) >= DEAD_AFTER {
             let why = format!("nothing came from the far end for {} s", DEAD_AFTER.as_secs());
+            return End::Lost(Some(std::io::Error::new(std::io::ErrorKind::TimedOut, why)));
+        }
+        let unanswered = stood.unanswered(state, outbox.unanswered_since(), now);
+        if unanswered.is_some_and(|since| now.duration_since(since) >= PING_ANSWER) {
+            let why = format!("the far end answered no PING and acknowledged nothing for {} s", PING_ANSWER.as_secs());
             return End::Lost(Some(std::io::Error::new(std::io::ErrorKind::TimedOut, why)));
         }
         if now.duration_since(outbox.quiet_since()) >= PING_EVERY {
@@ -433,7 +452,10 @@ async fn beat(outbox: &Outbox, heard: &Mutex<Instant>, hearing: &Hearing) -> End
         if now >= wake.due() && wake.tick(Reading::now()).is_some() {
             outbox.ping();
         }
-        let next = (outbox.quiet_since() + PING_EVERY).min(last_heard + DEAD_AFTER).min(wake.due());
+        let mut next = (outbox.quiet_since() + PING_EVERY).min(last_heard + DEAD_AFTER).min(wake.due());
+        if let Some(since) = unanswered {
+            next = next.min(since + PING_ANSWER);
+        }
         // Never a wait of nothing: a clock that stands still would spin.
         let next = next.max(Instant::now() + Duration::from_millis(10));
         tokio::select! {
