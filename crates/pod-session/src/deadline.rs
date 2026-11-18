@@ -75,22 +75,32 @@ pub fn span(duration: Duration) -> String {
     }
 }
 
-/// How long this side was away since the loss: by the wall clock, which
-/// counts the time that the host slept, from `lost_wall` to `now_wall`; by
-/// the monotonic `lost_for` when the wall clock went back.
-pub fn away(lost_wall: SystemTime, now_wall: SystemTime, lost_for: Duration) -> String {
+/// How long this side was away since the loss, and its words: by the wall
+/// clock, which counts the time that the host slept, from `lost_wall` to
+/// `now_wall`; by the monotonic `lost_for` when the wall clock went back.
+pub fn away(lost_wall: SystemTime, now_wall: SystemTime, lost_for: Duration) -> (Duration, String) {
     match now_wall.duration_since(lost_wall) {
-        Ok(away) => format!("{} by the wall clock", span(away)),
-        Err(_) => format!("{} by this host's clock, as the wall clock went back", span(lost_for)),
+        Ok(away) => (away, format!("{} by the wall clock", span(away))),
+        Err(_) => (lost_for, format!("{} by this host's clock, as the wall clock went back", span(lost_for))),
     }
 }
 
 /// What a client says when the far end no longer knew the session that it
 /// resumed: `why`, the far end's refusal; `kept`, how long the far end keeps
-/// a lost session; `away`, from [`away`].
-pub fn forgotten(why: &str, kept: Duration, away: &str) -> String {
+/// a lost session; `away`, from [`away`]. Away for less than half of `kept`,
+/// the far end did not time the session out: it lost it, most likely by a
+/// restart, and the words say so.
+pub fn forgotten(why: &str, kept: Duration, away: &(Duration, String)) -> String {
+    let (gone, words) = away;
+    if *gone < kept / 2 {
+        return format!(
+            "{why}; the far end no longer knows the session, though this side was away for {words} of the {} that \
+             it keeps a lost session: it was likely restarted",
+            span(kept)
+        );
+    }
     format!(
-        "{why}; the far end forgot the session: it keeps one {} after a loss, and this side was away for {away}",
+        "{why}; the far end forgot the session: it keeps one {} after a loss, and this side was away for {words}",
         span(kept)
     )
 }

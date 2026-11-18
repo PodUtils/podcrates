@@ -271,3 +271,26 @@ fn the_deadline_rides_in_a_feature_name() {
     assert_eq!(deadline::span(Duration::from_secs(600)), "10 min");
     assert_eq!(deadline::span(3 * HOUR + Duration::from_secs(300)), "3 h 5 min");
 }
+
+/// Away for less than half of the far end's deadline, a refusal of an
+/// unknown session is a far end that lost the session (a restart), not one
+/// that timed it out; the words say which (PodUtils/podssh#315).
+#[test]
+fn a_far_end_that_lost_the_session_early_is_said_to_be_restarted() {
+    let lost = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000);
+    let why = "refused (unknown session): no such session here";
+    let early = deadline::away(lost, lost + Duration::from_secs(3), Duration::from_secs(3));
+    let text = deadline::forgotten(why, Duration::from_secs(600), &early);
+    assert!(text.starts_with(why), "{text}");
+    assert!(text.contains("no longer knows the session"), "{text}");
+    assert!(text.contains("away for 3 s by the wall clock of the 10 min"), "{text}");
+    assert!(text.contains("it was likely restarted"), "{text}");
+    assert!(!text.contains("forgot the session"), "{text}");
+    let late = deadline::away(lost, lost + 4 * HOUR, Duration::from_secs(5));
+    let text = deadline::forgotten(why, 3 * HOUR, &late);
+    assert!(text.contains("the far end forgot the session: it keeps one 3 h after a loss"), "{text}");
+    assert!(text.contains("away for 4 h by the wall clock"), "{text}");
+    let back = deadline::away(lost, lost - HOUR, Duration::from_secs(5));
+    assert_eq!(back.0, Duration::from_secs(5), "the wall clock went back: the monotonic time");
+    assert!(deadline::forgotten(why, 3 * HOUR, &back).contains("likely restarted"));
+}
