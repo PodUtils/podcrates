@@ -102,6 +102,9 @@ jobs:
         run: |
           python3 -I scripts/check-history.py
           python3 -I scripts/check-history.py --self-test
+      # The checkout has no tag: the check fetches the tag of its base alone.
+      - name: Each change of a schema has a row, and a change that needs a new id has one
+        run: python3 -I scripts/check-schemas.py
       - name: No new repeated work (clones, twin entries, repeated paragraphs, the deps of design.md)
         run: |
           python3 -I scripts/codegraph.py dups

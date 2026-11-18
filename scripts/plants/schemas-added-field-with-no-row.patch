@@ -1,0 +1,21 @@
+--- a/schemas/log.v1.schema.json
++++ b/schemas/log.v1.schema.json
+@@ -34,6 +34,10 @@
+     "fields": {
+       "description": "The values of the event, never a secret: an object, where a missing\nkey reads as `null`.",
+       "type": "object"
++    },
++    "host": {
++      "description": "A planted optional field.",
++      "type": "string"
+     },
+     "level": {
+       "description": "One of [`pod_core::LOG_LEVELS`].",
+--- a/schemas/CHANGES.md
++++ b/schemas/CHANGES.md
+@@ -79,4 +79,4 @@
+ | v0.71.0 | `run-report.v1` | `start_s` | added | Seconds, rounded up (T-923). | 325ec2a9929af72b0e761beb97af07a69dd4ab43abdf190588077d072608bb8d |
+ | v0.71.0 | `run-report.v1` | `unknown_reasons` | added | Why each measured field is `unknown` (T-923, call C783). | 325ec2a9929af72b0e761beb97af07a69dd4ab43abdf190588077d072608bb8d |
+ | next | `broker-policy.v1` | `*` | text | The file comes from the type `Policy` of pod-broker; the words come from its doc comments (T-922). | fe30116083fa2b22f4fd1b228064ebbed23242ea482ef5c9ac7d3c5b2dc6c31c |
+-| next | `log.v1` | `*` | text | The file comes from the audit `Line` of pod-broker; the words come from its doc comments (T-922). | 4c4ac30ca0f843883d76f1af409793318a971010f9e3cccf4f9d128bd7c650ef |
++| next | `log.v1` | `*` | text | The file comes from the audit `Line` of pod-broker; the words come from its doc comments (T-922). | b3943a790d2b26f5c17527a56acbed415333dbac92339d36a888e209e288634a |

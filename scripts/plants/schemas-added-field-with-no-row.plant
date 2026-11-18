@@ -1,0 +1,6 @@
+# An optional field is added to log.v1 with no row `added` that names it.
+ENTRY=T-922
+GROUP=lint
+EXPECT='no row added names it'
+RUN='python3 -I scripts/check-schemas.py'
+LIMIT=120

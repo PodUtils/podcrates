@@ -1,0 +1,7 @@
+# A field of log.v1 is removed, and the file keeps its id: the ruling
+# "Schema ids" gives such a change a new id.
+ENTRY=T-922
+GROUP=lint
+EXPECT='needs a new schema id'
+RUN='python3 -I scripts/check-schemas.py'
+LIMIT=120

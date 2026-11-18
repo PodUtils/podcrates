@@ -8,7 +8,8 @@
 # workflow that a document names (scripts/check-workflows.py, as ci.yml
 # runs it), the wire vectors against docs/wire.md
 # (scripts/check-wire-vectors.py, with its plant), no narrative history in
-# the documents (scripts/check-history.py), no new repeated work
+# the documents (scripts/check-history.py), a row of schemas/CHANGES.md for
+# each change of a schema (scripts/check-schemas.py), no new repeated work
 # (scripts/codegraph.py dups), that each planted defect applies (scripts/plant-each.sh
 # --apply), shellcheck of the installer when it is there, and the static probes of
 # x86_64 musl when zig is there (scripts/check-static.sh). Print each exit
@@ -43,6 +44,7 @@ echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/siz
     python3 -I scripts/check-private-replace.py && python3 -I scripts/check-results.py &&
     python3 -I scripts/check-wire-vectors.py && python3 -I scripts/check-wire-vectors.py --plant &&
     python3 -I scripts/check-history.py && python3 -I scripts/check-history.py --self-test &&
+    python3 -I scripts/check-schemas.py &&
     python3 -I scripts/codegraph.py dups && python3 -I scripts/codegraph.py --self-test &&
     sh scripts/plant-each.sh --apply; } > "$log/paths.log" 2>&1; p=$?
 echo "paths $p"; [ "$p" -eq 0 ] || { rc=1; head -20 "$log/paths.log"; }

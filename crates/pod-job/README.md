@@ -175,6 +175,11 @@ schema id silently (the owner's ruling "Schema ids", 2026-11-18):
   `schema` as the constant 2) and a COORD issue `(to all)`.
 * An added optional field keeps the id. The hand-off COORD issue of its
   tag names it.
+* `schemas/CHANGES.md` has one row for each change of a schema (the tag,
+  the schema, the field, the kind of change, the SHA-256 of the file).
+  `scripts/check-schemas.py` (CI) fails on a schema file that changes with
+  no row, on a field added with no row `added`, and on a change of the
+  first kind that keeps the old id.
 
 The optional fields of `v0.71.0` (T-923; GitHub #223 G-16, G-18 to G-20,
 G-36; the names of PodUtils/podrunner#294):
