@@ -13,6 +13,7 @@ mod cloudflare;
 mod devtunnel;
 mod e2e;
 mod egress;
+mod http1;
 mod job;
 mod link;
 mod netlab;
@@ -38,6 +39,7 @@ pub use cloudflare::{
 pub use devtunnel::devtunnel_connect_info;
 pub use e2e::{e2e_frame, e2e_handover, e2e_proof, e2e_record};
 pub use egress::{iap_message, wisp_packet};
+pub use http1::http_request;
 #[cfg(test)]
 pub(crate) use link::run_kcp;
 pub use opentunnel::{opentunnel_answer, opentunnel_message};

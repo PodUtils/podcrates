@@ -30,6 +30,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("pem_bundle", targets::pem_bundle),
     ("http_head", targets::http_head),
     ("http_chunked", targets::http_chunked),
+    ("http_request", targets::http_request),
     ("socks5_answer", targets::socks5_answer),
     ("proxy_url", targets::proxy_url),
     ("no_proxy", targets::no_proxy),

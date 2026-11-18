@@ -1,0 +1,6 @@
+GET /v1/jobs?x=1 HTTP/1.1
+Host: h
+Authorization: Bearer AbC.dEf
+Connection: keep-alive, Upgrade
+Upgrade: websocket
+

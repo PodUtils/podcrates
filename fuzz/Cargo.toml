@@ -145,6 +145,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "http_request"
+path = "fuzz_targets/http_request.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "socks5_answer"
 path = "fuzz_targets/socks5_answer.rs"
 test = false

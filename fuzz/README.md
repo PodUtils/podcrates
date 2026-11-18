@@ -47,8 +47,9 @@ Each target keeps the name of its source: podssh at `d3745ab`
 | --- | --- | --- | --- |
 | `one_line` | `pod-core` | `text::one_line` | podssh `one_line` |
 | `pem_bundle` | `pod-tls` | `bundle::pem_certificates` | podssh `pem_bundle` |
-| `http_head` | `pod-proxy` | `http::parse_head` | podssh `http_head` |
+| `http_head` | `pod-core` | `http1::parse_head` (`pod_proxy::http::parse_head`) | podssh `http_head` |
 | `http_chunked` | `pod-proxy` | `http::decode_chunked` | podssh `http_chunked` |
+| `http_request` | `pod-core` | `http1::{parse_request, find_request, request_head}`: a head within its bounds, no control character in the request line (podrunner's check, PodUtils/podrunner#289), and a request that reads back the same from the head that is written of it | new in `pod-core` (T-882); its seeds are a CONNECT with bytes after its head, a GET with `Authorization` and bare LF lines, a request line with an escape sequence, and a response head |
 | `socks5_answer` | `pod-proxy` | `fuzz_exchange` (feature `fuzzing`) | podssh `socks5_answer` |
 | `proxy_url` | `pod-proxy` | `Proxy::parse`: no `@` in the label, the Display and the Debug form, and no host in a Unix path | podssh `proxy_url` and podnet `proxy_url`, one target; the seed `unix-authority` is a crash of podnet's fuzz run (T-612, PodUtils/podnet#555) |
 | `no_proxy` | `pod-proxy` | `env::no_proxy_matches`, `NoProxy` | podssh `no_proxy` and podnet `no_proxy`, one target |
