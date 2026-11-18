@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**737 entries: 133 open, 21 partial, 7 blocked, 576 done.**
+**738 entries: 134 open, 21 partial, 7 blocked, 576 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 161 | 179 |
-| P2 | 59 | 3 | 4 | 297 | 363 |
+| P2 | 60 | 3 | 4 | 297 | 364 |
 | P3 | 64 | 10 | 3 | 116 | 193 |
-| **All** | 133 | 21 | 7 | 576 | 737 |
+| **All** | 134 | 21 | 7 | 576 | 738 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -784,3 +784,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-902](fleet.md) | P2 | S | M5 | defect | done | `pod-actions-store`: `Lock::parse` keeps a digest in uppercase, and each fetch then fails (PodUtils/podrunner#288) |
 | [T-903](roads.md) | P2 | S | M2 | defect | done | `pod-dns`: one line of 1000 characters, where each resolver of DNS over HTTPS failed alike (PodUtils/podssh#313) |
 | [T-904](relay.md) | P3 | S | M2 | defect | done | `pod-relay`: a relay that issues no token names no way to give one (PodUtils/podssh#313) |
+| [T-905](fleet.md) | P2 | S | M0 | feature | open | `pod-lab`: a row of a failure in a lane: `podlab run --expect-exit CODE --expect-stderr TEXT` (PodUtils/podnet#649) |

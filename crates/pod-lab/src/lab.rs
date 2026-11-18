@@ -32,6 +32,8 @@ pub struct Options {
     pub partial: bool,
     /// The standard output of the command; `None`: the one of the caller.
     pub stdout: Option<Stdio>,
+    /// The error output of the command; `None`: the one of the caller.
+    pub stderr: Option<Stdio>,
     /// The TCP ports that a connect may reach where a part refuses each
     /// TCP connect (`bind-denied`): the proxy of a host whose only way
     /// out is that proxy.
@@ -132,6 +134,9 @@ pub fn run(settings: &Settings, profile: &Profile, cmd: &[OsString], opts: Optio
         .args(cmd);
     if let Some(out) = opts.stdout {
         c.stdout(out);
+    }
+    if let Some(err) = opts.stderr {
+        c.stderr(err);
     }
     // SAFETY: one fcntl(2) in the child before the exec; no allocation.
     unsafe {

@@ -35,6 +35,8 @@ pub mod codes;
 #[cfg(target_os = "linux")]
 mod check;
 #[cfg(target_os = "linux")]
+pub mod expected;
+#[cfg(target_os = "linux")]
 mod hold;
 #[cfg(target_os = "linux")]
 mod inside;

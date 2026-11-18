@@ -5373,3 +5373,34 @@ cargo test -p pod-actions-store --all-features --lib lock
 ## Done
 
 2026-11-17, 02d77fd97, 4a1dd17b8: `Lock::parse` keeps each digest of a pin and of a `docker://` line in lowercase. Test `a_digest_in_uppercase_is_the_same_pin`; the tests of `lock` pass. Plant `actions-store-digest-case-kept`, caught.
+
+
+# T-905: `pod-lab`: a row of a failure in a lane: `podlab run --expect-exit CODE --expect-stderr TEXT` (PodUtils/podnet#649)
+
+**Source:** PodUtils/podnet#649 (COORD-102 of podnet, PodUtils/podnet@T-452), ask 3.
+**Category:** feature
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The lanes of `pod-lab` (`crates/pod-lab/LANES.md`) are commands that must end with 0: success paths only. A row of an error path (a dead relay, a refused proxy, no DNS) must end with its own code and its own line, and `podlab run` cannot say so: a script around it must split the error output and the code, and a row that wants a failure passes on any failure. podnet's QA round found defects on such paths that no lane ran.
+
+## Premise
+
+- Read: PodUtils/podnet#649, ask 3; `crates/pod-lab/LANES.md`; `crates/pod-lab/src/bin/podlab.rs`, the command `run`.
+- podnet writes its own rows of failures first and gives them to podcrates when they hold.
+
+## Approach
+
+`podlab run --expect-exit CODE --expect-stderr TEXT`: exit 0 where the command ends with CODE and its error output holds TEXT; exit 4 (`EXIT_UNEXPECTED`) with one line for each difference. The error output goes through a pipe and on to the caller, and the check reads its tail (`pod_lab::expected`). `LANES.md` gives the form. Each consumer's rows of failures go into `LANES.md` when the consumer gives them.
+
+## Prove
+
+```sh
+cargo test -p pod-lab --all-features --test cli --lib --bins
+sh scripts/plant-each.sh lab-expect-exit-ignored
+```
+

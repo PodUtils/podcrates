@@ -173,6 +173,14 @@ A PEM file of the roots that check the TLS server of the command, where the
 proxy of the class terminates TLS for the name. With no file, such a CONNECT
 gets 502.
 .TP
+\fB\-\-expect\-exit\fR \fICODE\fR
+The exit code that the command must give: a row of a failure. Another code
+gives exit 4. A signal N is 128 + N.
+.TP
+\fB\-\-expect\-stderr\fR \fITEXT\fR
+A text that the error output of the command must hold. The error output still
+comes to this error output. Its absence gives exit 4.
+.TP
 \fB\-h\fR, \fB\-\-help\fR
 Print the help of this command.
 .PP
@@ -520,7 +528,8 @@ host. Source: podnet.
 .SH "EXIT STATUS"
 .TP
 \fB0\fR (holds)
-check: each part holds. run: the command exited 0.
+check: each part holds. run: the command exited 0, or it ended as
+\-\-expect\-exit and \-\-expect\-stderr say.
 .TP
 \fB1\fR (fails)
 check: a part does not hold.
@@ -530,6 +539,10 @@ A usage error of the command line.
 .TP
 \fB3\fR (unseen)
 check: no part fails, and a part cannot be observed here.
+.TP
+\fB4\fR (unexpected)
+run: the command ended in a way that \-\-expect\-exit or \-\-expect\-stderr
+does not allow.
 .TP
 \fB125\fR (refused)
 run: a part of the lab does not hold. The command did not run.
@@ -544,7 +557,8 @@ run: the command was not found.
 run: the command ended on signal N.
 .TP
 \fBN\fR (command)
-run: the exit code of the command. Each code that no other row names.
+run: the exit code of the command, with no \-\-expect\-exit or
+\-\-expect\-stderr. Each code that no other row names.
 .SH "EXAMPLES"
 List each profile and its parts.
 .RS 4

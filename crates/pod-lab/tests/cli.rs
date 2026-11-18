@@ -102,3 +102,33 @@ fn a_served_port_and_its_roots_are_checked_before_the_lab() {
         assert_eq!(o.status.code(), Some(2), "{args:?}: {}", String::from_utf8_lossy(&o.stderr));
     }
 }
+
+/// A row of a failure: `--expect-exit` and `--expect-stderr` give 0 where
+/// the command ends as they say, and 4 with one line for each difference.
+/// The error output of the command still comes to the caller.
+#[test]
+fn a_row_of_a_failure_wants_its_code_and_its_line() {
+    let run = |want: &[&str]| {
+        let mut args = vec!["run"];
+        args.extend_from_slice(want);
+        args.extend_from_slice(&["inherited-fds", "--", "sh", "-c", "echo the relay could not reach it >&2; exit 69"]);
+        podlab(&args)
+    };
+    let o = run(&[]);
+    if o.status.code() == Some(125) {
+        return pod_testkit::host::skip_line("the lab inherited-fds does not hold here");
+    }
+    assert_eq!(o.status.code(), Some(69), "with no wanted end, the code of the command");
+    let err = |o: &Output| String::from_utf8_lossy(&o.stderr).into_owned();
+    let o = run(&["--expect-exit", "69", "--expect-stderr", "could not reach"]);
+    assert_eq!(o.status.code(), Some(0), "{}", err(&o));
+    assert!(err(&o).contains("the relay could not reach it"), "the error output comes to the caller: {}", err(&o));
+    let o = run(&["--expect-exit", "0"]);
+    assert_eq!(o.status.code(), Some(4), "{}", err(&o));
+    assert!(err(&o).contains("the command exited 69; --expect-exit wants 0"), "{}", err(&o));
+    let o = run(&["--expect-stderr", "connected"]);
+    assert_eq!(o.status.code(), Some(4), "{}", err(&o));
+    assert!(err(&o).contains("does not hold \"connected\""), "{}", err(&o));
+    let o = podlab(&["run", "--expect-exit", "256", "inherited-fds", "--", "true"]);
+    assert_eq!(o.status.code(), Some(2), "a code past 255 is a usage error: {}", err(&o));
+}

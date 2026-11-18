@@ -15,8 +15,10 @@ mod cli {
 
     use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
     use pod_lab::codes::{
-        EXIT_CANNOT_EXEC, EXIT_FAILS, EXIT_HOLDS, EXIT_NOT_FOUND, EXIT_REFUSED, EXIT_UNSEEN, EXIT_USAGE,
+        EXIT_CANNOT_EXEC, EXIT_FAILS, EXIT_HOLDS, EXIT_NOT_FOUND, EXIT_REFUSED, EXIT_UNEXPECTED, EXIT_UNSEEN,
+        EXIT_USAGE,
     };
+    use pod_lab::expected::{KEEP, Wanted};
     use pod_lab::{Options, Profile, RunError, Settings, State, Verdict};
 
     /// The classes of hostile hosts as profiles: list them, check one
@@ -88,6 +90,15 @@ mod cli {
             /// name. With no file, such a CONNECT gets 502.
             #[arg(long, value_name = "FILE", requires = "serve")]
             serve_ca: Option<std::path::PathBuf>,
+            /// The exit code that the command must give: a row of a failure.
+            /// Another code gives exit 4. A signal N is 128 + N.
+            #[arg(long, value_name = "CODE", value_parser = clap::value_parser!(u8))]
+            expect_exit: Option<u8>,
+            /// A text that the error output of the command must hold. The
+            /// error output still comes to this error output. Its absence
+            /// gives exit 4.
+            #[arg(long, value_name = "TEXT")]
+            expect_stderr: Option<String>,
             /// The name of the profile.
             profile: String,
             /// The command and its arguments.
@@ -248,7 +259,17 @@ mod cli {
                 print(&v);
                 code(&v)
             }
-            Cmd::Run { partial, allow_connect, way_out, serve, serve_ca, profile: name, cmd } => {
+            Cmd::Run {
+                partial,
+                allow_connect,
+                way_out,
+                serve,
+                serve_ca,
+                expect_exit,
+                expect_stderr,
+                profile: name,
+                cmd,
+            } => {
                 let p = match profile(&settings, &name) {
                     Ok(p) => p,
                     Err(c) => return c,
@@ -269,8 +290,34 @@ mod cli {
                     eprintln!("podlab: --serve-ca: {e}");
                     return EXIT_USAGE;
                 }
-                let opts = Options { partial, stdout: None, allow_connect, way_out, serve, serve_ca };
-                match pod_lab::run(&settings, p, &cmd, opts) {
+                let wanted = Wanted { exit: expect_exit.map(i32::from), stderr: expect_stderr };
+                let mut opts = Options { partial, allow_connect, way_out, serve, serve_ca, ..Options::default() };
+                // The error output of the command goes through a pipe, so that
+                // the check reads it as it comes to the caller.
+                let tee = match wanted.stderr.is_some().then(std::io::pipe).transpose() {
+                    Ok(pipe) => pipe.map(|(r, w)| {
+                        opts.stderr = Some(w.into());
+                        std::thread::spawn(move || pod_lab::expected::tee(r, std::io::stderr(), KEEP))
+                    }),
+                    Err(e) => {
+                        eprintln!("podlab: a pipe for the error output of the command: {e}");
+                        return EXIT_REFUSED;
+                    }
+                };
+                let ran = pod_lab::run(&settings, p, &cmd, opts);
+                let stderr = match tee.map(|t| t.join()) {
+                    None => Vec::new(),
+                    Some(Ok(Ok(kept))) => kept,
+                    Some(Ok(Err(e))) => {
+                        eprintln!("podlab: the read of the error output of the command: {e}");
+                        return EXIT_UNEXPECTED;
+                    }
+                    Some(Err(_)) => {
+                        eprintln!("podlab: the read of the error output of the command stopped");
+                        return EXIT_UNEXPECTED;
+                    }
+                };
+                match ran {
                     Ok(ran) => {
                         for part in ran.verdict.parts.iter().filter(|x| x.state != State::Holds) {
                             eprintln!(
@@ -278,7 +325,15 @@ mod cli {
                                 p.name, part.part
                             );
                         }
-                        pod_lab::exit_code(ran.status)
+                        let code = pod_lab::exit_code(ran.status);
+                        if !wanted.is_set() {
+                            return code;
+                        }
+                        let misses = wanted.misses(code, &stderr);
+                        for m in &misses {
+                            eprintln!("podlab: {m}");
+                        }
+                        if misses.is_empty() { EXIT_HOLDS } else { EXIT_UNEXPECTED }
                     }
                     Err(RunError::Refused(v)) => {
                         print(&v);

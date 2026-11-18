@@ -31,6 +31,19 @@ the client at `listed.test:PORT` to see the class act on the bytes; give
 `--serve-ca FILE` with the CA of the server where the class terminates
 TLS.
 
+A row of a failure (a dead relay, a refused proxy, no DNS, a rejected
+token) says the end that it wants:
+
+```sh
+podlab run --expect-exit CODE --expect-stderr TEXT PROFILE -- COMMAND...
+```
+
+`podlab run` gives 0 where the command ends with CODE and its error
+output holds TEXT, and 4 with one line for each difference. A row that
+wants a failure and gets a success, or gets another failure, does not
+pass. Each flag alone checks its part alone. Give each lane a row of a
+failure for each refusal that its manual names.
+
 The sources: PodUtils/podssh#268 (podssh), PodUtils/podnet#585 (podnet),
 PodUtils/podrunner#180 (podrunner) and PodUtils/podvm#424 (podvm).
 
