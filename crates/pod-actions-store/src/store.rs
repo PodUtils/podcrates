@@ -101,6 +101,10 @@ pub fn checkout_target(with: Option<&Node>, self_repo: &str) -> Result<Option<St
         let fail = |value: &str, fault| Error::Checkout { field, value: value.to_string(), fault };
         match with.and_then(|w| w.get(field)).map(|n| &n.kind) {
             None => Ok(None),
+            // `ref:` with no value or an empty one is the default branch, as
+            // `actions/checkout` takes it.
+            Some(Kind::Null) if field == "ref" => Ok(None),
+            Some(Kind::String(v)) if v.trim().is_empty() && field == "ref" => Ok(None),
             Some(Kind::String(v)) if v.trim() == "${{ github.repository }}" && field == "repository" => Ok(None),
             Some(Kind::String(v)) if v.contains("${{") => Err(fail(v, CheckoutFault::Expression)),
             Some(Kind::String(v)) => Ok(Some(v.trim().to_string())),

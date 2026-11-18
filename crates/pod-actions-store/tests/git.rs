@@ -100,6 +100,27 @@ fn git_resolves_a_tag_an_annotated_tag_and_a_branch() {
     let _ = std::fs::remove_dir_all(&r.root);
 }
 
+/// The forms of `actions/checkout`: a full ref is looked up as it is, and
+/// a commit id is the commit, in lowercase, with no lookup
+/// (PodUtils/podrunner#290).
+#[test]
+fn git_resolves_a_full_ref_and_a_commit_id() {
+    pod_testkit::need_tool!("git");
+    let r = repos("full");
+    let g = r.forge();
+    assert_eq!(g.resolve("o/r", "refs/heads/main").unwrap(), r.third, "a full branch");
+    assert_eq!(g.resolve("o/r", "refs/tags/v1").unwrap(), r.first, "a full tag");
+    assert_eq!(g.resolve("o/r", "refs/tags/v2").unwrap(), r.second, "a full annotated tag gives its commit");
+    let e = g.resolve("o/r", "refs/heads/v1").unwrap_err();
+    assert!(e.contains("has no ref `refs/heads/v1`"), "a tag is not a branch: {e}");
+    assert_eq!(g.resolve("o/r", &r.second.to_ascii_uppercase()).unwrap(), r.second, "a commit id");
+    let gone = Git::new("file:///nowhere/", r.root.join("scratch"));
+    assert_eq!(gone.resolve("o/r", &r.first).unwrap(), r.first, "a commit id needs no lookup");
+    let tar = g.tar("o/r", &r.second).expect("the tree of a commit id");
+    assert!(!tar.is_empty());
+    let _ = std::fs::remove_dir_all(&r.root);
+}
+
 #[test]
 fn git_resolves_head_to_the_default_branch() {
     pod_testkit::need_tool!("git");

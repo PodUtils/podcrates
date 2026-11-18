@@ -224,6 +224,12 @@ fn a_checkout_of_another_repository_is_a_tree_to_pin() {
     let t = |text: &str| checkout_target(Some(&with(text)), "me/app");
     assert_eq!(t("repository: o/lib\nref: v2\n").unwrap().as_deref(), Some("o/lib@v2"));
     assert_eq!(t("repository: o/lib\n").unwrap().as_deref(), Some("o/lib@HEAD"));
+    // An empty ref, or one with no value, is the default branch
+    // (PodUtils/podrunner#290).
+    for empty in ["ref: ''\n", "ref: ' '\n", "ref:\n"] {
+        assert_eq!(t(&format!("repository: o/lib\n{empty}")).unwrap().as_deref(), Some("o/lib@HEAD"), "{empty:?}");
+    }
+    assert_eq!(t("repository: o/lib\nref: refs/heads/main\n").unwrap().as_deref(), Some("o/lib@refs/heads/main"));
     assert_eq!(t("repository: Me/App\n").unwrap(), None, "the repository of the run is the local tree");
     assert_eq!(t("repository: ${{ github.repository }}\n").unwrap(), None);
     assert_eq!(t("path: x\n").unwrap(), None);

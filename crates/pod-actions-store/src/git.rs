@@ -109,17 +109,31 @@ impl Forge for Git {
                 .find_map(|l| l.split_once('\t').filter(|(_, n)| *n == "HEAD").map(|x| x.0.to_string()))
                 .ok_or_else(|| format!("`{repo}@HEAD`: {url} has no HEAD"));
         }
-        let tag = format!("refs/tags/{r}");
-        let head = format!("refs/heads/{r}");
-        let text = String::from_utf8(self.run(&["ls-remote", &url, &tag, &format!("{tag}^{{}}"), &head], None)?)
-            .map_err(|e| e.to_string())?;
+        // A commit id is the commit: no ref to look up. The fetch of the tree
+        // takes it as it is.
+        if crate::lock::is_commit(r) {
+            return Ok(r.to_ascii_lowercase());
+        }
+        // A full ref (`refs/heads/X`, `refs/tags/X`) is looked up as it is;
+        // a short one as a tag, then as a branch.
+        let (names, what) = if r.starts_with("refs/") {
+            (vec![r.to_string()], "ref")
+        } else {
+            (vec![format!("refs/tags/{r}"), format!("refs/heads/{r}")], "tag or branch")
+        };
+        let mut args = vec!["ls-remote".to_string(), url.clone()];
+        for n in &names {
+            args.extend([n.clone(), format!("{n}^{{}}")]);
+        }
+        let args: Vec<&str> = args.iter().map(String::as_str).collect();
+        let text = String::from_utf8(self.run(&args, None)?).map_err(|e| e.to_string())?;
         let find = |name: &str| text.lines().find_map(|l| l.split_once('\t').filter(|(_, n)| *n == name).map(|x| x.0));
         // An annotated tag names a tag object: its peeled line names the commit.
-        find(&format!("{tag}^{{}}"))
-            .or_else(|| find(&tag))
-            .or_else(|| find(&head))
+        names
+            .iter()
+            .find_map(|n| find(&format!("{n}^{{}}")).or_else(|| find(n)))
             .map(str::to_string)
-            .ok_or_else(|| format!("`{repo}@{r}`: {url} has no tag or branch `{r}`"))
+            .ok_or_else(|| format!("`{repo}@{r}`: {url} has no {what} `{r}`"))
     }
 
     fn tar(&self, repo: &str, commit: &str) -> Result<Vec<u8>, String> {
