@@ -5,8 +5,8 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.71.0` at `6dff7fc` (`docs/releases/v0.71.0.md`). Each
-  consumer took it (COORD-137, #228).
+- Last release: `v0.72.0` at `0ea12df` (`docs/releases/v0.72.0.md`). Its
+  hand-off is COORD-138 (#229); no consumer took it yet.
 - The tag that the `main` of each consumer names: `v0.71.0` (podssh,
   podnet, podrunner, podvm). The details of each take are on #228.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and

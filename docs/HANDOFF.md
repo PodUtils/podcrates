@@ -50,10 +50,10 @@ is done. Git and the record keep finished work.
    is offline until the CI of podrunner and githome is complete; it reads
    `docs/research/fleet/asks.md` and the block of #223 at its next start.
    githome's asks G-30 to G-35 are T-921 to T-923, T-099, T-100 and T-104.
-7. No hand-off is open: each consumer took `v0.71.0` (COORD-137, #228,
-   closed). The next tag carries T-922, T-936 and the work on `main`;
-   its hand-off names what podrunner changes at its take (the adoption
-   map of `crates/pod-job/README.md`).
+7. The hand-off of `v0.72.0` is open (COORD-138, #229): podrunner takes
+   T-922 (the adoption map of `crates/pod-job/README.md`) and T-882;
+   podvm takes T-944; podssh takes T-909 and T-939. Record each take on
+   #229, and close it when each consumer names the tag (call C780).
 8. T-767 (PodUtils/podssh#283, partial) and T-939 (done as a guard, call
    C784: a link is lost when a PING waits 30 s and nothing moves): the
    eighth failure of podssh's gate did not come again on the loopback;
