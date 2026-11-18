@@ -7,6 +7,8 @@ taken 8caf2d131ba42581a7ff450d0abfe2832b7f3129 crates/podssh-relay/src/cache.rs 
 # T-308: podssh's take of pod-relay (0872c2c6) took the code of open.rs
 # and tests/cache.rs that this block reads; both were unchanged before it.
 taken 0872c2c61df2eb7f948bf4c8ba2755aae86f440b crates/podssh-relay/src/open.rs crates/podssh-relay/tests/cache.rs
+# podssh took pod_core::clock in place of its clock (its T-820, COORD-131).
+taken 88aa8e667dfbb4870685450d0e03c107f7e88355 crates/podssh-ws/src/clock.rs
 # podssh's own places for pod-core, after the adoption: no file of this crate.
 skip crates/podssh-relay/src/cache/pod.rs
 dir crates/podssh-relay/src/cache
