@@ -10000,3 +10000,58 @@ cargo test -p pod-relay --all-features --lib token
 ## Done
 
 2026-11-17, 9e16f1886, 6c39d9102: `TokenError::NotIssued { give }`: the mint fills `give` from `Settings::names.token`, and the line ends `give it in GIVE` (podssh sets `PODSSH_RELAY_TOKEN`; the default reads "the relay token setting"). Test `a_relay_that_issues_no_token_names_where_to_give_one`; 230 tests of the library of `pod-relay` pass, and workspace clippy is clean. Plant `relay-token-way-unnamed`, caught. Breaking: `TokenError::NotIssued` has a field.
+
+# T-908: `pod-session`: the Close of the relay in the drain wins over the error of a write (PodUtils/podssh#314, ask 1)
+
+**Source:** PodUtils/podssh#314 (COORD-117 of podssh, PodUtils/podssh@T-826), ask 1.
+**Category:** defect
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On `Written::Failed(e)` the pump drains `down` for `DRAIN`, and keeps only `End::Closed`, `Retired`, `Broken` and `LocalEnd`. A link that the relay ended with a WebSocket Close comes from `down` as `End::Lost(Some(why))`, with the code and the reason of the relay, and the drain drops it: the client says `broken pipe` in place of `the relay closed the link: 1009 session byte cap`.
+
+## Premise
+
+- Read: PodUtils/podssh#314; `crates/pod-session/src/pump.rs` (the drain after a failed write).
+
+## Approach
+
+The drain keeps an `End::Lost(Some(_))` that `down` gave, over the error of the write. A test: a peer that sends a Close, then closes the socket while the client writes; the end names the code of the Close.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features
+```
+
+
+# T-909: `pod-relay`: the link budget of the layer under a small cap of the relay; the cap in `forward_layer::Offer` (PodUtils/podssh#314, ask 2)
+
+**Source:** PodUtils/podssh#314 (COORD-117 of podssh, PodUtils/podssh@T-826), ask 2.
+**Category:** defect
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The client moves a session to a new link at `MOVE_BYTES` (48 MiB) whatever the relay publishes. `forward_layer::Offer` does not carry `limits.max_session_bytes` of the same `/relays.json`, and a kept offer comes from the cache with no read. `relay::byte_budget_under` keeps the default budget for a cap under the margin plus 1 MiB: a relay of 1 MiB to 8 MiB gets 56 MiB, and each link ends at the cap of the relay.
+
+## Premise
+
+- Read: PodUtils/podssh#314; `crates/pod-relay/src/forward_layer/offer.rs`, `crates/pod-relay/src/relay.rs` (`byte_budget_under`), `crates/pod-session/src/resume.rs` (`MOVE_BYTES`).
+
+## Approach
+
+`Offer` carries the cap of its document, kept with it in the cache. `byte_budget_under` gives a budget under each cap (three quarters of it), with a floor of 1 MiB only where the cap is smaller. Tests for a cap of 1 MiB, 8 MiB and a large one, and an offer from the cache.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```

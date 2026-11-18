@@ -1,0 +1,8 @@
+# The wanted code of a row of a failure is not checked: a command that
+# exits 0 where the row wants a failure passes, so the row proves nothing;
+# the test of the wanted end must fail.
+ENTRY=T-905
+GROUP=lab
+EXPECT='test expected::tests::a_wanted_end_names_each_difference \.\.\. FAILED'
+RUN='cargo test -p pod-lab --all-features --lib -- expected::tests'
+LIMIT=1800

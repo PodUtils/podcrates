@@ -5382,7 +5382,7 @@ cargo test -p pod-actions-store --all-features --lib lock
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5404,3 +5404,62 @@ cargo test -p pod-lab --all-features --test cli --lib --bins
 sh scripts/plant-each.sh lab-expect-exit-ignored
 ```
 
+## Done
+
+2026-11-18, 39ff7cbd0. `podlab run --expect-exit CODE --expect-stderr TEXT`: exit 0 where the command ends with CODE and its error output holds TEXT; else exit 4 (`EXIT_UNEXPECTED`, a fact of the manual) with one line for each difference. Each flag alone checks its part alone; a refused lab (125) and a command that does not start (126, 127) keep their codes. The error output goes through a pipe and on to the caller, and the check reads its last 4 MiB (`pod_lab::expected::{Wanted, tee, KEEP}`; `Options::stderr`). `LANES.md` gives the form of a row of a failure. The man page is generated again. Tests: `expected::tests` (each difference named, the tee copies each byte and keeps the tail, a closed error output does not stop the read), `tests/cli.rs` `a_row_of_a_failure_wants_its_code_and_its_line` (through the binary, in the lab `inherited-fds`). Plant `lab-expect-exit-ignored`, caught. The rows of failures of each consumer go into `LANES.md` when the consumer gives them.
+
+# T-906: `pod-actions-store`: the ref of a checkout of another repository: empty, a full ref, a commit SHA (PodUtils/podrunner#290)
+
+**Source:** PodUtils/podrunner#290 (COORD-084 of podrunner, PodUtils/podrunner@T-439; the report PodUtils/podrunner#251).
+**Category:** defect
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`store::checkout_target` passes `with: ref` as it is written: an empty ref gives `owner/repo@`, which `add_trees` refuses. `git::Git::resolve` puts `refs/tags/` and `refs/heads/` before each ref: `refs/heads/main` becomes `refs/heads/refs/heads/main`, and a commit SHA is looked up as a tag or a branch. `actions/checkout` takes each of these forms, so a normal workflow fails before its first job.
+
+## Premise
+
+- Read: PodUtils/podrunner#290; `crates/pod-actions-store/src/store.rs` (`checkout_target`, `add_trees`) and `src/git.rs` (`resolve`, the fetch of a tree).
+
+## Approach
+
+`checkout_target`: an empty or blank ref is `HEAD`. `Git::resolve`: a full ref (`refs/heads/X`, `refs/tags/X`) is looked up as it is; 40 hex digits are the commit, given back in lowercase with no `ls-remote`, and the fetch takes that commit. A test for each form, against the stand-in git server of the tests.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-store --all-features
+```
+
+
+# T-907: A reader of the zone files (TZif) and the cron of `on.schedule` in its `timezone` (PodUtils/podrunner#291)
+
+**Source:** PodUtils/podrunner#291 (COORD-085 of podrunner, PodUtils/podrunner@T-423); the ruling "Shared code".
+**Category:** feature
+**Milestone:** M0
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+GitHub runs a cron of `on.schedule` at the local time of its `timezone` (an IANA name). podcrates has no code that reads a time zone, and podrunner must not write generic code that belongs here. The check of `pod-actions-workflow` (`check.rs`, `schedule`) also refuses each key of a schedule item but `cron`, so a workflow with `timezone` fails the check.
+
+## Premise
+
+- Read: PodUtils/podrunner#291; `crates/pod-actions-workflow/src/check.rs` (`schedule`); podrunner's cron (its `next`), which the ruling "Shared code" moves here when podcrates takes the cron.
+- TZif: RFC 8536 (versions 1 to 3, the 64-bit data of version 2 and later, the POSIX TZ string of the footer).
+
+## Approach
+
+A module of zone files with no C library and no network: the zone of an IANA name from `$TZDIR`, else `/usr/share/zoneinfo`; a name with `..`, a leading `/` or a NUL is refused; the UTC offset at a UTC instant, with the footer after the last transition; a host with no zone files is a clear error. The cron `next(now)` in a zone: a local time in a gap runs once at the first valid time after the gap; a local time that repeats runs once, at its first instance (the rule of cronie and Vixie cron; GitHub does not document its rule). The check takes `timezone` (a string). Tests with small TZif files in the tests: a gap, a repeat, a zone with no DST, an instant after the last transition. Record the crate and the rule of a gap as a call.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-workflow --all-features
+```
