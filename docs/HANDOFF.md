@@ -22,19 +22,30 @@ is done. Git and the record keep finished work.
    A new red run needs an entry before other work. A macOS arm64 job of
    `ci.yml` that no runner takes ("not acquired by Runner") is no defect:
    run the failed jobs again.
-3. The open hand-off is COORD-132 (#222) for `v0.70.0` (`ed6d84c`). Record
+3. The ruling "podrunner first" (2026-11-18, COORD-134, #225) sets the
+   order of this session: after a red run, the asks of podrunner (T-907,
+   the next tag with the fix of PodUtils/podrunner#290, T-882), then
+   T-909, then the entries for the CI of githome and cfb
+   (`TODO/PROGRESS.md`, "Work order"). Read each
+   COORD issue of podrunner `(to podcrates)` first; podrunner can also send
+   a direct message.
+4. cfb's channel is #223. podcrates keeps one reply comment there and edits
+   it, with the UTC time of each update and of each acknowledgement of
+   cfb. COORD-133 (#224) waits for podssh's answer: copy it into the reply
+   of #223, then close #224 with a line of the result.
+5. The open hand-off is COORD-132 (#222) for `v0.70.0` (`ed6d84c`). Record
    each take in its body, and close it when each consumer is on `v0.70.0`
    or later.
-4. In flight: T-909 (PodUtils/podssh#314 ask 2) on the branch `wip/t909`.
+6. In flight: T-909 (PodUtils/podssh#314 ask 2) on the branch `wip/t909`.
    Part 1 (a byte budget under each cap, `relay::byte_budget_under`) is
    written and not tested. Part 2 (the cap in `forward_layer::Offer`, kept
    in the cache) is not started. Merge the branch into `main` after the
    checks pass, then ask for its delete.
-5. `main` holds for the next tag: T-905, T-906, T-908, T-910, T-911,
+7. `main` holds for the next tag: T-905, T-906, T-908, T-910, T-911,
    T-912, T-913 (COORD-132, section "On `main`").
-6. T-767 (PodUtils/podssh#283, partial) waits for podssh's next stall with
+8. T-767 (PodUtils/podssh#283, partial) waits for podssh's next stall with
    the lines `session.resume` and `session.stall`; T-768 goes with it.
-7. Then the work order of `TODO/PROGRESS.md`.
+9. Then the work order of `TODO/PROGRESS.md`.
 
 ## Unfinished work
 

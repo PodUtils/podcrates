@@ -164,6 +164,18 @@ Differences from the source, each with a test:
   draft read a public report with no check, so it took `schema: 2`.
 * The `$id` of each schema is its URL in podcrates.
 
+## Versions of a record
+
+githome and cfb read these records (for example `cpu_s` and
+`peak_rss_mib` of `run-report.v1`). A change of a field never changes a
+schema id silently (the owner's ruling "Schema ids", 2026-11-18):
+
+* A field that changes its type, name, unit or meaning, a removed field
+  and a new required field give a new schema id (`NAME.v2`, with
+  `schema` as the constant 2) and a COORD issue `(to all)`.
+* An added optional field keeps the id. The hand-off COORD issue of its
+  tag names it.
+
 ## Adoption map
 
 | Consumer | Old | New |

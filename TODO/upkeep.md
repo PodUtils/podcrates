@@ -3507,3 +3507,49 @@ sh scripts/plant-each.sh codegraph-clone history-in-a-document
 ## Done
 
 2026-11-18, f0013623: `scripts/codegraph.py` and `scripts/codegraph_scan.py` (`similar`, `find`, `crate`, `graph`, `build`, `dups`, `new`), `scripts/dups-baseline.txt` (90 keys: 19 with T-917, 71 with T-918), `scripts/check-history.py`; both in `ci.yml` and `scripts/agent/check.sh`. `codegraph.py --self-test` and `check-history.py --self-test` pass; `dups`: 90 known findings, no new one; `check-history.py`: 67 documents, no narrative history; `plant-each.sh codegraph-clone history-in-a-document`: 2 caught. `similar file lock` gives `pod_core::lock::FileLock` first. In the next commit, `new` compares the words of names (two words or more, a share of 0.66) and reads only `.rs`, `.py` and the entries of `TODO/`: against `v0.66.0` it prints 101 look-alikes for 727 new items, and no clone.
+
+# T-920: `pod-guest`: a monitor socket path longer than `sun_path` waits for the whole bound, then fails with a wrong reason
+
+**Source:** a run of `scripts/agent/check.sh` with a long `TMPDIR` (2026-11-18): 14 tests of `pod-guest --lib` failed.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A Unix socket path holds at most 107 bytes on Linux (`sun_path`, 104 on
+macOS). A per-run directory under a long root gives a QMP monitor path
+past that limit. Then the emulator cannot bind the monitor, and
+`qmp::Monitor::connect` waits for the whole bound (120 s in
+`provision`), then says "the QMP socket ... never appeared". That line is
+not true: the path can never be bound. The tests bind their stand-ins
+under `TMPDIR`, so a long `TMPDIR` fails 14 of them with "path must be
+shorter than SUN_LEN".
+
+## Premise
+
+- Read: `crates/pod-guest/src/qmp.rs` (the wait), `plan.rs` and `dos.rs`
+  (the argument `unix:PATH,server=on,wait=off`), the test helpers in
+  `evidence/tests.rs` and `ready/tests.rs`.
+- Measured: with `TMPDIR` at a path of 89 bytes the monitor path is 123
+  bytes and the 14 tests fail; with `TMPDIR=/tmp` each of the 177 tests
+  passes.
+
+## Approach
+
+Check the length of the monitor path when the plan is made, before the
+emulator starts. Refuse a path past the limit of the target as
+`Class::Config` at `Stage::Host` with one line that names the path, its
+length and the limit. In the tests, take the stand-in sockets under a
+short directory when `TMPDIR` is too long. Read each other socket path
+that a crate of podcrates binds under a directory of the caller (a test
+in the same class).
+
+## Prove
+
+```sh
+TMPDIR=/tmp/$(printf 'x%.0s' $(seq 90)) cargo test -p pod-guest --lib
+cargo test -p pod-guest --lib
+```

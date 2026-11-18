@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 752 entries: 139 open, 22 partial, 7 blocked, 584 done.
+`TODO/INDEX.md` holds 753 entries: 140 open, 22 partial, 7 blocked, 584 done.
 
 ## State
 
@@ -16,8 +16,15 @@
 - Open defects: T-914 (P1), T-915, T-916, T-789, T-766 (the nightly);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
   `pod-session`).
-- Each session talks with podcrates by COORD issues alone (the ruling
-  "Tonight"). M8 waits (the ruling "Priority"). The asks of podswarm wait
+- The CI work of githome and cfb (the work of podrunner) comes first from
+  the next session of each project (the ruling "podrunner first",
+  COORD-134, #225). cfb's channel is #223: podcrates answers in one comment
+  that it edits, with the UTC time of each update. COORD-133 (#224) waits
+  for podssh's answer.
+- Each session talks with podcrates by COORD issues (the ruling
+  "Tonight"); podrunner can also send a direct message (the ruling "Direct
+  messages with podrunner"). The rest of M8 waits (the ruling "Priority").
+  The asks of podswarm wait
   until the podswarm session starts, but for T-439, T-444, T-447 and
   T-448 (the ruling "podswarm", call C245).
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
@@ -37,15 +44,21 @@ order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits). An entry that waits for
 another session stays as it is; take the next entry.
 
-The order comes from the owner's rulings "Priority" (podvm, podnet and
-podssh first; M8 waits), "podrunner online" and "Sessions online" (the
-work for podrunner and podnet first, then podssh and podvm), "The move of
-podssh" and "Discipline".
+The order comes from the owner's rulings "podrunner first" (the CI work
+of githome and cfb, the work of podrunner, comes first), "Priority"
+(podvm, podnet and podssh next; the rest of M8 waits), "podrunner online"
+and "Sessions online", "The move of podssh" and "Discipline".
 
-First: the red nightly (T-914, T-915, T-916), then T-909 (on
-`wip/t909`), then the next tag. Then the open asks of the consumers:
-T-907 (`pod-time`, call C779), T-879 (`pod-detach`), T-880, T-882, T-897,
-T-899, T-900, T-852, T-863, T-851. Then the ruling "Discipline": T-692
+First: the red nightly (T-914, T-915, T-916). Then the asks of podrunner
+(COORD-134, #225): T-907 (`pod-time`, PodUtils/podrunner#291, call C779);
+the next tag, which carries the fix of PodUtils/podrunner#290 and the
+work on `main`; T-882 (PodUtils/podrunner#289); each new ask of podrunner. Then
+T-909 (on `wip/t909`; a gate of podssh's next beta, which cfb's CI host
+waits for, #223). Then the entries that a need of githome or cfb names for
+their CI: T-104 with T-880 (one crate `pod-release`; A-X-13), T-100
+(G-04), T-106 (G-10), T-105 (A-X-14), T-103 (G-08), T-102. Then the open
+asks of the consumers: T-879 (`pod-detach`), T-897, T-899, T-900, T-852,
+T-863, T-851. Then T-920. Then the ruling "Discipline": T-692
 (`pod-lab`, part 2), T-700 (`pod-manual`: the take of each consumer; its
 findings T-704 and T-705), T-767 (a stalled resume of `pod-session`,
 PodUtils/podssh#283; the cause is open) with T-768 (a late spare), T-703
@@ -119,8 +132,9 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
    direct boot of a Linux guest for `pod-microvm`); T-241 (the
    permissions of Landlock ABI 12); T-349 (a lab of `pod-netlab` on a
    user-space stack and with more than one guest).
-12. **M8, the fleet, and the other asks of #35 and #36: they wait** (the
-   ruling "Priority"). T-490 (the server half of ECH, #130) waits too. The
+12. **The rest of M8 and of the asks of #35 and #36: they wait** (the
+   ruling "Priority"; the entries for the CI of githome and cfb are at the
+   top, by the ruling "podrunner first"). T-490 (the server half of ECH, #130) waits too. The
    asks of podswarm that help podswarm alone (T-430 to T-437, T-440 to
    T-443, T-445, T-446, T-449, T-450) wait until the podswarm session
    starts (the ruling "podswarm"). T-100, T-102 to T-119 wait, unless a

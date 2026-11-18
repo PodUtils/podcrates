@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**752 entries: 139 open, 22 partial, 7 blocked, 584 done.**
+**753 entries: 140 open, 22 partial, 7 blocked, 584 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 8 | 0 | 163 | 182 |
-| P2 | 63 | 4 | 4 | 303 | 374 |
+| P2 | 64 | 4 | 4 | 303 | 375 |
 | P3 | 65 | 10 | 3 | 116 | 194 |
-| **All** | 139 | 22 | 7 | 584 | 752 |
+| **All** | 140 | 22 | 7 | 584 | 753 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -799,3 +799,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-917](upkeep.md) | P2 | M | M5 | chore | open | The copies of product code that `codegraph.py dups` finds: one place for each |
 | [T-918](upkeep.md) | P3 | M | M5 | chore | open | The helpers that the tests copy from file to file: one place for each |
 | [T-919](upkeep.md) | P1 | M | M0 | chore | done | A code graph, a check of repeated work and a check of narrative history in the documents |
+| [T-920](upkeep.md) | P2 | S | M5 | defect | open | `pod-guest`: a monitor socket path longer than `sun_path` waits for the whole bound, then fails with a wrong reason |

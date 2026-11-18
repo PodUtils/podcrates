@@ -22,6 +22,9 @@ crate has the prefix `pod-`. The consumers are:
   consumers above, and an ask that helps podswarm alone waits until its
   session starts (the owner's ruling "podswarm", `docs/decisions.md`).
 
+The CI work of githome and cfb (the work of podrunner) comes first, after
+a red run (the owner's ruling "podrunner first", `docs/decisions.md`).
+
 The code of the crates comes from podssh, podnet and podvm.
 `docs/design.md` has the rules of each crate, the list of the crates
 with their sources, and the procedure for one crate. `TODO/` has the
