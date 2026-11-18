@@ -264,6 +264,10 @@ pub struct Config {
     pub credentials: Credentials,
     pub protocol: Protocol,
     pub transport: Transport,
+    /// The edge connections of the tunnel, 1 to 8; the default is 2 for each
+    /// tunnel, a quick tunnel too: when one connection is lost, the other
+    /// carries the visitors. cloudflared opens one for a quick tunnel; set 1
+    /// for its behaviour (podnet's choice, PodUtils/podnet#654).
     pub ha_connections: u8,
     pub reconnect: ReconnectPolicy,
     pub ingress: Ingress,

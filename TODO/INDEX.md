@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**773 entries: 147 open, 23 partial, 7 blocked, 596 done.**
+**773 entries: 146 open, 23 partial, 7 blocked, 597 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 8 | 0 | 170 | 189 |
 | P2 | 69 | 5 | 4 | 307 | 385 |
-| P3 | 67 | 10 | 3 | 117 | 197 |
-| **All** | 147 | 23 | 7 | 596 | 773 |
+| P3 | 66 | 10 | 3 | 118 | 197 |
+| **All** | 146 | 23 | 7 | 597 | 773 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -810,7 +810,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-928](foundation.md) | P3 | M | M0 | chore | open | The other readers of an HTTP/1.1 head take `pod_core::http1` |
 | [T-929](fleet.md) | P1 | S | M8 | defect | done | `static-probe`: the report of `pod-job` lacks the new fields of `RunReport`, so the workspace does not build |
 | [T-930](services.md) | P2 | S | M5 | defect | done | `pod-services`: the Syncthing relay DVWOU27 moved to 61.223.4.2; cloudflared 2026.11.1 changed `quick_tunnel.go` (services 44282821174) |
-| [T-931](adapters.md) | P3 | S | M3 | defect | open | `pod-cloudflare`: a quick tunnel opens two edge connections; cloudflared opens one |
+| [T-931](adapters.md) | P3 | S | M3 | defect | done | `pod-cloudflare`: a quick tunnel opens two edge connections; cloudflared opens one |
 | [T-932](upkeep.md) | P2 | M | M5 | chore | open | A check of the temp files that the crates of podcrates make (PodUtils/podvm#567, lesson 5) |
 | [T-933](upkeep.md) | P2 | S | M5 | defect | open | `pod-cloudflare`: three tests fail on Windows, where they ran for the first time (nightly 44275593101) |
 | [T-934](transport.md) | P2 | S | M1 | defect | open | `pod-proxy`: an exec proxy runs `sh -c`, which breaks a Windows path and needs `sh` on Windows |

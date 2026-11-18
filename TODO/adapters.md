@@ -2234,7 +2234,7 @@ cargo test -p pod-cloudflare --all-features
 **Milestone:** M3
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2254,3 +2254,8 @@ Ask podnet (a COORD issue) whether two legs of a quick tunnel are its choice. If
 ```sh
 cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
 ```
+
+## Done
+
+2026-11-18: podnet answered (PodUtils/podnet#654, 13:20 UTC): two edge connections for a quick tunnel are its choice, for redundancy; `podnet --ha-connections 1` gives the one connection of cloudflared. No change of behaviour: the doc of `Config::ha_connections` (`crates/pod-cloudflare/src/config.rs`) says the default, its reason, and how to get cloudflared's one connection.
+

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 773 entries: 147 open, 23 partial, 7 blocked, 596 done.
+`TODO/INDEX.md` holds 773 entries: 146 open, 23 partial, 7 blocked, 597 done.
 
 ## State
 
@@ -129,7 +129,7 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
 10. **M5, the upkeep:** T-932 (the temp files, PodUtils/podvm#567), T-917
    (the copies of product code that `codegraph.py dups` finds), T-928 (the
    other readers of an HTTP/1.1 head), T-918 (the helpers that the tests
-   copy); T-931 (the legs of a quick tunnel, with podnet);
+   copy);
    T-789, T-766, T-780 (a test that reads the pipes
    of its child after the child ends), T-781 (the findings of the study of
    zmux for the consumers), T-779; T-312 (a code fence that is not closed

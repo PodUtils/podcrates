@@ -53,7 +53,8 @@ is done. Git and the record keep finished work.
 7. The open hand-off is COORD-137 (#228) for `v0.71.0` (`6dff7fc`). Record
    each take in its body, and close it when each consumer is on `v0.71.0`
    or later. Takes not yet in its body: podrunner `9e6bd57`
-   (PodUtils/podrunner#302), podssh `a6a3a3e` (PodUtils/podssh#319).
+   (PodUtils/podrunner#302), podssh `a6a3a3e` (PodUtils/podssh#319),
+   podnet `ab3b826` (PodUtils/podnet#654).
 8. In flight: T-909 (PodUtils/podssh#314 ask 2) on the branch `wip/t909`.
    Part 1 (a byte budget under each cap, `relay::byte_budget_under`) is
    written and not tested. Part 2 (the cap in `forward_layer::Offer`, kept
