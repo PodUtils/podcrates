@@ -11,6 +11,8 @@
 //! * [`files`]: the private files of a program and of a user, in the
 //!   places of its [`files::App`];
 //! * [`entropy`]: the random source, which a test can plant;
+//! * [`http1`]: the head of an HTTP/1.1 message: its bounds, its parse and
+//!   its write, with no I/O, for each reader of a crate;
 //! * [`lock`]: an advisory lock of a file for the life of a value, on each
 //!   system;
 //! * [`metered`], [`quota`], [`pick`], [`backoff`], [`clock`], [`text`],
@@ -30,6 +32,7 @@ pub mod entropy;
 pub mod event;
 pub mod failure;
 pub mod files;
+pub mod http1;
 pub mod lock;
 #[cfg(feature = "async")]
 pub mod metered;

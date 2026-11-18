@@ -14,6 +14,7 @@ this crate depends on no other pod crate.
 | `metered` | `Metered`: a stream that counts its bytes and signals at a limit |
 | `files` | the private files of a program and of a user: `App` (its name and its variable), `places_from`, `candidate_dirs_from`, `chosen_from`, `Places` with the places passed over in another user's tree, `store_file_in_first`, `load_file_from`, `read_private`, `read_own`, `create_private`, `create_new_private`, `private_dir`, `safe_name`, the owners and the access lists of Unix and Windows |
 | `entropy` | `Entropy`, `OsEntropy`, `NoRandom`: the random source, which a test can plant |
+| `http1` | the head of an HTTP/1.1 message, with no I/O and no tokio ("The head of HTTP/1.1", below): `Bounds` (`bytes`, `lines`; `DEFAULT`: `MAX_HEAD`, 16 KiB), `find_request`, `head_bounds`, `crlf_head_end`, `find`; `parse_request`, `Request` (`header`, `has`, `has_token`), `RequestError` (`status`); `parse_head`, `parse_status_line`, `Head`, `Framing::of`, `keeps`; `request_head`, `response_head`, `reason`, `refusal`, `answer`, `established`; `Exact` and `read_head_exact`: a head read one byte at a time, and not a byte further |
 | `lock` | `FileLock` (`try_lock`, `lock_within`, `path`, `mode`, `file`) and `Mode`: an advisory lock of a file for the life of a value, `flock(2)` on Unix and `LockFileEx` on Windows, with no link at the last component, close-on-exec, and a bounded wait whose refusal names the file |
 | `backoff` | `backoff(retry)`, `CONNECT_TIMEOUT` |
 | `clock` | `Clock` (the monotonic time and the wall clock, which a test can plant), `SystemClock`, `ManualClock`; the hint of a refused certificate, HTTP dates, `utc_minutes`, `rfc3339` |
@@ -23,6 +24,15 @@ this crate depends on no other pod crate.
 A crate of podcrates prints nothing and reads no variable: it takes a
 `Dial`, a `Resolve` and a `Report` from its caller, and returns a
 `Failure`.
+
+## The head of HTTP/1.1
+
+`http1` is the one parser and writer of a head of HTTP/1.1 in podcrates. A reader of a crate reads bytes into a buffer and gives them to it; `pod_proxy::http` holds the readers on tokio (`read_request`, `read_request_within`, `read_head`, `read_head_in`, `read_head_exact`).
+
+* A request head: a line ends with CRLF or a bare LF, and empty lines before the request line are passed over. A control byte in a line (but a tab), a bare CR, a space before a colon, a folded line and a request-target that is not visible ASCII are refused with 400; another version of HTTP with 505; a head past its `Bounds` with 431.
+* A header name is in lower case. A value loses only the spaces and tabs around it: `Authorization` keeps its credential as the client sent it.
+* A response head: lines end with CRLF; a line with no colon is passed over; the reason phrase is made one line of safe text.
+* A written head refuses a part with CR, LF or NUL.
 
 ## Exit codes and the log line
 

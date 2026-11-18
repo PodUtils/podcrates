@@ -1,12 +1,11 @@
-diff --git a/crates/pod-proxy/src/http/request.rs b/crates/pod-proxy/src/http/request.rs
-index 13f2a1e..7c2a84c 100644
---- a/crates/pod-proxy/src/http/request.rs
-+++ b/crates/pod-proxy/src/http/request.rs
-@@ -257,7 +257,6 @@ pub fn reason(status: u16) -> &'static str {
-         411 => "Length Required",
+diff --git a/crates/pod-core/src/http1/write.rs b/crates/pod-core/src/http1/write.rs
+--- a/crates/pod-core/src/http1/write.rs
++++ b/crates/pod-core/src/http1/write.rs
+@@ -26,7 +26,6 @@ pub fn reason(status: u16) -> &'static str {
          413 => "Content Too Large",
+         416 => "Range Not Satisfiable",
          426 => "Upgrade Required",
 -        429 => "Too Many Requests",
          431 => "Request Header Fields Too Large",
+         501 => "Not Implemented",
          502 => "Bad Gateway",
-         503 => "Service Unavailable",

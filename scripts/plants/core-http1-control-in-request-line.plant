@@ -1,0 +1,9 @@
+# pod-core: the parse of a request head takes a control character in its
+# request line, as podrunner's check (PodUtils/podrunner#289) refuses it:
+# the check of the bytes of each line and the check of the target are both
+# gone (T-882).
+ENTRY=T-882
+GROUP=core
+EXPECT='test http1::tests::a_request_line_with_a_control_character_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-core --all-features --lib -- http1::tests::a_request_line_with_a_control_character_is_refused --exact'
+LIMIT=900

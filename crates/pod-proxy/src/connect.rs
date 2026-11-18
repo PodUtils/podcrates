@@ -138,7 +138,7 @@ async fn exchange<S: AsyncRead + AsyncWrite + Unpin>(
     let exchange = async {
         stream.write_all(request.as_bytes()).await?;
         stream.flush().await?;
-        read_head_exact(stream).await
+        crate::http::read_head_exact(stream, MAX_PROXY_RESPONSE).await
     };
     let head = tokio::time::timeout_at(deadline, exchange)
         .await
@@ -198,29 +198,4 @@ async fn first_line_of_body<S: AsyncRead + Unpin>(stream: &mut S, head: &str) ->
     body.truncate(want);
     let text = String::from_utf8_lossy(&body);
     text.lines().map(one_line).find(|l| !l.is_empty()).unwrap_or_default()
-}
-
-/// Read a response head one byte at a time, so nothing after `\r\n\r\n` is
-/// consumed: those bytes belong to the TLS session that follows.
-async fn read_head_exact<S: AsyncRead + Unpin>(stream: &mut S) -> std::io::Result<String> {
-    let mut head = Vec::with_capacity(128);
-    let mut byte = [0u8; 1];
-    loop {
-        if stream.read(&mut byte).await? == 0 {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
-                "the connection closed before the response ended",
-            ));
-        }
-        head.push(byte[0]);
-        if head.ends_with(b"\r\n\r\n") {
-            return Ok(String::from_utf8_lossy(&head).into_owned());
-        }
-        if head.len() > MAX_PROXY_RESPONSE {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("no end of headers within {MAX_PROXY_RESPONSE} bytes"),
-            ));
-        }
-    }
 }
