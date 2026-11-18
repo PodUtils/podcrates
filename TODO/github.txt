@@ -230,4 +230,4 @@
 223 issue open
 224 issue closed
 225 issue open
-226 issue open
+226 issue closed

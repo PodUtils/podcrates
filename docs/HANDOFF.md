@@ -48,9 +48,11 @@ is done. Git and the record keep finished work.
    PodUtils/podrunner#290, T-882, T-923), then T-909, then the entries for
    the CI of githome and cfb (T-922, T-921 with T-106, T-104 with T-880,
    T-100, T-105, T-103, T-102).
-5. COORD-135 (#226) waits for podrunner: the types and files of its
-   `status` and source wire, which move to `pod-job` (T-922), and the
-   names of the fields of T-923. Close it with a line of the result.
+5. podrunner's answer to COORD-135 (PodUtils/podrunner#294, at podrunner
+   `3a0cbbb`) is in T-922 (the types and files of `status.v1` and of the
+   source wire) and T-923 (the names and units of the new fields). Set
+   the order of the move with podrunner: the wire moves after podrunner's
+   T-486, T-493 and T-495.
 6. The channel of cfb and githome is #223. podcrates keeps one reply
    comment to each there (cfb: 6970315549; githome: 6970683028) and edits
    it, with the UTC time of each update and of each acknowledgement. cfb

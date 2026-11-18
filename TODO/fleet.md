@@ -5544,8 +5544,26 @@ podcrates.
 
 - Read: `schemas/`, `crates/pod-job/src/schemas.rs`, the ruling "Schema
   ids" (2026-11-18).
-- Not read: the writers of `log.v1` and `broker-policy.v1`; podrunner's
-  `schemas/status.v1.json` and its source wire.
+- Not read: the writers of `log.v1` and `broker-policy.v1`.
+- Read: podrunner's answer, COORD-087 (PodUtils/podrunner#294), at
+  podrunner `3a0cbbb`. `status.v1`: `PodUtils/podrunner:schemas/status.v1.json`
+  from `PodUtils/podrunner:crates/podrunner-slots/src/status.rs` (`Status`,
+  `SourceStatus`, `KindStatus`, `PinStatus`; `KindStatus.probe` is the
+  `Capability` of `unit-capability.v1`), written by schemars with a test of
+  drift. The source wire, version 1:
+  `PodUtils/podrunner:docs/contracts/source-driver.md`,
+  `PodUtils/podrunner:crates/podrunner-source/src/wire.rs` (`Request`, tag
+  `op`: `hello`, `next`, `ack`, `claim`, `mint`, `report`, `audit`,
+  `withdraw`, `release`; `Reply`, tag `reply`: `hello`, `events`,
+  `credential`, `done`, `error`) and
+  `PodUtils/podrunner:crates/podrunner-source/src/event.rs` (`Offer`,
+  `Event`); each object has `"schema": 1`, and an unknown field is
+  `bad-request`. Each field at `3a0cbbb` is the `v1` form; podrunner adds
+  only optional fields until the move.
+- podrunner changes the wire first (its T-486: the `audit` lines of
+  githome's G-04; T-493: `assigned` with `keep` or `end`, G-15; T-495: the
+  `host` of `hello`, G-17), with a line in its `CHANGES.md` (its T-510,
+  githome's G-39).
 
 ## Approach
 
@@ -5555,11 +5573,13 @@ podcrates.
    the schema, the field, added or changed). A check fails when a schema
    file changes with no line, and when a change that the ruling "Schema
    ids" gives a new id keeps the old id.
-3. Move the schemas of podrunner's status and of its source wire into
-   `pod-job` (the ruling "Shared code": githome and podrunner read them;
-   githome asked for it on GitHub #223, 2026-11-18). COORD-135 asks
-   podrunner for the types and their files. podrunner then takes them
-   from `pod-job`.
+3. Move the types of podrunner's `status.v1` and of its source wire
+   (the files above) into `pod-job`, with their schemas and examples (the
+   ruling "Shared code": githome and podrunner read them; githome asked
+   for it on GitHub #223). The coordinator sets the order with podrunner:
+   the move takes the wire after podrunner's T-486, T-493 and T-495, so
+   that each change lands once. podrunner then takes them from `pod-job`,
+   and its `CHANGES.md` lines move to `schemas/CHANGES.md`.
 
 ## Prove
 
@@ -5572,7 +5592,7 @@ A field added to a parser with no change of its schema fails the check.
 
 # T-923: `pod-job`: the fields of the job that githome and podrunner need (`trust_inputs.forge`, `limits.disk`, `cache`, the facts of a run report) (GitHub #223)
 
-**Source:** GitHub #223 (githome's G-32: the crate half of podrunner's G-16, G-18, G-19 and G-20 of PodUtils/podrunner#292)
+**Source:** GitHub #223 (githome's G-32: the crate half of podrunner's G-16, G-18, G-19 and G-20 of PodUtils/podrunner#292; G-36, the sandbox payload); the names: PodUtils/podrunner#294
 **Category:** feature
 **Milestone:** M8
 **Priority:** P1
@@ -5593,14 +5613,35 @@ peak of the disk, the bytes of the network, the bytes of the cache and
 
 - Read: GitHub #223 (G-32), `crates/pod-job/README.md`, the ruling
   "Schema ids".
-- Not read: podrunner's G-16, G-18, G-19 and G-20 on PodUtils/podrunner#292
-  (the names and the units that podrunner fills).
+- Read: podrunner's names and units, COORD-087 (PodUtils/podrunner#294),
+  its calls for githome's questions Q-1 to Q-8 on PodUtils/podrunner#292.
+  Each field is optional:
+  - `job-offer.v1`: `trust_inputs.forge` (string, the host name of the
+    forge; G-16, podrunner T-494); `cache` (`{ key: string, mode: "rw" |
+    "ro" | "none" }`; G-20, T-480); `payload` (`{ kind: "sandbox", image:
+    "NAME@sha256:HEX", command: [string] }`), `idle_s` and `max_s`
+    (integer seconds; G-36, T-506).
+  - `limits.disk` exists (integer bytes; G-18, T-496): a kind that can
+    enforce it gives the job `ENOSPC` at the size, another kind keeps the
+    measured bound. podcrates reads that as the same meaning (the disk
+    limit of the job), with the enforcement in `unit-capability.v1`
+    (`LimitMode`), so the id stays; the entry checks it against the rule
+    "Schema ids".
+  - `run-report.v1` (G-19, T-497; G-20): `host`, `unit_kind`,
+    `boundary`, `image_digest` (`sha256:HEX`), `runner_version` (strings);
+    `prepare_s`, `start_s`, `run_s`, `destroy_s` (integer seconds, rounded
+    up, as `cpu_s`); `disk_peak_bytes`, `net_rx_bytes`, `net_tx_bytes`
+    (integer bytes, through the egress module of the unit);
+    `cache_read_bytes`, `cache_written_bytes` (integer bytes); `log_tail`
+    (UTF-8, at most 65536 bytes, each credential scrubbed, only for a unit
+    that failed before the runner connected). A field that a kind cannot
+    measure is `unknown` with a reason, never 0.
 
 ## Approach
 
-Agree each name and unit with podrunner first (its asks are the source).
-Each new field is optional, so `v1` keeps its id (the ruling "Schema
-ids"); a field that must be required gives `v2`. Add the fields, their
+Take the names and units of the Premise (podrunner's calls). Each new
+field is optional, so `v1` keeps its id (the ruling "Schema ids"); a
+field that must be required gives `v2`. Add the fields, their
 `check` rules and examples, write the schemas again, and name each field
 in the hand-off COORD issue of the tag. All in one tag.
 

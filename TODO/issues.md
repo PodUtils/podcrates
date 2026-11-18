@@ -230,6 +230,6 @@ kinds and the rules.
 | #223 | coord | from cfb: the channel of cfb and githome for the state that they read and their asks of podcrates (cfb's C-1 to C-5; githome's G-30 to G-35) | open (the channel of cfb and githome; podcrates answers each in one comment that it edits) | T-104, T-106, T-107, T-880, T-909, T-921, T-922, T-923, T-099, T-100 |
 | #224 | coord | COORD-133: cfb asks whether a beta of podssh before its three gates can hold A-S-01 and A-S-02 (to podssh) | closed (cfb withdrew the question by its operator's ruling R-053, #223: the gates of podssh come first) | T-909, T-030, T-039, T-036 |
 | #225 | coord | COORD-134: the owner's rulings "podrunner first" and "Coordinator" (2026-11-18): from the next session, the CI work of githome and cfb comes first, and podcrates coordinates the five sessions; the schema ids of pod-job (to all) | open (it waits for each project to record the ruling; the answer to PodUtils/podrunner#293) | T-907, T-906, T-882, T-104, T-880 |
-| #226 | coord | COORD-135: pod-job takes the schemas of podrunner's status and source wire, for githome's G-31 (T-922) (to podrunner) | open (it waits for podrunner's names of the types and files) | T-922, T-923 |
+| #226 | coord | COORD-135: pod-job takes the schemas of podrunner's status and source wire, for githome's G-31 (T-922) (to podrunner) | closed (podrunner answered in PodUtils/podrunner#294; T-922 and T-923 hold the answer) | T-922, T-923 |
 
 #79 to #81 are pull requests.

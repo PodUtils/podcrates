@@ -24,8 +24,8 @@
   channel of cfb and githome is #223: podcrates answers each in one
   comment that it edits, with the UTC time of each update. cfb gets its CI
   from githome alone (cfb's R-051 and R-053), and it is offline until the
-  CI of podrunner and githome is complete. COORD-135 (#226) waits for
-  podrunner's answer.
+  CI of podrunner and githome is complete. podrunner's answer to
+  COORD-135 (PodUtils/podrunner#294) is in T-922 and T-923.
 - The rest of M8 waits (the ruling "Priority"). The asks of podswarm wait
   until the podswarm session starts, but for T-439, T-444, T-447 and
   T-448 (the ruling "podswarm", call C245).
