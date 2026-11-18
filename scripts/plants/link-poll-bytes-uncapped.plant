@@ -3,5 +3,7 @@
 ENTRY=T-517
 GROUP=link
 EXPECT='past the cap'
-RUN='cargo test -p pod-link --all-features --test poll_lanes the_sessions_keep_no_more_bytes'
+# A run can stay under the cap by its timing: plants missed it once in CI.
+# Five runs make a miss rare.
+RUN='for n in 1 2 3 4 5; do cargo test -p pod-link --all-features --test poll_lanes the_sessions_keep_no_more_bytes || exit 1; done'
 LIMIT=1800
