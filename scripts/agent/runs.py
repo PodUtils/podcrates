@@ -7,7 +7,17 @@ the jobs that did not pass, with their failed steps.
 import json
 import sys
 
-data = json.load(sys.stdin)
+text = sys.stdin.read()
+try:
+    data = json.loads(text)
+except ValueError:
+    # The mirror can answer with no JSON (a 403 of its rate limit): say so in
+    # one line; the loop of watch-runs.sh reads the runs again.
+    if sys.argv[1:] == ["--jobs"]:
+        print("  the job list did not come (no JSON from the mirror)")
+    else:
+        print("STATE 0 1")
+    sys.exit(0)
 if sys.argv[1:] == ["--jobs"]:
     for j in data.get("jobs", []):
         if j["conclusion"] not in ("success", "skipped"):
