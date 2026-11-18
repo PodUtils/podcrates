@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**777 entries: 146 open, 24 partial, 7 blocked, 600 done.**
+**777 entries: 145 open, 25 partial, 7 blocked, 600 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 11 | 8 | 0 | 171 | 190 |
-| P2 | 69 | 6 | 4 | 308 | 387 |
+| P2 | 68 | 7 | 4 | 308 | 387 |
 | P3 | 66 | 10 | 3 | 119 | 198 |
-| **All** | 146 | 24 | 7 | 600 | 777 |
+| **All** | 145 | 25 | 7 | 600 | 777 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -817,7 +817,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-935](foundation.md) | P2 | S | M0 | defect | open | `pod-core`: two renames onto one name at once give "Access is denied" on Windows |
 | [T-936](foundation.md) | P1 | S | M0 | defect | done | `pod-testkit`: `refused()` gives a timeout on macOS, not a refusal |
 | [T-937](transport.md) | P3 | S | M1 | defect | done | `pod-dns`: a test of the resolver asks the resolver of the host (nightly 44275593101) |
-| [T-938](upkeep.md) | P2 | S | M5 | defect | open | The riscv64 job of `nightly.yml` meets its limit of 90 minutes |
+| [T-938](upkeep.md) | P2 | S | M5 | defect | partial | The riscv64 job of `nightly.yml` meets its limit of 90 minutes |
 | [T-939](relay.md) | P2 | M | M2 | defect | open | `pod-iroh` with `pod-session`: after a new address of the client on the relay-only path, no end resumes, and the bytes in flight are never sent again (PodUtils/podssh#283, ask 4) |
 | [T-940](fleet.md) | P2 | S | M8 | feature | open | `pod-job`: a fuzz target for one line of the source wire |
 | [T-941](foundation.md) | P2 | S | M0 | feature | open | `pod-core`: a lock of a file that other programs read, which on Windows refuses no reader (PodUtils/podssh#319) |

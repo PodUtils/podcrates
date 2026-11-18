@@ -3652,7 +3652,7 @@ sh scripts/agent/check-windows.sh
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -3669,6 +3669,10 @@ Split the test binaries of the emulated targets into two jobs by crate, or raise
 ## Prove
 
 The next run of `nightly.yml`: each cross job ends, none cancelled.
+
+## Done
+
+2026-11-18, partial (the proof is the next run of `nightly.yml`: each cross job ends, none cancelled): the job `cross` takes its limit from its row (`timeout-minutes: ${{ matrix.minutes || 90 }}`), and the row of riscv64 has 150 minutes, a margin of a quarter over the time that the two runs show it needs. The step of the tests prints the seconds of each binary (`== N s: EXE`), so the next limit, or a split of the job by crate, comes from measured times. `check-workflows.py`: 0 faults.
 
 # T-943: The static job of `aarch64-apple-darwin` in `ci.yml` gets no runner, four runs in a row
 
