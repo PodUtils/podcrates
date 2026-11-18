@@ -6023,3 +6023,31 @@ fail their tests. CI builds the binary static on each Linux target, and
 `pod_job::source` and podrunner's contract agree. The help and the
 manual of the binary from `pod-manual` are T-946. The job of podrunner's
 CI (PodUtils/podrunner@T-509) is podrunner's, on the hand-off of the next tag.
+
+# T-951: `pod-testkit`: `pod-fake-githome` passes the 14 tests of podrunner's `source-conformance`, not its test 15 of a cancelled job (PodUtils/podrunner#310)
+
+**Source:** PodUtils/podrunner#310 (COORD-100; podrunner's `b0f8a36`, PodUtils/podrunner@T-502, githome's G-27)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podrunner's `source-conformance` has 15 tests since `b0f8a36`. Test 15, `a-cancelled-job-is-reported-and-released`: after `mint`, a `report` with `exit_reason: cancelled` and a `release` are taken, and a `claim` after them gets `unknown-job`. The test of T-948 runs the 14 tests of `b1a1a28`; no test shows that `pod-fake-githome` answers test 15, and one run of the 15 tests takes one more queued job. PodUtils/podrunner@T-509 runs the 15 tests with the release asset.
+
+## Premise
+
+- Read: PodUtils/podrunner#310; `crates/pod-testkit/tests/githome.rs`; `crates/pod-testkit/src/githome/` (the rules of `release`: a report with no refusal code ends the job).
+- Not read: `PodUtils/podrunner:crates/podrunner-source/src/conformance.rs` and `docs/contracts/source-driver.md` (Tests) at `b0f8a36` or later.
+
+## Approach
+
+Read test 15 at podrunner's head. Add it to `the_conformance_steps_of_podrunner_pass` with its own queued job; change the fake where its answer differs. Update the SOURCES line of `conformance.rs` and `source-driver.md` to the new commit, and the README line on the jobs that one run takes.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --features githome --test githome
+```

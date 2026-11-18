@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 783 entries: 145 open, 24 partial, 7 blocked, 607 done.
+`TODO/INDEX.md` holds 784 entries: 146 open, 24 partial, 7 blocked, 607 done.
 
 ## State
 
@@ -8,8 +8,8 @@
 - Last release: `v0.73.0` at `1f1fd3f` (`docs/releases/v0.73.0.md`). Its
   hand-off is COORD-140 (#231); the hand-off of `v0.72.0` is COORD-138
   (#229).
-- The tag that the `main` of each consumer names: `v0.73.0` (podvm),
-  `v0.72.0` (podrunner, podnet), `v0.71.0` (podssh). The details of each take are
+- The tag that the `main` of each consumer names: `v0.73.0` (podvm,
+  podrunner), `v0.72.0` (podnet), `v0.71.0` (podssh). The details of each take are
   on #231, #229 and #228.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
@@ -59,7 +59,8 @@ First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red nightly
 (T-916, T-933, T-935, T-934, T-938, T-950). Then the asks of
-podrunner (COORD-134, #225): each new ask of podrunner. Then the
+podrunner (COORD-134, #225): each new ask of podrunner: T-951
+(PodUtils/podrunner#310). Then the
 entries that a need of githome or cfb names for their CI: T-106 (G-10),
 T-104 with T-880 (one crate `pod-release`; A-X-13, #223 G-34), T-100
 (G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then cfb's asks
