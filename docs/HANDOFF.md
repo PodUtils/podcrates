@@ -51,7 +51,7 @@ is done. Git and the record keep finished work.
    githome's asks G-30 to G-35 are T-921 to T-923, T-099, T-100 and T-104.
 7. The open hand-off is COORD-137 (#228) for `v0.71.0` (`6dff7fc`). Record
    each take in its body, and close it when each consumer is on `v0.71.0`
-   or later. podvm takes the parts of `v0.69.0` and `v0.70.0` with it.
+   or later.
    C783 (the names of `sandbox` and `unknown_reasons` in `pod-job`) waits
    for podrunner's yes.
 8. In flight: T-909 (PodUtils/podssh#314 ask 2) on the branch `wip/t909`.
