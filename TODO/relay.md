@@ -10098,7 +10098,7 @@ cargo test -p pod-session --all-features --test session_deadline
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10117,3 +10117,7 @@ The note of the cleartext road names the TLS failure of the host, in the words o
 ```sh
 cargo test -p pod-relay --all-features
 ```
+
+## Done
+
+2026-11-18, 8605f8649. `pod_tls::handshake_cause(text)`: the cause of a failed handshake in plain words from rustls's text, also inside a wrapper: "a certificate for listed.test, not other.test" (with each name that rustls lists), "a certificate that is not for NAME", "a certificate that no trusted CA signed", "an expired certificate", "a certificate that is not valid yet", "a revoked certificate"; `None` else. `cleartext::tls_cause(host, attempts)` gives it, else the text of the error; `last` passes it, and `over` takes `(Relay, String)`: the note says "the TLS of HOST failed on the way (CAUSE)". Tests `hint::tests::the_cause_of_a_handshake_in_plain_words` (from rustls's own errors), `cleartext::tests::a_host_of_each_deployment_whose_tls_failed_is_tried` (the cause of each host). Plant `relay-cleartext-tls-cause-unnamed`, caught.

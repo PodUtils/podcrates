@@ -1,0 +1,12 @@
+diff --git a/crates/pod-relay/src/cleartext.rs b/crates/pod-relay/src/cleartext.rs
+--- a/crates/pod-relay/src/cleartext.rs
++++ b/crates/pod-relay/src/cleartext.rs
+@@ -91,7 +91,7 @@ pub fn tls_cause(host: &str, attempts: &[(String, OpenError)]) -> String {
+     match failed {
+         Some(error) => {
+             let text = error.to_string();
+-            pod_tls::handshake_cause(&text).unwrap_or(text)
++            text
+         }
+         None => "no cause was kept".to_string(),
+     }

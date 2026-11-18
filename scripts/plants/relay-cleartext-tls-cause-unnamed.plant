@@ -1,0 +1,8 @@
+# The cleartext road gives the raw words of TLS, not the cause in plain
+# words: a certificate for another name or one that no trusted CA signed is
+# not said; the test of the hosts of the road must fail.
+ENTRY=T-913
+GROUP=relay
+EXPECT='test cleartext::tests::a_host_of_each_deployment_whose_tls_failed_is_tried \.\.\. FAILED'
+RUN='cargo test -p pod-relay --all-features --lib -- cleartext::tests'
+LIMIT=1800
