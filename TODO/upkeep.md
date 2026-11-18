@@ -3669,3 +3669,29 @@ Split the test binaries of the emulated targets into two jobs by crate, or raise
 ## Prove
 
 The next run of `nightly.yml`: each cross job ends, none cancelled.
+
+# T-943: The static job of `aarch64-apple-darwin` in `ci.yml` gets no runner, four runs in a row
+
+**Source:** `ci.yml` at `353e23f` (44311135449), `a743937` (44319538339), `71ea36e` (44332544463) and `e51772e` (44338630652): the job `static (aarch64-apple-darwin, macos-15, false)` ended `cancelled` or "abandoned" with no runner (`runner_name` empty), after 16 minutes in the queue; the job `all` then fails. The job `static (x86_64-apple-darwin, macos-15-intel, false)` of the same runs got a runner and passed.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`ci.yml` is red for a reason that is not in the code: no runner of the label `macos-15` (arm64) takes the static job. HANDOFF names this as a fault of the host ("not acquired by Runner") and says to run the job again; a fault in each run of a day is no longer a single fault, and each push waits on it.
+
+## Premise
+
+- Read: the job lists of the four runs (the arm64 job has no runner; the Intel job passes).
+- Not read: the annotations of the cancelled jobs; whether the macOS jobs of `nightly.yml` and `ci.yml` share a limit of concurrent macOS runners of the organization.
+
+## Approach
+
+Read the annotations of a cancelled job. If the pool of arm64 runners is the cause, build the static probe of `aarch64-apple-darwin` on the Intel runner (`--target aarch64-apple-darwin`; the check of the binary reads its Mach-O header, so it needs no arm64 host), and keep an arm64 run in `nightly.yml`. The job `all` then waits on no arm64 runner.
+
+## Prove
+
+Three runs of `ci.yml` in a row with each job green.

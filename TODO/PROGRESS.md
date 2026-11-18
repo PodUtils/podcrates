@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 775 entries: 147 open, 23 partial, 7 blocked, 598 done.
+`TODO/INDEX.md` holds 776 entries: 148 open, 23 partial, 7 blocked, 598 done.
 
 ## State
 
@@ -56,7 +56,7 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red nightly
-(T-916, T-933, T-935, T-934, T-937, T-938). Then the asks of
+(T-943, T-916, T-933, T-935, T-934, T-937, T-938). Then the asks of
 podrunner (COORD-134, #225): each new ask of podrunner. Then T-939
 (the iroh road after a new address, PodUtils/podssh#283 ask 4; a failure of
 podssh's gate). Then the
