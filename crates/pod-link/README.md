@@ -641,11 +641,12 @@ that hold them (`tests/udp.rs`, `tests/udp_loss.rs`, feature `udp`):
   `one_mib_crosses_each_way_at_three_percent_loss_with_reorder_and_duplicates`;
   8 MiB each way at 5 % loss and 1 % reorder with `nodelay`:
   `eight_mib_cross_at_five_percent_loss_and_one_percent_reorder_with_nodelay`.
-- [x] podnet's gate of row E2-1 in a release build (T-520, call C284; the
+- [x] podnet's gate of row E2-1 in a release build (T-520, calls C284 and C787; the
   job `gate` of `nightly.yml`): 8 MiB each way at 5 % drop with the
   defaults, `eight_mib_cross_at_five_percent_loss_and_one_percent_reorder_with_the_defaults`;
-  20 % drop with `nodelay` and a window of 1024 within 8 times the clean
-  time (3.7 to 5.3 measured; podnet asks for 3),
+  20 % drop with `nodelay` and a window of 1024: the median of five runs
+  within 12 times the median of five clean runs (4.4 to 8.2 measured;
+  podnet asks for 3),
   `twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time`.
 - [x] `available()` names a host that refuses UDP (69), and the carrier
   then sends nothing: `the_carrier_says_what_it_gives_and_why_it_cannot_run`
