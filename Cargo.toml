@@ -70,6 +70,7 @@ pod-supervise = { path = "crates/pod-supervise", version = "0.70.0" }
 pod-term = { path = "crates/pod-term", version = "0.70.0" }
 pod-testkit = { path = "crates/pod-testkit", version = "0.70.0" }
 pod-tls = { path = "crates/pod-tls", version = "0.70.0" }
+pod-time = { path = "crates/pod-time", version = "0.70.0" }
 pod-transit = { path = "crates/pod-transit", version = "0.70.0" }
 pod-tor = { path = "crates/pod-tor", version = "0.70.0" }
 # No default feature here: pod-proxy takes the codec of STUN alone (feature

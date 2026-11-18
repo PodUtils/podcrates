@@ -1,0 +1,10 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podrunner d72b161f94fdd2916f1d02ef2757c8db7a294ec6
+# T-907 (PodUtils/podrunner#291): the cron of on.schedule moves here by
+# the ruling "Shared code". podrunner keeps the file until it takes the
+# crate (podrunner's crates/podrunner/src/run_local/watch.rs uses it).
+file f22ac4055e7caaa797262febf5db0c6bfc626dd2 crates/podrunner-local/src/cron.rs -> crates/pod-time/src/cron.rs

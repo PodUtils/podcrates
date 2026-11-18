@@ -1,0 +1,10 @@
+[package]
+name = "pod-time"
+description = "The zone files of the system (TZif, versions 1 to 4, with the POSIX TZ string of the footer), the UTC offset of a zone at an instant, and the cron of a GitHub Actions on.schedule in its timezone; std alone, no C library."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
