@@ -5725,3 +5725,31 @@ An option of the plan, `Fds::ctty: Option<i32>` (the descriptor number in the ch
 ```sh
 cargo test -p pod-enter --all-features
 ```
+
+# T-929: `static-probe`: the report of `pod-job` lacks the new fields of `RunReport`, so the workspace does not build
+
+**Source:** the clippy run of T-882 (2026-11-18).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`cargo clippy --workspace --all-targets --all-features -- -D warnings` fails at `examples/static-probe/src/main.rs`: `error[E0063]: missing fields cache_read_bytes, cache_written_bytes, destroy_s and 10 other fields in initializer of pod_job::RunReport`. T-923 (commit 62171e1) added optional fields to `RunReport`, and the probe still builds its report with the old fields only.
+
+## Premise
+
+- Measured: the clippy run above on the base 329a535 of T-882 (2026-11-18); the error is in `examples/static-probe` only.
+- Read: `git log main -- examples/static-probe/src/main.rs` names no later change of the file.
+
+## Approach
+
+The report of `job()` in `examples/static-probe/src/main.rs` gives each new optional field as `None`, or builds from a constructor of `pod-job` that a later field does not break.
+
+## Prove
+
+```sh
+cargo clippy -p static-probe --all-targets --all-features -- -D warnings
+```

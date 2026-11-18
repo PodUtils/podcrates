@@ -2286,7 +2286,7 @@ No `Settings::from_env`: the caller decides whether the file of the environment 
 **Milestone:** M0
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2305,6 +2305,16 @@ One module (in `pod-core` or a small crate) with the bounds of a head (size, lin
 ```sh
 cargo test --workspace --all-features
 ```
+
+## Done
+
+2026-11-18, commits 1b53f52, f784f1f, 5ee9043.
+
+- The shared code is `pod_core::http1` (`crates/pod-core/src/http1.rs` and `http1/`), with no I/O and no tokio, also with no default feature: `Bounds` (`bytes`, `lines`), `find_request`, `head_bounds`, `crlf_head_end`, `find`; `parse_request`, `Request`, `RequestError`; `parse_head`, `parse_status_line`, `Head`, `Framing::of`, `keeps`; `request_head`, `response_head`, `reason`, `refusal`, `answer`, `established`; `Exact` and `read_head_exact`. The parse of a request, the parse of a response and the answers move there from `pod_proxy::http` and `pod_proxy::http::request`, which keep their API by re-exports. `pod_proxy::http` adds the async readers `read_head_in`, `read_head_exact` and `request::read_request_within`.
+- Taken: `pod-proxy` (`connect.rs`, the request head of `exchange`), `pod-ws` `serve/conn.rs` (the `Bounds` of its caps; empty lines before the request line are now passed over), `pod-piping` `http1.rs` and `pod-relay` `http_road/answer.rs` (`read_head_in`, `Framing::of`, `keeps`; a 101 is an answer and more than 5 interim answers are an error, as in `pod-proxy`), `pod-egress` `via/http1.rs` and `webtunnel.rs` (`read_head_exact`) and `vless/h1.rs` (`parse_head`; its version check and its refusal of a length that is not a number stay), `pod-incus` `wire.rs` (`request_head`), `pod-lab` `net/wire.rs` (`read_head_exact`, `parse_status_line`).
+- Kept: `pod-cloudflare` `proxy/head.rs` reads the origin's answer with httparse and gives the names of the headers in their case to the edge (32 KiB, 256 lines); its request head comes from the metadata of the edge, checked by the `http` crate. The writers of a fixed form stay: `pod-piping`'s request, the request of `webtunnel.rs` (Go's order), the CONNECT of `via/http1.rs` (its credential in `Zeroizing`), the XHTTP head of `vless/h1.rs`. T-928 has the other readers.
+- podrunner's checks hold in the shared parser: tests `a_request_line_with_a_control_character_is_refused` (each ASCII control byte, C1 controls, a tab) and `an_authorization_header_keeps_its_value_as_given`. podrunner takes `parse_request` with `Bounds`, `request_head` and `response_head` at its take.
+- Tests: `pod-core` lib 75 passed (13 of `http1`, table-driven); `cargo test --all-features` of `pod-proxy`, `pod-ws`, `pod-incus`, `pod-piping`, `pod-relay`, `pod-egress` and `pod-lab`: each test passed. Fuzz target `http_request` (`cargo test --manifest-path fuzz/Cargo.toml --lib`: 14 passed). Plant `core-http1-control-in-request-line`: caught; plant `proxy-reason-of-429` moves to `pod-core`: caught. `cargo clippy --workspace --exclude static-probe --all-targets --all-features -- -D warnings`: clean; `static-probe` fails on the base (T-929).
 
 # T-896: `pod-proxy`: the handshake of SOCKS5 and of CONNECT on a stream that the caller holds (a hop of a chain) (PodUtils/podnet#652)
 
@@ -2462,3 +2472,32 @@ cargo test -p pod-core --all-features --lib lock
 ## Done
 
 2026-11-18: `FileLock::lock_until`, `FileLock::try_lock_existing` and the read-only fallback of the open (`crates/pod-core/src/lock.rs`). Tests `a_wait_with_no_bound_ends_at_a_stop` (a stop from another thread after 100 ms gives `TempFail` with the path; a release by another thread gives the lock), `a_probe_of_a_lock_makes_no_file` (no file made; `NotFound`; a held lock gives `None`), `a_lock_file_that_the_caller_cannot_write_opens_read_only` (a file of mode 0444, both modes; it skips as root, which writes each file). `cargo test -p pod-core --all-features --lib lock`: 6 passed; the read-only test as the user `nobody` (`setpriv --reuid=65534`): 1 passed.
+
+# T-928: The other readers of an HTTP/1.1 head take `pod_core::http1`
+
+**Source:** the survey of T-882 (2026-11-18).
+**Category:** chore
+**Milestone:** M0
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+T-882 moved the parse and the bounds of an HTTP/1.1 head to `pod_core::http1` and took it in ten modules. Other modules still find the end of a head and parse it by hand, each with its own bound and its own words: `crates/pod-ws/src/client/upgrade.rs` and `crates/pod-ws/src/handshake.rs` (the answer to an upgrade), `crates/pod-ws/src/cleartext/probe.rs`, `crates/pod-egress/src/wstunnel/upgrade.rs`, `crates/pod-link/src/ws.rs`, `crates/pod-link/src/poll/wire.rs`, `crates/pod-hostprobe/src/probes/send.rs` (the answer to CONNECT, one byte at a time), `crates/pod-services-watch/src/forward.rs`, and the stand-ins `crates/pod-testkit/src/stand.rs`, `crates/pod-cloudflare/src/standin.rs`, `crates/pod-cloudflare/src/standin/`, `crates/pod-derp/src/standin.rs`, `crates/pod-link/src/s3/standin/serve.rs` and `crates/pod-iroh/src/test_pkarr.rs`.
+
+## Premise
+
+- Read: each file of `crates/*/src` that holds the literal of CRLF CRLF (2026-11-18); each one reads into a buffer, finds CRLF CRLF, and checks a bound of its own.
+- Not measured: which words of an error a test of each crate pins.
+
+## Approach
+
+Each module takes `pod_core::http1` (`crlf_head_end` or `find_request` with its `Bounds`, `parse_head` or `parse_request`), or the readers of `pod_proxy::http` (`read_head_in`, `read_head_exact`) where the crate takes `pod-proxy`. A real difference (a bound, the words of a refusal that a test pins) stays as a parameter. A stand-in can keep a lenient reader; the comment says why.
+
+## Prove
+
+```sh
+cargo test -p pod-ws -p pod-egress -p pod-link -p pod-hostprobe -p pod-services-watch -p pod-testkit --all-features
+python3 -I scripts/codegraph.py dups
+```
