@@ -8,18 +8,34 @@
 //! not count.
 //!
 //! Linux only (`getrusage(RUSAGE_THREAD)`); elsewhere the count is `None`.
+//! Under a user-mode emulator (qemu-user) the count is `None` too: the
+//! emulator blocks for its own work (a translation of code, a lock of its
+//! own), and the thread counts those switches.
+//!
+//! A major page fault (a page of the binary that waits for the disk) also
+//! gives up the processor, but it is not a call of the code: [`count`]
+//! subtracts the major faults of the thread from its voluntary switches.
 
 /// The value of `f`, and the voluntary switches of context of this thread
-/// while it ran; `None` where the system does not count them.
+/// while it ran, less its major page faults; `None` where the system does
+/// not count them or an emulator runs the test.
 pub fn count<R>(f: impl FnOnce() -> R) -> (R, Option<u64>) {
-    let before = voluntary();
+    let before = usage();
     let value = f();
-    let after = voluntary();
-    (value, before.zip(after).map(|(b, a)| a.saturating_sub(b)))
+    let after = usage();
+    if crate::host::emulated() {
+        return (value, None);
+    }
+    let switches = before.zip(after).map(|((sb, fb), (sa, fa))| {
+        let faults = fa.saturating_sub(fb);
+        sa.saturating_sub(sb).saturating_sub(faults)
+    });
+    (value, switches)
 }
 
+/// The voluntary switches and the major page faults of this thread.
 #[cfg(target_os = "linux")]
-fn voluntary() -> Option<u64> {
+fn usage() -> Option<(u64, u64)> {
     let mut usage = std::mem::MaybeUninit::<libc::rusage>::zeroed();
     // SAFETY: `usage` is a valid place for one `rusage`, which the call
     // fills; RUSAGE_THREAD reads the counts of the calling thread.
@@ -29,11 +45,11 @@ fn voluntary() -> Option<u64> {
     }
     // SAFETY: the call returned 0, so it filled `usage`.
     let usage = unsafe { usage.assume_init() };
-    u64::try_from(usage.ru_nvcsw).ok()
+    Some((u64::try_from(usage.ru_nvcsw).ok()?, u64::try_from(usage.ru_majflt).ok()?))
 }
 
 #[cfg(not(target_os = "linux"))]
-fn voluntary() -> Option<u64> {
+fn usage() -> Option<(u64, u64)> {
     None
 }
 
@@ -43,6 +59,11 @@ mod tests {
 
     #[test]
     fn a_sleep_counts_and_a_computation_does_not() {
+        if crate::host::emulated() {
+            eprintln!("skipped: an emulator blocks for its own work, so the count is None");
+            assert_eq!(count(|| ()).1, None);
+            return;
+        }
         let ((), slept) = count(|| std::thread::sleep(std::time::Duration::from_millis(2)));
         assert!(slept.unwrap() >= 1, "a sleep gives up the processor");
         let (sum, computed) = count(|| (0..200_000u64).map(std::hint::black_box).sum::<u64>());
