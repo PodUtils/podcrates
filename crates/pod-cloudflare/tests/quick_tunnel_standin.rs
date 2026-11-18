@@ -40,13 +40,23 @@ fn quick_tunnel_standin_serves_a_visitor_over_http2() {
     assert!(head.starts_with("GET /some/path?q=1 "), "{head}");
     assert!(head.to_lowercase().contains("x-visitor: yes"), "{head}");
 
-    // The edge got the tunnel secret on the wire, verbatim.
+    // The edge got the tunnel secret on the wire, verbatim. The HA legs
+    // after leg 0 register in the background: a slow host can show more
+    // than one registration here, each with its own index.
     let registrations = standin.edge.registrations.lock().unwrap().clone();
-    assert_eq!(registrations.len(), 1, "{registrations:?}");
-    assert!(registrations[0].accepted);
-    assert_eq!(registrations[0].account_tag, issued[0].account_tag);
-    assert_eq!(registrations[0].secret, issued[0].secret);
-    assert_eq!(registrations[0].tunnel_id, issued[0].id);
+    let ha = usize::from(standin.config(Service::HelloWorld).ha_connections);
+    assert!((1..=ha).contains(&registrations.len()), "{registrations:?}");
+    let mut indexes: Vec<u8> = registrations.iter().map(|r| r.conn_index).collect();
+    indexes.sort_unstable();
+    indexes.dedup();
+    assert_eq!(indexes.len(), registrations.len(), "{registrations:?}");
+    assert!(indexes.contains(&0), "{registrations:?}");
+    for registration in &registrations {
+        assert!(registration.accepted);
+        assert_eq!(registration.account_tag, issued[0].account_tag);
+        assert_eq!(registration.secret, issued[0].secret);
+        assert_eq!(registration.tunnel_id, issued[0].id);
+    }
 
     // A shutdown unregisters the connection.
     standin.block_on(handle.shutdown());
@@ -106,6 +116,7 @@ fn quick_tunnel_standin_checks_the_auth_user() {
     let standin = Standin::start();
     let pass = standin.dir.path().join("pass");
     std::fs::write(&pass, "standin-secret\n").unwrap();
+    #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt as _;
         std::fs::set_permissions(&pass, std::fs::Permissions::from_mode(0o600)).unwrap();
