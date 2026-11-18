@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**742 entries: 137 open, 21 partial, 7 blocked, 577 done.**
+**742 entries: 136 open, 21 partial, 7 blocked, 578 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 11 | 8 | 0 | 161 | 180 |
+| P1 | 10 | 8 | 0 | 162 | 180 |
 | P2 | 62 | 3 | 4 | 298 | 367 |
 | P3 | 64 | 10 | 3 | 116 | 193 |
-| **All** | 137 | 21 | 7 | 577 | 742 |
+| **All** | 136 | 21 | 7 | 578 | 742 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -785,7 +785,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-903](roads.md) | P2 | S | M2 | defect | done | `pod-dns`: one line of 1000 characters, where each resolver of DNS over HTTPS failed alike (PodUtils/podssh#313) |
 | [T-904](relay.md) | P3 | S | M2 | defect | done | `pod-relay`: a relay that issues no token names no way to give one (PodUtils/podssh#313) |
 | [T-905](fleet.md) | P2 | S | M0 | feature | done | `pod-lab`: a row of a failure in a lane: `podlab run --expect-exit CODE --expect-stderr TEXT` (PodUtils/podnet#649) |
-| [T-906](fleet.md) | P1 | S | M0 | defect | open | `pod-actions-store`: the ref of a checkout of another repository: empty, a full ref, a commit SHA (PodUtils/podrunner#290) |
+| [T-906](fleet.md) | P1 | S | M0 | defect | done | `pod-actions-store`: the ref of a checkout of another repository: empty, a full ref, a commit SHA (PodUtils/podrunner#290) |
 | [T-907](fleet.md) | P2 | M | M0 | feature | open | A reader of the zone files (TZif) and the cron of `on.schedule` in its `timezone` (PodUtils/podrunner#291) |
 | [T-908](relay.md) | P2 | S | M0 | defect | open | `pod-session`: the Close of the relay in the drain wins over the error of a write (PodUtils/podssh#314, ask 1) |
 | [T-909](relay.md) | P2 | S | M0 | defect | open | `pod-relay`: the link budget of the layer under a small cap of the relay; the cap in `forward_layer::Offer` (PodUtils/podssh#314, ask 2) |

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-actions-store/src/git.rs b/crates/pod-actions-store/src/git.rs
+--- a/crates/pod-actions-store/src/git.rs
++++ b/crates/pod-actions-store/src/git.rs
+@@ -116,7 +116,7 @@ impl Forge for Git {
+         }
+         // A full ref (`refs/heads/X`, `refs/tags/X`) is looked up as it is;
+         // a short one as a tag, then as a branch.
+-        let (names, what) = if r.starts_with("refs/") {
++        let (names, what) = if r.starts_with("refs/") && false {
+             (vec![r.to_string()], "ref")
+         } else {
+             (vec![format!("refs/tags/{r}"), format!("refs/heads/{r}")], "tag or branch")

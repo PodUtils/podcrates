@@ -1,0 +1,9 @@
+# A full ref of a checkout gets the prefixes of a short one again:
+# `refs/heads/main` is looked up as `refs/heads/refs/heads/main`, and a
+# workflow with a full ref fails before its first job; the test of the
+# forms of a ref must fail.
+ENTRY=T-906
+GROUP=actions
+EXPECT='test git_resolves_a_full_ref_and_a_commit_id \.\.\. FAILED'
+RUN='cargo test -p pod-actions-store --all-features --test git -- git_resolves_a_full_ref_and_a_commit_id'
+LIMIT=1800

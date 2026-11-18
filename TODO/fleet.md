@@ -5415,7 +5415,7 @@ sh scripts/plant-each.sh lab-expect-exit-ignored
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5434,6 +5434,10 @@ sh scripts/plant-each.sh lab-expect-exit-ignored
 ```sh
 cargo test -p pod-actions-store --all-features
 ```
+
+## Done
+
+2026-11-18, 14b8a805a. `checkout_target`: `ref:` with no value, an empty or a blank ref gives `HEAD`. `Git::resolve`: 40 hex digits are the commit, given back in lowercase with no `ls-remote` (the fetch of the tree takes it); a ref that starts with `refs/` is looked up as it is, with its peeled line; a short ref is a tag, then a branch, as before. `store::fetch` already took a commit id with no forge. Tests: `a_checkout_of_another_repository_is_a_tree_to_pin` (the empty forms, a full ref kept), `tests/git.rs` `git_resolves_a_full_ref_and_a_commit_id` (a full branch, a full tag, a full annotated tag, a tag asked as a branch refused by name, an uppercase commit id, a commit id with no reachable forge, the tree of a commit id). Plant `actions-store-full-ref-prefixed`, caught.
 
 
 # T-907: A reader of the zone files (TZif) and the cron of `on.schedule` in its `timezone` (PodUtils/podrunner#291)
