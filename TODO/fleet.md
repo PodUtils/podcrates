@@ -5555,9 +5555,11 @@ podcrates.
    the schema, the field, added or changed). A check fails when a schema
    file changes with no line, and when a change that the ruling "Schema
    ids" gives a new id keeps the old id.
-3. Ask podrunner by a COORD issue whether its status and its source wire
-   move to `pod-job` (the ruling "Shared code"), so that githome pins
-   them from podcrates.
+3. Move the schemas of podrunner's status and of its source wire into
+   `pod-job` (the ruling "Shared code": githome and podrunner read them;
+   githome asked for it on GitHub #223, 2026-11-18). COORD-135 asks
+   podrunner for the types and their files. podrunner then takes them
+   from `pod-job`.
 
 ## Prove
 
