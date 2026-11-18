@@ -79,9 +79,10 @@ mod tests {
             let e = TcpStream::connect_timeout(&at, Duration::from_secs(5)).expect_err("a connect passed");
             assert_eq!(e.kind(), ErrorKind::ConnectionRefused, "{e}");
         }
+        // No bind of the port after the drop: a test beside this one can
+        // take the freed port (a bind to port 0, or the source port of a
+        // connect) at once.
         drop(guard);
-        let free = TcpListener::bind(at).expect("the port is free after the drop");
-        drop(free);
     }
 
     /// The form of macOS, on each system: a port with no
