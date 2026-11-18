@@ -19,8 +19,7 @@ is done. Git and the record keep finished work.
    on COORD-125 (#215), and of `v0.66.0` on COORD-126 (#216): amend the body, and close it when each consumer took its
    part. `v0.65.0` holds T-806, T-805, T-801, T-797, T-807, T-808 and the
    trial of `pod-iroh` (T-810).
-3. `v0.70.0` is out at `ed6d84c`; its hand-off is COORD-132 (the issue
-   after #221), with the takes to record. `v0.69.0` (`d85f2d2`) has
+3. `v0.70.0` is out at `ed6d84c`; its hand-off is COORD-132 (#222), with the takes to record. `v0.69.0` (`d85f2d2`) has
    COORD-130 (#220). `main` holds for the next tag: T-905, T-906, T-908,
    T-910, T-911, T-912, T-913 (each answers an issue of a consumer, named
    in COORD-132, section "On `main`").

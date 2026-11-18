@@ -226,5 +226,6 @@ kinds and the rules.
 | #219 | coord | COORD-129: v0.68.0: a relay's liveness offer (podssh#300), the headers of Cloudflare Access (podssh#302), a Unix route on Windows (podssh#298), new roots and one rsa (podssh#297), the source fixup reads no comment (podvm#463) (to all) | open | T-845, T-847, T-848, T-844, T-840, T-841, T-846 |
 | #220 | coord | COORD-130: v0.69.0: pod-cloudflare for podnet's take, one clean text of a peer, the hosts of GitHub Actions, two advisories ignored (to all) | open | T-029, T-850, T-849, T-854, T-855, T-852 |
 | #221 | coord | COORD-131: the rulings Shared code and Quality first, and the copies of shared code in each project (to all) | open | T-877, T-878, T-879, T-880, T-881, T-882 |
+| #222 | coord | COORD-132: v0.70.0: the outside QA fixes, the shared code of COORD-131, and the asks of each consumer of 2026-11-17 (to all) | open | T-857, T-858, T-859, T-860, T-861, T-862, T-864, T-865, T-866, T-867, T-869, T-871, T-872, T-877, T-878, T-881, T-883, T-896, T-898, T-901, T-902, T-903, T-904, T-905, T-906, T-908, T-910, T-911, T-912, T-913 |
 
 #79 to #81 are pull requests.
