@@ -51,9 +51,7 @@ is done. Git and the record keep finished work.
    githome's asks G-30 to G-35 are T-921 to T-923, T-099, T-100 and T-104.
 7. The open hand-off is COORD-137 (#228) for `v0.71.0` (`6dff7fc`). Record
    each take in its body, and close it when each consumer is on `v0.71.0`
-   or later.
-   C783 (the names of `sandbox` and `unknown_reasons` in `pod-job`) waits
-   for podrunner's yes.
+   or later. Takes: podrunner `9e6bd57` (PodUtils/podrunner#302).
 8. In flight: T-909 (PodUtils/podssh#314 ask 2) on the branch `wip/t909`.
    Part 1 (a byte budget under each cap, `relay::byte_budget_under`) is
    written and not tested. Part 2 (the cap in `forward_layer::Offer`, kept
