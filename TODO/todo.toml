@@ -25,4 +25,4 @@ root_files = [
 # keep the ids and the paths of their time.
 documents = ["README.md", "AGENTS.md", "SECURITY.md", "crates/*/README.md"]
 document_dirs = ["TODO", "docs"]
-readings = ["docs/releases/", "docs/reports/", "docs/research/"]
+readings = ["docs/releases/", "docs/research/"]

@@ -14,7 +14,7 @@ progress and the roadmap of `TODO/`, and the `README.md` of each crate. It
 does not read `docs/decisions.md` (each ruling has its date by design), the
 entries of the record (a Done section has its date and commit by design),
 and the readings at a time (`docs/releases/`, `docs/research/`,
-`docs/reports/`, `docs/upstream/`). Words in double quotes are a quote
+`docs/upstream/`). Words in double quotes are a quote
 (of the owner, or of an output) and do not count.
 
 A fault is a line with one of these forms (RULES): a consumer that took a

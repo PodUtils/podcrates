@@ -18,8 +18,8 @@ DIR is .github/workflows when it is not given. The rules:
   downloads (DOWNLOADS and the mirrors of `scripts/zig-mirrors.txt`; call
   C150, T-352). A live service belongs to `live.yml` or `services.yml`.
 * Each workflow that AGENTS.md or a page of docs/ names (`NAME.yml`, in
-  backticks or in a path) is a file of DIR. The pages in docs/research/,
-  docs/releases/ and docs/reports/ are readings at a time, and they name
+  backticks or in a path) is a file of DIR. The pages in docs/research/
+  and docs/releases/ are readings at a time, and they name
   the workflows of other repositories: they are not read.
 
 Exit 1 with one line for each fault. Exit 2 when a file cannot be read.

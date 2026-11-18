@@ -55,8 +55,8 @@ over this page.
 - Name an entry by its id. The checker fails on an id that does not
   exist in `TODO/`, `docs/`, `README.md`, `AGENTS.md`, `SECURITY.md` and
   the README of each crate (the `documents` of `TODO/todo.toml`). It does
-  not read docs/releases/, docs/reports/ and docs/research/: they
-  are readings at a time.
+  not read docs/releases/ and docs/research/: they are readings at a
+  time.
 - An entry of another repository's record is `REPO@T-NNN`
   (`PodUtils/podssh@T-684`). The checker does not look it up.
 
