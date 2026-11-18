@@ -35,7 +35,7 @@ is done. Git and the record keep finished work.
    `ci.yml` that no runner takes ("not acquired by Runner") is no defect:
    run the failed jobs again.
 4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the red
-   nightly above, then T-909, then the entries for the CI of githome and cfb (T-921 with
+   nightly above, then T-939 (podssh's gate), then the entries for the CI of githome and cfb (T-921 with
    T-106, T-104 with T-880, T-100, T-105, T-103, T-102).
 5. T-922 is on `main`, for the next tag: `pod_job::{Status, SourceStatus,
    KindStatus, PinStatus}` and `pod_job::source` (the source wire of
@@ -54,23 +54,18 @@ is done. Git and the record keep finished work.
    closed). The next tag carries T-922, T-936 and the work on `main`;
    its hand-off names what podrunner changes at its take (the adoption
    map of `crates/pod-job/README.md`).
-8. In flight: T-909 (PodUtils/podssh#314 ask 2) on the branch `wip/t909`.
-   Part 1 (a byte budget under each cap, `relay::byte_budget_under`) is
-   written and not tested. Part 2 (the cap in `forward_layer::Offer`, kept
-   in the cache) is not started. Merge the branch into `main` after the
-   checks pass, then ask for its delete.
-9. T-767 (PodUtils/podssh#283, partial): the eighth failure of podssh's
+8. T-767 (PodUtils/podssh#283, partial): the eighth failure of podssh's
    gate gave the node's `session.stall` line on the iroh road after a new
    address; its ask 4 is T-939. T-768 goes with T-767.
-10. Then the work order of `TODO/PROGRESS.md`.
-11. Run `scripts/agent/check.sh` with a short `TMPDIR` (for example
+9. Then the work order of `TODO/PROGRESS.md`.
+10. Run `scripts/agent/check.sh` with a short `TMPDIR` (for example
     `TMPDIR=/tmp`): a long one makes the socket paths of `pod-guest` too
     long for `sun_path` (T-920).
 
 ## Unfinished work
 
 - #208 asks the owner's agent to delete the `wip/` branches whose work is
-  on `main`. The proxy of a cloud session drops
+  on `main` (`wip/t909` is on `main` too). The proxy of a cloud session drops
   `git push origin --delete`. The branch
   `dependabot/docker/images/trufflehog/trufflesecurity/trufflehog-3.99.8`
   of the closed pull request #79 also stays.
