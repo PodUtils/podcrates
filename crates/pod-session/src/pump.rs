@@ -293,7 +293,7 @@ where
         let beat = async {
             if heartbeat { beat(&outbox, &heard, hearing, state).await } else { std::future::pending().await }
         };
-        let stalls = stall::look(&waits, state, watch.window, watch.stall.as_ref());
+        let stalls = stall::look(&waits, state, watch);
         tokio::pin!(up, down, writer, beat, stalls);
         let mut app_ended = false;
         loop {

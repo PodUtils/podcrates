@@ -10213,7 +10213,7 @@ cargo test -p pod-session --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10233,6 +10233,16 @@ The client's pump says its waits as the far end does, as a `resume::Note` (a new
 ```sh
 cargo test -p pod-session --all-features --lib pump::stall
 ```
+
+## Done
+
+2026-11-18, this branch.
+
+- `resume::Note::Stall { words }` (new, in `resume/note.rs`): the client's pump says each wait of its link that holds 20 s (`pump::STALL_AFTER`), once for each wait, through `Watch::notes` (`Watch::noting`), which `resume::run` sets and gives to its `note`. The waits: the application took no byte while bytes wait for it (`pump/down.rs` starts the wait when bytes are held, and each byte taken starts a new one), the reader of the application waits for room or for the writer of the link, and the records sent again wait for room. A quiet application of the client gives no note. The words, for an application that took 1 KiB of 32 KiB and then read no more: `the application took no byte for 20 s, while 31744 bytes wait for it; this side sent 0 bytes, the far end acknowledged 0; the replay buffer keeps 0 bytes, room 1048576; no window; this side received 32768 bytes, 31744 of them not yet written to the application`.
+- The far end's `session.stall` takes the same code (`pump/stall.rs`, `Sink`): its line now also gives `this side received R bytes, H of them not yet written to the target`, and a target that takes no byte for 20 s while bytes wait for it gives its own line. `Link::held` is new. The README of `pod-session` gives each line.
+- Test `pump::stall::tests::an_application_that_stops_reading_gives_one_note_with_the_bytes_held` (paused clock, the whole pump): no note in 19 s, then exactly one note in 90 s more, with the words above. `cargo test -p pod-session --all-features`: 166 passed, 0 failed. Plant `session-t945-wait-unsaid` (the note not sent): caught. The plants `session-t767-stall-twice` and `session-t155-never-moves` follow the new code; each is caught.
+- `pod-relay` `tests/layer_cap.rs` counts a `Note::Stall` as no loss.
+- podssh, at its take: show `Note::Stall` at `-v`; a match on `Note` with no wildcard arm needs the new arm.
 
 # T-942: `pod-relay`: a kept offer of the layer loses `forward.liveness`
 

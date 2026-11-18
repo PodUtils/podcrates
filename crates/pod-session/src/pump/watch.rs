@@ -3,8 +3,10 @@
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use tokio::sync::Notify;
+use tokio::sync::mpsc::UnboundedSender;
 
 use super::Stall;
+use crate::resume::Note;
 
 /// What the caller of one link watches and steers.
 #[derive(Debug, Default)]
@@ -37,6 +39,9 @@ pub struct Watch {
     pub window: Option<usize>,
     /// Where a far end says a wait of the link that holds ([`super::STALL`]).
     pub stall: Option<Stall>,
+    /// Where the client says a wait of the link that holds
+    /// ([`Note::Stall`]).
+    pub notes: Option<UnboundedSender<Note>>,
 }
 
 impl Watch {
@@ -55,6 +60,13 @@ impl Watch {
     /// This watch, saying each wait that holds to `stall`.
     pub fn stalling(mut self, stall: Stall) -> Watch {
         self.stall = Some(stall);
+        self
+    }
+
+    /// This watch, saying each wait that holds to `notes` as a note of the
+    /// client.
+    pub fn noting(mut self, notes: UnboundedSender<Note>) -> Watch {
+        self.notes = Some(notes);
         self
     }
 

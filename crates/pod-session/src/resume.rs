@@ -37,6 +37,10 @@ use super::pump::{self, Carry, End, Ended, GaveUp, GiveUp, Watch};
 use super::record::{RefuseCode, kind};
 use super::secret::{Entropy, Secret};
 
+mod note;
+
+pub use note::Note;
+
 /// How long after a loss the session waits for a new link, at both ends:
 /// the exit of M6 asks for a stall of 3 minutes to pass, and the backoff
 /// adds up to 45 s (the decision of podssh T-153).
@@ -63,27 +67,6 @@ pub enum Next<L> {
     Retry(String),
     /// The session must not resume, for this reason (a close that says so).
     Stop(String),
-}
-
-/// A step of the session across links, each worth one line to the user.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Note {
-    /// The link was lost; the session waits for a new one.
-    Lost { why: String },
-    /// An attempt failed; the next comes after `wait`.
-    Retry { why: String, wait: Duration },
-    /// A new link carries the session, `resent` bytes sent again.
-    Resumed { resent: u64, after: Duration },
-    /// Before the relay's limits, the session moved to a new link: the old
-    /// one had carried `bytes` in `age`.
-    Moved { bytes: u64, age: Duration, resent: u64 },
-    /// A move failed; the old link goes on until it ends, then a resume.
-    MoveFailed { why: String },
-    /// The link said nothing for `quiet`: a spare link opens beside it.
-    Spare { quiet: Duration },
-    /// The spare link closed, as the old link spoke first, or it failed;
-    /// the old link goes on.
-    SpareClosed { why: String },
 }
 
 /// Why a resume on a new link failed.
@@ -147,7 +130,8 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 /// [`End::Moving`]; `note` hears of each loss, attempt, resume, move and
 /// spare. With no layer at the far end, the bytes pass as they are, on the
 /// first link only; a session that ends with its link has its first
-/// link alone too.
+/// link alone too. `note` also hears of each wait of a link that holds
+/// ([`Note::Stall`]).
 pub async fn run<L, A, C, F, N>(
     client: Client<L>,
     mut app: A,
@@ -176,14 +160,16 @@ where
     let heartbeat = lock(&carry.state).heartbeat();
     let mut spare_wait = beside::SpareWait::default();
     loop {
-        let watch = Watch::moving_at(if moves { settings.move_bytes } else { 0 }).within(settings.window);
+        // The steps of the watch beside the link and of the waits of the
+        // link, said as they come.
+        let (said, mut steps) = mpsc::unbounded_channel();
+        let watch =
+            Watch::moving_at(if moves { settings.move_bytes } else { 0 }).within(settings.window).noting(said.clone());
         let started = Instant::now();
         let state = carry.state.clone();
         // A session whose `CLOSE` is due is closing: it goes on the link that
         // it has, with no new link beside it; an `END` is not.
         let closing = carry.closing();
-        // The steps of the watch beside the link, said as they come.
-        let (said, mut steps) = mpsc::unbounded_channel();
         let (ended, greeted) = {
             let pump = pump::run(&mut app, link, decoder, &mut carry, &watch);
             // A new link beside this one, greeted while this one goes on: a

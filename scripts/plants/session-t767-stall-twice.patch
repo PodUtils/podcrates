@@ -1,13 +1,12 @@
 diff --git a/crates/pod-session/src/pump/stall.rs b/crates/pod-session/src/pump/stall.rs
-index f88b2964..7902284d 100644
 --- a/crates/pod-session/src/pump/stall.rs
 +++ b/crates/pod-session/src/pump/stall.rs
-@@ -119,7 +119,7 @@ pub(super) async fn look(
-         tokio::time::sleep(LOOK).await;
-         let (wait, since) = *lock(&waits.up);
+@@ -164,7 +164,7 @@ impl Sink<'_> {
+     /// the last wait said.
+     fn once(&self, wait: Wait, since: Instant, told: &mut Option<Instant>, state: &Mutex<Link>, window: Option<usize>) {
          let held = since.elapsed();
--        if held < STALL_AFTER || told == Some(since) {
+-        if held < STALL_AFTER || *told == Some(since) {
 +        if held < STALL_AFTER || false {
-             continue;
+             return;
          }
-         let took = waits.took.load(Ordering::Relaxed).saturating_sub(waits.took_at_read.load(Ordering::Relaxed));
+         let side = if matches!(self, Sink::Far(_)) { Side::Far } else { Side::Client };

@@ -35,8 +35,7 @@ is done. Git and the record keep finished work.
    misses once with no change of its crate runs its test five times in
    its `.plant` (as `link-quic-drop-closes-at-once`).
 4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the red
-   nightly above, then T-945 (the client's line of its waits, after
-   T-939; podssh's gate), then the entries for the CI of githome and cfb (T-921 with
+   nightly above, then the entries for the CI of githome and cfb (T-921 with
    T-106, T-104 with T-880, T-100, T-105, T-103, T-102).
 5. T-922 is on `main`, for the next tag: `pod_job::{Status, SourceStatus,
    KindStatus, PinStatus}` and `pod_job::source` (the source wire of
@@ -58,8 +57,9 @@ is done. Git and the record keep finished work.
 8. T-767 (PodUtils/podssh#283, partial) and T-939 (done as a guard, call
    C784: a link is lost when a PING waits 30 s and nothing moves): the
    eighth failure of podssh's gate did not come again on the loopback;
-   T-945 adds the line of the client that tells its cause. T-768 goes with
-   T-767.
+   T-945 (done, on `main` for the next tag) gives the client's own line,
+   `resume::Note::Stall`, which tells its cause; podssh shows it at `-v`
+   at its take. T-768 goes with T-767.
 9. Then the work order of `TODO/PROGRESS.md`.
 10. Run `scripts/agent/check.sh` with a short `TMPDIR` (for example
     `TMPDIR=/tmp`): a long one makes the socket paths of `pod-guest` too
