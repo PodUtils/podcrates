@@ -2168,6 +2168,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-time"
+version = "0.70.0"
+
+[[package]]
 name = "pod-tls"
 version = "0.70.0"
 dependencies = [
@@ -2311,6 +2315,7 @@ dependencies = [
  "pod-quic",
  "pod-relay",
  "pod-session",
+ "pod-time",
  "pod-tls",
  "pod-turn",
  "pod-udf",

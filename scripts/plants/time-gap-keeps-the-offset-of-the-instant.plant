@@ -1,0 +1,6 @@
+# pod-time: a local time in a gap runs at the offset of the instant, not at the end of the gap (T-907).
+ENTRY=T-907
+GROUP=actions
+EXPECT='a_local_time_in_a_gap_runs_once_at_the_end_of_the_gap'
+RUN='cargo test -p pod-time --test zone'
+LIMIT=900

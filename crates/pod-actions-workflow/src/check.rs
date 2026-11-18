@@ -125,7 +125,8 @@ fn event(name: &str, mark: crate::yaml::Mark, value: &Node, faults: &mut Vec<Err
     }
 }
 
-/// `schedule` is a list of mappings, each with `cron` and no other key.
+/// `schedule` is a list of mappings, each with `cron` and an optional
+/// `timezone` (an IANA name, for example `Europe/Berlin`), and no other key.
 fn schedule(value: &Node, path: &str, faults: &mut Vec<Error>) {
     let Kind::Seq(items) = &value.kind else {
         return faults.push(Error::new(path, Some(value.mark), ErrorKind::Type("a list of `cron` entries")));
@@ -137,11 +138,22 @@ fn schedule(value: &Node, path: &str, faults: &mut Vec<Error>) {
             continue;
         };
         for (key, cron) in entries {
-            if key.name != "cron" {
-                let kind = ErrorKind::KeyNotTaken { event: "schedule".into(), key: key.name.clone() };
-                faults.push(Error::new(&here, Some(key.mark), kind));
-            } else if !matches!(cron.kind, Kind::String(_)) {
-                faults.push(Error::new(format!("{here}.cron"), Some(cron.mark), ErrorKind::Type("a cron line")));
+            match key.name.as_str() {
+                "cron" if !matches!(cron.kind, Kind::String(_)) => {
+                    faults.push(Error::new(format!("{here}.cron"), Some(cron.mark), ErrorKind::Type("a cron line")));
+                }
+                "timezone" if !matches!(cron.kind, Kind::String(_)) => {
+                    faults.push(Error::new(
+                        format!("{here}.timezone"),
+                        Some(cron.mark),
+                        ErrorKind::Type("a zone name"),
+                    ));
+                }
+                "cron" | "timezone" => {}
+                _ => {
+                    let kind = ErrorKind::KeyNotTaken { event: "schedule".into(), key: key.name.clone() };
+                    faults.push(Error::new(&here, Some(key.mark), kind));
+                }
             }
         }
         if item.get("cron").is_none() {

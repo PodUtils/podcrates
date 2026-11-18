@@ -1,0 +1,13 @@
+diff --git a/crates/pod-time/src/zone.rs b/crates/pod-time/src/zone.rs
+--- a/crates/pod-time/src/zone.rs
++++ b/crates/pod-time/src/zone.rs
+@@ -142,7 +142,8 @@
+                     .find(|(at, before, after)| at + i64::from(*before) <= local && local < at + i64::from(*after));
+                 // A zone with no such change has each local time once; keep
+                 // the offset of the instant as the fallback.
+-                Local::Gap(gap.map_or(local.saturating_sub(i64::from(self.offset_at(local))), |(at, _, _)| *at))
++                let _ = gap;
++                Local::Gap(local.saturating_sub(i64::from(self.offset_at(local))))
+             }
+         }
+     }

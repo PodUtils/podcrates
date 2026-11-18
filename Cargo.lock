@@ -5035,6 +5035,7 @@ dependencies = [
  "pod-proxy",
  "pod-services",
  "pod-session",
+ "pod-testkit",
  "pod-tls",
  "pod-ws",
  "rcgen",
@@ -5380,6 +5381,10 @@ dependencies = [
  "tokio",
  "vt100",
 ]
+
+[[package]]
+name = "pod-time"
+version = "0.70.0"
 
 [[package]]
 name = "pod-tls"

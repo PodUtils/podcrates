@@ -1,9 +1,16 @@
-//! The cron times of `on.schedule` (T-142): five fields (minute, hour, day
-//! of the month, month, day of the week) in UTC, as GitHub reads them. A
+//! The cron times of `on.schedule`: five fields (minute, hour, day of the
+//! month, month, day of the week), in UTC or in the zone of `timezone`. A
 //! field takes `*`, a value, a range `A-B`, a step `*/N` or `A-B/N`, and
 //! lists of these; the month and the day of the week also take their names
 //! (`JAN`, `SUN`); a day of the week 7 is Sunday. When both day fields are
 //! restricted, a day that matches one of them matches, as POSIX cron.
+
+use crate::civil::{DAY, civil, weekday};
+use crate::{Error, ErrorKind, Local, Zone};
+
+/// The most local times that [`Cron::next_in`] tries: each local time that
+/// it passes over is in a gap or a repeat, which a zone has twice a year.
+const TRIES: usize = 1000;
 
 /// A parsed cron expression: the allowed values of each field.
 #[derive(Debug, Clone, PartialEq)]
@@ -26,9 +33,9 @@ fn value(s: &str, names: &[&str], base: u32) -> Option<u32> {
 }
 
 /// The allowed values of one field, in `lo..=hi`.
-fn field(text: &str, lo: u32, hi: u32, names: &[&str], base: u32) -> Result<Vec<bool>, String> {
+fn field(text: &str, lo: u32, hi: u32, names: &[&str], base: u32) -> Result<Vec<bool>, Error> {
     let mut out = vec![false; hi as usize + 1];
-    let bad = || format!("the cron field {text:?} is not valid ({lo}-{hi})");
+    let bad = || Error::new(ErrorKind::Cron, format!("the cron field {text:?} is not valid ({lo}-{hi})"));
     for part in text.split(',') {
         let (range, step) = match part.split_once('/') {
             Some((r, s)) => (r, s.parse::<u32>().ok().filter(|s| *s > 0).ok_or_else(bad)?),
@@ -56,10 +63,11 @@ fn field(text: &str, lo: u32, hi: u32, names: &[&str], base: u32) -> Result<Vec<
 }
 
 impl Cron {
-    pub fn parse(text: &str) -> Result<Cron, String> {
+    /// Parse the five fields of a cron.
+    pub fn parse(text: &str) -> Result<Cron, Error> {
         let f: Vec<&str> = text.split_whitespace().collect();
         let [m, h, dom, mon, dow] = f[..] else {
-            return Err(format!("the cron {text:?} does not have five fields"));
+            return Err(Error::new(ErrorKind::Cron, format!("the cron {text:?} does not have five fields")));
         };
         let mut dow_v = field(dow, 0, 7, &DAYS, 0)?;
         if dow_v[7] {
@@ -88,10 +96,10 @@ impl Cron {
     /// matches, at the start of its minute; `None` in the next 5 years.
     pub fn next(&self, after: i64) -> Option<i64> {
         let start = after.div_euclid(60) * 60 + 60;
-        let first_day = start.div_euclid(86_400);
+        let first_day = start.div_euclid(DAY);
         for day in first_day..first_day + 366 * 5 {
             let (_, month, dom) = civil(day);
-            let dow = (day + 4).rem_euclid(7) as u32; // 1970-01-01 is a Thursday.
+            let dow = weekday(day);
             if !self.month[month as usize] || !self.day(dom, dow) {
                 continue;
             }
@@ -100,7 +108,7 @@ impl Cron {
                     continue;
                 }
                 for minute in 0..60u32 {
-                    let t = day * 86_400 + i64::from(hour) * 3600 + i64::from(minute) * 60;
+                    let t = day * DAY + i64::from(hour) * 3600 + i64::from(minute) * 60;
                     if self.minute[minute as usize] && t >= start {
                         return Some(t);
                     }
@@ -109,19 +117,25 @@ impl Cron {
         }
         None
     }
-}
 
-/// The year, the month (1-12) and the day (1-31) of a day since the epoch.
-pub fn civil(days: i64) -> (i64, u32, u32) {
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z.rem_euclid(146_097);
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
-    (yoe + era * 400 + i64::from(m <= 2), m, d)
+    /// The first time after `after` (seconds since the epoch, UTC) that
+    /// matches in the local time of `zone`, as a UTC instant. A local time
+    /// in a gap gives the end of the gap, once; a local time that occurs
+    /// twice gives its first instance, once. `None` in the next 5 years.
+    pub fn next_in(&self, zone: &Zone, after: i64) -> Option<i64> {
+        let mut local = zone.local(after);
+        for _ in 0..TRIES {
+            let candidate = self.next(local)?;
+            let first = match zone.instants(candidate) {
+                Local::One(t) | Local::Two(t, _) | Local::Gap(t) => t,
+            };
+            if first > after {
+                return Some(first);
+            }
+            local = candidate;
+        }
+        None
+    }
 }
 
 #[cfg(test)]

@@ -153,6 +153,8 @@ fn schedule_is_a_list_of_cron_entries() {
         [not_taken("schedule", "crons"), ErrorKind::Missing("cron")]
     );
     assert_eq!(kinds("  schedule:\n    - cron: 5"), [ErrorKind::Type("a cron line")]);
+    assert_eq!(kinds("  schedule:\n    - cron: '30 5 * * 1'\n      timezone: Europe/Berlin"), []);
+    assert_eq!(kinds("  schedule:\n    - cron: '30 5 * * 1'\n      timezone: [x]"), [ErrorKind::Type("a zone name")]);
     assert_eq!(kinds("  schedule:\n    - '0 0 * * *'"), [ErrorKind::Type("a mapping with `cron`")]);
 }
 
