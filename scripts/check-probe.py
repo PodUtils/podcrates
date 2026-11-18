@@ -46,6 +46,7 @@ ALLOWED = {
                                  "that validate a report; no binary carries schemars",
     ("pod-testkit", "screen"): "a crate of tests; it is not in a released binary",
     ("pod-testkit", "stand"): "a crate of tests; it is not in a released binary",
+    ("pod-testkit", "refused"): "a crate of tests; it is not in a released binary",
     ("pod-testkit", "masque"): "a crate of tests; it is not in a released binary",
     ("pod-wormhole", "standin"): "the stand-in mailbox of the tests of this crate and of a consumer; "
                                  "a consumer turns it on in [dev-dependencies] only, and no binary carries it",
