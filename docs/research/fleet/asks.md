@@ -1,7 +1,7 @@
 # The asks of GitHub #35 and #36: the route of each ask
 
-This page routes the 96 asks of cfb (GitHub #35, 84 asks) and githome (GitHub #36, 12 asks), after the rulings of
-2026-11-09 (`docs/decisions.md`). `TODO/upkeep.md`, entry T-098, is the triage. Priority is the priority of the ask.
+This page routes the asks of cfb (GitHub #35, 84 asks) and githome (GitHub #36: G-01 to G-14; GitHub #223 and
+PodUtils/podrunner#292: G-15 to G-37), after the rulings of `docs/decisions.md`. `TODO/upkeep.md`, entry T-098, is the triage. Priority is the priority of the ask.
 
 Route words:
 
@@ -21,6 +21,12 @@ Rulings that decide a route:
 * podnet is Linux only. podssh serves the operator commands on Windows and macOS (2026-11-09).
 * KVM is lifted for podvm (2026-11-09).
 * The relay Worker is Rust on wasm32, after T-036 and the wire document T-120 (2026-11-09).
+* podrunner first (2026-11-18): the CI work of githome and cfb (the work of podrunner) comes first. The entries of
+  podcrates for that CI leave the wait of M8 (`TODO/PROGRESS.md`, "Work order").
+* Coordinator (2026-11-18): the session of podcrates coordinates the sessions of podrunner, podssh, podnet and podvm.
+* cfb's own rulings R-051 and R-053 (2026-11-18, information for podcrates): githome is the CI front of the operator's
+  projects, and podrunner runs each job through githome's source of kind `program`. cfb never uses podrunner
+  directly. After CI come the self-hosted parts of Cloudflare, with podnet, podssh, podvm and the crates of podcrates.
 * Betas for each repository are allowed. No crates.io release now (2026-11-09).
 
 ## A-N: podnet
@@ -104,7 +110,7 @@ Rulings that decide a route:
 
 | Ask | P | Ask | Route |
 | --- | --- | --- | --- |
-| A-X-01 | P0 | `podrunner`: ephemeral CI runners | new project podrunner |
+| A-X-01 | P0 | `podrunner`: ephemeral CI runners | podrunner, through githome (cfb's R-051, R-053) |
 | A-X-02 | P1 | `podnode`: the one node agent | new project podnode |
 | A-X-03 | P1 | `podinit`: one command that turns a fresh server into a node | new project podinit |
 | A-X-04 | P1 | `podrelay-worker`: the podssh relay as a Cloudflare Worker | new project podrelay-worker (after T-036 and T-120) |
@@ -132,21 +138,33 @@ Rulings that decide a route:
 | A-X-26 | P2 | Rate limit and byte meter for each hostname or route | deferred: connector (T-114) |
 | A-X-27 | P1 | Many tunnels in one process; upgrade with no downtime | deferred: connector (T-114) |
 
-## G: githome (#36)
+## G: githome (#36, #223)
 
-Each G ask is for the project podrunner.
+The asks G-01 to G-29, G-36 and G-37 are for podrunner (PodUtils/podrunner#66 and #292). The asks G-30 to G-35 are for
+the crates of podcrates (GitHub #223).
 
 | Ask | P | Ask | Route |
 | --- | --- | --- | --- |
-| G-01 | P0 | A job-source contract: GitHub and a forge at once, with a slot quota for each | new project podrunner |
-| G-02 | P0 | A unit kind for each label (`container`, `microvm`, a podvm rung); no fallback | new project podrunner; podvm (A-V-08) |
+| G-01 | P0 | A job-source contract: GitHub and a forge at once, with a slot quota for each; one generic external source kind | podrunner |
+| G-02 | P0 | A unit kind for each label (`container`, `microvm`, a podvm rung); no fallback | podrunner; podvm (A-V-08) |
 | G-03 | P0 | The one-job runner credential reaches only the runner process | podrunner (A-V-11; restated in PodUtils/podrunner#6) |
-| G-04 | P0 | A policy for each job: open by default, fixed denies, audit line, placeholder swap | T-099, T-100; new project podrunner delivers the policy |
-| G-05 | P1 | Placement by architecture; no emulation unless a label asks | new project podrunner |
-| G-06 | P1 | One JSON report for each job to its source | new project podrunner; podvm (A-V-07, A-V-09) |
-| G-07 | P1 | Local caches kept apart for each trust level | new project podrunner; podvm (A-V-06) |
-| G-08 | P1 | A capacity signal, a withdraw call and `podrunner drain` | new project podrunner; T-103 |
-| G-09 | P1 | A container engine inside a unit for `services:` and Docker actions | new project podrunner; podvm (A-V-04) |
-| G-10 | P1 | A fake forge job source in memory | new project podrunner; T-106 |
-| G-11 | P2 | Warm units from an image pinned by digest, with SBOM and signature | new project podrunner; T-104 |
-| G-12 | P2 | Limits from the source; end and destroy in 60 s | new project podrunner; podvm (A-V-07) |
+| G-04 | P0 | A policy for each job: open by default, fixed denies, audit line, placeholder swap | T-099, T-100; podrunner delivers the policy |
+| G-05 | P1 | Placement by architecture; no emulation unless a label asks | podrunner |
+| G-06 | P1 | One JSON report for each job to its source | podrunner; T-527; podvm (A-V-07, A-V-09) |
+| G-07 | P2 | Local caches kept apart for each trust level | podrunner; podvm (A-V-06) |
+| G-08 | P1 | A capacity signal, a withdraw call and `podrunner drain` | podrunner; T-103 |
+| G-09 | P1 | A container engine inside a unit for `services:` and Docker actions | podrunner; podvm (A-V-04) |
+| G-10 | P1 | A fake forge job source in memory | podrunner; T-106 |
+| G-11 | P2 | Warm units from an image pinned by digest, with SBOM and signature | podrunner; T-104 |
+| G-12 | P2 | Limits from the source; end and destroy in 60 s | podrunner; podvm (A-V-07) |
+| G-13 | P0 | The trust rule as a configured, swappable table, GitHub's rule as its default, for each event | podrunner |
+| G-14 | P1 | The official runner as the payload of a forge job, over the runner's service protocol | podrunner |
+| G-15 to G-29 | | The asks of githome for podrunner, in the order of G-01 to G-14 (PodUtils/podrunner#292) | podrunner |
+| G-30 | P1 | A fake GitHub as a binary for a consumer's CI: the App, the JIT configuration, the `workflow_job` webhooks, the runner broker | T-921 (with T-106) |
+| G-31 | P1 | The schemas as files with one source, a check of each against its types, a line of each change; podrunner's `status` and source wire in `pod-job` | T-922; COORD-135 (#226) |
+| G-32 | P1 | The fields of `pod-job`: `trust_inputs.forge`, `limits.disk`, `cache`, the facts of a run report | T-923 |
+| G-33 | P1 | One audit line for each connection reaches the source | T-099 (the `Audit` sink of `pod-broker`); podrunner T-486 |
+| G-34 | P2 | A signed release index for each product of PodUtils | T-104 with T-880 |
+| G-35 | P3 | Placeholder credentials in `pod-broker` | T-100 |
+| G-36 | | A sandbox unit (PodUtils/podrunner#292) | podrunner |
+| G-37 | | A serve install that githome's command line drives (PodUtils/podrunner#292) | podrunner |

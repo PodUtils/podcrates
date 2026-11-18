@@ -24,6 +24,10 @@ crate has the prefix `pod-`. The consumers are:
 
 The CI work of githome and cfb (the work of podrunner) comes first, after
 a red run (the owner's ruling "podrunner first", `docs/decisions.md`).
+The session of podcrates coordinates the five sessions: podcrates,
+podrunner (the flagship), podssh, podnet and podvm (the owner's ruling
+"Coordinator" and call C781, `docs/decisions.md`). `docs/HANDOFF.md`
+gives the first steps of the coordinator.
 
 The code of the crates comes from podssh, podnet and podvm.
 `docs/design.md` has the rules of each crate, the list of the crates

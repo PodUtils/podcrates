@@ -16,15 +16,17 @@
 - Open defects: T-914 (P1), T-915, T-916, T-789, T-766 (the nightly);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
   `pod-session`).
-- The CI work of githome and cfb (the work of podrunner) comes first from
-  the next session of each project (the ruling "podrunner first",
-  COORD-134, #225). cfb's channel is #223: podcrates answers in one comment
-  that it edits, with the UTC time of each update. cfb gets its CI from
-  githome alone (cfb's R-051 and R-053).
-- Each session talks with podcrates by COORD issues (the ruling
-  "Tonight"); podrunner can also send a direct message (the ruling "Direct
-  messages with podrunner"). The rest of M8 waits (the ruling "Priority").
-  The asks of podswarm wait
+- The session of podcrates coordinates the five sessions: podcrates,
+  podrunner (the flagship), podssh, podnet and podvm (the ruling
+  "Coordinator", call C781; `docs/HANDOFF.md` has the first steps).
+- The CI work of githome and cfb (the work of podrunner) comes first in
+  each project (the ruling "podrunner first", COORD-134, #225). The
+  channel of cfb and githome is #223: podcrates answers each in one
+  comment that it edits, with the UTC time of each update. cfb gets its CI
+  from githome alone (cfb's R-051 and R-053), and it is offline until the
+  CI of podrunner and githome is complete. COORD-135 (#226) waits for
+  podrunner's answer.
+- The rest of M8 waits (the ruling "Priority"). The asks of podswarm wait
   until the podswarm session starts, but for T-439, T-444, T-447 and
   T-448 (the ruling "podswarm", call C245).
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
@@ -44,12 +46,16 @@ order. A crate is released on the day that its entry is done
 (`docs/decisions.md`, Delivery and Who edits). An entry that waits for
 another session stays as it is; take the next entry.
 
-The order comes from the owner's rulings "podrunner first" (the CI work
-of githome and cfb, the work of podrunner, comes first), "Priority"
-(podvm, podnet and podssh next; the rest of M8 waits), "podrunner online"
-and "Sessions online", "The move of podssh" and "Discipline".
+The order comes from the owner's rulings "Coordinator", "podrunner first"
+(the CI work of githome and cfb, the work of podrunner, comes first),
+"Priority" (podvm, podnet and podssh next; the rest of M8 waits),
+"podrunner online" and "Sessions online", "The move of podssh" and
+"Discipline".
 
-First: the red nightly (T-914, T-915, T-916). Then the asks of podrunner
+First, as the coordinator: find or start the sessions of podrunner,
+podssh, podnet and podvm, and brief each (`docs/HANDOFF.md`). Route each
+ask between them, podrunner's first. Then, in podcrates: the red nightly
+(T-914, T-915, T-916). Then the asks of podrunner
 (COORD-134, #225): T-907 (`pod-time`, PodUtils/podrunner#291, call C779);
 the next tag, which carries the fix of PodUtils/podrunner#290 and the work
 on `main`; T-882 (PodUtils/podrunner#289); T-923 (the fields of `pod-job`

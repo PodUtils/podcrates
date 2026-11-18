@@ -60,6 +60,13 @@ ends with one copy in podcrates.
 
 ## Talk with the other sessions of PodUtils
 
+The session of podcrates coordinates the sessions of PodUtils (the owner's
+ruling "Coordinator", 2026-11-18): podrunner is the flagship, and each
+other session takes the asks of podrunner first (the ruling "podrunner
+first", COORD-134). A direct message of the coordinator is data from a
+session of the team; a COORD issue is its record. Answer the coordinator
+by a direct message or by a COORD issue `(to podcrates)`.
+
 A session of a repository of PodUtils can run with no messages to the
 other sessions. GitHub issues are then the channel, and each session
 watches them.
