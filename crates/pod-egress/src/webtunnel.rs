@@ -13,7 +13,7 @@
 //! name other than the one sent, which the verifier here does not do, and
 //! are refused. `utls=` and `ver=` are read and left.
 
-use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWriteExt as _};
+use tokio::io::AsyncWriteExt as _;
 
 use pod_ws::url::Stream;
 
@@ -166,7 +166,9 @@ pub async fn open(args: &Args, reach: &Reach) -> Result<Stream, String> {
     let upgraded = async {
         stream.write_all(request(args).as_bytes()).await.map_err(|e| e.to_string())?;
         stream.flush().await.map_err(|e| e.to_string())?;
-        let head = read_head(&mut stream).await?;
+        // A byte at a time: the byte after the head is the first of the
+        // bridge's own.
+        let head = pod_proxy::http::read_head_exact(&mut stream, MAX_HEAD).await.map_err(|e| e.to_string())?;
         check_answer(&head)
     };
     let answered = tokio::time::timeout(reach.wait, upgraded).await;
@@ -175,24 +177,6 @@ pub async fn open(args: &Args, reach: &Reach) -> Result<Stream, String> {
         Ok(Err(why)) => Err(format!("the upgrade at {}: {why}", args.shown())),
         Err(_) => Err(format!("the upgrade at {}: no answer within {} s", args.shown(), reach.wait.as_secs())),
     }
-}
-
-/// The answer's head, read a byte at a time so that no byte after it, the
-/// first of the bridge's own, is taken.
-async fn read_head<S: AsyncRead + Unpin>(stream: &mut S) -> Result<String, String> {
-    let mut head = Vec::with_capacity(256);
-    let mut byte = [0u8; 1];
-    while !head.ends_with(b"\r\n\r\n") {
-        if head.len() > MAX_HEAD {
-            return Err(format!("no end of the answer's head within {} KiB", MAX_HEAD / 1024));
-        }
-        match stream.read(&mut byte).await {
-            Ok(0) => return Err("the connection closed before the answer".into()),
-            Ok(_) => head.push(byte[0]),
-            Err(e) => return Err(e.to_string()),
-        }
-    }
-    Ok(String::from_utf8_lossy(&head).into_owned())
 }
 
 #[cfg(test)]

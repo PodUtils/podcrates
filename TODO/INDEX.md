@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**760 entries: 139 open, 23 partial, 7 blocked, 591 done.**
+**762 entries: 140 open, 23 partial, 7 blocked, 592 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 12 | 8 | 0 | 167 | 187 |
+| P1 | 13 | 8 | 0 | 167 | 188 |
 | P2 | 62 | 5 | 4 | 306 | 377 |
-| P3 | 65 | 10 | 3 | 116 | 194 |
-| **All** | 139 | 23 | 7 | 591 | 760 |
+| P3 | 65 | 10 | 3 | 117 | 195 |
+| **All** | 140 | 23 | 7 | 592 | 762 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -761,7 +761,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-879](foundation.md) | P2 | M | M0 | feature | open | `pod-detach`: the detach of a command by a re-exec, from podnet, in place of podssh's near copy |
 | [T-880](foundation.md) | P2 | M | M0 | feature | open | `pod-release`: the self-update of a binary (fetch, verify, replace, trial run), from podnet and podssh |
 | [T-881](foundation.md) | P2 | S | M0 | feature | done | `pod-tls`: the CA bundle that the environment names, in place of three lists in the consumers |
-| [T-882](foundation.md) | P3 | M | M0 | chore | open | One reader and writer of an HTTP/1.1 head, in place of the copies in podrunner and in five crates |
+| [T-882](foundation.md) | P3 | M | M0 | chore | done | One reader and writer of an HTTP/1.1 head, in place of the copies in podrunner and in five crates |
 | [T-883](fleet.md) | P2 | S | M0 | defect | done | the installer core: one proxy line for one proxy, and a default prefix on a noexec mount (PodUtils/podnet#650) |
 | [T-884](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: SIGHUP is not blocked and forwarded to the payload (PodUtils/podvm#569) |
 | [T-885](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: a fallback to chroot is not returned to the caller (PodUtils/podvm#569) |
@@ -807,3 +807,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-925](fleet.md) | P1 | S | M7 | feature | done | `pod-incus`: the state of an instance, a profile with its devices, and the OOM count (PodUtils/podvm#582) |
 | [T-926](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: a refusal of the relay's policy no longer says the relay's cause (PodUtils/podssh#318) |
 | [T-927](fleet.md) | P2 | S | M6 | feature | open | `pod-enter`: a new session with the pty as the controlling terminal of the payload (PodUtils/podvm#584) |
+| [T-928](foundation.md) | P3 | M | M0 | chore | open | The other readers of an HTTP/1.1 head take `pod_core::http1` |
+| [T-929](fleet.md) | P1 | S | M8 | defect | open | `static-probe`: the report of `pod-job` lacks the new fields of `RunReport`, so the workspace does not build |

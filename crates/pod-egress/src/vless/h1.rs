@@ -144,27 +144,31 @@ async fn line<R: AsyncRead + Unpin>(conn: &mut BufReader<R>, max: usize) -> io::
     String::from_utf8(bytes).map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "a line that is not text"))
 }
 
+/// The head of a response, line by line within [`HEAD_MAX`] bytes, read by
+/// `pod_core::http1::parse_head`. A length that is not a number is an error
+/// here, and an answer of a version other than HTTP/1.x is refused.
 async fn read_head<R: AsyncRead + Unpin>(conn: &mut BufReader<R>) -> io::Result<Answer> {
     let bad = |why: String| io::Error::new(io::ErrorKind::InvalidData, why);
-    let first = line(conn, HEAD_MAX).await?;
-    let mut words = first.split(' ');
-    let (version, code) = (words.next().unwrap_or_default(), words.next().unwrap_or_default());
-    if !version.starts_with("HTTP/1.") {
-        return Err(bad(format!("an answer that is not HTTP/1.1: {first:?}")));
-    }
-    let status = code.parse::<u16>().map_err(|_| bad(format!("no status in {first:?}")))?;
-    let (mut length, mut chunked, mut close, mut read) = (None, false, version == "HTTP/1.0", first.len());
+    let mut head = String::new();
     loop {
         let field = line(conn, HEAD_MAX).await?;
-        read += field.len() + 2;
-        if read > HEAD_MAX {
+        if head.len() + field.len() + 2 > HEAD_MAX {
             return Err(bad(format!("a head longer than {HEAD_MAX} bytes")));
         }
+        head.push_str(&field);
+        head.push_str("\r\n");
         if field.is_empty() {
             break;
         }
-        let Some((name, value)) = field.split_once(':') else { continue };
-        let (name, value) = (name.trim().to_ascii_lowercase(), value.trim().to_ascii_lowercase());
+    }
+    let (status, _, headers) = pod_core::http1::parse_head(&head).map_err(bad)?;
+    let version = head.split(' ').next().unwrap_or_default();
+    if !version.starts_with("HTTP/1.") {
+        return Err(bad(format!("an answer that is not HTTP/1.1: {}", pod_core::text::one_line(version))));
+    }
+    let (mut length, mut chunked, mut close) = (None, false, version == "HTTP/1.0");
+    for (name, value) in headers {
+        let value = value.to_ascii_lowercase();
         match name.as_str() {
             "content-length" => {
                 length = Some(value.parse::<u64>().map_err(|_| bad(format!("Content-Length {value}")))?);

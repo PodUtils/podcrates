@@ -196,42 +196,7 @@ async fn shake(
 /// The head of the request: at most `bytes` bytes and `lines` lines. It
 /// gives the request and the bytes after its head.
 async fn read_head(tls: &mut ServedStream, bytes: usize, lines: usize) -> Result<(Request, Vec<u8>), RequestError> {
-    let mut buf = Vec::with_capacity(CHUNK.min(bytes));
-    let mut chunk = [0u8; CHUNK];
-    loop {
-        if let Some(end) = head_end(&buf) {
-            if end > bytes || buf[..end].iter().filter(|&&b| b == b'\n').count() > lines + 1 {
-                return Err(RequestError::TooLarge);
-            }
-            let rest = buf.split_off(end);
-            return Ok((request::parse_request(&buf)?, rest));
-        }
-        let lines_so_far = buf.iter().filter(|&&b| b == b'\n').count();
-        if buf.len() > bytes || lines_so_far > lines {
-            return Err(RequestError::TooLarge);
-        }
-        let n = tls.read(&mut chunk).await.map_err(|e| RequestError::Gone(e.to_string()))?;
-        if n == 0 {
-            return Err(RequestError::Gone("the connection closed".into()));
-        }
-        buf.extend_from_slice(&chunk[..n]);
-    }
-}
-
-/// The end of a head: after its empty line, ended by CRLF or a bare LF.
-fn head_end(buf: &[u8]) -> Option<usize> {
-    let mut at = 0;
-    while let Some(lf) = buf[at..].iter().position(|&b| b == b'\n') {
-        let next = at + lf + 1;
-        if buf[next..].starts_with(b"\n") {
-            return Some(next + 1);
-        }
-        if buf[next..].starts_with(b"\r\n") {
-            return Some(next + 2);
-        }
-        at = next;
-    }
-    None
+    request::read_request_within(tls, Vec::with_capacity(CHUNK.min(bytes)), request::Bounds { bytes, lines }).await
 }
 
 /// Read until one whole frame of the client is in `buf`, which keeps it
@@ -249,17 +214,5 @@ async fn read_first(tls: &mut ServedStream, mut buf: Vec<u8>, cap: usize) -> Res
             return Err("the connection closed before its first frame".into());
         }
         buf.extend_from_slice(&chunk[..n]);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_end_of_a_head_is_after_its_empty_line() {
-        assert_eq!(head_end(b"GET / HTTP/1.1\r\nHost: h\r\n\r\nrest"), Some(27));
-        assert_eq!(head_end(b"GET / HTTP/1.1\nHost: h\n\nrest"), Some(24));
-        assert_eq!(head_end(b"GET / HTTP/1.1\r\nHost: h\r\n"), None);
     }
 }

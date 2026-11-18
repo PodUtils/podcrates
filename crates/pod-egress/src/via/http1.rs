@@ -1,12 +1,12 @@
 //! HTTP/1.1's CONNECT inside the second proxy's TLS (RFC 9110, section
 //! 9.3.6): the request with the credentials, then the answer's head read a
-//! byte at a time, so that no byte of the target's is taken with it. A 2xx
+//! byte at a time (`pod_proxy::http::read_head_exact`), so that no byte of the target's is taken with it. A 2xx
 //! makes the TLS stream the tunnel.
 
 use std::time::Duration;
 
 use pod_core::Stage;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use zeroize::Zeroizing;
 
 use pod_proxy::DialError;
@@ -32,7 +32,7 @@ where
     let exchange = async {
         tls.write_all(request.as_bytes()).await?;
         tls.flush().await?;
-        read_head(&mut tls).await
+        pod_proxy::http::read_head_exact(&mut tls, MAX_HEAD).await
     };
     let shown = via.shown();
     let head = tokio::time::timeout(timeout, exchange)
@@ -64,31 +64,10 @@ fn request(via: &Via, target: &str, user_agent: &str) -> Zeroizing<String> {
     request
 }
 
-/// The answer's head, through its empty line and not a byte further.
-async fn read_head<S: AsyncRead + Unpin>(stream: &mut S) -> std::io::Result<String> {
-    let mut head = Vec::with_capacity(128);
-    let mut byte = [0u8; 1];
-    while !head.ends_with(b"\r\n\r\n") {
-        if stream.read(&mut byte).await? == 0 {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::UnexpectedEof,
-                "the connection closed before the answer's head ended",
-            ));
-        }
-        head.push(byte[0]);
-        if head.len() > MAX_HEAD {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("no end of the answer's head within {MAX_HEAD} bytes"),
-            ));
-        }
-    }
-    Ok(String::from_utf8_lossy(&head).into_owned())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::io::AsyncReadExt;
 
     const UA: &str = "podssh/test";
 
@@ -110,7 +89,7 @@ mod tests {
     async fn the_head_is_read_to_its_empty_line_and_no_further() {
         let (mut ours, mut theirs) = tokio::io::duplex(1024);
         theirs.write_all(b"HTTP/1.1 200 Connection established\r\n\r\nSSH-2.0-x\r\n").await.unwrap();
-        let head = read_head(&mut ours).await.unwrap();
+        let head = pod_proxy::http::read_head_exact(&mut ours, MAX_HEAD).await.unwrap();
         assert_eq!(head, "HTTP/1.1 200 Connection established\r\n\r\n");
         let mut rest = [0u8; 11];
         ours.read_exact(&mut rest).await.unwrap();

@@ -11,8 +11,10 @@ mod body;
 pub mod request;
 
 pub use body::{Body, Framing, Idle};
+pub use pod_core::http1::{Head, parse_head, parse_status_line};
 pub use request::{Request, RequestError, read_request};
 
+use pod_core::http1::{Exact, find};
 use pod_core::text::one_line;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
@@ -147,7 +149,7 @@ async fn read_whole<S: AsyncRead + Unpin>(body: &mut Body<S>) -> std::io::Result
     Ok(out)
 }
 
-/// The head of a request; CR and LF in a part are refused.
+/// The head of a request; CR, LF and NUL in a part are refused.
 fn request_text(
     user_agent: &str,
     method: &str,
@@ -157,25 +159,17 @@ fn request_text(
     body: &[u8],
     keep: bool,
 ) -> std::io::Result<String> {
-    let parts = [user_agent, method, host, path].into_iter();
-    for part in parts.chain(extra_headers.iter().flat_map(|(n, v)| [*n, *v])) {
-        if part.contains(['\r', '\n']) {
-            return Err(invalid("a request line or header contains CR or LF"));
-        }
-    }
-    let mut request = format!("{method} {path} HTTP/1.1\r\nHost: {host}\r\n");
+    let mut headers = vec![("Host", host)];
     if !user_agent.is_empty() {
-        request.push_str(&format!("User-Agent: {user_agent}\r\n"));
+        headers.push(("User-Agent", user_agent));
     }
-    request.push_str(if keep { "Connection: keep-alive\r\n" } else { "Connection: close\r\n" });
-    for (name, value) in extra_headers {
-        request.push_str(&format!("{name}: {value}\r\n"));
-    }
+    headers.push(("Connection", if keep { "keep-alive" } else { "close" }));
+    headers.extend_from_slice(extra_headers);
+    let length = body.len().to_string();
     if !body.is_empty() || method != "GET" {
-        request.push_str(&format!("Content-Length: {}\r\n", body.len()));
+        headers.push(("Content-Length", &length));
     }
-    request.push_str("\r\n");
-    Ok(request)
+    pod_core::http1::request_head(method, path, &headers).map_err(invalid)
 }
 
 /// Read a response whose first bytes may already be in `buffered`, with a
@@ -222,14 +216,26 @@ pub(crate) async fn read_head_versioned<S>(
 where
     S: AsyncRead + Unpin,
 {
+    let (response, http11) = read_head_in(stream, &mut buffered, max_head).await?;
+    Ok((response, buffered, http11))
+}
+
+/// [`read_head`] after the bytes in `buf`, which keeps the bytes after the
+/// head; and whether the answer is of `HTTP/1.1`, for
+/// [`pod_core::http1::keeps`]. The reader of an answer whose body comes
+/// piece by piece reads its head so.
+pub async fn read_head_in<S>(stream: &mut S, buf: &mut Vec<u8>, max_head: usize) -> std::io::Result<(Response, bool)>
+where
+    S: AsyncRead + Unpin,
+{
     let mut chunk = [0u8; 4096];
     let mut interim = 0;
     loop {
         let head_end = loop {
-            if let Some(end) = find(&buffered, b"\r\n\r\n") {
-                break end + 4;
+            if let Some(end) = pod_core::http1::crlf_head_end(buf) {
+                break end;
             }
-            if buffered.len() > max_head {
+            if buf.len() > max_head {
                 let kib = max_head / 1024;
                 return Err(invalid(format!("no end of the response headers within {kib} KiB")));
             }
@@ -240,21 +246,36 @@ where
                     "the connection closed before the response headers ended",
                 ));
             }
-            buffered.extend_from_slice(&chunk[..n]);
+            buf.extend_from_slice(&chunk[..n]);
         };
-        let rest = buffered.split_off(head_end);
-        let head = String::from_utf8_lossy(&buffered).into_owned();
+        let head = String::from_utf8_lossy(&buf[..head_end]).into_owned();
+        buf.drain(..head_end);
         let (status, reason, headers) = parse_head(&head).map_err(invalid)?;
         if (100..200).contains(&status) && status != 101 {
             interim += 1;
             if interim > MAX_INTERIM {
                 return Err(invalid(format!("the server sent more than {MAX_INTERIM} interim answers")));
             }
-            buffered = rest;
             continue;
         }
         let http11 = head.starts_with("HTTP/1.1 ");
-        return Ok((Response { status, reason, headers, body: Vec::new(), url: String::new() }, rest, http11));
+        return Ok((Response { status, reason, headers, body: Vec::new(), url: String::new() }, http11));
+    }
+}
+
+/// Read a head one byte at a time, so that no byte after its empty line is
+/// taken: those bytes belong to the tunnel or the TLS session that follows.
+/// At most `max` bytes.
+pub async fn read_head_exact<S: AsyncRead + Unpin>(stream: &mut S, max: usize) -> std::io::Result<String> {
+    let mut head = Exact::new(max);
+    let mut byte = [0u8; 1];
+    loop {
+        if stream.read(&mut byte).await? == 0 {
+            return Err(Exact::closed());
+        }
+        if head.push(byte[0])? {
+            return Ok(head.into_text());
+        }
     }
 }
 
@@ -265,36 +286,6 @@ async fn read_some<S: AsyncRead + Unpin>(stream: &mut S, buf: &mut [u8]) -> std:
         Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => Ok(0),
         other => other,
     }
-}
-
-/// A response head: the status, the reason, and the headers, names in lower
-/// case.
-pub type Head = (u16, String, Vec<(String, String)>);
-
-/// Parse a response head into status, reason and lower-cased headers.
-pub fn parse_head(head: &str) -> Result<Head, String> {
-    let (status, reason) = parse_status_line(head)?;
-    let headers = head
-        .split("\r\n")
-        .skip(1)
-        .filter_map(|line| line.split_once(':'))
-        .map(|(n, v)| (n.trim().to_ascii_lowercase(), v.trim().to_string()))
-        .collect();
-    Ok((status, reason, headers))
-}
-
-/// `HTTP/1.1 200 Connection Established` → `(200, "Connection Established")`.
-pub fn parse_status_line(head: &str) -> Result<(u16, String), String> {
-    let line = head.lines().next().unwrap_or_default();
-    let mut parts = line.splitn(3, ' ');
-    let version = parts.next().unwrap_or_default();
-    if !version.starts_with("HTTP/") {
-        return Err(format!("not an HTTP status line: {line:?}"));
-    }
-    let status =
-        parts.next().and_then(|s| s.parse::<u16>().ok()).ok_or_else(|| format!("no status code in {line:?}"))?;
-    // The reason phrase is the proxy's text and ends up on the user's terminal.
-    Ok((status, one_line(parts.next().unwrap_or_default())))
 }
 
 /// Decode a complete chunked body. `Ok(None)` means more bytes are needed.
@@ -338,10 +329,6 @@ pub fn decode_chunked(raw: &[u8], max_body: usize) -> Result<Option<Vec<u8>>, St
         }
         at = end;
     }
-}
-
-fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    haystack.windows(needle.len()).position(|w| w == needle)
 }
 
 fn invalid(why: impl Into<String>) -> std::io::Error {

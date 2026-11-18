@@ -1,0 +1,22 @@
+--- a/crates/pod-core/src/http1/request.rs
++++ b/crates/pod-core/src/http1/request.rs
+@@ -109,10 +109,6 @@ pub fn parse_request(head: &[u8]) -> Result<Request, RequestError> {
+         if line.contains(&b'\r') {
+             return Err(malformed("a bare CR in a line"));
+         }
+-        // A path goes into logs and onto a terminal: no escape sequence.
+-        if line.iter().any(|&b| (b < 0x20 && b != b'\t') || b == 0x7f) {
+-            return Err(malformed("a control byte in a line"));
+-        }
+         lines.push(line);
+     }
+     // The split leaves the empty line, and what follows its LF.
+@@ -138,7 +134,7 @@ fn request_line(line: &[u8]) -> Result<(String, String, u8), RequestError> {
+     if method.is_empty() || !method.bytes().all(is_tchar) {
+         return Err(malformed("the method is not a token"));
+     }
+-    if target.is_empty() || !target.bytes().all(|b| b.is_ascii_graphic()) {
++    if target.is_empty() {
+         return Err(malformed("the request-target is empty or not ASCII"));
+     }
+     let minor = match version {

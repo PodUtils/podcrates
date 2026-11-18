@@ -69,37 +69,33 @@ pub(crate) async fn send<S>(stream: &mut S, user_agent: &str, request: Request) 
 where
     S: AsyncWrite + Unpin,
 {
-    let named = request.headers.iter().flat_map(|(name, value)| [name.as_str(), value.as_str()]);
-    if [request.method, request.target.as_str(), user_agent]
-        .into_iter()
-        .chain(named)
-        .any(|part| part.contains(['\r', '\n', '\0']))
-    {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "a request line or header holds CR, LF or NUL"));
-    }
-    let mut head = format!("{} {} HTTP/1.1\r\nHost: {HOST}\r\n", request.method, request.target);
+    let mut headers = vec![("Host", HOST)];
     if !user_agent.is_empty() {
-        head.push_str(&format!("User-Agent: {user_agent}\r\n"));
+        headers.push(("User-Agent", user_agent));
     }
-    head.push_str("Connection: close\r\n");
-    for (name, value) in &request.headers {
-        head.push_str(&format!("{name}: {value}\r\n"));
-    }
+    headers.push(("Connection", "close"));
+    headers.extend(request.headers.iter().map(|(name, value)| (name.as_str(), value.as_str())));
+    let length;
     match &request.body {
-        Body::Empty if matches!(request.method, "POST" | "PUT" | "PATCH") => head.push_str("Content-Length: 0\r\n"),
+        Body::Empty if matches!(request.method, "POST" | "PUT" | "PATCH") => headers.push(("Content-Length", "0")),
         Body::Empty => {}
         Body::Bytes { content_type, data } => {
-            head.push_str(&format!("Content-Type: {content_type}\r\nContent-Length: {}\r\n", data.len()));
+            length = data.len().to_string();
+            headers.extend([("Content-Type", *content_type), ("Content-Length", length.as_str())]);
         }
         Body::Stream(upload) => {
-            head.push_str(&format!("Content-Type: {}\r\n", upload.content_type));
+            headers.push(("Content-Type", &upload.content_type));
             match upload.length() {
-                Some(length) => head.push_str(&format!("Content-Length: {length}\r\n")),
-                None => head.push_str("Transfer-Encoding: chunked\r\n"),
+                Some(n) => {
+                    length = n.to_string();
+                    headers.push(("Content-Length", length.as_str()));
+                }
+                None => headers.push(("Transfer-Encoding", "chunked")),
             }
         }
     }
-    head.push_str("\r\n");
+    let head = pod_core::http1::request_head(request.method, &request.target, &headers)
+        .map_err(|why| io::Error::new(io::ErrorKind::InvalidInput, why))?;
     stream.write_all(head.as_bytes()).await?;
     match request.body {
         Body::Empty => {}
