@@ -341,6 +341,9 @@ where
                     Written::Failed(e) => tokio::select! {
                         end = tokio::time::timeout(DRAIN, &mut down) => match end {
                             Ok(end @ (End::Closed(_) | End::Retired | End::Broken(_) | End::LocalEnd)) => end,
+                            // The link's own cause (a relay's Close with its
+                            // code) says more than the write that it broke.
+                            Ok(end @ End::Lost(Some(_))) => end,
                             _ => End::Lost(Some(e)),
                         },
                         _ = watch.stop.notified() => End::Stopped,
