@@ -350,22 +350,12 @@ fn incus() -> String {
 fn job() -> String {
     let offer = serde_json::from_str::<pod_job::JobOffer>(r#"{"schema":1,"tier":"trusted"}"#)
         .map_or_else(|e| e.to_string(), |o| format!("{:?}", o.check(false)));
-    let report = pod_job::RunReport {
-        schema: pod_job::SCHEMA,
-        job_id: pod_job::JobId::new("probe-1").expect("a job id"),
-        source: "probe".into(),
-        tier: Some(pod_job::Tier::Untrusted),
-        host: "probe.example".into(),
-        exit_reason: pod_job::ExitReason::Refused,
-        exit_code: None,
-        wall_s: 0,
-        cpu_s: None,
-        peak_rss_mib: None,
-        claim_to_first_step_s: None,
-        job_images: Vec::new(),
-        refusal_code: Some(pod_job::RefusalCode::TierNeedsGuest),
-        unit: None,
-    };
+    // From JSON: an optional field that the crate adds needs no change here.
+    let report: pod_job::RunReport = serde_json::from_str(
+        r#"{"schema":1,"job_id":"probe-1","source":"probe","tier":"untrusted","host":"probe.example",
+            "exit_reason":"refused","wall_s":0,"refusal_code":"tier-needs-guest"}"#,
+    )
+    .expect("a refused report");
     let public = serde_json::to_string(&report.public()).unwrap_or_default();
     format!("pod-job: an offer with a tier: {offer}; check {:?}; {public}", report.check())
 }
