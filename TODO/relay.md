@@ -10123,3 +10123,34 @@ cargo test -p pod-relay --all-features
 ## Done
 
 2026-11-18, 8605f8649. `pod_tls::handshake_cause(text)`: the cause of a failed handshake in plain words from rustls's text, also inside a wrapper: "a certificate for listed.test, not other.test" (with each name that rustls lists), "a certificate that is not for NAME", "a certificate that no trusted CA signed", "an expired certificate", "a certificate that is not valid yet", "a revoked certificate"; `None` else. `cleartext::tls_cause(host, attempts)` gives it, else the text of the error; `last` passes it, and `over` takes `(Relay, String)`: the note says "the TLS of HOST failed on the way (CAUSE)". Tests `hint::tests::the_cause_of_a_handshake_in_plain_words` (from rustls's own errors), `cleartext::tests::a_host_of_each_deployment_whose_tls_failed_is_tried` (the cause of each host). Plant `relay-cleartext-tls-cause-unnamed`, caught.
+
+# T-926: `pod-relay`: a refusal of the relay's policy no longer says the relay's cause (PodUtils/podssh#318)
+
+**Source:** PodUtils/podssh#318 (COORD-119 of podssh; PodUtils/podssh@T-843).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Since `v0.70.0` (T-869), `OpenError::lines` gives `the relay's policy does not allow HOST:PORT (HTTP 403)` for each refusal of the policy, and drops the relay's words. The line said the cause twice before (PodUtils/podssh#309); now it says it zero times. The relay's words name the rule that refused (`port 25 is refused`, `this relay dials no address of it`), and so what the user can change. podssh asks for the cause after the target, with no part that names the relay or the target again, as the `502` branch does: `the relay's policy does not allow 140.82.112.3:25: port 25 is refused (HTTP 403)`.
+
+## Premise
+
+- Read: PodUtils/podssh#318; `crates/pod-relay/src/open_lines.rs`, `src/open_tests.rs`.
+
+## Approach
+
+A `policy_cause` beside `unreachable_cause`: the one line of the body after each leading echo (`relay:`, `forward:`, the target, the words of the refusal: `not in the ALLOW list`, `not allowed`, `is blocked`, `:`); the line keeps the cause where one is left, else the short line.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features --lib open
+```
+
+## Done
+
+2026-11-18: `policy_cause` and `cause_after` (`crates/pod-relay/src/open_lines.rs`; `unreachable_cause` takes `cause_after` too). `a_refusal_says_its_cause_once`: `forward: T not in the ALLOW list: this relay dials no address of it` gives `the relay's policy does not allow T: this relay dials no address of it (HTTP 403)`; `forward: 140.82.112.3:25 is blocked: port 25 is refused` gives `...: port 25 is refused (HTTP 403)`; a body with no cause past the echo keeps the short line. `cargo test -p pod-relay --all-features --lib open`: 16 passed. Plant `relay-policy-cause-dropped` (the cause dropped, as in `v0.70.0`), caught by that test.

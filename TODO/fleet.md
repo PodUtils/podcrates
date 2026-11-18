@@ -5665,7 +5665,7 @@ The parser takes and gives each field, and the schema holds it.
 **Milestone:** M7
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5688,4 +5688,36 @@ podvm's incus tier uses `pod-incus` of `v0.70.0`. Two reads that podrunner needs
 
 ```sh
 cargo test -p pod-incus --all-features
+```
+
+## Done
+
+2026-11-18: `pod_incus::state` (`crates/pod-incus/src/state.rs`): `Client::instance_state(name)` gives `InstanceState` (`status`, `status_code`, `disk` of each device with `usage` and `total`, `memory` with `usage`, `usage_peak`, `total` and the swap, `cpu.usage` in nanoseconds and `allocated_time`, `processes`, `pid`), the fields of `shared/api/instance_state.go` of incus; `Client::profile(name)` gives `Profile` with its `devices` (the `pool` of the `root` disk); a refusal of incusd keeps its words and its class (`Profile not found` is `NotFound`). Ask 3: the state of incus has no OOM count; the metrics have it (`incus_memory_OOM_kills_total` of `internal/server/metrics/types.go`, from `metrics.Memory.OOMKills`): `Client::oom_kills(name)` reads `GET /1.0/metrics` and gives the sample of the instance, `None` where no sample names it. Tests: `state::tests` (the parse of the metrics: a name matched whole, a time stamp after a value, another metric with the same start; the JSON of the state with `null` disks) and `tests/instances.rs` `the_state_the_profile_and_the_oom_kills_of_an_instance` against the stand-in of incusd. `cargo test -p pod-incus --all-features`: each target passes. Plant `incus-oom-metric-name-by-prefix`, caught.
+
+# T-927: `pod-enter`: a new session with the pty as the controlling terminal of the payload (PodUtils/podvm#584)
+
+**Source:** PodUtils/podvm#584 (COORD-188 of podvm; PodUtils/podvm@T-1970, OQ-02 of its outside pass).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podvm run -t` opens a pty, and passes its slave to the payload as descriptors 0, 1 and 2 (`Fds::pass`). `pod-enter` makes no new session, so the slave is no controlling terminal of the payload: `os.tcgetpgrp(0)` gives `ENOTTY` while `isatty(0)` is true; the line discipline sends no SIGINT for `^C`, so Ctrl-C in `run -it` does nothing; the job control of an interactive shell does not work.
+
+## Premise
+
+- Read: PodUtils/podvm#584.
+- Not read: the child path of `Fds` in `pod-enter` and of `spawn_joined`.
+
+## Approach
+
+An option of the plan, `Fds::ctty: Option<i32>` (the descriptor number in the child): in the child, after the `dup2` of the passed descriptors and before the exec, `setsid()` and `ioctl(fd, TIOCSCTTY, 0)`. A refusal of either is one line on the standard error of the payload, and the run goes on. The same for the entry of `exec` (`spawn_joined`). A test with a pty of the test: the child reads `tcgetpgrp(0)` as its own process group.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features
 ```

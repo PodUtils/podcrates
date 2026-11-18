@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**758 entries: 140 open, 23 partial, 7 blocked, 588 done.**
+**760 entries: 140 open, 23 partial, 7 blocked, 590 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 14 | 8 | 0 | 165 | 187 |
-| P2 | 61 | 5 | 4 | 305 | 375 |
+| P1 | 13 | 8 | 0 | 166 | 187 |
+| P2 | 62 | 5 | 4 | 306 | 377 |
 | P3 | 65 | 10 | 3 | 116 | 194 |
-| **All** | 140 | 23 | 7 | 588 | 758 |
+| **All** | 140 | 23 | 7 | 590 | 760 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -804,4 +804,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-922](fleet.md) | P1 | M | M8 | feature | open | The schemas of `schemas/` with one source each, a check of each against its types, and a line of each change (GitHub #223) |
 | [T-923](fleet.md) | P1 | M | M8 | feature | open | `pod-job`: the fields of the job that githome and podrunner need (`trust_inputs.forge`, `limits.disk`, `cache`, the facts of a run report) (GitHub #223) |
 | [T-924](foundation.md) | P1 | S | M0 | feature | done | `pod-core`: a lock wait that a signal ends, and a lock file that the caller cannot write (PodUtils/podrunner#295) |
-| [T-925](fleet.md) | P1 | S | M7 | feature | open | `pod-incus`: the state of an instance, a profile with its devices, and the OOM count (PodUtils/podvm#582) |
+| [T-925](fleet.md) | P1 | S | M7 | feature | done | `pod-incus`: the state of an instance, a profile with its devices, and the OOM count (PodUtils/podvm#582) |
+| [T-926](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: a refusal of the relay's policy no longer says the relay's cause (PodUtils/podssh#318) |
+| [T-927](fleet.md) | P2 | S | M6 | feature | open | `pod-enter`: a new session with the pty as the controlling terminal of the payload (PodUtils/podvm#584) |
