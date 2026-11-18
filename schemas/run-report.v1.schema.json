@@ -5,6 +5,29 @@
   "description": "The full report (`run-report.v1`), for the operator.",
   "type": "object",
   "properties": {
+    "arch": {
+      "description": "The architecture of the unit: `x86_64` or `aarch64` (G-05, G-06).",
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "x86_64",
+        "aarch64",
+        null
+      ]
+    },
+    "assigned": {
+      "description": "The real job that the runner got, when it is not the run of the\noffer, and the answer of the source (G-15).",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Assigned"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "cache_read_bytes": {
       "description": "The bytes that the job read from and wrote to its cache (G-20).",
       "anyOf": [
@@ -466,6 +489,41 @@
     "wall_s"
   ],
   "$defs": {
+    "Assigned": {
+      "description": "The real job that the runner got, when it is not the run of the offer,\nand the answer of the source (G-15; podrunner's `assigned` request).",
+      "type": "object",
+      "properties": {
+        "code": {
+          "description": "The code of the source's `end`, or `source-unavailable` where the\nsource gave no answer in time.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "job_name": {
+          "type": "string"
+        },
+        "repository": {
+          "description": "`OWNER/REPO`.",
+          "type": "string"
+        },
+        "run_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "verdict": {
+          "$ref": "#/$defs/Verdict"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "repository",
+        "job_name",
+        "verdict"
+      ]
+    },
     "Boundary": {
       "description": "The boundary between a job and the host, weakest first. `redirect`\nrewrites file paths and is no isolation against hostile code.",
       "type": "string",
@@ -669,6 +727,21 @@
       "type": "string",
       "enum": [
         "unknown"
+      ]
+    },
+    "Verdict": {
+      "description": "The answer of the source to an assigned job.",
+      "oneOf": [
+        {
+          "description": "The job goes on, with the trust inputs of the real job.",
+          "type": "string",
+          "const": "keep"
+        },
+        {
+          "description": "The job ends with the code.",
+          "type": "string",
+          "const": "end"
+        }
       ]
     }
   }

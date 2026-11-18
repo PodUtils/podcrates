@@ -1,7 +1,8 @@
-//! The optional parts of an offer that githome and podrunner added (T-923,
-//! GitHub #223 G-16, G-20, G-36; PodUtils/podrunner#294): the cache of a
-//! job and a sandbox payload. Each is optional, so `job-offer.v1` keeps its
-//! id (the ruling "Schema ids").
+//! The optional parts of the records that githome and podrunner added
+//! (T-923, GitHub #223 G-15, G-16, G-20, G-36; PodUtils/podrunner#294): the
+//! cache of a job and a sandbox payload of an offer, and the assigned job of
+//! a report. Each is optional, so each record keeps its id (the ruling
+//! "Schema ids").
 
 use serde::{Deserialize, Serialize};
 
@@ -78,4 +79,32 @@ impl Sandbox {
         }
         Ok(())
     }
+}
+
+/// The real job that the runner got, when it is not the run of the offer,
+/// and the answer of the source (G-15; podrunner's `assigned` request).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
+pub struct Assigned {
+    pub run_id: u64,
+    /// `OWNER/REPO`.
+    pub repository: String,
+    pub job_name: String,
+    pub verdict: Verdict,
+    /// The code of the source's `end`, or `source-unavailable` where the
+    /// source gave no answer in time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
+}
+
+/// The answer of the source to an assigned job.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum Verdict {
+    /// The job goes on, with the trust inputs of the real job.
+    Keep,
+    /// The job ends with the code.
+    End,
 }

@@ -27,7 +27,7 @@ pub use capability::{
 pub use codes::{RefusalCode, Tier};
 pub use ids::{IdError, JOB_ID_MAX, JobId, UnitId, UnitIds};
 pub use offer::JobOffer;
-pub use parts::{Cache, CacheMode, Sandbox};
+pub use parts::{Assigned, Cache, CacheMode, Sandbox, Verdict};
 pub use report::{ExitReason, PublicReport, Residual, RunReport, UnitFields};
 
 /// The version of each record. A reader refuses another value. The name of

@@ -13,6 +13,8 @@
   "job-offer/invalid-unknown-limit.json": "unknown limit \"gpu\"",
   "run-report-public/invalid-host.json": "unknown field `host`",
   "run-report-public/invalid-refusal-code.json": "unknown variant `no-reason`",
+  "run-report/invalid-arch.json": "is not x86_64 or aarch64",
+  "run-report/invalid-assigned-verdict.json": "unknown variant `maybe`",
   "run-report/invalid-code-not-refused.json": "refusal_code needs exit_reason refused",
   "run-report/invalid-exit-reason.json": "unknown variant `crashed`",
   "run-report/invalid-image-digest-tag.json": "is not sha256:HEX",

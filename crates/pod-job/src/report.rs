@@ -110,6 +110,14 @@ pub struct RunReport {
     pub refusal_code: Option<RefusalCode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unit: Option<UnitFields>,
+    /// The architecture of the unit: `x86_64` or `aarch64` (G-05, G-06).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::arch_or_none"))]
+    pub arch: Option<String>,
+    /// The real job that the runner got, when it is not the run of the
+    /// offer, and the answer of the source (G-15).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assigned: Option<crate::Assigned>,
     /// The digest of the image of the unit (`sha256:HEX`; G-19).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::digest"))]
@@ -203,6 +211,9 @@ impl RunReport {
     pub fn check(&self) -> Result<(), String> {
         if let Some(image) = self.job_images.iter().find(|i| !crate::offer::is_digest(i)) {
             return Err(format!("the job image {image:?} is not sha256:HEX"));
+        }
+        if let Some(arch) = self.arch.as_deref().filter(|a| !crate::ARCHES.contains(a)) {
+            return Err(format!("arch {arch:?} is not x86_64 or aarch64"));
         }
         if let Some(image) = self.image_digest.as_deref().filter(|i| !crate::offer::is_digest(i)) {
             return Err(format!("the image digest {image:?} is not sha256:HEX"));

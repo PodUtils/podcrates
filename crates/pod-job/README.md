@@ -185,7 +185,9 @@ G-36; the names of PodUtils/podrunner#294):
   `idle_s`, `max_s`). The existing `payload` keeps its meaning (a digest),
   so the sandbox is its own field (call C783). `limits.disk` (bytes) was
   there.
-* `run-report.v1`: `image_digest` (`sha256:HEX`), `runner_version`,
+* `run-report.v1`: `arch` (`x86_64` or `aarch64`), `assigned` (the real
+  job that the runner got: `run_id`, `repository`, `job_name`, `verdict`
+  `keep` or `end`, `code`), `image_digest` (`sha256:HEX`), `runner_version`,
   `prepare_s`, `start_s`, `run_s`, `destroy_s` (seconds, rounded up),
   `disk_peak_bytes`, `net_rx_bytes`, `net_tx_bytes`, `cache_read_bytes`,
   `cache_written_bytes` (a count or `unknown`), `unknown_reasons` (for

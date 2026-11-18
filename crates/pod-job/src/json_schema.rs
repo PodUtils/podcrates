@@ -37,6 +37,11 @@ pub fn arch(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": "string", "enum": ARCHES })
 }
 
+/// The `arch` of a report: absent, or one of [`ARCHES`].
+pub fn arch_or_none(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": ["string", "null"], "enum": [ARCHES[0], ARCHES[1], null] })
+}
+
 /// The `payload` of an offer: absent, or `sha256:` and 64 lower-case hex
 /// digits (`offer::is_digest`); an image by tag is refused.
 pub fn digest(_: &mut SchemaGenerator) -> Schema {

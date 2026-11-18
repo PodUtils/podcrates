@@ -34,5 +34,12 @@
     "peak_rss_mib": "the kind reads no memory peak",
     "net_rx_bytes": "the unit has no egress module",
     "net_tx_bytes": "the unit has no egress module"
+  },
+  "arch": "aarch64",
+  "assigned": {
+    "run_id": 2002,
+    "repository": "example-org/app",
+    "job_name": "test (aarch64)",
+    "verdict": "keep"
   }
 }
