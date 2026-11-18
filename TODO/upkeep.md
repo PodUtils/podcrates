@@ -3336,6 +3336,12 @@ sh scripts/agent/check-windows.sh
   `http_road_one_h2.rs`; `pod-ws` `h2_road.rs` (eight sessions on one TLS
   connection); `pod-egress` `vless.rs` (2); `pod-session`
   `session_move.rs`; `pod-guest` `ready/tests.rs` (riscv64).
+- On a native x86_64 host with a full workspace build and test run beside
+  it, `a_seal_and_an_open_block_on_nothing` counted 2 voluntary switches
+  once (2026-11-18), and 0 in each of 9 runs again. A switch that is not
+  the code's own (a fault of a page of the binary that waits for the disk,
+  a lock of the allocator between the threads of the test binary) fails
+  the gate.
 
 ## Premise
 
@@ -3350,6 +3356,9 @@ sh scripts/agent/check-windows.sh
 the tests skip with the reason, as a skip of a missing capability does. Each time
 bound of the eight tests goes through `pod_testkit::scaled`. A test whose
 bound is scaled and still fails gets its cause found, not a larger bound.
+On a native host, count the major page faults (`ru_majflt`) beside the
+switches, and run the closure once before the count, so that a switch of
+a page fault does not count as a block of the code.
 
 ## Prove
 
