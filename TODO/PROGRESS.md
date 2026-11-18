@@ -5,13 +5,12 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.69.0` at `d85f2d2` (`docs/releases/v0.69.0.md`; ci
-  44069252208 at `d85f2d2`, adoption 44069224819 at `5377c17`, plants
-  44068594101 at `c953f56`, the release dry run 44078238563, the release
-  44079616476): T-029 (the API for podnet's take of `pod-cloudflare`, its
-  trial, the comments), T-849, T-850, T-838 (part), T-854, T-855, C776
-  (T-852). The hand-off is COORD-130 (#220). `v0.68.0` (`4efa604`) has
-  COORD-129 (#219); `v0.67.0` (`1d7e983`) has COORD-128 (#218).
+- Last release: `v0.70.0` at `ed6d84c` (`docs/releases/v0.70.0.md`; ci
+  44154512588, adoption 44154512580 and plants 44154512569 at `ed6d84c`,
+  the release dry run 44206901563, the release 44207524079, publish
+  44208190090): the asks and the outside QA of 2026-11-17 (T-857 to T-904,
+  the rulings "Shared code" and "Quality first"). The hand-off is
+  COORD-132. `v0.69.0` (`d85f2d2`) has COORD-130 (#220).
 - The consumers and their tags (the details of each take are on its
   hand-off issue):
   - podssh: `v0.69.0` (`d32954d`, PodUtils/podssh#305: 3657 tests; its

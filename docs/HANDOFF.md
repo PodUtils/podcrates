@@ -19,12 +19,22 @@ is done. Git and the record keep finished work.
    on COORD-125 (#215), and of `v0.66.0` on COORD-126 (#216): amend the body, and close it when each consumer took its
    part. `v0.65.0` holds T-806, T-805, T-801, T-797, T-807, T-808 and the
    trial of `pod-iroh` (T-810).
-3. `v0.69.0` is out at `d85f2d2`; its hand-off is COORD-130 (#220), and
-   `v0.68.0` (`4efa604`) has COORD-129 (#219), taken by podssh, podnet
-   and podvm. Record each take. #220 asks podnet to take `pod-cloudflare`
-   by the trial's patch. The next tag holds T-857 (PodUtils/podvm#467),
-   T-858 (PodUtils/podnet#608) and T-120 (PodUtils/podssh#304): answer
-   each on its hand-off.
+3. `v0.70.0` is out at `ed6d84c`; its hand-off is COORD-132 (the issue
+   after #221), with the takes to record. `v0.69.0` (`d85f2d2`) has
+   COORD-130 (#220). `main` holds for the next tag: T-905, T-906, T-908,
+   T-910, T-911, T-912, T-913 (each answers an issue of a consumer, named
+   in COORD-132, section "On `main`").
+   In flight: T-909 (PodUtils/podssh#314 ask 2) on the branch `wip/t909`:
+   part 1 (a byte budget under each cap, `relay::byte_budget_under`) is
+   written and not yet tested; part 2 (the cap in `forward_layer::Offer`,
+   kept in the cache) is not started. Merge the branch into `main` after
+   the checks pass, then delete it. Open asks after it: T-907 (`pod-time`,
+   call C779), T-879 (`pod-detach`), T-880, T-882, T-897, T-899, T-900.
+   The names that crates.io does not hold yet (`check-crates-io-names.py`):
+   `pod-lab`, `pod-manual`, `pod-detach`, `pod-time`, `pod-udf`, `pod-qga`;
+   the owner's agent reserves them.
+   podnet moves to a new session: its open asks here are T-897, T-899,
+   T-900 (PodUtils/podnet#652) and its rows of failures for T-905.
 4. T-029 is done: podnet took `pod-cloudflare` at `00b54ff`. T-851 (the
    pin of cloudflared) and T-030 (podssh's quick tunnels) stay; T-853 is
    done.
