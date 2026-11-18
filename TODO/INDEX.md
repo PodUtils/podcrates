@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**742 entries: 135 open, 21 partial, 7 blocked, 579 done.**
+**743 entries: 135 open, 21 partial, 7 blocked, 580 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 162 | 180 |
-| P2 | 61 | 3 | 4 | 299 | 367 |
+| P2 | 61 | 3 | 4 | 300 | 368 |
 | P3 | 64 | 10 | 3 | 116 | 193 |
-| **All** | 135 | 21 | 7 | 579 | 742 |
+| **All** | 135 | 21 | 7 | 580 | 743 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -789,3 +789,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-907](fleet.md) | P2 | M | M0 | feature | open | A reader of the zone files (TZif) and the cron of `on.schedule` in its `timezone` (PodUtils/podrunner#291) |
 | [T-908](relay.md) | P2 | S | M0 | defect | done | `pod-session`: the Close of the relay in the drain wins over the error of a write (PodUtils/podssh#314, ask 1) |
 | [T-909](relay.md) | P2 | S | M0 | defect | open | `pod-relay`: the link budget of the layer under a small cap of the relay; the cap in `forward_layer::Offer` (PodUtils/podssh#314, ask 2) |
+| [T-910](foundation.md) | P2 | S | M0 | defect | done | `pod-testkit`: an address that refuses each connect and that no other test can take (PodUtils/podnet#653) |

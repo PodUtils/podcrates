@@ -2394,3 +2394,36 @@ cargo test -p pod-dns --all-features
 ## Done
 
 2026-11-17, 14b712ed9, d222783c5: `pod_dns::txt::error_answer(request, rcode)` (and `RCODE_SERVFAIL`, `RCODE_NXDOMAIN`, `RCODE_REFUSED`): the id, the opcode, RD and the one question of the request, with QR and RA set, AA, TC and Z clear, the RCODE, and no record; a request that is not a query of one question of labels, a cut question, and an RCODE over 15 are errors. Test `an_error_answer_copies_the_request`. Plant `dns-error-answer-drops-rd`, caught.
+
+# T-910: `pod-testkit`: an address that refuses each connect and that no other test can take (PodUtils/podnet#653)
+
+**Source:** PodUtils/podnet#653 (COORD-106 of podnet, PodUtils/podnet@T-479); the ruling "Shared code".
+**Category:** defect
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A test that wants a refused address binds a port, reads it and lets it go (`listener::free_port` does the same). A test that runs beside it can bind the freed port, and the connect then reaches that test's server: podnet's `ci` saw a reset where a refusal was the case under test. Each consumer has a copy of this helper with the same race.
+
+## Premise
+
+- Read: PodUtils/podnet#653; `crates/pod-testkit/src/listener.rs`.
+- A TCP socket that is bound and does not listen: the kernel refuses each connect to its port, and no other socket can bind the port.
+
+## Approach
+
+`pod_testkit::refused::refused() -> (Refused, SocketAddr)` (feature `refused`, on tokio's `TcpSocket`, with no runtime): the guard holds the bound socket. A test: each connect is refused while the guard lives, 64 binds to port 0 beside it never take the port, a bind of the port fails, and the port is free after the drop.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --all-features --lib -- refused::tests
+sh scripts/plant-each.sh testkit-refused-port-freed
+```
+
+## Done
+
+2026-11-18, e3118312d. `pod_testkit::refused::{refused, Refused}` (feature `refused`): a TCP socket bound to `127.0.0.1:0` that does not listen, held by the guard; the doc of `listener::free_port` names it. Test `refused::tests::a_refused_address_stays_refused_while_its_guard_lives`. Plant `testkit-refused-port-freed` (the address of a port that a bind let go), caught. podnet replaces its `dead_port` helpers at the take; podssh, podvm and podrunner can do the same.

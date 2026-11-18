@@ -1,0 +1,8 @@
+# The refused address is a port that a bind read and let go, as before
+# PodUtils/podnet#653: a test beside it can take the port, and a connect
+# reaches that test; the test of the held port must fail.
+ENTRY=T-910
+GROUP=testkit
+EXPECT='test refused::tests::a_refused_address_stays_refused_while_its_guard_lives \.\.\. FAILED'
+RUN='cargo test -p pod-testkit --all-features --lib -- refused::tests'
+LIMIT=1800
