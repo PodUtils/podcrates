@@ -6055,3 +6055,31 @@ cargo test -p pod-testkit --features githome --test githome
 ## Done
 
 2026-11-18, commit "pod-testkit: pod-fake-githome passes test 15 of podrunner's source-conformance (T-951)". Test 15 at podrunner `0fd2218` (`a-cancelled-job-is-reported-and-released`): `the_conformance_steps_of_podrunner_pass` claims a job, mints, reports `exit_reason: cancelled`, releases, and gets `unknown-job` for a claim after it. The fake passes it with no change: a release after a report with no refusal code ends the job. The test queues three jobs; a run ends two (tests 7 and 15). `crates/pod-testkit/SOURCES` names `conformance.rs` and `source-driver.md` at `0fd2218`; the README says to queue three jobs.
+
+# T-952: `pod-testkit`: `pod-fake-githome` mints made-up files, so no runner of a job through podrunner's `serve` reaches the broker of `pod-fake-github` (PodUtils/podrunner#311)
+
+**Source:** PodUtils/podrunner#311 (COORD-101; PodUtils/podrunner@T-527 and PodUtils/podrunner@T-509)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod-fake-githome source` speaks the source wire, and its `mint` gives made-up files. `pod-fake-github` has `generate-jitconfig` and the broker of a JIT runner, and no source wire. podrunner's `serve` can run an offer of the fake on a real unit, but no job of the official runner: the minted files reach no broker. podrunner's lane `serve-incus-kvm` (githome's host class) and its live job of each kind against githome's source need one job from the offer of the source to the conclusion of the broker.
+
+## Premise
+
+- Read: PodUtils/podrunner#311; `crates/pod-testkit/src/githome/` and `crates/pod-testkit/src/github/` (T-948, T-921; calls C785 and C786).
+- Not read: the form of `encoded_jit_config` that the official runner reads at its version of podrunner's runner image.
+
+## Approach
+
+`pod-fake-githome serve --github URL` takes the base URL of a `pod-fake-github`. With it: `POST /_fake/jobs` queues the job in the fake GitHub too (its repository, labels and `steps`, else one `run:` step), through the control API of the fake GitHub; `mint` of a claimed job calls `generate-jitconfig` of the fake GitHub with the runner name of the claim and the labels of the offer, and answers the files of the decoded `encoded_jit_config`, so the runner takes that job from the broker; `GET /_fake/jobs/ID` of githome names the id of the job in the fake GitHub, whose conclusion `GET /_fake/jobs/ID` of the fake GitHub gives. With no `--github`, `mint` stays as it is (the 15 tests of `source-conformance` pass). A test: both fakes, one job, a claim and a mint; the minted `.runner` and `.credentials` take the job from the broker of the fake GitHub, and its conclusion and the report of the source are both read. The base URL is any loopback port, so podrunner names it in `[egress]`.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --features githome,github --test githome
+```
