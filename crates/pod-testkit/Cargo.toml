@@ -15,6 +15,9 @@ stand = []
 # The HTTP/2 part of a stand-in of WARP's MASQUE front door
 # (src/masque.rs): the CONNECT-IP request and its capsules, on tokio.
 masque = ["dep:tokio", "dep:h2", "dep:http", "dep:bytes"]
+# An address where each TCP connect is refused, held by a bound socket that
+# does not listen (src/refused.rs), on tokio's TcpSocket.
+refused = ["dep:tokio", "tokio/net"]
 
 [dependencies]
 vt100 = { version = "0.18", optional = true }

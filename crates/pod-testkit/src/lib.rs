@@ -35,6 +35,8 @@ pub mod listener;
 pub mod masque;
 #[cfg(target_os = "linux")]
 pub mod nobody;
+#[cfg(feature = "refused")]
+pub mod refused;
 #[cfg(feature = "screen")]
 pub mod screen;
 #[cfg(feature = "stand")]

@@ -15,7 +15,9 @@ use std::time::{Duration, Instant};
 pub const TRIES: u32 = 5;
 
 /// A port of the loopback that nobody holds now. Another process can take
-/// it before the caller binds it: a server child goes through [`start`].
+/// it before the caller binds it: a server child goes through [`start`],
+/// and an address that must refuse each connect is `refused::refused`
+/// (feature `refused`).
 pub fn free_port() -> u16 {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("a port of the loopback");
     listener.local_addr().expect("its address").port()
