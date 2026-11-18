@@ -10173,7 +10173,7 @@ cargo test -p pod-relay --all-features --lib open
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10193,6 +10193,45 @@ Two parts, each with a test on the loopback relay of `pod-iroh` that moves the c
 ```sh
 cargo test -p pod-iroh --all-features
 cargo test -p pod-session --all-features
+```
+
+## Done
+
+2026-11-18, 16927112 and fe98382f.
+
+- Read: `pump.rs` (`beat`), `pump/down.rs`, `pump/outbox.rs`, `beside.rs`, `hearing.rs`, `resume.rs`, `pod-iroh/src/client.rs`, iroh 1.4.1's relay actor (a `PING` each 15 s, reset by each frame of the relay) and its `home_relay_status`, podssh's `fake-proxy.py --move`, `m6_exit.rs` and `layered.rs` (the iroh road has no spare link). The client cannot know the bytes that the far end holds: no record carries the far end's sent offset. A link of the layer is ordered, so each record that the client hears from the far end comes after each byte that the far end wrote before it; with the heartbeat on both ends, a link that carries nothing for 30 s is lost. The client said no line in 600 s, so it heard the far end in each 30 s: the 511,054 bytes of the node's line were with the client's layer (held for its application, whose acknowledgement waits), or the client's session did not run. The node's line alone does not tell the two apart (T-945).
+- Measured on the loopback relay of `pod-iroh` with no UDP: 14 runs of a new address (the old tunnels silent, as `--move`), 6 with spare links and 8 without, each 20 MiB whole, with no resume; QUIC carried the bytes again in about 20 s. 3 runs with no network for 45 s after the move: each resumed the session and lost no byte. No run hung.
+- (1) `pod-session`: the heartbeat also ends a link when a `PING` waits `pump::PING_ANSWER` (30 s) for its `PONG` and the position of the session (bytes received, bytes acknowledged) does not move in that time, also while the far end's own records come (`pump/progress.rs`; call C784). Each road takes it. The wire does not change. Test `tests/session_heartbeat.rs` `a_link_whose_far_end_answers_no_ping_while_nothing_moves_is_lost` (a far end that sends its own `PING` each 10 s and answers none): on the code before the fix it fails ("never found lost: Elapsed" after 300 s of the paused clock); after it, the link is lost in 40 s. `pump::progress::tests` on a manual clock.
+- (2) `pod-iroh`: `home_relay::say_changes(endpoint, say)` says when the connection to a home relay ends and iroh dials it again, each new cause of a failed dial, and its return with the time of the gap. `tests/new_address.rs`: the client's tunnels go silent in an echo of 8 MiB, and the new address has no network for 45 s; the session resumes, the 8 MiB come back whole, and the lines come ("ended; dialling it again", "a new dial ... failed", "is back after 30.6 s").
+- `cargo test -p pod-session -p pod-iroh -p pod-relay --all-features`: 165, 72 and 493 passed (22 ignored), 0 failed. Plants `session-t939-ping-unanswered` and `iroh-t939-relay-back-unsaid`, each caught.
+- podssh, at its take: call `pod_iroh::home_relay::say_changes` on the client's endpoint with its verbose line (`ssh/iroh/dial.rs`), and run its local loop of `m6_exit`; a hang after it with no line of the relay and no loss of the layer points to the client's application (T-945 gives its line).
+
+# T-945: `pod-session`: the client says no wait of its own, so a hang with the node's `session.stall` cannot tell a loss on the link from bytes held for the client's application (PodUtils/podssh#283, ask 4)
+
+**Source:** the work of T-939 (PodUtils/podssh#283, the eighth failure).
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The far end says each wait of its reader of the target that holds 20 s (`session.stall`, T-767), with its offsets. The client says none. In the eighth failure of podssh's gate the node said that the client acknowledged 511,054 bytes less than the node sent, and the client said nothing for 600 s. A link of the layer is ordered, and the client heard the far end in each 30 s (else its heartbeat would end the link), so those bytes were with the client's layer, held for its application, or its session did not run. An acknowledgement covers the bytes written to the application, so bytes held for a slow application look like bytes lost on the link at the node.
+
+## Premise
+
+- Read: `pump/down.rs` (the reader holds bytes for the application up to `HOLD_MAX` and acknowledges the bytes written), `pump/stall.rs` (the far end's waits), `resume.rs` (`Note`), the node's line of the eighth failure.
+- Not measured: the client's state in the eighth failure.
+
+## Approach
+
+The client's pump says its waits as the far end does, as a `resume::Note` (a new variant, which podssh shows at `-v`): the application took no byte for 20 s while N bytes wait for it; the reader of the application waits for room or for the writer of the link; with the offsets each way. One line for each wait. A test on the paused clock: an application that stops reading gives one line after 20 s, with the bytes held.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features --lib pump::stall
 ```
 
 # T-942: `pod-relay`: a kept offer of the layer loses `forward.liveness`
