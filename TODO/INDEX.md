@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**753 entries: 140 open, 22 partial, 7 blocked, 584 done.**
+**756 entries: 143 open, 22 partial, 7 blocked, 584 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 11 | 8 | 0 | 163 | 182 |
+| P1 | 14 | 8 | 0 | 163 | 185 |
 | P2 | 64 | 4 | 4 | 303 | 375 |
 | P3 | 65 | 10 | 3 | 116 | 194 |
-| **All** | 140 | 22 | 7 | 584 | 753 |
+| **All** | 143 | 22 | 7 | 584 | 756 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -800,3 +800,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-918](upkeep.md) | P3 | M | M5 | chore | open | The helpers that the tests copy from file to file: one place for each |
 | [T-919](upkeep.md) | P1 | M | M0 | chore | done | A code graph, a check of repeated work and a check of narrative history in the documents |
 | [T-920](upkeep.md) | P2 | S | M5 | defect | open | `pod-guest`: a monitor socket path longer than `sun_path` waits for the whole bound, then fails with a wrong reason |
+| [T-921](fleet.md) | P1 | L | M8 | feature | open | A fake GitHub as a binary for a consumer's CI: the App, the JIT configuration, the `workflow_job` webhooks and the runner broker (GitHub #223) |
+| [T-922](fleet.md) | P1 | M | M8 | feature | open | The schemas of `schemas/` with one source each, a check of each against its types, and a line of each change (GitHub #223) |
+| [T-923](fleet.md) | P1 | M | M8 | feature | open | `pod-job`: the fields of the job that githome and podrunner need (`trust_inputs.forge`, `limits.disk`, `cache`, the facts of a run report) (GitHub #223) |

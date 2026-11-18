@@ -56,7 +56,7 @@ runs on the host with the line of `pod-broker`.
 
 # T-100: `pod-broker`: TLS end with a CA for each job, placeholder credentials and the scrub of answers (GitHub #35, #36)
 
-**Source:** GitHub #35 (A-X-05, A-V-03, A-N-13) and GitHub #36 (G-04)
+**Source:** GitHub #35 (A-X-05, A-V-03, A-N-13), GitHub #36 (G-04) and GitHub #223 (githome's G-35: a placeholder in the `policy` of an offer, swapped at the proxy)
 **Category:** feature
 **Milestone:** M8
 **Priority:** P1
@@ -168,7 +168,7 @@ sh scripts/agent/check.sh
 
 # T-104: `pod-release`: the release index, its writer for CI and its verifier (GitHub #35, #36)
 
-**Source:** GitHub #35 (A-X-13, A-X-24, A-X-02) and GitHub #36 (G-11)
+**Source:** GitHub #35 (A-X-13, A-X-24, A-X-02), GitHub #36 (G-11) and GitHub #223 (githome's G-34: one signed index in each release of each product, and one verifier)
 **Category:** feature
 **Milestone:** M8
 **Priority:** P1
@@ -5467,3 +5467,145 @@ A module of zone files with no C library and no network: the zone of an IANA nam
 ```sh
 cargo test -p pod-actions-workflow --all-features
 ```
+
+# T-921: A fake GitHub as a binary for a consumer's CI: the App, the JIT configuration, the `workflow_job` webhooks and the runner broker (GitHub #223)
+
+**Source:** GitHub #223 (githome's G-30, with A-X-18 and G-10 of GitHub #35 and #36)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** L
+**Status:** open
+
+## Problem
+
+githome tests its GitHub App path to podrunner with no account (the
+ruling "Test accounts"). It needs a fake GitHub as a program that its CI
+pins by release. podrunner has the parts as libraries
+(`podrunner-fake`, `podrunner-broker-fake`); no binary serves them, and
+podcrates has none. T-106 kept the fake GitHub API in its project; the
+owner's ruling "Shared code" (2026-11-17) moves a capability that two
+projects need into podcrates.
+
+## Premise
+
+- Read: GitHub #223 (G-30), PodUtils/podrunner#292, T-106.
+- Not read: `PodUtils/podrunner:crates/podrunner-fake` and
+  `PodUtils/podrunner:crates/podrunner-broker-fake` at the head of its
+  `main`.
+- Not measured: a binary.
+
+## Approach
+
+Take podrunner's fakes into podcrates (a feature of `pod-testkit` with a
+binary, or a crate of its own; the entry decides by the size of the
+code). The binary serves on loopback: the App JWT to an installation
+token; `POST /repos/OWNER/REPO/actions/runners/generate-jitconfig`; the
+`workflow_job` webhooks `queued`, `in_progress` (with `runner_name`) and
+`completed`, signed with a webhook secret; the runner broker for each
+minted configuration; and a control API: queue a job, choose which
+queued job a runner gets, read the conclusions. Each test credential is
+a made-up value in `.github/secrets-allow.txt`. The binary goes out with
+each tag, with its `SHA256SUMS` signed. podrunner takes it in place of
+its copies.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --all-features
+```
+
+A test queues two jobs of one repository with the same labels, gives the
+second job to the runner minted for the first, and reads both
+conclusions (the acceptance of G-30).
+
+# T-922: The schemas of `schemas/` with one source each, a check of each against its types, and a line of each change (GitHub #223)
+
+**Source:** GitHub #223 (githome's G-31)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome pins the schemas of a tag by SHA-256 and checks its offers
+against them. It asks for each schema as a file from the types of its
+parser, a CI check that fails when the parser and the file differ, and a
+line for each added field. The schemas of `pod-job` and of
+`pod-hostprobe` are written from their types, and a test fails on a
+difference (`crates/pod-job/src/schemas.rs`). Not known: the same for
+`log.v1` and `broker-policy.v1`. No file lists the changes of a schema.
+The schemas of podrunner's status and of its source wire are not in
+podcrates.
+
+## Premise
+
+- Read: `schemas/`, `crates/pod-job/src/schemas.rs`, the ruling "Schema
+  ids" (2026-11-18).
+- Not read: the writers of `log.v1` and `broker-policy.v1`; podrunner's
+  `schemas/status.v1.json` and its source wire.
+
+## Approach
+
+1. Each file of `schemas/` comes from its types, with a test that fails
+   on a difference. Add the writer and the test where one is missing.
+2. `schemas/CHANGES.md`: one line for each change of a schema (the tag,
+   the schema, the field, added or changed). A check fails when a schema
+   file changes with no line, and when a change that the ruling "Schema
+   ids" gives a new id keeps the old id.
+3. Ask podrunner by a COORD issue whether its status and its source wire
+   move to `pod-job` (the ruling "Shared code"), so that githome pins
+   them from podcrates.
+
+## Prove
+
+```sh
+cargo test -p pod-job -p pod-hostprobe -p pod-broker --all-features
+sh scripts/agent/check.sh
+```
+
+A field added to a parser with no change of its schema fails the check.
+
+# T-923: `pod-job`: the fields of the job that githome and podrunner need (`trust_inputs.forge`, `limits.disk`, `cache`, the facts of a run report) (GitHub #223)
+
+**Source:** GitHub #223 (githome's G-32: the crate half of podrunner's G-16, G-18, G-19 and G-20 of PodUtils/podrunner#292)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome sends and reads these fields, and `pod-job` has none of them:
+`trust_inputs.forge` (the host of the forge of the job, for example
+`github.com`); `limits.disk` in bytes; `cache` with `key` and `mode`
+(`rw`, `ro` or `none`); and in the run report: the host, the unit kind,
+the boundary, the image digest, the runner version, the timings, the
+peak of the disk, the bytes of the network, the bytes of the cache and
+`log_tail`.
+
+## Premise
+
+- Read: GitHub #223 (G-32), `crates/pod-job/README.md`, the ruling
+  "Schema ids".
+- Not read: podrunner's G-16, G-18, G-19 and G-20 on PodUtils/podrunner#292
+  (the names and the units that podrunner fills).
+
+## Approach
+
+Agree each name and unit with podrunner first (its asks are the source).
+Each new field is optional, so `v1` keeps its id (the ruling "Schema
+ids"); a field that must be required gives `v2`. Add the fields, their
+`check` rules and examples, write the schemas again, and name each field
+in the hand-off COORD issue of the tag. All in one tag.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+```
+
+The parser takes and gives each field, and the schema holds it.

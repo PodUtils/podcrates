@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 753 entries: 140 open, 22 partial, 7 blocked, 584 done.
+`TODO/INDEX.md` holds 756 entries: 143 open, 22 partial, 7 blocked, 584 done.
 
 ## State
 
@@ -51,14 +51,17 @@ and "Sessions online", "The move of podssh" and "Discipline".
 
 First: the red nightly (T-914, T-915, T-916). Then the asks of podrunner
 (COORD-134, #225): T-907 (`pod-time`, PodUtils/podrunner#291, call C779);
-the next tag, which carries the fix of PodUtils/podrunner#290 and the
-work on `main`; T-882 (PodUtils/podrunner#289); each new ask of podrunner. Then
+the next tag, which carries the fix of PodUtils/podrunner#290 and the work
+on `main`; T-882 (PodUtils/podrunner#289); T-923 (the fields of `pod-job`
+for podrunner and githome, #223 G-32); each new ask of podrunner. Then
 T-909 (on `wip/t909`; a gate of podssh's next beta, which cfb's CI host
 waits for, #223). Then the entries that a need of githome or cfb names for
-their CI: T-104 with T-880 (one crate `pod-release`; A-X-13), T-100
-(G-04), T-106 (G-10), T-105 (A-X-14), T-103 (G-08), T-102. Then the open
-asks of the consumers: T-879 (`pod-detach`), T-897, T-899, T-900, T-852,
-T-863, T-851. Then T-920. Then the ruling "Discipline": T-692
+their CI: T-922 (the schemas, #223 G-31), T-921 (a fake GitHub, #223 G-30)
+with T-106 (G-10), T-104 with T-880 (one crate `pod-release`; A-X-13, #223
+G-34), T-100 (G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then
+the open asks of the consumers: T-879 (`pod-detach`), T-897, T-899, T-900,
+T-852, T-863, T-851. Then T-920.
+Then the ruling "Discipline": T-692
 (`pod-lab`, part 2), T-700 (`pod-manual`: the take of each consumer; its
 findings T-704 and T-705), T-767 (a stalled resume of `pod-session`,
 PodUtils/podssh#283; the cause is open) with T-768 (a late spare), T-703
