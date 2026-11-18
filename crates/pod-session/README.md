@@ -107,7 +107,7 @@ The far end also sends one event of the kind `session.stall`
 for 20 s (`pump::STALL_AFTER`), once for each wait:
 
 ```text
-session 0187db18: the reader of the target waits for room for 20 s; this side sent 5040486 bytes, the client acknowledged 4253952; the replay buffer keeps 786534 bytes, room 262042; a window of 786432 bytes
+session 0187db18: the reader of the target waits for room for 20 s; this side sent 5040486 bytes, the client acknowledged 4253952; the replay buffer keeps 786534 bytes, room 262042; a window of 786432 bytes; this side received 81920 bytes, 0 of them not yet written to the target
 ```
 
 * `the reader of the target waits for room`: the replay buffer or the
@@ -119,6 +119,29 @@ session 0187db18: the reader of the target waits for room for 20 s; this side se
 * `the target sent no byte for N s, while it took B bytes of the client`:
   the reader of the target waits on the target. A target that took no byte
   in the wait gives no line.
+* `the target took no byte for N s, while H bytes wait for it`: the writer
+  of the target waits on the target, and the client's bytes stay held. An
+  acknowledgement covers only the bytes written, so the client sees no
+  acknowledgement of them.
+* `this side received R bytes, H of them not yet written to the target`:
+  the received offset, and the bytes held for the target.
+
+The client says the same waits of its own link as `resume::Note::Stall`,
+one note for each wait, with the words alone (`resume::run` gives each
+note to its caller):
+
+```text
+the application took no byte for 20 s, while 31744 bytes wait for it; this side sent 0 bytes, the far end acknowledged 0; the replay buffer keeps 0 bytes, room 1048576; no window; this side received 32768 bytes, 31744 of them not yet written to the application
+```
+
+* `the application took no byte for N s, while H bytes wait for it`: the
+  application of the client is slow, and the far end sees no
+  acknowledgement of the bytes held. A link that lost the bytes gives no
+  such note.
+* `the reader of the application waits for room` and `the reader of the
+  application waits N s for the writer of the link`: as at the far end.
+* A quiet application of the client gives no note: a user who types
+  nothing is not a wait.
 
 ## Parity
 

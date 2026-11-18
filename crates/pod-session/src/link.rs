@@ -257,6 +257,11 @@ impl Link {
         self.held = n.min(self.inbound.received());
     }
 
+    /// The bytes received and held, not yet written to the application.
+    pub fn held(&self) -> u64 {
+        self.held
+    }
+
     pub fn sent(&self) -> u64 {
         self.outbound.sent()
     }

@@ -1,0 +1,7 @@
+# T-945: the client's pump does not say a wait of its application that
+# holds, so the test of an application that stops reading must fail.
+ENTRY=T-945
+GROUP=session
+EXPECT='test pump::stall::tests::an_application_that_stops_reading_gives_one_note_with_the_bytes_held \.\.\. FAILED'
+RUN='cargo test -p pod-session --lib -- pump::stall::tests::an_application_that_stops_reading_gives_one_note_with_the_bytes_held'
+LIMIT=1800

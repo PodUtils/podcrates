@@ -170,6 +170,10 @@ where
         } else if ack_at.is_none() && !outbox.acking() && lock(state).ack_pending() {
             ack_at = Some(Instant::now() + ACK_DELAY);
         }
+        // Bytes that wait for the application start a wait of their own.
+        if !undelivered.is_empty() {
+            waits.holding();
+        }
         let reading = undelivered.len() < HOLD_MAX;
         // The application first: bytes wait here only while it is slow.
         let next = tokio::select! {
@@ -180,8 +184,8 @@ where
         };
         match next {
             Next::Wrote(Ok(n)) if n > 0 => {
-                waits.took(n);
                 undelivered.drain(..n);
+                waits.took(n, undelivered.len());
                 lock(state).holding(undelivered.len() as u64);
                 if undelivered.is_empty() && app.flush().await.is_err() {
                     return End::LocalEnd;

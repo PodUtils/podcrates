@@ -1,0 +1,12 @@
+diff --git a/crates/pod-session/src/pump/stall.rs b/crates/pod-session/src/pump/stall.rs
+--- a/crates/pod-session/src/pump/stall.rs
++++ b/crates/pod-session/src/pump/stall.rs
+@@ -175,7 +175,7 @@
+                 stall.tell.events.event(Event::info(STALL, format!("session {}: {words}", stall.session)));
+             }
+             Sink::Client(notes) => {
+-                let _ = notes.send(Note::Stall { words });
++                let _ = (notes, words);
+             }
+         }
+     }

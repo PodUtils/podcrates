@@ -171,7 +171,8 @@ async fn a_session_moves_before_each_cap_of_the_relay() {
 
     let notes = notes.lock().unwrap().clone();
     let moves = notes.iter().filter(|n| matches!(n, Note::Moved { .. })).count();
-    let losses: Vec<&Note> = notes.iter().filter(|n| !matches!(n, Note::Moved { .. })).collect();
+    // A wait that held is not a loss.
+    let losses: Vec<&Note> = notes.iter().filter(|n| !matches!(n, Note::Moved { .. } | Note::Stall { .. })).collect();
     assert_eq!(relay.capped.load(Ordering::SeqCst), 0, "no link met its cap; notes {notes:?}");
     assert!(losses.is_empty(), "no loss, no failed move: {losses:?}");
     assert!(moves >= 4, "{moves} moves for 8 MiB under a cap of 2 MiB");
