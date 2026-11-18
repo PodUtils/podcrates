@@ -189,3 +189,20 @@ fn the_invoked_path_is_the_unresolved_join() {
     assert_eq!(guest_invoked(&root, "tool.sh", &[]), None);
     let _ = std::fs::remove_dir_all(&d);
 }
+
+/// A payload whose `PT_INTERP` path lies past its head (Fedora 42's bash,
+/// at 0xf2000): the decision reads the path from the open file, so the
+/// payload is dynamic with its loader, not "unknown".
+#[test]
+fn a_payload_with_its_interp_past_the_head_is_dynamic() {
+    use crate::abi::tests::{LOADER, dyn_elf};
+    let d = fixture_root("interp-far");
+    std::fs::write(d.join("bin/prog"), dyn_elf(64, 0xf2000)).unwrap();
+    let root = d.to_string_lossy().to_string();
+    let got = payload_head(&root, "prog", &["/bin".to_string()]).unwrap();
+    assert!(crate::abi::interp_of(&got.path, &got.head).is_err(), "the head alone is unknown");
+    assert_eq!(got.interp().unwrap().as_deref(), Some(LOADER));
+    let refusal = crate::memfd::eligible_payload(&got);
+    assert_eq!(refusal, Err(crate::memfd::MemfdRefusal::HasInterp(LOADER.to_string())));
+    let _ = std::fs::remove_dir_all(&d);
+}

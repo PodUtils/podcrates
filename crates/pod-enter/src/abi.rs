@@ -170,10 +170,19 @@ pub fn interp_of(path: &str, b: &[u8]) -> Result<Option<String>, Unreadable> {
 /// [`interp_of`] for a file on disk, with a bounded read: the header, the
 /// program header table and the path, never the whole file.
 pub fn interp_of_file(path: &str) -> Result<Option<String>, Unreadable> {
+    let file = std::fs::File::open(path).map_err(|e| Unreadable(format!("{path}: {e}")))?;
+    interp_of_open(path, &file)
+}
+
+/// [`interp_of_file`] for a file that the caller holds open (the file of a
+/// [`crate::ladder::Payload`]). A `PT_INTERP` path past the head reads with
+/// a bounded `pread` at its offset, so a file whose path lies far from its
+/// start (Fedora 42's `bash`, at `0xf2000`) has its answer, not "unknown".
+/// `path` names the file in an error.
+pub fn interp_of_open(path: &str, file: &std::fs::File) -> Result<Option<String>, Unreadable> {
     let why = |s: String| Unreadable(format!("{path}: {s}"));
-    let file = std::fs::File::open(path).map_err(|e| why(format!("{e}")))?;
     let len = file.metadata().map_err(|e| why(format!("{e}")))?.len();
-    Image::open(Src::file(&file, len)).map_err(why)?.interp().map_err(why)
+    Image::open(Src::file(file, len)).map_err(why)?.interp().map_err(why)
 }
 
 /// What [`admits`] answers.
@@ -342,4 +351,4 @@ pub use image::{HEAD_BYTES, PHDR_TABLE_MAX, READ_CEILING};
 use image::{Image, Src};
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

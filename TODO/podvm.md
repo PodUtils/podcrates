@@ -10284,3 +10284,34 @@ cargo test -p pod-extract --all-features
 ## Done
 
 2026-11-17, 0cb1e7317, 674714959: a hard link whose target is not there yet (`ENOENT` at `linkat`) waits for the end of its layer (`apply_later.rs`: `Later`, `link_later`), and is made then with the same checks (no link on the way, no target outside the root); its sidecar row comes then. A target that is still missing gives `cannot link P to T: the target is not in the layer or before it`; another failure names the link with no claim about the layer. Test `a_hard_link_before_its_target_waits_for_the_end_of_the_layer` (the link shares the inode of a target that comes after it; a target that never comes is named as missing); the tests of `pod-extract` pass. Plant `extract-hardlink-not-deferred`, caught.
+
+# T-944: `pod-enter`: the head of a payload cannot give a `PT_INTERP` path that lies past it, so Fedora 42's programs do not run on the userland rung (PodUtils/podvm#589)
+
+**Source:** PodUtils/podvm#589 (COORD-193 of podvm; PodUtils/podvm@T-1981).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+On a host that denies `chroot(2)` and user namespaces, podvm's userland rung classifies the payload with `pod_enter::abi` from the head that `ladder::payload_head` reads (64 KiB). Where `PT_INTERP` lies past it, the answer is "unknown": "the PT_INTERP path lies past the 65536 bytes read, so the reader cannot tell a static file from a dynamic one". Fedora 42's `/usr/bin/bash` has `PT_INTERP` at the file offset `0xf2000`, so no program of `quay.io/fedora/fedora:42` with that layout runs there: `podvm run quay.io/fedora/fedora:42 sh -c true` exits 125. The program header table is in the head; only the path is past it.
+
+## Premise
+
+- Read: PodUtils/podvm#589; `crates/pod-enter/src/abi.rs` (`interp_of`, `interp_of_file`), `src/abi/image.rs` (`Src::File` reads with `pread` in pieces), `src/ladder.rs` (`Payload` keeps its open file), `src/memfd.rs` (`eligible`).
+
+## Approach
+
+`abi::interp_of_open(path, &File)`: the classification of a file that the caller holds open, which reads a path past the head with a bounded `pread` (`Src::File`); `Payload::interp()` and `memfd::eligible_payload(&Payload)` use it. `interp_of` of a slice keeps its answer "unknown". podvm classifies with `Payload::interp` or `eligible_payload`.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --lib
+```
+
+## Done
+
+2026-11-18: `abi::interp_of_open` (`interp_of_file` calls it), `ladder::Payload::interp`, `memfd::eligible_payload`. Tests: `a_header_past_the_head_is_unknown_and_never_static` (an open file reads the path at `0xf2000`; the head alone stays "unknown") and `a_payload_with_its_interp_past_the_head_is_dynamic` (`payload_head`, then `Payload::interp` gives the loader and `eligible_payload` refuses with `HasInterp`). `cargo test -p pod-enter --all-features --lib`: 246 passed. Plant `enter-interp-from-the-head-alone`, caught.

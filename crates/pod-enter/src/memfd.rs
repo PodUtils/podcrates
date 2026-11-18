@@ -351,6 +351,19 @@ pub fn eligible(bytes: &[u8]) -> Result<(), MemfdRefusal> {
     }
 }
 
+/// [`eligible`] for a payload whose file is open: the `PT_INTERP` path is
+/// read from the file where it lies past the head.
+pub fn eligible_payload(payload: &crate::ladder::Payload) -> Result<(), MemfdRefusal> {
+    if has_shebang(&payload.head) {
+        return Err(MemfdRefusal::RoutePastScript);
+    }
+    match payload.interp() {
+        Ok(None) => Ok(()),
+        Ok(Some(interp)) => Err(MemfdRefusal::HasInterp(interp)),
+        Err(e) => Err(MemfdRefusal::NotElf(format!("{e}"))),
+    }
+}
+
 /// Write all of `bytes` to `fd`. The kernel can write less than asked, so
 /// one call is not enough: a payload with a missing end that executes from
 /// the memfd is a corruption.

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-enter/src/ladder.rs b/crates/pod-enter/src/ladder.rs
+--- a/crates/pod-enter/src/ladder.rs
++++ b/crates/pod-enter/src/ladder.rs
+@@ -228,7 +228,7 @@
+     /// ([`crate::abi::interp_of_open`]). A classification of the head alone
+     /// answers "unknown" there.
+     pub fn interp(&self) -> std::result::Result<Option<String>, crate::abi::Unreadable> {
+-        crate::abi::interp_of_open(&self.path, &self.file)
++        crate::abi::interp_of(&self.path, &self.head)
+     }
+ 
+     /// The file that the decision read. The stage copies from it, so the

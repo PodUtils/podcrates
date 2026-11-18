@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**776 entries: 146 open, 24 partial, 7 blocked, 599 done.**
+**777 entries: 146 open, 24 partial, 7 blocked, 600 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 11 | 8 | 0 | 170 | 189 |
+| P1 | 11 | 8 | 0 | 171 | 190 |
 | P2 | 69 | 6 | 4 | 308 | 387 |
 | P3 | 66 | 10 | 3 | 119 | 198 |
-| **All** | 146 | 24 | 7 | 599 | 776 |
+| **All** | 146 | 24 | 7 | 600 | 777 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -823,3 +823,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-941](foundation.md) | P2 | S | M0 | feature | open | `pod-core`: a lock of a file that other programs read, which on Windows refuses no reader (PodUtils/podssh#319) |
 | [T-942](relay.md) | P3 | S | M0 | defect | open | `pod-relay`: a kept offer of the layer loses `forward.liveness` |
 | [T-943](upkeep.md) | P2 | S | M5 | defect | partial | The static job of `aarch64-apple-darwin` in `ci.yml` gets no runner, four runs in a row |
+| [T-944](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the head of a payload cannot give a `PT_INTERP` path that lies past it, so Fedora 42's programs do not run on the userland rung (PodUtils/podvm#589) |

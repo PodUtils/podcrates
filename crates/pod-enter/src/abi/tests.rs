@@ -363,6 +363,15 @@ fn a_header_past_the_head_is_unknown_and_never_static() {
     // Both in the head: the head answers as the whole file does.
     let b = dyn_elf(64, 512);
     assert_eq!(interp_of("/x", &b[..head.min(b.len())]).unwrap().as_deref(), Some(LOADER));
+    // An open file reads the path past the head at its offset, as the
+    // PT_INTERP of Fedora 42's bash at 0xf2000.
+    let b = dyn_elf(64, 0xf2000);
+    let path = std::env::temp_dir().join(format!("pod-enter-interp-{}", std::process::id()));
+    std::fs::write(&path, &b).unwrap();
+    let file = std::fs::File::open(&path).unwrap();
+    assert!(interp_of("/x", &b[..head]).is_err(), "the head alone is unknown");
+    assert_eq!(interp_of_open("/x", &file).unwrap().as_deref(), Some(LOADER));
+    let _ = std::fs::remove_file(&path);
 }
 
 /// A program header table over the bound of the kernel, or with entries
@@ -391,11 +400,11 @@ fn the_bounded_read_agrees_with_the_parse_of_the_whole_file() {
     assert_eq!(interp_of_file(me).unwrap(), read.interp);
 }
 
-const LOADER: &str = "/lib64/ld-linux-x86-64.so.2";
+pub(crate) const LOADER: &str = "/lib64/ld-linux-x86-64.so.2";
 
 /// A 64-bit little-endian file with a `PT_LOAD` and a `PT_INTERP`: the
 /// table at `phoff`, the path of [`LOADER`] at `interp_at`.
-fn dyn_elf(phoff: u64, interp_at: u64) -> Vec<u8> {
+pub(crate) fn dyn_elf(phoff: u64, interp_at: u64) -> Vec<u8> {
     let at = |v: u64| usize::try_from(v).unwrap();
     let mut b = tiny_elf(62);
     b.resize(at(phoff.max(interp_at)) + 4096, 0);

@@ -1,0 +1,6 @@
+# pod-enter: the PT_INTERP of a payload is read from its head alone, so a path past the head is "unknown" (T-944).
+ENTRY=T-944
+GROUP=enter
+EXPECT='a_payload_with_its_interp_past_the_head_is_dynamic'
+RUN='cargo test -p pod-enter --all-features --lib ladder::tests::a_payload_with_its_interp_past_the_head_is_dynamic'
+LIMIT=1800

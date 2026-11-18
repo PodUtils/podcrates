@@ -223,6 +223,14 @@ pub struct Payload {
 }
 
 impl Payload {
+    /// The `PT_INTERP` of the payload, read from its file: the head and,
+    /// where a path lies past it, a bounded read at its offset
+    /// ([`crate::abi::interp_of_open`]). A classification of the head alone
+    /// answers "unknown" there.
+    pub fn interp(&self) -> std::result::Result<Option<String>, crate::abi::Unreadable> {
+        crate::abi::interp_of_open(&self.path, &self.file)
+    }
+
     /// The file that the decision read. The stage copies from it, so the
     /// stage and the decision see the same file, also after a rename.
     pub fn file(&self) -> &std::fs::File {
