@@ -1,11 +1,12 @@
 diff --git a/crates/pod-actions-store/src/store.rs b/crates/pod-actions-store/src/store.rs
 --- a/crates/pod-actions-store/src/store.rs
 +++ b/crates/pod-actions-store/src/store.rs
-@@ -97,7 +97,6 @@
-         match with.and_then(|w| w.get(field)).map(|n| &n.kind) {
-             None => Ok(None),
+@@ -106,7 +106,7 @@ pub fn checkout_target(with: Option<&Node>, self_repo: &str) -> Result<Option<St
+             Some(Kind::Null) if field == "ref" => Ok(None),
+             Some(Kind::String(v)) if v.trim().is_empty() && field == "ref" => Ok(None),
              Some(Kind::String(v)) if v.trim() == "${{ github.repository }}" && field == "repository" => Ok(None),
 -            Some(Kind::String(v)) if v.contains("${{") => Err(fail(v, CheckoutFault::Expression)),
++
              Some(Kind::String(v)) => Ok(Some(v.trim().to_string())),
              Some(_) => Err(fail("", CheckoutFault::NotString)),
          }
