@@ -1,13 +1,12 @@
 # Progress
 
-`TODO/INDEX.md` holds 793 entries: 147 open, 25 partial, 7 blocked, 614 done.
+`TODO/INDEX.md` holds 793 entries: 147 open, 24 partial, 7 blocked, 615 done.
 
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.74.0` at `dd228ef` (`docs/releases/v0.74.0.md`). Its
-  hand-off is COORD-141 (#237); the hand-off of `v0.73.0` is COORD-140
-  (#231).
+- Last release: `v0.75.0` at `930255d` (`docs/releases/v0.75.0.md`), the
+  first with its binaries on ghcr.io. Its hand-off is COORD-143 (#238).
 - The tag that the `main` of each consumer names: `v0.74.0` (podrunner,
   podvm, podssh, podnet). The details of each take are
   on #237, #231 and #229.
@@ -59,9 +58,7 @@ First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red nightly
 (T-916, T-933, T-935, T-934, T-938). Then the asks of
-podrunner (COORD-134, #225): each new ask of podrunner: T-957 (PodUtils/podrunner#317, ask 1), T-954
-(the ruling "ghcr.io", PodUtils/podrunner#312; partial: its push waits for
-the next tag). Then podssh's gate: T-959 (PodUtils/podssh#283, ask 5),
+podrunner (COORD-134, #225): each new ask of podrunner: T-957 (PodUtils/podrunner#317, ask 1). Then podssh's gate: T-959 (PodUtils/podssh#283, ask 5),
 and T-960 (PodUtils/podssh#326). Then the
 entries that a need of githome or cfb names for their CI: T-106 (G-10),
 T-104 with T-880 (one crate `pod-release`; A-X-13, #223 G-34), T-100
@@ -191,16 +188,7 @@ The hand-off of each release is a COORD issue `(to all)`
   comment, and each comment of a session of podcrates has the line. It
   blocks T-538. Recommendation: yes, the same rule in each repository of
   PodUtils; write it in `docs/decisions.md` and in `AGENTS.md`.
-- **Q17.** The next tag of podcrates pushes three new packages to
-  ghcr.io (`ghcr.io/podutils/podlab`, `pod-fake-github`,
-  `pod-fake-githome`; T-954, the ruling "ghcr.io"). A new package of an
-  organization can be private, and only an admin of PodUtils can make it
-  public; podrunner pins the two fakes, and a pull with no login needs a
-  public package. It blocks the end of T-954. Recommendation: set each new
-  package of `ghcr.io/podutils` to public once, after the first push, or
-  set the default visibility of packages of PodUtils to public.
-
 Write each question as `- **Qn.** QUESTION`, with the entries that it
 blocks and a recommendation. Number the questions in sequence from Q18
-(Q1 to Q14: `docs/decisions.md`; Q15: the ruling "podswarm"; Q16 and Q17:
-above).
+(Q1 to Q14: `docs/decisions.md`; Q15: the ruling "podswarm"; Q16: above;
+Q17: the packages of ghcr.io are public, no action).

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**793 entries: 147 open, 25 partial, 7 blocked, 614 done.**
+**793 entries: 147 open, 24 partial, 7 blocked, 615 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 12 | 9 | 0 | 179 | 200 |
+| P1 | 12 | 8 | 0 | 180 | 200 |
 | P2 | 68 | 6 | 4 | 314 | 392 |
 | P3 | 67 | 10 | 3 | 119 | 199 |
-| **All** | 147 | 25 | 7 | 614 | 793 |
+| **All** | 147 | 24 | 7 | 615 | 793 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -833,7 +833,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-951](fleet.md) | P1 | S | M8 | feature | done | `pod-testkit`: `pod-fake-githome` passes the 14 tests of podrunner's `source-conformance`, not its test 15 of a cancelled job (PodUtils/podrunner#310) |
 | [T-952](fleet.md) | P1 | M | M8 | feature | done | `pod-testkit`: `pod-fake-githome` mints made-up files, so no runner of a job through podrunner's `serve` reaches the broker of `pod-fake-github` (PodUtils/podrunner#311) |
 | [T-953](relay.md) | P1 | S | M2 | defect | done | `pod-relay`: under a small cap of the relay, a new link sends again more bytes than the cap, so the relay still ends links with 1009 (PodUtils/podssh#320) |
-| [T-954](upkeep.md) | P1 | M | M8 | feature | partial | The release binaries of podcrates are not on ghcr.io (the owner's ruling "ghcr.io", PodUtils/podrunner#312) |
+| [T-954](upkeep.md) | P1 | M | M8 | feature | done | The release binaries of podcrates are not on ghcr.io (the owner's ruling "ghcr.io", PodUtils/podrunner#312) |
 | [T-955](upkeep.md) | P2 | S | M0 | chore | done | Dependabot of 2026-11-19: coturn 4.19.0, TruffleHog 3.99.9, rand 0.10.4 and rustls-pki-types; simple-dns 0.13.0 declined (GitHub #232, #233, #234, #235) |
 | [T-956](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a layer of more than one gzip member or zstd frame is cut short after the first, with no error (PodUtils/podrunner#317, ask 2) |
 | [T-957](podvm.md) | P1 | M | M6 | feature | open | `pod-extract`: no extended attribute of a layer is applied, so `security.capability` of `ping` is lost (PodUtils/podrunner#317, ask 1) |
