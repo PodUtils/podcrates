@@ -207,7 +207,7 @@ A test changes one byte and the verifier fails.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -236,6 +236,10 @@ sh scripts/agent/check.sh
 ## Start condition
 
 T-025, T-028 and T-029 moved their stand-ins to `pod-testkit`.
+
+## Done
+
+2026-11-19, the G-10 part (call C792): `pod-fake-github` (T-921) and `pod-fake-githome` (T-948) are the fake sources of forge jobs that podrunner and githome pin, each a static program of each tag with its image on ghcr.io. The A-X-18 part waits for cfb's interface of each stand-in program, asked on #223 (the reply comment to cfb).
 
 # T-146: `podrunner`: run GitHub CI and other CI on any machine (the plan, GitHub #47)
 
