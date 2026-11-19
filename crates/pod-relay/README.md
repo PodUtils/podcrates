@@ -243,11 +243,17 @@ after 2 s with no mark on the stream; the plants
 A relay that gives `limits.max_session_bytes` ends a link at that cap
 with `1009 session byte cap`. `forward_layer::Offer::fit(settings)` puts
 the settings of `pod-session` under it: the move at three quarters of the
-cap (`Offer::move_bytes`) and a window of a quarter of it
+cap (`Offer::move_bytes`) and a window of an eighth of it
 (`Offer::window`), so the bytes that a new link sends again first fit
 under the cap too (T-909, T-953). The far end that the role of the relay
 runs takes the same window from the cap of the relay
-(`forward_layer::offer::window_under`).
+(`forward_layer::offer::window_under`). While a move opens its new link,
+the client holds the old link (`pod_session::pump::Hold`): it takes no new
+bytes of the application and acknowledges no new bytes of the far end, so
+the far end sends its window at most. The old link then carries seven
+eighths of the cap and the records in flight at most (T-958).
+`tests/layer_cap.rs` moves a session at the rate of a loopback, with a
+handshake of 30 ms for each new link, and no link meets the cap.
 
 ## The links of the resumable layer over HTTP/2
 

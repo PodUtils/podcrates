@@ -10315,7 +10315,7 @@ cargo test -p pod-relay --all-features --lib forward_layer::offer
 **Milestone:** M2
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10336,3 +10336,7 @@ Reproduce first: `tests/layer_cap.rs` with a cap of 1 MiB, 3 MiB each way, and n
 ```sh
 cargo test -p pod-relay --all-features --test layer_cap
 ```
+
+## Done
+
+2026-11-19, this commit. The client holds the old link of a move (`pod_session::pump::Hold`, the field `hold` of `pump::Watch`, call C790): `beside::next` starts the hold when it decides `Beside::Move`, and a failed move (`Note::MoveFailed`) or a session that closes on the old link lifts it; a spare holds nothing. While the hold is on, the reader of the application reads nothing, the writer sends no `DATA` and no `ACK`, and a `PONG` carries the last offset acknowledged (`Link::pong_held`). The wire does not change. `forward_layer::offer::window_under` is an eighth of the cap: the old link carries the threshold (three quarters), the far end's window and one record at most. `tests/layer_cap.rs`: `a_move_at_the_rate_of_a_loopback_stays_under_a_small_cap` (1 MiB, no pace, a handshake of 30 ms) and the two tests before it pass in 5 runs of 5; the most bytes on one link were 918,361 at the rate of a loopback and 951,090 with the slow way back (of 1,048,576). On the code before the fix, the new test fails in 3 runs of 3 (8 links met the cap); with the hold and a window of a quarter, 19 links met it in 3 runs. The tests of the cache of the offer take a directory each (two tests of 1 MiB ran at once and removed the directory of the other). New tests: `pump::hold::tests::a_held_link_takes_no_bytes_and_acknowledges_none_until_the_hold_lifts`, `beside::tests::a_move_holds_the_old_link_and_a_failed_move_lifts_the_hold`, `session_move::a_failed_move_does_not_stall_the_session`; `cargo test -p pod-session --all-features`: 169 passed; `cargo test -p pod-relay --all-features`: 496 passed. Plant `session-t958-move-not-held`, caught; the plant of T-953 takes the new comment of `Offer::fit` and the words of the new window.

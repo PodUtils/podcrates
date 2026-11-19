@@ -132,6 +132,12 @@ where
             // and the answer closes the spare before it greets.
             plan.hearing.ask_now();
         }
+        // A move holds the old link until it stops, so that it stays under
+        // the relay's cap (`pump::Hold`); a spare opens beside a silent
+        // link, which holds nothing.
+        if why == Beside::Move {
+            plan.watch.hold.start();
+        }
         // The far end's bytes after this mark close a spare, while it
         // connects too: the old link is back, and a spare costs a resume.
         let mark = plan.hearing.words();
@@ -150,7 +156,7 @@ where
         let new = match next {
             Next::Link(new) => new,
             Next::Retry(why_not) | Next::Stop(why_not) => {
-                let _ = plan.said.send(failure(why, why_not));
+                failed(&plan, why, why_not);
                 moves &= why != Beside::Move;
                 continue;
             }
@@ -174,9 +180,16 @@ where
                 },
             },
         };
-        let _ = plan.said.send(failure(why, why_not));
+        failed(&plan, why, why_not);
         moves &= why != Beside::Move;
     }
+}
+
+/// The new link beside the old one failed: the old link goes on, with no
+/// hold, and the step says why.
+fn failed(plan: &Plan<'_>, why: Beside, why_not: String) {
+    plan.watch.hold.lift();
+    let _ = plan.said.send(failure(why, why_not));
 }
 
 /// The step that says that a new link beside the old one failed.
@@ -280,6 +293,38 @@ mod tests {
     use super::*;
 
     const MS: Duration = Duration::from_millis(1);
+
+    /// A move holds the old link while its new link opens, and a move that
+    /// fails lifts the hold at once: the old link goes on (PodUtils/podssh#325).
+    #[tokio::test(start_paused = true)]
+    async fn a_move_holds_the_old_link_and_a_failed_move_lifts_the_hold() {
+        let (watch, state, hearing) = (Watch::default(), Mutex::new(Link::new(0, 0)), Hearing::default());
+        let (said, mut notes) = tokio::sync::mpsc::unbounded_channel();
+        let plan = Plan {
+            moves: true,
+            spares: false,
+            heartbeat: true,
+            move_at: Instant::now() + Duration::from_secs(3600),
+            closing: false,
+            wait: SpareWait::default(),
+            watch: &watch,
+            state: &state,
+            hearing: &hearing,
+            said: &said,
+        };
+        let held_at_connect = std::cell::Cell::new(None);
+        let mut connect = |_: &Ended| {
+            held_at_connect.set(Some(watch.hold.on()));
+            async { Next::<tokio::io::DuplexStream>::Retry("no link".into()) }
+        };
+        assert!(!watch.hold.on(), "no hold before the move is due");
+        watch.due.notify_one();
+        let looked = tokio::time::timeout(Duration::from_secs(5), next(plan, &mut connect)).await;
+        assert!(looked.is_err(), "no new link, and no second move on this link");
+        assert_eq!(held_at_connect.get(), Some(true), "the old link holds while the new one opens");
+        assert_eq!(notes.try_recv(), Ok(Note::MoveFailed { why: "no link".into() }));
+        assert!(!watch.hold.on(), "the failed move lifted the hold");
+    }
 
     #[test]
     fn a_question_waits_three_round_trips_of_the_link_1_s_at_least_and_3_s_at_most() {

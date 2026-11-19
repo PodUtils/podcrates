@@ -3,6 +3,6 @@
 # above a small cap of the relay (T-953).
 ENTRY=T-953
 GROUP=relay
-EXPECT='a window of a quarter of the cap'
+EXPECT='a window of an eighth of the cap'
 RUN='cargo test -p pod-relay --all-features --test layer_cap a_new_link_sends_again_less_than_a_small_cap'
 LIMIT=1800

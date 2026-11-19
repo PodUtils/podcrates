@@ -1,0 +1,12 @@
+--- a/crates/pod-session/src/beside.rs
++++ b/crates/pod-session/src/beside.rs
+@@ -135,9 +135,6 @@
+         // A move holds the old link until it stops, so that it stays under
+         // the relay's cap (`pump::Hold`); a spare opens beside a silent
+         // link, which holds nothing.
+-        if why == Beside::Move {
+-            plan.watch.hold.start();
+-        }
+         // The far end's bytes after this mark close a spare, while it
+         // connects too: the old link is back, and a spare costs a resume.
+         let mark = plan.hearing.words();

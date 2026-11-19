@@ -52,6 +52,9 @@ pub(super) enum UpWait {
     Writer,
     /// Nothing: the application ended its bytes.
     Done,
+    /// The end of the hold of a move ([`super::Hold`]); after a move, the
+    /// new link carries the next bytes.
+    Hold,
 }
 
 /// The waits of the two halves that serve the application, since when, and
@@ -135,7 +138,7 @@ pub(super) fn line(side: Side, wait: Wait, held: Duration, link: &Link, window: 
         Wait::Up(UpWait::Target, took) if took > 0 && side == Side::Far => {
             format!("the target sent no byte for {s} s, while it took {took} bytes of the client")
         }
-        Wait::Up(UpWait::Target | UpWait::Done, _) => return None,
+        Wait::Up(UpWait::Target | UpWait::Done | UpWait::Hold, _) => return None,
         Wait::Held => format!("{app} took no byte for {s} s, while {} bytes wait for it", link.held()),
     };
     let window = window.map_or("no window".to_string(), |w| format!("a window of {w} bytes"));

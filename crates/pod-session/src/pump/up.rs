@@ -9,7 +9,7 @@ use tokio::sync::{Notify, mpsc};
 use super::super::link::Link;
 use super::super::record::MAX_DATA;
 use super::stall::{UpWait, Waits};
-use super::{CHUNK, End, lock};
+use super::{CHUNK, End, Watch, lock};
 
 /// The end of the first record in `records`: a type byte, a 32-bit length,
 /// the body.
@@ -39,18 +39,20 @@ async fn until(state: &Mutex<Link>, room: &Notify, fits: impl Fn(&Link) -> bool)
 /// of a resume (`again`), a record at a time, then the application's new
 /// bytes. `None` when the application ended them, which `CLOSE` or `END`
 /// then says, else why the session cannot go on. It reads only what
-/// the replay buffer has room for, and what `window` lets the link carry
-/// with no acknowledgement, and waits for an acknowledgement when it
-/// has none. A byte read is in the buffer before any await, so a link that
-/// ends loses none. An application that `ended` its bytes on an earlier link
-/// is not read again: its end goes again after the records of the resume.
+/// the replay buffer has room for, and what the window of `watch` lets the
+/// link carry with no acknowledgement, and waits for an acknowledgement when
+/// it has none. It reads nothing while the hold of `watch` is on: those
+/// bytes go on the new link of the move. A byte read is in the buffer before
+/// any await, so a link that ends loses none. An application that `ended`
+/// its bytes on an earlier link is not read again: its end goes again after
+/// the records of the resume.
 pub(super) async fn run<R>(
     app: &mut R,
     again: Vec<u8>,
     data: mpsc::Sender<Vec<u8>>,
     state: &Mutex<Link>,
     (room, waits): (&Notify, &Waits),
-    window: Option<usize>,
+    watch: &Watch,
     ended: bool,
 ) -> Option<End>
 where
@@ -60,6 +62,7 @@ where
     // ends before they go out loses none, and the next resume sends them.
     // Each waits for the window: a buffer filled on another road can hold
     // more than this link may carry at once.
+    let window = watch.window;
     let mut rest = &again[..];
     while !rest.is_empty() {
         let end = first_record(rest);
@@ -90,9 +93,21 @@ where
             waits.up(UpWait::Room);
             freed.await;
         };
+        if watch.hold.on() {
+            waits.up(UpWait::Hold);
+            watch.hold.until(false).await;
+            continue;
+        }
         let want = buf.len().min(space);
         waits.up(UpWait::Target);
-        let n = match app.read(&mut buf[..want]).await {
+        // A read is cancel safe: a hold that starts while it waits leaves
+        // the bytes in the application's pipe.
+        let read = tokio::select! {
+            biased;
+            () = watch.hold.until(true) => continue,
+            read = app.read(&mut buf[..want]) => read,
+        };
+        let n = match read {
             Ok(0) => {
                 waits.up(UpWait::Done);
                 return None;

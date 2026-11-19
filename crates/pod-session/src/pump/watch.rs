@@ -6,6 +6,7 @@ use tokio::sync::Notify;
 use tokio::sync::mpsc::UnboundedSender;
 
 use super::Stall;
+use super::hold::Hold;
 use crate::resume::Note;
 
 /// What the caller of one link watches and steers.
@@ -23,6 +24,9 @@ pub struct Watch {
     pub move_at: AtomicU64,
     /// Told when the link's bytes pass `move_at`.
     pub due: Notify,
+    /// The hold of the link while the session moves to a new link: it
+    /// carries no new bytes then, so that it stays under the relay's cap.
+    pub hold: Hold,
     /// Set when this side's application ended its bytes on this link and
     /// its `CLOSE` is due, not at an `END`: the session is closing,
     /// and a move would only delay its `CLOSE`.

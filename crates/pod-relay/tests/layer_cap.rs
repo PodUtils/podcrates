@@ -8,7 +8,10 @@
 //! digests, over more than 4 links, and no link meets its cap. Under a cap
 //! of 1 MiB with a slow way back, the bytes that a new link sends again
 //! stay under the cap too, as the offer bounds the window
-//! (PodUtils/podssh#320).
+//! (PodUtils/podssh#320). Under a cap of 1 MiB at the rate of a loopback,
+//! with a handshake of 30 ms for each new link, the old link of each move
+//! stays under the cap, as the client holds it while the new link opens
+//! (PodUtils/podssh#325).
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -133,7 +136,11 @@ async fn offer_from_the_cache(asked: &Relay, cap: usize) -> Offer {
     let (mut ours, theirs) = tokio::io::duplex(64 * KIB);
     tokio::spawn(SmallRelay::document(theirs, cap));
     let read = offer::over(&mut ours, "ua", "relay.test", asked).await.expect("the document");
-    let dir = std::env::temp_dir().join(format!("pod-relay-layer-cap-{}-{cap}", std::process::id()));
+    // A directory of its own for each call: two tests of the same cap run at
+    // once in one process.
+    static CALLS: AtomicUsize = AtomicUsize::new(0);
+    let call = CALLS.fetch_add(1, Ordering::SeqCst);
+    let dir = std::env::temp_dir().join(format!("pod-relay-layer-cap-{}-{cap}-{call}", std::process::id()));
     let cache = Cache::in_dirs(vec![dir.clone()]);
     kept::keep_now(&cache, asked, &read);
     let from_the_cache = kept::kept_now(&cache, asked).expect("the offer is kept");
@@ -143,7 +150,7 @@ async fn offer_from_the_cache(asked: &Relay, cap: usize) -> Offer {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_session_moves_before_each_cap_of_the_relay() {
-    across_the_cap(2 * MIB, Duration::ZERO).await;
+    across_the_cap(2 * MIB, Duration::ZERO, scaled(Duration::from_millis(2)), Duration::ZERO).await;
 }
 
 /// podssh's case: a cap of 1 MiB, and a way back at about 4 MiB/s, a
@@ -151,20 +158,28 @@ async fn a_session_moves_before_each_cap_of_the_relay() {
 /// acknowledgement grow to the window. A new link sends them again first.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_new_link_sends_again_less_than_a_small_cap() {
-    across_the_cap(MIB, Duration::from_millis(4)).await;
+    across_the_cap(MIB, Duration::from_millis(4), scaled(Duration::from_millis(2)), Duration::ZERO).await;
+}
+
+/// podssh's case of T-958: a cap of 1 MiB and no pace, the rate of a
+/// loopback. The old link carries bytes after the move is due, until the new
+/// link is up.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_move_at_the_rate_of_a_loopback_stays_under_a_small_cap() {
+    across_the_cap(MIB, Duration::ZERO, Duration::ZERO, Duration::from_millis(30)).await;
 }
 
 /// 4 MiB each way through an echo under `cap`, with a wait of `back` after
 /// each 16 KiB toward the client; no link meets the cap.
-async fn across_the_cap(cap: usize, back: Duration) {
+async fn across_the_cap(cap: usize, back: Duration, pace: Duration, handshake: Duration) {
     let asked = Relay { host: "relay.test".into(), port: 443 };
     let offered = offer_from_the_cache(&asked, cap).await;
     assert_eq!((offered.layer, offered.max_session_bytes), (true, Some(cap as u64)), "{offered:?}");
     let settings = offered.fit(Settings::default());
     assert_eq!(
         (settings.move_bytes, settings.window),
-        (offered.move_bytes(), Some(cap / 4)),
-        "a window of a quarter of the cap"
+        (offered.move_bytes(), Some(cap / 8)),
+        "a window of an eighth of the cap"
     );
 
     let relay = Arc::new(SmallRelay { cap, back: scaled(back), ..SmallRelay::default() });
@@ -176,7 +191,12 @@ async fn across_the_cap(cap: usize, back: Duration) {
         let (relay, keeper) = (relay.clone(), keeper.clone());
         move |_: &Ended| {
             let link = relay.link(&keeper);
-            async move { Next::Link(link) }
+            async move {
+                // The handshake of a new link through a relay: the old link
+                // goes on at its rate meanwhile.
+                tokio::time::sleep(handshake).await;
+                Next::Link(link)
+            }
         }
     };
     let heard = notes.clone();
@@ -189,7 +209,7 @@ async fn across_the_cap(cap: usize, back: Duration) {
     let sent: Vec<u8> = (0..4 * MIB).map(|i| (i * 7 % 253) as u8).collect();
     let (mut r, mut w) = tokio::io::split(app);
     let writer = {
-        let (sent, pace) = (sent.clone(), scaled(Duration::from_millis(2)));
+        let sent = sent.clone();
         tokio::spawn(async move {
             for chunk in sent.chunks(32 * KIB) {
                 w.write_all(chunk).await.unwrap();

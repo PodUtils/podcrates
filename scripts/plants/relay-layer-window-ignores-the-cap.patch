@@ -1,8 +1,8 @@
 --- a/crates/pod-relay/src/forward_layer/offer.rs
 +++ b/crates/pod-relay/src/forward_layer/offer.rs
-@@ -80,10 +80,7 @@
-     /// [`Offer::move_bytes`], and the smaller of their window and
-     /// [`Offer::window`].
+@@ -82,10 +82,7 @@
+     /// flight at most: seven eighths of the cap and a record
+     /// (PodUtils/podssh#325).
      pub fn fit(&self, settings: pod_session::Settings) -> pod_session::Settings {
 -        let window = match (settings.window, self.window()) {
 -            (Some(a), Some(b)) => Some(a.min(b)),
