@@ -50,11 +50,13 @@ is done. Git and the record keep finished work.
    is offline until the CI of podrunner and githome is complete; it reads
    `docs/research/fleet/asks.md` and the block of #223 at its next start.
    githome's asks G-30 to G-35 are T-921 to T-923, T-099, T-100 and T-104.
-7. The hand-off of `v0.73.0` is open (COORD-140, #231): podnet takes the
-   tag. podrunner takes `pod-fake-githome` for PodUtils/podrunner@T-509
-   and `pod-fake-github` for PodUtils/podrunner@T-527. Record each take in
-   the body of the issue, and close it when each consumer names the tag
-   (call C780).
+7. Two hand-offs are open. `v0.73.0` (COORD-140, #231) waits for the take
+   of podnet. `v0.74.0` (COORD-141, #237): podrunner takes T-952 (the
+   flag `--github` of `pod-fake-githome`) for PodUtils/podrunner@T-527 and
+   PodUtils/podrunner@T-509; podssh takes T-953 at both ends of the layer.
+   COORD-142 (#236) relays the ruling "ghcr.io" (call C789); T-954 is
+   podcrates' part. Record each take in the body of the issue, and close
+   it when each consumer names the tag (call C780).
 8. T-767 (PodUtils/podssh#283, partial) and T-939 (done as a guard, call
    C784: a link is lost when a PING waits 30 s and nothing moves): the
    eighth failure of podssh's gate did not come again on the loopback;
