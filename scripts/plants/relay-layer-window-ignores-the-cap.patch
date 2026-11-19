@@ -1,0 +1,14 @@
+--- a/crates/pod-relay/src/forward_layer/offer.rs
++++ b/crates/pod-relay/src/forward_layer/offer.rs
+@@ -80,10 +80,7 @@
+     /// [`Offer::move_bytes`], and the smaller of their window and
+     /// [`Offer::window`].
+     pub fn fit(&self, settings: pod_session::Settings) -> pod_session::Settings {
+-        let window = match (settings.window, self.window()) {
+-            (Some(a), Some(b)) => Some(a.min(b)),
+-            (a, b) => a.or(b),
+-        };
++        let window = settings.window;
+         pod_session::Settings { move_bytes: self.move_bytes(), window, ..settings }
+     }
+ }

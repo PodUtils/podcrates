@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 785 entries: 145 open, 24 partial, 7 blocked, 609 done.
+`TODO/INDEX.md` holds 786 entries: 145 open, 24 partial, 7 blocked, 610 done.
 
 ## State
 
@@ -9,7 +9,7 @@
   hand-off is COORD-140 (#231); the hand-off of `v0.72.0` is COORD-138
   (#229).
 - The tag that the `main` of each consumer names: `v0.73.0` (podvm,
-  podrunner), `v0.72.0` (podnet), `v0.71.0` (podssh). The details of each take are
+  podrunner, podssh), `v0.72.0` (podnet). The details of each take are
   on #231, #229 and #228.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,

@@ -1,3 +1,14 @@
+--- a/crates/pod-relay/src/forward_layer/offer.rs
++++ b/crates/pod-relay/src/forward_layer/offer.rs
+@@ -60,7 +60,7 @@
+     /// [`MOVE_BYTES`], or three quarters of a smaller cap of the host, as
+     /// [`MOVE_BYTES`] is of the default relay's cap.
+     pub fn move_bytes(&self) -> u64 {
+-        let under = self.max_session_bytes.map(crate::relay::three_quarters);
++        let under = None::<u64>;
+         under.map_or(MOVE_BYTES, |n| n.min(MOVE_BYTES))
+     }
+ 
 --- a/crates/pod-relay/src/relay.rs
 +++ b/crates/pod-relay/src/relay.rs
 @@ -76,7 +76,7 @@
@@ -8,15 +19,4 @@
 +    let under = limits.max_session_bytes.and_then(|cap| cap.checked_sub(margin)).filter(|n| *n >= 1 << 20);
      let budget = under.map_or(SESSION_BYTE_BUDGET, |n| n.min(SESSION_BYTE_BUDGET));
      env.and_then(|v| v.trim().parse::<u64>().ok()).filter(|n| *n >= 1 << 20).map_or(budget, |n| n.min(budget))
- }
---- a/crates/pod-relay/src/forward_layer/offer.rs
-+++ b/crates/pod-relay/src/forward_layer/offer.rs
-@@ -61,7 +61,7 @@
-     /// [`MOVE_BYTES`] is of the default relay's cap. The bytes in flight
-     /// and a second try then fit under the cap.
-     pub fn move_bytes(&self) -> u64 {
--        let under = self.max_session_bytes.map(crate::relay::three_quarters);
-+        let under = None::<u64>;
-         under.map_or(MOVE_BYTES, |n| n.min(MOVE_BYTES))
-     }
  }

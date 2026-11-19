@@ -238,6 +238,17 @@ after 2 s with no mark on the stream; the plants
 `relay-t560-no-h2-offer`, `relay-t560-reset-is-an-end` and
 `relay-t560-http1-not-asked-again`.
 
+## The layer under the cap of a relay
+
+A relay that gives `limits.max_session_bytes` ends a link at that cap
+with `1009 session byte cap`. `forward_layer::Offer::fit(settings)` puts
+the settings of `pod-session` under it: the move at three quarters of the
+cap (`Offer::move_bytes`) and a window of a quarter of it
+(`Offer::window`), so the bytes that a new link sends again first fit
+under the cap too (T-909, T-953). The far end that the role of the relay
+runs takes the same window from the cap of the relay
+(`forward_layer::offer::window_under`).
+
 ## The links of the resumable layer over HTTP/2
 
 Each `forward_layer::Dialer` holds its own `Context` for one session

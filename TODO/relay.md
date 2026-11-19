@@ -10271,3 +10271,36 @@ cargo test -p pod-session --all-features --lib pump::stall
 ```sh
 cargo test -p pod-relay --all-features --lib forward_layer::kept
 ```
+
+# T-953: `pod-relay`: under a small cap of the relay, a new link sends again more bytes than the cap, so the relay still ends links with 1009 (PodUtils/podssh#320)
+
+**Source:** PodUtils/podssh#320 (COORD-122; podssh T-826)
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Under `podssh relay serve --max-session-mib 1`, the client moved the session at 768 KiB (T-909), and the new link first sent again 1,179,648, 589,920, 1,049,836 and 903,181 bytes: the bytes that the old link did not see acknowledged. On the road of the layer, `pod_session::Settings::window` is `None`, so only the replay buffer (4 MiB) bounds them; the relay ended some new links with `1009 session byte cap`, and the client resumed. The move threshold of T-909 bounds what a link carries before the move, not what a new link sends again. The far end that the role of the relay runs has the same window.
+
+## Premise
+
+- Read: PodUtils/podssh#320; `crates/pod-relay/src/forward_layer/offer.rs` (`Offer::move_bytes`); `crates/pod-session/src/lib.rs` (`Settings::window`); `crates/pod-relay/tests/layer_cap.rs`.
+- Measured: `tests/layer_cap.rs` with a cap of 1 MiB and a way back at a quarter of the pace of the client: with the window of the client alone, 2 links met the cap in each of 2 runs (the far end sent again past it); with the window at each end, none in 5 runs.
+
+## Approach
+
+`Offer::window()` is a quarter of the cap (`forward_layer::offer::window_under`); `Offer::fit(settings)` sets the move threshold and the smaller window. The role of the relay takes `window_under` of its own cap for its far end.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features --test layer_cap
+cargo test -p pod-relay --all-features --lib forward_layer::offer
+```
+
+## Done
+
+2026-11-19, commit "pod-relay: the window of each end of the layer is a quarter of a small cap of the relay (T-953, PodUtils/podssh#320)". `Offer::window`, `Offer::fit` and `forward_layer::offer::window_under`; the comment of `Offer::move_bytes` no longer says that the bytes in flight fit. `tests/layer_cap.rs` takes the cap and a slow way back: `a_new_link_sends_again_less_than_a_small_cap` (1 MiB, the way back at a quarter of the pace) and the test of 2 MiB of T-909; each end takes the window of the cap; no link meets the cap in 5 runs. The plant `relay-layer-window-ignores-the-cap`; the plant of T-909 takes the new comment. podssh: `offer.fit(settings)` in `relay_layer.rs` in place of `move_bytes` alone, and `window_under` of `--max-session-mib` for the far end of its role.
