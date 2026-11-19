@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**790 entries: 146 open, 25 partial, 7 blocked, 612 done.**
+**791 entries: 147 open, 25 partial, 7 blocked, 612 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 11 | 9 | 0 | 178 | 198 |
+| P1 | 12 | 9 | 0 | 178 | 199 |
 | P2 | 69 | 6 | 4 | 313 | 392 |
 | P3 | 66 | 10 | 3 | 119 | 198 |
-| **All** | 146 | 25 | 7 | 612 | 790 |
+| **All** | 147 | 25 | 7 | 612 | 791 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -837,3 +837,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-955](upkeep.md) | P2 | S | M0 | chore | open | Dependabot of 2026-11-19: coturn 4.19.0, TruffleHog 3.99.9, rand 0.10.4 and rustls-pki-types; simple-dns 0.13.0 declined (GitHub #232, #233, #234, #235) |
 | [T-956](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a layer of more than one gzip member or zstd frame is cut short after the first, with no error (PodUtils/podrunner#317, ask 2) |
 | [T-957](podvm.md) | P1 | M | M6 | feature | open | `pod-extract`: no extended attribute of a layer is applied, so `security.capability` of `ping` is lost (PodUtils/podrunner#317, ask 1) |
+| [T-958](relay.md) | P1 | M | M2 | defect | open | `pod-relay` with `pod-session`: a move at three quarters of a small cap of the relay still passes the cap, so the relay ends most links with 1009 (PodUtils/podssh#325) |

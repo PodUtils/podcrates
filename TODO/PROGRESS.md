@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 790 entries: 146 open, 25 partial, 7 blocked, 612 done.
+`TODO/INDEX.md` holds 791 entries: 147 open, 25 partial, 7 blocked, 612 done.
 
 ## State
 
@@ -9,7 +9,7 @@
   hand-off is COORD-141 (#237); the hand-off of `v0.73.0` is COORD-140
   (#231).
 - The tag that the `main` of each consumer names: `v0.74.0` (podrunner,
-  podvm), `v0.73.0` (podssh), `v0.72.0` (podnet). The details of each take are
+  podvm, podssh), `v0.72.0` (podnet). The details of each take are
   on #237, #231 and #229.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
@@ -61,7 +61,8 @@ them by COORD issues, podrunner's first. Then, in podcrates: the red nightly
 (T-916, T-933, T-935, T-934, T-938). Then the asks of
 podrunner (COORD-134, #225): each new ask of podrunner: T-957 (PodUtils/podrunner#317, ask 1), T-954
 (the ruling "ghcr.io", PodUtils/podrunner#312; partial: its push waits for
-the next tag), then T-955 (Dependabot). Then the
+the next tag), then T-955 (Dependabot), then T-958 (podssh's gate,
+PodUtils/podssh#325). Then the
 entries that a need of githome or cfb names for their CI: T-106 (G-10),
 T-104 with T-880 (one crate `pod-release`; A-X-13, #223 G-34), T-100
 (G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then cfb's asks

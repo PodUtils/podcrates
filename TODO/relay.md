@@ -10307,3 +10307,32 @@ cargo test -p pod-relay --all-features --lib forward_layer::offer
 ## Done
 
 2026-11-19, commit "pod-relay: the window of each end of the layer is a quarter of a small cap of the relay (T-953, PodUtils/podssh#320)". `Offer::window`, `Offer::fit` and `forward_layer::offer::window_under`; the comment of `Offer::move_bytes` no longer says that the bytes in flight fit. `tests/layer_cap.rs` takes the cap and a slow way back: `a_new_link_sends_again_less_than_a_small_cap` (1 MiB, the way back at a quarter of the pace) and the test of 2 MiB of T-909; each end takes the window of the cap; no link meets the cap in 5 runs. The plant `relay-layer-window-ignores-the-cap`; the plant of T-909 takes the new comment. podssh: `offer.fit(settings)` in `relay_layer.rs` in place of `move_bytes` alone, and `window_under` of `--max-session-mib` for the far end of its role.
+
+# T-958: `pod-relay` with `pod-session`: a move at three quarters of a small cap of the relay still passes the cap, so the relay ends most links with 1009 (PodUtils/podssh#325)
+
+**Source:** PodUtils/podssh#325 (COORD-124; podssh T-826)
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+With `v0.74.0` (T-953) under `podssh relay serve --max-session-mib 1` and 3 MiB each way on podssh's loopback, a new link sends again 262,144 bytes at most, but each run has one move and then five links that the role ends with `1009 session byte cap` (3 runs in 3). `Offer::move_bytes` is three quarters of the cap, and `Watch::move_at` counts the bytes of both ways, the records included, as the relay does. After the move is due, the old link carries on until the new link is up: the bytes past the threshold are the rate times the time of the move, which at the rate of a loopback is more than a quarter of the cap. The windows of T-953 bound what a new link sends again, not what the old link carries after the threshold. `tests/layer_cap.rs` of podcrates paces its writer at some 16 MiB/s and did not show it.
+
+## Premise
+
+- Read: PodUtils/podssh#325; `crates/pod-session/src/pump/watch.rs` (`bytes`, `move_at`, `due`); `crates/pod-relay/src/forward_layer/offer.rs` (`move_bytes`, `window`, `fit`).
+- Not read: the pump of `pod-session` from `due` to the retire of the old link (what it sends on the old link while the new one opens).
+- Not measured: `tests/layer_cap.rs` of podcrates at the pace of podssh's loopback.
+
+## Approach
+
+Reproduce first: `tests/layer_cap.rs` with a cap of 1 MiB, 3 MiB each way, and no pace of the writer. Then bound the old link: when the move is due, the old link takes no new bytes of the application (acknowledgements and the records of the move go on), and the new link carries them, so the old link ends at `move_at` and the bytes in flight. With that, the threshold of three quarters and windows of a quarter hold the cap: the bytes in flight were counted when sent. If the pump cannot hold the bytes, make the threshold `cap - 2 * window - margin` in `Offer::fit` (a test pins the sum under the cap). A test: no link of the run meets the cap at the pace of the loopback, 5 runs in 5.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features --test layer_cap
+```
