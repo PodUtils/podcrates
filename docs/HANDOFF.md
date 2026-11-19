@@ -60,7 +60,10 @@ is done. Git and the record keep finished work.
    eighth failure of podssh's gate did not come again on the loopback;
    T-945 (done, in `v0.73.0`) gives the client's own line,
    `resume::Note::Stall`, which tells its cause; podssh shows it at `-v`
-   at its take. T-768 goes with T-767.
+   at its take. T-959 (done) gives the channel's own line above the
+   layer, the event `e2e.wait` of `pod-e2e`: a write of the carry to the
+   application or to the layer that takes no byte for 20 s, with the bytes
+   of its way; podssh shows it at `-v` at its take. T-768 goes with T-767.
 9. Then the work order of `TODO/PROGRESS.md`.
 10. Run `scripts/agent/check.sh` with a short `TMPDIR` (for example
     `TMPDIR=/tmp`): a long one makes the socket paths of `pod-guest` too

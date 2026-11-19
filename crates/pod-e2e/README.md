@@ -32,7 +32,7 @@ channel defends against.
 
 | Module | What |
 | --- | --- |
-| (root) | `MAGIC`, `PATTERN`, `PROLOGUE`, `MAX_MESSAGE`, `TAG`, `MAX_DATA`, `MAX_GRANT`, `MAX_WORD`, `HANDSHAKE_LIMIT`, `VERDICT_LIMIT`, `VERDICT_STEP`; `Ask` (`of_route`, `read`, `word`, `route`, `exit`), `exit_word`; `Refusal`; `Error`; `initiate`, `initiate_with`, `Offered` (`peer`, `net_unanswered`, `accept`, `accept_granted`, `reject`); `respond`, `respond_with`, `Asked` (`peer`, `route`, `ask`, `grant`, `admit`, `admit_with`, `refuse`); `Channel` (`carry`, `carry_held`, `leg_seed`, `handshake_hash`, `exporter`, `agree`, `into_transport`), `Carried`, `Held`, `Start`; `Exporter` |
+| (root) | `MAGIC`, `PATTERN`, `PROLOGUE`, `MAX_MESSAGE`, `TAG`, `MAX_DATA`, `MAX_GRANT`, `MAX_WORD`, `HANDSHAKE_LIMIT`, `VERDICT_LIMIT`, `VERDICT_STEP`; `Ask` (`of_route`, `read`, `word`, `route`, `exit`), `exit_word`; `Refusal`; `Error`; `initiate`, `initiate_with`, `Offered` (`peer`, `net_unanswered`, `accept`, `accept_granted`, `reject`); `respond`, `respond_with`, `Asked` (`peer`, `route`, `ask`, `grant`, `admit`, `admit_with`, `refuse`); `Channel` (`carry`, `carry_held`, `with_events`, `leg_seed`, `handshake_hash`, `exporter`, `agree`, `into_transport`), `Carried`, `Held`, `Start`; `Exporter` |
 | `exporter` | `Exporter` (`export`, `handshake_hash`, `is_initiator`, `records`), `RESERVED`, `MAX_EXPORT` |
 | `record` | `Suite` (`ALL`, `name`, `id`, `of_id`), `agree`; `Settings` (`DEFAULT`); `Records` (`seal`, `open`, `resume`, `replayed`, `epochs`, `counters`), `Opened`, `Record`, `Fault`; `Header` (`encode`, `parse`), `record_len`, `bucket`; `HEADER`, `VERSION`, `MAX_LENGTH`, `BUCKETS`, `PHASE`, `WINDOW`, `RESUME` |
 | `ends` | `Node` (`identity`, `admit`, `events`, `redeem`, `leases`, `gate`, `docs`, `holds`; `open_to_all`), `Admit`, `Redeem`; `serve_node`, `serve_routed`, `serve_asked`, `granted`, `TARGET_WAIT`, `NO_EXIT`, `GRANT_REFUSED`; `operator`, `operator_to`, `operator_granted`, `operator_told`, `NO_NET`; the kinds of the events `EVENT_*` |
@@ -109,6 +109,42 @@ for each step; the text is the line of podssh.
 | `e2e.in` | info | an operator came in, and by what (the door, a grant, a yes of the person, its cover) |
 | `e2e.ended` | warn | a session ended with an error after the handshake |
 | `e2e.no-net` | info | at the operator's end (`operator_told`): the node gave no document of the net |
+| `e2e.wait` | info | at each end: a write of the carry took no byte for 20 s ([Waits](#waits)) |
+
+## Waits
+
+The carry says each of its waits that holds, once for each wait, with the
+rule and the time of the layer's pump (`pod_session::pump::STALL_AFTER`,
+20 s; `session.stall` and `Note::Stall` of `pod-session`). A write that
+takes no byte for 20 s gives one event `e2e.wait`. Each byte taken ends
+the wait, and the next write starts a new one, which gives its own line
+only after a new 20 s. The waits and their words:
+
+| Wait | The line |
+| --- | --- |
+| The write to the application (a node's target) | `the application took no byte of the channel for 20 s, while L bytes wait for it; the channel read R bytes from the layer, U of them not yet opened, and wrote W bytes to the application` |
+| The write to the layer | `the layer took no byte of the channel for 20 s, while L bytes wait for it; the channel read R bytes from the application and wrote W bytes to the layer` |
+
+`L` is the bytes of the message that the write did not give; `U` is
+the bytes from the layer behind that message, which the channel did not
+decrypt. A read of the layer or of the application can wait with no
+fault (a quiet peer, a user who types nothing), so it gives no line. Each step of the
+handshake and the agreement of the suites has its limit
+(`HANDSHAKE_LIMIT`, `VERDICT_LIMIT`), and the records are sans-IO, so they
+have no wait of the channel.
+
+So, when the layer says that its application took no byte while bytes
+wait for it, and that application is the channel: a line `e2e.wait` of
+the write to the application says that the channel's reader stopped; no
+such line says that the channel held for a cause of its own, or did not
+run.
+
+Where the lines go: at a node, to `Node::events`, each text after `the
+session of KEY: `, KEY the operator's key; at the operator, to `told` of
+`operator_told`; for a channel of the caller's own,
+`Channel::with_events(events)` before the carry. With no events, the
+carry says nothing. podssh shows the operator's `e2e.wait` at `-v`, as
+it shows `Note::Stall` of the layer.
 
 ## Features
 
@@ -127,6 +163,7 @@ task, the mark of a granted target, the taker of an operator's tokens).
 | --- | --- |
 | The node's key, who can come in, a grant's check | `Node::identity`, `Node::admit`, `Node::redeem` |
 | Where a node's lines go | `Node::events` |
+| Where the lines of the carry's waits go | `Node::events`; the operator: `told` of `operator_told`; a channel of the caller's own: `Channel::with_events` |
 | The node's person: who answers, and the times | `Node::gate`: `Gate::new(asker)` or `Gate::with_times(asker, Times)` |
 | The net's documents | `Node::docs`; the operator: the argument `docs` of `operator_told` and of `initiate_with` (`respond_with` for a node of the caller's own) |
 | The holds of a node's channels for a handover | `Node::holds` (one `Holds` for each node, which its roads share); `Holds::holding(task)` where the channel's task starts; `Holds::move_out` to `Keeper::hand_over_with` of `pod-session` |
@@ -162,7 +199,8 @@ Differences, with the choice:
   documents that the process installed); `initiate_with` and
   `respond_with` take the caller's.
 * `operator_told` takes `docs`, and `told` hears an event
-  (`e2e.no-net`), not a line.
+  (`e2e.no-net`), not a line. `told` is `FnMut`: it also hears each wait
+  of the carry (`e2e.wait`).
 * The words name no binary and no flag of a consumer: `NO_EXIT` has no
   `(podssh node --exit)`; `NO_NET` says "of an older release";
   `Error::NotChannel` says "an end with the channel off" (podssh:
@@ -185,7 +223,7 @@ Differences, with the choice:
 | `podssh-relay/src/e2e/` | `src/e2e/mod.rs`: `pub use pod_e2e::*` and `pod_core::{Event, Events, NoEvents}`; `events(say)` (a node's events as podssh's lines) and `say(&node)` (podssh's own lines of a node through its events); `src/e2e/net.rs` (podssh's process documents: `install`, `installed`, and `process()`, a `Docs` that reads them at each call); `src/e2e/hold.rs` (podssh's process `Holds`: `holds()`, `holding(task)`, and podssh's `Movable` of the pipe, `holds().move_out`) |
 | each `ends::Node { .., say, .. }` | `events: e2e::events(say)`, `docs: e2e::net::process()`, `holds: e2e::hold::holds()` |
 | `(channel.say)(line)`, `channel.say.clone()` of a node | `e2e::say(&channel)` |
-| `ends::operator_told(app, identity, check, route, grant, tell)` | `.., grant, e2e::net::installed(), tell)`, with `tell` of an `Event` |
+| `ends::operator_told(app, identity, check, route, grant, tell)` | `.., grant, e2e::net::installed(), tell)`, with `tell` of an `Event`; `tell` is `FnMut` and hears `e2e.no-net` once and each `e2e.wait`, so a `oneshot` sender does not fit: show each at `-v` |
 | `ends::operator(..)` of the blocking facade | `ends::operator_told(.., None, None, e2e::net::installed(), \|_\| {})` |
 | `Node::open_to_all(key, Arc::new(\|line\| ..))` | `Node::open_to_all(key, e2e::events(Arc::new(\|line\| ..)))`, or `Arc::new(e2e::NoEvents)` |
 | `e2e::hold::holding(task)`, `hold::resume(..)`, `keeper.hand_over()` | the same calls of the glue |
@@ -218,7 +256,8 @@ bit of the flags above bit 0.
 `cargo test -p pod-e2e`: the unit tests of each module (the words of a
 proof, the frames, the verdict and its seed, the state of a handover and
 the transport from its keys, the tokens of one leg, the net's part of a
-proof, the gate of a person on tokio's paused clock, the classes of the
+proof, the gate of a person and the waits of the carry (`channel::stall`)
+on tokio's paused clock, the classes of the
 failures); and over duplex pipes and a stand-in relay that changes, drops,
 repeats, moves and cuts frames: the cacophony vector of the pattern, no
 plain text at the relay, each fault of a relay an end of the session, the

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**794 entries: 147 open, 24 partial, 7 blocked, 616 done.**
+**794 entries: 146 open, 24 partial, 7 blocked, 617 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 11 | 8 | 0 | 181 | 200 |
+| P1 | 10 | 8 | 0 | 182 | 200 |
 | P2 | 69 | 6 | 4 | 314 | 393 |
 | P3 | 67 | 10 | 3 | 119 | 199 |
-| **All** | 147 | 24 | 7 | 616 | 794 |
+| **All** | 146 | 24 | 7 | 617 | 794 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -838,6 +838,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-956](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a layer of more than one gzip member or zstd frame is cut short after the first, with no error (PodUtils/podrunner#317, ask 2) |
 | [T-957](podvm.md) | P1 | M | M6 | feature | done | `pod-extract`: no extended attribute of a layer is applied, so `security.capability` of `ping` is lost (PodUtils/podrunner#317, ask 1) |
 | [T-958](relay.md) | P1 | M | M2 | defect | done | `pod-relay` with `pod-session`: a move at three quarters of a small cap of the relay still passes the cap, so the relay ends most links with 1009 (PodUtils/podssh#325) |
-| [T-959](relay.md) | P1 | S | M2 | feature | open | `pod-e2e`: the channel says no wait of its own, so a hang where the layer holds bytes for the channel cannot tell the channel from its reader (PodUtils/podssh#283, ask 5) |
+| [T-959](relay.md) | P1 | S | M2 | feature | done | `pod-e2e`: the channel says no wait of its own, so a hang where the layer holds bytes for the channel cannot tell the channel from its reader (PodUtils/podssh#283, ask 5) |
 | [T-960](relay.md) | P3 | S | M2 | feature | open | `pod-term`: a cooked session always draws its prompt, so an exec'd command on podssh's server shows `$ ` between and after its lines (PodUtils/podssh#326) |
 | [T-961](podvm.md) | P2 | M | M6 | defect | open | `pod-extract`: the `tar` crate reads a PAX header or a GNU long name whole with no bound, and cuts the PAX records at each newline byte |

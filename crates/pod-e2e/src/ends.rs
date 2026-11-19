@@ -15,10 +15,11 @@
 //! A node's lines are events of its [`Node::events`], one kind for each
 //! step: [`EVENT_HANDSHAKE`], [`EVENT_REFUSED`], [`EVENT_GRANT`],
 //! [`EVENT_TARGET`], [`EVENT_IN`] and [`EVENT_ENDED`]; the operator's one
-//! fact of the handshake is [`EVENT_NO_NET`].
+//! fact of the handshake is [`EVENT_NO_NET`]. At each end, a wait of the
+//! carry that holds gives [`EVENT_WAIT`].
 
 use std::future::Future;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use pod_core::{Event, Events};
@@ -65,10 +66,25 @@ pub const EVENT_IN: &str = "e2e.in";
 pub const EVENT_ENDED: &str = "e2e.ended";
 /// The operator's event of a node that gave no document of the net.
 pub const EVENT_NO_NET: &str = "e2e.no-net";
+/// The event of a write of the carry that took no byte for
+/// [`pod_session::pump::STALL_AFTER`]: to the application (a node's
+/// target), or to the layer, with the bytes of its way. At a node, its text
+/// starts with the session's operator key.
+pub const EVENT_WAIT: &str = "e2e.wait";
 
 /// The event of a session that ended with an error.
 pub(crate) fn ended(text: String) -> Event {
     Event::warn(EVENT_ENDED, text)
+}
+
+/// `events` for the channel of the session of `peer`: a node has many, so
+/// each line names its session.
+pub(crate) fn of_session(events: &Arc<dyn Events>, peer: PublicKey) -> Arc<dyn Events> {
+    let events = events.clone();
+    Arc::new(move |mut event: Event| {
+        event.text = format!("the session of {peer}: {}", event.text);
+        events.event(event);
+    })
 }
 
 /// Who can reach a node, for what it asked: `Err` is why not, for the
@@ -286,6 +302,7 @@ where
     // A handover holds the carry between two messages, and takes the
     // channel and its target to the next binary.
     let hold = crate::hold::current();
+    let channel = channel.with_events(of_session(&node.events, peer));
     let carried = channel.carry_held(target, hold.as_deref(), crate::Start::default()).await;
     crate::hold::after(carried, hold.as_deref(), peer, lease, &*node.events).await;
 }
@@ -359,9 +376,10 @@ pub const NO_NET: &str = "the node answered with no document of the net (it hold
                           release); the session goes on without it";
 
 /// [`operator_granted`], with `docs`, this end's documents of the net, and
-/// `told`, which hears a fact of the handshake that ends nothing, once the
-/// node let this end in: [`NO_NET`], as an event of the kind
-/// [`EVENT_NO_NET`].
+/// `told`, which hears each fact of the channel that ends nothing: once the
+/// node let this end in, [`NO_NET`], as an event of the kind
+/// [`EVENT_NO_NET`]; then each wait of the carry that holds, as an event of
+/// the kind [`EVENT_WAIT`].
 pub fn operator_told<A, C, T>(
     app: A,
     identity: Arc<Identity>,
@@ -374,9 +392,13 @@ pub fn operator_told<A, C, T>(
 where
     A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     C: FnOnce(&PublicKey) -> Result<(), String> + Send + 'static,
-    T: FnOnce(Event) + Send + 'static,
+    T: FnMut(Event) + Send + 'static,
 {
     let (ours, theirs) = tokio::io::duplex(PIPE);
+    // Both ways of the carry share `told`, which can change its own state.
+    let told = Mutex::new(told);
+    let events: Arc<dyn Events> =
+        Arc::new(move |event: Event| (told.lock().unwrap_or_else(PoisonError::into_inner))(event));
     let session = async move {
         let offered = initiate_with(theirs, &identity, docs).await?;
         let node = offered.peer();
@@ -387,14 +409,14 @@ where
         let unanswered = offered.net_unanswered();
         let channel = offered.accept_granted(route.as_deref(), grant.as_deref()).await?;
         if unanswered {
-            told(Event::info(EVENT_NO_NET, NO_NET));
+            events.event(Event::info(EVENT_NO_NET, NO_NET));
         }
         // The node's seed of the session's tokens of one leg, for the legs
         // that resume it.
         if let (Some(seed), Some(taker)) = (channel.leg_seed(), legs::current()) {
             taker.give(seed);
         }
-        channel.carry(app).await?;
+        channel.with_events(events).carry(app).await?;
         Ok(node)
     };
     (ours, session)

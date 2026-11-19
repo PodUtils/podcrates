@@ -1,0 +1,6 @@
+# T-959: the carry does not say a write to the application that takes no
+# byte for 20 s, so the test of an application that stops reading must fail.
+ENTRY=T-959
+GROUP=e2e
+EXPECT='test channel::stall::tests::an_application_that_stops_reading_gives_one_stall_line_each_wait \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --lib -- channel::stall::tests::an_application_that_stops_reading_gives_one_stall_line_each_wait'

@@ -78,6 +78,12 @@ pub async fn read_frame<R: AsyncRead + Unpin>(r: &mut R, buf: &mut Vec<u8>) -> R
 
 /// Write one frame: the message's length, then the message.
 pub async fn write_frame<W: AsyncWrite + Unpin>(w: &mut W, message: &[u8]) -> Result<(), Error> {
+    w.write_all(&framed(message)?).await.map_err(Error::Io)?;
+    w.flush().await.map_err(Error::Io)
+}
+
+/// The bytes of one frame: the message's length, then the message.
+pub fn framed(message: &[u8]) -> Result<Vec<u8>, Error> {
     let len = u16::try_from(message.len())
         .ok()
         .filter(|n| usize::from(*n) <= MAX_MESSAGE && *n > 0)
@@ -85,8 +91,7 @@ pub async fn write_frame<W: AsyncWrite + Unpin>(w: &mut W, message: &[u8]) -> Re
     let mut out = Vec::with_capacity(2 + message.len());
     out.extend_from_slice(&len.to_be_bytes());
     out.extend_from_slice(message);
-    w.write_all(&out).await.map_err(Error::Io)?;
-    w.flush().await.map_err(Error::Io)
+    Ok(out)
 }
 
 /// The body of a verdict with no seed, as an older node sends it.

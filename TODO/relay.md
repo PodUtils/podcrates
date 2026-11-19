@@ -10351,7 +10351,7 @@ podssh at `ba19367` (`v0.75.0`): its `tests/layer_cap.rs` through `podssh relay 
 **Milestone:** M2
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10371,6 +10371,15 @@ The channel says each wait of its own that holds 20 s, as `pod-session` does (`p
 ```sh
 cargo test -p pod-e2e --all-features stall
 ```
+
+## Done
+
+2026-11-19, this commit.
+
+- The carry of `Channel` says each write that takes no byte for `pod_session::pump::STALL_AFTER` (20 s, the constant of the layer's pump, taken as a dependency: `pod-e2e` depends on `pod-session` already), once for each wait, as an event of the new kind `ends::EVENT_WAIT` (`e2e.wait`, info) (`crates/pod-e2e/src/channel/stall.rs`). Each byte taken ends the wait; the next write starts a new one. The waits: the write to the application (a node's target) and the write to the layer. A read of the layer or of the application can wait with no fault, so it gives no line; the steps of the handshake have their own limits, and the records are sans-IO. The words, for an application that took 1 KiB of 32 KiB and then read no more: `the application took no byte of the channel for 20 s, while 31744 bytes wait for it; the channel read 32787 bytes from the layer, 0 of them not yet opened, and wrote 1024 bytes to the application`; to the layer: `the layer took no byte of the channel for 20 s, while L bytes wait for it; the channel read R bytes from the application and wrote W bytes to the layer`.
+- Where the lines go: `Channel::with_events(events)` (new); a node gives its `Node::events`, each text after `the session of KEY: ` (`serve_asked` and `hold::resume`); the operator gives `told` of `operator_told`, which is now `FnMut(Event)` and hears `e2e.no-net` once and each `e2e.wait`. The README of `pod-e2e` gives the lines (section "Waits").
+- Test `channel::stall::tests::an_application_that_stops_reading_gives_one_stall_line_each_wait` (paused clock, both ends of the channel): no line in 19 s, exactly the line above in 90 s more; after the application takes 1 KiB more, no new line in 19 s, then a second line (`30720 bytes wait`, `wrote 2048`) after 2 s more. `cargo test -p pod-e2e --all-features`: 82 passed, 0 failed; `cargo test -p pod-relay --all-features`: 496 passed, 0 failed. Plant `e2e-t959-wait-unsaid` (the event not sent): caught. The plant `e2e-t615-seed-unread` follows the new code; it is caught.
+- podssh, at its take: `around_told`'s `tell` is a `oneshot` sender, which an `FnMut` does not take; show each `e2e.wait` at `-v`, as `Note::Stall`.
 
 # T-960: `pod-term`: a cooked session always draws its prompt, so an exec'd command on podssh's server shows `$ ` between and after its lines (PodUtils/podssh#326)
 

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-e2e/src/channel/stall.rs b/crates/pod-e2e/src/channel/stall.rs
+--- a/crates/pod-e2e/src/channel/stall.rs
++++ b/crates/pod-e2e/src/channel/stall.rs
+@@ -89,7 +89,7 @@
+             Ok(out) => out,
+             Err(_) => {
+                 let [read, wrote] = self.of(way).each_ref().map(|n| n.load(Ordering::Relaxed));
+-                events.event(Event::info(EVENT_WAIT, line(way, STALL_AFTER.as_secs(), left, unopened, (read, wrote))));
++                let _ = (events, line(way, STALL_AFTER.as_secs(), left, unopened, (read, wrote)));
+                 step.await
+             }
+         }
