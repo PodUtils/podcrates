@@ -83,6 +83,9 @@ exceptions = [
   { allow = ["Unlicense"], crate = "async_executors" },
   { allow = ["CC0-1.0"], crate = "notify" },
   { allow = ["BSL-1.0"], crate = "xxhash-rust" },
+  # MIT with no notice clause, under boon (the JSON Schema validator of the
+  # feature `schema` of pod-testkit, T-104; call C795).
+  { allow = ["MIT-0"], crate = "borrow-or-share" },
 ]
 
 [bans]

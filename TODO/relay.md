@@ -8312,6 +8312,7 @@ cargo test -p pod-session --all-features
 ```
 
 - 2026-11-19: podssh at `bcd2b2f` (podcrates `v0.73.0`: the guard of T-939 and the line of T-945) ran its loop of `m6_exit` on the iroh road 6 times, and each passed (PodUtils/podssh#320). The eighth failure did not come again; the entry stays partial until a run of the gate shows the cause or the gate holds over more runs.
+- 2026-11-19: the eleventh failure of podssh's gate (run 44506565889, `iroh::the_iroh_road_survives_a_new_address`, podcrates `v0.76.0`) names the reader that stopped: podssh's watch of its pipe said "SSH read nothing for 20 s while the channel waits to give it bytes", and the layer said that the application took no byte for 21 s while 961099 bytes waited. So podssh's own SSH client held the session; the layer (T-945) and the channel of `pod-e2e` (T-959) waited on it. podssh takes the rest (PodUtils/podssh@T-780, a watch of SSH's own write to the channel) and writes on PodUtils/podssh#283 if the next lines point back at a crate. Asks 2 to 4 of #283 stay open there with no new work for podcrates; this entry stays partial until podssh closes them or a run names a crate.
 
 
 # T-774: `pod-link`: a normative document of the wire, with the order of the checks and the rule of the timers, held to the code by a test

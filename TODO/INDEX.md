@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**800 entries: 145 open, 26 partial, 7 blocked, 622 done.**
+**801 entries: 146 open, 26 partial, 7 blocked, 622 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 9 | 8 | 0 | 184 | 201 |
-| P2 | 69 | 8 | 4 | 316 | 397 |
+| P2 | 70 | 8 | 4 | 316 | 398 |
 | P3 | 67 | 10 | 3 | 120 | 200 |
-| **All** | 145 | 26 | 7 | 622 | 800 |
+| **All** | 146 | 26 | 7 | 622 | 801 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -847,3 +847,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-965](fleet.md) | P2 | M | M8 | feature | open | `pod-release`: the verifier as a static command for the CI of a product and for an installer |
 | [T-966](fleet.md) | P2 | M | M8 | chore | open | `pod-release`: the adoption trials of podnet and podssh, and the hand-off of the crate |
 | [T-967](fleet.md) | P3 | S | M8 | feature | open | `pod-release`: a minisign signature beside the Sigstore bundle |
+| [T-968](upkeep.md) | P2 | S | M5 | defect | open | The fuzz run of 2026-11-19 cannot build `russh`: the pinned nightly of 2026-11-01 meets a cycle in its query of async drop on `ssh-key` 0.7.0-rc.11 |

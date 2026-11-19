@@ -66,7 +66,10 @@ is done. Git and the record keep finished work.
    at its take. T-959 (done) gives the channel's own line above the
    layer, the event `e2e.wait` of `pod-e2e`: a write of the carry to the
    application or to the layer that takes no byte for 20 s, with the bytes
-   of its way; podssh shows it at `-v` at its take. T-768 goes with T-767.
+   of its way. With both lines, the eleventh failure (podssh's run
+   44506565889) names podssh's own SSH client as the reader that stopped;
+   podssh takes it (PodUtils/podssh@T-780), with no new ask of podcrates.
+   T-768 goes with T-767.
 9. Then the work order of `TODO/PROGRESS.md`.
 10. Run `scripts/agent/check.sh` with a short `TMPDIR` (for example
     `TMPDIR=/tmp`): a long one makes the socket paths of `pod-guest` too

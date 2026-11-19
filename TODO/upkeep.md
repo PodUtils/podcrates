@@ -3842,3 +3842,31 @@ sh scripts/agent/check.sh
 ## Done
 
 2026-11-19. #232: coturn 4.19.0 by the digest of its index, with the three lines of `crates/pod-turn/README.md` (`0bf30d0`); its coturn tests passed. #233: TruffleHog 3.99.9 by the digest of its index (`ac6a74b`); its secrets scan passed. #234: `rand` 0.10.4 and `rustls-pki-types` 1.16.0 by `cargo update` on the current `Cargo.lock` (`6ed0b21`), as the branch was from an older `main`; the full checks passed. #235 declined: `iroh-dns` 1.4 builds `simple-dns` 0.12, and 0.13 adds a second copy. Each pull request closed with its commit or its reason.
+
+# T-968: The fuzz run of 2026-11-19 cannot build `russh`: the pinned nightly of 2026-11-01 meets a cycle in its query of async drop on `ssh-key` 0.7.0-rc.11
+
+**Source:** the scheduled run 44519034117 of `fuzz.yml` at `a184eed`
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Each target of the fuzz run failed to build: `russh` 0.65.1 does not compile with `error[E0391]: cycle detected when computing when ssh_key::public::key_data::KeyData needs async drop` (`ssh-key` 0.7.0-rc.11). `russh` came into the fuzz workspace with `pod-devtunnel` (T-378, the target `devtunnel_connect_info`) after the last green fuzz run (43209945321 at `45b145a`). The fuzz run builds with `nightly-2026-11-01` (`scripts/fuzz.sh`), the address sanitizer and the release profile; a plain build of the same nightly and the stable build of `ci.yml` compile it.
+
+## Premise
+
+- Read: the job log of run 44519034117; `scripts/fuzz.sh`.
+- Measured: `RUSTFLAGS="--cfg fuzzing -Zsanitizer=address -Cdebug-assertions -Ccodegen-units=1" cargo +nightly-2026-11-01 build --manifest-path fuzz/Cargo.toml --target x86_64-unknown-linux-gnu --release -p russh` fails with the same error; the same command with `nightly-2026-11-18` passes.
+
+## Approach
+
+Pin `nightly-2026-11-18` in `scripts/fuzz.sh`, and build each target of the fuzz workspace with it and the flags of cargo-fuzz before the push. Run `fuzz.yml` by hand after the push.
+
+## Prove
+
+```sh
+RUSTFLAGS="--cfg fuzzing -Zsanitizer=address -Cdebug-assertions -Ccodegen-units=1" cargo +nightly-2026-11-18 build --manifest-path fuzz/Cargo.toml --target x86_64-unknown-linux-gnu --release --bins
+```

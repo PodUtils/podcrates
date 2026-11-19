@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 800 entries: 145 open, 26 partial, 7 blocked, 622 done.
+`TODO/INDEX.md` holds 801 entries: 146 open, 26 partial, 7 blocked, 622 done.
 
 ## State
 
@@ -72,7 +72,8 @@ T-851. Then T-920.
 Then the ruling "Discipline": T-692
 (`pod-lab`, part 2), T-700 (`pod-manual`: the take of each consumer; its
 findings T-704 and T-705), T-767 (a stalled resume of `pod-session`,
-PodUtils/podssh#283; the cause is open) with T-768 (a late spare), T-703
+PodUtils/podssh#283; the eleventh failure names podssh's own SSH
+client, which podssh takes) with T-768 (a late spare), T-703
 (the issues against the record) and T-702 (the installer). Then the move
 of podssh (PodUtils/podssh#248): T-030, T-039; T-036. Then the link
 carriers of M2 for podnet: T-526. Then the items below, in order.
