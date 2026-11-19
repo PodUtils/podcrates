@@ -7,6 +7,10 @@
 #
 #   sh scripts/fuzz.sh [SECONDS [TARGET...]]
 #
+# FUZZ_SHARD=I/N keeps the targets I, I+N, I+2N... of the list (counted
+# from 0): fuzz.yml runs the targets in N jobs, so that each job ends within
+# its time limit as the targets grow.
+#
 # fuzz.yml runs it each week and by hand. scripts/agent/check.sh does not
 # run it: the checks use stable Rust. ci.yml builds the targets on stable
 # Rust and runs their stable test (fuzz/README.md).
@@ -35,6 +39,20 @@ case $RUN_FOR in
     exit 64
     ;;
 esac
+shard_i=0 shard_n=1
+if [ -n "${FUZZ_SHARD:-}" ]; then
+    shard_i=${FUZZ_SHARD%/*} shard_n=${FUZZ_SHARD#*/}
+    case $shard_i/$shard_n in
+    /* | */ | *[!0-9/]* | */*/*)
+        echo "fuzz.sh: FUZZ_SHARD must be I/N, not '$FUZZ_SHARD'" >&2
+        exit 64
+        ;;
+    esac
+    if [ "$shard_n" -eq 0 ] || [ "$shard_i" -ge "$shard_n" ]; then
+        echo "fuzz.sh: FUZZ_SHARD must be I/N with I < N, not '$FUZZ_SHARD'" >&2
+        exit 64
+    fi
+fi
 
 cd "$(dirname "$0")/.." || exit 1
 
@@ -68,7 +86,14 @@ if [ $# -eq 0 ]; then
     # shellcheck disable=SC2046  # one word for each target
     set -- $(cargo +"$NIGHTLY" fuzz list --fuzz-dir fuzz) || exit 1
 fi
-echo "fuzz.sh: $# targets, $RUN_FOR s each, $NIGHTLY, cargo-fuzz $CARGO_FUZZ_VERSION, $host"
+k=0 kept=
+for target in "$@"; do
+    [ $((k % shard_n)) -eq "$shard_i" ] && kept="$kept $target"
+    k=$((k + 1))
+done
+# shellcheck disable=SC2086  # one word for each target
+set -- $kept
+echo "fuzz.sh: $# targets (shard $shard_i/$shard_n), $RUN_FOR s each, $NIGHTLY, cargo-fuzz $CARGO_FUZZ_VERSION, $host"
 
 failed=0
 for target in "$@"; do

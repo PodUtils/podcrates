@@ -3873,4 +3873,4 @@ RUSTFLAGS="--cfg fuzzing -Zsanitizer=address -Cdebug-assertions -Ccodegen-units=
 
 ## Done
 
-2026-11-19, this commit. `scripts/fuzz.sh` pins `nightly-2026-11-18`. The command of the Prove section built each of the 72 targets of the fuzz workspace with it, the address sanitizer and the release profile, `russh` and `ssh-key` 0.7.0-rc.11 included. `fuzz.yml` runs by hand after the push.
+2026-11-19, this commit. `scripts/fuzz.sh` pins `nightly-2026-11-18`. The command of the Prove section built each of the 72 targets of the fuzz workspace with it, the address sanitizer and the release profile, `russh` and `ssh-key` 0.7.0-rc.11 included. `fuzz.yml` runs by hand after the push. The run by hand (44527726675 at `af79a26`) built each target and met the limit of 75 minutes of its step "Each target": the targets grew from 39 (the last green run) to 72, and 72 runs of 60 s take 72 minutes before the build. `fuzz.yml` runs the targets in two jobs (`matrix.shard`), and `scripts/fuzz.sh` keeps the targets I, I+N, ... of `FUZZ_SHARD=I/N` (a bad value exits 64); the planted defect runs in shard 0. `shellcheck` 0.11.0 passes on the script.

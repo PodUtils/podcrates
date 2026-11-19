@@ -31,6 +31,13 @@ jobs:
   fuzz:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    # Two jobs, each with half of the targets (FUZZ_SHARD of scripts/fuzz.sh):
+    # 72 targets of 60 s each do not end within the 75 minutes of one job
+    # (T-968).
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -52,6 +59,7 @@ jobs:
       # pod_core::text::one_line keeps ESC, and the target one_line must
       # crash on it.
       - name: A planted defect is found
+        if: matrix.shard == 0
         timeout-minutes: 40
         run: |
           set -u
@@ -70,11 +78,12 @@ jobs:
         timeout-minutes: 75
         env:
           SECONDS_EACH: ${{ inputs.seconds || '60' }}
+          FUZZ_SHARD: ${{ matrix.shard }}/2
         run: sh scripts/fuzz.sh "$SECONDS_EACH"
       - name: Keep the input of each crash
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: fuzz-artifacts
+          name: fuzz-artifacts-${{ matrix.shard }}
           path: fuzz/artifacts/
           if-no-files-found: ignore
