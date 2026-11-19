@@ -3850,7 +3850,7 @@ sh scripts/agent/check.sh
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3870,3 +3870,7 @@ Pin `nightly-2026-11-18` in `scripts/fuzz.sh`, and build each target of the fuzz
 ```sh
 RUSTFLAGS="--cfg fuzzing -Zsanitizer=address -Cdebug-assertions -Ccodegen-units=1" cargo +nightly-2026-11-18 build --manifest-path fuzz/Cargo.toml --target x86_64-unknown-linux-gnu --release --bins
 ```
+
+## Done
+
+2026-11-19, this commit. `scripts/fuzz.sh` pins `nightly-2026-11-18`. The command of the Prove section built each of the 72 targets of the fuzz workspace with it, the address sanitizer and the release profile, `russh` and `ssh-key` 0.7.0-rc.11 included. `fuzz.yml` runs by hand after the push.

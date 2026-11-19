@@ -20,7 +20,7 @@
 
 set -u
 
-NIGHTLY=nightly-2026-11-01
+NIGHTLY=nightly-2026-11-18
 CARGO_FUZZ_VERSION=0.13.2
 # The SHA-256 of cargo-fuzz-$CARGO_FUZZ_VERSION-x86_64-unknown-linux-musl.tar.gz,
 # the release archive (T-355): GitHub's digest of the asset, measured again
