@@ -247,8 +247,10 @@ cap (`Offer::move_bytes`) and a window of an eighth of it
 (`Offer::window`), so the bytes that a new link sends again first fit
 under the cap too (T-909, T-953). The far end that the role of the relay
 runs takes the same window from the cap of the relay
-(`forward_layer::offer::window_under`). While a move opens its new link,
-the client holds the old link (`pod_session::pump::Hold`): it takes no new
+(`forward_layer::offer::window_under`). From the byte that passes the mark of
+a move until the old link stops, the client holds the old link
+(`pod_session::pump::Hold`), also when a slow timer wakes the task of the
+move late (T-962): it takes no new
 bytes of the application and acknowledges no new bytes of the far end, so
 the far end sends its window at most. The old link then carries seven
 eighths of the cap and the records in flight at most (T-958).

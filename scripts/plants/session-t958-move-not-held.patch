@@ -1,12 +1,22 @@
 --- a/crates/pod-session/src/beside.rs
 +++ b/crates/pod-session/src/beside.rs
-@@ -135,9 +135,6 @@
-         // A move holds the old link until it stops, so that it stays under
+@@ -137,9 +137,6 @@
          // the relay's cap (`pump::Hold`); a spare opens beside a silent
-         // link, which holds nothing.
+         // link, which holds nothing. A move at the bytes' mark is held
+         // already (`Watch::count`); a move at the link's age is not.
 -        if why == Beside::Move {
 -            plan.watch.hold.start();
 -        }
          // The far end's bytes after this mark close a spare, while it
          // connects too: the old link is back, and a spare costs a resume.
          let mark = plan.hearing.words();
+--- a/crates/pod-session/src/pump/watch.rs
++++ b/crates/pod-session/src/pump/watch.rs
+@@ -92,7 +92,6 @@
+         let before = self.bytes.fetch_add(n, Ordering::Relaxed);
+         let at = self.move_at.load(Ordering::SeqCst);
+         if at > 0 && before < at && before + n >= at {
+-            self.hold.start();
+             self.due.notify_one();
+         }
+     }

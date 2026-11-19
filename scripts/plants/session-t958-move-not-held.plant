@@ -1,7 +1,8 @@
 # The old link of a move is not held: after the move is due, it takes the
 # application's bytes and acknowledges the far end's until the new link
 # greets, and at the rate of a loopback it passes a small cap of the relay
-# (T-958, PodUtils/podssh#325).
+# (T-958, PodUtils/podssh#325). The patch removes both starts of the hold:
+# at the mark (`Watch::count`) and at the link's age (`beside::next`).
 ENTRY=T-958
 GROUP=session
 EXPECT='no link met its cap'

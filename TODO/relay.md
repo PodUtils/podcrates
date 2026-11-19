@@ -10416,7 +10416,7 @@ cargo test -p pod-term --all-features prompt
 **Milestone:** M2
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10437,3 +10437,7 @@ With `v0.75.0` (T-958), podssh's `tests/layer_cap.rs` under `relay serve --max-s
 cargo test -p pod-session --all-features hold
 cargo test -p pod-relay --all-features --test layer_cap
 ```
+
+## Done
+
+2026-11-19, this commit. `Watch::count` starts the hold in the same call that passes `move_at` (when the session moves, `move_at > 0`), and tells `due`; a move at the link's age starts the hold in `beside::next`, as before. `Watch::moves_end` sets `move_at` to 0 and lifts the hold, so that no later byte starts a hold that no task lifts. It runs where no move follows: in `beside::next` for a session that closes or whose application ended (before its wait with no end), in `beside::failed` for a failed move, and in `resume::run` when the application ended while the new link greeted. A failed spare keeps the hold of the mark: the move that is due comes next, with the hold on. A spare holds nothing. The tests of `beside` moved to `crates/pod-session/src/beside/tests.rs` (the size of `beside.rs`). New tests: `pump::hold::tests::the_hold_starts_at_the_mark_while_the_task_beside_the_link_sleeps` (no task beside the link for 50 ms after the mark: the link carries the mark and one record at most, then all of the 1 MiB once the moves end; on the code before the fix it carried 1,048,992 bytes), `pump::hold::tests::a_session_whose_application_ends_at_the_mark_closes_on_the_old_link`, `beside::tests::a_failed_move_ends_the_hold_and_the_mark_of_the_link`, `beside::tests::a_closing_session_lifts_the_hold_of_the_mark_and_does_not_move`, `beside::tests::a_failed_spare_keeps_the_hold_of_the_mark_and_the_move_follows`; each lift test fails when its lift is removed; 30 runs of 30. `cargo test -p pod-session --all-features`: 174 passed; `cargo test -p pod-relay --all-features`: 496 passed; `cargo test -p pod-relay --all-features --test layer_cap`: 5 runs of 5 (the most bytes on one link 918,361 of 1,048,576); `cargo test -p pod-e2e --all-features`: 82 passed. `tests/layer_cap.rs` does not show the lag of Windows on Linux: `resume::run` polls the pump and `beside::next` in one task, and the `connect` closure runs only after `beside` decided the move, so a wait in it delays the new link, not the start of the hold; a delay of `beside` needs a hook in the product code. The unit test with no task beside the link covers that window. Plant `session-t962-hold-late` (the start in `Watch::count` removed), caught; plant `session-t958-move-not-held` removes both starts of the hold now, caught.

@@ -197,9 +197,10 @@ where
                     Some(step) = steps.recv() => note(step),
                     (why, greeted) = &mut beside => {
                         // The application ended while the new link greeted:
-                        // the session closes on the old one, with no hold.
+                        // the session closes on the old one, with no hold,
+                        // also at the bytes' mark.
                         if closing || watch.app_ended.load(Ordering::SeqCst) {
-                            watch.hold.lift();
+                            watch.moves_end();
                             break ((&mut pump).await, None);
                         }
                         // The old link stops at a record boundary, and a move

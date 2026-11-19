@@ -20,7 +20,8 @@ pub struct Watch {
     /// The bytes that the link carried, both ways, the records included:
     /// what the relay counts against its cap.
     pub bytes: AtomicU64,
-    /// The count of bytes at which `due` is told, once; 0 is never.
+    /// The count of bytes at which `due` is told and the hold starts, once;
+    /// 0 is never.
     pub move_at: AtomicU64,
     /// Told when the link's bytes pass `move_at`.
     pub due: Notify,
@@ -77,17 +78,30 @@ impl Watch {
     /// A watch that tells `due` when the link passes `move_at` bytes.
     pub fn moving_at(move_at: u64) -> Watch {
         let watch = Watch::default();
-        watch.move_at.store(move_at, Ordering::Relaxed);
+        watch.move_at.store(move_at, Ordering::SeqCst);
         watch
     }
 
     /// Count `n` more bytes of the link, and tell `due` when they pass the
-    /// mark.
-    pub(super) fn count(&self, n: u64) {
+    /// mark. The hold starts in the same call: the task that opens the new
+    /// link can wake late (a timer of 15.6 ms on Windows), and until then the
+    /// old link would take the application's bytes past the mark
+    /// (PodUtils/podssh#327). The task beside the link lifts the hold where
+    /// no move follows (`crate::beside`).
+    pub(crate) fn count(&self, n: u64) {
         let before = self.bytes.fetch_add(n, Ordering::Relaxed);
-        let at = self.move_at.load(Ordering::Relaxed);
+        let at = self.move_at.load(Ordering::SeqCst);
         if at > 0 && before < at && before + n >= at {
+            self.hold.start();
             self.due.notify_one();
         }
+    }
+
+    /// No more moves on this link, and no hold: a move failed, or the
+    /// session closes on the link. The mark goes first, so that no later
+    /// byte starts the hold again with no task to lift it.
+    pub(crate) fn moves_end(&self) {
+        self.move_at.store(0, Ordering::SeqCst);
+        self.hold.lift();
     }
 }

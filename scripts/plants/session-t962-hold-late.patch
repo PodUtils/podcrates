@@ -1,0 +1,10 @@
+--- a/crates/pod-session/src/pump/watch.rs
++++ b/crates/pod-session/src/pump/watch.rs
+@@ -92,7 +92,6 @@
+         let before = self.bytes.fetch_add(n, Ordering::Relaxed);
+         let at = self.move_at.load(Ordering::SeqCst);
+         if at > 0 && before < at && before + n >= at {
+-            self.hold.start();
+             self.due.notify_one();
+         }
+     }

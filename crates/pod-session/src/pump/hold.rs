@@ -8,7 +8,10 @@
 //! the replay buffer or still in the application's pipe, and the new link
 //! carries it. A `PONG` still answers each `PING`, with the last offset
 //! acknowledged, so the heartbeat of neither end takes the held link for
-//! dead. A move that fails lifts the hold, and the old link goes on.
+//! dead. The hold starts at the byte that passes the mark of a move
+//! (`Watch::count`, PodUtils/podssh#327), or when a move at the link's age
+//! starts. A move that fails lifts the hold, and so does a session that
+//! closes on the link (`Watch::moves_end`); the old link then goes on.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -22,7 +25,7 @@ pub struct Hold {
 }
 
 impl Hold {
-    /// Hold the link: a move to a new link started.
+    /// Hold the link: a move to a new link is due or started.
     pub fn start(&self) {
         self.on.store(true, Ordering::SeqCst);
         self.turned.notify_waiters();
@@ -55,14 +58,19 @@ impl Hold {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::Ordering;
     use std::time::Duration;
 
     use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
+    use tokio::time::Instant;
 
     use super::super::super::decode::Decoder;
     use super::super::super::link::Link;
     use super::super::super::record::Record;
-    use super::super::{Carry, Watch, run};
+    use super::super::{CHUNK, Carry, End, Ended, Watch, run};
+    use crate::beside::{Plan, SpareWait, next};
+    use crate::hearing::Hearing;
+    use crate::resume::Next;
 
     /// The records that came on `far` within `wait`.
     async fn records(far: &mut DuplexStream, decoder: &mut Decoder, wait: Duration) -> Vec<Record> {
@@ -121,5 +129,91 @@ mod tests {
         assert!(lifted.contains(&Record::Ack { offset: 1000 }), "{lifted:?}");
         let data = Record::Data { offset: 0, bytes: b"held in the pipe".to_vec() };
         assert!(lifted.contains(&data), "{lifted:?}");
+    }
+
+    /// The hold starts at the byte that passes the mark of a move, not when
+    /// the task beside the link wakes: with no such task for 50 ms after the
+    /// mark, as behind a slow timer, the link carries the mark and one record
+    /// at most (PodUtils/podssh#327). The end of the moves, as after a failed
+    /// move, lets the rest go, and no byte after it starts a hold again.
+    #[tokio::test(start_paused = true)]
+    async fn the_hold_starts_at_the_mark_while_the_task_beside_the_link_sleeps() {
+        const MARK: u64 = 256 * 1024;
+        const SENT: usize = 1 << 20;
+        let (mut app, mut user) = tokio::io::duplex(1 << 22);
+        let (link, mut far) = tokio::io::duplex(1 << 22);
+        let watch = Watch::moving_at(MARK);
+        let mut carry = Carry::new(Link::new(0, 0).with_replay(1 << 21));
+        let pump = run(&mut app, link, Decoder::new(), &mut carry, &watch);
+        tokio::pin!(pump);
+
+        user.write_all(&vec![5; SENT]).await.unwrap();
+        tokio::select! {
+            _ = pump.as_mut() => panic!("the link ended"),
+            () = tokio::time::sleep(Duration::from_millis(50)) => {}
+        }
+        let carried = watch.bytes.load(Ordering::SeqCst);
+        assert!(carried >= MARK, "the link passed the mark: {carried}");
+        assert!(carried <= MARK + (CHUNK + 64) as u64, "the mark and one record at most: {carried}");
+        assert!(watch.hold.on(), "the mark started the hold");
+        assert!(tokio::time::timeout(Duration::ZERO, watch.due.notified()).await.is_ok(), "the move is due");
+
+        watch.moves_end();
+        let mut decoder = Decoder::new();
+        let got = tokio::select! {
+            _ = pump.as_mut() => panic!("the link ended"),
+            got = records(&mut far, &mut decoder, Duration::from_secs(5)) => got,
+        };
+        let data: usize = got.iter().map(|r| if let Record::Data { bytes, .. } = r { bytes.len() } else { 0 }).sum();
+        assert_eq!(data, SENT, "each byte went out on the link once the hold lifted");
+        assert!(!watch.hold.on(), "no hold after the end of the moves");
+    }
+
+    /// The application ended its bytes, and its last `DATA` passes the mark
+    /// of a move: the task beside the link lifts the hold that the mark
+    /// started, and the session's `CLOSE` goes on the old link with no wait;
+    /// no new link opens (PodUtils/podssh#327).
+    #[tokio::test(start_paused = true)]
+    async fn a_session_whose_application_ends_at_the_mark_closes_on_the_old_link() {
+        let (mut app, mut user) = tokio::io::duplex(1 << 16);
+        let (link, mut far) = tokio::io::duplex(1 << 16);
+        user.write_all(b"the last bytes").await.unwrap();
+        user.shutdown().await.unwrap();
+        let watch = Watch::moving_at(1);
+        let mut carry = Carry::new(Link::new(0, 0).with_replay(1 << 16));
+        let (state, hearing) = (carry.state.clone(), Hearing::default());
+        let (said, _notes) = tokio::sync::mpsc::unbounded_channel();
+        let plan = Plan {
+            moves: true,
+            spares: false,
+            heartbeat: false,
+            move_at: Instant::now() + Duration::from_secs(3600),
+            closing: false,
+            wait: SpareWait::default(),
+            watch: &watch,
+            state: &state,
+            hearing: &hearing,
+            said: &said,
+        };
+        let mut connect = |_: &Ended| async { Next::<DuplexStream>::Retry("no link".into()) };
+        let pump = run(&mut app, link, Decoder::new(), &mut carry, &watch);
+        let beside = next(plan, &mut connect);
+        tokio::pin!(pump, beside);
+
+        let mut decoder = Decoder::new();
+        let got = tokio::select! {
+            _ = pump.as_mut() => panic!("the link ended"),
+            _ = beside.as_mut() => panic!("a new link beside a closing session"),
+            got = records(&mut far, &mut decoder, Duration::from_secs(5)) => got,
+        };
+        let last = Record::Data { offset: 0, bytes: b"the last bytes".to_vec() };
+        assert_eq!(got, vec![last, Record::Close { reason: String::new() }], "the CLOSE went with no wait");
+        assert!(!watch.hold.on(), "the hold lifted");
+        far.write_all(&Record::Close { reason: String::new() }.to_bytes().unwrap()).await.unwrap();
+        let ended = tokio::select! {
+            ended = pump.as_mut() => ended,
+            _ = beside.as_mut() => panic!("a new link beside a closing session"),
+        };
+        assert!(matches!(ended.end, End::LocalEnd), "the session closed on the old link: {:?}", ended.end);
     }
 }

@@ -1,0 +1,8 @@
+# The hold of a move starts only when the task beside the link wakes, not
+# at the byte that passes the mark: with no such task for 50 ms after the
+# mark, as behind the timer of Windows, the link takes the application's
+# bytes past the mark (T-962, PodUtils/podssh#327).
+ENTRY=T-962
+GROUP=session
+EXPECT='the mark and one record at most'
+RUN='cargo test -p pod-session --all-features --lib -- pump::hold::tests::the_hold_starts_at_the_mark_while_the_task_beside_the_link_sleeps'

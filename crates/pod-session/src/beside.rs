@@ -114,8 +114,9 @@ where
             else => std::future::pending::<Beside>().await,
         };
         // A session whose application ended is closing: its `CLOSE` goes on
-        // the link that it has.
+        // the link that it has, with no hold and no move.
         if plan.closing || plan.watch.app_ended.load(Ordering::SeqCst) {
+            plan.watch.moves_end();
             return std::future::pending().await;
         }
         // One guard: a second lock in the same expression would wait for
@@ -134,7 +135,8 @@ where
         }
         // A move holds the old link until it stops, so that it stays under
         // the relay's cap (`pump::Hold`); a spare opens beside a silent
-        // link, which holds nothing.
+        // link, which holds nothing. A move at the bytes' mark is held
+        // already (`Watch::count`); a move at the link's age is not.
         if why == Beside::Move {
             plan.watch.hold.start();
         }
@@ -185,10 +187,14 @@ where
     }
 }
 
-/// The new link beside the old one failed: the old link goes on, with no
-/// hold, and the step says why.
+/// The new link beside the old one failed: the old link goes on, and the
+/// step says why. A failed move ends the moves of the link and its hold. A
+/// failed spare keeps a hold that the bytes' mark started: the move that is
+/// due comes next.
 fn failed(plan: &Plan<'_>, why: Beside, why_not: String) {
-    plan.watch.hold.lift();
+    if why == Beside::Move {
+        plan.watch.moves_end();
+    }
     let _ = plan.said.send(failure(why, why_not));
 }
 
@@ -289,78 +295,4 @@ async fn silence(plan: &Plan<'_>, last_spare: Option<Instant>) -> Duration {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    const MS: Duration = Duration::from_millis(1);
-
-    /// A move holds the old link while its new link opens, and a move that
-    /// fails lifts the hold at once: the old link goes on (PodUtils/podssh#325).
-    #[tokio::test(start_paused = true)]
-    async fn a_move_holds_the_old_link_and_a_failed_move_lifts_the_hold() {
-        let (watch, state, hearing) = (Watch::default(), Mutex::new(Link::new(0, 0)), Hearing::default());
-        let (said, mut notes) = tokio::sync::mpsc::unbounded_channel();
-        let plan = Plan {
-            moves: true,
-            spares: false,
-            heartbeat: true,
-            move_at: Instant::now() + Duration::from_secs(3600),
-            closing: false,
-            wait: SpareWait::default(),
-            watch: &watch,
-            state: &state,
-            hearing: &hearing,
-            said: &said,
-        };
-        let held_at_connect = std::cell::Cell::new(None);
-        let mut connect = |_: &Ended| {
-            held_at_connect.set(Some(watch.hold.on()));
-            async { Next::<tokio::io::DuplexStream>::Retry("no link".into()) }
-        };
-        assert!(!watch.hold.on(), "no hold before the move is due");
-        watch.due.notify_one();
-        let looked = tokio::time::timeout(Duration::from_secs(5), next(plan, &mut connect)).await;
-        assert!(looked.is_err(), "no new link, and no second move on this link");
-        assert_eq!(held_at_connect.get(), Some(true), "the old link holds while the new one opens");
-        assert_eq!(notes.try_recv(), Ok(Note::MoveFailed { why: "no link".into() }));
-        assert!(!watch.hold.on(), "the failed move lifted the hold");
-    }
-
-    #[test]
-    fn a_question_waits_three_round_trips_of_the_link_1_s_at_least_and_3_s_at_most() {
-        assert_eq!(spare_after(None), SPARE_AFTER, "no answer yet: the wait of before");
-        assert_eq!(spare_after(Some(MS * 50)), SPARE_SOONEST, "a fast link: the floor");
-        assert_eq!(spare_after(Some(MS * 250)), SPARE_SOONEST, "an ACK held 200 ms: still the floor");
-        assert_eq!(spare_after(Some(MS * 500)), MS * 1500);
-        assert_eq!(spare_after(Some(MS * 1100)), SPARE_AFTER, "a slow link: the ceiling");
-        assert_eq!(spare_after(Some(Duration::MAX)), SPARE_AFTER, "no overflow");
-    }
-
-    #[test]
-    fn the_wait_doubles_after_each_spare_that_moved_nothing_up_to_dead_after_and_a_move_sets_it_back() {
-        let mut wait = SpareWait::default();
-        let base = SPARE_AFTER;
-        assert_eq!(wait.wait(base, (0, 0)), base, "no spare took the session yet");
-        wait.took((10, 20));
-        assert_eq!(wait.wait(base, (10, 20)), base * 2, "the session did not move since the spare");
-        assert_eq!(wait.wait(base, (11, 20)), base, "a byte came");
-        assert_eq!(wait.wait(base, (10, 21)), base, "the far end acknowledged a byte");
-        wait.took((10, 20));
-        assert_eq!(wait.wait(base, (10, 20)), base * 4);
-        wait.took((10, 20));
-        assert_eq!(wait.wait(base, (10, 20)), base * 8);
-        wait.took((10, 20));
-        assert_eq!(wait.wait(base, (10, 20)), DEAD_AFTER, "the heartbeat's limit at most");
-        for _ in 0..40 {
-            wait.took((10, 20));
-        }
-        assert_eq!(wait.wait(base, (10, 20)), DEAD_AFTER, "no overflow");
-        assert_eq!(wait.wait(SPARE_SOONEST, (10, 20)), DEAD_AFTER);
-        assert_eq!(wait.wait(DEAD_AFTER * 2, (10, 20)), DEAD_AFTER * 2, "never under the link's own wait");
-        // A spare that takes the session after a move starts again at two.
-        wait.took((10, 30));
-        assert_eq!(wait.wait(base, (10, 30)), base * 2);
-        wait.took((10, 30));
-        assert_eq!(wait.wait(SPARE_SOONEST, (10, 30)), SPARE_SOONEST * 4, "the wait of a fast link doubles too");
-    }
-}
+mod tests;
