@@ -24,6 +24,15 @@ pub enum Compression {
 }
 
 impl Compression {
+    /// The name of the compression in a message.
+    pub fn name(self) -> &'static str {
+        match self {
+            Compression::None => "tar",
+            Compression::Gzip => "gzip",
+            Compression::Zstd => "zstd",
+        }
+    }
+
     /// The OCI and the docker vendor media types: a registry serves the type
     /// with which the image was built.
     pub fn of(media_type: &str) -> Result<Compression> {
@@ -97,12 +106,13 @@ pub fn open_hashed(path: &std::path::Path, c: Compression) -> Result<(Box<dyn Re
     let raw =
         Rc::new(RefCell::new(BufReader::with_capacity(64 * 1024, Hashing { inner: f, state: Rc::clone(&state) })));
     let r = Shared(Rc::clone(&raw));
+    // Each member of a gzip layer and each frame of a zstd layer: a decoder
+    // of one member stops after the first, and cuts the archive short.
     let stream: Box<dyn Read> = match c {
         Compression::None => Box::new(r),
-        Compression::Gzip => Box::new(flate2::read::GzDecoder::new(r)),
-        Compression::Zstd => Box::new(
-            ruzstd::decoding::StreamingDecoder::new(r)
-                .map_err(|e| error::unsupported(format!("this zstd layer cannot be read: {e}")))?,
+        Compression::Gzip | Compression::Zstd => Box::new(
+            crate::members::Members::new(c, r)
+                .map_err(|e| error::unsupported(format!("this {} layer cannot be read: {e}", c.name())))?,
         ),
     };
     Ok((stream, HashedStream { state, raw }))
@@ -133,9 +143,11 @@ impl HashedStream {
 
 /// The size of the layer after decompression, for the space check.
 ///
-/// **Exact for a gzip layer, and an estimate for the others.** The trailer of
-/// gzip has `ISIZE`, the uncompressed length modulo 2^32, in its last four
-/// bytes. Two system calls read it, and it is a true number.
+/// **Exact for a gzip layer of one member, and an estimate for the others.**
+/// The trailer of gzip has `ISIZE`, the uncompressed length modulo 2^32, in
+/// its last four bytes. Two system calls read it. In a layer of more than
+/// one member (eStargz, bgzip) it is the size of the last member alone, and
+/// less than the layer; the trailer cannot tell the two forms apart.
 ///
 /// **Modulo 2^32:** a layer of 5 GiB gives 1 GiB. When `ISIZE` is *less*
 /// than the compressed size, the trailer wrapped and the value is of no use:
@@ -214,6 +226,32 @@ mod tests {
         let (n, est) = uncompressed_size(std::path::Path::new("/nonexistent"), Compression::None, 4096);
         assert_eq!(n, 4096);
         assert!(!est);
+    }
+
+    /// A layer of two gzip members gives the whole tar stream, and the digest
+    /// of the whole blob (PodUtils/podrunner#317).
+    #[test]
+    fn a_layer_of_two_gzip_members_reads_whole_and_hashes_whole() {
+        use std::io::Write as _;
+        let tar: Vec<u8> = (0..20_000u32).map(|i| (i % 251) as u8).collect();
+        let member = |part: &[u8]| {
+            let mut e = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+            e.write_all(part).unwrap();
+            e.finish().unwrap()
+        };
+        let blob = [member(&tar[..7_000]), member(&tar[7_000..])].concat();
+        let dir = std::env::temp_dir().join(format!("pod-extract-members-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("layer");
+        std::fs::write(&path, &blob).unwrap();
+        let (mut stream, hashed) = open_hashed(&path, Compression::Gzip).unwrap();
+        let mut out = Vec::new();
+        stream.read_to_end(&mut out).unwrap();
+        hashed.finish().unwrap();
+        let want: String = Sha256::digest(&blob).iter().map(|b| format!("{b:02x}")).collect();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(out, tar);
+        assert_eq!(hashed.digest(), format!("sha256:{want}"));
     }
 
     /// A missing or unreadable blob gives the estimate, not zero. Zero would

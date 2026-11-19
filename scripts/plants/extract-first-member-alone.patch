@@ -1,0 +1,12 @@
+--- a/crates/pod-extract/src/members.rs
++++ b/crates/pod-extract/src/members.rs
+@@ -136,8 +136,7 @@
+             if n > 0 || out.is_empty() {
+                 return Ok(n);
+             }
+-            let rest = self.cur.take().map(Member::into_inner).expect("a member");
+-            self.cur = self.start(rest, false)?;
++            self.cur = None;
+         }
+         Ok(0)
+     }

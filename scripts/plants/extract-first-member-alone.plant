@@ -1,0 +1,7 @@
+# The decoder of a layer stops after its first gzip member or zstd frame:
+# a layer of more members is cut short with no error (T-956).
+ENTRY=T-956
+GROUP=extract
+EXPECT='members::tests::each_member_of_a_layer_is_read_and_the_bytes_after_them_stay'
+RUN='cargo test -p pod-extract --all-features --lib members::tests::each_member_of_a_layer_is_read_and_the_bytes_after_them_stay'
+LIMIT=900

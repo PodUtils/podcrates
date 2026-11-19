@@ -10315,3 +10315,63 @@ cargo test -p pod-enter --all-features --lib
 ## Done
 
 2026-11-18: `abi::interp_of_open` (`interp_of_file` calls it), `ladder::Payload::interp`, `memfd::eligible_payload`. Tests: `a_header_past_the_head_is_unknown_and_never_static` (an open file reads the path at `0xf2000`; the head alone stays "unknown") and `a_payload_with_its_interp_past_the_head_is_dynamic` (`payload_head`, then `Payload::interp` gives the loader and `eligible_payload` refuses with `HasInterp`). `cargo test -p pod-enter --all-features --lib`: 246 passed. Plant `enter-interp-from-the-head-alone`, caught.
+
+# T-956: `pod-extract`: a layer of more than one gzip member or zstd frame is cut short after the first, with no error (PodUtils/podrunner#317, ask 2)
+
+**Source:** PodUtils/podrunner#317 (COORD-107; PodUtils/podrunner@T-560)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`layer::open_hashed` read a gzip layer with `flate2::read::GzDecoder` and a zstd layer with `ruzstd`'s `StreamingDecoder`. Each stops at the end of its first member or frame. A valid layer of many members (eStargz, bgzip, a concatenated stream) or of many zstd frames gave the tar reader the first part alone, and the extraction ended with no error. The digest stayed true, as `HashedStream::finish` hashed the rest of the blob.
+
+## Premise
+
+- Read: PodUtils/podrunner#317; `crates/pod-extract/src/layer.rs`; flate2's `bufread::GzDecoder` (it consumes only the bytes that it uses) and ruzstd 0.9.1's `StreamingDecoder` (it reads only the bytes of its frame; `into_inner`).
+
+## Approach
+
+`members::Members` reads each member in turn: after a member, the next one starts only when the bytes that follow begin with its magic (`1f 8b`; `28 b5 2f fd`), so bytes after the last member (zeros of a padded blob) stay for `finish`. A zstd skippable frame is skipped. A read-ahead (`Ahead`) looks at the magic across the end of its buffer.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features --lib members
+cargo test -p pod-extract --all-features --lib layer::tests::a_layer_of_two_gzip_members_reads_whole_and_hashes_whole
+```
+
+## Done
+
+2026-11-19, commit "pod-extract: each gzip member and each zstd frame of a layer (T-956, PodUtils/podrunner#317)". `crates/pod-extract/src/members.rs` with four tests (each member for gzip and zstd, with zeros after the last; a zstd skippable frame; a magic across a read of one byte; a blob of another kind and a member cut short fail), and a test of `open_hashed` with a tar in two gzip members: the stream is whole and the digest is that of the whole blob. The plant `extract-first-member-alone`. The size of a gzip layer from its trailer is the size of its last member alone in a layer of many members; the doc of `uncompressed_size` says so, and the space check stays an estimate there.
+
+# T-957: `pod-extract`: no extended attribute of a layer is applied, so `security.capability` of `ping` is lost (PodUtils/podrunner#317, ask 1)
+
+**Source:** PodUtils/podrunner#317 (COORD-107; PodUtils/podrunner@T-558); podvm's same ask for its sidecar and unified tarball (COORD-106 of podvm)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podrunner publishes a copy of the root file system of a GitHub-hosted runner as an OCI image whose PAX tar layers carry `SCHILY.xattr.*` records, among them `security.capability` of `ping` and `mtr-packet`. `crates/pod-extract/src/apply.rs` applies no extended attribute: each is dropped with no word, and `ping` then fails in the unit.
+
+## Premise
+
+- Read: PodUtils/podrunner#317; `crates/pod-extract/src/apply.rs` (no path for an extended attribute).
+- Not read: how the `tar` crate gives the PAX records of an entry (`Entry::pax_extensions`); podvm's COORD-106.
+
+## Approach
+
+Read the `SCHILY.xattr.NAME` records of each entry, and set each with `lsetxattr` after the file is written and before its mode and times are set (a write after a set of `security.capability` clears it). Set the attributes of the `user.` space in each case, and those of `security.` and `trusted.` when the process has the privilege; report each attribute that the extraction cannot set, with its name and its path, in the result of the extraction and in its log line, never a silent drop. A test: a layer with a file with `security.capability` and one with `user.test` round-trips where the privilege holds, and the report names `security.capability` where it does not.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features xattr
+```

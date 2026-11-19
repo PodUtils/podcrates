@@ -47,6 +47,7 @@ pub mod apply;
 mod drive;
 pub mod error;
 pub mod layer;
+mod members;
 pub mod modes;
 mod place;
 pub mod remove;
