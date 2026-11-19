@@ -160,8 +160,7 @@ fn worker_extracts_as_a_user() {
     assert!(!set.contains(&"security.capability"), "uid 1000 set security.capability: {set:?}");
 }
 
-/// A record past a bound is named and not kept; a record that the reader
-/// of the `tar` crate cannot parse stops the read of the entry, named.
+/// A record past a bound is named and not kept.
 #[test]
 fn a_record_past_a_bound_is_named_and_not_kept() {
     use crate::xattr::{NAME_MAX, PAX_PREFIX, VALUE_MAX};
@@ -172,7 +171,6 @@ fn a_record_past_a_bound_is_named_and_not_kept() {
     let cases: &[Case] = &[
         (&[(&long_name, b"x")], &[], "longer than 255 bytes"),
         (&[(&format!("{PAX_PREFIX}user.big"), &big)], &[], "longer than 65536 bytes"),
-        (&[(&format!("{PAX_PREFIX}user.ok"), b"a\nb")], &[], "does not parse"),
         (&[(PAX_PREFIX, b"x"), (&format!("{PAX_PREFIX}user.ok"), b"y")], &["user.ok"], "an empty name"),
         (&[(&format!("{PAX_PREFIX}user.overlay.opaque"), b"y")], &[], "a mark of overlayfs"),
         (&[(&format!("{PAX_PREFIX}trusted.overlay.redirect"), b"/x")], &[], "a mark of overlayfs"),
@@ -186,9 +184,10 @@ fn a_record_past_a_bound_is_named_and_not_kept() {
         h.set_size(1);
         b.append_data(&mut h, "f", Cursor::new(b"1")).unwrap();
         let data = b.into_inner().unwrap();
-        let mut ar = tar::Archive::new(Cursor::new(data));
-        let mut e = ar.entries().unwrap().next().unwrap().unwrap();
-        let w = crate::xattr::read(&mut e, "f");
+        let side = crate::pax::Side::default();
+        let mut ar = tar::Archive::new(crate::pax::Framed::new(Cursor::new(data), side.clone()));
+        ar.entries().unwrap().next().unwrap().unwrap();
+        let w = crate::xattr::read(&side.next().xattrs, "f");
         let names: Vec<&str> = w.attrs.iter().map(|x| x.name.as_str()).collect();
         assert_eq!(names, *kept, "{why}");
         assert_eq!(w.refused.len(), 1, "{why}: {:?}", w.refused);

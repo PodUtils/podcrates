@@ -1,0 +1,7 @@
+# A PAX header of any size is read whole before the entry: a header that
+# gives 8 GiB allocates 8 GiB (T-961).
+ENTRY=T-961
+GROUP=extract
+EXPECT='the reader read the data of a refused member'
+RUN='cargo test -p pod-extract --all-features --lib pax::tests::a_member_past_its_bound_is_refused_before_its_data'
+LIMIT=900

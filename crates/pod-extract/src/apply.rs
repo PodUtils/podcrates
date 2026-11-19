@@ -18,6 +18,7 @@ use std::io::Read;
 use pod_hostprobe::sys;
 
 use crate::error::{self, Result, cbuf, refuse};
+use crate::pax;
 use crate::safety::{self, Dir};
 use crate::sidecar::{Meta, Sidecar};
 use crate::whiteout::{self, Kind};
@@ -98,12 +99,14 @@ pub fn apply_layer(
     // The hard links whose target comes later in the layer.
     let mut later: Vec<Later> = Vec::new();
 
-    let mut ar = tar::Archive::new(stream);
+    let side = pax::Side::default();
+    let mut ar = tar::Archive::new(pax::Framed::new(stream, side.clone()));
     // `entries()`: each decision below is made here, not by the library.
     for entry in ar.entries().map_err(error::io)? {
-        let mut entry = entry.map_err(error::io)?;
+        let mut entry = entry.map_err(|e| pax::failed(&side, digest, e))?;
+        let member = side.next();
         let header = entry.header().clone();
-        let raw = entry.path_bytes().to_vec();
+        let raw = member.path.clone().unwrap_or_else(|| entry.path_bytes().to_vec());
         let path = String::from_utf8_lossy(&raw).into_owned();
         st.entries += 1;
 
@@ -139,7 +142,7 @@ pub fn apply_layer(
 
         // Before the content: the records come with the header.
         let rel = parts.join("/");
-        let wanted = xattr::read(&mut entry, &rel);
+        let wanted = xattr::read(&member.xattrs, &rel);
         let kind = header.entry_type();
         let mode = header.mode().unwrap_or(0o644);
         let uid = header.uid().unwrap_or(0);
@@ -159,7 +162,7 @@ pub fn apply_layer(
             let full: Vec<String> = parts.iter().map(|s| (*s).to_string()).collect();
             wrote_dirs.push((full, mode));
         } else if kind.is_symlink() {
-            let target = entry.link_name_bytes().map(|b| String::from_utf8_lossy(&b).into_owned()).unwrap_or_default();
+            let target = link_name(&entry, &member);
             // An absolute target is relative to the root file system, not a
             // refusal. The rebased result gets the containment check, and a
             // target that still goes out after the rebase IS refused.
@@ -178,7 +181,7 @@ pub fn apply_layer(
                 .map_err(|e| error::sys(format!("cannot create the symlink {path:?}"), e))?;
             st.symlinks += 1;
         } else if kind.is_hard_link() {
-            let target = entry.link_name_bytes().map(|b| String::from_utf8_lossy(&b).into_owned()).unwrap_or_default();
+            let target = link_name(&entry, &member);
             // The target of a hard link resolves in the destination, and a
             // target outside it is refused: the payload can write through a
             // hard link out of the root file system.
@@ -269,6 +272,15 @@ pub fn apply_layer(
 /// extracting process. The reason names each difference, as a sidecar row
 /// that differs from the image with no word is what this crate must not
 /// write.
+/// The target of a link: the `linkpath` record of its PAX header, read by
+/// its length ([`pax`]), else what the `tar` reader gives.
+fn link_name<R: Read>(entry: &tar::Entry<'_, R>, member: &pax::Member) -> String {
+    match &member.linkpath {
+        Some(b) => String::from_utf8_lossy(b).into_owned(),
+        None => entry.link_name_bytes().map(|b| String::from_utf8_lossy(&b).into_owned()).unwrap_or_default(),
+    }
+}
+
 fn resolve_ids(uid: u64, gid: u64, ids: Ids) -> (u64, u64, Option<String>) {
     let mut why = Vec::new();
     if uid != ids.uid {

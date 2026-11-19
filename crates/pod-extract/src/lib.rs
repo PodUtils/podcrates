@@ -54,6 +54,7 @@ pub mod error;
 pub mod layer;
 mod members;
 pub mod modes;
+pub mod pax;
 mod place;
 pub mod remove;
 pub mod safety;

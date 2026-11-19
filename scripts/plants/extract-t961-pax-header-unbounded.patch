@@ -1,0 +1,11 @@
+--- a/crates/pod-extract/src/pax.rs
++++ b/crates/pod-extract/src/pax.rs
+@@ -133,7 +133,7 @@
+         let known = h.as_ustar().is_some() || h.as_gnu().is_some();
+         let what = |name: &str| format!("the {name} member at byte {at}");
+         if known && kind.is_pax_local_extensions() {
+-            if size > PAX_MAX {
++            if size > PAX_MAX * 1_000_000_000 {
+                 let why = format!("a PAX header of {size} bytes, more than {PAX_MAX}");
+                 return Err(self.refuse(what("PAX header"), why));
+             }

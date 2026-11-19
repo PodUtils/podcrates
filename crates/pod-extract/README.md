@@ -76,12 +76,13 @@ not change while the process runs).
 | `apply` | `apply_layer(root, digest, stream, ids, sidecar)`, `LayerStats` (`entries`: the members read; `skipped`, `skipped_kinds`: the entries of a type that the crate does not make, not the root member; `dir_modes`: each directory entry of the layer and its mode; `xattrs`), `Ids::current()` |
 | `modes` | `DirModes` (`new`, `record(&stats.dir_modes)`, `forget(&ops)`, `set(root, sidecar)`, `len`, `is_empty`): the mode of the image of each directory, the last layer wins, set after the last layer and read back, a mode that the kernel did not keep is one more row of the directory with `applied.mode`; `open_tree(root)`: the owner bits on each directory of a tree that was there before, with `O_NOFOLLOW`, also of a directory with no owner read, one directory open at a time, a tree deeper than `MAX_DEPTH` refused with the cause `TooDeep` |
 | `layer` | `Compression::of(media_type)` (tar, `+gzip`, `.tar.gzip`, `+zstd`), `open_hashed(path, c)`, `HashedStream::digest`, `uncompressed_size(path, c, compressed)` (exact for gzip under 4 GiB, an estimate with its flag for the others) |
+| `pax` | `Framed::new(stream, side)` (the stream of a layer as the `tar` reader reads it: an `x` past `PAX_MAX` (1 MiB) and an `L` or a `K` past `LONG_MAX` (4096) refused before their data, with the cause `Refusal::Member`; the records of an `x` parsed by their length; one `size` record to the `tar` reader, the last), `Side` (`next()`: the `Member` of each entry of the `tar` reader, in order; `refused()`), `Member` (`path`, `linkpath`, `xattrs`), `records(data)` |
 | `remove` | `collect(layer, stream)`, `apply(root, ops)`, `Op`, `remove_at(parent_fd, name)` |
 | `tree` (also at the root) | `MAX_DEPTH` (4096: the deepest directory below the start of a walk, and the most components of the path of an entry), `TooDeep` (`path`, `limit`), `too_deep(&failure)`. The walk of `open_tree` and of the removal keeps the listing and the device and inode of each level, holds one directory open, and goes up through `..` only when its device and inode are those of the level above (`TempFail` when a directory moved) |
-| `safety` | `components` (more than `MAX_DEPTH` components: `Refusal::TooDeep`), `is_archive_root`, `rebase_symlink_target`, `Refusal`, `Dir`, `Resolve::{Auto, Walk, InRoot}`, `open_parent`, `open_parent_with` (with `InRoot` and `make_dirs`, a closed parent opens for the one make), `have_openat2`, `OwnerBits` (`add(fd)`, `was`: the owner bits of a closed directory for one step, its mode back on drop) |
+| `safety` | `components` (more than `MAX_DEPTH` components: `Refusal::TooDeep`; an extension member past its bound or a PAX record that does not parse: `Refusal::Member`), `is_archive_root`, `rebase_symlink_target`, `Refusal`, `Dir`, `Resolve::{Auto, Walk, InRoot}`, `open_parent`, `open_parent_with` (with `InRoot` and `make_dirs`, a closed parent opens for the one make), `have_openat2`, `OwnerBits` (`add(fd)`, `was`: the owner bits of a closed directory for one step, its mode back on drop) |
 | `sidecar` | `Meta` (`to_json`; `xattrs`: the attributes of the path that are not set, as `"xattrs":[{"name","value":"0x<hex>","reason"}]`, with no `value` for a record past a bound), `Sidecar` (`create`, `push`, `push_dir`, `kept_dir`, `finish`, `dropped`, `first_dropped`), `FirstDropped`, `json_string`; the last row of a path holds |
 | `whiteout` | `classify`, `Kind`, `basename`, `dirname_parts`, `WH`, `OPQ` |
-| `xattr` | `read(entry, path) -> Wanted` (the records of an entry inside the bounds `NAME_MAX`, `VALUE_MAX`, `NAMES_MAX`, `VALUES_MAX`, `RECORDS_MAX`; `PAX_PREFIX`, `OVERLAY`), `set_fd(fd, &wanted)`, `set_at(parent, name, &wanted)` (a descriptor with `O_NOFOLLOW`, else `lsetxattr` of `/proc/self/fd/N/NAME`) `-> Applied`, `Unset` (`path`, `name`, `value`, `reason`, `to_json`), `Count` (`add`, `merge`, `line`; the first `FIRST_NAMED` not set) |
+| `xattr` | `read(&member.xattrs, path) -> Wanted` (the records of an entry, read by their length in `pax`, inside the bounds `NAME_MAX`, `VALUE_MAX`, `NAMES_MAX`, `VALUES_MAX`, `RECORDS_MAX`; `PAX_PREFIX`, `OVERLAY`), `set_fd(fd, &wanted)`, `set_at(parent, name, &wanted)` (a descriptor with `O_NOFOLLOW`, else `lsetxattr` of `/proc/self/fd/N/NAME`) `-> Applied`, `Unset` (`path`, `name`, `value`, `reason`, `to_json`), `Count` (`add`, `merge`, `line`; the first `FIRST_NAMED` not set) |
 
 `Resolve::InRoot` is for a writer of a FINISHED root file system (the
 completion of `pod-rootfs`): it follows a symlink of a directory component,
@@ -224,8 +225,15 @@ runs again as uid 1000 (`drive::xattrs::worker_extracts_as_a_user`),
 where it must be named; CI runs it as root
 (`scripts/ci/root-uid1000-tests.sh`).
 `drive::xattrs::a_record_past_a_bound_is_named_and_not_kept`: a long name,
-a long value, a value with a newline byte, an empty name and the marks of
-overlayfs. The plant: `extract-xattrs-dropped`.
+a long value, an empty name and the marks of overlayfs. The plant:
+`extract-xattrs-dropped`.
+
+`pax::tests` (T-961): the records parse by their length, so a value with a
+newline byte round-trips and the bytes after it are not records; a `path`
+with a newline byte comes from the side; the last `size` record frames the
+member for both readers; a PAX header of 2 MiB and a GNU long name of
+8 KiB are refused before the reader reads their data, in both passes; a
+global header is an entry. The plant: `extract-t961-pax-header-unbounded`.
 
 `drive::the_root_member_is_not_a_skipped_entry` (PodUtils/podvm#352): a
 layer with `./` and a file has 2 entries and 0 skipped; a layer with `./`

@@ -39,10 +39,12 @@ pub enum Op {
 /// there. Such a whiteout refuses the layer, as an entry does.
 pub fn collect(layer: &str, stream: &mut dyn Read) -> Result<Vec<Op>> {
     let mut ops = Vec::new();
-    let mut ar = tar::Archive::new(stream);
+    let side = crate::pax::Side::default();
+    let mut ar = tar::Archive::new(crate::pax::Framed::new(stream, side.clone()));
     for entry in ar.entries().map_err(error::io)? {
-        let entry = entry.map_err(error::io)?;
-        let path = String::from_utf8_lossy(&entry.path_bytes()).into_owned();
+        let entry = entry.map_err(|e| crate::pax::failed(&side, layer, e))?;
+        let raw = side.next().path.unwrap_or_else(|| entry.path_bytes().into_owned());
+        let path = String::from_utf8_lossy(&raw).into_owned();
         // The basename, not a path glob: a glob does not find a whiteout at
         // the root of a layer.
         let kind = whiteout::classify(&path);

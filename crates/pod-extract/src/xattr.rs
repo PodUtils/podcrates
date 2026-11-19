@@ -21,7 +21,7 @@
 //! names of one file 64 KiB at most with their NULs (`XATTR_LIST_MAX`). The
 //! crate adds a bound on the values of one entry ([`VALUES_MAX`]) and on the
 //! records of one entry ([`RECORDS_MAX`]). A record past a bound is named
-//! and not kept.
+//! and not kept. [`crate::pax`] bounds the PAX header that holds them.
 
 use pod_hostprobe::sys::{self, CBuf, Sysres};
 
@@ -143,33 +143,17 @@ impl Count {
     }
 }
 
-/// Read the attribute records of an entry. `path` is the path of the entry
-/// in the tree. Call it before the content of the entry is read.
-pub fn read<R: std::io::Read>(entry: &mut tar::Entry<'_, R>, path: &str) -> Wanted {
+/// Read the attribute records of an entry: the `SCHILY.xattr.` records of
+/// its PAX header, read by their length ([`crate::pax`]), so a value can
+/// hold any byte. `path` is the path of the entry in the tree.
+pub fn read(exts: &[(Vec<u8>, Vec<u8>)], path: &str) -> Wanted {
     let mut w = Wanted { path: path.to_string(), ..Wanted::default() };
     let refuse = |w: &mut Wanted, name: String, reason: String| {
         w.refused.push(Unset { path: w.path.clone(), name, value: None, reason })
     };
-    let exts = match entry.pax_extensions() {
-        Ok(Some(e)) => e,
-        Ok(None) => return w,
-        Err(e) => {
-            refuse(&mut w, "(the PAX records)".into(), format!("the PAX records cannot be read: {e}"));
-            return w;
-        }
-    };
     let (mut names, mut values, mut records) = (0usize, 0usize, 0usize);
-    for ext in exts {
-        // The reader of the `tar` crate splits the records at each newline
-        // byte, so a value with one does not parse, and the lines after it
-        // are not records: the rest of the entry is not read.
-        let Ok(ext) = ext else {
-            let why =
-                "a PAX record that does not parse (a value with a newline byte); the records after it are not read";
-            refuse(&mut w, "(a PAX record)".into(), why.into());
-            break;
-        };
-        let Some(raw) = ext.key_bytes().strip_prefix(PAX_PREFIX.as_bytes()) else {
+    for (key, value) in exts {
+        let Some(raw) = key.strip_prefix(PAX_PREFIX.as_bytes()) else {
             continue;
         };
         records += 1;
@@ -178,7 +162,6 @@ pub fn read<R: std::io::Read>(entry: &mut tar::Entry<'_, R>, path: &str) -> Want
             refuse(&mut w, "(more records)".into(), why);
             break;
         }
-        let value = ext.value_bytes();
         let name = std::str::from_utf8(raw);
         let why = if raw.is_empty() {
             Some("an empty name".to_string())

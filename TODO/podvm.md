@@ -10387,7 +10387,7 @@ cargo test -p pod-extract --all-features xattr
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10407,3 +10407,7 @@ Read each layer with `Entries::raw(true)` and handle the `x`, `L` and `K` member
 ```sh
 cargo test -p pod-extract --all-features --lib pax
 ```
+
+## Done
+
+2026-11-19, this commit. `crates/pod-extract/src/pax.rs`: `Framed` reads the stream of a layer before the `tar` reader, in both passes (`remove::collect`, `apply_layer`), and follows its members. An `x` past `PAX_MAX` (1 MiB) and an `L` or a `K` past `LONG_MAX` (4096 bytes) are refused before their data is read, as `Refused` with the new cause `Refusal::Member` that names the member and its byte offset. The records of an `x` parse by their length (`LEN KEY=VALUE\n`, as POSIX and Go's `archive/tar`); a record that does not parse refuses the layer. The `SCHILY.xattr.` records and the `path` and `linkpath` records go to `Side`, one `Member` for each entry of the `tar` reader; the others go to the `tar` reader in a new `x` with its checksum, a `path` or a `linkpath` with no newline byte too, and one `size` record, the last, so that both readers frame the member the same. A record other than these with a newline byte refuses the layer. `xattr::read` takes the records of the side: a value with a byte 0x0a is set. The extension blocks of a GNU sparse header are followed. Tests: `pax::tests` (8: the parse by length, the count of the digits of a length, a binary value with a newline byte and a false `path` in it round-trips, a `path` with a newline byte, two `size` records, the bounds of `x`, `L` and `K` in both passes with a reader that fails on a read past the header, a record that does not parse, a global header). `cargo test -p pod-extract --all-features`: 97 passed. The plant `extract-t961-pax-header-unbounded`.

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**795 entries: 146 open, 24 partial, 7 blocked, 618 done.**
+**795 entries: 145 open, 24 partial, 7 blocked, 619 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 183 | 201 |
-| P2 | 69 | 6 | 4 | 314 | 393 |
+| P2 | 68 | 6 | 4 | 315 | 393 |
 | P3 | 67 | 10 | 3 | 119 | 199 |
-| **All** | 146 | 24 | 7 | 618 | 795 |
+| **All** | 145 | 24 | 7 | 619 | 795 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -840,5 +840,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-958](relay.md) | P1 | M | M2 | defect | done | `pod-relay` with `pod-session`: a move at three quarters of a small cap of the relay still passes the cap, so the relay ends most links with 1009 (PodUtils/podssh#325) |
 | [T-959](relay.md) | P1 | S | M2 | feature | done | `pod-e2e`: the channel says no wait of its own, so a hang where the layer holds bytes for the channel cannot tell the channel from its reader (PodUtils/podssh#283, ask 5) |
 | [T-960](relay.md) | P3 | S | M2 | feature | open | `pod-term`: a cooked session always draws its prompt, so an exec'd command on podssh's server shows `$ ` between and after its lines (PodUtils/podssh#326) |
-| [T-961](podvm.md) | P2 | M | M6 | defect | open | `pod-extract`: the `tar` crate reads a PAX header or a GNU long name whole with no bound, and cuts the PAX records at each newline byte |
+| [T-961](podvm.md) | P2 | M | M6 | defect | done | `pod-extract`: the `tar` crate reads a PAX header or a GNU long name whole with no bound, and cuts the PAX records at each newline byte |
 | [T-962](relay.md) | P1 | S | M2 | defect | done | `pod-session`: the hold of a move starts when the task beside the link wakes, not when the bytes pass the threshold, so on Windows the old link still meets a small cap (PodUtils/podssh#327) |

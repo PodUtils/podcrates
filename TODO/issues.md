@@ -239,6 +239,6 @@ kinds and the rules.
 | #236 | coord | COORD-142: the owner's ruling "ghcr.io": each project publishes its release binaries on ghcr.io in one form (call C789) (to all) | open (podnet publishes in the form; PodUtils/podvm@T-1992 and PodUtils/podssh@T-847 on their main; podcrates T-954 partial: `release.yml` builds the images, and the first push is the next tag; podrunner not yet) | T-954 |
 | #237 | coord | COORD-141: v0.74.0: a runner job through serve from pod-fake-githome to pod-fake-github, the window of the layer under a small cap, the lost half of a split session (to all) | closed (each consumer took `v0.74.0`: podrunner `93df6d3`, podvm `ef56d16`, podssh `9989ae6`, podnet `c123c18`) | T-949, T-950, T-951, T-952, T-953 |
 | #238 | coord | COORD-143: v0.75.0: each member of a compressed layer, the old link held during a move under a small cap, the first images on ghcr.io (to all) | closed (each consumer took `v0.75.0`: podrunner `5fc513d`, podvm `f3beec1`, podssh `ba19367`, podnet `44986bc`) | T-954, T-955, T-956, T-958 |
-| #239 | coord | COORD-144: v0.76.0: the extended attributes of a layer, the waits of the channel of pod-e2e, the hold of a move from the threshold (to all) | open (the takes of `v0.76.0`) | T-957, T-959, T-962 |
+| #239 | coord | COORD-144: v0.76.0: the extended attributes of a layer, the waits of the channel of pod-e2e, the hold of a move from the threshold (to all) | open (the takes of `v0.76.0`: podrunner `393f413`) | T-957, T-959, T-962 |
 
 #79 to #81 and #232 to #235 are pull requests of Dependabot (T-243, T-955).

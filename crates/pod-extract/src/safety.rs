@@ -39,6 +39,9 @@ pub enum Refusal {
     Escapes(String),
     /// More components than [`crate::tree::MAX_DEPTH`].
     TooDeep(usize),
+    /// A PAX header or a GNU long name past its bound, or a PAX record that
+    /// does not parse ([`crate::pax`]).
+    Member(String),
 }
 
 impl Refusal {
@@ -60,6 +63,7 @@ impl Refusal {
                 "it has more than {n} components, and the crate does not make a tree that its own walk and \
                  removal refuse"
             ),
+            Refusal::Member(why) => why.clone(),
             Refusal::Escapes(e) => format!(
                 "resolving it against what the layers have written so far leaves \
                  the destination ({e}). A symlink an earlier entry created is \
