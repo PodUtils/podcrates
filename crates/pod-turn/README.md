@@ -210,7 +210,7 @@ this crate, and the tests that hold them:
   `tests/live.rs` (`POD_TURN_LIVE_SERVER`, `POD_TURN_LIVE_USER`,
   `POD_TURN_LIVE_PASSWORD`, `POD_TURN_LIVE_PEER`); no public server is
   written here.
-- [x] A server of another party on each push: coturn 4.18.0 on 127.0.0.1
+- [x] A server of another party on each push: coturn 4.19.0 on 127.0.0.1
   in `ci.yml` (`scripts/ci/turn-tests.sh`, `tests/coturn.rs`, T-380): over
   UDP and over TLS, the 401 of a static user with MD5 (coturn offers no
   PASSWORD-ALGORITHMS), a Send and a ChannelData echo with its padding,
@@ -253,7 +253,7 @@ this crate, and the tests that hold them:
   coturn has neither); ALTERNATE-SERVER, the ALPN `stun.turn` of RFC 7443,
   EVEN-PORT, RESERVATION-TOKEN, DONT-FRAGMENT, REQUESTED-ADDRESS-FAMILY and
   ADDITIONAL-ADDRESS-FAMILY against the mock (`tests/turn_redirect.rs`,
-  `tests/turn_allocation.rs`) and against coturn 4.18.0 on 127.0.0.1
+  `tests/turn_allocation.rs`) and against coturn 4.19.0 on 127.0.0.1
   (`tests/coturn_options.rs`, with a second coturn that redirects); the
   plants of T-381 in `scripts/plants/`.
 - [ ] A TURN server as a fact of another party with a watch (TURN-4): the
@@ -277,7 +277,7 @@ ALPN (`tests/turn_redirect.rs`); `tests/live.rs` is `#[ignore]`.
 `tests/coturn.rs` (7 tests) and `tests/coturn_options.rs` (6 tests) skip
 with no coturn, `tests/juice.rs` (2 tests) with no libjuice, and
 `tests/xturn.rs` (2 tests) with no xturn;
-`sh scripts/ci/turn-tests.sh` starts coturn 4.18.0 on the loopback, and a
+`sh scripts/ci/turn-tests.sh` starts coturn 4.19.0 on the loopback, and a
 second one that redirects to it (docker, or `POD_TURN_TEST_COTURN_BIN`, a
 `turnserver` of the host; coturn 4.6.1 of Ubuntu passes too), and the TURN
 server of libjuice 1.7.4 (git and a C compiler), and xturn 2.0.0 (the
