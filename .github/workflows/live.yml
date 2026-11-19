@@ -184,8 +184,12 @@ jobs:
             echo "the public mailboxes run on Thursdays and by hand"
             exit 0
           fi
-          timeout 300 cargo test --locked -p pod-wormhole --all-features --test live -- --ignored --nocapture
-          timeout 300 cargo test --locked -p pod-relay --all-features --test pair_code_live -- --ignored --nocapture
+          # Each test runs: a service of another party that fails in one
+          # test must not hide the services of the next (T-963).
+          rc=0
+          timeout 300 cargo test --locked -p pod-wormhole --all-features --test live -- --ignored --nocapture || rc=1
+          timeout 300 cargo test --locked -p pod-relay --all-features --test pair_code_live -- --ignored --nocapture || rc=1
+          exit "$rc"
       # Two meetings and one session of the resumable layer, 1 MiB each, through
       # Least Authority's transit relay (T-027; podssh's ruling Q65: short
       # runs), each Thursday and by hand, as a watch of a relay that publishes

@@ -842,4 +842,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-960](relay.md) | P3 | S | M2 | feature | done | `pod-term`: a cooked session always draws its prompt, so an exec'd command on podssh's server shows `$ ` between and after its lines (PodUtils/podssh#326) |
 | [T-961](podvm.md) | P2 | M | M6 | defect | done | `pod-extract`: the `tar` crate reads a PAX header or a GNU long name whole with no bound, and cuts the PAX records at each newline byte |
 | [T-962](relay.md) | P1 | S | M2 | defect | done | `pod-session`: the hold of a move starts when the task beside the link wakes, not when the bytes pass the threshold, so on Windows the old link still meets a small cap (PodUtils/podssh#327) |
-| [T-963](relay.md) | P2 | S | M2 | defect | partial | `live.yml`: the public Nostr relay `offchain.pub` pairs no two ends from a runner of GitHub, and pairs them from a cloud session |
+| [T-963](relay.md) | P2 | S | M2 | defect | partial | `live.yml`: public services of other parties fail from a runner of GitHub and pass from a cloud session (the Nostr relay `offchain.pub`, the WebTorrent tracker `tracker.openwebtorrent.com`) |
