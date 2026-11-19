@@ -18,7 +18,7 @@
 //! next. The SSH server of podvm does the same (the server of podvm).
 
 use super::screen::{ED, csi, motion};
-use super::{Discipline, EL, Event, PROMPT};
+use super::{Discipline, EL, Event};
 
 /// Each `\n` as `\r\n`, as `ONLCR` makes it.
 pub(crate) fn onlcr(bytes: &[u8]) -> Vec<u8> {
@@ -40,7 +40,9 @@ impl Discipline {
         if bytes.is_empty() {
             return vec![];
         }
-        let mut out = if self.hidden { Vec::new() } else { self.hide() };
+        // With no prompt and no line, nothing is drawn: nothing to hide.
+        let drawn = !self.prompt.is_empty() || !self.line.is_empty();
+        let mut out = if self.hidden || !drawn { Vec::new() } else { self.hide() };
         out.extend(onlcr(bytes));
         self.hidden = bytes.last() != Some(&b'\n');
         if !self.hidden {
@@ -76,7 +78,7 @@ impl Discipline {
     fn show(&mut self) -> Vec<u8> {
         let end = self.place(self.line.len());
         let cursor = self.place(self.cursor);
-        let mut out = PROMPT.to_vec();
+        let mut out = self.prompt.to_vec();
         out.extend_from_slice(&self.line);
         if end.col == 0 && end.row > 0 {
             out.extend_from_slice(b"\r\n");

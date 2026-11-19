@@ -16,6 +16,13 @@ use super::Discipline;
 use crate::echo::Event;
 
 impl Discipline {
+    /// The prompt that the discipline draws: [`crate::echo::PROMPT`], or
+    /// nothing after [`Discipline::without_prompt`]. The caller draws it
+    /// first.
+    pub fn prompt(&self) -> &'static [u8] {
+        self.prompt
+    }
+
     pub fn line(&self) -> &[u8] {
         &self.line
     }

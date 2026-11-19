@@ -16,7 +16,7 @@
 //! is not drawn right**: `ESC [ A` stops at the top row.
 
 use super::units::units;
-use super::{Discipline, EL, Event, PROMPT};
+use super::{Discipline, EL, Event};
 use crate::window::Size;
 
 /// A cell of the edit area: its row from the first row of the prompt, and
@@ -84,10 +84,10 @@ pub(crate) fn start(at: Place, cells: usize, width: Option<usize>) -> Place {
 
 impl Discipline {
     /// The place after byte `i` of the line: the prompt's cells, then each
-    /// step's. The prompt is ASCII, one cell a byte.
+    /// step's. The prompt is ASCII, one cell a byte, and can be empty.
     pub(crate) fn place(&self, i: usize) -> Place {
         let mut at = Place::default();
-        for _ in PROMPT {
+        for _ in self.prompt {
             at = advance(at, 1, self.width);
         }
         for u in units(&self.line[..i], self.utf8) {
@@ -166,10 +166,10 @@ impl Discipline {
     /// next row, `\r\n` when the line filled its last row, `ESC [ J` for the
     /// rows that a longer area left below, and the cursor back to its place.
     pub(crate) fn redraw_rows(&self, end: Place, cursor: Place) -> Vec<u8> {
-        let mut out = Vec::with_capacity(PROMPT.len() + self.line.len() + 24);
+        let mut out = Vec::with_capacity(self.prompt.len() + self.line.len() + 24);
         csi(&mut out, self.shown.row, b'A');
         out.push(b'\r');
-        out.extend_from_slice(PROMPT);
+        out.extend_from_slice(self.prompt);
         let mut at = self.place(0);
         for u in units(&self.line, self.utf8) {
             // The cell that a wide glyph leaves at the end of a row may show

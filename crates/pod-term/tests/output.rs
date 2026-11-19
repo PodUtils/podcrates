@@ -64,3 +64,33 @@ fn l5_after_the_end_of_input_only_the_newlines_change() {
     assert_eq!(legs(s.on_remote_bytes(b"bye\n")).local, b"bye\r\n");
     assert!(s.on_remote_bytes(b"").is_empty());
 }
+
+#[test]
+fn a_session_with_no_prompt_draws_nothing_around_the_output() {
+    // An exec'd command on a server with no pty (PodUtils/podssh#326): the
+    // output of the program in two reads gives its bytes, with `\r\n`, and
+    // no `$ ` and no clear between or after them.
+    let mut s = Session::new(selected()).without_prompt();
+    assert_eq!(s.cooked().map(|d| d.prompt()), Some(&b""[..]), "the caller draws no first prompt");
+    assert_eq!(legs(s.on_remote_bytes(b"PIPES\n")).local, b"PIPES\r\n");
+    assert_eq!(legs(s.on_remote_bytes(b"TERM=vt100 SSH_TTY=unset\n")).local, b"TERM=vt100 SSH_TTY=unset\r\n");
+    // Echo, the editing and the signals stay; a submit draws no prompt.
+    let got = legs(s.on_local_bytes(b"ab\x7fc\r"));
+    assert_eq!(
+        (got.local.as_slice(), got.remote.as_slice()),
+        (&b"ab\x08 \x08c\r\n"[..], &b"ac\n"[..]),
+        "{}",
+        got.show()
+    );
+    // A line under edit is still hidden and drawn again around the output.
+    legs(s.on_local_bytes(b"xy"));
+    assert_eq!(legs(s.on_remote_bytes(b"out\n")).local, b"\r\x1b[Kout\r\nxy");
+    assert_eq!(legs(s.on_local_bytes(b"\x03")).local, b"^C\r\n");
+}
+
+#[test]
+fn a_session_with_the_prompt_draws_it_as_before() {
+    let mut s = Session::new(selected());
+    assert_eq!(s.cooked().map(|d| d.prompt()), Some(pod_term::PROMPT));
+    assert_eq!(legs(s.on_remote_bytes(b"PIPES\n")).local, b"\r\x1b[KPIPES\r\n$ ");
+}

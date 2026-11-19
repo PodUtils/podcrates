@@ -10388,7 +10388,7 @@ cargo test -p pod-e2e --all-features stall
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10408,6 +10408,10 @@ A cooked `Session` with no prompt: echo, the editing and the signals as now, and
 ```sh
 cargo test -p pod-term --all-features prompt
 ```
+
+## Done
+
+2026-11-19, this commit. `crates/pod-term/src/echo.rs`: the prompt is a field of `Discipline` (`PROMPT` by default); `Discipline::without_prompt` and `Session::without_prompt` give a cooked session with no prompt, for a command that a server runs with no pty: echo, the editing and the signals stay, a submit, a signal and a clear draw no prompt, and output with no line under edit is written with `\r\n` and nothing around it (no `\r`, no `EL`, no prompt). A line under edit is still hidden and drawn again around the output. `Discipline::prompt` gives the prompt for the caller to draw first (empty with no prompt). Tests (`tests/output.rs`): `a_session_with_no_prompt_draws_nothing_around_the_output` (the two lines of podssh's gate give `PIPES\r\n` and `TERM=vt100 SSH_TTY=unset\r\n`), `a_session_with_the_prompt_draws_it_as_before`. `sh scripts/agent/check.sh`: each step passed.
 
 # T-962: `pod-session`: the hold of a move starts when the task beside the link wakes, not when the bytes pass the threshold, so on Windows the old link still meets a small cap (PodUtils/podssh#327)
 

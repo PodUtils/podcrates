@@ -116,6 +116,14 @@ impl Session {
         }
     }
 
+    /// The session with no prompt: for a command that the server runs, not
+    /// a shell ([`Discipline::without_prompt`]). Only the cooked mode draws
+    /// one.
+    pub fn without_prompt(mut self) -> Session {
+        self.cooked = self.cooked.without_prompt();
+        self
+    }
+
     /// The session, with the terminal's size: as the client measured it, or
     /// as `pty-req` carried it. The cooked discipline needs the width to draw
     /// a line longer than one row; the transparent mode keeps it as the size

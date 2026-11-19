@@ -199,6 +199,9 @@ pub struct Discipline {
     /// Output hid the line and stopped inside a row: the line comes back on
     /// a row of its own at the next key.
     pub(crate) hidden: bool,
+    /// [`PROMPT`] for a shell; empty for a command that the server runs
+    /// ([`Discipline::without_prompt`]).
+    pub(crate) prompt: &'static [u8],
 }
 
 impl fmt::Debug for Discipline {
@@ -247,9 +250,20 @@ impl Discipline {
             shown: Place::default(),
             drawn_end: Place::default(),
             hidden: false,
+            prompt: PROMPT,
         };
         d.reset_area();
         d
+    }
+
+    /// The discipline with no prompt, for a command that the server runs
+    /// with no pty: echo, the editing and the signals stay, and nothing is
+    /// drawn before a line or around the output, as a pty draws nothing for
+    /// a command (PodUtils/podssh#326). The caller draws no first prompt.
+    pub fn without_prompt(mut self) -> Self {
+        self.prompt = b"";
+        self.reset_area();
+        self
     }
 
     /// Redraw the line: `\r`, the prompt, the buffer, clear the rest, and the
@@ -266,13 +280,13 @@ impl Discipline {
         let end = self.place(self.line.len());
         let cursor = self.place(self.cursor);
         let out = if self.drawn_end.row == 0 && end.row == 0 {
-            let mut out = Vec::with_capacity(PROMPT.len() + self.line.len() * 2 + 16);
+            let mut out = Vec::with_capacity(self.prompt.len() + self.line.len() * 2 + 16);
             out.extend_from_slice(b"\r");
-            out.extend_from_slice(PROMPT);
+            out.extend_from_slice(self.prompt);
             out.extend_from_slice(&self.line);
             out.extend_from_slice(EL);
             out.extend_from_slice(b"\r");
-            out.extend_from_slice(PROMPT);
+            out.extend_from_slice(self.prompt);
             out.extend_from_slice(&self.line[..self.cursor]);
             out
         } else {
@@ -334,7 +348,7 @@ impl Discipline {
         if !self.on_fresh_row() {
             echo.push(b'\n');
         }
-        echo.extend_from_slice(PROMPT);
+        echo.extend_from_slice(self.prompt);
         self.reset_area();
         vec![Event::ToLocal(echo), Event::ToRemote(forward)]
     }

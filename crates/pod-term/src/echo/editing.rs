@@ -33,7 +33,7 @@
 use super::Discipline;
 use super::screen::{ED, csi, motion};
 use super::units::{Unit, after, before, blank, units, utf8_len};
-use crate::echo::{BELL, EL, Event, LINE_CAP, PROMPT, Sig};
+use crate::echo::{BELL, EL, Event, LINE_CAP, Sig};
 use crate::escape::{Intro, Param};
 
 impl Discipline {
@@ -49,7 +49,7 @@ impl Discipline {
         self.saved = None;
         self.hpos = None;
         echo.extend_from_slice(caret);
-        echo.extend_from_slice(PROMPT);
+        echo.extend_from_slice(self.prompt);
         self.reset_area();
         vec![Event::ToLocal(echo), Event::Signal(sig)]
     }
@@ -127,7 +127,7 @@ impl Discipline {
         self.line.clear();
         self.cursor = 0;
         out.extend_from_slice(b"\r");
-        out.extend_from_slice(PROMPT);
+        out.extend_from_slice(self.prompt);
         out.extend_from_slice(if rows { ED } else { EL });
         self.reset_area();
         vec![Event::ToLocal(out)]

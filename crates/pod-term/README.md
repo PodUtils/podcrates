@@ -8,7 +8,7 @@ dials nothing and spawns nothing. It has no pod dependency.
 
 | Module | What |
 | --- | --- |
-| `echo` | `Discipline`: echo, editing, history, a prompt, signals as `Sig` events, for a session with no pty and no discipline below (the one of the SSH server of podvm) |
+| `echo` | `Discipline`: echo, editing, history, a prompt (`prompt()`; none after `without_prompt()`, for a command that a server runs, also `Session::without_prompt`), signals as `Sig` events, for a session with no pty and no discipline below (the one of the SSH server of podvm) |
 | `session` | `Session` and `Mode`: which discipline a session gets, by what is below it |
 | `passthrough` | the mode for a full-screen program: bytes pass, and the discipline keeps out |
 | `termios` | `Tty`, `Termios`, `When`, `Event`, `Signal`, `flags`: the mode that follows the termios state of its child (`TCSETS`, `TCSETSW`, `TCSETSF`), with the rules of Linux `n_tty`: canonical editing, echo, signals, flow control, the mapping of input and output, and SIGWINCH; no prompt and no history |

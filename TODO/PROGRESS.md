@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 795 entries: 145 open, 24 partial, 7 blocked, 619 done.
+`TODO/INDEX.md` holds 795 entries: 144 open, 24 partial, 7 blocked, 620 done.
 
 ## State
 
@@ -58,8 +58,7 @@ podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red nightly
 (T-916, T-933, T-935, T-934, T-938). Then the asks of
 podrunner (COORD-134, #225): each new ask of podrunner.
-Then T-960
-(PodUtils/podssh#326). Then the
+Then the
 entries that a need of githome or cfb names for their CI: T-106 (G-10),
 T-104 with T-880 (one crate `pod-release`; A-X-13, #223 G-34), T-100
 (G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then cfb's asks
