@@ -16,7 +16,9 @@ use tokio::sync::watch;
 use tokio::time::Instant;
 use zeroize::Zeroizing;
 
+use crate::credentials::Secrets;
 use crate::policy::{Compiled, Mode, Policy};
+use crate::vault::Vault;
 
 /// The longest TTL of a job.
 pub const MAX_TTL: Duration = Duration::from_secs(7 * 24 * 3600);
@@ -65,13 +67,22 @@ fn hash(token: &str) -> [u8; 32] {
     Sha256::digest(token.as_bytes()).into()
 }
 
-/// A job to load: its id, its token, its TTL and its policy.
+/// A job to load: its id, its token, its TTL, its policy, and the values
+/// of the secrets that the credentials of the policy name.
 #[derive(Debug, Clone)]
 pub struct Load {
     pub job: String,
     pub token: Token,
     pub ttl: Duration,
     pub policy: Policy,
+    pub secrets: Secrets,
+}
+
+impl Load {
+    /// A job with no secret.
+    pub fn new(job: impl Into<String>, token: Token, ttl: Duration, policy: Policy) -> Load {
+        Load { job: job.into(), token, ttl, policy, secrets: Secrets::new() }
+    }
 }
 
 /// A job as `list` shows it.
@@ -86,6 +97,9 @@ pub struct JobInfo {
     pub expires_in: Duration,
     /// The connections of the job that are open.
     pub open: usize,
+    /// The certificate of the CA of the job as PEM, when its tunnels have a
+    /// TLS end: the job trusts it ([`crate::ca::bundle`]).
+    pub ca_pem: Option<String>,
 }
 
 /// A job id: 1 to 128 characters of letters, digits, `.`, `_`, `:` and `-`.
@@ -99,6 +113,7 @@ pub fn check_job_id(job: &str) -> Result<(), String> {
 
 struct Entry {
     policy: Arc<Compiled>,
+    vault: Option<Arc<Vault>>,
     hash: [u8; 32],
     // Dropped with the entry: each receiver then sees the end of the job.
     stop: watch::Sender<bool>,
@@ -139,6 +154,7 @@ impl Table {
 pub(crate) struct Lease {
     pub job: String,
     pub policy: Arc<Compiled>,
+    pub vault: Option<Arc<Vault>>,
     pub stop: watch::Receiver<bool>,
     pub expires: Instant,
     open: Arc<AtomicUsize>,
@@ -167,6 +183,7 @@ fn lease(table: &Table, job: String) -> Option<Lease> {
     entry.open.fetch_add(1, Ordering::Relaxed);
     Some(Lease {
         policy: entry.policy.clone(),
+        vault: entry.vault.clone(),
         stop: entry.stop.subscribe(),
         expires: entry.expires,
         open: entry.open.clone(),
@@ -190,8 +207,9 @@ impl Jobs {
 
     /// Load `load`, in place of a job of the same id. A timer drops the job
     /// at its TTL when a tokio runtime runs; each lookup drops an expired
-    /// job too.
-    pub fn load(self: &Arc<Self>, load: Load) -> Result<Compiled, Failure> {
+    /// job too. With `tls_end`, a job whose policy needs a TLS end gets its
+    /// vault: its CA and its secrets.
+    pub fn load(self: &Arc<Self>, load: Load, tls_end: bool) -> Result<(Compiled, Option<Arc<Vault>>), Failure> {
         let usage = |words: String| Failure::new(Stage::Proxy, Class::Usage, words);
         check_job_id(&load.job).map_err(usage)?;
         load.token.check().map_err(usage)?;
@@ -199,6 +217,15 @@ impl Jobs {
             return Err(usage(format!("a TTL is from 1 s to {} s", self.max_ttl.as_secs())));
         }
         let compiled = load.policy.compile()?;
+        let vault = if tls_end && compiled.needs_tls_end() {
+            Some(Arc::new(Vault::new(&load.job, load.ttl, &compiled, &load.secrets)?))
+        } else if !compiled.credentials().is_empty() {
+            return Err(usage("a credential needs the TLS end of the broker (Broker::with_tunnel_end)".into()));
+        } else if !load.secrets.is_empty() {
+            return Err(usage("the load gives a secret, and no credential of the policy names one".into()));
+        } else {
+            None
+        };
         let hash = hash(load.token.expose());
         let now = Instant::now();
         let expires = now + load.ttl;
@@ -214,6 +241,7 @@ impl Jobs {
             let (stop, _) = watch::channel(false);
             let entry = Entry {
                 policy: Arc::new(compiled.clone()),
+                vault: vault.clone(),
                 hash,
                 stop,
                 generation,
@@ -234,7 +262,7 @@ impl Jobs {
                 }
             });
         }
-        Ok(compiled)
+        Ok((compiled, vault))
     }
 
     fn expire(&self, job: &str, generation: u64) {
@@ -291,6 +319,7 @@ impl Jobs {
                 flagged: e.policy.flagged().to_vec(),
                 expires_in: e.expires.saturating_duration_since(now),
                 open: e.open.load(Ordering::Relaxed),
+                ca_pem: e.vault.as_ref().map(|v| v.ca().pem().to_string()),
             })
             .collect();
         jobs.sort_by(|a, b| a.job.cmp(&b.job));

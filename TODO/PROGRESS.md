@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 804 entries: 143 open, 27 partial, 7 blocked, 627 done.
+`TODO/INDEX.md` holds 806 entries: 144 open, 27 partial, 7 blocked, 628 done.
 
 ## State
 
@@ -62,8 +62,8 @@ Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;
 cfb's A-X-18 waits for cfb's answer on #223, call C792),
 T-966 (the trials of `pod-release` in podnet and
-podssh, and its hand-off; podnet's half is open), T-964 (the bundle of Rekor v2), T-100
-(G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then cfb's asks
+podssh, and its hand-off; podnet's half is open), T-964 (the bundle of Rekor v2), T-973
+(the CA bundle of the TLS end of `pod-broker` with real clients; G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
 of the consumers: T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
@@ -150,7 +150,7 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
    top, by the ruling "podrunner first"). T-490 (the server half of ECH, #130) waits too. The
    asks of podswarm that help podswarm alone (T-430 to T-437, T-440 to
    T-443, T-445, T-446, T-449, T-450) wait until the podswarm session
-   starts (the ruling "podswarm"). T-100, T-102 to T-119 wait, unless a
+   starts (the ruling "podswarm"). T-102 to T-119 wait, unless a
    consumer needs one first. T-113 to T-116 wait for the first release on
    crates.io. T-191 and T-194 (the proposals of PodUtils/podnet#437 for
    `pod-broker`, for the egress of podrunner) go to item 3 when podrunner

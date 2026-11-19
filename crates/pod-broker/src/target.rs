@@ -205,6 +205,22 @@ pub fn parse_absolute(text: &str) -> Result<HttpTarget, Bad> {
     Ok(HttpTarget { authority, path, query })
 }
 
+/// A request-target in origin form (`/PATH?QUERY`), as a request inside a
+/// tunnel sends it: the path in its normal form ([`normal_path`]), and the
+/// query with no `?`, as sent.
+pub fn parse_origin(text: &str) -> Result<(String, Option<String>), Bad> {
+    if !text.starts_with('/') {
+        return bad("a request inside a tunnel takes a request-target in origin form (/PATH)");
+    }
+    if text.contains('#') {
+        return bad("a request-target has no fragment (#)");
+    }
+    match text.split_once('?') {
+        Some((path, query)) => Ok((normal_path(path)?, Some(query.to_string()))),
+        None => Ok((normal_path(text)?, None)),
+    }
+}
+
 /// A path in its normal form: it starts with `/`, has no empty segment, no
 /// dot segment and no backslash; an escape of an unreserved character is
 /// decoded, an escape of a dot, a slash, a backslash or a control byte is

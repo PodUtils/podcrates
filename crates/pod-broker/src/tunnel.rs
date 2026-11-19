@@ -1,18 +1,22 @@
 //! The inside of a tunnel after the broker allowed its CONNECT: the bytes
 //! go both ways as they are ([`Splice`]), or a [`TunnelEnd`] that the host
-//! gives takes them. T-100 adds a TLS end with a CA for each job: it reads
-//! the SNI and each request, checks the SNI against the CONNECT target
-//! (421), checks each path ([`Tunnel::allows_path`]), and swaps the
-//! placeholder credentials.
+//! gives takes them: the TLS end of [`crate::tls_end`] (T-100) reads the SNI
+//! and each request, checks the SNI and the `Host` against the CONNECT
+//! target (421), checks each path ([`Tunnel::allows_path`]), swaps the
+//! placeholder credentials and scrubs each answer.
 
+use std::collections::BTreeSet;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use pod_core::{BoxFuture, BoxedIo, Failure, Stage};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
+use crate::audit::Line;
 use crate::policy::Compiled;
 use crate::target::Authority;
+use crate::vault::Vault;
 
 /// The bytes of a tunnel, each way. A [`TunnelEnd`] counts here, so that the
 /// audit line has them also when the job ends the tunnel.
@@ -34,6 +38,46 @@ impl Counts {
     }
 }
 
+/// What a TLS end did in one tunnel, for its audit line: no path, no
+/// header and no value.
+#[derive(Debug, Default)]
+pub struct Report {
+    /// The TLS end read the tunnel.
+    pub tls: AtomicBool,
+    /// The requests that it read.
+    pub requests: AtomicU64,
+    /// The placeholders that it swapped for their values.
+    pub swaps: AtomicU64,
+    /// The values that it took out of the answers.
+    pub scrubs: AtomicU64,
+    /// What passed with no swap or was refused, by a word of the TLS end
+    /// (`body-large`, `answer-encoded`, `sni-mismatch`).
+    notes: Mutex<BTreeSet<&'static str>>,
+}
+
+impl Report {
+    pub fn note(&self, word: &'static str) {
+        self.notes.lock().unwrap_or_else(|e| e.into_inner()).insert(word);
+    }
+
+    pub fn notes(&self) -> Vec<&'static str> {
+        self.notes.lock().unwrap_or_else(|e| e.into_inner()).iter().copied().collect()
+    }
+
+    /// The fields of the report in `line`: the counts when the TLS end read
+    /// the tunnel, and the notes.
+    pub(crate) fn fill(&self, line: &mut Line) {
+        if self.tls.load(Ordering::Relaxed) {
+            line.set("tls", "end").set("requests", self.requests.load(Ordering::Relaxed));
+            line.set("swaps", self.swaps.load(Ordering::Relaxed)).set("scrubs", self.scrubs.load(Ordering::Relaxed));
+        }
+        let notes = self.notes();
+        if !notes.is_empty() {
+            line.set("notes", notes.join(" "));
+        }
+    }
+}
+
 /// One allowed tunnel.
 pub struct Tunnel<'a> {
     pub job: &'a str,
@@ -46,6 +90,10 @@ pub struct Tunnel<'a> {
     /// The rule that allowed the CONNECT, or [`crate::policy::PATH_NEEDS_TLS_END`].
     pub rule: &'a str,
     pub counts: &'a Counts,
+    /// The CA and the secrets of the job, when its tunnels have a TLS end.
+    pub vault: Option<&'a Vault>,
+    /// What the end did, for the audit line.
+    pub report: &'a Report,
 }
 
 impl Tunnel<'_> {

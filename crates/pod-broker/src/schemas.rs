@@ -61,14 +61,19 @@ fn the_schemas_are_generated_from_the_types() {
 
 /// Each policy gets the same verdict from the reader and from the schema:
 /// the examples of the schema, an open policy with a rule, port 0, an
-/// unknown key, another version and a bad path.
+/// unknown key, another version, a bad path, and the credentials.
 #[test]
 fn the_schema_and_the_reader_agree_on_each_policy() {
     let schema = schema_of::<Policy>("broker-policy").to_value();
     let mut cases: Vec<(Value, bool)> =
         schema["examples"].as_array().unwrap().iter().map(|e| (e.clone(), true)).collect();
-    assert_eq!(cases.len(), 2);
+    assert_eq!(cases.len(), 3);
     let rule = json!({ "host": "a.example" });
+    let credential = |placeholder: &str, places: Value| {
+        json!({ "schema": 1, "mode": "open", "credentials": [
+            { "placeholder": placeholder, "secret": "s", "hosts": ["a.example"], "in": places }
+        ] })
+    };
     cases.extend([
         (json!({ "schema": 1, "mode": "open", "allow": [rule] }), false),
         (json!({ "schema": 1, "mode": "allow", "allow": [{ "host": "a.example", "ports": [0] }] }), false),
@@ -78,6 +83,16 @@ fn the_schema_and_the_reader_agree_on_each_policy() {
         (json!({ "schema": 2, "mode": "open" }), false),
         (json!({ "schema": 1, "mode": "deny" }), false),
         (json!({ "schema": 1, "mode": "allow", "allow": [rule], "deny": ["*.ads.example"] }), true),
+        (credential("PODCRED_PLACEHOLDER_01", json!(["query", "body"])), true),
+        (credential("short", json!(["header"])), false),
+        (credential("PODCRED PLACEHOLDER 01", json!(["header"])), false),
+        (credential("PODCRED_PLACEHOLDER_01", json!(["cookie"])), false),
+        (
+            json!({ "schema": 1, "mode": "open", "credentials": [
+            { "placeholder": "PODCRED_PLACEHOLDER_01", "secret": "s", "hosts": [] }
+        ] }),
+            false,
+        ),
     ]);
     for (value, good) in cases {
         let reader = Policy::from_value(value.clone()).and_then(|p| p.compile().map(|_| ()));

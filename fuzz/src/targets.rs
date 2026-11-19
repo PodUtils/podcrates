@@ -9,6 +9,7 @@ use pod_proxy::{Carrier, NoProxy, Proxy, authority, digest, proxy_auth};
 use crate::{is_one_line, text};
 
 mod actions;
+mod broker;
 mod cloudflare;
 mod devtunnel;
 mod e2e;
@@ -32,6 +33,7 @@ mod wg;
 mod wormhole;
 
 pub use actions::{actions_expr, actions_workflow};
+pub use broker::broker_inner;
 pub use cloudflare::{
     capnp_message, config_yaml, connect_request, h2_header_block, ingress_rule, register_response, request_head,
     rpc_message, srv_record,

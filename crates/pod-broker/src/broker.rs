@@ -111,8 +111,8 @@ impl Broker {
     /// A bad job id, token, TTL or policy is a failure of the class `Usage`.
     pub fn load(&self, load: Load) -> Result<JobInfo, Failure> {
         let (job, ttl) = (load.job.clone(), load.ttl);
-        match self.jobs.load(load) {
-            Ok(compiled) => {
+        match self.jobs.load(load, self.end.reads_requests()) {
+            Ok((compiled, vault)) => {
                 let flagged = compiled.flagged().to_vec();
                 let mut line = Line::new(if flagged.is_empty() { "info" } else { "warn" }, "broker.job.load");
                 line.set("job", job.as_str()).set("mode", compiled.mode().word()).set("rules", compiled.rules());
@@ -120,8 +120,23 @@ impl Broker {
                 if !flagged.is_empty() {
                     line.set("flagged", flagged.join(" "));
                 }
+                let credentials = compiled.credentials();
+                if !credentials.is_empty() {
+                    let names: Vec<&str> = credentials.iter().map(|c| c.secret.as_str()).collect();
+                    line.set("credentials", names.join(" "));
+                }
+                line.set("ca", vault.is_some());
                 self.audit.line(&line);
-                Ok(JobInfo { job, mode: compiled.mode(), rules: compiled.rules(), flagged, expires_in: ttl, open: 0 })
+                let ca_pem = vault.map(|v| v.ca().pem().to_string());
+                Ok(JobInfo {
+                    job,
+                    mode: compiled.mode(),
+                    rules: compiled.rules(),
+                    flagged,
+                    expires_in: ttl,
+                    open: 0,
+                    ca_pem,
+                })
             }
             Err(e) => {
                 let mut line = Line::new("warn", "broker.job.load");
@@ -150,6 +165,12 @@ impl Broker {
     /// Each job, by id.
     pub fn list(&self) -> Vec<JobInfo> {
         self.jobs.list()
+    }
+
+    /// The certificate of the CA of the job `job` as PEM, when its tunnels
+    /// have a TLS end.
+    pub fn ca_pem(&self, job: &str) -> Option<String> {
+        self.jobs.lease_of(job).and_then(|lease| lease.vault.as_ref().map(|v| v.ca().pem().to_string()))
     }
 
     /// Serve the jobs on `listener` (a TCP address on loopback that the host

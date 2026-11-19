@@ -1,0 +1,7 @@
+# The TLS end takes any name in the handshake (SNI): a job that asks
+# another name than the CONNECT target is served (T-100).
+ENTRY=T-100
+GROUP=proxy
+EXPECT='a_host_or_an_sni_that_is_not_the_connect_target_gets_421'
+RUN='cargo test -p pod-broker --all-features --test tls_swap'
+LIMIT=1800

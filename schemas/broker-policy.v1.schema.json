@@ -12,6 +12,13 @@
         "$ref": "#/$defs/Rule"
       }
     },
+    "credentials": {
+      "description": "The placeholder credentials: the job holds each placeholder, and the\nbroker swaps it for the real value of its secret on the way to its\nhosts, inside its TLS end ([`crate::credentials`]). A policy names a\nsecret, never its value.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Credential"
+      }
+    },
     "deny": {
       "description": "Extra denies after the fixed ones: a net (`ADDR/PREFIX`), an\naddress, a name or `*.NAME`. The audit names an entry\n`policy:deny[N]`.",
       "type": "array",
@@ -53,6 +60,19 @@
       ],
       "mode": "allow",
       "schema": 1
+    },
+    {
+      "credentials": [
+        {
+          "hosts": [
+            "api.github.com"
+          ],
+          "placeholder": "PODCRED_GITHUB_TOKEN_0001",
+          "secret": "github"
+        }
+      ],
+      "mode": "open",
+      "schema": 1
     }
   ],
   "if": {
@@ -74,6 +94,45 @@
     }
   },
   "$defs": {
+    "Credential": {
+      "description": "One placeholder credential of a policy.",
+      "type": "object",
+      "properties": {
+        "hosts": {
+          "description": "The hosts that get the real value: a name, `*.NAME` or an address,\nas the host of an allow rule. Each other host gets the placeholder.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "in": {
+          "description": "Where the swap happens; none: `header` and `basic`.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Place"
+          }
+        },
+        "placeholder": {
+          "description": "The text that the job holds: 16 to 256 of `A-Z a-z 0-9 _ . -`.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]{16,256}$"
+        },
+        "secret": {
+          "description": "The name of the secret whose value the host gives at the load: 1 to\n128 of `A-Z a-z 0-9 . _ : -`.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "placeholder",
+        "secret",
+        "hosts"
+      ]
+    },
     "Mode": {
       "description": "How a policy treats a target that no rule names.",
       "oneOf": [
@@ -86,6 +145,31 @@
           "description": "Each target that no deny holds. An open policy has no allow rule.",
           "type": "string",
           "const": "open"
+        }
+      ]
+    },
+    "Place": {
+      "description": "Where the broker swaps a placeholder in a request.",
+      "oneOf": [
+        {
+          "description": "The value of each header: `Authorization: Bearer PLACEHOLDER`.",
+          "type": "string",
+          "const": "header"
+        },
+        {
+          "description": "The user or the password of `Authorization: Basic`.",
+          "type": "string",
+          "const": "basic"
+        },
+        {
+          "description": "The query of the request-target, percent-encoded.",
+          "type": "string",
+          "const": "query"
+        },
+        {
+          "description": "The body of the request, within the bounds of the TLS end.",
+          "type": "string",
+          "const": "body"
         }
       ]
     },

@@ -18,6 +18,14 @@ impl<S> Prefixed<S> {
     pub fn new(first: Vec<u8>, inner: S) -> Prefixed<S> {
         Prefixed { first, at: 0, inner }
     }
+
+    /// Put `bytes` before the bytes that are not read yet: the bytes after a
+    /// head that a reader took belong to the next read.
+    pub fn put_back(&mut self, mut bytes: Vec<u8>) {
+        bytes.extend_from_slice(&self.first[self.at..]);
+        self.first = bytes;
+        self.at = 0;
+    }
 }
 
 impl<S: AsyncRead + Unpin> AsyncRead for Prefixed<S> {

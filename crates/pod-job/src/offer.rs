@@ -196,8 +196,9 @@ impl JobOffer {
     }
 }
 
-/// The keys of a policy of `broker-policy.v1`.
-pub const POLICY_KEYS: [&str; 4] = ["schema", "mode", "allow", "deny"];
+/// The keys of a policy of `broker-policy.v1`: `credentials` names a
+/// placeholder, a secret and its hosts, never a value (T-100).
+pub const POLICY_KEYS: [&str; 5] = ["schema", "mode", "allow", "deny", "credentials"];
 
 /// Why `policy` is not an empty object or a policy of `broker-policy.v1`,
 /// on the top level only: the keys, the version, the mode, and the types
@@ -224,6 +225,9 @@ fn policy_fault(policy: &Map<String, Value>) -> Option<String> {
     }
     if !list_of("deny", Value::is_string) {
         return Some("deny is not a list of strings".into());
+    }
+    if !list_of("credentials", Value::is_object) {
+        return Some("credentials is not a list of credentials".into());
     }
     None
 }

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**804 entries: 143 open, 27 partial, 7 blocked, 627 done.**
+**806 entries: 144 open, 27 partial, 7 blocked, 628 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 9 | 8 | 0 | 186 | 203 |
-| P2 | 67 | 9 | 4 | 318 | 398 |
-| P3 | 67 | 10 | 3 | 121 | 201 |
-| **All** | 143 | 27 | 7 | 627 | 804 |
+| P1 | 8 | 8 | 0 | 187 | 203 |
+| P2 | 68 | 9 | 4 | 318 | 399 |
+| P3 | 68 | 10 | 3 | 121 | 202 |
+| **All** | 144 | 27 | 7 | 628 | 806 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -146,7 +146,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-097](upkeep.md) | P3 | S | M5 | chore | done | Ports and snapshot moves of the drift of `pod-core` and `pod-services` |
 | [T-098](upkeep.md) | P1 | M | M5 | chore | done | The asks of cfb (GitHub #35) and githome (GitHub #36) go to their owners |
 | [T-099](fleet.md) | P1 | L | M8 | feature | done | `pod-broker`: the egress broker: per-job policy, one resolve, the upstream chain, the audit and the drop (GitHub #35, #36) |
-| [T-100](fleet.md) | P1 | L | M8 | feature | open | `pod-broker`: TLS end with a CA for each job, placeholder credentials and the scrub of answers (GitHub #35, #36) |
+| [T-100](fleet.md) | P1 | L | M8 | feature | done | `pod-broker`: TLS end with a CA for each job, placeholder credentials and the scrub of answers (GitHub #35, #36) |
 | [T-101](foundation.md) | P1 | S | M1 | feature | done | `pod-core`: the classes Revoked, Policy and Unsupported, one exit code for each class, one JSON log schema (GitHub #35) |
 | [T-102](fleet.md) | P1 | M | M8 | feature | open | `pod-unit`: hardened service units for systemd, launchd and Windows, with no secret in a unit (GitHub #35) |
 | [T-103](fleet.md) | P1 | M | M8 | feature | open | `pod-control`: one JSON control API on a Unix socket or a named pipe (GitHub #35, #36) |
@@ -851,3 +851,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-969](upkeep.md) | P1 | M | M5 | chore | done | `upstream.yml` is red: the sources of `pod-job`, `pod-manual` and `pod-testkit` changed in podrunner and podssh |
 | [T-970](upkeep.md) | P2 | S | M5 | defect | done | `pod-wormhole`: the stand-in tracker test reads the announces before the `stopped` of an end arrived (macos-15) |
 | [T-971](fleet.md) | P3 | S | M8 | defect | done | `pod-release`: `update::plan` answers `UpToDate` both for the version of this build and for an older release |
+| [T-972](fleet.md) | P3 | S | M8 | chore | open | `pod-lab`: the CAs of a lab take the P-256 key and the PEM writer of `pod-acme` |
+| [T-973](fleet.md) | P2 | M | M8 | chore | open | `pod-broker`: the CA bundle of a job with curl, git, Python and Node.js in a lab |

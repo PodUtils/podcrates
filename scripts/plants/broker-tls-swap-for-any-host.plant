@@ -1,0 +1,7 @@
+# The swap ignores the hosts of a credential: a host that the policy does
+# not name for the credential gets the real value of the secret (T-100).
+ENTRY=T-100
+GROUP=proxy
+EXPECT='a_host_that_no_credential_names_gets_no_swap'
+RUN='cargo test -p pod-broker --all-features --test tls_swap'
+LIMIT=1800

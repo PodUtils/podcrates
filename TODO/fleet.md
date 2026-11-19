@@ -61,7 +61,7 @@ runs on the host with the line of `pod-broker`.
 **Milestone:** M8
 **Priority:** P1
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -90,6 +90,34 @@ sh scripts/fuzz.sh 60
 ## Start condition
 
 T-099 is done.
+
+## Done
+
+2026-11-19, this commit. The TLS end of `pod-broker` (calls C810 to C817):
+
+- The policy: the field `credentials` of `broker-policy.v1` (`placeholder`, `secret`, `hosts`, `in`;
+  row `next` of `schemas/CHANGES.md`); `pod-job` takes the key in the `policy` of an offer (the example
+  `valid-policy-credentials.json`). The values come at the load (`Load::secrets`, `secrets` of the
+  control line), never in a policy.
+- The CA of a job (`ca::JobCa`: P-256 keys of `pod-acme`, rcgen with no crypto of its own), its leaves
+  with the key id of the CA, `ca::bundle`, `ca::write_bundle`, `ca::env` (the six variables of
+  `pod_tls::BUNDLE_VARS`, with `SSL_CERT_FILE`, `GIT_SSL_CAINFO`, `NODE_EXTRA_CA_CERTS` and
+  `REQUESTS_CA_BUNDLE`); `JobInfo::ca_pem`, `Broker::ca_pem` and `ca_pem` in the load answer.
+- `TlsEnd::new(provider, client_config)`: the tunnels to a host of a credential or to a host whose rules
+  have paths, when the job speaks TLS first; the checks of the SNI, the `Host`, the target and the path;
+  the swap in a header, Basic, a query and a body; the scrub of each answer (header, body by length,
+  chunks, to the close, after 101); the bounds of C814; the audit fields of C817.
+- Tests: `cargo test -p pod-broker --all-features`: 19 unit and 90 in `tests/` passed, 3 runs with no
+  failure (`tests/tls_swap.rs` 11, `tests/tls_scrub.rs` 4, `tests/credentials.rs` 6, among them
+  `a_planted_secret_is_in_no_log_line_no_audit_line_no_answer_and_no_error` and
+  `a_leaf_verifies_with_openssl_in_its_strict_mode`). `cargo test -p pod-job --all-features`: 25 passed.
+- The fuzz target `broker_inner` (`inner::read` and `replace::Replace` cut in two pieces): `cargo test
+  --manifest-path fuzz/Cargo.toml --lib` 14 passed; it builds on `nightly-2026-11-18` with the flags of
+  cargo-fuzz.
+- Plants: `broker-tls-answer-not-scrubbed` (the real value in an answer), `broker-tls-swap-for-any-host`
+  (a swap for a host outside the credential) and `broker-tls-sni-not-checked`; each fails its test.
+- Found and written as entries: T-972 (`pod-lab` keeps its own P-256 key and PEM writer) and T-973 (the
+  bundle of a job with curl, git, Python and Node.js in a lab).
 
 # T-102: `pod-unit`: hardened service units for systemd, launchd and Windows, with no secret in a unit (GitHub #35)
 
@@ -327,8 +355,8 @@ podrunner (a project that runs CI jobs, GitHub #47) holds each unit's egress on 
 
 ## Premise
 
-- Read, at `5cedb23`: `crates/pod-broker/src/serve.rs:177` is `lease`. It takes the job from `Proxy-Authorization` (`Bearer`, or Basic with the token as the password) and refuses with 407 when the header is missing. The issue cites lines 155 to 175. The function runs from line 158 to line 182. The call is at `crates/pod-broker/src/serve.rs:119`.
-- Read: `crates/pod-broker/src/broker.rs:157` (`serve_tcp`) and `crates/pod-broker/src/broker.rs:173` (`serve_unix`) each serve every job. No call binds one listener to one job. `Broker::drop_job` (`crates/pod-broker/src/broker.rs:140`) ends the connections of a job.
+- Read, at `5cedb23`: `crates/pod-broker/src/serve.rs:180` is `lease`. It takes the job from `Proxy-Authorization` (`Bearer`, or Basic with the token as the password) and refuses with 407 when the header is missing. The issue cites lines 155 to 175. The function runs from line 158 to line 182. The call is at `crates/pod-broker/src/serve.rs:119`.
+- Read: `crates/pod-broker/src/broker.rs:178` (`serve_tcp`) and `crates/pod-broker/src/broker.rs:194` (`serve_unix`) each serve every job. No call binds one listener to one job. `Broker::drop_job` (`crates/pod-broker/src/broker.rs:155`) ends the connections of a job.
 - Read: `crates/pod-broker/README.md` writes the unix upstream as `http+unix:PATH` at line 47. `PodUtils/podnet:crates/podnet-netns/src/upstream/tests.rs` parses `http://unix:/PATH` and `socks5://unix:///PATH`. The README form does not parse in `podnet pod -x`: podnet's `Proxy::parse` in `PodUtils/podnet:crates/podnet-netns/src/upstream.rs` has no `http+unix:` prefix. The documentation defect is fixed in the commit that adds this entry (see the Done line of the COORD issue).
 - Read: section 0 item 4 of the issue says that SPEC section 9.5 of the design review writes `socks5://unix:PATH`. `pod-broker` speaks HTTP CONNECT and absolute-form HTTP only, not SOCKS5. podnet parses a SOCKS5 unix proxy, so the text parses but the broker does not answer SOCKS5. This is a note for the spec, not for podcrates. The working form is `http://unix:/PATH`.
 - Not measured: the listener. Not read: the design review (the owner holds the zip).
@@ -399,7 +427,7 @@ A proxy-only host can have an upstream CONNECT proxy that takes names only. Two 
 
 ## Premise
 
-- Read: `crates/pod-broker/src/broker.rs:280` (`upstream` takes one `Option<pod_proxy::Proxy>` and dials the checked address) and `crates/pod-broker/src/serve.rs:309` (`connect` dials `Target::Addr`). The issue cites `serve.rs:273-287` and `broker.rs:183-191`. The code agrees to within a few lines.
+- Read: `crates/pod-broker/src/broker.rs:301` (`upstream` takes one `Option<pod_proxy::Proxy>` and dials the checked address) and `crates/pod-broker/src/serve.rs:312` (`connect` dials `Target::Addr`). The issue cites `serve.rs:273-287` and `broker.rs:183-191`. The code agrees to within a few lines.
 - Read: call C28 says that through an upstream proxy the broker sends the checked address and never the name. This entry changes C28 for an upstream that takes names only. The default stays the checked address. Write the change as a new call when the work starts.
 - Not read: `APPENDIX-DEFERRED.md` of the design review (the owner holds the zip). Not run: the two sandbox hosts.
 
@@ -935,15 +963,15 @@ path of `/tmp`, with mode 0600 set after the bind.
 
 - Read (this tree): `crates/pod-broker/src/target.rs:187-189`:
   `parse_absolute` refuses a target in origin form ("a proxy takes a
-  request-target in absolute form"). `crates/pod-broker/README.md:176`
+  request-target in absolute form"). `crates/pod-broker/README.md:247`
   lists that 400. They agree with the review.
 - The code moved since `63348de`, the commit of the review (T-161 and
   others). Today `serve_one` is at `crates/pod-broker/src/serve.rs:104`,
-  `next` at `:220`, `check` at `:252` and `connect` at `:309`; `exchange`
+  `next` at `:223`, `check` at `:255` and `connect` at `:312`; `exchange`
   is at `crates/pod-broker/src/forward.rs:71`; `Broker::serve_unix_job` is
-  at `crates/pod-broker/src/broker.rs:194` and `serve_tcp_job` at `:218`;
+  at `crates/pod-broker/src/broker.rs:215` and `serve_tcp_job` at `:239`;
   the advice of `bind_unix` (a directory of mode 0700) is at
-  `crates/pod-broker/src/control.rs:124-127`. The steps agree with the
+  `crates/pod-broker/src/control.rs:140-143`. The steps agree with the
   review.
 - Read: `crates/pod-broker/Cargo.toml` has no `pod-tls`. But `pod-proxy`
   depends on `pod-tls` (`crates/pod-proxy/Cargo.toml:27`) with its default
@@ -954,7 +982,7 @@ path of `/tmp`, with mode 0600 set after the bind.
   `pod-tls` has no pod dependency but `pod-core`
   (`crates/pod-tls/Cargo.toml:41`).
 - Read: `check` takes the path of a plain request
-  (`crates/pod-broker/src/serve.rs:266`). The path rules of a policy thus
+  (`crates/pod-broker/src/serve.rs:269`). The path rules of a policy thus
   apply in this mode with no TLS end; a CONNECT needs a TLS end for them
   (`PATH_NEEDS_TLS_END`).
 - Found, not in the review: a 502 or a 504 names what failed
@@ -966,12 +994,12 @@ path of `/tmp`, with mode 0600 set after the bind.
   80 only (`crates/pod-broker/src/forward.rs:54-57`). Toward TLS the
   default port is 443.
 - Found, not in the review: `next` refuses two `Host` headers but accepts
-  none for a target in absolute form (`crates/pod-broker/src/serve.rs:220-244`).
+  none for a target in absolute form (`crates/pod-broker/src/serve.rs:223-247`).
   This mode needs exactly one.
 - Found, not in the review: an upstream proxy gets the name of the origin
   only with `Settings::names_upstream` (T-161,
-  `crates/pod-broker/src/serve.rs:314-325`); else the broker dials a
-  checked address (`:327-339`). The acceptance "the proxy sees the name"
+  `crates/pod-broker/src/serve.rs:317-328`); else the broker dials a
+  checked address (`:330-342`). The acceptance "the proxy sees the name"
   holds with that setting only.
 - The consumer: the egress module of podrunner serves one listener of the
   broker for each unit (PodUtils/podrunner@T-024). T-100 is the TLS end of
@@ -1079,31 +1107,31 @@ or in spaces get one hash; each change of meaning gets another.
 ## Premise
 
 - Read (this tree; the code moved since `63348de`, the commit of the
-  review): `crates/pod-broker/src/broker.rs:110-136`. `load` writes
+  review): `crates/pod-broker/src/broker.rs:110-151`. `load` writes
   `broker.job.load` with `job`, `mode`, `rules`, `ttl_s` (and `flagged`,
   T-161), and no identity of the policy.
 - Read: `crates/pod-broker/src/jobs.rs:68-75` (`Load` holds a `Policy`)
-  and `:77-89` (`JobInfo`: `job`, `mode`, `rules`, `flagged`,
+  and `:88-103` (`JobInfo`: `job`, `mode`, `rules`, `flagged`,
   `expires_in`, `open`).
-- Read: `crates/pod-broker/src/control.rs:42-56`: `info`, the JSON of a
-  job. The `load` answer is `info` with more keys (`:86-92`), and `list`
-  maps `info` (`:101-104`). One new field of `JobInfo` thus reaches both
-  answers. The control socket checks the user of its peer (`:166-173`).
+- Read: `crates/pod-broker/src/control.rs:54-68`: `info`, the JSON of a
+  job. The `load` answer is `info` with more keys (`:99-108`), and `list`
+  maps `info` (`:117-120`). One new field of `JobInfo` thus reaches both
+  answers. The control socket checks the user of its peer (`:182-189`).
 - Read: `crates/pod-broker/src/serve.rs:62-73`: `Note::line` starts both
-  connection lines. The deny line sets `decision` and `rule` at `:347`,
-  the allow line at `:364`. A refusal before the lease (408 or 407,
+  connection lines. The deny line sets `decision` and `rule` at `:350`,
+  the allow line at `:367`. A refusal before the lease (408 or 407,
   `:107-122`) has no job, thus no hash.
-- Read: `crates/pod-broker/src/policy.rs:70-82`: `Policy` derives
+- Read: `crates/pod-broker/src/policy.rs:71-83`: `Policy` derives
   `Serialize` with `deny_unknown_fields`. An empty `allow`, `deny` or
   `ports` and a missing `path` are not written (`skip_serializing_if`), so
   an empty list and a missing list give one hash. The rule `allow[{n}]`
-  comes from `:234-235`.
+  comes from `:258-259`.
 - Read: `crates/pod-broker/Cargo.toml:22` (`sha2` is a dependency);
   `crates/pod-broker/tests/audit.rs:16` (`no_audit_line_holds_a_planted_secret`
   reads the audit lines only); `schemas/log.v1.schema.json` (`fields` is an
   object, so a new key is compatible). They agree with the review.
 - Found, not in the review: `Entry` has a field `hash` already, the
-  SHA-256 of the token (`crates/pod-broker/src/jobs.rs:102`). Name the new
+  SHA-256 of the token (`crates/pod-broker/src/jobs.rs:117`). Name the new
   value `policy_hash`, and never put the hash of the token in an answer or
   a line.
 - Found, not in the review: the order of each array stays, as the review
@@ -6365,3 +6393,69 @@ cargo test -p pod-release --all-features plan
 ## Done
 
 2026-11-19, this commit. `Plan::Newer`: with no pinned tag, a release older than this build is `Newer`, and a release of the version of this build is `UpToDate`. Read: podssh's comparison at `c9772a3` (PodUtils/podssh:crates/podssh-cli/src/update/mod.rs: `Ordering::Equal`, `Less`, `Greater`). Test `plan_tells_an_equal_release_from_an_older_one`; the two lines of `the_same_tag_is_not_installed_again` with an older release now give `Newer`. `cargo test -p pod-release --all-features`: 56, 8 and 13 passed. podssh can call `plan` in the next tag and drop its comparison.
+
+# T-972: `pod-lab`: the CAs of a lab take the P-256 key and the PEM writer of `pod-acme`
+
+**Source:** T-100 (a finding: the ruling "Shared code")
+**Category:** chore
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`crates/pod-lab/src/net/tls.rs` has its own P-256 key for rcgen (`Key`, from `getrandom` of
+`pod-hostprobe`) and its own `pem`. `pod-acme` has the same (`key::Key`, `certs::pem`), and the CA of a
+job of `pod-broker` (T-100) takes the copy of `pod-acme`. Two copies of one capability.
+
+## Premise
+
+- Read: `crates/pod-lab/src/net/tls.rs`, `crates/pod-acme/src/key.rs`, `crates/pod-acme/src/certs.rs`,
+  `crates/pod-broker/src/ca.rs`.
+- Not measured: the size of the dependency of `pod-lab` on `pod-acme`.
+
+## Approach
+
+`pod-lab` takes `pod_acme::key::Key` and `pod_acme::certs::pem`, or the two move to `pod-tls` (a feature
+with rcgen) and `pod-acme`, `pod-broker` and `pod-lab` take them there. Keep the tests of the lab green.
+
+## Prove
+
+```sh
+cargo test -p pod-lab --all-features
+python3 -I scripts/codegraph.py new
+```
+
+# T-973: `pod-broker`: the CA bundle of a job with curl, git, Python and Node.js in a lab
+
+**Source:** T-100 (a finding: the tests read the TLS end with rustls clients and `openssl verify` only)
+**Category:** chore
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The tests of the TLS end prove the swap and the scrub with rustls clients, and the leaf with
+`openssl verify -x509_strict`. No test runs the clients of a job (curl, git over HTTPS, Python's
+requests, Node.js) with the bundle of `ca::write_bundle` and the variables of `ca::env`, through the
+broker, to a far end that checks the value.
+
+## Premise
+
+- Read: `crates/pod-broker/README.md`, "Placeholder credentials"; docs/decisions.md, C811 to C816.
+- Not measured: each client with the bundle.
+
+## Approach
+
+A lab of `pod-lab` (T-692): the broker with its TLS end, a stand-in far end that ends TLS with a leaf of
+the lab CA and answers with the `Authorization` that it got, and each client with the bundle and the
+placeholder. Prove that the far end gets the value and the client prints the placeholder.
+
+## Prove
+
+```sh
+cargo test -p pod-lab --all-features broker
+```

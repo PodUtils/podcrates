@@ -210,9 +210,7 @@ pub fn broker_with(settings: Settings, far: Arc<Far>, answers: Arc<Answers>) -> 
 /// Load the job `job` with `token` and the policy in JSON, for 600 s.
 pub fn load(broker: &Broker, job: &str, token: &str, policy: &str) {
     let policy = Policy::from_json(policy).unwrap();
-    broker
-        .load(Load { job: job.into(), token: Token::new(token), ttl: std::time::Duration::from_secs(600), policy })
-        .unwrap();
+    broker.load(Load::new(job, Token::new(token), std::time::Duration::from_secs(600), policy)).unwrap();
 }
 
 pub const OPEN: &str = r#"{"schema":1,"mode":"open"}"#;
