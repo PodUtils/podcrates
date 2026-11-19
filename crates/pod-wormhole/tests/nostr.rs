@@ -275,3 +275,29 @@ fn each_public_relay_takes_the_largest_event() {
         assert!(message as i64 <= most, "{}: {message} > {most}", s.id());
     }
 }
+
+/// A relay that accepts the events of one end and passes none to the
+/// other (T-963): the quiet end names what it sent and what came, so a
+/// drop is told from an other end that sent nothing. The giver sent its
+/// part of the key and its versions, and heard those of the taker.
+#[tokio::test]
+async fn an_end_that_hears_nothing_names_what_the_relay_passed() {
+    need_loopback!();
+    let relay = stand::start().await;
+    let seen = Seen::default();
+    let ends = ends(vec![relay.url.clone()], &seen);
+    let (mut giver, code) = nostr::opened(&ends, versions()).await.expect("a code");
+    let (taker, heard) = meet(&ends, &mut giver, &code, LIMIT).await;
+    let mut taker = taker.expect("the taker");
+    assert!(heard);
+    assert_eq!(giver.confirm(LIMIT).await.unwrap(), versions());
+    assert_eq!(taker.confirm(LIMIT).await.unwrap(), versions());
+    relay.lose(1);
+    taker.send(b"lost").await.unwrap();
+    let Err(Failed::Peer(why)) = giver.receive(Duration::from_millis(500)).await else { panic!("the giver heard") };
+    let at = relay.url.shown();
+    assert!(why.starts_with("the other end said nothing for 0 s (at the Nostr relay "), "{why}");
+    assert!(why.contains(&format!("{at} this end sent 2 events and the relay accepted 2;")), "{why}");
+    assert!(why.contains("it passed 2 events of the other key, 2 of them messages of the other end)"), "{why}");
+    taker.close(Mood::Happy).await;
+}

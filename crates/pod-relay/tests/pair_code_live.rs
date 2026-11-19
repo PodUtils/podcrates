@@ -66,8 +66,15 @@ async fn pair_at(ends: &Ends, shown: &str, said: &Said) {
         run::take(ends, &waits, &code, &OPERATOR, &mut check).await
     };
     let (given, taken) = tokio::join!(giving, taking);
-    let given = given.unwrap_or_else(|e| panic!("{shown}: the giver: {e}; {:?}", said.lock().unwrap()));
-    let taken = taken.unwrap_or_else(|e| panic!("{shown}: the taker: {e}; {:?}", said.lock().unwrap()));
+    // Both results: the failure of one end often follows from the other's.
+    let (given, taken) = match (given, taken) {
+        (Ok(g), Ok(t)) => (g, t),
+        (g, t) => {
+            let g = g.err().map_or_else(|| "done".to_string(), |e| e.to_string());
+            let t = t.err().map_or_else(|| "done".to_string(), |e| e.to_string());
+            panic!("{shown}: the giver: {g}; the taker: {t}; {:?}", said.lock().unwrap())
+        }
+    };
     assert_eq!(given.operator, OPERATOR, "{shown}");
     assert_eq!(taken.offer.node, NODE, "{shown}");
     assert_eq!(taken.offer.part.as_ref().map(|p| p.connect_token()), Some(TOKEN), "{shown}");

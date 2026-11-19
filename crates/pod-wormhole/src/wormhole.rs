@@ -156,7 +156,11 @@ impl Wormhole {
     /// `scary`.
     pub async fn confirm(&mut self, wait: Duration) -> Result<Value, Failed> {
         let Some(body) = self.next_of_peer("version", wait).await? else {
-            let why = format!("the other end gave its part of the key, then nothing for {} s", wait.as_secs());
+            let why = format!(
+                "the other end gave its part of the key, then nothing for {} s{}",
+                wait.as_secs(),
+                self.tally()
+            );
             return Err(self.fail(Mood::Errory, Failed::Peer(why)).await);
         };
         let Some(plain) = self.unseal("version", &body) else {
@@ -180,7 +184,7 @@ impl Wormhole {
     pub async fn receive(&mut self, wait: Duration) -> Result<Vec<u8>, Failed> {
         let phase = self.read.to_string();
         let Some(body) = self.next_of_peer(&phase, wait).await? else {
-            let why = format!("the other end said nothing for {} s", wait.as_secs());
+            let why = format!("the other end said nothing for {} s{}", wait.as_secs(), self.tally());
             return Err(self.fail(Mood::Errory, Failed::Peer(why)).await);
         };
         let Some(plain) = self.unseal(&phase, &body) else {
@@ -246,6 +250,11 @@ impl Wormhole {
 
     /// The body of the peer's `phase`, the first time it comes, within
     /// `wait`; `None` when it does not come.
+    /// The words of the meeting point on what passed, after a wait.
+    fn tally(&self) -> String {
+        self.place.tally().map(|t| format!(" ({t})")).unwrap_or_default()
+    }
+
     async fn next_of_peer(&mut self, phase: &str, wait: Duration) -> Result<Option<Vec<u8>>, Failed> {
         let Some(peer) = self.peer.clone() else { return Ok(None) };
         if let Some(at) = self.held.iter().position(|m| m.side == peer && m.phase == phase) {

@@ -68,6 +68,15 @@ impl Place {
 
     /// The word of the kind, for a line: `mailbox`, `ntfy server`, `Nostr
     /// relay`, `WebTorrent tracker` or `broker`.
+    /// What this end sent and heard at the meeting point, where the
+    /// point counts it: a Nostr relay.
+    pub fn tally(&self) -> Option<String> {
+        match self {
+            Place::Relay(r) => Some(r.tally()),
+            Place::Mailbox(_) | Place::Ntfy(_) | Place::Tracker(_) | Place::Broker(_) => None,
+        }
+    }
+
     pub fn noun(&self) -> &'static str {
         match self {
             Place::Mailbox(_) => "mailbox",

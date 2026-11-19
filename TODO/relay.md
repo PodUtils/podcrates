@@ -10453,7 +10453,7 @@ cargo test -p pod-relay --all-features --test layer_cap
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -10475,3 +10475,7 @@ cargo test -p pod-relay --all-features --test layer_cap
 ```sh
 timeout 300 cargo test -p pod-relay --all-features --test pair_code_live -- --ignored --nocapture
 ```
+
+## Done
+
+2026-11-19, this commit, step 1. `pod-wormhole`: a Nostr relay counts the events of its end (`Tally`: sent, accepted with `OK` true, passed of another key, taken as messages of the other end), and `Wormhole::receive` and `Wormhole::confirm` give them in the words of an other end that said nothing: "the other end said nothing for 60 s (at the Nostr relay URL this end sent S events and the relay accepted A; it passed P events of the other key, T of them messages of the other end)". `Place::tally` gives them for a relay, `None` for the other points. The live test `pair_code_live` gives the result of both ends when one fails. Test: `tests/nostr.rs` `an_end_that_hears_nothing_names_what_the_relay_passed` (the stand-in loses the taker's message; the giver names 2 sent, 2 accepted, 2 passed). The giver of run 44497255102 failed in `receive`, after the key and the versions crossed `offchain.pub`: the relay passed the first events of both ends. Steps 2 and 3 wait for the next run of `live.yml` with this commit.

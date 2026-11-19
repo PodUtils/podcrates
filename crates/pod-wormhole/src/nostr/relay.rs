@@ -76,6 +76,23 @@ pub struct Relay {
     events: Arc<dyn Events>,
     /// The relay's last `NOTICE`, for the words of a failure.
     notice: Option<String>,
+    /// What this end sent and heard, for the words of a quiet other end.
+    tally: Tally,
+}
+
+/// The events of one end at a relay: they tell a relay that drops the
+/// events of the other end from one that holds them, or from an other end
+/// that sent nothing.
+#[derive(Debug, Default, Clone, Copy)]
+struct Tally {
+    /// The events of messages that this end sent.
+    sent: u32,
+    /// Of them, the ones that the relay answered with `OK` true.
+    accepted: u32,
+    /// The events of another key that the relay passed to this end.
+    passed: u32,
+    /// Of them, the messages of the other end.
+    taken: u32,
 }
 
 impl Relay {
@@ -116,6 +133,7 @@ impl Relay {
             answer_limit: config.answer_limit,
             events: config.events.clone(),
             notice: None,
+            tally: Tally::default(),
         };
         match relay.greet().await {
             Ok(()) => Ok(relay),
@@ -265,6 +283,18 @@ impl Relay {
         let _ = self.send(&json!(["CLOSE", self.sub])).await;
     }
 
+    /// What this end sent and heard here, for the words of an other end
+    /// that said nothing: a relay that accepted each event of this end and
+    /// passed none of the other end drops or holds them.
+    pub fn tally(&self) -> String {
+        let Tally { sent, accepted, passed, taken } = self.tally;
+        format!(
+            "at the Nostr relay {} this end sent {sent} events and the relay accepted {accepted}; \
+             it passed {passed} events of the other key, {taken} of them messages of the other end",
+            self.shown
+        )
+    }
+
     /// End the connection with a Close.
     pub async fn end(&self) {
         let _ = self.session.send_close(1000, "").await;
@@ -273,7 +303,10 @@ impl Relay {
     /// What one message of the relay means: a message of the other end, a
     /// refusal, or nothing.
     async fn heed(&mut self, said: Said) -> Result<Option<Message>, Failed> {
-        if let Said::Ok { id, .. } = &said {
+        if let Said::Ok { id, accepted, .. } = &said {
+            if *accepted && self.pending.contains(id) {
+                self.tally.accepted += 1;
+            }
             self.pending.retain(|pending| pending != id);
         }
         match said {
@@ -305,8 +338,10 @@ impl Relay {
         if checked.kind != KIND || checked.tag(TAG) != Some(self.inbox.as_str()) || checked.pubkey == self.pubkey() {
             return Ok(None);
         }
+        self.tally.passed += 1;
         let read = message::object(checked.content.as_bytes()).as_ref().and_then(message::message_of);
         let Some(message) = read.filter(|m| m.side != self.side) else { return Ok(None) };
+        self.tally.taken += 1;
         if !self.heard {
             self.heard = true;
             let held = std::mem::take(&mut self.unanswered);
@@ -326,6 +361,7 @@ impl Relay {
             self.pending.pop_front();
         }
         self.pending.push_back(event["id"].as_str().unwrap_or_default().to_string());
+        self.tally.sent += 1;
         self.send(&json!(["EVENT", event])).await
     }
 
