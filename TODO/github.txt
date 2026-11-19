@@ -235,10 +235,10 @@
 228 issue closed
 229 issue closed
 230 issue open
-231 issue open
+231 issue closed
 232 pull closed
 233 pull closed
 234 pull closed
 235 pull closed
 236 issue open
-237 issue open
+237 issue closed
