@@ -2,7 +2,7 @@ diff --git a/crates/pod-e2e/src/ends.rs b/crates/pod-e2e/src/ends.rs
 index 5fc485a..642c074 100644
 --- a/crates/pod-e2e/src/ends.rs
 +++ b/crates/pod-e2e/src/ends.rs
-@@ -391,7 +391,7 @@ where
+@@ -413,7 +413,7 @@ where
          }
          // The node's seed of the session's tokens of one leg, for the legs
          // that resume it.
@@ -10,4 +10,4 @@ index 5fc485a..642c074 100644
 +        if let (Some(seed), Some(taker)) = (channel.leg_seed().filter(|_| false), legs::current()) {
              taker.give(seed);
          }
-         channel.carry(app).await?;
+         channel.with_events(events).carry(app).await?;

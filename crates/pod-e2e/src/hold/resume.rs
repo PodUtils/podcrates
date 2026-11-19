@@ -36,6 +36,7 @@ where
             channel.set_net(docs, peer);
         }
     }
+    let channel = channel.with_events(crate::ends::of_session(&node.events, peer));
     let lease = state.lease.map(|(seed, low)| node.leases.restore(seed, low));
     let ChannelState { out_ended, in_ended, unread, to_layer, .. } = state;
     let start = Start { out_ended, in_ended, unread, to_layer };

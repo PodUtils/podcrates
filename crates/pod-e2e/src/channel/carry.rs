@@ -9,7 +9,8 @@
 use snow::StatelessTransportState;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
 
-use super::{Channel, send};
+use super::stall::{Waits, Way};
+use super::{Channel, sealed};
 use crate::frame::{DATA, END, NET};
 use crate::hold::{Hold, held};
 use crate::{Error, MAX_DATA, MAX_MESSAGE, TAG};
@@ -92,11 +93,11 @@ fn open(
 /// The direction out: whether it ended, or a hold stopped it. `first` are
 /// whole messages sealed before, which go out before any new one.
 async fn outbound<T, A>(
-    state: &StatelessTransportState,
-    sent: &mut u64,
+    (state, sent): (&StatelessTransportState, &mut u64),
     from_app: &mut ReadHalf<A>,
     to_peer: &mut WriteHalf<T>,
     hold: Option<&Hold>,
+    waits: &Waits,
     (ended, first): (bool, Vec<u8>),
 ) -> Result<bool, Error>
 where
@@ -104,8 +105,7 @@ where
     A: AsyncRead,
 {
     if !first.is_empty() {
-        to_peer.write_all(&first).await.map_err(Error::Io)?;
-        to_peer.flush().await.map_err(Error::Io)?;
+        waits.write(Way::Out, to_peer, &first, 0).await.map_err(Error::Io)?;
     }
     if ended {
         return Ok(true);
@@ -121,10 +121,11 @@ where
         };
         if n == 0 {
             // The stream stays open: the peer's bytes can still come.
-            send(state, sent, to_peer, END, &[]).await?;
+            waits.write(Way::Out, to_peer, &sealed(state, sent, END, &[])?, 0).await.map_err(Error::Io)?;
             return Ok(true);
         }
-        send(state, sent, to_peer, DATA, &buf[..n]).await?;
+        waits.read(Way::Out, n);
+        waits.write(Way::Out, to_peer, &sealed(state, sent, DATA, &buf[..n])?, 0).await.map_err(Error::Io)?;
     }
 }
 
@@ -136,13 +137,14 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     where
         A: AsyncRead + AsyncWrite + Unpin,
     {
-        let Channel { transport, state, mut sent, mut received, net, keys, .. } = self;
+        let Channel { transport, state, mut sent, mut received, net, keys, events, .. } = self;
+        let waits = &Waits::new(events);
         let peer = net.as_ref().map(|(_, peer)| *peer);
         let (mut from_peer, mut to_peer) = tokio::io::split(transport);
         let (mut from_app, mut to_app) = tokio::io::split(app);
         let Start { out_ended, in_ended, unread, to_layer } = start;
         let state = &state;
-        let out = outbound(state, &mut sent, &mut from_app, &mut to_peer, hold, (out_ended, to_layer));
+        let out = outbound((state, &mut sent), &mut from_app, &mut to_peer, hold, waits, (out_ended, to_layer));
         let inbound = async {
             let mut buf = unread;
             if in_ended {
@@ -153,8 +155,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
                 while let Some(message) = take_frame(&mut buf)? {
                     match open(state, &mut received, &message, &mut plain)? {
                         (DATA, n) => {
-                            to_app.write_all(&plain[1..n]).await.map_err(Error::Io)?;
-                            to_app.flush().await.map_err(Error::Io)?;
+                            waits.write(Way::In, &mut to_app, &plain[1..n], buf.len()).await.map_err(Error::Io)?;
                         }
                         (END, _) => {
                             let _ = to_app.shutdown().await;
@@ -179,6 +180,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
                 if n == 0 {
                     return Err(Error::Cut);
                 }
+                waits.read(Way::In, n);
                 buf.extend_from_slice(&chunk[..n]);
             }
         };

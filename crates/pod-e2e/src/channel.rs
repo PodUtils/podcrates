@@ -18,15 +18,20 @@
 //! ([`carry`]), and the next binary goes on from the same nonces, with the
 //! keys that the handshake split.
 //!
+//! The carry says each write that takes no byte for 20 s, to the
+//! application or to the layer, once for each wait ([`stall`]).
+//!
 //! In place of the carry, the two ends can agree on a suite of records
 //! ([`Channel::agree`]: one message `SUITES` each way), take the records
 //! from the exporter of the handshake ([`Channel::exporter`],
 //! [`crate::record`]), and take the stream back ([`Channel::into_transport`]).
 
 mod carry;
+mod stall;
 
 use std::sync::Arc;
 
+use pod_core::Events;
 use snow::StatelessTransportState;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use zeroize::Zeroizing;
@@ -62,12 +67,15 @@ pub struct Channel<T> {
     /// The exporter of the handshake; none on a channel that a handover
     /// gave, which only its carry takes.
     exporter: Option<Exporter>,
+    /// Where the carry says each wait that holds ([`stall`]); with none, it
+    /// says nothing.
+    events: Option<Arc<dyn Events>>,
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     pub(crate) fn new(transport: T, state: StatelessTransportState, exporter: Exporter) -> Self {
         let exporter = Some(exporter);
-        Channel { transport, state, sent: 0, received: 0, net: None, seed: None, keys: None, exporter }
+        Channel { transport, state, sent: 0, received: 0, net: None, seed: None, keys: None, exporter, events: None }
     }
 
     /// This channel, with the keys of its handshake.
@@ -85,7 +93,16 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
         keys: Zeroizing<[u8; 64]>,
     ) -> Self {
         let (sent, received) = nonces;
-        Channel { transport, state, sent, received, net: None, seed: None, keys: Some(keys), exporter: None }
+        let keys = Some(keys);
+        Channel { transport, state, sent, received, net: None, seed: None, keys, exporter: None, events: None }
+    }
+
+    /// This channel, whose carry says each of its waits that holds
+    /// [`pod_session::pump::STALL_AFTER`] to `events`, as an event of the kind
+    /// [`crate::ends::EVENT_WAIT`].
+    pub fn with_events(mut self, events: Arc<dyn Events>) -> Self {
+        self.events = Some(events);
+        self
     }
 
     /// Both ends read the net's documents: one from the peer goes to `docs`.
@@ -230,13 +247,21 @@ async fn send<W: AsyncWrite + Unpin>(
     kind: u8,
     body: &[u8],
 ) -> Result<(), Error> {
+    let bytes = sealed(state, nonce, kind, body)?;
+    w.write_all(&bytes).await.map_err(Error::Io)?;
+    w.flush().await.map_err(Error::Io)
+}
+
+/// One message of `kind`, encrypted with the next nonce out: the bytes of
+/// its frame.
+fn sealed(state: &StatelessTransportState, nonce: &mut u64, kind: u8, body: &[u8]) -> Result<Vec<u8>, Error> {
     let mut plain = Vec::with_capacity(1 + body.len());
     plain.push(kind);
     plain.extend_from_slice(body);
     let mut cipher = vec![0u8; plain.len() + TAG];
     let n = state.write_message(*nonce, &plain, &mut cipher).map_err(|e| Error::Malformed(e.to_string()))?;
     *nonce += 1;
-    frame::write_frame(w, &cipher[..n]).await
+    frame::framed(&cipher[..n])
 }
 
 /// Read one frame, and check and decrypt it with the next nonce in: its type
