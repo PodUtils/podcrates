@@ -8311,6 +8311,9 @@ Progress (2026-11-16):
 cargo test -p pod-session --all-features
 ```
 
+- 2026-11-19: podssh at `bcd2b2f` (podcrates `v0.73.0`: the guard of T-939 and the line of T-945) ran its loop of `m6_exit` on the iroh road 6 times, and each passed (PodUtils/podssh#320). The eighth failure did not come again; the entry stays partial until a run of the gate shows the cause or the gate holds over more runs.
+
+
 # T-774: `pod-link`: a normative document of the wire, with the order of the checks and the rule of the timers, held to the code by a test
 
 **Source:** The study of zmux (`docs/research/zmux.md`, lesson 1; the ruling "zmux", 2026-11-16).
