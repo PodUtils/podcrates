@@ -51,12 +51,10 @@ is done. Git and the record keep finished work.
    is offline until the CI of podrunner and githome is complete; it reads
    `docs/research/fleet/asks.md` and the block of #223 at its next start.
    githome's asks G-30 to G-35 are T-921 to T-923, T-099, T-100 and T-104.
-7. The hand-off of `v0.75.0` is open (COORD-143, #238): podrunner pins
-   the fakes by the digest of their index on ghcr.io; podssh checks that
-   no link ends with 1009 (T-958). COORD-142 (#236) relays the ruling
-   "ghcr.io" (call C789): podcrates and podvm publish in its form. Record
-   each take in the body of the issue, and close it when each consumer
-   names the tag (call C780).
+7. No hand-off of a tag is open: each consumer took `v0.75.0` (COORD-143,
+   #238, closed). The next tag carries T-957 (the extended attributes of
+   a layer) for podrunner and podvm. COORD-142 (#236) relays the ruling
+   "ghcr.io" (call C789): podcrates and podvm publish in its form.
 8. T-767 (PodUtils/podssh#283, partial) and T-939 (done as a guard, call
    C784: a link is lost when a PING waits 30 s and nothing moves): the
    eighth failure of podssh's gate did not come again on the loopback;
