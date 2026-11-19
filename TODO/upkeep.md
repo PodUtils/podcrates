@@ -3815,7 +3815,7 @@ The run of `release.yml` on the next tag: each index pulls, and its binary has t
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3835,3 +3835,7 @@ Apply #232 (with the three lines of `crates/pod-turn/README.md` that name coturn
 ```sh
 sh scripts/agent/check.sh
 ```
+
+## Done
+
+2026-11-19. #232: coturn 4.19.0 by the digest of its index, with the three lines of `crates/pod-turn/README.md` (`0bf30d0`); its coturn tests passed. #233: TruffleHog 3.99.9 by the digest of its index (`ac6a74b`); its secrets scan passed. #234: `rand` 0.10.4 and `rustls-pki-types` 1.16.0 by `cargo update` on the current `Cargo.lock` (`6ed0b21`), as the branch was from an older `main`; the full checks passed. #235 declined: `iroh-dns` 1.4 builds `simple-dns` 0.12, and 0.13 adds a second copy. Each pull request closed with its commit or its reason.
