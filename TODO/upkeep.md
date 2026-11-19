@@ -3767,3 +3767,62 @@ cargo test -p pod-link --all-features --test split
 ## Done
 
 2026-11-18, commit "pod-link: a failed write or read of a split half waits for the LOST frame that names the lost half (T-950)". `split/run.rs`: a write that fails, a read that fails, or a carrier that ends is a cause that the close of the far end also gives; it waits the grace (a beat, at most 500 ms) for the reader to take a `LOST` frame that came before the close (`Shared::lose_later`). A silence, a `LOST` frame and a wrong frame end the session at once, as before. Not taken: a wait of `lost_after` or of two beats (30 s or 20 s with the beats of production before a reset ends the session). A reset that drops the `LOST` frame leaves the cause of the failed half. Two unit tests on the paused clock; the plant `link-split-write-error-names-its-half`. `tests/split.rs` passed in each of 8 runs here; it takes 37 s in place of 20 s, as each of the 240 rounds of its race waits one beat of the test.
+
+# T-954: The release binaries of podcrates are not on ghcr.io (the owner's ruling "ghcr.io", PodUtils/podrunner#312)
+
+**Source:** the owner's ruling "ghcr.io" (2026-11-19, relayed in PodUtils/podrunner#312); call C789
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each release of podcrates attaches `podlab`, `pod-fake-github` and `pod-fake-githome` for x86_64 and aarch64 musl as GitHub release assets. The ruling "ghcr.io" asks each project to publish them on `ghcr.io/podutils/NAME` too, so that a consumer (podrunner pins the two fakes) takes each from one registry by digest.
+
+## Premise
+
+- Read: PodUtils/podrunner#312; PodUtils/podnet#656 (podnet's form since its issue 160); `.github/workflows/release.yml` (the assets, `SHA256SUMS`, the keyless cosign of `SHA256SUMS`); call C789.
+- Not read: the job `image` of podnet's `release.yml`.
+- Not measured: a push to ghcr.io from the release workflow of this repository.
+
+## Approach
+
+`release.yml`, on the tag: for each of the three binaries, one image for each architecture by the form of call C789 (`FROM scratch`, `/usr/local/bin/NAME`, the OCI labels), built from the files of `dist/` with `docker buildx` or `crane` (no build of the binary again), pushed under one index at `ghcr.io/podutils/NAME:TAG` with `packages: write`; `actions/attest` with `push-to-registry` attests the provenance of each index (`attestations: write`), as podnet's `release.yml` does (PodUtils/podnet#656). The release notes of `docs/releases/` (written before the tag) cannot hold the digests: the run on the tag writes them to the body of the GitHub release, and the hand-off COORD issue names them. The dry run builds the images and pushes nothing. A check pulls each index after the push and compares the binary with the asset by SHA-256.
+
+## Prove
+
+```sh
+python3 -I scripts/check-workflows.py
+```
+
+The run of `release.yml` on the next tag: each index pulls, and its binary has the SHA-256 of its asset.
+
+# T-955: Dependabot of 2026-11-19: coturn 4.19.0, TruffleHog 3.99.9, rand 0.10.4 and rustls-pki-types; simple-dns 0.13.0 declined (GitHub #232, #233, #234, #235)
+
+**Source:** GitHub #232, #233, #234, #235 (Dependabot)
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Four updates of Dependabot wait for a judgement (the ruling "Dependabot": each judged update is a commit of its own on `main`, and the pull request closes with a link to it).
+
+## Premise
+
+- Read: the diff of each pull request; the index digests of `coturn/coturn:4.19.0` and `trufflesecurity/trufflehog:3.99.9` at Docker Hub (they agree with the diffs); `crates/pod-iroh/Cargo.toml` (`simple-dns` is the version that `iroh-dns` builds with, so that no crate is added).
+- The ci, deny and secrets runs of each pull request.
+
+## Approach
+
+Apply #232 (with the three lines of `crates/pod-turn/README.md` that name coturn 4.18.0), #233 and #234 as commits of their own after green checks. Decline #235: `iroh-dns` 1.4 builds `simple-dns` 0.12, and 0.13 adds a second copy of the crate (`Cargo.lock` +13); it moves with `iroh-dns`. Close each pull request with its reason.
+
+## Prove
+
+```sh
+sh scripts/agent/check.sh
+```

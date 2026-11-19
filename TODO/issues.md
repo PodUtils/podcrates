@@ -237,4 +237,4 @@ kinds and the rules.
 | #230 | coord | COORD-139: the answer to COORD-095 and COORD-096: the three fields of status.v1 (T-947), and a fake of githome's source in pod-testkit (T-948) (to podrunner) | open (T-947 and T-948 are in `v0.73.0`, COORD-140, #231) | T-921, T-947, T-948 |
 | #231 | coord | COORD-140: v0.73.0: the three fields of status.v1, pod-fake-github and pod-fake-githome for the CI of podrunner, the client's line of each wait of pod-session (to all) | open (podvm, podrunner and podssh took `v0.73.0`; podnet not yet) | T-921, T-945, T-947, T-948, T-951, T-952, T-953 |
 
-#79 to #81 are pull requests.
+#79 to #81 and #232 to #235 are pull requests of Dependabot (T-243, T-955).

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**786 entries: 144 open, 24 partial, 7 blocked, 611 done.**
+**788 entries: 146 open, 24 partial, 7 blocked, 611 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 10 | 8 | 0 | 177 | 195 |
-| P2 | 68 | 6 | 4 | 313 | 391 |
+| P1 | 11 | 8 | 0 | 177 | 196 |
+| P2 | 69 | 6 | 4 | 313 | 392 |
 | P3 | 66 | 10 | 3 | 119 | 198 |
-| **All** | 144 | 24 | 7 | 611 | 786 |
+| **All** | 146 | 24 | 7 | 611 | 788 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -833,3 +833,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-951](fleet.md) | P1 | S | M8 | feature | done | `pod-testkit`: `pod-fake-githome` passes the 14 tests of podrunner's `source-conformance`, not its test 15 of a cancelled job (PodUtils/podrunner#310) |
 | [T-952](fleet.md) | P1 | M | M8 | feature | done | `pod-testkit`: `pod-fake-githome` mints made-up files, so no runner of a job through podrunner's `serve` reaches the broker of `pod-fake-github` (PodUtils/podrunner#311) |
 | [T-953](relay.md) | P1 | S | M2 | defect | done | `pod-relay`: under a small cap of the relay, a new link sends again more bytes than the cap, so the relay still ends links with 1009 (PodUtils/podssh#320) |
+| [T-954](upkeep.md) | P1 | M | M8 | feature | open | The release binaries of podcrates are not on ghcr.io (the owner's ruling "ghcr.io", PodUtils/podrunner#312) |
+| [T-955](upkeep.md) | P2 | S | M0 | chore | open | Dependabot of 2026-11-19: coturn 4.19.0, TruffleHog 3.99.9, rand 0.10.4 and rustls-pki-types; simple-dns 0.13.0 declined (GitHub #232, #233, #234, #235) |
