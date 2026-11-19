@@ -6110,3 +6110,151 @@ of githome and the conclusion `success` of the fake GitHub are both read.
 `cargo test -p pod-testkit --features githome,github --test githome`: 5
 passed. The plant `testkit-githome-runner-gets-another-job` (no
 assignment) fails the test.
+
+# T-964: `pod-release`: the bundle of Rekor v2: the inclusion proof with its signed checkpoint, and the RFC 3161 timestamp
+
+**Source:** the work of T-104 (2026-11-19): a finding in the verifier.
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod_release::sigstore` trusts the time of an entry and its presence in the log by Rekor's signed entry
+timestamp (`inclusionPromise`), as podssh's verifier did. A bundle of Rekor v2 has no promise: it has
+the inclusion proof with a signed checkpoint, and the time comes from an RFC 3161 timestamp
+(`timestampVerificationData`). When the signing configuration of Sigstore's public instance sends the
+cosign of a release workflow to Rekor v2, the verifier refuses each new release. The bundle of
+podcrates v0.76.0 (cosign v3.1.4) still has the promise, and also the proof and a timestamp.
+
+## Premise
+
+- Read: `crates/pod-release/src/sigstore.rs`, `crates/pod-release/src/sigstore/rekor.rs`, the bundle
+  `crates/pod-release/tests/fixtures/v0.76.0/SHA256SUMS.sigstore.json`.
+- Not measured: a bundle of Rekor v2; the date at which the public signing configuration moves.
+
+## Approach
+
+Check the inclusion proof (RFC 6962: the leaf hash of the canonicalized body, the audit path, the root)
+and the signed note of the checkpoint with the key of the log. Check the RFC 3161 timestamp with the
+keys of Sigstore's timestamp authority, compiled in beside the Fulcio chain, and take the time from it
+when the entry has no promise. Keep the promise where it is there. A test takes each part of the bundle
+of v0.76.0, and a fixture of a bundle of Rekor v2.
+
+## Prove
+
+```sh
+cargo test -p pod-release --all-features
+```
+
+# T-965: `pod-release`: the verifier as a static command for the CI of a product and for an installer
+
+**Source:** the work of T-104 (2026-11-19): GitHub #223 (githome's G-34: "one verifier"), GitHub #35
+(A-X-13, A-X-24).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The verifier of T-104 is a library: a Rust consumer calls `pod_release::verify::verify_dir`. The CI of
+githome and cfb, and the umbrella installer of A-X-24, need a command that checks a release directory:
+the bundle of `SHA256SUMS` by an identity, each file, and the index. Today they run `cosign verify-blob`
+and `sha256sum -c`, which do not check the index.
+
+## Premise
+
+- Read: `crates/pod-release/src/verify.rs`; `crates/pod-lab/src/bin/podlab.rs` (a static binary of a
+  crate with its help from `pod-manual`); `.github/workflows/release.yml`.
+- Not measured: the interface that githome and cfb want.
+
+## Approach
+
+A binary `pod-release` (feature `cli`): `verify --identity URI [--issuer URL] DIR` and `index` (the
+reader of an index), its help and its manual from `pod-manual`, its exit codes from the classes of
+`Error`. `release.yml` builds it static for x86_64 and aarch64, checks it with `scripts/check-static.sh`,
+runs it over its own signed files on the tag, and publishes it beside `podlab`. Ask githome and cfb on
+GitHub #223 for the interface first.
+
+## Prove
+
+```sh
+cargo test -p pod-release --all-features
+sh scripts/agent/check.sh
+```
+
+# T-966: `pod-release`: the adoption trials of podnet and podssh, and the hand-off of the crate
+
+**Source:** the work of T-880 (2026-11-19): `docs/design.md`, section 8, step 7.
+**Category:** chore
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet (PodUtils/podnet:src/update.rs, PodUtils/podnet:src/update/) and podssh
+(PodUtils/podssh:crates/podssh-cli/src/update/) still hold their
+own copies of the verifier and of the update. The ruling "Shared code" ends with one copy in
+podcrates. No trial patch shows that each consumer builds and passes its tests of `update` on the
+crate.
+
+## Premise
+
+- Read: the adoption map of `crates/pod-release/README.md`; the Done section of T-880.
+- Not measured: the trial of either consumer.
+
+## Approach
+
+Write adoption/podnet/pod-release.patch and adoption/podssh/pod-release.patch (the glue of the
+adoption map: the settings, `Source`, `Identity`, the lines of each step, the exit codes), and run
+them in `adoption.yml`. Then hand the crate to each session by a COORD issue, with the tag that holds
+it. Each project writes its own `release-index.json` with `scripts/release-index.py` in its release
+workflow.
+
+## Prove
+
+```sh
+cargo test -p pod-release --all-features
+cargo todo check
+```
+
+# T-967: `pod-release`: a minisign signature beside the Sigstore bundle
+
+**Source:** the row of `pod-release` in `docs/design.md`, section 4 (the plan of the crate).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The plan of the crate names minisign as a second form of a signature. No consumer and no ask names a
+minisign key today: each release of PodUtils signs `SHA256SUMS` with keyless cosign alone.
+
+## Premise
+
+- Read: `docs/design.md`, section 4; the release workflows of podcrates, podnet and podssh (keyless
+  cosign only).
+- Not measured: a release with a minisign signature.
+
+## Approach
+
+When a consumer asks, check an Ed25519 minisign signature of `SHA256SUMS` (`SHA256SUMS.minisig`) by a
+public key that the caller gives, with the Ed25519 of the workspace.
+
+## Prove
+
+```sh
+cargo test -p pod-release --all-features
+```
+
+## Start condition
+
+A consumer or an ask names a minisign key for its releases.

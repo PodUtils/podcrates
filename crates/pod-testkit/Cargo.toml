@@ -28,6 +28,10 @@ github = ["stand", "dep:ring", "dep:serde_json", "dep:base64", "dep:pod-time"]
 # takes the feature github: with --github, serve queues each job in a
 # pod-fake-github and mints its JIT runner there as the App.
 githome = ["github", "stand", "dep:serde_json", "dep:pod-job"]
+# The tests of a JSON Schema that a crate generates from its types
+# (src/schema.rs): the file of schemas/ against the types, and a validator
+# of JSON Schema 2020-12.
+schema = ["dep:boon", "dep:serde_json"]
 
 [[bin]]
 name = "pod-fake-github"
@@ -55,6 +59,7 @@ pod-time = { workspace = true, optional = true }
 # The fake githome: the types of the source wire and of the job offer, so
 # that the fake and podrunner read one form. pod-job has no pod dependency.
 pod-job = { workspace = true, optional = true }
+boon = { workspace = true, optional = true }
 
 # The probe of a user and a mount namespace (need_userns!): fork, unshare,
 # mount.

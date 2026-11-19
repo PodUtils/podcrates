@@ -41,7 +41,7 @@ syscalls = { workspace = true }
 [dev-dependencies]
 # A path only: pod-testkit depends on this crate, and cargo publish drops a
 # dev-dependency with no version (scripts/check-publish-order.py).
-pod-testkit = { path = "../pod-testkit" }
+pod-testkit = { path = "../pod-testkit", features = ["schema"] }
 # The tests of the schema: the derive of each wire type, and a validator
 # of JSON Schema 2020-12 for the examples of tests/examples/.
 schemars = { workspace = true }

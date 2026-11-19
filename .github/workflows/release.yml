@@ -13,7 +13,8 @@ name: release
 # release, the offline bundle podlab-VERSION.tar.gz, the static musl
 # binaries pod-fake-github-TARGET of pod-testkit (the fake GitHub of a
 # consumer's CI), pod-fake-githome-TARGET (the fake of githome's source of
-# jobs for podrunner's CI) and SHA256SUMS; the
+# jobs for podrunner's CI), the release index release-index.json of
+# pod-release (scripts/release-index.py) and SHA256SUMS; the
 # release attaches them with SHA256SUMS.sigstore.json, the keyless cosign
 # signature of SHA256SUMS by this workflow at the tag (the form of podnet
 # and podssh).
@@ -120,8 +121,15 @@ jobs:
           python3 -I scripts/install/pins.py stamp scripts/install/podlab.sh --version "$v" --assets dist --out dist/podlab-install.sh
           python3 -I scripts/install/pins.py bundle "dist/podlab-$v.tar.gz" "podlab-$v" \
             dist/podlab-install.sh dist/podlab-x86_64-unknown-linux-musl dist/podlab-aarch64-unknown-linux-musl
+          # The release index (T-104, schemas/release-index.v1.schema.json):
+          # written before SHA256SUMS, which holds its line, so that the
+          # signature of SHA256SUMS signs it too.
+          files=$(cd dist && ls podlab-* pod-fake-github-* pod-fake-githome-*)
+          # shellcheck disable=SC2086 # one word for each file name.
+          python3 -I scripts/release-index.py --project "$GITHUB_REPOSITORY" --version "v$v" --dir dist \
+            --date "$SOURCE_DATE_EPOCH" --commit "$(git rev-parse HEAD)" --out dist/release-index.json $files
           # SHA256SUMS of each published file.
-          (cd dist && sha256sum podlab-* pod-fake-github-* pod-fake-githome-* > SHA256SUMS.new && mv SHA256SUMS.new SHA256SUMS)
+          (cd dist && sha256sum podlab-* pod-fake-github-* pod-fake-githome-* release-index.json > SHA256SUMS.new && mv SHA256SUMS.new SHA256SUMS)
           cat dist/SHA256SUMS
       # The published files themselves: the installer from the bundle, then
       # a second run that changes nothing.

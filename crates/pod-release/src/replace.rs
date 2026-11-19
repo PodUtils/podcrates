@@ -1,21 +1,26 @@
-//! The new binary in place of the running one (T-375): written beside it,
-//! in its directory, so that a rename moves it; its mode copied; run once
-//! there, with `--version`, so that a file that does not start on this host
-//! never takes the old one's place (T-396, `trial`); then renamed over the
-//! running file, which keeps running from the old inode, while the old file
-//! stays as `podssh.prev` (`keep`). Windows refuses to write over a running
-//! program and allows its rename, so there the running file is renamed to
-//! `podssh.prev.exe` first, else to `podssh.exe.old`, which a later run
-//! removes. A failure at any step leaves the old binary as it was, and
-//! removes what this step wrote.
+//! The new binary in place of the running one: written beside it, in its
+//! directory, so that a rename moves it; its mode copied; run once there
+//! ([`crate::trial`]), so that a file that does not start on this host
+//! never takes the old one's place; checked again after its run, so that a
+//! file that another process put at its name in the meantime is not
+//! installed; then renamed over the running file, which keeps running from
+//! the old inode, while the old file stays as `NAME.prev`
+//! ([`crate::keep`]). Windows refuses to write over a running program and
+//! allows its rename, so there the running file is renamed to
+//! `NAME.prev.exe` first, else to `NAME.exe.old`, which a later run removes
+//! ([`remove_aside`]). A failure at any step leaves the old binary as it
+//! was, and removes what this step wrote.
+//!
+//! The base is podssh's `update/replace.rs`; the check of the file after
+//! its trial run is podnet's `same_file` (its issue 236).
 
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use super::keep;
+use crate::keep;
 
-/// The path of the running binary, through its links: the file that the
+/// The path of the running binary, through its links: the file that an
 /// update replaces. Linux names the file of a binary that an update
 /// replaced while it ran `PATH (deleted)`: its path is still the file.
 pub fn running() -> Result<PathBuf, String> {
@@ -40,7 +45,7 @@ pub fn shown(path: &Path) -> String {
 }
 
 /// Where a running binary is moved on Windows when its kept place refuses
-/// it: `podssh.exe.old`.
+/// it: `NAME.exe.old`.
 pub fn aside(exe: &Path) -> PathBuf {
     let mut name = exe.as_os_str().to_owned();
     name.push(".old");
@@ -48,20 +53,17 @@ pub fn aside(exe: &Path) -> PathBuf {
 }
 
 /// The old binary that an update on Windows moved aside, removed once it
-/// runs no more: at the start of each run, and at no cost when there is
-/// none. Elsewhere there is never one. The kept one, `podssh.prev.exe`,
-/// stays.
-pub fn remove_aside() {
+/// runs no more: a consumer calls this at the start of each run. Elsewhere
+/// there is never one. The kept one, `NAME.prev.exe`, stays.
+pub fn remove_aside(exe: &Path) {
     if cfg!(windows) {
-        if let Ok(exe) = running() {
-            let _ = fs::remove_file(aside(&exe));
-        }
+        let _ = fs::remove_file(aside(exe));
     }
 }
 
 /// A temporary name beside `exe` for the step `what`, which no other run
-/// takes: `.podssh.update-RANDOM`, and `.exe` after it where `exe` has it,
-/// so that Windows runs it as a program.
+/// takes: `.NAME.WHAT-RANDOM`, and `.exe` after it where `exe` has it, so
+/// that Windows runs it as a program.
 pub fn beside(exe: &Path, what: &str) -> Result<PathBuf, String> {
     let dir = exe.parent().ok_or_else(|| format!("{} has no directory", exe.display()))?;
     let (stem, ext) = name_parts(exe);
@@ -71,7 +73,7 @@ pub fn beside(exe: &Path, what: &str) -> Result<PathBuf, String> {
 /// `exe`'s name without `.exe`, and `.exe` when it has it: a dot in another
 /// name, as in `podssh-1.0.0`, is no extension of a program.
 pub fn name_parts(exe: &Path) -> (String, &'static str) {
-    let name = exe.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "podssh".into());
+    let name = exe.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "binary".into());
     let is_exe = exe.extension().is_some_and(|e| e.eq_ignore_ascii_case("exe"));
     match (is_exe, exe.file_stem()) {
         (true, Some(stem)) => (stem.to_string_lossy().into_owned(), ".exe"),
@@ -79,8 +81,9 @@ pub fn name_parts(exe: &Path) -> (String, &'static str) {
     }
 }
 
-/// `bytes` in a new file at `path`, on the disk before this returns.
-fn write_new(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+/// `bytes` in a new file at `path`, on the disk before this returns; the
+/// identity of the file.
+fn write_new(path: &Path, bytes: &[u8]) -> std::io::Result<Written> {
     let mut options = fs::OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -90,7 +93,60 @@ fn write_new(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     }
     let mut file = options.open(path)?;
     file.write_all(bytes)?;
-    file.sync_all()
+    file.sync_all()?;
+    Written::of(&file.metadata()?)
+}
+
+/// The identity of a file before its trial run: its device and its inode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Written {
+    #[cfg(unix)]
+    id: (u64, u64),
+}
+
+impl Written {
+    /// The identity of the file at `path`, not of a symlink's target.
+    pub(crate) fn at(path: &Path) -> Result<Written, String> {
+        let meta = fs::symlink_metadata(path).map_err(|e| format!("{}: {e}", shown(path)))?;
+        Written::of(&meta).map_err(|e| format!("{}: {e}", shown(path)))
+    }
+
+    #[cfg(unix)]
+    fn of(meta: &fs::Metadata) -> std::io::Result<Written> {
+        use std::os::unix::fs::MetadataExt;
+        Ok(Written { id: (meta.dev(), meta.ino()) })
+    }
+
+    #[cfg(not(unix))]
+    fn of(_meta: &fs::Metadata) -> std::io::Result<Written> {
+        Ok(Written {})
+    }
+
+    /// `path` is still the file of the trial: a regular file (not a
+    /// symlink) of this user that other users cannot write. A check by the
+    /// path leaves a short window before the rename; a process that can
+    /// write the directory can also rename its own file over the binary, so
+    /// the check is for a file of this user in a shared directory.
+    #[cfg(unix)]
+    pub(crate) fn still(&self, path: &Path) -> Result<(), String> {
+        use std::os::unix::fs::MetadataExt;
+        let meta = fs::symlink_metadata(path).map_err(|e| format!("{}: {e}", shown(path)))?;
+        // SAFETY: geteuid takes no argument and cannot fail.
+        let uid = unsafe { libc::geteuid() };
+        if !meta.file_type().is_file()
+            || (meta.dev(), meta.ino()) != self.id
+            || meta.uid() != uid
+            || meta.mode() & 0o022 != 0
+        {
+            return Err(format!("{} changed after its trial run", shown(path)));
+        }
+        Ok(())
+    }
+
+    #[cfg(not(unix))]
+    pub(crate) fn still(&self, _path: &Path) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 /// What a replacement did.
@@ -105,7 +161,8 @@ pub struct Replaced {
 /// Why a replacement stopped, the old binary as it was.
 #[derive(Debug)]
 pub enum Stopped {
-    /// The new file did not run here, or named another version.
+    /// The new file did not run here, named another version, or changed
+    /// after its run.
     Trial(String),
     /// A step of the disk failed.
     Disk(String),
@@ -114,24 +171,32 @@ pub enum Stopped {
 /// The file at `exe` becomes `bytes`, with `exe`'s mode, once `trial`
 /// passed on the new file; the file before it is kept beside it.
 pub fn replace(exe: &Path, bytes: &[u8], trial: &dyn Fn(&Path) -> Result<String, String>) -> Result<Replaced, Stopped> {
-    let old = fs::metadata(exe).map_err(|e| Stopped::Disk(format!("{}: {e}", exe.display())))?;
+    let old = fs::metadata(exe).map_err(|e| Stopped::Disk(format!("{}: {e}", shown(exe))))?;
     let temp = beside(exe, "update").map_err(Stopped::Disk)?;
     let dir = temp.parent().map(Path::to_path_buf).unwrap_or_default();
-    write_new(&temp, bytes).map_err(|e| {
+    let written = write_new(&temp, bytes).map_err(|e| {
         let _ = fs::remove_file(&temp);
-        Stopped::Disk(format!("a new file in {}: {e}", dir.display()))
+        Stopped::Disk(format!("a new file in {}: {e}", shown(&dir)))
     })?;
     let undo = |why: String| {
         let _ = fs::remove_file(&temp);
         why
     };
     #[cfg(unix)]
-    fs::set_permissions(&temp, old.permissions())
-        .map_err(|e| Stopped::Disk(undo(format!("the mode of {}: {e}", temp.display()))))?;
+    {
+        // The mode of the old file, with no write for the group or others
+        // (a binary that others can change is not installed) and no
+        // set-user-ID or set-group-ID bit.
+        use std::os::unix::fs::PermissionsExt;
+        let mode = old.permissions().mode() & 0o755;
+        fs::set_permissions(&temp, fs::Permissions::from_mode(mode))
+            .map_err(|e| Stopped::Disk(undo(format!("the mode of {}: {e}", shown(&temp)))))?;
+    }
     #[cfg(not(unix))]
     let _ = old;
     // Run where it will run, before anything of the old one moves.
     let said = trial(&temp).map_err(|why| Stopped::Trial(undo(why)))?;
+    written.still(&temp).map_err(|why| Stopped::Trial(undo(why)))?;
     let prev = keep::prev_of(exe);
     let kept = if cfg!(windows) {
         let _ = fs::remove_file(&prev);
@@ -141,19 +206,19 @@ pub fn replace(exe: &Path, bytes: &[u8], trial: &dyn Fn(&Path) -> Result<String,
             Err(e) => {
                 let moved = aside(exe);
                 let _ = fs::remove_file(&moved);
-                fs::rename(exe, &moved).map_err(|e| Stopped::Disk(undo(format!("{} aside: {e}", exe.display()))))?;
+                fs::rename(exe, &moved).map_err(|e| Stopped::Disk(undo(format!("{} aside: {e}", shown(exe)))))?;
                 (moved, Err(format!("{}: {e}", shown(&prev))))
             }
         };
         if let Err(e) = fs::rename(&temp, exe) {
             let _ = fs::rename(&moved, exe);
-            return Err(Stopped::Disk(undo(format!("{}: {e}", exe.display()))));
+            return Err(Stopped::Disk(undo(format!("{}: {e}", shown(exe)))));
         }
         kept
     } else {
         // Before the rename, which unlinks the old file.
         let kept = keep::keep(exe, &prev);
-        fs::rename(&temp, exe).map_err(|e| Stopped::Disk(undo(format!("{}: {e}", exe.display()))))?;
+        fs::rename(&temp, exe).map_err(|e| Stopped::Disk(undo(format!("{}: {e}", shown(exe)))))?;
         kept
     };
     keep::sync_dir(exe);
@@ -161,122 +226,4 @@ pub fn replace(exe: &Path, bytes: &[u8], trial: &dyn Fn(&Path) -> Result<String,
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("podssh-replace-{}-{name}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
-    fn passes(_: &Path) -> Result<String, String> {
-        Ok("podssh 9.9.9".into())
-    }
-
-    #[test]
-    fn the_file_becomes_the_new_bytes_with_its_mode_and_the_old_one_is_kept_beside_it() {
-        let dir = scratch("ok");
-        let exe = dir.join(if cfg!(windows) { "podssh.exe" } else { "podssh" });
-        fs::write(&exe, b"old").unwrap();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&exe, fs::Permissions::from_mode(0o751)).unwrap();
-        }
-        #[cfg(unix)]
-        let inode = std::os::unix::fs::MetadataExt::ino(&fs::metadata(&exe).unwrap());
-        let replaced = replace(&exe, b"new", &passes).unwrap();
-        assert_eq!(replaced.said, "podssh 9.9.9");
-        assert_eq!(fs::read(&exe).unwrap(), b"new");
-        let prev = replaced.prev.unwrap();
-        assert_eq!(prev, dir.join(if cfg!(windows) { "podssh.prev.exe" } else { "podssh.prev" }));
-        assert_eq!(fs::read(&prev).unwrap(), b"old");
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::{MetadataExt, PermissionsExt};
-            let now = fs::metadata(&exe).unwrap();
-            assert_eq!(now.permissions().mode() & 0o777, 0o751);
-            // A new file renamed over the old one: a running binary keeps its
-            // own, where a write in place would change the program it runs.
-            assert_ne!(now.ino(), inode, "the binary was written in place");
-        }
-        let left: Vec<_> = fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name()).collect();
-        assert_eq!(left.len(), 2, "the binary and the one before it: {left:?}");
-        // Again: the kept one is the one before the last update.
-        replace(&exe, b"newer", &passes).unwrap();
-        assert_eq!(fs::read(&prev).unwrap(), b"new");
-        assert_eq!(fs::read_dir(&dir).unwrap().count(), 2);
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    /// A new file that its trial refuses never takes the old one's place,
-    /// and leaves nothing beside it, no kept one either.
-    #[test]
-    fn a_new_file_that_its_trial_refuses_leaves_the_old_binary_alone() {
-        let dir = scratch("trial");
-        let exe = dir.join("podssh");
-        fs::write(&exe, b"old").unwrap();
-        let refused = |_: &Path| -> Result<String, String> { Err("it ended with exit status: 1".to_string()) };
-        match replace(&exe, b"new", &refused) {
-            Err(Stopped::Trial(why)) => assert!(why.contains("exit status: 1"), "{why}"),
-            other => panic!("refused by its trial, not {other:?}"),
-        }
-        assert_eq!(fs::read(&exe).unwrap(), b"old");
-        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn a_path_is_shown_without_the_prefix_of_a_canonical_drive_path() {
-        assert_eq!(shown(Path::new(r"\\?\D:\a\podssh.exe")), r"D:\a\podssh.exe");
-        assert_eq!(shown(Path::new(r"\\?\UNC\host\share\podssh.exe")), r"\\?\UNC\host\share\podssh.exe");
-        assert_eq!(shown(Path::new("/usr/local/bin/podssh")), "/usr/local/bin/podssh");
-    }
-
-    #[test]
-    fn the_kept_and_the_temporary_names_keep_the_extension() {
-        assert_eq!(keep::prev_of(Path::new("/b/podssh")), Path::new("/b/podssh.prev"));
-        assert_eq!(keep::prev_of(Path::new("/b/podssh.exe")), Path::new("/b/podssh.prev.exe"));
-        assert_eq!(keep::prev_of(Path::new("/b/podssh-1.0.0")), Path::new("/b/podssh-1.0.0.prev"));
-        for (exe, ext) in [("/b/podssh.exe", true), ("/b/podssh", false)] {
-            let temp = beside(Path::new(exe), "update").unwrap();
-            assert_eq!(temp.parent(), Some(Path::new("/b")));
-            let name = temp.file_name().unwrap().to_string_lossy().into_owned();
-            assert!(name.starts_with(".podssh.update-") && name.ends_with(".exe") == ext, "{name}");
-        }
-    }
-
-    #[test]
-    fn a_binary_that_is_not_there_is_left_alone_and_nothing_is_written() {
-        let dir = scratch("gone");
-        let exe = dir.join("podssh");
-        match replace(&exe, b"new", &passes) {
-            Err(Stopped::Disk(why)) => assert!(why.contains("podssh"), "{why}"),
-            other => panic!("{other:?}"),
-        }
-        assert_eq!(fs::read_dir(&dir).unwrap().count(), 0);
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    /// A directory that refuses a new file leaves the old binary as it was.
-    #[cfg(unix)]
-    #[test]
-    fn a_directory_that_refuses_a_new_file_leaves_the_old_binary() {
-        use std::os::unix::fs::PermissionsExt;
-        let dir = scratch("refused");
-        let exe = dir.join("podssh");
-        fs::write(&exe, b"old").unwrap();
-        fs::set_permissions(&dir, fs::Permissions::from_mode(0o500)).unwrap();
-        let result = replace(&exe, b"new", &passes);
-        fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).unwrap();
-        // root writes in any directory: the check holds where it can.
-        if let Err(Stopped::Disk(why)) = result {
-            assert!(why.contains("a new file in"), "{why}");
-            assert_eq!(fs::read(&exe).unwrap(), b"old");
-            assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
-        }
-        let _ = fs::remove_dir_all(&dir);
-    }
-}
+mod tests;

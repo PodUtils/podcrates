@@ -1,8 +1,12 @@
-//! Which release (T-375): the tag that `--version` names, else the newest
-//! of the repository's releases, from GitHub's API or, where that fails (it
-//! allows 60 calls an hour to an address with no token), from the
-//! releases' Atom feed. A tag with `-` in it is a prerelease, as the release
-//! workflow marks one, and only a prerelease looks at another.
+//! Which release: the versions of the tags, in the order of semver, and the
+//! tags of a list of releases: GitHub's API, or, where that fails (it
+//! allows 60 calls an hour to an address with no token), the releases'
+//! Atom feed. A tag with `-` in it is a prerelease, as a release workflow
+//! marks one; only a prerelease follows another.
+//!
+//! The base is podssh's `update/release.rs`; the check of a tag's form
+//! (a tag goes into URLs and into the identity of the signature) is
+//! podnet's `valid_tag`.
 
 use std::cmp::Ordering;
 
@@ -110,34 +114,43 @@ impl PartialOrd for Version {
     }
 }
 
+/// True when `tag` can be a release tag: 1 to 64 characters of
+/// `0-9 A-Z a-z . + -`, the first `v` or a digit, and no `..`. A tag goes
+/// into the URLs of the files and into the identity of the signature, so a
+/// `/`, a `%` or a `..` must not pass.
+pub fn valid_tag(tag: &str) -> bool {
+    (1..=64).contains(&tag.len())
+        && tag.starts_with(|c: char| c == 'v' || c.is_ascii_digit())
+        && tag.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '+' | '-'))
+        && !tag.contains("..")
+}
+
 /// The tag of each release in the answer of GitHub's
-/// `GET /repos/OWNER/REPO/releases`, drafts left out.
+/// `GET /repos/OWNER/REPO/releases`, drafts and tags that are not
+/// [`valid_tag`] left out.
 pub fn tags_of_api(json: &[u8]) -> Result<Vec<String>, String> {
     let list: serde_json::Value = serde_json::from_slice(json).map_err(|e| format!("not JSON: {e}"))?;
     let list = list.as_array().ok_or("not a list of releases")?;
     Ok(list
         .iter()
         .filter(|r| !r["draft"].as_bool().unwrap_or(false))
-        .filter_map(|r| r["tag_name"].as_str().map(str::to_string))
+        .filter_map(|r| r["tag_name"].as_str().filter(|t| valid_tag(t)).map(str::to_string))
         .collect())
 }
 
 /// The tag of each entry of the feed `https://github.com/OWNER/REPO/releases.atom`:
-/// the last part of its link, `.../releases/tag/TAG`.
+/// the text after each `/releases/tag/` up to a quote, a `<` or a space,
+/// once, when it is a [`valid_tag`]. A page that is not a feed (a login
+/// page) gives none.
 pub fn tags_of_atom(xml: &[u8]) -> Result<Vec<String>, String> {
     let text = std::str::from_utf8(xml).map_err(|_| "not UTF-8")?;
-    let doc = roxmltree::Document::parse(text).map_err(|e| format!("not XML: {e}"))?;
-    let tags = doc
-        .descendants()
-        .filter(|n| n.has_tag_name("entry"))
-        .filter_map(|entry| {
-            let link = entry
-                .children()
-                .find(|n| n.has_tag_name("link") && n.attribute("rel").unwrap_or("alternate") == "alternate")?;
-            let (_, tag) = link.attribute("href")?.rsplit_once("/releases/tag/")?;
-            Some(tag.to_string())
-        })
-        .collect();
+    let mut tags: Vec<String> = Vec::new();
+    for part in text.split("/releases/tag/").skip(1) {
+        let tag: String = part.chars().take_while(|c| !matches!(c, '"' | '<' | '\'' | ' ')).collect();
+        if valid_tag(&tag) && !tags.contains(&tag) {
+            tags.push(tag);
+        }
+    }
     Ok(tags)
 }
 
@@ -147,76 +160,18 @@ pub fn newest(tags: &[String], prerelease: bool) -> Option<Version> {
     tags.iter().filter_map(|t| Version::of_tag(t)).filter(|v| prerelease || !v.is_prerelease()).max()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn v(text: &str) -> Version {
-        Version::parse(text).unwrap_or_else(|| panic!("{text} parses"))
-    }
-
-    #[test]
-    fn versions_are_ordered_as_semver_orders_them() {
-        let order = [
-            "0.9.0",
-            "1.0.0-alpha",
-            "1.0.0-alpha.1",
-            "1.0.0-beta.2",
-            "1.0.0-beta.10",
-            "1.0.0-rc.1",
-            "1.0.0",
-            "1.0.1",
-            "1.10.0",
-        ];
-        for pair in order.windows(2) {
-            assert!(v(pair[0]) < v(pair[1]), "{} < {}", pair[0], pair[1]);
-        }
-        assert_eq!(v("1.0.0+abc").cmp(&v("1.0.0")), Ordering::Equal);
-        for wrong in ["1.0", "1.0.0.0", "01.0.0", "1.0.0-", "1.0.0-be ta", "v1.0.0", "1.0.0-01"] {
-            assert!(Version::parse(wrong).is_none(), "{wrong}");
-        }
-        assert_eq!(Version::of_tag("v1.0.0-beta.2").map(|v| v.tag()).as_deref(), Some("v1.0.0-beta.2"));
-        assert!(Version::of_tag("1.0.0").is_none());
-    }
-
-    #[test]
-    fn the_newest_is_a_prerelease_only_when_one_is_allowed() {
-        let tags: Vec<String> =
-            ["v1.0.0-beta.2", "v0.9.1", "v1.0.0-beta.10", "nightly", "v1.0.0-beta.9"].map(String::from).to_vec();
-        assert_eq!(newest(&tags, true).map(|v| v.tag()).as_deref(), Some("v1.0.0-beta.10"));
-        assert_eq!(newest(&tags, false).map(|v| v.tag()).as_deref(), Some("v0.9.1"));
-        assert_eq!(newest(&tags[3..4], true), None);
-    }
-
-    #[test]
-    fn the_api_s_list_gives_its_tags_without_drafts() {
-        let json = br#"[{"tag_name":"v1.0.0-beta.3","draft":true},{"tag_name":"v1.0.0-beta.2","draft":false,"prerelease":true},{"tag_name":"v1.0.0-beta.1"}]"#;
-        assert_eq!(tags_of_api(json).unwrap(), ["v1.0.0-beta.2", "v1.0.0-beta.1"]);
-        assert!(tags_of_api(b"{\"message\":\"API rate limit exceeded\"}").is_err());
-    }
-
-    /// The form of GitHub's feed, as `https://github.com/OWNER/REPO/releases.atom`
-    /// serves it.
-    #[test]
-    fn the_feed_gives_the_tag_of_each_entry() {
-        let xml = br#"<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xml:lang="en-US">
-  <id>tag:github.com,2008:https://github.com/PodUtils/podssh/releases</id>
-  <link type="text/html" rel="alternate" href="https://github.com/PodUtils/podssh/releases"/>
-  <title>Release notes from podssh</title>
-  <entry>
-    <id>tag:github.com,2008:Repository/1/v1.0.0-beta.2</id>
-    <updated>2026-10-31T00:30:00Z</updated>
-    <link rel="alternate" type="text/html" href="https://github.com/PodUtils/podssh/releases/tag/v1.0.0-beta.2"/>
-    <title>podssh v1.0.0-beta.2</title>
-    <content type="html">&lt;p&gt;notes&lt;/p&gt;</content>
-  </entry>
-  <entry>
-    <id>tag:github.com,2008:Repository/1/v1.0.0-beta.1</id>
-    <link rel="alternate" type="text/html" href="https://github.com/PodUtils/podssh/releases/tag/v1.0.0-beta.1"/>
-  </entry>
-</feed>"#;
-        assert_eq!(tags_of_atom(xml).unwrap(), ["v1.0.0-beta.2", "v1.0.0-beta.1"]);
-        assert!(tags_of_atom(b"<html>a login page</html>").unwrap().is_empty());
-    }
+/// The release of a target: the static musl binary of the same
+/// architecture for a build of glibc (a release ships no glibc binary, and
+/// a static binary runs on a glibc host too).
+pub fn release_target(target: &str) -> String {
+    target.replace("-gnueabihf", "-musleabihf").replace("-gnueabi", "-musleabi").replace("-gnu", "-musl")
 }
+
+/// The file of `program`'s binary for `target` in a release:
+/// `PROGRAM-TARGET`, and `.exe` after it on Windows.
+pub fn asset(program: &str, target: &str) -> String {
+    if target.contains("-windows-") { format!("{program}-{target}.exe") } else { format!("{program}-{target}") }
+}
+
+#[cfg(test)]
+mod tests;

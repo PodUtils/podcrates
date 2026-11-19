@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**796 entries: 143 open, 26 partial, 7 blocked, 620 done.**
+**800 entries: 147 open, 26 partial, 7 blocked, 620 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 10 | 8 | 0 | 183 | 201 |
-| P2 | 67 | 8 | 4 | 315 | 394 |
-| P3 | 66 | 10 | 3 | 120 | 199 |
-| **All** | 143 | 26 | 7 | 620 | 796 |
+| P2 | 70 | 8 | 4 | 315 | 397 |
+| P3 | 67 | 10 | 3 | 120 | 200 |
+| **All** | 147 | 26 | 7 | 620 | 800 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -843,3 +843,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-961](podvm.md) | P2 | M | M6 | defect | done | `pod-extract`: the `tar` crate reads a PAX header or a GNU long name whole with no bound, and cuts the PAX records at each newline byte |
 | [T-962](relay.md) | P1 | S | M2 | defect | done | `pod-session`: the hold of a move starts when the task beside the link wakes, not when the bytes pass the threshold, so on Windows the old link still meets a small cap (PodUtils/podssh#327) |
 | [T-963](relay.md) | P2 | S | M2 | defect | partial | `live.yml`: the public Nostr relay `offchain.pub` pairs no two ends from a runner of GitHub, and pairs them from a cloud session |
+| [T-964](fleet.md) | P2 | M | M8 | feature | open | `pod-release`: the bundle of Rekor v2: the inclusion proof with its signed checkpoint, and the RFC 3161 timestamp |
+| [T-965](fleet.md) | P2 | M | M8 | feature | open | `pod-release`: the verifier as a static command for the CI of a product and for an installer |
+| [T-966](fleet.md) | P2 | M | M8 | chore | open | `pod-release`: the adoption trials of podnet and podssh, and the hand-off of the crate |
+| [T-967](fleet.md) | P3 | S | M8 | feature | open | `pod-release`: a minisign signature beside the Sigstore bundle |

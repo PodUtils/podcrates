@@ -28,21 +28,12 @@ const CHECK_ONLY: [&str; 1] = ["report/invalid-duplicate-row.json"];
 
 /// The schema, compiled by a validator of JSON Schema 2020-12.
 fn validator() -> (boon::Schemas, boon::SchemaIndex) {
-    let mut compiler = boon::Compiler::new();
-    let mut schemas = boon::Schemas::new();
-    compiler.add_resource(SCHEMA_ID, schema()).expect("a resource");
-    let at = compiler.compile(SCHEMA_ID, &mut schemas).expect("the schema compiles");
-    (schemas, at)
+    pod_testkit::schema::compiled(SCHEMA_ID, schema())
 }
 
 #[test]
 fn the_schema_file_is_generated_from_the_types() {
-    let text = serde_json::to_string_pretty(&schema()).expect("a schema is JSON") + "\n";
-    if std::env::var_os("POD_HOSTPROBE_WRITE_SCHEMAS").is_some() {
-        std::fs::write(file(), &text).expect("write the schema");
-    }
-    let have = std::fs::read_to_string(file()).unwrap_or_default();
-    assert!(have == text, "{} differs from the types: write it again (see the head of this file)", file().display());
+    pod_testkit::schema::holds(&file(), &schema(), "POD_HOSTPROBE_WRITE_SCHEMAS");
 }
 
 /// The `$id` names the file of the version that the report carries in its

@@ -17,6 +17,7 @@ mod netlab;
 mod qga;
 mod relay;
 mod relay_client;
+mod release;
 mod tor;
 mod transit;
 mod turn;
@@ -143,6 +144,11 @@ fn main() {
         std::sync::Arc::new(pod_proxy::resolve::System::new()),
     );
     let direct: std::sync::Arc<dyn pod_core::Dial> = std::sync::Arc::new(direct);
+    let release_tls = std::sync::Arc::new(pod_tls::Context::new(
+        std::sync::Arc::new(pod_tls::crypto::provider()),
+        pod_tls::Settings::new(pod_tls::Words::new("static-probe")),
+    ));
+    lines.push(release::release(pod_proxy::Client::new(release_tls, direct.clone())));
     lines.push(link::link(direct.clone()));
     lines.push(warp::warp(std::sync::Arc::new(pod_tls::crypto::provider()), direct.clone()));
     lines.push(cloudflare::cloudflare(direct.clone()));
