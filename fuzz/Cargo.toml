@@ -201,6 +201,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "broker_inner"
+path = "fuzz_targets/broker_inner.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "gsr_message"
 path = "fuzz_targets/gsr_message.rs"
 test = false

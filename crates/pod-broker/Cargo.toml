@@ -25,6 +25,15 @@ zeroize = { workspace = true }
 base64 = { workspace = true }
 # The diagnostics, and the audit sink on tracing.
 tracing = { workspace = true }
+# The TLS end (T-100): the server of the job's side and the client to the
+# far end with the provider and the trust of the host (no C), the CA of a
+# job and its leaves (rcgen writes the DER with no crypto of its own; each
+# signature is a P-256 key of pod-acme, pure Rust).
+pod-tls = { workspace = true, features = ["async"] }
+pod-acme = { workspace = true }
+rcgen = { version = "0.14", default-features = false }
+rustls = { workspace = true }
+rustls-pki-types = { workspace = true }
 
 # The JSON Schemas of broker-policy.v1 and log.v1 come from the types, in
 # tests only. The feature `schema` gives the JsonSchema of the policy to the
@@ -45,3 +54,6 @@ schemars = { workspace = true }
 # the verdict of the types from the generated schemas too.
 boon = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "net", "time", "rt", "rt-multi-thread", "macros", "sync", "test-util"] }
+# The pure provider of the tests of the TLS end: a job, a far end and the
+# broker in memory, with no C.
+pod-tls = { workspace = true, features = ["async", "pure"] }

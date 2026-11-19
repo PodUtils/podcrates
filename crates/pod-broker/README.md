@@ -16,9 +16,10 @@ gives the resolver, the way out and the audit sink, and binds the
 listeners. The crate reads no variable, prints nothing, and writes its
 diagnostics to `tracing`.
 
-T-099 made this crate. T-100 adds the TLS end with a CA for each job, the
-placeholder credentials and the scrub of answers, on the seam
-`TunnelEnd`.
+The TLS end (`TlsEnd`, T-100) gives each job a CA of its own and reads
+the tunnels to the hosts of its credentials: the job holds a placeholder,
+the far end gets the value of the secret, and each answer comes back with
+the placeholder ("Placeholder credentials" below).
 
 ## Use
 
@@ -56,6 +57,58 @@ reaches the unit. Each connection on it is the job's with no
 reload of the job keeps the listener with the new policy; a drop or the
 TTL ends it with each of its connections (the audit line
 `broker.listener.end`). The host binds and removes the socket file.
+
+### Placeholder credentials
+
+The policy names a placeholder, the name of a secret and its hosts; the
+host gives the value at the load. The broker needs its TLS end, with the
+provider and the trust of the host for its TLS to the far ends:
+
+```rust
+let provider = Arc::new(pod_tls::crypto::provider());
+let tls = pod_tls::Context::new(provider.clone(), pod_tls::Settings::new(pod_tls::Words::new("podrunner")));
+let trust = tls.config_for(&pod_tls::Trust::Default)?;
+let broker = pod_broker::Broker::new(settings, resolve, way_out)
+    .with_tunnel_end(Arc::new(pod_broker::TlsEnd::new(provider, trust)));
+
+let mut load = pod_broker::Load::new(job, token, ttl, policy); // the policy of the offer
+load.secrets = pod_broker::Secrets::new().with("github", value);
+let info = broker.load(load)?;
+// The job trusts its CA: write the bundle and name it in its environment.
+let ca_pem = info.ca_pem.expect("a CA for a job with a credential");
+pod_broker::ca::write_bundle(&unit_dir.join("ca.pem"), &ca_pem, &std::fs::read("/etc/ssl/certs/ca-certificates.crt")?)?;
+for (var, path) in pod_broker::ca::env(&unit_dir.join("ca.pem")) {
+    command.env(var, path); // SSL_CERT_FILE, GIT_SSL_CAINFO, NODE_EXTRA_CA_CERTS, REQUESTS_CA_BUNDLE, ...
+}
+command.env("GITHUB_TOKEN", "PODCRED_GITHUB_TOKEN_0001"); // the placeholder
+```
+
+The TLS end reads a tunnel to a host that a credential names, or to a
+host whose rules each have a path, when the job starts it with a TLS
+handshake; each other tunnel passes as it is (docs/decisions.md, C812).
+Inside the tunnel it checks the SNI and each `Host` against the CONNECT
+target (421), the target in origin form (400) and each path (403); it
+swaps each placeholder for its value in the places of its credential;
+it opens its own TLS to the far end with the trust of the host; and it
+puts the placeholder back in each answer, in a header or in the body, as
+the value, its percent-encoded form, its form in JSON, its base64, and
+the base64 of each `Basic` value that it wrote (C815). The ALPN is
+`http/1.1` on each side.
+
+| Bound (`tls_end::Bounds`) | What the TLS end does |
+| --- | --- |
+| a request body with a length up to `max_body` (1 MiB) | read whole, swapped, sent with its new length |
+| a larger request body, or one with a `Content-Encoding` | passed with no swap; the audit note `body-large` or `body-encoded` |
+| a chunked request body | swapped as it comes, sent in chunks |
+| `Accept-Encoding` of a job with a secret | `identity` in its place |
+| an answer with a `Content-Encoding` | 502 to the job, the note `answer-encoded` |
+| an answer with a length up to `max_body` | scrubbed whole, sent with its new length |
+| a larger, chunked or close-delimited answer | scrubbed as it comes, sent in chunks (HTTP/1.1) or to the close (HTTP/1.0) |
+| `Expect: 100-continue` | the broker answers 100 itself |
+| 101 | the bytes of the job pass; the bytes of the far end come back scrubbed |
+
+The values never reach a line, an answer of the control or a text of an
+error; `Secrets`, `Vault` and `JobCa` show no value in their debug form.
 
 ### An upstream that takes names only
 
@@ -104,7 +157,14 @@ policy keeps the rule, `JobInfo::flagged` and the control answer
 | `Settings::names_upstream`, `Settings::canary`, `Broker::check_upstream()`, `UpstreamCheck` | an upstream that takes names only, and its canary (T-161) |
 | `names::{OPEN_SUFFIXES, open_suffix}`, `JobInfo::flagged`, `Compiled::flagged` | the allow rules under an open suffix (T-161) |
 | `Audit`, `Line`, `JsonLines`, `Tracing`, `Memory` | the audit sink and its line |
-| `TunnelEnd`, `Tunnel`, `Splice`, `Counts` | the inside of an allowed tunnel; the seam of T-100 |
+| `TunnelEnd`, `Tunnel`, `Splice`, `Counts`, `Report` | the inside of an allowed tunnel, and what its end did for the audit line |
+| `TlsEnd::new(provider, client_config)`, `with_bounds`, `tls_end::{Bounds, MAX_BODY}` | the TLS end (T-100) |
+| `Credential`, `Place`, `credentials::Checked`, `Compiled::credentials`, `Compiled::needs_tls_end` | the placeholder credentials of a policy |
+| `Secrets` (`new`, `with`), `Load::secrets`, `Load::new` | the values of the secrets, given at the load |
+| `JobInfo::ca_pem`, `Broker::ca_pem(job)`, `ca::{JobCa, bundle, write_bundle, env}` | the CA of a job, its bundle and its variables |
+| `Vault` | the CA and the secrets of one job |
+| `inner::{check, read, Inner, Refused}`, `target::parse_origin` | the checks of a request inside a tunnel |
+| `replace::{Replace, replace_text, percent, json_escaped}` | the swap and the scrub of a stream |
 | `Token` | a job token: wiped when dropped, shown by no format |
 
 The failures are `pod_core::Failure`. A bad policy, job id, token or TTL
@@ -146,6 +206,17 @@ consumer. The TOML form has the same keys.
   request (T-100) checks the paths.
 * `ports`: none or empty: each port.
 * `deny`: extra denies, after the fixed ones.
+* `credentials`: the placeholder credentials (T-100). Each has
+  `placeholder` (16 to 256 of `A-Z a-z 0-9 _ . -`), `secret` (the name of a
+  secret whose value the host gives at the load), `hosts` (as the `host`
+  of a rule) and `in` (`header`, `basic`, `query`, `body`; none: `header`
+  and `basic`). A credential needs the TLS end of the broker.
+
+```json
+{ "schema": 1, "mode": "open",
+  "credentials": [ { "placeholder": "PODCRED_GITHUB_TOKEN_0001", "secret": "github",
+                     "hosts": ["api.github.com", "*.githubusercontent.com"], "in": ["header", "basic"] } ] }
+```
 
 ## The denies
 
@@ -181,7 +252,7 @@ The words of PodUtils/podvm#184. Each answer closes the connection.
 | 400 | a malformed head; an ambiguous target: user information, a host in percent-encoding, an IPv4 address in another spelling (`2130706433`, `0177.0.0.1`, `127.1`), an IPv6 address with no brackets, a port out of range or with a leading zero, `%2e`, `%2f`, `%5c`, a dot segment, `//`, a fragment; a target in origin form; two `Host` headers; a body with two framings | usage |
 | 408, 431, 505 | no head within `Settings::head_timeout`; a head over 16 KiB; a version of HTTP other than 1.x | timeout, usage |
 | 407 | no `Proxy-Authorization`, a scheme other than Basic or Bearer, a token of no job, or a Basic user that is not the job of the token | refused |
-| 421 | the `Host` and the CONNECT target or the URL differ (T-100 adds the SNI) | usage |
+| 421 | the `Host` and the CONNECT target or the URL differ; inside a tunnel of the TLS end, the SNI or a `Host` is not the CONNECT target | usage |
 | 403 | a deny or the policy refused the target | policy |
 | 502 | the resolve, the upstream proxy or the far end failed | of the failure |
 | 504 | the resolve or the far end did not answer in time | timeout |
@@ -224,6 +295,9 @@ answer with `"v": 1`. An answer never holds a token.
 {"v":1,"ok":false,"class":"usage","error":"..."}
 ```
 
+A `load` of a policy with credentials gives the values in `secrets`
+(`{"NAME":"VALUE"}`), and its answer has `ca_pem`, the CA of the job.
+
 A job id has 1 to 128 of `A-Z a-z 0-9 . _ : -`. A token has 16 to 4096
 printable ASCII characters with no space; the broker keeps only its
 SHA-256, and one token belongs to one job. A TTL is from 1 s to 7 days.
@@ -239,7 +313,12 @@ One line for each connection and each `load` and `drop`, in the form of
            "decision":"allow","rule":"open","status":200,"up":517,"down":4096,"ms":120}}
 ```
 
-`kind` is `connect`, `http` or `request` (no target was read). A refusal
+`kind` is `connect`, `http` or `request` (no target was read). A tunnel that
+the TLS end read has `tls` (`end`), `requests`, `swaps`, `scrubs`, and
+`notes` (`body-large`, `body-encoded`, `answer-encoded`, `sni-mismatch`,
+`host-mismatch`, `path-denied`, `upstream-tls`, `not-tls`, `upgrade` and
+the other words of a refusal); `broker.job.load` has `credentials` (the
+names of the secrets) and `ca`. A refusal
 has `decision` `deny`, its `rule` and `status`, and `stage` and `class`. A
 connection that the end of its job cut has `end` `job-ended` and the
 class `revoked`. A line never holds a token, a header, a path or a query.
@@ -252,9 +331,12 @@ class `revoked`. A line never holds a token, a header, a path or a query.
 | podssh | the local egress daemon of A-S-11 (`podssh egress serve --listen unix:PATH`): a thin `main` over `Broker`, with podssh's `pod_proxy` dialer and `pod_dns` resolver as the way out |
 | podrunner (later) | a broker for each host; the `policy` object of the job source (githome G-04) goes to `load`; the audit lines go back to the source |
 | cfb | the egress proxy of CFB-230 (A-X-05, A-V-03, A-N-13), with the TLS end of T-100 |
+| githome (through podrunner) | G-35: the `credentials` of the `policy` of an offer; podrunner gives the values at the load and the bundle to the unit |
 
 ## Sources
 
-New code (T-099). The vocabulary of the answers is PodUtils/podvm#184;
-the reader of a request's head and the body reader are `pod-proxy`'s. No
+New code (T-099, T-100). The vocabulary of the answers is
+PodUtils/podvm#184; the reader of a request's head and the body reader
+are `pod-proxy`'s; the TLS server and client are `pod-tls`'s; the P-256
+keys and the PEM of the CA are `pod-acme`'s. No
 file is imported, so the crate has no `SOURCES` file.

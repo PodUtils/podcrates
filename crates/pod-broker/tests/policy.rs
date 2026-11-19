@@ -166,9 +166,15 @@ fn the_json_schema_agrees_with_the_policy() {
     let rule_keys: Vec<&String> = schema["$defs"]["Rule"]["properties"].as_object().unwrap().keys().collect();
     assert_eq!(rule_keys, ["host", "path", "ports"]);
     let keys: Vec<&String> = schema["properties"].as_object().unwrap().keys().collect();
-    assert_eq!(keys, ["allow", "deny", "mode", "schema"], "in the order of a map with sorted keys");
+    assert_eq!(keys, ["allow", "credentials", "deny", "mode", "schema"], "in the order of a map with sorted keys");
+    let credential_keys: Vec<&String> =
+        schema["$defs"]["Credential"]["properties"].as_object().unwrap().keys().collect();
+    assert_eq!(credential_keys, ["hosts", "in", "placeholder", "secret"]);
+    let places: Vec<&serde_json::Value> =
+        schema["$defs"]["Place"]["oneOf"].as_array().unwrap().iter().map(|m| &m["const"]).collect();
+    assert_eq!(places, ["header", "basic", "query", "body"]);
     let examples = schema["examples"].as_array().unwrap();
-    assert_eq!(examples.len(), 2);
+    assert_eq!(examples.len(), 3);
     for example in examples {
         Policy::from_value(example.clone()).unwrap().compile().unwrap();
     }

@@ -108,12 +108,7 @@ fn an_allow_rule_under_an_open_suffix_is_flagged_at_load() {
     )
     .unwrap();
     let info = flagging
-        .load(pod_broker::Load {
-            job: "job1".into(),
-            token: pod_broker::Token::new(TOKEN),
-            ttl: std::time::Duration::from_secs(600),
-            policy,
-        })
+        .load(pod_broker::Load::new("job1", pod_broker::Token::new(TOKEN), std::time::Duration::from_secs(600), policy))
         .unwrap();
     assert_eq!(info.flagged, ["*.github.io", "x.pages.dev"]);
     let line = audit.lines().into_iter().find(|l| l.event == "broker.job.load").unwrap();

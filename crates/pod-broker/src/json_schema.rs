@@ -73,6 +73,13 @@ pub fn policy_rules(schema: &mut Schema) {
                 { "host": "api.github.com", "path": "/repos/owner", "ports": [443] },
                 { "host": "*.githubusercontent.com" }
             ]
+        },
+        {
+            "schema": 1,
+            "mode": "open",
+            "credentials": [
+                { "placeholder": "PODCRED_GITHUB_TOKEN_0001", "secret": "github", "hosts": ["api.github.com"] }
+            ]
         }
     ]);
     schema.insert("examples".into(), examples);

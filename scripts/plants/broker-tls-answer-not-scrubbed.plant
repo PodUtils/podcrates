@@ -1,0 +1,7 @@
+# The TLS end scrubs no answer: a far end that echoes the value of a
+# secret gives the real value to the job (T-100).
+ENTRY=T-100
+GROUP=proxy
+EXPECT='a_planted_secret_is_in_no_log_line_no_audit_line_no_answer_and_no_error|an_answer_that_echoes_the_value_in_each_form'
+RUN='cargo test -p pod-broker --all-features --test tls_scrub'
+LIMIT=1800

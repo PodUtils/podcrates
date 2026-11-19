@@ -181,7 +181,7 @@ fn each_example_passes_or_fails_for_its_reason() {
             }
         }
     }
-    assert_eq!((valid, invalid), (41, 47));
+    assert_eq!((valid, invalid), (42, 47));
     assert_eq!(expect.len(), 47, "expect.json names a file that does not exist");
 }
 

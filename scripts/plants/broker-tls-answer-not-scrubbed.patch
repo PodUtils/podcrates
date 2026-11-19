@@ -1,0 +1,11 @@
+--- a/crates/pod-broker/src/tls_end.rs
++++ b/crates/pod-broker/src/tls_end.rs
+@@ -205,7 +205,7 @@
+                 }
+             };
+         let out = Outgoing::of(vault, tunnel.authority);
+-        let scrub = if out.scrub { vault.scrub() } else { Pairs::new() };
++        let scrub = Pairs::new();
+         let mut ends = Ends { client: Prefixed::new(Vec::new(), client), upstream, up_buf: Vec::new() };
+         loop {
+             let read =

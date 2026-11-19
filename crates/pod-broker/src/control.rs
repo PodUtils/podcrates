@@ -5,6 +5,8 @@
 //! ```text
 //! {"op":"load","job":"J","token":"T","ttl_s":600,"policy":{"schema":1,"mode":"open"}}
 //! {"v":1,"ok":true,"op":"load","job":"J","mode":"open","rules":0,"expires_in_s":600}
+//! {"op":"load","job":"J","token":"T","ttl_s":600,"policy":{...,"credentials":[...]},"secrets":{"NAME":"VALUE"}}
+//! {"v":1,"ok":true,"op":"load","job":"J",...,"ca_pem":"-----BEGIN CERTIFICATE-----\n..."}
 //! {"op":"drop","job":"J"}
 //! {"v":1,"ok":true,"op":"drop","job":"J","dropped":true}
 //! {"op":"list"}
@@ -12,7 +14,7 @@
 //! {"v":1,"ok":false,"class":"usage","error":"..."}
 //! ```
 //!
-//! An answer never holds a token. The class of a failure is the name of
+//! An answer never holds a token or the value of a secret. The class of a failure is the name of
 //! `pod_core::Class`.
 
 use std::time::Duration;
@@ -22,6 +24,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::broker::Broker;
+use crate::credentials::Secrets;
 use crate::jobs::{JobInfo, Load, Token};
 use crate::policy::Policy;
 
@@ -34,8 +37,17 @@ pub const VERSION: u32 = 1;
 #[derive(Debug, Deserialize)]
 #[serde(tag = "op", rename_all = "lowercase", deny_unknown_fields)]
 enum Request {
-    Load { job: String, token: Token, ttl_s: u64, policy: Value },
-    Drop { job: String },
+    Load {
+        job: String,
+        token: Token,
+        ttl_s: u64,
+        policy: Value,
+        #[serde(default)]
+        secrets: Secrets,
+    },
+    Drop {
+        job: String,
+    },
     List,
 }
 
@@ -79,9 +91,10 @@ impl Broker {
             Err(e) => return failed(Class::Usage, &parse_words(&e)),
         };
         match request {
-            Request::Load { job, token, ttl_s, policy } => {
-                let loaded = Policy::from_value(policy)
-                    .and_then(|policy| self.load(Load { job, token, ttl: Duration::from_secs(ttl_s), policy }));
+            Request::Load { job, token, ttl_s, policy, secrets } => {
+                let ttl = Duration::from_secs(ttl_s);
+                let loaded =
+                    Policy::from_value(policy).and_then(|policy| self.load(Load { job, token, ttl, policy, secrets }));
                 match loaded {
                     Ok(job) => {
                         let mut answer = info(&job);
@@ -89,6 +102,9 @@ impl Broker {
                         answer["ok"] = json!(true);
                         answer["op"] = json!("load");
                         answer.as_object_mut().map(|o| o.remove("open"));
+                        if let Some(pem) = &job.ca_pem {
+                            answer["ca_pem"] = json!(pem);
+                        }
                         answer
                     }
                     Err(e) => failed(e.class, e.text()),

@@ -28,7 +28,7 @@ use crate::jobs::Lease;
 use crate::policy::{PATH_NEEDS_TLS_END, Verdict};
 use crate::prefixed::Prefixed;
 use crate::target::{Authority, Host, HttpTarget, parse_absolute, parse_authority};
-use crate::tunnel::{Counts, Tunnel};
+use crate::tunnel::{Counts, Report, Tunnel};
 
 /// A refusal: its status, its rule and its class.
 #[derive(Debug)]
@@ -155,11 +155,12 @@ impl Broker {
             Ok(upstream) => upstream,
             Err(refusal) => return self.refused(&mut io, &note, refusal, true).await,
         };
-        let counts = Counts::default();
+        let (counts, report) = (Counts::default(), Report::default());
         let result = match next {
             Next::Tunnel { authority } => {
                 if let Err(e) = io.write_all(&established()).await {
-                    return self.ended(&note, &checked.rule, 200, &counts, Some(Failure::io(Stage::Proxy, e)));
+                    let failure = Some(Failure::io(Stage::Proxy, e));
+                    return self.ended(&note, &checked.rule, 200, (&counts, &report), failure);
                 }
                 let client: BoxedIo = Box::new(Prefixed::new(rest, io));
                 let tunnel = Tunnel {
@@ -169,6 +170,8 @@ impl Broker {
                     policy: &lease.policy,
                     rule: &checked.rule,
                     counts: &counts,
+                    vault: lease.vault.as_deref(),
+                    report: &report,
                 };
                 tokio::select! {
                     r = self.end.run(tunnel, client, upstream) => r.err(),
@@ -185,7 +188,7 @@ impl Broker {
             }
         };
         let status = if note.kind == "connect" { 200 } else { 0 };
-        self.ended(&note, &checked.rule, status, &counts, result);
+        self.ended(&note, &checked.rule, status, (&counts, &report), result);
     }
 
     /// The job of the request's `Proxy-Authorization`: `Bearer TOKEN`, or
@@ -390,13 +393,21 @@ impl Broker {
     }
 
     /// The line of a connection that the checks allowed.
-    fn ended(&self, note: &Note, rule: &str, status: u16, counts: &Counts, failure: Option<Failure>) {
+    fn ended(
+        &self,
+        note: &Note,
+        rule: &str,
+        status: u16,
+        (counts, report): (&Counts, &Report),
+        failure: Option<Failure>,
+    ) {
         let mut line = note.line("info");
         line.set("decision", "allow").set("rule", rule);
         if status != 0 {
             line.set("status", status);
         }
         line.set("up", counts.up()).set("down", counts.down()).set("ms", millis(note.started.elapsed()));
+        report.fill(&mut line);
         if let Some(f) = failure {
             line.set("end", if f.class == Class::Revoked { "job-ended" } else { "failed" });
             line.failed(f.stage, f.class);

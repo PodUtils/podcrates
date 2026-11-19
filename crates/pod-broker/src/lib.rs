@@ -22,8 +22,11 @@
 //!
 //! `schemas/broker-policy.v1.schema.json` and `schemas/log.v1.schema.json`
 //! come from [`Policy`] and [`Line`]: a test writes them and compares them.
-//! * [`tunnel`]: the inside of an allowed tunnel; [`TunnelEnd`] is the seam
-//!   of the TLS end of T-100.
+//! * [`tunnel`]: the inside of an allowed tunnel; [`TunnelEnd`] is its seam.
+//! * [`tls_end`]: the TLS end (T-100): a CA for each job ([`ca`]), the
+//!   placeholder credentials of a policy ([`credentials`]) swapped for the
+//!   values of their secrets ([`vault`]) inside the TLS of the tunnel, and
+//!   each value scrubbed out of the answers ([`inner`], [`replace`]).
 //!
 //! **A library only** (docs/decisions.md, C27): each product hosts the
 //! broker in a thin `main` and gives the settings, the resolver, the way out
@@ -32,26 +35,36 @@
 
 pub mod audit;
 mod broker;
+pub mod ca;
 pub mod control;
+pub mod credentials;
 pub mod deny;
 mod forward;
+pub mod inner;
 pub mod jobs;
 #[cfg(any(test, feature = "schema"))]
 mod json_schema;
 pub mod names;
 pub mod policy;
 mod prefixed;
+pub mod replace;
 #[cfg(test)]
 mod schemas;
 mod serve;
 pub mod target;
+mod tls_body;
+pub mod tls_end;
 pub mod tunnel;
+pub mod vault;
 mod words;
 
 pub use audit::{Audit, JsonLines, Line, Memory, Tracing};
 pub use broker::{Broker, Settings, upstream};
+pub use credentials::{Credential, Place, Secrets};
 pub use deny::DenyList;
 pub use jobs::{JobInfo, Load, Token};
 pub use names::UpstreamCheck;
 pub use policy::{Compiled, Mode, NoRule, Policy, Rule, Verdict};
-pub use tunnel::{Counts, Splice, Tunnel, TunnelEnd};
+pub use tls_end::TlsEnd;
+pub use tunnel::{Counts, Report, Splice, Tunnel, TunnelEnd};
+pub use vault::Vault;

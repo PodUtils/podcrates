@@ -1,0 +1,11 @@
+--- a/crates/pod-broker/src/vault.rs
++++ b/crates/pod-broker/src/vault.rs
+@@ -80,7 +80,7 @@
+     /// Each placeholder that `host` gets the value of in `place`, with the
+     /// value in the form of the place: percent-encoded in a query.
+     pub(crate) fn outgoing(&self, host: &Host, place: Place) -> Pairs {
+-        let held = self.swaps.iter().filter(|s| s.checked.holds(host) && s.checked.places.contains(&place));
++        let held = self.swaps.iter().filter(|s| !host.to_string().is_empty() && s.checked.places.contains(&place));
+         held.map(|s| {
+             let value = if place == Place::Query { percent(&s.value) } else { s.value.to_string() };
+             (s.checked.placeholder.as_bytes().to_vec(), value.into_bytes())

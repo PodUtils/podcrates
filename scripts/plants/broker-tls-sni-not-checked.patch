@@ -1,0 +1,11 @@
+--- a/crates/pod-broker/src/tls_end.rs
++++ b/crates/pod-broker/src/tls_end.rs
+@@ -181,7 +181,7 @@
+         tunnel.report.tls.store(true, Ordering::Relaxed);
+         let sni_fits = match (tls.get_ref().1.server_name(), host) {
+             (None, _) => true,
+-            (Some(sni), Host::Name(name)) => sni.trim_end_matches('.').eq_ignore_ascii_case(name),
++            (Some(_), Host::Name(_)) => true,
+             (Some(_), Host::Ip(_)) => false,
+         };
+         let mut client: BoxedIo = Box::new(tls);

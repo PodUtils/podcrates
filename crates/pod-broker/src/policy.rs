@@ -22,6 +22,7 @@ use std::path::Path;
 use pod_core::{Class, Failure, Stage};
 use serde::{Deserialize, Serialize};
 
+use crate::credentials::{Checked, Credential};
 use crate::deny::{DenyList, NameRule};
 use crate::target::{Authority, Host, normal_path, parse_host};
 
@@ -104,6 +105,12 @@ pub struct Policy {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[cfg_attr(any(test, feature = "schema"), schemars(inner(length(min = 1))))]
     pub deny: Vec<String>,
+    /// The placeholder credentials: the job holds each placeholder, and the
+    /// broker swaps it for the real value of its secret on the way to its
+    /// hosts, inside its TLS end ([`crate::credentials`]). A policy names a
+    /// secret, never its value.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub credentials: Vec<Credential>,
 }
 
 fn usage(words: String) -> Failure {
@@ -113,7 +120,7 @@ fn usage(words: String) -> Failure {
 impl Policy {
     /// The open policy with no extra deny.
     pub fn open() -> Policy {
-        Policy { schema: SCHEMA, mode: Mode::Open, allow: Vec::new(), deny: Vec::new() }
+        Policy { schema: SCHEMA, mode: Mode::Open, allow: Vec::new(), deny: Vec::new(), credentials: Vec::new() }
     }
 
     /// A policy in JSON. A bad policy is a failure of the class `Usage`.
@@ -160,14 +167,37 @@ impl Policy {
         }
         let flagged =
             self.allow.iter().filter(|r| crate::names::open_suffix(&r.host).is_some()).map(|r| r.host.clone());
-        Ok(Compiled { mode: self.mode, rules, deny, flagged: flagged.collect() })
+        let credentials = crate::credentials::compile(&self.credentials).map_err(usage)?;
+        Ok(Compiled { mode: self.mode, rules, deny, flagged: flagged.collect(), credentials })
     }
 }
 
+/// The host of a rule or of a credential: a name, `*.NAME` or an address.
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum HostRule {
+pub(crate) enum HostRule {
     Name(NameRule),
     Ip(IpAddr),
+}
+
+impl HostRule {
+    /// The host of `text`: a name, `*.NAME`, or an address.
+    pub(crate) fn parse(text: &str) -> Result<HostRule, String> {
+        Ok(match text.strip_prefix("*.") {
+            Some(_) => HostRule::Name(NameRule::parse(text)?),
+            None => match parse_host(text).map_err(|e| e.0)? {
+                Host::Name(name) => HostRule::Name(NameRule::Exact(name)),
+                Host::Ip(ip) => HostRule::Ip(crate::deny::plain(ip)),
+            },
+        })
+    }
+
+    pub(crate) fn holds(&self, host: &Host) -> bool {
+        match (self, host) {
+            (HostRule::Name(rule), Host::Name(name)) => rule.holds(name),
+            (HostRule::Ip(rule), Host::Ip(ip)) => *rule == crate::deny::plain(*ip),
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -178,13 +208,7 @@ struct CompiledRule {
 }
 
 fn compile_rule(rule: &Rule) -> Result<CompiledRule, String> {
-    let host = match rule.host.strip_prefix("*.") {
-        Some(_) => HostRule::Name(NameRule::parse(&rule.host)?),
-        None => match parse_host(&rule.host).map_err(|e| e.0)? {
-            Host::Name(name) => HostRule::Name(NameRule::Exact(name)),
-            Host::Ip(ip) => HostRule::Ip(crate::deny::plain(ip)),
-        },
-    };
+    let host = HostRule::parse(&rule.host)?;
     let path = match &rule.path {
         None => None,
         Some(path) => {
@@ -251,6 +275,7 @@ pub struct Compiled {
     rules: Vec<CompiledRule>,
     deny: DenyList,
     flagged: Vec<String>,
+    credentials: Vec<Checked>,
 }
 
 impl Compiled {
@@ -272,6 +297,17 @@ impl Compiled {
     /// The extra denies of the policy.
     pub fn deny(&self) -> &DenyList {
         &self.deny
+    }
+
+    /// The checked credentials, with no secret value.
+    pub fn credentials(&self) -> &[Checked] {
+        &self.credentials
+    }
+
+    /// Whether a TLS end reads the tunnels of this policy: a credential, or
+    /// a rule with a path.
+    pub fn needs_tls_end(&self) -> bool {
+        !self.credentials.is_empty() || self.rules.iter().any(|r| r.path.is_some())
     }
 
     /// The verdict for `target`: `path` is the normal path of a plain
@@ -323,11 +359,7 @@ impl Compiled {
 
 impl CompiledRule {
     fn holds_host(&self, host: &Host) -> bool {
-        match (&self.host, host) {
-            (HostRule::Name(rule), Host::Name(name)) => rule.holds(name),
-            (HostRule::Ip(rule), Host::Ip(ip)) => *rule == crate::deny::plain(*ip),
-            _ => false,
-        }
+        self.host.holds(host)
     }
 }
 

@@ -38,6 +38,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("dns_wire", targets::dns_wire),
     ("doh_json", targets::doh_json),
     ("broker_target", targets::broker_target),
+    ("broker_inner", targets::broker_inner),
     ("gsr_message", targets::gsr_message),
     ("ws_frame", targets::ws_frame),
     ("ws_upgrade", targets::ws_upgrade),
