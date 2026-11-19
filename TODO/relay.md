@@ -10408,3 +10408,32 @@ A cooked `Session` with no prompt: echo, the editing and the signals as now, and
 ```sh
 cargo test -p pod-term --all-features prompt
 ```
+
+# T-962: `pod-session`: the hold of a move starts when the task beside the link wakes, not when the bytes pass the threshold, so on Windows the old link still meets a small cap (PodUtils/podssh#327)
+
+**Source:** PodUtils/podssh#327 (COORD-126, amended; podssh T-826; the gate at podssh `ba19367`, run 44476622620, job `windows`, `windows-2025`)
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+With `v0.75.0` (T-958), podssh's `tests/layer_cap.rs` under `relay serve --max-session-mib 1` passed 8 runs of 8 on Linux, and failed once on windows-2025: the first link ended with `1009 session byte cap`, and the client said "the session moved to a new link before the relay's limits, after 899 KiB in 0 s (32768 bytes sent again)". The move began above seven eighths of the cap (896 KiB), not at the threshold of three quarters (768 KiB). `Watch::count` tells `due` when the bytes pass `move_at`, and the hold starts in `beside::next` when its task wakes on `due`; until then the pump sends at its rate. A slow scheduler (the timer of Windows ticks each 15.625 ms) gave about 130 KiB more.
+
+## Premise
+
+- Read: PodUtils/podssh#327; `crates/pod-session/src/pump/watch.rs` (`count`, `due`); `crates/pod-session/src/pump/hold.rs` and `beside.rs` (where the hold starts and lifts, T-958).
+- Not measured: the lag on windows-2025 in podcrates' own `tests/layer_cap.rs`.
+
+## Approach
+
+`Watch::count` starts the hold in the same call that passes `move_at` (when the session moves), so the pump takes no new byte of the application from that byte on. `beside::next` lifts it where no move follows: a session that closes, an application that ended, a failed move (T-958 lifts there already). A test on the paused clock: a pump whose `beside` task does not run for 50 ms after `due` sends no byte of the application past `move_at` plus one record; the plant moves the start back to `beside`.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features hold
+cargo test -p pod-relay --all-features --test layer_cap
+```
