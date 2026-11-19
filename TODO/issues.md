@@ -43,7 +43,7 @@ kinds and the rules.
 | #33 | report | The static probe lacks `pod-proxy/blocking` | closed | T-095 |
 | #34 | report | `pod-proxy` README row lists 4 of 6 variables | closed | T-096 |
 | #35 | tracker | cfb: meta request for the tools that cfb needs from PodUtils (84 asks) | open (the owner's tracker; routed in `docs/research/fleet/asks.md`; M8 waits) | T-098, T-099 to T-120 |
-| #36 | tracker | githome: meta request for a forge CI runner host (12 asks) | open (the owner's tracker; routed in `docs/research/fleet/asks.md`; M8 waits) | T-098, T-099, T-100, T-103, T-104, T-106, T-109 |
+| #36 | tracker | githome: meta-meta tracker of the 14 asks of githome (rulings, trackers, index) | open (the owner's tracker; routed in `docs/research/fleet/asks.md`; M8 waits) | T-098, T-099, T-100, T-103, T-104, T-106, T-109 |
 | #37 | coord | COORD-013: podcrates v0.7.0 is released: each tag to v0.7.0 (to all) | closed | T-077, T-081 |
 | #38 | coord | COORD-014: the asks of cfb (#35) for podssh, and the rulings of 2026-11-09 (to podssh) | closed | T-098 |
 | #39 | coord | COORD-015: the asks of cfb (#35) and githome (#36) for podvm, and the rulings of 2026-11-09 (to podvm) | closed | T-098, T-099, T-108 |
