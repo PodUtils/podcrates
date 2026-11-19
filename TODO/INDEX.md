@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**791 entries: 145 open, 25 partial, 7 blocked, 614 done.**
+**793 entries: 147 open, 25 partial, 7 blocked, 614 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 11 | 9 | 0 | 179 | 199 |
+| P1 | 12 | 9 | 0 | 179 | 200 |
 | P2 | 68 | 6 | 4 | 314 | 392 |
-| P3 | 66 | 10 | 3 | 119 | 198 |
-| **All** | 145 | 25 | 7 | 614 | 791 |
+| P3 | 67 | 10 | 3 | 119 | 199 |
+| **All** | 147 | 25 | 7 | 614 | 793 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -838,3 +838,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-956](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a layer of more than one gzip member or zstd frame is cut short after the first, with no error (PodUtils/podrunner#317, ask 2) |
 | [T-957](podvm.md) | P1 | M | M6 | feature | open | `pod-extract`: no extended attribute of a layer is applied, so `security.capability` of `ping` is lost (PodUtils/podrunner#317, ask 1) |
 | [T-958](relay.md) | P1 | M | M2 | defect | done | `pod-relay` with `pod-session`: a move at three quarters of a small cap of the relay still passes the cap, so the relay ends most links with 1009 (PodUtils/podssh#325) |
+| [T-959](relay.md) | P1 | S | M2 | feature | open | `pod-e2e`: the channel says no wait of its own, so a hang where the layer holds bytes for the channel cannot tell the channel from its reader (PodUtils/podssh#283, ask 5) |
+| [T-960](relay.md) | P3 | S | M2 | feature | open | `pod-term`: a cooked session always draws its prompt, so an exec'd command on podssh's server shows `$ ` between and after its lines (PodUtils/podssh#326) |

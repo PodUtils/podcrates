@@ -10340,3 +10340,59 @@ cargo test -p pod-relay --all-features --test layer_cap
 ## Done
 
 2026-11-19, this commit. The client holds the old link of a move (`pod_session::pump::Hold`, the field `hold` of `pump::Watch`, call C790): `beside::next` starts the hold when it decides `Beside::Move`, and a failed move (`Note::MoveFailed`) or a session that closes on the old link lifts it; a spare holds nothing. While the hold is on, the reader of the application reads nothing, the writer sends no `DATA` and no `ACK`, and a `PONG` carries the last offset acknowledged (`Link::pong_held`). The wire does not change. `forward_layer::offer::window_under` is an eighth of the cap: the old link carries the threshold (three quarters), the far end's window and one record at most. `tests/layer_cap.rs`: `a_move_at_the_rate_of_a_loopback_stays_under_a_small_cap` (1 MiB, no pace, a handshake of 30 ms) and the two tests before it pass in 5 runs of 5; the most bytes on one link were 918,361 at the rate of a loopback and 951,090 with the slow way back (of 1,048,576). On the code before the fix, the new test fails in 3 runs of 3 (8 links met the cap); with the hold and a window of a quarter, 19 links met it in 3 runs. The tests of the cache of the offer take a directory each (two tests of 1 MiB ran at once and removed the directory of the other). New tests: `pump::hold::tests::a_held_link_takes_no_bytes_and_acknowledges_none_until_the_hold_lifts`, `beside::tests::a_move_holds_the_old_link_and_a_failed_move_lifts_the_hold`, `session_move::a_failed_move_does_not_stall_the_session`; `cargo test -p pod-session --all-features`: 169 passed; `cargo test -p pod-relay --all-features`: 496 passed. Plant `session-t958-move-not-held`, caught; the plant of T-953 takes the new comment of `Offer::fit` and the words of the new window.
+
+# T-959: `pod-e2e`: the channel says no wait of its own, so a hang where the layer holds bytes for the channel cannot tell the channel from its reader (PodUtils/podssh#283, ask 5)
+
+**Source:** PodUtils/podssh#283 (COORD-091, ask 5; the ninth failure of podssh's gate, run 44452674747 at podssh `9989ae6`)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+In the ninth failure of podssh's gate (`iroh::the_iroh_road_survives_a_new_address`), the client's `Note::Stall` of T-945 said: "the application took no byte for 21 s, while 288823 bytes wait for it; this side sent 20680508 bytes, the far end acknowledged 20680508; ...", and the node said no stall. The application above the layer is the channel of `pod-e2e` (`ends::operator_told`, through podssh's `channel::around`), which writes into a pipe of 256 KiB that podssh's SSH client reads. Either the reader of that pipe stopped, or the channel held for a cause of its own; the channel says no wait, so the two cannot be told apart. podssh now says each write of the channel to SSH that waits 20 s (`09ab98b`).
+
+## Premise
+
+- Read: PodUtils/podssh#283 (the ninth failure, ask 5); the list of `crates/pod-e2e/src/` (`channel.rs`, `channel/`, `ends.rs`).
+- Not read: the loops of the channel that read the layer and write to the application, and where each can wait.
+
+## Approach
+
+The channel says each wait of its own that holds 20 s, as `pod-session` does (`pump/stall.rs`; reuse its rule and its words, do not copy them): the reader of the layer waits for room of the channel; the writer to the application waits; the record or the key step waits for the far end. One line for each wait, with the bytes on each side, through the channel's way to say a step (a note or a log line that podssh shows at `-v`). A test on the paused clock: an application that stops reading gives one line after 20 s with the bytes held.
+
+## Prove
+
+```sh
+cargo test -p pod-e2e --all-features stall
+```
+
+# T-960: `pod-term`: a cooked session always draws its prompt, so an exec'd command on podssh's server shows `$ ` between and after its lines (PodUtils/podssh#326)
+
+**Source:** PodUtils/podssh#326 (COORD-125; podssh T-848)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`podssh serve` runs an exec request with a pty, where no pty opens, on the cooked discipline of `pod-term` (`PodUtils/podssh:crates/podssh-ssh/src/server/line.rs`). `pod-term` draws its prompt `$ ` (`echo::PROMPT`) after the output of the program, and draws it again (`\r`, `$ `, `EL`) around each later piece of output. A shell on the discipline needs the prompt; an exec'd command does not, and a real pty shows none. podssh's gate at `9989ae6` (run 44452674747, `gate (ssh)`) gave `\r\x1b[KPIPES\r\n$ \r\x1b[KTERM=vt100 SSH_TTY=unset\r\n$ ` for two lines of output.
+
+## Premise
+
+- Read: PodUtils/podssh#326; `crates/pod-term/src/echo.rs` (`PROMPT`, the redraw).
+- Not read: `Facts` and the constructors of a cooked `Session`.
+
+## Approach
+
+A cooked `Session` with no prompt: echo, the editing and the signals as now, and nothing drawn before a line or around the output (a field of `Facts`, or a constructor for an exec). A test: the output of a program in two reads, with no prompt, gives the bytes of the program and no `$ `.
+
+## Prove
+
+```sh
+cargo test -p pod-term --all-features prompt
+```
