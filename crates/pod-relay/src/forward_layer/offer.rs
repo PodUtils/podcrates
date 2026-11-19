@@ -65,20 +65,22 @@ impl Offer {
     }
 
     /// The most bytes that one link carries with no acknowledgement in each
-    /// direction (`pod_session::Settings::window`): a quarter of the cap of
-    /// the host, `None` when it gave none. A new link first sends again the
-    /// bytes that the old one did not see acknowledged; with no bound, the
-    /// replay buffer (4 MiB) holds more than a small cap, and the relay ends
-    /// the new link with `1009 session byte cap` (PodUtils/podssh#320). Two
-    /// windows sent again, and the bytes to the move at three quarters, then
-    /// stay under the cap.
+    /// direction (`pod_session::Settings::window`): an eighth of the cap of
+    /// the host ([`window_under`]), `None` when it gave none. A new link
+    /// first sends again the bytes that the old one did not see
+    /// acknowledged; with no bound, the replay buffer (4 MiB) holds more
+    /// than a small cap, and the relay ends the new link with `1009 session
+    /// byte cap` (PodUtils/podssh#320).
     pub fn window(&self) -> Option<usize> {
         self.max_session_bytes.map(window_under)
     }
 
     /// `settings` under the cap of the host: the move threshold of
     /// [`Offer::move_bytes`], and the smaller of their window and
-    /// [`Offer::window`].
+    /// [`Offer::window`]. The old link of a move holds (`pod_session::pump::Hold`),
+    /// so it carries the threshold, the far end's window and the records in
+    /// flight at most: seven eighths of the cap and a record
+    /// (PodUtils/podssh#325).
     pub fn fit(&self, settings: pod_session::Settings) -> pod_session::Settings {
         let window = match (settings.window, self.window()) {
             (Some(a), Some(b)) => Some(a.min(b)),
@@ -89,12 +91,15 @@ impl Offer {
 }
 
 /// The window of each end of the layer on a link of a relay whose cap of a
-/// session is `cap` bytes, both ways: a quarter of it. The client takes it
+/// session is `cap` bytes, both ways: an eighth of it. The client takes it
 /// from the offer ([`Offer::window`]); the far end that the relay's role
 /// runs takes it from the cap of the relay, as both ends send again what
-/// the other did not acknowledge.
+/// the other did not acknowledge. After a move is due, the old link holds,
+/// and the far end sends its window at most before it waits: with the move
+/// at three quarters, an eighth leaves an eighth of the cap for the records
+/// in flight and the wake of the move (PodUtils/podssh#325).
 pub fn window_under(cap: u64) -> usize {
-    usize::try_from(cap / 4).unwrap_or(usize::MAX).max(1)
+    usize::try_from(cap / 8).unwrap_or(usize::MAX).max(1)
 }
 
 /// Whether the `/relays.json` body `body` offers the layer.
@@ -193,15 +198,17 @@ where
 mod tests {
     use super::*;
 
-    /// The window of a host with a cap is a quarter of it, and `fit` keeps
+    /// The window of a host with a cap is an eighth of it, and `fit` keeps
     /// a smaller window of the settings; a host with no cap leaves the
-    /// window as it was (PodUtils/podssh#320).
+    /// window as it was (PodUtils/podssh#320). The move and the window
+    /// together are seven eighths of the cap (PodUtils/podssh#325).
     #[test]
-    fn the_window_of_a_cap_is_a_quarter_of_it() {
+    fn the_window_of_a_cap_is_an_eighth_of_it() {
         let capped = Offer { max_session_bytes: Some(1 << 20), ..Offer::default() };
-        assert_eq!(capped.window(), Some(256 << 10));
+        assert_eq!(capped.window(), Some(128 << 10));
         let fit = capped.fit(pod_session::Settings::default());
-        assert_eq!((fit.move_bytes, fit.window), (capped.move_bytes(), Some(256 << 10)));
+        assert_eq!((fit.move_bytes, fit.window), (capped.move_bytes(), Some(128 << 10)));
+        assert_eq!(fit.move_bytes + (128 << 10), 7 * (1 << 20) / 8);
         let small = pod_session::Settings { window: Some(64 << 10), ..pod_session::Settings::default() };
         assert_eq!(capped.fit(small).window, Some(64 << 10));
         assert_eq!(Offer::default().fit(small).window, Some(64 << 10));

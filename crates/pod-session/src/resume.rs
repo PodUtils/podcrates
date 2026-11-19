@@ -9,8 +9,10 @@
 //! be resumed at all. A `CLOSE` that its link lost goes again on the next.
 //!
 //! Before a link meets the relay's limits, the session moves: a new link is
-//! opened, and its far end greets, while the old one still carries the
-//! session; then the old one stops at a record boundary and says `RETIRE`,
+//! opened, and its far end greets, while the old one holds: it takes no new
+//! bytes of the application and acknowledges no new bytes, so that it stays
+//! under the relay's cap (`pump::Hold`), and a move that fails lifts the
+//! hold. Then the old one stops at a record boundary and says `RETIRE`,
 //! and only then does the new link's handshake take the offsets. An offset
 //! taken earlier could fall behind the acknowledgements that the old link
 //! still carried, and ask for bytes that the other side no longer keeps.
@@ -195,8 +197,9 @@ where
                     Some(step) = steps.recv() => note(step),
                     (why, greeted) = &mut beside => {
                         // The application ended while the new link greeted:
-                        // the session closes on the old one.
+                        // the session closes on the old one, with no hold.
                         if closing || watch.app_ended.load(Ordering::SeqCst) {
+                            watch.hold.lift();
                             break ((&mut pump).await, None);
                         }
                         // The old link stops at a record boundary, and a move

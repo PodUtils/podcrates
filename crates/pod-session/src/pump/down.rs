@@ -126,7 +126,12 @@ where
             // that no acknowledgement in between covers bytes not written.
             let event = {
                 let mut link = lock(state);
-                let event = link.on_record(record);
+                let event = match record {
+                    // A held link acknowledges no new byte, also in a `PONG`
+                    // (`super::Hold`).
+                    Record::Ping { value } if watch.hold.on() => Ok(Event::Reply(link.pong_held(value))),
+                    record => link.on_record(record),
+                };
                 if let Ok(Event::Deliver(bytes)) = &event {
                     link.holding((undelivered.len() + bytes.len()) as u64);
                 }

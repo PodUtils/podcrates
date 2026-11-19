@@ -418,6 +418,12 @@ impl Link {
         self.acks && self.delivered() > self.acked
     }
 
+    /// The `PONG` of the `PING` of `value` on a link that acknowledges no
+    /// new byte: the last offset acknowledged.
+    pub fn pong_held(&self, value: u64) -> Record {
+        Record::Pong { value, offset: self.acked }
+    }
+
     /// An `ACK` of each byte written to the application so far.
     pub fn ack(&mut self) -> Record {
         self.acked = self.delivered().max(self.acked);

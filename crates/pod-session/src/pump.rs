@@ -25,6 +25,7 @@
 //! keeps.
 
 mod down;
+mod hold;
 mod outbox;
 mod parts;
 mod progress;
@@ -46,6 +47,7 @@ use tokio::time::Instant;
 use super::decode::Decoder;
 use super::hearing::Hearing;
 use super::link::{Link, LinkError};
+pub use hold::Hold;
 use outbox::{Finish, Outbox, Written};
 use progress::Stood;
 use stall::Waits;
@@ -275,7 +277,7 @@ where
 
     let mut retired = false;
     let end = {
-        let up = up::run(&mut app_r, again, data_tx, state, (&room, &waits), watch.window, ended_before);
+        let up = up::run(&mut app_r, again, data_tx, state, (&room, &waits), watch, ended_before);
         let down = down::run(
             &mut app_w,
             &mut link_r,

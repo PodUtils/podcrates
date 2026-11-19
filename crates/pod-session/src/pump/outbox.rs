@@ -165,12 +165,13 @@ impl Outbox {
     }
 
     /// The next small record that waits: a `PONG` first, as the peer's
-    /// heartbeat waits for it, then an `ACK`, then a `PING`.
-    fn next(&self, state: &Mutex<Link>) -> Option<Record> {
+    /// heartbeat waits for it, then an `ACK`, then a `PING`. A `held` link
+    /// sends no `ACK`: the one that waits goes when the hold lifts.
+    fn next(&self, state: &Mutex<Link>, held: bool) -> Option<Record> {
         if let Some(pong) = lock(&self.pong).take() {
             return Some(pong);
         }
-        if self.ack.swap(false, Ordering::SeqCst) {
+        if !held && self.ack.swap(false, Ordering::SeqCst) {
             let mut state = lock(state);
             if state.ack_pending() {
                 return Some(state.ack());
@@ -212,7 +213,9 @@ async fn close<W: AsyncWrite + Unpin>(link: &mut W, outbox: &Outbox, watch: &Wat
 /// application's bytes, `CLOSE`, or `END` where the session goes on for the
 /// peer's bytes, and `CLOSE` once the peer's own `END` came. A
 /// `PING`, and `DATA` that the peer acknowledges, are questions that the far
-/// end answers at once, and their answers time the link's round trip.
+/// end answers at once, and their answers time the link's round trip. While
+/// the hold of a move is on, no `DATA` and no `ACK` go: the `DATA` is in the
+/// replay buffer, and the new link sends it again.
 pub(super) async fn write<W>(
     link: &mut W,
     data: &mut mpsc::Receiver<Vec<u8>>,
@@ -254,7 +257,8 @@ where
         if ended && outbox.close_due.load(Ordering::SeqCst) {
             return close(link, outbox, watch).await;
         }
-        if let Some(record) = outbox.next(state) {
+        let held = watch.hold.on();
+        if let Some(record) = outbox.next(state, held) {
             if let Err(e) = put(link, &bytes_of(&record), outbox, watch).await {
                 return Written::Failed(e);
             }
@@ -267,7 +271,8 @@ where
         tokio::select! {
             biased;
             _ = woken => {}
-            batch = data.recv(), if !ended => match batch {
+            () = watch.hold.until(!held) => {}
+            batch = data.recv(), if !ended && !held => match batch {
                 Some(bytes) => {
                     if let Err(e) = put(link, &bytes, outbox, watch).await {
                         return Written::Failed(e);
