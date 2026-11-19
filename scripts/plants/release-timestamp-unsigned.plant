@@ -1,0 +1,7 @@
+# The verifier takes an RFC 3161 timestamp with no check of the signature
+# of the timestamp authority: a changed signature passes (T-964).
+ENTRY=T-964
+GROUP=release
+EXPECT='a_changed_timestamp_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-release --all-features --lib sigstore::tests'
+LIMIT=900

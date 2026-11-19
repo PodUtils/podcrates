@@ -1,11 +1,13 @@
+diff --git a/crates/pod-release/src/sigstore.rs b/crates/pod-release/src/sigstore.rs
+index 6e680dfc7..7ec2752d8 100644
 --- a/crates/pod-release/src/sigstore.rs
 +++ b/crates/pod-release/src/sigstore.rs
-@@ -158,7 +158,7 @@
-         cert = issuer;
+@@ -218,7 +218,7 @@ pub fn verify_with(bundle: &[u8], artifact: &[u8], who: &Identity, roots: &Roots
+         }
+         chain::signed_by(root, root, at)?;
      }
-     chain::signed_by(root, root, logged.time)?;
 -    chain::identity(&leaf, who)?;
 +    let _ = who;
-     // The entry logged this file, this signature and this leaf.
-     let spec = &body["spec"];
-     let logged_leaf = pem_ders(&String::from_utf8_lossy(&b64(
+     rekor::names(&entry.body, &digest, &signature, &leaf_der)?;
+     Ok(Logged { time, index: entry.index })
+ }

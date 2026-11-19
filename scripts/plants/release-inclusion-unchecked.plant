@@ -1,0 +1,7 @@
+# The verifier takes an inclusion proof with no check of its audit path:
+# a changed hash of the proof passes when its checkpoint verifies (T-964).
+ENTRY=T-964
+GROUP=release
+EXPECT='a_changed_inclusion_proof_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-release --all-features --lib sigstore::tests'
+LIMIT=900
