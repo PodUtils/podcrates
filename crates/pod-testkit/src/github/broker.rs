@@ -256,4 +256,46 @@ mod tests {
         assert_eq!(percent_decode("%zz"), None);
         assert_eq!(percent_decode("%2"), None);
     }
+
+    fn job(id: u64) -> super::super::Job {
+        super::super::Job {
+            id,
+            run_id: id,
+            repo: "example-org/app".into(),
+            name: format!("build-{id}"),
+            labels: Vec::new(),
+            steps: Vec::new(),
+            status: Status::Queued,
+            assigned: None,
+            runner: None,
+            token: String::new(),
+            reported: None,
+            conclusion: None,
+            created_at: 0,
+            started_at: None,
+            completed_at: None,
+        }
+    }
+
+    /// The runner polls `/message` again while it runs its job (for a
+    /// cancel): that poll takes no queued job, else that job is lost.
+    #[test]
+    fn a_runner_that_runs_its_job_takes_no_other() {
+        let runner = super::super::Runner {
+            id: 9,
+            name: "runner-a".into(),
+            repo: "example-org/app".into(),
+            labels: Vec::new(),
+            client_id: String::new(),
+            token: None,
+            job: None,
+            gone: false,
+        };
+        let mut st = State { jobs: vec![job(1), job(2)], runners: vec![runner], ..State::default() };
+        assert_eq!(pick(&mut st, 9), Some(1));
+        assert_eq!(pick(&mut st, 9), Some(1), "a job that it did not acquire comes again");
+        st.job(1).unwrap().status = Status::InProgress;
+        assert_eq!(pick(&mut st, 9), None, "the runner has its job: no second one");
+        assert_eq!(st.jobs[1].status, Status::Queued, "the other job stays queued");
+    }
 }

@@ -280,4 +280,5 @@ fuzz target yet (T-940).
 ## Sources
 
 `SOURCES` lists each imported file with its blob: podrunner at `9ab7fd3`
-(the four records), and at `ca8c308` (`status.v1` and the source wire).
+(the four records), and at `d001608` (`status.v1` and the source wire,
+imported at `ca8c308`), with the `taken` line of each block.

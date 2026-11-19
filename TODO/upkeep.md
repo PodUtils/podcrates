@@ -3874,3 +3874,37 @@ RUSTFLAGS="--cfg fuzzing -Zsanitizer=address -Cdebug-assertions -Ccodegen-units=
 ## Done
 
 2026-11-19, this commit. `scripts/fuzz.sh` pins `nightly-2026-11-18`. The command of the Prove section built each of the 72 targets of the fuzz workspace with it, the address sanitizer and the release profile, `russh` and `ssh-key` 0.7.0-rc.11 included. `fuzz.yml` runs by hand after the push.
+
+# T-969: `upstream.yml` is red: the sources of `pod-job`, `pod-manual` and `pod-testkit` changed in podrunner and podssh
+
+**Source:** the scheduled runs of `upstream.yml` 44096639741 at `6c8d8dd`, 44313451109 at `353e23f` and 44537712046 at `9ee2097`, job `sources`.
+**Category:** chore
+**Milestone:** M5
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`scripts/check-sources.py` reports changes after the pin of three blocks:
+
+- `pod-job`: 7 files of PodUtils/podrunner (`PodUtils/podrunner:crates/podrunner-schema/src/secret.rs`, `PodUtils/podrunner:crates/podrunner-slots/src/status.rs`, `PodUtils/podrunner:crates/podrunner-source/src/event.rs`, `PodUtils/podrunner:crates/podrunner-source/src/lib.rs`, `PodUtils/podrunner:crates/podrunner-source/src/tests.rs`, `PodUtils/podrunner:crates/podrunner-source/src/wire.rs`, `PodUtils/podrunner:docs/contracts/source-driver.md`).
+- `pod-manual`: 8 files of PodUtils/podssh (`PodUtils/podssh:crates/podssh-cli/src/flags.rs`, `PodUtils/podssh:crates/podssh-cli/src/man/data.rs`, `PodUtils/podssh:crates/podssh-cli/src/man/mod.rs`, `PodUtils/podssh:crates/podssh-cli/src/man/model.rs`, `PodUtils/podssh:crates/podssh-cli/src/man/roff.rs`, `PodUtils/podssh:crates/podssh-cli/src/man/facts/tests.rs`, `PodUtils/podssh:crates/podssh-cli/src/pager.rs`, `PodUtils/podssh:scripts/interop-man.sh`).
+- `pod-testkit`: 5 files of PodUtils/podrunner (`PodUtils/podrunner:crates/podrunner-broker-fake/src/auth.rs`, `PodUtils/podrunner:crates/podrunner-broker-fake/src/lib.rs`, `PodUtils/podrunner:crates/podrunner-broker-fake/src/message.rs`, `PodUtils/podrunner:crates/podrunner-broker-fake/src/runner.rs`, `PodUtils/podrunner:crates/podrunner-fake/src/source.rs`).
+
+The commits include the takes of podcrates tags by the consumers (podrunner `e422c23` of v0.72.0, `0fd2218` of v0.73.0; podssh `c4a2a64` of `pod-manual`, `843e3c5` of v0.65.0), features that podcrates ported (T-947: `max_units` and `draining` of status.v1; T-951: source-conformance test 15), and changes not yet read (for example podrunner `ffc9658` "broker-fake: one job for each runner session", `e7e5d4c` "job-mismatch", `033c25d` "broker-fake: rsa 0.10", `bf1dd6f` "the tolerance of cpu_s", `a817f6f` drain, `f48fdc4` podnet version in hello; podssh's T-717, T-718, T-725, T-790, T-818, T-820 and T-825 commits).
+
+## Premise
+
+- Read: `scripts/check-sources.py` (the lines `repo`, `dir`, `skip`, `file`, `taken`); `crates/pod-job/SOURCES`, `crates/pod-manual/SOURCES`, `crates/pod-testkit/SOURCES`; the commits of podrunner and podssh after each pin (local read-only clones); T-608.
+- Measured: `python3 -I scripts/check-sources.py` with local clones of podrunner, podssh and podnet at `9ee2097` reports 9 changes of `pod-job` (2 of them removed files: `PodUtils/podrunner:crates/podrunner-source/src/host.rs` and `PodUtils/podrunner:schemas/status.v1.json`), 10 of `pod-manual` (2 removed: `PodUtils/podssh:crates/podssh-cli/src/man/json.rs` and `PodUtils/podssh:crates/podssh-cli/src/man/text.rs`) and 5 of `pod-testkit`.
+
+## Approach
+
+For each changed file, read each commit after the pin. A take of a podcrates tag, or a change after the take of the crate, gets a `taken` line (by path where the block goes on). A fix of a frozen file before its take is ported into the crate, with a test, and the block pin moves. A feature of the consumer that the crate does not hold (podssh's own words of its manual and its flags) is a `taken` line by path when the consumer took the crate, else the block pin moves with a note. `python3 -I scripts/check-sources.py` with the clones gives 0 changes.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podrunner=DIR --clone PodUtils/podssh=DIR
+```

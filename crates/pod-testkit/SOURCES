@@ -5,25 +5,35 @@
 repo PodUtils/podnet b7682c5d62da73c772749088e52770a4390e9583
 file 7809394bc0037adbb38e500fc07cfd24a8d9717a tests/test_host/mod.rs -> crates/pod-testkit/src/host.rs
 
-repo PodUtils/podrunner d00160877a9e966f2e2e6a22fea551a5247e6f1d
 # T-921 (GitHub #223): the routes, the messages, the runner files and the
 # client assertion of podrunner's fake broker, cut to a job of `run:`
 # steps, for the fake GitHub of the feature `github`. The App, the JIT
 # configuration, the webhooks and the control API are new here.
-file bb862cf879556bbc5ebd717ce6cfaef0c370ef7c crates/podrunner-broker-fake/src/lib.rs -> crates/pod-testkit/src/github.rs crates/pod-testkit/src/github/broker.rs
-file 7b065ae4aa8bc942e10a5933f0a3d7a509900eb0 crates/podrunner-broker-fake/src/message.rs -> crates/pod-testkit/src/github/message.rs
-file 67bf02857d68678a65a85a31cce966a57b44f1e1 crates/podrunner-broker-fake/src/auth.rs -> crates/pod-testkit/src/github/broker.rs crates/pod-testkit/src/github/key.rs
+# Imported at d001608. The block moved to e7e5d4c (T-969) with no port:
+# one job for each runner session (ffc9658) holds here, as each JIT runner
+# takes one job (src/github/broker.rs, a_runner_that_runs_its_job_takes_no_other);
+# the run of a job (20f5a4b) is the run_id of each job here; rsa 0.10
+# (033c25d) and run_once_into (e7e5d4c) are podrunner's: this key is of
+# ring, and the crate starts no runner.
+repo PodUtils/podrunner e7e5d4cc6e358515c309e3b729015c3346c4a044
+file b7735e1ef9b59f14b0dd418e8aaa212fb7f0c207 crates/podrunner-broker-fake/src/lib.rs -> crates/pod-testkit/src/github.rs crates/pod-testkit/src/github/broker.rs
+file d7ec387b0ce6fc05364121ab295c8bf1ad582c90 crates/podrunner-broker-fake/src/message.rs -> crates/pod-testkit/src/github/message.rs
+file 3c93b065172d634f957c3a4b70e27e207799f4db crates/podrunner-broker-fake/src/auth.rs -> crates/pod-testkit/src/github/broker.rs crates/pod-testkit/src/github/key.rs
 file 5e9475d1efd27617f7017a28d8c71fa40a3b790d crates/podrunner-broker-fake/src/results.rs -> crates/pod-testkit/src/github/broker.rs
 file 7e3b6fae98e9eec26bd63da344a6c0496c7adeab crates/podrunner-broker-fake/src/files.rs -> crates/pod-testkit/src/github/api.rs
-file 649663f6ee2720f3fb77ec933cd4d238f3f7d6e8 crates/podrunner-broker-fake/src/runner.rs -> crates/pod-testkit/src/github/key.rs
+file 5e6a2846ace804533f429f47e6adbfed830b0ce2 crates/podrunner-broker-fake/src/runner.rs -> crates/pod-testkit/src/github/key.rs
 
-repo PodUtils/podrunner b1a1a28a023300f2777b07c7b4afb4f7078405ea
 # T-948 (PodUtils/podrunner#306): the rules of podrunner's fake source (a
 # claim, a withdraw, a release, the names of the canned credential) and its
 # answer to `assigned`, for the fake githome of the feature `githome`; the
 # steps of the conformance suite and the contract, for its test. The
 # sessions, the host facts, the control API and the program are new here.
-file 319c0492ce02bd18fd4399ec9f8cf72f01f9235f crates/podrunner-fake/src/source.rs -> crates/pod-testkit/src/githome/wire.rs
+# Imported at b1a1a28. The block moved to b0f8a36 (T-969) with no port: its
+# plant RefuseCancelled is a self-test of podrunner's suite; this fake has
+# no plant, and it takes the report of a cancelled job (test 15 in
+# tests/githome.rs).
+repo PodUtils/podrunner b0f8a36c6152cde3ed48a1c03cffb64f1293be52
+file 1b246d7ad58a6abe72bc4d3c953f050b89d1b86f crates/podrunner-fake/src/source.rs -> crates/pod-testkit/src/githome/wire.rs
 file 5a5c3a97f3b5962132bee859c957c20c64160988 crates/podrunner-fake/src/assigned.rs -> crates/pod-testkit/src/githome/offer.rs
 
 repo PodUtils/podrunner 0fd22187646dd697d606bcb0560e8f59bac26cec

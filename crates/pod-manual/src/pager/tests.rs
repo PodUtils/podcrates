@@ -1,5 +1,10 @@
 use super::*;
 use std::io::Cursor;
+use std::sync::Mutex;
+
+/// The tests that change the actions of SIGINT and SIGQUIT, which the
+/// process shares, run one at a time.
+static SIGNALS: Mutex<()> = Mutex::new(());
 
 fn lines(n: usize) -> String {
     (0..n).map(|i| format!("line {i}\n")).collect()
@@ -107,6 +112,7 @@ fn a_program_that_does_not_start_is_an_error() {
 /// with more text than a pipe holds.
 #[test]
 fn a_pager_that_quits_at_once_is_not_an_error() {
+    let _one = SIGNALS.lock().unwrap_or_else(|e| e.into_inner());
     let cmd: Vec<OsString> =
         if cfg!(windows) { vec!["cmd".into(), "/C".into(), "exit 0".into()] } else { vec!["true".into()] };
     run_program(&cmd, &lines(100_000)).unwrap();
@@ -115,10 +121,33 @@ fn a_pager_that_quits_at_once_is_not_an_error() {
 #[cfg(unix)]
 #[test]
 fn a_pager_gets_the_whole_text_on_its_stdin() {
+    let _one = SIGNALS.lock().unwrap_or_else(|e| e.into_inner());
     let file = std::env::temp_dir().join(format!("pod-manual-pager-out-{}", std::process::id()));
     let script = format!("cat > '{}'", file.display());
     let text = lines(10_000);
     run_program(&["sh".into(), "-c".into(), script.into()], &text).unwrap();
     assert_eq!(std::fs::read_to_string(&file).unwrap(), text);
     let _ = std::fs::remove_file(&file);
+}
+
+/// A program holds SIGINT and SIGQUIT with `Interrupts` while its own child
+/// (an editor) reads the terminal; the drop puts back each action.
+#[cfg(unix)]
+#[test]
+fn interrupts_ignores_sigint_and_sigquit_until_its_drop() {
+    let _one = SIGNALS.lock().unwrap_or_else(|e| e.into_inner());
+    let action = |signal| {
+        // SAFETY: a null new action only reads the current one into a
+        // zeroed sigaction, a valid value of the C type.
+        unsafe {
+            let mut now: libc::sigaction = std::mem::zeroed();
+            libc::sigaction(signal, std::ptr::null(), &mut now);
+            now.sa_sigaction
+        }
+    };
+    let before = (action(libc::SIGINT), action(libc::SIGQUIT));
+    let held = Interrupts::ignore();
+    assert_eq!((action(libc::SIGINT), action(libc::SIGQUIT)), (libc::SIG_IGN, libc::SIG_IGN));
+    drop(held);
+    assert_eq!((action(libc::SIGINT), action(libc::SIGQUIT)), before);
 }
