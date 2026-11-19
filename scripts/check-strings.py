@@ -18,7 +18,8 @@ MIN characters long. It fails on:
   it, and PROSE (three words of letters) near it. A work id is T-NNN,
   COORD-NNN, Q-AN, CNNN or QNN as a word, #NNN as a word or after a
   lower-case name (podnet#584). `#NNN` after a name in capitals and a
-  space is the number of a standard (`PKCS #12`), not an issue.
+  space, in parentheses or not, is the number of a standard (`PKCS #12`,
+  `(PKCS) #1`), not an issue.
 
 The data that pod-services compiles in (the values of its files, with the
 sources of each fact) names the issues and the rulings that each value
@@ -61,7 +62,7 @@ DATA_MIN = 8
 NEAR = 24
 PROSE = re.compile(r"(?:(?:^|\s)[A-Za-z]{2,}[.,;:]?(?=\s|$).*?){3}", re.S)
 WORD = re.compile(r"[(\[]?[A-Za-z]{2,}[.,;:)\]]?")
-STANDARD = re.compile(r"[A-Z]{2,} $")
+STANDARD = re.compile(r"\(?[A-Z]{2,}\)? $")
 WORK_ID = re.compile(
     r"(?<![A-Za-z0-9_-])(T-\d+|COORD-\d+|Q-A\d+|[CQ]\d+|#\d+)(?![A-Za-z])"
     r"|(?<=[a-z])#\d+(?![A-Za-z])"
@@ -240,6 +241,7 @@ def self_test() -> int:
         ("the data", "streams-request-bodyPodUtils/podssh#158: after ppng.ioonrender-piping", 0),
         ("the data twice", "the ruling Q78 of podssh, a last fallbackPodUtils/podssh#158: after ppng.io", 0),
         ("a standard number", "challengePasswordPKCS #9 challenge password (as specified for PKCS #12)", 0),
+        ("a standard in parentheses", "Public-Key Cryptography Standard (PKCS) #12DSA signature generated", 0),
         ("binary bytes", "f\u2648 \\sf\u06d8", 0),
         ("a work id with no prose", "x86_64-T-123abc/C99:#12;Q4", 0),
         ("a work id with no word beside it", "the values 0x1f, T-700, 0x2e of the table here", 0),

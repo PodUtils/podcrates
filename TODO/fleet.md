@@ -6255,6 +6255,8 @@ sh scripts/agent/check.sh
   `pod-release-x86_64-unknown-linux-musl verify --repo PodUtils/podrunner --tag "$GITHUB_REF_NAME"
   --all dist`.
 
+2026-11-19, the ci run 44569634090 at `a5901c2`: `scripts/check-strings.py` read "Standard (PKCS) #1" (an OID name that x509-parser carries) in the powerpc64le binary as the id of a work entry. A `#NNN` after a name in capitals in parentheses is now the number of a standard, as one with no parentheses was; the self-test has the case, the old rule fails on it, and `#584` after a lower-case word in prose is still a fault.
+
 # T-966: `pod-release`: the adoption trials of podnet and podssh, and the hand-off of the crate
 
 **Source:** the work of T-880 (2026-11-19): `docs/design.md`, section 8, step 7.
