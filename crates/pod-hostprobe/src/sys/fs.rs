@@ -156,6 +156,12 @@ pub fn fsetxattr(fd: i64, name: &CBuf, value: &[u8], flags: u64) -> Sysres {
     unsafe { sys(SYS_FSETXATTR, [fd as u64, name.ptr(), value.as_ptr() as u64, value.len() as u64, flags, 0]) }
 }
 
+/// `lsetxattr(2)`: [`fsetxattr`] by the path, with no follow of its last
+/// component. No descriptor of a symlink takes an attribute.
+pub fn lsetxattr(path: &CBuf, name: &CBuf, value: &[u8], flags: u64) -> Sysres {
+    unsafe { sys(SYS_LSETXATTR, [path.ptr(), name.ptr(), value.as_ptr() as u64, value.len() as u64, flags, 0]) }
+}
+
 pub fn symlinkat(target: &CBuf, dirfd: i64, path: &CBuf) -> Sysres {
     unsafe { sys(SYS_SYMLINKAT, [target.ptr(), dirfd as u64, path.ptr(), 0, 0, 0]) }
 }

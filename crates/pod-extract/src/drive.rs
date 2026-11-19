@@ -465,6 +465,7 @@ mod setid;
 mod umask;
 mod user;
 mod whiteouts;
+mod xattrs;
 
 /// A layer whose first entry is the root as a directory with an empty name
 /// (`public.ecr.aws/lambda/provided:al2023`, PodUtils/podvm#261) applies:

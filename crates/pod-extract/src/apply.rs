@@ -21,6 +21,7 @@ use crate::error::{self, Result, cbuf, refuse};
 use crate::safety::{self, Dir};
 use crate::sidecar::{Meta, Sidecar};
 use crate::whiteout::{self, Kind};
+use crate::xattr::{self, Wanted};
 
 #[path = "apply_later.rs"]
 mod later;
@@ -50,6 +51,8 @@ pub struct LayerStats {
     /// the order of the layer. The pass after the last layer sets these
     /// modes ([`crate::modes::DirModes`]).
     pub dir_modes: Vec<(Vec<String>, u32)>,
+    /// The extended attributes of the layer, set and not set ([`xattr`]).
+    pub xattrs: xattr::Count,
 }
 
 /// The ids that this process applies, read one time.
@@ -134,6 +137,9 @@ pub fn apply_layer(
             Err(r) => return Err(refuse(digest, &path, r)),
         };
 
+        // Before the content: the records come with the header.
+        let rel = parts.join("/");
+        let wanted = xattr::read(&mut entry, &rel);
         let kind = header.entry_type();
         let mode = header.mode().unwrap_or(0o644);
         let uid = header.uid().unwrap_or(0);
@@ -146,7 +152,7 @@ pub fn apply_layer(
             Err(r) => return Err(refuse(digest, &path, r)),
         };
 
-        let mut applied_mode = None;
+        let (mut applied_mode, mut on_file) = (None, None);
         if kind.is_dir() {
             make_dir(&parent, &name, mode)?;
             st.dirs += 1;
@@ -200,14 +206,15 @@ pub fn apply_layer(
                         uid,
                         gid,
                         mode,
+                        wanted,
                     });
                     continue;
                 }
                 Err(e) => return Err(error::sys(format!("cannot link {path:?} to {target:?}"), e)),
             }
         } else if kind.is_file() {
-            let m = write_file(&parent, &name, mode, &mut entry)?;
-            applied_mode = m;
+            let (m, a) = write_file(&parent, &name, mode, &mut entry, &wanted)?;
+            (applied_mode, on_file) = (m, Some(a));
             st.files += 1;
         } else {
             // A device node, a fifo or a socket. A rootless process cannot
@@ -221,14 +228,19 @@ pub fn apply_layer(
             continue;
         }
 
-        // The sidecar row, for each entry that was made.
+        // The sidecar row, for each entry that was made, with the
+        // attributes that it did not take.
+        let x = on_file.unwrap_or_else(|| xattr::set_at(&parent, &name, &wanted));
+        st.xattrs.add(&x);
         let (applied_uid, applied_gid, reason) = resolve_ids(uid, gid, ids);
-        let row = Meta { path: parts.join("/"), uid, gid, mode, applied_uid, applied_gid, reason, applied_mode };
+        let row = Meta { path: rel, uid, gid, mode, applied_uid, applied_gid, reason, applied_mode, xattrs: x.unset };
         if kind.is_dir() { sidecar.push_dir(&row) } else { sidecar.push(&row) }.map_err(error::io)?;
     }
 
     for l in later {
-        link_later(root, digest, &l)?;
+        let (parent, name) = link_later(root, digest, &l)?;
+        let x = xattr::set_at(&parent, &name, &l.wanted);
+        st.xattrs.add(&x);
         st.hardlinks += 1;
         let (applied_uid, applied_gid, reason) = resolve_ids(l.uid, l.gid, ids);
         let row = Meta {
@@ -240,6 +252,7 @@ pub fn apply_layer(
             applied_gid,
             reason,
             applied_mode: None,
+            xattrs: x.unset,
         };
         sidecar.push(&row).map_err(error::io)?;
     }
@@ -326,8 +339,15 @@ fn replace(parent: &Dir, name: &str) -> Result<()> {
 
 /// Write one regular file. Returns the mode that stayed on the file when it is
 /// not the mode of the image: the kernel refused the mode of the image after
-/// the write, or dropped its `S_ISUID` or `S_ISGID`.
-fn write_file(parent: &Dir, name: &str, mode: u32, r: &mut dyn Read) -> Result<Option<u32>> {
+/// the write, or dropped its `S_ISUID` or `S_ISGID`; and what the set of its
+/// attributes gave.
+fn write_file(
+    parent: &Dir,
+    name: &str,
+    mode: u32,
+    r: &mut dyn Read,
+    w: &Wanted,
+) -> Result<(Option<u32>, xattr::Applied)> {
     replace(parent, name)?;
     let n = cbuf(name)?;
     // O_EXCL: `replace` removed the old entry, so a file at this name now is
@@ -376,6 +396,8 @@ fn write_file(parent: &Dir, name: &str, mode: u32, r: &mut dyn Read) -> Result<O
         }
     }
 
+    // After the last write and before the mode ([`xattr`]).
+    let x = xattr::set_fd(fd, w);
     // The mode is set on the DESCRIPTOR, after the content and before the
     // close. An `fchmodat` of the name resolves it again, in a tree that this
     // process still writes.
@@ -390,7 +412,7 @@ fn write_file(parent: &Dir, name: &str, mode: u32, r: &mut dyn Read) -> Result<O
     if let Some(e) = err {
         return Err(e);
     }
-    Ok(kept)
+    Ok((kept, x))
 }
 
 /// The mode that stayed on the descriptor when it is not `want`, for the
@@ -455,37 +477,5 @@ fn repermission(root: &Dir, dirs: &[(Vec<String>, u32)]) -> Result<u64> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// The measured case: `etc/shadow` of alpine is uid 0, gid 42. An
-    /// extraction as uid 0 gid 0 keeps the uid and drops the gid, and the
-    /// reason says which.
-    #[test]
-    fn shadow_keeps_its_uid_and_reports_the_dropped_gid() {
-        let ids = Ids { uid: 0, gid: 0 };
-        let (u, g, why) = resolve_ids(0, 42, ids);
-        assert_eq!((u, g), (0, 0));
-        assert_eq!(why.as_deref(), Some("gid 42 unmapped"));
-    }
-
-    /// A file that the image gives to the extracting id has nothing dropped and
-    /// no reason: a sidecar in which each row claims a gap is not read.
-    #[test]
-    fn an_already_matching_owner_records_no_reason() {
-        let ids = Ids { uid: 0, gid: 0 };
-        assert_eq!(resolve_ids(0, 0, ids).2, None);
-    }
-
-    /// The ids are the ids of the PROCESS, not a fixed 0. An extraction as a
-    /// user records that user, and the reason names both gaps.
-    #[test]
-    fn extracting_as_a_non_root_id_records_that_id() {
-        let ids = Ids { uid: 1000, gid: 1000 };
-        let (u, g, why) = resolve_ids(0, 42, ids);
-        assert_eq!((u, g), (1000, 1000));
-        let why = why.unwrap();
-        assert!(why.contains("uid 0 unmapped"), "{why}");
-        assert!(why.contains("gid 42 unmapped"), "{why}");
-    }
-}
+#[path = "apply_tests.rs"]
+mod tests;

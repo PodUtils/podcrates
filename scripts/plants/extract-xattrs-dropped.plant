@@ -1,0 +1,7 @@
+# The extraction drops each extended attribute of a layer with no word:
+# `security.capability` of `ping` is neither set nor named (T-957).
+ENTRY=T-957
+GROUP=extract
+EXPECT='is neither set nor named|is not on disk'
+RUN='cargo test -p pod-extract --all-features --lib drive::xattrs::extended_attributes_are_set_or_named'
+LIMIT=900

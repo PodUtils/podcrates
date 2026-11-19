@@ -41,6 +41,10 @@ pub struct Meta {
     /// `S_ISUID` or `S_ISGID` that the kernel refused), recorded so that an
     /// export can put the mode of the image back.
     pub applied_mode: Option<u32>,
+    /// The extended attributes of the image that are not on disk, with
+    /// their values, so that a caller can set them later
+    /// ([`crate::xattr`]). Empty in the usual case.
+    pub xattrs: Vec<crate::xattr::Unset>,
 }
 
 impl Meta {
@@ -65,6 +69,10 @@ impl Meta {
         s.push('}');
         if let Some(r) = &self.reason {
             let _ = write!(s, r#","reason":{}"#, json_string(r));
+        }
+        if !self.xattrs.is_empty() {
+            let each: Vec<String> = self.xattrs.iter().map(crate::xattr::Unset::to_json).collect();
+            let _ = write!(s, r#","xattrs":[{}]"#, each.join(","));
         }
         s.push('}');
         s
@@ -205,10 +213,41 @@ mod tests {
             applied_gid: 0,
             reason: Some("gid 42 unmapped".into()),
             applied_mode: None,
+            xattrs: Vec::new(),
         };
         assert_eq!(
             m.to_json(),
             r#"{"path":"etc/shadow","uid":0,"gid":42,"mode":"0640","applied":{"uid":0,"gid":0},"reason":"gid 42 unmapped"}"#
+        );
+    }
+
+    /// An attribute not set is in the row of its path, with its value in
+    /// the hex of `getfattr -e hex`; a record past a bound has no value.
+    #[test]
+    fn an_attribute_not_set_is_in_the_row_with_its_value() {
+        let unset = |name: &str, value: Option<Vec<u8>>, reason: &str| crate::xattr::Unset {
+            path: "usr/bin/ping".into(),
+            name: name.into(),
+            value,
+            reason: reason.into(),
+        };
+        let m = Meta {
+            path: "usr/bin/ping".into(),
+            uid: 0,
+            gid: 0,
+            mode: 0o755,
+            applied_uid: 0,
+            applied_gid: 0,
+            reason: None,
+            applied_mode: None,
+            xattrs: vec![
+                unset("security.capability", Some(vec![1, 0, 0, 2, 0x0a]), "EPERM"),
+                unset("user.x", None, "a bound"),
+            ],
+        };
+        assert_eq!(
+            m.to_json(),
+            r#"{"path":"usr/bin/ping","uid":0,"gid":0,"mode":"0755","applied":{"uid":0,"gid":0},"xattrs":[{"name":"security.capability","value":"0x010000020a","reason":"EPERM"},{"name":"user.x","reason":"a bound"}]}"#
         );
     }
 
@@ -223,6 +262,7 @@ mod tests {
             applied_gid: 0,
             reason: None,
             applied_mode: Some(0o755),
+            xattrs: Vec::new(),
         };
         assert_eq!(
             m.to_json(),
@@ -245,6 +285,7 @@ mod tests {
             applied_gid: 0,
             reason: Some("gid 8 unmapped".into()),
             applied_mode: None,
+            xattrs: Vec::new(),
         };
         sc.push_dir(&m).unwrap();
         assert!(sc.kept_dir("var/mail", 0o775).unwrap());

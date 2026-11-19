@@ -30,6 +30,11 @@
 //! and the kernel checks each access with that id. Do not show the sidecar as
 //! a restored ownership.
 //!
+//! The extended attributes of each entry (`SCHILY.xattr.NAME`) are set
+//! where the kernel lets this process set them. Each one that is not set is
+//! named in [`Extracted::xattrs`], in the line of its layer and in the
+//! sidecar row of its path, with its value ([`xattr`]).
+//!
 //! The caller gives each setting ([`Settings`]): the layers with their blobs
 //! ([`Layer`]), the place of the root file system and of its sidecar
 //! ([`Place`]), the name of its directory setting for the space message, and
@@ -55,6 +60,7 @@ pub mod safety;
 pub mod sidecar;
 pub mod tree;
 pub mod whiteout;
+pub mod xattr;
 
 use std::path::{Path, PathBuf};
 
@@ -137,6 +143,10 @@ pub struct Extracted {
     pub dirs_opened: u64,
     /// The first entry that lost an id. The report of the caller names it.
     pub first_dropped: Option<sidecar::FirstDropped>,
+    /// The extended attributes: how many were set, how many were not, and
+    /// the first that were not, by name and path. The sidecar row of each
+    /// path names each attribute not set, with its value.
+    pub xattrs: xattr::Count,
 }
 
 /// Apply each layer of `layers` in order into `place`. `image` names the
@@ -209,6 +219,7 @@ pub fn extract(settings: &Settings, image: &str, layers: &[Layer], place: &Place
         dir_modes: 0,
         dirs_opened: opened,
         first_dropped: None,
+        xattrs: xattr::Count::default(),
     };
 
     // Each failure below removes the partial tree. A refusal that leaves the
@@ -272,6 +283,7 @@ fn extract_layers(
         dirs.record(&st.dir_modes);
         total.entries += st.entries;
         total.skipped += st.skipped;
+        total.xattrs.merge(&st.xattrs);
         for k in st.skipped_kinds {
             if !total.skipped_kinds.contains(&k) {
                 total.skipped_kinds.push(k);
@@ -280,10 +292,11 @@ fn extract_layers(
         report.event(Event::info(
             LAYER_EVENT,
             format!(
-                "{}: Extracted ({} entries, {} whiteouts)",
+                "{}: Extracted ({} entries, {} whiteouts){}",
                 short(&l.digest),
                 st.entries,
-                st.whiteouts + st.opaques
+                st.whiteouts + st.opaques,
+                st.xattrs.line()
             ),
         ));
     }

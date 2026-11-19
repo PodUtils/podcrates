@@ -1,8 +1,9 @@
 #!/bin/sh
 # The tests of pod-extract and pod-rootfs that start a worker of uid 1000
 # (the set-id bits of a file, the S_ISGID that the kernel drops from a
-# directory, a closed tree, a closed etc: T-581, T-605, T-606, T-598) run
-# the worker only as root, and skip the proof as another user. This script
+# directory, a closed tree, a closed etc, the extended attributes: T-581,
+# T-605, T-606, T-598, T-957) run the worker only as root, and skip the
+# proof as another user. This script
 # builds the test binaries as the user and runs them as root: with `sudo
 # -n` on a runner, as they are where the caller is root. As root, each
 # test passes only when its worker passed. A skip line fails the run, and
@@ -21,6 +22,7 @@ for spec in \
     "pod-extract drive::setid::set_id_bits_survive_the_write" \
     "pod-extract drive::dirmodes::a_second_extraction_over_a_closed_tree_passes" \
     "pod-extract drive::dirmodes::an_extraction_over_a_tree_that_its_owner_cannot_read_passes" \
+    "pod-extract drive::xattrs::extended_attributes_are_set_or_named" \
     "pod-rootfs closed::a_closed_etc_is_completed_and_keeps_its_mode"; do
     crate=${spec%% *}
     test=${spec#* }

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**793 entries: 147 open, 24 partial, 7 blocked, 615 done.**
+**794 entries: 147 open, 24 partial, 7 blocked, 616 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 12 | 8 | 0 | 180 | 200 |
-| P2 | 68 | 6 | 4 | 314 | 392 |
+| P1 | 11 | 8 | 0 | 181 | 200 |
+| P2 | 69 | 6 | 4 | 314 | 393 |
 | P3 | 67 | 10 | 3 | 119 | 199 |
-| **All** | 147 | 24 | 7 | 615 | 793 |
+| **All** | 147 | 24 | 7 | 616 | 794 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -836,7 +836,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-954](upkeep.md) | P1 | M | M8 | feature | done | The release binaries of podcrates are not on ghcr.io (the owner's ruling "ghcr.io", PodUtils/podrunner#312) |
 | [T-955](upkeep.md) | P2 | S | M0 | chore | done | Dependabot of 2026-11-19: coturn 4.19.0, TruffleHog 3.99.9, rand 0.10.4 and rustls-pki-types; simple-dns 0.13.0 declined (GitHub #232, #233, #234, #235) |
 | [T-956](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a layer of more than one gzip member or zstd frame is cut short after the first, with no error (PodUtils/podrunner#317, ask 2) |
-| [T-957](podvm.md) | P1 | M | M6 | feature | open | `pod-extract`: no extended attribute of a layer is applied, so `security.capability` of `ping` is lost (PodUtils/podrunner#317, ask 1) |
+| [T-957](podvm.md) | P1 | M | M6 | feature | done | `pod-extract`: no extended attribute of a layer is applied, so `security.capability` of `ping` is lost (PodUtils/podrunner#317, ask 1) |
 | [T-958](relay.md) | P1 | M | M2 | defect | done | `pod-relay` with `pod-session`: a move at three quarters of a small cap of the relay still passes the cap, so the relay ends most links with 1009 (PodUtils/podssh#325) |
 | [T-959](relay.md) | P1 | S | M2 | feature | open | `pod-e2e`: the channel says no wait of its own, so a hang where the layer holds bytes for the channel cannot tell the channel from its reader (PodUtils/podssh#283, ask 5) |
 | [T-960](relay.md) | P3 | S | M2 | feature | open | `pod-term`: a cooked session always draws its prompt, so an exec'd command on podssh's server shows `$ ` between and after its lines (PodUtils/podssh#326) |
+| [T-961](podvm.md) | P2 | M | M6 | defect | open | `pod-extract`: the `tar` crate reads a PAX header or a GNU long name whole with no bound, and cuts the PAX records at each newline byte |
