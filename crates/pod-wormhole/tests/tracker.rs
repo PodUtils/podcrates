@@ -87,13 +87,29 @@ async fn pair(url: &WsUrl, seen: &Seen) -> Code {
     code
 }
 
+/// The announces of `stand` once an end's `stopped` came, or at the limit.
+/// An end writes `stopped` at its close and does not wait for the tracker
+/// to read it, so the stand-in can read it after the close returns (T-970,
+/// macos-15).
+async fn until_stopped(stand: &stand::Tracker) -> Vec<stand::Announce> {
+    let deadline = tokio::time::Instant::now() + LIMIT;
+    loop {
+        let announces = stand.announces();
+        let stopped = announces.iter().any(|a| a.event.as_deref() == Some("stopped"));
+        if stopped || tokio::time::Instant::now() >= deadline {
+            return announces;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
 #[tokio::test]
 async fn two_ends_pair_through_the_swarm_of_a_code_and_move_messages_each_way() {
     need_loopback!();
     let stand = stand::start().await;
     let seen = Seen::default();
     let code = pair(&stand.url, &seen).await;
-    let announces = stand.announces();
+    let announces = until_stopped(&stand).await;
     let swarm = tracker::info_hash(&mqtt::topic(harness::APPID, code.nameplate()));
     let words = code.for_terminal().split_once('-').unwrap().1.to_string();
     for a in &announces {

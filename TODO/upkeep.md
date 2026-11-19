@@ -3387,6 +3387,8 @@ cargo test -p pod-iroh --all-features --test road --test share --test tickets
 - Not done: run the closure once before the count (`count` takes `FnOnce`; the subtraction of the major faults covers a fault of a page of the binary).
 - The proof run, `nightly.yml` 44275593101 at `2b11314`: the cross jobs of armv7, arm, aarch64, loongarch64 and powerpc64le pass. Left: on i686, which runs natively (no emulator, so `count` counts), `a_turn_of_the_arq_blocks_on_nothing` of `pod-link` counts 3 voluntary switches in 1000 turns, as in the run before (cause not measured: a lock of musl's allocator shared with the other test threads, or a cold first pass); on riscv64, `pod-iroh` `road.rs` breaks at about 120 s (`early eof`, a timer of the stack ends the session, not the bound of the test, which is 300 s there) and `share.rs` still meets its bound of 300 s (likely a stall, not a slow emulator). The riscv64 job met its limit of 90 minutes (T-938). The other failures of that run are new and have their entries (T-933 to T-937).
 
+
+- 2026-11-19, the nightly 44505235227 at `8389e1c`: two more time bounds of the same class fail under QEMU. `pod-iroh`'s `two_sessions_of_one_process_share_one_connection_on_two_streams` (`tests/share.rs`: "each session's bytes within the limit: Elapsed" on loongarch64; "early eof" at `share.rs:52` on riscv64) and `a_session_whose_client_moves_on_the_relay_alone_resumes_whole` (`tests/new_address.rs` on riscv64: the far end acknowledged 491520 of 4685824 bytes in 103 s, each `Stall` line a slow reader, no lost byte). The same run had `a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way` (loongarch64, powerpc64le, riscv64) and `a_turn_of_the_arq_blocks_on_nothing` (i686), each named above.
 # T-917: The copies of product code that `codegraph.py dups` finds: one place for each
 
 **Source:** the first run of `python3 -I scripts/codegraph.py dups` (the ruling "Shared code").
@@ -3948,3 +3950,34 @@ reports 0 changes (exit 0). `sh scripts/agent/check.sh`: fmt, clippy,
 lint, doc, record, size, paths and static gave 0. `cargo test --workspace
 --all-features` with the default `TMPDIR` passed: 507 test binaries, 0
 failed.
+
+# T-970: `pod-wormhole`: the stand-in tracker test reads the announces before the `stopped` of an end arrived (macos-15)
+
+**Source:** the nightly 44505235227 at `8389e1c`, job `test (macos-15)`
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`two_ends_pair_through_the_swarm_of_a_code_and_move_messages_each_way` (`crates/pod-wormhole/tests/tracker.rs`) failed with "the ends leave the swarm": it read the announces of the stand-in tracker right after both ends closed. An end writes its `stopped` announce at its close (`tracker/link.rs`) and does not wait for the tracker to read it; the stand-in reads each message in its own task, so on a slow runner the test looked first.
+
+## Premise
+
+- Read: the job log; `crates/pod-wormhole/src/tracker/link.rs` (the close); the test.
+
+## Approach
+
+The test waits for a `stopped` announce within its limit, then checks the announces. The client does not change: a tracker owes no answer to `stopped`.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features --test tracker
+```
+
+## Done
+
+2026-11-19, this commit. `until_stopped` in `crates/pod-wormhole/tests/tracker.rs` reads the announces every 20 ms until one is `stopped`, within `LIMIT`. The test passed 3 runs of 3 on Linux.
