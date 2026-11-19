@@ -118,8 +118,11 @@ pub async fn newest(
 /// The step before a download.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Plan {
-    /// No newer release: nothing to do.
+    /// The release is the version of this build: nothing to do.
     UpToDate,
+    /// This build is newer than the release, which is not pinned: nothing
+    /// to do. A caller says it apart from [`Plan::UpToDate`] (T-971).
+    Newer,
     /// The pinned tag is the version of this build: nothing to do.
     Same,
     /// Only say that the release is there (a check).
@@ -137,8 +140,8 @@ pub fn plan(tag: &Version, current: &Version, pinned: bool, check: bool, force: 
     if same && !force {
         return if pinned { Plan::Same } else { Plan::UpToDate };
     }
-    if !pinned && !(force && same) && tag.cmp(current) != Ordering::Greater {
-        return Plan::UpToDate;
+    if !pinned && !(force && same) && tag.cmp(current) == Ordering::Less {
+        return Plan::Newer;
     }
     if check { Plan::Available } else { Plan::Install }
 }

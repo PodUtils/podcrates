@@ -6332,30 +6332,34 @@ cargo test -p pod-release --all-features
 
 A consumer or an ask names a minisign key for its releases.
 
-# T-971: `pod-release`: `update::plan` cannot tell a newer build of the same version from the same release
+# T-971: `pod-release`: `update::plan` answers `UpToDate` both for the version of this build and for an older release
 
 **Source:** PodUtils/podssh#329 (COORD-128 of podssh: its take of `pod-release`, "no ask")
 **Category:** defect
 **Milestone:** M8
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
-podssh took `pod-release` and does not use `update::plan`: `plan` compares the release with the running version by `Version::cmp` and answers `UpToDate` (or `Same` for a pinned tag) when they are equal, so a release that carries a newer build of the same version is not installed. podssh keeps its own comparison. A consumer that takes the crate then holds a second copy of the rule of a newer build.
+podssh took `pod-release` and does not use `update::plan`. With no pinned tag, `plan` answers `UpToDate` both when the newest release is the version of this build and when this build is newer than the newest release. podssh says the two apart ("the newest release: nothing to do"; "this build is newer than TAG: nothing to do"), so it keeps its own comparison: a second copy of the rule.
 
 ## Premise
 
 - Read: PodUtils/podssh#329; `crates/pod-release/src/update.rs` (`plan`), `crates/pod-release/src/version.rs`.
-- Not read: podssh's comparison at `c9772a3`.
+- Read: podssh's comparison at `c9772a3` (PodUtils/podssh:crates/podssh-cli/src/update/mod.rs).
 
 ## Approach
 
-Read podssh's comparison of the two at `c9772a3`. Give `plan` the rule (a field of `Version` or an argument for the build), with a test of an equal version and a newer build; podssh then calls `plan` and drops its copy.
+A variant `Plan::Newer` for an older release with no pinned tag, apart from `Plan::UpToDate` for the same version, with a test of both; podssh then calls `plan` and drops its comparison.
 
 ## Prove
 
 ```sh
 cargo test -p pod-release --all-features plan
 ```
+
+## Done
+
+2026-11-19, this commit. `Plan::Newer`: with no pinned tag, a release older than this build is `Newer`, and a release of the version of this build is `UpToDate`. Read: podssh's comparison at `c9772a3` (PodUtils/podssh:crates/podssh-cli/src/update/mod.rs: `Ordering::Equal`, `Less`, `Greater`). Test `plan_tells_an_equal_release_from_an_older_one`; the two lines of `the_same_tag_is_not_installed_again` with an older release now give `Newer`. `cargo test -p pod-release --all-features`: 56, 8 and 13 passed. podssh can call `plan` in the next tag and drop its comparison.

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**804 entries: 144 open, 27 partial, 7 blocked, 626 done.**
+**804 entries: 143 open, 27 partial, 7 blocked, 627 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 9 | 8 | 0 | 186 | 203 |
 | P2 | 67 | 9 | 4 | 318 | 398 |
-| P3 | 68 | 10 | 3 | 120 | 201 |
-| **All** | 144 | 27 | 7 | 626 | 804 |
+| P3 | 67 | 10 | 3 | 121 | 201 |
+| **All** | 143 | 27 | 7 | 627 | 804 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -850,4 +850,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-968](upkeep.md) | P2 | S | M5 | defect | done | The fuzz run of 2026-11-19 cannot build `russh`: the pinned nightly of 2026-11-01 meets a cycle in its query of async drop on `ssh-key` 0.7.0-rc.11 |
 | [T-969](upkeep.md) | P1 | M | M5 | chore | done | `upstream.yml` is red: the sources of `pod-job`, `pod-manual` and `pod-testkit` changed in podrunner and podssh |
 | [T-970](upkeep.md) | P2 | S | M5 | defect | done | `pod-wormhole`: the stand-in tracker test reads the announces before the `stopped` of an end arrived (macos-15) |
-| [T-971](fleet.md) | P3 | S | M8 | defect | open | `pod-release`: `update::plan` cannot tell a newer build of the same version from the same release |
+| [T-971](fleet.md) | P3 | S | M8 | defect | done | `pod-release`: `update::plan` answers `UpToDate` both for the version of this build and for an older release |

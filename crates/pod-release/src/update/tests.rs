@@ -190,11 +190,11 @@ fn the_same_tag_is_not_installed_again() {
     // --check says that it is available. No downgrade.
     assert_eq!(p("1.0.0", "1.0.0", false, false, true), Plan::Install);
     assert_eq!(p("1.0.0", "1.0.0", false, true, true), Plan::Available);
-    assert_eq!(p("0.9.0", "1.0.0", false, false, true), Plan::UpToDate);
+    assert_eq!(p("0.9.0", "1.0.0", false, false, true), Plan::Newer);
     assert_eq!(p("2.0.0", "1.0.0", true, true, false), Plan::Available);
     assert_eq!(p("2.0.0", "1.0.0", false, false, false), Plan::Install);
     // No downgrade with no pinned tag; on purpose with one.
-    assert_eq!(p("0.3.0-beta.9", "0.3.0-beta.10", false, true, false), Plan::UpToDate);
+    assert_eq!(p("0.3.0-beta.9", "0.3.0-beta.10", false, true, false), Plan::Newer);
     assert_eq!(p("0.3.0-beta.9", "0.3.0-beta.10", true, true, false), Plan::Available);
 }
 
@@ -215,4 +215,15 @@ fn install_refuses_a_binary_that_does_not_run_here() {
     let done = install(&exe, b"#!/bin/sh\necho 'podssh 1.1.0 (abc)'\n", "podssh", &v("1.1.0"), limit).unwrap();
     assert_eq!(done.said, "podssh 1.1.0 (abc)");
     assert_eq!(done.prev.as_deref().ok(), Some(Path::new(&dir.path().join("podssh.prev"))));
+}
+
+/// With no pinned tag, an equal release is `UpToDate` and an older one is
+/// `Newer`, so that a caller says "the newest release" apart from "this
+/// build is newer" (PodUtils/podssh#329, T-971).
+#[test]
+fn plan_tells_an_equal_release_from_an_older_one() {
+    assert_eq!(plan(&v("1.2.0"), &v("1.2.0"), false, false, false), Plan::UpToDate);
+    assert_eq!(plan(&v("1.1.9"), &v("1.2.0"), false, false, false), Plan::Newer);
+    assert_eq!(plan(&v("1.1.9"), &v("1.2.0"), false, true, false), Plan::Newer);
+    assert_eq!(plan(&v("1.2.0"), &v("1.2.0-beta.3"), false, true, false), Plan::Available);
 }
