@@ -12,8 +12,9 @@
 # each change of a schema (scripts/check-schemas.py), the writer of the
 # release index (scripts/release-index.py --self-test), no new repeated work
 # (scripts/codegraph.py dups), that each planted defect applies (scripts/plant-each.sh
-# --apply), shellcheck of the installer when it is there, and the static probes of
-# x86_64 musl when zig is there (scripts/check-static.sh). Print each exit
+# --apply), shellcheck of the installer when it is there, and the static probes and
+# the binary pod-release of x86_64 musl when zig is there (scripts/check-static.sh,
+# scripts/check-strings.py). Print each exit
 # code and the first faults; exit 1 on a fault. It also prints what the
 # change against origin/main looks like (scripts/codegraph.py new), as a
 # hint. With the argument notest, the tests are skipped.
@@ -63,8 +64,10 @@ if [ -f examples/static-probe/Cargo.toml ] && command -v zig > /dev/null 2>&1; t
     out=${CARGO_TARGET_DIR:-target}/$t/release
     { cargo zigbuild -q --release --target "$t" -p static-probe &&
         cargo zigbuild -q --release --target "$t" -p static-probe-lean &&
+        cargo zigbuild -q --release --target "$t" -p pod-release --features cli --bin pod-release &&
         python3 -I scripts/check-probe.py &&
-        sh scripts/check-static.sh "$out/static-probe" "$out/static-probe-lean"; } > "$log/static.log" 2>&1; st=$?
+        sh scripts/check-static.sh "$out/static-probe" "$out/static-probe-lean" "$out/pod-release" &&
+        python3 -I scripts/check-strings.py "$out/pod-release"; } > "$log/static.log" 2>&1; st=$?
     echo "static $st"; [ "$st" -eq 0 ] || { rc=1; tail -20 "$log/static.log"; }
 else
     echo "static skipped (no examples/static-probe, or no zig: sh scripts/cloud-setup.sh)"

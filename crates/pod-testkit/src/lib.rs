@@ -15,6 +15,8 @@
 //!   starts the test binary again as uid 65534.
 //! * `elf`: a static ELF made in the test (x86_64 and aarch64), and
 //!   the check of a dynamic one (Linux only).
+//! * [`tamper`]: one changed bit of a file, for the test of a check that
+//!   must refuse it.
 //! * [`schema`] (feature `schema`): the file of a JSON Schema of `schemas/`
 //!   against the types, and a validator of JSON Schema 2020-12.
 //! * [`screen`] (feature `screen`): the terminal oracle, a model of a VT
@@ -60,3 +62,4 @@ pub mod screen;
 #[cfg(feature = "stand")]
 pub mod stand;
 pub mod switches;
+pub mod tamper;

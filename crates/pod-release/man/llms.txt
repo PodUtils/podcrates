@@ -1,0 +1,30 @@
+# pod-release
+
+> Verify a release of a product of PodUtils in a directory: the signature of SHA256SUMS, each file and the release index.
+
+pod-release verifies a release of a product of PodUtils in a directory. It reads files only and uses no network. Download the files with your own tool first.
+pod-release verify makes three checks in this order. First, the Sigstore bundle SHA256SUMS.sigstore.json of SHA256SUMS, against the signer that you name.
+Then the SHA-256 of each file against SHA256SUMS. Then release-index.json against SHA256SUMS, its schema and the signer.
+The first failure stops the checks. pod-release writes one line on the error output that names the failure, and exits with the code of its class.
+With no FILE, pod-release checks each file of SHA256SUMS that the directory holds, and names the missing files. With --all, a missing file is a failure.
+pod-release sums makes the same checks with no signature. A dry run of a release workflow uses it before the workflow signs SHA256SUMS.
+pod-release index writes the files of a release index, one line for each file. Verify the release before you use its index.
+
+Run `pod-release man` for the manual, `pod-release man --json` for the manual as JSON,
+and `pod-release COMMAND --help --json` for one command as JSON.
+llms-full.txt has the manual and the documents in one file.
+
+## Commands
+
+- `pod-release verify`: Verify the signature of SHA256SUMS, then each file, then the release index
+- `pod-release sums`: Check each file and the release index against SHA256SUMS, with no signature: the check of a dry run
+- `pod-release index`: Read a release index, and write one line for each file: its name, its target, its size and its SHA-256
+- `pod-release man`: The manual: each command, exit code and variable. A pager shows it on a terminal
+
+## Documents
+
+- [README.md](https://github.com/PodUtils/podcrates/blob/main/crates/pod-release/README.md): The release index, the verifier, the update and the command line of pod-release.
+
+## Manual
+
+- [llms-full.txt](llms-full.txt): the manual and the documents.

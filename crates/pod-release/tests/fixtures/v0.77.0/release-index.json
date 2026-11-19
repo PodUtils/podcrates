@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "project": "PodUtils/podcrates",
+  "version": "v0.77.0",
+  "date": "2026-11-19T14:13:59Z",
+  "commit": "7cbe674e39aaa1673339e94ffcc2fcc3b7585bb4",
+  "signature": {
+    "sums": "SHA256SUMS",
+    "bundle": "SHA256SUMS.sigstore.json",
+    "identity": "https://github.com/PodUtils/podcrates/.github/workflows/release.yml@refs/tags/v0.77.0",
+    "issuer": "https://token.actions.githubusercontent.com"
+  },
+  "files": [
+    {
+      "name": "pod-fake-githome-aarch64-unknown-linux-musl",
+      "sha256": "55a6fc47b51a45d8d8fa3b7c5836a809656be0def447208087f03e3f038848bf",
+      "size": 1052552,
+      "target": "aarch64-unknown-linux-musl"
+    },
+    {
+      "name": "pod-fake-githome-x86_64-unknown-linux-musl",
+      "sha256": "c36431ef50a9e334c4f14804d76593738ae3da89ac190143fef9a19f6b63a26a",
+      "size": 1208528,
+      "target": "x86_64-unknown-linux-musl"
+    },
+    {
+      "name": "pod-fake-github-aarch64-unknown-linux-musl",
+      "sha256": "aec836304f9e986ba32ef79767b2ea418a1def9f36564488a6b373f1cddd94a9",
+      "size": 734992,
+      "target": "aarch64-unknown-linux-musl"
+    },
+    {
+      "name": "pod-fake-github-x86_64-unknown-linux-musl",
+      "sha256": "ac3d2fa2e251644c8c6ec32b9d0e8e2f28fb3527b5ceedd4fdf528c201beccfb",
+      "size": 822752,
+      "target": "x86_64-unknown-linux-musl"
+    },
+    {
+      "name": "podlab-0.77.0.tar.gz",
+      "sha256": "dda9f9747aaccdc18e7286f380c041ac46bcf161da11e1116be55f634bd638bc",
+      "size": 3543524
+    },
+    {
+      "name": "podlab-aarch64-unknown-linux-musl",
+      "sha256": "aa29a1757986b2337f184c497bbf7b7ed450b07d6cf7239c35a7ad14d803d6c9",
+      "size": 3283472,
+      "target": "aarch64-unknown-linux-musl"
+    },
+    {
+      "name": "podlab-install.sh",
+      "sha256": "9ab4756a93abba21d25cdffc67c1912bf370c0f826b1ba9a9d59fc5e7588d8e0",
+      "size": 30323
+    },
+    {
+      "name": "podlab-x86_64-unknown-linux-musl",
+      "sha256": "5fb3f18ae1ba1f91cce54a6b8040db324dbe42228c4df77ea676ed6f679b5e09",
+      "size": 3847112,
+      "target": "x86_64-unknown-linux-musl"
+    }
+  ]
+}

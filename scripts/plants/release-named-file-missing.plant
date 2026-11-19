@@ -1,0 +1,7 @@
+# A file that the caller of pod-release names, and that is not in the
+# directory, counts as missing: the check passes with no such file.
+ENTRY=T-965
+GROUP=release
+EXPECT='a_missing_file_fails_only_when_the_caller_asks_for_it \.\.\. FAILED'
+RUN='cargo test -p pod-release --all-features --test cli'
+LIMIT=900

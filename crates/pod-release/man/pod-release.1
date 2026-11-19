@@ -1,0 +1,348 @@
+.TH POD\-RELEASE 1 "" "pod\-release" "pod\-release manual"
+.nh
+.ad l
+.SH NAME
+pod\-release \- Verify a release of a product of PodUtils in a directory: the
+signature of SHA256SUMS, each file and the release index
+.SH SYNOPSIS
+\fBpod\-release COMMAND [OPTIONS]\fR
+.PP
+\fBStart here:\fR
+.TP
+\fBpod\-release verify \-\-repo OWNER/REPO \-\-tag TAG DIR\fR
+Verify a release in a directory.
+.TP
+\fBpod\-release sums DIR\fR
+Check a dry run, before the signature.
+.TP
+\fBpod\-release man\fR
+Read the manual.
+.PP
+\fBVerify a release:\fR
+.TP
+\fBverify\fR
+Verify the signature of SHA256SUMS, then each file, then the release index
+.TP
+\fBsums\fR
+Check each file and the release index against SHA256SUMS, with no signature:
+the check of a dry run
+.PP
+\fBRead a release index:\fR
+.TP
+\fBindex\fR
+Read a release index, and write one line for each file: its name, its target,
+its size and its SHA\-256
+.PP
+\fBRead the manual:\fR
+.TP
+\fBman\fR
+The manual: each command, exit code and variable. A pager shows it on a
+terminal
+.PP
+\fBOptions:\fR
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help.
+.SH DESCRIPTION
+pod\-release verifies a release of a product of PodUtils in a directory. It
+reads files only and uses no network. Download the files with your own tool
+first.
+.PP
+pod\-release verify makes three checks in this order. First, the Sigstore
+bundle SHA256SUMS.sigstore.json of SHA256SUMS, against the signer that you
+name.
+.PP
+Then the SHA\-256 of each file against SHA256SUMS. Then release\-index.json
+against SHA256SUMS, its schema and the signer.
+.PP
+The first failure stops the checks. pod\-release writes one line on the error
+output that names the failure, and exits with the code of its class.
+.PP
+With no FILE, pod\-release checks each file of SHA256SUMS that the directory
+holds, and names the missing files. With \-\-all, a missing file is a failure.
+.PP
+pod\-release sums makes the same checks with no signature. A dry run of a
+release workflow uses it before the workflow signs SHA256SUMS.
+.PP
+pod\-release index writes the files of a release index, one line for each
+file. Verify the release before you use its index.
+.SH COMMANDS
+.SS "pod\-release verify"
+Verify the signature of SHA256SUMS, then each file, then the release index.
+.PP
+Usage: \fBpod\-release verify [OPTIONS] DIR [FILE]...\fR
+.PP
+\fBArguments:\fR
+.TP
+\fIDIR\fR
+The directory that holds SHA256SUMS and the files.
+.TP
+\fI[FILE]...\fR
+Check only these files of the directory, and the index when the directory
+holds it. Each must be in SHA256SUMS.
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-repo\fR \fIOWNER/REPO\fR
+The repository of the release on GitHub, as OWNER/REPO. The signer is its
+release workflow at the tag.
+.TP
+\fB\-\-tag\fR \fITAG\fR
+The tag of the release, as v0.77.0.
+.TP
+\fB\-\-workflow\fR \fIFILE\fR
+The file name of the release workflow in .github/workflows. Default:
+release.yml.
+.TP
+\fB\-\-identity\fR \fIURI\fR
+The URI that the certificate of the signer must name. Use it in place of
+\-\-repo and \-\-tag.
+.TP
+\fB\-\-issuer\fR \fIURL\fR
+The issuer of the OIDC token of the signer. Default:
+https://token.actions.githubusercontent.com.
+.TP
+\fB\-\-all\fR
+Each file of SHA256SUMS must be in the directory.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+Give one of \-\-repo, \-\-identity.
+.PP
+Give only one of \-\-identity, \-\-workflow.
+.PP
+Give only one of \-\-issuer, \-\-repo.
+.PP
+Give only one of \-\-all, FILE.
+.PP
+\-\-repo needs \-\-tag.
+.PP
+\-\-tag needs \-\-repo.
+.PP
+\fBExamples:\fR
+.PP
+Verify the release v0.77.0 of podcrates in the directory dist.
+.RS 4
+.nf
+$ pod\-release verify \-\-repo PodUtils/podcrates \-\-tag v0.77.0 dist
+.fi
+.RE
+.PP
+Verify each file of the release. A missing file is a failure.
+.RS 4
+.nf
+$ pod\-release verify \-\-repo PodUtils/podcrates \-\-tag v0.77.0 \-\-all dist
+.fi
+.RE
+.PP
+Verify one file and the index, as an installer does.
+.RS 4
+.nf
+$ pod\-release verify \-\-repo PodUtils/podcrates \-\-tag v0.77.0 dist podlab\-x86_64\-unknown\-linux\-musl
+.fi
+.RE
+.PP
+Verify a release by the full identity of its signer.
+.RS 4
+.nf
+$ pod\-release verify \-\-identity https://github.com/OWNER/REPO/.github/workflows/release.yml@refs/tags/v1.0.0 dist
+.fi
+.RE
+.SS "pod\-release sums"
+Check each file and the release index against SHA256SUMS, with no signature:
+the check of a dry run.
+.PP
+Usage: \fBpod\-release sums [OPTIONS] DIR [FILE]...\fR
+.PP
+\fBArguments:\fR
+.TP
+\fIDIR\fR
+The directory that holds SHA256SUMS and the files.
+.TP
+\fI[FILE]...\fR
+Check only these files of the directory, and the index when the directory
+holds it. Each must be in SHA256SUMS.
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-all\fR
+Each file of SHA256SUMS must be in the directory.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+Give only one of \-\-all, FILE.
+.PP
+\fBExamples:\fR
+.PP
+Check each file and the index of a dry run, before the signature.
+.RS 4
+.nf
+$ pod\-release sums \-\-all dist
+.fi
+.RE
+.SS "pod\-release index"
+Read a release index, and write one line for each file: its name, its target,
+its size and its SHA\-256.
+.PP
+Usage: \fBpod\-release index [OPTIONS] FILE\fR
+.PP
+\fBArguments:\fR
+.TP
+\fIFILE\fR
+The release index, release\-index.json.
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-target\fR \fITRIPLE\fR
+Write only the files of this target triple. A target with no file gives exit
+66.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBExamples:\fR
+.PP
+Write the files of one target from the index.
+.RS 4
+.nf
+$ pod\-release index \-\-target x86_64\-unknown\-linux\-musl dist/release\-index.json
+.fi
+.RE
+.SS "pod\-release man"
+The manual: each command, exit code and variable. A pager shows it on a
+terminal.
+.PP
+Usage: \fBpod\-release man [OPTIONS] [SECTION]...\fR
+.PP
+\fBArguments:\fR
+.TP
+\fI[SECTION]...\fR
+One section: a command, a topic, a table of facts.
+.PP
+\fBOptions:\fR
+.TP
+\fB\-\-no\-pager\fR
+Write the text with no pager, also on a terminal.
+.TP
+\fB\-\-roff\fR
+Write the manual as a man(7) page.
+.TP
+\fB\-\-json\fR
+Write the manual as one JSON object.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print the help of this command.
+.PP
+\fBRules:\fR
+.PP
+Give only one of \-\-json, \-\-roff.
+.PP
+\fBExamples:\fR
+.PP
+Write the section of pod\-release verify, with no pager.
+.RS 4
+.nf
+$ pod\-release man \-\-no\-pager verify
+.fi
+.RE
+.SH "ENVIRONMENT"
+\fBThe pager:\fR
+.TP
+\fBPAGER\fR
+The pager of the manual on a terminal. An empty value or cat writes the text
+with no pager. Used by: man.
+.TP
+\fBTERM\fR
+With no PAGER, less is used only when TERM names a terminal that is not dumb.
+Used by: man.
+.TP
+\fBPATH\fR
+The directories where the probe looks for less. Used by: man.
+.TP
+\fBLINES\fR
+The lines of a screen of the built\-in pager, when the terminal size is not
+known. Used by: man.
+.TP
+\fBLESS\fR
+The options of less. When it is not set, the pager sets FRX. Used by: man.
+pod\-release reads it and sets it.
+.SH "EXIT STATUS"
+.TP
+\fB0\fR (ok)
+Each check holds.
+.TP
+\fB64\fR (usage)
+A usage error of the command line.
+.TP
+\fB66\fR (notfound)
+A file is not there: SHA256SUMS, its bundle, a file that you name, or a file
+of SHA256SUMS with \-\-all.
+.TP
+\fB69\fR (unavailable)
+A file is there, and pod\-release cannot read it.
+.TP
+\fB77\fR (refused)
+A check failed: the signature, the signer, the SHA\-256 of a file, or the
+release index.
+.SH "EXAMPLES"
+Verify the release v0.77.0 of podcrates in the directory dist.
+.RS 4
+.nf
+$ pod\-release verify \-\-repo PodUtils/podcrates \-\-tag v0.77.0 dist
+.fi
+.RE
+.PP
+Verify each file of the release. A missing file is a failure.
+.RS 4
+.nf
+$ pod\-release verify \-\-repo PodUtils/podcrates \-\-tag v0.77.0 \-\-all dist
+.fi
+.RE
+.PP
+Verify one file and the index, as an installer does.
+.RS 4
+.nf
+$ pod\-release verify \-\-repo PodUtils/podcrates \-\-tag v0.77.0 dist podlab\-x86_64\-unknown\-linux\-musl
+.fi
+.RE
+.PP
+Verify a release by the full identity of its signer.
+.RS 4
+.nf
+$ pod\-release verify \-\-identity https://github.com/OWNER/REPO/.github/workflows/release.yml@refs/tags/v1.0.0 dist
+.fi
+.RE
+.PP
+Check each file and the index of a dry run, before the signature.
+.RS 4
+.nf
+$ pod\-release sums \-\-all dist
+.fi
+.RE
+.PP
+Write the files of one target from the index.
+.RS 4
+.nf
+$ pod\-release index \-\-target x86_64\-unknown\-linux\-musl dist/release\-index.json
+.fi
+.RE
+.PP
+Write the section of pod\-release verify, with no pager.
+.RS 4
+.nf
+$ pod\-release man \-\-no\-pager verify
+.fi
+.RE
+.SH "SEE ALSO"
+cosign verify\-blob: the same check of the bundle, with no check of the files and the index.
+.PP
+https://github.com/PodUtils/podcrates

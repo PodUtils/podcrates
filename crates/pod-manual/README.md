@@ -28,7 +28,7 @@ the code, the parser and the files of the repository fails a test.
 | `pager::{Tty, PagerEnv, choose, show, page, variables, SOURCE}` | the pager, and its variables as facts |
 | `pager::Interrupts::ignore()` | SIGINT and SIGQUIT ignored until the value drops, then each action put back: for a child that reads the terminal (a pager, an editor) |
 | `rules::{faults, char_faults, work_ids, sentences, words, Kind, Fault}` | the text rules |
-| `check::{texts, generated, variables, exit_codes, flags, model, assert_none, Finding}` | the checks that a program calls from its tests |
+| `check::{texts, generated, variables, exit_codes, flags, model, help, examples, assert_none, Finding}` | the checks that a program calls from its tests |
 | `scan::{rust_sources, non_test, variables_read, exit_constants, src, CALLS, LISTS}` | the reader of the source of a program for `check::variables` and `check::exit_codes`: only the calls that read or set a variable |
 | `error::fault(option, what, fix)`, `error::check` | `OPTION: what is wrong; fix: what to do`, and its rules |
 
@@ -80,6 +80,10 @@ Each program calls these from its own tests (`podlab`:
    constants).
 5. `check::flags(&manual, parser)`: each command and flag of the model
    against the parser, both ways (`clap::parser` for a clap program).
+6. `check::help(&manual)`: the help of each command, as `COMMAND --help`
+   answers it, holds its flags, the titles of its groups and its "Start
+   here" lines. `check::examples(&manual, parse)`: the parser takes each
+   example of the program.
 
 `scripts/check-man.sh BINARY` renders `BINARY man --roff` with groff and
 mandoc, with no warning, and finds each flag in both renderings as a word

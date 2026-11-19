@@ -19,3 +19,8 @@ FROM scratch AS pod-fake-githome
 ARG TARGETARCH
 COPY --chmod=0755 pod-fake-githome-${TARGETARCH} /usr/local/bin/pod-fake-githome
 ENTRYPOINT ["/usr/local/bin/pod-fake-githome"]
+
+FROM scratch AS pod-release
+ARG TARGETARCH
+COPY --chmod=0755 pod-release-${TARGETARCH} /usr/local/bin/pod-release
+ENTRYPOINT ["/usr/local/bin/pod-release"]

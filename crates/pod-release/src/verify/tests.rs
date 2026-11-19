@@ -5,6 +5,8 @@
 
 use std::path::{Path, PathBuf};
 
+use pod_testkit::tamper::flip;
+
 use super::*;
 
 fn fixtures() -> PathBuf {
@@ -32,15 +34,6 @@ fn copy(change: impl Fn(&Path)) -> tempfile::TempDir {
     dir
 }
 
-/// One bit of the byte `at` of the file `name` in `dir` changed.
-fn flip(dir: &Path, name: &str, at: usize) {
-    let path = dir.join(name);
-    let mut bytes = std::fs::read(&path).unwrap();
-    let at = at.min(bytes.len() - 1);
-    bytes[at] ^= 1;
-    std::fs::write(&path, bytes).unwrap();
-}
-
 #[test]
 fn the_published_release_verifies() {
     let dir = copy(|_| {});
@@ -55,7 +48,7 @@ fn the_published_release_verifies() {
 #[test]
 fn one_changed_byte_of_a_file_fails() {
     for at in [0, 15000, usize::MAX] {
-        let dir = copy(|d| flip(d, "podlab-install.sh", at));
+        let dir = copy(|d| flip(&d.join("podlab-install.sh"), at));
         match verify_dir(dir.path(), &who(), &Roots::sigstore()) {
             Err(Error::Refused(why)) => assert!(why.contains("the SHA-256 of podlab-install.sh is"), "{why}"),
             other => panic!("{other:?}"),
@@ -66,7 +59,7 @@ fn one_changed_byte_of_a_file_fails() {
 #[test]
 fn one_changed_byte_of_the_sums_fails() {
     for at in [0, 400, usize::MAX] {
-        let dir = copy(|d| flip(d, SUMS, at));
+        let dir = copy(|d| flip(&d.join(SUMS), at));
         match verify_dir(dir.path(), &who(), &Roots::sigstore()) {
             Err(Error::Refused(why)) => assert!(why.contains("the signature of SHA256SUMS"), "{why}"),
             other => panic!("{other:?}"),
@@ -80,7 +73,7 @@ fn one_changed_byte_of_the_sums_fails() {
 fn one_changed_byte_of_the_bundle_fails() {
     let text = std::fs::read_to_string(fixtures().join(BUNDLE)).unwrap();
     let at = text.find("\"signature\":\"").unwrap() + "\"signature\":\"".len();
-    let dir = copy(|d| flip(d, BUNDLE, at));
+    let dir = copy(|d| flip(&d.join(BUNDLE), at));
     match verify_dir(dir.path(), &who(), &Roots::sigstore()) {
         Err(Error::Refused(why)) => assert!(why.contains("the signature of SHA256SUMS"), "{why}"),
         other => panic!("{other:?}"),
@@ -100,9 +93,46 @@ fn another_identity_fails() {
 }
 
 #[test]
-fn a_directory_with_no_bundle_is_unavailable() {
+fn a_directory_with_no_bundle_is_not_found() {
     let dir = copy(|d| std::fs::remove_file(d.join(BUNDLE)).unwrap());
-    assert!(matches!(verify_dir(dir.path(), &who(), &Roots::sigstore()), Err(Error::Unavailable(_))));
+    assert!(matches!(verify_dir(dir.path(), &who(), &Roots::sigstore()), Err(Error::NotFound(_))));
+}
+
+/// The files of podcrates v0.77.0: `SHA256SUMS` names the index, which
+/// names the signer.
+#[test]
+fn the_index_of_the_published_release_verifies_with_its_signer() {
+    let dir = tempfile::tempdir().unwrap();
+    let from = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/v0.77.0");
+    for name in [SUMS, BUNDLE, crate::index::FILE] {
+        std::fs::copy(from.join(name), dir.path().join(name)).unwrap();
+    }
+    let who = Identity::github("PodUtils/podcrates", "release.yml", "v0.77.0");
+    let checked = verify_dir(dir.path(), &who, &Roots::sigstore()).expect("v0.77.0 verifies");
+    let index = checked.index.expect("the index");
+    assert_eq!(
+        (index.project.as_str(), index.version.as_str(), index.files.len()),
+        ("PodUtils/podcrates", "v0.77.0", 8)
+    );
+    assert_eq!(checked.files, [crate::index::FILE]);
+    let all = verify_files(dir.path(), &who, &Roots::sigstore(), Which::All);
+    assert!(matches!(all, Err(Error::NotFound(ref why)) if why.contains("podlab-0.77.0.tar.gz")), "{all:?}");
+    // The signer of the bundle and of the index must be the caller's.
+    assert_eq!(index.signed_as(&who), Ok(()));
+    for other in [
+        Identity::github("PodUtils/podcrates", "release.yml", "v0.76.0"),
+        Identity::github("PodUtils/podnet", "release.yml", "v0.77.0"),
+        Identity { issuer: "https://gitlab.com".into(), ..who.clone() },
+    ] {
+        assert!(index.signed_as(&other).is_err(), "{other:?}");
+    }
+    let moved = crate::index::Index { version: "v0.76.0".into(), ..index.clone() };
+    assert!(moved.signed_as(&who).unwrap_err().contains("is of PodUtils/podcrates v0.76.0"));
+    let renamed = crate::index::Index {
+        signature: crate::index::Signature { bundle: "SHA256SUMS.sig".into(), ..index.signature.clone() },
+        ..index
+    };
+    assert!(renamed.signed_as(&who).is_err());
 }
 
 /// The check of one file in memory, as an update makes it.

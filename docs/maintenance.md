@@ -344,9 +344,11 @@ fourth argument of the script names the list when it is elsewhere.
    run on the tag signs `SHA256SUMS` with cosign (the identity of
    `release.yml` at the tag), makes the GitHub release and starts the dry
    run of `publish.yml` on the tag. Watch the run on the tag: when it
-   fails, the tag has no release. The jobs `image` and `notes` of the run
-   on the tag then push the images of `podlab`, `pod-fake-github` and
-   `pod-fake-githome` to `ghcr.io/podutils/NAME:vX.Y.Z` (call C789). The
+   fails, the tag has no release. The run on the tag checks its own signed
+   files with `pod-release verify --all` (call C805). The jobs `image` and
+   `notes` of the run on the tag then push the images of `podlab`,
+   `pod-fake-github`, `pod-fake-githome` and `pod-release` to
+   `ghcr.io/podutils/NAME:vX.Y.Z` (call C789). The
    dry run builds these images too, and pushes nothing.
 4. Check the images and their digests on the release. The section "The
    images, by digest" of the body gives the digest of each index and of

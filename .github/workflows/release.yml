@@ -13,14 +13,17 @@ name: release
 # release, the offline bundle podlab-VERSION.tar.gz, the static musl
 # binaries pod-fake-github-TARGET of pod-testkit (the fake GitHub of a
 # consumer's CI), pod-fake-githome-TARGET (the fake of githome's source of
-# jobs for podrunner's CI), the release index release-index.json of
-# pod-release (scripts/release-index.py) and SHA256SUMS; the
-# release attaches them with SHA256SUMS.sigstore.json, the keyless cosign
-# signature of SHA256SUMS by this workflow at the tag (the form of podnet
-# and podssh).
+# jobs for podrunner's CI), pod-release-TARGET (the verifier of a release
+# for the CI of a product and an installer), the release index
+# release-index.json of pod-release (scripts/release-index.py) and
+# SHA256SUMS; pod-release sums checks each file and the index of each run
+# before the signature. The release attaches them with
+# SHA256SUMS.sigstore.json, the keyless cosign signature of SHA256SUMS by
+# this workflow at the tag (the form of podnet and podssh), which
+# pod-release verify checks on the tag.
 #
 # The job image (call C789, the owner's ruling "ghcr.io"): for podlab,
-# pod-fake-github and pod-fake-githome, one FROM scratch image for each
+# pod-fake-github, pod-fake-githome and pod-release, one FROM scratch image for each
 # architecture (images/release/Dockerfile) from the files of dist/, under
 # one index at ghcr.io/podutils/NAME:TAG. Each run builds both platforms
 # and compares each binary with its asset. Only the run on the tag pushes
@@ -116,6 +119,11 @@ jobs:
             sh scripts/check-static.sh "target/$t/release/pod-fake-githome"
             python3 -I scripts/check-strings.py "target/$t/release/pod-fake-githome"
             cp "target/$t/release/pod-fake-githome" "dist/pod-fake-githome-$t"
+            # The verifier of a release that the CI of a product and an installer run.
+            cargo zigbuild --locked --release --target "$t" -p pod-release --features cli --bin pod-release
+            sh scripts/check-static.sh "target/$t/release/pod-release"
+            python3 -I scripts/check-strings.py "target/$t/release/pod-release"
+            cp "target/$t/release/pod-release" "dist/pod-release-$t"
           done
           python3 -I scripts/install/pins.py sums dist podlab-x86_64-unknown-linux-musl podlab-aarch64-unknown-linux-musl
           python3 -I scripts/install/pins.py stamp scripts/install/podlab.sh --version "$v" --assets dist --out dist/podlab-install.sh
@@ -124,13 +132,26 @@ jobs:
           # The release index (T-104, schemas/release-index.v1.schema.json):
           # written before SHA256SUMS, which holds its line, so that the
           # signature of SHA256SUMS signs it too.
-          files=$(cd dist && ls podlab-* pod-fake-github-* pod-fake-githome-*)
+          files=$(cd dist && ls podlab-* pod-fake-github-* pod-fake-githome-* pod-release-*)
           # shellcheck disable=SC2086 # one word for each file name.
           python3 -I scripts/release-index.py --project "$GITHUB_REPOSITORY" --version "v$v" --dir dist \
             --date "$SOURCE_DATE_EPOCH" --commit "$(git rev-parse HEAD)" --out dist/release-index.json $files
           # SHA256SUMS of each published file.
-          (cd dist && sha256sum podlab-* pod-fake-github-* pod-fake-githome-* release-index.json > SHA256SUMS.new && mv SHA256SUMS.new SHA256SUMS)
+          (cd dist && sha256sum podlab-* pod-fake-github-* pod-fake-githome-* pod-release-* release-index.json > SHA256SUMS.new && mv SHA256SUMS.new SHA256SUMS)
           cat dist/SHA256SUMS
+      # The check of a dry run that the CI of a product runs before its
+      # signature: each file and the index against SHA256SUMS and the schema,
+      # by the verifier of this release.
+      - name: The files and the index against SHA256SUMS
+        run: |
+          set -eu
+          dist/pod-release-x86_64-unknown-linux-musl sums --all dist
+          cp -R dist "$RUNNER_TEMP/changed"
+          printf x >> "$RUNNER_TEMP/changed/release-index.json"
+          rc=0
+          dist/pod-release-x86_64-unknown-linux-musl sums --all "$RUNNER_TEMP/changed" || rc=$?
+          [ "$rc" = 77 ] || { echo "a changed index gave exit $rc, not 77"; exit 1; }
+          rm -rf "$RUNNER_TEMP/changed"
       # The published files themselves: the installer from the bundle, then
       # a second run that changes nothing.
       - name: The published installer installs
@@ -153,6 +174,7 @@ jobs:
             dist/podlab-*-unknown-linux-musl
             dist/pod-fake-github-*
             dist/pod-fake-githome-*
+            dist/pod-release-*
             dist/SHA256SUMS
           if-no-files-found: error
       - name: The tag, and the run on the tag
@@ -187,6 +209,24 @@ jobs:
           if check "$workflow@$GITHUB_REF" "$RUNNER_TEMP/changed"; then echo "a changed copy verified"; exit 1; fi
           if check "$workflow@refs/heads/main" SHA256SUMS; then echo "the identity of a branch verified"; exit 1; fi
           echo "signed by $workflow@$GITHUB_REF; a changed copy and the identity of a branch fail"
+      # The verifier of this release over its own signed files: the bundle by
+      # the identity of the tag, each file, and the index. A changed file and
+      # another tag fail with exit 77.
+      - name: The verifier checks the signed release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -eu
+          exe=dist/pod-release-x86_64-unknown-linux-musl
+          "$exe" verify --repo "$GITHUB_REPOSITORY" --tag "$GITHUB_REF_NAME" --all dist
+          cp -R dist "$RUNNER_TEMP/changed"
+          printf x >> "$RUNNER_TEMP/changed/podlab-install.sh"
+          for args in "--tag $GITHUB_REF_NAME $RUNNER_TEMP/changed" "--tag v0.0.0 dist"; do
+            rc=0
+            # shellcheck disable=SC2086 # the words of the arguments.
+            "$exe" verify --repo "$GITHUB_REPOSITORY" $args || rc=$?
+            [ "$rc" = 77 ] || { echo "verify $args gave exit $rc, not 77"; exit 1; }
+          done
+          rm -rf "$RUNNER_TEMP/changed"
       # The published installer checks the signature with this cosign, as
       # a user with cosign does: the files come from dist (file://).
       - name: The published installer checks the signature
@@ -214,7 +254,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name: [podlab, pod-fake-github, pod-fake-githome]
+        name: [podlab, pod-fake-github, pod-fake-githome, pod-release]
     permissions:
       contents: read
       # The push of the index, on the tag.

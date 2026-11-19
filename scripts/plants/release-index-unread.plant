@@ -1,0 +1,7 @@
+# The check of a release directory takes the index by its line of
+# SHA256SUMS alone: its schema, its rules and its files are not read.
+ENTRY=T-965
+GROUP=release
+EXPECT='the_check_with_no_signature_reads_the_files_and_the_index \.\.\. FAILED'
+RUN='cargo test -p pod-release --all-features --test cli'
+LIMIT=900
