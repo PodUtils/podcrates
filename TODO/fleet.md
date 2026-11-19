@@ -6177,7 +6177,7 @@ cargo test -p pod-release --all-features
 # T-965: `pod-release`: the verifier as a static command for the CI of a product and for an installer
 
 **Source:** the work of T-104 (2026-11-19): GitHub #223 (githome's G-34: "one verifier"), GitHub #35
-(A-X-13, A-X-24); PodUtils/podrunner#320 (COORD-110 of podrunner: its T-562 checks the index of
+(A-X-13, A-X-24); PodUtils/podrunner#320 (COORD-110 of podrunner: PodUtils/podrunner@T-562 checks the index of
 its release with the verifier of `pod-release` in its dry run).
 **Category:** feature
 **Milestone:** M8
