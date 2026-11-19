@@ -8,8 +8,8 @@
 - Last release: `v0.74.0` at `dd228ef` (`docs/releases/v0.74.0.md`). Its
   hand-off is COORD-141 (#237); the hand-off of `v0.73.0` is COORD-140
   (#231).
-- The tag that the `main` of each consumer names: `v0.73.0` (podvm,
-  podrunner, podssh), `v0.72.0` (podnet). The details of each take are
+- The tag that the `main` of each consumer names: `v0.74.0` (podrunner),
+  `v0.73.0` (podvm, podssh), `v0.72.0` (podnet). The details of each take are
   on #237, #231 and #229.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
@@ -190,7 +190,16 @@ The hand-off of each release is a COORD issue `(to all)`
   comment, and each comment of a session of podcrates has the line. It
   blocks T-538. Recommendation: yes, the same rule in each repository of
   PodUtils; write it in `docs/decisions.md` and in `AGENTS.md`.
+- **Q17.** The next tag of podcrates pushes three new packages to
+  ghcr.io (`ghcr.io/podutils/podlab`, `pod-fake-github`,
+  `pod-fake-githome`; T-954, the ruling "ghcr.io"). A new package of an
+  organization can be private, and only an admin of PodUtils can make it
+  public; podrunner pins the two fakes, and a pull with no login needs a
+  public package. It blocks the end of T-954. Recommendation: set each new
+  package of `ghcr.io/podutils` to public once, after the first push, or
+  set the default visibility of packages of PodUtils to public.
 
 Write each question as `- **Qn.** QUESTION`, with the entries that it
-blocks and a recommendation. Number the questions in sequence from Q17
-(Q1 to Q14: `docs/decisions.md`; Q15: the ruling "podswarm"; Q16: above).
+blocks and a recommendation. Number the questions in sequence from Q18
+(Q1 to Q14: `docs/decisions.md`; Q15: the ruling "podswarm"; Q16 and Q17:
+above).
