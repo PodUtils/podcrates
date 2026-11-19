@@ -3882,7 +3882,7 @@ RUSTFLAGS="--cfg fuzzing -Zsanitizer=address -Cdebug-assertions -Ccodegen-units=
 **Milestone:** M5
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3908,3 +3908,43 @@ For each changed file, read each commit after the pin. A take of a podcrates tag
 ```sh
 python3 -I scripts/check-sources.py --clone PodUtils/podrunner=DIR --clone PodUtils/podssh=DIR
 ```
+
+## Done
+
+2026-11-19, commit ca005b5 (calls C800 to C803). Each change was read at
+its commit. No change is a fix that the crates do not have, so no code is
+ported:
+
+- `pod-job`: the podrunner block of `status.v1` and the source wire moves
+  from `ca8c308` to `d001608`, the parent of podrunner's take of v0.72.0,
+  with the new blobs of tests.rs, source-driver.md, status.rs and
+  status.v1.json. `taken e422c23` covers crates/podrunner-source/src,
+  secret.rs and the contract; `taken 0fd2218` covers status.rs and
+  status.v1.json. `draining` and `max_units` (`a817f6f`, `d09a2a3`) are
+  in the crate by T-947. Test 14 (`f48fdc4`) and the tolerance of `cpu_s`
+  (`bf1dd6f`) are podrunner's suite and the measure of its kinds.
+- `pod-testkit`: the block of the fake broker moves from `d001608` to
+  `e7e5d4c`, and the block of the fake source from `b1a1a28` to `b0f8a36`.
+  podrunner does not use the crate, so there is no `taken` line. One job
+  for each runner session (`ffc9658`) holds in the fake GitHub; the new
+  test `a_runner_that_runs_its_job_takes_no_other`
+  (`crates/pod-testkit/src/github/broker.rs`) proves it. `20f5a4b` (the
+  run of a job), `033c25d` (rsa 0.10), `e7e5d4c` (`run_once_into`) and
+  `b0f8a36` (the plant `RefuseCancelled`) are podrunner's own.
+- `pod-manual`: the podssh block moves from `5340fbb` to `d8e54f0`, the
+  parent of podssh's take of the writers. `taken c4a2a64` covers mod.rs,
+  model.rs, roff.rs, text.rs, json.rs, data.rs, flags.rs and
+  interop-man.sh; `taken 1e5de58` covers pager.rs. facts/tests.rs is a
+  block of its own at `1e5de58`, as podssh keeps its own reader of the
+  variables; its changes are podssh's list of sources. Each other change
+  is podssh's own text and modules. podssh's COORD-115
+  (PodUtils/podssh#312) asks for `pager::Interrupts`: it is public now,
+  with the test `interrupts_ignores_sigint_and_sigquit_until_its_drop`
+  (`crates/pod-manual/src/pager/tests.rs`).
+
+`python3 -I scripts/check-sources.py --clone ...` with local clones of
+podrunner, podssh, podnet, podvm and gsocket: each block of each crate
+reports 0 changes (exit 0). `sh scripts/agent/check.sh`: fmt, clippy,
+lint, doc, record, size, paths and static gave 0. `cargo test --workspace
+--all-features` with the default `TMPDIR` passed: 507 test binaries, 0
+failed.
