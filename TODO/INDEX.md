@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**800 entries: 147 open, 26 partial, 7 blocked, 620 done.**
+**800 entries: 145 open, 26 partial, 7 blocked, 622 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 10 | 8 | 0 | 183 | 201 |
-| P2 | 70 | 8 | 4 | 315 | 397 |
+| P1 | 9 | 8 | 0 | 184 | 201 |
+| P2 | 69 | 8 | 4 | 316 | 397 |
 | P3 | 67 | 10 | 3 | 120 | 200 |
-| **All** | 147 | 26 | 7 | 620 | 800 |
+| **All** | 145 | 26 | 7 | 622 | 800 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -150,7 +150,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-101](foundation.md) | P1 | S | M1 | feature | done | `pod-core`: the classes Revoked, Policy and Unsupported, one exit code for each class, one JSON log schema (GitHub #35) |
 | [T-102](fleet.md) | P1 | M | M8 | feature | open | `pod-unit`: hardened service units for systemd, launchd and Windows, with no secret in a unit (GitHub #35) |
 | [T-103](fleet.md) | P1 | M | M8 | feature | open | `pod-control`: one JSON control API on a Unix socket or a named pipe (GitHub #35, #36) |
-| [T-104](fleet.md) | P1 | M | M8 | feature | open | `pod-release`: the release index, its writer for CI and its verifier (GitHub #35, #36) |
+| [T-104](fleet.md) | P1 | M | M8 | feature | done | `pod-release`: the release index, its writer for CI and its verifier (GitHub #35, #36) |
 | [T-105](foundation.md) | P1 | M | M8 | feature | open | `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35) |
 | [T-106](fleet.md) | P2 | M | M8 | feature | partial | `pod-testkit`: the stand-ins of the edge, the relay and the WARP API as binaries for a consumer's CI (GitHub #35, #36) |
 | [T-107](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: a JSON report with a published schema (GitHub #35) |
@@ -759,7 +759,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-877](foundation.md) | P1 | M | M0 | feature | done | `pod-core`: one advisory file lock for each system, in place of four copies in the consumers |
 | [T-878](foundation.md) | P2 | S | M0 | feature | done | `pod-core`: one injectable clock, in place of the copies of podrunner and of three crates |
 | [T-879](foundation.md) | P2 | M | M0 | feature | open | `pod-detach`: the detach of a command by a re-exec, from podnet, in place of podssh's near copy |
-| [T-880](foundation.md) | P2 | M | M0 | feature | open | `pod-release`: the self-update of a binary (fetch, verify, replace, trial run), from podnet and podssh |
+| [T-880](foundation.md) | P2 | M | M0 | feature | done | `pod-release`: the self-update of a binary (fetch, verify, replace, trial run), from podnet and podssh |
 | [T-881](foundation.md) | P2 | S | M0 | feature | done | `pod-tls`: the CA bundle that the environment names, in place of three lists in the consumers |
 | [T-882](foundation.md) | P3 | M | M0 | chore | done | One reader and writer of an HTTP/1.1 head, in place of the copies in podrunner and in five crates |
 | [T-883](fleet.md) | P2 | S | M0 | defect | done | the installer core: one proxy line for one proxy, and a default prefix on a noexec mount (PodUtils/podnet#650) |

@@ -173,7 +173,7 @@ sh scripts/agent/check.sh
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -199,6 +199,31 @@ sh scripts/agent/check.sh
 ```
 
 A test changes one byte and the verifier fails.
+
+## Done
+
+2026-11-19, commits `aa860780` (the import) and `a9a36981` (the crate), and this commit (the record).
+The crate `crates/pod-release` (calls C793, C794):
+
+- The index: `release-index.v1` (`schemas/release-index.v1.schema.json`, generated from
+  `pod_release::index::Index` by a test; its row `next` in `schemas/CHANGES.md`): the project, the
+  tag, the date, the commit, the signature (`SHA256SUMS`, its bundle, the identity, the issuer),
+  each file with its SHA-256, its size and its target, the SBOM and the acceptance.
+- The writer: `scripts/release-index.py` (call C793), with its self-test in `ci.yml` and
+  `scripts/agent/check.sh`. `release.yml` writes `release-index.json` before `SHA256SUMS`, which
+  holds its line, from the next tag.
+- The verifier: `sigstore::verify_with` (the bundle, with the caller's `Identity` of the workflow URI
+  and the OIDC issuer, Rekor's promise and the entry's body, the chain to Fulcio at the time of the
+  entry), `verify_release`, `Verified::check`, `Verified::index`, `verify::verify_dir`.
+- Proof: `cargo test -p pod-release --all-features`: 53 passed. The published `SHA256SUMS`,
+  `SHA256SUMS.sigstore.json` and `podlab-install.sh` of podcrates v0.76.0 verify
+  (`crates/pod-release/tests/fixtures/v0.76.0/`); one changed byte of `podlab-install.sh`, of
+  `SHA256SUMS` and of each checked value of the bundle fails, and so does another tag, repository,
+  workflow or issuer. The plants `release-no-signature` and `release-any-identity` are caught.
+- Remains, each in an entry of its own: the bundle of Rekor v2 (T-964), the verifier as a command
+  for a CI that is not Rust and for an installer (T-965), the trials of the consumers and the
+  hand-off (T-966), minisign (T-967), the floor of rollback in the index (T-830), the acceptance
+  file (T-105).
 
 # T-106: `pod-testkit`: the stand-ins of the edge, the relay and the WARP API as binaries for a consumer's CI (GitHub #35, #36)
 

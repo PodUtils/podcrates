@@ -101,7 +101,7 @@ pub fn verify(bundle: &[u8], artifact: &[u8], who: &Identity) -> Result<Logged, 
     verify_with(bundle, artifact, who, &Roots::sigstore())
 }
 
-/// [`verify`] by `roots`.
+/// [`verify()`] by `roots`.
 pub fn verify_with(bundle: &[u8], artifact: &[u8], who: &Identity, roots: &Roots) -> Result<Logged, String> {
     let b: serde_json::Value = serde_json::from_slice(bundle).map_err(|e| format!("the bundle is not JSON: {e}"))?;
     if !text(&b, &["mediaType"])?.starts_with("application/vnd.dev.sigstore.bundle") {
