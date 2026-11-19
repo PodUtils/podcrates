@@ -95,7 +95,8 @@ if update::plan(&newest, &current, false, false, false) == Plan::Install {
 CI writes the index before `SHA256SUMS`, and `SHA256SUMS` holds its line:
 the one signature of `SHA256SUMS` signs the index too. A verifier checks
 the bundle first, then the index against `SHA256SUMS`
-(`Verified::index`). A reader takes a field that it does not know.
+(`Verified::index`). A reader refuses a field that it does not know
+(`additionalProperties: false`, as each schema of `schemas/`).
 
 ```sh
 python3 -I scripts/release-index.py --project OWNER/REPO --version "v$V" \

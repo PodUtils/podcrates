@@ -114,12 +114,20 @@ fn each_broken_index_is_refused() {
     assert!(read(&doc.to_string()).is_err(), "a name two times");
 }
 
-/// A field that a later index adds is read, and the schema takes it.
+/// A field that the form does not know, at each level: refused by
+/// [`read`] and by the schema.
 #[test]
-fn a_field_of_a_later_index_is_taken() {
+fn an_unknown_field_is_refused() {
     let (schemas, at) = validator();
-    let mut doc: Value = serde_json::from_str(WRITTEN).unwrap();
-    doc["provenance"] = "https://example.org/provenance".into();
-    assert!(read(&doc.to_string()).is_ok());
-    assert!(schemas.validate(&doc, at).is_ok());
+    let base: Value = serde_json::from_str(WRITTEN).unwrap();
+    for path in [&[][..], &["signature"][..], &["files", "0"][..]] {
+        let mut doc = base.clone();
+        let mut here = &mut doc;
+        for key in path {
+            here = if let Ok(i) = key.parse::<usize>() { &mut here[i] } else { &mut here[*key] };
+        }
+        here["provenance"] = "https://example.org/provenance".into();
+        assert!(read(&doc.to_string()).is_err(), "{path:?}: read takes it");
+        assert!(schemas.validate(&doc, at).is_err(), "{path:?}: the schema takes it");
+    }
 }

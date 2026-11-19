@@ -1,6 +1,7 @@
 {
   "$defs": {
     "File": {
+      "additionalProperties": false,
       "description": "One file of the release.",
       "properties": {
         "name": {
@@ -34,6 +35,7 @@
       "type": "object"
     },
     "Signature": {
+      "additionalProperties": false,
       "description": "The keyless signature of `SHA256SUMS`.",
       "properties": {
         "bundle": {
@@ -64,6 +66,7 @@
   },
   "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/release-index.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
   "description": "The release index of one release.",
   "properties": {
     "acceptance": {

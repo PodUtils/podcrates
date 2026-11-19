@@ -6,8 +6,9 @@
 //! of `SHA256SUMS` signs the index too. Its schema is
 //! `schemas/release-index.v1.schema.json`, generated from these types.
 //!
-//! A reader takes a field that it does not know: an optional field added
-//! later keeps the schema id (`schemas/CHANGES.md`, rule 3).
+//! A reader refuses a field that it does not know, as each schema of
+//! `schemas/` does (`additionalProperties: false`, the rule of T-177): a
+//! reader of an index must read each field that it checks.
 
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +22,7 @@ pub const FILE: &str = "release-index.json";
 
 /// The release index of one release.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 pub struct Index {
     /// The version of this form: 1.
@@ -58,6 +60,7 @@ pub struct Index {
 
 /// The keyless signature of `SHA256SUMS`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 pub struct Signature {
     /// The file of the SHA-256 sums: `SHA256SUMS`.
@@ -73,6 +76,7 @@ pub struct Signature {
 
 /// One file of the release.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
 pub struct File {
     /// The name of the file: no `/`, no `\`, not `.` or `..`.
