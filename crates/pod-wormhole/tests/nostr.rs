@@ -279,7 +279,8 @@ fn each_public_relay_takes_the_largest_event() {
 /// A relay that accepts the events of one end and passes none to the
 /// other (T-963): the quiet end names what it sent and what came, so a
 /// drop is told from an other end that sent nothing. The giver sent its
-/// part of the key and its versions, and heard those of the taker.
+/// part of the key and its versions, and heard those of the taker, the
+/// part of the key once or more.
 #[tokio::test]
 async fn an_end_that_hears_nothing_names_what_the_relay_passed() {
     need_loopback!();
@@ -298,6 +299,13 @@ async fn an_end_that_hears_nothing_names_what_the_relay_passed() {
     let at = relay.url.shown();
     assert!(why.starts_with("the other end said nothing for 0 s (at the Nostr relay "), "{why}");
     assert!(why.contains(&format!("{at} this end sent 2 events and the relay accepted 2;")), "{why}");
-    assert!(why.contains("it passed 2 events of the other key, 2 of them messages of the other end)"), "{why}");
+    // The taker sends its first message again until the giver answers, so
+    // the giver can get the taker's part of the key more than once; each
+    // event passed is still a message of the other end.
+    let tail = why.split_once("; it passed ").map(|(_, t)| t).unwrap_or_default();
+    let (passed, rest) = tail.split_once(" events of the other key, ").expect("the passed events");
+    let taken = rest.strip_suffix(" of them messages of the other end)").expect("the messages");
+    let (passed, taken): (u32, u32) = (passed.parse().unwrap(), taken.parse().unwrap());
+    assert!(passed >= 2 && taken == passed, "{why}");
     taker.close(Mood::Happy).await;
 }
