@@ -51,11 +51,12 @@ is done. Git and the record keep finished work.
    is offline until the CI of podrunner and githome is complete; it reads
    `docs/research/fleet/asks.md` and the block of #223 at its next start.
    githome's asks G-30 to G-35 are T-921 to T-923, T-099, T-100 and T-104.
-7. The hand-off of `v0.77.0` is COORD-145 (#240): `pod-release` (T-104,
-   T-880), T-961, T-960 and T-963. Write each take in its "Takes" list,
-   and close it when each consumer took the tag. The next tag carries T-969
-   with `pod_manual::pager::Interrupts` public (call C803, PodUtils/podssh#312)
-   and T-968 (the fuzz run in two jobs).
+7. The hand-off of `v0.78.1` is COORD-146 (#241): T-100 (the TLS end of
+   `pod-broker`), T-965 (the command `pod-release`) and T-971. COORD-145
+   (#240, `v0.77.0`) waits for podvm's take; podrunner, podnet and podssh
+   took it. The tag `v0.78.0` has no release (T-974, call C818). Write each
+   take in the "Takes" list of its issue, and close it when each consumer
+   took its tag or a later one.
    COORD-142 (#236) relays the ruling
    "ghcr.io" (call C789): podcrates and podvm publish in its form.
 8. T-767 (PodUtils/podssh#283, partial) and T-939 (done as a guard, call
