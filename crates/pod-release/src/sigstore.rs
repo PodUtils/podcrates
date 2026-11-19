@@ -1,11 +1,14 @@
 //! The keyless signature of a release's `SHA256SUMS`, as `cosign sign-blob
 //! --bundle` makes it in a release workflow: a Sigstore bundle whose leaf
-//! certificate Fulcio gave the workflow at the tag, and whose signature
-//! Rekor logged. The check needs no network and no C: the digest, the
-//! leaf's signature of the file, the leaf's chain to Fulcio's root at the
-//! time that Rekor gives, the leaf's identity (the caller's
-//! [`Identity`]), Rekor's promise of the entry (its signed entry
-//! timestamp), and the entry's body against the file, the signature and
+//! certificate Fulcio gave the workflow at the tag, whose signature a
+//! transparency log (Rekor v1 or v2) logged, and whose signature a
+//! timestamp authority can have timed. The check needs no network and no
+//! C: the digest, the leaf's signature of the file, an entry of a log that
+//! the roots name with each proof that it holds (Rekor's promise, the
+//! inclusion proof with its signed checkpoint), each RFC 3161 timestamp by
+//! the timestamp authority of the roots, the leaf's chain to Fulcio's root
+//! at each time that the bundle proves, the leaf's identity (the caller's
+//! [`Identity`]), and the entry's body against the file, the signature and
 //! the leaf. The roots of Sigstore's public instance are compiled in
 //! ([`Roots::sigstore`]); a caller can give others.
 //!
@@ -13,7 +16,9 @@
 //! made the same checks with no check of Rekor.
 
 mod chain;
+mod proof;
 mod rekor;
+mod stamp;
 
 use base64::Engine as _;
 use x509_parser::prelude::*;
@@ -46,33 +51,71 @@ impl Identity {
     }
 }
 
+// Sigstore's public trusted root (sigstore/root-signing,
+// `targets/trusted_root.json`; the crate's SOURCES names its commit, and a
+// test compares these files with it).
 const FULCIO: &str = include_str!("sigstore/fulcio.pem");
 const REKOR: &str = include_str!("sigstore/rekor.pem");
+const REKOR_2025: &str = include_str!("sigstore/rekor-log2025-1.pem");
+const TSA: &str = include_str!("sigstore/tsa.pem");
+
+/// A transparency log: its name (the host of its URL, which its
+/// checkpoints name) and its key (a SubjectPublicKeyInfo in DER).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Log {
+    pub name: String,
+    pub key: Vec<u8>,
+}
+
+impl Log {
+    /// The id of the log, as a bundle names it: for an Ed25519 key (Rekor
+    /// v2), the key id of a signed note: SHA-256 of the name, a newline,
+    /// the byte 1 and the key; for another key (Rekor v1), SHA-256 of the
+    /// key's DER.
+    pub fn id(&self) -> Result<[u8; 32], String> {
+        let (_, key) =
+            SubjectPublicKeyInfo::from_der(&self.key).map_err(|e| format!("the key of the log {}: {e}", self.name))?;
+        if key.algorithm.algorithm.to_id_string() != chain::ED25519 {
+            return Ok(crate::sha256(&self.key));
+        }
+        let mut named = format!("{}\n\u{1}", self.name).into_bytes();
+        named.extend_from_slice(&key.subject_public_key.data);
+        Ok(crate::sha256(&named))
+    }
+}
 
 /// What a bundle is checked against: Fulcio's chain, from the leaf's issuer
-/// to its root, each in DER, and Rekor's key (a SubjectPublicKeyInfo in
-/// DER).
+/// to its root, each in DER; the logs; and the chain of the timestamp
+/// authority, from its leaf to its root, each in DER.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Roots {
     pub fulcio: Vec<Vec<u8>>,
-    pub rekor: Vec<u8>,
+    pub logs: Vec<Log>,
+    pub tsa: Vec<Vec<u8>>,
 }
 
 impl Roots {
     /// The roots of Sigstore's public instance, compiled in, from its
-    /// trusted root (sigstore/root-signing).
+    /// trusted root: Fulcio, Rekor v1 (`rekor.sigstore.dev`), the shard
+    /// `log2025-1` of Rekor v2, and the timestamp authority.
     pub fn sigstore() -> Roots {
-        Roots::from_pem(FULCIO, REKOR)
+        Roots::from_pem(FULCIO, &[("rekor.sigstore.dev", REKOR), ("log2025-1.rekor.sigstore.dev", REKOR_2025)], TSA)
     }
 
-    /// The chain's certificates and Rekor's key, from PEM text.
-    pub fn from_pem(fulcio: &str, rekor: &str) -> Roots {
-        Roots { fulcio: pem_ders(fulcio), rekor: pem_ders(rekor).into_iter().next().unwrap_or_default() }
+    /// The chain's certificates, each log's name and key, and the chain of
+    /// the timestamp authority, from PEM text.
+    pub fn from_pem(fulcio: &str, logs: &[(&str, &str)], tsa: &str) -> Roots {
+        let logs = logs
+            .iter()
+            .filter_map(|(name, pem)| pem_ders(pem).into_iter().next().map(|key| Log { name: name.to_string(), key }))
+            .collect();
+        Roots { fulcio: pem_ders(fulcio), logs, tsa: pem_ders(tsa) }
     }
 }
 
-/// What Rekor said of a bundle that verified: when it logged the entry (in
-/// seconds since the epoch), and its index in the log.
+/// What a bundle that verified proves: the time of the signature (in
+/// seconds since the epoch: Rekor's promise, or else the first timestamp),
+/// and the index of the entry in its log.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Logged {
     pub time: i64,
@@ -96,12 +139,33 @@ fn pem_ders(pem: &str) -> Vec<Vec<u8>> {
     x509_parser::pem::Pem::iter_from_buffer(pem.as_bytes()).filter_map(Result::ok).map(|p| p.contents).collect()
 }
 
+/// The certificates of `ders`.
+fn certificates<'a>(ders: &'a [Vec<u8>], what: &str) -> Result<Vec<X509Certificate<'a>>, String> {
+    ders.iter()
+        .map(|der| X509Certificate::from_der(der).map(|(_, c)| c))
+        .collect::<Result<_, _>>()
+        .map_err(|e| format!("{what}: {e}"))
+}
+
+/// The time of each RFC 3161 timestamp of the bundle `b` of the signature
+/// `signature`; each must verify by the timestamp authority of `roots`.
+fn timestamps(b: &serde_json::Value, signature: &[u8], roots: &Roots) -> Result<Vec<i64>, String> {
+    let Some(list) = b["verificationMaterial"]["timestampVerificationData"]["rfc3161Timestamps"].as_array() else {
+        return Ok(Vec::new());
+    };
+    let tsa = certificates(&roots.tsa, "the chain of the timestamp authority")?;
+    list.iter().map(|t| stamp::check(&b64(text(t, &["signedTimestamp"])?, "a timestamp")?, signature, &tsa)).collect()
+}
+
 /// Whether `bundle` signs `artifact`, as `who`, by Sigstore's roots.
 pub fn verify(bundle: &[u8], artifact: &[u8], who: &Identity) -> Result<Logged, String> {
     verify_with(bundle, artifact, who, &Roots::sigstore())
 }
 
-/// [`verify()`] by `roots`.
+/// [`verify()`] by `roots`. The bundle needs an entry of a log of `roots`
+/// with Rekor's promise or an inclusion proof, and a time: the promise's,
+/// or an RFC 3161 timestamp. Each proof and each timestamp that the bundle
+/// holds must verify (call C820).
 pub fn verify_with(bundle: &[u8], artifact: &[u8], who: &Identity, roots: &Roots) -> Result<Logged, String> {
     let b: serde_json::Value = serde_json::from_slice(bundle).map_err(|e| format!("the bundle is not JSON: {e}"))?;
     if !text(&b, &["mediaType"])?.starts_with("application/vnd.dev.sigstore.bundle") {
@@ -122,18 +186,12 @@ pub fn verify_with(bundle: &[u8], artifact: &[u8], who: &Identity, roots: &Roots
         .ok_or("the bundle has no leaf certificate")?;
     let leaf_der = b64(leaf_b64, "the leaf")?;
     let (_, leaf) = X509Certificate::from_der(&leaf_der).map_err(|e| format!("the leaf: {e}"))?;
-    let algorithm = if chain::curve(leaf.public_key()).as_deref() == Some(chain::P384) {
-        chain::ECDSA_SHA384
-    } else {
-        chain::ECDSA_SHA256
-    };
-    chain::ecdsa(leaf.public_key(), algorithm, artifact, &signature)
-        .map_err(|why| format!("the file's signature: {why}"))?;
+    chain::by_key(leaf.public_key(), artifact, &signature).map_err(|why| format!("the file's signature: {why}"))?;
     let entries = material["tlogEntries"].as_array().ok_or("the bundle has no entry of Rekor")?;
     let mut refused = Vec::new();
     let mut found = None;
     for entry in entries {
-        match rekor::promise(entry, &roots.rekor) {
+        match rekor::entry(entry, &roots.logs) {
             Ok(ok) => {
                 found = Some(ok);
                 break;
@@ -141,37 +199,28 @@ pub fn verify_with(bundle: &[u8], artifact: &[u8], who: &Identity, roots: &Roots
             Err(why) => refused.push(why),
         }
     }
-    let Some((logged, body)) = found else {
+    let Some(entry) = found else {
         return Err(if refused.is_empty() { "the bundle has no entry of Rekor".into() } else { refused.join("; ") });
     };
-    let chain: Vec<X509Certificate<'_>> = roots
-        .fulcio
-        .iter()
-        .map(|der| X509Certificate::from_der(der).map(|(_, c)| c))
-        .collect::<Result<_, _>>()
-        .map_err(|e| format!("Fulcio's chain: {e}"))?;
+    let times: Vec<i64> = entry.time.into_iter().chain(timestamps(&b, &signature, roots)?).collect();
+    let Some(&time) = times.first() else {
+        return Err("the bundle proves no time: it has no promise of Rekor and no timestamp".into());
+    };
+    let chain = certificates(&roots.fulcio, "Fulcio's chain")?;
     let Some(root) = chain.last() else { return Err("no chain of Fulcio to check the leaf by".into()) };
-    // Each certificate by the next, the leaf first; the root by itself.
-    let mut cert = &leaf;
-    for issuer in &chain {
-        chain::signed_by(cert, issuer, logged.time)?;
-        cert = issuer;
+    // Each certificate by the next, the leaf first; the root by itself; at
+    // each time that the bundle proves.
+    for at in times {
+        let mut cert = &leaf;
+        for issuer in &chain {
+            chain::signed_by(cert, issuer, at)?;
+            cert = issuer;
+        }
+        chain::signed_by(root, root, at)?;
     }
-    chain::signed_by(root, root, logged.time)?;
     chain::identity(&leaf, who)?;
-    // The entry logged this file, this signature and this leaf.
-    let spec = &body["spec"];
-    let logged_leaf = pem_ders(&String::from_utf8_lossy(&b64(
-        text(spec, &["signature", "publicKey", "content"])?,
-        "the logged key",
-    )?));
-    if text(spec, &["data", "hash", "value"])? != crate::hex(&digest)
-        || b64(text(spec, &["signature", "content"])?, "the logged signature")? != signature
-        || logged_leaf.first() != Some(&leaf_der)
-    {
-        return Err("Rekor's entry is of another file, signature or leaf".into());
-    }
-    Ok(logged)
+    rekor::names(&entry.body, &digest, &signature, &leaf_der)?;
+    Ok(Logged { time, index: entry.index })
 }
 
 #[cfg(test)]

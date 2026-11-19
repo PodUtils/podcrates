@@ -4,6 +4,9 @@
 
 use super::*;
 
+mod parts;
+mod rekor2;
+
 const SUMS: &[u8] = include_bytes!("../../tests/fixtures/v0.76.0/SHA256SUMS");
 const BUNDLE: &str = include_str!("../../tests/fixtures/v0.76.0/SHA256SUMS.sigstore.json");
 
@@ -11,14 +14,15 @@ fn who() -> Identity {
     Identity::github("PodUtils/podcrates", "release.yml", "v0.76.0")
 }
 
+/// The value at `path` of `v`; a number in `path` is an index of an array.
+fn value_at<'a>(v: &'a mut serde_json::Value, path: &[&str]) -> &'a mut serde_json::Value {
+    path.iter().fold(v, |at, key| if let Ok(i) = key.parse::<usize>() { &mut at[i] } else { &mut at[*key] })
+}
+
 /// `BUNDLE` with the string at `path` replaced by `with`.
 fn bundle_with(path: &[&str], with: &str) -> Vec<u8> {
     let mut b: serde_json::Value = serde_json::from_str(BUNDLE).unwrap();
-    let mut at = &mut b;
-    for key in path {
-        at = if let Ok(i) = key.parse::<usize>() { &mut at[i] } else { &mut at[*key] };
-    }
-    *at = serde_json::Value::String(with.into());
+    *value_at(&mut b, path) = serde_json::Value::String(with.into());
     serde_json::to_vec(&b).unwrap()
 }
 
@@ -30,12 +34,8 @@ fn flipped(text: &str, at: usize) -> String {
 }
 
 fn field(path: &[&str]) -> String {
-    let b: serde_json::Value = serde_json::from_str(BUNDLE).unwrap();
-    let mut at = &b;
-    for key in path {
-        at = if let Ok(i) = key.parse::<usize>() { &at[i] } else { &at[*key] };
-    }
-    at.as_str().unwrap().to_string()
+    let mut b: serde_json::Value = serde_json::from_str(BUNDLE).unwrap();
+    value_at(&mut b, path).as_str().unwrap().to_string()
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn a_leaf_that_fulcio_did_not_sign_is_refused() {
 #[test]
 fn other_roots_refuse_the_bundle() {
     let roots = Roots::sigstore();
-    let no_rekor = Roots { rekor: Vec::new(), ..roots.clone() };
+    let no_rekor = Roots { logs: Vec::new(), ..roots.clone() };
     assert!(verify_with(BUNDLE.as_bytes(), SUMS, &who(), &no_rekor).is_err());
     let no_chain = Roots { fulcio: Vec::new(), ..roots.clone() };
     let why = verify_with(BUNDLE.as_bytes(), SUMS, &who(), &no_chain).unwrap_err();

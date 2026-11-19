@@ -6166,10 +6166,12 @@ assignment) fails the test.
 
 # T-964: `pod-release`: the bundle of Rekor v2: the inclusion proof with its signed checkpoint, and the RFC 3161 timestamp
 
-**Source:** the work of T-104 (2026-11-19): a finding in the verifier.
+**Source:** the work of T-104 (2026-11-19): a finding in the verifier. P1 from 2026-11-19: podrunner's
+T-562 (PodUtils/podrunner#320) and the self-update of podssh (which took `pod-release` at `c9772a3`)
+use the verifier.
 **Category:** feature
 **Milestone:** M8
-**Priority:** P2
+**Priority:** P1
 **Effort:** M
 **Status:** open
 

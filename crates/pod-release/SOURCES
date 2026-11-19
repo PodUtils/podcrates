@@ -3,6 +3,23 @@
 # commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
 # compares each with the default branch of its repository.
 
+# Sigstore's public trusted root (T-964): the source of the compiled roots of
+# `Roots::sigstore()` (`fulcio.pem`, `rekor.pem`, the key of the shard
+# log2025-1 of Rekor v2 and the chain of the timestamp authority), and a
+# fixture that a test compares with them. A change of it (a new shard of
+# Rekor v2, a new key) is a change of the compiled roots. Apache-2.0.
+repo sigstore/root-signing c9bda74ad2221f938f7d2e0295ca3aad2da710a8
+file effb0a19e6a0b3f69b3f0a2c72b5c2a02a0ddeea targets/trusted_root.json -> crates/pod-release/tests/fixtures/sigstore/trusted_root.json crates/pod-release/src/sigstore/fulcio.pem crates/pod-release/src/sigstore/rekor.pem crates/pod-release/src/sigstore/rekor-log2025-1.pem crates/pod-release/src/sigstore/tsa.pem
+
+# sigstore-conformance (T-964): two bundles of Rekor v2 with the staging
+# trusted root of their test, and the signed file. Fixtures only.
+# Apache-2.0 (its README; the text is tests/fixtures/sigstore/LICENSE).
+repo sigstore/sigstore-conformance e275ffb5aab734681fe82b919cc4a9a1dd27fa2c
+file 52c1fa7a106f88642e4e3cdc0c96bc0d4514c2cf test/assets/a.txt -> crates/pod-release/tests/fixtures/sigstore/rekor2/a.txt
+file b58393ba057399685ed6ec7653032a3614ba2562 test/assets/bundle-verify/rekor2-happy-path/bundle.sigstore.json -> crates/pod-release/tests/fixtures/sigstore/rekor2/bundle.sigstore.json
+file d565b63e903591cdd586ad74f04bf5fd72d5fb3a test/assets/bundle-verify/rekor2-happy-path/trusted_root.json -> crates/pod-release/tests/fixtures/sigstore/rekor2/trusted_root.json
+file 90a93f967edffc60e74175e6d56b8834215f23ff test/assets/bundle-verify/rekor2-checkpoint-origin-not-first/bundle.sigstore.json -> crates/pod-release/tests/fixtures/sigstore/rekor2/origin-not-first.sigstore.json
+
 # podssh: the base of the verifier and of the update (T-104, T-880). The
 # command line of `podssh update` (its flags, its lines, its exit codes, the
 # trust of its TLS, the mark of a detached node) stays in podssh.
