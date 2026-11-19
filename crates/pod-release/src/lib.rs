@@ -20,6 +20,9 @@
 //!   the old one stays as `NAME.prev`, and a rollback puts it back.
 //! * `fetch` and `update` (feature `fetch`): the files of a release over
 //!   HTTPS through the caller's client, and the steps of an update.
+//! * `cli` (feature `cli`): the exit codes and the manual of the binary
+//!   `pod-release`, the verifier of a release directory for a CI and an
+//!   installer.
 //!
 //! The crate prints nothing and reads no environment variable: the
 //! repository, the identity, the roots, the client and the program name
@@ -34,6 +37,8 @@ pub mod trial;
 pub mod verify;
 pub mod version;
 
+#[cfg(feature = "cli")]
+pub mod cli;
 #[cfg(feature = "fetch")]
 pub mod fetch;
 #[cfg(feature = "fetch")]

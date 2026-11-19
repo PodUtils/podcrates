@@ -178,6 +178,30 @@ impl Index {
         Ok(())
     }
 
+    /// The index names the signature of `who`: `SHA256SUMS`, its bundle,
+    /// the identity and the issuer. For the identity of a workflow of
+    /// GitHub, the project and the version are its repository and its tag.
+    pub fn signed_as(&self, who: &crate::Identity) -> Result<(), String> {
+        let s = &self.signature;
+        if s.sums != crate::verify::SUMS || s.bundle != crate::verify::BUNDLE {
+            return Err(format!("the release index names the signature {} and {}", s.sums, s.bundle));
+        }
+        if s.identity != who.uri || s.issuer != who.issuer {
+            return Err(format!("the release index names the signer {} of {}, not {}", s.identity, s.issuer, who.uri));
+        }
+        if let Some(rest) = who.uri.strip_prefix("https://github.com/") {
+            let repo = rest.split("/.github/workflows/").next().unwrap_or_default();
+            let tag = rest.rsplit_once("@refs/tags/").map(|(_, tag)| tag).unwrap_or_default();
+            if repo != self.project || tag != self.version {
+                return Err(format!(
+                    "the release index is of {} {}, and the signer is the workflow of {repo} at {tag}",
+                    self.project, self.version
+                ));
+            }
+        }
+        Ok(())
+    }
+
     /// The text of the index: JSON with two spaces, and a line end.
     pub fn to_text(&self) -> String {
         serde_json::to_string_pretty(self).unwrap_or_default() + "\n"

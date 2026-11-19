@@ -9,6 +9,10 @@ signature and of its files, and the self-update of a running binary.
 * T-880 (the ruling "Shared code"): the update of a running binary from
   podnet (`src/update.rs`, `src/update/`) and podssh
   (`crates/podssh-cli/src/update/`), from the better of the two copies.
+* T-965 (githome's G-34, A-X-24, PodUtils/podrunner@T-562): the verifier as the
+  static binary `pod-release` (feature `cli`), an asset of each release of
+  podcrates, for a CI with no Rust and for an installer (calls C804 to
+  C807).
 
 ## Use
 
@@ -20,6 +24,58 @@ let who = Identity::github("PodUtils/podnet", "release.yml", "v0.80.0");
 let checked = verify_dir(dir, &who, &Roots::sigstore())?;
 // checked.files: each file of SHA256SUMS in dir, checked;
 // checked.missing: each one that is not there; checked.index: the index.
+```
+
+## The command line
+
+`pod-release` is a static musl binary of each release of podcrates:
+`pod-release-x86_64-unknown-linux-musl` and
+`pod-release-aarch64-unknown-linux-musl`, in its `SHA256SUMS`, and the
+image `ghcr.io/podutils/pod-release:TAG`. It reads files only: the caller
+downloads them with its own tool. Its help and its manual come from
+`pod-manual` (`pod-release man --no-pager`, `man/pod-release.1`).
+
+```sh
+# The release: the bundle by the signer, each file that DIR holds, the index.
+pod-release verify --repo OWNER/REPO --tag TAG [--workflow release.yml] DIR
+pod-release verify --identity URI [--issuer URL] DIR
+# Each file of SHA256SUMS must be in DIR.
+pod-release verify --repo OWNER/REPO --tag TAG --all DIR
+# These files only (an installer), and the index when DIR holds it.
+pod-release verify --repo OWNER/REPO --tag TAG DIR FILE...
+# A dry run before the signature: each file and the index, no bundle.
+pod-release sums [--all] DIR [FILE...]
+# The files of an index: NAME TARGET SIZE SHA256, one line for each.
+pod-release index [--target TRIPLE] release-index.json
+```
+
+`verify` checks in this order and stops at the first failure: the bundle
+`SHA256SUMS.sigstore.json` of `SHA256SUMS` by the signer (Sigstore's public
+roots, compiled in), the SHA-256 of each file, then `release-index.json`
+against `SHA256SUMS`, its schema and the signer (`Index::signed_as`). An
+index in DIR that `SHA256SUMS` does not name is refused. On success it
+writes `ok NAME` for each file, `missing NAME` for each file of
+`SHA256SUMS` that DIR does not hold, and a last line `verified: ...`.
+
+| Exit | Class of `pod_core` | When |
+| --- | --- | --- |
+| 0 | | each check holds |
+| 64 | `Usage` | a usage error of the command line |
+| 66 | `NotFound` | `SHA256SUMS`, its bundle, a named file, or a file with `--all`, is not in DIR |
+| 69 | `Unavailable` | a file is there and cannot be read |
+| 77 | `Refused` | the signature, the signer, a SHA-256 or the index |
+
+A failure writes one line on the error output: `pod-release: CLASS: WHY`.
+
+The release dry run of a product (PodUtils/podrunner@T-562):
+
+```sh
+curl -fsSLO "https://github.com/PodUtils/podcrates/releases/download/v$V/pod-release-x86_64-unknown-linux-musl"
+echo "$PINNED_SHA256  pod-release-x86_64-unknown-linux-musl" | sha256sum -c
+chmod +x pod-release-x86_64-unknown-linux-musl
+./pod-release-x86_64-unknown-linux-musl sums --all dist
+# On the tag, after cosign sign-blob:
+./pod-release-x86_64-unknown-linux-musl verify --repo "$GITHUB_REPOSITORY" --tag "$GITHUB_REF_NAME" --all dist
 ```
 
 An update (feature `fetch`), step by step:
@@ -56,9 +112,14 @@ if update::plan(&newest, &current, false, false, false) == Plan::Install {
   names it, with 64 hex digits.
 - `verify_release(sums, bundle, identity, roots) -> Verified`;
   `Verified::check(name, bytes)`, `Verified::index(text)`;
-  `verify::verify_dir(dir, identity, roots) -> Checked`.
+  `verify::verify_dir(dir, identity, roots) -> Checked`;
+  `verify::verify_files(dir, identity, roots, Which) -> Checked` (`Which`:
+  `Present`, `All`, `Named(names)`); `verify::check_files(dir, &sums,
+  Which) -> Found` (no signature: the check of a dry run);
+  `verify::read_file(path)` (a missing file is `Error::NotFound`).
 - `index::Index`, `index::read(text)`, `Index::check()`,
-  `Index::agrees(&sums)`, `Index::to_text()`; `index::schema::schema()`
+  `Index::agrees(&sums)`, `Index::signed_as(&identity)` (the signature,
+  the signer, and for GitHub the project and the tag), `Index::to_text()`; `index::schema::schema()`
   (feature `schema`).
 - `version::Version` (semver order), `version::valid_tag`,
   `version::tags_of_api`, `version::tags_of_atom`, `version::newest`,
@@ -74,6 +135,8 @@ if update::plan(&newest, &current, false, false, false) == Plan::Install {
   a 404 is `Error::NotFound`; no message holds the query of a URL.
 - `update::Source`, `update::newest`, `update::plan`, `update::signed`,
   `update::binary`, `update::install` (feature `fetch`).
+- `cli` (feature `cli`): the exit codes `EXIT_*`, `cli::code(&Error)`,
+  `cli::line(&Error)`, `cli::facts()`, `cli::manual(clap::Command)`.
 
 ## The release index
 
@@ -111,6 +174,7 @@ python3 -I scripts/release-index.py --project OWNER/REPO --version "v$V" \
 | (none) | the verifier, the index, the versions, the trial, the replace and the kept binary; no tokio |
 | `fetch` | `fetch` and `update`: the files of a release through `pod_proxy::Client` |
 | `schema` | `index::schema`: the JSON Schema of the index (schemars); no binary turns it on |
+| `cli` | the binary `pod-release`: clap, and its help and manual from `pod-manual` |
 
 ## Settings
 
@@ -123,8 +187,10 @@ gives the running one).
 
 ## Failures
 
-`Error`: `Unavailable`, `NotFound`, `Refused` (a signature, an identity, a
-SHA-256, a trial run), `CantWrite` (the binary is as it was), `Config`.
+`Error`: `Unavailable`, `NotFound` (also a file that a check of a
+directory needs and does not find), `Refused` (a signature, an identity, a
+SHA-256, an index, a trial run), `CantWrite` (the binary is as it was),
+`Config`.
 `Error::class()` gives the `pod_core::Class`; podssh maps `CantWrite` to
 `EX_CANTCREAT` by the variant.
 
@@ -174,7 +240,19 @@ python3 -I scripts/release-index.py --self-test
   did not sign, other roots: each refused.
 - `verify::tests`: the directory of the release verifies; one changed
   byte of `podlab-install.sh`, of `SHA256SUMS` or of the bundle, and each
-  other identity, fail.
+  other identity, fail. The index of v0.77.0
+  (`tests/fixtures/v0.77.0/`) verifies with its signer; another tag,
+  repository, issuer, version or bundle name fails `signed_as`.
+- `tests/cli.rs`: the binary as a process over the files of v0.76.0 and
+  v0.77.0: each release verifies; one changed byte of `podlab-install.sh`,
+  `SHA256SUMS`, the bundle and the index, and another tag, repository,
+  workflow or issuer, each give 77 and one line; a missing file with
+  `--all` or by name gives 66; an index that `SHA256SUMS` does not name,
+  and an index with a field that the schema does not know (`sums`), give
+  77; `index`, the usage errors (64), the help, the version and the manual.
+- `pod-release` (the binary's own tests): the checks of `pod-manual`: the
+  text rules, the parser, `man/pod-release.1` and `man/llms.txt`, the
+  variables, the exit codes and the rules of the flags.
 - `update::tests`: a stand-in of GitHub on the loopback serves the release
   (its asset through a redirect to a signed URL); a changed file or sums
   from the server, another workflow, a missing tag; the newest from the
@@ -185,7 +263,9 @@ python3 -I scripts/release-index.py --self-test
   script against the schema and `read`, and back to the same bytes.
 - The plant `release-no-signature` removes the check of the signature;
   `the_published_bundle_signs_the_published_sums` passes, and the tests of a
-  changed signature fail.
+  changed signature fail. The plant `release-index-unread` takes the index
+  by its line alone, and `release-named-file-missing` takes a named file
+  that is not there as missing: `tests/cli.rs` catches each.
 
 ## Sources
 

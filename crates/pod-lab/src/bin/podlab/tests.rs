@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use pod_manual::check::{ParserFlag, assert_none, exit_codes, flags, generated, model, texts, variables};
+use pod_manual::check::{ParserFlag, assert_none, exit_codes, flags, generated, help, model, texts, variables};
 use pod_manual::{Manual, llms, roff, scan};
 
 fn manual() -> Manual {
@@ -84,19 +84,7 @@ fn each_exit_code_has_a_fact() {
 #[test]
 fn the_help_of_each_command_comes_from_the_model() {
     let m = manual();
-    for c in &m.commands {
-        let mut args = c.path.clone();
-        args.push("--help".into());
-        let help = pod_manual::help::request(&m, &args).expect("a help request");
-        assert_eq!(help.path, c.path);
-        let text = pod_manual::help::answer(&m, &help).unwrap();
-        for f in &c.flags {
-            assert!(text.contains(&f.term()), "{}: no {} in\n{text}", c.name(), f.term());
-        }
-        for t in c.groups.iter().map(|g| &g.title).chain(c.lead.iter().map(|e| &e.command)) {
-            assert!(text.contains(t.as_str()), "{}: no {t} in\n{text}", c.name());
-        }
-    }
+    assert_none(help(&m));
     let root = m.root().expect("the root");
     assert!(root.groups.len() >= 3 && root.lead.len() >= 3, "{root:?}");
 }

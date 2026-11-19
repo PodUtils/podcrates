@@ -24,6 +24,9 @@ consumer that wants it. It is never a dependency of a release binary.
   `PT_LOAD`, no `PT_INTERP`) that calls `exit_group(0)`, for a test of an
   exec with no tool of the host; `None` on another architecture.
   `elf::is_dynamic(bytes)`: a 64-bit ELF with `PT_INTERP`. Linux only.
+* `tamper::flip(path, at)`: one bit of the byte `at` of a file changed
+  (the last byte for an `at` past the end), for the test of a check that
+  must refuse one changed byte.
 
 A stand-in of this kit speaks bytes and HTTP only, and takes no type of a
 pod crate, so that each crate can dev-depend on the kit. The feature

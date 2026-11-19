@@ -1,0 +1,11 @@
+--- a/crates/pod-release/src/verify.rs
++++ b/crates/pod-release/src/verify.rs
+@@ -133,7 +133,7 @@
+         }
+         let bytes = read(dir, name)?;
+         if is_index {
+-            found.index = Some(index_of(sums, &bytes)?);
++            sums.check(name, &bytes).map_err(Error::Refused)?;
+         } else {
+             sums.check(name, &bytes).map_err(Error::Refused)?;
+         }

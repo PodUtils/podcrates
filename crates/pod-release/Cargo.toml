@@ -7,6 +7,14 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+# The command line `pod-release`: the verifier of a release directory for
+# the CI of a product and for an installer. It needs the feature `cli`, so
+# that a consumer of the library links no clap.
+[[bin]]
+name = "pod-release"
+path = "src/bin/pod-release.rs"
+required-features = ["cli"]
+
 [features]
 # The fetch of a release over HTTPS through the caller's `pod_proxy::Client`
 # (its way out and its trust), and the steps of an update. With no feature,
@@ -17,6 +25,8 @@ fetch = ["dep:pod-proxy", "dep:tokio", "pod-core/async"]
 # that write `schemas/release-index.v1.schema.json` and for the tests of a
 # consumer that validate an index; no binary turns it on.
 schema = ["dep:schemars"]
+# The binary `pod-release`: clap, and its help and manual from pod-manual.
+cli = ["dep:clap", "dep:pod-manual", "pod-manual/clap"]
 
 [dependencies]
 pod-core = { workspace = true }
@@ -35,6 +45,8 @@ rand = { workspace = true }
 pod-proxy = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["time"] }
 schemars = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
+pod-manual = { workspace = true, optional = true }
 
 [target.'cfg(unix)'.dependencies]
 # The owner of the new file after its trial, and ETXTBSY.
@@ -48,3 +60,9 @@ rustls = { workspace = true, features = ["ring"] }
 # The schema of the index, and a validator of JSON Schema 2020-12.
 schemars = { workspace = true }
 boon = { workspace = true }
+
+# The binary pod-release as a process: the real releases, each changed
+# byte, each exit code, its help and its manual.
+[[test]]
+name = "cli"
+required-features = ["cli"]

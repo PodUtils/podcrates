@@ -6183,7 +6183,7 @@ its release with the verifier of `pod-release` in its dry run).
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6212,6 +6212,48 @@ GitHub #223 for the interface first.
 cargo test -p pod-release --all-features
 sh scripts/agent/check.sh
 ```
+
+## Done
+
+2026-11-19, this commit. The binary `pod-release` of the crate (feature `cli`, calls C804 to C807):
+
+- `pod-release verify --repo OWNER/REPO --tag TAG [--workflow FILE] DIR [FILE...]`, or
+  `--identity URI [--issuer URL]`: the bundle `SHA256SUMS.sigstore.json` of `SHA256SUMS` by the signer
+  (Sigstore's public roots, compiled in), then each file of `SHA256SUMS` that `DIR` holds (with
+  `--all`: each file; with `FILE...`: these files), then `release-index.json` against `SHA256SUMS`, its
+  schema and the signer (`Index::signed_as`). `pod-release sums [--all] DIR [FILE...]`: the same with
+  no bundle, the check of a dry run. `pod-release index [--target TRIPLE] FILE`. `pod-release man`.
+  It reads files only. Exit 0, 64 (usage), 66 (a needed file is not there), 69 (a file cannot be
+  read), 77 (the signature, the signer, a SHA-256 or the index), the codes of the classes of
+  `pod_core`, with one line `pod-release: CLASS: WHY` on the error output.
+- Its help, its manual (`man/pod-release.1`, `man/llms.txt`) and its exit codes come from `pod-manual`;
+  its tests run the checks of `pod-manual` (the text rules, the parser, the generated files, the
+  variables, the exit codes, the rules of the flags, the examples, and the new shared `check::help`,
+  which the tests of `podlab` take too).
+- The library: `verify::verify_files` and `verify::check_files` with `Which` (`Present`, `All`,
+  `Named`), `verify::read_file`, `Index::signed_as`; an index that `SHA256SUMS` does not name is
+  refused; a missing file is `Error::NotFound`. `pod_testkit::tamper::flip` holds the one changed
+  bit of the tests.
+- Release: `release.yml` builds `pod-release-x86_64-unknown-linux-musl` and
+  `pod-release-aarch64-unknown-linux-musl` static (checked by `scripts/check-static.sh` and
+  `scripts/check-strings.py`), puts them in `SHA256SUMS` and the index, runs `pod-release sums --all
+  dist` in each run (a changed index gives 77), runs `pod-release verify --all` on the tag after the
+  signature (a changed file and another tag give 77), and pushes the image
+  `ghcr.io/podutils/pod-release:TAG` (call C789). `ci.yml` builds and checks it on each Linux target
+  with its strings and its man page; `scripts/agent/check.sh` checks it static on x86_64 (1,767,840
+  bytes).
+- Proof: `cargo test -p pod-release --all-features`: 55 + 8 + 13 passed. `tests/cli.rs` runs the
+  binary over the files of v0.76.0 and v0.77.0 (`tests/fixtures/v0.77.0/`: `SHA256SUMS`, its bundle,
+  the index, `podlab-install.sh`): each release verifies; one changed byte of `podlab-install.sh`,
+  of `SHA256SUMS`, of the bundle and of the index, and another tag, repository, workflow or issuer,
+  each give 77 and one line; a missing file with `--all` or by name gives 66; an index with a field
+  that the schema does not know gives 77. The plants `release-index-unread` and
+  `release-named-file-missing` are caught.
+- What PodUtils/podrunner@T-562 runs in its release dry run, with the asset of a tag of podcrates
+  from v0.78.0 pinned by its SHA-256:
+  `pod-release-x86_64-unknown-linux-musl sums --all dist`, and on its tag after `cosign sign-blob`:
+  `pod-release-x86_64-unknown-linux-musl verify --repo PodUtils/podrunner --tag "$GITHUB_REF_NAME"
+  --all dist`.
 
 # T-966: `pod-release`: the adoption trials of podnet and podssh, and the hand-off of the crate
 

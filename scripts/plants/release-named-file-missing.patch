@@ -1,0 +1,11 @@
+--- a/crates/pod-release/src/verify.rs
++++ b/crates/pod-release/src/verify.rs
+@@ -126,7 +126,7 @@
+         }
+         // A file that the caller asks for must be there; the others can be
+         // missing.
+-        let asked = which == Which::All || matches!(which, Which::Named(_)) && selects(name);
++        let asked = which == Which::All;
+         if !asked && !dir.join(name).is_file() {
+             found.missing.push(name.to_string());
+             continue;

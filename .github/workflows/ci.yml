@@ -9,10 +9,11 @@ name: ci
 #   of the fuzz targets.
 # * record: the tests of pod-todo, and `cargo todo check`.
 # * static: the probe of each crate (examples/static-probe) on each target
-#   of the consumers, and podlab of pod-lab, and pod-fake-github and
-#   pod-fake-githome of pod-testkit on each Linux target, checked by
-#   scripts/check-static.sh; the strings of each by scripts/check-strings.py,
-#   and the man page of podlab by scripts/check-man.sh.
+#   of the consumers, and podlab of pod-lab, pod-fake-github and
+#   pod-fake-githome of pod-testkit and pod-release of pod-release on each
+#   Linux target, checked by scripts/check-static.sh; the strings of each by
+#   scripts/check-strings.py, and the man pages of podlab and pod-release by
+#   scripts/check-man.sh.
 # * install: the installer core (scripts/install/test.sh) with the
 #   installer of podlab as a release stamps it, against a mirror on the
 #   loopback, under dash, busybox sh and bash --posix, and in the labs of
@@ -378,6 +379,9 @@ jobs:
           # The fake of githome's source of jobs that podrunner's CI pins.
           cargo zigbuild --locked --release --target ${{ matrix.target }} -p pod-testkit --features githome \
             --bin pod-fake-githome
+          # The verifier of a release that the CI of a product and an installer run.
+          SOURCE_DATE_EPOCH=$(git log -1 --format=%ct) \
+            cargo zigbuild --locked --release --target ${{ matrix.target }} -p pod-release --features cli --bin pod-release
       # The OpenSSL of pod-gsr builds from source: its Configure needs a
       # perl of Windows, not the perl of Git Bash.
       - name: A perl for OpenSSL
@@ -431,21 +435,30 @@ jobs:
           sh scripts/check-static.sh "$exe"
           python3 -I scripts/check-strings.py "$exe"
           echo "| ${{ matrix.target }} pod-fake-githome | $(wc -c < "$exe") bytes |" >> "$GITHUB_STEP_SUMMARY"
+      - name: pod-release is static
+        if: matrix.zig
+        run: |
+          set -eu
+          exe=target/${{ matrix.target }}/release/pod-release
+          sh scripts/check-static.sh "$exe"
+          python3 -I scripts/check-strings.py "$exe"
+          echo "| ${{ matrix.target }} pod-release | $(wc -c < "$exe") bytes |" >> "$GITHUB_STEP_SUMMARY"
       # The text rules over the strings of the release binary (pod-manual).
       - name: The strings of podlab
         if: matrix.zig
         run: python3 -I scripts/check-strings.py target/${{ matrix.target }}/release/podlab
-      # The manual of podlab: it prints with no pager, and groff and mandoc
-      # render its man page with no warning.
-      - name: The manual of podlab
+      # The manuals of podlab and pod-release: each prints with no pager, and
+      # groff and mandoc render its man page with no warning.
+      - name: The manuals of podlab and pod-release
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
           set -eu
           sh scripts/retry.sh sudo apt-get update
           sh scripts/retry.sh sudo apt-get install -y --no-install-recommends groff-base mandoc
-          exe=target/${{ matrix.target }}/release/podlab
-          "$exe" man --no-pager > /dev/null
-          sh scripts/check-man.sh "$exe"
+          for exe in target/${{ matrix.target }}/release/podlab target/${{ matrix.target }}/release/pod-release; do
+            "$exe" man --no-pager > /dev/null
+            sh scripts/check-man.sh "$exe"
+          done
 
   install:
     runs-on: ubuntu-24.04

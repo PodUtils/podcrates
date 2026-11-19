@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 804 entries: 145 open, 27 partial, 7 blocked, 625 done.
+`TODO/INDEX.md` holds 804 entries: 144 open, 27 partial, 7 blocked, 626 done.
 
 ## State
 
@@ -61,8 +61,7 @@ podrunner (COORD-134, #225): each new ask of podrunner.
 Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;
 cfb's A-X-18 waits for cfb's answer on #223, call C792),
-T-965 (the verifier as a command; #223 G-34, and PodUtils/podrunner@T-562 on
-PodUtils/podrunner#320), T-966 (the trials of `pod-release` in podnet and
+T-966 (the trials of `pod-release` in podnet and
 podssh, and its hand-off; podssh took it), T-971 (`update::plan` and a
 newer build of the same version), T-964 (the bundle of Rekor v2), T-100
 (G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then cfb's asks

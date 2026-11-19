@@ -7,6 +7,15 @@ fn the_sample_keeps_each_rule() {
     let m = manual();
     assert_none(texts(&m));
     assert_none(model(&m));
+    assert_none(help(&m));
+}
+
+/// A command that the help does not select is a finding of [`help`].
+#[test]
+fn a_command_with_no_help_is_found() {
+    let mut m = manual();
+    m.commands[1].path = vec!["--help".into()];
+    assert!(help(&m).iter().any(|f| f.what.starts_with("the help: ")), "{:?}", help(&m));
 }
 
 /// The control of [`texts`]: a fault in each kind of string is found at

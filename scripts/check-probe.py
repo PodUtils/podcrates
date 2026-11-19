@@ -48,6 +48,8 @@ ALLOWED = {
                                  "that validate a report; no binary carries schemars",
     ("pod-testkit", "screen"): "a crate of tests; it is not in a released binary",
     ("pod-testkit", "schema"): "a crate of tests; it is not in a released binary",
+    ("pod-release", "cli"): "the binary pod-release, the verifier of a release; the static job of ci.yml and "
+                            "scripts/agent/check.sh check its own binary, and no binary of a consumer carries it",
     ("pod-release", "schema"): "index::schema, the JSON Schema of the release index, for the tests that generate "
                                "release-index.v1 and for the tests of a consumer; no binary carries schemars",
     ("pod-testkit", "stand"): "a crate of tests; it is not in a released binary",

@@ -11,6 +11,8 @@
 //!   each fact of one code is a code that it gives.
 //! * [`flags`]: each command and flag of the model against the parser.
 //! * [`examples`]: each example of the program against its parser.
+//! * [`help`]: the help of each command, as `-h` answers it, holds its
+//!   flags, its groups and its "Start here" lines.
 //! * [`model`]: each rule names flags of its command, a need of one of
 //!   names two or more, and each name selects one section.
 
@@ -218,6 +220,38 @@ pub fn flags(manual: &Manual, parser: impl Fn(&[String]) -> Option<ParserCommand
         for s in &p.subcommands {
             if !children.contains(s) {
                 out.push(finding(&at, format!("the parser has the command {s}, and the model has none")));
+            }
+        }
+    }
+    out
+}
+
+/// The help of each command of `manual`, as `COMMAND --help` answers it:
+/// the request selects the command, and the text holds each flag of the
+/// command, the title of each group and each command of its lead.
+pub fn help(manual: &Manual) -> Vec<Finding> {
+    let mut out = Vec::new();
+    for c in &manual.commands {
+        let at = format!("{} {}", manual.name, c.name());
+        let at = at.trim();
+        let mut args = c.path.clone();
+        args.push("--help".into());
+        let text = match crate::help::request(manual, &args) {
+            Some(req) if req.path == c.path => crate::help::answer(manual, &req),
+            _ => Err("--help does not select this command".into()),
+        };
+        let text = match text {
+            Ok(text) => text,
+            Err(why) => {
+                out.push(finding(at, format!("the help: {why}")));
+                continue;
+            }
+        };
+        let terms = c.flags.iter().map(|f| f.term());
+        let titles = c.groups.iter().map(|g| g.title.clone());
+        for term in terms.chain(titles).chain(c.lead.iter().map(|e| e.command.clone())) {
+            if !text.contains(&term) {
+                out.push(finding(at, format!("the help has no {term}")));
             }
         }
     }
