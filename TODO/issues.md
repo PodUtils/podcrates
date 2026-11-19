@@ -236,5 +236,6 @@ kinds and the rules.
 | #229 | coord | COORD-138: v0.72.0: podrunner's status and source wire in pod-job, one reader of an HTTP/1.1 head, the layer under a small cap, PT_INTERP past the head (to all) | closed (each consumer took `v0.72.0`: podrunner `e422c23`, podvm `b3ff9c3`, podnet `8fa14ca`, podssh `bcd2b2f`) | T-882, T-909, T-922, T-930, T-936, T-939, T-944 |
 | #230 | coord | COORD-139: the answer to COORD-095 and COORD-096: the three fields of status.v1 (T-947), and a fake of githome's source in pod-testkit (T-948) (to podrunner) | open (T-947 and T-948 are in `v0.73.0`, COORD-140, #231) | T-921, T-947, T-948 |
 | #231 | coord | COORD-140: v0.73.0: the three fields of status.v1, pod-fake-github and pod-fake-githome for the CI of podrunner, the client's line of each wait of pod-session (to all) | open (podvm, podrunner and podssh took `v0.73.0`; podnet not yet) | T-921, T-945, T-947, T-948, T-951, T-952, T-953 |
+| #236 | coord | COORD-142: the owner's ruling "ghcr.io": each project publishes its release binaries on ghcr.io in one form (call C789) (to all) | open (podnet publishes in the form; podrunner, podvm, podssh and podcrates T-954 not yet) | T-954 |
 
 #79 to #81 and #232 to #235 are pull requests of Dependabot (T-243, T-955).
