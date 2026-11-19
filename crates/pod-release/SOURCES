@@ -8,6 +8,7 @@
 # trust of its TLS, the mark of a detached node) stays in podssh.
 repo PodUtils/podssh 5975bb001e6eb7d2eca66fb67587481b6e59265e
 dir crates/podssh-cli/src/update
+taken c9772a3
 file 2d3e4d72c30794e469d93f6a9659477c36066b0e crates/podssh-cli/src/update/sigstore.rs -> crates/pod-release/src/sigstore.rs crates/pod-release/src/sigstore/chain.rs crates/pod-release/src/sigstore/rekor.rs
 file a1b8cbfafc1c1645082ee01095f7ee278f13842c crates/podssh-cli/src/update/sigstore_tests.rs -> crates/pod-release/src/sigstore/tests.rs
 file bd5a13be8f41b68d6446ee62312ff625ad7368ef crates/podssh-cli/src/update/trust/fulcio.pem -> crates/pod-release/src/sigstore/fulcio.pem

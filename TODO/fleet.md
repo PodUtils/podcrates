@@ -6220,7 +6220,7 @@ sh scripts/agent/check.sh
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -6249,6 +6249,11 @@ workflow.
 cargo test -p pod-release --all-features
 cargo todo check
 ```
+
+## Done
+
+2026-11-19, podssh's half: podssh took `pod-release` in `c9772a3` (PodUtils/podssh#329, PodUtils/podssh@T-850), with `v0.77.0` at `b3005e5`. Its `update/` keeps its flags, lines, exit codes, `trust()` and the lines of the way back; `sigstore.rs`, `release.rs`, `fetch.rs`, `replace.rs`, `keep.rs`, `trial.rs` and `trust/` are gone; the steps are `update::newest`, `signed`, `binary` and `install`, with `keep::rollback` and `replace::running()`; its update tests pass (4, 18 and the offline ones). `crates/pod-release/SOURCES` has `taken c9772a3` in the podssh block: `check-sources.py` gives 0 changes. podssh does not use `update::plan` (T-971). podnet's half waits for PodUtils/podnet@T-494, behind the asks of podrunner. Each writes `release-index.json` in its release workflow later.
+
 
 # T-967: `pod-release`: a minisign signature beside the Sigstore bundle
 
@@ -6284,3 +6289,31 @@ cargo test -p pod-release --all-features
 ## Start condition
 
 A consumer or an ask names a minisign key for its releases.
+
+# T-971: `pod-release`: `update::plan` cannot tell a newer build of the same version from the same release
+
+**Source:** PodUtils/podssh#329 (COORD-128 of podssh: its take of `pod-release`, "no ask")
+**Category:** defect
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh took `pod-release` and does not use `update::plan`: `plan` compares the release with the running version by `Version::cmp` and answers `UpToDate` (or `Same` for a pinned tag) when they are equal, so a release that carries a newer build of the same version is not installed. podssh keeps its own comparison. A consumer that takes the crate then holds a second copy of the rule of a newer build.
+
+## Premise
+
+- Read: PodUtils/podssh#329; `crates/pod-release/src/update.rs` (`plan`), `crates/pod-release/src/version.rs`.
+- Not read: podssh's comparison at `c9772a3`.
+
+## Approach
+
+Read podssh's comparison of the two at `c9772a3`. Give `plan` the rule (a field of `Version` or an argument for the build), with a test of an equal version and a newer build; podssh then calls `plan` and drops its copy.
+
+## Prove
+
+```sh
+cargo test -p pod-release --all-features plan
+```
