@@ -10448,7 +10448,7 @@ cargo test -p pod-relay --all-features --test layer_cap
 
 # T-963: `live.yml`: public services of other parties fail from a runner of GitHub and pass from a cloud session (the Nostr relay `offchain.pub`, the WebTorrent tracker `tracker.openwebtorrent.com`)
 
-**Source:** the scheduled run 44497255102 of `live.yml` at `fee6f8a`, attempts 1 and 2; the run 44505410827 at `e475b23`
+**Source:** the scheduled run 44497255102 of `live.yml` at `fee6f8a`, attempts 1 and 2; the run 44505410827 at `e475b23`; the run 44507180792 at `b74ffbd`
 **Category:** defect
 **Milestone:** M2
 **Priority:** P2
@@ -10468,9 +10468,10 @@ The run 44505410827 at `e475b23` failed in `pod-wormhole`'s live test: `wss://tr
 
 ## Approach
 
-1. In the live test, give each end's events (sent, `OK`, received) in the panic text, so a failure tells a drop from a delay.
-2. Pair once from the runner with the two ends on two runners (two jobs), and once with the two ends on one runner, to find which network the relay refuses.
-3. Write the result as a fact of `offchain-nostr.toml` with its source. Where the relay refuses a network that a consumer uses (a runner of GitHub, a cloud host), lower its rank below each relay that pairs there; the live test then names a relay that fails on the runner as a fact of the catalog, not as a red run.
+1. Done (step 1, below): the failure text names the counts at the relay and the result of both ends.
+2. The cause, from the run 44507180792 at `b74ffbd`: `offchain.pub` refused the taker's event with "Policy violated and pubkey is not in our web of trust.", after it accepted the first events of both ends. The relay runs a write policy that refuses a key that it does not know, and each pairing draws a new key for each end (`pod_wormhole::nostr`). The policy does not act on each event or each connection: the same test passed from a cloud session, and `pod-wormhole`'s live test passed at the relay in the same run. The WebTorrent tracker paired in that run: its 503 was a short outage.
+3. Take `offchain-nostr` out of the relays of the pairing (a fact of its write policy, with the run as its source, and out of the kind `nostr-relay` that the pairing reads), and add a public relay that takes ephemeral events of new keys from the runner and from a cloud session: the candidates `nos.lol` and `relay.damus.io` (strfry; NIP-11 read 2026-11-19), each measured by the live tests of `pod-wormhole` and `pod-relay` before it gets a rank. The live test keeps at least two relays.
+4. A pairing that meets a refusal of the relay after the greeting fails with the relay's words at the taker; the giver waits its whole limit. Look whether the giver can learn the end of the pairing earlier (the taker's last word at the mailbox is not there on a relay).
 
 ## Prove
 
