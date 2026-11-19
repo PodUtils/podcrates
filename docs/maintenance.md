@@ -344,17 +344,31 @@ fourth argument of the script names the list when it is elsewhere.
    run on the tag signs `SHA256SUMS` with cosign (the identity of
    `release.yml` at the tag), makes the GitHub release and starts the dry
    run of `publish.yml` on the tag. Watch the run on the tag: when it
-   fails, the tag has no release.
-4. Watch the run of `publish.yml` on the tag. A failed dry run is a
+   fails, the tag has no release. The jobs `image` and `notes` of the run
+   on the tag then push the images of `podlab`, `pod-fake-github` and
+   `pod-fake-githome` to `ghcr.io/podutils/NAME:vX.Y.Z` (call C789). The
+   dry run builds these images too, and pushes nothing.
+4. Check the images and their digests on the release. The section "The
+   images, by digest" of the body gives the digest of each index and of
+   each platform beside the SHA-256 of its asset; each SHA-256 agrees with
+   `SHA256SUMS`. Run
+   `gh attestation verify oci://ghcr.io/podutils/NAME@DIGEST --repo PodUtils/podcrates`
+   for each index. A warning of the job `image` that an index does not
+   pull with no login means that the package is private: an admin of
+   PodUtils sets its visibility to public. When `image` or `notes` fails
+   on the tag, run the failed jobs again: the release stays, and a second
+   run replaces the section.
+5. Watch the run of `publish.yml` on the tag. A failed dry run is a
    defect of the packaging: fix it in the next release.
-5. Keep the switch `crates-io` of `Cargo.toml` false: no crate goes to
+6. Keep the switch `crates-io` of `Cargo.toml` false: no crate goes to
    crates.io now (`docs/decisions.md`, "Releases"). A tag cannot move or
    be deleted: make sure that the commit and the version are right before
    the release.
-6. Write the hand-off: a COORD issue `(to all)` of this repository (the
-   crates, the tag, the adoption map of each README, the step of each
-   consumer). Amend its body at each take. It closes when each consumer
-   names its tag or a later one (call C780). The hand-off of a new tag
+7. Write the hand-off: a COORD issue `(to all)` of this repository (the
+   crates, the tag, the digest of each image beside the SHA-256 of its
+   asset, the adoption map of each README, the step of each consumer).
+   Amend its body at each take. It closes when each consumer names its
+   tag or a later one (call C780). The hand-off of a new tag
    names each part of an older tag that a consumer has not taken; the
    older hand-off then closes with a line of the result that names the
    new one. So one hand-off stays open.
