@@ -1,9 +1,11 @@
 # The test writes the POST again on TLS and reads the answer with no
 # flush: the last records of TLS stay in the client, and the listener
 # waits for the rest of the body: the read of the answer or of the rest
-# at the far end ends at its time limit first (T-763).
+# at the far end ends at its time limit first; when the far end closes
+# first, the read of the answer sees the end of TLS with no close_notify
+# (T-763).
 ENTRY=T-763
 GROUP=link
-EXPECT='the (answer|rest) in time'
+EXPECT='the (answer|rest) in time|peer closed connection without sending TLS close_notify'
 RUN='cargo test -p pod-link --all-features --test poll_lanes a_body_up_goes_into_the_link'
 LIMIT=1800
