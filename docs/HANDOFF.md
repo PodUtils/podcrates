@@ -51,10 +51,11 @@ is done. Git and the record keep finished work.
    is offline until the CI of podrunner and githome is complete; it reads
    `docs/research/fleet/asks.md` and the block of #223 at its next start.
    githome's asks G-30 to G-35 are T-921 to T-923, T-099, T-100 and T-104.
-7. The hand-off of `v0.76.0` is COORD-144 (#239): T-957 (the extended
-   attributes of a layer) for podrunner and podvm, T-959 (the waits of the
-   channel of `pod-e2e`, breaking for podssh) and T-962. Write each take
-   in its "Takes" list, and close it when each consumer took the tag.
+7. No hand-off of a tag is open: each consumer took `v0.76.0` (COORD-144,
+   #239, closed). The next tag carries T-961 (the PAX headers of a layer
+   read with a bound and by length), T-960 (`pod-term` with no prompt,
+   PodUtils/podssh#326) and T-963 (the words of a quiet end at a Nostr
+   relay).
    COORD-142 (#236) relays the ruling
    "ghcr.io" (call C789): podcrates and podvm publish in its form.
 8. T-767 (PodUtils/podssh#283, partial) and T-939 (done as a guard, call

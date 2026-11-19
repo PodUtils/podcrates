@@ -7,8 +7,8 @@
 - `docs/HANDOFF.md` has what is in flight and what waits.
 - Last release: `v0.76.0` at `fee6f8a` (`docs/releases/v0.76.0.md`). Its
   hand-off is COORD-144 (#239).
-- The tag that the `main` of each consumer names: `v0.75.0` (podrunner,
-  podvm, podssh, podnet). The details of each take are on #238.
+- The tag that the `main` of each consumer names: `v0.76.0` (podrunner,
+  podvm, podssh, podnet). The details of each take are on #239.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
