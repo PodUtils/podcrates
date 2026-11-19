@@ -17,6 +17,15 @@ name: release
 # release attaches them with SHA256SUMS.sigstore.json, the keyless cosign
 # signature of SHA256SUMS by this workflow at the tag (the form of podnet
 # and podssh).
+#
+# The job image (call C789, the owner's ruling "ghcr.io"): for podlab,
+# pod-fake-github and pod-fake-githome, one FROM scratch image for each
+# architecture (images/release/Dockerfile) from the files of dist/, under
+# one index at ghcr.io/podutils/NAME:TAG. Each run builds both platforms
+# and compares each binary with its asset. Only the run on the tag pushes
+# the index, compares each pulled platform with its asset, and attests the
+# provenance of the index in the registry. The job notes then writes the
+# digest of each index and platform into the body of the release.
 
 on:
   workflow_dispatch:
@@ -126,6 +135,18 @@ jobs:
           cat "$RUNNER_TEMP/second.txt"
           grep -q 'is already installed' "$RUNNER_TEMP/second.txt"
           [ "$("$p/podlab" --version)" = "podlab $v" ]
+      # The job image takes these files: the images hold the bytes of the
+      # assets, with no second build.
+      - name: The binaries for the images
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: |
+            dist/podlab-*-unknown-linux-musl
+            dist/pod-fake-github-*
+            dist/pod-fake-githome-*
+            dist/SHA256SUMS
+          if-no-files-found: error
       - name: The tag, and the run on the tag
         if: inputs.version != ''
         run: |
@@ -174,3 +195,230 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --verify-tag --title "podcrates $GITHUB_REF_NAME" \
             --notes-file "docs/releases/$GITHUB_REF_NAME.md" dist/*
           gh workflow run publish.yml --ref "$GITHUB_REF_NAME"
+
+  # Call C789: the images of the release binaries on ghcr.io. A dry run
+  # builds both platforms and pushes nothing, so that a broken Dockerfile
+  # fails before the tag.
+  image:
+    needs: release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        name: [podlab, pod-fake-github, pod-fake-githome]
+    permissions:
+      contents: read
+      # The push of the index, on the tag.
+      packages: write
+      # actions/attest: the OIDC token of this workflow at the tag, and the
+      # store of the attestation.
+      id-token: write
+      attestations: write
+    env:
+      NAME: ${{ matrix.name }}
+      # No summary and no artifact of buildx: the job notes reads the
+      # artifacts of this run.
+      DOCKER_BUILD_SUMMARY: "false"
+      DOCKER_BUILD_RECORD_UPLOAD: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist
+      - name: The context of the image
+        id: ctx
+        run: |
+          set -eu
+          (cd dist && sha256sum -c --ignore-missing SHA256SUMS)
+          v=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
+          tag="v$v"
+          case $GITHUB_REF in refs/tags/v*) tag=$GITHUB_REF_NAME ;; esac
+          repo="ghcr.io/$(echo "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')/$NAME"
+          ctx="$RUNNER_TEMP/ctx"
+          mkdir -p "$ctx"
+          # The names of images/release/Dockerfile: NAME-TARGETARCH.
+          cp "dist/$NAME-x86_64-unknown-linux-musl" "$ctx/$NAME-amd64"
+          cp "dist/$NAME-aarch64-unknown-linux-musl" "$ctx/$NAME-arm64"
+          {
+            echo "tag=$tag"
+            echo "repo=$repo"
+            echo "ctx=$ctx"
+          } >> "$GITHUB_OUTPUT"
+          echo "$repo:$tag from dist/$NAME-*"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: The images of both platforms, as files
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ steps.ctx.outputs.ctx }}
+          file: images/release/Dockerfile
+          target: ${{ matrix.name }}
+          platforms: linux/amd64,linux/arm64
+          # The index holds the two images only; actions/attest gives the
+          # provenance.
+          provenance: false
+          sbom: false
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.ctx.outputs.tag }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          outputs: type=local,dest=${{ runner.temp }}/fs
+      # Each run: a swapped platform or a wrong file fails before the tag.
+      - name: The binary of each platform is its asset
+        run: |
+          set -eu
+          for pair in linux_amd64:x86_64-unknown-linux-musl linux_arm64:aarch64-unknown-linux-musl; do
+            got=$(sha256sum < "$RUNNER_TEMP/fs/${pair%%:*}/usr/local/bin/$NAME" | cut -d ' ' -f 1)
+            want=$(sha256sum < "dist/$NAME-${pair#*:}" | cut -d ' ' -f 1)
+            [ "$got" = "$want" ] || { echo "${pair%%:*}: the binary is not $NAME-${pair#*:} ($got, not $want)"; exit 1; }
+            echo "${pair%%:*}: $NAME-${pair#*:}, sha256 $got"
+          done
+          case $GITHUB_REF in refs/tags/v*) ;; *) echo "not the run on a tag: the images are built, and nothing is pushed" ;; esac
+      - name: The login to ghcr.io
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: The index, pushed
+        id: push
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ steps.ctx.outputs.ctx }}
+          file: images/release/Dockerfile
+          target: ${{ matrix.name }}
+          platforms: linux/amd64,linux/arm64
+          provenance: false
+          sbom: false
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.ctx.outputs.tag }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          tags: ${{ steps.ctx.outputs.repo }}:${{ steps.ctx.outputs.tag }}
+          push: true
+      # Each platform of the pushed index, pulled by its digest, holds the
+      # bytes of its asset. The rows go to the body of the release.
+      - name: The pushed index, pulled by digest
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          REPO: ${{ steps.ctx.outputs.repo }}
+          TAG: ${{ steps.ctx.outputs.tag }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -eu
+          case "$DIGEST" in sha256:*) ;; *) echo "no digest of $REPO:$TAG: $DIGEST"; exit 1 ;; esac
+          tagged=$(docker buildx imagetools inspect "$REPO:$TAG" --format '{{json .Manifest}}' | jq -r .digest)
+          [ "$tagged" = "$DIGEST" ] || { echo "$REPO:$TAG is $tagged, not $DIGEST"; exit 1; }
+          docker buildx imagetools inspect --raw "$REPO@$DIGEST" > "$RUNNER_TEMP/index.json"
+          jq . "$RUNNER_TEMP/index.json"
+          platforms=$(jq -r '[.manifests[] | "\(.platform.os)/\(.platform.architecture)"] | sort | join(" ")' "$RUNNER_TEMP/index.json")
+          [ "$platforms" = "linux/amd64 linux/arm64" ] || { echo "the index holds $platforms"; exit 1; }
+          rows="$RUNNER_TEMP/image-$NAME.md"
+          echo "| \`$REPO:$TAG\` | each | \`$DIGEST\` | | |" > "$rows"
+          for pair in amd64:x86_64-unknown-linux-musl arm64:aarch64-unknown-linux-musl; do
+            arch=${pair%%:*}
+            asset="$NAME-${pair#*:}"
+            d=$(jq -r --arg a "$arch" '.manifests[] | select(.platform.architecture == $a) | .digest' "$RUNNER_TEMP/index.json")
+            docker pull -q --platform "linux/$arch" "$REPO@$d" > /dev/null
+            c=$(docker create --platform "linux/$arch" "$REPO@$d")
+            docker cp "$c:/usr/local/bin/$NAME" "$RUNNER_TEMP/pulled"
+            docker rm "$c" > /dev/null
+            got=$(sha256sum < "$RUNNER_TEMP/pulled" | cut -d ' ' -f 1)
+            want=$(sha256sum < "dist/$asset" | cut -d ' ' -f 1)
+            [ "$got" = "$want" ] || { echo "$REPO@$d: the binary is not $asset ($got, not $want)"; exit 1; }
+            echo "$REPO@$d (linux/$arch): $asset, sha256 $got"
+            echo "| | linux/$arch | \`$d\` | \`$asset\` | \`$want\` |" >> "$rows"
+          done
+          cat "$rows"
+      - name: The provenance of the index, in the registry
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ steps.ctx.outputs.repo }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+          # A storage record is not part of call C789, and needs the right
+          # artifact-metadata: write.
+          create-storage-record: false
+      - name: The provenance of the index, checked
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -eu
+          gh attestation verify "oci://$REPO@$DIGEST" --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml"
+      # A consumer pulls with no login. A new package of ghcr.io can be
+      # private: a warning tells the coordinator to set it public.
+      - name: The index, with no login
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          REPO: ${{ steps.ctx.outputs.repo }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -eu
+          docker logout ghcr.io
+          if docker buildx imagetools inspect "$REPO@$DIGEST" > /dev/null; then
+            echo "$REPO@$DIGEST: it pulls with no login"
+          else
+            echo "::warning::$REPO does not pull with no login: set the visibility of the package to public"
+          fi
+      - name: The rows of the release body
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: image-${{ matrix.name }}
+          path: ${{ runner.temp }}/image-${{ matrix.name }}.md
+          if-no-files-found: error
+
+  # The digests of the images in the body of the GitHub release. The notes
+  # of docs/releases/ are written before the tag, and cannot hold them. One
+  # job writes the body, so the legs of image do not race.
+  notes:
+    needs: image
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: image-*
+          path: rows
+          merge-multiple: true
+      - name: The images, by digest, in the release
+        run: |
+          set -eu
+          {
+            echo ""
+            echo "## The images, by digest"
+            echo ""
+            echo "Each image is \`FROM scratch\`, with the asset at \`/usr/local/bin/NAME\` as its entrypoint."
+            echo "Pull by digest: \`docker pull IMAGE@DIGEST\`."
+            echo "Check the provenance of an index: \`gh attestation verify oci://IMAGE@DIGEST --repo $GITHUB_REPOSITORY\`."
+            echo ""
+            echo "| Image | Platform | Digest | Asset | SHA-256 of the asset |"
+            echo "| --- | --- | --- | --- | --- |"
+            for f in rows/image-*.md; do cat "$f"; done
+          } > "$RUNNER_TEMP/images.md"
+          body=$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json body --jq .body)
+          # The section is the end of the body: a second run replaces it.
+          printf '%s\n' "$body" | sed '/^## The images, by digest$/,$d' > "$RUNNER_TEMP/notes.md"
+          body=$(cat "$RUNNER_TEMP/notes.md")
+          printf '%s\n' "$body" > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/images.md" >> "$RUNNER_TEMP/notes.md"
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --notes-file "$RUNNER_TEMP/notes.md"
+          want=$(cat rows/image-*.md | wc -l)
+          got=$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json body --jq .body | grep -c '^| .*sha256:')
+          [ "$got" = "$want" ] || { echo "the body holds $got rows of digests, not $want"; exit 1; }
+          cat "$RUNNER_TEMP/images.md"
