@@ -26,6 +26,7 @@ the code, the parser and the files of the repository fails a test.
 | `help::request(manual, args)`, `help::render`, `help::answer` | `CLI --help`, `CLI COMMAND --help`, `CLI help COMMAND`, and `--json` |
 | `Request`, `body`, `run` | `CLI man [SECTION...] [--no-pager \| --roff \| --json]`, through the pager |
 | `pager::{Tty, PagerEnv, choose, show, page, variables, SOURCE}` | the pager, and its variables as facts |
+| `pager::Interrupts::ignore()` | SIGINT and SIGQUIT ignored until the value drops, then each action put back: for a child that reads the terminal (a pager, an editor) |
 | `rules::{faults, char_faults, work_ids, sentences, words, Kind, Fault}` | the text rules |
 | `check::{texts, generated, variables, exit_codes, flags, model, assert_none, Finding}` | the checks that a program calls from its tests |
 | `scan::{rust_sources, non_test, variables_read, exit_constants, src, CALLS, LISTS}` | the reader of the source of a program for `check::variables` and `check::exit_codes`: only the calls that read or set a variable |

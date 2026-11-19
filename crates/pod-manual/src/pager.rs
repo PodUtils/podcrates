@@ -216,15 +216,19 @@ pub fn run_program(cmd: &[OsString], text: &str) -> std::io::Result<()> {
 }
 
 /// SIGINT and SIGQUIT ignored while the value lives, then restored: while a
-/// pager runs, the keys are the child's. The whole action is kept and put
-/// back, its flags too, so a handler that the program installed stays.
-struct Interrupts {
+/// pager or another child that reads the terminal (an editor) runs, the
+/// keys are the child's. The whole action is kept and put back, its flags
+/// too, so a handler that the program installed stays. Off Unix it does
+/// nothing.
+#[must_use = "the signals are restored when the value drops"]
+pub struct Interrupts {
     #[cfg(unix)]
     previous: [libc::sigaction; 2],
 }
 
 impl Interrupts {
-    fn ignore() -> Interrupts {
+    /// Ignore SIGINT and SIGQUIT until the value drops.
+    pub fn ignore() -> Interrupts {
         #[cfg(unix)]
         {
             // SAFETY: an all-zero sigaction is a valid value of the C type;

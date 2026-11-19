@@ -35,18 +35,34 @@ file 6b623b4d5a31eb6dc4f43c2ad7af5895421c5968 tests/cli/manual.rs -> crates/pod-
 # the topics of podssh stay in podssh; data.rs gives the form of the exit
 # codes with the code of the remote command (facts.rs, Code::Payload).
 # Of data.rs and flags.rs only the form is frozen (Code, FlagKind and
-# FlagRow): a change of podssh's own text in their tables is no port, and
-# its blob moves here.
-# Imported at cfc3ae3. The block moved to 5340fbb: podssh's text fixes of
-# data.rs and flags.rs (PodUtils/podssh@T-790) changed no form.
-repo PodUtils/podssh 5340fbbb78d57d33311615ffc8aa7a27d12cdfee
-file f26419f1bbb668531ae9b003856af2b1d04c529b crates/podssh-cli/src/man/mod.rs -> crates/pod-manual/src/select.rs crates/pod-manual/src/select/tests.rs
-file 98b33fcf5d3d20a97b24c7eb0ab1f10ef384e7ea crates/podssh-cli/src/man/model.rs -> crates/pod-manual/src/model.rs crates/pod-manual/src/sections.rs crates/pod-manual/src/check.rs
-file 743661d1f048bc60bc1cb215346d3693a7699521 crates/podssh-cli/src/man/roff.rs -> crates/pod-manual/src/roff.rs crates/pod-manual/src/roff/tests.rs
+# FlagRow): a change of podssh's own text in their tables is no port.
+# Imported at cfc3ae3, moved to 5340fbb (podssh's text fixes of data.rs and
+# flags.rs, PodUtils/podssh@T-790). The block moved to d8e54f0, the parent
+# of podssh's take of the writers (T-969): up to it each change of the block
+# is podssh's own text (data.rs, flags.rs, model.rs), its own modules
+# (mod.rs) or the first steps of its take (4d8c551: the model in its tests;
+# ee6b6bd: --roff by the crate's writer). No change is a fix to port.
+repo PodUtils/podssh d8e54f0b8e29c8725b316cadf654e91311f73801
+# podssh took the crate at c4a2a64 (the text, the help and the JSON of
+# podssh man by the crate's writers over one model; text.rs and json.rs
+# go), and its pager at 1e5de58 (pager.rs is pod_manual::pager). data.rs
+# and flags.rs are podssh's tables that fill the crate's model; their form
+# stays podssh's.
+taken c4a2a6416524b961640ae1a5ff8b9b4b95ca8f46 crates/podssh-cli/src/man/mod.rs crates/podssh-cli/src/man/model.rs crates/podssh-cli/src/man/roff.rs crates/podssh-cli/src/man/text.rs crates/podssh-cli/src/man/json.rs crates/podssh-cli/src/man/data.rs crates/podssh-cli/src/flags.rs scripts/interop-man.sh
+taken 1e5de588ae2d5c1e68120ce907c352fd84b54e12 crates/podssh-cli/src/pager.rs
+file 4821de1f6ec0afcf8df3a5516a2c9a6df14afe6b crates/podssh-cli/src/man/mod.rs -> crates/pod-manual/src/select.rs crates/pod-manual/src/select/tests.rs
+file 8fc70245244164b286991aed77fdd5034cff5a51 crates/podssh-cli/src/man/model.rs -> crates/pod-manual/src/model.rs crates/pod-manual/src/sections.rs crates/pod-manual/src/check.rs
+file 71359d22f21aafc7a8ddc0a211a9b434d0ae2314 crates/podssh-cli/src/man/roff.rs -> crates/pod-manual/src/roff.rs crates/pod-manual/src/roff/tests.rs
 file c91258b918ffeecb5e5b8859f0a802bd3b2692ca crates/podssh-cli/src/man/text.rs -> crates/pod-manual/src/text.rs crates/pod-manual/src/text/tests.rs
 file 7123e64e6c871b26f70fe308e6c0c697f6666475 crates/podssh-cli/src/man/json.rs -> crates/pod-manual/src/json.rs
-file 31d7949680c592cd18fe4cbaab84acdce6870879 crates/podssh-cli/src/man/data.rs -> crates/pod-manual/src/facts.rs
-file a903513acd608106e1315c9c324f4354d1de7186 crates/podssh-cli/src/man/facts/tests.rs -> crates/pod-manual/src/scan.rs crates/pod-manual/src/check.rs
+file 3abea2ad16d5c304d474a26688166667660ce0d8 crates/podssh-cli/src/man/data.rs -> crates/pod-manual/src/facts.rs
 file 7f6acc0c33e10f5bc9b64f8c5d1e49daacdbaea9 crates/podssh-cli/src/pager.rs -> crates/pod-manual/src/pager.rs crates/pod-manual/src/pager/tests.rs
-file 581b5b7ac45e37c5c0a54fe70fc75b81f08c76c3 crates/podssh-cli/src/flags.rs -> crates/pod-manual/src/model.rs
+file 88fea9ae8e6456082ef9bc7c871c6d165b32e772 crates/podssh-cli/src/flags.rs -> crates/pod-manual/src/model.rs
 file a328e8d1b9962ee8b03d01e22bfeb0cbeb7b991c scripts/interop-man.sh -> scripts/check-man.sh
+
+# podssh keeps its own reader of the variables of its source, which the
+# crate's scan.rs came from, so a fix of it is a port. 843e3c5 (its crates
+# of the iroh and the Tor roads) and 1e5de58 (the source of the crate's
+# pager in its list) change only the list of podssh's sources.
+repo PodUtils/podssh 1e5de588ae2d5c1e68120ce907c352fd84b54e12
+file 4dc07575e142edbfd7f7ecefb468ea0ee80b11c2 crates/podssh-cli/src/man/facts/tests.rs -> crates/pod-manual/src/scan.rs crates/pod-manual/src/check.rs
