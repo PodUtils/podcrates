@@ -282,6 +282,9 @@ pub const SYS_OPENAT2: i64 = nr!(openat2, __NR_openat2);
 /// directory lives there.
 pub const SYS_FGETXATTR: i64 = nr!(fgetxattr, __NR_fgetxattr);
 pub const SYS_FSETXATTR: i64 = nr!(fsetxattr, __NR_fsetxattr);
+/// By the name, with no follow of its last component: a symlink takes an
+/// attribute only through its name.
+pub const SYS_LSETXATTR: i64 = nr!(lsetxattr, __NR_lsetxattr);
 
 // -------------------------------------------- resource limits
 //

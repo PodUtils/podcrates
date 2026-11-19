@@ -10355,7 +10355,7 @@ cargo test -p pod-extract --all-features --lib layer::tests::a_layer_of_two_gzip
 **Milestone:** M6
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10374,4 +10374,36 @@ Read the `SCHILY.xattr.NAME` records of each entry, and set each with `lsetxattr
 
 ```sh
 cargo test -p pod-extract --all-features xattr
+```
+
+## Done
+
+2026-11-19, this commit. `crates/pod-extract/src/xattr.rs`: `read` takes the `SCHILY.xattr.NAME` records of each entry before its content, inside the bounds of Linux (a name of 255 bytes, a value of 64 KiB, 64 KiB of names) and of the crate (1 MiB of values and 1024 records for each entry); a record past a bound, a mark of overlayfs (`trusted.overlay.`, `user.overlay.`) and a record that the `tar` reader cannot parse are named, with no value kept. A file gets each attribute through its descriptor after its last write and before its `fchmod`; a directory, a hard link (also one that waits for the end of its layer) and a symlink get them after they are made, through an `O_NOFOLLOW` descriptor or `lsetxattr` of `/proc/self/fd/N/NAME`. The kernel decides: each refusal (`EPERM` for `security.capability` with no `CAP_SETFCAP`) is named with its path and its errno in `LayerStats::xattrs` and `Extracted::xattrs` (`xattr::Count`: set, not set, the first 8), at the end of the line of the layer, and in the sidecar row of its path with its value (`"xattrs":[{"name","value":"0x..","reason"}]`, call C791). A refused set of a value that the file has already is a set (a hard link to a target of mode 0444). `pod-hostprobe` has `lsetxattr`. Tests: `drive::xattrs::extended_attributes_are_set_or_named` (a file with `security.capability`, files, a directory of mode 0555, a symlink and a hard link with `user.test`; each is set when a probe of the same name on the same kind of object sets, else named; as root `security.capability` sets and the worker as uid 1000 names it; in `scripts/ci/root-uid1000-tests.sh`), `drive::xattrs::a_record_past_a_bound_is_named_and_not_kept`, `sidecar::tests::an_attribute_not_set_is_in_the_row_with_its_value`. `cargo test -p pod-extract --all-features`: 89 passed. The plant `extract-xattrs-dropped`. T-961 holds what the `tar` reader does with the records before this crate reads them.
+
+# T-961: `pod-extract`: the `tar` crate reads a PAX header or a GNU long name whole with no bound, and cuts the PAX records at each newline byte
+
+**Source:** T-957 (a finding of its work)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`tar` 0.4.46 reads the data of a PAX extended header (`x`) and of a GNU long name or long link (`L`, `K`) into one buffer of the size that its header gives, with no bound: a layer with a header that gives 8 GiB makes the extraction allocate 8 GiB before `pod-extract` sees the entry. Its `PaxExtensions` cuts the records at each newline byte and not by the length of each record: a `SCHILY.xattr.` value with a byte 0x0a (a capability set with bits 1 and 3 in one byte, a `security.capability` of revision 3 with root id 10, a binary `user.` value) does not parse, and the lines after it can parse as records that the writer did not write. T-957 names such a record as not set and reads no record of the entry after it; the attribute is lost.
+
+## Premise
+
+- Read: `tar` 0.4.46 `src/archive.rs` (`next_entry`: `EntryFields::from(entry).read_all()` for `x`, `L` and `K`), `src/entry.rs` (`read_all`: `read_to_end`, the capacity capped at 128 KiB, the size not capped), `src/pax.rs` (`PaxExtensions::new`: `a.split(is_newline)`; `Builder::append_pax_extensions` writes the length of each record).
+- Not measured: the memory of a crafted layer; how many real images have a value with a newline byte.
+
+## Approach
+
+Read each layer with `Entries::raw(true)` and handle the `x`, `L` and `K` members in the crate: read their data with a bound (1 MiB for a PAX header, 4096 bytes for a long name, as `PATH_MAX`), refuse a layer past it with a `Refused` cause, and parse each PAX record by its length (`LEN key=value\n`), so that a value can hold any byte. The crate then gives `path`, `linkpath`, `size`, `uid` and `gid` of the PAX records to the entry, as the `tar` reader does now, in both passes (`remove::collect` and `apply_layer`). Tests: a header that gives 2 MiB is refused with no buffer of that size; a value with a newline byte round-trips; the records of the current tests parse the same.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features --lib pax
 ```

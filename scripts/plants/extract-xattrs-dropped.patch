@@ -1,0 +1,12 @@
+diff --git a/crates/pod-extract/src/apply.rs b/crates/pod-extract/src/apply.rs
+--- a/crates/pod-extract/src/apply.rs
++++ b/crates/pod-extract/src/apply.rs
+@@ -139,7 +139,7 @@
+
+         // Before the content: the records come with the header.
+         let rel = parts.join("/");
+-        let wanted = xattr::read(&mut entry, &rel);
++        let wanted = Wanted { path: rel.clone(), ..Wanted::default() };
+         let kind = header.entry_type();
+         let mode = header.mode().unwrap_or(0o644);
+         let uid = header.uid().unwrap_or(0);
