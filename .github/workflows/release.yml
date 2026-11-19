@@ -146,12 +146,13 @@ jobs:
         run: |
           set -eu
           dist/pod-release-x86_64-unknown-linux-musl sums --all dist
-          cp -R dist "$RUNNER_TEMP/changed"
-          printf x >> "$RUNNER_TEMP/changed/release-index.json"
+          rm -rf "$RUNNER_TEMP/changed-index"
+          cp -R dist "$RUNNER_TEMP/changed-index"
+          printf x >> "$RUNNER_TEMP/changed-index/release-index.json"
           rc=0
-          dist/pod-release-x86_64-unknown-linux-musl sums --all "$RUNNER_TEMP/changed" || rc=$?
+          dist/pod-release-x86_64-unknown-linux-musl sums --all "$RUNNER_TEMP/changed-index" || rc=$?
           [ "$rc" = 77 ] || { echo "a changed index gave exit $rc, not 77"; exit 1; }
-          rm -rf "$RUNNER_TEMP/changed"
+          rm -rf "$RUNNER_TEMP/changed-index"
       # The published files themselves: the installer from the bundle, then
       # a second run that changes nothing.
       - name: The published installer installs
@@ -205,8 +206,9 @@ jobs:
           }
           check "$workflow@$GITHUB_REF" SHA256SUMS
           awk 'NR == 1 { $0 = (substr($0, 1, 1) == "0" ? "1" : "0") substr($0, 2) } { print }' SHA256SUMS \
-            > "$RUNNER_TEMP/changed"
-          if check "$workflow@$GITHUB_REF" "$RUNNER_TEMP/changed"; then echo "a changed copy verified"; exit 1; fi
+            > "$RUNNER_TEMP/changed-sums"
+          if check "$workflow@$GITHUB_REF" "$RUNNER_TEMP/changed-sums"; then echo "a changed copy verified"; exit 1; fi
+          rm -f "$RUNNER_TEMP/changed-sums"
           if check "$workflow@refs/heads/main" SHA256SUMS; then echo "the identity of a branch verified"; exit 1; fi
           echo "signed by $workflow@$GITHUB_REF; a changed copy and the identity of a branch fail"
       # The verifier of this release over its own signed files: the bundle by
@@ -218,15 +220,18 @@ jobs:
           set -eu
           exe=dist/pod-release-x86_64-unknown-linux-musl
           "$exe" verify --repo "$GITHUB_REPOSITORY" --tag "$GITHUB_REF_NAME" --all dist
-          cp -R dist "$RUNNER_TEMP/changed"
-          printf x >> "$RUNNER_TEMP/changed/podlab-install.sh"
-          for args in "--tag $GITHUB_REF_NAME $RUNNER_TEMP/changed" "--tag v0.0.0 dist"; do
+          # A path of its own, made new: what a step before this one left
+          # must not decide what this step finds there.
+          rm -rf "$RUNNER_TEMP/changed-verify"
+          cp -R dist "$RUNNER_TEMP/changed-verify"
+          printf x >> "$RUNNER_TEMP/changed-verify/podlab-install.sh"
+          for args in "--tag $GITHUB_REF_NAME $RUNNER_TEMP/changed-verify" "--tag v0.0.0 dist"; do
             rc=0
             # shellcheck disable=SC2086 # the words of the arguments.
             "$exe" verify --repo "$GITHUB_REPOSITORY" $args || rc=$?
             [ "$rc" = 77 ] || { echo "verify $args gave exit $rc, not 77"; exit 1; }
           done
-          rm -rf "$RUNNER_TEMP/changed"
+          rm -rf "$RUNNER_TEMP/changed-verify"
       # The published installer checks the signature with this cosign, as
       # a user with cosign does: the files come from dist (file://).
       - name: The published installer checks the signature

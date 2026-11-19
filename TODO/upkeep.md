@@ -3981,3 +3981,32 @@ cargo test -p pod-wormhole --all-features --test tracker
 ## Done
 
 2026-11-19, this commit. `until_stopped` in `crates/pod-wormhole/tests/tracker.rs` reads the announces every 20 ms until one is `stopped`, within `LIMIT`. The test passed 3 runs of 3 on Linux.
+
+# T-974: The run on the tag `v0.78.0` failed after the signature: two steps of `release.yml` share the scratch path `$RUNNER_TEMP/changed`
+
+**Source:** the run on the tag 44627612644 of `release.yml` at `1f82e94`, job `release`, step "The verifier checks the signed release"
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The step "SHA256SUMS signed by this workflow at the tag" writes a changed copy of `SHA256SUMS` to the file `$RUNNER_TEMP/changed` and leaves it. The step after it (T-965) makes a changed copy of `dist` with `cp -R dist "$RUNNER_TEMP/changed"`, which fails: "cannot overwrite non-directory". The verifier had passed on the release before the copy ("verified: ... 11 files checked, 0 missing"). The job stopped, so the tag `v0.78.0` exists with no GitHub release and no images. Both steps run on a tag only, so the dry run did not run them. A run on a tag reads `release.yml` at the tag, so a fix on `main` cannot release `v0.78.0`.
+
+## Premise
+
+- Read: the job log; `.github/workflows/release.yml`.
+
+## Approach
+
+Each step that makes a changed copy uses a path of its own (`changed-index`, `changed-sums`, `changed-verify`), removes it before the copy and after its check. Release the content of `v0.78.0` as `v0.78.1` (call C818).
+
+## Prove
+
+The steps in order on the signed files of `v0.77.0` with a `pod-release` of `main`, with a file at the old path `$RUNNER_TEMP/changed`: the sums step and the verify step each exit 0, and a changed copy and another tag each give 77.
+
+## Done
+
+2026-11-19, this commit. `.github/workflows/release.yml`: `changed-index`, `changed-sums` and `changed-verify`, each removed before and after its step. The Prove ran with the 11 files of `v0.77.0` (their `SHA256SUMS` checks) and `target/debug/pod-release` of `main`: "checked with no signature: ... 9 files checked, 0 missing" and "verified: ... 9 files checked, 0 missing; signed by .../release.yml@refs/tags/v0.77.0"; a changed index, a changed `podlab-install.sh` and the tag `v0.0.0` each gave 77. `shellcheck` 0.11.0 passes on the three step bodies.

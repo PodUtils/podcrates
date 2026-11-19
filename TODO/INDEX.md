@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**806 entries: 144 open, 27 partial, 7 blocked, 628 done.**
+**807 entries: 144 open, 27 partial, 7 blocked, 629 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 8 | 8 | 0 | 187 | 203 |
+| P1 | 8 | 8 | 0 | 188 | 204 |
 | P2 | 68 | 9 | 4 | 318 | 399 |
 | P3 | 68 | 10 | 3 | 121 | 202 |
-| **All** | 144 | 27 | 7 | 628 | 806 |
+| **All** | 144 | 27 | 7 | 629 | 807 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -853,3 +853,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-971](fleet.md) | P3 | S | M8 | defect | done | `pod-release`: `update::plan` answers `UpToDate` both for the version of this build and for an older release |
 | [T-972](fleet.md) | P3 | S | M8 | chore | open | `pod-lab`: the CAs of a lab take the P-256 key and the PEM writer of `pod-acme` |
 | [T-973](fleet.md) | P2 | M | M8 | chore | open | `pod-broker`: the CA bundle of a job with curl, git, Python and Node.js in a lab |
+| [T-974](upkeep.md) | P1 | S | M5 | defect | done | The run on the tag `v0.78.0` failed after the signature: two steps of `release.yml` share the scratch path `$RUNNER_TEMP/changed` |
