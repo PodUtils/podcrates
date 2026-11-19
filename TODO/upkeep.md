@@ -3801,7 +3801,7 @@ The run of `release.yml` on the next tag: each index pulls, and its binary has t
 
 ## Done
 
-2026-11-19, this commit, partial (the push waits for the run of `release.yml` on the next tag):
+2026-11-19, commit `583a10c`, partial (the push waits for the run of `release.yml` on the next tag):
 
 - `images/release/Dockerfile`: one stage for each binary (`podlab`, `pod-fake-github`, `pod-fake-githome`), `FROM scratch`, `COPY --chmod=0755 NAME-${TARGETARCH} /usr/local/bin/NAME`, `ENTRYPOINT ["/usr/local/bin/NAME"]`. One stage for each binary, because an exec-form `ENTRYPOINT` takes no build argument.
 - `release.yml`: the job `release` uploads the six binaries and `SHA256SUMS` as the artifact `dist`. The job `image` (`needs: release`, a matrix of the three names; `contents: read`, `packages: write`, `id-token: write`, `attestations: write`) checks the files against `SHA256SUMS`, builds both platforms with `docker/build-push-action` (no provenance and no SBOM of buildx, so the index holds the two images only) to files, and compares each binary with its asset in each run. On the tag only: the push of `ghcr.io/podutils/NAME:TAG` with the labels `source`, `version` and `revision`; a pull of each platform by its digest and a compare with the asset; `actions/attest` v4.2.2 with `push-to-registry` (the pin of podnet's job `image`); `gh attestation verify` with `--signer-workflow`; a warning when the index does not pull with no login. The job `notes` (on the tag, `contents: write`) appends the section "The images, by digest" to the body of the release: the index digest and each platform digest, beside the asset and its SHA-256. A second run replaces the section.
