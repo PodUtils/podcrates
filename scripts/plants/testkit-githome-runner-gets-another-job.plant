@@ -1,0 +1,9 @@
+# The fake githome mints a JIT runner in the linked fake GitHub and does not
+# give it the job of the claim: the runner then takes the oldest queued job
+# of its labels, and podrunner runs a job that its source did not offer
+# (T-952).
+ENTRY=T-952
+GROUP=job
+EXPECT='test a_minted_runner_takes_its_job_from_the_linked_fake_github \.\.\. FAILED'
+RUN='cargo test -p pod-testkit --features githome --test githome -- a_minted_runner_takes_its_job_from_the_linked_fake_github --exact'
+LIMIT=1800

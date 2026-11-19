@@ -99,6 +99,11 @@ takes one job. The conclusion of the runner (`succeeded`, `failed`,
 runs the binary: two jobs of one repository with the same labels, the
 second job on the runner minted for the first, and both conclusions.
 
+`pod_testkit::github::client` is the App side for a test or another fake:
+`app_key` (the key of `GET /_fake/app`), `installation_token`, and
+`jit_runner` (a runner id and its three files, decoded from
+`encoded_jit_config`).
+
 | Consumer | Old path | New path |
 | --- | --- | --- |
 | githome | no fake GitHub (G-30) | `pod-fake-github` of the release, pinned by its SHA-256 |
@@ -114,16 +119,37 @@ the source wire of `pod_job::source` (podrunner
 `pod-fake-githome-aarch64-unknown-linux-musl` with their lines in
 `SHA256SUMS`. Build it with
 `cargo build --release -p pod-testkit --features githome --bin pod-fake-githome`.
+The feature `githome` takes the feature `github`.
 
-`pod-fake-githome serve [--listen ADDRESS]` prints its base URL
+`pod-fake-githome serve [--listen ADDRESS] [--github URL]` prints its base URL
 (`http://127.0.0.1:PORT/`) on the first line of stdout, then holds the
 state until it is killed. `pod-fake-githome source [--server URL]` is the
 program of a `[[source]]` table of the kind `program`: it reads one
 request line on stdin and writes one reply line on stdout. It finds
 `serve` by `--server` or by the variable `POD_FAKE_GITHOME`. Each start
-of `source` is a new session: one host of podrunner. Each credential of
-`mint` is made up (`.runner`, `.credentials` with the client id
-`pod-fake-githome-made-up-N`, `.credentials_rsaparams`).
+of `source` is a new session: one host of podrunner. With no `--github`,
+each credential of `mint` is made up (`.runner`, `.credentials` with the
+client id `pod-fake-githome-made-up-N`, `.credentials_rsaparams`) and
+reaches no broker.
+
+`--github URL` links `serve` to a `pod-fake-github` at the base URL `URL`
+(any port of the loopback: podrunner names it in its `[egress]`):
+
+* `POST /_fake/jobs` also queues the job in the fake GitHub, through its
+  control API: the repository of the offer, its labels (`self-hosted` when
+  it has none), and the scripts of `steps` (the default `run:` step when
+  there are none). `GET /_fake/jobs/ID` names that job as `github_job_id`.
+  A job that the fake GitHub refuses is not queued (502).
+* `mint` of a claimed job acts as the App: it reads the made-up key at
+  `GET /_fake/app` of the fake GitHub, gets an installation token, calls
+  `generate-jitconfig` with the runner name of the claim and the labels of
+  the job, gives the job to that runner (`POST /_fake/jobs/ID/assign`), and
+  answers the three files of the decoded `encoded_jit_config`. The official
+  runner of these files takes exactly this job from the broker of the fake
+  GitHub. A step that fails is `credential-unavailable`. The record `mints`
+  names the runner as `github_runner_id`.
+* The report of podrunner is in `GET /_fake/reports` of githome, and the
+  conclusion of the runner is in `GET /_fake/jobs/ID` of the fake GitHub.
 
 | Op | The rule |
 | --- | --- |
@@ -145,16 +171,17 @@ more for each further run.
 
 | Route of the control API | What |
 | --- | --- |
-| `POST /_fake/jobs` | the fields of a `job-offer.v1`, each optional, with `repository` (`OWNER/REPO`) and `tier` (`trusted` or `untrusted`), which give the trust inputs; 201 with the job |
-| `GET /_fake/jobs[/ID]` | each job: `status` (`queued`, `claimed`, `reported`, `done`, `cancelled`), `offer`, `claim`, `minted`, `refused_by` |
+| `POST /_fake/jobs` | the fields of a `job-offer.v1`, each optional, with `repository` (`OWNER/REPO`) and `tier` (`trusted` or `untrusted`), which give the trust inputs, and with `--github` the scripts of `steps`; 201 with the job |
+| `GET /_fake/jobs[/ID]` | each job: `status` (`queued`, `claimed`, `reported`, `done`, `cancelled`), `offer`, `claim`, `minted`, `refused_by`, `github_job_id` |
 | `POST /_fake/jobs/ID/cancel`, `/started` (`runner_name`), `/completed` (`result`) | the event of the forge to each session that holds the job |
 | `POST /_fake/jobs/ID/mint-error` | `code`: the next `mint` of the job fails with it |
 | `GET`, `PUT /_fake/settings` | `source`, `operator_controlled`, `unavailable`, `revoked` |
 | `GET /_fake/NAME` | the records `reports`, `refusals`, `withdrawals`, `releases`, `audits`, `mints`, `assignments`, `hosts`, in order |
 
 `crates/pod-testkit/tests/githome.rs` runs the binary: the 15 steps of
-`source-conformance`, one job from its offer to its report, and the
-refusals with two hosts.
+`source-conformance`, one job from its offer to its report, the
+refusals with two hosts, and one job through a linked `pod-fake-github`
+from the mint to the conclusion of its runner.
 
 | Consumer | Old path | New path |
 | --- | --- | --- |

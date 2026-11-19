@@ -3,8 +3,8 @@
 //!
 //! | Route | What |
 //! | --- | --- |
-//! | `POST /_fake/jobs` | the fields of a `job-offer.v1`, each optional, with `repository` and `tier` (module `offer`): a queued job |
-//! | `GET /_fake/jobs`, `GET /_fake/jobs/ID` | each job: its `offer`, `status`, `claim` and `minted` |
+//! | `POST /_fake/jobs` | the fields of a `job-offer.v1`, each optional, with `repository` and `tier` (module `offer`): a queued job; with a linked fake GitHub, `steps` (the scripts of its `run:` steps) too, and the job is queued there |
+//! | `GET /_fake/jobs`, `GET /_fake/jobs/ID` | each job: its `offer`, `status`, `claim`, `minted` and `github_job_id` |
 //! | `POST /_fake/jobs/ID/cancel` | the job ends; each session that holds it gets the event `cancel` |
 //! | `POST /_fake/jobs/ID/started` | `{"runner_name": NAME}` (default: the runner of the claim): the event `started` |
 //! | `POST /_fake/jobs/ID/completed` | `{"result": TEXT}`: the event `completed` |
@@ -16,7 +16,7 @@ use pod_job::JobId;
 use pod_job::source::{Event, SourceCode};
 use serde_json::{Value, json};
 
-use super::{Job, LOGS, Shared, State, Status, body, error, json_answer, offer};
+use super::{Job, LOGS, Shared, State, Status, body, error, json_answer, link, offer};
 use crate::stand::{Answer, Request};
 
 /// The answer of a route of the control API.
@@ -69,20 +69,33 @@ fn job_json(j: &Job) -> Value {
         "claim": j.claim.as_ref().map(|(session, runner)| json!({ "session": session, "runner_name": runner })),
         "minted": j.minted,
         "refused_by": j.refused_by,
+        "github_job_id": j.github_job,
     })
 }
 
+/// A queued job. With a linked fake GitHub, the body can name `steps`, and
+/// the job is queued there first: a job that the fake GitHub refuses is not
+/// queued.
 fn queue(shared: &Shared, req: &Value) -> Answer {
     let mut st = shared.lock();
     let n = st.next_id();
     let source = st.source.clone();
-    let offer = match offer::build(req, n, &source) {
+    let mut req = req.clone();
+    let steps = match (&st.github, req.as_object_mut()) {
+        (Some(_), Some(fields)) => fields.remove("steps").unwrap_or(Value::Null),
+        _ => Value::Null,
+    };
+    let offer = match offer::build(&req, n, &source) {
         Ok(o) => o,
         Err(e) => return error(422, &e),
     };
     if st.jobs.iter().any(|j| j.id() == &offer.job_id) {
         return error(409, "a job has this job_id");
     }
+    let github_job = match st.github.as_deref().map(|g| link::queue(g, &offer, &steps)).transpose() {
+        Ok(id) => id,
+        Err(e) => return error(502, &e),
+    };
     st.jobs.push(Job {
         offer,
         status: Status::Queued,
@@ -90,6 +103,7 @@ fn queue(shared: &Shared, req: &Value) -> Answer {
         report: None,
         minted: false,
         mint_error: None,
+        github_job,
         refused_by: Vec::new(),
     });
     shared.changed.notify_all();

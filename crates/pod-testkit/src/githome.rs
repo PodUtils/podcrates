@@ -13,12 +13,17 @@
 //!   `pod_job::source`. Each start of the program is a new session: a
 //!   session is one host of podrunner.
 //!
+//! With [`FakeGithome::link_github`] (`serve --github URL`), each queued job
+//! is also queued in a `pod-fake-github`, and `mint` gives the files of a JIT
+//! runner of that fake GitHub, which gets that job (module `link`).
+//!
 //! The rules of each operation are in module `wire`. A queued job is
 //! offered to each session whose host facts it fits, until a session claims
 //! it; the claim decides, as `already-claimed` tells. Each credential is
 //! made up.
 
 mod control;
+mod link;
 mod offer;
 mod program;
 mod wire;
@@ -75,6 +80,8 @@ pub(crate) struct State {
     unavailable: bool,
     /// Each `mint` is `source-revoked`.
     revoked: bool,
+    /// The base URL of the linked `pod-fake-github`, `http://ADDR/`.
+    github: Option<String>,
     jobs: Vec<Job>,
     sessions: Vec<Session>,
     /// The last id of a job, a session or a mint.
@@ -116,6 +123,8 @@ pub(crate) struct Job {
     minted: bool,
     /// The next `mint` fails with this code.
     mint_error: Option<SourceCode>,
+    /// The id of the job in the linked fake GitHub.
+    github_job: Option<u64>,
     /// The sessions that refused the job: they never get it again.
     refused_by: Vec<u64>,
 }
@@ -157,6 +166,7 @@ impl FakeGithome {
             operator_controlled: true,
             unavailable: false,
             revoked: false,
+            github: None,
             jobs: Vec::new(),
             sessions: Vec::new(),
             last_id: 0,
@@ -176,6 +186,14 @@ impl FakeGithome {
     /// The HTTP stand-in under the fake.
     pub fn stand(&self) -> &Stand {
         &self.stand
+    }
+
+    /// Link the fake to the `pod-fake-github` at `base` for each job queued
+    /// from now on: the job is queued there too, and `mint` gives the files
+    /// of a JIT runner there that gets the job.
+    pub fn link_github(&self, base: &str) {
+        let base = if base.ends_with('/') { base.to_string() } else { format!("{base}/") };
+        self.shared.lock().github = Some(base);
     }
 }
 

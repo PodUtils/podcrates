@@ -1,13 +1,18 @@
 //! The fake of githome's source (feature `githome`) through the binary
 //! `pod-fake-githome`: the steps of podrunner's `source-conformance`
 //! against the program `source`, one job from its offer to its report, and
-//! the refusals and the settings of the fake. The test is podrunner: it
-//! writes request lines to the program and reads its reply lines.
+//! the refusals and the settings of the fake, and one job through a linked
+//! `pod-fake-github`. The test is podrunner: it writes request lines to the
+//! program and reads its reply lines. The feature `githome` takes the
+//! feature `github`.
 #![cfg(feature = "githome")]
+
+mod fakes;
 
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
+use fakes::{Program, Runner, call, files};
 use pod_job::source::{
     Event, HostFacts, KindFacts, LINE_MAX, RealJob, Reply, Request, SourceCode, parse_reply, request_line,
 };
@@ -21,28 +26,21 @@ const BIN: &str = env!("CARGO_BIN_EXE_pod-fake-githome");
 
 /// `pod-fake-githome serve` on a free port; it ends with the test.
 struct Serve {
-    child: Child,
-    base: String,
-}
-
-impl Drop for Serve {
-    fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-    }
+    program: Program,
 }
 
 fn serve() -> Serve {
-    let mut child = Command::new(BIN).arg("serve").stdout(Stdio::piped()).spawn().expect("serve starts");
-    let mut line = String::new();
-    BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).expect("the base URL");
-    Serve { child, base: line.trim().to_string() }
+    serve_with(&[])
+}
+
+fn serve_with(args: &[&str]) -> Serve {
+    Serve { program: fakes::start(BIN, &[&["serve"], args].concat()) }
 }
 
 impl Serve {
     /// One call of the control API; the status and the JSON of the answer.
     fn control(&self, method: &str, path: &str, body: &Value) -> (u16, Value) {
-        let url = format!("{}_fake/{path}", self.base);
+        let url = format!("{}_fake/{path}", self.program.base);
         let (status, bytes) = stand::call(method, &url, &[], body.to_string().as_bytes()).expect("the control API");
         (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
     }
@@ -67,7 +65,7 @@ impl Serve {
     fn source(&self) -> Source {
         let mut child = Command::new(BIN)
             .arg("source")
-            .env(SERVER_VAR, &self.base)
+            .env(SERVER_VAR, &self.program.base)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()
@@ -420,4 +418,51 @@ fn the_program_needs_the_address_of_serve() {
     let out = Command::new(BIN).arg("source").env_remove(SERVER_VAR).output().unwrap();
     assert_eq!(out.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&out.stderr).contains(SERVER_VAR));
+}
+
+/// One job through a linked `pod-fake-github`: the job is queued there too,
+/// the mint gives the files of a JIT runner there, and that runner takes
+/// this job from the broker, not an older queued job of the same labels.
+/// The report of the source and the conclusion of the fake GitHub are both
+/// read.
+#[test]
+fn a_minted_runner_takes_its_job_from_the_linked_fake_github() {
+    need_loopback!();
+    let github = fakes::start(env!("CARGO_BIN_EXE_pod-fake-github"), &[]);
+    let gh = github.base.as_str();
+    let fake = serve_with(&["--github", gh]);
+    let (repo, labels) = ("example-org/site", json!(["self-hosted", "linux"]));
+    let older = json!({ "repository": repo, "name": "older", "labels": labels });
+    let (status, older) = call("POST", &format!("{gh}_fake/jobs"), None, &older);
+    assert_eq!(status, 201, "{older}");
+    let job = fake.queue(json!({ "labels": labels, "repository": repo, "steps": ["echo one"] }));
+    let github_job = fake.control("GET", &format!("jobs/{job}"), &Value::Null).1["github_job_id"].as_u64();
+    let github_job = github_job.expect("githome names the job of the fake GitHub");
+    let there = |id: u64| call("GET", &format!("{gh}_fake/jobs/{id}"), None, &Value::Null).1;
+    let queued = there(github_job);
+    assert_eq!((queued["name"].as_str(), queued["status"].as_str()), (Some(job.as_str()), Some("queued")));
+    assert_eq!((queued["repository"].as_str(), &queued["labels"]), (Some(repo), &labels));
+
+    let mut s = fake.source();
+    assert!(matches!(s.hello(None), Reply::Hello { .. }));
+    assert_eq!(s.claimed(), job);
+    let Reply::Credential { credential } = s.mint(&job, "runner-u-1") else { panic!("a credential") };
+    let minted = files(credential.files.iter().map(|f| (f.name.as_str(), f.content.expose())));
+    assert_eq!(minted[".runner"]["agentName"], "runner-u-1");
+    let runner = Runner::connect(gh, &minted).expect("the broker takes the minted runner");
+    assert_eq!(runner.poll(), Some(github_job), "the runner of the claim gets its job, not the older one");
+    let message = runner.run(github_job, "succeeded");
+    assert_eq!(message["jobDisplayName"], job.as_str());
+    assert_eq!(message["steps"][0]["inputs"]["map"][0]["Value"], "echo one");
+    done(s.report(&job, json!({ "exit_reason": "success" })));
+    done(s.release(&job));
+
+    assert_eq!(fake.status(&job), "done");
+    let reports = fake.log("reports");
+    assert_eq!((reports.len(), &reports[0]["report"]["exit_reason"]), (1, &json!("success")), "{reports:?}");
+    let ended = there(github_job);
+    assert_eq!((ended["conclusion"].as_str(), ended["runner_name"].as_str()), (Some("success"), Some("runner-u-1")));
+    assert_eq!(fake.log("mints")[0]["github_runner_id"], ended["runner_id"]);
+    assert_eq!(there(older["id"].as_u64().unwrap())["status"], "queued");
+    assert!(fake.log("refusals").is_empty());
 }

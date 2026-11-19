@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**786 entries: 145 open, 24 partial, 7 blocked, 610 done.**
+**786 entries: 144 open, 24 partial, 7 blocked, 611 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 11 | 8 | 0 | 176 | 195 |
+| P1 | 10 | 8 | 0 | 177 | 195 |
 | P2 | 68 | 6 | 4 | 313 | 391 |
 | P3 | 66 | 10 | 3 | 119 | 198 |
-| **All** | 145 | 24 | 7 | 610 | 786 |
+| **All** | 144 | 24 | 7 | 611 | 786 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -831,5 +831,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-949](upkeep.md) | P2 | S | M2 | defect | done | `pod-link`: the gate of E2-1 at 20 % drop divides by a clean time of some 50 ms, so the noise of one run moves the factor past its bound (nightly 44388345504) |
 | [T-950](upkeep.md) | P2 | M | M2 | defect | done | `pod-link`: when one half of a split session goes silent, the end that sees the far end close first names the other half as lost (windows-2025) |
 | [T-951](fleet.md) | P1 | S | M8 | feature | done | `pod-testkit`: `pod-fake-githome` passes the 14 tests of podrunner's `source-conformance`, not its test 15 of a cancelled job (PodUtils/podrunner#310) |
-| [T-952](fleet.md) | P1 | M | M8 | feature | open | `pod-testkit`: `pod-fake-githome` mints made-up files, so no runner of a job through podrunner's `serve` reaches the broker of `pod-fake-github` (PodUtils/podrunner#311) |
+| [T-952](fleet.md) | P1 | M | M8 | feature | done | `pod-testkit`: `pod-fake-githome` mints made-up files, so no runner of a job through podrunner's `serve` reaches the broker of `pod-fake-github` (PodUtils/podrunner#311) |
 | [T-953](relay.md) | P1 | S | M2 | defect | done | `pod-relay`: under a small cap of the relay, a new link sends again more bytes than the cap, so the relay still ends links with 1009 (PodUtils/podssh#320) |

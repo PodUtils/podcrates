@@ -1,0 +1,10 @@
+--- a/crates/pod-testkit/src/githome/link.rs
++++ b/crates/pod-testkit/src/githome/link.rs
+@@ -57,7 +57,6 @@
+     let repo = repository(offer);
+     let token = installation_token(github, &app_key(github)?, &repo)?;
+     let runner = jit_runner(github, &token, &repo, runner_name, &labels(offer))?;
+-    control(github, "POST", &format!("jobs/{github_job}/assign"), &json!({ "runner_id": runner.id }), 200)?;
+     let files = runner.files.into_iter().map(|(name, text)| MintedFile { name, content: Hidden::new(text) }).collect();
+     Ok((runner.id, files))
+ }

@@ -7,7 +7,7 @@
 //! | `next` | the control events of the session, then up to `capacity` queued jobs that fit the host facts and that the session does not hold or refused; with nothing to give, it waits up to `wait_s` (at most [`WAIT_MAX`]) |
 //! | `ack` | a held job |
 //! | `claim` | a held job that no session claimed: else `already-claimed`, or `unknown-job` for a job that ended |
-//! | `mint` | the claim of the session for this runner name, else `not-claimed`; one credential for each claim (`credential-already-issued`) |
+//! | `mint` | the claim of the session for this runner name, else `not-claimed`; one credential for each claim (`credential-already-issued`); with a linked fake GitHub, the files of a JIT runner there that gets the job, else `credential-unavailable` |
 //! | `report` | the claim of the session, else `not-claimed`; a second report replaces the first |
 //! | `audit` | each line |
 //! | `withdraw` | a held job that the session did not claim (`already-claimed`: release it); a reason that is not `wait-deadline`, `cancelled` or `conformance` is a refusal, and the session never gets the job again |
@@ -26,7 +26,7 @@ use pod_job::source::{
 };
 use serde_json::{Map, Value, json};
 
-use super::{Job, Shared, State, Status, WAIT_MAX, error, offer, session_of};
+use super::{Job, Shared, State, Status, WAIT_MAX, error, link, offer, session_of};
 use crate::stand::{Answer, Request as Call};
 
 /// The reasons of `withdraw` that are not a refusal: the job can come again.
@@ -235,7 +235,7 @@ fn release(j: &mut Job, id: u64) -> &'static str {
 }
 
 fn mint(st: &mut State, id: u64, job_id: &JobId, runner_name: &str) -> Result<Reply, SourceError> {
-    let revoked = st.revoked;
+    let (revoked, github) = (st.revoked, st.github.clone());
     let j = claimed(st, id, job_id)?;
     if j.claim.as_ref().is_some_and(|c| c.1 != runner_name) {
         return Err(refused(SourceCode::NotClaimed, "the job is claimed for another runner name"));
@@ -249,11 +249,27 @@ fn mint(st: &mut State, id: u64, job_id: &JobId, runner_name: &str) -> Result<Re
     if j.minted {
         return Err(refused(SourceCode::CredentialAlreadyIssued, "the claim has its credential"));
     }
+    let linked = match (github.as_deref(), j.github_job) {
+        (None, _) => None,
+        (Some(g), Some(github_job)) => Some(
+            link::mint(g, &j.offer, github_job, runner_name)
+                .map_err(|e| refused(SourceCode::CredentialUnavailable, &e))?,
+        ),
+        (Some(_), None) => {
+            return Err(refused(SourceCode::CredentialUnavailable, "the job has no job in the linked fake GitHub"));
+        }
+    };
     j.minted = true;
     let n = st.next_id();
-    let files = made_up_files(job_id, runner_name, n);
+    let (runner_id, files) = match linked {
+        Some((runner_id, files)) => (Some(runner_id), files),
+        None => (None, made_up_files(job_id, runner_name, n)),
+    };
     let shown: Map<String, Value> = files.iter().map(|f| (f.name.clone(), json!(f.content.expose()))).collect();
-    st.log("mints", json!({ "session": id, "job_id": job_id, "runner_name": runner_name, "files": shown }));
+    let line = json!({
+        "session": id, "job_id": job_id, "runner_name": runner_name, "files": shown, "github_runner_id": runner_id,
+    });
+    st.log("mints", line);
     Ok(Reply::Credential { credential: Minted { files } })
 }
 

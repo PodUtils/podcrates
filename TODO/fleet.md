@@ -6063,7 +6063,7 @@ cargo test -p pod-testkit --features githome --test githome
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6083,3 +6083,26 @@ cargo test -p pod-testkit --features githome --test githome
 ```sh
 cargo test -p pod-testkit --features githome,github --test githome
 ```
+
+## Done
+
+2026-11-19, this commit. `pod-fake-githome serve --github URL` links the
+fake githome to a `pod-fake-github` (call C788). `POST /_fake/jobs` also
+queues the job in the fake GitHub (the repository and the labels of the
+offer, `self-hosted` when it has none, and the scripts of `steps`), and
+`GET /_fake/jobs/ID` names it as `github_job_id`. `mint` of a claimed job
+acts as the App: the key of `GET /_fake/app`, an installation token,
+`generate-jitconfig` with the runner name of the claim and the labels of
+the job, `POST /_fake/jobs/ID/assign` of that job to that runner, and the
+three files of the decoded `encoded_jit_config`; a step that fails is
+`credential-unavailable`. With no `--github`, `mint` gives the made-up
+files, and the 15 steps of `source-conformance` pass unchanged. The App
+side is the module `pod_testkit::github::client`, and the feature
+`githome` takes the feature `github`. The test
+`a_minted_runner_takes_its_job_from_the_linked_fake_github` runs both
+binaries: the official runner of the minted files takes the job of the
+claim, not an older queued job of its labels, and completes it; the report
+of githome and the conclusion `success` of the fake GitHub are both read.
+`cargo test -p pod-testkit --features githome,github --test githome`: 5
+passed. The plant `testkit-githome-runner-gets-another-job` (no
+assignment) fails the test.

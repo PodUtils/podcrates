@@ -4,13 +4,14 @@
 //! routes that the official runner calls.
 #![cfg(feature = "github")]
 
-use std::io::{BufRead, BufReader};
-use std::process::{Child, Command, Stdio};
+mod fakes;
+
 use std::sync::{Mutex, mpsc};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD;
+use fakes::{Program, Runner, call, files, now};
+use pod_testkit::github::client::{installation_token as token_of, jit_runner};
 use pod_testkit::github::{APP_ID, FakeGithub, Key, hub_signature};
 use pod_testkit::need_loopback;
 use pod_testkit::stand::{self, Answer, Request, Stand};
@@ -19,28 +20,8 @@ use serde_json::{Value, json};
 /// The labels of each job and runner of the acceptance.
 const LABELS: [&str; 2] = ["self-hosted", "linux"];
 
-/// The binary on a free port; it ends with the test.
-struct Program {
-    child: Child,
-    base: String,
-}
-
-impl Drop for Program {
-    fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-    }
-}
-
 fn program(hook: &str) -> Program {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_pod-fake-github"))
-        .args(["--hook", hook])
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("pod-fake-github starts");
-    let mut line = String::new();
-    BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).expect("the base URL");
-    Program { child, base: line.trim().to_string() }
+    fakes::start(env!("CARGO_BIN_EXE_pod-fake-github"), &["--hook", hook])
 }
 
 /// The webhooks that the receiver got, in order.
@@ -74,114 +55,19 @@ impl Hooks {
     }
 }
 
-/// One call with an optional credential and a JSON body; the status and the
-/// JSON of the answer (`Null` for no JSON).
-fn call(method: &str, url: &str, token: Option<&str>, body: &Value) -> (u16, Value) {
-    let auth = token.map(|t| format!("Bearer {t}"));
-    let mut headers = vec![("Content-Type", "application/json")];
-    if let Some(a) = &auth {
-        headers.push(("Authorization", a.as_str()));
-    }
-    let raw = if body.is_null() { Vec::new() } else { body.to_string().into_bytes() };
-    let (status, out) = stand::call(method, url, &headers, &raw).unwrap();
-    (status, serde_json::from_slice(&out).unwrap_or(Value::Null))
-}
-
-fn now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
-}
-
 /// The App: its JWT, the installation of the repository, a token.
 fn installation_token(base: &str, key: &Key, repo: &str) -> String {
-    let jwt = key.jwt(&json!({ "iat": now() - 30, "exp": now() + 540, "iss": APP_ID.to_string() }));
-    let (status, inst) = call("GET", &format!("{base}repos/{repo}/installation"), Some(&jwt), &Value::Null);
-    assert_eq!(status, 200, "{inst}");
-    let url = inst["access_tokens_url"].as_str().unwrap();
-    let (status, token) = call("POST", url, Some(&jwt), &Value::Null);
-    assert_eq!(status, 201, "{token}");
-    token["token"].as_str().unwrap().to_string()
+    token_of(base, key, repo).unwrap()
 }
 
 /// A JIT runner of `repo`: its id and its three files, decoded.
 fn mint(base: &str, token: &str, repo: &str, name: &str) -> (u64, Value) {
-    let url = format!("{base}repos/{repo}/actions/runners/generate-jitconfig");
-    let (status, v) = call("POST", &url, Some(token), &json!({ "name": name, "runner_group_id": 1, "labels": LABELS }));
-    assert_eq!(status, 201, "{v}");
-    let files: Value =
-        serde_json::from_slice(&STANDARD.decode(v["encoded_jit_config"].as_str().unwrap()).unwrap()).unwrap();
-    let file = |n: &str| -> Value {
-        let raw = STANDARD.decode(files[n].as_str().unwrap()).unwrap();
-        serde_json::from_slice(&raw).unwrap()
-    };
-    let decoded = json!({
-        ".runner": file(".runner"), ".credentials": file(".credentials"),
-        ".credentials_rsaparams": file(".credentials_rsaparams"),
-    });
+    let runner = jit_runner(base, token, repo, name, &LABELS.map(String::from)).unwrap();
+    let decoded = files(runner.files.iter().map(|(n, t)| (n.as_str(), t.as_str())));
+    assert_eq!(decoded.as_object().unwrap().len(), 3, "{decoded}");
     assert_eq!(decoded[".runner"]["agentName"], name);
     assert_eq!(decoded[".runner"]["serverUrlV2"], base);
-    (v["runner"]["id"].as_u64().unwrap(), decoded)
-}
-
-/// A runner of the minted files, with its OAuth token and its session.
-struct Runner {
-    base: String,
-    token: String,
-}
-
-impl Runner {
-    fn connect(base: &str, files: &Value) -> Result<Runner, u16> {
-        let key = Key::made_up();
-        let params: Value = serde_json::from_str(&key.rsaparams()).unwrap();
-        assert_eq!(files[".credentials_rsaparams"], params, "the runner signs with the made-up key");
-        let data = &files[".credentials"]["data"];
-        let (client, url) = (data["clientId"].as_str().unwrap(), data["authorizationUrl"].as_str().unwrap());
-        let assertion = key.jwt(&json!({ "sub": client, "iss": client, "aud": url, "exp": now() + 300 }));
-        let form = format!(
-            "grant_type=client_credentials&client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer&client_assertion={assertion}"
-        );
-        let headers = [("Content-Type", "application/x-www-form-urlencoded")];
-        let (status, out) = stand::call("POST", url, &headers, form.as_bytes()).unwrap();
-        if status != 200 {
-            return Err(status);
-        }
-        let token = serde_json::from_slice::<Value>(&out).unwrap()["access_token"].as_str().unwrap().to_string();
-        let runner = Runner { base: base.to_string(), token };
-        let agent = json!({ "agent": { "id": files[".runner"]["agentId"], "name": files[".runner"]["agentName"] } });
-        let (status, session) = call("POST", &format!("{base}session"), Some(&runner.token), &agent);
-        assert_eq!(status, 200);
-        assert!(session["sessionId"].is_string());
-        Ok(runner)
-    }
-
-    /// The request id of the next message, or none when the poll ends empty.
-    fn poll(&self) -> Option<u64> {
-        let (status, m) = call("GET", &format!("{}message?status=Online", self.base), Some(&self.token), &Value::Null);
-        if status == 202 {
-            return None;
-        }
-        assert_eq!(status, 200, "{m}");
-        let body: Value = serde_json::from_str(m["body"].as_str().unwrap()).unwrap();
-        Some(body["runner_request_id"].as_str().unwrap().parse().unwrap())
-    }
-
-    /// Acquire the job, renew its lock and complete it with `conclusion`,
-    /// with the job token as the Worker does; the job message.
-    fn run(&self, request: u64, conclusion: &str) -> Value {
-        let ask = json!({ "jobMessageId": request.to_string(), "runnerOS": "Linux" });
-        let (status, m) = call("POST", &format!("{}acquirejob", self.base), Some(&self.token), &ask);
-        assert_eq!(status, 200, "{m}");
-        let job = m["resources"]["endpoints"][0]["authorization"]["parameters"]["AccessToken"].as_str().unwrap();
-        let (status, _) = call("POST", &format!("{}renewjob", self.base), Some(job), &json!({ "jobId": m["jobId"] }));
-        assert_eq!(status, 200);
-        let logs = format!("{}twirp/results.services.receiver.Receiver/GetStepLogsSignedBlobURL", self.base);
-        let (status, blob) = call("POST", &logs, Some(job), &json!({}));
-        assert_eq!(status, 200);
-        assert_eq!(stand::call("PUT", blob["logs_url"].as_str().unwrap(), &[], b"a line").unwrap().0, 201);
-        let end = json!({ "planId": m["plan"]["planId"], "jobId": m["jobId"], "conclusion": conclusion });
-        let (status, _) = call("POST", &format!("{}completejob", self.base), Some(job), &end);
-        assert_eq!(status, 200);
-        m
-    }
+    (runner.id, decoded)
 }
 
 fn queue(base: &str, repo: &str, name: &str) -> u64 {

@@ -21,6 +21,9 @@
 //!   job, give a queued job to a runner, read the jobs and their
 //!   conclusions.
 //!
+//! Module [`client`] is the App side: it mints a JIT runner and decodes its
+//! files.
+//!
 //! A runner takes the job that the control API gave it, else the oldest
 //! queued job of its repository whose labels it has, as GitHub gives a job
 //! to any idle runner with its labels. Each runner is ephemeral: one job.
@@ -29,6 +32,7 @@
 
 mod api;
 mod broker;
+pub mod client;
 mod control;
 mod hook;
 pub mod key;

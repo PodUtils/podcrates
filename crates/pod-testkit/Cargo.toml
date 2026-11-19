@@ -24,8 +24,10 @@ refused = ["dep:tokio", "tokio/net"]
 github = ["stand", "dep:ring", "dep:serde_json", "dep:base64", "dep:pod-time"]
 # The fake of githome's source of jobs for the CI of podrunner
 # (src/githome.rs) and its binary pod-fake-githome: the state and a control
-# API on the HTTP stand-in, and a program of the source wire of pod-job.
-githome = ["stand", "dep:serde_json", "dep:pod-job"]
+# API on the HTTP stand-in, and a program of the source wire of pod-job. It
+# takes the feature github: with --github, serve queues each job in a
+# pod-fake-github and mints its JIT runner there as the App.
+githome = ["github", "stand", "dep:serde_json", "dep:pod-job"]
 
 [[bin]]
 name = "pod-fake-github"
