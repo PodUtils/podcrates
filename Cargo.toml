@@ -63,6 +63,7 @@ pod-proxy = { path = "crates/pod-proxy", version = "0.76.0" }
 pod-qga = { path = "crates/pod-qga", version = "0.76.0" }
 pod-quic = { path = "crates/pod-quic", version = "0.76.0" }
 pod-relay = { path = "crates/pod-relay", version = "0.76.0" }
+pod-release = { path = "crates/pod-release", version = "0.76.0" }
 pod-rootfs = { path = "crates/pod-rootfs", version = "0.76.0" }
 pod-services = { path = "crates/pod-services", version = "0.76.0" }
 pod-session = { path = "crates/pod-session", version = "0.76.0" }
@@ -196,6 +197,10 @@ p384 = { version = "0.14", default-features = false, features = ["ecdsa", "arith
 # SHA-2 of the digest 0.10 line, under a name of its own.
 rsa = { version = "0.10", default-features = false, features = ["std", "encoding", "pkcs1v15"] }
 base64 = { version = "0.23", default-features = false, features = ["std"] }
+# The certificates of a Sigstore bundle (pod-release) and of an ACME order
+# (pod-acme): the names, the extensions and the life of a leaf, and the
+# blocks of a PEM file, with no crypto of its own. Pure Rust.
+x509-parser = { version = "0.18", default-features = false }
 # KCP of the udp carrier of pod-link: pure Rust, no feature (call C271).
 kcp = { version = "0.6", default-features = false }
 zeroize = "1"

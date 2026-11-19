@@ -1,0 +1,136 @@
+{
+  "$defs": {
+    "File": {
+      "additionalProperties": false,
+      "description": "One file of the release.",
+      "properties": {
+        "name": {
+          "description": "The name of the file: no `/`, no `\\`, not `.` or `..`.",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "Its SHA-256: 64 lowercase hex digits.",
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "size": {
+          "description": "Its size in bytes.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "target": {
+          "description": "The target triple of a binary, as `x86_64-unknown-linux-musl`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "sha256",
+        "size"
+      ],
+      "type": "object"
+    },
+    "Signature": {
+      "additionalProperties": false,
+      "description": "The keyless signature of `SHA256SUMS`.",
+      "properties": {
+        "bundle": {
+          "description": "The Sigstore bundle of `sums`: `SHA256SUMS.sigstore.json`.",
+          "type": "string"
+        },
+        "identity": {
+          "description": "The URI that the leaf certificate must name: the release workflow\nat the tag.",
+          "type": "string"
+        },
+        "issuer": {
+          "description": "The issuer of the OIDC token of the signer.",
+          "type": "string"
+        },
+        "sums": {
+          "description": "The file of the SHA-256 sums: `SHA256SUMS`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sums",
+        "bundle",
+        "identity",
+        "issuer"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/release-index.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The release index of one release.",
+  "properties": {
+    "acceptance": {
+      "description": "The acceptance of the release (the asks that it passes): the name\nof a file of `files`, or an `https://` URL.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "commit": {
+      "description": "The commit of the tag: 40 lowercase hex digits.",
+      "pattern": "^[0-9a-f]{40}$",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "date": {
+      "description": "The time of the release in UTC, `YYYY-MM-DDTHH:MM:SSZ`.",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "type": "string"
+    },
+    "files": {
+      "description": "Each file of the release, except `SHA256SUMS`, its bundle and the\nindex, sorted by name.",
+      "items": {
+        "$ref": "#/$defs/File"
+      },
+      "type": "array"
+    },
+    "project": {
+      "description": "The repository of the product, `OWNER/REPO`.",
+      "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+      "type": "string"
+    },
+    "sbom": {
+      "description": "The SBOM: the name of a file of `files`, or an `https://` URL.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "schema": {
+      "const": 1,
+      "description": "The version of this form: 1.",
+      "type": "integer"
+    },
+    "signature": {
+      "$ref": "#/$defs/Signature",
+      "description": "Where the signature is, and whose it must be."
+    },
+    "version": {
+      "description": "The tag of the release, as `v0.77.0`.",
+      "pattern": "^[v0-9][0-9A-Za-z.+-]{0,63}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "project",
+    "version",
+    "date",
+    "signature",
+    "files"
+  ],
+  "title": "The release index of a product of PodUtils",
+  "type": "object"
+}

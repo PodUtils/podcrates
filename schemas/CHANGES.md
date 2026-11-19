@@ -86,3 +86,4 @@ that kept its id.
 | v0.73.0 | `status.v1` | `sources.draining` | added | An operator drained the source: it takes no new offer; `false` when it is missing (T-947, PodUtils/podrunner#305). | 91bcc68be2584495a4928e1a4a0a9d390cc6d5967130c2ae31ee608419694fcc |
 | v0.73.0 | `status.v1` | `max_units` | added | The most units of the host across its kinds; `null` or missing is no cap (T-947). | 91bcc68be2584495a4928e1a4a0a9d390cc6d5967130c2ae31ee608419694fcc |
 | v0.73.0 | `status.v1` | `units` | added | The units that run on the host now; `0` when it is missing (T-947). | 91bcc68be2584495a4928e1a4a0a9d390cc6d5967130c2ae31ee608419694fcc |
+| next | `release-index.v1` | `*` | new | The release index of a product: the tag, the date, the commit, the signature of `SHA256SUMS` with its identity and issuer, each file with its SHA-256, size and target, the SBOM and the acceptance (T-104). | 0d9a1e8fc12ce201318b203ce4b3c2fa6481e77072232ef23ecad19d99be66ef |

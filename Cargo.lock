@@ -5290,6 +5290,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-release"
+version = "0.76.0"
+dependencies = [
+ "base64 0.23.1",
+ "boon",
+ "libc",
+ "pod-core",
+ "pod-proxy",
+ "pod-testkit",
+ "pod-tls",
+ "rand 0.10.4",
+ "rustls",
+ "rustls-pki-types",
+ "schemars 1.2.3",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "tokio",
+ "x509-parser",
+]
+
+[[package]]
 name = "pod-rootfs"
 version = "0.76.0"
 dependencies = [
@@ -5379,6 +5402,7 @@ name = "pod-testkit"
 version = "0.76.0"
 dependencies = [
  "base64 0.23.1",
+ "boon",
  "bytes",
  "h2",
  "http",
@@ -7309,6 +7333,7 @@ dependencies = [
  "pod-qga",
  "pod-quic",
  "pod-relay",
+ "pod-release",
  "pod-rootfs",
  "pod-services",
  "pod-session",

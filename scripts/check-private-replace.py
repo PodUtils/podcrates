@@ -45,6 +45,8 @@ EXCEPTIONS: dict[str, str] = {
     "crates/pod-extract/src/drive/deep.rs": "test code: a module of the tests of drive.rs that moves a directory",
     "crates/pod-guest/src/warm/state.rs": "a directory of a warm state, not a file",
     "crates/pod-guest/src/fetch.rs": "a download streamed to its part file, synced, then moved: too large for a body in memory",
+    "crates/pod-release/src/keep.rs": "the kept binary and a rollback: a hard link or a copy of a binary, not a private file; the directory is synced",
+    "crates/pod-release/src/replace.rs": "a new binary over the running one: written, synced and tried before the rename; Windows moves the running file aside",
     "crates/pod-supervise/src/table.rs": "its temporary file is in the staging directory that its sweep cleans; it syncs the file and the directory",
 }
 

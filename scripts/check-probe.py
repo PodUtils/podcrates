@@ -47,6 +47,9 @@ ALLOWED = {
     ("pod-hostprobe", "schema"): "report::schema, the JSON Schema of the report, for the tests of a consumer "
                                  "that validate a report; no binary carries schemars",
     ("pod-testkit", "screen"): "a crate of tests; it is not in a released binary",
+    ("pod-testkit", "schema"): "a crate of tests; it is not in a released binary",
+    ("pod-release", "schema"): "index::schema, the JSON Schema of the release index, for the tests that generate "
+                               "release-index.v1 and for the tests of a consumer; no binary carries schemars",
     ("pod-testkit", "stand"): "a crate of tests; it is not in a released binary",
     ("pod-testkit", "refused"): "a crate of tests; it is not in a released binary",
     ("pod-testkit", "masque"): "a crate of tests; it is not in a released binary",

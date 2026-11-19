@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "project": "PodUtils/podcrates",
+  "version": "v0.77.0",
+  "date": "2026-11-19T09:27:57Z",
+  "commit": "0000000000000000000000000000000000000000",
+  "signature": {
+    "sums": "SHA256SUMS",
+    "bundle": "SHA256SUMS.sigstore.json",
+    "identity": "https://github.com/PodUtils/podcrates/.github/workflows/release.yml@refs/tags/v0.77.0",
+    "issuer": "https://token.actions.githubusercontent.com"
+  },
+  "files": [
+    {
+      "name": "podlab-aarch64-pc-windows-msvc.exe",
+      "sha256": "82d3eaa39ae13807df34ab1142020a80c494d314bb0afc89f0e3e7f4a77f1756",
+      "size": 35,
+      "target": "aarch64-pc-windows-msvc"
+    },
+    {
+      "name": "podlab-install.sh",
+      "sha256": "ecc0895c643bb72808617c399700759738fd0db778ba71c4947b79eaac76ea73",
+      "size": 18
+    },
+    {
+      "name": "podlab-x86_64-unknown-linux-musl",
+      "sha256": "5a6bf1907925254a381bb9eb504d213333e76de675a8877835938e0569557461",
+      "size": 33,
+      "target": "x86_64-unknown-linux-musl"
+    },
+    {
+      "name": "sbom.spdx.json",
+      "sha256": "9f5002dae5c2fa5f81d417907adf561d6a7c781e18950acaa449ea6149582fd5",
+      "size": 15
+    }
+  ],
+  "sbom": "sbom.spdx.json",
+  "acceptance": "https://github.com/PodUtils/podcrates/blob/v0.77.0/TODO/acceptance.json"
+}

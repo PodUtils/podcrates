@@ -1505,7 +1505,7 @@ contract.
 - Read: `crates/pod-core/src/files/closed_win.rs` (the private files of
   Windows) has no `MoveFileExW`.
 - Read: `scripts/check-size.py` runs in `.github/workflows/ci.yml:76` and
-  in `scripts/agent/check.sh:39`. A new check of the repository needs its
+  in `scripts/agent/check.sh:40`. A new check of the repository needs its
   plant in `scripts/plants` (T-003).
 - Found while reading: T-195 (two threads that store one name at once
   share the temporary name of `write_private`).
@@ -2224,7 +2224,7 @@ cargo test -p pod-detach --all-features
 **Milestone:** M0
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2243,6 +2243,47 @@ Extend T-104: `pod-release` takes the fetch of a release, the check of its signa
 ```sh
 cargo test -p pod-release --all-features
 ```
+
+## Done
+
+2026-11-19, commits `aa860780` (the import) and `a9a36981` (the crate), and this commit (the record).
+`pod-release` holds the update (call C794): podssh's copy is the base (a random temporary name, the
+`.exe` of Windows and its rename aside, Rekor's promise), with podnet's checks (the file checked again
+after its trial run, its issue 236; one valid line of a name in `SHA256SUMS`; the form of a tag, its
+issue 227; the plan of a pinned tag and of `--force`). The modules: `version` (semver, the tags of
+GitHub's API and of `releases.atom`), `trial::check` (`--version` within a limit, `PROGRAM VERSION`),
+`replace::replace` (the new file beside the binary, its trial, the rename; the old mode with no write
+of others and no set-user-ID bit), `keep` (`NAME.prev`, `rollback`, `fallback`), and with the feature
+`fetch`: `fetch::Fetcher` over the caller's `pod_proxy::Client` and `update` (`newest`, `plan`,
+`signed`, `binary`, `install`). `cargo test -p pod-release --all-features`: 53 passed; the update
+runs against a stand-in of GitHub on the loopback with the files of podcrates v0.76.0, the asset
+through a redirect to a signed URL.
+
+What each consumer changes to take it (T-966 holds the trials and the hand-off):
+
+- podssh: remove of PodUtils/podssh:crates/podssh-cli/src/update/ the files `sigstore.rs`,
+  `release.rs`, `fetch.rs`, `replace.rs`, `keep.rs`, `trial.rs` and `trust/`; `update/mod.rs` keeps its flags, its lines,
+  its exit codes (`Error::CantWrite` to `EX_CANTCREAT`, `Refused` to `EX_DATAERR`, `Unavailable`
+  and `NotFound` to `EX_UNAVAILABLE`, `Config` to `EX_CONFIG`), `trust()`, the mark of a detached
+  node and the lines of `way_back`. `Options` becomes `pod_release::update::Source::github(repo,
+  "release.yml")` and a `Fetcher::new(pod_proxy::Client)` with its trust and proxy; the steps are
+  `update::newest`, `update::signed`, `update::binary` and `update::install(exe, bytes, "podssh",
+  version, trial::LIMIT)`; `--rollback` calls `keep::rollback(exe, &Expect { program: "podssh",
+  version: None, limit })` and writes its own lines from `RolledBack`; `fallback` takes the same
+  `Expect`; `remove_aside` takes the path of `replace::running()`. Its fixture of v1.0.0-beta.2 can
+  stay as a test of its identity. The dependency `roxmltree` goes.
+- podnet: remove `src/update/cosign.rs`, `src/sigstore-fulcio.pem`, and of `src/update.rs`
+  `valid_tag`, `atom_tags`, `newest_in_atom`, `version_order`, `trial`, `install`, `rollback`,
+  `same_file`, `keep` and `sync_dir`; keep `run`, `Outcome`, the `PODNET_REPO` warning,
+  `Release::pinned` (as `Source::file(tag, name)`) and its lines. The identity is
+  `Identity::github("PodUtils/podnet", "release.yml", tag)`; the check gains Rekor's promise. `plan`
+  takes `Version`s (`pod_release::update::plan`); the asset name is
+  `version::asset("podnet", &version::release_target(TARGET))`. The fetch goes through
+  `pod_proxy::Client` with podnet's trust and proxy (or podnet keeps its `get` and calls
+  `verify_release` and `Verified::check`). Its `detach::previous_of` and `keep::prev_of` give the same
+  `NAME.prev` on Unix: the supervisor of a detached run keeps its fallback.
+- Both: write `release-index.json` with `scripts/release-index.py` in the release workflow, before
+  `SHA256SUMS`.
 
 # T-881: `pod-tls`: the CA bundle that the environment names, in place of three lists in the consumers
 

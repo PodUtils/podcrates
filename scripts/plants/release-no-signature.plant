@@ -1,0 +1,7 @@
+# The verifier takes a bundle with no check of the leaf's signature of
+# SHA256SUMS: a changed signature passes that step (T-104).
+ENTRY=T-104
+GROUP=release
+EXPECT='a_changed_signature_promise_or_body_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-release --all-features --lib sigstore::tests'
+LIMIT=900

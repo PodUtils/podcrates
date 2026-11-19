@@ -1,0 +1,7 @@
+# The verifier takes a bundle of any signer: the identity and the issuer
+# of the leaf are not checked (T-104).
+ENTRY=T-104
+GROUP=release
+EXPECT='another_tag_or_another_repository_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-release --all-features --lib sigstore::tests'
+LIMIT=900

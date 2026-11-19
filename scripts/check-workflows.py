@@ -16,7 +16,7 @@ DIR is .github/workflows when it is not given. The rules:
   names no host of another party: each `http://` or `https://` host in its
   text, and in each script of `scripts/` that it runs, is a host of the
   downloads (DOWNLOADS and the mirrors of `scripts/zig-mirrors.txt`; call
-  C150, T-352). A live service belongs to `live.yml` or `services.yml`.
+  C150, T-352), or a name that no job reaches (NAMES_ONLY). A live service belongs to `live.yml` or `services.yml`.
 * Each workflow that AGENTS.md or a page of docs/ names (`NAME.yml`, in
   backticks or in a path) is a file of DIR. The pages in docs/research/
   and docs/releases/ are readings at a time, and they name
@@ -51,6 +51,11 @@ DOWNLOADS = {
 # A server of another party that a script runs on the loopback is no
 # host of another party (call C151).
 LOOPBACK = {"127.0.0.1", "localhost"}
+# A URI that names something and that no job reaches, with the reason.
+NAMES_ONLY = {
+    "token.actions.githubusercontent.com": "the OIDC issuer of GitHub Actions: a value of a signing certificate "
+                                           "that scripts/release-index.py writes into the release index",
+}
 HOST = re.compile(r"https?://([A-Za-z0-9.-]+)")
 SCRIPT = re.compile(r"(scripts/[A-Za-z0-9/_.-]+\.(?:sh|py))")
 SHA = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
@@ -96,7 +101,7 @@ def network(root: Path, path: Path) -> list[str]:
     """The faults of a workflow of NO_NETWORK: a test with `--ignored`, and
     a host that is not a host of the downloads, in its text or in a script
     of `scripts/` that it runs."""
-    allowed = set(DOWNLOADS) | LOOPBACK
+    allowed = set(DOWNLOADS) | LOOPBACK | set(NAMES_ONLY)
     mirrors = root / "scripts" / "zig-mirrors.txt"
     if mirrors.is_file():
         allowed |= set(HOST.findall(mirrors.read_text(encoding="utf-8")))

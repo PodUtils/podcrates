@@ -15,6 +15,8 @@
 //!   starts the test binary again as uid 65534.
 //! * `elf`: a static ELF made in the test (x86_64 and aarch64), and
 //!   the check of a dynamic one (Linux only).
+//! * [`schema`] (feature `schema`): the file of a JSON Schema of `schemas/`
+//!   against the types, and a validator of JSON Schema 2020-12.
 //! * [`screen`] (feature `screen`): the terminal oracle, a model of a VT
 //!   terminal that tells what a person sees after a stream of bytes.
 //! * [`stand`] (feature `stand`): the stand-ins of the services of other
@@ -51,6 +53,8 @@ pub mod masque;
 pub mod nobody;
 #[cfg(feature = "refused")]
 pub mod refused;
+#[cfg(feature = "schema")]
+pub mod schema;
 #[cfg(feature = "screen")]
 pub mod screen;
 #[cfg(feature = "stand")]

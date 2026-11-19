@@ -28,7 +28,7 @@ p256 = { workspace = true }
 # its own: each signature is the key's. Pure Rust.
 rcgen = { version = "0.14", default-features = false }
 # The names and the life of a leaf, and the blocks of a PEM file. Pure Rust.
-x509-parser = { version = "0.18", default-features = false }
+x509-parser = { workspace = true }
 base64 = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

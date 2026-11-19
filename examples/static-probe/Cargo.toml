@@ -68,6 +68,9 @@ pod-quic = { workspace = true }
 # `fuzzing` and `plain-ws` are out: they are for the fuzz targets of fuzz/ and
 # the tests of an embedder, and no binary turns them on.
 pod-relay = { workspace = true, features = ["blocking", "code", "grant", "quic"] }
+# `fetch`: a fetcher over the client of pod-proxy. `schema` is out: it is for
+# the tests that generate the JSON Schema of the index, and no binary turns it on.
+pod-release = { workspace = true, features = ["fetch"] }
 pod-rootfs = { workspace = true }
 pod-session = { workspace = true }
 pod-services = { workspace = true, features = ["overlay"] }

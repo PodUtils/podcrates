@@ -1,0 +1,50 @@
+[package]
+name = "pod-release"
+description = "The release index of a product and its verifier: the keyless Sigstore bundle of SHA256SUMS with the caller's release identity, the SHA-256 of each file; and the self-update of a running binary: the fetch of a release, the replace with a trial run, the kept binary and the rollback."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+# The fetch of a release over HTTPS through the caller's `pod_proxy::Client`
+# (its way out and its trust), and the steps of an update. With no feature,
+# the verifier, the index, the versions, the trial, the replace and the kept
+# binary build with no tokio.
+fetch = ["dep:pod-proxy", "dep:tokio", "pod-core/async"]
+# The JSON Schema of the release index (`index::schema`), for the tests
+# that write `schemas/release-index.v1.schema.json` and for the tests of a
+# consumer that validate an index; no binary turns it on.
+schema = ["dep:schemars"]
+
+[dependencies]
+pod-core = { workspace = true }
+# The ECDSA verifiers of P-256 and P-384 of the pure provider: the
+# signature of SHA256SUMS, of each certificate of Fulcio's chain and of
+# Rekor's promise. No C.
+pod-tls = { workspace = true, default-features = false, features = ["pure"] }
+rustls-pki-types = { workspace = true }
+x509-parser = { workspace = true }
+sha2 = { workspace = true }
+base64 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+# The random part of a temporary name beside the binary.
+rand = { workspace = true }
+pod-proxy = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["time"] }
+schemars = { workspace = true, optional = true }
+
+[target.'cfg(unix)'.dependencies]
+# The owner of the new file after its trial, and ETXTBSY.
+libc = "0.2"
+
+[dev-dependencies]
+pod-testkit = { workspace = true, features = ["stand", "schema"] }
+tempfile = "3"
+tokio = { workspace = true, features = ["rt", "macros", "time"] }
+rustls = { workspace = true, features = ["ring"] }
+# The schema of the index, and a validator of JSON Schema 2020-12.
+schemars = { workspace = true }
+boon = { workspace = true }
