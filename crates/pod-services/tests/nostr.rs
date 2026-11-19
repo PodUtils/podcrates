@@ -6,7 +6,7 @@
 #[test]
 fn each_relay_is_a_wss_endpoint_on_443_in_the_order_of_its_rank() {
     let ids: Vec<&str> = pod_services::of_kind("nostr-relay").map(|s| s.id()).collect();
-    assert_eq!(ids, ["primal-nostr", "offchain-nostr"]);
+    assert_eq!(ids, ["primal-nostr", "noslol-nostr"]);
     for s in pod_services::of_kind("nostr-relay") {
         let e = s.endpoint("relay").unwrap_or_else(|| panic!("{}: no endpoint relay", s.id()));
         assert_eq!((e.scheme(), e.port(), e.path()), ("wss", 443, Some("/")), "{}", s.id());

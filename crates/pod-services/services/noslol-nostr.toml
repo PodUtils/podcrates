@@ -1,0 +1,58 @@
+# A public Nostr relay (nos.lol, strfry): a meeting point of the pairing by
+# code after the mailboxes (pod-wormhole's nostr; PodUtils/podssh#235,
+# PodUtils/podssh@T-545). The ends send events of one ephemeral kind with
+# no account, no proof of work and no authentication; each client of the
+# relay can read each event, so the ends send ciphertext alone. The
+# endpoint relay is the one to dial; the facts come from its NIP-11
+# document, which the watch http-json reads.
+id = "noslol-nostr"
+kind = "nostr-relay"
+party = "nos.lol (the operator of its domain)"
+about = "The public Nostr relay at nos.lol, NIP-01 over a WebSocket on port 443"
+
+[rank]
+value = 2
+source = { measured = "two ends paired through the relay with events of the kind 25431 and new keys, through the HTTPS proxy of a cloud session, in the live tests of pod-wormhole and pod-relay (T-963); it takes the place of offchain.pub, which refuses a key outside its web of trust (docs/decisions.md, C796)", read = 2026-11-19 }
+
+[[endpoint]]
+name = "relay"
+scheme = "wss"
+host = "nos.lol"
+port = 443
+path = "/"
+source = { url = "https://nos.lol/", read = 2026-11-19, note = "the NIP-11 document (Accept: application/nostr+json) names the software strfry and supported_nips with 1 and 11" }
+
+[[fact]]
+name = "message-bytes-most"
+value = 131072
+unit = "bytes"
+source = { url = "https://nos.lol/", read = 2026-11-19, note = "NIP-11 limitation.max_message_length; strfry also refuses an event of more than 65536 bytes of JSON (strfry.conf, maxEventSize)" }
+
+[[fact]]
+name = "subscriptions-most"
+value = 200
+source = { url = "https://nos.lol/", read = 2026-11-19, note = "NIP-11 limitation.max_subscriptions" }
+
+[[fact]]
+name = "software"
+value = "git+https://github.com/hoytech/strfry.git"
+source = { url = "https://nos.lol/", read = 2026-11-19, note = "NIP-11 software" }
+
+[[watch]]
+kind = "websocket-upgrade"
+endpoint = "relay"
+
+[[watch]]
+kind = "http-json"
+url = "https://nos.lol/"
+accept = "application/nostr+json"
+pointer = "/limitation"
+facts = ["message-bytes-most", "subscriptions-most"]
+members = ["max_message_length", "max_subscriptions"]
+
+[[watch]]
+kind = "http-json"
+url = "https://nos.lol/"
+accept = "application/nostr+json"
+pointer = "/software"
+fact = "software"
