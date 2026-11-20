@@ -41,7 +41,8 @@
   until the podswarm session starts, but for T-439, T-444, T-447 and
   T-448 (the ruling "podswarm", call C245).
 - Each name of `docs/design.md`, section 4, is reserved on crates.io
-  (`check-crates-io-names.py`: 102 names, 0 faults). No crate goes to
+  (`check-crates-io-names.py`: 102 names, 0 faults), but `pod-beneath`
+  (T-997; "Owner actions"). No crate goes to
   crates.io now (the ruling "Releases").
 - Blocked: T-217 to T-220 (`pod-git`, the rulings "pod-git" and
   "Renames": `PodUtils/podforge`, deferred). T-538 (the attribution line
@@ -187,6 +188,8 @@ takes the number after the last row of that table.
   `POD_DEVTUNNEL_ACCESS_TOKEN` for a tunnel with no anonymous access),
   host the tunnel (`devtunnel host -p 22 --allow-anonymous`), and tell
   the session: it dispatches `live.yml` with `measure=devtunnel`.
+- Reserve the name `pod-beneath` on crates.io (call C834, T-997), as for
+  each name of `docs/design.md`, section 4.
 - Delete the branches that #208 names, and the two `dependabot/docker`
   branches that `docs/HANDOFF.md` names.
 
