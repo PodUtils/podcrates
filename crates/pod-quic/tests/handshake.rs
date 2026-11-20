@@ -95,3 +95,26 @@ async fn an_untrusted_server_fails_the_connection_at_once() {
     assert_eq!(why.stage, pod_core::Stage::Quic);
     assert_ne!(why.class, pod_core::Class::Timeout, "{why}");
 }
+
+/// An endpoint on `[::]` reaches a server on IPv4, as `pod-cloudflare`
+/// dials each edge from one endpoint. Windows makes a socket of IPv6 IPv6
+/// only unless the bind says otherwise.
+#[tokio::test(flavor = "multi_thread")]
+async fn an_endpoint_on_the_ipv6_wildcard_reaches_a_server_on_ipv4() {
+    pod_testkit::need_loopback!();
+    let endpoint = match pod_quic::endpoint::bind((std::net::Ipv6Addr::UNSPECIFIED, 0).into()) {
+        Ok(endpoint) => endpoint,
+        Err(e) => return pod_testkit::host::skip_line(&format!("this host has no socket of IPv6: {e}")),
+    };
+    let (edge, addr, roots) = server();
+    tokio::spawn(async move {
+        if let Some(incoming) = edge.accept().await {
+            let _ = incoming.await;
+        }
+    });
+    let connection = timeout(LIMIT, connect::connect(&endpoint, addr, NAME, tls(&roots), &Settings::default()))
+        .await
+        .unwrap()
+        .expect("a handshake from [::] with 127.0.0.1");
+    connection.close(0u32.into(), b"");
+}

@@ -10485,3 +10485,36 @@ timeout 300 cargo test -p pod-relay --all-features --test pair_code_live -- --ig
 2026-11-19, this commit, step 1. `pod-wormhole`: a Nostr relay counts the events of its end (`Tally`: sent, accepted with `OK` true, passed of another key, taken as messages of the other end), and `Wormhole::receive` and `Wormhole::confirm` give them in the words of an other end that said nothing: "the other end said nothing for 60 s (at the Nostr relay URL this end sent S events and the relay accepted A; it passed P events of the other key, T of them messages of the other end)". `Place::tally` gives them for a relay, `None` for the other points. The live test `pair_code_live` gives the result of both ends when one fails. Test: `tests/nostr.rs` `an_end_that_hears_nothing_names_what_the_relay_passed` (the stand-in loses the taker's message; the giver names 2 sent, 2 accepted, 2 passed). The giver of run 44497255102 failed in `receive`, after the key and the versions crossed `offchain.pub`: the relay passed the first events of both ends. Steps 2 and 3 wait for the next run of `live.yml` with this commit. The step of `pod-wormhole` and `pod-relay` in `live.yml` runs both tests and fails at its end, so a service that fails in one test does not hide the next.
 
 2026-11-19, step 3 (call C796): `offchain-nostr` leaves the catalog of `pod-services`, and `noslol-nostr` (`wss://nos.lol/`, strfry) takes its rank 2. From a cloud session, `nos.lol` paired in the live test of `pod-wormhole` and in `pair_code_live` after a dead mailbox (3.4 s); `relay.damus.io` answered the upgrade with HTTP 503 and is not taken; `offchain.pub` reset TLS in a later run. The catalog test names `primal-nostr` and `noslol-nostr`. The run 44529873962 of `live.yml` at `5e13425` passed from a runner: `nos.lol` paired in the live test of `pod-wormhole`, and in `pair_code_live` after a dead mailbox in 56.1 s (`relay.primal.net`: 3.0 s; from a cloud session `nos.lol` took 3.4 s). 56 s is near the wait of 60 s of the giver: the entry stays partial for step 4 and for the cause of that delay (the counts of step 1 name it at a failure; a pass gives no counts). The test of step 1 read exactly 2 events of the other end; the taker sends its first message again until the giver answers, so on a slow run the giver got 3 (the full checks of the T-100 merge). It now reads the counts and asks for 2 or more, each a message of the other end; 5 runs of 5.
+
+# T-990: `pod-quic`: an endpoint on `[::]` is IPv6 only on Windows, so the QUIC leg of `pod-cloudflare` sends nothing to an edge of IPv4
+
+**Source:** nightly run 44505235227, `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` on both Windows jobs (jobs 135494988135 and 135494988195): "no QUIC packet came: Some(Os { code: 10060, kind: TimedOut, ... })" (T-933).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+`pod_quic::endpoint::bind` binds a `std::net::UdpSocket`. On Windows a socket of IPv6 is IPv6 only (`IPV6_V6ONLY` is on by default), so an endpoint on `[::]:0` cannot send to an address of IPv4. `pod_cloudflare::cloudflare::quic::build_endpoint` binds `[::]:0` and dials each edge, IPv4 and IPv6, from that one endpoint. On Windows the QUIC leg sends no packet to an edge of IPv4, and the protocol auto falls back to HTTP/2. The test of T-933 waits for a packet at a silent socket on `127.0.0.1` and gets none (`WSAETIMEDOUT` of its own read). Linux and macOS make the socket dual-stack by default, so their runs pass. `noq::Endpoint::client` clears `IPV6_V6ONLY` before its bind; `pod-quic` does not use it.
+
+## Premise
+
+- Read: the logs of the two Windows jobs; `crates/pod-quic/src/endpoint.rs`; `crates/pod-cloudflare/src/cloudflare/quic.rs`; noq 1.4.0 `src/endpoint.rs` (`client`, `server`) and noq-udp 1.4.0 `src/windows.rs` (it reads `IPV6_V6ONLY` and sends IPv4 only on a socket that is not IPv6 only).
+- Not measured: a run on Windows. The cloud session has no IPv6, so the new test skips there.
+
+## Approach
+
+Bind the client socket with `socket2`: for an address of IPv6, clear `IPV6_V6ONLY` before the bind; a system that refuses keeps IPv6 only. A test: an endpoint on `[::]:0` completes a handshake with a server on `127.0.0.1`, and skips on a host with no IPv6.
+
+## Prove
+
+```sh
+cargo test -p pod-quic --all-features --test handshake
+cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
+```
+
+## Done
+
+2026-11-20, partial (the proof is the next run of the Windows jobs of `nightly.yml`; call C830): `pod_quic::endpoint::bind` makes its socket with `socket2` (`dual_stack`): `set_only_v6(false)` before the bind for an address of IPv6, as `noq::Endpoint::client` does. `socket2` 0.6 is a new direct dependency of `pod-quic` and no new crate in `Cargo.lock` (noq-udp has it). The test `an_endpoint_on_the_ipv6_wildcard_reaches_a_server_on_ipv4` (`crates/pod-quic/tests/handshake.rs`). `cargo test -p pod-proxy -p pod-core -p pod-quic --all-features` on Linux: 0 failed, the new test skipped ("this host has no socket of IPv6"); `--test quick_tunnel_standin` of `pod-cloudflare`: 13 passed; `sh scripts/agent/check-windows.sh`: no fault in `pod-quic`. Open: the result of the new test and of the test of T-933 on `windows-2025` and `windows-11-arm`.

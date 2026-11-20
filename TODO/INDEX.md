@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**811 entries: 144 open, 30 partial, 7 blocked, 630 done.**
+**812 entries: 144 open, 31 partial, 7 blocked, 630 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 8 | 9 | 0 | 189 | 206 |
-| P2 | 68 | 11 | 4 | 318 | 401 |
+| P2 | 68 | 12 | 4 | 318 | 402 |
 | P3 | 68 | 10 | 3 | 121 | 202 |
-| **All** | 144 | 30 | 7 | 630 | 811 |
+| **All** | 144 | 31 | 7 | 630 | 812 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -858,3 +858,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-976](podvm.md) | P2 | M | M6 | defect | open | `pod-enter`: the library path of the loader family has no `DT_RUNPATH` or `DT_RPATH` directory of a program or its libraries |
 | [T-977](podvm.md) | P2 | M | M6 | feature | open | `pod-release`: the pinned fetch of a static tool that a project runs (gVisor's `runsc` for podvm) |
 | [T-978](upkeep.md) | P1 | M | M5 | defect | partial | The findings of the report of the hard problems that the record does not have |
+| [T-990](relay.md) | P2 | S | M2 | defect | partial | `pod-quic`: an endpoint on `[::]` is IPv6 only on Windows, so the QUIC leg of `pod-cloudflare` sends nothing to an edge of IPv4 |
