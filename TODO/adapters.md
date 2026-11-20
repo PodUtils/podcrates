@@ -2267,7 +2267,7 @@ cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2299,6 +2299,11 @@ cargo test -p pod-devtunnel --all-features
 cargo test -p pod-services-watch --all-features
 ```
 
+## Done
+
+2026-11-20, 993bf43. `pod_core::failure::lead` (call C827) puts words before a text once; `pod-cloudflare`'s `fail::wrap` and `Host::send`, `pod-proxy`'s `within` and `pod-devtunnel`'s `wrap` use it, and `pod_proxy::client::Request::line` gives the words of the request. `pod-services-watch` keeps the words of the failure. A reset of the TLS handshake keeps its cause without the words of the request (`Failure::into_source`). The line now: `POST https://api.example/tunnel: could not reach the proxy 127.0.0.1:P: could not connect to 127.0.0.1:P: Connection refused (os error 111)`. Tests, each failed before the fix with 2 names of the request: `crates/pod-cloudflare/src/host.rs::a_dead_proxy_names_the_request_once`, `a_reset_in_the_tls_handshake_is_named`, `crates/pod-devtunnel/tests/login.rs::a_dead_base_names_the_request_once`, `crates/pod-services-watch/tests/watches/http.rs::a_dead_host_names_the_url_once`; and `failure::tests::a_lead_is_said_once` of `pod-core`. `cargo test` of `pod-core`, `pod-proxy`, `pod-cloudflare`, `pod-warp`, `pod-ws`, `pod-devtunnel` and `pod-services-watch` with `--all-features`: 1028 passed, 0 failed, 5 ignored; clippy of the same crates with `-D warnings`: clean.
+
+
 # T-986: `pod-warp`: an error of the WARP API names a proxy that does not answer once for each host (PodUtils/podnet#658)
 
 **Source:** PodUtils/podnet#658 (COORD-111 of podnet, PodUtils/podnet@T-497), part 2.
@@ -2306,7 +2311,7 @@ cargo test -p pod-services-watch --all-features
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2334,3 +2339,7 @@ When each host of the API fails at the same hop (the proxy), the line names the 
 cargo test -p pod-warp --all-features --test register
 cargo test -p pod-proxy --all-features --lib race::tests
 ```
+
+## Done
+
+2026-11-20, 993bf43. `Api::send` gives `each_failed`: the hop that each failed base shares (the outer `Failure` or `DialError` of each chain with the same text) is one entry of `pod_proxy::group_texts`, and stays the cause of the failure (`EachHost`), so a caller reads its `DialError`. With one base, the line names the request once: `the WARP API: POST https://HOST/...: ...`. The line now: `the WARP API: each host failed: 2 hosts (https://api.one.example, https://api.two.example): could not reach the proxy 127.0.0.1:P: could not connect to 127.0.0.1:P: Connection refused (os error 111)`. Tests: `crates/pod-warp/tests/register.rs::each_api_host_failed_at_the_proxy_names_it_once` (failed before the fix: 2 names of the proxy) and `api::tests::each_base_failed_at_one_hop_names_it_once` (the chain of podnet's dialer, a `DialError` under its own words). `cargo test -p pod-warp --all-features` and `-p pod-proxy`: green (the run of T-985).

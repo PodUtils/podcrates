@@ -1945,7 +1945,7 @@ cargo test -p pod-proxy --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1973,3 +1973,7 @@ podnet: ...: TCP to nowhere.invalid: could not resolve nowhere.invalid: connecti
 cargo test -p pod-ws --all-features --lib way::tests
 cargo test -p pod-proxy --all-features
 ```
+
+## Done
+
+2026-11-20, 993bf43. `dial_error` removes a leading `connecting to TARGET: ` and `could not connect to TARGET: ` from the detail (`pod_core::failure::strip_lead`), and the `Display` of `DialError::Connect` and `DialError::Resolve` says its words once (`pod_core::failure::lead`). The lines now: `could not connect to 127.0.0.1:1: Connection refused (os error 111)` and `could not resolve nowhere.invalid: system resolver: ...`. Tests: `crates/pod-ws/src/way.rs::a_dial_error_names_its_target_once` (failed before the fix: `could not connect to 127.0.0.1:1: connecting to 127.0.0.1:1: connection refused`) and `error::tests::the_words_of_a_dial_error_are_said_once` of `pod-proxy`. `cargo test -p pod-ws --all-features` and `-p pod-proxy`: green (the run of T-985).

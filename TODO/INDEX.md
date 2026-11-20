@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**816 entries: 146 open, 31 partial, 7 blocked, 632 done.**
+**816 entries: 143 open, 31 partial, 7 blocked, 635 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 7 | 9 | 0 | 191 | 207 |
-| P2 | 71 | 12 | 4 | 318 | 405 |
+| P2 | 68 | 12 | 4 | 321 | 405 |
 | P3 | 68 | 10 | 3 | 121 | 202 |
-| **All** | 146 | 31 | 7 | 632 | 816 |
+| **All** | 143 | 31 | 7 | 635 | 816 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -859,7 +859,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-977](podvm.md) | P2 | M | M6 | feature | open | `pod-release`: the pinned fetch of a static tool that a project runs (gVisor's `runsc` for podvm) |
 | [T-978](upkeep.md) | P1 | M | M5 | defect | partial | The findings of the report of the hard problems that the record does not have |
 | [T-979](foundation.md) | P1 | S | M0 | feature | done | `pod-todo`: an opt-in rule that a done defect names its test (PodUtils/podnet#657) |
-| [T-985](adapters.md) | P2 | S | M3 | defect | open | `pod-cloudflare`: an error line names the request two times with a proxy that does not answer (PodUtils/podnet#658) |
-| [T-986](adapters.md) | P2 | S | M3 | defect | open | `pod-warp`: an error of the WARP API names a proxy that does not answer once for each host (PodUtils/podnet#658) |
-| [T-987](roads.md) | P2 | S | M2 | defect | open | `pod-ws`: the dial error of a dialer of the caller names its target two times (PodUtils/podnet#658) |
+| [T-985](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: an error line names the request two times with a proxy that does not answer (PodUtils/podnet#658) |
+| [T-986](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: an error of the WARP API names a proxy that does not answer once for each host (PodUtils/podnet#658) |
+| [T-987](roads.md) | P2 | S | M2 | defect | done | `pod-ws`: the dial error of a dialer of the caller names its target two times (PodUtils/podnet#658) |
 | [T-990](relay.md) | P2 | S | M2 | defect | partial | `pod-quic`: an endpoint on `[::]` is IPv6 only on Windows, so the QUIC leg of `pod-cloudflare` sends nothing to an edge of IPv4 |
