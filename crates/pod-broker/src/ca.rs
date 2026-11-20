@@ -143,9 +143,11 @@ pub fn write_bundle(path: &Path, ca_pem: &str, roots_pem: &[u8]) -> std::io::Res
 }
 
 /// The variables of the clients of a job that read none of
-/// [`pod_tls::BUNDLE_VARS`]: Deno, Hex of Elixir and the Google Cloud CLI.
+/// [`pod_tls::BUNDLE_VARS`]: Deno, Hex of Elixir, the Google Cloud CLI and
+/// cargo on macOS (`CARGO_HTTP_CAINFO`, which cargo reads on each system).
 /// A variable of the job only: `pod-tls` reads `BUNDLE_VARS` alone.
-pub const CLIENT_VARS: [&str; 3] = ["DENO_CERT", "HEX_CACERTS_PATH", "CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE"];
+pub const CLIENT_VARS: [&str; 4] =
+    ["DENO_CERT", "HEX_CACERTS_PATH", "CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE", "CARGO_HTTP_CAINFO"];
 
 /// Each variable that names the bundle of a job, with its path: the
 /// environment of the job (`SSL_CERT_FILE`, `GIT_SSL_CAINFO`,

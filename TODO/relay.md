@@ -10493,7 +10493,7 @@ timeout 300 cargo test -p pod-relay --all-features --test pair_code_live -- --ig
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -10518,3 +10518,5 @@ cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
 ## Done
 
 2026-11-20, partial (the proof is the next run of the Windows jobs of `nightly.yml`; call C830): `pod_quic::endpoint::bind` makes its socket with `socket2` (`dual_stack`): `set_only_v6(false)` before the bind for an address of IPv6, as `noq::Endpoint::client` does. `socket2` 0.6 is a new direct dependency of `pod-quic` and no new crate in `Cargo.lock` (noq-udp has it). The test `an_endpoint_on_the_ipv6_wildcard_reaches_a_server_on_ipv4` (`crates/pod-quic/tests/handshake.rs`). `cargo test -p pod-proxy -p pod-core -p pod-quic --all-features` on Linux: 0 failed, the new test skipped ("this host has no socket of IPv6"); `--test quick_tunnel_standin` of `pod-cloudflare`: 13 passed; `sh scripts/agent/check-windows.sh`: no fault in `pod-quic`. Open: the result of the new test and of the test of T-933 on `windows-2025` and `windows-11-arm`.
+
+2026-11-20, the proof: the nightly run 44696810225 at `68fbc96`, jobs `test (windows-2025)` 136155413723 and `test (windows-11-arm)` 136155413649 (both green). On each job `an_endpoint_on_the_ipv6_wildcard_reaches_a_server_on_ipv4` (`crates/pod-quic/tests/handshake.rs`) ran and passed with no skip line (the runners have IPv6), and `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` of `pod-cloudflare` passed.

@@ -4,6 +4,7 @@
 //! 401.
 
 use std::path::Path;
+use std::process::Command;
 use std::sync::Arc;
 
 use crate::tls_common::{Answer, ok};
@@ -26,6 +27,27 @@ pub fn env(dir: &Path, token: &str) -> Vec<(String, String)> {
     .iter()
     .map(|(n, v)| (n.to_string(), v.to_string()))
     .collect()
+}
+
+/// The program of cargo: `CARGO` (`cargo test` sets it), else the cargo
+/// of the toolchain that `rustup which cargo` names in the directory of the
+/// test, else `cargo`. The lab runs cargo with a clean environment in a
+/// temporary directory: a proxy of rustup there finds no
+/// `rust-toolchain.toml`, and a runner can have no default toolchain.
+pub fn cargo() -> Option<String> {
+    let set = std::env::var_os("CARGO").is_some_and(|v| !v.is_empty());
+    if !set && pod_testkit::host::tool("rustup").is_ok() {
+        let out = Command::new("rustup").args(["which", "cargo"]).output();
+        if let Ok(out) = out
+            && out.status.success()
+        {
+            let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            if !path.is_empty() {
+                return Some(path);
+            }
+        }
+    }
+    super::need("CARGO", "cargo")
 }
 
 /// Write the job, a library with [`MANIFEST`], to `dir/job`.

@@ -263,7 +263,7 @@ async fn node_fetch_takes_the_bundle_through_the_proxy_of_the_environment() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cargo_resolves_from_a_registry_that_needs_a_token() {
-    let Some(cargo) = need("CARGO", "cargo") else { return };
+    let Some(cargo) = registry::cargo() else { return };
     let lab = Lab::start("cargo", registry::answer).await;
     registry::job(&lab.dir);
     let env = registry::env(&lab.dir, PH);
@@ -280,6 +280,13 @@ async fn cargo_resolves_from_a_registry_that_needs_a_token() {
     assert!(!lab.far.seen().contains(PH), "cargo: {}", lab.far.seen());
     assert!(!ran.all().contains(SECRET) && !lock.contains(SECRET), "cargo: {ran}");
     println!("clients: cargo took the bundle, the far end got the value");
+    // `CARGO_HTTP_CAINFO` alone: the one variable that cargo reads on macOS.
+    std::fs::remove_file(lab.dir.join("job/Cargo.lock")).unwrap();
+    let bundle = lab.bundle.to_string_lossy().into_owned();
+    let env: Vec<(&str, &str)> = env.iter().copied().chain([("CARGO_HTTP_CAINFO", bundle.as_str())]).collect();
+    let ran = lab.run(&cargo, &args, &env, false).await;
+    assert_eq!(ran.code, Some(0), "cargo with CARGO_HTTP_CAINFO alone: {ran}");
+    println!("clients: cargo took the bundle by CARGO_HTTP_CAINFO alone");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

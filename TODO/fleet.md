@@ -6723,3 +6723,150 @@ The broker's catalogue of `pod-control`: `load` an `Extra` of the master tier wi
 ```sh
 cargo test -p pod-broker --all-features --test control
 ```
+
+# T-1019: `pod-broker`: the cargo leg of `tls_clients` runs the proxy of rustup in a temporary directory, where it finds no toolchain
+
+**Source:** nightly run 44696810225 at `68fbc96`, the seven jobs `cross` (for example aarch64, job 136155413782).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`cargo_resolves_from_a_registry_that_needs_a_token` fails at
+`crates/pod-broker/tests/tls_clients.rs` in each cross job: "error: rustup
+could not choose a version of cargo to run, because one wasn't specified
+explicitly, and no default is configured." The cross jobs run each test
+binary directly, so `CARGO` is not set and the test runs `cargo` of
+`PATH`, the proxy of rustup. The lab runs it with a clean environment, a
+`HOME` of its own and a temporary directory as the working directory: the
+proxy finds no `rust-toolchain.toml` and no settings of rustup.
+
+## Premise
+
+- Read: the logs of the seven jobs; the step "Run the tests" of the job
+  `cross` of `.github/workflows/nightly.yml`; `crates/pod-broker/tests/clients/mod.rs`.
+- Measured: the test binary with `CARGO=cargo` on this host fails with
+  the same line.
+
+## Approach
+
+`clients::registry::cargo` gives `CARGO` when it is set, else the cargo
+that `rustup which cargo` names in the directory of the test (the
+toolchain of `rust-toolchain.toml`), else `cargo`.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --all-features --test tls_clients -- cargo --nocapture
+```
+
+## Done
+
+2026-11-20, this commit. `crates/pod-broker/tests/clients/registry.rs`
+has `cargo()`, and `cargo_resolves_from_a_registry_that_needs_a_token`
+takes its program from it. Before the fix, the test binary with
+`CARGO=cargo` (the program of the cross jobs) failed with the line of
+rustup. After it, the test binary with no `CARGO` (`env -u CARGO`, as the
+cross jobs run it) passes 7 of 7, with "clients: cargo took the bundle,
+the far end got the value".
+
+# T-1020: `pod-broker`: cargo on macOS does not read `SSL_CERT_FILE`, so the cargo of a job refuses the leaf of the job
+
+**Source:** nightly run 44696810225 at `68fbc96`, the jobs `test (macos-15-intel)` (136155413747) and `test (macos-15)` (136155413754).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+`cargo_resolves_from_a_registry_that_needs_a_token` fails at
+`crates/pod-broker/tests/tls_clients.rs` on both macOS jobs: "download of
+config.json failed ... [60] SSL peer certificate or SSH remote key was not
+OK (SSL certificate problem: unable to get local issuer certificate)". The
+job has each variable of `ca::env` (the six of `pod_tls::BUNDLE_VARS`).
+On Linux, cargo reads `SSL_CERT_FILE`; on macOS it reads none of the six.
+curl, git, Python and Node.js take the bundle on the same jobs. A job of
+podrunner on macOS has the same fault.
+
+## Premise
+
+- Read: the logs of the two jobs; the documents of cargo (`http.cainfo`,
+  `CARGO_HTTP_CAINFO`).
+- Measured on Linux: cargo with `CARGO_HTTP_CAINFO` alone takes the
+  bundle.
+- Not measured: a run on macOS.
+
+## Approach
+
+`ca::env` gives `CARGO_HTTP_CAINFO` at the end of `ca::CLIENT_VARS`
+(call C855). The cargo leg of `tls_clients` runs cargo once more
+with `CARGO_HTTP_CAINFO` alone, so each system proves that cargo reads it.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --all-features --test tls_clients --test credentials
+```
+
+## Done
+
+2026-11-20, partial (the proof is the next run of the macOS jobs of
+`nightly.yml`; call C855): `ca::CLIENT_VARS` ends with
+`CARGO_HTTP_CAINFO`, so `pod_broker::ca::env` gives it; `crates/pod-broker/README.md`, "Placeholder
+credentials", names it for cargo. `cargo_resolves_from_a_registry_that_needs_a_token`
+runs cargo with `CARGO_HTTP_CAINFO` alone after the run with each
+variable; `the_bundle_holds_the_ca_of_the_job_and_the_roots_and_each_variable_names_it`
+checks the variable (`tests/credentials.rs`). On Linux: `cargo test -p
+pod-broker --all-features --test tls_clients --test credentials` passes 14
+(Deno and Hex skip: not on this host) and 6, with "clients: cargo took the bundle by CARGO_HTTP_CAINFO alone".
+The plant `broker-env-no-cargo-cainfo` (`ca::env` with no
+`CARGO_HTTP_CAINFO`) fails
+`the_bundle_holds_the_ca_of_the_job_and_the_roots_and_each_variable_names_it`.
+
+# T-1022: `pod-broker`: Go on macOS reads no variable of a CA file, so `go_takes_the_bundle_by_ssl_cert_file` can fail on the macOS jobs
+
+**Source:** T-1020 (a finding: the clients of a job on macOS).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`crypto/x509` of Go reads `SSL_CERT_FILE` and `SSL_CERT_DIR` only on a
+Unix other than macOS (the document of `SystemCertPool`). On macOS it
+verifies with the platform verifier and the keychains. The leg
+`go_takes_the_bundle_by_ssl_cert_file` of
+`crates/pod-broker/tests/tls_clients.rs` expects that Go takes the bundle
+by `SSL_CERT_FILE`; it is `cfg(unix)` and runs where the host has `go`.
+The macOS runners have Go, so the macOS jobs of `nightly.yml` can fail it.
+A job of Go on a macOS host of podrunner refuses the leaf of the job with
+each variable of `ca::env`. The table of `crates/pod-broker/README.md`
+says "Go (`crypto/x509` on Linux)" and names no limit for macOS.
+
+## Premise
+
+- Read: the document of `crypto/x509` (`SystemCertPool`); the leg and its
+  `own` list (`SSL_CERT_FILE`).
+- Not measured: the leg on a macOS runner (no nightly ran it yet).
+
+## Approach
+
+Read the leg in the next run of the macOS jobs. If Go refuses the leaf
+there: on macOS the leg checks the refusal with each variable and prints
+the limit; the README names the limit of macOS for Go, and for each other
+client that the macOS jobs show. A way for a Go job on macOS (a trust
+setting of a keychain of the job's user, or `GODEBUG` with no system
+roots) gets its own measurement before the broker gives it.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --all-features --test tls_clients -- go_ --nocapture
+```

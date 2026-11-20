@@ -1,0 +1,7 @@
+# The variables of a job lose CARGO_HTTP_CAINFO: cargo on macOS reads no
+# other variable of the list, and refuses the leaf of the job (T-1020).
+ENTRY=T-1020
+GROUP=proxy
+EXPECT='the_bundle_holds_the_ca_of_the_job_and_the_roots_and_each_variable_names_it'
+RUN='cargo test -p pod-broker --all-features --test credentials'
+LIMIT=1800

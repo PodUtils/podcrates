@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**831 entries: 144 open, 32 partial, 7 blocked, 648 done.**
+**836 entries: 145 open, 30 partial, 7 blocked, 654 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 6 | 9 | 0 | 194 | 209 |
-| P2 | 68 | 13 | 4 | 330 | 415 |
+| P1 | 5 | 11 | 0 | 194 | 210 |
+| P2 | 70 | 9 | 4 | 336 | 419 |
 | P3 | 70 | 10 | 3 | 122 | 205 |
-| **All** | 144 | 32 | 7 | 648 | 831 |
+| **All** | 145 | 30 | 7 | 654 | 836 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -177,7 +177,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-128](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`: `waitid` and `ppoll` read the kernel layouts of a 64-bit target on a 32-bit target |
 | [T-129](roads.md) | P1 | S | M4 | defect | done | `pod-gsr`: the tests over `AF_UNIX` do not build on Windows |
 | [T-130](transport.md) | P2 | M | M1 | feature | done | `pod-services`: the public Wisp servers, a kind `wisp-public` (PodUtils/podssh#175) |
-| [T-131](roads.md) | P1 | M | M4 | defect | open | `pod-gsr`: the handshake tests crash on Windows ARM64 |
+| [T-131](roads.md) | P1 | M | M4 | defect | partial | `pod-gsr`: the handshake tests crash on Windows ARM64 |
 | [T-132](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`: the id calls are the 16-bit forms on x86 and arm |
 | [T-133](transport.md) | P3 | M | M1 | feature | done | `pod-services`: the public proxy lists and nodes, the kinds `proxy-list` and `proxy-node` (PodUtils/podssh#177) |
 | [T-134](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`, `pod-enter`: the open flags are the x86 values on arm, aarch64 and powerpc |
@@ -812,9 +812,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-930](services.md) | P2 | S | M5 | defect | done | `pod-services`: the Syncthing relay DVWOU27 moved to 61.223.4.2; cloudflared 2026.11.1 changed `quick_tunnel.go` (services 44282821174) |
 | [T-931](adapters.md) | P3 | S | M3 | defect | done | `pod-cloudflare`: a quick tunnel opens two edge connections; cloudflared opens one |
 | [T-932](upkeep.md) | P2 | M | M5 | chore | open | A check of the temp files that the crates of podcrates make (PodUtils/podvm#567, lesson 5) |
-| [T-933](upkeep.md) | P2 | S | M5 | defect | partial | `pod-cloudflare`: three tests fail on Windows, where they ran for the first time (nightly 44275593101) |
-| [T-934](transport.md) | P2 | S | M1 | defect | partial | `pod-proxy`: an exec proxy runs `sh -c`, which breaks a Windows path and needs `sh` on Windows |
-| [T-935](foundation.md) | P2 | S | M0 | defect | partial | `pod-core`: two renames onto one name at once give "Access is denied" on Windows |
+| [T-933](upkeep.md) | P2 | S | M5 | defect | done | `pod-cloudflare`: three tests fail on Windows, where they ran for the first time (nightly 44275593101) |
+| [T-934](transport.md) | P2 | S | M1 | defect | done | `pod-proxy`: an exec proxy runs `sh -c`, which breaks a Windows path and needs `sh` on Windows |
+| [T-935](foundation.md) | P2 | S | M0 | defect | done | `pod-core`: two renames onto one name at once give "Access is denied" on Windows |
 | [T-936](foundation.md) | P1 | S | M0 | defect | done | `pod-testkit`: `refused()` gives a timeout on macOS, not a refusal |
 | [T-937](transport.md) | P3 | S | M1 | defect | done | `pod-dns`: a test of the resolver asks the resolver of the host (nightly 44275593101) |
 | [T-938](upkeep.md) | P2 | S | M5 | defect | partial | The riscv64 job of `nightly.yml` meets its limit of 90 minutes |
@@ -864,7 +864,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-986](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: an error of the WARP API names a proxy that does not answer once for each host (PodUtils/podnet#658) |
 | [T-987](roads.md) | P2 | S | M2 | defect | done | `pod-ws`: the dial error of a dialer of the caller names its target two times (PodUtils/podnet#658) |
 | [T-988](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: the check of `exec=` for the first program of a caller with guest paths: `PATH`, a relative name and each `#!` line (PodUtils/podvm#613) |
-| [T-990](relay.md) | P2 | S | M2 | defect | partial | `pod-quic`: an endpoint on `[::]` is IPv6 only on Windows, so the QUIC leg of `pod-cloudflare` sends nothing to an edge of IPv4 |
+| [T-990](relay.md) | P2 | S | M2 | defect | done | `pod-quic`: an endpoint on `[::]` is IPv6 only on Windows, so the QUIC leg of `pod-cloudflare` sends nothing to an edge of IPv4 |
 | [T-995](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: `Child::wait_forwarding` forwards SIGHUP, SIGINT and SIGTERM only, so a SIGUSR1 or a SIGQUIT kills the waiter and the payload stays |
 | [T-996](podvm.md) | P3 | S | M6 | defect | done | `pod-supervise`: a SIGQUIT, SIGUSR1, SIGUSR2, SIGALRM or SIGPWR ends the detached launcher, and the launcher reads SIGHUP and gives it to nobody |
 | [T-997](podvm.md) | P2 | S | M6 | feature | done | `pod-beneath`: one open of a path under a base with no link and no allocation, for the volume base of podvm and pod-enter |
@@ -878,3 +878,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1013](podvm.md) | P2 | S | M6 | feature | partial | `pod-services`: the pinned static QEMU at 11.0.0, with the fix of the use-after-free of `address_space_translate_for_iotlb` (PodUtils/podvm#618) |
 | [T-1014](podvm.md) | P3 | M | M6 | feature | open | `pod-services`: a static QEMU of the newest stable point release; the pin of T-1013 is 11.0.0, and 11.0.5 and 11.1.3 are out |
 | [T-1016](fleet.md) | P2 | S | M8 | defect | done | `pod-release`: a line of the chain names a certificate by its subject, and a leaf of Fulcio has none |
+| [T-1018](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `the_tokens_agree_with_the_loader_of_the_host` fails where the test binary is of another machine than the `/bin/true` of the host |
+| [T-1019](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: the cargo leg of `tls_clients` runs the proxy of rustup in a temporary directory, where it finds no toolchain |
+| [T-1020](fleet.md) | P1 | S | M8 | defect | partial | `pod-broker`: cargo on macOS does not read `SSL_CERT_FILE`, so the cargo of a job refuses the leaf of the job |
+| [T-1021](foundation.md) | P2 | S | M0 | defect | open | `pod-testkit`: `host::tool` finds no program on Windows, so a test that needs git skips on the Windows runners |
+| [T-1022](fleet.md) | P2 | S | M8 | defect | open | `pod-broker`: Go on macOS reads no variable of a CA file, so `go_takes_the_bundle_by_ssl_cert_file` can fail on the macOS jobs |

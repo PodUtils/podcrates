@@ -134,7 +134,7 @@ missing and each other variable is set (a test holds it):
 | pip 24.0 | `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE` | | `PIP_CERT` and `cert` of `pip.conf` come before them; a token in the URL of the index |
 | Node.js | `NODE_EXTRA_CA_CERTS` | yes | `fetch` and `https` use `HTTPS_PROXY` only with `--use-env-proxy` or `NODE_USE_ENV_PROXY=1` (Node.js 22.21, 24.5 and later) |
 | npm 10 | `NODE_EXTRA_CA_CERTS` | yes | `cafile` and `ca` of an `.npmrc` come before it; the `_authToken` of an `.npmrc` from the environment |
-| cargo | `SSL_CERT_FILE` | | the token of a registry is the whole value of `Authorization` |
+| cargo | `CARGO_HTTP_CAINFO`; on Linux also `SSL_CERT_FILE` | | the token of a registry is the whole value of `Authorization`; on macOS, cargo does not read `SSL_CERT_FILE` |
 | Go (`crypto/x509` on Linux) | `SSL_CERT_FILE` | yes | also `SSL_CERT_DIR` |
 | Java (each JVM) | `JAVA_TOOL_OPTIONS` of `ca::java_options` | yes | the trust store of `ca::write_trust_store`; a JVM reads no proxy of the environment |
 | Deno 2.9 | `DENO_CERT`, `NODE_EXTRA_CA_CERTS` | both | `fetch` takes `HTTPS_PROXY` |

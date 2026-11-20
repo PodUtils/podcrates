@@ -3619,7 +3619,7 @@ sh scripts/agent/check.sh
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3648,6 +3648,8 @@ sh scripts/agent/check-windows.sh
 2026-11-18, partial (the proof is the next run of the Windows jobs of `nightly.yml`): the `UnixTls` half of `no_tls_verify_needs_the_configuration_of_the_consumer` expects `Policy` on Unix and `Unsupported` where the system has no Unix socket; the thread of `a_deep_document_is_an_error` has 2 MiB (3000 levels with no cap still overflow it; the 64 levels of the cap fit a debug build of Windows); `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` reads the silent socket up to 20 times of 100 ms and names the last error. `cargo test -p pod-cloudflare --all-features --lib origin::tests` and `yaml::tests` (6 and 6 passed), `--test quick_tunnel_standin udp` (1 passed) on Linux; `sh scripts/agent/check-windows.sh`: 0 faults. Open: the cause of the UDP read on Windows, if the next run still fails there with its error.
 
 2026-11-20: the run 44505235227 still fails there, with `WSAETIMEDOUT` (10060) of the test's own read: no datagram came. The cause is T-990: the endpoint on `[::]:0` is IPv6 only on Windows and sends nothing to `127.0.0.1`.
+
+2026-11-20, the proof: the nightly run 44696810225 at `68fbc96`, jobs `test (windows-2025)` 136155413723 and `test (windows-11-arm)` 136155413649 (both green). On each job the three tests ran and passed, with no skip line: `origin::tests::no_tls_verify_needs_the_configuration_of_the_consumer`, `yaml::tests::a_deep_document_is_an_error` (the lib tests of `pod-cloudflare` end with no `STATUS_STACK_OVERFLOW`) and `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` (with the fix of T-990).
 
 # T-938: The riscv64 job of `nightly.yml` meets its limit of 90 minutes
 
