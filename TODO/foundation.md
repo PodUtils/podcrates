@@ -2700,7 +2700,7 @@ cargo todo check
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2733,3 +2733,20 @@ failure.
 cargo test -p pod-testkit --all-features
 sh scripts/agent/check-windows.sh
 ```
+
+## Done
+
+2026-11-20, commit f4320ace (call C863). `pod_manual::program` holds the
+lookup: `find(name, path, exts)`, `names`, `extensions(windows, pathext)`
+(`PATHEXT`, or `.COM;.EXE;.BAT;.CMD` when it is not set or empty),
+`is_path` (a `/`, or a `\` on Windows) and `runnable`.
+`pod_testkit::host::tool` takes it with the `PATH` and `PATHEXT` of the
+process, so `need_tool!("git")` finds `git.exe`. `pager::find_program`
+keeps its form (podssh takes it) and calls `program::find` with no
+extension. Tests: `program::tests::the_lookup_of_windows_finds_a_name_with_its_pathext_extension`
+and `program::tests::a_name_with_no_extension_tries_each_extension_of_pathext`,
+on each system. With the extension step removed (the plant
+`manual-program-no-pathext`, caught) both fail: "left: None, right:
+Some(".../tool.EXE")". `cargo test -p pod-manual -p pod-testkit
+--all-features` passes; `sh scripts/agent/check-windows.sh`: "0 faults".
+The tests that now run on the Windows jobs: T-1030.

@@ -6835,7 +6835,7 @@ The plant `broker-env-no-cargo-cainfo` (`ca::env` with no
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6870,6 +6870,24 @@ roots) gets its own measurement before the broker gives it.
 ```sh
 cargo test -p pod-broker --all-features --test tls_clients -- go_ --nocapture
 ```
+
+## Done
+
+2026-11-20, commit 148a1361. Read: `src/crypto/x509` of golang/go at
+`go1.26.11`, the Go of CI. `root_unix.go`, the one file that reads
+`SSL_CERT_FILE` and `SSL_CERT_DIR`, has `//go:build aix || dragonfly ||
+freebsd || (js && wasm) || linux || netbsd || openbsd || solaris ||
+wasip1`. On darwin `root_darwin.go` gives `loadSystemRoots` a pool with
+`systemPool: true`, and `Verify` with no `Roots` calls `systemVerify`
+(`SecTrustEvaluateWithError`, the keychains; `verify.go`). So Go on macOS
+reads no variable of a CA file; no run on macOS is necessary to prove it.
+The test `go_takes_the_bundle_by_ssl_cert_file` writes a skip line with
+the reason on macOS (also with `POD_BROKER_TEST_CLIENTS=required`), and
+the README row of Go names the limit. The nightly run 44696810225 ran no
+Go leg on macOS (its `tls_clients` had 7 tests). On Linux the leg passes
+(`cargo test -p pod-broker --all-features --test tls_clients -- go_`: 2
+passed); `sh scripts/agent/check-macos.sh`: "0 faults". A way for a Go
+job on macOS: T-1031.
 
 # T-1030: `pod-actions-store`: the git tests on the Windows jobs, with the forge URL of a Windows path
 

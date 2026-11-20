@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**840 entries: 149 open, 30 partial, 7 blocked, 654 done.**
+**840 entries: 145 open, 30 partial, 7 blocked, 658 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 5 | 11 | 0 | 194 | 210 |
-| P2 | 71 | 9 | 4 | 336 | 420 |
+| P2 | 67 | 9 | 4 | 340 | 420 |
 | P3 | 73 | 10 | 3 | 122 | 208 |
-| **All** | 149 | 30 | 7 | 654 | 840 |
+| **All** | 145 | 30 | 7 | 658 | 840 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -873,7 +873,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1000](fleet.md) | P2 | S | M8 | feature | open | `pod-broker`: the control of a broker on the wire and the tiers of `pod-control` |
 | [T-1005](fleet.md) | P3 | S | M8 | chore | open | `pod-broker`: the clients of a job in the versions that no test runs |
 | [T-1009](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise` and `pod-enter`: the thread of a foreground hold blocks only SIGHUP, SIGINT, SIGQUIT and SIGTERM, so a SIGUSR1 to a waiter with a hold ends the process and leaves the payload |
-| [T-1010](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: the child of the payload keeps the signal mask of the caller, so a payload of a caller that blocked a signal never gets it |
+| [T-1010](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: the child of the payload keeps the signal mask of the caller, so a payload of a caller that blocked a signal never gets it |
 | [T-1012](podvm.md) | P2 | M | M7 | feature | done | `pod-guest`: a saved state of the caller's machine line with no UEFI `Plan`, for podvm's Linux guest (PodUtils/podvm#618) |
 | [T-1013](podvm.md) | P2 | S | M6 | feature | partial | `pod-services`: the pinned static QEMU at 11.0.0, with the fix of the use-after-free of `address_space_translate_for_iotlb` (PodUtils/podvm#618) |
 | [T-1014](podvm.md) | P3 | M | M6 | feature | open | `pod-services`: a static QEMU of the newest stable point release; the pin of T-1013 is 11.0.0, and 11.0.5 and 11.1.3 are out |
@@ -881,9 +881,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1018](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `the_tokens_agree_with_the_loader_of_the_host` fails where the test binary is of another machine than the `/bin/true` of the host |
 | [T-1019](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: the cargo leg of `tls_clients` runs the proxy of rustup in a temporary directory, where it finds no toolchain |
 | [T-1020](fleet.md) | P1 | S | M8 | defect | partial | `pod-broker`: cargo on macOS does not read `SSL_CERT_FILE`, so the cargo of a job refuses the leaf of the job |
-| [T-1021](foundation.md) | P2 | S | M0 | defect | open | `pod-testkit`: `host::tool` finds no program on Windows, so a test that needs git skips on the Windows runners |
-| [T-1022](fleet.md) | P2 | S | M8 | defect | open | `pod-broker`: Go on macOS reads no variable of a CA file, so `go_takes_the_bundle_by_ssl_cert_file` can fail on the macOS jobs |
+| [T-1021](foundation.md) | P2 | S | M0 | defect | done | `pod-testkit`: `host::tool` finds no program on Windows, so a test that needs git skips on the Windows runners |
+| [T-1022](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: Go on macOS reads no variable of a CA file, so `go_takes_the_bundle_by_ssl_cert_file` can fail on the macOS jobs |
 | [T-1030](fleet.md) | P3 | S | M8 | measurement | open | `pod-actions-store`: the git tests on the Windows jobs, with the forge URL of a Windows path |
 | [T-1031](fleet.md) | P3 | S | M8 | measurement | open | `pod-broker`: a Go job on macOS refuses the leaf of the job, and no variable gives Go the CA |
 | [T-1032](podvm.md) | P3 | S | M6 | defect | open | `pod-supervise`: a signal of the list to the detached launcher between the start of the payload and its block ends the launcher |
-| [T-1033](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: podvm's two rules for the take of `check_exec_argv` and `check_exec_guest`: a rule over a volume, and the `#!` chain (PodUtils/podvm#613) |
+| [T-1033](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: podvm's two rules for the take of `check_exec_argv` and `check_exec_guest`: a rule over a volume, and the `#!` chain (PodUtils/podvm#613) |
