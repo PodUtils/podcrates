@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 808 entries: 145 open, 27 partial, 7 blocked, 629 done.
+`TODO/INDEX.md` holds 810 entries: 147 open, 27 partial, 7 blocked, 629 done.
 
 ## State
 
@@ -68,7 +68,8 @@ podssh, and its hand-off; podnet's half is open), T-964 (the bundle of Rekor v2)
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
 of the consumers: T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
-for the parity of PodUtils/podrunner#316), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
+for the parity of PodUtils/podrunner#316), T-976 (`pod-enter` and a `RUNPATH`,
+PodUtils/podvm#603), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
 T-851. Then T-920.
 Then the ruling "Discipline": T-692
 (`pod-lab`, part 2), T-700 (`pod-manual`: the take of each consumer; its

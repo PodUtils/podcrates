@@ -10444,3 +10444,59 @@ Answer podvm on a COORD issue: podcrates takes it.
 ```sh
 cargo test -p pod-microvm --all-features
 ```
+
+# T-976: `pod-enter`: the library path of the loader family has no `DT_RUNPATH` or `DT_RPATH` directory of a program or its libraries
+
+**Source:** PodUtils/podvm#603 (COORD-207 of podvm; PodUtils/podvm@T-2003)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+On podvm's userland rung the loader family runs a program through `ld.so --library-path DIRS` (with `--inhibit-cache` on glibc 2.16 or later). `userland::lib_dirs` builds DIRS from the directory of the loader, the standard directories of the image and the image's loader configuration (`ldconf`). It reads no `DT_RUNPATH` or `DT_RPATH` of the program or of its libraries, and `--library-path` takes the place of the search that ld.so does with them. So a program whose library is only in a directory of its own `RUNPATH` does not load: `systemctl` of systemd 261, with `libsystemd-shared-261.so` in `/usr/lib/systemd` (`RUNPATH=/usr/lib/systemd`), fails on that rung.
+
+## Premise
+
+- Read: PodUtils/podvm#603; `crates/pod-enter/src/userland.rs` (`lib_dirs`, `LoaderPlan`); `crates/pod-enter/src/abi/closure.rs` (`guest_lib_dirs`, `link_set`).
+- Not read: whether `abi::Elf` reads the dynamic section's `DT_RUNPATH`, `DT_RPATH` and `DT_STRTAB` now.
+
+## Approach
+
+`abi::Elf` reads `DT_RUNPATH` and `DT_RPATH`. For a program, `lib_dirs` puts, before the standard directories, the `RUNPATH` (else `RPATH`) directories of the program and then of each library that it loads, in the order of ld.so, with `$ORIGIN` (and `${ORIGIN}`) resolved against the guest directory of the file that names it, `$LIB` and `$PLATFORM` as ld.so takes them on that machine, each resolved inside the image through the table as the others. A table test: a program with `RUNPATH=$ORIGIN/../lib/x` and a library only there loads; a program with `RUNPATH=/usr/lib/systemd`; a `RUNPATH` that leaves the image is not added.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features runpath
+```
+
+# T-977: `pod-release`: the pinned fetch of a static tool that a project runs (gVisor's `runsc` for podvm)
+
+**Source:** PodUtils/podvm#604 (COORD-208 of podvm, under the ruling "Shared code"; PodUtils/podvm@T-2009)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm's `runsc` tier boots an image's systemd as PID 1 in a gVisor sandbox in 7 to 12 s on a host that delegates no cgroup: the fastest route to systemd for a user with no root (Debian 12 with MariaDB and PostgreSQL: a run in 10.2 s, against 45.6 s for the QEMU guest under TCG). podvm fetches no `runsc`, so the route is there only where the host has one. No crate of podcrates fetches a pinned tool for run time: `scripts/ci/fetch-tool.sh` serves CI alone, and `pod-release` fetches and checks the releases of PodUtils.
+
+## Premise
+
+- Read: PodUtils/podvm#604; `crates/pod-release/README.md` (`fetch::Fetcher`, `update`, `verify`); `scripts/ci/fetch-tool.sh`.
+- Not read: the release files of gVisor (`release-20261102.0`: the URL of `runsc` for each architecture and its `.sha512`).
+
+## Approach
+
+A module of `pod-release` (feature `fetch`): a `Tool` names a URL for each architecture and its SHA-256, pinned by the caller; `fetch` downloads it through the caller's `pod_proxy::Client` into the caller's store under a lock, checks the hash before it makes the file executable and before each first exec of a run, and gives one true line on each failure (no network, a proxy, a refusal, a hash mismatch, a full disk). A cached file whose hash holds is not fetched again. Tests against a stand-in server: a fetch, a cached second call, a mismatch that leaves no executable file, two callers at once. podrunner may take it for its units.
+
+## Prove
+
+```sh
+cargo test -p pod-release --all-features tool
+```
