@@ -11785,3 +11785,125 @@ chain of five. After it: `cargo test -p pod-enter --all-features --lib
 confine::program` passes 3, `cargo test -p pod-enter --all-features
 --test confine` passes 17. The plant `enter-script-chain-four-levels` is
 caught.
+
+# T-1036: `pod-supervise`: `end_tree` waits on one pidfd at a time, so a tree with the init of a PID namespace and a second process of it waits the whole `TREE_KILL_MS` (PodUtils/podvm#624)
+
+**Source:** PodUtils/podvm#624 (COORD-218 of podvm, PodUtils/podvm@T-2018)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm's ask: "`pod_supervise::launcher::tree::end_tree` sends SIGKILL to
+each descendant, then waits on one pidfd at a time, and it reaps only at
+the next round. Take a payload that is the parent of the init of a PID
+namespace and of a second process of that namespace: the init of a PID
+namespace ends only when each process of its namespace is reaped; the
+second process is a zombie child of the launcher. So the launcher waits
+the 5 s of `TREE_KILL_MS`." podvm measured `rm -f` at 5.0 s, and the
+record kept "1 process(es) of its tree stayed". The ask: "One `ppoll` over
+each pidfd of the tree, and a reap after each wake. Then the end of one
+process lets the next end without the bound." podvm no longer has the
+case (its supervisor of an init run is PID 1 of its own PID namespace);
+the fault stays for a consumer with the same shape of tree.
+
+## Premise
+
+- Read: `crates/pod-supervise/src/launcher/tree.rs` (`end_tree`: a
+  `ppoll` on each pidfd in turn, each up to the bound; the reap is the
+  `sweep` at the start of the next round).
+- Read: Linux `zap_pid_ns_processes` (`kernel/pid_namespace.c`): the init
+  of a PID namespace that ends waits until the count of the pids of its
+  namespace falls to its own, and a zombie keeps its pid until its parent
+  reaps it. The pidfd of the init is readable only after that wait.
+- Not measured before the test: the order of the pids of the tree (the
+  wait blocks in either order, as the reap comes only in the next round).
+
+## Approach
+
+After the SIGKILL of each process of the tree, open a pidfd of each, and
+wait in one `ppoll` over all of them up to the bound. After each wake,
+reap each ended child (`sweep`) and drop each pidfd that is readable;
+then wait again on the rest. A reap of the second process lets the init
+end, and its pidfd wakes the next `ppoll`. A test of
+`crates/pod-supervise/tests/tree.rs` builds the tree: the entry of the
+payload calls `unshare(CLONE_NEWUSER | CLONE_NEWPID)` before its `exec`,
+so the two children of the payload are the init and the second process
+of a new PID namespace; the payload exits and the launcher ends the tree.
+The run must end well below `TREE_KILL_MS` with the count 0. A host with
+no user namespace skips the step with the reason.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features --test tree
+```
+
+# T-1037: `pod-guest`: `qmp::Monitor` waits 5 s for one answer with no bound of the caller and no read of a late answer, so a slow `query-migrate` fails a save (PodUtils/podvm#618)
+
+**Source:** PodUtils/podvm#618 (COORD-217 of podvm, PodUtils/podvm@T-2008), ask 3
+**Category:** defect
+**Milestone:** M7
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm's ask 3, "A bound of the caller for one answer of
+`pod_guest::qmp::Monitor`": "`Monitor` waits 5 s for one answer, with no
+bound that the caller sets, and no read can go on after it. QEMU answers
+no request while it holds its lock for the last part of a migration.
+podvm reads a missing answer of `query-migrate` as a failed migration. A
+save of the state failed in 1 of 2 runs under KVM on a hosted runner"
+(podvm `kvm.yml` run 44709519610; "an estimate from the code, not a
+measure"). The ask: "a bound of the caller for one answer, and a read
+that waits for the late answer of a request that was sent already."
+
+The same fault is in this crate: `pod_guest::warm::line::freeze` polls
+`query-migrate` with `Monitor::ask`, and an answer later than 5 s fails
+the save before the bound of the caller (`Freeze::wait`). `running`
+drops the connection at a late answer of `query-status`. A timed-out read
+also loses the part of a line that it read, and the next request can
+read the late answer of the request before it as its own.
+
+## Premise
+
+- Read: `crates/pod-guest/src/qmp.rs` (`connect` sets a read timeout of
+  5 s; `ask` skips each event and takes the first other line as the
+  answer); `crates/pod-guest/src/warm/line.rs` (`freeze`, `migrate`,
+  `running`); podvm at `bb48c6e`:
+  `PodUtils/podvm:crates/podvm/src/machine/guest/state/save.rs` (its
+  `migrate` and `running` call `Monitor::ask`; its requests are JSON of
+  `serde_json`, and its stand-ins of the monitor parse each request).
+- Read: QMP echoes the `id` member of a request in its answer; an event
+  has no `id`. With no out-of-band execution, QMP answers in the order of
+  the requests.
+- Not measured: the time of an answer of a real QEMU at the end of a
+  migration under KVM (podvm's reading is an estimate).
+
+## Approach
+
+`Monitor` gives each request an `id` (`"pod-qmp-N"`, at the end of the
+object) and keeps the ids that have no answer. A read takes the answer of
+its own request: by its `id`, or, from a monitor that sends no ids, by
+the order of the requests. It keeps each event in a queue
+(`take_events`), and it keeps a part of a line through a timeout. New
+items beside the old ones: `ANSWER_WAIT` (5 s, the default),
+`set_answer_wait`, `ask_within` (one request with the bound of the
+caller) and `late` (the answer of the last request that had no answer in
+its bound). `freeze` polls `query-migrate` and `running` polls
+`query-status` with the rest of the bound of the caller (at least
+`ANSWER_WAIT`). Tests with a stand-in of the monitor that answers after
+6 s, with an event before the answer: `freeze` and `running` must end
+well; `late` must give the answer, and the next request its own answer.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features --lib qmp
+cargo test -p pod-guest --all-features --lib warm::line
+```
