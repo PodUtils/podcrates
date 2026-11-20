@@ -174,12 +174,14 @@ fn signed_by(signer: &[u8], tst: &[u8], tsa: &[X509Certificate<'_>], time: i64) 
     if !leaf.extended_key_usage().ok().flatten().is_some_and(|e| e.value.time_stamping) {
         return Err("the leaf of the timestamp authority is not for timestamps".into());
     }
+    // The name of the chain: its leaf is not the leaf of Fulcio.
+    let of_tsa = |why: String| format!("the chain of the timestamp authority: {why}");
     let mut cert = leaf;
     for issuer in &tsa[1..] {
-        chain::signed_by(cert, issuer, time)?;
+        chain::signed_by(cert, issuer, time).map_err(of_tsa)?;
         cert = issuer;
     }
-    chain::signed_by(cert, cert, time)
+    chain::signed_by(cert, cert, time).map_err(of_tsa)
 }
 
 /// The time of the TSTInfo `tst`, which must hold the digest of `signed`.

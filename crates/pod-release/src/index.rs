@@ -172,7 +172,7 @@ impl Index {
         }
         for name in sums.names() {
             if name != FILE && !self.files.iter().any(|f| f.name == name) {
-                return Err(format!("SHA256SUMS names {name}, which the index does not"));
+                return Err(format!("SHA256SUMS names {name:?}, which the index does not"));
             }
         }
         Ok(())
@@ -184,17 +184,20 @@ impl Index {
     pub fn signed_as(&self, who: &crate::Identity) -> Result<(), String> {
         let s = &self.signature;
         if s.sums != crate::verify::SUMS || s.bundle != crate::verify::BUNDLE {
-            return Err(format!("the release index names the signature {} and {}", s.sums, s.bundle));
+            return Err(format!("the release index names the signature {:?} and {:?}", s.sums, s.bundle));
         }
         if s.identity != who.uri || s.issuer != who.issuer {
-            return Err(format!("the release index names the signer {} of {}, not {}", s.identity, s.issuer, who.uri));
+            return Err(format!(
+                "the release index names the signer {:?} of {:?}, not {}",
+                s.identity, s.issuer, who.uri
+            ));
         }
         if let Some(rest) = who.uri.strip_prefix("https://github.com/") {
             let repo = rest.split("/.github/workflows/").next().unwrap_or_default();
             let tag = rest.rsplit_once("@refs/tags/").map(|(_, tag)| tag).unwrap_or_default();
             if repo != self.project || tag != self.version {
                 return Err(format!(
-                    "the release index is of {} {}, and the signer is the workflow of {repo} at {tag}",
+                    "the release index is of {} {}, and the signer is the workflow of {repo:?} at {tag:?}",
                     self.project, self.version
                 ));
             }

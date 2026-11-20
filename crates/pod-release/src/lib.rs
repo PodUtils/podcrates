@@ -51,6 +51,12 @@ pub use version::Version;
 
 use pod_core::Class;
 
+/// A time of the Unix epoch for a person, in RFC 3339 UTC to the second
+/// (`pod_core::clock::rfc3339`); a time before 1970 gives 1970.
+pub(crate) fn utc(secs: i64) -> String {
+    pod_core::clock::rfc3339(std::time::UNIX_EPOCH + std::time::Duration::from_secs(u64::try_from(secs).unwrap_or(0)))
+}
+
 /// Why a step of a release stopped. The text names no query of a URL: a
 /// signed URL of an asset carries a credential of the moment.
 #[derive(Debug, Clone, PartialEq, Eq)]

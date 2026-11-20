@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**826 entries: 143 open, 31 partial, 7 blocked, 645 done.**
+**827 entries: 143 open, 31 partial, 7 blocked, 646 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 7 | 9 | 0 | 193 | 209 |
-| P2 | 67 | 12 | 4 | 328 | 411 |
+| P2 | 67 | 12 | 4 | 329 | 412 |
 | P3 | 69 | 10 | 3 | 122 | 204 |
-| **All** | 143 | 31 | 7 | 645 | 826 |
+| **All** | 143 | 31 | 7 | 646 | 827 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -873,3 +873,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1005](fleet.md) | P3 | S | M8 | chore | open | `pod-broker`: the clients of a job in the versions that no test runs |
 | [T-1009](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise` and `pod-enter`: the thread of a foreground hold blocks only SIGHUP, SIGINT, SIGQUIT and SIGTERM, so a SIGUSR1 to a waiter with a hold ends the process and leaves the payload |
 | [T-1010](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: the child of the payload keeps the signal mask of the caller, so a payload of a caller that blocked a signal never gets it |
+| [T-1016](fleet.md) | P2 | S | M8 | defect | done | `pod-release`: a line of the chain names a certificate by its subject, and a leaf of Fulcio has none |
