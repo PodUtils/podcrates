@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**812 entries: 145 open, 28 partial, 7 blocked, 632 done.**
+**813 entries: 146 open, 28 partial, 7 blocked, 632 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 8 | 9 | 0 | 190 | 207 |
 | P2 | 69 | 9 | 4 | 319 | 401 |
-| P3 | 68 | 10 | 3 | 121 | 202 |
-| **All** | 145 | 28 | 7 | 632 | 812 |
+| P3 | 69 | 10 | 3 | 121 | 203 |
+| **All** | 146 | 28 | 7 | 632 | 813 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -859,3 +859,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-977](podvm.md) | P2 | M | M6 | feature | open | `pod-release`: the pinned fetch of a static tool that a project runs (gVisor's `runsc` for podvm) |
 | [T-978](upkeep.md) | P1 | M | M5 | defect | partial | The findings of the report of the hard problems that the record does not have |
 | [T-995](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: `Child::wait_forwarding` forwards SIGHUP, SIGINT and SIGTERM only, so a SIGUSR1 or a SIGQUIT kills the waiter and the payload stays |
+| [T-996](podvm.md) | P3 | S | M6 | defect | open | `pod-supervise`: a SIGQUIT, SIGUSR1, SIGUSR2, SIGALRM or SIGPWR ends the detached launcher, and the launcher reads SIGHUP and gives it to nobody |

@@ -10619,3 +10619,50 @@ target; `cargo clippy -p pod-enter -p pod-hostprobe --all-targets
 plants `enter-waiter-signal-list-short` and
 `enter-waiter-terminal-signal-forwarded` prove the two tests;
 `enter-sighup-not-forwarded` moved onto `waiter_forwards`.
+
+# T-996: `pod-supervise`: a SIGQUIT, SIGUSR1, SIGUSR2, SIGALRM or SIGPWR ends the detached launcher, and the launcher reads SIGHUP and gives it to nobody
+
+**Source:** the work of T-995 (2026-11-20)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The detached launcher of `pod-supervise` (`serve` in
+`crates/pod-supervise/src/launcher.rs`) blocks SIGHUP, SIGINT and SIGTERM
+(`sys::sigblock_shutdown`), reads them from a signalfd, and gives SIGINT and
+SIGTERM to the payload. It reads a SIGHUP and gives it to nobody. Each other
+catchable signal keeps its default action: a SIGQUIT, SIGUSR1, SIGUSR2,
+SIGALRM or SIGPWR to the launcher ends it. The payload then ends by its
+`PR_SET_PDEATHSIG(SIGKILL)`, and no launcher writes `exited` into the table:
+the record reads as `Dead` (the reconcile of a killed launcher), not as the
+end of the payload by a signal. The waiter of `pod-enter` had the same
+defect (T-995) and forwards the list `pod_enter::WAIT_FORWARDED` now.
+
+## Premise
+
+- Read: `serve` and the comment on its mask in
+  `crates/pod-supervise/src/launcher.rs`; the `wait` of the control socket
+  (an end of the stream with no answer is `Gone`); call C485 (the hold of
+  `foreground` blocks SIGHUP, SIGINT, SIGQUIT and SIGTERM).
+- Not measured: a signal to a real launcher. Not read: whether a consumer
+  sends a signal other than SIGINT and SIGTERM to a launcher by its pid.
+
+## Approach
+
+The launcher blocks the list of the waiter (`pod_enter::WAIT_FORWARDED`, or
+the same list moved to `pod-hostprobe` where `pod-supervise` does not take
+`pod-enter`), reads it from its signalfd, and gives each signal of the list
+to the payload, SIGHUP too; SIGINT and SIGQUIT only where `ssi_code` is 0 or
+less, as `pod_enter::child::waiter_forwards` does (share the rule, do not
+copy it). A test: a SIGUSR1 to a launcher reaches a payload that traps it,
+and the record gets the code of the payload.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features launcher_forwards
+```
