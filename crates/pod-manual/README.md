@@ -25,7 +25,8 @@ the code, the parser and the files of the repository fails a test.
 | `sections::sections`, `sections::find` | the sections of the page: each command, topic and table of facts |
 | `help::request(manual, args)`, `help::render`, `help::answer` | `CLI --help`, `CLI COMMAND --help`, `CLI help COMMAND`, and `--json` |
 | `Request`, `body`, `run` | `CLI man [SECTION...] [--no-pager \| --roff \| --json]`, through the pager |
-| `pager::{Tty, PagerEnv, choose, show, page, variables, SOURCE}` | the pager, and its variables as facts |
+| `pager::{Tty, PagerEnv, choose, show, page, variables, find_program, SOURCE}` | the pager, and its variables as facts; `find_program` is `program::find` with no extension of `PATHEXT` |
+| `program::{find, names, extensions, is_path, runnable, PATHEXT_DEFAULT}` | the lookup of a program in a search path, as a shell finds it; on Windows a name with no extension also matches each extension of `PATHEXT` (`.COM;.EXE;.BAT;.CMD` when it is not set). The caller gives `PATH` and `PATHEXT`; `pod-testkit` (`host::tool`) and the pager use it |
 | `pager::Interrupts::ignore()` | SIGINT and SIGQUIT ignored until the value drops, then each action put back: for a child that reads the terminal (a pager, an editor) |
 | `rules::{faults, char_faults, work_ids, sentences, words, Kind, Fault}` | the text rules |
 | `check::{texts, generated, variables, exit_codes, flags, model, help, examples, assert_none, Finding}` | the checks that a program calls from its tests |

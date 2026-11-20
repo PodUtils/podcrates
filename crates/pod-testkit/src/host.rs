@@ -146,14 +146,16 @@ pub fn userns() -> Result<(), String> {
 }
 
 /// `Err(reason)` when `tool` is not a file that can execute. A name with a
-/// `/` is a path; another name is looked up in `PATH`.
+/// `/` (or a `\` on Windows) is a path; another name is looked up in
+/// `PATH`, on Windows with each extension of `PATHEXT` too
+/// (`pod_manual::program`).
 pub fn tool(tool: &str) -> Result<(), String> {
-    let found = if tool.contains('/') {
-        executable(std::path::Path::new(tool))
+    use pod_manual::program;
+    let exts = program::extensions(cfg!(windows), std::env::var_os("PATHEXT"));
+    let found = if program::is_path(tool, exts.as_deref()) {
+        program::runnable(std::path::Path::new(tool))
     } else {
-        std::env::var_os("PATH")
-            .map(|path| std::env::split_paths(&path).any(|dir| executable(&dir.join(tool))))
-            .unwrap_or(false)
+        program::find(tool, std::env::var_os("PATH"), exts.as_deref()).is_some()
     };
     if found { Ok(()) } else { Err(format!("this host has no {tool} that can execute")) }
 }
@@ -170,21 +172,6 @@ pub fn root() -> Result<(), String> {
     #[cfg(not(target_os = "linux"))]
     {
         Err("this test needs root on Linux".into())
-    }
-}
-
-fn executable(path: &std::path::Path) -> bool {
-    let Ok(meta) = std::fs::metadata(path) else {
-        return false;
-    };
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        meta.is_file() && meta.permissions().mode() & 0o111 != 0
-    }
-    #[cfg(not(unix))]
-    {
-        meta.is_file()
     }
 }
 

@@ -6870,3 +6870,48 @@ roots) gets its own measurement before the broker gives it.
 ```sh
 cargo test -p pod-broker --all-features --test tls_clients -- go_ --nocapture
 ```
+
+# T-1030: `pod-actions-store`: the git tests on the Windows jobs, with the forge URL of a Windows path
+
+**Source:** T-1021 (the lookup of `host::tool` now finds git on Windows).
+**Category:** measurement
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The five tests of `crates/pod-actions-store/tests/git.rs` skipped on the
+Windows jobs of `nightly.yml` with "this host has no git that can
+execute". After T-1021 `need_tool!("git")` finds `git.exe`, and the tests
+run there. `Repos::forge` makes the base of the forge with
+`format!("file://{}/", root.display())`: on Windows that is
+`file://C:\...\`, a form that git for Windows can refuse. Each other test
+that asks for a tool and is not `cfg(unix)` runs there too.
+
+## Premise
+
+- Read: `crates/pod-actions-store/tests/git.rs`; `crates/pod-actions-store/src/git.rs`
+  (`Git::scheme`, `protocol.file.allow`); the list of the tests that ask
+  for a tool with no `cfg(unix)`.
+- Not measured: the tests on a Windows runner; the answer of git for
+  Windows to `file://C:\...`.
+
+## Approach
+
+Read the jobs `test (windows-2025)` and `test (windows-11-arm)` of the
+next nightly run. For a refusal of the URL, make the base a URL of the
+path with `/` (`file:///C:/...`) in the test. Fix each other failure, or
+write it as an entry.
+
+## Prove
+
+```sh
+sh scripts/agent/check-windows.sh
+cargo test -p pod-actions-store --all-features --test git
+```
+
+## Start condition
+
+A nightly run at a commit with T-1021.
