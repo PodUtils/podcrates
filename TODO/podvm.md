@@ -11793,7 +11793,7 @@ caught.
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11841,6 +11841,27 @@ no user namespace skips the step with the reason.
 ```sh
 cargo test -p pod-supervise --all-features --test tree
 ```
+
+## Done
+
+2026-11-20, this commit. `launcher::tree::wait_ended`: after the SIGKILL
+of each process of the tree, one `ppoll` over the pidfd of each, a reap
+(`sweep`) after each wake, and the drop of each readable pidfd, up to the
+bound. Test: the step
+`a_pid_namespace_init_and_its_second_process_end_well_below_the_bound`
+of `crates/pod-supervise/tests/tree.rs` (the entry calls
+`unshare(CLONE_NEWUSER | CLONE_NEWPID)` before its `exec`; the payload
+starts two children, the init and a second process of the new namespace,
+and exits). Before the fix: "residual_processes: Count(1) } after
+5.049907625s". After it: the count 0 in 118 ms (bound: half of
+`TREE_KILL_MS`), as root and as uid 65534. `scripts/ci/userns-tests.sh`
+runs `tests/tree.rs` with a user namespace (a skip fails there); the plant
+`supervise-tree-one-pidfd-at-a-time` puts the wait on one pidfd at a time
+back, and the test prints "Count(1)". `cargo test -p pod-supervise
+--all-features`: 34 unit tests and 1 sweep test pass, `foreground`,
+`lifecycle` and `tree` pass 8 steps each; clippy with `-D warnings`
+passes. A test step's misplaced doc comment
+(`the_state_is_private_under_umask_022`) moved to its function.
 
 # T-1037: `pod-guest`: `qmp::Monitor` waits 5 s for one answer with no bound of the caller and no read of a late answer, so a slow `query-migrate` fails a save (PodUtils/podvm#618)
 

@@ -2,8 +2,10 @@
 # The namespace rung for a caller with no capabilities (T-670): the entry
 # of pod-enter in a user namespace (tests/userns.rs), the leg of
 # pod-hostprobe (tests/userns_leg.rs), the rows of the host classes
-# (tests/host_rows.rs: as root again as uid 65534), and the labs of pod-lab
-# (tests/lab.rs: the tmpfs of small-tmp in a user namespace, T-692). Each test runs as a user with no
+# (tests/host_rows.rs: as root again as uid 65534), the labs of pod-lab
+# (tests/lab.rs: the tmpfs of small-tmp in a user namespace, T-692), and the
+# end of a tree of pod-supervise with a PID namespace in a user namespace
+# (tests/tree.rs, T-1036). Each test runs as a user with no
 # capabilities: as this user, or as uid 65534 where this user is root.
 #
 # Ubuntu 24.04 gives an unconfined process a user namespace with no
@@ -35,7 +37,7 @@ bins=$(mktemp -d)
 trap 'rm -rf "$bins"' EXIT
 chmod 755 "$bins"
 rc=0
-for spec in "pod-enter userns" "pod-hostprobe userns_leg" "pod-hostprobe host_rows" "pod-lab lab"; do
+for spec in "pod-enter userns" "pod-hostprobe userns_leg" "pod-hostprobe host_rows" "pod-lab lab" "pod-supervise tree"; do
     crate=${spec%% *}
     t=${spec#* }
     bin=$(cargo test --locked -p "$crate" --all-features --test "$t" --no-run 2>&1 |

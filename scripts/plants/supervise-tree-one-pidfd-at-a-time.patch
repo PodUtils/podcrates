@@ -1,0 +1,31 @@
+diff --git a/crates/pod-supervise/src/launcher/tree.rs b/crates/pod-supervise/src/launcher/tree.rs
+index cb2bca90..8210e719 100644
+--- a/crates/pod-supervise/src/launcher/tree.rs
++++ b/crates/pod-supervise/src/launcher/tree.rs
+@@ -176,23 +176,10 @@ fn wait_ended(tree: &[i64], until: Instant) {
+         .filter_map(|&pid| sys::pidfd_open(pid).ok())
+         .map(|fd| sys::PollFd { fd: fd as i32, events: sys::POLLIN, revents: 0 })
+         .collect();
+-    while !fds.is_empty() {
++    // The plant: one pidfd at a time, the reap only at the next round.
++    for p in &mut fds {
+         let ms = until.saturating_duration_since(Instant::now()).as_millis() as i64;
+-        let woke = sys::ppoll(&mut fds, ms);
+-        // The reap of each ended child lets a process that waits for it end.
+-        sweep(0);
+-        match woke {
+-            Ok(0) => break,
+-            Ok(_) => fds.retain(|p| {
+-                let ended = p.revents != 0;
+-                if ended {
+-                    let _ = sys::close(p.fd as i64);
+-                }
+-                !ended
+-            }),
+-            Err(e) if e == sys::EINTR => {}
+-            Err(_) => break,
+-        }
++        let _ = sys::ppoll(std::slice::from_mut(p), ms);
+     }
+     for p in fds {
+         let _ = sys::close(p.fd as i64);

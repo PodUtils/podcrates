@@ -1,0 +1,10 @@
+# pod-supervise: the end of the tree waits on one pidfd at a time and reaps
+# only at the next round, so the init of a PID namespace whose second
+# process is a zombie of the launcher holds it to the bound (T-1036).
+# userns-tests.sh gives the step a user namespace: plants.yml leaves
+# apparmor_restrict_unprivileged_userns at 1 (call C704).
+ENTRY=T-1036
+GROUP=supervise
+EXPECT='residual_processes: Count\(1\)'
+RUN='sh scripts/ci/userns-tests.sh'
+LIMIT=1800
