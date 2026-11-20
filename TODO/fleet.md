@@ -6806,7 +6806,7 @@ the far end got the value".
 **Milestone:** M8
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -6841,8 +6841,8 @@ cargo test -p pod-broker --all-features --test tls_clients --test credentials
 
 ## Done
 
-2026-11-20, partial (the proof is the next run of the macOS jobs of
-`nightly.yml`; call C855): `ca::CLIENT_VARS` ends with
+2026-11-20, partial (commit e5274f79, call C855; the proof below). Cargo on macOS
+reads no variable of `BUNDLE_VARS`. `ca::CLIENT_VARS` ends with
 `CARGO_HTTP_CAINFO`, so `pod_broker::ca::env` gives it; `crates/pod-broker/README.md`, "Placeholder
 credentials", names it for cargo. `cargo_resolves_from_a_registry_that_needs_a_token`
 runs cargo with `CARGO_HTTP_CAINFO` alone after the run with each
@@ -6853,6 +6853,10 @@ pod-broker --all-features --test tls_clients --test credentials` passes 14
 The plant `broker-env-no-cargo-cainfo` (`ca::env` with no
 `CARGO_HTTP_CAINFO`) fails
 `the_bundle_holds_the_ca_of_the_job_and_the_roots_and_each_variable_names_it`.
+The proof: the nightly 44739339618 at `8a2cdd9`, which holds this change,
+passed `cargo_resolves_from_a_registry_that_needs_a_token` on both macOS
+jobs (`test (macos-15)` 136298712070, `test (macos-15-intel)`
+136298712134), with no skip line of cargo.
 
 # T-1022: `pod-broker`: Go on macOS reads no variable of a CA file, so `go_takes_the_bundle_by_ssl_cert_file` can fail on the macOS jobs
 
@@ -7142,6 +7146,10 @@ macOS host of podrunner refuses the leaf of the job with each variable of
 
 - Read: `src/crypto/x509/root_darwin.go`, `root_unix.go`, `verify.go` and
   `cert_pool.go` of golang/go at `go1.26.11`.
+- Read: the macOS jobs of the nightly 44739339618 have no `go` in `PATH`
+  ("skipping, this host has no go that can execute" in
+  `tls_clients`), so the measurement needs a step that installs Go in
+  the job.
 - Not measured: a trust setting of the CA in a keychain of the user of the
   job (`security add-trusted-cert -r trustRoot -k KEYCHAIN`), with no
   prompt and with no change of the keychains of the host.
@@ -7160,3 +7168,172 @@ otherwise the README names the limit for a Go job on macOS.
 ```sh
 cargo test -p pod-broker --all-features --test tls_clients -- go_ --nocapture
 ```
+
+# T-1040: `pod-control`: the doc test of `conformance` calls `Client::connect_unix`, which Windows does not have
+
+**Source:** nightly run 44739339618 at `8a2cdd9`, the jobs `test (windows-2025)` (136298711690) and `test (windows-11-arm)` (136298712317).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The doc test of `crates/pod-control/src/conformance.rs` fails to compile
+on Windows: "error[E0599]: no associated function or constant named
+`connect_unix` found for struct `Client` in the current scope". The
+example calls `Client::connect_unix`, which is `cfg(unix)`. It is the one
+failure of the two Windows jobs; the 11 tests of `tests/pipe.rs` pass
+there.
+
+## Premise
+
+- Read: the logs of the two jobs.
+- Measured: `cargo test --doc -p pod-control --all-features --target
+  x86_64-pc-windows-gnu` with zig as the linker and `true` as the runner
+  (T-1044) gives the same E0599 at `783a657c`.
+
+## Approach
+
+The function of the example is `cfg(unix)`; the text names
+`Client::connect_pipe` for Windows.
+
+## Prove
+
+```sh
+cargo test -p pod-control --all-features --doc
+```
+
+## Done
+
+2026-11-20, this commit. The function of the doc example has
+`#[cfg(unix)]`; the text above it names `Client::connect_pipe` for
+Windows. The compile of the doc tests for `x86_64-pc-windows-gnu` (the
+recipe of T-1044): the test
+`crates/pod-control/src/conformance.rs - conformance (line 10)` compiles
+(1 passed); with the old text it fails with E0599, as on the runners. The
+form of the example for Windows runs in
+`tests/pipe.rs::a_pipe_answers_each_method_and_conforms`, which passed on
+both Windows jobs. On Linux: `cargo test -p pod-control --all-features`
+passes 19, 2, 13 and the doc test.
+
+# T-1041: `pod-control`: on macOS the timeout of a Unix socket whose peer closed fails with EINVAL, so a read of the end is an error
+
+**Source:** nightly run 44739339618 at `8a2cdd9`, the jobs `test (macos-15)` (136298712070) and `test (macos-15-intel)` (136298712134).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+Two tests of `pod-control` fail on both macOS jobs:
+
+- `frame::tests::two_lines_in_one_read_are_two_lines`: "called
+  `Result::unwrap()` on an `Err` value: Os { code: 22, kind: InvalidInput,
+  message: \"Invalid argument\" }" at the read after the drop of the peer.
+- `a_reply_before_the_request_is_read` (`tests/server.rs`, the case of
+  podrunner): "not an error of the server: Err(Io(Os { code: 22, ... }))".
+
+`frame::Lines::next_line` sets the read timeout before each read. Darwin
+refuses each socket option with `EINVAL` when both directions of the
+socket are shut, as after the close of the peer. So a client of
+`pod-control` on macOS gets an I/O error in place of the `busy` or
+`refused` line that the server wrote before its close, and a server gets
+an error in place of the end of a client.
+
+## Premise
+
+- Read: the logs of the two jobs; `next_line` and the `Stream` impl of
+  `UnixStream` (`crates/pod-control/src/frame.rs`).
+- Not measured: the fix on a macOS host (the next run of the macOS jobs of
+  `nightly.yml` proves it).
+
+## Approach
+
+The `Stream` impl of `UnixStream` takes an `EINVAL` of the system from a
+set of a timeout on Darwin as no error: a read of a shut socket gives its
+bytes, then the end, and a write fails at once, so no call waits.
+
+## Prove
+
+```sh
+cargo test -p pod-control --all-features --lib frame
+cargo test -p pod-control --all-features --test server
+```
+
+## Done
+
+2026-11-20, partial (the proof is the next run of the macOS jobs of
+`nightly.yml`). `frame::shut_needs_no_timeout` takes the raw `EINVAL` of
+a set of a timeout as `Ok` on `target_vendor = "apple"`; the impl of
+`Stream` for `UnixStream` calls it for the read and the write timeout.
+New tests: `frame::tests::only_the_einval_of_darwin_needs_no_timeout`
+(a raw `EINVAL` is no error only on Darwin; an `InvalidInput` of the
+standard library and another code stay errors) and
+`frame::tests::a_closed_peer_with_bytes_left_gives_the_bytes_then_the_end`.
+On Linux: `cargo test -p pod-control --all-features` passes 19 unit
+tests, 2, 13 and the doc test.
+
+# T-1042: `pod-broker`: the Node.js of Homebrew reads `SSL_CERT_FILE`, so the node and npm legs of `tls_clients` fail on macOS
+
+**Source:** nightly run 44739339618 at `8a2cdd9`, the jobs `test (macos-15)` (136298712070) and `test (macos-15-intel)` (136298712134).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+`node_takes_the_bundle` and `npm_reads_a_registry_that_needs_a_token`
+fail on both macOS jobs: "assertion `left != right` failed: node with no
+NODE_EXTRA_CA_CERTS: exit Some(0)" (and the same for npm) at
+`crates/pod-broker/tests/tls_clients.rs:152`. With each variable of the
+bundle but `NODE_EXTRA_CA_CERTS`, the client took the leaf of the job.
+The macOS runners install Node.js with Homebrew
+(the script `install-node.sh` of the macOS images of actions/runner-images:
+`brew_smart_install "node@VERSION"`), and the formula of Homebrew builds
+it with `--openssl-use-def-ca-store` (`Formula/n/node.rb`). That build
+takes the default store of OpenSSL, which reads `SSL_CERT_FILE`. The
+README of `pod-broker` said that Node.js reads `NODE_EXTRA_CA_CERTS`
+alone.
+
+## Premise
+
+- Read: the logs of the two jobs; the install script of the runner
+  images; the formula of Node.js of Homebrew; `configure.py` of Node.js
+  v24.11.0 (`--openssl-use-def-ca-store` adds the define
+  `NODE_OPENSSL_CERT_STORE`, which `process.config.target_defaults.defines`
+  shows).
+- Measured: the Node.js 22 of this host gives `false` for the probe; the
+  node and npm legs pass here.
+- Not measured: the probe and the legs on a macOS runner (the next run of
+  the macOS jobs of `nightly.yml`).
+
+## Approach
+
+The node and npm legs ask the `node` for its store: with the define
+`NODE_OPENSSL_CERT_STORE`, the variables that it alone reads are
+`NODE_EXTRA_CA_CERTS` and `SSL_CERT_FILE`, so the leg without them
+proves the refusal. The README names the build of Homebrew.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --all-features --test tls_clients -- node npm --nocapture
+```
+
+## Done
+
+2026-11-20, partial (the proof is the next run of the macOS jobs of
+`nightly.yml`). `clients::node_own` (`crates/pod-broker/tests/clients/mod.rs`)
+probes `process.config.target_defaults.defines` for
+`NODE_OPENSSL_CERT_STORE` and prints a line when the build has it;
+`node_takes_the_bundle` and `npm_reads_a_registry_that_needs_a_token`
+take their `own` variables from it (npm from the `node` of `PATH`). The
+rows of Node.js and npm in `crates/pod-broker/README.md` name the build
+of Homebrew. On Linux: `cargo test -p pod-broker --all-features` passes,
+the `tls_clients` legs of node and npm among them.

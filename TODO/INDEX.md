@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**848 entries: 148 open, 29 partial, 7 blocked, 664 done.**
+**853 entries: 149 open, 30 partial, 7 blocked, 667 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 11 | 0 | 196 | 211 |
-| P2 | 71 | 8 | 4 | 343 | 426 |
-| P3 | 73 | 10 | 3 | 123 | 209 |
-| **All** | 148 | 29 | 7 | 664 | 848 |
+| P1 | 4 | 11 | 0 | 197 | 212 |
+| P2 | 71 | 9 | 4 | 345 | 429 |
+| P3 | 74 | 10 | 3 | 123 | 210 |
+| **All** | 149 | 30 | 7 | 667 | 853 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -880,7 +880,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1016](fleet.md) | P2 | S | M8 | defect | done | `pod-release`: a line of the chain names a certificate by its subject, and a leaf of Fulcio has none |
 | [T-1018](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `the_tokens_agree_with_the_loader_of_the_host` fails where the test binary is of another machine than the `/bin/true` of the host |
 | [T-1019](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: the cargo leg of `tls_clients` runs the proxy of rustup in a temporary directory, where it finds no toolchain |
-| [T-1020](fleet.md) | P1 | S | M8 | defect | partial | `pod-broker`: cargo on macOS does not read `SSL_CERT_FILE`, so the cargo of a job refuses the leaf of the job |
+| [T-1020](fleet.md) | P1 | S | M8 | defect | done | `pod-broker`: cargo on macOS does not read `SSL_CERT_FILE`, so the cargo of a job refuses the leaf of the job |
 | [T-1021](foundation.md) | P2 | S | M0 | defect | done | `pod-testkit`: `host::tool` finds no program on Windows, so a test that needs git skips on the Windows runners |
 | [T-1022](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: Go on macOS reads no variable of a CA file, so `go_takes_the_bundle_by_ssl_cert_file` can fail on the macOS jobs |
 | [T-1023](fleet.md) | P2 | S | M8 | defect | open | `pod-control`: the bytes of a line that holds a token or a secret are not wiped |
@@ -895,3 +895,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1035](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: the live test of the warm start expects QEMU 11.0 to save the NVMe root disk of the plan, and only QEMU 11.1.0 and later migrate an NVMe device |
 | [T-1036](podvm.md) | P3 | S | M6 | defect | done | `pod-supervise`: `end_tree` waits on one pidfd at a time, so a tree with the init of a PID namespace and a second process of it waits the whole `TREE_KILL_MS` (PodUtils/podvm#624) |
 | [T-1037](podvm.md) | P2 | S | M7 | defect | done | `pod-guest`: `qmp::Monitor` waits 5 s for one answer with no bound of the caller and no read of a late answer, so a slow `query-migrate` fails a save (PodUtils/podvm#618) |
+| [T-1040](fleet.md) | P2 | S | M8 | defect | done | `pod-control`: the doc test of `conformance` calls `Client::connect_unix`, which Windows does not have |
+| [T-1041](fleet.md) | P1 | S | M8 | defect | partial | `pod-control`: on macOS the timeout of a Unix socket whose peer closed fails with EINVAL, so a read of the end is an error |
+| [T-1042](fleet.md) | P2 | S | M8 | defect | partial | `pod-broker`: the Node.js of Homebrew reads `SSL_CERT_FILE`, so the node and npm legs of `tls_clients` fail on macOS |
+| [T-1043](upkeep.md) | P2 | S | M2 | defect | done | `pod-link`: the EDNS test of `dns_resolver` compares two counts that the resolver still moves (armv7) |
+| [T-1044](upkeep.md) | P3 | S | M5 | defect | open | `check-windows.sh` and `check-macos.sh` compile no doc test, so a doc test with an item of Unix fails only in the nightly |

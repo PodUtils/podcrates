@@ -41,6 +41,7 @@ struct Seen {
     answers: AtomicUsize,
     largest: AtomicUsize,
     with_opt: AtomicUsize,
+    without_opt: AtomicUsize,
     cuts: AtomicUsize,
 }
 
@@ -89,9 +90,8 @@ async fn resolver(server: SocketAddr, path: Path) -> (SocketAddr, Arc<Seen>) {
                     let mut answer = down[..n].to_vec();
                     let count = counts.answers.fetch_add(1, Ordering::Relaxed);
                     counts.largest.fetch_max(n, Ordering::Relaxed);
-                    if answer[11] > 0 {
-                        counts.with_opt.fetch_add(1, Ordering::Relaxed);
-                    }
+                    let opt = if answer[11] > 0 { &counts.with_opt } else { &counts.without_opt };
+                    opt.fetch_add(1, Ordering::Relaxed);
                     if path == Path::Cuts && count % 3 == 2 {
                         counts.cuts.fetch_add(1, Ordering::Relaxed);
                         answer[2] |= 0x02;
@@ -182,7 +182,10 @@ async fn a_query_with_edns_gets_an_answer_within_its_size() {
     let largest = seen.largest.load(Ordering::Relaxed);
     assert!(largest <= usize::from(EDNS_SIZE), "an answer of {largest} bytes");
     assert!(largest > 512, "the answers use the size of the query: {largest} bytes at most");
-    assert_eq!(seen.with_opt.load(Ordering::Relaxed), seen.answers.load(Ordering::Relaxed));
+    // The resolver still carries the polls of the link: a compare of two
+    // counts reads them at two times.
+    assert_eq!(seen.without_opt.load(Ordering::Relaxed), 0, "an answer with no OPT record to a query with one");
+    assert!(seen.with_opt.load(Ordering::Relaxed) > 0, "no answer with an OPT record");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

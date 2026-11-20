@@ -3389,6 +3389,7 @@ cargo test -p pod-iroh --all-features --test road --test share --test tickets
 
 
 - 2026-11-19, the nightly 44505235227 at `8389e1c`: two more time bounds of the same class fail under QEMU. `pod-iroh`'s `two_sessions_of_one_process_share_one_connection_on_two_streams` (`tests/share.rs`: "each session's bytes within the limit: Elapsed" on loongarch64; "early eof" at `share.rs:52` on riscv64) and `a_session_whose_client_moves_on_the_relay_alone_resumes_whole` (`tests/new_address.rs` on riscv64: the far end acknowledged 491520 of 4685824 bytes in 103 s, each `Stall` line a slow reader, no lost byte). The same run had `a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way` (loongarch64, powerpc64le, riscv64) and `a_turn_of_the_arq_blocks_on_nothing` (i686), each named above.
+- 2026-11-20, the nightly 44739339618 at `8a2cdd9`: the same three tests, no new one of this class. `a_turn_of_the_arq_blocks_on_nothing` on i686 (job 136298711820: "3 voluntary switches in 1000 turns"); `pod-iroh`'s `a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way` and `two_sessions_of_one_process_share_one_connection_on_two_streams` on loongarch64 (job 136298712051: `Elapsed` at the bound of 300 s, `road.rs:94` and `share.rs:155`) and on riscv64 (job 136298712144: "early eof" at `road.rs:47` after 99 s and at `share.rs:52` after 78 s). `main` at `783a657c` has no change of `pod-link`, `pod-iroh` or `pod-testkit`'s `switches.rs` after `8a2cdd9`. The armv7 failure of the run is T-1043.
 # T-917: The copies of product code that `codegraph.py dups` finds: one place for each
 
 **Source:** the first run of `python3 -I scripts/codegraph.py dups` (the ruling "Shared code").
@@ -3679,6 +3680,7 @@ The next run of `nightly.yml`: each cross job ends, none cancelled.
 ## Done
 
 2026-11-18, partial (the proof is the next run of `nightly.yml`: each cross job ends, none cancelled): the job `cross` takes its limit from its row (`timeout-minutes: ${{ matrix.minutes || 90 }}`), and the row of riscv64 has 150 minutes, a margin of a quarter over the time that the two runs show it needs. The step of the tests prints the seconds of each binary (`== N s: EXE`), so the next limit, or a split of the job by crate, comes from measured times. `check-workflows.py`: 0 faults.
+- 2026-11-20, the nightly 44739339618 at `8a2cdd9`: the riscv64 job ended in 89 minutes (13:11 to 14:40), not cancelled, under its limit of 150; it failed on the two tests of `pod-iroh` of T-916. The loongarch64 job ended in 56 minutes.
 
 # T-943: The static job of `aarch64-apple-darwin` in `ci.yml` gets no runner, four runs in a row
 
@@ -4051,3 +4053,95 @@ The next run of `nightly.yml` shows a result for the step `Test pod-gsr (Windows
 ## Done
 
 2026-11-20, parts 1 and 4: the step has `always()`; Q18, Q19 and Q20 are in `TODO/PROGRESS.md`.
+
+# T-1043: `pod-link`: the EDNS test of `dns_resolver` compares two counts that the resolver still moves (armv7)
+
+**Source:** nightly run 44739339618 at `8a2cdd9`, the job `cross (armv7-unknown-linux-musleabihf, arm)` (136298712181).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`a_query_with_edns_gets_an_answer_within_its_size`
+(`crates/pod-link/tests/dns_resolver.rs:185`) fails under QEMU on armv7:
+"assertion `left == right` failed, left: 344, right: 346". The test
+compares the count of answers with an OPT record to the count of all
+answers. The stand-in resolver still carries the polls of the link after
+the transfer, on another thread, and it adds to `answers` before
+`with_opt`. The two loads are at two times, so a slow host reads two more
+answers than answers with OPT. The armv7 job passed this test in the run
+before.
+
+## Premise
+
+- Read: the log of the job; the stand-in resolver of the test.
+- Not measured: the test under QEMU for armv7 (the next run of the cross
+  job proves it).
+
+## Approach
+
+The resolver counts the answers with no OPT record; the test expects 0 of
+them and more than 0 with one. Both counts only grow, so the read has no
+race.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test dns_resolver
+```
+
+## Done
+
+2026-11-20, this commit. `Seen` has `without_opt`; the stand-in resolver
+adds each answer to `with_opt` or to `without_opt`;
+`a_query_with_edns_gets_an_answer_within_its_size` expects no answer
+with no OPT record and at least one with one. On Linux: `cargo test -p
+pod-link --all-features --test dns_resolver` passes 3 (the three tests of
+the file), and `cargo test -p pod-link --all-features` passes.
+
+# T-1044: `check-windows.sh` and `check-macos.sh` compile no doc test, so a doc test with an item of Unix fails only in the nightly
+
+**Source:** T-1040 (a finding: the doc test of `pod-control` on Windows).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`scripts/agent/check-windows.sh` and `scripts/agent/check-macos.sh` run
+`cargo check --tests`, which compiles no doc test. The doc test of
+`crates/pod-control/src/conformance.rs` called `Client::connect_unix`; the
+check of Windows gave "0 faults", and the failure came first in the
+Windows jobs of `nightly.yml` 44739339618. `cargo test --doc --no-run`
+is refused ("can't skip running doc tests with --no-run").
+
+## Premise
+
+- Measured (`x86_64-pc-windows-gnu`, `pod-control` alone): `cargo test
+  --doc --target x86_64-pc-windows-gnu` with
+  `CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUNNER=true`, the zig wrapper of the
+  script as the linker (`CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER`) and a
+  wrapper `x86_64-w64-mingw32-dlltool` that runs `zig dlltool` (the
+  `raw-dylib` of `getrandom` needs it) in `PATH` compiles and links the
+  doc tests, and `true` runs none. It catches the E0599 of T-1040.
+- Not measured: the whole workspace (the time, the disk, a crate whose
+  link with zig fails); the same for `x86_64-apple-darwin`.
+
+## Approach
+
+A step `--doc` of each script with the recipe above, over the workspace.
+Measure its time and disk; when it fits, `check.sh` names it beside the
+two checks. A doc test that runs on the host stays the work of the
+nightly.
+
+## Prove
+
+```sh
+sh scripts/agent/check-windows.sh --doc
+sh scripts/agent/check-macos.sh --doc
+```

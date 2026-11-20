@@ -19,13 +19,15 @@ is done. Git and the record keep finished work.
    answer `(to podcrates)`, route each ask of podrunner to its owner at
    once, and edit #227 when the order changes.
 3. The red scheduled runs and their entries:
-   - `nightly.yml` 44696810225 at `68fbc96`: both Windows jobs pass (T-933,
-     T-934, T-935 and T-990 are done; T-131 is partial: one green run of
-     `pod-gsr` on Windows ARM64). Its new failures have entries on `main`:
-     T-1020 (cargo on macOS reads `CARGO_HTTP_CAINFO`), T-1019 and T-1018
-     (two tests of the cross jobs). The next nightly proves them, and reads
-     T-1022 (Go on macOS). Open: T-916 (i686 counts 3 switches; two
-     `pod-iroh` tests on riscv64), T-938. T-789 and T-766 stay.
+   - `nightly.yml` 44739339618 at `8a2cdd9`: its new failures have entries
+     on `main`: T-1040 (a doc test of `pod-control` on Windows), T-1043 (a
+     race of a test of `pod-link` on armv7), T-1041 and T-1042 (macOS: a
+     timeout of a closed Unix socket; Node of Homebrew reads
+     `SSL_CERT_FILE`). The next nightly proves them, and T-1021 and T-1030
+     (PATHEXT on Windows). T-1044: the checks of Windows and macOS here
+     compile no doc test. Open: T-916 (i686 counts 3 switches; two
+     `pod-iroh` tests on riscv64 and loongarch64), T-938. T-789 and T-766
+     stay.
    - `ci.yml`: T-943 is done: the arm64 probe of macOS builds on the
      Intel runner.
    - `docs/research/hard-problems.md`: the hard open problems (H-01 to

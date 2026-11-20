@@ -17,11 +17,24 @@ pub trait Stream: Read + Write + Send {
 #[cfg(unix)]
 impl Stream for std::os::unix::net::UnixStream {
     fn set_read_timeout(&mut self, timeout: Option<Duration>) -> io::Result<()> {
-        std::os::unix::net::UnixStream::set_read_timeout(self, timeout)
+        shut_needs_no_timeout(std::os::unix::net::UnixStream::set_read_timeout(self, timeout))
     }
 
     fn set_write_timeout(&mut self, timeout: Option<Duration>) -> io::Result<()> {
-        std::os::unix::net::UnixStream::set_write_timeout(self, timeout)
+        shut_needs_no_timeout(std::os::unix::net::UnixStream::set_write_timeout(self, timeout))
+    }
+}
+
+/// Darwin refuses each socket option with `EINVAL` when both directions of
+/// the socket are shut, as after the close of the peer. A read of such a
+/// socket gives the bytes that it holds, then the end, and a write fails at
+/// once: no call waits, so the socket needs no timeout.
+#[cfg(unix)]
+fn shut_needs_no_timeout(set: io::Result<()>) -> io::Result<()> {
+    const EINVAL: i32 = 22;
+    match set {
+        Err(e) if cfg!(target_vendor = "apple") && e.raw_os_error() == Some(EINVAL) => Ok(()),
+        set => set,
     }
 }
 
@@ -117,6 +130,28 @@ mod tests {
     fn pair(cap: usize) -> (Lines<UnixStream>, UnixStream) {
         let (a, b) = UnixStream::pair().unwrap();
         (Lines::new(a, cap), b)
+    }
+
+    #[test]
+    fn only_the_einval_of_darwin_needs_no_timeout() {
+        let einval = || Err(io::Error::from_raw_os_error(22));
+        assert_eq!(shut_needs_no_timeout(einval()).is_ok(), cfg!(target_vendor = "apple"));
+        // An EINVAL of the standard library (a zero timeout) has no code of the system.
+        assert!(shut_needs_no_timeout(Err(io::Error::from(io::ErrorKind::InvalidInput))).is_err());
+        assert!(shut_needs_no_timeout(Err(io::Error::from_raw_os_error(9))).is_err());
+        assert!(shut_needs_no_timeout(Ok(())).is_ok());
+    }
+
+    #[test]
+    fn a_closed_peer_with_bytes_left_gives_the_bytes_then_the_end() {
+        let (mut lines, mut peer) = pair(16);
+        peer.write_all(b"one\n").unwrap();
+        drop(peer);
+        let t = Duration::from_secs(5);
+        assert_eq!(lines.next_line(t).unwrap(), Line::Text("one".into()));
+        assert_eq!(lines.next_line(t).unwrap(), Line::End);
+        lines.stream().set_write_timeout(Some(t)).unwrap();
+        assert!(lines.write_line("two\n").is_err(), "a write to a closed peer fails at once");
     }
 
     #[test]
