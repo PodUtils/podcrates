@@ -51,7 +51,8 @@ jobs:
         run: timeout --kill-after=30 600 cargo test --locked -p pod-guest --all-features -- --test-threads=1 --nocapture
       # The pinned static QEMU of podvm's store (T-1013): the tests of the
       # warm start with a real emulator run again with it, before the QEMU
-      # of the runner on PATH. QEMU 11 saves the NVMe root disk of the plan.
+      # of the runner on PATH. QEMU 11.0 refuses the save of the NVMe root
+      # disk of the plan, as QEMU 8.2 does: NVMe migrates from QEMU 11.1.
       - name: Static QEMU
         run: sh scripts/ci/static-qemu.sh "$RUNNER_TEMP/static-qemu"
       - name: Test the warm start with the static QEMU

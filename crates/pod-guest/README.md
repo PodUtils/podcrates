@@ -193,10 +193,11 @@ of the saved mailbox, so the guest takes a command only on a new medium
 A wrong or stale state boots cold; it never gives the answer of another
 guest. An emulator that cannot migrate a device is `Unavailable` with its
 reasons (`query-migrate` `blocked-reasons`), before the guest stops: QEMU
-8.2 refuses the NVMe root disk of the plan line ("non-migratable device"),
-and podvm measures QEMU 11. With the root disk on AHCI or virtio-blk,
-QEMU 8.2.2 saves and loads the line with the USB mailbox, and takes the
-swap after the load (call C585). A save that does not end within `wait`
+8.2 to 11.0 refuse the NVMe root disk of the plan line ("non-migratable
+device"); QEMU 11.1.0 is the first release that migrates an NVMe device
+(QEMU commit `9d378cab537d`, call C866). With the root disk on AHCI or
+virtio-blk, QEMU 8.2.2 saves and loads the line with the USB mailbox, and
+takes the swap after the load (call C585). A save that does not end within `wait`
 is cancelled (`Timeout`). The path of the state is UTF-8 with no comma
 (the `file:` URI), and the overlay names its base by an absolute path
 (the qcow2 head is read): the copy is in another directory.
@@ -455,9 +456,9 @@ with the next volume id; a plan with an NVMe mailbox is refused by `save`,
 start the QEMU of the host with a firmware of `hlt`: the plan line with
 its root disk on AHCI saves, loads with the saved mailbox, runs, takes
 the command on a new medium (`-compat deprecated-input=reject`), and a
-stream cut short ends the emulator; the plan line saves from QEMU 11 and
-starts warm, and an older QEMU refuses the save with its reasons and
-`start` boots cold.
+stream cut short ends the emulator; the plan line saves from QEMU 11.1
+and starts warm, and an older QEMU (also 11.0) refuses the save with a
+reason that names the NVMe device and `start` boots cold.
 
 The tests of the next command (`src/swap/tests.rs`) check the settled
 result (no swap while `WQGO.TXT` is on the medium), the refusal of an NVMe

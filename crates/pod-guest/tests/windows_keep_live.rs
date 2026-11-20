@@ -12,8 +12,8 @@
 //! 3. warm start (T-628): a save of the idle guest of step 2
 //!    (`warm::save`), and after the control of step 4 a restore with a
 //!    fourth command on a new medium (`warm::start`). It runs only where
-//!    the emulator saves the plan (QEMU 11: QEMU 8.2 refuses the NVMe root
-//!    disk); else the test prints the refusal and goes on.
+//!    the emulator saves the plan (QEMU 11.1: QEMU 8.2 to 11.0 refuse the
+//!    NVMe root disk); else the test prints the refusal and goes on.
 //! 4. controls: a command that the host writes into the image of the
 //!    mounted mailbox, on the USB mailbox of step 2 and on an NVMe mailbox
 //!    (the line of a run before T-602). The test prints if each one

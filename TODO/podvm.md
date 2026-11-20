@@ -7069,6 +7069,15 @@ Save: QMP `migrate` to `exec:` or a file after the guest is ready in keep-alive 
 cargo test -p pod-guest --all-features
 ```
 
+## Correction
+
+2026-11-20: the plan line saves from QEMU 11.1.0, not from each QEMU 11.
+`hw/nvme/ctrl.c` at `v11.0.0` marks the NVMe device `unmigratable`, as
+at `v8.2.2`; QEMU commit `9d378cab537d` adds its migration, and `v11.1.0`
+is the first tag that holds it. `guest.yml` run 44740879451 measured the
+refusal of QEMU 11.0.0 ("non-migratable device: 0000:00:02.0/nvme").
+T-1035 and call C866.
+
 ## Done
 
 2026-11-14, commit 5d69e25. `pod_guest::warm`: `save(&plan,
@@ -8068,6 +8077,15 @@ With a USB mailbox (`MailboxBus::Usb`), restore with the saved mailbox unchanged
 cargo test -p pod-guest --all-features
 ```
 
+## Correction
+
+2026-11-20: the plan line saves from QEMU 11.1.0, not from each QEMU 11.
+`hw/nvme/ctrl.c` at `v11.0.0` marks the NVMe device `unmigratable`, as
+at `v8.2.2`; QEMU commit `9d378cab537d` adds its migration, and `v11.1.0`
+is the first tag that holds it. `guest.yml` run 44740879451 measured the
+refusal of QEMU 11.0.0 ("non-migratable device: 0000:00:02.0/nvme").
+T-1035 and call C866.
+
 ## Done
 
 2026-11-14, commit 0c7036d. `warm::restore` loads the state with the saved mailbox as it is and, after `cont`, gives the command on a new medium with the next volume id (`swap::Swap::restored`, then `Swap::next`, by `id`); a refusal of the swap is `Cold::Failed`. `restore(&s, qemu_img, &plan, agent, &request, &warm)` gives `(Child, Swap)`; `start` gives `Started { child, how, swap }` (a cold boot gives `Swap::new(&plan, token)`). The save reads the medium in the mailbox device from `query-block` (`swap::mailbox_file`) after `stop`: after a swap it is `MAILBOX.swap`. `save`, `restore` and `start` refuse a mailbox that is not `MailboxBus::Usb` with `Usage` and send no request: the restored guest reads the saved mailbox from its cache (call C584).
@@ -8280,6 +8298,17 @@ The plan always puts the root disk on NVMe (`nvme,drive=root`). QEMU 8.2 refuses
 ```sh
 cargo test -p pod-guest --all-features
 ```
+
+## Correction
+
+2026-11-20: the plan line saves from QEMU 11.1.0, not from each QEMU 11.
+`hw/nvme/ctrl.c` at `v11.0.0` marks the NVMe device `unmigratable`, as
+at `v8.2.2`; QEMU commit `9d378cab537d` adds its migration, and `v11.1.0`
+is the first tag that holds it. `guest.yml` run 44740879451 measured the
+refusal of QEMU 11.0.0 ("non-migratable device: 0000:00:02.0/nvme").
+T-1035 and call C866. With the pinned static QEMU 11.0.0 (T-1013), this
+option or a static QEMU 11.1 (T-1014) is the way to a warm start of the
+plan.
 
 # T-640: `pod-guest`: a cold boot of a Windows guest under KVM reaches no shutdown on one run of two, and a run that times out keeps no trace
 
@@ -11395,7 +11424,7 @@ place of `api.ghcr.pkgforge.dev` in its test of its hosts).
 **Source:** PodUtils/podvm#618 (COORD-217 of podvm), ask 2; a finding of T-1013
 **Category:** feature
 **Milestone:** M6
-**Priority:** P3
+**Priority:** P2
 **Effort:** M
 **Status:** open
 
@@ -11405,7 +11434,10 @@ The pin of T-1013 is QEMU 11.0.0, the only static build of a QEMU after
 10.0.4 that a project publishes. QEMU has the stable releases 11.0.1 to
 11.0.5 and 11.1.0 to 11.1.3 after it; each holds fixes that 11.0.0 does
 not have. No static build of them is published: pkgforge's bincache has
-9.2.0 only, and `hermeticbuild/qemu-prebuilt` has 11.0.0 only.
+9.2.0 only, and `hermeticbuild/qemu-prebuilt` has 11.0.0 only. QEMU 11.0.x
+cannot save an NVMe device, so the pinned QEMU refuses each warm save of
+the plan of the Windows guest; QEMU 11.1.0 is the first release that
+migrates an NVMe device (T-1035, call C866).
 
 ## Premise
 
@@ -11487,7 +11519,7 @@ passes 10, with the test checked against the loader of the host (no skip).
 **Milestone:** M7
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11560,3 +11592,32 @@ cargo test -p pod-guest --all-features --lib warm
 On `main`, the dispatch of `guest.yml`: the step "Test the warm start with
 the static QEMU" passes and prints "QEMU emulator version 11.0.0: the plan
 does not save" with the reason "non-migratable device: .../nvme".
+
+## Done
+
+2026-11-20, this commit (call C866). `warm::live`: `NVME_SAVES` (11.1,
+with the QEMU commit) and `saves_nvme`, which compares the major and the
+minor version of the emulator. The live test is now
+`a_real_emulator_saves_the_plan_from_qemu_11_1_and_boots_cold_before`:
+before 11.1 the save must be refused (`Unavailable`, a reason that names
+`nvme`) and `start` must boot cold; from 11.1 the save must succeed and
+`start` must restore warm; a save before 11.1 and a refusal from 11.1
+both fail the test. Test:
+`warm::live::the_plan_saves_from_qemu_11_1_and_not_before` (8.2.2 with
+the Debian build, 10.2.1, 11.0.0 and 11.0.5 do not save; 11.1.0, 11.1.3
+and 12.0.0 save; an empty line does not save). It fails on the gate of the
+major version alone ("QEMU emulator version 11.0.0", left true, right
+false); the plant `guest-t1035-nvme-saves-from-qemu-11-0` puts that gate
+back. The README of `pod-guest`, the comment of `guest.yml` and
+`tests/windows_keep_live.rs` say 11.1; calls C502, C507 and C585 name the
+correction; T-596, T-628 and T-635 have a Correction; T-1014 is P2 with
+the fact. `cargo test -p pod-guest --all-features --lib warm` passes 27
+(the three live tests skip here: no QEMU); `cargo test -p pod-guest
+--all-features` passes 187, 1 ignored; clippy and `cargo doc` with `-D
+warnings` pass.
+
+The live proof is the next dispatch of `guest.yml` on `main`: the step
+"Test pod-guest" (QEMU 8.2.2) and the step "Test the warm start with the
+static QEMU" (QEMU 11.0.0) pass, and each prints "QEMU emulator version
+...: the plan does not save: the emulator cannot save this guest:
+"non-migratable device: 0000:00:02.0/nvme"".

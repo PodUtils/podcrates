@@ -1,0 +1,12 @@
+diff --git a/crates/pod-guest/src/warm/live.rs b/crates/pod-guest/src/warm/live.rs
+--- a/crates/pod-guest/src/warm/live.rs
++++ b/crates/pod-guest/src/warm/live.rs
+@@ -45,7 +45,7 @@
+ /// True where the emulator of the version line saves the NVMe root disk of
+ /// the plan.
+ fn saves_nvme(qemu: &str) -> bool {
+-    version(qemu) >= NVME_SAVES
++    version(qemu).0 >= NVME_SAVES.0
+ }
+ 
+ #[test]
