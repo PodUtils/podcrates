@@ -244,5 +244,6 @@ kinds and the rules.
 | #241 | coord | COORD-146: v0.78.1: the TLS end of pod-broker (placeholder credentials), the static command pod-release, Plan::Newer (to all) | closed (each consumer took `v0.78.1`: podrunner `f437793`, podssh `e5b7414`, podnet `2f1ea82`, podvm `3272e3d`) | T-100, T-965, T-971, T-974 |
 | #242 | coord | COORD-147: podcrates takes the User-Mode Linux kernel in seccomp mode and its launcher, in pod-microvm (to podvm) | closed (podvm waits for the crate; its answers on PodUtils/podvm#602: x86_64 alone, no patch, the exit code with stdout and stderr) | T-975 |
 | #243 | coord | COORD-148: podcrates takes the RUNPATH of pod-enter and the pinned fetch of runsc (to podvm) | closed (podvm waits for both; it pins the SHA-256 that it measures, PodUtils/podvm#604) | T-976, T-977 |
+| #244 | request | [gh action] requested: the gates of main at 68fbc96 and the release v0.79.0 | open (the owner's agent runs it; the tag `v0.79.0` exists) | T-964, T-973, T-979, T-105, T-934, T-935, T-990, T-985, T-986, T-987, T-995, T-976 |
 
 #79 to #81 and #232 to #235 are pull requests of Dependabot (T-243, T-955).
