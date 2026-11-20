@@ -251,5 +251,6 @@ kinds and the rules.
 | #248 | request | [gh action] requested: the gates of main at 62b8039 and the release v0.80.0 | closed (`ci` 44792959550, `adoption`, `deny`, `secrets`, `issue-sync` passed; the dry run 44798371884, the release 44799760259 and the run on the tag 44800648913 passed; `v0.80.0` is out) | T-103, T-1000, T-102, T-980, T-1020, T-997, T-998, T-999, T-988, T-1033, T-1009, T-996, T-1010, T-1036, T-1012, T-1037, T-1013, T-1035, T-1016, T-1021 |
 | #249 | request | [gh action] requested: the first release of PodUtils/static-pkgs, the static QEMU 11.1.3 | closed (`lint.yml` 44794462908 and the dry run 44794467438 passed on amd64 and arm64; the release 44800211410 published `qemu-11.1.3`) | T-1014 |
 | #250 | coord | COORD-150: v0.80.0: pod-control, pod-unit, pod-beneath, the bundle of pod-broker for 14 clients, the loader and write table of pod-enter, the signals, the warm line form (to all) | open (the takes of `v0.80.0`: none yet) | T-103, T-1000, T-102, T-980, T-997, T-998, T-999, T-988, T-1033, T-1009, T-996, T-1010, T-1036, T-1012, T-1037, T-1016 |
+| #251 | request | [gh action] requested: the gates of main at 0d4af7e and the proof of the static QEMU 11.1.3 (services.yml, guest.yml) | open (the owner's agent runs it; the runs started) | T-1014, T-1045, T-1046 |
 
 #79 to #81 and #232 to #235 are pull requests of Dependabot (T-243, T-955).
