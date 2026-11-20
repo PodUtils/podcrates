@@ -13,6 +13,9 @@ signature and of its files, and the self-update of a running binary.
   static binary `pod-release` (feature `cli`), an asset of each release of
   podcrates, for a CI with no Rust and for an installer (calls C804 to
   C807).
+* T-964: the bundle of Rekor v2: the inclusion proof with its signed
+  checkpoint, and the RFC 3161 timestamp of Sigstore's timestamp
+  authority (call C820).
 
 ## Use
 
@@ -98,15 +101,25 @@ if update::plan(&newest, &current, false, false, false) == Plan::Install {
 
 - `sigstore::verify(bundle, artifact, identity)`, `verify_with(.., roots)`:
   the keyless cosign bundle (`application/vnd.dev.sigstore.bundle*`) of
-  a file, with no network: the digest, the signature of the leaf, the
-  chain of the leaf to Fulcio's root at the time of Rekor's entry, code
-  signing, the URI and the OIDC issuer of the leaf (`Identity`), Rekor's
-  signed entry timestamp over the canonical entry, and the entry's body
-  against the file, the signature and the leaf. Gives `Logged { time,
-  index }`.
+  a file, with no network: the digest, the signature of the leaf, an
+  entry of a log of the roots (Rekor v1 or v2) with each proof that it
+  holds (Rekor's signed entry timestamp over the canonical entry; the
+  inclusion proof of RFC 6962 with its checkpoint, a signed note of the
+  log), each RFC 3161 timestamp by the timestamp authority of the roots,
+  the chain of the leaf to Fulcio's root at each time that the bundle
+  proves, code signing, the URI and the OIDC issuer of the leaf
+  (`Identity`), and the entry's body (`hashedrekord` 0.0.1 or 0.0.2)
+  against the file, the signature and the leaf. A bundle needs the
+  promise or the proof, and a time: the promise's or a timestamp's (call
+  C820). Gives `Logged { time, index }`.
 - `Identity { uri, issuer }`, `Identity::github(repo, workflow, tag)`.
-- `Roots::sigstore()`: the Fulcio chain and the Rekor key of Sigstore's
-  public instance, compiled in; `Roots::from_pem(fulcio, rekor)`.
+- `Roots { fulcio, logs, tsa }`, `Roots::sigstore()`: the Fulcio chain,
+  the logs (`Log { name, key }`: `rekor.sigstore.dev` and the shard
+  `log2025-1.rekor.sigstore.dev` of Rekor v2) and the chain of the
+  timestamp authority of Sigstore's public instance, compiled in from its
+  trusted root (sigstore/root-signing, `targets/trusted_root.json`, at
+  the commit that `SOURCES` names); `Roots::from_pem(fulcio, &[(name,
+  key)], tsa)`; `Log::id()` (the log id of a bundle).
 - `Sums::parse`, `Sums::get(name)`, `Sums::check(name, bytes)`,
   `Sums::names()`: `SHA256SUMS`; a name has its SHA-256 only when one line
   names it, with 64 hex digits.
@@ -199,7 +212,9 @@ SHA-256, an index, a trial run), `CantWrite` (the binary is as it was),
 | Capability | podssh | podnet | Here |
 | --- | --- | --- | --- |
 | Rekor's signed entry timestamp and the entry's body | yes | no | yes (podssh) |
-| The chain to Fulcio at the time of the entry | yes | yes (webpki) | yes (podssh, pure Rust) |
+| The inclusion proof and its signed checkpoint; Rekor v2 | no | no | yes |
+| The RFC 3161 timestamp | no | no | yes |
+| The chain to Fulcio at the time of the entry | yes | yes (webpki) | yes (podssh, pure Rust), at each proven time |
 | Identity and issuer as a setting | repo and tag | repo and tag | the URI and the issuer |
 | Canonical JSON of the promise with `preserve_order` in the binary | no | n/a | yes |
 | One valid line of a name in `SHA256SUMS` | first line | exactly one | exactly one (podnet) |
@@ -237,7 +252,22 @@ python3 -I scripts/release-index.py --self-test
   (`tests/fixtures/v0.76.0/`) verifies; another tag, repository, workflow
   or issuer, a changed file, a changed signature, promise, body or time,
   a changed byte of each checked value of the bundle, a leaf that Fulcio
-  did not sign, other roots: each refused.
+  did not sign, other roots: each refused. `sigstore::tests::parts`: the
+  bundles of v0.76.0 and v0.77.0 (cosign v3.1.4) with each part removed:
+  the promise alone, and the proof with the timestamp (the form of Rekor
+  v2), verify; no promise and no timestamp, or no promise and no proof,
+  are refused; a changed hash, root, index or size of the proof, a
+  changed origin, size, root or signature of the checkpoint, a changed
+  time or signature of the timestamp, and another timestamp authority:
+  each refused. `sigstore::tests::rekor2`: two bundles of Rekor v2 of
+  sigstore-conformance (`rekor2-happy-path`, and
+  `rekor2-checkpoint-origin-not-first` with a witness line first) verify
+  by the staging trusted root of their test; with no timestamp, no proof,
+  a changed hash, body or checkpoint signature, each refused; the
+  compiled roots equal Sigstore's public trusted root. The files of
+  Sigstore are in `tests/fixtures/sigstore/` with their licence
+  (Apache-2.0, `tests/fixtures/sigstore/LICENSE`); `SOURCES` names their
+  commits.
 - `verify::tests`: the directory of the release verifies; one changed
   byte of `podlab-install.sh`, of `SHA256SUMS` or of the bundle, and each
   other identity, fail. The index of v0.77.0

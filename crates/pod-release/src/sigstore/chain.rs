@@ -1,6 +1,6 @@
-//! The certificates of a bundle: an ECDSA signature by the key of a
-//! certificate, a certificate signed by its issuer within the life of
-//! both, and the identity of the leaf.
+//! The certificates and keys of a bundle: an ECDSA or Ed25519 signature by
+//! a key, a certificate signed by its issuer within the life of both, and
+//! the identity of the leaf.
 
 use rustls_pki_types::SignatureVerificationAlgorithm;
 use x509_parser::prelude::*;
@@ -16,6 +16,7 @@ pub(super) const P256: &str = "1.2.840.10045.3.1.7";
 pub(super) const P384: &str = "1.3.132.0.34";
 pub(super) const ECDSA_SHA256: &str = "1.2.840.10045.4.3.2";
 pub(super) const ECDSA_SHA384: &str = "1.2.840.10045.4.3.3";
+pub(super) const ED25519: &str = "1.3.101.112";
 
 /// The curve of an EC key, as the OID of its parameters.
 pub(super) fn curve(key_info: &SubjectPublicKeyInfo<'_>) -> Option<String> {
@@ -42,6 +43,19 @@ pub(super) fn ecdsa(
     verifier.verify_signature(key, message, signature).map_err(|_| "the signature does not verify".to_string())
 }
 
+/// `signature` of `message` by the key of `key_info`: an Ed25519 key, or an
+/// EC key with the digest of its curve (SHA-256 for P-256, SHA-384 for
+/// P-384), as a log signs its promise and its checkpoint.
+pub(super) fn by_key(key_info: &SubjectPublicKeyInfo<'_>, message: &[u8], signature: &[u8]) -> Result<(), String> {
+    if key_info.algorithm.algorithm.to_id_string() == ED25519 {
+        return pod_tls::crypto::sign::ED25519
+            .verify_signature(&key_info.subject_public_key.data, message, signature)
+            .map_err(|_| "the signature does not verify".to_string());
+    }
+    let algorithm = if curve(key_info).as_deref() == Some(P384) { ECDSA_SHA384 } else { ECDSA_SHA256 };
+    ecdsa(key_info, algorithm, message, signature)
+}
+
 /// `cert` was signed by `issuer`, and both hold at `time`.
 pub(super) fn signed_by(cert: &X509Certificate<'_>, issuer: &X509Certificate<'_>, time: i64) -> Result<(), String> {
     if cert.issuer() != issuer.subject() {
@@ -53,7 +67,7 @@ pub(super) fn signed_by(cert: &X509Certificate<'_>, issuer: &X509Certificate<'_>
     for c in [cert, issuer] {
         let (from, to) = (c.validity().not_before.timestamp(), c.validity().not_after.timestamp());
         if time < from || time > to {
-            return Err(format!("{} did not hold when the entry was logged", c.subject()));
+            return Err(format!("{} did not hold at the time of the signature", c.subject()));
         }
     }
     Ok(())

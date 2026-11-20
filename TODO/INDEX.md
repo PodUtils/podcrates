@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**810 entries: 147 open, 27 partial, 7 blocked, 629 done.**
+**810 entries: 146 open, 27 partial, 7 blocked, 630 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 8 | 8 | 0 | 188 | 204 |
-| P2 | 71 | 9 | 4 | 318 | 402 |
+| P1 | 8 | 8 | 0 | 189 | 205 |
+| P2 | 70 | 9 | 4 | 318 | 401 |
 | P3 | 68 | 10 | 3 | 121 | 202 |
-| **All** | 147 | 27 | 7 | 629 | 810 |
+| **All** | 146 | 27 | 7 | 630 | 810 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -843,7 +843,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-961](podvm.md) | P2 | M | M6 | defect | done | `pod-extract`: the `tar` crate reads a PAX header or a GNU long name whole with no bound, and cuts the PAX records at each newline byte |
 | [T-962](relay.md) | P1 | S | M2 | defect | done | `pod-session`: the hold of a move starts when the task beside the link wakes, not when the bytes pass the threshold, so on Windows the old link still meets a small cap (PodUtils/podssh#327) |
 | [T-963](relay.md) | P2 | S | M2 | defect | partial | `live.yml`: public services of other parties fail from a runner of GitHub and pass from a cloud session (the Nostr relay `offchain.pub`, the WebTorrent tracker `tracker.openwebtorrent.com`) |
-| [T-964](fleet.md) | P2 | M | M8 | feature | open | `pod-release`: the bundle of Rekor v2: the inclusion proof with its signed checkpoint, and the RFC 3161 timestamp |
+| [T-964](fleet.md) | P1 | M | M8 | feature | done | `pod-release`: the bundle of Rekor v2: the inclusion proof with its signed checkpoint, and the RFC 3161 timestamp |
 | [T-965](fleet.md) | P1 | M | M8 | feature | done | `pod-release`: the verifier as a static command for the CI of a product and for an installer |
 | [T-966](fleet.md) | P2 | M | M8 | chore | partial | `pod-release`: the adoption trials of podnet and podssh, and the hand-off of the crate |
 | [T-967](fleet.md) | P3 | S | M8 | feature | open | `pod-release`: a minisign signature beside the Sigstore bundle |
