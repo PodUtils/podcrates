@@ -1,12 +1,12 @@
 //! The lines of the wire, version [`PROTOCOL`]. Each line is one JSON
-//! object with `"v": 1`:
+//! object with `"schema": 1`:
 //!
 //! ```text
-//! {"v":1,"id":7,"method":"drain","params":{"exit":true}}       a request
-//! {"v":1,"id":7,"ok":true,"result":{"draining":true}}          its answer
-//! {"v":1,"id":7,"ok":false,"error":{"code":"busy","detail":"..."}}
-//! {"v":1,"id":1,"for":7,"method":"confirm","params":{}}        a call back of the server
-//! {"v":1,"id":1,"ok":true,"result":true}                       its answer by the client
+//! {"schema":1,"id":7,"method":"drain","params":{"exit":true}}       a request
+//! {"schema":1,"id":7,"ok":true,"result":{"draining":true}}          its answer
+//! {"schema":1,"id":7,"ok":false,"error":{"code":"busy","detail":"..."}}
+//! {"schema":1,"id":1,"for":7,"method":"confirm","params":{}}        a call back of the server
+//! {"schema":1,"id":1,"ok":true,"result":true}                       its answer by the client
 //! ```
 //!
 //! A request has `method`; an answer has `ok`. Each side numbers its own
@@ -167,8 +167,8 @@ fn take_object(line: &str) -> Result<Map<String, Value>, (Option<u64>, Fault)> {
     let value: Value = serde_json::from_str(line).map_err(|_| bad(None, "the line is not JSON"))?;
     let Value::Object(map) = value else { return Err(bad(None, "the line is not a JSON object")) };
     let id = map.get("id").and_then(Value::as_u64);
-    if map.get("v").and_then(Value::as_u64) != Some(u64::from(PROTOCOL)) {
-        return Err(bad(id, "the line has no \"v\": 1"));
+    if map.get("schema").and_then(Value::as_u64) != Some(u64::from(PROTOCOL)) {
+        return Err(bad(id, "the line has no \"schema\": 1"));
     }
     Ok(map)
 }
@@ -179,7 +179,7 @@ pub fn parse(line: &str) -> Result<Inbound, (Option<u64>, Fault)> {
     let map = take_object(line)?;
     let id = map.get("id").and_then(Value::as_u64);
     if map.contains_key("method") {
-        let known = ["v", "id", "method", "params", "for"];
+        let known = ["schema", "id", "method", "params", "for"];
         if map.keys().any(|k| !known.contains(&k.as_str())) {
             return Err(bad(id, "a request has an unknown field"));
         }
@@ -198,7 +198,7 @@ pub fn parse(line: &str) -> Result<Inbound, (Option<u64>, Fault)> {
         };
         return Ok(Inbound::Request(Request { id, method: method.to_string(), params, for_id }));
     }
-    let known = ["v", "id", "ok", "result", "error"];
+    let known = ["schema", "id", "ok", "result", "error"];
     if map.keys().any(|k| !known.contains(&k.as_str())) {
         return Err(bad(id, "an answer has an unknown field"));
     }
@@ -226,19 +226,19 @@ fn id_text(id: Option<u64>) -> String {
     id.map_or_else(|| "null".to_string(), |i| i.to_string())
 }
 
-/// The line of a request, with its line end. `v` comes first, so that a
+/// The line of a request, with its line end. `schema` comes first, so that a
 /// reader of a log finds it.
 pub fn request_line(id: u64, method: &str, params: &Value, for_id: Option<u64>) -> String {
     let for_text = for_id.map(|f| format!(",\"for\":{f}")).unwrap_or_default();
     let method = Value::from(method);
-    format!("{{\"v\":{PROTOCOL},\"id\":{id}{for_text},\"method\":{method},\"params\":{params}}}\n")
+    format!("{{\"schema\":{PROTOCOL},\"id\":{id}{for_text},\"method\":{method},\"params\":{params}}}\n")
 }
 
 /// The line of an answer, with its line end.
 pub fn answer_line(id: Option<u64>, outcome: &Result<Value, Fault>) -> String {
     let id = id_text(id);
     match outcome {
-        Ok(result) => format!("{{\"v\":{PROTOCOL},\"id\":{id},\"ok\":true,\"result\":{result}}}\n"),
-        Err(fault) => format!("{{\"v\":{PROTOCOL},\"id\":{id},\"ok\":false,\"error\":{}}}\n", fault.to_value()),
+        Ok(result) => format!("{{\"schema\":{PROTOCOL},\"id\":{id},\"ok\":true,\"result\":{result}}}\n"),
+        Err(fault) => format!("{{\"schema\":{PROTOCOL},\"id\":{id},\"ok\":false,\"error\":{}}}\n", fault.to_value()),
     }
 }

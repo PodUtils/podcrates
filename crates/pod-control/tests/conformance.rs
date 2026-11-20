@@ -40,7 +40,7 @@ fn a_server_that_breaks_the_protocol_has_findings() {
             std::thread::spawn(move || {
                 let mut w = &stream;
                 for line in BufReader::new(&stream).split(b'\n') {
-                    if line.is_err() || w.write_all(b"{\"v\":1,\"id\":1,\"ok\":true,\"result\":{}}\n").is_err() {
+                    if line.is_err() || w.write_all(b"{\"schema\":1,\"id\":1,\"ok\":true,\"result\":{}}\n").is_err() {
                         return;
                     }
                 }

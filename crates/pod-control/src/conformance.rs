@@ -61,7 +61,7 @@ impl Run<'_> {
         }
     }
 
-    /// One raw line and its answer, which has `"v": 1` and the id `id`.
+    /// One raw line and its answer, which has `"schema": 1` and the id `id`.
     fn exchange(&mut self, c: &mut Client, check: &'static str, line: &[u8], id: Value) -> Option<Value> {
         let answer = match c.raw(line) {
             Ok(Some(a)) => a,
@@ -74,8 +74,8 @@ impl Run<'_> {
                 return None;
             }
         };
-        if answer["v"] != json!(PROTOCOL) {
-            self.fault(check, format!("an answer with no \"v\": {PROTOCOL}"));
+        if answer["schema"] != json!(PROTOCOL) {
+            self.fault(check, format!("an answer with no \"schema\": {PROTOCOL}"));
         }
         if answer["id"] != id {
             self.fault(check, format!("the answer has the id {}, not {id}", answer["id"]));
@@ -100,7 +100,7 @@ pub fn check(connect: &mut dyn FnMut() -> Result<Client, Error>, options: &Optio
     local(&mut run);
     let unknown = run.expect_code(
         "unknown-method",
-        br#"{"v":1,"id":1,"method":"no-such-method"}"#,
+        br#"{"schema":1,"id":1,"method":"no-such-method"}"#,
         1.into(),
         Code::UnknownMethod,
     );
@@ -117,13 +117,13 @@ fn local(run: &mut Run<'_>) {
         Ok(_) => {}
         Err(e) => run.fault("version", e.to_string()),
     }
-    if let Some(a) = run.exchange(&mut c, "version", br#"{"v":1,"id":41,"method":"version"}"#, 41.into())
+    if let Some(a) = run.exchange(&mut c, "version", br#"{"schema":1,"id":41,"method":"version"}"#, 41.into())
         && a["ok"] != json!(true)
     {
         run.fault("version", "a raw version request has no result");
     }
     if let Some(a) =
-        run.exchange(&mut c, "params", br#"{"v":1,"id":42,"method":"version","params":{"x":1}}"#, 42.into())
+        run.exchange(&mut c, "params", br#"{"schema":1,"id":42,"method":"version","params":{"x":1}}"#, 42.into())
         && a["error"]["code"] != json!(Code::BadParams.name())
     {
         run.fault("params", "a field that the method does not take is not bad-params");
@@ -163,7 +163,7 @@ fn hidden(run: &mut Run<'_>, unknown: Option<Value>) {
         if rows.iter().any(|r| r.name == spec.name) {
             continue;
         }
-        let line = format!(r#"{{"v":1,"id":5,"method":"{}","params":{{"bogus":1}}}}"#, spec.name);
+        let line = format!(r#"{{"schema":1,"id":5,"method":"{}","params":{{"bogus":1}}}}"#, spec.name);
         let Some(a) = run.exchange(&mut c, "hidden", line.as_bytes(), 5.into()) else { return };
         if a["error"] != unknown {
             run.fault("hidden", format!("{} above the tier does not answer as a name that is not there", spec.name));
@@ -174,9 +174,9 @@ fn hidden(run: &mut Run<'_>, unknown: Option<Value>) {
 fn frame(run: &mut Run<'_>, options: &Options) {
     run.expect_code("not-json", b"{not json", Value::Null, Code::BadRequest);
     run.expect_code("no-version", br#"{"id":2,"method":"version"}"#, 2.into(), Code::BadRequest);
-    run.expect_code("other-version", br#"{"v":2,"id":3,"method":"version"}"#, 3.into(), Code::BadRequest);
-    run.expect_code("no-id", br#"{"v":1,"method":"version"}"#, Value::Null, Code::BadRequest);
-    run.expect_code("unknown-field", br#"{"v":1,"id":4,"method":"version","x":1}"#, 4.into(), Code::BadRequest);
+    run.expect_code("other-version", br#"{"schema":2,"id":3,"method":"version"}"#, 3.into(), Code::BadRequest);
+    run.expect_code("no-id", br#"{"schema":1,"method":"version"}"#, Value::Null, Code::BadRequest);
+    run.expect_code("unknown-field", br#"{"schema":1,"id":4,"method":"version","x":1}"#, 4.into(), Code::BadRequest);
     // A line that is not UTF-8 keeps the frame: the next request answers.
     if let Some(mut c) = run.client("not-utf8") {
         if let Some(a) = run.exchange(&mut c, "not-utf8", b"\xff\xfe", Value::Null)

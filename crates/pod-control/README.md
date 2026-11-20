@@ -40,15 +40,15 @@ c.drain(pod_control::Drain { exit: true })?;
 
 ## The wire (protocol 1)
 
-Each line is one JSON object with `"v": 1`, at most `Settings::line_max`
+Each line is one JSON object with `"schema": 1`, at most `Settings::line_max`
 bytes (64 KiB) without its line end, and UTF-8.
 
 ```text
-{"v":1,"id":7,"method":"drain","params":{"exit":true}}            a request of the client
-{"v":1,"id":7,"ok":true,"result":{"draining":true}}               its answer
-{"v":1,"id":7,"ok":false,"error":{"code":"busy","detail":"..."}}  an error
-{"v":1,"id":1,"for":7,"method":"confirm","params":{}}             a call back of the server for request 7
-{"v":1,"id":1,"ok":true,"result":true}                            the answer of the client
+{"schema":1,"id":7,"method":"drain","params":{"exit":true}}            a request of the client
+{"schema":1,"id":7,"ok":true,"result":{"draining":true}}               its answer
+{"schema":1,"id":7,"ok":false,"error":{"code":"busy","detail":"..."}}  an error
+{"schema":1,"id":1,"for":7,"method":"confirm","params":{}}             a call back of the server for request 7
+{"schema":1,"id":1,"ok":true,"result":true}                            the answer of the client
 ```
 
 * A request has `method`; an answer has `ok`, and `result` or `error`.
@@ -136,7 +136,7 @@ time; one more gets `busy`.
 `conformance::check(connect, &Options)` runs the checks of the wire against
 a running server and gives each finding: `version`, `methods`, the answer of
 an unknown method and of each method above the tier, `bad-params`, the frame
-(not JSON, no `"v": 1`, another version, no id, an unknown field, not UTF-8,
+(not JSON, no `"schema": 1`, another version, no id, an unknown field, not UTF-8,
 too long), and the forms of `status` and `metrics`. It calls no method that
 changes the program. A program runs it from a test against its own server.
 
@@ -157,7 +157,7 @@ podrunner's `crates/podrunner/src/control.rs` maps to this crate:
 | `Capacity`, `ClearDegraded`, `Withdraw`, `DrainSource`, `ResumeSource`, `StopSource` | `Extra` rows (`capacity` read; the others operate) |
 | `RestartSource` | an `Extra` row of the master tier (a key file read again is a new credential), or `same_user: Tier::Master` |
 | `control::call(path, &req)` | `Client::connect_unix(path, ..)?.call(name, params)` |
-| `{"v":1,"op":"status"}`, `{"v":1,"reply":"ok","value":...}` | `{"v":1,"id":1,"method":"status"}`, `{"v":1,"id":1,"ok":true,"result":...}` |
+| `{"v":1,"op":"status"}`, `{"v":1,"reply":"ok","value":...}` | `{"schema":1,"id":1,"method":"status"}`, `{"schema":1,"id":1,"ok":true,"result":...}` |
 | `LINE_MAX`, `CLIENTS`, `EXCHANGE` | `Settings::line_max`, `Settings::clients`, `Settings::read_timeout` and `Settings::answer_wait` |
 
 The conformance check goes into a test of podrunner against `serve`.

@@ -99,51 +99,56 @@ pub fn schema() -> Value {
         }));
     }
     let id = json!({ "type": "integer", "minimum": 0 });
+    // Each branch holds the rule of `schemas/`: an object with no other
+    // key, and `schema`, the constant of the protocol, as its first
+    // required key.
+    let request = json!({
+        "description": "A request of the client, or a call back of the server with for.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema", "id", "method"],
+        "properties": {
+            "schema": { "const": PROTOCOL },
+            "id": { "$ref": "#/$defs/id" },
+            "for": { "$ref": "#/$defs/id" },
+            "method": { "$ref": "#/$defs/method" },
+            "params": { "type": "object" }
+        },
+        "allOf": by_method
+    });
+    let answer = json!({
+        "description": "The answer to a request: ok with result, or not ok with error.",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema", "id", "ok"],
+        "properties": {
+            "schema": { "const": PROTOCOL },
+            "id": { "oneOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+            "ok": { "type": "boolean" },
+            "result": true,
+            "error": closed(json!({
+                "code": { "$ref": "#/$defs/code" },
+                "detail": { "type": "string" }
+            }), &["code", "detail"])
+        },
+        "oneOf": [
+            { "properties": { "ok": { "const": true } }, "required": ["result"], "not": { "required": ["error"] } },
+            { "properties": { "ok": { "const": false } }, "required": ["error"], "not": { "required": ["result"] } }
+        ]
+    });
     json!({
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": SCHEMA_ID,
         "title": "One line of the control API of a program of PodUtils",
-        "description": "Each line is one JSON object with \"v\": 1. A request has a method; an answer has ok. The \
+        "description": "Each line is one JSON object with \"schema\": 1. A request has a method; an answer has ok. The \
             client sends requests, and the server sends answers and calls back; a call back names its request \
             with for. A method above the tier of the caller gets the answer of a method that is not there.",
-        "oneOf": [{ "$ref": "#/$defs/request" }, { "$ref": "#/$defs/answer" }],
+        "oneOf": [request, answer],
         "$defs": {
             "id": id,
             "method": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$" },
             "tier": { "enum": Tier::ALL.map(Tier::name) },
             "code": { "enum": Code::ALL.map(Code::name) },
-            "request": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["v", "id", "method"],
-                "properties": {
-                    "v": { "const": PROTOCOL },
-                    "id": { "$ref": "#/$defs/id" },
-                    "for": { "$ref": "#/$defs/id" },
-                    "method": { "$ref": "#/$defs/method" },
-                    "params": { "type": "object" }
-                },
-                "allOf": by_method
-            },
-            "answer": {
-                "type": "object",
-                "additionalProperties": false,
-                "required": ["v", "id", "ok"],
-                "properties": {
-                    "v": { "const": PROTOCOL },
-                    "id": { "oneOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
-                    "ok": { "type": "boolean" },
-                    "result": true,
-                    "error": closed(json!({
-                        "code": { "$ref": "#/$defs/code" },
-                        "detail": { "type": "string" }
-                    }), &["code", "detail"])
-                },
-                "oneOf": [
-                    { "properties": { "ok": { "const": true } }, "required": ["result"], "not": { "required": ["error"] } },
-                    { "properties": { "ok": { "const": false } }, "required": ["error"], "not": { "required": ["result"] } }
-                ]
-            },
             "params": params_defs,
             "results": result_defs,
             "catalogue": {
