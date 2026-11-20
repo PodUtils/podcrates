@@ -12,7 +12,9 @@
 use linux_raw_sys::ctypes::c_ulong;
 use linux_raw_sys::general::{self as g, kernel_sigset_t};
 
-use super::{SFD_CLOEXEC, SYS_RT_SIGPROCMASK, SYS_SIGNALFD4, Sysres, sys};
+use super::{
+    SFD_CLOEXEC, SIGALRM, SIGINT, SIGPWR, SIGTERM, SIGUSR1, SIGUSR2, SYS_RT_SIGPROCMASK, SYS_SIGNALFD4, Sysres, sys,
+};
 
 /// The terminal's hangup and quit signals, beside `SIGINT` and `SIGTERM`.
 /// The four numbers are the same on each Linux architecture.
@@ -93,4 +95,46 @@ pub fn signalfd(set: u64) -> Sysres {
             [-1i64 as u64, &mask as *const kernel_sigset_t as u64, SIGSET_BYTES as u64, SFD_CLOEXEC, 0, 0],
         )
     }
+}
+
+/// The signals that a process sends to tell or to stop a payload, as
+/// docker's `--sig-proxy` with no tty: SIGHUP, SIGINT, SIGQUIT, SIGUSR1,
+/// SIGUSR2, SIGTERM, SIGALRM and SIGPWR. That is each signal that a process
+/// can catch, except SIGCHLD, SIGPIPE, SIGURG, SIGWINCH and the signals of
+/// job control. Each relay of one payload (the waiter and the init of
+/// `pod-enter`, the launcher and the hold of `pod-supervise`) blocks and
+/// gives this one list: a signal that a relay does not block ends the relay
+/// with its default action, and the payload stays.
+pub const PROXIED_SIGNALS: u64 = sigbit(SIGHUP)
+    | sigbit(SIGINT)
+    | sigbit(SIGQUIT)
+    | sigbit(SIGUSR1)
+    | sigbit(SIGUSR2)
+    | sigbit(SIGTERM)
+    | sigbit(SIGALRM)
+    | sigbit(SIGPWR);
+
+/// Does a relay give the signal `signo` with the code `code` (`ssi_code`
+/// of its signalfd) to its payload? Each signal of [`PROXIED_SIGNALS`], but
+/// SIGINT and SIGQUIT only from a process (`code` 0 or less): a terminal
+/// sends them to the process group of the payload too.
+pub fn proxied_forwards(signo: u32, code: i32) -> bool {
+    let signo = u64::from(signo);
+    if !(1..=64).contains(&signo) || PROXIED_SIGNALS & sigbit(signo) == 0 {
+        return false;
+    }
+    code <= 0 || (signo != SIGINT && signo != SIGQUIT)
+}
+
+/// Block [`PROXIED_SIGNALS`] in the calling thread, and report the earlier
+/// mask in `old` for [`sigrestore`]. A process that relays the list blocks
+/// it in each thread: the kernel gives a signal for the process to any
+/// thread that does not block it. A new thread takes the mask of its maker.
+pub fn sigblock_proxied(old: &mut u64) -> Sysres {
+    sigblock(PROXIED_SIGNALS, old)
+}
+
+/// A `signalfd4` with `CLOEXEC` that reads [`PROXIED_SIGNALS`].
+pub fn signalfd_proxied() -> Sysres {
+    signalfd(PROXIED_SIGNALS)
 }

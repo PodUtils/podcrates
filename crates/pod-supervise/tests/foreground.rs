@@ -4,8 +4,9 @@
 //!
 //! No libtest (`harness = false`), for the reason of `lifecycle`: a step
 //! calls `start`, which forks. The step of a killed holder runs this binary
-//! again as the holder (`hold ROOT NAME`), and the step of the shutdown
-//! signals as a holder that blocks them (`mask ROOT NAME`).
+//! again as the holder (`hold ROOT NAME`), the step of the shutdown
+//! signals as a holder that blocks them (`mask ROOT NAME`), and the step of
+//! a forward as a waiter of `pod-enter` with a hold (`waiter ROOT NAME`).
 
 #[cfg(target_os = "linux")]
 fn main() {
@@ -16,6 +17,10 @@ fn main() {
     }
     if args.get(1).map(String::as_str) == Some("mask") {
         steps::be_the_masked_holder(&args[2], &args[3]);
+        return;
+    }
+    if args.get(1).map(String::as_str) == Some("waiter") {
+        steps::be_the_waiter_with_a_hold(&args[2], &args[3]);
         return;
     }
     if let Err(why) = pod_testkit::host::tool("sleep") {
@@ -37,8 +42,9 @@ fn main() {
     steps::a_drop_with_no_finish_writes_dead(&s);
     steps::a_killed_holder_leaves_a_dead_record(&s);
     steps::a_shutdown_signal_skips_the_thread_of_the_hold(&s);
+    steps::a_forwarded_signal_reaches_the_payload_past_the_hold(&s);
     let _ = std::fs::remove_dir_all(&s.root);
-    println!("foreground: 7 steps passed");
+    println!("foreground: 8 steps passed");
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -259,11 +265,10 @@ mod steps {
         remove::<Any>(s, "orphan", false).expect("remove");
     }
 
-    /// SIGHUP, SIGINT, SIGQUIT and SIGTERM, as a mask word.
-    const SHUTDOWN: u64 =
-        sys::sigbit(sys::SIGHUP) | sys::sigbit(sys::SIGINT) | sys::sigbit(sys::SIGQUIT) | sys::sigbit(sys::SIGTERM);
+    /// The signals that the waiter of `pod-enter` forwards, as a mask word.
+    const SHUTDOWN: u64 = pod_enter::WAIT_FORWARDED;
 
-    /// The holder of a caller that takes the shutdown signals itself: it
+    /// The holder of a caller that takes the signals of the list itself: it
     /// blocks them in its own thread after the start of the hold, says
     /// `held PID`, and at a line on stdin says `pending MASK` (`ShdPnd` of
     /// the process) and ends.
@@ -285,9 +290,9 @@ mod steps {
         let _ = hold.finish(137);
     }
 
-    /// Each shutdown signal to a process whose caller thread blocks it stays
-    /// pending: the thread of the hold blocks it too, so its default action
-    /// does not end the process.
+    /// Each signal of the list to a process whose caller thread blocks it
+    /// stays pending: the thread of the hold blocks it too, so its default
+    /// action does not end the process (PodUtils/podvm#616).
     pub fn a_shutdown_signal_skips_the_thread_of_the_hold(s: &Settings) {
         made(s, "masked");
         let mut holder = Command::new(std::env::current_exe().expect("this binary"))
@@ -302,7 +307,7 @@ mod steps {
         let mut line = String::new();
         out.read_line(&mut line).expect("the word of the holder");
         let payload: i64 = line.trim().strip_prefix("held ").and_then(|p| p.parse().ok()).expect("held PID");
-        for sig in [sys::SIGHUP, sys::SIGINT, sys::SIGQUIT, sys::SIGTERM] {
+        for sig in (1..=64u64).filter(|&n| SHUTDOWN & sys::sigbit(n) != 0) {
             let _ = sys::kill(holder.id() as i64, sig as i64);
         }
         let mut stdin = holder.stdin.take().expect("stdin");
@@ -319,5 +324,71 @@ mod steps {
         );
         assert_eq!(pending.unwrap_or(0) & SHUTDOWN, SHUTDOWN, "a shutdown signal was not pending: {line:?}");
         remove::<Any>(s, "masked", true).expect("remove");
+    }
+
+    /// A payload that ends with 7 on SIGUSR1. It writes "ready" after its
+    /// trap, so no signal comes before it.
+    fn trapping_payload() -> Child {
+        let script = "trap 'kill $! 2>/dev/null; exit 7' USR1; echo ready; sleep 30 & wait $!";
+        let mut c = Command::new("sh").args(["-c", script]).stdout(Stdio::piped()).spawn().expect("sh");
+        let mut line = String::new();
+        BufReader::new(c.stdout.take().expect("stdout")).read_line(&mut line).expect("the word of the payload");
+        assert_eq!(line, "ready\n");
+        c
+    }
+
+    /// The waiter of a caller with a hold: the payload, the hold, then the
+    /// wait of `pod-enter` with its forward. The thread of the waiter blocks
+    /// the list before the SIGUSR1 to the process, as the wait does, so the
+    /// signal is for the process and not for this thread. It says
+    /// `payload PID`, then `code N`.
+    pub fn be_the_waiter_with_a_hold(root: &str, name: &str) {
+        let s = Settings::new(root);
+        let mut child = trapping_payload();
+        let pid = child.id() as i64;
+        println!("payload {pid}");
+        let hold = foreground::<Any>(&s, name, pid).expect("foreground");
+        let mut old = 0u64;
+        sys::sigblock(SHUTDOWN, &mut old).expect("sigblock");
+        sys::kill(sys::getpid(), sys::SIGUSR1 as i64).expect("the signal to this process");
+        let mut err = Vec::new();
+        let code = pod_enter::Child::of(pid).wait_forwarding(&mut err).expect("the wait");
+        // The wait above reaped the payload: this one only ends the handle.
+        let _ = child.try_wait();
+        hold.finish(code).expect("finish");
+        println!("code {code}");
+        eprint!("{}", String::from_utf8_lossy(&err));
+    }
+
+    /// A SIGUSR1 to a waiter with a hold reaches the payload, the waiter
+    /// gives the code of the payload, and the record holds it: the thread of
+    /// the hold does not take the signal and end the process
+    /// (PodUtils/podvm#616).
+    pub fn a_forwarded_signal_reaches_the_payload_past_the_hold(s: &Settings) {
+        made(s, "forwarded");
+        let out = Command::new(std::env::current_exe().expect("this binary"))
+            .arg("waiter")
+            .arg(&s.root)
+            .arg("forwarded")
+            .stdin(Stdio::null())
+            .output()
+            .expect("the waiter");
+        let said = String::from_utf8_lossy(&out.stdout);
+        let why = String::from_utf8_lossy(&out.stderr);
+        if !out.status.success() {
+            // The waiter ended, and its payload is no child of the test.
+            let payload = said.lines().find_map(|l| l.strip_prefix("payload ")?.parse::<i64>().ok());
+            if let Some(p) = payload {
+                let _ = sys::kill(p, 9);
+            }
+        }
+        assert!(
+            out.status.success() && said.contains("code 7"),
+            "the waiter with a hold ended at a forwarded signal: {:?}, it said {said:?}, {why:?}",
+            out.status
+        );
+        let c = get::<Any>(s, "forwarded").expect("get");
+        assert_eq!((c.state, c.exit_code), (State::Exited, Some(7)), "{c:?}");
+        remove::<Any>(s, "forwarded", true).expect("remove");
     }
 }

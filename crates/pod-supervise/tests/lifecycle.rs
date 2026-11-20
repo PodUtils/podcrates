@@ -23,12 +23,13 @@ fn main() {
     steps::a_stop_with_no_grace_kills_the_payload(&s);
     steps::a_payload_that_exits_gives_its_code(&s);
     steps::a_signal_reaches_the_payload(&s);
+    steps::a_signal_to_the_launcher_reaches_the_payload(&s);
     steps::a_killed_launcher_leaves_a_dead_record(&s);
     steps::an_entry_that_fails_gives_its_text(&s);
     steps::a_run_with_rm_leaves_no_record_after_its_waiter(&s);
     steps::a_link_at_the_log_or_the_lock_is_refused(&s);
     let _ = std::fs::remove_dir_all(&s.root);
-    println!("lifecycle: 7 steps passed");
+    println!("lifecycle: 8 steps passed");
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -40,6 +41,7 @@ mod steps {
     use std::process::{Command, Stdio};
     use std::time::{Duration, Instant};
 
+    use pod_hostprobe::sys;
     use pod_supervise::launcher::{Launch, Payload};
     use pod_supervise::table::{Any, Container, State};
     use pod_supervise::{Settings, auto_remove, create, get, kill, logs, remove, start, stop, wait};
@@ -160,6 +162,31 @@ mod steps {
         kill::<Any>(s, "signal", 9).expect("kill");
         assert_eq!(until(s, "signal", |c| c.state == State::Exited).exit_code, Some(137));
         remove::<Any>(s, "signal", false).expect("remove");
+    }
+
+    /// A signal of the list of the waiter to the launcher by its pid
+    /// reaches the payload, SIGHUP too, and the record gets the code of the
+    /// payload: the launcher does not end and leave a `Dead` record.
+    pub fn a_signal_to_the_launcher_reaches_the_payload(s: &Settings) {
+        let script = "trap 'kill $! 2>/dev/null; exit 7' USR1; trap 'kill $! 2>/dev/null; exit 9' HUP; \
+                      echo ready; sleep 30 & wait $!";
+        for (name, sig, code) in [("relayed-usr1", sys::SIGUSR1, 7), ("relayed-hup", sys::SIGHUP, 9)] {
+            made(s, name, script);
+            let c = start(s, name, enter).expect("start");
+            log_until(s, name, "ready");
+            let _ = sys::kill(c.launcher_pid.expect("the launcher"), sig as i64);
+            let after = until(s, name, |c| c.state != State::Running);
+            if after.state == State::Dead {
+                // The launcher ended, and its payload is no child of the test.
+                let _ = sys::kill(c.pid.expect("the payload"), 9);
+            }
+            assert_eq!(
+                (after.state, after.exit_code),
+                (State::Exited, Some(code)),
+                "{name}: the signal to the launcher did not reach the payload"
+            );
+            remove::<Any>(s, name, false).expect("remove");
+        }
     }
 
     /// A launcher that was killed leaves no exit code: the reconcile finds

@@ -1,16 +1,16 @@
 diff --git a/crates/pod-enter/src/child.rs b/crates/pod-enter/src/child.rs
-index 1cab952..71be9c4 100644
+index 4a720eb6..27791528 100644
 --- a/crates/pod-enter/src/child.rs
 +++ b/crates/pod-enter/src/child.rs
-@@ -76,10 +76,10 @@ impl Child {
+@@ -81,10 +81,10 @@ impl Child {
      /// SIGINT still ends 130.
      pub fn wait_forwarding(&self, err: &mut dyn Write) -> Result<i32> {
          let mut old = 0u64;
--        if let Err(e) = sys::sigblock(PROXIED, &mut old) {
+-        if let Err(e) = sys::sigblock_proxied(&mut old) {
 +        if let Err(e) = sys::sigblock_shutdown(&mut old) {
              return self.wait_unforwarded(err, &format!("the shutdown mask refused: {} ({})", e.name(), e.0));
          }
--        let sfd = match sys::signalfd(PROXIED) {
+-        let sfd = match sys::signalfd_proxied() {
 +        let sfd = match sys::signalfd_shutdown() {
              Ok(f) => f,
              Err(e) => {

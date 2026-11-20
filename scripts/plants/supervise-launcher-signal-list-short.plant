@@ -1,0 +1,6 @@
+# pod-supervise: the launcher blocks SIGHUP, SIGINT and SIGTERM only, so a SIGUSR1 ends the launcher and the record is Dead (T-996).
+ENTRY=T-996
+GROUP=supervise
+EXPECT='the signal to the launcher did not reach the payload'
+RUN='cargo test -p pod-supervise --test lifecycle'
+LIMIT=1800

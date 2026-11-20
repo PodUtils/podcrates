@@ -10627,7 +10627,7 @@ plants `enter-waiter-signal-list-short` and
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10664,8 +10664,24 @@ and the record gets the code of the payload.
 ## Prove
 
 ```sh
-cargo test -p pod-supervise --all-features launcher_forwards
+cargo test -p pod-supervise --test lifecycle
 ```
+
+## Done
+
+2026-11-20, this commit (call C849). The launcher blocks
+`sys::PROXIED_SIGNALS` after the entry and before its ready answer, reads
+it from a signalfd in `serve`, and gives each signal to the payload by
+`sys::proxied_forwards`, the rule of the waiter of `pod-enter` (SIGHUP
+too; SIGINT and SIGQUIT only where `ssi_code` is 0 or less). Test:
+`a_signal_to_the_launcher_reaches_the_payload` in
+`crates/pod-supervise/tests/lifecycle.rs` (a SIGUSR1 and a SIGHUP to the
+launcher by its pid; the payload traps each, and the record is `Exited` 7
+and 9). Before the fix, `cargo test -p pod-supervise --test lifecycle`
+failed: "relayed-usr1: the signal to the launcher did not reach the
+payload", left `(Dead, None)`, right `(Exited, Some(7))`. After it:
+`lifecycle: 8 steps passed`, with the checks of T-1009. The plant
+`supervise-launcher-signal-list-short` is caught.
 
 # T-997: `pod-beneath`: one open of a path under a base with no link and no allocation, for the volume base of podvm and pod-enter
 
@@ -11007,3 +11023,143 @@ as a link to `libc.so`, a link to the loader, a loader as the program of a
 loader). `cargo test -p pod-enter --all-features --lib confine` passes 7;
 the plant `enter-loader-program-unchecked` is caught by it too.
 
+
+# T-1009: `pod-supervise` and `pod-enter`: the thread of a foreground hold blocks only SIGHUP, SIGINT, SIGQUIT and SIGTERM, so a SIGUSR1 to a waiter with a hold ends the process and leaves the payload
+
+**Source:** PodUtils/podvm#616 (COORD-216 of podvm), the finding "One finding for `wait_forwarding`"
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`Child::wait_forwarding` (`crates/pod-enter/src/child.rs`) blocks
+`WAIT_FORWARDED` in its own thread only. The kernel gives a signal that a
+process sent to the process to any thread that does not block it, and the
+default action then ends the whole process. podvm measured it with
+`v0.79.0`: SIGUSR1 to a foreground `podvm run` ended podvm with 138 and
+left the payload. The waiter process had threads: podvm's pump of stdout,
+the bound of `--stop-timeout`, the relay of a pty, and the thread of the
+hold of `pod_supervise::foreground`. podvm now blocks `WAIT_FORWARDED` in
+each of its own threads, and around the call of `foreground`. As uid 1000,
+SIGUSR1, SIGALRM and SIGPWR are then forwarded, podvm exits 138, 142 and
+158, and nothing stays.
+
+The two asks:
+
+1. The doc of `wait_forwarding` says that each other thread of the
+   process must block `WAIT_FORWARDED`.
+2. `pod_supervise::foreground` starts a thread. The crate blocks the set
+   for that thread, so that each caller is safe.
+
+## Premise
+
+- Read: PodUtils/podvm#616; `crates/pod-supervise/src/foreground.rs`
+  (`HOLD_BLOCKS`: SIGHUP, SIGINT, SIGQUIT and SIGTERM, blocked around the
+  spawn, call C485); `crates/pod-enter/src/child.rs`; call C831;
+  PodUtils/podvm:crates/podvm-supervise/src/lib.rs (`foreground` blocks
+  `WAIT_FORWARDED` around the call), PodUtils/podvm:crates/podvm/src/run/wall.rs
+  and PodUtils/podvm:crates/podvm/src/run/foreground/tee.rs (each thread
+  blocks `WAIT_FORWARDED` at its start), at podvm commit `53b17a7`.
+- `pod-supervise` takes `pod-hostprobe` and not `pod-enter`. The list
+  `PROXIED` is in `pod-enter` (`ns_pid`).
+- Not measured here: podvm's run. The test below measures a waiter with a
+  hold.
+
+## Approach
+
+The one list moves to the lowest crate that both take:
+`pod_hostprobe::sys::PROXIED_SIGNALS`, with its rule of `ssi_code`
+(`sys::proxied_forwards`) and the block for a thread
+(`sys::sigblock_proxied`). `pod_enter::WAIT_FORWARDED` and
+`ns_pid::PROXIED` stay as the same value. The hold blocks the list around
+the spawn of its thread (the reason of C485 stays). The doc of
+`wait_forwarding` says that each other thread must block the list, and
+names `sys::sigblock_proxied`; `pod_enter::block_forwarded` is the same
+call. A test: a holder process with a waiter and a hold, a SIGUSR1 to the
+process, and the payload gets it, the waiter gives the code of the payload,
+and the record holds it.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --test foreground
+cargo test -p pod-enter --all-features --lib child
+```
+
+## Done
+
+2026-11-20, this commit (call C849). The one list is
+`pod_hostprobe::sys::PROXIED_SIGNALS`, with `sys::proxied_forwards` (the
+rule of `ssi_code`), `sys::sigblock_proxied` and `sys::signalfd_proxied`;
+`pod_enter::WAIT_FORWARDED` and `ns_pid::PROXIED` are the same value, and
+`pod_enter::block_forwarded` is `sys::sigblock_proxied`. `foreground`
+blocks the list around the spawn of the thread of the hold. The doc of
+`wait_forwarding` and the README of `pod-enter` say that each other thread
+must block the list (at its start or around its spawn, never before the
+start of the payload in the thread that starts it, T-1010). Tests in
+`crates/pod-supervise/tests/foreground.rs`:
+`a_forwarded_signal_reaches_the_payload_past_the_hold` (a holder process
+with a hold and the waiter of `pod-enter`, a SIGUSR1 to the process: the
+payload ends 7, the waiter gives 7, the record is `Exited` 7) and
+`a_shutdown_signal_skips_the_thread_of_the_hold`, which now sends each
+signal of the list. Before the fix, `cargo test -p pod-supervise --test
+foreground` failed: "the holder ended at a shutdown signal:
+ExitStatus(unix_wait_status(10))", and with that step left out "the waiter
+with a hold ended at a forwarded signal: ExitStatus(unix_wait_status(10)),
+it said \"payload 32173\n\"". After it: `foreground: 8 steps passed`;
+`cargo test -p pod-hostprobe -p pod-enter -p pod-supervise --all-features`
+passes (180, 263 and 34 unit tests, each integration target);
+`cargo clippy` of the three crates with `-D warnings`, `cargo fmt --all
+--check` and `cargo doc` with `-D warnings` pass. The plant
+`supervise-hold-blocks-shutdown-only` is caught; the plants
+`supervise-t616-hold-thread-takes-shutdown`, `enter-sighup-not-forwarded`,
+`enter-waiter-signal-list-short` and `enter-waiter-terminal-signal-forwarded`
+moved onto the new code and are caught.
+
+# T-1010: `pod-enter`: the child of the payload keeps the signal mask of the caller, so a payload of a caller that blocked a signal never gets it
+
+**Source:** the work of T-1009 (2026-11-20)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The child that `pod-enter` forks for the payload (`crates/pod-enter/src/launch.rs`)
+does not set its signal mask before the `execve`. A blocked mask passes
+through `fork` and `execve`. A caller that blocks `WAIT_FORWARDED` (or any
+signal) in the thread that starts the payload gives a payload that never
+gets a SIGTERM, a SIGINT or a SIGUSR1: `docker stop` then waits for its
+grace and kills. `std::process::Command`, runc and docker set an empty mask
+in the child. The asks of T-1009 tell a caller to block the list in each
+thread; a caller that blocks it before the start of the payload gets this
+fault with no message. The detached launcher of `pod-supervise` blocks the
+list only after the entry for the same reason, and a signal to the
+launcher between the start of the payload and the block ends the launcher.
+
+## Premise
+
+- Read: `crates/pod-enter/src/launch.rs` (the child path to `execve`,
+  no `rt_sigprocmask`); `crates/pod-enter/src/ns_pid.rs` (`relay` blocks
+  its mask after the fork of the payload).
+- Not measured: a payload of a caller with a blocked mask.
+
+## Approach
+
+The child sets an empty mask (`sys::sigrestore(0)`) before the `execve`
+of the payload, and the payload of a PID namespace sets it after the fork
+from its init or relay. The call is async-signal-safe. Then the launcher
+of `pod-supervise` can block the list before the entry. A test: a caller
+thread that blocks SIGUSR1 starts a payload that traps it, and a SIGUSR1
+reaches the payload.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --lib child
+```

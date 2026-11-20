@@ -115,6 +115,13 @@ where
     drop(out);
     drop(err_sink);
     drop(null);
+    // The list of the waiter is blocked and read from a signalfd, so a
+    // signal to the launcher goes to the payload and does not end the
+    // launcher. The block comes before the ready answer, so it holds when
+    // `start` returns, and after the entry: the payload takes the mask of
+    // its maker through `execve`. The mask stays until the launcher exits.
+    let mut old = 0u64;
+    let sfd = sys::sigblock_proxied(&mut old).and_then(|_| sys::signalfd_proxied()).unwrap_or(-1);
     let pid = payload.pid;
     let started = Instant::now();
     let wall = container.wall_ms.map(|ms| started + std::time::Duration::from_millis(ms));
@@ -150,7 +157,7 @@ where
     say(&format!("ok {launcher_pid} {pid}"));
     let _ = sys::close(ready_w);
 
-    let served = serve(&listener, pidfd, pid, s.failed_code, wall);
+    let served = serve(&listener, pidfd, sfd, pid, s.failed_code, wall);
     let _ = sys::close(pidfd);
     let run_ms = started.elapsed().as_millis() as u64;
 
