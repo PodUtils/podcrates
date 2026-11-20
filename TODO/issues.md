@@ -242,7 +242,7 @@ kinds and the rules.
 | #239 | coord | COORD-144: v0.76.0: the extended attributes of a layer, the waits of the channel of pod-e2e, the hold of a move from the threshold (to all) | closed (each consumer took `v0.76.0`: podrunner `393f413`, podvm `16f2395`, podnet `a3386ee`, podssh `5975bb0`) | T-957, T-959, T-962 |
 | #240 | coord | COORD-145: v0.77.0: the crate pod-release (a signed release index, its verifier, the self-update of a binary), the PAX headers of a layer by length, a session with no prompt (to all) | open (the takes of `v0.77.0`: podrunner `32a9d40`, podnet `cbd52ca`, podssh `b3005e5`) | T-104, T-880, T-960, T-961, T-963 |
 | #241 | coord | COORD-146: v0.78.1: the TLS end of pod-broker (placeholder credentials), the static command pod-release, Plan::Newer (to all) | open (the takes of `v0.78.1`) | T-100, T-965, T-971, T-974 |
-| #242 | coord | COORD-147: podcrates takes the User-Mode Linux kernel in seccomp mode and its launcher, in pod-microvm (to podvm) | open (podvm answers three questions on PodUtils/podvm#602) | T-975 |
+| #242 | coord | COORD-147: podcrates takes the User-Mode Linux kernel in seccomp mode and its launcher, in pod-microvm (to podvm) | closed (podvm waits for the crate; its answers on PodUtils/podvm#602: x86_64 alone, no patch, the exit code with stdout and stderr) | T-975 |
 | #243 | coord | COORD-148: podcrates takes the RUNPATH of pod-enter and the pinned fetch of runsc (to podvm) | open (podvm answers the question of the pin) | T-976, T-977 |
 
 #79 to #81 and #232 to #235 are pull requests of Dependabot (T-243, T-955).

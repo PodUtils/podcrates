@@ -10429,12 +10429,13 @@ podvm's rung with no namespace, no root and no ptrace must run an image with sys
 
 - Read: PodUtils/podvm#602; the row `pod-microvm` of `docs/design.md`; `crates/pod-guest/README.md`.
 - Not read: podvm's experiment 467 (`experiments/467-uml-seccomp.sh`, `experiments/results/uml-seccomp.txt`); the 8 patches of pocket_vm (Apache-2.0 and MIT, https://github.com/flyinghorse0510/pocket_vm) on Linux 7.2: an SMP fault in `chan_kern.c` (`free_irq` from the SIGIO handler), a deadlock of the vector network driver, and the vector driver in a static kernel.
-- Not measured: a static `ARCH=um` kernel built in the CI of podcrates; which architectures `ARCH=um` supports with seccomp mode (x86_64 is known; aarch64 is to be read in the kernel tree).
+- podvm's answers (PodUtils/podvm#602, 2026-11-20): x86_64 alone (upstream `ARCH=um` runs on x86 hosts; one architecture is enough for podvm's rung); no patch of pocket_vm was needed (experiment 467 and the Debian 12 test ran on a stock Linux 7.3.5 with no network; pocket_vm's fixes are for a console under SMP and the vector network driver); the channel gives the exit code and the stdout and stderr of the guest's command as two streams, as the mailbox of `pod-guest` does; volumes come after the first release of the launcher.
+- Not measured: a static `ARCH=um` kernel built in the CI of podcrates.
 
 ## Approach
 
-1. A reproducible build of a static `ARCH=um` kernel (Linux 7.1 or later, `CONFIG_STATIC_LINK`, seccomp mode, SMP), with the patches that the build needs, each with its source and licence in `vendor/` or the crate, built in CI and published as an asset of each release with its SHA-256 in `SHA256SUMS` (the one rule: a static binary).
-2. A launcher in `pod-microvm`: start the kernel with `seccomp=on ncpus=N`, the copy-on-write block device (`ubd0=COW,BASE`), and a channel that gives the exit code of the guest back, in the form of the mailbox of `pod-guest` where it fits.
+1. A reproducible build of a static `ARCH=um` kernel for x86_64 (a stock mainline release, 7.3.5 or later, `CONFIG_STATIC_LINK`, seccomp mode, SMP, no network), with no patch unless a test of podcrates meets a fault of pocket_vm's list (then the patch with its source and licence), built in CI and published as an asset of each release with its SHA-256 in `SHA256SUMS` and `release-index.json` (the one rule: a static binary).
+2. A launcher in `pod-microvm`: start the kernel with `seccomp=on ncpus=N`, the copy-on-write block device (`ubd0=COW,BASE`), and a channel that gives back the exit code and the stdout and stderr of the guest's command as two streams, in the form of the mailbox of `pod-guest`. Volumes wait for a later release.
 3. A test that starts the kernel under a launcher that gives EPERM to `ptrace`, `unshare`, `setns`, `chroot` and `mount`, boots a small image to its PID 1, and reads its exit code.
 
 Answer podvm on a COORD issue: podcrates takes it.
