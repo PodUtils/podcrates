@@ -58,13 +58,13 @@ is done. Git and the record keep finished work.
    G-34 and G-35 are done; the last part of G-34 (T-964) goes in the next
    tag. cfb's A-X-18 (T-106, partial) waits for cfb's answer on #223. Both
    reply comments are current.
-7. No hand-off of a tag is open: each consumer took `v0.79.0` (#245 is
-   closed). Write each take of the next tag in the "Takes" list of its issue, and
+7. The open hand-off is COORD-150 (#250, `v0.80.0`); its "Takes" list
+   holds each take. Write each take of the next tag in the "Takes" list of its issue, and
    close it when each consumer took its tag or a later one (call C780). The hand-off of the
-   next tag names T-997, T-998, T-999, T-988, T-1009 and T-996 for podvm,
-   T-980 for podrunner and T-1016 for podssh. The pushes of a cloud session of this
+   next tag names T-1014 (the static QEMU 11.1.3) for podvm. The pushes of a cloud session of this
    account start no run of GitHub Actions: each gate, nightly and release
-   is a request `[gh action] requested` (#244 is the last, closed). COORD-142 (#236) relays the ruling "ghcr.io" (call C789):
+   is a request `[gh action] requested` (#249 is the last, closed); one
+   request can run the workflows of PodUtils/static-pkgs too. COORD-142 (#236) relays the ruling "ghcr.io" (call C789):
    podcrates, podvm and podnet publish in its form, podssh pushes at its
    next tag, and podrunner's T-553 is open.
 8. T-767 (PodUtils/podssh#283, partial) and T-939 (done as a guard, call
@@ -86,14 +86,13 @@ is done. Git and the record keep finished work.
 
 ## The next tag
 
-It carries T-997 (the crate `pod-beneath`, PodUtils/podvm#611; the name
-waits for its reservation on crates.io, call C834), T-998, T-999 and T-988
-(the program of a dynamic loader, the write table, the check of the first
-program by guest paths, PodUtils/podvm#613; a new field `Names::write_table`
-breaks podvm's literal) and each fix of `main` after `v0.79.0`. T-966
-(podnet's half waits for PodUtils/podnet@T-494) and T-963 are partial.
-T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks their release
-part) are open. Before the release, read `docs/maintenance.md`, "A
+It carries each fix of `main` after `v0.80.0`, and T-1014: the pin of the
+static QEMU 11.1.3 of PodUtils/static-pkgs (release `qemu-11.1.3`, built
+from QEMU `v11.1.3` with glib and libaio from pinned sources and the source
+of each LGPL part as an asset), for the save of an NVMe disk (T-1035).
+T-966 (podnet's half waits for PodUtils/podnet@T-494) and T-963 are
+partial. T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks their
+release part) are open. Before the release, read `docs/maintenance.md`, "A
 release": the steps of `release.yml` that run on a tag only are not tested
 by the dry run.
 
