@@ -247,7 +247,7 @@ async fn python_requests_takes_the_bundle() {
 async fn node_takes_the_bundle() {
     let Some(node) = need("POD_BROKER_TEST_NODE", "node") else { return };
     let lab = Lab::start("node", clients::echo_auth).await;
-    bearer_legs(&lab, &node, script(&["-e", NODE]), "node", Some(&["NODE_EXTRA_CA_CERTS"])).await;
+    bearer_legs(&lab, &node, script(&["-e", NODE]), "node", Some(clients::node_own(&node))).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -424,7 +424,8 @@ async fn npm_reads_a_registry_that_needs_a_token() {
         client: "npm",
         program: &npm,
         env: vec![("npm_config_update_notifier".into(), "false".into())],
-        own: Some(&["NODE_EXTRA_CA_CERTS"]),
+        // npm runs the `node` of `PATH`.
+        own: Some(clients::node_own("node")),
         sent: |token| format!("Bearer {token}"),
         shown: |token| format!("Bearer {token}"),
     };

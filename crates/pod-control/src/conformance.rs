@@ -4,7 +4,11 @@
 //! forms of `status` and `metrics`. It calls no method that changes the
 //! program: not `reload`, `drain`, `stop` or an extra.
 //!
+//! On Unix, against a socket (on Windows, `Client::connect_pipe` with the
+//! name of the pipe):
+//!
 //! ```no_run
+//! # #[cfg(unix)]
 //! # fn run(path: &std::path::Path) {
 //! use pod_control::{Client, ClientSettings, conformance};
 //! let mut connect = || Client::connect_unix(path, ClientSettings::default());

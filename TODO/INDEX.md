@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**846 entries: 148 open, 29 partial, 7 blocked, 662 done.**
+**851 entries: 149 open, 31 partial, 7 blocked, 664 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 11 | 0 | 196 | 211 |
-| P2 | 71 | 8 | 4 | 342 | 425 |
-| P3 | 73 | 10 | 3 | 122 | 208 |
-| **All** | 148 | 29 | 7 | 662 | 846 |
+| P1 | 4 | 12 | 0 | 196 | 212 |
+| P2 | 71 | 9 | 4 | 344 | 428 |
+| P3 | 74 | 10 | 3 | 122 | 209 |
+| **All** | 149 | 31 | 7 | 664 | 851 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -893,3 +893,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1033](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: podvm's two rules for the take of `check_exec_argv` and `check_exec_guest`: a rule over a volume, and the `#!` chain (PodUtils/podvm#613) |
 | [T-1034](transport.md) | P2 | S | M1 | defect | open | `pod-services`: the watch `http-status` of the upload of `temp-sh` gets 429 from a runner of GitHub, not 405 |
 | [T-1035](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: the live test of the warm start expects QEMU 11.0 to save the NVMe root disk of the plan, and only QEMU 11.1.0 and later migrate an NVMe device |
+| [T-1040](fleet.md) | P2 | S | M8 | defect | done | `pod-control`: the doc test of `conformance` calls `Client::connect_unix`, which Windows does not have |
+| [T-1041](fleet.md) | P1 | S | M8 | defect | partial | `pod-control`: on macOS the timeout of a Unix socket whose peer closed fails with EINVAL, so a read of the end is an error |
+| [T-1042](fleet.md) | P2 | S | M8 | defect | partial | `pod-broker`: the Node.js of Homebrew reads `SSL_CERT_FILE`, so the node and npm legs of `tls_clients` fail on macOS |
+| [T-1043](upkeep.md) | P2 | S | M2 | defect | done | `pod-link`: the EDNS test of `dns_resolver` compares two counts that the resolver still moves (armv7) |
+| [T-1044](upkeep.md) | P3 | S | M5 | defect | open | `check-windows.sh` and `check-macos.sh` compile no doc test, so a doc test with an item of Unix fails only in the nightly |

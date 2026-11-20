@@ -67,6 +67,22 @@ pub fn node_has_env_proxy(node: &str) -> Result<(), String> {
     }
 }
 
+/// The variables of the bundle that `node` alone reads. A Node.js that
+/// takes the default store of OpenSSL (`configure --openssl-use-def-ca-store`,
+/// as the formula of Homebrew builds it) reads `SSL_CERT_FILE` also; the
+/// build has the define `NODE_OPENSSL_CERT_STORE`.
+pub fn node_own(node: &str) -> &'static [&'static str] {
+    let probe = "process.config.target_defaults.defines.includes('NODE_OPENSSL_CERT_STORE')";
+    let out = Command::new(node).args(["-p", probe]).stderr(Stdio::null()).output();
+    match out {
+        Ok(out) if String::from_utf8_lossy(&out.stdout).trim() == "true" => {
+            println!("clients: {node} takes the default store of OpenSSL, so it reads SSL_CERT_FILE also");
+            &["NODE_EXTRA_CA_CERTS", "SSL_CERT_FILE"]
+        }
+        _ => &["NODE_EXTRA_CA_CERTS"],
+    }
+}
+
 /// The `MIX_HOME` that holds the archive of Hex: the value of
 /// `POD_BROKER_TEST_MIX_HOME`, else of `MIX_HOME`, else `~/.mix`; a run of
 /// a client has a `HOME` of its own.
