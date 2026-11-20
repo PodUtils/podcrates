@@ -10627,7 +10627,7 @@ plants `enter-waiter-signal-list-short` and
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10664,8 +10664,24 @@ and the record gets the code of the payload.
 ## Prove
 
 ```sh
-cargo test -p pod-supervise --all-features launcher_forwards
+cargo test -p pod-supervise --test lifecycle
 ```
+
+## Done
+
+2026-11-20, this commit (call C849). The launcher blocks
+`sys::PROXIED_SIGNALS` after the entry and before its ready answer, reads
+it from a signalfd in `serve`, and gives each signal to the payload by
+`sys::proxied_forwards`, the rule of the waiter of `pod-enter` (SIGHUP
+too; SIGINT and SIGQUIT only where `ssi_code` is 0 or less). Test:
+`a_signal_to_the_launcher_reaches_the_payload` in
+`crates/pod-supervise/tests/lifecycle.rs` (a SIGUSR1 and a SIGHUP to the
+launcher by its pid; the payload traps each, and the record is `Exited` 7
+and 9). Before the fix, `cargo test -p pod-supervise --test lifecycle`
+failed: "relayed-usr1: the signal to the launcher did not reach the
+payload", left `(Dead, None)`, right `(Exited, Some(7))`. After it:
+`lifecycle: 8 steps passed`, with the checks of T-1009. The plant
+`supervise-launcher-signal-list-short` is caught.
 
 # T-997: `pod-beneath`: one open of a path under a base with no link and no allocation, for the volume base of podvm and pod-enter
 
@@ -11015,7 +11031,7 @@ the plant `enter-loader-program-unchecked` is caught by it too.
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11072,6 +11088,36 @@ and the record holds it.
 cargo test -p pod-supervise --test foreground
 cargo test -p pod-enter --all-features --lib child
 ```
+
+## Done
+
+2026-11-20, this commit (call C849). The one list is
+`pod_hostprobe::sys::PROXIED_SIGNALS`, with `sys::proxied_forwards` (the
+rule of `ssi_code`), `sys::sigblock_proxied` and `sys::signalfd_proxied`;
+`pod_enter::WAIT_FORWARDED` and `ns_pid::PROXIED` are the same value, and
+`pod_enter::block_forwarded` is `sys::sigblock_proxied`. `foreground`
+blocks the list around the spawn of the thread of the hold. The doc of
+`wait_forwarding` and the README of `pod-enter` say that each other thread
+must block the list (at its start or around its spawn, never before the
+start of the payload in the thread that starts it, T-1010). Tests in
+`crates/pod-supervise/tests/foreground.rs`:
+`a_forwarded_signal_reaches_the_payload_past_the_hold` (a holder process
+with a hold and the waiter of `pod-enter`, a SIGUSR1 to the process: the
+payload ends 7, the waiter gives 7, the record is `Exited` 7) and
+`a_shutdown_signal_skips_the_thread_of_the_hold`, which now sends each
+signal of the list. Before the fix, `cargo test -p pod-supervise --test
+foreground` failed: "the holder ended at a shutdown signal:
+ExitStatus(unix_wait_status(10))", and with that step left out "the waiter
+with a hold ended at a forwarded signal: ExitStatus(unix_wait_status(10)),
+it said \"payload 32173\n\"". After it: `foreground: 8 steps passed`;
+`cargo test -p pod-hostprobe -p pod-enter -p pod-supervise --all-features`
+passes (180, 263 and 34 unit tests, each integration target);
+`cargo clippy` of the three crates with `-D warnings`, `cargo fmt --all
+--check` and `cargo doc` with `-D warnings` pass. The plant
+`supervise-hold-blocks-shutdown-only` is caught; the plants
+`supervise-t616-hold-thread-takes-shutdown`, `enter-sighup-not-forwarded`,
+`enter-waiter-signal-list-short` and `enter-waiter-terminal-signal-forwarded`
+moved onto the new code and are caught.
 
 # T-1010: `pod-enter`: the child of the payload keeps the signal mask of the caller, so a payload of a caller that blocked a signal never gets it
 

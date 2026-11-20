@@ -1,0 +1,6 @@
+# pod-supervise: the thread of a foreground hold blocks SIGHUP, SIGINT, SIGQUIT and SIGTERM only, so a SIGUSR1 to a waiter with a hold ends the process (T-1009).
+ENTRY=T-1009
+GROUP=supervise
+EXPECT='the holder ended at a shutdown signal|the waiter with a hold ended at a forwarded signal'
+RUN='cargo test -p pod-supervise --test foreground'
+LIMIT=1800

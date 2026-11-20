@@ -5397,6 +5397,7 @@ name = "pod-supervise"
 version = "0.79.0"
 dependencies = [
  "pod-core",
+ "pod-enter",
  "pod-hostprobe",
  "pod-testkit",
  "serde",

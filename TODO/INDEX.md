@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**825 entries: 145 open, 31 partial, 7 blocked, 642 done.**
+**825 entries: 143 open, 31 partial, 7 blocked, 644 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 8 | 9 | 0 | 192 | 209 |
+| P1 | 7 | 9 | 0 | 193 | 209 |
 | P2 | 68 | 12 | 4 | 327 | 411 |
-| P3 | 69 | 10 | 3 | 121 | 203 |
-| **All** | 145 | 31 | 7 | 642 | 825 |
+| P3 | 68 | 10 | 3 | 122 | 203 |
+| **All** | 143 | 31 | 7 | 644 | 825 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -866,9 +866,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-988](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: the check of `exec=` for the first program of a caller with guest paths: `PATH`, a relative name and each `#!` line (PodUtils/podvm#613) |
 | [T-990](relay.md) | P2 | S | M2 | defect | partial | `pod-quic`: an endpoint on `[::]` is IPv6 only on Windows, so the QUIC leg of `pod-cloudflare` sends nothing to an edge of IPv4 |
 | [T-995](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: `Child::wait_forwarding` forwards SIGHUP, SIGINT and SIGTERM only, so a SIGUSR1 or a SIGQUIT kills the waiter and the payload stays |
-| [T-996](podvm.md) | P3 | S | M6 | defect | open | `pod-supervise`: a SIGQUIT, SIGUSR1, SIGUSR2, SIGALRM or SIGPWR ends the detached launcher, and the launcher reads SIGHUP and gives it to nobody |
+| [T-996](podvm.md) | P3 | S | M6 | defect | done | `pod-supervise`: a SIGQUIT, SIGUSR1, SIGUSR2, SIGALRM or SIGPWR ends the detached launcher, and the launcher reads SIGHUP and gives it to nobody |
 | [T-997](podvm.md) | P2 | S | M6 | feature | done | `pod-beneath`: one open of a path under a base with no link and no allocation, for the volume base of podvm and pod-enter |
 | [T-998](podvm.md) | P2 | S | M6 | feature | done | `pod-confine` and `pod-enter`: the program that a dynamic loader runs takes the rule of `exec=` (PodUtils/podvm#613) |
 | [T-999](podvm.md) | P2 | S | M6 | feature | done | `pod-confine`: a table of any access in the shape of the exec table, and `pod-enter` gives the payload a write table (PodUtils/podvm#613) |
-| [T-1009](podvm.md) | P1 | S | M6 | defect | open | `pod-supervise` and `pod-enter`: the thread of a foreground hold blocks only SIGHUP, SIGINT, SIGQUIT and SIGTERM, so a SIGUSR1 to a waiter with a hold ends the process and leaves the payload |
+| [T-1009](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise` and `pod-enter`: the thread of a foreground hold blocks only SIGHUP, SIGINT, SIGQUIT and SIGTERM, so a SIGUSR1 to a waiter with a hold ends the process and leaves the payload |
 | [T-1010](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: the child of the payload keeps the signal mask of the caller, so a payload of a caller that blocked a signal never gets it |

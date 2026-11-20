@@ -51,7 +51,7 @@ target it is empty. It takes the raw system calls from `pod-hostprobe`
 | `end` | `End { reason, run_ms, user_ms, system_ms, max_rss_kib, residual_processes }` in `Container::end`; `Reason` (`exit`, `signal`, `wall`); `Residual` (`Count(n)` or `Unknown`, JSON a number or `"unknown"`). `user_ms`, `system_ms` and `max_rss_kib` are `getrusage(RUSAGE_CHILDREN)` of the launcher after the kill; `max_rss_kib` is the largest one process, not a sum |
 | `create(&s, name, argv, env, working_dir, of) -> Container<X>` | a `created` record with the fields `of` of the caller, and its directory; a name that is in use is refused |
 | `start(&s, want, enter) -> Container<X>` | forks a detached launcher and returns when the payload runs; `enter(&Container<X>, Launch) -> Result<Payload, String>` runs in the launcher and starts the payload |
-| `foreground(&s, want, payload_pid) -> Foreground<X>` | the hold of a payload that the caller started and waits for (no launcher): the lock of the container, the control socket on one thread (`SIG` through a pidfd of the payload, `WAIT` answered at `finish`), then the record `Running` with `pid`, `launcher_pid` (this process) and `started_at`. `Foreground::finish(code)` writes `Exited` and the code, answers each waiter, then releases the lock; a drop with no `finish` writes `Dead`. `id()`. Start the payload first; the caller reaps it. The thread of a hold blocks SIGHUP, SIGINT, SIGQUIT and SIGTERM (blocked around its spawn), so a signal to the process goes to a thread of the caller. A hold applies no `wall_ms`, kills no tree and writes no `end`; `start` refuses while a hold lives |
+| `foreground(&s, want, payload_pid) -> Foreground<X>` | the hold of a payload that the caller started and waits for (no launcher): the lock of the container, the control socket on one thread (`SIG` through a pidfd of the payload, `WAIT` answered at `finish`), then the record `Running` with `pid`, `launcher_pid` (this process) and `started_at`. `Foreground::finish(code)` writes `Exited` and the code, answers each waiter, then releases the lock; a drop with no `finish` writes `Dead`. `id()`. Start the payload first; the caller reaps it. The thread of a hold blocks each signal that a waiter forwards (`sys::PROXIED_SIGNALS`, `pod_enter::WAIT_FORWARDED`; blocked around its spawn), so a signal to the process goes to a thread of the caller. A hold applies no `wall_ms`, kills no tree and writes no `end`; `start` refuses while a hold lives |
 | `kill`, `stop`, `wait`, `remove`, `list`, `get`, `matching` | the verbs; `stop(&s, want, ms)` is SIGTERM, a bounded wait, then SIGKILL (a zero bound is SIGKILL at once), and gives `true` when SIGKILL ended it; `wait` gives `None` at the bound, never a guess |
 | `logs`, `follow`, `follow_from`, `follow_tail`, `tail_offset` | the log of the payload's stdout and stderr; a follow polls each 100 ms until a terminal state, with one last read |
 | `new_id`, `generated_name(&s, id)`, `KILL_WAIT_MS` | a random id of 64 hex characters; `PREFIX_` and 12 characters of it |
@@ -85,7 +85,7 @@ at `27ae993`:
 | [x] `create`, `kill`, `stop`, `wait`, `remove`, `list`, `get` | the same verbs, with `&Settings` in place of `&Store` |
 | [x] `referencing` | `matching(&s, keep)` |
 | [x] The logs, the follow, the tail | `logs` |
-| [x] The launcher: the double fork, the ready pipe, `/dev/null` stdio, the lock, the control socket through `/proc/self/fd`, the pidfd, the forward of SIGINT and SIGTERM, the waiters | `launcher` |
+| [x] The launcher: the double fork, the ready pipe, `/dev/null` stdio, the lock, the control socket through `/proc/self/fd`, the pidfd, the forward of each signal of `sys::PROXIED_SIGNALS` by the rule of the waiter of `pod-enter`, the waiters | `launcher` |
 | [x] The fix of podvm#215 (`stop -t 0`): `WaitError { Gone, Failed }`, a zero bound, `KILL_WAIT_MS` | yes, with its test and a lifecycle step that fails without it |
 | [x] The start of podvm: the probe, the rung, the plan of `podvm-enter`, the image hold, the devices, the ownership memo | the `enter` of the caller (stays in podvm) |
 | [x] `table/memo.rs`, `MEMO_FD_VAR`, `MEMO_CHILD_FD`, `memo_path` | stay in podvm (the format of podvm-interpose) |
@@ -140,9 +140,13 @@ it lives; `kill` reaches it; `stop` with a grace of 10 s ends it with no
 SIGKILL; a wait before `finish` gets the bound, and a wait at `finish`
 gets its code, also after a `kill` of the reaped payload; a drop with no
 `finish` writes `Dead`; a holder process that is killed leaves a `Dead`
-record; a holder that blocks the four shutdown signals in its own thread
-after the start of the hold keeps each one pending when it comes, and
-does not end. It skips on a kernel with no `pidfd_open`.
+record; a holder that blocks the list of the waiter in its own thread
+after the start of the hold keeps each signal of it pending when it comes,
+and does not end; a waiter of `pod-enter` with a hold gives a SIGUSR1 of
+the process to the payload, and the record gets the code of the payload.
+It skips on a kernel with no `pidfd_open`. `lifecycle` sends SIGUSR1 and
+SIGHUP to a launcher: each reaches the payload, and the record gets its
+code.
 
 The end fields (PodUtils/podvm#343): a `start` again after an exit of 143
 (`lifecycle`) and a hold again (`foreground`) give a `Running` record

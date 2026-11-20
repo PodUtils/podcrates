@@ -37,19 +37,13 @@ pub const NS_PID_USER_STEP: u8 = 42;
 pub const NS_PID_FORK_STEP: u8 = 45;
 
 /// The signals that a process sends to tell or to stop the payload, as
-/// docker's `--sig-proxy` with no tty: each signal that a process can catch,
-/// except SIGCHLD, SIGPIPE, SIGURG, SIGWINCH and the signals of job control.
-/// The waiter of [`crate::Child::wait_forwarding`] and the init give each one
-/// to the payload. One list for both: a signal that one of them does not
-/// read ends that process with its default action, and the payload stays.
-pub const PROXIED: u64 = sys::sigbit(sys::SIGHUP)
-    | sys::sigbit(sys::SIGINT)
-    | sys::sigbit(sys::SIGQUIT)
-    | sys::sigbit(sys::SIGUSR1)
-    | sys::sigbit(sys::SIGUSR2)
-    | sys::sigbit(sys::SIGTERM)
-    | sys::sigbit(sys::SIGALRM)
-    | sys::sigbit(sys::SIGPWR);
+/// docker's `--sig-proxy` with no tty: `sys::PROXIED_SIGNALS`, the one list
+/// of `pod-hostprobe`. The waiter of [`crate::Child::wait_forwarding`] and
+/// the init give each one to the payload, as the launcher and the hold of
+/// `pod-supervise` do. One list for each relay: a signal that one of them
+/// does not read ends that process with its default action, and the
+/// payload stays.
+pub const PROXIED: u64 = sys::PROXIED_SIGNALS;
 
 /// The signals that the init or the relay gives to the payload: [`PROXIED`]
 /// and SIGWINCH. A resize that a process sends to the init reaches the

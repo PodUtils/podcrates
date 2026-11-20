@@ -1,13 +1,13 @@
-diff --git a/crates/pod-enter/src/child.rs b/crates/pod-enter/src/child.rs
-index 1cab952..00af389 100644
---- a/crates/pod-enter/src/child.rs
-+++ b/crates/pod-enter/src/child.rs
-@@ -15,7 +15,7 @@ use crate::{Child, Result, errno_failure};
- /// of the payload too.
- pub(crate) fn waiter_forwards(signo: u32, code: i32) -> bool {
+diff --git a/crates/pod-hostprobe/src/sys/sigmask.rs b/crates/pod-hostprobe/src/sys/sigmask.rs
+index ca38d025..7e287729 100644
+--- a/crates/pod-hostprobe/src/sys/sigmask.rs
++++ b/crates/pod-hostprobe/src/sys/sigmask.rs
+@@ -120,7 +120,7 @@ pub const PROXIED_SIGNALS: u64 = sigbit(SIGHUP)
+ /// sends them to the process group of the payload too.
+ pub fn proxied_forwards(signo: u32, code: i32) -> bool {
      let signo = u64::from(signo);
--    if !(1..=64).contains(&signo) || PROXIED & sys::sigbit(signo) == 0 {
-+    if !(1..=64).contains(&signo) || PROXIED & sys::sigbit(signo) == 0 || signo == sys::SIGHUP {
+-    if !(1..=64).contains(&signo) || PROXIED_SIGNALS & sigbit(signo) == 0 {
++    if !(1..=64).contains(&signo) || PROXIED_SIGNALS & sigbit(signo) == 0 || signo == SIGHUP {
          return false;
      }
-     code <= 0 || (signo != sys::SIGINT && signo != sys::SIGQUIT)
+     code <= 0 || (signo != SIGINT && signo != SIGQUIT)

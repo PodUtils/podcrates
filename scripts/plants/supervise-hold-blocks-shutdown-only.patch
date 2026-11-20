@@ -1,0 +1,13 @@
+diff --git a/crates/pod-supervise/src/foreground.rs b/crates/pod-supervise/src/foreground.rs
+index 3af90b1d..43b2625b 100644
+--- a/crates/pod-supervise/src/foreground.rs
++++ b/crates/pod-supervise/src/foreground.rs
+@@ -129,7 +129,7 @@ where
+     // blocks it. A new thread takes the mask of its maker, so the block is
+     // around the spawn: there is no time with the signals open.
+     let mut old = 0u64;
+-    sys::sigblock_proxied(&mut old).map_err(|e| {
++    sys::sigblock(sys::SHUTDOWN_SIGNALS | sys::sigbit(sys::SIGQUIT), &mut old).map_err(|e| {
+         failure(Class::Unavailable, format!("blocking the forwarded signals for the hold: {} ({})", e.name(), e.0))
+     })?;
+     let spawned = std::thread::Builder::new()

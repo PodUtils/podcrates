@@ -5,21 +5,15 @@ use std::io::Write;
 use pod_core::Class;
 use pod_hostprobe::sys;
 
-use crate::ns_pid::PROXIED;
 use crate::status::{exit_status, signal_name};
 use crate::{Child, Result, errno_failure};
 
 /// Does the waiter give the signal `signo` of the code `code` to the
-/// payload? Each signal of [`PROXIED`], but SIGINT and SIGQUIT only from a
-/// process (`si_code` 0 or less): a terminal sent them to the process group
-/// of the payload too.
-pub(crate) fn waiter_forwards(signo: u32, code: i32) -> bool {
-    let signo = u64::from(signo);
-    if !(1..=64).contains(&signo) || PROXIED & sys::sigbit(signo) == 0 {
-        return false;
-    }
-    code <= 0 || (signo != sys::SIGINT && signo != sys::SIGQUIT)
-}
+/// payload? The rule of each relay (`sys::proxied_forwards`): each signal
+/// of [`crate::WAIT_FORWARDED`], but SIGINT and SIGQUIT only from a process
+/// (`si_code` 0 or less): a terminal sent them to the process group of the
+/// payload too.
+pub(crate) use sys::proxied_forwards as waiter_forwards;
 
 /// How a bounded wait ended. There are three outcomes, not two: a bound
 /// that the wait reached is not a failure and not an exit status.
@@ -69,6 +63,17 @@ impl Child {
     /// The wait has no thread, and must not get one: a thread would make
     /// the next fork of this process the fork of a process with threads.
     ///
+    /// The wait blocks the list in its own thread only. Each other thread of
+    /// this process must block [`crate::WAIT_FORWARDED`] too: the kernel
+    /// gives a signal for the process to any thread that does not block it,
+    /// and its default action then ends the whole process, the waiter too,
+    /// and the payload stays (PodUtils/podvm#616). Call
+    /// [`crate::block_forwarded`] at the start of each other thread, or
+    /// around its spawn: a new thread takes the mask of its maker. Do not
+    /// call it before the start of the payload in the thread that starts
+    /// it: the payload takes the mask through its `execve`. The thread of a
+    /// hold of `pod_supervise::foreground` blocks the list itself.
+    ///
     /// A payload that ignores the signal is waited on, not killed: a kill
     /// is the decision of the caller. A signal is forwarded, never raised
     /// again, so the waiter stays alive to reap the payload and gives the
@@ -76,10 +81,10 @@ impl Child {
     /// SIGINT still ends 130.
     pub fn wait_forwarding(&self, err: &mut dyn Write) -> Result<i32> {
         let mut old = 0u64;
-        if let Err(e) = sys::sigblock(PROXIED, &mut old) {
+        if let Err(e) = sys::sigblock_proxied(&mut old) {
             return self.wait_unforwarded(err, &format!("the shutdown mask refused: {} ({})", e.name(), e.0));
         }
-        let sfd = match sys::signalfd(PROXIED) {
+        let sfd = match sys::signalfd_proxied() {
             Ok(f) => f,
             Err(e) => {
                 let _ = sys::sigrestore(old);
@@ -114,8 +119,8 @@ impl Child {
     }
 
     /// One `ppoll` over the exit of the payload and the signals of
-    /// [`PROXIED`] of this process, done again at the bound: the bound only
-    /// means that nothing happened.
+    /// [`crate::WAIT_FORWARDED`] of this process, done again at the bound:
+    /// the bound only means that nothing happened.
     fn forward_loop(&self, pidfd: i64, sfd: i64, err: &mut dyn Write) -> Result<i32> {
         loop {
             // A new set for each poll: an old `revents` would reap or

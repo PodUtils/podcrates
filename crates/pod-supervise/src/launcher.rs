@@ -320,20 +320,16 @@ fn reason(walled: bool, signaled: bool) -> Reason {
 }
 
 /// Wait for the payload to end, and answer control messages meanwhile.
+/// Each signal of `sfd` (a signalfd of `sys::PROXIED_SIGNALS`, or -1) goes
+/// to the payload by the rule of the waiter (`sys::proxied_forwards`).
 ///
-/// One `ppoll` over both, and no interval. The bound is long, not absent,
+/// One `ppoll` over the three, and no interval. The bound is long, not absent,
 /// and its end is a new poll, not a result: a container that runs for a week
 /// is not a failure. At each wake the descendants that ended are reaped.
 /// At `wall` the payload gets SIGKILL, and its end comes as any end.
-fn serve(listener: &UnixListener, pidfd: i64, pid: i64, failed_code: i32, wall: Option<Instant>) -> Served {
+fn serve(listener: &UnixListener, pidfd: i64, sfd: i64, pid: i64, failed_code: i32, wall: Option<Instant>) -> Served {
     let mut waiters: Vec<UnixStream> = Vec::new();
     let mut walled = false;
-    // SIGHUP, SIGINT and SIGTERM of the launcher are blocked and read from a
-    // signalfd beside the pidfd, so a signal to the launcher goes to the
-    // payload and does not leave it with no parent. The mask stays blocked
-    // until the launcher exits: nothing else waits for those signals.
-    let mut old = 0u64;
-    let sfd = sys::sigblock_shutdown(&mut old).and_then(|_| sys::signalfd_shutdown()).unwrap_or(-1);
     let done = |code: i32, signaled: bool, walled: bool, waiters: Vec<UnixStream>| {
         if sfd >= 0 {
             let _ = sys::close(sfd);
@@ -374,12 +370,15 @@ fn serve(listener: &UnixListener, pidfd: i64, pid: i64, failed_code: i32, wall: 
         }
         if sfd >= 0 && fds[2].revents & (sys::POLLIN | sys::POLLHUP) != 0 {
             let mut buf = [0u8; 128];
+            // `ssi_signo` and `ssi_code` of `signalfd_siginfo`. A short
+            // read is not a signal.
             if let Ok(n) = sys::read(sfd, &mut buf)
-                && n >= 4
+                && n >= 12
             {
-                let signo = u32::from_ne_bytes([buf[0], buf[1], buf[2], buf[3]]) as i64;
-                if signo == sys::SIGINT as i64 || signo == sys::SIGTERM as i64 {
-                    let _ = sys::kill(pid, signo);
+                let signo = u32::from_ne_bytes([buf[0], buf[1], buf[2], buf[3]]);
+                let code = i32::from_ne_bytes([buf[8], buf[9], buf[10], buf[11]]);
+                if sys::proxied_forwards(signo, code) {
+                    let _ = sys::kill(pid, i64::from(signo));
                 }
             }
         }

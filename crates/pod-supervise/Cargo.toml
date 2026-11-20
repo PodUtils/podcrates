@@ -16,6 +16,8 @@ serde_json = { workspace = true }
 
 [dev-dependencies]
 pod-testkit = { workspace = true }
+# The waiter of a payload beside a foreground hold (`tests/foreground.rs`).
+pod-enter = { workspace = true }
 
 # The lifecycle of a real payload: a test binary with no libtest, so that the
 # launcher forks from a process with one thread.

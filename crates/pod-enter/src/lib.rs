@@ -110,6 +110,10 @@ pub use ns_volume::{
     guest_parts as volume_guest_parts, remount_flags as volume_remount_flags, volume_label,
 };
 pub use plan::{Plan, Program, VolumeBind};
+/// Block [`WAIT_FORWARDED`] in the calling thread, and report the earlier
+/// mask for `sys::sigrestore`: the call for each other thread of a process
+/// that waits with [`Child::wait_forwarding`].
+pub use pod_hostprobe::sys::sigblock_proxied as block_forwarded;
 pub use status::exit_status;
 
 /// The rung that the chroot sequence enters. It is not always the rung
