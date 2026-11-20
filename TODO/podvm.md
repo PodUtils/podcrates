@@ -10490,6 +10490,7 @@ podvm's `runsc` tier boots an image's systemd as PID 1 in a gVisor sandbox in 7 
 ## Premise
 
 - Read: PodUtils/podvm#604; `crates/pod-release/README.md` (`fetch::Fetcher`, `update`, `verify`); `scripts/ci/fetch-tool.sh`.
+- podvm's answer (PodUtils/podvm#604, 2026-11-20): it pins the SHA-256 that it measures itself, as in each `SHA256SUMS` of PodUtils; the module takes no SHA-512 (gVisor's `.sha512` stays a check of the person who moves the pin).
 - Not read: the release files of gVisor (`release-20261102.0`: the URL of `runsc` for each architecture and its `.sha512`).
 
 ## Approach
