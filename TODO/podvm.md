@@ -10502,3 +10502,63 @@ A module of `pod-release` (feature `fetch`): a `Tool` names a URL for each archi
 ```sh
 cargo test -p pod-release --all-features tool
 ```
+
+# T-995: `pod-enter`: `Child::wait_forwarding` forwards SIGHUP, SIGINT and SIGTERM only, so a SIGUSR1 or a SIGQUIT kills the waiter and the payload stays
+
+**Source:** PodUtils/podvm#608 (COORD-211 of podvm; PodUtils/podvm@T-2001)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Child::wait_forwarding` (`crates/pod-enter/src/child.rs`) blocks SIGHUP,
+SIGINT and SIGTERM, reads them from a signalfd and forwards them to the
+payload. Each other signal keeps its default action in the waiter. A
+SIGUSR1, SIGUSR2, SIGQUIT or SIGALRM to the waiter kills the waiter, and the
+payload continues with no waiter. podvm measured it (as uid 1000, a
+foreground `podvm run --rm alpine:3.20 sh -c 'echo START; sleep 20'`): a
+SIGHUP gives exit 129 and "forwarded SIGHUP to the payload", and the `--rm`
+record goes; a SIGUSR1 gives exit 138 with no line, `sleep 20` stays, and the
+record is a false `Dead (exited while the launcher was not watching)`. The
+waiter writes the record and removes the `--rm` tree, so its death leaves the
+false record.
+
+The ask: forward the set that the init of `Plan::pid_namespace` gives the
+payload (call C769), docker's `--sig-proxy` with no tty: SIGHUP, SIGINT,
+SIGQUIT, SIGUSR1, SIGUSR2, SIGTERM, SIGALRM and SIGPWR (each signal that a
+process can catch, except SIGCHLD, SIGPIPE, SIGURG, SIGWINCH and the signals
+of job control). Name each forward on `err`, as now. Forward SIGINT and
+SIGQUIT only where a process sent them (`ssi_code` 0 or less: `SI_USER`,
+`SI_QUEUE`, `SI_TKILL`): the signal of a terminal reached the process group of
+the payload already.
+
+## Premise
+
+- Read: PodUtils/podvm#608; `crates/pod-enter/src/child.rs`
+  (`wait_forwarding`, `forward_loop`); `crates/pod-enter/src/ns_pid.rs`
+  (`FORWARDED`, `forwards`); the test
+  `a_sighup_of_the_waiter_reaches_the_payload` in
+  `crates/pod-enter/src/tests.rs`.
+- The init has one list, `ns_pid::FORWARDED` (SIGHUP, SIGINT, SIGQUIT,
+  SIGUSR1, SIGUSR2, SIGTERM and SIGWINCH). It has no SIGALRM and no SIGPWR.
+- Not measured here: podvm's run. The test below measures the waiter.
+
+## Approach
+
+One list in `ns_pid`: `PROXIED` (the eight signals of the ask), and
+`FORWARDED` is `PROXIED` and SIGWINCH, so the init gets SIGALRM and SIGPWR
+too. `wait_forwarding` blocks `PROXIED` and reads it from its signalfd; it
+reads `ssi_code` and forwards SIGINT and SIGQUIT only where `ssi_code` is 0
+or less. `status::signal_name` names each signal of the list. Tests: a
+SIGUSR1 to the waiter reaches the payload, and the waiter gives the exit of
+the payload; a SIGINT with `SI_KERNEL` is not forwarded, and a SIGQUIT with
+`SI_QUEUE` is.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features waiter
+```
