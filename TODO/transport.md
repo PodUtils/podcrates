@@ -7740,3 +7740,42 @@ cargo test -p pod-dns --all-features --lib resolver
 ## Done
 
 2026-11-18: `each_lookup_is_one_decision_of_the_observer` (`crates/pod-dns/src/resolver.rs`) gives the system resolver a bound of 2 s and accepts `Unavailable` or `Timeout` for the lookup that the host answers: the test reads the decision of the observer (`fail`), and the class of the failure is the host's. A test with no host resolver at all would need a seam of the system resolver that the crate does not have; the decision of the observer does not depend on it. `cargo test -p pod-dns --all-features --lib resolver`: 14 passed.
+
+# T-1034: `pod-services`: the watch `http-status` of the upload of `temp-sh` gets 429 from a runner of GitHub, not 405
+
+**Source:** `services.yml` 44715667153 (schedule, `63fcd26`) and 44739420519 (a dispatch with `service=temp-sh`, `8a2cdd9`), the job `watch`
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The watch `http-status` of the endpoint `upload` of `crates/pod-services/services/temp-sh.toml`
+sends a GET to `https://temp.sh/upload` and expects 405 (`Allow: OPTIONS, POST`). In two runs in a row
+from a runner of GitHub, the host answered 429: `FAILED temp-sh http-status: https://temp.sh/upload
+answered 429, not 405`. The three watches `http-text` of the front page hold in the same runs, so the
+host serves; only the endpoint of the upload limits the address of the runner. A 429 says nothing of
+the method of the endpoint, so the watch reports a move that it did not see, and `services.yml` is red.
+
+## Premise
+
+- Read: the logs of the job `watch` of both runs; `crates/pod-services/services/temp-sh.toml`; the
+  wait and the one more try of a 429 of a registry in `crates/pod-services-watch/src/oci.rs`.
+- Not measured: a GET of `https://temp.sh/upload` from this session and from a runner after a wait;
+  the header `Retry-After` of the 429.
+
+## Approach
+
+A 429 (and a 503 with `Retry-After`) of an `http-status` watch is a limit of the host of the run, not a
+move of the fact: one more try after the wait of `Retry-After` (bounded, as `oci.rs` does), then the
+class "no answer" of call C153 (a first one is no failure; a second scheduled run in a row with the
+same answer fails). Share the rule of `oci.rs` and each HTTP watch in one place. If temp.sh now answers
+429 to each GET of the upload from any address, read the page again and change the watch.
+
+## Prove
+
+```sh
+cargo test -p pod-services-watch --all-features
+```
