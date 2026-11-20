@@ -1,0 +1,7 @@
+# The table of the local methods serves a name that the catalogue does not
+# have: the dispatch is no longer the catalogue (T-103).
+ENTRY=T-103
+GROUP=control
+EXPECT='debug is served and not in the catalogue'
+RUN='cargo test -p pod-control --all-features --lib each_served_method_is_in_the_catalogue'
+LIMIT=900

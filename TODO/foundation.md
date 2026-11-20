@@ -1495,10 +1495,10 @@ contract.
 
 ## Premise
 
-- Read (this tree): `crates/pod-core/src/files.rs:166-182`.
+- Read (this tree): `crates/pod-core/src/files.rs:172-188`.
   `write_private` syncs the file and renames it, and does not sync the
   directory; its temporary name is `.NAME.PID.tmp`. It is private to the
-  crate: `store_noting` (`:58-70`) and `store_file_in_first` call it, and
+  crate: `store_noting` (`:64-76`) and `store_file_in_first` call it, and
   through them `pod-tls` (`crates/pod-tls/src/groups/dirs.rs:25`) and
   `pod-identity` (`crates/pod-identity/src/pins.rs:134`). The review
   agrees.
@@ -1627,7 +1627,7 @@ example `eyJ`).
   reads the whole file with `std::fs::read`. `follow_tail` (`:95-105`)
   calls it, then `tail_offset` (`:72`), then `follow_from` at the length
   of that read. The review agrees.
-- Read: `crates/pod-core/src/files.rs:159` (`read_trusted`) and
+- Read: `crates/pod-core/src/files.rs:165` (`read_trusted`) and
   `crates/pod-core/src/files/own.rs:28` (`read_own`), the neighbours of
   the new function.
 - Found, not in the review: `logs` gives bytes (`Vec<u8>`), the raw output
@@ -1701,8 +1701,8 @@ The tests:
 ## Problem
 
 `write_private` names its temporary file `.NAME.PID.tmp`
-(`crates/pod-core/src/files.rs:169`) and first removes a file of that name
-(`:170`). Two threads of one process that store the same name at once
+(`crates/pod-core/src/files.rs:175`) and first removes a file of that name
+(`:176`). Two threads of one process that store the same name at once
 share that file. Thread B removes the file of thread A and makes its own.
 The rename of A then puts the file of B in place, possibly before B wrote
 all of it. The rename of B then fails, so `store_noting` tries the next
@@ -1718,7 +1718,7 @@ it.
 
 ## Premise
 
-- Read: `crates/pod-core/src/files.rs:163-182`,
+- Read: `crates/pod-core/src/files.rs:169-188`,
   `crates/pod-core/src/files/own.rs:61-98`,
   `crates/pod-tls/src/groups/dirs.rs`, `crates/pod-identity/src/pins.rs`.
 - Read: `pin` (`crates/pod-identity/src/pins.rs:114-138`) reads the pins,

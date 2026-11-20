@@ -1,6 +1,8 @@
-//! The bind of a Unix socket with its mode from the first instant (T-196,
-//! PodUtils/podnet#444). A socket that `bind(2)` makes at its path has the
-//! mode of the umask until a `chmod`; in a shared directory another user
+//! A Unix socket of one user: the bind with its mode from the first instant
+//! (T-196, PodUtils/podnet#444), and the ids of the peer of a stream.
+//!
+//! A socket that `bind(2)` makes at its path has the mode of the umask
+//! until a `chmod`; in a shared directory another user
 //! can connect in that window, and a listener of one job takes no token.
 //! So the socket is bound in a new directory of mode 0700 beside the path,
 //! gets its mode there, and moves to the path by `link(2)`, which refuses a
@@ -39,7 +41,7 @@ fn stage_fits(parent: &Path) -> bool {
 /// The listener at `path` with `mode`, bound through a stage of mode 0700.
 /// A path whose stage does not fit in `sun_path` is bound at the path, and
 /// then only a directory of mode 0700 keeps the window shut.
-pub(super) fn bind_staged(path: &Path, mode: u32) -> std::io::Result<std::os::unix::net::UnixListener> {
+pub fn bind_staged(path: &Path, mode: u32) -> std::io::Result<std::os::unix::net::UnixListener> {
     let parent = match path.parent() {
         Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
         _ => PathBuf::from("."),
@@ -87,6 +89,45 @@ fn make_stage(parent: &Path) -> std::io::Result<PathBuf> {
     Err(last.unwrap_or_else(|| std::io::Error::other("no name for the stage of the bind")))
 }
 
+/// The ids of the peer of a Unix stream, as the kernel gave them at the
+/// connect.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PeerIds {
+    /// The effective uid.
+    pub uid: u32,
+    /// The effective gid.
+    pub gid: u32,
+    /// The process id, where the system gives it (Linux).
+    pub pid: Option<u32>,
+}
+
+/// The ids of the peer of `stream`: `SO_PEERCRED` on Linux and Android,
+/// `getpeereid(3)` on the other systems.
+pub fn peer_ids(stream: &std::os::unix::net::UnixStream) -> std::io::Result<PeerIds> {
+    use std::os::fd::AsRawFd;
+    let fd = stream.as_raw_fd();
+    #[cfg(any(target_os = "linux", target_os = "android"))]
+    {
+        let mut cred = libc::ucred { pid: 0, uid: 0, gid: 0 };
+        let mut len = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
+        // SAFETY: getsockopt writes at most `len` bytes into `cred`, a ucred.
+        let rc = unsafe { libc::getsockopt(fd, libc::SOL_SOCKET, libc::SO_PEERCRED, (&raw mut cred).cast(), &mut len) };
+        if rc != 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(PeerIds { uid: cred.uid, gid: cred.gid, pid: u32::try_from(cred.pid).ok().filter(|p| *p != 0) })
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
+    {
+        let (mut uid, mut gid) = (0, 0);
+        // SAFETY: getpeereid writes the two ids of a connected socket.
+        if unsafe { libc::getpeereid(fd, &mut uid, &mut gid) } != 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(PeerIds { uid, gid, pid: None })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -99,5 +140,14 @@ mod tests {
         assert!(stage_fits(&parent));
         let longer = PathBuf::from(format!("/{}", "d".repeat(80)));
         assert!(!stage_fits(&longer));
+    }
+
+    #[test]
+    fn the_peer_of_a_pair_is_this_process() {
+        let (a, _b) = std::os::unix::net::UnixStream::pair().unwrap();
+        let ids = peer_ids(&a).unwrap();
+        assert_eq!(ids.uid, super::super::euid());
+        #[cfg(target_os = "linux")]
+        assert_eq!(ids.pid, Some(std::process::id()));
     }
 }

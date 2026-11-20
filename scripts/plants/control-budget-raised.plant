@@ -1,0 +1,8 @@
+# The budget of calls back of a request is one more than its setting: the
+# server sends the call past the budget, and the client must drop it; the
+# answer is not budget (T-103).
+ENTRY=T-103
+GROUP=control
+EXPECT='Err\(Budget\)'
+RUN='cargo test -p pod-control --all-features --test server a_request_past_its_callback_budget_is_a_fault'
+LIMIT=900

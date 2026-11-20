@@ -1,0 +1,13 @@
+diff --git a/crates/pod-control/src/server.rs b/crates/pod-control/src/server.rs
+index 4dd39f5d..a8f0af46 100644
+--- a/crates/pod-control/src/server.rs
++++ b/crates/pod-control/src/server.rs
+@@ -299,7 +299,7 @@ fn request<S: Stream>(
+                 };
+             }
+             Ok(ToConn::Back { method, params, reply }) => {
+-                if used >= settings.callbacks_per_request || budget.connection >= settings.callbacks_per_connection {
++                if used > settings.callbacks_per_request || budget.connection >= settings.callbacks_per_connection {
+                     spent = true;
+                     session.close |= budget.connection >= settings.callbacks_per_connection;
+                     let _ = reply.send(Err(CallFault::Budget));

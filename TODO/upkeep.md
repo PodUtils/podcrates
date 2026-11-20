@@ -761,7 +761,7 @@ of `http::http_text_wants_the_text`. Plant
 
 ## Premise
 
-- Read: `crates/pod-broker/src/control/bind.rs`. The stage path is the
+- Read: `crates/pod-core/src/files/socket.rs`. The stage path is the
   parent, `/.pod-broker-` and 16 hex digits, and `/s`: 31 bytes more than
   the parent. macOS gives `sun_path` 104 bytes, and its temporary
   directory with the name of the test is about 75. A stage that does not

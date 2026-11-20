@@ -1,0 +1,28 @@
+[package]
+name = "pod-control"
+description = "One versioned JSON control API for a long-running program on a Unix socket or a Windows named pipe: the catalogue of methods with their tiers, version, status, metrics, reload, drain and stop as a trait of the host, the duplex line frame with its caps and budgets, the client, the JSON Schema and a conformance check; std threads, no tokio."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The class of a failure, the bind of a socket of one user and the ids of
+# its peer, and the SID of a user on Windows.
+pod-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_Pipes",
+] }
+
+[dev-dependencies]
+pod-testkit = { workspace = true, features = ["schema"] }
+boon = { workspace = true }

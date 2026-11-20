@@ -1,0 +1,16 @@
+diff --git a/crates/pod-control/src/dispatch.rs b/crates/pod-control/src/dispatch.rs
+index fcd71768..24852404 100644
+--- a/crates/pod-control/src/dispatch.rs
++++ b/crates/pod-control/src/dispatch.rs
+@@ -50,7 +50,10 @@ pub(crate) enum Target {
+ /// The target of `name` for a caller of `tier`. A name that is not there and
+ /// a method above the tier give the same fault.
+ pub(crate) fn find(catalogue: &Catalogue, name: &str, tier: Tier) -> Result<Target, Fault> {
+-    let entry = catalogue.find_for(name, tier).ok_or_else(Fault::unknown_method)?;
++    let entry = match catalogue.find(name) {
++        Some(e) if e.tier() > tier => return Err(Fault::new(Code::Refused, "the method needs a higher tier")),
++        found => found.ok_or_else(Fault::unknown_method)?,
++    };
+     match entry {
+         Entry::Extra(e) => Ok(Target::Extra(e.name.clone())),
+         Entry::Core(spec) => match spec.route {

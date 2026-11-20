@@ -22,12 +22,18 @@ mod own;
 mod owner;
 mod replace;
 #[cfg(unix)]
+mod socket;
+#[cfg(windows)]
+pub use closed_win::{PrivateAttributes, sid_of_process, user_sid};
+#[cfg(unix)]
 pub use dirs::places_with;
 pub use dirs::{App, Chosen, Passed, Places, candidate_dirs_from, chosen_from, places_from};
 pub use own::{Others, create_file_in_first, create_private, read_own};
 #[cfg(unix)]
 pub use owner::{Host, make_dirs as make_dirs_with, passwd_home};
 pub use replace::{Commit, replace_private};
+#[cfg(unix)]
+pub use socket::{PeerIds, bind_staged, peer_ids};
 
 /// The largest cache file read (a pool of a few hundred host names fits).
 /// A larger one is not read: a cache file is ignored, and made again.
@@ -328,8 +334,9 @@ pub fn closed(path: &Path, file: &std::fs::File, others: Others) -> Result<(), S
     }
 }
 
+/// The effective uid of this process.
 #[cfg(unix)]
-pub(crate) fn euid() -> u32 {
+pub fn euid() -> u32 {
     // SAFETY: geteuid has no preconditions and cannot fail.
     unsafe { libc::geteuid() }
 }

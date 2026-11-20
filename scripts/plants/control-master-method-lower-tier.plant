@@ -1,0 +1,7 @@
+# reload, whose effect outlives the token of its caller, has the operate
+# tier, not the master tier (T-103).
+ENTRY=T-103
+GROUP=control
+EXPECT='reload outlives its token'
+RUN='cargo test -p pod-control --all-features --lib a_method_that_outlives_its_token_takes_the_master_tier'
+LIMIT=900

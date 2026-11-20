@@ -1,6 +1,8 @@
---- a/crates/pod-broker/src/control/bind.rs
-+++ b/crates/pod-broker/src/control/bind.rs
-@@ -44,7 +44,7 @@
+diff --git a/crates/pod-core/src/files/socket.rs b/crates/pod-core/src/files/socket.rs
+index ab254294..26d3701d 100644
+--- a/crates/pod-core/src/files/socket.rs
++++ b/crates/pod-core/src/files/socket.rs
+@@ -46,7 +46,7 @@ pub fn bind_staged(path: &Path, mode: u32) -> std::io::Result<std::os::unix::net
          Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
          _ => PathBuf::from("."),
      };
