@@ -1,0 +1,14 @@
+diff --git a/crates/pod-confine/src/loader.rs b/crates/pod-confine/src/loader.rs
+index e6676dba..3a422993 100644
+--- a/crates/pod-confine/src/loader.rs
++++ b/crates/pod-confine/src/loader.rs
+@@ -25,7 +25,8 @@ pub fn is_loader(path: &[u8]) -> bool {
+     let base = path.rsplit(|&b| b == b'/').next().unwrap_or(path);
+     let named = base.starts_with(b"ld-") || base.starts_with(b"ld.") || base.starts_with(b"ld64.");
+     let musl = base == b"libc.so" || base.starts_with(b"libc.musl-");
+-    musl || (named && base.windows(3).any(|w| w == b".so"))
++    let _ = musl;
++    (named && base.windows(3).any(|w| w == b".so"))
+ }
+ 
+ /// The options of glibc's and musl's loaders that take the next argument

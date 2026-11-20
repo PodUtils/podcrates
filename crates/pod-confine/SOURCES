@@ -1,0 +1,9 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). scripts/check-sources.py compares each
+# with the default branch of its repository.
+
+repo PodUtils/podvm cdbcaa65e270b7a977d13f0d7aa0085a5b3bd1e6
+# The program of a dynamic loader (PodUtils/podvm#613). Of the test file,
+# the table test came; the tests of the interposer stay in podvm.
+file 8a3ba7c699268760c189d7b644186580a8cde73c crates/podvm-interpose/src/exec/ldso.rs -> crates/pod-confine/src/loader.rs
+file d3fbd1dd0c574008af86e9f96f804f65c8665531 crates/podvm-interpose/src/exec/tests_t1984.rs -> crates/pod-confine/tests/loader.rs

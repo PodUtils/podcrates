@@ -175,20 +175,45 @@ fn the_loader_and_the_interpreter_run_a_program_that_landlock_does_not_see() {
 fn the_payload_gets_the_exec_table_and_no_value_of_the_caller() {
     let Some(f) = files("var") else { return };
     let out = path(&f.dir, "table");
-    let script = format!("printf %s \"${{POD_ENTER_EXEC_TABLE-unset}}\" > {out}");
-    let forged = vec!["POD_ENTER_EXEC_TABLE=/".to_string(), "PATH=/usr/bin:/bin".to_string()];
+    let script =
+        format!("printf '%s\\n%s' \"${{POD_ENTER_EXEC_TABLE-unset}}\" \"${{POD_ENTER_WRITE_TABLE-unset}}\" > {out}");
+    let forged = vec![
+        "POD_ENTER_EXEC_TABLE=/".to_string(),
+        "POD_ENTER_WRITE_TABLE=/".to_string(),
+        "PATH=/usr/bin:/bin".to_string(),
+    ];
     assert_eq!(run(&f, &plan(None, forged.clone()), &[&f.sh, "-c", &script], None).unwrap(), 0);
-    assert_eq!(std::fs::read_to_string(&out).unwrap(), "unset", "a value of the caller reached the payload");
+    assert_eq!(std::fs::read_to_string(&out).unwrap(), "unset\nunset", "a value of the caller reached the payload");
     if !landlock() {
         return;
     }
     let s = spec(&f);
     let want = s.exec_table().resolved().encode().unwrap();
+    let write = s.table(Access::WRITE).resolved().encode().unwrap();
     assert_eq!(run(&f, &plan(Some(s), forged), &[&f.sh, "-c", &script], None).unwrap(), 0);
-    let got = std::fs::read_to_string(&out).unwrap();
-    assert_eq!(got, want);
+    let text = std::fs::read_to_string(&out).unwrap();
+    let (got, got_write) = text.split_once('\n').unwrap();
+    assert_eq!((got, got_write), (want.as_str(), write.as_str()));
     assert!(pod_confine::exec::allows_in(got.as_bytes(), path(&f.inside, "static").as_bytes()));
     assert!(!pod_confine::exec::allows_in(got.as_bytes(), path(&f.outside, "static").as_bytes()));
+    assert!(pod_confine::exec::allows_in(got_write.as_bytes(), path(&f.outside, "static").as_bytes()));
+    assert!(!pod_confine::exec::allows_in(got_write.as_bytes(), "/usr/bin/true".as_bytes()));
+}
+
+/// The tables go to the entry with no chroot alone (PodUtils/podvm#613):
+/// the exec table and the write table under the names of the caller, and
+/// none with no confinement or on a rung with a chroot.
+#[test]
+fn the_entry_with_no_chroot_writes_the_exec_and_the_write_table() {
+    let spec = Spec::new().allow("/usr", Access::READ | Access::EXECUTE).allow("/no/such/w", Access::WRITE);
+    let mut p = plan(Some(spec), Vec::new());
+    p.names = Names { exec_table: "X_EXEC", write_table: "X_WRITE", ..Names::DEFAULT };
+    let usr = std::fs::canonicalize("/usr").unwrap().display().to_string();
+    assert_eq!(table_vars(&p, true).unwrap(), [format!("X_EXEC={usr}"), "X_WRITE=/no/such/w".to_string()]);
+    assert!(table_vars(&p, false).unwrap().is_empty());
+    assert!(table_vars(&plan(None, Vec::new()), true).unwrap().is_empty());
+    let bad = plan(Some(Spec::new().allow("/a:b", Access::WRITE)), Vec::new());
+    assert!(matches!(table_vars(&bad, true), Err(Error::Runtime(_))));
 }
 
 /// The path of a rule resolves through the volumes of a plan (T-739): a

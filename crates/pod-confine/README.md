@@ -76,7 +76,8 @@ the host.
 | `Spec::compile(abi)`, `Spec::compile_in(abi, root_fd)`, `Spec::compile_by(abi, open)` | a `Compiled` (`abi`, `handled_fs`, `handled_net`, `scoped`, `rules` with `fd`, `allowed`, `path`, `ports`, `filter`; it closes its descriptors when it drops); `keep_clear_of(&numbers)` moves each rule off a number that the child takes for a `dup2`; `close_paths()` closes the descriptor of each rule (`fd` is then -1) and keeps its path; `open_paths()` opens the path of each rule with no descriptor in the view of the caller (in the child, after its mounts and its root change), with no allocation, or gives `Err(Refusal)` of `OpenPath` |
 | `apply(&Compiled)` | the confinement of this thread and of each process that it makes later; `Err(Refusal { call, index, errno })` |
 | `Call`, `Refusal` | the call (`NoNewPrivs`, `CreateRuleset`, `AddPathRule`, `AddPortRule`, `RestrictSelf`, `Seccomp`, `CapGet`, `CapBoundingDrop`, `CapSet`, `CapAmbientClear`, `OpenPath`; `name`, `code` 1 to 11, `from_code`); `Refusal::to_bytes` and `from_bytes` (five bytes for a pipe from a child), `describe(&compiled)` (the call, the path or the port of the rule, the errno), `failure(&compiled)` |
-| `exec` | `ExecTable` (`Spec::exec_table()`: the path of each rule with `EXECUTE`, once, with no trailing `/`; `resolved()` (each host path that exists through `realpath`), `paths`, `allows(program)`, `encode` (the paths joined by `exec::SEP`, `:`; a path with `:` or NUL is a refusal by name, `Class::Usage`), `decode`), `exec::allows_in(table, program)` (the same answer on the text, with no allocation and no other item of the crate, for an object that takes no dependency) |
+| `exec` | `PathTable` (`Spec::table(access)`: the path of each rule that holds each bit of `access`, once, with no trailing `/`; `ExecTable` is the same type, `Spec::exec_table()` is `table(Access::EXECUTE)`, and `table(Access::WRITE)` is the write table; `resolved()` (each host path that exists through `realpath`), `paths`, `allows(program)`, `encode` (the paths joined by `exec::SEP`, `:`; a path with `:` or NUL is a refusal by name, `Class::Usage`), `decode`), `exec::allows_in(table, program)` (the same answer on the text, with no allocation and no other item of the crate, for an object that takes no dependency) |
+| `loader` | `is_loader(path)` (the base name of a dynamic loader of glibc or musl, also musl's `libc.so` and `libc.musl-ARCH.so.1`), `each_program(args, check)` (each argument after the name of a loader that a loader can take as its program, for each reading of the options of glibc and of musl: `check` sees each one, and a program with no `/` is false), `VALUED`, `FLAGS`; one file with no item of std and no other item of the crate, so that an interposer keeps a copy of it as it is |
 | `check()`, `probe()` | the ABI where a confinement loads here; `check` names the call and the errno of a refusal |
 | `MIN_ABI` (3), `NET_ABI` (4), `SCOPE_ABI` (6), `UNIX_ABI` (9), `UDP_ABI` (10), `spec::handled_fs(abi)`, `spec::FILE_RIGHTS`, `spec::CONNECT_TCP`, `spec::BIND_TCP`, `spec::UDP_RIGHTS`, `spec::SCOPES`, `MOST_RULES` | the bounds, the rights and the scopes of each ABI |
 
@@ -111,8 +112,17 @@ table or is under one, at a `/`; a program with a `.` or `..` component,
 or a relative one, gets `false`; an empty table allows nothing. A caller
 asks it for each file that the kernel would execute (for a script: the
 script and its interpreter) before it starts the loader or the
-interpreter, or stages the memfd. The table cannot stop a payload that
-runs the loader itself, as the loader must execute.
+interpreter, or stages the memfd. Where the program is a dynamic loader
+(`ld.so /tmp/prog`), `loader::each_program` gives each argument that the
+loader can take as its program, and each one takes the same rule. The
+table cannot stop a payload that execs the loader itself, as the loader
+must execute: the caller checks the programs that it starts, and an
+interposer checks each exec that it sees.
+
+Landlock governs no change of mode, owner or times (`chmod`, `chown`,
+`utimensat`). The write table (`Spec::table(Access::WRITE)`) has the same
+shape, so an interposer refuses such a change of a file that it does not
+cover.
 
 ### The capabilities
 
@@ -243,6 +253,9 @@ the three run in the first and fail with `EACCES` in the second, and
 `ExecTable::allows` gives the same answer for each. `exec::tests` checks
 the table: each execute path once, the boundary at a `/` (`/usrx` is not
 under `/usr`), a path with `..`, an empty table, `encode`, `decode` and
-`allows_in`, and a link in a rule path. The plants
+`allows_in`, and a link in a rule path; the table of each access
+(`a_table_of_an_access_holds_each_rule_with_that_access_once`).
+`tests/loader.rs` checks the names of the loaders and the arguments that a
+check sees for each reading of the options. The plants
 `confine-exec-table-no-boundary`, `confine-execute-not-handled` and
 `confine-execute-not-granted` prove them.

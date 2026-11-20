@@ -80,7 +80,7 @@ use pod_hostprobe::select::Rung;
 use pod_hostprobe::sys::{self, CBuf};
 
 pub use child::Bounded;
-pub use confine::check_exec;
+pub use confine::{check_exec, check_exec_argv, check_exec_guest};
 pub use entry::*;
 pub use limits::{Limit, Resource};
 pub use names::Names;

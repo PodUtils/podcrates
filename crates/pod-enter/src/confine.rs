@@ -1,7 +1,9 @@
 //! The confinement of a payload (`Plan.confine`, `pod-confine`): the
 //! compile before the fork, the refusal that the child writes to the
-//! readiness pipe, and its sentence in the parent; the exec table of the
-//! entry with no chroot ([`check_exec`]).
+//! readiness pipe, and its sentence in the parent; the exec and the write
+//! table of the entry with no chroot, and the check of each program that
+//! the kernel does not see ([`check_exec`], [`check_exec_argv`],
+//! [`check_exec_guest`]).
 
 use std::os::unix::ffi::OsStrExt;
 
@@ -11,6 +13,10 @@ use pod_hostprobe::sys::{self, CBuf, Errno};
 use crate::abi::{GuestRoot, ResolveKind};
 use crate::ns_upper::View;
 use crate::{Error, Plan, Result, RootDir, errno_class};
+
+mod program;
+
+pub use program::{check_exec_argv, check_exec_guest};
 
 /// The step byte of a refusal of `pod_confine::apply` or of
 /// `Compiled::open_paths`. The five bytes of the refusal follow it.
@@ -78,16 +84,18 @@ pub(crate) fn open_through<G: GuestRoot>(view: &G, root: &RootDir, guest: &str) 
     }
 }
 
-/// The entry `NAME=TABLE` of the exec table of `plan` for the payload of
-/// the entry with no chroot (`names.exec_table`), or `None` with no
-/// confinement or on a rung with a chroot. There the spec has host paths,
-/// and each one resolves as Landlock opens it.
-pub(crate) fn exec_var(plan: &Plan, userland: bool) -> Result<Option<String>> {
+/// The entries `NAME=TABLE` of the exec table (`names.exec_table`) and of
+/// the write table (`names.write_table`) of `plan` for the payload of the
+/// entry with no chroot, or none with no confinement or on a rung with a
+/// chroot. There the spec has host paths, and each one resolves as
+/// Landlock opens it.
+pub(crate) fn table_vars(plan: &Plan, userland: bool) -> Result<Vec<String>> {
     match &plan.confine {
-        Some(spec) if userland => {
-            Ok(Some(format!("{}={}", plan.names.exec_table, spec.exec_table().resolved().encode()?)))
-        }
-        _ => Ok(None),
+        Some(spec) if userland => Ok(vec![
+            format!("{}={}", plan.names.exec_table, spec.exec_table().resolved().encode()?),
+            format!("{}={}", plan.names.write_table, spec.table(pod_confine::Access::WRITE).resolved().encode()?),
+        ]),
+        _ => Ok(Vec::new()),
     }
 }
 
@@ -101,7 +109,9 @@ pub(crate) fn exec_var(plan: &Plan, userland: bool) -> Result<Option<String>> {
 /// static payload into a memfd. `Ok` with no confinement. A program
 /// outside each execute path is [`Error::CannotInvoke`] (126, as `EACCES`
 /// of the kernel), and a program that does not resolve is
-/// [`Error::NotFound`] (127).
+/// [`Error::NotFound`] (127). [`check_exec_argv`] and [`check_exec_guest`]
+/// check each file of an argv: the `#!` lines and the program of a
+/// dynamic loader too.
 pub fn check_exec(plan: &Plan, program: &str) -> Result<()> {
     let Some(spec) = &plan.confine else { return Ok(()) };
     let real = std::fs::canonicalize(program).map_err(|e| Error::NotFound(format!("{program}: {e}")))?;

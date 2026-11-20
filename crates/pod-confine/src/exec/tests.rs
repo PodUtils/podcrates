@@ -73,3 +73,24 @@ fn a_link_in_a_rule_path_resolves_to_its_target() {
     assert!(t.allows(real.join("bin/x").to_str().unwrap()));
     let _ = std::fs::remove_dir_all(d);
 }
+
+/// The table of each access (PodUtils/podvm#613): the write table holds
+/// the rules with write alone, in the shape of the exec table, and its
+/// text gives the same answers.
+#[test]
+fn a_table_of_an_access_holds_each_rule_with_that_access_once() {
+    let s = spec().allow("/var/log/", Access::WRITE).allow("/tmp", Access::READ);
+    let w = s.table(Access::WRITE);
+    assert_eq!(w.paths(), ["/tmp", "/var/log"]);
+    assert_eq!(s.table(Access::EXECUTE), s.exec_table());
+    assert_eq!(s.table(Access::READ | Access::EXECUTE).paths(), ["/usr", "/opt/tool", "/srv/run.sh"]);
+    assert_eq!(s.table(Access::NONE).paths().len(), 6);
+    assert!(w.allows("/tmp/x") && w.allows("/var/log/a/b") && !w.allows("/usr/bin/true") && !w.allows("/tmpx"));
+    let text = w.encode().unwrap();
+    assert_eq!(text, "/tmp:/var/log");
+    assert_eq!(PathTable::decode(&text), w);
+    for p in ["/tmp/x", "/var/log", "/usr/bin/true", "/data/x"] {
+        assert_eq!(allows_in(text.as_bytes(), p.as_bytes()), w.allows(p), "{p}");
+    }
+    assert!(Spec::new().allow("/usr", Access::READ).table(Access::WRITE).paths().is_empty());
+}

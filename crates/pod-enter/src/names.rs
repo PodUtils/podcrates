@@ -37,6 +37,13 @@ pub struct Names {
     /// the interposer checks each program that it routes through the
     /// loader against it (`pod_confine::exec::allows_in`).
     pub exec_table: &'static str,
+    /// The variable of the write table of a confined payload on the entry
+    /// with no chroot (`pod_confine::Spec::table` of `Access::WRITE`, in
+    /// the text of `PathTable::encode`). Landlock governs no change of
+    /// mode, owner or times, so the interposer refuses `chmod`, `chown` and
+    /// `utimensat` of a file that the table does not cover. The entry sets
+    /// it where the plan has a confinement and removes each other value.
+    pub write_table: &'static str,
     /// The variable of the device list of a container record.
     pub device_spec: &'static str,
     /// The variable of the device table that the interposer serves.
@@ -63,6 +70,7 @@ impl Names {
         maps: "POD_ENTER_MAPS",
         lib_path: "POD_ENTER_LIB_PATH",
         exec_table: "POD_ENTER_EXEC_TABLE",
+        write_table: "POD_ENTER_WRITE_TABLE",
         device_spec: "POD_ENTER_DEVICE_SPEC",
         device_fds: "POD_ENTER_DEVICE_FDS",
         cache_marker: ".pod-enter-cache-complete",

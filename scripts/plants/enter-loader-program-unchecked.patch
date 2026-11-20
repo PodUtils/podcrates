@@ -1,0 +1,13 @@
+diff --git a/crates/pod-enter/src/confine/program.rs b/crates/pod-enter/src/confine/program.rs
+index 52608ed9..8d19617a 100644
+--- a/crates/pod-enter/src/confine/program.rs
++++ b/crates/pod-enter/src/confine/program.rs
+@@ -77,7 +77,7 @@ fn each_file(table: &PathTable, mut argv: Vec<String>, resolve: &dyn Fn(&str) ->
+                 "{name}: the confinement allows no exec of {real}: it is outside each execute path (EACCES)"
+             )));
+         }
+-        if is_loader(&name, &host, &real) {
++        if false && is_loader(&name, &host, &real) {
+             return loader_programs(table, &name, &argv[1..], resolve);
+         }
+         let Some((interp, arg)) = head(&host).as_deref().and_then(crate::memfd::shebang_parts) else {

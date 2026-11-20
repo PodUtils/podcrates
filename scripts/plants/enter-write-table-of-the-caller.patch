@@ -1,0 +1,12 @@
+diff --git a/crates/pod-enter/src/launch.rs b/crates/pod-enter/src/launch.rs
+index 57c15a9a..4e0e05b3 100644
+--- a/crates/pod-enter/src/launch.rs
++++ b/crates/pod-enter/src/launch.rs
+@@ -83,7 +83,6 @@ pub(crate) fn spawn_with(
+             name != names.mode_request
+                 && name != names.mode_active
+                 && name != names.exec_table
+-                && name != names.write_table
+         })
+         .chain(std::iter::once(&active_var))
+         .chain(table_vars.iter())

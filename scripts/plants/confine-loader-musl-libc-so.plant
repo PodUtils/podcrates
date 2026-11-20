@@ -1,0 +1,7 @@
+# `is_loader` does not know musl's loader file `libc.so`, the target of
+# the link `ld-musl-ARCH.so.1` of musl's own install (T-998).
+ENTRY=T-998
+GROUP=confine
+EXPECT='libc\.musl-x86_64\.so\.1'
+RUN='cargo test -p pod-confine --all-features --test loader'
+LIMIT=1800

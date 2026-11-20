@@ -1,0 +1,12 @@
+diff --git a/crates/pod-enter/src/confine.rs b/crates/pod-enter/src/confine.rs
+index 84a483da..5039c143 100644
+--- a/crates/pod-enter/src/confine.rs
++++ b/crates/pod-enter/src/confine.rs
+@@ -93,7 +93,6 @@ pub(crate) fn table_vars(plan: &Plan, userland: bool) -> Result<Vec<String>> {
+     match &plan.confine {
+         Some(spec) if userland => Ok(vec![
+             format!("{}={}", plan.names.exec_table, spec.exec_table().resolved().encode()?),
+-            format!("{}={}", plan.names.write_table, spec.table(pod_confine::Access::WRITE).resolved().encode()?),
+         ]),
+         _ => Ok(Vec::new()),
+     }

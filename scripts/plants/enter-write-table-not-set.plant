@@ -1,0 +1,7 @@
+# The entry with no chroot does not give the write table to the payload,
+# so the interposer refuses no change of mode, owner or times (T-999).
+ENTRY=T-999
+GROUP=confine
+EXPECT='X_WRITE'
+RUN='cargo test -p pod-enter --all-features --lib the_entry_with_no_chroot_writes_the_exec_and_the_write_table'
+LIMIT=1800

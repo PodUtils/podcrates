@@ -1,11 +1,13 @@
+diff --git a/crates/pod-enter/src/confine.rs b/crates/pod-enter/src/confine.rs
+index 84a483da..0455a075 100644
 --- a/crates/pod-enter/src/confine.rs
 +++ b/crates/pod-enter/src/confine.rs
-@@ -43,7 +43,7 @@
- /// and each one resolves as Landlock opens it.
- pub(crate) fn exec_var(plan: &Plan, userland: bool) -> Result<Option<String>> {
+@@ -91,7 +91,7 @@ pub(crate) fn open_through<G: GuestRoot>(view: &G, root: &RootDir, guest: &str)
+ /// Landlock opens it.
+ pub(crate) fn table_vars(plan: &Plan, userland: bool) -> Result<Vec<String>> {
      match &plan.confine {
--        Some(spec) if userland => {
-+        Some(spec) if !userland => {
-             Ok(Some(format!("{}={}", plan.names.exec_table, spec.exec_table().resolved().encode()?)))
-         }
-         _ => Ok(None),
+-        Some(spec) if userland => Ok(vec![
++        Some(spec) if !userland => Ok(vec![
+             format!("{}={}", plan.names.exec_table, spec.exec_table().resolved().encode()?),
+             format!("{}={}", plan.names.write_table, spec.table(pod_confine::Access::WRITE).resolved().encode()?),
+         ]),

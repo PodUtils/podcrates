@@ -1,0 +1,7 @@
+# The check of an argv does not judge the program of a dynamic loader, so
+# `ld.so /tmp/prog` runs a program out of `exec=` (T-998).
+ENTRY=T-998
+GROUP=confine
+EXPECT='ld-linux-x86-64.so.2.*Ok\(\(\)\)'
+RUN='cargo test -p pod-enter --all-features --lib confine::program'
+LIMIT=1800
