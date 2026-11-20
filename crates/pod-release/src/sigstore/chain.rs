@@ -56,18 +56,44 @@ pub(super) fn by_key(key_info: &SubjectPublicKeyInfo<'_>, message: &[u8], signat
     ecdsa(key_info, algorithm, message, signature)
 }
 
+/// `name` for an error, or `None` when it is empty.
+fn shown(name: &X509Name<'_>) -> Option<String> {
+    Some(name.to_string()).filter(|n| !n.trim().is_empty())
+}
+
+/// A certificate in an error: its subject, or its place in the chain when
+/// its subject is empty. A leaf of Fulcio has no subject: its signer is in
+/// its SAN.
+fn named(cert: &X509Certificate<'_>) -> String {
+    shown(cert.subject()).unwrap_or_else(|| {
+        let place = if !cert.is_ca() {
+            "leaf"
+        } else if cert.issuer() == cert.subject() {
+            "root"
+        } else {
+            "intermediate"
+        };
+        format!("the {place} certificate")
+    })
+}
+
 /// `cert` was signed by `issuer`, and both hold at `time`.
 pub(super) fn signed_by(cert: &X509Certificate<'_>, issuer: &X509Certificate<'_>, time: i64) -> Result<(), String> {
     if cert.issuer() != issuer.subject() {
-        return Err(format!("{} was not issued by {}", cert.subject(), issuer.subject()));
+        let names = shown(cert.issuer()).map_or_else(|| "it names no issuer".into(), |i| format!("it names {i}"));
+        return Err(format!("{} was not issued by {}: {names}", named(cert), named(issuer)));
     }
     let algorithm = cert.signature_algorithm.algorithm.to_id_string();
     ecdsa(issuer.public_key(), &algorithm, cert.tbs_certificate.as_ref(), &cert.signature_value.data)
-        .map_err(|why| format!("{}'s signature by {}: {why}", cert.subject(), issuer.subject()))?;
+        .map_err(|why| format!("{}'s signature by {}: {why}", named(cert), named(issuer)))?;
     for c in [cert, issuer] {
         let (from, to) = (c.validity().not_before.timestamp(), c.validity().not_after.timestamp());
         if time < from || time > to {
-            return Err(format!("{} did not hold at the time of the signature", c.subject()));
+            let (from, to, time) = (crate::utc(from), crate::utc(to), crate::utc(time));
+            return Err(format!(
+                "{} (valid {from} to {to}) did not hold at the time of the signature ({time})",
+                named(c)
+            ));
         }
     }
     Ok(())

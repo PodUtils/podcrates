@@ -6551,7 +6551,7 @@ cargo test -p pod-broker --all-features --test tls_clients -- --nocapture
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6590,3 +6590,26 @@ the fix.
 ```sh
 cargo test -p pod-release --all-features --lib sigstore
 ```
+
+## Done
+
+2026-11-20, this commit. `chain::signed_by` names a certificate by its subject, else by its place: "the
+leaf certificate" (not a CA), "the root certificate" (a CA that issued itself), "the intermediate
+certificate". The new lines:
+
+- `{name} (valid {from} to {to}) did not hold at the time of the signature ({time})`, with the RFC 3339
+  times of `crate::utc` (`pod_core::clock::rfc3339`; `verify`'s line `verified:` takes the same helper).
+- `{name} was not issued by {issuer}: it names {the issuer of the certificate}`, or `: it names no
+  issuer`.
+- `{name}'s signature by {issuer}: {why}`.
+- The chain of the timestamp authority: each line starts with `the chain of the timestamp authority: `.
+
+The same class in `crates/pod-release/src/index.rs`: a name of `SHA256SUMS`, the signature files and the
+signer of an index, and the repository and the tag of the signer's URI, can be empty; they are now quoted
+(`{:?}`). A log of `Roots` keeps its name unquoted: it is the caller's constant, and an empty name matches
+no checkpoint. Test `sigstore::tests::a_leaf_with_no_subject_is_named_by_its_place_with_its_window`: the
+leaf of v0.76.0 (no subject) one second before and one second after its window, by the intermediate of
+Fulcio, and by the root of Fulcio; on the code before the fix it failed with
+`left: " did not hold at the time of the signature"`. `cargo test -p pod-release --all-features`: 66, 8
+and 13 passed. `cargo clippy -p pod-release --all-targets --all-features -- -D warnings` and `cargo doc`
+of the crate with `-D warnings`: clean.

@@ -176,12 +176,11 @@ pub fn verify_files(dir: &Path, who: &Identity, roots: &Roots, which: Which<'_>)
 impl std::fmt::Display for Checked {
     /// One line: the signer's log entry, and the counts.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let secs = u64::try_from(self.verified.logged.time).unwrap_or(0);
         write!(
             f,
             "{SUMS} {}: logged by Rekor at {} (entry {}); {} files checked, {} missing",
             hex(&self.verified.digest),
-            pod_core::clock::rfc3339(std::time::UNIX_EPOCH + std::time::Duration::from_secs(secs)),
+            crate::utc(self.verified.logged.time),
             self.verified.logged.index,
             self.files.len(),
             self.missing.len()

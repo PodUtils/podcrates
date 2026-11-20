@@ -159,3 +159,29 @@ fn a_document_that_is_not_a_bundle_is_refused() {
         assert!(why.contains(words), "{why}");
     }
 }
+
+/// A leaf of Fulcio has no subject (its signer is in its SAN): each line of
+/// the chain names it by its place, and the line of the time gives its
+/// window and the time (PodUtils/podssh#334).
+#[test]
+fn a_leaf_with_no_subject_is_named_by_its_place_with_its_window() {
+    let der = b64(&field(&["verificationMaterial", "certificate", "rawBytes"]), "the leaf").unwrap();
+    let (_, leaf) = X509Certificate::from_der(&der).unwrap();
+    assert_eq!(leaf.subject().to_string(), "");
+    let roots = Roots::sigstore();
+    let fulcio = certificates(&roots.fulcio, "Fulcio's chain").unwrap();
+    let (intermediate, root) = (&fulcio[0], &fulcio[fulcio.len() - 1]);
+    // Python: datetime.fromtimestamp(t, timezone.utc) of the leaf's window,
+    // 1795080477 to 1795081077.
+    let window = "the leaf certificate (valid 2026-11-19T09:27:57Z to 2026-11-19T09:37:57Z)";
+    for (time, at) in [(1795080476, "2026-11-19T09:27:56Z"), (1795081078, "2026-11-19T09:37:58Z")] {
+        let why = chain::signed_by(&leaf, intermediate, time).unwrap_err();
+        assert_eq!(why, format!("{window} did not hold at the time of the signature ({at})"));
+    }
+    let why = chain::signed_by(&leaf, root, 1795080477).unwrap_err();
+    assert_eq!(
+        why,
+        "the leaf certificate was not issued by O=sigstore.dev, CN=sigstore: it names O=sigstore.dev, CN=sigstore-intermediate"
+    );
+    assert!(!why.contains("  "), "{why}");
+}
