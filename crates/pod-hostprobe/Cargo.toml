@@ -10,6 +10,8 @@ repository.workspace = true
 # Linux only: on another target the crate is empty.
 [target.'cfg(target_os = "linux")'.dependencies]
 pod-core = { workspace = true }
+# `struct open_how` and the calls of an open under a base (`sys::Beneath`).
+pod-beneath = { workspace = true }
 # The layouts of the structs of the kernel, the errno numbers, the open
 # flags and, on the architectures that syscalls does not build for, the
 # numbers of the calls.

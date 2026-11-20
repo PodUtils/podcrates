@@ -130,3 +130,17 @@ pub(crate) fn confine() -> Option<String> {
 pub(crate) fn confine() -> Option<String> {
     None
 }
+
+/// pod-beneath is Linux only: on another target the crate is empty. One
+/// open of `/tmp` under `/` through the C library.
+#[cfg(target_os = "linux")]
+pub(crate) fn beneath() -> Option<String> {
+    let mut buf = [0u8; 64];
+    let r = pod_beneath::open_under_base(&pod_beneath::Libc, b"/", b"/tmp", pod_beneath::O_PATH, &mut buf);
+    Some(format!("pod-beneath: /tmp under / gives {}", r.map_or_else(|r| r.to_string(), |fd| format!("fd {fd}"))))
+}
+
+#[cfg(not(target_os = "linux"))]
+pub(crate) fn beneath() -> Option<String> {
+    None
+}

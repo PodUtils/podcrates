@@ -1,0 +1,32 @@
+[package]
+name = "pod-beneath"
+description = "The open of a path under a base directory with no symbolic link and nothing above the base (openat2 with RESOLVE_BENEATH and RESOLVE_NO_SYMLINKS): no_std, no allocation, a refusal for each case, and the system calls of the caller."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# Linux only: on another target the crate is empty. no_std and no
+# allocation, so that an LD_PRELOAD interposer can call it in a path call.
+[target.'cfg(target_os = "linux")'.dependencies]
+# The open flags, the resolve flags, the errno numbers and the number of
+# openat2 of each architecture: O_DIRECTORY and O_NOFOLLOW differ between
+# x86_64 and aarch64. Constants only, no code.
+linux-raw-sys = { workspace = true, features = ["errno"] }
+
+[features]
+default = ["libc"]
+# `Libc`: the system calls through syscall(2) of the C library. Off for a
+# caller that gives its own calls and must not call the C library (an
+# interposer that exports `syscall` itself).
+libc = []
+
+# The tests call the kernel through `Libc`.
+[[test]]
+name = "table"
+required-features = ["libc"]
+
+[[test]]
+name = "race"
+required-features = ["libc"]

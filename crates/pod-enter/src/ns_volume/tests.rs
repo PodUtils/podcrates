@@ -236,5 +236,8 @@ fn a_host_path_under_its_base_holds_no_link() {
     assert_eq!(class_of(&through), Some(Class::Policy), "{through}");
     let out = with(d.join("img")).err().expect("a path out of the base");
     assert!(out.to_string().contains("not under its host base"), "{out}");
+    let above = with(d.join("base/../img")).err().expect("a path above the base");
+    assert_eq!(class_of(&above), Some(Class::Policy), "{above}");
+    assert!(above.to_string().contains("goes above its base by `..`"), "{above}");
     let _ = fs::remove_dir_all(&d);
 }

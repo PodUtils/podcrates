@@ -1,6 +1,6 @@
 //! A binary that links pod-core, pod-tls, pod-wg, pod-confine, the STUN
-//! codec of pod-turn and pod-udf with no default feature, so that no tokio
-//! is in it.
+//! codec of pod-turn, pod-udf and pod-beneath with no default feature, so
+//! that no tokio is in it.
 //! `scripts/check-static.sh` checks the binary on each target, and
 //! `scripts/check-probe.py` checks the tree (docs/design.md, section 7).
 
@@ -28,6 +28,9 @@ fn confine() {
     let abi = pod_confine::probe().map_or_else(|| "none".to_string(), |abi| abi.to_string());
     let rules = pod_confine::Deny::defaults().len();
     println!("pod-confine: Landlock ABI {abi}, {rules} calls in the deny list");
+    let mut buf = [0u8; 64];
+    let tmp = pod_beneath::open_under_base(&pod_beneath::Libc, b"/", b"/tmp", pod_beneath::O_PATH, &mut buf);
+    println!("pod-beneath: /tmp under / gives {}", tmp.map_or_else(|r| r.to_string(), |_| "a descriptor".to_string()));
 }
 
 #[cfg(not(target_os = "linux"))]

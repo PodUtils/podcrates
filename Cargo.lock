@@ -4724,6 +4724,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-beneath"
+version = "0.78.1"
+dependencies = [
+ "linux-raw-sys",
+]
+
+[[package]]
 name = "pod-broker"
 version = "0.78.1"
 dependencies = [
@@ -4922,6 +4929,7 @@ dependencies = [
 name = "pod-enter"
 version = "0.78.1"
 dependencies = [
+ "pod-beneath",
  "pod-confine",
  "pod-core",
  "pod-hostprobe",
@@ -4986,6 +4994,7 @@ version = "0.78.1"
 dependencies = [
  "boon",
  "linux-raw-sys",
+ "pod-beneath",
  "pod-core",
  "pod-testkit",
  "schemars 1.2.3",
@@ -7310,6 +7319,7 @@ dependencies = [
  "pod-actions-results",
  "pod-actions-store",
  "pod-actions-workflow",
+ "pod-beneath",
  "pod-broker",
  "pod-cloudflare",
  "pod-confine",
@@ -7366,6 +7376,7 @@ dependencies = [
 name = "static-probe-lean"
 version = "0.78.1"
 dependencies = [
+ "pod-beneath",
  "pod-confine",
  "pod-core",
  "pod-tls",

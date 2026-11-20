@@ -378,15 +378,10 @@ pub const S_IFIFO: u64 = 0o0010000;
 /// check. The census probes that pair.
 pub const DEV_1_3: u64 = 0x103;
 
-/// `openat2(2)`'s `struct open_how`. Three `u64`s, in this order, and the
-/// kernel is told the size so it can reject a struct it does not know.
-#[repr(C)]
-#[derive(Default, Clone, Copy)]
-pub struct OpenHow {
-    pub flags: u64,
-    pub mode: u64,
-    pub resolve: u64,
-}
+/// `openat2(2)`'s `struct open_how`: the one of `pod-beneath`. Three `u64`s,
+/// in this order, and the kernel is told the size so it can reject a struct
+/// it does not know.
+pub use pod_beneath::OpenHow;
 
 mod raw;
 pub use raw::*;

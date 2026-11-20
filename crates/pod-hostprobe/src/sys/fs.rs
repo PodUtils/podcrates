@@ -116,6 +116,24 @@ pub fn openat2(dirfd: i64, path: &CBuf, how: &OpenHow) -> Sysres {
     }
 }
 
+/// The calls of `pod-beneath` (an open under a base with no link) through
+/// the trap of this module: the errno of the kernel.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Beneath;
+
+impl pod_beneath::Calls for Beneath {
+    fn openat2(&self, dirfd: i32, path: &std::ffi::CStr, how: &OpenHow) -> Result<i32, i32> {
+        let size = std::mem::size_of::<OpenHow>() as u64;
+        let args = [dirfd as i64 as u64, path.as_ptr() as u64, how as *const OpenHow as u64, size, 0, 0];
+        // SAFETY: the NUL-ended path and the `open_how` live for the call.
+        unsafe { sys(SYS_OPENAT2, args) }.map(|fd| fd as i32).map_err(|e| e.0)
+    }
+
+    fn close(&self, fd: i32) {
+        let _ = close(i64::from(fd));
+    }
+}
+
 pub fn mkdirat(dirfd: i64, path: &CBuf, mode: u64) -> Sysres {
     unsafe { sys(SYS_MKDIRAT, [dirfd as u64, path.ptr(), mode, 0, 0, 0]) }
 }

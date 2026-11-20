@@ -23,3 +23,5 @@ pod-confine = { workspace = true }
 pod-turn = { workspace = true, features = ["stun"] }
 # The UDF reader: std only.
 pod-udf = { workspace = true }
+# The open under a base: no_std, with its calls through the C library.
+pod-beneath = { workspace = true }
