@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**823 entries: 143 open, 31 partial, 7 blocked, 642 done.**
+**825 entries: 145 open, 31 partial, 7 blocked, 642 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 7 | 9 | 0 | 192 | 208 |
-| P2 | 67 | 12 | 4 | 327 | 410 |
+| P1 | 8 | 9 | 0 | 192 | 209 |
+| P2 | 68 | 12 | 4 | 327 | 411 |
 | P3 | 69 | 10 | 3 | 121 | 203 |
-| **All** | 143 | 31 | 7 | 642 | 823 |
+| **All** | 145 | 31 | 7 | 642 | 825 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -870,3 +870,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-997](podvm.md) | P2 | S | M6 | feature | done | `pod-beneath`: one open of a path under a base with no link and no allocation, for the volume base of podvm and pod-enter |
 | [T-998](podvm.md) | P2 | S | M6 | feature | done | `pod-confine` and `pod-enter`: the program that a dynamic loader runs takes the rule of `exec=` (PodUtils/podvm#613) |
 | [T-999](podvm.md) | P2 | S | M6 | feature | done | `pod-confine`: a table of any access in the shape of the exec table, and `pod-enter` gives the payload a write table (PodUtils/podvm#613) |
+| [T-1009](podvm.md) | P1 | S | M6 | defect | open | `pod-supervise` and `pod-enter`: the thread of a foreground hold blocks only SIGHUP, SIGINT, SIGQUIT and SIGTERM, so a SIGUSR1 to a waiter with a hold ends the process and leaves the payload |
+| [T-1010](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: the child of the payload keeps the signal mask of the caller, so a payload of a caller that blocked a signal never gets it |
