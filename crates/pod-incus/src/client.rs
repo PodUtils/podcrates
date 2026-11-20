@@ -179,13 +179,16 @@ impl Client {
         if answer.status == 200 {
             return Ok(answer);
         }
-        match envelope::read(&call, answer.status, &answer.body) {
-            Err(e) => Err(e),
-            Ok(_) => Err(Error::new(
-                &call,
-                ErrorKind::Incus { status: answer.status, code: answer.status, error: answer.reason.clone() },
-            )),
-        }
+        Err(refused(&call, answer.status, &answer.reason, &answer.body))
+    }
+}
+
+/// The error of an answer of `status` that is not the good answer of a
+/// call: the error envelope of incus, or the status and its reason.
+pub(crate) fn refused(call: &str, status: u16, reason: &str, body: &[u8]) -> Error {
+    match envelope::read(call, status, body) {
+        Err(e) => e,
+        Ok(_) => Error::new(call, ErrorKind::Incus { status, code: status, error: reason.to_string() }),
     }
 }
 

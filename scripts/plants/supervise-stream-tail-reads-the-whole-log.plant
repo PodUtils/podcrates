@@ -1,0 +1,6 @@
+# pod-supervise: the tail of a log reads the whole log from the start in place of pieces from the end (T-1045).
+ENTRY=T-1045
+GROUP=supervise
+EXPECT='the tail read'
+RUN='cargo test -p pod-supervise --all-features --lib stream::tests'
+LIMIT=900

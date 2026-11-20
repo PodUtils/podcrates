@@ -13,12 +13,14 @@
 //! A response head is read leniently ([`parse_head`]): it comes from the
 //! server that the caller chose, and its reason phrase is made safe text.
 
+mod range;
 mod request;
 mod response;
 #[cfg(test)]
 mod tests;
 mod write;
 
+pub use range::{Span, parse_content_range};
 pub use request::{Request, RequestError, find_request, parse_request};
 pub use response::{Framing, Head, keeps, parse_head, parse_status_line};
 pub use write::{answer, established, reason, refusal, request_head, response_head};

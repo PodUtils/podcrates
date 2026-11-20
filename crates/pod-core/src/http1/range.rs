@@ -40,3 +40,19 @@ fn number(text: &str) -> Option<u64> {
     }
     text.parse().ok()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_content_range_parses_by_its_grammar_alone() {
+        let span = |start, end, total| Some(Span { start, end, total });
+        assert_eq!(parse_content_range("bytes 400-999/1000"), span(400, Some(999), Some(1000)));
+        assert_eq!(parse_content_range("Bytes 0-0/*"), span(0, Some(0), None));
+        assert_eq!(parse_content_range("bytes */1000"), span(0, None, Some(1000)));
+        for bad in ["bytes 9-1/10", "items 0-1/2", "bytes -1-2/3", "bytes 1-2", "bytes */*", "bytes +1-2/3", ""] {
+            assert_eq!(parse_content_range(bad), None, "{bad:?}");
+        }
+    }
+}

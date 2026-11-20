@@ -13,6 +13,10 @@ use crate::error::{Error, Result};
 use crate::upload::{Payload, Upload};
 use crate::wire::{Body, Request, escape};
 
+mod read;
+
+pub use read::{ByteRange, FileRead, PIECE};
+
 /// The kind of a file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileKind {
@@ -106,21 +110,31 @@ fn header_number(answer: &Response, name: &str, radix: u32) -> Option<u32> {
     answer.header(name).and_then(|v| u32::from_str_radix(v.trim(), radix).ok())
 }
 
+/// The owner, the mode and the kind of the file of `answer`, from its
+/// headers `X-Incus-*`.
+fn meta_of(call: &str, answer: &Response) -> Result<FileMeta> {
+    let word = answer.header("x-incus-type").unwrap_or("file");
+    let kind = FileKind::of(word)
+        .ok_or_else(|| Error::protocol(call, format!("a file of type {:?}", crate::error::far_text(word))))?;
+    Ok(FileMeta {
+        uid: header_number(answer, "x-incus-uid", 10),
+        gid: header_number(answer, "x-incus-gid", 10),
+        mode: header_number(answer, "x-incus-mode", 8),
+        kind,
+    })
+}
+
 impl Client {
     /// `GET /1.0/instances/NAME/files?path=PATH`.
+    ///
+    /// The answer is read whole, `Settings::max_body` bytes at most:
+    /// [`Client::get_file_to`] reads a file of any size in pieces.
     pub async fn get_file(&self, name: &str, path: &str) -> Result<File> {
         let files = files_path(name);
         let call = format!("GET {files}");
         let answer = self.raw(&files, &[("path", path)]).await?;
-        let word = answer.header("x-incus-type").unwrap_or("file");
-        let kind = FileKind::of(word)
-            .ok_or_else(|| Error::protocol(&call, format!("a file of type {:?}", crate::error::far_text(word))))?;
-        let meta = FileMeta {
-            uid: header_number(&answer, "x-incus-uid", 10),
-            gid: header_number(&answer, "x-incus-gid", 10),
-            mode: header_number(&answer, "x-incus-mode", 8),
-            kind,
-        };
+        let meta = meta_of(&call, &answer)?;
+        let kind = meta.kind;
         let content = if kind == FileKind::Directory {
             let reply = envelope::read(&call, answer.status, &answer.body)?;
             FileContent::Entries(envelope::sync(&call, reply)?)

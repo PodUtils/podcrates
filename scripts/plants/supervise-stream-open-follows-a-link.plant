@@ -1,0 +1,6 @@
+# pod-supervise: a read of the log follows a link at the log, so it reads any file of the user (T-1045).
+ENTRY=T-1045
+GROUP=supervise
+EXPECT='logs read through a link'
+RUN='cargo test -p pod-supervise --all-features --lib logs::tests'
+LIMIT=900

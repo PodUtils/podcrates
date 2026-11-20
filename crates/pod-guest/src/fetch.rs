@@ -29,10 +29,10 @@ use sha2::{Digest, Sha256};
 
 use crate::{Result, io_at};
 
-mod range;
 mod refusal;
 
-pub use range::{Span, parse_content_range};
+// The one parse of a `Content-Range` of the workspace.
+pub use pod_core::http1::{Span, parse_content_range};
 pub use refusal::{Refusal, refusal};
 
 /// How much can be written, in bytes. `max_bytes` is the limit of the

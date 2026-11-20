@@ -1,0 +1,6 @@
+# pod-incus: a 200 to a request with a Range writes the bytes before the start (T-1046).
+ENTRY=T-1046
+GROUP=incus
+EXPECT='ignore=true'
+RUN='cargo test -p pod-incus --all-features --test files'
+LIMIT=900

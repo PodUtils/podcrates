@@ -19,3 +19,11 @@ file 4d6af467a9a04af32322d327fb7f3557981ff7f4 crates/podvm-supervise/src/lib.rs 
 file 00149834f2a9b9510ffdc4618ef9635aa904a0fb crates/podvm-supervise/src/table.rs -> crates/pod-supervise/src/table.rs
 file c7ebc317f3bd38aff40bb4b190ef4a1f51c203b7 crates/podvm-supervise/src/table/tests.rs -> crates/pod-supervise/src/table/tests.rs
 file 8b0e05573ab87cc24b9268cf3685791ecc81aae2 crates/podvm-supervise/src/tests.rs -> crates/pod-supervise/src/tests.rs
+
+# The stream of a log (T-1045, PodUtils/podvm#631): podvm's copy of the
+# streamed read, with its tests. `copy_tail` and `Capped::left` are new
+# here; podvm's `open_log` and `follow_from` take the store of podvm and
+# become `stream::open_log` and `logs::follow_from_limit`.
+repo PodUtils/podvm 6ab9e933c48f0c0d0a7361575369d04871de9a3d
+file 7468cd5a599e8cf64a48eaa7239d045d44856ae4 crates/podvm-supervise/src/stream.rs -> crates/pod-supervise/src/stream.rs crates/pod-supervise/src/logs.rs
+file 0fa57fc4e766cfb9a2ae47cd01695a83048b42c1 crates/podvm-supervise/src/stream/tests.rs -> crates/pod-supervise/src/stream/tests.rs

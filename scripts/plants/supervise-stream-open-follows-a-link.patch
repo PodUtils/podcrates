@@ -1,0 +1,12 @@
+diff --git a/crates/pod-supervise/src/stream.rs b/crates/pod-supervise/src/stream.rs
+--- a/crates/pod-supervise/src/stream.rs
++++ b/crates/pod-supervise/src/stream.rs
+@@ -31,7 +31,7 @@
+ /// log could name any file of the user. `None`: no file, an empty log.
+ pub fn open(path: &Path) -> std::io::Result<Option<File>> {
+     use std::os::unix::fs::OpenOptionsExt;
+-    let opened = std::fs::OpenOptions::new().read(true).custom_flags(pod_hostprobe::sys::O_NOFOLLOW as i32).open(path);
++    let opened = std::fs::OpenOptions::new().read(true).custom_flags(0).open(path);
+     match opened {
+         Ok(f) => Ok(Some(f)),
+         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
