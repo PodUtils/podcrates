@@ -11465,7 +11465,7 @@ NVMe disk, is T-1014 (PodUtils/static-pkgs).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -11496,11 +11496,59 @@ an Alpine container with the recipe of T-1013 and publishes the archives
 with their SHA-256 and an attestation. Then move the facts of
 `hermeticbuild-qemu` (or a new service) to that release.
 
+## Decision
+
+The owner (2026-11-20, through the coordinator; the ruling "static-pkgs"):
+PodUtils/static-pkgs builds the static programs that PodUtils needs. Its
+release `qemu-11.1.3` (run 44800211410 of its `release.yml` at `79c5298`)
+builds QEMU 11.1.3 with the recipe of T-1013. The new service
+`static-pkgs-qemu` replaces `hermeticbuild-qemu`. Call C875.
+
 ## Prove
 
 ```sh
 cargo test -p pod-services --all-features --test podvm
 ```
+
+On `main`, two runs: the dispatch of `services.yml` with
+`service=static-pkgs-qemu` (`gh workflow run services.yml -f
+service=static-pkgs-qemu`: the live watch of each archive), then the
+dispatch of `guest.yml` (`gh workflow run guest.yml`): the step "Static
+QEMU" passes, the step "Test the warm start with the static QEMU" finds
+"version 11.1.3", and
+`a_real_emulator_saves_the_plan_from_qemu_11_1_and_boots_cold_before`
+prints "QEMU emulator version 11.1.3: the plan saves" and passes (the
+save of the plan line with its NVMe root disk, and a warm `start` with
+the command on a new medium).
+
+## Done
+
+2026-11-20 (partial; call C875). The code: the service
+`static-pkgs-qemu` (QEMU 11.1.3, the release `qemu-11.1.3` of
+PodUtils/static-pkgs, party PodUtils) replaces `hermeticbuild-qemu`: the
+amd64 archive of `qemu-system-x86_64`, `qemu-system-aarch64`, `qemu-img`
+and the data, each with its SHA-256 and length, each binary with its
+member, SHA-256 and length, the facts `version`, `release`, `nvme-commit`
+(`9d378cab537d`) and `fix-commit` (`2865bf1c`), and a watch of each
+archive. `scripts/ci/static-qemu.sh` reads the new file; `guest.yml`
+checks "version 11.1.3". Test:
+`the_static_qemu_is_11_1_3_with_the_migration_of_nvme`.
+
+Verified (C875): each pinned asset against `SHA256SUMS` of the release
+and the digest of the release API; `gh attestation verify` of each pinned
+archive with the bundle `qemu-11.1.3.attestation.jsonl` and the signer
+workflow `PodUtils/static-pkgs/.github/workflows/release.yml` (identity
+`@refs/heads/main`, source `79c52984`, run 44800211410); each binary is
+static (`scripts/check-static.sh`) and holds the version text 11.1.3; the
+upstream tag `v11.1.3` is commit `005c61c0` and holds `9d378cab` (ahead
+1038, behind 0) and `2865bf1c` (ahead 8968, behind 0). A copy of
+`static-qemu.sh` with no `--version` line puts the three binaries at their
+pinned SHA-256 in `bin/` and 116 files in `share/qemu` here. No binary
+runs here. The live warm save of the plan is not measured yet.
+
+What remains: the two runs of the Prove on `main`. podvm's take (its
+table of tools at the new pins, with the same host `github.com`) goes in
+the hand-off of the next tag.
 
 # T-1018: `pod-enter`: `the_tokens_agree_with_the_loader_of_the_host` fails where the test binary is of another machine than the `/bin/true` of the host
 

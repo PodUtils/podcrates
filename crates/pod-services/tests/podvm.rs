@@ -233,46 +233,47 @@ fn the_archive_of_wasmtime_holds_the_pins_of_podvm() {
 }
 
 /// The static QEMU of podvm's store (PodUtils/podvm#389, PodUtils/podvm#618):
-/// QEMU 11.0.0 of hermeticbuild/qemu-prebuilt, which holds the fix of the
+/// QEMU 11.1.3 of PodUtils/static-pkgs, which migrates an NVMe device (the
+/// warm save of the plan line, T-1035) and holds the fix of the
 /// use-after-free of `address_space_translate_for_iotlb`; each archive and
 /// each binary in it by its SHA-256 and its length.
 #[test]
-fn the_static_qemu_is_11_0_0_with_the_fix_of_the_use_after_free() {
-    let q = service("hermeticbuild-qemu");
-    assert_eq!(q.text("version"), Some("11.0.0"));
+fn the_static_qemu_is_11_1_3_with_the_migration_of_nvme() {
+    let q = service("static-pkgs-qemu");
+    assert_eq!(q.party(), "PodUtils");
+    assert_eq!(q.text("version"), Some("11.1.3"));
+    assert_eq!(q.text("release"), Some("qemu-11.1.3"));
+    assert_eq!(q.text("nvme-commit"), Some("9d378cab537d70d9e02edc11ff6ded7266c1078e"));
     assert_eq!(q.text("fix-commit"), Some("2865bf1c5795371ef441e9029bc22566ccff8299"));
-    let base = "/hermeticbuild/qemu-prebuilt/releases/download/11.0.0.1/";
+    let base = "/PodUtils/static-pkgs/releases/download/qemu-11.1.3/";
     // The name of an endpoint is a word: `_` becomes `-`.
-    for (file, archive, sha, bytes, bin_sha, bin_bytes) in [
+    for (file, sha, bytes, bin_sha, bin_bytes) in [
         (
             "qemu-system-x86_64",
-            "qemu-system-bin-linux-amd64-x86_64-softmmu-11.0.0.1.tar.gz",
-            "31399af8d874176f104679c6aae8c8741bcd86283dbc8de1fce8a140f67f1448",
-            5_818_414,
-            "4168a4bbd65eaea98ffd4ba4754146cf694e361148e84b7ad3d6eb4adcd981ac",
-            31_204_448,
+            "368da02758b8b474448a7a37fed601256ec9cd7e11c09656dbb85276e778c888",
+            6_814_799,
+            "5b5c3a2c181ae3381d1881d615ab923ec1ae35188d0274246ef14863b71c14d4",
+            33_571_760,
         ),
         (
             "qemu-system-aarch64",
-            "qemu-system-bin-linux-amd64-aarch64-softmmu-11.0.0.1.tar.gz",
-            "e98a793c46e1568b972304ea68b41e9cbbe99f960af151a089a4c6736def62f0",
-            7_143_977,
-            "f3dc07ed71f380f97668312022ed9caec26e037f21fe3f3f2fc7ffb1968ed314",
-            36_282_400,
+            "d8a2cd808f1a16c59be6805aef1bbe24d9dce45b66da49c18d6af3f52e735eb4",
+            8_211_695,
+            "9fba494bd2b25efa022b36d056b840c3c00901d3a65152ed54595e844e98b678",
+            38_909_904,
         ),
         (
             "qemu-img",
-            "qemu-img-linux-amd64-11.0.0.1.tar.gz",
-            "4cab6e3f186ec6c500dd340f84b794f8320e3d58a2b2b9d2f835416589279d3e",
-            1_513_590,
-            "8708058aab6cc2937cfa82901406fd92ad435612db0f9d97d13e887e3dd8b60a",
-            3_376_704,
+            "cffa14e62afc745f5487beb70b5caa6a4814853f5bba92a03e3eeddab53c43a5",
+            1_430_921,
+            "e88a84357dd7f86d2f6dd7159deff4a929c6d9f030b691f378d9a59c0b7cc0ea",
+            3_209_680,
         ),
     ] {
         let name = file.replace('_', "-");
         let e = q.endpoint(&name).unwrap();
         assert_eq!(e.host(), "github.com");
-        assert_eq!(e.path(), Some(format!("{base}{archive}").as_str()), "{name}");
+        assert_eq!(e.path(), Some(format!("{base}{file}-11.1.3-linux-amd64.tar.gz").as_str()), "{name}");
         assert_eq!(q.text(&format!("{name}-sha256")), Some(sha), "{name}");
         assert_eq!(q.int(&format!("{name}-bytes")), Some(bytes), "{name}");
         assert_eq!(q.text(&format!("{name}-member")), Some(format!("./bin/{file}").as_str()), "{name}");
@@ -280,9 +281,10 @@ fn the_static_qemu_is_11_0_0_with_the_fix_of_the_use_after_free() {
         assert_eq!(q.int(&format!("{name}-bin-bytes")), Some(bin_bytes), "{name}");
     }
     let data = q.endpoint("data").unwrap();
-    assert_eq!(data.path(), Some(format!("{base}qemu-system-data-linux-amd64-11.0.0.1.tar.gz").as_str()));
-    assert_eq!(q.text("data-sha256"), Some("27e5a04a32d56783ebf8277140ec52304dd2376f97a1c01c36982bd228f37cfc"));
-    assert_eq!(q.int("data-bytes"), Some(18_190_583));
+    assert_eq!(data.path(), Some(format!("{base}qemu-data-11.1.3-linux-amd64.tar.gz").as_str()));
+    assert_eq!(q.text("data-sha256"), Some("b11bff496ff7e345c9e4931306ccc3074e55d5eeb62d4a25f9efb70a3500f66e"));
+    assert_eq!(q.int("data-bytes"), Some(18_171_081));
+    assert!(pod_services::get("hermeticbuild-qemu").is_none(), "QEMU 11.0.0 cannot save an NVMe device");
     assert!(pod_services::get("pkgforge-qemu").is_none(), "QEMU 9.2.0 has no fix of the use-after-free");
 }
 
