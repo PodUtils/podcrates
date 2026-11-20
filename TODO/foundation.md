@@ -2641,7 +2641,7 @@ sh scripts/agent/check-windows.sh
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2676,3 +2676,7 @@ podnet measured with ``(tests|scripts|\.github/workflows)/|`[^`\s]*\b[a-z][a-z0-
 cargo test -p pod-todo --all-features
 cargo todo check
 ```
+
+## Done
+
+2026-11-20, commit "pod-todo: the opt-in rule that a done defect names its test (T-979)". The key `defect_tests = "YYYY-MM-DD"` of `TODO/todo.toml` (`crates/pod-todo/src/config.rs`); the rule in `crates/pod-todo/src/defects.rs`, which `check_entry` and `set_status` call; the README of `pod-todo` and `TODO/RULES.md` give the key. Tests: `crates/pod-todo/tests/defects.rs` (5: a done defect from the date with no test is found at the line of its Done; no key, or a date before the key, changes nothing; each form of a test passes; a feature is not read; `set T-NNN done` refuses, then takes the entry with a test named) and `defects::tests::a_test_function_is_a_word_with_two_underscores_at_the_end_of_a_span`. With the call to `gap` of `set_status` removed, `set_refuses_done_for_a_defect_that_names_no_test` fails. On this record the rule gives the same counts as podnet's expression: 6 entries from 2026-11-17 and 42 in all. The six Done sections name their tests, and `TODO/todo.toml` turns the key on from 2026-11-17 (call C825). `cargo test -p pod-todo --all-features`: 139 passed. `cargo todo check`: the record agrees.

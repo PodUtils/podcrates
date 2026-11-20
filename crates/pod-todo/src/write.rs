@@ -105,6 +105,9 @@ pub fn set_status(root: &Path, id: &str, status: &str) -> Result<(), String> {
             if let Some((_, what)) = crate::check::prove_gaps(root, &packages, entry).into_iter().next() {
                 return Err(format!("{id}: {what}"));
             }
+            if let Some((_, what)) = crate::defects::gap(entry, status) {
+                return Err(format!("{id}: {what}"));
+            }
         }
         "blocked" if entry.section("Blocker").is_none() => {
             return Err(format!("{id}: write what blocks it first, in `## Blocker`"));

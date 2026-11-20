@@ -48,6 +48,14 @@ pub struct Config {
     /// ruling "Issues"): `issue_rules = "on"`. A repository turns them on
     /// when it takes the sync, so a new rule fails no consumer at once.
     pub issue_rules: bool,
+    /// The rule that a done defect names its test in `## Done`, for each
+    /// such entry whose first date there is on or after this one
+    /// (`defect_tests = "YYYY-MM-DD"`). No key, no rule.
+    pub defect_tests: Option<String>,
+    /// The acceptance registry, from the root (`acceptance =
+    /// "TODO/ACCEPTANCE.md"`): each ask id with its tests. No key, no
+    /// registry.
+    pub acceptance: Option<String>,
 }
 
 fn strings(items: &[&str]) -> Vec<String> {
@@ -69,6 +77,8 @@ impl Default for Config {
             readings: strings(&["docs/releases/"]),
             questions: "Questions for the operator".into(),
             issue_rules: false,
+            defect_tests: None,
+            acceptance: None,
         }
     }
 }
@@ -87,8 +97,10 @@ impl Config {
     /// The files of `TODO/` that hold no entries.
     pub fn record_files(&self) -> Vec<String> {
         let mut out = strings(&["INDEX.md", "PROGRESS.md", "RULES.md", "issues.md"]);
-        if let Some(name) = self.roadmap.strip_prefix("TODO/") {
-            out.push(name.to_string());
+        for file in std::iter::once(&self.roadmap).chain(self.acceptance.as_ref()) {
+            if let Some(name) = file.strip_prefix("TODO/") {
+                out.push(name.to_string());
+            }
         }
         out
     }
@@ -133,6 +145,14 @@ pub fn parse(text: &str) -> Result<Config, (usize, String)> {
             "tool" => c.tool = text_value(&value).ok_or((no, format!("`{key}` takes a text in quotes")))?,
             "roadmap" => c.roadmap = text_value(&value).ok_or((no, format!("`{key}` takes a text in quotes")))?,
             "questions" => c.questions = text_value(&value).ok_or((no, format!("`{key}` takes a text in quotes")))?,
+            "defect_tests" => {
+                let date =
+                    text_value(&value).filter(|d| d.len() == 10 && crate::check::first_date(d) == Some(d.as_str()));
+                c.defect_tests = Some(date.ok_or((no, format!("`{key}` takes a date in quotes, \"YYYY-MM-DD\"")))?);
+            }
+            "acceptance" => {
+                c.acceptance = Some(text_value(&value).ok_or((no, format!("`{key}` takes a text in quotes")))?)
+            }
             "issue_rules" => {
                 c.issue_rules = match text_value(&value).as_deref() {
                     Some("on") => true,
@@ -237,6 +257,23 @@ mod tests {
         assert!(parse("issue_rules = \"on\"\n").unwrap().issue_rules);
         assert!(!parse("issue_rules = \"off\"\n").unwrap().issue_rules);
         assert!(parse("issue_rules = \"yes\"\n").is_err());
+    }
+
+    #[test]
+    fn the_rule_of_defect_tests_takes_a_date() {
+        assert_eq!(Config::default().defect_tests, None);
+        assert_eq!(parse("defect_tests = \"2026-11-17\"\n").unwrap().defect_tests.as_deref(), Some("2026-11-17"));
+        for wrong in ["\"2026-11\"", "\"x2026-11-17\"", "2026-11-17", "\"on\""] {
+            assert!(parse(&format!("defect_tests = {wrong}\n")).is_err(), "{wrong}");
+        }
+    }
+
+    #[test]
+    fn the_acceptance_registry_is_a_record_file() {
+        let c = parse("acceptance = \"TODO/ACCEPTANCE.md\"\n").unwrap();
+        assert_eq!(c.acceptance.as_deref(), Some("TODO/ACCEPTANCE.md"));
+        assert!(c.record_files().iter().any(|f| f == "ACCEPTANCE.md"));
+        assert!(!Config::default().record_files().iter().any(|f| f == "ACCEPTANCE.md"));
     }
 
     #[test]

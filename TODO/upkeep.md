@@ -3736,7 +3736,7 @@ cargo test --release -p pod-link --all-features --test udp_loss -- --include-ign
 
 ## Done
 
-2026-11-18, commit "pod-link: the gate of E2-1 at 20 % drop divides the medians of five runs, bound 12 times (T-949, call C787)". The medians of three runs did not hold the bound of 8 (8.02 times once in three runs on a host of 4 cores); the medians of five gave 4.4 to 8.2 times in six runs. The factor divides the median of five lossy runs by the median of five clean runs, prints each time, and has the bound of 12 (call C787, a change of call C284). Three runs after the change: 5.68, 5.73 and 4.25 times.
+2026-11-18, commit "pod-link: the gate of E2-1 at 20 % drop divides the medians of five runs, bound 12 times (T-949, call C787)". The medians of three runs did not hold the bound of 8 (8.02 times once in three runs on a host of 4 cores); the medians of five gave 4.4 to 8.2 times in six runs. The factor divides the median of five lossy runs by the median of five clean runs, prints each time, and has the bound of 12 (call C787, a change of call C284). Three runs after the change: 5.68, 5.73 and 4.25 times. The test: `crates/pod-link/tests/udp_loss.rs::twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time`.
 
 # T-950: `pod-link`: when one half of a split session goes silent, the end that sees the far end close first names the other half as lost (windows-2025)
 

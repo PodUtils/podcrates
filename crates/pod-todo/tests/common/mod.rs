@@ -192,6 +192,16 @@ impl Tree {
     pub fn path(&self) -> &Path {
         &self.root
     }
+
+    /// Run the command line on the tree: the exit code, the output and the
+    /// errors.
+    pub fn run(&self, args: &[&str]) -> (i32, String, String) {
+        let mut a: Vec<String> = vec!["--root".into(), self.path().display().to_string()];
+        a.extend(args.iter().map(|s| s.to_string()));
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let code = pod_todo::run(&a, &mut out, &mut err);
+        (code, String::from_utf8(out).unwrap(), String::from_utf8(err).unwrap())
+    }
 }
 
 impl Drop for Tree {

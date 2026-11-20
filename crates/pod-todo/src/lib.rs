@@ -14,6 +14,7 @@ pub mod block;
 pub mod check;
 pub mod claims;
 pub mod config;
+pub mod defects;
 pub mod diff;
 pub mod github;
 pub mod issues;

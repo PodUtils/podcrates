@@ -2257,5 +2257,5 @@ cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
 
 ## Done
 
-2026-11-18: podnet answered (PodUtils/podnet#654, 13:20 UTC): two edge connections for a quick tunnel are its choice, for redundancy; `podnet --ha-connections 1` gives the one connection of cloudflared. No change of behaviour: the doc of `Config::ha_connections` (`crates/pod-cloudflare/src/config.rs`) says the default, its reason, and how to get cloudflared's one connection.
+2026-11-18: podnet answered (PodUtils/podnet#654, 13:20 UTC): two edge connections for a quick tunnel are its choice, for redundancy; `podnet --ha-connections 1` gives the one connection of cloudflared. No change of behaviour: the doc of `Config::ha_connections` (`crates/pod-cloudflare/src/config.rs`) says the default, its reason, and how to get cloudflared's one connection. The test of the behaviour that stays: `crates/pod-cloudflare/tests/quick_tunnel_standin.rs` (a quick tunnel registers one leg to `ha_connections` legs at the stand-in edge).
 

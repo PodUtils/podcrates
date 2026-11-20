@@ -101,6 +101,14 @@ over this page.
    `## Done`, and a Prove that names a package, a test target or a
    `scripts/` path that does not exist.
 
+A defect done on 2026-11-17 or later names its test in `## Done`
+(`defect_tests` of `TODO/todo.toml`): a test function in a code span (a
+snake_case word with two `_` or more, alone or after a path or a module
+path: `cli_tests::a_b_c`), or a path under `tests/`, `scripts/` or
+`.github/workflows/`. The test fails on the code before the fix
+(`docs/development.md`, "A test for each fix"). `cargo todo check` and
+`cargo todo set T-NNN done` refuse a done defect that names none.
+
 Change the entry, the index and `TODO/PROGRESS.md` in the same commit as
 the work. A commit that fixes a defect and leaves its entry open is not
 finished.
