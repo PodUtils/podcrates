@@ -1,19 +1,24 @@
-//! The clients of a job through the TLS end (T-973): curl, git over HTTPS,
-//! Python (urllib, and requests where it imports), Node.js and cargo, each
-//! with the bundle of `ca::write_bundle` and the variables of `ca::env`,
-//! through a broker on 127.0.0.1 to a far end that ends TLS with a leaf of
-//! its own CA and names the `Authorization` that it got. The far end gets
-//! the value; the client reads the placeholder. With no variable of the
-//! bundle, each client refuses the leaf of the job. With the bundle, a host
-//! that no credential names keeps the roots of the host and gets the
-//! placeholder as it is.
+//! The clients of a job through the TLS end (T-973, T-980): curl, git over
+//! HTTPS, Python (urllib, requests and pip), Node.js, npm, cargo, Go, Java,
+//! Deno, the Google Cloud CLI and Hex of Elixir, each with the bundle of
+//! `ca::write_bundle`, the variables of `ca::env` and `JAVA_TOOL_OPTIONS` of
+//! `ca::java_options`, through a broker on 127.0.0.1 to a far end that ends
+//! TLS with a leaf of its own CA and names the `Authorization` that it got.
+//! The far end gets the value; the client reads the placeholder. With no
+//! variable of the bundle, each client refuses the leaf of the job; a
+//! client that reads one variable alone refuses it also with each other
+//! variable. With the bundle, a host that no credential names keeps the
+//! roots of the host and gets the placeholder as it is.
 //!
 //! A client that this host does not have skips with the reason.
 //! `POD_BROKER_TEST_CLIENTS=required` makes a skip a failure
 //! (`scripts/ci/broker-clients-tests.sh`). `POD_BROKER_TEST_PYTHON`,
-//! `POD_BROKER_TEST_NODE`, `POD_BROKER_TEST_GIT` and `POD_BROKER_TEST_CURL`
-//! name a program in place of the one in `PATH`. Unix only: the clients
-//! run with a clean environment and `/dev/null` as the git configuration.
+//! `POD_BROKER_TEST_NODE`, `POD_BROKER_TEST_GIT`, `POD_BROKER_TEST_CURL`,
+//! `POD_BROKER_TEST_GO`, `POD_BROKER_TEST_JAVA`, `POD_BROKER_TEST_DENO`,
+//! `POD_BROKER_TEST_NPM`, `POD_BROKER_TEST_GCLOUD` and `POD_BROKER_TEST_MIX`
+//! name a program in place of the one in `PATH`; `POD_BROKER_TEST_MIX_HOME`
+//! names the `MIX_HOME` with Hex. Unix only: the clients run with a clean
+//! environment and `/dev/null` as the git configuration.
 #![cfg(unix)]
 
 mod common;
@@ -22,7 +27,7 @@ mod tls_common;
 mod clients;
 
 use base64::Engine as _;
-use clients::{Lab, Run, git, need, registry};
+use clients::{Lab, Run, Trust, far, git, need, registry, sources};
 use tls_common::{HOST, OTHER, PH, SECRET};
 
 /// Each script reads its URL from `JOB_URL` and the placeholder from
@@ -107,26 +112,46 @@ fn bearer_seen(lab: &Lab, ran: &Run, got: &str, client: &str) {
 /// The three runs of a client with a bearer token: no bundle to the host of
 /// the credential; the bundle to the host of the credential (the swap); the
 /// bundle to a host that no credential names (the roots, no swap). `args`
-/// gives the arguments for a URL.
-async fn bearer_legs(lab: &Lab, program: &str, args: impl Fn(&str) -> Vec<String>, client: &str) {
-    let run = |host: &str, bundle: bool| {
+/// gives the arguments for a URL. With `own`, a fourth run before the swap
+/// has each variable but `own`: the client reads no other, so it refuses.
+async fn bearer_legs(
+    lab: &Lab,
+    program: &str,
+    args: impl Fn(&str) -> Vec<String>,
+    client: &str,
+    own: Option<&'static [&'static str]>,
+) {
+    let run = |host: &str, trust: Trust| {
         let url = url(host);
         let args = args(&url);
         async move {
             let args: Vec<&str> = args.iter().map(String::as_str).collect();
-            lab.run(program, &args, &[("JOB_URL", &url)], bundle).await
+            lab.run_trusting(program, &args, &[("JOB_URL", &url)], trust).await
         }
     };
-    let ran = run(HOST, false).await;
+    let ran = run(HOST, Trust::None).await;
     refused_with_no_bundle(lab, &ran, client);
-    let ran = run(HOST, true).await;
+    if let Some(var) = own {
+        let ran = run(HOST, Trust::Without(var)).await;
+        refused_without(lab, &ran, client, var);
+    }
+    let ran = run(HOST, Trust::All).await;
     bearer_seen(lab, &ran, SECRET, client);
     assert!(!lab.far.seen().contains(PH), "{client}: {}", lab.far.seen());
     println!("clients: {client} took the bundle, the far end got the value, the job read the placeholder");
     lab.far.seen.lock().unwrap().clear();
-    let ran = run(OTHER, true).await;
+    let ran = run(OTHER, Trust::All).await;
     bearer_seen(lab, &ran, PH, client);
     println!("clients: {client} reached a host with no credential by the roots of the bundle, with no swap");
+}
+
+/// With each variable but those of `vars`, the client refuses the leaf, and
+/// the far end reads no request.
+fn refused_without(lab: &Lab, ran: &Run, client: &str, vars: &[&str]) {
+    let vars = vars.join(" and ");
+    assert_ne!(ran.code, Some(0), "{client} with no {vars}: {ran}");
+    assert!(lab.far.seen().is_empty(), "{client} with no {vars}: {}", lab.far.seen());
+    println!("clients: {client} with no {vars} refused the leaf");
 }
 
 /// The same arguments for each URL: a script reads `JOB_URL`.
@@ -142,7 +167,7 @@ async fn curl_takes_the_bundle() {
     let auth = format!("Authorization: Bearer {PH}");
     // `-i`: curl prints the head of the answer with the body.
     let args = |url: &str| ["-q", "-sS", "-i", "-H", &auth, url].map(String::from).to_vec();
-    bearer_legs(&lab, &curl, args, "curl").await;
+    bearer_legs(&lab, &curl, args, "curl", None).await;
 
     // A body over `max_body`, with `Expect: 100-continue`, which curl sends
     // for a body over 1 MiB: the broker answers 100, and the body passes.
@@ -204,7 +229,7 @@ fn git_proven(lab: &Lab, ran: &Run, out: &str, real: &str, sent: &str, client: &
 async fn python_urllib_takes_the_bundle() {
     let Some(python) = need("POD_BROKER_TEST_PYTHON", "python3") else { return };
     let lab = Lab::start("urllib", clients::echo_auth).await;
-    bearer_legs(&lab, &python, script(&["-I", "-c", PYTHON_URLLIB]), "python urllib").await;
+    bearer_legs(&lab, &python, script(&["-I", "-c", PYTHON_URLLIB]), "python urllib", Some(&["SSL_CERT_FILE"])).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -215,14 +240,14 @@ async fn python_requests_takes_the_bundle() {
         return;
     }
     let lab = Lab::start("requests", clients::echo_auth).await;
-    bearer_legs(&lab, &python, script(&["-I", "-c", PYTHON_REQUESTS]), "python requests").await;
+    bearer_legs(&lab, &python, script(&["-I", "-c", PYTHON_REQUESTS]), "python requests", None).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn node_takes_the_bundle() {
     let Some(node) = need("POD_BROKER_TEST_NODE", "node") else { return };
     let lab = Lab::start("node", clients::echo_auth).await;
-    bearer_legs(&lab, &node, script(&["-e", NODE]), "node").await;
+    bearer_legs(&lab, &node, script(&["-e", NODE]), "node", Some(&["NODE_EXTRA_CA_CERTS"])).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -233,7 +258,7 @@ async fn node_fetch_takes_the_bundle_through_the_proxy_of_the_environment() {
         return;
     }
     let lab = Lab::start("fetch", clients::echo_auth).await;
-    bearer_legs(&lab, &node, script(&["--use-env-proxy", "-e", NODE_FETCH]), "node fetch").await;
+    bearer_legs(&lab, &node, script(&["--use-env-proxy", "-e", NODE_FETCH]), "node fetch", None).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -255,4 +280,200 @@ async fn cargo_resolves_from_a_registry_that_needs_a_token() {
     assert!(!lab.far.seen().contains(PH), "cargo: {}", lab.far.seen());
     assert!(!ran.all().contains(SECRET) && !lock.contains(SECRET), "cargo: {ran}");
     println!("clients: cargo took the bundle, the far end got the value");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn go_takes_the_bundle_by_ssl_cert_file() {
+    let Some(go) = need("POD_BROKER_TEST_GO", "go") else { return };
+    let lab = Lab::start("go", clients::echo_auth).await;
+    let program = sources::build_go(&go, &lab.dir).unwrap_or_else(|why| panic!("{why}"));
+    bearer_legs(&lab, &program.to_string_lossy(), script(&[]), "go", Some(&["SSL_CERT_FILE"])).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn java_takes_the_trust_store_of_java_tool_options() {
+    let Some(java) = need("POD_BROKER_TEST_JAVA", "java") else { return };
+    let lab = Lab::start("java", clients::echo_auth).await;
+    let source = sources::write(&lab.dir, "Client.java", sources::JAVA);
+    let source = source.to_string_lossy().into_owned();
+    bearer_legs(&lab, &java, script(&[&source]), "java", Some(&["JAVA_TOOL_OPTIONS"])).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn deno_takes_the_bundle_by_deno_cert() {
+    let Some(deno) = need("POD_BROKER_TEST_DENO", "deno") else { return };
+    let lab = Lab::start("deno", clients::echo_auth).await;
+    bearer_legs(
+        &lab,
+        &deno,
+        script(&["eval", "--quiet", sources::DENO]),
+        "deno",
+        Some(&["DENO_CERT", "NODE_EXTRA_CA_CERTS"]),
+    )
+    .await;
+}
+
+/// A package client: its program and variables (`{host}` in a value is the
+/// host of the run), the variables that it alone reads (`own`), the value of
+/// `Authorization` for a token (`sent`) and what the job prints for the
+/// placeholder (`shown`).
+struct Package<'a> {
+    client: &'a str,
+    program: &'a str,
+    env: Vec<(String, String)>,
+    own: Option<&'static [&'static str]>,
+    sent: fn(&str) -> String,
+    shown: fn(&str) -> String,
+}
+
+/// The runs of a package client to the host of the credential with no
+/// bundle and with the bundle (with `own`, also with each variable but
+/// `own`), then to a host with no credential; `args` gives the arguments
+/// for a host. The far end got `sent` of the secret, and of the placeholder
+/// on the host with no credential; the job printed `shown`.
+async fn package_legs(lab: &Lab, p: &Package<'_>, args: impl Fn(&str) -> Vec<String>) {
+    let run = |host: &str, trust: Trust| {
+        let args = args(host);
+        let env: Vec<(String, String)> = p.env.iter().map(|(n, v)| (n.clone(), v.replace("{host}", host))).collect();
+        async move {
+            let args: Vec<&str> = args.iter().map(String::as_str).collect();
+            let env: Vec<(&str, &str)> = env.iter().map(|(n, v)| (n.as_str(), v.as_str())).collect();
+            lab.run_trusting(p.program, &args, &env, trust).await
+        }
+    };
+    let client = p.client;
+    // mix ends with 0 after a refused leaf: a run that does not print
+    // `shown` is a refusal.
+    let refused = |mut ran: Run| {
+        if !ran.stdout.contains(&(p.shown)(PH)) && ran.code == Some(0) {
+            ran.code = Some(1);
+        }
+        ran
+    };
+    refused_with_no_bundle(lab, &refused(run(HOST, Trust::None).await), client);
+    if let Some(vars) = p.own {
+        refused_without(lab, &refused(run(HOST, Trust::Without(vars)).await), client, vars);
+    }
+    for (host, value) in [(HOST, SECRET), (OTHER, PH)] {
+        lab.far.seen.lock().unwrap().clear();
+        let ran = run(host, Trust::All).await;
+        assert_eq!(ran.code, Some(0), "{client} to {host}: {ran}");
+        let seen = lab.far.seen();
+        assert!(seen.contains(&format!("authorization: {}\r\n", (p.sent)(value))), "{client} to {host}: {seen}");
+        assert!(host == OTHER || !seen.contains(PH), "{client}: {seen}");
+        assert!(ran.stdout.contains(&(p.shown)(PH)), "{client} to {host}: {ran}");
+        assert!(!ran.all().contains(SECRET), "{client} to {host}: {ran}");
+    }
+    println!("clients: {client} took the bundle, the far end got the value, the job read the placeholder");
+    println!("clients: {client} reached a host with no credential by the roots of the bundle, with no swap");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn pip_reads_an_index_that_needs_a_token() {
+    let Some(python) = need("POD_BROKER_TEST_PYTHON", "python3") else { return };
+    if let Err(why) = clients::python_imports(&python, "pip") {
+        clients::skip(&why);
+        return;
+    }
+    let lab = Lab::start("pip", far::pip).await;
+    let p = Package {
+        client: "pip",
+        program: &python,
+        env: vec![("PIP_NO_INPUT".into(), "1".into())],
+        own: None,
+        sent: |token| format!("Basic {}", b64(&format!("__token__:{token}"))),
+        shown: |_| "foo (1.0.0)".into(),
+    };
+    package_legs(&lab, &p, |host| {
+        let index = format!("https://__token__:{PH}@{host}/simple/");
+        let args = ["-I", "-m", "pip", "index", "versions", "foo", "--index-url", &index, "--no-cache-dir"];
+        let more = ["--disable-pip-version-check", "--retries", "0", "--timeout", "20"];
+        args.iter().chain(&more).map(|a| a.to_string()).collect()
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn npm_reads_a_registry_that_needs_a_token() {
+    let Some(npm) = need("POD_BROKER_TEST_NPM", "npm") else { return };
+    let lab = Lab::start("npm", far::npm).await;
+    // The line of actions/setup-node: npm reads the token from the
+    // environment of the job.
+    let npmrc = format!("//{HOST}/:_authToken=${{JOB_TOKEN}}\n//{OTHER}/:_authToken=${{JOB_TOKEN}}\n");
+    std::fs::write(lab.dir.join("home/.npmrc"), npmrc).unwrap();
+    let p = Package {
+        client: "npm",
+        program: &npm,
+        env: vec![("npm_config_update_notifier".into(), "false".into())],
+        own: Some(&["NODE_EXTRA_CA_CERTS"]),
+        sent: |token| format!("Bearer {token}"),
+        shown: |token| format!("Bearer {token}"),
+    };
+    package_legs(&lab, &p, |host| {
+        let registry = format!("https://{host}/");
+        ["view", "foo", "description", "--registry", &registry, "--fetch-retries", "0"].map(String::from).to_vec()
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn gcloud_takes_the_bundle_by_its_custom_ca_file() {
+    let Some(gcloud) = need("POD_BROKER_TEST_GCLOUD", "gcloud") else { return };
+    let lab = Lab::start("gcloud", far::gcloud).await;
+    let port = lab.proxy.rsplit(':').next().unwrap().to_string();
+    let config = lab.dir.join("home/gcloud").to_string_lossy().into_owned();
+    // The proxy as properties: an installation of the CLI can name a proxy
+    // of its own, and a property comes before `HTTPS_PROXY`.
+    let env = [
+        ("CLOUDSDK_CONFIG", config.as_str()),
+        ("CLOUDSDK_API_ENDPOINT_OVERRIDES_CLOUDRESOURCEMANAGER", "https://{host}/"),
+        ("CLOUDSDK_AUTH_ACCESS_TOKEN", PH),
+        ("CLOUDSDK_CORE_DISABLE_PROMPTS", "1"),
+        ("CLOUDSDK_COMPONENT_MANAGER_DISABLE_UPDATE_CHECK", "1"),
+        ("CLOUDSDK_CORE_DISABLE_USAGE_REPORTING", "1"),
+        ("CLOUDSDK_PROXY_TYPE", "http"),
+        ("CLOUDSDK_PROXY_ADDRESS", "127.0.0.1"),
+        ("CLOUDSDK_PROXY_PORT", &port),
+        ("CLOUDSDK_PROXY_USERNAME", "job1"),
+        ("CLOUDSDK_PROXY_PASSWORD", common::TOKEN),
+    ];
+    let p = Package {
+        client: "gcloud",
+        program: &gcloud,
+        env: env.iter().map(|(n, v)| (n.to_string(), v.to_string())).collect(),
+        own: Some(&["CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE"]),
+        sent: |token| format!("Bearer {token}"),
+        shown: |token| format!("Bearer {token}"),
+    };
+    package_legs(&lab, &p, |_| {
+        ["projects", "describe", "job-project", "--format=value(name)"].map(String::from).to_vec()
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn hex_takes_the_bundle_by_hex_cacerts_path() {
+    let Some(mix) = need("POD_BROKER_TEST_MIX", "mix") else { return };
+    let mix_home = match clients::mix_home_with_hex() {
+        Ok(home) => home,
+        Err(why) => return clients::skip(&why),
+    };
+    let lab = Lab::start("hex", far::hex).await;
+    let hex_home = lab.dir.join("home/hex").to_string_lossy().into_owned();
+    let env = [
+        ("MIX_HOME", mix_home.as_str()),
+        ("HEX_HOME", hex_home.as_str()),
+        ("HEX_API_URL", "https://{host}/api"),
+        ("HEX_API_KEY", PH),
+        ("ELIXIR_ERL_OPTIONS", "+fnu"),
+    ];
+    let p = Package {
+        client: "hex",
+        program: &mix,
+        env: env.iter().map(|(n, v)| (n.to_string(), v.to_string())).collect(),
+        own: Some(&["HEX_CACERTS_PATH"]),
+        sent: |token| token.to_string(),
+        shown: |_| "job-user".into(),
+    };
+    package_legs(&lab, &p, |_| ["hex.user", "whoami"].map(String::from).to_vec()).await;
 }

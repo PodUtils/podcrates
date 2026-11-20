@@ -963,7 +963,7 @@ path of `/tmp`, with mode 0600 set after the bind.
 
 - Read (this tree): `crates/pod-broker/src/target.rs:187-189`:
   `parse_absolute` refuses a target in origin form ("a proxy takes a
-  request-target in absolute form"). `crates/pod-broker/README.md:269`
+  request-target in absolute form"). `crates/pod-broker/README.md:284`
   lists that 400. They agree with the review.
 - The code moved since `63348de`, the commit of the review (T-161 and
   others). Today `serve_one` is at `crates/pod-broker/src/serve.rs:104`,
@@ -6514,7 +6514,7 @@ and written as an entry: T-980 (the clients that read none of the variables).
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6542,4 +6542,73 @@ that fails without it.
 
 ```sh
 cargo test -p pod-broker --all-features --test tls_clients -- --nocapture
+```
+
+## Done
+
+2026-11-20, this commit ("pod-broker: the bundle of a job for Go, Java, Deno, pip, npm, gcloud and Hex
+(T-980)"). Measured through the broker on 127.0.0.1, each client with a clean environment:
+
+- Go 1.24 (`crypto/x509`): `SSL_CERT_FILE`, and no other variable of the list. pip 24.0:
+  `REQUESTS_CA_BUNDLE` or `CURL_CA_BUNDLE`, with a token in the URL of a simple index. npm 10.9:
+  `NODE_EXTRA_CA_CERTS` alone, with the `_authToken` of an `.npmrc` from the environment. Deno 2.9.8:
+  `DENO_CERT` or `NODE_EXTRA_CA_CERTS`. The Google Cloud CLI 570 with a proxy of its properties:
+  `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE` alone (with no proxy property and no CA property, its requests
+  also reads `REQUESTS_CA_BUNDLE`). Hex 2.7.0 (OTP 29.0.5, Elixir 1.20.3): `HEX_CACERTS_PATH` alone.
+  Java 21: no variable of a PEM file; the PKCS #12 trust store of `javax.net.ssl.trustStore` loads only
+  with the trusted key usage of the JDK in each bag.
+- `ca::env` adds `ca::CLIENT_VARS` after the six variables: `DENO_CERT`, `HEX_CACERTS_PATH`,
+  `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE`. New: `ca::trust_store`, `ca::write_trust_store` (PKCS #12 with no
+  password) and `ca::java_options` (the value of `JAVA_TOOL_OPTIONS`, before the value of the job). Calls
+  C846, C847 and C848.
+- Tests of `crates/pod-broker/tests/tls_clients.rs`: `go_takes_the_bundle_by_ssl_cert_file`,
+  `java_takes_the_trust_store_of_java_tool_options`, `deno_takes_the_bundle_by_deno_cert`,
+  `pip_reads_an_index_that_needs_a_token`, `npm_reads_a_registry_that_needs_a_token`,
+  `gcloud_takes_the_bundle_by_its_custom_ca_file`, `hex_takes_the_bundle_by_hex_cacerts_path`; each with
+  no bundle refused, with the bundle the far end got the value and the job read the placeholder, a host
+  with no credential by the roots; a client that reads one variable alone (Python `urllib`, Node.js, Go,
+  Java, Deno, npm, gcloud, Hex) also refused with each other variable. Unit tests of `ca::trust_store`:
+  `the_trust_store_holds_each_certificate_with_the_trust_of_the_jdk`,
+  `the_options_name_the_store_before_the_value_of_the_job`.
+
+`cargo test -p pod-broker --all-features --test tls_clients -- --nocapture`: 14 passed (with Deno 2.9.8
+and Hex of the scratch directory). CI: the step "pod-broker with the clients of a job" of `ci.yml`, after
+Erlang/OTP and a new step Go 1.26.11 (`actions/setup-go`); Deno 2.9.8 from its release with its SHA-256
+(`scripts/ci/fetch-tool.sh` takes a `.zip` now). Plants `broker-env-no-cloudsdk-ca-file` and
+`broker-trust-store-no-jdk-trust`, caught. Found and written as an entry: T-1005 (the versions of the
+clients that no test runs).
+
+# T-1005: `pod-broker`: the clients of a job in the versions that no test runs
+
+**Source:** T-980 (a finding: the legs run one version of each client)
+**Category:** chore
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`tests/tls_clients.rs` runs one version of each client: in CI the Java 17 of the runner, pip 24.0 of the
+virtualenv, npm 10.9 and Go 1.26. A job can run another one. JDK 8 has no launcher of a source file, and
+no test reads the PKCS #12 trust store with no password on it. pip 24.2 and later take the store of the
+system by `truststore`, and can read another variable than `REQUESTS_CA_BUNDLE`. Java 8, 11 and 25 and
+npm 11 are not run.
+
+## Premise
+
+- Read: `crates/pod-broker/README.md`, the table of the clients; T-980, Done.
+- Not measured: the versions above through the TLS end.
+
+## Approach
+
+In `scripts/ci/broker-clients-tests.sh`, run `java_takes_the_trust_store_of_java_tool_options` again
+with `POD_BROKER_TEST_JAVA` of each `JAVA_HOME_N_X64` of the runner (compile the client with `javac`
+where the launcher of a source file is missing), and the leg of pip with a pip of the current release
+(`scripts/ci/broker-clients.txt` with its SHA-256). Write each version in the table of the README.
+
+## Prove
+
+```sh
+sh scripts/ci/broker-clients-tests.sh
 ```

@@ -76,10 +76,16 @@ load.secrets = pod_broker::Secrets::new().with("github", value);
 let info = broker.load(load)?;
 // The job trusts its CA: write the bundle and name it in its environment.
 let ca_pem = info.ca_pem.expect("a CA for a job with a credential");
-pod_broker::ca::write_bundle(&unit_dir.join("ca.pem"), &ca_pem, &std::fs::read("/etc/ssl/certs/ca-certificates.crt")?)?;
+let roots = std::fs::read("/etc/ssl/certs/ca-certificates.crt")?;
+pod_broker::ca::write_bundle(&unit_dir.join("ca.pem"), &ca_pem, &roots)?;
 for (var, path) in pod_broker::ca::env(&unit_dir.join("ca.pem")) {
-    command.env(var, path); // SSL_CERT_FILE, GIT_SSL_CAINFO, NODE_EXTRA_CA_CERTS, REQUESTS_CA_BUNDLE, ...
+    command.env(var, path); // SSL_CERT_FILE, GIT_SSL_CAINFO, NODE_EXTRA_CA_CERTS, DENO_CERT, ...
 }
+// A JVM reads a trust store: the same certificates in PKCS #12, before the
+// options of the job.
+pod_broker::ca::write_trust_store(&unit_dir.join("ca.p12"), &ca_pem, &roots)?;
+let java = pod_broker::ca::java_options(&unit_dir.join("ca.p12"), job_env.get("JAVA_TOOL_OPTIONS").map(String::as_str))?;
+command.env("JAVA_TOOL_OPTIONS", java);
 command.env("GITHUB_TOKEN", "PODCRED_GITHUB_TOKEN_0001"); // the placeholder
 ```
 
@@ -113,18 +119,27 @@ error; `Secrets`, `Vault` and `JobCa` show no value in their debug form.
 The job also needs the broker as its proxy: `HTTPS_PROXY` (and
 `https_proxy`) with the job token as the password, unless the listener
 belongs to the job. `tests/tls_clients.rs` runs the clients of a job
-with the bundle and each variable of `ca::env`
-(`scripts/ci/broker-clients-tests.sh` in CI). Each client reads one
-variable or more of the list:
+with the bundle, each variable of `ca::env` and `JAVA_TOOL_OPTIONS` of
+`ca::java_options` (`scripts/ci/broker-clients-tests.sh` in CI). Each
+client reads one variable or more of the list. A client with a variable in
+the column "Only" refuses the leaf of the job when that variable is
+missing and each other variable is set (a test holds it):
 
-| Client | The variable that it reads | Note |
-| --- | --- | --- |
-| curl | `CURL_CA_BUNDLE`, `SSL_CERT_FILE` | |
-| git (GnuTLS or OpenSSL) | `GIT_SSL_CAINFO` | the Basic of `http.extraHeader`, also as `AUTHORIZATION: basic` (actions/checkout), and a token in the URL after a 401 |
-| Python `urllib`, `ssl` | `SSL_CERT_FILE` | |
-| Python `requests` | `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE` | not `SSL_CERT_FILE` |
-| Node.js | `NODE_EXTRA_CA_CERTS` | `fetch` and `https` use `HTTPS_PROXY` only with `--use-env-proxy` or `NODE_USE_ENV_PROXY=1` (Node.js 22.21, 24.5 and later) |
-| cargo | `SSL_CERT_FILE` | the token of a registry is the whole value of `Authorization` |
+| Client | The variable that it reads | Only | Note |
+| --- | --- | --- | --- |
+| curl | `CURL_CA_BUNDLE`, `SSL_CERT_FILE` | | |
+| git (GnuTLS or OpenSSL) | `GIT_SSL_CAINFO` | | the Basic of `http.extraHeader`, also as `AUTHORIZATION: basic` (actions/checkout), and a token in the URL after a 401 |
+| Python `urllib`, `ssl` | `SSL_CERT_FILE` | yes | |
+| Python `requests` | `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE` | | not `SSL_CERT_FILE` |
+| pip 24.0 | `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE` | | `PIP_CERT` and `cert` of `pip.conf` come before them; a token in the URL of the index |
+| Node.js | `NODE_EXTRA_CA_CERTS` | yes | `fetch` and `https` use `HTTPS_PROXY` only with `--use-env-proxy` or `NODE_USE_ENV_PROXY=1` (Node.js 22.21, 24.5 and later) |
+| npm 10 | `NODE_EXTRA_CA_CERTS` | yes | `cafile` and `ca` of an `.npmrc` come before it; the `_authToken` of an `.npmrc` from the environment |
+| cargo | `SSL_CERT_FILE` | | the token of a registry is the whole value of `Authorization` |
+| Go (`crypto/x509` on Linux) | `SSL_CERT_FILE` | yes | also `SSL_CERT_DIR` |
+| Java (each JVM) | `JAVA_TOOL_OPTIONS` of `ca::java_options` | yes | the trust store of `ca::write_trust_store`; a JVM reads no proxy of the environment |
+| Deno 2.9 | `DENO_CERT`, `NODE_EXTRA_CA_CERTS` | both | `fetch` takes `HTTPS_PROXY` |
+| Google Cloud CLI | `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE` | yes | with a proxy of its properties, or a CA file of its installation, it reads no other variable |
+| Hex of Elixir (`mix`) | `HEX_CACERTS_PATH` | yes | the key of `HEX_API_KEY` is the whole value of `Authorization`; `mix` ends with 0 after a refused leaf |
 
 A client that sends a `Host` that is not the target gets 421 (C816): for
 example, `http.request` of Node.js with no agent over a socket of the

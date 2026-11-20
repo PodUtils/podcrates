@@ -2,7 +2,8 @@
 //! that the job trusts, and a leaf for each host whose tunnel the TLS end
 //! reads. The key lives in the memory of the broker only and ends with the
 //! job. The job trusts the CA by a bundle file ([`bundle`]) that the host
-//! writes, named by each variable of [`pod_tls::BUNDLE_VARS`].
+//! writes, named by each variable of [`env()`]; a JVM trusts it by the
+//! PKCS #12 trust store of [`write_trust_store`] and [`java_options`].
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -14,6 +15,10 @@ use rustls::sign::CertifiedKey;
 use rustls_pki_types::CertificateDer;
 
 use crate::target::Host;
+
+mod trust_store;
+
+pub use trust_store::{java_options, trust_store, write_trust_store};
 
 /// The CA of one job, and the leaves that it signed.
 pub struct JobCa {
@@ -137,10 +142,16 @@ pub fn write_bundle(path: &Path, ca_pem: &str, roots_pem: &[u8]) -> std::io::Res
     pod_core::files::replace_private(path, text.as_bytes(), 0o644, false).map(|_| ())
 }
 
+/// The variables of the clients of a job that read none of
+/// [`pod_tls::BUNDLE_VARS`]: Deno, Hex of Elixir and the Google Cloud CLI.
+/// A variable of the job only: `pod-tls` reads `BUNDLE_VARS` alone.
+pub const CLIENT_VARS: [&str; 3] = ["DENO_CERT", "HEX_CACERTS_PATH", "CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE"];
+
 /// Each variable that names the bundle of a job, with its path: the
 /// environment of the job (`SSL_CERT_FILE`, `GIT_SSL_CAINFO`,
 /// `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE` and the others of
-/// [`pod_tls::BUNDLE_VARS`]).
+/// [`pod_tls::BUNDLE_VARS`], then each of [`CLIENT_VARS`]). A JVM reads none:
+/// give it [`java_options`].
 pub fn env(path: &Path) -> Vec<(&'static str, PathBuf)> {
-    pod_tls::BUNDLE_VARS.iter().map(|var| (*var, path.to_path_buf())).collect()
+    pod_tls::BUNDLE_VARS.iter().chain(&CLIENT_VARS).map(|var| (*var, path.to_path_buf())).collect()
 }

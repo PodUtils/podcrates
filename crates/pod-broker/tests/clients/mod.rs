@@ -12,8 +12,10 @@ use std::time::{Duration, Instant};
 use crate::common::TOKEN;
 use crate::tls_common::{Answer, PH, TlsFar, load_secret, ok, policy, tls_broker};
 
+pub mod far;
 pub mod git;
 pub mod registry;
+pub mod sources;
 
 /// The variable that makes a skip a failure.
 const REQUIRED: &str = "POD_BROKER_TEST_CLIENTS";
@@ -65,19 +67,26 @@ pub fn node_has_env_proxy(node: &str) -> Result<(), String> {
     }
 }
 
+/// The `MIX_HOME` that holds the archive of Hex: the value of
+/// `POD_BROKER_TEST_MIX_HOME`, else of `MIX_HOME`, else `~/.mix`; a run of
+/// a client has a `HOME` of its own.
+pub fn mix_home_with_hex() -> Result<String, String> {
+    let var = |name: &str| std::env::var(name).ok().filter(|v| !v.is_empty());
+    let home = var("POD_BROKER_TEST_MIX_HOME")
+        .or_else(|| var("MIX_HOME"))
+        .or_else(|| var("HOME").map(|home| format!("{home}/.mix")))
+        .ok_or("no MIX_HOME and no HOME")?;
+    let archives = std::fs::read_dir(Path::new(&home).join("archives")).map_err(|e| format!("{home}/archives: {e}"))?;
+    let hex = archives.filter_map(Result::ok).any(|e| e.file_name().to_string_lossy().starts_with("hex-"));
+    if hex { Ok(home) } else { Err(format!("{home}/archives holds no archive of Hex")) }
+}
+
 /// The far end of each client but git: 401 with a Basic challenge to a
 /// request with no `Authorization`; else the value in the header `X-Seen`
 /// and in the body (`echo=VALUE`).
 pub fn echo_auth(_dir: &Path) -> Answer {
     Arc::new(|head: &str, _body: &[u8]| {
-        let auth = head.lines().find_map(|line| {
-            let (name, value) = line.split_once(": ")?;
-            name.eq_ignore_ascii_case("authorization").then(|| value.to_string())
-        });
-        let Some(auth) = auth else {
-            let challenge = "HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"far\"\r\n";
-            return format!("{challenge}Content-Length: 0\r\n\r\n").into_bytes();
-        };
+        let Some(auth) = far::auth_of(head) else { return far::unauthorized() };
         ok(&format!("X-Seen: {auth}\r\n"), format!("echo={auth}\n").as_bytes())
     })
 }
@@ -92,12 +101,26 @@ fn system_roots() -> Vec<u8> {
         .unwrap_or_default()
 }
 
+/// What a run of a client trusts.
+#[derive(Clone, Copy)]
+pub enum Trust {
+    /// No variable of the bundle.
+    None,
+    /// Each variable of `ca::env`, and `JAVA_TOOL_OPTIONS` of
+    /// `ca::java_options`.
+    All,
+    /// Each of [`Trust::All`] but the variables named.
+    Without(&'static [&'static str]),
+}
+
 /// One broker, its far end and the bundle of the job, for one client.
 pub struct Lab {
     pub far: Arc<TlsFar>,
     pub dir: PathBuf,
     bundle: PathBuf,
-    proxy: String,
+    store: PathBuf,
+    /// The URL of the broker as a proxy, with the job and its token.
+    pub proxy: String,
 }
 
 impl Lab {
@@ -121,16 +144,23 @@ impl Lab {
         roots.extend_from_slice(far.ca.pem().as_bytes());
         let bundle = dir.join("ca.pem");
         pod_broker::ca::write_bundle(&bundle, &ca, &roots).unwrap();
+        let store = dir.join("ca.p12");
+        pod_broker::ca::write_trust_store(&store, &ca, &roots).unwrap();
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
         tokio::spawn(broker.serve_tcp(listener));
-        Lab { far, dir, bundle, proxy: format!("http://job1:{TOKEN}@127.0.0.1:{port}") }
+        Lab { far, dir, bundle, store, proxy: format!("http://job1:{TOKEN}@127.0.0.1:{port}") }
     }
 
     /// Run `program` with `args` and a clean environment: the proxy, the
     /// placeholder in `JOB_TOKEN`, `env`, and with `bundle` each variable
-    /// of `ca::env`.
+    /// of `ca::env` and `JAVA_TOOL_OPTIONS`.
     pub async fn run(&self, program: &str, args: &[&str], env: &[(&str, &str)], bundle: bool) -> Run {
+        self.run_trusting(program, args, env, if bundle { Trust::All } else { Trust::None }).await
+    }
+
+    /// [`Lab::run`] with the trust `trust`.
+    pub async fn run_trusting(&self, program: &str, args: &[&str], env: &[(&str, &str)], trust: Trust) -> Run {
         let mut command = Command::new(program);
         command.args(args).env_clear().current_dir(&self.dir).envs(env.iter().copied());
         if let Some(path) = std::env::var_os("PATH") {
@@ -147,11 +177,16 @@ impl Lab {
             .env("GIT_TRACE_CURL", "1")
             .env("GIT_TRACE_CURL_NO_DATA", "1")
             .env("GIT_TRACE_REDACT", "0");
-        if bundle {
-            for (var, path) in pod_broker::ca::env(&self.bundle) {
-                command.env(var, path);
-            }
+        let mut vars: Vec<(&str, std::ffi::OsString)> = Vec::new();
+        if !matches!(trust, Trust::None) {
+            vars.extend(pod_broker::ca::env(&self.bundle).into_iter().map(|(var, path)| (var, path.into())));
+            let java = pod_broker::ca::java_options(&self.store, None).unwrap();
+            vars.push(("JAVA_TOOL_OPTIONS", java.into()));
         }
+        if let Trust::Without(left_out) = trust {
+            vars.retain(|(var, _)| !left_out.contains(var));
+        }
+        command.envs(vars);
         let (out, err) = (self.dir.join("stdout"), self.dir.join("stderr"));
         command.stdin(Stdio::null());
         command.stdout(std::fs::File::create(&out).unwrap());

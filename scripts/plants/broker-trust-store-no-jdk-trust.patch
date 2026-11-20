@@ -1,0 +1,15 @@
+diff --git a/crates/pod-broker/src/ca/trust_store.rs b/crates/pod-broker/src/ca/trust_store.rs
+index 38bd1db9..d26244d9 100644
+--- a/crates/pod-broker/src/ca/trust_store.rs
++++ b/crates/pod-broker/src/ca/trust_store.rs
+@@ -49,10 +49,6 @@ fn cert_bag(w: DERWriter, alias: &str, cert: &[u8]) {
+                 w.next().write_oid(&oid(FRIENDLY_NAME));
+                 w.next().write_set_of(|w| w.next().write_bmp_string(alias));
+             });
+-            w.next().write_sequence(|w| {
+-                w.next().write_oid(&oid(JDK_TRUST));
+-                w.next().write_set_of(|w| w.next().write_oid(&oid(ANY_USAGE)));
+-            });
+         });
+     });
+ }

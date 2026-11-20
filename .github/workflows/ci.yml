@@ -206,13 +206,6 @@ jobs:
           key: pip-${{ runner.os }}-${{ hashFiles('scripts/ci/wormhole-servers.txt') }}
       - name: pod-wormhole and pod-relay against magic-wormhole's mailbox server
         run: sh scripts/ci/mailbox-tests.sh
-      # The clients of a job through the TLS end of pod-broker (T-973):
-      # curl, git, Python with urllib and requests, Node.js 26.13.1 and cargo,
-      # each with the bundle of the job, against a far end on 127.0.0.1.
-      # requests from scripts/ci/broker-clients.txt with each SHA-256, and
-      # the archive of Node.js checked by its SHA-256. A skip fails the step.
-      - name: pod-broker with the clients of a job
-        run: sh scripts/ci/broker-clients-tests.sh
       # The DNS over HTTPS of pod-dns against CoreDNS on 127.0.0.1 (T-350):
       # the release of CoreDNS 1.15.0, checked by its SHA-256. A skip fails
       # the step.
@@ -237,6 +230,22 @@ jobs:
           otp-version: "29.0.5"
           elixir-version: "1.20.3-otp-29"
           version-type: strict
+      # Go for the step below (T-980): the version of the tool cache of the
+      # runner, so no download.
+      - name: Go 1.26.11
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.11"
+          cache: false
+      # The clients of a job through the TLS end of pod-broker (T-973, T-980):
+      # curl, git, Python with urllib, requests and pip, Node.js 26.13.1, npm,
+      # cargo, Go, Java, Deno 2.9.8, the Google Cloud CLI of the runner and
+      # Hex of the step of Erlang/OTP above, each with the bundle of the job,
+      # against a far end on 127.0.0.1. requests from
+      # scripts/ci/broker-clients.txt with each SHA-256, and the archives of
+      # Node.js and Deno checked by their SHA-256. A skip fails the step.
+      - name: pod-broker with the clients of a job
+        run: sh scripts/ci/broker-clients-tests.sh
       # The TURN client of pod-turn over UDP and over TLS with the options of
       # T-381, and the STUN codec of pod-proxy, against coturn on 127.0.0.1
       # (T-380, T-358): the image of images/coturn/, pinned to a digest, with

@@ -6,9 +6,9 @@
 #
 #   sh scripts/ci/fetch-tool.sh URL SHA256 MEMBER DIR
 #
-# MEMBER is the path of the program in the archive (.tar.xz or .tar.gz).
-# The program goes to DIR/NAME, NAME the last part of MEMBER. It needs a
-# POSIX shell, curl, sha256sum and tar.
+# MEMBER is the path of the program in the archive (.tar.xz, .tar.gz or
+# .zip). The program goes to DIR/NAME, NAME the last part of MEMBER. It
+# needs a POSIX shell, curl, sha256sum, and tar or unzip.
 set -eu
 url=${1:-}
 sum=${2:-}
@@ -33,12 +33,17 @@ echo "$sum  $archive" | sha256sum -c - > /dev/null || {
 case $archive in
     *.tar.xz) flag=-xJf ;;
     *.tar.gz | *.tgz) flag=-xzf ;;
-    *) echo "fetch-tool: not a .tar.xz or a .tar.gz: $archive" >&2; exit 64 ;;
+    *.zip) flag=zip ;;
+    *) echo "fetch-tool: not a .tar.xz, a .tar.gz or a .zip: $archive" >&2; exit 64 ;;
 esac
 tmp=$dir/.unpack
 rm -rf "$tmp"
 mkdir -p "$tmp"
-tar "$flag" "$archive" -C "$tmp" "$member"
+if [ "$flag" = zip ]; then
+    unzip -q "$archive" "$member" -d "$tmp"
+else
+    tar "$flag" "$archive" -C "$tmp" "$member"
+fi
 name=${member##*/}
 mv "$tmp/$member" "$dir/$name"
 rm -rf "$tmp"
