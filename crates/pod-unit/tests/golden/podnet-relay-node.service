@@ -1,0 +1,59 @@
+# Written by podnet unit print.
+# No secret is in this file, which each user may read.
+[Unit]
+Description=podnet relay node
+Wants=network-online.target
+After=network-online.target
+# No limit of starts: a service that stays down locks out what only it reaches.
+StartLimitIntervalSec=0
+
+[Service]
+Type=exec
+DynamicUser=yes
+Environment="RUST_LOG=info"
+Environment="PODNET_NOTE=100%% $HOME"
+# GITHUB_TOKEN: a placeholder, which the broker swaps for its secret.
+Environment="GITHUB_TOKEN=PODCRED_GITHUB_TOKEN_0001"
+# The secret tunnel: systemd copies its file for the program alone.
+LoadCredential=tunnel:/etc/podnet/tunnel.token
+Environment="TUNNEL_TOKEN_FILE=%d/tunnel"
+# The state of the program, private to its account.
+StateDirectory=podnet-relay-node
+StateDirectoryMode=0700
+ExecStart=/usr/local/bin/podnet relay node --state /var/lib/podnet-relay-node --label "a b"
+Restart=always
+RestartSec=5
+# 64 and 78: a usage or a configuration, or a revoked credential: no start helps.
+RestartPreventExitStatus=64 78
+TimeoutStopSec=90
+# The hardening, which systemd-analyze security scores.
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictSUIDSGID=yes
+ProtectSystem=strict
+ProtectHome=tmpfs
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+# Relaxed, as the engine of rules compiles at run time: MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+# AF_NETLINK: the kernel gives the addresses of the host by netlink.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RemoveIPC=yes
+UMask=0077
+ReadWritePaths=-/var/cache/podnet
+
+[Install]
+WantedBy=multi-user.target

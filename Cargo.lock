@@ -5569,6 +5569,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-unit"
+version = "0.79.0"
+dependencies = [
+ "plist",
+ "pod-core",
+ "pod-testkit",
+ "quick-xml",
+ "tempfile",
+]
+
+[[package]]
 name = "pod-warp"
 version = "0.79.0"
 dependencies = [
@@ -7397,6 +7408,7 @@ dependencies = [
  "pod-tls",
  "pod-turn",
  "pod-udf",
+ "pod-unit",
  "pod-wg",
 ]
 

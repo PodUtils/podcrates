@@ -27,3 +27,5 @@ pod-udf = { workspace = true }
 pod-beneath = { workspace = true }
 # The control API: std threads, no tokio.
 pod-control = { workspace = true }
+# The service units: std only, no tokio.
+pod-unit = { workspace = true }

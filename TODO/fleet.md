@@ -126,7 +126,7 @@ T-099 is done.
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -153,6 +153,20 @@ sh scripts/agent/check.sh
 ```
 
 A test plants a token and fails. `ci.yml` runs `systemd-analyze verify`.
+
+## Done
+
+2026-11-20, this commit (calls C859 to C861). The crate `crates/pod-unit` (std alone, no tokio; pod-core), from podssh `node_install/` (base), podnet `autostart.rs` and podrunner's `print_unit` (`crates/pod-unit/SOURCES`):
+
+- The model `Unit` (a name, a launchd label, a description, the mark of the writer, the program by its absolute path, the words, the directory, the variables, the secret files, the file of variables and the state directory of systemd, the log, `Scope::User` or `Scope::System { run_as }`, `Start::Exec` or `Start::Notify { watchdog_s }`, `Restart` with `RestartPreventExitStatus=64 78` by default, `Stop` with the drain of `KillMode=mixed`, the network, `Hardening`).
+- The forms: `systemd::render` (a user unit; a unit of the system with `User=` or `DynamicUser=yes`, `LoadCredential=` and `%d` for a secret, `StateDirectory=`, each line of `hardening::LINES`; a user unit takes the lines of seccomp alone), `launchd::render` (a LaunchAgent; a LaunchDaemon with `UserName`), `windows::task_xml` (a task at the logon), `windows::service_commands` and `service_script` (a Windows service of `sc.exe`: `NT SERVICE\NAME`, `sidtype restricted`, `privs SeChangeNotifyPrivilege`, `failure`, `failureflag`, the key `Environment`), `cron::lines` and `cron::table`. A form that cannot hold a part refuses the unit (`Class::Unsupported`).
+- No secret in a unit (`secret::check`, called by `Unit::check` and each renderer): the prefixes of known tokens, a private key, a password in a URL, a key or a flag that names a secret, a long random word; the refusal names the place and the rule, never the word. A secret is a file (`Unit::secret_file`), a placeholder of `pod-broker` (`Unit::placeholder`, exempt from the rule of the key alone), or the file of variables.
+- `systemd::audit` names each line of the hardening that is neither in a unit nor relaxed in it. `Hardening::relax`, `family`, `add`, `write`, `bind`, `bind_read`.
+- The install of the user (`install::install`, `install::remove`, `install::probe`; the caller's `Places` and `Host`; `System` runs each program through the new `pod_core::process::run_bounded`): systemd, launchd, a task, cron. A unit that does not start leaves no file; a removal leaves nothing; a file or a task of another mark is refused and stays.
+- `cargo test -p pod-unit --all-features`: 10 unit tests (`secret_tests.rs`, `quote.rs`: `a_token_in_an_argument_is_refused_and_not_named`, `each_known_token_is_refused_by_its_rule`, `a_word_of_a_unit_that_is_no_secret_passes`, `a_placeholder_has_the_form_of_the_broker_and_no_form_of_a_token`, `each_syntax_quotes_what_it_must`), 11 of `tests/systemd.rs` (the golden texts, `a_program_adds_a_line_past_the_table_but_not_one_of_the_table`, `each_line_of_the_hardening_is_in_a_unit_of_the_system`, `the_audit_names_a_line_that_is_gone_but_not_one_that_is_relaxed`, `a_unit_restarts_after_each_end_with_no_limit_of_starts`, `systemd_analyze_verify_accepts_each_unit`, `systemd_analyze_security_scores_a_unit_of_the_system_ok`: the bound is 2.0; with systemd 255 here the unit of the system scores 1.5 "OK", and the user unit of podrunner 6.2 "MEDIUM", as a user unit takes the lines of seccomp alone), 9 of `tests/forms.rs` (the golden plist, task, script and lines of the crontab; each read back by the plist crate and quick-xml; `plutil_lints_each_plist` skips here: no `plutil`), 7 of `tests/install.rs` (`a_user_unit_is_written_enabled_and_started_and_its_removal_leaves_nothing`, `a_unit_that_does_not_start_is_not_left_behind`, `a_file_of_another_program_is_refused_and_stays`). `cargo test -p pod-core`: 4 new tests of `process.rs`. `ci.yml` runs `systemd-analyze verify` and `security` through these tests.
+- Plants, each caught: `unit-secret-argument-not-scanned`, `unit-hardening-line-missing`.
+- The probe `static-probe-lean` links the crate.
+- Left, each in its own entry: the dispatcher of the service control manager for a static program (T-1026), the install of a unit of the system (T-1027), the trial run of `pod-release` on `pod_core::process` (T-1028). The take of each consumer: the adoption map of `crates/pod-unit/README.md`.
 
 # T-103: `pod-control`: one JSON control API on a Unix socket or a named pipe (GitHub #35, #36)
 
@@ -6869,4 +6883,133 @@ roots) gets its own measurement before the broker gives it.
 
 ```sh
 cargo test -p pod-broker --all-features --test tls_clients -- go_ --nocapture
+```
+
+# T-1026: `pod-unit`: a dispatcher of the service control manager, so that a static program runs as a Windows service
+
+**Source:** T-102 (a finding: the form of a Windows service, call C859).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod_unit::windows::service_commands` makes a Windows service with
+`sc.exe`. The service control manager starts the program and waits for its
+call of `StartServiceCtrlDispatcherW`; a program that does not call it is
+ended with error 1053 after 30 s. No program of PodUtils calls it, and no
+crate of podcrates gives it. A stop of the manager must reach the drain of
+the program, as `KillMode=mixed` does on systemd.
+
+## Premise
+
+- Read: the form of `crates/pod-unit/src/windows.rs`; the documents of
+  `StartServiceCtrlDispatcherW`, `RegisterServiceCtrlHandlerExW` and
+  `SetServiceStatus`.
+- Not measured: a service of a static program on a Windows runner.
+
+## Approach
+
+Add `pod_unit::windows::serve(name, run)` behind `cfg(windows)`: the
+dispatcher on the main thread, `run` on its own thread with a stop signal
+(a channel), `SERVICE_RUNNING` after `run` says ready, `SERVICE_STOP_PENDING`
+with a wait hint while it drains, the exit code of `run` as the service
+exit code (78 stays 78). windows-sys alone, no other crate. A program calls
+it when its argument says that the manager started it.
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features
+sh scripts/agent/check-windows.sh
+```
+
+A test of the Windows jobs of `nightly.yml` makes a service of a test
+binary with the commands of `service_commands`, starts it, stops it, and
+reads its exit code; it skips with its reason where the runner gives no
+administrator.
+
+# T-1027: `pod-unit`: the install and the removal of a unit of the system
+
+**Source:** T-102 (the install of the user is done; the system is left).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod_unit::install` installs and removes a unit of the user alone. A unit
+of the system (`/etc/systemd/system/NAME.service`, a LaunchDaemon, a Windows
+service) is rendered as text, and a person or the program's own code puts
+it in place. podssh has the steps of a system install of systemd
+(`PodUtils/podssh:crates/podssh-cli/src/node_install/system.rs` and
+`system_install.rs`: the probes of root, of systemd as the manager, of the
+passwd entry of the user and of its cache; the writes with no link
+followed); cfb asks for a system unit of a named user (A-S-02, A-N-11).
+
+## Premise
+
+- Read: podssh's `system.rs` and `system_install.rs` at
+  `db0db54f14dbc335dd906ae112074cd9339c16d7`.
+- Not measured: an install of the system on a host.
+
+## Approach
+
+Add `install::install_system` and `install::remove_system` with the probes
+as values that the caller gives (as podssh does, so that a test needs no
+root): systemd (the unit at 0644, the credential files checked as root's
+and private, `daemon-reload`, `enable`, `restart`), launchd
+(`/Library/LaunchDaemons`, `launchctl bootstrap system`), Windows (each
+command of `service_commands`, then `sc.exe start`). A removal leaves
+nothing and refuses a file of another mark. Move podssh's tests of the
+probes with their names.
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features
+```
+
+A test of `ci.yml` as root (the root scripts of CI) installs a unit of the
+system of a test binary with `DynamicUser=yes`, reads its state with
+`systemctl show`, and removes it; the directory of the units is then as
+before.
+
+# T-1028: `pod-release`: the trial run of a new binary on `pod_core::process::run_bounded`
+
+**Source:** T-102 (a finding: the ruling "Shared code").
+**Category:** chore
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_core::process::run_bounded` runs a program within a limit and reads
+its output while it runs (T-102). `crates/pod-release/src/trial.rs` has its
+own loop of the same steps (a spawn, a read of the pipes in threads, a
+wait with a deadline, a kill), as podnet's `run_limited` has. Two copies of
+one capability drift.
+
+## Premise
+
+- Read: `crates/pod-release/src/trial.rs` and
+  `crates/pod-core/src/process.rs`.
+- Not measured: none.
+
+## Approach
+
+`trial::check` calls `run_bounded` with no input, and keeps its own check
+of the first line and of the version. The tests of `trial.rs` keep their
+names.
+
+## Prove
+
+```sh
+cargo test -p pod-release --all-features
 ```

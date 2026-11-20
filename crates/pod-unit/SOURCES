@@ -1,0 +1,32 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+# podssh: the base (T-102). The texts of each form, their quoting, the
+# hardening of a system unit and the steps of an install of the user. The
+# command line (`--install`, `--print-unit`, `--system --run-as`), the words
+# of a node and of a tunnel, the file of variables and the lock of a run stay
+# in podssh. The probes and the writes of a system install are T-1027.
+repo PodUtils/podssh db0db54f14dbc335dd906ae112074cd9339c16d7
+file 9251c7ca0ee9ea484b98bbfe0312047b213e2312 crates/podssh-cli/src/node_install/text.rs -> crates/pod-unit/src/quote.rs crates/pod-unit/src/systemd.rs crates/pod-unit/src/launchd.rs crates/pod-unit/src/windows.rs crates/pod-unit/src/cron.rs
+file e2519f6a7aacdc3b2b2d9ae693376d73463ea034 crates/podssh-cli/src/node_install/system_text.rs -> crates/pod-unit/src/hardening.rs crates/pod-unit/src/systemd.rs
+file 6caee959d1c3a526ac0ddb155e7c7cf8b35bf77f crates/podssh-cli/src/node_install/launchd.rs -> crates/pod-unit/src/install_ways.rs
+file db8431082422140ab63ae456b5a62d82f553ca37 crates/podssh-cli/src/node_install/windows.rs -> crates/pod-unit/src/install_ways.rs
+file 982c8a2108f207937ed49424266dcbc02c5b5243 crates/podssh-cli/src/node_install/unix.rs -> crates/pod-unit/src/install_ways.rs crates/pod-unit/src/install.rs
+file 5fd3d52cc2b018a87103f6d3dfae73c201beaa99 crates/podssh-cli/src/node_install/tests.rs -> crates/pod-unit/src/quote.rs crates/pod-unit/tests/forms.rs crates/pod-unit/tests/systemd.rs
+file b89a93412f27d48f91fbcafb56a668b0bbecf8ad crates/podssh-cli/src/node_install/system_tests.rs -> crates/pod-unit/tests/systemd.rs
+
+# podnet: the user unit and the line of the crontab of `podnet autostart`
+# (its log after the command, its probe of the forms). The command line, the
+# files of the arguments and of the variables of an entry stay in podnet.
+repo PodUtils/podnet f4ad31d5e45f9d82e050ad72bba6e6ae24128511
+file 244b31a6fb27ab9df6024b381719394689fdb6a0 crates/podnet-core/src/autostart.rs -> crates/pod-unit/src/cron.rs crates/pod-unit/src/install.rs
+
+# podrunner: `print_unit` of `crates/podrunner/src/cli.rs` (blob
+# 358bcaeb1930358b5b2c78b76988b39d67944845 at
+# 239836ae65258ee53d685ced88c90d625a352a5b) gave `Type=notify`, the
+# watchdog, `KillMode=mixed` and `TimeoutStopSec=infinity` of a drain. Its
+# file is the whole command line of podrunner, so no file line follows it:
+# podrunner replaces `print_unit` with `pod_unit::systemd::render` at its
+# take.

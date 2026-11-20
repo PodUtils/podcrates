@@ -1,0 +1,38 @@
+# Written by podrunner print-unit.
+# No secret is in this file, which each user may read.
+[Unit]
+Description=podrunner: CI jobs in one fresh unit for each job
+Wants=network-online.target
+After=network-online.target
+# No limit of starts: a service that stays down locks out what only it reaches.
+StartLimitIntervalSec=0
+
+[Service]
+# The program says READY, and STOPPING when a stop starts (sd_notify).
+Type=notify
+NotifyAccess=main
+WatchdogSec=30
+ExecStart=/home/ci/.local/bin/podrunner serve --config /home/ci/.config/podrunner/podrunner.toml --state /home/ci/.local/state/pr
+Restart=always
+RestartSec=5
+# 64 and 78: a usage or a configuration, or a revoked credential: no start helps.
+RestartPreventExitStatus=64 78
+# The stop signal goes to the program alone, which drains its work first.
+KillMode=mixed
+TimeoutStopSec=infinity
+# The hardening, which systemd-analyze security scores.
+# A user manager applies a line of a mount namespace only in a user namespace: the lines of seccomp alone.
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+UMask=0077
+
+[Install]
+WantedBy=default.target

@@ -1,6 +1,6 @@
 //! A binary that links pod-core, pod-tls, pod-wg, pod-confine, the STUN
-//! codec of pod-turn, pod-udf, pod-beneath and pod-control with no default
-//! feature, so that no tokio is in it.
+//! codec of pod-turn, pod-udf, pod-beneath, pod-control and pod-unit with no
+//! default feature, so that no tokio is in it.
 //! `scripts/check-static.sh` checks the binary on each target, and
 //! `scripts/check-probe.py` checks the tree (docs/design.md, section 7).
 
@@ -22,6 +22,11 @@ fn main() {
     let methods = pod_control::Catalogue::core().entries().count();
     let schema = pod_control::schema().to_string().len();
     println!("pod-control: {methods} methods, a schema of {schema} bytes");
+    let unit = pod_unit::Unit::new("static-probe", std::path::Path::new("/usr/local/bin/probe"), "static-probe-lean")
+        .system(None);
+    let text =
+        pod_unit::systemd::render(&unit).map_or_else(|e| e.to_string(), |t| format!("{} lines", t.lines().count()));
+    println!("pod-unit: a unit of the system of {text}");
     confine();
 }
 

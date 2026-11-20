@@ -1,0 +1,181 @@
+# pod-unit
+
+Hardened service units with no secret in them (T-102; cfb's A-S-02,
+A-N-11, A-C-07, A-S-18 and A-N-12, GitHub #35). A program describes its
+service once as a `Unit`; a renderer gives each form as text, for
+`--print-unit`, and `install` installs and removes a unit of the user. The
+base is podssh's `node_install/` (the texts, the quoting, the hardening of a
+system unit, the steps of an install); podnet's `autostart.rs` and
+podrunner's `print-unit` add the line of the crontab with its log and the
+start with `sd_notify`, the watchdog and the drain (`SOURCES`).
+
+The crate is std alone (no tokio). It prints nothing and does not exit. The
+command line (`--print-unit`, `--install`, `--uninstall`) stays in each
+program (call C27).
+
+## Use
+
+```rust,ignore
+use std::path::Path;
+use pod_unit::{Start, Stop, Unit};
+
+let mut unit = Unit::new("podrunner", Path::new("/home/ci/.local/bin/podrunner"), "podrunner print-unit")
+    .args(["serve", "--config", "/home/ci/.config/podrunner/podrunner.toml", "--state", "/home/ci/.local/state/pr"]);
+unit.description = "podrunner: CI jobs in one fresh unit for each job".into();
+unit.start = Start::Notify { watchdog_s: Some(30) };
+unit.stop = Stop { drain: true, timeout_s: None };
+
+// --print-unit
+print!("{}", pod_unit::systemd::render(&unit)?);
+
+// --install, as the user
+let places = pod_unit::Places::of_home(&home, &state.join("tmp"), uid, &windows_user);
+let host = pod_unit::System::default();
+let form = pod_unit::install::probe(&host, &places)?;
+let done = pod_unit::install::install(&unit, form, &places, &host)?;
+// --uninstall
+let removed = pod_unit::install::remove(&unit, form, &places, &host)?;
+```
+
+A unit of the system with an account of its own, a credential and a
+relaxed line:
+
+```rust,ignore
+let mut unit = Unit::new("podnet-relay-node", Path::new("/usr/local/bin/podnet"), "podnet unit print")
+    .system(None) // DynamicUser=yes; Some("podnet") gives User=podnet
+    .args(["relay", "node"])
+    .secret_file("tunnel", Path::new("/etc/podnet/tunnel.token"), "TUNNEL_TOKEN_FILE")
+    .placeholder("GITHUB_TOKEN", "PODCRED_GITHUB_TOKEN_0001")?;
+unit.state_dir = Some("podnet-relay-node".into());
+unit.hardening.family("AF_NETLINK", "the kernel gives the addresses of the host by netlink")?;
+unit.hardening.relax("MemoryDenyWriteExecute", "the engine of rules compiles at run time")?;
+```
+
+`tests/golden/` holds the text of each form for these units.
+
+## The forms
+
+| Form | User (`Scope::User`) | System (`Scope::System`) |
+| --- | --- | --- |
+| systemd | `systemd::render`: `~/.config/systemd/user/NAME.service`, `WantedBy=default.target`, the lines of seccomp of the hardening | `systemd::render`: `/etc/systemd/system/NAME.service`, `User=NAME` or `DynamicUser=yes`, each line of the hardening, `WantedBy=multi-user.target` |
+| launchd | `launchd::render`: a LaunchAgent, `~/Library/LaunchAgents/LABEL.plist` | `launchd::render`: a LaunchDaemon with `UserName` (a named user is necessary) |
+| Windows | `windows::task_xml`: a task at the logon of the user and each 5 minutes, `LeastPrivilege` | `windows::service_commands`, `service_script`: a service of `sc.exe` (call C859) |
+| cron | `cron::lines`, `cron::table`: `@reboot` and a watchdog each 5 minutes | none |
+
+Each form:
+
+* runs the program by its absolute path, with its words quoted for the
+  form (`quote`);
+* starts it again after each end (`Restart::always`) or after a failure,
+  after `delay_s`; with no limit of starts on systemd;
+* starts no loop after 64 (usage) and 78 (a configuration, or a revoked
+  credential: `pod_core::Class::Revoked`), on systemd
+  (`RestartPreventExitStatus=64 78`, A-C-07). launchd, the Task Scheduler
+  and the service control manager have no rule of exit codes: there the
+  delay bounds the loop;
+* names what wrote it (`Unit::mark`) in its first comment: a removal
+  removes only a file, a task or lines with that mark.
+
+A form that cannot hold a part of a unit refuses the unit
+(`Class::Unsupported`), and does not drop the part: launchd, the Task
+Scheduler, a Windows service and cron have no `EnvironmentFile=` and no
+`StateDirectory=`; a task has no variables and no log; a Windows service
+has no directory of the run and no log.
+
+## No secret in a unit
+
+`Unit::check` (each renderer calls it) refuses a unit with a word that
+looks like a secret, with the place of the word and the rule, never the
+word (`secret`): the prefix of a known token (GitHub, GitLab, Slack, AWS,
+Google, npm, PyPI, Hugging Face, DigitalOcean, `sk-`, base64 JSON as a JWT
+or a tunnel token), a private key, a password in a URL, a variable whose
+key names a secret (`TUNNEL_TOKEN`, not `TUNNEL_TOKEN_FILE`), a flag that
+takes a secret (`--token VALUE`, not `--token-file PATH`), and a long random
+word (32 characters or more of upper case, lower case and digits, 4.3 bits
+or more for each). A secret is one of:
+
+* a file (`Unit::secret_file(NAME, PATH, VARIABLE)`): on a unit of systemd
+  of the system, `LoadCredential=NAME:PATH` and `VARIABLE=%d/NAME` (systemd
+  copies the file, which only root may read, for the account of the
+  service alone); on each other form, `VARIABLE=PATH` (a private file of the
+  user);
+* a placeholder of `pod-broker` (`Unit::placeholder(KEY, WORD)`, "Placeholder
+  credentials" of `crates/pod-broker/README.md`): the job holds the word, and
+  the broker swaps it for the value on the way to the hosts of the
+  credential. The word has the form of the broker (16 to 256 of `A-Z a-z 0-9
+  _ . -`); the rules of a token and of a random word still apply to it, so a
+  real token given as a placeholder is refused;
+* a file of variables of systemd (`Unit::env_file`), which the host keeps
+  private.
+
+## The hardening
+
+`hardening::LINES` holds each line, on by default. A unit of the system
+takes each line; a user unit takes the lines of seccomp alone
+(`Need::Seccomp`), as a user manager applies a line of a mount namespace
+only through a user namespace, and a host with no user namespaces then
+refuses the start. `Hardening::relax(KEY, WHY)` keeps the line as a comment
+with its reason; `Hardening::family` adds `AF_NETLINK`, `AF_PACKET` or
+`AF_VSOCK` with its reason; `Hardening::add(KEY, VALUE)` adds a line past
+the table (`PrivateUsers=yes`, `ProcSubset=pid`, `IPAddressDeny=any`, which
+are not on by default: each breaks a program of PodUtils); `write`, `bind`
+and `bind_read` give the paths
+that `ProtectSystem=strict` and `ProtectHome=tmpfs` must let through.
+`systemd::audit(TEXT, SYSTEM)` names each line that is neither in a unit
+nor relaxed in it: a program checks its own unit with it, also one that a
+person changed.
+
+The unit of the system of `tests/golden/podnet-relay-node.service`, with no
+relaxed line, has the exposure 2.0 or less ("OK") of
+`systemd-analyze security --offline=true`; `systemd-analyze verify` accepts
+each unit of the golden files. The tests run both where the host has
+`systemd-analyze`, and `plutil -lint` of each plist where the host has
+`plutil` (macOS); each skips with its reason elsewhere. The plist crate and
+quick-xml read each plist and each task back on each host.
+
+## The install of the user
+
+`install::install(UNIT, FORM, PLACES, HOST)` and `install::remove` are
+explicit calls; the crate chooses no directory (`Places`) and runs each
+program through the caller's `Host` (`System` runs it within a limit, by
+`pod_core::process::run_bounded`). `install::probe` finds the first form of
+this host: `schtasks` on Windows; else `systemctl --user`, `launchctl` with
+the login session `gui/UID`, then `crontab -l`.
+
+| Form | Install | Removal |
+| --- | --- | --- |
+| systemd | the unit (0644), `daemon-reload`, `enable`, `restart` | `disable --now`, the file, `daemon-reload`, `reset-failed` |
+| launchd | the plist (0644), `bootout`, `enable`, `bootstrap gui/UID PATH` | `bootout gui/UID/LABEL`, the file |
+| task | the XML in UTF-16 in `Places::scratch`, `schtasks /Create /XML`, the file removed, `/End`, `/Run` | `/End`, `/Delete /F` |
+| cron | `crontab -l`, the table with the lines, `crontab -` | `crontab -l`, the table with no lines, `crontab -` |
+
+An install that does not start removes its file. A file or a task of
+another mark is refused (`Class::Config`) and stays. The install of a unit
+of the system (root, the probes of podssh's `system.rs`, the writes of its
+`system_install.rs`, `sc.exe` and `launchctl` of the system) is T-1027.
+
+## The Windows service (call C859)
+
+The form of a unit of the system is the commands of `sc.exe`, which an
+administrator runs: `create` with `obj= "NT SERVICE\NAME"` (a virtual
+account of the service alone) or an account with no password
+(`LocalService`, `NetworkService`, `NT SERVICE\...`, a managed service
+account `DOMAIN\NAME$`); an account with a password is refused, as the
+password would be in the command. Then `sidtype restricted` (a
+write-restricted token), `privs SeChangeNotifyPrivilege` (the least
+privileges), `failure` with a restart after `delay_s` and a reset after a
+day, `failureflag 1` (an end with a code that is not 0 is a failure), and
+the variables in the key `Environment` of the service (`reg.exe`).
+`windows::service_removal` stops and deletes it. The program must answer the
+service control manager (`StartServiceCtrlDispatcherW`): the dispatcher for
+a program is T-1026. Not taken: the XML of a service wrapper (WinSW, NSSM),
+a second program beside each binary, which is not static on each target.
+
+## The adoption map
+
+| Consumer | Now | With pod-unit |
+| --- | --- | --- |
+| podrunner | `crates/podrunner/src/cli.rs`: `print_unit`, `exec_word` | `Unit` with `Start::Notify`, `Stop { drain: true, timeout_s: None }`; `systemd::render` for `print-unit`; `install::install` for an install with no prompt (PodUtils/podrunner@T-507) |
+| podssh | `crates/podssh-cli/src/node_install/`: `text.rs`, `system_text.rs`, `launchd.rs`, `windows.rs`, `unix.rs` | `Unit` of each node, tunnel and pipe; the hardening table and its relaxed lines of `serve` as `Hardening::relax`; `--env-file` stays an argument; the lock of a run stays in podssh |
+| podnet | `crates/podnet-core/src/autostart.rs`: `unit_text`, `crontab_with`, `probe` | `Unit` of `autostart run NAME --dir DIR`; `install::probe`, `install::install`, `install::remove`; the files `NAME.args` and `NAME.env` stay in podnet |
+| cfb, githome | none | through podrunner and podnet: a system unit of a named user with no token (A-S-02, A-N-11) |
