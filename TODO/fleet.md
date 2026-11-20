@@ -6173,7 +6173,7 @@ use the verifier.
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6202,7 +6202,24 @@ of v0.76.0, and a fixture of a bundle of Rekor v2.
 
 ```sh
 cargo test -p pod-release --all-features
+sh scripts/plant-each.sh release-inclusion-unchecked release-timestamp-unsigned
 ```
+
+## Done
+
+2026-11-20, this commit (the code in `c70b870d3`, the plants in `786c64b23`; calls C820 and C821).
+`pod_release::sigstore` verifies the inclusion proof of RFC 6962 (`sigstore/proof.rs`) with the
+checkpoint as a signed note of the log (ECDSA P-256 for Rekor v1, Ed25519 for Rekor v2; a witness
+line is not read), and the RFC 3161 timestamp (`sigstore/stamp.rs`: the CMS SignedData read with the
+`asn1-rs` of x509-parser, no new dependency) by the compiled chain of `timestamp.sigstore.dev`. The
+body is a `hashedrekord` 0.0.1 or 0.0.2. `Roots` is `{ fulcio, logs, tsa }`, with the shard
+`log2025-1` of Rekor v2 and the authority from Sigstore's public trusted root (root-signing `c9bda74`),
+which `SOURCES` names and a test compares. Fixtures: the bundles of v0.76.0 and v0.77.0 with each part
+removed and changed (`sigstore::tests::parts`); two bundles of Rekor v2 of sigstore-conformance
+(`e275ffb`, Apache-2.0, `tests/fixtures/sigstore/`) with their staging trusted root
+(`sigstore::tests::rekor2`). `cargo test -p pod-release --all-features`: 65 + 8 + 13 passed (1
+ignored). `plant-each.sh`: the 2 new plants and the 2 plants of T-104 (new patches) caught.
+`sh scripts/agent/check.sh`: each step 0 (the test step run alone, `cargo test --workspace --all-features`, after a removal of `target/debug` for the disk).
 
 # T-965: `pod-release`: the verifier as a static command for the CI of a product and for an installer
 
