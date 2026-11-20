@@ -206,6 +206,13 @@ jobs:
           key: pip-${{ runner.os }}-${{ hashFiles('scripts/ci/wormhole-servers.txt') }}
       - name: pod-wormhole and pod-relay against magic-wormhole's mailbox server
         run: sh scripts/ci/mailbox-tests.sh
+      # The clients of a job through the TLS end of pod-broker (T-973):
+      # curl, git, Python with urllib and requests, Node.js 26.13.1 and cargo,
+      # each with the bundle of the job, against a far end on 127.0.0.1.
+      # requests from scripts/ci/broker-clients.txt with each SHA-256, and
+      # the archive of Node.js checked by its SHA-256. A skip fails the step.
+      - name: pod-broker with the clients of a job
+        run: sh scripts/ci/broker-clients-tests.sh
       # The DNS over HTTPS of pod-dns against CoreDNS on 127.0.0.1 (T-350):
       # the release of CoreDNS 1.15.0, checked by its SHA-256. A skip fails
       # the step.

@@ -1,0 +1,11 @@
+diff --git a/crates/pod-broker/src/ca.rs b/crates/pod-broker/src/ca.rs
+index cf21625..62dda8c 100644
+--- a/crates/pod-broker/src/ca.rs
++++ b/crates/pod-broker/src/ca.rs
+@@ -142,5 +142,5 @@ pub fn write_bundle(path: &Path, ca_pem: &str, roots_pem: &[u8]) -> std::io::Res
+ /// `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE` and the others of
+ /// [`pod_tls::BUNDLE_VARS`]).
+ pub fn env(path: &Path) -> Vec<(&'static str, PathBuf)> {
+-    pod_tls::BUNDLE_VARS.iter().map(|var| (*var, path.to_path_buf())).collect()
++    pod_tls::BUNDLE_VARS.iter().filter(|var| **var != "NODE_EXTRA_CA_CERTS").map(|var| (*var, path.to_path_buf())).collect()
+ }

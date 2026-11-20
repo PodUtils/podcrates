@@ -1,0 +1,7 @@
+# The bundle of a job holds the CA of the job alone: a client that takes
+# the bundle in place of its trust refuses each other host (T-973).
+ENTRY=T-973
+GROUP=proxy
+EXPECT='curl_takes_the_bundle'
+RUN='cargo test -p pod-broker --all-features --test tls_clients'
+LIMIT=1800

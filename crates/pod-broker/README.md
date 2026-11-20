@@ -110,6 +110,28 @@ the base64 of each `Basic` value that it wrote (C815). The ALPN is
 The values never reach a line, an answer of the control or a text of an
 error; `Secrets`, `Vault` and `JobCa` show no value in their debug form.
 
+The job also needs the broker as its proxy: `HTTPS_PROXY` (and
+`https_proxy`) with the job token as the password, unless the listener
+belongs to the job. `tests/tls_clients.rs` runs the clients of a job
+with the bundle and each variable of `ca::env`
+(`scripts/ci/broker-clients-tests.sh` in CI). Each client reads one
+variable or more of the list:
+
+| Client | The variable that it reads | Note |
+| --- | --- | --- |
+| curl | `CURL_CA_BUNDLE`, `SSL_CERT_FILE` | |
+| git (GnuTLS or OpenSSL) | `GIT_SSL_CAINFO` | the Basic of `http.extraHeader`, also as `AUTHORIZATION: basic` (actions/checkout), and a token in the URL after a 401 |
+| Python `urllib`, `ssl` | `SSL_CERT_FILE` | |
+| Python `requests` | `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE` | not `SSL_CERT_FILE` |
+| Node.js | `NODE_EXTRA_CA_CERTS` | `fetch` and `https` use `HTTPS_PROXY` only with `--use-env-proxy` or `NODE_USE_ENV_PROXY=1` (Node.js 22.21, 24.5 and later) |
+| cargo | `SSL_CERT_FILE` | the token of a registry is the whole value of `Authorization` |
+
+A client that sends a `Host` that is not the target gets 421 (C816): for
+example, `http.request` of Node.js with no agent over a socket of the
+tunnel writes `Host: NAME:80`. A host that no credential names gets its
+tunnel as it is, and the job checks its leaf with the roots of the
+bundle.
+
 ### An upstream that takes names only
 
 Some proxy-only hosts have an upstream CONNECT proxy that refuses an IP
