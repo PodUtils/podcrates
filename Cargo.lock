@@ -5441,6 +5441,7 @@ dependencies = [
  "libc",
  "pod-hostprobe",
  "pod-job",
+ "pod-manual",
  "pod-time",
  "ring",
  "serde_json",

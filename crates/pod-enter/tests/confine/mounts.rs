@@ -113,6 +113,40 @@ pub fn a_rule_on_a_path_that_the_tmpfs_hides_is_refused() {
     let _ = std::fs::remove_dir_all(d);
 }
 
+/// A rule on a guest path covers each volume that the namespace rung binds
+/// under it: Landlock walks from a file of the bind up through its mount
+/// point, so `read=/` reads `/sc/f` of `-v S:/sc` (PodUtils/podvm#613, ask
+/// 4). A rule beside the volume does not cover it. The entry with no chroot
+/// takes host paths: there the spec of the caller names the host side of
+/// each volume.
+pub fn a_rule_on_the_root_covers_a_volume_under_it() {
+    if !chroot_rungs() {
+        return;
+    }
+    let src = dir("volume-under-src");
+    std::fs::write(src.join("f"), b"x").unwrap();
+    let argv: Vec<String> = [image::GUEST_EXE, READER, "/sc/f"].map(String::from).to_vec();
+    for (rule, want) in [("/", "/sc/f=0"), ("/var", "/sc/f=-13")] {
+        let (d, spec) = image_and_spec("volume-under", rule, Access::READ);
+        std::fs::create_dir_all(d.join("sc")).unwrap();
+        let root = root_over_the_pipes(&text(&d));
+        let mut p = plan(argv.clone(), Some(spec));
+        p.volumes =
+            vec![pod_enter::VolumeBind { host: text(&src), guest: "/sc".into(), read_only: true, host_base: None }];
+        let mut banner = Vec::new();
+        let r = run(&mut p, 0, |p| spawn_namespace(&root, p, &mut banner)).unwrap();
+        if !banner.is_empty() {
+            let fell = String::from_utf8_lossy(&banner);
+            skip_line(&format!("the namespace rung fell back to chroot: {}", fell.trim_end()));
+            return;
+        }
+        assert_eq!(r.line.trim_end(), want, "the rule {rule}: {r:?}");
+        drop(root);
+        let _ = std::fs::remove_dir_all(d);
+    }
+    let _ = std::fs::remove_dir_all(src);
+}
+
 /// The entry with no chroot opens the host paths of the rules in the
 /// child too: a write rule on a directory holds, and a write beside it
 /// fails with `EACCES`.

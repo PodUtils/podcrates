@@ -119,3 +119,37 @@ fn the_waiter_forwards_its_list_and_not_a_signal_of_the_terminal() {
     assert!(!waiter_forwards(0, 0));
     assert!(!waiter_forwards(65, 0));
 }
+
+/// The mask of the process `pid`: `SigBlk` of its status, in hex.
+fn blocked_of(pid: i64) -> u64 {
+    let status = std::fs::read_to_string(format!("/proc/{pid}/status")).expect("the status of the payload");
+    let hex = status.lines().find_map(|l| l.strip_prefix("SigBlk:")).expect("SigBlk");
+    u64::from_str_radix(hex.trim(), 16).expect("a mask in hex")
+}
+
+/// A thread that blocks SIGUSR1 starts a payload, and a SIGUSR1 reaches the
+/// payload: the child sets an empty mask before its `execve` (T-1010).
+#[test]
+fn a_payload_of_a_thread_that_blocks_sigusr1_gets_sigusr1() {
+    pod_testkit::need_tool!("/bin/sh");
+    let dir = std::env::temp_dir().join(format!("pod-enter-mask-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let at = dir.clone();
+    let (blocked, code) = std::thread::spawn(move || {
+        let mut old = 0u64;
+        sys::sigblock(sys::sigbit(sys::SIGUSR1), &mut old).expect("the mask of the caller");
+        let child = crate::tests::spawn_sh(&at, "exec sleep 30".to_string(), &[]);
+        // The entry returns after the `execve`: the mask is the one that
+        // the payload took.
+        let blocked = blocked_of(child.pid);
+        let sig = if blocked & sys::sigbit(sys::SIGUSR1) == 0 { sys::SIGUSR1 } else { 9 };
+        sys::kill(child.pid, sig as i64).expect("kill");
+        (blocked, child.wait().map_err(|e| e.to_string()))
+    })
+    .join()
+    .unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(blocked & sys::sigbit(sys::SIGUSR1), 0, "the payload took the mask of its caller: {blocked:#x}");
+    assert_eq!(code, Ok(128 + sys::SIGUSR1 as i32), "the SIGUSR1 did not end the payload");
+}

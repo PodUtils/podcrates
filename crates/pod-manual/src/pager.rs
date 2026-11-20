@@ -17,7 +17,7 @@
 
 use std::ffi::OsString;
 use std::io::{BufRead, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::facts::{Use, Var, VarGroup};
 
@@ -128,21 +128,10 @@ pub fn choose(env: &PagerEnv) -> Choice {
     }
 }
 
-/// The first `name` in `path` that is a file this process may run.
+/// The first `name` in `path` that is a file this process may run, with no
+/// extension of `PATHEXT` ([`crate::program::find`] tries them).
 pub fn find_program(name: &str, path: Option<OsString>) -> Option<PathBuf> {
-    std::env::split_paths(&path?).map(|dir| dir.join(name)).find(|p| runnable(p))
-}
-
-fn runnable(p: &Path) -> bool {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        p.metadata().is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
-    }
-    #[cfg(not(unix))]
-    {
-        p.is_file()
-    }
+    crate::program::find(name, path, None)
 }
 
 /// Write `text`: through the pager when `tty` can page and `no_pager` is

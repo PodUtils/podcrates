@@ -1,0 +1,13 @@
+diff --git a/crates/pod-enter/src/confine/program.rs b/crates/pod-enter/src/confine/program.rs
+index c9ab6abb..08e39da9 100644
+--- a/crates/pod-enter/src/confine/program.rs
++++ b/crates/pod-enter/src/confine/program.rs
+@@ -17,7 +17,7 @@ use crate::{Error, Plan, Result};
+ /// How many `#!` lines one exec follows: the rewrites of the kernel
+ /// (`fs/exec.c`, `exec_binprm`: `depth > 5` is `ELOOP`, so five rewrites
+ /// run, whatever its comment says). One more is `ELOOP` there.
+-const MOST_SCRIPTS: usize = 5;
++const MOST_SCRIPTS: usize = 4;
+ 
+ /// [`super::check_exec`] for each file that the kernel executes for `argv`
+ /// (host paths, each resolved as [`super::check_exec`] resolves it): the

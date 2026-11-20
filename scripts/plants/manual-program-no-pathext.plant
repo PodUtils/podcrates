@@ -1,0 +1,7 @@
+# pod-manual: the lookup of a program tries no extension of PATHEXT, so
+# host::tool of pod-testkit finds no git.exe on Windows (T-1021).
+ENTRY=T-1021
+GROUP=manual
+EXPECT='test program::tests::the_lookup_of_windows_finds_a_name_with_its_pathext_extension \.\.\. FAILED'
+RUN='cargo test -p pod-manual --all-features --lib -- program::tests'
+LIMIT=1800

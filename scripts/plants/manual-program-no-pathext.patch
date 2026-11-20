@@ -1,0 +1,12 @@
+diff --git a/crates/pod-manual/src/program.rs b/crates/pod-manual/src/program.rs
+index b98b88fa..e719f59c 100644
+--- a/crates/pod-manual/src/program.rs
++++ b/crates/pod-manual/src/program.rs
+@@ -28,7 +28,6 @@ pub fn names(name: &str, exts: Option<&OsStr>) -> Vec<OsString> {
+         && Path::new(name).extension().is_none()
+     {
+         for ext in exts.to_string_lossy().split(';').filter(|e| !e.is_empty()) {
+-            out.push(OsString::from(format!("{name}{ext}")));
+         }
+     }
+     out

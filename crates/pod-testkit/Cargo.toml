@@ -44,6 +44,9 @@ path = "src/bin/pod-fake-githome.rs"
 required-features = ["githome"]
 
 [dependencies]
+# The one lookup of a program in PATH, with PATHEXT on Windows (host::tool).
+# pod-manual takes no dev-dependency on this kit.
+pod-manual = { workspace = true }
 vt100 = { version = "0.18", optional = true }
 tokio = { workspace = true, optional = true, features = ["io-util", "rt", "sync"] }
 h2 = { workspace = true, optional = true }

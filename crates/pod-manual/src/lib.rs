@@ -34,6 +34,7 @@ pub mod json;
 pub mod llms;
 pub mod model;
 pub mod pager;
+pub mod program;
 pub mod roff;
 pub mod rules;
 pub mod scan;

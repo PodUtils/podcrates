@@ -289,8 +289,20 @@ async fn cargo_resolves_from_a_registry_that_needs_a_token() {
     println!("clients: cargo took the bundle by CARGO_HTTP_CAINFO alone");
 }
 
+/// Go reads `SSL_CERT_FILE` on a Unix other than macOS only: on macOS
+/// `crypto/x509` verifies with the Security framework and the keychains
+/// (`root_darwin.go`; `root_unix.go` does not build there), so no variable
+/// gives Go the CA of the job.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn go_takes_the_bundle_by_ssl_cert_file() {
+    if cfg!(target_os = "macos") {
+        // A limit of Go, not a client that the host lacks: no failure, also
+        // when each client is required.
+        pod_testkit::host::skip_line(
+            "Go on macOS verifies with the keychains and reads no SSL_CERT_FILE or SSL_CERT_DIR",
+        );
+        return;
+    }
     let Some(go) = need("POD_BROKER_TEST_GO", "go") else { return };
     let lab = Lab::start("go", clients::echo_auth).await;
     let program = sources::build_go(&go, &lab.dir).unwrap_or_else(|why| panic!("{why}"));

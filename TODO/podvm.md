@@ -11155,7 +11155,7 @@ moved onto the new code and are caught.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11192,6 +11192,40 @@ reaches the payload.
 ```sh
 cargo test -p pod-enter --all-features --lib child
 ```
+
+## Correction
+
+2026-11-20: `std::process::Command` of Rust does not set an empty mask.
+The std of the pinned toolchain (rustc `2d8144b`,
+`library/std/src/sys/process/unix/unix.rs`) says "Inherit the signal mask
+from the parent rather than resetting it", in the fork path and in the
+`posix_spawn` path. Measured: with the block of the launcher of
+`pod-supervise` before the entry, the test entry of
+`crates/pod-supervise/tests/lifecycle.rs` (`Command::new("/bin/sh")`)
+starts a payload that a SIGTERM does not end: "signal: no change in 10 s:
+Running, None". So the launcher keeps its block after the entry (call
+C862), and T-1032 has the time before the block. runc and docker: not
+measured.
+
+## Done
+
+2026-11-20, commit c570323d (call C862). The child of `spawn_with`
+(`crates/pod-enter/src/launch.rs`) sets an empty mask
+(`sys::sigrestore(0)`) after `Pid::split` and before the exec: each rung,
+the memfd, the userland argv and the payload under an init or a relay of
+a PID namespace take it; the init and the relay keep the mask of the
+caller until they block their own. Test:
+`child::tests::a_payload_of_a_thread_that_blocks_sigusr1_gets_sigusr1` (a
+thread that blocks SIGUSR1 starts `sh -c 'exec sleep 30'` by the userland
+entry; the test reads `SigBlk` of the payload, then sends SIGUSR1). Before
+the fix: "the payload took the mask of its caller: 0x200". After it:
+`cargo test -p pod-enter --all-features --lib child` passes 8; the tests
+of `pod-enter`, `pod-supervise`, `pod-manual`, `pod-testkit` and
+`pod-broker` pass (584 tests; `foreground`, `lifecycle` and `tree` pass
+each step). The plant `enter-payload-keeps-the-mask` is caught; the plant
+`enter-same-fd-dash-digit` moved onto the new test helper (commit
+15d34c25) and is caught. The block of the launcher of `pod-supervise`
+stays after the entry (Correction; T-1032).
 
 # T-1012: `pod-guest`: a saved state of the caller's machine line with no UEFI `Plan`, for podvm's Linux guest (PodUtils/podvm#618)
 
@@ -11621,3 +11655,133 @@ The live proof is the next dispatch of `guest.yml` on `main`: the step
 static QEMU" (QEMU 11.0.0) pass, and each prints "QEMU emulator version
 ...: the plan does not save: the emulator cannot save this guest:
 "non-migratable device: 0000:00:02.0/nvme"".
+
+# T-1032: `pod-supervise`: a signal of the list to the detached launcher between the start of the payload and its block ends the launcher
+
+**Source:** T-1010 (a finding: the block of the launcher cannot move before the entry).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The detached launcher of `pod-supervise`
+(`crates/pod-supervise/src/launcher/supervise.rs`) blocks
+`sys::PROXIED_SIGNALS` after the entry of the caller returns. A signal of
+the list to the launcher between the start of the payload and the block
+ends the launcher with its default action: a payload of `pod-enter` with
+`die_with_parent` ends with it, and another payload stays with no
+launcher. A block before the entry is not safe: the entry is a function of
+the caller, and an entry with `std::process::Command` of Rust passes the
+mask of its thread to the payload (T-1010, Correction; call C862).
+
+## Premise
+
+- Read: `supervise.rs`; `crates/pod-supervise/src/launcher.rs` (`Launch`);
+  the test entry of `crates/pod-supervise/tests/lifecycle.rs`.
+- Measured: with the block before the entry, the lifecycle test fails at
+  `a_signal_reaches_the_payload` (the payload of `Command` blocks SIGTERM).
+- Not measured: a signal in the time before the block (a race of
+  microseconds).
+
+## Approach
+
+Block the list before the entry, and make the empty mask of the payload
+a rule of `Launch`: a function `launcher::clear_mask()` for
+`CommandExt::pre_exec` of an entry with `std::process::Command` (the test
+entry uses it), and `pod-enter` needs nothing (T-1010). After the entry,
+the launcher reads `SigBlk` of `/proc/PID/status` of the payload and kills
+and refuses a payload that blocks a signal of the list, with a message
+that names the rule: an entry that breaks it fails at its first start, not
+at its first signal.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features --test lifecycle
+```
+
+# T-1033: `pod-enter`: podvm's two rules for the take of `check_exec_argv` and `check_exec_guest`: a rule over a volume, and the `#!` chain (PodUtils/podvm#613)
+
+**Source:** PodUtils/podvm#613 (COORD-215 of podvm), ask 4
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm's ask 4, "Two more rules, for the take of `check_exec_argv` and
+`check_exec_guest`" (PodUtils/podvm@T-2014 and PodUtils/podvm@T-2015):
+
+- "A rule on a guest path that holds a volume gives the same access to
+  the host path of each volume under it (lexical, at a component
+  boundary, as the interposer matches). Before, `read=/` on a rung with
+  no chroot did not reach `-v S:/sc`." podvm:
+  `podvm_enter::confine::host_spec` and `volumes_under`.
+- "The exec of a `#!` script checks each interpreter of the chain (up to
+  4 levels, then ELOOP), and the loader rule on the arguments that the
+  kernel gives the last interpreter." podvm:
+  `PodUtils/podvm:crates/podvm-dispatch/src/script.rs`.
+
+## Premise
+
+- Read: podvm at its `main` head (`5c1a58d`, after `627ae99`):
+  `PodUtils/podvm:crates/podvm-enter/src/confine.rs` (`host_spec`,
+  `volumes_under`, `check_first`) and
+  `PodUtils/podvm:crates/podvm-dispatch/src/script.rs` (`chain`, `lead`,
+  `DEPTH`); `crates/pod-enter/src/confine.rs` (`compile`, `table_vars`)
+  and `crates/pod-enter/src/confine/program.rs` (`each_file`,
+  `MOST_SCRIPTS`); `fs/exec.c` of Linux v6.18 (`exec_binprm`: "This
+  allows 4 levels of binfmt rewrites", then `if (depth > 5) return
+  -ELOOP`).
+- Measured on Linux 6.18: a chain of five `#!` scripts that ends in
+  `/bin/echo` runs; a chain of six gives "bad interpreter: Too many levels
+  of symbolic links" (`ELOOP`).
+
+## Approach
+
+1. Find where `pod-enter` turns a guest rule into host rules, and apply
+   the rule of the volumes there, with a test of `read=/` and a volume
+   `S:/sc`.
+2. Compare the `#!` walk of `each_file` with podvm's `chain`: the depth,
+   the argv of the kernel for the last interpreter, and the loader rule.
+   Fix each difference from the kernel.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --lib confine::program
+cargo test -p pod-enter --all-features --test confine
+```
+
+## Done
+
+2026-11-20, commit 68b23e20 (call C864).
+
+1. The rule over a volume: `pod-enter` turns no guest rule into host
+   rules. On the entry with no chroot `confine::compile` (no root),
+   `table_vars` and `check_exec_guest` take the host paths of
+   `Plan.confine`, and podvm's `host_spec` applies `volumes_under` there,
+   so the take of `check_exec_guest` keeps the rule. On the namespace rung
+   Landlock walks from a file of a bind up through its mount point: the
+   step `a_rule_on_the_root_covers_a_volume_under_it` of
+   `crates/pod-enter/tests/confine/mounts.rs` reads `/sc/f` of a volume
+   `S:/sc` with `read=/` (0) and with `read=/var` (-13).
+2. The `#!` chain: the argv of the kernel for the last interpreter (the
+   argument of the last level, then each interpreter and argument above
+   it, the script as invoked, the arguments) and the loader rule on it
+   agree with podvm's `script::chain` and `lead`. The depth did not agree
+   with the kernel: Linux 6.18 runs five `#!` lines and refuses a sixth;
+   `each_file` followed four. `MOST_SCRIPTS` is 5. podvm's
+   `script::DEPTH` is 4: it refuses a chain of five that the kernel runs.
+
+Test: `confine::program::tests::a_chain_of_five_scripts_takes_the_rule_and_a_sixth_level_is_eloop`.
+Before the fix: "more than 4 levels of #! interpreters (ELOOP)" for the
+chain of five. After it: `cargo test -p pod-enter --all-features --lib
+confine::program` passes 3, `cargo test -p pod-enter --all-features
+--test confine` passes 17. The plant `enter-script-chain-four-levels` is
+caught.

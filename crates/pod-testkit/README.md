@@ -14,7 +14,9 @@ consumer that wants it. It is never a dependency of a release binary.
   namespace with a tmpfs mount in them (Linux only; elsewhere the test
   skips).
 * `need_tool!(TOOL)`: the same for a host with no `TOOL` that can execute.
-  `TOOL` is a path (`"/bin/sh"`) or a name in `PATH` (`"qemu-img"`).
+  `TOOL` is a path (`"/bin/sh"`) or a name in `PATH` (`"qemu-img"`). On
+  Windows a name with no extension also matches each extension of
+  `PATHEXT` (`git.exe`), by `pod_manual::program`.
 * `need_root!()`: the same for a process whose effective user is not
   root (Linux only; elsewhere the test skips).
 * `host::loopback()`, `host::localhost()`, `host::userns()`: the probes,

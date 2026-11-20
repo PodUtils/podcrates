@@ -6861,7 +6861,7 @@ The plant `broker-env-no-cargo-cainfo` (`ca::env` with no
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6896,6 +6896,24 @@ roots) gets its own measurement before the broker gives it.
 ```sh
 cargo test -p pod-broker --all-features --test tls_clients -- go_ --nocapture
 ```
+
+## Done
+
+2026-11-20, commit 148a1361. Read: `src/crypto/x509` of golang/go at
+`go1.26.11`, the Go of CI. `root_unix.go`, the one file that reads
+`SSL_CERT_FILE` and `SSL_CERT_DIR`, has `//go:build aix || dragonfly ||
+freebsd || (js && wasm) || linux || netbsd || openbsd || solaris ||
+wasip1`. On darwin `root_darwin.go` gives `loadSystemRoots` a pool with
+`systemPool: true`, and `Verify` with no `Roots` calls `systemVerify`
+(`SecTrustEvaluateWithError`, the keychains; `verify.go`). So Go on macOS
+reads no variable of a CA file; no run on macOS is necessary to prove it.
+The test `go_takes_the_bundle_by_ssl_cert_file` writes a skip line with
+the reason on macOS (also with `POD_BROKER_TEST_CLIENTS=required`), and
+the README row of Go names the limit. The nightly run 44696810225 ran no
+Go leg on macOS (its `tls_clients` had 7 tests). On Linux the leg passes
+(`cargo test -p pod-broker --all-features --test tls_clients -- go_`: 2
+passed); `sh scripts/agent/check-macos.sh`: "0 faults". A way for a Go
+job on macOS: T-1031.
 
 # T-1023: `pod-control`: the bytes of a line that holds a token or a secret are not wiped
 
@@ -7054,4 +7072,91 @@ names.
 
 ```sh
 cargo test -p pod-release --all-features
+```
+
+# T-1030: `pod-actions-store`: the git tests on the Windows jobs, with the forge URL of a Windows path
+
+**Source:** T-1021 (the lookup of `host::tool` now finds git on Windows).
+**Category:** measurement
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The five tests of `crates/pod-actions-store/tests/git.rs` skipped on the
+Windows jobs of `nightly.yml` with "this host has no git that can
+execute". After T-1021 `need_tool!("git")` finds `git.exe`, and the tests
+run there. `Repos::forge` makes the base of the forge with
+`format!("file://{}/", root.display())`: on Windows that is
+`file://C:\...\`, a form that git for Windows can refuse. Each other test
+that asks for a tool and is not `cfg(unix)` runs there too.
+
+## Premise
+
+- Read: `crates/pod-actions-store/tests/git.rs`; `crates/pod-actions-store/src/git.rs`
+  (`Git::scheme`, `protocol.file.allow`); the list of the tests that ask
+  for a tool with no `cfg(unix)`.
+- Not measured: the tests on a Windows runner; the answer of git for
+  Windows to `file://C:\...`.
+
+## Approach
+
+Read the jobs `test (windows-2025)` and `test (windows-11-arm)` of the
+next nightly run. For a refusal of the URL, make the base a URL of the
+path with `/` (`file:///C:/...`) in the test. Fix each other failure, or
+write it as an entry.
+
+## Prove
+
+```sh
+sh scripts/agent/check-windows.sh
+cargo test -p pod-actions-store --all-features --test git
+```
+
+## Start condition
+
+A nightly run at a commit with T-1021.
+
+# T-1031: `pod-broker`: a Go job on macOS refuses the leaf of the job, and no variable gives Go the CA
+
+**Source:** T-1022 (a finding: the read of `crypto/x509` of Go 1.26.11).
+**Category:** measurement
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On macOS `crypto/x509` of Go verifies with the Security framework and
+the keychains: `root_unix.go`, the one file that reads `SSL_CERT_FILE`
+and `SSL_CERT_DIR`, does not build for darwin (T-1022). A Go job on a
+macOS host of podrunner refuses the leaf of the job with each variable of
+`ca::env`, and the broker gives it no other way. `GODEBUG` with
+`x509usefallbackroots=1` acts only on a program that calls
+`x509.SetFallbackRoots`.
+
+## Premise
+
+- Read: `src/crypto/x509/root_darwin.go`, `root_unix.go`, `verify.go` and
+  `cert_pool.go` of golang/go at `go1.26.11`.
+- Not measured: a trust setting of the CA in a keychain of the user of the
+  job (`security add-trusted-cert -r trustRoot -k KEYCHAIN`), with no
+  prompt and with no change of the keychains of the host.
+
+## Approach
+
+Measure on a macOS runner: a keychain of the job (`security
+create-keychain`, the CA with `add-trusted-cert`, the keychain in the
+search list of the user of the job), a Go client of `tls_clients` against
+the leaf, and the cleanup at the end of the job. If it holds without a
+prompt and without root, give it as a step of `ca` for podrunner;
+otherwise the README names the limit for a Go job on macOS.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --all-features --test tls_clients -- go_ --nocapture
 ```

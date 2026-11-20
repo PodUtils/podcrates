@@ -1,0 +1,12 @@
+diff --git a/crates/pod-enter/src/launch.rs b/crates/pod-enter/src/launch.rs
+index 14720bf4..02fa7e00 100644
+--- a/crates/pod-enter/src/launch.rs
++++ b/crates/pod-enter/src/launch.rs
+@@ -395,7 +395,6 @@ pub(crate) fn spawn_with(
+             // and the relay keep the mask of the caller until they block
+             // their own. The call fails only on a bad size or address,
+             // which `sys` fixes.
+-            let _ = sys::sigrestore(0);
+             // The program resolves here, in the process that changed the
+             // root. A memfd from the caller execs with no path, under the
+             // same chroot.
