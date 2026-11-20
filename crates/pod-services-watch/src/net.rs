@@ -137,10 +137,10 @@ impl Net {
         request
     }
 
-    /// The answer to `request`, any status.
+    /// The answer to `request`, any status. A failure of the client names
+    /// the request (its method and its URL with no query) already.
     pub async fn send(&self, request: Request) -> Result<Response, Finding> {
-        let url = request.url.clone();
-        self.client.send(request).await.map_err(|e| finding(format!("{}: {e}", shown(&url)), &e))
+        self.client.send(request).await.map_err(|e| finding(e.chain(), &e))
     }
 
     /// The answer to a GET of `url` that follows up to five redirects; a
@@ -167,8 +167,7 @@ impl Net {
 
     /// The head of the answer to `request` and its body as a reader.
     pub async fn streamed(&self, request: Request) -> Result<Streamed, Finding> {
-        let url = request.url.clone();
-        self.client.send_streamed(request).await.map_err(|e| finding(format!("{}: {e}", shown(&url)), &e))
+        self.client.send_streamed(request).await.map_err(|e| finding(e.chain(), &e))
     }
 
     /// A connection to `host:port` (a name or an address) through the dial.

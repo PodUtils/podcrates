@@ -46,7 +46,7 @@ tar = { workspace = true }
 russh = { workspace = true }
 
 [dev-dependencies]
-pod-testkit = { workspace = true, features = ["stand"] }
+pod-testkit = { workspace = true, features = ["stand", "refused"] }
 pod-ws = { workspace = true }
 # The stand-ins serve TLS on ring, with the certificates of the tests of
 # pod-tls, minted in pure Rust.

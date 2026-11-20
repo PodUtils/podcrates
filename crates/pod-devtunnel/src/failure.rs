@@ -102,10 +102,12 @@ pub(crate) fn fail(step: Step, class: Class, what: impl fmt::Display) -> Failure
 }
 
 /// A failure of `step` whose cause is `cause`: the stage and the class of
-/// the cause, which knows where it broke.
+/// the cause, which knows where it broke. `what` is said once: the failure
+/// of a request of `pod-proxy` names the request already.
 pub(crate) fn wrap(step: Step, what: impl fmt::Display, cause: Failure) -> Failure {
     let (stage, class) = (cause.stage, cause.class);
-    Failure::caused(stage, class, format!("{}: {what}", step.words()), Failed { step, cause: Some(cause) })
+    let text = format!("{}: {}", step.words(), pod_core::failure::lead(&what.to_string(), &cause.chain()));
+    Failure::caused(stage, class, text, Failed { step, cause: Some(cause) })
 }
 
 /// The failure of an SSH step: its class from the error of russh.

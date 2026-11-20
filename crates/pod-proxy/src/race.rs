@@ -179,22 +179,29 @@ pub(crate) async fn race(
 /// text: `198.41.192.7:7844: refused`, or `20 addresses (198.41.192.7:7844,
 /// 198.41.192.27:7844, ...): Permission denied (os error 13)`.
 pub fn group_errors(errors: &[(SocketAddr, String)]) -> String {
-    let mut groups: Vec<(&str, Vec<SocketAddr>)> = Vec::new();
-    for (addr, text) in errors {
+    group_texts(errors, "addresses")
+}
+
+/// The errors of more than one key (an address, a host), one entry for
+/// each text: `KEY: TEXT`, or `N NOUN (KEY, KEY, ...): TEXT`. A key is
+/// counted once.
+pub fn group_texts<K: std::fmt::Display + PartialEq>(errors: &[(K, String)], noun: &str) -> String {
+    let mut groups: Vec<(&str, Vec<&K>)> = Vec::new();
+    for (key, text) in errors {
         match groups.iter_mut().find(|(t, _)| *t == text.as_str()) {
-            Some((_, addrs)) if addrs.contains(addr) => {}
-            Some((_, addrs)) => addrs.push(*addr),
-            None => groups.push((text, vec![*addr])),
+            Some((_, keys)) if keys.contains(&key) => {}
+            Some((_, keys)) => keys.push(key),
+            None => groups.push((text, vec![key])),
         }
     }
     groups
         .iter()
-        .map(|(text, addrs)| match addrs.as_slice() {
+        .map(|(text, keys)| match keys.as_slice() {
             [one] => format!("{one}: {text}"),
             many => {
-                let shown: Vec<String> = many.iter().take(2).map(|a| a.to_string()).collect();
+                let shown: Vec<String> = many.iter().take(2).map(|k| k.to_string()).collect();
                 let more = if many.len() > 2 { ", ..." } else { "" };
-                format!("{} addresses ({}{more}): {text}", many.len(), shown.join(", "))
+                format!("{} {noun} ({}{more}): {text}", many.len(), shown.join(", "))
             }
         })
         .collect::<Vec<_>>()

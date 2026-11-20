@@ -2590,7 +2590,7 @@ cargo test -p pod-core --all-features --test files
 
 ## Problem
 
-T-910 holds a bound socket that does not listen. The kernel of macOS drops a SYN to it with no RST, so each connect waits for its timeout. `crates/pod-proxy/src/race.rs:299` (`a_dial_of_one_refused_address_twice_names_it_once`) passes there only because it checks the text, and each dial waits 10 s. podnet takes `refused()` in place of its `dead_port` helpers (PodUtils/podnet#653).
+T-910 holds a bound socket that does not listen. The kernel of macOS drops a SYN to it with no RST, so each connect waits for its timeout. `crates/pod-proxy/src/race.rs:306` (`a_dial_of_one_refused_address_twice_names_it_once`) passes there only because it checks the text, and each dial waits 10 s. podnet takes `refused()` in place of its `dead_port` helpers (PodUtils/podnet#653).
 
 ## Premise
 

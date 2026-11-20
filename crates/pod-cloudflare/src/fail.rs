@@ -56,10 +56,11 @@ impl<T> Context<T> for Result<T> {
     }
 }
 
-/// `failure` with the text `text` before its own.
+/// `failure` with the text `text` before its own, once: a failure that
+/// starts with `text` (the request that `pod-proxy` names) keeps its words.
 pub fn wrap(failure: Failure, text: impl fmt::Display) -> Failure {
     let (stage, class) = (failure.stage, failure.class);
-    let words = format!("{text}: {}", failure.chain());
+    let words = pod_core::failure::lead(&text.to_string(), &failure.chain());
     Failure::caused(stage, class, words, failure)
 }
 

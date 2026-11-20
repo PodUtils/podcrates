@@ -236,8 +236,7 @@ impl Host {
     /// Send `request` with [`Host::client`]. A failure keeps its stage
     /// ([`crate::fail::stage_of`]) and names the request, with no query.
     pub async fn send(&self, request: pod_proxy::client::Request) -> Result<pod_proxy::http::Response, Failure> {
-        let url = request.url.split(['?', '#']).next().unwrap_or_default();
-        let what = format!("{} {url}", request.method);
+        let what = request.line();
         self.client().send(request).await.map_err(|failure| sent(failure, &what))
     }
 
@@ -263,16 +262,19 @@ impl Host {
     }
 }
 
-/// A failed request: the request and why. A handshake that the network
-/// ended is said in the words of [`crate::fail::tls_text`] (a reset during
-/// the TLS handshake), not as a bare error of I/O.
+/// A failed request: the request and why, each once. A handshake that the
+/// network ended is said in the words of [`crate::fail::tls_text`] (a reset
+/// during the TLS handshake), not as a bare error of I/O; the cause of the
+/// failure stays, without the words that this text says in its place.
 fn sent(failure: Failure, what: &str) -> Failure {
-    match (failure.stage, failure.io_cause()) {
-        (Stage::Network, Some(io)) => {
-            let text = format!("{what}: TLS: {}", crate::fail::tls_text(io));
-            Failure::caused(failure.stage, failure.class, text, failure)
-        }
-        _ => crate::fail::wrap(failure, what),
+    let Some(io) = failure.io_cause().filter(|_| failure.stage == Stage::Network) else {
+        return crate::fail::wrap(failure, what);
+    };
+    let text = format!("{what}: TLS: {}", crate::fail::tls_text(io));
+    let (stage, class) = (failure.stage, failure.class);
+    match failure.into_source() {
+        Some(cause) => Failure::caused(stage, class, text, cause),
+        None => Failure::new(stage, class, text),
     }
 }
 
@@ -303,8 +305,26 @@ mod tests {
             text.contains("reset during the TLS handshake") || text.contains("closed during the TLS handshake"),
             "{text}"
         );
-        assert!(text.contains(&format!("POST https://localhost:{port}/tunnel")), "{text}");
+        assert_eq!(text.matches(&format!("POST https://localhost:{port}/tunnel")).count(), 1, "{text}");
         assert_eq!(failure.stage, Stage::Network, "{text}");
+    }
+
+    /// A request through a proxy that does not answer names the request
+    /// and the proxy once each (PodUtils/podnet#658).
+    #[tokio::test]
+    async fn a_dead_proxy_names_the_request_once() {
+        pod_testkit::need_loopback!();
+        let (_held, at) = pod_testkit::refused::refused();
+        let proxy = pod_proxy::Proxy::parse(&format!("http://{at}")).expect("a proxy");
+        let settings = pod_proxy::Settings::new("pod-cloudflare", pod_proxy::ProxyChoice::Via(proxy));
+        let dial = pod_proxy::Dialer::new(settings, Arc::new(pod_proxy::resolve::System::new()));
+        let host = Host::new(crate::testing::tls(), Arc::new(dial));
+        let request = pod_proxy::client::Request::new("POST", "https://api.example/tunnel?x=1");
+        let failure = host.send(request).await.unwrap_err();
+        let text = failure.chain();
+        assert_eq!(text.matches("POST https://api.example/tunnel").count(), 1, "{text}");
+        assert_eq!(text.matches("could not reach the proxy").count(), 1, "{text}");
+        assert_eq!(failure.stage, Stage::Proxy, "{text}");
     }
 
     /// The default words name no consumer; the path of a forward keeps

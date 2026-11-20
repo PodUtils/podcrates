@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**814 entries: 143 open, 31 partial, 7 blocked, 633 done.**
+**817 entries: 143 open, 31 partial, 7 blocked, 636 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 7 | 9 | 0 | 191 | 207 |
-| P2 | 68 | 12 | 4 | 319 | 403 |
+| P2 | 68 | 12 | 4 | 322 | 406 |
 | P3 | 68 | 10 | 3 | 121 | 202 |
-| **All** | 143 | 31 | 7 | 633 | 814 |
+| **All** | 143 | 31 | 7 | 636 | 817 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -860,4 +860,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-978](upkeep.md) | P1 | M | M5 | defect | partial | The findings of the report of the hard problems that the record does not have |
 | [T-979](foundation.md) | P1 | S | M0 | feature | done | `pod-todo`: an opt-in rule that a done defect names its test (PodUtils/podnet#657) |
 | [T-980](fleet.md) | P2 | M | M8 | chore | open | `pod-broker`: the bundle of a job for Go, Java, Deno, pip, npm and Hex |
+| [T-985](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: an error line names the request two times with a proxy that does not answer (PodUtils/podnet#658) |
+| [T-986](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: an error of the WARP API names a proxy that does not answer once for each host (PodUtils/podnet#658) |
+| [T-987](roads.md) | P2 | S | M2 | defect | done | `pod-ws`: the dial error of a dialer of the caller names its target two times (PodUtils/podnet#658) |
 | [T-990](relay.md) | P2 | S | M2 | defect | partial | `pod-quic`: an endpoint on `[::]` is IPv6 only on Windows, so the QUIC leg of `pod-cloudflare` sends nothing to an edge of IPv4 |

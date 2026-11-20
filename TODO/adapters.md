@@ -2259,3 +2259,87 @@ cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
 
 2026-11-18: podnet answered (PodUtils/podnet#654, 13:20 UTC): two edge connections for a quick tunnel are its choice, for redundancy; `podnet --ha-connections 1` gives the one connection of cloudflared. No change of behaviour: the doc of `Config::ha_connections` (`crates/pod-cloudflare/src/config.rs`) says the default, its reason, and how to get cloudflared's one connection. The test of the behaviour that stays: `crates/pod-cloudflare/tests/quick_tunnel_standin.rs` (a quick tunnel registers one leg to `ha_connections` legs at the stand-in edge).
 
+
+# T-985: `pod-cloudflare`: an error line names the request two times with a proxy that does not answer (PodUtils/podnet#658)
+
+**Source:** PodUtils/podnet#658 (COORD-111 of podnet, PodUtils/podnet@T-497), part 1.
+**Category:** defect
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet `0.4.0-beta.17` (podcrates `v0.78.1`) with a proxy where nothing listens:
+
+```text
+$ podnet tunnel --hello-world --proxy http://127.0.0.1:1
+podnet: provisioning quick tunnel: request to the quick-tunnel service failed: POST https://api.trycloudflare.com/tunnel: POST https://api.trycloudflare.com/tunnel: api.trycloudflare.com:443 through the proxy http://127.0.0.1:1: could not reach the proxy 127.0.0.1:1: could not connect to 127.0.0.1:1: Connection refused (os error 111)
+```
+
+`pod_proxy::Client::send` names the request (`within` in `crates/pod-proxy/src/client.rs`), and `pod_cloudflare::Host::send` names it again (`sent` and `fail::wrap` in `crates/pod-cloudflare/src/host.rs` and `crates/pod-cloudflare/src/fail.rs`). The class is "an error line names each cause once". The same pattern is in other callers of `pod_proxy::Client::send`: `pod-devtunnel` (`wrap` of `crates/pod-devtunnel/src/failure.rs` after `POST URL` in `crates/pod-devtunnel/src/login.rs`) and `pod-services-watch` (`Net::send` in `crates/pod-services-watch/src/net.rs` puts the URL before the text of the failure).
+
+## Premise
+
+- Read: PodUtils/podnet#658; `crates/pod-proxy/src/client.rs` (`within`); `crates/pod-cloudflare/src/host.rs`, `src/fail.rs`; `crates/pod-core/src/failure.rs` (`Failure::chain` names a cause only when its text is not in the line already, so a text that holds its cause and adds a lead in front repeats the lead).
+- Not measured: podnet's line after the fix (podnet measures it with its rows of PodUtils/podnet@T-452).
+
+## Approach
+
+One helper of `pod-core`: `pod_core::failure::lead(LEAD, TEXT)` gives `LEAD: TEXT`, or `TEXT` alone when `TEXT` starts with `LEAD` already. `fail::wrap` of `pod-cloudflare` and `within` of `pod-proxy` use it. `pod-devtunnel`'s `wrap` puts the text of the cause in the text of the failure through the helper. `pod-services-watch` keeps the text of the failure, which names the request. A test sends a request through a proxy that does not answer and counts the request and the proxy in the line.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features
+cargo test -p pod-cloudflare --all-features --lib host::tests
+cargo test -p pod-proxy --all-features
+cargo test -p pod-devtunnel --all-features
+cargo test -p pod-services-watch --all-features
+```
+
+## Done
+
+2026-11-20, 993bf43. `pod_core::failure::lead` (call C827) puts words before a text once; `pod-cloudflare`'s `fail::wrap` and `Host::send`, `pod-proxy`'s `within` and `pod-devtunnel`'s `wrap` use it, and `pod_proxy::client::Request::line` gives the words of the request. `pod-services-watch` keeps the words of the failure. A reset of the TLS handshake keeps its cause without the words of the request (`Failure::into_source`). The line now: `POST https://api.example/tunnel: could not reach the proxy 127.0.0.1:P: could not connect to 127.0.0.1:P: Connection refused (os error 111)`. Tests, each failed before the fix with 2 names of the request: `crates/pod-cloudflare/src/host.rs::a_dead_proxy_names_the_request_once`, `a_reset_in_the_tls_handshake_is_named`, `crates/pod-devtunnel/tests/login.rs::a_dead_base_names_the_request_once`, `crates/pod-services-watch/tests/watches/http.rs::a_dead_host_names_the_url_once`; and `failure::tests::a_lead_is_said_once` of `pod-core`. `cargo test` of `pod-core`, `pod-proxy`, `pod-cloudflare`, `pod-warp`, `pod-ws`, `pod-devtunnel` and `pod-services-watch` with `--all-features`: 1028 passed, 0 failed, 5 ignored; clippy of the same crates with `-D warnings`: clean.
+
+
+# T-986: `pod-warp`: an error of the WARP API names a proxy that does not answer once for each host (PodUtils/podnet#658)
+
+**Source:** PodUtils/podnet#658 (COORD-111 of podnet, PodUtils/podnet@T-497), part 2.
+**Category:** defect
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet with a proxy where nothing listens:
+
+```text
+$ podnet warp proxy --proxy http://127.0.0.1:1 --listen 127.0.0.1:0
+podnet: the WARP API at https://api.devices.cloudflare.com (before: https://api.cloudflareclient.com: POST https://api.cloudflareclient.com/v0a5641/reg: api.cloudflareclient.com:443 through the proxy http://127.0.0.1:1: could not reach the proxy 127.0.0.1:1: could not connect to 127.0.0.1:1: Connection refused (os error 111)): POST https://api.devices.cloudflare.com/v0a5641/reg: api.devices.cloudflare.com:443 through the proxy http://127.0.0.1:1: could not reach the proxy 127.0.0.1:1: ...
+```
+
+When each host of the API fails at the same hop (the proxy), the line names the proxy once for each host, and names each host two times (`at BASE` and the URL of the request). The ask: name the proxy once, and the hosts in one list.
+
+## Premise
+
+- Read: PodUtils/podnet#658; `crates/pod-warp/src/api.rs` (`Api::send`); `crates/pod-proxy/src/race.rs` (`group_errors`: one entry for each text, with its addresses); podnet's dialer (PodUtils/podnet:src/egress.rs, `failed`: the `DialError` of `pod-proxy` under the words of podnet).
+- Not measured: podnet's line after the fix.
+
+## Approach
+
+`Api::send` finds the hop that each failed host shares: the outer `Failure` or `DialError` of the chain whose text is the same for each host. `group_errors` of `pod-proxy` takes a key of any type and a noun, and folds the hosts with the same text into one entry: `the WARP API: each host failed: 2 hosts (https://api.cloudflareclient.com, https://api.devices.cloudflare.com): could not reach the proxy 127.0.0.1:1: ...`. The cause of the failure is the shared hop, so a caller reads the `DialError` and its cut. With no shared hop, each host has its own entry, which its URL names. A test through a proxy that does not answer counts the proxy in the line.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features --test register
+cargo test -p pod-proxy --all-features --lib race::tests
+```
+
+## Done
+
+2026-11-20, 993bf43. `Api::send` gives `each_failed`: the hop that each failed base shares (the outer `Failure` or `DialError` of each chain with the same text) is one entry of `pod_proxy::group_texts`, and stays the cause of the failure (`EachHost`), so a caller reads its `DialError`. With one base, the line names the request once: `the WARP API: POST https://HOST/...: ...`. The line now: `the WARP API: each host failed: 2 hosts (https://api.one.example, https://api.two.example): could not reach the proxy 127.0.0.1:P: could not connect to 127.0.0.1:P: Connection refused (os error 111)`. Tests: `crates/pod-warp/tests/register.rs::each_api_host_failed_at_the_proxy_names_it_once` (failed before the fix: 2 names of the proxy) and `api::tests::each_base_failed_at_one_hop_names_it_once` (the chain of podnet's dialer, a `DialError` under its own words). `cargo test -p pod-warp --all-features` and `-p pod-proxy`: green (the run of T-985).

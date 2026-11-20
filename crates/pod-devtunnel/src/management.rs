@@ -162,7 +162,8 @@ impl Management {
             service::tunnels_path(),
             credential.form()
         );
-        let answer = self.client.send(request).await.map_err(|e| wrap(Step::Management, &shown, e))?;
+        let line = request.line();
+        let answer = self.client.send(request).await.map_err(|e| wrap(Step::Management, &line, e))?;
         if !answer.is_success() {
             let words = problem(&answer.body);
             let what = if words.is_empty() {

@@ -70,6 +70,13 @@ impl std::fmt::Debug for Request {
 }
 
 impl Request {
+    /// The method and the URL with no query and no fragment: the words of
+    /// a failure of [`crate::Client::send`] start with them. A query can
+    /// hold a token.
+    pub fn line(&self) -> String {
+        format!("{} {}", self.method, super::url::without_query(&self.url))
+    }
+
     pub fn new(method: &'static str, url: impl Into<String>) -> Request {
         Request {
             method,

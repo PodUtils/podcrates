@@ -63,6 +63,27 @@ async fn the_second_api_host_answers_after_a_failure() {
     assert!(err.chain().contains("HTTP 503"), "{}", err.chain());
 }
 
+/// When each base fails at the same hop (a proxy that does not answer),
+/// the failure names the proxy once and the bases in one list
+/// (PodUtils/podnet#658).
+#[tokio::test]
+async fn each_api_host_failed_at_the_proxy_names_it_once() {
+    pod_testkit::need_loopback!();
+    let proxy = pod_proxy::Proxy::parse(&format!("http://{}", common::dead())).unwrap();
+    let dialer = pod_proxy::Dialer::new(
+        pod_proxy::Settings::new("podnet", pod_proxy::ProxyChoice::Via(proxy)),
+        std::sync::Arc::new(pod_proxy::resolve::System::new()),
+    );
+    let tls = pod_tls::Context::new(common::provider(), pod_tls::Settings::new(pod_tls::Words::new("podnet")));
+    let client = pod_proxy::Client::new(std::sync::Arc::new(tls), std::sync::Arc::new(dialer));
+    let bases = vec!["https://api.one.example".to_string(), "https://api.two.example".to_string()];
+    let err = pod_warp::Api::new(client).with_bases(bases).send(get()).await.expect_err("each base failed");
+    let chain = err.chain();
+    assert_eq!(chain.matches("could not reach the proxy").count(), 1, "{chain}");
+    assert!(chain.contains("https://api.one.example, https://api.two.example"), "{chain}");
+    assert_eq!(err.class, Class::Unavailable, "{chain}");
+}
+
 // PodUtils/podnet@T-241: the registration POST may have made a device. Any
 // answer is final; only a failure with no answer goes to the second host.
 #[tokio::test]

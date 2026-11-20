@@ -75,7 +75,7 @@ pub use family::FamilyPlan;
 pub use host::authority;
 pub use mptcp::Multipath;
 pub use proxy::{Carrier, HttpProxy, Proxy, ProxyKind};
-pub use race::{dial_addrs, group_errors, interleave};
+pub use race::{dial_addrs, group_errors, group_texts, interleave};
 #[cfg(any(fuzzing, feature = "fuzzing"))]
 pub use socks5::fuzz_exchange;
 pub use socks5::udp;

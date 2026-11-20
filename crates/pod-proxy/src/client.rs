@@ -332,10 +332,10 @@ fn network_or_tls(failure: Failure) -> Failure {
 /// `work` within the time limit of `request`. A failure says the method
 /// and the URL with no query, then why.
 async fn within<T>(request: &Request, work: impl Future<Output = Result<T, Failure>>) -> Result<T, Failure> {
-    let what = format!("{} {}", request.method, url::without_query(&request.url));
+    let what = request.line();
     match tokio::time::timeout(request.timeout, work).await {
         Ok(Ok(done)) => Ok(done),
-        Ok(Err(e)) => Err(Failure::caused(e.stage, e.class, format!("{what}: {}", e.text()), e)),
+        Ok(Err(e)) => Err(Failure::caused(e.stage, e.class, pod_core::failure::lead(&what, e.text()), e)),
         Err(_) => Err(Failure::new(
             Stage::Connect,
             Class::Timeout,
