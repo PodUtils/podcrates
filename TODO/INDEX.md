@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**828 entries: 143 open, 31 partial, 7 blocked, 647 done.**
+**831 entries: 144 open, 32 partial, 7 blocked, 648 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 6 | 9 | 0 | 194 | 209 |
-| P2 | 68 | 12 | 4 | 329 | 413 |
-| P3 | 69 | 10 | 3 | 122 | 204 |
-| **All** | 143 | 31 | 7 | 647 | 828 |
+| P2 | 68 | 13 | 4 | 330 | 415 |
+| P3 | 70 | 10 | 3 | 122 | 205 |
+| **All** | 144 | 32 | 7 | 648 | 831 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -874,4 +874,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1005](fleet.md) | P3 | S | M8 | chore | open | `pod-broker`: the clients of a job in the versions that no test runs |
 | [T-1009](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise` and `pod-enter`: the thread of a foreground hold blocks only SIGHUP, SIGINT, SIGQUIT and SIGTERM, so a SIGUSR1 to a waiter with a hold ends the process and leaves the payload |
 | [T-1010](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: the child of the payload keeps the signal mask of the caller, so a payload of a caller that blocked a signal never gets it |
+| [T-1012](podvm.md) | P2 | M | M7 | feature | done | `pod-guest`: a saved state of the caller's machine line with no UEFI `Plan`, for podvm's Linux guest (PodUtils/podvm#618) |
+| [T-1013](podvm.md) | P2 | S | M6 | feature | partial | `pod-services`: the pinned static QEMU at 11.0.0, with the fix of the use-after-free of `address_space_translate_for_iotlb` (PodUtils/podvm#618) |
+| [T-1014](podvm.md) | P3 | M | M6 | feature | open | `pod-services`: a static QEMU of the newest stable point release; the pin of T-1013 is 11.0.0, and 11.0.5 and 11.1.3 are out |
 | [T-1016](fleet.md) | P2 | S | M8 | defect | done | `pod-release`: a line of the chain names a certificate by its subject, and a leaf of Fulcio has none |

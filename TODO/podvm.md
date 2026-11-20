@@ -8407,7 +8407,7 @@ cargo test -p pod-services --all-features
 
 ## Done
 
-2026-11-15, the commit of the change. `crates/pod-services/services/pkgforge-qemu.toml` (kind `tool`): the endpoints `qemu-system-x86-64` and `qemu-img` (a name is a word, so `_` is `-`), the version and the sha256 and the length of each file, and an `http-sha256` watch of each. A GET of each file from this session gave 42899120 and 11009488 bytes and the sha256 values that podvm pins at `25024cb3`. The test `the_static_qemu_holds_the_pins_of_podvm` of `tests/podvm.rs`; `cargo test -p pod-services --all-features` passed.
+2026-11-15, the commit of the change. The service file `pkgforge-qemu.toml` of `crates/pod-services/services` (kind `tool`; T-1013 removed it): the endpoints `qemu-system-x86-64` and `qemu-img` (a name is a word, so `_` is `-`), the version and the sha256 and the length of each file, and an `http-sha256` watch of each. A GET of each file from this session gave 42899120 and 11009488 bytes and the sha256 values that podvm pins at `25024cb3`. The test `the_static_qemu_holds_the_pins_of_podvm` of `tests/podvm.rs`; `cargo test -p pod-services --all-features` passed.
 
 
 # T-648: `pod-hostprobe`: a leg that reports a delegated cgroup2 subtree with no root (PodUtils/podvm#390)
@@ -8518,7 +8518,7 @@ podvm boots a linux/arm64 guest of the machine tier on an x86_64 host (`qemu-sys
 
 ## Premise
 
-- Read: PodUtils/podvm#394; `crates/pod-services/services/alpine-netboot.toml`, `crates/pod-services/services/pkgforge-qemu.toml`.
+- Read: PodUtils/podvm#394; `crates/pod-services/services/alpine-netboot.toml`, and the service file `pkgforge-qemu.toml` of `crates/pod-services/services` (T-1013 removed it).
 - Measured: each size and sum of the ask, from this session.
 - Not measured: the release of the kernel in `boot/initramfs-virt` (this session has no `cpio`); the NIC modules.
 
@@ -11162,4 +11162,254 @@ reaches the payload.
 
 ```sh
 cargo test -p pod-enter --all-features --lib child
+```
+
+# T-1012: `pod-guest`: a saved state of the caller's machine line with no UEFI `Plan`, for podvm's Linux guest (PodUtils/podvm#618)
+
+**Source:** PodUtils/podvm#618 (COORD-217 of podvm), ask 1; PodUtils/podvm@T-2008
+**Category:** feature
+**Milestone:** M7
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+podvm's machine tier saves the state of a guest that booted the init of an
+image; each later run starts from that state (under TCG with four vCPUs,
+the first output in 1.3 s to 1.9 s against 19 s for a boot). podvm uses
+`pod_guest::qmp::Monitor`, `pod_guest::warm::qemu_version` and `host_cpu`.
+`pod_guest::warm::save` and `restore` take a `Plan` of the UEFI flavour,
+and podvm's Linux guest has its own machine line (direct kernel boot, 9p
+devices). So podvm wrote a second copy in
+`PodUtils/podvm:crates/podvm/src/machine/guest/state/save.rs` and
+`PodUtils/podvm:crates/podvm/src/machine/guest/state/run.rs`: `stop`,
+`migrate` to a file of a unique name, `cont`, a sync, then the rename;
+`-incoming` and a wait for `running` on QMP; a fingerprint of the image,
+the binary, QEMU, the CPU, the kernel, the memory and the machine line.
+The ask: a form of `save` and `restore` that takes the machine line of the
+caller (or a trait for it) in place of a `Plan`, so that both guests take
+one copy; podvm then drops its own.
+
+## Premise
+
+- Read: PodUtils/podvm#618; podvm at `f258ec1`:
+  `PodUtils/podvm:crates/podvm/src/machine/guest/state.rs` (the
+  fingerprint, `Transport`: `file:`, or `exec:cat` for a QEMU before 8.2),
+  `state/save.rs` (`save`, `migrate`, `running`), `state/store.rs` (the
+  files `.vm` and `.json`, partial names `.part-UNIQUE`, the record with
+  the memory size, the length and the transport), `state/run.rs` and the
+  fake monitor of `state/tests_save.rs`.
+- Read: `crates/pod-guest/src/warm.rs`, `crates/pod-guest/src/warm/state.rs`
+  and their tests, and the five plants `guest-warm-*` that patch
+  `crates/pod-guest/src/warm/state.rs`.
+- Not measured: podvm's machine line under the new form; podvm measures it
+  at its take.
+
+## Approach
+
+A module `warm::line` that knows no `Plan`: `freeze` (connect, the check of
+`blocked-reasons`, `stop`, a hook while the guest is stopped before and
+after the stream, `migrate` with a bound and a cancel, a `file:` save that
+falls back to the pipe where the caller asks, `cont`); `save` (the stream
+to `STREAM.part-UNIQUE`, a sync, a record with the fingerprint, the
+length, the transport and the caller's notes, then the renames);
+`check` (no record or stream: `Cold::Missing`; another fingerprint:
+`Cold::Stale` with the first line that differs; another length:
+`Cold::Missing`); `incoming` (the line, then `-incoming` and the URI);
+`running` (the wait for the end of the load and `cont`); `Inputs` (the
+fingerprint of a line: the emulator, the CPU, a file by its length and
+time or by its digest, any value, the machine line). The `Plan` API keeps
+its names and its on-disk form and calls the new items.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features --lib warm
+cargo clippy -p pod-guest --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh --apply
+```
+
+## Done
+
+2026-11-20, commit 655c9af1 (call C851). `pod_guest::warm::line`:
+`freeze` with the trait `Stopped`, `save` with its `Record`, `check`,
+`first_difference`, `incoming`, `running`, `Transport` (`file:`, and
+`exec:cat` as the fall back after a refusal where the caller asks),
+`Inputs` and `cpu`. `save`, `restore`, `incoming_argv` and the load of a
+`Plan` call them, with the same names and the same directory; `line::cpu`
+under KVM adds the release of the kernel of the host to each fingerprint.
+Tests: `warm::line::tests::a_save_of_a_line_leaves_a_whole_state_or_nothing`,
+`warm::line::tests::a_saved_line_restores_and_a_changed_fingerprint_is_refused`,
+`warm::line::tests::the_wait_for_a_loaded_line_refuses_another_status_and_ends_at_its_bound`,
+`warm::line::tests::only_a_whole_state_of_this_layout_loads`,
+`warm::line::tests::the_record_holds_each_note_and_refuses_a_note_it_cannot_hold`,
+`warm::line::tests::a_path_goes_into_a_uri_whole`,
+`warm::line::tests::the_inputs_of_a_line_name_each_input_and_each_change_of_a_file`,
+`warm::line::tests::the_fingerprint_of_a_plan_is_the_text_of_its_inputs`
+(a QMP stand-in), and
+`warm::live::a_real_emulator_saves_and_loads_a_line_of_the_caller` (it
+skips here: no `qemu-system-x86_64`; `guest.yml` runs it with the QEMU of
+the runner and with the static QEMU of T-1013). `cargo test -p pod-guest
+--all-features --lib warm` passes 26 (3 live tests skip); `cargo test -p
+pod-guest --all-features` passes 186, 1 ignored; clippy and `cargo doc`
+with `-D warnings` pass. The plants `guest-line-stale-state-loads`,
+`guest-line-empty-stream-saved` and `guest-line-partial-file-stays` are
+caught; `guest-warm-save-copies-the-mailbox-of-the-plan` and
+`guest-warm-stale-state-restores` moved onto the new code and are caught;
+`sh scripts/plant-each.sh --apply` gives 0 stale. podvm's take: its
+`save.rs` becomes `line::save` (`notes` with its memory size, `fallback`
+true, its nonce as `unique`), its record check `line::check`, its
+`running` `line::running(qmp, None, READY_BOUND)`, its fingerprint
+`line::Inputs` (`emulator`, `file` for QEMU and the kernel, `digest` for
+`/proc/self/exe`, `with` for the image, the memory and the script,
+`machine` for its line with fixed names).
+
+# T-1013: `pod-services`: the pinned static QEMU at 11.0.0, with the fix of the use-after-free of `address_space_translate_for_iotlb` (PodUtils/podvm#618)
+
+**Source:** PodUtils/podvm#618 (COORD-217 of podvm), ask 2; PodUtils/podvm@T-2016
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+QEMU ended on SIGSEGV 2 s to 5 s into the boot of a four-vCPU guest under
+TCG in 6 of about 245 starts on a busy host (QEMU 8.2.2 of Ubuntu 24.04;
+podvm's experiment 469: 2 of 30). The kernel log names
+`address_space_translate_for_iotlb`. That matches the upstream fix
+"system/physmem: fix use-after-free with dispatch" (QEMU 10.1, stable
+10.0.4). The pinned static QEMU of podcrates is 9.2.0, before the fix
+(the service `pkgforge-qemu` of `crates/pod-services/services`). The ask: the pinned
+static QEMU at 10.0.4 or later.
+
+## Premise
+
+- Read: the pin is the service `pkgforge-qemu` (pkgforge's bincache,
+  package `ppkg.qemu`) and its test
+  `crates/pod-services/tests/podvm.rs`; no workflow of podcrates builds
+  QEMU. podvm pins the same files in
+  `PodUtils/podvm:crates/podvm-windows/src/tools.rs`.
+- Read: the metadata of pkgforge's bincache and pkgcache for x86_64 Linux
+  (`meta.pkgforge.dev`) and the tags of the GHCR packages: each static
+  `qemu-system-*` and `qemu-img` is at 9.2.0 only.
+- Read: the fix is QEMU commit `2865bf1c5795371ef441e9029bc22566ccff8299`.
+  The compare of GitHub gives `v10.1.0` and `v11.0.0` ahead of it and 0
+  behind; stable 10.0.4 holds it as patch 09 of 59 of the stable series
+  (a cherry-pick with another hash).
+- Read: `hermeticbuild/qemu-prebuilt` (MIT; the Alpine recipe of
+  `ziglang/qemu-static`, `--static`, no patch of QEMU) publishes QEMU
+  11.0.0 as the release `11.0.0.1`, with a SLSA provenance attestation of
+  each archive by its release workflow. Measured through the mirror: the
+  SHA-256 and the length of each archive equal the digest of the release
+  API and the subject of the attestation; each binary is a static-pie ELF
+  with no `PT_INTERP` and no `DT_NEEDED`, linked with musl, and holds
+  "QEMU emulator version 11.0.0" and the devices `virtio-9p-pci`, `nvme`,
+  `qemu-xhci` and `usb-storage`.
+- Not measured: a run of these binaries (no third-party binary runs in
+  this session), and a boot of podvm's guests with them.
+- The newest stable QEMU is 11.1.3; no static build of it is published
+  (T-1014).
+
+## Approach
+
+A new service `hermeticbuild-qemu` in place of `pkgforge-qemu`, in the
+shape of `wasmtime-release`: the archive of `qemu-system-x86_64`,
+`qemu-system-aarch64` and `qemu-img` for an x86_64 host and the archive of
+the data (`share/qemu`), each with its SHA-256 and length, the member and
+the SHA-256 and length of each binary, and an `http-sha256` watch of each
+archive. A script `scripts/ci/static-qemu.sh` reads the pins from the
+service file, fetches each archive with `scripts/ci/fetch-tool.sh`, checks
+each binary, and unpacks `share/qemu` beside `bin/`; `guest.yml` runs the
+tests of the warm start of `pod-guest` again with that QEMU first on
+`PATH`. podvm moves its table of tools to the new pins at its take: its
+test of its hosts then needs `github.com` and no more
+`api.ghcr.pkgforge.dev`.
+
+## Decision
+
+The owner (2026-11-20, through the coordinator): the prebuilt static QEMU
+of `hermeticbuild/qemu-prebuilt`, pinned by version and SHA-256 in place of
+the 9.2.0 source, through `scripts/ci/fetch-tool.sh` or the fetch path that
+exists; no build of QEMU by podcrates in this entry. Call C852.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features --test podvm
+cargo test -p pod-services --all-features
+python3 -I scripts/check-workflows.py
+```
+
+On `main`, two runs: the dispatch of `services.yml` with
+`service=hermeticbuild-qemu` (`gh workflow run services.yml -f
+service=hermeticbuild-qemu`: the live watch of each archive), and the
+dispatch of `guest.yml` (`gh workflow run guest.yml`: the steps "Static
+QEMU" and "Test the warm start with the static QEMU" pass, and
+`a_real_emulator_saves_the_plan_from_qemu_11_and_boots_cold_before` prints
+"QEMU emulator version 11.0.0: the plan saves").
+
+## Done
+
+2026-11-20 (partial; call C852). The service `hermeticbuild-qemu` (QEMU
+11.0.0, the release `11.0.0.1`) replaces `pkgforge-qemu` (QEMU 9.2.0):
+the archive of `qemu-system-x86_64`, `qemu-system-aarch64`, `qemu-img`
+and the data, each with its SHA-256 and length, each binary with its
+member, SHA-256 and length, the fix commit, and a watch of each archive.
+`scripts/ci/static-qemu.sh` reads the pins from the service file, fetches
+each archive through `scripts/ci/fetch-tool.sh`, checks each binary and
+unpacks `share/qemu`; with the archives in its cache it puts the three
+binaries in `bin/` and 71 files in `share/qemu` here (it runs no binary
+here). `guest.yml` runs the tests of the warm start with it. Test:
+`the_static_qemu_is_11_0_0_with_the_fix_of_the_use_after_free`. `cargo
+test -p pod-services --all-features` passes 104; `--test podvm` passes 13;
+`python3 -I scripts/check-workflows.py` gives 0 faults.
+
+What remains: the two runs of the Prove on `main` (`services.yml` with
+`service=hermeticbuild-qemu`, and `guest.yml`, the first run of these
+binaries), and podvm's take (its table of tools at the new pins, and
+`github.com` in place of `api.ghcr.pkgforge.dev` in its test of its
+hosts).
+
+# T-1014: `pod-services`: a static QEMU of the newest stable point release; the pin of T-1013 is 11.0.0, and 11.0.5 and 11.1.3 are out
+
+**Source:** PodUtils/podvm#618 (COORD-217 of podvm), ask 2; a finding of T-1013
+**Category:** feature
+**Milestone:** M6
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The pin of T-1013 is QEMU 11.0.0, the only static build of a QEMU after
+10.0.4 that a project publishes. QEMU has the stable releases 11.0.1 to
+11.0.5 and 11.1.0 to 11.1.3 after it; each holds fixes that 11.0.0 does
+not have. No static build of them is published: pkgforge's bincache has
+9.2.0 only, and `hermeticbuild/qemu-prebuilt` has 11.0.0 only.
+
+## Premise
+
+- Read: the tags of `qemu/qemu` (`v11.1.3` is the newest stable, `v11.2.0-rc1`
+  is the newest tag), the releases of `hermeticbuild/qemu-prebuilt`
+  (`11.0.0.0`, `11.0.0.1`) and the bincache metadata of pkgforge.
+- Read: the recipe of `hermeticbuild/qemu-prebuilt` (an Alpine container,
+  the static libraries of Alpine, a static libslirp, `configure --static`)
+  takes any upstream tag.
+
+## Approach
+
+Two ways; take the first that holds: a rebuild of pkgforge's `ppkg.qemu`
+at the newest stable (the party of `pkgforge-qemu`; a request to its
+maintainers), or a workflow of podcrates that builds the newest stable in
+an Alpine container with the recipe of T-1013 and publishes the archives
+with their SHA-256 and an attestation. Then move the facts of
+`hermeticbuild-qemu` (or a new service) to that release.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features --test podvm
 ```

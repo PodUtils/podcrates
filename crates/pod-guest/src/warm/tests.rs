@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use crate::plan::{MailboxBus, Medium, MediumKind, Options, Virtio};
-use crate::{Accel, Mode, scratch_dir};
+use crate::{Accel, Mode, qmp, scratch_dir};
 
 /// A plan with a USB mailbox whose files are in the per-run directory
 /// `dir`.

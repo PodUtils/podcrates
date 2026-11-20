@@ -1,0 +1,12 @@
+diff --git a/crates/pod-guest/src/warm/line/record.rs b/crates/pod-guest/src/warm/line/record.rs
+--- a/crates/pod-guest/src/warm/line/record.rs
++++ b/crates/pod-guest/src/warm/line/record.rs
+@@ -105,7 +105,7 @@
+         return Err(Cold::Stale { saved: head.to_string(), now: RECORD.to_string() }.failure());
+     }
+     let r = Record::parse(&text).map_err(|_| Cold::Missing.failure())?;
+-    if r.fingerprint != fingerprint {
++    if r.fingerprint.lines().next() != fingerprint.lines().next() {
+         let (saved, now) = first_difference(&r.fingerprint, fingerprint);
+         return Err(Cold::Stale { saved, now }.failure());
+     }

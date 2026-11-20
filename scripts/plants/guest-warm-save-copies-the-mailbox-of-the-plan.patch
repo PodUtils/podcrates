@@ -1,13 +1,13 @@
 diff --git a/crates/pod-guest/src/warm/state.rs b/crates/pod-guest/src/warm/state.rs
 --- a/crates/pod-guest/src/warm/state.rs
 +++ b/crates/pod-guest/src/warm/state.rs
-@@ -158,7 +158,8 @@ fn freeze(m: &mut qmp::Monitor, plan: &Plan, fingerprint: &Fingerprint, part: &P
-     let root = part.join(ROOT);
-     copy(&plan.root, &root)?;
-     absolute_backing(&root)?;
--    copy(&medium, &part.join(MAILBOX))?;
-+    copy(&plan.mailbox, &part.join(MAILBOX))?;
-+
-     copy(&plan.firmware_vars, &part.join(VARS))?;
-     let file = part.join(FINGERPRINT);
-     std::fs::write(&file, fingerprint.text()).map_err(|e| io_at(&file, e))
+@@ -128,7 +128,8 @@
+         let root = part.join(ROOT);
+         copy(&plan.root, &root)?;
+         absolute_backing(&root)?;
+-        copy(&medium, &part.join(MAILBOX))?;
++        copy(&plan.mailbox, &part.join(MAILBOX))?;
++        let _ = medium;
+         copy(&plan.firmware_vars, &part.join(VARS))
+     }
+ }

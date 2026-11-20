@@ -1,0 +1,12 @@
+diff --git a/crates/pod-guest/src/warm/line.rs b/crates/pod-guest/src/warm/line.rs
+--- a/crates/pod-guest/src/warm/line.rs
++++ b/crates/pod-guest/src/warm/line.rs
+@@ -335,7 +335,7 @@
+         Ok(Saved { bytes, took: started.elapsed(), transport })
+     });
+     if saved.is_err() {
+-        let _ = std::fs::remove_file(&part);
++        let _ = &part;
+         let _ = std::fs::remove_file(&record_part);
+     }
+     SaveEnd { saved, goes_on: frozen.goes_on }
