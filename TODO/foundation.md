@@ -1623,9 +1623,9 @@ example `eyJ`).
 
 ## Premise
 
-- Read (this tree): `crates/pod-supervise/src/logs.rs:13-24`. `logs`
-  reads the whole file with `std::fs::read`. `follow_tail` (`:95-105`)
-  calls it, then `tail_offset` (`:72`), then `follow_from` at the length
+- Read (this tree): `crates/pod-supervise/src/logs.rs:18-30`. `logs`
+  reads the whole file with `std::fs::read`. `follow_tail` (`:109-129`)
+  calls it, then `tail_offset` (`:78`), then `follow_from` at the length
   of that read. The review agrees.
 - Read: `crates/pod-core/src/files.rs:165` (`read_trusted`) and
   `crates/pod-core/src/files/own.rs:28` (`read_own`), the neighbours of
@@ -1658,7 +1658,9 @@ description, not from the donor source.
 - A file that became shorter after the stat gives a short or empty tail
   and no error.
 - `pod-supervise`: `logs` with a bound, and `follow_tail` on the window;
-  `follow_from` starts at the end of the window. When `cut` is true and the
+  `follow_from` starts at the end of the window. T-1045 reads the tail of
+  `follow_tail` from the end in pieces (`pod_supervise::stream`), with no
+  window; `logs` keeps its `Vec`. When `cut` is true and the
   window holds fewer lines than asked, the caller gets a note ("older
   lines are in the log file").
 - The windows: 128 KiB for a view, 256 KiB for a bug report. These are

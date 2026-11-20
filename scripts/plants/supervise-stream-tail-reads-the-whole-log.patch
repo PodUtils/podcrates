@@ -1,0 +1,12 @@
+diff --git a/crates/pod-supervise/src/stream.rs b/crates/pod-supervise/src/stream.rs
+--- a/crates/pod-supervise/src/stream.rs
++++ b/crates/pod-supervise/src/stream.rs
+@@ -71,7 +71,7 @@
+     if n == 0 || len == 0 {
+         return Ok(len);
+     }
+-    let mut buf = vec![0u8; chunk.clamp(1, CHUNK)];
++    let mut buf = vec![0u8; (len as usize).max(chunk.clamp(1, CHUNK))];
+     // One `\n` at the end ends the last line and starts no empty one.
+     let mut last = [0u8; 1];
+     if !read_at(f, len - 1, &mut last)? {

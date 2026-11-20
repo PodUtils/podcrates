@@ -213,9 +213,11 @@ fn reason(status: u16) -> &'static str {
     match status {
         200 => "OK",
         202 => "Accepted",
+        206 => "Partial Content",
         400 => "Bad Request",
         403 => "Forbidden",
         404 => "Not Found",
+        416 => "Range Not Satisfiable",
         500 => "Internal Server Error",
         _ => "Other",
     }

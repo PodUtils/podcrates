@@ -58,6 +58,8 @@ pub struct State {
     pub refuse: Option<(String, String, u16, String)>,
     pub stdin_seen: Vec<u8>,
     pub signals: Vec<i64>,
+    /// The `Range` of a request is ignored: the whole file with 200.
+    pub ignore_range: bool,
 }
 
 impl State {

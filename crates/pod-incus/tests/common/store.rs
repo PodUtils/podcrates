@@ -124,5 +124,28 @@ pub fn file(shared: &Arc<Shared>, name: &str, seen: &Seen) -> Vec<u8> {
     }
     let mut named = vec![("Content-Type", "application/octet-stream".to_string())];
     named.extend(headers);
-    http(200, &named, &bytes)
+    match seen.header("range").filter(|_| !state.ignore_range) {
+        Some(range) => ranged(&named, &bytes, range),
+        None => http(200, &named, &bytes),
+    }
+}
+
+/// A `Range` of one part, as `http.ServeContent` of Go answers it: 206 with
+/// `Content-Range`, or 416 with `bytes */SIZE` for a start at or past the
+/// end.
+fn ranged(named: &[(&str, String)], bytes: &[u8], range: &str) -> Vec<u8> {
+    let size = bytes.len() as u64;
+    let Some((start, end)) = range.strip_prefix("bytes=").and_then(|r| r.split_once('-')) else {
+        return http(400, named, b"invalid range");
+    };
+    let Ok(start) = start.parse::<u64>() else { return http(400, named, b"invalid range") };
+    if start >= size {
+        let mut named = named.to_vec();
+        named.push(("Content-Range", format!("bytes */{size}")));
+        return http(416, &named, b"invalid range: failed to overlap\n");
+    }
+    let last = if end.is_empty() { size - 1 } else { end.parse::<u64>().unwrap_or(size - 1).min(size - 1) };
+    let mut named = named.to_vec();
+    named.push(("Content-Range", format!("bytes {start}-{last}/{size}")));
+    http(206, &named, &bytes[start as usize..=last as usize])
 }

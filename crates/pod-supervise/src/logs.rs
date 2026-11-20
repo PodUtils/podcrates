@@ -1,26 +1,32 @@
 //! The log of a container: what its payload wrote to stdout and stderr.
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::Path;
 
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::table::{self, Container, State};
-use crate::{Result, Settings, get, io_at};
+use crate::{Result, Settings, get, io_at, stream};
 
 /// The captured output of a container. A container that wrote nothing has
-/// no log file, and that is an empty log, not an error.
+/// no log file, and that is an empty log, not an error. A link at the log
+/// is refused, as in each read of a log.
+///
+/// The whole log is in the `Vec`: a caller that writes the log somewhere
+/// copies it with [`crate::stream::open_log`] and
+/// [`crate::stream::copy_tail`], one piece at a time.
 pub fn logs<X>(s: &Settings, want: &str) -> Result<Vec<u8>>
 where
     X: Clone + Serialize + DeserializeOwned,
 {
     let c = get::<X>(s, want)?;
     let path = table::log_path(s, &c.id);
-    match std::fs::read(&path) {
-        Ok(v) => Ok(v),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
-        Err(e) => Err(io_at(&path, e)),
-    }
+    let Some(mut f) = stream::open(&path).map_err(|e| io_at(&path, e))? else {
+        return Ok(Vec::new());
+    };
+    let mut bytes = Vec::new();
+    f.read_to_end(&mut bytes).map_err(|e| io_at(&path, e))?;
+    Ok(bytes)
 }
 
 /// Follow the log of a container: write what is there, then poll and
@@ -101,19 +107,51 @@ pub fn tail_offset(bytes: &[u8], n: u64) -> u64 {
 }
 
 /// Follow the log of a container from its last `n` lines: write the tail,
-/// then follow what comes. The tail comes from one read, and the poll
-/// continues past the length of that read, so that a line that comes
-/// between the two is followed, never lost and never written two times.
+/// then follow what comes. The tail is found from the end of the length at
+/// the open ([`crate::stream::tail_start`]), and the poll continues past
+/// that length, so that a line that comes between the two is followed,
+/// never lost and never written two times. No read holds more than one
+/// piece of [`crate::stream::CHUNK`] bytes.
 pub fn follow_tail<X>(s: &Settings, want: &str, out: &mut dyn Write, n: u64) -> Result<()>
 where
     X: Clone + Serialize + DeserializeOwned,
 {
-    let bytes = logs::<X>(s, want)?;
-    let start = tail_offset(&bytes, n);
-    let end = bytes.len() as u64;
-    out.write_all(&bytes[start as usize..]).map_err(writing)?;
-    let _ = out.flush();
+    let c = get::<X>(s, want)?;
+    let path = table::log_path(s, &c.id);
+    let end = match stream::open_sized(&path)? {
+        Some((mut f, len)) => {
+            stream::copy_tail(&mut f, len, Some(n), None, out).map_err(|e| fault(&path, e))?;
+            len
+        }
+        None => 0,
+    };
     follow_from::<X>(s, want, out, end)
+}
+
+/// [`follow_from`] with at most `limit` bytes written: the follow ends at
+/// the bound with `Ok`, also while the container runs and writes nothing
+/// more. Gives the count of bytes written.
+pub fn follow_from_limit<X>(s: &Settings, want: &str, out: &mut dyn Write, start: u64, limit: u64) -> Result<u64>
+where
+    X: Clone + Serialize + DeserializeOwned,
+{
+    let mut cap = stream::Capped::new(out, limit);
+    if cap.full() {
+        return Ok(0);
+    }
+    match follow_from::<X>(s, want, &mut cap, start) {
+        Err(_) if cap.full() => Ok(limit),
+        Err(e) => Err(e),
+        Ok(()) => Ok(limit - cap.left()),
+    }
+}
+
+/// The failure of a copy of the log at `path`.
+fn fault(path: &Path, e: stream::Fault) -> pod_core::Failure {
+    match e {
+        stream::Fault::Read(e) => io_at(path, e),
+        stream::Fault::Write(e) => writing(e),
+    }
 }
 
 fn writing(e: std::io::Error) -> pod_core::Failure {
@@ -153,23 +191,18 @@ fn terminal(state: State) -> bool {
 }
 
 /// Write the bytes past `offset` and return the new offset. A missing file
-/// is an empty log (see [`logs`]); a shorter file sets the offset back.
+/// is an empty log (see [`logs`]); a shorter file sets the offset back. The
+/// copy goes to the length at the open, one piece at a time: a byte that
+/// comes during the copy is for the next poll.
 fn append_from(path: &Path, offset: u64, out: &mut dyn Write) -> Result<u64> {
-    use std::io::{Read, Seek, SeekFrom};
-    use std::os::unix::fs::OpenOptionsExt;
     // A link at the log is not read: it could name any file of the user.
-    let opened = std::fs::OpenOptions::new().read(true).custom_flags(pod_hostprobe::sys::O_NOFOLLOW as i32).open(path);
-    let mut f = match opened {
-        Ok(f) => f,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(offset),
-        Err(e) => return Err(io_at(path, e)),
+    let Some((mut f, len)) = stream::open_sized(path)? else {
+        return Ok(offset);
     };
-    let len = f.metadata().map(|m| m.len()).map_err(|e| io_at(path, e))?;
     let offset = offset.min(len);
-    f.seek(SeekFrom::Start(offset)).map_err(|e| io_at(path, e))?;
-    let mut buf = Vec::new();
-    f.read_to_end(&mut buf).map_err(|e| io_at(path, e))?;
-    out.write_all(&buf).map_err(writing)?;
-    let _ = out.flush();
-    Ok(offset + buf.len() as u64)
+    let n = stream::copy_range(&mut f, offset, len, None, out).map_err(|e| fault(path, e))?;
+    Ok(offset + n)
 }
+
+#[cfg(test)]
+mod tests;

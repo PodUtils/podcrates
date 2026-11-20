@@ -1,0 +1,12 @@
+diff --git a/crates/pod-incus/src/files/read.rs b/crates/pod-incus/src/files/read.rs
+--- a/crates/pod-incus/src/files/read.rs
++++ b/crates/pod-incus/src/files/read.rs
+@@ -120,7 +120,7 @@
+         let mut buf = vec![0u8; PIECE];
+         // The bytes before the start: all of them where the server ignored
+         // the `Range`.
+-        let mut skip = range.start - from;
++        let mut skip = range.start - range.start.max(from);
+         while skip > 0 {
+             let want = skip.min(PIECE as u64) as usize;
+             match body.read(&mut buf[..want]).await.map_err(io)? {

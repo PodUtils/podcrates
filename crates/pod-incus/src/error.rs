@@ -54,6 +54,9 @@ pub enum ErrorKind {
     Io(io::Error),
     /// A websocket of an operation failed.
     WebSocket(String),
+    /// The writer of the caller refused a write of the bytes of an answer
+    /// (a closed pipe, a full disk): not a fault of incus.
+    Output(io::Error),
 }
 
 impl Error {
@@ -123,7 +126,7 @@ impl Error {
             ErrorKind::Protocol(_) | ErrorKind::WebSocket(_) => Class::Protocol,
             ErrorKind::Unsupported { .. } => Class::Unsupported,
             ErrorKind::Usage(_) => Class::Usage,
-            ErrorKind::Io(e) => Class::of_io(e.kind()),
+            ErrorKind::Io(e) | ErrorKind::Output(e) => Class::of_io(e.kind()),
         }
     }
 
@@ -155,6 +158,7 @@ impl fmt::Display for Error {
             ErrorKind::Usage(why) => write!(f, "{call}: {why}"),
             ErrorKind::Io(e) => write!(f, "{call}: {e}"),
             ErrorKind::WebSocket(why) => write!(f, "{call}: a websocket of the operation failed: {why}"),
+            ErrorKind::Output(e) => write!(f, "{call}: the write of the output: {e}"),
         }
     }
 }
@@ -162,7 +166,7 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.kind {
-            ErrorKind::NoServer { cause, .. } | ErrorKind::Io(cause) => Some(cause),
+            ErrorKind::NoServer { cause, .. } | ErrorKind::Io(cause) | ErrorKind::Output(cause) => Some(cause),
             _ => None,
         }
     }

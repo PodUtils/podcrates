@@ -1,0 +1,16 @@
+diff --git a/crates/pod-supervise/src/stream.rs b/crates/pod-supervise/src/stream.rs
+--- a/crates/pod-supervise/src/stream.rs
++++ b/crates/pod-supervise/src/stream.rs
+@@ -124,10 +124,10 @@
+     if let Some(l) = limit {
+         left = left.min(l);
+     }
+-    let mut buf = vec![0u8; CHUNK];
++    let mut buf = vec![0u8; left as usize];
+     let mut done = 0u64;
+     while left > 0 {
+-        let want = left.min(CHUNK as u64) as usize;
++        let want = left as usize;
+         let got = match f.read(&mut buf[..want]) {
+             Ok(0) => break,
+             Ok(n) => n,

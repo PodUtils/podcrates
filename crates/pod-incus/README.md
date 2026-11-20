@@ -15,6 +15,9 @@ The API is read at lxc/incus `63377d9bacba35715edf1bcfb4fd155485a6a6fb`
 console, the state) and `client/incus_*.go` (the behaviour of the client).
 The 6.0 floor is checked at the tag `v6.0.0`: the API extensions, the
 paths of exec's logs, the wait and the frames of `shared/ws` are the same.
+The ranged read of a file is read at `845f3817bf0f70d0c12ed50ad0d2bd8239ee0459`
+(`main`, 2026-11-18) and at `v6.0.0`: `internal/server/response/response.go`
+(`fileResponse::Render`, `http.ServeContent`) and `cmd/incusd/instance_file.go`.
 incus is Apache-2.0; the crate is written from the API documents and the
 types, with no code of incus.
 
@@ -66,6 +69,7 @@ runs in the background returns after the wait for its operation.
 | `Client::exec_recorded` | `POST /1.0/instances/NAME/exec` with `record-output`, the wait, `metadata.return`; `GET`, then `DELETE`, of the two logs that `metadata.output` names (`logs/exec-output/`) | `Exec`, `ExecOutput` (`exit_code`, `stdout`, `stderr`) | 6.0, `container_exec_recording`; `user`, `group`, `cwd`: `container_exec_user_group_cwd` |
 | `Client::exec_attached` | `POST /1.0/instances/NAME/exec` with `wait-for-websocket`; `GET /1.0/operations/ID/websocket?secret=` for `control`, `0`, `1`, `2` | `Attached` (`Stdin`, `Output`, `Control`, `wait`, `output`) | 6.0 |
 | `Client::get_file` | `GET /1.0/instances/NAME/files?path=` | `File` (`FileMeta` from `X-Incus-uid`, `-gid`, `-mode`, `-type`; `FileContent`: bytes, or the entries of a directory) | 6.0 |
+| `Client::get_file_to(name, path, range, limit, out)` | `GET /1.0/instances/NAME/files?path=` with `Range: bytes=START-` or `bytes=START-LAST` (`http.ServeContent` of incus: 206 with `Content-Range`; 416 with `bytes */SIZE` for a start at or past the end, an empty read); the body to a `std::io::Write` in pieces of `files::PIECE` (64 KiB), at most `limit` bytes, with no bound of `max_body`; a 200 to a range has the bytes before the start passed over | `ByteRange` (`start`, `end` not included), `FileRead` (`meta`, `start`, `written`, `size`, `ended`: false where the limit stopped the read first); a directory is `Usage`; a write of `out` that fails is `Output` | 6.0 |
 | `Client::put_file` | `POST /1.0/instances/NAME/files?path=` | `FileWrite` (`X-Incus-type`, `-uid`, `-gid`, `-mode`, `X-Incus-write: append`) | 6.0; a directory `directory_manipulation`, a link `file_symlinks`, an append `file_append` |
 | `Client::operation`, `wait`, `wait_success`, `cancel` | `GET /1.0/operations/ID`, `GET /1.0/operations/ID/wait?timeout=N`, `DELETE /1.0/operations/ID` | `Operation`, `status` | 6.0 |
 
@@ -85,9 +89,10 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
   `Incus` (the HTTP status, `error_code` and `error` of incus), `Operation`
   (the `status_code` and `err` of an operation that failed or was
   canceled), `Timeout` (a wait at its limit), `Protocol`, `Unsupported`,
-  `Usage`, `Io`, `WebSocket`. `Error::class` gives the class of
+  `Usage`, `Io`, `WebSocket`, `Output` (the writer of the caller refused a write). `Error::class` gives the class of
   `pod_core`; `pod_core::Failure::from(error)` is at the stage `host`.
-* A body of an answer is read whole within `Settings::max_body` (64 MiB).
+* A body of an answer is read whole within `Settings::max_body` (64 MiB),
+  except the body of `get_file_to`, which goes to the writer in pieces.
   A text of incus in an error is made safe to print and cut to 512
   characters.
 
@@ -140,6 +145,7 @@ of the user's own namespace) and its `INCUS_DIR`.
 | podvm | its create, start, stop, delete and list | `create_instance`, `start`, `stop`, `delete_instance`, `instances` |
 | podvm | its exec (`record-output` or the websockets) | `exec_recorded`, or `exec_attached` with `Attached::output` |
 | podvm | its console log and its files (`X-Incus-uid`, `-gid`, `-mode`, `-type` of `file` and `directory`) | `console_log`, `get_file`, `put_file` with `FileWrite::file` or `FileWrite::directory` and its `uid`, `gid`, `mode` |
+| podvm | `logs --podvm-tier=incus`: a whole `get_file` on each poll, and its bound of 64 MiB | `get_file_to(name, LOG, Some(ByteRange::from(seen)), left, out)` on each poll: the bytes past the offset alone, in pieces; a `size` below `seen` sets the offset back (PodUtils/podvm#631) |
 | podrunner (later) | a unit kind on incus | the same calls |
 
 ## Tests
@@ -150,7 +156,9 @@ and a stand-in incus on a Unix socket in the temporary directory
 (`tests/common/`): an HTTP/1.1 server that answers the documented JSON of
 each call, with the operation model (202, then the wait, with its limit),
 the websockets of exec with the barrier and the control socket, and an
-error on demand. No `incusd` runs. A socket with no server is refused by
+error on demand. A `Range` of a file gets the answer of `http.ServeContent`
+(206, or 416 at the end), or the whole file where a test sets
+`ignore_range`. No `incusd` runs. A socket with no server is refused by
 name.
 
 ## Sources

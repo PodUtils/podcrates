@@ -1,0 +1,6 @@
+# pod-supervise: a copy of a range of the log reads the whole range into one buffer, so a read of a log costs its size in memory (T-1045).
+ENTRY=T-1045
+GROUP=supervise
+EXPECT='a piece of'
+RUN='cargo test -p pod-supervise --all-features --lib stream::tests'
+LIMIT=900

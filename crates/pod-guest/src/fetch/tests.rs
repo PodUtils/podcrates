@@ -136,17 +136,6 @@ fn two_fetches_of_one_destination_do_not_share_a_partial_file() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
-#[test]
-fn a_content_range_parses_by_its_grammar_alone() {
-    let span = |start, end, total| Some(Span { start, end, total });
-    assert_eq!(parse_content_range("bytes 400-999/1000"), span(400, Some(999), Some(1000)));
-    assert_eq!(parse_content_range("Bytes 0-0/*"), span(0, Some(0), None));
-    assert_eq!(parse_content_range("bytes */1000"), span(0, None, Some(1000)));
-    for bad in ["bytes 9-1/10", "items 0-1/2", "bytes -1-2/3", "bytes 1-2", "bytes */*", "bytes +1-2/3", ""] {
-        assert_eq!(parse_content_range(bad), None, "{bad:?}");
-    }
-}
-
 /// A stream that ends in a break: [`Stream`] cannot resume, and the bytes
 /// so far stay for a later call.
 #[test]

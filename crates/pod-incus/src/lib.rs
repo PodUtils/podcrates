@@ -22,6 +22,8 @@
 //!   with its websockets (stdin, stdout, stderr, control) on the same
 //!   socket, with the frames of `pod-ws`.
 //! * [`Client::get_file`], [`Client::put_file`]: the files of an instance.
+//!   [`Client::get_file_to`]: a file of any size, or a [`ByteRange`] of it,
+//!   in pieces to a writer, with a bound of the caller.
 //!
 //! **No environment and no global.** The caller gives the path of the
 //! socket; the crate reads no variable, keeps no process state, prints
@@ -46,7 +48,7 @@ pub use attach::{Attached, Control, Output, Stdin};
 pub use client::{Client, Settings};
 pub use error::{Error, ErrorKind, Result};
 pub use exec::{Exec, ExecOutput};
-pub use files::{File, FileContent, FileKind, FileMeta, FileWrite};
+pub use files::{ByteRange, File, FileContent, FileKind, FileMeta, FileRead, FileWrite};
 pub use images::{ImageAlias, ImageData, ImageImport, ImportedImage};
 pub use instances::{Action, Devices, Instance, Kind, NewInstance, Source, StateChange};
 pub use operation::{Operation, status};

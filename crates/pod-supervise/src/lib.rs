@@ -30,6 +30,7 @@ pub mod foreground;
 pub mod launcher;
 pub mod lock;
 pub mod logs;
+pub mod stream;
 pub mod table;
 
 use std::path::{Path, PathBuf};
@@ -39,7 +40,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use table::{Container, State};
 
 pub use foreground::{Foreground, foreground};
-pub use logs::{follow, follow_from, follow_tail, logs, tail_offset};
+pub use logs::{follow, follow_from, follow_from_limit, follow_tail, logs, tail_offset};
 
 pub type Result<T> = std::result::Result<T, Failure>;
 
