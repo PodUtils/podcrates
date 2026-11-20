@@ -244,7 +244,7 @@
 237 issue closed
 238 issue closed
 239 issue closed
-240 issue open
-241 issue open
+240 issue closed
+241 issue closed
 242 issue closed
 243 issue closed

@@ -57,14 +57,11 @@ is done. Git and the record keep finished work.
    G-34 and G-35 are done; the last part of G-34 (T-964) goes in the next
    tag. cfb's A-X-18 (T-106, partial) waits for cfb's answer on #223. Both
    reply comments are current.
-7. The open hand-offs, both `(to all)`. COORD-146 (#241, `v0.78.1`: T-100,
-   T-965, T-971, T-974): the takes are podrunner `f437793`, podssh
-   `e5b7414` and podnet `2f1ea82`; podvm has not taken it. COORD-145 (#240,
-   `v0.77.0`): the takes are podrunner `32a9d40`, podnet `cbd52ca` and
-   podssh `b3005e5`; podvm has not taken it. The tag `v0.78.0` has no release (T-974, call C818):
-   consumers take `v0.78.1`. Write each take in the "Takes" list of its
-   issue, and close it when each consumer took its tag or a later one
-   (call C780). COORD-142 (#236) relays the ruling "ghcr.io" (call C789):
+7. No hand-off of a tag is open: each consumer took `v0.78.1` (#241 and
+   #240 are closed; podvm `3272e3d`, PodUtils/podvm#606). The tag `v0.78.0`
+   has no release (T-974, call C818). Write each take of the next tag in the
+   "Takes" list of its issue, and close it when each consumer took its tag or
+   a later one (call C780). COORD-142 (#236) relays the ruling "ghcr.io" (call C789):
    podcrates, podvm and podnet publish in its form, podssh pushes at its
    next tag, and podrunner's T-553 is open.
 8. T-767 (PodUtils/podssh#283, partial) and T-939 (done as a guard, call
