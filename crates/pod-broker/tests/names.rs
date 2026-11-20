@@ -116,8 +116,8 @@ fn an_allow_rule_under_an_open_suffix_is_flagged_at_load() {
     assert_eq!(flagging.list()[0].flagged, info.flagged);
 
     let policy = serde_json::json!({"schema":1,"mode":"allow","allow":[{"host":"*.github.io"}]});
-    let line = serde_json::json!({"op":"load","job":"job2","token":TOKEN_TWO,"ttl_s":600,"policy":policy});
-    assert_eq!(flagging.control_line(&line.to_string())["flagged"], serde_json::json!(["*.github.io"]));
+    let params = serde_json::json!({"job":"job2","token":TOKEN_TWO,"ttl_s":600,"policy":policy});
+    assert_eq!(flagging.control("load", &params).unwrap()["flagged"], serde_json::json!(["*.github.io"]));
 
     let (plain, audit) = broker(Far::new(Kind::Echo), Answers::public());
     load(&plain, "job1", TOKEN, r#"{"schema":1,"mode":"allow","allow":[{"host":"github.com"}]}"#);

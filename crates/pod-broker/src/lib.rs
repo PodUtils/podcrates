@@ -16,7 +16,8 @@
 //!   resolved once, each address is checked, and the broker dials only a
 //!   checked address, through the way out that the host gives
 //!   ([`upstream`]: direct, or an upstream HTTP or SOCKS5 proxy).
-//! * [`control`]: `load`, `drop` and `list` as JSON lines on a Unix socket
+//! * [`control`]: `load` (master tier), `drop` (operate) and `list` (read)
+//!   as rows of the catalogue of `pod-control`, protocol 1, on a Unix socket
 //!   of mode 0600.
 //! * [`audit`]: one JSON line for each connection, with no secret value.
 //!
@@ -59,6 +60,8 @@ pub mod vault;
 mod words;
 
 pub use audit::{Audit, JsonLines, Line, Memory, Tracing};
+#[cfg(unix)]
+pub use broker::bind_unix;
 pub use broker::{Broker, Settings, upstream};
 pub use credentials::{Credential, Place, Secrets};
 pub use deny::DenyList;

@@ -80,14 +80,13 @@ fn a_credential_needs_the_tls_end_and_a_policy_with_none_needs_no_ca() {
 #[test]
 fn the_control_takes_the_secrets_and_answers_the_ca_with_no_value() {
     let (broker, _) = tls_broker(TlsFar::new(echo()));
-    let line = format!(
-        r#"{{"op":"load","job":"job1","token":"{TOKEN}","ttl_s":60,"policy":{},"secrets":{{"github":"{SECRET}"}}}}"#,
+    let params = format!(
+        r#"{{"job":"job1","token":"{TOKEN}","ttl_s":60,"policy":{},"secrets":{{"github":"{SECRET}"}}}}"#,
         policy("", "")
     );
-    let answer = broker.control_line(&line);
-    assert_eq!(answer["ok"], true, "{answer}");
+    let answer = broker.control("load", &serde_json::from_str(&params).unwrap()).unwrap();
     assert!(answer["ca_pem"].as_str().is_some_and(|p| p.contains("BEGIN CERTIFICATE")), "{answer}");
-    let list = broker.control_line(r#"{"op":"list"}"#).to_string();
+    let list = broker.control("list", &serde_json::json!({})).unwrap().to_string();
     for text in [answer.to_string(), list] {
         assert!(!text.contains(SECRET) && !text.contains("github\":\""), "{text}");
     }

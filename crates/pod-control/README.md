@@ -139,6 +139,9 @@ an unknown method and of each method above the tier, `bad-params`, the frame
 (not JSON, no `"schema": 1`, another version, no id, an unknown field, not UTF-8,
 too long), and the forms of `status` and `metrics`. It calls no method that
 changes the program. A program runs it from a test against its own server.
+`Options::extras` names the `Extra` rows of the host: each one above the
+tier of the caller must answer as a name that is not there, as each row of
+the crate does (the broker: `crates/pod-broker/tests/control.rs`).
 
 ## The take of podrunner
 

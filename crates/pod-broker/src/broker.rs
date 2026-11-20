@@ -8,7 +8,7 @@ use std::time::Duration;
 use pod_core::{Dial, Failure, Resolve};
 use tokio::net::TcpListener;
 
-use crate::audit::{Audit, Line, Tracing};
+use crate::audit::{Audit, Counted, Counts, Line, Tracing};
 use crate::deny::DenyList;
 use crate::jobs::{JobInfo, Jobs, Load, MAX_TTL};
 use crate::tunnel::{Splice, TunnelEnd};
@@ -61,6 +61,7 @@ pub struct Broker {
     pub(crate) resolve: Arc<dyn Resolve>,
     pub(crate) dial: Arc<dyn Dial>,
     pub(crate) audit: Arc<dyn Audit>,
+    pub(crate) counts: Counts,
     pub(crate) end: Arc<dyn TunnelEnd>,
 }
 
@@ -80,20 +81,31 @@ impl Broker {
     /// audit goes to `tracing` until [`Broker::with_audit`].
     pub fn new(settings: Settings, resolve: Arc<dyn Resolve>, dial: Arc<dyn Dial>) -> Broker {
         let denies = [DenyList::fixed(), DenyList::host_addresses(&settings.host_addresses), settings.deny.clone()];
+        let counts = Counts::default();
         Broker {
             jobs: Jobs::new(settings.max_ttl),
             settings,
             denies,
             resolve,
             dial,
-            audit: Arc::new(Tracing),
+            audit: Arc::new(Counted { inner: Arc::new(Tracing), counts: counts.clone() }),
+            counts,
             end: Arc::new(Splice),
         }
     }
 
+    /// The sink of the audit lines. The broker also counts each line for
+    /// [`Broker::counts`].
     pub fn with_audit(mut self, audit: Arc<dyn Audit>) -> Broker {
-        self.audit = audit;
+        self.audit = Arc::new(Counted { inner: audit, counts: self.counts.clone() });
         self
+    }
+
+    /// The count of each kind of audit line so far: `connection_allow`,
+    /// `connection_deny`, `job_load`, `job_load_failed`, `job_drop` and the
+    /// other events, by the rule of the `metrics` of the control.
+    pub fn counts(&self) -> std::collections::BTreeMap<String, u64> {
+        self.counts.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// The end of each allowed tunnel in place of [`Splice`] (T-100: the TLS
@@ -189,7 +201,7 @@ impl Broker {
         }
     }
 
-    /// Serve the jobs on the Unix socket `listener` ([`crate::control::bind_unix`]).
+    /// Serve the jobs on the Unix socket `listener` ([`bind_unix`]).
     #[cfg(unix)]
     pub async fn serve_unix(self: Arc<Self>, listener: tokio::net::UnixListener) -> std::io::Result<()> {
         loop {
@@ -304,4 +316,29 @@ pub fn upstream(app: &str, proxy: Option<pod_proxy::Proxy>, resolve: Arc<dyn Res
         None => pod_proxy::ProxyChoice::Direct,
     };
     Arc::new(pod_proxy::Dialer::new(pod_proxy::Settings::new(app, choice), resolve))
+}
+
+/// Bind a Unix socket at `path` with the mode `mode` for the jobs (0600 for
+/// a socket of one unit, 0660 for a group). A socket that is there already
+/// is taken away first; another kind of file is an error. The socket has
+/// `mode` from the first instant that the path holds it: it is bound in a
+/// directory of mode 0700 beside the path and moves there by `link(2)`
+/// (T-196), so a shared directory gives no window to another user. Call it
+/// inside a runtime of tokio.
+#[cfg(unix)]
+pub fn bind_unix(path: &std::path::Path, mode: u32) -> std::io::Result<tokio::net::UnixListener> {
+    use std::os::unix::fs::FileTypeExt;
+    match std::fs::symlink_metadata(path) {
+        Ok(meta) if meta.file_type().is_socket() => std::fs::remove_file(path)?,
+        Ok(_) => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                format!("{} is there and is not a socket", path.display()),
+            ));
+        }
+        Err(_) => {}
+    }
+    let listener = pod_core::files::bind_staged(path, mode)?;
+    listener.set_nonblocking(true)?;
+    tokio::net::UnixListener::from_std(listener)
 }

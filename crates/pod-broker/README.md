@@ -38,9 +38,12 @@ let way_out = pod_broker::upstream("podrunner", proxy, Arc::new(pod_proxy::resol
 let audit = Arc::new(pod_broker::JsonLines::new(std::io::stderr()));
 let broker = Arc::new(pod_broker::Broker::new(settings, resolve, way_out).with_audit(audit));
 
-let control = pod_broker::control::bind_unix(&run_dir.join("control.sock"), 0o600)?;
-let jobs = pod_broker::control::bind_unix(&run_dir.join("broker.sock"), 0o660)?;
-tokio::spawn(pod_broker::control::serve_control(broker.clone(), control));
+// The control on pod-control (inside the runtime of tokio): `load` takes the
+// master token.
+let mut control = pod_broker::control::settings("podrunner", env!("CARGO_PKG_VERSION"));
+control.master = Some(pod_control::Token::new(master_token));
+let control = pod_broker::control::serve_control(broker.clone(), &run_dir.join("control.sock"), control)?;
+let jobs = pod_broker::bind_unix(&run_dir.join("broker.sock"), 0o660)?;
 broker.serve_unix(jobs).await?;
 ```
 
@@ -188,8 +191,12 @@ policy keeps the rule, `JobInfo::flagged` and the control answer
 | `Broker::load(Load)`, `drop_job(job)`, `list()` | the jobs; `Load { job, token: Token, ttl, policy }`, `JobInfo` |
 | `Broker::handle(io)`, `serve_tcp`, `serve_unix` | one connection, and the listeners of the jobs |
 | `Broker::handle_bound(io, job)`, `serve_unix_job(job, listener)`, `serve_tcp_job` | one connection, and a listener, of one job with no token (T-160); a job that is not loaded is refused (`NotFound`) |
-| `Broker::control_line(line)` | the answer to one line of the control |
-| `control::{bind_unix, serve_control}` | a Unix socket with a mode, and the control on it (Unix only) |
+| `bind_unix(path, mode)` | a Unix socket of the jobs with its mode from the first instant (Unix only) |
+| `control::{extras, catalogue, settings, MAX_LINE}` | the rows `load`, `drop` and `list` of the catalogue of `pod-control`, the catalogue of a broker, and its settings (a line of 1 MiB) |
+| `Broker::control(method, params)` | the answer to `load`, `drop` or `list`, for a host that serves them on its own control socket |
+| `control::Control`, `control::Ending` | the `pod_control::Host` of a broker: `status`, `metrics`, `drain`, `stop`, and the rows of the broker |
+| `control::{serve_control, ControlServer}` | the control of a broker on the server of `pod-control` at a Unix socket (Unix only) |
+| `Broker::counts()` | the count of each kind of audit line, for `metrics` |
 | `upstream(app, proxy, resolve)` | the way out: a `pod_proxy::Dialer` through `proxy` (HTTP CONNECT with Basic or Digest, or SOCKS5), or direct |
 | `Settings::names_upstream`, `Settings::canary`, `Broker::check_upstream()`, `UpstreamCheck` | an upstream that takes names only, and its canary (T-161) |
 | `names::{OPEN_SUFFIXES, open_suffix}`, `JobInfo::flagged`, `Compiled::flagged` | the allow rules under an open suffix (T-161) |
@@ -318,26 +325,63 @@ connection.
 
 ## The control
 
-A Unix socket of mode 0600 (`control::bind_unix`); a peer of another user
-is refused. One JSON request on each line, one answer on each line, each
-answer with `"v": 1`. An answer never holds a token.
+The control speaks `pod-control` protocol 1 (`crates/pod-control/README.md`):
+JSON lines with `"schema": 1`, an id in each request and its answer, `ok`,
+and one answer for a name that is not there or above the tier of the
+caller. The catalogue of a broker (`control::catalogue`) has the rows of
+`pod-control` and three rows of its own (`control::extras`):
+
+| Method | Tier | Params | Result |
+| --- | --- | --- | --- |
+| `load` | master (its effect outlives the token) | `job`, `token`, `ttl_s`, `policy`, `secrets` (optional, `{"NAME":"VALUE"}`) | `job`, `mode`, `rules`, `expires_in_s`; `flagged` and `ca_pem` when there |
+| `drop` | operate | `job` | `job`, `dropped` |
+| `list` | read | none | `jobs`: each with `job`, `mode`, `rules`, `expires_in_s`, `open`, and `flagged` when there |
+| `status` | read | none | `jobs` (as `list`) and `ending` (`null`, `drain`, `drain-exit` or `stop`) |
+| `metrics` | read | none | the counters of `Broker::counts` and the gauges `jobs` and `open` |
+| `drain` | operate | `exit` (default true) | the control takes no new `load` (`busy`); each job ends at its drop or its TTL |
+| `stop` | operate | none | each job ends with its connections |
+| `reload` | master | none | `unsupported`: the host reads the configuration |
 
 ```text
-{"op":"load","job":"J","token":"T","ttl_s":600,"policy":{"schema":1,"mode":"open"}}
-{"v":1,"ok":true,"op":"load","job":"J","mode":"open","rules":0,"expires_in_s":600}
-{"op":"drop","job":"J"}
-{"v":1,"ok":true,"op":"drop","job":"J","dropped":true}
-{"op":"list"}
-{"v":1,"ok":true,"op":"list","jobs":[{"job":"J","mode":"open","rules":0,"expires_in_s":590,"open":1}]}
-{"v":1,"ok":false,"class":"usage","error":"..."}
+{"schema":1,"id":1,"method":"auth","params":{"token":"MASTER"}}
+{"schema":1,"id":1,"ok":true,"result":{"tier":"master"}}
+{"schema":1,"id":2,"method":"load","params":{"job":"J","token":"T","ttl_s":600,"policy":{"schema":1,"mode":"open"}}}
+{"schema":1,"id":2,"ok":true,"result":{"job":"J","mode":"open","rules":0,"expires_in_s":600}}
+{"schema":1,"id":3,"method":"drop","params":{"job":"J"}}
+{"schema":1,"id":3,"ok":true,"result":{"job":"J","dropped":true}}
+{"schema":1,"id":4,"method":"list"}
+{"schema":1,"id":4,"ok":true,"result":{"jobs":[{"job":"J","mode":"open","rules":0,"expires_in_s":590,"open":1}]}}
+{"schema":1,"id":5,"ok":false,"error":{"code":"bad-params","detail":"..."}}
 ```
 
-A `load` of a policy with credentials gives the values in `secrets`
-(`{"NAME":"VALUE"}`), and its answer has `ca_pem`, the CA of the job.
+* `serve_control(broker, path, settings)` binds the socket with mode 0600
+  (`pod_control::unix::bind`: a live socket is `AddrInUse`, a stale one is
+  replaced) and serves it on the std threads of `pod-control`. One thread
+  answers each request in order; it enters the runtime of tokio of the
+  caller, so that a `load` starts the timer of its TTL (docs/decisions.md,
+  C856).
+* A peer of the user of the broker has `Settings::same_user` (default
+  operate); another uid is refused unless `Settings::uids` names it. `load`
+  takes `auth` with `Settings::master`, or `same_user: Tier::Master` on a
+  host where the user of the broker is the one principal.
+* A bad job id, token, TTL, policy or param is `bad-params` (the class
+  usage). The detail names a field or the job id: never a token or the
+  value of a secret.
+* The crate does not exit: `ControlServer::ending` (a `watch` of tokio)
+  gives the last `drain` or `stop`, and the host ends by its own rule.
+* A host with a control socket of its own adds `control::extras()` to its
+  catalogue and answers each in `Host::extra` with `Broker::control`.
+* `settings` gives a line of 1 MiB (`control::MAX_LINE`) for a policy with
+  many rules and its secrets.
 
 A job id has 1 to 128 of `A-Z a-z 0-9 . _ : -`. A token has 16 to 4096
 printable ASCII characters with no space; the broker keeps only its
 SHA-256, and one token belongs to one job. A TTL is from 1 s to 7 days.
+
+`tests/control.rs` runs `pod_control::conformance::check` against the
+control at each tier (`the_control_of_the_broker_conforms_at_each_tier`),
+and holds each row to its tier (`load_takes_the_master_tier_and_drop_the_operate_tier`;
+the plant `broker-load-lower-tier`).
 
 ## The audit
 
