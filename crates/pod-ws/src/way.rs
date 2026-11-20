@@ -207,13 +207,16 @@ impl From<pod_tls::Error> for crate::error::WsError {
 
 /// The failure of a dial as a [`DialError`]: the dialer's own, as
 /// `pod-proxy` keeps it in the cause, else one that keeps the words, the
-/// stage of a bound and the cut of an error of I/O.
+/// stage of a bound and the cut of an error of I/O. The words of the
+/// [`DialError`] name the target, so a detail does not start with them.
 pub fn dial_error(failure: Failure, target: &Target) -> DialError {
     let cause = std::error::Error::source(&failure);
     if let Some(dial) = cause.and_then(|e| e.downcast_ref::<DialError>()) {
         return dial.clone();
     }
     let kind = failure.io_cause().map(|e| e.kind());
+    let leads = [format!("connecting to {target}"), format!("could not connect to {target}")];
+    let detail = leads.iter().fold(failure.text(), |text, lead| pod_core::failure::strip_lead(text, lead)).to_string();
     match failure.class {
         Class::Timeout => DialError::Timeout {
             step: format!("the connection to {target}"),
@@ -222,15 +225,8 @@ pub fn dial_error(failure: Failure, target: &Target) -> DialError {
         },
         Class::Usage => DialError::InvalidTarget(failure.text().to_string()),
         Class::Config => DialError::BadProxy(failure.text().to_string()),
-        _ if failure.stage == Stage::Dns => {
-            DialError::Resolve { host: target.host(), detail: failure.text().to_string() }
-        }
-        _ => DialError::Connect {
-            target: target.to_string(),
-            detail: failure.text().to_string(),
-            cut: kind.map(Cut::of),
-            kind,
-        },
+        _ if failure.stage == Stage::Dns => DialError::Resolve { host: target.host(), detail },
+        _ => DialError::Connect { target: target.to_string(), detail, cut: kind.map(Cut::of), kind },
     }
 }
 
@@ -257,5 +253,38 @@ pub fn connect_error(failure: Failure, limit: Duration, target: &Target) -> Conn
             why: failure.text().to_string(),
             cut: kind.filter(|k| *k != std::io::ErrorKind::InvalidData).map(Cut::of),
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A consumer's dialer that names the target already: the error names
+    /// it once (PodUtils/podnet#658).
+    #[test]
+    fn a_dial_error_names_its_target_once() {
+        let target = Target::new("127.0.0.1", 1);
+        let refused = std::io::Error::from(std::io::ErrorKind::ConnectionRefused);
+        let text = format!("connecting to 127.0.0.1:1: {refused}");
+        let failure = Failure::caused(Stage::Connect, Class::Unavailable, text, refused);
+        let said = dial_error(failure, &target).to_string();
+        assert_eq!(
+            said,
+            format!(
+                "could not connect to 127.0.0.1:1: {}",
+                std::io::Error::from(std::io::ErrorKind::ConnectionRefused)
+            )
+        );
+
+        let target = Target::new("nowhere.invalid", 443);
+        let text = "connecting to nowhere.invalid:443: could not resolve nowhere.invalid: system resolver: no answer";
+        let failure = Failure::new(Stage::Dns, Class::Unavailable, text);
+        let said = dial_error(failure, &target).to_string();
+        assert_eq!(said, "could not resolve nowhere.invalid: system resolver: no answer");
+
+        let failure = Failure::new(Stage::Connect, Class::Unavailable, "could not connect to 127.0.0.1:1: refused");
+        let said = dial_error(failure, &Target::new("127.0.0.1", 1)).to_string();
+        assert_eq!(said, "could not connect to 127.0.0.1:1: refused");
     }
 }

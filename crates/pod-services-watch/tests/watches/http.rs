@@ -304,3 +304,19 @@ async fn http_json_fails_on_a_host_that_a_list_adds_or_removes() {
     let report = one(&file("l3", &removed)).await;
     assert!(!report.holds() && text(&report).contains("gone.example.test"), "{}", text(&report));
 }
+
+/// A host that does not answer: the finding names the URL once
+/// (PodUtils/podnet#658).
+#[tokio::test]
+async fn a_dead_host_names_the_url_once() {
+    pod_testkit::need_loopback!();
+    let (_held, at) = pod_testkit::refused::refused();
+    let net = crate::common::net();
+    let url = format!("http://{at}/doc.json");
+    let finding = net.send(net.request("GET", &url)).await.expect_err("nothing answers");
+    let said = format!("{finding:?}");
+    assert_eq!(said.matches(&url).count(), 1, "{said}");
+    let Err(finding) = net.streamed(net.request("GET", &url)).await else { panic!("nothing answers") };
+    let said = format!("{finding:?}");
+    assert_eq!(said.matches(&url).count(), 1, "{said}");
+}

@@ -56,7 +56,7 @@ rcgen = { version = "0.14", default-features = false, features = ["crypto", "rin
 tempfile = { version = "3", optional = true }
 
 [dev-dependencies]
-pod-testkit = { workspace = true }
+pod-testkit = { workspace = true, features = ["refused"] }
 tokio = { workspace = true, features = ["net", "time", "sync", "rt", "rt-multi-thread", "io-util", "macros", "test-util"] }
 # The tests run TLS on ring (docs/design.md, section 1, rule 4).
 rustls = { workspace = true, features = ["ring"] }

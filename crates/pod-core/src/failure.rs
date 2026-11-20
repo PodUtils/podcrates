@@ -229,17 +229,13 @@ impl Failure {
     /// its cause and adds what to do (the hint of a TLS failure) stays as it
     /// is.
     pub fn chain(&self) -> String {
-        let mut out = self.text.clone();
-        let mut next = self.source.as_deref().map(|e| e as &(dyn Error + 'static));
-        while let Some(e) = next {
-            let more = e.to_string();
-            if !out.contains(&more) {
-                out.push_str(": ");
-                out.push_str(&more);
-            }
-            next = e.source();
-        }
-        out
+        chain_of(self)
+    }
+
+    /// The cause, for a layer that says the words of this failure in its
+    /// own way and keeps the cause.
+    pub fn into_source(self) -> Option<Box<dyn Error + Send + Sync + 'static>> {
+        self.source
     }
 
     /// The same failure at another stage, for a layer that knows better
@@ -248,6 +244,40 @@ impl Failure {
         self.stage = stage;
         self
     }
+}
+
+/// The text of `error` and of each cause, as [`Failure::chain`] says them.
+pub fn chain_of(error: &(dyn Error + 'static)) -> String {
+    let mut out = error.to_string();
+    let mut next = error.source();
+    while let Some(e) = next {
+        let more = e.to_string();
+        if !out.contains(&more) {
+            out.push_str(": ");
+            out.push_str(&more);
+        }
+        next = e.source();
+    }
+    out
+}
+
+/// `lead: text`, with the words of `lead` once: a `text` that starts with
+/// them (a layer below named the request or the target) stays as it is.
+pub fn lead(lead: &str, text: &str) -> String {
+    if starts_with_words(text, lead) { text.to_string() } else { format!("{lead}: {text}") }
+}
+
+/// `text` with no leading `lead: `: the words of a layer below that the
+/// caller says in its own way.
+pub fn strip_lead<'a>(text: &'a str, lead: &str) -> &'a str {
+    text.strip_prefix(lead).and_then(|rest| rest.strip_prefix(": ")).unwrap_or(text)
+}
+
+/// True when `text` starts with the words of `lead`, and a word ends there:
+/// `POST https://a/b` does not start `POST https://a/bc: ...`.
+fn starts_with_words(text: &str, lead: &str) -> bool {
+    let ends = |rest: &str| rest.is_empty() || rest.starts_with(": ") || rest.starts_with([' ', ';', ',']);
+    !lead.is_empty() && text.strip_prefix(lead).is_some_and(ends)
 }
 
 impl fmt::Display for Failure {
@@ -313,6 +343,25 @@ mod tests {
         let own: std::collections::HashSet<_> =
             [Class::Refused, Class::Revoked, Class::Policy, Class::Unsupported].iter().map(|c| c.exit_code()).collect();
         assert_eq!(own.len(), 4, "refused, revoked, policy and unsupported each have a code of their own");
+    }
+
+    /// A lead that the text names already is not said again; a text that
+    /// starts with a longer word gets the lead (PodUtils/podnet#658).
+    #[test]
+    fn a_lead_is_said_once() {
+        let request = "POST https://api.example/tunnel";
+        let text = "POST https://api.example/tunnel: could not reach the proxy 127.0.0.1:1";
+        assert_eq!(lead(request, text), text);
+        assert_eq!(lead(request, request), request);
+        let longer = "POST https://api.example/tunnels: refused";
+        assert_eq!(lead(request, longer), format!("{request}: {longer}"));
+        assert_eq!(lead("could not connect to 127.0.0.1:1", "refused"), "could not connect to 127.0.0.1:1: refused");
+        assert_eq!(strip_lead("connecting to h:1: refused", "connecting to h:1"), "refused");
+        assert_eq!(strip_lead("connecting to h:12: refused", "connecting to h:1"), "connecting to h:12: refused");
+        let cause = io::Error::other("reset");
+        let f = Failure::caused(Stage::Tls, Class::Unavailable, "TLS: reset", cause);
+        assert_eq!(chain_of(&f), f.chain());
+        assert_eq!(f.into_source().map(|e| e.to_string()).as_deref(), Some("reset"));
     }
 
     #[test]

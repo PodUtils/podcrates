@@ -5,6 +5,7 @@
 
 use std::time::Duration;
 
+use pod_core::failure::lead;
 use pod_core::{Class, Failure, Stage};
 
 use crate::cut::Cut;
@@ -46,8 +47,11 @@ impl std::fmt::Display for DialError {
         match self {
             DialError::InvalidTarget(why) => write!(f, "invalid destination: {why}"),
             DialError::BadProxy(why) => write!(f, "the proxy setting is not usable: {why}"),
-            DialError::Resolve { host, detail } => write!(f, "could not resolve {host}: {detail}"),
-            DialError::Connect { target, detail, .. } => write!(f, "could not connect to {target}: {detail}"),
+            // A detail of a dialer of the caller can say the same words.
+            DialError::Resolve { host, detail } => f.write_str(&lead(&format!("could not resolve {host}"), detail)),
+            DialError::Connect { target, detail, .. } => {
+                f.write_str(&lead(&format!("could not connect to {target}"), detail))
+            }
             DialError::Timeout { step, after, .. } => write!(f, "{step} timed out after {}s", after.as_secs()),
             DialError::ProxyUnreachable { proxy, detail } => {
                 write!(f, "could not reach the proxy {proxy}: {detail}")
@@ -128,5 +132,21 @@ mod tests {
         assert_eq!(silent.stage_and_class(), (Stage::Connect, Class::Timeout));
         assert_eq!(DialError::InvalidTarget("x".into()).stage_and_class(), (Stage::Connect, Class::Usage));
         assert_eq!(DialError::BadProxy("x".into()).stage_and_class(), (Stage::Proxy, Class::Config));
+    }
+
+    /// A detail that says the words of the error already is not said
+    /// twice (PodUtils/podnet#658).
+    #[test]
+    fn the_words_of_a_dial_error_are_said_once() {
+        let detail = "could not resolve nowhere.invalid: system resolver: no answer".to_string();
+        let resolve = DialError::Resolve { host: "nowhere.invalid".into(), detail: detail.clone() };
+        assert_eq!(resolve.to_string(), detail);
+        let detail = "could not connect to 127.0.0.1:1: refused".to_string();
+        let connect =
+            DialError::Connect { target: "127.0.0.1:1".into(), detail: detail.clone(), cut: None, kind: None };
+        assert_eq!(connect.to_string(), detail);
+        let connect =
+            DialError::Connect { target: "127.0.0.1:1".into(), detail: "refused".into(), cut: None, kind: None };
+        assert_eq!(connect.to_string(), detail);
     }
 }

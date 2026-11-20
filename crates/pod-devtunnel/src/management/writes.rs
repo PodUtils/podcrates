@@ -107,7 +107,8 @@ impl Management {
 
     /// Send `request`, shown as `shown`; the body of a success.
     async fn write(&self, request: Request, shown: &str) -> Result<Vec<u8>, Failure> {
-        let answer = self.client.send(request).await.map_err(|e| wrap(Step::Management, shown, e))?;
+        let line = request.line();
+        let answer = self.client.send(request).await.map_err(|e| wrap(Step::Management, &line, e))?;
         if !answer.is_success() {
             let words = problem(&answer.body);
             let what = match words.is_empty() {

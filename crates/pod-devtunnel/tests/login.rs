@@ -106,3 +106,20 @@ async fn a_refusal_and_the_end_of_the_code_stop_the_poll_with_no_token_in_the_wo
         assert!(!words.contains(USER_TOKEN) && !words.contains("standin-device-code"), "{words}");
     }
 }
+
+/// A base that does not answer: the failure names the request once
+/// (PodUtils/podnet#658).
+#[tokio::test]
+async fn a_dead_base_names_the_request_once() {
+    pod_testkit::need_loopback!();
+    let (_held, at) = pod_testkit::refused::refused();
+    let base = format!("http://{at}");
+    let http = way().http;
+    let login = Login::github().at(&base);
+    let chain = login::start(&http, &login, LIMIT).await.expect_err("nothing answers").chain();
+    assert_eq!(chain.matches(&format!("POST {base}")).count(), 1, "{chain}");
+    let api = Management::new(http, &settings(&base));
+    let failure = api.connect_info(&Locator::parse("standin-box").unwrap(), &Credential::Anonymous).await;
+    let chain = failure.expect_err("nothing answers").chain();
+    assert_eq!(chain.matches(&format!("GET {base}")).count(), 1, "{chain}");
+}

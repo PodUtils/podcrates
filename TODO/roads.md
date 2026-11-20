@@ -1937,3 +1937,39 @@ cargo test -p pod-proxy --all-features
 ## Done
 
 2026-11-18, bb9c73d71. `race::distinct`: `race` takes each address once, in its first place (so `dial` and `dial_addrs` too); `group_errors` counts each address once. Tests `race::tests::an_address_twice_is_dialed_once_and_said_once` and `a_dial_of_one_refused_address_twice_names_it_once` (with `pod_testkit::refused`). Plant `proxy-race-address-twice`, caught.
+
+# T-987: `pod-ws`: the dial error of a dialer of the caller names its target two times (PodUtils/podnet#658)
+
+**Source:** PodUtils/podnet#658 (COORD-111 of podnet, PodUtils/podnet@T-497), part 3.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+```text
+$ podnet connect -L tcp://127.0.0.1:0 wss://127.0.0.1:1/__podnet/ws
+podnet: the remote wss://127.0.0.1:1/__podnet/ws does not answer (--no-check starts without this check): TCP to 127.0.0.1: could not connect to 127.0.0.1:1: connecting to 127.0.0.1:1: Connection refused (os error 111)
+$ podnet connect -L tcp://127.0.0.1:0 wss://nowhere.invalid/__podnet/ws
+podnet: ...: TCP to nowhere.invalid: could not resolve nowhere.invalid: connecting to nowhere.invalid:443: could not resolve nowhere.invalid: system resolver: ...
+```
+
+`pod_ws::way::dial_error` (`crates/pod-ws/src/way.rs`) puts the text of the dialer's `Failure` into `DialError::Connect { target, detail }` or `DialError::Resolve { host, detail }`, and the `Display` of `DialError` (`crates/pod-proxy/src/error.rs`) puts `could not connect to TARGET: ` or `could not resolve HOST: ` in front. podnet's dialer says `connecting to HOST:PORT: ...` and `could not resolve HOST: ...` already.
+
+## Premise
+
+- Read: PodUtils/podnet#658 (part 3); `crates/pod-ws/src/way.rs` (`dial_error`); `crates/pod-proxy/src/error.rs`; podnet's dialer (PodUtils/podnet:src/egress.rs, `failed`).
+- Not measured: podnet's line after the fix.
+
+## Approach
+
+`dial_error` removes a leading `connecting to TARGET: ` or `could not connect to TARGET: ` from the detail, and `could not resolve HOST: ` from the detail of a failure of the name. The helper of T-985 (`pod_core::failure::lead`) puts the words of `DialError` in front once. A test gives `dial_error` the texts of podnet's dialer.
+
+## Prove
+
+```sh
+cargo test -p pod-ws --all-features --lib way::tests
+cargo test -p pod-proxy --all-features
+```
