@@ -6543,3 +6543,50 @@ that fails without it.
 ```sh
 cargo test -p pod-broker --all-features --test tls_clients -- --nocapture
 ```
+
+# T-1016: `pod-release`: a line of the chain names a certificate by its subject, and a leaf of Fulcio has none
+
+**Source:** PodUtils/podssh#334 (COORD-130 of podssh: its take of `v0.79.0`, "One ask")
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`chain::signed_by` (`crates/pod-release/src/sigstore/chain.rs`) names a certificate by its subject in
+each line: "{} was not issued by {}", "{}'s signature by {}" and "{} did not hold at the time of the
+signature". A leaf of Fulcio has an empty subject: its identity is in the SAN. For a leaf out of its
+time, podssh's user reads `the signature of SHA256SUMS:  did not hold at the time of the signature;
+nothing was replaced. ...`: two spaces, no certificate named, and no window and no time. podssh asks:
+name a certificate by its subject where it has one, else by its place ("the leaf certificate", "the
+intermediate certificate"), and give the window and the time. podssh's test
+(PodUtils/podssh:crates/podssh-cli/tests/update.rs, `a_leaf_of_another_tag_issuer_time_or_use_is_refused`)
+matches "did not hold at the time of the signature": that phrase stays.
+
+## Premise
+
+- Read: PodUtils/podssh#334; `crates/pod-release/src/sigstore/chain.rs`,
+  `crates/pod-release/src/sigstore.rs` (`verify_with`), `crates/pod-release/src/sigstore/stamp.rs`
+  (the chain of the timestamp authority), each `format!` of `crates/pod-release/src`.
+- Read: the leaf of podcrates v0.76.0's bundle
+  (`crates/pod-release/tests/fixtures/v0.76.0/SHA256SUMS.sigstore.json`) has an empty subject.
+- Not measured: a chain of Fulcio with an intermediate that has no subject.
+
+## Approach
+
+One name for a certificate in each line of `chain::signed_by`: its subject, or, when its subject is
+empty, its place: "the leaf certificate" (not a CA), "the root certificate" (a CA that issued itself)
+or "the intermediate certificate". The line of the time gives the window of the certificate and the
+time, in the RFC 3339 form of `pod_core::clock::rfc3339` that `verify` writes. The line of the issuer
+gives the issuer that the certificate names. The errors of the chain of the timestamp authority start
+with its name, so that "the leaf certificate" of that chain is not the leaf of Fulcio. A test with the
+leaf of v0.76.0 out of its window, and with the root of Fulcio as its issuer, fails on the code before
+the fix.
+
+## Prove
+
+```sh
+cargo test -p pod-release --all-features --lib sigstore
+```
