@@ -6703,7 +6703,7 @@ of the crate with `-D warnings`: clean.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6723,6 +6723,18 @@ The broker's catalogue of `pod-control`: `load` an `Extra` of the master tier wi
 ```sh
 cargo test -p pod-broker --all-features --test control
 ```
+
+## Done
+
+2026-11-20, commits `f17ab298` (the control) and `3b82a329` (the plant), and this commit (the record). Calls C856 and C857.
+
+- The wire: `pod-control` protocol 1. `control::extras()`: `load` (master, `outlives`), `drop` (operate), `list` (read); `control::catalogue()`, `control::settings(program, version)` (a line of 1 MiB, `control::MAX_LINE`). The result of each method has the fields of its old answer. A failure of the class usage is `bad-params`.
+- `Broker::control(method, params)` answers the three rows, for a host that serves them on its own control socket. `control::Control` is the `pod_control::Host` of a broker: `status` (`jobs`, `ending`), `metrics` (`Broker::counts`, the count of each kind of audit line, and the gauges `jobs` and `open`), `drain` (no new `load`: `busy`), `stop` (each job dropped), `reload` (`unsupported`). `control::serve_control(broker, path, settings)` gives a `ControlServer` with `ending` (a `watch` of tokio).
+- Gone: `Broker::control_line`, `control::answer_failure`, `control::VERSION`. `control::bind_unix` is now `pod_broker::bind_unix`. `libc` is a dev-dependency only.
+- `pod_control::conformance::Options::extras`: each extra of the host above the tier of the caller must answer as a name that is not there.
+- Proof: `cargo test -p pod-broker --all-features`: each test binary passed (the lib 21, `control` 11, `tls_clients` 14, the others as before); `tests/control.rs` keeps the names of its tests and adds `load_takes_the_master_tier_and_drop_the_operate_tier`, `the_control_of_the_broker_conforms_at_each_tier` (the conformance check at each tier, with the extras) and `drain_takes_no_new_load_and_stop_drops_each_job`; the lib test `each_line_is_counted_by_its_event_and_decision`. 30 runs of the `control` binary in a loop passed. `cargo test -p pod-control --all-features` passed (17, 13, 2, 1). The plant `broker-load-lower-tier` is caught, and `broker-bind-at-the-path` and `control-tier-refusal-names-the-method` are still caught.
+- The consumers: podrunner (`podrunner-egress`) and podvm (`--net broker`) call `Broker::load` and `Broker::drop_job` in their own process and read no wire of the control; they change nothing at their take. podssh does not take `pod-broker`.
+- Remains: T-1023 (the frame of `pod-control` does not wipe a line that holds a credential).
 
 # T-1019: `pod-broker`: the cargo leg of `tls_clients` runs the proxy of rustup in a temporary directory, where it finds no toolchain
 
