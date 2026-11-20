@@ -96,7 +96,9 @@ pub use ns_overlay::{
     NS_OVERLAY_DIRS_STEP, NS_OVERLAY_STEP, NS_OVERLAY_TMPFS_STEP, OVERLAY_OPTIONS_MOST, Root, USERXATTR, Upper,
     overlay_escape, overlay_options, run_namespace_root, spawn_namespace_root,
 };
-pub use ns_pid::{FORWARDED as PID_FORWARDED, NS_PID_FORK_STEP, NS_PID_STEP, NS_PID_USER_STEP};
+pub use ns_pid::{
+    FORWARDED as PID_FORWARDED, NS_PID_FORK_STEP, NS_PID_STEP, NS_PID_USER_STEP, PROXIED as WAIT_FORWARDED,
+};
 pub use ns_proc_bind::{NS_PROC_BIND_STEP, NS_PROC_REMOUNT_STEP, proc_of_this_pid_namespace};
 pub use ns_pts::{DEVPTS_FLAGS, DEVPTS_OPTIONS, NS_DEVPTS_STEP, NS_PTMX_BIND_STEP, devpts_refused, ptmx_of};
 pub use ns_user::{

@@ -21,13 +21,18 @@ fn plan() -> Plan {
     }
 }
 
-/// The mask names the signals by their bits: signal n is bit n - 1.
+/// The mask names the signals by their bits: signal n is bit n - 1. The
+/// init gives the list of the waiter and SIGWINCH (PodUtils/podvm#608).
 #[test]
 fn the_forwarded_signals_are_the_bits_of_their_numbers() {
-    for s in [sys::SIGHUP, sys::SIGINT, sys::SIGQUIT, sys::SIGUSR1, sys::SIGUSR2, sys::SIGTERM, sys::SIGWINCH] {
-        assert_ne!(FORWARDED & (1 << (s - 1)), 0, "signal {s}");
+    let proxied =
+        [sys::SIGHUP, sys::SIGINT, sys::SIGQUIT, sys::SIGUSR1, sys::SIGUSR2, sys::SIGTERM, sys::SIGALRM, sys::SIGPWR];
+    for s in proxied {
+        assert_ne!(PROXIED & (1 << (s - 1)), 0, "signal {s}");
     }
-    assert_eq!(FORWARDED.count_ones(), 7);
+    assert_eq!(PROXIED.count_ones(), 8);
+    assert_eq!(FORWARDED, PROXIED | (1 << (sys::SIGWINCH - 1)));
+    assert_eq!(FORWARDED.count_ones(), 9);
     assert_eq!(FORWARDED & sys::sigbit(sys::SIGCHLD), 0);
     assert_eq!(MASK, FORWARDED | (1 << (sys::SIGCHLD - 1)));
 }

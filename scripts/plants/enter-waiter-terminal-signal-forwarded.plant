@@ -1,0 +1,6 @@
+# pod-enter: the waiter gives a SIGINT of the terminal to the payload again (T-995).
+ENTRY=T-995
+GROUP=enter
+EXPECT='a_sigint_of_the_terminal_is_not_forwarded_by_the_waiter'
+RUN='cargo test -p pod-enter --all-features --lib child::tests::a_sigint_of_the_terminal_is_not_forwarded_by_the_waiter'
+LIMIT=900

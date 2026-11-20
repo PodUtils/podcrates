@@ -2,5 +2,5 @@
 ENTRY=T-884
 GROUP=enter
 EXPECT='a_sighup_of_the_waiter_reaches_the_payload'
-RUN='cargo test -p pod-enter --all-features --lib tests::a_sighup_of_the_waiter_reaches_the_payload'
+RUN='cargo test -p pod-enter --all-features --lib child::tests::a_sighup_of_the_waiter_reaches_the_payload'
 LIMIT=900

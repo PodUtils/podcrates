@@ -1,12 +1,13 @@
 diff --git a/crates/pod-enter/src/child.rs b/crates/pod-enter/src/child.rs
+index 1cab952..00af389 100644
 --- a/crates/pod-enter/src/child.rs
 +++ b/crates/pod-enter/src/child.rs
-@@ -118,7 +118,7 @@ impl Child {
-                     && n >= 4
-                 {
-                     let signo = i64::from(u32::from_ne_bytes([buf[0], buf[1], buf[2], buf[3]]));
--                    if [sys::SIGHUP, sys::SIGINT, sys::SIGTERM].iter().any(|s| *s as i64 == signo) {
-+                    if [sys::SIGINT, sys::SIGTERM].iter().any(|s| *s as i64 == signo) {
-                         // ESRCH is not a failure: the payload exited
-                         // between the read and the kill, and the pidfd
-                         // half reaps it below.
+@@ -15,7 +15,7 @@ use crate::{Child, Result, errno_failure};
+ /// of the payload too.
+ pub(crate) fn waiter_forwards(signo: u32, code: i32) -> bool {
+     let signo = u64::from(signo);
+-    if !(1..=64).contains(&signo) || PROXIED & sys::sigbit(signo) == 0 {
++    if !(1..=64).contains(&signo) || PROXIED & sys::sigbit(signo) == 0 || signo == sys::SIGHUP {
+         return false;
+     }
+     code <= 0 || (signo != sys::SIGINT && signo != sys::SIGQUIT)

@@ -10510,7 +10510,7 @@ cargo test -p pod-release --all-features tool
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10562,3 +10562,27 @@ the payload; a SIGINT with `SI_KERNEL` is not forwarded, and a SIGQUIT with
 ```sh
 cargo test -p pod-enter --all-features waiter
 ```
+
+## Done
+
+2026-11-20, this commit.
+`ns_pid::PROXIED` (`pod_enter::WAIT_FORWARDED`) is the one list: SIGHUP,
+SIGINT, SIGQUIT, SIGUSR1, SIGUSR2, SIGTERM, SIGALRM and SIGPWR;
+`FORWARDED` (`PID_FORWARDED`) is `PROXIED` and SIGWINCH, so the init gets
+SIGALRM and SIGPWR too (call C831). `wait_forwarding` blocks the list,
+reads `ssi_signo` and `ssi_code` from its signalfd, and forwards SIGINT and
+SIGQUIT only where `ssi_code` is 0 or less (`child::waiter_forwards`).
+`status::signal_name` names each signal of the list. `sys::SIGALRM`,
+`sys::SIGPWR` and `sys::SYS_RT_TGSIGQUEUEINFO` are new in `pod-hostprobe`.
+The tests of the waiter moved to `crates/pod-enter/src/child/tests.rs`.
+Before the fix, `cargo test -p pod-enter --all-features --lib waiter`
+failed two tests: `a_sigusr1_of_the_waiter_reaches_the_payload` gave
+`Ok(0)` for `Ok(7)` (the payload ran its 20 s, the SIGUSR1 stayed pending),
+and `a_sigint_of_the_terminal_is_not_forwarded_by_the_waiter` gave `Ok(3)`
+for `Ok(5)` with "forwarded SIGINT to the payload". After it: `cargo test
+-p pod-enter --all-features` passes 249 unit tests and each integration
+target; `cargo clippy -p pod-enter -p pod-hostprobe --all-targets
+--all-features -- -D warnings` and `cargo fmt --all --check` pass. The
+plants `enter-waiter-signal-list-short` and
+`enter-waiter-terminal-signal-forwarded` prove the two tests;
+`enter-sighup-not-forwarded` moved onto `waiter_forwards`.
