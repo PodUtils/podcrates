@@ -1,0 +1,2 @@
+@reboot A=1 /home/ci/.local/bin/podrunner serve --config /home/ci/.config/podrunner/podrunner.toml --state /home/ci/.local/state/pr '100\%'
+*/5 * * * * A=1 /home/ci/.local/bin/podrunner serve --config /home/ci/.config/podrunner/podrunner.toml --state /home/ci/.local/state/pr '100\%'

@@ -15,6 +15,7 @@
 //!   its write, with no I/O, for each reader of a crate;
 //! * [`lock`]: an advisory lock of a file for the life of a value, on each
 //!   system;
+//! * [`process`]: one run of a program within a time limit, with its output;
 //! * [`metered`], [`quota`], [`pick`], [`backoff`], [`clock`], [`text`],
 //!   [`names`]: the small helpers.
 //!
@@ -38,6 +39,7 @@ pub mod lock;
 pub mod metered;
 pub mod names;
 pub mod pick;
+pub mod process;
 pub mod quota;
 pub mod text;
 

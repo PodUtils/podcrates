@@ -1,0 +1,12 @@
+diff --git a/crates/pod-unit/src/hardening.rs b/crates/pod-unit/src/hardening.rs
+index b8a991f2..bee5584f 100644
+--- a/crates/pod-unit/src/hardening.rs
++++ b/crates/pod-unit/src/hardening.rs
+@@ -40,7 +40,6 @@ pub const LINES: &[Line] = &[
+     line("CapabilityBoundingSet", "", Need::System),
+     line("AmbientCapabilities", "", Need::System),
+     line("RestrictSUIDSGID", "yes", Need::Seccomp),
+-    line("ProtectSystem", "strict", Need::System),
+     line("ProtectHome", "tmpfs", Need::System),
+     line("PrivateTmp", "yes", Need::System),
+     line("PrivateDevices", "yes", Need::System),

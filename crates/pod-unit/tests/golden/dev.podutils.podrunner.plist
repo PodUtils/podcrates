@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Written by podrunner print-unit. No secret is in this file, which each user may read. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.podutils.podrunner</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/home/ci/.local/bin/podrunner</string>
+    <string>serve</string>
+    <string>--config</string>
+    <string>/home/ci/.config/podrunner/podrunner.toml</string>
+    <string>--state</string>
+    <string>/home/ci/.local/state/pr</string>
+    <string>a&amp;b &lt;c&gt;</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>5</integer>
+  <key>ExitTimeOut</key>
+  <integer>0</integer>
+  <key>Umask</key>
+  <integer>63</integer>
+  <key>StandardErrorPath</key>
+  <string>/Users/ci/Library/Logs/podrunner.log</string>
+</dict>
+</plist>

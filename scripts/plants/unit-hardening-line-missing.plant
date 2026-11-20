@@ -1,0 +1,7 @@
+# A line of the hardening goes from the table: a unit of the system has no
+# ProtectSystem=strict, and the whole tree is writable (T-102).
+ENTRY=T-102
+GROUP=unit
+EXPECT='ProtectSystem=strict'
+RUN='cargo test -p pod-unit --all-features --test systemd each_line_of_the_hardening_is_in_a_unit_of_the_system'
+LIMIT=900

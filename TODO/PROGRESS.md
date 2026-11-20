@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 839 entries: 146 open, 30 partial, 7 blocked, 656 done.
+`TODO/INDEX.md` holds 842 entries: 148 open, 30 partial, 7 blocked, 657 done.
 
 ## State
 
@@ -71,7 +71,7 @@ Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;
 cfb's A-X-18 waits for cfb's answer on #223, call C792),
 T-966 (podssh took `pod-release`; podnet's half waits for
-PodUtils/podnet@T-494), T-1023 (`pod-control` wipes a line that holds a credential), T-102. Then cfb's asks
+PodUtils/podnet@T-494), T-1023 (`pod-control` wipes a line that holds a credential), T-1027 (the install of a unit of the system), T-1026 (a static program as a Windows service). Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
 of the consumers: T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
@@ -159,7 +159,7 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
    top, by the ruling "podrunner first"). T-490 (the server half of ECH, #130) waits too. The
    asks of podswarm that help podswarm alone (T-430 to T-437, T-440 to
    T-443, T-445, T-446, T-449, T-450) wait until the podswarm session
-   starts (the ruling "podswarm"). T-102 to T-119 wait, unless a
+   starts (the ruling "podswarm"). T-110 to T-119 wait, unless a
    consumer needs one first. T-113 to T-116 wait for the first release on
    crates.io. T-191 and T-194 (the proposals of PodUtils/podnet#437 for
    `pod-broker`, for the egress of podrunner) go to item 3 when podrunner
@@ -185,7 +185,7 @@ takes the number after the last row of that table.
   `POD_DEVTUNNEL_ACCESS_TOKEN` for a tunnel with no anonymous access),
   host the tunnel (`devtunnel host -p 22 --allow-anonymous`), and tell
   the session: it dispatches `live.yml` with `measure=devtunnel`.
-- Reserve the name `pod-beneath` on crates.io (call C834, T-997), as for
+- Reserve the names `pod-beneath` (call C834, T-997) and `pod-unit` (T-102) on crates.io, as for
   each name of `docs/design.md`, section 4.
 - Delete the branches that #208 names, and the two `dependabot/docker`
   branches that `docs/HANDOFF.md` names.

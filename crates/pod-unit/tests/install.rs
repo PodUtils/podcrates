@@ -1,0 +1,198 @@
+//! The install and the removal of a unit of the user, with a host of the
+//! test that records each program and gives its answers: the files that
+//! each form writes, the steps in their order, a failed start that leaves no
+//! file, a removal that leaves nothing, and a file of another program that
+//! stays.
+
+mod common;
+
+use std::cell::RefCell;
+use std::path::Path;
+
+use common::podrunner;
+use pod_core::process::Ran;
+use pod_core::{Class, Failure};
+use pod_unit::install::{self, Form, Host, Places, Removed};
+
+/// A host of the test: each run is recorded; a run whose line starts with a
+/// word of `fail` ends with 1; `crontab -l` gives `table`.
+#[derive(Default)]
+struct Fake {
+    runs: RefCell<Vec<String>>,
+    fail: Vec<&'static str>,
+    table: RefCell<Option<String>>,
+    task: RefCell<Option<String>>,
+}
+
+impl Host for Fake {
+    fn run(&self, program: &str, args: &[&str], input: Option<&[u8]>) -> Result<Ran, Failure> {
+        let line = format!("{program} {}", args.join(" "));
+        self.runs.borrow_mut().push(line.clone());
+        let ran = |code: i32, stdout: String, stderr: &str| Ran { code: Some(code), stdout, stderr: stderr.into() };
+        if self.fail.iter().any(|f| line.starts_with(f)) {
+            return Ok(ran(1, String::new(), "refused by the test"));
+        }
+        Ok(match (program, args) {
+            ("crontab", ["-l"]) => match self.table.borrow().clone() {
+                Some(table) => ran(0, table, ""),
+                None => ran(1, String::new(), "no crontab for ci"),
+            },
+            ("crontab", ["-"]) => {
+                *self.table.borrow_mut() = Some(String::from_utf8_lossy(input.unwrap_or_default()).into_owned());
+                ran(0, String::new(), "")
+            }
+            ("schtasks", ["/Query", _, _, "/XML"]) => match self.task.borrow().clone() {
+                Some(xml) => ran(0, xml, ""),
+                None => ran(1, String::new(), "ERROR: The system cannot find the file specified."),
+            },
+            ("schtasks", ["/Create", _, _, "/XML", file, "/F"]) => {
+                let bytes = std::fs::read(file).expect("the XML of the task");
+                let units: Vec<u16> = bytes[2..].chunks(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
+                *self.task.borrow_mut() = Some(String::from_utf16_lossy(&units));
+                ran(0, String::new(), "")
+            }
+            ("schtasks", ["/Delete", ..]) => {
+                *self.task.borrow_mut() = None;
+                ran(0, String::new(), "")
+            }
+            _ => ran(0, String::new(), ""),
+        })
+    }
+}
+
+fn places(home: &Path) -> Places {
+    Places::of_home(home, &home.join("scratch"), 1000, "HOST\\ci")
+}
+
+/// Each file under `dir`.
+fn files(dir: &Path) -> Vec<String> {
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            out.extend(files(&path));
+        } else {
+            out.push(path.display().to_string());
+        }
+    }
+    out
+}
+
+#[test]
+fn a_user_unit_is_written_enabled_and_started_and_its_removal_leaves_nothing() {
+    let home = tempfile::tempdir().expect("a directory");
+    let (host, places) = (Fake::default(), places(home.path()));
+    let done = install::install(&podrunner(), Form::Systemd, &places, &host).expect("an install");
+    let path = places.systemd_user.join("podrunner.service");
+    assert!(done[0].contains("enabled and started"), "{done:?}");
+    assert_eq!(std::fs::read_to_string(&path).expect("the unit"), pod_unit::systemd::render(&podrunner()).unwrap());
+    let runs = host.runs.take();
+    assert_eq!(
+        runs,
+        [
+            "systemctl --user daemon-reload",
+            "systemctl --user enable podrunner.service",
+            "systemctl --user restart podrunner.service"
+        ]
+    );
+    // A second install replaces its own file.
+    install::install(&podrunner(), Form::Systemd, &places, &host).expect("again");
+    host.runs.take();
+    let removed = install::remove(&podrunner(), Form::Systemd, &places, &host).expect("a removal");
+    assert!(matches!(removed, Removed::Done(_)), "{removed:?}");
+    assert_eq!(host.runs.take()[0], "systemctl --user disable --now podrunner.service");
+    assert_eq!(files(home.path()), Vec::<String>::new());
+    assert_eq!(install::remove(&podrunner(), Form::Systemd, &places, &host).expect("again"), Removed::Nothing);
+}
+
+#[test]
+fn a_unit_that_does_not_start_is_not_left_behind() {
+    let home = tempfile::tempdir().expect("a directory");
+    let host = Fake { fail: vec!["systemctl --user restart"], ..Fake::default() };
+    let places = places(home.path());
+    let fault = install::install(&podrunner(), Form::Systemd, &places, &host).expect_err("no start");
+    assert_eq!(fault.class, Class::Unavailable);
+    assert!(fault.text().contains("refused by the test"), "{}", fault.text());
+    assert_eq!(files(home.path()), Vec::<String>::new());
+    let host = Fake { fail: vec!["launchctl bootstrap"], ..Fake::default() };
+    assert!(install::install(&podrunner(), Form::Launchd, &places, &host).is_err());
+    assert_eq!(files(home.path()), Vec::<String>::new());
+}
+
+#[test]
+fn a_file_of_another_program_is_refused_and_stays() {
+    let home = tempfile::tempdir().expect("a directory");
+    let (host, places) = (Fake::default(), places(home.path()));
+    let path = places.systemd_user.join("podrunner.service");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(&path, "[Service]\nExecStart=/bin/mine\n").unwrap();
+    for fault in [
+        install::install(&podrunner(), Form::Systemd, &places, &host).expect_err("not ours"),
+        install::remove(&podrunner(), Form::Systemd, &places, &host).expect_err("not ours"),
+    ] {
+        assert_eq!(fault.class, Class::Config);
+    }
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "[Service]\nExecStart=/bin/mine\n");
+    assert!(host.runs.take().is_empty());
+}
+
+#[test]
+fn a_launch_agent_is_loaded_in_the_session_of_the_user_and_removed() {
+    let home = tempfile::tempdir().expect("a directory");
+    let (host, places) = (Fake::default(), places(home.path()));
+    let mut unit = podrunner();
+    unit.label = Some("dev.podutils.podrunner".into());
+    install::install(&unit, Form::Launchd, &places, &host).expect("an install");
+    let path = places.launch_agents.join("dev.podutils.podrunner.plist");
+    assert!(path.is_file());
+    assert_eq!(host.runs.take().last().unwrap(), &format!("launchctl bootstrap gui/1000 {}", path.display()));
+    assert!(matches!(install::remove(&unit, Form::Launchd, &places, &host), Ok(Removed::Done(_))));
+    assert_eq!(host.runs.take(), ["launchctl bootout gui/1000/dev.podutils.podrunner"]);
+    assert_eq!(files(home.path()), Vec::<String>::new());
+}
+
+#[test]
+fn a_task_is_made_from_its_xml_which_does_not_stay() {
+    let home = tempfile::tempdir().expect("a directory");
+    let (host, places) = (Fake::default(), places(home.path()));
+    install::install(&podrunner(), Form::Task, &places, &host).expect("an install");
+    assert!(host.task.borrow().as_deref().is_some_and(|x| x.contains("<UserId>HOST\\ci</UserId>")));
+    assert_eq!(files(home.path()), Vec::<String>::new(), "the XML stays");
+    // A task of another program with the same name is refused, and stays.
+    let mut other = podrunner();
+    other.mark = "another program".into();
+    assert_eq!(install::remove(&other, Form::Task, &places, &host).expect_err("not ours").class, Class::Config);
+    assert!(matches!(install::remove(&podrunner(), Form::Task, &places, &host), Ok(Removed::Done(_))));
+    assert!(host.task.borrow().is_none());
+}
+
+#[test]
+fn the_lines_of_the_crontab_are_added_and_removed_and_the_user_s_lines_stay() {
+    let home = tempfile::tempdir().expect("a directory");
+    let (host, places) = (Fake::default(), places(home.path()));
+    install::install(&podrunner(), Form::Cron, &places, &host).expect("an install with no crontab");
+    host.table.borrow_mut().as_mut().unwrap().push_str("0 1 * * * mine\n");
+    install::install(&podrunner(), Form::Cron, &places, &host).expect("again");
+    let table = host.table.borrow().clone().unwrap();
+    assert_eq!(table.matches("@reboot").count(), 1, "{table}");
+    assert!(matches!(install::remove(&podrunner(), Form::Cron, &places, &host), Ok(Removed::Done(_))));
+    assert_eq!(host.table.borrow().as_deref(), Some("0 1 * * * mine\n"));
+    assert_eq!(install::remove(&podrunner(), Form::Cron, &places, &host).unwrap(), Removed::Nothing);
+}
+
+#[test]
+fn a_unit_of_the_system_is_not_installed_here_and_a_probe_finds_the_first_form() {
+    let home = tempfile::tempdir().expect("a directory");
+    let places = places(home.path());
+    let fault = install::install(&common::node(), Form::Systemd, &places, &Fake::default()).expect_err("system");
+    assert_eq!(fault.class, Class::Usage);
+    if cfg!(windows) {
+        return;
+    }
+    let host = Fake { fail: vec!["systemctl", "launchctl"], ..Fake::default() };
+    assert_eq!(install::probe(&host, &places).expect("a form"), Form::Cron);
+    let host = Fake { fail: vec!["systemctl", "launchctl", "crontab"], ..Fake::default() };
+    let fault = install::probe(&host, &places).expect_err("no form");
+    assert_eq!(fault.class, Class::Unavailable);
+    assert_eq!(install::probe(&Fake::default(), &places).expect("a form"), Form::Systemd);
+}

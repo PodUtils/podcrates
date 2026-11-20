@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**839 entries: 146 open, 30 partial, 7 blocked, 656 done.**
+**842 entries: 148 open, 30 partial, 7 blocked, 657 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 5 | 11 | 0 | 195 | 211 |
-| P2 | 72 | 9 | 4 | 337 | 422 |
-| P3 | 69 | 10 | 3 | 122 | 204 |
-| **All** | 146 | 30 | 7 | 656 | 839 |
+| P1 | 4 | 11 | 0 | 196 | 211 |
+| P2 | 74 | 9 | 4 | 337 | 424 |
+| P3 | 70 | 10 | 3 | 122 | 205 |
+| **All** | 148 | 30 | 7 | 657 | 842 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -148,7 +148,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-099](fleet.md) | P1 | L | M8 | feature | done | `pod-broker`: the egress broker: per-job policy, one resolve, the upstream chain, the audit and the drop (GitHub #35, #36) |
 | [T-100](fleet.md) | P1 | L | M8 | feature | done | `pod-broker`: TLS end with a CA for each job, placeholder credentials and the scrub of answers (GitHub #35, #36) |
 | [T-101](foundation.md) | P1 | S | M1 | feature | done | `pod-core`: the classes Revoked, Policy and Unsupported, one exit code for each class, one JSON log schema (GitHub #35) |
-| [T-102](fleet.md) | P1 | M | M8 | feature | open | `pod-unit`: hardened service units for systemd, launchd and Windows, with no secret in a unit (GitHub #35) |
+| [T-102](fleet.md) | P1 | M | M8 | feature | done | `pod-unit`: hardened service units for systemd, launchd and Windows, with no secret in a unit (GitHub #35) |
 | [T-103](fleet.md) | P1 | M | M8 | feature | done | `pod-control`: one JSON control API on a Unix socket or a named pipe (GitHub #35, #36) |
 | [T-104](fleet.md) | P1 | M | M8 | feature | done | `pod-release`: the release index, its writer for CI and its verifier (GitHub #35, #36) |
 | [T-105](foundation.md) | P1 | M | M8 | feature | done | `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35) |
@@ -884,5 +884,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1021](foundation.md) | P2 | S | M0 | defect | open | `pod-testkit`: `host::tool` finds no program on Windows, so a test that needs git skips on the Windows runners |
 | [T-1022](fleet.md) | P2 | S | M8 | defect | open | `pod-broker`: Go on macOS reads no variable of a CA file, so `go_takes_the_bundle_by_ssl_cert_file` can fail on the macOS jobs |
 | [T-1023](fleet.md) | P2 | S | M8 | defect | open | `pod-control`: the bytes of a line that holds a token or a secret are not wiped |
+| [T-1026](fleet.md) | P2 | M | M8 | feature | open | `pod-unit`: a dispatcher of the service control manager, so that a static program runs as a Windows service |
+| [T-1027](fleet.md) | P2 | M | M8 | feature | open | `pod-unit`: the install and the removal of a unit of the system |
+| [T-1028](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: the trial run of a new binary on `pod_core::process::run_bounded` |
 | [T-1034](transport.md) | P2 | S | M1 | defect | open | `pod-services`: the watch `http-status` of the upload of `temp-sh` gets 429 from a runner of GitHub, not 405 |
 | [T-1035](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: the live test of the warm start expects QEMU 11.0 to save the NVMe root disk of the plan, and only QEMU 11.1.0 and later migrate an NVMe device |
