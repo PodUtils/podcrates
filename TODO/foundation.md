@@ -1296,7 +1296,7 @@ the table and the schema to the code; a planted code (policy 81) fails it.
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1319,6 +1319,10 @@ repository already runs `cargo todo check`.
 cargo test -p pod-todo
 cargo todo check
 ```
+
+## Done
+
+2026-11-20, commit "pod-todo: the acceptance registry of ask ids and their tests (T-105)" (call C826). The key `acceptance = "TODO/ACCEPTANCE.md"` of `TODO/todo.toml` and `crates/pod-todo/src/acceptance.rs`: one table `| Ask | Tests |`, each test `PATH::NAME` (a test function with a test attribute and no `#[ignore]`) or `PATH` (a script or a workflow). `cargo todo check` holds each test to the tree. `cargo todo acceptance [--json] [--passed FILE]` prints the asks, or those whose tests FILE names as passed (the output of `cargo test`, or one name for each line); the JSON is `schemas/acceptance.v1.schema.json`. `release.yml` writes `acceptance.json`, names it in `release-index.json` (`--acceptance`) and in `SHA256SUMS`. `TODO/ACCEPTANCE.md` holds A-X-13, A-X-14 and A-X-17. Tests: `crates/pod-todo/tests/acceptance.rs` (6: the control registry; nine planted faults, each found on its line: a file that is not there, a missing function, an `#[ignore]` test, a helper with no test attribute, a missing script, a path out of the tree, a test out of a code span, an entry id as an ask id, an ask given twice; a missing registry and a file with no table; the command with no FILE, with the output of `cargo test` and with `--json`; a refused registry and the usage errors). `cargo test -p pod-todo --all-features`: 145 passed. `cargo todo check`: the record agrees. `scripts/release-index.py` with the `acceptance.json` of this tree writes an index that names it. `python3 -I scripts/check-schemas.py`: 12 schemas agree. Remains: the work order of `TODO/PROGRESS.md` names T-105; the session that keeps the work order removes it there and sets the entry `done`.
 
 # T-118: Supply chain: an SBOM for each release and a planted advisory that fails `deny.yml` (GitHub #35)
 
@@ -2633,3 +2637,50 @@ A mode of `FileLock` on a file that exists and that other programs read: it open
 cargo test -p pod-core --all-features --lib lock
 sh scripts/agent/check-windows.sh
 ```
+
+# T-979: `pod-todo`: an opt-in rule that a done defect names its test (PodUtils/podnet#657)
+
+**Source:** PodUtils/podnet#657 (COORD-110 of podnet, PodUtils/podnet@T-450)
+**Category:** feature
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The owner's review of 2026-11-17 (podnet): an issue of a defect closes only with a test that reproduces it and fails on the code before the fix. podnet asks for one opt-in rule of `pod-todo` with a key of `TODO/todo.toml`:
+
+```toml
+defect_tests = "2026-11-17"
+```
+
+For each entry with `**Category:** defect` and `**Status:** done` whose first date in `## Done` is on or after the date of the key, the `## Done` section must name a test:
+
+1. a test function in a code span: a snake_case word with two `_` or more, alone or after a path or a module path (`tests/x.rs::a_b_c`, `cli_tests::a_b_c`);
+2. a path under `tests/`, `scripts/` or `.github/workflows/` (the step of a workflow is the test of a fix of a workflow).
+
+podnet measured with ``(tests|scripts|\.github/workflows)/|`[^`\s]*\b[a-z][a-z0-9]*(_[a-z0-9]+){2,}` ``. Otherwise `cargo todo check` gives `FILE:LINE: T-NNN: a done defect names no test in its Done section`, and `cargo todo set T-NNN done` refuses the same entry. With no key, nothing changes.
+
+## Premise
+
+- Read: PodUtils/podnet#657; `crates/pod-todo/src/check.rs` (`check_entry`), `src/config.rs`, `src/write.rs` (`set_status`).
+- Measured on this record with podnet's expression: 234 done defects; 36 with a first date before 2026-11-17 name no test; 6 from 2026-11-17 name no test (T-929, T-930, T-931, T-949, T-956, T-961).
+
+## Approach
+
+- `config.rs`: the key `defect_tests`, a date `YYYY-MM-DD`; no key, no rule.
+- A module `defects.rs`: the test of a text (each code span of a line, as `parse::code_spans` reads it; the trailing word of the span), the rule of an entry, and its unit tests. `check_entry` and `set_status` call it.
+- Tests: a planted defect with no test and the key fails `check` and `set`; the same with no key passes; a date before the key passes.
+- Name the test in the Done section of the six entries of this record, and turn the key on in `TODO/todo.toml` (a call).
+
+## Prove
+
+```sh
+cargo test -p pod-todo --all-features
+cargo todo check
+```
+
+## Done
+
+2026-11-20, commit "pod-todo: the opt-in rule that a done defect names its test (T-979)". The key `defect_tests = "YYYY-MM-DD"` of `TODO/todo.toml` (`crates/pod-todo/src/config.rs`); the rule in `crates/pod-todo/src/defects.rs`, which `check_entry` and `set_status` call; the README of `pod-todo` and `TODO/RULES.md` give the key. Tests: `crates/pod-todo/tests/defects.rs` (5: a done defect from the date with no test is found at the line of its Done; no key, or a date before the key, changes nothing; each form of a test passes; a feature is not read; `set T-NNN done` refuses, then takes the entry with a test named) and `defects::tests::a_test_function_is_a_word_with_two_underscores_at_the_end_of_a_span`. With the call to `gap` of `set_status` removed, `set_refuses_done_for_a_defect_that_names_no_test` fails. On this record the rule gives the same counts as podnet's expression: 6 entries from 2026-11-17 and 42 in all. The six Done sections name their tests, and `TODO/todo.toml` turns the key on from 2026-11-17 (call C825). `cargo test -p pod-todo --all-features`: 139 passed. `cargo todo check`: the record agrees.

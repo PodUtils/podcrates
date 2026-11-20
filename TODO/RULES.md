@@ -101,6 +101,14 @@ over this page.
    `## Done`, and a Prove that names a package, a test target or a
    `scripts/` path that does not exist.
 
+A defect done on 2026-11-17 or later names its test in `## Done`
+(`defect_tests` of `TODO/todo.toml`): a test function in a code span (a
+snake_case word with two `_` or more, alone or after a path or a module
+path: `cli_tests::a_b_c`), or a path under `tests/`, `scripts/` or
+`.github/workflows/`. The test fails on the code before the fix
+(`docs/development.md`, "A test for each fix"). `cargo todo check` and
+`cargo todo set T-NNN done` refuse a done defect that names none.
+
 Change the entry, the index and `TODO/PROGRESS.md` in the same commit as
 the work. A commit that fixes a defect and leaves its entry open is not
 finished.
@@ -229,3 +237,20 @@ names an entry that is not done, or a date (`YYYY-MM-DD`) or a commit in a
 code span. A status written beside an id (`T-NNN, partial`) agrees with
 the index. The checker reads both. Write a sentence that does not need a
 "yet" with no "yet".
+
+## 6. The acceptance registry
+
+- `TODO/ACCEPTANCE.md` (the key `acceptance` of `TODO/todo.toml`) has one
+  table, `| Ask | Tests |`: each ask id of a tracker (`A-X-14`, `G-10`)
+  that a release of this repository passes, and the tests that prove it.
+- Write each test in a code span, with commas between:
+  `PATH::NAME` (a test function of the file PATH; a module path can come
+  before NAME), or `PATH` alone (a script or a workflow that CI runs).
+- `cargo todo check` fails on a path that is not a file, on a NAME with
+  no `fn NAME` in its file, on a function with no test attribute or with
+  `#[ignore]`, and on an ask id given twice.
+- Add the row in the commit that closes the last entry of the ask.
+- `cargo todo acceptance` prints the ask ids; `--json` prints the list
+  that `release.yml` attaches to each release as `acceptance.json`;
+  `--passed FILE` keeps the asks whose tests FILE names as passed (the
+  output of `cargo test`, or one name for each line).

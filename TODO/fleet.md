@@ -5876,7 +5876,7 @@ cargo clippy -p static-probe --all-targets --all-features -- -D warnings
 
 ## Done
 
-2026-11-18, 6dff7fc: the report of `job()` in `examples/static-probe/src/main.rs` comes from JSON through serde, so an optional field that `pod-job` adds needs no change of the probe. The run of the probe prints the refused report and its public form. `cargo clippy --workspace --all-targets --all-features -- -D warnings`: 0 faults. The scheduled nightly at `4161d8d` (run 44283168064) failed in each job that builds the workspace with this E0063; `6dff7fc` is the tag `v0.71.0`, with `ci` 44283332297 green.
+2026-11-18, 6dff7fc: the report of `job()` in `examples/static-probe/src/main.rs` comes from JSON through serde, so an optional field that `pod-job` adds needs no change of the probe. The run of the probe prints the refused report and its public form. `cargo clippy --workspace --all-targets --all-features -- -D warnings`: 0 faults. The scheduled nightly at `4161d8d` (run 44283168064) failed in each job that builds the workspace with this E0063; `6dff7fc` is the tag `v0.71.0`, with `ci` 44283332297 green. The test: the clippy step of `.github/workflows/ci.yml` (`--workspace --all-targets`) builds `examples/static-probe`, and failed on the code before the fix.
 
 # T-940: `pod-job`: a fuzz target for one line of the source wire
 

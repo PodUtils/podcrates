@@ -8,7 +8,8 @@ dependency.
 ## Commands
 
 `check`, `set T-NNN open|partial|blocked|done`, `counts`, `next`,
-`remap [--dry-run] FILE...`, `issues --block NUMBER | --json`, with
+`remap [--dry-run] FILE...`, `issues --block NUMBER | --json`,
+`acceptance [--json] [--passed FILE]`, with
 `--root DIR` and `--base REV`. The rules of the record are in
 `TODO/RULES.md` of each repository.
 
@@ -26,6 +27,15 @@ rule.
 `documents` (with `crates/*/README.md` patterns), `document_dirs`,
 `readings`. A tree with no file takes the facts of podssh. An id of
 another record is `REPO@T-NNN` and is not looked up.
+
+Each rule below is off until a key of `TODO/todo.toml` turns it on, so a
+new rule fails no consumer at once:
+
+| Key | Rule |
+| --- | --- |
+| `issue_rules = "on"` | The state of each issue against its entries (`src/issues.rs`). |
+| `defect_tests = "YYYY-MM-DD"` | An entry of the category `defect` that is `done`, with a first date in `## Done` on or after the key's, names a test in `## Done`: a function in a code span (a snake_case word with two `_` or more, alone or after a path or a module path: `a_b_c`, `cli_tests::a_b_c`, `tests/x.rs::a_b_c`), or a path under `tests/`, `scripts/` or `.github/workflows/`. Else `check` gives `FILE:LINE: T-NNN: a done defect names no test in its Done section`, and `set T-NNN done` refuses the entry (`src/defects.rs`). |
+| `acceptance = "TODO/ACCEPTANCE.md"` | The acceptance registry: a table `\| Ask \| Tests \|` that maps each ask id of a tracker to its tests, `PATH::NAME` (a test function of PATH, with a test attribute and no `#[ignore]`) or `PATH` (a script or a workflow). `check` holds each test to the tree; `acceptance [--json] [--passed FILE]` prints the asks, or those whose tests FILE names as passed (the output of `cargo test`, or one name for each line), as text or as the JSON `{"schema": 1, "asks": [{"ask": ID, "tests": [TEST, ...]}]}` (`schemas/acceptance.v1.schema.json`, `src/acceptance.rs`). |
 
 ## Adoption map
 

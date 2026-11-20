@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**811 entries: 146 open, 28 partial, 7 blocked, 630 done.**
+**812 entries: 145 open, 29 partial, 7 blocked, 631 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 8 | 9 | 0 | 189 | 206 |
+| P1 | 7 | 10 | 0 | 190 | 207 |
 | P2 | 70 | 9 | 4 | 318 | 401 |
 | P3 | 68 | 10 | 3 | 121 | 202 |
-| **All** | 146 | 28 | 7 | 630 | 811 |
+| **All** | 145 | 29 | 7 | 631 | 812 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -151,7 +151,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-102](fleet.md) | P1 | M | M8 | feature | open | `pod-unit`: hardened service units for systemd, launchd and Windows, with no secret in a unit (GitHub #35) |
 | [T-103](fleet.md) | P1 | M | M8 | feature | open | `pod-control`: one JSON control API on a Unix socket or a named pipe (GitHub #35, #36) |
 | [T-104](fleet.md) | P1 | M | M8 | feature | done | `pod-release`: the release index, its writer for CI and its verifier (GitHub #35, #36) |
-| [T-105](foundation.md) | P1 | M | M8 | feature | open | `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35) |
+| [T-105](foundation.md) | P1 | M | M8 | feature | partial | `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35) |
 | [T-106](fleet.md) | P2 | M | M8 | feature | partial | `pod-testkit`: the stand-ins of the edge, the relay and the WARP API as binaries for a consumer's CI (GitHub #35, #36) |
 | [T-107](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: a JSON report with a published schema (GitHub #35) |
 | [T-108](podvm.md) | P1 | M | M7 | feature | done | `pod-confine`: Landlock, a seccomp deny filter, no_new_privs and rlimits from one profile (GitHub #35) |
@@ -858,3 +858,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-976](podvm.md) | P2 | M | M6 | defect | open | `pod-enter`: the library path of the loader family has no `DT_RUNPATH` or `DT_RPATH` directory of a program or its libraries |
 | [T-977](podvm.md) | P2 | M | M6 | feature | open | `pod-release`: the pinned fetch of a static tool that a project runs (gVisor's `runsc` for podvm) |
 | [T-978](upkeep.md) | P1 | M | M5 | defect | partial | The findings of the report of the hard problems that the record does not have |
+| [T-979](foundation.md) | P1 | S | M0 | feature | done | `pod-todo`: an opt-in rule that a done defect names its test (PodUtils/podnet#657) |

@@ -125,6 +125,7 @@ pub fn check_with(root: &Path, changed: Option<Vec<String>>, head: &crate::remap
         crate::issues::check(root, &status, &mut problems);
     }
     check_proves(root, &record.entries, &mut problems);
+    crate::acceptance::check(root, &mut problems);
     if let Some(files) = changed.filter(|f| !f.is_empty()) {
         unmoved(root, &files, head, rev, &mut problems);
     }
@@ -355,15 +356,25 @@ fn check_entry(e: &Entry, p: &mut Vec<Problem>) {
         }
         _ => {}
     }
+    if let Some((line, what)) = crate::defects::gap(e, status) {
+        p.push(Problem::new(&at, line, format!("{}: {what}", e.id)));
+    }
 }
 
 /// True when a text holds a date of the form YYYY-MM-DD.
 pub fn has_date(text: &str) -> bool {
+    first_date(text).is_some()
+}
+
+/// The first date of the form YYYY-MM-DD in a text.
+pub fn first_date(text: &str) -> Option<&str> {
     let b = text.as_bytes();
-    (0..b.len().saturating_sub(9)).any(|i| {
-        let d = |k: usize| b[i + k].is_ascii_digit();
-        d(0) && d(1) && d(2) && d(3) && b[i + 4] == b'-' && d(5) && d(6) && b[i + 7] == b'-' && d(8) && d(9)
-    })
+    (0..b.len().saturating_sub(9))
+        .find(|&i| {
+            let d = |k: usize| b[i + k].is_ascii_digit();
+            d(0) && d(1) && d(2) && d(3) && b[i + 4] == b'-' && d(5) && d(6) && b[i + 7] == b'-' && d(8) && d(9)
+        })
+        .map(|i| &text[i..i + 10])
 }
 
 /// The counts that the index and the progress record state, against the rows.

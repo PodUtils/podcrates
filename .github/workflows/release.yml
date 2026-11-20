@@ -14,7 +14,9 @@ name: release
 # binaries pod-fake-github-TARGET of pod-testkit (the fake GitHub of a
 # consumer's CI), pod-fake-githome-TARGET (the fake of githome's source of
 # jobs for podrunner's CI), pod-release-TARGET (the verifier of a release
-# for the CI of a product and an installer), the release index
+# for the CI of a product and an installer), the acceptance
+# acceptance.json (cargo todo acceptance --json: the asks that the release
+# passes), the release index
 # release-index.json of pod-release (scripts/release-index.py) and
 # SHA256SUMS; pod-release sums checks each file and the index of each run
 # before the signature. The release attaches them with
@@ -129,15 +131,21 @@ jobs:
           python3 -I scripts/install/pins.py stamp scripts/install/podlab.sh --version "$v" --assets dist --out dist/podlab-install.sh
           python3 -I scripts/install/pins.py bundle "dist/podlab-$v.tar.gz" "podlab-$v" \
             dist/podlab-install.sh dist/podlab-x86_64-unknown-linux-musl dist/podlab-aarch64-unknown-linux-musl
+          # The acceptance (T-105, schemas/acceptance.v1.schema.json): the
+          # asks of TODO/ACCEPTANCE.md, whose tests ci.yml ran green at this
+          # commit (the conditions of a release).
+          cargo todo acceptance --json > dist/acceptance.json
+          cat dist/acceptance.json
           # The release index (T-104, schemas/release-index.v1.schema.json):
           # written before SHA256SUMS, which holds its line, so that the
           # signature of SHA256SUMS signs it too.
-          files=$(cd dist && ls podlab-* pod-fake-github-* pod-fake-githome-* pod-release-*)
+          files=$(cd dist && ls podlab-* pod-fake-github-* pod-fake-githome-* pod-release-* acceptance.json)
           # shellcheck disable=SC2086 # one word for each file name.
           python3 -I scripts/release-index.py --project "$GITHUB_REPOSITORY" --version "v$v" --dir dist \
-            --date "$SOURCE_DATE_EPOCH" --commit "$(git rev-parse HEAD)" --out dist/release-index.json $files
+            --date "$SOURCE_DATE_EPOCH" --commit "$(git rev-parse HEAD)" --acceptance acceptance.json \
+            --out dist/release-index.json $files
           # SHA256SUMS of each published file.
-          (cd dist && sha256sum podlab-* pod-fake-github-* pod-fake-githome-* pod-release-* release-index.json > SHA256SUMS.new && mv SHA256SUMS.new SHA256SUMS)
+          (cd dist && sha256sum podlab-* pod-fake-github-* pod-fake-githome-* pod-release-* acceptance.json release-index.json > SHA256SUMS.new && mv SHA256SUMS.new SHA256SUMS)
           cat dist/SHA256SUMS
       # The check of a dry run that the CI of a product runs before its
       # signature: each file and the index against SHA256SUMS and the schema,
