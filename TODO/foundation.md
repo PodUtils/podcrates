@@ -2633,3 +2633,46 @@ A mode of `FileLock` on a file that exists and that other programs read: it open
 cargo test -p pod-core --all-features --lib lock
 sh scripts/agent/check-windows.sh
 ```
+
+# T-979: `pod-todo`: an opt-in rule that a done defect names its test (PodUtils/podnet#657)
+
+**Source:** PodUtils/podnet#657 (COORD-110 of podnet, PodUtils/podnet@T-450)
+**Category:** feature
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The owner's review of 2026-11-17 (podnet): an issue of a defect closes only with a test that reproduces it and fails on the code before the fix. podnet asks for one opt-in rule of `pod-todo` with a key of `TODO/todo.toml`:
+
+```toml
+defect_tests = "2026-11-17"
+```
+
+For each entry with `**Category:** defect` and `**Status:** done` whose first date in `## Done` is on or after the date of the key, the `## Done` section must name a test:
+
+1. a test function in a code span: a snake_case word with two `_` or more, alone or after a path or a module path (`tests/x.rs::a_b_c`, `cli_tests::a_b_c`);
+2. a path under `tests/`, `scripts/` or `.github/workflows/` (the step of a workflow is the test of a fix of a workflow).
+
+podnet measured with ``(tests|scripts|\.github/workflows)/|`[^`\s]*\b[a-z][a-z0-9]*(_[a-z0-9]+){2,}` ``. Otherwise `cargo todo check` gives `FILE:LINE: T-NNN: a done defect names no test in its Done section`, and `cargo todo set T-NNN done` refuses the same entry. With no key, nothing changes.
+
+## Premise
+
+- Read: PodUtils/podnet#657; `crates/pod-todo/src/check.rs` (`check_entry`), `src/config.rs`, `src/write.rs` (`set_status`).
+- Measured on this record with podnet's expression: 234 done defects; 36 with a first date before 2026-11-17 name no test; 6 from 2026-11-17 name no test (T-929, T-930, T-931, T-949, T-956, T-961).
+
+## Approach
+
+- `config.rs`: the key `defect_tests`, a date `YYYY-MM-DD`; no key, no rule.
+- A module `defects.rs`: the test of a text (each code span of a line, as `parse::code_spans` reads it; the trailing word of the span), the rule of an entry, and its unit tests. `check_entry` and `set_status` call it.
+- Tests: a planted defect with no test and the key fails `check` and `set`; the same with no key passes; a date before the key passes.
+- Name the test in the Done section of the six entries of this record, and turn the key on in `TODO/todo.toml` (a call).
+
+## Prove
+
+```sh
+cargo test -p pod-todo --all-features
+cargo todo check
+```
