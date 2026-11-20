@@ -26,7 +26,8 @@ is done. Git and the record keep finished work.
      minutes). T-933, T-934 (an exec proxy with `cmd.exe` on Windows), T-935
      (a rename with POSIX semantics on Windows), T-990 (a dual-stack QUIC
      client socket, the cause of the UDP failure of T-933) and T-936
-     (`refused()` on macOS) wait for the proof of the next nightly run.
+     (`refused()` on macOS) wait for the proof of the run of `nightly.yml`
+     44696810225 on `68fbc96`.
      T-789 and T-766 stay.
    - `ci.yml`: T-943 is done: the arm64 probe of macOS builds on the
      Intel runner.
@@ -58,11 +59,13 @@ is done. Git and the record keep finished work.
    G-34 and G-35 are done; the last part of G-34 (T-964) goes in the next
    tag. cfb's A-X-18 (T-106, partial) waits for cfb's answer on #223. Both
    reply comments are current.
-7. No hand-off of a tag is open: each consumer took `v0.78.1` (#241 and
-   #240 are closed; podvm `3272e3d`, PodUtils/podvm#606). The tag `v0.78.0`
-   has no release (T-974, call C818). Write each take of the next tag in the
-   "Takes" list of its issue, and close it when each consumer took its tag or
-   a later one (call C780). COORD-142 (#236) relays the ruling "ghcr.io" (call C789):
+7. The open hand-off is COORD-149 (#245, `v0.79.0`), with no take in its
+   list. Write each take in its "Takes" list, and close it when each
+   consumer took its tag or a later one (call C780). The hand-off of the
+   next tag names T-997, T-998, T-999 and T-988 for podvm (#245 names them
+   already, as work of `main`). The pushes of a cloud session of this
+   account start no run of GitHub Actions: each gate, nightly and release
+   is a request `[gh action] requested` (#244 is the last, closed). COORD-142 (#236) relays the ruling "ghcr.io" (call C789):
    podcrates, podvm and podnet publish in its form, podssh pushes at its
    next tag, and podrunner's T-553 is open.
 8. T-767 (PodUtils/podssh#283, partial) and T-939 (done as a guard, call
@@ -84,24 +87,16 @@ is done. Git and the record keep finished work.
 
 ## The next tag
 
-It carries T-964 (`pod-release` verifies the bundles of Rekor v2, calls
-C820 and C821) and each fix of `main` after `v0.78.1`: T-973 (the clients
-of a job with the bundle of `pod-broker`; a new step of `ci.yml`), T-979
-(the key `defect_tests` of `pod-todo`, PodUtils/podnet#657), T-105 (the
-acceptance registry; `release.yml` writes `acceptance.json`: a dry run of
-`release.yml` before the tag), T-934, T-935 and T-990 (Windows), T-985 to
-T-987 (an error line names each cause once, PodUtils/podnet#658), T-995
-(the waiter of `pod-enter` forwards the signals of the init,
-PodUtils/podvm#608) and T-976 (the RUNPATH directories in the library path
-of the loader family, PodUtils/podvm#603). The hand-off names, for podnet,
-the key `defect_tests` and the new error texts, and for podvm, the eight
-signals and the RUNPATH (no change of podvm's code). T-966 (podnet's
-half waits for PodUtils/podnet@T-494) and T-963 (the second Nostr relay is
-`nos.lol`; a giver waits its whole limit after a refusal of the relay) are
-partial. T-975 and T-977 (podvm's asks #602 and #604; COORD-147 and
-COORD-148 are closed; Q18 blocks their release part) are open: their code is not on `main`. Before the
-release, read `docs/maintenance.md`, "A release": the steps of
-`release.yml` that run on a tag only are not tested by the dry run.
+It carries T-997 (the crate `pod-beneath`, PodUtils/podvm#611; the name
+waits for its reservation on crates.io, call C834), T-998, T-999 and T-988
+(the program of a dynamic loader, the write table, the check of the first
+program by guest paths, PodUtils/podvm#613; a new field `Names::write_table`
+breaks podvm's literal) and each fix of `main` after `v0.79.0`. T-966
+(podnet's half waits for PodUtils/podnet@T-494) and T-963 are partial.
+T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks their release
+part) are open. Before the release, read `docs/maintenance.md`, "A
+release": the steps of `release.yml` that run on a tag only are not tested
+by the dry run.
 
 ## Unfinished work
 
