@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**838 entries: 147 open, 30 partial, 7 blocked, 654 done.**
+**839 entries: 148 open, 30 partial, 7 blocked, 654 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 5 | 11 | 0 | 194 | 210 |
 | P2 | 70 | 9 | 4 | 336 | 419 |
-| P3 | 72 | 10 | 3 | 122 | 207 |
-| **All** | 147 | 30 | 7 | 654 | 838 |
+| P3 | 73 | 10 | 3 | 122 | 208 |
+| **All** | 148 | 30 | 7 | 654 | 839 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -884,4 +884,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1021](foundation.md) | P2 | S | M0 | defect | open | `pod-testkit`: `host::tool` finds no program on Windows, so a test that needs git skips on the Windows runners |
 | [T-1022](fleet.md) | P2 | S | M8 | defect | open | `pod-broker`: Go on macOS reads no variable of a CA file, so `go_takes_the_bundle_by_ssl_cert_file` can fail on the macOS jobs |
 | [T-1030](fleet.md) | P3 | S | M8 | measurement | open | `pod-actions-store`: the git tests on the Windows jobs, with the forge URL of a Windows path |
+| [T-1031](fleet.md) | P3 | S | M8 | measurement | open | `pod-broker`: a Go job on macOS refuses the leaf of the job, and no variable gives Go the CA |
 | [T-1032](podvm.md) | P3 | S | M6 | defect | open | `pod-supervise`: a signal of the list to the detached launcher between the start of the payload and its block ends the launcher |

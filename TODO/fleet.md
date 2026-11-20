@@ -6915,3 +6915,45 @@ cargo test -p pod-actions-store --all-features --test git
 ## Start condition
 
 A nightly run at a commit with T-1021.
+
+# T-1031: `pod-broker`: a Go job on macOS refuses the leaf of the job, and no variable gives Go the CA
+
+**Source:** T-1022 (a finding: the read of `crypto/x509` of Go 1.26.11).
+**Category:** measurement
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On macOS `crypto/x509` of Go verifies with the Security framework and
+the keychains: `root_unix.go`, the one file that reads `SSL_CERT_FILE`
+and `SSL_CERT_DIR`, does not build for darwin (T-1022). A Go job on a
+macOS host of podrunner refuses the leaf of the job with each variable of
+`ca::env`, and the broker gives it no other way. `GODEBUG` with
+`x509usefallbackroots=1` acts only on a program that calls
+`x509.SetFallbackRoots`.
+
+## Premise
+
+- Read: `src/crypto/x509/root_darwin.go`, `root_unix.go`, `verify.go` and
+  `cert_pool.go` of golang/go at `go1.26.11`.
+- Not measured: a trust setting of the CA in a keychain of the user of the
+  job (`security add-trusted-cert -r trustRoot -k KEYCHAIN`), with no
+  prompt and with no change of the keychains of the host.
+
+## Approach
+
+Measure on a macOS runner: a keychain of the job (`security
+create-keychain`, the CA with `add-trusted-cert`, the keychain in the
+search list of the user of the job), a Go client of `tls_clients` against
+the leaf, and the cleanup at the end of the job. If it holds without a
+prompt and without root, give it as a step of `ca` for podrunner;
+otherwise the README names the limit for a Go job on macOS.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --all-features --test tls_clients -- go_ --nocapture
+```
