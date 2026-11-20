@@ -135,8 +135,12 @@ each credential of `mint` is made up (`.runner`, `.credentials` with the
 client id `pod-fake-githome-made-up-N`, `.credentials_rsaparams`) and
 reaches no broker.
 
-`--github URL` links `serve` to a `pod-fake-github` at the base URL `URL`
-(any port of the loopback: podrunner names it in its `[egress]`):
+`--github URL` links `serve` to a `pod-fake-github` at the base URL `URL`.
+podrunner names that address in its `[egress]`. A unit under an egress
+hold has a loopback of its own, so the runner of the unit does not reach
+the loopback of the host: when the runner runs in such a unit,
+`pod-fake-github` listens on an address of the host that is not the
+loopback (PodUtils/podrunner#329):
 
 * `POST /_fake/jobs` also queues the job in the fake GitHub, through its
   control API: the repository of the offer, its labels (`self-hosted` when

@@ -59,12 +59,11 @@ is done. Git and the record keep finished work.
    G-34 and G-35 are done; the last part of G-34 (T-964) goes in the next
    tag. cfb's A-X-18 (T-106, partial) waits for cfb's answer on #223. Both
    reply comments are current.
-7. The open hand-off is COORD-149 (#245, `v0.79.0`); its "Takes" list
-   holds each take. podvm's finding on PodUtils/podvm#616 (each thread of
-   a waiter blocks `WAIT_FORWARDED`) is in work with T-996. Write each take in its "Takes" list, and close it when each
-   consumer took its tag or a later one (call C780). The hand-off of the
-   next tag names T-997, T-998, T-999 and T-988 for podvm (#245 names them
-   already, as work of `main`). The pushes of a cloud session of this
+7. No hand-off of a tag is open: each consumer took `v0.79.0` (#245 is
+   closed). Write each take of the next tag in the "Takes" list of its issue, and
+   close it when each consumer took its tag or a later one (call C780). The hand-off of the
+   next tag names T-997, T-998, T-999, T-988, T-1009 and T-996 for podvm,
+   T-980 for podrunner and T-1016 for podssh. The pushes of a cloud session of this
    account start no run of GitHub Actions: each gate, nightly and release
    is a request `[gh action] requested` (#244 is the last, closed). COORD-142 (#236) relays the ruling "ghcr.io" (call C789):
    podcrates, podvm and podnet publish in its form, podssh pushes at its

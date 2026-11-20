@@ -6,16 +6,15 @@
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
 - Last release: `v0.79.0` at `68fbc96` (`docs/releases/v0.79.0.md`). Its
-  hand-off is COORD-149 (#245): the takes of podvm, podnet and podssh are in its
-  list.
+  hand-off COORD-149 (#245) is closed: each consumer took it.
 - The next tag carries T-997 (`pod-beneath`, PodUtils/podvm#611), T-998,
   T-999 and T-988 (PodUtils/podvm#613) and the fixes of `main` after
   `v0.79.0`. T-966 and T-963 are partial. T-975 and T-977 (podvm's asks)
   are open: their code is not on `main`. `release.yml` has steps that run
   on a tag only, which the dry run does not test (T-974; `docs/maintenance.md`,
   "A release").
-- The tag that the `main` of each consumer names: `v0.79.0` (podvm,
-  podnet, podssh), `v0.78.1` (podrunner). The details of each take are on #241 and #245.
+- The tag that the `main` of each consumer names: `v0.79.0` (podrunner,
+  podssh, podnet, podvm). The details of each take are on #241 and #245.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
