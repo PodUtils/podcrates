@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 812 entries: 145 open, 29 partial, 7 blocked, 631 done.
+`TODO/INDEX.md` holds 812 entries: 145 open, 28 partial, 7 blocked, 632 done.
 
 ## State
 
@@ -71,7 +71,7 @@ entries that a need of githome or cfb names for their CI: T-106 (partial;
 cfb's A-X-18 waits for cfb's answer on #223, call C792),
 T-966 (podssh took `pod-release`; podnet's half waits for
 PodUtils/podnet@T-494), T-973
-(the CA bundle of the TLS end of `pod-broker` with real clients; G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then cfb's asks
+(the CA bundle of the TLS end of `pod-broker` with real clients; G-04, #223 G-35), T-103 (G-08), T-102. Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
 of the consumers: T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**812 entries: 145 open, 29 partial, 7 blocked, 631 done.**
+**812 entries: 145 open, 28 partial, 7 blocked, 632 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 7 | 10 | 0 | 190 | 207 |
+| P1 | 7 | 9 | 0 | 191 | 207 |
 | P2 | 70 | 9 | 4 | 318 | 401 |
 | P3 | 68 | 10 | 3 | 121 | 202 |
-| **All** | 145 | 29 | 7 | 631 | 812 |
+| **All** | 145 | 28 | 7 | 632 | 812 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -151,7 +151,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-102](fleet.md) | P1 | M | M8 | feature | open | `pod-unit`: hardened service units for systemd, launchd and Windows, with no secret in a unit (GitHub #35) |
 | [T-103](fleet.md) | P1 | M | M8 | feature | open | `pod-control`: one JSON control API on a Unix socket or a named pipe (GitHub #35, #36) |
 | [T-104](fleet.md) | P1 | M | M8 | feature | done | `pod-release`: the release index, its writer for CI and its verifier (GitHub #35, #36) |
-| [T-105](foundation.md) | P1 | M | M8 | feature | partial | `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35) |
+| [T-105](foundation.md) | P1 | M | M8 | feature | done | `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35) |
 | [T-106](fleet.md) | P2 | M | M8 | feature | partial | `pod-testkit`: the stand-ins of the edge, the relay and the WARP API as binaries for a consumer's CI (GitHub #35, #36) |
 | [T-107](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: a JSON report with a published schema (GitHub #35) |
 | [T-108](podvm.md) | P1 | M | M7 | feature | done | `pod-confine`: Landlock, a seccomp deny filter, no_new_privs and rlimits from one profile (GitHub #35) |
