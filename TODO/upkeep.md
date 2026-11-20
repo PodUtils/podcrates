@@ -4010,3 +4010,40 @@ The steps in order on the signed files of `v0.77.0` with a `pod-release` of `mai
 ## Done
 
 2026-11-19, this commit. `.github/workflows/release.yml`: `changed-index`, `changed-sums` and `changed-verify`, each removed before and after its step. The Prove ran with the 11 files of `v0.77.0` (their `SHA256SUMS` checks) and `target/debug/pod-release` of `main`: "checked with no signature: ... 9 files checked, 0 missing" and "verified: ... 9 files checked, 0 missing; signed by .../release.yml@refs/tags/v0.77.0"; a changed index, a changed `podlab-install.sh` and the tag `v0.0.0` each gave 77. `shellcheck` 0.11.0 passes on the three step bodies.
+
+# T-978: The findings of the report of the hard problems that the record does not have
+
+**Source:** `docs/research/hard-problems.md`
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** M
+**Status:** partial
+
+## Problem
+
+`docs/research/hard-problems.md` gives the open problems of the record (H-01 to H-18), with the questions that research must answer. It has four findings that no entry has:
+
+1. The step `Test pod-gsr (Windows ARM64, open defect)` of `nightly.yml` has no `always()`: when the step `Test` fails, the step is skipped, and T-131 has no measurement.
+2. The workspace `Cargo.toml` sets no `opt-level` for the dependencies in the dev profile: the crypto dependencies of the emulated jobs of `nightly.yml` (riscv64, loongarch64, powerpc64le) build at opt-level 0. The "early eof" of `pod-iroh` in these jobs (T-916, T-938) can come from that. No run measured it (H-01).
+3. The sharded `fuzz.yml` (T-968) has no run yet (H-14).
+4. Three questions for the owner (Q18, Q19, Q20 of `TODO/PROGRESS.md`): a GPL-2.0 kernel (`ARCH=um`, T-975) and `runsc` (T-977) as assets of a release; the slow emulated targets skip the network tests of `pod-iroh`; a newer set of Sigstore roots for `pod-release` that TUF signs (H-07).
+
+## Premise
+
+- Read: `docs/research/hard-problems.md`; `.github/workflows/nightly.yml`; `Cargo.toml`.
+
+## Approach
+
+1. Give the step `if: always() && matrix.runner == 'windows-11-arm'`.
+2. Measure one emulated job of `nightly.yml` with `[profile.dev.package."*"] opt-level = 2` against the same job with no change: the time of the tests of `pod-iroh` and the result. Keep the change if the job passes and is faster.
+3. Run `fuzz.yml` by hand, and read both shards.
+4. Write the questions in `TODO/PROGRESS.md`, "Questions for the owner", each with a recommendation.
+
+## Prove
+
+The next run of `nightly.yml` shows a result for the step `Test pod-gsr (Windows ARM64, open defect)`; one run of `fuzz.yml` with both shards.
+
+## Done
+
+2026-11-20, parts 1 and 4: the step has `always()`; Q18, Q19 and Q20 are in `TODO/PROGRESS.md`.

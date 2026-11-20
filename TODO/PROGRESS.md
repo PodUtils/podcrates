@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 810 entries: 146 open, 27 partial, 7 blocked, 630 done.
+`TODO/INDEX.md` holds 811 entries: 146 open, 28 partial, 7 blocked, 630 done.
 
 ## State
 
@@ -203,7 +203,22 @@ The hand-off of each release is a COORD issue `(to all)`
   comment, and each comment of a session of podcrates has the line. It
   blocks T-538. Recommendation: yes, the same rule in each repository of
   PodUtils; write it in `docs/decisions.md` and in `AGENTS.md`.
+- **Q18.** Can a release of podcrates carry a static Linux kernel of
+  `ARCH=um` (GPL-2.0, T-975) and gVisor's `runsc` (Apache-2.0, T-977) as
+  assets, with their sources named? It blocks the release part of T-975
+  and T-977. Recommendation: yes, with the source of each GPL file as an
+  asset of the same release.
+- **Q19.** Can the emulated jobs of `nightly.yml` (riscv64, loongarch64,
+  powerpc64le) skip the network tests of `pod-iroh` when T-978 shows that
+  an optimised build does not pass them? It touches T-916 and T-938.
+  Recommendation: measure first (T-978); skip only with a native runner
+  that runs the tests.
+- **Q20.** Can `pod-release` take a newer set of Sigstore roots from TUF
+  at run time, beside the roots that it holds? It touches T-964 and H-07
+  of `docs/research/hard-problems.md`. Recommendation: no network in the
+  verifier; a test of `upstream.yml` tells of a new root, and a release
+  takes it.
 Write each question as `- **Qn.** QUESTION`, with the entries that it
-blocks and a recommendation. Number the questions in sequence from Q18
+blocks and a recommendation. Number the questions in sequence from Q21
 (Q1 to Q14: `docs/decisions.md`; Q15: the ruling "podswarm"; Q16: above;
 Q17: the packages of ghcr.io are public, no action).

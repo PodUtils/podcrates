@@ -70,7 +70,7 @@ jobs:
             cargo test --locked --workspace --all-features --no-fail-fast
           fi
       - name: Test pod-gsr (Windows ARM64, open defect)
-        if: matrix.runner == 'windows-11-arm'
+        if: always() && matrix.runner == 'windows-11-arm'
         continue-on-error: true
         run: cargo test --locked -p pod-gsr --all-features --no-fail-fast -- --nocapture --test-threads=1
       # The store of Windows: the test's root in the machine's ROOT store

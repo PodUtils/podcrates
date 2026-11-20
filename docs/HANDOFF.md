@@ -27,8 +27,11 @@ is done. Git and the record keep finished work.
      riscv64 job meets its 90 minutes). T-933 (three tests of
      `pod-cloudflare` on Windows) and T-936 (`refused()` on macOS) wait
      for the proof of the next nightly run. T-789 and T-766 stay.
-   - `ci.yml`: T-943 builds the arm64 probe of macOS on the Intel runner;
-     it is partial until three runs of `ci.yml` in a row are green.
+   - `ci.yml`: T-943 is done: the arm64 probe of macOS builds on the
+     Intel runner.
+   - `docs/research/hard-problems.md`: the hard open problems (H-01 to
+     H-18), with the questions that research must answer. T-978 has its
+     findings that no other entry had.
    - `upstream.yml`, the job `sources`: red on `pod-manual` until the
      port review of podssh's changes (T-863).
    A new red run needs an entry before other work. A plant that a run
