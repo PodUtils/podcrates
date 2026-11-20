@@ -20,6 +20,12 @@ use super::*;
 /// decides, in the order of the paths.
 pub fn libc_beside(rootfs: &str, interp: &str, machine: u16) -> Option<String> {
     let rel = interp.trim_start_matches('/');
+    // The root `/` keeps its slash: an empty root joins each path as a
+    // path relative to the working directory.
+    let rootfs = match rootfs.trim_end_matches('/') {
+        "" => "/",
+        r => r,
+    };
     match Flavour::of_libc_name(rel) {
         Flavour::Musl => {
             let root = std::path::Path::new(rootfs);
@@ -30,14 +36,14 @@ pub fn libc_beside(rootfs: &str, interp: &str, machine: u16) -> Option<String> {
                 Ok(p) => Some(p.display().to_string()),
                 Err(ResolveKind::Absent) => {
                     let base = rel.rsplit('/').next().unwrap_or(rel);
-                    search_file(rootfs.trim_end_matches('/'), base, None)
+                    search_file(rootfs, base, None)
                 }
                 Err(_) => None,
             }
         }
         Flavour::Glibc => {
             let dir = rel.rsplit_once('/').map(|(d, _)| d).unwrap_or("");
-            let root = rootfs.trim_end_matches('/');
+            let root = rootfs;
             // Resolved inside the root, as in the musl arm. An `exists()`
             // on the host follows an absolute link onto the host.
             let guest = format!("/{dir}/libc.so.6");
@@ -225,6 +231,26 @@ pub trait GuestRoot {
     fn volume_label(&self, _guest: &str) -> Option<String> {
         None
     }
+
+    /// The guest path of the host path `host`, the reverse of
+    /// [`GuestRoot::host_of`] with no link followed: a program that the
+    /// caller holds by host path gets its `$ORIGIN` as a guest directory.
+    /// `None` where no side of the table holds `host`.
+    fn guest_of(&self, host: &Path) -> Option<String> {
+        guest_under(self.root(), "/", host)
+    }
+}
+
+/// The guest path of `host` under the side `side`, whose guest path is
+/// `guest`; `None` where `host` is not under `side`. Component by component.
+pub(crate) fn guest_under(side: &Path, guest: &str, host: &Path) -> Option<String> {
+    let rest = host.strip_prefix(side).ok()?;
+    let mut out = guest.trim_end_matches('/').to_string();
+    for c in rest.components() {
+        out.push('/');
+        out.push_str(&c.as_os_str().to_string_lossy());
+    }
+    Some(if out.is_empty() { "/".to_string() } else { out })
 }
 
 impl GuestRoot for Path {

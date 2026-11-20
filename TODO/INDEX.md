@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**812 entries: 146 open, 28 partial, 7 blocked, 631 done.**
+**812 entries: 145 open, 28 partial, 7 blocked, 632 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 8 | 9 | 0 | 190 | 207 |
-| P2 | 70 | 9 | 4 | 318 | 401 |
+| P2 | 69 | 9 | 4 | 319 | 401 |
 | P3 | 68 | 10 | 3 | 121 | 202 |
-| **All** | 146 | 28 | 7 | 631 | 812 |
+| **All** | 145 | 28 | 7 | 632 | 812 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -855,7 +855,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-973](fleet.md) | P2 | M | M8 | chore | open | `pod-broker`: the CA bundle of a job with curl, git, Python and Node.js in a lab |
 | [T-974](upkeep.md) | P1 | S | M5 | defect | done | The run on the tag `v0.78.0` failed after the signature: two steps of `release.yml` share the scratch path `$RUNNER_TEMP/changed` |
 | [T-975](podvm.md) | P2 | L | M6 | feature | open | `pod-microvm`: a User-Mode Linux kernel in seccomp mode and its launcher, for a guest with no KVM, no ptrace and no namespace |
-| [T-976](podvm.md) | P2 | M | M6 | defect | open | `pod-enter`: the library path of the loader family has no `DT_RUNPATH` or `DT_RPATH` directory of a program or its libraries |
+| [T-976](podvm.md) | P2 | M | M6 | defect | done | `pod-enter`: the library path of the loader family has no `DT_RUNPATH` or `DT_RPATH` directory of a program or its libraries |
 | [T-977](podvm.md) | P2 | M | M6 | feature | open | `pod-release`: the pinned fetch of a static tool that a project runs (gVisor's `runsc` for podvm) |
 | [T-978](upkeep.md) | P1 | M | M5 | defect | partial | The findings of the report of the hard problems that the record does not have |
 | [T-995](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: `Child::wait_forwarding` forwards SIGHUP, SIGINT and SIGTERM only, so a SIGUSR1 or a SIGQUIT kills the waiter and the payload stays |

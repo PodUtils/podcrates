@@ -10453,7 +10453,7 @@ cargo test -p pod-microvm --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10473,6 +10473,39 @@ On podvm's userland rung the loader family runs a program through `ld.so --libra
 ```sh
 cargo test -p pod-enter --all-features runpath
 ```
+
+## Done
+
+2026-11-20, this commit. `abi::Search` (`crates/pod-enter/src/abi/dynamic.rs`)
+reads `DT_NEEDED`, `DT_RUNPATH`, `DT_RPATH` and the machine of a file with
+no read of its symbols; `Elf` reads `.dynamic` through the same function,
+and its fields stay as they are (podvm builds `Elf` with each field).
+`userland::runpath::runpath_dirs` walks the program and each library that
+it loads, breadth first, and gives the `RUNPATH` (else `RPATH`) directories
+as guest paths, each one that resolves inside the image; `Tokens` expands
+`$ORIGIN` (the resolved directory of the program, the opened directory of a
+library), and for glibc `$LIB` and `$PLATFORM` (call C832).
+`userland::lib_dirs_for` puts them before `lib_dirs`, and `loader_plan` gives
+them for its payload, through `GuestRoot::guest_of` (new, a provided method;
+`Maps` maps a volume back). `abi::libc_beside` with the root `/` searched
+paths relative to the working directory; it keeps the slash now (the test
+`the_tokens_agree_with_the_loader_of_the_host` failed on it). Measured: the
+loader of Ubuntu 24.04 (glibc 2.39) expands `$LIB` to
+`lib/x86_64-linux-gnu` and `$PLATFORM` to `haswell` on this host, and the
+walk gives the same values. Before the fix, `cargo test -p pod-enter
+--all-features --test runpath` failed `an_absolute_runpath_of_the_image_loads`
+("libpodrp.so: cannot open shared object file"); `a_runpath_of_origin_loads`
+passed, as the loader of the host expands `$ORIGIN` against the host path
+of the program. After the fix: `cargo test -p pod-enter --all-features
+runpath` passes 10 unit tests and 2 tests with a real loader; `cargo test
+-p pod-enter --all-features` passes 260 unit tests and each integration
+target; clippy and fmt pass. The plants `enter-runpath-not-in-the-plan` and
+`enter-runpath-leaves-the-image` prove the checks. Two limits stay, named in
+`crates/pod-enter/README.md`: the loader reads an absolute `DT_RPATH` on the
+host before the library path, and a dynamic child that podvm's interposer
+starts takes the library path of the caller (`names.lib_path`) with no
+`RUNPATH` directory of the child: that part of PodUtils/podvm@T-2003 is
+podvm's interposer.
 
 # T-977: `pod-release`: the pinned fetch of a static tool that a project runs (gVisor's `runsc` for podvm)
 

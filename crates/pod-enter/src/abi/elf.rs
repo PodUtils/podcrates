@@ -45,29 +45,11 @@ impl Elf {
         };
 
         // `.dynamic`, for DT_NEEDED and DT_SONAME.
-        if let Some(dynamic) = sections.get(".dynamic") {
-            let strs = sections.by_index(dynamic.link).map(|s| r.bytes(s)).unwrap_or_default();
-            let step = if class64 { 16 } else { 8 };
-            let body = r.bytes(dynamic);
-            let mut at = 0usize;
-            while at + step <= body.len() {
-                let d = Bytes { b: &body[at..], msb, class64 };
-                let (tag, val) = if class64 {
-                    (d.u64(0).unwrap_or(0) as i64, d.u64(8).unwrap_or(0))
-                } else {
-                    (d.u32(0).unwrap_or(0) as i32 as i64, u64::from(d.u32(4).unwrap_or(0)))
-                };
-                match tag {
-                    0 => break, // DT_NULL
-                    1 => {
-                        if let Some(s) = cstr_at(&strs, val) {
-                            out.needed.push(s);
-                        }
-                    }
-                    14 => out.soname = cstr_at(&strs, val),
-                    _ => {}
-                }
-                at += step;
+        for (tag, s) in dynamic_strings(&r, &sections) {
+            match tag {
+                DT_NEEDED => out.needed.push(s),
+                DT_SONAME => out.soname = Some(s),
+                _ => {}
             }
         }
 

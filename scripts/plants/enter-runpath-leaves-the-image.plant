@@ -1,0 +1,6 @@
+# pod-enter: the walk adds a RUNPATH directory that leaves the image or that the image does not hold (T-976).
+ENTRY=T-976
+GROUP=enter
+EXPECT='a_runpath_that_leaves_the_image_is_not_added'
+RUN='cargo test -p pod-enter --all-features --lib userland::runpath::tests::a_runpath_that_leaves_the_image_is_not_added'
+LIMIT=900

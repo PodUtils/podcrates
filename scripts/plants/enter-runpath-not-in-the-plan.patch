@@ -1,0 +1,13 @@
+diff --git a/crates/pod-enter/src/userland.rs b/crates/pod-enter/src/userland.rs
+index e95e448..9fa71e2 100644
+--- a/crates/pod-enter/src/userland.rs
++++ b/crates/pod-enter/src/userland.rs
+@@ -295,7 +295,7 @@ pub fn loader_plan<G: GuestRoot + ?Sized>(
+     // The `$ORIGIN` of the program is a guest directory. A payload that no
+     // side of the table holds has none: its list is the default one.
+     let dirs = match root.guest_of(std::path::Path::new(payload_host)) {
+-        Some(guest) => lib_dirs_for(root, interp_guest, &guest),
++        Some(_) => lib_dirs(root, interp_guest),
+         None => lib_dirs(root, interp_guest),
+     };
+     let inhibit_cache = takes_inhibit_cache(&rootfs, interp_guest, &loader_host);

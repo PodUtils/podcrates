@@ -1,0 +1,12 @@
+diff --git a/crates/pod-enter/src/userland/runpath.rs b/crates/pod-enter/src/userland/runpath.rs
+index 4d3bb6a..3df8cdb 100644
+--- a/crates/pod-enter/src/userland/runpath.rs
++++ b/crates/pod-enter/src/userland/runpath.rs
+@@ -56,7 +56,6 @@ pub fn runpath_dirs<G: GuestRoot + ?Sized>(root: &G, interp_guest: &str, program
+             if dir.starts_with('/')
+                 && found.len() < MOST_DIRS
+                 && !found.contains(&dir)
+-                && resolve_dir_in(root, &dir).is_ok()
+             {
+                 found.push(dir);
+             }

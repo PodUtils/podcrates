@@ -103,22 +103,51 @@ const STANDARD_DIRS: [&str; 21] = [
 /// with nowhere to load from fails inside the loader with nothing attached
 /// to it.
 pub fn lib_dirs<G: GuestRoot + ?Sized>(root: &G, interp_guest: &str) -> Vec<String> {
+    host_dirs(root, &default_dirs(root, interp_guest))
+}
+
+/// The library path of the loader family for the program at
+/// `program_guest`: the directories of `DT_RUNPATH` and `DT_RPATH` of the
+/// program and of each library that it loads ([`runpath::runpath_dirs`]),
+/// then [`lib_dirs`], each one by host path and one time.
+///
+/// The loader runs by host path with no chroot, so it reads an absolute
+/// directory of a `RUNPATH` on the host: `/usr/lib/systemd` of `systemctl`
+/// names the host's. The library path holds the directory of the image,
+/// and comes before the default directories, as a `RUNPATH` does.
+pub fn lib_dirs_for<G: GuestRoot + ?Sized>(root: &G, interp_guest: &str, program_guest: &str) -> Vec<String> {
+    let mut guests = runpath::runpath_dirs(root, interp_guest, program_guest);
+    guests.extend(default_dirs(root, interp_guest));
+    host_dirs(root, &guests)
+}
+
+/// The guest library directories of the image in the order of the search,
+/// before the resolution: the loader's directory, the standard ones, then
+/// the loader configuration.
+pub(crate) fn default_dirs<G: GuestRoot + ?Sized>(root: &G, interp_guest: &str) -> Vec<String> {
     let mut out = Vec::new();
-    let mut push = |guest: &str| {
+    if let Some((d, _)) = interp_guest.rsplit_once('/')
+        && !d.is_empty()
+    {
+        out.push(d.to_string());
+    }
+    out.extend(STANDARD_DIRS.iter().map(|d| d.to_string()));
+    out.extend(ldconf::configured_dirs(root, interp_guest));
+    out
+}
+
+/// Each guest directory of `guests` that resolves inside the image, by host
+/// path, one time each, in the order given.
+fn host_dirs<G: GuestRoot + ?Sized>(root: &G, guests: &[String]) -> Vec<String> {
+    let mut out = Vec::new();
+    for guest in guests {
         if let Ok(host) = crate::abi::resolve_dir_in(root, guest) {
             let host = host.display().to_string();
             if !out.contains(&host) {
                 out.push(host);
             }
         }
-    };
-    if let Some((d, _)) = interp_guest.rsplit_once('/')
-        && !d.is_empty()
-    {
-        push(d);
     }
-    STANDARD_DIRS.iter().for_each(|d| push(d));
-    ldconf::configured_dirs(root, interp_guest).iter().for_each(|d| push(d));
     out
 }
 
@@ -235,7 +264,8 @@ pub fn loader_argv_for(loader_host: &str, payload_host: &str, argv0: &str, rest:
 /// would refuse a payload that the kernel of the guest runs. The resolved
 /// file must exist and execute by host path, and at least one library
 /// directory must exist; else the refusal names the guest path, and the
-/// loader does not fail later.
+/// loader does not fail later. The library directories are those of
+/// [`lib_dirs_for`] for the payload: its `RUNPATH` directories first.
 pub fn loader_plan<G: GuestRoot + ?Sized>(
     root: &G,
     interp_guest: &str,
@@ -256,13 +286,18 @@ pub fn loader_plan<G: GuestRoot + ?Sized>(
              an executable file on the host side"
         ));
     }
-    let dirs = lib_dirs(root, interp_guest);
-    if dirs.is_empty() {
+    if lib_dirs(root, interp_guest).is_empty() {
         return Err(format!(
             "the image keeps no library directory beside {interp_guest}, so its \
              loader would fail on the first library it cannot find"
         ));
     }
+    // The `$ORIGIN` of the program is a guest directory. A payload that no
+    // side of the table holds has none: its list is the default one.
+    let dirs = match root.guest_of(std::path::Path::new(payload_host)) {
+        Some(guest) => lib_dirs_for(root, interp_guest, &guest),
+        None => lib_dirs(root, interp_guest),
+    };
     let inhibit_cache = takes_inhibit_cache(&rootfs, interp_guest, &loader_host);
     Ok(LoaderPlan { loader_host, payload_host: payload_host.to_string(), lib_dirs: dirs, inhibit_cache })
 }
@@ -334,6 +369,7 @@ pub fn host_env(
 pub mod ldconf;
 mod maps;
 pub use maps::*;
+pub mod runpath;
 
 /// The working directory of an entry with no chroot, resolved through the
 /// table before the fork: `None` for the root itself, a path relative to
