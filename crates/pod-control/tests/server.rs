@@ -53,10 +53,10 @@ fn a_method_above_the_tier_answers_as_an_unknown_one() {
     settings.same_user = Tier::Read;
     let (_server, path, log) = common::start("tier", settings);
     let mut c = client(&path);
-    let unknown = c.raw(br#"{"v":1,"id":9,"method":"no-such-method"}"#).unwrap().unwrap();
+    let unknown = c.raw(br#"{"schema":1,"id":9,"method":"no-such-method"}"#).unwrap().unwrap();
     for name in ["drain", "stop", "reload"] {
         // Params that do not fit give no hint either: the tier comes first.
-        let line = format!(r#"{{"v":1,"id":9,"method":"{name}","params":{{"bogus":1}}}}"#);
+        let line = format!(r#"{{"schema":1,"id":9,"method":"{name}","params":{{"bogus":1}}}}"#);
         assert_eq!(c.raw(line.as_bytes()).unwrap().unwrap(), unknown, "{name}");
     }
     let names: Vec<String> = c.methods().unwrap().into_iter().map(|m| m.name).collect();
@@ -173,7 +173,7 @@ fn a_line_over_the_cap_closes_and_a_line_not_utf8_does_not() {
     assert!(c.version().is_err());
     // A line at the cap is read.
     let mut c = client(&path);
-    let mut line = br#"{"v":1,"id":1,"method":"version"}"#.to_vec();
+    let mut line = br#"{"schema":1,"id":1,"method":"version"}"#.to_vec();
     line.resize(64, b' ');
     assert_eq!(c.raw(&line).unwrap().unwrap()["ok"], true);
 }
@@ -234,7 +234,7 @@ fn a_reply_before_the_request_is_read() {
     let server = std::thread::spawn(move || {
         let (s, _) = l.accept().unwrap();
         (&s).write_all(
-            b"{\"v\":1,\"id\":null,\"ok\":false,\"error\":{\"code\":\"busy\",\"detail\":\"too many clients\"}}\n",
+            b"{\"schema\":1,\"id\":null,\"ok\":false,\"error\":{\"code\":\"busy\",\"detail\":\"too many clients\"}}\n",
         )
         .unwrap();
     });

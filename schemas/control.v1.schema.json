@@ -1,81 +1,5 @@
 {
   "$defs": {
-    "answer": {
-      "additionalProperties": false,
-      "oneOf": [
-        {
-          "not": {
-            "required": [
-              "error"
-            ]
-          },
-          "properties": {
-            "ok": {
-              "const": true
-            }
-          },
-          "required": [
-            "result"
-          ]
-        },
-        {
-          "not": {
-            "required": [
-              "result"
-            ]
-          },
-          "properties": {
-            "ok": {
-              "const": false
-            }
-          },
-          "required": [
-            "error"
-          ]
-        }
-      ],
-      "properties": {
-        "error": {
-          "additionalProperties": false,
-          "properties": {
-            "code": {
-              "$ref": "#/$defs/code"
-            },
-            "detail": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "code",
-            "detail"
-          ],
-          "type": "object"
-        },
-        "id": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/id"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "ok": {
-          "type": "boolean"
-        },
-        "result": true,
-        "v": {
-          "const": 1
-        }
-      },
-      "required": [
-        "v",
-        "id",
-        "ok"
-      ],
-      "type": "object"
-    },
     "catalogue": {
       "const": [
         {
@@ -223,7 +147,134 @@
         "type": "object"
       }
     },
-    "request": {
+    "results": {
+      "auth": {
+        "additionalProperties": false,
+        "properties": {
+          "tier": {
+            "const": "master"
+          }
+        },
+        "required": [
+          "tier"
+        ],
+        "type": "object"
+      },
+      "drain": {
+        "description": "The words of the program."
+      },
+      "methods": {
+        "additionalProperties": false,
+        "properties": {
+          "methods": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/method"
+                },
+                "route": {
+                  "enum": [
+                    "local",
+                    "delegated"
+                  ]
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "tier": {
+                  "$ref": "#/$defs/tier"
+                }
+              },
+              "required": [
+                "name",
+                "tier",
+                "route",
+                "summary"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "tier": {
+            "$ref": "#/$defs/tier"
+          }
+        },
+        "required": [
+          "tier",
+          "methods"
+        ],
+        "type": "object"
+      },
+      "metrics": {
+        "additionalProperties": false,
+        "properties": {
+          "counters": {
+            "additionalProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "Counters that only grow.",
+            "type": "object"
+          },
+          "gauges": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Values that go up and down.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "counters",
+          "gauges"
+        ],
+        "type": "object"
+      },
+      "reload": {
+        "description": "The words of the program."
+      },
+      "status": {
+        "description": "The status of the program, in its own schema.",
+        "type": "object"
+      },
+      "stop": {
+        "description": "The words of the program."
+      },
+      "version": {
+        "additionalProperties": false,
+        "properties": {
+          "program": {
+            "type": "string"
+          },
+          "protocol": {
+            "const": 1
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "program",
+          "version",
+          "protocol"
+        ],
+        "type": "object"
+      }
+    },
+    "tier": {
+      "enum": [
+        "read",
+        "operate",
+        "master"
+      ]
+    }
+  },
+  "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/control.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Each line is one JSON object with \"schema\": 1. A request has a method; an answer has ok. The client sends requests, and the server sends answers and calls back; a call back names its request with for. A method above the tier of the caller gets the answer of a method that is not there.",
+  "oneOf": [
+    {
       "additionalProperties": false,
       "allOf": [
         {
@@ -379,6 +430,7 @@
           }
         }
       ],
+      "description": "A request of the client, or a call back of the server with for.",
       "properties": {
         "for": {
           "$ref": "#/$defs/id"
@@ -392,149 +444,93 @@
         "params": {
           "type": "object"
         },
-        "v": {
+        "schema": {
           "const": 1
         }
       },
       "required": [
-        "v",
+        "schema",
         "id",
         "method"
       ],
       "type": "object"
     },
-    "results": {
-      "auth": {
-        "additionalProperties": false,
-        "properties": {
-          "tier": {
-            "const": "master"
-          }
-        },
-        "required": [
-          "tier"
-        ],
-        "type": "object"
-      },
-      "drain": {
-        "description": "The words of the program."
-      },
-      "methods": {
-        "additionalProperties": false,
-        "properties": {
-          "methods": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "name": {
-                  "$ref": "#/$defs/method"
-                },
-                "route": {
-                  "enum": [
-                    "local",
-                    "delegated"
-                  ]
-                },
-                "summary": {
-                  "type": "string"
-                },
-                "tier": {
-                  "$ref": "#/$defs/tier"
-                }
-              },
-              "required": [
-                "name",
-                "tier",
-                "route",
-                "summary"
-              ],
-              "type": "object"
-            },
-            "type": "array"
-          },
-          "tier": {
-            "$ref": "#/$defs/tier"
-          }
-        },
-        "required": [
-          "tier",
-          "methods"
-        ],
-        "type": "object"
-      },
-      "metrics": {
-        "additionalProperties": false,
-        "properties": {
-          "counters": {
-            "additionalProperties": {
-              "minimum": 0,
-              "type": "integer"
-            },
-            "description": "Counters that only grow.",
-            "type": "object"
-          },
-          "gauges": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "description": "Values that go up and down.",
-            "type": "object"
-          }
-        },
-        "required": [
-          "counters",
-          "gauges"
-        ],
-        "type": "object"
-      },
-      "reload": {
-        "description": "The words of the program."
-      },
-      "status": {
-        "description": "The status of the program, in its own schema.",
-        "type": "object"
-      },
-      "stop": {
-        "description": "The words of the program."
-      },
-      "version": {
-        "additionalProperties": false,
-        "properties": {
-          "program": {
-            "type": "string"
-          },
-          "protocol": {
-            "const": 1
-          },
-          "version": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "program",
-          "version",
-          "protocol"
-        ],
-        "type": "object"
-      }
-    },
-    "tier": {
-      "enum": [
-        "read",
-        "operate",
-        "master"
-      ]
-    }
-  },
-  "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/control.v1.schema.json",
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "Each line is one JSON object with \"v\": 1. A request has a method; an answer has ok. The client sends requests, and the server sends answers and calls back; a call back names its request with for. A method above the tier of the caller gets the answer of a method that is not there.",
-  "oneOf": [
     {
-      "$ref": "#/$defs/request"
-    },
-    {
-      "$ref": "#/$defs/answer"
+      "additionalProperties": false,
+      "description": "The answer to a request: ok with result, or not ok with error.",
+      "oneOf": [
+        {
+          "not": {
+            "required": [
+              "error"
+            ]
+          },
+          "properties": {
+            "ok": {
+              "const": true
+            }
+          },
+          "required": [
+            "result"
+          ]
+        },
+        {
+          "not": {
+            "required": [
+              "result"
+            ]
+          },
+          "properties": {
+            "ok": {
+              "const": false
+            }
+          },
+          "required": [
+            "error"
+          ]
+        }
+      ],
+      "properties": {
+        "error": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "$ref": "#/$defs/code"
+            },
+            "detail": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "detail"
+          ],
+          "type": "object"
+        },
+        "id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "result": true,
+        "schema": {
+          "const": 1
+        }
+      },
+      "required": [
+        "schema",
+        "id",
+        "ok"
+      ],
+      "type": "object"
     }
   ],
   "title": "One line of the control API of a program of PodUtils"

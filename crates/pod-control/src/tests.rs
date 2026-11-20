@@ -115,26 +115,26 @@ fn bad_lines_are_bad_requests_with_no_byte_of_the_line() {
         ("x", None),
         ("[1]", None),
         (r#"{"id":1,"method":"status"}"#, Some(1)),
-        (r#"{"v":2,"id":1,"method":"status"}"#, Some(1)),
-        (r#"{"v":1,"method":"status"}"#, None),
-        (r#"{"v":1,"id":-1,"method":"status"}"#, None),
-        (r#"{"v":1,"id":3,"method":7}"#, Some(3)),
-        (r#"{"v":1,"id":3,"method":"auth","params":"secret-x"}"#, Some(3)),
-        (r#"{"v":1,"id":3,"method":"auth","token":"secret-x"}"#, Some(3)),
-        (r#"{"v":1,"id":3,"ok":true}"#, Some(3)),
+        (r#"{"schema":2,"id":1,"method":"status"}"#, Some(1)),
+        (r#"{"schema":1,"method":"status"}"#, None),
+        (r#"{"schema":1,"id":-1,"method":"status"}"#, None),
+        (r#"{"schema":1,"id":3,"method":7}"#, Some(3)),
+        (r#"{"schema":1,"id":3,"method":"auth","params":"secret-x"}"#, Some(3)),
+        (r#"{"schema":1,"id":3,"method":"auth","token":"secret-x"}"#, Some(3)),
+        (r#"{"schema":1,"id":3,"ok":true}"#, Some(3)),
     ] {
         let (got, fault) = wire::parse(line).expect_err(line);
         assert_eq!((got, fault.code), (id, Code::BadRequest), "{line}");
         assert!(!fault.detail.contains("secret"), "{line}: {fault}");
     }
-    let parsed = wire::parse(r#"{"v":1,"id":3,"method":"status"}"#).unwrap();
+    let parsed = wire::parse(r#"{"schema":1,"id":3,"method":"status"}"#).unwrap();
     assert!(matches!(parsed, Inbound::Request(r) if r.params == json!({}) && r.for_id.is_none()));
 }
 
 #[test]
 fn a_line_of_each_kind_reads_back() {
     let req = wire::request_line(7, "drain", &json!({ "exit": true }), Some(2));
-    assert_eq!(req, "{\"v\":1,\"id\":7,\"for\":2,\"method\":\"drain\",\"params\":{\"exit\":true}}\n");
+    assert_eq!(req, "{\"schema\":1,\"id\":7,\"for\":2,\"method\":\"drain\",\"params\":{\"exit\":true}}\n");
     let Inbound::Request(r) = wire::parse(req.trim_end()).unwrap() else { panic!() };
     assert_eq!((r.id, r.method.as_str(), r.for_id), (7, "drain", Some(2)));
     let err = wire::answer_line(None, &Err(Fault::new(Code::Busy, "later")));
@@ -171,13 +171,13 @@ fn each_line_of_the_wire_is_valid_for_the_schema_and_a_broken_one_is_not() {
         assert!(schemas.validate(&v, at).is_ok(), "the schema refuses {line}");
     }
     for line in [
-        r#"{"v":2,"id":1,"method":"status"}"#,
-        r#"{"v":1,"id":1,"method":"drain","params":{"exit":"yes"}}"#,
-        r#"{"v":1,"id":1,"method":"auth","params":{}}"#,
-        r#"{"v":1,"id":1,"method":"status","params":{"x":1}}"#,
-        r#"{"v":1,"id":1,"ok":true}"#,
-        r#"{"v":1,"id":1,"ok":false,"error":{"code":"no-such-code","detail":""}}"#,
-        r#"{"v":1,"id":1,"ok":true,"result":1,"error":{"code":"busy","detail":""}}"#,
+        r#"{"schema":2,"id":1,"method":"status"}"#,
+        r#"{"schema":1,"id":1,"method":"drain","params":{"exit":"yes"}}"#,
+        r#"{"schema":1,"id":1,"method":"auth","params":{}}"#,
+        r#"{"schema":1,"id":1,"method":"status","params":{"x":1}}"#,
+        r#"{"schema":1,"id":1,"ok":true}"#,
+        r#"{"schema":1,"id":1,"ok":false,"error":{"code":"no-such-code","detail":""}}"#,
+        r#"{"schema":1,"id":1,"ok":true,"result":1,"error":{"code":"busy","detail":""}}"#,
     ] {
         let v: Value = serde_json::from_str(line).unwrap();
         assert!(schemas.validate(&v, at).is_err(), "the schema takes {line}");

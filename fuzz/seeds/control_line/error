@@ -1,1 +1,1 @@
-{"v":1,"id":null,"ok":false,"error":{"code":"too-long","detail":"a line is 65536 bytes at most"}}
+{"schema":1,"id":null,"ok":false,"error":{"code":"too-long","detail":"a line is 65536 bytes at most"}}
