@@ -1,0 +1,7 @@
+# pod-enter: the child of the payload keeps the signal mask of its caller,
+# so a payload of a thread that blocks SIGUSR1 never gets it (T-1010).
+ENTRY=T-1010
+GROUP=enter
+EXPECT='test child::tests::a_payload_of_a_thread_that_blocks_sigusr1_gets_sigusr1 \.\.\. FAILED'
+RUN='cargo test -p pod-enter --all-features --lib -- child::tests::a_payload_of_a_thread_that_blocks_sigusr1_gets_sigusr1'
+LIMIT=1800

@@ -11164,6 +11164,20 @@ reaches the payload.
 cargo test -p pod-enter --all-features --lib child
 ```
 
+## Correction
+
+2026-11-20: `std::process::Command` of Rust does not set an empty mask.
+The std of the pinned toolchain (rustc `2d8144b`,
+`library/std/src/sys/process/unix/unix.rs`) says "Inherit the signal mask
+from the parent rather than resetting it", in the fork path and in the
+`posix_spawn` path. Measured: with the block of the launcher of
+`pod-supervise` before the entry, the test entry of
+`crates/pod-supervise/tests/lifecycle.rs` (`Command::new("/bin/sh")`)
+starts a payload that a SIGTERM does not end: "signal: no change in 10 s:
+Running, None". So the launcher keeps its block after the entry (call
+C862), and T-1032 has the time before the block. runc and docker: not
+measured.
+
 # T-1012: `pod-guest`: a saved state of the caller's machine line with no UEFI `Plan`, for podvm's Linux guest (PodUtils/podvm#618)
 
 **Source:** PodUtils/podvm#618 (COORD-217 of podvm), ask 1; PodUtils/podvm@T-2008
@@ -11462,3 +11476,50 @@ i686-unknown-linux-musl`, run on x86_64) fails as the nightly does. After
 it: the i686 build prints the skip line and passes 10 of 10 `runpath`
 tests; `cargo test -p pod-enter --all-features --lib runpath` on x86_64
 passes 10, with the test checked against the loader of the host (no skip).
+
+# T-1032: `pod-supervise`: a signal of the list to the detached launcher between the start of the payload and its block ends the launcher
+
+**Source:** T-1010 (a finding: the block of the launcher cannot move before the entry).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The detached launcher of `pod-supervise`
+(`crates/pod-supervise/src/launcher/supervise.rs`) blocks
+`sys::PROXIED_SIGNALS` after the entry of the caller returns. A signal of
+the list to the launcher between the start of the payload and the block
+ends the launcher with its default action: a payload of `pod-enter` with
+`die_with_parent` ends with it, and another payload stays with no
+launcher. A block before the entry is not safe: the entry is a function of
+the caller, and an entry with `std::process::Command` of Rust passes the
+mask of its thread to the payload (T-1010, Correction; call C862).
+
+## Premise
+
+- Read: `supervise.rs`; `crates/pod-supervise/src/launcher.rs` (`Launch`);
+  the test entry of `crates/pod-supervise/tests/lifecycle.rs`.
+- Measured: with the block before the entry, the lifecycle test fails at
+  `a_signal_reaches_the_payload` (the payload of `Command` blocks SIGTERM).
+- Not measured: a signal in the time before the block (a race of
+  microseconds).
+
+## Approach
+
+Block the list before the entry, and make the empty mask of the payload
+a rule of `Launch`: a function `launcher::clear_mask()` for
+`CommandExt::pre_exec` of an entry with `std::process::Command` (the test
+entry uses it), and `pod-enter` needs nothing (T-1010). After the entry,
+the launcher reads `SigBlk` of `/proc/PID/status` of the payload and kills
+and refuses a payload that blocks a signal of the list, with a message
+that names the rule: an entry that breaks it fails at its first start, not
+at its first signal.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features --test lifecycle
+```

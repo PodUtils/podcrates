@@ -389,6 +389,13 @@ pub(crate) fn spawn_with(
             if let Err((step, e)) = pid_ns.split() {
                 report(step, e);
             }
+            // The payload starts with an empty mask. A mask passes through
+            // `execve`, so a signal that the caller blocks in this thread
+            // would never reach the payload. Here, after the split: the init
+            // and the relay keep the mask of the caller until they block
+            // their own. The call fails only on a bad size or address,
+            // which `sys` fixes.
+            let _ = sys::sigrestore(0);
             // The program resolves here, in the process that changed the
             // root. A memfd from the caller execs with no path, under the
             // same chroot.

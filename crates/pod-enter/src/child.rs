@@ -69,10 +69,11 @@ impl Child {
     /// and its default action then ends the whole process, the waiter too,
     /// and the payload stays (PodUtils/podvm#616). Call
     /// [`crate::block_forwarded`] at the start of each other thread, or
-    /// around its spawn: a new thread takes the mask of its maker. Do not
-    /// call it before the start of the payload in the thread that starts
-    /// it: the payload takes the mask through its `execve`. The thread of a
-    /// hold of `pod_supervise::foreground` blocks the list itself.
+    /// around its spawn: a new thread takes the mask of its maker. A call
+    /// before an entry of this crate is safe too: its child sets an empty
+    /// mask before its `execve`. `std::process::Command` of Rust passes the
+    /// mask of its thread to the program. The thread of a hold of
+    /// `pod_supervise::foreground` blocks the list itself.
     ///
     /// A payload that ignores the signal is waited on, not killed: a kill
     /// is the decision of the caller. A signal is forwarded, never raised
