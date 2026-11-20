@@ -153,7 +153,7 @@ impl Api {
 
     /// Send `request` (made for [`service::api_base`]) to each base in turn,
     /// until one answers with a status under 500. The failure names each
-    /// base once ([`each_failed`]). A `POST` goes on only after a failure
+    /// base once (`each_failed`). A `POST` goes on only after a failure
     /// with no answer: any answer of the service is final
     /// (PodUtils/podnet@T-241), as it may have made a device.
     pub async fn send(&self, request: Request) -> Result<Response, Failure> {
