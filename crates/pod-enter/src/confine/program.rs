@@ -14,9 +14,10 @@ use pod_confine::{PathTable, loader};
 use crate::userland::Maps;
 use crate::{Error, Plan, Result};
 
-/// How many `#!` lines one exec follows: the levels of rewrite of the
-/// kernel (`fs/exec.c`, `exec_binprm`). One more is `ELOOP` there.
-const MOST_SCRIPTS: usize = 4;
+/// How many `#!` lines one exec follows: the rewrites of the kernel
+/// (`fs/exec.c`, `exec_binprm`: `depth > 5` is `ELOOP`, so five rewrites
+/// run, whatever its comment says). One more is `ELOOP` there.
+const MOST_SCRIPTS: usize = 5;
 
 /// [`super::check_exec`] for each file that the kernel executes for `argv`
 /// (host paths, each resolved as [`super::check_exec`] resolves it): the

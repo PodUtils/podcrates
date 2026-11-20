@@ -11523,3 +11523,58 @@ at its first signal.
 ```sh
 cargo test -p pod-supervise --all-features --test lifecycle
 ```
+
+# T-1033: `pod-enter`: podvm's two rules for the take of `check_exec_argv` and `check_exec_guest`: a rule over a volume, and the `#!` chain (PodUtils/podvm#613)
+
+**Source:** PodUtils/podvm#613 (COORD-215 of podvm), ask 4
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm's ask 4, "Two more rules, for the take of `check_exec_argv` and
+`check_exec_guest`" (PodUtils/podvm@T-2014 and PodUtils/podvm@T-2015):
+
+- "A rule on a guest path that holds a volume gives the same access to
+  the host path of each volume under it (lexical, at a component
+  boundary, as the interposer matches). Before, `read=/` on a rung with
+  no chroot did not reach `-v S:/sc`." podvm:
+  `podvm_enter::confine::host_spec` and `volumes_under`.
+- "The exec of a `#!` script checks each interpreter of the chain (up to
+  4 levels, then ELOOP), and the loader rule on the arguments that the
+  kernel gives the last interpreter." podvm:
+  `PodUtils/podvm:crates/podvm-dispatch/src/script.rs`.
+
+## Premise
+
+- Read: podvm at its `main` head (`5c1a58d`, after `627ae99`):
+  `PodUtils/podvm:crates/podvm-enter/src/confine.rs` (`host_spec`,
+  `volumes_under`, `check_first`) and
+  `PodUtils/podvm:crates/podvm-dispatch/src/script.rs` (`chain`, `lead`,
+  `DEPTH`); `crates/pod-enter/src/confine.rs` (`compile`, `table_vars`)
+  and `crates/pod-enter/src/confine/program.rs` (`each_file`,
+  `MOST_SCRIPTS`); `fs/exec.c` of Linux v6.18 (`exec_binprm`: "This
+  allows 4 levels of binfmt rewrites", then `if (depth > 5) return
+  -ELOOP`).
+- Measured on Linux 6.18: a chain of five `#!` scripts that ends in
+  `/bin/echo` runs; a chain of six gives "bad interpreter: Too many levels
+  of symbolic links" (`ELOOP`).
+
+## Approach
+
+1. Find where `pod-enter` turns a guest rule into host rules, and apply
+   the rule of the volumes there, with a test of `read=/` and a volume
+   `S:/sc`.
+2. Compare the `#!` walk of `each_file` with podvm's `chain`: the depth,
+   the argv of the kernel for the last interpreter, and the loader rule.
+   Fix each difference from the kernel.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --lib confine::program
+cargo test -p pod-enter --all-features --test confine
+```

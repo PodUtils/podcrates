@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**839 entries: 148 open, 30 partial, 7 blocked, 654 done.**
+**840 entries: 149 open, 30 partial, 7 blocked, 654 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 5 | 11 | 0 | 194 | 210 |
-| P2 | 70 | 9 | 4 | 336 | 419 |
+| P2 | 71 | 9 | 4 | 336 | 420 |
 | P3 | 73 | 10 | 3 | 122 | 208 |
-| **All** | 148 | 30 | 7 | 654 | 839 |
+| **All** | 149 | 30 | 7 | 654 | 840 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -886,3 +886,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1030](fleet.md) | P3 | S | M8 | measurement | open | `pod-actions-store`: the git tests on the Windows jobs, with the forge URL of a Windows path |
 | [T-1031](fleet.md) | P3 | S | M8 | measurement | open | `pod-broker`: a Go job on macOS refuses the leaf of the job, and no variable gives Go the CA |
 | [T-1032](podvm.md) | P3 | S | M6 | defect | open | `pod-supervise`: a signal of the list to the detached launcher between the start of the payload and its block ends the launcher |
+| [T-1033](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: podvm's two rules for the take of `check_exec_argv` and `check_exec_guest`: a rule over a volume, and the `#!` chain (PodUtils/podvm#613) |

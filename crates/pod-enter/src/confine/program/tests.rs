@@ -188,3 +188,27 @@ fn check_exec_argv_takes_the_rule_for_the_program_of_the_loader() {
     assert!(e.contains(&outside) && e.contains("dynamic loader"), "{e}");
     assert!(check_exec_argv(&plan(None, "/", &[]), &v(&[&ld, &outside])).is_ok());
 }
+
+/// The kernel follows five `#!` lines and refuses a sixth with `ELOOP`
+/// (`fs/exec.c`, `exec_binprm`: `depth > 5`; a chain of five scripts runs on
+/// Linux 6.18). The check follows the same count (T-1033).
+#[test]
+fn a_chain_of_five_scripts_takes_the_rule_and_a_sixth_level_is_eloop() {
+    let t = Tree::new("chain");
+    t.put("exec/sh", b"x");
+    let chain = |tag: &str, n: usize| -> String {
+        let mut next = t.host("exec/sh");
+        for k in (0..n).rev() {
+            let name = format!("exec/{tag}{k}");
+            t.put(&name, format!("#!{next}\n").as_bytes());
+            next = t.host(&name);
+        }
+        next
+    };
+    let (five, six) = (chain("five", 5), chain("six", 6));
+    let spec = Spec::new().allow(t.host(""), Access::READ).allow(t.host("exec"), Access::READ | Access::EXECUTE);
+    let p = plan(Some(spec), "/", &[]);
+    assert!(check_exec_argv(&p, &v(&[&five])).is_ok(), "{:?}", check_exec_argv(&p, &v(&[&five])));
+    let e = check_exec_argv(&p, &v(&[&six])).unwrap_err();
+    assert!(matches!(e, Error::CannotInvoke(_)) && e.to_string().contains("ELOOP"), "{e}");
+}

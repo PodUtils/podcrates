@@ -30,7 +30,7 @@ pub fn main() {
         Some(payload::CHANGER) => std::process::exit(payload::changer(&args[2..])),
         _ => {}
     }
-    let tests: [(&str, fn()); 16] = [
+    let tests: [(&str, fn()); 17] = [
         ("the_entry_with_no_chroot_confines_with_host_paths", the_entry_with_no_chroot_confines_with_host_paths),
         ("a_passed_descriptor_takes_the_place_of_no_rule", a_passed_descriptor_takes_the_place_of_no_rule),
         ("a_passed_descriptor_takes_the_place_of_no_pipe", a_passed_descriptor_takes_the_place_of_no_pipe),
@@ -43,6 +43,7 @@ pub fn main() {
         ("a_plan_with_no_confinement_runs_free", a_plan_with_no_confinement_runs_free),
         ("a_rule_covers_the_tmpfs_of_the_namespace_rung", mounts::a_rule_covers_the_tmpfs_of_the_namespace_rung),
         ("a_rule_on_a_path_that_the_tmpfs_hides_is_refused", mounts::a_rule_on_a_path_that_the_tmpfs_hides_is_refused),
+        ("a_rule_on_the_root_covers_a_volume_under_it", mounts::a_rule_on_the_root_covers_a_volume_under_it),
         ("a_write_rule_holds_on_the_entry_with_no_chroot", mounts::a_write_rule_holds_on_the_entry_with_no_chroot),
         (
             "a_fresh_proc_is_on_the_proc_of_the_namespace_rung",

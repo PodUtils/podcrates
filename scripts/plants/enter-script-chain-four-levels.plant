@@ -1,0 +1,7 @@
+# pod-enter: the check of exec= follows four #! lines, one less than the
+# kernel, so a chain of five scripts that the kernel runs is refused (T-1033).
+ENTRY=T-1033
+GROUP=confine
+EXPECT='test confine::program::tests::a_chain_of_five_scripts_takes_the_rule_and_a_sixth_level_is_eloop \.\.\. FAILED'
+RUN='cargo test -p pod-enter --all-features --lib -- confine::program::tests'
+LIMIT=1800
