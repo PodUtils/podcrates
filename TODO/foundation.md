@@ -1296,7 +1296,7 @@ the table and the schema to the code; a planted code (policy 81) fails it.
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1319,6 +1319,10 @@ repository already runs `cargo todo check`.
 cargo test -p pod-todo
 cargo todo check
 ```
+
+## Done
+
+2026-11-20, commit "pod-todo: the acceptance registry of ask ids and their tests (T-105)" (call C826). The key `acceptance = "TODO/ACCEPTANCE.md"` of `TODO/todo.toml` and `crates/pod-todo/src/acceptance.rs`: one table `| Ask | Tests |`, each test `PATH::NAME` (a test function with a test attribute and no `#[ignore]`) or `PATH` (a script or a workflow). `cargo todo check` holds each test to the tree. `cargo todo acceptance [--json] [--passed FILE]` prints the asks, or those whose tests FILE names as passed (the output of `cargo test`, or one name for each line); the JSON is `schemas/acceptance.v1.schema.json`. `release.yml` writes `acceptance.json`, names it in `release-index.json` (`--acceptance`) and in `SHA256SUMS`. `TODO/ACCEPTANCE.md` holds A-X-13, A-X-14 and A-X-17. Tests: `crates/pod-todo/tests/acceptance.rs` (6: the control registry; nine planted faults, each found on its line: a file that is not there, a missing function, an `#[ignore]` test, a helper with no test attribute, a missing script, a path out of the tree, a test out of a code span, an entry id as an ask id, an ask given twice; a missing registry and a file with no table; the command with no FILE, with the output of `cargo test` and with `--json`; a refused registry and the usage errors). `cargo test -p pod-todo --all-features`: 145 passed. `cargo todo check`: the record agrees. `scripts/release-index.py` with the `acceptance.json` of this tree writes an index that names it. `python3 -I scripts/check-schemas.py`: 12 schemas agree. Remains: the work order of `TODO/PROGRESS.md` names T-105; the session that keeps the work order removes it there and sets the entry `done`.
 
 # T-118: Supply chain: an SBOM for each release and a planted advisory that fails `deny.yml` (GitHub #35)
 

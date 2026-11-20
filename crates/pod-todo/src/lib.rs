@@ -10,6 +10,7 @@
 //! file changes, `remap` moves its citations by a line diff against `HEAD`,
 //! or against the revision that `--base` names.
 
+pub mod acceptance;
 pub mod block;
 pub mod check;
 pub mod claims;
@@ -36,6 +37,7 @@ pub const USAGE: &str = "usage: pod-todo check
        pod-todo next
        pod-todo remap [--dry-run] FILE...   (after an edit of FILE: move its citations by a diff against HEAD)
        pod-todo issues --block NUMBER | --json   (the status block of an issue, from the record)
+       pod-todo acceptance [--json] [--passed FILE]   (the asks of the acceptance registry, or those whose tests FILE passed)
 Options: --root DIR (default: the nearest directory above the current one with TODO/INDEX.md)
          --base REV (default: HEAD): check and remap compare each file with its text in REV,
                     as HEAD~1 for a commit that was made without them";
@@ -115,6 +117,7 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
             }
         },
         ["issues", rest @ ..] => block::command(&root, rest, out, err),
+        ["acceptance", rest @ ..] => acceptance::command(&root, rest, out, err),
         ["remap", rest @ ..] => {
             let dry = rest.iter().any(|w| *w == "--dry-run" || *w == "-n");
             let files: Vec<String> = rest.iter().filter(|w| !w.starts_with('-')).map(|w| w.to_string()).collect();

@@ -1,0 +1,45 @@
+{
+  "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/acceptance.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The acceptance of a release: each ask id of a tracker that the release passes, with the tests that prove it. `cargo todo acceptance --json` writes it from `TODO/ACCEPTANCE.md` (crates/pod-todo/src/acceptance.rs); `release-index.v1` names it in `acceptance`.",
+  "properties": {
+    "asks": {
+      "description": "The asks that the release passes, in the order of the registry.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "ask": {
+            "description": "The ask id of its tracker, as `A-X-14` or `G-10`.",
+            "pattern": "^[A-Z][A-Za-z0-9-]*-[A-Za-z0-9-]*$",
+            "type": "string"
+          },
+          "tests": {
+            "description": "Each test of the ask: `PATH::NAME` (a test function of the file PATH of the repository) or `PATH` (a script or a workflow that CI runs).",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "ask",
+          "tests"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": 1,
+      "description": "The version of this form: 1."
+    }
+  },
+  "required": [
+    "schema",
+    "asks"
+  ],
+  "title": "The acceptance of a release of a product of PodUtils",
+  "type": "object"
+}

@@ -18,6 +18,9 @@ issue_rules = "on"
 # call C825).
 defect_tests = "2026-11-17"
 
+# The acceptance registry: each ask id with its tests (T-105, call C826).
+acceptance = "TODO/ACCEPTANCE.md"
+
 # A code span that starts with one of these is a path of this repository.
 top_dirs = ["crates", "scripts", "docs", ".github", "TODO", "vendor", "fuzz", "examples", "images", "adoption"]
 root_files = [

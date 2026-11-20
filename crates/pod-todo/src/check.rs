@@ -125,6 +125,7 @@ pub fn check_with(root: &Path, changed: Option<Vec<String>>, head: &crate::remap
         crate::issues::check(root, &status, &mut problems);
     }
     check_proves(root, &record.entries, &mut problems);
+    crate::acceptance::check(root, &mut problems);
     if let Some(files) = changed.filter(|f| !f.is_empty()) {
         unmoved(root, &files, head, rev, &mut problems);
     }
