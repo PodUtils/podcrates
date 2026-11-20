@@ -29,7 +29,11 @@ the launcher. Four rules:
 5. The launcher is the child subreaper of the payload's tree: a
    descendant whose parent ends comes to the launcher, also after a
    `setsid` or a double fork. At the end of the payload the launcher
-   kills each descendant (`Settings::kill_tree`), then writes the end
+   kills each descendant (`Settings::kill_tree`) and waits in one
+   `ppoll` over the pidfd of each, with a reap after each wake: the init
+   of a PID namespace ends only after the reap of each process of its
+   namespace, and such a process can be a child of the launcher. Then it
+   writes the end
    into the record before a waiter gets the code: the reason, the run
    time, the use of the tree and the count of the processes that stayed
    (`residual_processes`: a number, or `unknown`, never 0 when it is not
@@ -133,7 +137,11 @@ grandchild that calls `setsid` and ignores SIGTERM: the kill leaves 0
 processes; with `kill_tree` false the count is 1 or more (the positive
 control); with no `/proc` the count is `unknown`; a wall bound of 800 ms
 ends the tree within the bound and `TREE_KILL_MS`; the payload has the
-`RLIMIT_FSIZE` of its starter. `foreground` (no libtest: a step forks)
+`RLIMIT_FSIZE` of its starter; a payload that is the parent of the init of
+a PID namespace and of a second process of it (an `unshare` of a user and
+a PID namespace before its `exec`) ends with the count 0 in less than half
+of `TREE_KILL_MS` (it skips with no user namespace;
+`scripts/ci/userns-tests.sh` runs it with one). `foreground` (no libtest: a step forks)
 runs a payload that the test reaps under a hold: `list` gives it `Up`
 and `reconcile` keeps it; a second hold and a `start` are refused while
 it lives; `kill` reaches it; `stop` with a grace of 10 s ends it with no

@@ -16,109 +16,36 @@
 //! [`response_ok`] does not find reads as success; so each request that the
 //! crate sends is one whose refusal the guest also shows.
 //!
+//! [`Monitor`] gives each request an `id`, and takes the answer of a
+//! request by it (or by the order of the requests, from a monitor that
+//! gives back no `id`). The caller sets the bound of one answer
+//! ([`Monitor::set_answer_wait`], [`Monitor::ask_within`]); an answer
+//! that comes after its bound is read by [`Monitor::late`], and never as
+//! the answer of a later request. Each event is kept for
+//! [`Monitor::take_events`]. QEMU answers no request while it holds its
+//! lock, for example for the last part of a migration.
+//!
 //! A local user who connects to the socket can type into the console. The
 //! per-run directory that holds it has the mode 0700
 //! ([`crate::scratch_dir`]).
 
-use std::io::{BufRead, BufReader, Write};
-use std::os::unix::net::UnixStream;
 use std::path::Path;
-use std::time::{Duration, Instant};
 
-use pod_core::{Class, Failure, Stage};
+use pod_core::Class;
 
 use crate::{Result, failure};
+
+mod monitor;
+
+pub use monitor::{ANSWER_WAIT, EVENTS_KEPT, Monitor};
 
 /// How long one press is held, in milliseconds: long enough for a full
 /// keystroke in the console of the guest, short enough to type a command
 /// in about one second.
 pub const HOLD_MS: u32 = 30;
 
-/// One live QMP connection.
-pub struct Monitor {
-    writer: UnixStream,
-    reader: BufReader<UnixStream>,
-}
-
-/// An I/O failure of the QMP connection.
-fn io(what: &str, e: std::io::Error) -> Failure {
-    Failure::caused(Stage::Host, Class::of_io(e.kind()), format!("qmp {what}: {e}"), e)
-}
-
+/// The requests of the console of the guest.
 impl Monitor {
-    /// Connect to `path`, wait up to `wait` for the socket, and do the
-    /// handshake of the capabilities.
-    ///
-    /// The emulator makes the socket when it starts, so a caller that just
-    /// started it polls.
-    pub fn connect(path: &Path, wait: Duration) -> Result<Monitor> {
-        let start = Instant::now();
-        loop {
-            if let Ok(s) = UnixStream::connect(path) {
-                let _ = s.set_read_timeout(Some(Duration::from_secs(5)));
-                let _ = s.set_write_timeout(Some(Duration::from_secs(5)));
-                let reader = BufReader::new(s.try_clone().map_err(|e| io("connect", e))?);
-                let mut m = Monitor { writer: s, reader };
-                // The greeting comes first with no request; read it before
-                // a request, or the first response read is the greeting.
-                m.read_line()?;
-                m.call("qmp_capabilities")?;
-                return Ok(m);
-            }
-            if start.elapsed() >= wait {
-                return Err(failure(
-                    Class::Timeout,
-                    format!("the QMP socket {} never appeared within {}s", path.display(), wait.as_secs()),
-                ));
-            }
-            std::thread::sleep(Duration::from_millis(100));
-        }
-    }
-
-    fn read_line(&mut self) -> Result<String> {
-        let mut line = String::new();
-        let n = self.reader.read_line(&mut line).map_err(|e| io("read", e))?;
-        if n == 0 {
-            return Err(failure(Class::Unavailable, "qmp closed the connection"));
-        }
-        Ok(line)
-    }
-
-    /// Send one request with no arguments, `{"execute":EXECUTE}`, and read
-    /// its response.
-    pub fn call(&mut self, execute: &str) -> Result<()> {
-        self.send(&format!("{{\"execute\":\"{execute}\"}}"))
-    }
-
-    fn send(&mut self, body: &str) -> Result<()> {
-        self.ask(body).map(drop)
-    }
-
-    /// Send one request, `body` as it is, and return the line of its
-    /// response. A response with `"error"` is a [`Class::Protocol`]
-    /// failure that holds the line.
-    pub fn ask(&mut self, body: &str) -> Result<String> {
-        self.writer
-            .write_all(body.as_bytes())
-            .and_then(|()| self.writer.write_all(b"\n"))
-            .and_then(|()| self.writer.flush())
-            .map_err(|e| io("write", e))?;
-        // An event is not a response. QMP can send `RESET`, `STOP`,
-        // `POWERDOWN` and others at any time; an event read as the response
-        // moves each later response to the wrong request. Skip the events.
-        let line = loop {
-            let line = self.read_line()?;
-            if !is_event(&line) {
-                break line;
-            }
-        };
-        if response_ok(&line) {
-            Ok(line)
-        } else {
-            Err(failure(Class::Protocol, format!("qmp refused {body}: {}", line.trim())))
-        }
-    }
-
     /// Press `qcodes` together: a shifted character is the modifiers and
     /// the key in one `send-key`.
     ///
@@ -139,13 +66,6 @@ impl Monitor {
         let path =
             file.to_str().ok_or_else(|| failure(Class::Usage, format!("{}: not a UTF-8 path", file.display())))?;
         self.send(&format!("{{\"execute\":\"screendump\",\"arguments\":{{\"filename\":{}}}}}", json_text(path)))
-    }
-
-    /// Ask the emulator to exit. The response can be missing: the emulator
-    /// can close the connection during `quit`, and that is not a failure.
-    pub fn quit(&mut self) {
-        let _ = self.writer.write_all(b"{\"execute\":\"quit\"}\n").and_then(|()| self.writer.flush());
-        let _ = self.reader.read_line(&mut String::new());
     }
 }
 
@@ -314,79 +234,4 @@ const LETTER: [&str; 26] = [
 const DIGIT: [&str; 10] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn an_error_response_is_not_ok_and_a_return_is() {
-        assert!(response_ok("{\"return\": {}}"));
-        assert!(response_ok("{\"QMP\": {\"version\": {}}}"));
-        assert!(!response_ok("{\"error\": {\"class\": \"GenericError\", \"desc\": \"nope\"}}"));
-        assert!(!response_ok("{\"error\": null}"));
-    }
-
-    #[test]
-    fn an_event_is_skipped_and_not_read_as_a_response() {
-        assert!(is_event("{\"event\": \"RESET\", \"data\": {}}"));
-        assert!(is_event("{\"event\": \"STOP\"}"));
-        assert!(!is_event("{\"return\": {}}"));
-        assert!(!is_event("{\"error\": \"nope\"}"));
-        // A response that names an event in a string is a response.
-        assert!(!is_event("{\"return\": \"event\"}"));
-    }
-
-    #[test]
-    fn a_member_of_a_response_is_read_with_or_with_no_space() {
-        let status = "{\"return\": {\"status\": \"inmigrate\", \"running\": false}}";
-        assert_eq!(json_member(status, "status").as_deref(), Some("inmigrate"));
-        assert_eq!(json_member("{\"return\":{\"status\":\"completed\"}}", "status").as_deref(), Some("completed"));
-        // A key in a value is not a member; a value that is not a string is
-        // no text.
-        assert_eq!(json_member("{\"desc\": \"status\", \"status\": \"failed\"}", "status").as_deref(), Some("failed"));
-        assert_eq!(json_member("{\"status\": 3}", "status"), None);
-        assert_eq!(json_member("{\"status\": \"a\\\"b\"}", "status"), None, "an escape is not read");
-        assert_eq!(json_member("{\"return\": {}}", "status"), None);
-    }
-
-    #[test]
-    fn a_bool_member_is_read_and_a_key_in_a_value_is_not_a_member() {
-        assert_eq!(json_bool("{\"locked\": true, \"x\": 1}", "locked"), Some(true));
-        assert_eq!(json_bool("{\"locked\":false}", "locked"), Some(false));
-        assert_eq!(json_bool("{\"desc\": \"locked\", \"locked\": true}", "locked"), Some(true));
-        assert_eq!(json_bool("{\"locked\": \"true\"}", "locked"), None, "a string is not a bool");
-        assert_eq!(json_bool("{\"return\": {}}", "locked"), None);
-    }
-
-    /// Each object of the list is one entry, with its nested objects and
-    /// with braces in its strings.
-    #[test]
-    fn each_object_of_a_list_response_is_one_entry() {
-        let line = "{\"return\": [{\"a\": {\"b\": [1, {\"c\": 2}]}, \"s\": \"}{\\\"[\"}, {\"d\": 3}]}";
-        assert_eq!(list_entries(line), vec!["{\"a\": {\"b\": [1, {\"c\": 2}]}, \"s\": \"}{\\\"[\"}", "{\"d\": 3}"]);
-        assert!(list_entries("{\"return\": []}").is_empty());
-        assert!(list_entries("{\"return\": {}}").is_empty());
-    }
-
-    #[test]
-    fn the_key_request_presses_a_modifier_and_a_key_together() {
-        // The shape that the emulator parses, with no JSON dependency.
-        assert_eq!(
-            send_key(&["shift", "semicolon"]),
-            "{\"execute\":\"send-key\",\"arguments\":{\"keys\":[{\"type\":\"qcode\",\"data\":\"shift\"},{\"type\":\"qcode\",\"data\":\"semicolon\"}],\"hold-time\":30}}"
-        );
-    }
-
-    /// Each printable ASCII character has a key, and a character outside
-    /// the table has none.
-    #[test]
-    fn each_printable_ascii_character_has_a_key() {
-        for c in ' '..='~' {
-            assert!(key(c).is_some(), "no key for {c:?}");
-        }
-        assert_eq!(key('a'), Some(("a", false)));
-        assert_eq!(key('A'), Some(("a", true)));
-        assert_eq!(key(':'), Some(("semicolon", true)));
-        assert_eq!(key('\t'), None);
-        assert_eq!(key('é'), None);
-    }
-}
+mod tests;

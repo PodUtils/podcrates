@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**846 entries: 148 open, 29 partial, 7 blocked, 662 done.**
+**848 entries: 148 open, 29 partial, 7 blocked, 664 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 11 | 0 | 196 | 211 |
-| P2 | 71 | 8 | 4 | 342 | 425 |
-| P3 | 73 | 10 | 3 | 122 | 208 |
-| **All** | 148 | 29 | 7 | 662 | 846 |
+| P2 | 71 | 8 | 4 | 343 | 426 |
+| P3 | 73 | 10 | 3 | 123 | 209 |
+| **All** | 148 | 29 | 7 | 664 | 848 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -893,3 +893,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1033](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: podvm's two rules for the take of `check_exec_argv` and `check_exec_guest`: a rule over a volume, and the `#!` chain (PodUtils/podvm#613) |
 | [T-1034](transport.md) | P2 | S | M1 | defect | open | `pod-services`: the watch `http-status` of the upload of `temp-sh` gets 429 from a runner of GitHub, not 405 |
 | [T-1035](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: the live test of the warm start expects QEMU 11.0 to save the NVMe root disk of the plan, and only QEMU 11.1.0 and later migrate an NVMe device |
+| [T-1036](podvm.md) | P3 | S | M6 | defect | done | `pod-supervise`: `end_tree` waits on one pidfd at a time, so a tree with the init of a PID namespace and a second process of it waits the whole `TREE_KILL_MS` (PodUtils/podvm#624) |
+| [T-1037](podvm.md) | P2 | S | M7 | defect | done | `pod-guest`: `qmp::Monitor` waits 5 s for one answer with no bound of the caller and no read of a late answer, so a slow `query-migrate` fails a save (PodUtils/podvm#618) |

@@ -158,16 +158,44 @@ pub(super) fn end_tree(proc: &Path, me: i64, subreaper: bool, kill: bool) -> Res
         for &pid in &tree {
             let _ = sys::kill(pid, 9);
         }
-        for &pid in &tree {
-            // A pidfd of a process that ended reads at once; one that is
-            // already reaped gives `ESRCH`.
-            if let Ok(fd) = sys::pidfd_open(pid) {
-                let mut fds = [sys::PollFd { fd: fd as i32, events: sys::POLLIN, revents: 0 }];
-                let ms = until.saturating_duration_since(Instant::now()).as_millis() as i64;
-                let _ = sys::ppoll(&mut fds, ms);
-                let _ = sys::close(fd);
-            }
+        wait_ended(&tree, until);
+    }
+}
+
+/// Wait until each process of `tree` ends or `until`, with one `ppoll` over
+/// each pidfd and a reap after each wake. The end of one process can wait
+/// for the reap of another: the init of a PID namespace ends only after
+/// each process of its namespace is reaped, and such a process can be a
+/// zombie child of the launcher. A wait on one pidfd at a time would wait
+/// the whole bound there.
+fn wait_ended(tree: &[i64], until: Instant) {
+    // A pidfd of a process that ended reads at once; one that is already
+    // reaped gives `ESRCH`, and is not waited for.
+    let mut fds: Vec<sys::PollFd> = tree
+        .iter()
+        .filter_map(|&pid| sys::pidfd_open(pid).ok())
+        .map(|fd| sys::PollFd { fd: fd as i32, events: sys::POLLIN, revents: 0 })
+        .collect();
+    while !fds.is_empty() {
+        let ms = until.saturating_duration_since(Instant::now()).as_millis() as i64;
+        let woke = sys::ppoll(&mut fds, ms);
+        // The reap of each ended child lets a process that waits for it end.
+        sweep(0);
+        match woke {
+            Ok(0) => break,
+            Ok(_) => fds.retain(|p| {
+                let ended = p.revents != 0;
+                if ended {
+                    let _ = sys::close(p.fd as i64);
+                }
+                !ended
+            }),
+            Err(e) if e == sys::EINTR => {}
+            Err(_) => break,
         }
+    }
+    for p in fds {
+        let _ = sys::close(p.fd as i64);
     }
 }
 

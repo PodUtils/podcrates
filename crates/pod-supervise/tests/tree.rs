@@ -1,7 +1,8 @@
 //! The tree of a payload: the kill of each descendant at the end, with its
 //! count, the count with no kill and with no `/proc`, the wall bound, and
 //! the limit of the file size; the private modes of the state (T-175); a
-//! payload that kills its launcher (T-202).
+//! payload that kills its launcher (T-202); the init of a PID namespace and
+//! a second process of it (T-1036).
 //!
 //! No libtest (`harness = false`), as `lifecycle.rs`: the launcher forks
 //! from the test process, which has one thread.
@@ -27,8 +28,9 @@ fn main() {
     steps::no_limit_of_the_file_size_is_set(&root);
     steps::the_state_is_private_under_umask_022(&root);
     steps::a_payload_that_kills_its_launcher_leaves_a_dead_record_and_no_count(&root);
+    steps::a_pid_namespace_init_and_its_second_process_end_well_below_the_bound(&root);
     let _ = std::fs::remove_dir_all(&root);
-    println!("tree: 7 steps passed");
+    println!("tree: 8 steps passed");
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -57,6 +59,12 @@ mod steps {
     }
 
     fn enter(c: &Container<Any>, launch: Launch<'_>) -> Result<Payload, String> {
+        enter_with(c, launch, 0)
+    }
+
+    /// The entry of the payload; `unshare` is the flags of an `unshare(2)`
+    /// before the `exec` (0: none).
+    fn enter_with(c: &Container<Any>, launch: Launch<'_>, unshare: u64) -> Result<Payload, String> {
         let mut command = Command::new("/bin/sh");
         command
             .arg("-c")
@@ -67,8 +75,13 @@ mod steps {
         // The rule of `Launch`: the payload ends with its launcher (T-205).
         // SAFETY: one system call between the fork and the exec.
         unsafe {
-            command.pre_exec(|| {
-                pod_hostprobe::sys::set_pdeathsig(9).map(drop).map_err(|e| std::io::Error::from_raw_os_error(e.0))
+            command.pre_exec(move || {
+                let os = |e: pod_hostprobe::sys::Errno| std::io::Error::from_raw_os_error(e.0);
+                pod_hostprobe::sys::set_pdeathsig(9).map_err(os)?;
+                if unshare != 0 {
+                    pod_hostprobe::sys::unshare(unshare).map_err(os)?;
+                }
+                Ok(())
             });
         }
         let child = command.spawn().map_err(|e| format!("spawning /bin/sh: {e}"))?;
@@ -210,9 +223,6 @@ mod steps {
         remove::<Any>(&s, "fsize", false).expect("remove");
     }
 
-    /// The table, the staging directory, a container directory and a log
-    /// are private under umask 022: the table holds the environment of
-    /// each record (PodUtils/podvm#244).
     /// The payload kills its launcher (podrunner's case, T-202): the
     /// grandchild goes to init, out of reach of any count. The record is
     /// `Dead` with no exit code, and no end says a count of 0. The payload
@@ -250,6 +260,9 @@ mod steps {
         remove::<Any>(&s, "orphan", false).expect("remove");
     }
 
+    /// The table, the staging directory, a container directory and a log
+    /// are private under umask 022: the table holds the environment of
+    /// each record (PodUtils/podvm#244).
     pub fn the_state_is_private_under_umask_022(root: &Path) {
         use std::os::unix::fs::PermissionsExt;
         let old = pod_hostprobe::sys::umask(0o022);
@@ -264,5 +277,53 @@ mod steps {
         assert_eq!(mode(&pod_supervise::table::dir(&s, &c.id)), 0o700, "the container directory");
         assert_eq!(mode(&pod_supervise::table::log_path(&s, &c.id)), 0o600, "the log");
         remove::<Any>(&s, "modes", false).expect("remove");
+    }
+
+    /// The payload is the parent of the init of a new PID namespace and of
+    /// a second process of it (T-1036). At the kill of the tree the second
+    /// process is a zombie child of the launcher, and the init ends only
+    /// after its reap. A wait on one pidfd at a time, with the reap only at
+    /// the next round, waits the whole bound of the kill; one wait on each
+    /// pidfd with a reap after each wake ends at once.
+    pub fn a_pid_namespace_init_and_its_second_process_end_well_below_the_bound(root: &Path) {
+        if let Err(why) = pod_testkit::host::userns() {
+            pod_testkit::host::skip_line(&format!("no PID namespace of a user namespace: {why}"));
+            return;
+        }
+        let s = settings(root, "pidns");
+        let (pids, shape) = (root.join("pidns.pids"), root.join("pidns.shape"));
+        let (p, sh) = (pids.display(), shape.display());
+        // Each fork of the payload after its `unshare` goes into the new
+        // namespace: the first is its init.
+        let script = format!(
+            "sleep 300 & echo $! >> {p}; grep NSpid /proc/$!/status >> {sh}; \
+             sleep 300 & echo $! >> {p}; grep NSpid /proc/$!/status >> {sh}; exit 0"
+        );
+        create(&s, Some("pidns"), vec![script], Vec::new(), "/".into(), Any::new()).expect("create");
+        let flags = pod_hostprobe::sys::CLONE_NEWUSER | pod_hostprobe::sys::CLONE_NEWPID;
+        let at = Instant::now();
+        start(&s, "pidns", |c: &Container<Any>, launch: Launch<'_>| enter_with(c, launch, flags)).expect("start");
+        let (_, code) = wait::<Any>(&s, "pidns", 30_000).expect("wait");
+        let took = at.elapsed();
+        let c = get::<Any>(&s, "pidns").expect("get");
+        let both: Vec<i64> = std::fs::read_to_string(&pids)
+            .expect("the pid file")
+            .lines()
+            .map(|l| l.trim().parse().expect("a pid"))
+            .collect();
+        let left: Vec<i64> = both.iter().copied().filter(|&pid| alive(pid)).collect();
+        both.iter().for_each(|&pid| clean(pid));
+        let shape = std::fs::read_to_string(&shape).expect("the shape file");
+        let ns: Vec<&str> = shape.lines().filter_map(|l| l.split_whitespace().last()).collect();
+        // The `grep` between the two is a process of the namespace too.
+        let shaped = ns.len() == 2 && ns[0] == "1" && ns[1] != "1";
+        assert!(shaped, "the control failed: not the init and a second process of one namespace: {shape:?}");
+        assert_eq!(code, Some(0));
+        let end = c.end.expect("the end of the run");
+        assert_eq!(end.residual_processes, Residual::Count(0), "{end:?} after {took:?}");
+        assert!(left.is_empty(), "{left:?} of {both:?} are alive after the end of the payload");
+        let most = Duration::from_millis(TREE_KILL_MS / 2);
+        assert!(took < most, "the end of the tree took {took:?}, not well below the bound of {TREE_KILL_MS} ms");
+        remove::<Any>(&s, "pidns", false).expect("remove");
     }
 }
