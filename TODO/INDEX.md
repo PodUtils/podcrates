@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**846 entries: 148 open, 30 partial, 7 blocked, 661 done.**
+**846 entries: 148 open, 29 partial, 7 blocked, 662 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 11 | 0 | 196 | 211 |
-| P2 | 71 | 9 | 4 | 341 | 425 |
+| P2 | 71 | 8 | 4 | 342 | 425 |
 | P3 | 73 | 10 | 3 | 122 | 208 |
-| **All** | 148 | 30 | 7 | 661 | 846 |
+| **All** | 148 | 29 | 7 | 662 | 846 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -875,7 +875,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1009](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise` and `pod-enter`: the thread of a foreground hold blocks only SIGHUP, SIGINT, SIGQUIT and SIGTERM, so a SIGUSR1 to a waiter with a hold ends the process and leaves the payload |
 | [T-1010](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: the child of the payload keeps the signal mask of the caller, so a payload of a caller that blocked a signal never gets it |
 | [T-1012](podvm.md) | P2 | M | M7 | feature | done | `pod-guest`: a saved state of the caller's machine line with no UEFI `Plan`, for podvm's Linux guest (PodUtils/podvm#618) |
-| [T-1013](podvm.md) | P2 | S | M6 | feature | partial | `pod-services`: the pinned static QEMU at 11.0.0, with the fix of the use-after-free of `address_space_translate_for_iotlb` (PodUtils/podvm#618) |
+| [T-1013](podvm.md) | P2 | S | M6 | feature | done | `pod-services`: the pinned static QEMU at 11.0.0, with the fix of the use-after-free of `address_space_translate_for_iotlb` (PodUtils/podvm#618) |
 | [T-1014](podvm.md) | P2 | M | M6 | feature | open | `pod-services`: a static QEMU of the newest stable point release; the pin of T-1013 is 11.0.0, and 11.0.5 and 11.1.3 are out |
 | [T-1016](fleet.md) | P2 | S | M8 | defect | done | `pod-release`: a line of the chain names a certificate by its subject, and a leaf of Fulcio has none |
 | [T-1018](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `the_tokens_agree_with_the_loader_of_the_host` fails where the test binary is of another machine than the `/bin/true` of the host |

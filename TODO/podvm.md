@@ -11335,7 +11335,7 @@ true, its nonce as `unique`), its record check `line::check`, its
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -11448,10 +11448,15 @@ the plan line with its root disk on AHCI save and load). The test of the
 plan line failed: it expected a save of the NVMe root disk from QEMU
 11.0.0 (T-1035).
 
-What remains: the two runs of the Prove on `main` (`services.yml` with
-`service=hermeticbuild-qemu`, and `guest.yml` after T-1035), and
-podvm's take (its table of tools at the new pins, and `github.com` in
-place of `api.ghcr.pkgforge.dev` in its test of its hosts).
+The Prove on `main`: `services.yml` 44739344293 with
+`service=hermeticbuild-qemu` (at `8a2cdd9`) passed, each archive at its
+SHA-256 and length; `guest.yml` 44750433447 (at `0a795b9`, after T-1035)
+passed: the static QEMU 11.0.0 runs `warm::`, the plan line refuses the
+save of its NVMe root disk and boots cold, and the line form and the
+stream save and load. podvm's take (its table of tools at the new pins,
+and `github.com` in place of `api.ghcr.pkgforge.dev` in its test of its
+hosts) goes in the hand-off of the next tag. QEMU 11.1, for the save of an
+NVMe disk, is T-1014 (PodUtils/static-pkgs).
 
 # T-1014: `pod-services`: a static QEMU of the newest stable point release; the pin of T-1013 is 11.0.0, and 11.0.5 and 11.1.3 are out
 

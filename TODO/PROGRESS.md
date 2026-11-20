@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 846 entries: 148 open, 30 partial, 7 blocked, 661 done.
+`TODO/INDEX.md` holds 846 entries: 148 open, 29 partial, 7 blocked, 662 done.
 
 ## State
 
@@ -75,7 +75,7 @@ PodUtils/podnet@T-494), T-1023 (`pod-control` wipes a line that holds a credenti
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
 of the consumers: T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
-for the parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-1032 (the launcher of `pod-supervise` blocks before the start of the payload), T-1013 (the proof of the static QEMU 11.0.0 in `services.yml` and `guest.yml`), T-1014 (a static QEMU of the newest stable), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
+for the parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-1032 (the launcher of `pod-supervise` blocks before the start of the payload), T-1014 (the static QEMU 11.1.3 of PodUtils/static-pkgs), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
 T-851. Then T-920.
 Then the ruling "Discipline": T-692
 (`pod-lab`, part 2), T-700 (`pod-manual`: the take of each consumer; its
