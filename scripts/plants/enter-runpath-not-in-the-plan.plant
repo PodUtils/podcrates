@@ -1,0 +1,6 @@
+# pod-enter: the loader plan gives the default library directories alone, with no RUNPATH directory of the payload (T-976).
+ENTRY=T-976
+GROUP=enter
+EXPECT='a_runpath_of_origin_leads_the_library_path'
+RUN='cargo test -p pod-enter --all-features --lib userland::runpath::tests::a_runpath_of_origin_leads_the_library_path'
+LIMIT=900

@@ -76,7 +76,7 @@ impl LinkSet {
 /// Does musl's loader answer `name` itself? Its `load_library` treats
 /// `libc`, `libpthread`, `librt`, `libm`, `libdl`, `libutil` and `libxnet`
 /// as the loader, because the loader is the C library there.
-fn musl_builtin(name: &str) -> bool {
+pub(crate) fn musl_builtin(name: &str) -> bool {
     let Some(rest) = name.strip_prefix("lib") else {
         return false;
     };

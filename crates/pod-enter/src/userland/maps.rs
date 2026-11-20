@@ -199,6 +199,20 @@ impl GuestRoot for Maps {
     fn volume_label(&self, guest: &str) -> Option<String> {
         self.volume_label_at(guest)
     }
+
+    fn guest_of(&self, host: &Path) -> Option<String> {
+        // The volume with the longest host side first: its guest path is
+        // the one that the table serves.
+        let volume = self
+            .volumes
+            .iter()
+            .filter(|v| host.starts_with(&v.host))
+            .max_by_key(|v| Path::new(&v.host).components().count());
+        match volume {
+            Some(v) => crate::abi::guest_under(Path::new(&v.host), &v.guest, host),
+            None => crate::abi::guest_under(Path::new(&self.rootfs), "/", host),
+        }
+    }
 }
 
 /// True where `p` is `prefix` or a path under it.

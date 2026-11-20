@@ -36,8 +36,8 @@ pub fn exit_status(status: i32) -> i32 {
     if status & 0x7f == 0 { (status >> 8) & 0xff } else { 128 + (status & 0x7f) }
 }
 
-/// The word of the forwarding wait for a signal: the name of the two
-/// signals that it forwards, `signal N` for each other signal. A
+/// The word of the forwarding wait for a signal: the name of each signal
+/// that it forwards, `signal N` for each other signal. A
 /// terminal's SIGINT can arrive by the forward and by the reap, so the
 /// reap can name a signal that the forward did not see.
 pub(crate) fn signal_name(signo: i64) -> String {
@@ -45,6 +45,11 @@ pub(crate) fn signal_name(signo: i64) -> String {
         n if n == sys::SIGHUP as i64 => "SIGHUP".to_string(),
         n if n == sys::SIGINT as i64 => "SIGINT".to_string(),
         n if n == sys::SIGTERM as i64 => "SIGTERM".to_string(),
+        n if n == sys::SIGQUIT as i64 => "SIGQUIT".to_string(),
+        n if n == sys::SIGUSR1 as i64 => "SIGUSR1".to_string(),
+        n if n == sys::SIGUSR2 as i64 => "SIGUSR2".to_string(),
+        n if n == sys::SIGALRM as i64 => "SIGALRM".to_string(),
+        n if n == sys::SIGPWR as i64 => "SIGPWR".to_string(),
         n => format!("signal {n}"),
     }
 }

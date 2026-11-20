@@ -343,6 +343,10 @@ pub use search::*;
 mod closure;
 pub use closure::*;
 
+mod dynamic;
+pub use dynamic::Search;
+use dynamic::{DT_NEEDED, DT_SONAME, dynamic_strings};
+
 mod bytes;
 use bytes::*;
 

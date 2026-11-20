@@ -10453,7 +10453,7 @@ cargo test -p pod-microvm --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10473,6 +10473,39 @@ On podvm's userland rung the loader family runs a program through `ld.so --libra
 ```sh
 cargo test -p pod-enter --all-features runpath
 ```
+
+## Done
+
+2026-11-20, this commit. `abi::Search` (`crates/pod-enter/src/abi/dynamic.rs`)
+reads `DT_NEEDED`, `DT_RUNPATH`, `DT_RPATH` and the machine of a file with
+no read of its symbols; `Elf` reads `.dynamic` through the same function,
+and its fields stay as they are (podvm builds `Elf` with each field).
+`userland::runpath::runpath_dirs` walks the program and each library that
+it loads, breadth first, and gives the `RUNPATH` (else `RPATH`) directories
+as guest paths, each one that resolves inside the image; `Tokens` expands
+`$ORIGIN` (the resolved directory of the program, the opened directory of a
+library), and for glibc `$LIB` and `$PLATFORM` (call C832).
+`userland::lib_dirs_for` puts them before `lib_dirs`, and `loader_plan` gives
+them for its payload, through `GuestRoot::guest_of` (new, a provided method;
+`Maps` maps a volume back). `abi::libc_beside` with the root `/` searched
+paths relative to the working directory; it keeps the slash now (the test
+`the_tokens_agree_with_the_loader_of_the_host` failed on it). Measured: the
+loader of Ubuntu 24.04 (glibc 2.39) expands `$LIB` to
+`lib/x86_64-linux-gnu` and `$PLATFORM` to `haswell` on this host, and the
+walk gives the same values. Before the fix, `cargo test -p pod-enter
+--all-features --test runpath` failed `an_absolute_runpath_of_the_image_loads`
+("libpodrp.so: cannot open shared object file"); `a_runpath_of_origin_loads`
+passed, as the loader of the host expands `$ORIGIN` against the host path
+of the program. After the fix: `cargo test -p pod-enter --all-features
+runpath` passes 10 unit tests and 2 tests with a real loader; `cargo test
+-p pod-enter --all-features` passes 260 unit tests and each integration
+target; clippy and fmt pass. The plants `enter-runpath-not-in-the-plan` and
+`enter-runpath-leaves-the-image` prove the checks. Two limits stay, named in
+`crates/pod-enter/README.md`: the loader reads an absolute `DT_RPATH` on the
+host before the library path, and a dynamic child that podvm's interposer
+starts takes the library path of the caller (`names.lib_path`) with no
+`RUNPATH` directory of the child: that part of PodUtils/podvm@T-2003 is
+podvm's interposer.
 
 # T-977: `pod-release`: the pinned fetch of a static tool that a project runs (gVisor's `runsc` for podvm)
 
@@ -10501,4 +10534,135 @@ A module of `pod-release` (feature `fetch`): a `Tool` names a URL for each archi
 
 ```sh
 cargo test -p pod-release --all-features tool
+```
+
+# T-995: `pod-enter`: `Child::wait_forwarding` forwards SIGHUP, SIGINT and SIGTERM only, so a SIGUSR1 or a SIGQUIT kills the waiter and the payload stays
+
+**Source:** PodUtils/podvm#608 (COORD-211 of podvm; PodUtils/podvm@T-2001)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`Child::wait_forwarding` (`crates/pod-enter/src/child.rs`) blocks SIGHUP,
+SIGINT and SIGTERM, reads them from a signalfd and forwards them to the
+payload. Each other signal keeps its default action in the waiter. A
+SIGUSR1, SIGUSR2, SIGQUIT or SIGALRM to the waiter kills the waiter, and the
+payload continues with no waiter. podvm measured it (as uid 1000, a
+foreground `podvm run --rm alpine:3.20 sh -c 'echo START; sleep 20'`): a
+SIGHUP gives exit 129 and "forwarded SIGHUP to the payload", and the `--rm`
+record goes; a SIGUSR1 gives exit 138 with no line, `sleep 20` stays, and the
+record is a false `Dead (exited while the launcher was not watching)`. The
+waiter writes the record and removes the `--rm` tree, so its death leaves the
+false record.
+
+The ask: forward the set that the init of `Plan::pid_namespace` gives the
+payload (call C769), docker's `--sig-proxy` with no tty: SIGHUP, SIGINT,
+SIGQUIT, SIGUSR1, SIGUSR2, SIGTERM, SIGALRM and SIGPWR (each signal that a
+process can catch, except SIGCHLD, SIGPIPE, SIGURG, SIGWINCH and the signals
+of job control). Name each forward on `err`, as now. Forward SIGINT and
+SIGQUIT only where a process sent them (`ssi_code` 0 or less: `SI_USER`,
+`SI_QUEUE`, `SI_TKILL`): the signal of a terminal reached the process group of
+the payload already.
+
+## Premise
+
+- Read: PodUtils/podvm#608; `crates/pod-enter/src/child.rs`
+  (`wait_forwarding`, `forward_loop`); `crates/pod-enter/src/ns_pid.rs`
+  (`FORWARDED`, `forwards`); the test
+  `a_sighup_of_the_waiter_reaches_the_payload` in
+  `crates/pod-enter/src/tests.rs`.
+- The init has one list, `ns_pid::FORWARDED` (SIGHUP, SIGINT, SIGQUIT,
+  SIGUSR1, SIGUSR2, SIGTERM and SIGWINCH). It has no SIGALRM and no SIGPWR.
+- Not measured here: podvm's run. The test below measures the waiter.
+
+## Approach
+
+One list in `ns_pid`: `PROXIED` (the eight signals of the ask), and
+`FORWARDED` is `PROXIED` and SIGWINCH, so the init gets SIGALRM and SIGPWR
+too. `wait_forwarding` blocks `PROXIED` and reads it from its signalfd; it
+reads `ssi_code` and forwards SIGINT and SIGQUIT only where `ssi_code` is 0
+or less. `status::signal_name` names each signal of the list. Tests: a
+SIGUSR1 to the waiter reaches the payload, and the waiter gives the exit of
+the payload; a SIGINT with `SI_KERNEL` is not forwarded, and a SIGQUIT with
+`SI_QUEUE` is.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features waiter
+```
+
+## Done
+
+2026-11-20, this commit.
+`ns_pid::PROXIED` (`pod_enter::WAIT_FORWARDED`) is the one list: SIGHUP,
+SIGINT, SIGQUIT, SIGUSR1, SIGUSR2, SIGTERM, SIGALRM and SIGPWR;
+`FORWARDED` (`PID_FORWARDED`) is `PROXIED` and SIGWINCH, so the init gets
+SIGALRM and SIGPWR too (call C831). `wait_forwarding` blocks the list,
+reads `ssi_signo` and `ssi_code` from its signalfd, and forwards SIGINT and
+SIGQUIT only where `ssi_code` is 0 or less (`child::waiter_forwards`).
+`status::signal_name` names each signal of the list. `sys::SIGALRM`,
+`sys::SIGPWR` and `sys::SYS_RT_TGSIGQUEUEINFO` are new in `pod-hostprobe`.
+The tests of the waiter moved to `crates/pod-enter/src/child/tests.rs`.
+Before the fix, `cargo test -p pod-enter --all-features --lib waiter`
+failed two tests: `a_sigusr1_of_the_waiter_reaches_the_payload` gave
+`Ok(0)` for `Ok(7)` (the payload ran its 20 s, the SIGUSR1 stayed pending),
+and `a_sigint_of_the_terminal_is_not_forwarded_by_the_waiter` gave `Ok(3)`
+for `Ok(5)` with "forwarded SIGINT to the payload". After it: `cargo test
+-p pod-enter --all-features` passes 249 unit tests and each integration
+target; `cargo clippy -p pod-enter -p pod-hostprobe --all-targets
+--all-features -- -D warnings` and `cargo fmt --all --check` pass. The
+plants `enter-waiter-signal-list-short` and
+`enter-waiter-terminal-signal-forwarded` prove the two tests;
+`enter-sighup-not-forwarded` moved onto `waiter_forwards`.
+
+# T-996: `pod-supervise`: a SIGQUIT, SIGUSR1, SIGUSR2, SIGALRM or SIGPWR ends the detached launcher, and the launcher reads SIGHUP and gives it to nobody
+
+**Source:** the work of T-995 (2026-11-20)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The detached launcher of `pod-supervise` (`serve` in
+`crates/pod-supervise/src/launcher.rs`) blocks SIGHUP, SIGINT and SIGTERM
+(`sys::sigblock_shutdown`), reads them from a signalfd, and gives SIGINT and
+SIGTERM to the payload. It reads a SIGHUP and gives it to nobody. Each other
+catchable signal keeps its default action: a SIGQUIT, SIGUSR1, SIGUSR2,
+SIGALRM or SIGPWR to the launcher ends it. The payload then ends by its
+`PR_SET_PDEATHSIG(SIGKILL)`, and no launcher writes `exited` into the table:
+the record reads as `Dead` (the reconcile of a killed launcher), not as the
+end of the payload by a signal. The waiter of `pod-enter` had the same
+defect (T-995) and forwards the list `pod_enter::WAIT_FORWARDED` now.
+
+## Premise
+
+- Read: `serve` and the comment on its mask in
+  `crates/pod-supervise/src/launcher.rs`; the `wait` of the control socket
+  (an end of the stream with no answer is `Gone`); call C485 (the hold of
+  `foreground` blocks SIGHUP, SIGINT, SIGQUIT and SIGTERM).
+- Not measured: a signal to a real launcher. Not read: whether a consumer
+  sends a signal other than SIGINT and SIGTERM to a launcher by its pid.
+
+## Approach
+
+The launcher blocks the list of the waiter (`pod_enter::WAIT_FORWARDED`, or
+the same list moved to `pod-hostprobe` where `pod-supervise` does not take
+`pod-enter`), reads it from its signalfd, and gives each signal of the list
+to the payload, SIGHUP too; SIGINT and SIGQUIT only where `ssi_code` is 0 or
+less, as `pod_enter::child::waiter_forwards` does (share the rule, do not
+copy it). A test: a SIGUSR1 to a launcher reaches a payload that traps it,
+and the record gets the code of the payload.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features launcher_forwards
 ```

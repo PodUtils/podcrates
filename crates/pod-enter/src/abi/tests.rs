@@ -1,6 +1,7 @@
 use super::*;
 use std::os::unix::process::CommandExt;
 
+pub(crate) mod dynamic;
 pub(super) mod labels;
 
 /// `resolve_in` never lists a directory that it gets.

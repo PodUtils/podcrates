@@ -120,6 +120,9 @@ pub const SYS_EXECVEAT: i64 = nr!(execveat, __NR_execveat);
 pub const SYS_WAIT4: i64 = nr!(wait4, __NR_wait4);
 pub const SYS_KILL: i64 = nr!(kill, __NR_kill);
 pub const SYS_TGKILL: i64 = nr!(tgkill, __NR_tgkill);
+/// A signal with a `siginfo` of the caller: a test of a waiter queues the
+/// `si_code` of the kernel to its own thread with it.
+pub const SYS_RT_TGSIGQUEUEINFO: i64 = nr!(rt_tgsigqueueinfo, __NR_rt_tgsigqueueinfo);
 pub const SYS_GETTID: i64 = nr!(gettid, __NR_gettid);
 pub const SYS_PTRACE: i64 = nr!(ptrace, __NR_ptrace);
 pub const SYS_SETSID: i64 = nr!(setsid, __NR_setsid);
@@ -327,10 +330,13 @@ pub const SIGTERM: u64 = linux_raw_sys::general::SIGTERM as u64;
 /// SIGHUP is in the set (PodUtils/podvm#569): with its default action the
 /// waiter ends and leaves its payload running with no parent.
 pub const SHUTDOWN_SIGNALS: u64 = (1 << (sigmask::SIGHUP - 1)) | (1 << (SIGINT - 1)) | (1 << (SIGTERM - 1));
-/// The other signals that an init of a PID namespace gives to its payload
-/// (`SIGHUP` and `SIGQUIT` are in `sigmask`).
+/// The other signals that a waiter or an init of a PID namespace gives to
+/// its payload (`SIGHUP` and `SIGQUIT` are in `sigmask`). SIGUSR1, SIGUSR2,
+/// SIGALRM, SIGPWR and SIGWINCH have other numbers on mips and sparc.
 pub const SIGUSR1: u64 = linux_raw_sys::general::SIGUSR1 as u64;
 pub const SIGUSR2: u64 = linux_raw_sys::general::SIGUSR2 as u64;
+pub const SIGALRM: u64 = linux_raw_sys::general::SIGALRM as u64;
+pub const SIGPWR: u64 = linux_raw_sys::general::SIGPWR as u64;
 pub const SIGWINCH: u64 = linux_raw_sys::general::SIGWINCH as u64;
 /// `signalfd4` "close on exec": the `O_CLOEXEC` of the architecture
 /// (0x400000 on sparc). `SIG_BLOCK` and `SIG_SETMASK` are in `sigmask`.

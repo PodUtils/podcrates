@@ -5,8 +5,21 @@ use std::io::Write;
 use pod_core::Class;
 use pod_hostprobe::sys;
 
+use crate::ns_pid::PROXIED;
 use crate::status::{exit_status, signal_name};
 use crate::{Child, Result, errno_failure};
+
+/// Does the waiter give the signal `signo` of the code `code` to the
+/// payload? Each signal of [`PROXIED`], but SIGINT and SIGQUIT only from a
+/// process (`si_code` 0 or less): a terminal sent them to the process group
+/// of the payload too.
+pub(crate) fn waiter_forwards(signo: u32, code: i32) -> bool {
+    let signo = u64::from(signo);
+    if !(1..=64).contains(&signo) || PROXIED & sys::sigbit(signo) == 0 {
+        return false;
+    }
+    code <= 0 || (signo != sys::SIGINT && signo != sys::SIGQUIT)
+}
 
 /// How a bounded wait ended. There are three outcomes, not two: a bound
 /// that the wait reached is not a failure and not an exit status.
@@ -35,32 +48,38 @@ impl Child {
         Ok(exit_status(status))
     }
 
-    /// Reap the payload, and forward SIGHUP, SIGINT and SIGTERM of this process to
-    /// it first.
+    /// Reap the payload, and forward each signal of
+    /// [`crate::WAIT_FORWARDED`] of this process to it first: SIGHUP,
+    /// SIGINT, SIGQUIT, SIGUSR1, SIGUSR2, SIGTERM, SIGALRM and SIGPWR, the
+    /// list that the init of [`crate::Plan::pid_namespace`] also gives.
     ///
     /// A waiter in the foreground holds the terminal and the payload holds
-    /// the work: a Ctrl-C that kills only the waiter leaves the payload
-    /// with no parent. The two signals are blocked and read from a
-    /// signalfd beside the pidfd of the payload in one `ppoll`. So a
-    /// signal cannot kill this process between the read and the forward,
-    /// and a PID that the kernel used again never gets the signal. Each
-    /// forward and an end by a signal are named on `err`; a clean exit
-    /// prints nothing.
+    /// the work: a signal that kills only the waiter leaves the payload
+    /// with no parent, and the record of the caller with no writer. The
+    /// signals are blocked and read from a signalfd beside the pidfd of the
+    /// payload in one `ppoll`. So a signal cannot kill this process between
+    /// the read and the forward, and a PID that the kernel used again never
+    /// gets the signal. Each forward and an end by a signal are named on
+    /// `err`; a clean exit prints nothing.
+    ///
+    /// SIGINT and SIGQUIT go to the payload only where a process sent them
+    /// (`ssi_code` 0 or less): a terminal sends them to its whole foreground
+    /// process group, so the payload got them already (call C769).
     ///
     /// The wait has no thread, and must not get one: a thread would make
     /// the next fork of this process the fork of a process with threads.
     ///
     /// A payload that ignores the signal is waited on, not killed: a kill
-    /// is the decision of the caller. SIGINT is forwarded, never raised
+    /// is the decision of the caller. A signal is forwarded, never raised
     /// again, so the waiter stays alive to reap the payload and gives the
-    /// code of the payload. A payload that dies on the default action
-    /// still ends 130.
+    /// code of the payload. A payload that dies on the default action of
+    /// SIGINT still ends 130.
     pub fn wait_forwarding(&self, err: &mut dyn Write) -> Result<i32> {
         let mut old = 0u64;
-        if let Err(e) = sys::sigblock_shutdown(&mut old) {
+        if let Err(e) = sys::sigblock(PROXIED, &mut old) {
             return self.wait_unforwarded(err, &format!("the shutdown mask refused: {} ({})", e.name(), e.0));
         }
-        let sfd = match sys::signalfd_shutdown() {
+        let sfd = match sys::signalfd(PROXIED) {
             Ok(f) => f,
             Err(e) => {
                 let _ = sys::sigrestore(old);
@@ -87,15 +106,16 @@ impl Child {
     fn wait_unforwarded(&self, err: &mut dyn Write, why: &str) -> Result<i32> {
         let _ = writeln!(
             err,
-            "waiting without shutdown forwarding ({why}); a SIGHUP, SIGINT or SIGTERM \
-             to this process will not reach the payload"
+            "waiting without shutdown forwarding ({why}); a SIGHUP, SIGINT, SIGQUIT, \
+             SIGUSR1, SIGUSR2, SIGTERM, SIGALRM or SIGPWR to this process does not \
+             reach the payload"
         );
         self.wait()
     }
 
-    /// One `ppoll` over the exit of the payload and the shutdown signals of
-    /// this process, done again at the bound: the bound only means that
-    /// nothing happened.
+    /// One `ppoll` over the exit of the payload and the signals of
+    /// [`PROXIED`] of this process, done again at the bound: the bound only
+    /// means that nothing happened.
     fn forward_loop(&self, pidfd: i64, sfd: i64, err: &mut dyn Write) -> Result<i32> {
         loop {
             // A new set for each poll: an old `revents` would reap or
@@ -111,14 +131,15 @@ impl Child {
             }
             if fds[1].revents & (sys::POLLIN | sys::POLLHUP) != 0 {
                 let mut buf = [0u8; 128];
-                // `ssi_signo` is the first word. A short read is not a
-                // signal, and only SIGHUP, SIGINT and SIGTERM can arrive: the mask
-                // holds those two bits only.
+                // `ssi_signo` and `ssi_code` of `signalfd_siginfo`. A short
+                // read is not a signal.
                 if let Ok(n) = sys::read(sfd, &mut buf)
-                    && n >= 4
+                    && n >= 12
                 {
-                    let signo = i64::from(u32::from_ne_bytes([buf[0], buf[1], buf[2], buf[3]]));
-                    if [sys::SIGHUP, sys::SIGINT, sys::SIGTERM].iter().any(|s| *s as i64 == signo) {
+                    let signo = u32::from_ne_bytes([buf[0], buf[1], buf[2], buf[3]]);
+                    let code = i32::from_ne_bytes([buf[8], buf[9], buf[10], buf[11]]);
+                    if waiter_forwards(signo, code) {
+                        let signo = i64::from(signo);
                         // ESRCH is not a failure: the payload exited
                         // between the read and the kill, and the pidfd
                         // half reaps it below.
@@ -190,3 +211,6 @@ impl Child {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

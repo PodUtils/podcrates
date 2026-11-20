@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 817 entries: 143 open, 31 partial, 7 blocked, 636 done.
+`TODO/INDEX.md` holds 819 entries: 143 open, 31 partial, 7 blocked, 638 done.
 
 ## State
 
@@ -75,8 +75,7 @@ job for Go, Java, Deno, pip, npm and Hex). Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
 of the consumers: T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
-for the parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242), T-976 (`pod-enter` and a `RUNPATH`,
-PodUtils/podvm#603), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
+for the parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-996 (the signals of the launcher of `pod-supervise`), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
 T-851. Then T-920.
 Then the ruling "Discipline": T-692
 (`pod-lab`, part 2), T-700 (`pod-manual`: the take of each consumer; its
