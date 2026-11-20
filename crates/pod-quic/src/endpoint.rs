@@ -42,9 +42,24 @@ pub fn on_socket(socket: UdpSocket, server: Option<ServerConfig>) -> Result<Endp
 }
 
 /// A client endpoint on a UDP socket bound to `addr` (`[::]:0` or
-/// `0.0.0.0:0` for a port that the system picks).
+/// `0.0.0.0:0` for a port that the system picks). A socket of IPv6 also
+/// reaches IPv4 where the system allows it.
 pub fn bind(addr: SocketAddr) -> Result<Endpoint, Failure> {
-    on_socket(UdpSocket::bind(addr).map_err(no_socket)?, None)
+    on_socket(dual_stack(addr).map_err(no_socket)?, None)
+}
+
+/// A UDP socket bound to `addr`. Windows makes a socket of IPv6 IPv6 only,
+/// so an endpoint on `[::]` sent nothing to an address of IPv4; the socket
+/// clears `IPV6_V6ONLY` before its bind, as `noq::Endpoint::client` does.
+fn dual_stack(addr: SocketAddr) -> std::io::Result<UdpSocket> {
+    use socket2::{Domain, Protocol, Socket, Type};
+    let socket = Socket::new(Domain::for_address(addr), Type::DGRAM, Some(Protocol::UDP))?;
+    if addr.is_ipv6() {
+        // A system with no dual-stack socket keeps IPv6 only.
+        let _ = socket.set_only_v6(false);
+    }
+    socket.bind(&addr.into())?;
+    Ok(socket.into())
 }
 
 /// An endpoint for one connection: a UDP socket of the family `v6`, on a

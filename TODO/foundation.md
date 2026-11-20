@@ -2554,11 +2554,11 @@ python3 -I scripts/codegraph.py dups
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
-The replace of `pod_core::files` uses `MoveFileExW(MOVEFILE_REPLACE_EXISTING)` (`crates/pod-core/src/files/replace.rs:124-132`). A rename onto a name that another rename or an open handle holds gives `ERROR_ACCESS_DENIED`, so two writers of one file at once fail where Unix replaces atomically.
+The replace of `pod_core::files` uses `MoveFileExW(MOVEFILE_REPLACE_EXISTING)` (`crates/pod-core/src/files/replace_win.rs`, `move_file`). A rename onto a name that another rename or an open handle holds gives `ERROR_ACCESS_DENIED`, so two writers of one file at once fail where Unix replaces atomically.
 
 ## Premise
 
@@ -2574,6 +2574,10 @@ A rename with POSIX semantics where the file system takes it, else a bounded ret
 ```sh
 cargo test -p pod-core --all-features --test files
 ```
+
+## Done
+
+2026-11-20, partial (the proof is the next run of the Windows jobs of `nightly.yml`; call C829): the rename of `replace_private` on Windows is `crates/pod-core/src/files/replace_win.rs`. It opens the temporary file for `DELETE | GENERIC_WRITE`, renames it with `SetFileInformationByHandle(FileRenameInfoEx)` and the flags `FILE_RENAME_FLAG_REPLACE_IF_EXISTS | FILE_RENAME_FLAG_POSIX_SEMANTICS`, then flushes the handle, as `MOVEFILE_WRITE_THROUGH` does. A file system that does not take the class (`ERROR_INVALID_PARAMETER`, `ERROR_NOT_SUPPORTED`, `ERROR_INVALID_FUNCTION`) gets `MoveFileExW(MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)`. `ERROR_ACCESS_DENIED` and `ERROR_SHARING_VIOLATION` get a retry, a pause from 1 ms that doubles up to 50 ms, for 2 s; at the bound the error says "the rename onto PATH failed N times in T". A directory at the target fails at once. No new dependency (windows-sys 0.61, the feature `Win32_Storage_FileSystem`; the two flags are constants of winbase.h in the file). A new test, `on_windows_a_replace_takes_a_name_that_a_reader_holds` (`src/files/replace_tests.rs`): a reader holds the old file open, the replace takes the name, and the reader keeps the old body. `cargo test -p pod-proxy -p pod-core -p pod-quic --all-features` on Linux (0 failed); `cargo clippy -p pod-proxy -p pod-core -p pod-quic --all-targets --all-features --target x86_64-pc-windows-gnu -- -D warnings`: no warning; `sh scripts/agent/check-windows.sh`: no fault in `pod-core`. Open: the result of `threads_that_store_one_name_at_once_leave_one_whole_body` and the new test on `windows-2025` and `windows-11-arm`. If the test still fails there, the text of the error tells the rename (it names the bound) from the access list of the directory (`make_private_dir`), which the same refusal text holds.
 
 # T-936: `pod-testkit`: `refused()` gives a timeout on macOS, not a refusal
 
