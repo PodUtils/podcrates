@@ -10777,3 +10777,176 @@ check` of the three crates with their tests for x86_64-pc-windows-gnu and
 x86_64-apple-darwin passes. The plant `beneath-symlinks-followed` (no
 `RESOLVE_NO_SYMLINKS`) is caught; the plant
 `enter-volume-base-not-checked` moved onto the new code and is caught.
+
+# T-998: `pod-confine` and `pod-enter`: the program that a dynamic loader runs takes the rule of `exec=` (PodUtils/podvm#613)
+
+**Source:** PodUtils/podvm#613 (COORD-215 of podvm), ask 1
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Landlock checks `EXECUTE` on the file that `execve` names. The dynamic
+loader of an image (`ld-linux-x86-64.so.2`, `ld-musl-x86_64.so.1`) must be
+executable, and it runs the program of its first argument: it only reads
+and maps that program. So `ld.so /tmp/prog` runs a program that `exec=`
+denies. `check_exec(&plan, program)` of `pod-enter` takes one host path,
+and gives `Ok` for the loader when the loader is under an execute path.
+
+podvm holds the rule in three copies (PodUtils/podvm@T-1984):
+`PodUtils/podvm:crates/podvm-interpose/src/exec/ldso.rs` (`is_loader`,
+`each_program`: pure, no allocation, no crate item, about 100 lines), which
+the handler of the syscall tier and `podvm_enter::confine::check_first`
+include as it is. Its table test is
+`the_program_of_the_loader_is_each_argument_that_a_loader_can_run`. The ask:
+`is_loader(path)` and `each_program(args, check)` in podcrates, with each
+loader's reading of its options, taken as it is where it fits; then the
+check of `pod-enter` applies the rule when the payload is the loader. podvm
+then drops its copy.
+
+## Premise
+
+- Read: PodUtils/podvm#613; podvm at its `main` head: `ldso.rs`, its test
+  file `tests_t1984.rs`, `podvm_enter::confine::check_first` and its test
+  `the_first_program_takes_the_rule_of_exec`;
+  `crates/pod-enter/src/confine.rs` (`check_exec`),
+  `crates/pod-confine/src/exec.rs`.
+- The options of glibc's loader (`elf/rtld.c`) and of musl's
+  (`ldso/dynlink.c`), read from the sources: glibc takes a valued option
+  and its next argument, an older glibc takes each other argument as the
+  program, a newer one refuses an unknown `--name`; musl takes
+  `--name=value` and `--` and refuses an unknown `--name`.
+- musl's `make install` installs `ld-musl-ARCH.so.1` as a link to
+  `libc.so`, and musl's `libc.so` is the loader: a check of the resolved
+  name alone (as podvm's copy does) does not see the loader there.
+- Not measured: a run of musl's `libc.so` as a loader on this host (no musl
+  image here).
+
+## Approach
+
+A module `pod_confine::loader`, one file with no allocation, no item of
+the crate and no item of std (core alone), so that an object that takes no
+dependency keeps a copy of the file: podvm's `ldso.rs` as it is, and the
+name of musl's loader file (`libc.so`, `libc.musl-ARCH.so.1`) in
+`is_loader`. `pod-enter`: `check_exec_argv(&plan, argv)` gives the answer
+of `check_exec` for each file that the kernel executes for `argv` (host
+paths): the program, the interpreter of each `#!` line, and where one is a
+loader (by the name as given or as resolved), each argument that the
+loader can take as its program. The table test of podvm comes as it is,
+with rows for musl's names.
+
+## Prove
+
+```sh
+cargo test -p pod-confine --all-features --test loader
+cargo test -p pod-enter --all-features --lib confine
+cargo clippy -p pod-confine -p pod-enter --all-targets --all-features -- -D warnings
+```
+
+# T-999: `pod-confine`: a table of any access in the shape of the exec table, and `pod-enter` gives the payload a write table (PodUtils/podvm#613)
+
+**Source:** PodUtils/podvm#613 (COORD-215 of podvm), ask 2
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Landlock governs no change of mode, owner or times (`chmod`, `chown`,
+`utimensat`). On the entry with no chroot podvm's interposer and the
+handler of its syscall tier refuse each one on a file outside each path
+with write (PodUtils/podvm@T-1985), from a table `PODVM_WRITE_HOST` of the
+host path of each rule with write. podvm builds that table by a misuse:
+it passes each rule with write through `Spec::exec_table` as a rule with
+execute (`PodUtils/podvm:crates/podvm-supervise/src/table.rs`,
+`set_write_table`). The ask: `Spec::table(Access)` in the shape of
+`ExecTable`, and `pod-enter` writes a write table at the spawn as it writes
+the exec table (for example `Names::write_table`).
+
+## Premise
+
+- Read: PodUtils/podvm#613; podvm at its `main` head: `set_write_table`,
+  its callers in `PodUtils/podvm:crates/podvm/src/lifecycle/confine.rs`,
+  the readers `PodUtils/podvm:crates/podvm-interpose/src/map/meta.rs` and
+  `PodUtils/podvm:crates/podvm-dispatch/src/meta.rs`, and podvm's `NAMES`
+  (`PodUtils/podvm:crates/podvm-enter/src/lib.rs`: a literal with each
+  field of `Names`, no `..`).
+- `crates/pod-confine/src/exec.rs`, `crates/pod-enter/src/confine.rs`
+  (`exec_var`), `crates/pod-enter/src/launch.rs` (the filter of the
+  environment), `crates/pod-enter/src/names.rs`.
+
+## Approach
+
+`pod_confine::PathTable`: the struct of the exec table, with
+`ExecTable` a name of the same type, so each use of `ExecTable` stays.
+`Spec::table(access)` gives the paths of each rule that holds each bit of
+`access`; `Spec::exec_table()` is `table(Access::EXECUTE)`. `Names` gets
+the field `write_table` (`POD_ENTER_WRITE_TABLE` in `Names::DEFAULT`): the
+entry with no chroot writes `table(Access::WRITE).resolved()` there beside
+the exec table, and removes each value of the caller on each entry. A new
+field of `Names` breaks podvm's literal at its take: podvm adds one line
+(`write_table: "PODVM_WRITE_HOST"`).
+
+## Prove
+
+```sh
+cargo test -p pod-confine --all-features --lib exec
+cargo test -p pod-enter --all-features --lib confine
+cargo clippy -p pod-confine -p pod-enter --all-targets --all-features -- -D warnings
+```
+
+# T-988: `pod-enter`: the check of `exec=` for the first program of a caller with guest paths: `PATH`, a relative name and each `#!` line (PodUtils/podvm#613)
+
+**Source:** PodUtils/podvm#613 (COORD-215 of podvm), ask 3
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`check_exec(&plan, program)` takes a host path. A caller of the entry
+with no chroot holds the first program as a guest name: it must resolve
+`PATH`, a relative name and the interpreter of each `#!` script itself,
+through its table of paths, before it can ask. podvm does that in
+`podvm_enter::confine::check_first` (PodUtils/podvm@T-2013), with its own
+walk of the links (`host_resolved`). The ask: `check_exec_guest(plan,
+maps, argv)` in `pod-enter`, where its userland module already resolves
+the program.
+
+## Premise
+
+- Read: PodUtils/podvm#613; podvm at its `main` head: `check_first`,
+  `host_resolved`, its callers (`PodUtils/podvm:crates/podvm/src/lifecycle/userland.rs`,
+  `PodUtils/podvm:crates/podvm-supervise/src/launcher.rs`) and its test
+  `the_first_program_takes_the_rule_of_exec`.
+- `pod-enter` resolves a guest path through a table with
+  `abi::resolve_in` (`crates/pod-enter/src/abi/search.rs`), finds a bare
+  name on `PATH` with `ladder::guest_invoked`, and parses a `#!` line with
+  `memfd::shebang_parts`.
+- `check_first` takes the argv of the `#!` script from its caller (podvm's
+  `guest_argv`); `pod-enter` can read the line itself.
+
+## Approach
+
+`check_exec_guest(&plan, &maps, argv)`: the first program by `PATH` (a
+bare name) or by the working directory of the plan (a relative name),
+resolved through `maps`; then the rule of T-998 on each file that the
+kernel executes, with each `#!` line read from the file (the kernel's
+argv: the interpreter, its one argument, the script as invoked, the
+arguments). A first program or an interpreter that does not resolve is
+left to the spawn, which names it (127), as in podvm. The test of podvm
+comes with its rows.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --lib confine
+cargo clippy -p pod-enter --all-targets --all-features -- -D warnings
+```
