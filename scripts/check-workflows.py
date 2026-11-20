@@ -46,7 +46,7 @@ NO_NETWORK = {"ci.yml", "plants.yml", "adoption.yml"}
 DOWNLOADS = {
     "github.com", "api.github.com", "codeload.github.com", "objects.githubusercontent.com",
     "raw.githubusercontent.com", "crates.io", "static.crates.io", "index.crates.io", "static.rust-lang.org",
-    "pypi.org", "files.pythonhosted.org", "ziglang.org", "registry.npmjs.org",
+    "pypi.org", "files.pythonhosted.org", "ziglang.org", "registry.npmjs.org", "nodejs.org",
 }
 # A server of another party that a script runs on the loopback is no
 # host of another party (call C151).

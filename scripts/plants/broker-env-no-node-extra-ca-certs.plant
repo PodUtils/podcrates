@@ -1,0 +1,7 @@
+# The variables of a job lose NODE_EXTRA_CA_CERTS: Node.js reads no other
+# variable of the list, and refuses the leaf of the job (T-973).
+ENTRY=T-973
+GROUP=proxy
+EXPECT='node_takes_the_bundle'
+RUN='cargo test -p pod-broker --all-features --test tls_clients'
+LIMIT=1800

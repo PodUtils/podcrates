@@ -963,7 +963,7 @@ path of `/tmp`, with mode 0600 set after the bind.
 
 - Read (this tree): `crates/pod-broker/src/target.rs:187-189`:
   `parse_absolute` refuses a target in origin form ("a proxy takes a
-  request-target in absolute form"). `crates/pod-broker/README.md:247`
+  request-target in absolute form"). `crates/pod-broker/README.md:269`
   lists that 400. They agree with the review.
 - The code moved since `63348de`, the commit of the review (T-161 and
   others). Today `serve_one` is at `crates/pod-broker/src/serve.rs:104`,
@@ -6453,7 +6453,7 @@ python3 -I scripts/codegraph.py new
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6473,8 +6473,73 @@ A lab of `pod-lab` (T-692): the broker with its TLS end, a stand-in far end that
 the lab CA and answers with the `Authorization` that it got, and each client with the bundle and the
 placeholder. Prove that the far end gets the value and the client prints the placeholder.
 
+## Decision
+
+The proof is the test target `tls_clients` of `pod-broker`, not a lab of `pod-lab` (call C822).
+
 ## Prove
 
 ```sh
-cargo test -p pod-lab --all-features broker
+cargo test -p pod-broker --all-features --test tls_clients -- --nocapture
+sh scripts/ci/broker-clients-tests.sh
+```
+
+## Done
+
+2026-11-20, this commit ("pod-broker: the clients of a job with the bundle of the job (T-973)"). The test
+target `crates/pod-broker/tests/tls_clients.rs` (with `tests/clients/`) runs each client with a clean
+environment, the bundle of `ca::write_bundle` and the variables of `ca::env`, through the broker on
+127.0.0.1, to a far end with a leaf of its own CA that names the `Authorization` it got:
+
+- curl, Python `urllib`, Python `requests`, Node.js (a CONNECT of its own) and Node.js `fetch` with
+  `--use-env-proxy`: with no bundle each refuses the leaf; with the bundle the far end gets the value and
+  the client reads the placeholder in the header and in the body; a host with no credential passes by
+  the roots of the bundle, with no swap.
+- git: `git clone` from `git http-backend` with the header of actions/checkout (`AUTHORIZATION: basic`)
+  and with a token in the URL after a 401; a pack over `max_body` comes in chunks, scrubbed.
+- curl: a body over `max_body` with `Expect: 100-continue`. cargo: `generate-lockfile` from a sparse
+  registry with `auth-required`; the token is the whole value of `Authorization`.
+
+The variables that each client reads are in `crates/pod-broker/README.md`, "Placeholder credentials".
+No client refused the bundle, and no variable was missing: the broker did not change. `cargo test -p
+pod-broker --all-features --test tls_clients`: 7 passed; `sh scripts/ci/broker-clients-tests.sh` (Node.js
+26.13.1, `requests` 2.34.2): 7 passed, each line said. CI: the step "pod-broker with the clients of a job"
+of `ci.yml`. Plants `broker-env-no-node-extra-ca-certs` and `broker-bundle-drops-the-roots`, caught. Found
+and written as an entry: T-980 (the clients that read none of the variables).
+
+# T-980: `pod-broker`: the bundle of a job for Go, Java, Deno, pip, npm and Hex
+
+**Source:** T-973 (a finding: `tls_clients` runs curl, git, Python, Node.js and cargo only)
+**Category:** chore
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`ca::env` sets the six variables of `pod_tls::BUNDLE_VARS`. Some clients of a CI job read none of them:
+the JVM reads a trust store (`javax.net.ssl.trustStore`), Deno reads `DENO_CERT`, Hex of Elixir reads
+`HEX_CACERTS_PATH`, the Google Cloud CLI reads `CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE`. Such a client refuses
+the leaf of the job. No test runs Go, pip or npm with the bundle.
+
+## Premise
+
+- Read: the documents of each client for its CA file; `crates/pod-broker/README.md`, "Placeholder
+  credentials"; call C811.
+- Not measured: each client of the list through the TLS end.
+
+## Approach
+
+Add a leg to `crates/pod-broker/tests/tls_clients.rs` for each client that the host has (Go with
+`SSL_CERT_FILE`, pip with a stand-in index, npm with a stand-in registry, Java, Deno, Hex), with a skip
+and its reason where it is missing. For a client that reads none of the six variables, give the job the
+variable that it reads in `ca::env` (a variable of the job only: `BUNDLE_VARS` is also the order in
+which `pod-tls` reads a bundle), or a file in its format (a PKCS#12 trust store for the JVM), and a test
+that fails without it.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --all-features --test tls_clients -- --nocapture
 ```

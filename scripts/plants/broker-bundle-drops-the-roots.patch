@@ -1,0 +1,13 @@
+diff --git a/crates/pod-broker/src/ca.rs b/crates/pod-broker/src/ca.rs
+index cf21625..9aade06 100644
+--- a/crates/pod-broker/src/ca.rs
++++ b/crates/pod-broker/src/ca.rs
+@@ -126,7 +126,7 @@ pub fn bundle(ca_pem: &str, roots_pem: &[u8]) -> Result<String, String> {
+     if !out.ends_with('\n') {
+         out.push('\n');
+     }
+-    out.push_str(roots);
++    let _ = roots;
+     Ok(out)
+ }
+ 

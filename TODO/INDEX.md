@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**813 entries: 143 open, 31 partial, 7 blocked, 632 done.**
+**814 entries: 143 open, 31 partial, 7 blocked, 633 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 7 | 9 | 0 | 191 | 207 |
-| P2 | 68 | 12 | 4 | 318 | 402 |
+| P2 | 68 | 12 | 4 | 319 | 403 |
 | P3 | 68 | 10 | 3 | 121 | 202 |
-| **All** | 143 | 31 | 7 | 632 | 813 |
+| **All** | 143 | 31 | 7 | 633 | 814 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -852,11 +852,12 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-970](upkeep.md) | P2 | S | M5 | defect | done | `pod-wormhole`: the stand-in tracker test reads the announces before the `stopped` of an end arrived (macos-15) |
 | [T-971](fleet.md) | P3 | S | M8 | defect | done | `pod-release`: `update::plan` answers `UpToDate` both for the version of this build and for an older release |
 | [T-972](fleet.md) | P3 | S | M8 | chore | open | `pod-lab`: the CAs of a lab take the P-256 key and the PEM writer of `pod-acme` |
-| [T-973](fleet.md) | P2 | M | M8 | chore | open | `pod-broker`: the CA bundle of a job with curl, git, Python and Node.js in a lab |
+| [T-973](fleet.md) | P2 | M | M8 | chore | done | `pod-broker`: the CA bundle of a job with curl, git, Python and Node.js in a lab |
 | [T-974](upkeep.md) | P1 | S | M5 | defect | done | The run on the tag `v0.78.0` failed after the signature: two steps of `release.yml` share the scratch path `$RUNNER_TEMP/changed` |
 | [T-975](podvm.md) | P2 | L | M6 | feature | open | `pod-microvm`: a User-Mode Linux kernel in seccomp mode and its launcher, for a guest with no KVM, no ptrace and no namespace |
 | [T-976](podvm.md) | P2 | M | M6 | defect | open | `pod-enter`: the library path of the loader family has no `DT_RUNPATH` or `DT_RPATH` directory of a program or its libraries |
 | [T-977](podvm.md) | P2 | M | M6 | feature | open | `pod-release`: the pinned fetch of a static tool that a project runs (gVisor's `runsc` for podvm) |
 | [T-978](upkeep.md) | P1 | M | M5 | defect | partial | The findings of the report of the hard problems that the record does not have |
 | [T-979](foundation.md) | P1 | S | M0 | feature | done | `pod-todo`: an opt-in rule that a done defect names its test (PodUtils/podnet#657) |
+| [T-980](fleet.md) | P2 | M | M8 | chore | open | `pod-broker`: the bundle of a job for Go, Java, Deno, pip, npm and Hex |
 | [T-990](relay.md) | P2 | S | M2 | defect | partial | `pod-quic`: an endpoint on `[::]` is IPv6 only on Windows, so the QUIC leg of `pod-cloudflare` sends nothing to an edge of IPv4 |
