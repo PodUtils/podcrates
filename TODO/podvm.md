@@ -10666,3 +10666,78 @@ and the record gets the code of the payload.
 ```sh
 cargo test -p pod-supervise --all-features launcher_forwards
 ```
+
+# T-997: `pod-beneath`: one open of a path under a base with no link and no allocation, for the volume base of podvm and pod-enter
+
+**Source:** PodUtils/podvm#611 (COORD-213 of podvm)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`--podvm-volume-base BASE` (PodUtils/podrunner#300 ask 3,
+PodUtils/podvm@T-1972) opens each volume under BASE with
+`openat2(RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS)`. The same walk exists in
+four places: pod-enter `crates/pod-enter/src/ns_volume.rs`
+(`VolumeBind::host_base`),
+`PodUtils/podvm:crates/podvm/src/userns/host.rs` (`beneath`,
+`check_volume_under_base`), `PodUtils/podvm:crates/podvm-dispatch/src/vols.rs`
+(`beneath`) and `PodUtils/podvm:crates/podvm-interpose/src/map/base.rs`
+(the `LD_PRELOAD` interposer: no allocation, no std, its own raw
+`openat2`). Each splits the host path at
+BASE, walks the rest with `RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS`, and gives
+a descriptor or a refusal: a link, `..`, not a directory, not under BASE,
+the kernel has no `openat2` (ENOSYS). The texts of a refusal differ.
+
+The ask: a primitive in podcrates that each copy can take. It is `no_std`
+and has no allocation, so that the interposer can call it in a path call.
+It takes byte slices and a buffer of the caller, and it gives a descriptor
+or a refusal enum that names each case. Its tests are the table of the
+interposer: a link made between the walk and the call, a volume replaced by
+a link, `..`, an absent name with a planted link, a kernel with no
+`openat2` (ENOSYS). The guest side of pod-enter (`RESOLVE_IN_ROOT`) is
+podcrates' call.
+
+## Premise
+
+- Read: PodUtils/podvm#611; podvm at its `main` head: the three copies and
+  their tests `a_volume_under_the_base_reaches_no_file_out_of_the_base`
+  (12 cases of `pin`), `a_volume_of_the_loader_family_opens_under_its_base_as_a_directory`
+  (8 cases) and `a_volume_opens_under_its_base_with_no_link`;
+  `crates/pod-enter/src/ns_volume.rs` (`beneath`, `open_beneath`, the
+  guest walk `point`, `component`).
+- `pod-core` and `pod-hostprobe` use std, and the interposer takes no
+  crate that uses std. No crate of podcrates is `no_std`.
+- The copies differ in the open of BASE (`open(2)`, `openat2` with no
+  `resolve`), in the retry of EAGAIN (podvm-dispatch alone tries 256
+  times), and in the flags: copy 2 writes the `O_DIRECTORY` of x86_64,
+  which is `O_DIRECT` on aarch64.
+- Not measured here: a kernel with no `openat2` (the tests give ENOSYS
+  through a fake of the calls).
+
+## Approach
+
+A new crate `pod-beneath` (call C834): `#![no_std]`, Linux only, its one
+dependency `linux-raw-sys` (the flags and the errno numbers of each
+architecture). The caller gives the system calls by the trait `Calls`
+(`openat2`, `close`): the interposer gives its raw call, podvm-dispatch
+its own, pod-enter the calls of `pod-hostprobe`; the feature `libc`
+(default) gives `Libc`, through `syscall(2)` of the C library. The
+functions: `split` (the path under BASE, lexical), `open_beneath` (one
+`openat2` under a directory, EAGAIN tried again), `open_under_base` (BASE,
+then the rest under it), `open_parent_beneath` (the directory and the last
+name, for a call that makes its file or does not follow its last link).
+The enum `Refusal` names each case, with its errno and one line of text.
+pod-enter's host side (`VolumeBind::host_base`) takes the crate; its guest
+walk stays (call C835). The README gives the take of each copy of podvm.
+
+## Prove
+
+```sh
+cargo test -p pod-beneath --all-features
+cargo test -p pod-enter --all-features --lib ns_volume
+cargo clippy -p pod-beneath -p pod-enter --all-targets --all-features -- -D warnings
+```
