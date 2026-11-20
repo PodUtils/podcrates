@@ -197,6 +197,14 @@ fn the_tokens_agree_with_the_loader_of_the_host() {
         pod_testkit::host::skip_line("no glibc loader on this host");
         return;
     };
+    // `$PLATFORM` is the one of this process. An emulated test binary (or
+    // i686 on x86_64) runs a host `/bin/true` of another machine.
+    let machine = |p: &str| crate::abi::Search::read(p).map(|s| s.machine).ok();
+    let exe = std::env::current_exe().ok().and_then(|p| machine(&p.to_string_lossy()));
+    if exe.is_none() || exe != machine("/bin/true") {
+        pod_testkit::host::skip_line("/bin/true is of another machine than this test binary");
+        return;
+    }
     let out = std::process::Command::new("/bin/true")
         .env("LD_DEBUG", "libs")
         .env("LD_LIBRARY_PATH", "/pod-enter-n1/$LIB/m1:/pod-enter-n2/$PLATFORM/m2")

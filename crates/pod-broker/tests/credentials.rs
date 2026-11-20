@@ -113,7 +113,7 @@ fn the_bundle_holds_the_ca_of_the_job_and_the_roots_and_each_variable_names_it()
             *v
         })
         .collect();
-    for var in ["SSL_CERT_FILE", "GIT_SSL_CAINFO", "NODE_EXTRA_CA_CERTS", "REQUESTS_CA_BUNDLE"] {
+    for var in ["SSL_CERT_FILE", "GIT_SSL_CAINFO", "NODE_EXTRA_CA_CERTS", "REQUESTS_CA_BUNDLE", "CARGO_HTTP_CAINFO"] {
         assert!(vars.contains(&var), "{vars:?}");
     }
     std::fs::remove_dir_all(&dir).unwrap();

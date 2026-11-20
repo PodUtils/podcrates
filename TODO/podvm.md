@@ -11163,3 +11163,52 @@ reaches the payload.
 ```sh
 cargo test -p pod-enter --all-features --lib child
 ```
+
+# T-1018: `pod-enter`: `the_tokens_agree_with_the_loader_of_the_host` fails where the test binary is of another machine than the `/bin/true` of the host
+
+**Source:** nightly run 44696810225 at `68fbc96`, the seven jobs `cross` (aarch64 136155413782, armv7 136155413772, arm 136155414039, i686 136155413711, riscv64gc 136155413779, loongarch64 136155413830, powerpc64le 136155413728).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`userland::runpath::tests::the_tokens_agree_with_the_loader_of_the_host`
+fails at `crates/pod-enter/src/userland/runpath/tests.rs` in each cross
+job: "`$PLATFORM`: ... left: Some("aarch64") right: Some("x86_64")" on
+aarch64; `v8l`, `i686`, `loongarch` or `None` against `haswell` on the
+others. The test runs the `/bin/true` of the host with `LD_DEBUG=libs`.
+The runner is x86_64, so its loader expands `$PLATFORM` for x86_64. The
+walk takes `$PLATFORM` from the auxiliary vector of the test process, which
+is the emulated machine (QEMU) or i686.
+
+## Premise
+
+- Read: the logs of the seven jobs; the test.
+- Measured: a build of the test for `i686-unknown-linux-musl`, run
+  natively on x86_64.
+
+## Approach
+
+The test reads the `e_machine` of its own binary and of `/bin/true`
+(`abi::Search::read`). When they differ, the test skips with the reason.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --lib runpath
+```
+
+## Done
+
+2026-11-20, this commit. `the_tokens_agree_with_the_loader_of_the_host`
+compares the machine of `std::env::current_exe()` and of `/bin/true`, and
+skips with "/bin/true is of another machine than this test binary" when
+they differ. Before the fix, the i686 build of the test (`cargo zigbuild
+-p pod-enter --all-features --lib --tests --target
+i686-unknown-linux-musl`, run on x86_64) fails as the nightly does. After
+it: the i686 build prints the skip line and passes 10 of 10 `runpath`
+tests; `cargo test -p pod-enter --all-features --lib runpath` on x86_64
+passes 10, with the test checked against the loader of the host (no skip).

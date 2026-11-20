@@ -3649,6 +3649,8 @@ sh scripts/agent/check-windows.sh
 
 2026-11-20: the run 44505235227 still fails there, with `WSAETIMEDOUT` (10060) of the test's own read: no datagram came. The cause is T-990: the endpoint on `[::]:0` is IPv6 only on Windows and sends nothing to `127.0.0.1`.
 
+2026-11-20, the proof: the nightly run 44696810225 at `68fbc96`, jobs `test (windows-2025)` 136155413723 and `test (windows-11-arm)` 136155413649 (both green). On each job the three tests ran and passed, with no skip line: `origin::tests::no_tls_verify_needs_the_configuration_of_the_consumer`, `yaml::tests::a_deep_document_is_an_error` (the lib tests of `pod-cloudflare` end with no `STATUS_STACK_OVERFLOW`) and `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` (with the fix of T-990).
+
 # T-938: The riscv64 job of `nightly.yml` meets its limit of 90 minutes
 
 **Source:** nightly run 44275593101: `cross (riscv64gc-unknown-linux-musl, riscv64)` was cancelled at 90 minutes, in `pod-proxy` `blocking_streamed`; 365 of about 448 test binaries ran. The run of 44067754895 took 88 minutes.

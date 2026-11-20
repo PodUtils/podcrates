@@ -117,7 +117,7 @@ pub enum Trust {
 pub struct Lab {
     pub far: Arc<TlsFar>,
     pub dir: PathBuf,
-    bundle: PathBuf,
+    pub bundle: PathBuf,
     store: PathBuf,
     /// The URL of the broker as a proxy, with the job and its token.
     pub proxy: String,

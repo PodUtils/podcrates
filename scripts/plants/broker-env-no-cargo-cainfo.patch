@@ -1,0 +1,11 @@
+diff --git a/crates/pod-broker/src/ca.rs b/crates/pod-broker/src/ca.rs
+index ce2e578b..5e12ed76 100644
+--- a/crates/pod-broker/src/ca.rs
++++ b/crates/pod-broker/src/ca.rs
+@@ -155,5 +155,5 @@ pub const CLIENT_VARS: [&str; 4] =
+ /// [`pod_tls::BUNDLE_VARS`], then each of [`CLIENT_VARS`]). A JVM reads none:
+ /// give it [`java_options`].
+ pub fn env(path: &Path) -> Vec<(&'static str, PathBuf)> {
+-    pod_tls::BUNDLE_VARS.iter().chain(&CLIENT_VARS).map(|var| (*var, path.to_path_buf())).collect()
++    pod_tls::BUNDLE_VARS.iter().chain(&CLIENT_VARS[..3]).map(|var| (*var, path.to_path_buf())).collect()
+ }

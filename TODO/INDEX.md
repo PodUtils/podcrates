@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**827 entries: 143 open, 31 partial, 7 blocked, 646 done.**
+**832 entries: 144 open, 33 partial, 7 blocked, 648 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 7 | 9 | 0 | 193 | 209 |
-| P2 | 67 | 12 | 4 | 329 | 412 |
+| P1 | 6 | 11 | 0 | 193 | 210 |
+| P2 | 69 | 12 | 4 | 331 | 416 |
 | P3 | 69 | 10 | 3 | 122 | 204 |
-| **All** | 143 | 31 | 7 | 646 | 827 |
+| **All** | 144 | 33 | 7 | 648 | 832 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -177,7 +177,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-128](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`: `waitid` and `ppoll` read the kernel layouts of a 64-bit target on a 32-bit target |
 | [T-129](roads.md) | P1 | S | M4 | defect | done | `pod-gsr`: the tests over `AF_UNIX` do not build on Windows |
 | [T-130](transport.md) | P2 | M | M1 | feature | done | `pod-services`: the public Wisp servers, a kind `wisp-public` (PodUtils/podssh#175) |
-| [T-131](roads.md) | P1 | M | M4 | defect | open | `pod-gsr`: the handshake tests crash on Windows ARM64 |
+| [T-131](roads.md) | P1 | M | M4 | defect | partial | `pod-gsr`: the handshake tests crash on Windows ARM64 |
 | [T-132](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`: the id calls are the 16-bit forms on x86 and arm |
 | [T-133](transport.md) | P3 | M | M1 | feature | done | `pod-services`: the public proxy lists and nodes, the kinds `proxy-list` and `proxy-node` (PodUtils/podssh#177) |
 | [T-134](podvm.md) | P1 | S | M6 | defect | done | `pod-hostprobe`, `pod-enter`: the open flags are the x86 values on arm, aarch64 and powerpc |
@@ -874,3 +874,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1009](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise` and `pod-enter`: the thread of a foreground hold blocks only SIGHUP, SIGINT, SIGQUIT and SIGTERM, so a SIGUSR1 to a waiter with a hold ends the process and leaves the payload |
 | [T-1010](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: the child of the payload keeps the signal mask of the caller, so a payload of a caller that blocked a signal never gets it |
 | [T-1016](fleet.md) | P2 | S | M8 | defect | done | `pod-release`: a line of the chain names a certificate by its subject, and a leaf of Fulcio has none |
+| [T-1018](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `the_tokens_agree_with_the_loader_of_the_host` fails where the test binary is of another machine than the `/bin/true` of the host |
+| [T-1019](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: the cargo leg of `tls_clients` runs the proxy of rustup in a temporary directory, where it finds no toolchain |
+| [T-1020](fleet.md) | P1 | S | M8 | defect | partial | `pod-broker`: cargo on macOS does not read `SSL_CERT_FILE`, so the cargo of a job refuses the leaf of the job |
+| [T-1021](foundation.md) | P2 | S | M0 | defect | open | `pod-testkit`: `host::tool` finds no program on Windows, so a test that needs git skips on the Windows runners |
+| [T-1022](fleet.md) | P2 | S | M8 | defect | open | `pod-broker`: Go on macOS reads no variable of a CA file, so `go_takes_the_bundle_by_ssl_cert_file` can fail on the macOS jobs |

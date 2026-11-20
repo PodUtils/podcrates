@@ -2579,6 +2579,8 @@ cargo test -p pod-core --all-features --test files
 
 2026-11-20, partial (the proof is the next run of the Windows jobs of `nightly.yml`; call C829): the rename of `replace_private` on Windows is `crates/pod-core/src/files/replace_win.rs`. It opens the temporary file for `DELETE | GENERIC_WRITE`, renames it with `SetFileInformationByHandle(FileRenameInfoEx)` and the flags `FILE_RENAME_FLAG_REPLACE_IF_EXISTS | FILE_RENAME_FLAG_POSIX_SEMANTICS`, then flushes the handle, as `MOVEFILE_WRITE_THROUGH` does. A file system that does not take the class (`ERROR_INVALID_PARAMETER`, `ERROR_NOT_SUPPORTED`, `ERROR_INVALID_FUNCTION`) gets `MoveFileExW(MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)`. `ERROR_ACCESS_DENIED` and `ERROR_SHARING_VIOLATION` get a retry, a pause from 1 ms that doubles up to 50 ms, for 2 s; at the bound the error says "the rename onto PATH failed N times in T". A directory at the target fails at once. No new dependency (windows-sys 0.61, the feature `Win32_Storage_FileSystem`; the two flags are constants of winbase.h in the file). A new test, `on_windows_a_replace_takes_a_name_that_a_reader_holds` (`src/files/replace_tests.rs`): a reader holds the old file open, the replace takes the name, and the reader keeps the old body. `cargo test -p pod-proxy -p pod-core -p pod-quic --all-features` on Linux (0 failed); `cargo clippy -p pod-proxy -p pod-core -p pod-quic --all-targets --all-features --target x86_64-pc-windows-gnu -- -D warnings`: no warning; `sh scripts/agent/check-windows.sh`: no fault in `pod-core`. Open: the result of `threads_that_store_one_name_at_once_leave_one_whole_body` and the new test on `windows-2025` and `windows-11-arm`. If the test still fails there, the text of the error tells the rename (it names the bound) from the access list of the directory (`make_private_dir`), which the same refusal text holds.
 
+2026-11-20, the proof: the nightly run 44696810225 at `68fbc96`, jobs `test (windows-2025)` 136155413723 and `test (windows-11-arm)` 136155413649 (both green). On each job `threads_that_store_one_name_at_once_leave_one_whole_body` (`crates/pod-core/tests/files.rs`) ran and passed.
+
 # T-936: `pod-testkit`: `refused()` gives a timeout on macOS, not a refusal
 
 **Source:** nightly run 44275593101, `refused::tests::a_refused_address_stays_refused_while_its_guard_lives` on both macOS jobs (`crates/pod-testkit/src/refused.rs:80`: `TimedOut`, not `ConnectionRefused`).
@@ -2612,6 +2614,8 @@ cargo test -p pod-testkit --all-features --lib refused
 2026-11-18: `pod_testkit::refused` keeps the bound socket that does not listen where the kernel refuses a connect to it (Linux, Android, Windows); on the other systems it gives a port with no socket in 20000 to 39999, below the range of a bind to port 0 on macOS (49152 to 65535), checked once to refuse at once, and holds nothing (no test of this repository binds a fixed port of the loopback: `check-loopback.py`). Test `an_unbound_port_refuses_at_once` (the form of macOS, on each system: a refusal in less than 2 s); `a_refused_address_stays_refused_while_its_guard_lives` checks the bind of the held port only where a socket holds it. `cargo test -p pod-testkit --all-features --lib refused`: 2 passed on Linux. The proof on macOS is the next run of the macOS jobs (`nightly.yml` 44275593101 showed the timeout before the fix). `pod-proxy`'s `a_dial_of_one_refused_address_twice_names_it_once` waits no 10 s on macOS now.
 
 The nightly run 44388345504 failed `an_unbound_port_refuses_at_once` on windows-2025 and windows-11-arm: a connect to a closed port on Windows fails after the retries of its SYN, past the bound of 1 s. The form of macOS is not used on Windows, so the test does not run there.
+
+The nightly run 44696810225 at `68fbc96` proves the form of macOS: on `test (macos-15-intel)` 136155413747 and `test (macos-15)` 136155413754, `refused::tests::an_unbound_port_refuses_at_once`, `refused::tests::a_refused_address_stays_refused_while_its_guard_lives` and `race::tests::a_dial_of_one_refused_address_twice_names_it_once` of `pod-proxy` pass.
 
 # T-941: `pod-core`: a lock of a file that other programs read, which on Windows refuses no reader (PodUtils/podssh#319)
 
@@ -2688,3 +2692,44 @@ cargo todo check
 ## Done
 
 2026-11-20, commit "pod-todo: the opt-in rule that a done defect names its test (T-979)". The key `defect_tests = "YYYY-MM-DD"` of `TODO/todo.toml` (`crates/pod-todo/src/config.rs`); the rule in `crates/pod-todo/src/defects.rs`, which `check_entry` and `set_status` call; the README of `pod-todo` and `TODO/RULES.md` give the key. Tests: `crates/pod-todo/tests/defects.rs` (5: a done defect from the date with no test is found at the line of its Done; no key, or a date before the key, changes nothing; each form of a test passes; a feature is not read; `set T-NNN done` refuses, then takes the entry with a test named) and `defects::tests::a_test_function_is_a_word_with_two_underscores_at_the_end_of_a_span`. With the call to `gap` of `set_status` removed, `set_refuses_done_for_a_defect_that_names_no_test` fails. On this record the rule gives the same counts as podnet's expression: 6 entries from 2026-11-17 and 42 in all. The six Done sections name their tests, and `TODO/todo.toml` turns the key on from 2026-11-17 (call C825). `cargo test -p pod-todo --all-features`: 139 passed. `cargo todo check`: the record agrees.
+
+# T-1021: `pod-testkit`: `host::tool` finds no program on Windows, so a test that needs git skips on the Windows runners
+
+**Source:** nightly run 44696810225 at `68fbc96`, the jobs `test (windows-2025)` (136155413723) and `test (windows-11-arm)` (136155413649): "skipping, this host has no git that can execute", five times in `crates/pod-actions-store/tests/git.rs`.
+**Category:** defect
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_testkit::host::tool` looks up a name with no `/` as `DIR/NAME` in
+each directory of `PATH` (`crates/pod-testkit/src/host.rs`). On Windows
+the file is `git.exe`, so the lookup finds no program, and each test that
+asks for a tool skips there. The Windows runners have git: the five tests
+of `crates/pod-actions-store/tests/git.rs` pass with no check. A name with
+a `\` is not a path for it either.
+
+## Premise
+
+- Read: the logs of the two Windows jobs; `host::tool` and `executable`.
+- Not measured: the result of each test that asks for a tool on Windows
+  when the lookup finds it (the git tests of `pod-actions-store` and each
+  other test that is not `cfg(unix)`).
+
+## Approach
+
+On Windows, a name with no extension also matches `DIR/NAME.EXT` for each
+extension of `PATHEXT` (`.COM;.EXE;.BAT;.CMD` when it is not set), and a
+name with `\` or `/` is a path. A unit test of `host` makes a directory
+with `NAME.exe` and checks the lookup on Windows. Then read each test that
+now runs on the Windows jobs of `nightly.yml`, and fix or write each
+failure.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --all-features
+sh scripts/agent/check-windows.sh
+```

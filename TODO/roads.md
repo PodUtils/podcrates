@@ -1082,7 +1082,7 @@ each text file. The nightly dispatched after the landing is the proof.
 **Milestone:** M4
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1111,6 +1111,10 @@ OpenSSL build options. Remove the exclusion with the fix.
 ```sh
 cargo test -p pod-gsr --all-features   # on windows-11-arm
 ```
+
+## Done
+
+2026-11-20, partial (a measurement, no fix): the step "Test pod-gsr (Windows ARM64, open defect)" of the nightly run 44696810225 at `68fbc96` (job 136155413649, runner image win11-vs2026-arm64 20261115.219) passes each test of `pod-gsr` with `--test-threads=1`: 25 unit tests and 6 of `tests/loopback.rs`, with the SRP handshake (`one_megabyte_crosses_the_relay`, `different_secrets_fail_the_handshake`). The same step in the run 43467939399 at `1335e9a` (job 132031980992, image 20261101.203, the same `openssl-src` 300.6.1+3.6.3 and Rust 1.99) ended with `STATUS_ACCESS_VIOLATION` after `a_connector_with_no_listener_is_unavailable`. The runs between them skipped the step. No change of `pod-gsr` between the two commits changes its code. One green run does not prove a fix: the crash can depend on the image of the runner or be intermittent. Next: keep the step; when it passes in three runs more, run `pod-gsr` in the main step on Windows ARM64 (with its default threads) and read the result before the exclusion goes.
 
 # T-217: Research: the base of `pod-git`, a git server in Rust with no installed git (PodUtils/podnet#453)
 
