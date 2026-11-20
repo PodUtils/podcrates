@@ -59,8 +59,8 @@ is done. Git and the record keep finished work.
    G-34 and G-35 are done; the last part of G-34 (T-964) goes in the next
    tag. cfb's A-X-18 (T-106, partial) waits for cfb's answer on #223. Both
    reply comments are current.
-7. The open hand-off is COORD-149 (#245, `v0.79.0`), with no take in its
-   list. Write each take in its "Takes" list, and close it when each
+7. The open hand-off is COORD-149 (#245, `v0.79.0`): podvm took it in
+   `e864b31` (PodUtils/podvm#616; its finding is T-1009, with T-996). Write each take in its "Takes" list, and close it when each
    consumer took its tag or a later one (call C780). The hand-off of the
    next tag names T-997, T-998, T-999 and T-988 for podvm (#245 names them
    already, as work of `main`). The pushes of a cloud session of this
