@@ -118,17 +118,11 @@ fn rename(from: &Path, to: &Path) -> io::Result<()> {
     std::fs::rename(from, to)
 }
 
-/// One move that replaces and writes through (`MOVEFILE_WRITE_THROUGH`):
-/// it returns when the move is on disk.
+/// A rename with POSIX semantics where the file system takes it, which
+/// returns when the rename is on disk.
 #[cfg(windows)]
 fn rename(from: &Path, to: &Path) -> io::Result<()> {
-    use std::os::windows::ffi::OsStrExt;
-    use windows_sys::Win32::Storage::FileSystem::{MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH, MoveFileExW};
-    let wide = |p: &Path| p.as_os_str().encode_wide().chain(Some(0)).collect::<Vec<u16>>();
-    let (from, to) = (wide(from), wide(to));
-    // SAFETY: both are NUL-terminated wide strings that live for the call.
-    let done = unsafe { MoveFileExW(from.as_ptr(), to.as_ptr(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) };
-    if done == 0 { Err(io::Error::last_os_error()) } else { Ok(()) }
+    win::rename(from, to)
 }
 
 #[cfg(unix)]
@@ -136,7 +130,7 @@ fn sync_dir(dir: &Path) -> io::Result<()> {
     std::fs::File::open(dir)?.sync_all()
 }
 
-/// The move wrote through: there is no directory to sync.
+/// The rename wrote through: there is no directory to sync.
 #[cfg(not(unix))]
 fn sync_dir(_dir: &Path) -> io::Result<()> {
     Ok(())
@@ -153,6 +147,10 @@ fn write_in_place(path: &Path, body: &[u8]) -> io::Result<()> {
     file.write_all(body)?;
     file.sync_all()
 }
+
+#[cfg(windows)]
+#[path = "replace_win.rs"]
+mod win;
 
 #[cfg(test)]
 #[path = "replace_tests.rs"]

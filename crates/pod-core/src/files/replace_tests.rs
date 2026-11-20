@@ -92,3 +92,23 @@ fn a_rename_that_fails_writes_in_place_only_with_the_fallback() {
     assert_eq!(names(&dir), ["resolv.conf"], "no temporary file stays");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// A reader holds the old file open: the rename with POSIX semantics
+/// replaces the name, and the reader keeps the old body.
+#[cfg(windows)]
+#[test]
+fn on_windows_a_replace_takes_a_name_that_a_reader_holds() {
+    use std::io::Read;
+    let dir = dir("held");
+    let path = dir.join("key");
+    std::fs::write(&path, b"old").unwrap();
+    let mut reader = std::fs::File::open(&path).unwrap();
+    replace_private(&path, b"new", 0o600, false).unwrap();
+    assert_eq!(std::fs::read(&path).unwrap(), b"new");
+    let mut old = Vec::new();
+    reader.read_to_end(&mut old).unwrap();
+    assert_eq!(old, b"old");
+    drop(reader);
+    assert_eq!(names(&dir), ["key"]);
+    let _ = std::fs::remove_dir_all(&dir);
+}
