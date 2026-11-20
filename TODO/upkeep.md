@@ -3619,7 +3619,7 @@ sh scripts/agent/check.sh
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 

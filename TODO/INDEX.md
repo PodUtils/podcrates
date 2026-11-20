@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**832 entries: 144 open, 33 partial, 7 blocked, 648 done.**
+**832 entries: 144 open, 29 partial, 7 blocked, 652 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 6 | 11 | 0 | 193 | 210 |
-| P2 | 69 | 12 | 4 | 331 | 416 |
+| P2 | 69 | 8 | 4 | 335 | 416 |
 | P3 | 69 | 10 | 3 | 122 | 204 |
-| **All** | 144 | 33 | 7 | 648 | 832 |
+| **All** | 144 | 29 | 7 | 652 | 832 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -812,9 +812,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-930](services.md) | P2 | S | M5 | defect | done | `pod-services`: the Syncthing relay DVWOU27 moved to 61.223.4.2; cloudflared 2026.11.1 changed `quick_tunnel.go` (services 44282821174) |
 | [T-931](adapters.md) | P3 | S | M3 | defect | done | `pod-cloudflare`: a quick tunnel opens two edge connections; cloudflared opens one |
 | [T-932](upkeep.md) | P2 | M | M5 | chore | open | A check of the temp files that the crates of podcrates make (PodUtils/podvm#567, lesson 5) |
-| [T-933](upkeep.md) | P2 | S | M5 | defect | partial | `pod-cloudflare`: three tests fail on Windows, where they ran for the first time (nightly 44275593101) |
-| [T-934](transport.md) | P2 | S | M1 | defect | partial | `pod-proxy`: an exec proxy runs `sh -c`, which breaks a Windows path and needs `sh` on Windows |
-| [T-935](foundation.md) | P2 | S | M0 | defect | partial | `pod-core`: two renames onto one name at once give "Access is denied" on Windows |
+| [T-933](upkeep.md) | P2 | S | M5 | defect | done | `pod-cloudflare`: three tests fail on Windows, where they ran for the first time (nightly 44275593101) |
+| [T-934](transport.md) | P2 | S | M1 | defect | done | `pod-proxy`: an exec proxy runs `sh -c`, which breaks a Windows path and needs `sh` on Windows |
+| [T-935](foundation.md) | P2 | S | M0 | defect | done | `pod-core`: two renames onto one name at once give "Access is denied" on Windows |
 | [T-936](foundation.md) | P1 | S | M0 | defect | done | `pod-testkit`: `refused()` gives a timeout on macOS, not a refusal |
 | [T-937](transport.md) | P3 | S | M1 | defect | done | `pod-dns`: a test of the resolver asks the resolver of the host (nightly 44275593101) |
 | [T-938](upkeep.md) | P2 | S | M5 | defect | partial | The riscv64 job of `nightly.yml` meets its limit of 90 minutes |
@@ -864,7 +864,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-986](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: an error of the WARP API names a proxy that does not answer once for each host (PodUtils/podnet#658) |
 | [T-987](roads.md) | P2 | S | M2 | defect | done | `pod-ws`: the dial error of a dialer of the caller names its target two times (PodUtils/podnet#658) |
 | [T-988](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: the check of `exec=` for the first program of a caller with guest paths: `PATH`, a relative name and each `#!` line (PodUtils/podvm#613) |
-| [T-990](relay.md) | P2 | S | M2 | defect | partial | `pod-quic`: an endpoint on `[::]` is IPv6 only on Windows, so the QUIC leg of `pod-cloudflare` sends nothing to an edge of IPv4 |
+| [T-990](relay.md) | P2 | S | M2 | defect | done | `pod-quic`: an endpoint on `[::]` is IPv6 only on Windows, so the QUIC leg of `pod-cloudflare` sends nothing to an edge of IPv4 |
 | [T-995](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: `Child::wait_forwarding` forwards SIGHUP, SIGINT and SIGTERM only, so a SIGUSR1 or a SIGQUIT kills the waiter and the payload stays |
 | [T-996](podvm.md) | P3 | S | M6 | defect | done | `pod-supervise`: a SIGQUIT, SIGUSR1, SIGUSR2, SIGALRM or SIGPWR ends the detached launcher, and the launcher reads SIGHUP and gives it to nobody |
 | [T-997](podvm.md) | P2 | S | M6 | feature | done | `pod-beneath`: one open of a path under a base with no link and no allocation, for the volume base of podvm and pod-enter |

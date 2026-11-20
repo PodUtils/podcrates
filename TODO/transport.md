@@ -7683,7 +7683,7 @@ cargo test -p pod-tls --all-features --test roots
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 

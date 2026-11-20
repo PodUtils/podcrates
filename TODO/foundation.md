@@ -2554,7 +2554,7 @@ python3 -I scripts/codegraph.py dups
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 

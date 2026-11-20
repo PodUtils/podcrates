@@ -10493,7 +10493,7 @@ timeout 300 cargo test -p pod-relay --all-features --test pair_code_live -- --ig
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
