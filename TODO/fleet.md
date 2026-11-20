@@ -369,7 +369,7 @@ podrunner (a project that runs CI jobs, GitHub #47) holds each unit's egress on 
 ## Premise
 
 - Read, at `5cedb23`: `crates/pod-broker/src/serve.rs:180` is `lease`. It takes the job from `Proxy-Authorization` (`Bearer`, or Basic with the token as the password) and refuses with 407 when the header is missing. The issue cites lines 155 to 175. The function runs from line 158 to line 182. The call is at `crates/pod-broker/src/serve.rs:119`.
-- Read: `crates/pod-broker/src/broker.rs:178` (`serve_tcp`) and `crates/pod-broker/src/broker.rs:194` (`serve_unix`) each serve every job. No call binds one listener to one job. `Broker::drop_job` (`crates/pod-broker/src/broker.rs:155`) ends the connections of a job.
+- Read: `crates/pod-broker/src/broker.rs:190` (`serve_tcp`) and `crates/pod-broker/src/broker.rs:206` (`serve_unix`) each serve every job. No call binds one listener to one job. `Broker::drop_job` (`crates/pod-broker/src/broker.rs:167`) ends the connections of a job.
 - Read: `crates/pod-broker/README.md` writes the unix upstream as `http+unix:PATH` at line 47. `PodUtils/podnet:crates/podnet-netns/src/upstream/tests.rs` parses `http://unix:/PATH` and `socks5://unix:///PATH`. The README form does not parse in `podnet pod -x`: podnet's `Proxy::parse` in `PodUtils/podnet:crates/podnet-netns/src/upstream.rs` has no `http+unix:` prefix. The documentation defect is fixed in the commit that adds this entry (see the Done line of the COORD issue).
 - Read: section 0 item 4 of the issue says that SPEC section 9.5 of the design review writes `socks5://unix:PATH`. `pod-broker` speaks HTTP CONNECT and absolute-form HTTP only, not SOCKS5. podnet parses a SOCKS5 unix proxy, so the text parses but the broker does not answer SOCKS5. This is a note for the spec, not for podcrates. The working form is `http://unix:/PATH`.
 - Not measured: the listener. Not read: the design review (the owner holds the zip).
@@ -440,7 +440,7 @@ A proxy-only host can have an upstream CONNECT proxy that takes names only. Two 
 
 ## Premise
 
-- Read: `crates/pod-broker/src/broker.rs:301` (`upstream` takes one `Option<pod_proxy::Proxy>` and dials the checked address) and `crates/pod-broker/src/serve.rs:312` (`connect` dials `Target::Addr`). The issue cites `serve.rs:273-287` and `broker.rs:183-191`. The code agrees to within a few lines.
+- Read: `crates/pod-broker/src/broker.rs:313` (`upstream` takes one `Option<pod_proxy::Proxy>` and dials the checked address) and `crates/pod-broker/src/serve.rs:312` (`connect` dials `Target::Addr`). The issue cites `serve.rs:273-287` and `broker.rs:183-191`. The code agrees to within a few lines.
 - Read: call C28 says that through an upstream proxy the broker sends the checked address and never the name. This entry changes C28 for an upstream that takes names only. The default stays the checked address. Write the change as a new call when the work starts.
 - Not read: `APPENDIX-DEFERRED.md` of the design review (the owner holds the zip). Not run: the two sandbox hosts.
 
@@ -976,13 +976,13 @@ path of `/tmp`, with mode 0600 set after the bind.
 
 - Read (this tree): `crates/pod-broker/src/target.rs:187-189`:
   `parse_absolute` refuses a target in origin form ("a proxy takes a
-  request-target in absolute form"). `crates/pod-broker/README.md:284`
+  request-target in absolute form"). `crates/pod-broker/README.md:291`
   lists that 400. They agree with the review.
 - The code moved since `63348de`, the commit of the review (T-161 and
   others). Today `serve_one` is at `crates/pod-broker/src/serve.rs:104`,
   `next` at `:223`, `check` at `:255` and `connect` at `:312`; `exchange`
   is at `crates/pod-broker/src/forward.rs:71`; `Broker::serve_unix_job` is
-  at `crates/pod-broker/src/broker.rs:215` and `serve_tcp_job` at `:239`;
+  at `crates/pod-broker/src/broker.rs:227` and `serve_tcp_job` at `:251`;
   the advice of `bind_unix` (a directory of mode 0700) is at
   `crates/pod-broker/src/control.rs:137-140`. The steps agree with the
   review.
@@ -1120,13 +1120,13 @@ or in spaces get one hash; each change of meaning gets another.
 ## Premise
 
 - Read (this tree; the code moved since `63348de`, the commit of the
-  review): `crates/pod-broker/src/broker.rs:110-151`. `load` writes
+  review): `crates/pod-broker/src/broker.rs:122-163`. `load` writes
   `broker.job.load` with `job`, `mode`, `rules`, `ttl_s` (and `flagged`,
   T-161), and no identity of the policy.
 - Read: `crates/pod-broker/src/jobs.rs:68-75` (`Load` holds a `Policy`)
   and `:88-103` (`JobInfo`: `job`, `mode`, `rules`, `flagged`,
   `expires_in`, `open`).
-- Read: `crates/pod-broker/src/control.rs:54-68`: `info`, the JSON of a
+- Read: `crates/pod-broker/src/control.rs:98-112`: `info`, the JSON of a
   job. The `load` answer is `info` with more keys (`:99-108`), and `list`
   maps `info` (`:117-120`). One new field of `JobInfo` thus reaches both
   answers. The control socket checks the user of its peer (`:179-186`).
@@ -1139,7 +1139,7 @@ or in spaces get one hash; each change of meaning gets another.
   `ports` and a missing `path` are not written (`skip_serializing_if`), so
   an empty list and a missing list give one hash. The rule `allow[{n}]`
   comes from `:258-259`.
-- Read: `crates/pod-broker/Cargo.toml:22` (`sha2` is a dependency);
+- Read: `crates/pod-broker/Cargo.toml:25` (`sha2` is a dependency);
   `crates/pod-broker/tests/audit.rs:16` (`no_audit_line_holds_a_planted_secret`
   reads the audit lines only); `schemas/log.v1.schema.json` (`fields` is an
   object, so a new key is compatible). They agree with the review.
@@ -6703,7 +6703,7 @@ of the crate with `-D warnings`: clean.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6723,6 +6723,18 @@ The broker's catalogue of `pod-control`: `load` an `Extra` of the master tier wi
 ```sh
 cargo test -p pod-broker --all-features --test control
 ```
+
+## Done
+
+2026-11-20, commits `f17ab298` (the control) and `3b82a329` (the plant), and this commit (the record). Calls C856 and C857.
+
+- The wire: `pod-control` protocol 1. `control::extras()`: `load` (master, `outlives`), `drop` (operate), `list` (read); `control::catalogue()`, `control::settings(program, version)` (a line of 1 MiB, `control::MAX_LINE`). The result of each method has the fields of its old answer. A failure of the class usage is `bad-params`.
+- `Broker::control(method, params)` answers the three rows, for a host that serves them on its own control socket. `control::Control` is the `pod_control::Host` of a broker: `status` (`jobs`, `ending`), `metrics` (`Broker::counts`, the count of each kind of audit line, and the gauges `jobs` and `open`), `drain` (no new `load`: `busy`), `stop` (each job dropped), `reload` (`unsupported`). `control::serve_control(broker, path, settings)` gives a `ControlServer` with `ending` (a `watch` of tokio).
+- Gone: `Broker::control_line`, `control::answer_failure`, `control::VERSION`. `control::bind_unix` is now `pod_broker::bind_unix`. `libc` is a dev-dependency only.
+- `pod_control::conformance::Options::extras`: each extra of the host above the tier of the caller must answer as a name that is not there.
+- Proof: `cargo test -p pod-broker --all-features`: each test binary passed (the lib 21, `control` 11, `tls_clients` 14, the others as before); `tests/control.rs` keeps the names of its tests and adds `load_takes_the_master_tier_and_drop_the_operate_tier`, `the_control_of_the_broker_conforms_at_each_tier` (the conformance check at each tier, with the extras) and `drain_takes_no_new_load_and_stop_drops_each_job`; the lib test `each_line_is_counted_by_its_event_and_decision`. 30 runs of the `control` binary in a loop passed. `cargo test -p pod-control --all-features` passed (17, 13, 2, 1). The plant `broker-load-lower-tier` is caught, and `broker-bind-at-the-path` and `control-tier-refusal-names-the-method` are still caught.
+- The consumers: podrunner (`podrunner-egress`) and podvm (`--net broker`) call `Broker::load` and `Broker::drop_job` in their own process and read no wire of the control; they change nothing at their take. podssh does not take `pod-broker`.
+- Remains: T-1023 (the frame of `pod-control` does not wipe a line that holds a credential).
 
 # T-1019: `pod-broker`: the cargo leg of `tls_clients` runs the proxy of rustup in a temporary directory, where it finds no toolchain
 
@@ -6870,3 +6882,33 @@ roots) gets its own measurement before the broker gives it.
 ```sh
 cargo test -p pod-broker --all-features --test tls_clients -- go_ --nocapture
 ```
+
+# T-1023: `pod-control`: the bytes of a line that holds a token or a secret are not wiped
+
+**Source:** T-1000 (the control of `pod-broker` on `pod-control`)
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A request of the control can hold a credential: the master token of `auth`, and the job token and the values of the secrets of the broker's `load`. The server of `pod-control` keeps the bytes of each line in memory that it frees with no wipe: the buffer of `frame::Lines` (`drain` leaves the bytes of a line in its capacity, and a growth of the buffer leaves a copy), the `String` of the line, the `serde_json::Value` of `wire::parse` (it clones `params`), and the `params` of `Call`. The old control of the broker read each line into a `Zeroizing<Vec<u8>>`; `pod_broker::Token` and `Secrets` wipe their own copies, but the copies of the frame stay.
+
+## Premise
+
+- Read: `crates/pod-control/src/frame.rs` (`Lines::next_line`), `src/server.rs` (`serve_connection`, `request`, `Call`), `src/wire.rs` (`parse`), `crates/pod-broker/src/control.rs` (`LoadParams`).
+- Not measured: the bytes of a token in the freed memory of a server.
+
+## Approach
+
+`Lines` keeps its buffer in `Zeroizing` and wipes the bytes of each line that it gives (the drained part and the old buffer at each growth). `serve_connection` wipes the text of each line after `wire::parse`. `wire::parse` moves `params` out of the map in place of a clone. `Call` wipes each string of its `params` (a walk over the `Value` with `zeroize`) after the answer of the host, and `Token` of `pod-control` keeps its text in `Zeroizing`. The client wipes the line that it writes for `auth`.
+
+## Prove
+
+```sh
+cargo test -p pod-control --all-features
+```
+
+A unit test reads the buffer of `Lines` and its spare capacity after a line with a token, and finds no byte of the token; a test of `Call` finds no byte of a param string after the answer.

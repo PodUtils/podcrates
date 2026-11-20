@@ -9,6 +9,9 @@ repository.workspace = true
 
 [dependencies]
 pod-core = { workspace = true, features = ["async"] }
+# The control: the catalogue with its tiers, the server of JSON lines on a
+# Unix socket, the check of the peer user (T-1000).
+pod-control = { workspace = true }
 # The upstream chain (a Dialer through an HTTP or SOCKS5 proxy), and the
 # reader of a request's head and of a request's body.
 pod-proxy = { workspace = true }
@@ -46,8 +49,8 @@ schemars = { workspace = true, optional = true }
 [features]
 schema = ["dep:schemars"]
 
-# The user of the peer of the control socket (geteuid).
-[target.'cfg(unix)'.dependencies]
+# The umask of a test of the bind of a socket.
+[target.'cfg(unix)'.dev-dependencies]
 libc = "0.2"
 
 [dev-dependencies]

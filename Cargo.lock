@@ -4738,6 +4738,7 @@ dependencies = [
  "boon",
  "libc",
  "pod-acme",
+ "pod-control",
  "pod-core",
  "pod-proxy",
  "pod-testkit",

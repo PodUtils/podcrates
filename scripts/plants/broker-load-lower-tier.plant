@@ -1,0 +1,8 @@
+# load, which gives a new principal whose effect outlives the token of its
+# caller, has the operate tier of the control, not the master tier
+# (T-1000).
+ENTRY=T-1000
+GROUP=control
+EXPECT='load_takes_the_master_tier_and_drop_the_operate_tier'
+RUN='cargo test -p pod-broker --all-features --test control load_takes_the_master_tier'
+LIMIT=1800

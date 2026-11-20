@@ -5,8 +5,9 @@
 //! and the time. It never holds a secret value: no token, no header, no
 //! path and no query (a path or a query can carry a credential).
 
+use std::collections::BTreeMap;
 use std::io::Write;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use pod_core::{Class, Stage};
@@ -159,6 +160,38 @@ impl Audit for Memory {
     }
 }
 
+/// The count of each kind of audit line, for the `metrics` of the control.
+pub(crate) type Counts = Arc<Mutex<BTreeMap<String, u64>>>;
+
+/// The sink of the host, and a count of each line on its way there.
+pub(crate) struct Counted {
+    pub inner: Arc<dyn Audit>,
+    pub counts: Counts,
+}
+
+impl Audit for Counted {
+    fn line(&self, line: &Line) {
+        let mut counts = self.counts.lock().unwrap_or_else(|e| e.into_inner());
+        *counts.entry(count_name(line)).or_default() += 1;
+        drop(counts);
+        self.inner.line(line);
+    }
+}
+
+/// The name of the count of a line: the event without `broker.`, with `_`
+/// for `.`, then the decision of a connection or `failed` for a failure:
+/// `connection_allow`, `connection_deny`, `job_load`, `job_load_failed`.
+fn count_name(line: &Line) -> String {
+    let mut name = line.event.strip_prefix("broker.").unwrap_or(line.event).replace('.', "_");
+    if let Some(decision) = line.fields["decision"].as_str() {
+        name.push('_');
+        name.push_str(decision);
+    } else if line.class.is_some() {
+        name.push_str("_failed");
+    }
+    name
+}
+
 /// `now` in RFC 3339, UTC, to the millisecond.
 pub fn rfc3339(now: SystemTime) -> String {
     let since = now.duration_since(UNIX_EPOCH).unwrap_or_default();
@@ -177,6 +210,22 @@ pub fn rfc3339(now: SystemTime) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn each_line_is_counted_by_its_event_and_decision() {
+        let counts = Counts::default();
+        let sink = Counted { inner: Arc::new(Memory::new()), counts: counts.clone() };
+        let mut allow = Line::new("info", "broker.connection");
+        allow.set("decision", "allow");
+        let mut failed = Line::new("warn", "broker.job.load");
+        failed.failed(Stage::Proxy, Class::Usage);
+        for line in [&allow, &allow, &failed, &Line::new("info", "broker.job.drop")] {
+            sink.line(line);
+        }
+        let counts = counts.lock().unwrap().clone();
+        let want = [("connection_allow", 2), ("job_drop", 1), ("job_load_failed", 1)];
+        assert_eq!(counts, want.map(|(n, c)| (n.to_string(), c)).into_iter().collect());
+    }
 
     #[test]
     fn the_time_is_rfc_3339_in_utc() {

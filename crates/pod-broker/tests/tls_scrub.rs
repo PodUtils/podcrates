@@ -145,21 +145,24 @@ async fn a_planted_secret_is_in_no_log_line_no_audit_line_no_answer_and_no_error
     let bad = format!(
         r#"{{"schema":1,"mode":"open","credentials":[{{"placeholder":"{SECRET}","secret":"s","hosts":["a.example"]}}]}}"#
     );
-    let line = format!(
-        r#"{{"op":"load","job":"job2","token":"{TOKEN_TWO}","ttl_s":60,"policy":{bad},"secrets":{{"s":"{SECRET}"}}}}"#
-    );
-    let mut control = broker.control_line(&line).to_string();
+    let bad =
+        format!(r#"{{"job":"job2","token":"{TOKEN_TWO}","ttl_s":60,"policy":{bad},"secrets":{{"s":"{SECRET}"}}}}"#);
     let good = format!(
-        r#"{{"op":"load","job":"job3","token":"made-up-token-of-job-3","ttl_s":60,"policy":{},"secrets":{{"github":"{SECRET}"}}}}"#,
+        r#"{{"job":"job3","token":"made-up-token-of-job-3","ttl_s":60,"policy":{},"secrets":{{"github":"{SECRET}"}}}}"#,
         policy("", "")
     );
-    control.push_str(&broker.control_line(&good).to_string());
-    control.push_str(&broker.control_line(r#"{"op":"list"}"#).to_string());
-    control.push_str(
-        &broker
-            .control_line(r#"{"op":"load","job":"j","token":"x","ttl_s":1,"policy":{},"secrets":{"a":1}}"#)
-            .to_string(),
-    );
+    let calls = [
+        ("load", bad.as_str()),
+        ("load", good.as_str()),
+        ("list", "{}"),
+        ("load", r#"{"job":"j","token":"x","ttl_s":1,"policy":{},"secrets":{"a":1}}"#),
+        ("load", &format!(r#"{{"job":"j","token":"{SECRET}","ttl_s":"{SECRET}","policy":{{}}}}"#)),
+    ];
+    let mut control = String::new();
+    for (id, (method, params)) in calls.into_iter().enumerate() {
+        let outcome = broker.control(method, &serde_json::from_str(params).unwrap());
+        control.push_str(&pod_control::wire::answer_line(Some(id as u64), &outcome));
+    }
     assert!(control.contains(r#""ok":true"#) && control.contains("ca_pem"), "{control}");
     audit.wait(|l| l.fields["notes"] == "upstream-tls").await;
     let lines: Vec<String> = audit.lines().iter().map(|l| l.to_json()).collect();

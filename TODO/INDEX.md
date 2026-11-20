@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**837 entries: 146 open, 30 partial, 7 blocked, 654 done.**
+**838 entries: 146 open, 30 partial, 7 blocked, 655 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 5 | 11 | 0 | 194 | 210 |
-| P2 | 71 | 9 | 4 | 336 | 420 |
+| P2 | 71 | 9 | 4 | 337 | 421 |
 | P3 | 70 | 10 | 3 | 122 | 205 |
-| **All** | 146 | 30 | 7 | 654 | 837 |
+| **All** | 146 | 30 | 7 | 655 | 838 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -870,7 +870,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-997](podvm.md) | P2 | S | M6 | feature | done | `pod-beneath`: one open of a path under a base with no link and no allocation, for the volume base of podvm and pod-enter |
 | [T-998](podvm.md) | P2 | S | M6 | feature | done | `pod-confine` and `pod-enter`: the program that a dynamic loader runs takes the rule of `exec=` (PodUtils/podvm#613) |
 | [T-999](podvm.md) | P2 | S | M6 | feature | done | `pod-confine`: a table of any access in the shape of the exec table, and `pod-enter` gives the payload a write table (PodUtils/podvm#613) |
-| [T-1000](fleet.md) | P2 | S | M8 | feature | open | `pod-broker`: the control of a broker on the wire and the tiers of `pod-control` |
+| [T-1000](fleet.md) | P2 | S | M8 | feature | done | `pod-broker`: the control of a broker on the wire and the tiers of `pod-control` |
 | [T-1005](fleet.md) | P3 | S | M8 | chore | open | `pod-broker`: the clients of a job in the versions that no test runs |
 | [T-1009](podvm.md) | P1 | S | M6 | defect | done | `pod-supervise` and `pod-enter`: the thread of a foreground hold blocks only SIGHUP, SIGINT, SIGQUIT and SIGTERM, so a SIGUSR1 to a waiter with a hold ends the process and leaves the payload |
 | [T-1010](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: the child of the payload keeps the signal mask of the caller, so a payload of a caller that blocked a signal never gets it |
@@ -883,4 +883,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1020](fleet.md) | P1 | S | M8 | defect | partial | `pod-broker`: cargo on macOS does not read `SSL_CERT_FILE`, so the cargo of a job refuses the leaf of the job |
 | [T-1021](foundation.md) | P2 | S | M0 | defect | open | `pod-testkit`: `host::tool` finds no program on Windows, so a test that needs git skips on the Windows runners |
 | [T-1022](fleet.md) | P2 | S | M8 | defect | open | `pod-broker`: Go on macOS reads no variable of a CA file, so `go_takes_the_bundle_by_ssl_cert_file` can fail on the macOS jobs |
+| [T-1023](fleet.md) | P2 | S | M8 | defect | open | `pod-control`: the bytes of a line that holds a token or a secret are not wiped |
 | [T-1034](transport.md) | P2 | S | M1 | defect | open | `pod-services`: the watch `http-status` of the upload of `temp-sh` gets 429 from a runner of GitHub, not 405 |

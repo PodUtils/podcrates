@@ -1,0 +1,13 @@
+diff --git a/crates/pod-broker/src/control.rs b/crates/pod-broker/src/control.rs
+index 897ba453..d4494d82 100644
+--- a/crates/pod-broker/src/control.rs
++++ b/crates/pod-broker/src/control.rs
+@@ -48,7 +48,7 @@ pub const MAX_LINE: usize = 1 << 20;
+ pub fn extras() -> Vec<Extra> {
+     let load = "Load a job: its id, its token, its TTL in seconds, its policy and the values of its secrets.";
+     vec![
+-        Extra { outlives: true, ..Extra::new("load", Tier::Master, load) },
++        Extra::new("load", Tier::Operate, load),
+         Extra::new("drop", Tier::Operate, "End a job and each of its connections."),
+         Extra::new("list", Tier::Read, "Each job with its mode, its rules, its TTL and its open connections."),
+     ]

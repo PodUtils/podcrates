@@ -25,11 +25,15 @@ use crate::wire::{Code, PROTOCOL};
 pub struct Options {
     /// The longest request line of the server ([`crate::Settings::line_max`]).
     pub line_max: usize,
+    /// The names of the [`crate::Extra`] rows of the host. Each one that
+    /// `methods` does not list must answer as a name that is not there, as
+    /// each row of the crate does.
+    pub extras: Vec<String>,
 }
 
 impl Default for Options {
     fn default() -> Options {
-        Options { line_max: crate::server::LINE_MAX }
+        Options { line_max: crate::server::LINE_MAX, extras: Vec::new() }
     }
 }
 
@@ -104,7 +108,7 @@ pub fn check(connect: &mut dyn FnMut() -> Result<Client, Error>, options: &Optio
         1.into(),
         Code::UnknownMethod,
     );
-    hidden(&mut run, unknown);
+    hidden(&mut run, unknown, &options.extras);
     frame(&mut run, options);
     delegated(&mut run);
     run.found
@@ -150,23 +154,24 @@ fn local(run: &mut Run<'_>) {
     }
 }
 
-/// Each method of the catalogue that `methods` does not list answers as a
-/// name that is not there, word for word.
-fn hidden(run: &mut Run<'_>, unknown: Option<Value>) {
+/// Each method of the catalogue and each extra of the host that `methods`
+/// does not list answers as a name that is not there, word for word.
+fn hidden(run: &mut Run<'_>, unknown: Option<Value>, extras: &[String]) {
     let Some(unknown) = unknown else { return };
     let Some(mut c) = run.client("hidden") else { return };
     let rows = match c.methods() {
         Ok(rows) => rows,
         Err(e) => return run.fault("hidden", e.to_string()),
     };
-    for spec in Method::ALL.map(Method::spec) {
-        if rows.iter().any(|r| r.name == spec.name) {
+    let names = Method::ALL.map(Method::name).into_iter().chain(extras.iter().map(String::as_str));
+    for name in names {
+        if rows.iter().any(|r| r.name == name) {
             continue;
         }
-        let line = format!(r#"{{"schema":1,"id":5,"method":"{}","params":{{"bogus":1}}}}"#, spec.name);
+        let line = json!({ "schema": PROTOCOL, "id": 5, "method": name, "params": { "bogus": 1 } }).to_string();
         let Some(a) = run.exchange(&mut c, "hidden", line.as_bytes(), 5.into()) else { return };
         if a["error"] != unknown {
-            run.fault("hidden", format!("{} above the tier does not answer as a name that is not there", spec.name));
+            run.fault("hidden", format!("{name} above the tier does not answer as a name that is not there"));
         }
     }
 }
