@@ -6437,6 +6437,8 @@ of a failure) and wait for the exit with no poll loop.
 
 - Read (2026-11-13): GitHub #120; podswarm spec, file 21, section 7 (ask
   P-10, milestone M1); file 04.
+- `ChildIo::start` (private, T-934) takes a `std::process::Command` and
+  adds the pipes and the kill on drop; `spawn_args` can use it.
 - In podcrates now: `ChildIo` in `crates/pod-proxy/src/stream.rs` has
   `spawn(command)` (`sh -c`, stdin and stdout piped, stderr inherited, a
   kill on drop) and `exited()` (`try_wait`). The argv form, the stderr
@@ -7681,7 +7683,7 @@ cargo test -p pod-tls --all-features --test roots
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -7701,6 +7703,10 @@ On Windows, run the command with `cmd /C`, or split it into words with the rules
 cargo test -p pod-proxy --all-features
 cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
 ```
+
+## Done
+
+2026-11-20, partial (the proof is the next run of the Windows jobs of `nightly.yml`; call C828): `ChildIo::spawn` runs the command with `sh -c` on Unix and with `cmd.exe /D /S /C "COMMAND"` on Windows (`crates/pod-proxy/src/stream.rs`, `shell`). The line goes to `cmd.exe` as it is (`raw_arg`), so each backslash stays and no `sh` is necessary; `/D` stops the AutoRun commands of the registry. The private `ChildIo::start` takes a `std::process::Command` with the pipes and the kill on drop, for the `spawn_args` of T-441. The test `the_shell_of_a_command_keeps_each_backslash` (`crates/pod-proxy/tests/stream.rs`) runs on each system: `echo` of a Windows path through `cmd.exe`, `printf` through `sh`. The consumers: podnet passes `--proxy` and `PODNET_PROXY` to `Proxy::parse_trusted` and calls no `ChildIo` function; podssh does not use an exec proxy (read in their `main` on 2026-11-20). `cargo test -p pod-proxy -p pod-core -p pod-quic --all-features` (0 failed) and `--test quick_tunnel_standin` of `pod-cloudflare` (13 passed) on Linux; `sh scripts/agent/check-windows.sh`: no fault in `pod-proxy`. Open: the result of `quick_tunnel_standin_goes_through_an_exec_proxy` and of the new test on `windows-2025` and `windows-11-arm`.
 
 # T-937: `pod-dns`: a test of the resolver asks the resolver of the host (nightly 44275593101)
 

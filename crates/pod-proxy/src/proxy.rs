@@ -63,9 +63,10 @@ pub enum Carrier {
     Tcp,
     /// A Unix socket: `socks5h+unix:/PATH` or `socks5h://unix:/PATH`.
     Unix(PathBuf),
-    /// The stdin and the stdout of a command (`sh -c`), one process for each
-    /// connection, as the ProxyCommand of SSH: `http+exec:COMMAND`. Only from
-    /// a value that the user gave on purpose ([`crate::Origin::User`]).
+    /// The stdin and the stdout of a command (`sh -c`; on Windows,
+    /// `cmd.exe /C`), one process for each connection, as the ProxyCommand
+    /// of SSH: `http+exec:COMMAND`. Only from a value that the user gave on
+    /// purpose ([`crate::Origin::User`]).
     Exec(String),
 }
 

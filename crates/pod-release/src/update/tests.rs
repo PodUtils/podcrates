@@ -2,7 +2,7 @@
 //! that serves the files of podcrates v0.76.0 (its asset through a
 //! redirect to a signed URL, as GitHub does), and the plan of a tag.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use pod_testkit::stand::{self, Answer, Request, Stand};
@@ -214,7 +214,7 @@ fn install_refuses_a_binary_that_does_not_run_here() {
     }
     let done = install(&exe, b"#!/bin/sh\necho 'podssh 1.1.0 (abc)'\n", "podssh", &v("1.1.0"), limit).unwrap();
     assert_eq!(done.said, "podssh 1.1.0 (abc)");
-    assert_eq!(done.prev.as_deref().ok(), Some(Path::new(&dir.path().join("podssh.prev"))));
+    assert_eq!(done.prev.as_deref().ok(), Some(dir.path().join("podssh.prev").as_path()));
 }
 
 /// With no pinned tag, an equal release is `UpToDate` and an older one is

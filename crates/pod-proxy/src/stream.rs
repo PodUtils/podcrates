@@ -120,9 +120,9 @@ impl AsyncWrite for Stream {
 }
 
 /// The stdin and the stdout of a command as one byte stream. The command
-/// runs with `sh -c`; its stderr is the stderr of the process, as the
-/// ProxyCommand of SSH has it. The end of the stream closes its stdin; a drop
-/// kills it.
+/// runs with `sh -c` on Unix and with `cmd.exe /D /S /C` on Windows; its
+/// stderr is the stderr of the process, as the ProxyCommand of SSH has it.
+/// The end of the stream closes its stdin; a drop kills it.
 pub struct ChildIo {
     child: tokio::process::Child,
     stdin: Option<tokio::process::ChildStdin>,
@@ -131,9 +131,11 @@ pub struct ChildIo {
 
 impl ChildIo {
     pub fn spawn(command: &str) -> io::Result<ChildIo> {
-        let mut child = tokio::process::Command::new("sh")
-            .arg("-c")
-            .arg(command)
+        ChildIo::start(shell(command))
+    }
+
+    fn start(command: std::process::Command) -> io::Result<ChildIo> {
+        let mut child = tokio::process::Command::from(command)
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::inherit())
@@ -148,6 +150,26 @@ impl ChildIo {
     pub fn exited(&mut self) -> Option<std::process::ExitStatus> {
         self.child.try_wait().ok().flatten()
     }
+}
+
+/// The shell of the system with the command line of the user.
+#[cfg(not(windows))]
+fn shell(command: &str) -> std::process::Command {
+    let mut shell = std::process::Command::new("sh");
+    shell.arg("-c").arg(command);
+    shell
+}
+
+/// The shell of the system with the command line of the user. The line goes
+/// to `cmd.exe` as it is: an argument with quotes would get escapes that
+/// `cmd.exe` does not remove. `/S` removes only the outer quotes, and `/D`
+/// stops the AutoRun commands of the registry.
+#[cfg(windows)]
+fn shell(command: &str) -> std::process::Command {
+    use std::os::windows::process::CommandExt;
+    let mut shell = std::process::Command::new("cmd.exe");
+    shell.raw_arg(format!("/D /S /C \"{command}\""));
+    shell
 }
 
 impl AsyncRead for ChildIo {

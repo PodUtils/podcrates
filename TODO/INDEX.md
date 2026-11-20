@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**811 entries: 146 open, 28 partial, 7 blocked, 630 done.**
+**811 entries: 145 open, 29 partial, 7 blocked, 630 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 8 | 9 | 0 | 189 | 206 |
-| P2 | 70 | 9 | 4 | 318 | 401 |
+| P2 | 69 | 10 | 4 | 318 | 401 |
 | P3 | 68 | 10 | 3 | 121 | 202 |
-| **All** | 146 | 28 | 7 | 630 | 811 |
+| **All** | 145 | 29 | 7 | 630 | 811 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -813,7 +813,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-931](adapters.md) | P3 | S | M3 | defect | done | `pod-cloudflare`: a quick tunnel opens two edge connections; cloudflared opens one |
 | [T-932](upkeep.md) | P2 | M | M5 | chore | open | A check of the temp files that the crates of podcrates make (PodUtils/podvm#567, lesson 5) |
 | [T-933](upkeep.md) | P2 | S | M5 | defect | partial | `pod-cloudflare`: three tests fail on Windows, where they ran for the first time (nightly 44275593101) |
-| [T-934](transport.md) | P2 | S | M1 | defect | open | `pod-proxy`: an exec proxy runs `sh -c`, which breaks a Windows path and needs `sh` on Windows |
+| [T-934](transport.md) | P2 | S | M1 | defect | partial | `pod-proxy`: an exec proxy runs `sh -c`, which breaks a Windows path and needs `sh` on Windows |
 | [T-935](foundation.md) | P2 | S | M0 | defect | open | `pod-core`: two renames onto one name at once give "Access is denied" on Windows |
 | [T-936](foundation.md) | P1 | S | M0 | defect | done | `pod-testkit`: `refused()` gives a timeout on macOS, not a refusal |
 | [T-937](transport.md) | P3 | S | M1 | defect | done | `pod-dns`: a test of the resolver asks the resolver of the host (nightly 44275593101) |

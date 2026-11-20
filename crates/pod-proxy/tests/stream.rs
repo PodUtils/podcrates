@@ -1,7 +1,8 @@
 //! A vectored write through a [`Stream`] gives each buffer to the stream under
 //! it in one call. rustls writes its records with one vectored write; a
 //! stream that sends only the first buffer of each call stalled an upload of
-//! podssh over TLS (`resume.cut.up.sftp`).
+//! podssh over TLS (`resume.cut.up.sftp`). The shell of a command keeps each
+//! backslash of a Windows path.
 
 use pod_proxy::Stream;
 use tokio::io::{AsyncReadExt, AsyncWrite as _, AsyncWriteExt};
@@ -51,4 +52,16 @@ async fn a_vectored_write_to_a_command_takes_each_buffer() {
     let mut got = vec![0; whole.len()];
     stream.read_exact(&mut got).await.expect("the bytes from cat");
     assert_eq!(got, whole);
+}
+
+/// The command runs in the shell of the system: `sh` on Unix, `cmd.exe` on
+/// Windows, where `sh` removes each backslash of a path that has no quotes.
+#[tokio::test]
+async fn the_shell_of_a_command_keeps_each_backslash() {
+    let path = r"C:\Users\RUNNER~1\AppData\Local\Temp\pipe.py";
+    let command = if cfg!(windows) { format!("echo {path}") } else { format!("printf '%s\\n' '{path}'") };
+    let mut child = pod_proxy::ChildIo::spawn(&command).expect("the command");
+    let mut got = String::new();
+    child.read_to_string(&mut got).await.expect("the output of the command");
+    assert_eq!(got.trim_end(), path, "{command}");
 }
