@@ -1,0 +1,12 @@
+diff --git a/crates/pod-guest/src/warm/line.rs b/crates/pod-guest/src/warm/line.rs
+--- a/crates/pod-guest/src/warm/line.rs
++++ b/crates/pod-guest/src/warm/line.rs
+@@ -320,7 +320,7 @@
+     let frozen = freeze(&f, hooks);
+     let saved = frozen.stream.and_then(|transport| {
+         let bytes = sync(&part)?;
+-        if bytes == 0 {
++        if bytes == u64::MAX {
+             return Err(failure(Class::Protocol, format!("{}: the emulator wrote no byte", part.display())));
+         }
+         let r = Record { transport, bytes, notes: s.notes.to_vec(), fingerprint: s.fingerprint.to_string() };

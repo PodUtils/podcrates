@@ -7,6 +7,7 @@
 use super::state::load;
 use super::tests::{Alive, dir, idle_mailbox, plan_in, request};
 use super::*;
+use crate::{Accel, qmp};
 
 /// A plan for the QEMU of the host, with its files: the firmware, the
 /// variable store, a raw base of 4 MiB by an absolute path, and the
@@ -22,8 +23,8 @@ fn live_plan(d: &Path) -> (Plan, PathBuf) {
     (plan, base)
 }
 
-fn status(plan: &Plan) -> String {
-    let mut m = qmp::Monitor::connect(&plan.monitor, Duration::from_secs(30)).expect("the QMP socket");
+fn status(socket: &Path) -> String {
+    let mut m = qmp::Monitor::connect(socket, Duration::from_secs(30)).expect("the QMP socket");
     let line = m.ask("{\"execute\":\"query-status\"}").expect("query-status");
     qmp::json_member(&line, "status").unwrap_or_default()
 }
@@ -63,7 +64,7 @@ fn a_real_emulator_saves_and_loads_a_stream() {
     let state = d.join("state");
     let f = print_of(&plan);
     let saved = save(&plan, &f, &state, Duration::from_secs(60));
-    let after = status(&plan);
+    let after = status(&plan.monitor);
     emulator::stop_emulator(&plan, &mut child.0);
     saved.expect("the save");
     assert_eq!(after, "running", "the guest goes on after the save");
@@ -87,7 +88,7 @@ fn a_real_emulator_saves_and_loads_a_stream() {
         let block = m.ask("{\"execute\":\"query-block\"}")?;
         Ok((swap, crate::swap::mailbox_file(&block)))
     });
-    let after = if loaded.is_ok() { status(&plan) } else { String::new() };
+    let after = if loaded.is_ok() { status(&plan.monitor) } else { String::new() };
     emulator::stop_emulator(&plan, &mut child.0);
     let (swap, inside) = loaded.expect("the load and the swap");
     assert_eq!(after, "running", "the guest runs after the load");
@@ -130,7 +131,7 @@ fn a_real_emulator_saves_the_plan_from_qemu_11_and_boots_cold_before() {
     let mut child = Alive(child);
     let state = d.join("state");
     let saved = save(&plan, &f, &state, Duration::from_secs(60));
-    let after = status(&plan);
+    let after = status(&plan.monitor);
     emulator::stop_emulator(&plan, &mut child.0);
     drop(child);
     assert_eq!(after, "running", "the guest goes on after the save");
@@ -151,7 +152,7 @@ fn a_real_emulator_saves_the_plan_from_qemu_11_and_boots_cold_before() {
     let st = start(&s, qemu_img, &base, &plan, agent::AGENT_CMD, &request("tok-live"), &w).unwrap();
     let (how, swap) = (st.how, st.swap);
     let mut child = Alive(st.child);
-    let after = status(&plan);
+    let after = status(&plan.monitor);
     emulator::stop_emulator(&plan, &mut child.0);
     drop(child);
     assert_eq!(after, "running");
@@ -161,5 +162,63 @@ fn a_real_emulator_saves_the_plan_from_qemu_11_and_boots_cold_before() {
     } else {
         assert_eq!(how, Start::Cold(Cold::Missing));
     }
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// A machine line of the caller with no plan, as podvm's direct kernel
+/// boot: [`line::save`] writes the stream and its record, the guest runs
+/// after the save, [`line::check`] takes the record of the same
+/// fingerprint and refuses another one, and a second emulator loads the
+/// stream with [`line::incoming`] and [`line::running`].
+#[test]
+fn a_real_emulator_saves_and_loads_a_line_of_the_caller() {
+    pod_testkit::need_tool!("qemu-system-x86_64");
+    let d = dir("warm-live-line");
+    let bios = d.join("hlt.bin");
+    std::fs::write(&bios, vec![0xf4u8; 256 << 10]).unwrap();
+    let sock = d.join("qmp");
+    let emulator = Path::new("qemu-system-x86_64");
+    let line: Vec<String> = ["-machine", "pc", "-accel", "tcg", "-m", "64", "-display", "none", "-nodefaults"]
+        .map(String::from)
+        .into_iter()
+        .chain(["-bios".to_string(), bios.display().to_string()])
+        .chain(["-qmp".to_string(), format!("unix:{},server=on,wait=off", sock.display())])
+        .collect();
+    let print = line::Inputs::new().emulator(emulator, Accel::Tcg).unwrap().machine(&line).text();
+    let spawn = |args: &[String]| {
+        let _ = std::fs::remove_file(&sock);
+        Alive(Command::new(emulator).args(args).stdin(Stdio::null()).stderr(Stdio::null()).spawn().unwrap())
+    };
+    let mut child = spawn(&line);
+    let (stream, record) = (d.join("state.vm"), d.join("state.rec"));
+    let notes = vec![("mem-mib".to_string(), "64".to_string())];
+    let s = line::Save {
+        monitor: &sock,
+        stream: &stream,
+        record: &record,
+        fingerprint: &print,
+        notes: &notes,
+        transport: line::Transport::File,
+        fallback: true,
+        unique: "live",
+        wait: Duration::from_secs(60),
+    };
+    let end = line::save(&s, &mut ());
+    let after = status(&sock);
+    let _ = child.0.kill();
+    let _ = child.0.wait();
+    let saved = end.saved.expect("the save of the line");
+    end.goes_on.expect("the guest goes on");
+    assert_eq!(after, "running", "the guest goes on after the save");
+    let r = line::check(&stream, &record, &print).expect("the record of the save");
+    assert_eq!((r.bytes, r.transport, r.note("mem-mib")), (saved.bytes, saved.transport, Some("64")));
+    let other = line::Inputs::new().emulator(emulator, Accel::Tcg).unwrap().with("kernel", "another").text();
+    let e = line::check(&stream, &record, &other).unwrap_err();
+    assert!(matches!(cold(&e), Some(Cold::Stale { .. })), "{e}");
+
+    let mut child = spawn(&line::incoming(&line, r.transport, &stream).unwrap());
+    line::running(&sock, Some(&mut child.0), Duration::from_secs(60)).expect("the load");
+    assert_eq!(status(&sock), "running", "the guest runs after the load");
+    drop(child);
     let _ = std::fs::remove_dir_all(&d);
 }

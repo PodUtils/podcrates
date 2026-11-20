@@ -1,13 +1,12 @@
 diff --git a/crates/pod-guest/src/warm/state.rs b/crates/pod-guest/src/warm/state.rs
-index 6d8d179..3b0561a 100644
 --- a/crates/pod-guest/src/warm/state.rs
 +++ b/crates/pod-guest/src/warm/state.rs
-@@ -199,7 +199,7 @@ pub fn restore(s: &Settings, qemu_img: &Path, plan: &Plan, request: &Request, wa
+@@ -202,7 +202,7 @@
          return Err(Cold::Missing.failure());
      }
      let now = warm.fingerprint.text();
 -    if saved != now {
 +    if saved != now && saved.lines().next() != now.lines().next() {
-         let (saved, now) = first_difference(&saved, &now);
+         let (saved, now) = line::first_difference(&saved, &now);
          return Err(Cold::Stale { saved, now }.failure());
      }

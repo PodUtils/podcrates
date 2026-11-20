@@ -15,6 +15,10 @@
 //! A wrong or stale state boots cold. It never gives the answer of another
 //! guest: the fingerprint holds each input that the state depends on.
 //!
+//! The steps that know no [`Plan`] are in [`mod@line`]: a guest of another
+//! machine line (a direct kernel boot) saves and loads with them, and
+//! [`save`] and [`restore`] call them.
+//!
 //! The mailbox must be a USB stick ([`crate::plan::MailboxBus::Usb`]): the
 //! restored RAM holds the cache of the saved mailbox, and Windows reads a
 //! mounted volume again only after a change of its medium. The emulator
@@ -30,8 +34,9 @@ use pod_core::{Class, Failure, Stage};
 use sha2::{Digest, Sha256};
 
 use crate::swap::Swap;
-use crate::{Accel, Fat16, Plan, Request, Result, Settings, agent, emulator, failure, io_at, overlay_argv, qmp};
+use crate::{Fat16, Plan, Request, Result, Settings, agent, emulator, failure, io_at, overlay_argv};
 
+pub mod line;
 mod state;
 
 pub use state::{idle, incoming_argv, restore, save};
@@ -57,8 +62,9 @@ pub struct Fingerprint {
     /// The first line of `EMULATOR --version`: the device models and the
     /// format of the stream.
     pub qemu: String,
-    /// `tcg`, or `host` and the sha256 of the CPU of the host under KVM:
-    /// `-cpu host` gives the guest the features of the host.
+    /// `tcg`, or under KVM `host`, the sha256 of the CPU of the host and
+    /// the release of its kernel ([`line::cpu`]): `-cpu host` gives the
+    /// guest the features of the host.
     pub cpu: String,
     /// The sha256 of the firmware code.
     pub firmware: String,
@@ -71,19 +77,23 @@ pub struct Fingerprint {
 }
 
 impl Fingerprint {
-    /// The text of the fingerprint: [`FORMAT`], then one line for each
-    /// input, each value that can hold any text as a JSON string.
+    /// The inputs in the form of a machine line of any guest: `qemu`,
+    /// `cpu`, `firmware`, `base`, `agent`, then one `machine` for each
+    /// argument.
+    pub fn inputs(&self) -> line::Inputs {
+        line::Inputs::new()
+            .with("qemu", self.qemu.as_str())
+            .with("cpu", self.cpu.as_str())
+            .with("firmware", self.firmware.as_str())
+            .with("base", self.base.as_str())
+            .with("agent", self.agent.as_str())
+            .machine(&self.machine)
+    }
+
+    /// The text of the fingerprint ([`line::Inputs::text`]): [`FORMAT`],
+    /// then one line for each input, each value as a JSON string.
     pub fn text(&self) -> String {
-        let mut out = format!("{FORMAT}\n");
-        out.push_str(&format!("qemu {}\n", qmp::json_text(&self.qemu)));
-        out.push_str(&format!("cpu {}\n", qmp::json_text(&self.cpu)));
-        out.push_str(&format!("firmware {}\n", qmp::json_text(&self.firmware)));
-        out.push_str(&format!("base {}\n", qmp::json_text(&self.base)));
-        out.push_str(&format!("agent {}\n", qmp::json_text(&self.agent)));
-        for arg in &self.machine {
-            out.push_str(&format!("machine {}\n", qmp::json_text(arg)));
-        }
-        out
+        self.inputs().text()
     }
 }
 
@@ -92,19 +102,14 @@ impl Fingerprint {
 /// ([`agent::AGENT_CMD`]).
 ///
 /// It starts `EMULATOR --version`, reads the firmware code, and under KVM
-/// reads `/proc/cpuinfo`. An empty `base_digest` is [`Class::Usage`]: with
-/// no digest, a new base under the old name restores the old guest.
+/// reads `/proc/cpuinfo` and the release of the kernel ([`line::cpu`]). An
+/// empty `base_digest` is [`Class::Usage`]: with no digest, a new base
+/// under the old name restores the old guest.
 pub fn fingerprint(plan: &Plan, base_digest: &str, agent_cmd: &str) -> Result<Fingerprint> {
     if base_digest.trim().is_empty() {
         return Err(failure(Class::Usage, "the fingerprint of a saved state needs the digest of the base"));
     }
-    let cpu = match plan.accel {
-        Accel::Tcg => "tcg".to_string(),
-        Accel::Kvm => {
-            let path = Path::new("/proc/cpuinfo");
-            host_cpu(&std::fs::read_to_string(path).map_err(|e| io_at(path, e))?)
-        }
-    };
+    let cpu = line::cpu(plan.accel)?;
     let code = std::fs::read(&plan.firmware_code).map_err(|e| io_at(&plan.firmware_code, e))?;
     Ok(Fingerprint {
         qemu: qemu_version(&plan.emulator)?,

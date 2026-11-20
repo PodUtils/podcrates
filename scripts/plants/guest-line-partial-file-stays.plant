@@ -1,0 +1,8 @@
+# A failed save of a line keeps its partial stream (T-1012,
+# PodUtils/podvm#618), so the store fills with streams that no run reads.
+# The test of the save must fail.
+ENTRY=T-1012
+GROUP=guest
+EXPECT='test warm::line::tests::a_save_of_a_line_leaves_a_whole_state_or_nothing \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- warm::line::tests::a_save_of_a_line_leaves_a_whole_state_or_nothing'
+LIMIT=1800
