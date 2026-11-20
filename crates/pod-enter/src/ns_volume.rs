@@ -25,6 +25,7 @@
 //! a volume missing or writable where the plan says read-only. No fallback
 //! to chroot either: chroot has no mount namespace.
 
+use pod_beneath::Refusal;
 use pod_core::Class;
 use pod_hostprobe::sys::{self, CBuf, Errno, OpenHow};
 
@@ -45,8 +46,8 @@ pub const NS_VOLUME_REMOUNT_STEP: u8 = 36;
 /// (`VolumeBind::host_base`).
 pub const NS_VOLUME_SOURCE_STEP: u8 = 48;
 
-/// The walk of a host path under its base: no link, nothing above it.
-const BENEATH: u64 = sys::RESOLVE_BENEATH | sys::RESOLVE_NO_SYMLINKS;
+/// The buffer of the NUL-ended copy of a host path or its base.
+const PATH_BUF: usize = 4096;
 
 /// The most volumes of a plan: the child names a refused volume by its
 /// index in one byte.
@@ -63,9 +64,9 @@ pub(crate) struct Prepared {
     /// The host side is a directory: the mount point is a directory.
     dir: bool,
     read_only: bool,
-    /// The base and the path under it, where the host path opens with no
-    /// link (`VolumeBind::host_base`).
-    beneath: Option<(CBuf, CBuf)>,
+    /// The base and the host path, where the host path opens under the
+    /// base with no link (`VolumeBind::host_base`).
+    beneath: Option<(Vec<u8>, Vec<u8>)>,
 }
 
 /// The volumes of a plan for the child, built before the fork.
@@ -143,13 +144,21 @@ pub(crate) fn prepare(plan: &Plan, root: &RootDir, without: Option<&str>) -> Res
             None => None,
             Some(base) => Some(beneath(v, base).map_err(|why| usage(v, &why))?),
         };
-        if let Some((base, rel)) = &beneath {
+        if let Some((base, host)) = &beneath {
             // The check before the fork, for a refusal that names the
             // volume; the child opens it again.
-            let fd = open_beneath(base, rel).map_err(|e| {
-                let what = if e == sys::ELOOP || e == sys::EXDEV { "holds a symbolic link" } else { "does not open" };
+            let fd = open_beneath(base, host).map_err(|r| {
+                let e = Errno(r.errno());
+                let (class, what) = match r {
+                    Refusal::Link => (Class::Policy, "holds a symbolic link"),
+                    Refusal::DotDot => (Class::Policy, "goes above its base by `..`"),
+                    Refusal::NoOpenat2 => {
+                        (Class::Unsupported, "cannot open with no link: the kernel has no openat2(2)")
+                    }
+                    _ => (errno_class(e), "does not open"),
+                };
                 Error::runtime(
-                    if e == sys::ELOOP || e == sys::EXDEV { Class::Policy } else { errno_class(e) },
+                    class,
                     format!(
                         "the volume {} is refused: its host path {what} under its base ({} ({}))",
                         volume_label(v),
@@ -166,31 +175,21 @@ pub(crate) fn prepare(plan: &Plan, root: &RootDir, without: Option<&str>) -> Res
     Ok(out)
 }
 
-/// The base and the path under it of a volume with `host_base`, or why not.
-fn beneath(v: &VolumeBind, base: &str) -> std::result::Result<(CBuf, CBuf), String> {
-    let base = base.trim_end_matches('/');
-    if !base.starts_with('/') {
-        return Err("has a host base that is not an absolute path".to_string());
+/// The base and the host path of a volume with `host_base`, or why not.
+fn beneath(v: &VolumeBind, base: &str) -> std::result::Result<(Vec<u8>, Vec<u8>), String> {
+    match pod_beneath::split(base.as_bytes(), v.host.as_bytes()) {
+        Err(Refusal::BaseNotAbsolute) => Err("has a host base that is not an absolute path".to_string()),
+        Err(_) => Err("has a host path that is not under its host base".to_string()),
+        Ok(_) if base.contains('\0') || v.host.contains('\0') => Err("has a NUL byte".to_string()),
+        Ok(_) => Ok((base.as_bytes().to_vec(), v.host.as_bytes().to_vec())),
     }
-    let rel = if v.host == base {
-        "."
-    } else {
-        match v.host.strip_prefix(base).and_then(|r| r.strip_prefix('/')) {
-            Some(r) if !r.is_empty() => r,
-            _ => return Err("has a host path that is not under its host base".to_string()),
-        }
-    };
-    let nul = || "has a NUL byte".to_string();
-    Ok((CBuf::new(if base.is_empty() { "/" } else { base }).ok_or_else(nul)?, CBuf::new(rel).ok_or_else(nul)?))
 }
 
-/// An `O_PATH` descriptor of `rel` under `base`, with no link on the way.
-/// No allocation.
-fn open_beneath(base: &CBuf, rel: &CBuf) -> sys::Sysres {
-    let dir = sys::open(base, sys::O_PATH | sys::O_DIRECTORY | sys::O_CLOEXEC, 0)?;
-    let fd = sys::openat2(dir, rel, &OpenHow { flags: sys::O_PATH | sys::O_CLOEXEC, mode: 0, resolve: BENEATH });
-    let _ = sys::close(dir);
-    fd
+/// An `O_PATH` descriptor of `host` under `base`, with no link on the way
+/// and nothing above the base (`pod-beneath`). No allocation.
+fn open_beneath(base: &[u8], host: &[u8]) -> std::result::Result<i64, Refusal> {
+    let mut buf = [0u8; PATH_BUF];
+    pod_beneath::open_under_base(&sys::Beneath, base, host, pod_beneath::O_PATH, &mut buf).map(i64::from)
 }
 
 /// The flags of the read-only remount of a bind whose mount has the
@@ -269,15 +268,15 @@ fn bind_one(root: i64, v: &Prepared, empty: &CBuf) -> std::result::Result<(), (u
     let bound = match &v.beneath {
         None => mount_on_fd(&v.host, fd, sys::MS_BIND | sys::MS_REC, empty),
         // The source by its descriptor: the path can change after the open.
-        Some((base, rel)) => match open_beneath(base, rel) {
+        Some((base, host)) => match open_beneath(base, host) {
             Ok(src) => {
                 let r = crate::ns_dev_bind::mount_fd_on_fd(src, fd, sys::MS_BIND | sys::MS_REC, empty);
                 let _ = sys::close(src);
                 r
             }
-            Err(e) => {
+            Err(r) => {
                 let _ = sys::close(fd);
-                return Err((NS_VOLUME_SOURCE_STEP, e));
+                return Err((NS_VOLUME_SOURCE_STEP, Errno(r.errno())));
             }
         },
     };

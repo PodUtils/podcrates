@@ -1910,6 +1910,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-beneath"
+version = "0.79.0"
+dependencies = [
+ "linux-raw-sys",
+]
+
+[[package]]
 name = "pod-broker"
 version = "0.79.0"
 dependencies = [
@@ -2054,6 +2061,7 @@ dependencies = [
 name = "pod-enter"
 version = "0.79.0"
 dependencies = [
+ "pod-beneath",
  "pod-confine",
  "pod-core",
  "pod-hostprobe",
@@ -2111,6 +2119,7 @@ name = "pod-hostprobe"
 version = "0.79.0"
 dependencies = [
  "linux-raw-sys",
+ "pod-beneath",
  "pod-core",
  "syscalls",
 ]

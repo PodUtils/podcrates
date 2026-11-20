@@ -32,6 +32,7 @@ pod-actions-expr = { path = "crates/pod-actions-expr", version = "0.79.0" }
 pod-actions-results = { path = "crates/pod-actions-results", version = "0.79.0" }
 pod-actions-store = { path = "crates/pod-actions-store", version = "0.79.0" }
 pod-actions-workflow = { path = "crates/pod-actions-workflow", version = "0.79.0" }
+pod-beneath = { path = "crates/pod-beneath", version = "0.79.0" }
 pod-broker = { path = "crates/pod-broker", version = "0.79.0" }
 pod-cloudflare = { path = "crates/pod-cloudflare", version = "0.79.0" }
 pod-confine = { path = "crates/pod-confine", version = "0.79.0" }

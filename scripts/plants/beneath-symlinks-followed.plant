@@ -1,0 +1,8 @@
+# The walk under a base has no RESOLVE_NO_SYMLINKS: a volume that the host
+# replaces by a link out of the base opens, or gives EXDEV, not the
+# refusal of a link (T-997).
+ENTRY=T-997
+GROUP=beneath
+EXPECT='right: Err\(Link\)'
+RUN='cargo test -p pod-beneath --all-features --test race a_volume_replaced_by_a_link_is_refused'
+LIMIT=900

@@ -118,6 +118,7 @@ fn main() {
     lines.extend(host::guest());
     lines.extend(host::enter());
     lines.extend(host::confine());
+    lines.extend(host::beneath());
     lines.extend(lab());
     lines.extend(oci(tls));
     lines.extend(extract());

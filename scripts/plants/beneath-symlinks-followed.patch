@@ -1,0 +1,12 @@
+diff --git a/crates/pod-beneath/src/lib.rs b/crates/pod-beneath/src/lib.rs
+--- a/crates/pod-beneath/src/lib.rs
++++ b/crates/pod-beneath/src/lib.rs
+@@ -53,7 +53,7 @@
+ /// `RESOLVE_NO_SYMLINKS`: no symbolic link on the way, also at the last name.
+ pub const RESOLVE_NO_SYMLINKS: u64 = g::RESOLVE_NO_SYMLINKS as u64;
+ /// The `resolve` of each walk of this crate.
+-pub const BENEATH: u64 = RESOLVE_BENEATH | RESOLVE_NO_SYMLINKS;
++pub const BENEATH: u64 = RESOLVE_BENEATH;
+ /// `AT_FDCWD`: the directory of the process.
+ pub const AT_FDCWD: c_int = g::AT_FDCWD;
+ /// The number of `openat2(2)` on this architecture.
