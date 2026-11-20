@@ -1,0 +1,191 @@
+# The static QEMU 11.1.3 of PodUtils/static-pkgs (GPL-2.0-only; the recipe
+# pkgs/qemu comes from hermeticbuild/qemu-prebuilt, MIT): the release
+# qemu-11.1.3 builds the upstream tag v11.1.3 (commit 005c61c0) in an Alpine
+# container with `configure --static` and no patch of QEMU, and it carries
+# the source of each copyleft part as an asset. It holds the migration of an
+# NVMe device (QEMU commit 9d378cab; 11.1.0), which the warm save of the
+# plan line of pod-guest with its NVMe root disk needs (T-1035), and the fix
+# "system/physmem: fix use-after-free with dispatch" (QEMU commit 2865bf1c;
+# 10.1.0): a SIGSEGV in address_space_translate_for_iotlb at the boot of a
+# guest with four vCPUs under TCG (PodUtils/podvm#618).
+#
+# podvm's store fetches the archives of qemu-system-x86_64,
+# qemu-system-aarch64 (an arm64 guest) and qemu-img, and the data archive
+# (share/qemu: SeaBIOS, the option ROMs, edk2), and checks the size and the
+# sha256 of each before it uses a byte. Each archive keeps the installed
+# layout (./bin/NAME, ./share/qemu/...). The pins are the archives for an
+# x86_64 (amd64) host. The release attests each asset (SLSA provenance of
+# its release workflow on main, the asset qemu-11.1.3.attestation.jsonl).
+# scripts/ci/static-qemu.sh reads this file.
+id = "static-pkgs-qemu"
+kind = "tool"
+party = "PodUtils"
+about = "The static builds of QEMU 11.1.3 for an x86_64 Linux host in the release qemu-11.1.3 of PodUtils/static-pkgs"
+
+[[endpoint]]
+name = "qemu-system-x86-64"
+scheme = "https"
+host = "github.com"
+port = 443
+path = "/PodUtils/static-pkgs/releases/download/qemu-11.1.3/qemu-system-x86_64-11.1.3-linux-amd64.tar.gz"
+source = { url = "https://github.com/PodUtils/static-pkgs/releases/tag/qemu-11.1.3", read = 2026-11-20, note = "the emulator of an x86_64 guest (PodUtils/podvm#618)" }
+
+[[endpoint]]
+name = "qemu-system-aarch64"
+scheme = "https"
+host = "github.com"
+port = 443
+path = "/PodUtils/static-pkgs/releases/download/qemu-11.1.3/qemu-system-aarch64-11.1.3-linux-amd64.tar.gz"
+source = { url = "https://github.com/PodUtils/static-pkgs/releases/tag/qemu-11.1.3", read = 2026-11-20, note = "the emulator of an arm64 guest on an x86_64 host (PodUtils/podvm#394)" }
+
+[[endpoint]]
+name = "qemu-img"
+scheme = "https"
+host = "github.com"
+port = 443
+path = "/PodUtils/static-pkgs/releases/download/qemu-11.1.3/qemu-img-11.1.3-linux-amd64.tar.gz"
+source = { url = "https://github.com/PodUtils/static-pkgs/releases/tag/qemu-11.1.3", read = 2026-11-20, note = "the tool of the overlays (PodUtils/podvm#389)" }
+
+[[endpoint]]
+name = "data"
+scheme = "https"
+host = "github.com"
+port = 443
+path = "/PodUtils/static-pkgs/releases/download/qemu-11.1.3/qemu-data-11.1.3-linux-amd64.tar.gz"
+source = { url = "https://github.com/PodUtils/static-pkgs/releases/tag/qemu-11.1.3", read = 2026-11-20, note = "share/qemu of the build: the firmware and the option ROMs" }
+
+[[fact]]
+name = "version"
+value = "11.1.3"
+source = { url = "https://github.com/PodUtils/static-pkgs/releases/tag/qemu-11.1.3", read = 2026-11-20, note = "each binary holds the text QEMU emulator version 11.1.3 (qemu-img: qemu-img version 11.1.3); the release builds the upstream tag v11.1.3, commit 005c61c0ef6f6ae615283440b4bb7be51b2c6ddd" }
+
+[[fact]]
+name = "release"
+value = "qemu-11.1.3"
+source = { url = "https://github.com/PodUtils/static-pkgs/releases/tag/qemu-11.1.3", read = 2026-11-20, note = "published 2026-11-20 by the run 44800211410 of release.yml from main at 79c5298" }
+
+[[fact]]
+name = "nvme-commit"
+value = "9d378cab537d70d9e02edc11ff6ded7266c1078e"
+source = { url = "https://github.com/qemu/qemu/commit/9d378cab537d70d9e02edc11ff6ded7266c1078e", read = 2026-11-20, note = "hw/nvme: add basic live migration support; the compare of v11.1.3 with it: ahead 1038, behind 0" }
+
+[[fact]]
+name = "fix-commit"
+value = "2865bf1c5795371ef441e9029bc22566ccff8299"
+source = { url = "https://github.com/qemu/qemu/commit/2865bf1c5795371ef441e9029bc22566ccff8299", read = 2026-11-20, note = "system/physmem: fix use-after-free with dispatch; the compare of v11.1.3 with it: ahead 8968, behind 0" }
+
+[[fact]]
+name = "qemu-system-x86-64-sha256"
+value = "368da02758b8b474448a7a37fed601256ec9cd7e11c09656dbb85276e778c888"
+source = { measured = "the SHA-256 of the archive at the endpoint qemu-system-x86-64", read = 2026-11-20, note = "the digest of the asset in the release API, its line in SHA256SUMS and the subject of the attestation are the same" }
+
+[[fact]]
+name = "qemu-system-x86-64-bytes"
+value = 6814799
+unit = "bytes"
+source = { measured = "the length of the archive at the endpoint qemu-system-x86-64", read = 2026-11-20 }
+
+[[fact]]
+name = "qemu-system-x86-64-member"
+value = "./bin/qemu-system-x86_64"
+source = { measured = "the member of the archive (tar.gz) that holds the binary", read = 2026-11-20 }
+
+[[fact]]
+name = "qemu-system-x86-64-bin-sha256"
+value = "5b5c3a2c181ae3381d1881d615ab923ec1ae35188d0274246ef14863b71c14d4"
+source = { measured = "the SHA-256 of the member ./bin/qemu-system-x86_64", read = 2026-11-20, note = "a static-pie ELF with no PT_INTERP and no DT_NEEDED, linked with musl (scripts/check-static.sh)" }
+
+[[fact]]
+name = "qemu-system-x86-64-bin-bytes"
+value = 33571760
+unit = "bytes"
+source = { measured = "the length of the member ./bin/qemu-system-x86_64", read = 2026-11-20 }
+
+[[fact]]
+name = "qemu-system-aarch64-sha256"
+value = "d8a2cd808f1a16c59be6805aef1bbe24d9dce45b66da49c18d6af3f52e735eb4"
+source = { measured = "the SHA-256 of the archive at the endpoint qemu-system-aarch64", read = 2026-11-20, note = "the digest of the asset in the release API, its line in SHA256SUMS and the subject of the attestation are the same" }
+
+[[fact]]
+name = "qemu-system-aarch64-bytes"
+value = 8211695
+unit = "bytes"
+source = { measured = "the length of the archive at the endpoint qemu-system-aarch64", read = 2026-11-20 }
+
+[[fact]]
+name = "qemu-system-aarch64-member"
+value = "./bin/qemu-system-aarch64"
+source = { measured = "the member of the archive (tar.gz) that holds the binary", read = 2026-11-20 }
+
+[[fact]]
+name = "qemu-system-aarch64-bin-sha256"
+value = "9fba494bd2b25efa022b36d056b840c3c00901d3a65152ed54595e844e98b678"
+source = { measured = "the SHA-256 of the member ./bin/qemu-system-aarch64", read = 2026-11-20, note = "a static-pie ELF with no PT_INTERP and no DT_NEEDED, linked with musl (scripts/check-static.sh)" }
+
+[[fact]]
+name = "qemu-system-aarch64-bin-bytes"
+value = 38909904
+unit = "bytes"
+source = { measured = "the length of the member ./bin/qemu-system-aarch64", read = 2026-11-20 }
+
+[[fact]]
+name = "qemu-img-sha256"
+value = "cffa14e62afc745f5487beb70b5caa6a4814853f5bba92a03e3eeddab53c43a5"
+source = { measured = "the SHA-256 of the archive at the endpoint qemu-img", read = 2026-11-20, note = "the digest of the asset in the release API, its line in SHA256SUMS and the subject of the attestation are the same" }
+
+[[fact]]
+name = "qemu-img-bytes"
+value = 1430921
+unit = "bytes"
+source = { measured = "the length of the archive at the endpoint qemu-img", read = 2026-11-20 }
+
+[[fact]]
+name = "qemu-img-member"
+value = "./bin/qemu-img"
+source = { measured = "the member of the archive (tar.gz) that holds the binary", read = 2026-11-20 }
+
+[[fact]]
+name = "qemu-img-bin-sha256"
+value = "e88a84357dd7f86d2f6dd7159deff4a929c6d9f030b691f378d9a59c0b7cc0ea"
+source = { measured = "the SHA-256 of the member ./bin/qemu-img", read = 2026-11-20, note = "a static-pie ELF with no PT_INTERP and no DT_NEEDED, linked with musl (scripts/check-static.sh)" }
+
+[[fact]]
+name = "qemu-img-bin-bytes"
+value = 3209680
+unit = "bytes"
+source = { measured = "the length of the member ./bin/qemu-img", read = 2026-11-20 }
+
+[[fact]]
+name = "data-sha256"
+value = "b11bff496ff7e345c9e4931306ccc3074e55d5eeb62d4a25f9efb70a3500f66e"
+source = { measured = "the SHA-256 of the archive at the endpoint data", read = 2026-11-20, note = "the digest of the asset in the release API, its line in SHA256SUMS and the subject of the attestation are the same; the arm64 data archive has the same bytes" }
+
+[[fact]]
+name = "data-bytes"
+value = 18171081
+unit = "bytes"
+source = { measured = "the length of the archive at the endpoint data", read = 2026-11-20 }
+
+[[watch]]
+kind = "http-sha256"
+endpoint = "qemu-system-x86-64"
+fact = "qemu-system-x86-64-sha256"
+length = "qemu-system-x86-64-bytes"
+
+[[watch]]
+kind = "http-sha256"
+endpoint = "qemu-system-aarch64"
+fact = "qemu-system-aarch64-sha256"
+length = "qemu-system-aarch64-bytes"
+
+[[watch]]
+kind = "http-sha256"
+endpoint = "qemu-img"
+fact = "qemu-img-sha256"
+length = "qemu-img-bytes"
+
+[[watch]]
+kind = "http-sha256"
+endpoint = "data"
+fact = "data-sha256"
+length = "data-bytes"

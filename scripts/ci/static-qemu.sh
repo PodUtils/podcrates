@@ -1,9 +1,9 @@
 #!/bin/sh
-# The pinned static QEMU of podvm's store in DIR (T-1013): bin/ with
+# The pinned static QEMU of podvm's store in DIR (T-1013, T-1014): bin/ with
 # qemu-system-x86_64, qemu-system-aarch64 and qemu-img, and share/qemu with
 # the firmware, so that the emulator finds its data with no -L
 # (bin/../share/qemu). The pins are the facts of the service
-# crates/pod-services/services/hermeticbuild-qemu.toml: each archive is
+# crates/pod-services/services/static-pkgs-qemu.toml: each archive is
 # checked by its SHA-256 (scripts/ci/fetch-tool.sh), and each binary by its
 # own SHA-256 after the unpack.
 #
@@ -15,7 +15,7 @@ set -eu
 dir=${1:-}
 [ -n "$dir" ] || { echo "usage: static-qemu.sh DIR" >&2; exit 64; }
 here=$(dirname "$0")
-service=$here/../../crates/pod-services/services/hermeticbuild-qemu.toml
+service=$here/../../crates/pod-services/services/static-pkgs-qemu.toml
 # One line for each archive: NAME URL SHA256 MEMBER BIN_SHA256; the data
 # archive has "-" as its member and the SHA-256 of its member.
 pins=$(python3 -I - "$service" <<'EOF'
