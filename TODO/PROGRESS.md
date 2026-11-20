@@ -10,7 +10,9 @@
   COORD-145 (#240, `v0.77.0`) are closed: each consumer took `v0.78.1`.
 - The next tag carries T-964 (`pod-release` verifies the bundles of Rekor
   v2) and the fixes of `main` after `v0.78.1`. T-966 and T-963 are partial.
-  T-975 to T-977 (podvm's asks) are open: their code is not on `main`.
+  T-975 and T-977 (podvm's asks) are open: their code is not on `main`.
+  `docs/HANDOFF.md`, "The next tag", lists the fixes of `main` after
+  `v0.78.1`.
   `release.yml` has steps that run on a tag only, which the dry run does not
   test (T-974; `docs/maintenance.md`, "A release").
 - The tag that the `main` of each consumer names: `v0.78.1` (podrunner,
@@ -19,7 +21,7 @@
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
 - Open defects: T-916 (partial), T-933,
-  T-934, T-935, T-938, T-789, T-766 (the nightly); T-963 (`live.yml`: the
+  T-934, T-935, T-990 (Windows; each waits for the next nightly), T-938, T-789, T-766 (the nightly); T-963 (`live.yml`: the
   second Nostr relay is `nos.lol`; a giver still waits its whole limit
   after a refusal of the relay);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
@@ -64,7 +66,7 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red nightly
-(T-916, T-933, T-935, T-934, T-938) and the red live run (T-963). Then the asks of
+(T-916, T-933, T-935, T-934, T-990, T-938) and the red live run (T-963). Then the asks of
 podrunner (COORD-134, #225): each new ask of podrunner.
 Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;

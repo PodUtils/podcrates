@@ -22,11 +22,12 @@ is done. Git and the record keep finished work.
    - `nightly.yml` 44275593101 at `2b11314` (the proof of T-916): the
      cross jobs of armv7, arm, aarch64, loongarch64 and powerpc64le pass.
      Open: T-916 (i686 runs natively and counts 3 switches; two
-     `pod-iroh` tests on riscv64), T-934 (an exec proxy through `sh -c`
-     on Windows), T-935 (two renames onto one name on Windows), T-938 (the
-     riscv64 job meets its 90 minutes). T-933 (three tests of
-     `pod-cloudflare` on Windows) and T-936 (`refused()` on macOS) wait
-     for the proof of the next nightly run. T-789 and T-766 stay.
+     `pod-iroh` tests on riscv64), T-938 (the riscv64 job meets its 90
+     minutes). T-933, T-934 (an exec proxy with `cmd.exe` on Windows), T-935
+     (a rename with POSIX semantics on Windows), T-990 (a dual-stack QUIC
+     client socket, the cause of the UDP failure of T-933) and T-936
+     (`refused()` on macOS) wait for the proof of the next nightly run.
+     T-789 and T-766 stay.
    - `ci.yml`: T-943 is done: the arm64 probe of macOS builds on the
      Intel runner.
    - `docs/research/hard-problems.md`: the hard open problems (H-01 to
@@ -84,11 +85,21 @@ is done. Git and the record keep finished work.
 ## The next tag
 
 It carries T-964 (`pod-release` verifies the bundles of Rekor v2, calls
-C820 and C821) and each fix of `main` after `v0.78.1`. T-966 (podnet's
+C820 and C821) and each fix of `main` after `v0.78.1`: T-973 (the clients
+of a job with the bundle of `pod-broker`; a new step of `ci.yml`), T-979
+(the key `defect_tests` of `pod-todo`, PodUtils/podnet#657), T-105 (the
+acceptance registry; `release.yml` writes `acceptance.json`: a dry run of
+`release.yml` before the tag), T-934, T-935 and T-990 (Windows), T-985 to
+T-987 (an error line names each cause once, PodUtils/podnet#658), T-995
+(the waiter of `pod-enter` forwards the signals of the init,
+PodUtils/podvm#608) and T-976 (the RUNPATH directories in the library path
+of the loader family, PodUtils/podvm#603). The hand-off names, for podnet,
+the key `defect_tests` and the new error texts, and for podvm, the eight
+signals and the RUNPATH (no change of podvm's code). T-966 (podnet's
 half waits for PodUtils/podnet@T-494) and T-963 (the second Nostr relay is
 `nos.lol`; a giver waits its whole limit after a refusal of the relay) are
-partial. T-975 to T-977 (podvm's asks #602, #603, #604; COORD-147 and
-COORD-148 are closed) are open: their code is not on `main`. Before the
+partial. T-975 and T-977 (podvm's asks #602 and #604; COORD-147 and
+COORD-148 are closed; Q18 blocks their release part) are open: their code is not on `main`. Before the
 release, read `docs/maintenance.md`, "A release": the steps of
 `release.yml` that run on a tag only are not tested by the dry run.
 
