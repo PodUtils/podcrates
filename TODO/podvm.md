@@ -10411,3 +10411,36 @@ cargo test -p pod-extract --all-features --lib pax
 ## Done
 
 2026-11-19, this commit. `crates/pod-extract/src/pax.rs`: `Framed` reads the stream of a layer before the `tar` reader, in both passes (`remove::collect`, `apply_layer`), and follows its members. An `x` past `PAX_MAX` (1 MiB) and an `L` or a `K` past `LONG_MAX` (4096 bytes) are refused before their data is read, as `Refused` with the new cause `Refusal::Member` that names the member and its byte offset. The records of an `x` parse by their length (`LEN KEY=VALUE\n`, as POSIX and Go's `archive/tar`); a record that does not parse refuses the layer. The `SCHILY.xattr.` records and the `path` and `linkpath` records go to `Side`, one `Member` for each entry of the `tar` reader; the others go to the `tar` reader in a new `x` with its checksum, a `path` or a `linkpath` with no newline byte too, and one `size` record, the last, so that both readers frame the member the same. A record other than these with a newline byte refuses the layer. `xattr::read` takes the records of the side: a value with a byte 0x0a is set. The extension blocks of a GNU sparse header are followed. Tests: `pax::tests` (8: the parse by length, the count of the digits of a length, a binary value with a newline byte and a false `path` in it round-trips, a `path` with a newline byte, two `size` records, the bounds of `x`, `L` and `K` in both passes with a reader that fails on a read past the header, a record that does not parse, a global header). `cargo test -p pod-extract --all-features`: 97 passed. The plant `extract-t961-pax-header-unbounded`.
+
+# T-975: `pod-microvm`: a User-Mode Linux kernel in seccomp mode and its launcher, for a guest with no KVM, no ptrace and no namespace
+
+**Source:** PodUtils/podvm#602 (COORD-206 of podvm, under the ruling "Shared code"; PodUtils/podvm@T-2005), for the parity table of PodUtils/podrunner#316
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podvm's rung with no namespace, no root and no ptrace must run an image with systemd as PID 1 and its services as their own users (the parity table of PodUtils/podrunner#316). Its only route is the QEMU guest of `pod-guest` under TCG: 24 to 46 s for each run. User-Mode Linux in its seccomp mode (Linux 6.16 or later, `seccomp=on`) needs no ptrace, no namespace, no KVM and no QEMU, and gives a real kernel, PID 1, a writable cgroup2 and `setuid`; from 6.19 it has SMP (`ncpus=N`). podvm measured it (its experiment 467 at `38b766f`): Debian 12 with MariaDB and PostgreSQL, `seccomp=on ncpus=4`, a whole run in 14.7 s against 45.6 s under TCG. No crate of podcrates builds or starts such a kernel; `pod-microvm` is planned (`docs/design.md`) and does not exist.
+
+## Premise
+
+- Read: PodUtils/podvm#602; the row `pod-microvm` of `docs/design.md`; `crates/pod-guest/README.md`.
+- Not read: podvm's experiment 467 (`experiments/467-uml-seccomp.sh`, `experiments/results/uml-seccomp.txt`); the 8 patches of pocket_vm (Apache-2.0 and MIT, https://github.com/flyinghorse0510/pocket_vm) on Linux 7.2: an SMP fault in `chan_kern.c` (`free_irq` from the SIGIO handler), a deadlock of the vector network driver, and the vector driver in a static kernel.
+- Not measured: a static `ARCH=um` kernel built in the CI of podcrates; which architectures `ARCH=um` supports with seccomp mode (x86_64 is known; aarch64 is to be read in the kernel tree).
+
+## Approach
+
+1. A reproducible build of a static `ARCH=um` kernel (Linux 7.1 or later, `CONFIG_STATIC_LINK`, seccomp mode, SMP), with the patches that the build needs, each with its source and licence in `vendor/` or the crate, built in CI and published as an asset of each release with its SHA-256 in `SHA256SUMS` (the one rule: a static binary).
+2. A launcher in `pod-microvm`: start the kernel with `seccomp=on ncpus=N`, the copy-on-write block device (`ubd0=COW,BASE`), and a channel that gives the exit code of the guest back, in the form of the mailbox of `pod-guest` where it fits.
+3. A test that starts the kernel under a launcher that gives EPERM to `ptrace`, `unshare`, `setns`, `chroot` and `mount`, boots a small image to its PID 1, and reads its exit code.
+
+Answer podvm on a COORD issue: podcrates takes it.
+
+## Prove
+
+```sh
+cargo test -p pod-microvm --all-features
+```
