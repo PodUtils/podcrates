@@ -32,6 +32,9 @@ tracing = { workspace = true }
 pod-tls = { workspace = true, features = ["async"] }
 pod-acme = { workspace = true }
 rcgen = { version = "0.14", default-features = false }
+# The PKCS #12 trust store of a job for the JVM (T-980): the DER writer that
+# rcgen takes already.
+yasna = { version = "0.6", default-features = false }
 rustls = { workspace = true }
 rustls-pki-types = { workspace = true }
 

@@ -1,0 +1,8 @@
+# The variables of a job lose CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE: the
+# Google Cloud CLI with a proxy of its properties reads no other variable
+# of the list, and refuses the leaf of the job (T-980).
+ENTRY=T-980
+GROUP=proxy
+EXPECT='gcloud_takes_the_bundle_by_its_custom_ca_file'
+RUN='cargo test -p pod-broker --all-features --test tls_clients'
+LIMIT=1800

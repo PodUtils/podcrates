@@ -1,0 +1,8 @@
+# The trust store of a job loses the trusted key usage of the JDK: a JVM
+# loads no certificate of the store as trusted, and refuses each leaf
+# (T-980).
+ENTRY=T-980
+GROUP=proxy
+EXPECT='java_takes_the_trust_store_of_java_tool_options'
+RUN='cargo test -p pod-broker --all-features --test tls_clients'
+LIMIT=1800
