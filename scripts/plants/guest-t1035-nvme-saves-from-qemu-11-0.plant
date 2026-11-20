@@ -1,0 +1,8 @@
+# The live test of the warm start takes each QEMU 11 for one that saves the
+# NVMe root disk of the plan, and QEMU 11.0 cannot (T-1035). The test of
+# the version gate must fail.
+ENTRY=T-1035
+GROUP=guest
+EXPECT='test warm::live::the_plan_saves_from_qemu_11_1_and_not_before \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- warm::live::the_plan_saves_from_qemu_11_1_and_not_before'
+LIMIT=1800

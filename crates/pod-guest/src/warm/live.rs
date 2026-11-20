@@ -29,14 +29,43 @@ fn status(socket: &Path) -> String {
     qmp::json_member(&line, "status").unwrap_or_default()
 }
 
-/// The major version of the emulator, from `QEMU emulator version X.Y.Z`.
-fn major(qemu: &str) -> u32 {
-    let version = qemu.split("version ").nth(1).unwrap_or_default();
-    version.split('.').next().and_then(|v| v.parse().ok()).unwrap_or(0)
+/// The first QEMU that saves an NVMe device: commit `9d378cab537d` "hw/nvme:
+/// add basic live migration support" is in `v11.1.0` and in no 11.0.x
+/// release; before it `hw/nvme/ctrl.c` marks the device `unmigratable`.
+const NVME_SAVES: (u32, u32) = (11, 1);
+
+/// The major and the minor version of the emulator, from `QEMU emulator
+/// version X.Y.Z`; `(0, 0)` where the line has no version.
+fn version(qemu: &str) -> (u32, u32) {
+    let text = qemu.split("version ").nth(1).unwrap_or_default();
+    let mut part = text.split(|c: char| !c.is_ascii_digit()).map(|v| v.parse().unwrap_or(0));
+    (part.next().unwrap_or(0), part.next().unwrap_or(0))
+}
+
+/// True where the emulator of the version line saves the NVMe root disk of
+/// the plan.
+fn saves_nvme(qemu: &str) -> bool {
+    version(qemu) >= NVME_SAVES
+}
+
+#[test]
+fn the_plan_saves_from_qemu_11_1_and_not_before() {
+    for (line, saves) in [
+        ("QEMU emulator version 8.2.2 (Debian 1:8.2.2+ds-0ubuntu1.18)", false),
+        ("QEMU emulator version 10.2.1", false),
+        ("QEMU emulator version 11.0.0", false),
+        ("QEMU emulator version 11.0.5", false),
+        ("QEMU emulator version 11.1.0", true),
+        ("QEMU emulator version 11.1.3 (v11.1.3)", true),
+        ("QEMU emulator version 12.0.0", true),
+        ("", false),
+    ] {
+        assert_eq!(saves_nvme(line), saves, "{line}");
+    }
 }
 
 /// The plan line with the root disk on AHCI in place of NVMe, which each
-/// QEMU with `file:` migrates (QEMU 8.2 refuses only the NVMe disk): the
+/// QEMU with `file:` migrates (QEMU before 11.1 refuses only the NVMe disk):
 /// save writes a stream with the USB mailbox, a second emulator loads it
 /// with the saved mailbox as it is, the guest runs after both, and the
 /// command comes on a new medium after the load, by `id`, with no
@@ -113,11 +142,12 @@ fn print_of(plan: &Plan) -> Fingerprint {
 }
 
 /// The machine line of the plan with a USB mailbox and its NVMe root disk:
-/// QEMU 11 saves it and [`start`] restores it with the command on a new
-/// medium; an older QEMU refuses the save with its reasons and the guest
-/// goes on, and [`start`] boots cold.
+/// QEMU 11.1 and later save it and [`start`] restores it with the command
+/// on a new medium; an older QEMU (also 11.0) refuses the save with a
+/// reason that names the NVMe device, the guest goes on, and [`start`]
+/// boots cold.
 #[test]
-fn a_real_emulator_saves_the_plan_from_qemu_11_and_boots_cold_before() {
+fn a_real_emulator_saves_the_plan_from_qemu_11_1_and_boots_cold_before() {
     pod_testkit::need_tool!("qemu-system-x86_64");
     pod_testkit::need_tool!("qemu-img");
     let s = Settings::new(std::env::temp_dir());
@@ -135,18 +165,18 @@ fn a_real_emulator_saves_the_plan_from_qemu_11_and_boots_cold_before() {
     emulator::stop_emulator(&plan, &mut child.0);
     drop(child);
     assert_eq!(after, "running", "the guest goes on after the save");
-    let new_enough = major(&f.qemu) >= 11;
     match &saved {
         Ok(()) => eprintln!("{}: the plan saves", f.qemu),
         Err(e) => eprintln!("{}: the plan does not save: {e}", f.qemu),
     }
-    match &saved {
-        Ok(()) => {}
-        Err(e) if !new_enough => {
+    match (&saved, saves_nvme(&f.qemu)) {
+        (Ok(()), true) => {}
+        (Err(e), false) => {
             assert_eq!(e.class, Class::Unavailable, "{e}");
             assert!(e.to_string().contains("nvme"), "{e}");
         }
-        Err(e) => panic!("{}: the save of the plan: {e}", f.qemu),
+        (Ok(()), false) => panic!("{}: the plan saves before QEMU 11.1", f.qemu),
+        (Err(e), true) => panic!("{}: the save of the plan: {e}", f.qemu),
     }
     let w = Warm { dir: state.clone(), fingerprint: f.clone(), wait: Duration::from_secs(60) };
     let st = start(&s, qemu_img, &base, &plan, agent::AGENT_CMD, &request("tok-live"), &w).unwrap();
