@@ -160,8 +160,10 @@ pub struct Frozen {
 /// `query-migrate`) is [`Class::Unavailable`] with its reasons, before the
 /// guest stops. A failed or cancelled migration is [`Class::Protocol`]; a
 /// migration that does not end within `f.wait` is cancelled
-/// ([`Class::Timeout`]). The guest goes on after each failure that came
-/// after the stop. The caller removes a stream of a failed save.
+/// ([`Class::Timeout`]). Each poll of `query-migrate` waits for its answer
+/// up to the rest of `f.wait` ([`qmp::ANSWER_WAIT`] at least): QEMU answers
+/// no request while it holds its lock for the last part of a migration.
+/// The guest goes on after each failure that came after the stop. The caller removes a stream of a failed save.
 pub fn freeze(f: &Freeze, hooks: &mut dyn Stopped) -> Frozen {
     let before_stop = |e: Failure| Frozen { stream: Err(e), goes_on: Ok(()) };
     if let Err(e) = f.transport.save_uri(f.stream) {
@@ -229,10 +231,20 @@ fn blocked(line: &str) -> Option<String> {
 /// One `migrate` of the stopped guest into `stream`, to its end.
 fn migrate(m: &mut qmp::Monitor, transport: Transport, stream: &Path, wait: Duration) -> Result<()> {
     let uri = transport.save_uri(stream)?;
-    m.ask(&format!("{{\"execute\":\"migrate\",\"arguments\":{{\"uri\":{}}}}}", qmp::json_text(&uri)))?;
     let start = Instant::now();
+    let migrate = format!("{{\"execute\":\"migrate\",\"arguments\":{{\"uri\":{}}}}}", qmp::json_text(&uri));
+    m.ask_within(&migrate, rest(start, wait))?;
     loop {
-        let line = m.ask(QUERY_MIGRATE)?;
+        // QEMU answers no request while it holds its lock for the last part
+        // of a migration: a late answer within the bound is no failure.
+        let line = match m.ask_within(QUERY_MIGRATE, rest(start, wait)) {
+            Ok(line) => line,
+            Err(e) if e.class == Class::Timeout => {
+                let _ = m.call("migrate_cancel");
+                return Err(failure(Class::Timeout, format!("the save did not end within {}s: {e}", wait.as_secs())));
+            }
+            Err(e) => return Err(e),
+        };
         match qmp::json_member(&line, "status").as_deref() {
             Some("completed") => return Ok(()),
             Some(end @ ("failed" | "cancelled")) => {
@@ -247,6 +259,12 @@ fn migrate(m: &mut qmp::Monitor, transport: Transport, stream: &Path, wait: Dura
         }
         std::thread::sleep(EVERY);
     }
+}
+
+/// The bound of one answer of a poll that started at `start` with the
+/// bound `wait`: the rest of `wait`, and [`qmp::ANSWER_WAIT`] at least.
+fn rest(start: Instant, wait: Duration) -> Duration {
+    wait.saturating_sub(start.elapsed()).max(qmp::ANSWER_WAIT)
 }
 
 /// One saved state of a guest that runs, for [`save`].
@@ -372,6 +390,8 @@ pub fn incoming(line: &[String], transport: Transport, stream: &Path) -> Result<
 ///
 /// A connection that fails is made again at the next poll: the socket can
 /// come after the spawn, and an emulator can answer only after the load.
+/// Each `query-status` waits for its answer up to the rest of `wait`
+/// ([`qmp::ANSWER_WAIT`] at least) on the same connection.
 /// `child` is the emulator where the caller holds it: an exit during the
 /// load is [`Class::Unavailable`]. Another status is [`Class::Protocol`];
 /// no end within `wait` is [`Class::Timeout`] with the last error of the
@@ -393,7 +413,7 @@ pub fn running(monitor: &Path, mut child: Option<&mut Child>, wait: Duration) ->
             }
         }
         if let Some(c) = m.as_mut() {
-            match c.ask("{\"execute\":\"query-status\"}") {
+            match c.ask_within("{\"execute\":\"query-status\"}", rest(start, wait)) {
                 Ok(line) => match qmp::json_member(&line, "status").as_deref() {
                     Some("inmigrate") => {}
                     Some("running") => return Ok(()),
@@ -418,3 +438,6 @@ pub fn running(monitor: &Path, mut child: Option<&mut Child>, wait: Duration) ->
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod tests_late;

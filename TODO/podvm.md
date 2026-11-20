@@ -11870,7 +11870,7 @@ passes. A test step's misplaced doc comment
 **Milestone:** M7
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11928,3 +11928,38 @@ well; `late` must give the answer, and the next request its own answer.
 cargo test -p pod-guest --all-features --lib qmp
 cargo test -p pod-guest --all-features --lib warm::line
 ```
+
+## Done
+
+2026-11-20, this commit. `qmp::Monitor` (now in
+`crates/pod-guest/src/qmp/monitor.rs`): each request gets the member
+`"id":"pod-qmp-N"` at its end; an answer is matched by its `id`, or by the
+order of the requests where the monitor gives back none; a late answer of
+an earlier request is skipped; each event goes to a queue
+(`take_events`, at most `EVENTS_KEPT` = 256); a part of a line stays
+through a bound. New items beside the old ones: `ANSWER_WAIT` (5 s, the
+default), `set_answer_wait`, `ask_within`, `late`, `owes`. `freeze` (its
+`migrate` and each poll of `query-migrate`) and `running` (each
+`query-status`, on the same connection) wait up to the rest of the bound
+of the caller, `ANSWER_WAIT` at least; a poll of `query-migrate` with no
+answer in the bound sends `migrate_cancel` (`Timeout`). Tests:
+`warm::line::tests_late::a_late_answer_of_query_migrate_within_the_bound_is_no_failure`
+and
+`warm::line::tests_late::a_late_answer_of_query_status_within_the_bound_is_no_failure`
+(a stand-in that answers after 6 s with a `MIGRATION` event before the
+answer, and the bound of the caller 24 s). Before the fix: the save failed
+with "qmp read: Resource temporarily unavailable (os error 11)" (class
+`Timeout`), and the load with "the load did not end within 24s". Also
+`qmp::tests::late::a_late_answer_is_read_after_its_bound_with_the_event_before_it`
+and
+`qmp::tests::late::the_next_request_does_not_read_the_late_answer_of_the_one_before`
+(each with and with no `id` given back, the answer in two parts around a
+pause), and
+`qmp::tests::an_id_goes_at_the_end_of_a_request_and_is_read_back_from_an_answer`.
+The plant `guest-qmp-poll-fixed-answer-wait` puts the fixed 5 s wait of
+one poll back; both `tests_late` tests fail. `Watch::Screen` of
+`crates/pod-guest/src/ready.rs` holds a `Box<Screen>` (clippy
+`large_enum_variant`: a `Monitor` is larger now). `cargo test -p pod-guest
+--all-features`: 192 passed, 1 ignored; clippy and `cargo doc` with `-D
+warnings` pass. podvm: a type of podvm that holds a `Monitor` in an enum
+can get the same clippy finding.

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**848 entries: 149 open, 30 partial, 7 blocked, 662 done.**
+**848 entries: 148 open, 30 partial, 7 blocked, 663 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 11 | 0 | 196 | 211 |
-| P2 | 72 | 9 | 4 | 341 | 426 |
+| P2 | 71 | 9 | 4 | 342 | 426 |
 | P3 | 73 | 10 | 3 | 123 | 209 |
-| **All** | 149 | 30 | 7 | 662 | 848 |
+| **All** | 148 | 30 | 7 | 663 | 848 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -894,4 +894,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1034](transport.md) | P2 | S | M1 | defect | open | `pod-services`: the watch `http-status` of the upload of `temp-sh` gets 429 from a runner of GitHub, not 405 |
 | [T-1035](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: the live test of the warm start expects QEMU 11.0 to save the NVMe root disk of the plan, and only QEMU 11.1.0 and later migrate an NVMe device |
 | [T-1036](podvm.md) | P3 | S | M6 | defect | done | `pod-supervise`: `end_tree` waits on one pidfd at a time, so a tree with the init of a PID namespace and a second process of it waits the whole `TREE_KILL_MS` (PodUtils/podvm#624) |
-| [T-1037](podvm.md) | P2 | S | M7 | defect | open | `pod-guest`: `qmp::Monitor` waits 5 s for one answer with no bound of the caller and no read of a late answer, so a slow `query-migrate` fails a save (PodUtils/podvm#618) |
+| [T-1037](podvm.md) | P2 | S | M7 | defect | done | `pod-guest`: `qmp::Monitor` waits 5 s for one answer with no bound of the caller and no read of a late answer, so a slow `query-migrate` fails a save (PodUtils/podvm#618) |

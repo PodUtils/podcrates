@@ -162,7 +162,7 @@ pub fn wait(plan: &Plan, child: &mut Child, ready: &Ready) -> Result<usize> {
 enum Watch {
     Marker,
     Serial(Scan),
-    Screen(Screen),
+    Screen(Box<Screen>),
     /// The time at which the sign holds.
     After(Instant),
 }
@@ -172,7 +172,7 @@ impl Watch {
         match sign {
             Sign::Marker => Watch::Marker,
             Sign::Serial(text) => Watch::Serial(Scan::new(text.as_bytes())),
-            Sign::Screen { settle } => Watch::Screen(Screen::new(*settle)),
+            Sign::Screen { settle } => Watch::Screen(Box::new(Screen::new(*settle))),
             Sign::After(time) => Watch::After(Instant::now() + *time),
         }
     }
