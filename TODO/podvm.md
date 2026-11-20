@@ -11348,8 +11348,17 @@ On `main`, two runs: the dispatch of `services.yml` with
 service=hermeticbuild-qemu`: the live watch of each archive), and the
 dispatch of `guest.yml` (`gh workflow run guest.yml`: the steps "Static
 QEMU" and "Test the warm start with the static QEMU" pass, and
-`a_real_emulator_saves_the_plan_from_qemu_11_and_boots_cold_before` prints
-"QEMU emulator version 11.0.0: the plan saves").
+`a_real_emulator_saves_the_plan_from_qemu_11_1_and_boots_cold_before`
+prints "QEMU emulator version 11.0.0: the plan does not save" with the
+reason "non-migratable device: .../nvme", and `start` boots cold).
+
+## Correction
+
+2026-11-20: the Prove expected "the plan saves" from QEMU 11.0.0. QEMU
+11.0.0 cannot save an NVMe device: `hw/nvme/ctrl.c` at `v11.0.0` has
+`.unmigratable = 1`, and the migration of an NVMe device starts at QEMU
+11.1.0 (T-1035). `guest.yml` run 44740879451 measured the refusal. The
+Prove now expects the refusal and a cold boot.
 
 ## Done
 
@@ -11367,11 +11376,19 @@ here). `guest.yml` runs the tests of the warm start with it. Test:
 test -p pod-services --all-features` passes 104; `--test podvm` passes 13;
 `python3 -I scripts/check-workflows.py` gives 0 faults.
 
+`guest.yml` run 44740879451 (job 136303937939, at `ba40734`): the step
+"Static QEMU" passes; in the step "Test the warm start with the static
+QEMU" the binary runs and reports "QEMU emulator version 11.0.0", and
+`a_real_emulator_saves_and_loads_a_line_of_the_caller` and
+`a_real_emulator_saves_and_loads_a_stream` pass on it (the line form and
+the plan line with its root disk on AHCI save and load). The test of the
+plan line failed: it expected a save of the NVMe root disk from QEMU
+11.0.0 (T-1035).
+
 What remains: the two runs of the Prove on `main` (`services.yml` with
-`service=hermeticbuild-qemu`, and `guest.yml`, the first run of these
-binaries), and podvm's take (its table of tools at the new pins, and
-`github.com` in place of `api.ghcr.pkgforge.dev` in its test of its
-hosts).
+`service=hermeticbuild-qemu`, and `guest.yml` after T-1035), and
+podvm's take (its table of tools at the new pins, and `github.com` in
+place of `api.ghcr.pkgforge.dev` in its test of its hosts).
 
 # T-1014: `pod-services`: a static QEMU of the newest stable point release; the pin of T-1013 is 11.0.0, and 11.0.5 and 11.1.3 are out
 
@@ -11462,3 +11479,84 @@ i686-unknown-linux-musl`, run on x86_64) fails as the nightly does. After
 it: the i686 build prints the skip line and passes 10 of 10 `runpath`
 tests; `cargo test -p pod-enter --all-features --lib runpath` on x86_64
 passes 10, with the test checked against the loader of the host (no skip).
+
+# T-1035: `pod-guest`: the live test of the warm start expects QEMU 11.0 to save the NVMe root disk of the plan, and only QEMU 11.1.0 and later migrate an NVMe device
+
+**Source:** `guest.yml` run 44740879451, job 136303937939, at `ba40734`, step "Test the warm start with the static QEMU"
+**Category:** defect
+**Milestone:** M7
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+In the step "Test the warm start with the static QEMU" the binary of
+T-1013 reports "QEMU emulator version 11.0.0", and
+`warm::live::a_real_emulator_saves_and_loads_a_line_of_the_caller` and
+`warm::live::a_real_emulator_saves_and_loads_a_stream` pass. The test
+`a_real_emulator_saves_the_plan_from_qemu_11_and_boots_cold_before` fails
+at `crates/pod-guest/src/warm/live.rs`: "QEMU emulator version 11.0.0: the
+save of the plan: the emulator cannot save this guest: "non-migratable
+device: 0000:00:02.0/nvme"". The test requires a save of the plan line
+from each QEMU of major version 11 or more. The guest goes on after the
+refusal: `freeze` reads `blocked-reasons` before `stop`. The step before
+("Test pod-guest", the QEMU 8.2.2 of the runner) prints the same refusal
+and passes.
+
+## Premise
+
+- Read: the log of the job; `crates/pod-guest/src/warm/live.rs`;
+  `crates/pod-guest/src/plan.rs` (`argv`: the root disk is
+  `nvme,drive=root,serial=wqroot`).
+- Read: QEMU `hw/nvme/ctrl.c` at `v8.2.2` and at `v11.0.0`: `nvme_vmstate`
+  is `.name = "nvme", .unmigratable = 1`, and `nvme_class_init` sets
+  `dc->vmsd = &nvme_vmstate`. So each NVMe controller blocks each
+  migration, also a save to `file:`.
+- Read: QEMU commit `9d378cab537d70d9e02edc11ff6ded7266c1078e` ("hw/nvme:
+  add basic live migration support", after `5320d335fb8d` "hw/nvme: add
+  migration blockers for non-supported cases") replaces the unmigratable
+  VMState with the state of the controller, its queues and its requests.
+  Its limits: one namespace, no CMB, no PMR, no SPDM, no SR-IOV, no FDP;
+  the SMART counters are not kept. The plan line has one namespace for
+  each controller (`drive=`) and none of these features. The compare of
+  GitHub: `v11.1.0` and `v11.1.3` are ahead of the commit and 0 behind;
+  `v11.0.0` is 2641 behind; `v11.0.5` diverged (614 ahead, 2641 behind).
+  No 11.0.x release holds it: QEMU 11.1.0 is the first release that can
+  save the plan line.
+- Read: the version 11 comes from PodUtils/podvm@T-1874 (winquick restores
+  on QEMU 11.1), through calls C502, C507 and C585 and the Done of T-628.
+- Read: podvm at `5c1a58d`, `PodUtils/podvm:crates/podvm/src/windows/doctor_more.rs`:
+  `QEMU_WARM: u32 = 11` compares the major version alone, so `podvm
+  windows doctor` gives no note for QEMU 11.0.x, which runs each Windows
+  guest cold.
+- Not measured: a run of the plan line on QEMU 11.1 (no static build of
+  11.1 exists, T-1014; this session has no QEMU).
+
+## Approach
+
+The live test compares the major and the minor version with 11.1
+(`NVME_SAVES`, which names the QEMU commit). Before 11.1 the save must be
+refused (`Unavailable`, a reason that names `nvme`), the guest goes on, and
+`start` boots cold (`Cold::Missing`); from 11.1 the save must succeed and
+`start` must restore warm with the command on a new medium. A unit test
+of the comparison runs with no emulator. The README of `pod-guest`,
+`guest.yml` and `tests/windows_keep_live.rs` say 11.1; call C866 corrects
+C502, C507 and C585; T-628, T-635 and T-1013 get a Correction. `freeze`
+keeps its refusal before the stop. The bus of the root disk of the plan
+does not change: Windows has no virtio driver in the box, and a change of
+the bus of an installed image needs a new install (the option of T-635).
+T-1014 (a static QEMU 11.1) is the way to a warm save of the plan with
+the pinned QEMU. podvm must know: the threshold of its doctor is 11.1, and
+with the pinned static QEMU 11.0.0 each warm save of the Windows plan is
+refused and each run boots cold.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features --lib warm
+```
+
+On `main`, the dispatch of `guest.yml`: the step "Test the warm start with
+the static QEMU" passes and prints "QEMU emulator version 11.0.0: the plan
+does not save" with the reason "non-migratable device: .../nvme".
