@@ -10785,7 +10785,7 @@ x86_64-apple-darwin passes. The plant `beneath-symlinks-followed` (no
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10846,6 +10846,29 @@ cargo test -p pod-enter --all-features --lib confine
 cargo clippy -p pod-confine -p pod-enter --all-targets --all-features -- -D warnings
 ```
 
+## Done
+
+2026-11-20, commit 98a6f209 (calls C836, C841). `pod_confine::loader`
+(`is_loader`, `each_program`, `VALUED`, `FLAGS`): podvm's `ldso.rs` as it
+is, one file with no item of std and no other item of the crate
+(`crates/pod-confine/SOURCES` names podvm's file), and musl's `libc.so` and
+`libc.musl-ARCH.so.1` in `is_loader`. `pod-enter`: `check_exec_argv(&plan,
+argv)` checks the program, each `#!` interpreter and each program of a
+loader, by the name of the loader as given and as resolved; a loader as the
+program of a loader is a refusal. Tests: `tests/loader.rs`
+(`the_program_of_the_loader_is_each_argument_that_a_loader_can_run`, the
+table of podvm with 13 names and 14 rows;
+`the_loader_file_takes_no_item_of_std_or_of_the_crate`) and
+`confine::program::tests::check_exec_argv_takes_the_rule_for_the_program_of_the_loader`.
+`cargo test -p pod-confine --all-features --test loader` passes 2; `cargo
+test -p pod-enter --all-features --lib confine` passes 7; `cargo clippy -p
+pod-confine -p pod-enter -p pod-lab --all-targets --all-features -- -D
+warnings` and `cargo fmt --all --check` pass. The plants
+`enter-loader-program-unchecked` and `confine-loader-musl-libc-so` are
+caught. For podvm: its copy reads the resolved name alone, so a musl image
+with `ld-musl-ARCH.so.1` as a link to `libc.so` runs `ld-musl /tmp/prog`
+out of `exec=`; the take of this file closes it.
+
 # T-999: `pod-confine`: a table of any access in the shape of the exec table, and `pod-enter` gives the payload a write table (PodUtils/podvm#613)
 
 **Source:** PodUtils/podvm#613 (COORD-215 of podvm), ask 2
@@ -10853,7 +10876,7 @@ cargo clippy -p pod-confine -p pod-enter --all-targets --all-features -- -D warn
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10900,6 +10923,24 @@ cargo test -p pod-enter --all-features --lib confine
 cargo clippy -p pod-confine -p pod-enter --all-targets --all-features -- -D warnings
 ```
 
+## Done
+
+2026-11-20, commit 98a6f209 (call C840). `pod_confine::PathTable`, with
+`ExecTable` a name of the same type; `Spec::table(access)`, and
+`exec_table()` is `table(Access::EXECUTE)`. `Names::write_table`
+(`POD_ENTER_WRITE_TABLE`): the entry with no chroot gives the payload
+`table(Access::WRITE).resolved()` beside the exec table, and each entry
+removes the value of the caller. Tests:
+`exec::tests::a_table_of_an_access_holds_each_rule_with_that_access_once`,
+`confine::tests::the_entry_with_no_chroot_writes_the_exec_and_the_write_table`
+and `confine::tests::the_payload_gets_the_exec_table_and_no_value_of_the_caller`
+(both tables in a real payload, and a forged value of each). `cargo test -p
+pod-confine --all-features --lib exec` passes 5; `cargo test -p pod-enter
+--all-features --lib confine` passes 7; clippy as in T-998 passes. The
+plants `enter-write-table-not-set` and `enter-write-table-of-the-caller` are
+caught; `enter-exec-table-not-set` and `enter-exec-table-of-the-caller` moved
+onto the new code and are caught.
+
 # T-988: `pod-enter`: the check of `exec=` for the first program of a caller with guest paths: `PATH`, a relative name and each `#!` line (PodUtils/podvm#613)
 
 **Source:** PodUtils/podvm#613 (COORD-215 of podvm), ask 3
@@ -10907,7 +10948,7 @@ cargo clippy -p pod-confine -p pod-enter --all-targets --all-features -- -D warn
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10950,3 +10991,19 @@ comes with its rows.
 cargo test -p pod-enter --all-features --lib confine
 cargo clippy -p pod-enter --all-targets --all-features -- -D warnings
 ```
+
+## Done
+
+2026-11-20, commit 98a6f209 (call C841). `check_exec_guest(&plan, &maps,
+argv)`: a bare name on `plan.path_dirs` (`ladder::guest_invoked`), a
+relative name under `plan.working_dir`, each path through `maps` with
+`abi::resolve_in`, each `#!` line read from the file (the kernel's argv),
+and the rule of T-998 for a loader. A program or an interpreter that does
+not resolve is `Ok`, as in podvm's `check_first`. Test:
+`confine::program::tests::the_first_program_by_guest_paths_takes_the_rule_of_exec`
+(the 12 rows of podvm's test and 16 more: a volume, `..`, the interpreter of
+a `#!` line and the loader as one, more than 4 levels of `#!`, musl's loader
+as a link to `libc.so`, a link to the loader, a loader as the program of a
+loader). `cargo test -p pod-enter --all-features --lib confine` passes 7;
+the plant `enter-loader-program-unchecked` is caught by it too.
+
