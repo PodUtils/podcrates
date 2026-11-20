@@ -55,8 +55,8 @@ is done. Git and the record keep finished work.
    tag. cfb's A-X-18 (T-106, partial) waits for cfb's answer on #223. Both
    reply comments are current.
 7. The open hand-offs, both `(to all)`. COORD-146 (#241, `v0.78.1`: T-100,
-   T-965, T-971, T-974): the takes are podrunner `f437793` and podssh
-   `e5b7414`; podvm and podnet have not taken it. COORD-145 (#240,
+   T-965, T-971, T-974): the takes are podrunner `f437793`, podssh
+   `e5b7414` and podnet `2f1ea82`; podvm has not taken it. COORD-145 (#240,
    `v0.77.0`): the takes are podrunner `32a9d40`, podnet `cbd52ca` and
    podssh `b3005e5`; podvm has not taken it. The tag `v0.78.0` has no release (T-974, call C818):
    consumers take `v0.78.1`. Write each take in the "Takes" list of its

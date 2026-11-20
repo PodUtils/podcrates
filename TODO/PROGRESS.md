@@ -7,7 +7,7 @@
 - `docs/HANDOFF.md` has what is in flight and what waits.
 - Last release: `v0.78.1` at `edbc86b` (`docs/releases/v0.78.1.md`; the tag
   `v0.78.0` has no release, call C818). Its hand-off is COORD-146 (#241):
-  the takes are podrunner and podssh; podvm and podnet have not taken it.
+  the takes are podrunner, podssh and podnet; podvm has not taken it.
   COORD-145 (#240, `v0.77.0`) waits for podvm's take.
 - The next tag carries T-964 (`pod-release` verifies the bundles of Rekor
   v2) and the fixes of `main` after `v0.78.1`. T-966 and T-963 are partial.
@@ -15,7 +15,7 @@
   `release.yml` has steps that run on a tag only, which the dry run does not
   test (T-974; `docs/maintenance.md`, "A release").
 - The tag that the `main` of each consumer names: `v0.78.1` (podrunner,
-  podssh), `v0.77.0` (podnet), `v0.76.0` (podvm). The details of each take
+  podssh, podnet), `v0.76.0` (podvm). The details of each take
   are on #240 and #241.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
