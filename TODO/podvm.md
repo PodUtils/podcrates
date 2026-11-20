@@ -11968,3 +11968,131 @@ one poll back; both `tests_late` tests fail. `Watch::Screen` of
 --all-features`: 192 passed, 1 ignored; clippy and `cargo doc` with `-D
 warnings` pass. podvm: a type of podvm that holds a `Monitor` in an enum
 can get the same clippy finding.
+
+# T-1045: `pod-supervise`: a streamed read of a log: a copy of a range in pieces, the tail found from the end, a byte bound of a follow (PodUtils/podvm#631)
+
+**Source:** PodUtils/podvm#631 (COORD-221 of podvm, PodUtils/podvm@T-2046, for PodUtils/podrunner#333), ask 1
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm's ask: "Today `logs` returns one `Vec`, `follow_tail` reads the
+whole log to find the tail, and `append_from` reads the new bytes with
+`read_to_end`. A log of 200 MB costs 200 MB of memory." podvm's copy is
+`PodUtils/podvm:crates/podvm-supervise/src/stream.rs`, with its tests in
+`PodUtils/podvm:crates/podvm-supervise/src/stream/tests.rs`. The ask: "`copy_range`:
+copy a range of the log in pieces of 64 KiB. `tail_start`: find the start
+of the last N lines, with reads back from the end in pieces. Its test
+holds it against `pod_supervise::tail_offset` for each text, line count
+and piece size. A byte limit for `follow_from` (podvm's `Capped` writer).
+`open_log` with `O_NOFOLLOW`." podvm drops `stream.rs` when it takes the
+version of `pod-supervise` that has these.
+
+## Premise
+
+- Read: `crates/pod-supervise/src/logs.rs` (`logs` reads the whole file
+  with `std::fs::read`; `follow_tail` calls `logs`, then `tail_offset`;
+  `append_from` opens with `O_NOFOLLOW` and reads with `read_to_end`).
+- Read: PodUtils/podvm at `6ab9e93` (the commit of PodUtils/podvm@T-2046; the ask names
+  `9b0ab99`, which is not on a branch of PodUtils/podvm):
+  `PodUtils/podvm:crates/podvm-supervise/src/stream.rs` (blob `7468cd5a`),
+  `PodUtils/podvm:crates/podvm-supervise/src/stream/tests.rs` (blob `0fa57fc4`), and its
+  users `PodUtils/podvm:crates/podvm/src/lifecycle/logs.rs` (`copy_log`, the follow
+  with `Capped`) and `PodUtils/podvm:crates/podvm/src/windows/machine/view.rs` (the
+  serial log of a machine through `stream::open` and `copy_range`).
+- Found: `logs` reads the log through a link (`std::fs::read` follows
+  it), where `append_from` refuses a link at the same path.
+- Not measured: the time of a tail of many lines in a large log (a read
+  back from the end costs the bytes of those lines).
+
+## Approach
+
+Port `stream.rs` as `pod_supervise::stream`: `CHUNK` (64 KiB), `Fault`,
+`open` (no link followed; no file is `None`), `open_log::<X>(s, want)`
+(the file and its length at the open), `tail_start` and `tail_start_by`,
+`copy_range`, `Capped`, and the new `copy_tail` (the tail, then the copy,
+podvm's `copy_log` with no words). Add `logs::follow_from_limit` (a
+follow through `Capped` that ends with `Ok` at the bound). Move `logs`,
+`follow_tail` and `append_from` onto `open` and `copy_range`: no read
+holds more than one piece but `logs`, whose `Vec` is its contract.
+Tests: the ported tests; a reader that counts each read, on a log of
+4 MiB: the tail of 3 lines reads at most 2 pieces, and a copy reads and
+writes at most one piece at a time; `follow_tail` on a log larger than a
+piece gives the tail of the whole read; `follow_from_limit` stops at the
+bound; `logs` refuses a link at the log.
+
+## Prove
+
+```sh
+cargo test -p pod-supervise --all-features --lib
+```
+
+# T-1046: `pod-incus`: a read of a file in pieces to a writer, with a `Range` and a byte bound of the caller (PodUtils/podvm#631)
+
+**Source:** PodUtils/podvm#631 (COORD-221 of podvm, PodUtils/podvm@T-2046, for PodUtils/podrunner#333), ask 2
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm's ask: "`get_file` reads the whole answer, up to `max_body`
+(64 MiB). A caller can send no `Range` header, and it cannot read the body
+in parts. podvm's `logs --podvm-tier=incus` therefore holds the log in
+memory and refuses a log over 64 MiB. Please add a read that gives the
+body in parts, to a writer, or a ranged read. podvm then removes its
+64 MiB bound."
+
+## Premise
+
+- Read: `crates/pod-incus/src/files.rs` (`get_file` through
+  `Client::raw`, which reads the body whole, `max_body` at most) and
+  `crates/pod-incus/src/attach.rs` (a head, then `pod_proxy::http::Body`
+  as a reader).
+- Read: lxc/incus at `845f3817` (`main`) and at `v6.0.0`:
+  `internal/server/response/response.go` (`fileResponse::Render` gives a
+  single file with `http.ServeContent`, so a `Range` of one part gets 206
+  with `Content-Range`, and a range past the end gets 416 with
+  `Content-Range: bytes */SIZE`) and `cmd/incusd/instance_file.go` (a
+  file and a link are a `FileResponse`, with the headers `X-Incus-*`; a
+  directory is a sync answer).
+- Read: `crates/pod-guest/src/fetch/range.rs` (`parse_content_range`, the
+  one parse of a `Content-Range` of the workspace).
+- Read: podvm at `6ab9e93`: `PodUtils/podvm:crates/podvm/src/incus/logs.rs` (`copy`: a
+  whole `get_file` on each poll, a write of the bytes past the offset).
+- Not measured: a real incusd (the stand-in of the tests answers as
+  `ServeContent` does).
+
+## Approach
+
+`Client::get_file_to(name, path, range, limit, out)`: `GET` with
+`Range: bytes=START-` (or `START-END`), the head, then the body through
+`pod_proxy::http::Body` in pieces of 64 KiB to a `std::io::Write`, at
+most `limit` bytes and at most the range. It gives `FileRead`: the meta,
+the offset of the first byte, the count written, the size of the file
+where the answer gives it, and whether the read came to the end of the
+range. A 416 is an empty read with the size. A server that ignores the
+`Range` (200) gets the bytes before the start passed over. A directory is
+a usage error. A write of the caller that fails is the new
+`ErrorKind::Output`. `parse_content_range` moves to
+`pod_core::http1` (the ruling "Shared code"); `pod_guest::fetch` keeps
+its names as a re-export. The stand-in of the tests answers a `Range` as
+`ServeContent`, and can ignore it. Tests: the whole file; a range from an
+offset; a range with an end and a bound; a start at the end (416); a
+server that ignores the range; the bound of `max_body` at 4 KiB and a file
+of 1 MiB that `get_file` refuses and `get_file_to` gives in writes of at
+most 64 KiB; a writer that fails.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features --test files
+cargo test -p pod-core --all-features --lib http1
+cargo test -p pod-guest --all-features --lib fetch
+```

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**853 entries: 149 open, 30 partial, 7 blocked, 667 done.**
+**855 entries: 151 open, 30 partial, 7 blocked, 667 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 11 | 0 | 197 | 212 |
-| P2 | 71 | 9 | 4 | 345 | 429 |
+| P2 | 73 | 9 | 4 | 345 | 431 |
 | P3 | 74 | 10 | 3 | 123 | 210 |
-| **All** | 149 | 30 | 7 | 667 | 853 |
+| **All** | 151 | 30 | 7 | 667 | 855 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -900,3 +900,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1042](fleet.md) | P2 | S | M8 | defect | partial | `pod-broker`: the Node.js of Homebrew reads `SSL_CERT_FILE`, so the node and npm legs of `tls_clients` fail on macOS |
 | [T-1043](upkeep.md) | P2 | S | M2 | defect | done | `pod-link`: the EDNS test of `dns_resolver` compares two counts that the resolver still moves (armv7) |
 | [T-1044](upkeep.md) | P3 | S | M5 | defect | open | `check-windows.sh` and `check-macos.sh` compile no doc test, so a doc test with an item of Unix fails only in the nightly |
+| [T-1045](podvm.md) | P2 | S | M6 | feature | open | `pod-supervise`: a streamed read of a log: a copy of a range in pieces, the tail found from the end, a byte bound of a follow (PodUtils/podvm#631) |
+| [T-1046](podvm.md) | P2 | S | M6 | feature | open | `pod-incus`: a read of a file in pieces to a writer, with a `Range` and a byte bound of the caller (PodUtils/podvm#631) |
