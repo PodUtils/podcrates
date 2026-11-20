@@ -1,6 +1,6 @@
 //! A binary that links pod-core, pod-tls, pod-wg, pod-confine, the STUN
-//! codec of pod-turn, pod-udf and pod-beneath with no default feature, so
-//! that no tokio is in it.
+//! codec of pod-turn, pod-udf, pod-beneath and pod-control with no default
+//! feature, so that no tokio is in it.
 //! `scripts/check-static.sh` checks the binary on each target, and
 //! `scripts/check-probe.py` checks the tree (docs/design.md, section 7).
 
@@ -19,6 +19,9 @@ fn main() {
     println!("pod-turn: a signed Binding request of {} bytes", signed.len());
     let udf = pod_udf::Udf::open(&[0u8; 4096][..]).map_or_else(|e| e.to_string(), |u| u.block_size().to_string());
     println!("pod-udf: {udf}");
+    let methods = pod_control::Catalogue::core().entries().count();
+    let schema = pod_control::schema().to_string().len();
+    println!("pod-control: {methods} methods, a schema of {schema} bytes");
     confine();
 }
 

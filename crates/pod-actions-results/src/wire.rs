@@ -132,16 +132,9 @@ pub(crate) fn sha256_file(path: &Path) -> io::Result<(u64, String)> {
     Ok((len, format!("sha256:{}", hex(&h.finalize()))))
 }
 
-/// Whether a signature is the expected one. The time does not depend on
-/// where the first difference is: a client cannot find the signature byte
-/// by byte. The length of a signature is public.
+/// Whether a signature is the expected one, in constant time.
 pub(crate) fn same(expected: &str, given: &str) -> bool {
-    let (a, b) = (expected.as_bytes(), given.as_bytes());
-    if a.is_empty() || a.len() != b.len() {
-        return false;
-    }
-    let diff = a.iter().zip(b).fold(0u8, |d, (x, y)| d | (x ^ y));
-    std::hint::black_box(diff) == 0
+    pod_core::entropy::same_secret(expected.as_bytes(), given.as_bytes())
 }
 
 /// RFC 3339 in UTC, from seconds of the Unix epoch.

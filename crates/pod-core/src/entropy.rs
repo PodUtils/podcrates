@@ -34,6 +34,17 @@ impl Entropy for OsEntropy {
     }
 }
 
+/// Whether `given` is the secret `expected`. The time does not depend on
+/// where the first difference is: a caller cannot find the secret byte by
+/// byte. The length of a secret is public. An empty secret matches nothing.
+pub fn same_secret(expected: &[u8], given: &[u8]) -> bool {
+    if expected.is_empty() || expected.len() != given.len() {
+        return false;
+    }
+    let diff = expected.iter().zip(given).fold(0u8, |d, (x, y)| d | (x ^ y));
+    std::hint::black_box(diff) == 0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -55,5 +66,13 @@ mod tests {
             }
         }
         assert_eq!(Dry.fill(&mut [0u8; 4]).unwrap_err().to_string(), "the system gave no random bytes");
+    }
+
+    #[test]
+    fn a_secret_matches_itself_alone() {
+        assert!(same_secret(b"made-up", b"made-up"));
+        assert!(!same_secret(b"made-up", b"made-uq"));
+        assert!(!same_secret(b"made-up", b"made-up-"));
+        assert!(!same_secret(b"", b""));
     }
 }

@@ -36,6 +36,7 @@ pod-beneath = { path = "crates/pod-beneath", version = "0.79.0" }
 pod-broker = { path = "crates/pod-broker", version = "0.79.0" }
 pod-cloudflare = { path = "crates/pod-cloudflare", version = "0.79.0" }
 pod-confine = { path = "crates/pod-confine", version = "0.79.0" }
+pod-control = { path = "crates/pod-control", version = "0.79.0" }
 pod-core = { path = "crates/pod-core", version = "0.79.0", default-features = false }
 pod-derp = { path = "crates/pod-derp", version = "0.79.0" }
 pod-devtunnel = { path = "crates/pod-devtunnel", version = "0.79.0" }

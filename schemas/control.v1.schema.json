@@ -1,0 +1,541 @@
+{
+  "$defs": {
+    "answer": {
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "not": {
+            "required": [
+              "error"
+            ]
+          },
+          "properties": {
+            "ok": {
+              "const": true
+            }
+          },
+          "required": [
+            "result"
+          ]
+        },
+        {
+          "not": {
+            "required": [
+              "result"
+            ]
+          },
+          "properties": {
+            "ok": {
+              "const": false
+            }
+          },
+          "required": [
+            "error"
+          ]
+        }
+      ],
+      "properties": {
+        "error": {
+          "additionalProperties": false,
+          "properties": {
+            "code": {
+              "$ref": "#/$defs/code"
+            },
+            "detail": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "detail"
+          ],
+          "type": "object"
+        },
+        "id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "result": true,
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "v",
+        "id",
+        "ok"
+      ],
+      "type": "object"
+    },
+    "catalogue": {
+      "const": [
+        {
+          "name": "version",
+          "outlives": false,
+          "route": "local",
+          "summary": "The name and the version of the program, and the protocol.",
+          "tier": "read"
+        },
+        {
+          "name": "methods",
+          "outlives": false,
+          "route": "local",
+          "summary": "The methods that this caller can call.",
+          "tier": "read"
+        },
+        {
+          "name": "auth",
+          "outlives": false,
+          "route": "local",
+          "summary": "Give the master token: this connection then has the master tier.",
+          "tier": "read"
+        },
+        {
+          "name": "status",
+          "outlives": false,
+          "route": "delegated",
+          "summary": "The state of the program now.",
+          "tier": "read"
+        },
+        {
+          "name": "metrics",
+          "outlives": false,
+          "route": "delegated",
+          "summary": "The counters and the gauges of the program.",
+          "tier": "read"
+        },
+        {
+          "name": "reload",
+          "outlives": true,
+          "route": "delegated",
+          "summary": "Read the configuration again and use it.",
+          "tier": "master"
+        },
+        {
+          "name": "drain",
+          "outlives": false,
+          "route": "delegated",
+          "summary": "Take no new work and let the work in flight end; with exit, the program then exits.",
+          "tier": "operate"
+        },
+        {
+          "name": "stop",
+          "outlives": false,
+          "route": "delegated",
+          "summary": "Stop the program now: it ends the work in flight by its rule.",
+          "tier": "operate"
+        }
+      ],
+      "description": "The methods of each program; a program can add methods of its own."
+    },
+    "code": {
+      "enum": [
+        "bad-request",
+        "not-utf8",
+        "too-long",
+        "unknown-method",
+        "bad-params",
+        "refused",
+        "busy",
+        "budget",
+        "timeout",
+        "unsupported",
+        "failed",
+        "internal"
+      ]
+    },
+    "id": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "method": {
+      "pattern": "^[a-z][a-z0-9-]{0,62}$",
+      "type": "string"
+    },
+    "params": {
+      "auth": {
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "type": "object"
+      },
+      "drain": {
+        "additionalProperties": false,
+        "properties": {
+          "exit": {
+            "description": "Exit after the last work in flight ends; true when it is missing.",
+            "type": "boolean"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "methods": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "metrics": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "reload": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "status": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "stop": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      },
+      "version": {
+        "additionalProperties": false,
+        "properties": {},
+        "required": [],
+        "type": "object"
+      }
+    },
+    "request": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "version"
+              }
+            },
+            "required": [
+              "method"
+            ]
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params/version"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "methods"
+              }
+            },
+            "required": [
+              "method"
+            ]
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params/methods"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "auth"
+              }
+            },
+            "required": [
+              "method"
+            ]
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params/auth"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "status"
+              }
+            },
+            "required": [
+              "method"
+            ]
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params/status"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "metrics"
+              }
+            },
+            "required": [
+              "method"
+            ]
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params/metrics"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "reload"
+              }
+            },
+            "required": [
+              "method"
+            ]
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params/reload"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "drain"
+              }
+            },
+            "required": [
+              "method"
+            ]
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params/drain"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "method": {
+                "const": "stop"
+              }
+            },
+            "required": [
+              "method"
+            ]
+          },
+          "then": {
+            "properties": {
+              "params": {
+                "$ref": "#/$defs/params/stop"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "for": {
+          "$ref": "#/$defs/id"
+        },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "method": {
+          "$ref": "#/$defs/method"
+        },
+        "params": {
+          "type": "object"
+        },
+        "v": {
+          "const": 1
+        }
+      },
+      "required": [
+        "v",
+        "id",
+        "method"
+      ],
+      "type": "object"
+    },
+    "results": {
+      "auth": {
+        "additionalProperties": false,
+        "properties": {
+          "tier": {
+            "const": "master"
+          }
+        },
+        "required": [
+          "tier"
+        ],
+        "type": "object"
+      },
+      "drain": {
+        "description": "The words of the program."
+      },
+      "methods": {
+        "additionalProperties": false,
+        "properties": {
+          "methods": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "$ref": "#/$defs/method"
+                },
+                "route": {
+                  "enum": [
+                    "local",
+                    "delegated"
+                  ]
+                },
+                "summary": {
+                  "type": "string"
+                },
+                "tier": {
+                  "$ref": "#/$defs/tier"
+                }
+              },
+              "required": [
+                "name",
+                "tier",
+                "route",
+                "summary"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "tier": {
+            "$ref": "#/$defs/tier"
+          }
+        },
+        "required": [
+          "tier",
+          "methods"
+        ],
+        "type": "object"
+      },
+      "metrics": {
+        "additionalProperties": false,
+        "properties": {
+          "counters": {
+            "additionalProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "description": "Counters that only grow.",
+            "type": "object"
+          },
+          "gauges": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Values that go up and down.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "counters",
+          "gauges"
+        ],
+        "type": "object"
+      },
+      "reload": {
+        "description": "The words of the program."
+      },
+      "status": {
+        "description": "The status of the program, in its own schema.",
+        "type": "object"
+      },
+      "stop": {
+        "description": "The words of the program."
+      },
+      "version": {
+        "additionalProperties": false,
+        "properties": {
+          "program": {
+            "type": "string"
+          },
+          "protocol": {
+            "const": 1
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "program",
+          "version",
+          "protocol"
+        ],
+        "type": "object"
+      }
+    },
+    "tier": {
+      "enum": [
+        "read",
+        "operate",
+        "master"
+      ]
+    }
+  },
+  "$id": "https://github.com/PodUtils/podcrates/blob/main/schemas/control.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Each line is one JSON object with \"v\": 1. A request has a method; an answer has ok. The client sends requests, and the server sends answers and calls back; a call back names its request with for. A method above the tier of the caller gets the answer of a method that is not there.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/answer"
+    }
+  ],
+  "title": "One line of the control API of a program of PodUtils"
+}

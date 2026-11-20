@@ -65,6 +65,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("hold_sockaddr", targets::hold_sockaddr),
     ("hold_syn", targets::hold_syn),
     ("job_offer", targets::job_offer),
+    ("control_line", targets::control_line),
     ("oci_manifest", targets::oci_manifest),
     ("oci_challenge", targets::oci_challenge),
     ("extract_layer", targets::extract_layer),

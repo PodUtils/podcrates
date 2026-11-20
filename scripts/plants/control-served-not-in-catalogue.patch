@@ -1,0 +1,14 @@
+diff --git a/crates/pod-control/src/dispatch.rs b/crates/pod-control/src/dispatch.rs
+index fcd71768..cbf545a8 100644
+--- a/crates/pod-control/src/dispatch.rs
++++ b/crates/pod-control/src/dispatch.rs
+@@ -26,7 +26,8 @@ pub(crate) type LocalFn = fn(&mut Session<'_>, &Value) -> Outcome;
+ pub(crate) type DelegatedFn = fn(&mut dyn Host, &Value, &mut Context) -> Outcome;
+ 
+ /// The methods that the server answers.
+-pub(crate) const LOCAL: &[(&str, LocalFn)] = &[("version", version), ("methods", methods), ("auth", auth)];
++pub(crate) const LOCAL: &[(&str, LocalFn)] =
++    &[("version", version), ("methods", methods), ("auth", auth), ("debug", version)];
+ 
+ /// The methods that the host answers.
+ pub(crate) const DELEGATED: &[(&str, DelegatedFn)] = &[

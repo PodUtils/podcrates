@@ -161,7 +161,7 @@ A test plants a token and fails. `ci.yml` runs `systemd-analyze verify`.
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -193,6 +193,19 @@ From the dig study (T-833; reports 03, 11 and 12, `docs/research/dig-study.md`):
 cargo test -p pod-control --all-features
 sh scripts/agent/check.sh
 ```
+
+## Done
+
+2026-11-20, this commit (calls C842 to C844). The crate `crates/pod-control` (std threads, no tokio; pod-core, serde, serde_json, windows-sys on Windows):
+
+- The catalogue (`Method`, `Spec`, `Tier`, `Route`, `Extra`, `Catalogue`): `version`, `methods` and `auth` local; `status`, `metrics`, `reload`, `drain` and `stop` delegated to the trait `Host`; the host's `Extra` rows go to `Host::extra`. The tiers read, operate and master; `reload` and each extra whose effect outlives its token take master (`Catalogue::new` refuses one below it). A method above the tier of the caller gets `unknown-method` with the words of a name that is not there, before its params are read; `methods` lists the methods of the caller's tier.
+- The wire (`wire`, protocol 1): a request `{"v":1,"id":N,"method":M,"params":{...}}`, an answer with `ok` and `result` or `error {code, detail}`, a call back with `for`; 12 codes, each with its `pod_core::Class`. The frame (`frame::Lines`): a cap of 64 KiB, a check of UTF-8, one deadline for each whole line. The calls back (`Context::call`): 16 for each request and 256 for each connection, then `budget`; the client holds the same budgets.
+- The server: `unix::serve` and `unix::serve_listener` (the staged bind with mode 0600, a stale socket replaced, a live one `AddrInUse`, the check of the peer uid, `Settings::uids`), `pipe::serve` on Windows (an access list of the user, no remote client, the first instance only, the SID of the peer process; a watch thread cancels a read at its deadline), `Incoming::answer_waiting` and `Incoming::serve` for the thread of the host, `Server::snapshot` for `status` while the host is busy, `Settings::clients`. The client `Client` with `call`, `call_with` (calls back), `raw` and the typed methods. `schemas/control.v1.schema.json` from the catalogue (its row `next` in `schemas/CHANGES.md`). `conformance::check` for a program against its own server. `Metrics::prometheus` (A-N-03).
+- `pod_broker::control` moves onto `pod-control` in T-1000 (call C843). Shared code (call C844): `pod_core::files::{bind_staged, peer_ids, euid}` (the bind of `pod-broker`), `pod_core::entropy::same_secret` (the compare of `pod-actions-results`), `pod_core::files::{user_sid, sid_of_process, PrivateAttributes}` on Windows.
+- `cargo test -p pod-control --all-features`: 17 unit tests (among them `each_method_of_the_catalogue_is_served`, `each_served_method_is_in_the_catalogue`, `the_local_and_the_delegated_methods_do_not_overlap`, `a_method_that_outlives_its_token_takes_the_master_tier`, `a_method_above_the_tier_is_found_as_a_name_that_is_not_there`, `the_schema_file_is_generated_from_the_catalogue`, `each_line_of_the_wire_is_valid_for_the_schema_and_a_broken_one_is_not`, `a_slow_line_meets_one_deadline_for_the_whole_line`), 13 tests of `tests/server.rs` (each method, the tiers, `auth`, the budgets, the read timeout, the cap, the snapshot, the clients, the bind, `a_reply_before_the_request_is_read` of podrunner), 2 of `tests/conformance.rs` (`the_server_of_the_crate_conforms_at_each_tier`, `a_server_that_breaks_the_protocol_has_findings`), 1 doc test; 40 runs of each test binary in a loop passed. `tests/pipe.rs` (3 tests) builds for Windows (`check-windows.sh`) and runs in the Windows jobs of `nightly.yml`; not run here.
+- Plants, each caught by hand: `control-served-not-in-catalogue`, `control-master-method-lower-tier`, `control-budget-raised` (the client's budget catches the server's call past its budget), `control-tier-refusal-names-the-method`. The plants `broker-bind-at-the-path` and `results-sig-length-only` patch the new places in `pod-core` and are still caught.
+- The fuzz target `control_line` (`fuzz/`, 6 seeds). The probe `static-probe-lean` links the crate.
+- The take of podrunner: the table "The take of podrunner" of `crates/pod-control/README.md`.
 
 # T-104: `pod-release`: the release index, its writer for CI and its verifier (GitHub #35, #36)
 
@@ -971,7 +984,7 @@ path of `/tmp`, with mode 0600 set after the bind.
   is at `crates/pod-broker/src/forward.rs:71`; `Broker::serve_unix_job` is
   at `crates/pod-broker/src/broker.rs:215` and `serve_tcp_job` at `:239`;
   the advice of `bind_unix` (a directory of mode 0700) is at
-  `crates/pod-broker/src/control.rs:140-143`. The steps agree with the
+  `crates/pod-broker/src/control.rs:137-140`. The steps agree with the
   review.
 - Read: `crates/pod-broker/Cargo.toml` has no `pod-tls`. But `pod-proxy`
   depends on `pod-tls` (`crates/pod-proxy/Cargo.toml:27`) with its default
@@ -1116,7 +1129,7 @@ or in spaces get one hash; each change of meaning gets another.
 - Read: `crates/pod-broker/src/control.rs:54-68`: `info`, the JSON of a
   job. The `load` answer is `info` with more keys (`:99-108`), and `list`
   maps `info` (`:117-120`). One new field of `JobInfo` thus reaches both
-  answers. The control socket checks the user of its peer (`:182-189`).
+  answers. The control socket checks the user of its peer (`:179-186`).
 - Read: `crates/pod-broker/src/serve.rs:62-73`: `Note::line` starts both
   connection lines. The deny line sets `decision` and `rule` at `:350`,
   the allow line at `:367`. A refusal before the lease (408 or 407,
@@ -6542,4 +6555,32 @@ that fails without it.
 
 ```sh
 cargo test -p pod-broker --all-features --test tls_clients -- --nocapture
+```
+
+# T-1000: `pod-broker`: the control of a broker on the wire and the tiers of `pod-control`
+
+**Source:** T-103 (call C843)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_broker::control` has a wire of its own: `{"op":"load",...}` and `{"v":1,"ok":true,"op":"load",...}`, with no id, no tier and no catalogue. podrunner hosts the broker beside its control socket of `pod-control` (T-103): two wire forms in one host are two parsers and two sets of tests, and `load` (a job token and its secrets: a new principal) has no tier above the other requests.
+
+## Premise
+
+- Read: `crates/pod-broker/src/control.rs` (`Broker::control_line`, `serve_control` on tokio), `crates/pod-broker/tests/control.rs`, `crates/pod-control` (T-103).
+- Not measured: podrunner's egress code against the new wire.
+
+## Approach
+
+The broker's catalogue of `pod-control`: `load` an `Extra` of the master tier with `outlives`, `drop` operate, `list` read. `Broker` implements `pod_control::Host` (`status` gives the jobs, `metrics` the counts of the audit); the fields of each answer become its `result`. The control serves on the server of `pod-control` (std threads) beside the proxy listener of tokio, or the server of `pod-control` gets a mode for a tokio host. The tests of `tests/control.rs` keep their names, and `pod_control::conformance::check` runs against the broker. A COORD issue tells podrunner of the new wire.
+
+## Prove
+
+```sh
+cargo test -p pod-broker --all-features --test control
 ```

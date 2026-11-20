@@ -11,6 +11,7 @@ use crate::{is_one_line, text};
 mod actions;
 mod broker;
 mod cloudflare;
+mod control;
 mod devtunnel;
 mod e2e;
 mod egress;
@@ -38,6 +39,7 @@ pub use cloudflare::{
     capnp_message, config_yaml, connect_request, h2_header_block, ingress_rule, register_response, request_head,
     rpc_message, srv_record,
 };
+pub use control::control_line;
 pub use devtunnel::devtunnel_connect_info;
 pub use e2e::{e2e_frame, e2e_handover, e2e_proof, e2e_record};
 pub use egress::{iap_message, wisp_packet};

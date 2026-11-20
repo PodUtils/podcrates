@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**823 entries: 143 open, 31 partial, 7 blocked, 642 done.**
+**824 entries: 143 open, 31 partial, 7 blocked, 643 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 7 | 9 | 0 | 192 | 208 |
-| P2 | 67 | 12 | 4 | 327 | 410 |
+| P1 | 6 | 9 | 0 | 193 | 208 |
+| P2 | 68 | 12 | 4 | 327 | 411 |
 | P3 | 69 | 10 | 3 | 121 | 203 |
-| **All** | 143 | 31 | 7 | 642 | 823 |
+| **All** | 143 | 31 | 7 | 643 | 824 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -149,7 +149,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-100](fleet.md) | P1 | L | M8 | feature | done | `pod-broker`: TLS end with a CA for each job, placeholder credentials and the scrub of answers (GitHub #35, #36) |
 | [T-101](foundation.md) | P1 | S | M1 | feature | done | `pod-core`: the classes Revoked, Policy and Unsupported, one exit code for each class, one JSON log schema (GitHub #35) |
 | [T-102](fleet.md) | P1 | M | M8 | feature | open | `pod-unit`: hardened service units for systemd, launchd and Windows, with no secret in a unit (GitHub #35) |
-| [T-103](fleet.md) | P1 | M | M8 | feature | open | `pod-control`: one JSON control API on a Unix socket or a named pipe (GitHub #35, #36) |
+| [T-103](fleet.md) | P1 | M | M8 | feature | done | `pod-control`: one JSON control API on a Unix socket or a named pipe (GitHub #35, #36) |
 | [T-104](fleet.md) | P1 | M | M8 | feature | done | `pod-release`: the release index, its writer for CI and its verifier (GitHub #35, #36) |
 | [T-105](foundation.md) | P1 | M | M8 | feature | done | `pod-todo`: an acceptance registry of ask ids and their tests (GitHub #35) |
 | [T-106](fleet.md) | P2 | M | M8 | feature | partial | `pod-testkit`: the stand-ins of the edge, the relay and the WARP API as binaries for a consumer's CI (GitHub #35, #36) |
@@ -870,3 +870,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-997](podvm.md) | P2 | S | M6 | feature | done | `pod-beneath`: one open of a path under a base with no link and no allocation, for the volume base of podvm and pod-enter |
 | [T-998](podvm.md) | P2 | S | M6 | feature | done | `pod-confine` and `pod-enter`: the program that a dynamic loader runs takes the rule of `exec=` (PodUtils/podvm#613) |
 | [T-999](podvm.md) | P2 | S | M6 | feature | done | `pod-confine`: a table of any access in the shape of the exec table, and `pod-enter` gives the payload a write table (PodUtils/podvm#613) |
+| [T-1000](fleet.md) | P2 | S | M8 | feature | open | `pod-broker`: the control of a broker on the wire and the tiers of `pod-control` |

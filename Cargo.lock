@@ -4799,6 +4799,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-control"
+version = "0.79.0"
+dependencies = [
+ "boon",
+ "pod-core",
+ "pod-testkit",
+ "serde",
+ "serde_json",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "pod-core"
 version = "0.79.0"
 dependencies = [
@@ -7378,6 +7390,7 @@ version = "0.79.0"
 dependencies = [
  "pod-beneath",
  "pod-confine",
+ "pod-control",
  "pod-core",
  "pod-tls",
  "pod-turn",

@@ -28,7 +28,9 @@ use windows_sys::Win32::Security::{
 use windows_sys::Win32::Storage::FileSystem::{
     CREATE_NEW, CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
 };
-use windows_sys::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+use windows_sys::Win32::System::Threading::{
+    GetCurrentProcess, OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION,
+};
 
 use super::Others;
 use super::closed::{Acl, Entry, judge};
@@ -48,17 +50,34 @@ pub(crate) fn closed(file: &File, others: Others) -> Result<(), String> {
     judge(&acl, user, others)
 }
 
-/// This user's SID, read once.
-fn user_sid() -> Result<&'static str, String> {
+/// This user's SID, read once, as its string `S-1-5-...`.
+pub fn user_sid() -> Result<&'static str, String> {
     static USER: OnceLock<Result<String, String>> = OnceLock::new();
-    USER.get_or_init(|| read_user_sid().map_err(|e| e.to_string())).as_deref().map_err(Clone::clone)
+    // SAFETY: the pseudo-handle of this process needs no close.
+    USER.get_or_init(|| process_user_sid(unsafe { GetCurrentProcess() }).map_err(|e| e.to_string()))
+        .as_deref()
+        .map_err(Clone::clone)
 }
 
-fn read_user_sid() -> io::Result<String> {
+/// The SID of the user of the process `pid`, as its string: the peer of a
+/// named pipe (`GetNamedPipeClientProcessId`).
+pub fn sid_of_process(pid: u32) -> io::Result<String> {
+    // SAFETY: OpenProcess takes any id; a handle that it gives is closed below.
+    let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if process.is_null() {
+        return Err(io::Error::last_os_error());
+    }
+    let sid = process_user_sid(process);
+    // SAFETY: opened above.
+    unsafe { CloseHandle(process) };
+    sid
+}
+
+fn process_user_sid(process: HANDLE) -> io::Result<String> {
     let mut token: HANDLE = std::ptr::null_mut();
-    // SAFETY: the pseudo-handle of this process; `token` receives a handle,
-    // closed below.
-    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) } == 0 {
+    // SAFETY: `process` is a handle with the right to query; `token`
+    // receives a handle, closed below.
+    if unsafe { OpenProcessToken(process, TOKEN_QUERY, &mut token) } == 0 {
         return Err(io::Error::last_os_error());
     }
     let mut len: u32 = 0;
@@ -180,6 +199,34 @@ fn private_descriptor(inherit: bool) -> io::Result<Descriptor> {
     let user = user_sid().map_err(io::Error::other)?;
     let flags = if inherit { "OICI" } else { "" };
     descriptor(&format!("D:P(A;{flags};FA;;;SY)(A;{flags};FA;;;BA)(A;{flags};FA;;;{user})"))
+}
+
+/// The security attributes of an object that only SYSTEM, the
+/// Administrators and the user may open: the server end of a named pipe.
+pub struct PrivateAttributes {
+    attributes: SECURITY_ATTRIBUTES,
+    _descriptor: Descriptor,
+}
+
+// SAFETY: the descriptor is an allocation that this value owns alone; no
+// other thread holds its pointer.
+unsafe impl Send for PrivateAttributes {}
+
+impl PrivateAttributes {
+    pub fn new() -> io::Result<PrivateAttributes> {
+        let descriptor = private_descriptor(false)?;
+        let attributes = SECURITY_ATTRIBUTES {
+            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+            lpSecurityDescriptor: descriptor.0,
+            bInheritHandle: 0,
+        };
+        Ok(PrivateAttributes { attributes, _descriptor: descriptor })
+    }
+
+    /// The pointer for a call that makes the object; valid while `self` lives.
+    pub fn as_ptr(&self) -> *const SECURITY_ATTRIBUTES {
+        &self.attributes
+    }
 }
 
 /// The access list of a file that each may read and only those of the

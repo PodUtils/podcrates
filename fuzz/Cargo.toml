@@ -60,6 +60,8 @@ pod-egress = { path = "../crates/pod-egress", features = ["fuzzing"] }
 # task.
 pod-hold = { path = "../crates/pod-hold", features = ["fuzzing"] }
 pod-job = { path = "../crates/pod-job" }
+# The lines of the control API (T-103).
+pod-control = { path = "../crates/pod-control" }
 # The expressions and the workflow files of GitHub Actions (T-251).
 pod-actions-expr = { path = "../crates/pod-actions-expr" }
 pod-actions-workflow = { path = "../crates/pod-actions-workflow" }
@@ -623,6 +625,13 @@ bench = false
 [[bin]]
 name = "config_yaml"
 path = "fuzz_targets/config_yaml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "control_line"
+path = "fuzz_targets/control_line.rs"
 test = false
 doc = false
 bench = false

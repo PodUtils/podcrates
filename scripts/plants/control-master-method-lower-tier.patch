@@ -1,0 +1,13 @@
+diff --git a/crates/pod-control/src/catalogue.rs b/crates/pod-control/src/catalogue.rs
+index fee0a578..b8eb44d4 100644
+--- a/crates/pod-control/src/catalogue.rs
++++ b/crates/pod-control/src/catalogue.rs
+@@ -117,7 +117,7 @@ impl Method {
+             Method::Metrics => row(self, "metrics", Delegated, Read, "The counters and the gauges of the program."),
+             Method::Reload => Spec {
+                 outlives: true,
+-                ..row(self, "reload", Delegated, Master, "Read the configuration again and use it.")
++                ..row(self, "reload", Delegated, Operate, "Read the configuration again and use it.")
+             },
+             Method::Drain => row(
+                 self,

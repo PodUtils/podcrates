@@ -32,7 +32,7 @@ the dependencies of each crate.
 | M4 | `pod-derp` (exists), `pod-piping` (exists), `pod-opentunnel` (exists), `pod-acme` (exists), `pod-egress` (exists), `pod-relay-serve`, `pod-iroh` (exists), `pod-tor` (exists), `pod-ts`, `pod-gsr` (exists) |
 | M6 | `pod-hostprobe` (exists), `pod-supervise` (exists), `pod-guest` (exists), `pod-oci` (exists), `pod-extract` (exists), `pod-rootfs` (exists), `pod-enter` (exists), `pod-beneath` (exists) |
 | M7 | `pod-hold` (exists), `pod-incus` (exists), `pod-udf` (exists), `pod-microvm`, `pod-sud`, `pod-confine` (exists), `pod-netlab` (exists), `pod-pcap`, `pod-sandprobe`, `pod-qga` (exists) |
-| M8 | `pod-broker` (exists), `pod-job` (exists), `pod-actions-expr` (exists), `pod-actions-workflow` (exists), `pod-actions-results` (exists), `pod-actions-store` (exists), `pod-lab` (exists), `pod-manual` (exists; T-700, partial), `pod-unit`, `pod-control`, `pod-release` (exists), `pod-detach`, `pod-time` (exists) |
+| M8 | `pod-broker` (exists), `pod-job` (exists), `pod-actions-expr` (exists), `pod-actions-workflow` (exists), `pod-actions-results` (exists), `pod-actions-store` (exists), `pod-lab` (exists), `pod-manual` (exists; T-700, partial), `pod-unit`, `pod-control` (exists), `pod-release` (exists), `pod-detach`, `pod-time` (exists) |
 
 ## Documents
 

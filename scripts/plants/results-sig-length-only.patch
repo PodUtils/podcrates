@@ -1,12 +1,13 @@
-diff --git a/crates/pod-actions-results/src/wire.rs b/crates/pod-actions-results/src/wire.rs
---- a/crates/pod-actions-results/src/wire.rs
-+++ b/crates/pod-actions-results/src/wire.rs
-@@ -135,7 +135,7 @@
+diff --git a/crates/pod-core/src/entropy.rs b/crates/pod-core/src/entropy.rs
+index 2972ee98..a73b3a06 100644
+--- a/crates/pod-core/src/entropy.rs
++++ b/crates/pod-core/src/entropy.rs
+@@ -42,7 +42,7 @@ pub fn same_secret(expected: &[u8], given: &[u8]) -> bool {
          return false;
      }
-     let diff = a.iter().zip(b).fold(0u8, |d, (x, y)| d | (x ^ y));
+     let diff = expected.iter().zip(given).fold(0u8, |d, (x, y)| d | (x ^ y));
 -    std::hint::black_box(diff) == 0
 +    std::hint::black_box(diff) == diff
  }
  
- /// RFC 3339 in UTC, from seconds of the Unix epoch.
+ #[cfg(test)]

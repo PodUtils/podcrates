@@ -126,9 +126,6 @@ impl Broker {
 pub use unix::{bind_unix, serve_control};
 
 #[cfg(unix)]
-mod bind;
-
-#[cfg(unix)]
 mod unix {
     use std::os::unix::fs::FileTypeExt;
     use std::path::Path;
@@ -157,7 +154,7 @@ mod unix {
             }
             Err(_) => {}
         }
-        let listener = super::bind::bind_staged(path, mode)?;
+        let listener = pod_core::files::bind_staged(path, mode)?;
         listener.set_nonblocking(true)?;
         UnixListener::from_std(listener)
     }

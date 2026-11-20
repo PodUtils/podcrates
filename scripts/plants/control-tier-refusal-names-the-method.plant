@@ -1,0 +1,7 @@
+# A method above the tier of the caller gets refused, not the answer of a
+# name that is not there: the refusal tells that the method exists (T-103).
+ENTRY=T-103
+GROUP=control
+EXPECT='right: Some\(Fault'
+RUN='cargo test -p pod-control --all-features --lib a_method_above_the_tier_is_found_as_a_name_that_is_not_there'
+LIMIT=900
