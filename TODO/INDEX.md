@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**826 entries: 146 open, 31 partial, 7 blocked, 642 done.**
+**826 entries: 144 open, 32 partial, 7 blocked, 643 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 7 | 9 | 0 | 192 | 208 |
-| P2 | 69 | 12 | 4 | 327 | 412 |
+| P2 | 67 | 13 | 4 | 328 | 412 |
 | P3 | 70 | 10 | 3 | 121 | 204 |
-| **All** | 146 | 31 | 7 | 642 | 826 |
+| **All** | 144 | 32 | 7 | 643 | 826 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -870,6 +870,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-997](podvm.md) | P2 | S | M6 | feature | done | `pod-beneath`: one open of a path under a base with no link and no allocation, for the volume base of podvm and pod-enter |
 | [T-998](podvm.md) | P2 | S | M6 | feature | done | `pod-confine` and `pod-enter`: the program that a dynamic loader runs takes the rule of `exec=` (PodUtils/podvm#613) |
 | [T-999](podvm.md) | P2 | S | M6 | feature | done | `pod-confine`: a table of any access in the shape of the exec table, and `pod-enter` gives the payload a write table (PodUtils/podvm#613) |
-| [T-1012](podvm.md) | P2 | M | M7 | feature | open | `pod-guest`: a saved state of the caller's machine line with no UEFI `Plan`, for podvm's Linux guest (PodUtils/podvm#618) |
-| [T-1013](podvm.md) | P2 | S | M6 | feature | open | `pod-services`: the pinned static QEMU at 11.0.0, with the fix of the use-after-free of `address_space_translate_for_iotlb` (PodUtils/podvm#618) |
+| [T-1012](podvm.md) | P2 | M | M7 | feature | done | `pod-guest`: a saved state of the caller's machine line with no UEFI `Plan`, for podvm's Linux guest (PodUtils/podvm#618) |
+| [T-1013](podvm.md) | P2 | S | M6 | feature | partial | `pod-services`: the pinned static QEMU at 11.0.0, with the fix of the use-after-free of `address_space_translate_for_iotlb` (PodUtils/podvm#618) |
 | [T-1014](podvm.md) | P3 | M | M6 | feature | open | `pod-services`: a static QEMU of the newest stable point release; the pin of T-1013 is 11.0.0, and 11.0.5 and 11.1.3 are out |

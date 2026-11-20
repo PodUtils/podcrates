@@ -49,6 +49,17 @@ jobs:
         env:
           POD_GUEST_TEST_QEMU: required
         run: timeout --kill-after=30 600 cargo test --locked -p pod-guest --all-features -- --test-threads=1 --nocapture
+      # The pinned static QEMU of podvm's store (T-1013): the tests of the
+      # warm start with a real emulator run again with it, before the QEMU
+      # of the runner on PATH. QEMU 11 saves the NVMe root disk of the plan.
+      - name: Static QEMU
+        run: sh scripts/ci/static-qemu.sh "$RUNNER_TEMP/static-qemu"
+      - name: Test the warm start with the static QEMU
+        timeout-minutes: 10
+        run: |
+          set -eu
+          qemu-system-x86_64 --version | grep -F 'version 11.0.0'
+          timeout --kill-after=30 420 cargo test --locked -p pod-guest --all-features --lib -- warm:: --test-threads=1 --nocapture
       - name: No emulator stays
         if: always()
         run: |
