@@ -350,6 +350,14 @@ fourth argument of the script names the list when it is elsewhere.
    `pod-fake-github`, `pod-fake-githome` and `pod-release` to
    `ghcr.io/podutils/NAME:vX.Y.Z` (call C789). The
    dry run builds these images too, and pushes nothing.
+   The dry run does not run the steps that run on a tag only: the
+   signature, `pod-release verify --all`, the changed-copy checks, the
+   release, the push of the images and the notes. After a change of one of
+   these steps, run its commands by hand on the signed files of the last
+   tag with the `pod-release` of `main`, and give each scratch path a name
+   of its own (T-974). A run on a tag reads `release.yml` at the tag, so a
+   fix on `main` cannot repair a tag that failed: release the content again
+   as the next patch version, and keep the tag (call C818).
 4. Check the images and their digests on the release. The section "The
    images, by digest" of the body gives the digest of each index and of
    each platform beside the SHA-256 of its asset; each SHA-256 agrees with

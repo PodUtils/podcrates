@@ -234,7 +234,7 @@
 227 issue open
 228 issue closed
 229 issue closed
-230 issue open
+230 issue closed
 231 issue closed
 232 pull closed
 233 pull closed

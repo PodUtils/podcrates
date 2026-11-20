@@ -51,14 +51,19 @@ is done. Git and the record keep finished work.
    is offline until the CI of podrunner and githome is complete; it reads
    `docs/research/fleet/asks.md` and the block of #223 at its next start.
    githome's asks G-30 to G-35 are T-921 to T-923, T-099, T-100 and T-104.
-7. The hand-off of `v0.78.1` is COORD-146 (#241): T-100 (the TLS end of
-   `pod-broker`), T-965 (the command `pod-release`) and T-971. COORD-145
-   (#240, `v0.77.0`) waits for podvm's take; podrunner, podnet and podssh
-   took it. The tag `v0.78.0` has no release (T-974, call C818). Write each
-   take in the "Takes" list of its issue, and close it when each consumer
-   took its tag or a later one.
-   COORD-142 (#236) relays the ruling
-   "ghcr.io" (call C789): podcrates and podvm publish in its form.
+   G-34 and G-35 are done; the last part of G-34 (T-964) goes in the next
+   tag. cfb's A-X-18 (T-106, partial) waits for cfb's answer on #223. Both
+   reply comments are current.
+7. The open hand-offs, both `(to all)`. COORD-146 (#241, `v0.78.1`: T-100,
+   T-965, T-971, T-974): the takes are podrunner `f437793` and podssh
+   `e5b7414`; podvm and podnet have not taken it. COORD-145 (#240,
+   `v0.77.0`): the takes are podrunner `32a9d40`, podnet `cbd52ca` and
+   podssh `b3005e5`; podvm has not taken it. The tag `v0.78.0` has no release (T-974, call C818):
+   consumers take `v0.78.1`. Write each take in the "Takes" list of its
+   issue, and close it when each consumer took its tag or a later one
+   (call C780). COORD-142 (#236) relays the ruling "ghcr.io" (call C789):
+   podcrates, podvm and podnet publish in its form, podssh pushes at its
+   next tag, and podrunner's T-553 is open.
 8. T-767 (PodUtils/podssh#283, partial) and T-939 (done as a guard, call
    C784: a link is lost when a PING waits 30 s and nothing moves): the
    eighth failure of podssh's gate did not come again on the loopback;
@@ -76,13 +81,27 @@ is done. Git and the record keep finished work.
     `TMPDIR=/tmp`): a long one makes the socket paths of `pod-guest` too
     long for `sun_path` (T-920).
 
+## The next tag
+
+It carries T-964 (`pod-release` verifies the bundles of Rekor v2, calls
+C820 and C821) and each fix of `main` after `v0.78.1`. T-966 (podnet's
+half waits for PodUtils/podnet@T-494) and T-963 (the second Nostr relay is
+`nos.lol`; a giver waits its whole limit after a refusal of the relay) are
+partial. T-975 to T-977 (podvm's asks #602, #603, #604; COORD-147 and
+COORD-148 are closed) are open: their code is not on `main`. Before the
+release, read `docs/maintenance.md`, "A release": the steps of
+`release.yml` that run on a tag only are not tested by the dry run.
+
 ## Unfinished work
 
 - #208 asks the owner's agent to delete the `wip/` branches whose work is
-  on `main` (`wip/t909` is on `main` too). The proxy of a cloud session drops
-  `git push origin --delete`. The branch
+  on `main`: `wip/T-717-installer-sign`, `wip/T-746-way-out`,
+  `wip/egress-part2`, `wip/egress-part3` and `wip/t909`. The proxy of a
+  cloud session drops `git push origin --delete`. The two branches
+  `dependabot/docker/images/coturn/coturn/coturn-4.19.0` and
   `dependabot/docker/images/trufflehog/trufflesecurity/trufflehog-3.99.8`
-  of the closed pull request #79 also stays.
+  also stay: their pull requests (#232, #79) are closed, and `main` has
+  the newer pins.
 
 ## What waits
 

@@ -6,15 +6,24 @@
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
 - Last release: `v0.78.1` at `edbc86b` (`docs/releases/v0.78.1.md`; the tag
-  `v0.78.0` has no release, call C818). Its hand-off is COORD-146 (#241);
-  COORD-145 (#240) waits for podvm's take of `v0.77.0`.
-- The tag that the `main` of each consumer names: `v0.76.0` (podrunner,
-  podvm, podssh, podnet). The details of each take are on #239.
+  `v0.78.0` has no release, call C818). Its hand-off is COORD-146 (#241):
+  the takes are podrunner and podssh; podvm and podnet have not taken it.
+  COORD-145 (#240, `v0.77.0`) waits for podvm's take.
+- The next tag carries T-964 (`pod-release` verifies the bundles of Rekor
+  v2) and the fixes of `main` after `v0.78.1`. T-966 and T-963 are partial.
+  T-975 to T-977 (podvm's asks) are open: their code is not on `main`.
+  `release.yml` has steps that run on a tag only, which the dry run does not
+  test (T-974; `docs/maintenance.md`, "A release").
+- The tag that the `main` of each consumer names: `v0.78.1` (podrunner,
+  podssh), `v0.77.0` (podnet), `v0.76.0` (podvm). The details of each take
+  are on #240 and #241.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
 - Open defects: T-916 (partial), T-933,
-  T-934, T-935, T-938, T-789, T-766 (the nightly); T-963 (`live.yml`);
+  T-934, T-935, T-938, T-789, T-766 (the nightly); T-963 (`live.yml`: the
+  second Nostr relay is `nos.lol`; a giver still waits its whole limit
+  after a refusal of the relay);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
   `pod-session`).
 - The session of podcrates coordinates the five sessions: podcrates,
@@ -62,13 +71,13 @@ podrunner (COORD-134, #225): each new ask of podrunner.
 Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;
 cfb's A-X-18 waits for cfb's answer on #223, call C792),
-T-966 (the trials of `pod-release` in podnet and
-podssh, and its hand-off; podnet's half is open), T-973
+T-966 (podssh took `pod-release`; podnet's half waits for
+PodUtils/podnet@T-494), T-973
 (the CA bundle of the TLS end of `pod-broker` with real clients; G-04, #223 G-35), T-105 (A-X-14), T-103 (G-08), T-102. Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
 of the consumers: T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
-for the parity of PodUtils/podrunner#316), T-976 (`pod-enter` and a `RUNPATH`,
+for the parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242), T-976 (`pod-enter` and a `RUNPATH`,
 PodUtils/podvm#603), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
 T-851. Then T-920.
 Then the ruling "Discipline": T-692
@@ -179,7 +188,8 @@ takes the number after the last row of that table.
   `POD_DEVTUNNEL_ACCESS_TOKEN` for a tunnel with no anonymous access),
   host the tunnel (`devtunnel host -p 22 --allow-anonymous`), and tell
   the session: it dispatches `live.yml` with `measure=devtunnel`.
-- Delete the merged branches that #208 names.
+- Delete the branches that #208 names, and the two `dependabot/docker`
+  branches that `docs/HANDOFF.md` names.
 
 The hand-off of each release is a COORD issue `(to all)`
 (`docs/maintenance.md`, "A release").
