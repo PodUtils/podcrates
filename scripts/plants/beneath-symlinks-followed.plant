@@ -3,6 +3,6 @@
 # refusal of a link (T-997).
 ENTRY=T-997
 GROUP=beneath
-EXPECT='right: Err(Link)'
+EXPECT='right: Err\(Link\)'
 RUN='cargo test -p pod-beneath --all-features --test race a_volume_replaced_by_a_link_is_refused'
 LIMIT=900

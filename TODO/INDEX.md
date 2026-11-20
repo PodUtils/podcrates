@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**820 entries: 144 open, 31 partial, 7 blocked, 638 done.**
+**820 entries: 143 open, 31 partial, 7 blocked, 639 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 7 | 9 | 0 | 192 | 208 |
-| P2 | 68 | 12 | 4 | 323 | 407 |
+| P2 | 67 | 12 | 4 | 324 | 407 |
 | P3 | 69 | 10 | 3 | 121 | 203 |
-| **All** | 144 | 31 | 7 | 638 | 820 |
+| **All** | 143 | 31 | 7 | 639 | 820 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -866,4 +866,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-990](relay.md) | P2 | S | M2 | defect | partial | `pod-quic`: an endpoint on `[::]` is IPv6 only on Windows, so the QUIC leg of `pod-cloudflare` sends nothing to an edge of IPv4 |
 | [T-995](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: `Child::wait_forwarding` forwards SIGHUP, SIGINT and SIGTERM only, so a SIGUSR1 or a SIGQUIT kills the waiter and the payload stays |
 | [T-996](podvm.md) | P3 | S | M6 | defect | open | `pod-supervise`: a SIGQUIT, SIGUSR1, SIGUSR2, SIGALRM or SIGPWR ends the detached launcher, and the launcher reads SIGHUP and gives it to nobody |
-| [T-997](podvm.md) | P2 | S | M6 | feature | open | `pod-beneath`: one open of a path under a base with no link and no allocation, for the volume base of podvm and pod-enter |
+| [T-997](podvm.md) | P2 | S | M6 | feature | done | `pod-beneath`: one open of a path under a base with no link and no allocation, for the volume base of podvm and pod-enter |

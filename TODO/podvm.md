@@ -10674,7 +10674,7 @@ cargo test -p pod-supervise --all-features launcher_forwards
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10741,3 +10741,39 @@ cargo test -p pod-beneath --all-features
 cargo test -p pod-enter --all-features --lib ns_volume
 cargo clippy -p pod-beneath -p pod-enter --all-targets --all-features -- -D warnings
 ```
+
+## Done
+
+2026-11-20, commit 2a6a0565 and the next one (the plants).
+A new crate `pod-beneath` (call C834): `#![no_std]`, no allocation, Linux
+only, `linux-raw-sys` its one dependency. `split`, `open_beneath`,
+`open_under_base`, `open_parent_beneath`, `last_name`, the trait `Calls`,
+`Libc` (feature `libc`, default), `OpenHow`, `EAGAIN_TRIES` and the enum
+`Refusal` (`NotUnderBase`, `BaseNotAbsolute`, `Base`, `Link`, `DotDot`,
+`NotDirectory`, `NoOpenat2`, `TooLong`, `Nul`, `Open`, each with `errno()`
+and `text()`). `open_under_base` checks that both paths fit the buffer
+before the base opens, so a refusal opens nothing. `pod-hostprobe` takes
+its `OpenHow` and gives `sys::Beneath`; the host side of a volume of
+`pod-enter` (`VolumeBind::host_base`) takes the crate, and a `..` above the
+base is now "goes above its base by `..`" (call C835). The README gives the
+take of each copy of podvm. Tests: `tests/table.rs`
+(`a_volume_opens_under_its_base_as_a_directory_with_no_link`,
+`a_path_of_a_volume_under_the_base_reaches_no_file_out_of_the_base`,
+`a_host_path_splits_at_its_base`,
+`a_path_that_does_not_fit_the_buffer_opens_nothing`,
+`each_refusal_has_its_errno_and_a_line`) and `tests/race.rs`
+(`a_link_made_between_the_walk_and_the_call_is_refused`,
+`a_volume_replaced_by_a_link_is_refused`,
+`a_dotdot_above_the_directory_is_refused`,
+`an_absent_name_with_a_planted_link_makes_no_file_out_of_the_base`,
+`a_kernel_with_no_openat2_gives_its_own_refusal`,
+`eagain_is_tried_again_and_then_given`). `cargo test -p pod-beneath
+--all-features` passes 11 tests (5 and 6); `cargo test -p pod-enter
+--all-features --lib ns_volume` passes 8; `cargo test -p pod-hostprobe
+--all-features --lib` passes 180; `cargo clippy -p pod-beneath -p
+pod-hostprobe -p pod-enter -p static-probe-lean --all-targets
+--all-features -- -D warnings` and `cargo fmt --all --check` pass; `cargo
+check` of the three crates with their tests for x86_64-pc-windows-gnu and
+x86_64-apple-darwin passes. The plant `beneath-symlinks-followed` (no
+`RESOLVE_NO_SYMLINKS`) is caught; the plant
+`enter-volume-base-not-checked` moved onto the new code and is caught.
