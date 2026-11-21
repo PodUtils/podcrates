@@ -12,11 +12,21 @@
 //! reader and follows the members of the archive. It refuses an `x` past
 //! [`PAX_MAX`] and an `L` or a `K` past [`LONG_MAX`] before it reads their
 //! data. It parses each record of an `x` by its length, as POSIX and Go's
-//! `archive/tar` do. The attribute records and the `path` and `linkpath`
-//! records go to [`Side`], one [`Member`] for each member that the `tar`
-//! reader gives; the other records go to the `tar` reader in a new `x`
-//! member, so that it still applies `size`, `uid` and `gid`. A `path` or a
-//! `linkpath` with no newline byte goes to both, so the two readers agree.
+//! `archive/tar` do. Each record is in one class:
+//!
+//! * The crate uses it: the attribute records (`SCHILY.xattr.`, and the
+//!   ACLs `SCHILY.acl.`) and `path` and `linkpath` go to [`Side`], one
+//!   [`Member`] for each member that the `tar` reader gives.
+//! * The `tar` reader needs it: `size`, `uid`, `gid`, `path` and
+//!   `linkpath` go to the `tar` reader in a new `x` member. A `path` or a
+//!   `linkpath` with no newline byte goes to both, so the two readers
+//!   agree; one with a newline byte goes to the side only. A `uid` or a
+//!   `gid` with a newline byte is refused: the `tar` reader cuts it.
+//! * Neither uses it: each other record (`mtime`, `uname`, `SCHILY.fflags`,
+//!   `LIBARCHIVE.`, `RHT.`, a key of a vendor) is dropped, with any byte.
+//! * A GNU sparse file of the PAX form (`GNU.sparse.`) is refused: the
+//!   `tar` reader gives its data with no holes and, from version 0.1, under
+//!   the name `GNUSparseFile.N/NAME`, so the file comes out wrong.
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -35,7 +45,8 @@ const BLOCK: usize = 512;
 pub struct Member {
     pub path: Option<Vec<u8>>,
     pub linkpath: Option<Vec<u8>>,
-    /// The `SCHILY.xattr.` records, the key with its prefix, in their order.
+    /// The attribute records, the key with its prefix, in their order:
+    /// `SCHILY.xattr.` and the ACLs in their text form, `SCHILY.acl.`.
     pub xattrs: Vec<(Vec<u8>, Vec<u8>)>,
 }
 
@@ -242,15 +253,24 @@ impl<R: Read> Read for Framed<R> {
 }
 
 /// The records of an `x`: the member's own records, the bytes of the
-/// records that go on to the `tar` reader, and the `size` record.
+/// records that go on to the `tar` reader, and the `size` record. See the
+/// module for the class of each key.
 fn split(data: &[u8]) -> Result<(Member, Vec<u8>, Option<u64>), String> {
     let (mut m, mut kept, mut size) = (Member::default(), Vec::new(), None);
     for (key, value) in records(data)? {
         let newline = value.contains(&b'\n');
         match key {
-            k if k.starts_with(crate::xattr::PAX_PREFIX.as_bytes()) => {
+            k if k.starts_with(crate::xattr::PAX_PREFIX.as_bytes())
+                || k.starts_with(crate::acl::PAX_PREFIX.as_bytes()) =>
+            {
                 m.xattrs.push((k.to_vec(), value.to_vec()));
                 continue;
+            }
+            k if k.starts_with(b"GNU.sparse.") => {
+                return Err(format!(
+                    "the PAX record {:?} marks a GNU sparse file, which this crate does not read",
+                    String::from_utf8_lossy(key)
+                ));
             }
             // An empty value removes the record (POSIX).
             b"path" => m.path = (!value.is_empty()).then(|| value.to_vec()),
@@ -266,13 +286,15 @@ fn split(data: &[u8]) -> Result<(Member, Vec<u8>, Option<u64>), String> {
                 size = Some(n.ok_or_else(|| format!("the PAX size record {:?} is not a number", shown(value)))?);
                 continue;
             }
-            _ if newline => {
+            b"uid" | b"gid" if newline => {
                 return Err(format!(
                     "the PAX record {:?} has a newline byte, which the tar reader cuts",
                     String::from_utf8_lossy(key)
                 ));
             }
-            _ => {}
+            b"uid" | b"gid" => {}
+            // Neither reader uses it.
+            _ => continue,
         }
         // The `tar` reader cuts a value at a newline byte: this crate reads
         // such a `path` or `linkpath` from the member.

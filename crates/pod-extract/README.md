@@ -50,6 +50,31 @@ name of 255 bytes, a value of 64 KiB, 64 KiB of names, 1 MiB of values and
 The marks of overlayfs (`trusted.overlay.`, `user.overlay.`) are named and
 not set.
 
+**POSIX ACLs.** GNU tar `--acls`, libarchive and star write an ACL in its
+text form, `SCHILY.acl.access` and `SCHILY.acl.default` (GNU tar: one entry
+on each line). The crate converts the text to the binary form of the kernel
+(`system.posix_acl_access`, `system.posix_acl_default`: version 2, then
+each entry as tag, permissions and id, little endian, sorted as
+`acl_to_xattr` sorts them) and sets it as each other attribute, with the
+same counts of set and not set. When the entry has the binary form too
+(GNU tar `--xattrs --acls`), the binary form holds and the text is not
+read. An ACL whose entry names a user or a group with no id (GNU tar with
+no `--numeric-owner`) is named as not set, with no value: the name comes
+from the user database of the writer, so the crate does not map it to an
+id. An ACL that is not valid (acl(5)), and an NFSv4 ACL
+(`SCHILY.acl.ace`), are named as not set. The mode of the entry stays in
+each case. A default ACL applies to each entry that a later write makes
+in its directory, as with containerd.
+
+**The PAX records.** Each record of a PAX header is in one class:
+
+| Class | Keys | Where |
+| --- | --- | --- |
+| The crate uses it | `SCHILY.xattr.`, `SCHILY.acl.`, `path`, `linkpath` | the `Member` of the entry; a `path` or a `linkpath` with no newline byte goes to the `tar` reader too |
+| The `tar` reader needs it | `size` (the last), `uid`, `gid` | the `tar` reader; a `uid` or a `gid` with a newline byte refuses the layer, as the `tar` reader cuts it |
+| A GNU sparse file | `GNU.sparse.` | the layer is refused: the `tar` reader gives the data with no holes and, from version 0.1, under the name `GNUSparseFile.N/NAME` (T-1087, open) |
+| Neither uses it | each other key: `mtime`, `atime`, `ctime`, `uname`, `gname`, `comment`, `hdrcharset`, `SCHILY.fflags`, `SCHILY.dev`, `LIBARCHIVE.`, `RHT.`, a key of a vendor | dropped, with any byte in its value. libarchive writes each attribute as `SCHILY.xattr.` too; an archive with `LIBARCHIVE.xattr.` alone loses its attributes (T-1088, open) |
+
 Each blob is hashed while it is read, in both passes, and the extraction is
 refused when the digest of the manifest does not agree. The completion
 marker is written last; each failure removes the partial tree, so a refused
@@ -76,13 +101,14 @@ not change while the process runs).
 | `apply` | `apply_layer(root, digest, stream, ids, sidecar)`, `LayerStats` (`entries`: the members read; `skipped`, `skipped_kinds`: the entries of a type that the crate does not make, not the root member; `dir_modes`: each directory entry of the layer and its mode; `xattrs`), `Ids::current()` |
 | `modes` | `DirModes` (`new`, `record(&stats.dir_modes)`, `forget(&ops)`, `set(root, sidecar)`, `len`, `is_empty`): the mode of the image of each directory, the last layer wins, set after the last layer and read back, a mode that the kernel did not keep is one more row of the directory with `applied.mode`; `open_tree(root)`: the owner bits on each directory of a tree that was there before, with `O_NOFOLLOW`, also of a directory with no owner read, one directory open at a time, a tree deeper than `MAX_DEPTH` refused with the cause `TooDeep` |
 | `layer` | `Compression::of(media_type)` (tar, `+gzip`, `.tar.gzip`, `+zstd`), `open_hashed(path, c)`, `HashedStream::digest`, `uncompressed_size(path, c, compressed)` (exact for gzip under 4 GiB, an estimate with its flag for the others) |
-| `pax` | `Framed::new(stream, side)` (the stream of a layer as the `tar` reader reads it: an `x` past `PAX_MAX` (1 MiB) and an `L` or a `K` past `LONG_MAX` (4096) refused before their data, with the cause `Refusal::Member`; the records of an `x` parsed by their length; one `size` record to the `tar` reader, the last), `Side` (`next()`: the `Member` of each entry of the `tar` reader, in order; `refused()`), `Member` (`path`, `linkpath`, `xattrs`), `records(data)` |
+| `pax` | `Framed::new(stream, side)` (the stream of a layer as the `tar` reader reads it: an `x` past `PAX_MAX` (1 MiB) and an `L` or a `K` past `LONG_MAX` (4096) refused before their data, with the cause `Refusal::Member`; the records of an `x` parsed by their length; one `size` record to the `tar` reader, the last; each class of record above), `Side` (`next()`: the `Member` of each entry of the `tar` reader, in order; `refused()`), `Member` (`path`, `linkpath`, `xattrs`: the `SCHILY.xattr.` and `SCHILY.acl.` records), `records(data)` |
+| `acl` | `to_xattr(text) -> Result<Vec<u8>, String>` (the binary form of an ACL in its text form, or why it does not convert), `attribute(kind)` (`access`: `ACCESS`, `default`: `DEFAULT`), `PAX_PREFIX`, `ENTRIES_MAX` |
 | `remove` | `collect(layer, stream)`, `apply(root, ops)`, `Op`, `remove_at(parent_fd, name)` |
 | `tree` (also at the root) | `MAX_DEPTH` (4096: the deepest directory below the start of a walk, and the most components of the path of an entry), `TooDeep` (`path`, `limit`), `too_deep(&failure)`. The walk of `open_tree` and of the removal keeps the listing and the device and inode of each level, holds one directory open, and goes up through `..` only when its device and inode are those of the level above (`TempFail` when a directory moved) |
 | `safety` | `components` (more than `MAX_DEPTH` components: `Refusal::TooDeep`; an extension member past its bound or a PAX record that does not parse: `Refusal::Member`), `is_archive_root`, `rebase_symlink_target`, `Refusal`, `Dir`, `Resolve::{Auto, Walk, InRoot}`, `open_parent`, `open_parent_with` (with `InRoot` and `make_dirs`, a closed parent opens for the one make), `have_openat2`, `OwnerBits` (`add(fd)`, `was`: the owner bits of a closed directory for one step, its mode back on drop) |
 | `sidecar` | `Meta` (`to_json`; `xattrs`: the attributes of the path that are not set, as `"xattrs":[{"name","value":"0x<hex>","reason"}]`, with no `value` for a record past a bound), `Sidecar` (`create`, `push`, `push_dir`, `kept_dir`, `finish`, `dropped`, `first_dropped`), `FirstDropped`, `json_string`; the last row of a path holds |
 | `whiteout` | `classify`, `Kind`, `basename`, `dirname_parts`, `WH`, `OPQ` |
-| `xattr` | `read(&member.xattrs, path) -> Wanted` (the records of an entry, read by their length in `pax`, inside the bounds `NAME_MAX`, `VALUE_MAX`, `NAMES_MAX`, `VALUES_MAX`, `RECORDS_MAX`; `PAX_PREFIX`, `OVERLAY`), `set_fd(fd, &wanted)`, `set_at(parent, name, &wanted)` (a descriptor with `O_NOFOLLOW`, else `lsetxattr` of `/proc/self/fd/N/NAME`) `-> Applied`, `Unset` (`path`, `name`, `value`, `reason`, `to_json`), `Count` (`add`, `merge`, `line`; the first `FIRST_NAMED` not set) |
+| `xattr` | `read(&member.xattrs, path) -> Wanted` (the records of an entry, read by their length in `pax`, each ACL in its binary form, inside the bounds `NAME_MAX`, `VALUE_MAX`, `NAMES_MAX`, `VALUES_MAX`, `RECORDS_MAX`; `PAX_PREFIX`, `OVERLAY`), `set_fd(fd, &wanted)`, `set_at(parent, name, &wanted)` (a descriptor with `O_NOFOLLOW`, else `lsetxattr` of `/proc/self/fd/N/NAME`) `-> Applied`, `Unset` (`path`, `name`, `value`, `reason`, `to_json`), `Count` (`add`, `merge`, `line`; the first `FIRST_NAMED` not set) |
 
 `Resolve::InRoot` is for a writer of a FINISHED root file system (the
 completion of `pod-rootfs`): it follows a symlink of a directory component,
@@ -234,6 +260,21 @@ with a newline byte comes from the side; the last `size` record frames the
 member for both readers; a PAX header of 2 MiB and a GNU long name of
 8 KiB are refused before the reader reads their data, in both passes; a
 global header is an entry. The plant: `extract-t961-pax-header-unbounded`.
+
+`pax::tests::each_class_of_pax_record_goes_to_its_reader_with_a_newline_byte_or_none`
+(PodUtils/podvm#643): a record of each class, with a newline byte in its
+value and with none, goes to the member, to the `tar` reader, to both or to
+neither, or refuses the layer.
+`pax::tests::a_layer_of_gnu_tar_with_acls_reads_and_each_acl_is_one_attribute`:
+the records of GNU tar 1.35 `--format=posix --xattrs --acls` read, and each
+ACL is one attribute. `acl::tests` convert the text forms of GNU tar and
+libarchive to the bytes that Linux gave for the same ACL, and name the
+cause of each ACL that does not convert.
+`drive::acls::the_acls_of_gnu_tar_are_set_or_named_and_the_modes_stay`: an
+access ACL and a default ACL are on disk (or named, where a probe of the
+same ACL fails), an ACL with a name is named, and the modes stay. The
+plants: `extract-t1086-acl-text-dropped`,
+`extract-t1086-sparse-not-refused`.
 
 `drive::the_root_member_is_not_a_skipped_entry` (PodUtils/podvm#352): a
 layer with `./` and a file has 2 entries and 0 skipped; a layer with `./`

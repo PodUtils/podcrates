@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 867 entries: 147 open, 28 partial, 7 blocked, 685 done.
+`TODO/INDEX.md` holds 870 entries: 149 open, 28 partial, 7 blocked, 686 done.
 
 ## State
 
@@ -75,7 +75,7 @@ T-966 (podssh took `pod-release`; podnet's half waits for
 PodUtils/podnet@T-494), T-1073 (the wait of `Context::call` of `pod-control` can end before the server reads the answer of the client). Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
-of the consumers: T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
+of the consumers: T-1087 and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU sparse file, the attributes of libarchive alone; PodUtils/podvm#643), T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
 for the parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-1032 (the launcher of `pod-supervise` blocks before the start of the payload), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
 T-851. Then T-920.
 Then the ruling "Discipline": T-692

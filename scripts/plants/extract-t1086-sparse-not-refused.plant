@@ -1,0 +1,7 @@
+# A GNU sparse file of the PAX form goes to the `tar` reader, which gives
+# its data with no holes and under a wrong name (T-1086).
+ENTRY=T-1086
+GROUP=extract
+EXPECT='GNU.sparse.major=.*not refused'
+RUN='cargo test -p pod-extract --all-features --lib pax::tests::each_class_of_pax_record_goes_to_its_reader_with_a_newline_byte_or_none'
+LIMIT=900

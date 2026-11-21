@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**867 entries: 147 open, 28 partial, 7 blocked, 685 done.**
+**870 entries: 149 open, 28 partial, 7 blocked, 686 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 199 | 213 |
+| P1 | 4 | 10 | 0 | 200 | 214 |
 | P2 | 67 | 8 | 4 | 358 | 437 |
-| P3 | 76 | 10 | 3 | 126 | 215 |
-| **All** | 147 | 28 | 7 | 685 | 867 |
+| P3 | 78 | 10 | 3 | 126 | 217 |
+| **All** | 149 | 28 | 7 | 686 | 870 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -914,3 +914,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1073](fleet.md) | P3 | S | M8 | defect | open | `pod-control`: the wait of `Context::call` can end before the server reads the answer of the client |
 | [T-1080](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `E2BIG` at `execve` gives 127 ("not found"), and a search of the path keeps the errno of its last candidate, so a program that was found and refused does not give 126 (PodUtils/podvm#639) |
 | [T-1082](upkeep.md) | P2 | S | M5 | defect | done | The gate of no blocking call counts the waits that the other test threads of its binary cause (i686, nightly 44848003241) |
+| [T-1086](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a layer of GNU tar `--acls` is refused whole, as the PAX record `SCHILY.acl.access` holds a newline byte (PodUtils/podvm#643) |
+| [T-1087](podvm.md) | P3 | M | M6 | defect | open | `pod-extract`: a GNU sparse file of the PAX form (`GNU.sparse.`) refuses its layer, as the `tar` reader does not read it |
+| [T-1088](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: the attributes of an archive of libarchive with `xattrheader=LIBARCHIVE` are dropped with no word |

@@ -182,3 +182,136 @@ fn a_global_header_is_an_entry_and_takes_the_records_before_it() {
     assert_eq!(got[0].1.xattrs.len(), 1);
     assert_eq!((got[1].0.as_slice(), got[1].1.clone()), (&b"f"[..], Member::default()));
 }
+
+/// Where a record goes.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum To {
+    /// To the member of this crate alone.
+    Side,
+    /// To the member and to the `tar` reader.
+    Both,
+    /// To the `tar` reader alone.
+    Reader,
+    /// To neither.
+    Dropped,
+    /// The member is refused, with this text.
+    Refused(&'static str),
+}
+
+/// Each class of key, with a newline byte in its value and with none
+/// (PodUtils/podvm#643): GNU tar writes an ACL with one entry on each line.
+#[test]
+fn each_class_of_pax_record_goes_to_its_reader_with_a_newline_byte_or_none() {
+    use To::*;
+    let rows: &[(&str, &[u8], To)] = &[
+        // The crate uses it.
+        ("SCHILY.xattr.user.a", b"a\nb", Side),
+        ("SCHILY.xattr.user.a", b"ab", Side),
+        ("SCHILY.acl.access", b"user::rw-\nuser:ubuntu:rw-\ngroup::r--\nmask::rw-\nother::r--\n", Side),
+        ("SCHILY.acl.default", b"user::rwx,group::r-x,other::r-x", Side),
+        ("SCHILY.acl.ace", b"owner@:rwxp:-------:allow\n", Side),
+        ("path", b"dir/a\nb", Side),
+        ("path", b"dir/ab", Both),
+        ("linkpath", b"t\nu", Side),
+        ("linkpath", b"tu", Both),
+        // The `tar` reader needs it.
+        ("uid", b"1000", Reader),
+        ("gid", b"42", Reader),
+        ("uid", b"10\n00", Refused("newline byte, which the tar reader cuts")),
+        ("gid", b"4\n2", Refused("newline byte, which the tar reader cuts")),
+        ("size", b"5\n", Refused("is not a number")),
+        // Neither uses it.
+        ("mtime", b"1795232499.649341102", Dropped),
+        ("atime", b"1795232499\n", Dropped),
+        ("ctime", b"1795232499.659113555", Dropped),
+        ("uname", b"a\nb", Dropped),
+        ("gname", b"adm", Dropped),
+        ("comment", b"x\ny", Dropped),
+        ("hdrcharset", b"BINARY", Dropped),
+        ("SCHILY.fflags", b"nodump\n", Dropped),
+        ("SCHILY.dev", b"2049", Dropped),
+        ("LIBARCHIVE.xattr.user.a", b"YQ==\n", Dropped),
+        ("LIBARCHIVE.creationtime", b"1795232499", Dropped),
+        ("RHT.security.selinux", b"system_u:object_r:bin_t:s0\n", Dropped),
+        ("VENDOR.key", b"x\ny", Dropped),
+        // A GNU sparse file, which the `tar` reader gives wrong.
+        ("GNU.sparse.major", b"1", Refused("GNU sparse file")),
+        ("GNU.sparse.map", b"499712,4096,1048576,0", Refused("GNU sparse file")),
+        ("GNU.sparse.size", b"1048576", Refused("GNU sparse file")),
+    ];
+    for (key, value, to) in rows {
+        let mut data = Vec::new();
+        push_record(&mut data, key.as_bytes(), value);
+        let mut record = Vec::new();
+        push_record(&mut record, key.as_bytes(), value);
+        let got = split(&data);
+        let row = format!("{key}={:?}", String::from_utf8_lossy(value));
+        let (m, kept) = match (got, to) {
+            (Err(e), Refused(why)) => {
+                assert!(e.contains(why), "{row}: {e}");
+                continue;
+            }
+            (Err(e), _) => panic!("{row}: refused, {e}"),
+            (Ok(_), Refused(_)) => panic!("{row}: not refused"),
+            (Ok((m, kept, _)), _) => (m, kept),
+        };
+        let on_side = m != Member::default();
+        let (side, reader) = match to {
+            Side => (true, false),
+            Both => (true, true),
+            Reader => (false, true),
+            _ => (false, false),
+        };
+        assert_eq!((on_side, !kept.is_empty()), (side, reader), "{row}: {m:?}, {:?}", String::from_utf8_lossy(&kept));
+        if reader {
+            assert_eq!(kept, record, "{row}");
+        }
+        if side {
+            let want = (key.as_bytes(), value.to_vec());
+            let held = match *key {
+                "path" => m.path.as_deref() == Some(&value[..]),
+                "linkpath" => m.linkpath.as_deref() == Some(&value[..]),
+                _ => m.xattrs == vec![(want.0.to_vec(), want.1)],
+            };
+            assert!(held, "{row}: {m:?}");
+        }
+    }
+}
+
+/// The records of GNU tar 1.35 `--format=posix --xattrs --acls`, with the
+/// text of each ACL and its binary form: the layer extracts, and each ACL
+/// is set once, from its binary form.
+#[test]
+fn a_layer_of_gnu_tar_with_acls_reads_and_each_acl_is_one_attribute() {
+    let binary =
+        |hex: &str| (0..hex.len()).step_by(2).map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap()).collect();
+    let access: Vec<u8> =
+        binary("0200000001000700ffffffff020007000000000004000500ffffffff10000700ffffffff20000500ffffffff");
+    let mut b = tar::Builder::new(Vec::new());
+    b.append_pax_extensions([
+        ("mtime", &b"1795232499.649341102"[..]),
+        ("atime", b"1795232499.649341102"),
+        ("ctime", b"1795232499.659113555"),
+        ("SCHILY.acl.access", b"user::rwx\nuser:root:rwx\ngroup::r-x\nmask::rwx\nother::r-x\n"),
+        ("SCHILY.acl.default", b"user::rwx\ngroup::r-x\ngroup:1000:rwx\nmask::rwx\nother::r-x\n"),
+        ("SCHILY.xattr.system.posix_acl_access", &access),
+    ])
+    .unwrap();
+    let mut h = tar::Header::new_ustar();
+    h.set_entry_type(tar::EntryType::Directory);
+    h.set_mode(0o775);
+    h.set_size(0);
+    b.append_data(&mut h, "sub", std::io::empty()).unwrap();
+    file(&mut b, "after", b"next");
+    let got = read_all(&b.into_inner().unwrap()).unwrap();
+    assert_eq!(got.iter().map(|g| g.0.as_slice()).collect::<Vec<_>>(), vec![&b"sub"[..], b"after"]);
+    let w = crate::xattr::read(&got[0].1.xattrs, "sub");
+    assert!(w.refused.is_empty(), "{:?}", w.refused);
+    let names: Vec<&str> = w.attrs.iter().map(|x| x.name.as_str()).collect();
+    // The binary access ACL holds; the default ACL converts from its text.
+    assert_eq!(names, vec![crate::acl::ACCESS, crate::acl::DEFAULT]);
+    assert_eq!(w.attrs[0].value, access);
+    let want_default: Vec<u8> =
+        binary("0200000001000700ffffffff04000500ffffffff08000700e803000010000700ffffffff20000500ffffffff");
+    assert_eq!(w.attrs[1].value, want_default);
+}
