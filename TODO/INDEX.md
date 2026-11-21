@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**856 entries: 148 open, 30 partial, 7 blocked, 671 done.**
+**858 entries: 148 open, 30 partial, 7 blocked, 673 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 11 | 0 | 197 | 212 |
-| P2 | 70 | 9 | 4 | 349 | 432 |
+| P1 | 4 | 11 | 0 | 198 | 213 |
+| P2 | 70 | 9 | 4 | 350 | 433 |
 | P3 | 74 | 10 | 3 | 123 | 210 |
-| **All** | 148 | 30 | 7 | 671 | 856 |
+| **All** | 148 | 30 | 7 | 673 | 858 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -902,4 +902,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1044](upkeep.md) | P3 | S | M5 | defect | open | `check-windows.sh` and `check-macos.sh` compile no doc test, so a doc test with an item of Unix fails only in the nightly |
 | [T-1045](podvm.md) | P2 | S | M6 | feature | done | `pod-supervise`: a streamed read of a log: a copy of a range in pieces, the tail found from the end, a byte bound of a follow (PodUtils/podvm#631) |
 | [T-1046](podvm.md) | P2 | S | M6 | feature | done | `pod-incus`: a read of a file in pieces to a writer, with a `Range` and a byte bound of the caller (PodUtils/podvm#631) |
+| [T-1056](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: `qmp::Monitor::connect` puts no bound on the `connect()` itself, so a connect to the full queue of the monitor of QEMU waits in the kernel with no end (PodUtils/podvm#633) |
+| [T-1057](podvm.md) | P2 | S | M7 | defect | done | `pod-guest`: the tests of `warm::line` have no stand-in of the monitor of QEMU with one client and a queue of one connection (PodUtils/podvm#633) |
 | [T-1059](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the test of a code in no line takes a part of a word for a word of the code (`ci` 44806766580) |

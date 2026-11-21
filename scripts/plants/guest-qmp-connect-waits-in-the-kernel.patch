@@ -1,0 +1,16 @@
+--- a/crates/pod-guest/src/qmp/monitor.rs
++++ b/crates/pod-guest/src/qmp/monitor.rs
+@@ -257,11 +257,8 @@
+ /// at once, connected or with `EAGAIN` for a full queue. The stream is
+ /// blocking again after the connect: each read has its own bound.
+ fn try_connect(path: &Path) -> std::io::Result<UnixStream> {
+-    let s = Socket::new(Domain::UNIX, Type::STREAM, None)?;
+-    s.set_nonblocking(true)?;
+-    s.connect(&SockAddr::unix(path)?)?;
+-    s.set_nonblocking(false)?;
+-    Ok(UnixStream::from(std::os::fd::OwnedFd::from(s)))
++    let _ = (Socket::new, Domain::UNIX, Type::STREAM, SockAddr::unix::<&Path>);
++    UnixStream::connect(path)
+ }
+ 
+ /// The failure of a connection to `path` that did not come within `wait`,

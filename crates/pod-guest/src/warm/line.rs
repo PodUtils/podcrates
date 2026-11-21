@@ -441,3 +441,6 @@ mod tests;
 
 #[cfg(test)]
 mod tests_late;
+
+#[cfg(test)]
+mod tests_queue;

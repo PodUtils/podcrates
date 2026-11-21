@@ -8,7 +8,7 @@ use crate::warm::tests::dir;
 use crate::{Accel, warm};
 
 /// The requests that a stand-in read.
-type Log = Arc<Mutex<Vec<String>>>;
+pub(super) type Log = Arc<Mutex<Vec<String>>>;
 
 /// What a stand-in of the monitor of an emulator does.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -30,7 +30,7 @@ enum Peer {
 }
 
 /// The path of the stream in a `migrate` URI of either transport.
-fn stream_of(uri: &str) -> Option<PathBuf> {
+pub(super) fn stream_of(uri: &str) -> Option<PathBuf> {
     if let Some(p) = uri.strip_prefix("file:") {
         return Some(p.into());
     }
@@ -100,12 +100,12 @@ fn monitor(sock: &Path, peer: Peer) -> (Log, Log) {
     (seen, uris)
 }
 
-fn names(seen: &Log) -> Vec<String> {
+pub(super) fn names(seen: &Log) -> Vec<String> {
     seen.lock().unwrap_or_else(|e| e.into_inner()).clone()
 }
 
 /// A fingerprint of a line of a direct kernel boot.
-fn print(kernel: &str) -> String {
+pub(super) fn print(kernel: &str) -> String {
     Inputs::new()
         .with("qemu", "QEMU emulator version 11.0.0")
         .with("cpu", "tcg")
@@ -116,7 +116,7 @@ fn print(kernel: &str) -> String {
         .text()
 }
 
-fn notes() -> Vec<(String, String)> {
+pub(super) fn notes() -> Vec<(String, String)> {
     vec![("mem-mib".into(), "3072".into())]
 }
 

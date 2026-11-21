@@ -25,6 +25,12 @@
 //! [`Monitor::take_events`]. QEMU answers no request while it holds its
 //! lock, for example for the last part of a migration.
 //!
+//! QEMU serves one client of a monitor at a time, and queues one more
+//! connection. A caller drops its connection before it opens a new one to
+//! the same emulator. [`Monitor::connect`] never waits in the kernel: a
+//! connection to a full queue fails at once, and is tried again up to the
+//! bound of the caller.
+//!
 //! A local user who connects to the socket can type into the console. The
 //! per-run directory that holds it has the mode 0700
 //! ([`crate::scratch_dir`]).
@@ -234,4 +240,4 @@ const LETTER: [&str; 26] = [
 const DIGIT: [&str; 10] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

@@ -1,0 +1,8 @@
+# pod-guest: each try of Monitor::connect is a blocking connect, so a
+# connect to the full queue of the monitor of QEMU waits in the kernel
+# with no bound (T-1056).
+ENTRY=T-1056
+GROUP=guest
+EXPECT='test qmp::tests::queue::a_connect_to_a_full_queue_ends_within_its_bound_and_says_the_queue_is_full \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- qmp::tests::queue'
+LIMIT=1800

@@ -12213,3 +12213,183 @@ with `-D warnings` pass for the four crates. podvm: `logs
 --podvm-tier=incus` reads `get_file_to(name, LOG, Some(ByteRange::from(seen)),
 left, out)` on each poll and drops its bound of 64 MiB; a `size` below
 `seen` sets its offset back.
+
+# T-1056: `pod-guest`: `qmp::Monitor::connect` puts no bound on the `connect()` itself, so a connect to the full queue of the monitor of QEMU waits in the kernel with no end (PodUtils/podvm#633)
+
+**Source:** PodUtils/podvm#633 (COORD-222 of podvm, PodUtils/podvm@T-2048), asks 1 and 2
+**Category:** defect
+**Milestone:** M7
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm (`kvm.yml` run 44786700578): "a run of `--podvm-init=image` on
+podvm's machine tier hung 900 s with no line." The facts of podvm (TCG,
+QEMU 8.2.2, the emulator stopped by `SIGSTOP` for 8 s during the save):
+"QEMU serves one monitor client at a time. Its QMP socket listens with a
+backlog of 1 (`ss -xl`: `LISTEN 2 1`)." "podvm's save opened a new
+connection to the monitor when `query-migrate` gave no answer in 5 s, with
+the old one still open. The second connection waited in the queue. The
+third `connect()` waited in the kernel (`unix_stream_connect` →
+`unix_wait_for_peer`) with no bound." "`Monitor::connect(path, timeout)`
+of `pod-guest` (v0.79.0 and v0.80.0) bounds the reads, but not the
+`connect()` itself."
+
+Ask 1: "`Monitor::connect` with a bound on the `connect()` itself: a
+non-blocking connect and a poll for writable, or the thread form of
+podvm. Also one line that says that the queue of the monitor is full,
+where that is the cause." Ask 2: "In the docs of `Monitor`: a caller must
+drop a connection before it opens a new one to the same QEMU." podvm
+takes `ask_within` and `late` when a tag has them with this bound.
+
+## Premise
+
+- Read: `crates/pod-guest/src/qmp/monitor.rs` (`connect` calls
+  `UnixStream::connect`, which blocks; the bound `wait` is the wait for
+  the socket file only; the greeting has the bound `ANSWER_WAIT`);
+  `crates/pod-guest/src/warm/line.rs` (`freeze` holds one connection from
+  the check of `blocked-reasons` to `cont`; `running` drops its connection
+  before it makes a new one); `crates/pod-guest/src/warm/state.rs`
+  (`restore`: `load` drops the connection of `running`, then one new
+  connection for the medium); podvm at `867f79e`:
+  `PodUtils/podvm:crates/podvm/src/machine/guest/state/save.rs` (each
+  connect in a thread that the caller waits for with a bound).
+- Read: Linux `net/unix/af_unix.c`, `unix_stream_connect`: with
+  `O_NONBLOCK` a connect to a full queue gives `EAGAIN` at once; a Unix
+  stream socket has no connect in progress (`EINPROGRESS`). A socket file
+  with no listener gives `ECONNREFUSED`, no file gives `ENOENT`. A queued
+  connection that the client closes stays in the queue until the server
+  takes it.
+- Not measured: the queue of a real QEMU here (podvm read `LISTEN 2 1`).
+
+## Approach
+
+Each try of `Monitor::connect` is a connect with `O_NONBLOCK` (a
+`socket2::Socket`, then blocking again for the reads): it ends at once. A
+try that fails is made again each 100 ms until `wait`. At the bound, the
+line tells the cause of the last try: `EAGAIN`, the queue of the monitor
+is full; `ENOENT`, the socket never appeared; `ECONNREFUSED`, no emulator
+listens. A greeting that does not come within `ANSWER_WAIT` says that the
+connection waits in the queue behind another one. The docs of `Monitor`
+and of `qmp` say that a caller drops a connection before it opens a new
+one to the same emulator. A test: a listener with a backlog of 1 whose
+queue is full; `Monitor::connect` must end within its bound with the line
+of the full queue, not at the time limit of the test.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features --lib qmp
+sh scripts/plant-each.sh guest-qmp-connect-waits-in-the-kernel
+```
+
+## Done
+
+2026-11-21, this commit. `Monitor::connect(path, wait)`
+(`crates/pod-guest/src/qmp/monitor.rs`): each try is a connect with
+`O_NONBLOCK` of a `socket2::Socket` (then blocking again for the reads),
+which ends at once; a try that fails is made again each 100 ms up to
+`wait` (a zero `wait` is one try). At the bound the `Class::Timeout` line
+tells the cause of the last try: `EAGAIN`, "the queue of the QMP socket
+PATH is full for Ns: the emulator serves one client at a time and queues
+one more, so other connections to it are open; close them before a new
+one"; `ENOENT`, "never appeared"; `ECONNREFUSED`, "no emulator listens on
+it". A greeting that does not come within `ANSWER_WAIT` says that the
+connection waits behind another open connection. The docs of `Monitor`,
+of `qmp` and of `crates/pod-guest/README.md` say that a caller drops its
+connection before it opens a new one. Read: `warm::line::freeze` holds one
+connection from the check to `cont`; `running` drops its connection
+before a new one; `warm::restore` drops the connection of `load` before
+the one of the medium; no change. New dependency: `socket2` 0.6 (already
+in the lock file). Tests (`crates/pod-guest/src/qmp/tests/queue.rs`):
+`qmp::tests::queue::a_connect_to_a_full_queue_ends_within_its_bound_and_says_the_queue_is_full`
+(a listener with a backlog of 1 whose queue is full; the bound 300 ms),
+`qmp::tests::queue::a_missing_socket_and_a_socket_with_no_listener_each_have_their_line`
+and `qmp::tests::queue::a_connection_in_the_queue_gets_no_greeting_and_says_why`.
+Before the fix the first fails with "the connect did not end in 20s: it
+waits in the kernel", and the other two fail on their lines. The plant
+`guest-qmp-connect-waits-in-the-kernel` (a blocking connect) is caught.
+`cargo test -p pod-guest --all-features`: lib 197 passed, 1 ignored;
+clippy and `cargo doc` with `-D warnings` pass. podvm: `Monitor::connect`
+with its bound replaces the thread of its `connect`, and `ask_within` and
+`late` read a late answer on the same connection.
+
+# T-1057: `pod-guest`: the tests of `warm::line` have no stand-in of the monitor of QEMU with one client and a queue of one connection (PodUtils/podvm#633)
+
+**Source:** PodUtils/podvm#633 (COORD-222 of podvm, PodUtils/podvm@T-2048), ask 3
+**Category:** defect
+**Milestone:** M7
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Ask 3: "The rows of `tests_monitor.rs` for the tests of
+`pod_guest::warm` (`save`, `running`), so that `warm::line` holds them.
+podvm takes `warm::line` (#618) only when it holds them; until then it
+keeps its own save." podvm's stand-in "acts as QEMU does: one client, a
+backlog of 1, the late answer on the same connection (`Peer::Late`), and
+a peer that fills the queue and never answers (`Peer::Hangs`)."
+
+The stand-ins of `crates/pod-guest/src/warm/line/tests.rs` and
+`crates/pod-guest/src/warm/line/tests_late.rs` bind with the backlog of
+`std` (128): a second connection while one is open gets its greeting at
+the next accept, and no connect waits. So no test shows that `freeze`
+keeps one connection, or that `save` and `running` end within their
+bounds where the monitor answers nothing and its queue is full.
+
+## Premise
+
+- Read: podvm at `867f79e`,
+  `PodUtils/podvm:crates/podvm/src/machine/guest/state/tests_monitor.rs`
+  (blob `81ea50fb`): the rows `Late` (the first `query-migrate` answers
+  after 5.6 s on the same connection; the next client is taken when the
+  first one closed) and `Hangs` (at the first `query-migrate` the stand-in
+  fills its queue with two connections and answers nothing).
+- Read: `freeze` asks `query-migrate` before the stop (the check of
+  `blocked-reasons`), and podvm's save does not. So the rows here act at
+  the first `query-migrate` after the `migrate`.
+- Not measured: a real QEMU (the rows are a stand-in).
+
+## Approach
+
+A new test file `crates/pod-guest/src/warm/line/tests_queue.rs` with a
+stand-in of the monitor: `listen` with a backlog of 1, one client at a
+time, each client counted. Rows: `Late` (the save ends well on one
+connection; then `running` gets a second client and a late
+`query-status`), `Hangs` (the save ends within its bound with a timeout,
+on one connection; `running` then ends within its bound with the line of
+the full queue), `Full` (the queue is full from the start: the save fails
+before the stop, and the guest goes on). Each call runs in a thread with
+a time limit, so a wait with no bound fails the test. Record the import in
+`crates/pod-guest/SOURCES`.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features --lib warm::line::tests_queue
+```
+
+## Done
+
+2026-11-21, this commit. `crates/pod-guest/src/warm/line/tests_queue.rs`:
+a stand-in of the monitor with `listen` and a backlog of 1
+(`qmp::tests::queue::qemu_listener`), one client at a time, each client
+counted; each save and load runs in a thread with a time limit of 60 s.
+Tests:
+`warm::line::tests_queue::a_late_answer_on_a_monitor_of_one_client_keeps_one_connection`
+(`Late`: the save ends well on one client; `running` then gets the second
+client and its late `query-status`),
+`warm::line::tests_queue::a_monitor_that_hangs_with_a_full_queue_ends_the_save_and_the_load_within_their_bounds`
+(`Hangs`: the save ends with `Timeout` on one client and leaves no file;
+`running` ends at its bound of 1 s with the line of the full queue) and
+`warm::line::tests_queue::a_full_queue_fails_the_save_before_the_stop_and_the_load_at_its_bound`
+(`Full`: the save fails before the stop and the guest goes on). Before the
+fix of T-1056 the rows `Hangs` and `Full` fail with "the load did not end
+in 60s" and "the save did not end in 60s"; the row `Late` passes on the
+code before: `freeze` already kept one connection. The import is in
+`crates/pod-guest/SOURCES` (podvm `867f79e`, blob `81ea50fb`).
+`cargo test -p pod-guest --all-features`: lib 197 passed, 1 ignored.

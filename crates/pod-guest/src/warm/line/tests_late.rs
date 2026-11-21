@@ -10,7 +10,7 @@ use super::*;
 use crate::warm::tests::dir;
 
 /// Longer than the old fixed wait of one answer (5 s).
-const LATE: Duration = Duration::from_secs(6);
+pub(super) const LATE: Duration = Duration::from_secs(6);
 
 /// `answer` with the `id` of `request`, as QEMU gives it back.
 fn with_id(answer: &str, request: &str) -> String {
