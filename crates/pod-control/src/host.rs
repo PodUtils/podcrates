@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::catalogue::Tier;
-use crate::wire::{Code, Fault};
+use crate::wire::{Code, Fault, Wiped};
 
 /// The answer of the host to one request: the result, or an error that the
 /// client gets.
@@ -98,10 +98,12 @@ impl std::fmt::Display for CallFault {
 
 impl std::error::Error for CallFault {}
 
-/// A message from the host side to the thread of a connection.
+/// A message from the host side to the thread of a connection. A value in
+/// it is wiped at its drop: also in a send that fails, and in a channel that
+/// ends with the message unread.
 pub(crate) enum ToConn {
-    Answer(Outcome),
-    Back { method: String, params: Value, reply: Sender<Result<Value, CallFault>> },
+    Answer(Result<Wiped, Fault>),
+    Back { method: String, params: Wiped, reply: Sender<Result<Wiped, CallFault>> },
 }
 
 /// The context of one request: the peer, its tier, and the calls back.
@@ -126,11 +128,14 @@ impl Context {
     /// Call `method` of the client on the connection of this request, and
     /// wait for its answer. The budget of calls back of the request and of
     /// its connection holds: past it, each call is [`CallFault::Budget`].
+    /// The params are wiped on each path; an answer that comes after the
+    /// wait is wiped at its drop.
     pub fn call(&mut self, method: &str, params: Value) -> Result<Value, CallFault> {
+        let params = Wiped(params);
         let back = self.back.as_ref().ok_or(CallFault::Gone)?;
         let (reply, answer) = mpsc::channel();
         back.send(ToConn::Back { method: method.to_string(), params, reply }).map_err(|_| CallFault::Gone)?;
-        answer.recv_timeout(self.wait).unwrap_or(Err(CallFault::Gone))
+        answer.recv_timeout(self.wait).map_or(Err(CallFault::Gone), |result| result.map(Wiped::take))
     }
 }
 

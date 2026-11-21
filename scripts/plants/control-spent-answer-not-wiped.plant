@@ -1,0 +1,8 @@
+# The server drops the answer of the host past the budget of calls back
+# with no wipe: a token in the answer stays in freed memory, and the search
+# of each freed block finds it (T-1060).
+ENTRY=T-1060
+GROUP=control
+EXPECT='freed blocks with a token'
+RUN='cargo test -p pod-control --all-features --test wipe no_freed_block_holds_a_token_of_a_line'
+LIMIT=900

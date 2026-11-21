@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**864 entries: 148 open, 28 partial, 7 blocked, 681 done.**
+**865 entries: 148 open, 28 partial, 7 blocked, 682 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 199 | 213 |
 | P2 | 68 | 8 | 4 | 355 | 435 |
-| P3 | 76 | 10 | 3 | 125 | 214 |
-| **All** | 148 | 28 | 7 | 681 | 864 |
+| P3 | 76 | 10 | 3 | 126 | 215 |
+| **All** | 148 | 28 | 7 | 682 | 865 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -908,6 +908,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1056](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: `qmp::Monitor::connect` puts no bound on the `connect()` itself, so a connect to the full queue of the monitor of QEMU waits in the kernel with no end (PodUtils/podvm#633) |
 | [T-1057](podvm.md) | P2 | S | M7 | defect | done | `pod-guest`: the tests of `warm::line` have no stand-in of the monitor of QEMU with one client and a queue of one connection (PodUtils/podvm#633) |
 | [T-1059](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the test of a code in no line takes a part of a word for a word of the code (`ci` 44806766580) |
-| [T-1060](fleet.md) | P3 | S | M8 | defect | open | `pod-control`: an answer that the server drops on a side path, after a timeout or a spent budget, is not wiped |
+| [T-1060](fleet.md) | P3 | S | M8 | defect | done | `pod-control`: an answer that the server drops on a side path, after a timeout or a spent budget, is not wiped |
 | [T-1066](foundation.md) | P2 | S | M0 | feature | done | `pod-core`: one atomic replace of a file at a path that the caller names, with `Mode::Keep`, a followed link, a made directory and errors that name the step (PodUtils/podnet#677) |
 | [T-1070](fleet.md) | P3 | S | M8 | defect | open | `pod-control`: podrunner's test of a ninth client fails 6 of 30 runs, as the place of the call before it is not back yet |
+| [T-1073](fleet.md) | P3 | S | M8 | defect | open | `pod-control`: the wait of `Context::call` can end before the server reads the answer of the client |

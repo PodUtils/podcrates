@@ -14,7 +14,7 @@ use crate::catalogue::{Catalogue, Tier};
 use crate::dispatch::{self, Session, Target};
 use crate::frame::{Line, Lines, Stream};
 use crate::host::{CallFault, Context, Host, Outcome, Peer, ToConn};
-use crate::wire::{self, Code, Fault, Inbound, Request};
+use crate::wire::{self, Code, Fault, Inbound, Request, Wiped};
 
 /// A secret that raises a connection to the master tier. It is compared in
 /// constant time, its `Debug` shows no byte of it, and its text is wiped at
@@ -144,10 +144,11 @@ impl Call {
         &self.method
     }
 
-    /// Answer the call with `host`.
+    /// Answer the call with `host`. The answer is wiped at its drop: also
+    /// when the connection stopped its wait (`busy`) and does not read it.
     pub fn answer(mut self, host: &mut dyn Host) {
         let outcome = dispatch::delegate(&self.target, host, &self.params, &mut self.cx);
-        let _ = self.reply.send(ToConn::Answer(outcome));
+        let _ = self.reply.send(ToConn::Answer(outcome.map(Wiped)));
     }
 }
 
@@ -266,7 +267,9 @@ pub(crate) fn serve_connection<S: Stream>(
                 (Some(id), request(req, &peer, &mut session, &mut budget, &mut lines, shared, calls))
             }
         };
-        lines.write_line(&wire::answer_line(id, &outcome))?;
+        let written = lines.write_line(&wire::answer_line(id, &outcome));
+        wire::wipe_outcome(outcome);
+        written?;
         if session.close {
             return Ok(());
         }
@@ -304,29 +307,31 @@ fn request<S: Stream>(
     let mut deadline = Instant::now() + settings.answer_wait;
     loop {
         match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+            // Past the budget, the answer of the host is wiped at its drop.
             Ok(ToConn::Answer(outcome)) => {
                 return if spent {
                     Err(Fault::new(Code::Budget, "the calls back of the request are spent"))
                 } else {
-                    outcome
+                    outcome.map(Wiped::take)
                 };
             }
-            Ok(ToConn::Back { method, mut params, reply }) => {
+            Ok(ToConn::Back { method, params, reply }) => {
                 if used >= settings.callbacks_per_request || budget.connection >= settings.callbacks_per_connection {
                     spent = true;
                     session.close |= budget.connection >= settings.callbacks_per_connection;
                     let _ = reply.send(Err(CallFault::Budget));
-                    wire::wipe(&mut params);
                     continue;
                 }
                 used += 1;
                 budget.connection += 1;
-                let result = call_back(lines, req.id, used as u64, &method, &params, settings);
-                wire::wipe(&mut params);
+                let result = call_back(lines, req.id, used as u64, &method, &params.0, settings);
+                drop(params);
                 if result == Err(CallFault::Gone) {
                     session.close = true;
                 }
-                let _ = reply.send(result);
+                // When `Context::call` stopped its wait, the send fails and
+                // the answer of the client is wiped at its drop.
+                let _ = reply.send(result.map(Wiped));
                 deadline = Instant::now() + settings.answer_wait;
             }
             Err(RecvTimeoutError::Timeout) => {

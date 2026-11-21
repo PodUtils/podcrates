@@ -7515,7 +7515,7 @@ that drop an answer are T-1060.
 **Milestone:** M8
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7555,6 +7555,33 @@ with a token, and a call back past its budget whose answer holds a token.
 ```sh
 cargo test -p pod-control --all-features --test wipe
 ```
+
+## Done
+
+2026-11-21, this commit. The answer of the host and the answer of a call
+back move between the threads as `Result<Wiped, _>`, and the params of a
+call back as `Wiped` (`crates/pod-control/src/host.rs`, `ToConn`): each
+drop wipes them, so a send that fails and a channel that ends with the
+message unread wipe them too. This holds the four paths: the answer of the
+host past the budget of calls back; the answer of a call back that the
+server sends after `Context::call` stopped its wait; the answer of
+`Call::answer` after `busy`, sent or unread; and the late answer to
+`Context::call`. Findings, fixed in place: `serve_connection` dropped the
+answer of each request after its write with no wipe (`wire::wipe_outcome`
+now), and `Context::call` dropped the params of a call back with no wipe
+when the send failed (after `busy`) or the context was detached.
+`no_freed_block_holds_a_token_of_a_line` (`crates/pod-control/tests/wipe.rs`)
+runs each path on a server of the host `Sly`, in a scope of its own,
+with a token in the answer: `answer`, `spent`, `late`, `late_back` and
+`slow_back` (a client that holds the call back with blank lines past the
+wait of the host, then answers with a token). Before the fix each path
+found 1 freed block with the token; after it 0, 20 of 20 runs. The plant
+`control-spent-answer-not-wiped` (the answer past the budget taken out of
+its wipe) is caught. The queued form of a late answer (a send in the
+moment between the end of the wait and the drop of the receiver) is a race
+with no test: the type of the message wipes it as it wipes the failed
+send. A finding: the wait of `Context::call` can end before the server
+reads the answer of the client (T-1073).
 
 # T-1070: `pod-control`: podrunner's test of a ninth client fails 6 of 30 runs, as the place of the call before it is not back yet
 
@@ -7609,4 +7636,63 @@ more gets `busy`.
 
 ```sh
 cargo test -p pod-control --all-features --test server
+```
+
+# T-1073: `pod-control`: the wait of `Context::call` can end before the server reads the answer of the client
+
+**Source:** T-1060 (a finding of the test of a late answer).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Context::call` waits for the answer of a call back for
+`read_timeout + write_timeout + 1 s` (`crates/pod-control/src/server.rs`,
+`request`). The server can take longer than that for one call back:
+
+- `call_back` reads the answer with `Lines::next_line`, and each blank
+  line starts a new wait of `read_timeout`. A client that sends a blank
+  line in each `read_timeout` holds the call back with no limit.
+- `Lines::write_line` writes with `write_all`, and the timeout of the
+  stream applies to each write of the system, not to the line. A client
+  that reads a few bytes in each `write_timeout` holds the write of a long
+  line with no limit.
+
+The host then gets `CallFault::Gone` for a call back that the client
+answers later, and the server drops that answer (wiped since T-1060).
+The client does not know that the host did not get its answer.
+`Settings::read_timeout` says "The longest wait for one whole line: a
+request, or the answer to a call back".
+
+## Premise
+
+- Read: `crates/pod-control/src/server.rs` (`call_back`, `request`),
+  `crates/pod-control/src/frame.rs` (`next_line`, `write_line`),
+  `crates/pod-control/src/host.rs` (`Context::call`).
+- Measured: `no_freed_block_holds_a_token_of_a_line`
+  (`crates/pod-control/tests/wipe.rs`, `slow_back`): a client that sends a
+  blank line each 50 ms for 1.8 s, with a read and a write timeout of
+  200 ms, gets the call back to the host as `Gone` (the wait of the host is
+  1.4 s), and the server reads its answer after that.
+- Not measured: the write of a long line to a client that reads slowly.
+
+## Approach
+
+Give the call back one deadline in the server: the write of the request
+line and the read of its answer, blank lines too, end at
+`write_timeout + read_timeout` from the start (`write_line` sets the
+timeout of each write to the time that is left). Keep the wait of
+`Context::call` longer than that deadline, so that it ends first only
+when a thread stops. The test `slow_back` of `tests/wipe.rs` then gets a
+`Gone` from the server: move its late answer to a hook of the test (a
+`Context` with a short wait) so that the wipe of a late answer stays
+proven.
+
+## Prove
+
+```sh
+cargo test -p pod-control --all-features
 ```
