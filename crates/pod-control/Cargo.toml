@@ -7,6 +7,11 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+# The reader of the JSON of a line (`json::read`), public for the fuzz
+# target `control_line` of fuzz/. No consumer turns it on.
+fuzzing = []
+
 [dependencies]
 # The class of a failure, the bind of a socket of one user and the ids of
 # its peer, and the SID of a user on Windows.

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-control/src/client.rs b/crates/pod-control/src/client.rs
+index 45fd3b74..d7642b94 100644
+--- a/crates/pod-control/src/client.rs
++++ b/crates/pod-control/src/client.rs
+@@ -207,7 +207,7 @@ impl Client {
+                     self.callbacks += 1;
+                     let outcome = back(&req.method, &req.params);
+                     let written = self.lines.write_line(&wire::answer_line(Some(req.id), &outcome));
+-                    wire::wipe_outcome(outcome);
++                    drop(outcome);
+                     written?;
+                 }
+                 Ok(Inbound::Request(_)) => return self.broke("a call back for no request in flight"),

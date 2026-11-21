@@ -1,0 +1,8 @@
+# The client drops the answer of a call back with no wipe after it writes
+# the answer: a token in the answer stays in freed memory, and the search
+# of each freed block finds it (T-1048).
+ENTRY=T-1048
+GROUP=control
+EXPECT='freed blocks with a token'
+RUN='cargo test -p pod-control --all-features --test wipe no_freed_block_holds_a_token_of_a_line'
+LIMIT=900

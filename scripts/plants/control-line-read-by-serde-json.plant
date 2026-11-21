@@ -1,0 +1,9 @@
+# A line is read by serde_json again: a token with an escape stays in the
+# freed scratch buffer of serde_json, and a part of a line that is not JSON
+# and a value that a later key replaces are freed with no wipe; the search
+# of each freed block finds them (T-1048).
+ENTRY=T-1048
+GROUP=control
+EXPECT='freed blocks with a token'
+RUN='cargo test -p pod-control --all-features --test wipe no_freed_block_holds_a_token_of_a_line'
+LIMIT=900

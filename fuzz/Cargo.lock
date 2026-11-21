@@ -2113,6 +2113,7 @@ dependencies = [
  "pod-core",
  "pod-hostprobe",
  "sha2 0.11.1",
+ "socket2",
  "xz4rust",
 ]
 

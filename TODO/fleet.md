@@ -7436,7 +7436,7 @@ next macOS run shows it.
 **Milestone:** M8
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7467,6 +7467,88 @@ the lines are small and their grammar is plain JSON. Hold it to
 line that both read). Other way: a fork of `serde_json` in `vendor/` whose
 `Deserializer` wipes `scratch` at its drop. Then add the line with an
 escape to `tests/wipe.rs`.
+
+## Prove
+
+```sh
+cargo test -p pod-control --all-features --test wipe
+```
+
+## Done
+
+2026-11-21, this commit. `wire::parse` reads a line with `json::read`, a
+JSON reader of the crate (call C883), not with `serde_json::from_str`. It
+decodes a string with an escape into the buffer of the string, of the
+length of its text, so no buffer grows and no scratch copy stays. It wipes
+a part of a value that fails to read and a value that a later key of the
+same name replaces; `serde_json` drops both with no wipe (measured: a line
+that is not JSON after a token gives 1 freed block with the token, and a
+key that comes twice 1, each with no escape). The client wipes the answer
+of each call back after the write (a finding of the new test: 1 freed
+block). `no_freed_block_holds_a_token_of_a_line` (`tests/wipe.rs`, with 6
+lines whose token has `\n`, `\"`, `\\`, `\u0041`, `\t`, an escape in a key,
+2 lines that are not JSON, a key twice, and a request and a call back
+whose token has `"`, `\`, a line end and `\u0001`) found 21 freed blocks
+with the token before the fix and 0 after, 20 of 20 runs.
+`no_freed_block_of_the_control_holds_a_token_or_a_secret`
+(`crates/pod-broker/tests/control_wipe.rs`, a `load` with `\"` and `\\` in
+the token and the secret, one with `\u0041` in a line of `raw`, and a
+token with a line end) found 6 before the fix and 0 after, 20 of 20 runs.
+`each_text_reads_as_serde_json_reads_it`,
+`the_depth_of_arrays_and_objects_is_the_one_of_serde_json` and
+`a_string_with_an_escape_does_not_grow_its_buffer` hold the reader to
+`serde_json`; the fuzz target `control_line` compares the two on each
+input (`cargo test --lib` of `fuzz/`: the seeds, 2 new, and 2000
+mutations). A plant that decodes `\n` as `\r` fails both. The plants
+`control-line-read-by-serde-json` and `control-call-back-answer-not-wiped`
+are caught. `request_line` and `answer_line` with an escaped token leave
+no copy: the writer of `serde_json` writes each escape from a constant or
+from the stack to the formatter. Not wiped: the copies in the socket buffers of the kernel,
+and a value that the host copies itself; the side paths of the server
+that drop an answer are T-1060.
+
+
+# T-1060: `pod-control`: an answer that the server drops on a side path, after a timeout or a spent budget, is not wiped
+
+**Source:** T-1048 (a finding of the read of `server.rs`).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The server of `pod-control` wipes the params of each request and of each
+call back, but drops an answer with no wipe on four side paths:
+
+- `server.rs`, the loop of a delegated request: the answer of the host
+  after the calls back are spent (`spent`) is replaced by `budget`.
+- `server.rs`: `reply.send(result)` of the answer of a call back fails
+  when `Context::call` stopped its wait (`recv_timeout`).
+- `Call::answer`: `reply.send(ToConn::Answer(outcome))` fails when the
+  thread of the connection stopped its wait (`busy`), and an answer that
+  is sent but not read is dropped with the channel.
+- `Context::call`: an answer that comes after the wait is dropped with the
+  channel.
+
+An answer of a call back comes from the client, and an answer of the host
+can hold a value that the host made; either can hold a credential.
+
+## Premise
+
+- Read: `crates/pod-control/src/server.rs` (`Call::answer`, the loop of a
+  delegated request, `call_back`), `crates/pod-control/src/host.rs`
+  (`Context::call`).
+- Not measured: each path with the scanning allocator.
+
+## Approach
+
+Wipe the outcome on each path: `wire::wipe_outcome` of the answer that
+`spent` replaces; the value of a failed `send` (`SendError(Ok(v))`); a
+`Drop` of the receiver side that drains the channel and wipes each queued
+answer. Add to `tests/wipe.rs` a host that answers after the answer wait
+with a token, and a call back past its budget whose answer holds a token.
 
 ## Prove
 

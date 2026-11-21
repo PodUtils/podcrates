@@ -1,6 +1,8 @@
 //! No block of memory that the control of the broker frees holds the master
 //! token, the token of a job or the value of a secret (T-1023): `auth`, a
-//! `load` and its `drop`, and a `load` whose secrets fail to read. The
+//! `load` and its `drop`, and a `load` whose secrets fail to read. A token
+//! and a secret with a JSON escape (`\"`, `\\`, `\uXXXX`, `\n`) are read
+//! into a buffer of their own (T-1048). The
 //! allocator of this binary searches each freed block for the marker
 //! ([`pod_testkit::freed`]), so the binary has this one test.
 
@@ -13,6 +15,7 @@ use pod_control::{Client, ClientSettings, Error, Tier, Token};
 use pod_testkit::freed::{Scanning, scan};
 use serde_json::{Value, json};
 use tls_common::*;
+use zeroize::Zeroizing;
 
 #[global_allocator]
 static ALLOC: Scanning = Scanning;
@@ -52,7 +55,7 @@ fn no_freed_block_of_the_control_holds_a_token_or_a_secret() {
             "job": "job1",
             "token": concat!(marker!(), "-job-token"),
             "ttl_s": 60,
-            "policy": policy,
+            "policy": policy.clone(),
             "secrets": { "github": concat!(marker!(), "-secret") },
         });
         let answer = c.call("load", load).unwrap();
@@ -65,6 +68,40 @@ fn no_freed_block_of_the_control_holds_a_token_or_a_secret() {
             "ttl_s": 60,
             "policy": { "schema": 1, "mode": "open" },
             "secrets": { "a": concat!(marker!(), "-secret"), "b": 5 },
+        });
+        match c.call("load", load) {
+            Err(Error::Remote(f)) => assert_eq!(f.code, pod_control::Code::BadParams),
+            other => panic!("{other:?}"),
+        }
+        // A token and a secret with escapes: the client writes `\"` and
+        // `\\`, the line of `raw` has `\u0041`, and a token with `\n` is
+        // not printable.
+        let load = json!({
+            "job": "job3",
+            "token": concat!(marker!(), "-job\"to\\ken"),
+            "ttl_s": 60,
+            "policy": policy.clone(),
+            "secrets": { "github": concat!(marker!(), "-se\\cr\"et") },
+        });
+        assert!(c.call("load", load).unwrap()["ca_pem"].is_string());
+        assert_eq!(c.call("drop", json!({ "job": "job3" })).unwrap()["dropped"], true);
+        let parts = [
+            r#"{"schema":1,"id":90,"method":"load","params":{"job":"job4","token":""#,
+            concat!(marker!(), r#"\u0041-job-token","ttl_s":60,"policy":"#),
+            &policy.to_string(),
+            concat!(r#","secrets":{"github":""#, marker!(), r#"\u0041-secret"}}}"#),
+        ];
+        let mut line = Zeroizing::new(String::with_capacity(parts.iter().map(|p| p.len()).sum()));
+        parts.iter().for_each(|p| line.push_str(p));
+        let answer = c.raw(line.as_bytes()).unwrap().unwrap();
+        drop(line);
+        assert_eq!(answer["ok"], true, "{answer}");
+        assert_eq!(c.call("drop", json!({ "job": "job4" })).unwrap()["dropped"], true);
+        let load = json!({
+            "job": "job5",
+            "token": concat!(marker!(), "-job\ntoken"),
+            "ttl_s": 60,
+            "policy": { "schema": 1, "mode": "open" },
         });
         match c.call("load", load) {
             Err(Error::Remote(f)) => assert_eq!(f.code, pod_control::Code::BadParams),

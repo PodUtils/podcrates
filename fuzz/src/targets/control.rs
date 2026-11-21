@@ -7,8 +7,18 @@ use pod_control::wire::{self, Code, Inbound};
 /// read is `bad-request`; a line that reads, written again, reads back to
 /// the same id, method, `for` and outcome. The params and the result keep
 /// their keys: serde_json reads a float with no exact round trip.
+///
+/// The reader of the JSON of a line (`pod_control::json::read`, T-1048)
+/// gives the value that `serde_json` gives, or refuses where `serde_json`
+/// refuses. A key of `$serde_json::private::` is not compared: with the
+/// feature `raw_value` or `arbitrary_precision`, `serde_json` reads such an
+/// object as another value.
 pub fn control_line(data: &[u8]) {
     let Ok(text) = std::str::from_utf8(data) else { return };
+    if !text.contains("$serde_json::private::") {
+        let theirs = serde_json::from_str::<serde_json::Value>(text).ok();
+        assert_eq!(pod_control::json::read(text), theirs, "{text:?}");
+    }
     match wire::parse(text) {
         Err((_, fault)) => assert_eq!(fault.code, Code::BadRequest, "{fault}"),
         Ok(Inbound::Request(r)) => {
