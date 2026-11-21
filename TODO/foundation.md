@@ -1495,10 +1495,10 @@ contract.
 
 ## Premise
 
-- Read (this tree): `crates/pod-core/src/files.rs:172-188`.
+- Read (this tree): `crates/pod-core/src/files.rs:174-190`.
   `write_private` syncs the file and renames it, and does not sync the
   directory; its temporary name is `.NAME.PID.tmp`. It is private to the
-  crate: `store_noting` (`:64-76`) and `store_file_in_first` call it, and
+  crate: `store_noting` (`:66-78`) and `store_file_in_first` call it, and
   through them `pod-tls` (`crates/pod-tls/src/groups/dirs.rs:25`) and
   `pod-identity` (`crates/pod-identity/src/pins.rs:134`). The review
   agrees.
@@ -1627,7 +1627,7 @@ example `eyJ`).
   reads the whole file with `std::fs::read`. `follow_tail` (`:109-129`)
   calls it, then `tail_offset` (`:78`), then `follow_from` at the length
   of that read. The review agrees.
-- Read: `crates/pod-core/src/files.rs:165` (`read_trusted`) and
+- Read: `crates/pod-core/src/files.rs:167` (`read_trusted`) and
   `crates/pod-core/src/files/own.rs:28` (`read_own`), the neighbours of
   the new function.
 - Found, not in the review: `logs` gives bytes (`Vec<u8>`), the raw output
@@ -1703,8 +1703,8 @@ The tests:
 ## Problem
 
 `write_private` names its temporary file `.NAME.PID.tmp`
-(`crates/pod-core/src/files.rs:175`) and first removes a file of that name
-(`:176`). Two threads of one process that store the same name at once
+(`crates/pod-core/src/files.rs:177`) and first removes a file of that name
+(`:178`). Two threads of one process that store the same name at once
 share that file. Thread B removes the file of thread A and makes its own.
 The rename of A then puts the file of B in place, possibly before B wrote
 all of it. The rename of B then fails, so `store_noting` tries the next
@@ -1720,7 +1720,7 @@ it.
 
 ## Premise
 
-- Read: `crates/pod-core/src/files.rs:169-188`,
+- Read: `crates/pod-core/src/files.rs:171-190`,
   `crates/pod-core/src/files/own.rs:61-98`,
   `crates/pod-tls/src/groups/dirs.rs`, `crates/pod-identity/src/pins.rs`.
 - Read: `pin` (`crates/pod-identity/src/pins.rs:114-138`) reads the pins,
@@ -2759,3 +2759,95 @@ The proof on the runners: the nightly run 44792996234 at `62b8039`: on `test (wi
 `crates/pod-actions-store/tests/git.rs` run and pass with no skip line
 (T-1030).
 
+
+# T-1066: `pod-core`: one atomic replace of a file at a path that the caller names, with `Mode::Keep`, a followed link, a made directory and errors that name the step (PodUtils/podnet#677)
+
+**Source:** PodUtils/podnet#677 (COORD-112 of podnet, `PodUtils/podnet@T-473`; the ruling "Shared code").
+**Category:** feature
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet asks for one function in `pod-core` for the atomic replace of a
+file at a path that the caller names: a temporary file in the directory of
+the target, opened with `create_new` and `O_NOFOLLOW`, with the mode before
+the first byte; `sync_all` of the file, `rename`, and an `fsync` of the
+directory where the platform has one; `Mode::Private` (0600) or
+`Mode::Keep` (the mode of the old file, else 0600); an option to follow a
+symbolic link at the path to its target (`~/.ssh/config` can be a link into
+a dotfiles repository); a missing directory made with 0700 when asked; the
+temporary file removed on each error; the error names the step and the
+path. podnet holds two copies: `PodUtils/podnet:crates/podnet-netns/src/report.rs`
+(`write_atomic`) and `PodUtils/podnet:src/warp/ssh_config.rs` (`save`:
+no `create_new`, no `sync_all`). The survey of podnet found that
+`pod_core::files` "has no replace of a file at a path that the caller
+names".
+
+## Premise
+
+- Read: PodUtils/podnet#677; `crates/pod-core/src/files/replace.rs`
+  (`replace_private`, T-192, T-935); `crates/pod-core/README.md`; the two
+  copies of podnet and the renames of podssh, podvm and podrunner in
+  shallow clones.
+- `replace_private` exists and is exported, but the `files` row of
+  `crates/pod-core/README.md` does not name it, its name and its doc say
+  "private", and its mode is a raw `u32`. It has no `Mode::Keep`, no
+  option to follow a link, no made directory, and its errors name neither
+  the step nor the path. `codegraph.py similar atomic replace rename fsync
+  temporary file` ranks it at 0.24.
+- Not measured: the adoption of podnet at a tag.
+
+## Approach
+
+Extend `replace.rs`; `replace_private` becomes a call of the new code and
+keeps its form and its raw errors. Add `Mode` (`Private`, `Keep`,
+`Exact`), `Replace` (`new`, `follow_link`, `make_dir`,
+`in_place_fallback`, `write`), `replace(path, body, mode)`, and `Failed`
+with its `Step`: the error of `replace` and `Replace::write` is an
+`io::Error` of the kind of its cause whose text is "replace PATH: STEP:
+CAUSE". A link is followed for 40 links at most; a dangling link gives its
+target. Name the API and the adoption map in `crates/pod-core/README.md`.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features --lib files::replace
+sh scripts/agent/check-windows.sh
+sh scripts/agent/check-macos.sh
+sh scripts/plant-each.sh core-replace-follows-without-the-option core-replace-removes-a-file-it-did-not-make
+```
+
+## Done
+
+2026-11-21, commit 1ccacb00 and the commit that closes this entry (call
+C887). `pod_core::files` has `replace(path, body, mode)`, `Replace`
+(`new`, `follow_link`, `make_dir`, `in_place_fallback`, `write`), `Mode`
+(`Private`, `Keep`, `Exact`), `Failed` (`step`, `path`, `cause`,
+`into_cause`, `of`) and `Step`, in `crates/pod-core/src/files/replace.rs`
+and `crates/pod-core/src/files/replace_mode.rs`. `replace_private` is
+`Replace::new(Mode::Exact(bits))` with the raw error, so its callers do
+not change. Fixed in place: a replace that could not create its temporary
+file removed the file or the link at that name. podnet's survey missed the
+helper because the `files` row of `crates/pod-core/README.md` did not name
+it, and its name, its doc and its `u32` mode said "private"; the README
+now has the section "The replace of a file" and the adoption map of
+podnet, podssh, podvm and podrunner. Tests (`cargo test -p pod-core
+--all-features --lib files::replace`: 13 passed):
+`a_link_at_the_path_is_followed_only_with_the_option`,
+`a_loop_of_links_is_refused_at_the_follow`,
+`a_link_at_the_temporary_name_is_never_followed_or_removed`,
+`mode_keep_keeps_0644_and_gives_0600_to_a_new_file`,
+`a_failed_write_leaves_the_old_file_and_no_temporary_file`,
+`the_error_names_the_step_and_the_path`,
+`a_missing_directory_is_made_only_when_asked`. `cargo test -p pod-core
+--all-features`: 0 failed (91 unit tests). `cargo clippy --workspace
+--all-targets --all-features -- -D warnings`: no warning.
+`sh scripts/agent/check-windows.sh`: "0 faults";
+`sh scripts/agent/check-macos.sh`: "0 faults". `sh scripts/plant-each.sh
+core-replace-follows-without-the-option
+core-replace-removes-a-file-it-did-not-make`: 2 caught. Removing
+`O_NOFOLLOW` from the temporary file is no plant: `create_new` already
+refuses a link at the name.

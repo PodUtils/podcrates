@@ -1,7 +1,8 @@
 //! Small private files that a program keeps between runs, and files that a
 //! user names: each file is read only when it is a regular file of this
 //! user that nobody else can read (as ssh reads a key), and is written
-//! through a private temporary file and a rename.
+//! through a private temporary file and a rename. [`replace`] and
+//! [`Replace`] replace a file at any path atomically.
 //!
 //! The places of the files come from the caller's [`App`]: the directory
 //! that its variable names, the user's cache directory, the user's runtime
@@ -21,6 +22,7 @@ mod own;
 #[cfg(unix)]
 mod owner;
 mod replace;
+mod replace_mode;
 #[cfg(unix)]
 mod socket;
 #[cfg(windows)]
@@ -31,7 +33,7 @@ pub use dirs::{App, Chosen, Passed, Places, candidate_dirs_from, chosen_from, pl
 pub use own::{Others, create_file_in_first, create_private, read_own};
 #[cfg(unix)]
 pub use owner::{Host, make_dirs as make_dirs_with, passwd_home};
-pub use replace::{Commit, replace_private};
+pub use replace::{Commit, Failed, Mode, Replace, Step, replace, replace_private};
 #[cfg(unix)]
 pub use socket::{PeerIds, bind_staged, peer_ids};
 
