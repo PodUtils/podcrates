@@ -641,13 +641,16 @@ that hold them (`tests/udp.rs`, `tests/udp_loss.rs`, feature `udp`):
   `one_mib_crosses_each_way_at_three_percent_loss_with_reorder_and_duplicates`;
   8 MiB each way at 5 % loss and 1 % reorder with `nodelay`:
   `eight_mib_cross_at_five_percent_loss_and_one_percent_reorder_with_nodelay`.
-- [x] podnet's gate of row E2-1 in a release build (T-520, calls C284 and C787; the
-  job `gate` of `nightly.yml`): 8 MiB each way at 5 % drop with the
-  defaults, `eight_mib_cross_at_five_percent_loss_and_one_percent_reorder_with_the_defaults`;
-  20 % drop with `nodelay` and a window of 1024: the median of five runs
-  within 12 times the median of five clean runs (4.4 to 8.2 measured;
-  podnet asks for 3),
-  `twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time`.
+- [x] podnet's gate of row E2-1 in a release build (T-520, calls C284, C787
+  and C878; the job `gate` of `nightly.yml`): 8 MiB each way at 5 % drop
+  with the defaults,
+  `eight_mib_cross_at_five_percent_loss_and_one_percent_reorder_with_the_defaults`;
+  20 % drop with `nodelay` and a window of 1024 over a path of 10 ms each
+  way: the median of five runs within 8 times the median of five clean
+  runs (4.1 to 6.2 measured; podnet asks for 3), and a clean time of at
+  least one round trip for each window,
+  `twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time`;
+  its plant `link-udp-no-fast-resend`.
 - [x] `available()` names a host that refuses UDP (69), and the carrier
   then sends nothing: `the_carrier_says_what_it_gives_and_why_it_cannot_run`
   (a provider with no TLS 1.3; a host with no UDP is not made here).

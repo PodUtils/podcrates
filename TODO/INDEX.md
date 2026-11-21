@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**855 entries: 148 open, 31 partial, 7 blocked, 669 done.**
+**857 entries: 149 open, 31 partial, 7 blocked, 670 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 11 | 0 | 197 | 212 |
-| P2 | 70 | 10 | 4 | 347 | 431 |
-| P3 | 74 | 10 | 3 | 123 | 210 |
-| **All** | 148 | 31 | 7 | 669 | 855 |
+| P2 | 70 | 10 | 4 | 348 | 432 |
+| P3 | 75 | 10 | 3 | 123 | 211 |
+| **All** | 149 | 31 | 7 | 670 | 857 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -902,3 +902,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1044](upkeep.md) | P3 | S | M5 | defect | open | `check-windows.sh` and `check-macos.sh` compile no doc test, so a doc test with an item of Unix fails only in the nightly |
 | [T-1045](podvm.md) | P2 | S | M6 | feature | done | `pod-supervise`: a streamed read of a log: a copy of a range in pieces, the tail found from the end, a byte bound of a follow (PodUtils/podvm#631) |
 | [T-1046](podvm.md) | P2 | S | M6 | feature | done | `pod-incus`: a read of a file in pieces to a writer, with a `Range` and a byte bound of the caller (PodUtils/podvm#631) |
+| [T-1052](upkeep.md) | P2 | S | M2 | defect | done | `pod-link`: the gate of E2-1 at 20 % drop divides by a clean time that the CPU of the host sets, so a fast runner gives a factor above its bound (nightly 44792996234) |
+| [T-1053](upkeep.md) | P3 | S | M2 | measurement | open | `pod-link`: a transfer of KCP with `nodelay` at 20 % drop can take ten times its median, as the RTO of a segment grows by half at each timeout |

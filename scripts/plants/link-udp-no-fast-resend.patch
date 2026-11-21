@@ -1,0 +1,13 @@
+diff --git a/crates/pod-link/src/udp/stream.rs b/crates/pod-link/src/udp/stream.rs
+index 22c84299..c94ec48a 100644
+--- a/crates/pod-link/src/udp/stream.rs
++++ b/crates/pod-link/src/udp/stream.rs
+@@ -134,7 +134,7 @@ impl KcpStream {
+         }
+         kcp.set_mtu(segment + KCP_HEADER).map_err(|_| KcpSettingsError::Segment(segment, carrier.mtu()))?;
+         kcp.set_wndsize(settings.window, settings.window);
+-        kcp.set_nodelay(settings.nodelay, settings.interval_ms() as i32, settings.resend as i32, settings.nodelay);
++        kcp.set_nodelay(settings.nodelay, settings.interval_ms() as i32, 0, settings.nodelay);
+         // The first update starts the clock of KCP; a flush needs it.
+         let _ = kcp.update(0);
+         let start = now();

@@ -11,6 +11,7 @@
 
 mod common;
 
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use common::tcp::id;
@@ -26,25 +27,39 @@ use pod_link::udp::{KcpSettings, KcpStream, MAX_WINDOW};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
 
-type Shim = std::sync::Arc<Lossy<MemoryDatagrams>>;
+type Shim = Arc<Lossy<MemoryDatagrams>>;
 
 /// The bound of the gate of E2-1 with the defaults, in a release build:
 /// 51 s measured.
 const GATE_DEFAULTS: Duration = Duration::from_secs(120);
 /// The bytes each way of the run at 20 % drop, and its bound against the
-/// clean run. podnet asks for 3 times. A release build over this shim with
-/// no delay gives 4.4 to 8.2 times with a window of 1024 segments for the
-/// medians of five runs, and 9 to 17 times with 256: the clean run is
-/// bound by the CPU, and the lossy one by the RTO of 30 ms at least, so the
-/// factor changes with the host and the run (calls C284, C787).
+/// clean run. podnet asks for 3 times. Over a path with no delay the clean
+/// run is bound by the CPU and the lossy one by the RTO of KCP, so the
+/// factor follows the speed of the host (4 to 13 times). Over the path of
+/// `GATE_DELAY` both runs are bound by the round trip: a release build
+/// gives 4.1 to 6.2 times for the medians of five runs (call C878).
 const GATE_SIZE: usize = 8 << 20;
-const GATE_FACTOR: f64 = 12.0;
+const GATE_FACTOR: f64 = 8.0;
+/// The delay of each way of the path of the gate at 20 % drop: a round
+/// trip of 20 ms.
+const GATE_DELAY: Duration = Duration::from_millis(10);
 
 /// Two ends of the udp carrier over a memory pair with `faults` in each
 /// direction, and the shims.
 async fn ends(faults: Faults, kcp: KcpSettings) -> (BoxIo, BoxIo, Shim, Shim) {
     let (a, b) = pair(DEFAULT_MTU, DEFAULT_DEPTH);
-    let (a, b) = (std::sync::Arc::new(Lossy::new(a, faults, 1)), std::sync::Arc::new(Lossy::new(b, faults, 2)));
+    ends_over(a, b, faults, kcp).await
+}
+
+/// Two ends of the udp carrier over `a` and `b` with `faults` in each
+/// direction, and the shims.
+async fn ends_over<D: Datagrams>(
+    a: D,
+    b: D,
+    faults: Faults,
+    kcp: KcpSettings,
+) -> (BoxIo, BoxIo, Arc<Lossy<D>>, Arc<Lossy<D>>) {
+    let (a, b) = (Arc::new(Lossy::new(a, faults, 1)), Arc::new(Lossy::new(b, faults, 2)));
     let (server, client) = (id(1), id(2));
     let (mut listening, mut dialing) = (carrier(1, &[client.public()]), carrier(2, &[]));
     (listening.kcp, dialing.kcp) = (kcp, kcp);
@@ -143,25 +158,83 @@ async fn eight_mib_cross_at_five_percent_loss_and_one_percent_reorder_with_the_d
 /// podnet's gate of row E2-1 at 20 % drop, with `nodelay` and the full
 /// window: at most `GATE_FACTOR` times the clean time of the same settings
 /// (T-520, PodUtils/podnet#527, call C284). The factor holds in a release
-/// build. A clean run takes some 50 ms, so one run of each side follows the
-/// noise of the scheduler: the factor divides the medians of five runs
-/// (T-949).
+/// build. Each run crosses a path of `GATE_DELAY` each way, so the clean
+/// time is at least one round trip for each full window, and the factor
+/// divides the medians of five runs (T-949, T-1052).
 #[cfg_attr(debug_assertions, ignore = "the gate of E2-1 runs in a release build")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time() {
     let kcp = KcpSettings { nodelay: true, window: MAX_WINDOW, ..KcpSettings::default() };
     let faults = Faults { loss: 0.20, reorder: 0.0, duplicate: 0.0 };
     let (mut clean, mut lossy) = (Vec::new(), Vec::new());
+    let windows = GATE_SIZE.div_ceil(usize::from(MAX_WINDOW) * kcp.segment) as u32;
+    let floor = 2 * GATE_DELAY * windows;
     for _ in 0..GATE_RUNS {
-        let (near, far, _, _) = ends(Faults::NONE, kcp).await;
+        let (near, far, _, _) = path_ends(Faults::NONE, kcp).await;
         clean.push(cross(near, far, GATE_SIZE).await);
-        let (near, far, a, b) = ends(faults, kcp).await;
+        let (near, far, a, b) = path_ends(faults, kcp).await;
         lossy.push(cross(near, far, GATE_SIZE).await);
         assert!(a.stats().lost > 0 && b.stats().lost > 0);
     }
-    let factor = median(&mut lossy).as_secs_f64() / median(&mut clean).as_secs_f64();
-    eprintln!("E2-1, nodelay, {GATE_SIZE} bytes each way: clean {clean:?}, 20 % drop {lossy:?}, {factor:.2} times");
+    let (clean_median, lossy_median) = (median(&mut clean), median(&mut lossy));
+    let factor = lossy_median.as_secs_f64() / clean_median.as_secs_f64();
+    eprintln!(
+        "E2-1, nodelay, {GATE_SIZE} bytes each way, {GATE_DELAY:?} each way: clean {clean:?}, 20 % drop {lossy:?}, {factor:.2} times"
+    );
+    assert!(
+        clean_median >= floor,
+        "a clean time of {clean_median:?}, under the {floor:?} of the path: the delay did not hold"
+    );
     assert!(factor <= GATE_FACTOR, "{factor:.2} times the clean time, above {GATE_FACTOR}");
+}
+
+/// Two ends of the udp carrier over a memory pair: in each direction the
+/// shim applies `faults`, then each datagram waits `GATE_DELAY`. The queue
+/// of the pair holds more than the datagrams of a full window, so the clean
+/// path loses none.
+async fn path_ends(faults: Faults, kcp: KcpSettings) -> (BoxIo, BoxIo, Arc<Lossy<Delayed>>, Arc<Lossy<Delayed>>) {
+    let (a, b) = pair(DEFAULT_MTU, 8 * usize::from(MAX_WINDOW));
+    ends_over(Delayed::new(a, GATE_DELAY), Delayed::new(b, GATE_DELAY), faults, kcp).await
+}
+
+/// One end of a path whose datagrams arrive `delay` after their send, in
+/// the order of the sends.
+struct Delayed {
+    delay: Duration,
+    queue: tokio::sync::mpsc::UnboundedSender<(tokio::time::Instant, Vec<u8>)>,
+    inner: Arc<MemoryDatagrams>,
+}
+
+impl Delayed {
+    fn new(inner: MemoryDatagrams, delay: Duration) -> Delayed {
+        let inner = Arc::new(inner);
+        let (queue, mut due) = tokio::sync::mpsc::unbounded_channel::<(tokio::time::Instant, Vec<u8>)>();
+        let out = inner.clone();
+        // One task for each end keeps the order: each datagram has the same
+        // delay, so the times of the queue only grow.
+        tokio::spawn(async move {
+            while let Some((at, datagram)) = due.recv().await {
+                tokio::time::sleep_until(at).await;
+                let _ = out.send(&datagram).await;
+            }
+        });
+        Delayed { delay, queue, inner }
+    }
+}
+
+impl Datagrams for Delayed {
+    fn mtu(&self) -> usize {
+        self.inner.mtu()
+    }
+
+    fn send<'a>(&'a self, datagram: &'a [u8]) -> pod_link::datagram::DatagramFuture<'a, ()> {
+        let _ = self.queue.send((tokio::time::Instant::now() + self.delay, datagram.to_vec()));
+        Box::pin(async { Ok(()) })
+    }
+
+    fn recv(&self) -> pod_link::datagram::DatagramFuture<'_, Vec<u8>> {
+        self.inner.recv()
+    }
 }
 
 /// The runs of each side of the gate of E2-1 at 20 % drop.
