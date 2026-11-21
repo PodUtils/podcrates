@@ -4,12 +4,13 @@
 //! in its bound, and the events in between.
 
 use std::collections::VecDeque;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, ErrorKind, Write};
 use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
 use pod_core::{Class, Failure, Stage};
+use socket2::{Domain, SockAddr, Socket, Type};
 
 use super::{is_event, response_ok};
 use crate::{Result, failure};
@@ -24,7 +25,18 @@ pub const EVENTS_KEPT: usize = 256;
 /// The prefix of the `id` of each request of a [`Monitor`].
 const ID: &str = "pod-qmp-";
 
+/// The time between two tries of a connection.
+const CONNECT_EVERY: Duration = Duration::from_millis(100);
+
 /// One live QMP connection.
+///
+/// QEMU serves one client of a monitor at a time, and its socket queues
+/// one more connection (`listen` with a backlog of 1). So a caller drops
+/// its connection before it opens a new one to the same emulator. A
+/// connection in the queue gets no greeting while another one is open,
+/// and a connection to a full queue fails ([`Monitor::connect`]). The late
+/// answer of a request comes on the connection that sent it: read it with
+/// [`Monitor::late`], not on a new connection.
 pub struct Monitor {
     writer: UnixStream,
     reader: BufReader<UnixStream>,
@@ -46,40 +58,58 @@ fn io(what: &str, e: std::io::Error) -> Failure {
 }
 
 impl Monitor {
-    /// Connect to `path`, wait up to `wait` for the socket, and do the
-    /// handshake of the capabilities.
+    /// Connect to `path` within `wait`, and do the handshake of the
+    /// capabilities.
     ///
     /// The emulator makes the socket when it starts, so a caller that just
-    /// started it polls.
+    /// started it polls: a try that fails is made again until `wait`. Each
+    /// try is a connect with `O_NONBLOCK`, which never waits in the kernel:
+    /// a connection to the full queue of the monitor fails at once. At the
+    /// bound, the [`Class::Timeout`] failure tells the cause of the last
+    /// try: the queue is full, the socket never appeared, or no emulator
+    /// listens on it. The greeting has its own bound, [`ANSWER_WAIT`]: a
+    /// connection in the queue behind an open one gets no greeting.
     pub fn connect(path: &Path, wait: Duration) -> Result<Monitor> {
-        let start = Instant::now();
-        loop {
-            if let Ok(s) = UnixStream::connect(path) {
-                let _ = s.set_write_timeout(Some(ANSWER_WAIT));
-                let reader = BufReader::new(s.try_clone().map_err(|e| io("connect", e))?);
-                let mut m = Monitor {
-                    writer: s,
-                    reader,
-                    partial: Vec::new(),
-                    wait: ANSWER_WAIT,
-                    next: 1,
-                    owed: VecDeque::new(),
-                    events: VecDeque::new(),
-                };
-                // The greeting comes first with no request; read it before
-                // a request, or the first response read is the greeting.
-                m.read_line(Instant::now() + ANSWER_WAIT)?;
-                m.call("qmp_capabilities")?;
-                return Ok(m);
+        let end = Instant::now() + wait;
+        let s = loop {
+            match try_connect(path) {
+                Ok(s) => break s,
+                Err(e) => {
+                    let left = end.saturating_duration_since(Instant::now());
+                    if left.is_zero() {
+                        return Err(no_connection(path, wait, &e));
+                    }
+                    std::thread::sleep(left.min(CONNECT_EVERY));
+                }
             }
-            if start.elapsed() >= wait {
-                return Err(failure(
-                    Class::Timeout,
-                    format!("the QMP socket {} never appeared within {}s", path.display(), wait.as_secs()),
-                ));
-            }
-            std::thread::sleep(Duration::from_millis(100));
-        }
+        };
+        let _ = s.set_write_timeout(Some(ANSWER_WAIT));
+        let reader = BufReader::new(s.try_clone().map_err(|e| io("connect", e))?);
+        let mut m = Monitor {
+            writer: s,
+            reader,
+            partial: Vec::new(),
+            wait: ANSWER_WAIT,
+            next: 1,
+            owed: VecDeque::new(),
+            events: VecDeque::new(),
+        };
+        // The greeting comes first with no request; read it before a
+        // request, or the first response read is the greeting.
+        m.read_line(Instant::now() + ANSWER_WAIT).map_err(|e| match e.class {
+            Class::Timeout => failure(
+                Class::Timeout,
+                format!(
+                    "qmp: no greeting from {} within {:.1}s: the emulator serves one client at a time, so this \
+                     connection waits behind another open connection, or the emulator holds its lock",
+                    path.display(),
+                    ANSWER_WAIT.as_secs_f64()
+                ),
+            ),
+            _ => e,
+        })?;
+        m.call("qmp_capabilities")?;
+        Ok(m)
     }
 
     /// The bound of one answer of each later request ([`ANSWER_WAIT`] at
@@ -216,6 +246,40 @@ impl Monitor {
         let _ = self.writer.write_all(b"{\"execute\":\"quit\"}\n").and_then(|()| self.writer.flush());
         let _ = self.read_line(Instant::now() + ANSWER_WAIT);
     }
+}
+
+/// One try of a connection to the socket at `path` that never waits in the
+/// kernel.
+///
+/// A blocking `connect` to a listener whose queue is full waits in the
+/// kernel with no bound (`unix_wait_for_peer`). A Unix stream socket of
+/// Linux has no connection in progress: a `connect` with `O_NONBLOCK` ends
+/// at once, connected or with `EAGAIN` for a full queue. The stream is
+/// blocking again after the connect: each read has its own bound.
+fn try_connect(path: &Path) -> std::io::Result<UnixStream> {
+    let s = Socket::new(Domain::UNIX, Type::STREAM, None)?;
+    s.set_nonblocking(true)?;
+    s.connect(&SockAddr::unix(path)?)?;
+    s.set_nonblocking(false)?;
+    Ok(UnixStream::from(std::os::fd::OwnedFd::from(s)))
+}
+
+/// The failure of a connection to `path` that did not come within `wait`,
+/// by the error `e` of the last try.
+fn no_connection(path: &Path, wait: Duration, e: &std::io::Error) -> Failure {
+    let (p, s) = (path.display(), wait.as_secs_f64());
+    let text = match e.kind() {
+        ErrorKind::WouldBlock => format!(
+            "the queue of the QMP socket {p} is full for {s:.1}s: the emulator serves one client at a time and \
+             queues one more, so other connections to it are open; close them before a new one"
+        ),
+        ErrorKind::NotFound => format!("the QMP socket {p} never appeared within {s:.1}s"),
+        ErrorKind::ConnectionRefused => {
+            format!("the QMP socket {p} refused each connection for {s:.1}s: no emulator listens on it")
+        }
+        _ => format!("qmp connect to {p}: no connection within {s:.1}s: {e}"),
+    };
+    failure(Class::Timeout, text)
 }
 
 /// `body` with the member `"id":"pod-qmp-N"` at its end, where it is a JSON

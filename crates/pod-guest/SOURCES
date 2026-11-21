@@ -20,3 +20,11 @@ file 2d937dcb7f2d56d4af735d5b13000176bc4d2f1e crates/podvm-windows/src/provision
 file 76b27873d7945108a4972fb92315d1ff4502a75f crates/podvm-windows/src/qmp.rs -> crates/pod-guest/src/qmp.rs
 file 55819fe825f0003ea0aaf9afa27f40acc7867d3b crates/podvm-windows/src/scratch.rs -> crates/pod-guest/src/scratch.rs
 file c020364b0b29ca252cb5f2080224d9e4b219750b crates/podvm-windows/src/tests.rs -> crates/pod-guest/src/tests.rs
+
+# T-1057 (PodUtils/podvm#633): the rows `Late` and `Hangs` of podvm's
+# stand-in of the monitor of QEMU (one client at a time, `listen` with a
+# backlog of 1), for the tests of `warm::line`. The rows act at the first
+# `query-migrate` after the `migrate`; the row `Full` and the load are new
+# here.
+repo PodUtils/podvm 867f79e9e81bcdc54d0874b447bc0c4ab4bdc918
+file 81ea50fbe1b18c654cdbd464284cc1e5bdb18442 crates/podvm/src/machine/guest/state/tests_monitor.rs -> crates/pod-guest/src/warm/line/tests_queue.rs crates/pod-guest/src/qmp/tests/queue.rs

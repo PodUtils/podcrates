@@ -16,6 +16,9 @@ pod-hostprobe = { workspace = true }
 sha2 = { workspace = true }
 # The xz blocks of a squashfs modloop, with the x86 BCJ filter.
 xz4rust = { workspace = true }
+# The connect with `O_NONBLOCK` of the QMP socket, which never waits in
+# the kernel, and a socket with the queue of QEMU's monitor in the tests.
+socket2 = "0.6"
 
 [dev-dependencies]
 # The HTTP stand-in of the tests of the store.
