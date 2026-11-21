@@ -1,6 +1,8 @@
 //! The units of the tests and the compare with a golden file.
 #![allow(dead_code)]
 
+pub mod fake;
+
 use std::path::{Path, PathBuf};
 
 use pod_unit::{Start, Stop, Unit};

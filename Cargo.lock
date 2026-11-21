@@ -5581,6 +5581,7 @@ dependencies = [
  "pod-testkit",
  "quick-xml",
  "tempfile",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

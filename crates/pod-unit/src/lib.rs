@@ -12,7 +12,8 @@
 //! No word of a unit is a secret ([`secret`]): a secret is a private file
 //! that the host resolves at the start ([`Secret`]), or a placeholder that
 //! the broker swaps ([`Env::placeholder`]). [`install`] installs and
-//! removes a unit of the user, each an explicit call. The command line
+//! removes a unit of the user, and, as root or an administrator, a unit of
+//! the system, each an explicit call. The command line
 //! (`--print-unit`, `--install`) stays in each program.
 //!
 //! The crate prints nothing and does not exit. Each failure is a
@@ -21,6 +22,7 @@
 pub mod cron;
 pub mod hardening;
 pub mod install;
+mod install_system;
 mod install_ways;
 pub mod launchd;
 mod model;
@@ -30,5 +32,5 @@ pub mod systemd;
 pub mod windows;
 
 pub use hardening::Hardening;
-pub use install::{Form, Host, Places, Removed, System};
+pub use install::{FileMeta, Form, Host, Places, Removed, System, SystemPlaces};
 pub use model::{Env, Restart, Scope, Secret, Start, Stop, Unit};

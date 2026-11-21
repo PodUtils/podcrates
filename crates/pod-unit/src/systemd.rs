@@ -52,7 +52,10 @@ pub fn render(unit: &Unit) -> Result<String, Failure> {
     }
     if let Scope::System { run_as } = &unit.scope {
         out.push(match run_as {
-            Some(user) => format!("User={user}"),
+            Some(user) if user_ok(user) => format!("User={user}"),
+            Some(user) => {
+                return Err(usage(format!("the account {user:?}: give 1 to 32 of A-Z a-z 0-9 _ . -, not first a -")));
+            }
             None => "DynamicUser=yes".to_string(),
         });
     }
@@ -125,6 +128,13 @@ fn restart_lines(unit: &Unit, out: &mut Vec<String>) {
         Some(s) => format!("TimeoutStopSec={s}"),
         None => "TimeoutStopSec=infinity".to_string(),
     });
+}
+
+/// A name of an account that `User=` holds as it is (podssh's
+/// `user_name_ok`): a blank, a quote or a `%` would change the line.
+fn user_ok(user: &str) -> bool {
+    let fits = (1..=32).contains(&user.len()) && !user.starts_with('-');
+    fits && user.bytes().all(|b| b.is_ascii_alphanumeric() || b"_.-".contains(&b))
 }
 
 fn path_refusal(what: &str, path: &std::path::Path) -> Failure {

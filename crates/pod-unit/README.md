@@ -3,9 +3,10 @@
 Hardened service units with no secret in them (T-102; cfb's A-S-02,
 A-N-11, A-C-07, A-S-18 and A-N-12, GitHub #35). A program describes its
 service once as a `Unit`; a renderer gives each form as text, for
-`--print-unit`, and `install` installs and removes a unit of the user. The
-base is podssh's `node_install/` (the texts, the quoting, the hardening of a
-system unit, the steps of an install); podnet's `autostart.rs` and
+`--print-unit`, and `install` installs and removes a unit of the user, and,
+as root or an administrator, a unit of the system. The base is podssh's
+`node_install/` (the texts, the quoting, the hardening of a system unit, the
+steps of an install of the user and of the system); podnet's `autostart.rs` and
 podrunner's `print-unit` add the line of the crontab with its log and the
 start with `sd_notify`, the watchdog and the drain (`SOURCES`).
 
@@ -35,6 +36,12 @@ let form = pod_unit::install::probe(&host, &places)?;
 let done = pod_unit::install::install(&unit, form, &places, &host)?;
 // --uninstall
 let removed = pod_unit::install::remove(&unit, form, &places, &host)?;
+
+// --install --system, as root (a unit made with .system(...))
+let places = pod_unit::SystemPlaces::default();
+let form = pod_unit::install::probe_system(&host)?;
+let done = pod_unit::install::install_system(&unit, form, &places, &host)?;
+let removed = pod_unit::install::remove_system(&unit, form, &places, &host)?;
 ```
 
 A unit of the system with an account of its own, a credential and a
@@ -150,9 +157,55 @@ the login session `gui/UID`, then `crontab -l`.
 | cron | `crontab -l`, the table with the lines, `crontab -` | `crontab -l`, the table with no lines, `crontab -` |
 
 An install that does not start removes its file. A file or a task of
-another mark is refused (`Class::Config`) and stays. The install of a unit
-of the system (root, the probes of podssh's `system.rs`, the writes of its
-`system_install.rs`, `sc.exe` and `launchctl` of the system) is T-1027.
+another mark is refused (`Class::Config`) and stays.
+
+## The install of the system (call C885)
+
+`install::install_system(UNIT, FORM, SYSTEM_PLACES, HOST)` and
+`install::remove_system` install and remove a unit with `Scope::System`.
+`SystemPlaces::default()` gives `/etc/systemd/system` and
+`/Library/LaunchDaemons`; a test gives its own. `install::probe_system`
+finds the manager: a service on Windows; else systemd when
+`/run/systemd/system` is a directory, then launchd when `launchctl print
+system` passes.
+
+The checks come before any write, in this order:
+
+1. The form holds the unit (each renderer; `Class::Usage` or
+   `Class::Unsupported`). A task and cron hold a unit of the user alone.
+2. The caller may change the services of the host (`Host::admin`: the
+   effective uid 0, or on Windows a token that may create a service, by
+   `OpenSCManagerW`). Else `Class::Refused`.
+3. systemd is the manager of the host (`Host::systemd_booted`), for the form
+   systemd.
+4. The account of the unit is on the host and is not root (`id -u NAME`,
+   which reads each user database of the host; `Class::NotFound`,
+   `Class::Usage`).
+5. Each file of a secret and the file of variables is a regular file, with
+   no link followed, that no other may read (`Host::file_meta`): of root for
+   systemd, which reads it for `LoadCredential=` and `EnvironmentFile=`; of
+   the account of the daemon for launchd. A file of a secret is the caller's:
+   put it in place first (`/etc/credstore/NAME`, mode 0600, of root, is the
+   place of systemd). On Windows the file must be there.
+
+| Form | Install | Removal |
+| --- | --- | --- |
+| systemd | the unit (0644) in `/etc/systemd/system`, `daemon-reload`, `enable`, `restart` | `disable --now`, the file, `daemon-reload`, `reset-failed` |
+| launchd | the plist (0644) in `/Library/LaunchDaemons`, `bootout`, `enable`, `bootstrap system PATH` | `bootout system/LABEL`, the file |
+| service | `sc.exe qdescription` (the mark), each command of `windows::service_commands`, `sc.exe start`; a service of an earlier install: `stop`, its `Environment` deleted, then `config` in place of `create` | `sc.exe stop`, `sc.exe delete` |
+
+A unit that does not start is removed (the file, or `sc.exe delete`). A
+file or a service of another mark is refused (`Class::Config`) and stays.
+A removal leaves the files of the secrets and the state directory
+(`StateDirectory=`): each holds the data of the program, which a new
+install takes again.
+
+`tests/system_live.rs` installs a unit with `DynamicUser=yes` and a
+credential on the systemd of the host, reads its state with `systemctl
+show`, and removes it; the directory of the units is then as before. It
+needs root and systemd as the manager, and skips elsewhere;
+`scripts/ci/root-unit-tests.sh` runs it as root in `ci.yml`, where a skip
+fails.
 
 ## The Windows service (call C859)
 
@@ -175,7 +228,7 @@ a second program beside each binary, which is not static on each target.
 
 | Consumer | Now | With pod-unit |
 | --- | --- | --- |
-| podrunner | `crates/podrunner/src/cli.rs`: `print_unit`, `exec_word` | `Unit` with `Start::Notify`, `Stop { drain: true, timeout_s: None }`; `systemd::render` for `print-unit`; `install::install` for an install with no prompt (PodUtils/podrunner@T-507) |
-| podssh | `crates/podssh-cli/src/node_install/`: `text.rs`, `system_text.rs`, `launchd.rs`, `windows.rs`, `unix.rs` | `Unit` of each node, tunnel and pipe; the hardening table and its relaxed lines of `serve` as `Hardening::relax`; `--env-file` stays an argument; the lock of a run stays in podssh |
+| podrunner | `crates/podrunner/src/cli.rs`: `print_unit`, `exec_word` | `Unit` with `Start::Notify`, `Stop { drain: true, timeout_s: None }`; `systemd::render` for `print-unit`; `install::probe` and `install::install` of the unit of `print_unit` for an install with no prompt (PodUtils/podrunner@T-507); `install::install_system` of the same unit with `.system(Some(USER))` for a host where the operator installs as root |
+| podssh | `crates/podssh-cli/src/node_install/`: `text.rs`, `system_text.rs`, `launchd.rs`, `windows.rs`, `unix.rs`, `system.rs`, `system_install.rs` | `Unit` of each node, tunnel and pipe; the hardening table and its relaxed lines of `serve` as `Hardening::relax`; `install::install_system` for `--install --system --run-as USER`; `--env-file` stays an argument; the probe of the cache of the user, the file of variables in the state directory and the lock of a run stay in podssh |
 | podnet | `crates/podnet-core/src/autostart.rs`: `unit_text`, `crontab_with`, `probe` | `Unit` of `autostart run NAME --dir DIR`; `install::probe`, `install::install`, `install::remove`; the files `NAME.args` and `NAME.env` stay in podnet |
-| cfb, githome | none | through podrunner and podnet: a system unit of a named user with no token (A-S-02, A-N-11) |
+| cfb, githome | none | through podrunner and podnet: a system unit of a named user with no token, installed by `install::install_system` (A-S-02, A-N-11) |

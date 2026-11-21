@@ -7,7 +7,10 @@
 # hardening of a system unit and the steps of an install of the user. The
 # command line (`--install`, `--print-unit`, `--system --run-as`), the words
 # of a node and of a tunnel, the file of variables and the lock of a run stay
-# in podssh. The probes and the writes of a system install are T-1027.
+# in podssh. The probes and the writes of a system install (T-1027): root,
+# systemd as the manager, the account (by `id -u`, not a read of
+# /etc/passwd), the unit of the mark at 0644 and the steps of systemctl; the
+# probe of the cache of the user and the file of variables stay in podssh.
 repo PodUtils/podssh db0db54f14dbc335dd906ae112074cd9339c16d7
 file 9251c7ca0ee9ea484b98bbfe0312047b213e2312 crates/podssh-cli/src/node_install/text.rs -> crates/pod-unit/src/quote.rs crates/pod-unit/src/systemd.rs crates/pod-unit/src/launchd.rs crates/pod-unit/src/windows.rs crates/pod-unit/src/cron.rs
 file e2519f6a7aacdc3b2b2d9ae693376d73463ea034 crates/podssh-cli/src/node_install/system_text.rs -> crates/pod-unit/src/hardening.rs crates/pod-unit/src/systemd.rs
@@ -15,7 +18,9 @@ file 6caee959d1c3a526ac0ddb155e7c7cf8b35bf77f crates/podssh-cli/src/node_install
 file db8431082422140ab63ae456b5a62d82f553ca37 crates/podssh-cli/src/node_install/windows.rs -> crates/pod-unit/src/install_ways.rs
 file 982c8a2108f207937ed49424266dcbc02c5b5243 crates/podssh-cli/src/node_install/unix.rs -> crates/pod-unit/src/install_ways.rs crates/pod-unit/src/install.rs
 file 5fd3d52cc2b018a87103f6d3dfae73c201beaa99 crates/podssh-cli/src/node_install/tests.rs -> crates/pod-unit/src/quote.rs crates/pod-unit/tests/forms.rs crates/pod-unit/tests/systemd.rs
-file b89a93412f27d48f91fbcafb56a668b0bbecf8ad crates/podssh-cli/src/node_install/system_tests.rs -> crates/pod-unit/tests/systemd.rs
+file b89a93412f27d48f91fbcafb56a668b0bbecf8ad crates/podssh-cli/src/node_install/system_tests.rs -> crates/pod-unit/tests/systemd.rs crates/pod-unit/tests/install_system.rs
+file 941fea84389ff2c0724d5fcecd018cb6a65017eb crates/podssh-cli/src/node_install/system.rs -> crates/pod-unit/src/install_system.rs crates/pod-unit/src/systemd.rs
+file df256a833f564b504b75aa9135f0dcd6c12bcc34 crates/podssh-cli/src/node_install/system_install.rs -> crates/pod-unit/src/install_system.rs crates/pod-unit/src/install_ways.rs
 
 # podnet: the user unit and the line of the crontab of `podnet autostart`
 # (its log after the command, its probe of the forms). The command line, the

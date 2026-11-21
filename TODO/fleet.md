@@ -7037,7 +7037,7 @@ administrator.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7077,6 +7077,17 @@ A test of `ci.yml` as root (the root scripts of CI) installs a unit of the
 system of a test binary with `DynamicUser=yes`, reads its state with
 `systemctl show`, and removes it; the directory of the units is then as
 before.
+
+## Done
+
+2026-11-21, this commit (call C885). `pod_unit::install` (`src/install.rs`, `src/install_system.rs`, `src/install_ways.rs`):
+
+- `install_system(UNIT, FORM, SYSTEM_PLACES, HOST)`, `remove_system`, `probe_system`, `SystemPlaces` (default `/etc/systemd/system`, `/Library/LaunchDaemons`), `Form::Service`, `FileMeta`. The probes are methods of `Host` with a default that reads this host: `admin` (the effective uid 0; on Windows `OpenSCManagerW` with `SC_MANAGER_CREATE_SERVICE`), `systemd_booted` (`/run/systemd/system`), `file_meta` (the owner and the mode, no link followed). The account is `id -u NAME` through `Host::run`.
+- Before any write: the form holds the unit; the privilege, else `Class::Refused`; systemd as the manager; the account on the host and not root; each file of a secret and the file of variables of root (systemd) or of the account (launchd) with no access for others. systemd: the unit at 0644, `daemon-reload`, `enable`, `restart`; launchd: the plist, `bootstrap system PATH`; Windows: `sc.exe qdescription` for the mark, each command of `windows::service_commands`, `sc.exe start` (a service of an earlier install: `stop`, its `Environment` deleted, `config` in place of `create`). A unit that does not start is removed; a file or a service of another mark is refused and stays; a removal leaves nothing of the unit, and leaves the files of the secrets and the state directory.
+- A finding, fixed in place: `systemd::render` put any account in `User=`; a name is now 1 to 32 of `A-Z a-z 0-9 _ . -`, not first a `-`.
+- `TMPDIR=/tmp cargo test -p pod-unit --all-features`: 46 tests pass. `tests/install_system.rs`, 8 tests with the fake host of `tests/common/fake.rs`: `a_unit_of_the_system_is_written_enabled_and_started_and_its_removal_leaves_nothing`, `a_caller_with_no_privilege_is_refused_before_any_write`, `each_missing_part_of_a_system_install_is_refused_with_its_words` (podssh's test with its name), `a_unit_of_the_system_that_does_not_start_is_not_left_behind`, `a_file_or_a_service_of_another_program_is_refused_and_stays`, `a_launch_daemon_runs_as_its_user_in_the_domain_of_the_system`, `a_windows_service_is_made_by_its_commands_started_and_deleted`, `a_form_of_the_user_alone_is_refused_for_the_system_and_a_probe_finds_the_manager`. `tests/system_live.rs`, `a_unit_of_the_system_runs_on_the_systemd_of_this_host_and_its_removal_leaves_nothing` (`DynamicUser=yes`, a credential, `systemctl show`, the directory of the units as before): it skips here (no systemd as PID 1); `scripts/ci/root-unit-tests.sh` runs it as root in `ci.yml`, where a skip fails.
+- The plant `unit-system-install-no-root-check` (the check of the privilege gone from the form systemd) is caught: "no privilege".
+- `sh scripts/agent/check-windows.sh` and `sh scripts/agent/check-macos.sh`: 0 faults.
 
 # T-1028: `pod-release`: the trial run of a new binary on `pod_core::process::run_bounded`
 
