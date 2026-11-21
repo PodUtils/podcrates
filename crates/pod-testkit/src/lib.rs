@@ -9,6 +9,8 @@
 //!   that has none.
 //! * [`alloc`] and [`switches`]: the allocations, and the voluntary
 //!   switches of context (a call that blocks), of a scope on one thread.
+//! * [`freed`]: a search of each block that a scope frees for a marker, for
+//!   the test of a wipe of a secret.
 //! * [`listener`]: a server child of a test on a port of the loopback that
 //!   it holds itself, with new ports where another process took one.
 //! * `nobody` (Linux only): a test as a caller with no capabilities; root
@@ -43,6 +45,7 @@ pub mod alloc;
 pub mod elf;
 #[cfg(any(feature = "github", feature = "githome"))]
 mod fake;
+pub mod freed;
 #[cfg(feature = "githome")]
 pub mod githome;
 #[cfg(feature = "github")]

@@ -373,6 +373,12 @@ caller. The catalogue of a broker (`control::catalogue`) has the rows of
   catalogue and answers each in `Host::extra` with `Broker::control`.
 * `settings` gives a line of 1 MiB (`control::MAX_LINE`) for a policy with
   many rules and its secrets.
+* The master token, the job token and the values of the secrets are wiped
+  after their use: the frame, the parse and the params of `pod-control`
+  wipe each copy of the line, and `Token` and `Secrets` each value that
+  they read, also a value before a failure of the read.
+  `tests/control_wipe.rs` (`no_freed_block_of_the_control_holds_a_token_or_a_secret`)
+  searches each block that the control frees for the marker of the tokens.
 
 A job id has 1 to 128 of `A-Z a-z 0-9 . _ : -`. A token has 16 to 4096
 printable ASCII characters with no space; the broker keeps only its

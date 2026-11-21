@@ -134,7 +134,7 @@ fn bad_lines_are_bad_requests_with_no_byte_of_the_line() {
 #[test]
 fn a_line_of_each_kind_reads_back() {
     let req = wire::request_line(7, "drain", &json!({ "exit": true }), Some(2));
-    assert_eq!(req, "{\"schema\":1,\"id\":7,\"for\":2,\"method\":\"drain\",\"params\":{\"exit\":true}}\n");
+    assert_eq!(req.as_str(), "{\"schema\":1,\"id\":7,\"for\":2,\"method\":\"drain\",\"params\":{\"exit\":true}}\n");
     let Inbound::Request(r) = wire::parse(req.trim_end()).unwrap() else { panic!() };
     assert_eq!((r.id, r.method.as_str(), r.for_id), (7, "drain", Some(2)));
     let err = wire::answer_line(None, &Err(Fault::new(Code::Busy, "later")));
@@ -168,7 +168,7 @@ fn each_line_of_the_wire_is_valid_for_the_schema_and_a_broken_one_is_not() {
     ];
     for line in valid {
         let v: Value = serde_json::from_str(&line).unwrap();
-        assert!(schemas.validate(&v, at).is_ok(), "the schema refuses {line}");
+        assert!(schemas.validate(&v, at).is_ok(), "the schema refuses {}", line.as_str());
     }
     for line in [
         r#"{"schema":2,"id":1,"method":"status"}"#,

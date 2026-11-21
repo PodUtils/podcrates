@@ -12,11 +12,14 @@
 //! A request has `method`; an answer has `ok`. Each side numbers its own
 //! requests, and an answer has the id of its request (`null` when the line
 //! had no id that can be read). The `detail` of an error holds no byte of
-//! the request: a request can hold a token.
+//! the request: a request can hold a token. For the same reason each value
+//! that [`parse`] reads is wiped at its drop, and each line that
+//! [`request_line`] and [`answer_line`] write is wiped at its drop.
 
-use std::fmt;
+use std::fmt::{self, Write as _};
 
 use serde_json::{Map, Value};
+use zeroize::{Zeroize, Zeroizing};
 
 /// The version of the lines.
 pub const PROTOCOL: u32 = 1;
@@ -141,7 +144,7 @@ impl fmt::Display for Fault {
 
 impl std::error::Error for Fault {}
 
-/// A request that was read.
+/// A request that was read. Its params are wiped at its drop ([`wipe`]).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Request {
     pub id: u64,
@@ -150,6 +153,45 @@ pub struct Request {
     pub params: Value,
     /// The id of the request that a call back serves.
     pub for_id: Option<u64>,
+}
+
+impl Drop for Request {
+    fn drop(&mut self) {
+        wipe(&mut self.params);
+    }
+}
+
+/// Wipe each string of `value`, the keys of each object too, and make it
+/// `null`. A number keeps its bytes until they are written again.
+pub fn wipe(value: &mut Value) {
+    match value {
+        Value::String(s) => s.zeroize(),
+        Value::Array(items) => items.iter_mut().for_each(wipe),
+        Value::Object(map) => {
+            for (mut key, mut item) in std::mem::take(map) {
+                key.zeroize();
+                wipe(&mut item);
+            }
+        }
+        Value::Null | Value::Bool(_) | Value::Number(_) => {}
+    }
+    *value = Value::Null;
+}
+
+/// Wipe the result of an answer that is dropped with no use.
+pub(crate) fn wipe_outcome(outcome: Result<Value, Fault>) {
+    if let Ok(mut result) = outcome {
+        wipe(&mut result);
+    }
+}
+
+/// A value that is wiped at its drop, on each path of [`parse`].
+struct Wiped(Value);
+
+impl Drop for Wiped {
+    fn drop(&mut self) {
+        wipe(&mut self.0);
+    }
 }
 
 /// A line that a client or a server reads.
@@ -163,20 +205,22 @@ fn bad(id: Option<u64>, detail: &str) -> (Option<u64>, Fault) {
     (id, Fault::new(Code::BadRequest, detail))
 }
 
-fn take_object(line: &str) -> Result<Map<String, Value>, (Option<u64>, Fault)> {
-    let value: Value = serde_json::from_str(line).map_err(|_| bad(None, "the line is not JSON"))?;
-    let Value::Object(map) = value else { return Err(bad(None, "the line is not a JSON object")) };
+fn take_object(line: &str) -> Result<Wiped, (Option<u64>, Fault)> {
+    let value = Wiped(serde_json::from_str(line).map_err(|_| bad(None, "the line is not JSON"))?);
+    let Value::Object(map) = &value.0 else { return Err(bad(None, "the line is not a JSON object")) };
     let id = map.get("id").and_then(Value::as_u64);
     if map.get("schema").and_then(Value::as_u64) != Some(u64::from(PROTOCOL)) {
         return Err(bad(id, "the line has no \"schema\": 1"));
     }
-    Ok(map)
+    Ok(value)
 }
 
 /// Read one line. An error names the id where the line has one that can be
-/// read, and never holds a byte of the line.
+/// read, and never holds a byte of the line. The params and the result move
+/// out of the object that was read; the rest of it is wiped.
 pub fn parse(line: &str) -> Result<Inbound, (Option<u64>, Fault)> {
-    let map = take_object(line)?;
+    let mut value = take_object(line)?;
+    let Value::Object(map) = &mut value.0 else { return Err(bad(None, "the line is not a JSON object")) };
     let id = map.get("id").and_then(Value::as_u64);
     if map.contains_key("method") {
         let known = ["schema", "id", "method", "params", "for"];
@@ -187,16 +231,17 @@ pub fn parse(line: &str) -> Result<Inbound, (Option<u64>, Fault)> {
         let Some(method) = map.get("method").and_then(Value::as_str) else {
             return Err(bad(Some(id), "the method is not a string"));
         };
-        let params = match map.get("params") {
-            None => Value::Object(Map::new()),
-            Some(p @ Value::Object(_)) => p.clone(),
-            Some(_) => return Err(bad(Some(id), "the params are not an object")),
-        };
+        let method = method.to_string();
         let for_id = match map.get("for") {
             None => None,
             Some(v) => Some(v.as_u64().ok_or_else(|| bad(Some(id), "the field for is not an id"))?),
         };
-        return Ok(Inbound::Request(Request { id, method: method.to_string(), params, for_id }));
+        let params = match map.remove("params").map(Wiped) {
+            None => Value::Object(Map::new()),
+            Some(mut p @ Wiped(Value::Object(_))) => std::mem::take(&mut p.0),
+            Some(_) => return Err(bad(Some(id), "the params are not an object")),
+        };
+        return Ok(Inbound::Request(Request { id, method, params, for_id }));
     }
     let known = ["schema", "id", "ok", "result", "error"];
     if map.keys().any(|k| !known.contains(&k.as_str())) {
@@ -205,9 +250,10 @@ pub fn parse(line: &str) -> Result<Inbound, (Option<u64>, Fault)> {
     if !(map.get("id").is_some_and(Value::is_null) || id.is_some()) {
         return Err(bad(None, "an answer has no id and no null"));
     }
-    let outcome = match (map.get("ok"), map.get("result"), map.get("error")) {
-        (Some(Value::Bool(true)), Some(r), None) => Ok(r.clone()),
-        (Some(Value::Bool(false)), None, Some(e)) => Err(fault_of(e).ok_or_else(|| bad(id, "the error has no code"))?),
+    let ok = map.get("ok").and_then(Value::as_bool);
+    let outcome = match (ok, map.remove("result").map(Wiped), map.get("error")) {
+        (Some(true), Some(mut r), None) => Ok(std::mem::take(&mut r.0)),
+        (Some(false), None, Some(e)) => Err(fault_of(e).ok_or_else(|| bad(id, "the error has no code"))?),
         _ => return Err(bad(id, "an answer has ok and one of result and error")),
     };
     Ok(Inbound::Answer { id, outcome })
@@ -226,19 +272,38 @@ fn id_text(id: Option<u64>) -> String {
     id.map_or_else(|| "null".to_string(), |i| i.to_string())
 }
 
-/// The line of a request, with its line end. `schema` comes first, so that a
-/// reader of a log finds it.
-pub fn request_line(id: u64, method: &str, params: &Value, for_id: Option<u64>) -> String {
-    let for_text = for_id.map(|f| format!(",\"for\":{f}")).unwrap_or_default();
-    let method = Value::from(method);
-    format!("{{\"schema\":{PROTOCOL},\"id\":{id}{for_text},\"method\":{method},\"params\":{params}}}\n")
+/// A line of the exact length of `args`: a `String` that grows leaves a copy
+/// of its old bytes in memory that no one wipes.
+fn exact(args: fmt::Arguments<'_>) -> Zeroizing<String> {
+    struct Count(usize);
+    impl fmt::Write for Count {
+        fn write_str(&mut self, s: &str) -> fmt::Result {
+            self.0 += s.len();
+            Ok(())
+        }
+    }
+    let mut count = Count(0);
+    let _ = count.write_fmt(args);
+    let mut line = Zeroizing::new(String::with_capacity(count.0));
+    let _ = line.write_fmt(args);
+    line
 }
 
-/// The line of an answer, with its line end.
-pub fn answer_line(id: Option<u64>, outcome: &Result<Value, Fault>) -> String {
+/// The line of a request, with its line end. `schema` comes first, so that a
+/// reader of a log finds it. The line is wiped at its drop.
+pub fn request_line(id: u64, method: &str, params: &Value, for_id: Option<u64>) -> Zeroizing<String> {
+    let for_text = for_id.map(|f| format!(",\"for\":{f}")).unwrap_or_default();
+    let method = Value::from(method);
+    exact(format_args!("{{\"schema\":{PROTOCOL},\"id\":{id}{for_text},\"method\":{method},\"params\":{params}}}\n"))
+}
+
+/// The line of an answer, with its line end. The line is wiped at its drop.
+pub fn answer_line(id: Option<u64>, outcome: &Result<Value, Fault>) -> Zeroizing<String> {
     let id = id_text(id);
     match outcome {
-        Ok(result) => format!("{{\"schema\":{PROTOCOL},\"id\":{id},\"ok\":true,\"result\":{result}}}\n"),
-        Err(fault) => format!("{{\"schema\":{PROTOCOL},\"id\":{id},\"ok\":false,\"error\":{}}}\n", fault.to_value()),
+        Ok(result) => exact(format_args!("{{\"schema\":{PROTOCOL},\"id\":{id},\"ok\":true,\"result\":{result}}}\n")),
+        Err(fault) => {
+            exact(format_args!("{{\"schema\":{PROTOCOL},\"id\":{id},\"ok\":false,\"error\":{}}}\n", fault.to_value()))
+        }
     }
 }

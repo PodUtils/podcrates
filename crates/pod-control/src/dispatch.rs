@@ -82,10 +82,10 @@ pub(crate) fn none(params: &Value) -> Result<(), Fault> {
     }
 }
 
-/// The params as `T`. The words of serde can quote a value: they do not go
-/// back.
+/// The params as `T`, read in place: a clone would be one more copy to
+/// wipe. The words of serde can quote a value: they do not go back.
 pub(crate) fn typed<T: DeserializeOwned>(params: &Value) -> Result<T, Fault> {
-    serde_json::from_value(params.clone()).map_err(|_| bad_params())
+    T::deserialize(params).map_err(|_| bad_params())
 }
 
 fn version(s: &mut Session<'_>, params: &Value) -> Outcome {
@@ -106,14 +106,14 @@ fn methods(s: &mut Session<'_>, params: &Value) -> Outcome {
     Ok(json!({ "tier": s.tier.name(), "methods": rows }))
 }
 
-#[derive(serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Auth {
-    token: String,
-}
-
+/// The token of `auth` is read in place in the params, with no copy: the
+/// params are wiped after the answer.
 fn auth(s: &mut Session<'_>, params: &Value) -> Outcome {
-    let Auth { token } = typed(params)?;
+    let token = match params.as_object() {
+        Some(map) if map.len() == 1 => map.get("token").and_then(Value::as_str),
+        _ => None,
+    }
+    .ok_or_else(bad_params)?;
     let Some(master) = &s.settings.master else {
         return Err(Fault::new(Code::Refused, "this program has no master token"));
     };
@@ -122,7 +122,7 @@ fn auth(s: &mut Session<'_>, params: &Value) -> Outcome {
         return Err(Fault::new(Code::Refused, "one try of the token for each connection"));
     }
     s.auth_tried = true;
-    if !master.matches(&token) {
+    if !master.matches(token) {
         s.close = true;
         return Err(Fault::new(Code::Refused, "the token does not match"));
     }

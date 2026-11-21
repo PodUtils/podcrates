@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**855 entries: 148 open, 31 partial, 7 blocked, 669 done.**
+**856 entries: 148 open, 31 partial, 7 blocked, 670 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 11 | 0 | 197 | 212 |
-| P2 | 70 | 10 | 4 | 347 | 431 |
-| P3 | 74 | 10 | 3 | 123 | 210 |
-| **All** | 148 | 31 | 7 | 669 | 855 |
+| P2 | 69 | 10 | 4 | 348 | 431 |
+| P3 | 75 | 10 | 3 | 123 | 211 |
+| **All** | 148 | 31 | 7 | 670 | 856 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -883,7 +883,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1020](fleet.md) | P1 | S | M8 | defect | done | `pod-broker`: cargo on macOS does not read `SSL_CERT_FILE`, so the cargo of a job refuses the leaf of the job |
 | [T-1021](foundation.md) | P2 | S | M0 | defect | done | `pod-testkit`: `host::tool` finds no program on Windows, so a test that needs git skips on the Windows runners |
 | [T-1022](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: Go on macOS reads no variable of a CA file, so `go_takes_the_bundle_by_ssl_cert_file` can fail on the macOS jobs |
-| [T-1023](fleet.md) | P2 | S | M8 | defect | open | `pod-control`: the bytes of a line that holds a token or a secret are not wiped |
+| [T-1023](fleet.md) | P2 | S | M8 | defect | done | `pod-control`: the bytes of a line that holds a token or a secret are not wiped |
 | [T-1026](fleet.md) | P2 | M | M8 | feature | open | `pod-unit`: a dispatcher of the service control manager, so that a static program runs as a Windows service |
 | [T-1027](fleet.md) | P2 | M | M8 | feature | open | `pod-unit`: the install and the removal of a unit of the system |
 | [T-1028](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: the trial run of a new binary on `pod_core::process::run_bounded` |
@@ -902,3 +902,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1044](upkeep.md) | P3 | S | M5 | defect | open | `check-windows.sh` and `check-macos.sh` compile no doc test, so a doc test with an item of Unix fails only in the nightly |
 | [T-1045](podvm.md) | P2 | S | M6 | feature | done | `pod-supervise`: a streamed read of a log: a copy of a range in pieces, the tail found from the end, a byte bound of a follow (PodUtils/podvm#631) |
 | [T-1046](podvm.md) | P2 | S | M6 | feature | done | `pod-incus`: a read of a file in pieces to a writer, with a `Range` and a byte bound of the caller (PodUtils/podvm#631) |
+| [T-1048](fleet.md) | P3 | M | M8 | defect | open | `pod-control`: the scratch buffer of `serde_json` keeps a string of a line with an escape, with no wipe |

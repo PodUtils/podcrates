@@ -6926,7 +6926,7 @@ job on macOS: T-1031.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6948,6 +6948,34 @@ cargo test -p pod-control --all-features
 ```
 
 A unit test reads the buffer of `Lines` and its spare capacity after a line with a token, and finds no byte of the token; a test of `Call` finds no byte of a param string after the answer.
+
+## Done
+
+2026-11-20, this commit. `Lines` of `pod-control` reads into a buffer in
+`Zeroizing`, gives each line as `Zeroizing<String>`, wipes the bytes that
+a line leaves in the buffer, and grows into a new buffer and wipes the old
+one. `wire::parse` wipes the object that it read on each path and moves
+`params` and `result` out of it; `Request` and `Call` wipe their params at
+their drop (`wire::wipe`, a walk over the strings and the keys of a
+`Value`). `request_line` and `answer_line` write a line of its exact
+length as `Zeroizing<String>`. `auth` reads the token in place; the client
+wipes the params of each call after the write; `Token` keeps its text in
+`Zeroizing`. `pod_broker::Secrets` wraps each value at its read, so a map
+that fails to read after its first value drops no plain copy.
+`pod_testkit::freed::Scanning`, the allocator of a test binary, searches
+each freed block for a marker. `no_freed_block_holds_a_token_of_a_line`
+(`crates/pod-control/tests/wipe.rs`) found 51 freed blocks with the token
+before the fix and 0 after (20 of 20 runs);
+`no_freed_block_of_the_control_holds_a_token_or_a_secret`
+(`crates/pod-broker/tests/control_wipe.rs`) found 27 before the fix, 1
+with the fix of `pod-control` alone (the `Secrets` read), and 0 after (20
+of 20 runs). `a_line_that_was_given_leaves_no_byte_in_the_buffer` reads
+the live buffer of `Lines`. The plant `control-call-params-not-wiped` is
+caught; each other wipe, removed in turn, also fails the test. Not wiped:
+the scratch buffer of `serde_json` for a string with an escape (T-1048),
+the copies in the socket buffers of the kernel, and a copy that a host
+makes itself.
+
 
 # T-1026: `pod-unit`: a dispatcher of the service control manager, so that a static program runs as a Windows service
 
@@ -7337,3 +7365,48 @@ take their `own` variables from it (npm from the `node` of `PATH`). The
 rows of Node.js and npm in `crates/pod-broker/README.md` name the build
 of Homebrew. On Linux: `cargo test -p pod-broker --all-features` passes,
 the `tls_clients` legs of node and npm among them.
+
+# T-1048: `pod-control`: the scratch buffer of `serde_json` keeps a string of a line with an escape, with no wipe
+
+**Source:** T-1023 (a finding of `tests/wipe.rs`).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`wire::parse` reads a line with `serde_json::from_str`. A JSON string with
+an escape (`\n`, `\"`, `\\`, `\uXXXX`) is decoded into the `scratch` buffer
+of the `Deserializer` of `serde_json`, and the deserializer frees that
+buffer at its drop with no wipe. A token that holds `"` or `\` (a job token
+of `pod-broker` is printable ASCII, so it can) then stays in freed memory.
+The `scratch` buffer is private: the crate cannot wipe it.
+
+## Premise
+
+- Read: `crates/pod-control/src/wire.rs` (`take_object`); the `StrRead`
+  of `serde_json` 1.0.154 (`parse_str` decodes an escape into `scratch`).
+- Measured: `no_freed_block_holds_a_token_of_a_line` with one more line,
+  `{"schema":1,"id":7,"method":"version","params":{"t":"MARKER\n"}}`,
+  finds 2 freed blocks with the marker (the largest 48 bytes). Each line
+  of the test with no escape finds 0.
+- Not measured: the tokens of podrunner (a token of hex or base64 has no
+  escape in JSON).
+
+## Approach
+
+Read a line of the control with a JSON reader of the crate that gives a
+`serde_json::Value` and decodes each escape into a buffer in `Zeroizing`;
+the lines are small and their grammar is plain JSON. Hold it to
+`serde_json` with the fuzz target `control_line` (the same value for each
+line that both read). Other way: a fork of `serde_json` in `vendor/` whose
+`Deserializer` wipes `scratch` at its drop. Then add the line with an
+escape to `tests/wipe.rs`.
+
+## Prove
+
+```sh
+cargo test -p pod-control --all-features --test wipe
+```

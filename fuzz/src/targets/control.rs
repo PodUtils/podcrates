@@ -13,14 +13,14 @@ pub fn control_line(data: &[u8]) {
         Err((_, fault)) => assert_eq!(fault.code, Code::BadRequest, "{fault}"),
         Ok(Inbound::Request(r)) => {
             let line = wire::request_line(r.id, &r.method, &r.params, r.for_id);
-            let Ok(Inbound::Request(back)) = wire::parse(line.trim_end()) else { panic!("{line}") };
+            let Ok(Inbound::Request(back)) = wire::parse(line.trim_end()) else { panic!("{}", line.as_str()) };
             assert_eq!((back.id, &back.method, back.for_id), (r.id, &r.method, r.for_id));
             assert_eq!(keys(&back.params), keys(&r.params));
         }
         Ok(Inbound::Answer { id, outcome }) => {
             let line = wire::answer_line(id, &outcome);
             let Ok(Inbound::Answer { id: back_id, outcome: back }) = wire::parse(line.trim_end()) else {
-                panic!("{line}")
+                panic!("{}", line.as_str())
             };
             assert_eq!(back_id, id);
             match (back, outcome) {

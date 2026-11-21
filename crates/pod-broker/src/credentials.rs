@@ -159,10 +159,20 @@ impl fmt::Debug for Secrets {
     }
 }
 
+/// One value of [`Secrets`], wiped from its read: a map that fails to read
+/// after its first values drops them.
+struct SecretValue(Zeroizing<String>);
+
+impl<'de> Deserialize<'de> for SecretValue {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<SecretValue, D::Error> {
+        String::deserialize(d).map(|v| SecretValue(Zeroizing::new(v)))
+    }
+}
+
 impl<'de> Deserialize<'de> for Secrets {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Secrets, D::Error> {
-        let map = BTreeMap::<String, String>::deserialize(d)?;
-        Ok(Secrets(map.into_iter().map(|(k, v)| (k, Zeroizing::new(v))).collect()))
+        let map = BTreeMap::<String, SecretValue>::deserialize(d)?;
+        Ok(Secrets(map.into_iter().map(|(k, SecretValue(v))| (k, v)).collect()))
     }
 }
 
