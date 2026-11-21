@@ -3,6 +3,8 @@
 //! retransmission timer and its end, the probe of a closed window, the
 //! wrap of the sequence, and datagrams that the ARQ does not take.
 
+mod arq_common;
+
 use std::collections::BTreeMap;
 use std::time::{Duration, Instant};
 
@@ -10,33 +12,13 @@ use pod_link::arq::wire::{Bitmap, Datagram};
 use pod_link::arq::{Arq, ArqError, ArqSettings};
 use pod_link::datagram::lossy::SplitMix64;
 
-const MTU: usize = 1200;
-
-fn arq(settings: ArqSettings) -> Arq {
-    Arq::new(settings, MTU).unwrap()
-}
-
-/// Each datagram that `from` gives now.
-fn drain(from: &mut Arq, now: Instant) -> Vec<Datagram> {
-    std::iter::from_fn(|| from.poll_transmit(now)).map(|d| Datagram::decode(&d).unwrap()).collect()
-}
-
-fn give(to: &mut Arq, now: Instant, datagrams: &[Datagram]) {
-    for d in datagrams {
-        to.on_datagram(now, &d.to_vec());
-    }
-}
+use arq_common::{arq, drain, give, pattern};
 
 fn seq(d: &Datagram) -> Option<u32> {
     match d {
         Datagram::Data { seq, .. } | Datagram::Fin { seq } => Some(*seq),
         _ => None,
     }
-}
-
-/// Bytes that differ at each place, so that a reorder shows.
-fn pattern(n: usize, salt: u8) -> Vec<u8> {
-    (0..n).map(|i| (i as u8).wrapping_mul(31).wrapping_add(salt).wrapping_add((i >> 8) as u8)).collect()
 }
 
 /// A record of 5000 bytes is 5 fragments of at most 1 KiB, with the index
@@ -354,32 +336,4 @@ fn a_duplicate_goes_once_and_the_fin_ends_the_reader() {
     assert!(b.read_finished());
     give(&mut a, now, &drain(&mut b, now));
     assert!(a.closed());
-}
-
-/// A turn of the ARQ blocks on nothing (T-838, VF-3): 1000 records of 5000
-/// bytes go across, with the acknowledgements, and the thread makes no
-/// voluntary switch of context.
-#[test]
-fn a_turn_of_the_arq_blocks_on_nothing() {
-    let now = Instant::now();
-    let (mut a, mut b) = (arq(ArqSettings::default()), arq(ArqSettings::default()));
-    let record = pattern(5000, 3);
-    let (got, switches) = pod_testkit::switches::count(|| {
-        let mut got = 0;
-        for _ in 0..1000 {
-            assert!(a.send_record(&record).unwrap());
-            let out = drain(&mut a, now);
-            give(&mut b, now, &out);
-            while let Some(r) = b.recv_record().unwrap() {
-                got += usize::from(r == record);
-            }
-            let acks = drain(&mut b, now);
-            give(&mut a, now, &acks);
-        }
-        got
-    });
-    assert_eq!(got, 1000);
-    if let Some(switches) = switches {
-        assert_eq!(switches, 0, "{switches} voluntary switches in 1000 turns");
-    }
 }
