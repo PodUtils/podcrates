@@ -219,16 +219,68 @@ write-restricted token), `privs SeChangeNotifyPrivilege` (the least
 privileges), `failure` with a restart after `delay_s` and a reset after a
 day, `failureflag 1` (an end with a code that is not 0 is a failure), and
 the variables in the key `Environment` of the service (`reg.exe`).
-`windows::service_removal` stops and deletes it. The program must answer the
-service control manager (`StartServiceCtrlDispatcherW`): the dispatcher for
-a program is T-1026. Not taken: the XML of a service wrapper (WinSW, NSSM),
-a second program beside each binary, which is not static on each target.
+`windows::service_removal` stops and deletes it. Not taken: the XML of a
+service wrapper (WinSW, NSSM), a second program beside each binary, which is
+not static on each target.
+
+## The dispatcher of a Windows service (T-1026)
+
+The service control manager starts the program and waits for its call of
+`StartServiceCtrlDispatcherW`; it ends a program that does not call it with
+error 1053 after 30 s. `windows::serve(NAME, WORK)` (on Windows, with
+windows-sys alone) makes that call on the thread of its caller and runs
+`WORK` on the thread of the service:
+
+```rust,ignore
+use std::time::Duration;
+use pod_unit::windows;
+
+// The unit of the service form gives the word: .args(["serve", "--service"]).
+if args.service {
+    let code = windows::serve("podrunner", move |service| {
+        let mut work = match Work::start() {   // the service reports a pending start
+            Ok(work) => work,
+            Err(failure) => return failure.class.exit_code().into(), // 78 stays 78
+        };
+        let _ = service.ready();               // running: the manager may stop it
+        while service.stop().try_recv().is_err() {
+            work.tick();                       // until sc.exe stop, or a shutdown of the host
+        }
+        while work.draining() {
+            let _ = service.stopping(Duration::from_secs(10)); // a pending stop, the next checkpoint
+            work.tick();
+        }
+        work.code()                            // 0, or the exit code of the work
+    })?;
+        std::process::exit(code);
+}
+```
+
+| Event | The report to the manager |
+| --- | --- |
+| the start of `serve` | `SERVICE_START_PENDING`, no control accepted, a wait hint of `WAIT_HINT` (30 s); `Service::starting(HINT)` gives the next checkpoint |
+| `Service::ready` | `SERVICE_RUNNING`, a stop and a shutdown accepted |
+| a stop or a shutdown of the manager | `SERVICE_STOP_PENDING` with `WAIT_HINT` at once, then `Signal::Stop` or `Signal::Shutdown` on `Service::stop` |
+| `Service::stopping(HINT)` | `SERVICE_STOP_PENDING` with the next checkpoint: each step of a drain, and a stop that the work decides itself |
+| the end of `WORK` with `CODE` | `SERVICE_STOPPED` with `exit_codes(CODE)`: 0 is a clean end; else `ERROR_SERVICE_SPECIFIC_ERROR` and `CODE` (78 stays 78), a failure for `failureflag 1`; a panic is `PANIC_CODE` (101) |
+
+`serve` returns the code of `WORK` when the dispatcher ends, and the caller
+exits with it. A program that the manager did not start gets `Class::Usage`.
+`program_code(WIN32, SPECIFIC)` gives the code of the work back from a
+status of `sc.exe query`.
+
+`tests/service_live.rs` makes a service of its own binary with
+`install::install_system` (the commands of `windows::service_commands`),
+reads running, stops it with the manager, reads the pending stop with the
+hint of the drain of the work, and reads the exit codes of the stopped
+service (78, then 0); the removal leaves no service. It needs an
+administrator; the Windows job of `nightly.yml` runs it, where a skip fails.
 
 ## The adoption map
 
 | Consumer | Now | With pod-unit |
 | --- | --- | --- |
-| podrunner | `crates/podrunner/src/cli.rs`: `print_unit`, `exec_word` | `Unit` with `Start::Notify`, `Stop { drain: true, timeout_s: None }`; `systemd::render` for `print-unit`; `install::probe` and `install::install` of the unit of `print_unit` for an install with no prompt (PodUtils/podrunner@T-507); `install::install_system` of the same unit with `.system(Some(USER))` for a host where the operator installs as root |
+| podrunner | `crates/podrunner/src/cli.rs`: `print_unit`, `exec_word`; `crates/podrunner/src/serve.rs`: `run` with `notify::send` and `notify::take_signal` | `Unit` with `Start::Notify`, `Stop { drain: true, timeout_s: None }`; `systemd::render` for `print-unit`; `install::probe` and `install::install` of the unit of `print_unit` for an install with no prompt (PodUtils/podrunner@T-507); `install::install_system` of the same unit with `.system(Some(USER))` for a host where the operator installs as root; on Windows, the unit of the service form with a word of the service in its arguments, and `serve::run` in `windows::serve`: `Service::ready` for `READY=1`, `Service::stop().try_recv()` for `take_signal`, `Service::stopping` for `STOPPING=1` |
 | podssh | `crates/podssh-cli/src/node_install/`: `text.rs`, `system_text.rs`, `launchd.rs`, `windows.rs`, `unix.rs`, `system.rs`, `system_install.rs` | `Unit` of each node, tunnel and pipe; the hardening table and its relaxed lines of `serve` as `Hardening::relax`; `install::install_system` for `--install --system --run-as USER`; `--env-file` stays an argument; the probe of the cache of the user, the file of variables in the state directory and the lock of a run stay in podssh |
 | podnet | `crates/podnet-core/src/autostart.rs`: `unit_text`, `crontab_with`, `probe` | `Unit` of `autostart run NAME --dir DIR`; `install::probe`, `install::install`, `install::remove`; the files `NAME.args` and `NAME.env` stay in podnet |
 | cfb, githome | none | through podrunner and podnet: a system unit of a named user with no token, installed by `install::install_system` (A-S-02, A-N-11) |

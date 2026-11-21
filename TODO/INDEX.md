@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**865 entries: 148 open, 28 partial, 7 blocked, 682 done.**
+**865 entries: 147 open, 28 partial, 7 blocked, 683 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 199 | 213 |
-| P2 | 68 | 8 | 4 | 355 | 435 |
+| P2 | 67 | 8 | 4 | 356 | 435 |
 | P3 | 76 | 10 | 3 | 126 | 215 |
-| **All** | 148 | 28 | 7 | 682 | 865 |
+| **All** | 147 | 28 | 7 | 683 | 865 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -884,7 +884,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1021](foundation.md) | P2 | S | M0 | defect | done | `pod-testkit`: `host::tool` finds no program on Windows, so a test that needs git skips on the Windows runners |
 | [T-1022](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: Go on macOS reads no variable of a CA file, so `go_takes_the_bundle_by_ssl_cert_file` can fail on the macOS jobs |
 | [T-1023](fleet.md) | P2 | S | M8 | defect | done | `pod-control`: the bytes of a line that holds a token or a secret are not wiped |
-| [T-1026](fleet.md) | P2 | M | M8 | feature | open | `pod-unit`: a dispatcher of the service control manager, so that a static program runs as a Windows service |
+| [T-1026](fleet.md) | P2 | M | M8 | feature | done | `pod-unit`: a dispatcher of the service control manager, so that a static program runs as a Windows service |
 | [T-1027](fleet.md) | P2 | M | M8 | feature | done | `pod-unit`: the install and the removal of a unit of the system |
 | [T-1028](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: the trial run of a new binary on `pod_core::process::run_bounded` |
 | [T-1030](fleet.md) | P3 | S | M8 | measurement | done | `pod-actions-store`: the git tests on the Windows jobs, with the forge URL of a Windows path |

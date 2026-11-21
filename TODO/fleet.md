@@ -6991,7 +6991,7 @@ makes itself.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7029,6 +7029,44 @@ A test of the Windows jobs of `nightly.yml` makes a service of a test
 binary with the commands of `service_commands`, starts it, stops it, and
 reads its exit code; it skips with its reason where the runner gives no
 administrator.
+
+## Done
+
+2026-11-21, this commit. `pod_unit::windows::serve(NAME, WORK)` (on
+Windows; windows-sys alone, with the feature `Win32_Foundation` added): the
+dispatcher of the manager on the thread of the caller, `WORK` on the thread
+of the service (`crates/pod-unit/src/service_scm.rs`). `WORK` takes a
+`Service`: `ready` (`SERVICE_RUNNING`, a stop and a shutdown accepted),
+`starting(HINT)`, `stopping(HINT)` (`SERVICE_STOP_PENDING` with the next
+checkpoint), and `stop()`, the channel of `Signal::Stop` and
+`Signal::Shutdown`. The handler reports a pending stop with `WAIT_HINT`
+(30 s) at once, then sends the signal. The end of `WORK` reports
+`SERVICE_STOPPED` with `exit_codes(CODE)`: 0, or
+`ERROR_SERVICE_SPECIFIC_ERROR` and the code (78 stays 78); a panic is
+`PANIC_CODE` (101). `serve` returns the code; a program that the manager did
+not start gets `Class::Usage`. The states and the codes are free of calls of
+Windows (`crates/pod-unit/src/service.rs`, `Report`), so their tests run on
+each host: `service::tests::an_exit_code_of_the_work_stays_the_code_of_the_service`,
+`service::tests::a_service_reports_running_after_ready_and_a_pending_stop_while_it_drains`,
+`service::tests::a_work_that_ends_in_its_start_stops_with_its_code`. The
+plants `unit-service-code-lost` and `unit-service-ready-after-stop` are
+caught.
+
+The live proof is `crates/pod-unit/tests/service_live.rs` (no libtest), on
+the Windows runners of the job test of `nightly.yml` (windows-2025 and
+windows-11-arm), by `scripts/ci/windows-service-tests.sh`, where a skip
+fails: the program that the manager did not start gets `Class::Usage`; then
+`install::install_system` makes a service of a copy of the test binary
+(the commands of `windows::service_commands`, the account `NT SERVICE\NAME`)
+and starts it; the test reads running with the stop accepted, stops it by
+`ControlService`, reads the pending stop with the hint of the drain of the
+work (checkpoint 2), ends the drain, reads the exit codes of the stopped
+service (78, then 0), and `install::remove_system` leaves no service. It
+skips with its reason on a host with no administrator, and on each other OS.
+Not run on this host (Linux): `sh scripts/agent/check-windows.sh` gives 0
+faults, and clippy of pod-unit for `x86_64-pc-windows-gnu` with `-D
+warnings` passes. podrunner's take: the adoption map of
+`crates/pod-unit/README.md`.
 
 # T-1027: `pod-unit`: the install and the removal of a unit of the system
 

@@ -4,8 +4,9 @@ name: nightly
 # night, by hand, and before a release (docs/design.md, section 7): macOS
 # and Windows on their runners; the other Linux targets built with
 # cargo-zigbuild and run under QEMU user mode (scripts/binfmt.sh). Linux
-# x86_64 runs in ci.yml on each push. The job gate runs the gates that hold
-# their bounds in a release build only. The job install-os runs the test of
+# x86_64 runs in ci.yml on each push. The job test also runs a Windows
+# service of pod-unit on each Windows runner. The job gate runs the gates
+# that hold their bounds in a release build only. The job install-os runs the test of
 # the installer core (scripts/install/test.sh --strict) on macOS and
 # Windows.
 
@@ -69,6 +70,12 @@ jobs:
           else
             cargo test --locked --workspace --all-features --no-fail-fast
           fi
+      # A Windows service of a test program with the dispatcher of pod-unit
+      # (T-1026): made, started, stopped with a drain, its exit codes read,
+      # and removed. The runner is an administrator; a skip fails the step.
+      - name: A Windows service of pod-unit
+        if: always() && runner.os == 'Windows'
+        run: sh scripts/ci/windows-service-tests.sh
       - name: Test pod-gsr (Windows ARM64, open defect)
         if: always() && matrix.runner == 'windows-11-arm'
         continue-on-error: true

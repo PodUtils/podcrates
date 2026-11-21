@@ -6,7 +6,9 @@
 //!   the hardening of [`Hardening`] and the credentials of systemd;
 //! * [`launchd`]: a LaunchAgent, or a LaunchDaemon of a named user;
 //! * [`windows`]: a task at the logon of the user, or a Windows service of a
-//!   virtual account with a restricted SID (the commands of `sc.exe`);
+//!   virtual account with a restricted SID (the commands of `sc.exe`), and
+//!   the dispatcher of the service control manager that its program runs
+//!   (`windows::serve`, on Windows);
 //! * [`cron`]: the lines of the crontab of the user.
 //!
 //! No word of a unit is a secret ([`secret`]): a secret is a private file
@@ -28,6 +30,11 @@ pub mod launchd;
 mod model;
 pub mod quote;
 pub mod secret;
+// The states of a service are read by the calls of Windows alone.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod service;
+#[cfg(windows)]
+mod service_scm;
 pub mod systemd;
 pub mod windows;
 
