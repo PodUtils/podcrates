@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 859 entries: 148 open, 30 partial, 7 blocked, 674 done.
+`TODO/INDEX.md` holds 861 entries: 148 open, 28 partial, 7 blocked, 678 done.
 
 ## State
 
@@ -22,8 +22,7 @@
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
-- Open defects: T-916 (partial), T-1041 and T-1042 (macOS),
-  T-938, T-789, T-766 (the nightly); T-963 (`live.yml`: the
+- Open defects: T-916 (partial), T-938, T-789, T-766 (the nightly); T-963 (`live.yml`: the
   second Nostr relay is `nos.lol`; a giver still waits its whole limit
   after a refusal of the relay);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
@@ -69,7 +68,7 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red nightly
-(T-916, T-938), the failures of nightly 44739339618 that wait for a macOS run (T-1041, T-1042) and the red `services.yml` (T-1034) and the red live run (T-963). Then the asks of
+(T-916, T-938), T-1053 (a lossy run of E2-1 that takes 20 s) and the red `services.yml` (T-1034) and the red live run (T-963). Then the asks of
 podrunner (COORD-134, #225): each new ask of podrunner.
 Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;

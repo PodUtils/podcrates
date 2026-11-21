@@ -3390,6 +3390,10 @@ cargo test -p pod-iroh --all-features --test road --test share --test tickets
 
 - 2026-11-19, the nightly 44505235227 at `8389e1c`: two more time bounds of the same class fail under QEMU. `pod-iroh`'s `two_sessions_of_one_process_share_one_connection_on_two_streams` (`tests/share.rs`: "each session's bytes within the limit: Elapsed" on loongarch64; "early eof" at `share.rs:52` on riscv64) and `a_session_whose_client_moves_on_the_relay_alone_resumes_whole` (`tests/new_address.rs` on riscv64: the far end acknowledged 491520 of 4685824 bytes in 103 s, each `Stall` line a slow reader, no lost byte). The same run had `a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way` (loongarch64, powerpc64le, riscv64) and `a_turn_of_the_arq_blocks_on_nothing` (i686), each named above.
 - 2026-11-20, the nightly 44739339618 at `8a2cdd9`: the same three tests, no new one of this class. `a_turn_of_the_arq_blocks_on_nothing` on i686 (job 136298711820: "3 voluntary switches in 1000 turns"); `pod-iroh`'s `a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way` and `two_sessions_of_one_process_share_one_connection_on_two_streams` on loongarch64 (job 136298712051: `Elapsed` at the bound of 300 s, `road.rs:94` and `share.rs:155`) and on riscv64 (job 136298712144: "early eof" at `road.rs:47` after 99 s and at `share.rs:52` after 78 s). `main` at `783a657c` has no change of `pod-link`, `pod-iroh` or `pod-testkit`'s `switches.rs` after `8a2cdd9`. The armv7 failure of the run is T-1043.
+
+- 2026-11-21, the nightly run 44792996234 at `62b8039`: the same three tests, no new test of this class. `a_turn_of_the_arq_blocks_on_nothing` on i686 (job 136485246572: "4 voluntary switches in 1000 turns"; the one failed binary of the job). On riscv64 (job 136485246660) the two failed binaries are `pod-iroh`'s `road.rs` ("early eof" at `road.rs:47`, a broken pipe of the writer at `road.rs:43`, 158 s) and `share.rs` (`Elapsed` at `share.rs:155`, 306 s); `pod_job` passed 25 there. On loongarch64 (job 136485246683) `share.rs` gave `Elapsed` at `share.rs:155` (304 s), and `road.rs` gave a new form at `road.rs:98`: "Layer(Ended { end: Closing, received: 20971520, sent: 20971520 })", in 290 s. Each byte crossed; then the far end's answer to the `CLOSE` of this side did not come within `LINGER` (10 s, `crates/pod-session/src/pump.rs`), a time of the session that the emulation outruns, not a bound of the test.
+
+
 # T-917: The copies of product code that `codegraph.py dups` finds: one place for each
 
 **Source:** the first run of `python3 -I scripts/codegraph.py dups` (the ruling "Shared code").
@@ -4102,6 +4106,12 @@ with no OPT record and at least one with one. On Linux: `cargo test -p
 pod-link --all-features --test dns_resolver` passes 3 (the three tests of
 the file), and `cargo test -p pod-link --all-features` passes.
 
+The proof under QEMU: the nightly run 44792996234 at `62b8039`, the job
+`cross (armv7-unknown-linux-musleabihf, arm)` (136485246519):
+`a_query_with_edns_gets_an_answer_within_its_size ... ok`, and "test
+binaries that failed: 0".
+
+
 # T-1044: `check-windows.sh` and `check-macos.sh` compile no doc test, so a doc test with an item of Unix fails only in the nightly
 
 **Source:** T-1040 (a finding: the doc test of `pod-control` on Windows).
@@ -4144,4 +4154,104 @@ nightly.
 ```sh
 sh scripts/agent/check-windows.sh --doc
 sh scripts/agent/check-macos.sh --doc
+```
+
+# T-1052: `pod-link`: the gate of E2-1 at 20 % drop divides by a clean time that the CPU of the host sets, so a fast runner gives a factor above its bound (nightly 44792996234)
+
+**Source:** the nightly run 44792996234 at `62b8039` (the release `v0.80.0`), job `gate` (136485246532)
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time`
+of `crates/pod-link/tests/udp_loss.rs` failed: "E2-1, nodelay, 8388608
+bytes each way: clean [20.052128ms, 22.385896ms, 23.112201ms,
+23.189506ms, 38.222414ms], 20 % drop [232.420026ms, 295.108791ms,
+298.374761ms, 434.663145ms, 449.453173ms], 12.91 times", against the
+bound of 12 (call C787). The memory pair has no delay. The clean run is
+bound by the CPU (some 20 ms on that runner, some 65 ms on a host of 4
+cores), and the lossy run by the RTO of KCP (some 300 ms on each host).
+The medians of five runs (T-949) remove the noise of one run, but not the
+speed of the host: a faster runner makes the clean time smaller and the
+factor larger. Row E2-1 of PodUtils/podnet#468 asks for "a 20% drop run
+within 3 times the clean time", a factor of a path, where the clean time
+is bound by the round trip.
+
+## Premise
+
+- Read: the log of the job; the test; T-949, T-520; calls C272, C284 and
+  C787; row E2-1 in C272 and in T-515 (`TODO/relay.md`).
+- Measured: the old gate here gave 4.1 to 6.1 times in 6 runs (clean
+  medians 61 to 68 ms); the runner gave 12.91 times with a clean median of
+  23 ms and a lossy median of 298 ms, the same lossy time as here.
+
+## Approach
+
+Each run of the gate crosses a path with a delay of 10 ms each way (a
+round trip of 20 ms) over the memory pair, below the `Lossy` shim. The
+window of 1024 segments of 1 KiB then holds 8 round trips for 8 MiB, so
+the clean time is bound by the path and not by the CPU. The gate checks
+that the clean median is at least one round trip for each window, so the
+denominator cannot be small again. The bound of the factor goes back to
+8, from the measured spread. A plant with no fast resend of KCP proves
+that the gate still fails a slow recovery of loss.
+
+## Prove
+
+```sh
+cargo test --release -p pod-link --all-features --test udp_loss -- --include-ignored --nocapture twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time
+```
+
+## Done
+
+2026-11-21, commit "pod-link: the gate of E2-1 at 20 % drop crosses a path of 10 ms each way, bound 8 times (T-1052, call C878)". `tests/udp_loss.rs`: `Delayed` (a datagram end whose sends arrive 10 ms later, in their order, by one task for each end) under the `Lossy` shim of a memory pair with a queue of 8192 datagrams; `path_ends`; the gate asserts a clean median of at least 160 ms (8 windows times the round trip of 20 ms), then the factor of the medians of five runs at most 8 (`GATE_FACTOR`, call C878). Measured in a release build on a host of 4 cores, 18 runs: 4.05 to 6.18 times (clean medians 221 to 260 ms, each clean run 215 to 315 ms; lossy medians 1.03 to 1.37 s); 4 more runs with 4 busy loops on the 4 cores: 4.34 to 4.40 times. Delays of 1, 5 and 20 ms each way gave 4.7 to 6.4, 5.0 to 5.3 and 4.5 to 5.6 times. The gate takes some 7.5 s in place of 2 s. The plant `link-udp-no-fast-resend` (no fast resend of KCP) fails it: "11.61 times the clean time, above 8". A lossy run of 20.2 s in one of 50 runs at 20 ms each way: T-1053. The test: `crates/pod-link/tests/udp_loss.rs::twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time`.
+
+# T-1053: `pod-link`: a transfer of KCP with `nodelay` at 20 % drop can take ten times its median, as the RTO of a segment grows by half at each timeout
+
+**Source:** T-1052 (a finding of its measurement)
+**Category:** measurement
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+In the measurement of T-1052, one lossy run of 8 MiB each way at 20 %
+drop over a path of 20 ms each way took 20.24 s; the other 49 lossy
+runs at that delay took 1.7 to 3.3 s.
+With `nodelay`, the crate `kcp` 0.6.0 (`flush`) adds half of the RTO of
+a segment at each timeout of that segment (ikcp's `nodelay` 1; ikcp's
+mode 2 adds half of `rx_rto`, which the crate does not have), and a fast
+resend stops after `fastlimit` (5) sends. While the oldest segment
+waits, the window of 1024 segments fills and the stream stops. A user of
+`nodelay` on a path with much loss then sees a stall of seconds. The
+median of five runs of the gate holds it, so the gate does not show it.
+
+## Premise
+
+- Read: `kcp` 0.6.0 `src/kcp.rs` (`flush`: the growth of `rto`, the
+  limit of the fast resend, `dead_link`).
+- Measured: one run of 20.24 s in 50 lossy runs (a release build,
+  the test path of T-1052 at 20 ms each way). The cause is not measured:
+  the count of sends of the oldest segment in that run is not known.
+
+## Approach
+
+A test run that writes, for each lossy run, the time and the largest
+count of sends of one segment (from the stats of the stream, or a
+counter of the shim for each sequence number). Measure the tail in 200
+runs at 10 and 20 ms each way. When the tail comes from the growth of
+the RTO, compare a growth of half of `rx_rto` (ikcp's mode 2, a patch of
+the crate in `vendor/`) and a `fastlimit` of 0; record the tail and the
+fairness of each, and take a change only with a measured gain.
+
+## Prove
+
+```sh
+cargo test --release -p pod-link --all-features --test udp_loss -- --include-ignored --nocapture twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time
 ```

@@ -1,0 +1,8 @@
+# The udp carrier gives KCP no fast resend: a lost segment waits for its
+# RTO, and the gate of row E2-1 at 20 % drop over a path of 10 ms each way
+# takes some 11 times the clean time, above its bound of 8 (T-1052).
+ENTRY=T-1052
+GROUP=link
+EXPECT='times the clean time, above'
+RUN='cargo test --release -p pod-link --all-features --test udp_loss -- --include-ignored --exact twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time'
+LIMIT=1800

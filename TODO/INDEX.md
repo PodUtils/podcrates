@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**859 entries: 148 open, 30 partial, 7 blocked, 674 done.**
+**861 entries: 148 open, 28 partial, 7 blocked, 678 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 11 | 0 | 198 | 213 |
-| P2 | 69 | 9 | 4 | 351 | 433 |
-| P3 | 75 | 10 | 3 | 123 | 211 |
-| **All** | 148 | 30 | 7 | 674 | 859 |
+| P1 | 4 | 10 | 0 | 199 | 213 |
+| P2 | 69 | 8 | 4 | 353 | 434 |
+| P3 | 75 | 10 | 3 | 124 | 212 |
+| **All** | 148 | 28 | 7 | 678 | 861 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -887,7 +887,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1026](fleet.md) | P2 | M | M8 | feature | open | `pod-unit`: a dispatcher of the service control manager, so that a static program runs as a Windows service |
 | [T-1027](fleet.md) | P2 | M | M8 | feature | open | `pod-unit`: the install and the removal of a unit of the system |
 | [T-1028](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: the trial run of a new binary on `pod_core::process::run_bounded` |
-| [T-1030](fleet.md) | P3 | S | M8 | measurement | open | `pod-actions-store`: the git tests on the Windows jobs, with the forge URL of a Windows path |
+| [T-1030](fleet.md) | P3 | S | M8 | measurement | done | `pod-actions-store`: the git tests on the Windows jobs, with the forge URL of a Windows path |
 | [T-1031](fleet.md) | P3 | S | M8 | measurement | open | `pod-broker`: a Go job on macOS refuses the leaf of the job, and no variable gives Go the CA |
 | [T-1032](podvm.md) | P3 | S | M6 | defect | open | `pod-supervise`: a signal of the list to the detached launcher between the start of the payload and its block ends the launcher |
 | [T-1033](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: podvm's two rules for the take of `check_exec_argv` and `check_exec_guest`: a rule over a volume, and the `#!` chain (PodUtils/podvm#613) |
@@ -896,13 +896,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1036](podvm.md) | P3 | S | M6 | defect | done | `pod-supervise`: `end_tree` waits on one pidfd at a time, so a tree with the init of a PID namespace and a second process of it waits the whole `TREE_KILL_MS` (PodUtils/podvm#624) |
 | [T-1037](podvm.md) | P2 | S | M7 | defect | done | `pod-guest`: `qmp::Monitor` waits 5 s for one answer with no bound of the caller and no read of a late answer, so a slow `query-migrate` fails a save (PodUtils/podvm#618) |
 | [T-1040](fleet.md) | P2 | S | M8 | defect | done | `pod-control`: the doc test of `conformance` calls `Client::connect_unix`, which Windows does not have |
-| [T-1041](fleet.md) | P1 | S | M8 | defect | partial | `pod-control`: on macOS the timeout of a Unix socket whose peer closed fails with EINVAL, so a read of the end is an error |
-| [T-1042](fleet.md) | P2 | S | M8 | defect | partial | `pod-broker`: the Node.js of Homebrew reads `SSL_CERT_FILE`, so the node and npm legs of `tls_clients` fail on macOS |
+| [T-1041](fleet.md) | P1 | S | M8 | defect | done | `pod-control`: on macOS the timeout of a Unix socket whose peer closed fails with EINVAL, so a read of the end is an error |
+| [T-1042](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: the Node.js of Homebrew reads `SSL_CERT_FILE`, so the node and npm legs of `tls_clients` fail on macOS |
 | [T-1043](upkeep.md) | P2 | S | M2 | defect | done | `pod-link`: the EDNS test of `dns_resolver` compares two counts that the resolver still moves (armv7) |
 | [T-1044](upkeep.md) | P3 | S | M5 | defect | open | `check-windows.sh` and `check-macos.sh` compile no doc test, so a doc test with an item of Unix fails only in the nightly |
 | [T-1045](podvm.md) | P2 | S | M6 | feature | done | `pod-supervise`: a streamed read of a log: a copy of a range in pieces, the tail found from the end, a byte bound of a follow (PodUtils/podvm#631) |
 | [T-1046](podvm.md) | P2 | S | M6 | feature | done | `pod-incus`: a read of a file in pieces to a writer, with a `Range` and a byte bound of the caller (PodUtils/podvm#631) |
 | [T-1048](fleet.md) | P3 | M | M8 | defect | open | `pod-control`: the scratch buffer of `serde_json` keeps a string of a line with an escape, with no wipe |
+| [T-1052](upkeep.md) | P2 | S | M2 | defect | done | `pod-link`: the gate of E2-1 at 20 % drop divides by a clean time that the CPU of the host sets, so a fast runner gives a factor above its bound (nightly 44792996234) |
+| [T-1053](upkeep.md) | P3 | S | M2 | measurement | open | `pod-link`: a transfer of KCP with `nodelay` at 20 % drop can take ten times its median, as the RTO of a segment grows by half at each timeout |
 | [T-1056](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: `qmp::Monitor::connect` puts no bound on the `connect()` itself, so a connect to the full queue of the monitor of QEMU waits in the kernel with no end (PodUtils/podvm#633) |
 | [T-1057](podvm.md) | P2 | S | M7 | defect | done | `pod-guest`: the tests of `warm::line` have no stand-in of the monitor of QEMU with one client and a queue of one connection (PodUtils/podvm#633) |
 | [T-1059](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the test of a code in no line takes a part of a word for a word of the code (`ci` 44806766580) |

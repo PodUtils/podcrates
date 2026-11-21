@@ -6919,6 +6919,13 @@ Go leg on macOS (its `tls_clients` had 7 tests). On Linux the leg passes
 passed); `sh scripts/agent/check-macos.sh`: "0 faults". A way for a Go
 job on macOS: T-1031.
 
+The proof on the runners: the nightly run 44792996234 at `62b8039`, the jobs `test (macos-15)`
+(136485246727) and `test (macos-15-intel)` (136485246485): "skipping, Go
+on macOS verifies with the keychains and reads no SSL_CERT_FILE or
+SSL_CERT_DIR", then `go_takes_the_bundle_by_ssl_cert_file ... ok`, on
+each.
+
+
 # T-1023: `pod-control`: the bytes of a line that holds a token or a secret are not wiped
 
 **Source:** T-1000 (the control of `pod-broker` on `pod-control`)
@@ -7113,7 +7120,7 @@ cargo test -p pod-release --all-features
 **Milestone:** M8
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7150,6 +7157,25 @@ cargo test -p pod-actions-store --all-features --test git
 ## Start condition
 
 A nightly run at a commit with T-1021.
+
+## Done
+
+2026-11-21, the measurement. The nightly run 44792996234 at `62b8039`, the jobs
+`test (windows-2025)` (136485246423) and `test (windows-11-arm)`
+(136485246656): `tests\git.rs` of `pod-actions-store` ran its five tests
+with no skip line, and each passed ("5 passed; 0 failed", 2.97 s and
+4.64 s): `git_resolves_a_tag_an_annotated_tag_and_a_branch`,
+`git_resolves_a_full_ref_and_a_commit_id`,
+`git_resolves_head_to_the_default_branch`,
+`git_gives_the_tar_of_a_commit_with_one_top_directory`,
+`git_feeds_a_resolve_through_a_composite_action_and_back_offline`. So git
+for Windows takes the base `file://C:\...\` of `Repos::forge`; no change
+of the test is necessary. The other skip lines of the two jobs are the
+tests of the skip itself (`no-such-tool-of-pod-testkit`,
+`/no/such/dir/no-such-tool`) and two of Linux only (user and mount
+namespaces, `pod-hostprobe`); each job has 534 "test result: ok" lines
+and no failed one.
+
 
 # T-1031: `pod-broker`: a Go job on macOS refuses the leaf of the job, and no variable gives Go the CA
 
@@ -7246,6 +7272,12 @@ form of the example for Windows runs in
 both Windows jobs. On Linux: `cargo test -p pod-control --all-features`
 passes 19, 2, 13 and the doc test.
 
+The proof on the runners: the nightly run 44792996234 at `62b8039`, the jobs
+`test (windows-2025)` (136485246423) and `test (windows-11-arm)`
+(136485246656): `crates\pod-control\src\conformance.rs - conformance
+(line 10) - compile ... ok` on each.
+
+
 # T-1041: `pod-control`: on macOS the timeout of a Unix socket whose peer closed fails with EINVAL, so a read of the end is an error
 
 **Source:** nightly run 44739339618 at `8a2cdd9`, the jobs `test (macos-15)` (136298712070) and `test (macos-15-intel)` (136298712134).
@@ -7253,7 +7285,7 @@ passes 19, 2, 13 and the doc test.
 **Milestone:** M8
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -7305,6 +7337,15 @@ standard library and another code stay errors) and
 On Linux: `cargo test -p pod-control --all-features` passes 19 unit
 tests, 2, 13 and the doc test.
 
+The proof: the nightly run 44792996234 at `62b8039`, the jobs `test (macos-15)` (136485246727) and
+`test (macos-15-intel)` (136485246485). On each job these tests ran and
+passed: `frame::tests::two_lines_in_one_read_are_two_lines`,
+`frame::tests::only_the_einval_of_darwin_needs_no_timeout`,
+`frame::tests::a_closed_peer_with_bytes_left_gives_the_bytes_then_the_end`
+(the unit tests of `pod-control`) and `a_reply_before_the_request_is_read`
+(`tests/server.rs`).
+
+
 # T-1042: `pod-broker`: the Node.js of Homebrew reads `SSL_CERT_FILE`, so the node and npm legs of `tls_clients` fail on macOS
 
 **Source:** nightly run 44739339618 at `8a2cdd9`, the jobs `test (macos-15)` (136298712070) and `test (macos-15-intel)` (136298712134).
@@ -7312,7 +7353,7 @@ tests, 2, 13 and the doc test.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -7365,6 +7406,17 @@ take their `own` variables from it (npm from the `node` of `PATH`). The
 rows of Node.js and npm in `crates/pod-broker/README.md` name the build
 of Homebrew. On Linux: `cargo test -p pod-broker --all-features` passes,
 the `tls_clients` legs of node and npm among them.
+
+The proof: the nightly run 44792996234 at `62b8039`, the jobs `test (macos-15)` (136485246727) and
+`test (macos-15-intel)` (136485246485). On each job
+`node_takes_the_bundle` and `npm_reads_a_registry_that_needs_a_token`
+(`tests/tls_clients.rs`) ran and passed. Before the change both failed on
+these hosts with exit 0 of the leg with no `NODE_EXTRA_CA_CERTS`, so the
+probe gave the define of the store of OpenSSL there. The line "takes the
+default store of OpenSSL" is not in the logs: it was a `println!`, which
+the harness holds for a test that passes. `node_own` now writes it to the
+standard error of the process (this commit), so the
+next macOS run shows it.
 
 # T-1048: `pod-control`: the scratch buffer of `serde_json` keeps a string of a line with an escape, with no wipe
 
