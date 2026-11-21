@@ -12393,3 +12393,114 @@ in 60s" and "the save did not end in 60s"; the row `Late` passes on the
 code before: `freeze` already kept one connection. The import is in
 `crates/pod-guest/SOURCES` (podvm `867f79e`, blob `81ea50fb`).
 `cargo test -p pod-guest --all-features`: lib 197 passed, 1 ignored.
+
+# T-1080: `pod-enter`: `E2BIG` at `execve` gives 127 ("not found"), and a search of the path keeps the errno of its last candidate, so a program that was found and refused does not give 126 (PodUtils/podvm#639)
+
+**Source:** PodUtils/podvm#639 (COORD-225 of podvm, PodUtils/podvm@T-2062)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm: "A run whose environment is too large (`--env-file` with a value
+of 1 MB) fails at `execve` with E2BIG. `pod-enter` gives exit 127 ("not
+found"), on the namespace rung and on the userland rung. The command was
+found; the kernel refused the call. docker's table and podvm's manual
+give 126 for "found, not invocable"." The ask: "`invocable_but_refused`
+in `pod-enter/src/status.rs` takes errno 7 (E2BIG), beside the codes that
+it takes now, with a row in its test." podvm reads the text `E2BIG (7)`
+of the error now, and drops that read when it takes the tag with this
+row.
+
+## Premise
+
+- Read: `crates/pod-enter/src/status.rs` (`invocable_but_refused` takes
+  `EPERM`, `ENOEXEC`, `EACCES`, `EISDIR` and `ETXTBSY`; `step_failure`
+  gives 126 or 127 for the steps 4, 5 and 6: the candidates of the chroot
+  and the namespace rungs, the memfd, the argv of the userland rung). No
+  test reads the table.
+- Read: `crates/pod-enter/src/launch.rs`, the loop of the candidates: it
+  sends the errno of the last candidate. A file that was found and
+  refused in `/bin`, then an absent `/usr/bin/NAME`, sends `ENOENT`, so
+  the table never sees the refusal.
+- Read: execve(2): `E2BIG`, `ELIBBAD` (a bad format of the ELF
+  interpreter), `EINVAL` (an ELF with more than one interpreter) are
+  answers about a file that was found. bash gives 126 for each errno but
+  `ENOENT`; glibc `execvp` goes on after `EACCES` and the absent kinds,
+  and stops at another errno.
+- Read: Linux 6.8 and later open the file before the check of the size
+  of the strings; an older kernel gives `E2BIG` also for a path with no
+  file, so a too-large environment gives 126 there for each path.
+- Measured: on Linux 6.18, a value of 1 MiB in the environment gives
+  `E2BIG` at `execve` of a file that exists.
+- `Errno::name` of `pod-hostprobe` has no name for `ENOEXEC` and
+  `ELIBBAD` (it writes `E8`, `E80`).
+
+## Approach
+
+`invocable_but_refused` takes `E2BIG` (7), `EINVAL` (22) and `ELIBBAD`
+(80) beside the codes that it takes now, with the meaning of each errno in
+its doc. The loop of the candidates keeps the first errno of a file that
+was found and refused over the errno of a later absent path, and stops
+there as `execvp` does, except at `EACCES`. `Errno::name` names `ENOEXEC`
+and `ELIBBAD`. Tests: a table of each errno, its name and its code for the
+steps 4, 5 and 6; a real `execve` with a value of 1 MiB on the namespace
+rung (a search of the path with an absent second candidate) and on the
+userland rung; a file with no execute permission before an absent
+candidate. `scripts/ci/root-enter-confine-tests.sh` and
+`scripts/ci/userns-tests.sh` run the test file, where a skip fails. Two
+plants: one takes `E2BIG` out of the table, one keeps the errno of the
+last candidate.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --lib status::tests
+cargo test -p pod-enter --all-features --test exec_refused
+sh scripts/plant-each.sh enter-exec-e2big-not-found
+sh scripts/plant-each.sh enter-exec-candidate-refusal-masked
+```
+
+## Done
+
+2026-11-21, this commit. `invocable_but_refused`
+(`crates/pod-enter/src/status.rs`) takes `E2BIG` (7), the ask, and also
+`EINVAL` (22, an ELF with more than one interpreter) and `ELIBBAD` (80, an
+ELF interpreter with a bad format): each is an answer about a file that
+was found, and each gave 127 before. Now 126 for `EPERM`, `E2BIG`,
+`ENOEXEC`, `EACCES`, `EISDIR`, `EINVAL`, `ETXTBSY` and `ELIBBAD`; 127 stays
+for `ENOENT`, `ENOTDIR`, `ENAMETOOLONG`, `ELOOP` (the resolution of the
+path) and the failures of the host (`ENOMEM`, `EIO`, `EMFILE`, `ENFILE`,
+`EFAULT`). The text keeps the form `E2BIG (7)`. A second defect of the same
+kind: the loop of the candidates of the chroot and the namespace rungs
+(`crates/pod-enter/src/launch.rs`) sent the errno of its last candidate,
+so a file that was found and refused in `/bin` before an absent
+`/usr/bin/NAME` gave `ENOENT` and 127. The loop keeps the errno of the
+refused file and stops there, as `execvp`; only `EACCES` lets the search
+go on. Each path of an exec reaches the one table: the candidates (step
+4), the memfd (step 5) and the argv of the userland rung (step 6). A `#!`
+script whose interpreter is absent gives `ENOENT` and 127, as bash.
+`Errno::name` of `pod-hostprobe` names `ENOEXEC` and `ELIBBAD`. Tests:
+`status::tests::each_errno_of_a_refused_execve_gives_the_code_of_the_shell`
+(each errno, its name and its code at the steps 4, 5 and 6) and
+`crates/pod-enter/tests/exec_refused.rs`:
+`a_too_large_environment_on_the_namespace_rung_is_found_and_not_invocable`
+(a real `execve` with a value of 1 MiB, a search of the path with an absent
+second candidate),
+`a_too_large_environment_on_the_userland_rung_is_found_and_not_invocable`
+and `a_program_with_no_execute_permission_before_an_absent_one_is_not_invocable`.
+On the code before the fix the three tests of `exec_refused.rs` fail with
+127 (`ENOENT (2)` on the namespace rung, `E2BIG (7)` on the userland
+rung). They pass as root and as uid 65534 through a user namespace.
+`scripts/ci/root-enter-confine-tests.sh` and `scripts/ci/userns-tests.sh`
+run `exec_refused.rs`, where a skip fails. Plants:
+`enter-exec-e2big-not-found` (`E2BIG` out of the table) and
+`enter-exec-candidate-refusal-masked` (the errno of the last candidate);
+each is caught; `sh scripts/plant-each.sh --apply`: 0 stale. The test plan
+of `ns_pid` moved to `crate::tests::plain_plan`, so the new test adds no
+clone. `cargo test --workspace --all-features` passes (pod-enter lib 266,
+pod-hostprobe lib 180). podvm can drop its read of the text `E2BIG (7)`
+when it takes the tag with this entry.

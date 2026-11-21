@@ -1,0 +1,9 @@
+# pod-enter: the search of the path keeps the errno of its last
+# candidate, so an absent path after a file that was found and refused
+# gives 127 in place of 126 (T-1080). The test runs as root (sudo -n on a
+# runner), as the rungs with a chroot skip as another user.
+ENTRY=T-1080
+GROUP=confine
+EXPECT='test a_too_large_environment_on_the_namespace_rung_is_found_and_not_invocable \.\.\. FAILED'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

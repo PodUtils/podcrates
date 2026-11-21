@@ -1,6 +1,7 @@
 #!/bin/sh
 # The namespace rung for a caller with no capabilities (T-670): the entry
-# of pod-enter in a user namespace (tests/userns.rs), the leg of
+# of pod-enter in a user namespace (tests/userns.rs) and its refused exec
+# (tests/exec_refused.rs, T-1080), the leg of
 # pod-hostprobe (tests/userns_leg.rs), the rows of the host classes
 # (tests/host_rows.rs: as root again as uid 65534), the labs of pod-lab
 # (tests/lab.rs: the tmpfs of small-tmp in a user namespace, T-692), and the
@@ -37,7 +38,7 @@ bins=$(mktemp -d)
 trap 'rm -rf "$bins"' EXIT
 chmod 755 "$bins"
 rc=0
-for spec in "pod-enter userns" "pod-hostprobe userns_leg" "pod-hostprobe host_rows" "pod-lab lab" "pod-supervise tree"; do
+for spec in "pod-enter userns" "pod-enter exec_refused" "pod-hostprobe userns_leg" "pod-hostprobe host_rows" "pod-lab lab" "pod-supervise tree"; do
     crate=${spec%% *}
     t=${spec#* }
     bin=$(cargo test --locked -p "$crate" --all-features --test "$t" --no-run 2>&1 |

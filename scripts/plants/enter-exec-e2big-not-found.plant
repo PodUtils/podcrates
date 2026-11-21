@@ -1,0 +1,7 @@
+# pod-enter: E2BIG at execve reads as "not found" (127), not as a file
+# that was found and refused (126) (T-1080, PodUtils/podvm#639).
+ENTRY=T-1080
+GROUP=enter
+EXPECT='E2BIG at step 4'
+RUN='cargo test -p pod-enter --all-features --lib status::tests::each_errno_of_a_refused_execve_gives_the_code_of_the_shell'
+LIMIT=1800
