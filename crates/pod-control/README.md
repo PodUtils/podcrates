@@ -129,7 +129,10 @@ total, the connection also closes. The client holds the same budgets
 Each delegated request waits `Settings::answer_wait` (5 s) for the host.
 Past it, `status` gets the last value of `Server::snapshot`, and another
 method gets `busy`. `Settings::clients` (8) connections are served at one
-time; one more gets `busy`.
+time; one more gets `busy` and is closed. A connection gives its place back
+when the server ends it, after the client reads its last answer. So a
+client that counts the places (a test) waits until `Server::active` gives
+the count before it opens one more connection (T-1070).
 
 ## Transports
 

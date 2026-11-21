@@ -7555,3 +7555,58 @@ with a token, and a call back past its budget whose answer holds a token.
 ```sh
 cargo test -p pod-control --all-features --test wipe
 ```
+
+# T-1070: `pod-control`: podrunner's test of a ninth client fails 6 of 30 runs, as the place of the call before it is not back yet
+
+**Source:** the release of v0.81.0 (a finding of the run of podrunner's tests against the tag).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`silent_clients_delay_no_answer_and_a_ninth_is_busy`
+(`PodUtils/podrunner:crates/podrunner/src/control_tests.rs`) holds seven
+silent clients, calls `capacity`, opens an eighth silent client, then asks
+`status` until the answer is `busy`. It fails with "no busy in 10 s:
+{...}" in 6 of 30 runs of its test binary at `v0.80.0`, and also at
+`v0.81.0`.
+
+The server of `pod-control` gives the place of a connection back when its
+thread ends the connection, after the client reads the answer. When the
+eighth connection comes before the place of the `capacity` call is back,
+the server refuses it with `busy` ("too many clients") and closes it. Seven
+silent clients then hold seven places, and each `status` gets an answer.
+
+## Premise
+
+- Read: `crates/pod-control/src/unix.rs` (the accept, `take_slot`,
+  `server::refuse`), `crates/pod-control/src/server.rs` (`Slot`), and the
+  test of podrunner at its `main`.
+- Measured: the test binary of podrunner at `v0.80.0`, run 30 times with
+  `--test-threads=1`: 6 failures. The same test against `v0.81.0` failed 1
+  of 3 runs. Not measured: the time between the answer and the return of
+  the place.
+- The `README.md` of `pod-control` and the doc of `Server::active` now say
+  when a place comes back, and that a client that counts the places waits
+  for `Server::active`.
+
+## Approach
+
+podrunner's test waits until `server.active()` is 7 (the seven silent
+clients) before it opens the eighth connection, so that each place is
+held when it asks. The hand-off of v0.81.0 gives podrunner the change.
+`pod-control` keeps the order of the server: a place is given back after
+the answer, so that no ninth client is served while the eighth one reads.
+Add to `crates/pod-control/tests/server.rs` a test that holds the count of
+`Server::active` against the places: a client that ends its call, then a
+wait for the count, then the connections up to `Settings::clients`, and one
+more gets `busy`.
+
+## Prove
+
+```sh
+cargo test -p pod-control --all-features --test server
+```

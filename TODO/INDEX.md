@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**863 entries: 147 open, 28 partial, 7 blocked, 681 done.**
+**864 entries: 148 open, 28 partial, 7 blocked, 681 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 199 | 213 |
 | P2 | 68 | 8 | 4 | 355 | 435 |
-| P3 | 75 | 10 | 3 | 125 | 213 |
-| **All** | 147 | 28 | 7 | 681 | 863 |
+| P3 | 76 | 10 | 3 | 125 | 214 |
+| **All** | 148 | 28 | 7 | 681 | 864 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -910,3 +910,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1059](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the test of a code in no line takes a part of a word for a word of the code (`ci` 44806766580) |
 | [T-1060](fleet.md) | P3 | S | M8 | defect | open | `pod-control`: an answer that the server drops on a side path, after a timeout or a spent budget, is not wiped |
 | [T-1066](foundation.md) | P2 | S | M0 | feature | done | `pod-core`: one atomic replace of a file at a path that the caller names, with `Mode::Keep`, a followed link, a made directory and errors that name the step (PodUtils/podnet#677) |
+| [T-1070](fleet.md) | P3 | S | M8 | defect | open | `pod-control`: podrunner's test of a ninth client fails 6 of 30 runs, as the place of the call before it is not back yet |

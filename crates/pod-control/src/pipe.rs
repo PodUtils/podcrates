@@ -185,6 +185,9 @@ impl Server {
         self.shared.snapshot.clone()
     }
 
+    /// The connections that hold a place now. A connection gives its place
+    /// back when the server ends it, after the client reads its last
+    /// answer: a caller that counts the places waits for this count.
     pub fn active(&self) -> usize {
         self.shared.active.load(Ordering::SeqCst)
     }
