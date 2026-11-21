@@ -375,3 +375,25 @@ fn the_child_names_the_rung_that_it_entered() {
     assert_eq!(crate::rung_of("no-such-rung"), None);
     assert_eq!(Child::of(7).entered, None);
 }
+
+/// A plan of `/bin/true` with no environment, no limit and no namespace:
+/// the base of the tests that change one field.
+pub(crate) fn plain_plan() -> Plan {
+    Plan {
+        argv: vec!["/bin/true".to_string()],
+        env: Vec::new(),
+        working_dir: "/".to_string(),
+        fds: Fds::default(),
+        banner: String::new(),
+        path_dirs: vec!["/bin".to_string()],
+        names: Names::DEFAULT,
+        limits: Vec::new(),
+        no_new_privs: false,
+        die_with_parent: false,
+        confine: None,
+        hostname: None,
+        volumes: Vec::new(),
+        userns_ids: None,
+        pid_namespace: false,
+    }
+}

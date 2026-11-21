@@ -29,6 +29,7 @@ impl Errno {
             e::EINTR => "EINTR",
             e::EIO => "EIO",
             e::E2BIG => "E2BIG",
+            e::ENOEXEC => "ENOEXEC",
             e::EBADF => "EBADF",
             e::ECHILD => "ECHILD",
             e::EAGAIN => "EAGAIN",
@@ -51,6 +52,9 @@ impl Errno {
             e::ENOSYS => "ENOSYS",
             e::ENOTEMPTY => "ENOTEMPTY",
             e::ELOOP => "ELOOP",
+            // The answer of an `execve` whose ELF interpreter has a bad
+            // format.
+            e::ELIBBAD => "ELIBBAD",
             e::EOPNOTSUPP => "EOPNOTSUPP",
             // The answers of a socket call: a family that the host does not
             // have, and a file that a Landlock rule cannot name.

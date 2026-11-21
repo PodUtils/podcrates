@@ -416,14 +416,26 @@ pub(crate) fn spawn_with(
                 }
                 sys::exit_group(NOT_FOUND)
             }
-            let mut last = sys::Errno(2i32);
+            let mut last = sys::ENOENT;
+            let mut refused = None;
             for c in &candidates {
                 if let Err(e) = unsafe { sys::execve(c, argv.as_ptr(), envp.as_ptr()) } {
-                    last = e;
+                    // As `execvp`: a file that was found and refused is the
+                    // answer, also when a later path is absent. Only
+                    // `EACCES` lets the search go on.
+                    if crate::status::invocable_but_refused(e) {
+                        refused = Some(e);
+                        if e != sys::EACCES {
+                            break;
+                        }
+                    } else {
+                        last = e;
+                    }
                 }
             }
-            // Each candidate failed. 127 is the code of the shell and of
-            // docker for "not found".
+            let last = refused.unwrap_or(last);
+            // Each candidate failed. The parent reads the errno and gives
+            // 126 or 127, the codes of the shell and of docker.
             let msg = [4u8, (last.0 & 0xff) as u8, ((last.0 >> 8) & 0xff) as u8, 0];
             let _ = sys::write(write_end, &msg);
             sys::exit_group(NOT_FOUND)

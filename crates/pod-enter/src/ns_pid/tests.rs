@@ -1,24 +1,8 @@
 use super::*;
-use crate::{Fds, Names, ns_setup_step};
+use crate::ns_setup_step;
 
 fn plan() -> Plan {
-    Plan {
-        argv: vec!["/bin/true".to_string()],
-        env: Vec::new(),
-        working_dir: "/".to_string(),
-        fds: Fds::default(),
-        banner: String::new(),
-        path_dirs: vec!["/bin".to_string()],
-        names: Names::DEFAULT,
-        limits: Vec::new(),
-        no_new_privs: false,
-        die_with_parent: false,
-        confine: None,
-        hostname: None,
-        volumes: Vec::new(),
-        userns_ids: None,
-        pid_namespace: false,
-    }
+    crate::tests::plain_plan()
 }
 
 /// The mask names the signals by their bits: signal n is bit n - 1. The

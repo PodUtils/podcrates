@@ -6,9 +6,10 @@ use pod_hostprobe::sys;
 
 use crate::{Error, Plan};
 
-/// The program exists and the kernel refused to run it (`EACCES`,
-/// `ENOEXEC`, `EISDIR`, `EPERM`, `ETXTBSY`). The shell and docker exit
-/// 126. A caller that reads 126 does not try another path.
+/// The program exists and the kernel refused to run it (`EPERM`, `E2BIG`,
+/// `ENOEXEC`, `EACCES`, `EISDIR`, `EINVAL`, `ETXTBSY`, `ELIBBAD`). The
+/// shell and docker exit 126. A caller that reads 126 does not try another
+/// path.
 pub const CANNOT_INVOKE: i32 = 126;
 
 /// The program was not found. The shell and docker exit 127. A caller
@@ -19,12 +20,24 @@ pub const NOT_FOUND: i32 = 127;
 ///
 /// The errno decides. `execve` gives `ENOENT` for a path that is not
 /// there, and also for a dynamic loader that the binary names and that is
-/// not there. `EACCES`, `ENOEXEC`, `EISDIR`, `EPERM` and `ETXTBSY` mean
-/// that the file was found and could not run. `ELOOP` and `ENAMETOOLONG`
-/// stay with "not found": both are answers about the resolution of the
-/// path, not about the file at its end.
+/// not there. These mean that the file was found and could not run:
+///
+/// * `EPERM` (1): a mount with `nosuid`, or a security module.
+/// * `E2BIG` (7): the argv and the environment are too large for the
+///   kernel. The command is there; each path refuses the same strings.
+/// * `ENOEXEC` (8): a format that the kernel does not know.
+/// * `EACCES` (13): no execute permission, or a file that is not regular.
+/// * `EISDIR` (21): the ELF interpreter is a directory.
+/// * `EINVAL` (22): the ELF names more than one interpreter.
+/// * `ETXTBSY` (26): the file is open for a write.
+/// * `ELIBBAD` (80): the ELF interpreter has a bad format.
+///
+/// `ELOOP`, `ENAMETOOLONG` and `ENOTDIR` stay with "not found": each is an
+/// answer about the resolution of the path, not about the file at its
+/// end. `ENOMEM`, `EIO`, `EMFILE`, `ENFILE` and `EFAULT` stay too: each is
+/// a failure of the host, not an answer about the file.
 pub(crate) fn invocable_but_refused(e: sys::Errno) -> bool {
-    matches!(e.0, 1 | 8 | 13 | 21 | 26)
+    matches!(e.0, 1 | 7 | 8 | 13 | 21 | 22 | 26 | 80)
 }
 
 /// docker's translation of a wait status into an exit code.
@@ -106,3 +119,6 @@ pub(crate) fn step_failure(plan: &Plan, step_byte: u8, errno: sys::Errno, at: u8
     // does not.
     if invocable_but_refused(errno) { Error::CannotInvoke(named) } else { Error::NotFound(named) }
 }
+
+#[cfg(test)]
+mod tests;
