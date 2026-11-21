@@ -5,7 +5,8 @@
 
 A replace of a file by a temporary file and a rename that does not sync the
 file and its directory can leave an empty file under the name after a power
-cut (T-192). The helper `pod_core::files::replace_private` does each step.
+cut (T-192). The helper `pod_core::files::replace` (with `Replace` and
+`replace_private`, one implementation) does each step.
 The rule: no `fs::rename` call in the product code of a crate, except in the
 helper and in the files that EXCEPTIONS lists with the reason.
 

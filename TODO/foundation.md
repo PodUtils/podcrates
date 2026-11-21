@@ -2759,3 +2759,63 @@ The proof on the runners: the nightly run 44792996234 at `62b8039`: on `test (wi
 `crates/pod-actions-store/tests/git.rs` run and pass with no skip line
 (T-1030).
 
+
+# T-1066: `pod-core`: one atomic replace of a file at a path that the caller names, with `Mode::Keep`, a followed link, a made directory and errors that name the step (PodUtils/podnet#677)
+
+**Source:** PodUtils/podnet#677 (COORD-112 of podnet, `PodUtils/podnet@T-473`; the ruling "Shared code").
+**Category:** feature
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet asks for one function in `pod-core` for the atomic replace of a
+file at a path that the caller names: a temporary file in the directory of
+the target, opened with `create_new` and `O_NOFOLLOW`, with the mode before
+the first byte; `sync_all` of the file, `rename`, and an `fsync` of the
+directory where the platform has one; `Mode::Private` (0600) or
+`Mode::Keep` (the mode of the old file, else 0600); an option to follow a
+symbolic link at the path to its target (`~/.ssh/config` can be a link into
+a dotfiles repository); a missing directory made with 0700 when asked; the
+temporary file removed on each error; the error names the step and the
+path. podnet holds two copies: `PodUtils/podnet:crates/podnet-netns/src/report.rs`
+(`write_atomic`) and `PodUtils/podnet:src/warp/ssh_config.rs` (`save`:
+no `create_new`, no `sync_all`). The survey of podnet found that
+`pod_core::files` "has no replace of a file at a path that the caller
+names".
+
+## Premise
+
+- Read: PodUtils/podnet#677; `crates/pod-core/src/files/replace.rs`
+  (`replace_private`, T-192, T-935); `crates/pod-core/README.md`; the two
+  copies of podnet and the renames of podssh, podvm and podrunner in
+  shallow clones.
+- `replace_private` exists and is exported, but the `files` row of
+  `crates/pod-core/README.md` does not name it, its name and its doc say
+  "private", and its mode is a raw `u32`. It has no `Mode::Keep`, no
+  option to follow a link, no made directory, and its errors name neither
+  the step nor the path. `codegraph.py similar atomic replace rename fsync
+  temporary file` ranks it at 0.24.
+- Not measured: the adoption of podnet at a tag.
+
+## Approach
+
+Extend `replace.rs`; `replace_private` becomes a call of the new code and
+keeps its form and its raw errors. Add `Mode` (`Private`, `Keep`,
+`Exact`), `Replace` (`new`, `follow_link`, `make_dir`,
+`in_place_fallback`, `write`), `replace(path, body, mode)`, and `Failed`
+with its `Step`: the error of `replace` and `Replace::write` is an
+`io::Error` of the kind of its cause whose text is "replace PATH: STEP:
+CAUSE". A link is followed for 40 links at most; a dangling link gives its
+target. Name the API and the adoption map in `crates/pod-core/README.md`.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features --lib files::replace
+sh scripts/agent/check-windows.sh
+sh scripts/agent/check-macos.sh
+sh scripts/plant-each.sh core-replace-follows-without-the-option core-replace-removes-a-file-it-did-not-make
+```

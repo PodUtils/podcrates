@@ -12,7 +12,7 @@ this crate depends on no other pod crate.
 | `failure` | `Failure` with its `Stage` (where the path broke) and its `Class` (what a caller can do) |
 | `event` | `Event` (a line for the user), `Events`, `Observer` (the count of decisions), `Report` |
 | `metered` | `Metered`: a stream that counts its bytes and signals at a limit |
-| `files` | the private files of a program and of a user: `App` (its name and its variable), `places_from`, `candidate_dirs_from`, `chosen_from`, `Places` with the places passed over in another user's tree, `store_file_in_first`, `load_file_from`, `read_private`, `read_own`, `create_private`, `create_new_private`, `private_dir`, `safe_name`, the owners and the access lists of Unix and Windows |
+| `files` | the private files of a program and of a user: `App` (its name and its variable), `places_from`, `candidate_dirs_from`, `chosen_from`, `Places` with the places passed over in another user's tree, `store_file_in_first`, `load_file_from`, `read_private`, `read_own`, `create_private`, `create_new_private`, `private_dir`, `safe_name`, the owners and the access lists of Unix and Windows; the atomic replace of a file at any path: `replace`, `Replace`, `Mode`, `Commit`, `Failed`, `Step`, `replace_private` ("The replace of a file", below) |
 | `entropy` | `Entropy`, `OsEntropy`, `NoRandom`: the random source, which a test can plant |
 | `http1` | the head of an HTTP/1.1 message, with no I/O and no tokio ("The head of HTTP/1.1", below): `Bounds` (`bytes`, `lines`; `DEFAULT`: `MAX_HEAD`, 16 KiB), `find_request`, `head_bounds`, `crlf_head_end`, `find`; `parse_request`, `Request` (`header`, `has`, `has_token`), `RequestError` (`status`); `parse_head`, `parse_status_line`, `Head`, `Framing::of`, `keeps`; `request_head`, `response_head`, `reason`, `refusal`, `answer`, `established`; `Exact` and `read_head_exact`: a head read one byte at a time, and not a byte further; `parse_content_range`, `Span`: a `Content-Range` (RFC 9110, section 14.4), the one parse of `pod-guest` and `pod-incus` |
 | `lock` | `FileLock` (`try_lock`, `lock_within`, `path`, `mode`, `file`) and `Mode`: an advisory lock of a file for the life of a value, `flock(2)` on Unix and `LockFileEx` on Windows, with no link at the last component, close-on-exec, and a bounded wait whose refusal names the file |
@@ -33,6 +33,70 @@ A crate of podcrates prints nothing and reads no variable: it takes a
 * A header name is in lower case. A value loses only the spaces and tabs around it: `Authorization` keeps its credential as the client sent it.
 * A response head: lines end with CRLF; a line with no colon is passed over; the reason phrase is made one line of safe text.
 * A written head refuses a part with CR, LF or NUL.
+
+## The replace of a file
+
+`pod_core::files::replace` is the one atomic replace of a file at a path
+that the caller names (T-192, T-935, T-1066). Do not write a second copy:
+`scripts/check-private-replace.py` (CI) refuses each `fs::rename` of
+product code outside it and its listed exceptions.
+
+```rust
+use pod_core::files::{Mode, Replace, replace};
+replace(path, body, Mode::Private)?;
+Replace::new(Mode::Keep).follow_link(true).make_dir(true).write(path, body)?;
+```
+
+* The temporary file is in the directory of the target, with a name of
+  its own (`.NAME.PID.N.tmp`). It is opened with `create_new` and
+  `O_NOFOLLOW`, and gets its mode before the first byte. A file or a link
+  at that name is never followed and never removed.
+* The file is synced (`sync_all`), renamed over the target, and the
+  directory is synced on Unix. On Windows the rename has POSIX semantics
+  and writes through, with a bounded retry while another handle holds the
+  name (call C829).
+* `Mode::Private` gives 0600. `Mode::Keep` gives the permission bits of
+  the old file (with no setuid, setgid or sticky bit), and 0600 when there
+  is none; on Windows a private file, or a file that each may read when the
+  old file is open to the other users. `Mode::Exact(bits)` gives the bits.
+* With no option, a symbolic link at the path is replaced, not followed.
+  `follow_link(true)` follows the links (40 at most) and replaces the
+  target, so the link stays; a dangling link gives its target a new file.
+* `make_dir(true)` makes each missing directory with mode 0700 and syncs
+  its entry.
+* `in_place_fallback(true)` writes the file in place when the rename
+  fails (a bind-mounted file); the result is `Commit::InPlace`.
+* `Ok(Commit::Durable)`: the file and its entry are on disk.
+  `Ok(Commit::InstalledUnconfirmed(e))`: the file is in place, and a sync
+  of a directory failed. `Err`: the old file stays, and no temporary file
+  stays.
+* The error is an `io::Error` of the kind of its cause. Its text names the
+  step and the path: "replace PATH: STEP: CAUSE". `Failed::of(&e)` gives
+  the `Step` and the path.
+* `replace_private(path, body, bits, in_place_fallback)` is
+  `Replace::new(Mode::Exact(bits))` with the error of the system as it
+  came, for the callers that add their own text.
+
+The copies of the consumers, with the call that replaces each:
+
+| Consumer | Copy | Call |
+| --- | --- | --- |
+| podnet | `PodUtils/podnet:crates/podnet-netns/src/report.rs` `write_atomic` (`--report FILE`) | `replace(path, text.as_bytes(), Mode::Private)` |
+| podnet | `PodUtils/podnet:src/warp/ssh_config.rs` `save` (`warp ssh-config`) | `Replace::new(Mode::Keep).follow_link(true).make_dir(true).write(path, text.as_bytes())` |
+| podssh | `PodUtils/podssh:crates/podssh-cli/src/keygen_cert.rs` `replace` (a certificate) | `replace(path, bytes, Mode::Keep)` |
+| podssh | `PodUtils/podssh:crates/podssh-ssh/src/known_hosts/edit.rs` (the new `known_hosts` under its lock) | `replace(path, text, Mode::Keep)` |
+| podvm | `PodUtils/podvm:crates/podvm/src/run/report.rs` `write`, `PodUtils/podvm:crates/podvm-supervise/src/report.rs` (a report); `PodUtils/podvm:crates/podvm/src/initns/hold.rs` `write`, `PodUtils/podvm:crates/podvm-windows/src/machines.rs` `write`, `PodUtils/podvm:crates/podvm-image/src/probe_cache.rs` `write`, `PodUtils/podvm:crates/podvm-complete/src/reach.rs` (a state or a cache file) | `replace(path, body, Mode::Exact(0o644))`: the mode that `std::fs::write` gives now with the umask 022 |
+| podvm | `PodUtils/podvm:crates/podvm/src/windows/pull.rs` `write_new` (a base, with its directory) | `Replace::new(Mode::Exact(0o644)).make_dir(true).write(path, bytes)` |
+| podrunner | `PodUtils/podrunner:crates/podrunner-slots/src/journal.rs` `compact` (its file has the mode of `File::create`) | `replace(path, lines, Mode::Exact(0o644))`, which also syncs the state directory |
+| podrunner | `PodUtils/podrunner:crates/podrunner-remote/src/ledger.rs` (then opened to append); `PodUtils/podrunner:crates/podrunner-slots/src/spool.rs` `spool` (a spooled report) | `replace(path, body, Mode::Private)` |
+
+Not a copy: a rename that checks the new file before the rename
+(`PodUtils/podssh:crates/podssh-cli/src/keygen_change.rs`), gives it to
+another user (`PodUtils/podssh:crates/podssh-cli/src/node_install/system_install.rs`),
+streams a large file (the `cp`, `zmodem` and `chat` of podssh;
+`PodUtils/podvm:crates/podvm/src/machine/guest.rs` and the kernels of
+podvm), moves a directory, or keeps a binary
+(`PodUtils/podnet:src/update.rs`).
 
 ## Exit codes and the log line
 

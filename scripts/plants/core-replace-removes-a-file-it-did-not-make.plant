@@ -1,0 +1,7 @@
+# pod-core: a replace that cannot create its temporary file removes the file
+# or the link that another put at that name (T-1066).
+ENTRY=T-1066
+GROUP=core
+EXPECT='a_link_at_the_temporary_name_is_never_followed_or_removed'
+RUN='cargo test -p pod-core --all-features --lib files::replace'
+LIMIT=900

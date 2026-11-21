@@ -1,5 +1,6 @@
-//! One replace of a file with a durable commit (T-192, PodUtils/podnet#437):
-//! a new file beside the target, written and synced, renamed over the
+//! One atomic replace of a file at a path that the caller names, with a
+//! durable commit (T-192, T-1066; PodUtils/podnet#437, PodUtils/podnet#677):
+//! a temporary file beside the target, written and synced, renamed over the
 //! target, then the directory synced, so that a power cut leaves the old
 //! file or the new one whole, never an empty one under the name.
 //!
@@ -13,6 +14,8 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+
+pub use super::replace_mode::{Failed, Mode, Step};
 
 /// What a replace that put the new file in place could prove.
 #[derive(Debug)]
@@ -37,11 +40,111 @@ impl Commit {
     }
 }
 
+/// Replace the file at `path` with `body`, atomically, with the mode `mode`:
+/// [`Replace::new`] with no other option. A symbolic link at `path` is
+/// replaced, not followed. The error names the step and the path
+/// ([`Failed`]).
+pub fn replace(path: &Path, body: &[u8], mode: Mode) -> io::Result<Commit> {
+    Replace::new(mode).write(path, body)
+}
+
+/// The options of an atomic replace of a file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Replace {
+    mode: Mode,
+    follow_link: bool,
+    make_dir: bool,
+    in_place_fallback: bool,
+}
+
+impl Replace {
+    /// A replace with the mode `mode`. A link at the path is replaced, not
+    /// followed; a missing directory is an error; a failed rename is an
+    /// error.
+    pub const fn new(mode: Mode) -> Replace {
+        Replace { mode, follow_link: false, make_dir: false, in_place_fallback: false }
+    }
+
+    /// With `true`, a symbolic link at the path is followed to its target
+    /// (40 links at most), and the target is replaced: a config file that
+    /// is a link into a dotfiles repository stays a link. A dangling link
+    /// gives its target a new file.
+    pub const fn follow_link(self, follow: bool) -> Replace {
+        Replace { follow_link: follow, ..self }
+    }
+
+    /// With `true`, a missing directory of the target and each missing
+    /// directory above it are made with mode 0700 ([`super::make_dirs`]),
+    /// and synced with the file.
+    pub const fn make_dir(self, make: bool) -> Replace {
+        Replace { make_dir: make, ..self }
+    }
+
+    /// With `true`, a rename that fails (a bind-mounted file, as
+    /// `/etc/resolv.conf` in a container) gives a write in place, which is
+    /// never atomic ([`Commit::InPlace`]).
+    pub const fn in_place_fallback(self, fallback: bool) -> Replace {
+        Replace { in_place_fallback: fallback, ..self }
+    }
+
+    /// Replace the file at `path` with `body`. The error is an [`io::Error`]
+    /// of the kind of its cause, whose text names the step and the path
+    /// ("replace PATH: STEP: CAUSE"); [`Failed::of`] gives its parts.
+    pub fn write(&self, path: &Path, body: &[u8]) -> io::Result<Commit> {
+        self.run(path, body, REAL).map_err(io::Error::from)
+    }
+
+    fn run(&self, path: &Path, body: &[u8], hooks: Hooks) -> Result<Commit, Failed> {
+        let target = match self.follow_link {
+            true => follow(path).map_err(|e| Failed::new(Step::FollowLink, path, e))?,
+            false => path.to_path_buf(),
+        };
+        let at = |step: Step| {
+            let target = &target;
+            move |e: io::Error| Failed::new(step, target, e)
+        };
+        let (dir, name) = parts(&target).map_err(at(Step::Name))?;
+        let made = match self.make_dir {
+            true => super::make_dirs(&dir).map_err(at(Step::MakeDir))?,
+            false => Vec::new(),
+        };
+        let mode = self.mode.bits(&target).map_err(at(Step::ReadMode))?;
+        let tmp = (hooks.temp)(&dir, &name);
+        // A file at the temporary name is not this replace's: it stays.
+        let mut file = create(&tmp, mode).map_err(at(Step::Create))?;
+        let written = (hooks.write)(&mut file, body)
+            .map_err(at(Step::Write))
+            .and_then(|()| file.sync_all().map_err(at(Step::Sync)));
+        drop(file);
+        if let Err(f) = written {
+            let _ = std::fs::remove_file(&tmp);
+            return Err(f);
+        }
+        match (hooks.rename)(&tmp, &target) {
+            Ok(()) => {
+                // The entry of each directory made, and the entry of the file.
+                let parents = made.iter().filter_map(|d| d.parent());
+                let synced = parents.chain(Some(dir.as_path())).try_for_each(sync_dir);
+                Ok(synced.map_or_else(Commit::InstalledUnconfirmed, |()| Commit::Durable))
+            }
+            Err(e) => {
+                let _ = std::fs::remove_file(&tmp);
+                if !self.in_place_fallback {
+                    return Err(at(Step::Rename)(e));
+                }
+                write_in_place(&target, body).map_err(at(Step::InPlace))?;
+                Ok(Commit::InPlace(e))
+            }
+        }
+    }
+}
+
 /// Replace `path` with `body`, with the mode `mode` (Unix; on Windows a mode
-/// with no bit for others gives a private file). A symlink at `path` is
-/// replaced, not followed. With `in_place_fallback`, a rename that fails
-/// (a bind-mounted file, as `/etc/resolv.conf` in a container) gives a write
-/// in place, which is never atomic ([`Commit::InPlace`]).
+/// with no bit for others gives a private file): [`Replace`] with
+/// [`Mode::Exact`], and the error of the failed step as it came. A symlink
+/// at `path` is replaced, not followed. With `in_place_fallback`, a rename
+/// that fails (a bind-mounted file, as `/etc/resolv.conf` in a container)
+/// gives a write in place, which is never atomic ([`Commit::InPlace`]).
 pub fn replace_private(path: &Path, body: &[u8], mode: u32, in_place_fallback: bool) -> io::Result<Commit> {
     replace_with(path, body, mode, in_place_fallback, rename)
 }
@@ -54,30 +157,48 @@ fn replace_with(
     in_place_fallback: bool,
     rename: fn(&Path, &Path) -> io::Result<()>,
 ) -> io::Result<Commit> {
-    let (dir, name) = parts(path)?;
+    let options = Replace::new(Mode::Exact(mode)).in_place_fallback(in_place_fallback);
+    options.run(path, body, Hooks { rename, ..REAL }).map_err(Failed::into_cause)
+}
+
+/// The parts of a replace that a test changes.
+#[derive(Clone, Copy)]
+struct Hooks {
+    rename: fn(&Path, &Path) -> io::Result<()>,
+    temp: fn(&Path, &str) -> PathBuf,
+    write: fn(&mut std::fs::File, &[u8]) -> io::Result<()>,
+}
+
+const REAL: Hooks = Hooks { rename, temp: temp_name, write: |file, body| file.write_all(body) };
+
+/// A name in `dir` that no other replace of this process takes, and that a
+/// replace of another process takes only with the same pid.
+fn temp_name(dir: &Path, name: &str) -> PathBuf {
     static NEXT: AtomicU64 = AtomicU64::new(0);
     let unique = NEXT.fetch_add(1, Ordering::Relaxed);
-    let tmp = dir.join(format!(".{name}.{}.{unique}.tmp", std::process::id()));
-    let written = (|| {
-        let mut file = create(&tmp, mode)?;
-        file.write_all(body)?;
-        file.sync_all()
-    })();
-    if let Err(e) = written {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(e);
-    }
-    match rename(&tmp, path) {
-        Ok(()) => Ok(sync_dir(&dir).map_or_else(Commit::InstalledUnconfirmed, |()| Commit::Durable)),
-        Err(e) => {
-            let _ = std::fs::remove_file(&tmp);
-            if !in_place_fallback {
-                return Err(e);
+    dir.join(format!(".{name}.{}.{unique}.tmp", std::process::id()))
+}
+
+/// The target of the links at `path`, one link after the other; `path`
+/// itself when it is no link. A relative link is relative to its directory.
+fn follow(path: &Path) -> io::Result<PathBuf> {
+    const MOST: usize = 40;
+    let mut at = path.to_path_buf();
+    for _ in 0..MOST {
+        match std::fs::symlink_metadata(&at) {
+            Ok(meta) if meta.file_type().is_symlink() => {
+                let to = std::fs::read_link(&at)?;
+                at = match at.parent() {
+                    Some(dir) if to.is_relative() => dir.join(to),
+                    _ => to,
+                };
             }
-            write_in_place(path, body)?;
-            Ok(Commit::InPlace(e))
+            Ok(_) => return Ok(at),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(at),
+            Err(e) => return Err(e),
         }
     }
+    Err(io::Error::new(io::ErrorKind::InvalidInput, format!("more than {MOST} symbolic links")))
 }
 
 /// The directory of `path` and its file name.
@@ -93,6 +214,9 @@ fn parts(path: &Path) -> io::Result<(PathBuf, String)> {
     Ok((dir, name.to_string()))
 }
 
+/// A new file at `path` with the mode `mode` before its first byte: never
+/// one that exists, never through a link. A file that it made and could not
+/// give its mode is removed.
 #[cfg(unix)]
 fn create(path: &Path, mode: u32) -> io::Result<std::fs::File> {
     use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
@@ -104,7 +228,11 @@ fn create(path: &Path, mode: u32) -> io::Result<std::fs::File> {
         .open(path)?;
     // The umask can remove bits: set the mode that was asked, which is no
     // wider than it.
-    file.set_permissions(std::fs::Permissions::from_mode(mode))?;
+    if let Err(e) = file.set_permissions(std::fs::Permissions::from_mode(mode)) {
+        drop(file);
+        let _ = std::fs::remove_file(path);
+        return Err(e);
+    }
     Ok(file)
 }
 

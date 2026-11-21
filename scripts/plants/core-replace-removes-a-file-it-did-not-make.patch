@@ -1,0 +1,16 @@
+diff --git a/crates/pod-core/src/files/replace.rs b/crates/pod-core/src/files/replace.rs
+index 2e9983d7..2dc9dbac 100644
+--- a/crates/pod-core/src/files/replace.rs
++++ b/crates/pod-core/src/files/replace.rs
+@@ -111,7 +111,10 @@ impl Replace {
+         let mode = self.mode.bits(&target).map_err(at(Step::ReadMode))?;
+         let tmp = (hooks.temp)(&dir, &name);
+         // A file at the temporary name is not this replace's: it stays.
+-        let mut file = create(&tmp, mode).map_err(at(Step::Create))?;
++        let mut file = create(&tmp, mode).map_err(|e| {
++            let _ = std::fs::remove_file(&tmp);
++            at(Step::Create)(e)
++        })?;
+         let written = (hooks.write)(&mut file, body)
+             .map_err(at(Step::Write))
+             .and_then(|()| file.sync_all().map_err(at(Step::Sync)));

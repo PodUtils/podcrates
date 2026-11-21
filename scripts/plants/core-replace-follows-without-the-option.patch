@@ -1,0 +1,13 @@
+diff --git a/crates/pod-core/src/files/replace.rs b/crates/pod-core/src/files/replace.rs
+index 2e9983d7..c81c7a9b 100644
+--- a/crates/pod-core/src/files/replace.rs
++++ b/crates/pod-core/src/files/replace.rs
+@@ -97,7 +97,7 @@ impl Replace {
+     fn run(&self, path: &Path, body: &[u8], hooks: Hooks) -> Result<Commit, Failed> {
+         let target = match self.follow_link {
+             true => follow(path).map_err(|e| Failed::new(Step::FollowLink, path, e))?,
+-            false => path.to_path_buf(),
++            false => follow(path).unwrap_or_else(|_| path.to_path_buf()),
+         };
+         let at = |step: Step| {
+             let target = &target;

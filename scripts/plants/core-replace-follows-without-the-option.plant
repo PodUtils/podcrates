@@ -1,0 +1,7 @@
+# pod-core: the replace of a file follows a link at its path with no
+# follow_link option, so it writes the target of the link (T-1066).
+ENTRY=T-1066
+GROUP=core
+EXPECT='a_link_at_the_path_is_followed_only_with_the_option'
+RUN='cargo test -p pod-core --all-features --lib files::replace'
+LIMIT=900
