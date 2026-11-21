@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**865 entries: 148 open, 28 partial, 7 blocked, 682 done.**
+**866 entries: 148 open, 28 partial, 7 blocked, 683 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 199 | 213 |
-| P2 | 68 | 8 | 4 | 355 | 435 |
+| P2 | 68 | 8 | 4 | 356 | 436 |
 | P3 | 76 | 10 | 3 | 126 | 215 |
-| **All** | 148 | 28 | 7 | 682 | 865 |
+| **All** | 148 | 28 | 7 | 683 | 866 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -912,3 +912,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1066](foundation.md) | P2 | S | M0 | feature | done | `pod-core`: one atomic replace of a file at a path that the caller names, with `Mode::Keep`, a followed link, a made directory and errors that name the step (PodUtils/podnet#677) |
 | [T-1070](fleet.md) | P3 | S | M8 | defect | open | `pod-control`: podrunner's test of a ninth client fails 6 of 30 runs, as the place of the call before it is not back yet |
 | [T-1073](fleet.md) | P3 | S | M8 | defect | open | `pod-control`: the wait of `Context::call` can end before the server reads the answer of the client |
+| [T-1082](upkeep.md) | P2 | S | M5 | defect | done | The gate of no blocking call counts the waits that the other test threads of its binary cause (i686, nightly 44848003241) |

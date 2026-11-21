@@ -3372,8 +3372,8 @@ a page fault does not count as a block of the code.
 
 ```sh
 cargo test -p pod-testkit --all-features --lib switches
-cargo test -p pod-e2e --all-features --test allocations
-cargo test -p pod-link --all-features --test arq_machine
+cargo test -p pod-e2e --all-features --test allocations --test blocks
+cargo test -p pod-link --all-features --test arq_machine --test arq_blocks
 cargo test -p pod-iroh --all-features --test road --test share --test tickets
 ```
 
@@ -3392,6 +3392,7 @@ cargo test -p pod-iroh --all-features --test road --test share --test tickets
 - 2026-11-20, the nightly 44739339618 at `8a2cdd9`: the same three tests, no new one of this class. `a_turn_of_the_arq_blocks_on_nothing` on i686 (job 136298711820: "3 voluntary switches in 1000 turns"); `pod-iroh`'s `a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way` and `two_sessions_of_one_process_share_one_connection_on_two_streams` on loongarch64 (job 136298712051: `Elapsed` at the bound of 300 s, `road.rs:94` and `share.rs:155`) and on riscv64 (job 136298712144: "early eof" at `road.rs:47` after 99 s and at `share.rs:52` after 78 s). `main` at `783a657c` has no change of `pod-link`, `pod-iroh` or `pod-testkit`'s `switches.rs` after `8a2cdd9`. The armv7 failure of the run is T-1043.
 
 - 2026-11-21, the nightly run 44792996234 at `62b8039`: the same three tests, no new test of this class. `a_turn_of_the_arq_blocks_on_nothing` on i686 (job 136485246572: "4 voluntary switches in 1000 turns"; the one failed binary of the job). On riscv64 (job 136485246660) the two failed binaries are `pod-iroh`'s `road.rs` ("early eof" at `road.rs:47`, a broken pipe of the writer at `road.rs:43`, 158 s) and `share.rs` (`Elapsed` at `share.rs:155`, 306 s); `pod_job` passed 25 there. On loongarch64 (job 136485246683) `share.rs` gave `Elapsed` at `share.rs:155` (304 s), and `road.rs` gave a new form at `road.rs:98`: "Layer(Ended { end: Closing, received: 20971520, sent: 20971520 })", in 290 s. Each byte crossed; then the far end's answer to the `CLOSE` of this side did not come within `LINGER` (10 s, `crates/pod-session/src/pump.rs`), a time of the session that the emulation outruns, not a bound of the test.
+- 2026-11-21, the nightly run 44848003241 at `a7fb465`: the same three tests, no new test of this class. On i686 (job 136672368047) `a_turn_of_the_arq_blocks_on_nothing` counted "3 voluntary switches in 1000 turns", the one failed binary of the job. Its cause is found and fixed in T-1082: the other test threads of the binary hold the lock of the address space while musl's allocator unmaps and maps for the gate; each gate is now in a test binary of its own. On riscv64 (job 136672368153) the two failed binaries are `pod-iroh`'s `road.rs` ("early eof" at `road.rs:47`, a broken pipe of the writer at `road.rs:43`, 140 s) and `share.rs` ("early eof" at `share.rs:52`, 119 s). The "early eof" came after 78, 99, 119, 140 and 158 s in three runs, so the end comes from a timer of the stack under a slow clock, not from one fixed limit; `new_address.rs` passed in 607 s. Not reproduced on this host: no `qemu-riscv64`. Left for T-916: the two `pod-iroh` tests on the emulated targets (T-978 part 2 measures an optimised build of the dependencies first).
 
 
 # T-917: The copies of product code that `codegraph.py dups` finds: one place for each
@@ -3685,6 +3686,7 @@ The next run of `nightly.yml`: each cross job ends, none cancelled.
 
 2026-11-18, partial (the proof is the next run of `nightly.yml`: each cross job ends, none cancelled): the job `cross` takes its limit from its row (`timeout-minutes: ${{ matrix.minutes || 90 }}`), and the row of riscv64 has 150 minutes, a margin of a quarter over the time that the two runs show it needs. The step of the tests prints the seconds of each binary (`== N s: EXE`), so the next limit, or a split of the job by crate, comes from measured times. `check-workflows.py`: 0 faults.
 - 2026-11-20, the nightly 44739339618 at `8a2cdd9`: the riscv64 job ended in 89 minutes (13:11 to 14:40), not cancelled, under its limit of 150; it failed on the two tests of `pod-iroh` of T-916. The loongarch64 job ended in 56 minutes.
+- 2026-11-21, the nightly 44848003241 at `a7fb465`: the riscv64 job (136672368153) ended in 111 minutes (01:25 to 03:16), not cancelled, under its limit of 150; each of the 484 test binaries ran, and it failed on the two tests of `pod-iroh` of T-916.
 
 # T-943: The static job of `aarch64-apple-darwin` in `ci.yml` gets no runner, four runs in a row
 
@@ -4255,3 +4257,71 @@ fairness of each, and take a change only with a measured gain.
 ```sh
 cargo test --release -p pod-link --all-features --test udp_loss -- --include-ignored --nocapture twenty_percent_loss_with_nodelay_stays_within_the_factor_of_the_clean_time
 ```
+
+# T-1082: The gate of no blocking call counts the waits that the other test threads of its binary cause (i686, nightly 44848003241)
+
+**Source:** nightly 44848003241 job 136672368047 (`cross (i686-unknown-linux-musl)`), at `a7fb465`; the same failure in the nightlies 44505235227, 44739339618 and 44792996234 (T-916)
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+On i686, which runs natively (no emulator, so `switches::count` counts),
+`a_turn_of_the_arq_blocks_on_nothing` of `pod-link` counts voluntary
+switches: "3 voluntary switches in 1000 turns" (`arq_machine.rs:383`).
+The 11 other tests of the binary `arq_machine` run on other threads of
+the same process at the same time. musl's allocator unmaps and maps its
+groups while the gate runs (strace: 11 `mmap2` and 16 `munmap` of the
+gate thread in one failed run, and no futex wait). Each of these calls,
+and a fault of a new page, takes the lock of the address space of the
+process; when another test thread holds it, the gate thread sleeps, and
+the kernel counts a voluntary switch that the ARQ did not make.
+`a_seal_and_an_open_block_on_nothing` of `pod-e2e` has the same form:
+it shares its binary `allocations` with two other tests.
+
+## Premise
+
+- Measured on this x86_64 host with the i686 musl build (`cargo zigbuild
+  --target i686-unknown-linux-musl`): the binary `arq_machine` failed 33
+  of 40 runs (1 to 14 switches); the gate alone (a filter of the one test)
+  0 of 20; the whole binary with `--test-threads=1` 0 of 3.
+- strace of a failed run: in the window of the count, the gate thread
+  made `mmap2`, `munmap` and `mremap` calls only, many of them
+  `<unfinished ...>` while other test threads ran.
+
+## Approach
+
+Each gate goes in a test binary of its own, with no other test:
+`crates/pod-link/tests/arq_blocks.rs` (the helpers of the ARQ tests in
+`tests/arq_common/mod.rs`, shared with `arq_machine.rs`) and
+`crates/pod-e2e/tests/blocks.rs`. The documentation of
+`pod_testkit::switches` gives the rule and its cause. The bound stays 0.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test arq_blocks --test arq_machine
+cargo test -p pod-e2e --all-features --test blocks --test allocations
+cargo test -p pod-testkit --all-features --lib switches
+```
+
+On i686: `cargo zigbuild -p pod-link -p pod-e2e --all-features --test
+arq_blocks --test blocks --target i686-unknown-linux-musl`, then each
+binary 100 times.
+
+## Done
+
+2026-11-21, this commit. `a_turn_of_the_arq_blocks_on_nothing` is
+alone in `crates/pod-link/tests/arq_blocks.rs`, and
+`a_seal_and_an_open_block_on_nothing` alone in
+`crates/pod-e2e/tests/blocks.rs`; the bound stays 0 switches. The
+helpers of the ARQ tests are in `crates/pod-link/tests/arq_common/mod.rs`.
+The documentation of `pod_testkit::switches` gives the rule. On this host
+with the i686 musl build, 100 runs of each binary: `arq_blocks` 0
+failed, `arq_machine` 0 failed (33 of 40 before), `blocks` 0 failed,
+`allocations` 0 failed (1 of 100 before: "1 voluntary switches in 1000
+seals and opens"). The proof on the runner is the next run of
+`nightly.yml` (job `cross (i686-unknown-linux-musl)`).

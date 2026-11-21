@@ -15,6 +15,12 @@
 //! A major page fault (a page of the binary that waits for the disk) also
 //! gives up the processor, but it is not a call of the code: [`count`]
 //! subtracts the major faults of the thread from its voluntary switches.
+//!
+//! Put each gate in a test binary of its own, with no other test. The
+//! threads of one process share the lock of the address space and the lock
+//! of the allocator: musl's allocator unmaps and maps its groups while the
+//! closure runs, and when another test thread holds the lock of the address
+//! space, the call sleeps and counts as a voluntary switch (T-1082).
 
 /// The value of `f`, and the voluntary switches of context of this thread
 /// while it ran, less its major page faults; `None` where the system does

@@ -25,9 +25,14 @@ is done. Git and the record keep finished work.
      timeout of a closed Unix socket; Node of Homebrew reads
      `SSL_CERT_FILE`). The next nightly proves them, and T-1021 and T-1030
      (PATHEXT on Windows). T-1044: the checks of Windows and macOS here
-     compile no doc test. Open: T-916 (i686 counts 3 switches; two
-     `pod-iroh` tests on riscv64 and loongarch64), T-938. T-789 and T-766
-     stay.
+     compile no doc test. Open: T-916 (two `pod-iroh` tests on riscv64
+     and loongarch64), T-938. T-789 and T-766 stay.
+   - `nightly.yml` 44848003241 at `a7fb465` (#252): two red jobs. i686:
+     `a_turn_of_the_arq_blocks_on_nothing` counted 3 switches; T-1082 is
+     done (each gate of `switches::count` in a test binary of its own).
+     riscv64: `pod-iroh` `road.rs` and `share.rs` ("early eof"), T-916;
+     the job took 111 of its 150 minutes (T-938). The next nightly proves
+     T-1082.
    - `ci.yml`: T-943 is done: the arm64 probe of macOS builds on the
      Intel runner.
    - `docs/research/hard-problems.md`: the hard open problems (H-01 to
