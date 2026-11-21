@@ -58,8 +58,9 @@ is done. Git and the record keep finished work.
    G-34 and G-35 are done; the last part of G-34 (T-964) goes in the next
    tag. cfb's A-X-18 (T-106, partial) waits for cfb's answer on #223. Both
    reply comments are current.
-7. The open hand-off is COORD-150 (#250, `v0.80.0`); its "Takes" list
-   holds each take. Write each take of the next tag in the "Takes" list of its issue, and
+7. No hand-off of a tag is open: each consumer took `v0.80.0` (#250 is
+   closed). podvm takes `pod_guest::warm::line` at the next tag, which has
+   the bound of the connect of the QMP socket (T-1056, PodUtils/podvm#633). Write each take of the next tag in the "Takes" list of its issue, and
    close it when each consumer took its tag or a later one (call C780). The hand-off of the
    next tag names T-1014 (the static QEMU 11.1.3) for podvm. The pushes of a cloud session of this
    account start no run of GitHub Actions: each gate, nightly and release

@@ -254,6 +254,6 @@
 247 issue closed
 248 issue closed
 249 issue closed
-250 issue open
+250 issue closed
 251 issue closed
 252 issue open
