@@ -5,7 +5,7 @@ index 4dd39f5d..a8f0af46 100644
 @@ -299,7 +299,7 @@ fn request<S: Stream>(
                  };
              }
-             Ok(ToConn::Back { method, params, reply }) => {
+             Ok(ToConn::Back { method, mut params, reply }) => {
 -                if used >= settings.callbacks_per_request || budget.connection >= settings.callbacks_per_connection {
 +                if used > settings.callbacks_per_request || budget.connection >= settings.callbacks_per_connection {
                      spent = true;
