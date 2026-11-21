@@ -18,7 +18,7 @@ const WORKER: &str = "POD_EXTRACT_TEST_XATTR_WORKER";
 const CAP_NET_RAW: &[u8] = &[1, 0, 0, 2, 0, 0x20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 #[derive(Clone, Copy, PartialEq)]
-enum Kind {
+pub(super) enum Kind {
     File,
     Dir,
     Symlink,
@@ -68,7 +68,7 @@ fn xattr_layer() -> Vec<u8> {
 }
 
 /// Can this process set `name` on an object of `kind` in `dir`?
-fn can(dir: &std::path::Path, kind: Kind, name: &str, value: &[u8]) -> bool {
+pub(super) fn can(dir: &std::path::Path, kind: Kind, name: &str, value: &[u8]) -> bool {
     let p = dir.join(format!("probe-{}", name.replace('.', "-")));
     let made = match kind {
         Kind::File | Kind::Hardlink => std::fs::write(&p, b"probe"),
@@ -83,7 +83,7 @@ fn can(dir: &std::path::Path, kind: Kind, name: &str, value: &[u8]) -> bool {
 }
 
 /// The value of `name` on the file or directory `p`, read back.
-fn value_of(p: &std::path::Path, name: &str) -> Option<Vec<u8>> {
+pub(super) fn value_of(p: &std::path::Path, name: &str) -> Option<Vec<u8>> {
     let fd = sys::open(&CBuf::new(p.to_str()?)?, sys::O_RDONLY | sys::O_CLOEXEC | sys::O_NOFOLLOW, 0).ok()?;
     let mut buf = [0u8; 256];
     let r = sys::fgetxattr(fd, &CBuf::new(name)?, &mut buf);

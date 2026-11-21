@@ -45,6 +45,7 @@
 #![cfg(target_os = "linux")]
 #![forbid(unsafe_op_in_unsafe_fn)]
 
+pub mod acl;
 pub mod apply;
 /// The acceptance: crafted layers through the real extraction. Correct
 /// decisions with wrong connections between them still write `/etc/passwd`.

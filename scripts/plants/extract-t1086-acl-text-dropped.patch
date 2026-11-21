@@ -1,0 +1,11 @@
+--- a/crates/pod-extract/src/pax.rs
++++ b/crates/pod-extract/src/pax.rs
+@@ -261,7 +261,7 @@
+         let newline = value.contains(&b'\n');
+         match key {
+             k if k.starts_with(crate::xattr::PAX_PREFIX.as_bytes())
+-                || k.starts_with(crate::acl::PAX_PREFIX.as_bytes()) =>
++                || k.starts_with(b"SCHILY.acl.none.") =>
+             {
+                 m.xattrs.push((k.to_vec(), value.to_vec()));
+                 continue;

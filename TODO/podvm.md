@@ -12393,3 +12393,202 @@ in 60s" and "the save did not end in 60s"; the row `Late` passes on the
 code before: `freeze` already kept one connection. The import is in
 `crates/pod-guest/SOURCES` (podvm `867f79e`, blob `81ea50fb`).
 `cargo test -p pod-guest --all-features`: lib 197 passed, 1 ignored.
+
+# T-1086: `pod-extract`: a layer of GNU tar `--acls` is refused whole, as the PAX record `SCHILY.acl.access` holds a newline byte (PodUtils/podvm#643)
+
+**Source:** PodUtils/podvm#643 (COORD-227 of podvm, PodUtils/podvm@T-2065), for PodUtils/podrunner#339, asks 1 to 3
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm: "podrunner's `hosted-boot.yml` run 44853306687, with podvm
+0.2.0-beta.37 on podcrates v0.79.0: `podvm run -d` exits 125: refusing
+layer sha256:35dce01a…f027: the entry "the PAX header member at byte 0"
+is not extractable because the PAX record "SCHILY.acl.access" has a
+newline byte, which the tar reader cuts. The layer is refused whole." The
+layer comes from GNU tar `--format=posix --xattrs --acls`, which writes an
+ACL in its long text form, one entry on each line. The value is valid PAX.
+
+The cause: `split` of `crates/pod-extract/src/pax.rs` keeps
+`SCHILY.xattr.`, `path` and `linkpath`, and gives each other record to the
+`tar` reader; a value with a newline byte in such a record is refused.
+
+Ask 1: "A record that the crate does not use and that the `tar` reader
+does not need (`SCHILY.acl.access`, `SCHILY.acl.default`, and the other
+`SCHILY.*` and vendor keys) does not go on to the `tar` reader, newline or
+not. The layer extracts." Ask 2: "Best: the crate applies them. It
+converts the long text form to `system.posix_acl_access` and
+`system.posix_acl_default` (the binary form of `acl_to_xattr`), and sets
+them through the path of `SCHILY.xattr.*`, with the same count of set and
+not set. At least: the crate drops them, and the result of the layer
+counts each dropped ACL." "podrunner needs the modes of the files; the
+mode bits stay in each case." Ask 3: "A table test of the records of
+`split`: a newline in each kind of key (used, passed on, dropped, an
+ACL)."
+
+## Premise
+
+- Read: `crates/pod-extract/src/pax.rs` (`split`), `crates/pod-extract/src/xattr.rs`
+  (`read`, the bounds), `crates/pod-extract/src/apply.rs` (the header
+  fields that the crate reads: `uid`, `gid`, `mode`, the path and the link
+  name); the `tar` crate 0.4.46: `archive.rs` applies the PAX records
+  `size`, `uid` and `gid`, and `entry.rs` reads `path` and `linkpath`; it
+  reads no other key, and it reads no `GNU.sparse.` key.
+- Measured on this host with GNU tar 1.35 and ACLs set through
+  `setxattr` on ext4: `--format=posix --xattrs --acls` writes
+  `SCHILY.acl.access` with names (`user:ubuntu:rw-`) and a last newline,
+  and also `SCHILY.xattr.system.posix_acl_access` in the binary form;
+  `--numeric-owner` writes ids. `-S` with each `--sparse-version` (0.0,
+  0.1, 1.0) writes `GNU.sparse.` records that the `tar` crate does not
+  read: the file comes out with its data and no holes, under its name
+  (0.0) or `GNUSparseFile.N/NAME` (0.1, 1.0).
+- Read: Linux `include/uapi/linux/posix_acl_xattr.h` and
+  `include/uapi/linux/posix_acl.h` (version 2; `e_tag` and `e_perm` as
+  `__le16`, `e_id` as `__le32`; the tags 0x01 to 0x20); libarchive
+  `archive_write_set_format_pax.c` (`SCHILY.acl.access` with commas and the
+  id after the permissions; `LIBARCHIVE.xattr.` and `SCHILY.xattr.` both
+  by default).
+- Not measured: the layer of podrunner's run.
+
+## Approach
+
+`split` puts each key in one class. The crate uses `SCHILY.xattr.`,
+`SCHILY.acl.`, `path` and `linkpath`; the `tar` reader needs `size`,
+`uid`, `gid`, `path` and `linkpath`; a `GNU.sparse.` key refuses the
+layer with its cause (the file comes out wrong; T-1087); each other key is
+dropped, with any byte. A new module `acl` converts the text form of an
+ACL (newlines or commas, a comment after `#`, the id after a name) to the
+binary form of the kernel, sorted by tag and id, after the rules of
+acl(5). `xattr::read` adds the converted ACL as the attribute
+`system.posix_acl_access` or `system.posix_acl_default`, inside the same
+bounds; the binary record of the same ACL holds when the entry has one.
+A name with no id is not mapped (the name comes from the user database
+of the writer): the ACL is named as not set, as an ACL that does not
+convert. The mode of the entry is set after its attributes, as before.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features --lib
+sh scripts/plant-each.sh extract-t1086-acl-text-dropped extract-t1086-sparse-not-refused
+```
+
+## Done
+
+2026-11-21, this commit. `pax::split` puts each key in one class (the
+module doc of `crates/pod-extract/src/pax.rs` and the README of the crate
+list them): `SCHILY.xattr.` and `SCHILY.acl.` go to `Member::xattrs`;
+`path` and `linkpath` go to the member, and to the `tar` reader with no
+newline byte; `size`, `uid` and `gid` go to the `tar` reader, and a `uid`
+or a `gid` with a newline byte refuses the layer; a `GNU.sparse.` key
+refuses the layer ("marks a GNU sparse file, which this crate does not
+read"); each other key is dropped. The new module `acl` (`to_xattr`,
+`attribute`, `ACCESS`, `DEFAULT`, `PAX_PREFIX`, `ENTRIES_MAX`) converts
+the text forms of GNU tar, libarchive and star to the binary form, and
+`xattr::read` sets it as each other attribute: no new field in the
+result, the counts `xattrs.set` and `xattrs.unset` hold each ACL. The
+binary record of the same ACL holds; an ACL with a name and no id, one
+that is not valid and an NFSv4 ACL (`SCHILY.acl.ace`) are named as not
+set, with the cause and no value. Tests:
+`pax::tests::each_class_of_pax_record_goes_to_its_reader_with_a_newline_byte_or_none`
+(ask 3: 30 rows),
+`pax::tests::a_layer_of_gnu_tar_with_acls_reads_and_each_acl_is_one_attribute`
+(the records of GNU tar 1.35 `--xattrs --acls`),
+`acl::tests::the_text_forms_of_gnu_tar_and_libarchive_give_the_binary_form_of_the_kernel`
+(the bytes that Linux gave), `acl::tests::an_acl_that_does_not_convert_says_why`
+and `drive::acls::the_acls_of_gnu_tar_are_set_or_named_and_the_modes_stay`
+(an access ACL and a default ACL on disk as root on ext4, an ACL with a
+name named, the modes 0664 and 0660 kept). Before the fix the table test
+and the test of the layer of GNU tar fail with "has a newline byte, which
+the tar reader cuts", and the test of the drive fails with the same
+refusal. The real archives of GNU tar 1.35 (`--xattrs --acls`, with and
+with no `--numeric-owner`) extract with 3 attributes set and 0 not set;
+the sparse archives of versions 0.0, 0.1 and 1.0 are refused with the
+cause. The plants `extract-t1086-acl-text-dropped` and
+`extract-t1086-sparse-not-refused` are caught.
+`cargo test -p pod-extract --all-features`: lib 102 passed. Call C899.
+
+# T-1087: `pod-extract`: a GNU sparse file of the PAX form (`GNU.sparse.`) refuses its layer, as the `tar` reader does not read it
+
+**Source:** T-1086 (a finding of its work)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+GNU tar `-S --format=posix` writes a sparse file with the PAX records
+`GNU.sparse.` (versions 0.0, 0.1 and 1.0). The `tar` crate 0.4.46 reads
+none of them: it gives the data of the file with no holes, under its name
+(0.0) or under `GNUSparseFile.N/NAME` (0.1, 1.0), and for 1.0 with the map
+at the start of the data. T-1086 refuses such a layer with its cause, so
+no file comes out wrong; a layer with a sparse file does not extract.
+
+## Premise
+
+- Measured with GNU tar 1.35, `-S --sparse-version=0.0`, `0.1` and `1.0`
+  on a file of 1 MiB with 4 KiB of data: the records
+  `GNU.sparse.size`, `numblocks`, `offset` and `numbytes` (0.0);
+  `GNU.sparse.name` and `map` (0.1); `GNU.sparse.major`, `minor`, `name`
+  and `realsize`, and the map in the data (1.0).
+- Not read: Go `archive/tar` `readGNUSparsePAXHeaders`, the reference
+  reader of the three versions.
+
+## Approach
+
+Read the map of each version (the records, or the decimal lines at the
+start of the data for 1.0) by its length, with a bound on the entries and
+a check that the regions are in order and inside the real size. Take the
+name from `GNU.sparse.name`. Write each region at its offset through the
+descriptor of the file and set the real size with `ftruncate`, so each
+hole stays a hole. Refuse a map that does not parse.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features --lib pax
+```
+
+# T-1088: `pod-extract`: the attributes of an archive of libarchive with `xattrheader=LIBARCHIVE` are dropped with no word
+
+**Source:** T-1086 (a finding of its work)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+libarchive writes each extended attribute twice by default:
+`LIBARCHIVE.xattr.NAME` (the name URL-encoded, the value in base64) and
+`SCHILY.xattr.NAME`. The crate reads `SCHILY.xattr.` and drops
+`LIBARCHIVE.` (T-1086). An archive of `bsdtar --options
+xattrheader=LIBARCHIVE` has `LIBARCHIVE.xattr.` records alone: each of its
+attributes is lost, and no count names it.
+
+## Premise
+
+- Read: libarchive `archive_write_set_format_pax.c`: the default flags
+  `WRITE_LIBARCHIVE_XATTR | WRITE_SCHILY_XATTR`; the option `xattrheader`
+  (`ALL`, `SCHILY`, `LIBARCHIVE`).
+- Not measured: an archive of `bsdtar` (no `bsdtar` on the host).
+
+## Approach
+
+In `xattr::read`, decode a `LIBARCHIVE.xattr.` record (the name by its
+percent escapes, the value from base64) when the entry has no
+`SCHILY.xattr.` record of the same name, and set it inside the same
+bounds; name a record that does not decode as not set.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features --lib xattr
+```

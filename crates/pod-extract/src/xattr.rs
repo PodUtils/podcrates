@@ -22,6 +22,10 @@
 //! crate adds a bound on the values of one entry ([`VALUES_MAX`]) and on the
 //! records of one entry ([`RECORDS_MAX`]). A record past a bound is named
 //! and not kept. [`crate::pax`] bounds the PAX header that holds them.
+//!
+//! **ACLs.** A POSIX ACL in its text form (`SCHILY.acl.`) becomes the
+//! attribute of its binary form ([`crate::acl`]) and follows the same path.
+//! The binary record of the same ACL, when the entry has one, holds.
 
 use pod_hostprobe::sys::{self, CBuf, Sysres};
 
@@ -145,15 +149,15 @@ impl Count {
 
 /// Read the attribute records of an entry: the `SCHILY.xattr.` records of
 /// its PAX header, read by their length ([`crate::pax`]), so a value can
-/// hold any byte. `path` is the path of the entry in the tree.
+/// hold any byte, and the ACLs in their text form (`SCHILY.acl.`), in their
+/// binary form ([`crate::acl`]). `path` is the path of the entry in the tree.
 pub fn read(exts: &[(Vec<u8>, Vec<u8>)], path: &str) -> Wanted {
     let mut w = Wanted { path: path.to_string(), ..Wanted::default() };
-    let refuse = |w: &mut Wanted, name: String, reason: String| {
-        w.refused.push(Unset { path: w.path.clone(), name, value: None, reason })
-    };
     let (mut names, mut values, mut records) = (0usize, 0usize, 0usize);
+    let mut acls = Vec::new();
     for (key, value) in exts {
-        let Some(raw) = key.strip_prefix(PAX_PREFIX.as_bytes()) else {
+        let acl = key.strip_prefix(crate::acl::PAX_PREFIX.as_bytes());
+        let Some(raw) = key.strip_prefix(PAX_PREFIX.as_bytes()).or(acl) else {
             continue;
         };
         records += 1;
@@ -161,6 +165,10 @@ pub fn read(exts: &[(Vec<u8>, Vec<u8>)], path: &str) -> Wanted {
             let why = format!("more than {RECORDS_MAX} attribute records in one entry; the rest are not read");
             refuse(&mut w, "(more records)".into(), why);
             break;
+        }
+        if acl.is_some() {
+            acls.push((raw, value));
+            continue;
         }
         let name = std::str::from_utf8(raw);
         let why = if raw.is_empty() {
@@ -175,21 +183,47 @@ pub fn read(exts: &[(Vec<u8>, Vec<u8>)], path: &str) -> Wanted {
             Some(format!("the value is longer than {VALUE_MAX} bytes"))
         } else if OVERLAY.iter().any(|p| raw.starts_with(p.as_bytes())) {
             Some("a mark of overlayfs: an overlay mount of the tree reads it, so it is not set".to_string())
-        } else if names + raw.len() + 1 > NAMES_MAX || values + value.len() > VALUES_MAX {
-            Some(format!("past the bound of one entry: {NAMES_MAX} bytes of names, {VALUES_MAX} bytes of values"))
         } else {
-            None
+            within(&mut names, &mut values, raw.len(), value.len())
         };
         match (why, name) {
-            (None, Ok(n)) => {
-                names += raw.len() + 1;
-                values += value.len();
-                w.attrs.push(Xattr { name: n.to_string(), value: value.to_vec() });
-            }
+            (None, Ok(n)) => w.attrs.push(Xattr { name: n.to_string(), value: value.to_vec() }),
             (why, _) => refuse(&mut w, shown(raw), why.unwrap_or_default()),
         }
     }
+    for (kind, text) in acls {
+        let Some(name) = crate::acl::attribute(kind) else {
+            let why = "an ACL of a kind that is not a POSIX ACL (access, default): the crate does not convert it";
+            refuse(&mut w, shown(&[crate::acl::PAX_PREFIX.as_bytes(), kind].concat()), why.into());
+            continue;
+        };
+        // GNU tar `--xattrs --acls` writes the binary form too: it holds the
+        // same ACL with its ids, and it is read above.
+        if w.attrs.iter().any(|x| x.name == name) || w.refused.iter().any(|u| u.name == name) {
+            continue;
+        }
+        let converted = crate::acl::to_xattr(text)
+            .and_then(|v| within(&mut names, &mut values, name.len(), v.len()).map_or(Ok(v), Err));
+        match converted {
+            Ok(value) => w.attrs.push(Xattr { name: name.to_string(), value }),
+            Err(why) => refuse(&mut w, name.to_string(), why),
+        }
+    }
     w
+}
+
+fn refuse(w: &mut Wanted, name: String, reason: String) {
+    w.refused.push(Unset { path: w.path.clone(), name, value: None, reason })
+}
+
+/// Add an attribute to the bound of one entry, or say why it is past it.
+fn within(names: &mut usize, values: &mut usize, name: usize, value: usize) -> Option<String> {
+    if *names + name + 1 > NAMES_MAX || *values + value > VALUES_MAX {
+        return Some(format!("past the bound of one entry: {NAMES_MAX} bytes of names, {VALUES_MAX} bytes of values"));
+    }
+    *names += name + 1;
+    *values += value;
+    None
 }
 
 /// A name for a message: lossy, and cut at [`NAME_MAX`] bytes.

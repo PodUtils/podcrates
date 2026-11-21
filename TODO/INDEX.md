@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**865 entries: 148 open, 28 partial, 7 blocked, 682 done.**
+**868 entries: 150 open, 28 partial, 7 blocked, 683 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 199 | 213 |
+| P1 | 4 | 10 | 0 | 200 | 214 |
 | P2 | 68 | 8 | 4 | 355 | 435 |
-| P3 | 76 | 10 | 3 | 126 | 215 |
-| **All** | 148 | 28 | 7 | 682 | 865 |
+| P3 | 78 | 10 | 3 | 126 | 217 |
+| **All** | 150 | 28 | 7 | 683 | 868 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -912,3 +912,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1066](foundation.md) | P2 | S | M0 | feature | done | `pod-core`: one atomic replace of a file at a path that the caller names, with `Mode::Keep`, a followed link, a made directory and errors that name the step (PodUtils/podnet#677) |
 | [T-1070](fleet.md) | P3 | S | M8 | defect | open | `pod-control`: podrunner's test of a ninth client fails 6 of 30 runs, as the place of the call before it is not back yet |
 | [T-1073](fleet.md) | P3 | S | M8 | defect | open | `pod-control`: the wait of `Context::call` can end before the server reads the answer of the client |
+| [T-1086](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a layer of GNU tar `--acls` is refused whole, as the PAX record `SCHILY.acl.access` holds a newline byte (PodUtils/podvm#643) |
+| [T-1087](podvm.md) | P3 | M | M6 | defect | open | `pod-extract`: a GNU sparse file of the PAX form (`GNU.sparse.`) refuses its layer, as the `tar` reader does not read it |
+| [T-1088](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: the attributes of an archive of libarchive with `xattrheader=LIBARCHIVE` are dropped with no word |
