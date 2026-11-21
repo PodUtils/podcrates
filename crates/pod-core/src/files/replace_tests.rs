@@ -114,6 +114,7 @@ fn on_windows_a_replace_takes_a_name_that_a_reader_holds() {
 }
 
 /// The temporary name of a test that plants a file there first.
+#[cfg(unix)]
 fn fixed_temp(dir: &Path, _name: &str) -> PathBuf {
     dir.join(".fixed.tmp")
 }

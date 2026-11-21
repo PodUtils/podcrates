@@ -2767,7 +2767,7 @@ The proof on the runners: the nightly run 44792996234 at `62b8039`: on `test (wi
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2819,3 +2819,35 @@ sh scripts/agent/check-windows.sh
 sh scripts/agent/check-macos.sh
 sh scripts/plant-each.sh core-replace-follows-without-the-option core-replace-removes-a-file-it-did-not-make
 ```
+
+## Done
+
+2026-11-21, commit 1ccacb00 and the commit that closes this entry (call
+C887). `pod_core::files` has `replace(path, body, mode)`, `Replace`
+(`new`, `follow_link`, `make_dir`, `in_place_fallback`, `write`), `Mode`
+(`Private`, `Keep`, `Exact`), `Failed` (`step`, `path`, `cause`,
+`into_cause`, `of`) and `Step`, in `crates/pod-core/src/files/replace.rs`
+and `crates/pod-core/src/files/replace_mode.rs`. `replace_private` is
+`Replace::new(Mode::Exact(bits))` with the raw error, so its callers do
+not change. Fixed in place: a replace that could not create its temporary
+file removed the file or the link at that name. podnet's survey missed the
+helper because the `files` row of `crates/pod-core/README.md` did not name
+it, and its name, its doc and its `u32` mode said "private"; the README
+now has the section "The replace of a file" and the adoption map of
+podnet, podssh, podvm and podrunner. Tests (`cargo test -p pod-core
+--all-features --lib files::replace`: 13 passed):
+`a_link_at_the_path_is_followed_only_with_the_option`,
+`a_loop_of_links_is_refused_at_the_follow`,
+`a_link_at_the_temporary_name_is_never_followed_or_removed`,
+`mode_keep_keeps_0644_and_gives_0600_to_a_new_file`,
+`a_failed_write_leaves_the_old_file_and_no_temporary_file`,
+`the_error_names_the_step_and_the_path`,
+`a_missing_directory_is_made_only_when_asked`. `cargo test -p pod-core
+--all-features`: 0 failed (91 unit tests). `cargo clippy --workspace
+--all-targets --all-features -- -D warnings`: no warning.
+`sh scripts/agent/check-windows.sh`: "0 faults";
+`sh scripts/agent/check-macos.sh`: "0 faults". `sh scripts/plant-each.sh
+core-replace-follows-without-the-option
+core-replace-removes-a-file-it-did-not-make`: 2 caught. Removing
+`O_NOFOLLOW` from the temporary file is no plant: `create_new` already
+refuses a link at the name.
