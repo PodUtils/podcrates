@@ -2752,3 +2752,10 @@ on each system. With the extension step removed (the plant
 Some(".../tool.EXE")". `cargo test -p pod-manual -p pod-testkit
 --all-features` passes; `sh scripts/agent/check-windows.sh`: "0 faults".
 The tests that now run on the Windows jobs: T-1030.
+
+The proof on the runners: the nightly run 44792996234 at `62b8039`: on `test (windows-2025)`
+(136485246423) and `test (windows-11-arm)` (136485246656),
+`need_tool!("git")` finds git, and the five tests of
+`crates/pod-actions-store/tests/git.rs` run and pass with no skip line
+(T-1030).
+

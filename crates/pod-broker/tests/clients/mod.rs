@@ -4,6 +4,7 @@
 //! of the test, and a run of one client with a clean environment.
 
 use std::fmt;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::Arc;
@@ -76,7 +77,12 @@ pub fn node_own(node: &str) -> &'static [&'static str] {
     let out = Command::new(node).args(["-p", probe]).stderr(Stdio::null()).output();
     match out {
         Ok(out) if String::from_utf8_lossy(&out.stdout).trim() == "true" => {
-            println!("clients: {node} takes the default store of OpenSSL, so it reads SSL_CERT_FILE also");
+            // The standard error of the process: the harness holds a `println!`
+            // of a test that passes, so the line would not reach the log of CI.
+            let _ = writeln!(
+                std::io::stderr(),
+                "clients: {node} takes the default store of OpenSSL, so it reads SSL_CERT_FILE also"
+            );
             &["NODE_EXTRA_CA_CERTS", "SSL_CERT_FILE"]
         }
         _ => &["NODE_EXTRA_CA_CERTS"],

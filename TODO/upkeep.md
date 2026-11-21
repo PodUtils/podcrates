@@ -3390,6 +3390,10 @@ cargo test -p pod-iroh --all-features --test road --test share --test tickets
 
 - 2026-11-19, the nightly 44505235227 at `8389e1c`: two more time bounds of the same class fail under QEMU. `pod-iroh`'s `two_sessions_of_one_process_share_one_connection_on_two_streams` (`tests/share.rs`: "each session's bytes within the limit: Elapsed" on loongarch64; "early eof" at `share.rs:52` on riscv64) and `a_session_whose_client_moves_on_the_relay_alone_resumes_whole` (`tests/new_address.rs` on riscv64: the far end acknowledged 491520 of 4685824 bytes in 103 s, each `Stall` line a slow reader, no lost byte). The same run had `a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way` (loongarch64, powerpc64le, riscv64) and `a_turn_of_the_arq_blocks_on_nothing` (i686), each named above.
 - 2026-11-20, the nightly 44739339618 at `8a2cdd9`: the same three tests, no new one of this class. `a_turn_of_the_arq_blocks_on_nothing` on i686 (job 136298711820: "3 voluntary switches in 1000 turns"); `pod-iroh`'s `a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way` and `two_sessions_of_one_process_share_one_connection_on_two_streams` on loongarch64 (job 136298712051: `Elapsed` at the bound of 300 s, `road.rs:94` and `share.rs:155`) and on riscv64 (job 136298712144: "early eof" at `road.rs:47` after 99 s and at `share.rs:52` after 78 s). `main` at `783a657c` has no change of `pod-link`, `pod-iroh` or `pod-testkit`'s `switches.rs` after `8a2cdd9`. The armv7 failure of the run is T-1043.
+
+- 2026-11-21, the nightly run 44792996234 at `62b8039`: the same three tests, no new test of this class. `a_turn_of_the_arq_blocks_on_nothing` on i686 (job 136485246572: "4 voluntary switches in 1000 turns"; the one failed binary of the job). On riscv64 (job 136485246660) the two failed binaries are `pod-iroh`'s `road.rs` ("early eof" at `road.rs:47`, a broken pipe of the writer at `road.rs:43`, 158 s) and `share.rs` (`Elapsed` at `share.rs:155`, 306 s); `pod_job` passed 25 there. On loongarch64 (job 136485246683) `share.rs` gave `Elapsed` at `share.rs:155` (304 s), and `road.rs` gave a new form at `road.rs:98`: "Layer(Ended { end: Closing, received: 20971520, sent: 20971520 })", in 290 s. Each byte crossed; then the far end's answer to the `CLOSE` of this side did not come within `LINGER` (10 s, `crates/pod-session/src/pump.rs`), a time of the session that the emulation outruns, not a bound of the test.
+
+
 # T-917: The copies of product code that `codegraph.py dups` finds: one place for each
 
 **Source:** the first run of `python3 -I scripts/codegraph.py dups` (the ruling "Shared code").
@@ -4101,6 +4105,12 @@ adds each answer to `with_opt` or to `without_opt`;
 with no OPT record and at least one with one. On Linux: `cargo test -p
 pod-link --all-features --test dns_resolver` passes 3 (the three tests of
 the file), and `cargo test -p pod-link --all-features` passes.
+
+The proof under QEMU: the nightly run 44792996234 at `62b8039`, the job
+`cross (armv7-unknown-linux-musleabihf, arm)` (136485246519):
+`a_query_with_edns_gets_an_answer_within_its_size ... ok`, and "test
+binaries that failed: 0".
+
 
 # T-1044: `check-windows.sh` and `check-macos.sh` compile no doc test, so a doc test with an item of Unix fails only in the nightly
 
