@@ -1,0 +1,7 @@
+# The frame writes a line after a write that failed with a part of a line
+# out: the peer reads the two as one broken line (T-1073).
+ENTRY=T-1073
+GROUP=control
+EXPECT='a line after a part'
+RUN='cargo test -p pod-control --all-features --lib frame::tests::a_slow_reader_meets_one_deadline_for_the_whole_line'
+LIMIT=900

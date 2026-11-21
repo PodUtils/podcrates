@@ -51,9 +51,12 @@ pub struct Settings {
     pub version: String,
     /// The longest request line, without its line end.
     pub line_max: usize,
-    /// The longest wait for one whole line: a request, or the answer to a
-    /// call back. A connection with no line in this time closes.
+    /// The longest wait for one whole line of the client: a request. A
+    /// connection with no line in this time closes.
     pub read_timeout: Duration,
+    /// The longest wait to write one whole line: an answer. A call back has
+    /// one deadline, `write_timeout + read_timeout`, for its line and the
+    /// answer of the client, blank lines too.
     pub write_timeout: Duration,
     /// The longest wait for the answer of the host. Past it, `status` gets
     /// the last snapshot (`Server::snapshot`), and another method `busy`.
@@ -211,11 +214,12 @@ impl Drop for Slot {
     }
 }
 
-/// Take a slot, or `None` when each is in use.
+/// Take a slot, or `None` when each is in use. A refused connection does
+/// not count: [`Shared::active`] is never above [`Settings::clients`].
 pub(crate) fn take_slot(shared: &Arc<Shared>) -> Option<Slot> {
-    let n = shared.active.fetch_add(1, Ordering::SeqCst);
-    let slot = Slot(shared.clone());
-    (n < shared.settings.clients).then_some(slot)
+    let clients = shared.settings.clients;
+    let taken = shared.active.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| (n < clients).then_some(n + 1));
+    taken.ok().map(|_| Slot(shared.clone()))
 }
 
 /// Write one refusal of a connection (`busy`, `refused`) and end it.
@@ -239,7 +243,6 @@ pub(crate) fn serve_connection<S: Stream>(
 ) -> std::io::Result<()> {
     let settings = &shared.settings;
     let mut lines = Lines::new(stream, settings.line_max);
-    lines.stream().set_write_timeout(Some(settings.write_timeout))?;
     let mut session = Session { settings, catalogue: &shared.catalogue, tier, auth_tried: false, close: false };
     let mut budget = Budget { connection: 0 };
     loop {
@@ -247,10 +250,11 @@ pub(crate) fn serve_connection<S: Stream>(
             Line::End | Line::Timeout => return Ok(()),
             Line::TooLong => {
                 let fault = Fault::new(Code::TooLong, format!("a line is {} bytes at most", settings.line_max));
-                return lines.write_line(&wire::answer_line(None, &Err(fault)));
+                return lines.write_line(&wire::answer_line(None, &Err(fault)), settings.write_timeout);
             }
             Line::NotUtf8 => {
-                lines.write_line(&wire::answer_line(None, &Err(Fault::new(Code::NotUtf8, "a line is UTF-8"))))?;
+                let fault = Fault::new(Code::NotUtf8, "a line is UTF-8");
+                lines.write_line(&wire::answer_line(None, &Err(fault)), settings.write_timeout)?;
                 continue;
             }
             Line::Text(t) if t.trim().is_empty() => continue,
@@ -267,7 +271,7 @@ pub(crate) fn serve_connection<S: Stream>(
                 (Some(id), request(req, &peer, &mut session, &mut budget, &mut lines, shared, calls))
             }
         };
-        let written = lines.write_line(&wire::answer_line(id, &outcome));
+        let written = lines.write_line(&wire::answer_line(id, &outcome), settings.write_timeout);
         wire::wipe_outcome(outcome);
         written?;
         if session.close {
@@ -294,6 +298,8 @@ fn request<S: Stream>(
     }
     let settings = session.settings;
     let (tx, rx) = mpsc::channel();
+    // Past the deadline of a call back (`call_back`): the wait ends first
+    // only when a thread stops.
     let wait = settings.read_timeout + settings.write_timeout + Duration::from_secs(1);
     let cx = Context::new(peer.clone(), session.tier, tx.clone(), wait);
     let status = req.method == "status";
@@ -346,7 +352,8 @@ fn request<S: Stream>(
 }
 
 /// One call back to the client, and its answer: the next line must be the
-/// answer with the id of the call.
+/// answer with the id of the call. The write, the read and each blank line
+/// share one deadline, so the wait of [`Context::call`] ends after it.
 fn call_back<S: Stream>(
     lines: &mut Lines<S>,
     for_id: u64,
@@ -355,9 +362,12 @@ fn call_back<S: Stream>(
     params: &Value,
     settings: &Settings,
 ) -> Result<Value, CallFault> {
-    lines.write_line(&wire::request_line(id, method, params, Some(for_id))).map_err(|_| CallFault::Gone)?;
+    let deadline = Instant::now() + settings.write_timeout + settings.read_timeout;
+    let line = wire::request_line(id, method, params, Some(for_id));
+    lines.write_line_by(&line, deadline).map_err(|_| CallFault::Gone)?;
+    drop(line);
     loop {
-        match lines.next_line(settings.read_timeout).map_err(|_| CallFault::Gone)? {
+        match lines.next_line_by(deadline).map_err(|_| CallFault::Gone)? {
             Line::Text(t) if t.trim().is_empty() => continue,
             Line::Text(t) => {
                 return match wire::parse(&t) {
