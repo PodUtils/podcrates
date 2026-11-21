@@ -1,6 +1,6 @@
 [package]
 name = "pod-unit"
-description = "Hardened service units with no secret in them: user and system units of systemd with their hardening and credentials, LaunchAgents and LaunchDaemons of launchd, tasks and services of Windows, and lines of the crontab; the check of a secret in a unit, and the install and the removal of a unit of the user."
+description = "Hardened service units with no secret in them: user and system units of systemd with their hardening and credentials, LaunchAgents and LaunchDaemons of launchd, tasks and services of Windows, and lines of the crontab; the check of a secret in a unit, and the install and the removal of a unit of the user and of the system."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,6 +11,10 @@ repository.workspace = true
 # The typed failure, the private write of a file and the bounded run of a
 # program.
 pod-core = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+# The check that this process may create a service (OpenSCManagerW).
+windows-sys = { version = "0.61", features = ["Win32_System_Services"] }
 
 [dev-dependencies]
 # The check of a program of the host for a test that skips without it.

@@ -1,0 +1,7 @@
+# An install of a unit of systemd of the system checks no privilege: a
+# caller that is not root writes into the directory of the units (T-1027).
+ENTRY=T-1027
+GROUP=unit
+EXPECT='no privilege'
+RUN='cargo test -p pod-unit --all-features --test install_system a_caller_with_no_privilege_is_refused_before_any_write'
+LIMIT=900

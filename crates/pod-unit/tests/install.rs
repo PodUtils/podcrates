@@ -6,76 +6,15 @@
 
 mod common;
 
-use std::cell::RefCell;
 use std::path::Path;
 
+use common::fake::{Fake, files};
 use common::podrunner;
-use pod_core::process::Ran;
-use pod_core::{Class, Failure};
-use pod_unit::install::{self, Form, Host, Places, Removed};
-
-/// A host of the test: each run is recorded; a run whose line starts with a
-/// word of `fail` ends with 1; `crontab -l` gives `table`.
-#[derive(Default)]
-struct Fake {
-    runs: RefCell<Vec<String>>,
-    fail: Vec<&'static str>,
-    table: RefCell<Option<String>>,
-    task: RefCell<Option<String>>,
-}
-
-impl Host for Fake {
-    fn run(&self, program: &str, args: &[&str], input: Option<&[u8]>) -> Result<Ran, Failure> {
-        let line = format!("{program} {}", args.join(" "));
-        self.runs.borrow_mut().push(line.clone());
-        let ran = |code: i32, stdout: String, stderr: &str| Ran { code: Some(code), stdout, stderr: stderr.into() };
-        if self.fail.iter().any(|f| line.starts_with(f)) {
-            return Ok(ran(1, String::new(), "refused by the test"));
-        }
-        Ok(match (program, args) {
-            ("crontab", ["-l"]) => match self.table.borrow().clone() {
-                Some(table) => ran(0, table, ""),
-                None => ran(1, String::new(), "no crontab for ci"),
-            },
-            ("crontab", ["-"]) => {
-                *self.table.borrow_mut() = Some(String::from_utf8_lossy(input.unwrap_or_default()).into_owned());
-                ran(0, String::new(), "")
-            }
-            ("schtasks", ["/Query", _, _, "/XML"]) => match self.task.borrow().clone() {
-                Some(xml) => ran(0, xml, ""),
-                None => ran(1, String::new(), "ERROR: The system cannot find the file specified."),
-            },
-            ("schtasks", ["/Create", _, _, "/XML", file, "/F"]) => {
-                let bytes = std::fs::read(file).expect("the XML of the task");
-                let units: Vec<u16> = bytes[2..].chunks(2).map(|c| u16::from_le_bytes([c[0], c[1]])).collect();
-                *self.task.borrow_mut() = Some(String::from_utf16_lossy(&units));
-                ran(0, String::new(), "")
-            }
-            ("schtasks", ["/Delete", ..]) => {
-                *self.task.borrow_mut() = None;
-                ran(0, String::new(), "")
-            }
-            _ => ran(0, String::new(), ""),
-        })
-    }
-}
+use pod_core::Class;
+use pod_unit::install::{self, Form, Places, Removed};
 
 fn places(home: &Path) -> Places {
     Places::of_home(home, &home.join("scratch"), 1000, "HOST\\ci")
-}
-
-/// Each file under `dir`.
-fn files(dir: &Path) -> Vec<String> {
-    let mut out = Vec::new();
-    for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            out.extend(files(&path));
-        } else {
-            out.push(path.display().to_string());
-        }
-    }
-    out
 }
 
 #[test]

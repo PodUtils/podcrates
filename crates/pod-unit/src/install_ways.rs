@@ -1,5 +1,6 @@
 //! The steps of each form of an install of the user and of its removal
-//! ([`crate::install`]).
+//! ([`crate::install`]); the files of systemd and launchd are also the steps
+//! of an install of the system ([`crate::install_system`]).
 
 use std::path::Path;
 
@@ -36,66 +37,87 @@ fn launchd_mark(unit: &Unit) -> impl Fn(&str) -> bool + '_ {
     move |text: &str| text.contains(&format!("{}{}.", crate::launchd::MARK, crate::quote::xml(&unit.mark)))
 }
 
-pub(crate) fn systemd(unit: &Unit, places: &Places, host: &dyn Host) -> Result<Vec<String>, Failure> {
-    let text = crate::systemd::render(unit)?;
-    let file = crate::systemd::file_name(unit);
-    let path = places.systemd_user.join(&file);
-    ours(&path, &unit.mark, systemd_mark(unit))?;
-    write(&path, text.as_bytes(), 0o644)?;
-    let started = step(host, "systemctl", &["--user", "daemon-reload"], None)
-        .and_then(|_| step(host, "systemctl", &["--user", "enable", &file], None))
-        .and_then(|_| step(host, "systemctl", &["--user", "restart", &file], None));
-    if let Err(e) = started {
-        // A unit that cannot start is not left behind.
-        let _ = host.run("systemctl", &["--user", "disable", &file], None);
-        let _ = std::fs::remove_file(&path);
-        let _ = host.run("systemctl", &["--user", "daemon-reload"], None);
-        return Err(e);
-    }
-    Ok(vec![format!("a user unit of systemd, {}, enabled and started", path.display())])
+/// `systemctl ARGS`, with `--user` for a user unit.
+fn systemctl<'a>(user: bool, args: &[&'a str]) -> Vec<&'a str> {
+    if user { std::iter::once("--user").chain(args.iter().copied()).collect() } else { args.to_vec() }
 }
 
-pub(crate) fn remove_systemd(unit: &Unit, places: &Places, host: &dyn Host) -> Result<Removed, Failure> {
+/// The unit of systemd `unit`, rendered as `text`, in `dir`: a user unit
+/// when `user`, else a unit of the system.
+pub(crate) fn systemd(
+    unit: &Unit,
+    text: &str,
+    dir: &Path,
+    user: bool,
+    host: &dyn Host,
+) -> Result<Vec<String>, Failure> {
     let file = crate::systemd::file_name(unit);
-    let path = places.systemd_user.join(&file);
+    let path = dir.join(&file);
+    ours(&path, &unit.mark, systemd_mark(unit))?;
+    write(&path, text.as_bytes(), 0o644)?;
+    let run = |args: &[&str]| step(host, "systemctl", &systemctl(user, args), None);
+    let started = run(&["daemon-reload"]).and_then(|_| run(&["enable", &file])).and_then(|_| run(&["restart", &file]));
+    if let Err(e) = started {
+        // A unit that cannot start is not left behind.
+        let _ = host.run("systemctl", &systemctl(user, &["disable", &file]), None);
+        let _ = std::fs::remove_file(&path);
+        let _ = host.run("systemctl", &systemctl(user, &["daemon-reload"]), None);
+        return Err(e);
+    }
+    let what = if user { "a user unit" } else { "a unit of the system" };
+    Ok(vec![format!("{what} of systemd, {}, enabled and started", path.display())])
+}
+
+pub(crate) fn remove_systemd(unit: &Unit, dir: &Path, user: bool, host: &dyn Host) -> Result<Removed, Failure> {
+    let file = crate::systemd::file_name(unit);
+    let path = dir.join(&file);
     if !ours(&path, &unit.mark, systemd_mark(unit))? {
         return Ok(Removed::Nothing);
     }
-    let stopped = step(host, "systemctl", &["--user", "disable", "--now", &file], None);
+    let stopped = step(host, "systemctl", &systemctl(user, &["disable", "--now", &file]), None);
     std::fs::remove_file(&path).map_err(|e| Failure::io(Stage::Host, e))?;
-    let _ = host.run("systemctl", &["--user", "daemon-reload"], None);
-    let _ = host.run("systemctl", &["--user", "reset-failed", &file], None);
-    Ok(Removed::Done(vec![format!("removed the user unit {} ({})", path.display(), how(stopped, "stopped"))]))
+    let _ = host.run("systemctl", &systemctl(user, &["daemon-reload"]), None);
+    let _ = host.run("systemctl", &systemctl(user, &["reset-failed", &file]), None);
+    let what = if user { "the user unit" } else { "the unit of the system" };
+    Ok(Removed::Done(vec![format!("removed {what} {} ({})", path.display(), how(stopped, "stopped"))]))
 }
 
-pub(crate) fn launchd(unit: &Unit, places: &Places, host: &dyn Host) -> Result<Vec<String>, Failure> {
-    let text = crate::launchd::render(unit)?;
-    let path = places.launch_agents.join(crate::launchd::file_name(unit));
+/// The plist of `unit`, rendered as `text`, in `dir`, loaded in the domain of launchd `domain`:
+/// `gui/UID` for a LaunchAgent, `system` for a LaunchDaemon.
+pub(crate) fn launchd(
+    unit: &Unit,
+    text: &str,
+    dir: &Path,
+    domain: &str,
+    host: &dyn Host,
+) -> Result<Vec<String>, Failure> {
+    let path = dir.join(crate::launchd::file_name(unit));
     ours(&path, &unit.mark, launchd_mark(unit))?;
-    let domain = format!("gui/{}", places.uid);
     let target = format!("{domain}/{}", unit.launchd_label());
     write(&path, text.as_bytes(), 0o644)?;
-    // An agent that was loaded leaves first, so that the new words take; one
+    // A job that was loaded leaves first, so that the new words take; one
     // that a person disabled would not load.
     let _ = host.run("launchctl", &["bootout", &target], None);
     let _ = host.run("launchctl", &["enable", &target], None);
     let shown = path.display().to_string();
-    if let Err(e) = step(host, "launchctl", &["bootstrap", &domain, &shown], None) {
+    if let Err(e) = step(host, "launchctl", &["bootstrap", domain, &shown], None) {
         let _ = std::fs::remove_file(&path);
         return Err(e);
     }
-    Ok(vec![format!("a LaunchAgent, {shown}, loaded in {domain}: it starts now and at each login")])
+    let (what, when) = if domain == "system" { ("a LaunchDaemon", "boot") } else { ("a LaunchAgent", "login") };
+    Ok(vec![format!("{what}, {shown}, loaded in {domain}: it starts now and at each {when}")])
 }
 
-pub(crate) fn remove_launchd(unit: &Unit, places: &Places, host: &dyn Host) -> Result<Removed, Failure> {
-    let path = places.launch_agents.join(crate::launchd::file_name(unit));
+pub(crate) fn remove_launchd(unit: &Unit, dir: &Path, domain: &str, host: &dyn Host) -> Result<Removed, Failure> {
+    let path = dir.join(crate::launchd::file_name(unit));
     if !ours(&path, &unit.mark, launchd_mark(unit))? {
         return Ok(Removed::Nothing);
     }
-    let target = format!("gui/{}/{}", places.uid, unit.launchd_label());
+    let target = format!("{domain}/{}", unit.launchd_label());
     let stopped = step(host, "launchctl", &["bootout", &target], None);
     std::fs::remove_file(&path).map_err(|e| Failure::io(Stage::Host, e))?;
-    Ok(Removed::Done(vec![format!("removed the LaunchAgent {} ({})", path.display(), how(stopped, "stopped"))]))
+    let what = if domain == "system" { "LaunchDaemon" } else { "LaunchAgent" };
+    Ok(Removed::Done(vec![format!("removed the {what} {} ({})", path.display(), how(stopped, "stopped"))]))
 }
 
 /// The XML of the task `name` that is there, when one is.
@@ -167,7 +189,7 @@ pub(crate) fn remove_cron(unit: &Unit, host: &dyn Host) -> Result<Removed, Failu
 }
 
 /// The words of a stop or a start that can fail with no harm.
-fn how(done: Result<pod_core::process::Ran, Failure>, did: &str) -> String {
+pub(crate) fn how(done: Result<pod_core::process::Ran, Failure>, did: &str) -> String {
     match done {
         Ok(_) => did.to_string(),
         Err(e) => format!("not now: {}", e.chain()),

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-unit/src/install_system.rs b/crates/pod-unit/src/install_system.rs
+index ed9bda74..7706caf4 100644
+--- a/crates/pod-unit/src/install_system.rs
++++ b/crates/pod-unit/src/install_system.rs
+@@ -26,7 +26,6 @@ pub(crate) fn install(unit: &Unit, form: Form, places: &SystemPlaces, host: &dyn
+     match form {
+         Form::Systemd => {
+             let text = crate::systemd::render(unit)?;
+-            need_admin(host, "an install")?;
+             if !host.systemd_booted() {
+                 return Err(Failure::new(
+                     Stage::Host,

@@ -259,6 +259,12 @@ jobs:
       # another user: run that test as root, and fail on a skip.
       - name: The tests of pod-confine as root
         run: sh scripts/ci/root-confine-tests.sh
+      # A unit of the system on the systemd of the runner (T-1027): an
+      # install with DynamicUser=yes and a credential, its state, and its
+      # removal. The test skips as another user: run it as root, and fail on
+      # a skip.
+      - name: The install of a unit of the system of pod-unit as root
+        run: sh scripts/ci/root-unit-tests.sh
       # The confinement through the rungs with a chroot of pod-enter (the
       # tmpfs of the namespace rung, T-227) skips as another user too. The
       # acceptance test of the overlay root (T-486) needs a static busybox.
