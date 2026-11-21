@@ -29,6 +29,11 @@ pub mod conformance;
 mod dispatch;
 mod frame;
 mod host;
+// The reader of the JSON of a line; public for the fuzz target of fuzz/.
+#[cfg(feature = "fuzzing")]
+pub mod json;
+#[cfg(not(feature = "fuzzing"))]
+mod json;
 #[cfg(windows)]
 pub mod pipe;
 mod schema;

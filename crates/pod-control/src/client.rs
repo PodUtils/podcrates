@@ -206,7 +206,9 @@ impl Client {
                     used += 1;
                     self.callbacks += 1;
                     let outcome = back(&req.method, &req.params);
-                    self.lines.write_line(&wire::answer_line(Some(req.id), &outcome))?;
+                    let written = self.lines.write_line(&wire::answer_line(Some(req.id), &outcome));
+                    wire::wipe_outcome(outcome);
+                    written?;
                 }
                 Ok(Inbound::Request(_)) => return self.broke("a call back for no request in flight"),
                 Err(_) => return self.broke("a line that is not of the protocol"),
@@ -242,7 +244,7 @@ impl Client {
             _ => stream.write_all(b"\n"),
         });
         match self.next_text() {
-            Ok(t) => serde_json::from_str(&t).map(Some).map_err(|_| Error::Protocol("a line that is not JSON".into())),
+            Ok(t) => crate::json::read(&t).map(Some).ok_or_else(|| Error::Protocol("a line that is not JSON".into())),
             Err(Error::Closed) => written.map(|()| None).map_err(Error::Io),
             Err(e) => Err(e),
         }

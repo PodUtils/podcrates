@@ -14,7 +14,10 @@
 //! had no id that can be read). The `detail` of an error holds no byte of
 //! the request: a request can hold a token. For the same reason each value
 //! that [`parse`] reads is wiped at its drop, and each line that
-//! [`request_line`] and [`answer_line`] write is wiped at its drop.
+//! [`request_line`] and [`answer_line`] write is wiped at its drop. [`parse`]
+//! reads the JSON with a reader of the crate, not with `serde_json`: it
+//! decodes a string with an escape into the buffer of the string, and wipes
+//! a part of a value that fails to read.
 
 use std::fmt::{self, Write as _};
 
@@ -185,8 +188,16 @@ pub(crate) fn wipe_outcome(outcome: Result<Value, Fault>) {
     }
 }
 
-/// A value that is wiped at its drop, on each path of [`parse`].
-struct Wiped(Value);
+/// A value that is wiped at its drop, on each path of [`parse`] and of the
+/// reader of the JSON.
+pub(crate) struct Wiped(pub(crate) Value);
+
+impl Wiped {
+    /// The value, out of the wipe.
+    pub(crate) fn take(mut self) -> Value {
+        std::mem::take(&mut self.0)
+    }
+}
 
 impl Drop for Wiped {
     fn drop(&mut self) {
@@ -206,7 +217,7 @@ fn bad(id: Option<u64>, detail: &str) -> (Option<u64>, Fault) {
 }
 
 fn take_object(line: &str) -> Result<Wiped, (Option<u64>, Fault)> {
-    let value = Wiped(serde_json::from_str(line).map_err(|_| bad(None, "the line is not JSON"))?);
+    let value = Wiped(crate::json::read(line).ok_or_else(|| bad(None, "the line is not JSON"))?);
     let Value::Object(map) = &value.0 else { return Err(bad(None, "the line is not a JSON object")) };
     let id = map.get("id").and_then(Value::as_u64);
     if map.get("schema").and_then(Value::as_u64) != Some(u64::from(PROTOCOL)) {

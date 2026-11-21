@@ -1,6 +1,8 @@
 //! No block of memory that the server or the client frees holds a token of
 //! a line (T-1023): the master token of `auth`, a token in the params of a
-//! delegated request, and a token in each line that the server refuses.
+//! delegated request and in the answer of a call back, and a token in each
+//! line that the server refuses. A token with a JSON escape (`\n`, `\"`,
+//! `\\`, `\uXXXX`) is read into a buffer of its own (T-1048).
 //! The allocator of this binary searches each freed block for the marker
 //! ([`pod_testkit::freed`]), so the binary has this one test.
 
@@ -60,6 +62,12 @@ fn session() {
     let params = json!({ "a_token": concat!(marker!(), "-job"), "n": 1, "z_pad": "x".repeat(40_000) });
     let v = c.call_with("ask", params, &mut |_, _| Ok(json!(true))).unwrap();
     assert_eq!(v["answered"], 1);
+    // A token with each escape of a string that the client writes: the line
+    // of the request, and the answer of a call back.
+    let escaped = concat!(marker!(), "-quote\"back\\slash\nline\u{1}control");
+    let params = json!({ "a_token": escaped, "n": 1 });
+    let v = c.call_with("ask", params, &mut |_, _| Ok(json!({ "back": escaped }))).unwrap();
+    assert_eq!(v["answered"], 1);
     // Lines that the server refuses, each with a token.
     for (line, code) in [
         (concat!(r#"{"schema":1,"id":2,"method":"ask","params":{"t":""#, marker!(), r#""},"bogus":1}"#), "bad-request"),
@@ -69,6 +77,21 @@ fn session() {
         (concat!(r#"{"schema":2,"t":""#, marker!(), r#""}"#), "bad-request"),
         (concat!(r#"{"schema":1,"id":5,"method":"version","params":{"t":""#, marker!(), r#""}}"#), "bad-params"),
         (concat!(r#"{"schema":1,"id":6,"method":"status","params":{"t":""#, marker!(), r#""}}"#), "bad-params"),
+        // A token with an escape (T-1048).
+        (concat!(r#"{"schema":1,"id":7,"method":"version","params":{"t":""#, marker!(), r#"\n"}}"#), "bad-params"),
+        (concat!(r#"{"schema":1,"id":8,"method":"version","params":{"t":""#, marker!(), r#"\"q"}}"#), "bad-params"),
+        (concat!(r#"{"schema":1,"id":9,"method":"version","params":{"t":""#, marker!(), r#"\\"}}"#), "bad-params"),
+        (concat!(r#"{"schema":1,"id":10,"method":"version","params":{"t":""#, marker!(), r#"\u0041"}}"#), "bad-params"),
+        (concat!(r#"{"schema":1,"id":11,"method":"version","params":{"t":"\t"#, marker!(), r#""}}"#), "bad-params"),
+        (concat!(r#"{"schema":1,"id":12,"method":"version","params":{""#, marker!(), r#"\n":1}}"#), "bad-params"),
+        // A token in a part of a line that is not JSON, and a token in a
+        // field that a second field of the same name replaces.
+        (concat!(r#"{"schema":1,"id":13,"method":"version","params":{"t":""#, marker!(), r#""}"#), "bad-request"),
+        (concat!(r#"{"schema":1,"id":14,"method":"version","params":{"t":""#, marker!(), r#"\n"},"#), "bad-request"),
+        (
+            concat!(r#"{"schema":1,"id":15,"method":"version","params":{"t":""#, marker!(), r#""},"params":{"u":1}}"#),
+            "bad-params",
+        ),
     ] {
         let answer: Value = c.raw(line.as_bytes()).unwrap().unwrap();
         assert_eq!(answer["error"]["code"], code, "{answer}");

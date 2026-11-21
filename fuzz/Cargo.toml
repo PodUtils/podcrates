@@ -60,8 +60,9 @@ pod-egress = { path = "../crates/pod-egress", features = ["fuzzing"] }
 # task.
 pod-hold = { path = "../crates/pod-hold", features = ["fuzzing"] }
 pod-job = { path = "../crates/pod-job" }
-# The lines of the control API (T-103).
-pod-control = { path = "../crates/pod-control" }
+# The lines of the control API (T-103). The feature `fuzzing` gives the
+# reader of the JSON of a line (T-1048).
+pod-control = { path = "../crates/pod-control", features = ["fuzzing"] }
 # The expressions and the workflow files of GitHub Actions (T-251).
 pod-actions-expr = { path = "../crates/pod-actions-expr" }
 pod-actions-workflow = { path = "../crates/pod-actions-workflow" }

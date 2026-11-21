@@ -65,8 +65,12 @@ bytes (64 KiB) without its line end, and UTF-8.
   `Request` and a `Call` wipe their params at their drop (`wire::wipe`). A
   line that `wire::request_line` or `wire::answer_line` writes has its exact
   length (no growth leaves a copy) and is wiped at its drop; the client
-  wipes the params of each call after the write, and `Token` its text. Not
-  wiped: the scratch buffer of `serde_json` for a string with an escape,
+  wipes the params of each call after the write, the answer of each call
+  back after the write, and `Token` its text. A line is read by the JSON
+  reader of the crate (`json.rs`), not by `serde_json`: a string with an
+  escape (`\n`, `\"`, `\\`, `\uXXXX`) is decoded into the buffer of the
+  string, of the length of its text, and a part of a value that fails to
+  read or that a later key of the same name replaces is wiped. Not wiped:
   the copies in the socket buffers of the kernel, and a value that the host
   copies itself.
 * A line over the cap is `too-long`, and the connection closes. A line
@@ -197,8 +201,12 @@ cargo test -p pod-control --all-features
   `the_calls_back_of_a_connection_have_a_total`,
   `a_client_drops_a_server_past_its_budget`.
 * The wipe: `no_freed_block_holds_a_token_of_a_line` (`tests/wipe.rs`: the
-  allocator searches each freed block for the marker of the tokens) and
-  `a_line_that_was_given_leaves_no_byte_in_the_buffer`.
+  allocator searches each freed block for the marker of the tokens, also
+  in a token with each escape, a line that is not JSON and a key that
+  comes twice) and `a_line_that_was_given_leaves_no_byte_in_the_buffer`.
+* The JSON reader: `each_text_reads_as_serde_json_reads_it`,
+  `the_depth_of_arrays_and_objects_is_the_one_of_serde_json`,
+  `a_string_with_an_escape_does_not_grow_its_buffer`.
 * The schema: `the_schema_file_is_generated_from_the_catalogue` (write it
   again with `POD_CONTROL_WRITE_SCHEMAS=1`),
   `each_line_of_the_wire_is_valid_for_the_schema_and_a_broken_one_is_not`.
@@ -207,6 +215,8 @@ cargo test -p pod-control --all-features
 * Windows (`tests/pipe.rs`, in the Windows jobs of `nightly.yml`).
 * Plants: `control-served-not-in-catalogue`, `control-master-method-lower-tier`,
   `control-budget-raised`, `control-tier-refusal-names-the-method`,
-  `control-call-params-not-wiped`.
+  `control-call-params-not-wiped`, `control-line-read-by-serde-json`,
+  `control-call-back-answer-not-wiped`.
 * The fuzz target `control_line` (`fuzz/`): `wire::parse` and the lines
-  written again.
+  written again, and the JSON reader against `serde_json` (the feature
+  `fuzzing` makes `json::read` public).

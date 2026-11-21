@@ -55,7 +55,10 @@ impl Host for Recorder {
         let mut answered = 0;
         for i in 0..n {
             match cx.call("confirm", json!({ "i": i })) {
-                Ok(_) => answered += 1,
+                Ok(mut answer) => {
+                    pod_control::wire::wipe(&mut answer);
+                    answered += 1;
+                }
                 Err(e) => return Ok(json!({ "answered": answered, "fault": e.to_string() })),
             }
         }

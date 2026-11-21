@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**861 entries: 148 open, 28 partial, 7 blocked, 678 done.**
+**862 entries: 148 open, 28 partial, 7 blocked, 679 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 199 | 213 |
 | P2 | 69 | 8 | 4 | 353 | 434 |
-| P3 | 75 | 10 | 3 | 124 | 212 |
-| **All** | 148 | 28 | 7 | 678 | 861 |
+| P3 | 75 | 10 | 3 | 125 | 213 |
+| **All** | 148 | 28 | 7 | 679 | 862 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -902,9 +902,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1044](upkeep.md) | P3 | S | M5 | defect | open | `check-windows.sh` and `check-macos.sh` compile no doc test, so a doc test with an item of Unix fails only in the nightly |
 | [T-1045](podvm.md) | P2 | S | M6 | feature | done | `pod-supervise`: a streamed read of a log: a copy of a range in pieces, the tail found from the end, a byte bound of a follow (PodUtils/podvm#631) |
 | [T-1046](podvm.md) | P2 | S | M6 | feature | done | `pod-incus`: a read of a file in pieces to a writer, with a `Range` and a byte bound of the caller (PodUtils/podvm#631) |
-| [T-1048](fleet.md) | P3 | M | M8 | defect | open | `pod-control`: the scratch buffer of `serde_json` keeps a string of a line with an escape, with no wipe |
+| [T-1048](fleet.md) | P3 | M | M8 | defect | done | `pod-control`: the scratch buffer of `serde_json` keeps a string of a line with an escape, with no wipe |
 | [T-1052](upkeep.md) | P2 | S | M2 | defect | done | `pod-link`: the gate of E2-1 at 20 % drop divides by a clean time that the CPU of the host sets, so a fast runner gives a factor above its bound (nightly 44792996234) |
 | [T-1053](upkeep.md) | P3 | S | M2 | measurement | open | `pod-link`: a transfer of KCP with `nodelay` at 20 % drop can take ten times its median, as the RTO of a segment grows by half at each timeout |
 | [T-1056](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: `qmp::Monitor::connect` puts no bound on the `connect()` itself, so a connect to the full queue of the monitor of QEMU waits in the kernel with no end (PodUtils/podvm#633) |
 | [T-1057](podvm.md) | P2 | S | M7 | defect | done | `pod-guest`: the tests of `warm::line` have no stand-in of the monitor of QEMU with one client and a queue of one connection (PodUtils/podvm#633) |
 | [T-1059](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the test of a code in no line takes a part of a word for a word of the code (`ci` 44806766580) |
+| [T-1060](fleet.md) | P3 | S | M8 | defect | open | `pod-control`: an answer that the server drops on a side path, after a timeout or a spent budget, is not wiped |
