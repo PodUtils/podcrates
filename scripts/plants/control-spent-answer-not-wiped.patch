@@ -1,0 +1,12 @@
+diff --git a/crates/pod-control/src/server.rs b/crates/pod-control/src/server.rs
+index 75ba854e..ec3ae3b8 100644
+--- a/crates/pod-control/src/server.rs
++++ b/crates/pod-control/src/server.rs
+@@ -310,6 +310,7 @@ fn request<S: Stream>(
+             // Past the budget, the answer of the host is wiped at its drop.
+             Ok(ToConn::Answer(outcome)) => {
+                 return if spent {
++                    drop(outcome.map(Wiped::take));
+                     Err(Fault::new(Code::Budget, "the calls back of the request are spent"))
+                 } else {
+                     outcome.map(Wiped::take)

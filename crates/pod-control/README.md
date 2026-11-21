@@ -62,7 +62,10 @@ bytes (64 KiB) without its line end, and UTF-8.
 * A line can hold a token: each copy is wiped after its use. The frame
   wipes each line that it gives or drops, its old buffer at each growth and
   its buffer at its drop; `wire::parse` wipes the object that it read, and a
-  `Request` and a `Call` wipe their params at their drop (`wire::wipe`). A
+  `Request` and a `Call` wipe their params at their drop (`wire::wipe`).
+  The server wipes the answer of each request after its write, and each
+  answer and each params of a call back that it drops: past the budget of
+  calls back, after `busy`, and after the wait of `Context::call`. A
   line that `wire::request_line` or `wire::answer_line` writes has its exact
   length (no growth leaves a copy) and is wiped at its drop; the client
   wipes the params of each call after the write, the answer of each call
@@ -202,8 +205,8 @@ cargo test -p pod-control --all-features
   `a_client_drops_a_server_past_its_budget`.
 * The wipe: `no_freed_block_holds_a_token_of_a_line` (`tests/wipe.rs`: the
   allocator searches each freed block for the marker of the tokens, also
-  in a token with each escape, a line that is not JSON and a key that
-  comes twice) and `a_line_that_was_given_leaves_no_byte_in_the_buffer`.
+  in a token with each escape, a line that is not JSON, a key that comes
+  twice, and each path where the server drops an answer) and `a_line_that_was_given_leaves_no_byte_in_the_buffer`.
 * The JSON reader: `each_text_reads_as_serde_json_reads_it`,
   `the_depth_of_arrays_and_objects_is_the_one_of_serde_json`,
   `a_string_with_an_escape_does_not_grow_its_buffer`.
@@ -216,7 +219,7 @@ cargo test -p pod-control --all-features
 * Plants: `control-served-not-in-catalogue`, `control-master-method-lower-tier`,
   `control-budget-raised`, `control-tier-refusal-names-the-method`,
   `control-call-params-not-wiped`, `control-line-read-by-serde-json`,
-  `control-call-back-answer-not-wiped`.
+  `control-call-back-answer-not-wiped`, `control-spent-answer-not-wiped`.
 * The fuzz target `control_line` (`fuzz/`): `wire::parse` and the lines
   written again, and the JSON reader against `serde_json` (the feature
   `fuzzing` makes `json::read` public).
