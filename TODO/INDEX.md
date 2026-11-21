@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**855 entries: 148 open, 31 partial, 7 blocked, 669 done.**
+**856 entries: 148 open, 30 partial, 7 blocked, 671 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 11 | 0 | 197 | 212 |
-| P2 | 70 | 10 | 4 | 347 | 431 |
+| P2 | 70 | 9 | 4 | 349 | 432 |
 | P3 | 74 | 10 | 3 | 123 | 210 |
-| **All** | 148 | 31 | 7 | 669 | 855 |
+| **All** | 148 | 30 | 7 | 671 | 856 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -876,7 +876,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1010](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: the child of the payload keeps the signal mask of the caller, so a payload of a caller that blocked a signal never gets it |
 | [T-1012](podvm.md) | P2 | M | M7 | feature | done | `pod-guest`: a saved state of the caller's machine line with no UEFI `Plan`, for podvm's Linux guest (PodUtils/podvm#618) |
 | [T-1013](podvm.md) | P2 | S | M6 | feature | done | `pod-services`: the pinned static QEMU at 11.0.0, with the fix of the use-after-free of `address_space_translate_for_iotlb` (PodUtils/podvm#618) |
-| [T-1014](podvm.md) | P2 | M | M6 | feature | partial | `pod-services`: a static QEMU of the newest stable point release; the pin of T-1013 is 11.0.0, and 11.0.5 and 11.1.3 are out |
+| [T-1014](podvm.md) | P2 | M | M6 | feature | done | `pod-services`: a static QEMU of the newest stable point release; the pin of T-1013 is 11.0.0, and 11.0.5 and 11.1.3 are out |
 | [T-1016](fleet.md) | P2 | S | M8 | defect | done | `pod-release`: a line of the chain names a certificate by its subject, and a leaf of Fulcio has none |
 | [T-1018](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `the_tokens_agree_with_the_loader_of_the_host` fails where the test binary is of another machine than the `/bin/true` of the host |
 | [T-1019](fleet.md) | P2 | S | M8 | defect | done | `pod-broker`: the cargo leg of `tls_clients` runs the proxy of rustup in a temporary directory, where it finds no toolchain |
@@ -902,3 +902,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1044](upkeep.md) | P3 | S | M5 | defect | open | `check-windows.sh` and `check-macos.sh` compile no doc test, so a doc test with an item of Unix fails only in the nightly |
 | [T-1045](podvm.md) | P2 | S | M6 | feature | done | `pod-supervise`: a streamed read of a log: a copy of a range in pieces, the tail found from the end, a byte bound of a follow (PodUtils/podvm#631) |
 | [T-1046](podvm.md) | P2 | S | M6 | feature | done | `pod-incus`: a read of a file in pieces to a writer, with a `Range` and a byte bound of the caller (PodUtils/podvm#631) |
+| [T-1059](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the test of a code in no line takes a part of a word for a word of the code (`ci` 44806766580) |

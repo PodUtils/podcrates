@@ -10520,3 +10520,44 @@ cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
 2026-11-20, partial (the proof is the next run of the Windows jobs of `nightly.yml`; call C830): `pod_quic::endpoint::bind` makes its socket with `socket2` (`dual_stack`): `set_only_v6(false)` before the bind for an address of IPv6, as `noq::Endpoint::client` does. `socket2` 0.6 is a new direct dependency of `pod-quic` and no new crate in `Cargo.lock` (noq-udp has it). The test `an_endpoint_on_the_ipv6_wildcard_reaches_a_server_on_ipv4` (`crates/pod-quic/tests/handshake.rs`). `cargo test -p pod-proxy -p pod-core -p pod-quic --all-features` on Linux: 0 failed, the new test skipped ("this host has no socket of IPv6"); `--test quick_tunnel_standin` of `pod-cloudflare`: 13 passed; `sh scripts/agent/check-windows.sh`: no fault in `pod-quic`. Open: the result of the new test and of the test of T-933 on `windows-2025` and `windows-11-arm`.
 
 2026-11-20, the proof: the nightly run 44696810225 at `68fbc96`, jobs `test (windows-2025)` 136155413723 and `test (windows-11-arm)` 136155413649 (both green). On each job `an_endpoint_on_the_ipv6_wildcard_reaches_a_server_on_ipv4` (`crates/pod-quic/tests/handshake.rs`) ran and passed with no skip line (the runners have IPv6), and `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` of `pod-cloudflare` passed.
+
+# T-1059: `pod-relay`: the test of a code in no line takes a part of a word for a word of the code (`ci` 44806766580)
+
+**Source:** `ci.yml` 44806766580 (a dispatch, at `0d4af7e`), job `test` 136532707854
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`the_code_is_in_no_line_and_no_debug` (`crates/pod-relay/tests/pair_code.rs`) fails when a word of
+the random code is a part of another word of a line: "the stand-in: a word of the code in \"Given {
+operator: PublicKey(SHA256:SQfC+vTbLURn9cTkVxIS8fGQ3FKNAJWeB0o139+gV4M), done: Done { admitted: true,
+said: \"in the test's allowlist\" }, ... }\"". The test used `str::contains`: a key in base64 and the
+English words of the line hold many short runs of letters, so a word of the code can be in them with
+no leak of the code.
+
+## Premise
+
+- Read: the log of the job; the test.
+- Not measured: the rate of the false finding (it depends on the random code and key).
+
+## Approach
+
+The test compares whole words: it splits each line at each character that is not an ASCII letter or
+digit, and refuses a line that holds a word of the code as one whole word.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features --test pair_code the_code_is_in_no_line_and_no_debug
+```
+
+## Done
+
+2026-11-21, this commit. `the_code_is_in_no_line_and_no_debug` splits each line and the debug text
+at each character that is not an ASCII letter or digit, and refuses a whole word of the code. A leak
+of the code (its words in a line) still fails it; a run of letters in a key in base64 or in an English
+word does not.

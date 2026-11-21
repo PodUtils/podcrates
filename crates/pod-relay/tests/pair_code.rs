@@ -263,7 +263,9 @@ async fn the_code_is_in_no_line_and_no_debug() {
         let debug = format!("{given:?} {:?} {:?}", Code::parse(&p.code).unwrap(), taken.done);
         for word in secret {
             for line in lines.iter().chain([&debug]) {
-                assert!(!line.contains(word), "{name}: a word of the code in {line:?}");
+                // A whole word: a word of the code can be a part of a key in base64 or of an English word.
+                let whole = line.split(|c: char| !c.is_ascii_alphanumeric()).any(|w| w == word);
+                assert!(!whole, "{name}: a word of the code in {line:?}");
             }
         }
     }

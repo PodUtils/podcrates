@@ -11465,7 +11465,7 @@ NVMe disk, is T-1014 (PodUtils/static-pkgs).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -11549,6 +11549,13 @@ runs here. The live warm save of the plan is not measured yet.
 What remains: the two runs of the Prove on `main`. podvm's take (its
 table of tools at the new pins, with the same host `github.com`) goes in
 the hand-off of the next tag.
+
+The Prove on `main`: `services.yml` 44806797116 with `service=static-pkgs-qemu` (at `0d4af7e`)
+passed, each of the four archives at its SHA-256 and length; `guest.yml` 44809029300 (at `377f4dd`,
+the code of `0d4af7e`) passed: the static QEMU 11.1.3 runs `warm::`, and
+`a_real_emulator_saves_the_plan_from_qemu_11_1_and_boots_cold_before` saves the plan line with its
+NVMe root disk and starts it warm.
+
 
 # T-1018: `pod-enter`: `the_tokens_agree_with_the_loader_of_the_host` fails where the test binary is of another machine than the `/bin/true` of the host
 

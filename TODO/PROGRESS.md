@@ -1,20 +1,21 @@
 # Progress
 
-`TODO/INDEX.md` holds 855 entries: 148 open, 31 partial, 7 blocked, 669 done.
+`TODO/INDEX.md` holds 856 entries: 148 open, 30 partial, 7 blocked, 671 done.
 
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
 - Last release: `v0.80.0` at `62b8039` (`docs/releases/v0.80.0.md`). Its
-  hand-off is COORD-150 (#250): the takes of podnet and podssh are in its list.
-- The next tag carries the fixes of `main` after `v0.80.0`. T-1014 (the
-  pin of the static QEMU 11.1.3 of PodUtils/static-pkgs, release
-  `qemu-11.1.3`) is open. T-966 and T-963 are partial. T-975 and T-977
+  hand-off is COORD-150 (#250): the takes of podnet, podssh and podrunner
+  are in its list.
+- The next tag carries the fixes of `main` after `v0.80.0`, with T-1014
+  (the static QEMU 11.1.3 of PodUtils/static-pkgs, release `qemu-11.1.3`:
+  the warm save of the NVMe disk of podvm's Windows guest). T-966 and T-963 are partial. T-975 and T-977
   (podvm's asks) are open: their code is not on `main`. `release.yml` has
   steps that run on a tag only, which the dry run does not test (T-974;
   `docs/maintenance.md`, "A release").
 - The tag that the `main` of each consumer names: `v0.80.0` (podnet,
-  podssh), `v0.79.0` (podrunner, podvm). The details of each take are on #245 and #250.
+  podssh, podrunner), `v0.79.0` (podvm). The details of each take are on #245 and #250.
 - PodUtils/static-pkgs builds and publishes the static programs that no
   one else publishes in the form that PodUtils needs (the owner,
   2026-11-20); its first release is `qemu-11.1.3`.
@@ -78,7 +79,7 @@ PodUtils/podnet@T-494), T-1023 (`pod-control` wipes a line that holds a credenti
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
 of the consumers: T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
-for the parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-1032 (the launcher of `pod-supervise` blocks before the start of the payload), T-1014 (the static QEMU 11.1.3 of PodUtils/static-pkgs), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
+for the parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-1032 (the launcher of `pod-supervise` blocks before the start of the payload), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
 T-851. Then T-920.
 Then the ruling "Discipline": T-692
 (`pod-lab`, part 2), T-700 (`pod-manual`: the take of each consumer; its

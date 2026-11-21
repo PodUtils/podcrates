@@ -86,7 +86,8 @@ is done. Git and the record keep finished work.
 
 ## The next tag
 
-It carries each fix of `main` after `v0.80.0`, and T-1014: the pin of the
+It carries each fix of `main` after `v0.80.0`, and T-1014 (done, proven
+by `services.yml` 44806797116 and `guest.yml` 44809029300): the pin of the
 static QEMU 11.1.3 of PodUtils/static-pkgs (release `qemu-11.1.3`, built
 from QEMU `v11.1.3` with glib and libaio from pinned sources and the source
 of each LGPL part as an asset), for the save of an NVMe disk (T-1035).
