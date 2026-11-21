@@ -6,14 +6,16 @@
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
 - Last release: `v0.81.0` at `0707cfa` (`docs/releases/v0.81.0.md`). Its
-  hand-off COORD-151 (#254) is open: each consumer takes it, podrunner
-  first.
-- The next tag carries the fixes of `main` after `v0.81.0`. T-966 and
+  hand-off COORD-151 (#254) is open: podrunner, podnet and podssh took
+  it at 2026-11-21; podvm has no take.
+- The next tag, `v0.82.0`, comes first: podrunner waits for T-1086
+  (PodUtils/podrunner#339). It carries the fixes of `main` after `v0.81.0`
+  (`docs/HANDOFF.md`, "The next tag"). T-966 and
   T-963 are partial. T-975 and T-977 (podvm's asks) are open: their code is
   not on `main`. `release.yml` has steps that run on a tag only, which the
   dry run does not test (T-974; `docs/maintenance.md`, "A release").
-- The tag that the `main` of each consumer names: `v0.80.0` (podrunner,
-  podssh, podnet, podvm). The details of each take are on #250 and #254.
+- The tag that the `main` of each consumer names: `v0.81.0` (podrunner,
+  podssh, podnet), `v0.80.0` (podvm). The details of each take are on #250 and #254.
 - PodUtils/static-pkgs builds and publishes the static programs that no
   one else publishes in the form that PodUtils needs (the owner,
   2026-11-20); its first release is `qemu-11.1.3`.

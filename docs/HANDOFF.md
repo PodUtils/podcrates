@@ -33,6 +33,12 @@ is done. Git and the record keep finished work.
      riscv64: `pod-iroh` `road.rs` and `share.rs` ("early eof"), T-916;
      the job took 111 of its 150 minutes (T-938). The next nightly proves
      T-1082.
+   - `nightly.yml` 44871383085 at `ab73e75` (#255): it was running at the
+     end of the last session. It is the first live run of T-1026 (the
+     step "A Windows service of pod-unit" on windows-2025 and
+     windows-11-arm) and of the Windows path of `install_system`. Read it
+     first: a red step of it is an entry before other work. `ci`,
+     `adoption` and `plants` of #255 passed on `ab73e75`.
    - `ci.yml`: T-943 is done: the arm64 probe of macOS builds on the
      Intel runner.
    - `docs/research/hard-problems.md`: the hard open problems (H-01 to
@@ -63,12 +69,13 @@ is done. Git and the record keep finished work.
    G-34 and G-35 are done; the last part of G-34 (T-964) goes in the next
    tag. cfb's A-X-18 (T-106, partial) waits for cfb's answer on #223. Both
    reply comments are current.
-7. The hand-off of `v0.81.0` is open: COORD-151 (#254). Write each take in
-   its "Takes" list, and close it when each consumer took its tag or a
-   later one (call C780). podrunner changes two lines of code at its take;
-   podvm names `static-pkgs-qemu` in its test of hosts. The pushes of a cloud session of this
+7. The hand-off of `v0.81.0` is open: COORD-151 (#254). podrunner
+   (PodUtils/podrunner#340), podnet (PodUtils/podnet#654) and podssh
+   (PodUtils/podssh#337) took it at 2026-11-21; podvm has no take. Write the take of
+   podvm in its "Takes" list, and close #254 when podvm took `v0.81.0` or a
+   later tag (call C780). The pushes of a cloud session of this
    account start no run of GitHub Actions: each gate, nightly and release
-   is a request `[gh action] requested` (#253 is the last); one
+   is a request `[gh action] requested` (#255 is the last); one
    request can run the workflows of PodUtils/static-pkgs too. COORD-142 (#236) relays the ruling "ghcr.io" (call C789):
    podcrates, podvm and podnet publish in its form, podssh pushes at its
    next tag, and podrunner's T-553 is open.
@@ -91,23 +98,46 @@ is done. Git and the record keep finished work.
 
 ## The next tag
 
-It carries each fix of `main` after `v0.81.0`: T-1060 (the wipe of each
-answer that the server of `pod-control` drops). T-966 (podnet's half waits
-for PodUtils/podnet@T-494) and T-963 are partial. T-975 and T-977 (podvm's
-asks #602 and #604; Q18 blocks their release part) are open. Before the
-release, read `docs/maintenance.md`, "A release": the steps of
-`release.yml` that run on a tag only are not tested by the dry run.
+Release `v0.82.0` first, after the nightly of #255: podrunner waits for
+T-1086 (PodUtils/podrunner#339 through PodUtils/podvm#643). It carries
+each fix of `main` after `v0.81.0`:
+
+- T-1086: `pod-extract` sets the ACLs of a layer of GNU tar `--acls`
+  (`SCHILY.acl.*` to `system.posix_acl_*`, counted in `xattrs`); a GNU
+  sparse file now refuses its layer (T-1087); call C899.
+- T-1080: `pod-enter` gives 126 to a file that `execve` found and refused
+  (`E2BIG`, `EINVAL`, `ELIBBAD` and five more), and the search of the path
+  keeps the errno of the refused file (PodUtils/podvm#639). podvm drops its
+  read of the text `E2BIG (7)` at its take.
+- T-1026: `pod_unit::windows::serve`, the dispatcher of the service
+  control manager. The README of `pod-unit`, "The dispatcher of a Windows
+  service", has the map of podrunner's loop (`ready`, `stop`, `stopping`,
+  the exit code).
+- T-1060: the server of `pod-control` wipes each answer that it drops.
+- T-1082: each gate of no blocking call runs alone in its test binary.
+
+T-966 (podnet's half waits for PodUtils/podnet@T-494) and T-963 are
+partial. T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks their
+release part) are open. Before the release, read `docs/maintenance.md`, "A
+release": the steps of `release.yml` that run on a tag only are not tested
+by the dry run.
 
 ## Unfinished work
 
-- #208 asks the owner's agent to delete the `wip/` branches whose work is
-  on `main`: `wip/T-717-installer-sign`, `wip/T-746-way-out`,
-  `wip/egress-part2`, `wip/egress-part3` and `wip/t909`. The proxy of a
-  cloud session drops `git push origin --delete`. The two branches
-  `dependabot/docker/images/coturn/coturn/coturn-4.19.0` and
-  `dependabot/docker/images/trufflehog/trufflesecurity/trufflehog-3.99.8`
-  also stay: their pull requests (#232, #79) are closed, and `main` has
-  the newer pins.
+- `wip/t1073` (base `991c600b`): T-1073 (one deadline of the server for
+  a call back of `pod-control`) and T-1070 (`Server::active` counts a
+  refused connection for a moment). Its first commit has the code, the
+  tests and four plants (`control-refused-counts-as-place`,
+  `control-call-back-blank-lines-renew`,
+  `control-line-write-timeout-each-write`,
+  `control-write-after-part-of-line`); fmt and clippy passed, and each new
+  test passed 20 of 20 runs. Its second commit is the record of done. The
+  workspace tests, the doc, `cargo todo check`, `lint.sh`,
+  `check-windows.sh` and `check-macos.sh` did not run. Next: merge the
+  branch into `main` locally, run each check of AGENTS.md, fix a fault,
+  and push; then delete the branch by a request `[gh action] requested`
+  (the proxy drops `git push origin --delete`). The new API is
+  `Context::call_within`; no consumer must change.
 
 ## What waits
 
