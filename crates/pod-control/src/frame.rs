@@ -1,9 +1,14 @@
 //! The line frame: one cap of length, a check of UTF-8, and a deadline for
 //! each line. A slow peer that sends one byte at a time meets the deadline
 //! of the whole line, not a new timeout for each byte.
+//!
+//! A line can hold a token: the frame wipes each byte of a line that it
+//! gives or drops, in its buffer and in the old buffer at each growth.
 
 use std::io::{self, Read, Write};
 use std::time::{Duration, Instant};
+
+use zeroize::{Zeroize, Zeroizing};
 
 /// A connected byte stream of the control: a Unix stream or the end of a
 /// named pipe.
@@ -51,8 +56,8 @@ impl<S: Stream + ?Sized> Stream for Box<S> {
 /// What one read of a line gives.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Line {
-    /// A whole line, with no line end.
-    Text(String),
+    /// A whole line, with no line end. Its text is wiped at its drop.
+    Text(Zeroizing<String>),
     /// The peer closed. A part of a line before the close is dropped.
     End,
     /// The line is longer than the cap. The frame is lost: close.
@@ -67,7 +72,10 @@ pub enum Line {
 /// The lines of a stream, at most `cap` bytes each without the line end.
 pub struct Lines<S> {
     stream: S,
-    buf: Vec<u8>,
+    /// Each byte is written before it is read: the reads fill `buf[filled..]`,
+    /// and the bytes past `filled` are zero.
+    buf: Zeroizing<Vec<u8>>,
+    filled: usize,
     cap: usize,
 }
 
@@ -75,7 +83,7 @@ const CHUNK: usize = 8 * 1024;
 
 impl<S: Stream> Lines<S> {
     pub fn new(stream: S, cap: usize) -> Lines<S> {
-        Lines { stream, buf: Vec::new(), cap }
+        Lines { stream, buf: Zeroizing::new(Vec::new()), filled: 0, cap }
     }
 
     pub fn stream(&mut self) -> &mut S {
@@ -85,27 +93,24 @@ impl<S: Stream> Lines<S> {
     /// The next line, whole before `timeout` from now.
     pub fn next_line(&mut self, timeout: Duration) -> io::Result<Line> {
         let deadline = Instant::now() + timeout;
-        let mut chunk = [0u8; CHUNK];
         loop {
-            if let Some(end) = self.buf.iter().position(|b| *b == b'\n') {
-                let mut line: Vec<u8> = self.buf.drain(..=end).collect();
-                line.pop();
-                if line.len() > self.cap {
-                    return Ok(Line::TooLong);
-                }
-                return Ok(String::from_utf8(line).map_or(Line::NotUtf8, Line::Text));
+            if let Some(end) = self.buf[..self.filled].iter().position(|b| *b == b'\n') {
+                return Ok(self.take(end));
             }
-            if self.buf.len() > self.cap {
+            if self.filled > self.cap {
                 return Ok(Line::TooLong);
             }
             let left = deadline.saturating_duration_since(Instant::now());
             if left.is_zero() {
                 return Ok(Line::Timeout);
             }
+            if self.filled == self.buf.len() {
+                self.grow();
+            }
             self.stream.set_read_timeout(Some(left))?;
-            match self.stream.read(&mut chunk) {
+            match self.stream.read(&mut self.buf[self.filled..]) {
                 Ok(0) => return Ok(Line::End),
-                Ok(n) => self.buf.extend_from_slice(&chunk[..n]),
+                Ok(n) => self.filled += n,
                 Err(e) if e.kind() == io::ErrorKind::Interrupted => {}
                 Err(e) if matches!(e.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut) => {
                     return Ok(Line::Timeout);
@@ -113,6 +118,34 @@ impl<S: Stream> Lines<S> {
                 Err(e) => return Err(e),
             }
         }
+    }
+
+    /// The line of `buf[..end]`, with its line end at `end`. The bytes after
+    /// it move to the start, and each byte that they leave is wiped.
+    fn take(&mut self, end: usize) -> Line {
+        let line = (end <= self.cap).then(|| Zeroizing::new(self.buf[..end].to_vec()));
+        let rest = self.filled - end - 1;
+        self.buf.copy_within(end + 1..self.filled, 0);
+        self.buf[rest..self.filled].zeroize();
+        self.filled = rest;
+        let Some(mut line) = line else { return Line::TooLong };
+        match String::from_utf8(std::mem::take(&mut *line)) {
+            Ok(text) => Line::Text(Zeroizing::new(text)),
+            Err(e) => {
+                drop(Zeroizing::new(e.into_bytes()));
+                Line::NotUtf8
+            }
+        }
+    }
+
+    /// A buffer of twice the size, at most one byte past the cap. The old
+    /// buffer is wiped at its drop: a growth in place of the allocator would
+    /// leave a copy that no one wipes.
+    fn grow(&mut self) {
+        let size = (self.buf.len() * 2).clamp(CHUNK, self.cap.saturating_add(1).max(CHUNK));
+        let mut bigger = Zeroizing::new(vec![0u8; size]);
+        bigger[..self.filled].copy_from_slice(&self.buf[..self.filled]);
+        self.buf = bigger;
     }
 
     /// Write `line` whole; it holds its line end.
@@ -126,6 +159,10 @@ impl<S: Stream> Lines<S> {
 mod tests {
     use super::*;
     use std::os::unix::net::UnixStream;
+
+    fn text(t: &str) -> Line {
+        Line::Text(Zeroizing::new(t.to_string()))
+    }
 
     fn pair(cap: usize) -> (Lines<UnixStream>, UnixStream) {
         let (a, b) = UnixStream::pair().unwrap();
@@ -148,7 +185,7 @@ mod tests {
         peer.write_all(b"one\n").unwrap();
         drop(peer);
         let t = Duration::from_secs(5);
-        assert_eq!(lines.next_line(t).unwrap(), Line::Text("one".into()));
+        assert_eq!(lines.next_line(t).unwrap(), text("one"));
         assert_eq!(lines.next_line(t).unwrap(), Line::End);
         lines.stream().set_write_timeout(Some(t)).unwrap();
         assert!(lines.write_line("two\n").is_err(), "a write to a closed peer fails at once");
@@ -159,8 +196,8 @@ mod tests {
         let (mut lines, mut peer) = pair(16);
         peer.write_all(b"one\ntwo\n").unwrap();
         let t = Duration::from_secs(5);
-        assert_eq!(lines.next_line(t).unwrap(), Line::Text("one".into()));
-        assert_eq!(lines.next_line(t).unwrap(), Line::Text("two".into()));
+        assert_eq!(lines.next_line(t).unwrap(), text("one"));
+        assert_eq!(lines.next_line(t).unwrap(), text("two"));
         drop(peer);
         assert_eq!(lines.next_line(t).unwrap(), Line::End);
     }
@@ -170,7 +207,7 @@ mod tests {
         let (mut lines, mut peer) = pair(4);
         peer.write_all(b"abcd\nabcde\n").unwrap();
         let t = Duration::from_secs(5);
-        assert_eq!(lines.next_line(t).unwrap(), Line::Text("abcd".into()));
+        assert_eq!(lines.next_line(t).unwrap(), text("abcd"));
         assert_eq!(lines.next_line(t).unwrap(), Line::TooLong);
         // A line with no end that passes the cap is too long before its end.
         let (mut lines, mut peer) = pair(4);
@@ -179,12 +216,27 @@ mod tests {
     }
 
     #[test]
+    fn a_line_that_was_given_leaves_no_byte_in_the_buffer() {
+        let holds = |buf: &[u8], text: &[u8]| buf.windows(text.len()).any(|w| w == text);
+        let (mut lines, mut peer) = pair(64);
+        peer.write_all(b"made-up-one\nmade-up-two\nrest").unwrap();
+        let t = Duration::from_secs(5);
+        assert_eq!(lines.next_line(t).unwrap(), text("made-up-one"));
+        assert!(!holds(&lines.buf, b"made-up-one"), "the buffer keeps the line that it gave");
+        assert_eq!(&lines.buf[..lines.filled], b"made-up-two\nrest");
+        assert_eq!(lines.next_line(t).unwrap(), text("made-up-two"));
+        assert!(!holds(&lines.buf, b"made-up"), "the buffer keeps a line that it gave");
+        assert_eq!(&lines.buf[..lines.filled], b"rest");
+        assert!(lines.buf[lines.filled..].iter().all(|b| *b == 0), "a byte past the rest is not wiped");
+    }
+
+    #[test]
     fn a_line_that_is_not_utf8_keeps_the_frame() {
         let (mut lines, mut peer) = pair(16);
         peer.write_all(b"\xff\xfe\nok\n").unwrap();
         let t = Duration::from_secs(5);
         assert_eq!(lines.next_line(t).unwrap(), Line::NotUtf8);
-        assert_eq!(lines.next_line(t).unwrap(), Line::Text("ok".into()));
+        assert_eq!(lines.next_line(t).unwrap(), text("ok"));
     }
 
     #[test]

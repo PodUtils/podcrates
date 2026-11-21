@@ -59,6 +59,16 @@ bytes (64 KiB) without its line end, and UTF-8.
   `failed`, `internal`. `Code::class` gives the `pod_core::Class` of each.
 * The `detail` of an error holds no byte of the request: a request can
   hold a token.
+* A line can hold a token: each copy is wiped after its use. The frame
+  wipes each line that it gives or drops, its old buffer at each growth and
+  its buffer at its drop; `wire::parse` wipes the object that it read, and a
+  `Request` and a `Call` wipe their params at their drop (`wire::wipe`). A
+  line that `wire::request_line` or `wire::answer_line` writes has its exact
+  length (no growth leaves a copy) and is wiped at its drop; the client
+  wipes the params of each call after the write, and `Token` its text. Not
+  wiped: the scratch buffer of `serde_json` for a string with an escape,
+  the copies in the socket buffers of the kernel, and a value that the host
+  copies itself.
 * A line over the cap is `too-long`, and the connection closes. A line
   that is not UTF-8 is `not-utf8`, and the connection goes on.
 * Each whole line has `Settings::read_timeout` (5 s): a peer that sends one
@@ -186,6 +196,9 @@ cargo test -p pod-control --all-features
 * The budgets: `a_request_past_its_callback_budget_is_a_fault`,
   `the_calls_back_of_a_connection_have_a_total`,
   `a_client_drops_a_server_past_its_budget`.
+* The wipe: `no_freed_block_holds_a_token_of_a_line` (`tests/wipe.rs`: the
+  allocator searches each freed block for the marker of the tokens) and
+  `a_line_that_was_given_leaves_no_byte_in_the_buffer`.
 * The schema: `the_schema_file_is_generated_from_the_catalogue` (write it
   again with `POD_CONTROL_WRITE_SCHEMAS=1`),
   `each_line_of_the_wire_is_valid_for_the_schema_and_a_broken_one_is_not`.
@@ -193,6 +206,7 @@ cargo test -p pod-control --all-features
   `a_server_that_breaks_the_protocol_has_findings`.
 * Windows (`tests/pipe.rs`, in the Windows jobs of `nightly.yml`).
 * Plants: `control-served-not-in-catalogue`, `control-master-method-lower-tier`,
-  `control-budget-raised`, `control-tier-refusal-names-the-method`.
+  `control-budget-raised`, `control-tier-refusal-names-the-method`,
+  `control-call-params-not-wiped`.
 * The fuzz target `control_line` (`fuzz/`): `wire::parse` and the lines
   written again.

@@ -6,6 +6,7 @@ use std::io;
 use std::time::Duration;
 
 use serde_json::{Value, json};
+use zeroize::Zeroizing;
 
 use crate::catalogue::Tier;
 use crate::frame::{Line, Lines, Stream};
@@ -152,14 +153,16 @@ impl Client {
     }
 
     /// Call `method` with `params` (an object). A call back of the server is
-    /// answered `unsupported`.
+    /// answered `unsupported`. The params and the line are wiped after the
+    /// write: they can hold a token.
     pub fn call(&mut self, method: &str, params: Value) -> Result<Value, Error> {
         self.call_with(method, params, &mut |_, _| Err(Fault::new(Code::Unsupported, "this client takes no call back")))
     }
 
     /// Call `method`, and answer each call back of the server with `back`.
-    pub fn call_with(&mut self, method: &str, params: Value, back: Back<'_>) -> Result<Value, Error> {
+    pub fn call_with(&mut self, method: &str, mut params: Value, back: Back<'_>) -> Result<Value, Error> {
         if self.broken {
+            wire::wipe(&mut params);
             return Err(Error::Closed);
         }
         let id = self.next;
@@ -167,6 +170,7 @@ impl Client {
         // The server can answer `busy` or `refused` and close before the
         // request is written: read its line before the write error counts.
         let written = self.lines.write_line(&wire::request_line(id, method, &params, None));
+        wire::wipe(&mut params);
         let result = self.answer_of(id, back);
         match (&result, written) {
             (Err(Error::Closed), Err(e)) => Err(Error::Io(e)),
@@ -188,7 +192,10 @@ impl Client {
                 Ok(Inbound::Answer { id: got, outcome }) if got == Some(id) || got.is_none() => {
                     return outcome.map_err(Error::Remote);
                 }
-                Ok(Inbound::Answer { .. }) => return self.broke("an answer to another request"),
+                Ok(Inbound::Answer { outcome, .. }) => {
+                    wire::wipe_outcome(outcome);
+                    return self.broke("an answer to another request");
+                }
                 Ok(Inbound::Request(req)) if req.for_id == Some(id) => {
                     if used >= self.settings.callbacks_per_request
                         || self.callbacks >= self.settings.callbacks_per_connection
@@ -212,7 +219,7 @@ impl Client {
         Err(Error::Protocol(why.into()))
     }
 
-    fn next_text(&mut self) -> Result<String, Error> {
+    fn next_text(&mut self) -> Result<Zeroizing<String>, Error> {
         loop {
             match self.lines.next_line(self.settings.read_timeout)? {
                 Line::Text(t) if t.trim().is_empty() => continue,

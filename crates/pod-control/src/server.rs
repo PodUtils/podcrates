@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use serde_json::Value;
+use zeroize::Zeroizing;
 
 use crate::catalogue::{Catalogue, Tier};
 use crate::dispatch::{self, Session, Target};
@@ -16,13 +17,14 @@ use crate::host::{CallFault, Context, Host, Outcome, Peer, ToConn};
 use crate::wire::{self, Code, Fault, Inbound, Request};
 
 /// A secret that raises a connection to the master tier. It is compared in
-/// constant time, and its `Debug` shows no byte of it.
+/// constant time, its `Debug` shows no byte of it, and its text is wiped at
+/// its drop.
 #[derive(Clone)]
-pub struct Token(String);
+pub struct Token(Zeroizing<String>);
 
 impl Token {
     pub fn new(text: impl Into<String>) -> Token {
-        Token(text.into())
+        Token(Zeroizing::new(text.into()))
     }
 
     pub fn expose(&self) -> &str {
@@ -126,7 +128,8 @@ pub(crate) struct Shared {
     pub closed: AtomicBool,
 }
 
-/// A delegated request for the host.
+/// A delegated request for the host. Its params are wiped at its drop, also
+/// when the host drops it with no answer.
 pub struct Call {
     target: Target,
     method: String,
@@ -145,6 +148,12 @@ impl Call {
     pub fn answer(mut self, host: &mut dyn Host) {
         let outcome = dispatch::delegate(&self.target, host, &self.params, &mut self.cx);
         let _ = self.reply.send(ToConn::Answer(outcome));
+    }
+}
+
+impl Drop for Call {
+    fn drop(&mut self) {
+        wire::wipe(&mut self.params);
     }
 }
 
@@ -248,7 +257,10 @@ pub(crate) fn serve_connection<S: Stream>(
         };
         let (id, outcome) = match wire::parse(&text) {
             Err((id, fault)) => (id, Err(fault)),
-            Ok(Inbound::Answer { id, .. }) => (id, Err(Fault::new(Code::BadRequest, "an answer with no call back"))),
+            Ok(Inbound::Answer { id, outcome }) => {
+                wire::wipe_outcome(outcome);
+                (id, Err(Fault::new(Code::BadRequest, "an answer with no call back")))
+            }
             Ok(Inbound::Request(req)) => {
                 let id = req.id;
                 (Some(id), request(req, &peer, &mut session, &mut budget, &mut lines, shared, calls))
@@ -262,7 +274,7 @@ pub(crate) fn serve_connection<S: Stream>(
 }
 
 fn request<S: Stream>(
-    req: Request,
+    mut req: Request,
     peer: &Peer,
     session: &mut Session<'_>,
     budget: &mut Budget,
@@ -282,7 +294,8 @@ fn request<S: Stream>(
     let wait = settings.read_timeout + settings.write_timeout + Duration::from_secs(1);
     let cx = Context::new(peer.clone(), session.tier, tx.clone(), wait);
     let status = req.method == "status";
-    let call = Call { target, method: req.method, params: req.params, cx, reply: tx };
+    let (method, params) = (std::mem::take(&mut req.method), std::mem::take(&mut req.params));
+    let call = Call { target, method, params, cx, reply: tx };
     if calls.send(call).is_err() {
         return Err(Fault::new(Code::Busy, "the program takes no request now"));
     }
@@ -298,16 +311,18 @@ fn request<S: Stream>(
                     outcome
                 };
             }
-            Ok(ToConn::Back { method, params, reply }) => {
+            Ok(ToConn::Back { method, mut params, reply }) => {
                 if used >= settings.callbacks_per_request || budget.connection >= settings.callbacks_per_connection {
                     spent = true;
                     session.close |= budget.connection >= settings.callbacks_per_connection;
                     let _ = reply.send(Err(CallFault::Budget));
+                    wire::wipe(&mut params);
                     continue;
                 }
                 used += 1;
                 budget.connection += 1;
                 let result = call_back(lines, req.id, used as u64, &method, &params, settings);
+                wire::wipe(&mut params);
                 if result == Err(CallFault::Gone) {
                     session.close = true;
                 }
@@ -342,6 +357,10 @@ fn call_back<S: Stream>(
             Line::Text(t) => {
                 return match wire::parse(&t) {
                     Ok(Inbound::Answer { id: Some(got), outcome }) if got == id => outcome.map_err(CallFault::Remote),
+                    Ok(Inbound::Answer { outcome, .. }) => {
+                        wire::wipe_outcome(outcome);
+                        Err(CallFault::Gone)
+                    }
                     _ => Err(CallFault::Gone),
                 };
             }

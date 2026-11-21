@@ -13,6 +13,9 @@ repository.workspace = true
 pod-core = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+# A line, a token and the params of a request can hold a credential: each
+# copy is wiped after its use.
+zeroize = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [

@@ -1,0 +1,15 @@
+diff --git a/crates/pod-control/src/server.rs b/crates/pod-control/src/server.rs
+index c12066c9..4d6c930c 100644
+--- a/crates/pod-control/src/server.rs
++++ b/crates/pod-control/src/server.rs
+@@ -152,9 +152,7 @@ impl Call {
+ }
+ 
+ impl Drop for Call {
+-    fn drop(&mut self) {
+-        wire::wipe(&mut self.params);
+-    }
++    fn drop(&mut self) {}
+ }
+ 
+ /// The delegated requests of a server, for the thread of the host.
