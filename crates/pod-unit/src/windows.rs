@@ -11,12 +11,17 @@
 //!
 //! The program of a Windows service must answer the service control
 //! manager (`StartServiceCtrlDispatcherW`); a program that does not is
-//! ended at its start with error 1053.
+//! ended at its start with error 1053. `serve` (on Windows) is that answer:
+//! the program calls it when an argument of the unit says that the manager
+//! started it.
 
 use pod_core::Failure;
 
 use crate::model::{Scope, Unit, unsupported, usage};
 use crate::quote::{windows_word, xml};
+pub use crate::service::{PANIC_CODE, SPECIFIC_ERROR, Signal, WAIT_HINT, exit_codes, program_code};
+#[cfg(windows)]
+pub use crate::service_scm::{Service, serve};
 
 /// The privileges of a service: the least that a program needs to cross the
 /// directories of a path.

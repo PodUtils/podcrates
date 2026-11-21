@@ -1,0 +1,13 @@
+diff --git a/crates/pod-unit/src/service.rs b/crates/pod-unit/src/service.rs
+index d931daf8..ce6582a9 100644
+--- a/crates/pod-unit/src/service.rs
++++ b/crates/pod-unit/src/service.rs
+@@ -91,7 +91,7 @@ impl Report {
+     /// The work is ready: running, with stop and shutdown accepted. None
+     /// outside a pending start: a ready after a stop changes nothing.
+     pub(crate) fn ready(self) -> Option<Report> {
+-        (self.state == State::StartPending).then_some(Report {
++        (self.state != State::Stopped).then_some(Report {
+             state: State::Running,
+             accepts: true,
+             checkpoint: 0,

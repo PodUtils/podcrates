@@ -1,0 +1,7 @@
+# A Windows service loses the exit code of its work: each code that is not
+# 0 reaches the manager as 1, so 78 does not stay 78 (T-1026).
+ENTRY=T-1026
+GROUP=unit
+EXPECT='an_exit_code_of_the_work_stays_the_code_of_the_service \.\.\. FAILED'
+RUN='cargo test -p pod-unit --all-features --lib -- service::tests::an_exit_code_of_the_work_stays_the_code_of_the_service --exact'
+LIMIT=900

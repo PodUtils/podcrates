@@ -1,0 +1,7 @@
+# A ready of the work after a stop of the manager reports running again,
+# with the stop accepted, while the work drains (T-1026).
+ENTRY=T-1026
+GROUP=unit
+EXPECT='a_service_reports_running_after_ready_and_a_pending_stop_while_it_drains \.\.\. FAILED'
+RUN='cargo test -p pod-unit --all-features --lib -- service::tests::a_service_reports_running_after_ready_and_a_pending_stop_while_it_drains --exact'
+LIMIT=900

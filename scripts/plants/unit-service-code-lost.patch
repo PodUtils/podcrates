@@ -1,0 +1,13 @@
+diff --git a/crates/pod-unit/src/service.rs b/crates/pod-unit/src/service.rs
+index d931daf8..2669078a 100644
+--- a/crates/pod-unit/src/service.rs
++++ b/crates/pod-unit/src/service.rs
+@@ -41,7 +41,7 @@ pub const PANIC_CODE: i32 = 101;
+ /// it is (78 stays 78). With `failureflag 1` of `windows::service_commands`,
+ /// the manager takes each code that is not 0 as a failure.
+ pub fn exit_codes(code: i32) -> (u32, u32) {
+-    if code == 0 { (0, 0) } else { (SPECIFIC_ERROR, code as u32) }
++    if code == 0 { (0, 0) } else { (SPECIFIC_ERROR, 1) }
+ }
+ 
+ /// The exit code of the work from the two exit codes of a stopped service,

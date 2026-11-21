@@ -3667,7 +3667,7 @@ sh scripts/agent/check-windows.sh
 
 ## Problem
 
-The job has no margin under `timeout-minutes: 90` (`.github/workflows/nightly.yml:189`), so a slow test of one night cancels the rest and hides their results.
+The job has no margin under `timeout-minutes: 90` (`.github/workflows/nightly.yml:196`), so a slow test of one night cancels the rest and hides their results.
 
 ## Premise
 

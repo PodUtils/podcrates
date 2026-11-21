@@ -13,8 +13,9 @@ repository.workspace = true
 pod-core = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
-# The check that this process may create a service (OpenSCManagerW).
-windows-sys = { version = "0.61", features = ["Win32_System_Services"] }
+# The check that this process may create a service (OpenSCManagerW), and
+# the dispatcher of the service control manager (T-1026).
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Services"] }
 
 [dev-dependencies]
 # The check of a program of the host for a test that skips without it.
@@ -24,3 +25,10 @@ tempfile = "3"
 plist = "1.10"
 # The XML of a task reads back.
 quick-xml = "0.42"
+
+# A Windows service of the test program (T-1026): no libtest, as the service
+# control manager runs the binary again as the service, and the dispatcher
+# takes the thread of main.
+[[test]]
+name = "service_live"
+harness = false
