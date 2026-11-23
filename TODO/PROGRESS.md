@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 876 entries: 150 open, 28 partial, 7 blocked, 691 done.
+`TODO/INDEX.md` holds 882 entries: 150 open, 28 partial, 7 blocked, 697 done.
 
 ## State
 
@@ -18,6 +18,9 @@
   partial. T-975 and T-977 (podvm's asks) are open: their code is not on
   `main`. `release.yml` has steps that run on a tag only, which the dry
   run does not test (T-974; `docs/maintenance.md`, "A release").
+- podssh's ask PodUtils/podssh#341 (COORD-134 of podssh): the fork
+  `vendor/iroh-relay` at 1.4.2 for iroh 1.4.2 (T-1102, call C905). The
+  next tag carries it; T-1103 (iroh 1.5) follows.
 - The tag that the `main` of each consumer names: `v0.82.0` (podnet,
   podssh), `v0.81.0` (podrunner), `v0.80.0` (podvm). The details of the
   earlier takes are on #250 and #254.
@@ -77,7 +80,8 @@ podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red
 nightly (`pod-unit` `crates/pod-unit/tests/service_live.rs` on Windows;
 T-916, T-938), T-1053 (a lossy run of E2-1 that takes 20 s) and the red
-`services.yml` (T-1034) and the red live run (T-963). Then the asks of
+`services.yml` (T-1034), the red live run (T-963) and the drift of
+`upstream.yml` (T-1097: podnet's change of `pod-testkit`'s source). Then the asks of
 podrunner (COORD-134, #225): each new ask of podrunner, and T-1110
 (tell podrunner to call `Hardening::service_account()` for its unit of the
 system at its take of the next tag).
@@ -85,12 +89,10 @@ Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;
 cfb's A-X-18 waits for cfb's answer on #223, call C792),
 T-966 (podssh took `pod-release`; podnet's half waits for
-PodUtils/podnet@T-494), T-1073 and T-1070 (unfinished on
-`origin/wip/t1073`: the wait of `Context::call` of `pod-control` and
-refused places in `Server::active`). Then cfb's asks
+PodUtils/podnet@T-494). Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
-of the consumers: T-1087 and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU sparse file, the attributes of libarchive alone; PodUtils/podvm#643), T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
+of the consumers: T-1103 (iroh 1.5 and its fork of iroh-relay, after PodUtils/podssh#341), T-1087 and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU sparse file, the attributes of libarchive alone; PodUtils/podvm#643), T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
 for the parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-1032 (the launcher of `pod-supervise` blocks before the start of the payload), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852, T-863,
 T-851. Then T-920.
 Then the ruling "Discipline": T-692

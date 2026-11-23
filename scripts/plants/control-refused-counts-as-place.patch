@@ -1,0 +1,17 @@
+diff --git a/crates/pod-control/src/server.rs b/crates/pod-control/src/server.rs
+index 2ac59fad..13d1aa32 100644
+--- a/crates/pod-control/src/server.rs
++++ b/crates/pod-control/src/server.rs
+@@ -217,9 +217,9 @@ impl Drop for Slot {
+ /// Take a slot, or `None` when each is in use. A refused connection does
+ /// not count: [`Shared::active`] is never above [`Settings::clients`].
+ pub(crate) fn take_slot(shared: &Arc<Shared>) -> Option<Slot> {
+-    let clients = shared.settings.clients;
+-    let taken = shared.active.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| (n < clients).then_some(n + 1));
+-    taken.ok().map(|_| Slot(shared.clone()))
++    let n = shared.active.fetch_add(1, Ordering::SeqCst);
++    let slot = Slot(shared.clone());
++    (n < shared.settings.clients).then_some(slot)
+ }
+ 
+ /// Write one refusal of a connection (`busy`, `refused`) and end it.

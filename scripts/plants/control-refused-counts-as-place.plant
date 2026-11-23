@@ -1,0 +1,8 @@
+# The accept counts a refused connection as a place for a moment: the count
+# of `Server::active` goes above `Settings::clients`, and the watch of the
+# count finds it (T-1070).
+ENTRY=T-1070
+GROUP=control
+EXPECT='a refused connection counts as a place'
+RUN='cargo test -p pod-control --all-features --test server the_count_of_active_holds_the_places'
+LIMIT=900

@@ -7628,7 +7628,7 @@ reads the answer of the client (T-1073).
 **Milestone:** M8
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7676,6 +7676,25 @@ more gets `busy`.
 cargo test -p pod-control --all-features --test server
 ```
 
+## Done
+
+2026-11-23, 1712364d (on `main` by a merge; the record of done in 99d69f9a). The half of `pod-control`:
+`the_count_of_active_holds_the_places`
+(`crates/pod-control/tests/server.rs`) ends a call, waits until
+`Server::active` is 0, opens `Settings::clients` (3) connections that are
+each served, refuses 200 more with `busy` while a thread watches the
+count, then gives one place back and has it served again. A finding, fixed
+in place: `take_slot` added 1 to the count before it compared it with the
+limit, so each refused connection held a place for a moment and the count
+went above `Settings::clients`. `take_slot` now adds 1 only below the
+limit (`AtomicUsize::try_update`). The plant
+`control-refused-counts-as-place` (the old `take_slot`) is caught: 20 of 20
+runs of the test alone, 18 of 20 in the parallel run of the binary. With
+the fix the test passes 20 of 20 runs (`--test-threads=1`) and 20 of 20 in
+the parallel binary. The half of podrunner (its test waits until
+`server.active()` is 7 before the eighth connection) is in the hand-off of
+v0.81.0 to podrunner.
+
 # T-1073: `pod-control`: the wait of `Context::call` can end before the server reads the answer of the client
 
 **Source:** T-1060 (a finding of the test of a late answer).
@@ -7683,7 +7702,7 @@ cargo test -p pod-control --all-features --test server
 **Milestone:** M8
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7734,6 +7753,39 @@ proven.
 ```sh
 cargo test -p pod-control --all-features
 ```
+
+## Done
+
+2026-11-23, 1712364d (on `main` by a merge; the record of done in 99d69f9a). A call back has one deadline in the server,
+`write_timeout + read_timeout` from its start (`call_back`,
+`crates/pod-control/src/server.rs`): the write of its line
+(`Lines::write_line_by`) and the read of the answer, blank lines too
+(`Lines::next_line_by`). Past it the call is `CallFault::Gone`, and the
+connection closes after the answer of the request. `Context::call` waits
+1 s more, so it ends first only when a thread stops. Each line that the
+frame writes has one deadline: each write of the system takes at most
+8 KiB and waits for the time that is left, as Linux gives each buffer of
+one large write a new timeout. `Settings::write_timeout` is now the wait
+for one whole line. A finding, fixed in place: after a write that failed
+with a part of a line out, the server wrote the answer of the request
+after the part; the frame now refuses each write after a failed one
+(`BrokenPipe`), and the connection closes. New API:
+`Context::call_within(method, params, wait)`, a call back with a shorter
+wait. `slow_back` of `tests/wipe.rs` takes it (a wait of 50 ms, then the
+answer of the client with a token), so the wipe of a late answer stays
+proven. Tests: `a_call_back_meets_one_deadline_for_blank_lines` and
+`a_call_back_meets_one_deadline_for_its_write`
+(`crates/pod-control/tests/server.rs`),
+`frame::tests::a_slow_reader_meets_one_deadline_for_the_whole_line`.
+The plants are caught: `control-call-back-blank-lines-renew` (no answer
+of the request while blank lines come), `control-line-write-timeout-each-write`
+(the frame test writes the whole 8 MiB line in 20 s, 3 of 3 runs) and
+`control-write-after-part-of-line`. The test of the server with a slow
+reader also passes on the old frame in most runs on Linux 6.18 (a write of
+the system there can end with no byte at its timeout): the frame test is
+the guard of the write. 20 of 20 runs of each new test with
+`--test-threads=1`, 20 of 20 runs of the test binary `server` in
+parallel, 20 of 20 of `wipe`, 20 of 20 of the frame test.
 
 # T-1106: `pod-unit`: a removal and an install refuse what an older version of the program wrote, as its mark differs (PodUtils/podssh#342)
 

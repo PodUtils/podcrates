@@ -25,6 +25,10 @@ endpoint = "api"
 path = "/"
 status = 200
 
+# CentralNic's RDAP server for .xyz (and rdap.org, which redirects to it)
+# answers 403 to some cloud ranges: the registrar's server (Cloudflare,
+# IANA id 1910) gives the record there.
 [[watch]]
 kind = "rdap"
 domain = "opentunnel.xyz"
+registrar = 1910

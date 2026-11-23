@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**876 entries: 150 open, 28 partial, 7 blocked, 691 done.**
+**882 entries: 150 open, 28 partial, 7 blocked, 697 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 204 | 218 |
-| P2 | 68 | 8 | 4 | 359 | 439 |
-| P3 | 78 | 10 | 3 | 126 | 217 |
-| **All** | 150 | 28 | 7 | 691 | 876 |
+| P1 | 4 | 10 | 0 | 206 | 220 |
+| P2 | 70 | 8 | 4 | 361 | 443 |
+| P3 | 76 | 10 | 3 | 128 | 217 |
+| **All** | 150 | 28 | 7 | 697 | 882 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -910,14 +910,20 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1059](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the test of a code in no line takes a part of a word for a word of the code (`ci` 44806766580) |
 | [T-1060](fleet.md) | P3 | S | M8 | defect | done | `pod-control`: an answer that the server drops on a side path, after a timeout or a spent budget, is not wiped |
 | [T-1066](foundation.md) | P2 | S | M0 | feature | done | `pod-core`: one atomic replace of a file at a path that the caller names, with `Mode::Keep`, a followed link, a made directory and errors that name the step (PodUtils/podnet#677) |
-| [T-1070](fleet.md) | P3 | S | M8 | defect | open | `pod-control`: podrunner's test of a ninth client fails 6 of 30 runs, as the place of the call before it is not back yet |
-| [T-1073](fleet.md) | P3 | S | M8 | defect | open | `pod-control`: the wait of `Context::call` can end before the server reads the answer of the client |
+| [T-1070](fleet.md) | P3 | S | M8 | defect | done | `pod-control`: podrunner's test of a ninth client fails 6 of 30 runs, as the place of the call before it is not back yet |
+| [T-1073](fleet.md) | P3 | S | M8 | defect | done | `pod-control`: the wait of `Context::call` can end before the server reads the answer of the client |
 | [T-1080](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: `E2BIG` at `execve` gives 127 ("not found"), and a search of the path keeps the errno of its last candidate, so a program that was found and refused does not give 126 (PodUtils/podvm#639) |
 | [T-1082](upkeep.md) | P2 | S | M5 | defect | done | The gate of no blocking call counts the waits that the other test threads of its binary cause (i686, nightly 44848003241) |
 | [T-1086](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a layer of GNU tar `--acls` is refused whole, as the PAX record `SCHILY.acl.access` holds a newline byte (PodUtils/podvm#643) |
 | [T-1087](podvm.md) | P3 | M | M6 | defect | open | `pod-extract`: a GNU sparse file of the PAX form (`GNU.sparse.`) refuses its layer, as the `tar` reader does not read it |
 | [T-1088](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: the attributes of an archive of libarchive with `xattrheader=LIBARCHIVE` are dropped with no word |
+| [T-1093](services.md) | P2 | S | M5 | defect | done | `services.yml` 45009160652: three `.xyz` RDAP records refused, three Trojan nodes gone, the Syncthing relay DVWOU27 at a new address, and two hosts dark to the runner |
+| [T-1094](podvm.md) | P1 | S | M7 | chore | done | `pod-confine`: the changes of podvm to the files of the loader (port review, `upstream.yml` 45024358679) |
 | [T-1095](relay.md) | P2 | M | M2 | feature | open | `pod-ws`: the order of the request's pseudo-fields of the browser shape is a patch of h2 in podssh, not a part of the crate (PodUtils/podssh#340) |
+| [T-1096](services.md) | P2 | S | M5 | measurement | done | `pod-services`: `localtunnel.me` and `download.freedos.org` give no answer to the runners of GitHub on each run, but answer other networks |
+| [T-1097](foundation.md) | P2 | S | M0 | chore | open | `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review) |
+| [T-1102](roads.md) | P1 | S | M4 | chore | done | `pod-iroh`: the fork of iroh-relay at 1.4.2, so that iroh 1.4.2 builds it (PodUtils/podssh#341) |
+| [T-1103](roads.md) | P2 | M | M4 | chore | open | `pod-iroh`: iroh 1.5 and iroh-relay 1.5, past the range of the crate (T-1102) |
 | [T-1106](fleet.md) | P1 | S | M8 | feature | done | `pod-unit`: a removal and an install refuse what an older version of the program wrote, as its mark differs (PodUtils/podssh#342) |
 | [T-1107](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a unit of the system that runs as a named account removes the IPC of that account at its stop (`RemoveIPC=yes`) (PodUtils/podssh#342) |
 | [T-1108](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a unit of systemd has no limit of starts for systemd older than 230 (`StartLimitInterval=0`) (PodUtils/podssh#342) |

@@ -10,7 +10,7 @@ use pod_confine::loader::{each_program, is_loader};
 /// check sees, the answer where the check lets each one run).
 #[test]
 fn the_program_of_the_loader_is_each_argument_that_a_loader_can_run() {
-    let names: [(&[u8], bool); 13] = [
+    let names: [(&[u8], bool); 15] = [
         (b"/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2", true),
         (b"/lib/ld-linux-aarch64.so.1", true),
         (b"/lib/x86_64-linux-gnu/ld-2.28.so", true),
@@ -22,8 +22,10 @@ fn the_program_of_the_loader_is_each_argument_that_a_loader_can_run() {
         (b"/lib/x86_64-linux-gnu/libc.so.6", false),
         (b"ld-linux-x86-64.so.2", true),
         (b"/lib/libc.musl-x86_64.so.1", true),
+        (b"/usr/lib/musl/lib/libc.so", true),
         (b"/usr/bin/lddtree", false),
         (b"/opt/tool/libcrypto.so.3", false),
+        (b"/lib/x86_64-linux-gnu/libcrypt.so.1", false),
     ];
     for (n, want) in names {
         assert_eq!(is_loader(n), want, "{}", String::from_utf8_lossy(n));

@@ -1981,3 +1981,118 @@ cargo test -p pod-proxy --all-features
 ## Done
 
 2026-11-20, 993bf43. `dial_error` removes a leading `connecting to TARGET: ` and `could not connect to TARGET: ` from the detail (`pod_core::failure::strip_lead`), and the `Display` of `DialError::Connect` and `DialError::Resolve` says its words once (`pod_core::failure::lead`). The lines now: `could not connect to 127.0.0.1:1: Connection refused (os error 111)` and `could not resolve nowhere.invalid: system resolver: ...`. Tests: `crates/pod-ws/src/way.rs::a_dial_error_names_its_target_once` (failed before the fix: `could not connect to 127.0.0.1:1: connecting to 127.0.0.1:1: connection refused`) and `error::tests::the_words_of_a_dial_error_are_said_once` of `pod-proxy`. `cargo test -p pod-ws --all-features` and `-p pod-proxy`: green (the run of T-985).
+
+# T-1102: `pod-iroh`: the fork of iroh-relay at 1.4.2, so that iroh 1.4.2 builds it (PodUtils/podssh#341)
+
+**Source:** PodUtils/podssh#341 (COORD-134 of podssh, author COLLABORATOR).
+**Category:** chore
+**Milestone:** M4
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh names the fork of podcrates (`vendor/iroh-relay`, iroh-relay 1.4.1
+with the SOCKS5 patch) in its `[patch.crates-io]` at tag `v0.82.0`.
+Dependabot moves podssh to `iroh` 1.4.2, `iroh-base` 1.5.0, `iroh-dns`
+1.4.2 and `noq` 1.5.0. iroh 1.4.2 asks for `iroh-relay ^1.4.2`, so cargo
+does not use the 1.4.1 fork (`[[patch.unused]]`): the relay dial loses
+SOCKS5. The ask: carry `vendor/iroh-relay` to 1.4.2 with the patch, in a
+tag, and move `pod-iroh` to iroh 1.4.2.
+
+## Premise
+
+- Read: the crates.io index of `iroh`, `iroh-relay`, `iroh-dns` and
+  `noq`; the crate `iroh-relay` 1.4.2 and its diff against 1.4.1 (the
+  relay protocol streams, the server, the client connection); the
+  procedure of `crates/pod-iroh/README.md`, "The fork of iroh-relay".
+- Measured: the tree of `vendor/iroh-relay` is the crate 1.4.1 with the two
+  patches, byte for byte.
+- Not measured: a relay dial through a real SOCKS5 proxy on the internet.
+
+## Approach
+
+Download the crate 1.4.2, compare its SHA-256 with the `cksum` of the
+index, unpack it into `vendor/iroh-relay` and apply the patches of
+`vendor/patches/iroh-relay/`. Make a patch that applies with an offset
+again from the crate. Move the ranges of `iroh` and `iroh-dns` of
+`pod-iroh` to `>=1.4.2, <1.5`, update `Cargo.lock`, and set
+`version::IROH` to the version that the lock builds. The next tag of
+podcrates carries it.
+
+## Prove
+
+```sh
+cargo tree -p pod-iroh -i iroh-relay -e normal
+cargo test -p pod-iroh --all-features
+cargo clippy -p pod-iroh --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh iroh-socks5-sends-the-name
+```
+
+## Done
+
+2026-11-23, the commit of this change. `vendor/iroh-relay` is the crate
+`iroh-relay` 1.4.2 (SHA-256 `ffa03fd9...2c79`, the `cksum` of the
+crates.io index; n0-computer/iroh `2131f266`) with the two patches of
+`vendor/patches/iroh-relay/`. `0001-socks5-proxy.patch` applied with line
+offsets alone (1 to 3 lines; no fuzz, no changed hunk) and is made again
+from the crate; `0002-socks5-resolves-here.patch` applies with no offset
+and stays as it was. The tree is the crate and the patches, byte for byte.
+`pod-iroh` takes `iroh` and `iroh-dns` `>=1.4.2, <1.5`; the lock builds
+iroh 1.4.2, iroh-base 1.5.0, iroh-dns 1.4.2, iroh-relay 1.4.2 (the path
+crate), noq, noq-proto and noq-udp 1.5.0, netwatch 0.20.2 and netdev
+0.47.0. `cargo tree -p pod-iroh -i iroh-relay -e normal` shows
+`vendor/iroh-relay`; `Cargo.lock` has no `[[patch.unused]]`.
+`version::IROH` is `1.4.2`. The relay names and the pkarr URL of iroh
+1.4.2, the source of iroh-dns 1.4.2 and the QUIC defaults of noq-proto
+1.5.0 are the same as the readings of 1.4.1 and 1.4.0. `cargo test -p
+pod-iroh --all-features`: 72 passed (the relay, the SOCKS5 and CONNECT
+proxies and pkarr on the loopback). `cargo clippy -p pod-iroh` is clean;
+the plant `iroh-socks5-sends-the-name` still applies and is caught.
+`cargo deny` is not installed in the session; `deny.yml` runs it in CI.
+Release notes: `pod-iroh`: iroh 1.4.2, with the fork of iroh-relay 1.4.2
+(PodUtils/podssh#341).
+
+# T-1103: `pod-iroh`: iroh 1.5 and iroh-relay 1.5, past the range of the crate (T-1102)
+
+**Source:** T-1102 (a finding of the carry of the fork).
+**Category:** chore
+**Milestone:** M4
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+crates.io has `iroh` 1.5.0, `iroh-relay` 1.5.0, `iroh-dns` 1.5.0,
+`iroh-base` 1.5.0 and `noq` 1.5.0. `pod-iroh` keeps `iroh` and `iroh-dns`
+in `>=1.4.2, <1.5`, because iroh keeps the API of `unstable-net-report`
+out of its semver (call C905). iroh 1.5.0 asks for `iroh-relay ^1.4.2`, so
+a consumer that moves to iroh 1.5.0 can resolve `iroh-relay` 1.5.0 from
+crates.io past the fork, or build the fork 1.4.2 under iroh 1.5.0, a pair
+that no test of podcrates runs.
+
+## Premise
+
+- Read: the dependencies of `iroh` 1.5.0 and `iroh-relay` 1.5.0 in the
+  crates.io index.
+- Not measured: the changes of the API of `unstable-net-report` and of the
+  relay dial between 1.4.2 and 1.5.0; the patch against iroh-relay 1.5.0.
+
+## Approach
+
+Read the changes of iroh 1.5.0 (the net report, the endpoint builder, the
+relay client). Carry `vendor/iroh-relay` to 1.5.0 by the procedure of
+`crates/pod-iroh/README.md`, "The fork of iroh-relay"; move the ranges of
+`iroh` and `iroh-dns` to `>=1.5.0, <1.6`; read again the values of
+`src/tuning.rs` in the noq-proto that iroh 1.5.0 builds. Tell the
+consumers in the COORD issue of the next tag.
+
+## Prove
+
+```sh
+cargo tree -p pod-iroh -i iroh-relay -e normal
+cargo test -p pod-iroh --all-features
+sh scripts/plant-each.sh iroh-socks5-sends-the-name
+```

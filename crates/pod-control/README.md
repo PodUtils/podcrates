@@ -81,6 +81,10 @@ bytes (64 KiB) without its line end, and UTF-8.
 * Each whole line has `Settings::read_timeout` (5 s): a peer that sends one
   byte at a time meets the deadline of the line. A connection with no line
   in that time closes.
+* Each whole line that the server writes has `Settings::write_timeout`
+  (5 s): a peer that reads a few bytes at a time meets the deadline of the
+  line. After a write that fails, the connection writes no more lines and
+  closes: a part of a line can be out.
 * `schemas/control.v1.schema.json` is the schema of one line, made from
   the catalogue (`pod_control::schema()`); `$defs/params/NAME` and
   `$defs/results/NAME` give the params and the result of each method, and
@@ -126,6 +130,14 @@ A delegated request can call the client back on its connection:
 each call is `CallFault::Budget` and the request answers `budget`; past the
 total, the connection also closes. The client holds the same budgets
 (`ClientSettings`): past them it drops the connection (`Error::Budget`).
+
+A call back has one deadline, `Settings::write_timeout +
+Settings::read_timeout`, for the write of its line and the answer of the
+client, blank lines too. Past it the call is `CallFault::Gone` and the
+connection closes after the answer of the request. `Context::call` waits
+one second more than the deadline, so the server ends a call back first.
+`Context::call_within(method, params, wait)` waits less: the host goes on,
+and the server wipes an answer that comes later.
 
 ## The host is busy
 
@@ -202,7 +214,12 @@ cargo test -p pod-control --all-features
   `auth_gives_the_master_tier_and_a_wrong_token_closes`.
 * The frame: `tests::bad_lines_are_bad_requests_with_no_byte_of_the_line`,
   the tests of `frame`, `a_line_over_the_cap_closes_and_a_line_not_utf8_does_not`,
-  `a_slow_client_is_cut_at_the_read_timeout`.
+  `a_slow_client_is_cut_at_the_read_timeout`,
+  `a_slow_reader_meets_one_deadline_for_the_whole_line`.
+* The calls back: `a_call_back_meets_one_deadline_for_blank_lines`,
+  `a_call_back_meets_one_deadline_for_its_write`.
+* The places: `a_client_past_the_limit_is_busy`,
+  `the_count_of_active_holds_the_places`.
 * The budgets: `a_request_past_its_callback_budget_is_a_fault`,
   `the_calls_back_of_a_connection_have_a_total`,
   `a_client_drops_a_server_past_its_budget`.
@@ -222,7 +239,9 @@ cargo test -p pod-control --all-features
 * Plants: `control-served-not-in-catalogue`, `control-master-method-lower-tier`,
   `control-budget-raised`, `control-tier-refusal-names-the-method`,
   `control-call-params-not-wiped`, `control-line-read-by-serde-json`,
-  `control-call-back-answer-not-wiped`, `control-spent-answer-not-wiped`.
+  `control-call-back-answer-not-wiped`, `control-spent-answer-not-wiped`,
+  `control-refused-counts-as-place`, `control-call-back-blank-lines-renew`,
+  `control-line-write-timeout-each-write`, `control-write-after-part-of-line`.
 * The fuzz target `control_line` (`fuzz/`): `wire::parse` and the lines
   written again, and the JSON reader against `serde_json` (the feature
   `fuzzing` makes `json::read` public).

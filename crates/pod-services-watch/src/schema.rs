@@ -68,7 +68,7 @@ pub fn arguments(kind: &str) -> Option<Arguments> {
         "github-file" => args(&["repo", "path"], &[&["endpoint", "facts"]], &[]),
         "tls-roots" => args(&["repo", "path", "tag", "fact"], &[], &[]),
         "crate-file" => args(&["crate", "path"], ENDPOINT_OR_ROLE, &[]),
-        "rdap" => args(&["domain"], &[], &["ahead-days"]),
+        "rdap" => args(&["domain"], &[], &["ahead-days", "registrar"]),
         "oci-ping" => args(&["endpoint"], &[], &["fact"]),
         "oci-digest" => args(&["endpoint", "facts"], &[], &[]),
         _ => return None,
