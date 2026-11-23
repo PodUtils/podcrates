@@ -1,9 +1,9 @@
 //! The test kit of podcrates: a dev-dependency of each crate, never a
 //! dependency of a release binary.
 //!
-//! * [`need_loopback!`] and [`need_localhost!`]: a test that needs TCP or
-//!   UDP on 127.0.0.1, or the name `localhost`, skips with a reason on a
-//!   host that has none.
+//! * [`need_loopback!`], [`need_localhost!`] and [`need_route!`]: a test
+//!   that needs TCP or UDP on 127.0.0.1, the name `localhost`, or a route
+//!   to an address, skips with a reason on a host that has none.
 //! * [`need_userns!`] and [`need_tool!`]: a test that needs a user and a
 //!   mount namespace, or a tool of the host, skips with a reason on a host
 //!   that has none.

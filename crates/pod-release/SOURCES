@@ -44,6 +44,7 @@ file e0e3fd2a76c5247fcc41de96d7a77d6f2d537400 crates/podssh-cli/src/update/mod.r
 # Its command line, its PODNET_REPO warning and its pinned release stay in
 # podnet.
 repo PodUtils/podnet 613a94b13b70babc863351f6b55958ff3cf56a1f
+taken af42f0d
 dir src/update
 file faf12cb064929824f9d0e5a0dcafb8799d928114 src/update.rs -> crates/pod-release/src/replace.rs crates/pod-release/src/keep.rs crates/pod-release/src/version.rs crates/pod-release/src/update.rs
 file db01eeaedabac75dfaeb800d4abcdce5cd4bbfad src/update/cosign.rs -> crates/pod-release/src/sums.rs crates/pod-release/src/sigstore.rs

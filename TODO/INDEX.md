@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**886 entries: 150 open, 28 partial, 7 blocked, 701 done.**
+**888 entries: 150 open, 27 partial, 7 blocked, 704 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 209 | 223 |
-| P2 | 70 | 8 | 4 | 362 | 444 |
-| P3 | 76 | 10 | 3 | 128 | 217 |
-| **All** | 150 | 28 | 7 | 701 | 886 |
+| P2 | 69 | 7 | 4 | 365 | 445 |
+| P3 | 77 | 10 | 3 | 128 | 218 |
+| **All** | 150 | 27 | 7 | 704 | 888 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -742,7 +742,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-860](relay.md) | P2 | S | M2 | defect | done | `pod-piping`: the probe of a node's upgrade sends no header of the caller (PodUtils/podssh#306) |
 | [T-861](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: a mailbox run that times out before `WQREADY` tells nothing of the agent (PodUtils/podvm#468) |
 | [T-862](upkeep.md) | P1 | S | M5 | defect | done | `pod-broker`: names mode still resolves each name on the host, so a host whose names resolve only through its proxy refuses each CONNECT (PodUtils/podrunner#215) |
-| [T-863](fleet.md) | P2 | S | M0 | chore | open | `pod-manual`: the changes of podssh to the imported files before its take (port review) |
+| [T-863](fleet.md) | P2 | S | M0 | chore | done | `pod-manual`: the changes of podssh to the imported files before its take (port review) |
 | [T-864](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: a new devpts instance and `/dev/ptmx` on the namespace rung, so that `openpty` works in a unit (PodUtils/podvm#469) |
 | [T-865](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: keep a relay member's `meet` from its `/relays.json` (PodUtils/podssh#307) |
 | [T-866](fleet.md) | P2 | S | M0 | feature | done | `pod-lab`: a profile of the three limits together: no `AF_INET` bind, no network namespace, no write of another process's memory (PodUtils/podnet#649) |
@@ -845,7 +845,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-963](relay.md) | P2 | S | M2 | defect | partial | `live.yml`: public services of other parties fail from a runner of GitHub and pass from a cloud session (the Nostr relay `offchain.pub`, the WebTorrent tracker `tracker.openwebtorrent.com`) |
 | [T-964](fleet.md) | P1 | M | M8 | feature | done | `pod-release`: the bundle of Rekor v2: the inclusion proof with its signed checkpoint, and the RFC 3161 timestamp |
 | [T-965](fleet.md) | P1 | M | M8 | feature | done | `pod-release`: the verifier as a static command for the CI of a product and for an installer |
-| [T-966](fleet.md) | P2 | M | M8 | chore | partial | `pod-release`: the adoption trials of podnet and podssh, and the hand-off of the crate |
+| [T-966](fleet.md) | P2 | M | M8 | chore | done | `pod-release`: the adoption trials of podnet and podssh, and the hand-off of the crate |
 | [T-967](fleet.md) | P3 | S | M8 | feature | open | `pod-release`: a minisign signature beside the Sigstore bundle |
 | [T-968](upkeep.md) | P2 | S | M5 | defect | done | The fuzz run of 2026-11-19 cannot build `russh`: the pinned nightly of 2026-11-01 meets a cycle in its query of async drop on `ssh-key` 0.7.0-rc.11 |
 | [T-969](upkeep.md) | P1 | M | M5 | chore | done | `upstream.yml` is red: the sources of `pod-job`, `pod-manual` and `pod-testkit` changed in podrunner and podssh |
@@ -922,7 +922,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1094](podvm.md) | P1 | S | M7 | chore | done | `pod-confine`: the changes of podvm to the files of the loader (port review, `upstream.yml` 45024358679) |
 | [T-1095](relay.md) | P2 | M | M2 | feature | open | `pod-ws`: the order of the request's pseudo-fields of the browser shape is a patch of h2 in podssh, not a part of the crate (PodUtils/podssh#340) |
 | [T-1096](services.md) | P2 | S | M5 | measurement | done | `pod-services`: `localtunnel.me` and `download.freedos.org` give no answer to the runners of GitHub on each run, but answer other networks |
-| [T-1097](foundation.md) | P2 | S | M0 | chore | open | `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review) |
+| [T-1097](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review) |
 | [T-1098](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: `run-report.v1` refuses a reason of a time that the report does not know (`start_s`) (PodUtils/podrunner#342) |
 | [T-1102](roads.md) | P1 | S | M4 | chore | done | `pod-iroh`: the fork of iroh-relay at 1.4.2, so that iroh 1.4.2 builds it (PodUtils/podssh#341) |
 | [T-1103](roads.md) | P2 | M | M4 | chore | open | `pod-iroh`: iroh 1.5 and iroh-relay 1.5, past the range of the crate (T-1102) |
@@ -933,3 +933,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1108](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a unit of systemd has no limit of starts for systemd older than 230 (`StartLimitInterval=0`) (PodUtils/podssh#342) |
 | [T-1109](foundation.md) | P1 | S | M0 | feature | done | `pod-core`: an atomic replace has no check of the temporary file before the rename (PodUtils/podssh#342) |
 | [T-1110](fleet.md) | P2 | S | M8 | chore | open | `pod-unit`: podrunner's unit of the system loses `RemoveIPC=yes` at its take of the tag of T-1107, and its test of the unit fails |
+| [T-1111](foundation.md) | P2 | S | M0 | chore | open | `pod-guest`, `pod-release`, `pod-supervise`: the changes of podvm and podnet at their heads (port review) |
+| [T-1118](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686) |

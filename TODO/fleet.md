@@ -4443,6 +4443,8 @@ sh scripts/plant-each.sh --group manual
 - Finding: T-726 (clap gives no getter of `requires`: the reader gives
   no `Rule::Needs`).
 
+2026-11-23, podnet's take: podnet took `Command::groups` and `Command::lead` in `c5615d7` (PodUtils/podnet#686, PodUtils/podnet@T-473), and `pod_manual::check::help` runs in its tests.
+
 # T-726: `pod-manual`: the reader of clap gives no `Rule::Needs` (clap's `requires`)
 
 **Source:** T-725 (the read of podnet's glue for PodUtils/podnet#589).
@@ -5256,7 +5258,7 @@ cargo test -p pod-actions-workflow --all-features --test expand
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5277,6 +5279,18 @@ cargo test -p pod-actions-workflow --all-features --test expand
 ```sh
 python3 -I scripts/check-sources.py pod-manual
 ```
+
+## Done
+
+2026-11-23. The `taken` lines of `crates/pod-manual/SOURCES` (commit
+`ca005b55`, T-969): `taken c4a2a64` for the man files, `flags.rs` and
+`PodUtils/podssh:scripts/interop-man.sh`, and `taken 1e5de58` for `pager.rs`.
+`check-sources.py --clone PodUtils/podssh=PODSSH --clone
+PodUtils/podnet=PODNET pod-manual` with podssh at its head `af95c50` and
+podnet at `ef189d2`: "PodUtils/podnet at 78a3911, taken at 9217b0b: 9
+files, 0 changes", "PodUtils/podssh at d8e54f0, taken at c4a2a64 (8
+paths), taken at 1e5de58 (1 paths): 9 files, 0 changes", "PodUtils/podssh
+at 1e5de58: 1 files, 0 changes"; exit 0.
 
 # T-866: `pod-lab`: a profile of the three limits together: no `AF_INET` bind, no network namespace, no write of another process's memory (PodUtils/podnet#649)
 
@@ -6338,7 +6352,7 @@ sh scripts/agent/check.sh
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -6372,6 +6386,7 @@ cargo todo check
 
 2026-11-19, podssh's half: podssh took `pod-release` in `c9772a3` (PodUtils/podssh#329, PodUtils/podssh@T-850), with `v0.77.0` at `b3005e5`. Its `update/` keeps its flags, lines, exit codes, `trust()` and the lines of the way back; `sigstore.rs`, `release.rs`, `fetch.rs`, `replace.rs`, `keep.rs`, `trial.rs` and `trust/` are gone; the steps are `update::newest`, `signed`, `binary` and `install`, with `keep::rollback` and `replace::running()`; its update tests pass (4, 18 and the offline ones). `crates/pod-release/SOURCES` has `taken c9772a3` in the podssh block: `check-sources.py` gives 0 changes. podssh does not use `update::plan` (T-971). podnet's half waits for PodUtils/podnet@T-494, behind the asks of podrunner. podssh's `release.yml` writes `release-index.json` with `scripts/release-index.py` (taken at `v0.77.0` by its SHA-256) before `SHA256SUMS` from `679b940`; its run by hand 44571898795 passed (PodUtils/podssh#329: podssh's T-850 is done). podnet writes its index with its take.
 
+2026-11-23, podnet's half: podnet took `pod-release` in `af42f0d` (PodUtils/podnet#686, PodUtils/podnet@T-494), with `v0.82.0` and the feature `fetch`; the Done of T-880 names what it uses and what it removed. `crates/pod-release/SOURCES` has `taken af42f0d` in the podnet block: `check-sources.py` with a clone of podnet gives 0 changes. podnet writes no `release-index.json` yet: the update does not need it; T-1118 holds it. Both halves are taken, and no trial file of `pod-release` stays in `adoption/`. `cargo test -p pod-release --all-features`: lib 66, 8 and 13 passed in the test binaries (0 failed).
 
 # T-967: `pod-release`: a minisign signature beside the Sigstore bundle
 
@@ -8053,6 +8068,39 @@ cargo test -p pod-unit --all-features --lib secret
 - `a_form_near_a_public_key_is_still_refused`: a blob of ed25519 with one part more, a blob cut and a token after it, a blob of `openssh-key-v1`, and 60 of random after `SHA256:` are refused. The private key and the random token of `each_known_token_is_refused_by_its_rule` stay refused.
 - `a_word_that_the_caller_names_public_passes`: a word named by `Unit::public` passes; the same word with no name, or with another name, is refused; a GitHub token beside a public word is refused.
 - `TMPDIR=/tmp cargo test -p pod-unit --all-features`: each test passes. `cargo clippy -p pod-unit --all-targets --all-features -- -D warnings`: clean.
+
+# T-1118: `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686)
+
+**Source:** PodUtils/podnet#686 (COORD-114 of podnet, PodUtils/podnet@T-494): "podnet does not write `release-index.json` yet; the update does not need it."
+**Category:** chore
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-966 says that each project writes its own `release-index.json` with `scripts/release-index.py` in its release workflow, before `SHA256SUMS`. podssh does it since `v0.77.0`. podnet took `pod-release` (`af42f0d`) and writes no index: `pod-release verify --all` and the readers of the index cannot check a release of podnet by its index.
+
+## Premise
+
+- Read: PodUtils/podnet#686; the Done of T-966; `scripts/release-index.py` and `crates/pod-release/README.md`.
+- Not measured: the release workflow of podnet.
+
+## Approach
+
+Name the step in the next COORD issue `(to podnet)`: the release workflow of podnet runs `scripts/release-index.py` (taken at a tag, by its SHA-256) before `SHA256SUMS`, and puts the line of the index in `SHA256SUMS`, as the README of `pod-release` says. podnet may read the index in its update after that.
+
+## Prove
+
+```sh
+python3 -I scripts/release-index.py --self-test
+cargo test -p pod-release --all-features
+```
+
+## Start condition
+
+The coordinator names the step in a COORD issue `(to podnet)` and podnet answers.
 
 # T-1106: `pod-unit`: a removal and an install refuse what an older version of the program wrote, as its mark differs (PodUtils/podssh#342)
 
