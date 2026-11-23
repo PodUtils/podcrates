@@ -83,6 +83,9 @@ pub struct Hardening {
     /// The lines that a program adds past the table (`PrivateUsers=yes`,
     /// `ProcSubset=pid`, `IPAddressDeny=any`), in their order.
     extra: Vec<(String, String)>,
+    /// True: the named account of the unit is the program's own
+    /// ([`Hardening::service_account`]).
+    own_account: bool,
 }
 
 impl Hardening {
@@ -123,6 +126,16 @@ impl Hardening {
         Ok(self)
     }
 
+    /// Say that the named account of a unit of the system (`User=NAME`) is
+    /// the program's own, which no person uses: the unit keeps
+    /// `RemoveIPC=yes`. With no call, a unit with a named account relaxes
+    /// that line, as the account can be a person's, whose IPC a stop of the
+    /// unit would remove. A unit with `DynamicUser=yes` keeps it.
+    pub fn service_account(&mut self) -> &mut Hardening {
+        self.own_account = true;
+        self
+    }
+
     /// The lines that a program added past the table.
     pub fn added(&self) -> impl Iterator<Item = (&str, &str)> {
         self.extra.iter().map(|(k, v)| (k.as_str(), v.as_str()))
@@ -141,10 +154,11 @@ impl Hardening {
         write.chain(bind).chain(read)
     }
 
-    /// The lines of the unit for a manager of `system` (true) or of a user:
-    /// each line, or its comment when it is relaxed; the families after
-    /// their reasons; then the paths.
-    pub(crate) fn lines(&self, system: bool) -> Vec<String> {
+    /// The lines of the unit for a manager of `system` (true) or of a user,
+    /// which runs as the named account `named` when one is given: each line,
+    /// or its comment when it is relaxed; the families after their reasons;
+    /// then the paths.
+    pub(crate) fn lines(&self, system: bool, named: Option<&str>) -> Vec<String> {
         let mut out = vec!["# The hardening, which systemd-analyze security scores.".to_string()];
         if !system {
             out.push(
@@ -162,9 +176,13 @@ impl Hardening {
                     text.push_str(family);
                 }
             }
-            match self.relaxed.get(line.key) {
-                Some(why) => out.push(format!("# Relaxed, as {why}: {text}")),
-                None => out.push(text),
+            let person = named.filter(|_| line.key == "RemoveIPC" && !self.own_account);
+            match (self.relaxed.get(line.key), person) {
+                (Some(why), _) => out.push(format!("# Relaxed, as {why}: {text}")),
+                (None, Some(user)) => out.push(format!(
+                    "# Relaxed, as the account {user} can be a person's, whose IPC a stop would remove: {text}"
+                )),
+                (None, None) => out.push(text),
             }
         }
         for (key, value) in &self.extra {

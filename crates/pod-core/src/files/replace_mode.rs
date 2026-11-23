@@ -79,6 +79,8 @@ pub enum Step {
     Write,
     /// The sync of the temporary file.
     Sync,
+    /// The check of the temporary file ([`super::Replace::write_checked`]).
+    Check,
     /// The rename of the temporary file onto the path.
     Rename,
     /// The write in place after a failed rename.
@@ -95,6 +97,7 @@ impl fmt::Display for Step {
             Step::Create => "the create of the temporary file",
             Step::Write => "the write of the temporary file",
             Step::Sync => "the sync of the temporary file",
+            Step::Check => "the check of the temporary file",
             Step::Rename => "the rename of the temporary file onto it",
             Step::InPlace => "the write in place",
         })

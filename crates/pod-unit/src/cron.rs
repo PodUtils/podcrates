@@ -55,7 +55,8 @@ pub fn lines(unit: &Unit) -> Result<Vec<String>, Failure> {
 }
 
 /// `table` without the lines of `unit`, then with `lines` and their mark when
-/// they are given; and whether lines of `unit` were there. Below a mark,
+/// they are given; and whether lines of `unit` were there. A line that is an
+/// older mark of `unit` ([`Unit::older_marks`]) is a mark too. Below a mark,
 /// only an `@reboot` line, and after it the watchdog's line of the same
 /// command, are removed: any other line is the user's.
 pub fn table(table: &str, unit: &Unit, lines: Option<&[String]>) -> (String, bool) {
@@ -64,7 +65,7 @@ pub fn table(table: &str, unit: &Unit, lines: Option<&[String]>) -> (String, boo
     let mut found = false;
     let mut rest = table.lines().peekable();
     while let Some(next) = rest.next() {
-        if next != mark {
+        if next != mark && !unit.older_mark_in(|old| old == next) {
             kept.push(next);
             continue;
         }

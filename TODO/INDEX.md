@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**890 entries: 152 open, 27 partial, 7 blocked, 704 done.**
+**896 entries: 152 open, 27 partial, 7 blocked, 710 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 208 | 222 |
-| P2 | 70 | 7 | 4 | 366 | 447 |
+| P1 | 4 | 10 | 0 | 213 | 227 |
+| P2 | 70 | 7 | 4 | 367 | 448 |
 | P3 | 78 | 10 | 3 | 128 | 219 |
-| **All** | 152 | 27 | 7 | 704 | 890 |
+| **All** | 152 | 27 | 7 | 710 | 896 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -928,7 +928,12 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1103](roads.md) | P2 | M | M4 | chore | open | `pod-iroh`: iroh 1.5 and iroh-relay 1.5, past the range of the crate (T-1102) |
 | [T-1104](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a path after a `.` reads as a long random word, so a config under a directory of `mktemp -d` is refused (PodUtils/podrunner#343) |
 | [T-1105](fleet.md) | P2 | S | M8 | defect | done | `pod-unit`: the check of a secret refuses a public key of OpenSSH and a fingerprint as a long random word (PodUtils/podssh#342 ask (a)) |
-| [T-1111](foundation.md) | P2 | S | M0 | chore | open | `pod-guest`, `pod-release`, `pod-supervise`: the changes of podvm and podnet at their heads (port review) |
+| [T-1106](fleet.md) | P1 | S | M8 | feature | done | `pod-unit`: a removal and an install refuse what an older version of the program wrote, as its mark differs (PodUtils/podssh#342) |
+| [T-1107](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a unit of the system that runs as a named account removes the IPC of that account at its stop (`RemoveIPC=yes`) (PodUtils/podssh#342) |
+| [T-1108](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a unit of systemd has no limit of starts for systemd older than 230 (`StartLimitInterval=0`) (PodUtils/podssh#342) |
+| [T-1109](foundation.md) | P1 | S | M0 | feature | done | `pod-core`: an atomic replace has no check of the temporary file before the rename (PodUtils/podssh#342) |
+| [T-1110](fleet.md) | P2 | S | M8 | chore | open | `pod-unit`: podrunner's unit of the system loses `RemoveIPC=yes` at its take of the tag of T-1107, and its test of the unit fails |
+| [T-1111](foundation.md) | P2 | S | M0 | chore | done | `pod-guest`, `pod-release`, `pod-supervise`: the changes of podvm and podnet at their heads (port review) |
 | [T-1112](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the init of a PID namespace and the relay of a join show the command line and the environment of the caller to the payload, and a payload of the same user can trace them (PodUtils/podvm#646) |
 | [T-1113](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: the init of a PID namespace in a user namespace of the rung stays dumpable, so a payload of the same caller can trace it and read the memory of the caller |
 | [T-1114](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`: `bind_staged` binds at the path when the stage does not fit in `sun_path`, and macOS refuses a path in its temporary directory (PodUtils/podssh#343) |
@@ -936,4 +941,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1116](adapters.md) | P1 | S | M3 | defect | done | `pod-cloudflare`: the edge refuses a new quick tunnel with "Tunnel not found" for more than three tries, and the start exits 69 (PodUtils/podnet#685) |
 | [T-1117](adapters.md) | P3 | S | M3 | docs | open | podnet's documents give the serial limits of the legs of `pod-cloudflare` as 130 s and 280 s; T-1116 makes them 110 s and 210 s |
 | [T-1118](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686) |
+| [T-1122](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`, `pod-unit`: the changes of podrunner and podssh at their heads (port review) |
 | [T-1124](podvm.md) | P2 | S | M6 | chore | open | podvm opens `/proc/PID` and the pidfd of the init of a run, which is not dumpable after T-1113, so its `exec -t`, `cp` and the join of the UTS namespace fail for a caller with no capabilities |
