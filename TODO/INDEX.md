@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**871 entries: 148 open, 28 partial, 7 blocked, 688 done.**
+**872 entries: 149 open, 28 partial, 7 blocked, 688 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 201 | 215 |
-| P2 | 66 | 8 | 4 | 359 | 437 |
+| P2 | 67 | 8 | 4 | 359 | 438 |
 | P3 | 78 | 10 | 3 | 126 | 217 |
-| **All** | 148 | 28 | 7 | 688 | 871 |
+| **All** | 149 | 28 | 7 | 688 | 872 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -918,3 +918,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1087](podvm.md) | P3 | M | M6 | defect | open | `pod-extract`: a GNU sparse file of the PAX form (`GNU.sparse.`) refuses its layer, as the `tar` reader does not read it |
 | [T-1088](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: the attributes of an archive of libarchive with `xattrheader=LIBARCHIVE` are dropped with no word |
 | [T-1089](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a second call of `windows::serve` in a program that the manager did not start gets `Class::Unavailable` (error 1056), not `Class::Usage` (nightly 44871383085) |
+| [T-1095](relay.md) | P2 | M | M2 | feature | open | `pod-ws`: the order of the request's pseudo-fields of the browser shape is a patch of h2 in podssh, not a part of the crate (PodUtils/podssh#340) |

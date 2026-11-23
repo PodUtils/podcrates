@@ -10561,3 +10561,76 @@ cargo test -p pod-relay --all-features --test pair_code the_code_is_in_no_line_a
 at each character that is not an ASCII letter or digit, and refuses a whole word of the code. A leak
 of the code (its words in a line) still fails it; a run of letters in a key in base64 or in an English
 word does not.
+
+# T-1095: `pod-ws`: the order of the request's pseudo-fields of the browser shape is a patch of h2 in podssh, not a part of the crate (PodUtils/podssh#340)
+
+**Source:** PodUtils/podssh#340 (COORD-133 of podssh: its take of `v0.82.0`), the question at its end.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`Shape::browser` of `pod-ws` (`crates/pod-ws/src/h2_road/shape.rs`) names the
+order of the request's pseudo-fields of Chrome: `:method`, `:authority`,
+`:scheme`, `:path`. Its docs say that the order depends on the h2 crate in
+use. `Shape::apply` sets the SETTINGS and the connection window on an
+`h2::client::Builder`, and it cannot set the order: h2 0.4 writes the
+pseudo-fields in its own fixed order (`:method`, `:scheme`, `:authority`,
+`:path`). A caller that needs Chrome's order on the wire has to change h2.
+podssh did: it vendors h2 0.4.20 with a patch of `frame/headers.rs` and puts
+it in place with `[patch.crates-io]` (podssh T-763). It asks whether
+`pod-ws` should own the browser shape for each project, and it drops its
+copy when a tag carries the order.
+
+A `[patch.crates-io]` of this workspace does not reach a consumer: cargo
+reads a patch at the root of the build. Thus each consumer of `pod-ws`
+that needs the order must carry the same patch of h2, and the order of
+`Shape::firefox` (`:method`, `:path`, `:authority`, `:scheme`) has no
+way to the wire at all.
+
+## Premise
+
+- Read: PodUtils/podssh#340; `crates/pod-ws/src/h2_road/shape.rs` (the
+  order of `headers` of each shape, the docs of `apply`);
+  `crates/pod-ws/src/h2_road/dial.rs` (the call of `shape.apply`);
+  `Cargo.toml` (`[patch.crates-io]` holds `iroh-relay` only; the lock names
+  h2 0.4.20); podssh at `e728db9f`: PodUtils/podssh:vendor/h2/src/frame/headers.rs takes
+  `pseudo.authority` before the other pseudo-fields.
+- Not measured: a capture of the wire of a request of `pod-ws` with the
+  patch, and the size of the diff of podssh's h2 against h2 0.4.20.
+- `Shape::apply` is public and takes an `h2::client::Builder`, so h2 is
+  part of the API of `pod-ws`.
+
+## Approach
+
+1. The ruling "Shared code": the order is data of `Shape`, so it is code of
+   `pod-ws`, and no consumer keeps a copy. Make the order work from the
+   data of `Shape::headers`, for each shape (Chrome and Firefox).
+2. Carry the change of h2 in a fork that a consumer needs no patch for:
+   a path crate under `vendor/` of this repository (h2 0.4.20, licence
+   kept, the diff in `vendor/patches/`) with its own package name, that
+   `pod-ws` names in place of h2. The change is a per-connection setting
+   (a method of the builder: the order of the pseudo-fields), with the
+   order of h2 as the default, so that another user of the fork sees no
+   change. Do not use `[patch.crates-io]` for it.
+3. Keep h2 out of the new items of the API where it is possible: a type of
+   `pod-ws` takes the builder, so a caller does not build one.
+4. Offer the setting to hyperium/h2. When a release of h2 has it, drop
+   the fork.
+5. A test compares the first bytes of the HEADERS frame (the HPACK block)
+   of a request with the order of each shape, for Chrome and Firefox.
+6. After the tag, podssh drops its copy of h2 (PodUtils/podssh:vendor/h2) and its `[patch.crates-io]`
+   and runs its tests. Name the change in the notes of the release.
+
+## Prove
+
+```sh
+cargo test -p pod-ws --all-features h2_road
+cargo tree -p pod-ws --all-features -i h2
+```
+
+`cargo tree` shows one h2 package for `pod-ws`: the fork, with no patch in
+the workspace of a consumer.
