@@ -32,6 +32,7 @@ pub mod select;
 pub mod space;
 pub mod supervise;
 pub mod sys;
+pub mod usage;
 pub mod userns;
 pub mod verdict;
 pub mod writable;
