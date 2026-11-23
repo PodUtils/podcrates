@@ -183,18 +183,26 @@ pub fn plan_with_udp(
     Ok((kept, Some(format!("{why}: {} does not try QUIC on UDP 7844", words.name))))
 }
 
-/// The tries of the first registration of a leg.
-pub(super) const REGISTER_TRIES: u32 = 3;
+/// The time from the first refusal with retry: yes of a registration in
+/// which a new try can start (PodUtils/podnet#685: the edge can answer
+/// "Tunnel not found" to a new quick tunnel for more than 2 s).
+pub(super) const REGISTER_BUDGET: Duration = Duration::from_secs(30);
 
 /// The shortest and the longest wait between two tries of a registration.
 pub(super) const REGISTER_WAIT_MIN: Duration = Duration::from_secs(1);
 
 pub(super) const REGISTER_WAIT_MAX: Duration = Duration::from_secs(5);
 
-/// The budget of a leg whose one try has the budget `one_try`:
-/// [`REGISTER_TRIES`] tries and the longest wait between two tries.
+/// The budget of a leg whose one try has the budget `one_try`: the first
+/// try, the time budget in which more tries start, and the last try.
 pub(super) const fn leg_budget(one_try: Duration) -> Duration {
-    one_try.saturating_mul(REGISTER_TRIES).saturating_add(REGISTER_WAIT_MAX.saturating_mul(REGISTER_TRIES - 1))
+    one_try.saturating_mul(2).saturating_add(REGISTER_BUDGET)
+}
+
+/// The wait before retry `retry` (1 is the first): the wait that the edge
+/// asks for or the backoff, whichever is longer, from 1 s to 5 s.
+pub(super) fn register_wait(retry_after: Duration, retry: u32) -> Duration {
+    retry_after.max(pod_core::backoff::backoff(retry)).clamp(REGISTER_WAIT_MIN, REGISTER_WAIT_MAX)
 }
 
 /// The budget of one try of the QUIC leg on one edge address: the QUIC
@@ -215,10 +223,10 @@ pub(super) fn attempt_limit(kind: LegKind) -> Option<Duration> {
 }
 
 /// Run `attempt` again when the edge refuses the registration and asks for
-/// a retry (`retry: yes`), at most [`REGISTER_TRIES`] times, after the wait
-/// that it asks for (1 s to 5 s). A new quick tunnel can be "not found" at
-/// the edge for a short time after its provision. With no retry, the first
-/// refusal ends the leg, and with one leg the start exits 69.
+/// a retry (`retry: yes`): a new try starts in [`REGISTER_BUDGET`] from the
+/// first refusal, after [`register_wait`]. A new quick tunnel can be "not
+/// found" at the edge for some seconds after its provision; the tries keep
+/// the same tunnel. With no retry, the first refusal ends the leg.
 #[cfg(test)]
 pub(super) async fn register_retrying<T, F, Fut>(attempt: F) -> Result<T>
 where
@@ -235,27 +243,49 @@ where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = Result<T>>,
 {
-    let mut tries = 1;
+    let mut deadline = None;
+    let mut retry = 0;
     loop {
         let err = match attempt().await {
             Ok(value) => return Ok(value),
             Err(err) => err,
         };
-        let refused = crate::fail::find::<rpc::Refused>(&err).filter(|r| r.should_retry).cloned();
-        match refused {
-            Some(refused) if tries < REGISTER_TRIES => {
-                let wait = refused.retry_after.clamp(REGISTER_WAIT_MIN, REGISTER_WAIT_MAX);
-                let text = format!(
-                    "the edge refused the registration ({}) and asks for a retry; the registration runs again in {} s",
-                    refused.cause,
-                    wait.as_secs()
-                );
-                report.event(pod_core::Event::info("tunnel.register", text));
-                tokio::time::sleep(wait).await;
-                tries += 1;
-            }
-            _ => return Err(err),
+        let Some(refused) = crate::fail::find::<rpc::Refused>(&err).filter(|r| r.should_retry).cloned() else {
+            return Err(err);
+        };
+        let now = tokio::time::Instant::now();
+        let deadline = *deadline.get_or_insert(now + REGISTER_BUDGET);
+        if now >= deadline {
+            return Err(err);
         }
+        retry += 1;
+        let wait = register_wait(refused.retry_after, retry).min(deadline - now);
+        let text = format!(
+            "the edge refused the registration ({}) and asks for a retry; the registration runs again in {} ms",
+            refused.cause,
+            wait.as_millis()
+        );
+        report.event(pod_core::Event::info("tunnel.register", text));
+        tokio::time::sleep(wait).await;
+    }
+}
+
+/// The failure of a start when each leg failed: the text of each failure,
+/// the stage and the cause of the last one. When each leg failed with a
+/// refusal with retry: yes, the class is `TempFail` (a later start can
+/// work); else `Unavailable`.
+pub(super) fn no_leg_worked(plan: &[LegKind], failed: Vec<(usize, crate::fail::Failure)>) -> crate::fail::Failure {
+    let text: Vec<String> = failed.iter().map(|(i, err)| format!("{}: {err:#}", plan[*i])).collect();
+    let retry = |err: &crate::fail::Failure| crate::fail::find::<rpc::Refused>(err).is_some_and(|r| r.should_retry);
+    let class = if !failed.is_empty() && failed.iter().all(|(_, err)| retry(err)) {
+        Class::TempFail
+    } else {
+        Class::Unavailable
+    };
+    let text = format!("no edge leg worked: {}", text.join("; "));
+    match failed.into_iter().last() {
+        Some((_, last)) => pod_core::Failure::caused(last.stage, class, text, last),
+        None => crate::fail::new(Stage::Connect, class, text),
     }
 }
 
