@@ -12703,3 +12703,74 @@ bounds; name a record that does not decode as not set.
 ```sh
 cargo test -p pod-extract --all-features --lib xattr
 ```
+
+
+# T-1094: `pod-confine`: the changes of podvm to the files of the loader (port review, `upstream.yml` 45024358679)
+
+**Source:** the run 45024358679 of `upstream.yml` (the job `sources`, 2026-11-22).
+**Category:** chore
+**Milestone:** M7
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The step "Each source against its default branch" of the job `sources`
+is red:
+
+```text
+pod-confine: changed PodUtils/podvm:crates/podvm-interpose/src/exec/ldso.rs -> crates/pod-confine/src/loader.rs
+pod-confine: changed PodUtils/podvm:crates/podvm-interpose/src/exec/tests_t1984.rs -> crates/pod-confine/tests/loader.rs
+check-sources: pod-confine: PodUtils/podvm at cdbcaa6: 2 files, 2 changes
+```
+
+The podvm commits are `e864b31` (musl's loader by the name of its libc)
+and `c659ae6` (PodUtils/podvm@T-2050, PodUtils/podvm#613: the handler of
+the syscall tier takes `pod_confine::loader`, and the interposer keeps
+the crate's file as it is).
+
+## Premise
+
+- Read: `crates/pod-confine/SOURCES`; a clone of podvm at its `main` head
+  (`4d8da41`); `git diff cdbcaa6 HEAD` of the two files; the commit
+  messages of `e864b31` and `c659ae6`; PodUtils/podvm#613.
+- Measured: podvm's `ldso.rs` at `c659ae6` and at its head is byte for
+  byte `crates/pod-confine/src/loader.rs` (`diff` gives no line; blob
+  `e6676db`). The table test of podvm's `tests_t1984.rs` has two names
+  that `crates/pod-confine/tests/loader.rs` does not have:
+  `/usr/lib/musl/lib/libc.so` (a loader) and
+  `/lib/x86_64-linux-gnu/libcrypt.so.1` (not a loader). The other tests
+  of the file are of the interposer and stay in podvm.
+
+## Approach
+
+1. Port each fix of the two files. The code has none to port: podvm took
+   the crate's file. Take the two new names of the table.
+2. Show that the name `libc.so` fails on a rule with no `libc.so` arm.
+3. Move the block of `crates/pod-confine/SOURCES` to `c659ae6` with the
+   blob id of each file at that commit (`git ls-tree`).
+
+## Prove
+
+```sh
+cargo test -p pod-confine --all-features --test loader
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=PODVM pod-confine
+```
+
+## Done
+
+2026-11-23. `crates/pod-confine/tests/loader.rs`: the table of
+`the_program_of_the_loader_is_each_argument_that_a_loader_can_run` has 15
+names (`/usr/lib/musl/lib/libc.so` true,
+`/lib/x86_64-linux-gnu/libcrypt.so.1` false). With the arm
+`base == b"libc.so"` removed from `is_loader`, the test fails on
+`/usr/lib/musl/lib/libc.so`; with the code of `main`, it passes.
+`crates/pod-confine/SOURCES`: the podvm block is at `c659ae6`, blobs
+`e6676db` (`ldso.rs`) and `995f974` (`tests_t1984.rs`); the comment says
+that the interposer keeps a copy of `src/loader.rs`, so a change of its
+`ldso.rs` is a fix to port. `check-sources.py` with a clone of podvm:
+"pod-confine: PodUtils/podvm at c659ae6: 2 files, 0 changes". The check
+of each crate against the consumers' heads found one other change
+(T-1097). `pod-manual` gives 0 changes with the `taken` lines of its
+`SOURCES`: the Prove of T-863 (open) passes.

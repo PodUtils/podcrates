@@ -2,8 +2,10 @@
 # (docs/design.md, section 9). scripts/check-sources.py compares each
 # with the default branch of its repository.
 
-repo PodUtils/podvm cdbcaa65e270b7a977d13f0d7aa0085a5b3bd1e6
+repo PodUtils/podvm c659ae6091abb9c8cda069575135c858c3ce7809
 # The program of a dynamic loader (PodUtils/podvm#613). Of the test file,
-# the table test came; the tests of the interposer stay in podvm.
-file 8a3ba7c699268760c189d7b644186580a8cde73c crates/podvm-interpose/src/exec/ldso.rs -> crates/pod-confine/src/loader.rs
-file d3fbd1dd0c574008af86e9f96f804f65c8665531 crates/podvm-interpose/src/exec/tests_t1984.rs -> crates/pod-confine/tests/loader.rs
+# the table test came; the tests of the interposer stay in podvm. The
+# interposer cannot take the crate (it has no std): it keeps a copy of
+# src/loader.rs as it is, so a change of ldso.rs is a fix to port here.
+file e6676dba1c28a919392c0971113cbe869661946b crates/podvm-interpose/src/exec/ldso.rs -> crates/pod-confine/src/loader.rs
+file 995f9742a4d781572b1bbeee4b45ea2f3ca629eb crates/podvm-interpose/src/exec/tests_t1984.rs -> crates/pod-confine/tests/loader.rs
