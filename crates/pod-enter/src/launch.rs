@@ -118,6 +118,7 @@ pub(crate) fn spawn_with(
         crate::uts::refuse_without_namespace(plan, entry)?;
     }
     let pid_ns = crate::ns_pid::Pid::of(plan, ns.as_ref(), entry)?;
+    let shown = crate::title::Shown::of(plan, &pid_ns)?;
     // The volumes: a join binds none, as the mount namespace of the run
     // holds them; an entry with no mount namespace refuses them.
     let volumes = crate::ns_volume::prepare(plan, root, entry.filter(|_| ns.is_none()))?;
@@ -346,6 +347,11 @@ pub(crate) fn spawn_with(
                 // before the fork, inside the image relative to the
                 // descriptor above, or inside a volume by its host path.
                 report(11, e);
+            }
+            // The title of the init or the relay, before the limits and the
+            // rules: the payload reads no argument or variable of the caller.
+            if let Some(s) = &shown {
+                s.apply();
             }
 
             // The paths of the rules open here, in the view of the payload:

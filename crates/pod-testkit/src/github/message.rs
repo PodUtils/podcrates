@@ -92,7 +92,17 @@ pub(super) fn job_message(base: &str, job: &Job) -> Value {
             s("run_id", &job.run_id.to_string()), s("event_name", "push"),
             s("server_url", "https://github.com"), s("api_url", "https://api.github.com"),
             s("graphql_url", "https://api.github.com/graphql"),
-        ] } },
+        ] },
+            // The runner expands an expression only when each context that
+            // its schema names is a key here (`IsSupersetOf` in its
+            // TemplateEvaluator). GitHub sends these for each job; the
+            // values are of a job with no matrix.
+            "strategy": { "t": 2, "d": [
+                { "k": "fail-fast", "v": true }, { "k": "job-index", "v": 0 },
+                { "k": "job-total", "v": 1 }, { "k": "max-parallel", "v": 1 },
+            ] },
+            "matrix": null, "needs": { "t": 2, "d": [] }, "vars": { "t": 2, "d": [] },
+        },
         "steps": steps,
         "fileTable": [],
         "mask": [{ "type": "regex", "value": job.token }],
@@ -104,13 +114,9 @@ mod tests {
     use super::*;
     use crate::github::Status;
 
-    #[test]
-    fn the_messages_have_the_shapes_of_the_runner() {
-        let r = job_request("http://127.0.0.1:1/", 3);
-        assert_eq!(r["messageType"], "RunnerJobRequest");
-        let body: Value = serde_json::from_str(r["body"].as_str().unwrap()).unwrap();
-        assert_eq!(body["runner_request_id"], "3");
-        let job = Job {
+    /// A job of two steps, given to a runner.
+    fn job() -> Job {
+        Job {
             id: 3,
             run_id: 9,
             repo: "o/r".into(),
@@ -126,7 +132,16 @@ mod tests {
             created_at: 0,
             started_at: None,
             completed_at: None,
-        };
+        }
+    }
+
+    #[test]
+    fn the_messages_have_the_shapes_of_the_runner() {
+        let r = job_request("http://127.0.0.1:1/", 3);
+        assert_eq!(r["messageType"], "RunnerJobRequest");
+        let body: Value = serde_json::from_str(r["body"].as_str().unwrap()).unwrap();
+        assert_eq!(body["runner_request_id"], "3");
+        let job = job();
         let m = job_message("http://127.0.0.1:1/", &job);
         assert_eq!(m["requestId"], 3);
         assert_eq!(m["steps"].as_array().unwrap().len(), 2);
@@ -137,5 +152,25 @@ mod tests {
         assert_eq!(parts.len(), 3);
         let claims: Value = serde_json::from_slice(&URL_SAFE_NO_PAD.decode(parts[1]).unwrap()).unwrap();
         assert!(claims["exp"].as_u64().unwrap() > 4_000_000_000);
+    }
+
+    /// The runner expands an expression of an action's input default
+    /// (`input-default-context`) and of a step (`step-with`, `step-env`)
+    /// only when each context of the schema is a key of the context data.
+    #[test]
+    fn the_context_data_has_each_context_that_the_runner_expands_with() {
+        let job = job();
+        let m = job_message("http://127.0.0.1:1/", &job);
+        let c = m["contextData"].as_object().unwrap();
+        for name in ["github", "strategy", "matrix", "needs", "vars"] {
+            assert!(c.contains_key(name), "no {name}: {:?}", c.keys().collect::<Vec<_>>());
+        }
+        assert!(c["matrix"].is_null(), "a job with no matrix: {}", c["matrix"]);
+        let s = c["strategy"]["d"].as_array().unwrap();
+        let get = |k: &str| s.iter().find(|e| e["k"] == k).map(|e| e["v"].clone());
+        assert_eq!(get("fail-fast"), Some(json!(true)));
+        assert_eq!(get("job-index"), Some(json!(0)));
+        assert_eq!(get("job-total"), Some(json!(1)));
+        assert_eq!(get("max-parallel"), Some(json!(1)));
     }
 }

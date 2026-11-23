@@ -173,6 +173,7 @@ pub const SYS_FCNTL: i64 = nr!(fcntl, __NR_fcntl);
 pub const SYS_IOCTL: i64 = nr!(ioctl, __NR_ioctl);
 pub const SYS_PIVOT_ROOT: i64 = nr!(pivot_root, __NR_pivot_root);
 pub const SYS_PRCTL: i64 = nr!(prctl, __NR_prctl);
+pub const SYS_BRK: i64 = nr!(brk, __NR_brk);
 pub const SYS_CHROOT: i64 = nr!(chroot, __NR_chroot);
 pub const SYS_MOUNT: i64 = nr!(mount, __NR_mount);
 pub const SYS_UMOUNT2: i64 = nr!(umount2, __NR_umount2);

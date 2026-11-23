@@ -16,10 +16,12 @@ file 429a7e9cdd5e86a8847cf5dee4bcda59fb33fa2a tests/test_host/mod.rs -> crates/p
 # takes one job (src/github/broker.rs, a_runner_that_runs_its_job_takes_no_other);
 # the run of a job (20f5a4b) is the run_id of each job here; rsa 0.10
 # (033c25d) and run_once_into (e7e5d4c) are podrunner's: this key is of
-# ring, and the crate starts no runner.
-repo PodUtils/podrunner e7e5d4cc6e358515c309e3b729015c3346c4a044
+# ring, and the crate starts no runner. The block moved to 9fdf2c3
+# (T-1122): its context data of `strategy`, `matrix`, `needs` and `vars`
+# is in src/github/message.rs; the overrides of a job are podrunner's.
+repo PodUtils/podrunner 9fdf2c30c2ab262e1d25839145f5acf30266db96
 file b7735e1ef9b59f14b0dd418e8aaa212fb7f0c207 crates/podrunner-broker-fake/src/lib.rs -> crates/pod-testkit/src/github.rs crates/pod-testkit/src/github/broker.rs
-file d7ec387b0ce6fc05364121ab295c8bf1ad582c90 crates/podrunner-broker-fake/src/message.rs -> crates/pod-testkit/src/github/message.rs
+file 10ed4007d192ec54c1add314a6fc0ecaaf956fa9 crates/podrunner-broker-fake/src/message.rs -> crates/pod-testkit/src/github/message.rs
 file 3c93b065172d634f957c3a4b70e27e207799f4db crates/podrunner-broker-fake/src/auth.rs -> crates/pod-testkit/src/github/broker.rs crates/pod-testkit/src/github/key.rs
 file 5e9475d1efd27617f7017a28d8c71fa40a3b790d crates/podrunner-broker-fake/src/results.rs -> crates/pod-testkit/src/github/broker.rs
 file 7e3b6fae98e9eec26bd63da344a6c0496c7adeab crates/podrunner-broker-fake/src/files.rs -> crates/pod-testkit/src/github/api.rs
@@ -38,9 +40,12 @@ repo PodUtils/podrunner b0f8a36c6152cde3ed48a1c03cffb64f1293be52
 file 1b246d7ad58a6abe72bc4d3c953f050b89d1b86f crates/podrunner-fake/src/source.rs -> crates/pod-testkit/src/githome/wire.rs
 file 5a5c3a97f3b5962132bee859c957c20c64160988 crates/podrunner-fake/src/assigned.rs -> crates/pod-testkit/src/githome/offer.rs
 
-repo PodUtils/podrunner 0fd22187646dd697d606bcb0560e8f59bac26cec
+repo PodUtils/podrunner 43226db1074dc131c26229e791a3cded02a25960
 # T-951 (PodUtils/podrunner#310): the 15 tests of the conformance suite
 # (test 15: a cancelled job is reported and released) and the contract,
-# for the test of the feature `githome`.
+# for the test of the feature `githome`. The block moved to 43226db
+# (T-1122) with no port: its rule of the CPU time of the incus kind is a
+# rule of the measure of a driver; the fake keeps the fields of a report
+# as the session sends them.
 file ca245513ff48f33196a89e7291c2dfc3e04757a4 crates/podrunner-source/src/conformance.rs -> crates/pod-testkit/tests/githome.rs
-file da3b246438d3b1fc4dd29c89373ec1098e2b1906 docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+file 71aa3c48227ed73a2f1fee1710d4ab4ed24398f6 docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs

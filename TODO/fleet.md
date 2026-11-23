@@ -8101,3 +8101,240 @@ cargo test -p pod-release --all-features
 ## Start condition
 
 The coordinator names the step in a COORD issue `(to podnet)` and podnet answers.
+
+# T-1106: `pod-unit`: a removal and an install refuse what an older version of the program wrote, as its mark differs (PodUtils/podssh#342)
+
+**Source:** PodUtils/podssh#342 (COORD-135 of podssh), ask (b).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh, ask (b): "A mark may not hold `--`, and a removal refuses a file
+of another mark (78). An upgrade of podssh would fail on the units, tasks
+and crontab lines that an older podssh wrote. Ask: let a removal find a
+caller's older marks, or let a mark hold `--` where the form is not XML."
+`Unit::check` refuses a mark with `--`, and `install_ways::ours`, the check
+of a task, the check of a Windows service and `cron::table` take only the
+text of `Unit::mark`. podssh's units start with `# Written by podssh `
+and the words of its flags (`node NAME --install`); its plists hold
+`<!-- Written by podssh`; its crontab lines are under
+`# podssh node NAME --install wrote the lines below; ...` or the older
+`... wrote the line below; ...`.
+
+## Premise
+
+- Read: PodUtils/podssh#342; `PodUtils/podssh:crates/podssh-cli/src/node_install/text.rs`
+  (`UNIT_MARK`, `PLIST_MARK`, `cron_mark`, `old_cron_mark`, `cron_table`),
+  `unix.rs`, `launchd.rs`, `system_install.rs` in a shallow clone;
+  `crates/pod-unit/src/model.rs`, `crates/pod-unit/src/install_ways.rs`,
+  `crates/pod-unit/src/install_system.rs`, `crates/pod-unit/src/cron.rs`.
+- `Unit` is `#[non_exhaustive]`: no consumer builds it with all its
+  fields, so a new field breaks no consumer (podrunner, podssh, podvm and
+  podnet read in shallow clones).
+- Not measured: an upgrade of podssh on a host with a unit of an older
+  podssh.
+
+## Approach
+
+A list of the caller's older marks, for an install and a removal alone
+(call C907): `Unit::older_marks` and the builder `Unit::older_mark(TEXT)`.
+No render writes an older mark, so it may hold `--`; `Unit::mark` keeps its
+rule, as each form writes it and a comment of XML may hold no `--`. Each
+older mark is the text as the older version wrote it: the first line of a
+unit of systemd that starts with it; a plist, the XML of a task or the
+description of a Windows service that holds it; a line of the crontab that
+is it. `Unit::check` refuses an older mark of fewer than 8 characters
+(blanks at the ends not counted) or with a control character.
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features --test install --test install_system
+```
+
+## Done
+
+2026-11-23, this commit (call C907). `Unit::older_marks` and
+`Unit::older_mark(TEXT)` in `crates/pod-unit/src/model.rs`; the matches in
+`crates/pod-unit/src/install_ways.rs` (the first line of a unit of
+systemd, a plist, a task), `crates/pod-unit/src/install_system.rs` (the
+description of a Windows service) and `crates/pod-unit/src/cron.rs` (a
+line of the crontab). `Unit::check` refuses an older mark of fewer than 8
+characters or with a control character. No public signature changed.
+podssh calls `Unit::new(NAME, EXE, MARK).older_mark(UNIT_MARK)
+.older_mark(PLIST_MARK).older_mark(&cron_mark(kind, name))
+.older_mark(&old_cron_mark(kind, name))`. Tests (failed before the fix
+with `Class::Config` and an accepted short mark):
+`an_older_mark_of_the_program_lets_an_upgrade_replace_and_remove_what_it_wrote`,
+`an_older_mark_that_is_short_or_holds_a_line_break_is_refused`
+(`crates/pod-unit/tests/install.rs`: 9 passed),
+`an_older_mark_of_the_program_takes_its_unit_of_the_system`
+(`crates/pod-unit/tests/install_system.rs`: 9 passed).
+
+
+# T-1107: `pod-unit`: a unit of the system that runs as a named account removes the IPC of that account at its stop (`RemoveIPC=yes`) (PodUtils/podssh#342)
+
+**Source:** PodUtils/podssh#342 (COORD-135 of podssh), ask (c).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh, ask (c): "pod-unit sets it on a unit that runs as a person's
+account, where it would remove that person's IPC at the unit's stop. Ask:
+leave it off when the unit runs as a named account." `hardening::LINES`
+has `RemoveIPC=yes` for each unit of the system. systemd removes each
+System V and POSIX IPC object of the user and the group of the unit when
+the unit stops (`systemd.exec(5)`). podssh's `--install --system --run-as
+USER` runs a node as a person's account: a stop of the node would remove
+the shared memory and the semaphores of that person's other programs.
+podssh's own table of its system unit has no `RemoveIPC=`.
+
+## Premise
+
+- Read: `crates/pod-unit/src/hardening.rs`, `crates/pod-unit/src/systemd.rs`,
+  the golden files of `crates/pod-unit/tests/golden`;
+  `PodUtils/podssh:crates/podssh-cli/src/node_install/system_text.rs`
+  (`HARDENING`); podrunner's `print-unit --system`
+  (`PodUtils/podrunner:crates/podrunner/src/cli/unit.rs`), whose test
+  asserts `RemoveIPC=yes` in a unit of the account `podrunner`, an account
+  of the service alone.
+- With `DynamicUser=yes`, systemd sets `RemoveIPC=yes` itself: the line
+  changes nothing there.
+- Not measured: a stop of a unit with a named account on a host.
+
+## Approach
+
+A unit with a named account (`Scope::System { run_as: Some(_) }`) relaxes
+`RemoveIPC=yes` with its reason (a comment that `systemd::audit` reads), as
+the account can be a person's (call C908). A unit with `DynamicUser=yes`
+keeps the line. A program whose named account is its own
+(podrunner) says so with the new `Hardening::service_account()`, and keeps
+the line. A reason that the program gives with `Hardening::relax` stays.
+`hardening::LINES` does not change.
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features --test systemd
+```
+
+## Done
+
+2026-11-23, this commit (call C908). `Hardening::lines` takes the
+named account; a unit with `User=NAME` writes `# Relaxed, as the account
+NAME can be a person's, whose IPC a stop would remove: RemoveIPC=yes`,
+which `systemd::audit` takes. `Hardening::service_account()` keeps the
+line for the program's own account; a reason of `Hardening::relax` stays.
+`DynamicUser=yes` keeps the line, and the golden files do not change for
+it. podssh needs no call: its `--run-as USER` unit has no `RemoveIPC=yes`.
+podrunner calls `service_account()` (T-1110). Test (failed before the fix
+at the assert of no `RemoveIPC=yes` line):
+`a_named_account_keeps_its_ipc_and_an_account_of_the_service_loses_it`
+(`crates/pod-unit/tests/systemd.rs`: 13 passed).
+
+
+# T-1108: `pod-unit`: a unit of systemd has no limit of starts for systemd older than 230 (`StartLimitInterval=0`) (PodUtils/podssh#342)
+
+**Source:** PodUtils/podssh#342 (COORD-135 of podssh), ask (d).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh, ask (d): "`StartLimitInterval=0` beside `StartLimitIntervalSec=0`,
+for systemd older than 230, which podssh's unit supports today."
+`systemd::render` writes `StartLimitIntervalSec=0` in `[Unit]` alone.
+systemd before 230 reads the limit of starts as `StartLimitInterval=` in
+`[Service]`, and drops the line of `[Unit]` as unknown: a unit that ends
+five times in ten seconds then stays down.
+
+## Premise
+
+- Read: `crates/pod-unit/src/systemd.rs` (`render`, `restart_lines`);
+  `PodUtils/podssh:crates/podssh-cli/src/node_install/text.rs` (`unit`)
+  and `system_text.rs` (`unit`), which write both names: the new one in
+  `[Unit]`, the old one in `[Service]` after `RestartPreventExitStatus=`.
+- systemd 230 and later still reads `StartLimitInterval=` in `[Service]`
+  (`load-fragment-gperf.gperf.in`: `Service.StartLimitInterval`, the same
+  field as `Unit.StartLimitIntervalSec`).
+- Not measured: a start on a systemd older than 230.
+
+## Approach
+
+`restart_lines` writes `StartLimitInterval=0` in `[Service]` after the
+restart lines, with a comment, when the unit restarts after each end (the
+same condition as `StartLimitIntervalSec=0`). Update the golden files;
+`systemd_analyze_verify_accepts_each_unit` holds that the systemd of the
+host gives no warning.
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features --test systemd
+```
+
+## Done
+
+2026-11-23, this commit. `restart_lines` of
+`crates/pod-unit/src/systemd.rs` writes `StartLimitInterval=0` in
+`[Service]`, with a comment, when the unit restarts after each end; the
+golden files `crates/pod-unit/tests/golden/podrunner.service` and
+`crates/pod-unit/tests/golden/podnet-relay-node.service` have the two
+lines. `systemd_analyze_verify_accepts_each_unit` passes with systemd 255
+here: no warning for the old name in `[Service]`. Tests (the first failed
+before the fix): `a_unit_restarts_after_each_end_with_no_limit_of_starts`,
+`a_unit_that_restarts_after_a_failure_alone_keeps_the_limit_of_starts`
+(`crates/pod-unit/tests/systemd.rs`: 13 passed).
+
+
+# T-1110: `pod-unit`: podrunner's unit of the system loses `RemoveIPC=yes` at its take of the tag of T-1107, and its test of the unit fails
+
+**Source:** T-1107 (a finding: the read of podrunner's use of `pod-unit`).
+**Category:** chore
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-1107 relaxes `RemoveIPC=yes` in each unit of the system with a named
+account, unless the program calls `Hardening::service_account()`.
+podrunner's `print-unit --system` renders a unit of its own account
+`podrunner` (`PodUtils/podrunner:crates/podrunner/src/cli/unit.rs`), and
+its test `print_unit_system_passes_the_audit_of_a_unit_of_the_system`
+(`PodUtils/podrunner:crates/podrunner/src/cli/unit/tests.rs`) holds the
+line `RemoveIPC=yes`. At its take of the tag with T-1107 that test fails,
+and with no change the unit keeps the IPC of the account at a stop. No
+adoption trial of podcrates covers `pod-unit`, so CI here does not see it.
+
+## Premise
+
+- Read: podrunner's `cli/unit.rs` and `cli/unit/tests.rs` in a shallow
+  clone; `adoption/` (no trial of `pod-unit`).
+- Not measured: a build of podrunner at the tag.
+
+## Approach
+
+Name the change in the answer to podrunner at the release of the tag
+with T-1107 (a COORD issue of podcrates, `docs/maintenance.md`, "Talk
+between sessions"): podrunner adds `unit.hardening.service_account();`
+in `print_unit_system` after `.system(Some(user))`; its test then passes
+as it is. The adoption map of `crates/pod-unit/README.md` names the call.
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features --test systemd
+```

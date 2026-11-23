@@ -64,7 +64,7 @@ unit.hardening.relax("MemoryDenyWriteExecute", "the engine of rules compiles at 
 
 | Form | User (`Scope::User`) | System (`Scope::System`) |
 | --- | --- | --- |
-| systemd | `systemd::render`: `~/.config/systemd/user/NAME.service`, `WantedBy=default.target`, the lines of seccomp of the hardening | `systemd::render`: `/etc/systemd/system/NAME.service`, `User=NAME` or `DynamicUser=yes`, each line of the hardening, `WantedBy=multi-user.target` |
+| systemd | `systemd::render`: `~/.config/systemd/user/NAME.service`, `WantedBy=default.target`, the lines of seccomp of the hardening | `systemd::render`: `/etc/systemd/system/NAME.service`, `User=NAME` or `DynamicUser=yes`, each line of the hardening (`RemoveIPC=yes` relaxed for `User=NAME`), `WantedBy=multi-user.target` |
 | launchd | `launchd::render`: a LaunchAgent, `~/Library/LaunchAgents/LABEL.plist` | `launchd::render`: a LaunchDaemon with `UserName` (a named user is necessary) |
 | Windows | `windows::task_xml`: a task at the logon of the user and each 5 minutes, `LeastPrivilege` | `windows::service_commands`, `service_script`: a service of `sc.exe` (call C859) |
 | cron | `cron::lines`, `cron::table`: `@reboot` and a watchdog each 5 minutes | none |
@@ -74,14 +74,34 @@ Each form:
 * runs the program by its absolute path, with its words quoted for the
   form (`quote`);
 * starts it again after each end (`Restart::always`) or after a failure,
-  after `delay_s`; with no limit of starts on systemd;
+  after `delay_s`; with no limit of starts on systemd
+  (`StartLimitIntervalSec=0` in `[Unit]`, and `StartLimitInterval=0` in
+  `[Service]` for systemd older than 230);
 * starts no loop after 64 (usage) and 78 (a configuration, or a revoked
   credential: `pod_core::Class::Revoked`), on systemd
   (`RestartPreventExitStatus=64 78`, A-C-07). launchd, the Task Scheduler
   and the service control manager have no rule of exit codes: there the
   delay bounds the loop;
 * names what wrote it (`Unit::mark`) in its first comment: a removal
-  removes only a file, a task or lines with that mark.
+  removes only a file, a task or lines with that mark, or with a mark of an
+  older version of the program (`Unit::older_mark`, below).
+
+### The marks of an older version (call C907)
+
+An upgrade of a program replaces and removes what its older version wrote
+with another mark. The caller gives each older mark as the older version
+wrote it, comment signs too; no form writes it, so it may hold `--`:
+
+```rust,ignore
+let unit = Unit::new("podssh-node-n", exe, "podssh unit")
+    .older_mark("# Written by podssh ")      // the first line of a unit of systemd starts with it
+    .older_mark("<!-- Written by podssh")    // a plist, a task or a service description holds it
+    .older_mark("# podssh node n --install wrote the lines below; podssh node n --uninstall removes them"); // a crontab line is it
+```
+
+An install and a removal take a file, a task, a service or lines of the
+crontab with an older mark as their own. An older mark has 8 characters
+or more and no control character (`Class::Usage`).
 
 A form that cannot hold a part of a unit refuses the unit
 (`Class::Unsupported`), and does not drop the part: launchd, the Task
@@ -136,6 +156,12 @@ the table (`PrivateUsers=yes`, `ProcSubset=pid`, `IPAddressDeny=any`, which
 are not on by default: each breaks a program of PodUtils); `write`, `bind`
 and `bind_read` give the paths
 that `ProtectSystem=strict` and `ProtectHome=tmpfs` must let through.
+
+A unit with a named account (`User=NAME`) relaxes `RemoveIPC=yes` with its
+reason, as the account can be a person's, whose IPC a stop of the unit
+would remove (call C908). `Hardening::service_account()` says that the
+account is the program's own: the unit then keeps the line. A unit with
+`DynamicUser=yes` keeps it.
 `systemd::audit(TEXT, SYSTEM)` names each line that is neither in a unit
 nor relaxed in it: a program checks its own unit with it, also one that a
 person changed.
@@ -294,7 +320,7 @@ administrator; the Windows job of `nightly.yml` runs it, where a skip fails.
 
 | Consumer | Now | With pod-unit |
 | --- | --- | --- |
-| podrunner | `crates/podrunner/src/cli.rs`: `print_unit`, `exec_word`; `crates/podrunner/src/serve.rs`: `run` with `notify::send` and `notify::take_signal` | `Unit` with `Start::Notify`, `Stop { drain: true, timeout_s: None }`; `systemd::render` for `print-unit`; `install::probe` and `install::install` of the unit of `print_unit` for an install with no prompt (PodUtils/podrunner@T-507); `install::install_system` of the same unit with `.system(Some(USER))` for a host where the operator installs as root; on Windows, the unit of the service form with a word of the service in its arguments, and `serve::run` in `windows::serve`: `Service::ready` for `READY=1`, `Service::stop().try_recv()` for `take_signal`, `Service::stopping` for `STOPPING=1` |
-| podssh | `crates/podssh-cli/src/node_install/`: `text.rs`, `system_text.rs`, `launchd.rs`, `windows.rs`, `unix.rs`, `system.rs`, `system_install.rs` | `Unit` of each node, tunnel and pipe; the hardening table and its relaxed lines of `serve` as `Hardening::relax`; `install::install_system` for `--install --system --run-as USER`; `--env-file` stays an argument; the probe of the cache of the user, the file of variables in the state directory and the lock of a run stay in podssh |
+| podrunner | `crates/podrunner/src/cli.rs`: `print_unit`, `exec_word`; `crates/podrunner/src/serve.rs`: `run` with `notify::send` and `notify::take_signal` | `Unit` with `Start::Notify`, `Stop { drain: true, timeout_s: None }`; `systemd::render` for `print-unit`; `install::probe` and `install::install` of the unit of `print_unit` for an install with no prompt (PodUtils/podrunner@T-507); `install::install_system` of the same unit with `.system(Some(USER))` and `Hardening::service_account()` (its account `podrunner` keeps `RemoveIPC=yes`) for a host where the operator installs as root; on Windows, the unit of the service form with a word of the service in its arguments, and `serve::run` in `windows::serve`: `Service::ready` for `READY=1`, `Service::stop().try_recv()` for `take_signal`, `Service::stopping` for `STOPPING=1` |
+| podssh | `crates/podssh-cli/src/node_install/`: `text.rs`, `system_text.rs`, `launchd.rs`, `windows.rs`, `unix.rs`, `system.rs`, `system_install.rs` | `Unit` of each node, tunnel and pipe, with `Unit::older_mark` for `UNIT_MARK`, `PLIST_MARK`, `cron_mark` and `old_cron_mark`; the hardening table and its relaxed lines of `serve` as `Hardening::relax`; `install::install_system` for `--install --system --run-as USER`; `--env-file` stays an argument; the probe of the cache of the user, the file of variables in the state directory and the lock of a run stay in podssh |
 | podnet | `crates/podnet-core/src/autostart.rs`: `unit_text`, `crontab_with`, `probe` | `Unit` of `autostart run NAME --dir DIR`; `install::probe`, `install::install`, `install::remove`; the files `NAME.args` and `NAME.env` stay in podnet |
 | cfb, githome | none | through podrunner and podnet: a system unit of a named user with no token, installed by `install::install_system` (A-S-02, A-N-11) |

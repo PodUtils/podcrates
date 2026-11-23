@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 884 entries: 149 open, 27 partial, 7 blocked, 701 done.
+`TODO/INDEX.md` holds 896 entries: 152 open, 27 partial, 7 blocked, 710 done.
 
 ## State
 
@@ -83,18 +83,17 @@ podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red
 nightly (`pod-unit` `crates/pod-unit/tests/service_live.rs` on Windows;
 T-916, T-938), T-1053 (a lossy run of E2-1 that takes 20 s) and the red
-`services.yml` (T-1034), the red live run (T-963) and the drift of
-`upstream.yml` (T-1111: the takes of `pod-release` by podnet and of
-`pod_supervise::stream` by podvm, and podvm's change of a test of
-`pod-guest`'s source). Then the asks of
-podrunner (COORD-134, #225): each new ask of podrunner.
+`services.yml` (T-1034) and the red live run (T-963). Then the asks of
+podrunner (COORD-134, #225): each new ask of podrunner, and T-1110
+(tell podrunner to call `Hardening::service_account()` for its unit of the
+system at its take of the next tag).
 Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;
 cfb's A-X-18 waits for cfb's answer on #223, call C792),
 T-1118 (podnet writes the `release-index.json` of its releases). Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
-of the consumers: T-1103 (iroh 1.5 and its fork of iroh-relay, after PodUtils/podssh#341), T-1087 and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU sparse file, the attributes of libarchive alone; PodUtils/podvm#643), T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
+of the consumers: T-1113 (the init of a PID namespace in a user namespace of the rung stays dumpable; PodUtils/podvm#646), T-1103 (iroh 1.5 and its fork of iroh-relay, after PodUtils/podssh#341), T-1087 and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU sparse file, the attributes of libarchive alone; PodUtils/podvm#643), T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
 for the parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-1032 (the launcher of `pod-supervise` blocks before the start of the payload), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852,
 T-851. Then T-920.
 Then the ruling "Discipline": T-692

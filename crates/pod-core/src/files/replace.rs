@@ -91,10 +91,30 @@ impl Replace {
     /// of the kind of its cause, whose text names the step and the path
     /// ("replace PATH: STEP: CAUSE"); [`Failed::of`] gives its parts.
     pub fn write(&self, path: &Path, body: &[u8]) -> io::Result<Commit> {
-        self.run(path, body, REAL).map_err(io::Error::from)
+        self.checked(path, body, REAL, |_| Ok(())).map_err(io::Error::from)
+    }
+
+    /// [`Replace::write`] with a check of the new file before the rename:
+    /// `check` gets the path of the temporary file, written, synced and
+    /// closed (a program reads a key back and opens it). An error of
+    /// `check` removes the temporary file and leaves the file at `path` as
+    /// it was; the error is of the step [`Step::Check`], with the kind and
+    /// the text of the error of `check`.
+    pub fn write_checked<F>(&self, path: &Path, body: &[u8], check: F) -> io::Result<Commit>
+    where
+        F: FnOnce(&Path) -> io::Result<()>,
+    {
+        self.checked(path, body, REAL, check).map_err(io::Error::from)
     }
 
     fn run(&self, path: &Path, body: &[u8], hooks: Hooks) -> Result<Commit, Failed> {
+        self.checked(path, body, hooks, |_| Ok(()))
+    }
+
+    fn checked<F>(&self, path: &Path, body: &[u8], hooks: Hooks, check: F) -> Result<Commit, Failed>
+    where
+        F: FnOnce(&Path) -> io::Result<()>,
+    {
         let target = match self.follow_link {
             true => follow(path).map_err(|e| Failed::new(Step::FollowLink, path, e))?,
             false => path.to_path_buf(),
@@ -116,6 +136,7 @@ impl Replace {
             .map_err(at(Step::Write))
             .and_then(|()| file.sync_all().map_err(at(Step::Sync)));
         drop(file);
+        let written = written.and_then(|()| check(&tmp).map_err(at(Step::Check)));
         if let Err(f) = written {
             let _ = std::fs::remove_file(&tmp);
             return Err(f);

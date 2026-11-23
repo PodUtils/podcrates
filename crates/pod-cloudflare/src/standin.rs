@@ -59,30 +59,28 @@ impl Standin {
             .enable_all()
             .build()
             .expect("a runtime for the stand-in");
+        let mut standin = runtime.block_on(Standin::start_here());
+        standin.runtime = Some(runtime);
+        standin
+    }
+
+    /// The stand-ins on the runtime of the caller, for a test with a
+    /// paused clock. Use [`Standin::start_tunnel`] in place of
+    /// [`Standin::run`], [`Standin::block_on`] and [`Standin::proxy`]: they
+    /// need the runtime of [`Standin::start`].
+    pub async fn start_here() -> Standin {
         let dir = tempfile::tempdir().expect("a directory");
         let ca = ca::Ca::new();
         let ca_file = dir.path().join("standin-ca.pem");
         std::fs::write(&ca_file, &ca.pem).unwrap();
         let api = api::Api::new();
         let edge = edge::Edge::new(api.clone());
-        let (api_addr, edge_addr, front_addr) = runtime.block_on(async {
-            let api_addr = api::serve(api.clone()).await;
-            let (listener, edge_addr) = edge::listen().await;
-            let names = [crate::cloudflare::h2_sni(), crate::cloudflare::quic_sni()];
-            edge::serve(edge.clone(), listener, ca.server_config(&names));
-            let front_addr = front::serve(edge.clone()).await;
-            (api_addr, edge_addr, front_addr)
-        });
-        Standin {
-            runtime: Some(runtime),
-            api,
-            api_url: format!("http://{api_addr}"),
-            edge,
-            edge_addr,
-            front_addr,
-            dir,
-            ca_file,
-        }
+        let api_addr = api::serve(api.clone()).await;
+        let (listener, edge_addr) = edge::listen().await;
+        let names = [crate::cloudflare::h2_sni(), crate::cloudflare::quic_sni()];
+        edge::serve(edge.clone(), listener, ca.server_config(&names));
+        let front_addr = front::serve(edge.clone()).await;
+        Standin { runtime: None, api, api_url: format!("http://{api_addr}"), edge, edge_addr, front_addr, dir, ca_file }
     }
 
     /// Run a future of the stand-in to its end.
@@ -148,6 +146,12 @@ impl Standin {
     ) -> Result<TunnelHandle, pod_core::Failure> {
         let builder = more(TunnelBuilder::quick(Arc::new(host)).config(config));
         self.block_on(async move { builder.build()?.start().await })
+    }
+
+    /// Start a tunnel of `host` with `config` on the runtime of the caller
+    /// (see [`Standin::start_here`]).
+    pub async fn start_tunnel(&self, host: Host, config: Config) -> Result<TunnelHandle, pod_core::Failure> {
+        TunnelBuilder::quick(Arc::new(host)).config(config).build()?.start().await
     }
 
     /// A request from a visitor, through the front. `host` is the `Host`.

@@ -231,6 +231,29 @@ The entries:
   `spawn_namespace`. `spawn_joined_root` takes a `Root`: for an overlay
   root the chroot must land on an overlay that is not the lower
   directory, and a refused join enters an overlay root of its own.
+* The title of the init and of the relay (`title`, `Plan::relay_title`,
+  PodUtils/podvm#646): both are forks of the caller with no exec, so with
+  no title the payload reads the command line of the caller (the values
+  of its options) and its environment (a token too) in `/proc/PID`. The
+  parent reads the map of the caller (`/proc/self/stat`) and makes the
+  title before the fork. The child has one thread, whatever the threads
+  of the caller. After the maps of each user namespace, the root change
+  and the working directory, and before the rules, the limits, the
+  confinement and the fork of the payload, it points its command line at
+  the title and its environment at nothing
+  (`prctl(PR_SET_MM, PR_SET_MM_MAP)` with `exe_fd` -1: no capability,
+  Linux 3.18 and later with `CONFIG_CHECKPOINT_RESTORE`), and sets its
+  name (`PR_SET_NAME`). Where the kernel refuses the map, it writes NUL
+  over its command line and its environment in place: it reads neither
+  again, and the payload execs with its own. `relay_title` `None` is the
+  product of `Plan::names`. The relay of a join, and the init where the
+  rung makes no user namespace (a caller with capabilities), become not
+  dumpable (`PR_SET_DUMPABLE` 0): a payload with no capability over their
+  memory cannot trace them or read their memory or `/proc/PID/environ`.
+  The init in a user namespace of the rung stays dumpable: the join of a
+  caller with no capabilities opens its namespaces, and the kernel
+  refuses the `/proc/PID/ns` and the pidfd of a process that is not
+  dumpable to that caller (T-1113).
 * The entry with no chroot (`spawn_userland`, `userland`): the loader of
   the image by host path, or a staged memfd for a static payload; the
   table of path maps for the interposer (`userland::Maps`: the root pair
@@ -340,7 +363,8 @@ each entry takes; the payload owns the standard output.
 | Item | What |
 | --- | --- |
 | `Names` | `product`, `mode_request`, `mode_active`, `cache`, `maps`, `lib_path`, `exec_table`, `write_table`, `device_spec`, `device_fds`, `cache_marker`, `memfd_label`, `reserved` (the guest paths that the interposer of the caller never rewrites; `Maps::new` refuses a volume under one). `Names::DEFAULT` gives `pod-enter`, `POD_ENTER_MODE`, `POD_ENTER_ACTIVE_MODE`, `POD_ENTER_CACHE`, `POD_ENTER_MAPS`, `POD_ENTER_LIB_PATH`, `POD_ENTER_EXEC_TABLE`, `POD_ENTER_WRITE_TABLE`, `POD_ENTER_DEVICE_SPEC`, `POD_ENTER_DEVICE_FDS`, `.pod-enter-cache-complete`, `pod-enter-payload`, no reserved path |
-| `Plan { argv, env, working_dir, fds, banner, path_dirs, names, limits, no_new_privs, die_with_parent, confine, hostname, volumes, userns_ids }`, `Program`, `VolumeBind { host, guest, read_only, host_base }` | what the payload will be; `Plan::{argv_for, env_for(&names, ..), set_active_mode(&names, ..), path_from, program, program_candidates, DEFAULT_PATH}`; `confine: Option<pod_confine::Spec>` (guest paths on a rung with a chroot, host paths on the entry with no chroot); `hostname: Option<String>` (the namespace rung enters a UTS namespace and sets it; each other entry refuses a plan with a name, and the rung does not fall back to chroot with one); `volumes: Vec<VolumeBind>` (the namespace rung binds each one, in order; each entry with no mount namespace refuses a plan with one, a join binds none, and the rung does not fall back to chroot with one); `userns_ids: Option<(u32, u32)>` (the uid and the gid of the payload in the user namespace of the rung; `None` is 0) |
+| `Plan { argv, env, working_dir, fds, banner, path_dirs, names, limits, no_new_privs, die_with_parent, confine, hostname, volumes, userns_ids, pid_namespace, relay_title }`, `Program`, `VolumeBind { host, guest, read_only, host_base }` | what the payload will be; `Plan::{argv_for, env_for(&names, ..), set_active_mode(&names, ..), path_from, program, program_candidates, DEFAULT_PATH}`; `confine: Option<pod_confine::Spec>` (guest paths on a rung with a chroot, host paths on the entry with no chroot); `hostname: Option<String>` (the namespace rung enters a UTS namespace and sets it; each other entry refuses a plan with a name, and the rung does not fall back to chroot with one); `volumes: Vec<VolumeBind>` (the namespace rung binds each one, in order; each entry with no mount namespace refuses a plan with one, a join binds none, and the rung does not fall back to chroot with one); `userns_ids: Option<(u32, u32)>` (the uid and the gid of the payload in the user namespace of the rung; `None` is 0); `relay_title: Option<String>` (the command line and the name of the init and of the relay of a PID namespace; `None` is `names.product`) |
+| `title` | `hide(title)` (one thread; a `Saved`), `restore(&saved)`, `blank_in_place` (unsafe: the process reads no argument and no variable again), `Map`, `map_of`, `titled`, `Refused`: the title and the empty environment of a process of the caller, for podvm's own processes in the namespaces of a payload |
 | `limits` | `Limit { resource, soft, hard }`, `Resource` (`from_word` of docker's `--ulimit` word, `word`, `number` of the kernel of this architecture, `name`), `INFINITY`, `MOST` (64): the child of each entry sets each limit (`prlimit64` on itself) and then `PR_SET_NO_NEW_PRIVS` where `Plan::no_new_privs` asks, after the root change and the `chdir`, before the exec; a refused call stops the payload and is named (`setrlimit(RLIMIT_NOFILE): EPERM`); `repeated` names the first resource that a list gives two times, and each entry refuses such a plan before the fork with `Error::LimitTwice`: the caller coalesces first (docker keeps the last value) |
 | `RootDir::open`, `Fds`, `Child`, `Bounded` | the held root; the descriptors of the payload (a passed descriptor onto the number of the root or of the memfd is refused before the fork; the readiness pipe moves clear of each passed number, and the child opens the paths of the rules of the confinement after the passes; a descriptor passed onto its own number loses its close-on-exec flag, so the payload holds it); a started payload (`wait`, `wait_forwarding`, `wait_bounded`); `WAIT_FORWARDED`, the signals that `wait_forwarding` and the init of `Plan::pid_namespace` give to the payload: SIGHUP, SIGINT, SIGQUIT, SIGUSR1, SIGUSR2, SIGTERM, SIGALRM and SIGPWR, as docker's `--sig-proxy` with no tty (SIGINT and SIGQUIT only from a process, as a terminal sends them to the process group of the payload too); each forward is a line on `err`. The list is `pod_hostprobe::sys::PROXIED_SIGNALS`. `wait_forwarding` blocks the list in its own thread only: each other thread of the process must block it (`block_forwarded`, at the start of the thread or around its spawn; also before the start of the payload: the child of the entry sets an empty mask before its `execve`; `std::process::Command` of Rust passes the mask of its caller), or a signal of the list ends the process and the payload stays |
 | `spawn`, `run`, `spawn_ladder`, `run_ladder`, `spawn_userland`, `run_userland`, `spawn_namespace`, `run_namespace`, `spawn_namespace_root`, `run_namespace_root`, `spawn_joined`, `spawn_joined_root`, `spawn_selected`, `run_selected` | the entries; a `run_*` waits and forwards each signal of `WAIT_FORWARDED`. `spawn_userland` and `run_userland` take `&Maps` after the plan: the working directory resolves through it before the fork, and a table whose root is not `root.path` is refused |
@@ -441,6 +465,7 @@ Against podvm `crates/podvm-enter` at `284f429`:
 | `userland::invocation_path` | the invoked spelling stays only where the host opens the resolved file through it (the same device and inode); else the resolved file |
 | the image's `USER` or `--user` of `run -d` and `create` on the namespace rung (PodUtils/podvm#447) | `Plan::userns_ids: Some((uid, gid))` with the ids that podvm resolves in the tree; `--user 0` is `None`. `Plan::env_for` adds `HOME=/root` where the image and the caller set no `HOME`: give the `HOME` of the user (docker reads the passwd of the image) in the caller's variables. Each file of the tree of the caller then shows as owned by the user |
 | the image's `USER` or `--user` of a foreground `run`, where podvm is uid 0 of a user namespace of its own (PodUtils/podvm#452) | the same `Plan::userns_ids: Some((uid, gid))`: the payload gets the ids through a nested user namespace (`<uid> 0 1`), on the namespace rung and the chroot rung, with no capability. Nothing more to give |
+| `podvm_enter::title` (`hide`, `restore`, `blank_in_place`), and `hide("podvm-init")` and `hide("podvm-exec")` around `spawn_selected` and `spawn_joined` (PodUtils/podvm#646) | `pod_enter::title`, the same items. For the init and the relay: `Plan::relay_title: Some("podvm-init".into())` or `Some("podvm-exec".into())`, and no `hide` around the spawn: the child sets the title with one thread (also with the threads of `-t`), and the relay is not dumpable |
 
 ## Tests
 
@@ -542,6 +567,16 @@ in CI and fails on a skip. The plants `enter-userns-not-tried`,
 `enter-upper-whiteout-read`, `enter-upper-opaque-read`,
 `enter-overlay-no-userxattr`, `enter-view-reads-both-opaque`,
 `enter-userns-ids-ignored` and `enter-userns-nested-ids-ignored` prove it.
+Its test of the title (T-1112, `tests/userns/pid.rs`, as root and as the
+caller with no capabilities): the payload reads in `/proc/1` of its init
+the title of the plan, or `pod-enter` with no title, as the command line
+and the name, and no byte of an environment; the caller reads the same in
+`/proc/PID` of the relay of an exec (`unit-exec`), and as the caller with
+no capabilities the environment of the relay is refused and its
+`/proc/PID/environ` belongs to root (not dumpable). The plant
+`enter-pid-init-shows-the-caller` proves it. `title::tests` (a child
+process of its own) checks `hide` and `restore`, and the choice of the
+title and of the dump flag for each fork.
 `tests/overlay_root.rs` is podvm's acceptance test of the overlay root
 (PodUtils/podvm#323) with an upper directory of the caller: the writes
 are in the upper layer, the image is the same byte for byte, and a file

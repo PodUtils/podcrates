@@ -29,12 +29,20 @@ fn ours(path: &Path, mark: &str, holds: impl Fn(&str) -> bool) -> Result<bool, F
     }
 }
 
+/// The mark of `unit` on the first line, or a first line that starts with
+/// an older mark.
 fn systemd_mark(unit: &Unit) -> impl Fn(&str) -> bool + '_ {
-    move |text: &str| text.starts_with(&format!("# Written by {}.\n", unit.mark))
+    move |text: &str| {
+        let first = text.lines().next().unwrap_or_default();
+        text.starts_with(&format!("# Written by {}.\n", unit.mark)) || unit.older_mark_in(|old| first.starts_with(old))
+    }
 }
 
 fn launchd_mark(unit: &Unit) -> impl Fn(&str) -> bool + '_ {
-    move |text: &str| text.contains(&format!("{}{}.", crate::launchd::MARK, crate::quote::xml(&unit.mark)))
+    move |text: &str| {
+        text.contains(&format!("{}{}.", crate::launchd::MARK, crate::quote::xml(&unit.mark)))
+            || unit.older_mark_in(|old| text.contains(old))
+    }
 }
 
 /// `systemctl ARGS`, with `--user` for a user unit.
@@ -126,8 +134,11 @@ fn task_there(host: &dyn Host, name: &str) -> Result<Option<String>, Failure> {
     Ok(ran.success().then_some(ran.stdout))
 }
 
+/// The mark of `unit` in the XML of a task, or an older mark as it is or
+/// with the escapes of XML.
 fn task_ours(unit: &Unit, xml: &str) -> bool {
     xml.contains(&crate::quote::xml(&format!("Written by {}.", unit.mark)))
+        || unit.older_mark_in(|old| xml.contains(old) || xml.contains(&crate::quote::xml(old)))
 }
 
 pub(crate) fn task(unit: &Unit, places: &Places, host: &dyn Host) -> Result<Vec<String>, Failure> {

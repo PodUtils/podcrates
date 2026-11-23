@@ -293,15 +293,7 @@ impl Tunnel {
         };
         let won = match crate::race::race(attempts, failover, close).await {
             Ok(won) => won,
-            Err(failed) => {
-                let text: Vec<String> = failed.iter().map(|(i, err)| format!("{}: {err:#}", plan[*i])).collect();
-                let stage = failed.last().map_or(Stage::Connect, |(_, err)| err.stage);
-                return Err(crate::fail::new(
-                    stage,
-                    Class::Unavailable,
-                    format!("no edge leg worked: {}", text.join("; ")),
-                ));
-            }
+            Err(failed) => return Err(no_leg_worked(&plan, failed)),
         };
         for (i, err) in &won.failures {
             host.event(Event::warn("tunnel.leg_failed", format!("the edge leg {} failed: {err}", plan[*i])));

@@ -2343,3 +2343,75 @@ cargo test -p pod-proxy --all-features --lib race::tests
 ## Done
 
 2026-11-20, 993bf43. `Api::send` gives `each_failed`: the hop that each failed base shares (the outer `Failure` or `DialError` of each chain with the same text) is one entry of `pod_proxy::group_texts`, and stays the cause of the failure (`EachHost`), so a caller reads its `DialError`. With one base, the line names the request once: `the WARP API: POST https://HOST/...: ...`. The line now: `the WARP API: each host failed: 2 hosts (https://api.one.example, https://api.two.example): could not reach the proxy 127.0.0.1:P: could not connect to 127.0.0.1:P: Connection refused (os error 111)`. Tests: `crates/pod-warp/tests/register.rs::each_api_host_failed_at_the_proxy_names_it_once` (failed before the fix: 2 names of the proxy) and `api::tests::each_base_failed_at_one_hop_names_it_once` (the chain of podnet's dialer, a `DialError` under its own words). `cargo test -p pod-warp --all-features` and `-p pod-proxy`: green (the run of T-985).
+
+
+# T-1116: `pod-cloudflare`: the edge refuses a new quick tunnel with "Tunnel not found" for more than three tries, and the start exits 69 (PodUtils/podnet#685)
+
+**Source:** PodUtils/podnet#685 (COORD-113 of podnet).
+**Category:** defect
+**Milestone:** M3
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet `live` run 45169011007 (job 137677158556), a quick tunnel with `--protocol quic --transport direct`: the edge answered `Unauthorized: Tunnel not found (retry: yes, after 1 s)` to a quick tunnel made some seconds before. `register_retrying_with` of `crates/pod-cloudflare/src/tunnel/plan.rs` made 3 tries (`REGISTER_TRIES`) in about 2 s, and the start failed with exit 69. The earlier live run 42060806281 showed the same for a named tunnel. The asks:
+
+1. For a refusal with retry: yes, a time budget in place of 3 tries: up to 30 s from the first refusal; each wait is the longer of `retry_after` and `pod_core::backoff(n)`, at most 5 s. The same quick tunnel keeps its name. `leg_budget` and `attempt_limit` include the budget. A refusal with retry: no fails at once.
+2. "no edge leg worked" in `crates/pod-cloudflare/src/tunnel.rs` keeps the class and the cause: when each leg failed with a refusal with retry: yes, the class is TempFail (exit 75), not Unavailable; the typed `fail::Refused` stays in the chain, so `fail::find::<Refused>` finds it. A typed refusal gave exit 77 and the joined failure 69.
+3. The stand-in of the edge (`crates/pod-cloudflare/src/standin/edge.rs`) gets a refusal with retry and a script of replies, so a test can refuse N times, then accept.
+
+## Premise
+
+- Read: PodUtils/podnet#685; `crates/pod-cloudflare/src/tunnel/plan.rs`, `src/tunnel.rs`, `src/fail.rs` (`From<Refused>` gives TempFail to a refusal with retry: yes), `src/cloudflare/schema.rs` (`ConnectionError`: `retryAfter` in ns at word 0, `shouldRetry` at bit 64), `src/standin/edge.rs`, `crates/pod-core/src/backoff.rs`.
+- Read: podnet at its head (a shallow clone): it takes `standin::quic` only, and no code of podnet matches `standin::Reply`; `src/report.rs` and `src/tunnel.rs` of podnet read the joined text and the typed refusal, and the text of "no edge leg worked" stays.
+- Not measured: the time in which the real edge knows a new quick tunnel (the live runs show more than 2 s).
+
+## Approach
+
+- `register_retrying_with`: the first refusal with retry: yes sets a deadline of `REGISTER_BUDGET` (30 s); a new try starts while the deadline is not reached; each wait is `register_wait(retry_after, n)` (the longer of the two, from 1 s to 5 s), cut at the deadline. The last refusal comes back with its class and its type.
+- `leg_budget(one_try)` is two tries and the budget (the first try, the retries, and a last try that starts at the deadline): 110 s for `quic`, 210 s for `http2` (call C912).
+- `no_leg_worked(plan, failed)` in `plan.rs`: the text of each leg, the stage of the last leg and the last failure as the cause; TempFail when each leg failed with a refusal with retry: yes, else Unavailable.
+- The stand-in: `Reply::RefuseRetry { cause, after }`, `Edge::script(replies)`, `Standin::start_here` and `Standin::start_tunnel` (the stand-in on the runtime of a test with a paused clock). `Reply` is `#[non_exhaustive]`: no consumer matches it.
+- Tests on the paused clock of tokio; the tests of the stand-in step the clock by hand, as the auto-advance fires the timeouts of the handshakes while the loopback delivers.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features --lib tunnel::tests
+cargo test -p pod-cloudflare --all-features
+cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings
+```
+
+## Done
+
+2026-11-23, bcdbc9a9. `register_retrying_with` tries a registration that the edge refuses with retry: yes again for `REGISTER_BUDGET` (30 s) from the first refusal; each wait is `register_wait` (the longer of the wait of the edge and `pod_core::backoff::backoff`, from 1 s to 5 s), cut at the deadline. `leg_budget` is two tries and the budget: 110 s for `quic`, 210 s for `http2` (T-1117 for the documents of podnet). `no_leg_worked` gives TempFail (exit 75) when each leg failed with a refusal with retry: yes, else Unavailable, and keeps the last failure as its cause, so `fail::find::<Refused>` finds it. The stand-in: `Reply::RefuseRetry`, `Edge::script`, `Standin::start_here`, `Standin::start_tunnel`; `Reply` is `#[non_exhaustive]` (no consumer matches it). Tests, each failed before the fix (3 tries in 8.3 s of the clock, then Unavailable with no typed cause): `tunnel::tests::a_quick_tunnel_that_the_edge_does_not_know_yet_starts_with_one_provision` (5 refusals, then one accept, one provision), `tunnel::tests::a_refusal_with_retry_at_each_try_fails_after_the_budget_as_tempfail`; and `tunnel::tests::the_class_of_no_edge_leg_worked`, `tunnel::tests::the_wait_of_a_retry_is_the_longer_of_the_edge_and_the_backoff`, `tunnel::tests::a_slow_registration_completes_in_the_serial_limit`. `cargo test -p pod-cloudflare --all-features`: 213 passed, 0 failed; the tunnel tests 12 runs of 32 passed; clippy of the crate with `-D warnings`: clean; `plant-each.sh --apply`: 0 stale.
+
+# T-1117: podnet's documents give the serial limits of the legs of `pod-cloudflare` as 130 s and 280 s; T-1116 makes them 110 s and 210 s
+
+**Source:** T-1116 (a finding of its work).
+**Category:** docs
+**Milestone:** M3
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`PodUtils/podnet:docs/tunnels.md` and `PodUtils/podnet:docs/protocol.md`, section 3.3, give the time limit of a leg attempt with `--leg-failover serial`: 130 s for `quic`, 280 s for `http2` and `http2+relay` (3 tries and 2 waits of 5 s). T-1116 changes `leg_budget` of `crates/pod-cloudflare/src/tunnel/plan.rs` to two tries and the time budget of 30 s: 110 s for `quic`, 210 s for `http2`. With the tag of T-1116, podnet's documents state values that the crate does not use. podcrates does not edit podnet.
+
+## Premise
+
+- Read: the two documents of podnet at its head (a shallow clone), and the test `the_serial_limit_covers_the_budgets_of_each_leg` of `crates/pod-cloudflare/src/tunnel/tests.rs`, which holds the new values.
+- Not measured: a serial start against the live edge with the new limits.
+
+## Approach
+
+With the release that carries T-1116, the coordinator gives podnet the new values and their rule on PodUtils/podnet#685 (COORD-113): the serial limit of a leg is two tries and the 30 s budget of the retries. podnet changes its two documents. Close this entry when podnet's documents give 110 s and 210 s.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features --lib tunnel::tests::the_serial_limit_covers_the_budgets_of_each_leg
+```
