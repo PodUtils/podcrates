@@ -7742,7 +7742,7 @@ cargo test -p pod-control --all-features
 **Milestone:** M8
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7797,7 +7797,7 @@ cargo test -p pod-unit --all-features --lib secret
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
