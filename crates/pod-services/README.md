@@ -118,7 +118,7 @@ T-324). The kinds that the files name now:
 | `github-files` | `repo`, `tag`, `fact` | the SHA-256 of each file of the fact at the tag and at the newest release |
 | `github-file` | `repo`, `path`; `endpoint` or `facts` | the file on the default branch holds the values: each value of each fact, or the addresses of the endpoint (its host when it has none) |
 | `crate-file` | `crate`, `path`; `endpoint` or `role` | the file of the newest release of the crate holds the hosts |
-| `rdap` | `domain`, `ahead-days` (30) | the registration of the domain ends `ahead-days` or more after the run (a domain of the owner gives 90) |
+| `rdap` | `domain`, `ahead-days` (30), `registrar` (an IANA registrar id), if any | the registration of the domain ends `ahead-days` or more after the run (a domain of the owner gives 90); where the registry's server and `rdap.org` refuse, the RDAP server of the registrar (from IANA's list of the registrar ids) gives the record |
 | `oci-ping` | `endpoint`; `fact`, if any | `GET /v2/` answers 200, or 401 with a `Bearer` challenge whose realm is `https://` and equals the fact |
 | `oci-digest` | `endpoint`, `facts` | each `REPOSITORY[:TAG]@sha256:DIGEST` of the facts pulls by its digest; the tag that moved is reported |
 | `http-sha256` | `endpoint`; `fact`, or `files` with `facts`; for a range `start`, `sector`, `bytes` (facts), and `length` (a fact) if any | the SHA-256 of the file (or of each file under the path, or of the range) equals the fact; the length equals `length` |
@@ -236,7 +236,7 @@ let relay = services.of_kind("relay").next();
 | `letsencrypt-acme` | `acme` | `directory` | |
 | `mudlet-forwarder`, `ssheasy-forwarder`, `mudix-forwarder`, `wisp-forwarder` | `forwarder` | `forwarder` | `word`, `template`, `note` |
 | `barry-far-list`, `mahdibland-list`, `v2go-list` | `proxy-list` | `list` (https, the raw file of a public list of share links) | `note` |
-| `node-*` (6) | `proxy-node` | `node` (the host of the link, port 443) | `link` (a `vless://` or `trojan://` line of a public list; the share link is public, not a secret) |
+| `node-*` (3) | `proxy-node` | `node` (the host of the link, port 443) | `link` (a `vless://` or `trojan://` line of a public list; the share link is public, not a secret) |
 | `pinggy` | `ssh-tunnel` | `ssh`, `ssh-tls`, `ssh-tls-alt` | `user`, `url-match`, `url-skip`, `keepalive-seconds` ("SSH forward relays"), `host-key-sha256`, `tunnel-zone`, `free-tunnel-minutes` |
 | `serveo` | `ssh-tunnel` | `ssh-443`, `ssh` | `url-match` (`.serveousercontent.com`), `url-skip`, `auth` (`publickey`, `keyboard-interactive`: an anonymous session answers it empty), `note` (the private alias), `keepalive-seconds`, `host-key-sha256` (Ed25519) |
 | `ssh-j` | `ssh-tunnel` | `ssh` | `host-key-sha256` (read by podssh's live run); no URL: no fact of a forward relay |
@@ -254,7 +254,7 @@ let relay = services.of_kind("relay").next();
 | `hostc` | `hostc` | `api` (`https://hostc.dev`) | `tunnel-zone` (`hostc.app`), `protocol-version` (5) |
 | `zerotier-tcp-relay` | `tcp-relay` | `tcp` (`204.80.128.1:443`, anycast; records like TLS, no TLS) | `relay` (`ZT_TCP_FALLBACK_RELAY` of ZeroTierOne) |
 | `tox-tcp-relay` | `tcp-relay` | `node-KEY8` (5: each node of the list of Tox with 443 in `tcp_ports` and `status_tcp` true, scheme `tcp`, its IPv4 literal, port 443; the name holds the first eight digits of its key; in the order of the keys, C83) | `public-key-node-KEY8` (the node's public key, 64 hex digits, to which the handshake of the TCP relay boxes) |
-| `syncthing-relay` | `syncthing-relay` | `relay-ID7` (25: each relay of the pool of Syncthing on port 443 with an IP literal that was up 7 days or more at the read, scheme `tls`; the name holds the first seven characters of its device ID; in the order of the device IDs, C104) | `device-id-relay-ID7` (the relay's device ID, as its URL gives it; podssh pins the TLS of the relay to it, PodUtils/podssh@T-571) |
+| `syncthing-relay` | `syncthing-relay` | `relay-ID7` (24: each relay of the pool of Syncthing on port 443 with an IP literal that was up 7 days or more at the read, scheme `tls`; the name holds the first seven characters of its device ID; in the order of the device IDs, C104) | `device-id-relay-ID7` (the relay's device ID, as its URL gives it; podssh pins the TLS of the relay to it, PodUtils/podssh@T-571) |
 | `croc` | `relay` | `bridge` (`wss://getcroc.com/ws`), `bridge-relay-0` (the watch: `?relay=0&port=9009`) | `relays`, `relay-port`, `password` (croc's public default) |
 | `docker-hub-registry` | `oci-registry` | `registry` | `domain`, `aliases`, `official-prefix`, `credential-key`, `token-realm`, `images`, `experiment-images` |
 | `ecr-public-registry` | `oci-registry` | `registry` | `token-realm`, `images`, `guest-userland`, `aarch64-image`, `registry-image` |
