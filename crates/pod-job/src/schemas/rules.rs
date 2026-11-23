@@ -144,7 +144,7 @@ fn the_public_report_holds_no_host_and_no_boundary_detail() {
         }
         reports += 1;
     }
-    assert_eq!(reports, 6);
+    assert_eq!(reports, 7);
 
     // A detail added to a public report is refused by the types and by the
     // schema.
@@ -354,4 +354,31 @@ fn the_rules_of_a_report_are_the_rules_of_its_schema() {
     // withdrawn report with no unit; a refused report with a code and no
     // unit.
     assert_eq!((passed, refused), (18, 22));
+}
+
+/// A reason of `unknown_reasons` names a measured field that is `unknown`
+/// or an absent time (PodUtils/podrunner#342). For each time: absent or
+/// `null` with a reason passes, present with a reason fails; the types and
+/// the schema give the same verdict.
+#[test]
+fn a_reason_of_a_time_needs_the_time_absent() {
+    let validator = Validator::new();
+    let base = example("run-report/valid-no-first-step.json");
+    let (mut passed, mut refused) = (0, 0);
+    for name in crate::report::TIMES {
+        for (value, ok) in [(None, true), (Some(Value::Null), true), (Some(json!(2)), false)] {
+            let mut report = base.clone();
+            let map = report.as_object_mut().expect("a report is an object");
+            map.remove(name);
+            if let Some(v) = value {
+                map.insert(name.into(), v);
+            }
+            report["unknown_reasons"][name] = json!("the report has no such time");
+            let types = validate("run-report", &report.to_string());
+            assert_eq!(types.is_ok(), ok, "{name}: {report} {types:?}");
+            assert_eq!(validator.check("run-report", &report).is_ok(), ok, "{name}: {report}");
+            if ok { passed += 1 } else { refused += 1 }
+        }
+    }
+    assert_eq!((passed, refused), (10, 5));
 }

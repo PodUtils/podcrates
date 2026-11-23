@@ -47,14 +47,15 @@ impl Host for Recorder {
         Ok(json!("stopping"))
     }
 
-    /// `ask` calls the client back `n` times, and gives the count of the
-    /// answers and the first fault.
+    /// `ask` calls the client back `n` times, each call with `pad` bytes,
+    /// and gives the count of the answers and the first fault.
     fn extra(&mut self, name: &str, params: &Value, cx: &mut Context) -> Outcome {
         self.log.lock().unwrap().push(name.to_string());
         let n = params["n"].as_u64().unwrap_or(1);
+        let pad = "x".repeat(params["pad"].as_u64().unwrap_or(0) as usize);
         let mut answered = 0;
         for i in 0..n {
-            match cx.call("confirm", json!({ "i": i })) {
+            match cx.call("confirm", json!({ "i": i, "pad": pad })) {
                 Ok(mut answer) => {
                     pod_control::wire::wipe(&mut answer);
                     answered += 1;

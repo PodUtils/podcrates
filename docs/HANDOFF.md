@@ -65,10 +65,11 @@ is done. Git and the record keep finished work.
    - `docs/research/hard-problems.md`: the hard open problems (H-01 to
      H-18), with the questions that research must answer. T-978 has its
      findings that no other entry had.
-   - `upstream.yml` 45024358679 (`sources`): red on `pod-confine`
-     (podvm's `ldso.rs` and `tests_t1984.rs`); T-1094 is done and the
-     check gives 0 changes there. The next run is red on `pod-testkit`
-     (podnet `4df2895`, T-1097). `pod-manual` gives 0 changes.
+   - `upstream.yml` 45024358679 (`sources`): red on `pod-confine`.
+     T-1094 and T-1097 are done: `pod-confine`, `pod-testkit` and
+     `pod-manual` give 0 changes at the consumers' heads. The next run is
+     red on `pod-guest`, `pod-release` and `pod-supervise` (the takes of
+     podnet `af42f0d` and podvm `93524ce`, podvm `5b2b272`; T-1111).
    A new red run needs an entry before other work. A plant that a run
    misses once with no change of its crate runs its test five times in
    its `.plant` (as `link-quic-drop-closes-at-once`).
@@ -94,24 +95,23 @@ is done. Git and the record keep finished work.
    cfb's answer on #223. Both reply comments are current.
 7. Release and hand-off state:
    - `v0.81.0` (`0707cfa`) is the last GitHub release with `release.yml`
-     assets and `ghcr.io` images. Its hand-off COORD-151 (#254) stays open
-     because podvm stays on `v0.80.0` (podrunner took `v0.81.0` in
-     PodUtils/podrunner#340, podnet in PodUtils/podnet#654, podssh in
-     PodUtils/podssh#337).
+     assets and `ghcr.io` images. Its hand-off COORD-151 (#254) is closed
+     (call C780): podrunner took `v0.81.0` in PodUtils/podrunner#340,
+     podnet in PodUtils/podnet#654, podssh in PodUtils/podssh#337, and
+     podvm took `v0.82.0` in PodUtils/podvm#645.
    - `v0.82.0` (`51c09390`) is tagged directly without `release.yml`:
      `publish.yml` 45122406747 passed on `v0.82.0`, while `ci.yml`
      45122401625 failed on `turn-tests.sh` (fixed at `07d4cc4f`). Thus
      `v0.82.0` has no GitHub release, no signed `SHA256SUMS`, no `podlab`
      or fake assets, no `ghcr.io` images and no hand-off COORD issue.
-     podnet (`4df28952`) and podssh (`e728db9f`) already pin `v0.82.0`;
-     podrunner stays on `v0.81.0` and podvm stays on `v0.80.0`.
+     podnet (`4df28952`), podssh (`e728db9f`) and podvm (`4fa56ec` to
+     `a43e80cd`) pin `v0.82.0`; podrunner stays on `v0.81.0`.
    - Next release: once `ci.yml` 45144882072 and `plants.yml` 45144882160
-     finish green (and after the `service_live.rs` Windows fix and any
-     `wip/t1073` merge), release the next patch tag (call C818, e.g.
+     finish green (and after the `service_live.rs` Windows fix), release the next patch tag (call C818, e.g.
      `v0.82.1`) via `release.yml` (dry run, then `version=0.82.1`). Open
-     the new hand-off COORD issue `(to all)` and close #254 (`docs/maintenance.md`,
-     "A release", call C780), carrying any un-taken `v0.81.0` and
-     `v0.82.0` steps for podrunner and podvm.
+     the new hand-off COORD issue `(to all)` (`docs/maintenance.md`, "A
+     release", call C780). It carries the parts of `v0.82.0` that podrunner
+     has not taken (#254 is closed).
    - The pushes of a cloud session of this account start no run of
      GitHub Actions: dispatch workflows via the GitHub MCP tool first,
      and use `[gh action] requested` (#255 is the last) when dispatch
@@ -172,9 +172,9 @@ updates (`6fd6b57b`, `3720250a`, `fc7cf63f`):
 `07d4cc4f` (`HEAD`) fixes `scripts/ci/turn-tests.sh` (`coturn_tcp`
 output line) on `main`. Cut the next patch tag (e.g. `v0.82.1`, call C818)
 through `release.yml` once `ci.yml` is green (after the `service_live.rs`
-Windows fix and any `wip/t1073` merge) so GitHub release assets,
-`ghcr.io` images and the hand-off COORD issue ship cleanly. T-966
-(podnet's half waits for PodUtils/podnet@T-494) and T-963 are partial.
+Windows fix) so GitHub release assets,
+`ghcr.io` images and the hand-off COORD issue ship cleanly. T-963
+is partial.
 T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks their release
 part) are open. Before the release, read `docs/maintenance.md`, "A
 release": the steps of `release.yml` that run on a tag only are not tested
@@ -182,23 +182,10 @@ by the dry run.
 
 ## Unfinished work
 
-- `origin/wip/t1073` (base `991c600b`, commits `1712364d` and `99d69f9a`):
-  T-1073 (one deadline of the server for a call back of `pod-control`) and
-  T-1070 (`Server::active` counts a refused connection for a moment). Its
-  first commit has the code, the tests and four plants
-  (`control-refused-counts-as-place`, `control-call-back-blank-lines-renew`,
-  `control-line-write-timeout-each-write`,
-  `control-write-after-part-of-line`); fmt and clippy passed, and each new
-  test passed 20 of 20 runs. Its second commit is the record of done. The
-  workspace tests, the doc, `cargo todo check`, `lint.sh`,
-  `check-windows.sh` and `check-macos.sh` did not run. `main` has moved to
-  `07d4cc4f` past `v0.82.0` (`51c09390`). Next: merge `origin/wip/t1073`
-  into `main` locally (resolve `TODO/INDEX.md` and `TODO/PROGRESS.md`
-  counts per `docs/maintenance.md`, "Rules of the work", and check
-  `cargo todo check --base HEAD~1`), run each check of `AGENTS.md`, fix a
-  fault, and push; then delete the branch by a request `[gh action]
-  requested` (the proxy drops `git push origin --delete`). The new API is
-  `Context::call_within`; no consumer must change.
+- `origin/wip/t1073` is merged into `main` (T-1073, T-1070; the new API
+  `Context::call_within` of `pod-control`; no consumer must change). The
+  coordinator deletes the branch on GitHub by a request `[gh action]
+  requested` (the proxy drops `git push origin --delete`).
 
 ## What waits
 

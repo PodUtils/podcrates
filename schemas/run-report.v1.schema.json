@@ -232,7 +232,7 @@
       ]
     },
     "unknown_reasons": {
-      "description": "For each measured field that is `unknown`: why, in one line. A kind\nthat cannot measure a fact says `unknown` with a reason, never 0.",
+      "description": "For each measured field that is `unknown` and each absent time (the\nlists `MEASURED` and `TIMES`): why, in one line. A kind that cannot\nmeasure a fact says `unknown` with a reason, never 0.",
       "type": "object",
       "additionalProperties": {
         "type": "string"
@@ -245,7 +245,12 @@
           "net_rx_bytes",
           "net_tx_bytes",
           "cache_read_bytes",
-          "cache_written_bytes"
+          "cache_written_bytes",
+          "claim_to_first_step_s",
+          "prepare_s",
+          "start_s",
+          "run_s",
+          "destroy_s"
         ]
       }
     },
@@ -477,6 +482,111 @@
         "required": [
           "cache_written_bytes"
         ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "claim_to_first_step_s"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "claim_to_first_step_s": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "prepare_s"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "prepare_s": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "start_s"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "start_s": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "run_s"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "run_s": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "destroy_s"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "destroy_s": {
+            "type": "null"
+          }
+        }
       }
     }
   ],
