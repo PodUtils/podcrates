@@ -1,13 +1,15 @@
 diff --git a/crates/pod-core/src/files/socket.rs b/crates/pod-core/src/files/socket.rs
-index ab254294..26d3701d 100644
 --- a/crates/pod-core/src/files/socket.rs
 +++ b/crates/pod-core/src/files/socket.rs
-@@ -46,7 +46,7 @@ pub fn bind_staged(path: &Path, mode: u32) -> std::io::Result<std::os::unix::net
+@@ -65,6 +65,11 @@
+             format!("{}: give a file name of 1 to {NAME_MOST} bytes, not {name}", path.display()),
+         ));
+     }
++    if true {
++        let listener = std::os::unix::net::UnixListener::bind(path)?;
++        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))?;
++        return Ok(listener);
++    }
+     let parent = match path.parent() {
          Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
          _ => PathBuf::from("."),
-     };
--    if !stage_fits(&parent) {
-+    if true || !stage_fits(&parent) {
-         let listener = std::os::unix::net::UnixListener::bind(path)?;
-         std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))?;
-         return Ok(listener);

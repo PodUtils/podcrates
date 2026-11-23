@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**875 entries: 150 open, 28 partial, 7 blocked, 690 done.**
+**877 entries: 151 open, 28 partial, 7 blocked, 691 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 201 | 215 |
-| P2 | 68 | 8 | 4 | 361 | 441 |
+| P1 | 4 | 10 | 0 | 202 | 216 |
+| P2 | 69 | 8 | 4 | 361 | 442 |
 | P3 | 78 | 10 | 3 | 126 | 217 |
-| **All** | 150 | 28 | 7 | 690 | 875 |
+| **All** | 151 | 28 | 7 | 691 | 877 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -922,3 +922,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1095](relay.md) | P2 | M | M2 | feature | open | `pod-ws`: the order of the request's pseudo-fields of the browser shape is a patch of h2 in podssh, not a part of the crate (PodUtils/podssh#340) |
 | [T-1096](services.md) | P2 | S | M5 | measurement | done | `pod-services`: `localtunnel.me` and `download.freedos.org` give no answer to the runners of GitHub on each run, but answer other networks |
 | [T-1097](foundation.md) | P2 | S | M0 | chore | open | `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review) |
+| [T-1114](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`: `bind_staged` binds at the path when the stage does not fit in `sun_path`, and macOS refuses a path in its temporary directory (PodUtils/podssh#343) |
+| [T-1115](upkeep.md) | P2 | S | M5 | chore | open | Two more copies of the bind of a Unix socket at a long path: `pod-link` (`bind_private`) and `pod-supervise` (`control_via_fd`) |
