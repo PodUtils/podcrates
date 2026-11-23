@@ -5079,6 +5079,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-natprobe"
+version = "0.82.0"
+dependencies = [
+ "pod-core",
+ "pod-services",
+ "pod-testkit",
+ "pod-turn",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "pod-netlab"
 version = "0.82.0"
 dependencies = [
@@ -7328,6 +7342,7 @@ dependencies = [
  "pod-lab",
  "pod-link",
  "pod-manual",
+ "pod-natprobe",
  "pod-netlab",
  "pod-netstack",
  "pod-oci",
@@ -7369,6 +7384,7 @@ dependencies = [
  "pod-confine",
  "pod-control",
  "pod-core",
+ "pod-natprobe",
  "pod-tls",
  "pod-turn",
  "pod-udf",

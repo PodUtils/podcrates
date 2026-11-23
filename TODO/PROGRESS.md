@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 897 entries: 152 open, 27 partial, 7 blocked, 711 done.
+`TODO/INDEX.md` holds 897 entries: 151 open, 27 partial, 7 blocked, 712 done.
 
 ## State
 
@@ -119,8 +119,7 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
    live run of `pod-actions-expr` and `pod-actions-workflow` against
    GitHub) waits.
 4. **podnet** (its complete beta, PodUtils/podnet#521): T-419 (the facts
-   of the file hosts from the live run of `live.yml`); T-802 (a NAT probe
-   of `pod-turn`, #212, before T-499), T-496 (DNS stream), T-498 (a
+   of the file hosts from the live run of `live.yml`); T-496 (DNS stream), T-498 (a
    WireGuard peer), T-499 (NAT traversal with the relay), T-515 (the
    congestion window of the ARQ, with the first carrier over a shared
    path), T-803 (a parity datagram of the ARQ, #213, after T-515), T-514

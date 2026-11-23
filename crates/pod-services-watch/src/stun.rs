@@ -57,24 +57,27 @@ async fn ask(addr: SocketAddr) -> Result<SocketAddr, Finding> {
     let mut buf = [0u8; 1500];
     for _ in 0..TRIES {
         socket.send_to(&request, addr).await.map_err(|e| Finding::failed(format!("{addr}: {e}")))?;
-        let Ok(got) = tokio::time::timeout(WAIT, socket.recv_from(&mut buf)).await else { continue };
-        let (n, from) = got.map_err(|e| Finding::failed(format!("{addr}: {e}")))?;
-        if from != addr {
-            continue;
+        let deadline = tokio::time::Instant::now() + WAIT;
+        while let Some(remaining) = deadline.checked_duration_since(tokio::time::Instant::now()) {
+            let Ok(got) = tokio::time::timeout(remaining, socket.recv_from(&mut buf)).await else {
+                break;
+            };
+            let (n, from) = got.map_err(|e| Finding::failed(format!("{addr}: {e}")))?;
+            if from != addr {
+                continue;
+            }
+            let message =
+                stun::parse(&buf[..n]).map_err(|e| Finding::failed(format!("{addr} answered no STUN: {e}")))?;
+            if message.id != id {
+                continue;
+            }
+            if message.kind != stun::BINDING_SUCCESS {
+                return Err(Finding::failed(format!("{addr} answered the message type 0x{:04x}", message.kind)));
+            }
+            let mapped =
+                message.mapped().and_then(Result::ok).or_else(|| message.xor_mapped_alt().and_then(Result::ok));
+            return mapped.ok_or_else(|| Finding::failed(format!("the answer of {addr} maps no address")));
         }
-        let message = stun::parse(&buf[..n]).map_err(|e| Finding::failed(format!("{addr} answered no STUN: {e}")))?;
-        if message.id != id {
-            continue;
-        }
-        if message.kind != stun::BINDING_SUCCESS {
-            return Err(Finding::failed(format!("{addr} answered the message type 0x{:04x}", message.kind)));
-        }
-        let mapped = message.attributes.iter().find_map(|(kind, value)| match *kind {
-            stun::XOR_MAPPED_ADDRESS => stun::read_address(value, Some(&id)).ok(),
-            stun::MAPPED_ADDRESS => stun::read_address(value, None).ok(),
-            _ => None,
-        });
-        return mapped.ok_or_else(|| Finding::failed(format!("the answer of {addr} maps no address")));
     }
     Err(Finding::failed(format!("{addr} did not answer {TRIES} Binding requests")))
 }

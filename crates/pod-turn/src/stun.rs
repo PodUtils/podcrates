@@ -16,6 +16,10 @@ pub use auth::*;
 mod sha256;
 pub use sha256::*;
 
+#[path = "stun_nat.rs"]
+mod nat;
+pub use nat::*;
+
 /// The magic cookie of each message of RFC 5389 and later (RFC 8489, 5).
 pub const MAGIC: u32 = 0x2112_a442;
 /// The header: the type, the length, the cookie and the transaction's id.

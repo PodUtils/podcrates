@@ -36,3 +36,29 @@ pub fn offline() -> String {
     let frame = pod_offline::serial::kiss::encode(pod_offline::serial::kiss::PORT_AX25, b"probe").expect("KISS");
     format!("pod-offline: {}, {} bytes in a KISS frame", spec.address(), frame.len())
 }
+
+/// pod-natprobe: the sans-IO probe machine, simulator and JSON report link in.
+pub fn natprobe() -> String {
+    let pp: std::net::SocketAddr = "203.0.113.1:3478".parse().expect("pp");
+    let aa: std::net::SocketAddr = "203.0.113.2:3479".parse().expect("aa");
+    let mut world = pod_natprobe::sim::SimWorld::new(
+        std::net::Ipv4Addr::new(192, 168, 1, 10),
+        vec![pod_natprobe::sim::NatSpec::home_eim_apdf(std::net::IpAddr::V4(std::net::Ipv4Addr::new(
+            198, 51, 100, 10,
+        )))],
+        vec![pod_natprobe::sim::SimStunServer::rfc5780("s1", pp, aa)],
+        1,
+    );
+    let mut cfg = pod_natprobe::Settings::for_profile(
+        pod_natprobe::Profile::Fast,
+        vec![pod_natprobe::ServerEndpoint::new("s1", pp)],
+    )
+    .with_addr_policy(pod_natprobe::wire::AddrPolicy::Lab);
+    cfg.run_nat64 = false;
+    cfg.run_portmap = false;
+    cfg.run_ipv6 = false;
+    let (rep, _) = pod_natprobe::sim::drive_sim(cfg, &mut world, 1).expect("sim");
+    let _ = pod_natprobe::Prober::new();
+    let json_len = rep.to_json().map_or(0, |j| j.len());
+    format!("pod-natprobe: {}, {} bytes JSON", rep, json_len)
+}

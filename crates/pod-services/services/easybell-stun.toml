@@ -1,0 +1,34 @@
+# easybell's public RFC 5780 STUN server: two public IPv4 addresses and two
+# ports, supporting OTHER-ADDRESS, RESPONSE-ORIGIN, CHANGE-REQUEST (0x06 and
+# 0x02) and RESPONSE-PORT.
+id = "easybell-stun"
+kind = "stun"
+party = "easybell"
+about = "Two-IP RFC 5780 STUN server for NAT mapping, filtering and lifetime probes"
+
+[rank]
+value = 3
+source = { measured = "live RFC 5780 probe: OTHER-ADDRESS 138.201.243.187:3479, RESPONSE-ORIGIN, AP/AA/PA reachable, CHANGE-REQUEST 0x06 and 0x02 honoured, RESPONSE-PORT honoured", read = 2026-11-24 }
+
+[[endpoint]]
+name = "udp"
+scheme = "stun"
+host = "stun.easybell.de"
+port = 3478
+source = { measured = "live RFC 5780 Binding probe on stun.easybell.de:3478 (138.201.243.186:3478)", read = 2026-11-24 }
+
+[[fact]]
+name = "rfc5780"
+value = true
+type = "bool"
+source = { measured = "OTHER-ADDRESS, RESPONSE-ORIGIN, and CHANGE-REQUEST 0x06 and 0x02 verified with positive controls", read = 2026-11-24 }
+
+[[fact]]
+name = "response-port"
+value = true
+type = "bool"
+source = { measured = "RESPONSE-PORT (0x0027) delivered Binding success to a second client socket", read = 2026-11-24 }
+
+[[watch]]
+kind = "stun-binding"
+endpoint = "udp"

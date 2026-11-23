@@ -21,6 +21,8 @@ pod-wg = { workspace = true }
 pod-confine = { workspace = true }
 # The codec of STUN alone, as pod-proxy takes it: no tokio, no TLS.
 pod-turn = { workspace = true, features = ["stun"] }
+# The sans-IO NAT probe engine: std only, no tokio.
+pod-natprobe = { path = "../../crates/pod-natprobe", default-features = false }
 # The UDF reader: std only.
 pod-udf = { workspace = true }
 # The open under a base: no_std, with its calls through the C library.

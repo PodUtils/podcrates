@@ -1,0 +1,52 @@
+[package]
+name = "pod-natprobe"
+description = "Fast, accurate NAT behaviour probe: RFC 5780 mapping and filtering on isolated sockets, port allocation and pooling, hairpinning, CGNAT/double-NAT, ALG, IPv6/NAT64, port mapping discovery (NAT-PMP, PCP, UPnP SSDP), traversal strategy prediction, and a deterministic NAT simulator."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = ["run", "report"]
+# Async tokio runner and system seams; the core sans-IO state machine builds
+# with no default feature and no tokio.
+run = ["dep:tokio", "dep:tracing", "pod-core/async", "dep:pod-services"]
+# Serde JSON serialization of reports and observations.
+report = ["dep:serde", "dep:serde_json"]
+# Deterministic in-memory virtual-time NAT simulator (pure std, no sockets).
+sim = []
+
+[dependencies]
+pod-core = { workspace = true, default-features = false }
+pod-turn = { workspace = true, features = ["stun"] }
+pod-services = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["net", "time", "rt", "macros", "sync", "io-util"], optional = true }
+tracing = { workspace = true, optional = true }
+
+[dev-dependencies]
+pod-testkit = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["net", "time", "rt", "rt-multi-thread", "macros", "sync", "io-util", "test-util"] }
+
+[[test]]
+name = "classes"
+required-features = ["sim"]
+
+[[test]]
+name = "advanced"
+required-features = ["sim", "report"]
+
+[[test]]
+name = "loopback"
+required-features = ["run"]
+
+[[test]]
+name = "live"
+required-features = ["run"]
+
+[[test]]
+name = "regressions"
+required-features = ["sim"]

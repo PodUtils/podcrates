@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**897 entries: 152 open, 27 partial, 7 blocked, 711 done.**
+**897 entries: 151 open, 27 partial, 7 blocked, 712 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 214 | 228 |
-| P2 | 70 | 7 | 4 | 367 | 448 |
+| P2 | 69 | 7 | 4 | 368 | 448 |
 | P3 | 78 | 10 | 3 | 128 | 219 |
-| **All** | 152 | 27 | 7 | 711 | 897 |
+| **All** | 151 | 27 | 7 | 712 | 897 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -681,7 +681,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-799](relay.md) | P3 | M | M2 | feature | open | `pod-link`: two copies less of each byte: a read into the buffer of the decoder, and a writer queue of bytes |
 | [T-800](podvm.md) | P2 | S | M6 | feature | done | `pod-services`: the host of the virtio-win guest tools, fedorapeople.org (PodUtils/podvm#456) |
 | [T-801](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: a link of the resumable layer over the HTTP road, where the way refuses the upgrade of a link (PodUtils/podssh#287) |
-| [T-802](relay.md) | P2 | M | M2 | feature | open | `pod-turn`: a NAT probe (the mapping, the filtering and the port of RFC 5780) on the caller's datagrams (GitHub #212) |
+| [T-802](relay.md) | P2 | M | M2 | feature | done | `pod-natprobe`, `pod-turn`: RFC 5780 STUN codec and NAT behaviour probe on the caller's datagrams (GitHub #212) |
 | [T-803](relay.md) | P3 | M | M2 | feature | open | `pod-link`: an adaptive parity datagram for the ARQ, off on a clean link (GitHub #213) |
 | [T-804](podvm.md) | P1 | S | M5 | defect | done | `pod-qga` has no `LICENSE` beside its manifest; a check of each crate that cargo packs (PodUtils/podvm#456) |
 | [T-805](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: a node that gets `409` for its own lost socket gives up on that route sooner than `rejoin`, and says so (PodUtils/podnet#604) |

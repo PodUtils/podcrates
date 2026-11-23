@@ -9042,14 +9042,14 @@ of a road link. Plants `relay-layer-road-forward-path`,
 role serves the two opens at its take; its `relay_layer.rs` then calls
 `link_or_road` and `carry_or_road`.
 
-# T-802: `pod-turn`: a NAT probe (the mapping, the filtering and the port of RFC 5780) on the caller's datagrams (GitHub #212)
+# T-802: `pod-natprobe`, `pod-turn`: RFC 5780 STUN codec and NAT behaviour probe on the caller's datagrams (GitHub #212)
 
 **Source:** GitHub #212 (an issue from outside the team, verified and confirmed).
 **Category:** feature
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9076,22 +9076,43 @@ T-499 (NAT traversal) needs the class of each end.
 
 ## Approach
 
-`pod_turn::nat::probe` (feature `nat`) on the caller's datagrams (a
-`UdpSource`, the system's by default): RFC 5780's tests with
-OTHER-ADDRESS, RESPONSE-ORIGIN and CHANGE-REQUEST where a server gives
-them, else two servers; the mapping (endpoint-independent, address- or
-address-and-port-dependent), the filtering where the server can change
-its address, the preservation of the port, and `Unknown` with its reason.
-The local address comes from a connect of the socket, as podssh's
-`own_address` does. podcrates writes its own code from the mechanism; it
-takes no code of the project that the issue names. A test against a
-stand-in STUN server with two addresses on the loopback, before T-499.
+Add the RFC 5780 STUN attribute codec and request builder to `pod-turn`
+(`crates/pod-turn/src/stun_nat.rs`, behind feature `stun` with no `tokio`),
+add the standalone `pod-natprobe` crate (`crates/pod-natprobe/`) for the
+sans-IO NAT probe state machine, async `tokio` runner on caller-supplied
+`pod_core::Datagrams` seams (`feature = "run"`), JSON reports
+(`feature = "report"`) and deterministic virtual-time NAT simulator
+(`feature = "sim"`), and add a two-IP RFC 5780 STUN server
+(`crates/pod-services/services/easybell-stun.toml`) to `pod-services`.
+
+The probe separates mapping (socket `M`), filtering (isolated fresh socket
+`F` with positive controls), 64512-port ring allocation and delta/counter
+classification, IP pooling disambiguation, two-socket hairpinning with
+guards, CGNAT/double-NAT evidence combination, ALG detection, IPv6/NAT64
+(RFC 7050/6052), single-socket NAT-PMP/PCP/UPnP gateway discovery, and
+opt-in Deep mapping lifetime (`RESPONSE-PORT`). Local address discovery
+uses a zero-packet UDP `connect()`. podcrates writes its own clean-room
+code from the RFCs and mechanisms.
 
 ## Prove
 
 ```sh
-cargo test -p pod-turn --all-features --test nat
+cargo test -p pod-turn --no-default-features --features stun
+cargo test -p pod-turn --all-features --lib
+cargo test -p pod-services --all-features
+cargo test -p pod-natprobe --all-features --all-targets
 ```
+
+## Done
+
+2026-11-24. Added `crates/pod-turn/src/stun_nat.rs` (feature `stun`),
+`crates/pod-natprobe/` (`default-features = false` builds with no `tokio`),
+and `crates/pod-services/services/easybell-stun.toml` (two-IP RFC 5780 STUN
+server). Verified: `pod-turn --no-default-features --features stun` (25
+passed), `pod-turn --all-features --lib` (35 passed), `pod-services
+--all-features` (102 passed), `pod-services-watch --all-features` (78
+passed), `pod-natprobe --all-features --all-targets` (28 passed, 1 live
+ignored; live run passed in 0.81 s).
 
 # T-803: `pod-link`: an adaptive parity datagram for the ARQ, off on a clean link (GitHub #213)
 

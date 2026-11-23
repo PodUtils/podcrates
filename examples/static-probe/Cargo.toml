@@ -54,6 +54,7 @@ pod-lab = { workspace = true, features = ["cli"] }
 # `clap`: the reader of a clap tree; `core`: the exit codes of the failure
 # classes. Each writer and the pager link in.
 pod-manual = { workspace = true, features = ["clap", "core"] }
+pod-natprobe = { workspace = true, features = ["run", "report", "sim"] }
 pod-link = { workspace = true, features = ["tcp", "ws", "h2", "poll", "quic", "udp", "dns", "icmp", "s3", "ntp", "smtp", "imap"] }
 pod-netlab = { workspace = true }
 # `ipv4-fragmentation`: a datagram over the MTU, so that the fragmenter of
