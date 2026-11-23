@@ -104,8 +104,7 @@ is done. Git and the record keep finished work.
      podnet (`4df28952`) and podssh (`e728db9f`) already pin `v0.82.0`;
      podrunner stays on `v0.81.0` and podvm stays on `v0.80.0`.
    - Next release: once `ci.yml` 45144882072 and `plants.yml` 45144882160
-     finish green (and after the `service_live.rs` Windows fix and any
-     `wip/t1073` merge), release the next patch tag (call C818, e.g.
+     finish green (and after the `service_live.rs` Windows fix), release the next patch tag (call C818, e.g.
      `v0.82.1`) via `release.yml` (dry run, then `version=0.82.1`). Open
      the new hand-off COORD issue `(to all)` and close #254 (`docs/maintenance.md`,
      "A release", call C780), carrying any un-taken `v0.81.0` and
@@ -170,7 +169,7 @@ updates (`6fd6b57b`, `3720250a`, `fc7cf63f`):
 `07d4cc4f` (`HEAD`) fixes `scripts/ci/turn-tests.sh` (`coturn_tcp`
 output line) on `main`. Cut the next patch tag (e.g. `v0.82.1`, call C818)
 through `release.yml` once `ci.yml` is green (after the `service_live.rs`
-Windows fix and any `wip/t1073` merge) so GitHub release assets,
+Windows fix) so GitHub release assets,
 `ghcr.io` images and the hand-off COORD issue ship cleanly. T-966
 (podnet's half waits for PodUtils/podnet@T-494) and T-963 are partial.
 T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks their release
@@ -180,23 +179,10 @@ by the dry run.
 
 ## Unfinished work
 
-- `origin/wip/t1073` (base `991c600b`, commits `1712364d` and `99d69f9a`):
-  T-1073 (one deadline of the server for a call back of `pod-control`) and
-  T-1070 (`Server::active` counts a refused connection for a moment). Its
-  first commit has the code, the tests and four plants
-  (`control-refused-counts-as-place`, `control-call-back-blank-lines-renew`,
-  `control-line-write-timeout-each-write`,
-  `control-write-after-part-of-line`); fmt and clippy passed, and each new
-  test passed 20 of 20 runs. Its second commit is the record of done. The
-  workspace tests, the doc, `cargo todo check`, `lint.sh`,
-  `check-windows.sh` and `check-macos.sh` did not run. `main` has moved to
-  `07d4cc4f` past `v0.82.0` (`51c09390`). Next: merge `origin/wip/t1073`
-  into `main` locally (resolve `TODO/INDEX.md` and `TODO/PROGRESS.md`
-  counts per `docs/maintenance.md`, "Rules of the work", and check
-  `cargo todo check --base HEAD~1`), run each check of `AGENTS.md`, fix a
-  fault, and push; then delete the branch by a request `[gh action]
-  requested` (the proxy drops `git push origin --delete`). The new API is
-  `Context::call_within`; no consumer must change.
+- `origin/wip/t1073` is merged into `main` (T-1073, T-1070; the new API
+  `Context::call_within` of `pod-control`; no consumer must change). The
+  coordinator deletes the branch on GitHub by a request `[gh action]
+  requested` (the proxy drops `git push origin --delete`).
 
 ## What waits
 
