@@ -7,7 +7,7 @@
 //! the name of its tunnel of HTTP made by `ssh -R`, localhost.run's
 //! (PodUtils/podssh@T-565), the address of its onion service
 //! (PodUtils/podssh@T-578), and its name at OpenTunnel (PodUtils/podssh@T-611).
-//! iroh reads `_iroh` alone (iroh-dns 1.4.1's
+//! iroh reads `_iroh` alone (iroh-dns 1.4.2's
 //! `EndpointInfo::from_pkarr_signed_packet` asks for `txt_records("_iroh")`),
 //! so its tools and n0's DNS pass the other names by; a key that iroh does not
 //! know under `_iroh` would make iroh refuse the whole record, which is why the

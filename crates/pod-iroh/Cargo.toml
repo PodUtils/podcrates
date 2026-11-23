@@ -31,7 +31,7 @@ test-relay = [
 # endpoint's report of the network, whose QUIC address discovery says that a
 # datagram came back. iroh keeps that API out of its semver, so the range
 # ends before 1.5: a new minor version comes as an update to read.
-iroh = { version = ">=1.4.1, <1.5", default-features = false, features = ["tls-ring", "unstable-net-report"] }
+iroh = { version = ">=1.4.2, <1.5", default-features = false, features = ["tls-ring", "unstable-net-report"] }
 # The failure types, the dial and resolver traits, the files of the keys,
 # the text made safe to print, the check of a host name.
 pod-core = { workspace = true, features = ["async"] }
@@ -79,7 +79,7 @@ iroh-tickets = "1"
 # A node's record of pkarr as iroh writes and reads it, its signature
 # checked: the iroh-dns that iroh builds, in iroh's range, so no crate is
 # added and the two move together.
-iroh-dns = { version = ">=1.4.1, <1.5", default-features = false }
+iroh-dns = { version = ">=1.4.2, <1.5", default-features = false }
 # The DNS packet of a record with the `_podssh` names beside iroh's `_iroh`,
 # which iroh-dns builds for one name alone: the simple-dns that iroh-dns
 # builds and reads with, so no crate is added.
