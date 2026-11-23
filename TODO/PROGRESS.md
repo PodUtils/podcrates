@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 877 entries: 150 open, 28 partial, 7 blocked, 692 done.
+`TODO/INDEX.md` holds 877 entries: 148 open, 28 partial, 7 blocked, 694 done.
 
 ## State
 
@@ -84,9 +84,7 @@ Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;
 cfb's A-X-18 waits for cfb's answer on #223, call C792),
 T-966 (podssh took `pod-release`; podnet's half waits for
-PodUtils/podnet@T-494), T-1073 and T-1070 (unfinished on
-`origin/wip/t1073`: the wait of `Context::call` of `pod-control` and
-refused places in `Server::active`). Then cfb's asks
+PodUtils/podnet@T-494). Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
 of the consumers: T-1087 and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU sparse file, the attributes of libarchive alone; PodUtils/podvm#643), T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
