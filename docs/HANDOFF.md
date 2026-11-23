@@ -98,9 +98,9 @@ is done. Git and the record keep finished work.
 
 ## The next tag
 
-Release `v0.82.0` first, after the nightly of #255: podrunner waits for
-T-1086 (PodUtils/podrunner#339 through PodUtils/podvm#643). It carries
-each fix of `main` after `v0.81.0`:
+`v0.82.0` is prepared on `main` (`docs/releases/v0.82.0.md`) for push, green
+`ci.yml`, and `release.yml`. It carries each fix of `main` after `v0.81.0`
+plus the five consolidated crates and transport/security updates:
 
 - T-1086: `pod-extract` sets the ACLs of a layer of GNU tar `--acls`
   (`SCHILY.acl.*` to `system.posix_acl_*`, counted in `xattrs`); a GNU
@@ -115,6 +115,16 @@ each fix of `main` after `v0.81.0`:
   the exit code).
 - T-1060: the server of `pod-control` wipes each answer that it drops.
 - T-1082: each gate of no blocking call runs alone in its test binary.
+- Consolidated crates and updates: `pod-shape`, `pod-cover`, `pod-harness`,
+  `pod-sidecar` (`sidecar` feature off by default), `pod-offline`,
+  `pod-link` (`ntp`/`smtp`/`imap` + IMAP `max_fetch` and `command_timeout`),
+  `pod-e2e` (shape + destination envelope), `pod-turn` (T-501 RFC 6062 TCP
+  relay), `pod-quic` (`migrate`), `pod-warp` (`provider`, H3 shape with
+  open control stream), `pod-egress` (`coalesce`, `replay`, `vless::early`,
+  Trojan UDP refusal, VMess nonce-wrap bound), `pod-ws` (HTTP/2 shape and
+  fallback), `pod-testkit` (`vectors`), `pod-core` (`Class::Permission`,
+  `Class::Suite`), `pod-manual` (`failure_classes`), and `url` 2.5.9
+  (RUSTSEC-2026-0592).
 
 T-966 (podnet's half waits for PodUtils/podnet@T-494) and T-963 are
 partial. T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks their

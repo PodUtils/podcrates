@@ -6733,15 +6733,12 @@ cargo test --workspace --all-features
 
 ## Done
 
-2026-11-20, `4af3499`. `cargo fmt --all`, `cargo clippy -p pod-turn
---all-targets --all-features -- -D warnings` and `cargo test -p pod-turn`:
-85 passed, 0 failed, 2 ignored. `tests/turn_tcp.rs` (10 tests) proves the
-TCP allocation, Connect, ConnectionBind, the framed stream, its refresh, a
-ConnectionAttempt, and each named error. `tests/coturn_tcp.rs` is ignored
-and runs in `scripts/ci/turn-tests.sh` against coturn 4.19.0 (coturn 4.6.1
-of Ubuntu passes here). The data connection carries a two-byte length and
-then the bytes, as this entry's caller asked; RFC 6062, 4.5 sends the bytes
-bare.
+2026-11-23, `6fd6b57b`. `cargo fmt --all`, `cargo clippy -p pod-turn
+--all-targets --all-features -- -D warnings` and `cargo test -p pod-turn
+--all-features` pass. `tests/turn_tcp.rs` proves the TCP allocation,
+Connect, ConnectionBind, the bare RFC 6062 section 4.5 data stream, its
+refresh, a ConnectionAttempt, and each named error. `tests/coturn_tcp.rs`
+is ignored and runs in `scripts/ci/turn-tests.sh` against coturn.
 
 # T-502: `pod-testkit`: a headscale harness for the tests of a Tailscale node (PodUtils/podnet#521)
 
