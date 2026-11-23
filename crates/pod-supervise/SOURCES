@@ -25,5 +25,6 @@ file 8b0e05573ab87cc24b9268cf3685791ecc81aae2 crates/podvm-supervise/src/tests.r
 # here; podvm's `open_log` and `follow_from` take the store of podvm and
 # become `stream::open_log` and `logs::follow_from_limit`.
 repo PodUtils/podvm 6ab9e933c48f0c0d0a7361575369d04871de9a3d
+taken 93524ce
 file 7468cd5a599e8cf64a48eaa7239d045d44856ae4 crates/podvm-supervise/src/stream.rs -> crates/pod-supervise/src/stream.rs crates/pod-supervise/src/logs.rs
 file 0fa57fc4e766cfb9a2ae47cd01695a83048b42c1 crates/podvm-supervise/src/stream/tests.rs -> crates/pod-supervise/src/stream/tests.rs

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**877 entries: 149 open, 28 partial, 7 blocked, 693 done.**
+**878 entries: 150 open, 27 partial, 7 blocked, 694 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 202 | 216 |
-| P2 | 69 | 8 | 4 | 361 | 442 |
-| P3 | 76 | 10 | 3 | 128 | 217 |
-| **All** | 149 | 28 | 7 | 693 | 877 |
+| P2 | 69 | 7 | 4 | 362 | 442 |
+| P3 | 77 | 10 | 3 | 128 | 218 |
+| **All** | 150 | 27 | 7 | 694 | 878 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -845,7 +845,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-963](relay.md) | P2 | S | M2 | defect | partial | `live.yml`: public services of other parties fail from a runner of GitHub and pass from a cloud session (the Nostr relay `offchain.pub`, the WebTorrent tracker `tracker.openwebtorrent.com`) |
 | [T-964](fleet.md) | P1 | M | M8 | feature | done | `pod-release`: the bundle of Rekor v2: the inclusion proof with its signed checkpoint, and the RFC 3161 timestamp |
 | [T-965](fleet.md) | P1 | M | M8 | feature | done | `pod-release`: the verifier as a static command for the CI of a product and for an installer |
-| [T-966](fleet.md) | P2 | M | M8 | chore | partial | `pod-release`: the adoption trials of podnet and podssh, and the hand-off of the crate |
+| [T-966](fleet.md) | P2 | M | M8 | chore | done | `pod-release`: the adoption trials of podnet and podssh, and the hand-off of the crate |
 | [T-967](fleet.md) | P3 | S | M8 | feature | open | `pod-release`: a minisign signature beside the Sigstore bundle |
 | [T-968](upkeep.md) | P2 | S | M5 | defect | done | The fuzz run of 2026-11-19 cannot build `russh`: the pinned nightly of 2026-11-01 meets a cycle in its query of async drop on `ssh-key` 0.7.0-rc.11 |
 | [T-969](upkeep.md) | P1 | M | M5 | chore | done | `upstream.yml` is red: the sources of `pod-job`, `pod-manual` and `pod-testkit` changed in podrunner and podssh |
@@ -924,3 +924,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1097](foundation.md) | P2 | S | M0 | chore | open | `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review) |
 | [T-1102](roads.md) | P1 | S | M4 | chore | done | `pod-iroh`: the fork of iroh-relay at 1.4.2, so that iroh 1.4.2 builds it (PodUtils/podssh#341) |
 | [T-1103](roads.md) | P2 | M | M4 | chore | open | `pod-iroh`: iroh 1.5 and iroh-relay 1.5, past the range of the crate (T-1102) |
+| [T-1118](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686) |
