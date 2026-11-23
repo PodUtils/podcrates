@@ -1,0 +1,6 @@
+# The watch kind rdap: the server of the registrar is not asked where each other server refuses; its test must fail.
+ENTRY=T-1093
+GROUP=services
+EXPECT='test apis::rdap_reads_the_registrar_where_each_server_refuses \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- apis::rdap_reads_the_registrar_where_each_server_refuses --exact'
+LIMIT=1800
