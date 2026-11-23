@@ -12787,3 +12787,115 @@ that the interposer keeps a copy of `src/loader.rs`, so a change of its
 of each crate against the consumers' heads found one other change
 (T-1097). `pod-manual` gives 0 changes with the `taken` lines of its
 `SOURCES`: the Prove of T-863 (open) passes.
+
+# T-1120: `pod-hostprobe`: the CPU time, the peak of memory and the OOM kills of a cgroup at the end of a run (PodUtils/podvm#650)
+
+**Source:** PodUtils/podvm#650 (COORD-234 of podvm, under the ruling "Shared code"; PodUtils/podvm@T-2076, for PodUtils/podrunner#345)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm: "podvm PodUtils/podvm@T-2076 (for podrunner, PodUtils/podrunner#345) reads CPU
+time, peak memory and OOM kills of a cgroup at the end of a run. No
+podcrates crate has this reader: `pod-hostprobe::cgroup` makes a leaf and
+sets `memory.max`, `cpu.max`, `pids.max` but reads no counter back."
+podvm has three copies of the reader:
+PodUtils/podvm:crates/podvm/src/incus/usage.rs (the texts of `cpu.stat`
+`usage_usec`, `cpuacct.usage` in nanoseconds, `memory.peak`,
+`memory.max_usage_in_bytes`, and `Meter`: files opened through a cgroup2
+mount where its memory controller is there, else the v1 hierarchies
+`memory` and `cpuacct`, kept open and read again from offset 0);
+PodUtils/podvm:crates/podvm-supervise/src/report.rs (`oom_kills_in`: the
+line `oom_kill N` of `memory.events` or `memory.oom_control`;
+`oom_kills_of(dir)`); PodUtils/podvm:crates/podvm/src/run/cgroup.rs
+(`release` calls the second).
+
+The ask: a module with pure parsers (each gives `None` for a missing line
+or a value that is not a count); a reader of a cgroup directory or of open
+files that gives one value struct `{ cpu_usec, peak_bytes, oom_kills }`,
+each an `Option`, with the reason of each `None`; and podvm's measured
+rule: "on a host with both versions, cgroup2 with no memory controller
+gives the host's `cpu.stat` (43 s in an instance that ran 1 s), so the
+reader takes cgroup2 only where its memory controller is present, else
+v1."
+
+## Premise
+
+- Read: podvm at `a4b75950` (the two files above, and `release` of
+  `run/cgroup.rs`); `crates/pod-hostprobe/src/cgroup.rs`;
+  `python3 -I scripts/codegraph.py similar cgroup usage memory peak oom`:
+  no reader of these counters in the workspace
+  (`pod-incus::state::oom_kills` reads the metrics of incusd, not a
+  cgroup).
+- Read: the cgroup documentation of Linux: `memory.peak` came in Linux
+  5.19; the memory controller of cgroup2, with `memory.events`, is older;
+  the line `oom_kill` of `memory.oom_control` came in Linux 4.13.
+  podvm's `Meter` takes the open of `memory.peak` as the sign of the
+  memory controller, so on Linux 5.8 to 5.18 a host with cgroup2 alone
+  goes to v1, which is not there, and gives no value.
+- Read: podvm's `Meter::read` gives `None` with no reason where a file
+  holds no count.
+- Not measured: a host with both versions (podvm measured it).
+
+## Approach
+
+A module `usage` of `pod-hostprobe` from podvm's code: the parsers
+`cpu_usec_v2`, `cpu_usec_v1` (nanoseconds rounded down to microseconds),
+`bytes`, `oom_kills_in` and `oom_kills_of`; `Meter` with the files open
+(`open(v2, v1_memory, v1_cpuacct)` by the rule, and `v2`, `v1_memory`,
+`v1_cpu` for a caller that mounts each hierarchy in turn at one place, as
+podvm does in an instance); `read() -> Usage` with a reason for each
+`None`. The sign of the memory controller is `memory.events`, not
+`memory.peak`. The open of cgroup2 fails with a `pod_core::Failure` at
+`Stage::Host`. Tests: parser tables, and made-up cgroup trees in the
+temporary directory for cgroup2 with its memory controller, cgroup2 with
+no memory controller beside v1, cgroup2 with no `memory.peak`, and missing
+files. `SOURCES` gets a block of podvm at `a4b75950`; the README an API
+row and adoption rows for podvm.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features --lib usage
+cargo clippy -p pod-hostprobe --all-targets --all-features -- -D warnings
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=PATH pod-hostprobe
+```
+
+## Done
+
+2026-11-23, this commit. The module `usage` of `pod-hostprobe`
+(`crates/pod-hostprobe/src/usage.rs`), from podvm at `a4b75950`: the
+parsers `cpu_usec_v2`, `cpu_usec_v1` (nanoseconds rounded down to
+microseconds), `bytes`, `oom_kills_in` and `oom_kills_of`; `Meter` keeps
+the files open and reads each again from offset 0 (`open(v2, v1_memory,
+v1_cpuacct)` by the rule; `v2`, `v1_memory`, `v1_cpu` and `note` for a
+caller that mounts each hierarchy in turn at one place); `read() ->
+Usage { cpu_usec, peak_bytes, oom_kills, why }`, with one line in `why`
+for each `None` and for a cgroup2 that the meter did not take. cgroup2
+serves only where `memory.events` opens (its memory controller), else
+cgroup v1. Two changes against podvm's copy: the sign of the memory
+controller is `memory.events`, not `memory.peak`, so Linux 5.8 to 5.18
+stay on cgroup2 with a peak of `None` and its reason (podvm's copy goes to
+an absent v1 there and gives no value); and a file with no count gives a
+reason (podvm's copy gave `None` with no reason). `Meter::v2` fails with a
+`pod_core::Failure` at `Stage::Host`, `Class::Unsupported`, with the I/O
+error as its cause. Tests (`usage::tests`, 12): the parser tables; made-up
+cgroup trees in the temporary directory:
+`cgroup2_with_its_memory_controller_serves`,
+`cgroup2_with_no_memory_controller_gives_way_to_v1` (the `cpu.stat` of the
+host, 43 s, is not taken), `cgroup2_with_no_memory_peak_stays_on_cgroup2`,
+`each_missing_value_gives_its_reason`,
+`a_meter_with_no_file_gives_a_reason_for_each_value`,
+`a_meter_reads_its_open_files_again_from_the_start` (also after the remove
+of the directory), `the_parts_of_v1_open_one_at_a_time` and
+`the_oom_kills_of_a_directory_come_from_memory_events`. `SOURCES` has a
+second block of podvm at `a4b75950`; `check-sources.py` with a clone of
+podvm: 0 changes in both blocks. The README has the API row, the adoption
+rows of podvm and the tests. `cargo test -p pod-hostprobe --all-features
+--lib usage`: 12 passed; clippy of the crate, `check-macos.sh`,
+`check-windows.sh` and `sh scripts/agent/check.sh`: 0 faults;
+`plant-each.sh --apply`: 0 stale; `codegraph.py new`: 0 clones or twins.

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**883 entries: 149 open, 27 partial, 7 blocked, 700 done.**
+**884 entries: 149 open, 27 partial, 7 blocked, 701 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 205 | 219 |
+| P1 | 4 | 10 | 0 | 206 | 220 |
 | P2 | 68 | 7 | 4 | 365 | 444 |
 | P3 | 77 | 10 | 3 | 128 | 218 |
-| **All** | 149 | 27 | 7 | 700 | 883 |
+| **All** | 149 | 27 | 7 | 701 | 884 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -930,3 +930,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1105](fleet.md) | P2 | S | M8 | defect | done | `pod-unit`: the check of a secret refuses a public key of OpenSSH and a fingerprint as a long random word (PodUtils/podssh#342 ask (a)) |
 | [T-1111](foundation.md) | P2 | S | M0 | chore | open | `pod-guest`, `pod-release`, `pod-supervise`: the changes of podvm and podnet at their heads (port review) |
 | [T-1118](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686) |
+| [T-1120](podvm.md) | P1 | S | M6 | feature | done | `pod-hostprobe`: the CPU time, the peak of memory and the OOM kills of a cgroup at the end of a run (PodUtils/podvm#650) |
