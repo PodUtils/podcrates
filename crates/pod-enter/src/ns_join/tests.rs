@@ -64,3 +64,38 @@ fn a_child_in_the_own_user_namespace_is_not_in_another() {
     let _ = child.wait();
     assert!(!other_user_namespace(0));
 }
+
+/// The numbers of a line of `/proc`: the pids of each PID namespace, the
+/// parent; a line that is absent, empty or not a number gives none.
+#[test]
+fn the_ids_of_a_line_of_proc_are_read() {
+    let text = "Name:\tsleep\nPid:\t4242\nPPid:\t4241\nNSpid:\t4242\t2\nNSpgid:\t4241\t1\n";
+    assert_eq!(ids_of(text, "NSpid"), Some(vec![4242, 2]));
+    assert_eq!(ids_of(text, "PPid"), Some(vec![4241]));
+    assert_eq!(ids_of(text, "NSpgid"), Some(vec![4241, 1]));
+    assert_eq!(ids_of(text, "NSsid"), None);
+    assert_eq!(ids_of("NSpid:\t\n", "NSpid"), None);
+    assert_eq!(ids_of("NSpid:\t7\tx\n", "NSpid"), None);
+    assert_eq!(ids_of("NSpidx:\t7\n", "NSpid"), None);
+}
+
+/// A process that is no init of a PID namespace under the one of the test
+/// is joined itself: `joinable` gives none, and a descriptor that is not
+/// a pidfd gives none.
+#[test]
+fn a_process_that_is_no_init_is_joined_itself() {
+    let mut child = std::process::Command::new("sleep").arg("5").spawn().unwrap();
+    let pidfd = match sys::pidfd_open(i64::from(child.id())) {
+        Ok(fd) => fd,
+        Err(e) => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return pod_testkit::host::skip_line(&format!("no pidfd_open on this kernel: {}", e.name()));
+        }
+    };
+    assert!(joinable(pidfd).is_none());
+    let _ = sys::close(pidfd);
+    let _ = child.kill();
+    let _ = child.wait();
+    assert!(joinable(0).is_none());
+}

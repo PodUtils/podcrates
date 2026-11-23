@@ -28,12 +28,14 @@
 //! whatever the threads of the caller: the parent reads the map and makes
 //! the title before the fork; the child sets them after the maps of each
 //! user namespace and before the limits, the confinement and the fork of
-//! the payload. Where the kernel refuses the map, the child writes NUL
-//! over its command line and its environment. The relay of a join, and
-//! the init where the rung makes no user namespace, also become not
-//! dumpable: a payload with no capability over their memory cannot trace
-//! them. The init in a user namespace of the rung stays dumpable, as the
-//! join of a caller with no capabilities opens its namespaces (T-1113).
+//! the payload. Then the child writes NUL over the old command line and
+//! environment in its memory, where the map took and where the kernel
+//! refused it. The init and the relay also become not dumpable: a payload
+//! with no capability over their memory (the user namespace of the caller)
+//! cannot trace them or read `/proc/PID/environ` and `/proc/PID/mem`
+//! (T-1113). The kernel opens the namespaces of such an init only for a
+//! caller with `CAP_SYS_PTRACE`, so a join of a caller with no
+//! capabilities opens the payload of the run ([`crate::joinable`]).
 
 use pod_core::Class;
 use pod_hostprobe::sys::{self, CBuf};
@@ -216,7 +218,6 @@ pub(crate) struct Shown {
     map: Option<Map>,
     title: CBuf,
     len: u64,
-    dumpable: bool,
 }
 
 impl Shown {
@@ -231,29 +232,28 @@ impl Shown {
         let title = CBuf::new(text)
             .ok_or_else(|| Error::runtime(Class::Usage, format!("the title {text:?} contains a NUL byte")))?;
         let map = std::fs::read_to_string("/proc/self/stat").ok().and_then(|s| map_of(&s, 0));
-        // A join of a caller with no capabilities opens the namespaces of
-        // the init of a user namespace of the rung (T-1113).
-        let dumpable = pid.own && pid.flags & sys::CLONE_NEWUSER != 0;
-        Ok(Some(Shown { map, title, len: text.len() as u64 + 1, dumpable }))
+        Ok(Some(Shown { map, title, len: text.len() as u64 + 1 }))
     }
 
-    /// In the child, with one thread: the title, no environment, the name
-    /// and the dump flag. Where the kernel refuses the map, NUL over the
-    /// command line and the environment: the init and the relay read
-    /// neither, and the payload execs with its own. Async-signal-safe.
+    /// In the child, with one thread: the title, no environment, the name,
+    /// NUL over the old command line and environment, and not dumpable.
+    /// Where the kernel refuses the map, `/proc/PID` shows the NUL bytes.
+    /// The init and the relay read neither, and the payload execs with its
+    /// own. Async-signal-safe.
     pub(crate) fn apply(&self) {
         if let Some(m) = self.map {
             let new = titled(Map { brk: sys::brk_now(), ..m }, self.title.ptr(), self.len);
-            if set(&new).is_err() {
-                // SAFETY: `m` is the map of the caller, which the fork
-                // copied, and this process reads neither again.
-                unsafe { blank(&m) };
-            }
+            // A refused map leaves the old strings in `/proc/PID`; a map
+            // that took leaves them in the memory. The NUL bytes go over
+            // both.
+            let _ = set(&new);
+            // SAFETY: `m` is the map of the caller, which the fork copied;
+            // the title is on the heap, out of it; this process reads
+            // neither again.
+            unsafe { blank(&m) };
         }
         let _ = sys::set_name(&self.title);
-        if !self.dumpable {
-            let _ = sys::set_dumpable(false);
-        }
+        let _ = sys::set_dumpable(false);
     }
 }
 

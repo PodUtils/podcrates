@@ -1,0 +1,6 @@
+# pod-enter: the init of a PID namespace and the relay of a join stay dumpable, so a payload in a user namespace of the rung reads /proc/1/environ of its init; the live test of the title must fail (T-1113, PodUtils/podvm#646).
+ENTRY=T-1113
+GROUP=enter
+EXPECT='left: Ok\(55\)'
+RUN='sh scripts/ci/userns-tests.sh'
+LIMIT=1800

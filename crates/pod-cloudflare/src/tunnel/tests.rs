@@ -1,4 +1,5 @@
 use super::*;
+#[cfg(unix)]
 use crate::ingress::Service;
 
 fn refused(retry: bool, after: Duration) -> pod_core::Failure {
