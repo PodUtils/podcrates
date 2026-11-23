@@ -42,8 +42,7 @@ is done. Git and the record keep finished work.
        (44891581672, 45009375271) and `powerpc64le` (45009375271) failed
        in `pod-iroh` (`road.rs`, T-916).
      - `ci` 44871374413, `adoption` 44871377124 and `plants` 44871380137
-       passed on `ab73e75`; #255 stays open until the record maps these
-       nightly failures.
+       passed on `ab73e75`.
    - Current `main` runs (`51c09390` `v0.82.0` and `07d4cc4f` `HEAD`):
      - At `51c09390` (`v0.82.0`): `publish.yml` 45122406747 on `v0.82.0`
        (`dry-run`, `crates-io = false`), `plants.yml` 45122401716,
@@ -65,8 +64,10 @@ is done. Git and the record keep finished work.
    - `docs/research/hard-problems.md`: the hard open problems (H-01 to
      H-18), with the questions that research must answer. T-978 has its
      findings that no other entry had.
-   - `upstream.yml` 45024358679 (`sources`): red on `pod-manual` until
-     the port review of podssh's changes (T-863).
+   - `upstream.yml` 45024358679 (`sources`): red on `pod-confine`
+     (podvm's `ldso.rs` and `tests_t1984.rs`); T-1094 is done and the
+     check gives 0 changes there. The next run is red on `pod-testkit`
+     (podnet `4df2895`, T-1097). `pod-manual` gives 0 changes.
    A new red run needs an entry before other work. A plant that a run
    misses once with no change of its crate runs its test five times in
    its `.plant` (as `link-quic-drop-closes-at-once`).

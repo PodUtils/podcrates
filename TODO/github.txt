@@ -129,7 +129,7 @@
 122 issue open
 123 issue open
 124 issue closed
-125 issue open
+125 issue closed
 126 issue closed
 127 issue closed
 128 issue closed
@@ -229,7 +229,7 @@
 222 issue closed
 223 issue open
 224 issue closed
-225 issue open
+225 issue closed
 226 issue closed
 227 issue open
 228 issue closed
@@ -259,4 +259,4 @@
 252 issue closed
 253 issue closed
 254 issue open
-255 issue open
+255 issue closed
