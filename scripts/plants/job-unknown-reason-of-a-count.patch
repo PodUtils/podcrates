@@ -1,26 +1,25 @@
 diff --git a/crates/pod-job/src/report.rs b/crates/pod-job/src/report.rs
 --- a/crates/pod-job/src/report.rs
 +++ b/crates/pod-job/src/report.rs
-@@ -211,7 +211,7 @@
-             return Err(format!("log_tail has more than {LOG_TAIL_MAX} bytes"));
+@@ -239,7 +239,7 @@
+     fn has_no_value(&self, name: &str) -> bool {
+         match self.time(name) {
+             Some(time) => time.is_none(),
+-            None => self.measured(name) == Some(Residual::Unknown(Unknown::Unknown)),
++            None => self.measured(name).is_some() || true,
          }
-         if let Some(field) =
--            self.unknown_reasons.keys().find(|f| self.measured(f) != Some(Residual::Unknown(Unknown::Unknown)))
-+            self.unknown_reasons.keys().find(|f| self.measured(f).is_some() && false)
-         {
-             return Err(format!("unknown_reasons names {field:?}, which is not an unknown measured field"));
-         }
+     }
+ 
 diff --git a/crates/pod-job/src/json_schema.rs b/crates/pod-job/src/json_schema.rs
 --- a/crates/pod-job/src/json_schema.rs
 +++ b/crates/pod-job/src/json_schema.rs
-@@ -134,9 +134,7 @@
-             })
-         })
-         .collect();
--    if let Some(Value::Array(rules)) = schema.get_mut("allOf") {
--        rules.extend(reasons);
--    }
-+    let _ = reasons;
-     if let Some(Value::Object(field)) = schema.get_mut("properties").and_then(|p| p.get_mut("unknown_reasons")) {
-         field.insert("propertyNames".into(), json!({ "enum": crate::report::MEASURED }));
+@@ -136,7 +136,8 @@
+     let times =
+         TIMES.iter().map(|name| json!({ "if": when(name), "then": { "properties": { (*name): { "type": "null" } } } }));
+     if let Some(Value::Array(rules)) = schema.get_mut("allOf") {
+-        rules.extend(measured.chain(times));
++        let _ = measured;
++        rules.extend(times);
      }
+     let names: Vec<&str> = MEASURED.iter().chain(TIMES.iter()).copied().collect();
+     if let Some(Value::Object(field)) = schema.get_mut("properties").and_then(|p| p.get_mut("unknown_reasons")) {

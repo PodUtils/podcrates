@@ -7734,3 +7734,83 @@ proven.
 ```sh
 cargo test -p pod-control --all-features
 ```
+
+# T-1098: `pod-job`: `run-report.v1` refuses a reason of a time that the report does not know (`start_s`) (PodUtils/podrunner#342)
+
+**Source:** PodUtils/podrunner#342 (COORD-120 of podrunner, for PodUtils/podrunner@T-595; githome's G-19)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podrunner asks (PodUtils/podrunner#342): "`run-report.v1` of `pod-job`
+allows a key of `unknown_reasons` only for a field of `MEASURED`
+(`cpu_s`, `peak_rss_mib`, `disk_peak_bytes`, `net_rx_bytes`,
+`net_tx_bytes`, `cache_read_bytes`, `cache_written_bytes`; the
+`propertyNames` of `unknown_reasons`). Please allow a reason also for each
+time of the report that can be absent: `prepare_s`, `start_s`, `run_s`,
+`destroy_s` and `claim_to_first_step_s`. Either add them to `MEASURED`,
+or keep the times optional and add a second list whose keys
+`unknown_reasons` takes for an absent time. podrunner takes either form."
+
+Why: githome meters each job from the run report. When a unit ends before
+the runner sends its first step, podrunner knows no `start_s`. Its reason
+("no first-step event came for the job") in `unknown_reasons` makes
+`RunReport::check()` fail, and a strict source refuses the report.
+
+## Premise
+
+- Read: PodUtils/podrunner#342; `crates/pod-job/src/report.rs`
+  (`RunReport::check`, `MEASURED`), `crates/pod-job/src/json_schema.rs`
+  (`run_report_rules`), call C783.
+- Read: podrunner's `PodUtils/podrunner:crates/podrunner-slots/src/report.rs`
+  (`base` builds `RunReport` with each field; `report` writes the reason
+  of `start_s` when a unit ran with no first step, and `start_s` is then
+  absent).
+- The times are `Option<u64>`: a time has no `unknown`. A time in
+  `MEASURED` changes its type, and needs `run-report.v2` (the ruling
+  "Schema ids").
+
+## Approach
+
+Keep the times optional counts. Add the list `TIMES` beside `MEASURED`
+(no new field of `RunReport`, so podrunner's struct literal builds). A key
+of `unknown_reasons` names a measured field that is `unknown`, or a time
+of `TIMES` that is absent; a reason of a present time is refused, as a
+reason of a counted field. The schema: the names of `TIMES` in the
+`propertyNames` of `unknown_reasons`, and for each time a rule that its
+reason needs the time absent or `null`. Examples and a test of each time
+against the types and the schema; a row `added` in `schemas/CHANGES.md`.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+```
+
+## Done
+
+2026-11-23, this commit (call C903). `pod_job::report::TIMES`
+(`claim_to_first_step_s`, `prepare_s`, `start_s`, `run_s`, `destroy_s`)
+beside `MEASURED`; the times stay optional counts, and `RunReport` has no
+new field. `RunReport::check` takes a key of `unknown_reasons` that names
+a measured field that is `unknown` or a time of `TIMES` that is absent; a
+reason of a present time is refused ("which is not an unknown measured
+field or an absent time"). `schemas/run-report.v1.schema.json` written
+again: the names of `TIMES` in the `propertyNames` of `unknown_reasons`,
+and for each time a rule that its reason needs the time absent or `null`;
+the id stays `v1` (a row `added` in `schemas/CHANGES.md`). Examples:
+`run-report/valid-no-first-step.json` (no `start_s` and no
+`claim_to_first_step_s`, each with the reason of podrunner),
+`run-report/invalid-reason-of-a-present-time.json`. Test:
+`schemas::rules::a_reason_of_a_time_needs_the_time_absent` (each time
+absent, `null` and present with a reason: the types and the schema give
+the same verdict; 10 pass, 5 refused). Before the change `check` and
+the schema refuse the valid example ("which is not an unknown measured
+field"; `start_s` is not in the `propertyNames`).
+`cargo test -p pod-job --all-features`: lib 26 passed. Plant
+`job-t1098-reason-of-a-present-time` added; plant
+`job-unknown-reason-of-a-count` follows the new code.
