@@ -35,6 +35,8 @@ pub struct Bases {
     /// The RDAP server for a top-level domain that the bootstrap does not
     /// name (`https://rdap.org/`).
     pub rdap_fallback: String,
+    /// IANA's list of the registrar ids, with the RDAP base of each (CSV).
+    pub rdap_registrars: String,
 }
 
 impl Bases {
@@ -47,6 +49,7 @@ impl Bases {
             crates_static: "https://static.crates.io".into(),
             rdap_bootstrap: "https://data.iana.org/rdap/dns.json".into(),
             rdap_fallback: "https://rdap.org/".into(),
+            rdap_registrars: "https://www.iana.org/assignments/registrar-ids/registrar-ids-1.csv".into(),
         }
     }
 
@@ -59,6 +62,7 @@ impl Bases {
             crates_static: format!("{origin}/static"),
             rdap_bootstrap: format!("{origin}/rdap/dns.json"),
             rdap_fallback: format!("{origin}/rdap-any/"),
+            rdap_registrars: format!("{origin}/rdap/registrars.csv"),
         }
     }
 }

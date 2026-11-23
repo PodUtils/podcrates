@@ -59,7 +59,8 @@ is done. Git and the record keep finished work.
    - `services.yml` 45009160652 (2026-11-22): failed (`syncthing-relay`
      `relay-dvwou27` moved to `1.168.95.18`, plus `freedos-image`,
      `localtunnel`, `gosuda-portal`, `openbare-xyz`, `opentunnel` and
-     `node-trojan-66-163-112-121`; T-1034).
+     `node-trojan-66-163-112-121`; T-1093; T-1096 for the hosts that
+     gave no answer to the runners, which held on 45159148662).
    - `ci.yml`: T-943 is done: the arm64 probe of macOS builds on the
      Intel runner.
    - `docs/research/hard-problems.md`: the hard open problems (H-01 to

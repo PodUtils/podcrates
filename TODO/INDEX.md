@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**870 entries: 148 open, 28 partial, 7 blocked, 687 done.**
+**872 entries: 148 open, 28 partial, 7 blocked, 689 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 200 | 214 |
-| P2 | 66 | 8 | 4 | 359 | 437 |
+| P2 | 66 | 8 | 4 | 361 | 439 |
 | P3 | 78 | 10 | 3 | 126 | 217 |
-| **All** | 148 | 28 | 7 | 687 | 870 |
+| **All** | 148 | 28 | 7 | 689 | 872 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -917,3 +917,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1086](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a layer of GNU tar `--acls` is refused whole, as the PAX record `SCHILY.acl.access` holds a newline byte (PodUtils/podvm#643) |
 | [T-1087](podvm.md) | P3 | M | M6 | defect | open | `pod-extract`: a GNU sparse file of the PAX form (`GNU.sparse.`) refuses its layer, as the `tar` reader does not read it |
 | [T-1088](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: the attributes of an archive of libarchive with `xattrheader=LIBARCHIVE` are dropped with no word |
+| [T-1093](services.md) | P2 | S | M5 | defect | done | `services.yml` 45009160652: three `.xyz` RDAP records refused, three Trojan nodes gone, the Syncthing relay DVWOU27 at a new address, and two hosts dark to the runner |
+| [T-1096](services.md) | P2 | S | M5 | measurement | done | `pod-services`: `localtunnel.me` and `download.freedos.org` give no answer to the runners of GitHub on each run, but answer other networks |
