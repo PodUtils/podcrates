@@ -1,6 +1,7 @@
 //! The line frame: one cap of length, a check of UTF-8, and a deadline for
-//! each line. A slow peer that sends one byte at a time meets the deadline
-//! of the whole line, not a new timeout for each byte.
+//! each line, read or written. A slow peer that sends or reads one byte at a
+//! time meets the deadline of the whole line, not a new timeout for each
+//! byte.
 //!
 //! A line can hold a token: the frame wipes each byte of a line that it
 //! gives or drops, in its buffer and in the old buffer at each growth.
@@ -77,13 +78,16 @@ pub struct Lines<S> {
     buf: Zeroizing<Vec<u8>>,
     filled: usize,
     cap: usize,
+    /// A write failed: a part of a line can be out, so no later line is
+    /// whole.
+    broken: bool,
 }
 
 const CHUNK: usize = 8 * 1024;
 
 impl<S: Stream> Lines<S> {
     pub fn new(stream: S, cap: usize) -> Lines<S> {
-        Lines { stream, buf: Zeroizing::new(Vec::new()), filled: 0, cap }
+        Lines { stream, buf: Zeroizing::new(Vec::new()), filled: 0, cap, broken: false }
     }
 
     pub fn stream(&mut self) -> &mut S {
@@ -92,7 +96,12 @@ impl<S: Stream> Lines<S> {
 
     /// The next line, whole before `timeout` from now.
     pub fn next_line(&mut self, timeout: Duration) -> io::Result<Line> {
-        let deadline = Instant::now() + timeout;
+        self.next_line_by(Instant::now() + timeout)
+    }
+
+    /// The next line, whole before `deadline`. A line that is whole in the
+    /// buffer is given also after the deadline.
+    pub fn next_line_by(&mut self, deadline: Instant) -> io::Result<Line> {
         loop {
             if let Some(end) = self.buf[..self.filled].iter().position(|b| *b == b'\n') {
                 return Ok(self.take(end));
@@ -148,10 +157,40 @@ impl<S: Stream> Lines<S> {
         self.buf = bigger;
     }
 
-    /// Write `line` whole; it holds its line end.
-    pub fn write_line(&mut self, line: &str) -> io::Result<()> {
-        self.stream.write_all(line.as_bytes())?;
-        self.stream.flush()
+    /// Write `line` whole before `timeout` from now; it holds its line end.
+    pub fn write_line(&mut self, line: &str, timeout: Duration) -> io::Result<()> {
+        self.write_line_by(line, Instant::now() + timeout)
+    }
+
+    /// Write `line` whole before `deadline`. Each write of the system waits
+    /// for the time that is left, not for a new timeout: a peer that reads a
+    /// few bytes at a time meets the deadline of the line. After a failed
+    /// write each later write fails at once.
+    pub fn write_line_by(&mut self, line: &str, deadline: Instant) -> io::Result<()> {
+        if self.broken {
+            return Err(io::ErrorKind::BrokenPipe.into());
+        }
+        self.broken = true;
+        let mut rest = line.as_bytes();
+        while !rest.is_empty() {
+            let left = deadline.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                return Err(io::ErrorKind::TimedOut.into());
+            }
+            self.stream.set_write_timeout(Some(left))?;
+            // Linux gives each buffer of one large write a new timeout: a
+            // chunk at a time keeps the deadline.
+            match self.stream.write(&rest[..rest.len().min(CHUNK)]) {
+                Ok(0) => return Err(io::ErrorKind::WriteZero.into()),
+                Ok(n) => rest = &rest[n..],
+                Err(e) if e.kind() == io::ErrorKind::Interrupted => {}
+                Err(e) if e.kind() == io::ErrorKind::WouldBlock => return Err(io::ErrorKind::TimedOut.into()),
+                Err(e) => return Err(e),
+            }
+        }
+        self.stream.flush()?;
+        self.broken = false;
+        Ok(())
     }
 }
 
@@ -187,8 +226,7 @@ mod tests {
         let t = Duration::from_secs(5);
         assert_eq!(lines.next_line(t).unwrap(), text("one"));
         assert_eq!(lines.next_line(t).unwrap(), Line::End);
-        lines.stream().set_write_timeout(Some(t)).unwrap();
-        assert!(lines.write_line("two\n").is_err(), "a write to a closed peer fails at once");
+        assert!(lines.write_line("two\n", t).is_err(), "a write to a closed peer fails at once");
     }
 
     #[test]
@@ -257,5 +295,33 @@ mod tests {
         assert!(started.elapsed() < Duration::from_millis(700), "{:?}", started.elapsed());
         drop(lines);
         writer.join().unwrap();
+    }
+
+    #[test]
+    fn a_slow_reader_meets_one_deadline_for_the_whole_line() {
+        let (mut lines, mut peer) = pair(16);
+        let reader = std::thread::spawn(move || {
+            // 4 KiB each 10 ms: each write of the system goes on before a
+            // timeout of its own, but 8 MiB take 20 s.
+            let (mut chunk, mut got) = (vec![0u8; 4096], 0usize);
+            loop {
+                match peer.read(&mut chunk) {
+                    Ok(0) | Err(_) => return got,
+                    Ok(n) => got += n,
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        });
+        let mut line = "x".repeat(8 << 20);
+        line.push('\n');
+        let started = Instant::now();
+        let written = lines.write_line(&line, Duration::from_millis(200));
+        assert!(matches!(&written, Err(e) if e.kind() == io::ErrorKind::TimedOut), "no deadline: {written:?}");
+        assert!(started.elapsed() < Duration::from_secs(3), "{:?}", started.elapsed());
+        // A part of the line is out: no later line is whole.
+        let after = lines.write_line("{}\n", Duration::from_secs(5));
+        assert!(matches!(&after, Err(e) if e.kind() == io::ErrorKind::BrokenPipe), "a line after a part: {after:?}");
+        drop(lines);
+        assert!(reader.join().unwrap() < line.len(), "the peer read the whole line");
     }
 }

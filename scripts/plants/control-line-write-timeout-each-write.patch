@@ -1,0 +1,30 @@
+diff --git a/crates/pod-control/src/frame.rs b/crates/pod-control/src/frame.rs
+index 8812a0b9..010a18a6 100644
+--- a/crates/pod-control/src/frame.rs
++++ b/crates/pod-control/src/frame.rs
+@@ -171,23 +171,8 @@ impl<S: Stream> Lines<S> {
+             return Err(io::ErrorKind::BrokenPipe.into());
+         }
+         self.broken = true;
+-        let mut rest = line.as_bytes();
+-        while !rest.is_empty() {
+-            let left = deadline.saturating_duration_since(Instant::now());
+-            if left.is_zero() {
+-                return Err(io::ErrorKind::TimedOut.into());
+-            }
+-            self.stream.set_write_timeout(Some(left))?;
+-            // Linux gives each buffer of one large write a new timeout: a
+-            // chunk at a time keeps the deadline.
+-            match self.stream.write(&rest[..rest.len().min(CHUNK)]) {
+-                Ok(0) => return Err(io::ErrorKind::WriteZero.into()),
+-                Ok(n) => rest = &rest[n..],
+-                Err(e) if e.kind() == io::ErrorKind::Interrupted => {}
+-                Err(e) if e.kind() == io::ErrorKind::WouldBlock => return Err(io::ErrorKind::TimedOut.into()),
+-                Err(e) => return Err(e),
+-            }
+-        }
++        self.stream.set_write_timeout(Some(deadline.saturating_duration_since(Instant::now())))?;
++        self.stream.write_all(line.as_bytes())?;
+         self.stream.flush()?;
+         self.broken = false;
+         Ok(())

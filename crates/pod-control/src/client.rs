@@ -21,6 +21,7 @@ pub struct ClientSettings {
     pub line_max: usize,
     /// The longest wait for one whole line of the server.
     pub read_timeout: Duration,
+    /// The longest wait to write one whole line.
     pub write_timeout: Duration,
     /// The calls back of the server that one request takes.
     pub callbacks_per_request: usize,
@@ -169,7 +170,8 @@ impl Client {
         self.next += 1;
         // The server can answer `busy` or `refused` and close before the
         // request is written: read its line before the write error counts.
-        let written = self.lines.write_line(&wire::request_line(id, method, &params, None));
+        let written =
+            self.lines.write_line(&wire::request_line(id, method, &params, None), self.settings.write_timeout);
         wire::wipe(&mut params);
         let result = self.answer_of(id, back);
         match (&result, written) {
@@ -206,7 +208,8 @@ impl Client {
                     used += 1;
                     self.callbacks += 1;
                     let outcome = back(&req.method, &req.params);
-                    let written = self.lines.write_line(&wire::answer_line(Some(req.id), &outcome));
+                    let line = wire::answer_line(Some(req.id), &outcome);
+                    let written = self.lines.write_line(&line, self.settings.write_timeout);
                     wire::wipe_outcome(outcome);
                     written?;
                 }

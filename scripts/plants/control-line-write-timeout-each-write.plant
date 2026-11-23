@@ -1,0 +1,8 @@
+# The write of a line has a timeout for each write of the system, not one
+# deadline: a client that reads a few bytes at a time holds the write of a
+# call back with no limit (T-1073).
+ENTRY=T-1073
+GROUP=control
+EXPECT='no deadline'
+RUN='cargo test -p pod-control --all-features --lib frame::tests::a_slow_reader_meets_one_deadline_for_the_whole_line'
+LIMIT=900
