@@ -201,7 +201,7 @@ printf '%s\n' "$out"
 tcp=$(cargo test --locked -p pod-turn --all-features --test coturn_tcp -- --ignored --nocapture 2>&1) ||
     { printf '%s\n' "$tcp"; exit 1; }
 printf '%s\n' "$tcp"
-line='coturn: an allocation over TCP relayed a framed TCP connection'
+line='coturn: an allocation over TCP relayed a TCP connection'
 if ! printf '%s\n' "$tcp" | grep -qF "$line"; then
     echo "turn-tests: the run did not say: $line" >&2
     exit 1
