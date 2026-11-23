@@ -163,6 +163,10 @@ pub struct Unit {
     /// True: the start waits for the network (`network-online.target`).
     pub network: bool,
     pub hardening: Hardening,
+    /// The words that the caller knows are public (a public key, a
+    /// fingerprint, a name of a peer): the scan of a secret skips each place
+    /// of them in a word ([`Unit::public`]).
+    pub public: Vec<String>,
 }
 
 impl Unit {
@@ -189,6 +193,7 @@ impl Unit {
             stop: Stop::default(),
             network: true,
             hardening: Hardening::default(),
+            public: Vec::new(),
         }
     }
 
@@ -226,6 +231,16 @@ impl Unit {
     /// `variable`.
     pub fn secret_file(mut self, name: &str, path: &Path, variable: &str) -> Unit {
         self.secrets.push(Secret { name: name.to_string(), path: path.to_path_buf(), variable: variable.to_string() });
+        self
+    }
+
+    /// A word that is public, and no secret, though its form is random. The
+    /// scan of a secret skips each place of it in each word; the other rules
+    /// of a word still apply. An empty word is ignored.
+    pub fn public(mut self, word: &str) -> Unit {
+        if !word.is_empty() {
+            self.public.push(word.to_string());
+        }
         self
     }
 

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 878 entries: 150 open, 27 partial, 7 blocked, 694 done.
+`TODO/INDEX.md` holds 882 entries: 150 open, 27 partial, 7 blocked, 698 done.
 
 ## State
 
@@ -17,8 +17,9 @@
   next patch tag (e.g. `v0.82.1`, call C818) through `release.yml` on
   green `main` (`docs/HANDOFF.md`, "Releases: v0.82.0 and the next tag")
   so podrunner (PodUtils/podrunner#339) gets release assets, `ghcr.io`
-  images and a hand-off COORD issue. T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is not on
-  `main`. `release.yml` has steps that run on a tag only, which the dry
+  images and a hand-off COORD issue. T-963 is partial. T-975 and T-977
+  (podvm's asks) are open: their code is not on `main`. `release.yml`
+  has steps that run on a tag only, which the dry
   run does not test (T-974; `docs/maintenance.md`, "A release").
 - podssh's ask PodUtils/podssh#341 (COORD-134 of podssh): the fork
   `vendor/iroh-relay` at 1.4.2 for iroh 1.4.2 (T-1102, call C905). The

@@ -148,8 +148,9 @@ pub struct RunReport {
     pub cache_read_bytes: Option<Residual>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_written_bytes: Option<Residual>,
-    /// For each measured field that is `unknown`: why, in one line. A kind
-    /// that cannot measure a fact says `unknown` with a reason, never 0.
+    /// For each measured field that is `unknown` and each absent time (the
+    /// lists `MEASURED` and `TIMES`): why, in one line. A kind that cannot
+    /// measure a fact says `unknown` with a reason, never 0.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub unknown_reasons: BTreeMap<String, String>,
     /// The end of the log of a unit that failed before the runner
@@ -172,6 +173,10 @@ pub const MEASURED: [&str; 7] = [
     "cache_read_bytes",
     "cache_written_bytes",
 ];
+
+/// The times of a run report that can be absent. A time is a count or
+/// absent, never `unknown`: `unknown_reasons` can say why one is absent.
+pub const TIMES: [&str; 5] = ["claim_to_first_step_s", "prepare_s", "start_s", "run_s", "destroy_s"];
 
 /// The public report (`run-report-public.v1`). It never names the host.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -221,12 +226,33 @@ impl RunReport {
         if self.log_tail.as_ref().is_some_and(|t| t.len() > LOG_TAIL_MAX) {
             return Err(format!("log_tail has more than {LOG_TAIL_MAX} bytes"));
         }
-        if let Some(field) =
-            self.unknown_reasons.keys().find(|f| self.measured(f) != Some(Residual::Unknown(Unknown::Unknown)))
-        {
-            return Err(format!("unknown_reasons names {field:?}, which is not an unknown measured field"));
+        if let Some(field) = self.unknown_reasons.keys().find(|f| !self.has_no_value(f)) {
+            return Err(format!(
+                "unknown_reasons names {field:?}, which is not an unknown measured field or an absent time"
+            ));
         }
         rules(self.schema, self.exit_reason, self.refusal_code.is_some(), self.unit.is_some())
+    }
+
+    /// The field `name` is a measured field that is `unknown`, or a time of
+    /// [`TIMES`] that is absent: only such a field takes a reason.
+    fn has_no_value(&self, name: &str) -> bool {
+        match self.time(name) {
+            Some(time) => time.is_none(),
+            None => self.measured(name) == Some(Residual::Unknown(Unknown::Unknown)),
+        }
+    }
+
+    /// The time `name` of [`TIMES`]; `None` for a name that is not a time.
+    fn time(&self, name: &str) -> Option<Option<u64>> {
+        match name {
+            "claim_to_first_step_s" => Some(self.claim_to_first_step_s),
+            "prepare_s" => Some(self.prepare_s),
+            "start_s" => Some(self.start_s),
+            "run_s" => Some(self.run_s),
+            "destroy_s" => Some(self.destroy_s),
+            _ => None,
+        }
     }
 
     /// The measured field `name` of [`MEASURED`], where the report has it.

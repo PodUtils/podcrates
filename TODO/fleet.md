@@ -7790,6 +7790,273 @@ the guard of the write. 20 of 20 runs of each new test with
 `--test-threads=1`, 20 of 20 runs of the test binary `server` in
 parallel, 20 of 20 of `wipe`, 20 of 20 of the frame test.
 
+# T-1089: `pod-unit`: a second call of `windows::serve` in a program that the manager did not start gets `Class::Unavailable` (error 1056), not `Class::Usage` (nightly 44871383085)
+
+**Source:** nightly 44871383085 (jobs 136746463820 and 136746463841, at `ab73e75`), 44891581672 and 45009375271 (jobs 137168060527 and 137168060222, at `50aa5e0`): `test (windows-2025)` and `test (windows-11-arm)`
+**Category:** defect
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The test `a_program_that_the_manager_did_not_start_gets_a_usage_failure`
+of `crates/pod-unit/tests/service_live.rs` calls `windows::serve` two times
+in one process. The first call gets `Class::Usage`. The second call fails:
+"assertion `left == right` failed: StartServiceCtrlDispatcherW: An instance
+of the service is already running. (os error 1056)", as `Class::Unavailable`.
+Windows lets a process call `StartServiceCtrlDispatcherW` one time, also
+after a failed connect (error 1063, `ERROR_FAILED_SERVICE_CONTROLLER_CONNECT`);
+each later call gets error 1056 (`ERROR_SERVICE_ALREADY_RUNNING`). `serve` in
+`crates/pod-unit/src/service_scm.rs` calls the dispatcher at each call and
+maps only 1063 to `Class::Usage`. The steps of the live service after this
+test do not run.
+
+## Premise
+
+- Read: the logs of the jobs of the Source; `serve` and `service_main` of
+  `crates/pod-unit/src/service_scm.rs`; the documents of
+  `StartServiceCtrlDispatcherW` (one call for each process).
+- Read: each call of `StartServiceCtrlDispatcherW` in `crates/`: `serve` is
+  the only one.
+- Not measured: a run on Windows from this host (Linux).
+
+## Approach
+
+Keep the state of the dispatcher of the process in a static (`Dispatch` of
+`crates/pod-unit/src/service.rs`, with no call of Windows, so its test runs
+on each host): free, busy, not started (1063), spent (a run, or 1056).
+`serve` takes the dispatcher before the call; a later call after 1063 gets
+the same `Class::Usage` failure with no second call of Windows; a call after
+a run or after 1056 gets a `Class::Usage` failure that tells that the
+dispatcher runs one time in a process. The test makes three calls and
+compares their texts. The doc comment of `serve` and the README of
+`pod-unit` tell the rule.
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features
+cargo clippy -p pod-unit --all-targets --all-features -- -D warnings
+sh scripts/agent/check-windows.sh
+```
+
+The live proof is the job test of `nightly.yml` on windows-2025 and
+windows-11-arm (`crates/pod-unit/tests/service_live.rs`).
+
+## Done
+
+2026-11-23, this commit. `crates/pod-unit/src/service.rs` has `Dispatch`
+(`take`, `after`, `refusal`) and the two errors `NOT_STARTED_ERROR` (1063)
+and `CALLED_ERROR` (1056); `crates/pod-unit/src/service_scm.rs` asserts at
+compile time that they are the constants of windows-sys. `serve` keeps the
+state in the static `DISPATCH`: a call after a failed connect gets the
+failure of the first call with no call of Windows; a call after a run of the
+dispatcher, after error 1056, or while another thread is in `serve` gets
+`Class::Usage` and does not run its work. The busy state also closes a race
+of the old check of the slot of the work, which `service_main` empties while
+the dispatcher runs. The test
+`service::tests::a_failed_connect_of_the_dispatcher_gives_each_later_call_the_same_usage_failure`
+passes on this host; `crates/pod-unit/tests/service_live.rs` makes three
+calls and compares their texts. `cargo test -p pod-unit`: 50 passed;
+`cargo clippy -p pod-unit --all-targets --all-features -- -D warnings`
+passes for this host and for `x86_64-pc-windows-gnu`;
+`sh scripts/agent/check-windows.sh`: 0 faults. The proof on the runner is the next
+run of `nightly.yml` (jobs `test (windows-2025)` and `test (windows-11-arm)`).
+
+# T-1098: `pod-job`: `run-report.v1` refuses a reason of a time that the report does not know (`start_s`) (PodUtils/podrunner#342)
+
+**Source:** PodUtils/podrunner#342 (COORD-120 of podrunner, for PodUtils/podrunner@T-595; githome's G-19)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podrunner asks (PodUtils/podrunner#342): "`run-report.v1` of `pod-job`
+allows a key of `unknown_reasons` only for a field of `MEASURED`
+(`cpu_s`, `peak_rss_mib`, `disk_peak_bytes`, `net_rx_bytes`,
+`net_tx_bytes`, `cache_read_bytes`, `cache_written_bytes`; the
+`propertyNames` of `unknown_reasons`). Please allow a reason also for each
+time of the report that can be absent: `prepare_s`, `start_s`, `run_s`,
+`destroy_s` and `claim_to_first_step_s`. Either add them to `MEASURED`,
+or keep the times optional and add a second list whose keys
+`unknown_reasons` takes for an absent time. podrunner takes either form."
+
+Why: githome meters each job from the run report. When a unit ends before
+the runner sends its first step, podrunner knows no `start_s`. Its reason
+("no first-step event came for the job") in `unknown_reasons` makes
+`RunReport::check()` fail, and a strict source refuses the report.
+
+## Premise
+
+- Read: PodUtils/podrunner#342; `crates/pod-job/src/report.rs`
+  (`RunReport::check`, `MEASURED`), `crates/pod-job/src/json_schema.rs`
+  (`run_report_rules`), call C783.
+- Read: podrunner's `PodUtils/podrunner:crates/podrunner-slots/src/report.rs`
+  (`base` builds `RunReport` with each field; `report` writes the reason
+  of `start_s` when a unit ran with no first step, and `start_s` is then
+  absent).
+- The times are `Option<u64>`: a time has no `unknown`. A time in
+  `MEASURED` changes its type, and needs `run-report.v2` (the ruling
+  "Schema ids").
+
+## Approach
+
+Keep the times optional counts. Add the list `TIMES` beside `MEASURED`
+(no new field of `RunReport`, so podrunner's struct literal builds). A key
+of `unknown_reasons` names a measured field that is `unknown`, or a time
+of `TIMES` that is absent; a reason of a present time is refused, as a
+reason of a counted field. The schema: the names of `TIMES` in the
+`propertyNames` of `unknown_reasons`, and for each time a rule that its
+reason needs the time absent or `null`. Examples and a test of each time
+against the types and the schema; a row `added` in `schemas/CHANGES.md`.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+```
+
+## Done
+
+2026-11-23, this commit (call C903). `pod_job::report::TIMES`
+(`claim_to_first_step_s`, `prepare_s`, `start_s`, `run_s`, `destroy_s`)
+beside `MEASURED`; the times stay optional counts, and `RunReport` has no
+new field. `RunReport::check` takes a key of `unknown_reasons` that names
+a measured field that is `unknown` or a time of `TIMES` that is absent; a
+reason of a present time is refused ("which is not an unknown measured
+field or an absent time"). `schemas/run-report.v1.schema.json` written
+again: the names of `TIMES` in the `propertyNames` of `unknown_reasons`,
+and for each time a rule that its reason needs the time absent or `null`;
+the id stays `v1` (a row `added` in `schemas/CHANGES.md`). Examples:
+`run-report/valid-no-first-step.json` (no `start_s` and no
+`claim_to_first_step_s`, each with the reason of podrunner),
+`run-report/invalid-reason-of-a-present-time.json`. Test:
+`schemas::rules::a_reason_of_a_time_needs_the_time_absent` (each time
+absent, `null` and present with a reason: the types and the schema give
+the same verdict; 10 pass, 5 refused). Before the change `check` and
+the schema refuse the valid example ("which is not an unknown measured
+field"; `start_s` is not in the `propertyNames`).
+`cargo test -p pod-job --all-features`: lib 26 passed. Plant
+`job-t1098-reason-of-a-present-time` added; plant
+`job-unknown-reason-of-a-count` follows the new code.
+
+# T-1104: `pod-unit`: a path after a `.` reads as a long random word, so a config under a directory of `mktemp -d` is refused (PodUtils/podrunner#343)
+
+**Source:** PodUtils/podrunner#343 (COORD-121 of podrunner; PodUtils/podrunner@T-602 waits for it).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podrunner: "`pod_unit::secret::looks_secret` ... splits a word at each byte
+outside `[A-Za-z0-9_+/-]`, and splits a run at `/` only when the run starts
+with `/`. A `.` inside a path therefore starts a run that keeps its `/`: in
+`/tmp/tmp.Ab3dEf9kQ2/serve-config/podrunner.toml` the run after the dot is
+`Ab3dEf9kQ2/serve-config/podrunner` (33 bytes, upper and lower case and
+digits ...), and `random` gives "a long random word"." So
+`podrunner print-unit --config /tmp/tmp.Ab3dEf9kQ2/serve-config/podrunner.toml`
+exits 64, as do `install-unit --system` and each unit that `pod-unit`
+renders with a path under a directory of `mktemp -d`.
+
+## Premise
+
+- Read: `crates/pod-unit/src/secret.rs` (`runs`, `random`) and
+  `crates/pod-unit/src/secret_tests.rs`; the issue.
+- Measured: the new test `a_path_under_a_directory_of_mktemp_is_no_secret`
+  fails on the code before the fix.
+- Not measured: podrunner's `print-unit` on the fixed crate.
+
+## Approach
+
+Split a word first into fields of the bytes of a token and `.`. A field
+that starts with `/` or holds a `.` is a path or a name (no token of
+base64 holds a `.`): split it at each `/` and `.`, so that no run crosses
+a component. Any other field is one run, so a token of base64 keeps its
+`/`. A component of 10 random characters is below `RANDOM_LEN` (32) and
+passes; a component or a value after `=` of the length of a secret is
+still refused.
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features --lib secret
+```
+
+## Done
+
+2026-11-23, this commit (call C906). `crates/pod-unit/src/secret.rs`: `runs` splits a word into fields of `A-Z a-z 0-9 _ - + / .`; a field that starts with `/` or holds a `.` splits at each `/` and `.`, any other field is one run (a token of base64 keeps its `/`).
+
+- Before the fix, `TMPDIR=/tmp cargo test -p pod-unit --lib secret` failed `a_path_under_a_directory_of_mktemp_is_no_secret` on `/tmp/tmp.Ab3dEf9kQ2/serve-config/podrunner.toml`, and `a_secret_in_a_component_or_a_token_with_a_slash_is_still_refused` (a GitHub token as a component after a `.` read as a random word).
+- `a_path_under_a_directory_of_mktemp_is_no_secret`: the path of the issue, the same as `--config=PATH` and as a separate argument of a unit, `/tmp/tmp.Ab3dEf9kQ2`, a relative path and a path under a dot directory pass. A component of `mktemp -d` has 10 random characters, below `RANDOM_LEN` (32).
+- `a_secret_in_a_component_or_a_token_with_a_slash_is_still_refused`: a token of base64 with `/` and `+`, alone and after `--x=`; a component of 40 random characters (`/etc/creds/T`, `/tmp/tmp.X/T.toml`); a value after `=` in a path; a GitHub token as a component: each is refused by its rule. Each case of the earlier tests stays refused.
+- `crates/pod-unit/README.md` ("No secret in a unit") and the doc comment of `secret.rs` give the rule.
+- `TMPDIR=/tmp cargo test -p pod-unit --all-features`: each test passes (the lib: 18). `cargo clippy -p pod-unit --all-targets --all-features -- -D warnings`: clean.
+
+# T-1105: `pod-unit`: the check of a secret refuses a public key of OpenSSH and a fingerprint as a long random word (PodUtils/podssh#342 ask (a))
+
+**Source:** PodUtils/podssh#342 ask (a) (COORD-135 of podssh; podssh's T-715 and `serve --print-unit --authorized-key`).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh: "`Unit::check` refuses "a long random word". That rule catches an
+`ssh-ed25519 AAAA...` key and a `SHA256:` fingerprint: a model of the rule
+refused 200 of 200 keys and 198 of 200 fingerprints. So `podssh node
+--install --net-owner KEY` ... and `podssh serve --print-unit
+--authorized-key 'ssh-ed25519 ...'` would be refused. Ask: pass public keys
+and fingerprints, or take a caller's list of words that are public."
+
+## Premise
+
+- Read: `crates/pod-unit/src/secret.rs`, `crates/pod-unit/src/model.rs`
+  (`Unit`, `#[non_exhaustive]`); RFC 4253 (the blob of `ssh-rsa` and
+  `ssh-dss`), RFC 5656 (ecdsa), RFC 8709 (ed25519), OpenSSH PROTOCOL.u2f
+  (the `sk-` types).
+- Measured: the new tests `a_public_key_and_a_fingerprint_of_openssh_pass`
+  and `a_word_that_the_caller_names_public_passes` fail on the code before
+  the fix.
+- Not measured: podssh's commands on the fixed crate.
+
+## Approach
+
+Both forms of the ask. A field of base64 that starts with `AAAA` and
+decodes to exactly the parts of a known type of public key (the name, then
+the count of parts of that type; a key of ed25519 of 32 bytes) gives no
+run; a byte more or a part less is no key. A field of 43 of base64 after
+`SHA256:` gives no run; an `MD5:` fingerprint is runs of 2. A new builder
+`Unit::public(WORD)` (a new field `Unit::public`; `Unit` is
+`#[non_exhaustive]`, so no signature changes) names a public word: the
+scan cuts each place of it out of each word, and the bytes beside it
+are still read.
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features --lib secret
+```
+
+## Done
+
+2026-11-23, this commit (call C906). `crates/pod-unit/src/secret.rs`: `public_form` and `ssh_public_key` (a field of base64 that starts with `AAAA` and decodes to exactly the parts of a type of `SSH_TYPES`, a key of ed25519 of 32 bytes; 43 of base64 after `SHA256:`); `crates/pod-unit/src/model.rs`: the field `Unit::public` and the builder `Unit::public(WORD)`, which `secret::check` cuts out of each word. New dependency of `pod-unit`: `base64` (of the workspace).
+
+- Before the fix, `a_public_key_and_a_fingerprint_of_openssh_pass` failed on `ssh-ed25519 AAAAC3...`.
+- `a_public_key_and_a_fingerprint_of_openssh_pass`: 50 made-up keys of each of `ssh-ed25519`, `ssh-rsa` (2048 bits), `ecdsa-sha2-nistp256`, `sk-ssh-ed25519@openssh.com`, with and without a comment, and 50 `SHA256:` and `MD5:` fingerprints, alone and after `--owner=`, pass; a unit with `--authorized-key KEY` passes `Unit::check`.
+- `a_form_near_a_public_key_is_still_refused`: a blob of ed25519 with one part more, a blob cut and a token after it, a blob of `openssh-key-v1`, and 60 of random after `SHA256:` are refused. The private key and the random token of `each_known_token_is_refused_by_its_rule` stay refused.
+- `a_word_that_the_caller_names_public_passes`: a word named by `Unit::public` passes; the same word with no name, or with another name, is refused; a GitHub token beside a public word is refused.
+- `TMPDIR=/tmp cargo test -p pod-unit --all-features`: each test passes. `cargo clippy -p pod-unit --all-targets --all-features -- -D warnings`: clean.
+
 # T-1118: `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686)
 
 **Source:** PodUtils/podnet#686 (COORD-114 of podnet, PodUtils/podnet@T-494): "podnet does not write `release-index.json` yet; the update does not need it."
