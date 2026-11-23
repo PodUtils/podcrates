@@ -2128,7 +2128,7 @@ Open: the step counter of a scope (VF-2), which needs a call in each loop of a h
 
 # T-877: `pod-core`: one advisory file lock for each system, in place of four copies in the consumers
 
-**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
+**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17). PodUtils/podnet#651 (COORD-104 of podnet, ask 2) names it as the instance lock of podnet: podnet takes the crate at its tag by the hand-off.
 **Category:** feature
 **Milestone:** M0
 **Priority:** P1
@@ -2198,7 +2198,7 @@ cargo test -p pod-core --all-features clock
 
 # T-879: `pod-detach`: the detach of a command by a re-exec, from podnet, in place of podssh's near copy
 
-**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
+**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17). PodUtils/podnet#651 (COORD-104 of podnet, ask 2) names it as PodUtils/podnet:crates/podnet-core/src/detach.rs: podnet takes the crate at its tag by the hand-off.
 **Category:** feature
 **Milestone:** M0
 **Priority:** P2
@@ -2225,7 +2225,7 @@ cargo test -p pod-detach --all-features
 
 # T-880: `pod-release`: the self-update of a binary (fetch, verify, replace, trial run), from podnet and podssh
 
-**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
+**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17). PodUtils/podnet#651 (COORD-104 of podnet, ask 2) names it as PodUtils/podnet:src/update.rs and PodUtils/podnet:src/update/cosign.rs: podnet takes the crate at its tag by the hand-off.
 **Category:** feature
 **Milestone:** M0
 **Priority:** P2
@@ -2851,3 +2851,52 @@ core-replace-follows-without-the-option
 core-replace-removes-a-file-it-did-not-make`: 2 caught. Removing
 `O_NOFOLLOW` from the temporary file is no plant: `create_new` already
 refuses a link at the name.
+
+
+# T-1097: `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review)
+
+**Source:** `scripts/check-sources.py` against the head of each consumer (2026-11-23, T-1094).
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`check-sources.py` with clones of podssh, podnet, podvm and podrunner at
+their heads reports one change outside `pod-confine`:
+
+```text
+pod-testkit: changed PodUtils/podnet:tests/test_host/mod.rs -> crates/pod-testkit/src/host.rs
+pod-testkit:     4df2895 Take podcrates v0.82.0, consolidate deferred features, and apply hard-problems fixes (...)
+check-sources: pod-testkit: PodUtils/podnet at b7682c5: 1 files, 1 changes
+```
+
+The title of `4df2895` names entries of podnet's record (`PodUtils/podnet@T-506` and others); the quote leaves them out. podnet `4df2895` adds `route(addr)` (a UDP connect to ADDR; `Err(reason)`
+when the bind or the connect fails) and the macro `need_route!` (skip
+the test when the host has no route to ADDR). The next run of
+`upstream.yml` is red on it.
+
+## Premise
+
+- Read: `git diff b7682c5 HEAD -- tests/test_host/mod.rs` in a clone of
+  podnet; `crates/pod-testkit/SOURCES`.
+- Not read: the tests of podnet that call `need_route!`, and whether
+  `crates/pod-testkit/src/host.rs` has a guard of a route already.
+
+## Approach
+
+1. Search for a guard of a route (`python3 -I scripts/codegraph.py
+   similar route guard skip`). If none: port `route` and `need_route!`
+   into `crates/pod-testkit/src/host.rs`, with a test of a route that
+   exists (loopback) and of one that does not.
+2. Move the podnet block of `crates/pod-testkit/SOURCES` to `4df2895`
+   with the blob id of the file (`git ls-tree`).
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --all-features
+python3 -I scripts/check-sources.py --clone PodUtils/podnet=PODNET pod-testkit
+```
