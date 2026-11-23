@@ -64,8 +64,10 @@ is done. Git and the record keep finished work.
    - `docs/research/hard-problems.md`: the hard open problems (H-01 to
      H-18), with the questions that research must answer. T-978 has its
      findings that no other entry had.
-   - `upstream.yml` 45024358679 (`sources`): red on `pod-manual` until
-     the port review of podssh's changes (T-863).
+   - `upstream.yml` 45024358679 (`sources`): red on `pod-confine`
+     (podvm's `ldso.rs` and `tests_t1984.rs`); T-1094 is done and the
+     check gives 0 changes there. The next run is red on `pod-testkit`
+     (podnet `4df2895`, T-1097). `pod-manual` gives 0 changes.
    A new red run needs an entry before other work. A plant that a run
    misses once with no change of its crate runs its test five times in
    its `.plant` (as `link-quic-drop-closes-at-once`).
