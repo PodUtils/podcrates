@@ -90,11 +90,16 @@ mod live {
     }
 
     fn a_program_that_the_manager_did_not_start_gets_a_usage_failure() {
-        // Two calls: a failed call leaves no work behind it.
-        for _ in 0..2 {
+        // Three calls: a failed call leaves no work behind it, and Windows
+        // lets a process call the dispatcher one time, so each later call
+        // gets the failure of the first.
+        let mut first = None;
+        for _ in 0..3 {
             let failure = win::serve("pod-unit-test", |_| unreachable!("the manager runs no work")).unwrap_err();
             assert_eq!(failure.class, Class::Usage, "{failure}");
             assert!(failure.text().contains("did not start this program"), "{failure}");
+            let first = first.get_or_insert_with(|| failure.to_string());
+            assert_eq!(*first, failure.to_string());
         }
         assert_eq!(win::serve("", |_| 0).unwrap_err().class, Class::Usage);
     }

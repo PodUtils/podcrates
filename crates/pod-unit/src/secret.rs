@@ -10,6 +10,12 @@
 //! token, a private key, a password in a URL, a key that names a secret, a
 //! flag that takes a secret, and a long random word. The refusal names the
 //! place of the word and the rule, never the word.
+//!
+//! A path splits at each `/` before the rules read it, so that a component
+//! of 10 random characters (a directory of `mktemp -d`) is no random word;
+//! a component of the length of a secret is still one. A public key of
+//! OpenSSH and a `SHA256:` fingerprint pass by their form; a caller names any
+//! other public word with [`crate::Unit::public`].
 
 use pod_core::Failure;
 
@@ -90,7 +96,11 @@ pub fn names_secret(key: &str) -> bool {
 
 /// Refuse a unit with a word that looks like a secret.
 pub fn check(unit: &Unit) -> Result<(), Failure> {
-    for (place, word) in unit.words() {
+    for (place, mut word) in unit.words() {
+        // A public word of the caller is cut out; the bytes beside it stay.
+        for public in &unit.public {
+            word = word.replace(public.as_str(), " ");
+        }
         if let Some(rule) = looks_secret(&word) {
             return Err(refusal(&place, rule));
         }
@@ -137,13 +147,75 @@ fn password_in_url(word: &str) -> bool {
     }
 }
 
-/// The runs of a word between the bytes that no token holds (`=` ends a
-/// key and pads base64).
+/// The runs of a word that the rules read. A field is a run of the bytes of
+/// a token and `.` (`=` ends a key and pads base64). A field that starts with
+/// `/` or holds a `.` is a path or a name, as no token of base64 holds a `.`:
+/// it splits at each `/` and `.`, so that no run crosses a component of a
+/// path. Any other field is one run: a token of base64 keeps its `/`. A public
+/// key of OpenSSH and a fingerprint give no run.
 fn runs(word: &str) -> impl Iterator<Item = &str> {
-    word.split(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '+' | '/'))).flat_map(|run| {
-        // A path splits at `/`; a token of base64 keeps it when it is long.
-        if run.starts_with('/') { run.split('/').collect::<Vec<_>>() } else { vec![run] }
+    fields(word).filter(move |(start, field)| !public_form(&word[..*start], field)).flat_map(|(_, field)| {
+        let path = field.starts_with('/') || field.contains('.');
+        field.split(move |c: char| c == '.' || (path && c == '/'))
     })
+}
+
+/// Each field of a word, with its place.
+fn fields(word: &str) -> impl Iterator<Item = (usize, &str)> {
+    let token = |c: char| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '+' | '/' | '.');
+    let mut start = 0;
+    word.split(move |c: char| !token(c)).map(move |field| {
+        let at = start;
+        // Each separator of the split is one ASCII byte or one char.
+        start += field.len() + word[at + field.len()..].chars().next().map_or(0, char::len_utf8);
+        (at, field)
+    })
+}
+
+/// True for a field that is public by its form: the blob of an OpenSSH
+/// public key, or the digest of a `SHA256:` fingerprint (43 of base64).
+fn public_form(before: &str, field: &str) -> bool {
+    let b64 = |c: char| c.is_ascii_alphanumeric() || matches!(c, '+' | '/');
+    if before.ends_with("SHA256:") && field.len() == 43 && field.chars().all(b64) {
+        return true;
+    }
+    use base64::Engine as _;
+    field.starts_with("AAAA")
+        && base64::engine::general_purpose::STANDARD_NO_PAD.decode(field).is_ok_and(|blob| ssh_public_key(&blob))
+}
+
+/// The parts of each type of an OpenSSH public key after its name
+/// (RFC 4253, RFC 5656, RFC 8709, PROTOCOL.u2f), and the length of the key
+/// of ed25519.
+const SSH_TYPES: &[(&str, usize)] = &[
+    ("ssh-ed25519", 1),
+    ("ssh-rsa", 2),
+    ("ssh-dss", 4),
+    ("ecdsa-sha2-nistp256", 2),
+    ("ecdsa-sha2-nistp384", 2),
+    ("ecdsa-sha2-nistp521", 2),
+    ("sk-ssh-ed25519@openssh.com", 2),
+    ("sk-ecdsa-sha2-nistp256@openssh.com", 3),
+];
+
+/// True when `blob` is exactly the parts of a public key of a known type:
+/// a byte more, a part less or a key of ed25519 that is not 32 bytes is not
+/// one.
+fn ssh_public_key(blob: &[u8]) -> bool {
+    let mut parts = Vec::new();
+    let mut rest = blob;
+    while !rest.is_empty() {
+        let Some((len, tail)) = rest.split_first_chunk::<4>() else { return false };
+        let len = u32::from_be_bytes(*len) as usize;
+        if len == 0 || len > tail.len() {
+            return false;
+        }
+        parts.push(&tail[..len]);
+        rest = &tail[len..];
+    }
+    let Some((name, keys)) = parts.split_first() else { return false };
+    let ed25519 = name.ends_with(b"ed25519") || name.starts_with(b"sk-ssh-ed25519");
+    SSH_TYPES.iter().any(|(kind, n)| kind.as_bytes() == *name && keys.len() == *n) && (!ed25519 || keys[0].len() == 32)
 }
 
 /// A long word with upper case, lower case and digits, whose characters

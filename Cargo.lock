@@ -5529,6 +5529,7 @@ dependencies = [
 name = "pod-unit"
 version = "0.82.0"
 dependencies = [
+ "base64 0.23.1",
  "plist",
  "pod-core",
  "pod-testkit",

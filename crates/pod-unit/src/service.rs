@@ -13,6 +13,10 @@
 
 use std::time::Duration;
 
+use pod_core::Failure;
+
+use crate::model::usage;
+
 /// A stop of the service control manager, which the work receives on the
 /// channel of `Service::stop`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -132,6 +136,71 @@ fn ms(hint: Duration) -> u32 {
     u32::try_from(hint.as_millis()).unwrap_or(u32::MAX)
 }
 
+/// The Win32 error of a call of the dispatcher in a program that the
+/// manager did not start (`ERROR_FAILED_SERVICE_CONTROLLER_CONNECT`).
+pub(crate) const NOT_STARTED_ERROR: u32 = 1063;
+
+/// The Win32 error of a second call of the dispatcher in one process
+/// (`ERROR_SERVICE_ALREADY_RUNNING`).
+pub(crate) const CALLED_ERROR: u32 = 1056;
+
+/// The state of the dispatcher in the process. Windows lets a process call
+/// `StartServiceCtrlDispatcherW` one time, also after a failed connect: a
+/// later call gets `CALLED_ERROR`, not the cause of the first call.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Dispatch {
+    /// No call yet.
+    Free,
+    /// A call runs.
+    Busy,
+    /// The call failed: the manager did not start this program.
+    NotStarted,
+    /// The call ran, or Windows refused it as a second call.
+    Spent,
+}
+
+impl Dispatch {
+    /// Take the dispatcher for a call: `Ok` and `Busy` when it is free,
+    /// else the state that refuses the call.
+    pub(crate) fn take(&mut self) -> Result<(), Dispatch> {
+        match *self {
+            Dispatch::Free => {
+                *self = Dispatch::Busy;
+                Ok(())
+            }
+            other => Err(other),
+        }
+    }
+
+    /// The state after the call, from its Win32 error (`None`: the
+    /// dispatcher ran). Another error leaves the dispatcher free: Windows
+    /// refuses a later call with `CALLED_ERROR` if the first call counted.
+    pub(crate) fn after(error: Option<u32>) -> Dispatch {
+        match error {
+            None | Some(CALLED_ERROR) => Dispatch::Spent,
+            Some(NOT_STARTED_ERROR) => Dispatch::NotStarted,
+            Some(_) => Dispatch::Free,
+        }
+    }
+
+    /// The failure of `serve` of the service `name` in this state; `None`
+    /// for a free dispatcher.
+    pub(crate) fn refusal(self, name: &str) -> Option<Failure> {
+        let text = match self {
+            Dispatch::Free => return None,
+            Dispatch::Busy => "serve runs on one thread of a process at a time".to_string(),
+            Dispatch::NotStarted => format!(
+                "the service control manager did not start this program: start the service {name} with sc.exe \
+                 start, or run the program with no argument of a service"
+            ),
+            Dispatch::Spent => "the dispatcher of the service control manager runs one time in a process: \
+                                call serve one time, at the start of the program"
+                .to_string(),
+        };
+        Some(usage(text))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,5 +252,35 @@ mod tests {
         let clean = Report::start().stopping(WAIT_HINT).unwrap().stopped(0);
         assert_eq!((clean.win32, clean.specific), (0, 0));
         assert_eq!(ms(Duration::from_secs(u64::MAX)), u32::MAX);
+    }
+
+    #[test]
+    fn a_failed_connect_of_the_dispatcher_gives_each_later_call_the_same_usage_failure() {
+        let mut state = Dispatch::Free;
+        assert_eq!(state.take(), Ok(()));
+        assert_eq!(state, Dispatch::Busy);
+        assert_eq!(state.take(), Err(Dispatch::Busy));
+        // The first call finds no manager: each later call is refused with
+        // the same failure, and no second call of the dispatcher is made.
+        let mut state = Dispatch::after(Some(NOT_STARTED_ERROR));
+        let first = state.refusal("svc").expect("a failure");
+        assert_eq!(first.class, pod_core::Class::Usage);
+        assert!(first.text().contains("did not start this program"), "{first}");
+        for _ in 0..2 {
+            assert_eq!(state.take(), Err(Dispatch::NotStarted));
+            assert_eq!(state.refusal("svc").map(|f| f.to_string()), Some(first.to_string()));
+        }
+        // A second call that Windows refuses, and a call after a run.
+        for after in [Some(CALLED_ERROR), None] {
+            let mut state = Dispatch::after(after);
+            assert_eq!(state.take(), Err(Dispatch::Spent));
+            let spent = state.refusal("svc").expect("a failure");
+            assert_eq!(spent.class, pod_core::Class::Usage);
+            assert!(spent.text().contains("runs one time in a process"), "{spent}");
+        }
+        // Another error: the dispatcher stays free, with no usage failure.
+        assert_eq!(Dispatch::after(Some(87)), Dispatch::Free);
+        assert!(Dispatch::Free.refusal("svc").is_none());
+        assert_eq!(Dispatch::Busy.refusal("svc").map(|f| f.class), Some(pod_core::Class::Usage));
     }
 }
