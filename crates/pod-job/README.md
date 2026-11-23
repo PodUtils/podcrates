@@ -245,8 +245,10 @@ G-36; the names of PodUtils/podrunner#294):
   `prepare_s`, `start_s`, `run_s`, `destroy_s` (seconds, rounded up),
   `disk_peak_bytes`, `net_rx_bytes`, `net_tx_bytes`, `cache_read_bytes`,
   `cache_written_bytes` (a count or `unknown`), `unknown_reasons` (for
-  each measured field that is `unknown`, why; a key must name such a
-  field), `log_tail` (UTF-8, at most 65536 bytes, scrubbed by the writer).
+  each measured field that is `unknown`, and for each absent time of
+  `TIMES`: `claim_to_first_step_s`, `prepare_s`, `start_s`, `run_s`,
+  `destroy_s`, why; a key must name such a field, and a reason of a
+  present time is refused), `log_tail` (UTF-8, at most 65536 bytes, scrubbed by the writer).
   `host`, `unit.unit_kind` and `unit.boundary` were there. None of them is
   in the public report.
 
