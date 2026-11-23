@@ -7,19 +7,21 @@
 //!
 //! [`Shape::browser`] is the shape of Chrome as Akamai's passive HTTP/2
 //! fingerprints record it: `1:65536;3:1000;4:6291456`, a connection window
-//! of 15,663,105, the pseudo-fields `m,a,s,p`, and no PRIORITY frame; a
-//! later capture of a live connection adds `6:262144` after them.
+//! increment of 15,663,105, the pseudo-fields `m,a,s,p`, and no PRIORITY
+//! frame; a later capture of a live connection adds `6:262144` after them.
 //! [`Shape::firefox`] is Firefox's:
 //! `1:65536;4:131072;5:16384|12517377|3:0:0:201,5:0:0:101,7:0:0:1,9:0:7:1,11:0:3:1|m,p,a,s`.
 //! [`Shape::existing`] is the shape that this road has sent until now, and
 //! the default: another one is opt-in, so that no compatibility test changes
 //! its bytes without a caller asking.
 //!
-//! Two of the four are data alone, because the HTTP/2 library of this crate
-//! gives no call for them: [`Shape::apply`] sets the SETTINGS that h2 accepts
-//! and the connection's window, and a PRIORITY frame or a padded DATA frame
-//! is recorded in the shape and asserted against a reference, but the live
-//! connection sends neither.
+//! [`Shape::apply`] sets every SETTINGS parameter that the shape names,
+//! including `SETTINGS_MAX_CONCURRENT_STREAMS` (id 3), and the connection's
+//! window as the target from which h2 computes the WINDOW_UPDATE increment.
+//! The order of the request's pseudo-fields depends on the h2 crate in use.
+//! A PRIORITY frame or a padded DATA frame is data alone: h2 0.4 has no
+//! call for either, so it is recorded in the shape and asserted against a
+//! reference, and the live connection sends neither.
 
 use super::{CONNECTION_WINDOW, STREAM_WINDOW};
 
@@ -79,7 +81,9 @@ pub struct Padding {
 pub struct Shape {
     /// The SETTINGS parameters, in the order of the frame.
     pub settings: &'static [Setting],
-    /// The connection's window: a WINDOW_UPDATE for stream 0.
+    /// The connection's window target. h2 raises stream 0 from its initial
+    /// 65,535 bytes to this target, so the WINDOW_UPDATE on the wire carries
+    /// the increment `connection_window - 65_535`.
     pub connection_window: u32,
     /// The order of the request's fields: the pseudo-fields first.
     pub headers: &'static [&'static str],
@@ -127,7 +131,9 @@ impl Shape {
                 Setting { id: INITIAL_WINDOW_SIZE, value: 6_291_456 },
                 Setting { id: MAX_HEADER_LIST_SIZE, value: 262_144 },
             ],
-            connection_window: 15_663_105,
+            // Chrome's WINDOW_UPDATE increment is 15,663,105 from the
+            // connection's initial 65,535, so the target is 15,728,640.
+            connection_window: 15_728_640,
             headers: &[":method", ":authority", ":scheme", ":path"],
             priority: &[],
             padding: None,
@@ -143,7 +149,8 @@ impl Shape {
                 Setting { id: INITIAL_WINDOW_SIZE, value: 131_072 },
                 Setting { id: MAX_FRAME_SIZE, value: 16_384 },
             ],
-            connection_window: 12_517_377,
+            // Firefox's increment is 12,517,377 from the initial 65,535.
+            connection_window: 12_582_912,
             headers: &[":method", ":path", ":authority", ":scheme"],
             priority: &[
                 Priority { stream: 3, depends: 0, exclusive: false, weight: 201 },
@@ -180,11 +187,13 @@ impl Shape {
         out
     }
 
-    /// The WINDOW_UPDATE frame of the connection's window: its header, then
-    /// the increment.
+    /// The WINDOW_UPDATE frame that h2 sends for the connection's window:
+    /// its header, then the increment above the initial 65,535 bytes.
     pub fn window_frame(&self) -> Vec<u8> {
+        let initial = 65_535;
+        let increment = self.connection_window.saturating_sub(initial) & 0x7fff_ffff;
         let mut out = vec![0, 0, 4, 0x8, 0, 0, 0, 0, 0];
-        out.extend_from_slice(&(self.connection_window & 0x7fff_ffff).to_be_bytes());
+        out.extend_from_slice(&increment.to_be_bytes());
         out
     }
 
@@ -209,6 +218,9 @@ impl Shape {
         if let Some(value) = self.setting(ENABLE_PUSH) {
             builder.enable_push(value != 0);
         }
+        if let Some(value) = self.setting(MAX_CONCURRENT_STREAMS) {
+            builder.max_concurrent_streams(value);
+        }
         if let Some(value) = self.setting(MAX_FRAME_SIZE) {
             builder.max_frame_size(value);
         }
@@ -224,7 +236,7 @@ impl Shape {
     /// The shape in words, for a line of `-v` or a doctor.
     pub fn words(&self) -> String {
         let settings: Vec<String> = self.settings.iter().map(|s| format!("{}:{}", s.id, s.value)).collect();
-        let window = self.connection_window;
+        let window = self.connection_window.saturating_sub(65_535);
         let headers = self.headers.join(",");
         format!("SETTINGS {} | window {window} | {headers} | {} PRIORITY", settings.join(";"), self.priority.len())
     }
@@ -234,10 +246,10 @@ impl Shape {
 mod tests {
     use super::*;
 
-    /// The recorded references: the bytes of Chrome's SETTINGS and window,
-    /// and Firefox's five PRIORITY frames, as a capture of each writes them.
-    const CHROME_SETTINGS: &str = "0000180400000000000001000100000003000003e8000400600000000600040000";
-    const CHROME_WINDOW: &str = "00000408000000000000ef0001";
+    /// The recorded references: Chrome's WINDOW_UPDATE increment and
+    /// Firefox's five PRIORITY frames, as a capture of each writes them.
+    const CHROME_WINDOW_INCREMENT: u32 = 15_663_105;
+    const FIREFOX_WINDOW_INCREMENT: u32 = 12_517_377;
     const FIREFOX_PRIORITY: [&str; 5] = [
         "00000502000000000300000000c8",
         "0000050200000000050000000064",
@@ -250,20 +262,43 @@ mod tests {
         bytes.iter().map(|b| format!("{b:02x}")).collect()
     }
 
-    /// H2-1: the browser's shape is data, and its first frames are the bytes
-    /// that a recorded reference holds, field by field: the SETTINGS of
-    /// Chrome, their order, and its connection's window.
+    /// The SETTINGS parameters of a frame, in the order of the frame.
+    fn settings_in_order(frame: &[u8]) -> Vec<(u16, u32)> {
+        assert_eq!(frame[3], 0x4, "a SETTINGS frame");
+        let len = (usize::from(frame[0]) << 16) | (usize::from(frame[1]) << 8) | usize::from(frame[2]);
+        let (parameters, rest) = frame[9..9 + len].as_chunks::<6>();
+        assert!(rest.is_empty(), "a SETTINGS payload is whole parameters");
+        parameters
+            .iter()
+            .map(|c| (u16::from_be_bytes([c[0], c[1]]), u32::from_be_bytes([c[2], c[3], c[4], c[5]])))
+            .collect()
+    }
+
+    /// The increment of a WINDOW_UPDATE frame.
+    fn window_increment(frame: &[u8]) -> u32 {
+        assert_eq!(frame[3], 0x8, "a WINDOW_UPDATE frame");
+        u32::from_be_bytes([frame[9], frame[10], frame[11], frame[12]]) & 0x7fff_ffff
+    }
+
+    /// H2-1: the browser's shape is data, and its first frames are the
+    /// fields that a recorded reference holds, in order: the SETTINGS of
+    /// Chrome, their order, and the increment of its connection's window.
     #[test]
     fn the_browser_shape_is_the_recorded_reference_field_by_field() {
         let chrome = Shape::browser();
-        assert_eq!(hex(&chrome.settings_frame()), CHROME_SETTINGS);
-        assert_eq!(hex(&chrome.window_frame()), CHROME_WINDOW);
-        assert_eq!(chrome.connection_window, 15_663_105);
-        let ids: Vec<u16> = chrome.settings.iter().map(|s| s.id).collect();
-        assert_eq!(ids, vec![HEADER_TABLE_SIZE, MAX_CONCURRENT_STREAMS, INITIAL_WINDOW_SIZE, MAX_HEADER_LIST_SIZE]);
-        assert_eq!(chrome.setting(HEADER_TABLE_SIZE), Some(65_536));
-        assert_eq!(chrome.setting(MAX_CONCURRENT_STREAMS), Some(1_000), "Akamai's paper reads Chrome as 3:1000");
-        assert_eq!(chrome.setting(MAX_HEADER_LIST_SIZE), Some(262_144));
+        assert_eq!(
+            settings_in_order(&chrome.settings_frame()),
+            vec![
+                (HEADER_TABLE_SIZE, 65_536),
+                (MAX_CONCURRENT_STREAMS, 1_000),
+                (INITIAL_WINDOW_SIZE, 6_291_456),
+                (MAX_HEADER_LIST_SIZE, 262_144),
+            ],
+            "Chrome's SETTINGS, in order, id 3 among them"
+        );
+        assert_eq!(window_increment(&chrome.window_frame()), CHROME_WINDOW_INCREMENT);
+        assert_eq!(chrome.connection_window, CHROME_WINDOW_INCREMENT + 65_535);
+        assert_eq!(chrome.headers, vec![":method", ":authority", ":scheme", ":path"]);
         assert!(chrome.priority.is_empty() && chrome.padding.is_none(), "Chrome sends neither");
     }
 
@@ -279,7 +314,8 @@ mod tests {
         // The paper's own line, field by field.
         let ids: Vec<String> = firefox.settings.iter().map(|s| format!("{}:{}", s.id, s.value)).collect();
         assert_eq!(ids.join(";"), "1:65536;4:131072;5:16384");
-        assert_eq!(firefox.connection_window, 12_517_377);
+        assert_eq!(window_increment(&firefox.window_frame()), FIREFOX_WINDOW_INCREMENT);
+        assert_eq!(firefox.connection_window, FIREFOX_WINDOW_INCREMENT + 65_535);
     }
 
     /// The shape of this road is the shape that it sent before, and the
