@@ -1,0 +1,6 @@
+# pod-enter: the init of a PID namespace and the relay of a join set no title, so the payload reads the command line and the environment of the caller in /proc/1; the live test of the title must fail (T-1112, PodUtils/podvm#646).
+ENTRY=T-1112
+GROUP=enter
+EXPECT='the init shows pod-enter'
+RUN='sh scripts/ci/userns-tests.sh'
+LIMIT=1800

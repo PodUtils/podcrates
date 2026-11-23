@@ -38,6 +38,7 @@ fn plan(argv: &[&str], env: Vec<String>, path_dirs: &[&str]) -> Plan {
         volumes: Vec::new(),
         userns_ids: None,
         pid_namespace: false,
+        relay_title: None,
     }
 }
 

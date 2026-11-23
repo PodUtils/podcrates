@@ -37,3 +37,10 @@ file 1d2abadd6ec49331962892f9c20d091ed65591e6 crates/podvm-enter/src/tests.rs ->
 file f8f7593d7b6ddfed9264517b265c5ed4d2f92c70 crates/podvm-enter/src/userland.rs -> crates/pod-enter/src/userland.rs
 file 46c35053ff8c0f45a23905679e948c8c2130010d crates/podvm-enter/src/userland/tests.rs -> crates/pod-enter/src/userland/tests.rs
 file de60f3ef4039fae0c8df388b734539a9963252c2 crates/podvm-enter/tests/tty_refusal.rs -> crates/pod-enter/tests/tty_refusal.rs
+
+# The title of a process of podvm in the PID namespace of a payload
+# (T-1112, PodUtils/podvm#646): podvm's file, with the calls of
+# pod-hostprobe in place of its own `prctl` and `syscall`, and the title of
+# the init and the relay of the entry (`Shown`). podvm takes it from here.
+repo PodUtils/podvm 80a955af8ce22ea93e19f546f1401ae3a8bdcb37
+file 7d5ca7a16ea4862233c088a8c45a675b788e9f2f crates/podvm-enter/src/title.rs -> crates/pod-enter/src/title.rs crates/pod-enter/src/title/tests.rs

@@ -1,0 +1,14 @@
+diff --git a/crates/pod-enter/src/launch.rs b/crates/pod-enter/src/launch.rs
+--- a/crates/pod-enter/src/launch.rs
++++ b/crates/pod-enter/src/launch.rs
+@@ -350,9 +350,7 @@
+             }
+             // The title of the init or the relay, before the limits and the
+             // rules: the payload reads no argument or variable of the caller.
+-            if let Some(s) = &shown {
+-                s.apply();
+-            }
++            if let Some(_s) = &shown {}
+ 
+             // The paths of the rules open here, in the view of the payload:
+             // after the passed descriptors, the mounts and the root change,

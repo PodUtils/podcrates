@@ -95,7 +95,7 @@ fn image(bb: &Path, tag: &str) -> PathBuf {
     fs::create_dir_all(root.join("tmp/wd/deep")).unwrap();
     fs::copy(bb, root.join("bin/busybox")).unwrap();
     fs::set_permissions(root.join("bin/busybox"), fs::Permissions::from_mode(0o755)).unwrap();
-    for applet in ["sh", "id", "uname", "test", "touch", "grep", "sleep", "head", "wc", "cat", "ls"] {
+    for applet in ["sh", "id", "uname", "test", "touch", "grep", "sleep", "head", "wc", "cat", "ls", "tr"] {
         std::os::unix::fs::symlink("busybox", root.join("bin").join(applet)).unwrap();
     }
     root
@@ -119,6 +119,7 @@ fn plan(script: &str, hostname: Option<&str>) -> Plan {
         volumes: Vec::new(),
         userns_ids: None,
         pid_namespace: false,
+        relay_title: None,
     }
 }
 
@@ -251,6 +252,11 @@ fn the_init_of_a_pid_namespace_keeps_no_descriptor_of_the_caller() {
         "pid-fds",
         pid::keeps_no_descriptor,
     );
+}
+
+#[test]
+fn the_init_and_the_relay_show_a_title_and_no_environment() {
+    pid::as_root_then_nobody("the_init_and_the_relay_show_a_title_and_no_environment", "pid-title", pid::shows_a_title);
 }
 
 #[test]
