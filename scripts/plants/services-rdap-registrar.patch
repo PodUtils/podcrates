@@ -1,0 +1,11 @@
+--- a/crates/pod-services-watch/src/rdap.rs
++++ b/crates/pod-services-watch/src/rdap.rs
+@@ -60,7 +60,7 @@
+         && let Some(id) = registrar
+     {
+         match registrar_base(net, id).await {
+-            Ok(base) => found = ask(net, &base, &domain, &mut failed).await,
++            Ok(_) => {}
+             Err(why) => failed.push(why),
+         }
+     }

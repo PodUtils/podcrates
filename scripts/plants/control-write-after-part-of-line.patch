@@ -1,0 +1,12 @@
+diff --git a/crates/pod-control/src/frame.rs b/crates/pod-control/src/frame.rs
+index 8812a0b9..78810d0c 100644
+--- a/crates/pod-control/src/frame.rs
++++ b/crates/pod-control/src/frame.rs
+@@ -170,7 +170,6 @@ impl<S: Stream> Lines<S> {
+         if self.broken {
+             return Err(io::ErrorKind::BrokenPipe.into());
+         }
+-        self.broken = true;
+         let mut rest = line.as_bytes();
+         while !rest.is_empty() {
+             let left = deadline.saturating_duration_since(Instant::now());

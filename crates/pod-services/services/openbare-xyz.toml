@@ -50,6 +50,10 @@ endpoint = "bare"
 path = "/bare/"
 status = 200
 
+# CentralNic's RDAP server for .xyz (and rdap.org, which redirects to it)
+# answers 403 to some cloud ranges: the registrar's server (NameCheap,
+# IANA id 1068) gives the record there.
 [[watch]]
 kind = "rdap"
 domain = "openbare.xyz"
+registrar = 1068
