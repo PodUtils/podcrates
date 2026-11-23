@@ -82,6 +82,15 @@ Each variable of a consumer is a field (`docs/design.md`, section 1, rule
   fall back to HTTP/2, the CA of the edge, the counters of the consumer.
   The feature `standin` (`src/standin.rs`) gives the stand-in to the tests
   of a consumer; a consumer runs its binary against it.
+  The edge of the stand-in answers each registration with `Reply::Accept`,
+  `Reply::Refuse(cause)` or `Reply::RefuseRetry { cause, after }`
+  (`Edge::answer`), or with a script of replies, one for each registration
+  (`Edge::script`). `Standin::start_here` and `Standin::start_tunnel` run
+  the stand-in and the tunnel on the runtime of the test, for a test on a
+  paused clock.
+* A refusal of the registration with retry: yes gets new tries for 30 s
+  from the first refusal; when each leg failed so, the start fails with
+  the class TempFail and the typed `fail::Refused` in its chain.
 * The plants of the group `cloudflare` (`scripts/plants/cloudflare-*`):
   the bound check of a list of Cap'n Proto, `noTLSVerify` with no
   configuration, the relay on a leg other than `http2+relay`.

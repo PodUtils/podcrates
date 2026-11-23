@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**890 entries: 151 open, 27 partial, 7 blocked, 705 done.**
+**892 entries: 152 open, 27 partial, 7 blocked, 706 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 210 | 224 |
+| P1 | 4 | 10 | 0 | 211 | 225 |
 | P2 | 70 | 7 | 4 | 365 | 446 |
-| P3 | 77 | 10 | 3 | 128 | 218 |
-| **All** | 151 | 27 | 7 | 705 | 890 |
+| P3 | 78 | 10 | 3 | 128 | 219 |
+| **All** | 152 | 27 | 7 | 706 | 892 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -936,4 +936,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1111](foundation.md) | P2 | S | M0 | chore | open | `pod-guest`, `pod-release`, `pod-supervise`: the changes of podvm and podnet at their heads (port review) |
 | [T-1114](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`: `bind_staged` binds at the path when the stage does not fit in `sun_path`, and macOS refuses a path in its temporary directory (PodUtils/podssh#343) |
 | [T-1115](upkeep.md) | P2 | S | M5 | chore | open | Two more copies of the bind of a Unix socket at a long path: `pod-link` (`bind_private`) and `pod-supervise` (`control_via_fd`) |
+| [T-1116](adapters.md) | P1 | S | M3 | defect | done | `pod-cloudflare`: the edge refuses a new quick tunnel with "Tunnel not found" for more than three tries, and the start exits 69 (PodUtils/podnet#685) |
+| [T-1117](adapters.md) | P3 | S | M3 | docs | open | podnet's documents give the serial limits of the legs of `pod-cloudflare` as 130 s and 280 s; T-1116 makes them 110 s and 210 s |
 | [T-1118](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686) |
