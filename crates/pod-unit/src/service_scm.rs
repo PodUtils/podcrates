@@ -10,7 +10,9 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use pod_core::{Class, Failure, Stage};
-use windows_sys::Win32::Foundation::{ERROR_CALL_NOT_IMPLEMENTED, ERROR_FAILED_SERVICE_CONTROLLER_CONNECT, NO_ERROR};
+use windows_sys::Win32::Foundation::{
+    ERROR_CALL_NOT_IMPLEMENTED, ERROR_FAILED_SERVICE_CONTROLLER_CONNECT, ERROR_SERVICE_ALREADY_RUNNING, NO_ERROR,
+};
 use windows_sys::Win32::System::Services::{
     RegisterServiceCtrlHandlerExW, SERVICE_ACCEPT_SHUTDOWN, SERVICE_ACCEPT_STOP, SERVICE_CONTROL_INTERROGATE,
     SERVICE_CONTROL_SHUTDOWN, SERVICE_CONTROL_STOP, SERVICE_STATUS, SERVICE_TABLE_ENTRYW, SERVICE_WIN32_OWN_PROCESS,
@@ -18,7 +20,7 @@ use windows_sys::Win32::System::Services::{
 };
 
 use crate::model::usage;
-use crate::service::{PANIC_CODE, Report, Signal, WAIT_HINT};
+use crate::service::{CALLED_ERROR, Dispatch, NOT_STARTED_ERROR, PANIC_CODE, Report, Signal, WAIT_HINT};
 
 type Work = Box<dyn FnOnce(Service) -> i32 + Send>;
 
@@ -29,6 +31,13 @@ static WORK: Mutex<Option<(Vec<u16>, Work)>> = Mutex::new(None);
 /// The end of the service: the exit code of the work, or why the work did
 /// not run.
 static END: Mutex<Option<Result<i32, String>>> = Mutex::new(None);
+
+/// The one call of the dispatcher in the process (`Dispatch`).
+static DISPATCH: Mutex<Dispatch> = Mutex::new(Dispatch::Free);
+
+// The errors of `service.rs` are the errors of Windows.
+const _: () = assert!(ERROR_FAILED_SERVICE_CONTROLLER_CONNECT == NOT_STARTED_ERROR);
+const _: () = assert!(ERROR_SERVICE_ALREADY_RUNNING == CALLED_ERROR);
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(PoisonError::into_inner)
@@ -110,7 +119,10 @@ impl Service {
 ///
 /// A program calls `serve` when an argument says that the manager started
 /// it: put that word in the arguments of the unit of the service form. A
-/// program that the manager did not start gets `Class::Usage`.
+/// program that the manager did not start gets `Class::Usage`, at each
+/// call. Windows lets a process call the dispatcher one time: a call after
+/// a run of the dispatcher, or while another thread is in `serve`, gets
+/// `Class::Usage` and does not run `work`.
 pub fn serve<F>(name: &str, work: F) -> Result<i32, Failure>
 where
     F: FnOnce(Service) -> i32 + Send + 'static,
@@ -118,14 +130,14 @@ where
     if name.is_empty() || name.contains('\0') {
         return Err(usage("the name of a service is empty or holds a NUL"));
     }
-    let mut wide: Vec<u16> = name.encode_utf16().chain([0]).collect();
-    {
-        let mut slot = lock(&WORK);
-        if slot.is_some() {
-            return Err(usage("serve runs on one thread of a process at a time"));
-        }
-        *slot = Some((wide.clone(), Box::new(work)));
+    // A failed connect counts as the one call of the process: a later call
+    // gets the failure of the first, with no second call of Windows.
+    let taken = lock(&DISPATCH).take();
+    if let Err(state) = taken {
+        return Err(state.refusal(name).unwrap_or_else(|| usage("the dispatcher is not free")));
     }
+    let mut wide: Vec<u16> = name.encode_utf16().chain([0]).collect();
+    *lock(&WORK) = Some((wide.clone(), Box::new(work)));
     *lock(&END) = None;
     let table = [
         SERVICE_TABLE_ENTRYW { lpServiceName: wide.as_mut_ptr(), lpServiceProc: Some(service_main) },
@@ -137,14 +149,12 @@ where
     let e = std::io::Error::last_os_error();
     // A work that the manager did not run.
     lock(&WORK).take();
+    let state = Dispatch::after(if dispatched { None } else { e.raw_os_error().map(|code| code as u32) });
+    *lock(&DISPATCH) = state;
     if !dispatched {
-        if e.raw_os_error() == Some(ERROR_FAILED_SERVICE_CONTROLLER_CONNECT as i32) {
-            return Err(usage(format!(
-                "the service control manager did not start this program: start the service {name} with sc.exe \
-                 start, or run the program with no argument of a service"
-            )));
-        }
-        return Err(Failure::new(Stage::Host, Class::Unavailable, format!("StartServiceCtrlDispatcherW: {e}")));
+        return Err(state.refusal(name).unwrap_or_else(|| {
+            Failure::new(Stage::Host, Class::Unavailable, format!("StartServiceCtrlDispatcherW: {e}"))
+        }));
     }
     match lock(&END).take() {
         Some(Ok(code)) => Ok(code),
