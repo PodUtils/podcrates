@@ -2128,7 +2128,7 @@ Open: the step counter of a scope (VF-2), which needs a call in each loop of a h
 
 # T-877: `pod-core`: one advisory file lock for each system, in place of four copies in the consumers
 
-**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
+**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17). PodUtils/podnet#651 (COORD-104 of podnet, ask 2) names it as the instance lock of podnet: podnet takes the crate at its tag by the hand-off.
 **Category:** feature
 **Milestone:** M0
 **Priority:** P1
@@ -2198,7 +2198,7 @@ cargo test -p pod-core --all-features clock
 
 # T-879: `pod-detach`: the detach of a command by a re-exec, from podnet, in place of podssh's near copy
 
-**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
+**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17). PodUtils/podnet#651 (COORD-104 of podnet, ask 2) names it as PodUtils/podnet:crates/podnet-core/src/detach.rs: podnet takes the crate at its tag by the hand-off.
 **Category:** feature
 **Milestone:** M0
 **Priority:** P2
@@ -2225,7 +2225,7 @@ cargo test -p pod-detach --all-features
 
 # T-880: `pod-release`: the self-update of a binary (fetch, verify, replace, trial run), from podnet and podssh
 
-**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
+**Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17). PodUtils/podnet#651 (COORD-104 of podnet, ask 2) names it as PodUtils/podnet:src/update.rs and PodUtils/podnet:src/update/cosign.rs: podnet takes the crate at its tag by the hand-off.
 **Category:** feature
 **Milestone:** M0
 **Priority:** P2
