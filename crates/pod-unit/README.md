@@ -265,7 +265,13 @@ if args.service {
 | the end of `WORK` with `CODE` | `SERVICE_STOPPED` with `exit_codes(CODE)`: 0 is a clean end; else `ERROR_SERVICE_SPECIFIC_ERROR` and `CODE` (78 stays 78), a failure for `failureflag 1`; a panic is `PANIC_CODE` (101) |
 
 `serve` returns the code of `WORK` when the dispatcher ends, and the caller
-exits with it. A program that the manager did not start gets `Class::Usage`.
+exits with it. A program that the manager did not start gets `Class::Usage`,
+at each call. Windows lets a process call `StartServiceCtrlDispatcherW` one
+time, also after a failed connect (error 1063); a later call gets error 1056.
+Thus `serve` keeps the result of the first call for the process: a later call
+after a failed connect gets the same failure with no second call of Windows,
+and a call after a run of the dispatcher, or while another thread is in
+`serve`, gets `Class::Usage` and does not run `WORK`.
 `program_code(WIN32, SPECIFIC)` gives the code of the work back from a
 status of `sc.exe query`.
 
