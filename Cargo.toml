@@ -234,7 +234,7 @@ snow = { version = "0.10", default-features = false, features = [
 ] }
 
 # iroh's relay client with the patch of vendor/patches/iroh-relay/: its relay
-# dial speaks SOCKS5 too, where iroh-relay 1.4.1 speaks HTTP CONNECT only,
+# dial speaks SOCKS5 too, where iroh-relay 1.4.2 speaks HTTP CONNECT only,
 # and iroh's HTTPS probe of the relays gets reqwest's SOCKS5
 # (crates/pod-iroh/README.md, "The fork of iroh-relay"). vendor/iroh-relay is
 # the crate as crates.io publishes it, and the patch. Only pod-iroh builds

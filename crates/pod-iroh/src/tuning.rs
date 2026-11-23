@@ -3,7 +3,7 @@
 //! beside them, so that an A/B run (podssh's `scripts/iroh-ab.py`) can measure
 //! each arm on one wide-area path before a default depends on it.
 //!
-//! READ in iroh 1.4.1 and noq-proto 1.4.0 (the QUIC that iroh builds): an
+//! READ in iroh 1.4.2 and noq-proto 1.5.0 (the QUIC that iroh builds): an
 //! initial round trip of 333 ms, an initial window of 12000 bytes (Cubic,
 //! with no HyStart; 14720 clamped to 10 packets), a stream's receive window
 //! of 1.25 MB, a connection's with no bound, and a first MTU of 1200, the

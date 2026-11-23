@@ -13,9 +13,8 @@ that a client with an old ticket, or with the node's key alone, finds it.
 
 The base is podssh's `crates/podssh-iroh` (PodUtils/podssh@T-162,
 PodUtils/podssh@T-163, PodUtils/podssh@T-350, PodUtils/podssh@T-445,
-PodUtils/podssh@T-665 and others), with podssh's copy of
-`iroh-relay` 1.4.1 and its patch in `vendor/` (see "The fork of
-iroh-relay"). iroh builds with `tls-ring`, so no aws-lc is in the tree
+PodUtils/podssh@T-665 and others), with a copy of `iroh-relay` 1.4.2 and
+podssh's patch in `vendor/` (see "The fork of iroh-relay"). iroh builds with `tls-ring`, so no aws-lc is in the tree
 (`cargo tree -i aws-lc-sys` finds none); the endpoint takes the caller's
 provider all the same. The static probe links it and makes an endpoint with
 the pure-Rust provider of `pod-tls`.
@@ -145,9 +144,11 @@ both, PodUtils/podssh@T-280).
 
 ## The fork of iroh-relay
 
-- **Upstream**: the crate `iroh-relay` 1.4.1 as crates.io publishes it,
-  from n0-computer/iroh at `d6c6963b9602d1b8dd2ba53b6519e7eb19cc7940` (its
-  `.cargo_vcs_info.json`). License: MIT OR Apache-2.0, with the
+- **Upstream**: the crate `iroh-relay` 1.4.2 as crates.io publishes it
+  (SHA-256
+  `ffa03fd9a865148bd5d2f4a617232bcb77cf23956da50ef4f8204d6772f72c79`, the
+  `cksum` of the crates.io index), from n0-computer/iroh at
+  `2131f266da11d37700e7afb6b6b59925cdaa7037` (its `.cargo_vcs_info.json`). License: MIT OR Apache-2.0, with the
   BSD-3-Clause notice of the code that it took from Tailscale
   (`LICENSE-BSD3`).
 - **The tree**: `vendor/iroh-relay` is that crate byte for byte (but
@@ -168,10 +169,16 @@ both, PodUtils/podssh@T-280).
 - **How the workspace uses it**: `[patch.crates-io]` of the root
   `Cargo.toml`; `exclude` keeps it out of the workspace, so its tests and
   their dependencies are not the workspace's. Only `pod-iroh` builds it.
-- **To carry it to another version**: copy the published crate from
-  cargo's copy into `vendor/iroh-relay` (remove `.cargo-ok`), run
-  `git apply --directory=vendor/iroh-relay vendor/patches/iroh-relay/*.patch`,
-  and move the range of `iroh` in this crate. An iroh that asks for another
+- **To carry it to another version**: download
+  `https://static.crates.io/crates/iroh-relay/iroh-relay-VERSION.crate`,
+  compare its SHA-256 with the `cksum` of that version in
+  `https://index.crates.io/ir/oh/iroh-relay`, and unpack it into
+  `vendor/iroh-relay` (remove `.cargo-ok`). Run
+  `git apply --directory=vendor/iroh-relay vendor/patches/iroh-relay/*.patch`.
+  When a hunk applies with an offset, make that patch again from the
+  unpacked crate, so that each patch applies with no offset. Move the
+  ranges of `iroh` and `iroh-dns` in this crate, and run
+  `cargo update -p iroh -p iroh-relay`. An iroh that asks for another
   iroh-relay leaves the patch unused: cargo says so, and the SOCKS5 test of
   `tests/proxy_env.rs` fails.
 
