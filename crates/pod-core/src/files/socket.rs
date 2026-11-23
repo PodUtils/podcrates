@@ -1,5 +1,6 @@
 //! A Unix socket of one user: the bind with its mode from the first instant
-//! (T-196, PodUtils/podnet#444), and the ids of the peer of a stream.
+//! (T-196, PodUtils/podnet#444), at a path of any length (T-1114,
+//! PodUtils/podssh#343), and the ids of the peer of a stream.
 //!
 //! A socket that `bind(2)` makes at its path has the mode of the umask
 //! until a `chmod`; in a shared directory another user
@@ -9,23 +10,33 @@
 //! path that is there. The socket keeps the name of its bind
 //! (`getsockname`): a caller that needs that name binds in a directory of
 //! mode 0700 of its own.
+//!
+//! `sun_path` holds 104 bytes on macOS and 108 on Linux, with the NUL, and
+//! a temporary directory of macOS takes about 50 of them. When the stage
+//! does not fit, the bind goes through a short path to the stage
+//! (`alias`), and the bind is checked to have made the socket in the
+//! stage. `link(2)` takes a path of any length, so only a file name past
+//! the 255 bytes of a name fails.
 
 use std::hash::{BuildHasher, Hasher};
-use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
+use std::os::unix::fs::{DirBuilderExt, FileTypeExt, PermissionsExt};
 use std::path::{Path, PathBuf};
+
+mod alias;
 
 /// `sun_path` holds 108 bytes on Linux and 104 on the BSDs: the longest
 /// staged path that each takes, with its NUL.
 const SUN_PATH_MOST: usize = 103;
+
+/// The longest file name (`NAME_MAX`).
+const NAME_MOST: usize = 255;
 
 /// At most this many names are tried for the directory of the stage.
 const NAMES: usize = 8;
 
 /// A name that another user cannot guess: the random keys of the standard
 /// hasher, which the operating system seeds. The name is short: each byte
-/// of it is a byte less for the parent in `sun_path`, and a parent that
-/// does not fit loses the stage (macOS gives 104 bytes, and its temporary
-/// directory takes about 50).
+/// of it is a byte less for the parent in `sun_path`.
 fn random_name() -> String {
     let mut h = std::collections::hash_map::RandomState::new().build_hasher();
     h.write_u32(std::process::id());
@@ -39,22 +50,44 @@ fn stage_fits(parent: &Path) -> bool {
 }
 
 /// The listener at `path` with `mode`, bound through a stage of mode 0700.
-/// A path whose stage does not fit in `sun_path` is bound at the path, and
-/// then only a directory of mode 0700 keeps the window shut.
+/// A stage that does not fit in `sun_path` is bound through a short path
+/// to it. A file name past 255 bytes is `InvalidInput`.
 pub fn bind_staged(path: &Path, mode: u32) -> std::io::Result<std::os::unix::net::UnixListener> {
+    bind_by(path, mode, &alias::auto())
+}
+
+/// [`bind_staged`] with the ways to a short path of `route`.
+fn bind_by(path: &Path, mode: u32, route: &alias::Route<'_>) -> std::io::Result<std::os::unix::net::UnixListener> {
+    let name = path.file_name().map_or(0, |n| n.len());
+    if name == 0 || name > NAME_MOST {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("{}: give a file name of 1 to {NAME_MOST} bytes, not {name}", path.display()),
+        ));
+    }
     let parent = match path.parent() {
         Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
         _ => PathBuf::from("."),
     };
-    if !stage_fits(&parent) {
-        let listener = std::os::unix::net::UnixListener::bind(path)?;
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))?;
-        return Ok(listener);
-    }
     let stage = make_stage(&parent)?;
     let staged = stage.join("s");
     let bound = (|| {
-        let listener = std::os::unix::net::UnixListener::bind(&staged)?;
+        let listener = if stage_fits(&parent) {
+            std::os::unix::net::UnixListener::bind(&staged)?
+        } else {
+            let short = alias::short(&stage, route, SUN_PATH_MOST)?;
+            let listener = std::os::unix::net::UnixListener::bind(&short.bind)?;
+            let landed = std::fs::symlink_metadata(&staged).is_ok_and(|m| m.file_type().is_socket());
+            if !landed {
+                let _ = std::fs::remove_file(&short.bind);
+                return Err(std::io::Error::other(format!(
+                    "the bind through {} made no socket at {}",
+                    short.bind.display(),
+                    staged.display()
+                )));
+            }
+            listener
+        };
         std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(mode))?;
         std::fs::hard_link(&staged, path).map_err(|e| match e.kind() {
             std::io::ErrorKind::AlreadyExists => std::io::Error::new(
@@ -129,25 +162,4 @@ pub fn peer_ids(stream: &std::os::unix::net::UnixStream) -> std::io::Result<Peer
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Each socket directory of a test (at most 80 bytes, `pod_testkit`)
-    /// takes the stage under the 104 bytes of macOS.
-    #[test]
-    fn a_parent_of_80_bytes_takes_the_stage() {
-        let parent = PathBuf::from(format!("/{}", "d".repeat(79)));
-        assert!(stage_fits(&parent));
-        let longer = PathBuf::from(format!("/{}", "d".repeat(80)));
-        assert!(!stage_fits(&longer));
-    }
-
-    #[test]
-    fn the_peer_of_a_pair_is_this_process() {
-        let (a, _b) = std::os::unix::net::UnixStream::pair().unwrap();
-        let ids = peer_ids(&a).unwrap();
-        assert_eq!(ids.uid, super::super::euid());
-        #[cfg(target_os = "linux")]
-        assert_eq!(ids.pid, Some(std::process::id()));
-    }
-}
+mod tests;

@@ -3582,6 +3582,10 @@ short directory when `TMPDIR` is too long. Read each other socket path
 that a crate of podcrates binds under a directory of the caller (a test
 in the same class).
 
+The emulator binds the monitor socket, not a crate of podcrates, so
+`pod_core::files::bind_staged` (T-1114) does not apply here; the binds
+of a crate at a long path are in T-1115.
+
 ## Prove
 
 ```sh
@@ -4325,3 +4329,150 @@ failed, `arq_machine` 0 failed (33 of 40 before), `blocks` 0 failed,
 `allocations` 0 failed (1 of 100 before: "1 voluntary switches in 1000
 seals and opens"). The proof on the runner is the next run of
 `nightly.yml` (job `cross (i686-unknown-linux-musl)`).
+
+# T-1114: `pod-core`: `bind_staged` binds at the path when the stage does not fit in `sun_path`, and macOS refuses a path in its temporary directory (PodUtils/podssh#343)
+
+**Source:** PodUtils/podssh#343 (COORD-136 of podssh, from its T-857; author COLLABORATOR): the gate of podssh failed on macOS (its run 45155620101).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The issue: "`relay serve --cover`'s control socket in macOS's `$TMPDIR`
+(`/var/folders/xx/<28>/T/...`) was 105 to 109 bytes. macOS's `sun_path`
+holds 104 bytes with its NUL, and Linux's 108. The bind was refused and
+the role exited 78." The fix of podssh at its commit `cae0bdd6`
+(`PodUtils/podssh:crates/podssh-relay/src/serve/control_link.rs`): "a path that does not
+fit is bound through a temporary symbolic link to its directory under
+`/tmp` (else `/var/tmp`). The link goes only in a directory that is
+sticky or ours, under a random name, and is removed right after the bind.
+The kernel follows the link, so the socket lands at the path the owner
+named, and podssh checks that it did. A file name that alone is too long
+gives one line and 78." The ask: `pod_core::files::bind_staged` binds
+directly at the path when its parent is over 80 bytes, so it meets the
+same refusal. podssh then moves its control socket onto `bind_staged` and
+removes `control_link.rs`.
+
+## Premise
+
+- Read: `crates/pod-core/src/files/socket.rs`. A parent of more than 80
+  bytes skips the stage: a bind at the path (refused past `sun_path`),
+  then a `chmod` (the window of T-196).
+- Read: `crates/pod-supervise/src/table.rs` (`control_via_fd`): Linux
+  takes a bind through `/proc/self/fd/N/NAME`.
+- Not read: the commit `cae0bdd6` of podssh. Its branch `main` at
+  `35d5188` does not have it, and GitHub does not give it.
+
+## Approach
+
+The stage stays for each path. When the stage socket `STAGE/s` does not
+fit in 103 bytes, the bind goes through a short path to the stage:
+
+1. Linux and Android: `/proc/self/fd/N/s`, with `N` a descriptor of the
+   stage. The way is taken only when `/proc/self/fd/N` is the stage (the
+   same device and inode): a `/proc` of another pid namespace names
+   another directory. No file goes into a shared directory, and no other
+   process can change the descriptor.
+2. Else: a symbolic link to the stage, under a random name, in `/tmp`
+   (else `/var/tmp`). The directory is of this user or of root, and only
+   its owner can write it or it is sticky: no other user can remove or
+   rename the link. A guard removes the link right after the bind, on
+   each path out.
+
+After the bind, the socket must be in the stage; else the bind fails
+with a clear error. The mode, the `link(2)` to the path and the removal
+of the stage stay the same. `link(2)` takes a path of any length, so the
+file name of the socket has no bound of `sun_path`: only a file name of
+more than 255 bytes (`NAME_MAX`) fails, as `InvalidInput` with one line.
+The function keeps `std::io::Result`: its two callers (`pod-control`,
+`pod-broker`) and podssh take an `io::Error`.
+
+## Prove
+
+```sh
+cargo test -p pod-core --lib files::socket
+cargo test -p pod-broker --all-features --test control
+sh scripts/agent/check-macos.sh
+```
+
+## Done
+
+2026-11-23, this commit (call C911). `bind_staged` takes a short path
+to the stage when `STAGE/s` does not fit (`files/socket/alias.rs`), checks
+that the socket is in the stage, and refuses a file name of more than 255
+bytes with one line. The tests in `files/socket/tests.rs`:
+`a_directory_of_120_bytes_takes_the_socket` (it failed before the change:
+"path must be shorter than SUN_LEN"),
+`a_client_reaches_a_socket_at_a_long_path` (Linux),
+`a_file_name_longer_than_sun_path_binds`,
+`a_file_name_past_255_bytes_fails_with_one_clear_line`,
+`the_link_goes_after_a_bind_and_after_a_failure` and
+`a_directory_that_others_can_write_takes_no_link`. `cargo test -p
+pod-core --all-features`: each test passes (98 in the lib); `pod-broker
+--test control` and `pod-control`: each test passes. Clippy of
+`pod-core` is clean. `codegraph.py new`: 0 clones or twins.
+`check-windows.sh`: 0 faults. `check-macos.sh`: `pod-core` and its tests
+build; its 8 faults are the call of `openpty` in
+`crates/pod-offline/tests/common/mod.rs`, which `main` fixes. The plant `broker-bind-at-the-path` is made again on the
+new code; the new plant `core-bind-long-at-the-stage` binds the stage at
+its long path. The README of `pod-core` names `bind_staged`. The other
+binds of a long path are T-1115; T-920 notes that the emulator binds its
+own monitor socket.
+
+# T-1115: Two more copies of the bind of a Unix socket at a long path: `pod-link` (`bind_private`) and `pod-supervise` (`control_via_fd`)
+
+**Source:** the search for other binds of a long path in T-1114 (the ruling "Shared code").
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_core::files::bind_staged` binds a Unix socket with its mode from the
+first instant at a path of any length (T-1114). Two crates keep their own
+copy of a part of that work:
+
+- `crates/pod-link/src/unix.rs`, `bind_private`: a stage of mode 0700
+  beside the path, a move to the path with no replace, and a bind at the
+  path when the stage does not fit in `sun_path` or the move gives
+  `EXDEV` (a Landlock domain with no `REFER`). The carrier refuses an
+  address of more than 107 bytes (`MAX_PATH`), so a long path in the
+  temporary directory of macOS cannot listen.
+- `crates/pod-supervise/src/table.rs`, `control_via_fd`, and
+  `launcher::listen`: a bind through `/proc/self/fd/N/ctl.sock` with no
+  check that `/proc/self` is this process, and a mode of the umask until
+  the caller changes it.
+
+`bind_staged` has no fallback for `EXDEV`: a `link(2)` to another
+directory under Landlock with no `REFER` gives `EXDEV` too.
+
+## Premise
+
+- Read: the two functions above and `crates/pod-core/src/files/socket.rs`.
+- Not measured: the `link(2)` of `bind_staged` under a Landlock domain
+  with no `REFER`.
+
+## Approach
+
+Move the `EXDEV` fallback of `pod-link` (a bind at the path with the mode
+set before the bind, by `fchmod` on Linux) into `bind_staged`, with a test
+under Landlock where the host gives it. Then `bind_private` calls
+`bind_staged` (with `UnixListener::from_std`), and `MAX_PATH` bounds only
+the connect. `launcher::listen` calls `bind_staged` at the control path
+with the mode 0600; `control_via_fd` stays for the connect. Each plant of
+the old copies (`link-unix-mode-after-bind`, `link-unix-listen-named-bind`)
+is moved onto the new code.
+
+## Prove
+
+```sh
+cargo test -p pod-core --lib files::socket
+cargo test -p pod-link --all-features unix
+cargo test -p pod-supervise --all-features
+sh scripts/plant-each.sh --apply
+```
