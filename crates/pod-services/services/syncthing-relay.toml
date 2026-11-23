@@ -1,7 +1,9 @@
 # The public relays of Syncthing on port 443 (PodUtils/podssh@T-571,
 # PodUtils/podssh#209): each relay of the pool of the Syncthing project
 # whose URL has port 443 and an IP literal, and that was up 7 days or more
-# when the pool was read (call C104). The fact device-id-NAME of each
+# when the pool was read (call C104). A relay that the pool gives at a new
+# address leaves the set: it restarted there, and its uptime starts again
+# (call C901). The fact device-id-NAME of each
 # endpoint is the relay's device ID, from the id of its URL: the TLS of the
 # relay protocol shows the certificate of that device. The name of an
 # endpoint is relay- and the first seven characters of its device ID. The
@@ -135,18 +137,6 @@ source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12
 name = "device-id-relay-duni3ai"
 value = "DUNI3AI-J7IG46W-TIBHN4D-4GPRO47-TO5QOAQ-KWTQT4R-I65BKI3-JUMYHQT"
 source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 94.228.253.13" }
-
-[[endpoint]]
-name = "relay-dvwou27"
-scheme = "tls"
-host = "61.223.4.2"
-port = 443
-source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-18, note = "relay://61.223.4.2:443 of the device DVWOU27 (until 2026-11-16 at 1.168.112.83, until 2026-11-12 at 1.168.114.174): global-rate 3000000 (bytes/s), per-session-rate 0, location TW" }
-
-[[fact]]
-name = "device-id-relay-dvwou27"
-value = "DVWOU27-FLWTZ6S-3VP2OCD-M26EHKW-3O4K3D3-ZUOK372-3YAUMM6-LAD2AQD"
-source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-18, note = "the id of the URL of the relay at 61.223.4.2" }
 
 [[endpoint]]
 name = "relay-gexmi7x"

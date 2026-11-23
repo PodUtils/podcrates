@@ -46,6 +46,16 @@ fn answer(request: &Request, origin: &str) -> Answer {
             json(200, r#"{"events":[{"eventAction":"expiration","eventDate":"2027-11-10T00:00:00Z"}]}"#)
         }
         "/rdap-any/domain/gone.test" => Answer::new(429, "slow down"),
+        "/registry/domain/shut.test" | "/rdap-any/domain/shut.test" => Answer::new(403, "Forbidden"),
+        "/rdap/registrars.csv" => Answer::new(
+            200,
+            format!("\"ID\",Registrar Name,Status,RDAP Base URL\n7,\"Seven, Inc.\",Accredited,{origin}/registrar/\n"),
+        ),
+        // A registrar's server gives its own event alone.
+        "/registrar/domain/shut.test" => json(
+            200,
+            r#"{"events":[{"eventAction":"registration","eventDate":"2026-01-01T00:00:00Z"},{"eventAction":"registrar expiration","eventDate":"2027-11-10T00:00:00Z"}]}"#,
+        ),
         "/registry/domain/later.test" => {
             json(200, r#"{"events":[{"eventAction":"expiration","eventDate":"2027-01-10T00:00:00Z"}]}"#)
         }
@@ -174,6 +184,31 @@ async fn rdap_wants_a_registration_that_does_not_end_soon() {
     assert!(all.contains("no RDAP server has a record of gone.test: https://"), "{all}");
     assert!(all.contains("/registry/domain/gone.test answered HTTP 404; https://"), "{all}");
     assert!(all.contains("/rdap-any/domain/gone.test answered HTTP 429"), "{all}");
+}
+
+#[tokio::test]
+async fn rdap_reads_the_registrar_where_each_server_refuses() {
+    pod_testkit::need_loopback!();
+    let (_stand, mut net) = stand();
+    // The registry and the fallback answer 403 to the runner: the server of
+    // the registrar of the watch gives the record, and the line keeps the
+    // refusals.
+    let shut = "[[watch]]\nkind = \"rdap\"\ndomain = \"shut.test\"\nregistrar = 7\n";
+    let report = one_in(&mut net, &file("a6", &(fact("x", "1") + shut))).await;
+    let all = text(&report);
+    assert!(report.holds() && all.contains("shut.test is registered until 2027-11-10"), "{all}");
+    assert!(all.contains("/registrar/domain/shut.test; https://"), "{all}");
+    assert!(all.contains("/registry/domain/shut.test answered HTTP 403"), "{all}");
+    // With no registrar, the refusals are the finding.
+    let bare = "[[watch]]\nkind = \"rdap\"\ndomain = \"shut.test\"\n";
+    let report = one_in(&mut net, &file("a7", &(fact("x", "1") + bare))).await;
+    let all = text(&report);
+    assert!(!report.holds() && all.contains("/rdap-any/domain/shut.test answered HTTP 403"), "{all}");
+    // A registrar that IANA's list does not have is named in the finding.
+    let unknown = "[[watch]]\nkind = \"rdap\"\ndomain = \"shut.test\"\nregistrar = 8\n";
+    let report = one_in(&mut net, &file("a8", &(fact("x", "1") + unknown))).await;
+    let all = text(&report);
+    assert!(!report.holds() && all.contains("has no RDAP server of the registrar 8"), "{all}");
 }
 
 #[tokio::test]
