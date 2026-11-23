@@ -1,0 +1,7 @@
+# A stage past the room of `sun_path` is bound at its own long path, and
+# the bind is refused (T-1114, PodUtils/podssh#343).
+ENTRY=T-1114
+GROUP=core
+EXPECT='test files::socket::tests::a_directory_of_120_bytes_takes_the_socket \.\.\. FAILED'
+RUN='cargo test -p pod-core --lib files::socket'
+LIMIT=900
