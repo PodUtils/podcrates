@@ -216,7 +216,13 @@ pub fn dial_error(failure: Failure, target: &Target) -> DialError {
     }
     let kind = failure.io_cause().map(|e| e.kind());
     let leads = [format!("connecting to {target}"), format!("could not connect to {target}")];
-    let detail = leads.iter().fold(failure.text(), |text, lead| pod_core::failure::strip_lead(text, lead)).to_string();
+    let detail = leads.iter().fold(failure.text(), |text, lead| pod_core::failure::strip_lead(text, lead));
+    // A dialer of the caller names the target and its proxy first.
+    let (proxy, detail) = match detail.strip_prefix(&format!("{target} through the proxy ")) {
+        Some(rest) => rest.split_once(": ").unwrap_or((rest, "")),
+        None => ("", detail),
+    };
+    let (proxy, detail) = (proxy.to_string(), detail.to_string());
     match failure.class {
         Class::Timeout => DialError::Timeout {
             step: format!("the connection to {target}"),
@@ -226,7 +232,20 @@ pub fn dial_error(failure: Failure, target: &Target) -> DialError {
         Class::Usage => DialError::InvalidTarget(failure.text().to_string()),
         Class::Config => DialError::BadProxy(failure.text().to_string()),
         _ if failure.stage == Stage::Dns => DialError::Resolve { host: target.host(), detail },
-        _ => DialError::Connect { target: target.to_string(), detail, cut: kind.map(Cut::of), kind },
+        // The proxy broke: its refusal (with no status that is known), its
+        // protocol, or no answer.
+        Class::Refused if failure.stage == Stage::Proxy => {
+            DialError::ProxyRefused { proxy, target: target.to_string(), status: 0, reason: detail }
+        }
+        Class::Protocol if failure.stage == Stage::Proxy => DialError::ProxyProtocol { proxy, detail },
+        _ if failure.stage == Stage::Proxy => DialError::ProxyUnreachable { proxy, detail },
+        _ if proxy.is_empty() => {
+            DialError::Connect { target: target.to_string(), detail, cut: kind.map(Cut::of), kind }
+        }
+        _ => {
+            let detail = pod_core::failure::lead(&format!("through the proxy {proxy}"), &detail);
+            DialError::Connect { target: target.to_string(), detail, cut: kind.map(Cut::of), kind }
+        }
     }
 }
 
@@ -286,5 +305,29 @@ mod tests {
         let failure = Failure::new(Stage::Connect, Class::Unavailable, "could not connect to 127.0.0.1:1: refused");
         let said = dial_error(failure, &Target::new("127.0.0.1", 1)).to_string();
         assert_eq!(said, "could not connect to 127.0.0.1:1: refused");
+    }
+
+    /// A refusal of the proxy from a dialer of the consumer, whose cause is
+    /// not a `DialError`, keeps the stage Proxy and names the target once
+    /// (PodUtils/podnet#707, ask 5).
+    #[test]
+    fn a_refusal_of_the_proxy_keeps_its_stage() {
+        let target = Target::new("x", 443);
+        let text = "x:443 through the proxy http://p:1: refused";
+        let failure = Failure::caused(Stage::Proxy, Class::Refused, text, std::io::Error::other("refused"));
+        let error = connect_error(failure, Duration::from_secs(5), &target);
+        assert_eq!(error.stage_and_class(), (Stage::Proxy, Class::Refused));
+        let said = error.to_string();
+        assert_eq!(said.matches("x:443").count(), 1, "{said}");
+        assert_eq!(said, "the proxy http://p:1 refused CONNECT x:443: refused");
+        // A proxy that does not answer, and one that breaks its protocol.
+        let failure = Failure::new(Stage::Proxy, Class::Unavailable, "x:443 through the proxy http://p:1: no answer");
+        let said = dial_error(failure, &target);
+        assert_eq!(said.stage_and_class(), (Stage::Proxy, Class::Unavailable));
+        assert_eq!(said.to_string(), "could not reach the proxy http://p:1: no answer");
+        let failure = Failure::new(Stage::Proxy, Class::Protocol, "not HTTP");
+        let said = dial_error(failure, &target);
+        assert_eq!(said.stage_and_class(), (Stage::Proxy, Class::Protocol));
+        assert_eq!(said.to_string(), "the proxy did not answer as its protocol says: not HTTP");
     }
 }

@@ -288,6 +288,7 @@ pub fn reason(e: &OpenError) -> Option<String> {
         OpenError::Connect { error, .. } => match error {
             ConnectError::Refused { status: 502, .. } => return None,
             ConnectError::Refused { status, .. } => format!("it answered {status}"),
+            ConnectError::Dial(DialError::ProxyRefused { status: 0, .. }) => "the proxy refused".into(),
             ConnectError::Dial(DialError::ProxyRefused { status, .. }) => format!("the proxy answered {status}"),
             ConnectError::Dial(_) => "no connection".into(),
             ConnectError::Tls(_) => "TLS failed".into(),

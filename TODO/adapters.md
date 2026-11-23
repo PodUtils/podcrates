@@ -2415,3 +2415,98 @@ With the release that carries T-1116, the coordinator gives podnet the new value
 ```sh
 cargo test -p pod-cloudflare --all-features --lib tunnel::tests::the_serial_limit_covers_the_budgets_of_each_leg
 ```
+
+# T-1133: `pod-warp`: an enrolment through a dead proxy loses the stage Proxy, and an answer that is not JSON shows no word of its body (PodUtils/podnet#707, ask 9)
+
+**Source:** PodUtils/podnet#707 (COORD-115 of podnet, PodUtils/podnet@T-521, PodUtils/podnet#695), ask 9.
+**Category:** defect
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The ask of podnet: "`crates/pod-warp/src/provider.rs` (two lines of v0.82.0): `EnrolError::Unreachable` keeps the failure (its stage Proxy or Dns) as the source. `register.rs` (two lines): an answer that is not JSON gets one safe line of its body, as `ProvisionError::Decode` does. Tests: an enrolment through a dead proxy gives a chain with the stage Proxy; a 200 answer "pod-lab stand-in" gives that text."
+
+`of_api` keeps only the text of the failure in `EnrolError::Unreachable(String)`, and `EnrolError::failure` is a `Failure` at the stage Warp with no cause. `device_of` and `json_of` say `the WARP API answer does not decode (N bytes)` with no word of the body. Also, `of_api` makes an answer that does not decode (class Protocol) `Unreachable`: "the provider's API did not answer". The body of a refusal 1015 (`registration_error`) goes into the line with no clean of its control characters.
+
+## Premise
+
+- Read: PodUtils/podnet#707; `crates/pod-warp/src/provider.rs`, `src/register.rs`, `src/api.rs`; `crates/pod-cloudflare/src/quicktunnel.rs` (`redact`, the body of `ProvisionError::Decode`); podnet's second path (PodUtils/podnet:crates/podnet-core/src/hop.rs, `of_words`; it builds `EnrolError::Unreachable` from its text in PodUtils/podnet:src/warp/h3.rs).
+- Not measured: podnet's line after the fix.
+
+## Approach
+
+A new variant `EnrolError::NoAnswer(PathFailure)` beside `Unreachable(String)` (podnet builds `Unreachable` and matches no variant with no wildcard): `PathFailure` shares the `Failure` of the path, and `EnrolError::failure` gives it as the cause, at its own stage, under the failure at the stage Warp. `of_api` gives `NoAnswer` for a failure with no status, and `Protocol` for an answer that does not decode. `device_of`, `json_of` and `registration_error` give one line of the body through one helper of `pod-core`, `pod_core::text::body_line` (the value of each secret key replaced, safe for a terminal, cut), which `pod-cloudflare`'s `redact` also uses. Tests: an enrolment through a dead proxy, a 200 answer `pod-lab stand-in`.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features --lib provider::tests register::tests
+cargo test -p pod-core --all-features --lib text::tests
+cargo test -p pod-cloudflare --all-features --lib quicktunnel::tests
+```
+
+# T-1134: `pod-cloudflare`: the chain of a refused origin says the error of I/O two times (PodUtils/podnet#707, ask 10)
+
+**Source:** PodUtils/podnet#707 (COORD-115 of podnet, PodUtils/podnet@T-522, PodUtils/podnet#696), ask 10.
+**Category:** defect
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The ask of podnet: "`crates/pod-cloudflare/src/origin.rs` (`dial_unix`) and `fail.rs` (`io_fail`): the text holds the I/O error, and the error is also its source, so `{:#}` says the cause twice. Test: `{:#}` of a refused origin says "Connection refused" once."
+
+The rows of PodUtils/podnet#696:
+
+```text
+  fail  origin 1      http://127.0.0.1:1: connecting to 127.0.0.1:1: Connection refused (os error 111): Connection refused (os error 111)
+  fail  origin 1      http://nowhere.invalid:80: resolving the origin nowhere.invalid: failed to lookup address information: Name does not resolve: failed to lookup address information: Name does not resolve
+```
+
+## Premise
+
+- Read: PodUtils/podnet#707 and #696; `crates/pod-cloudflare/src/fail.rs` (`caused`, `IoFail`, `wrap`); `crates/pod-cloudflare/src/origin.rs` (`connect_origin`, `dial_unix`); `crates/pod-core/src/failure.rs` (`Failure::caused`: the text comes before the text of the cause in `chain`).
+- Not measured: podnet's rows after the fix.
+
+## Approach
+
+`io_fail` and the failed connect of `connect_origin` give the words of the step as the text and the error of I/O as the cause, as `Failure::caused` of `pod-core` says: `chain` and each text of the chain joined (`{:#}` of anyhow) say the cause once. The `Display` of such a failure is the step alone; `chain` is the whole line. A test refuses an origin on TCP and one through `io_fail`.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features --lib origin::tests
+```
+
+# T-1135: `pod-cloudflare`: each failure of `fail::caused`, `or_fail` and `wrap` holds the text of its cause and the cause, so a reader that joins each text of the chain says the cause two times
+
+**Source:** T-1134 (a finding of its work).
+**Category:** defect
+**Milestone:** M3
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`fail::caused` of `pod-cloudflare` (and `OrFail::or_fail`, which calls it) writes `TEXT: CAUSE` as the text and keeps the cause as the source. `fail::wrap` (`Context::context`) writes `LEAD: CHAIN` and keeps the failure as the source. `Failure::chain` says each cause once, but a consumer that joins each text of the chain (anyhow's `{:#}`, as podnet's rows of PodUtils/podnet#696 do) says each cause two times or more. T-1134 changes `io_fail` and the connect of an origin alone. `Failure::io` and `From<DialError> for Failure` of `pod-proxy` have the same form (text and cause with the same words). About 100 calls in `pod-cloudflare` use `caused` and `or_fail`, and the crate and its tests print a failure with `{}` and expect the cause in it.
+
+## Premise
+
+- Read: `crates/pod-cloudflare/src/fail.rs`; `crates/pod-core/src/failure.rs`; the calls of `caused`, `or_fail` and `context` in `crates/pod-cloudflare/src/`.
+- Not measured: the count of lines of `pod-cloudflare` and its consumers that print a failure with `{}` and not with `chain`.
+
+## Approach
+
+One rule for the workspace, in `docs/design.md`, section 1, rule 9: the text of a failure says its own step, and `chain` says the causes; a reader of a line uses `Failure::chain` or a join of each text of the chain. `caused` and `wrap` of `pod-cloudflare` then keep the step alone as the text, and each `{}` of a failure in the crate becomes `chain()`. Read the consumers (podnet's `exit::text`, its rows of `--check`) before the change, and give them the rule by a COORD issue.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features
+```

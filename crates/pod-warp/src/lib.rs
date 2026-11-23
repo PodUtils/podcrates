@@ -101,7 +101,7 @@ pub use l4::L4;
 pub use leg::{Leg, Relay};
 pub use live::{Live, LiveSettings};
 pub use net::{NetSettings, WarpNet};
-pub use provider::{Cloudflare, EnrolError, Enrolled, Enrolment, Static as StaticEnrolment};
+pub use provider::{Cloudflare, EnrolError, Enrolled, Enrolment, PathFailure, Static as StaticEnrolment};
 pub use session::{MasqueRx, MasqueSession, MasqueTx, Meter, Way};
 pub use store::{IdentityFile, Stored};
 pub use udp::{SystemUdp, UdpWay};

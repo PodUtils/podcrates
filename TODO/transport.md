@@ -7788,3 +7788,33 @@ same answer fails). Share the rule of `oci.rs` and each HTTP watch in one place.
 ```sh
 cargo test -p pod-services-watch --all-features
 ```
+
+# T-1132: `pod-tls`: the text of a certificate for another name holds the Debug form `DnsName("x")` of rustls-webpki (PodUtils/podnet#707, ask 8)
+
+**Source:** PodUtils/podnet#707 (COORD-115 of podnet, PodUtils/podnet@T-522, PodUtils/podnet#698), ask 8.
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The ask of podnet: "Write the names of a certificate plain: rustls-webpki puts `DnsName("x")` in `NotValidForNameContext`. Test: no `DnsName(` in the text."
+
+A host whose proxy re-signs TLS gives: `TLS: invalid peer certificate: certificate not valid for name "1.1.1.1"; certificate is only valid for DnsName("default.domain")`.
+
+## Premise
+
+- Read: PodUtils/podnet#707; `crates/pod-tls/src/hint.rs` (`handshake_failure`, `handshake_error`, `plain_names`); the `Debug` of `GeneralName` of rustls-webpki 0.103 (`DnsName("a")`, `IpAddress(192.0.2.1)`, `UniformResourceIdentifier("u")`).
+- Not measured: the line of podnet after the fix.
+
+## Approach
+
+`pod_tls::plain_cert_names` writes each of the three forms as the plain name. `handshake_failure` gives the text of the error through it. `handshake_error` keeps the kind of the error and gives its cause the same plain words, so that the chain says the cause once. A test makes the error of rustls with two names.
+
+## Prove
+
+```sh
+cargo test -p pod-tls --all-features --lib hint::tests
+```

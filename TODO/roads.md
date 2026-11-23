@@ -2096,3 +2096,97 @@ cargo tree -p pod-iroh -i iroh-relay -e normal
 cargo test -p pod-iroh --all-features
 sh scripts/plant-each.sh iroh-socks5-sends-the-name
 ```
+
+# T-1129: `pod-ws`: a refusal of the proxy from a dialer of the caller loses the stage Proxy, and its line names the target two times (PodUtils/podnet#707, ask 5)
+
+**Source:** PodUtils/podnet#707 (COORD-115 of podnet, PodUtils/podnet@T-521, PodUtils/podnet@T-522), ask 5.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The ask of podnet: "`crates/pod-ws/src/way.rs` (`dial_error`): keep the stage Proxy of a dialer failure whose cause is not a `DialError`, for a refusal of the proxy (403, 407, 502). Also strip a lead `TARGET through the proxy P`, as `connecting to` and `could not connect to` are stripped. Test: `Failure::caused(Stage::Proxy, Class::Refused, ...)` gives a `ConnectError` with the stage Proxy; the text "x:443 through the proxy http://p:1: refused" names x:443 once."
+
+podnet's dialer gives a refusal of the proxy as a `Failure` at the stage Proxy, with the text `HOST:PORT through the proxy URL: ...` and its own error as the cause. `dial_error` makes each failure that is not at the stage Dns a `DialError::Connect`: the stage becomes Connect, and the line reads `could not connect to x:443: x:443 through the proxy http://p:1: refused`.
+
+## Premise
+
+- Read: PodUtils/podnet#707; `crates/pod-ws/src/way.rs` (`dial_error`, `connect_error`); `crates/pod-proxy/src/error.rs` (`DialError`, `stage_and_class`); podnet's dialer at `cabe7b8` (PodUtils/podnet:src/egress.rs, `failed` and `dial_failure`).
+- Not measured: podnet's line after the fix (its test `tests/error_words.rs`).
+
+## Approach
+
+`dial_error` reads a lead `TARGET through the proxy P: ` of the text: the name of the proxy and the detail. A failure at the stage Proxy with no `DialError` cause becomes the `DialError` of its class: `ProxyRefused` with the status 0 (no status is known) for Refused, `ProxyProtocol` for Protocol, else `ProxyUnreachable`. The `Display` of `ProxyRefused` with the status 0 has no status, and a proxy with no name is "the proxy". The stage and the class of each stay Proxy and the class of the failure. A test gives `connect_error` the failure of the ask.
+
+## Prove
+
+```sh
+cargo test -p pod-ws --all-features --lib way::tests
+cargo test -p pod-proxy --all-features
+```
+
+# T-1130: `pod-proxy`: the line of a proxy that does not answer names the proxy two times (PodUtils/podnet#707, ask 6)
+
+**Source:** PodUtils/podnet#707 (COORD-115 of podnet, PodUtils/podnet@T-522), ask 6.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The ask of podnet: "`crates/pod-proxy/src/stream.rs` `ProxyUnreachable` keeps "could not connect to P" as its detail, so the line reads "could not reach the proxy P: could not connect to P: ...". Strip that lead. Test: the text of a refused proxy names it once."
+
+## Premise
+
+- Read: PodUtils/podnet#707; `crates/pod-proxy/src/stream.rs` (`open_proxy`); `crates/pod-proxy/src/error.rs`; podnet's second path (`proxy_named_once` of PodUtils/podnet:src/egress.rs).
+- Not measured: podnet's line after the fix.
+
+## Approach
+
+`open_proxy` keeps the detail of a `DialError::Connect` to the proxy without its lead `could not connect to TARGET` (`pod_core::failure::strip_lead`). The `Display` of `ProxyUnreachable` also strips a lead `could not connect to P` from a detail that another dialer made. A test dials through a port where nothing listens and counts the proxy in the line.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features --test dial an_unreachable_proxy_is_named
+cargo test -p pod-proxy --all-features --lib error::tests
+```
+
+# T-1131: `pod-dns`: the line of a name that does not resolve holds the list of each resolver of DNS over HTTPS, 567 bytes and more (PodUtils/podnet#707, ask 7)
+
+**Source:** PodUtils/podnet#707 (COORD-115 of podnet, PodUtils/podnet@T-522, PodUtils/podnet#698), ask 7.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The ask of podnet: "`crates/pod-dns/src/lookup.rs` (`fold`): one line of at most 200 bytes for a name that does not resolve: one phrase for each source (the system resolver, DoH), and the full list at debug. Test: the failures of #698 give a line under 200 bytes (the `bench` line is 631 bytes now)."
+
+The line of PodUtils/podnet#698 in a lab with no network out:
+
+```text
+could not resolve nowhere.invalid: system resolver: failed to lookup address information: Try again; DNS over HTTPS: 4 resolvers (2606:4700:4700::1111, 2606:4700:4700::1001, 2001:4860:4860::8888, 2001:4860:4860::8844): could not connect to [the address of the resolver]:443: Address family not supported by protocol (os error 97); 4 resolvers (1.1.1.1, 1.0.0.1, 8.8.8.8, 8.8.4.4): could not connect to t...
+```
+
+## Premise
+
+- Read: PodUtils/podnet#707 and #698; `crates/pod-dns/src/lookup.rs` (`over`, `fold`); `crates/pod-dns/src/order.rs` (`resolve_in`); `crates/pod-dns/src/resolver.rs`.
+- Not measured: the line of podnet in its lab after the fix.
+
+## Approach
+
+`fold` gives one phrase: `each of N resolvers failed: CAUSE` when each failed alike, else `N resolvers failed, M with: CAUSE` with the cause of the most. A cause loses the address of its resolver (`could not connect to [A]:443: X` is `could not connect: X`) and the `(os error N)` of the system. `over` logs the full list at debug. `resolve_in` joins the phrase of each source in at most 160 bytes: the longest phrase is cut first (`pod_core::text::clip`), and the full line goes to debug. A test gives the failures of #698, of a lab and of a host whose proxy re-signs TLS, and measures the line of `DialError::Resolve`.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features --lib
+```

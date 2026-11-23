@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 
-use pod_core::failure::lead;
+use pod_core::failure::{lead, strip_lead};
 use pod_core::{Class, Failure, Stage};
 
 use crate::cut::Cut;
@@ -33,7 +33,8 @@ pub enum DialError {
     ProxyUnreachable { proxy: String, detail: String },
     /// The proxy answered CONNECT with a status other than 2xx; a SOCKS5
     /// proxy's refusal carries the HTTP status of the same case (403 for its
-    /// rules, 407 for its authentication, 502 for the rest).
+    /// rules, 407 for its authentication, 502 for the rest). The status 0: a
+    /// dialer of the caller refused at the proxy and gave no status.
     ProxyRefused { proxy: String, target: String, status: u16, reason: String },
     /// The proxy did not answer as its protocol says.
     ProxyProtocol { proxy: String, detail: String },
@@ -54,19 +55,33 @@ impl std::fmt::Display for DialError {
             }
             DialError::Timeout { step, after, .. } => write!(f, "{step} timed out after {}s", after.as_secs()),
             DialError::ProxyUnreachable { proxy, detail } => {
-                write!(f, "could not reach the proxy {proxy}: {detail}")
+                // A detail of another dialer can name the proxy again.
+                let detail = strip_lead(detail, &format!("could not connect to {proxy}"));
+                write!(f, "could not reach {}: {detail}", the_proxy(proxy))
+            }
+            // The status 0: a dialer of the caller gave no status.
+            DialError::ProxyRefused { proxy, target, status: 0, reason } if reason.is_empty() => {
+                write!(f, "{} refused CONNECT {target}", the_proxy(proxy))
+            }
+            DialError::ProxyRefused { proxy, target, status: 0, reason } => {
+                write!(f, "{} refused CONNECT {target}: {reason}", the_proxy(proxy))
             }
             DialError::ProxyRefused { proxy, target, status, reason } => {
-                write!(f, "the proxy {proxy} refused CONNECT {target}: {status} {reason}")
+                write!(f, "{} refused CONNECT {target}: {status} {reason}", the_proxy(proxy))
             }
             DialError::ProxyProtocol { proxy, detail } => {
-                write!(f, "the proxy {proxy} did not answer as its protocol says: {detail}")
+                write!(f, "{} did not answer as its protocol says: {detail}", the_proxy(proxy))
             }
             DialError::UdpRefused { proxy } => {
                 write!(f, "the proxy {proxy} does not know the SOCKS5 command UDP in the stream (reply 7)")
             }
         }
     }
+}
+
+/// "the proxy P", or "the proxy" when a dialer of the caller did not name it.
+fn the_proxy(proxy: &str) -> String {
+    if proxy.is_empty() { "the proxy".into() } else { format!("the proxy {proxy}") }
 }
 
 impl std::error::Error for DialError {}
@@ -138,6 +153,22 @@ mod tests {
     /// twice (PodUtils/podnet#658).
     #[test]
     fn the_words_of_a_dial_error_are_said_once() {
+        // A detail of another dialer that names the proxy again
+        // (PodUtils/podnet#707, ask 6).
+        let detail = "could not connect to 127.0.0.1:1: Connection refused (os error 111)".to_string();
+        let unreachable = DialError::ProxyUnreachable { proxy: "127.0.0.1:1".into(), detail };
+        assert_eq!(unreachable.to_string(), "could not reach the proxy 127.0.0.1:1: Connection refused (os error 111)");
+        // A refusal at the proxy with no status, from a dialer of the caller.
+        let refused = DialError::ProxyRefused {
+            proxy: "http://p:1".into(),
+            target: "x:443".into(),
+            status: 0,
+            reason: "refused".into(),
+        };
+        assert_eq!(refused.to_string(), "the proxy http://p:1 refused CONNECT x:443: refused");
+        assert_eq!(refused.stage_and_class(), (Stage::Proxy, Class::Refused));
+        let unnamed = DialError::ProxyUnreachable { proxy: String::new(), detail: "no answer".into() };
+        assert_eq!(unnamed.to_string(), "could not reach the proxy: no answer");
         let detail = "could not resolve nowhere.invalid: system resolver: no answer".to_string();
         let resolve = DialError::Resolve { host: "nowhere.invalid".into(), detail: detail.clone() };
         assert_eq!(resolve.to_string(), detail);

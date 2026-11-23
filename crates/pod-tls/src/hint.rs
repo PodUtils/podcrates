@@ -153,12 +153,39 @@ fn plain_names(list: &str) -> String {
         .join(" or ")
 }
 
-/// The text of a failed handshake, with its hint when it has one.
+/// The text of a failed handshake, with its hint when it has one. The names
+/// of a certificate are plain: rustls-webpki writes `DnsName("a")`.
 pub fn handshake_failure(error: &std::io::Error, words: &Words) -> String {
+    let said = plain_cert_names(&error.to_string());
     match handshake_hint(error, words) {
-        Some(hint) => format!("{error}; {hint}"),
-        None => error.to_string(),
+        Some(hint) => format!("{said}; {hint}"),
+        None => said,
     }
+}
+
+/// `text` with each name of a certificate in the Debug form of
+/// rustls-webpki (`DnsName("a")`, `IpAddress(192.0.2.1)`,
+/// `UniformResourceIdentifier("u")`) as the plain name.
+pub fn plain_cert_names(text: &str) -> String {
+    const FORMS: [(&str, &str); 3] =
+        [("DnsName(\"", "\")"), ("UniformResourceIdentifier(\"", "\")"), ("IpAddress(", ")")];
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    'next: while !rest.is_empty() {
+        for (open, close) in FORMS {
+            if let Some(after) = rest.strip_prefix(open)
+                && let Some(end) = after.find(close)
+            {
+                out.push_str(&after[..end]);
+                rest = &after[end + close.len()..];
+                continue 'next;
+            }
+        }
+        let c = rest.chars().next().unwrap_or_default();
+        out.push(c);
+        rest = &rest[c.len_utf8()..];
+    }
+    out
 }
 
 /// The failure of a handshake that `error` ended: the words of
@@ -168,6 +195,10 @@ pub fn handshake_failure(error: &std::io::Error, words: &Words) -> String {
 /// a time limit keep their kind, which tells how the connection ended.
 pub fn handshake_error(error: std::io::Error, words: &Words) -> Failure {
     let text = handshake_failure(&error, words);
+    let raw = error.to_string();
+    let plain = plain_cert_names(&raw);
+    // The cause in the plain words too, so that the chain says it once.
+    let error = if plain == raw { error } else { std::io::Error::new(error.kind(), plain) };
     Failure::caused(Stage::Tls, Class::of_io(error.kind()), text, error)
 }
 
@@ -204,6 +235,26 @@ mod tests {
         let early = Error::InvalidCertificate(CertificateError::NotValidYet).to_string();
         assert_eq!(cause(&early).as_deref(), Some("a certificate that is not valid yet"), "{early}");
         assert_eq!(cause("connection reset by peer"), None);
+    }
+
+    /// The names of a certificate for another name are plain in the text
+    /// and in the chain (PodUtils/podnet#707, ask 8).
+    #[test]
+    fn the_names_of_a_certificate_are_plain() {
+        let expected = rustls::pki_types::ServerName::try_from("1.1.1.1").unwrap().to_owned();
+        let presented = vec!["DnsName(\"default.domain\")".into(), "IpAddress(192.0.2.1)".into()];
+        let error = std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            Error::InvalidCertificate(CertificateError::NotValidForNameContext { expected, presented }),
+        );
+        let said = handshake_failure(&error, &podssh());
+        assert!(!said.contains("DnsName(") && !said.contains("IpAddress("), "{said}");
+        assert!(said.contains("default.domain") && said.contains("192.0.2.1"), "{said}");
+        let failure = handshake_error(error, &podssh());
+        assert!(!failure.chain().contains("DnsName("), "{}", failure.chain());
+        assert_eq!(failure.chain(), failure.text());
+        assert_eq!(failure.io_cause().map(|e| e.kind()), Some(std::io::ErrorKind::InvalidData));
+        assert_eq!(plain_cert_names("é DnsName(\"a\") or DnsName(\"b"), "é a or DnsName(\"b");
     }
 
     /// podssh's words.

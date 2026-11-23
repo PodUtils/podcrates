@@ -372,7 +372,7 @@ mod tests {
         assert_eq!(
             chain,
             "the WARP API: each host failed: 2 hosts (https://a.example, https://b.example): could not reach \
-             the proxy 127.0.0.1:1: could not connect to 127.0.0.1:1: Connection refused (os error 111)"
+             the proxy 127.0.0.1:1: Connection refused (os error 111)"
         );
         let mut next: Option<&(dyn std::error::Error + 'static)> = Some(&failure);
         let mut found = false;

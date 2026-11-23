@@ -163,7 +163,32 @@ where
             Err(e) => reasons.push(e),
         }
     }
-    Err(if reasons.is_empty() { "no source gave an address".into() } else { reasons.join("; ") })
+    Err(if reasons.is_empty() { "no source gave an address".into() } else { fit(reasons, LINE) })
+}
+
+/// The most bytes of the failures of the sources: with the words of the
+/// dialer (`could not resolve HOST: `), the line of a short name stays under
+/// 200 bytes (PodUtils/podnet#698).
+const LINE: usize = 160;
+
+/// The phrase of each source, joined with `; `, in at most `most` bytes:
+/// the longest phrase is cut first, so that each source keeps its name. The
+/// whole line goes to the log at debug.
+fn fit(mut reasons: Vec<String>, most: usize) -> String {
+    let whole = reasons.join("; ");
+    if whole.len() <= most {
+        return whole;
+    }
+    tracing::debug!(failures = %whole, "each source of the addresses failed");
+    loop {
+        let line = reasons.join("; ");
+        let Some((i, long)) = reasons.iter().enumerate().max_by_key(|(_, r)| r.len()) else { return line };
+        if line.len() <= most || long.len() <= 32 {
+            return pod_core::text::clip(&line, most);
+        }
+        let keep = long.len().saturating_sub(line.len() - most).max(32);
+        reasons[i] = pod_core::text::clip(long, keep);
+    }
 }
 
 #[cfg(test)]

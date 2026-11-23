@@ -81,15 +81,23 @@ impl<T> OrFail<T> for Option<T> {
     }
 }
 
-/// The stage of an error of I/O; its class comes from its kind.
+/// The stage of an error of I/O; its class comes from its kind. The text is
+/// the step, and the error is the cause: the chain says it once.
 pub trait IoFail<T> {
     fn io_fail(self, stage: Stage, text: impl fmt::Display) -> Result<T>;
 }
 
 impl<T> IoFail<T> for std::io::Result<T> {
     fn io_fail(self, stage: Stage, text: impl fmt::Display) -> Result<T> {
-        self.map_err(|e| caused(stage, Class::of_io(e.kind()), text, e))
+        self.map_err(|e| io_step(stage, text, e))
     }
+}
+
+/// The failure of the step `text` at `stage` that the error of I/O `e`
+/// ended: the step as the text and `e` as the cause, as
+/// [`Failure::caused`] says.
+pub fn io_step(stage: Stage, text: impl fmt::Display, e: std::io::Error) -> Failure {
+    Failure::caused(stage, Class::of_io(e.kind()), text.to_string(), e)
 }
 
 /// The first error of type `E` in the chain of `failure`, the failure

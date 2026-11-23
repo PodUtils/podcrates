@@ -251,6 +251,14 @@ async fn an_unreachable_proxy_is_named() {
     let proxy = HttpProxy::parse(&format!("http://127.0.0.1:{port}")).unwrap();
     let err = dial("relay.invalid", 443, &ProxyChoice::Via(proxy), Duration::from_secs(5)).await.unwrap_err();
     assert!(matches!(err, DialError::ProxyUnreachable { .. }), "{err:?}");
+    // The proxy is named once (PodUtils/podnet#707, ask 6).
+    let text = err.to_string();
+    assert_eq!(text.matches(&format!("127.0.0.1:{port}")).count(), 1, "{text}");
+    assert!(text.starts_with(&format!("could not reach the proxy 127.0.0.1:{port}: ")), "{text}");
+    match &err {
+        DialError::ProxyUnreachable { detail, .. } => assert!(!detail.starts_with("could not connect"), "{detail}"),
+        other => panic!("{other:?}"),
+    }
 }
 
 #[tokio::test]

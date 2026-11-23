@@ -1,12 +1,11 @@
-diff --git a/crates/pod-dns/src/lookup.rs b/crates/pod-dns/src/lookup.rs
 --- a/crates/pod-dns/src/lookup.rs
 +++ b/crates/pod-dns/src/lookup.rs
-@@ -76,7 +76,7 @@ pub(crate) fn fold(reasons: &[(String, String)]) -> String {
-         }
+@@ -149,7 +149,7 @@
+     match (&groups[..], &most.1[..]) {
+         ([_], [""]) => cause,
+         ([_], [at]) => format!("{at}: {cause}"),
+-        ([_], _) => format!("each of {resolvers} resolvers failed: {cause}"),
++        ([_], _) => format!("{}: {cause}", most.1.join(", ")),
+         _ => format!("{resolvers} resolvers failed, {} with: {cause}", most.1.len()),
      }
-     if let [(cause, ats)] = &groups[..]
--        && ats.len() > 1
-+        && ats.len() > 99
-     {
-         return format!("each of {} resolvers failed: {cause}", ats.len());
-     }
+ }

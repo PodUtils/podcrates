@@ -178,6 +178,56 @@ fn cut(mut text: String) -> String {
     text
 }
 
+/// `text` in at most `max` bytes: a cut ends with "..." on a character
+/// boundary, so a line of an error keeps its bound.
+pub fn clip(text: &str, max: usize) -> String {
+    if text.len() <= max {
+        return text.to_string();
+    }
+    let mut at = max.saturating_sub(3);
+    while !text.is_char_boundary(at) {
+        at -= 1;
+    }
+    format!("{}...", &text[..at])
+}
+
+/// One line of the body of a peer for the text of an error: the value of
+/// each JSON key of `secret` is `<redacted>`, the text is safe for a
+/// terminal ([`one_line`]), and it has at most `max` bytes ([`clip`]). A
+/// proxy or a gateway on the way can answer with its own page: its words
+/// tell the user what broke, and the credentials of a true answer stay out.
+pub fn body_line(body: &str, secret: &[&str], max: usize) -> String {
+    clip(&one_line(&redacted(body, secret)), max)
+}
+
+/// `body` with the string value of each key of `secret` replaced by a
+/// marker. A value with no closing quote ends the text: what follows it can
+/// be the secret.
+fn redacted(body: &str, secret: &[&str]) -> String {
+    const REDACTED: &str = "<redacted>";
+    let mut out = String::with_capacity(body.len());
+    let mut i = 0;
+    while i < body.len() {
+        let Some(key) = secret.iter().find(|key| {
+            body[i..].strip_prefix('"').and_then(|r| r.strip_prefix(**key)).is_some_and(|r| r.starts_with('"'))
+        }) else {
+            let c = body[i..].chars().next().unwrap_or_default();
+            out.push(c);
+            i += c.len_utf8().max(1);
+            continue;
+        };
+        let after_key = i + key.len() + 2;
+        let Some(colon) = body[after_key..].find(':') else { break };
+        let after_colon = after_key + colon + 1;
+        let Some(open) = body[after_colon..].find('"').map(|p| after_colon + p + 1) else { break };
+        let Some(close) = body[open..].find('"').map(|p| open + p) else { break };
+        out.push_str(&body[i..open]);
+        out.push_str(REDACTED);
+        i = close;
+    }
+    out
+}
+
 /// Characters that reorder how a terminal displays the text around them
 /// (the "Trojan Source" set), plus the Arabic letter mark.
 fn is_bidi_control(c: char) -> bool {
@@ -241,6 +291,33 @@ mod tests {
         let short = PeerText::multi_line("a\r\nb\x07");
         assert_eq!((short.to_string(), String::from(short)), ("a\nb".into(), "a\nb".into()));
         assert_eq!(PeerText::one_line(&"x".repeat(PEER_TEXT_MOST)).as_str().len(), PEER_TEXT_MOST);
+    }
+
+    /// A cut keeps its bound in bytes and lands on a character boundary.
+    #[test]
+    fn a_clip_keeps_its_bound_on_a_character_boundary() {
+        assert_eq!(clip("short", 10), "short");
+        let out = clip(&"é".repeat(400), 200);
+        assert!(out.len() <= 200 && out.ends_with("..."), "{out}");
+        assert_eq!(clip("abcdef", 5), "ab...");
+    }
+
+    /// The line of a body: a page of a stand-in as it is, the values of
+    /// the secret keys replaced, no control character, a bound.
+    #[test]
+    fn the_line_of_a_body_hides_its_secrets_and_keeps_its_words() {
+        assert_eq!(body_line("pod-lab stand-in\n", &["token"], 200), "pod-lab stand-in");
+        let json = r#"{"id":"dev-1","token":"t0ps3cret","name":"x"}"#;
+        let line = body_line(json, &["token", "id"], 200);
+        assert!(!line.contains("t0ps3cret") && !line.contains("dev-1"), "{line}");
+        assert!(line.contains(r#""token":"<redacted>""#) && line.contains(r#""name":"x""#), "{line}");
+        let cut = body_line(r#"{"token":"unterminated secret"#, &["token"], 200);
+        assert!(!cut.contains("unterminated"), "{cut}");
+        assert_eq!(body_line("a\x1b[2Jb", &[], 200), "ab");
+        assert!(body_line(&"x".repeat(500), &[], 100).len() <= 100);
+        for odd in ["", "{", "\"token\":", r#"{"token":"a","token":"b"}"#, "é\"token\"é"] {
+            let _ = body_line(odd, &["token"], 50);
+        }
     }
 
     #[test]

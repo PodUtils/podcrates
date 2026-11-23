@@ -50,15 +50,12 @@ fn redaction_survives_a_body_that_is_not_json() {
     }
 }
 
+/// The body of a decode failure is one line that is safe for a terminal.
 #[test]
-fn truncation_lands_on_a_character_boundary() {
-    // A clip at a raw byte offset panics when the cut falls inside a
-    // multi-byte character.
-    let text = "é".repeat(400);
-    let out = super::truncate(&text, 200);
-    assert!(out.ends_with("..."));
-    assert!(out.is_char_boundary(out.len() - 3));
-    assert!(std::str::from_utf8(out.as_bytes()).is_ok());
+fn the_body_of_a_decode_failure_is_one_safe_line() {
+    let out = redact("not\x1b[2J json\nat all");
+    assert_eq!(out, "not json at all");
+    assert!(redact(&"é".repeat(400)).len() <= 200);
 }
 
 use super::*;

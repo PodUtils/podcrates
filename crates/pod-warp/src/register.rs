@@ -81,22 +81,29 @@ fn with_json<T: Serialize>(request: Request, body: &T) -> Request {
     request.json(text)
 }
 
-/// The device of an answer. A body that does not decode is not shown: the
-/// answer of `POST /reg` holds the token.
+/// The keys of an answer of the WARP API whose values are secret: the
+/// answer of `POST /reg` holds the token of the device.
+const SECRET: [&str; 6] = ["token", "id", "license", "private_key", "client_id", "secret"];
+
+/// The device of an answer.
 fn device_of(response: pod_proxy::http::Response, what: &str) -> Result<Device, Failure> {
     let response = success(response, what)?;
-    serde_json::from_slice(&response.body).map_err(|_| {
-        let text = format!("{what}: the WARP API answer does not decode ({} bytes)", response.body.len());
-        Failure::new(Stage::Warp, Class::Protocol, text)
-    })
+    serde_json::from_slice(&response.body).map_err(|_| undecoded(&response, what))
 }
 
 fn json_of(response: pod_proxy::http::Response, what: &str) -> Result<serde_json::Value, Failure> {
     let response = success(response, what)?;
-    serde_json::from_slice(&response.body).map_err(|_| {
-        let text = format!("{what}: the WARP API answer does not decode ({} bytes)", response.body.len());
-        Failure::new(Stage::Warp, Class::Protocol, text)
-    })
+    serde_json::from_slice(&response.body).map_err(|_| undecoded(&response, what))
+}
+
+/// An answer that does not decode, with one safe line of its body: a proxy
+/// or a gateway on the way can answer with its own page. The values of the
+/// secret keys stay out.
+fn undecoded(response: &pod_proxy::http::Response, what: &str) -> Failure {
+    let size = response.body.len();
+    let line = pod_core::text::body_line(&String::from_utf8_lossy(&response.body), &SECRET, 120);
+    let text = format!("{what}: the WARP API answer does not decode ({size} bytes): {line}");
+    Failure::new(Stage::Warp, Class::Protocol, text)
 }
 
 /// Create an anonymous device with a throwaway X25519 public key: the API
@@ -158,7 +165,7 @@ pub fn registration_error(status: u16, retry: Option<&str>, body: &str) -> Optio
         .and_then(retry_after)
         .map(|d| format!("; the service asks to wait {} s", d.as_secs()))
         .unwrap_or_default();
-    let cause = ApiError { status, body: body.chars().take(200).collect() };
+    let cause = ApiError { status, body: pod_core::text::body_line(body, &SECRET, 200) };
     let text = format!(
         "the WARP service limits new devices for each address (HTTP {status}, error 1015){wait}; reuse a saved identity in place of a new device, or wait"
     );
@@ -283,6 +290,28 @@ mod tests {
         assert_eq!(ts.len(), 24, "{ts}");
         assert!(ts.ends_with('Z'));
         assert_eq!(&ts[4..5], "-");
+    }
+
+    /// A 200 answer that is not JSON gives one safe line of its body; the
+    /// token of an answer that does not decode stays out
+    /// (PodUtils/podnet#707, ask 9).
+    #[test]
+    fn an_answer_that_is_not_json_names_its_body() {
+        let answer = |body: &str| pod_proxy::http::Response {
+            status: 200,
+            reason: "OK".into(),
+            headers: Vec::new(),
+            body: body.as_bytes().to_vec(),
+            url: String::new(),
+        };
+        let err = device_of(answer("pod-lab stand-in\r\n"), "POST /reg").unwrap_err();
+        assert_eq!((err.stage, err.class), (Stage::Warp, Class::Protocol));
+        assert_eq!(err.text(), "POST /reg: the WARP API answer does not decode (18 bytes): pod-lab stand-in");
+        let err =
+            json_of(answer(r#"{"id":"d-1","token":"t0ps3cret","account":"#), "GET /reg/{id}/account").unwrap_err();
+        assert!(!err.text().contains("t0ps3cret") && !err.text().contains("d-1"), "{}", err.text());
+        let limited = registration_error(429, None, "slow down\x1b[2J").unwrap();
+        assert!(!limited.chain().contains('\x1b'), "{}", limited.chain());
     }
 
     #[test]

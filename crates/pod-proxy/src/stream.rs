@@ -233,6 +233,10 @@ pub(crate) async fn open_proxy(leg: Leg<'_>, proxy: &Proxy) -> Result<Stream, Di
                 DialError::Resolve { host, detail } => {
                     unreachable(format!("the proxy host {host} does not resolve: {detail}"))
                 }
+                // The proxy is named once, by `ProxyUnreachable`.
+                DialError::Connect { target, detail, .. } => unreachable(
+                    pod_core::failure::strip_lead(&detail, &format!("could not connect to {target}")).into(),
+                ),
                 other => unreachable(other.to_string()),
             })
         }

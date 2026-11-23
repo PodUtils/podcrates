@@ -57,6 +57,7 @@ pub use env_bundle::{BUNDLE_VARS, EnvBundle, Passed, env_bundle};
 pub use error::Error;
 pub use hint::{
     Words, cause as handshake_cause, clock_hint, clock_refused, handshake_error, handshake_failure, handshake_hint,
+    plain_cert_names,
 };
 pub use roots::{CaFile, Roots};
 pub use trust::{

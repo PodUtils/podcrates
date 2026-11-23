@@ -14,6 +14,7 @@
 
 use std::fmt;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use pod_core::{BoxFuture, Class, Failure, Stage, Target};
@@ -65,7 +66,43 @@ pub enum EnrolError {
     Config(String),
     /// The API of the provider did not answer.
     Unreachable(String),
+    /// The API of the provider did not answer: the failure of its path,
+    /// with its stage (the proxy, DNS, the connection), is the cause.
+    NoAnswer(PathFailure),
 }
+
+/// The failure of the path to the API of a provider, shared: an
+/// [`EnrolError`] is cloned, and its cause stays whole. Two are equal when
+/// their stage, their class and their chain are equal.
+#[derive(Clone, Debug)]
+pub struct PathFailure(Arc<Failure>);
+
+impl PathFailure {
+    pub fn new(failure: Failure) -> PathFailure {
+        PathFailure(Arc::new(failure))
+    }
+
+    pub fn failure(&self) -> &Failure {
+        &self.0
+    }
+
+    /// A failure with the stage, the class and the text of the path, and
+    /// the shared failure as its cause: a reader of the chain finds the
+    /// stage in a `Failure`.
+    fn cause(&self) -> Failure {
+        let f = &self.0;
+        Failure::caused(f.stage, f.class, f.text(), self.0.clone())
+    }
+}
+
+impl PartialEq for PathFailure {
+    fn eq(&self, other: &PathFailure) -> bool {
+        let (a, b) = (&self.0, &other.0);
+        (a.stage, a.class, a.chain()) == (b.stage, b.class, b.chain())
+    }
+}
+
+impl Eq for PathFailure {}
 
 impl EnrolError {
     /// The class of the failure, in the classes of this crate.
@@ -75,7 +112,7 @@ impl EnrolError {
             EnrolError::Limited { .. } => Class::TempFail,
             EnrolError::Protocol(_) => Class::Protocol,
             EnrolError::Config(_) => Class::Config,
-            EnrolError::Unreachable(_) => Class::Unavailable,
+            EnrolError::Unreachable(_) | EnrolError::NoAnswer(_) => Class::Unavailable,
         }
     }
 
@@ -96,13 +133,17 @@ impl EnrolError {
             EnrolError::Protocol(text) => format!("the provider's enrolment answer: {text}"),
             EnrolError::Config(text) => text.clone(),
             EnrolError::Unreachable(text) => format!("the provider's API did not answer: {text}"),
+            EnrolError::NoAnswer(path) => format!("the provider's API did not answer: {}", path.failure().text()),
         }
     }
 
     /// The failure of a session that needs the enrolment, in the type of the
     /// crate.
     pub fn failure(&self) -> Failure {
-        Failure::new(Stage::Warp, self.class(), self.text())
+        match self {
+            EnrolError::NoAnswer(path) => Failure::caused(Stage::Warp, self.class(), self.text(), path.cause()),
+            _ => Failure::new(Stage::Warp, self.class(), self.text()),
+        }
     }
 }
 
@@ -223,7 +264,8 @@ impl Enrolment for Static {
 
 /// The failure of an API call as an enrolment failure, by its status: a
 /// 1015 or a 429 is the provider's limit; another 4xx is a refusal; no
-/// status is the API, not the enrolment.
+/// status is the API, not the enrolment: an answer that does not decode is
+/// the protocol, and no answer keeps the failure of the path.
 fn of_api(failure: Failure) -> EnrolError {
     let detail = failure.text().to_string();
     match api_status(&failure) {
@@ -231,7 +273,8 @@ fn of_api(failure: Failure) -> EnrolError {
         Some(status @ 400..=499) => EnrolError::Refused { status, detail },
         Some(status @ 500..=599) => EnrolError::Unreachable(format!("HTTP {status}: {detail}")),
         _ if failure.class == Class::TempFail => EnrolError::Limited { retry_after: None, detail },
-        _ => EnrolError::Unreachable(detail),
+        _ if failure.class == Class::Protocol => EnrolError::Protocol(detail),
+        _ => EnrolError::NoAnswer(PathFailure::new(failure)),
     }
 }
 
@@ -296,6 +339,35 @@ mod tests {
         assert!(matches!(api(403), EnrolError::Refused { status: 403, .. }));
         assert!(matches!(api(503), EnrolError::Unreachable(_)));
         let transport = Failure::new(Stage::Connect, Class::Timeout, "no TCP");
-        assert!(matches!(of_api(transport), EnrolError::Unreachable(_)));
+        assert!(matches!(of_api(transport), EnrolError::NoAnswer(_)));
+    }
+
+    /// An enrolment through a dead proxy keeps the failure of the proxy, with
+    /// its stage, in the chain; an answer that does not decode is the
+    /// protocol (PodUtils/podnet#707, ask 9).
+    #[test]
+    fn an_enrolment_through_a_dead_proxy_keeps_the_stage_of_the_proxy() {
+        let dial = pod_proxy::DialError::ProxyUnreachable {
+            proxy: "127.0.0.1:1".into(),
+            detail: "Connection refused (os error 111)".into(),
+        };
+        let text = format!("POST https://api.test/v0a/reg: {dial}");
+        let path = Failure::caused(Stage::Proxy, Class::Unavailable, text, dial);
+        let enrol = of_api(path);
+        assert_eq!(enrol.clone(), enrol);
+        let failure = enrol.failure();
+        assert_eq!((failure.stage, failure.class), (Stage::Warp, Class::Unavailable));
+        let mut stages = Vec::new();
+        let mut next: Option<&(dyn std::error::Error + 'static)> = Some(&failure);
+        while let Some(e) = next {
+            stages.extend(e.downcast_ref::<Failure>().map(|f| f.stage));
+            next = e.source();
+        }
+        assert_eq!(stages, [Stage::Warp, Stage::Proxy], "{}", failure.chain());
+        let chain = failure.chain();
+        assert_eq!(chain.matches("127.0.0.1:1").count(), 1, "{chain}");
+        assert!(chain.starts_with("the provider's API did not answer: POST https://api.test/v0a/reg"), "{chain}");
+        let answer = Failure::new(Stage::Warp, Class::Protocol, "POST /reg: the WARP API answer does not decode");
+        assert!(matches!(of_api(answer), EnrolError::Protocol(_)));
     }
 }

@@ -306,61 +306,7 @@ pub(crate) fn parse_quick_tunnel_response(status: u16, body: &str) -> Result<Qui
 /// see. Thus the values are replaced, and the body stays. The diagnostic
 /// stays, and nothing important is lost.
 fn redact(body: &str) -> String {
-    const REDACTED: &str = "<redacted>";
-    let mut out = String::with_capacity(body.len());
-    // One pass over the body, with a check of each key at each position. The
-    // keys are few and the body is short, so a pass for each key also works.
-    // But one cursor cannot get the boundaries wrong: `out` always holds
-    // bytes that the scan already accepted.
-    let keys: [&str; 4] = ["secret", "account_tag", "tunnel_secret", "id"];
-    let mut i = 0;
-    while i < body.len() {
-        let mut matched: Option<&str> = None;
-        for key in keys {
-            let needle = format!("\"{key}\"");
-            if body[i..].starts_with(&needle) {
-                matched = Some(key);
-                break;
-            }
-        }
-        let Some(key) = matched else {
-            let ch = body[i..].chars().next().expect("i is a boundary");
-            out.push(ch);
-            i += ch.len_utf8();
-            continue;
-        };
-        // Copy the key and its colon, then replace the value in quotes.
-        let needle_len = key.len() + 2;
-        let after_key = i + needle_len;
-        let Some(colon) = body[after_key..].find(':') else {
-            break;
-        };
-        let after_colon = after_key + colon + 1;
-        let Some(open) = body[after_colon..].find('"').map(|p| after_colon + p + 1) else {
-            break;
-        };
-        let Some(close) = body[open + 1..].find('"').map(|p| open + 1 + p) else {
-            break;
-        };
-        out.push_str(&body[i..open + 1]);
-        out.push_str(REDACTED);
-        i = close + 1;
-    }
-    truncate(&out, 200)
-}
-
-fn truncate(s: &str, n: usize) -> String {
-    if s.len() <= n {
-        s.to_string()
-    } else {
-        // Clip on a character boundary. A cut at a raw byte can fall inside a
-        // multi-byte character, and the next slice then panics.
-        let mut cut = n;
-        while cut > 0 && !s.is_char_boundary(cut) {
-            cut -= 1;
-        }
-        format!("{}...", &s[..cut])
-    }
+    pod_core::text::body_line(body, &["secret", "account_tag", "tunnel_secret", "id"], 200)
 }
 
 /// A minimal decoder of standard base64 for the tunnel secret.
