@@ -57,9 +57,11 @@ pub fn pty() -> Option<Pty> {
     let mut master: libc::c_int = -1;
     let mut slave: libc::c_int = -1;
     // SAFETY: openpty writes two descriptors into the integers passed, with
-    // no terminal settings of its own.
-    let opened =
-        unsafe { libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null(), std::ptr::null()) };
+    // no terminal settings of its own. `null_mut` fits the `*const` settings
+    // of Linux and the `*mut` settings of macOS.
+    let opened = unsafe {
+        libc::openpty(&mut master, &mut slave, std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut())
+    };
     if opened != 0 {
         let e = std::io::Error::last_os_error();
         eprintln!("skip: /dev/ptmx gave no pseudo-terminal: {e}");

@@ -128,14 +128,24 @@ impl Context {
     /// Call `method` of the client on the connection of this request, and
     /// wait for its answer. The budget of calls back of the request and of
     /// its connection holds: past it, each call is [`CallFault::Budget`].
-    /// The params are wiped on each path; an answer that comes after the
-    /// wait is wiped at its drop.
+    /// The server gives up a call back at its deadline
+    /// (`Settings::write_timeout + Settings::read_timeout`) as
+    /// [`CallFault::Gone`], and ends the connection; this wait is longer.
+    /// The params are wiped on each path.
     pub fn call(&mut self, method: &str, params: Value) -> Result<Value, CallFault> {
+        self.call_within(method, params, self.wait)
+    }
+
+    /// [`Context::call`] with a wait of at most `wait`, for a host that
+    /// must go on before the deadline of the server. Past the wait the call
+    /// is [`CallFault::Gone`], and an answer of the client that comes later
+    /// is wiped at its drop.
+    pub fn call_within(&mut self, method: &str, params: Value, wait: Duration) -> Result<Value, CallFault> {
         let params = Wiped(params);
         let back = self.back.as_ref().ok_or(CallFault::Gone)?;
         let (reply, answer) = mpsc::channel();
         back.send(ToConn::Back { method: method.to_string(), params, reply }).map_err(|_| CallFault::Gone)?;
-        answer.recv_timeout(self.wait).map_or(Err(CallFault::Gone), |result| result.map(Wiped::take))
+        answer.recv_timeout(wait.min(self.wait)).map_or(Err(CallFault::Gone), |result| result.map(Wiped::take))
     }
 }
 

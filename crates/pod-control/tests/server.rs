@@ -8,6 +8,7 @@ mod common;
 use std::io::{Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixStream;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use pod_control::{Client, ClientSettings, Code, Drain, Error, Fault, Tier, Token, unix};
@@ -242,4 +243,129 @@ fn a_reply_before_the_request_is_read() {
     server.join().unwrap();
     // The server side is closed now: the write of the request can fail.
     assert_eq!(code(c.status()), Code::Busy);
+}
+
+/// Wait until `server` has `n` places in use.
+fn wait_active(server: &unix::Server, n: usize) {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while server.active() != n && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(server.active(), n, "the count of the places");
+}
+
+/// The count of `Server::active` agrees with the places: after a client
+/// ends its call and the count is back, the connections up to
+/// `Settings::clients` are served, one more is `busy`, and a refused one
+/// does not count (podrunner's test of a ninth client, T-1070).
+#[test]
+fn the_count_of_active_holds_the_places() {
+    let mut settings = common::settings();
+    settings.clients = 3;
+    let (server, path, _) = common::start("places", settings);
+    let mut c = client(&path);
+    c.status().unwrap();
+    drop(c);
+    wait_active(&server, 0);
+    let mut held: Vec<Client> = (0..3).map(|_| client(&path)).collect();
+    for c in &mut held {
+        assert_eq!(c.version().unwrap().protocol, 1);
+    }
+    assert_eq!(server.active(), 3);
+    // A watch of the count while connections past the limit are refused.
+    let (stop, most) = (AtomicBool::new(false), AtomicUsize::new(0));
+    let limit = Instant::now() + Duration::from_secs(20);
+    std::thread::scope(|scope| {
+        // The limit ends the watch also when the loop below fails.
+        scope.spawn(|| {
+            while !stop.load(Ordering::SeqCst) && Instant::now() < limit {
+                most.fetch_max(server.active(), Ordering::SeqCst);
+            }
+        });
+        while most.load(Ordering::SeqCst) == 0 && Instant::now() < limit {
+            std::thread::yield_now();
+        }
+        for _ in 0..200 {
+            let mut s = UnixStream::connect(&path).unwrap();
+            let mut line = String::new();
+            s.read_to_string(&mut line).unwrap();
+            assert!(line.contains("\"busy\""), "{line}");
+        }
+        stop.store(true, Ordering::SeqCst);
+    });
+    let most = most.into_inner();
+    assert!(most <= 3, "a refused connection counts as a place: {most}");
+    // A place that comes back is served again.
+    drop(held.pop());
+    wait_active(&server, 2);
+    held.push(client(&path));
+    assert_eq!(held[2].version().unwrap().protocol, 1);
+    assert_eq!(server.active(), 3);
+}
+
+/// Send a request of `ask` on a new stream, and give the stream and the
+/// line of the call back.
+fn ask(path: &std::path::Path, params: &str) -> (UnixStream, std::io::BufReader<UnixStream>) {
+    let mut s = UnixStream::connect(path).unwrap();
+    s.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    let reader = std::io::BufReader::new(s.try_clone().unwrap());
+    let line = format!("{{\"schema\":1,\"id\":1,\"method\":\"ask\",\"params\":{params}}}\n");
+    s.write_all(line.as_bytes()).unwrap();
+    (s, reader)
+}
+
+/// Blank lines do not hold a call back: it has one deadline (T-1073).
+#[test]
+fn a_call_back_meets_one_deadline_for_blank_lines() {
+    use std::io::BufRead;
+    let mut settings = common::settings();
+    settings.read_timeout = Duration::from_millis(200);
+    settings.write_timeout = Duration::from_millis(200);
+    let (_server, path, _) = common::start("blank-back", settings);
+    let started = Instant::now();
+    let (s, mut reader) = ask(&path, r#"{"n":1}"#);
+    let mut line = String::new();
+    reader.read_line(&mut line).unwrap();
+    assert!(line.contains("\"for\":1"), "{line}");
+    // A blank line each 20 ms until the answer of the request comes.
+    let blanks = std::thread::spawn(move || {
+        while (&s).write_all(b"\n").is_ok() {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    });
+    line.clear();
+    reader.read_line(&mut line).expect("no answer while blank lines come");
+    let answer: Value = serde_json::from_str(&line).unwrap();
+    assert_eq!(answer["result"], json!({ "answered": 0, "fault": "the request or its connection ended" }));
+    assert!(started.elapsed() >= Duration::from_millis(400), "{:?}", started.elapsed());
+    line.clear();
+    // The end of the connection: a close, or a reset over the blank lines
+    // that the server did not read.
+    let end = reader.read_line(&mut line);
+    assert!(!matches!(end, Ok(n) if n > 0), "the connection goes on: {line}");
+    blanks.join().unwrap();
+}
+
+/// A client that reads a few bytes at a time does not hold the write of a
+/// call back: it has one deadline, and the connection ends (T-1073).
+#[test]
+fn a_call_back_meets_one_deadline_for_its_write() {
+    let mut settings = common::settings();
+    settings.read_timeout = Duration::from_millis(200);
+    settings.write_timeout = Duration::from_secs(1);
+    let (_server, path, _) = common::start("slow-read-back", settings);
+    let (mut s, _) = ask(&path, r#"{"n":1,"pad":8388608}"#);
+    let started = Instant::now();
+    // 4 KiB each 5 ms: 8 MiB take 10 s or more.
+    let (mut chunk, mut got) = (vec![0u8; 4096], 0usize);
+    loop {
+        match s.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => got += n,
+            Err(e) => panic!("the connection did not end after {got} bytes: {e}"),
+        }
+        assert!(started.elapsed() < Duration::from_secs(10), "the write goes on after {got} bytes");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(got < 8 << 20, "the whole line came: {got} bytes");
 }
