@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**890 entries: 151 open, 27 partial, 7 blocked, 705 done.**
+**895 entries: 152 open, 27 partial, 7 blocked, 709 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 209 | 223 |
-| P2 | 69 | 7 | 4 | 366 | 446 |
+| P1 | 4 | 10 | 0 | 213 | 227 |
+| P2 | 70 | 7 | 4 | 366 | 447 |
 | P3 | 78 | 10 | 3 | 128 | 219 |
-| **All** | 151 | 27 | 7 | 705 | 890 |
+| **All** | 152 | 27 | 7 | 709 | 895 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -928,6 +928,11 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1103](roads.md) | P2 | M | M4 | chore | open | `pod-iroh`: iroh 1.5 and iroh-relay 1.5, past the range of the crate (T-1102) |
 | [T-1104](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a path after a `.` reads as a long random word, so a config under a directory of `mktemp -d` is refused (PodUtils/podrunner#343) |
 | [T-1105](fleet.md) | P2 | S | M8 | defect | done | `pod-unit`: the check of a secret refuses a public key of OpenSSH and a fingerprint as a long random word (PodUtils/podssh#342 ask (a)) |
+| [T-1106](fleet.md) | P1 | S | M8 | feature | done | `pod-unit`: a removal and an install refuse what an older version of the program wrote, as its mark differs (PodUtils/podssh#342) |
+| [T-1107](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a unit of the system that runs as a named account removes the IPC of that account at its stop (`RemoveIPC=yes`) (PodUtils/podssh#342) |
+| [T-1108](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a unit of systemd has no limit of starts for systemd older than 230 (`StartLimitInterval=0`) (PodUtils/podssh#342) |
+| [T-1109](foundation.md) | P1 | S | M0 | feature | done | `pod-core`: an atomic replace has no check of the temporary file before the rename (PodUtils/podssh#342) |
+| [T-1110](fleet.md) | P2 | S | M8 | chore | open | `pod-unit`: podrunner's unit of the system loses `RemoveIPC=yes` at its take of the tag of T-1107, and its test of the unit fails |
 | [T-1111](foundation.md) | P2 | S | M0 | chore | done | `pod-guest`, `pod-release`, `pod-supervise`: the changes of podvm and podnet at their heads (port review) |
 | [T-1112](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the init of a PID namespace and the relay of a join show the command line and the environment of the caller to the payload, and a payload of the same user can trace them (PodUtils/podvm#646) |
 | [T-1113](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: the init of a PID namespace in a user namespace of the rung stays dumpable, so a payload of the same caller can trace it and read the memory of the caller |

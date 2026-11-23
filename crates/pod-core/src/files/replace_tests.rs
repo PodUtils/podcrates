@@ -262,3 +262,45 @@ fn a_missing_directory_is_made_only_when_asked() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// PodUtils/podssh#342 (e): the check reads the temporary file, written,
+/// synced and closed, before the rename. A failed check leaves the old file
+/// (or no file) at the path and no temporary file; a check that passes puts
+/// the new file in place.
+#[test]
+fn a_failed_check_of_the_temporary_file_leaves_the_target_and_no_temporary_file() {
+    let dir = dir("check");
+    let (path, absent) = (dir.join("id_ed25519"), dir.join("absent"));
+    std::fs::write(&path, b"old").unwrap();
+    let refuse = |seen: &mut Option<(PathBuf, Vec<u8>)>, tmp: &Path| {
+        *seen = Some((tmp.to_path_buf(), std::fs::read(tmp)?));
+        Err(io::Error::new(io::ErrorKind::InvalidData, "not the same key"))
+    };
+    for target in [&path, &absent] {
+        let mut seen = None;
+        let e =
+            Replace::new(Mode::Private).write_checked(target, b"new key", |tmp| refuse(&mut seen, tmp)).unwrap_err();
+        let (tmp, body) = seen.expect("the check ran");
+        assert_eq!(body, b"new key");
+        assert_eq!(tmp.parent(), Some(dir.as_path()), "the temporary file is beside the target");
+        assert_ne!(&tmp, target);
+        assert_eq!(e.kind(), io::ErrorKind::InvalidData);
+        let failed = Failed::of(&e).unwrap();
+        assert_eq!((failed.step(), failed.path()), (Step::Check, target.as_path()));
+        assert!(e.to_string().ends_with(": the check of the temporary file: not the same key"), "{e}");
+        assert_eq!(names(&dir), ["id_ed25519"], "no temporary file stays");
+        assert_eq!(std::fs::read(&path).unwrap(), b"old");
+    }
+    let commit = Replace::new(Mode::Private)
+        .write_checked(&path, b"new key", |tmp| match std::fs::read(tmp)? == b"new key" {
+            true => Ok(()),
+            false => Err(io::Error::other("another body")),
+        })
+        .unwrap();
+    assert!(matches!(commit, Commit::Durable), "{commit:?}");
+    assert_eq!(std::fs::read(&path).unwrap(), b"new key");
+    assert_eq!(names(&dir), ["id_ed25519"]);
+    #[cfg(unix)]
+    assert_eq!(mode_of(&path), 0o600);
+    let _ = std::fs::remove_dir_all(&dir);
+}

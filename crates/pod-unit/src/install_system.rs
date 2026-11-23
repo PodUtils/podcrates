@@ -151,8 +151,8 @@ fn secrets(unit: &Unit, host: &dyn Host, owner: u32, who: &str) -> Result<(), Fa
     Ok(())
 }
 
-/// True when the service `unit.name` is there and holds the mark of `unit`
-/// in its description; None when there is no such service.
+/// True when the service `unit.name` is there and holds the mark of `unit`,
+/// or an older mark, in its description; None when there is no such service.
 fn service_there(unit: &Unit, host: &dyn Host) -> Result<Option<bool>, Failure> {
     let ran = host.run("sc.exe", &["qdescription", &unit.name, "8192"], None)?;
     if ran.code == Some(NO_SERVICE) {
@@ -161,7 +161,8 @@ fn service_there(unit: &Unit, host: &dyn Host) -> Result<Option<bool>, Failure> 
     if !ran.success() {
         return Err(ended("sc.exe", &["qdescription", &unit.name, "8192"], &ran));
     }
-    Ok(Some(ran.stdout.contains(&format!("Written by {}.", unit.mark))))
+    let ours = ran.stdout.contains(&format!("Written by {}.", unit.mark));
+    Ok(Some(ours || unit.older_mark_in(|old| ran.stdout.contains(old))))
 }
 
 fn service(unit: &Unit, mut commands: Vec<Command>, host: &dyn Host) -> Result<Vec<String>, Failure> {

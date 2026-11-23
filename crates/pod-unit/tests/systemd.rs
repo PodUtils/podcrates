@@ -91,7 +91,9 @@ fn a_unit_restarts_after_each_end_with_no_limit_of_starts() {
         let text = systemd::render(&unit).expect("a unit");
         let (head, service) = (section(&text, "Unit"), section(&text, "Service"));
         assert!(head.iter().any(|l| l == "StartLimitIntervalSec=0"), "{text}");
-        for line in ["Restart=always", "RestartSec=5", "RestartPreventExitStatus=64 78"] {
+        // systemd older than 230 reads the old name, in [Service] alone.
+        assert!(!head.iter().any(|l| l.starts_with("StartLimitInterval=")), "{text}");
+        for line in ["Restart=always", "RestartSec=5", "RestartPreventExitStatus=64 78", "StartLimitInterval=0"] {
             assert!(service.iter().any(|l| l == line), "{line}: {text}");
         }
         // Each line that is not blank is a comment, a section or a key.
@@ -179,4 +181,45 @@ fn a_program_adds_a_line_past_the_table_but_not_one_of_the_table() {
     assert!(text.contains("\nUMask=0077\nPrivateUsers=yes\nProcSubset=pid\n"), "{text}");
     assert!(unit.hardening.add("ProtectSystem", "full").is_err(), "a key of the table");
     assert!(unit.hardening.add("Bad Key", "x").is_err(), "a key with a space");
+}
+
+/// A restart after a failure alone keeps the limit of starts of systemd:
+/// neither name of the limit is in the unit.
+#[test]
+fn a_unit_that_restarts_after_a_failure_alone_keeps_the_limit_of_starts() {
+    let mut unit = podrunner();
+    unit.restart.always = false;
+    let text = systemd::render(&unit).expect("a unit");
+    assert!(!text.contains("StartLimitInterval"), "{text}");
+}
+
+/// PodUtils/podssh#342 (c): `RemoveIPC=yes` removes each IPC object of the
+/// account at the stop of the unit. A named account can be a person's, so
+/// the line is relaxed with its reason; an account of the service alone
+/// (`DynamicUser=yes`, or a named one that the program says is its own)
+/// keeps the line.
+#[test]
+fn a_named_account_keeps_its_ipc_and_an_account_of_the_service_loses_it() {
+    let dynamic = systemd::render(&node()).expect("a unit");
+    assert!(section(&dynamic, "Service").iter().any(|l| l == "RemoveIPC=yes"), "{dynamic}");
+    let named = systemd::render(&node().system(Some("alice"))).expect("a unit");
+    let service = section(&named, "Service");
+    assert!(!service.iter().any(|l| l == "RemoveIPC=yes"), "{named}");
+    assert!(
+        service
+            .iter()
+            .any(|l| l.starts_with("# Relaxed, as ") && l.contains("alice") && l.ends_with(": RemoveIPC=yes")),
+        "{named}"
+    );
+    assert_eq!(systemd::audit(&named, true), Vec::<String>::new(), "{named}");
+    // The program says that the account is its own; a reason of the
+    // program stays as it gave it.
+    let mut own = node().system(Some("podrunner"));
+    own.hardening.service_account();
+    let text = systemd::render(&own).expect("a unit");
+    assert!(section(&text, "Service").iter().any(|l| l == "RemoveIPC=yes"), "{text}");
+    let mut relaxed = node().system(Some("alice"));
+    relaxed.hardening.relax("RemoveIPC", "the program shares memory with its user").expect("a line");
+    let text = systemd::render(&relaxed).expect("a unit");
+    assert!(text.contains("\n# Relaxed, as the program shares memory with its user: RemoveIPC=yes\n"), "{text}");
 }
