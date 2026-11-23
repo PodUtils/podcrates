@@ -419,6 +419,44 @@ pub fn set_pdeathsig(signal: u64) -> Sysres {
     unsafe { sys(SYS_PRCTL, [PR_SET_PDEATHSIG, signal, 0, 0, 0, 0]) }
 }
 
+/// `prctl(PR_SET_DUMPABLE, on)`. With `false`, a process of the same user
+/// with no capability over the memory of this process cannot trace it or
+/// read its memory, its `/proc/PID/environ` or its `/proc/PID/ns`, and
+/// the files of `/proc/PID` belong to root. An `execve` sets it again.
+/// One system call.
+pub fn set_dumpable(on: bool) -> Sysres {
+    unsafe { sys(SYS_PRCTL, [PR_SET_DUMPABLE, u64::from(on), 0, 0, 0, 0]) }
+}
+
+/// `prctl(PR_SET_NAME, name)`: the name of the calling thread
+/// (`/proc/PID/comm`), cut at 15 bytes. One system call.
+pub fn set_name(name: &CBuf) -> Sysres {
+    unsafe { sys(SYS_PRCTL, [PR_SET_NAME, name.ptr(), 0, 0, 0, 0]) }
+}
+
+/// `prctl(PR_GET_NAME, out)`: the name of the calling thread, NUL-ended.
+pub fn name_of_thread(out: &mut [u8; 16]) -> Sysres {
+    unsafe { sys(SYS_PRCTL, [PR_GET_NAME, out.as_mut_ptr() as u64, 0, 0, 0, 0]) }
+}
+
+/// `brk(0)`: the current break of the heap. It changes nothing. One
+/// system call.
+pub fn brk_now() -> u64 {
+    unsafe { sys(SYS_BRK, [0, 0, 0, 0, 0, 0]) }.map_or(0, |b| b as u64)
+}
+
+/// `prctl(PR_SET_MM, PR_SET_MM_MAP, map, size)`: the memory map of this
+/// process, as `struct prctl_mm_map`. With `exe_fd` -1 it needs no
+/// capability (Linux 3.18 and later, `CONFIG_CHECKPOINT_RESTORE`). One
+/// system call.
+///
+/// # Safety
+/// `map` points at `size` bytes that the kernel reads as a
+/// `struct prctl_mm_map`.
+pub unsafe fn set_mm_map(map: *const u8, size: usize) -> Sysres {
+    unsafe { sys(SYS_PRCTL, [PR_SET_MM, PR_SET_MM_MAP, map as u64, size as u64, 0, 0]) }
+}
+
 /// Give the child of `cmd` `PR_SET_PDEATHSIG(SIGKILL)` between its fork and
 /// its exec, for a crate with no unsafe code. The kernel sends it when the
 /// thread that spawns `cmd` ends, so spawn from a thread that lives as long

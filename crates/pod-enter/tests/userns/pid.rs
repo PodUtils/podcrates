@@ -204,3 +204,63 @@ fn running(pid: i64) -> bool {
     let _ = sys::close(fd);
     !ended
 }
+
+/// The checks of the process `pid` (a word of the shell) that shows
+/// `title`: its command line, its name, and no byte of its environment.
+fn shows(pid: &str, title: &str) -> String {
+    format!(
+        "test \"$(tr '\\000' @ < /proc/{pid}/cmdline)\" = {title}@ || exit 51; \
+         test \"$(cat /proc/{pid}/comm)\" = {title} || exit 52; \
+         test \"$(cat /proc/{pid}/environ 2>/dev/null | wc -c)\" = 0 || exit 53; "
+    )
+}
+
+/// The init and the relay of a join show the title of the plan, or the
+/// product of the names, and no argument or variable of the caller
+/// (T-1112, PodUtils/podvm#646); the payload keeps its own environment.
+/// The relay is not in the PID namespace of the run (`setns` moves its
+/// children only): the caller reads its `/proc/PID`. The relay is not
+/// dumpable, so as a caller with no capabilities its environment is
+/// refused and its files in `/proc/PID` belong to root.
+pub fn shows_a_title(root: &Path) {
+    if !caller() {
+        return;
+    }
+    let dir = RootDir::open(root.to_str().unwrap()).unwrap();
+    for (title, shown) in [(None, Names::DEFAULT.product), (Some("unit-init"), "unit-init")] {
+        let mut p = with_pid(&format!("{}test -n \"$PATH\" || exit 54", shows("1", shown)));
+        p.relay_title = title.map(str::to_string);
+        let mut err = Vec::new();
+        let code = run_namespace(&dir, &p, &mut err);
+        let err = String::from_utf8_lossy(&err);
+        assert_eq!(code.map_err(|e| e.to_string()), Ok(0), "the init shows {shown}: {err}");
+    }
+    let mut err = Vec::new();
+    let run = spawn_namespace(&dir, &with_pid("exec sleep 60"), &mut err).unwrap();
+    wait_for(&run, "sleep");
+    let pidfd = sys::pidfd_open(run.pid).unwrap();
+    let mut p = plan("exec sleep 60", None);
+    p.relay_title = Some("unit-exec".to_string());
+    let mut joined = Vec::new();
+    let exec = spawn_joined(&dir, &p, pidfd, &mut joined).unwrap();
+    let at = |f: &str| format!("/proc/{}/{f}", exec.pid);
+    let cmdline = fs::read(at("cmdline")).unwrap_or_default();
+    let comm = fs::read_to_string(at("comm")).unwrap_or_default();
+    let environ = fs::read(at("environ"));
+    let owner = std::os::unix::fs::MetadataExt::uid(&fs::metadata(at("environ")).unwrap());
+    let _ = sys::close(pidfd);
+    let _ = sys::kill(exec.pid, 9);
+    let _ = exec.wait();
+    let _ = sys::kill(run.pid, 9);
+    let _ = run.wait();
+    let joined = String::from_utf8_lossy(&joined);
+    assert!(!joined.contains("does not share the mounts"), "{joined}");
+    assert_eq!(String::from_utf8_lossy(&cmdline), "unit-exec\0", "the relay shows unit-exec: {joined}");
+    assert_eq!(comm, "unit-exec\n", "the name of the relay");
+    if nobody::is_root() {
+        assert_eq!(environ.map_err(|e| e.to_string()), Ok(Vec::new()), "the environment of the relay");
+    } else {
+        assert!(environ.is_err(), "the relay is dumpable: its environment reads {environ:?}");
+        assert_eq!(owner, 0, "the relay is dumpable: /proc/{}/environ belongs to {owner}", exec.pid);
+    }
+}

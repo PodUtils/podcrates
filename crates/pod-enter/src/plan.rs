@@ -80,6 +80,11 @@ pub struct Plan {
     /// refuses the plan, and the namespace rung does not fall back to
     /// chroot with it: the payload never sees the processes of the host.
     pub pid_namespace: bool,
+    /// The command line and the name that the init of [`Plan::pid_namespace`]
+    /// and the relay of a join of such a run show in `/proc/PID`, with no
+    /// environment ([`crate::title`]); `None` is the product of
+    /// [`Plan::names`]. Each other entry reads none.
+    pub relay_title: Option<String>,
 }
 
 /// One volume of the namespace rung: a recursive bind of the host path

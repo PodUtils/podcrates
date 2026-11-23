@@ -53,6 +53,7 @@ pub mod memfd;
 pub mod plan;
 pub mod stage;
 pub mod status;
+pub mod title;
 pub mod userland;
 pub mod uts;
 

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**877 entries: 149 open, 28 partial, 7 blocked, 693 done.**
+**879 entries: 150 open, 28 partial, 7 blocked, 694 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 202 | 216 |
-| P2 | 69 | 8 | 4 | 361 | 442 |
+| P1 | 4 | 10 | 0 | 203 | 217 |
+| P2 | 70 | 8 | 4 | 361 | 443 |
 | P3 | 76 | 10 | 3 | 128 | 217 |
-| **All** | 149 | 28 | 7 | 693 | 877 |
+| **All** | 150 | 28 | 7 | 694 | 879 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -924,3 +924,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1097](foundation.md) | P2 | S | M0 | chore | open | `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review) |
 | [T-1102](roads.md) | P1 | S | M4 | chore | done | `pod-iroh`: the fork of iroh-relay at 1.4.2, so that iroh 1.4.2 builds it (PodUtils/podssh#341) |
 | [T-1103](roads.md) | P2 | M | M4 | chore | open | `pod-iroh`: iroh 1.5 and iroh-relay 1.5, past the range of the crate (T-1102) |
+| [T-1112](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the init of a PID namespace and the relay of a join show the command line and the environment of the caller to the payload, and a payload of the same user can trace them (PodUtils/podvm#646) |
+| [T-1113](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: the init of a PID namespace in a user namespace of the rung stays dumpable, so a payload of the same caller can trace it and read the memory of the caller |

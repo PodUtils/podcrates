@@ -118,12 +118,8 @@ fn ignore_sigpipe() {
 /// process. `podlab run --way-out` sets it on itself, as its environment
 /// holds the proxy of the host.
 pub fn not_dumpable() {
-    // SAFETY: the call reads no memory of the caller.
-    let _ = unsafe { k::sys(linux_raw_sys::general::__NR_prctl as i64, [PR_SET_DUMPABLE, 0, 0, 0, 0, 0]) };
+    let _ = k::set_dumpable(false);
 }
-
-/// `PR_SET_DUMPABLE` of `prctl(2)`: the same number on each target.
-const PR_SET_DUMPABLE: u64 = 4;
 
 /// The work of the stand-in process. It does not return.
 fn serve(
