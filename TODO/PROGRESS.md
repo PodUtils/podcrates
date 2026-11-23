@@ -5,26 +5,33 @@
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
-- Last release: `v0.81.0` at `0707cfa` (`docs/releases/v0.81.0.md`). Its
-  hand-off COORD-151 (#254) is open: podrunner, podnet and podssh took
-  it at 2026-11-21; podvm has no take.
-- The next tag, `v0.82.0`, comes first: podrunner waits for T-1086
-  (PodUtils/podrunner#339). It carries the fixes of `main` after `v0.81.0`
-  (`docs/HANDOFF.md`, "The next tag"). T-966 and
-  T-963 are partial. T-975 and T-977 (podvm's asks) are open: their code is
-  not on `main`. `release.yml` has steps that run on a tag only, which the
-  dry run does not test (T-974; `docs/maintenance.md`, "A release").
-- The tag that the `main` of each consumer names: `v0.81.0` (podrunner,
-  podssh, podnet), `v0.80.0` (podvm). The details of each take are on #250 and #254.
+- Last GitHub release with `release.yml` assets and `ghcr.io` images:
+  `v0.81.0` at `0707cfa` (`docs/releases/v0.81.0.md`). Its hand-off
+  COORD-151 (#254) stays open because podvm has no take.
+- `v0.82.0` (`51c09390`, `docs/releases/v0.82.0.md`) is tagged without
+  `release.yml` (`publish.yml` 45122406747 passed; `ci.yml` 45122401625
+  failed on `scripts/ci/turn-tests.sh`, fixed at `07d4cc4f`). Cut the
+  next patch tag (e.g. `v0.82.1`, call C818) through `release.yml` on
+  green `main` (`docs/HANDOFF.md`, "Releases: v0.82.0 and the next tag")
+  so podrunner (PodUtils/podrunner#339) and podvm get release assets,
+  `ghcr.io` images and a hand-off COORD issue. T-966 and T-963 are
+  partial. T-975 and T-977 (podvm's asks) are open: their code is not on
+  `main`. `release.yml` has steps that run on a tag only, which the dry
+  run does not test (T-974; `docs/maintenance.md`, "A release").
+- The tag that the `main` of each consumer names: `v0.82.0` (podnet,
+  podssh), `v0.81.0` (podrunner), `v0.80.0` (podvm). The details of the
+  earlier takes are on #250 and #254.
 - PodUtils/static-pkgs builds and publishes the static programs that no
   one else publishes in the form that PodUtils needs (the owner,
   2026-11-20); its first release is `qemu-11.1.3`.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
-- Open defects: T-916 (partial), T-938, T-789, T-766 (the nightly); T-963 (`live.yml`: the
-  second Nostr relay is `nos.lol`; a giver still waits its whole limit
-  after a refusal of the relay);
+- Open defects: `crates/pod-unit/tests/service_live.rs` on `windows-2025`
+  and `windows-11-arm` (`os error 1056`, `nightly.yml` 44871383085,
+  44891581672 and 45009375271); T-916 (partial), T-938, T-789, T-766
+  (the nightly); T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
+  a giver still waits its whole limit after a refusal of the relay);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
   `pod-session`).
 - The session of podcrates coordinates the five sessions: podcrates,
@@ -41,10 +48,10 @@
 - The rest of M8 waits (the ruling "Priority"). The asks of podswarm wait
   until the podswarm session starts, but for T-439, T-444, T-447 and
   T-448 (the ruling "podswarm", call C245).
-- Each name of `docs/design.md`, section 4, is reserved on crates.io
-  (`check-crates-io-names.py`: 102 names, 0 faults), but `pod-beneath`
-  (T-997; "Owner actions"). No crate goes to
-  crates.io now (the ruling "Releases").
+- 102 of the 108 names of `docs/design.md`, section 4, are reserved on
+  crates.io; 6 are missing (`pod-beneath`, `pod-shape`, `pod-cover`,
+  `pod-harness`, `pod-sidecar`, `pod-offline`; "Owner actions"). No crate
+  goes to crates.io now (the ruling "Releases").
 - Blocked: T-217 to T-220 (`pod-git`, the rulings "pod-git" and
   "Renames": `PodUtils/podforge`, deferred). T-538 (the attribution line
   of a comment on GitHub): Q16. T-617 and T-832: their Blocker sections.
@@ -67,14 +74,18 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
-them by COORD issues, podrunner's first. Then, in podcrates: the red nightly
-(T-916, T-938), T-1053 (a lossy run of E2-1 that takes 20 s) and the red `services.yml` (T-1034) and the red live run (T-963). Then the asks of
+them by COORD issues, podrunner's first. Then, in podcrates: the red
+nightly (`pod-unit` `crates/pod-unit/tests/service_live.rs` on Windows;
+T-916, T-938), T-1053 (a lossy run of E2-1 that takes 20 s) and the red
+`services.yml` (T-1034) and the red live run (T-963). Then the asks of
 podrunner (COORD-134, #225): each new ask of podrunner.
 Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;
 cfb's A-X-18 waits for cfb's answer on #223, call C792),
 T-966 (podssh took `pod-release`; podnet's half waits for
-PodUtils/podnet@T-494), T-1073 (the wait of `Context::call` of `pod-control` can end before the server reads the answer of the client). Then cfb's asks
+PodUtils/podnet@T-494), T-1073 and T-1070 (unfinished on
+`origin/wip/t1073`: the wait of `Context::call` of `pod-control` and
+refused places in `Server::active`). Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
 of the consumers: T-1087 and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU sparse file, the attributes of libarchive alone; PodUtils/podvm#643), T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
@@ -188,10 +199,10 @@ takes the number after the last row of that table.
   `POD_DEVTUNNEL_ACCESS_TOKEN` for a tunnel with no anonymous access),
   host the tunnel (`devtunnel host -p 22 --allow-anonymous`), and tell
   the session: it dispatches `live.yml` with `measure=devtunnel`.
-- Reserve the names `pod-beneath` (call C834, T-997) and `pod-unit` (T-102) on crates.io, as for
-  each name of `docs/design.md`, section 4.
-- Delete the branches that #208 names, and the two `dependabot/docker`
-  branches that `docs/HANDOFF.md` names.
+- Reserve the names `pod-beneath` (call C834, T-997), `pod-shape`,
+  `pod-cover`, `pod-harness`, `pod-sidecar` and `pod-offline` on
+  crates.io, as for each name of `docs/design.md`, section 4 (`pod-unit`
+  is reserved).
 
 The hand-off of each release is a COORD issue `(to all)`
 (`docs/maintenance.md`, "A release").
