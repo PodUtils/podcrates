@@ -7342,7 +7342,7 @@ Two tests of `pod-control` fail on both macOS jobs:
 
 - `frame::tests::two_lines_in_one_read_are_two_lines`: "called
   `Result::unwrap()` on an `Err` value: Os { code: 22, kind: InvalidInput,
-  message: "Invalid argument" }" at the read after the drop of the peer.
+  message: \"Invalid argument\" }" at the read after the drop of the peer.
 - `a_reply_before_the_request_is_read` (`tests/server.rs`, the case of
   podrunner): "not an error of the server: Err(Io(Os { code: 22, ... }))".
 
@@ -7479,7 +7479,7 @@ next macOS run shows it.
 ## Problem
 
 `wire::parse` reads a line with `serde_json::from_str`. A JSON string with
-an escape (`\n`, `"`, `\\`, `\uXXXX`) is decoded into the `scratch` buffer
+an escape (`\n`, `\"`, `\\`, `\uXXXX`) is decoded into the `scratch` buffer
 of the `Deserializer` of `serde_json`, and the deserializer frees that
 buffer at its drop with no wipe. A token that holds `"` or `\` (a job token
 of `pod-broker` is printable ASCII, so it can) then stays in freed memory.
@@ -7524,12 +7524,12 @@ that is not JSON after a token gives 1 freed block with the token, and a
 key that comes twice 1, each with no escape). The client wipes the answer
 of each call back after the write (a finding of the new test: 1 freed
 block). `no_freed_block_holds_a_token_of_a_line` (`tests/wipe.rs`, with 6
-lines whose token has `\n`, `"`, `\\`, `\u0041`, `\t`, an escape in a key,
+lines whose token has `\n`, `\"`, `\\`, `\u0041`, `\t`, an escape in a key,
 2 lines that are not JSON, a key twice, and a request and a call back
 whose token has `"`, `\`, a line end and `\u0001`) found 21 freed blocks
 with the token before the fix and 0 after, 20 of 20 runs.
 `no_freed_block_of_the_control_holds_a_token_or_a_secret`
-(`crates/pod-broker/tests/control_wipe.rs`, a `load` with `"` and `\\` in
+(`crates/pod-broker/tests/control_wipe.rs`, a `load` with `\"` and `\\` in
 the token and the secret, one with `\u0041` in a line of `raw`, and a
 token with a line end) found 6 before the fix and 0 after, 20 of 20 runs.
 `each_text_reads_as_serde_json_reads_it`,
@@ -7786,6 +7786,81 @@ the system there can end with no byte at its timeout): the frame test is
 the guard of the write. 20 of 20 runs of each new test with
 `--test-threads=1`, 20 of 20 runs of the test binary `server` in
 parallel, 20 of 20 of `wipe`, 20 of 20 of the frame test.
+
+# T-1089: `pod-unit`: a second call of `windows::serve` in a program that the manager did not start gets `Class::Unavailable` (error 1056), not `Class::Usage` (nightly 44871383085)
+
+**Source:** nightly 44871383085 (jobs 136746463820 and 136746463841, at `ab73e75`), 44891581672 and 45009375271 (jobs 137168060527 and 137168060222, at `50aa5e0`): `test (windows-2025)` and `test (windows-11-arm)`
+**Category:** defect
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The test `a_program_that_the_manager_did_not_start_gets_a_usage_failure`
+of `crates/pod-unit/tests/service_live.rs` calls `windows::serve` two times
+in one process. The first call gets `Class::Usage`. The second call fails:
+"assertion `left == right` failed: StartServiceCtrlDispatcherW: An instance
+of the service is already running. (os error 1056)", as `Class::Unavailable`.
+Windows lets a process call `StartServiceCtrlDispatcherW` one time, also
+after a failed connect (error 1063, `ERROR_FAILED_SERVICE_CONTROLLER_CONNECT`);
+each later call gets error 1056 (`ERROR_SERVICE_ALREADY_RUNNING`). `serve` in
+`crates/pod-unit/src/service_scm.rs` calls the dispatcher at each call and
+maps only 1063 to `Class::Usage`. The steps of the live service after this
+test do not run.
+
+## Premise
+
+- Read: the logs of the jobs of the Source; `serve` and `service_main` of
+  `crates/pod-unit/src/service_scm.rs`; the documents of
+  `StartServiceCtrlDispatcherW` (one call for each process).
+- Read: each call of `StartServiceCtrlDispatcherW` in `crates/`: `serve` is
+  the only one.
+- Not measured: a run on Windows from this host (Linux).
+
+## Approach
+
+Keep the state of the dispatcher of the process in a static (`Dispatch` of
+`crates/pod-unit/src/service.rs`, with no call of Windows, so its test runs
+on each host): free, busy, not started (1063), spent (a run, or 1056).
+`serve` takes the dispatcher before the call; a later call after 1063 gets
+the same `Class::Usage` failure with no second call of Windows; a call after
+a run or after 1056 gets a `Class::Usage` failure that tells that the
+dispatcher runs one time in a process. The test makes three calls and
+compares their texts. The doc comment of `serve` and the README of
+`pod-unit` tell the rule.
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features
+cargo clippy -p pod-unit --all-targets --all-features -- -D warnings
+sh scripts/agent/check-windows.sh
+```
+
+The live proof is the job test of `nightly.yml` on windows-2025 and
+windows-11-arm (`crates/pod-unit/tests/service_live.rs`).
+
+## Done
+
+2026-11-23, this commit. `crates/pod-unit/src/service.rs` has `Dispatch`
+(`take`, `after`, `refusal`) and the two errors `NOT_STARTED_ERROR` (1063)
+and `CALLED_ERROR` (1056); `crates/pod-unit/src/service_scm.rs` asserts at
+compile time that they are the constants of windows-sys. `serve` keeps the
+state in the static `DISPATCH`: a call after a failed connect gets the
+failure of the first call with no call of Windows; a call after a run of the
+dispatcher, after error 1056, or while another thread is in `serve` gets
+`Class::Usage` and does not run its work. The busy state also closes a race
+of the old check of the slot of the work, which `service_main` empties while
+the dispatcher runs. The test
+`service::tests::a_failed_connect_of_the_dispatcher_gives_each_later_call_the_same_usage_failure`
+passes on this host; `crates/pod-unit/tests/service_live.rs` makes three
+calls and compares their texts. `cargo test -p pod-unit`: 50 passed;
+`cargo clippy -p pod-unit --all-targets --all-features -- -D warnings`
+passes for this host and for `x86_64-pc-windows-gnu`;
+`sh scripts/agent/check-windows.sh`: 0 faults. The proof on the runner is the next
+run of `nightly.yml` (jobs `test (windows-2025)` and `test (windows-11-arm)`).
 
 # T-1104: `pod-unit`: a path after a `.` reads as a long random word, so a config under a directory of `mktemp -d` is refused (PodUtils/podrunner#343)
 
