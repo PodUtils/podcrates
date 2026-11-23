@@ -42,8 +42,7 @@ is done. Git and the record keep finished work.
        (44891581672, 45009375271) and `powerpc64le` (45009375271) failed
        in `pod-iroh` (`road.rs`, T-916).
      - `ci` 44871374413, `adoption` 44871377124 and `plants` 44871380137
-       passed on `ab73e75`; #255 stays open until the record maps these
-       nightly failures.
+       passed on `ab73e75`.
    - Current `main` runs (`51c09390` `v0.82.0` and `07d4cc4f` `HEAD`):
      - At `51c09390` (`v0.82.0`): `publish.yml` 45122406747 on `v0.82.0`
        (`dry-run`, `crates-io = false`), `plants.yml` 45122401716,
