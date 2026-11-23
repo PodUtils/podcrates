@@ -1,0 +1,6 @@
+# pod-job: unknown_reasons names a time that the report has, and the check and the schema take it (T-1098).
+ENTRY=T-1098
+GROUP=job
+EXPECT='invalid-reason-of-a-present-time|a_reason_of_a_time_needs_the_time_absent'
+RUN='cargo test -p pod-job --all-features --lib schemas'
+LIMIT=900
