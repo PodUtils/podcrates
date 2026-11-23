@@ -1,0 +1,8 @@
+# Each blank line starts a new wait for the answer of a call back: a client
+# that sends blank lines holds the call back with no limit, and no answer of
+# the request comes (T-1073).
+ENTRY=T-1073
+GROUP=control
+EXPECT='no answer while blank lines come'
+RUN='cargo test -p pod-control --all-features --test server a_call_back_meets_one_deadline_for_blank_lines'
+LIMIT=900

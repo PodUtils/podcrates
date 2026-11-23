@@ -1,0 +1,13 @@
+diff --git a/crates/pod-control/src/server.rs b/crates/pod-control/src/server.rs
+index 2ac59fad..018090ce 100644
+--- a/crates/pod-control/src/server.rs
++++ b/crates/pod-control/src/server.rs
+@@ -367,7 +367,7 @@ fn call_back<S: Stream>(
+     lines.write_line_by(&line, deadline).map_err(|_| CallFault::Gone)?;
+     drop(line);
+     loop {
+-        match lines.next_line_by(deadline).map_err(|_| CallFault::Gone)? {
++        match lines.next_line(settings.read_timeout).map_err(|_| CallFault::Gone)? {
+             Line::Text(t) if t.trim().is_empty() => continue,
+             Line::Text(t) => {
+                 return match wire::parse(&t) {

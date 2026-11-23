@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 872 entries: 149 open, 28 partial, 7 blocked, 688 done.
+`TODO/INDEX.md` holds 876 entries: 148 open, 28 partial, 7 blocked, 693 done.
 
 ## State
 
@@ -77,15 +77,14 @@ podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red
 nightly (`pod-unit` `crates/pod-unit/tests/service_live.rs` on Windows;
 T-916, T-938), T-1053 (a lossy run of E2-1 that takes 20 s) and the red
-`services.yml` (T-1034) and the red live run (T-963). Then the asks of
+`services.yml` (T-1034), the red live run (T-963) and the drift of
+`upstream.yml` (T-1097: podnet's change of `pod-testkit`'s source). Then the asks of
 podrunner (COORD-134, #225): each new ask of podrunner.
 Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;
 cfb's A-X-18 waits for cfb's answer on #223, call C792),
 T-966 (podssh took `pod-release`; podnet's half waits for
-PodUtils/podnet@T-494), T-1073 and T-1070 (unfinished on
-`origin/wip/t1073`: the wait of `Context::call` of `pod-control` and
-refused places in `Server::active`). Then cfb's asks
+PodUtils/podnet@T-494). Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
 of the consumers: T-1087 and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU sparse file, the attributes of libarchive alone; PodUtils/podvm#643), T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,

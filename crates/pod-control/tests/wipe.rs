@@ -5,7 +5,7 @@
 //! `\\`, `\uXXXX`) is read into a buffer of its own (T-1048). The answer of
 //! the host and of a call back is wiped on each path where the server drops
 //! it (T-1060): after the write, past the budget of calls back, after `busy`,
-//! and after the wait of [`pod_control::Context::call`].
+//! and after the wait of [`pod_control::Context::call_within`].
 //! The allocator of this binary searches each freed block for the marker
 //! ([`pod_testkit::freed`]), so the binary has this one test.
 
@@ -16,6 +16,7 @@ mod common;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::UnixStream;
 use std::path::Path;
+use std::sync::{Condvar, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
@@ -197,7 +198,11 @@ impl Host for Sly {
                 Ok(Value::Null)
             }
             "slow-back" => {
-                assert_eq!(cx.call("confirm", json!({})), Err(CallFault::Gone));
+                let back = cx.call_within("confirm", json!({}), Duration::from_millis(50));
+                assert_eq!(back, Err(CallFault::Gone));
+                let (ended, cv) = &WAIT_ENDED;
+                *ended.lock().unwrap() = true;
+                cv.notify_all();
                 Ok(Value::Null)
             }
             _ => Err(Fault::new(Code::Unsupported, "no such method")),
@@ -246,8 +251,11 @@ fn late_back(path: &Path) {
     assert!(matches!(&got, Err(Error::Remote(f)) if f.code == Code::Busy), "{got:?}");
 }
 
-/// The client holds the call back with blank lines past the wait of
-/// [`Context::call`], then answers it with a token.
+/// The end of the wait of [`Context::call_within`] in `slow-back`.
+static WAIT_ENDED: (Mutex<bool>, Condvar) = (Mutex::new(false), Condvar::new());
+
+/// The client answers the call back with a token after the host stopped
+/// its wait ([`Context::call_within`]), before the deadline of the server.
 fn slow_back(path: &Path) {
     let mut stream = UnixStream::connect(path).unwrap();
     stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
@@ -256,12 +264,10 @@ fn slow_back(path: &Path) {
     let mut line = String::new();
     reader.read_line(&mut line).unwrap();
     assert!(line.contains("\"for\":1"), "{line}");
-    // The wait of the host: the read and the write timeout and one second.
-    let end = Instant::now() + Duration::from_millis(1_800);
-    while Instant::now() < end {
-        stream.write_all(b"\n").unwrap();
-        std::thread::sleep(Duration::from_millis(50));
-    }
+    let (ended, cv) = &WAIT_ENDED;
+    let guard = cv.wait_timeout_while(ended.lock().unwrap(), Duration::from_secs(5), |e| !*e).unwrap();
+    assert!(*guard.0, "the wait of the host did not end");
+    drop(guard);
     stream
         .write_all(concat!(r#"{"schema":1,"id":1,"ok":true,"result":""#, marker!(), "-slow-back\"}\n").as_bytes())
         .unwrap();
