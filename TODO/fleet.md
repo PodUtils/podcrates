@@ -4443,6 +4443,8 @@ sh scripts/plant-each.sh --group manual
 - Finding: T-726 (clap gives no getter of `requires`: the reader gives
   no `Rule::Needs`).
 
+2026-11-23, podnet's take: podnet took `Command::groups` and `Command::lead` in `c5615d7` (PodUtils/podnet#686, PodUtils/podnet@T-473), and `pod_manual::check::help` runs in its tests.
+
 # T-726: `pod-manual`: the reader of clap gives no `Rule::Needs` (clap's `requires`)
 
 **Source:** T-725 (the read of podnet's glue for PodUtils/podnet#589).
@@ -6350,7 +6352,7 @@ sh scripts/agent/check.sh
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -6384,6 +6386,7 @@ cargo todo check
 
 2026-11-19, podssh's half: podssh took `pod-release` in `c9772a3` (PodUtils/podssh#329, PodUtils/podssh@T-850), with `v0.77.0` at `b3005e5`. Its `update/` keeps its flags, lines, exit codes, `trust()` and the lines of the way back; `sigstore.rs`, `release.rs`, `fetch.rs`, `replace.rs`, `keep.rs`, `trial.rs` and `trust/` are gone; the steps are `update::newest`, `signed`, `binary` and `install`, with `keep::rollback` and `replace::running()`; its update tests pass (4, 18 and the offline ones). `crates/pod-release/SOURCES` has `taken c9772a3` in the podssh block: `check-sources.py` gives 0 changes. podssh does not use `update::plan` (T-971). podnet's half waits for PodUtils/podnet@T-494, behind the asks of podrunner. podssh's `release.yml` writes `release-index.json` with `scripts/release-index.py` (taken at `v0.77.0` by its SHA-256) before `SHA256SUMS` from `679b940`; its run by hand 44571898795 passed (PodUtils/podssh#329: podssh's T-850 is done). podnet writes its index with its take.
 
+2026-11-23, podnet's half: podnet took `pod-release` in `af42f0d` (PodUtils/podnet#686, PodUtils/podnet@T-494), with `v0.82.0` and the feature `fetch`; the Done of T-880 names what it uses and what it removed. `crates/pod-release/SOURCES` has `taken af42f0d` in the podnet block: `check-sources.py` with a clone of podnet gives 0 changes. podnet writes no `release-index.json` yet: the update does not need it; T-1118 holds it. Both halves are taken, and no trial file of `pod-release` stays in `adoption/`. `cargo test -p pod-release --all-features`: lib 66, 8 and 13 passed in the test binaries (0 failed).
 
 # T-967: `pod-release`: a minisign signature beside the Sigstore bundle
 
@@ -7953,3 +7956,148 @@ field"; `start_s` is not in the `propertyNames`).
 `cargo test -p pod-job --all-features`: lib 26 passed. Plant
 `job-t1098-reason-of-a-present-time` added; plant
 `job-unknown-reason-of-a-count` follows the new code.
+
+# T-1104: `pod-unit`: a path after a `.` reads as a long random word, so a config under a directory of `mktemp -d` is refused (PodUtils/podrunner#343)
+
+**Source:** PodUtils/podrunner#343 (COORD-121 of podrunner; PodUtils/podrunner@T-602 waits for it).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podrunner: "`pod_unit::secret::looks_secret` ... splits a word at each byte
+outside `[A-Za-z0-9_+/-]`, and splits a run at `/` only when the run starts
+with `/`. A `.` inside a path therefore starts a run that keeps its `/`: in
+`/tmp/tmp.Ab3dEf9kQ2/serve-config/podrunner.toml` the run after the dot is
+`Ab3dEf9kQ2/serve-config/podrunner` (33 bytes, upper and lower case and
+digits ...), and `random` gives "a long random word"." So
+`podrunner print-unit --config /tmp/tmp.Ab3dEf9kQ2/serve-config/podrunner.toml`
+exits 64, as do `install-unit --system` and each unit that `pod-unit`
+renders with a path under a directory of `mktemp -d`.
+
+## Premise
+
+- Read: `crates/pod-unit/src/secret.rs` (`runs`, `random`) and
+  `crates/pod-unit/src/secret_tests.rs`; the issue.
+- Measured: the new test `a_path_under_a_directory_of_mktemp_is_no_secret`
+  fails on the code before the fix.
+- Not measured: podrunner's `print-unit` on the fixed crate.
+
+## Approach
+
+Split a word first into fields of the bytes of a token and `.`. A field
+that starts with `/` or holds a `.` is a path or a name (no token of
+base64 holds a `.`): split it at each `/` and `.`, so that no run crosses
+a component. Any other field is one run, so a token of base64 keeps its
+`/`. A component of 10 random characters is below `RANDOM_LEN` (32) and
+passes; a component or a value after `=` of the length of a secret is
+still refused.
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features --lib secret
+```
+
+## Done
+
+2026-11-23, this commit (call C906). `crates/pod-unit/src/secret.rs`: `runs` splits a word into fields of `A-Z a-z 0-9 _ - + / .`; a field that starts with `/` or holds a `.` splits at each `/` and `.`, any other field is one run (a token of base64 keeps its `/`).
+
+- Before the fix, `TMPDIR=/tmp cargo test -p pod-unit --lib secret` failed `a_path_under_a_directory_of_mktemp_is_no_secret` on `/tmp/tmp.Ab3dEf9kQ2/serve-config/podrunner.toml`, and `a_secret_in_a_component_or_a_token_with_a_slash_is_still_refused` (a GitHub token as a component after a `.` read as a random word).
+- `a_path_under_a_directory_of_mktemp_is_no_secret`: the path of the issue, the same as `--config=PATH` and as a separate argument of a unit, `/tmp/tmp.Ab3dEf9kQ2`, a relative path and a path under a dot directory pass. A component of `mktemp -d` has 10 random characters, below `RANDOM_LEN` (32).
+- `a_secret_in_a_component_or_a_token_with_a_slash_is_still_refused`: a token of base64 with `/` and `+`, alone and after `--x=`; a component of 40 random characters (`/etc/creds/T`, `/tmp/tmp.X/T.toml`); a value after `=` in a path; a GitHub token as a component: each is refused by its rule. Each case of the earlier tests stays refused.
+- `crates/pod-unit/README.md` ("No secret in a unit") and the doc comment of `secret.rs` give the rule.
+- `TMPDIR=/tmp cargo test -p pod-unit --all-features`: each test passes (the lib: 18). `cargo clippy -p pod-unit --all-targets --all-features -- -D warnings`: clean.
+
+# T-1105: `pod-unit`: the check of a secret refuses a public key of OpenSSH and a fingerprint as a long random word (PodUtils/podssh#342 ask (a))
+
+**Source:** PodUtils/podssh#342 ask (a) (COORD-135 of podssh; podssh's T-715 and `serve --print-unit --authorized-key`).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh: "`Unit::check` refuses "a long random word". That rule catches an
+`ssh-ed25519 AAAA...` key and a `SHA256:` fingerprint: a model of the rule
+refused 200 of 200 keys and 198 of 200 fingerprints. So `podssh node
+--install --net-owner KEY` ... and `podssh serve --print-unit
+--authorized-key 'ssh-ed25519 ...'` would be refused. Ask: pass public keys
+and fingerprints, or take a caller's list of words that are public."
+
+## Premise
+
+- Read: `crates/pod-unit/src/secret.rs`, `crates/pod-unit/src/model.rs`
+  (`Unit`, `#[non_exhaustive]`); RFC 4253 (the blob of `ssh-rsa` and
+  `ssh-dss`), RFC 5656 (ecdsa), RFC 8709 (ed25519), OpenSSH PROTOCOL.u2f
+  (the `sk-` types).
+- Measured: the new tests `a_public_key_and_a_fingerprint_of_openssh_pass`
+  and `a_word_that_the_caller_names_public_passes` fail on the code before
+  the fix.
+- Not measured: podssh's commands on the fixed crate.
+
+## Approach
+
+Both forms of the ask. A field of base64 that starts with `AAAA` and
+decodes to exactly the parts of a known type of public key (the name, then
+the count of parts of that type; a key of ed25519 of 32 bytes) gives no
+run; a byte more or a part less is no key. A field of 43 of base64 after
+`SHA256:` gives no run; an `MD5:` fingerprint is runs of 2. A new builder
+`Unit::public(WORD)` (a new field `Unit::public`; `Unit` is
+`#[non_exhaustive]`, so no signature changes) names a public word: the
+scan cuts each place of it out of each word, and the bytes beside it
+are still read.
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features --lib secret
+```
+
+## Done
+
+2026-11-23, this commit (call C906). `crates/pod-unit/src/secret.rs`: `public_form` and `ssh_public_key` (a field of base64 that starts with `AAAA` and decodes to exactly the parts of a type of `SSH_TYPES`, a key of ed25519 of 32 bytes; 43 of base64 after `SHA256:`); `crates/pod-unit/src/model.rs`: the field `Unit::public` and the builder `Unit::public(WORD)`, which `secret::check` cuts out of each word. New dependency of `pod-unit`: `base64` (of the workspace).
+
+- Before the fix, `a_public_key_and_a_fingerprint_of_openssh_pass` failed on `ssh-ed25519 AAAAC3...`.
+- `a_public_key_and_a_fingerprint_of_openssh_pass`: 50 made-up keys of each of `ssh-ed25519`, `ssh-rsa` (2048 bits), `ecdsa-sha2-nistp256`, `sk-ssh-ed25519@openssh.com`, with and without a comment, and 50 `SHA256:` and `MD5:` fingerprints, alone and after `--owner=`, pass; a unit with `--authorized-key KEY` passes `Unit::check`.
+- `a_form_near_a_public_key_is_still_refused`: a blob of ed25519 with one part more, a blob cut and a token after it, a blob of `openssh-key-v1`, and 60 of random after `SHA256:` are refused. The private key and the random token of `each_known_token_is_refused_by_its_rule` stay refused.
+- `a_word_that_the_caller_names_public_passes`: a word named by `Unit::public` passes; the same word with no name, or with another name, is refused; a GitHub token beside a public word is refused.
+- `TMPDIR=/tmp cargo test -p pod-unit --all-features`: each test passes. `cargo clippy -p pod-unit --all-targets --all-features -- -D warnings`: clean.
+
+# T-1118: `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686)
+
+**Source:** PodUtils/podnet#686 (COORD-114 of podnet, PodUtils/podnet@T-494): "podnet does not write `release-index.json` yet; the update does not need it."
+**Category:** chore
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-966 says that each project writes its own `release-index.json` with `scripts/release-index.py` in its release workflow, before `SHA256SUMS`. podssh does it since `v0.77.0`. podnet took `pod-release` (`af42f0d`) and writes no index: `pod-release verify --all` and the readers of the index cannot check a release of podnet by its index.
+
+## Premise
+
+- Read: PodUtils/podnet#686; the Done of T-966; `scripts/release-index.py` and `crates/pod-release/README.md`.
+- Not measured: the release workflow of podnet.
+
+## Approach
+
+Name the step in the next COORD issue `(to podnet)`: the release workflow of podnet runs `scripts/release-index.py` (taken at a tag, by its SHA-256) before `SHA256SUMS`, and puts the line of the index in `SHA256SUMS`, as the README of `pod-release` says. podnet may read the index in its update after that.
+
+## Prove
+
+```sh
+python3 -I scripts/release-index.py --self-test
+cargo test -p pod-release --all-features
+```
+
+## Start condition
+
+The coordinator names the step in a COORD issue `(to podnet)` and podnet answers.

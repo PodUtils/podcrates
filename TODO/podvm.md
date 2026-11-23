@@ -11556,6 +11556,7 @@ the code of `0d4af7e`) passed: the static QEMU 11.1.3 runs `warm::`, and
 `a_real_emulator_saves_the_plan_from_qemu_11_1_and_boots_cold_before` saves the plan line with its
 NVMe root disk and starts it warm.
 
+2026-11-23, podvm's take: podvm took the three archives of `static-pkgs-qemu` (QEMU 11.1.3) in `4fa56ec` (PodUtils/podvm#645, PodUtils/podvm@T-2066). PodUtils/podvm:crates/podvm-windows/src/tools.rs and the host tests of podvm name the service, and podvm checks each archive and member by its size and SHA-256.
 
 # T-1018: `pod-enter`: `the_tokens_agree_with_the_loader_of_the_host` fails where the test binary is of another machine than the `/bin/true` of the host
 
@@ -12115,6 +12116,8 @@ pod-supervise --all-features`: 44 unit tests passed; `foreground`,
 podvm drops `PodUtils/podvm:crates/podvm-supervise/src/stream.rs` and its tests (the
 adoption map of `crates/pod-supervise/README.md`).
 
+2026-11-23, podvm's take: podvm took `pod_supervise::stream` and `follow_from_limit` in `93524ce` (PodUtils/podvm#645, PodUtils/podvm@T-2046), and removed PodUtils/podvm:crates/podvm-supervise/src/stream.rs and its tests. `crates/pod-supervise/SOURCES` has `taken 93524ce` in the block of the stream: `check-sources.py` with a clone of podvm gives 0 changes.
+
 # T-1046: `pod-incus`: a read of a file in pieces to a writer, with a `Range` and a byte bound of the caller (PodUtils/podvm#631)
 
 **Source:** PodUtils/podvm#631 (COORD-221 of podvm, PodUtils/podvm@T-2046, for PodUtils/podrunner#333), ask 2
@@ -12213,6 +12216,8 @@ with `-D warnings` pass for the four crates. podvm: `logs
 --podvm-tier=incus` reads `get_file_to(name, LOG, Some(ByteRange::from(seen)),
 left, out)` on each poll and drops its bound of 64 MiB; a `size` below
 `seen` sets its offset back.
+
+2026-11-23, podvm's take: podvm took the ranged read in `93524ce` (PodUtils/podvm@T-2046): `logs --podvm-tier=incus` reads the log with `Client::get_file_to` in pieces, with no bound of 64 MiB.
 
 # T-1056: `pod-guest`: `qmp::Monitor::connect` puts no bound on the `connect()` itself, so a connect to the full queue of the monitor of QEMU waits in the kernel with no end (PodUtils/podvm#633)
 
@@ -12316,6 +12321,8 @@ clippy and `cargo doc` with `-D warnings` pass. podvm: `Monitor::connect`
 with its bound replaces the thread of its `connect`, and `ask_within` and
 `late` read a late answer on the same connection.
 
+2026-11-23, podvm's take: podvm took the bounded `Monitor::connect` in `8fd14c2` (PodUtils/podvm#645, PodUtils/podvm@T-2051). Its own thread around the connect is gone. The wait for a loaded guest, `save::running` of podvm, stays in podvm: it needs the `Child` of the emulator.
+
 # T-1057: `pod-guest`: the tests of `warm::line` have no stand-in of the monitor of QEMU with one client and a queue of one connection (PodUtils/podvm#633)
 
 **Source:** PodUtils/podvm#633 (COORD-222 of podvm, PodUtils/podvm@T-2048), ask 3
@@ -12393,6 +12400,8 @@ in 60s" and "the save did not end in 60s"; the row `Late` passes on the
 code before: `freeze` already kept one connection. The import is in
 `crates/pod-guest/SOURCES` (podvm `867f79e`, blob `81ea50fb`).
 `cargo test -p pod-guest --all-features`: lib 197 passed, 1 ignored.
+
+2026-11-23, podvm's take: podvm took `pod_guest::warm::line` (`save`, `check`, `Inputs`) in `8fd14c2` (PodUtils/podvm@T-2051). Its stand-in PodUtils/podvm:crates/podvm/src/machine/guest/state/tests_monitor.rs stays in podvm as the test of its save against the crate. `crates/pod-guest/SOURCES` has `taken 4fa56ec` in the block of that file: `check-sources.py` with a clone of podvm gives 0 changes.
 
 # T-1080: `pod-enter`: `E2BIG` at `execve` gives 127 ("not found"), and a search of the path keeps the errno of its last candidate, so a program that was found and refused does not give 126 (PodUtils/podvm#639)
 
@@ -12504,6 +12513,8 @@ of `ns_pid` moved to `crate::tests::plain_plan`, so the new test adds no
 clone. `cargo test --workspace --all-features` passes (pod-enter lib 266,
 pod-hostprobe lib 180). podvm can drop its read of the text `E2BIG (7)`
 when it takes the tag with this entry.
+
+2026-11-23, podvm's take: podvm took the tag with this entry in `0eb10b2a` (PodUtils/podvm#645, PodUtils/podvm@T-2062). Its read of the text `E2BIG (7)` in `podvm_enter::ExitCode` is gone, and an oversized `--env-file` exits 126 as root and as uid 1000.
 
 # T-1086: `pod-extract`: a layer of GNU tar `--acls` is refused whole, as the PAX record `SCHILY.acl.access` holds a newline byte (PodUtils/podvm#643)
 
@@ -12622,6 +12633,8 @@ the sparse archives of versions 0.0, 0.1 and 1.0 are refused with the
 cause. The plants `extract-t1086-acl-text-dropped` and
 `extract-t1086-sparse-not-refused` are caught.
 `cargo test -p pod-extract --all-features`: lib 102 passed. Call C899.
+
+2026-11-23, podvm's take: podvm took the ACLs of a layer in `0eb10b2a` (PodUtils/podvm#645, PodUtils/podvm@T-2065). A layer of GNU tar `--format=posix --xattrs --acls` extracts with its ACLs, as the caller and as uid 1000; the test of podvm is `a_layer_with_the_acls_of_gnu_tar_extracts_with_its_modes` (PodUtils/podvm:crates/podvm/tests/extract_modes.rs). The image of the incus tier keeps only `security.capability` and `user.*`, so an ACL does not reach an incus instance.
 
 # T-1087: `pod-extract`: a GNU sparse file of the PAX form (`GNU.sparse.`) refuses its layer, as the `tar` reader does not read it
 

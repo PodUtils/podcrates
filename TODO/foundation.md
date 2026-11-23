@@ -2161,6 +2161,8 @@ cargo test -p pod-core --all-features lock
 
 2026-11-17, 67bcafed4, 66d8b39fd: `pod_core::lock::FileLock` with `Mode` (exclusive, shared): `try_lock` (`Ok(None)` where another process holds a lock that excludes it) and `lock_within` (a wait with a bound; at the bound a refusal of class `Unavailable` that names the file). It is `std::fs::File::lock` (stable since Rust 1.89): `flock(2)` on Linux and the BSDs, so it interoperates with the `flock` locks of the consumers, and `LockFileEx` on Windows. The file opens read and write, made where absent, mode 0600 and `O_NOFOLLOW` on Unix, close-on-exec. Tests in `crates/pod-core/src/lock_tests.rs`: modes, a bounded wait, a link at the path refused; clippy with and with no default feature. Plant `core-lock-follows-a-link`, caught. Not run here: Windows (CI builds `pod-core` for it). The consumers replace their copies at their take: podssh `known_hosts/lock.rs` and `detach/lock.rs`, podrunner `src/lock.rs`, podnet's instance lock.
 
+2026-11-23: PodUtils/podnet#686 names no take of `pod_core::lock`.
+
 # T-878: `pod-core`: one injectable clock, in place of the copies of podrunner and of three crates
 
 **Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
@@ -2212,6 +2214,7 @@ podnet (PodUtils/podnet:crates/podnet-core/src/detach.rs, 799 lines, with `detac
 ## Premise
 
 - Read: the paths above, at the head of each consumer's `main`.
+- 2026-11-23: PodUtils/podnet#686 (the last copies of COORD-104) names no take of this crate: the crate does not exist.
 
 ## Approach
 
@@ -2291,6 +2294,8 @@ What each consumer changes to take it (T-966 holds the trials and the hand-off):
 - Both: write `release-index.json` with `scripts/release-index.py` in the release workflow, before
   `SHA256SUMS`.
 
+2026-11-23, podnet's take: podnet took `pod-release` in `af42f0d` (PodUtils/podnet#686, PodUtils/podnet@T-494), with `v0.82.0` and the feature `fetch`. `podnet update` checks each release with `pod_release::verify_release` and `Verified::check`, and uses `version`, `update::plan`, `update::install`, `keep::rollback`, `keep::prev_of` and `replace::running`. podnet keeps its own fetch, its flags, its lines and its exit codes, and removed PodUtils/podnet:src/update/cosign.rs and PodUtils/podnet:src/sigstore-fulcio.pem. `crates/pod-release/SOURCES` has `taken af42f0d` in the podnet block (T-966).
+
 # T-881: `pod-tls`: the CA bundle that the environment names, in place of three lists in the consumers
 
 **Source:** the survey of the consumers for the owner's ruling "Shared code" (2026-11-17).
@@ -2362,6 +2367,8 @@ cargo test --workspace --all-features
 - Kept: `pod-cloudflare` `proxy/head.rs` reads the origin's answer with httparse and gives the names of the headers in their case to the edge (32 KiB, 256 lines); its request head comes from the metadata of the edge, checked by the `http` crate. The writers of a fixed form stay: `pod-piping`'s request, the request of `webtunnel.rs` (Go's order), the CONNECT of `via/http1.rs` (its credential in `Zeroizing`), the XHTTP head of `vless/h1.rs`. T-928 has the other readers.
 - podrunner's checks hold in the shared parser: tests `a_request_line_with_a_control_character_is_refused` (each ASCII control byte, C1 controls, a tab) and `an_authorization_header_keeps_its_value_as_given`. podrunner takes `parse_request` with `Bounds`, `request_head` and `response_head` at its take.
 - Tests: `pod-core` lib 75 passed (13 of `http1`, table-driven); `cargo test --all-features` of `pod-proxy`, `pod-ws`, `pod-incus`, `pod-piping`, `pod-relay`, `pod-egress` and `pod-lab`: each test passed. Fuzz target `http_request` (`cargo test --manifest-path fuzz/Cargo.toml --lib`: 14 passed). Plant `core-http1-control-in-request-line`: caught; plant `proxy-reason-of-429` moves to `pod-core`: caught. `cargo clippy --workspace --exclude static-probe --all-targets --all-features -- -D warnings`: clean; `static-probe` fails on the base (T-929).
+
+2026-11-23, podnet's take of the readers (PodUtils/podnet#686, PodUtils/podnet@T-473): `08232dd` takes `pod_proxy::http` (`read_head_exact`, `parse_head`, `read_request`, `read_response`) in PodUtils/podnet:crates/podnet-netns/src/tailscale.rs and PodUtils/podnet:src/router/control.rs; `94e3cab` takes `pod_core::http1` (`find_request`, `parse_request`) in PodUtils/podnet:crates/podnet-core/src/util/http.rs; `08b9c2e` takes `pod_proxy::Dialer` and `pod_proxy::blocking` in the CONNECT client of PodUtils/podnet:crates/podnet-core/src/connect.rs (`ssh-relay --connect-proxy`).
 
 # T-896: `pod-proxy`: the handshake of SOCKS5 and of CONNECT on a stream that the caller holds (a hop of a chain) (PodUtils/podnet#652)
 
@@ -2852,6 +2859,7 @@ core-replace-removes-a-file-it-did-not-make`: 2 caught. Removing
 `O_NOFOLLOW` from the temporary file is no plant: `create_new` already
 refuses a link at the name.
 
+2026-11-23, the takes of the consumers: podvm took `pod_core::files::replace` for each atomic replace of a file in `70cf507` (PodUtils/podvm#645, PodUtils/podvm@T-2066); podnet took it in `9a9a0a9` (PodUtils/podnet#654); podrunner took it in `f0dad16` and `ef8df01` (PodUtils/podrunner#340). The optional items of podssh are its T-820.
 
 # T-1097: `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review)
 
