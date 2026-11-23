@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**880 entries: 149 open, 28 partial, 7 blocked, 696 done.**
+**881 entries: 149 open, 28 partial, 7 blocked, 697 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 204 | 218 |
+| P1 | 4 | 10 | 0 | 205 | 219 |
 | P2 | 69 | 8 | 4 | 362 | 443 |
 | P3 | 76 | 10 | 3 | 128 | 217 |
-| **All** | 149 | 28 | 7 | 696 | 880 |
+| **All** | 149 | 28 | 7 | 697 | 881 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -923,6 +923,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1095](relay.md) | P2 | M | M2 | feature | open | `pod-ws`: the order of the request's pseudo-fields of the browser shape is a patch of h2 in podssh, not a part of the crate (PodUtils/podssh#340) |
 | [T-1096](services.md) | P2 | S | M5 | measurement | done | `pod-services`: `localtunnel.me` and `download.freedos.org` give no answer to the runners of GitHub on each run, but answer other networks |
 | [T-1097](foundation.md) | P2 | S | M0 | chore | open | `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review) |
+| [T-1098](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: `run-report.v1` refuses a reason of a time that the report does not know (`start_s`) (PodUtils/podrunner#342) |
 | [T-1102](roads.md) | P1 | S | M4 | chore | done | `pod-iroh`: the fork of iroh-relay at 1.4.2, so that iroh 1.4.2 builds it (PodUtils/podssh#341) |
 | [T-1103](roads.md) | P2 | M | M4 | chore | open | `pod-iroh`: iroh 1.5 and iroh-relay 1.5, past the range of the crate (T-1102) |
 | [T-1104](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a path after a `.` reads as a long random word, so a config under a directory of `mktemp -d` is refused (PodUtils/podrunner#343) |

@@ -1,0 +1,25 @@
+diff --git a/crates/pod-job/src/report.rs b/crates/pod-job/src/report.rs
+--- a/crates/pod-job/src/report.rs
++++ b/crates/pod-job/src/report.rs
+@@ -238,7 +238,7 @@
+     /// [`TIMES`] that is absent: only such a field takes a reason.
+     fn has_no_value(&self, name: &str) -> bool {
+         match self.time(name) {
+-            Some(time) => time.is_none(),
++            Some(_) => true,
+             None => self.measured(name) == Some(Residual::Unknown(Unknown::Unknown)),
+         }
+     }
+diff --git a/crates/pod-job/src/json_schema.rs b/crates/pod-job/src/json_schema.rs
+--- a/crates/pod-job/src/json_schema.rs
++++ b/crates/pod-job/src/json_schema.rs
+@@ -136,7 +136,8 @@
+     let times =
+         TIMES.iter().map(|name| json!({ "if": when(name), "then": { "properties": { (*name): { "type": "null" } } } }));
+     if let Some(Value::Array(rules)) = schema.get_mut("allOf") {
+-        rules.extend(measured.chain(times));
++        let _ = times;
++        rules.extend(measured);
+     }
+     let names: Vec<&str> = MEASURED.iter().chain(TIMES.iter()).copied().collect();
+     if let Some(Value::Object(field)) = schema.get_mut("properties").and_then(|p| p.get_mut("unknown_reasons")) {

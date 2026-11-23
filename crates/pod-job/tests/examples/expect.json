@@ -20,6 +20,7 @@
   "run-report/invalid-image-digest-tag.json": "is not sha256:HEX",
   "run-report/invalid-job-image-tag.json": "the job image \"alpine:3.22\" is not sha256:HEX",
   "run-report/invalid-reason-of-a-count.json": "which is not an unknown measured field",
+  "run-report/invalid-reason-of-a-present-time.json": "\"start_s\", which is not an unknown measured field or an absent time",
   "run-report/invalid-refused-no-code.json": "a refused report needs refusal_code",
   "run-report/invalid-refused-with-unit.json": "a refused report has no unit fields",
   "run-report/invalid-unit-id.json": "a unit id is u- and a decimal number",
