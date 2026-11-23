@@ -11,14 +11,18 @@
 # systemd as the manager, the account (by `id -u`, not a read of
 # /etc/passwd), the unit of the mark at 0644 and the steps of systemctl; the
 # probe of the cache of the user and the file of variables stay in podssh.
-repo PodUtils/podssh db0db54f14dbc335dd906ae112074cd9339c16d7
-file 9251c7ca0ee9ea484b98bbfe0312047b213e2312 crates/podssh-cli/src/node_install/text.rs -> crates/pod-unit/src/quote.rs crates/pod-unit/src/systemd.rs crates/pod-unit/src/launchd.rs crates/pod-unit/src/windows.rs crates/pod-unit/src/cron.rs
-file e2519f6a7aacdc3b2b2d9ae693376d73463ea034 crates/podssh-cli/src/node_install/system_text.rs -> crates/pod-unit/src/hardening.rs crates/pod-unit/src/systemd.rs
+# podssh 1fa8f87 (PodUtils/podssh#342) takes `quote`, `cron::WATCHDOG`,
+# `windows::utf16` and the values of `hardening::LINES`: no port. The
+# renderers and the install steps in the same files are not taken, so the
+# block moved to 1fa8f87 (T-1122) and the check follows each file.
+repo PodUtils/podssh 1fa8f873471ee267fe5f4aa297a1c49669232600
+file f27b930e8de9911abb9a40d81a415820ae02e5a8 crates/podssh-cli/src/node_install/text.rs -> crates/pod-unit/src/quote.rs crates/pod-unit/src/systemd.rs crates/pod-unit/src/launchd.rs crates/pod-unit/src/windows.rs crates/pod-unit/src/cron.rs
+file a7b04be90c02039d26117028d7931715f529f051 crates/podssh-cli/src/node_install/system_text.rs -> crates/pod-unit/src/hardening.rs crates/pod-unit/src/systemd.rs
 file 6caee959d1c3a526ac0ddb155e7c7cf8b35bf77f crates/podssh-cli/src/node_install/launchd.rs -> crates/pod-unit/src/install_ways.rs
-file db8431082422140ab63ae456b5a62d82f553ca37 crates/podssh-cli/src/node_install/windows.rs -> crates/pod-unit/src/install_ways.rs
+file 654c8708cfaba0023dc13d4f8cddd4eceb5e4e49 crates/podssh-cli/src/node_install/windows.rs -> crates/pod-unit/src/install_ways.rs
 file 982c8a2108f207937ed49424266dcbc02c5b5243 crates/podssh-cli/src/node_install/unix.rs -> crates/pod-unit/src/install_ways.rs crates/pod-unit/src/install.rs
 file 5fd3d52cc2b018a87103f6d3dfae73c201beaa99 crates/podssh-cli/src/node_install/tests.rs -> crates/pod-unit/src/quote.rs crates/pod-unit/tests/forms.rs crates/pod-unit/tests/systemd.rs
-file b89a93412f27d48f91fbcafb56a668b0bbecf8ad crates/podssh-cli/src/node_install/system_tests.rs -> crates/pod-unit/tests/systemd.rs crates/pod-unit/tests/install_system.rs
+file 7db61b469963b43a8b0178e57dbd484aa50bbe23 crates/podssh-cli/src/node_install/system_tests.rs -> crates/pod-unit/tests/systemd.rs crates/pod-unit/tests/install_system.rs
 file 941fea84389ff2c0724d5fcecd018cb6a65017eb crates/podssh-cli/src/node_install/system.rs -> crates/pod-unit/src/install_system.rs crates/pod-unit/src/systemd.rs
 file df256a833f564b504b75aa9135f0dcd6c12bcc34 crates/podssh-cli/src/node_install/system_install.rs -> crates/pod-unit/src/install_system.rs crates/pod-unit/src/install_ways.rs
 

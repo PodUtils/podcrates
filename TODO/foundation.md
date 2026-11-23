@@ -2937,7 +2937,7 @@ the heads of the consumers found other changes: T-1111.
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2996,3 +2996,111 @@ The commit messages name entries of the consumers' records (PodUtils/podnet@T-49
 ```sh
 python3 -I scripts/check-sources.py pod-guest pod-release pod-supervise
 ```
+
+## Done
+
+2026-11-23. The takes record (`d8e4d7be`) added `taken af42f0d` to the
+podnet block of `crates/pod-release/SOURCES`, `taken 93524ce` to the
+podvm block of `crates/pod-supervise/SOURCES` and `taken 4fa56ec` to the
+podvm block of `crates/pod-guest/SOURCES` at `867f79e`. The change of
+`5b2b272` needs no port: the copy of the test in
+`crates/pod-guest/src/qmp/tests/queue.rs` makes its socket in
+`pod_testkit::host::socket_dir`, a short directory, and
+`crates/pod-guest/src/warm/line/tests_queue.rs` makes no socket.
+`upstream.yml` run 45224210077 (job `sources`, on main `b83985e`):
+`pod-guest`, `pod-release` and `pod-supervise` give 0 changes. The
+other changes of that run (`pod-testkit`, `pod-unit`) are T-1122.
+
+
+# T-1122: `pod-testkit`, `pod-unit`: the changes of podrunner and podssh at their heads (port review)
+
+**Source:** `upstream.yml` run 45224210077 (job `sources`, on main `b83985e`, 2026-11-23).
+**Category:** chore
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`upstream.yml` run 45224210077 reports 6 changes in two crates, so the
+run is red:
+
+```text
+pod-testkit: changed PodUtils/podrunner:crates/podrunner-broker-fake/src/message.rs -> crates/pod-testkit/src/github/message.rs
+check-sources: pod-testkit: PodUtils/podrunner at e7e5d4c: 6 files, 1 changes
+pod-testkit: changed PodUtils/podrunner:docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+check-sources: pod-testkit: PodUtils/podrunner at 0fd2218: 2 files, 1 changes
+pod-unit: changed PodUtils/podssh:crates/podssh-cli/src/node_install/{system_tests.rs,system_text.rs,text.rs,windows.rs}
+check-sources: pod-unit: PodUtils/podssh at db0db54: 9 files, 4 changes
+```
+
+The fakes of `pod-testkit` (`pod-fake-github`, `pod-fake-githome`) run
+in the CI of podrunner and githome: a fix of podrunner's fake broker that
+the fake of GitHub does not have is a defect of that CI.
+
+## Premise
+
+- Read: `git show` of podrunner `9fdf2c3` (`message.rs`, "the canned job
+  gives strategy, matrix, needs and vars") and `43226db`
+  (`source-driver.md`, the CPU time of the incus kind), with their
+  messages; `git show 1fa8f87` of podssh on `node_install/` (PodUtils/podssh#342).
+- Read: `crates/pod-testkit/src/github/message.rs`,
+  `crates/pod-testkit/src/githome/wire.rs`, the three `SOURCES`.
+- Not measured: a job of the fake of GitHub on the official runner after
+  the change (the live test of the runner runs in podrunner's CI).
+
+## Approach
+
+1. Port the context data of `9fdf2c3` (`strategy`, `matrix`, `needs`,
+   `vars` of a job with no matrix) into the job message of the fake of
+   GitHub, with a test. The overrides of a job are podrunner's: this fake
+   has none.
+2. `43226db` changes a rule of the measure of a driver (the CPU time of
+   the incus kind). The fake keeps the fields of a report as the session
+   sends them: no port.
+3. podssh `1fa8f87` replaces its copies of the quoting, the watchdog of
+   the crontab, the UTF-16 of a task and the values of the hardening with
+   calls into `pod-unit`: no logic to port. The renderers and the install
+   steps in the same files are not taken, so move the podssh block to
+   `1fa8f87` with the new blobs, not a `taken` line that ends the check
+   of those files.
+4. Move each block of `SOURCES` to the commit of its change, with the
+   blobs of `git ls-tree`.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --all-features --lib github::message
+python3 -I scripts/check-sources.py --clone PodUtils/podrunner=PODRUNNER --clone PodUtils/podssh=PODSSH --clone PodUtils/podnet=PODNET pod-testkit pod-unit
+```
+
+## Done
+
+2026-11-23. `crates/pod-testkit/src/github/message.rs`: the context
+data of the job message has `strategy` (fail-fast true, job-index 0,
+job-total 1, max-parallel 1), `matrix` null, and empty `needs` and
+`vars`, as GitHub sends them for a job with no matrix. The runner
+expands an expression only when each context that its schema names is a
+key of the context data. The steps of this fake are literal `run:`
+scripts, so no job of this fake failed; the change makes the message
+match GitHub's. Test:
+`github::message::tests::the_context_data_has_each_context_that_the_runner_expands_with`
+(it fails on the code before: no `strategy`). Wire change for the
+release notes: the job message of `pod-fake-github` (release asset and
+ghcr image) has four more keys of `contextData`. `pod-fake-githome`:
+no change.
+
+`crates/pod-testkit/SOURCES`: the broker block is at `9fdf2c3` (blob
+`10ed400` of `message.rs`; the other five blobs are the same), the
+contract block at `43226db` (blob `71aa3c4` of `source-driver.md`;
+`conformance.rs` the same), with no port of `43226db`.
+`crates/pod-unit/SOURCES`: the podssh block is at `1fa8f87` with the
+blobs of `text.rs`, `system_text.rs`, `system_tests.rs` and
+`windows.rs`; no `taken` line, as podssh takes only `quote`,
+`cron::WATCHDOG`, `windows::utf16` and the values of
+`hardening::LINES`. `check-sources.py` with clones of podrunner
+(`1f04680`), podssh (`444b518`) and podnet: "pod-testkit: PodUtils/podrunner
+at 9fdf2c3: 6 files, 0 changes", "at 43226db: 2 files, 0 changes",
+"pod-unit: PodUtils/podssh at 1fa8f87: 9 files, 0 changes", and 0 in
+each other block.

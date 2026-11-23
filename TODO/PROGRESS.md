@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 883 entries: 149 open, 27 partial, 7 blocked, 700 done.
+`TODO/INDEX.md` holds 884 entries: 148 open, 27 partial, 7 blocked, 702 done.
 
 ## State
 
@@ -83,10 +83,7 @@ podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red
 nightly (`pod-unit` `crates/pod-unit/tests/service_live.rs` on Windows;
 T-916, T-938), T-1053 (a lossy run of E2-1 that takes 20 s) and the red
-`services.yml` (T-1034), the red live run (T-963) and the drift of
-`upstream.yml` (T-1111: the takes of `pod-release` by podnet and of
-`pod_supervise::stream` by podvm, and podvm's change of a test of
-`pod-guest`'s source). Then the asks of
+`services.yml` (T-1034) and the red live run (T-963). Then the asks of
 podrunner (COORD-134, #225): each new ask of podrunner.
 Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;
