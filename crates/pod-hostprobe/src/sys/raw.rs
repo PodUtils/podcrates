@@ -50,6 +50,11 @@ pub const AT_FDCWD: u64 = -100i64 as u64;
 
 pub const PR_SET_PDEATHSIG: u64 = 1;
 pub const PR_SET_NO_NEW_PRIVS: u64 = 38;
+pub const PR_SET_DUMPABLE: u64 = 4;
+pub const PR_SET_NAME: u64 = 15;
+pub const PR_GET_NAME: u64 = 16;
+pub const PR_SET_MM: u64 = 35;
+pub const PR_SET_MM_MAP: u64 = 14;
 /// A child subreaper takes each orphan of its descendants in place of init.
 pub const PR_SET_CHILD_SUBREAPER: u64 = 36;
 

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**884 entries: 148 open, 27 partial, 7 blocked, 702 done.**
+**890 entries: 151 open, 27 partial, 7 blocked, 705 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 206 | 220 |
-| P2 | 67 | 7 | 4 | 366 | 444 |
-| P3 | 77 | 10 | 3 | 128 | 218 |
-| **All** | 148 | 27 | 7 | 702 | 884 |
+| P1 | 4 | 10 | 0 | 209 | 223 |
+| P2 | 69 | 7 | 4 | 366 | 446 |
+| P3 | 78 | 10 | 3 | 128 | 219 |
+| **All** | 151 | 27 | 7 | 705 | 890 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -929,5 +929,11 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1104](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a path after a `.` reads as a long random word, so a config under a directory of `mktemp -d` is refused (PodUtils/podrunner#343) |
 | [T-1105](fleet.md) | P2 | S | M8 | defect | done | `pod-unit`: the check of a secret refuses a public key of OpenSSH and a fingerprint as a long random word (PodUtils/podssh#342 ask (a)) |
 | [T-1111](foundation.md) | P2 | S | M0 | chore | done | `pod-guest`, `pod-release`, `pod-supervise`: the changes of podvm and podnet at their heads (port review) |
+| [T-1112](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the init of a PID namespace and the relay of a join show the command line and the environment of the caller to the payload, and a payload of the same user can trace them (PodUtils/podvm#646) |
+| [T-1113](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: the init of a PID namespace in a user namespace of the rung stays dumpable, so a payload of the same caller can trace it and read the memory of the caller |
+| [T-1114](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`: `bind_staged` binds at the path when the stage does not fit in `sun_path`, and macOS refuses a path in its temporary directory (PodUtils/podssh#343) |
+| [T-1115](upkeep.md) | P2 | S | M5 | chore | open | Two more copies of the bind of a Unix socket at a long path: `pod-link` (`bind_private`) and `pod-supervise` (`control_via_fd`) |
+| [T-1116](adapters.md) | P1 | S | M3 | defect | done | `pod-cloudflare`: the edge refuses a new quick tunnel with "Tunnel not found" for more than three tries, and the start exits 69 (PodUtils/podnet#685) |
+| [T-1117](adapters.md) | P3 | S | M3 | docs | open | podnet's documents give the serial limits of the legs of `pod-cloudflare` as 130 s and 280 s; T-1116 makes them 110 s and 210 s |
 | [T-1118](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686) |
 | [T-1122](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`, `pod-unit`: the changes of podrunner and podssh at their heads (port review) |

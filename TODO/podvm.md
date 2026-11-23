@@ -12787,3 +12787,191 @@ that the interposer keeps a copy of `src/loader.rs`, so a change of its
 of each crate against the consumers' heads found one other change
 (T-1097). `pod-manual` gives 0 changes with the `taken` lines of its
 `SOURCES`: the Prove of T-863 (open) passes.
+
+# T-1112: `pod-enter`: the init of a PID namespace and the relay of a join show the command line and the environment of the caller to the payload, and a payload of the same user can trace them (PodUtils/podvm#646)
+
+**Source:** PodUtils/podvm#646 (COORD-230 of podvm, PodUtils/podvm@T-2054)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm: "On the namespace rung two processes of `pod-enter` stay in the PID
+namespace of the payload: (1) the init of `Plan::pid_namespace`
+(`ns_pid`, a fork of the launcher for `run -d`), pid 1 of the container;
+(2) the relay of `spawn_joined` (the join of `exec` into a running
+container). Each is a fork with no exec, so `/proc/PID/cmdline` and
+`/proc/PID/environ` show the parent's strings: the payload reads podvm's
+whole argv (values of `-e`, secrets) and the caller's environment
+(tokens). Both are dumpable, so a payload with the same ids can ptrace
+them and read that memory." Measured by podvm as uid 1000: pid 1 showed
+`podvm run -d --name pv -e SECRET=... ...`, and `/proc/1/environ` gave the
+variables of the caller. podvm hides them on its side
+(PodUtils/podvm:crates/podvm-enter/src/title.rs at `80a955af`: `hide`,
+`restore`, `blank_in_place`), with two gaps that only `pod-enter` can
+close: the pty relay of an exec as uid 0 with `-t` has more than one
+thread, and `hide` refuses a process of more threads; both processes stay
+dumpable. The ask: in the init and in the relay, after the maps of the
+user namespace and before the fork of the payload, while the process has
+one thread, set a title and an empty environment with
+`prctl(PR_SET_MM, PR_SET_MM_MAP)` (`exe_fd` -1) and the name with
+`PR_SET_NAME`; where the kernel refuses, write NUL over the command line
+and the environment in place; set `PR_SET_DUMPABLE` 0 where the design
+allows; a field of the plan gives the title; take `title.rs` as the one
+copy in podcrates.
+
+## Premise
+
+- Read: `crates/pod-enter/src/launch.rs`: the child of each entry is a
+  `clone` of the caller, so it has one thread whatever the threads of the
+  caller (the relay of the pty of podvm). The init and the relay are that
+  child after `ns_pid::Pid::split`, which comes after the limits and the
+  confinement.
+- Read: PodUtils/podvm:crates/podvm-enter/src/title.rs at `80a955af`
+  (blob `7d5ca7a`): it reads the map from `/proc/self/stat`, the break
+  with `brk(0)`, and points `arg_start` to `env_end` at a title on the
+  heap (the kernel reads these files with `FOLL_ANON`).
+- Read: Linux `kernel/sys.c`: `PR_SET_MM_MAP` with `exe_fd` -1 needs no
+  capability; `check_data_rlimit` compares the break with `RLIMIT_DATA`,
+  so the title goes before the limits of the plan. `kernel/nsproxy.c`:
+  `setns` on a pidfd asks `ptrace_may_access(PTRACE_MODE_READ_REALCREDS)`;
+  a process that is not dumpable passes it only for a caller with
+  `CAP_SYS_PTRACE` in the user namespace of its memory, which a fork keeps
+  (the namespace of the caller).
+- Read: the tests of the PID namespace (`crates/pod-enter/tests/userns/pid.rs`)
+  join the run through the pidfd of its init, as podvm does.
+- Read: `crates/pod-enter/src/ns_join.rs`: `setns(CLONE_NEWPID)` moves
+  the children of the relay into the PID namespace of the run, not the
+  relay. So the payload of an exec does not see the relay in its `/proc`
+  (its parent pid is 0); the caller and the other processes of the
+  caller's user see it on the host.
+- Not measured: a kernel with no `CONFIG_CHECKPOINT_RESTORE`.
+
+## Approach
+
+`pod_enter::title` takes podvm's file (the same items, the calls of
+`pod_hostprobe::sys` in place of `prctl` and `syscall`), with its tests,
+and adds `Shown`: the parent reads the map and makes the title before the
+fork; the child sets it after the root change and the working directory
+(after the maps of each user namespace), before the rules, the limits, the
+confinement and the fork of the payload. A refused map writes NUL over the
+command line and the environment. `Plan::relay_title` gives the title;
+`None` is the product of `Plan::names` (call C910). The relay of a join is
+not dumpable; the init is not dumpable where the rung makes no user
+namespace; the init in a user namespace of the rung stays dumpable, as the
+join of a caller with no capabilities opens it (T-1113).
+`pod_hostprobe::sys` gets `set_dumpable`, `set_name`, `name_of_thread`,
+`brk_now` and `set_mm_map`; `pod-lab` takes `set_dumpable`. A live test as
+root and as the caller with no capabilities, and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --lib title::tests
+cargo test -p pod-enter --all-features --test userns the_init_and_the_relay_show_a_title_and_no_environment
+sh scripts/ci/userns-tests.sh
+sh scripts/plant-each.sh enter-pid-init-shows-the-caller
+```
+
+## Done
+
+2026-11-23, this commit. `pod_enter::title` (`crates/pod-enter/src/title.rs`,
+tests in `crates/pod-enter/src/title/tests.rs`) is the one copy of
+podvm's `title.rs` (blob `7d5ca7a` at `80a955af`, a block of its own in
+`crates/pod-enter/SOURCES`): `hide`, `restore`, `blank_in_place`, `Map`,
+`map_of`, `titled`, `Refused`, with the raw calls of `pod_hostprobe::sys`
+(`set_mm_map`, `set_name`, `name_of_thread`, `brk_now`, `set_dumpable`;
+`pod-lab`'s `not_dumpable` takes `set_dumpable`). Items 1 and 2 of the ask:
+the child of the entry (one thread, also where the caller has the threads
+of a pty) sets the title and an empty environment with `PR_SET_MM_MAP` and
+the name with `PR_SET_NAME`, after the maps of each user namespace and the
+root change, before the rules, the limits, the confinement and the fork of
+the payload; a refused map writes NUL over the strings in place.
+`Plan::relay_title` gives the title; `None` is `Plan::names.product`
+(call C910). Item 3: the relay of a join is not dumpable, and the init is
+not dumpable where the rung makes no user namespace; the init in a user
+namespace of the rung stays dumpable (T-1113). A finding: the relay of a
+join is not in the PID namespace of the run (`setns(CLONE_NEWPID)` moves
+its children only), so the payload of an exec does not see it; the
+caller's user sees it on the host. Tests:
+`title::tests::the_title_and_the_dump_flag_follow_the_fork`,
+`title::tests::a_hidden_process_shows_its_title_and_no_environment` and
+`title::tests::the_map_is_read_from_the_fields_of_proc_stat` (podvm's two
+tests), and
+`the_init_and_the_relay_show_a_title_and_no_environment`
+(`crates/pod-enter/tests/userns/pid.rs`, as root and as uid 65534): the
+payload reads in `/proc/1` the title of the plan, or `pod-enter` with no
+title, as the command line and the name, and an empty environment; the
+caller reads `unit-exec` in `/proc/PID` of the relay, and as uid 65534
+the environment of the relay is refused and its `/proc/PID/environ`
+belongs to root. On the code before the fix the test fails with exit 51
+("the init shows pod-enter"). With a static busybox, `tests/userns.rs`
+passes as root and as uid 65534 (15 tests, no skip line), also the joins
+of a run with an init that is not dumpable (root) and that is
+(uid 65534). `cargo test -p pod-enter --all-features`: lib 269 passed,
+1 ignored; `pod-hostprobe` lib 180; `pod-lab` lib 69. Plant:
+`enter-pid-init-shows-the-caller` (the title not set). podvm can drop its
+`hide` around `spawn_selected` and `spawn_joined`, give
+`relay_title`, and take `pod_enter::title` for its own processes.
+
+# T-1113: `pod-enter`: the init of a PID namespace in a user namespace of the rung stays dumpable, so a payload of the same caller can trace it and read the memory of the caller
+
+**Source:** T-1112 (PodUtils/podvm#646)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The init of `Plan::pid_namespace` is a fork of the caller with no exec.
+T-1112 gives it a title and no environment in `/proc/PID`, but where the
+rung makes a user namespace (a caller with no capabilities) it stays
+dumpable. Its memory is a copy of the memory of the caller: the bytes of
+the command line and of the environment stay on its stack after
+`PR_SET_MM_MAP`, and its heap holds what the caller parsed (the values of
+`-e`, a token of the environment). The payload is the same user and holds
+`CAP_SYS_PTRACE` over that user namespace only, not over the namespace of
+the memory of the init (the namespace of the caller), so `PR_SET_DUMPABLE`
+0 would stop `ptrace` and `process_vm_readv`. But a join of an exec opens
+the namespaces of the run through the pidfd of the init
+(`setns(pidfd, ...)`), and the kernel refuses that to a caller with no
+capabilities where the init is not dumpable.
+
+## Premise
+
+- Read: Linux `kernel/nsproxy.c` (`validate_nsset`: `ptrace_may_access`
+  of the target), `kernel/ptrace.c` (`__ptrace_may_access`: a target that
+  is not dumpable needs `CAP_SYS_PTRACE` in `mm->user_ns`), and
+  `fs/proc/base.c` (the files of `/proc/PID` of a process that is not
+  dumpable belong to root).
+- Read: `crates/pod-enter/src/title.rs` (`Shown::of` keeps this init
+  dumpable) and `crates/pod-enter/src/ns_join.rs` (the join takes the
+  pidfd of the caller).
+- Not measured: the refusal of the join of a caller with no capabilities
+  to an init that is not dumpable.
+
+## Approach
+
+Make the join open the namespaces of a process of the run that stays
+dumpable: `spawn_joined` finds the payload (pid 2) of the init of the
+pidfd (`/proc/PID/task/PID/children`, read before the fork, then a pidfd
+of that pid and a check that its parent is still the init), or the caller
+keeps a pidfd of the payload (`Child`). Then the init becomes not
+dumpable in each case. Also write NUL over the bytes of the old command
+line and environment after the map takes, where they are on the stack.
+Measure first that the join of a caller with no capabilities fails on an
+init that is not dumpable. Test: as the caller with no capabilities the
+payload cannot read `/proc/1/environ` or `/proc/1/mem`, and an exec still
+joins the run.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --test userns the_init_and_the_relay_show_a_title_and_no_environment
+sh scripts/ci/userns-tests.sh
+```

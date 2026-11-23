@@ -6,7 +6,7 @@
 //! `src/cloudflare/rpc.rs`) and the schema of cloudflared. No code of
 //! another project is in it.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -34,11 +34,16 @@ const EDGE_EXPORT: u32 = 42;
 
 /// What the edge answers to `registerConnection`.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Reply {
     /// Accept a tunnel that the stand-in API issued.
     Accept,
     /// Refuse with a cause and no retry.
     Refuse(String),
+    /// Refuse with a cause, `shouldRetry` and the wait `after`
+    /// (`retryAfter`), as the edge refuses a new tunnel that it does not
+    /// know.
+    RefuseRetry { cause: String, after: Duration },
 }
 
 /// One `registerConnection` that the edge got.
@@ -65,6 +70,8 @@ type Sender = h2::client::SendRequest<Bytes>;
 pub struct Edge {
     api: Arc<Api>,
     reply: Mutex<Reply>,
+    /// The replies of the next registrations, in order, before `reply`.
+    script: Mutex<VecDeque<Reply>>,
     /// The tunnels with a control stream, by hostname: (connection, sender).
     tunnels: Mutex<HashMap<String, Vec<(usize, Sender)>>>,
     pub registrations: Mutex<Vec<Registration>>,
@@ -77,6 +84,7 @@ impl Edge {
         Arc::new(Edge {
             api,
             reply: Mutex::new(Reply::Accept),
+            script: Mutex::new(VecDeque::new()),
             tunnels: Mutex::new(HashMap::new()),
             registrations: Mutex::new(Vec::new()),
             unregistrations: AtomicUsize::new(0),
@@ -87,6 +95,12 @@ impl Edge {
     /// What the next registrations get.
     pub fn answer(&self, reply: Reply) {
         *self.reply.lock().unwrap() = reply;
+    }
+
+    /// The replies of the next registrations, one for each, in order. When
+    /// the script ends, the registrations get the reply of [`Edge::answer`].
+    pub fn script(&self, replies: impl IntoIterator<Item = Reply>) {
+        self.script.lock().unwrap().extend(replies);
     }
 
     /// Wait until `hostname` has a control stream.
@@ -280,7 +294,8 @@ async fn rpc(
 enum ReplyBody {
     Empty,
     Details(String),
-    Refused(String),
+    /// The cause and, with a retry, its wait.
+    Refused(String, Option<Duration>),
 }
 
 fn register(
@@ -297,7 +312,8 @@ fn register(
     let tunnel_id = params.get_data(1)?;
     let issued = edge.api.issued_by_id(&tunnel_id);
     let valid = issued.as_ref().is_some_and(|t| t.account_tag == account_tag && t.secret == secret);
-    let reply = edge.reply.lock().unwrap().clone();
+    let scripted = edge.script.lock().unwrap().pop_front();
+    let reply = scripted.unwrap_or_else(|| edge.reply.lock().unwrap().clone());
     let accepted = valid && reply == Reply::Accept;
     edge.registrations.lock().unwrap().push(Registration {
         conn_index: params.get_u8(0),
@@ -312,10 +328,11 @@ fn register(
         *hostname = Some(issued.hostname);
         return Ok(ReplyBody::Details("standin1".into()));
     }
-    Ok(ReplyBody::Refused(match reply {
-        Reply::Refuse(cause) => cause,
-        Reply::Accept => "the tunnel or its secret is not known".into(),
-    }))
+    Ok(match reply {
+        Reply::Refuse(cause) => ReplyBody::Refused(cause, None),
+        Reply::RefuseRetry { cause, after } => ReplyBody::Refused(cause, Some(after)),
+        Reply::Accept => ReplyBody::Refused("the tunnel or its secret is not known".into(), None),
+    })
 }
 
 /// A `Return` for `question`: `ConnectionResponse` or an empty result.
@@ -338,13 +355,17 @@ fn return_message(question: u32, body: &ReplyBody) -> Vec<u8> {
             b.set_data(details, 0, Uuid::new_v4().as_bytes());
             b.set_text(details, 1, location);
         }
-        ReplyBody::Refused(cause) => {
+        ReplyBody::Refused(cause, retry) => {
             let results = b.init_struct(payload, 0, 0, 1);
             let response = b.init_struct(results, 0, 1, 1);
             b.set_u16(response, 0, 0);
-            // ConnectionError: cause, retryAfter, shouldRetry = false.
+            // ConnectionError: cause, retryAfter (ns), shouldRetry.
             let error = b.init_struct(response, 0, 2, 1);
             b.set_text(error, 0, cause);
+            if let Some(after) = retry {
+                b.set_u64(error, 0, u64::try_from(after.as_nanos()).unwrap_or(u64::MAX));
+                b.set_bool(error, 64, true);
+            }
         }
     }
     b.to_bytes()

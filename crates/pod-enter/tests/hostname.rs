@@ -62,6 +62,7 @@ fn plan(script: &str, hostname: Option<&str>) -> Plan {
         volumes: Vec::new(),
         userns_ids: None,
         pid_namespace: false,
+        relay_title: None,
     }
 }
 
