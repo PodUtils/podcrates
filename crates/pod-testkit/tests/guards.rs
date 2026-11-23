@@ -25,6 +25,26 @@ fn the_probes_agree_with_the_host() {
     }
 }
 
+fn reached_after_need_route(addr: std::net::SocketAddr, reached: &std::cell::Cell<bool>) {
+    pod_testkit::need_route!(addr);
+    reached.set(true);
+}
+
+#[test]
+fn need_route_returns_with_no_route_and_runs_with_a_route_on_the_loopback() {
+    let reached = std::cell::Cell::new(false);
+    // A socket of AF_INET has no route to an IPv6 address on each target.
+    let v6: std::net::SocketAddr = "[2001:db8::1]:7777".parse().unwrap();
+    assert!(pod_testkit::host::route(v6).is_err(), "an AF_INET socket connected to an IPv6 address");
+    reached_after_need_route(v6, &reached);
+    assert!(!reached.get(), "the guard let a test run with no route");
+    pod_testkit::need_loopback!();
+    let local: std::net::SocketAddr = "127.0.0.1:9".parse().unwrap();
+    assert_eq!(pod_testkit::host::route(local), Ok(()), "the loopback works, so a route to it exists");
+    reached_after_need_route(local, &reached);
+    assert!(reached.get(), "the guard refused a route on the loopback");
+}
+
 fn reached_after_need_tool(tool: &str, reached: &std::cell::Cell<bool>) {
     pod_testkit::need_tool!(tool);
     reached.set(true);

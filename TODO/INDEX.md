@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**873 entries: 150 open, 28 partial, 7 blocked, 688 done.**
+**874 entries: 149 open, 28 partial, 7 blocked, 690 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 201 | 215 |
-| P2 | 68 | 8 | 4 | 359 | 439 |
+| P2 | 67 | 8 | 4 | 361 | 440 |
 | P3 | 78 | 10 | 3 | 126 | 217 |
-| **All** | 150 | 28 | 7 | 688 | 873 |
+| **All** | 149 | 28 | 7 | 690 | 874 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -742,7 +742,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-860](relay.md) | P2 | S | M2 | defect | done | `pod-piping`: the probe of a node's upgrade sends no header of the caller (PodUtils/podssh#306) |
 | [T-861](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: a mailbox run that times out before `WQREADY` tells nothing of the agent (PodUtils/podvm#468) |
 | [T-862](upkeep.md) | P1 | S | M5 | defect | done | `pod-broker`: names mode still resolves each name on the host, so a host whose names resolve only through its proxy refuses each CONNECT (PodUtils/podrunner#215) |
-| [T-863](fleet.md) | P2 | S | M0 | chore | open | `pod-manual`: the changes of podssh to the imported files before its take (port review) |
+| [T-863](fleet.md) | P2 | S | M0 | chore | done | `pod-manual`: the changes of podssh to the imported files before its take (port review) |
 | [T-864](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: a new devpts instance and `/dev/ptmx` on the namespace rung, so that `openpty` works in a unit (PodUtils/podvm#469) |
 | [T-865](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: keep a relay member's `meet` from its `/relays.json` (PodUtils/podssh#307) |
 | [T-866](fleet.md) | P2 | S | M0 | feature | done | `pod-lab`: a profile of the three limits together: no `AF_INET` bind, no network namespace, no write of another process's memory (PodUtils/podnet#649) |
@@ -919,4 +919,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1088](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: the attributes of an archive of libarchive with `xattrheader=LIBARCHIVE` are dropped with no word |
 | [T-1094](podvm.md) | P1 | S | M7 | chore | done | `pod-confine`: the changes of podvm to the files of the loader (port review, `upstream.yml` 45024358679) |
 | [T-1095](relay.md) | P2 | M | M2 | feature | open | `pod-ws`: the order of the request's pseudo-fields of the browser shape is a patch of h2 in podssh, not a part of the crate (PodUtils/podssh#340) |
-| [T-1097](foundation.md) | P2 | S | M0 | chore | open | `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review) |
+| [T-1097](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review) |
+| [T-1111](foundation.md) | P2 | S | M0 | chore | open | `pod-guest`, `pod-release`, `pod-supervise`: the changes of podvm and podnet at their heads (port review) |

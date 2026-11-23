@@ -5256,7 +5256,7 @@ cargo test -p pod-actions-workflow --all-features --test expand
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5277,6 +5277,18 @@ cargo test -p pod-actions-workflow --all-features --test expand
 ```sh
 python3 -I scripts/check-sources.py pod-manual
 ```
+
+## Done
+
+2026-11-23. The `taken` lines of `crates/pod-manual/SOURCES` (commit
+`ca005b55`, T-969): `taken c4a2a64` for the man files, `flags.rs` and
+`PodUtils/podssh:scripts/interop-man.sh`, and `taken 1e5de58` for `pager.rs`.
+`check-sources.py --clone PodUtils/podssh=PODSSH --clone
+PodUtils/podnet=PODNET pod-manual` with podssh at its head `af95c50` and
+podnet at `ef189d2`: "PodUtils/podnet at 78a3911, taken at 9217b0b: 9
+files, 0 changes", "PodUtils/podssh at d8e54f0, taken at c4a2a64 (8
+paths), taken at 1e5de58 (1 paths): 9 files, 0 changes", "PodUtils/podssh
+at 1e5de58: 1 files, 0 changes"; exit 0.
 
 # T-866: `pod-lab`: a profile of the three limits together: no `AF_INET` bind, no network namespace, no write of another process's memory (PodUtils/podnet#649)
 

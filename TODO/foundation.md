@@ -2860,7 +2860,7 @@ refuses a link at the name.
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2899,4 +2899,92 @@ the test when the host has no route to ADDR). The next run of
 ```sh
 cargo test -p pod-testkit --all-features
 python3 -I scripts/check-sources.py --clone PodUtils/podnet=PODNET pod-testkit
+```
+
+## Done
+
+2026-11-23. No guard of a route was in the workspace (`codegraph.py
+similar route probe skip`). `crates/pod-testkit/src/host.rs` has
+`host::route(addr)` (a UDP socket on `0.0.0.0:0` and its connect to
+ADDR; `Err(reason)` when the bind or the connect fails; no datagram
+leaves the host) and the macro `need_route!(ADDR)`, exported as the other
+guards. A socket of `std::net` builds on each target, so the code needs
+no `cfg`. The README lists the guard and the podnet row of the adoption
+map. Test: `tests/guards.rs`
+`need_route_returns_with_no_route_and_runs_with_a_route_on_the_loopback`
+(an IPv6 address from an `AF_INET` socket is `Err` and the guard returns;
+with the loopback, a route to `127.0.0.1:9` is `Ok` and the guard lets the
+test run). `crates/pod-testkit/SOURCES`: the podnet block is at
+`4df2895`, blob `429a7e9` (`git ls-tree`, the same blob at podnet's
+head `ef189d2`). `check-sources.py` with clones of podnet and podrunner:
+"pod-testkit: PodUtils/podnet at 4df2895: 1 files, 0 changes", and 0
+changes in the three podrunner blocks. The check of all crates against
+the heads of the consumers found other changes: T-1111.
+
+
+# T-1111: `pod-guest`, `pod-release`, `pod-supervise`: the changes of podvm and podnet at their heads (port review)
+
+**Source:** `scripts/check-sources.py` with clones of each source repository at its head (2026-11-23, T-1097).
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`check-sources.py` with clones of each repository of the `repo` lines at
+their heads (podnet `ef189d2`, podvm `1a16a8f`, 2026-11-23)
+reports 6 changes in three crates, so the next run of `upstream.yml` is
+red:
+
+```text
+pod-guest: changed PodUtils/podvm:crates/podvm/src/machine/guest/state/tests_monitor.rs
+pod-guest:     5b2b272, 8fd14c2, 4fa56ec
+pod-release: changed PodUtils/podnet:src/update.rs (af42f0d)
+pod-release: removed PodUtils/podnet:src/update/cosign.rs
+pod-release: changed PodUtils/podnet:src/update/tests.rs (af42f0d)
+pod-supervise: removed PodUtils/podvm:crates/podvm-supervise/src/stream.rs
+pod-supervise: removed PodUtils/podvm:crates/podvm-supervise/src/stream/tests.rs
+```
+
+The commit messages name entries of the consumers' records (PodUtils/podnet@T-494 and others); the quote leaves them out.
+
+- podnet `af42f0d` is the take of `pod-release` by podnet ("podnet update
+  takes the verifier and the update of pod-release"). T-966 waits for it.
+- podvm `93524ce` is the take of `pod_supervise::stream` by podvm (it
+  removes `stream.rs` and its tests), as `docs/releases/v0.81.0.md` asks.
+- podvm `5b2b272` changes one test of `tests_monitor.rs`: the socket of
+  `a_save_leaves_a_whole_state_or_nothing` goes into a short directory
+  (`test_socket::SocketDir`) for a long `TMPDIR`. `8fd14c2` and `4fa56ec`
+  are the take of `pod_guest::warm::line`.
+
+## Premise
+
+- Read: the output of the check; `git show --stat af42f0d` in podnet;
+  `git log` of `stream.rs` and `git show 5b2b272` of `tests_monitor.rs`
+  in podvm; the `repo` and `taken` lines of the three `SOURCES`.
+- Not read: the diff of `af42f0d` for a fix of the engine of
+  `pod-release` before the take; whether `pod-guest`'s copies of the test
+  (`warm/line/tests_queue.rs`, `qmp/tests/queue.rs`) make a socket under a
+  long `TMPDIR`.
+
+## Approach
+
+1. `pod-release`: read the diff of `af42f0d` on `src/update.rs` and
+   `src/update/tests.rs`; port a fix of the engine, if one. Add a `taken
+   af42f0d` line to the podnet block. Then continue T-966 (the take of
+   podnet).
+2. `pod-supervise`: add a `taken 93524ce` line to the podvm block at
+   `6ab9e93`.
+3. `pod-guest`: add a `taken` line for the take of `pod_guest::warm::line`
+   (`8fd14c2`) to the podvm block at `867f79e`. Port the change of
+   `5b2b272` when a copy of the test makes a socket under the temporary
+   directory: take `pod_testkit::host::socket_path`.
+4. `check-sources.py` with the clones gives 0 changes.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py pod-guest pod-release pod-supervise
 ```

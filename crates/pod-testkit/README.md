@@ -10,6 +10,8 @@ consumer that wants it. It is never a dependency of a release binary.
   stderr, on a host that refuses `bind(AF_INET)` or has no loopback.
 * `need_localhost!()`: the same for a host that does not resolve
   `localhost`.
+* `need_route!(ADDR)`: the same for a host with no route to the
+  `SocketAddr` ADDR (a UDP connect fails). No datagram leaves the host.
 * `need_userns!()`: the same for a host that refuses a user and a mount
   namespace with a tmpfs mount in them (Linux only; elsewhere the test
   skips).
@@ -20,8 +22,8 @@ consumer that wants it. It is never a dependency of a release binary.
 * `need_root!()`: the same for a process whose effective user is not
   root (Linux only; elsewhere the test skips).
 * `host::loopback()`, `host::localhost()`, `host::userns()`: the probes,
-  each run once for each test binary. `host::tool(TOOL)` and
-  `host::root()` look each time.
+  each run once for each test binary. `host::route(ADDR)`,
+  `host::tool(TOOL)` and `host::root()` look each time.
 * `elf::static_exit0()`: a static ELF of x86_64 or aarch64 (one
   `PT_LOAD`, no `PT_INTERP`) that calls `exit_group(0)`, for a test of an
   exec with no tool of the host; `None` on another architecture.
@@ -53,6 +55,7 @@ pod crate, so that each crate can dev-depend on the kit. The feature
 | --- | --- | --- |
 | podnet | `test_host::need_loopback!()` (`tests/test_host/mod.rs`, `#[path]`) | `pod_testkit::need_loopback!()` |
 | podnet | `test_host::need_localhost!()` | `pod_testkit::need_localhost!()` |
+| podnet | `test_host::need_route!(ADDR)` | `pod_testkit::need_route!(ADDR)` |
 | podvm | a test that forks, calls `unshare(CLONE_NEWUSER\|CLONE_NEWNS)` and skips on exit 2 | `pod_testkit::need_userns!()` first |
 
 ## The terminal oracle (feature `screen`)
