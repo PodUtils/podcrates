@@ -17,6 +17,8 @@ Restart=always
 RestartSec=5
 # 64 and 78: a usage or a configuration, or a revoked credential: no start helps.
 RestartPreventExitStatus=64 78
+# The same limit, where a systemd older than 230 reads it.
+StartLimitInterval=0
 # The stop signal goes to the program alone, which drains its work first.
 KillMode=mixed
 TimeoutStopSec=infinity

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 871 entries: 149 open, 28 partial, 7 blocked, 687 done.
+`TODO/INDEX.md` holds 876 entries: 150 open, 28 partial, 7 blocked, 691 done.
 
 ## State
 
@@ -78,7 +78,9 @@ them by COORD issues, podrunner's first. Then, in podcrates: the red
 nightly (`pod-unit` `crates/pod-unit/tests/service_live.rs` on Windows;
 T-916, T-938), T-1053 (a lossy run of E2-1 that takes 20 s) and the red
 `services.yml` (T-1034) and the red live run (T-963). Then the asks of
-podrunner (COORD-134, #225): each new ask of podrunner.
+podrunner (COORD-134, #225): each new ask of podrunner, and T-1110
+(tell podrunner to call `Hardening::service_account()` for its unit of the
+system at its take of the next tag).
 Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;
 cfb's A-X-18 waits for cfb's answer on #223, call C792),

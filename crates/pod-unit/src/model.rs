@@ -134,8 +134,16 @@ pub struct Unit {
     /// One line that tells what the service does.
     pub description: String,
     /// The first comment of each form: what wrote it. A removal removes only
-    /// a file that holds this mark.
+    /// a file that holds this mark, or one of [`Unit::older_marks`].
     pub mark: String,
+    /// The marks of an older version of the program, which an install and a
+    /// removal take as the program's own: an upgrade replaces and removes
+    /// what the older version wrote. Each is a text as the older version
+    /// wrote it, comment signs too, and no render writes it, so it may hold
+    /// `--`. It marks the first line of a unit of systemd that starts with
+    /// it; a plist, the XML of a task or the description of a service that
+    /// holds it; and a line of the crontab that is it.
+    pub older_marks: Vec<String>,
     /// The program, by its absolute path.
     pub program: PathBuf,
     pub args: Vec<String>,
@@ -175,6 +183,7 @@ impl Unit {
             label: None,
             description: name.to_string(),
             mark: mark.to_string(),
+            older_marks: Vec::new(),
             program: program.to_path_buf(),
             args: Vec::new(),
             dir: None,
@@ -196,6 +205,12 @@ impl Unit {
     /// account of the service alone).
     pub fn system(mut self, run_as: Option<&str>) -> Unit {
         self.scope = Scope::System { run_as: run_as.map(str::to_string) };
+        self
+    }
+
+    /// A mark of an older version of the program ([`Unit::older_marks`]).
+    pub fn older_mark(mut self, text: &str) -> Unit {
+        self.older_marks.push(text.to_string());
         self
     }
 
@@ -247,6 +262,14 @@ impl Unit {
         if self.mark.is_empty() || self.mark.contains("--") {
             return Err(usage("the mark: give words with no \"--\", which no comment of XML may hold"));
         }
+        for older in &self.older_marks {
+            if older.trim().chars().count() < OLDER_MARK_LEAST || older.chars().any(char::is_control) {
+                return Err(usage(format!(
+                    "the older mark {older:?}: give one line of {OLDER_MARK_LEAST} characters or more, which only \
+                     the files of the program hold"
+                )));
+            }
+        }
         for secret in &self.secrets {
             name_ok("the name of a secret", &secret.name, b"_.-")?;
             key_ok(&secret.variable)?;
@@ -266,6 +289,12 @@ impl Unit {
             }
         }
         crate::secret::check(self)
+    }
+
+    /// True when `holds` finds a mark of an older version of the program
+    /// ([`Unit::older_marks`]).
+    pub(crate) fn older_mark_in(&self, holds: impl Fn(&str) -> bool) -> bool {
+        self.older_marks.iter().any(|older| holds(older))
     }
 
     /// Each word of the unit, with its place: the scan of secrets and the
@@ -291,6 +320,10 @@ impl Unit {
         words
     }
 }
+
+/// The fewest characters of an older mark: a short text could mark the file
+/// of another program.
+const OLDER_MARK_LEAST: usize = 8;
 
 /// An absolute path of Unix or of Windows, on each system: a form is
 /// rendered on any host (a person prints the unit of another system).

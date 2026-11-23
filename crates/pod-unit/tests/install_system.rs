@@ -193,6 +193,32 @@ fn a_file_or_a_service_of_another_program_is_refused_and_stays() {
     assert_eq!(host.service.borrow().as_deref(), Some("the service of another program"));
 }
 
+/// PodUtils/podssh#342 (b): a unit of the system that an older version of
+/// the program wrote is its own: the file of systemd and the Windows service.
+#[test]
+fn an_older_mark_of_the_program_takes_its_unit_of_the_system() {
+    let dir = tempfile::tempdir().expect("a directory");
+    let (host, places) = (host(), places(dir.path()));
+    let path = places.systemd.join("podnet-relay-node.service");
+    std::fs::create_dir_all(&places.systemd).unwrap();
+    std::fs::write(
+        &path,
+        "# Written by podnet relay node --install --system.
+[Service]
+",
+    )
+    .unwrap();
+    let unit = node().older_mark("# Written by podnet relay node --install");
+    install::install_system(&unit, Form::Systemd, &places, &host).expect("an upgrade");
+    assert!(matches!(install::remove_system(&unit, Form::Systemd, &places, &host), Ok(Removed::Done(_))));
+    assert_eq!(files(dir.path()), Vec::<String>::new());
+    let (unit, host) = service();
+    let unit = unit.older_mark("Written by podnet relay node --install");
+    *host.service.borrow_mut() = Some("podnet relay node. Written by podnet relay node --install.".into());
+    assert!(matches!(install::remove_system(&unit, Form::Service, &places, &host), Ok(Removed::Done(_))));
+    assert!(host.service.borrow().is_none());
+}
+
 #[test]
 fn a_launch_daemon_runs_as_its_user_in_the_domain_of_the_system() {
     let dir = tempfile::tempdir().expect("a directory");

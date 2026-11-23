@@ -2851,3 +2851,65 @@ core-replace-follows-without-the-option
 core-replace-removes-a-file-it-did-not-make`: 2 caught. Removing
 `O_NOFOLLOW` from the temporary file is no plant: `create_new` already
 refuses a link at the name.
+
+# T-1109: `pod-core`: an atomic replace has no check of the temporary file before the rename (PodUtils/podssh#342)
+
+**Source:** PodUtils/podssh#342 (COORD-135 of podssh), ask (e).
+**Category:** feature
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podssh, ask (e): "`PodUtils/podssh:crates/podssh-cli/src/keygen_change.rs` writes a private
+key beside the file and reads it back before the rename.
+`files::replace` has no hook for that check. Ask: a check of the temporary
+file before the rename (a closure, or a `verify` step), so that this copy
+can end too." `PodUtils/podssh:crates/podssh-cli/src/keygen_change.rs`
+(`replace`) writes the new key to a private file beside the key, syncs
+it, opens it with the new passphrase and compares its public key, and only
+then renames it over the key; on a failed check it removes the new file.
+It has no sync of the directory.
+
+## Premise
+
+- Read: `crates/pod-core/src/files/replace.rs`,
+  `crates/pod-core/src/files/replace_mode.rs`, `crates/pod-core/README.md`
+  ("The replace of a file", which lists `keygen_change.rs` as "Not a
+  copy"); the callers of `Replace` and `Step` in shallow clones of podssh,
+  podrunner, podvm and podnet: none matches `Step`, which is
+  `#[non_exhaustive]`.
+- Not measured: the adoption in podssh.
+
+## Approach
+
+`Replace::write_checked(PATH, BODY, CHECK)`, beside `Replace::write`:
+`CHECK` is an `FnOnce(&Path) -> io::Result<()>` that gets the path of the
+temporary file after its write, its sync and its close, before the rename.
+An error of the check removes the temporary file, leaves the target as it
+was, and is a `Failed` of the new step `Step::Check` with the kind and the
+text of the check's error. `replace`, `Replace::write` and
+`replace_private` do not change.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features --lib files::replace
+```
+
+## Done
+
+2026-11-23, this commit. `Replace::write_checked(PATH, BODY, CHECK)` and
+`Step::Check` in `crates/pod-core/src/files/replace.rs` and
+`crates/pod-core/src/files/replace_mode.rs`; `Replace::write` and the
+tests' `run` take a check that passes. podssh's `keygen_change::replace`
+becomes `Replace::new(Mode::Private).write_checked(path, text.as_bytes(),
+|tmp| same_key(tmp, original, passphrase).map_err(io::Error::other))`,
+which also syncs the directory. `crates/pod-core/README.md` names it, and
+`keygen_change.rs` moves from "Not a copy" to the table of copies. Test
+(failed before the fix: the check did not run):
+`a_failed_check_of_the_temporary_file_leaves_the_target_and_no_temporary_file`
+(`cargo test -p pod-core --all-features --lib files::replace`: 14
+passed).

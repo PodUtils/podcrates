@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**871 entries: 149 open, 28 partial, 7 blocked, 687 done.**
+**876 entries: 150 open, 28 partial, 7 blocked, 691 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 200 | 214 |
-| P2 | 67 | 8 | 4 | 359 | 438 |
+| P1 | 4 | 10 | 0 | 204 | 218 |
+| P2 | 68 | 8 | 4 | 359 | 439 |
 | P3 | 78 | 10 | 3 | 126 | 217 |
-| **All** | 149 | 28 | 7 | 687 | 871 |
+| **All** | 150 | 28 | 7 | 691 | 876 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -918,3 +918,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1087](podvm.md) | P3 | M | M6 | defect | open | `pod-extract`: a GNU sparse file of the PAX form (`GNU.sparse.`) refuses its layer, as the `tar` reader does not read it |
 | [T-1088](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: the attributes of an archive of libarchive with `xattrheader=LIBARCHIVE` are dropped with no word |
 | [T-1095](relay.md) | P2 | M | M2 | feature | open | `pod-ws`: the order of the request's pseudo-fields of the browser shape is a patch of h2 in podssh, not a part of the crate (PodUtils/podssh#340) |
+| [T-1106](fleet.md) | P1 | S | M8 | feature | done | `pod-unit`: a removal and an install refuse what an older version of the program wrote, as its mark differs (PodUtils/podssh#342) |
+| [T-1107](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a unit of the system that runs as a named account removes the IPC of that account at its stop (`RemoveIPC=yes`) (PodUtils/podssh#342) |
+| [T-1108](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a unit of systemd has no limit of starts for systemd older than 230 (`StartLimitInterval=0`) (PodUtils/podssh#342) |
+| [T-1109](foundation.md) | P1 | S | M0 | feature | done | `pod-core`: an atomic replace has no check of the temporary file before the rename (PodUtils/podssh#342) |
+| [T-1110](fleet.md) | P2 | S | M8 | chore | open | `pod-unit`: podrunner's unit of the system loses `RemoveIPC=yes` at its take of the tag of T-1107, and its test of the unit fails |

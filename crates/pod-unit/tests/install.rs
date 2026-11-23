@@ -135,3 +135,65 @@ fn a_unit_of_the_system_is_not_installed_here_and_a_probe_finds_the_first_form()
     assert_eq!(fault.class, Class::Unavailable);
     assert_eq!(install::probe(&Fake::default(), &places).expect("a form"), Form::Systemd);
 }
+
+/// PodUtils/podssh#342 (b): what an older version of the program wrote, with
+/// a mark that may hold `--`, is the program's own: an install replaces it
+/// and a removal removes it. A mark of an older version that is not in its
+/// place marks nothing, and that file stays.
+#[test]
+fn an_older_mark_of_the_program_lets_an_upgrade_replace_and_remove_what_it_wrote() {
+    let home = tempfile::tempdir().expect("a directory");
+    let (host, places) = (Fake::default(), places(home.path()));
+    let cron_mark = "# podssh node n --install wrote the lines below; podssh node n --uninstall removes them";
+    let unit = podrunner()
+        .older_mark("# Written by podssh ")
+        .older_mark("<!-- Written by podssh")
+        .older_mark("podssh node n --install wrote this task")
+        .older_mark(cron_mark);
+    let old = "# Written by podssh node n --install; podssh node n --uninstall removes it.\n[Service]\n";
+    let path = places.systemd_user.join("podrunner.service");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(&path, old).unwrap();
+    install::install(&unit, Form::Systemd, &places, &host).expect("an upgrade");
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), pod_unit::systemd::render(&unit).unwrap());
+    std::fs::write(&path, old).unwrap();
+    assert!(matches!(install::remove(&unit, Form::Systemd, &places, &host), Ok(Removed::Done(_))));
+    assert_eq!(files(home.path()), Vec::<String>::new());
+    // Not on the first line: the file of another program.
+    std::fs::write(&path, format!("[Unit]\n{old}")).unwrap();
+    let fault = install::remove(&unit, Form::Systemd, &places, &host).expect_err("not ours");
+    assert_eq!(fault.class, Class::Config);
+    std::fs::remove_file(&path).unwrap();
+
+    let plist = places.launch_agents.join("podrunner.plist");
+    std::fs::create_dir_all(&places.launch_agents).unwrap();
+    std::fs::write(&plist, "<?xml version=\"1.0\"?>\n<!-- Written by podssh ssh --install n. -->\n<plist/>\n").unwrap();
+    assert!(matches!(install::remove(&unit, Form::Launchd, &places, &host), Ok(Removed::Done(_))));
+    assert!(!plist.exists());
+
+    *host.task.borrow_mut() =
+        Some("<Task><Description>podssh node n --install wrote this task.</Description></Task>".into());
+    assert!(matches!(install::remove(&unit, Form::Task, &places, &host), Ok(Removed::Done(_))));
+    assert!(host.task.borrow().is_none());
+
+    let table = format!("0 1 * * * mine\n{cron_mark}\n@reboot /old n\n{} /old n\n", pod_unit::cron::WATCHDOG);
+    *host.table.borrow_mut() = Some(table);
+    install::install(&unit, Form::Cron, &places, &host).expect("an upgrade");
+    let table = host.table.borrow().clone().unwrap();
+    assert!(!table.contains("/old") && table.matches("@reboot").count() == 1, "{table}");
+    assert!(matches!(install::remove(&unit, Form::Cron, &places, &host), Ok(Removed::Done(_))));
+    assert_eq!(host.table.borrow().as_deref(), Some("0 1 * * * mine\n"));
+}
+
+/// A mark of an older version is one line of 8 characters or more, so that
+/// it does not mark the file of another program by chance.
+#[test]
+fn an_older_mark_that_is_short_or_holds_a_line_break_is_refused() {
+    for bad in ["", "   # x   ", "# Written by\npodssh"] {
+        let fault = pod_unit::systemd::render(&podrunner().older_mark(bad)).expect_err(bad);
+        assert_eq!(fault.class, Class::Usage, "{bad:?}");
+    }
+    let unit = podrunner().older_mark("<!-- Written by podssh node n --install");
+    assert!(pod_unit::systemd::render(&unit).is_ok());
+    assert!(pod_unit::launchd::render(&unit).is_ok(), "no form writes an older mark");
+}

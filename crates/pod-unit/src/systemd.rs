@@ -104,7 +104,11 @@ pub fn render(unit: &Unit) -> Result<String, Failure> {
             }
         }
     }
-    out.extend(unit.hardening.lines(system));
+    let named = match &unit.scope {
+        Scope::System { run_as: Some(user) } => Some(user.as_str()),
+        _ => None,
+    };
+    out.extend(unit.hardening.lines(system, named));
     let target = if system { "multi-user.target" } else { "default.target" };
     out.extend([String::new(), "[Install]".to_string(), format!("WantedBy={target}")]);
     Ok(out.join("\n") + "\n")
@@ -119,6 +123,12 @@ fn restart_lines(unit: &Unit, out: &mut Vec<String>) {
         out.push("# 64 and 78: a usage or a configuration, or a revoked credential: no start helps.".to_string());
         let codes: Vec<String> = r.prevent.iter().map(u8::to_string).collect();
         out.push(format!("RestartPreventExitStatus={}", codes.join(" ")));
+    }
+    if r.always {
+        // systemd 230 moved the limit to [Unit]; each version reads the old
+        // name in [Service].
+        out.push("# The same limit, where a systemd older than 230 reads it.".to_string());
+        out.push("StartLimitInterval=0".to_string());
     }
     if unit.stop.drain {
         out.push("# The stop signal goes to the program alone, which drains its work first.".to_string());
