@@ -99,7 +99,15 @@ or a tunnel token), a private key, a password in a URL, a variable whose
 key names a secret (`TUNNEL_TOKEN`, not `TUNNEL_TOKEN_FILE`), a flag that
 takes a secret (`--token VALUE`, not `--token-file PATH`), and a long random
 word (32 characters or more of upper case, lower case and digits, 4.3 bits
-or more for each). A secret is one of:
+or more for each). A path splits at each `/` before the rules read it: a
+component of 10 random characters (a directory of `mktemp -d`) passes, and a
+component of the length of a secret is refused. A token of base64 with `/`
+and no `.` stays one word. Public words pass: a public key of OpenSSH (the
+blob decodes to exactly the parts of its type: `ssh-ed25519`, `ssh-rsa`,
+`ssh-dss`, `ecdsa-sha2-nistp*`, `sk-ssh-ed25519@openssh.com`,
+`sk-ecdsa-sha2-nistp256@openssh.com`), a `SHA256:` or an `MD5:`
+fingerprint, and each word that the caller names with `Unit::public(WORD)`.
+A secret is one of:
 
 * a file (`Unit::secret_file(NAME, PATH, VARIABLE)`): on a unit of systemd
   of the system, `LoadCredential=NAME:PATH` and `VARIABLE=%d/NAME` (systemd

@@ -11,6 +11,8 @@ repository.workspace = true
 # The typed failure, the private write of a file and the bounded run of a
 # program.
 pod-core = { workspace = true }
+# The blob of an OpenSSH public key, which the check of a secret passes.
+base64 = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 # The check that this process may create a service (OpenSCManagerW), and
