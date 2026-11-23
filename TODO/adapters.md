@@ -2352,7 +2352,7 @@ cargo test -p pod-proxy --all-features --lib race::tests
 **Milestone:** M3
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2383,6 +2383,10 @@ cargo test -p pod-cloudflare --all-features --lib tunnel::tests
 cargo test -p pod-cloudflare --all-features
 cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings
 ```
+
+## Done
+
+2026-11-23, bcdbc9a9. `register_retrying_with` tries a registration that the edge refuses with retry: yes again for `REGISTER_BUDGET` (30 s) from the first refusal; each wait is `register_wait` (the longer of the wait of the edge and `pod_core::backoff::backoff`, from 1 s to 5 s), cut at the deadline. `leg_budget` is two tries and the budget: 110 s for `quic`, 210 s for `http2` (T-1117 for the documents of podnet). `no_leg_worked` gives TempFail (exit 75) when each leg failed with a refusal with retry: yes, else Unavailable, and keeps the last failure as its cause, so `fail::find::<Refused>` finds it. The stand-in: `Reply::RefuseRetry`, `Edge::script`, `Standin::start_here`, `Standin::start_tunnel`; `Reply` is `#[non_exhaustive]` (no consumer matches it). Tests, each failed before the fix (3 tries in 8.3 s of the clock, then Unavailable with no typed cause): `tunnel::tests::a_quick_tunnel_that_the_edge_does_not_know_yet_starts_with_one_provision` (5 refusals, then one accept, one provision), `tunnel::tests::a_refusal_with_retry_at_each_try_fails_after_the_budget_as_tempfail`; and `tunnel::tests::the_class_of_no_edge_leg_worked`, `tunnel::tests::the_wait_of_a_retry_is_the_longer_of_the_edge_and_the_backoff`, `tunnel::tests::a_slow_registration_completes_in_the_serial_limit`. `cargo test -p pod-cloudflare --all-features`: 213 passed, 0 failed; the tunnel tests 12 runs of 32 passed; clippy of the crate with `-D warnings`: clean; `plant-each.sh --apply`: 0 stale.
 
 # T-1117: podnet's documents give the serial limits of the legs of `pod-cloudflare` as 130 s and 280 s; T-1116 makes them 110 s and 210 s
 
