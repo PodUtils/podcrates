@@ -122,28 +122,25 @@ fn report_rules(schema: &mut Schema, unit: &[&str]) {
 }
 
 /// The rules of [`crate::RunReport::check`]: those of each report, and
-/// each key of `unknown_reasons` names a measured field that is `unknown`.
-/// The bound of `log_tail` in bytes stays in the check: a schema counts
-/// characters.
+/// each key of `unknown_reasons` names a measured field that is `unknown`
+/// or a time that is absent. serde reads a `null` time as absent, so the
+/// schema does too. The bound of `log_tail` in bytes stays in the check: a
+/// schema counts characters.
 pub fn run_report_rules(schema: &mut Schema) {
+    use crate::report::{MEASURED, TIMES};
     report_rules(schema, &["unit"]);
-    let reasons: Vec<Value> = crate::report::MEASURED
-        .iter()
-        .map(|name| {
-            json!({
-                "if": {
-                    "required": ["unknown_reasons"],
-                    "properties": { "unknown_reasons": { "required": [name] } }
-                },
-                "then": { "required": [name], "properties": { (*name): { "const": "unknown" } } }
-            })
-        })
-        .collect();
+    let when = |name: &str| json!({ "required": ["unknown_reasons"], "properties": { "unknown_reasons": { "required": [name] } } });
+    let measured = MEASURED.iter().map(|name| {
+        json!({ "if": when(name), "then": { "required": [name], "properties": { (*name): { "const": "unknown" } } } })
+    });
+    let times =
+        TIMES.iter().map(|name| json!({ "if": when(name), "then": { "properties": { (*name): { "type": "null" } } } }));
     if let Some(Value::Array(rules)) = schema.get_mut("allOf") {
-        rules.extend(reasons);
+        rules.extend(measured.chain(times));
     }
+    let names: Vec<&str> = MEASURED.iter().chain(TIMES.iter()).copied().collect();
     if let Some(Value::Object(field)) = schema.get_mut("properties").and_then(|p| p.get_mut("unknown_reasons")) {
-        field.insert("propertyNames".into(), json!({ "enum": crate::report::MEASURED }));
+        field.insert("propertyNames".into(), json!({ "enum": names }));
     }
 }
 

@@ -19,7 +19,7 @@ use pod_ws::client::ConnectError;
 
 /// The iroh of this build, which the notice names; a test holds it to the
 /// version that the lock builds.
-pub const IROH: &str = "1.4.1";
+pub const IROH: &str = "1.4.2";
 
 /// The bound on the question, the connection included.
 pub const LIMIT: Duration = Duration::from_secs(5);

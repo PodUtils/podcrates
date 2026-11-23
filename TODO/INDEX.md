@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**877 entries: 149 open, 28 partial, 7 blocked, 693 done.**
+**885 entries: 150 open, 27 partial, 7 blocked, 701 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 202 | 216 |
-| P2 | 68 | 8 | 4 | 361 | 441 |
-| P3 | 77 | 10 | 3 | 128 | 218 |
-| **All** | 149 | 28 | 7 | 693 | 877 |
+| P1 | 4 | 10 | 0 | 206 | 220 |
+| P2 | 68 | 7 | 4 | 365 | 444 |
+| P3 | 78 | 10 | 3 | 128 | 219 |
+| **All** | 150 | 27 | 7 | 701 | 885 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -742,7 +742,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-860](relay.md) | P2 | S | M2 | defect | done | `pod-piping`: the probe of a node's upgrade sends no header of the caller (PodUtils/podssh#306) |
 | [T-861](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: a mailbox run that times out before `WQREADY` tells nothing of the agent (PodUtils/podvm#468) |
 | [T-862](upkeep.md) | P1 | S | M5 | defect | done | `pod-broker`: names mode still resolves each name on the host, so a host whose names resolve only through its proxy refuses each CONNECT (PodUtils/podrunner#215) |
-| [T-863](fleet.md) | P2 | S | M0 | chore | open | `pod-manual`: the changes of podssh to the imported files before its take (port review) |
+| [T-863](fleet.md) | P2 | S | M0 | chore | done | `pod-manual`: the changes of podssh to the imported files before its take (port review) |
 | [T-864](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: a new devpts instance and `/dev/ptmx` on the namespace rung, so that `openpty` works in a unit (PodUtils/podvm#469) |
 | [T-865](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: keep a relay member's `meet` from its `/relays.json` (PodUtils/podssh#307) |
 | [T-866](fleet.md) | P2 | S | M0 | feature | done | `pod-lab`: a profile of the three limits together: no `AF_INET` bind, no network namespace, no write of another process's memory (PodUtils/podnet#649) |
@@ -845,7 +845,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-963](relay.md) | P2 | S | M2 | defect | partial | `live.yml`: public services of other parties fail from a runner of GitHub and pass from a cloud session (the Nostr relay `offchain.pub`, the WebTorrent tracker `tracker.openwebtorrent.com`) |
 | [T-964](fleet.md) | P1 | M | M8 | feature | done | `pod-release`: the bundle of Rekor v2: the inclusion proof with its signed checkpoint, and the RFC 3161 timestamp |
 | [T-965](fleet.md) | P1 | M | M8 | feature | done | `pod-release`: the verifier as a static command for the CI of a product and for an installer |
-| [T-966](fleet.md) | P2 | M | M8 | chore | partial | `pod-release`: the adoption trials of podnet and podssh, and the hand-off of the crate |
+| [T-966](fleet.md) | P2 | M | M8 | chore | done | `pod-release`: the adoption trials of podnet and podssh, and the hand-off of the crate |
 | [T-967](fleet.md) | P3 | S | M8 | feature | open | `pod-release`: a minisign signature beside the Sigstore bundle |
 | [T-968](upkeep.md) | P2 | S | M5 | defect | done | The fuzz run of 2026-11-19 cannot build `russh`: the pinned nightly of 2026-11-01 meets a cycle in its query of async drop on `ssh-key` 0.7.0-rc.11 |
 | [T-969](upkeep.md) | P1 | M | M5 | chore | done | `upstream.yml` is red: the sources of `pod-job`, `pod-manual` and `pod-testkit` changed in podrunner and podssh |
@@ -917,10 +917,18 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1086](podvm.md) | P1 | S | M6 | defect | done | `pod-extract`: a layer of GNU tar `--acls` is refused whole, as the PAX record `SCHILY.acl.access` holds a newline byte (PodUtils/podvm#643) |
 | [T-1087](podvm.md) | P3 | M | M6 | defect | open | `pod-extract`: a GNU sparse file of the PAX form (`GNU.sparse.`) refuses its layer, as the `tar` reader does not read it |
 | [T-1088](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: the attributes of an archive of libarchive with `xattrheader=LIBARCHIVE` are dropped with no word |
+| [T-1089](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a second call of `windows::serve` in a program that the manager did not start gets `Class::Unavailable` (error 1056), not `Class::Usage` (nightly 44871383085) |
 | [T-1093](services.md) | P2 | S | M5 | defect | done | `services.yml` 45009160652: three `.xyz` RDAP records refused, three Trojan nodes gone, the Syncthing relay DVWOU27 at a new address, and two hosts dark to the runner |
 | [T-1094](podvm.md) | P1 | S | M7 | chore | done | `pod-confine`: the changes of podvm to the files of the loader (port review, `upstream.yml` 45024358679) |
 | [T-1095](relay.md) | P2 | M | M2 | feature | open | `pod-ws`: the order of the request's pseudo-fields of the browser shape is a patch of h2 in podssh, not a part of the crate (PodUtils/podssh#340) |
 | [T-1096](services.md) | P2 | S | M5 | measurement | done | `pod-services`: `localtunnel.me` and `download.freedos.org` give no answer to the runners of GitHub on each run, but answer other networks |
-| [T-1097](foundation.md) | P2 | S | M0 | chore | open | `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review) |
+| [T-1097](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review) |
+| [T-1098](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: `run-report.v1` refuses a reason of a time that the report does not know (`start_s`) (PodUtils/podrunner#342) |
+| [T-1102](roads.md) | P1 | S | M4 | chore | done | `pod-iroh`: the fork of iroh-relay at 1.4.2, so that iroh 1.4.2 builds it (PodUtils/podssh#341) |
+| [T-1103](roads.md) | P2 | M | M4 | chore | open | `pod-iroh`: iroh 1.5 and iroh-relay 1.5, past the range of the crate (T-1102) |
+| [T-1104](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a path after a `.` reads as a long random word, so a config under a directory of `mktemp -d` is refused (PodUtils/podrunner#343) |
+| [T-1105](fleet.md) | P2 | S | M8 | defect | done | `pod-unit`: the check of a secret refuses a public key of OpenSSH and a fingerprint as a long random word (PodUtils/podssh#342 ask (a)) |
+| [T-1111](foundation.md) | P2 | S | M0 | chore | open | `pod-guest`, `pod-release`, `pod-supervise`: the changes of podvm and podnet at their heads (port review) |
 | [T-1116](adapters.md) | P1 | S | M3 | defect | done | `pod-cloudflare`: the edge refuses a new quick tunnel with "Tunnel not found" for more than three tries, and the start exits 69 (PodUtils/podnet#685) |
 | [T-1117](adapters.md) | P3 | S | M3 | docs | open | podnet's documents give the serial limits of the legs of `pod-cloudflare` as 130 s and 280 s; T-1116 makes them 110 s and 210 s |
+| [T-1118](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686) |

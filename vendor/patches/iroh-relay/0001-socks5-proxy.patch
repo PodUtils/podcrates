@@ -1,8 +1,8 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 9db98e2..34dd9e9 100644
+index 4770cc1..9634134 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
-@@ -238,7 +238,10 @@ optional = true
+@@ -241,7 +241,10 @@ optional = true
  
  [dependencies.reqwest]
  version = "0.13"
@@ -15,7 +15,7 @@ index 9db98e2..34dd9e9 100644
  
  [dependencies.rustls]
 diff --git a/src/client.rs b/src/client.rs
-index a61890f..bb69869 100644
+index c5839eb..8c2e059 100644
 --- a/src/client.rs
 +++ b/src/client.rs
 @@ -37,6 +37,9 @@ use crate::{
@@ -431,10 +431,10 @@ index 0000000..19ab334
 +    }
 +}
 diff --git a/src/client/tls.rs b/src/client/tls.rs
-index 2787d9a..88d7dc8 100644
+index 5403519..fd0719f 100644
 --- a/src/client/tls.rs
 +++ b/src/client/tls.rs
-@@ -23,6 +23,7 @@ use tokio::net::TcpStream;
+@@ -24,6 +24,7 @@ use tokio::net::TcpStream;
  use tracing::{Instrument, error, info_span};
  
  use super::{
@@ -442,7 +442,7 @@ index 2787d9a..88d7dc8 100644
      streams::{MaybeTlsStream, ProxyStream},
      *,
  };
-@@ -130,7 +131,9 @@ impl MaybeTlsStreamBuilder {
+@@ -131,7 +132,9 @@ impl MaybeTlsStreamBuilder {
          tls_connector: &tokio_rustls::TlsConnector,
      ) -> Result<util::Chain<std::io::Cursor<Bytes>, MaybeTlsStream<tokio::net::TcpStream>>, DialError>
      {
@@ -453,7 +453,7 @@ index 2787d9a..88d7dc8 100644
  
          let tcp_stream = dial_happy_eyeballs(&self.dns_resolver, &proxy_url, self.prefer_ipv6)
              .await
-@@ -139,6 +142,16 @@ impl MaybeTlsStreamBuilder {
+@@ -140,6 +143,16 @@ impl MaybeTlsStreamBuilder {
                  err => err,
              })?;
  

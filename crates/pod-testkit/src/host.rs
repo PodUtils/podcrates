@@ -112,6 +112,15 @@ fn probe_localhost() -> Result<(), String> {
     }
 }
 
+/// `Err(reason)` when this host has no route to `addr`: the bind of a UDP
+/// socket or its connect to `addr` fails. No datagram leaves the host. The
+/// probe runs each time, as each address has its own route.
+pub fn route(addr: SocketAddr) -> Result<(), String> {
+    let any: SocketAddr = ([0, 0, 0, 0], 0).into();
+    let socket = UdpSocket::bind(any).map_err(|e| format!("this host denies bind(AF_INET) for a route probe: {e}"))?;
+    socket.connect(addr).map_err(|e| format!("this host has no route to {addr}: {e}"))
+}
+
 /// Write `skipping, REASON` to the standard error of the process. The
 /// test harness does not capture this write (it captures `eprintln!`), so
 /// the line shows for a test that passes too.
@@ -245,6 +254,18 @@ fn probe_userns() -> Result<(), String> {
 macro_rules! need_localhost {
     () => {
         if let Err(why) = $crate::host::localhost() {
+            $crate::host::skip_line(&why);
+            return;
+        }
+    };
+}
+
+/// Skip the test (return from it) when [`route`] fails for the address:
+/// `need_route!("192.0.2.10:7777".parse().unwrap())`.
+#[macro_export]
+macro_rules! need_route {
+    ($addr:expr) => {
+        if let Err(why) = $crate::host::route($addr) {
             $crate::host::skip_line(&why);
             return;
         }
