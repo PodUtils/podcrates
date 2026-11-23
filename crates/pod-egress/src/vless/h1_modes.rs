@@ -22,6 +22,7 @@ use super::split::{Failed, Halves};
 use super::xhttp::{at, session_id};
 use super::{Dial, VlessError};
 use crate::Duplex;
+use crate::coalesce;
 
 /// The pipe in memory to each task: a write waits while this much waits.
 const PIPE: usize = 1 << 20;
@@ -32,22 +33,29 @@ pub(super) const STREAM_ONE: &str = "it did not choose HTTP/2 by ALPN (h2), and 
                                      body never ends; use mode=packet-up or stream-up, serve h2, or type=ws";
 
 /// The session in `mode` over HTTP/1.1, `first` the first connection, which
-/// the server already took: the stream and what carried it.
+/// the server already took: the stream, what carried it, and the report of
+/// the write that carried the first data.
 pub(super) async fn open(
     server: &Server,
     mode: Mode,
     first: Vec<u8>,
     dial: &Dial,
     conn: Conn,
-) -> Result<(Box<dyn Duplex>, String), VlessError> {
+) -> Result<(Box<dyn Duplex>, String, coalesce::Report), VlessError> {
     let again = Again::of(server, dial);
     let how = format!("XHTTP {} over HTTP/1.1 on two connections", mode.name());
-    let stream: Box<dyn Duplex> = match mode {
+    let (stream, report): (Box<dyn Duplex>, coalesce::Report) = match mode {
         Mode::StreamOne => return Err(VlessError::Http1(STREAM_ONE.into())),
-        Mode::StreamUp => Box::new(stream_up(again, conn, first).await?),
-        Mode::PacketUp | Mode::Auto => Box::new(packet_up(again, conn, first).await?),
+        Mode::StreamUp => {
+            let (stream, report) = stream_up(again, conn, first).await?;
+            (Box::new(stream), report)
+        }
+        Mode::PacketUp | Mode::Auto => {
+            let (stream, report) = packet_up(again, conn, first).await?;
+            (Box::new(stream), report)
+        }
     };
-    Ok((stream, how))
+    Ok((stream, how, report))
 }
 
 /// A request's head on `conn`, within the bound.
@@ -60,6 +68,29 @@ async fn send_head(conn: &mut Conn, head: &[u8], limit: Duration, what: &str) ->
         .await
         .map_err(|_| VlessError::Carry(format!("{what}: not sent within {} s", limit.as_secs())))?
         .map_err(|e| VlessError::Carry(format!("{what}: HTTP/1.1: {e}")))
+}
+
+/// The head and `data` of a session's first request in one write, padded to
+/// [`coalesce::TARGET`] where they are short: the padding is a field of the
+/// head, so the peer reads `data` alone after it.
+async fn send_first(
+    conn: &mut Conn,
+    head: &[u8],
+    data: &[u8],
+    limit: Duration,
+    what: &str,
+) -> Result<coalesce::Report, VlessError> {
+    let (frame, short) = coalesce::first_write(head, data);
+    let report = coalesce::Report { bytes: frame.len(), short, coalesced: true };
+    let write = async {
+        conn.get_mut().write_all(&frame).await?;
+        conn.get_mut().flush().await
+    };
+    tokio::time::timeout(limit, write)
+        .await
+        .map_err(|_| VlessError::Carry(format!("{what}: not sent within {} s", limit.as_secs())))?
+        .map_err(|e| VlessError::Carry(format!("{what}: HTTP/1.1: {e}")))?;
+    Ok(report)
 }
 
 /// The GET of `PATH/SESSION` on `conn`, and its 200: the target's bytes, as
@@ -78,23 +109,35 @@ async fn download(again: &Again, mut conn: Conn, id: &str, what: &'static str) -
     Ok(ours)
 }
 
-async fn packet_up(again: Again, conn: Conn, first: Vec<u8>) -> Result<Halves<DuplexStream, DuplexStream>, VlessError> {
+async fn packet_up(
+    again: Again,
+    conn: Conn,
+    first: Vec<u8>,
+) -> Result<(Halves<DuplexStream, DuplexStream>, coalesce::Report), VlessError> {
     let id = session_id()?;
     let read = download(&again, conn, &id, "the GET of packet-up").await?;
     // The second connection: the upload's, as HTTP/1.1 carries one request
     // at a time and the GET's lasts as long as the session.
     let mut up = Some(again.connect().await?);
-    post(&again, &mut up, &id, 0, &first).await?;
+    let report = post(&again, &mut up, &id, 0, &first).await?;
     let (ours, theirs) = tokio::io::duplex(PIPE);
     let failed = Failed::default();
     tokio::spawn(uploads(again, up, id, theirs, failed.clone()));
-    Ok(Halves { read, write: ours, failed })
+    Ok((Halves { read, write: ours, failed }, report))
 }
 
 /// One POST of packet-up with its length, and its 200, its body read so
 /// that the next request starts clean; a closed connection is dialed again
-/// once for it, as a server may close a kept one at any answer.
-async fn post(again: &Again, up: &mut Option<Conn>, id: &str, seq: u64, body: &[u8]) -> Result<(), VlessError> {
+/// once for it, as a server may close a kept one at any answer. The first
+/// POST of a session goes in one write with its head, padded; the report of
+/// that write comes back.
+async fn post(
+    again: &Again,
+    up: &mut Option<Conn>,
+    id: &str,
+    seq: u64,
+    body: &[u8],
+) -> Result<coalesce::Report, VlessError> {
     let server = &again.server;
     let path = at(server, &format!("{id}/{seq}"));
     let head = h1::head(again, http::Method::POST, &path, Framing::Length(body.len() as u64))?;
@@ -105,26 +148,34 @@ async fn post(again: &Again, up: &mut Option<Conn>, id: &str, seq: u64, body: &[
             None => again.connect().await?,
         };
         let sent = async {
-            send_head(&mut conn, &head, again.timeout, what).await?;
-            tokio::time::timeout(again.timeout, async {
-                conn.get_mut().write_all(body).await?;
-                conn.get_mut().flush().await
-            })
-            .await
-            .map_err(|_| VlessError::Carry(format!("{what}: its body not sent within {} s", again.timeout.as_secs())))?
-            .map_err(|e| VlessError::Carry(format!("{what}: HTTP/1.1: {e}")))?;
+            let report = match seq {
+                0 => Some(send_first(&mut conn, &head, body, again.timeout, what).await?),
+                _ => {
+                    send_head(&mut conn, &head, again.timeout, what).await?;
+                    tokio::time::timeout(again.timeout, async {
+                        conn.get_mut().write_all(body).await?;
+                        conn.get_mut().flush().await
+                    })
+                    .await
+                    .map_err(|_| {
+                        VlessError::Carry(format!("{what}: its body not sent within {} s", again.timeout.as_secs()))
+                    })?
+                    .map_err(|e| VlessError::Carry(format!("{what}: HTTP/1.1: {e}")))?;
+                    None
+                }
+            };
             let answer = h1::answer(&mut conn, again.timeout, what).await?;
             h1::body(&mut conn, answer.body, &mut tokio::io::sink())
                 .await
                 .map_err(|e| VlessError::Carry(format!("{what}: HTTP/1.1: {e}")))?;
-            Ok::<_, VlessError>(answer.close)
+            Ok::<_, VlessError>((answer.close, report))
         };
         match sent.await {
-            Ok(close) => {
+            Ok((close, report)) => {
                 if !close {
                     *up = Some(conn);
                 }
-                return Ok(());
+                return Ok(report.unwrap_or_default());
             }
             // A kept connection that the server had closed: the next try
             // dials a new one. A refusal is the server's word, not tried again.
@@ -152,18 +203,23 @@ async fn uploads(again: Again, mut up: Option<Conn>, id: String, mut from: Duple
     }
 }
 
-async fn stream_up(again: Again, conn: Conn, first: Vec<u8>) -> Result<Halves<DuplexStream, DuplexStream>, VlessError> {
+async fn stream_up(
+    again: Again,
+    conn: Conn,
+    first: Vec<u8>,
+) -> Result<(Halves<DuplexStream, DuplexStream>, coalesce::Report), VlessError> {
     let id = session_id()?;
     let read = download(&again, conn, &id, "the GET of stream-up").await?;
     let mut up = again.connect().await?;
     let what = "the POST of stream-up";
     let head = h1::head(&again, http::Method::POST, &at(&again.server, &id), Framing::Chunked)?;
-    send_head(&mut up, &head, again.timeout, what).await?;
-    h1::chunk(up.get_mut(), &first).await.map_err(|e| VlessError::Carry(format!("{what}: HTTP/1.1: {e}")))?;
+    let mut chunked = Vec::new();
+    h1::chunk(&mut chunked, &first).await.map_err(|e| VlessError::Carry(format!("{what}: HTTP/1.1: {e}")))?;
+    let report = send_first(&mut up, &head, &chunked, again.timeout, what).await?;
     let (ours, theirs) = tokio::io::duplex(PIPE);
     let failed = Failed::default();
     tokio::spawn(streamed(again, up, theirs, failed.clone()));
-    Ok(Halves { read, write: ours, failed })
+    Ok((Halves { read, write: ours, failed }, report))
 }
 
 /// stream-up's body: each read of this side's bytes a chunk, flushed, and the

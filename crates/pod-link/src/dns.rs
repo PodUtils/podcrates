@@ -281,7 +281,7 @@ impl Carrier for Dns {
 
     fn facts(&self) -> Facts {
         // A query for each small batch, and a poll while idle.
-        Facts { cost: crate::carrier::Cost::Highest, ..Facts::STREAM }
+        Facts::with_cost(crate::carrier::Cost::Highest)
     }
 
     fn available(&self) -> Result<(), CarrierError> {

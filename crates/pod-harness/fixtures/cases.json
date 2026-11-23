@@ -1,0 +1,300 @@
+{
+  "cases": [
+    {
+      "road": "unix",
+      "profile": "direct",
+      "capture": "captures/tunnel.cap",
+      "faults": []
+    },
+    {
+      "road": "unix",
+      "profile": "proxy",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "pad",
+          "to": 1200
+        }
+      ]
+    },
+    {
+      "road": "unix",
+      "profile": "restricted",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "delay",
+          "micros": 5000
+        }
+      ]
+    },
+    {
+      "road": "memory",
+      "profile": "direct",
+      "capture": "captures/tunnel.cap",
+      "faults": []
+    },
+    {
+      "road": "memory",
+      "profile": "proxy",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "pad",
+          "to": 1200
+        }
+      ]
+    },
+    {
+      "road": "memory",
+      "profile": "restricted",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "delay",
+          "micros": 5000
+        }
+      ]
+    },
+    {
+      "road": "tcp",
+      "profile": "direct",
+      "capture": "captures/tunnel.cap",
+      "faults": []
+    },
+    {
+      "road": "tcp",
+      "profile": "proxy",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "pad",
+          "to": 1200
+        }
+      ]
+    },
+    {
+      "road": "tcp",
+      "profile": "restricted",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "delay",
+          "micros": 5000
+        }
+      ]
+    },
+    {
+      "road": "ws",
+      "profile": "direct",
+      "capture": "captures/tunnel.cap",
+      "faults": []
+    },
+    {
+      "road": "ws",
+      "profile": "proxy",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "pad",
+          "to": 1200
+        }
+      ]
+    },
+    {
+      "road": "ws",
+      "profile": "restricted",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "delay",
+          "micros": 5000
+        }
+      ]
+    },
+    {
+      "road": "h2",
+      "profile": "direct",
+      "capture": "captures/tunnel.cap",
+      "faults": []
+    },
+    {
+      "road": "h2",
+      "profile": "proxy",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "pad",
+          "to": 1200
+        }
+      ]
+    },
+    {
+      "road": "h2",
+      "profile": "restricted",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "delay",
+          "micros": 5000
+        }
+      ]
+    },
+    {
+      "road": "poll",
+      "profile": "direct",
+      "capture": "captures/tunnel.cap",
+      "faults": []
+    },
+    {
+      "road": "poll",
+      "profile": "proxy",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "pad",
+          "to": 1200
+        }
+      ]
+    },
+    {
+      "road": "poll",
+      "profile": "restricted",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "delay",
+          "micros": 5000
+        }
+      ]
+    },
+    {
+      "road": "quic",
+      "profile": "direct",
+      "capture": "captures/tunnel.cap",
+      "faults": []
+    },
+    {
+      "road": "quic",
+      "profile": "proxy",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "pad",
+          "to": 1200
+        }
+      ]
+    },
+    {
+      "road": "quic",
+      "profile": "restricted",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "delay",
+          "micros": 5000
+        }
+      ]
+    },
+    {
+      "road": "udp",
+      "profile": "direct",
+      "capture": "captures/tunnel.cap",
+      "faults": []
+    },
+    {
+      "road": "udp",
+      "profile": "proxy",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "pad",
+          "to": 1200
+        }
+      ]
+    },
+    {
+      "road": "udp",
+      "profile": "restricted",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "delay",
+          "micros": 5000
+        }
+      ]
+    },
+    {
+      "road": "dns",
+      "profile": "direct",
+      "capture": "captures/tunnel.cap",
+      "faults": []
+    },
+    {
+      "road": "dns",
+      "profile": "proxy",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "pad",
+          "to": 1200
+        }
+      ]
+    },
+    {
+      "road": "dns",
+      "profile": "restricted",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "delay",
+          "micros": 5000
+        }
+      ]
+    },
+    {
+      "road": "icmp",
+      "profile": "direct",
+      "capture": "captures/tunnel.cap",
+      "faults": []
+    },
+    {
+      "road": "icmp",
+      "profile": "proxy",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "pad",
+          "to": 1200
+        }
+      ]
+    },
+    {
+      "road": "icmp",
+      "profile": "restricted",
+      "skip": "the icmp carrier needs a raw socket; this lab holds none"
+    },
+    {
+      "road": "s3",
+      "profile": "direct",
+      "capture": "captures/tunnel.cap",
+      "faults": []
+    },
+    {
+      "road": "s3",
+      "profile": "proxy",
+      "capture": "captures/tunnel.cap",
+      "faults": [
+        {
+          "kind": "pad",
+          "to": 1200
+        }
+      ]
+    },
+    {
+      "road": "s3",
+      "profile": "restricted",
+      "skip": "no s3 capture fixture; a real bucket is not reachable from this lab"
+    }
+  ]
+}

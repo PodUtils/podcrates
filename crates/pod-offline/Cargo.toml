@@ -1,0 +1,32 @@
+[package]
+name = "pod-offline"
+description = "The carriers and stores of a host with no network: a serial line with AX.25/KISS framing and an ARQ, an HF modem driver, a spool of files, signed local discovery, an offline bundle with a delta, a capture sink, pairing by an eight-word code and a replication log."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+# The open of a serial line: the POSIX termios of a device (`serial`). It is
+# on by default. Without it, the address parser, the KISS codec and the ARQ
+# still build, and no libc is in the build.
+default = ["serial"]
+serial = ["dep:libc"]
+
+[dependencies]
+# The Ed25519 key that signs an announcement, a bundle, a pairing and a
+# record of the log.
+pod-identity = { workspace = true }
+# SHA-256: the checksum of a spool entry, the hash of a bundle file, the
+# hash of a code and the id of a manifest.
+sha2 = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+# The open of the device, its termios and its exclusive hold. The feature
+# `serial` puts it in the build.
+libc = { version = "0.2", optional = true }
+
+[target.'cfg(unix)'.dev-dependencies]
+# The pseudo-terminal of the tests of a serial line and of a modem.
+libc = "0.2"

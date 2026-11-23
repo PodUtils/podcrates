@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 870 entries: 149 open, 28 partial, 7 blocked, 686 done.
+`TODO/INDEX.md` holds 870 entries: 148 open, 28 partial, 7 blocked, 687 done.
 
 ## State
 
@@ -108,8 +108,8 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
    WireGuard peer), T-499 (NAT traversal with the relay), T-515 (the
    congestion window of the ARQ, with the first carrier over a shared
    path), T-803 (a parity datagram of the ARQ, #213, after T-515), T-514
-   (a stream-aware ARQ, when podnet asks), T-501 (`pod-turn` with RFC
-   6062), T-214 and T-215 (`pod-transit`, `pod-wormhole`). Then: T-030
+   (a stream-aware ARQ, when podnet asks), T-214 and T-215 (`pod-transit`,
+   `pod-wormhole`). Then: T-030
    (`pod-cloudflare`), T-302 (`pod-egress`), T-039 (`pod-ts`), T-502 (a
    headscale harness). The rest of `pod-warp`: T-339 (the trial patches
    and the live run), T-482, T-481, T-470, T-410, T-409; T-407 (the fuzz

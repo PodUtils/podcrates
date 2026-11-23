@@ -27,7 +27,7 @@ pod-core = { workspace = true, features = ["async"], optional = true }
 # The TLS of TURN over TLS: the caller's context (its provider and its
 # roots) and the handshake over the caller's dial.
 pod-tls = { workspace = true, optional = true }
-tokio = { workspace = true, features = ["io-util", "net", "time", "macros", "sync"], optional = true }
+tokio = { workspace = true, features = ["io-util", "net", "time", "macros", "sync", "rt"], optional = true }
 tracing = { workspace = true, optional = true }
 # The password and the key are wiped when the client ends.
 zeroize = { workspace = true, optional = true }
@@ -53,11 +53,19 @@ name = "turn_tls"
 required-features = ["turn"]
 
 [[test]]
+name = "turn_tcp"
+required-features = ["turn"]
+
+[[test]]
 name = "live"
 required-features = ["turn"]
 
 [[test]]
 name = "coturn"
+required-features = ["turn"]
+
+[[test]]
+name = "coturn_tcp"
 required-features = ["turn"]
 
 [[test]]

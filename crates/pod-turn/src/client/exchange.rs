@@ -112,42 +112,7 @@ impl Client {
     /// credentials of the allocation the user, the realm, the nonce, the
     /// algorithms, and the integrity of the chosen algorithm last.
     fn request(&self, method: u16, id: &TransactionId, attributes: &[(u16, Value)]) -> Vec<u8> {
-        let kind = message_type(method, Class::Request);
-        let peers: Vec<Vec<u8>> = attributes
-            .iter()
-            .filter_map(|(_, v)| match v {
-                Value::Peer(peer) => Some(stun::write_address(*peer, Some(id))),
-                Value::Bytes(_) => None,
-            })
-            .collect();
-        let mut peers = peers.iter();
-        let mut list: Vec<(u16, &[u8])> = Vec::with_capacity(attributes.len() + 8);
-        for (k, v) in attributes {
-            match v {
-                Value::Bytes(bytes) => list.push((*k, bytes)),
-                Value::Peer(_) => list.extend(peers.next().map(|p| (*k, p.as_slice()))),
-            }
-        }
-        if let Some(software) = &self.software {
-            list.push((SOFTWARE, software.as_bytes()));
-        }
-        let Some(auth) = &self.auth else { return message(kind, id, &list) };
-        match &auth.userhash {
-            Some(hash) => list.push((USERHASH, hash)),
-            None => list.push((USERNAME, self.credentials.username().as_bytes())),
-        }
-        list.push((REALM, auth.realm.as_bytes()));
-        list.push((NONCE, &auth.nonce));
-        let chosen = auth.algorithm.attribute();
-        if let Some(offered) = &auth.offered {
-            list.push((PASSWORD_ALGORITHMS, offered));
-            list.push((PASSWORD_ALGORITHM, &chosen));
-        }
-        let unsigned = message(kind, id, &list);
-        match auth.algorithm {
-            PasswordAlgorithm::Md5 => stun::signed(&unsigned, &auth.key),
-            PasswordAlgorithm::Sha256 => stun::signed_sha256(&unsigned, &auth.key),
-        }
+        request_with(self.auth.as_ref(), self.credentials.username(), self.software.as_deref(), method, id, attributes)
     }
 
     /// Take the realm, the nonce and the algorithms of a 401 (`stale` false)
@@ -221,12 +186,7 @@ impl Client {
     /// The integrity of an answer, with the key of the chosen algorithm: an
     /// answer with only the weaker one fails.
     fn check(&self, reply: &[u8], kind: u16) -> Result<(), Error> {
-        let Some(auth) = &self.auth else { return Ok(()) };
-        let result = match auth.algorithm {
-            PasswordAlgorithm::Md5 => stun::integrity(reply, &auth.key),
-            PasswordAlgorithm::Sha256 => stun::integrity_sha256(reply, &auth.key),
-        };
-        result.map_err(|error| Error::Integrity { kind, error })
+        check_with(self.auth.as_ref(), reply, kind)
     }
 
     /// Send `request` and wait for the answer of `id`. Over UDP the request
@@ -325,8 +285,98 @@ fn ignored(bytes: &[u8]) -> bool {
     !challenge && downgraded(&read)
 }
 
+/// The bytes of a request with `auth`, as [`Client::request`] writes it:
+/// the attributes, SOFTWARE, and with the credentials of an allocation the
+/// user, the realm, the nonce, the algorithms, and the integrity last.
+pub(super) fn request_with(
+    auth: Option<&Auth>,
+    username: &str,
+    software: Option<&str>,
+    method: u16,
+    id: &TransactionId,
+    attributes: &[(u16, Value)],
+) -> Vec<u8> {
+    let kind = message_type(method, Class::Request);
+    let peers: Vec<Vec<u8>> = attributes
+        .iter()
+        .filter_map(|(_, v)| match v {
+            Value::Peer(peer) => Some(stun::write_address(*peer, Some(id))),
+            Value::Bytes(_) => None,
+        })
+        .collect();
+    let mut peers = peers.iter();
+    let mut list: Vec<(u16, &[u8])> = Vec::with_capacity(attributes.len() + 8);
+    for (k, v) in attributes {
+        match v {
+            Value::Bytes(bytes) => list.push((*k, bytes)),
+            Value::Peer(_) => list.extend(peers.next().map(|p| (*k, p.as_slice()))),
+        }
+    }
+    if let Some(software) = software {
+        list.push((SOFTWARE, software.as_bytes()));
+    }
+    let Some(auth) = auth else { return message(kind, id, &list) };
+    match &auth.userhash {
+        Some(hash) => list.push((USERHASH, hash)),
+        None => list.push((USERNAME, username.as_bytes())),
+    }
+    list.push((REALM, auth.realm.as_bytes()));
+    list.push((NONCE, &auth.nonce));
+    let chosen = auth.algorithm.attribute();
+    if let Some(offered) = &auth.offered {
+        list.push((PASSWORD_ALGORITHMS, offered));
+        list.push((PASSWORD_ALGORITHM, &chosen));
+    }
+    let unsigned = message(kind, id, &list);
+    match auth.algorithm {
+        PasswordAlgorithm::Md5 => stun::signed(&unsigned, &auth.key),
+        PasswordAlgorithm::Sha256 => stun::signed_sha256(&unsigned, &auth.key),
+    }
+}
+
+/// The integrity of an answer, with the key of the chosen algorithm.
+pub(super) fn check_with(auth: Option<&Auth>, reply: &[u8], kind: u16) -> Result<(), Error> {
+    let Some(auth) = auth else { return Ok(()) };
+    let result = match auth.algorithm {
+        PasswordAlgorithm::Md5 => stun::integrity(reply, &auth.key),
+        PasswordAlgorithm::Sha256 => stun::integrity_sha256(reply, &auth.key),
+    };
+    result.map_err(|error| Error::Integrity { kind, error })
+}
+
+/// Send `request` on `conn` and wait for the answer of `id`, for
+/// `limits.request_timeout`: a stream does not send a request again. This
+/// is the transaction of a data connection and of the keeper, which have no
+/// [`Client`] to queue the other messages.
+pub(super) async fn exchange_on(
+    conn: &mut super::wire::Conn,
+    request: &[u8],
+    id: &TransactionId,
+    clock: &dyn super::Clock,
+    limits: &super::Limits,
+    method: u16,
+) -> Result<Vec<u8>, Error> {
+    let start = clock.now();
+    let end = start + limits.request_timeout;
+    conn.send(request).await?;
+    loop {
+        let frame = tokio::select! {
+            frame = conn.recv() => frame?,
+            () = clock.sleep_until(end) => {
+                let waited = clock.now().saturating_duration_since(start);
+                return Err(Error::Timeout { method, waited: waited.max(Duration::from_millis(1)) });
+            }
+        };
+        if let Frame::Stun(bytes) = frame
+            && answers(&bytes, id)
+        {
+            return Ok(bytes);
+        }
+    }
+}
+
 /// True when `bytes` is an answer (a success or an error) of `id`.
-fn answers(bytes: &[u8], id: &TransactionId) -> bool {
+pub(super) fn answers(bytes: &[u8], id: &TransactionId) -> bool {
     bytes.len() >= HEADER
         && bytes[8..HEADER] == id[..]
         && matches!(class_of(u16::from_be_bytes([bytes[0], bytes[1]])), Class::Success | Class::Error)

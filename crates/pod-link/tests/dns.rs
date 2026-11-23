@@ -190,7 +190,7 @@ async fn an_address_or_a_setting_out_of_its_form_is_a_usage_error() {
 async fn the_carrier_says_what_it_gives_and_why_it_cannot_run() {
     let dns = Dns::new(ring(), id(1)).zone("z.test");
     assert_eq!(dns.name(), "dns");
-    assert_eq!(dns.facts(), Facts { cost: Cost::Highest, ..Facts::STREAM });
+    assert_eq!(dns.facts(), Facts::with_cost(Cost::Highest));
     if pod_testkit::host::loopback().is_ok() {
         assert!(dns.available().is_ok(), "{:?}", dns.available());
     }

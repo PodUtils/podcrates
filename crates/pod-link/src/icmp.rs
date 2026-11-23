@@ -226,7 +226,7 @@ impl Carrier for Icmp {
     }
 
     fn facts(&self) -> Facts {
-        Facts { cost: crate::carrier::Cost::High, ..Facts::STREAM }
+        Facts::with_cost(crate::carrier::Cost::High)
     }
 
     fn available(&self) -> Result<(), CarrierError> {

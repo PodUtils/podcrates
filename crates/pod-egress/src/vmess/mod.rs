@@ -16,6 +16,9 @@ mod body;
 mod header;
 mod kdf;
 pub mod link;
+#[cfg(test)]
+#[path = "vector_tests.rs"]
+mod vector_tests;
 mod ws;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};

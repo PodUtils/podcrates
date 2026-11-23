@@ -1,0 +1,23 @@
+[package]
+name = "pod-cover"
+description = "The cover site, the cover script and the authenticated switch of a listener that answers as a site before it accepts a session: a static tree with name routing, a measured record and timing script, an HMAC proof over a timestamp, a nonce and the TLS exporter, a replayed window, a multiplexer with a volume budget, and an application-layer delegated credential."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The parse of an HTTP/1.1 request head and the write of an answer. No
+# feature: the crate needs no tokio.
+pod-core = { workspace = true }
+# The cover script as data, and its TOML reader.
+serde = { workspace = true }
+toml = { workspace = true }
+# The HMAC-SHA-256 of the switch proof.
+hmac = { workspace = true }
+sha2 = { workspace = true }
+# The Ed25519 signature of a delegated credential.
+ed25519-dalek = { workspace = true }
+# The switch key is wiped when its value is dropped.
+zeroize = { workspace = true }

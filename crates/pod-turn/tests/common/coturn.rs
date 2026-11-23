@@ -63,6 +63,22 @@ pub fn coturn() -> Option<Coturn> {
     })
 }
 
+/// The plain TCP listener of coturn for the RFC 6062 test, or `None` with a
+/// line when the variable names none. `POD_TURN_TEST_COTURN=required`
+/// makes no listener a failure.
+pub fn coturn_tcp() -> Option<SocketAddr> {
+    let value = std::env::var("POD_TURN_TEST_COTURN_TCP").ok().filter(|v| !v.is_empty());
+    let Some(value) = value else {
+        assert!(
+            std::env::var("POD_TURN_TEST_COTURN").as_deref() != Ok("required"),
+            "POD_TURN_TEST_COTURN=required: POD_TURN_TEST_COTURN_TCP names no coturn"
+        );
+        println!("skipped: POD_TURN_TEST_COTURN_TCP names no coturn");
+        return None;
+    };
+    Some(value.parse::<SocketAddr>().expect("HOST:PORT of coturn, an IP address"))
+}
+
 pub async fn within<T>(future: impl std::future::Future<Output = T>) -> T {
     tokio::time::timeout(pod_testkit::host::scaled(LIMIT), future).await.expect("the test's bound")
 }

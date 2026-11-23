@@ -14,6 +14,7 @@ use crate::hints::DeviceHints;
 use crate::identity::Identity;
 use crate::leg::{Leg, Legs, Relay};
 use crate::net::NetSettings;
+use crate::provider::{Cloudflare, Enrolled, Enrolment};
 use crate::register;
 use crate::session::Way;
 use crate::store::{self, IdentityFile, Stored};
@@ -87,6 +88,9 @@ pub struct Warp {
     pub(crate) settings: Settings,
     pub(crate) device: Device,
     pub(crate) identity: Identity,
+    /// The doors and the pinned key of the provider that enrolled the
+    /// device: the adapter of an enrolment (PodUtils/podnet#486, QUIC-4).
+    pub(crate) enrolled: Option<Enrolled>,
     /// The front door that opened the last session (PodUtils/podnet issue
     /// 124).
     pub(crate) won: Mutex<Option<SocketAddr>>,
@@ -101,7 +105,23 @@ impl Warp {
     /// A client of an enrolled device and its identity.
     pub fn from_parts(settings: Settings, device: Device, identity: Identity) -> Warp {
         let legs = Mutex::new(Legs::default());
-        Warp { settings, device, identity, won: Mutex::new(None), bad: Mutex::new(None), legs }
+        Warp { settings, device, identity, enrolled: None, won: Mutex::new(None), bad: Mutex::new(None), legs }
+    }
+
+    /// A client of the enrolment `enrolled` of a provider: its doors and
+    /// its pinned key, with no registration call of another provider.
+    pub fn from_enrolment(settings: Settings, enrolled: Enrolled, identity: Identity) -> Warp {
+        let device = enrolled.device.clone().unwrap_or_else(Device::empty);
+        let legs = Mutex::new(Legs::default());
+        Warp {
+            settings,
+            device,
+            identity,
+            enrolled: Some(enrolled),
+            won: Mutex::new(None),
+            bad: Mutex::new(None),
+            legs,
+        }
     }
 
     /// A client of a stored device.
@@ -109,26 +129,26 @@ impl Warp {
         Warp::from_parts(settings, stored.device, stored.identity)
     }
 
-    /// Register anonymously and enrol a new MASQUE identity, with no file:
-    /// a `POST` that makes the device, and a `PATCH` that gives it a P-256
-    /// key and the tunnel type `masque`.
+    /// Register with the provider of the settings and enrol a new identity:
+    /// the anonymous registration of Cloudflare, unless another provider is
+    /// given to [`Warp::enrol`].
+    ///
+    /// The `POST` and the `PATCH` of the WARP API are the calls of the
+    /// adapter of Cloudflare; the trait keeps an enrolment failure apart
+    /// from the transport of a session.
     pub async fn register(settings: Settings) -> Result<Warp, Failure> {
+        let provider = Cloudflare::new(settings.api.clone());
+        Warp::enrol(settings, &provider).await
+    }
+
+    /// Enrol a new identity with `provider`, and give its doors and its
+    /// pinned key: the adapter decides where the doors are and which key
+    /// the door pins. A failure of the enrolment is a failure of this
+    /// crate's type, with the class and the words of [`crate::EnrolError`].
+    pub async fn enrol(settings: Settings, provider: &dyn Enrolment) -> Result<Warp, Failure> {
         let identity = Identity::generate()?;
-        let api = &settings.api;
-        let device = register::create_device(api, &settings.hints).await?;
-        if device.token.is_empty() {
-            return Err(Failure::new(Stage::Warp, Class::Protocol, "the registration answer carried no token"));
-        }
-        let name = settings.hints.name.clone();
-        let mut enrolled = register::enrol_masque(api, &device.id, &device.token, &identity.spki_b64(), name).await?;
-        // Only the registration answer has the token; the account calls and
-        // the rotation of the key need it.
-        enrolled.token = device.token;
-        if enrolled.tunnel_type != "masque" {
-            let text = format!("the API kept tunnel_type {:?} in place of masque", enrolled.tunnel_type);
-            return Err(Failure::new(Stage::Warp, Class::Protocol, text));
-        }
-        Ok(Warp::from_parts(settings, enrolled, identity))
+        let enrolled = provider.enrol(&identity, &settings.hints).await.map_err(|e| e.failure())?;
+        Ok(Warp::from_enrolment(settings, enrolled, identity))
     }
 
     /// Resume the identity of `file`, or register and save one there
@@ -147,9 +167,30 @@ impl Warp {
         &self.settings
     }
 
-    /// The device record: the addresses and the pinned key of the peer.
+    /// The device record: the addresses and the pinned key of the peer. A
+    /// provider that keeps no record leaves it empty ([`Device::empty`]),
+    /// and the account calls of the WARP API are `Usage`.
     pub fn device(&self) -> &Device {
         &self.device
+    }
+
+    /// The name of the provider that enrolled the device, if an adapter
+    /// did.
+    pub fn provider(&self) -> Option<&str> {
+        self.enrolled.as_ref().map(|e| e.provider.as_str())
+    }
+
+    /// The record that the account calls of the WARP API need: a provider
+    /// that keeps none is `Usage`.
+    fn record(&self) -> Result<&Device, Failure> {
+        match self.device.id.is_empty() {
+            true => {
+                let provider = self.provider().unwrap_or("the provider");
+                let text = format!("{provider} keeps no device record; the account calls of the WARP API need one");
+                Err(Failure::new(Stage::Warp, Class::Usage, text))
+            }
+            false => Ok(&self.device),
+        }
     }
 
     /// The identity that the front door sees.
@@ -160,26 +201,31 @@ impl Warp {
     /// Read the device record from the API again; keep the token.
     pub async fn refresh(&mut self) -> Result<(), Failure> {
         let token = self.device.token.clone();
+        let provider = self.provider().unwrap_or("cloudflare").to_string();
         let mut device = register::get_device(&self.settings.api, &self.device.id, &token).await?;
         device.token = token;
         self.device = device;
+        self.enrolled = Some(crate::provider::Enrolled::of_device(&provider, self.device.clone()));
         Ok(())
     }
 
     /// The account record, with the license key hidden.
     pub async fn account(&self) -> Result<serde_json::Value, Failure> {
-        register::get_account(&self.settings.api, &self.device.id, &self.device.token).await
+        let device = self.record()?;
+        register::get_account(&self.settings.api, &device.id, &device.token).await
     }
 
     /// Attach a WARP+ license key, then read the device again.
     pub async fn set_license(&mut self, license: &str) -> Result<serde_json::Value, Failure> {
-        let account = register::set_license(&self.settings.api, &self.device.id, &self.device.token, license).await?;
+        let device = self.record()?;
+        let account = register::set_license(&self.settings.api, &device.id, &device.token, license).await?;
         self.refresh().await?;
         Ok(account)
     }
 
     /// Make a new MASQUE key and enrol it. The old key stops working.
     pub async fn rotate_key(&mut self) -> Result<(), Failure> {
+        self.record()?;
         let identity = Identity::generate()?;
         let token = self.device.token.clone();
         let name = self.settings.hints.name.clone();
@@ -193,7 +239,8 @@ impl Warp {
 
     /// Remove the device from the WARP service.
     pub async fn delete(&self) -> Result<(), Failure> {
-        register::delete_device(&self.settings.api, &self.device.id, &self.device.token).await
+        let device = self.record()?;
+        register::delete_device(&self.settings.api, &device.id, &device.token).await
     }
 
     /// The front door that opened the last session.
@@ -253,7 +300,30 @@ impl Warp {
         }
         match &self.settings.door {
             Door::Pinned(target) => Some(target.clone()),
-            Door::Record => self.won_door().or_else(|| self.device.masque_endpoint()).map(Target::Addr),
+            Door::Record => self.won_door().map(Target::Addr).or_else(|| self.doors().first().cloned()),
+        }
+    }
+
+    /// The doors of the provider that enrolled the device, or those of the
+    /// record when no adapter enrolled it.
+    pub fn doors(&self) -> Vec<Target> {
+        match &self.enrolled {
+            Some(enrolled) => enrolled.doors.clone(),
+            None => self.device.masque_endpoints().into_iter().map(Target::Addr).collect(),
+        }
+    }
+
+    /// The key of the front door that the client pins, as DER: that of the
+    /// provider that enrolled the device, else the peer key of the record.
+    pub(crate) fn pin(&self) -> Result<Vec<u8>, Failure> {
+        match &self.enrolled {
+            Some(enrolled) if !enrolled.pin.is_empty() => Ok(enrolled.pin.clone()),
+            Some(enrolled) => {
+                let text =
+                    format!("the provider {} enrolled no pinned key; no session opens without one", enrolled.provider);
+                Err(Failure::new(Stage::Warp, Class::Protocol, text))
+            }
+            None => crate::open::pin_of(&self.device),
         }
     }
 }

@@ -1,8 +1,7 @@
 diff --git a/crates/pod-turn/src/client/exchange.rs b/crates/pod-turn/src/client/exchange.rs
-index 2c79efd..777340c 100644
 --- a/crates/pod-turn/src/client/exchange.rs
 +++ b/crates/pod-turn/src/client/exchange.rs
-@@ -322,7 +322,7 @@ fn downgraded(read: &Message<'_>) -> bool {
+@@ -282,7 +282,7 @@ fn downgraded(read: &Message<'_>) -> bool {
  fn ignored(bytes: &[u8]) -> bool {
      let Ok(read) = decode(bytes) else { return false };
      let challenge = matches!(read.error(), Some(Ok((401 | 438, _))));
@@ -10,4 +9,4 @@ index 2c79efd..777340c 100644
 +    !challenge && downgraded(&read) && false
  }
  
- /// True when `bytes` is an answer (a success or an error) of `id`.
+ /// The bytes of a request with `auth`, as [`Client::request`] writes it:

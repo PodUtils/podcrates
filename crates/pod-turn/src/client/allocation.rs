@@ -54,11 +54,25 @@ pub enum Port {
     EvenAndNext,
 }
 
-/// What an Allocate asks for beyond a UDP relay. The default asks for
-/// nothing more: a relayed address of the server's family, any port, no
-/// reservation, no DONT-FRAGMENT.
+/// The transport between the server and the peer that the allocation
+/// relays.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum Relay {
+    /// A UDP relay (RFC 8656).
+    #[default]
+    Udp,
+    /// A TCP relay (RFC 6062): [`crate::Client::connect`] and
+    /// [`crate::Client::accept`] carry TCP bytes through it.
+    Tcp,
+}
+
+/// What an Allocate asks for beyond the relay itself. The default asks for
+/// nothing more: a UDP relay, a relayed address of the server's family, any
+/// port, no reservation, no DONT-FRAGMENT.
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct Allocation {
+    /// The transport between the server and the peer.
+    pub relay: Relay,
     pub family: Family,
     pub port: Port,
     /// RESERVATION-TOKEN: the port that the token of an earlier allocation
@@ -74,6 +88,7 @@ pub struct Allocation {
 impl fmt::Debug for Allocation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Allocation")
+            .field("relay", &self.relay)
             .field("family", &self.family)
             .field("port", &self.port)
             .field("reservation", &self.reservation.map(|_| "(set)"))
@@ -94,6 +109,17 @@ impl Allocation {
         }
         if self.family == Family::Both && self.port == Port::EvenAndNext {
             return usage("a TURN allocation of both families cannot keep the next port");
+        }
+        if self.relay == Relay::Tcp {
+            if self.port != Port::Any {
+                return usage("a TCP relay has no even port");
+            }
+            if self.reservation.is_some() {
+                return usage("a TCP relay has no reservation token");
+            }
+            if self.dont_fragment {
+                return usage("a TCP relay has no DONT-FRAGMENT");
+            }
         }
         Ok(())
     }
@@ -221,7 +247,13 @@ mod tests {
 
     #[test]
     fn the_attributes_of_each_ask() {
-        let ask = Allocation { family: Family::Both, port: Port::Even, reservation: None, dont_fragment: true };
+        let ask = Allocation {
+            relay: Relay::Udp,
+            family: Family::Both,
+            port: Port::Even,
+            reservation: None,
+            dont_fragment: true,
+        };
         let kinds: Vec<u16> = ask.attributes().iter().map(|(k, _)| *k).collect();
         assert_eq!(kinds, [ADDITIONAL_ADDRESS_FAMILY, EVEN_PORT, DONT_FRAGMENT]);
         let reserved = Allocation { reservation: Some([7; 8]), ..Allocation::default() };
@@ -242,6 +274,14 @@ mod tests {
         }
         let both = Allocation { family: Family::Both, port: Port::Even, ..Allocation::default() };
         assert!(both.check().is_ok());
+        for ask in [
+            Allocation { relay: Relay::Tcp, port: Port::Even, ..Allocation::default() },
+            Allocation { relay: Relay::Tcp, reservation: token, ..Allocation::default() },
+            Allocation { relay: Relay::Tcp, dont_fragment: true, ..Allocation::default() },
+        ] {
+            assert!(matches!(ask.check(), Err(Error::Usage(_))), "{ask:?}");
+        }
+        assert!(Allocation { relay: Relay::Tcp, ..Allocation::default() }.check().is_ok());
     }
 
     #[test]

@@ -1,0 +1,20 @@
+[package]
+name = "pod-harness"
+description = "The verification harness of podnet#501: three traffic classifiers, a middlebox simulator, a road by profile matrix and a relocatable archive."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "pod-harness"
+path = "src/bin/pod-harness.rs"
+
+[dependencies]
+pod-core = { workspace = true }
+serde_json = { workspace = true }
+# MD5 of JA3 and SHA-256 of JA4. The fingerprints use the hash of their
+# specifications; no hash of this crate.
+md5 = { workspace = true }
+sha2 = { workspace = true }

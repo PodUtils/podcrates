@@ -1,0 +1,17 @@
+# A terminal: short keystrokes and command output, padded while a command runs.
+name = "terminal"
+protocol = "ssh"
+rule = "below:1024"
+first_flight = 4096
+
+buckets = [
+  { size = 128, weight = 55 },
+  { size = 512, weight = 30 },
+  { size = 1024, weight = 15 },
+]
+
+pace = { rate = 800000, jitter = 20, keepalive = 15 }
+
+entropy = { min = 3.0, max = 7.0, printable_run = 16 }
+
+source = { date = "2026-11-12", cover_version = "1" }

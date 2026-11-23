@@ -280,7 +280,7 @@ async fn an_address_or_a_setting_out_of_its_form_is_a_usage_error() {
 #[tokio::test]
 async fn each_form_has_its_name_and_its_cost_and_a_failure_of_the_way_out_keeps_its_class() {
     let p = Poll::new(ring(), id(1), Arc::new(Direct::default()));
-    assert_eq!((p.name(), p.form, p.facts()), ("poll", Form::LongPoll, Facts { cost: Cost::Medium, ..Facts::STREAM }));
+    assert_eq!((p.name(), p.form, p.facts()), ("poll", Form::LongPoll, Facts::with_cost(Cost::Medium)));
     let names: Vec<_> = [Form::LongPoll, Form::Sse, Form::Chunked, Form::Simplex]
         .into_iter()
         .map(|f| {

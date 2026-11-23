@@ -1,0 +1,13 @@
+[package]
+name = "pod-shape"
+description = "The shape of the record layer as data: a padding profile for each traffic class, a deterministic bucket shaper that never repeats a short cycle, first-flight sizing, a pacer with jittered keepalives, entropy control with a salted nonce window, and a report of the declared shape against the observed one."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The data files of the profiles: a TOML table and its values, no writer.
+serde = { workspace = true }
+toml = { workspace = true }

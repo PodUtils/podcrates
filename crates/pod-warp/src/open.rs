@@ -7,6 +7,7 @@ use std::time::Duration;
 use pod_core::{Class, Event, Failure, Stage, Target};
 
 use crate::device::Device;
+use crate::door::Door;
 use crate::door::{self, Routes};
 use crate::identity::spki_from_pem;
 use crate::leg::Leg;
@@ -112,11 +113,11 @@ impl Warp {
     /// Open a session on the way `way`: each door in turn.
     async fn open_on(&self, way: &Way, routes: Routes) -> Result<MasqueSession, Failure> {
         let settings = &self.settings;
-        let pinned = pin_of(&self.device)?;
-        let candidates = self.doors_of(&self.device, routes);
-        if candidates.is_empty() {
+        let pinned = self.pin()?;
+        if self.doors().is_empty() {
             return Err(Failure::new(Stage::Warp, Class::Protocol, "the device has no MASQUE front door"));
         }
+        let candidates = self.doors_of(routes)?;
         let mut failures: Vec<Failure> = Vec::new();
         for (i, door) in candidates.iter().enumerate() {
             match MasqueSession::connect(door, &self.identity, pinned.clone(), way).await {
@@ -143,10 +144,48 @@ impl Warp {
         }))
     }
 
-    /// The doors of `device` that a session tries, in order.
-    fn doors_of(&self, device: &Device, routes: Routes) -> Vec<Target> {
+    /// The doors that a session tries, in order, without a door of a family
+    /// that the host has no route to (PodUtils/podnet#366): each dropped
+    /// door is a line of the report, and a set with no reachable door is a
+    /// named failure before any socket.
+    fn doors_of(&self, routes: Routes) -> Result<Vec<Target>, Failure> {
+        self.doors_from(self.doors(), routes)
+    }
+
+    /// [`Warp::doors_of`] of the list `all`: the order of the pinned door
+    /// or of [`door::doors`] on its addresses, then the doors of a name.
+    fn doors_from(&self, all: Vec<Target>, routes: Routes) -> Result<Vec<Target>, Failure> {
         let bad = *self.bad.lock().unwrap_or_else(|e| e.into_inner());
-        door::doors(&self.settings.door, device.masque_endpoints(), self.won_door(), bad, routes)
+        let addresses: Vec<std::net::SocketAddr> =
+            all.iter().filter_map(|t| if let Target::Addr(a) = t { Some(*a) } else { None }).collect();
+        let mut candidates = door::doors(&self.settings.door, addresses, self.won_door(), bad, routes);
+        for named in all.iter().filter(|t| !matches!(t, Target::Addr(_))) {
+            if !candidates.contains(named) {
+                candidates.push(named.clone());
+            }
+        }
+        let mut reachable = Vec::with_capacity(candidates.len());
+        for candidate in candidates {
+            if door::reachable(&candidate, routes) {
+                reachable.push(candidate);
+            } else {
+                let text = format!(
+                    "the front door {candidate} has no route on this host ({}); it is not tried",
+                    door::NO_FAMILY
+                );
+                self.settings.report.event(Event::warn("warp.door", text));
+            }
+        }
+        if reachable.is_empty() {
+            let default = match &self.settings.door {
+                Door::Pinned(target) => target.clone(),
+                Door::Record => all.first().cloned().unwrap_or_else(|| Target::Addr(([0u8; 4], 0).into())),
+            };
+            let failure = door::unreachable(&all, routes, &default);
+            self.settings.report.event(Event::warn("warp.door", failure.chain()));
+            return Err(failure);
+        }
+        Ok(reachable)
     }
 
     fn note_won(&self, door: &Target) {
@@ -169,14 +208,28 @@ impl Warp {
         routes: Routes,
     ) -> Result<MasqueSession, Failure> {
         let settings = &self.settings;
+        if self.device.id.is_empty() {
+            let provider = self.provider().unwrap_or("the provider");
+            let text = format!(
+                "the MASQUE key is not the pinned key ({}), and {provider} keeps no device record to read again",
+                err.chain()
+            );
+            return Err(Failure::caused(Stage::Warp, Class::Protocol, text, err));
+        }
         let text = format!("the MASQUE key is not the pinned key ({}); the device record is read again", err.chain());
         settings.report.event(Event::warn("warp.pin", text));
         let fresh = register::get_device(&settings.api, &self.device.id, &self.device.token).await.map_err(|e| {
             let text = format!("{}; reading the device record again failed. {}", err.text(), why_shown(way, shown));
             Failure::caused(e.stage, e.class, text, e)
         })?;
-        let pinned = pin_of(&fresh)?;
-        let mut doors = self.doors_of(&fresh, routes);
+        let pinned = match crate::provider::Enrolled::of_device("cloudflare", fresh.clone()).pin {
+            pin if !pin.is_empty() => pin,
+            _ => pin_of(&fresh)?,
+        };
+        // The doors of the record read again, not the doors of the
+        // enrolment: the key that the door shows moved with its record.
+        let fresh_doors: Vec<Target> = fresh.masque_endpoints().into_iter().map(Target::Addr).collect();
+        let mut doors = self.doors_from(fresh_doors, routes)?;
         if let Some(i) = doors.iter().position(|d| d == shown) {
             let door = doors.remove(i);
             doors.insert(0, door);

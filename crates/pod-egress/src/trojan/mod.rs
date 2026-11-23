@@ -37,6 +37,56 @@ pub const ANSWER_WAIT: Duration = Duration::from_secs(10);
 /// the request's bytes at once.
 pub const EARLY_WAIT: Duration = Duration::from_secs(3);
 
+/// The commands that Trojan's request names (`docs/protocol.md`): CONNECT,
+/// and UDP associate.
+pub const CONNECT: u8 = 0x01;
+pub const UDP_ASSOCIATE: u8 = 0x03;
+
+/// What this road carries, by name, so that a doctor's line says it without
+/// reading a string that a failure built.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Capability {
+    /// A stream to the target, Trojan's command 0x01.
+    Tcp,
+    /// UDP associate, Trojan's command 0x03.
+    UdpAssociate,
+}
+
+impl Capability {
+    /// Each command that Trojan names.
+    pub const ALL: [Capability; 2] = [Capability::Tcp, Capability::UdpAssociate];
+
+    /// Whether this road sends it. UDP associate is refused: this client
+    /// supports TCP only, and no UDP path stands here.
+    pub fn carried(self) -> bool {
+        matches!(self, Capability::Tcp)
+    }
+
+    /// The command's number in Trojan's request.
+    pub fn command(self) -> u8 {
+        match self {
+            Capability::Tcp => CONNECT,
+            Capability::UdpAssociate => UDP_ASSOCIATE,
+        }
+    }
+
+    /// The words of the outcome, for the line that a doctor prints.
+    pub fn words(self) -> &'static str {
+        match self {
+            Capability::Tcp => "a TCP stream to the target (command 0x01) is carried",
+            Capability::UdpAssociate => {
+                "UDP associate (command 0x03) is refused: this client carries TCP to a target and no UDP path"
+            }
+        }
+    }
+}
+
+/// Each of Trojan's commands with whether this road carries it, for the
+/// line that a doctor prints without parsing a failure.
+pub fn capability() -> [(Capability, bool); 2] {
+    [(Capability::Tcp, Capability::Tcp.carried()), (Capability::UdpAssociate, Capability::UdpAssociate.carried())]
+}
+
 /// Why a Trojan server carried no session.
 #[derive(Debug)]
 pub enum TrojanError {
@@ -126,6 +176,13 @@ pub struct Opened {
     pub how: &'static str,
     /// The target's first bytes came within the wait.
     pub answered: bool,
+}
+
+/// Trojan's request for `host:port` under `password`, as the road sends it:
+/// the password's SHA-224 in hex, CRLF, CONNECT, the address, the port,
+/// CRLF. A conformance vector reads it, and a caller may.
+pub fn request(password: &str, host: &str, port: u16) -> Result<Vec<u8>, String> {
+    request::request(&link::Password::new(password)?, host, port)
 }
 
 /// A session to `host:port` through `server`, on the link's transport.
@@ -223,5 +280,29 @@ mod tests {
             refused.line(shown, "h:22"),
             "the Trojan server trojan://t.example:443 refused the WebSocket upgrade at /tr: HTTP 404"
         );
+    }
+
+    /// VEC-6: UDP associate is refused by name, and the doctor reads it
+    /// from the capability and not from a failure's words.
+    #[test]
+    fn udp_associate_is_refused_by_name_and_tcp_is_carried() {
+        let capabilities = capability();
+        assert_eq!(capabilities.len(), 2);
+        for (command, carried) in capabilities {
+            assert_eq!(carried, command.carried());
+            match command {
+                Capability::Tcp => {
+                    assert!(carried);
+                    assert_eq!(command.command(), 0x01);
+                    assert!(command.words().contains("0x01"));
+                }
+                Capability::UdpAssociate => {
+                    assert!(!carried);
+                    assert_eq!((command.command(), UDP_ASSOCIATE), (0x03, 0x03));
+                    let words = command.words();
+                    assert!(words.contains("UDP associate") && words.contains("refused"), "{words}");
+                }
+            }
+        }
     }
 }

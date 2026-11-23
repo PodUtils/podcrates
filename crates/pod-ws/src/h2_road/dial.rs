@@ -17,7 +17,8 @@ use tokio::time::Instant;
 use pod_tls::Trust;
 
 use super::pool::{self, Conn, Driven, Pinged};
-use super::{CONNECTION_WINDOW, Fallback, H2, HTTP1, STREAM_WINDOW, STREAMS};
+use super::shape::Shape;
+use super::{Fallback, H2, HTTP1, STREAMS};
 use crate::client::{ConnectError, RelayStream, WsClientConfig};
 use crate::way::Way;
 
@@ -32,14 +33,14 @@ pub(super) enum Dialed {
     Lacks(Fallback),
 }
 
-/// A new connection for `config`'s host.
-pub(super) async fn dial(config: &WsClientConfig) -> Result<Dialed, ConnectError> {
+/// A new connection for `config`'s host, in `shape`.
+pub(super) async fn dial(config: &WsClientConfig, shape: &Shape) -> Result<Dialed, ConnectError> {
     let at = &config.endpoint;
     let (tls, peer) = open(&config.way, &at.host, at.port, &config.server_name, &config.trust, config.timeout).await?;
     if tls.get_ref().1.alpn_protocol() != Some(H2) {
         return Ok(Dialed::Http1(Box::new(tls), peer));
     }
-    let (sender, driven, ping) = match settled(tls, config.timeout).await {
+    let (sender, driven, ping) = match settled(tls, config.timeout, shape).await {
         Ok(settled) => settled,
         Err(why) => return Ok(Dialed::Lacks(Fallback::Carried(why))),
     };
@@ -75,9 +76,13 @@ async fn open(
 /// HTTP/2's handshake on `tls`, its connection driven in a task, and its
 /// SETTINGS read; and its PING with the round trip of the first. `Err` once
 /// the connection is closed again.
-async fn settled(tls: RelayStream, limit: Duration) -> Result<(SendRequest<Bytes>, Driven, Pinged), String> {
+async fn settled(
+    tls: RelayStream,
+    limit: Duration,
+    shape: &Shape,
+) -> Result<(SendRequest<Bytes>, Driven, Pinged), String> {
     let mut builder = h2::client::Builder::new();
-    builder.initial_window_size(STREAM_WINDOW).initial_connection_window_size(CONNECTION_WINDOW).enable_push(false);
+    shape.apply(&mut builder);
     let (sender, mut connection) = match tokio::time::timeout(limit, builder.handshake::<_, Bytes>(tls)).await {
         Ok(Ok(made)) => made,
         Ok(Err(e)) => return Err(format!("HTTP/2's handshake: {e}")),
@@ -156,7 +161,7 @@ pub async fn probe(
     if alpn.as_deref().map(str::as_bytes) != Some(H2) {
         return Ok(Offered { alpn, extended: None, streams: None });
     }
-    let (sender, driven, _) = settled(tls, limit).await.map_err(ConnectError::Http)?;
+    let (sender, driven, _) = settled(tls, limit, &Shape::existing()).await.map_err(ConnectError::Http)?;
     let offered = Offered {
         alpn,
         extended: Some(sender.is_extended_connect_protocol_enabled()),

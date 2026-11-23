@@ -4,6 +4,13 @@
 //! is a count of 2 bytes over the IV's next 10; an empty chunk ends the
 //! stream. The pump turns the server's bytes into a stream of the target's,
 //! once the answer's header opened.
+//!
+//! The count is 16 bits, so one direction carries at most [`MAX_CHUNKS`]
+//! chunks under one key and IV. At [`MAX_PLAIN`] bytes for each chunk that
+//! is 535,691,264 bytes (about 511 MiB). A chunk after that would reuse the
+//! nonce of the first, so it is refused with [`ChunkError::CountExhausted`]
+//! before any byte of it is sealed or opened; the wire format does not
+//! change.
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::sync::oneshot;
@@ -18,6 +25,21 @@ pub const TAG: usize = 16;
 pub const MAX_PLAIN: usize = 8192 - 2 - TAG;
 /// The largest answer's header taken.
 const MAX_ANSWER: usize = 4096;
+/// The distinct counts of one direction: the wire format's 16-bit count,
+/// 0 to 65535. A 65536th chunk would reuse the nonce of the first.
+pub const MAX_CHUNKS: u32 = 1 << 16;
+
+/// Why a chunk was refused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChunkError {
+    /// The direction has used all 65536 counts of the wire format. The next
+    /// chunk would reuse the first nonce under the same key and IV.
+    CountExhausted,
+    /// The AEAD refused the bytes.
+    Aead,
+    /// The sealed length does not fit the wire format's 16-bit field.
+    Length,
+}
 
 /// The body's cipher, by the link's `scy`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,7 +95,7 @@ impl Cipher {
 pub struct Chunks {
     aead: Aead,
     iv: [u8; 16],
-    count: u16,
+    count: u32,
 }
 
 impl Chunks {
@@ -81,29 +103,34 @@ impl Chunks {
         Some(Chunks { aead: cipher.aead(key)?, iv: *iv, count: 0 })
     }
 
-    fn nonce(&mut self) -> [u8; NONCE_LEN] {
+    fn nonce(&mut self) -> Result<[u8; NONCE_LEN], ChunkError> {
+        if self.count >= MAX_CHUNKS {
+            // Xray's count of 16 bits wraps; this one refuses instead, so
+            // that no chunk reuses the nonce of an earlier one.
+            return Err(ChunkError::CountExhausted);
+        }
         let mut nonce = [0u8; NONCE_LEN];
         nonce.copy_from_slice(&self.iv[..NONCE_LEN]);
-        nonce[..2].copy_from_slice(&self.count.to_be_bytes());
-        // Go's count of 16 bits wraps, and so does this one.
-        self.count = self.count.wrapping_add(1);
-        nonce
+        nonce[..2].copy_from_slice(&(self.count as u16).to_be_bytes());
+        self.count += 1;
+        Ok(nonce)
     }
 
     /// `plain` (at most [`MAX_PLAIN`]) as a chunk at the end of `out`.
-    pub fn seal(&mut self, plain: &[u8], out: &mut Vec<u8>) -> Option<()> {
-        let nonce = self.nonce();
+    pub fn seal(&mut self, plain: &[u8], out: &mut Vec<u8>) -> Result<(), ChunkError> {
+        let nonce = self.nonce()?;
         let mut sealed = plain.to_vec();
-        self.aead.seal_in_place(&nonce, &[], &mut sealed)?;
-        out.extend_from_slice(&u16::try_from(sealed.len()).ok()?.to_be_bytes());
+        self.aead.seal_in_place(&nonce, &[], &mut sealed).ok_or(ChunkError::Aead)?;
+        let length = u16::try_from(sealed.len()).map_err(|_| ChunkError::Length)?;
+        out.extend_from_slice(&length.to_be_bytes());
         out.extend_from_slice(&sealed);
-        Some(())
+        Ok(())
     }
 
     /// A chunk's sealed payload opened in place: its length in clear.
-    pub fn open(&mut self, sealed: &mut [u8]) -> Option<usize> {
-        let nonce = self.nonce();
-        self.aead.open_in_place(&nonce, &[], sealed)
+    pub fn open(&mut self, sealed: &mut [u8]) -> Result<usize, ChunkError> {
+        let nonce = self.nonce()?;
+        self.aead.open_in_place(&nonce, &[], sealed).ok_or(ChunkError::Aead)
     }
 }
 
@@ -141,7 +168,7 @@ pub fn spawn(
             // A failed read ends the stream as its end does.
             let n: usize = from_user.read(&mut buf).await.unwrap_or_default();
             let mut out = Vec::with_capacity(n + 2 + TAG);
-            if up_chunks.seal(&buf[..n], &mut out).is_none() || to_server.write_all(&out).await.is_err() {
+            if up_chunks.seal(&buf[..n], &mut out).is_err() || to_server.write_all(&out).await.is_err() {
                 return;
             }
             if n == 0 {
@@ -174,7 +201,7 @@ pub fn spawn(
             if n <= TAG || from_server.read_exact(&mut buf[..n]).await.is_err() {
                 break;
             }
-            let Some(plain) = down_chunks.open(&mut buf[..n]) else { break };
+            let Ok(plain) = down_chunks.open(&mut buf[..n]) else { break };
             if to_user.write_all(&buf[..plain]).await.is_err() {
                 break;
             }
@@ -236,7 +263,36 @@ mod tests {
             a.seal(b"y", &mut again).unwrap();
             let mut b = Chunks::new(cipher, &key, &iv).unwrap();
             let second = 2 + usize::from(u16::from_be_bytes([again[0], again[1]]));
-            assert!(b.open(&mut again[second + 2..]).is_none());
+            assert!(b.open(&mut again[second + 2..]).is_err());
+        }
+    }
+
+    /// The count runs to its 16-bit end: the last permitted chunk opens,
+    /// and the chunk after it is refused before any byte is written or a
+    /// nonce is reused.
+    #[test]
+    fn the_chunk_count_refuses_the_wrap_and_the_last_chunk_round_trips() {
+        for cipher in [Cipher::Aes128Gcm, Cipher::ChaCha20Poly1305] {
+            let (key, iv) = ([11u8; 16], [13u8; 16]);
+            let mut send = Chunks::new(cipher, &key, &iv).unwrap();
+            let mut last = Vec::new();
+            for at in 0..MAX_CHUNKS {
+                let mut wire = Vec::new();
+                send.seal(&[at as u8], &mut wire).unwrap();
+                last = wire;
+            }
+            // The last permitted chunk, at count MAX_CHUNKS - 1, still
+            // round-trips.
+            let mut take = Chunks::new(cipher, &key, &iv).unwrap();
+            take.count = MAX_CHUNKS - 1;
+            let n = usize::from(u16::from_be_bytes([last[0], last[1]]));
+            let plain = take.open(&mut last[2..2 + n]).unwrap();
+            assert_eq!(&last[2..2 + plain], &[(MAX_CHUNKS - 1) as u8]);
+            // The next chunk would reuse nonce 0: both ends refuse it.
+            let mut refused = Vec::new();
+            assert_eq!(send.seal(b"wrapped", &mut refused), Err(ChunkError::CountExhausted));
+            assert!(refused.is_empty(), "a refused chunk writes no bytes");
+            assert_eq!(take.open(&mut [0u8; TAG]), Err(ChunkError::CountExhausted));
         }
     }
 

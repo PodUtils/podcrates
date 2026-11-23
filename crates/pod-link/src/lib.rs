@@ -34,11 +34,19 @@
 //! over the ARQ over ICMP echo messages), and with the feature `s3`,
 //! `s3::S3` (the same TLS over objects of a bucket of the S3 API; the
 //! feature `s3-standin` adds `s3::standin`, a stand-in of the S3 API on
-//! the loopback for the tests of a consumer). Each carrier says with
-//! [`Carrier::available`] why the host cannot use it, and a listener gives
-//! the key that its peer proved with [`Listener::accept_peer`]. The
-//! registry of the carriers, their order and their flags are the
-//! consumer's (call C117).
+//! the loopback for the tests of a consumer), with the feature `ntp`,
+//! `ntp::Ntp` (the bytes in the extension fields of NTPv4 packets over UDP
+//! 123), with the feature `smtp`, `smtp::Smtp` (one message for each batch
+//! over submission, 587 with STARTTLS or 465 with TLS), and with the
+//! feature `imap`, `imap::Imap` (the bytes up by `APPEND` and down by `UID
+//! FETCH` over 143 with STARTTLS or 993 with TLS; [`mail_pair`] joins a
+//! submission carrier and a retrieval carrier into one stream). Each
+//! carrier says with [`Carrier::available`] why the host cannot use it,
+//! and a listener gives the key that its peer proved with
+//! [`Listener::accept_peer`]. [`Carrier::facts`] gives the cost class and
+//! the rate of each carrier ([`Rate`]); a limit that its service sets is a
+//! [`Limit`], not an error. The registry of the carriers, their order and
+//! their flags are the consumer's (call C117).
 //!
 //! [`split::Split`] runs one link over two carriers: the bytes of the
 //! dialer up one, the bytes of the listener down the other, and the loss of
@@ -71,9 +79,15 @@ pub mod frame;
 pub mod h2;
 #[cfg(feature = "icmp")]
 pub mod icmp;
+#[cfg(feature = "imap")]
+pub mod imap;
 mod inbound;
 mod link;
+#[cfg(any(feature = "imap", feature = "smtp"))]
+mod mail;
 pub mod memory;
+#[cfg(feature = "ntp")]
+pub mod ntp;
 #[cfg(feature = "tcp")]
 mod pin;
 mod pipes;
@@ -86,6 +100,8 @@ pub mod quic;
 #[cfg(feature = "s3")]
 pub mod s3;
 mod settings;
+#[cfg(feature = "smtp")]
+pub mod smtp;
 pub mod split;
 mod state;
 mod stream;
@@ -98,7 +114,10 @@ pub mod unix;
 #[cfg(feature = "ws")]
 pub mod ws;
 
-pub use carrier::{Accepted, BoxIo, Carrier, CarrierError, CarrierErrorKind, Cost, Facts, Io, Listener, Pending};
+pub use carrier::{
+    Accepted, BoxIo, Carrier, CarrierError, CarrierErrorKind, Cost, Facts, Io, Limit, LimitKind, Limits, Listener,
+    Pending, Rate,
+};
 pub use error::{Error, GoAwayCode, ResetCode};
 pub use frame::{Decoder, Frame, FrameError, MAX_RECORD};
 pub use link::Link;
@@ -108,3 +127,20 @@ pub use settings::{
 };
 pub use state::Role;
 pub use stream::Stream;
+
+/// One byte stream of the two halves of a mail tunnel (features `smtp` and
+/// `imap`): the bytes up go to the submission carrier, and the bytes down
+/// come from the retrieval carrier. Use it where a link needs one carrier
+/// and the network permits submission alone, or retrieval alone.
+#[cfg(any(feature = "imap", feature = "smtp"))]
+pub fn mail_pair(up: BoxIo, down: BoxIo) -> BoxIo {
+    mail::join(up, down)
+}
+
+/// The bytes of one message of the mail carriers (features `smtp` and
+/// `imap`): the body, decoded from base64 when the message carries the
+/// headers of [`smtp`], and the body as it is for another tool's message.
+#[cfg(any(feature = "imap", feature = "smtp"))]
+pub fn mail_body(message: &[u8]) -> Vec<u8> {
+    mail::body(message)
+}

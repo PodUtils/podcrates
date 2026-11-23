@@ -140,8 +140,34 @@ fn the_padding_gives_the_bucket_sizes_and_goes_before_the_payload_comes_out() {
         assert_eq!((header.length as usize, usize::from(header.pad)), (body, body - len));
         assert_eq!(payload(b.open(now, &sealed)), sent);
     }
+    let stats = a.stats();
+    assert_eq!((stats.records, stats.body_out, stats.padded_out), (7, 7936, 1535), "the padding is counted");
     let (mut a, _) = ends(Suite::ChaCha20Poly1305, Settings::DEFAULT, now);
     assert_eq!(a.seal(now, DATA, 0, 0, &[1; 100]).unwrap().len(), HEADER + 100 + crate::TAG, "padding off");
+    assert_eq!(a.stats(), Stats { records: 1, body_out: 100, padded_out: 0 }, "no padding, no padded byte");
+}
+
+#[test]
+fn a_caller_chosen_body_is_on_the_wire_and_counted() {
+    let now = Instant::now();
+    let (mut a, mut b) = ends(Suite::ChaCha20Poly1305, Settings::DEFAULT, now);
+    let sent = vec![0x5a; 300];
+    let sealed = a.seal_with(now, DATA, 0, 2, &sent, 1024).unwrap();
+    assert_eq!(sealed.len(), HEADER + 1024 + crate::TAG);
+    let header = Header::parse(&sealed).unwrap();
+    assert_eq!((header.length, usize::from(header.pad), header.stream), (1024, 724, 2));
+    assert_eq!(payload(b.open(now, &sealed)), sent);
+    assert_eq!(a.stats(), Stats { records: 1, body_out: 1024, padded_out: 724 });
+    // The caller keeps the body at or above the payload, and the padding
+    // within the header's field.
+    assert!(matches!(a.seal_with(now, DATA, 0, 0, &sent, 299), Err(Fault::Malformed(_))));
+    assert!(matches!(a.seal_with(now, DATA, 0, 0, &sent, 300 + 65536), Err(Fault::Malformed(_))));
+    assert!(matches!(a.seal_with(now, DATA, 0, 0, &sent, MAX_LENGTH + 1), Err(Fault::Malformed(_))));
+    assert_eq!(a.stats().records, 1, "a refused body seals nothing");
+    // A body equal to the payload is the record with no padding.
+    let plain = a.seal_with(now, DATA, 0, 0, &sent, 300).unwrap();
+    assert_eq!(Header::parse(&plain).unwrap().pad, 0);
+    assert_eq!(a.stats(), Stats { records: 2, body_out: 1324, padded_out: 724 });
 }
 
 #[test]
@@ -199,6 +225,22 @@ fn three_failed_resumes_or_a_late_one_end_the_layer() {
     let resume = b.resume(&mut entropy).unwrap();
     let late = now + Settings::DEFAULT.resume_window + Duration::from_secs(1);
     assert_eq!(a.open(late, &resume).unwrap_err(), Fault::ResumeExpired);
+}
+
+#[test]
+fn the_rekey_ceilings_are_the_issues_and_a_small_ceiling_crosses() {
+    // KEY-4: 2^31 records or 1 GiB, whichever comes first.
+    assert_eq!(Settings::DEFAULT.rekey_records, 1 << 31);
+    assert_eq!(Settings::DEFAULT.rekey_bytes, 1 << 30);
+    let now = Instant::now();
+    let small = Settings { rekey_records: 2, ..Settings::DEFAULT };
+    let (mut a, mut b) = ends(Suite::ChaCha20Poly1305, small, now);
+    for i in 0..3u8 {
+        let sealed = a.seal(now, DATA, 0, 0, &[i]).unwrap();
+        assert_eq!(payload(b.open(now, &sealed)), [i], "record {i}");
+    }
+    assert_eq!(a.epochs().0, 1, "a new key at the small ceiling of 2 records");
+    assert_eq!(a.counters().0, 3, "the counter itself never goes back");
 }
 
 #[test]

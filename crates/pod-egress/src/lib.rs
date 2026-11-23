@@ -50,7 +50,9 @@ use std::sync::Arc;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 pub mod carry;
+pub mod coalesce;
 pub mod end;
+pub mod replay;
 mod road;
 
 #[cfg(feature = "cloudflare")]

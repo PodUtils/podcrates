@@ -5,6 +5,7 @@
 pub mod coturn;
 pub mod mock;
 pub mod mock_alloc;
+pub mod mock_tcp;
 pub mod recorded;
 
 use std::net::SocketAddr;
@@ -46,6 +47,9 @@ pub fn knobs(sha256: bool) -> Knobs {
         dont_fragment: true,
         ipv6: false,
         alpn: false,
+        refuse_connect: None,
+        bind_salt: 0,
+        truncated_frame: false,
     }
 }
 
@@ -205,6 +209,16 @@ pub fn udp_settings(addr: SocketAddr, user: &str, password: &str) -> Settings {
     let mut settings =
         Settings::udp(pod_core::Target::Addr(addr), Credentials::new(user, password), Arc::new(SystemUdp::new()));
     settings.software = Some("pod-turn-test".into());
+    settings
+}
+
+/// The settings of a client of the plain TCP mock: the loopback dial, and a
+/// TCP allocation (RFC 6062).
+pub fn tcp_settings(addr: SocketAddr, user: &str, password: &str) -> Settings {
+    let mut settings =
+        Settings::tcp(pod_core::Target::Addr(addr), Credentials::new(user, password), Arc::new(Loopback));
+    settings.software = Some("pod-turn-test".into());
+    settings.allocation.relay = pod_turn::Relay::Tcp;
     settings
 }
 

@@ -48,8 +48,14 @@ pub fn link(way: Arc<dyn pod_core::Dial>) -> String {
     let udp = runtime.block_on(udp());
     let dns = runtime.block_on(dns());
     let icmp = icmp();
+    let extra_carriers = format!(
+        "ntp port {}, smtp batch {}, imap max_fetch {}",
+        pod_link::ntp::PORT,
+        pod_link::smtp::BATCH,
+        pod_link::imap::MAX_FETCH
+    );
     format!(
-        "pod-link: {} bytes over the memory carrier, the unix carrier {unix}, the tcp carrier {tcp}, the ws carrier {ws}, the h2 carrier {h2}, the sse carrier {sse}, the quic carrier {quic}, the udp carrier {udp}, the dns carrier {dns}, the icmp carrier {icmp}, the s3 carrier {s3}",
+        "pod-link: {} bytes over the memory carrier, the unix carrier {unix}, the tcp carrier {tcp}, the ws carrier {ws}, the h2 carrier {h2}, the sse carrier {sse}, the quic carrier {quic}, the udp carrier {udp}, the dns carrier {dns}, the icmp carrier {icmp}, the s3 carrier {s3}, {extra_carriers}",
         echoed.map_or_else(|e| e.to_string(), |n| n.to_string())
     )
 }

@@ -39,6 +39,15 @@ pub struct Knobs {
     pub ipv6: bool,
     /// The TLS mock serves the ALPN `stun.turn`.
     pub alpn: bool,
+    /// A Connect that the TCP mock refuses with this code, as a server with
+    /// no route to the peer does (447) or a policy does (403).
+    pub refuse_connect: Option<u16>,
+    /// The TCP mock stores a pending connection under its id xor this
+    /// value: a bind with the id that it gave is refused when it is 1.
+    pub bind_salt: u32,
+    /// After a successful ConnectionBind the TCP mock writes a length with
+    /// too few bytes and closes: a truncated frame.
+    pub truncated_frame: bool,
 }
 
 /// A 300 (Try Alternate) of each Allocate: before the challenge as coturn
@@ -97,7 +106,7 @@ pub type Relayed = (SocketAddr, SocketAddr, Vec<u8>);
 /// The state of one client (one UDP 5-tuple, or one TLS connection).
 pub struct Session {
     pub client: SocketAddr,
-    nonce: Vec<u8>,
+    pub(super) nonce: Vec<u8>,
     nonces: u32,
     pub(super) alloc: Option<Alloc>,
 }
@@ -132,7 +141,7 @@ impl Mock {
     /// The user of a request and the key: by USERHASH when the nonce
     /// cookie announces username anonymity, else by USERNAME; `None` for a
     /// user that the mock does not know, or for the other attribute.
-    fn user_and_key(&self, read: &stun::Message<'_>) -> Option<(String, Vec<u8>)> {
+    pub(super) fn user_and_key(&self, read: &stun::Message<'_>) -> Option<(String, Vec<u8>)> {
         let realm = &self.knobs.realm;
         let anonymity = self.knobs.cookie.is_some_and(|bits| bits & SecurityFeature::UsernameAnonymity.bits() != 0);
         let (name, password) = match (anonymity, read.attribute(stun::USERHASH), read.attribute(stun::USERNAME)) {
@@ -193,7 +202,7 @@ impl Mock {
         self.answer(method, Class::Error, id, &attributes, key)
     }
 
-    fn challenge(&self, session: &mut Session, method: u16, id: &[u8; 12], code: u16) -> Vec<u8> {
+    pub(super) fn challenge(&self, session: &mut Session, method: u16, id: &[u8; 12], code: u16) -> Vec<u8> {
         let nonce = self.fresh_nonce(session);
         let offered = self.offered();
         let mut more = vec![(stun::REALM, self.knobs.realm.as_bytes()), (stun::NONCE, nonce.as_slice())];
@@ -203,7 +212,7 @@ impl Mock {
         self.error(method, id, code, &more, None)
     }
 
-    fn note(&self, method: u16, read: &stun::Message<'_>, code: u16) {
+    pub(super) fn note(&self, method: u16, read: &stun::Message<'_>, code: u16) {
         let text = |k| read.attribute(k).map(|v| String::from_utf8_lossy(v).into_owned());
         let algorithm = read.attribute(stun::PASSWORD_ALGORITHM).map(|v| u16::from_be_bytes([v[0], v[1]]));
         let seen = Seen {
@@ -282,7 +291,7 @@ impl Mock {
 
     /// The integrity of the algorithm of the challenge: SHA-256 with the
     /// algorithms sent back as offered, else MD5.
-    fn verify(&self, bytes: &[u8], read: &stun::Message<'_>, key: &[u8]) -> Result<(), String> {
+    pub(super) fn verify(&self, bytes: &[u8], read: &stun::Message<'_>, key: &[u8]) -> Result<(), String> {
         if !self.knobs.sha256 {
             return stun::integrity(bytes, key).map_err(|e| e.to_string());
         }

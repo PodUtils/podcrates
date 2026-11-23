@@ -9,329 +9,17 @@
 //! client sends on its HTTP/2, read off the wire before h2 reads it. TLS is
 //! checked for the relay's name with the test's root.
 
-use std::net::IpAddr;
-use std::path::{Path, PathBuf};
-use std::pin::Pin;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll};
+mod common;
+#[path = "h2_road/support.rs"]
+mod support;
+
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use bytes::Bytes;
-use pod_ws::frame::OPCODE_BINARY;
 use pod_ws::h2_road::{self, Fallback, Offered, Road};
-use pod_ws::{ConnectError, Endpoint, RelaySession, Trust, WsClientConfig};
-use sha2::{Digest, Sha256};
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
-use tokio::net::TcpListener;
-
-// Shared test support; this file uses part of it.
-#[allow(dead_code)]
-mod cert {
-    include!("../../pod-tls/tests/common/cert_for_test.rs");
-}
-
-const NAME: &str = "relay.h2.test";
-const TOKEN: &str = "token-of-the-test";
-const PATH: &str = "/connect/127.0.0.1/22";
-const LIMIT: Duration = Duration::from_secs(60);
-const MIB: usize = 1 << 20;
-const REFUSAL: &str = "forward: missing or wrong token";
-const H1: &[&[u8]] = &[b"http/1.1"];
-const BOTH: &[&[u8]] = &[b"h2", b"http/1.1"];
-
-/// What a stand-in's TLS and HTTP/2 offer.
-#[derive(Clone, Copy, PartialEq)]
-enum Offer {
-    Extended,
-    NoSetting,
-    Http1Only,
-}
-
-/// A CONNECT of HTTP/2 as the stand-in's application got it.
-#[derive(Debug)]
-struct Asked {
-    protocol: Option<String>,
-    scheme: Option<String>,
-    authority: Option<String>,
-    path: Option<String>,
-    version: Option<String>,
-    key: Option<String>,
-}
-
-#[derive(Default)]
-struct Seen {
-    accepted: AtomicUsize,
-    upgrades: AtomicUsize,
-    headers: AtomicUsize,
-    connects: Mutex<Vec<Asked>>,
-    /// Each connection's task, for a cut.
-    tasks: Mutex<Vec<tokio::task::AbortHandle>>,
-}
-
-mod common;
-
-#[path = "h2_road/runtimes.rs"]
-mod runtimes;
-
-/// The pool of the tests: each test has its own port, so its own hosts.
-static POOL: h2_road::Pool = h2_road::Pool::new();
-
-/// The way of the tests, which finds the relay's name on the loopback.
-fn way() -> pod_ws::Way {
-    let lo: IpAddr = "127.0.0.1".parse().unwrap();
-    common::way_with_pins(&[(NAME, lo)])
-}
-
-fn root_file(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("pod-ws-h2-road-{}-{tag}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("root.pem");
-    let der = cert::encoding::self_signed_inner(&cert::encoding::anchor_name(NAME), true).der;
-    std::fs::write(&path, cert::encoding::pem(&der)).unwrap();
-    path
-}
-
-fn config(port: u16, root: &Path) -> WsClientConfig {
-    WsClientConfig {
-        endpoint: Endpoint { host: NAME.into(), port, path: PATH.into() },
-        trust: Trust::File(root.to_path_buf()),
-        server_name: NAME.into(),
-        timeout: LIMIT,
-        idle_timeout: Some(LIMIT),
-        way: way(),
-        limits: pod_ws::Limits::default(),
-    }
-}
-
-/// The frames of HTTP/2 that a client sends, read past the preface by their
-/// headers alone: each HEADERS (type 1) is counted.
-struct Wire {
-    preface: usize,
-    head: Vec<u8>,
-    skip: usize,
-}
-
-impl Wire {
-    fn feed(&mut self, mut bytes: &[u8], seen: &Seen) {
-        while !bytes.is_empty() {
-            let n = if self.preface > 0 {
-                let n = self.preface.min(bytes.len());
-                self.preface -= n;
-                n
-            } else if self.skip > 0 {
-                let n = self.skip.min(bytes.len());
-                self.skip -= n;
-                n
-            } else {
-                let n = (9 - self.head.len()).min(bytes.len());
-                self.head.extend_from_slice(&bytes[..n]);
-                if self.head.len() == 9 {
-                    let h = &self.head;
-                    self.skip = (h[0] as usize) << 16 | (h[1] as usize) << 8 | h[2] as usize;
-                    if h[3] == 0x1 {
-                        seen.headers.fetch_add(1, Ordering::SeqCst);
-                    }
-                    self.head.clear();
-                }
-                n
-            };
-            bytes = &bytes[n..];
-        }
-    }
-}
-
-/// The client's bytes on their way to h2's server, read by [`Wire`].
-struct Tap<S> {
-    inner: S,
-    wire: Wire,
-    seen: Arc<Seen>,
-}
-
-impl<S: AsyncRead + Unpin> AsyncRead for Tap<S> {
-    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
-        let this = self.get_mut();
-        let before = buf.filled().len();
-        let polled = Pin::new(&mut this.inner).poll_read(cx, buf);
-        if let Poll::Ready(Ok(())) = &polled {
-            this.wire.feed(&buf.filled()[before..], &this.seen);
-        }
-        polled
-    }
-}
-
-impl<S: AsyncWrite + Unpin> AsyncWrite for Tap<S> {
-    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, data: &[u8]) -> Poll<std::io::Result<usize>> {
-        Pin::new(&mut self.get_mut().inner).poll_write(cx, data)
-    }
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut self.get_mut().inner).poll_flush(cx)
-    }
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
-        Pin::new(&mut self.get_mut().inner).poll_shutdown(cx)
-    }
-}
-
-/// A stand-in relay for [`NAME`] that offers `offer`.
-async fn stand_in(offer: Offer) -> (u16, Arc<Seen>) {
-    let (acceptor, _) = cert::server_for(NAME).unwrap();
-    let mut tls = (**acceptor.config()).clone();
-    let alpn = if offer == Offer::Http1Only { H1 } else { BOTH };
-    tls.alpn_protocols = alpn.iter().map(|p| p.to_vec()).collect();
-    let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(tls));
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let seen: Arc<Seen> = Arc::default();
-    let kept = seen.clone();
-    tokio::spawn(async move {
-        while let Ok((tcp, _)) = listener.accept().await {
-            let (acceptor, seen) = (acceptor.clone(), kept.clone());
-            let task = tokio::spawn(async move {
-                let Ok(tls) = acceptor.accept(tcp).await else { return };
-                seen.accepted.fetch_add(1, Ordering::SeqCst);
-                if tls.get_ref().1.alpn_protocol() == Some(b"h2".as_slice()) {
-                    let wire = Wire { preface: 24, head: Vec::new(), skip: 0 };
-                    serve_h2(Tap { inner: tls, wire, seen: seen.clone() }, offer, seen).await;
-                } else {
-                    serve_h1(tls, seen).await;
-                }
-            });
-            kept.tasks.lock().unwrap().push(task.abort_handle());
-        }
-    });
-    (port, seen)
-}
-
-async fn serve_h2<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(io: S, offer: Offer, seen: Arc<Seen>) {
-    let mut builder = h2::server::Builder::new();
-    builder.max_concurrent_streams(32);
-    if offer == Offer::Extended {
-        builder.enable_connect_protocol();
-    }
-    let Ok(mut connection) = builder.handshake::<_, Bytes>(io).await else { return };
-    while let Some(Ok((request, respond))) = connection.accept().await {
-        tokio::spawn(answer_h2(request, respond, seen.clone()));
-    }
-}
-
-async fn answer_h2(
-    request: http::Request<h2::RecvStream>,
-    mut respond: h2::server::SendResponse<Bytes>,
-    seen: Arc<Seen>,
-) {
-    let (asked, token_ok) = {
-        let field = |name: &str| request.headers().get(name).and_then(|v| v.to_str().ok()).map(String::from);
-        let asked = Asked {
-            protocol: request.extensions().get::<h2::ext::Protocol>().map(|p| p.as_str().to_string()),
-            scheme: request.uri().scheme_str().map(String::from),
-            authority: request.uri().authority().map(|a| a.to_string()),
-            path: request.uri().path_and_query().map(|p| p.to_string()),
-            version: field("sec-websocket-version"),
-            key: field("sec-websocket-key"),
-        };
-        (asked, field("x-relay-token").as_deref() == Some(TOKEN))
-    };
-    seen.connects.lock().unwrap().push(asked);
-    if !token_ok {
-        let answer = http::Response::builder().status(403).header("content-type", "text/plain").body(()).unwrap();
-        if let Ok(mut send) = respond.send_response(answer, false) {
-            let _ = send.send_data(Bytes::from(format!("{REFUSAL}\n")), true);
-        }
-        return;
-    }
-    let Ok(send) = respond.send_response(http::Response::builder().status(200).body(()).unwrap(), false) else {
-        return;
-    };
-    echo(pod_ws::server::session(h2_road::duplex(send, request.into_body()), Vec::new(), None)).await;
-}
-
-async fn serve_h1<S: AsyncRead + AsyncWrite + Unpin>(mut tls: S, seen: Arc<Seen>) {
-    let Ok((head, pending)) = pod_proxy::http::request::read_request(&mut tls, Vec::new()).await else { return };
-    if head.header("x-relay-token") != Some(TOKEN) {
-        let _ = tls.write_all(&pod_proxy::http::request::refusal(403, REFUSAL, &[])).await;
-        return;
-    }
-    let key = match pod_ws::server::check_upgrade(&head) {
-        Ok(key) => key,
-        Err(refused) => {
-            let _ = tls.write_all(&refused.answer()).await;
-            return;
-        }
-    };
-    seen.upgrades.fetch_add(1, Ordering::SeqCst);
-    if tls.write_all(&pod_ws::server::switching(&key)).await.is_ok() {
-        echo(pod_ws::server::session(tls, pending, None)).await;
-    }
-}
-
-/// Each binary message back as it came, until the Close, which the
-/// session's reader answers.
-async fn echo<S: AsyncRead + AsyncWrite>(session: RelaySession<S>) {
-    while let Ok(frame) = session.read_frame().await {
-        if frame.opcode != OPCODE_BINARY || session.send_binary(&frame.payload).await.is_err() {
-            return;
-        }
-    }
-}
-
-/// Bytes that a seed fixes (xorshift64*).
-fn bytes(size: usize, mut seed: u64) -> Vec<u8> {
-    (0..size)
-        .map(|_| {
-            seed ^= seed >> 12;
-            seed ^= seed << 25;
-            seed ^= seed >> 27;
-            (seed.wrapping_mul(0x2545_f491_4f6c_dd1d) >> 56) as u8
-        })
-        .collect()
-}
-
-/// `size` bytes out through `session` in messages of 64 KiB while the echo
-/// is read: each byte back once, in order, by digest; then the Close.
-async fn each_way(session: RelaySession, size: usize, seed: u64) {
-    let session = Arc::new(session);
-    let out = bytes(size, seed);
-    let sent = Sha256::digest(&out);
-    let writer = {
-        let session = session.clone();
-        tokio::spawn(async move {
-            for chunk in out.chunks(64 * 1024) {
-                session.send_binary(chunk).await.expect("a message out");
-            }
-        })
-    };
-    let (mut back, mut got) = (Sha256::new(), 0);
-    let read = async {
-        while got < size {
-            let frame = session.read_frame().await.expect("a message back");
-            assert_eq!(frame.opcode, OPCODE_BINARY);
-            got += frame.payload.len();
-            back.update(&frame.payload);
-        }
-    };
-    tokio::time::timeout(echo_limit(), read).await.expect("the echo within the limit");
-    writer.await.unwrap();
-    assert_eq!(got, size, "each byte came back once");
-    assert_eq!(back.finalize(), sent, "the digests are equal");
-    let _ = session.send_close(1000, "").await;
-}
-
-/// The bytes of each of the eight sessions: 4 MiB each way on a kernel,
-/// 1 MiB under an emulator, which carries TLS and HTTP/2 too slowly for the
-/// limit. The test of the shared connection stays the same.
-fn per_session() -> usize {
-    if pod_testkit::host::emulated() { MIB } else { 4 * MIB }
-}
-
-/// The wait for the echo of one session: 60 s on a kernel, five times that
-/// under an emulator.
-fn echo_limit() -> Duration {
-    pod_testkit::host::scaled(LIMIT)
-}
-
-async fn connect(config: &WsClientConfig, token: &str) -> Result<(RelaySession, Road), ConnectError> {
-    tokio::time::timeout(LIMIT * 2, h2_road::connect(&POOL, config, token)).await.expect("an answer within the limit")
-}
+use pod_ws::{ConnectError, Trust};
+use support::*;
 
 /// Eight sessions at once are eight streams of one TLS connection, each
 /// with its own bytes each way (per_session), and each CONNECT is RFC 8441's: no key of
@@ -415,22 +103,72 @@ async fn a_server_whose_tls_chooses_http1_gets_the_upgrade_on_the_same_connectio
     let _ = std::fs::remove_dir_all(root.parent().unwrap());
 }
 
-/// A 403 on the CONNECT is the relay's refusal, with its words, as of the
-/// upgrade; the connection stays, and the right token opens a session on it.
+/// A 403 on the CONNECT is a 4xx, so the session takes the upgrade of
+/// HTTP/1.1 on a new connection, within a second; that upgrade is refused
+/// too, with the relay's words, and the refusal is the session's end. The
+/// refusal of the credential is not the host's property: the right token
+/// opens a session on HTTP/2 again.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_403_on_the_connect_ends_the_session_with_the_relay_s_refusal() {
+async fn a_403_on_the_connect_falls_back_to_the_upgrade_within_a_second() {
     pod_testkit::need_loopback!();
     let root = root_file("refused");
     let (port, seen) = stand_in(Offer::Extended).await;
+    let started = std::time::Instant::now();
     let Err(refused) = connect(&config(port, &root), "a-wrong-token").await else { panic!("a refusal") };
+    let took = started.elapsed();
+    assert!(took < pod_testkit::host::scaled(Duration::from_secs(1)), "the fallback took {took:?}");
     assert!(matches!(&refused, ConnectError::Refused { status: 403, body } if body == REFUSAL), "{refused:?}");
-    let accepted = seen.accepted.load(Ordering::SeqCst);
-    assert_eq!(accepted, 1, "the refusal on HTTP/2 is the session's end: no connection of HTTP/1.1 after it");
-    assert_eq!(seen.upgrades.load(Ordering::SeqCst), 0);
+    assert_eq!(seen.accepted.load(Ordering::SeqCst), 2, "the CONNECT's connection, and the upgrade's");
+    assert_eq!(seen.upgrades.load(Ordering::SeqCst), 0, "the upgrade was refused before it opened");
     let (session, road) = connect(&config(port, &root), TOKEN).await.expect("a session");
-    assert_eq!(road, Road::Stream { shared: true });
-    assert_eq!(seen.accepted.load(Ordering::SeqCst), 1);
+    assert_eq!(road, Road::Stream { shared: true }, "the credential's refusal did not retire HTTP/2");
+    assert_eq!(seen.accepted.load(Ordering::SeqCst), 2);
     each_way(session, MIB, 12).await;
+    let _ = std::fs::remove_dir_all(root.parent().unwrap());
+}
+
+/// CONNECT-2: a proxy that refuses the extended `CONNECT` and the `Upgrade`
+/// of HTTP/1.1 in one answer (405) is not the session's end. The upgrade
+/// takes the session on a new connection, the fallback is chosen inside a
+/// second, and the host is remembered.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_refused_connect_falls_back_to_the_upgrade_and_the_session_completes() {
+    pod_testkit::need_loopback!();
+    let root = root_file("refuses-connect");
+    let (port, seen) = stand_in(Offer::RefusesConnect).await;
+    let started = std::time::Instant::now();
+    let (session, road) = connect(&config(port, &root), TOKEN).await.expect("a session on the fallback");
+    let took = started.elapsed();
+    assert_eq!(road, Road::Http1(Fallback::Refused(405)));
+    assert!(took < pod_testkit::host::scaled(Duration::from_secs(1)), "the fallback took {took:?}");
+    assert_eq!(seen.accepted.load(Ordering::SeqCst), 2, "the CONNECT's connection, and the upgrade's");
+    assert_eq!(seen.upgrades.load(Ordering::SeqCst), 1, "the upgrade carried the session");
+    assert_eq!(seen.connects.lock().unwrap().len(), 1, "one CONNECT, then no more");
+    each_way(session, MIB, 14).await;
+    // The host is remembered: the next session asks for no HTTP/2.
+    let (session, road) = connect(&config(port, &root), TOKEN).await.expect("a second session");
+    assert_eq!(road, Road::Http1(Fallback::Remembered(Box::new(Fallback::Refused(405)))));
+    assert_eq!(seen.connects.lock().unwrap().len(), 1, "no CONNECT after the refusal");
+    assert_eq!(seen.accepted.load(Ordering::SeqCst), 3);
+    each_way(session, MIB, 15).await;
+    let _ = std::fs::remove_dir_all(root.parent().unwrap());
+}
+
+/// H2-1: the browser's shape is opt-in, and a session opens on it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_session_opens_on_the_browser_shape_when_a_caller_asks_for_it() {
+    pod_testkit::need_loopback!();
+    let root = root_file("browser-shape");
+    let (port, seen) = stand_in(Offer::Extended).await;
+    let config = config(port, &root);
+    let asked =
+        tokio::time::timeout(LIMIT * 2, h2_road::connect_with(&POOL, &config, TOKEN, &h2_road::Shape::browser()))
+            .await
+            .expect("an answer within the limit")
+            .expect("a session on the browser's shape");
+    assert_eq!(asked.1, Road::Stream { shared: false });
+    assert_eq!(seen.accepted.load(Ordering::SeqCst), 1);
+    each_way(asked.0, MIB, 16).await;
     let _ = std::fs::remove_dir_all(root.parent().unwrap());
 }
 

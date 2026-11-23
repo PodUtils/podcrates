@@ -47,13 +47,17 @@ pub const ID: &str = "550e8400-e29b-41d4-a716-446655440000";
 const ID_BYTES: [u8; 16] = [0x55, 0x0e, 0x84, 0x00, 0xe2, 0x9b, 0x41, 0xd4, 0xa7, 0x16, 0x44, 0x66, 0x55, 0x44, 0, 0];
 
 /// What a stand-in saw: each request's method, path, `Host` and padding's
-/// length, and each target that a VLESS request named.
+/// length, each target that a VLESS request named, and the bytes of each
+/// opening write.
 #[derive(Default)]
 pub struct Seen {
     pub requests: Mutex<Vec<(String, String, String, usize)>>,
     pub targets: Mutex<Vec<String>>,
     /// The connections that the HTTP/1.1 stand-in took.
     pub connections: std::sync::atomic::AtomicUsize,
+    /// The bytes of each WebSocket upgrade's head, which is the whole of the
+    /// session's first write.
+    pub openings: Mutex<Vec<usize>>,
 }
 
 /// The way out of the tests through `proxy`, with [`NAME`] at the
@@ -145,6 +149,7 @@ pub async fn ws_server() -> (u16, Arc<Seen>) {
         while let Ok((tcp, _)) = listener.accept().await {
             let (acceptor, seen) = (acceptor.clone(), kept.clone());
             tokio::spawn(async move {
+                seen.connections.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 let Ok(tls) = acceptor.accept(tcp).await else { return };
                 serve_ws(tls, seen).await;
             });
@@ -164,12 +169,14 @@ async fn serve_ws<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(mut tls: S
     }
     let head = String::from_utf8_lossy(&head).into_owned();
     let path = head.split(' ').nth(1).unwrap_or_default().to_string();
+    seen.openings.lock().unwrap().push(head.len());
     let field = |name: &str| {
         let mut fields = head.split("\r\n").filter_map(|l| l.split_once(':'));
         fields.find(|(n, _)| n.trim().eq_ignore_ascii_case(name)).map(|(_, v)| v.trim().to_string())
     };
     seen.requests.lock().unwrap().push(("GET".into(), path.clone(), field("host").unwrap_or_default(), 0));
-    if path != "/ws" {
+    let bare = path.split('?').next().unwrap_or("/");
+    if bare != "/ws" {
         let _ = tls.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n").await;
         return;
     }

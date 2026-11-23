@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**870 entries: 149 open, 28 partial, 7 blocked, 686 done.**
+**870 entries: 148 open, 28 partial, 7 blocked, 687 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 200 | 214 |
-| P2 | 67 | 8 | 4 | 358 | 437 |
+| P2 | 66 | 8 | 4 | 359 | 437 |
 | P3 | 78 | 10 | 3 | 126 | 217 |
-| **All** | 149 | 28 | 7 | 686 | 870 |
+| **All** | 148 | 28 | 7 | 687 | 870 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -440,7 +440,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-498](relay.md) | P2 | M | M2 | feature | open | `pod-link`: a WireGuard peer as a carrier, over `pod-wg` (PodUtils/podnet#521) |
 | [T-499](relay.md) | P2 | L | M2 | feature | open | `pod-link`: NAT traversal with a fall back to the relay (PodUtils/podnet#521) |
 | [T-500](relay.md) | P2 | M | M2 | feature | done | `pod-link`: one session over an up carrier and a down carrier (PodUtils/podnet#521) |
-| [T-501](transport.md) | P2 | M | M1 | feature | open | `pod-turn`: the TCP relay of RFC 6062 (PodUtils/podnet#521) |
+| [T-501](transport.md) | P2 | M | M1 | feature | done | `pod-turn`: the TCP relay of RFC 6062 (PodUtils/podnet#521) |
 | [T-502](transport.md) | P3 | M | M1 | feature | open | `pod-testkit`: a headscale harness for the tests of a Tailscale node (PodUtils/podnet#521) |
 | [T-503](podvm.md) | P3 | S | M6 | defect | done | `pod-netlab`: three fixes of the knob flags: an empty `--udp`, the range of a number, the words of a flag (PodUtils/podvm#298) |
 | [T-504](podvm.md) | P2 | S | M6 | feature | done | `pod-enter`: a bind of the host's `/dev/pts` on the `/dev/pts` of the image in the namespace rung (PodUtils/podvm#296) |

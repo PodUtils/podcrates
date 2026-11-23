@@ -6,6 +6,8 @@ use std::fmt;
 use std::future::Future;
 use std::io;
 use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use pod_core::{Class, Failure, Stage};
 use pod_identity::PublicKey;
@@ -37,11 +39,122 @@ pub struct Facts {
     /// The bytes that the carrier spends on the wire for each byte of the
     /// link, for the consumer's order of the carriers.
     pub cost: Cost,
+    /// The rate of the carrier: the payload that it moves for each second,
+    /// the floor of its latency, and its cost class.
+    pub rate: Rate,
 }
 
 impl Facts {
-    /// A reliable, ordered, duplex byte stream with no unit and a low cost.
-    pub const STREAM: Facts = Facts { ordered: true, reliable: true, duplex: true, mtu: None, cost: Cost::Low };
+    /// A reliable, ordered, duplex byte stream with no unit, a low cost and
+    /// no declared rate.
+    pub const STREAM: Facts =
+        Facts { ordered: true, reliable: true, duplex: true, mtu: None, cost: Cost::Low, rate: Rate::STREAM };
+
+    /// The facts of a stream with `cost` as its cost class and in its rate.
+    pub const fn with_cost(cost: Cost) -> Facts {
+        Facts { cost, rate: Rate { bytes_per_second: None, poll_interval: None, cost }, ..Facts::STREAM }
+    }
+
+    /// The facts of this stream with `rate`, which also gives the cost
+    /// class: one value names the price of the carrier.
+    pub const fn with_rate(rate: Rate) -> Facts {
+        Facts { cost: rate.cost, rate, ..Facts::STREAM }
+    }
+}
+
+/// The rate of a carrier, as the operator reads it before choosing the
+/// carrier (PodUtils/podnet#484): its payload rate, the floor of its
+/// latency, and its cost class.
+///
+/// * `bytes_per_second` is the payload that the carrier moves in one
+///   direction for each second, when it is fixed. `None` says that the
+///   carrier has no rate of its own (a byte stream at the speed of the
+///   host), or that the service sets it and has not said a value yet.
+/// * `poll_interval` is the time that the carrier waits between two polls
+///   of its service, which is the floor of its latency for the bytes that
+///   wait. `None` says that the carrier pushes its bytes, or that it has
+///   not measured its poll yet.
+/// * `cost` is the same value as [`Facts::cost`], so that this one value
+///   carries the whole price of the carrier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Rate {
+    pub bytes_per_second: Option<u64>,
+    pub poll_interval: Option<Duration>,
+    pub cost: Cost,
+}
+
+impl Rate {
+    /// No declared rate, and the cost class `Low`.
+    pub const STREAM: Rate = Rate { bytes_per_second: None, poll_interval: None, cost: Cost::Low };
+
+    /// This rate with `cost` as its cost class.
+    pub const fn priced(cost: Cost) -> Rate {
+        Rate { cost, ..Rate::STREAM }
+    }
+}
+
+/// The kind of a carrier limit that the service of a carrier set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LimitKind {
+    /// The service cut a unit of the payload below the size that the
+    /// carrier sent, for example an NTP reply that the server shortened.
+    Truncated,
+    /// The service refused a unit of the payload, for example an SMTP
+    /// message over the size of the server.
+    Refused,
+    /// The service declared the largest unit that it takes, before the
+    /// carrier sent one.
+    Declared,
+}
+
+/// A limit of the service of a carrier. It is not a protocol error: the
+/// session stays open, and the carrier keeps its bytes within the limit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Limit {
+    pub kind: LimitKind,
+    /// The bytes of the largest unit that the service takes, when it said
+    /// one.
+    pub bytes: Option<u64>,
+}
+
+impl Limit {
+    /// The service cut a unit below `bytes`.
+    pub const fn truncated(bytes: u64) -> Limit {
+        Limit { kind: LimitKind::Truncated, bytes: Some(bytes) }
+    }
+
+    /// The service refused a unit; it names a size when it said one.
+    pub const fn refused(bytes: Option<u64>) -> Limit {
+        Limit { kind: LimitKind::Refused, bytes }
+    }
+
+    /// The service declared a unit of at most `bytes`.
+    pub const fn declared(bytes: u64) -> Limit {
+        Limit { kind: LimitKind::Declared, bytes: Some(bytes) }
+    }
+}
+
+/// The limit of a carrier that its sessions report and a caller reads: the
+/// last limit that a session of this carrier met, and no error.
+#[derive(Debug, Clone, Default)]
+pub struct Limits {
+    inner: Arc<Mutex<Option<Limit>>>,
+}
+
+impl Limits {
+    pub fn new() -> Limits {
+        Limits::default()
+    }
+
+    /// Report `limit`. A later limit replaces an earlier one.
+    pub fn set(&self, limit: Limit) {
+        *self.inner.lock().unwrap_or_else(|e| e.into_inner()) = Some(limit);
+    }
+
+    /// The last limit that a session of this carrier met.
+    pub fn get(&self) -> Option<Limit> {
+        *self.inner.lock().unwrap_or_else(|e| e.into_inner())
+    }
 }
 
 /// The overhead class of a carrier, from the least to the most.
@@ -203,5 +316,37 @@ impl std::error::Error for CarrierError {
 impl From<CarrierError> for Failure {
     fn from(e: CarrierError) -> Failure {
         Failure::caused(Stage::Connect, e.class(), e.to_string(), e)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// One value names the price: the class of [`Facts`] is the class of
+    /// its rate, whatever sets it.
+    #[test]
+    fn the_cost_class_of_the_facts_and_of_its_rate_agree() {
+        assert_eq!(Facts::STREAM.cost, Facts::STREAM.rate.cost);
+        for cost in [Cost::Low, Cost::Medium, Cost::High, Cost::Highest] {
+            assert_eq!(Facts::with_cost(cost).cost, Facts::with_cost(cost).rate.cost);
+        }
+        let rate =
+            Rate { bytes_per_second: Some(9), poll_interval: Some(Duration::from_secs(32)), cost: Cost::Highest };
+        let facts = Facts::with_rate(rate);
+        assert_eq!((facts.cost, facts.rate), (Cost::Highest, rate));
+        assert_eq!(Rate::priced(Cost::Medium).cost, Cost::Medium);
+    }
+
+    /// A limit is a value that the caller reads, not an error.
+    #[test]
+    fn the_limits_of_a_carrier_keep_the_last_one() {
+        let limits = Limits::new();
+        assert_eq!(limits.get(), None);
+        limits.set(Limit::declared(1024));
+        assert_eq!(limits.get(), Some(Limit::declared(1024)));
+        limits.set(Limit::refused(Some(512)));
+        assert_eq!(limits.get(), Some(Limit { kind: LimitKind::Refused, bytes: Some(512) }));
+        assert_eq!(Limit::truncated(300).bytes, Some(300));
     }
 }

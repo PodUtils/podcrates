@@ -102,11 +102,17 @@ pub enum Class {
     Policy,
     /// The host, the build or the far end does not support the action.
     Unsupported,
+    /// A file or a directory has the wrong permissions or the wrong owner.
+    /// A tool chooses it for a local mode check; [`Class::of_io`] keeps
+    /// `Refused` for a credential that the far end refused.
+    Permission,
+    /// The far end and this end have no protocol or suite in common.
+    Suite,
 }
 
 impl Class {
     /// Each class, in the order of the table of exit codes.
-    pub const ALL: [Class; 11] = [
+    pub const ALL: [Class; 13] = [
         Class::Usage,
         Class::Config,
         Class::Unavailable,
@@ -118,14 +124,16 @@ impl Class {
         Class::Revoked,
         Class::Policy,
         Class::Unsupported,
+        Class::Permission,
+        Class::Suite,
     ];
 
     /// The exit code of a tool that ends on this class. The codes follow
     /// sysexits(3), so that a supervisor reads one table for each tool;
-    /// `Revoked` shares 78 with `Config`, so that one
-    /// `RestartPreventExitStatus=78` stops a restart loop for both. `Policy`
-    /// and `Unsupported` take 79 and 80, past the range of sysexits, as no
-    /// code there has their meaning.
+    /// `Revoked` and `Suite` share 78 with `Config`, so that one
+    /// `RestartPreventExitStatus=78` stops a restart loop for each of them.
+    /// `Policy` and `Unsupported` take 79 and 80, past the range of
+    /// sysexits, as no code there has their meaning.
     pub fn exit_code(self) -> u8 {
         match self {
             Class::Usage => 64,
@@ -137,6 +145,8 @@ impl Class {
             Class::Config | Class::Revoked => 78,
             Class::Policy => 79,
             Class::Unsupported => 80,
+            Class::Permission => 71,
+            Class::Suite => 78,
         }
     }
 
@@ -153,6 +163,8 @@ impl Class {
             Class::Revoked => "revoked",
             Class::Policy => "policy",
             Class::Unsupported => "unsupported",
+            Class::Permission => "permission",
+            Class::Suite => "suite",
         }
     }
 
@@ -362,6 +374,28 @@ mod tests {
         let f = Failure::caused(Stage::Tls, Class::Unavailable, "TLS: reset", cause);
         assert_eq!(chain_of(&f), f.chain());
         assert_eq!(f.into_source().map(|e| e.to_string()).as_deref(), Some("reset"));
+    }
+
+    /// The six codes of the verification harness (podnet#501) are in this
+    /// table, and each code is one value: 64, 66, 69, 71, 77 and 78.
+    #[test]
+    fn the_codes_of_the_harness_are_in_the_table_and_distinct() {
+        let table = [
+            (Class::Usage, 64_u8),
+            (Class::NotFound, 66),
+            (Class::Unavailable, 69),
+            (Class::Permission, 71),
+            (Class::Refused, 77),
+            (Class::Suite, 78),
+        ];
+        let codes: std::collections::HashSet<u8> = table.iter().map(|(_, code)| *code).collect();
+        assert_eq!(codes.len(), 6, "each code is one value");
+        for (class, code) in table {
+            assert_eq!(class.exit_code(), code, "{class:?}");
+            assert!(Class::ALL.contains(&class), "{class:?}");
+        }
+        assert_eq!(Class::Permission.name(), "permission");
+        assert_eq!(Class::Suite.name(), "suite");
     }
 
     #[test]

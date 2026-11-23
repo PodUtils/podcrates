@@ -8,6 +8,7 @@ mod actions;
 mod cloudflare;
 mod devtunnel;
 mod egress;
+mod extra;
 mod hold;
 mod host;
 mod iroh;
@@ -140,6 +141,7 @@ fn main() {
     lines.extend([tor::tor(), iroh::iroh()]);
     lines.extend([egress::egress(), acme::acme()]);
     lines.extend([udf::udf(), manual::manual()]);
+    lines.extend([extra::cover(), extra::shape(), extra::harness(), extra::sidecar(), extra::offline()]);
     let direct = pod_proxy::Dialer::new(
         pod_proxy::Settings::new("static-probe", pod_proxy::ProxyChoice::Direct),
         std::sync::Arc::new(pod_proxy::resolve::System::new()),

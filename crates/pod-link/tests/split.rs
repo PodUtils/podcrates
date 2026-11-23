@@ -147,7 +147,7 @@ impl Carrier for Paths {
     }
 
     fn facts(&self) -> Facts {
-        Facts { cost: if self.lossy { Cost::High } else { Cost::Low }, ..Facts::STREAM }
+        Facts::with_cost(if self.lossy { Cost::High } else { Cost::Low })
     }
 
     fn available(&self) -> Result<(), CarrierError> {

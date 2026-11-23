@@ -15,6 +15,7 @@ use tokio::sync::Notify;
 
 use super::link::Server;
 use super::{Dial, VlessError};
+use crate::coalesce;
 use crate::end::{AtEnd, end_of_input};
 use pod_ws::client::{self, ConnectError};
 use pod_ws::session::RelaySession;
@@ -30,12 +31,26 @@ const RECEIVE_CAP: usize = 1024 * 1024;
 
 /// The upgrade, then VLESS's request in the first binary message; the
 /// stream is one end of a pipe that two tasks copy to and from the session.
-pub(super) async fn open(server: &Server, first: Vec<u8>, dial: &Dial) -> Result<DuplexStream, VlessError> {
+/// The upgrade goes in one write of [`coalesce::TARGET`] bytes, padded where
+/// the request is short. A frame cannot follow the head in that write: the
+/// server of RFC 6455 that Xray-core uses closes a connection that carries
+/// bytes after the handshake (gorilla/websocket v1.5.3, `server.go`: a
+/// buffered reader with bytes in it is closed, "client sent data before
+/// handshake is complete"), so the first application data goes in the first
+/// message, as its own write.
+pub(super) async fn open(
+    server: &Server,
+    first: Vec<u8>,
+    dial: &Dial,
+) -> Result<(DuplexStream, coalesce::Report), VlessError> {
     let key = handshake::generate_key().map_err(|e| VlessError::Carry(e.to_string()))?;
-    let request = request(server, &key, &dial.way.user_agent);
+    let head = request(server, &key, &dial.way.user_agent);
+    let mut opening = coalesce::First::new();
+    let (frame, _) = opening.write(&head, &[]);
+    let report = opening.report();
     let stream =
         connect(&server.host, server.port, &server.sni, server.tls, dial).await.map_err(|e| failed(e, &server.path))?;
-    let upgraded = tokio::time::timeout(dial.timeout, client::upgrade_with(stream, &request, &key))
+    let upgraded = tokio::time::timeout(dial.timeout, client::upgrade_with(stream, &frame, &key))
         .await
         .map_err(|_| VlessError::Carry(format!("no answer to the upgrade within {} s", dial.timeout.as_secs())))?;
     let (stream, pending) = upgraded.map_err(|e| failed(e, &server.path))?;
@@ -43,7 +58,7 @@ pub(super) async fn open(server: &Server, first: Vec<u8>, dial: &Dial) -> Result
     let session = RelaySession::new(stream, pending, idle, client::WRITE_TIMEOUT).naming("the VLESS server");
     session.set_receive_cap(RECEIVE_CAP);
     session.send_binary(&first).await.map_err(|e| VlessError::Carry(format!("sending VLESS's request failed: {e}")))?;
-    Ok(spawn(session, dial.at_end))
+    Ok((spawn(session, dial.at_end), report))
 }
 
 /// TCP to `host:port` through the way out of `dial`, and TLS for `sni` where

@@ -23,6 +23,8 @@
         "revoked",
         "policy",
         "unsupported",
+        "permission",
+        "suite",
         null
       ]
     },

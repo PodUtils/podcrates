@@ -1,9 +1,8 @@
 diff --git a/crates/pod-turn/src/client.rs b/crates/pod-turn/src/client.rs
-index 80c91d6..e9ad219 100644
 --- a/crates/pod-turn/src/client.rs
 +++ b/crates/pod-turn/src/client.rs
-@@ -111,11 +111,6 @@ impl Client {
-             vec![(REQUESTED_TRANSPORT, Value::Bytes(vec![TRANSPORT_UDP, 0, 0, 0])), client.lifetime_attribute()];
+@@ -141,11 +141,6 @@ impl Client {
+             vec![(REQUESTED_TRANSPORT, Value::Bytes(vec![protocol, 0, 0, 0])), client.lifetime_attribute()];
          attributes.extend(allocation.attributes());
          let reply = match client.transact(ALLOCATE, &attributes).await {
 -            Err(Error::Alternate { method: ALLOCATE, to, domain }) => {

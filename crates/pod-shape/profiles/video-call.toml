@@ -1,0 +1,17 @@
+# A video call: many small media records of a nearly constant size.
+name = "video-call"
+protocol = "rtp"
+rule = "always"
+first_flight = 8192
+
+buckets = [
+  { size = 128, weight = 8 },
+  { size = 512, weight = 62 },
+  { size = 1024, weight = 30 },
+]
+
+pace = { rate = 1500000, jitter = 20, keepalive = 20 }
+
+entropy = { min = 3.0, max = 7.0, printable_run = 16 }
+
+source = { date = "2026-11-12", cover_version = "1" }

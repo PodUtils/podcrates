@@ -66,3 +66,4 @@ pub mod screen;
 pub mod stand;
 pub mod switches;
 pub mod tamper;
+pub mod vectors;

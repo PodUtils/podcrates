@@ -12,7 +12,7 @@ use pod_core::{BoxFuture, Class, Datagrams, Dial, Failure, Resolve, Stage, Syste
 use tokio::time::Instant;
 
 use super::Error;
-use super::allocation::Allocation;
+use super::allocation::{Allocation, Relay};
 
 /// The user and the password of the long-term credentials (RFC 8489, 9.2).
 /// The caller gives each text after its preparation (OpaqueString); the
@@ -50,11 +50,16 @@ impl Drop for Credentials {
     }
 }
 
-/// How the client reaches the server. Plain TURN over TCP, DTLS and the TCP
-/// relay of RFC 6062 are not here (the crate's README, the parity list).
+/// How the client reaches the server. DTLS is not here (the crate's README,
+/// the parity list).
+#[derive(Clone)]
 pub enum Transport {
     /// TURN over UDP: the caller's source gives the socket.
     Udp(Arc<dyn UdpSource>),
+    /// Plain TURN over TCP (RFC 8656, 3.1): the caller's dialer gives the
+    /// TCP stream. RFC 6062 needs TCP or TLS, so a plain TCP transport is
+    /// the one that a network which refuses UDP can still carry.
+    Tcp { dialer: Arc<dyn Dial> },
     /// TURN over TLS on TCP (RFC 8656, 3.1): the caller's dialer gives the
     /// TCP stream, and the caller's TLS context checks the server's
     /// certificate against `server_name` and the roots of `trust`. With
@@ -72,12 +77,18 @@ pub enum Transport {
 }
 
 impl Transport {
-    /// `udp` or `tls`, for a line of a log or of an error.
+    /// `udp`, `tcp` or `tls`, for a line of a log or of an error.
     pub fn name(&self) -> &'static str {
         match self {
             Transport::Udp(_) => "udp",
+            Transport::Tcp { .. } => "tcp",
             Transport::Tls { .. } => "tls",
         }
+    }
+
+    /// True on a byte stream, where RFC 6062 can run.
+    pub fn is_stream(&self) -> bool {
+        !matches!(self, Transport::Udp(_))
     }
 }
 
@@ -85,6 +96,7 @@ impl fmt::Debug for Transport {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Transport::Udp(_) => f.write_str("Udp"),
+            Transport::Tcp { dialer } => f.debug_struct("Tcp").field("dialer", &dialer.label()).finish_non_exhaustive(),
             Transport::Tls { dialer, trust, server_name, alpn, .. } => f
                 .debug_struct("Tls")
                 .field("dialer", &dialer.label())
@@ -111,6 +123,10 @@ pub struct Limits {
     pub request_timeout: Duration,
     /// The longest wait for the dial and the TLS handshake.
     pub connect_timeout: Duration,
+    /// The longest wait for a ConnectionAttempt indication of RFC 6062. The
+    /// server closes a peer connection that no ConnectionBind names after
+    /// 30 s (RFC 6062, 5.3); the client waits a little longer.
+    pub connection_attempt_timeout: Duration,
     /// The lifetime that an Allocate and a Refresh ask for (RFC 8656, 2.2:
     /// 10 minutes by default); the server can give another.
     pub lifetime: Duration,
@@ -132,6 +148,7 @@ impl Default for Limits {
             retransmits: 6,
             request_timeout: Duration::from_millis(39_500),
             connect_timeout: Duration::from_secs(10),
+            connection_attempt_timeout: Duration::from_secs(35),
             lifetime: Duration::from_secs(600),
             refresh_before: Duration::from_secs(60),
             stale_nonces: 2,
@@ -245,12 +262,21 @@ pub struct Settings {
     pub software: Option<String>,
     /// What the Allocate asks for beyond a UDP relay: by default nothing.
     pub allocation: Allocation,
+    /// The relay's rate limit in bytes per second, when the caller knows
+    /// one. TURN carries no such attribute: this is the caller's policy,
+    /// and [`crate::Status`] reports it beside the allocation lifetime.
+    pub rate_limit: Option<u64>,
 }
 
 impl Settings {
     /// TURN over UDP to `server`, through the socket of `source`.
     pub fn udp(server: Target, credentials: Credentials, source: Arc<dyn UdpSource>) -> Settings {
         Settings::with(server, Transport::Udp(source), credentials)
+    }
+
+    /// Plain TURN over TCP to `server`, through `dialer`.
+    pub fn tcp(server: Target, credentials: Credentials, dialer: Arc<dyn Dial>) -> Settings {
+        Settings::with(server, Transport::Tcp { dialer }, credentials)
     }
 
     /// TURN over TLS on TCP to `server`, through `dialer`, with the default
@@ -277,6 +303,7 @@ impl Settings {
             entropy: Box::new(OsEntropy),
             software: None,
             allocation: Allocation::default(),
+            rate_limit: None,
         }
     }
 
@@ -289,7 +316,11 @@ impl Settings {
         if self.credentials.username.is_empty() {
             return usage("the TURN user is empty");
         }
-        if limits.rto.is_zero() || limits.request_timeout.is_zero() || limits.connect_timeout.is_zero() {
+        if limits.rto.is_zero()
+            || limits.request_timeout.is_zero()
+            || limits.connect_timeout.is_zero()
+            || limits.connection_attempt_timeout.is_zero()
+        {
             return usage("a time limit of TURN is zero");
         }
         if limits.lifetime < Duration::from_secs(1) || limits.lifetime.as_secs() > u64::from(u32::MAX) {
@@ -302,6 +333,9 @@ impl Settings {
             && server_name.is_empty()
         {
             return usage("the TLS name of the TURN server is empty");
+        }
+        if self.allocation.relay == Relay::Tcp && !self.transport.is_stream() {
+            return usage("a TCP relay needs TURN over TCP or TLS");
         }
         self.allocation.check()
     }
@@ -317,6 +351,7 @@ impl fmt::Debug for Settings {
             .field("limits", &self.limits)
             .field("software", &self.software)
             .field("allocation", &self.allocation)
+            .field("rate_limit", &self.rate_limit)
             .finish_non_exhaustive()
     }
 }

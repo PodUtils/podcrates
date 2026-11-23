@@ -44,6 +44,8 @@ pub const ICMP: u16 = 0x8004;
 
 /// The protocol number of UDP in REQUESTED-TRANSPORT (RFC 8656, 18.6).
 pub const TRANSPORT_UDP: u8 = 17;
+/// The protocol number of TCP in REQUESTED-TRANSPORT (RFC 6062, 4.1).
+pub const TRANSPORT_TCP: u8 = 6;
 
 /// The classes of a message (RFC 8489, 5).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

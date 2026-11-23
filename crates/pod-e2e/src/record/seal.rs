@@ -14,8 +14,52 @@ impl Records {
     /// Seal `payload` as a record of `kind` (any but [`RESUME`]) on `stream`,
     /// with the caller's `flags` (any but [`PHASE`]), at `now`: the bytes of
     /// the whole record. A key at its limit of records, of bytes or of age
-    /// gives way to the next one first.
+    /// gives way to the next one first. With [`super::Settings::pad`], the
+    /// body pads to its bucket.
     pub fn seal(&mut self, now: Instant, kind: u8, flags: u16, stream: u32, payload: &[u8]) -> Result<Vec<u8>, Fault> {
+        let length = if self.settings.pad { bucket(payload.len()) } else { payload.len() };
+        self.seal_body(now, kind, flags, stream, payload, length)
+    }
+
+    /// Seal `payload` as a record whose body is `pad_to` bytes, whatever
+    /// [`super::Settings::pad`] says: the record layer's half of a padding
+    /// profile that chooses the body length. The caller keeps `pad_to` at or
+    /// above the payload and at most [`MAX_LENGTH`].
+    pub fn seal_with(
+        &mut self,
+        now: Instant,
+        kind: u8,
+        flags: u16,
+        stream: u32,
+        payload: &[u8],
+        pad_to: usize,
+    ) -> Result<Vec<u8>, Fault> {
+        if pad_to < payload.len() {
+            return Err(Fault::Malformed(format!(
+                "a body of {pad_to} bytes, shorter than its payload of {}",
+                payload.len()
+            )));
+        }
+        if pad_to > MAX_LENGTH {
+            return Err(Fault::Malformed(format!("a body of {pad_to} bytes, above {MAX_LENGTH}")));
+        }
+        if pad_to - payload.len() > usize::from(u16::MAX) {
+            return Err(Fault::Malformed(format!("a padding of {} bytes, above {}", pad_to - payload.len(), u16::MAX)));
+        }
+        self.seal_body(now, kind, flags, stream, payload, pad_to)
+    }
+
+    /// The record of `payload` in a body of `length` bytes, with the checks
+    /// of the type, the flags and the limits that both seals share.
+    fn seal_body(
+        &mut self,
+        now: Instant,
+        kind: u8,
+        flags: u16,
+        stream: u32,
+        payload: &[u8],
+        length: usize,
+    ) -> Result<Vec<u8>, Fault> {
         if kind == RESUME {
             return Err(Fault::Malformed("the type of a RESUME record is the layer's".into()));
         }
@@ -25,7 +69,6 @@ impl Records {
         if payload.len() > MAX_LENGTH {
             return Err(Fault::Malformed(format!("a payload of {} bytes, above {MAX_LENGTH}", payload.len())));
         }
-        let length = if self.settings.pad { bucket(payload.len()) } else { payload.len() };
         if self.out.counter == u64::MAX {
             return Err(Fault::Exhausted);
         }
@@ -42,7 +85,7 @@ impl Records {
             flags: flags | if out.epoch.phase() { PHASE } else { 0 },
             stream,
             counter: out.counter,
-            // MAX_LENGTH fits u32, and a padding is below the last bucket.
+            // MAX_LENGTH fits u32, and both seals keep the padding within u16.
             length: length as u32,
             pad: (length - payload.len()) as u16,
             reserved: 0,
@@ -51,6 +94,8 @@ impl Records {
         out.counter += 1;
         out.records += 1;
         out.bytes += length as u64;
+        out.body += length as u64;
+        out.padded += (length - payload.len()) as u64;
         Ok(record)
     }
 

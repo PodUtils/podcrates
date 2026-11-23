@@ -12,6 +12,10 @@ pub mod dns;
 pub mod h2;
 #[cfg(feature = "icmp")]
 pub mod icmp;
+#[cfg(all(feature = "imap", feature = "smtp"))]
+pub mod mail;
+#[cfg(feature = "ntp")]
+pub mod ntp;
 #[cfg(feature = "poll")]
 pub mod poll;
 #[cfg(feature = "quic")]

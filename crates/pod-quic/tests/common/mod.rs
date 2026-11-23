@@ -56,3 +56,17 @@ pub fn tls(roots: &Arc<rustls::RootCertStore>) -> Arc<rustls::ClientConfig> {
 pub fn other_roots() -> Arc<rustls::RootCertStore> {
     Arc::new(cert::server_for("other.example").expect("another CA").1)
 }
+
+/// The TLS of the stand-in as a server, for an endpoint over datagrams.
+pub fn server_crypto() -> (Arc<dyn pod_quic::noq::crypto::ServerConfig>, Arc<rustls::RootCertStore>) {
+    let (acceptor, roots) = cert::server_for(NAME).expect("the stand-in's certificate");
+    let mut tls = (**acceptor.config()).clone();
+    tls.alpn_protocols = vec![ALPN.to_vec()];
+    let crypto = QuicServerConfig::try_from(Arc::new(tls)).expect("QUIC's TLS of the stand-in");
+    (Arc::new(crypto), Arc::new(roots))
+}
+
+/// The roots that trust the stand-in's certificate.
+pub fn roots() -> Arc<rustls::RootCertStore> {
+    Arc::new(cert::server_for(NAME).expect("the stand-in's certificate").1)
+}

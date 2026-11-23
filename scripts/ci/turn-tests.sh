@@ -2,9 +2,11 @@
 # The TURN client of pod-turn (T-380, T-381) and the STUN codec of pod-proxy
 # (T-358) against coturn (call C151): the image that images/coturn/Dockerfile
 # pins to a digest, run with the host's network on 127.0.0.1 alone. coturn
-# serves TURN over UDP and over TLS on TCP with a made-up static user and
-# realm, a certificate of a root that this script makes, peers on the
-# loopback, FINGERPRINT on each answer, and nonces of 2 s. A second coturn
+# serves TURN over UDP, over TCP and over TLS on TCP with a made-up static
+# user and realm, a certificate of a root that this script makes, peers on
+# the loopback, FINGERPRINT on each answer, and nonces of 2 s. coturn
+# enables its TCP relay by default; it has no --tcp-relay option, and
+# --no-tcp-relay would close the RFC 6062 road. A second coturn
 # with the same options answers each Allocate with 300 and the address of
 # the first (--alternate-server, --tls-alternate-server). libjuice's TURN
 # server (T-403, call C576), built from its source at a pinned commit with
@@ -181,6 +183,7 @@ while True:
 EOF
 
 export POD_TURN_TEST_COTURN=required POD_TURN_TEST_COTURN_UDP=127.0.0.1:$udp \
+    POD_TURN_TEST_COTURN_TCP=127.0.0.1:$udp \
     POD_TURN_TEST_COTURN_TLS=127.0.0.1:$tls POD_TURN_TEST_COTURN_CA="$dir/ca.pem" \
     POD_TURN_TEST_COTURN_REDIRECT_UDP=127.0.0.1:$redirect_udp POD_TURN_TEST_COTURN_REDIRECT_TLS=127.0.0.1:$redirect_tls \
     POD_TURN_TEST_JUICE=required POD_TURN_TEST_JUICE_UDP=127.0.0.1:$juice \
@@ -193,6 +196,16 @@ curl -qfsS -X POST -H 'content-type: application/json' "http://127.0.0.1:$xturn_
 # Each test binary runs, so that the output names each failed test.
 out=$(cargo test "$@" --no-fail-fast -- --nocapture 2>&1) || { printf '%s\n' "$out"; exit 1; }
 printf '%s\n' "$out"
+# The TCP relay of RFC 6062: the ignored test runs here with the coturn
+# that the job started, and its line is below.
+tcp=$(cargo test --locked -p pod-turn --all-features --test coturn_tcp -- --ignored --nocapture 2>&1) ||
+    { printf '%s\n' "$tcp"; exit 1; }
+printf '%s\n' "$tcp"
+line='coturn: an allocation over TCP relayed a framed TCP connection'
+if ! printf '%s\n' "$tcp" | grep -qF "$line"; then
+    echo "turn-tests: the run did not say: $line" >&2
+    exit 1
+fi
 stun=$(POD_PROXY_TEST_STUN=required POD_PROXY_TEST_STUN_SERVER=127.0.0.1:$udp \
     cargo test --locked -p pod-proxy --all-features --test stun_coturn -- --nocapture 2>&1) ||
     { printf '%s\n' "$stun"; exit 1; }

@@ -34,7 +34,15 @@ async fn open(server: &Server, port: u16, root: &std::path::Path, pipe: bool) ->
     let trust = Trust::File(root.to_path_buf());
     let answer = if pipe { trojan::EARLY_WAIT } else { trojan::ANSWER_WAIT };
     let at_end = if pipe { AtEnd::AfterPeer } else { AtEnd::Now };
-    let dial = Dial { way: way(ProxyChoice::Direct), trust, timeout: LIMIT, answer, silence_is_ready: pipe, at_end };
+    let dial = Dial {
+        way: way(ProxyChoice::Direct),
+        trust,
+        timeout: LIMIT,
+        answer,
+        silence_is_ready: pipe,
+        at_end,
+        early: None,
+    };
     tokio::time::timeout(LIMIT * 2, trojan::open(server, "127.0.0.1", port, &dial)).await.expect("within the limit")
 }
 
@@ -61,6 +69,23 @@ async fn carries(opened: &mut Opened, sent: &[u8]) {
 /// Each transport carries the session: the request names the target, the
 /// target's version line comes first, and a large echo comes back whole.
 /// The planted hash in upper case fails both: the stand-in compares bytes.
+/// VEC-2: Trojan's request against the published fixture. The bytes are
+/// the layout of `docs/protocol.md`, and the hash is SHA-224 as Python's
+/// `hashlib` gives it: the vector says what the protocol says, and a round
+/// trip with our own stand-in does not.
+#[test]
+fn the_published_trojan_requests_are_the_ones_that_this_codec_makes() {
+    use pod_testkit::vectors::{TrojanCodec, check_trojan};
+    struct Ours;
+    impl TrojanCodec for Ours {
+        fn request(&self, password: &str, host: &str, port: u16) -> Result<Vec<u8>, String> {
+            trojan::request(password, host, port)
+        }
+    }
+    assert_eq!(check_trojan(&Ours).unwrap(), pod_testkit::vectors::TROJAN.len());
+    assert!(trojan::request("", "h.example", 22).is_err(), "an empty password is no request");
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_session_goes_in_tls_alone_and_in_a_websocket() {
     let (root, aim) = (root_file("trojan-each"), target(true).await);
@@ -154,7 +179,15 @@ async fn a_trojan_road_is_a_dialer_and_a_wrong_password_is_a_typed_failure() {
     let (port, _) = listen(serve_tls).await;
     let trust = Trust::File(root.to_path_buf());
     let (answer, at_end) = (trojan::ANSWER_WAIT, AtEnd::Now);
-    let dial = Dial { way: way(ProxyChoice::Direct), trust, timeout: LIMIT, answer, silence_is_ready: false, at_end };
+    let dial = Dial {
+        way: way(ProxyChoice::Direct),
+        trust,
+        timeout: LIMIT,
+        answer,
+        silence_is_ready: false,
+        at_end,
+        early: None,
+    };
     let road = trojan::Road { server: server(port, "type=tcp", PASSWORD), dial };
     let dialer: &dyn pod_core::Dial = &road;
     assert!(dialer.names_inside());

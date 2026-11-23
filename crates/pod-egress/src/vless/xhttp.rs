@@ -32,6 +32,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 
 use super::link::{Mode, Server};
 use super::split::Halves;
+use crate::coalesce;
 use pod_core::BoxedIo;
 use pod_tls::Trust;
 use pod_ws::Way;
@@ -49,7 +50,7 @@ pub(super) async fn open(
     mode: Mode,
     first: Vec<u8>,
     dial: &Dial,
-) -> Result<(Box<dyn Duplex>, String), VlessError> {
+) -> Result<(Box<dyn Duplex>, String, coalesce::Report), VlessError> {
     let (sender, over) = match connection(server, dial).await? {
         Spoken::H2(sender, over) => (sender, over),
         Spoken::H1(conn) => return super::h1_modes::open(server, mode, first, dial, conn).await,
@@ -59,7 +60,7 @@ pub(super) async fn open(
     // refusal by status is the server's word, and stands.
     let again = (!server.tls).then(|| first.clone());
     match h2_modes(server, mode, sender, first, dial).await {
-        Ok(stream) => Ok((stream, format!("XHTTP {} over {over}", mode.name()))),
+        Ok((stream, report)) => Ok((stream, format!("XHTTP {} over {over}", mode.name()), report)),
         Err(VlessError::Carry(_)) if again.is_some() => {
             let conn = super::h1::Again::of(server, dial).connect().await?;
             super::h1_modes::open(server, mode, again.unwrap_or_default(), dial, conn).await
@@ -74,14 +75,22 @@ async fn h2_modes(
     sender: SendRequest<Bytes>,
     first: Vec<u8>,
     dial: &Dial,
-) -> Result<Box<dyn Duplex>, VlessError> {
+) -> Result<(Box<dyn Duplex>, coalesce::Report), VlessError> {
     let (limit, agent) = (dial.timeout, dial.way.user_agent.as_str());
-    let stream: Box<dyn Duplex> = match mode {
-        Mode::StreamOne => Box::new(stream_one(server, sender, first, limit, agent).await?),
-        Mode::StreamUp => Box::new(stream_up(server, sender, first, limit, agent).await?),
-        Mode::PacketUp | Mode::Auto => Box::new(super::packet::open(server, sender, first, limit, agent).await?),
-    };
-    Ok(stream)
+    match mode {
+        Mode::StreamOne => {
+            let (stream, report) = stream_one(server, sender, first, limit, agent).await?;
+            Ok((Box::new(stream), report))
+        }
+        Mode::StreamUp => {
+            let (stream, report) = stream_up(server, sender, first, limit, agent).await?;
+            Ok((Box::new(stream), report))
+        }
+        Mode::PacketUp | Mode::Auto => {
+            let (stream, report) = super::packet::open(server, sender, first, limit, agent).await?;
+            Ok((Box::new(stream), report))
+        }
+    }
 }
 
 /// What the server took on the first connection.
@@ -191,6 +200,31 @@ fn random_below(n: u32) -> Result<u32, VlessError> {
     Ok(u32::from_le_bytes(b) % n.max(1))
 }
 
+/// The bytes that a request's head costs as a header list: the method, the
+/// URI, each field's name and value with the line around them. HTTP/2
+/// compresses the list, so [`coalesce::TARGET`] counts the list and the
+/// first body here, not the frames that carry them.
+pub(super) fn head_bytes(request: &http::Request<()>) -> usize {
+    let mut bytes = request.method().as_str().len() + request.uri().to_string().len() + 2 + 8;
+    for (name, value) in request.headers() {
+        bytes += name.as_str().len() + 2 + value.len() + 2;
+    }
+    bytes
+}
+
+/// `request` with the padding's field, so that its head and `data` bytes make
+/// one first write of [`coalesce::TARGET`]; the report of that write. The
+/// field is one that the server ignores, so its bytes reach no target.
+pub(super) fn pad_first(request: &mut http::Request<()>, data: usize) -> coalesce::Report {
+    let (filler, short) = coalesce::padding(head_bytes(request), data);
+    if filler > 0 {
+        let name = http::HeaderName::from_bytes(coalesce::PAD_HEADER.as_bytes()).expect("a name of a field");
+        let value = http::HeaderValue::from_bytes(&vec![b'X'; filler]).expect("a value of X");
+        request.headers_mut().append(name, value);
+    }
+    coalesce::Report { bytes: head_bytes(request) + data, short, coalesced: true }
+}
+
 /// A session's id: a random UUID, as `GenerateSessionID` makes one.
 pub(super) fn session_id() -> Result<String, VlessError> {
     use pod_core::entropy::Entropy as _;
@@ -265,12 +299,13 @@ async fn stream_one(
     first: Vec<u8>,
     limit: Duration,
     agent: &str,
-) -> Result<Stream, VlessError> {
-    let request = request(server, http::Method::POST, &at(server, ""), true, agent)?;
+) -> Result<(Stream, coalesce::Report), VlessError> {
+    let mut request = request(server, http::Method::POST, &at(server, ""), true, agent)?;
+    let report = pad_first(&mut request, first.len());
     let (response, mut up) = send(&sender, request, false, limit).await?;
     send_all(&mut up, Bytes::from(first), false).await.map_err(VlessError::Carry)?;
     let response = answer(response, limit, "the POST of stream-one").await?;
-    Ok(pod_ws::h2_road::duplex(up, response.into_body()))
+    Ok((pod_ws::h2_road::duplex(up, response.into_body()), report))
 }
 
 async fn stream_up(
@@ -279,17 +314,18 @@ async fn stream_up(
     first: Vec<u8>,
     limit: Duration,
     agent: &str,
-) -> Result<Halves<Stream, Stream>, VlessError> {
+) -> Result<(Halves<Stream, Stream>, coalesce::Report), VlessError> {
     let id = session_id()?;
     let get = request(server, http::Method::GET, &at(server, &id), false, agent)?;
     let (down, closed) = send(&sender, get, true, limit).await?;
-    let post = request(server, http::Method::POST, &at(server, &id), true, agent)?;
+    let mut post = request(server, http::Method::POST, &at(server, &id), true, agent)?;
+    let report = pad_first(&mut post, first.len());
     let (posted, mut up) = send(&sender, post, false, limit).await?;
     send_all(&mut up, Bytes::from(first), false).await.map_err(VlessError::Carry)?;
     let down = answer(down, limit, "the GET of stream-up").await?;
     let posted = answer(posted, limit, "the POST of stream-up").await?;
     let read = pod_ws::h2_road::duplex(closed, down.into_body());
-    Ok(Halves { read, write: pod_ws::h2_road::duplex(up, posted.into_body()), failed: Arc::default() })
+    Ok((Halves { read, write: pod_ws::h2_road::duplex(up, posted.into_body()), failed: Arc::default() }, report))
 }
 
 #[cfg(test)]

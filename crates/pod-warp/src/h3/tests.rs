@@ -82,3 +82,49 @@ fn a_literal_past_the_end_is_refused() {
     section.extend_from_slice(&[0xff; 9]);
     assert!(response_status(&section).is_err());
 }
+
+/// PodUtils/podnet#486, QUIC-2: three modes, one HTTP/3 path. The protocol
+/// and the path of each are the ones of its RFC, and the datagram context
+/// belongs to the modes that carry datagrams.
+#[test]
+fn the_three_modes_of_one_path() {
+    assert_eq!(Mode::Ip.protocol(), "cf-connect-ip");
+    assert_eq!(Mode::Ip.path(), "/");
+    assert!(Mode::Ip.datagrams());
+    let udp = Mode::Udp { host: "example.test".into(), port: 53 };
+    assert_eq!(udp.protocol(), "connect-udp");
+    assert_eq!(udp.path(), "/.well-known/masque/udp/example.test/53/");
+    assert!(udp.datagrams());
+    let stream = Mode::Stream { protocol: "webtransport".into() };
+    assert_eq!(stream.protocol(), "webtransport");
+    assert_eq!(stream.path(), "/");
+    assert!(!stream.datagrams());
+    // The field section of CONNECT-UDP names its protocol and its target.
+    let fields = wire::request_fields(&connect_headers("proxy.example", &udp)).unwrap();
+    let get = |name: &str| fields.iter().find(|(n, _)| n == name).map(|(_, v)| v.clone());
+    assert_eq!(get(":protocol").as_deref(), Some("connect-udp"));
+    assert_eq!(get(":path").as_deref(), Some("/.well-known/masque/udp/example.test/53/"));
+    assert_eq!(get("capsule-protocol").as_deref(), Some("?1"));
+    // The CONNECT-IP request of the WARP edge is unchanged, with its hint.
+    let fields = wire::request_fields(&connect_headers("proxy.example", &Mode::Ip)).unwrap();
+    let get = |name: &str| fields.iter().find(|(n, _)| n == name).map(|(_, v)| v.clone());
+    assert_eq!(get(":protocol").as_deref(), Some("cf-connect-ip"));
+    assert_eq!(get("pq-enabled").as_deref(), Some("false"));
+    // An IPv6 target takes no bracket in the template.
+    assert_eq!(udp_path("[2001:db8::2]", 443), "/.well-known/masque/udp/2001:db8::2/443/");
+}
+
+/// A SETTINGS frame of the client is read back as its pairs, and a dynamic
+/// table of the client is refused.
+#[test]
+fn the_fields_and_the_settings_of_a_request() {
+    let mut settings = Vec::new();
+    for (id, value) in SETTINGS {
+        put_varint(&mut settings, *id);
+        put_varint(&mut settings, *value);
+    }
+    assert_eq!(wire::settings_pairs(&settings).unwrap(), SETTINGS.to_vec());
+    assert!(wire::settings_pairs(&[0x08]).is_err());
+    // A field section of the dynamic table.
+    assert!(wire::request_fields(&[1, 0, 0x80]).is_err());
+}

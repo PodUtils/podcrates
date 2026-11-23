@@ -3,7 +3,11 @@
 
 use std::net::SocketAddr;
 
-use pod_core::Target;
+use pod_core::{Class, Failure, Stage, Target};
+
+/// The words of the failure of a front door that the host cannot reach: an
+/// IPv6-only host takes no IPv4 door (PodUtils/podnet#366).
+pub const NO_FAMILY: &str = "no route of the family of the front door";
 
 /// Which front door a session dials.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -81,6 +85,33 @@ pub fn doors(
             order.into_iter().map(Target::Addr).collect()
         }
     }
+}
+
+/// Whether `target` has a route in `routes`: an address of a family that
+/// the host lacks has none, and a name has both (the dial resolves it).
+pub fn reachable(target: &Target, routes: Routes) -> bool {
+    match target {
+        Target::Addr(addr) if addr.is_ipv4() => routes.v4,
+        Target::Addr(_) => routes.v6,
+        Target::Name { .. } => true,
+    }
+}
+
+/// The failure of a set of doors with no reachable door: `default` when
+/// one of them is a name (a name has both families), else the family that
+/// the host lacks, named before any socket.
+pub fn unreachable(targets: &[Target], routes: Routes, default: &Target) -> Failure {
+    let first = targets.first().unwrap_or(default);
+    let family = match first {
+        Target::Addr(addr) if addr.is_ipv4() => "IPv4",
+        Target::Addr(_) => "IPv6",
+        Target::Name { .. } => "either",
+    };
+    let text = format!(
+        "the front door {first} is {family} and this host has no route of that family ({NO_FAMILY}; IPv4 route: {}, IPv6 route: {})",
+        routes.v4, routes.v6
+    );
+    Failure::new(Stage::Warp, Class::Usage, text)
 }
 
 /// A door in a door file is used for this time.
@@ -180,5 +211,23 @@ mod tests {
         // No door of the order (an IPv6 record on a host with no IPv6
         // route): the record's first door.
         assert_eq!(doors(&Door::Record, vec![v6], None, None, NO_V6), [Target::Addr(v6)]);
+    }
+
+    // PodUtils/podnet#366: an IPv6-only host has no route to an IPv4 door,
+    // and the failure names it before any socket.
+    #[test]
+    fn a_host_without_a_family_takes_no_door_of_it() {
+        let (v4, v6) = (v4(), v6());
+        assert!(!reachable(&Target::Addr(v4), NO_V4));
+        assert!(reachable(&Target::Addr(v6), NO_V4));
+        assert!(!reachable(&Target::Addr(v6), NO_V6));
+        assert!(reachable(&Target::Name { host: "door.example".into(), port: 443 }, NO_V4));
+        let pinned = Target::Addr(v4);
+        let failure = unreachable(std::slice::from_ref(&pinned), NO_V4, &pinned);
+        assert_eq!(failure.class, Class::Usage);
+        let text = failure.chain();
+        assert!(text.contains(NO_FAMILY), "{text}");
+        assert!(text.contains(&v4.to_string()), "{text}");
+        assert!(text.contains("IPv4 route: false"), "{text}");
     }
 }

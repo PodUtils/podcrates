@@ -1,13 +1,12 @@
 diff --git a/crates/pod-turn/src/client/exchange.rs b/crates/pod-turn/src/client/exchange.rs
-index 2c79efd..ad38e73 100644
 --- a/crates/pod-turn/src/client/exchange.rs
 +++ b/crates/pod-turn/src/client/exchange.rs
-@@ -224,7 +224,7 @@ impl Client {
-         let Some(auth) = &self.auth else { return Ok(()) };
-         let result = match auth.algorithm {
-             PasswordAlgorithm::Md5 => stun::integrity(reply, &auth.key),
--            PasswordAlgorithm::Sha256 => stun::integrity_sha256(reply, &auth.key),
-+            PasswordAlgorithm::Sha256 => Ok(()),
-         };
-         result.map_err(|error| Error::Integrity { kind, error })
-     }
+@@ -338,7 +338,7 @@ pub(super) fn check_with(auth: Option<&Auth>, reply: &[u8], kind: u16) -> Result
+     let Some(auth) = auth else { return Ok(()) };
+     let result = match auth.algorithm {
+         PasswordAlgorithm::Md5 => stun::integrity(reply, &auth.key),
+-        PasswordAlgorithm::Sha256 => stun::integrity_sha256(reply, &auth.key),
++        PasswordAlgorithm::Sha256 => Ok(()),
+     };
+     result.map_err(|error| Error::Integrity { kind, error })
+ }

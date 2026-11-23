@@ -1,7 +1,8 @@
-//! Shadowsocks' AEAD form, checked three ways. Known answers that
-//! Python's `hashlib` and the `cryptography` package (OpenSSL) computed:
-//! the master key of a password, a stream's key, and a whole first chunk
-//! for each method. A codec written here from the specification
+//! Shadowsocks' AEAD form, checked three ways. The vectors of
+//! `pod-testkit::vectors` (SIP004's construction, whose bytes OpenSSL
+//! computed), run against this crate's codec; the master key and the stream
+//! key that Python's `hashlib`, `hmac` and RFC 5869's HKDF-SHA1 give. A codec
+//! written here from the specification
 //! (shadowsocks.org's `aead.html`), with the AEAD crates themselves and not
 //! this crate's wrapper of them: it opens this crate's stream, and this
 //! crate opens its own. And `open` against a stand-in server of that codec on the loopback,
@@ -35,10 +36,6 @@ fn evp(password: &[u8], len: usize) -> Vec<u8> {
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-fn unhex(text: &str) -> Vec<u8> {
-    (0..text.len()).step_by(2).map(|i| u8::from_str_radix(&text[i..i + 2], 16).unwrap()).collect()
 }
 
 /// The specification's cipher of one direction: HKDF-SHA1 with
@@ -154,40 +151,41 @@ fn a_stream_s_key_is_hkdf_sha1_of_the_salt_as_openssl_computes_it() {
 
 /// The first chunk of each method, with a fixed salt (0, 1, 2, ...), the
 /// password `foobar`, and the payload `example.com:22` then `hello`: the
-/// bytes that the `cryptography` package sealed.
+/// SIP004 construction, whose bytes OpenSSL sealed. The vector is data of
+/// `pod-testkit` ([`pod_testkit::vectors::SHADOWSOCKS`]), and this codec
+/// answers it. A round trip proves only that this client and this server
+/// agree; the vector says that the bytes are the protocol's.
 #[test]
-fn each_method_s_first_chunk_is_the_one_that_openssl_seals() {
-    let answers = [
-        (
-            Method::Chacha20IetfPoly1305,
-            "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f5d832a357856689b695b36782ab3f13478c3\
-             ac89d42411949fff2de8a5e263a024c9052da5e833ea0ba261ff89eb41f4215c15c274c0",
-        ),
-        (
-            Method::Aes256Gcm,
-            "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f26e81b4bc80f4da10713d856e6e21c18a2a8\
-             241815b04c2dd91251e282d858996f272d5d7bfa191b006a38da4a122801fbe1db9316e4",
-        ),
-        (
-            Method::Aes128Gcm,
-            "000102030405060708090a0b0c0d0e0ff85a8ef0ca298882ae2c98699e25fbbc1d6f3c0fc8a22dda49f5462a585eb764e62998\
-             2441ed290895ab5d57981e7bc930c1c5744ce9",
-        ),
-    ];
-    for (method, answer) in answers {
-        let master = evp(b"foobar", method.key_len());
-        let salt: Vec<u8> = (0..method.salt_len() as u8).collect();
-        let mut plain = shadowsocks::address("example.com", 22).unwrap();
-        plain.extend_from_slice(b"hello");
-        let mut wire = Vec::new();
-        Encoder::with_salt(method, &master, &salt).unwrap().seal(&plain, &mut wire).unwrap();
-        assert_eq!(hex(&wire), answer, "{method:?}");
-        let mut decoder = Decoder::new(method, &master);
-        decoder.feed(&unhex(answer));
-        let first = decoder.chunk().unwrap().unwrap();
-        assert_eq!(shadowsocks::parse_address(&first), Some(("example.com".to_string(), 22, 15)));
-        assert_eq!(&first[15..], b"hello");
+fn the_published_sip004_answers_are_the_ones_that_this_codec_makes() {
+    use pod_testkit::vectors::{ShadowsocksCodec, check_shadowsocks};
+    struct Ours;
+    impl ShadowsocksCodec for Ours {
+        fn subkey(&self, master: &[u8], salt: &[u8]) -> Vec<u8> {
+            shadowsocks::subkey(master, salt).to_vec()
+        }
+
+        fn seal(&self, method: &str, master: &[u8], salt: &[u8], plain: &[u8]) -> Vec<u8> {
+            let method = Method::parse(method).expect("a method of the vector");
+            let mut wire = Vec::new();
+            Encoder::with_salt(method, master, salt).expect("a key of the method").seal(plain, &mut wire).unwrap();
+            wire
+        }
+
+        fn open(&self, method: &str, master: &[u8], wire: &[u8]) -> Option<Vec<u8>> {
+            let method = Method::parse(method).expect("a method of the vector");
+            let mut decoder = Decoder::new(method, master);
+            decoder.feed(wire);
+            let mut plain = Vec::new();
+            loop {
+                match decoder.chunk() {
+                    Ok(Some(piece)) => plain.extend_from_slice(&piece),
+                    Ok(None) => return Some(plain),
+                    Err(_) => return None,
+                }
+            }
+        }
     }
+    assert_eq!(check_shadowsocks(&Ours).unwrap(), 3 * pod_testkit::vectors::SHADOWSOCKS.len());
 }
 
 /// This crate's stream (podssh's codec) opens with the specification's

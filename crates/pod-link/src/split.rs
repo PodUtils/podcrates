@@ -218,12 +218,14 @@ impl Carrier for Split {
     /// half.
     fn facts(&self) -> Facts {
         let (up, down) = (self.up.facts(), self.down.facts());
+        let cost = up.cost.max(down.cost);
         Facts {
             ordered: up.ordered && down.ordered,
             reliable: up.reliable && down.reliable,
             duplex: true,
             mtu: None,
-            cost: up.cost.max(down.cost),
+            cost,
+            rate: crate::carrier::Rate::priced(cost),
         }
     }
 

@@ -136,6 +136,10 @@ pub struct Server {
     /// The protocols offered by ALPN to XHTTP's TLS.
     pub alpn: Vec<Vec<u8>>,
     pub extra: Extra,
+    /// The size that the link's `ed` query names for early data. The path
+    /// carries it only where the session offers 0-RTT
+    /// ([`Server::with_early_data`]).
+    pub early: Option<String>,
     /// The link's fragment, its name in a panel.
     pub name: Option<String>,
 }
@@ -145,6 +149,18 @@ impl Server {
     pub fn shown(&self) -> String {
         let path = self.path.split('?').next().unwrap_or("/");
         format!("vless://{}{path}", pod_proxy::host::authority(&self.host, self.port))
+    }
+
+    /// This server with the link's early-data size in its path, as a session
+    /// that announces 0-RTT names it. A link with no `ed` is unchanged.
+    pub fn with_early_data(&self) -> Server {
+        let Some(size) = &self.early else { return self.clone() };
+        let mut server = self.clone();
+        server.path = match server.path.split_once('?') {
+            Some((path, query)) => format!("{path}?ed={size}&{query}"),
+            None => format!("{}?ed={size}", server.path),
+        };
+        server
     }
 
     /// A share link. A refusal names the setting, never the ID.
@@ -203,7 +219,7 @@ impl Server {
         };
         // A header's value: no CR, LF or space may break the request.
         pod_proxy::host::check_name(&authority).map_err(|e| format!("host: {e}"))?;
-        let path = path(params.get("path").unwrap_or("/"), transport)?;
+        let (path, early) = path(params.get("path").unwrap_or("/"), transport)?;
         let alpn = match params.get("alpn") {
             Some(list) => list.split(',').map(|p| p.trim().as_bytes().to_vec()).filter(|p| !p.is_empty()).collect(),
             None => vec![b"h2".to_vec(), b"http/1.1".to_vec()],
@@ -216,7 +232,7 @@ impl Server {
             (Transport::Xhttp(Mode::Auto), Some(mode)) => Transport::Xhttp(mode),
             (t, _) => t,
         };
-        Ok(Server { id, host, port, tls, sni, authority, path, transport, alpn, extra, name })
+        Ok(Server { id, host, port, tls, sni, authority, path, transport, alpn, extra, early, name })
     }
 }
 
@@ -230,19 +246,32 @@ pub(super) fn mode_of(word: &str) -> Result<Mode, String> {
     }
 }
 
-/// The path as the request carries it. A WebSocket's `ed` (early data in
-/// a header, which the server reads only when it is sent) is not sent; XHTTP's
-/// path ends with `/`, as `GetNormalizedPath` makes it (`config.go`).
-fn path(path: &str, transport: Transport) -> Result<String, String> {
+/// The path as the request carries it, and the early-data size that the
+/// link's `ed` names. A WebSocket's `ed` (early data in a header, which the
+/// server reads only when it is sent) goes in the path alone where the
+/// session announces early data; XHTTP's path ends with `/`, as
+/// `GetNormalizedPath` makes it (`config.go`).
+fn path(path: &str, transport: Transport) -> Result<(String, Option<String>), String> {
     let path = if path.starts_with('/') { path.to_string() } else { format!("/{path}") };
     let (path, query) = path.split_once('?').unwrap_or((path.as_str(), ""));
-    let query: Vec<&str> = query.split('&').filter(|kv| !kv.is_empty() && !kv.starts_with("ed=")).collect();
+    let mut early = None;
+    let query: Vec<&str> = query
+        .split('&')
+        .filter(|kv| match kv.strip_prefix("ed=") {
+            Some(size) => {
+                early = Some(size).filter(|s| !s.is_empty()).map(str::to_string);
+                false
+            }
+            None => !kv.is_empty(),
+        })
+        .collect();
     let path = match transport {
         Transport::Xhttp(_) if !path.ends_with('/') => format!("{path}/"),
         _ => path.to_string(),
     };
     let full = if query.is_empty() { path } else { format!("{path}?{}", query.join("&")) };
-    pod_ws::url::request_target(&full).map_err(|why| format!("path: {why}"))
+    let full = pod_ws::url::request_target(&full).map_err(|why| format!("path: {why}"))?;
+    Ok((full, early))
 }
 
 /// The link's query, each value percent-decoded.
@@ -325,7 +354,11 @@ mod tests {
         assert_eq!(plain.transport, Transport::Xhttp(Mode::Auto));
         assert_eq!(plain.transport.name(), "XHTTP packet-up");
         let early = Server::parse(&link("h.example:443?type=ws&path=%2Fp%3Fed%3D2048%26k%3Dv")).unwrap();
-        assert_eq!(early.path, "/p?k=v", "early data is not sent");
+        assert_eq!(early.path, "/p?k=v", "early data is not sent by default");
+        assert_eq!(early.early.as_deref(), Some("2048"));
+        assert_eq!(early.with_early_data().path, "/p?ed=2048&k=v", "a session at 0-RTT names the size");
+        assert_eq!(early.path, "/p?k=v", "the link itself is unchanged");
+        assert_eq!(Server::parse(&link("h.example:443?type=ws")).unwrap().with_early_data().path, "/");
         let extra = Server::parse(&link("h.example:443?type=xhttp&extra=%7B%22mode%22%3A%22stream-up%22%7D")).unwrap();
         assert_eq!(extra.transport, Transport::Xhttp(Mode::StreamUp));
     }

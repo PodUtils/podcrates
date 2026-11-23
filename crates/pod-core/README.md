@@ -118,6 +118,8 @@ crate holds this table to the code.
 | `revoked` | 78 | a credential that worked is gone; do not restart |
 | `policy` | 79 | a local policy refused the action |
 | `unsupported` | 80 | the host, the build or the far end does not support the action |
+| `permission` | 71 | a file or a directory has the wrong permissions or the wrong owner |
+| `suite` | 78 | the far end and this end have no protocol or suite in common |
 
 A unit of a supervisor stops a restart loop with
 `RestartPreventExitStatus=64 78 79 80`.

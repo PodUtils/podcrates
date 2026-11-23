@@ -31,7 +31,7 @@ fn server(port: u16, query: &str, id: &str) -> Server {
 fn dial(trust: Trust, proxy: ProxyChoice, pipe: bool) -> Dial {
     let answer = if pipe { vless::EARLY_WAIT } else { vless::ANSWER_WAIT };
     let at_end = if pipe { AtEnd::AfterPeer } else { AtEnd::Now };
-    Dial { way: way(proxy), trust, timeout: LIMIT, answer, silence_is_ready: pipe, at_end }
+    Dial { way: way(proxy), trust, timeout: LIMIT, answer, silence_is_ready: pipe, at_end, early: None }
 }
 
 async fn open(server: &Server, port: u16, root: &Path, proxy: ProxyChoice, pipe: bool) -> Result<Opened, VlessError> {
@@ -97,6 +97,101 @@ async fn a_session_goes_over_a_websocket_and_each_mode_of_xhttp() {
     assert!(requests.iter().all(|(_, _, host, pad)| host == &format!("{NAME}:{xh}") && (100..=1000).contains(pad)));
     let posts = requests.iter().filter(|(m, p, _, _)| m == "POST" && p.matches('/').count() == 3).count();
     assert!(posts >= 6, "packet-up's POSTs, numbered, twice: {posts}");
+    let _ = std::fs::remove_dir_all(root.parent().unwrap());
+}
+
+/// COALESCE-1 and COALESCE-2: the WebSocket's opening write is one write of
+/// [`pod_egress::coalesce::TARGET`] bytes at the server, padded because VLESS's request is
+/// short, and the session says that the write was short. The head's padding
+/// field is the padding: the server read a valid upgrade, and the bytes that
+/// reach the target are the request alone.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_websocket_s_opening_write_is_one_write_of_the_target_bytes() {
+    let (root, aim) = (root_file("coalesce"), target(true).await);
+    let (ws, seen) = ws_server().await;
+    let link = server(ws, "type=ws&path=%2Fws", ID);
+    let mut opened = open(&link, aim, &root, ProxyChoice::Direct, false)
+        .await
+        .unwrap_or_else(|e| panic!("{}", e.line("ws", "target")));
+    assert_eq!(opened.first_write.bytes, pod_egress::coalesce::TARGET);
+    assert!(opened.first_write.short && opened.first_write.coalesced);
+    assert_eq!(
+        *seen.openings.lock().unwrap(),
+        vec![pod_egress::coalesce::TARGET],
+        "one write of the target at the server"
+    );
+    carries(&mut opened, b"after the opening write").await;
+    let _ = std::fs::remove_dir_all(root.parent().unwrap());
+}
+
+/// COALESCE-1 on XHTTP's paths: the request that carries VLESS's request
+/// goes in with the first data, padded, and each session reports the write.
+/// Over HTTP/1.1 the write is one write of the target; over HTTP/2 it is one
+/// hand-over of the request's head and its first data, whose header list and
+/// body make the target.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn each_xhttp_path_coalesces_its_first_request_with_the_first_data() {
+    let (root, aim) = (root_file("coalesce-xh"), target(true).await);
+    let (h2, _) = xhttp_server(&[b"h2"]).await;
+    for mode in ["stream-one", "stream-up", "packet-up"] {
+        let link = server(h2, &format!("type=xhttp&path=%2Fxh&mode={mode}"), ID);
+        let mut opened = open(&link, aim, &root, ProxyChoice::Direct, false)
+            .await
+            .unwrap_or_else(|e| panic!("{mode}: {}", e.line("xhttp", "target")));
+        assert_eq!(opened.first_write.bytes, pod_egress::coalesce::TARGET, "{mode} over HTTP/2");
+        assert!(opened.first_write.short, "{mode}: VLESS's request is short of the target");
+        carries(&mut opened, b"x").await;
+    }
+    let (h1, _) = xhttp1_server(true).await;
+    for mode in ["stream-up", "packet-up"] {
+        let link = server(h1, &format!("type=xhttp&path=%2Fxh&mode={mode}"), ID);
+        let mut opened = open(&link, aim, &root, ProxyChoice::Direct, false)
+            .await
+            .unwrap_or_else(|e| panic!("{mode}: {}", e.line("xhttp", "target")));
+        assert_eq!(opened.first_write.bytes, pod_egress::coalesce::TARGET, "{mode} over HTTP/1.1");
+        assert!(opened.first_write.short, "{mode}");
+        carries(&mut opened, b"x").await;
+    }
+    let _ = std::fs::remove_dir_all(root.parent().unwrap());
+}
+
+/// REPLAY-1 and REPLAY-2, through the VLESS road: the link's `ed` size goes
+/// in the path while the window takes the nonce, and a repeat keeps the
+/// session at 1-RTT, on the one connection that the session opens.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn early_data_announces_its_size_until_the_nonce_repeats_and_the_session_keeps_one_connection() {
+    use std::sync::Arc;
+    let (root, aim) = (root_file("early"), target(true).await);
+    let (ws, seen) = ws_server().await;
+    let link = server(ws, "type=ws&path=%2Fws%3Fed%3D2048", ID);
+    let window = Arc::new(vless::ReplayWindow::new());
+    let mut offers = Vec::new();
+    for _ in 0..2 {
+        let dial = Dial {
+            early: Some(vless::early::Early::new(window.clone(), b"the-session-s-nonce")),
+            ..dial(Trust::File(root.to_path_buf()), ProxyChoice::Direct, false)
+        };
+        let opened =
+            tokio::time::timeout(pod_testkit::host::scaled(LIMIT * 2), vless::open(&link, "127.0.0.1", aim, &dial))
+                .await
+                .expect("within the limit")
+                .unwrap_or_else(|e| panic!("{}", e.line("ws", "target")));
+        offers.push(opened.early);
+        let mut opened = opened;
+        carries(&mut opened, b"with early data").await;
+    }
+    assert_eq!(offers, vec![vless::early::Offer::ZeroRtt, vless::early::Offer::OneRtt]);
+    let requests = seen.requests.lock().unwrap().clone();
+    assert_eq!(requests[0].1, "/ws?ed=2048", "the size goes in the path while the nonce is fresh");
+    assert_eq!(requests[1].1, "/ws", "a repeat keeps 1-RTT: no size in the path");
+    assert_eq!(requests.len(), 2, "one request for each session");
+    assert_eq!(seen.connections.load(std::sync::atomic::Ordering::SeqCst), 2, "one connection for each session");
+    // A second session from the same window with another nonce announces its
+    // size again: the refusal is the nonce's, not the session's.
+    assert_eq!(
+        vless::early::Offer::of(Some(&vless::early::Early::new(window.clone(), b"another-nonce"))),
+        vless::early::Offer::ZeroRtt
+    );
     let _ = std::fs::remove_dir_all(root.parent().unwrap());
 }
 

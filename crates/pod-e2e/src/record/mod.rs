@@ -32,7 +32,7 @@
 //!   comes after it does not open.
 
 mod header;
-mod keys;
+pub(crate) mod keys;
 #[cfg(test)]
 mod tests;
 mod window;
@@ -101,6 +101,18 @@ impl fmt::Display for Suite {
 /// offers too; none when they share none.
 pub fn agree(initiator: &[Suite], responder: &[Suite]) -> Option<Suite> {
     initiator.iter().copied().find(|s| responder.contains(s))
+}
+
+/// The suite that two offers share, before any record is sent: [`agree`], or
+/// [`crate::Error::NoSuite`] when they share none. That error is the class
+/// `Config` of its [`pod_core::Failure`], whose exit code is 78 (KEY-3).
+/// Compare the two offers with this function before a `Records` exists, and
+/// send no record when it fails.
+pub fn check_suites(initiator: &[Suite], responder: &[Suite]) -> Result<Suite, crate::Error> {
+    agree(initiator, responder).ok_or_else(|| {
+        let names = |s: &[Suite]| s.iter().map(|s| s.name()).collect::<Vec<_>>().join(", ");
+        crate::Error::NoSuite(format!("the initiator offers {}; the responder {}", names(initiator), names(responder)))
+    })
 }
 
 /// The settings of the record layer.
@@ -197,6 +209,17 @@ pub struct Record {
     pub payload: Vec<u8>,
 }
 
+/// The counters of the records that one end sealed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Stats {
+    /// The records sealed.
+    pub records: u64,
+    /// The bytes of their bodies: each payload and its padding.
+    pub body_out: u64,
+    /// The bytes of padding in those bodies.
+    pub padded_out: u64,
+}
+
 /// What [`Records::open`] gave.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Opened {
@@ -230,6 +253,9 @@ struct Sending {
     /// The records and the bytes of the epoch, and when it started.
     records: u64,
     bytes: u64,
+    /// The padding bytes and the body bytes of the records sealed.
+    padded: u64,
+    body: u64,
     since: Instant,
     /// The number of the next RESUME.
     resume: u64,
@@ -277,6 +303,8 @@ impl Exporter {
             counter: 0,
             records: 0,
             bytes: 0,
+            padded: 0,
+            body: 0,
             since: now,
             resume: 0,
         };
@@ -295,6 +323,13 @@ impl Exporter {
             replayed: 0,
         };
         Ok(Records { suite, settings, out, inn })
+    }
+}
+
+impl Records {
+    /// The counters of the records that this end sealed.
+    pub fn stats(&self) -> Stats {
+        Stats { records: self.out.counter, body_out: self.out.body, padded_out: self.out.padded }
     }
 }
 

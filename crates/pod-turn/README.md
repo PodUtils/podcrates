@@ -1,7 +1,8 @@
 # pod-turn
 
 STUN's codec (RFC 8489) with the long-term credentials of MD5 and of
-SHA-256, and a TURN client (RFC 8656) over UDP and over TLS on TCP.
+SHA-256, and a TURN client (RFC 8656) over UDP, over plain TCP and over
+TLS on TCP, with the relayed TCP stream of RFC 6062 (T-501).
 GitHub #100 asked for it, for PodUtils/podnet#485 (rules TURN-1 to TURN-7)
 and PodUtils/podssh@T-621. T-377 made it: the codec moved here from
 `pod-proxy` (one codec in the tree, TURN-1), and the client is new code
@@ -53,6 +54,23 @@ Over TLS: `Settings::tls(server, credentials, dialer, context)` with the
 caller's `Arc<dyn pod_core::Dial>` and `Arc<pod_tls::Context>` (the
 provider and the roots); `Transport::Tls { trust, server_name, alpn, .. }`
 changes the roots, the name to check, or offers the ALPN `stun.turn`.
+Over plain TCP: `Settings::tcp(server, credentials, dialer)`.
+
+The TCP relay of RFC 6062 needs a TCP allocation and a stream transport:
+
+```rust
+use pod_turn::{Relay, Transport};
+
+let mut settings = Settings::tcp(server, credentials, dialer);
+settings.allocation.relay = Relay::Tcp;                 // REQUESTED-TRANSPORT TCP
+settings.rate_limit = Some(1_000_000);                  // the caller's limit, for status
+let client = Client::allocate(settings).await?;
+let mut stream = client.connect(peer).await?;           // Connect, then ConnectionBind
+stream.write_frame(b"hello").await?;                    // the bytes go to the peer unchanged
+let data = stream.read_frame().await?;                  // one read, or a named error
+// client.accept().await? waits for a peer that dialed the relayed address;
+// the stream refreshes the allocation on its timer until it is dropped.
+```
 
 The options of an Allocate (RFC 8656, 7.1) are `settings.allocation`:
 
@@ -85,24 +103,28 @@ client.address_error();                                 // the family that the s
 | `md5::md5` | MD5 (RFC 1321): the MD5 key, and `pod_proxy::digest::md5` |
 | `Client::allocate(settings)` | the transport, the 401 challenge, the Allocate (UDP relay, the lifetime and the `Allocation` of the settings), one redirect (300) to another server |
 | `Client::{refresh, create_permission, bind_channel, send, send_to, recv, close}` | Refresh, CreatePermission, ChannelBind (a peer keeps its number), ChannelData, a Send indication, the next event, the end of the allocation |
-| `Client::{relayed_address, mapped_address, lifetime, username, next_refresh}` | what the server gave, and the next refresh with what it keeps (`Kept`) |
+| `Client::{relayed_address, mapped_address, lifetime, username, next_refresh, status}` | what the server gave, the next refresh with what it keeps (`Kept`), and the allocation lifetime with the caller's relay rate limit (`Status`) |
 | `Client::{relayed_addresses, reservation_token, address_error, alpn, server}` | the relayed addresses (two of a dual allocation), the token of the next port, the family that the server did not give (`AddressError`), the ALPN that the server chose, the server after a redirect |
-| `Settings` (`udp`, `tls`, `check`), `Transport` (`Udp`, `Tls`), `Credentials`, `Limits`, `Clock`, `TokioClock`, `UdpSource`, `SystemUdp`, `Opened` | the settings (below) |
-| `Allocation` (`family`, `port`, `reservation`, `dont_fragment`), `Family` (`Server`, `Ipv4`, `Ipv6`, `Both`), `Port` (`Any`, `Even`, `EvenAndNext`), `AddressError` | the options of an Allocate (RFC 8656, 7.1, 18.6 to 18.12); `Debug` hides the token |
+| `Client::{connect, accept}` | a relayed TCP connection of RFC 6062: Connect to a peer, or a ConnectionAttempt of a peer that dialed the relayed address; each gives a `RelayedStream` and consumes the client |
+| `RelayedStream` (`peer`, `status`, `read_frame`, `write_frame`, `write_keepalive`; `AsyncRead`, `AsyncWrite`) | the relayed bytes as RFC 6062, 4.5 sends them: bare in each direction, with no length prefix; the allocation is refreshed while it lives |
+| `Status` (`lifetime`, `rate_limit`) | the allocation lifetime and the relay's rate limit |
+| `Settings` (`udp`, `tcp`, `tls`, `check`), `Transport` (`Udp`, `Tcp`, `Tls`), `Credentials`, `Limits`, `Clock`, `TokioClock`, `UdpSource`, `SystemUdp`, `Opened` | the settings (below) |
+| `Allocation` (`relay`, `family`, `port`, `reservation`, `dont_fragment`), `Relay` (`Udp`, `Tcp`), `Family` (`Server`, `Ipv4`, `Ipv6`, `Both`), `Port` (`Any`, `Even`, `EvenAndNext`), `AddressError` | the options of an Allocate (RFC 8656, 7.1, 18.6 to 18.12; RFC 6062, 4.1); `Debug` hides the token |
 | `Event` (`Data`, `RefreshFailed`, `ServerError`), `Kept` | what `recv` gives |
-| `Error` (`class`, `code`; into `pod_core::Failure` at the stage `Relay`) | `Usage`, `Connect` (the dial, TLS, the UDP socket), `Io`, `Closed`, `Timeout { method }`, `Decode` (the type and the offset), `Frame` (a TLS stream out of step), `Protocol { kind }`, `Integrity { kind }`, `Server { method, code, reason }`, `StaleNonce { method, tries }`, `Realm`, `Alternate { method, to, domain }` (a 300 not followed), `Redirected { to, error }` (the Allocate after the redirect failed; the words and the stage of the way out stay), `Downgrade { method }`, `NoRandom`, `NoAllocation`, `NoChannel`, `NoPermission`, `NoChannelNumber`, `TooLarge` |
+| `Error` (`class`, `code`; into `pod_core::Failure` at the stage `Relay`) | `Usage`, `Connect` (the dial, TLS, the UDP socket), `Io`, `Closed`, `Timeout { method }`, `Decode` (the type and the offset), `Frame` (a stream out of step), `Protocol { kind }`, `Integrity { kind }`, `Server { method, code, reason }`, `StaleNonce { method, tries }`, `Realm`, `Alternate { method, to, domain }` (a 300 not followed), `Redirected { to, error }` (the Allocate after the redirect failed; the words and the stage of the way out stay), `Downgrade { method }`, `NoRandom`, `NoAllocation`, `NoChannel`, `NoPermission`, `NoChannelNumber`, `TooLarge`, `NoTcpAllocation`, `ConnectRefused { code, reason }`, `ConnectionAttemptTimeout { waited }`, `BadConnectionId { why }`, `BindRefused { code, reason }`, `MalformedFrame { why }`, `RelayedClosed` |
 
 ## Settings
 
 | Field | Default | What |
 | --- | --- | --- |
 | `server` | none | `pod_core::Target` of the server |
-| `transport` | none | `Udp(Arc<dyn UdpSource>)`, or `Tls { dialer, context, trust, server_name, alpn }` (`Trust::Default`, the host of `server` and no ALPN from `Settings::tls`; `alpn` offers `stun.turn`, call C565) |
+| `transport` | none | `Udp(Arc<dyn UdpSource>)`, `Tcp { dialer }` (plain TURN over TCP), or `Tls { dialer, context, trust, server_name, alpn }` (`Trust::Default`, the host of `server` and no ALPN from `Settings::tls`; `alpn` offers `stun.turn`, call C565) |
 | `credentials` | none | the user and the password after their preparation (OpaqueString); `Debug` shows the user alone; the password is wiped at the drop |
 | `realm` | `None` | the realm that the caller expects; another one fails before a key is made |
 | `limits.rto`, `limits.retransmits` | 500 ms, 6 | the first wait over UDP, which doubles, and the sends after the first (RFC 8489, 6.2.1) |
 | `limits.request_timeout` | 39.5 s | the longest wait for one answer, each transport |
 | `limits.connect_timeout` | 10 s | the dial and the TLS handshake |
+| `limits.connection_attempt_timeout` | 35 s | the wait for a ConnectionAttempt indication of RFC 6062 |
 | `limits.lifetime` | 600 s | the lifetime that Allocate and Refresh ask for |
 | `limits.refresh_before` | 60 s | a refresh comes this long before the end, and not before half of the lifetime |
 | `limits.stale_nonces` | 2 | the 438 answers that one request answers with the fresh nonce |
@@ -110,7 +132,8 @@ client.address_error();                                 // the family that the s
 | `clock` | `TokioClock` | `now` and `sleep_until` of each deadline and refresh |
 | `entropy` | `OsEntropy` | the transaction ids |
 | `software` | `None` | SOFTWARE of each request: the consumer's name |
-| `allocation` | nothing more | `Allocation`: REQUESTED-ADDRESS-FAMILY or ADDITIONAL-ADDRESS-FAMILY (`family`), EVEN-PORT (`port`), RESERVATION-TOKEN (`reservation`), DONT-FRAGMENT in the Allocate and each Send indication (`dont_fragment`); `check` refuses what RFC 8656, 7.1 forbids |
+| `allocation` | nothing more | `Allocation`: REQUESTED-TRANSPORT (`relay`, UDP or TCP), REQUESTED-ADDRESS-FAMILY or ADDITIONAL-ADDRESS-FAMILY (`family`), EVEN-PORT (`port`), RESERVATION-TOKEN (`reservation`), DONT-FRAGMENT in the Allocate and each Send indication (`dont_fragment`); `check` refuses what RFC 8656, 7.1 and RFC 6062, 4.1 forbid |
+| `rate_limit` | `None` | the relay's rate limit in bytes per second, when the caller knows one; TURN carries none, and `status` reports this value |
 
 ## The rules of the client
 
@@ -163,9 +186,26 @@ client.address_error();                                 // the family that the s
   to 1 s after a close: coturn frees a deleted allocation at its next tick
   (RFC 8656, 7.4: take another port).
 - **The wire.** Over UDP, a datagram of another sender is dropped. Over
-  TLS, each message is cut by its own length; ChannelData is padded to a
-  multiple of 4 each way (RFC 8656, 12.5). Bytes that are neither STUN nor
-  ChannelData end the client (`Error::Frame`).
+  TCP and TLS, each message is cut by the length in its header (RFC 8489,
+  6.2.2); ChannelData is padded to a multiple of 4 each way (RFC 8656,
+  12.5). Bytes that are neither STUN nor ChannelData end the client
+  (`Error::Frame`).
+- **The TCP relay** (RFC 6062; T-501). A TCP allocation is an Allocate
+  with REQUESTED-TRANSPORT TCP on a TCP or TLS connection; EVEN-PORT,
+  RESERVATION-TOKEN and DONT-FRAGMENT are refused before the send.
+  `connect(peer)` sends Connect with XOR-PEER-ADDRESS, reads the 32-bit
+  CONNECTION-ID of the success, opens a second connection to the same
+  server with the same dialer, and sends ConnectionBind there.
+  `accept()` waits for a ConnectionAttempt indication and binds the
+  CONNECTION-ID that it names; a permission for the peer's address must
+  exist. Each failure has its name: `NoTcpAllocation`,
+  `ConnectRefused { code }`, `ConnectionAttemptTimeout`,
+  `BadConnectionId`, `BindRefused { code }`. The data connection is the
+  bare TCP stream of RFC 6062, 4.5: the bytes that the peer sends are the
+  bytes that the caller reads. The end of the stream is `RelayedClosed`.
+  The stream keeps the control
+  connection open and refreshes the allocation on its timer; the stream's
+  drop ends the allocation with the control connection (RFC 6062, 4.6).
 
 ## The parity list
 
@@ -203,9 +243,11 @@ this crate, and the tests that hold them:
 - [x] The credential stays out of each line (TURN-5): `Debug` of
   `Credentials`, `Settings` and `Client` shows the user alone; the crate
   prints nothing.
-- [x] The lifetime for `status` (TURN-6): `Client::lifetime`,
-  `next_refresh`. The relay's rate limit is no part of TURN: the consumer
-  measures it.
+- [x] The lifetime for `status` (TURN-6): `Client::status` and
+  `RelayedStream::status` give `Status { lifetime, rate_limit }`.
+  `next_refresh` gives the next timer. TURN carries no rate limit:
+  `rate_limit` is the caller's `Settings::rate_limit`, and `None` when it
+  names none.
 - [x] A live test with a server of the caller, which skips with no server:
   `tests/live.rs` (`POD_TURN_LIVE_SERVER`, `POD_TURN_LIVE_USER`,
   `POD_TURN_LIVE_PASSWORD`, `POD_TURN_LIVE_PEER`); no public server is
@@ -217,7 +259,10 @@ this crate, and the tests that hold them:
   the maximum lifetime, a 438 after the life of a nonce, a 437 and a 441
   of another user, a wrong password, a root that the client does not
   trust; the plants `turn-coturn-channel-data-not-padded` and
-  `turn-coturn-skip-fails`.
+  `turn-coturn-skip-fails`. Over plain TCP, `tests/coturn_tcp.rs`
+  (`#[ignore]`, run by the script) relays a TCP connection through
+  a TCP allocation with coturn's TCP relay, which coturn enables by
+  default (it has no `--tcp-relay` option).
 - [x] The SHA-256 credentials of a request against a server of another
   party (T-403, call C576): libjuice 1.7.4 on 127.0.0.1
   (`scripts/ci/turn-tests.sh` builds it from its source at a pinned
@@ -239,14 +284,17 @@ this crate, and the tests that hold them:
   way; the plants `turn-xturn-sha256-unchecked` and
   `turn-xturn-skip-fails`.
 - [x] The fuzz target `stun_message` (`fuzz/`), and the static probe line.
-- [ ] Plain TURN over TCP (RFC 8656, 3.1, with no TLS): not in this crate;
-  GitHub #100 puts it out of this change.
+- [x] Plain TURN over TCP (RFC 8656, 3.1, with no TLS): `Transport::Tcp`
+  and `Settings::tcp`; the control connection uses the framing of a
+  stream, and the mock and coturn both answer it.
 - [ ] TURN over DTLS (RFC 7350): not in this crate; GitHub #100 puts it
   out of this change.
-- [ ] The TCP relay of RFC 6062 (`Connect`, `ConnectionBind`,
-  `ConnectionAttempt`): the constants are here; the steps are not.
-  PodUtils/podnet#485 tracks it, and PodUtils/podssh@T-621 can add them on
-  an allocation of this crate.
+- [x] The TCP relay of RFC 6062 (T-501; `Connect`, `ConnectionBind`,
+  `ConnectionAttempt`): `Client::connect`, `Client::accept` and
+  `RelayedStream`, with the mock of `tests/common/mock_tcp.rs`
+  (`tests/turn_tcp.rs`, 10 tests) and coturn over plain TCP
+  (`tests/coturn_tcp.rs`). The data connection carries the bytes bare, as
+  RFC 6062, 4.5 specifies.
 - [x] The options of RFC 8489 and RFC 8656 (T-381): the feature bits of a
   nonce and USERHASH against the vector of RFC 8489, B.1 (erratum 6268)
   and the mock (`src/stun_sha256_tests.rs`, `tests/turn_redirect.rs`;
@@ -264,29 +312,34 @@ this crate, and the tests that hold them:
 | Consumer | Old | New |
 | --- | --- | --- |
 | podssh | `podssh_ws::stun` (a re-export of `pod_proxy::stun`), the doctor of `PodUtils/podssh:crates/podssh-cli/src/doctor/nat.rs` | no change: `pod_proxy::stun` keeps each name; a tag bump. `parse` gives the same texts, with the offset and the type after them |
-| podnet | no TURN (PodUtils/podnet#485) | `pod-turn = { git = .., tag = .. }` with the default feature `turn`: `Settings::udp` or `Settings::tls` over its own dial, resolver and TLS context; `Client` under its forward of UDP |
+| podnet | no TURN (PodUtils/podnet#485) | `pod-turn = { git = .., tag = .. }` with the default feature `turn`: `Settings::udp`, `Settings::tcp` or `Settings::tls` over its own dial, resolver and TLS context; `Client` under its forward of UDP and TCP, and `Client::connect` for a TCP relay |
 | podssh | PodUtils/podssh@T-621, the TURN road | the same; the steps of RFC 6062 on its allocation stay podssh's |
 
 ## Tests
 
 `cargo test -p pod-turn --all-features`: the codec, the options of an
 Allocate and the errors (28 unit tests), the mock over UDP
-(`tests/turn_udp.rs`, `tests/turn_allocation.rs`) and over TLS
-(`tests/turn_tls.rs`), the nonce cookie, USERHASH, the redirect and the
-ALPN (`tests/turn_redirect.rs`); `tests/live.rs` is `#[ignore]`.
-`tests/coturn.rs` (7 tests) and `tests/coturn_options.rs` (6 tests) skip
-with no coturn, `tests/juice.rs` (2 tests) with no libjuice, and
-`tests/xturn.rs` (2 tests) with no xturn;
+(`tests/turn_udp.rs`, `tests/turn_allocation.rs`), over plain TCP
+(`tests/turn_tcp.rs`, 10 tests) and over TLS (`tests/turn_tls.rs`), the
+nonce cookie, USERHASH, the redirect and the ALPN
+(`tests/turn_redirect.rs`); `tests/live.rs` and `tests/coturn_tcp.rs` are
+`#[ignore]`. `tests/coturn.rs` (7 tests) and `tests/coturn_options.rs`
+(6 tests) skip with no coturn, `tests/juice.rs` (2 tests) with no
+libjuice, and `tests/xturn.rs` (2 tests) with no xturn;
 `sh scripts/ci/turn-tests.sh` starts coturn 4.19.0 on the loopback, and a
 second one that redirects to it (docker, or `POD_TURN_TEST_COTURN_BIN`, a
 `turnserver` of the host; coturn 4.6.1 of Ubuntu passes too), and the TURN
 server of libjuice 1.7.4 (git and a C compiler), and xturn 2.0.0 (the
 Erlang/OTP 29.0.5 and the Elixir 1.20.3 of its `.tool-versions`), and
 fails on a skip. The mock (`tests/common/mock.rs`) is its
-own reading of RFC 8656: a session for each UDP 5-tuple or TLS
-connection, a relay socket on the loopback for each allocation, the 401,
+own reading of RFC 8656 and RFC 6062: a session for each UDP 5-tuple, TCP
+or TLS connection, a relay socket on the loopback for each allocation, the
+401,
 the 438 on request of a test, a 441 for a user who is not the owner, the
 nonce cookie and USERHASH, a 300 before or after the challenge, the
 options of an Allocate (`tests/common/mock_alloc.rs`; an IPv6 relayed
 address is `[::1]` with no socket, as the host can have no IPv6), and the
-users and the realm of the tests (made-up values).
+users and the realm of the tests (made-up values). The TCP face
+(`tests/common/mock_tcp.rs`) gives the TCP allocation, CreatePermission,
+Refresh, Connect, ConnectionBind, ConnectionAttempt, and the same bare stream on
+its data connection.

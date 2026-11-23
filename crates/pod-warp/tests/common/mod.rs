@@ -5,6 +5,7 @@
 #![allow(dead_code)]
 
 pub mod edge;
+pub mod h3door;
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::atomic::{AtomicUsize, Ordering};

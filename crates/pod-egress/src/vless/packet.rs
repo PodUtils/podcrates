@@ -20,7 +20,8 @@ use tokio::io::{AsyncReadExt, DuplexStream};
 use super::VlessError;
 use super::link::Server;
 use super::split::{Failed, Halves};
-use super::xhttp::{answer, at, request, send, send_all, session_id};
+use super::xhttp::{answer, at, pad_first, request, send, send_all, session_id};
+use crate::coalesce;
 use pod_ws::h2_road::Stream;
 
 /// The pipe in memory to the task of the POSTs: a write waits while a POST
@@ -33,18 +34,18 @@ pub(super) async fn open(
     first: Vec<u8>,
     limit: Duration,
     agent: &str,
-) -> Result<Halves<Stream, DuplexStream>, VlessError> {
+) -> Result<(Halves<Stream, DuplexStream>, coalesce::Report), VlessError> {
     let id = session_id()?;
     let get = request(server, http::Method::GET, &at(server, &id), false, agent)?;
     let (down, closed) = send(&sender, get, true, limit).await?;
     let down = answer(down, limit, "the GET of packet-up").await?;
     let read = pod_ws::h2_road::duplex(closed, down.into_body());
     let at_server = At { server: server.clone(), agent: agent.to_string(), limit };
-    post(&at_server, &sender, &id, 0, Bytes::from(first)).await?;
+    let report = post(&at_server, &sender, &id, 0, Bytes::from(first)).await?;
     let (ours, theirs) = tokio::io::duplex(PIPE);
     let failed = Failed::default();
     tokio::spawn(uploads(at_server, sender, id, theirs, failed.clone()));
-    Ok(Halves { read, write: ours, failed })
+    Ok((Halves { read, write: ours, failed }, report))
 }
 
 /// The server of the POSTs, the user agent of each, and the bound of each.
@@ -54,14 +55,27 @@ struct At {
     limit: Duration,
 }
 
-/// One POST of packet-up, its body whole, and its 200.
-async fn post(to: &At, sender: &SendRequest<Bytes>, id: &str, seq: u64, body: Bytes) -> Result<(), VlessError> {
+/// One POST of packet-up, its body whole, and its 200. The first POST of a
+/// session carries VLESS's request, and goes with the padding of the first
+/// write; its report comes back.
+async fn post(
+    to: &At,
+    sender: &SendRequest<Bytes>,
+    id: &str,
+    seq: u64,
+    body: Bytes,
+) -> Result<coalesce::Report, VlessError> {
     let (server, limit) = (&to.server, to.limit);
     let mut post = request(server, http::Method::POST, &at(server, &format!("{id}/{seq}")), false, &to.agent)?;
     post.headers_mut().insert(http::header::CONTENT_LENGTH, http::HeaderValue::from(body.len()));
+    let report = match seq {
+        0 => pad_first(&mut post, body.len()),
+        _ => coalesce::Report { bytes: body.len(), short: false, coalesced: false },
+    };
     let (answered, mut up) = send(sender, post, false, limit).await?;
     send_all(&mut up, body, true).await.map_err(VlessError::Carry)?;
-    answer(answered, limit, "a POST of packet-up").await.map(drop)
+    answer(answered, limit, "a POST of packet-up").await.map(drop)?;
+    Ok(report)
 }
 
 /// The POSTs after the first, until this side's bytes end or one fails;

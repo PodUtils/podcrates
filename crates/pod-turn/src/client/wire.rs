@@ -102,6 +102,16 @@ impl Conn {
         }
     }
 
+    /// The stream and the bytes that were read past its last message: a
+    /// data connection of RFC 6062 carries the peer's bytes after the
+    /// answer to its ConnectionBind.
+    pub fn into_stream(self) -> Result<(BoxedIo, Vec<u8>), Error> {
+        match self {
+            Conn::Stream { io, buf } => Ok((io, buf)),
+            Conn::Udp { .. } => Err(Error::Usage("a UDP transport has no byte stream".into())),
+        }
+    }
+
     /// The end of the stream; nothing for UDP.
     pub async fn shutdown(&mut self) {
         if let Conn::Stream { io, .. } = self {

@@ -39,6 +39,15 @@ s3 = ["poll", "dep:sha2", "dep:hmac"]
 # The stand-in of the S3 API on the loopback (`s3::standin`), for the tests
 # of this crate and of a consumer; no binary turns it on.
 s3-standin = ["s3"]
+# The NTPv4 carrier: the bytes of a link in the extension fields of NTP
+# packets over UDP 123 (`ntp`). No dependency beyond tokio.
+ntp = []
+# The SMTP submission carrier: one message for each batch over 587 with
+# STARTTLS or 465 with TLS (`smtp`), with the TLS of `pod-tls`.
+smtp = ["dep:pod-tls", "dep:rustls", "dep:base64", "pod-core/async"]
+# The IMAP retrieval carrier: `APPEND` up and `UID FETCH` down over 143 with
+# STARTTLS or 993 with TLS (`imap`), with the TLS of `pod-tls`.
+imap = ["dep:pod-tls", "dep:rustls", "dep:base64", "pod-core/async"]
 # The reader of HTTP/1.1 and of SSE of the poll carriers is public in
 # `poll::fuzzing`, for the fuzz target `link_poll_wire` of fuzz/. No
 # consumer turns this on.
@@ -100,6 +109,10 @@ rustls = { workspace = true, features = ["ring"] }
 tokio-rustls = { workspace = true }
 # A link over a resumable session (T-311).
 pod-session = { workspace = true }
+# The certificate of the mock mail servers of the tests, made in the
+# process with the P-256 key of `ring`: no key of a test is in the
+# repository. The ring provider is already a dev-dependency of rustls.
+rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
 sha2 = { workspace = true }
 # `test-util` gives the keepalive's tests a paused clock.
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }
@@ -115,3 +128,13 @@ required-features = ["s3-standin"]
 [[test]]
 name = "s3_seaweedfs"
 required-features = ["s3-standin"]
+
+[[test]]
+name = "ntp"
+required-features = ["ntp"]
+
+[[test]]
+name = "mail"
+required-features = ["smtp", "imap"]
+
+

@@ -18,6 +18,7 @@ pod-beneath = { workspace = true }
 pod-broker = { workspace = true }
 pod-confine = { workspace = true }
 pod-core = { workspace = true }
+pod-cover = { workspace = true }
 # `standin` is out: it is for the tests of this crate and of a consumer, and no binary turns it on.
 pod-derp = { workspace = true }
 # `standin`: the probe runs a client against the stand-in on the loopback.
@@ -33,6 +34,7 @@ pod-enter = { workspace = true }
 pod-extract = { workspace = true }
 pod-gsr = { workspace = true, features = ["blocking"] }
 pod-guest = { workspace = true }
+pod-harness = { workspace = true }
 # `report`: the probe writes the report of an empty set and reads it back.
 pod-hostprobe = { workspace = true, features = ["report"] }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
@@ -52,12 +54,13 @@ pod-lab = { workspace = true, features = ["cli"] }
 # `clap`: the reader of a clap tree; `core`: the exit codes of the failure
 # classes. Each writer and the pager link in.
 pod-manual = { workspace = true, features = ["clap", "core"] }
-pod-link = { workspace = true, features = ["tcp", "ws", "h2", "poll", "quic", "udp", "dns", "icmp", "s3"] }
+pod-link = { workspace = true, features = ["tcp", "ws", "h2", "poll", "quic", "udp", "dns", "icmp", "s3", "ntp", "smtp", "imap"] }
 pod-netlab = { workspace = true }
 # `ipv4-fragmentation`: a datagram over the MTU, so that the fragmenter of
 # smoltcp links in.
 pod-netstack = { workspace = true, features = ["ipv4-fragmentation"] }
 pod-oci = { workspace = true }
+pod-offline = { workspace = true }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
 pod-opentunnel = { workspace = true }
 # `fuzzing` is out: it is for the fuzz targets of fuzz/, and no consumer turns it on.
@@ -75,6 +78,8 @@ pod-release = { workspace = true, features = ["fetch"] }
 pod-rootfs = { workspace = true }
 pod-session = { workspace = true }
 pod-services = { workspace = true, features = ["overlay"] }
+pod-shape = { workspace = true }
+pod-sidecar = { workspace = true, features = ["sidecar"] }
 pod-supervise = { workspace = true }
 pod-term = { workspace = true }
 pod-tls = { workspace = true, features = ["pure", "rsa", "ech"] }

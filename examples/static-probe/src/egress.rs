@@ -119,6 +119,7 @@ fn part2(way: &pod_ws::Way, wait: Duration, dialers: &mut Vec<Box<dyn Dial>>) {
         answer: wait,
         silence_is_ready: false,
         at_end: AtEnd::Now,
+        early: None,
     };
     let id = "00000000-0000-4000-8000-000000000000";
     if let Ok(server) = vless::Server::parse(&format!("vless://{id}@vless.example:443?type=ws&security=tls&path=%2F")) {

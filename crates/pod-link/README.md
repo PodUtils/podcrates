@@ -22,8 +22,11 @@ C276 and C277) and T-494 the object-storage carrier over a bucket of the S3
 API (feature `s3`; PodUtils/podnet#468 row E2-4; calls C489 to C491) and
 T-627 its stand-in for the tests of a consumer (feature `s3-standin`;
 PodUtils/podnet#564; call C552), and T-500 the split of one session over an up carrier and a down carrier
-(`split`; PodUtils/podnet#473 row E7-1; calls C492 and C493). The crate
-reads no environment, keeps no global state and prints nothing.
+(`split`; PodUtils/podnet#473 row E7-1; calls C492 and C493), and the
+carriers of the network that permits time synchronisation and mail
+(PodUtils/podnet#484): the NTPv4 extension field carrier (feature `ntp`),
+SMTP submission (feature `smtp`) and IMAP retrieval (feature `imap`). The
+crate reads no environment, keeps no global state and prints nothing.
 
 ## Use
 
@@ -189,6 +192,42 @@ let io = split.connect("SHA256:...@link.example", "SHA256:...@https://relay.exam
 // split::lost(&e).map(|l| l.half) == Some(split::Half::Up), and the text says "up-carrier lost".
 ```
 
+The NTPv4 carrier carries the bytes of a link in the extension fields of
+NTP packets over UDP 123, one poll for each request. Each packet takes
+another unassigned field type, the timestamps come from a clock that the
+carrier steers to the server, and the poll stays between 16 s and 64 s:
+
+```rust
+use pod_link::ntp::Ntp;
+
+let ntp = Ntp::new().with_payload(300).with_poll(Duration::from_secs(32));
+let mut door = ntp.listen("0.0.0.0:123").await?;                  // an NTP server of the link
+let io = ntp.dial("time.example").await?;                         // or "HOST:PORT"
+// A reply that the server cut short: ntp.limit() names the truncation and
+// the payload is smaller; the session stays open.
+```
+
+The network that permits submission and retrieval but nothing else carries
+a link through SMTP and IMAP. One message is one batch, the payload is
+base64 in the body, and the retrieval side fetches and decodes it. A
+submission carrier and a retrieval carrier join into one byte stream:
+
+```rust
+use pod_link::imap::Imap;
+use pod_link::smtp::Smtp;
+use pod_link::{mail_pair, smtp::{Credential, Mode}, Carrier};
+
+let credential = Credential::new("session-user", "a-made-up-session-secret")?;
+let smtp = Smtp::new(credential.clone(), "dialer@example.net", "session@example.net")
+    .with_tls(tls)                                                // the roots of the caller
+    .with_mode(Mode::Starttls);                                   // 587; 465 takes Mode::Implicit
+let imap = Imap::new(credential, "inbox", "outbox").with_tls(tls).with_mode(Mode::Starttls);
+let io = mail_pair(smtp.dial("submission.example:587").await?, imap.dial("retrieval.example:143").await?);
+// A server that refuses a large message, or a fetched body over the limit:
+// smtp.limit() and imap.limit() name it, and the session stays open.
+// Port 25 is refused by name before any connection (MAIL-5).
+```
+
 ## API
 
 | Item | What |
@@ -199,7 +238,7 @@ let io = split.connect("SHA256:...@link.example", "SHA256:...@https://relay.exam
 | `Settings` | the windows, the stream limit, the frame size, the keepalive (`WIRE.md`, "Settings"); `check`, `queue_limit` |
 | `Error` | each failure by name; `class` (for the exit code), `io_kind`; into `std::io::Error` (a stream's error) and into `pod_core::Failure` (the stage `Session`) |
 | `ResetCode`, `GoAwayCode` | `CANCEL`, `REFUSED`, `PROTOCOL`; `NORMAL`, `PROTOCOL`. A caller's own reset codes start at 16 |
-| `Carrier`, `Listener`, `Facts`, `Accepted` | the trait of a carrier: `name`, `facts` (ordered, reliable, duplex, unit, cost), `available`, `dial`, `listen`; the accept side: `accept`, and `accept_peer` (the stream and the Ed25519 key that the peer proved, `None` for a carrier that proves no key); `BoxIo` is the byte stream that they give |
+| `Carrier`, `Listener`, `Facts`, `Accepted` | the trait of a carrier: `name`, `facts` (ordered, reliable, duplex, unit, cost, and the rate: the bytes for each second, the poll interval and the cost class), `available`, `dial`, `listen`; the accept side: `accept`, and `accept_peer` (the stream and the Ed25519 key that the peer proved, `None` for a carrier that proves no key); `BoxIo` is the byte stream that they give |
 | `CarrierError`, `CarrierErrorKind` | `Usage` (64), `InUse` and `Unavailable` (69), `NotFound` (66), `Refused` (77: this end refused the peer, a key that its pin does not name), `KeyRefused` (77: the peer refused the key of this end; the same on each carrier that pins keys, T-542, call C293), `Io`; into `pod_core::Failure` (the stage `Connect`) |
 | `memory::Memory`, `memory::pair` | the memory carrier: listeners by name in the value (a clone shares them), a ring of 64 KiB to 64 MiB in each direction (1 MiB by default); a full ring makes the writer wait |
 | `unix::Unix`, `unix::pair` | the unix socket carrier (`cfg(unix)`): a path of 1 to 107 bytes, a socket of mode 0600, the claim of the path, the peer's uid; a socket pair for one process |
@@ -242,6 +281,17 @@ let io = split.connect("SHA256:...@link.example", "SHA256:...@https://relay.exam
 | `split::Half`, `split::Lost`, `split::lost`, `split::lost_in` | `Up`, `Down` (`name`); the error inside the `io::Error` (kind `ConnectionAborted`) of a read or a write after the loss of a half, whose text starts with `up-carrier lost` or `down-carrier lost`; `lost(&io_error)` finds it; `lost_in(text)` reads the half from the text of an error of a link |
 | `split::wire` | the hello (`MAGIC`, `VERSION`, `HELLO`, `hello`, `read_hello`, `half_byte`), the frames (`kind::{DATA, BEAT, END, JOINED, LOST}`, `HEAD`, `FRAME`, `write`, `read`) |
 | `split::{NAME, BEAT, LOST_AFTER, JOIN_TIMEOUT}` | the constants of the split |
+| `ntp::Ntp` (feature `ntp`) | the NTPv4 carrier: `new()`, `with_payload(bytes)`, `with_poll(time)`, `with_tolerance(time)`, `with_reply_timeout(time)`, `limit()`; the fields `payload` (300), `poll` (32 s, 16 s to 64 s), `tolerance` (1 ms), `reply_timeout` (4 s); `check`; `rate`; `address(text)` (`HOST[:PORT]`, port 123 by default); as a `Carrier`: `dial("HOST[:PORT]")`, `listen("IP:PORT")` (an NTP server of the link), the cost `Highest`, `reliable: false` (a lost reply sends the request again, so the ARQ above it takes a duplicate), the unit `payload` |
+| `ntp::NtpListener` | `local_addr`; a `Listener`; each source address that sends a request after the bind is a peer |
+| `ntp::session::{Session, Discipline}`, `ntp::wire::{Packet, Field, Timestamp, Types, parse, parse_lenient, request, reply, unassigned}` | the session without I/O (`new(payload, poll, tolerance, seed)`, `write`, `request`, `reply`, `retry`, `read`, `clock`, `payload`, `set_payload`, `pending_up`, `pending_down`, `limit`, `discipline`); the clock discipline (`observe`, `offset`, `delay`, `uncertainty`, `disciplined`, `samples`); the codec: the 48-byte base, the extension fields of a 16-bit type, a 16-bit length and a value (`parse` refuses a length under 4 or past the datagram, `parse_lenient` reports a cut field), `Types` (one unassigned type for each packet, 0x1000 to 0xEFFF) |
+| `ntp::{NAME, PORT, PAYLOAD, POLL, MIN_POLL, MAX_POLL, TOLERANCE, REPLY_TIMEOUT}` | the constants of the ntp carrier |
+| `smtp::Smtp` (feature `smtp`) | the SMTP submission carrier: `new(credential, from, to)`, `with_tls(config)`, `with_mode(mode)`, `limit()`, `address(text)` (the endpoint and the mode of `HOST:PORT`; port 25 is refused by name); the fields `mode` (`None` reads it from the port), `credential`, `from`, `to`, `subject`, `batch` (32 KiB, 256 B to 256 KiB), `flush_after` (250 ms), `connect_timeout` (20 s), `handshake_timeout` (20 s), `submit_timeout` (120 s), `tls`; `check`; `rate`; as a `Carrier`: `dial("HOST:PORT")` (one message for each batch, base64 in the body, `AUTH PLAIN` with the session credential), `listen` refuses (the bytes down are the retrieval carrier's), the cost `Medium`, one direction |
+| `imap::Imap` (feature `imap`) | the IMAP retrieval carrier: `new(credential, inbox, outbox)`, `with_tls(config)`, `with_mode(mode)`, `with_mailboxes(inbox, outbox)`, `limit()`, `address(text)`; the fields `mode`, `credential`, `inbox`, `outbox`, `batch` (32 KiB), `max_fetch` (1 MiB), `poll` (5 s, 100 ms to 300 s), `connect_timeout` (20 s), `handshake_timeout` (20 s), `command_timeout` (120 s), `tls`; `check`; `rate`; as a `Carrier`: `dial("HOST:PORT")` (`APPEND` up, `UID FETCH` down, one session), `listen` refuses (the server is the network's), the cost `High` |
+| `smtp::{Credential, Endpoint, Mode}`, `smtp::{NAME, BATCH, MIN_BATCH, MAX_BATCH, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, SUBMIT_TIMEOUT, FLUSH_AFTER}`, `smtp::payload_at_most` | the credential of a session (`new(user, secret)`, `user`, whose `Debug` hides the secret; never the account password, MAIL-3); the host and the port of a dial; the TLS mode (`Starttls` or `Implicit`, `of_smtp`, `of_imap`, `name`); the constants and the payload that fits a `SIZE` limit |
+| `imap::{Credential, Endpoint, Mode}`, `imap::{NAME, BATCH, MIN_BATCH, MAX_BATCH, MAX_FETCH, POLL, MIN_POLL, MAX_POLL, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, COMMAND_TIMEOUT}` | the same credential, endpoint and mode, and the constants of the imap carrier |
+| `mail_pair(up, down)`, `mail_body(message)` | one byte stream of a submission carrier's write side and a retrieval carrier's read side; the payload of a message of these carriers (the base64 body, decoded), the body as it is for another tool's message |
+| `Rate` | the rate of a carrier in `Facts::rate`: `bytes_per_second` (`Option<u64>`), `poll_interval` (`Option<Duration>`) and `cost`, the class of `Facts::cost`; `Rate::STREAM`, `Rate::priced(cost)` |
+| `Limit`, `LimitKind`, `Limits` | a limit that the service of a carrier set: `Truncated`, `Refused` or `Declared`, and the bytes of the largest unit, when the service said one; the last limit of a carrier's sessions (`new`, `set`, `get`); a limit is not a protocol error, and the session stays open |
 | `poll::Form` | `LongPoll` (`poll`), `Sse` (`sse`), `Chunked` (`chunked`), `Simplex` (`httppoll`); `name`, `batch` (256 KiB; 64 KiB for `Simplex`) |
 | `poll::PollListener`, `poll::Stats` | `local_addr`, `accept_key`, `stats` (sessions, 429s, requests, bytes up that came twice, bytes down sent again, long polls, simplex polls, pushes, pushes refused, the bytes down kept now, the connections closed past `max_connections`); a `Listener`; a drop ends its connections and each session that it holds |
 | `poll::{ALPN, CONNECT_TIMEOUT, HANDSHAKE_TIMEOUT, ANSWER_TIMEOUT, HOLD, MIN_HOLD, MAX_HOLD, IDLE, MAX_HANDSHAKES, MAX_SESSIONS, MAX_CONNECTIONS, MAX_BYTES, MIN_BYTES, BATCH, SIMPLEX_BATCH, WINDOW, ACK_EVERY, PING_EVERY, BACKOFF_FIRST, BACKOFF_MAX, BUSY_LIMIT}` | the constants of the poll carriers |
@@ -274,6 +324,9 @@ let io = split.connect("SHA256:...@link.example", "SHA256:...@https://relay.exam
 | `icmp` | the icmp carrier (`icmp`): `tcp`, and libc on unix for the raw socket |
 | `s3` | the s3 carrier (`s3`): `poll` (its HTTP/1.1 and its pipes), and sha2 and hmac for SigV4 |
 | `s3-standin` | `s3`, and the stand-in of the S3 API in `s3::standin`, for the tests of this crate and of a consumer (in `[dev-dependencies]`); no binary turns it on |
+| `ntp` | the NTPv4 carrier (`ntp`): the codec, the session and the poll loop; tokio alone, and no TLS crate |
+| `smtp` | the SMTP submission carrier (`smtp`): `pod-tls` and rustls, with the provider of the caller, and base64 for the body |
+| `imap` | the IMAP retrieval carrier (`imap`): `pod-tls` and rustls, and base64 for the body of a message that this crate submitted |
 | `fuzzing` | `poll`, and the reader of HTTP/1.1 and of SSE of the poll carriers in `poll::fuzzing`, for the fuzz target `link_poll_wire`; no API, and no consumer turns it on |
 
 ## The wire
@@ -892,6 +945,57 @@ pipes under a switch, and the ARQ over the `Lossy` shim at 3 % loss):
   takes over the other's direction at a loss (call C493). podnet's flags
   `--up-carrier` and `--down-carrier` and the router's split tests are
   podnet's.
+
+The asks of PodUtils/podnet#484 for the network that permits time
+synchronisation and mail (the NTPv4, SMTP and IMAP carriers) and the tests
+that hold them (`tests/ntp.rs`, `tests/mail.rs`, features `ntp`, `smtp`
+and `imap`):
+
+- [x] NTP-1, an extension field of a 16-bit type, a 16-bit length and a
+  value, with a malformed length refused: `ntp::wire::tests`
+  (`a_packet_round_trips_with_its_fields_and_a_malformed_length_is_refused`).
+- [x] NTP-1, an unassigned type and another type for each packet, so a
+  constant type is not a signature: `ntp::wire::tests`
+  (`the_types_are_unassigned_and_each_packet_gets_another`) and
+  `three_hundred_bytes_each_way_over_one_hundred_exchanges`.
+- [x] NTP-2, a plausible timestamp and a clock inside 1 ms of the server
+  over 100 exchanges: `three_hundred_bytes_each_way_over_one_hundred_exchanges`.
+- [x] NTP-3, a poll of 16 s to 64 s:
+  `ntp::tests::the_poll_of_the_carrier_stays_between_sixteen_and_sixty_four_seconds`.
+- [x] NTP-4, a truncated reply is a carrier limit that reduces the payload,
+  and the session stays open:
+  `a_truncated_reply_is_a_limit_and_a_smaller_payload`.
+- [x] The poll loop over a real UDP socket: 300 bytes each way in one
+  exchange (`a_dial_carries_three_hundred_bytes_each_way_over_a_udp_socket`),
+  and a listener that takes a peer (`a_listener_takes_a_peer_and_the_bytes_up`).
+- [x] 300 bytes each way with STARTTLS and with implicit TLS, over a
+  submission server and a retrieval server of the loopback:
+  `three_hundred_bytes_each_way_with_starttls`,
+  `three_hundred_bytes_each_way_with_implicit_tls`.
+- [x] MAIL-1, one message is one batch, and the rate names the interval of
+  a submission: `smtp::tests::the_facts_declare_the_cost_class_and_the_rate_names_it_too`,
+  `smtp::client::tests::a_message_fits_its_declared_size_and_the_batch_is_bounded`.
+- [x] MAIL-2, no retransmission inside SMTP or IMAP: a message that the
+  server took is removed from the batch, and a fetched message is not
+  fetched again (`UID FETCH` from the uid after the last one).
+- [x] MAIL-3, a per-session credential, never the account password, and a
+  `Debug` that hides it: `mail::tests::a_credential_hides_its_secret_and_refuses_a_control_character`;
+  a wrong credential is refused by the server:
+  `a_wrong_credential_is_refused_by_the_server`.
+- [x] MAIL-4, a refused message and a fetched body over the limit are
+  carrier limits, and the session stays open:
+  `a_refused_message_is_a_limit_and_the_session_stays_open`,
+  `a_fetched_body_over_the_limit_is_a_limit_and_the_session_stays_open`.
+- [x] MAIL-5, port 25 is refused by name before a dial:
+  `port_25_is_refused_by_name_before_a_dial`,
+  `smtp::tests::port_25_is_refused_by_name_before_a_dial_and_the_other_ports_give_a_mode`.
+- [x] Both carriers declare a cost class and a rate in `Facts::rate`: the
+  facts tests of `smtp`, `imap::tests::the_facts_declare_the_poll_and_its_cost`
+  and `ntp::tests::the_poll_of_the_carrier_stays_between_sixteen_and_sixty_four_seconds`.
+- The clock of the host itself is not set: the carrier steers its own
+  timestamps only (NTP-2). A link over a carrier whose poll is 16 s or more
+  runs at that poll for each exchange above the first; the tests drive the
+  session and the first exchange instead.
 
 ## Measurement
 

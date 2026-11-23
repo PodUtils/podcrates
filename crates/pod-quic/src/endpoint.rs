@@ -51,7 +51,7 @@ pub fn bind(addr: SocketAddr) -> Result<Endpoint, Failure> {
 /// A UDP socket bound to `addr`. Windows makes a socket of IPv6 IPv6 only,
 /// so an endpoint on `[::]` sent nothing to an address of IPv4; the socket
 /// clears `IPV6_V6ONLY` before its bind, as `noq::Endpoint::client` does.
-fn dual_stack(addr: SocketAddr) -> std::io::Result<UdpSocket> {
+pub(crate) fn dual_stack(addr: SocketAddr) -> std::io::Result<UdpSocket> {
     use socket2::{Domain, Protocol, Socket, Type};
     let socket = Socket::new(Domain::for_address(addr), Type::DGRAM, Some(Protocol::UDP))?;
     if addr.is_ipv6() {
@@ -81,6 +81,17 @@ pub fn server(config: ServerConfig, addr: SocketAddr) -> Result<Endpoint, Failur
 /// `server` is given. The endpoint dials the real address of the peer; the
 /// way carries each datagram there. Its reads have the bound of [`Bounded`].
 pub fn over(datagrams: Arc<dyn Datagrams>, server: Option<ServerConfig>) -> Result<Endpoint, Failure> {
+    over_with(config()?, datagrams, server)
+}
+
+/// [`over`] with the configuration `config` of the caller: the reset key and
+/// the generator of the local connection IDs are its own (a rotation
+/// schedule is [`crate::migrate::endpoint_config`]).
+pub fn over_with(
+    config: EndpointConfig,
+    datagrams: Arc<dyn Datagrams>,
+    server: Option<ServerConfig>,
+) -> Result<Endpoint, Failure> {
     let socket = Box::new(Bounded::new(Box::new(DatagramSocket::new(datagrams))));
-    Endpoint::new_with_abstract_socket(config()?, server, socket, Arc::new(TokioRuntime)).map_err(no_endpoint)
+    Endpoint::new_with_abstract_socket(config, server, socket, Arc::new(TokioRuntime)).map_err(no_endpoint)
 }

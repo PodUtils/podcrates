@@ -37,6 +37,10 @@ pub async fn connect(
             let (socket, addr) = source.open(server, deadline).await.map_err(Error::Connect)?;
             Ok(Link { conn: Conn::udp(socket, addr), alpn: None })
         }
+        Transport::Tcp { dialer } => {
+            let connected = dialer.dial(server, deadline).await.map_err(Error::Connect)?;
+            Ok(Link { conn: Conn::stream(connected.io), alpn: None })
+        }
         Transport::Tls { dialer, context, trust, server_name, alpn } => {
             let connected = dialer.dial(server, deadline).await.map_err(Error::Connect)?;
             let name = domain.unwrap_or(server_name);
@@ -77,6 +81,7 @@ impl Client {
         self.conn = link.conn;
         self.alpn = link.alpn;
         self.server = target;
+        self.tls_name = domain;
         self.auth = None;
         Ok(())
     }

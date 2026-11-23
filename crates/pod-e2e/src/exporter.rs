@@ -59,6 +59,22 @@ impl Exporter {
         Exporter { secret, hash: salt, initiator }
     }
 
+    /// Bind the exporter to `context`, the relay's advertised pair, before
+    /// any key is exported from it: the secret becomes the HKDF-Expand of
+    /// itself with that context. Two ends of one handshake that bind the
+    /// same context get the same keys; a relay that gives them two contexts
+    /// gives them two sets of keys.
+    pub(crate) fn rebind(&mut self, context: &[u8]) -> Result<(), Error> {
+        let mut info = Vec::with_capacity(14 + context.len());
+        info.extend_from_slice(b"pod-e2e pair\0");
+        info.extend_from_slice(context);
+        let hkdf = Hkdf::<Sha256>::from_prk(&self.secret[..]).map_err(|e| Error::Malformed(e.to_string()))?;
+        let mut secret = Zeroizing::new([0u8; 32]);
+        hkdf.expand(&info, &mut secret[..]).map_err(|e| Error::Malformed(e.to_string()))?;
+        self.secret = secret;
+        Ok(())
+    }
+
     /// The handshake hash of Noise: the binding of the channel. It is not
     /// secret: the relay can compute it from the messages that it carried.
     pub fn handshake_hash(&self) -> [u8; 32] {

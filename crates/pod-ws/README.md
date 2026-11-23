@@ -21,7 +21,7 @@ The base is podssh's `crates/podssh-ws` (its WebSocket parts); podnet's
 | `limits` | `Limits { message, frame }`: `RELAY` (the default: 16 MiB and 262144 bytes), `TUNGSTENITE` (64 MiB and 16 MiB); `MAX_MESSAGE` |
 | `close` | `close_payload`, `close_code_and_reason`, `code::{NORMAL, GOING_AWAY, PROTOCOL, UNSUPPORTED, TOO_BIG, ERROR, TRY_LATER}`, `close_hint`, `ForwardClose`, `forward_close`, `ForwardClose::what(target, app)` |
 | `client` | `WsClientConfig { endpoint, trust, server_name, timeout, idle_timeout, way, limits }`, `Endpoint`, `check_path`, `relay_knobs_only`, `connect`, `open_tls`, `upgrade`, `upgrade_with`, `https_post_json`, `https_with_token`, `read_frame_over`, `next_event`, `next_event_capped`, `Event`, `doctor`, `is_policy_refusal`, `request_error`, `ConnectError` (and `cut`, `stage_and_class`), the bounds `DEFAULT_TIMEOUT`, `DEFAULT_IDLE_TIMEOUT`, `LIVENESS_EVERY`, `LIVENESS_ALLOWED`, `WRITE_TIMEOUT`, `UPGRADE_HEAD` |
-| `h2_road` | `Pool` (`const fn new`), `connect(&pool, &config, token)`, `connect_link(&pool, &links, &config, token)` and `Links` (a link that replaces another link of its session takes only a connection newer than each that the session rode, T-686), `ANSWER_WAIT` and `PING_WAIT` (a CONNECT with no answer within `ANSWER_WAIT` asks its connection by a PING; with no answer to it, the pool retires the connection and the CONNECT goes once to a new one; a CONNECT that times out retires its connection, T-687), `probe(&way, ..)`, `Road`, `Fallback`, `Offered`, `Stream`, `duplex`, the windows and bounds |
+| `h2_road` | `Pool` (`const fn new`), `connect(&pool, &config, token)`, `connect_with(&pool, &config, token, &shape)` (the shape of its HTTP/2), `connect_link(&pool, &links, &config, token)`, `connect_link_with(.., &shape)` and `Links` (a link that replaces another link of its session takes only a connection newer than each that the session rode, T-686), `ANSWER_WAIT` and `PING_WAIT` (a CONNECT with no answer within `ANSWER_WAIT` asks its connection by a PING; with no answer to it, the pool retires the connection and the CONNECT goes once to a new one; a CONNECT that times out retires its connection, T-687), `probe(&way, ..)`, `Road`, `Fallback` (`NotChosen`, `NotOffered`, `Carried`, `Remembered`, `Refused(status)`, `Caller`; a CONNECT answered 4xx takes the upgrade of HTTP/1.1 on a new connection within half a second, and a refusal of the method is remembered), `Offered`, `Stream`, `duplex`, `Shape` (`existing` (the default), `browser` (Chrome's), `firefox`, `padded`, `setting`, `settings_frame`, `window_frame`, `priority_frames`, `pads`, `apply`, `words`), `Setting`, `Priority`, `Padding`, the windows and bounds |
 | `cleartext` | `connect`, `tls_failed`, `probe(&way, host, port, wait)`, `Heard`, `PROBE_PATH`, `PLAIN_TO_TLS` |
 | `url` | `WsUrl` (`parse`, `shown`, `host_header`), `request_target`, `request`, `offering`, `asking`, `Asking { protocol, authorization, alpn, limits }`, `Stream`, `Carried`, `dial`, `dial_offering`, `dial_asking`, `failure` |
 | `server` | `check_upgrade`, `check_upgrade_or_raw`, `Upgrade`, `Refused`, `asks_upgrade`, `switching`, `switching_to(key, protocol)`, `switching_raw`, `session`; the subprotocol: `offers`, `check_protocol` (426 that names it), `is_protocol_name` (visible ASCII with no comma) |
@@ -55,6 +55,7 @@ state.
 | The user agent (`podssh/VERSION`, `podnet/VERSION`) | `Way::user_agent` |
 | The frame and the message that a session takes in | `Limits` (`WsClientConfig::limits`, `Asking::limits`, `RelaySession::with_limits`) |
 | The HTTP/2 connections of the relay, and what was found of each host | `h2_road::Pool`, a value of the caller |
+| The shape of the HTTP/2 client: SETTINGS and their order, the connection's window, the header order, the PRIORITY frames, the padding | `h2_road::Shape` (`Shape::existing` by default; `connect_with` takes another) |
 | The name of the client in the words of a Close | `ForwardClose::what(target, app)` |
 
 ## The accept loop
@@ -163,7 +164,13 @@ The adoption trials are `adoption/podssh/pod-ws.patch` and
 `cargo test -p pod-ws --all-features`. The tests run on the loopback
 (`need_loopback!`) with TLS on ring and certificates minted in pure Rust
 (`pod-tls`'s `tests/common/cert_for_test.rs`). No test reads the network
-or sets a variable. `serve_reporting` is proved through the ws carrier
+or sets a variable. The browser's HTTP/2 shape is compared, field by
+field, with the recorded frames of the test (`h2_road::shape`); a CONNECT
+answered 4xx falls back to the upgrade of HTTP/1.1 inside a second, and
+the host is remembered (`tests/h2_road.rs`,
+`a_refused_connect_falls_back_to_the_upgrade_and_the_session_completes`,
+`a_403_on_the_connect_falls_back_to_the_upgrade_within_a_second`).
+`serve_reporting` is proved through the ws carrier
 of `pod-link`: its listener gets `KeyRefused` from the alert of a client
 that refused its key (`tests/ws.rs`,
 `the_dialer_refuses_a_listener_of_another_key_and_names_it`; plant

@@ -15,6 +15,7 @@
 //!
 //! A [`Road`] is a [`pod_core::Dial`]: a dial of a target is a session to it.
 
+pub mod early;
 mod extra;
 mod h1;
 mod h1_modes;
@@ -35,8 +36,10 @@ use pod_ws::Way;
 use tokio::time::Instant;
 
 use crate::Duplex;
+use crate::coalesce;
 
 pub use crate::end::AtEnd;
+pub use crate::replay::{Admitted, ReplayWindow, WINDOW};
 pub use extra::Extra;
 pub use header::{ENDED, not_vless};
 pub use link::{Id, Mode, Server, Transport};
@@ -66,6 +69,10 @@ pub struct Dial {
     /// once (an SSH session), or after the server's end (a pipe). XHTTP's
     /// modes do not read it: that end ends their upload alone.
     pub at_end: AtEnd,
+    /// Early data (0-RTT), where the caller has a nonce and a window: a
+    /// nonce that the window has seen within 10 minutes makes the session
+    /// go on at 1-RTT. No early data goes otherwise.
+    pub early: Option<early::Early>,
 }
 
 /// Why a VLESS server carried no session.
@@ -165,6 +172,12 @@ pub struct Opened {
     pub how: String,
     /// VLESS's answer came within the wait.
     pub answered: bool,
+    /// The write that carried the opening request and the first data: its
+    /// bytes, whether the two were short of [`coalesce::TARGET`], and that
+    /// the write was coalesced.
+    pub first_write: coalesce::Report,
+    /// What the session offered of early data.
+    pub early: early::Offer,
 }
 
 /// A session to `host:port` through `server`, on the link's transport.
@@ -180,9 +193,20 @@ pub async fn open_as(
     port: u16,
     dial: &Dial,
 ) -> Result<Opened, VlessError> {
+    let offer = early::Offer::of(dial.early.as_ref());
+    let announced;
+    let server = if offer.zero_rtt() {
+        announced = server.with_early_data();
+        &announced
+    } else {
+        server
+    };
     let request = header::request(&server.id, host, port).map_err(VlessError::Target)?;
-    let (stream, how): (Box<dyn Duplex>, String) = match transport {
-        Transport::Ws => (Box::new(ws::open(server, request, dial).await?) as Box<dyn Duplex>, transport.name()),
+    let (stream, how, first_write): (Box<dyn Duplex>, String, coalesce::Report) = match transport {
+        Transport::Ws => {
+            let (stream, report) = ws::open(server, request, dial).await?;
+            (Box::new(stream), transport.name(), report)
+        }
         Transport::Xhttp(mode) => xhttp::open(server, mode.chosen(), request, dial).await?,
     };
     let mut stream = header::Answered::new(stream);
@@ -192,7 +216,7 @@ pub async fn open_as(
         Err(_) if dial.silence_is_ready => false,
         Err(_) => return Err(VlessError::Silent(dial.answer)),
     };
-    Ok(Opened { stream: Box::new(stream), how, answered })
+    Ok(Opened { stream: Box::new(stream), how, answered, first_write, early: offer })
 }
 
 /// The modes that `doctor` tries for a link of XHTTP: the link's own, or

@@ -16,6 +16,9 @@
 //!   only async send and receive (podnet's userspace stack under WARP).
 //! * [`socket`]: the socket of noq over a [`pod_core::Datagrams`], with a
 //!   waker for each sender.
+//! * [`migrate`]: the rotation of the local connection IDs on a jittered
+//!   schedule, the rebind of a live connection to a new local address, and
+//!   the fallback of a peer that refuses the new path.
 //!
 //! **The provider is the caller's.** [`connect::tls`] takes an
 //! `Arc<rustls::crypto::CryptoProvider>`, [`connect::client_config`] and
@@ -32,6 +35,7 @@ pub mod bounded;
 pub mod connect;
 pub mod endpoint;
 pub mod keys;
+pub mod migrate;
 pub mod probe;
 pub mod queued;
 mod settings;

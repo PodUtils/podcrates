@@ -188,6 +188,8 @@ pub fn failure_classes() -> Vec<Exit> {
         Class::Revoked => "A credential that worked is gone. A restart does not help.",
         Class::Policy => "A local policy refused the action.",
         Class::Unsupported => "The host, the build or the far end does not support the action.",
+        Class::Permission => "A file or a directory has the wrong permissions or the wrong owner.",
+        Class::Suite => "The far end and this end have no protocol or suite in common.",
     };
     let mut out: Vec<Exit> = Vec::new();
     for c in Class::ALL {

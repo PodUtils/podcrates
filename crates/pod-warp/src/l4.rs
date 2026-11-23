@@ -273,12 +273,15 @@ impl Warp {
             crate::Door::Pinned(name) => {
                 return Err(failure(Class::Usage, format!("the L4 door takes the address of a door, not {name}")));
             }
-            crate::Door::Record => self
-                .device()
-                .masque_endpoint()
-                .ok_or_else(|| failure(Class::Protocol, "the device record has no front door for the L4 door"))?,
+            crate::Door::Record => match self.doors().first() {
+                Some(Target::Addr(addr)) => *addr,
+                Some(name) => {
+                    return Err(failure(Class::Usage, format!("the L4 door takes the address of a door, not {name}")));
+                }
+                None => return Err(failure(Class::Protocol, "the device has no front door for the L4 door")),
+            },
         };
-        let pinned = crate::open::pin_of(self.device())?;
+        let pinned = self.pin()?;
         let tls = crate::tls::client_config(way.provider.clone(), self.identity(), pinned, h3::ALPN)?;
         Ok(L4::new(door, udp, tls))
     }

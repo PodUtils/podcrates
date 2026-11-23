@@ -365,7 +365,7 @@ impl Carrier for S3 {
     }
 
     fn facts(&self) -> Facts {
-        Facts { cost: Cost::Highest, ..Facts::STREAM }
+        Facts::with_cost(Cost::Highest)
     }
 
     /// The provider makes TLS 1.3 and verifies Ed25519, the settings are in

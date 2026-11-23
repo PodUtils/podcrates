@@ -27,6 +27,7 @@ use tokio::time::Instant;
 use pod_tls::Trust;
 
 use super::dial::{self, Dialed};
+use super::shape::Shape;
 use super::{Fallback, IDLE, PING_WAIT, REMEMBERED, STREAMS};
 use crate::client::{ConnectError, RelayStream, WsClientConfig};
 
@@ -295,10 +296,10 @@ pub(super) enum Got {
 }
 
 impl Pool {
-    /// A place for a session of `config`: on a connection kept whose serial
-    /// number is above `after`, else on a new one; or why the session takes
-    /// HTTP/1.1.
-    pub(super) async fn place(&self, config: &WsClientConfig, after: u64) -> Result<Got, ConnectError> {
+    /// A place for a session of `config`, whose new connection is `shape`:
+    /// on a connection kept whose serial number is above `after`, else on a
+    /// new one; or why the session takes HTTP/1.1.
+    pub(super) async fn place(&self, config: &WsClientConfig, after: u64, shape: &Shape) -> Result<Got, ConnectError> {
         let host = self.host(Key::of(config));
         let mut state = host.state.lock().await;
         let remembered = state.lacks.as_ref().filter(|(_, at)| at.elapsed() < REMEMBERED).map(|(why, _)| why.clone());
@@ -312,7 +313,7 @@ impl Pool {
             let (place, shared) = conn.take();
             return Ok(Got::Place { conn: conn.clone(), place, shared });
         }
-        match dial::dial(config).await? {
+        match dial::dial(config, shape).await? {
             Dialed::H2(mut conn) => {
                 conn.serial = self.made.fetch_add(1, Ordering::SeqCst) + 1;
                 let (place, shared) = conn.take();

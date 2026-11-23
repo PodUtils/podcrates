@@ -335,7 +335,7 @@ impl Carrier for Poll {
     }
 
     fn facts(&self) -> Facts {
-        Facts { cost: self.form.cost(), ..Facts::STREAM }
+        Facts::with_cost(self.form.cost())
     }
 
     /// The provider makes TLS 1.3 and verifies Ed25519, and a TCP socket

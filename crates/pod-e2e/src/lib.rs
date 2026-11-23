@@ -35,6 +35,11 @@
 //! - [`record`]: the records of a suite that the two ends agree on, with a
 //!   rekey, a padding to buckets, a replay window and a RESUME record used
 //!   once, sealed with keys of the exporter, in place of the carry.
+//! - [`envelope`]: the destination (host, port, service) sealed under a key
+//!   of the session, padded to one size, so that a relay carries an opaque
+//!   prelude and an identifier and never sees the destination.
+//! - [`knowledge`]: what each hop learns, as data, and the issue's table.
+//! - [`inspect`]: the exchange as one hop sees it, for `tunnel --inspect`.
 //!
 //! The crate reads no environment variable and keeps no process state but
 //! task-local values: the caller gives the net's documents
@@ -46,6 +51,7 @@
 mod ask;
 mod channel;
 pub mod ends;
+pub mod envelope;
 pub mod exporter;
 mod failure;
 mod frame;
@@ -53,6 +59,8 @@ mod frame;
 pub mod fuzzing;
 mod handshake;
 pub mod hold;
+pub mod inspect;
+pub mod knowledge;
 pub mod legs;
 pub mod net;
 pub mod person;
@@ -62,9 +70,12 @@ use std::fmt;
 use std::time::Duration;
 
 pub use ask::{Ask, MAX_WORD, exit_word};
-pub use channel::{Carried, Channel, Held, Start};
+pub use channel::{Carried, Channel, Held, Pair, Start};
+pub use envelope::{Destination, EnvelopeError, Forwarder, Prelude, Sealed};
 pub use exporter::Exporter;
 pub use handshake::{Asked, Offered, initiate, initiate_with, respond, respond_with};
+pub use inspect::Inspect;
+pub use knowledge::{Hop, Knowledge};
 
 /// What each end sends first: the channel and its version. An end with no
 /// channel is then told apart at once, before any byte of a session. The

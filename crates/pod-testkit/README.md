@@ -29,6 +29,19 @@ consumer that wants it. It is never a dependency of a release binary.
 * `tamper::flip(path, at)`: one bit of the byte `at` of a file changed
   (the last byte for an `at` past the end), for the test of a check that
   must refuse one changed byte.
+* `vectors`: conformance vectors as data, and a runner for each. The
+  SIP004 answers of Shadowsocks's AEAD form (`SHADOWSOCKS`: the master key,
+  the salt, the HKDF-SHA1 subkey, the plain text and the sealed stream of
+  `chacha20-ietf-poly1305`, `aes-256-gcm` and `aes-128-gcm`), Trojan's
+  requests (`TROJAN`), and VMess's AEAD request (`VMESS`: its ID, the body's
+  keys, the clock, the header in clear and the bytes on the wire, and the
+  `alterId` that its form stands for). `check_shadowsocks`, `check_trojan`
+  and `check_vmess` take the codec as a trait (`ShadowsocksCodec`,
+  `TrojanCodec`, `VmessCodec`), so the kit depends on no crate of
+  podcrates; each returns the count of checks or the first answer that the
+  codec did not match, by name. Each vector carries its source, and
+  `check_*` says the protocol's bytes, which a round trip with our own
+  server does not.
 
 A stand-in of this kit speaks bytes and HTTP only, and takes no type of a
 pod crate, so that each crate can dev-depend on the kit. The feature

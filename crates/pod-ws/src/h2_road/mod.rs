@@ -31,7 +31,9 @@
 
 mod dial;
 mod duplex;
+mod fallback;
 mod pool;
+pub mod shape;
 
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -49,7 +51,9 @@ use crate::headers::Extra;
 use crate::session::RelaySession;
 
 pub use dial::{Offered, probe};
+pub use fallback::{Fallback, Road};
 pub use pool::Pool;
+pub use shape::{Padding, Priority, Setting, Shape};
 
 /// The protocols that this road offers by ALPN, in its order.
 pub const H2: &[u8] = b"h2";
@@ -90,63 +94,10 @@ pub const PING_WAIT: Duration = Duration::from_secs(2);
 const REFUSAL_WAIT: Duration = Duration::from_secs(3);
 const REFUSAL_BODY: usize = 4096;
 
-/// How a session of [`connect`] is carried.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Road {
-    /// A stream of an HTTP/2 connection; `shared` when another session took
-    /// the connection before.
-    Stream { shared: bool },
-    /// The upgrade of HTTP/1.1, and why.
-    Http1(Fallback),
-}
-
-/// Why a session took the upgrade of HTTP/1.1.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Fallback {
-    /// TLS chose `http/1.1`, or no protocol: the upgrade on that connection.
-    NotChosen,
-    /// HTTP/2's SETTINGS offered no extended CONNECT: a new connection.
-    NotOffered,
-    /// HTTP/2 did not carry the CONNECT, a reset or no answer to its PING:
-    /// a new connection.
-    Carried(String),
-    /// The pool found one of these at this host within [`REMEMBERED`],
-    /// so it asked for no HTTP/2.
-    Remembered(Box<Fallback>),
-    /// The caller's TLS configuration, which offers no ALPN.
-    Caller,
-}
-
-impl Fallback {
-    /// Why, in words.
-    pub fn reason(&self) -> String {
-        match self {
-            Fallback::NotChosen => "the relay's TLS chose HTTP/1.1, not h2".into(),
-            Fallback::NotOffered => "the relay's SETTINGS of HTTP/2 offer no extended CONNECT (RFC 8441)".into(),
-            Fallback::Carried(why) => format!("HTTP/2 did not carry the CONNECT: {why}"),
-            Fallback::Remembered(why) => {
-                format!("{}, as this process found within {} minutes", why.reason(), REMEMBERED.as_secs() / 60)
-            }
-            Fallback::Caller => "the caller's TLS configuration offers no ALPN".into(),
-        }
-    }
-}
-
-impl Road {
-    /// The road in the words of a line of `-v`, after the relay host's name;
-    /// none for the upgrade on the one connection, as before the road.
-    pub fn words(&self) -> Option<String> {
-        Some(match self {
-            Road::Stream { shared: false } => "over HTTP/2 (RFC 8441), on a connection that it opened".into(),
-            Road::Stream { shared: true } => "over HTTP/2 (RFC 8441), on a connection that it shares".into(),
-            Road::Http1(Fallback::NotChosen | Fallback::Caller) => return None,
-            Road::Http1(why @ (Fallback::NotOffered | Fallback::Carried(_))) => {
-                format!("over HTTP/1.1 on a new connection, as {}", why.reason())
-            }
-            Road::Http1(why) => format!("over HTTP/1.1, as {}", why.reason()),
-        })
-    }
-}
+/// How long a CONNECT's 4xx is given to say why before the upgrade of
+/// HTTP/1.1 takes the session: the fallback is chosen inside a second, not
+/// left to the CONNECT's own wait.
+const REFUSAL_4XX_WAIT: Duration = Duration::from_millis(500);
 
 /// A session's stream of HTTP/2: the DATA of one stream both ways, and
 /// END_STREAM at its shutdown; a client's gives its place on its
@@ -191,6 +142,9 @@ enum Carry {
     Connection(String),
     /// The server reset this CONNECT: HTTP/1.1 carries the session.
     Reset(String),
+    /// The server answered 4xx: a proxy that refuses the extended CONNECT,
+    /// so HTTP/1.1 carries the session on a new connection.
+    Refused { status: u16 },
 }
 
 impl Carry {
@@ -230,6 +184,18 @@ pub async fn connect(pool: &Pool, config: &WsClientConfig, token: &str) -> Resul
     connect_link(pool, &Links::new(), config, token).await
 }
 
+/// [`connect`] with the shape of its HTTP/2: the settings and the
+/// connection's window of [`Shape::browser`], say. The pool keeps the
+/// connections that it makes either way.
+pub async fn connect_with(
+    pool: &Pool,
+    config: &WsClientConfig,
+    token: &str,
+    shape: &Shape,
+) -> Result<(RelaySession, Road), ConnectError> {
+    connect_link_with(pool, &Links::new(), config, token, shape).await
+}
+
 /// [`connect`] for a link of the session of `links`: on a connection newer
 /// than each that a link of the session rode, which `links` then holds.
 pub async fn connect_link(
@@ -237,6 +203,17 @@ pub async fn connect_link(
     links: &Links,
     config: &WsClientConfig,
     token: &str,
+) -> Result<(RelaySession, Road), ConnectError> {
+    connect_link_with(pool, links, config, token, &Shape::existing()).await
+}
+
+/// [`connect_link`] with the shape of a connection that it makes.
+pub async fn connect_link_with(
+    pool: &Pool,
+    links: &Links,
+    config: &WsClientConfig,
+    token: &str,
+    shape: &Shape,
 ) -> Result<(RelaySession, Road), ConnectError> {
     config.validate().map_err(ConnectError::Config)?;
     if token.contains(['\r', '\n']) {
@@ -252,7 +229,7 @@ pub async fn connect_link(
     let mut ended = String::new();
     for _ in 0..2 {
         let after = links.newest.load(Ordering::SeqCst);
-        let (conn, place, shared) = match pool.place(config, after).await? {
+        let (conn, place, shared) = match pool.place(config, after, shape).await? {
             pool::Got::Place { conn, place, shared } => (conn, place, shared),
             pool::Got::Http1(tls, peer) => {
                 return Ok((upgrade_on(*tls, peer, config, token, &extra).await?, Road::Http1(Fallback::NotChosen)));
@@ -279,6 +256,15 @@ pub async fn connect_link(
             Err(Carry::Reset(why)) => {
                 let why = Fallback::Carried(why);
                 pool.remember(config, why.clone()).await;
+                return Ok((crate::connect(config, token).await?, Road::Http1(why)));
+            }
+            Err(Carry::Refused { status }) => {
+                let why = Fallback::Refused(status);
+                // A refusal of this session's credential is not a property of
+                // the host: only a refusal of the method is remembered.
+                if !matches!(status, 401 | 403 | 407) {
+                    pool.remember(config, why.clone()).await;
+                }
                 return Ok((crate::connect(config, token).await?, Road::Http1(why)));
             }
         }
@@ -359,6 +345,13 @@ async fn open_on(
         }
     };
     let status = response.status();
+    if status.is_client_error() {
+        // A proxy that refuses the extended CONNECT answers 4xx, and the
+        // upgrade of HTTP/1.1 is the way past it: the session goes there
+        // within the second, not at the end of the CONNECT's wait.
+        let _ = refusal_text_within(response.into_body(), REFUSAL_4XX_WAIT).await;
+        return Err(Carry::Refused { status: status.as_u16() });
+    }
     if !status.is_success() {
         let reason = status.canonical_reason().unwrap_or_default().to_string();
         let body = refusal_text(response.into_body()).await;
@@ -372,7 +365,13 @@ async fn open_on(
 
 /// The start of a refusal's body, as the body of a refused upgrade is
 /// read: within [`REFUSAL_WAIT`], made one line for a terminal.
-async fn refusal_text(mut body: RecvStream) -> String {
+async fn refusal_text(body: RecvStream) -> String {
+    refusal_text_within(body, REFUSAL_WAIT).await
+}
+
+/// [`refusal_text`] within `wait`: a 4xx gives the fallback no more than
+/// [`REFUSAL_4XX_WAIT`] to say why.
+async fn refusal_text_within(mut body: RecvStream, wait: Duration) -> String {
     let mut got = Vec::new();
     let read = async {
         while let Some(Ok(chunk)) = body.data().await {
@@ -383,7 +382,7 @@ async fn refusal_text(mut body: RecvStream) -> String {
             }
         }
     };
-    let _ = tokio::time::timeout(REFUSAL_WAIT, read).await;
+    let _ = tokio::time::timeout(wait, read).await;
     got.truncate(REFUSAL_BODY);
     pod_proxy::http::Response { status: 0, reason: String::new(), headers: Vec::new(), body: got, url: String::new() }
         .body_text(200)
@@ -445,20 +444,5 @@ mod tests {
 
     fn request_err(token: &str) -> String {
         request(&config("/connect/h/22"), token, &Extra::default()).err().map(|e| e.to_string()).unwrap_or_default()
-    }
-
-    /// Each road is said for `-v`, a fallback with its reason; the upgrade
-    /// on the one connection, as before the road, with none.
-    #[test]
-    fn each_road_has_its_words() {
-        let words = |road: Road| road.words().unwrap_or_default();
-        assert!(words(Road::Stream { shared: true }).contains("on a connection that it shares"));
-        let new = words(Road::Http1(Fallback::NotOffered));
-        assert!(new.starts_with("over HTTP/1.1 on a new connection, as the relay's SETTINGS"), "{new}");
-        let again = words(Road::Http1(Fallback::Remembered(Box::new(Fallback::NotOffered))));
-        assert!(again.starts_with("over HTTP/1.1, as the relay's SETTINGS"), "{again}");
-        assert!(again.ends_with("as this process found within 10 minutes"), "{again}");
-        assert_eq!(Road::Http1(Fallback::NotChosen).words(), None);
-        assert_eq!(Fallback::NotChosen.reason(), "the relay's TLS chose HTTP/1.1, not h2");
     }
 }

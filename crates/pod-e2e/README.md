@@ -22,7 +22,10 @@ channel to the binary that takes its place, from the same keys and
 nonces. In place of the carry, the two ends can agree on a suite and take
 records from the exporter of the handshake: keys for a label that only the
 two ends hold, so that each hop between them (a relay, a peer of a mesh)
-carries ciphertext only ([Records](#records)).
+carries ciphertext only ([Records](#records)). The destination (host, port
+and service name) travels in a sealed envelope before any application byte,
+and the relay carries an opaque prelude and an identifier only
+([The envelope](#the-envelope)).
 
 The source is podssh's `crates/podssh-relay/src/e2e/` at `74760e8`.
 podssh `docs/design.md` and `SECURITY.md` give the design and what the
@@ -32,9 +35,12 @@ channel defends against.
 
 | Module | What |
 | --- | --- |
-| (root) | `MAGIC`, `PATTERN`, `PROLOGUE`, `MAX_MESSAGE`, `TAG`, `MAX_DATA`, `MAX_GRANT`, `MAX_WORD`, `HANDSHAKE_LIMIT`, `VERDICT_LIMIT`, `VERDICT_STEP`; `Ask` (`of_route`, `read`, `word`, `route`, `exit`), `exit_word`; `Refusal`; `Error`; `initiate`, `initiate_with`, `Offered` (`peer`, `net_unanswered`, `accept`, `accept_granted`, `reject`); `respond`, `respond_with`, `Asked` (`peer`, `route`, `ask`, `grant`, `admit`, `admit_with`, `refuse`); `Channel` (`carry`, `carry_held`, `with_events`, `leg_seed`, `handshake_hash`, `exporter`, `agree`, `into_transport`), `Carried`, `Held`, `Start`; `Exporter` |
+| (root) | `MAGIC`, `PATTERN`, `PROLOGUE`, `MAX_MESSAGE`, `TAG`, `MAX_DATA`, `MAX_GRANT`, `MAX_WORD`, `HANDSHAKE_LIMIT`, `VERDICT_LIMIT`, `VERDICT_STEP`; `Ask` (`of_route`, `read`, `word`, `route`, `exit`), `exit_word`; `Refusal`; `Error`; `initiate`, `initiate_with`, `Offered` (`peer`, `net_unanswered`, `accept`, `accept_granted`, `reject`); `respond`, `respond_with`, `Asked` (`peer`, `route`, `ask`, `grant`, `admit`, `admit_with`, `refuse`); `Channel` (`carry`, `carry_held`, `with_events`, `leg_seed`, `handshake_hash`, `exporter`, `agree`, `into_transport`, `bind`, `pair`), `Carried`, `Held`, `Start`, `Pair` (`new`, `named`, `bytes`); `Exporter`; `Destination` (`seal`, `open`, `host`, `port`, `service`, `authority`), `Sealed` (`id`, `bytes`, `prelude`), `Prelude` (`of`, `take`, `pass`, `id`, `bytes`), `Forwarder` (`new`, `route`, `forward`), `EnvelopeError`; `Hop` (`ALL`, `name`), `Knowledge` (`table`, `line`, `render`); `Inspect` (`new`, `observe`, `hop`, `fields`, `relay`, `render`), `Field` |
 | `exporter` | `Exporter` (`export`, `handshake_hash`, `is_initiator`, `records`), `RESERVED`, `MAX_EXPORT` |
-| `record` | `Suite` (`ALL`, `name`, `id`, `of_id`), `agree`; `Settings` (`DEFAULT`); `Records` (`seal`, `open`, `resume`, `replayed`, `epochs`, `counters`), `Opened`, `Record`, `Fault`; `Header` (`encode`, `parse`), `record_len`, `bucket`; `HEADER`, `VERSION`, `MAX_LENGTH`, `BUCKETS`, `PHASE`, `WINDOW`, `RESUME` |
+| `record` | `Suite` (`ALL`, `name`, `id`, `of_id`), `agree`, `check_suites`; `Settings` (`DEFAULT`); `Records` (`seal`, `open`, `resume`, `replayed`, `epochs`, `counters`), `Opened`, `Record`, `Fault`; `Header` (`encode`, `parse`), `record_len`, `bucket`; `HEADER`, `VERSION`, `MAX_LENGTH`, `BUCKETS`, `PHASE`, `WINDOW`, `RESUME` |
+| `envelope` | `Destination` (`seal`, `open`, `host`, `port`, `service`, `authority`), `Sealed` (`id`, `bytes`, `prelude`), `Prelude` (`of`, `take`, `pass`, `id`, `bytes`), `Forwarder` (`new`, `route`, `forward`), `EnvelopeError`; `VERSION`, `ID`, `NONCE`, `BODY`, `SIZE` |
+| `knowledge` | `Hop` (`ALL`, `name`), `Knowledge` (`table`, `line`, `render`) |
+| `inspect` | `Inspect` (`new`, `observe`, `hop`, `fields`, `relay`, `render`), `Field`, `id_of` |
 | `ends` | `Node` (`identity`, `admit`, `events`, `redeem`, `leases`, `gate`, `docs`, `holds`; `open_to_all`), `Admit`, `Redeem`; `serve_node`, `serve_routed`, `serve_asked`, `granted`, `TARGET_WAIT`, `NO_EXIT`, `GRANT_REFUSED`; `operator`, `operator_to`, `operator_granted`, `operator_told`, `NO_NET`; the kinds of the events `EVENT_*` |
 | `person` | `Gate` (`new`, `with_times`, `times`, `standing`, `cross`), `Times` (`DEFAULT`), `Question`, `Answer`, `Asker`, `Pass`, `By` |
 | `net` | `Docs` (`held`, `shares_with`, `take`), `Held` (`newer_than`), `OFFER` |
@@ -94,6 +100,76 @@ their payloads again in new records. A record that fails leaves the layer
 as it was; the caller drops it or ends the link. A record sealed before a
 RESUME that comes after it does not open. Compression (podnet's) runs
 before the seal, and sets a flag of the caller.
+
+### The suite check
+
+`record::check_suites(initiator, responder)` compares two offers before a
+`Records` exists: it gives the shared `Suite`, or `Error::NoSuite`. That
+error is the class `Config` of its `pod_core::Failure`, whose exit code is
+78 (KEY-3). An end calls it with the two offers and sends no record when it
+fails.
+
+## The envelope
+
+The destination is not in the request path. Before any application byte,
+the far end's host, port and service name are encoded, padded to one
+bucket and sealed under a key of the session:
+`Destination::seal(&channel, host, port, service)` gives a `Sealed`, and
+`Destination::open(&channel, blob)` gives the `Destination` back. The relay
+sees one fixed-size opaque blob and its identifier, never the host or the
+service name.
+
+`Channel::bind(pair)` mixes the pair that the relay advertises (its relay id
+and pair id, `Pair::named` for two names) into the exporter of the
+handshake. Call it at both ends, after the handshake and before the records
+are made. The pair is also in the associated data of the envelope, so an
+envelope of another session, an envelope under another pair, and a byte that
+changed on its way each fail with `EnvelopeError::NotForThisSession`. A
+relay that advertises one pair to one end and another pair to the other end
+splices nothing.
+
+| Part | Value |
+| --- | --- |
+| The size | `SIZE` = 301 bytes, the same for each destination: `VERSION` (1) u8, `ID` 16 bytes, `NONCE` 12 bytes, `BODY` 256 bytes, the tag 16 bytes |
+| The key | from the exporter, the label `pod-e2e destination` and the pair in the context; ChaCha20-Poly1305, as the envelope comes before the agreement on the suite of the records |
+| The identifier | from the exporter, the label `pod-e2e destination id`, the pair and the padded body: 16 bytes, in the clear, so that the relay routes by it |
+| The nonce | from the exporter, the label `pod-e2e destination nonce`, the pair and the padded body |
+| The associated data | `VERSION`, the identifier, and the 32 bytes of the pair |
+| The body | the host's length in one byte, the host, the port (big-endian u16), the service's length in one byte, the service, then zero bytes to `BODY` |
+
+`Prelude` is the blob as a relay carries it: `Prelude::take` reads one whole
+prelude, `Prelude::pass` writes it, and `Prelude::id` gives the identifier
+to route by. It has no method that gives a `Destination`. Only
+`Destination::open` opens it, and that call needs the channel. `Forwarder`
+carries the prelude: `forward(from, to)` reads one whole prelude and writes
+it to the far end, `route(prelude)` gives the identifier, and no call takes
+a key.
+
+## What each hop learns
+
+The table is data: `Knowledge::table(client, pair, peer, destination,
+service)` gives one row for each hop, `Knowledge::line` renders a row, and
+`Knowledge::render(&rows)` renders the issue's table. The exact statement:
+
+* The first hop learns the client's address, the relay pair and the volume.
+* The relay learns the relay pair and the volume.
+* The far hop learns the relay pair, the volume, the destination, the
+  service name and the identity of its peer.
+* No hop before the far one learns the destination or the service name.
+* No hop learns the plaintext or a key.
+
+| Hop | Client address | Relay pair | Volume | Destination | Service | Peer identity |
+| --- | --- | --- | --- | --- | --- | --- |
+| first hop | the client's address | the advertised pair | yes | - | - | - |
+| relay | - | the advertised pair | yes | - | - | - |
+| far hop | - | the advertised pair | yes | the destination | the service | the peer's key |
+
+`Inspect` gives the exchange as one hop sees it, the data of `tunnel
+--inspect`. `Inspect::relay(prelude, wire)` takes only the prelude and the
+bytes that the relay carries, and gives the prelude's identifier, the
+prelude's size and SHA-256, and the bytes' size and SHA-256. It takes no
+key, and it holds no plaintext: neither its rendered fields nor its `Debug`
+output contain a destination, a plaintext or a key.
 
 ## Events
 
@@ -270,7 +346,12 @@ the records (`tests/record.rs` and `record::tests`: each suite, a changed
 byte, a repeat and a stale counter, a rekey by count, by bytes and by age,
 the buckets, a RESUME used once, three failures and a late one, the epoch
 of a RESUME, the agreement of the suites, a document of the net before
-them). The plants are
+them); the envelope (`tests/envelope.rs` and `envelope::tests`: one size,
+the far end opens it, another session or another pair is `NotForThisSession`,
+an unbound channel has none, a forwarder carries it, the relay's view holds
+no destination and no plaintext, and `check_suites` is the class `Config`
+with exit 78); the hop-knowledge table (`tests/knowledge.rs`); and the rekey
+ceilings of KEY-4 with a small ceiling that crosses. The plants are
 `scripts/plants/e2e-*` (group `e2e`). The fuzz targets `e2e_frame`,
 `e2e_proof`, `e2e_handover` and `e2e_record` read the frames, the verdict,
 the net's part of a proof, a proof, the state of a handover, and the

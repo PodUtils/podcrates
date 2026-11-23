@@ -240,7 +240,7 @@ async fn an_address_or_a_setting_out_of_its_form_is_a_usage_error() {
 async fn the_carrier_says_what_it_gives() {
     let icmp = Icmp::new(ring(), id(1));
     assert_eq!(icmp.name(), "icmp");
-    assert_eq!(icmp.facts(), Facts { cost: Cost::High, ..Facts::STREAM });
+    assert_eq!(icmp.facts(), Facts::with_cost(Cost::High));
     assert_eq!(
         (pod_link::icmp::NAME, pod_link::icmp::ALPN, pod_link::icmp::PAYLOAD),
         ("icmp", &b"podlink/1"[..], 1400)

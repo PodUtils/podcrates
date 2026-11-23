@@ -32,6 +32,7 @@ mod stall;
 use std::sync::Arc;
 
 use pod_core::Events;
+use sha2::{Digest, Sha256};
 use snow::StatelessTransportState;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use zeroize::Zeroizing;
@@ -46,6 +47,43 @@ use crate::net::Docs;
 use crate::record::Suite;
 use crate::{Error, HANDSHAKE_LIMIT, MAX_DATA, MAX_MESSAGE, Refusal, TAG};
 use pod_identity::PublicKey;
+
+/// The pair that a relay advertises to the two ends of a session: the id of
+/// the relay and the id of the pair. [`Channel::bind`] mixes it into the
+/// exporter, and [`crate::envelope`] puts it in the associated data of the
+/// destination envelope, so a relay that advertises two pairs to the two
+/// ends of one session cannot splice them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Pair {
+    /// The id of the relay.
+    pub relay: [u8; 16],
+    /// The id of the pair at that relay.
+    pub pair: [u8; 16],
+}
+
+impl Pair {
+    pub fn new(relay: [u8; 16], pair: [u8; 16]) -> Pair {
+        Pair { relay, pair }
+    }
+
+    /// A pair from two names, which are hashed to 16 bytes each: for a
+    /// caller that has the relay's text and not its bytes.
+    pub fn named(relay: &str, pair: &str) -> Pair {
+        let mut relay_id = [0u8; 16];
+        relay_id.copy_from_slice(&Sha256::digest(relay.as_bytes())[..16]);
+        let mut pair_id = [0u8; 16];
+        pair_id.copy_from_slice(&Sha256::digest(pair.as_bytes())[..16]);
+        Pair { relay: relay_id, pair: pair_id }
+    }
+
+    /// The 32 bytes that the binding mixes and the envelope authenticates.
+    pub fn bytes(&self) -> [u8; 32] {
+        let mut out = [0u8; 32];
+        out[..16].copy_from_slice(&self.relay);
+        out[16..].copy_from_slice(&self.pair);
+        out
+    }
+}
 
 /// The channel over `transport`, after its handshake.
 pub struct Channel<T> {
@@ -67,15 +105,63 @@ pub struct Channel<T> {
     /// The exporter of the handshake; none on a channel that a handover
     /// gave, which only its carry takes.
     exporter: Option<Exporter>,
+    /// The pair that the relay advertises, once [`Channel::bind`] set it.
+    pair: Option<Pair>,
     /// Where the carry says each wait that holds ([`stall`]); with none, it
     /// says nothing.
     events: Option<Arc<dyn Events>>,
 }
 
+impl<T> Channel<T> {
+    /// Bind the session to the pair that the relay advertises: its id and
+    /// the id of the pair. The exporter takes the pair into its secret, so
+    /// each key that follows (the records, [`crate::envelope`]) differs for
+    /// each pair, and the envelope authenticates the pair. Call it at both
+    /// ends, after the handshake and before the records are made. A channel
+    /// that a handover gave has no exporter, and a channel bound to another
+    /// pair is refused.
+    pub fn bind(&mut self, pair: Pair) -> Result<(), Error> {
+        if self.pair == Some(pair) {
+            return Ok(());
+        }
+        if self.pair.is_some() {
+            return Err(Error::Malformed("the channel is bound to another pair".into()));
+        }
+        let exporter = self
+            .exporter
+            .as_mut()
+            .ok_or_else(|| Error::Malformed("a channel that a handover gave is not bound".into()))?;
+        exporter.rebind(&pair.bytes())?;
+        self.pair = Some(pair);
+        Ok(())
+    }
+
+    /// The pair that the relay advertises, once [`Channel::bind`] set it.
+    pub fn pair(&self) -> Option<Pair> {
+        self.pair
+    }
+
+    /// The exporter of the handshake: keys that only the two ends hold.
+    pub fn exporter(&self) -> Option<&Exporter> {
+        self.exporter.as_ref()
+    }
+}
+
 impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     pub(crate) fn new(transport: T, state: StatelessTransportState, exporter: Exporter) -> Self {
         let exporter = Some(exporter);
-        Channel { transport, state, sent: 0, received: 0, net: None, seed: None, keys: None, exporter, events: None }
+        Channel {
+            transport,
+            state,
+            sent: 0,
+            received: 0,
+            net: None,
+            seed: None,
+            keys: None,
+            exporter,
+            pair: None,
+            events: None,
+        }
     }
 
     /// This channel, with the keys of its handshake.
@@ -94,7 +180,18 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     ) -> Self {
         let (sent, received) = nonces;
         let keys = Some(keys);
-        Channel { transport, state, sent, received, net: None, seed: None, keys, exporter: None, events: None }
+        Channel {
+            transport,
+            state,
+            sent,
+            received,
+            net: None,
+            seed: None,
+            keys,
+            exporter: None,
+            pair: None,
+            events: None,
+        }
     }
 
     /// This channel, whose carry says each of its waits that holds
@@ -166,11 +263,6 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     /// The handshake hash of Noise, the binding of this channel: not secret.
     pub fn handshake_hash(&self) -> Option<[u8; 32]> {
         self.exporter.as_ref().map(Exporter::handshake_hash)
-    }
-
-    /// The exporter of the handshake: keys that only the two ends hold.
-    pub fn exporter(&self) -> Option<&Exporter> {
-        self.exporter.as_ref()
     }
 
     /// Agree with the peer on a suite of records, in place of the carry:

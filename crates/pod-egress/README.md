@@ -44,6 +44,8 @@ The base is podssh's `crates/podssh-ws/src/` at `2ffb7cd7`: `via/`,
 | Module | What |
 | --- | --- |
 | crate root | `Note` (`Arc<dyn pod_core::Events>`: a peer's own words), `Duplex` (the stream of a tunnel), `AtEnd`, `Carried`, `Ended`, `Status`, `Form` |
+| `coalesce` | the first write of a session as one write of `TARGET` (3,333) bytes: `first_write(head, data) -> (frame, short)`, `padding(head, data) -> (filler, short)`, `First` (`write(head, data) -> (bytes, coalesced)`, `report`, `coalesced`, `short`), `Report { bytes, short, coalesced }`, `PAD_HEADER`, `FIELD_OVERHEAD` |
+| `replay` | the window of early-data nonces: `ReplayWindow` (`new`, `with_window`, `window`, `admit`, `admit_at`, `len`, `is_empty`), `Admitted { Fresh, Repeat }`, `WINDOW` (10 minutes), `MOST` |
 | `carry` | `spawn(session, form, at_end, note, peer)` (a WebSocket session as a byte stream, and the peer's first word), `spawn_bytes(session, at_end, peer)` (each data frame is bytes), `Carried { stream, status }` (`of`, `abort`), `Status` (`get`, `set_once`), `Ended`, `First`, `Form` (`Query`, `Frame`, `Wisp`), `answer(payload)`, `EARLY_WAIT`, `NOTE` (the kind `egress.note`) |
 | `end` | `AtEnd` (`Now`, `AfterPeer`), `end_of_input(at, peer_ended, close)` |
 | `via` (feature `via`) | `Via` (`parse`, `with_credentials`, `shown`, `names_user`, `has_credentials`), `Dial { way, trust, timeout, offer, auth_file }`, `Offer`, `Version`, `Client` (`new`, `via`, `open(host, port)`; a `pod_core::Dial`), `Opened { stream, version, shared, fell_back }`, `Stream` (`pod_ws::h2_road::Stream`), `DEFAULT_PORT` |
@@ -54,9 +56,9 @@ The base is podssh's `crates/podssh-ws/src/` at `2ffb7cd7`: `via/`,
 | `meek` (feature `meek`) | `Args` (`parse`), `Front`, `open(args, reach)`, `Session` (`shown`, `carry(local)`), `Ended`, `next_poll`, `session_id`, `MAX_PAYLOAD`, `INIT_POLL`, `MAX_POLL`, `MAX_TRIES`, `RETRY_DELAY`, `EXCHANGE_WAIT` |
 | `webtunnel` (feature `webtunnel`) | `Args` (`parse`, `shown`, `dial`, `server_name`), `open(args, reach)`, `request`, `check_answer`, `chain_hash` |
 | `cloudflare` (feature `cloudflare`) | `Access`, `connect(host, access, way, trust, timeout, idle)`, `connect_loopback(host, port, access, user_agent, timeout, idle)` (feature `plain-ws`), `request`, `refused_by_access`, `PORT`, `PATH`, `MAX_MESSAGE`, `LOGIN_PATH`, `CLIENT_ID`, `CLIENT_SECRET`, `TOKEN` |
-| `vless` (feature `vless`) | `Server` (`parse`, `shown`), `Id`, `Transport`, `Mode`, `Extra`, `link`, `Dial { way, trust, timeout, answer, silence_is_ready, at_end }`, `open(server, host, port, dial)`, `open_as(server, transport, ..)`, `modes(transport)`, `Opened { stream, how, answered }`, `Road { server, dial }` (a `pod_core::Dial`), `VlessError` (`line`, `stage_and_class`; a `pod_core::Failure`), `ENDED`, `not_vless`, `ANSWER_WAIT`, `EARLY_WAIT` |
+| `vless` (feature `vless`) | `Server` (`parse`, `shown`, `with_early_data`), `Id`, `Transport`, `Mode`, `Extra`, `link`, `Dial { way, trust, timeout, answer, silence_is_ready, at_end, early }`, `open(server, host, port, dial)`, `open_as(server, transport, ..)`, `modes(transport)`, `Opened { stream, how, answered, first_write, early }`, `Road { server, dial }` (a `pod_core::Dial`), `VlessError` (`line`, `stage_and_class`; a `pod_core::Failure`), `early` (`Early::new`, `admit`, `Offer { ZeroRtt, OneRtt, Absent }` with `of`, `zero_rtt`, `words`), `ReplayWindow`, `Admitted`, `WINDOW`, `coalesce::TARGET`, `ENDED`, `not_vless`, `ANSWER_WAIT`, `EARLY_WAIT` |
 | `vmess` (feature `vmess`) | `Server` (`parse`, `shown`), `Cipher`, `link`, `Dial` (VLESS's), `open`, `open_at(.., unix)`, `Opened`, `Road { server, dial }` (a `pod_core::Dial`), `VmessError` (`line`, `stage_and_class`; a `pod_core::Failure`), `ANSWER_WAIT`, `EARLY_WAIT` |
-| `trojan` (feature `trojan`) | `Server` (`parse`, `shown`), `Password`, `Transport`, `link`, `Dial` (VLESS's), `open`, `Opened`, `Road { server, dial }` (a `pod_core::Dial`), `TrojanError` (`line`, `stage_and_class`; a `pod_core::Failure`), `ANSWER_WAIT`, `EARLY_WAIT` |
+| `trojan` (feature `trojan`) | `Server` (`parse`, `shown`), `Password`, `Transport`, `link`, `request(password, host, port)` (the bytes of the published layout), `capability()` and `Capability` (`Tcp`, `UdpAssociate`; `ALL`, `carried`, `command`, `words`) for the doctor's line, `CONNECT` and `UDP_ASSOCIATE`, `Dial` (VLESS's), `open`, `Opened`, `Road { server, dial }` (a `pod_core::Dial`), `TrojanError` (`line`, `stage_and_class`; a `pod_core::Failure`), `ANSWER_WAIT`, `EARLY_WAIT` |
 | `shadowsocks` (feature `shadowsocks`) | `Node` (`parse`, `new`, `shown`), `Method`, `Dial { way, trust, timeout, answer, silence_is_ready }`, `open(node, host, port, dial)`, `Opened { carried, answered_in }`, `Carried`, `Status`, `Ended`, `Road { node, dial }` (a `pod_core::Dial`), `OpenError` (`line`, `stage_and_class`; a `pod_core::Failure`), `access_key`, `subscription`, `Listed`, `codec` (`Encoder`, `Decoder`, `ChunkError`, `address`, `parse_address`, `MAX_PAYLOAD`), `sip022`, `master_key`, `ANSWER_WAIT`, `TAG_LEN` |
 | `eice` (feature `eice`) | `Endpoint` (`parse`), `Target`, `Credentials` (`check`; no value in `Debug`), `connect(endpoint, target, credentials, way, trust, timeout)`, `presigned_path`, `request`, `sigv4` (`Presign` with `canonical_request`, `string_to_sign`, `signature`, `query`; `escape`, `amz_date`, `ALGORITHM`, `EMPTY_SHA256`), `PORT`, `PATH`, `SERVICE`, `EXPIRES`, `MAX_DURATION`, `MAX_FRAME` |
 | `iap` (feature `iap`) | `Target` (`new`), `Resume`, `connect(target, resume, token, way, trust, timeout)`, `path`, `request`, `check_token`, `carry` (`open(dial, note)`, `Dial`, `Dialing`, `Carried` (`get`, `ended`), `NotOpen` and `Ended` (each `stage_and_class`; a `pod_core::Failure`), `LOST`, `RESUMED`, `STEP`, `FIRST_MESSAGE`, `RECONNECTS`, `RECONNECT_WAIT`, `ACK_WAIT`, `DRAIN`), `close` (`fate`, `Fate`, `Why`, `stage_and_class`, the codes), `flow` (`Flow`), `frame` (`Message`, `decode`, `data`, `ack`, `MAX_DATA`, the tags), `HOST`, `PORT`, `CONNECT_PATH`, `RECONNECT_PATH`, `SUBPROTOCOL`, `ORIGIN`, `INTERFACE`, `MAX_TOKEN` |
@@ -125,6 +127,7 @@ No feature is on by default. Each one is pure Rust.
 | the bounds | `timeout`, `wait` | each step of a dial |
 | the end of input | `at_end` | a Close at once, or after the peer's end |
 | the wait for an answer | `answer`, `silence_is_ready` of VLESS's and Shadowsocks's `Dial` | how long a road waits for the server's first bytes, and whether a silence is a stream (a pipe) |
+| early data | `Dial::early` of VLESS's, VMess's and Trojan's `Dial` | `Some(early::Early)` keeps the nonce in the session's `ReplayWindow` and announces the link's `ed` size at 0-RTT, or keeps 1-RTT where the nonce is a repeat; `None` sends none |
 | the notes | `note` | the sink of a peer's own words (`egress.note`, `wisp.note`), and of the steps of an IAP session (`iap.lost`, a warning; `iap.resumed`; `iap.step`, for a verbose log) |
 | the credentials | `eice::Credentials`, the `token` of `iap::connect` | AWS's key (and its session token) that signs each URL; Google's OAuth token of each link, which the `Dial` of `iap::carry` asks for again, as one may expire |
 | the credentials file | `via::Dial::auth_file` | how the user names it in the words of a `407` |
@@ -263,17 +266,20 @@ Part 1 is in `v0.51.0`; parts 2 and 3 are in `v0.52.0`.
 
 `cargo test -p pod-egress --all-features`. The unit tests: via's URL, its
 credentials file, its offers, the words of a `407` and of a refusal, the
-requests of HTTP/1.1 and HTTP/2; the forwarder's templates, the lines of
-its failures, the built-in ones; the carrier's notes, its text frames, its
-status, the answer of the frame form; the end of input; Wisp's packets, its
-opening, its errors and the forwarder's road; wstunnel's server, secret,
-token (against Python's vectors), request and words; meek_lite's polls,
-session id, arguments and carry; WebTunnel's arguments, pin, request and
-answer; the Access client's request; VLESS's link, ID, `extra`, header,
-answer, upgrade, XHTTP's requests and HTTP/1.1; VMess's line, KDF, header
-(against Xray-core's vectors) and body; Trojan's link, request and the
-fallback's answer; Shadowsocks's methods, keys, codec, SIP022, `ss://`,
-subscriptions, access keys and their YAML; EICE's endpoint, its presigned path
+requests of HTTP/1.1 and HTTP/2; the coalescer's first write, its padding
+and its once-only rule; the replay window's 10 minutes; the forwarder's
+templates, the lines of its failures, the built-in ones; the carrier's
+notes, its text frames, its status, the answer of the frame form; the end
+of input; Wisp's packets, its opening, its errors and the forwarder's road;
+wstunnel's server, secret, token (against Python's vectors), request and
+words; meek_lite's polls, session id, arguments and carry; WebTunnel's
+arguments, pin, request and answer; the Access client's request; VLESS's
+link, ID, `extra`, header, answer, upgrade, XHTTP's requests and HTTP/1.1;
+VMess's line, KDF, header (against Xray-core's vectors) and body, and the
+fixture of `pod_testkit::vectors::VMESS` with its `alterId` rule; Trojan's
+link, request, the UDP associate of `capability` and the fallback's answer;
+Shadowsocks's methods, keys, codec, SIP022, `ss://`, subscriptions, access
+keys and their YAML; EICE's endpoint, its presigned path
 against aws-cli's, SigV4 against the vectors of aws-c-auth and aws-cli,
 its upgrade, and no credential in a refusal or in `Debug`; IAP's upgrade
 and reconnect against gcloud's, the target's names, the token's checks,
@@ -313,16 +319,21 @@ The tests of each road against stand-ins on the loopback:
   Xray-core's server over a WebSocket, XHTTP on h2's HTTP/2 server and
   HTTP/1.1 alone): a WebSocket and each mode of XHTTP, a wrong ID, a
   refused upgrade, a wrong path and HTTP/1.1, packet-up and stream-up on
-  two connections, a pipe, a pipe's end of input, the host's proxy,
+  two connections, a pipe, a pipe's end of input, the host's proxy, the first
+  write of 3,333 bytes over the WebSocket and each XHTTP path, early data
+  announced once and then at 1-RTT on one connection,
   `a_vless_road_is_a_dialer_and_a_wrong_id_is_a_typed_failure`;
 - `tests/trojan.rs` (with `tests/trojan_support/`, the stand-ins of
   trojan-gfw's server): TLS alone and a WebSocket, a wrong password and a
-  wrong path, a pipe's end of input, a pipe,
+  wrong path, a pipe's end of input, a pipe, the published requests of
+  `pod_testkit::vectors::TROJAN`,
   `a_trojan_road_is_a_dialer_and_a_wrong_password_is_a_typed_failure`;
-- `tests/shadowsocks.rs`, `tests/shadowsocks_2022.rs`: known answers of
-  Python and OpenSSL, a codec of the specification on the loopback, a wrong
-  password or key, the half-close, a pipe, the URIs and the lists, a server
-  60 s off, `a_shadowsocks_road_is_a_dialer_and_a_silence_is_a_typed_failure`;
+- `tests/shadowsocks.rs`, `tests/shadowsocks_2022.rs`: the published
+  SIP004 answers of `pod_testkit::vectors` run against this crate's codec,
+  the master key and the stream key of Python and OpenSSL, a codec of the
+  specification on the loopback, a wrong password or key, the half-close, a
+  pipe, the URIs and the lists, a server 60 s off,
+  `a_shadowsocks_road_is_a_dialer_and_a_silence_is_a_typed_failure`;
 - `tests/vmess.rs`, against Xray-core (`vmess-interop.yml`, each day;
   `POD_EGRESS_XRAY_TEST_BIN` names it, and each test says "did not run"
   with none): each cipher, a pipe, a clock 5 minutes off, another ID and

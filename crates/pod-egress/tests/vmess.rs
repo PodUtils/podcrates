@@ -122,7 +122,15 @@ async fn open(xray: &Xray, server: &Server, aim: u16, pipe: bool, unix: u64) -> 
     let trust = Trust::File(xray.dir.join("ca.pem"));
     let answer = if pipe { vmess::EARLY_WAIT } else { vmess::ANSWER_WAIT };
     let at_end = if pipe { AtEnd::AfterPeer } else { AtEnd::Now };
-    let dial = Dial { way: way(ProxyChoice::Direct), trust, timeout: LIMIT, answer, silence_is_ready: pipe, at_end };
+    let dial = Dial {
+        way: way(ProxyChoice::Direct),
+        trust,
+        timeout: LIMIT,
+        answer,
+        silence_is_ready: pipe,
+        at_end,
+        early: None,
+    };
     let opened = vmess::open_at(server, "127.0.0.1", aim, &dial, unix);
     tokio::time::timeout(LIMIT * 2, opened).await.expect("within the limit")
 }

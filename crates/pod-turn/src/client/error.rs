@@ -39,7 +39,7 @@ pub enum Error {
     Connect(Failure),
     /// A read or a write of the transport failed.
     Io(std::io::Error),
-    /// The server ended the TLS stream.
+    /// The server ended the control stream.
     Closed,
     /// No answer to a request of `method` within `waited`.
     Timeout { method: u16, waited: Duration },
@@ -86,6 +86,21 @@ pub enum Error {
     NoChannelNumber,
     /// Data over the 65535 bytes of a DATA attribute or of ChannelData.
     TooLarge(usize),
+    /// The allocation relays UDP, not TCP: RFC 6062 needs a TCP allocation.
+    NoTcpAllocation,
+    /// The server refused a Connect request with `code`.
+    ConnectRefused { code: u16, reason: String },
+    /// No ConnectionAttempt indication came within `waited`.
+    ConnectionAttemptTimeout { waited: Duration },
+    /// A success or an indication that lacks a whole 32-bit CONNECTION-ID.
+    BadConnectionId { why: String },
+    /// The server refused a ConnectionBind request with `code`.
+    BindRefused { code: u16, reason: String },
+    /// A frame of the relayed stream does not read: the length is cut, or
+    /// the stream ended inside the data that it names.
+    MalformedFrame { why: String },
+    /// The server closed the relayed stream between two frames.
+    RelayedClosed,
 }
 
 impl Error {
@@ -93,38 +108,52 @@ impl Error {
     pub fn class(&self) -> Class {
         match self {
             Error::Usage(_) | Error::NoChannel(_) | Error::NoPermission(_) | Error::TooLarge(_) => Class::Usage,
-            Error::NoChannelNumber => Class::Usage,
+            Error::NoChannelNumber | Error::NoTcpAllocation => Class::Usage,
             Error::Connect(f) => f.class,
             Error::Io(e) => Class::of_io(e.kind()),
-            Error::Closed | Error::NoRandom | Error::NoAllocation => Class::Unavailable,
-            Error::Timeout { .. } => Class::Timeout,
-            Error::Decode(_) | Error::Frame { .. } | Error::Protocol { .. } | Error::Integrity { .. } => {
-                Class::Protocol
-            }
+            Error::Closed | Error::NoRandom | Error::NoAllocation | Error::RelayedClosed => Class::Unavailable,
+            Error::Timeout { .. } | Error::ConnectionAttemptTimeout { .. } => Class::Timeout,
+            Error::Decode(_)
+            | Error::Frame { .. }
+            | Error::Protocol { .. }
+            | Error::Integrity { .. }
+            | Error::MalformedFrame { .. }
+            | Error::BadConnectionId { .. } => Class::Protocol,
             Error::StaleNonce { .. } | Error::Downgrade { .. } => Class::Protocol,
             Error::Alternate { .. } => Class::Unavailable,
             Error::Redirected { error, .. } => error.class(),
             Error::Realm { .. } => Class::Config,
-            Error::Server { code, .. } => match code {
-                401 | 441 => Class::Refused,
-                403 => Class::Policy,
-                420 | 440 | 442 | 443 => Class::Unsupported,
-                437 => Class::Unavailable,
-                486 | 508 => Class::TempFail,
-                500..=599 => Class::TempFail,
-                _ => Class::Protocol,
-            },
+            Error::Server { code, .. } | Error::ConnectRefused { code, .. } | Error::BindRefused { code, .. } => {
+                server_class(*code)
+            }
         }
     }
 
     /// The code of a server's error, when it is one.
     pub fn code(&self) -> Option<u16> {
         match self {
-            Error::Server { code, .. } => Some(*code),
+            Error::Server { code, .. } | Error::ConnectRefused { code, .. } | Error::BindRefused { code, .. } => {
+                Some(*code)
+            }
             Error::Alternate { .. } => Some(300),
             Error::Redirected { error, .. } => error.code(),
             _ => None,
         }
+    }
+}
+
+/// The class of a server's error code. 447 is a timeout of the server's
+/// connection to the peer; 446 says the connection exists already.
+fn server_class(code: u16) -> Class {
+    match code {
+        401 | 441 => Class::Refused,
+        403 => Class::Policy,
+        420 | 440 | 442 | 443 | 446 => Class::Unsupported,
+        437 => Class::Unavailable,
+        447 => Class::Timeout,
+        486 | 508 => Class::TempFail,
+        500..=599 => Class::TempFail,
+        _ => Class::Protocol,
     }
 }
 
@@ -186,7 +215,32 @@ impl fmt::Display for Error {
             Error::NoPermission(ip) => write!(f, "TURN: no permission for {ip}; create one first"),
             Error::NoChannelNumber => f.write_str("TURN: each channel number is in use"),
             Error::TooLarge(len) => write!(f, "TURN: {len} bytes of data, more than 65535"),
+            Error::NoTcpAllocation => f.write_str("TURN: the allocation relays UDP, not TCP (RFC 6062)"),
+            Error::ConnectRefused { code, reason } => {
+                write!(f, "TURN: the server refused the Connect request with {code}")?;
+                error_reason(f, *code, reason)
+            }
+            Error::ConnectionAttemptTimeout { waited } => {
+                write!(f, "TURN: no ConnectionAttempt indication within {} ms", waited.as_millis())
+            }
+            Error::BadConnectionId { why } => write!(f, "TURN: CONNECTION-ID: {why}"),
+            Error::BindRefused { code, reason } => {
+                write!(f, "TURN: the server refused the ConnectionBind request with {code}")?;
+                error_reason(f, *code, reason)
+            }
+            Error::MalformedFrame { why } => write!(f, "TURN: the relayed stream holds no frame: {why}"),
+            Error::RelayedClosed => f.write_str("TURN: the server closed the relayed stream"),
         }
+    }
+}
+
+/// The reason of an error answer after its code, or the RFC's name when
+/// the server sent no reason.
+fn error_reason(f: &mut fmt::Formatter<'_>, code: u16, reason: &str) -> fmt::Result {
+    match (reason.is_empty(), code_name(code)) {
+        (false, _) => write!(f, " ({})", pod_core::text::one_line(reason)),
+        (true, Some(name)) => write!(f, " ({name})"),
+        (true, None) => Ok(()),
     }
 }
 
@@ -231,6 +285,8 @@ fn code_name(code: u16) -> Option<&'static str> {
         438 => "Stale Nonce",
         440 => "Address Family not Supported",
         441 => "Wrong Credentials",
+        446 => "Connection Already Exists",
+        447 => "Connection Timeout or Failure",
         442 => "Unsupported Transport Protocol",
         443 => "Peer Address Family Mismatch",
         486 => "Allocation Quota Reached",

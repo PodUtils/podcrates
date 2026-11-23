@@ -110,6 +110,14 @@ pub(crate) fn pipes(size: usize, ends: Arc<Ends>) -> (Pipes, Far) {
     (Pipes { from_peer, to_peer, ends }, Far { from_peer: far_in, to_peer: far_out })
 }
 
+impl Pipes {
+    /// The fault that ended the session, when one did.
+    #[cfg_attr(not(feature = "smtp"), allow(dead_code))]
+    pub(crate) fn fault(&self) -> Option<io::Error> {
+        self.ends.fault()
+    }
+}
+
 impl AsyncRead for Pipes {
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
         let this = self.get_mut();

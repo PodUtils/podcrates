@@ -7,7 +7,9 @@
 mod allocation;
 mod error;
 mod exchange;
+mod keep;
 mod open;
+mod relay;
 mod settings;
 mod wire;
 
@@ -20,13 +22,14 @@ use pod_core::Target;
 use pod_core::entropy::Entropy;
 use tokio::time::Instant;
 
-pub use allocation::{AddressError, Allocation, Family, Port};
+pub use allocation::{AddressError, Allocation, Family, Port, Relay};
 pub use error::{Error, Event, Kept};
+pub use relay::{RelayedStream, Status};
 pub use settings::{Clock, Credentials, Limits, Opened, Settings, SystemUdp, TokioClock, Transport, UdpSource};
 
 use crate::stun::{
     self, ALLOCATE, CHANNEL_BIND, CHANNEL_NUMBER, CREATE_PERMISSION, Class, DATA, DONT_FRAGMENT, LIFETIME, REFRESH,
-    REQUESTED_TRANSPORT, SEND, TRANSPORT_UDP, TransactionId, XOR_MAPPED_ADDRESS, XOR_PEER_ADDRESS,
+    REQUESTED_TRANSPORT, SEND, TRANSPORT_TCP, TRANSPORT_UDP, TransactionId, XOR_MAPPED_ADDRESS, XOR_PEER_ADDRESS,
 };
 use exchange::{Auth, Value};
 use wire::{Conn, FIRST_CHANNEL, LAST_CHANNEL};
@@ -39,6 +42,10 @@ const CHANNEL: Duration = Duration::from_secs(600);
 pub struct Client {
     conn: Conn,
     server: Target,
+    transport: Transport,
+    /// The TLS name of the server after a redirect; else the name of the
+    /// transport.
+    tls_name: Option<String>,
     credentials: Credentials,
     /// The realm that the settings expect.
     realm: Option<String>,
@@ -53,6 +60,10 @@ pub struct Client {
     dont_fragment: bool,
     /// One relayed address, or two of a dual allocation.
     relayed: Vec<SocketAddr>,
+    /// The transport between the server and the peer.
+    relay: Relay,
+    /// The caller's rate limit of the relay, in bytes per second.
+    rate_limit: Option<u64>,
     reservation: Option<[u8; 8]>,
     address_error: Option<AddressError>,
     mapped: Option<SocketAddr>,
@@ -78,13 +89,26 @@ impl Client {
     /// through the same transport of the settings.
     pub async fn allocate(settings: Settings) -> Result<Client, Error> {
         settings.check()?;
-        let Settings { server, transport, credentials, realm, limits, clock, entropy, software, allocation } = settings;
+        let Settings {
+            server,
+            transport,
+            credentials,
+            realm,
+            limits,
+            clock,
+            entropy,
+            software,
+            allocation,
+            rate_limit,
+        } = settings;
         let deadline = clock.now() + limits.connect_timeout;
         let link = open::connect(&server, &transport, None, deadline, limits.connect_timeout).await?;
         let now = clock.now();
         let mut client = Client {
             conn: link.conn,
             server,
+            transport: transport.clone(),
+            tls_name: None,
             credentials,
             realm,
             limits,
@@ -95,6 +119,8 @@ impl Client {
             alpn: link.alpn,
             dont_fragment: allocation.dont_fragment,
             relayed: Vec::new(),
+            relay: allocation.relay,
+            rate_limit,
             reservation: None,
             address_error: None,
             mapped: None,
@@ -107,8 +133,12 @@ impl Client {
             recent: VecDeque::new(),
             open: false,
         };
+        let protocol = match allocation.relay {
+            Relay::Udp => TRANSPORT_UDP,
+            Relay::Tcp => TRANSPORT_TCP,
+        };
         let mut attributes =
-            vec![(REQUESTED_TRANSPORT, Value::Bytes(vec![TRANSPORT_UDP, 0, 0, 0])), client.lifetime_attribute()];
+            vec![(REQUESTED_TRANSPORT, Value::Bytes(vec![protocol, 0, 0, 0])), client.lifetime_attribute()];
         attributes.extend(allocation.attributes());
         let reply = match client.transact(ALLOCATE, &attributes).await {
             Err(Error::Alternate { method: ALLOCATE, to, domain }) => {
@@ -180,6 +210,13 @@ impl Client {
     /// The lifetime that the server gave at the last Allocate or Refresh.
     pub fn lifetime(&self) -> Duration {
         self.lifetime
+    }
+
+    /// The lifetime of the allocation and the caller's rate limit of the
+    /// relay (PodUtils/podnet#485, TURN-6). TURN carries no rate limit: the
+    /// value is the one of [`Settings::rate_limit`].
+    pub fn status(&self) -> Status {
+        Status { lifetime: self.lifetime, rate_limit: self.rate_limit }
     }
 
     /// The user of the allocation: the same for each request.
@@ -380,8 +417,11 @@ impl std::fmt::Debug for Client {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Client")
             .field("server", &self.server)
+            .field("transport", &self.transport)
             .field("username", &self.credentials.username())
             .field("relayed", &self.relayed)
+            .field("relay", &self.relay)
+            .field("rate_limit", &self.rate_limit)
             .field("alpn", &self.alpn.as_deref().map(String::from_utf8_lossy))
             .field("mapped", &self.mapped)
             .field("lifetime", &self.lifetime)

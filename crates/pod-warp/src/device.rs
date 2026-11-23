@@ -141,6 +141,30 @@ fn address<T: std::str::FromStr>(raw: &str) -> Option<T> {
 }
 
 impl Device {
+    /// A device record that a provider does not keep: no id, no token, no
+    /// address and no peer. The account calls of the WARP API are `Usage`
+    /// with it.
+    pub fn empty() -> Device {
+        Device {
+            id: String::new(),
+            name: String::new(),
+            key: String::new(),
+            key_type: String::new(),
+            tunnel_type: String::new(),
+            account: Account { id: String::new(), account_type: String::new(), license: String::new() },
+            config: DeviceConfig {
+                client_id: String::new(),
+                peers: Vec::new(),
+                interface: Interface::default(),
+                services: Services::default(),
+            },
+            token: String::new(),
+            warp_enabled: false,
+            waitlist_enabled: false,
+            policy: Policy::default(),
+        }
+    }
+
     /// The IPv4 address that the tunnel assigned, with no prefix length.
     pub fn ipv4(&self) -> Option<Ipv4Addr> {
         address(&self.config.interface.addresses.v4)

@@ -4,9 +4,10 @@ QUIC for the crates of podcrates and their binaries, on noq 1.4 (call
 C43): the settings of the transport, the reset key and the token key of an
 endpoint in pure Rust, an endpoint on a UDP socket of the system or on any
 `pod_core::Datagrams`, a connection within the handshake's wait, a race of
-handshakes, the probe of UDP by a Version Negotiation, and `Datagrams` over
+handshakes, the probe of UDP by a Version Negotiation, `Datagrams` over
 a link that has only async send and receive (the userspace stack under
-WARP).
+WARP), and the rotation of the connection IDs on a jittered schedule with
+the migration of a live connection to a new local address.
 
 The sources are podssh's `quick/quic.rs`, `quick/probe.rs` and the
 `TokenKey` of `serve/quic.rs` (podssh-relay), and podnet's
@@ -27,6 +28,7 @@ caller's.
 | `probe` | `RESERVED`, `PADDED`, `WAIT`, `packet(&dcid)`, `answers(datagram, &dcid)`, `probe(&[addr], wait)` |
 | `queued` | `Link` (async `send_to`, `recv_from`, `local_addr`), `QueuedDatagrams::{new, with_queue, counts}` (a `pod_core::Datagrams`), `SEND_QUEUE` |
 | `socket` | `DatagramSocket::new(Arc<dyn Datagrams>)`: noq's `AsyncUdpSocket` with a `UdpSender` for each task of noq |
+| `migrate` | `Schedule { min, max, jitter }` (`new`, `common`, `check`, `interval`, `interval_of`), `RotatingIds` (noq's `ConnectionIdGenerator`; each batch of CIDs lives for the next draw), `endpoint_config(schedule)`, `Local` (`Socket`, `Datagrams`), `Locals` (`SystemLocals`), `rebind(&endpoint, local)`, `Carried` (`connection`, `probe`, `reopen`), `Migrator` (`new`, `with_probe_wait`, `interval`, `rotate`), `Outcome` (`Migrated`, `Reconnected`), `PROBE_WAIT`, `CID_LEN` |
 
 Each function returns a `pod_core::Failure`: the stage `Quic` (an endpoint,
 a connection, a handshake), `Tls` (a configuration of TLS for QUIC) or
@@ -54,6 +56,8 @@ state.
 | The way of the datagrams (the system, WARP, UDP in a stream) | `endpoint::over(Arc<dyn Datagrams>, ..)`; a link with no poll interface through `queued::QueuedDatagrams` |
 | The size of the send queue of a link | `QueuedDatagrams::with_queue` (`SEND_QUEUE`, 1024, by default) |
 | The random bytes of the keys | `ResetKey::from_entropy`, `TokenKey::from_entropy` (`random()` reads the system) |
+| The rotation of the local connection IDs | `migrate::Schedule` (8 to 13 minutes and a jitter of 20% with `common()`), in `migrate::endpoint_config` |
+| The time of a probe of a new path | `Migrator::with_probe_wait` (`PROBE_WAIT`, 5 s, by default) |
 
 ## Parity
 
@@ -140,8 +144,26 @@ Negotiation and a closed port), `tests/handshake.rs` (podssh's three tests
 of the doctor's handshake, and an untrusted server), `tests/datagrams.rs`
 (a stream of 1 MiB each way and a burst of datagrams over the system's
 `Datagrams`, over a queued link, and over a queued link of two
-datagrams). The stand-in server runs TLS on ring with a certificate of
-pod-tls's tests. The fuzz target `quic_probe_answer` reads `probe::answers`.
+datagrams), and `tests/migrate.rs`, whose clock is the clock of the test
+(no wall time): a transfer of 10 minutes of simulated time with two
+rotations of the connection IDs and of the local address and no byte
+lost, and a peer that drops the new path, which gives a new connection
+and a resumed session from the byte where the peer stopped. A switch of
+datagrams in memory replaces the UDP socket, so the tests need no
+loopback socket. The stand-in server runs TLS on ring with a certificate
+of pod-tls's tests. The fuzz target `quic_probe_answer` reads
+`probe::answers`.
+
+The mechanism of the rotation: noq 1.4 has `Endpoint::rebind`, so a live
+connection moves to a new local address, and the peer validates the new
+path (RFC 9000, section 9.3). noq also retires each batch of local
+connection IDs at `ConnectionIdGenerator::cid_lifetime`; `RotatingIds`
+answers with the next draw of the schedule, so the interval of a rotation
+is jittered and never fixed. The fallback is a real path, not a stub: a
+peer that does not answer on the new path (a server that refuses
+migration) closes the old connection to the `Migrator`, which opens a new
+one through `Carried::reopen` and continues the session at the offset of
+the peer. `tests/migrate.rs` runs both paths.
 
 ## Sources
 

@@ -1,0 +1,17 @@
+# A file transfer: full records at the large buckets, a few short ones.
+name = "file-transfer"
+protocol = "sftp"
+rule = "always"
+first_flight = 65536
+
+buckets = [
+  { size = 512, weight = 5 },
+  { size = 1024, weight = 15 },
+  { size = 2048, weight = 80 },
+]
+
+pace = { rate = 20000000, jitter = 20, keepalive = 30 }
+
+entropy = { min = 3.0, max = 7.0, printable_run = 16 }
+
+source = { date = "2026-11-12", cover_version = "1" }

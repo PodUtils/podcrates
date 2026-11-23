@@ -1,0 +1,56 @@
+[package]
+name = "pod-sidecar"
+description = "A packet sidecar at library level: the five desync primitives, a local TCP-like middlebox simulator, a genetic search, a three-valued disagreement probe, split and tamper, fake TCP and per-flow bonding. The feature `sidecar` is off by default, so no default build of a consumer takes it."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+# The whole sidecar. It is off by default on purpose (PodUtils/podnet#495,
+# rules LIM-2 and SYN-1): a default build of a consumer has no packet path,
+# no raw socket and no TUN device. The only build that turns it on is a
+# build that asks for it.
+default = []
+sidecar = ["dep:toml", "dep:libc"]
+
+[dependencies]
+# The strategy and split files of the issue: one TOML table with its values,
+# with no writer.
+toml = { workspace = true, optional = true }
+# The raw socket of the probe: `socket(2)`, `sendto(2)` and `recvfrom(2)`.
+# It compiles no C. The code that uses it is behind a runtime check.
+libc = { version = "0.2", optional = true }
+
+[[test]]
+name = "strategy"
+required-features = ["sidecar"]
+
+[[test]]
+name = "primitives"
+required-features = ["sidecar"]
+
+[[test]]
+name = "search"
+required-features = ["sidecar"]
+
+[[test]]
+name = "probe"
+required-features = ["sidecar"]
+
+[[test]]
+name = "split"
+required-features = ["sidecar"]
+
+[[test]]
+name = "limits"
+required-features = ["sidecar"]
+
+[[test]]
+name = "fake_tcp"
+required-features = ["sidecar"]
+
+[[test]]
+name = "bond"
+required-features = ["sidecar"]

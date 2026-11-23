@@ -157,24 +157,6 @@ pub(crate) fn put_string(buf: &mut Vec<u8>, flags: u8, bits: u8, s: &str) {
     buf.extend_from_slice(s.as_bytes());
 }
 
-/// The field section of the extended CONNECT (RFC 9220) of CONNECT-IP.
-pub fn connect_ip_headers(authority: &str, protocol: &str) -> Vec<u8> {
-    // Required Insert Count 0, Base 0.
-    let mut out = vec![0x00, 0x00];
-    // :method CONNECT, :scheme https and :path / of the static table (15,
-    // 23 and 1).
-    out.extend_from_slice(&[0xc0 | 15, 0xc0 | 23, 0xc0 | 1]);
-    // :authority (static name 0), a literal value.
-    put_prefixed(&mut out, 0x50, 4, 0);
-    put_string(&mut out, 0x00, 7, authority);
-    for (name, value) in [(":protocol", protocol), ("capsule-protocol", "?1"), ("pq-enabled", "false")] {
-        // A literal field line with a literal name (001NHxxx).
-        put_string(&mut out, 0x20, 3, name);
-        put_string(&mut out, 0x00, 7, value);
-    }
-    out
-}
-
 /// The `:status` of the static table, by index.
 fn static_status(index: u64) -> Option<u16> {
     Some(match index {
@@ -261,4 +243,97 @@ pub fn response_status(section: &[u8]) -> Result<u16, Failure> {
         }
     }
     status.ok_or_else(|| bad("the response has no :status"))
+}
+
+/// The static table of QPACK (RFC 9204, appendix A) for the fields of a
+/// request, in the range that an HTTP/3 request uses. An index outside the
+/// range has no name here.
+fn static_field(index: u64) -> Option<(&'static str, &'static str)> {
+    Some(match index {
+        0 => (":authority", ""),
+        1 => (":path", "/"),
+        15 => (":method", "CONNECT"),
+        16 => (":method", "DELETE"),
+        17 => (":method", "GET"),
+        18 => (":method", "HEAD"),
+        19 => (":method", "OPTIONS"),
+        20 => (":method", "POST"),
+        21 => (":method", "PUT"),
+        22 => (":scheme", "http"),
+        23 => (":scheme", "https"),
+        _ => return None,
+    })
+}
+
+/// The fields of a request field section (the HEADERS frame of a stream):
+/// the static table and a literal of no Huffman code. A field that names an
+/// index outside `static_field` is skipped; a field of the dynamic table
+/// is a failure, as the capacity of the table of this client is 0.
+pub fn request_fields(section: &[u8]) -> Result<Vec<(String, String)>, Failure> {
+    let unreadable = || bad("an HTTP/3 field section that the server cannot read");
+    let dynamic = || bad("the request uses the QPACK dynamic table, which has a capacity of 0");
+    let (ric, a) = get_prefixed(section, 8).ok_or_else(unreadable)?;
+    if ric != 0 {
+        return Err(dynamic());
+    }
+    let (_, b) = get_prefixed(&section[a..], 7).ok_or_else(unreadable)?;
+    let mut i = a + b;
+    let mut out: Vec<(String, String)> = Vec::new();
+    while i < section.len() {
+        let rest = &section[i..];
+        let first = rest[0];
+        if first & 0x80 != 0 {
+            // An indexed field line (1Txxxxxx).
+            let (index, n) = get_prefixed(rest, 6).ok_or_else(unreadable)?;
+            if first & 0x40 == 0 {
+                return Err(dynamic());
+            }
+            if let Some((name, value)) = static_field(index) {
+                out.push((name.to_string(), value.to_string()));
+            }
+            i += n;
+        } else if first & 0xc0 == 0x40 {
+            // A literal with a name reference (01NTxxxx).
+            let (index, n) = get_prefixed(rest, 4).ok_or_else(unreadable)?;
+            if first & 0x10 == 0 {
+                return Err(dynamic());
+            }
+            let (value, huffman, m) = get_string(&rest[n..], 7).ok_or_else(unreadable)?;
+            if let Some((name, _)) = static_field(index)
+                && !huffman
+            {
+                out.push((name.to_string(), text(value)));
+            }
+            i += n + m;
+        } else if first & 0xe0 == 0x20 {
+            // A literal with a literal name (001NHxxx).
+            let (name, name_huffman, n) = get_string(rest, 3).ok_or_else(unreadable)?;
+            let (value, huffman, m) = get_string(&rest[n..], 7).ok_or_else(unreadable)?;
+            if !name_huffman && !huffman {
+                out.push((text(name), text(value)));
+            }
+            i += n + m;
+        } else {
+            return Err(dynamic());
+        }
+    }
+    Ok(out)
+}
+
+fn text(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).into_owned()
+}
+
+/// The pairs of a SETTINGS frame payload (RFC 9114, section 7.2.4): each
+/// identifier and value is a QUIC variable-length integer.
+pub fn settings_pairs(payload: &[u8]) -> Result<Vec<(u64, u64)>, Failure> {
+    let mut out = Vec::new();
+    let mut rest = payload;
+    while !rest.is_empty() {
+        let (id, a) = get_varint(rest).ok_or_else(|| bad("a SETTINGS frame cut short"))?;
+        let (value, b) = get_varint(&rest[a..]).ok_or_else(|| bad("a SETTINGS frame cut short"))?;
+        out.push((id, value));
+        rest = &rest[a + b..];
+    }
+    Ok(out)
 }
