@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**876 entries: 148 open, 28 partial, 7 blocked, 693 done.**
+**878 entries: 149 open, 28 partial, 7 blocked, 694 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 202 | 216 |
-| P2 | 68 | 8 | 4 | 361 | 441 |
+| P1 | 4 | 10 | 0 | 203 | 217 |
+| P2 | 69 | 8 | 4 | 361 | 442 |
 | P3 | 76 | 10 | 3 | 128 | 217 |
-| **All** | 148 | 28 | 7 | 693 | 876 |
+| **All** | 149 | 28 | 7 | 694 | 878 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -923,3 +923,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1096](services.md) | P2 | S | M5 | measurement | done | `pod-services`: `localtunnel.me` and `download.freedos.org` give no answer to the runners of GitHub on each run, but answer other networks |
 | [T-1097](foundation.md) | P2 | S | M0 | chore | open | `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review) |
 | [T-1098](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: `run-report.v1` refuses a reason of a time that the report does not know (`start_s`) (PodUtils/podrunner#342) |
+| [T-1102](roads.md) | P1 | S | M4 | chore | done | `pod-iroh`: the fork of iroh-relay at 1.4.2, so that iroh 1.4.2 builds it (PodUtils/podssh#341) |
+| [T-1103](roads.md) | P2 | M | M4 | chore | open | `pod-iroh`: iroh 1.5 and iroh-relay 1.5, past the range of the crate (T-1102) |

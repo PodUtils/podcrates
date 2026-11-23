@@ -254,7 +254,7 @@ fn trusting(der: &[u8]) -> rustls::ClientConfig {
         .with_no_client_auth()
 }
 
-/// iroh's own client of pkarr (iroh 1.4.1's `PkarrRelayClient`, software
+/// iroh's own client of pkarr (iroh 1.4.2's `PkarrRelayClient`, software
 /// that this crate did not write) against the same server: each reads what the
 /// other put.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
