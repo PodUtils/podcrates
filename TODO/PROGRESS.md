@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 941 entries: 166 open, 28 partial, 7 blocked, 740 done.
+`TODO/INDEX.md` holds 942 entries: 167 open, 28 partial, 7 blocked, 740 done.
 
 ## State
 
@@ -87,8 +87,8 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Amend the hand-off COORD-152
-(#257) at each take (podrunner, podssh and podvm have taken `v0.82.1`;
-podnet has not), and answer
+(#257) at each take (podrunner, podssh and podvm have taken `v0.82.1`, and
+#257 names them; podnet has not), and answer
 PodUtils/podvm#570 in the next COORD message to podvm (T-1162). Then, in
 podcrates: the red nightly (T-916, T-938, T-1161),
 T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
@@ -114,8 +114,9 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
 - podnet: T-1117 (the limits of the legs of `pod-cloudflare` in podnet's
   documents); T-1135 (`pod-cloudflare` says a cause two times); T-879
   (`pod-detach`); T-897.
-- podssh: T-1165 (a query of a new session id does not hold a slot 20 s;
-  PodUtils/podssh#349, COORD-139), T-1170 (the DNS listener keeps the case
+- podssh: T-1182 (a unit name over 64 characters in `pod-unit`;
+  PodUtils/podssh#347, COORD-138), T-1165 (a query of a new session id
+  does not hold a slot 20 s; PodUtils/podssh#349, COORD-139), T-1170 (the DNS listener keeps the case
   of the question), T-1171 (a late query of an ended session starts no
   handshake), then T-1166 to T-1169 (the same issue: a held poll, a
   carrier with no TLS, DNS over HTTPS, a test through `unbound`); T-1144 (the sans-IO transfer codec of `pod-term` for a pty that
