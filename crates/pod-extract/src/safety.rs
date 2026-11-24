@@ -47,7 +47,15 @@ pub enum Refusal {
     /// A PAX header or a GNU long name past its bound, or a PAX record that
     /// does not parse ([`crate::pax`]).
     Member(String),
+    /// A hard link whose target is not a file or a symlink at the time of
+    /// the link, or at the end of its layer when it is not there at that
+    /// time: it is missing, or it is a directory.
+    Link(String),
 }
+
+/// The text of [`Refusal::Link`] for a target that is not there at the time
+/// of the link, nor at the end of its layer.
+pub const LINK_MISSING: &str = "the target is not in the layer or before it";
 
 impl Refusal {
     pub fn why(&self) -> String {
@@ -73,6 +81,7 @@ impl Refusal {
             }
             Refusal::Stream(why) => format!("one tar stream of the final tree cannot hold it: {why}"),
             Refusal::Member(why) => why.clone(),
+            Refusal::Link(why) => format!("a hard link cannot name its target: {why}"),
             Refusal::Escapes(e) => format!(
                 "resolving it against what the layers have written so far leaves \
                  the destination ({e}). A symlink an earlier entry created is \

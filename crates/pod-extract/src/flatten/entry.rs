@@ -4,10 +4,12 @@
 use std::io::{Read, Write};
 
 use super::Flattened;
+use super::links::{Ids, Links, Name};
 use super::trie::{List, Local, ROOT, Trie};
 use super::write::{Expand, Head, Kind, Out};
-use crate::error::{self, Result, refuse};
+use crate::error::{Result, refuse};
 use crate::safety::{self, Refusal};
+use crate::sparse::Layout;
 use crate::whiteout::{self, Kind as Marker};
 use crate::{Layer, pax};
 
@@ -23,6 +25,9 @@ pub(super) struct State {
     /// The paths below which the current layer wrote while their kind in
     /// the layer was not known, with the node of the entry.
     pending: Vec<(u32, u32)>,
+    pub(super) links: Links,
+    /// The index of the next member of the current layer.
+    member: u64,
 }
 
 impl State {
@@ -34,6 +39,8 @@ impl State {
             digests: layers.iter().map(|l| l.digest.clone()).collect(),
             touched: Vec::new(),
             pending: Vec::new(),
+            links: Links::default(),
+            member: 0,
         }
     }
 
@@ -54,6 +61,8 @@ impl State {
         let raw = member.path.clone().unwrap_or_else(|| e.path_bytes().to_vec());
         let path = String::from_utf8_lossy(&raw).into_owned();
         self.total.entries += 1;
+        let index = self.member;
+        self.member += 1;
         match whiteout::classify(&path) {
             Marker::Remove(name) => return self.marker(digest, layer, &path, Some(&name)),
             Marker::Opaque => return self.marker(digest, layer, &path, None),
@@ -115,58 +124,98 @@ impl State {
             n.local = layer;
             self.touched.push(leaf);
         }
-        if hidden {
-            self.total.hidden += 1;
-            return Ok(());
+        self.links.replace(leaf, !hidden);
+        if kind.is_hard_link() {
+            return self.hard_link(w, (digest, layer), (leaf, &parts, &path), &link_parts, &header, hidden, &chain);
         }
-
         let (wkind, link) = match &target {
-            Some(t) if kind.is_symlink() => (Kind::Symlink, Some(t.clone())),
-            Some(t) => {
-                let ok = self.trie.find(&link_parts).map(|n| self.trie.node(n));
-                if !ok.is_some_and(|n| n.emitted == layer && n.emitted_file) {
-                    return Err(error::unsupported(format!(
-                        "layer {digest}: the hard link {path:?} names {t:?}, which is not a file of the same layer \
-                         before it; flatten writes a hard link to such a file only"
-                    )));
-                }
-                (Kind::Link, Some(link_parts.join("/")))
-            }
+            Some(t) => (Kind::Symlink, Some(t.as_str())),
             None if class == Local::Dir => (Kind::Dir, None),
             None => (Kind::File, None),
         };
-        let size = match (&sparse, wkind) {
-            (Some(l), _) => l.real_size,
-            (None, Kind::File) => e.size(),
-            _ => 0,
-        };
-        let rel = parts.join("/");
-        let head = Head {
-            path: &rel,
-            kind: wkind,
+        // A file or a symlink is an inode: the groups of hard links that
+        // wait on its path take it (module `links`).
+        let plan = (wkind != Kind::Dir).then(|| self.links.plan(&self.trie, leaf, layer, !hidden));
+        if hidden {
+            self.total.hidden += 1;
+            let Some(name) = plan.as_ref().and_then(|p| p.name) else {
+                if plan.is_some() {
+                    self.links.passed(leaf, index);
+                }
+                return Ok(());
+            };
+            put(w, &self.trie.path(name.node), wkind, &header, e, sparse.as_ref(), link)?;
+        } else {
+            put(w, &parts.join("/"), wkind, &header, e, sparse.as_ref(), link)?;
+            let n = self.trie.node_mut(leaf);
+            n.emitted = layer;
+            for a in chain {
+                let n = self.trie.node_mut(a);
+                if n.local_kind == Local::Dir {
+                    n.local_kind = Local::Filled;
+                }
+            }
+        }
+        self.total.written += 1;
+        match plan {
+            Some(p) => self.links.wrote(w, &self.trie, &p, leaf, layer, index),
+            None => Ok(()),
+        }
+    }
+
+    /// A hard link entry: a name of the inode at its target at the time of
+    /// the entry (module `links`). A target at or below the link is gone:
+    /// the link removed it first, as `extract` does.
+    #[allow(clippy::too_many_arguments)]
+    fn hard_link<W: Write>(
+        &mut self,
+        w: &mut Out<'_, W>,
+        (digest, layer): (&str, u16),
+        (leaf, parts, path): (u32, &[&str], &str),
+        tparts: &[&str],
+        header: &tar::Header,
+        hidden: bool,
+        chain: &[u32],
+    ) -> Result<()> {
+        let ids = Ids {
             mode: header.mode().unwrap_or(0o644),
             uid: header.uid().unwrap_or(0),
             gid: header.gid().unwrap_or(0),
             mtime: header.mtime().unwrap_or(0),
-            size,
-            link: link.as_deref(),
         };
-        w.head(&head)?;
-        match &sparse {
-            Some(l) => w.data(&mut Expand::new(e, l), size)?,
-            None if wkind == Kind::File => w.data(e, size)?,
-            None => {}
-        }
-        self.total.written += 1;
-        let n = self.trie.node_mut(leaf);
-        (n.emitted, n.emitted_file) = (layer, wkind == Kind::File);
-        for a in chain {
-            let n = self.trie.node_mut(a);
-            if n.local_kind == Local::Dir {
-                n.local_kind = Local::Filled;
+        if hidden {
+            self.total.hidden += 1;
+        } else {
+            self.trie.node_mut(leaf).emitted = layer;
+            // A later file of the layer over a directory above the name
+            // cannot replace it in the stream (`Refusal::Stream`).
+            for &a in chain {
+                let n = self.trie.node_mut(a);
+                if n.local_kind == Local::Dir {
+                    n.local_kind = Local::Filled;
+                }
             }
         }
-        Ok(())
+        let g = self.links.link(leaf, layer, (!hidden).then_some(Name { node: leaf, ids }));
+        if tparts.len() >= parts.len() && tparts[..parts.len()] == *parts {
+            // `extract` removes the name of the link first.
+            self.links.doomed(g, format!("{:?}: {}", tparts.join("/"), safety::LINK_MISSING));
+            return Ok(());
+        }
+        let mut cur = ROOT;
+        for name in &tparts[..tparts.len() - 1] {
+            cur = self.child(cur, name)?;
+            let n = self.trie.node(cur);
+            if n.local != layer {
+                // An older layer must leave a directory here, or no path.
+                self.pending.push((cur, leaf));
+            } else if n.local_kind == Local::NonDir {
+                let why = format!("{name:?}: a symlink or a file of the same layer");
+                return Err(refuse(digest, path, Refusal::Escapes(why)));
+            }
+        }
+        let t = self.child(cur, tparts[tparts.len() - 1])?;
+        self.links.bind(w, &self.trie, &self.digests, g, t, layer)
     }
 
     /// The directories above an entry: the node of its parent, each node
@@ -252,9 +301,10 @@ impl State {
 
     /// The end of the layer `layer`: the kind that the layer left at each
     /// path that it set, against the marks of the newer layers, then the
-    /// marks of this layer.
-    pub(super) fn end_layer(&mut self, layer: u16) -> Result<()> {
-        for n in std::mem::take(&mut self.touched) {
+    /// hard links that wait on these paths, then the marks of this layer.
+    pub(super) fn end_layer<W: Write>(&mut self, w: &mut Out<'_, W>, layer: u16) -> Result<()> {
+        let touched = std::mem::take(&mut self.touched);
+        for &n in &touched {
             let node = self.trie.node(n);
             let (j, e, nondir) = (node.mark_layer, node.mark_entry, node.local_kind == Local::NonDir);
             if j > layer && nondir && !self.trie.reset(n, layer, j) {
@@ -270,10 +320,74 @@ impl State {
                 self.trie.push(n, List::Cut, layer).map_err(|_| super::full(self.max))?;
             }
         }
+        self.links.end_layer(w, &self.trie, &self.digests, &touched, layer)?;
         for (n, e) in std::mem::take(&mut self.pending) {
             let node = self.trie.node_mut(n);
             (node.mark_layer, node.mark_entry) = (layer, e);
         }
+        self.member = 0;
         Ok(())
+    }
+
+    /// After the last layer: the hard links that still wait, with no older
+    /// target.
+    pub(super) fn finish<W: Write>(&mut self, w: &mut Out<'_, W>) -> Result<()> {
+        self.links.finish(w, &self.trie, &self.digests)
+    }
+
+    /// One member of a layer read again: a hidden file or symlink that a
+    /// hard link of its layer names, under the first name of its inode,
+    /// the other names as links to it.
+    pub(super) fn reread<W: Write, R: Read>(
+        &mut self,
+        w: &mut Out<'_, W>,
+        digest: &str,
+        e: &mut tar::Entry<'_, R>,
+        member: &pax::Member,
+        names: &[Name],
+    ) -> Result<()> {
+        let raw = member.path.clone().unwrap_or_else(|| e.path_bytes().to_vec());
+        let path = String::from_utf8_lossy(&raw).into_owned();
+        let header = e.header().clone();
+        let sparse = crate::sparse::layout(member.sparse.as_ref(), e, digest, &path)?;
+        let target = header.entry_type().is_symlink().then(|| crate::apply::link_name(e, member));
+        let kind = if target.is_some() { Kind::Symlink } else { Kind::File };
+        put(w, &self.trie.path(names[0].node), kind, &header, e, sparse.as_ref(), target.as_deref())?;
+        self.total.written += 1;
+        self.links.reread_links(w, &self.trie, names)
+    }
+}
+
+/// One entry of the stream at `path`: the header with the values of the
+/// image, then the data of a file (its holes as zero bytes).
+fn put<W: Write, R: Read>(
+    w: &mut Out<'_, W>,
+    path: &str,
+    kind: Kind,
+    header: &tar::Header,
+    e: &mut tar::Entry<'_, R>,
+    sparse: Option<&Layout>,
+    link: Option<&str>,
+) -> Result<()> {
+    let size = match (sparse, kind) {
+        (Some(l), _) => l.real_size,
+        (None, Kind::File) => e.size(),
+        _ => 0,
+    };
+    let head = Head {
+        path,
+        kind,
+        mode: header.mode().unwrap_or(0o644),
+        uid: header.uid().unwrap_or(0),
+        gid: header.gid().unwrap_or(0),
+        mtime: header.mtime().unwrap_or(0),
+        size,
+        link,
+    };
+    w.head(&head)?;
+    match sparse {
+        Some(l) => w.data(&mut Expand::new(e, l), size),
+        None if kind == Kind::File => w.data(e, size),
+        None => Ok(()),
     }
 }

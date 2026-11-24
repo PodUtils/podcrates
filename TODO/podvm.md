@@ -14182,7 +14182,7 @@ of the upload is T-1196.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14213,6 +14213,99 @@ In the `flatten` of T-1193. A link entry is a name of an inode; the inode is the
 cargo test -p pod-extract --all-features flatten
 cargo clippy -p pod-extract --all-targets --all-features -- -D warnings
 ```
+
+## Done
+
+2026-11-24, this commit. Option A of item 2: the link entries wait in
+memory, by target, and go out after the entry of their target.
+
+The measure. GNU tar 1.35 as root with the arguments of incusd (T-1193):
+a hard-link entry after its target gives two names of one inode, exit 0
+(`gnu_tar_takes_the_links_of_the_stream`); a hard-link entry at a name
+that the stream wrote as a file before it replaces the file, exit 0 (a
+crafted stream, by hand); a hard link before its target fails (T-1193).
+So each other name of an inode is a link entry after the first name.
+
+The change. The module `links` of `flatten`
+(`crates/pod-extract/src/flatten/links.rs`, `flatten/links_end.rs`): a
+group holds the visible names of one inode. A link names the inode at its
+target at the time of its entry, as `extract` makes it: the last entry of
+the target before it in its layer, else the target at the start of its
+layer (the newest older layer that sets the path decides, at its end,
+with `Trie::reset` for a removal between), else the last entry of the
+target after it in its layer (decided after the last layer). A file or a
+symlink that a group waits on goes out under the first name of the group
+as it is read, so a target that a newer layer replaced or removed needs
+no second read; a hidden file that a link of its own layer names after it
+went by, and its layer is read a second time after the last layer, once
+for each such layer, with its digest checked again
+(`Flattened::rereads`). A link through a file or a symlink of an older
+layer takes the mark of T-1193. `Flattened::links` counts the link
+entries. The file entry gives the mode, the owner and the time of the
+inode; a link entry has those of the link of the image.
+
+Found by the comparison and fixed in place, in `extract`
+(`crates/pod-extract/src/apply_later.rs`): a hard link whose target was
+missing or a directory failed with a system error (`ENOENT`, `EPERM`); it
+is now the refusal `Refusal::Link` (`safety::LINK_MISSING`), which
+`flatten` gives too. A link whose directory above the target was not
+there yet failed at once; it now waits for the end of its layer, as a
+link whose target is not there. An entry below a link that waits was
+written into a new directory that the link then removed; it is now
+refused as an entry through a file of the same layer (`Refusal::Escapes`).
+
+The tests. `crates/pod-extract/tests/flatten_links.rs` (10 tests, each
+against `extract` of the same layers; `support::same` now compares the
+names of each inode, `support::inodes`): a link to a file of an older
+layer, a link whose target a later layer replaced by a file, by a
+directory, by a symlink or removed, a chain in one layer and across
+layers, a link after its hidden target in one layer (`rereads` 1), a link
+before its target in its layer (also with an older target and with the
+directory of the target after it), two links to one hidden target, a
+missing target, a directory, a removed target and a target at the link
+(`Refusal::Link`, the same text), a link out of the tree and through a
+symlink or a file of an older layer, an entry below a link that waits,
+and GNU tar with the arguments of incusd.
+`crates/pod-extract/tests/flatten_random.rs`:
+`random_layer_sets_with_hard_links_give_the_tree_of_extract` (300 seeded
+sets, links to files of the layers seven times in eight); a set with two
+faults can give two kinds of refusal (`extract` reads from the oldest
+layer, `flatten` from the newest), and then the layers up to the layer
+that each names refuse on the other side too. 20000 sets of each
+generator and 30000 of a denser one (two names, 6 layers, 14 entries)
+passed once in release. On the code before, 10 of 10 link tests failed
+(`the hard link "b" names "a", which is not a file of the same layer
+before it`; `not a refusal: cannot link "b" to "never": ... ENOENT`;
+`an_entry_below_a_link_that_waits_is_refused`: not refused), and the
+random run with links failed (`extract refused what flatten took (cannot
+descend into "c": ENOENT)`). `cargo test -p pod-extract --all-features`:
+114 unit tests, 20, 10 and 2 integration tests pass. `cargo clippy -p
+pod-extract --all-targets --all-features -- -D warnings`, `cargo doc -p
+pod-extract --no-deps --all-features` with `-D warnings`, `cargo fmt
+--all --check`, `cargo check --manifest-path fuzz/Cargo.toml`,
+`scripts/check-size.py` and `codegraph.py dups` pass; `sh
+scripts/plant-each.sh --apply`: 0 stale.
+
+The plants. `extract-flatten-link-before-target` (a link to a file of an
+older layer goes out at once, before its target) fails
+`a_link_to_a_file_of_an_older_layer_follows_its_target` (exit 101, `the
+link usr/b comes before usr/a`); the run without it passes. The patch of
+`extract-t1087-sparse-map-not-applied` has the new context of
+`apply.rs` (the same defect): with it exit 101 (`the content differs`),
+without it the test passes; `extract-hardlink-not-deferred` applies with
+no change (exit 101 with it, 0 without).
+
+New entry: T-1269 (a link to an inode that no name of the stream holds
+after a second entry of its path in one layer fails with `Unsupported`).
+
+For the hand-off: `pod_extract::flatten::Flattened::{links, rereads}`,
+`safety::{Refusal::Link, LINK_MISSING}` are new. `extract` refuses a hard
+link to a missing target or a directory with `Refusal::Link` (a system
+error before), and a link waits for a missing directory above its target.
+podvm can stream an image with hard links across layers with `flatten`
+and drop its `extract` path for such an image; the unified form (the
+prefix `rootfs/`, `metadata.yaml`) and the extended attributes wait for
+T-1195.
 
 # T-1195: `pod-extract`: `flatten` keeps the PAX records of the image, and takes a prefix and the entries of the caller (PodUtils/podvm#657)
 
@@ -14554,4 +14647,50 @@ umask that is not 022, and the comparisons of
 
 ```sh
 cargo test -p pod-extract --all-features
+```
+
+# T-1269: `pod-extract`: `flatten` fails with `Unsupported` for a hard link to an inode that no name of the stream holds after a second entry of its path in one layer
+
+**Source:** T-1194 (a finding of its work)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+In one layer: a file at `t` that goes into the stream, a hard link `p`
+to `t` that a newer layer hides (so `p` has no name in the stream), a
+second entry at `t` that goes into the stream (it replaces `t` there),
+then a hard link `q` to `p` (in the same layer, or in a newer layer). `q`
+names the first inode of `t`. No name of the stream holds that inode
+after the second entry, and `flatten` does not keep the member of a file
+that goes out at its own path, so it cannot read it again: the stream
+fails with `Unsupported` (`flatten/links.rs`, `Bind::Lost`). `extract`
+takes the layers.
+
+## Premise
+
+- Read: `crates/pod-extract/src/flatten/links.rs` (`Links::replace` sets
+  `Bind::Lost`; `Links::merge` refuses it), `flatten/links_end.rs`
+  (`Links::rereads`).
+- Not measured: an image with this shape. No tar writer that is known
+  writes one path twice in a layer.
+
+## Approach
+
+1. Keep the member of each file of the current layer that goes out at its
+   own path in `Links::last` (cleared at the end of each layer), or only
+   of a path that a group with no name holds; measure the memory on a
+   layer of many files.
+2. A group that loses its holder takes `Bind::Reread` of that member, and
+   the layer is read again after the last layer, as for a hidden file.
+3. A test in `crates/pod-extract/tests/flatten_links.rs` against
+   `extract` of the same layers that fails on the code before.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features --test flatten_links
 ```

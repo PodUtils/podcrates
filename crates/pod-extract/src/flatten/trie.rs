@@ -53,8 +53,6 @@ pub(super) struct Node {
     name_len: u8,
     /// Another node has this node as its parent.
     pub(super) has_child: bool,
-    /// The entry of the stream at this path is a regular file.
-    pub(super) emitted_file: bool,
     /// An entry of a layer below this path made it a directory, and no
     /// newer layer removed it: `extract` leaves a directory here.
     pub(super) implied: bool,
@@ -101,7 +99,6 @@ impl Node {
             name_at,
             name_len,
             has_child: false,
-            emitted_file: false,
             implied: false,
             local_kind: Local::Dir,
             entry: 0,
@@ -143,6 +140,10 @@ impl Trie {
         &self.nodes[n as usize]
     }
 
+    pub(super) fn parent(&self, n: u32) -> u32 {
+        self.nodes[n as usize].parent
+    }
+
     pub(super) fn node_mut(&mut self, n: u32) -> &mut Node {
         &mut self.nodes[n as usize]
     }
@@ -165,11 +166,6 @@ impl Trie {
                 Some(_) => key = key.wrapping_add(1),
             }
         }
-    }
-
-    /// The node of the path `parts`, when the trie has it.
-    pub(super) fn find(&self, parts: &[&str]) -> Option<u32> {
-        parts.iter().try_fold(ROOT, |cur, name| self.lookup(cur, name).ok())
     }
 
     /// The node of `name` below `parent`, made when it is not there. The

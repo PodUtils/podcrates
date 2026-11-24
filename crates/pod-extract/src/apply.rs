@@ -146,6 +146,7 @@ pub fn apply_layer(
             Ok(p) => p,
             Err(r) => return Err(refuse(digest, &path, r)),
         };
+        later::through(&later, &parts).map_err(|r| refuse(digest, &path, r))?;
 
         // Before the content: the records come with the header.
         let rel = parts.join("/");
@@ -198,14 +199,14 @@ pub fn apply_layer(
                 Ok(p) => p,
                 Err(r) => return Err(refuse(digest, &path, r)),
             };
-            let (tparent, tname) = match safety::open_parent(root, &tparts, false)? {
-                Ok(x) => x,
-                Err(r) => return Err(refuse(digest, &path, r)),
-            };
+            let tried = later::open_target(root, digest, &path, &tparts)?;
             replace(&parent, &name)?;
-            let tn = cbuf(&tname)?;
             let n = cbuf(&name)?;
-            match sys::linkat(tparent.fd(), &tn, parent.fd(), &n, 0) {
+            let linked = match &tried {
+                Some((tparent, tname)) => sys::linkat(tparent.fd(), &cbuf(tname)?, parent.fd(), &n, 0),
+                None => Err(sys::ENOENT),
+            };
+            match linked {
                 Ok(_) => st.hardlinks += 1,
                 // A target that comes later in the layer: the link waits for
                 // the end of the layer (PodUtils/podvm#569).
@@ -222,7 +223,7 @@ pub fn apply_layer(
                     });
                     continue;
                 }
-                Err(e) => return Err(error::sys(format!("cannot link {path:?} to {target:?}"), e)),
+                Err(e) => return Err(later::failed(digest, &path, &target, e)),
             }
         } else if kind.is_file() {
             let (m, a) = write_file(&parent, &name, mode, &mut entry, &wanted, sparse.as_ref())?;
