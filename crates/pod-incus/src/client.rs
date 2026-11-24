@@ -38,12 +38,17 @@ pub struct Settings {
     pub wait: Option<Duration>,
     /// The limit of the write of each frame on a websocket of exec.
     pub write_timeout: Duration,
+    /// The limit of the silence of incus in an answer: the head, and each
+    /// read of the body ([`ErrorKind::AnswerTimeout`]). A wait for an
+    /// operation is not read under it: it has its own bound (`wait`).
+    /// `None`: no limit.
+    pub answer_timeout: Option<Duration>,
 }
 
 impl Settings {
     /// The settings for the socket at `socket`: the default project, no
     /// user agent, 5 s for the connection, 64 MiB for a body, no limit for
-    /// a wait, 30 s for the write of a frame.
+    /// a wait, 30 s for the write of a frame, 30 s of silence in an answer.
     pub fn new(socket: impl Into<PathBuf>) -> Settings {
         Settings {
             socket: socket.into(),
@@ -53,12 +58,30 @@ impl Settings {
             max_body: 64 * 1024 * 1024,
             wait: None,
             write_timeout: Duration::from_secs(30),
+            // incusd answers each call that is not a wait at once; a socket
+            // that takes the connection and says nothing must not hold the
+            // caller (PodUtils/podvm#653).
+            answer_timeout: Some(Duration::from_secs(30)),
         }
     }
 }
 
+/// The bound of the read of an answer that incus sent before it closed a
+/// connection whose request was still going out: the answer is in the
+/// buffer of the socket, or it does not come.
+const LATE_ANSWER: Duration = Duration::from_secs(5);
+
 /// A client of one incus server. Each call opens its own connection, so a
 /// client can make calls from many tasks at once.
+///
+/// SIGPIPE: incus can refuse a body (an upload, a file) before its end and
+/// close the connection. The next write of the crate to that socket raises
+/// SIGPIPE, and a process that does not ignore SIGPIPE ends there, with no
+/// error and no answer of incus. The crate sets no signal: the caller sets
+/// SIGPIPE to ignore before its first upload (the runtime of Rust does so
+/// for a binary, unless the caller set it back). With SIGPIPE ignored, the
+/// write fails with EPIPE, and the crate reads and gives the answer of
+/// incus.
 #[derive(Debug, Clone)]
 pub struct Client {
     settings: Arc<Settings>,
@@ -91,7 +114,9 @@ impl Client {
     pub(crate) async fn exchange(&self, call: &str, request: Request, max: usize) -> Result<Response> {
         match self.request(call, request).await? {
             Sent::Answer(answer) => Ok(answer),
-            Sent::Stream(mut stream) => wire::read(&mut stream, max).await.map_err(|e| Error::io(call, e)),
+            Sent::Stream(mut stream) => {
+                wire::read(&mut stream, max, self.settings.answer_timeout).await.map_err(|e| Error::io(call, e))
+            }
         }
     }
 
@@ -103,7 +128,7 @@ impl Client {
             // incus can refuse a body before its end and close: its answer
             // then says why, where the write only sees the close.
             let gone = matches!(e.kind(), io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset);
-            if gone && let Ok(answer) = wire::read(&mut stream, self.settings.max_body).await {
+            if gone && let Some(answer) = self.answer_after_cut(call, &mut stream).await? {
                 return Ok(Sent::Answer(answer));
             }
             return Err(sent(call, e));
@@ -111,14 +136,40 @@ impl Client {
         Ok(Sent::Stream(stream))
     }
 
+    /// The answer that incus sent before it closed a connection whose
+    /// request was still going out, within [`LATE_ANSWER`] (or
+    /// `answer_timeout`, where it is shorter). `None` where no head came:
+    /// the error of the write then says what happened. An error of the
+    /// body (a refusal by size, a silence) is the error of the call: the
+    /// answer came, and it says more than the close.
+    async fn answer_after_cut(&self, call: &str, stream: &mut BoxedIo) -> Result<Option<Response>> {
+        let bound = Some(self.settings.answer_timeout.map_or(LATE_ANSWER, |bound| bound.min(LATE_ANSWER)));
+        let Ok((mut answer, rest)) = wire::read_head_within(stream, bound).await else { return Ok(None) };
+        let max = self.settings.max_body;
+        let (body, skimmed) =
+            wire::envelope_body(stream, &answer, rest, max, bound).await.map_err(|e| Error::io(call, e))?;
+        if skimmed {
+            tracing::debug!(call, "an error envelope over the bound, read with its strings cut");
+        }
+        answer.body = body;
+        Ok(Some(answer))
+    }
+
     /// One request whose answer is an envelope. An `error` envelope over
     /// `max_body` is read with its strings cut ([`wire::read_envelope`]).
     pub(crate) async fn envelope(&self, call: &str, request: Request) -> Result<Reply> {
+        self.envelope_within(call, request, self.settings.answer_timeout).await
+    }
+
+    /// [`Client::envelope`] with `bound` for the silence of the answer: the
+    /// wait for an operation gives `None` and keeps its own bound.
+    pub(crate) async fn envelope_within(&self, call: &str, request: Request, bound: Option<Duration>) -> Result<Reply> {
         let answer = match self.request(call, request).await? {
             Sent::Answer(answer) => answer,
             Sent::Stream(mut stream) => {
+                let max = self.settings.max_body;
                 let (answer, skimmed) =
-                    wire::read_envelope(&mut stream, self.settings.max_body).await.map_err(|e| Error::io(call, e))?;
+                    wire::read_envelope(&mut stream, max, bound).await.map_err(|e| Error::io(call, e))?;
                 if skimmed {
                     tracing::debug!(call, "an error envelope over the bound, read with its strings cut");
                 }

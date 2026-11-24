@@ -63,6 +63,21 @@ pub struct State {
     /// Each request of this method and path start gets these bytes as its
     /// whole answer: a head and a body that a test makes.
     pub raw: Option<(String, String, Vec<u8>)>,
+    /// A final operation is gone after its wait, as incusd drops it some
+    /// seconds after its end.
+    pub forget: bool,
+    /// `GET /1.0/operations/ID` is refused with this status and these words.
+    pub op_read: Option<(u16, String)>,
+}
+
+/// The words of incusd 6.0 for an exec whose command ended with 127 and
+/// 126 (`ErrExecCommandNotFound`, `ErrExecCommandNotExecutable`).
+pub fn exec_words(metadata: &Value) -> Option<&'static str> {
+    match metadata["return"].as_i64() {
+        Some(127) => Some("Command not found"),
+        Some(126) => Some("Command not executable"),
+        _ => None,
+    }
 }
 
 impl State {
@@ -86,7 +101,9 @@ impl State {
         } else if !metadata.is_null() {
             op.json["metadata"] = metadata;
         }
-        match fail {
+        // incusd 6.0 ends an exec of 127 or 126 as a failure, with the
+        // `return` and the logs kept (PodUtils/podvm#653).
+        match fail.or_else(|| exec_words(&op.json["metadata"]).map(String::from)) {
             Some(err) => {
                 op.json["status"] = "Failure".into();
                 op.json["status_code"] = 400.into();
@@ -165,10 +182,16 @@ pub async fn answer(shared: &Arc<Shared>, seen: Seen) -> Vec<u8> {
     let parts: Vec<&str> = path.trim_start_matches('/').split('/').collect();
     match (method.as_str(), parts.as_slice()) {
         ("GET", ["1.0"]) => sync(server(&shared.state.lock().unwrap())),
-        ("GET", ["1.0", "operations", id]) => match shared.state.lock().unwrap().ops.get(*id) {
-            Some(op) => sync(op.json.clone()),
-            None => error(404, "Operation not found"),
-        },
+        ("GET", ["1.0", "operations", id]) => {
+            let state = shared.state.lock().unwrap();
+            if let Some((status, words)) = &state.op_read {
+                return error(*status, words);
+            }
+            match state.ops.get(*id) {
+                Some(op) => sync(op.json.clone()),
+                None => error(404, "Operation not found"),
+            }
+        }
         ("GET", ["1.0", "operations", id, "wait"]) => wait(shared, id, &seen).await,
         ("DELETE", ["1.0", "operations", id]) => {
             let mut state = shared.state.lock().unwrap();
@@ -314,7 +337,20 @@ async fn wait(shared: &Arc<Shared>, id: &str, seen: &Seen) -> Vec<u8> {
             Some(op) => op.clone(),
             None => return error(404, "Operation not found"),
         };
-        if current.done() || deadline.is_some_and(|d| tokio::time::Instant::now() >= d) {
+        if current.done() {
+            let mut state = shared.state.lock().unwrap();
+            if state.forget {
+                state.ops.remove(id);
+            }
+            // incusd 6.0 answers the wait of an exec that failed with 127
+            // or 126 with an error envelope, not with the operation.
+            let words = exec_words(&current.json["metadata"]);
+            return match words.filter(|_| current.json["status_code"] == 400) {
+                Some(words) => error(400, words),
+                None => sync(current.json),
+            };
+        }
+        if deadline.is_some_and(|d| tokio::time::Instant::now() >= d) {
             return sync(current.json);
         }
         match deadline {

@@ -139,18 +139,28 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
   builds `Answer` with all its fields must add it. A grep of `Answer {` in
   podnet and podssh finds no such build.
 
+- T-1155 to T-1157 (`pod-incus`, PodUtils/podvm#653): an exec that ends
+  with 127 or 126 gives its code (and its logs for `exec_recorded`) from
+  the operation (`Client::exec_end`); `Error::operation()` names the
+  operation of a failed wait; `Settings::answer_timeout` (default 30 s)
+  bounds each silence of an answer (`ErrorKind::AnswerTimeout`, with
+  `AnswerPhase`); after a failed write of a body the answer of incusd is
+  read within a short bound. `Settings` has a new public field: a consumer
+  that builds it with all its fields adds it (podvm uses `Settings::new`).
+
 ### What the next hand-off carries
 
 - podrunner: no open ask. T-1160 changes the answer of
   `pod-fake-githome` to `assigned` (the fork fact of the real job alone).
 - podvm: T-1143, T-1158 (podvm removes its work-arounds at the tag of
-  T-1155 to T-1157).
+  T-1155 to T-1157: its read of the operation after the wait, `code_of_failure`,
+  and its bound of 30 s on the first `GET /1.0`; it keeps its guard of
+  SIGPIPE).
 - podnet: T-1117 (documents), T-1118 (`release-index.json`).
 - podssh: the STUN note above, T-1182 (the bound of a unit name), T-1095
   (the order of the pseudo-fields of the HTTP/2 request of `pod-ws`,
   PodUtils/podssh#340), T-1103 (iroh 1.5).
-- Asks of podvm and podssh that no one has started: T-1155, T-1156 and
-  T-1157 (`pod-incus`, PodUtils/podvm#653), T-1144 (`pod-term`), T-1165 to
+- Asks of podvm and podssh that no one has started: T-1144 (`pod-term`), T-1165 to
   T-1171 (`pod-link`, the DNS carrier; PodUtils/podssh#349).
 - Entries of podcrates that no one has started: T-1162
   (the answer to PodUtils/podvm#570), T-1163 (two more readers of

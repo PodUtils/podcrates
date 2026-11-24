@@ -12,12 +12,12 @@
 use std::io::Write;
 
 use pod_core::http1::parse_content_range;
-use pod_proxy::http::{Body as AnswerBody, Framing, MAX_HEAD, Response, read_head};
+use pod_proxy::http::{Body as AnswerBody, Framing, Response};
 use tokio::io::AsyncReadExt;
 
 use super::{FileKind, FileMeta, files_path, meta_of};
 use crate::client::{Client, refused};
-use crate::error::{Error, ErrorKind, Result};
+use crate::error::{AnswerPhase, Error, ErrorKind, Result};
 use crate::wire::{self, Body, Request};
 
 /// The one buffer of a read of a file: the bound of its memory.
@@ -87,7 +87,8 @@ impl Client {
         let io = |e| Error::io(&call, e);
         let mut stream = self.open(&call).await?;
         wire::send(&mut stream, &self.settings().user_agent, request).await.map_err(io)?;
-        let (answer, rest) = read_head(&mut stream, Vec::new(), MAX_HEAD).await.map_err(io)?;
+        let bound = self.settings().answer_timeout;
+        let (answer, rest) = wire::read_head_within(&mut stream, bound).await.map_err(io)?;
         let framing = Framing::of(&answer, false);
         let total = || answer.header("content-range").and_then(parse_content_range).and_then(|s| s.total);
         let (from, size) = match answer.status {
@@ -108,7 +109,7 @@ impl Client {
             }
             status => {
                 let max = self.settings().max_body;
-                let (body, _) = wire::envelope_body(&mut stream, &answer, rest, max).await.map_err(io)?;
+                let (body, _) = wire::envelope_body(&mut stream, &answer, rest, max, bound).await.map_err(io)?;
                 return Err(refused(&call, status, &answer.reason, &body));
             }
         };
@@ -116,7 +117,9 @@ impl Client {
         if meta.kind == FileKind::Directory {
             return Err(Error::usage(&call, "the path is a directory: get_file gives its entries"));
         }
-        let mut body = AnswerBody::new(&mut stream, rest, framing, None).map_err(io)?;
+        // A large file takes long, but each read must make progress.
+        let quiet = wire::quiet(&mut stream, AnswerPhase::Body, bound);
+        let mut body = AnswerBody::new(quiet, rest, framing, None).map_err(io)?;
         let mut buf = vec![0u8; PIECE];
         // The bytes before the start: all of them where the server ignored
         // the `Range`.

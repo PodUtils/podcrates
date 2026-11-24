@@ -13567,7 +13567,7 @@ it.
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13632,6 +13632,43 @@ gives the code 127 with the two logs; the same with 126; an operation that
 is gone gives the code of the words; `Attached::wait` gives the code; an
 error of the wait that is not one of the two sentences stays an error.
 
+## Done
+
+2026-11-24, this commit. `Client::exec_end` (`crates/pod-incus/src/exec.rs`)
+ends `exec_recorded` and `Attached::wait`: where the wait gives `Incus`
+with the status 400 and the words "Command not found" or "Command not
+executable", it reads `GET /1.0/operations/ID` and takes `metadata.return`
+(0 to 255; else the code of the words, as podvm's `code_of_failure` does);
+`exec_recorded` then reads and deletes the two logs. A 404 of that read
+gives 127 or 126 by the words and empty output; another failure of the
+read is the error of the read. `Error::operation` gives the id of the
+operation of the call: `wait_for` adds it to each error of the wait (a
+private field, boxed to keep `Result` under `clippy::result_large_err`);
+the text of the error does not change. The stand-in ends an exec of 127
+or 126 as a failure, and its wait answers the error envelope; `forget`
+drops a final operation after its wait, and `op_read` refuses the read of
+an operation. The README gives the rule and the limit (one answer for a
+missing program and for `exit 127`).
+
+Tests (`tests/exec.rs`, `tests/attach.rs`):
+`a_command_that_ends_with_127_gives_its_code_and_its_logs`,
+`a_command_that_ends_with_126_gives_its_code_and_its_logs`,
+`an_operation_that_is_gone_gives_the_code_of_the_words`,
+`a_failed_read_of_the_operation_stays_the_error_of_that_read`,
+`another_error_of_the_wait_stays_an_error_that_names_the_operation`,
+`the_wait_of_a_command_that_ends_with_127_gives_its_code`. On the code
+before, the six fail, for example: `the output: Error { call: "POST
+/1.0/instances/web/exec", kind: Incus { status: 400, code: 400, error:
+"Command not found" } }` (127), the same with "Command not executable"
+(126), and the assert of the call of the read for the failed read.
+`cargo test -p pod-incus --all-features --test exec`: 9 passed;
+`cargo test -p pod-incus --all-features`: 69 passed; clippy with
+`-D warnings` and `cargo fmt --all --check` clean.
+
+For the hand-off: no break. `Error::operation` is a new method, and
+`Error` has a new private field. podvm can remove its `code_of_failure`
+read after the wait (T-1158).
+
 
 # T-1156: `pod-incus`: no bound of the answer of a call: a socket that takes the connection and never answers holds the caller (PodUtils/podvm#653)
 
@@ -13640,7 +13677,7 @@ error of the wait that is not one of the two sentences stays an error.
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13687,6 +13724,43 @@ The tests: a stand-in that accepts and never answers gives
 and stalls in the body gives the phase `body`; a wait of 60 s under an
 `answer_timeout` of 1 s still waits; `None` waits.
 
+## Done
+
+2026-11-24, this commit. `Settings::answer_timeout: Option<Duration>`
+(default 30 s) bounds the silence of incus in an answer: the head and
+each read of the body. `wire::quiet` wraps the stream in `Idle` of
+`pod-proxy` and turns its silence into `ErrorKind::AnswerTimeout { phase,
+bound }` (`AnswerPhase::Head` or `Body`, class `Timeout`; no part of a
+request goes into it). It covers `exchange`, `envelope`, the read after a
+failed write of `request`, the head and the error body of the websocket
+upgrade, and the head and each read of `get_file_to`. The wait for an
+operation reads with `envelope_within(.., None)` and keeps its own bound
+(its limit and `WAIT_SLACK`). `None` gives the old behaviour. The README
+gives the setting and the kind. The dev-dependency tokio takes
+`test-util` for a paused clock. The stand-in `tests/common/raw.rs`
+answers each connection with bytes of the test and then closes or holds.
+
+Tests (`tests/server.rs`, paused clock):
+`a_server_that_never_answers_gives_answer_timeout_in_the_head` (at 30 s,
+the default), `a_body_that_stalls_gives_answer_timeout_in_the_body` (at
+2 s), `a_wait_past_the_answer_bound_still_waits` (a wait of 60 s under a
+bound of 1 s ends at 60 s with `Timeout`), `no_answer_bound_waits` (no end
+in an hour). Planted defects: with no bound in `envelope` (the code
+before), the first two fail with `the call ends at the bound:
+Elapsed(())`; with the bound on the wait, the third fails with `kind:
+AnswerTimeout { phase: Head, bound: 1s }`; with a bound for `None`, the
+fourth fails with `the call still waits after an hour`.
+`cargo test -p pod-incus --all-features --test server`: 10 passed;
+`cargo test -p pod-incus --all-features`: 73 passed; clippy with
+`-D warnings` and `cargo fmt --all --check` clean.
+
+For the hand-off: `Settings` has a new public field, `answer_timeout`. A
+consumer that builds `Settings` with a struct expression and all its
+fields does not build; podvm uses `Settings::new` and is not touched.
+`ErrorKind::AnswerTimeout` is a new variant of a `non_exhaustive` enum,
+and `AnswerPhase` is a new type. podvm can remove its bound of 30 s on the
+first `GET /1.0` of each verb (T-1158).
+
 
 # T-1157: `pod-incus`: after a failed write of a body, the answer that incusd already sent is read with no bound and no test, and the documentation does not tell the caller about SIGPIPE (PodUtils/podvm#653)
 
@@ -13695,7 +13769,7 @@ and stalls in the body gives the phase `body`; a wait of 60 s under an
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13750,6 +13824,47 @@ words, in each of ten runs; a stand-in that closes with no answer gives the
 or `AnswerTimeout` at the bound; an `error` envelope over the bound gives
 `TooLarge` with its first words. Each test fails on the code before the
 change (the bound and the envelope read).
+
+## Done
+
+2026-11-24, this commit. `Client::answer_after_cut`
+(`crates/pod-incus/src/client.rs`): after EPIPE or a reset on the write of
+a request, the crate reads the head within `LATE_ANSWER` (5 s, or
+`answer_timeout` where it is shorter) and the body with
+`wire::envelope_body`, so an `error` envelope over `max_body` is cut
+(T-1139) or refused by size with its first words. A read that gives no
+head gives the `Io` error of the write, as before; an error of the body
+(`TooLarge`, `AnswerTimeout`) is the error of the call. The doc of
+`Client` and the README say that this write raises SIGPIPE in a process
+that does not ignore it, and that the caller sets SIGPIPE to ignore; the
+crate sets no signal. The stand-in `tests/common/raw.rs` answers at the
+first bytes of an upload and then closes (`Close`), holds with its read
+side shut and the queue read (`Hold`: the blocked writer gets EPIPE), or
+shuts both sides (`Shut`).
+
+Tests (`tests/images.rs`, an upload of 16 MiB):
+`an_upload_that_incus_refuses_and_closes_gives_the_answer_of_incus` (500
+with "no space left on device" in each of ten runs),
+`an_upload_that_incus_closes_with_no_answer_gives_the_error_of_the_write`,
+`an_answer_that_stalls_after_a_cut_ends_at_its_short_bound` (a whole
+answer is the answer; a stalled body is `AnswerTimeout` at 5 s, and at
+2 s with an `answer_timeout` of 2 s; paused clock),
+`an_error_envelope_over_the_bound_after_a_cut_gives_too_large_with_its_words`.
+On the code before, the last two fail: `Error { call: "POST /1.0/images",
+kind: Io(Os { code: 32, kind: BrokenPipe, message: "Broken pipe" }) }`
+where `AnswerTimeout` and `TooLarge` are due. The first two hold the rule
+that existed: they pass on the code before, and fail on planted defects
+(no read after the cut: `Io(BrokenPipe)` where 500 is due; the error of
+the read where no head came: `Io(UnexpectedEof)` where `BrokenPipe` is
+due). The four new tests of `images`, `server`, `exec` and `attach` ran
+30 times each with no failure.
+`cargo test -p pod-incus --all-features --test images`: 8 passed;
+`cargo test -p pod-incus --all-features`: 77 passed; clippy with
+`-D warnings` and `cargo fmt --all --check` clean.
+
+For the hand-off: no break; no public type changed. podvm can keep its
+`NoSigpipe` guard (the crate sets no signal) and drop its own read of the
+answer after a cut, where it has one (T-1158).
 
 
 # T-1158: podvm removes its work-arounds for `pod-incus` at its take of the tag of T-1155 to T-1157

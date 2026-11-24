@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 948 entries: 173 open, 28 partial, 7 blocked, 740 done.
+`TODO/INDEX.md` holds 948 entries: 170 open, 28 partial, 7 blocked, 743 done.
 
 ## State
 
@@ -100,10 +100,8 @@ for cfb's answer on #223, call C792), T-1118 (podnet writes the
 (call C782, PodUtils/podssh#316): T-112, T-110, T-111, T-117. Then the open
 asks of the consumers, podvm's first, then podnet's, then podssh's:
 
-- podvm: T-1155, T-1156, T-1157 and T-1158 (`pod-incus`: the exit code of an
-  exec that ends with 126 or 127, a bound of each answer, the answer after
-  a failed write, and the work-arounds that podvm then removes;
-  PodUtils/podvm#653); T-1193 to T-1196 (`pod-extract`: `flatten`, the layers of an
+- podvm: T-1158 (podvm removes its work-arounds for `pod-incus` at the
+  next tag; PodUtils/podvm#653); T-1193 to T-1196 (`pod-extract`: `flatten`, the layers of an
   image as one tar stream with no tree, its hard links, its PAX records and the
   entries of the caller; `pod-gzip`, a writer of gzip members; PodUtils/podvm#657);
   T-1143 (podvm matches `ErrorKind::TooLarge`); T-1087

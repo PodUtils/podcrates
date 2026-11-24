@@ -5,9 +5,11 @@
 
 mod common;
 
+use std::time::Duration;
+
 use common::Stand;
 use common::store::fingerprint;
-use pod_incus::{ErrorKind, ImageData, ImageImport, Payload};
+use pod_incus::{AnswerPhase, Client, ErrorKind, ImageData, ImageImport, Payload};
 use tokio::io::AsyncWriteExt;
 
 #[tokio::test]
@@ -107,4 +109,90 @@ async fn a_payload_shorter_than_its_length_is_refused() {
     let e = stand.client().import_image(import).await.unwrap_err();
     assert_eq!(e.class(), pod_core::Class::Usage);
     assert_eq!(e.to_string(), "POST /1.0/images: the payload ended after 5 of its 10 bytes");
+}
+
+/// The answer of incusd that cannot store an upload: 500, then the close
+/// while the client still writes (PodUtils/podvm#653).
+const NO_SPACE: &str = "write /var/lib/incus/images/incus_post_1: no space left on device";
+
+/// An import of 16 MiB, far more than the buffer of the socket.
+fn large_import() -> ImageImport {
+    ImageImport::new(ImageData::Unified(Payload::bytes(vec![0u8; 16 << 20])))
+}
+
+#[tokio::test]
+async fn an_upload_that_incus_refuses_and_closes_gives_the_answer_of_incus() {
+    pod_testkit::need_loopback!();
+    let raw = common::raw::Raw::start(common::error(500, NO_SPACE), common::raw::After::Close);
+    for run in 0..10 {
+        let call =
+            tokio::time::timeout(Duration::from_secs(60), async { raw.client().import_image(large_import()).await });
+        let e = call.await.expect("the call ends").unwrap_err();
+        assert_eq!((e.status(), e.incus_error()), (Some(500), Some(NO_SPACE)), "run {run}: {e:?}");
+        assert_eq!(e.call(), "POST /1.0/images");
+    }
+}
+
+#[tokio::test]
+async fn an_upload_that_incus_closes_with_no_answer_gives_the_error_of_the_write() {
+    pod_testkit::need_loopback!();
+    let raw = common::raw::Raw::start(Vec::new(), common::raw::After::Close);
+    let call = tokio::time::timeout(Duration::from_secs(60), async { raw.client().import_image(large_import()).await });
+    let e = call.await.expect("the call ends").unwrap_err();
+    let ErrorKind::Io(io) = e.kind() else { panic!("{e:?}") };
+    assert!(matches!(io.kind(), std::io::ErrorKind::BrokenPipe | std::io::ErrorKind::ConnectionReset), "{io:?}");
+    // With no reset, the write gives EPIPE and the read its end: the error
+    // is the one of the write.
+    let raw = common::raw::Raw::start(Vec::new(), common::raw::After::Shut);
+    let call = tokio::time::timeout(Duration::from_secs(60), async { raw.client().import_image(large_import()).await });
+    let e = call.await.expect("the call ends").unwrap_err();
+    assert!(matches!(e.kind(), ErrorKind::Io(io) if io.kind() == std::io::ErrorKind::BrokenPipe), "{e:?}");
+}
+
+/// After the cut, the answer is read within 5 s (or `answer_timeout`, where
+/// it is shorter): a whole answer is the answer, a stalled one ends there.
+#[tokio::test(start_paused = true)]
+async fn an_answer_that_stalls_after_a_cut_ends_at_its_short_bound() {
+    pod_testkit::need_loopback!();
+    let raw = common::raw::Raw::start(common::error(500, NO_SPACE), common::raw::After::Hold);
+    let e = raw.client().import_image(large_import()).await.unwrap_err();
+    assert_eq!((e.status(), e.incus_error()), (Some(500), Some(NO_SPACE)), "{e:?}");
+
+    let mut stalled = common::error(500, NO_SPACE);
+    stalled.truncate(stalled.len() - 10);
+    let raw = common::raw::Raw::start(stalled, common::raw::After::Hold);
+    let started = tokio::time::Instant::now();
+    let call =
+        tokio::time::timeout(Duration::from_secs(600), async { raw.client().import_image(large_import()).await });
+    let e = call.await.expect("the call ends at the bound").unwrap_err();
+    assert!(matches!(e.kind(), ErrorKind::AnswerTimeout { phase: AnswerPhase::Body, .. }), "{e:?}");
+    assert_eq!(started.elapsed().as_secs(), 5, "5 s, under the 30 s of answer_timeout");
+
+    let mut settings = raw.settings();
+    settings.answer_timeout = Some(Duration::from_secs(2));
+    let started = tokio::time::Instant::now();
+    let e = Client::new(settings).import_image(large_import()).await.unwrap_err();
+    assert!(matches!(e.kind(), ErrorKind::AnswerTimeout { bound, .. } if bound.as_secs() == 2), "{e:?}");
+    assert_eq!(started.elapsed().as_secs(), 2);
+}
+
+/// An `error` envelope over `max_body` after the cut is refused by size,
+/// with the words of its start: not lost behind the error of the write.
+#[tokio::test]
+async fn an_error_envelope_over_the_bound_after_a_cut_gives_too_large_with_its_words() {
+    pod_testkit::need_loopback!();
+    let start = format!(
+        r#"{{"type":"error","status":"","status_code":0,"operation":"","error_code":500,"error":"{NO_SPACE}","metadata":"#
+    );
+    let mut answer = format!(
+        "HTTP/1.1 500 Internal Server Error\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n",
+        2u64 << 30
+    )
+    .into_bytes();
+    answer.extend_from_slice(start.as_bytes());
+    let raw = common::raw::Raw::start(answer, common::raw::After::Close);
+    let call = tokio::time::timeout(Duration::from_secs(60), async { raw.client().import_image(large_import()).await });
+    let e = call.await.expect("the call ends").unwrap_err();
+    assert!(matches!(e.kind(), ErrorKind::TooLarge { status: 500, .. }), "{e:?}");
+    assert_eq!(e.incus_error(), Some(NO_SPACE));
 }

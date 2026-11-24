@@ -139,12 +139,16 @@ impl Client {
             headers: Vec::new(),
             body: Body::Empty,
         };
+        // An error of the wait names the operation: a caller can read it.
+        let named = |e: Error| e.of_operation(id);
+        // The wait is not read under `answer_timeout`: incus answers it at
+        // the end of the operation or at the limit.
         let reply = match seconds {
-            None => self.envelope(call, request).await?,
+            None => self.envelope_within(call, request, None).await.map_err(named)?,
             Some(seconds) => {
                 let bound = Duration::from_secs(seconds).saturating_add(WAIT_SLACK);
-                match tokio::time::timeout(bound, self.envelope(call, request)).await {
-                    Ok(reply) => reply?,
+                match tokio::time::timeout(bound, self.envelope_within(call, request, None)).await {
+                    Ok(reply) => reply.map_err(named)?,
                     Err(_) => {
                         let status = format!("not final after {} s with no answer of incus", bound.as_secs());
                         return Err(Error::new(call, ErrorKind::Timeout { id: id.to_string(), status }));
@@ -152,7 +156,7 @@ impl Client {
                 }
             }
         };
-        let operation: Operation = crate::envelope::sync(call, reply)?;
+        let operation: Operation = crate::envelope::sync(call, reply).map_err(named)?;
         tracing::debug!(call, id, status = operation.status_code, "incus operation");
         if !operation.is_final() {
             let status = format!("{} ({})", far_text(&operation.status), operation.status_code);

@@ -4,9 +4,11 @@
 
 mod common;
 
+use std::time::Duration;
+
 use common::Stand;
 use pod_core::Class;
-use pod_incus::{Client, ErrorKind, Settings};
+use pod_incus::{AnswerPhase, Client, ErrorKind, Settings};
 
 #[tokio::test]
 async fn the_facts_of_the_server_are_read() {
@@ -84,4 +86,63 @@ async fn the_project_goes_with_each_call() {
         assert_eq!(seen.query.get("project").map(String::as_str), Some("user-1000"), "{seen:?}");
     }
     assert_eq!(stand.seen("GET", "/1.0/instances")[0].query.get("recursion").map(String::as_str), Some("1"));
+}
+
+/// A socket that takes the connection and never answers holds the caller
+/// only to `Settings::answer_timeout` (30 s by default), PodUtils/podvm#653.
+#[tokio::test(start_paused = true)]
+async fn a_server_that_never_answers_gives_answer_timeout_in_the_head() {
+    pod_testkit::need_loopback!();
+    let raw = common::raw::Raw::start(Vec::new(), common::raw::After::Hold);
+    let started = tokio::time::Instant::now();
+    let client = raw.client();
+    let call = tokio::time::timeout(Duration::from_secs(600), client.server());
+    let e = call.await.expect("the call ends at the bound").unwrap_err();
+    assert!(
+        matches!(e.kind(), ErrorKind::AnswerTimeout { phase: AnswerPhase::Head, bound } if *bound == Duration::from_secs(30)),
+        "{e:?}"
+    );
+    assert_eq!(started.elapsed().as_secs(), 30);
+    assert_eq!(e.class(), Class::Timeout);
+    assert_eq!(e.to_string(), "GET /1.0: incus sent no byte of the head of its answer in 30000 ms");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_body_that_stalls_gives_answer_timeout_in_the_body() {
+    pod_testkit::need_loopback!();
+    let head = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{\"type\":".to_vec();
+    let raw = common::raw::Raw::start(head, common::raw::After::Hold);
+    let mut settings = raw.settings();
+    settings.answer_timeout = Some(Duration::from_secs(2));
+    let started = tokio::time::Instant::now();
+    let call = tokio::time::timeout(Duration::from_secs(600), async { Client::new(settings).instances().await });
+    let e = call.await.expect("the call ends at the bound").unwrap_err();
+    assert!(matches!(e.kind(), ErrorKind::AnswerTimeout { phase: AnswerPhase::Body, .. }), "{e:?}");
+    assert_eq!(started.elapsed().as_secs(), 2);
+    assert_eq!(e.call(), "GET /1.0/instances");
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_wait_past_the_answer_bound_still_waits() {
+    pod_testkit::need_loopback!();
+    let stand = Stand::start();
+    stand.state().hold = true;
+    let id = stand.state().new_op("task", serde_json::json!({}));
+    let mut settings = stand.settings();
+    settings.answer_timeout = Some(Duration::from_secs(1));
+    let started = tokio::time::Instant::now();
+    let e = Client::new(settings).wait(&id, Some(Duration::from_secs(60))).await.unwrap_err();
+    assert!(matches!(e.kind(), ErrorKind::Timeout { .. }), "the limit of the wait, not the answer bound: {e:?}");
+    assert_eq!(started.elapsed().as_secs(), 60);
+}
+
+#[tokio::test(start_paused = true)]
+async fn no_answer_bound_waits() {
+    pod_testkit::need_loopback!();
+    let raw = common::raw::Raw::start(Vec::new(), common::raw::After::Hold);
+    let mut settings = raw.settings();
+    settings.answer_timeout = None;
+    let call = tokio::time::timeout(Duration::from_secs(3600), async { Client::new(settings).server().await });
+    assert!(call.await.is_err(), "the call still waits after an hour");
+    assert_eq!(Settings::new("/x").answer_timeout, Some(Duration::from_secs(30)));
 }

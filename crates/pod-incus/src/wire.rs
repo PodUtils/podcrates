@@ -3,16 +3,19 @@
 //! ([`crate::Payload`]): a stream of known length goes with
 //! `Content-Length`, another with `Transfer-Encoding: chunked`. The answer
 //! is read by the HTTP reader of `pod-proxy` (by length, by chunks or to the
-//! end), within a bound.
+//! end), within a bound of size, and with a bound of silence for each read
+//! (`Settings::answer_timeout`).
 
 use std::io;
+use std::pin::Pin;
+use std::task::{Context, Poll, ready};
 use std::time::Duration;
 
 use pod_core::BoxedIo;
-use pod_proxy::http::{Body as AnswerBody, Framing, MAX_HEAD, Response, TooLarge, read_head};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use pod_proxy::http::{Body as AnswerBody, Framing, Idle, MAX_HEAD, Response, TooLarge, read_head};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
-use crate::error::{Error, ErrorKind, Result};
+use crate::error::{AnswerPhase, Error, ErrorKind, Result, Silence};
 use crate::skim::{KEPT_TEXT, Skim};
 use crate::upload::{Part, Upload};
 
@@ -162,9 +165,54 @@ async fn write_piece<S: AsyncWrite + Unpin>(stream: &mut S, bytes: &[u8], chunke
     }
 }
 
-/// The answer of a request, its body of `max_body` bytes at most.
-pub(crate) async fn read(stream: &mut BoxedIo, max_body: usize) -> io::Result<Response> {
-    pod_proxy::http::read_response(stream, Vec::new(), max_body).await
+/// A stream whose each read must make progress within `bound`: a silence
+/// over it is a [`Silence`] of `phase`, which [`Error::io`] makes
+/// [`ErrorKind::AnswerTimeout`]. `None`: no bound.
+pub(crate) struct Quiet<S> {
+    stream: Idle<S>,
+    phase: AnswerPhase,
+    bound: Option<Duration>,
+}
+
+pub(crate) fn quiet<S>(stream: S, phase: AnswerPhase, bound: Option<Duration>) -> Quiet<S> {
+    Quiet { stream: Idle::new(stream, bound), phase, bound }
+}
+
+impl<S: AsyncRead + Unpin> AsyncRead for Quiet<S> {
+    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, out: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+        let this = &mut *self;
+        match ready!(Pin::new(&mut this.stream).poll_read(cx, out)) {
+            Err(e) if e.kind() == io::ErrorKind::TimedOut && this.bound.is_some() => {
+                let silence = Silence { phase: this.phase, bound: this.bound.unwrap_or_default() };
+                Poll::Ready(Err(io::Error::new(io::ErrorKind::TimedOut, silence)))
+            }
+            other => Poll::Ready(other),
+        }
+    }
+}
+
+/// The head of an answer, and the bytes after it that came with it, with
+/// `bound` for each read.
+pub(crate) async fn read_head_within<S: AsyncRead + Unpin>(
+    stream: &mut S,
+    bound: Option<Duration>,
+) -> io::Result<(Response, Vec<u8>)> {
+    read_head(&mut quiet(&mut *stream, AnswerPhase::Head, bound), Vec::new(), MAX_HEAD).await
+}
+
+/// The answer of a request, its body of `max_body` bytes at most, with
+/// `bound` for each read.
+pub(crate) async fn read<S: AsyncRead + Unpin>(
+    stream: &mut S,
+    max_body: usize,
+    bound: Option<Duration>,
+) -> io::Result<Response> {
+    let (mut answer, rest) = read_head_within(stream, bound).await?;
+    let framing = Framing::of(&answer, false);
+    let limit = u64::try_from(max_body).unwrap_or(u64::MAX);
+    let body = AnswerBody::new(quiet(stream, AnswerPhase::Body, bound), rest, framing, Some(limit))?;
+    answer.body = body.of_answer(&answer).to_end().await?;
+    Ok(answer)
 }
 
 /// The most bytes of an `error` envelope that the crate reads past
@@ -179,23 +227,26 @@ pub const MAX_SKIMMED: u64 = 1 << 30;
 pub(crate) async fn read_envelope<S: AsyncRead + Unpin>(
     stream: &mut S,
     max_body: usize,
+    bound: Option<Duration>,
 ) -> io::Result<(Response, bool)> {
-    let (mut answer, rest) = read_head(stream, Vec::new(), MAX_HEAD).await?;
-    let (body, skimmed) = envelope_body(stream, &answer, rest, max_body).await?;
+    let (mut answer, rest) = read_head_within(stream, bound).await?;
+    let (body, skimmed) = envelope_body(stream, &answer, rest, max_body, bound).await?;
     answer.body = body;
     Ok((answer, skimmed))
 }
 
 /// The body of `answer` as [`read_envelope`] reads it, after the head and
-/// the bytes `rest` that came with it.
+/// the bytes `rest` that came with it, with `bound` for each read.
 pub(crate) async fn envelope_body<S: AsyncRead + Unpin>(
     stream: S,
     answer: &Response,
     rest: Vec<u8>,
     max_body: usize,
+    bound: Option<Duration>,
 ) -> io::Result<(Vec<u8>, bool)> {
     let framing = Framing::of(answer, false);
     let limit = u64::try_from(max_body).unwrap_or(u64::MAX);
+    let stream = quiet(stream, AnswerPhase::Body, bound);
     let mut body = AnswerBody::new(stream, rest, framing, Some(limit))?.of_answer(answer);
     let mut whole = Vec::new();
     let mut piece = vec![0u8; CHUNK];

@@ -5,6 +5,11 @@
 //! `metadata.return`. The crate reads each log (`GET
 //! /1.0/instances/NAME/logs/exec-output/FILE`) and deletes it, as the client
 //! of incus does. The command with its websockets is [`crate::attach`].
+//!
+//! incusd 6.0 ends an exec whose command ends with 127 or 126 as a failure
+//! ("Command not found", "Command not executable"), and its wait answers an
+//! error, not the operation (PodUtils/podvm#653). The crate then reads the
+//! operation and takes its `return` as the exit code ([`Client::exec_end`]).
 
 use std::collections::BTreeMap;
 
@@ -12,7 +17,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::client::Client;
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorKind, Result};
 use crate::operation::Operation;
 use crate::wire::{Body, Request, escape};
 
@@ -81,6 +86,10 @@ impl<'a> ExecPost<'a> {
     }
 }
 
+/// The words of incusd for an exec whose command ended with 127 and 126
+/// (`ErrExecCommandNotFound`, `ErrExecCommandNotExecutable`), with the code.
+const FAILED_ENDS: [(&str, i32); 2] = [("Command not found", 127), ("Command not executable", 126)];
+
 pub(crate) fn exec_path(name: &str) -> String {
     format!("/1.0/instances/{}/exec", escape(name))
 }
@@ -106,8 +115,9 @@ impl Client {
         }
         let request = self.json_request(&call, "POST", &path, &ExecPost::of(exec, true))?;
         let started = self.begin(&call, request).await?;
-        let done = self.finish(&call, &started.id, self.settings().wait).await?;
-        let exit_code = exit_code(&call, &done)?;
+        let (exit_code, done) = self.exec_end(&call, &started.id).await?;
+        // incusd dropped the operation, and with it the paths of its logs.
+        let Some(done) = done else { return Ok(ExecOutput { exit_code, stdout: Vec::new(), stderr: Vec::new() }) };
         let output = done.texts("output");
         let logs = format!("/1.0/instances/{}/logs/exec-output/", escape(name));
         let mut streams = [Vec::new(), Vec::new()];
@@ -128,6 +138,37 @@ impl Client {
         }
         let [stdout, stderr] = streams;
         Ok(ExecOutput { exit_code, stdout, stderr })
+    }
+
+    /// The exit code of the exec of the operation `id`, with the final
+    /// operation; `None` for an operation that incusd no longer has. Where
+    /// the wait gives the error of an exec that ended with 127 or 126, the
+    /// operation is read again for its `return`: the caller gets the exit
+    /// code and the logs of a command that ran, as podvm needs. A missing
+    /// operation (404) takes the code of the words; another failure of the
+    /// read is the error of that read.
+    pub(crate) async fn exec_end(&self, call: &str, id: &str) -> Result<(i32, Option<Operation>)> {
+        let e = match self.finish(call, id, self.settings().wait).await {
+            Ok(done) => return Ok((exit_code(call, &done)?, Some(done))),
+            Err(e) => e,
+        };
+        let by_words = match e.kind() {
+            ErrorKind::Incus { status: 400, error, .. } => {
+                FAILED_ENDS.iter().find(|(words, _)| error.trim() == *words).map(|(_, code)| *code)
+            }
+            _ => None,
+        };
+        let Some(by_words) = by_words else { return Err(e) };
+        match self.operation(id).await {
+            Ok(operation) => {
+                // incusd gives these words only for 127 and 126: a missing
+                // or odd `return` takes the code of the words.
+                let code = operation.metadata.get("return").and_then(Value::as_i64).filter(|c| (0..=255).contains(c));
+                Ok((code.map_or(by_words, |code| code as i32), Some(operation)))
+            }
+            Err(read) if read.status() == Some(404) => Ok((by_words, None)),
+            Err(read) => Err(read),
+        }
     }
 }
 

@@ -94,8 +94,12 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
   canceled), `Timeout` (a wait at its limit), `Protocol`, `Unsupported`,
   `Usage`, `Io`, `WebSocket`, `Output` (the writer of the caller refused a write), `TooLarge` (an answer over
   `Settings::max_body`: the HTTP status, the size as `BodySize`, the bound, the first 8 KiB of the body,
-  and the `error` of an `error` envelope in them, which `Error::incus_error` gives). `Error::class` gives the class of
+  and the `error` of an `error` envelope in them, which `Error::incus_error` gives), `AnswerTimeout` (a silence
+  of incus over `Settings::answer_timeout` in the head or the body of an answer). `Error::class` gives the class of
   `pod_core`; `pod_core::Failure::from(error)` is at the stage `host`.
+  `Error::operation` gives the id of the background operation of the call
+  where incus started one (an error of its wait, `Operation`, `Timeout`):
+  a caller can read the operation with `Client::operation`.
 * A body of an answer is read whole within `Settings::max_body` (64 MiB),
   except the body of `get_file_to`, which goes to the writer in pieces.
   An envelope of type `error` over the bound is read on, to
@@ -103,6 +107,19 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
   and "… (N bytes more)": incusd puts the whole stderr of `tar` into the
   error of a full storage pool (PodUtils/podvm#651). Another answer over
   the bound is `ErrorKind::TooLarge`.
+* incus can refuse a body (an upload of an image, a file) before its end
+  and close the connection: incusd that cannot store an upload answers
+  500 ("no space left on device") while the client still writes. After
+  EPIPE or a reset on the write of a body, the crate reads the answer that
+  is already in the socket, as an envelope (an `error` envelope over the
+  bound is cut, as above), within 5 s (or `answer_timeout`, where it is
+  shorter), and gives it. With no head in that time, the error is the
+  `Io` error of the write; a silence in the body is `AnswerTimeout`.
+* SIGPIPE: that write raises SIGPIPE in a process that does not ignore
+  it, and the process ends with no error and no answer of incus. The
+  crate sets no signal. The caller sets SIGPIPE to ignore before its first
+  upload (the runtime of Rust ignores it in a binary, unless the caller
+  set it back to the default).
 * A text of incus in an error is made safe to print. A text over 512
   characters keeps its first 256 characters, the last 128 of its first
   line, and its last 128, with " … " between (call C920): the cause of a
@@ -125,6 +142,18 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
   a command whose other stream fills its buffer. `Attached::wait` closes
   the control socket only after the end of the command, as incus kills a
   command whose control socket closes.
+* An exit of 127 or 126: incusd 6.0 ends such an exec as a failure
+  ("Command not found", "Command not executable"), and its wait answers
+  an error envelope (400, the same words), not the operation
+  (PodUtils/podvm#653). `exec_recorded` and `Attached::wait` then read
+  `GET /1.0/operations/ID` and give its `metadata.return` as the exit code
+  (a missing or odd `return`: the code of the words); `exec_recorded` also
+  reads and deletes the two logs. Where incusd no longer has the operation
+  (404), the words give the code (127, 126) and `exec_recorded` gives empty
+  output: the paths of the logs went with the operation. Another failure of
+  that read is the error of the read. The limit: incusd gives the same
+  answer for a program that is not there and for a command that ran and
+  ended with 127 (or 126); the crate cannot tell them apart.
 * incus pings each socket each 10 s and needs no answer. The crate reads
   the pings of stdout and stderr; those of stdin and control stay in the
   buffer of the socket (about 4 KiB an hour).
@@ -136,7 +165,16 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
 socket of incus, `unix.socket.user`, needs `user-UID`), `user_agent`,
 `connect_timeout` (5 s), `max_body` (64 MiB), `wait` (the limit of each
 wait for an operation; `None`: no limit, `timeout=-1`), `write_timeout`
-(30 s, a frame of a websocket). The crate reads no variable of the
+(30 s, a frame of a websocket), `answer_timeout` (30 s: the limit of the
+silence of incus in an answer, for the head and for each read of the
+body; `None`: no limit). A silence over `answer_timeout` is
+`ErrorKind::AnswerTimeout` with the phase (`AnswerPhase::Head` or
+`AnswerPhase::Body`) and the bound: a socket that takes the connection
+and never answers does not hold the caller (PodUtils/podvm#653). A wait
+for an operation is not read under `answer_timeout`: it keeps its own
+bound (`wait`, or the limit of `Client::wait`, and 30 s more). A read of
+a large body (`get_file_to`) has no bound of its total time, only of each
+read. The crate reads no variable of the
 environment: `INCUS_DIR` and `INCUS_SOCKET` stay with the consumer.
 
 ## What stays in podvm
