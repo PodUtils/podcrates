@@ -12,6 +12,7 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt, ReadBuf};
 use tokio::time::Sleep;
 
+use super::large::{BodySize, KEPT_HEAD, TooLarge, chunk_size};
 use super::{Response, find, invalid};
 
 /// The longest line of a chunk size or of a trailer.
@@ -59,6 +60,15 @@ enum State {
     ChunkEnd,
     Trailers(usize),
     Done,
+    /// Past the bound: the start of the body goes to the refusal, with at
+    /// most `more` bytes of the stream; `fill` reads the stream for them.
+    Over {
+        size: BodySize,
+        more: u64,
+        fill: bool,
+    },
+    /// The refusal was given; each next read gives it again.
+    Refused,
 }
 
 /// The body of one response over `S`: the bytes after the head that were
@@ -75,22 +85,49 @@ pub struct Body<S> {
     left: Option<u64>,
     /// The end of the body is known before the end of the stream.
     framed: bool,
+    /// The bound of the body, for its refusal.
+    bound: Option<u64>,
+    /// The bytes of the body given to the reader.
+    seen: u64,
+    /// The first bytes of the body, [`KEPT_HEAD`] at most, for a refusal;
+    /// kept only where the body has a bound.
+    kept: Vec<u8>,
+    /// The status and the reason of the answer, for a refusal.
+    status: Option<(u16, String)>,
+    refused: Option<TooLarge>,
+    /// The state that [`Body::read_on`] takes after a refusal, and the
+    /// state of the refusal.
+    resume: Option<(State, State)>,
 }
 
 impl<S: AsyncRead + Unpin> Body<S> {
     /// The body of `framing` over `stream`, which starts with `rest`. With
-    /// `limit`, a body larger than `limit` bytes is an `InvalidData` error;
-    /// a `Content-Length` larger than it fails here.
+    /// `limit`, a body larger than `limit` bytes is an `InvalidData` error
+    /// that carries a [`TooLarge`]; a `Content-Length` larger than it fails
+    /// at the first read, with the first bytes of the body.
     pub fn new(stream: S, rest: Vec<u8>, framing: Framing, limit: Option<u64>) -> io::Result<Body<S>> {
+        let mut resume = None;
         let state = match framing {
             Framing::Empty | Framing::Length(0) => State::Done,
-            Framing::Length(length) if limit.is_some_and(|max| length > max) => return Err(too_large()),
+            Framing::Length(length) if limit.is_some_and(|max| length > max) => {
+                let over = State::Over { size: BodySize::Length(length), more: length, fill: true };
+                resume = Some((State::Length(length), over));
+                over
+            }
             Framing::Length(length) => State::Length(length),
             Framing::Chunked => State::ChunkSize,
             Framing::ToEnd => State::ToEnd,
         };
         let framed = framing != Framing::ToEnd;
-        Ok(Body { stream, buf: rest, at: 0, state, left: limit, framed })
+        let (bound, seen, kept, status, refused) = (limit, 0, Vec::new(), None, None);
+        Ok(Body { stream, buf: rest, at: 0, state, left: limit, framed, bound, seen, kept, status, refused, resume })
+    }
+
+    /// The body of `answer`: its status and its reason go into a refusal
+    /// by size.
+    pub fn of_answer(mut self, answer: &Response) -> Body<S> {
+        self.status = Some((answer.status, answer.reason.clone()));
+        self
     }
 
     /// The body was read to its end.
@@ -160,12 +197,101 @@ impl<S: AsyncRead + Unpin> Body<S> {
         }
     }
 
-    /// Take `n` bytes of the body from the bound.
-    fn spend(&mut self, n: u64) -> io::Result<()> {
+    /// Count the bytes given to the reader, and keep the first ones for a
+    /// refusal.
+    fn note(&mut self, given: &[u8]) {
+        self.seen += given.len() as u64;
         if let Some(left) = &mut self.left {
-            *left = left.checked_sub(n).ok_or_else(too_large)?;
+            *left = left.saturating_sub(given.len() as u64);
         }
-        Ok(())
+        if self.bound.is_some() && self.kept.len() < KEPT_HEAD {
+            let n = given.len().min(KEPT_HEAD - self.kept.len());
+            self.kept.extend_from_slice(&given[..n]);
+        }
+    }
+
+    /// The state after a chunk size line.
+    fn after_size(&mut self, size: Result<u64, usize>) -> State {
+        let (size, more) = match (size, self.left) {
+            (Ok(0), _) => return State::Trailers(0),
+            (Ok(size), Some(left)) if size > left => (BodySize::Chunk { before: self.seen, size }, size),
+            (Ok(size), _) => return State::ChunkData(size),
+            (Err(digits), Some(_)) => (BodySize::PastAnyBound { digits }, u64::MAX),
+            (Err(_), None) => return State::ChunkData(u64::MAX),
+        };
+        let over = State::Over { size, more, fill: true };
+        self.resume = Some((State::ChunkData(more), over));
+        over
+    }
+
+    /// Past the bound: copy the start of the body that `size` declared
+    /// into the kept bytes, then the refusal. The copied bytes stay in the
+    /// buffer for [`Body::read_on`].
+    fn poll_refuse(&mut self, cx: &mut Context<'_>) -> Poll<io::Error> {
+        let given = self.given_kept();
+        while let State::Over { more, fill, .. } = self.state {
+            let peeked = self.kept.len().saturating_sub(given);
+            let room = ((KEPT_HEAD - self.kept.len().min(KEPT_HEAD)) as u64).min(more.saturating_sub(peeked as u64));
+            if room == 0 {
+                break;
+            }
+            let have = self.buf.len() - self.at - peeked;
+            if have > 0 {
+                let n = have.min(usize::try_from(room).unwrap_or(usize::MAX));
+                let from = self.at + peeked;
+                self.kept.extend_from_slice(&self.buf[from..from + n]);
+                continue;
+            }
+            if !fill {
+                break;
+            }
+            // A read that ends or fails ends the head: the refusal stays.
+            match self.poll_fill(cx) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Ok(0) | Err(_)) => break,
+                Poll::Ready(Ok(_)) => {}
+            }
+        }
+        let State::Over { size, .. } = self.state else {
+            return Poll::Ready(
+                self.refused.clone().map_or_else(|| invalid("the body was refused"), TooLarge::into_io),
+            );
+        };
+        let (status, reason) = self.status.clone().map_or((None, String::new()), |(s, r)| (Some(s), r));
+        let bound = self.bound.unwrap_or(0);
+        let refusal = TooLarge { status, reason, size, bound, head: self.kept.clone() };
+        self.state = State::Refused;
+        self.refused = Some(refusal.clone());
+        Poll::Ready(refusal.into_io())
+    }
+
+    /// The kept bytes that were given to the reader.
+    fn given_kept(&self) -> usize {
+        usize::try_from(self.seen).unwrap_or(usize::MAX).min(KEPT_HEAD)
+    }
+
+    /// After a refusal by size: read on from the byte where the refusal
+    /// came, with at most `more` bytes more (`None`: no bound). The reader
+    /// that keeps the start of a large answer and drops the rest takes it.
+    /// False where no refusal came: the body is as it was.
+    pub fn read_on(&mut self, more: Option<u64>) -> bool {
+        if !matches!(self.state, State::Over { .. } | State::Refused) {
+            return false;
+        }
+        let Some((state, over)) = self.resume else { return false };
+        let given = self.given_kept();
+        self.kept.truncate(given);
+        let rest = match state {
+            State::Length(rest) | State::ChunkData(rest) => rest,
+            _ => 0,
+        };
+        // A rest that passes the new bound too is refused again.
+        self.state = if more.is_some_and(|more| rest > more) { over } else { state };
+        self.resume = (self.state == over).then_some((state, over));
+        self.left = more;
+        self.bound = more.map(|more| self.seen.saturating_add(more));
+        self.refused = None;
+        true
     }
 }
 
@@ -175,14 +301,17 @@ impl<S: AsyncRead + Unpin> AsyncRead for Body<S> {
         if out.remaining() == 0 {
             return Poll::Ready(Ok(()));
         }
+        let start = out.filled().len();
         loop {
             match this.state {
                 State::Done => return Poll::Ready(Ok(())),
+                State::Over { .. } | State::Refused => return this.poll_refuse(cx).map(Err),
                 State::Length(left) => {
                     let n = ready!(this.poll_take(cx, out, left))?;
                     if n == 0 {
                         return Poll::Ready(Err(cut_short()));
                     }
+                    this.note(&out.filled()[start..]);
                     let left = left - n as u64;
                     this.state = if left == 0 { State::Done } else { State::Length(left) };
                     return Poll::Ready(Ok(()));
@@ -191,7 +320,11 @@ impl<S: AsyncRead + Unpin> AsyncRead for Body<S> {
                 // next bytes go to the buffer and fail there.
                 State::ToEnd if this.left == Some(0) => {
                     if this.buf.len() > this.at || ready!(this.poll_fill(cx))? > 0 {
-                        return Poll::Ready(Err(too_large()));
+                        let size = BodySize::Seen(this.seen + (this.buf.len() - this.at) as u64);
+                        let over = State::Over { size, more: u64::MAX, fill: false };
+                        this.resume = Some((State::ToEnd, over));
+                        this.state = over;
+                        continue;
                     }
                     this.state = State::Done;
                 }
@@ -200,23 +333,20 @@ impl<S: AsyncRead + Unpin> AsyncRead for Body<S> {
                     if n == 0 {
                         this.state = State::Done;
                     }
-                    return Poll::Ready(this.spend(n as u64));
+                    this.note(&out.filled()[start..]);
+                    return Poll::Ready(Ok(()));
                 }
                 State::ChunkSize => {
                     let line = ready!(this.poll_line(cx))?;
-                    let size = chunk_size(&line)?;
-                    this.state = if size == 0 {
-                        State::Trailers(0)
-                    } else {
-                        this.spend(size)?;
-                        State::ChunkData(size)
-                    };
+                    let size = chunk_size(&line).map_err(invalid)?;
+                    this.state = this.after_size(size);
                 }
                 State::ChunkData(left) => {
                     let n = ready!(this.poll_take(cx, out, left))?;
                     if n == 0 {
                         return Poll::Ready(Err(cut_short()));
                     }
+                    this.note(&out.filled()[start..]);
                     let left = left - n as u64;
                     this.state = if left == 0 { State::ChunkEnd } else { State::ChunkData(left) };
                     return Poll::Ready(Ok(()));
@@ -246,18 +376,6 @@ impl<S: AsyncRead + Unpin> AsyncRead for Body<S> {
     }
 }
 
-/// The size of a chunk from its line; its extensions are passed over.
-fn chunk_size(line: &[u8]) -> io::Result<u64> {
-    let line = std::str::from_utf8(line).map_err(|_| invalid("a chunk size line is not text"))?;
-    let hex = line.split(';').next().unwrap_or_default().trim();
-    match u64::from_str_radix(hex, 16) {
-        Ok(size) => Ok(size),
-        // Hex digits past the width of u64: a size larger than any bound.
-        Err(_) if !hex.is_empty() && hex.bytes().all(|b| b.is_ascii_hexdigit()) => Ok(u64::MAX),
-        Err(_) => Err(invalid(format!("bad chunk size {hex:?}"))),
-    }
-}
-
 /// A read of `stream` that takes the end of a TLS stream with no
 /// close_notify as the end of the stream: the length of a framed body is
 /// checked on its own.
@@ -270,10 +388,6 @@ fn poll_read_some<S: AsyncRead>(
         Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => Poll::Ready(Ok(())),
         other => Poll::Ready(other),
     }
-}
-
-fn too_large() -> io::Error {
-    invalid("the response body is larger than allowed")
 }
 
 fn cut_short() -> io::Error {

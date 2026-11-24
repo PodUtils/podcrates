@@ -13206,3 +13206,341 @@ sh scripts/ci/userns-tests.sh
 
 The coordinator names the change in a COORD issue `(to podvm)` and podvm
 answers.
+
+# T-1138: `pod-incus`: an answer over `max_body` is an I/O error with the words of pod-proxy alone, and the caller cannot tell it from another fault (PodUtils/podvm#651)
+
+**Source:** PodUtils/podvm#651 (COORD-235 of podvm, for PodUtils/podrunner#346), ask 2
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm's ask: "pod-incus: a kind of its own for that refusal (for example
+`ErrorKind::TooLarge { status, size, bound, head }`), with a text that
+names the size and the bound. Where the head is the start of an incus
+envelope of type `error`, give its `error` field as far as the head holds
+it (the JSON string up to the cut, unescaped)." podvm detects the refusal
+today from the words of pod-proxy in an `InvalidData` I/O error.
+
+## Premise
+
+- Read: `crates/pod-incus/src/error.rs` (`ErrorKind` is
+  `#[non_exhaustive]`; `Error::io` makes each read fault `Io`).
+- Read: the matches of `ErrorKind` in podvm and podrunner at their heads:
+  podrunner has no `pod_incus`; podvm matches with a wildcard
+  (PodUtils/podvm:crates/podvm/src/incus/space.rs, `transport`;
+  PodUtils/podvm:crates/podvm/src/incus/logs.rs). No match breaks at build.
+  `transport` matches `Io` with the words "larger than allowed": after this
+  change that arm sees no refusal, and the refusal falls to `_`
+  (T-1143).
+
+## Approach
+
+`ErrorKind::TooLarge { status, size, bound, head, error }` beside the
+other kinds; `size` is `pod_proxy::http::BodySize` (re-exported as
+`pod_incus::BodySize`). `Error::io` makes each I/O error that carries a
+`pod_proxy::http::TooLarge` this kind, so each read of the crate gives it.
+`error` is the `error` of an envelope of type `error` in the head, up to
+the cut, unescaped (the skim of T-1139 reads it). `Error::incus_error`
+gives it. The class stays that of `InvalidData`. The text: "CALL: the
+answer of incus (HTTP STATUS) is larger than allowed: SIZE, over the bound
+of BOUND bytes; incus said: ERROR" (or "the body starts with HEAD").
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features --test too_large
+```
+
+## Done
+
+2026-11-24, this commit. `ErrorKind::TooLarge { status, size, bound,
+head, error }` (`crates/pod-incus/src/error.rs`); `Error::io` makes each
+I/O error that carries a `TooLarge` this kind; `error` is the
+`error` of an `error` envelope in the head, unescaped up to the cut
+(`Skim::partial_error`); `Error::incus_error` gives it;
+`pod_incus::BodySize` re-exports the size. The text: "GET
+/1.0/instances: the answer of incus (HTTP 200) is larger than allowed: a
+chunk of N bytes, over the bound of 65536 bytes; the body starts with
+..." or "...; incus said: WORDS". Consumers: `ErrorKind` is
+`non_exhaustive`, and podvm matches it with a wildcard, so no build
+breaks; podvm's match of the words in `Io` gives no refusal after this
+change (T-1143, the release notes). Tests of
+`crates/pod-incus/tests/too_large.rs`:
+`an_answer_of_another_type_over_the_bound_is_refused_by_name`,
+`a_refusal_gives_the_error_of_the_start_of_an_envelope`,
+`a_content_length_over_the_bound_is_refused_with_its_size`;
+`a_file_larger_than_max_body_is_read_in_pieces` of `tests/files.rs` now
+matches the kind. 494 passed in the run of T-1137.
+
+
+# T-1139: `pod-incus`: an `error` envelope over `max_body` is refused by size, and the words of incusd go (PodUtils/podvm#651)
+
+**Source:** PodUtils/podvm#651 (COORD-235 of podvm, for PodUtils/podrunner#346), ask 3
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm's ask: "an error envelope can be read past the bound. The useful
+part of incusd's error is its start; the rest is a repeat. A read of an
+envelope that keeps the first bytes of `error` (for example 64 KiB) and
+drops the rest, up to a hard limit, gives `ErrorKind::Incus` or
+`ErrorKind::Operation` with incusd's own words in place of a size
+refusal." podvm measured one chunk of 108,198,406 bytes for 400,000
+files.
+
+## Premise
+
+- Read: `crates/pod-incus/src/client.rs` (`Client::envelope` reads the
+  whole answer within `max_body`, then `envelope::read`).
+- Read: podvm's recording in the issue: the wait answers HTTP 200 and an
+  envelope of type `error` (`error_code` 500), not a sync answer with a
+  failed operation.
+- Not measured: the time of a read of 1 GiB on the socket of incusd.
+
+## Approach
+
+`crate::skim::Skim`: a JSON text made small as it comes. Each string
+keeps its first `KEPT_TEXT` (64 KiB) bytes, cut before an escape or a
+UTF-8 character, never in a key, and ends with "… (N bytes more)"; a lone
+high surrogate at the cut goes. It notes the top-level `type` and where
+the top-level `error` starts. `wire::read_envelope` (and
+`wire::envelope_body` for the refusal answers of exec's websocket and of
+`get_file_to`) reads within `max_body`; at a refusal whose head can be an
+`error` envelope, it skims the bytes that it has, calls
+`Body::read_on(MAX_SKIMMED - max_body)` (T-1137) and skims the rest as it
+comes. `MAX_SKIMMED` is 1 GiB. A body of another type, a skim larger
+than `max_body` (the structure alone), or the hard limit keep the refusal
+(`ErrorKind::TooLarge`). A sync answer over the bound stays a refusal:
+its cut strings would be wrong data.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features --test too_large
+cargo test -p pod-incus --all-features --lib skim
+```
+
+## Done
+
+2026-11-24, this commit. `crates/pod-incus/src/skim.rs` (`Skim`,
+`KEPT_TEXT` 64 KiB) and `wire::read_envelope`, `wire::envelope_body`,
+`wire::MAX_SKIMMED` (1 GiB); `Client::envelope`, the refusal of exec's
+websocket and the refusal of `get_file_to` read through them. A skim
+larger than `max_body` and one kept string keeps the refusal. Tests:
+`an_error_envelope_over_the_bound_gives_the_words_of_incus` (the wait
+answers one chunk of 3 MiB with `max_body` 64 KiB: `ErrorKind::Incus`
+500, the text has "Cannot open: No space left on device" and ends with
+"bytes more)"), the lib tests
+`a_long_string_keeps_its_start_and_the_rest_stays_json`,
+`a_cut_falls_before_an_escape_or_a_character` (each cut in an escape, a
+surrogate pair and a UTF-8 character gives JSON) and
+`the_start_of_an_envelope_gives_the_error_up_to_the_cut`. 494 passed in
+the run of T-1137.
+
+
+# T-1140: `pod-incus`: a text of incus cut at 512 characters loses the cause after a long command line and a path (PodUtils/podvm#651)
+
+**Source:** PodUtils/podvm#651 (COORD-235 of podvm, for PodUtils/podrunner#346), ask 4
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm measured with 150,000 files: one chunk of 17,309,840 bytes, read
+whole, and the error "incus refused the call (500, error_code 500):
+Failed creating instance from image: Unpack failed: Failed to run: tar
+--wildcards ... -xf -: exit status 2 (tar: rootfs/..." cut at 512
+characters by `far_text`: "the command line of `tar` and one long path
+fill the 512 characters, so the words 'No space left on device' are cut
+away". The ask: "Keep the end of the first line of the stderr part too,
+or cut a longer text as head and tail. podcrates decides the form."
+
+## Premise
+
+- Read: `crates/pod-incus/src/error.rs` (`far_text`: `one_line`, then the
+  first 512 characters and "…"), and its users (`envelope.rs`,
+  `operation.rs`, `attach.rs`).
+- Read: the form of the error of incusd in the issue: a Go error that
+  wraps the stderr of `tar`; the first line of the stderr ends with the
+  cause, each next line repeats it for another file.
+
+## Approach
+
+Call C920: a text over 512 characters keeps its first 256 characters,
+the last 128 characters of its first line (where the first line is
+longer than the start), and its last 128 characters, with " … " where a
+part goes. A first line within the start gives the last 256 characters.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features --lib error
+```
+
+## Done
+
+2026-11-24, this commit. `far_text` keeps its first 256 characters, the
+last 128 of its first line and its last 128, with " … " between (call
+C920). Tests of `crates/pod-incus/src/error.rs`:
+`error::tests::a_long_text_keeps_the_end_of_its_first_line_and_its_end`
+(podvm's text: the command line of `tar`, a long path, "Cannot open: No
+space left on device", 200 lines more) and
+`error::tests::a_short_text_and_a_long_line_are_cut_by_the_same_rule`.
+Both fail on the old cut of 512 characters (shown once: 2 failed). 494
+passed in the run of T-1137.
+
+
+# T-1141: `pod-incus`: no read of a storage pool, of the room of a pool, or of an image that incus has (PodUtils/podvm#651)
+
+**Source:** PodUtils/podvm#651 (COORD-235 of podvm, for PodUtils/podrunner#346), ask 5
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm's ask: "`Client::storage_pool(name)` (driver, `config.source`) and
+`Client::storage_pool_resources(name)` (`GET
+/1.0/storage-pools/NAME/resources`: `space.total`, `space.used`,
+`inodes.total`, `inodes.used`), and `Client::image(fingerprint)` with its
+`size`. podvm then reads the room of a pool through incusd (also for a
+pool with a `source` of an incusd in its own mount namespace) and checks
+the create of an image that incus already has."
+
+## Premise
+
+- Read: `shared/api/storage_pool.go` (`StoragePool`: `name`, `driver`,
+  `description`, `config`, `used_by`, `status`, `locations`),
+  `shared/api/resource.go` (`ResourcesStoragePool`: `space` and `inodes`,
+  each `used` and `total`, `used` with `omitempty`) and
+  `shared/api/image.go` (`Image`: `fingerprint`, `size`, `filename`,
+  `architecture`, `type`, `public`, `properties`, `aliases`) of lxc/incus,
+  as the README of the crate names them.
+- Not measured: a real incusd.
+
+## Approach
+
+`crates/pod-incus/src/storage.rs`: `StoragePool` (`source()`),
+`PoolResources` (`space`, `inodes`, `free_bytes`, `free_inodes`), `Image`
+(`size`, `kind` of `type`, `aliases` as `ImageAliasName`), and
+`Client::storage_pool`, `Client::storage_pool_resources`,
+`Client::image` (`None` at a 404, as `Client::alias`). The stand-in of
+the tests answers the three paths.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features --test too_large a_pool_its_room_and_an_image_are_read
+cargo test -p pod-incus --all-features --lib storage
+```
+
+## Done
+
+2026-11-24, this commit. `crates/pod-incus/src/storage.rs`:
+`Client::storage_pool` (`StoragePool`, `source()`),
+`Client::storage_pool_resources` (`PoolResources`, `PoolSpace`,
+`PoolInodes`, `free_bytes`, `free_inodes`), `Client::image`
+(`Option<Image>`, `None` at 404; `Image::size`, `kind`, `aliases` of
+`ImageAliasName`). The stand-in answers the three paths. Tests:
+`a_pool_its_room_and_an_image_are_read` of `tests/too_large.rs` and the
+lib test `the_resources_of_a_pool_read_resource_go`. 494 passed in the
+run of T-1137.
+
+
+# T-1142: `pod-hostprobe`: `sys::Statfs` has no `f_bfree`, so a check for a daemon of root cannot name the blocks kept for root (PodUtils/podvm#651)
+
+**Source:** PodUtils/podvm#651 (COORD-235 of podvm, for PodUtils/podrunner#346), ask 6
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm's ask: "pod-hostprobe `sys::Statfs`: `f_bfree` beside `f_bavail`
+(the free blocks of root), so that a check for a daemon of root can name
+both."
+
+## Premise
+
+- Read: `crates/pod-hostprobe/src/sys/statfs.rs` (`Statfs` from the
+  `statfs64` of `linux_raw_sys`, which has `f_bfree`). No consumer builds
+  a `Statfs` with its fields (podvm, podrunner, podssh, podnet at their
+  heads); it derives `Default`.
+
+## Approach
+
+`Statfs::f_bfree` from `raw.f_bfree`. The test of the wide struct holds
+`f_bavail <= f_bfree <= f_blocks` for `/`.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features --lib statfs_reads_the_wide_struct_on_each_width
+```
+
+## Done
+
+2026-11-24, this commit. `Statfs::f_bfree` from `raw.f_bfree`
+(`crates/pod-hostprobe/src/sys/statfs.rs`); the README names the field.
+`statfs_reads_the_wide_struct_on_each_width` holds `f_bavail <= f_bfree
+<= f_blocks` for `/`. 494 passed in the run of T-1137.
+
+
+# T-1143: podvm's class of a refusal by size reads the words of an `Io` error, and finds none after T-1138
+
+**Source:** T-1138 (PodUtils/podvm#651, for PodUtils/podrunner#346)
+**Category:** chore
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm's `incus::space::transport`
+(PodUtils/podvm:crates/podvm/src/incus/space.rs) gives `Transport::TooLarge`
+for `ErrorKind::Io` with the kind `InvalidData` and the words "larger than
+allowed". After T-1138 the refusal is `ErrorKind::TooLarge`, and an
+`error` envelope over the bound is `ErrorKind::Incus` (T-1139): the match
+builds (`ErrorKind` is `non_exhaustive` and podvm has a wildcard), but it
+gives `Transport::None`, and podvm's line of the free space after the
+failure goes. The release notes name it.
+
+## Premise
+
+- Read: PodUtils/podvm at its head: `space.rs` (`transport`,
+  `after_failure`) and its test file `space_tests.rs`.
+
+## Approach
+
+Name the change in the COORD answer to PodUtils/podvm#651 with the tag
+that has T-1137 to T-1142: podvm matches `ErrorKind::TooLarge` (its
+`size`, `bound` and `error`), reads the room with
+`Client::storage_pool_resources`, and drops the match of the words and its
+`statfs` path, as its issue says.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features --test too_large
+```
+
+## Start condition
+
+The coordinator answers PodUtils/podvm#651 with the tag, and podvm takes
+it.

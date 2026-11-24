@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**908 entries: 153 open, 27 partial, 7 blocked, 721 done.**
+**916 entries: 155 open, 27 partial, 7 blocked, 727 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 215 | 229 |
-| P2 | 70 | 7 | 4 | 375 | 456 |
+| P1 | 4 | 10 | 0 | 219 | 233 |
+| P2 | 72 | 7 | 4 | 377 | 460 |
 | P3 | 79 | 10 | 3 | 129 | 221 |
-| **All** | 153 | 27 | 7 | 721 | 908 |
+| **All** | 155 | 27 | 7 | 727 | 916 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -955,3 +955,11 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1133](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: an enrolment through a dead proxy loses the stage Proxy, and an answer that is not JSON shows no word of its body (PodUtils/podnet#707, ask 9) |
 | [T-1134](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: the chain of a refused origin says the error of I/O two times (PodUtils/podnet#707, ask 10) |
 | [T-1135](adapters.md) | P3 | M | M3 | defect | open | `pod-cloudflare`: each failure of `fail::caused`, `or_fail` and `wrap` holds the text of its cause and the cause, so a reader that joins each text of the chain says the cause two times |
+| [T-1137](transport.md) | P1 | S | M1 | feature | done | `pod-proxy`: a body over the bound is refused with no status, no size, no bound and no byte of the body (PodUtils/podvm#651) |
+| [T-1138](podvm.md) | P1 | S | M6 | feature | done | `pod-incus`: an answer over `max_body` is an I/O error with the words of pod-proxy alone, and the caller cannot tell it from another fault (PodUtils/podvm#651) |
+| [T-1139](podvm.md) | P1 | S | M6 | feature | done | `pod-incus`: an `error` envelope over `max_body` is refused by size, and the words of incusd go (PodUtils/podvm#651) |
+| [T-1140](podvm.md) | P1 | S | M6 | defect | done | `pod-incus`: a text of incus cut at 512 characters loses the cause after a long command line and a path (PodUtils/podvm#651) |
+| [T-1141](podvm.md) | P2 | S | M6 | feature | done | `pod-incus`: no read of a storage pool, of the room of a pool, or of an image that incus has (PodUtils/podvm#651) |
+| [T-1142](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: `sys::Statfs` has no `f_bfree`, so a check for a daemon of root cannot name the blocks kept for root (PodUtils/podvm#651) |
+| [T-1143](podvm.md) | P2 | S | M6 | chore | open | podvm's class of a refusal by size reads the words of an `Io` error, and finds none after T-1138 |
+| [T-1144](transport.md) | P2 | M | M3 | feature | open | `pod-term`: a sans-IO 7-bit transfer codec for a pty that damages ZMODEM (PodUtils/podssh#346) |

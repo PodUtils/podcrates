@@ -98,15 +98,15 @@ is done. Git and the record keep finished work.
      (call C780): podrunner took `v0.81.0` in PodUtils/podrunner#340,
      podnet in PodUtils/podnet#654, podssh in PodUtils/podssh#337, and
      podvm took `v0.82.0` in PodUtils/podvm#645.
-   - `v0.82.0` (`51c09390`) is tagged directly without `release.yml`:
-     `publish.yml` 45122406747 passed on `v0.82.0`, while `ci.yml`
-     45122401625 failed on `turn-tests.sh` (fixed at `07d4cc4f`). Thus
-     `v0.82.0` has no GitHub release, no signed `SHA256SUMS`, no `podlab`
-     or fake assets, no `ghcr.io` images and no hand-off COORD issue.
-     podnet (`4df28952`), podssh (`e728db9f`) and podvm (`4fa56ec` to
-     `a43e80cd`) pin `v0.82.0`; podrunner stays on `v0.81.0`.
-   - Next release: the release commit of `v0.82.1` is on `main` and
-     waits for `release.yml` ("Releases: v0.82.0 and v0.82.1", below).
+   - `v0.82.1` (`0d7832b`, `docs/releases/v0.82.1.md`) is the last GitHub
+     release with `release.yml` assets and `ghcr.io` images: the GitHub
+     release, the signed `SHA256SUMS`, the assets and the images of
+     `ghcr.io/podutils`. Its hand-off COORD-152 (#257) is open (call
+     C780): it closes when each consumer names `v0.82.1` or a later tag.
+   - `v0.82.0` (`51c09390`) is tagged without `release.yml`: it has no
+     GitHub release and no images. `v0.82.1` carries its content. podnet
+     (`4df28952`), podssh (`e728db9f`) and podvm (`4fa56ec` to
+     `a43e80cd`) name `v0.82.0`; podrunner names `v0.81.0`.
    - The pushes of a cloud session of this account start no run of
      GitHub Actions: dispatch workflows via the GitHub MCP tool first,
      and use `[gh action] requested` (#255 is the last) when dispatch
@@ -131,31 +131,23 @@ is done. Git and the record keep finished work.
     `TMPDIR=/tmp`): a long one makes the socket paths of `pod-guest` too
     long for `sun_path` (T-920).
 
-## Releases: v0.82.0 and v0.82.1
+## Release: v0.82.1
 
-`v0.82.0` (`51c09390`, `docs/releases/v0.82.0.md`) is tagged without a
-`release.yml` run: it has no GitHub release, no signed `SHA256SUMS`, no
-assets, no `ghcr.io` images and no hand-off. Its content is in `v0.82.1`
-(call C818).
+`v0.82.1` (`0d7832b`, `docs/releases/v0.82.1.md`) is released: the GitHub
+release, the signed `SHA256SUMS`, the assets and the images of
+`ghcr.io/podutils` exist. It carries `v0.82.0` (`51c09390`,
+`docs/releases/v0.82.0.md`, tagged without `release.yml`) and each change
+of `main` after it.
 
-The release commit of `v0.82.1` (`docs/releases/v0.82.1.md`) is on `main`:
-the version of the workspace and of each workspace dependency is 0.82.1,
-and `schemas/CHANGES.md` sets the `run-report.v1` row to `v0.82.1`. The
-tag waits for `release.yml`:
-
-1. Wait for the green `ci.yml` run of the release commit (`release.yml`
-   refuses a commit with no green `ci`).
-2. Run `release.yml` with no input (a dry run), then with
-   `version=0.82.1` (`docs/maintenance.md`, "A release", steps 3 to 5).
-   The steps that run on a tag only are not tested by the dry run.
-3. Open the hand-off COORD issue `(to all)` (call C780). It carries the
-   parts of `v0.82.0` that podrunner has not taken, and the asks of each
-   consumer of `docs/releases/v0.82.1.md`, "How a consumer takes it":
-   podrunner T-1110 (`service_account()`) and PodUtils/podrunner@T-595
-   (T-1098); podvm T-1124 (`pod_enter::joinable`), `Plan::relay_title` and
-   `pod_hostprobe::usage`; podnet T-1117 (the limits 110 s and 210 s);
-   podssh iroh 1.4.2, `Unit::public`, `older_mark`, `write_checked` and
-   `bind_staged`.
+The hand-off COORD-152 (#257) is open (call C780). It carries the parts of
+`v0.82.0` that podrunner has not taken, and the asks of each consumer of
+`docs/releases/v0.82.1.md`, "How a consumer takes it": podrunner T-1110
+(`service_account()`) and PodUtils/podrunner@T-595 (T-1098); podvm T-1124
+(`pod_enter::joinable`), `Plan::relay_title` and `pod_hostprobe::usage`;
+podnet T-1117 (the limits 110 s and 210 s); podssh iroh 1.4.2,
+`Unit::public`, `older_mark`, `write_checked` and `bind_staged`. Amend its
+body at each take. The tag that each consumer names: `v0.82.0` (podnet,
+podssh, podvm), `v0.81.0` (podrunner).
 
 T-963 is partial. T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks
 their release part) are open.

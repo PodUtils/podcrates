@@ -107,9 +107,9 @@ impl Client {
                 return Ok(FileRead { meta, start: range.start, written: 0, size: total(), ended: true });
             }
             status => {
-                let max = u64::try_from(self.settings().max_body).unwrap_or(u64::MAX);
-                let body = AnswerBody::new(&mut stream, rest, framing, Some(max)).map_err(io)?;
-                return Err(refused(&call, status, &answer.reason, &body.to_end().await.map_err(io)?));
+                let max = self.settings().max_body;
+                let (body, _) = wire::envelope_body(&mut stream, &answer, rest, max).await.map_err(io)?;
+                return Err(refused(&call, status, &answer.reason, &body));
             }
         };
         let meta = meta_of(&call, &answer)?;

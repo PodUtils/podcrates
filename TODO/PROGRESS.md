@@ -1,29 +1,27 @@
 # Progress
 
-`TODO/INDEX.md` holds 908 entries: 153 open, 27 partial, 7 blocked, 721 done.
+`TODO/INDEX.md` holds 916 entries: 155 open, 27 partial, 7 blocked, 727 done.
 
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
 - Last GitHub release with `release.yml` assets and `ghcr.io` images:
-  `v0.81.0` at `0707cfa` (`docs/releases/v0.81.0.md`). Its hand-off
-  COORD-151 (#254) is closed (call C780): each consumer names `v0.81.0`
-  or a later tag. The next hand-off (`v0.82.1`, opened by the coordinator
-  after the release) carries the parts of `v0.82.0` that podrunner has not
-  taken.
-- `v0.82.0` (`51c09390`, `docs/releases/v0.82.0.md`) is tagged without
-  `release.yml`. The release commit of `v0.82.1`
-  (`docs/releases/v0.82.1.md`, call C818) is on `main`: it carries the
-  content of `v0.82.0` and each change of `main` after it. It waits for
-  the green `ci.yml` run and `release.yml` (`docs/HANDOFF.md`, "Releases:
-  v0.82.0 and v0.82.1"), so podrunner (PodUtils/podrunner#339) gets
-  release assets, `ghcr.io` images and a hand-off COORD issue. T-963 is
-  partial. T-975 and T-977 (podvm's asks) are open: their code is not on
-  `main`. `release.yml` has steps that run on a tag only, which the dry
-  run does not test (T-974; `docs/maintenance.md`, "A release").
+  `v0.82.1` at `0d7832b` (`docs/releases/v0.82.1.md`, call C818). It has
+  the GitHub release, the signed `SHA256SUMS`, the assets and the images
+  of `ghcr.io/podutils`. It carries `v0.82.0` (`51c09390`,
+  `docs/releases/v0.82.0.md`, tagged without `release.yml`) and each
+  change of `main` after it. Its hand-off COORD-152 (#257) is open
+  (call C780): it closes when each consumer names `v0.82.1` or a later
+  tag. The hand-off COORD-151 (#254) of `v0.81.0` is closed.
+- T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
+  not on `main`. `release.yml` has steps that run on a tag only, which the
+  dry run does not test (T-974; `docs/maintenance.md`, "A release").
 - podssh's ask PodUtils/podssh#341 (COORD-134 of podssh): the fork
   `vendor/iroh-relay` at 1.4.2 for iroh 1.4.2 (T-1102, call C905) is in
   `v0.82.1`; T-1103 (iroh 1.5) follows.
+- podssh's ask PodUtils/podssh#346 (COORD-137 of podssh): the sans-IO
+  transfer codec goes into `pod-term` (T-1144); the answer is #258
+  (COORD-153).
 - The tag that the `main` of each consumer names: `v0.82.0` (podnet,
   podssh, podvm), `v0.81.0` (podrunner). The details of the earlier takes
   are on #250 and #254.
@@ -90,7 +88,7 @@ cfb's A-X-18 waits for cfb's answer on #223, call C792),
 T-1118 (podnet writes the `release-index.json` of its releases). Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
-of the consumers: T-1124 (podvm opens `/proc/PID` of the init of a run, which is not dumpable; it takes `pod_enter::joinable`; PodUtils/podvm#646), T-1103 (iroh 1.5 and its fork of iroh-relay, after PodUtils/podssh#341), T-1087 and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU sparse file, the attributes of libarchive alone; PodUtils/podvm#643), T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
+of the consumers: T-1124 (podvm opens `/proc/PID` of the init of a run, which is not dumpable; it takes `pod_enter::joinable`; PodUtils/podvm#646), T-1103 (iroh 1.5 and its fork of iroh-relay, after PodUtils/podssh#341), T-1144 (the sans-IO transfer codec of `pod-term` for a pty that damages ZMODEM; PodUtils/podssh#346, #258), T-1087 and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU sparse file, the attributes of libarchive alone; PodUtils/podvm#643), T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
 for the parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-1032 (the launcher of `pod-supervise` blocks before the start of the payload), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852,
 T-851. Then T-920.
 Then the ruling "Discipline": T-692

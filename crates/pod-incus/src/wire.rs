@@ -9,10 +9,11 @@ use std::io;
 use std::time::Duration;
 
 use pod_core::BoxedIo;
-use pod_proxy::http::Response;
-use tokio::io::{AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use pod_proxy::http::{Body as AnswerBody, Framing, MAX_HEAD, Response, TooLarge, read_head};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::error::{Error, ErrorKind, Result};
+use crate::skim::{KEPT_TEXT, Skim};
 use crate::upload::{Part, Upload};
 
 /// The Host of each request: the name that the client of incus gives its
@@ -164,6 +165,73 @@ async fn write_piece<S: AsyncWrite + Unpin>(stream: &mut S, bytes: &[u8], chunke
 /// The answer of a request, its body of `max_body` bytes at most.
 pub(crate) async fn read(stream: &mut BoxedIo, max_body: usize) -> io::Result<Response> {
     pod_proxy::http::read_response(stream, Vec::new(), max_body).await
+}
+
+/// The most bytes of an `error` envelope that the crate reads past
+/// `max_body`: the rest of its long strings is dropped as it comes.
+pub const MAX_SKIMMED: u64 = 1 << 30;
+
+/// The answer of a request whose body is an envelope. A body over
+/// `max_body` whose start is an envelope of type `error` is read on, to
+/// [`MAX_SKIMMED`] bytes, with each string cut to its first bytes
+/// ([`crate::skim`]); true where it was. Another body over `max_body` is
+/// the refusal by size.
+pub(crate) async fn read_envelope<S: AsyncRead + Unpin>(
+    stream: &mut S,
+    max_body: usize,
+) -> io::Result<(Response, bool)> {
+    let (mut answer, rest) = read_head(stream, Vec::new(), MAX_HEAD).await?;
+    let (body, skimmed) = envelope_body(stream, &answer, rest, max_body).await?;
+    answer.body = body;
+    Ok((answer, skimmed))
+}
+
+/// The body of `answer` as [`read_envelope`] reads it, after the head and
+/// the bytes `rest` that came with it.
+pub(crate) async fn envelope_body<S: AsyncRead + Unpin>(
+    stream: S,
+    answer: &Response,
+    rest: Vec<u8>,
+    max_body: usize,
+) -> io::Result<(Vec<u8>, bool)> {
+    let framing = Framing::of(answer, false);
+    let limit = u64::try_from(max_body).unwrap_or(u64::MAX);
+    let mut body = AnswerBody::new(stream, rest, framing, Some(limit))?.of_answer(answer);
+    let mut whole = Vec::new();
+    let mut piece = vec![0u8; CHUNK];
+    let refused = loop {
+        match body.read(&mut piece).await {
+            Ok(0) => return Ok((whole, false)),
+            Ok(n) => whole.extend_from_slice(&piece[..n]),
+            Err(e) if TooLarge::of(&e).is_some() => break e,
+            Err(e) => return Err(e),
+        }
+    };
+    let mut skim = Skim::new(KEPT_TEXT);
+    skim.feed(&whole);
+    drop(whole);
+    let head = TooLarge::of(&refused).map(|refusal| refusal.head.clone()).unwrap_or_default();
+    let mut ahead = Skim::new(KEPT_TEXT);
+    ahead.feed(&head);
+    if !ahead.may_be_error() || !body.read_on(Some(MAX_SKIMMED.saturating_sub(limit))) {
+        return Err(refused);
+    }
+    loop {
+        let n = body.read(&mut piece).await?;
+        if n == 0 {
+            break;
+        }
+        skim.feed(&piece[..n]);
+        // A body of another type, or one whose structure passes the bound
+        // and one kept string, keeps the refusal.
+        if !skim.may_be_error() || skim.len() > max_body.saturating_add(KEPT_TEXT) {
+            return Err(refused);
+        }
+    }
+    if skim.top_type() != Some("error") {
+        return Err(refused);
+    }
+    Ok((skim.finish(), true))
 }
 
 /// `text` with each byte that is not unreserved (RFC 3986 section 2.3)

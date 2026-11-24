@@ -154,6 +154,9 @@ fn statfs_reads_the_wide_struct_on_each_width() {
     let (bsize, files, ffree) = (fs.f_bsize, fs.f_files, fs.f_ffree);
     assert!(bsize > 0 && (bsize as u64).is_power_of_two(), "f_bsize {bsize}");
     assert!(ffree <= files, "f_ffree {ffree}, f_files {files}");
+    // The blocks for root hold those for a user, and the size holds both.
+    let (bavail, bfree, blocks) = (fs.f_bavail, fs.f_bfree, fs.f_blocks);
+    assert!(bavail <= bfree && bfree <= blocks, "f_bavail {bavail}, f_bfree {bfree}, f_blocks {blocks}");
 }
 
 /// `f_type` is the magic of the file system: a proc on `/proc` gives

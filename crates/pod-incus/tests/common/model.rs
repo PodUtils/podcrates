@@ -60,6 +60,9 @@ pub struct State {
     pub signals: Vec<i64>,
     /// The `Range` of a request is ignored: the whole file with 200.
     pub ignore_range: bool,
+    /// Each request of this method and path start gets these bytes as its
+    /// whole answer: a head and a body that a test makes.
+    pub raw: Option<(String, String, Vec<u8>)>,
 }
 
 impl State {
@@ -151,6 +154,12 @@ pub async fn answer(shared: &Arc<Shared>, seen: Seen) -> Vec<u8> {
             && path.starts_with(p.as_str())
         {
             return error(*status, words);
+        }
+        if let Some((m, p, bytes)) = &state.raw
+            && *m == method
+            && path.starts_with(p.as_str())
+        {
+            return bytes.clone();
         }
     }
     let parts: Vec<&str> = path.trim_start_matches('/').split('/').collect();
@@ -248,6 +257,25 @@ pub async fn answer(shared: &Arc<Shared>, seen: Seen) -> Vec<u8> {
             "used_by": []
         })),
         ("GET", ["1.0", "profiles", _]) => error(404, "Profile not found"),
+        ("GET", ["1.0", "storage-pools", "default"]) => sync(json!({
+            "name": "default", "driver": "dir", "description": "", "status": "Created",
+            "config": {"source": "/var/lib/incus/storage-pools/default"}, "used_by": ["/1.0/profiles/default"],
+            "locations": ["none"]
+        })),
+        ("GET", ["1.0", "storage-pools", "default", "resources"]) => sync(json!({
+            "space": {"used": 341_835_776u64, "total": 376_438_784u64},
+            "inodes": {"used": 102_389, "total": 102_400}
+        })),
+        ("GET", ["1.0", "storage-pools", ..]) => error(404, "Storage pool not found"),
+        ("GET", ["1.0", "images", fingerprint]) if fingerprint.starts_with("ab12") => sync(json!({
+            "auto_update": false, "properties": {"os": "alpine"}, "public": false, "expires_at": "0001-01-01T00:00:00Z",
+            "profiles": ["default"], "aliases": [{"name": "podvm/alpine", "description": ""}],
+            "architecture": "x86_64", "cached": false, "filename": "alpine.tar.gz",
+            "fingerprint": "ab12cd", "size": 3_456_789, "update_source": null, "type": "container",
+            "created_at": "2026-11-11T00:00:00Z", "last_used_at": "0001-01-01T00:00:00Z",
+            "uploaded_at": "2026-11-11T00:00:00Z", "project": "default"
+        })),
+        ("GET", ["1.0", "images", _]) => error(404, "Image not found"),
         ("GET", ["1.0", "metrics"]) => {
             let text = "# TYPE incus_memory_OOM_kills_total counter\n\
                         incus_memory_OOM_kills_total{name=\"web\",project=\"default\",type=\"container\"} 2\n";

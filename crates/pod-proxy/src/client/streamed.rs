@@ -148,7 +148,7 @@ pub(super) async fn start(
     let loud = |e| Failed { failure: reading_failure(e), silent: false };
     let (answer, rest, http11) = http::read_head_versioned(&mut io, first, MAX_HEAD).await.map_err(loud)?;
     let framing = Framing::of(&answer, bounds.head_only);
-    let body = Body::new(Idle::new(io, bounds.idle), rest, framing, bounds.limit).map_err(loud)?;
+    let body = Body::new(Idle::new(io, bounds.idle), rest, framing, bounds.limit).map_err(loud)?.of_answer(&answer);
     let closes = answer
         .headers
         .iter()

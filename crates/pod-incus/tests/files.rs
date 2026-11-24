@@ -8,7 +8,9 @@ mod common;
 use common::Stand;
 use pod_core::Class;
 use pod_incus::files::PIECE;
-use pod_incus::{ByteRange, Client, ErrorKind, FileContent, FileKind, FileWrite, NewInstance, Payload, Source};
+use pod_incus::{
+    BodySize, ByteRange, Client, ErrorKind, FileContent, FileKind, FileWrite, NewInstance, Payload, Source,
+};
 
 async fn instance(stand: &Stand) -> Client {
     let client = stand.client();
@@ -197,7 +199,7 @@ async fn a_file_larger_than_max_body_is_read_in_pieces() {
     settings.max_body = 4096;
     let client = Client::new(settings);
     let e = client.get_file("web", "/log").await.unwrap_err();
-    assert!(matches!(e.kind(), ErrorKind::Io(_)), "{e}");
+    assert!(matches!(e.kind(), ErrorKind::TooLarge { size: BodySize::Length(1_048_576), bound: 4096, .. }), "{e}");
     let mut out = Counted::default();
     let read = client.get_file_to("web", "/log", None, None, &mut out).await.expect("read");
     assert_eq!((read.written, out.written, read.ended), (1 << 20, 1 << 20, true));
