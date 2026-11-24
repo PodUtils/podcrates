@@ -21,7 +21,10 @@
 //! **A second read.** The data of a hidden entry that a link of the same
 //! layer names after it went by before the link was read: the layer is read
 //! again after the last layer, and the entry goes out under the first name
-//! of its group ([`Links::rereads`]). A layer is read again at most once.
+//! of its group ([`Links::rereads`]). The same holds for a file that went
+//! out at its own path when a later entry of the path in its layer replaced
+//! it there, and a link names its inode through a link with no name in the
+//! stream. A layer is read again at most once.
 
 use std::collections::HashMap;
 use std::io::Write;
@@ -77,7 +80,9 @@ enum Bind {
     },
     /// Each name is in the stream as a name of the inode; `lead` holds it.
     Lead(u32),
-    /// No name of the stream holds the inode any more.
+    /// No name of the stream holds the inode any more, and its member is
+    /// not known: a guard, as each file that goes out at its own path keeps
+    /// its member for the layer ([`Links::own`]).
     Lost,
     Reread(Src),
     Merged(u32),
@@ -118,6 +123,10 @@ pub(super) struct Links {
     /// The visible paths of the current layer that hold the inode of a
     /// group with no name.
     leads: HashMap<u32, Vec<u32>>,
+    /// The member of the last file or symlink of the current layer that
+    /// went out at its own path: a later entry of the path takes the name
+    /// from a group of [`Links::leads`], which then reads it again.
+    own: HashMap<u32, u64>,
     rereads: Vec<u32>,
     /// The link entries of the stream.
     pub(super) written: u64,
@@ -149,12 +158,25 @@ impl Links {
             let g = self.find(g);
             self.group(g).names.retain(|n| n.node != node);
         }
+        let own = self.own.remove(&node);
         if visible {
             self.holds.remove(&node);
             for g in self.leads.remove(&node).unwrap_or_default() {
                 if matches!(self.groups[g as usize].bind, Bind::Lead(l) if l == node) {
                     let first = self.groups[g as usize].names.first().map(|n| n.node);
-                    self.group(g).bind = first.map_or(Bind::Lost, Bind::Lead);
+                    self.group(g).bind = match (first, self.groups[g as usize].src, own) {
+                        (Some(f), ..) => Bind::Lead(f),
+                        // No name of the stream holds the inode after this
+                        // entry: a later link to the group reads the member
+                        // again after the last layer.
+                        (None, Some(Src::Own(_, layer)), Some(m)) => {
+                            let src = Src::Hid(layer, m);
+                            self.group(g).src = Some(src);
+                            self.rereads.push(g);
+                            Bind::Reread(src)
+                        }
+                        (None, ..) => Bind::Lost,
+                    };
                 }
             }
         }
@@ -194,7 +216,10 @@ impl Links {
                 self.last.insert(target, Last::Data(member, Some(n.node)));
                 (Src::Hid(layer, member), n.node)
             }
-            None => (Src::Own(target, layer), target),
+            None => {
+                self.own.insert(target, member);
+                (Src::Own(target, layer), target)
+            }
         };
         for &g in &plan.groups {
             self.links(w, trie, g, lead, src)?;

@@ -106,6 +106,7 @@ impl Links {
         }
         self.last.clear();
         self.leads.clear();
+        self.own.clear();
         Ok(())
     }
 

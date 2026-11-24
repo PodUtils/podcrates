@@ -14826,7 +14826,7 @@ they make for an entry below it the mode 0755 under each umask (before:
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14864,6 +14864,49 @@ takes the layers.
 ```sh
 cargo test -p pod-extract --all-features --test flatten_links
 ```
+
+## Done
+
+2026-11-24, this commit.
+
+The change. `Links::own` (`crates/pod-extract/src/flatten/links.rs`)
+keeps, for the current layer, the member of each file or symlink that
+went out at its own path (`Links::wrote`), and `end_layer` clears it. When
+a later entry of the path takes the name from a group with no name that
+the path held (`Links::replace`), the group takes `Bind::Reread` of that
+member and goes into the list of the second reads; a later link to the
+group joins its names (`Links::merge`), and the layer is read again
+after the last layer, as for a hidden file. `Bind::Lost` stays as a
+guard for a member that is not known. The README of the crate names the
+case and the memory.
+
+The memory, measured: one layer of 200 000 empty files, `flatten` into a
+sink in release, the peak RSS (`VmHWM` after a reset through
+`/proc/self/clear_refs`) 39.5 MB against 37.4 MB on the code before:
+about 2.1 MB, 11 bytes for each file. The map is of the current layer
+only.
+
+The test. `crates/pod-extract/tests/flatten_links.rs`,
+`a_link_to_an_inode_that_a_second_entry_of_its_path_replaced_takes_the_first_data`:
+one layer with `t` ("one"), `p` linked to `t`, a second `t` ("two"),
+then `q` linked to `p` (in the same layer, or in a newer layer), and a
+newer layer with a file `p`. The tree and the names of each inode of the
+stream are those of `extract` (`q` holds "one"), each link follows its
+target, `rereads` is 1, and `q` is a file entry. Not `support::same`:
+`t` is in the stream two times, in the order of the layer (T-1193). On
+the code before it failed: `flatten refused the layers: the hard link "q"
+names an inode that no name of the stream holds any more (a second entry
+of its path in one layer); flatten cannot write it`. `cargo test -p
+pod-extract --all-features`: 117 unit tests, 20, 11, 3, 7 and 6
+integration tests pass. `cargo clippy -p pod-extract --all-targets
+--all-features -- -D warnings`, `cargo doc -p pod-extract --no-deps
+--all-features` with `-D warnings`, `cargo fmt --all --check` and `cargo
+check --manifest-path fuzz/Cargo.toml` pass; `sh scripts/plant-each.sh
+--apply`: 0 stale.
+
+For the hand-off: `flatten` takes such a layer set, where it failed with
+`Unsupported` before, and reads the layer of the file a second time
+(`Flattened::rereads`). No public item changed.
 
 # T-1270: `pod-extract`: `flatten` drops the extended attributes of a hard-link entry, which `extract` sets on the inode
 
