@@ -27,6 +27,9 @@ const HEADER: usize = 12;
 const RESPONSE: u16 = 0x8000;
 /// The TC bit: the server cut the answer to the size of the transport.
 const TRUNCATED: u16 = 0x0200;
+/// The AA bit: the server holds the zone of the name (RFC 1035, section
+/// 4.1.1).
+const AUTHORITATIVE: u16 = 0x0400;
 const CUT: &str = "not a DNS message: it ends before its last record";
 
 /// The query of `kind` for `name` with the ID `id`, recursion desired, and
@@ -37,19 +40,26 @@ pub fn query(id: u16, name: &str, kind: u16, edns: Option<u16>) -> Result<Vec<u8
     let mut out = wire::query(name, kind)?;
     out[..2].copy_from_slice(&id.to_be_bytes());
     if let Some(size) = edns {
-        if size < PLAIN_SIZE {
-            return Err(format!("an EDNS0 size of {size}: give {PLAIN_SIZE} or more"));
-        }
-        // ARCOUNT 1: the OPT record.
-        out[11] = 1;
-        // The root name, the type, the size in the class, the extended
-        // RCODE, the version and the flags 0, and no options.
-        out.push(0);
-        out.extend_from_slice(&OPT.to_be_bytes());
-        out.extend_from_slice(&size.to_be_bytes());
-        out.extend_from_slice(&[0, 0, 0, 0, 0, 0]);
+        push_opt(&mut out, size)?;
     }
     Ok(out)
+}
+
+/// Append an OPT record of `size` bytes to the message `out`, which has no
+/// record in its additional section, and count it there.
+fn push_opt(out: &mut Vec<u8>, size: u16) -> Result<(), String> {
+    if size < PLAIN_SIZE {
+        return Err(format!("an EDNS0 size of {size}: give {PLAIN_SIZE} or more"));
+    }
+    // ARCOUNT 1: the OPT record.
+    out[11] = 1;
+    // The root name, the type, the size in the class, the extended RCODE,
+    // the version and the flags 0, and no options.
+    out.push(0);
+    out.extend_from_slice(&OPT.to_be_bytes());
+    out.extend_from_slice(&size.to_be_bytes());
+    out.extend_from_slice(&[0, 0, 0, 0, 0, 0]);
+    Ok(())
 }
 
 /// The ID, the name and the type of the first question of a query, for a
@@ -104,9 +114,6 @@ pub fn answer(id: u16, name: &str, kind: u16, records: &[&[u8]], edns: Option<u1
     out[2] |= 0x80;
     out[3] |= 0x80;
     out[6..8].copy_from_slice(&(records.len() as u16).to_be_bytes());
-    if edns.is_some() {
-        out[11] = 1;
-    }
     for record in records {
         // The owner points to the question name at offset 12.
         out.extend_from_slice(&[0xc0, 0x0c]);
@@ -121,21 +128,29 @@ pub fn answer(id: u16, name: &str, kind: u16, records: &[&[u8]], edns: Option<u1
         out.extend_from_slice(&data);
     }
     if let Some(size) = edns {
-        if size < PLAIN_SIZE {
-            return Err(format!("an EDNS0 size of {size}: give {PLAIN_SIZE} or more"));
-        }
-        out.push(0);
-        out.extend_from_slice(&OPT.to_be_bytes());
-        out.extend_from_slice(&size.to_be_bytes());
-        out.extend_from_slice(&[0, 0, 0, 0, 0, 0]);
+        push_opt(&mut out, size)?;
     }
     Ok(out)
 }
 
+/// Set the AA bit of the answer `msg`: the server holds the zone of the
+/// name (RFC 1035, section 4.1.1). A message shorter than its header stays
+/// as it is.
+pub fn set_authoritative(msg: &mut [u8]) {
+    if let Some(flags) = msg.get_mut(2) {
+        *flags |= (AUTHORITATIVE >> 8) as u8;
+    }
+}
+
+/// The RCODE of no error (RFC 1035): with no record, the name exists and
+/// has no record of the type that the query asks for (RFC 2308, NODATA).
+pub const RCODE_NOERROR: u8 = 0;
 /// The RCODE of a server failure (RFC 1035).
 pub const RCODE_SERVFAIL: u8 = 2;
 /// The RCODE of a name that does not exist (RFC 1035).
 pub const RCODE_NXDOMAIN: u8 = 3;
+/// The RCODE of a kind of query that the server does not do (RFC 1035).
+pub const RCODE_NOTIMP: u8 = 4;
 /// The RCODE of a refusal of the server (RFC 1035).
 pub const RCODE_REFUSED: u8 = 5;
 
@@ -175,6 +190,18 @@ pub fn error_answer(request: &[u8], rcode: u8) -> Result<Vec<u8>, String> {
     Ok(out)
 }
 
+/// [`error_answer`] with an OPT record of `edns` bytes when given: the answer
+/// with no record of a server to a query that sent an OPT record, so a
+/// resolver does not take the server for one with no EDNS0 (RFC 6891,
+/// section 7).
+pub fn empty_answer(request: &[u8], rcode: u8, edns: Option<u16>) -> Result<Vec<u8>, String> {
+    let mut out = error_answer(request, rcode)?;
+    if let Some(size) = edns {
+        push_opt(&mut out, size)?;
+    }
+    Ok(out)
+}
+
 /// The data of a TXT record of `bytes`: each 255 bytes as one character
 /// string, with a last string for the rest (and one empty string for no
 /// byte, so an empty record has a length of 1).
@@ -207,6 +234,8 @@ pub struct Answer {
     /// The TC bit: the server cut the answer. `records` holds the records
     /// before the cut.
     pub truncated: bool,
+    /// The AA bit: the server holds the zone of the name.
+    pub authoritative: bool,
     /// The RCODE with the 8 bits of the OPT record above the 4 bits of the
     /// header (RFC 6891, section 6.1.3): 0 is no error, 2 SERVFAIL, 3
     /// NXDOMAIN.
@@ -248,7 +277,8 @@ pub fn read(msg: &[u8], id: u16, name: &str, kind: u16) -> Result<Answer, String
         return Err(format!("the answer has the ID {}, not {id}", word(0)));
     }
     let truncated = (word(2) & TRUNCATED) != 0;
-    let mut answer = Answer { id, truncated, rcode: word(2) & 0x000F, edns: None, records: Vec::new() };
+    let authoritative = (word(2) & AUTHORITATIVE) != 0;
+    let mut answer = Answer { id, truncated, authoritative, rcode: word(2) & 0x000F, edns: None, records: Vec::new() };
     let mut at = HEADER;
     for i in 0..word(4) {
         let (asked, end) = read_name(msg, at)?;

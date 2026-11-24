@@ -125,18 +125,26 @@ pub(crate) fn encode_query(zone: &str, session: u32, counter: u32, payload: &[u8
     Ok(name)
 }
 
+/// The labels of `name` under `zone`, in lower case with no final dot: an
+/// empty string for the zone itself, `None` for a name out of the zone.
+pub(crate) fn under(zone: &str, name: &str) -> Option<String> {
+    // DNS names are case insensitive, and a resolver may send mixed case.
+    let zone = zone.trim_end_matches('.').to_ascii_lowercase();
+    let name = name.trim_end_matches('.').to_ascii_lowercase();
+    if name == zone {
+        return Some(String::new());
+    }
+    name.strip_suffix(zone.as_str()).and_then(|p| p.strip_suffix('.')).map(str::to_string)
+}
+
 /// The session, the counter and the payload of a query `name` under `zone`.
 /// A name that is not under the zone, or whose labels are no base32 of a
 /// header, is an error.
 pub(crate) fn decode_query(zone: &str, name: &str) -> Result<(u32, u32, Vec<u8>), String> {
-    // DNS names are case insensitive, and a resolver may send mixed case.
-    let zone = zone.trim_end_matches('.').to_ascii_lowercase();
-    let name = name.trim_end_matches('.').to_ascii_lowercase();
-    let under = name
-        .strip_suffix(zone.as_str())
-        .and_then(|p| p.strip_suffix('.'))
+    let labels = under(zone, name)
+        .filter(|u| !u.is_empty())
         .ok_or_else(|| format!("the name {name:?} is not under the zone {zone:?}"))?;
-    let chars: String = under.split('.').collect();
+    let chars: String = labels.split('.').collect();
     let blob = base32_decode(&chars)?;
     if blob.len() < HEADER {
         return Err(format!("a query of {} bytes, under the header of {HEADER}", blob.len()));
@@ -176,6 +184,10 @@ mod tests {
         assert_eq!(decode_query(zone, &name.to_uppercase()).unwrap(), (0x1234_5678, 42, payload));
         assert!(encode_query(zone, 1, 1, &vec![0u8; mtu + 1]).is_err());
         assert!(decode_query("other.test", &name).is_err());
+        assert!(decode_query(zone, zone).is_err(), "the zone holds no query");
+        assert_eq!(under(zone, "L.Test."), Some(String::new()));
+        assert_eq!(under(zone, "a.B.l.test").as_deref(), Some("a.b"));
+        assert_eq!(under(zone, "xl.test"), None, "a label that ends as the zone is out of it");
         // A poll has no payload.
         let poll = encode_query(zone, 9, 1, &[]).unwrap();
         assert_eq!(decode_query(zone, &poll).unwrap(), (9, 1, Vec::new()));

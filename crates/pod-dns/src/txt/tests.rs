@@ -92,7 +92,7 @@ fn an_answer_gives_its_txt_strings_its_cnames_and_its_opt_record() {
     let msg = answer(9, 0x8183, TXT, &[], None);
     assert_eq!(
         read(&msg, 9, NAME, TXT).unwrap(),
-        Answer { id: 9, truncated: false, rcode: 3, edns: None, records: Vec::new() }
+        Answer { id: 9, truncated: false, authoritative: false, rcode: 3, edns: None, records: Vec::new() }
     );
     assert_eq!(read(&answer(9, 0x8182, TXT, &[], None), 9, NAME, TXT).unwrap().rcode, 2);
 }
@@ -198,4 +198,25 @@ fn an_error_answer_copies_the_request() {
     assert_eq!(error_answer(&q, RCODE_SERVFAIL).unwrap()[3] & 0x0f, RCODE_SERVFAIL);
     assert!(error_answer(&a, RCODE_SERVFAIL).is_err(), "an answer is no request");
     assert!(error_answer(&q[..14], RCODE_SERVFAIL).is_err(), "a cut question");
+}
+
+/// An empty answer is an error answer with the OPT record of the server
+/// when given; the AA bit is set only on request, and the reader gives it.
+#[test]
+fn an_empty_answer_holds_no_record_and_its_opt_record() {
+    let q = query(0x0102, "a.example", crate::wire::A, Some(EDNS_SIZE)).unwrap();
+    // The request without its OPT record: the error answer copies it.
+    let plain = crate::wire::query("a.example", crate::wire::A).unwrap();
+    let mut a = empty_answer(&q, RCODE_NOERROR, Some(EDNS_SIZE)).unwrap();
+    let found = read(&a, 0x0102, "a.example", crate::wire::A).unwrap();
+    assert_eq!((found.rcode, found.authoritative, found.edns), (0, false, Some(EDNS_SIZE)));
+    assert!(found.records.is_empty());
+    set_authoritative(&mut a);
+    assert!(read(&a, 0x0102, "a.example", crate::wire::A).unwrap().authoritative);
+    let refused = empty_answer(&plain, RCODE_REFUSED, None).unwrap();
+    assert_eq!(refused, error_answer(&plain, RCODE_REFUSED).unwrap(), "no OPT record when none is given");
+    assert!(empty_answer(&q, RCODE_NOERROR, Some(100)).is_err(), "an EDNS0 size under 512");
+    let mut short = vec![0u8; 2];
+    set_authoritative(&mut short);
+    assert_eq!(short, [0, 0], "a message with no flags stays");
 }

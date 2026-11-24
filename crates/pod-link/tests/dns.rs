@@ -2,14 +2,16 @@
 //! over a real authoritative server on the loopback carries streams; the
 //! frames go up in the labels of query names and come down in TXT records;
 //! another key is refused on each side and named; a silent server ends the
-//! dial; a query of a stranger changes nothing; an address or a setting out
-//! of its form is a usage error. `tests/dns_loss.rs` has the loss, the
+//! dial; a query of a stranger changes nothing; each query of the zone that
+//! the listener cannot take gets an answer (T-1164, PodUtils/podssh#349);
+//! an address or a setting out of its form is a usage error. `tests/dns_loss.rs` has the loss, the
 //! reorder and the duplicates over the `Lossy` shim.
 
 #![cfg(feature = "dns")]
 
 mod common;
 
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -17,6 +19,7 @@ use common::dns::{ZONE, at, bound, carrier};
 use common::tcp::{id, ring};
 use common::{echo, limit, pattern};
 use pod_core::Class;
+use pod_dns::txt::{self, TXT};
 use pod_link::dns::{Dns, DnsSettings, EDNS_SIZE};
 use pod_link::tcp::{Refusal, refusal};
 use pod_link::{Carrier, CarrierErrorKind, Cost, Facts, Link, Listener, Role, Settings};
@@ -147,6 +150,66 @@ async fn a_query_of_a_stranger_changes_nothing() {
     timeout(limit(), writer).await.unwrap().unwrap();
     let e = timeout(Duration::from_secs(1), door.accept_key()).await;
     assert!(e.is_err(), "the stranger started no session");
+}
+
+/// The answer of the listener at `server` to the query of `kind` for `name`,
+/// with an OPT record of `edns` bytes when given; `None` when no answer
+/// comes in time.
+async fn ask(server: SocketAddr, name: &str, kind: u16, edns: Option<u16>) -> Option<txt::Answer> {
+    let socket = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    let query = txt::query(0x5a5a, name, kind, edns).unwrap();
+    socket.send_to(&query, server).await.unwrap();
+    let mut buf = vec![0u8; 1 << 16];
+    let wait = pod_testkit::host::scaled(Duration::from_secs(2));
+    let (n, _) = timeout(wait, socket.recv_from(&mut buf)).await.ok()?.unwrap();
+    Some(txt::read(&buf[..n], 0x5a5a, name, kind).expect("an answer to the question"))
+}
+
+/// NOERROR with no record and the AA bit, with the OPT record when the
+/// query sent one.
+fn assert_no_record(answer: Option<txt::Answer>, edns: bool, what: &str) {
+    let answer = answer.unwrap_or_else(|| panic!("{what}: no answer"));
+    assert_eq!((answer.rcode, answer.authoritative), (0, true), "{what}: {answer:?}");
+    assert!(answer.records.is_empty(), "{what}: {answer:?}");
+    assert_eq!(answer.edns.is_some(), edns, "{what}: {answer:?}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn each_query_of_the_zone_that_the_listener_cannot_take_gets_an_answer() {
+    pod_testkit::need_loopback!();
+    let door = bound(&carrier(1, &[id(2).public()])).await;
+    let local = door.local_addr();
+    // A resolver that asks for a part of the name first (RFC 9156) asks for
+    // A records and for the zone itself.
+    let partial = format!("abc.{ZONE}");
+    assert_no_record(ask(local, &partial, pod_dns::wire::A, Some(EDNS_SIZE)).await, true, "an A query");
+    assert_no_record(ask(local, &partial, TXT, Some(EDNS_SIZE)).await, true, "a TXT query of a part of a name");
+    assert_no_record(ask(local, &partial, TXT, None).await, false, "a TXT query with no OPT record");
+    assert_no_record(ask(local, &ZONE.to_uppercase(), TXT, None).await, false, "the zone in upper case");
+    let out = ask(local, "abc.example.org", TXT, Some(EDNS_SIZE)).await.expect("an answer out of the zone");
+    assert_eq!((out.rcode, out.authoritative), (u16::from(txt::RCODE_REFUSED), false), "{out:?}");
+    assert!(out.records.is_empty(), "{out:?}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_dropped_listener_answers_a_new_session_with_no_record() {
+    pod_testkit::need_loopback!();
+    let (server, client) = (id(1), id(2));
+    let mut door = bound(&carrier(1, &[client.public()])).await;
+    let local = door.local_addr();
+    let dialing = carrier(2, &[]).to(local);
+    let address = at(&server.public());
+    let both = async { tokio::join!(dialing.dial(&address), door.accept_key()) };
+    let (near, far) = timeout(limit(), both).await.expect("the dial and the accept in time");
+    // The open session keeps the task of the listener up after the drop.
+    let (_near, _far) = (near.unwrap(), far.unwrap());
+    drop(door);
+    // The task reads the stop before the next query.
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    // Thirteen base32 characters hold the eight bytes of a session and a
+    // counter.
+    let fresh = format!("abcdefghijklm.{ZONE}");
+    assert_no_record(ask(local, &fresh, TXT, Some(EDNS_SIZE)).await, true, "a new session after the drop");
 }
 
 #[tokio::test]
