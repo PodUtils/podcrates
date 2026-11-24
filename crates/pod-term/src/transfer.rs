@@ -6,7 +6,7 @@
 //!
 //! Each byte that it sends is printable ASCII, CR or LF, so a terminal
 //! between the two ends paints it, and the other end reads it back from
-//! the paint. The design is podssh's (`docs/terminal.md`, "The 7-bit
+//! the paint. The design comes from podssh (`docs/terminal.md`, "The 7-bit
 //! envelope (T-831, step 2): the design for pod-term"):
 //!
 //! - The far end paints a trigger line, `#PODSSH-TX1:<S|R>:<id>:<crc>`. The
@@ -28,6 +28,21 @@
 //!   caller writes each [`Event::Write`], and on [`Event::Verified`] (the
 //!   size and the SHA-256 hold) it renames the copy and calls
 //!   [`Transfer::kept`]. At each other [`Event::End`] it removes the copy.
+//! - While the receiver's caller acts (it asks a person about an offer, or
+//!   it renames the copy), the receiver answers each frame of the sender
+//!   that comes again with `HOLD`. The sender counts its [`WAIT`] from the
+//!   last frame of any kind, and sends its frame again after
+//!   [`RESEND_MAX`]. The codec sets no limit on the time of the person.
+//! - The receiver keeps the verdict of the file (its size and SHA-256) for
+//!   [`LINGER`] after `KEPT` ([`Transfer::lingers`]), and answers a `DONE`
+//!   that comes again with the same `KEPT`: the pty can lose `KEPT`. A
+//!   sender that gets no frame in [`WAIT`] after `DONE` ends with
+//!   [`Ended::Unconfirmed`], never with a stop.
+//!
+//! This codec is the source of the frame table and the waits; podssh's
+//! document follows it. A peer of another [`VERSION`] does not start: the
+//! near end shows its trigger and gives [`Event::Unsupported`], and a far
+//! end stops at a `HELO` of another version with [`stop::UNSUPPORTED`].
 //!
 //! The reader of escape sequences is the state machine of
 //! [`crate::grammar`]: a string (OSC, DCS, SOS, PM, APC) is dropped up to
@@ -36,15 +51,18 @@
 use std::time::{Duration, Instant};
 
 mod flow;
+mod linger;
 mod reader;
 mod trigger;
 mod wire;
 
 use flow::Session;
+use linger::Verdict;
 use trigger::Scanner;
 
-/// The version of the trigger and of `HELO`.
-pub const VERSION: u32 = 1;
+/// The version of the trigger and of `HELO`. Version 2 adds `HOLD`, which
+/// a peer of version 1 reads as a kind that it does not know.
+pub const VERSION: u32 = 2;
 /// A trigger cut by the end of a read waits this long for its rest.
 pub const TRIGGER_HOLD: Duration = Duration::from_millis(100);
 /// The ids of the triggers that started a session, kept so that a repaint
@@ -71,6 +89,11 @@ pub const FIRST_WAIT: Duration = Duration::from_secs(120);
 /// bounds.
 pub const RESEND_MIN: Duration = Duration::from_secs(1);
 pub const RESEND_MAX: Duration = Duration::from_secs(5);
+/// The receiver keeps its verdict this long after the hand-over of `KEPT`:
+/// the sender's last frame from the receiver came before `KEPT`, so it sends
+/// `DONE` again for at most [`WAIT`] after it, and the last `DONE` needs one
+/// more [`RESEND_MAX`] on the path.
+pub const LINGER: Duration = WAIT.saturating_add(RESEND_MAX);
 /// An ack in this time doubles the chunk; one after the slow time halves it.
 pub const FAST_ACK: Duration = Duration::from_millis(500);
 pub const SLOW_ACK: Duration = Duration::from_secs(2);
@@ -117,6 +140,10 @@ pub enum Ended {
     Done,
     /// A `STOP` or `SKIP`, sent or read, or five CAN from the peer.
     Stopped { code: u8, by_peer: bool, reason: String },
+    /// The sender: the file and its SHA-256 went, and no frame came in
+    /// [`WAIT`] after `DONE`, so the receiver's verdict is not known. No
+    /// `STOP` went. Say "sent; the receiver did not confirm", not a failure.
+    Unconfirmed,
 }
 
 /// What the caller acts on.
@@ -129,11 +156,13 @@ pub enum Event {
         dir: Dir,
         id: [u8; 8],
     },
-    /// The near end: a trigger of another version; its line was shown.
+    /// The near end: a trigger of another version; its line was shown. Say
+    /// that the far end takes another version of the codec.
     Unsupported {
         version: u32,
     },
-    /// The receiver: a file. Call `take` or `skip`.
+    /// The receiver: a file. Call `take` or `skip`; while the caller asks
+    /// a person, the codec answers the sender with `HOLD`.
     Offer {
         name: String,
         size: u64,
@@ -157,7 +186,8 @@ pub enum Event {
     /// A frame was dropped.
     Damaged,
     /// The receiver: the size and the SHA-256 hold. Rename the copy, then
-    /// call `kept`, or `stop` with [`stop::LOCAL`].
+    /// call `kept`, or `stop` with [`stop::LOCAL`]. The codec answers the
+    /// sender with `HOLD` while the rename runs.
     Verified {
         size: u64,
         sha256: [u8; 32],
@@ -180,11 +210,14 @@ pub struct Transfer {
     out: Vec<u8>,
     events: Vec<Event>,
     width: usize,
+    /// The receiver's verdict after `KEPT`.
+    verdict: Option<Verdict>,
 }
 
 impl Transfer {
     fn new(near: bool, session: Option<Session>) -> Transfer {
-        Transfer { near, scanner: Scanner::default(), session, out: Vec::new(), events: Vec::new(), width: WRAP }
+        let (scanner, out, events) = (Scanner::default(), Vec::new(), Vec::new());
+        Transfer { near, scanner, session, out, events, width: WRAP, verdict: None }
     }
 
     /// The near end: it scans the output of the far end for a trigger.
@@ -223,6 +256,16 @@ impl Transfer {
         self.session.is_some()
     }
 
+    /// Whether this end keeps the verdict of the file that it received: for
+    /// [`LINGER`] after the hand-over of `KEPT`, it answers a `DONE` that
+    /// comes again with the same `KEPT`. The far end that received a file
+    /// reads its input, and calls [`Transfer::tick`] at
+    /// [`Transfer::deadline`], until this is false; then its program exits.
+    /// The near end does the same with its scan of the output.
+    pub fn lingers(&self) -> bool {
+        self.verdict.is_some()
+    }
+
     /// The chunk of the session, for a test or a display.
     pub fn chunk(&self) -> Option<usize> {
         self.session.as_ref().map(Session::chunk)
@@ -230,6 +273,7 @@ impl Transfer {
 
     /// The peer's output.
     pub fn feed(&mut self, bytes: &[u8], now: Instant) -> Vec<Event> {
+        self.expire(now);
         let mut at = 0;
         while at < bytes.len() {
             if let Some(s) = &mut self.session {
@@ -245,9 +289,17 @@ impl Transfer {
                 break;
             }
             if !self.near {
+                if let Some(v) = &mut self.verdict {
+                    v.feed(&bytes[at..], &mut self.out);
+                }
                 break;
             }
-            let Some(start) = self.scanner.feed(&bytes[at..], now, &mut self.events) else { break };
+            let verdict = self.verdict.as_ref();
+            let Some(start) = self.scanner.feed(&bytes[at..], now, &mut self.events, verdict, &mut self.out) else {
+                break;
+            };
+            // A new session clears the verdict.
+            self.verdict = None;
             let mut s = Session::near(start.dir, start.id);
             s.set_width(self.width);
             self.session = Some(s);
@@ -277,6 +329,9 @@ impl Transfer {
         if let Some(s) = &mut self.session {
             out.extend(s.poll(now));
         }
+        if let Some(v) = self.verdict.as_mut().filter(|_| !out.is_empty()) {
+            v.handed(now);
+        }
         out
     }
 
@@ -284,13 +339,16 @@ impl Transfer {
     pub fn deadline(&self) -> Option<Instant> {
         match &self.session {
             Some(s) => s.deadline(),
-            None => self.scanner.deadline(),
+            None => {
+                [self.scanner.deadline(), self.verdict.as_ref().and_then(Verdict::until)].into_iter().flatten().min()
+            }
         }
     }
 
-    /// The time passed: a held trigger shows, a frame goes again, or a wait
-    /// ends the session.
+    /// The time passed: a held trigger shows, a frame goes again, a wait
+    /// ends the session, or the verdict goes at the end of [`LINGER`].
     pub fn tick(&mut self, now: Instant) -> Vec<Event> {
+        self.expire(now);
         match &mut self.session {
             Some(s) => s.tick(now, &mut self.events),
             None => self.scanner.tick(now, &mut self.events),
@@ -339,7 +397,8 @@ impl Transfer {
         self.act(|s, e| s.supply(bytes, e));
     }
 
-    /// The receiver renamed the copy: `KEPT`.
+    /// The receiver renamed the copy: `KEPT`, and the verdict for
+    /// [`LINGER`] ([`Transfer::lingers`]).
     pub fn kept(&mut self) {
         self.act(|s, e| s.kept(e));
     }
@@ -361,11 +420,18 @@ impl Transfer {
         }
     }
 
-    /// Drops a session that ended, and keeps its last bytes for the peer.
+    /// Drops a session that ended, and keeps its last bytes for the peer
+    /// and its verdict.
     fn finish(&mut self) {
         if let Some(s) = self.session.take_if(|s| s.ended) {
             self.out.extend_from_slice(&s.out);
+            self.verdict = s.verdict;
         }
+    }
+
+    /// The verdict goes at the end of [`LINGER`].
+    fn expire(&mut self, now: Instant) {
+        self.verdict.take_if(|v| v.over(now));
     }
 }
 

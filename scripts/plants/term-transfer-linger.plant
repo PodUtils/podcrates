@@ -1,0 +1,6 @@
+# The transfer codec: the receiver keeps no verdict after KEPT, so a DONE that comes again gets no KEPT (T-1198).
+ENTRY=T-1198
+GROUP=term
+EXPECT='test x14_a_kept_lost_in_an_upload_the_far_end_lingers_and_sends_it_again \.\.\. FAILED'
+RUN='cargo test -p pod-term --features transfer --test transfer x14_a_kept_lost_in_an_upload_the_far_end_lingers_and_sends_it_again -- --exact'
+LIMIT=900

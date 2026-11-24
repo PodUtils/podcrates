@@ -9,8 +9,8 @@ use super::wire::{self, Msg};
 use super::*;
 
 const ID: [u8; 8] = [0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef];
-const T1: &[u8] = b"#PODSSH-TX1:S:0123456789abcdef:56fd5108\r\n";
-const F1: &[u8] = b"#HELO:AQEjRWeJq83vAACAAA!21941b5b\r\n";
+const T1: &[u8] = b"#PODSSH-TX2:S:0123456789abcdef:f9541cc2\r\n";
+const F1: &[u8] = b"#HELO:AgEjRWeJq83vAACAAA!9c5e7795\r\n";
 const DATA: &[u8] = b"#DATA:AAAAAAAAAABoZWxsbwo!beee1f4d";
 
 fn hello_data() -> Msg {
@@ -52,7 +52,7 @@ fn t1_a_trigger_after_output_starts_a_download_and_sends_nothing() {
 
 #[test]
 fn t2_a_trigger_of_an_upload() {
-    let events = Transfer::near().feed(b"#PODSSH-TX1:R:0123456789abcdef:b9afe7e9\r\n", Instant::now());
+    let events = Transfer::near().feed(b"#PODSSH-TX2:R:0123456789abcdef:1606aa23\r\n", Instant::now());
     assert_eq!(events, [Event::Start { dir: Dir::Receive, id: ID }]);
 }
 
@@ -60,22 +60,23 @@ fn t2_a_trigger_of_an_upload() {
 fn t3_t4_a_trigger_cut_by_a_read_waits_for_its_rest_100_ms() {
     let now = Instant::now();
     let mut near = Transfer::near();
-    assert_eq!(near.feed(b"#PODSSH-TX1:S:0123", now), []);
-    assert_eq!(near.feed(b"456789abcdef:56fd5108\r\n", now), [Event::Start { dir: Dir::Send, id: ID }]);
+    assert_eq!(near.feed(b"#PODSSH-TX2:S:0123", now), []);
+    assert_eq!(near.feed(b"456789abcdef:f9541cc2\r\n", now), [Event::Start { dir: Dir::Send, id: ID }]);
     let mut near = Transfer::near();
-    assert_eq!(near.feed(b"#PODSSH-TX1:S:0123", now), []);
+    assert_eq!(near.feed(b"#PODSSH-TX2:S:0123", now), []);
     assert_eq!(near.deadline(), Some(now + TRIGGER_HOLD));
     assert_eq!(near.tick(now + TRIGGER_HOLD / 2), []);
-    assert_eq!(near.tick(now + TRIGGER_HOLD), [Event::Show(b"#PODSSH-TX1:S:0123".to_vec())]);
+    assert_eq!(near.tick(now + TRIGGER_HOLD), [Event::Show(b"#PODSSH-TX2:S:0123".to_vec())]);
     assert_eq!(near.deadline(), None);
 }
 
 #[test]
 fn t5_t6_t9_a_trigger_that_does_not_hold_shows_each_byte() {
     for (bytes, unsupported) in [
-        (&b"#PODSSH-TX1:S:0123456789abcdef:56fd5109\r\n"[..], None),
-        (b"#PODSSH-TX2:S:0123456789abcdef:f9541cc2\r\n", Some(2)),
-        (b"#PODSSH-TX1:S:0123\x1b[K456789abcdef:56fd5108\r\n", None),
+        (&b"#PODSSH-TX2:S:0123456789abcdef:f9541cc3\r\n"[..], None),
+        (b"#PODSSH-TX1:S:0123456789abcdef:56fd5108\r\n", Some(1)),
+        (b"#PODSSH-TX3:S:0123456789abcdef:9c332784\r\n", Some(3)),
+        (b"#PODSSH-TX2:S:0123\x1b[K456789abcdef:f9541cc2\r\n", None),
     ] {
         let events = Transfer::near().feed(bytes, Instant::now());
         assert_eq!(shown(&events), bytes, "{:?}", String::from_utf8_lossy(bytes));
@@ -98,19 +99,19 @@ fn t7_t8_a_trigger_seen_before_starts_nothing_and_a_new_id_starts() {
     let again = near.feed(T1, now);
     assert_eq!((shown(&again), starts(&again)), (T1.to_vec(), 0));
     let id = [0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10];
-    assert_eq!(near.feed(b"#PODSSH-TX1:S:fedcba9876543210:dac7206b", now), [Event::Start { dir: Dir::Send, id }]);
+    assert_eq!(near.feed(b"#PODSSH-TX2:S:fedcba9876543210:756e6da1", now), [Event::Start { dir: Dir::Send, id }]);
 }
 
 #[test]
 fn the_far_end_paints_the_trigger_of_the_vectors() {
     assert_eq!(trigger::line(Dir::Send, ID), [b"\r\x1b[K".as_slice(), T1].concat());
     let far = Transfer::far_receive(ID, Instant::now()).poll_output(Instant::now());
-    assert_eq!(far, b"\r\x1b[K#PODSSH-TX1:R:0123456789abcdef:b9afe7e9\r\n");
+    assert_eq!(far, b"\r\x1b[K#PODSSH-TX2:R:0123456789abcdef:1606aa23\r\n");
 }
 
 #[test]
 fn f1_f2_a_frame_ends_at_its_crc_whatever_follows() {
-    let hello = Msg::Helo { version: 1, id: ID, chunk: 32768 };
+    let hello = Msg::Helo { version: 2, id: ID, chunk: 32768 };
     assert_eq!(wire::frame(&hello, b"\r\n", WRAP), F1);
     for end in [&b"\r\n"[..], b"\n", b"\r", b""] {
         let frame = [&F1[..F1.len() - 2], end].concat();
@@ -140,6 +141,13 @@ fn f6_f7_f9_a_frame_with_a_bad_byte_crc_or_length_is_damaged() {
     ] {
         assert_eq!(frames(&[bad]), [Err(Got::Damaged)], "{:?}", String::from_utf8_lossy(bad));
     }
+}
+
+#[test]
+fn f14_hold_is_a_frame_with_an_empty_payload() {
+    assert_eq!(wire::frame(&Msg::Hold, b"\r", WRAP), b"#HOLD:!464f8be9\r");
+    assert_eq!(frames(&[b"#HOLD:!464f8be9\r\n"]), [Ok(Msg::Hold)]);
+    assert_eq!(frames(&[b"#HOLD:AA!464f8be9"]), [Err(Got::Damaged)]);
 }
 
 #[test]

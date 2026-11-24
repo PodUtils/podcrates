@@ -5,15 +5,18 @@ use std::time::{Duration, Instant};
 
 use sha2::{Digest, Sha256};
 
+mod receiver;
 mod sender;
 
+use super::linger::Verdict;
 use super::reader::{Got, Reader};
 use super::wire::{self, Bad, Msg, file_name, reason_text};
 use super::{
     CHUNK_MAX, CHUNK_MIN, Dir, Ended, Event, FIRST_WAIT, FileInfo, RESEND_MAX, RESEND_MIN, VERSION, WAIT, WRAP, stop,
 };
 
-const KINDS: [&[u8; 4]; 9] = [b"HELO", b"OFFR", b"TAKE", b"SKIP", b"DATA", b"ACKN", b"DONE", b"KEPT", b"STOP"];
+const KINDS: [&[u8; 4]; 10] =
+    [b"HELO", b"OFFR", b"TAKE", b"SKIP", b"DATA", b"ACKN", b"DONE", b"KEPT", b"HOLD", b"STOP"];
 
 /// Where a session is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,6 +51,9 @@ struct Flight {
     handed: Option<Instant>,
     /// It went again: its ack does not time the path (Karn's rule).
     resent: bool,
+    /// A `HOLD` came: the receiver is there and waits for its caller, so
+    /// the frame goes again after `RESEND_MAX`.
+    held: bool,
     /// The offset and the file's bytes of a `DATA`.
     offset: u64,
     data: Vec<u8>,
@@ -77,6 +83,8 @@ pub(super) struct Session {
     typed_cans: u8,
     pub(super) out: Vec<u8>,
     pub(super) ended: bool,
+    /// The receiver after `kept`: the verdict that the end keeps.
+    pub(super) verdict: Option<Verdict>,
 }
 
 impl Session {
@@ -101,6 +109,7 @@ impl Session {
             typed_cans: 0,
             out: Vec::new(),
             ended: false,
+            verdict: None,
         }
     }
 
@@ -145,7 +154,7 @@ impl Session {
             Msg::Data { offset, bytes } => (*offset, bytes.clone()),
             _ => (0, Vec::new()),
         };
-        self.flight = Some(Flight { bytes, handed: None, resent: false, offset, data });
+        self.flight = Some(Flight { bytes, handed: None, resent: false, held: false, offset, data });
     }
 
     /// The session waits for the peer; with no `now`, from the next
@@ -195,29 +204,6 @@ impl Session {
             self.fly(&self.hello());
             self.phase = Phase::Hello;
             self.wait_peer(Some(now));
-        }
-    }
-
-    pub(super) fn take(&mut self) {
-        if self.phase == Phase::Offered {
-            self.answer = Some(self.send(&Msg::Take { from: 0 }));
-            self.phase = Phase::Receiving;
-            self.wait_peer(None);
-        }
-    }
-
-    pub(super) fn skip(&mut self, reason: &str, events: &mut Vec<Event>) {
-        if self.phase == Phase::Offered {
-            self.send(&Msg::Skip { reason: reason.as_bytes().to_vec() });
-            let reason = reason_text(reason.as_bytes());
-            self.end(Ended::Stopped { code: stop::REFUSED, by_peer: false, reason }, events);
-        }
-    }
-
-    pub(super) fn kept(&mut self, events: &mut Vec<Event>) {
-        if self.phase == Phase::Verify {
-            self.send(&Msg::Kept { size: self.count });
-            self.end(Ended::Done, events);
         }
     }
 
@@ -272,9 +258,11 @@ impl Session {
             (b"STOP", _) => true,
             (b"HELO", Phase::Hello) => true,
             (b"HELO", phase) => self.far && phase != Phase::Pending,
-            (b"OFFR", Phase::AwaitOffer | Phase::Receiving) => !self.sender,
-            (b"DATA" | b"DONE", Phase::Receiving) => !self.sender,
+            (b"OFFR", Phase::AwaitOffer | Phase::Offered | Phase::Receiving) => !self.sender,
+            (b"DATA", Phase::Receiving) => !self.sender,
+            (b"DONE", Phase::Receiving | Phase::Verify) => !self.sender,
             (b"TAKE" | b"SKIP", Phase::AwaitTake) => self.sender,
+            (b"HOLD", Phase::AwaitTake | Phase::AwaitKept) => self.sender,
             (b"ACKN", Phase::Data) => self.sender,
             (b"KEPT", Phase::AwaitKept) => self.sender,
             _ => false,
@@ -322,6 +310,7 @@ impl Session {
             Msg::Data { offset, bytes } => self.on_data(offset, &bytes, events),
             Msg::Ackn { of, count } => self.on_ack(of, count, now, events),
             Msg::Done { size, sha256 } => self.on_done(size, sha256, events),
+            Msg::Hold => self.on_hold(now),
             Msg::Kept { size } => {
                 if Some(size) == self.file.as_ref().map(|f| f.size) {
                     self.end(Ended::Done, events);
@@ -332,14 +321,12 @@ impl Session {
         }
     }
 
-    fn answer_again(&mut self) {
-        if let Some(answer) = &self.answer {
-            self.out.extend_from_slice(answer);
-        }
-    }
-
     fn on_hello(&mut self, version: u8, id: [u8; 8], chunk: u32, now: Instant, events: &mut Vec<Event>) {
-        if u32::from(version) != VERSION || id != self.id || chunk == 0 {
+        if u32::from(version) != VERSION {
+            let why = format!("HELO of version {version}; this end takes version {VERSION}");
+            return self.stop(stop::UNSUPPORTED, &why, events);
+        }
+        if id != self.id || chunk == 0 {
             return self.protocol("HELO does not match the trigger", events);
         }
         if self.phase != Phase::Hello {
@@ -377,36 +364,6 @@ impl Session {
         self.file.as_ref().map_or(0, |f| f.size)
     }
 
-    fn on_data(&mut self, offset: u64, bytes: &[u8], events: &mut Vec<Event>) {
-        if bytes.is_empty() || bytes.len() > self.cap || offset > self.count {
-            return self.protocol("DATA out of order or out of size", events);
-        }
-        let skip = usize::try_from(self.count - offset).unwrap_or(usize::MAX);
-        if let Some(new) = bytes.get(skip..).filter(|n| !n.is_empty()) {
-            if self.count + new.len() as u64 > self.size() {
-                return self.protocol("DATA past the size", events);
-            }
-            self.hash.update(new);
-            events.push(Event::Write { offset: self.count, bytes: new.to_vec() });
-            self.count += new.len() as u64;
-            events.push(Event::Progress { done: self.count, size: self.size() });
-        }
-        self.send(&Msg::Ackn { of: offset, count: self.count });
-    }
-
-    fn on_done(&mut self, size: u64, sha256: [u8; 32], events: &mut Vec<Event>) {
-        if size != self.count || size != self.size() {
-            return self.stop(stop::DIFFERS, "the size differs; nothing was kept", events);
-        }
-        let ours: [u8; 32] = self.hash.clone().finalize().into();
-        if ours != sha256 {
-            return self.stop(stop::DIFFERS, "SHA-256 differs; nothing was kept", events);
-        }
-        events.push(Event::Verified { size, sha256 });
-        self.phase = Phase::Verify;
-        self.wait_caller();
-    }
-
     /// The frame in flight again, with the same bytes, and the chunk at its
     /// floor.
     fn resend(&mut self) {
@@ -418,9 +375,24 @@ impl Session {
         }
     }
 
+    /// A `HOLD`: it is no ack and does not time the path. The frame in
+    /// flight goes again `RESEND_MAX` after it, so a person who takes a
+    /// minute costs about 12 frames each way.
+    fn on_hold(&mut self, now: Instant) {
+        if let Some(flight) = &mut self.flight {
+            flight.handed = Some(now);
+            flight.held = true;
+        }
+    }
+
     fn resend_at(&self) -> Option<Instant> {
-        let rto = self.last_ack.map_or(RESEND_MIN, |a| (a * 4).clamp(RESEND_MIN, RESEND_MAX));
-        self.flight.as_ref()?.handed.map(|h| h + rto)
+        let flight = self.flight.as_ref()?;
+        let rto = match self.last_ack {
+            _ if flight.held => RESEND_MAX,
+            Some(a) => (a * 4).clamp(RESEND_MIN, RESEND_MAX),
+            None => RESEND_MIN,
+        };
+        flight.handed.map(|h| h + rto)
     }
 
     fn wait_until(&self) -> Option<Instant> {
@@ -433,6 +405,11 @@ impl Session {
 
     pub(super) fn tick(&mut self, now: Instant, events: &mut Vec<Event>) {
         if self.wait_until().is_some_and(|t| now >= t) {
+            if self.phase == Phase::AwaitKept {
+                // The file and its hash went; a lost KEPT is no stop. No
+                // STOP goes: the receiver can have kept the file.
+                return self.end(Ended::Unconfirmed, events);
+            }
             return self.stop(stop::OUT_OF_TIME, "no answer from the peer in time", events);
         }
         if self.resend_at().is_some_and(|t| now >= t) {

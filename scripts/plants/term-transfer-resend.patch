@@ -1,6 +1,6 @@
 --- a/crates/pod-term/src/transfer/flow.rs
 +++ b/crates/pod-term/src/transfer/flow.rs
-@@ -411,7 +411,6 @@
+@@ -368,7 +368,6 @@
      /// floor.
      fn resend(&mut self) {
          if let Some(flight) = &mut self.flight {
