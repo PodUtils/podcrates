@@ -11525,7 +11525,7 @@ to 1 s, and a dialer waits for the answer of its last poll. A caller with
 **Milestone:** M2
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11554,6 +11554,101 @@ Measure the bytes of each datagram with and without.
 ```sh
 cargo test -p pod-link --all-features dns
 ```
+
+## Done
+
+2026-11-24, this commit (code: `1b718588`). The DNS carrier of `pod-link`
+has a bare form: the ARQ with no TLS above it, for a caller that
+authenticates and seals its own stream.
+
+- `Dns::bare` (a new public field, false by default) and the builder
+  `Dns::without_tls()`. Both ends set it. The documentation of the field,
+  the header of `dns.rs` and the README of `pod-link` say that the caller
+  must authenticate the peer and seal each byte itself, with nonces of its
+  own: a stranger on the path can read, change, add and drop the bytes of a
+  bare stream, and the ARQ wraps its sequence freely.
+- `crates/pod-link/src/dns/bare.rs` (new): the first record of a bare dial
+  is a bare hello (`PODBARE1`, the length of the ALPN, the ALPN), not a
+  ClientHello; the listener answers with the byte of acceptance of the tcp
+  carrier. The bare accept refuses a first record that is no bare hello of
+  its ALPN.
+- `dns/hello.rs`: a bare listener takes a slot only for a part 0 that opens
+  a bare hello, and a listener with TLS only for one that opens a
+  ClientHello. So a listener with TLS refuses a bare dial, and a bare
+  listener refuses a dial with TLS, before any slot: the refused dial ends
+  at its handshake time limit, and the listener gives no client.
+- New calls: `Dns::connect_bare(&zone)`, `connect_bare_over(datagrams,
+  &target)` and `accept_bare_over(datagrams, &from)`; a bare carrier dials
+  `ZONE` (`KEY@ZONE` is a usage error). A call of one form on a carrier of
+  the other form is a usage error (`connect`, `connect_over` and
+  `accept_over` on a bare carrier; the bare calls on a carrier with TLS). A
+  bare listener gives each client with no key (`accept_peer`), and
+  `accept_key` gives a usage error there.
+- `ServerSession` moves from `server.rs` to `reply.rs`, so that `server.rs`
+  stays under 500 lines.
+
+The measure (`the_bytes_of_each_datagram_with_and_without_tls`, the ARQ
+over a memory pair at the unit of the carrier under `l.test`, 143 bytes;
+the bytes of each datagram that each end sent; one run, the counts are the
+same in each run):
+
+| Each way | With TLS | Bare |
+| --- | --- | --- |
+| The handshake, up | 6 DATA frames, 682 bytes (8 datagrams, 760 bytes) | 1 DATA frame, 27 bytes (2 datagrams, 66 bytes) |
+| The handshake, down | 7 DATA frames, 657 bytes (9 datagrams, 735 bytes) | 1 DATA frame, 10 bytes (2 datagrams, 49 bytes) |
+| 100 writes of 32 bytes, echoed: a DATA frame, each way | 63 bytes | 41 bytes |
+| 100 writes of 32 bytes, echoed: each way | 10200 bytes | 8000 bytes |
+| 32 KiB in one write, up | 246 DATA frames, 35026 bytes | 245 DATA frames, 34973 bytes |
+
+A write of the stream is one record of TLS 1.3: 22 bytes more (a header
+of 5 bytes, the content type, a tag of 16 bytes) in the first frame of
+the write. A small write (32 bytes in a frame of 41 bytes) costs 54 % more
+with TLS; a large write costs 22 bytes for each 16 KiB. The handshake with
+TLS sends 13 DATA frames of 1339 bytes; the bare handshake sends 2 of 37
+bytes. The cost of a link with TLS
+depends on the count of its writes, not on its bytes.
+
+Tests: `crates/pod-link/tests/dns_bare.rs` (new):
+`a_bare_link_over_dns_carries_streams_and_gives_no_key` (through a real
+listener on the loopback; `accept_key` of a bare listener is a usage
+error), `a_bare_end_and_an_end_with_tls_never_pair` (over a memory pair:
+each accept refuses the other form; over the listeners: each dial of the
+other form ends at its time limit of 1 s, no listener gives a client, and
+each listener then takes a dial of its own form),
+`a_call_of_one_form_refuses_a_carrier_of_the_other` and the measure;
+`dns::hello::tests::a_bare_hello_opens_a_first_record_only_at_a_bare_listener`
+and new asserts in the two other tests of `dns::hello`, and
+`dns::bare::tests::a_hello_opens_no_tls_record_and_names_its_alpn`. 10
+runs of `tests/dns_bare.rs` in a loop: all passed. `cargo test -p pod-link
+--all-features --test dns --test dns_loss --test dns_resolver --test
+dns_hold --test dns_bare`: 12, 4, 3, 3 and 4 passed; `--lib dns`: 8
+passed; clippy and rustdoc: no warning.
+
+The plant `dns-bare-takes-a-client-hello` (the bare accept does not check
+the hello) fails the test "the bare accept took a ClientHello", and the
+test passes without it. The plant `link-dgram-wrap-waits` is made again on
+the new `dgram_tls.rs` (`stream` is `pub(crate)` now): with it, "the
+transfer in time: Elapsed" in `dns_loss` and `icmp`; without it, both
+pass. Plants: 0 stale.
+
+On the old source, the new tests do not compile:
+
+```text
+3 error[E0599]: no method named `accept_bare_over` found for struct `pod_link::dns::Dns`
+3 error[E0599]: no method named `connect_bare_over` found for struct `pod_link::dns::Dns`
+1 error[E0599]: no method named `connect_bare` found for struct `pod_link::dns::Dns`
+1 error[E0599]: no method named `without_tls` found for struct `pod_link::dns::Dns`
+```
+
+For the hand-off: `Dns` has the new public field `bare` and the new calls
+`without_tls`, `connect_bare`, `connect_bare_over` and `accept_bare_over`;
+no item changed its form. `Dns` has private fields, so no caller builds it
+with a literal; a grep in shallow clones of podnet and podssh finds only
+`Dns::new`, the builder methods and `connect` (podnet `src/link_dns.rs`).
+The dns carrier with TLS works as before. podssh takes the bare form at
+both ends (`Dns::without_tls()`), dials `ZONE`, and takes the client of a
+listener with `accept_peer` (no key); its Noise layer authenticates the
+peer.
 
 # T-1168: `pod-link`: the datagrams of the DNS carrier over DNS over HTTPS (RFC 8484), for a dialer behind an HTTP proxy with no UDP (PodUtils/podssh#349)
 
