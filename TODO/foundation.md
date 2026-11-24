@@ -3321,3 +3321,310 @@ contract is at `aab63e5` (blob `aca580d` of `source-driver.md`; the blob of
 `check-sources.py` with clones of podrunner (`aab63e5`), podssh and
 podnet: "PodUtils/podrunner at aab63e5: 2 files, 0 changes"; the other
 blocks of `pod-testkit` show 0 changes.
+
+# T-1235: `pod-core`: the classes `CantCreate` (73) and `Internal` (70) (PodUtils/podssh#352)
+
+**Source:** PodUtils/podssh#352 (COORD-142 of podssh, ask (a)); author
+Azathothas, COLLABORATOR.
+**Category:** feature
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh takes `pod_core::failure::Class::exit_code()` for six faults where
+its code and the code of the class agree. Two codes of podssh have no
+class:
+
+| podssh code | `sysexits.h` | What podssh means |
+| --- | --- | --- |
+| 73 | `EX_CANTCREAT` | an output that cannot be created (the destination of `cp`) |
+| 70 | `EX_SOFTWARE` | a fault inside the tool, a session cut short, a feature that this build lacks |
+
+podssh asks for "a class for an output that cannot be created (73,
+`EX_CANTCREAT`), and one for a fault inside the tool or a session cut
+short (70, `EX_SOFTWARE`)". podssh keeps its own number for both until a
+tag has the classes. Its table test then tells which rows agree.
+
+Now `Class` in `crates/pod-core/src/failure.rs` has 13 classes. The
+nearest class of 73 is `Unavailable` (69), and the nearest of 70 is
+`Protocol` (76) or `Unsupported` (80): each gives a code that podssh
+documents differently. `pod-release` has the same gap:
+`crates/pod-release/src/lib.rs` says that `Error::CantWrite` is
+`Unavailable` and that a consumer with a code of its own for a file that
+it cannot write takes the variant (T-1237).
+
+## Premise
+
+- Read: `crates/pod-core/src/failure.rs` (`Class`, `ALL`, `exit_code`,
+  `name`, `of_io`), `crates/pod-core/README.md` (the table of exit codes),
+  `crates/pod-core/tests/exit_codes.rs` (the table and the schema are held
+  to the code), `schemas/log.v1.schema.json` (the enum of `class`),
+  `schemas/CHANGES.md` (the row of `permission` and `suite` is the model of
+  an `added` row), `crates/pod-manual/src/facts.rs` (`failure_classes`,
+  one `match` on `Class` with no `_` arm), `crates/pod-unit/src/model.rs`
+  (the restart list is `Usage` and `Config`).
+- Read in the consumers, shallow clones:
+  `PodUtils/podssh:crates/podssh-cli/src/exitmap.rs` and
+  `PodUtils/podssh:crates/podssh-cli/src/ssh/cloud/devtunnel.rs`; the
+  repositories of podnet, podvm and podrunner for each `match` on `Class`.
+- The codes 70 and 73 are free in the table: no class has them.
+  `Permission` has 71.
+- Not measured: a build of a consumer against a changed `Class`.
+
+## Approach
+
+1. `Class::Internal`, name `internal`, code 70 (`EX_SOFTWARE`): a fault
+   inside the tool, or a session that ended before its end with no fault
+   of the far end or of the network known. A far end that broke the
+   protocol stays `Protocol` (76). `Class::of_io` does not change:
+   `UnexpectedEof` stays `Protocol`.
+2. `Class::CantCreate`, name `cantcreate`, code 73 (`EX_CANTCREAT`): an
+   output (a file or a directory) that the tool must make cannot be made
+   or written. A path that does not exist as an input stays `NotFound`
+   (66), and a mode check of a file stays `Permission` (71).
+3. Add both to `Class::ALL` (the order of the README table), `name` and
+   `exit_code`. A doc comment for each variant.
+4. The README of `pod-core`: two rows in the table of exit codes. Neither
+   class goes into the list of `RestartPreventExitStatus` (64, 78, 79, 80):
+   a later try can work after a freed disk or a one-time fault of a
+   session. The call is C928.
+5. The schema: add `cantcreate` and `internal` to the enum of `class` in
+   `schemas/log.v1.schema.json`, and one row `| next | log.v1 | class |
+   added | ... |` in `schemas/CHANGES.md` with the hash that
+   `scripts/check-schemas.py` computes. The hand-off to podssh names the
+   row.
+6. Users in this workspace: `crates/pod-manual/src/facts.rs` gets two
+   meanings (the `match` has no `_` arm, so the build fails until it
+   does). `pod-link` (`pin.rs`) and `pod-proxy` (`serve.rs`) have a `_`
+   arm: the new classes take their default. `pod-harness` and `pod-unit`
+   keep their tables.
+7. Other consumers that match on `Class`, read at their heads:
+   - podssh: `PodUtils/podssh:crates/podssh-cli/src/ssh/cloud/devtunnel.rs`, `code_of`,
+     has no `_` arm over `podssh_relay::devtunnel::Class` (a re-export of
+     `pod_core::Class`). It stops to build at the tag. That is the
+     compile-time signal that podssh asked for, and its table test then
+     holds the rows. `PodUtils/podssh:crates/podssh-cli/src/ssh/cloud/warp/road.rs` has a
+     `_` arm.
+   - podnet: each `match` has a `_` arm (`PodUtils/podnet:src/warp/mod.rs`,
+     `PodUtils/podnet:src/warp/h3.rs`, `PodUtils/podnet:src/link.rs`,
+     `PodUtils/podnet:src/cli/cmd/link/p2p.rs`,
+     `PodUtils/podnet:src/relay_reverse/seal.rs`,
+     `PodUtils/podnet:crates/podnet-core/src/network/health.rs`).
+     The build holds. A failure of a new class takes the default
+     (`Fault::Unavailable`, 69, or `None`) until podnet adds an arm.
+   - podvm and podrunner: no `match` on the variants of `Class`; they
+     compare with `==`. The build holds.
+8. Tests: `each_class_has_a_name_and_an_exit_code` holds the two codes and
+   that 70 and 73 are in no other row; the two tests of
+   `crates/pod-core/tests/exit_codes.rs` hold the README and the schema.
+   A plant: code 73 changed to 69.
+
+## Prove
+
+```sh
+cargo test -p pod-core
+cargo test -p pod-manual --all-features
+python3 -I scripts/check-schemas.py
+cargo todo check
+```
+
+# T-1236: `pod-core`: the codes that a consumer keeps where its class gives another, in the README (PodUtils/podssh#352)
+
+**Source:** PodUtils/podssh#352 (COORD-142 of podssh, ask (b)); author
+Azathothas, COLLABORATOR.
+**Category:** docs
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh asks that "pod-core's README lists the codes a consumer keeps where
+its class gives another, or `Class::exit_code` takes a caller's table, so
+that podssh can drop its own numbers for those rows too". podssh keeps
+its documented code in five rows:
+
+| podssh fault | podssh code | nearest class | code of the class |
+| --- | --- | --- | --- |
+| Revoked | 69 | `Revoked` | 78 |
+| Capability (the host lacks what a mode needs) | 78 | `Unsupported` | 80 |
+| a session cut short, a closed channel | 70 | `Protocol` | 76 |
+| an output that cannot be created | 73 | none | none |
+| not implemented in this build | 70 | `Unsupported` | 80 |
+
+After T-1235 the last three rows agree with `Internal` (70) and
+`CantCreate` (73). Two rows differ: `Revoked` (69 against 78) and
+`Capability` (78 against 80). The difference of `Revoked` has an effect on
+a supervisor: a unit with `RestartPreventExitStatus=78` stops on a
+revoked credential from a tool that gives the code of the class, and
+restarts a tool that gives 69.
+
+Now the README of `pod-core` has one table of exit codes and no list of
+the codes that a consumer keeps. `Class::exit_code` takes no argument.
+
+## Premise
+
+- Read: `crates/pod-core/README.md` ("Exit codes and the log line", and
+  the adoption map, where podnet "keeps its exit codes and maps each class
+  to one"), `crates/pod-core/src/failure.rs`,
+  `crates/pod-core/tests/exit_codes.rs`;
+  `PodUtils/podssh:crates/podssh-cli/src/exitmap.rs` (its table, `SHARED_CODES`).
+- The rule of the owner (`AGENTS.md`, section 2) allows a consumer to
+  change a code: no compatibility with a released binary is necessary.
+  podssh keeps its codes because it does not change what a user sees.
+- Not measured: how many scripts read the 69 of a revoked pair.
+
+## Approach
+
+1. Take the first of the two ways of podssh. The README of `pod-core` gets
+   a section "Codes that a consumer keeps": a table with the consumer, its
+   fault, its code, the class, the code of the class and the effect on a
+   supervisor. The first rows are the two that differ after T-1235
+   (`Revoked`, `Capability`). The section says that a consumer can move to
+   the table at any time, and that a consumer lists here each code that it
+   keeps.
+2. A test in `crates/pod-core/tests/exit_codes.rs` reads the section: each
+   row names a class of `Class::ALL`, the code of the class is the code of
+   the row, and the kept code is another one.
+3. No `Class::exit_code` that takes a caller's table. A table of a
+   caller is a second table, and the supervisor reads one table for each
+   tool (`Class::exit_code` doc). A consumer with its own `match` on
+   `Class` holds it with its own test, as podssh does. The call is C929.
+   If podssh answers that a README list does not remove its numbers, the
+   entry reopens the choice with its reason.
+4. The reply to podssh (a COORD comment of the coordinator): the table
+   holds 70 and 73 from the tag of T-1235; podssh can move `Revoked` to 78
+   and `Capability` to 80, as the owner's rule allows, or keep them and
+   list them in this section.
+
+## Prove
+
+```sh
+cargo test -p pod-core --test exit_codes
+cargo todo check
+```
+
+## Start condition
+
+T-1235 has its tag, so that the table of the section is the table of the
+code.
+
+# T-1237: `pod-release`: `Error::CantWrite` has the class `CantCreate` (73) (PodUtils/podssh#352)
+
+**Source:** PodUtils/podssh#352 (COORD-142 of podssh, ask (a)); found
+while reading the users of `Class` (a second user of the class 73).
+**Category:** feature
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`crates/pod-release/src/lib.rs` gives `Error::CantWrite` (the binary could
+not be replaced; it is as it was) the class `Unavailable`, and
+`crates/pod-release/src/cli.rs` gives it the code 69 with `Unavailable`.
+Its doc comment says that a consumer with its own code for a file that it
+cannot write (`EX_CANTCREAT`) takes the variant. The README of the crate
+says that podssh does this by the variant. The CLI of the crate has a
+second table of constants (`EXIT_USAGE`, `EXIT_NOT_FOUND`,
+`EXIT_UNAVAILABLE`, `EXIT_REFUSED`) beside `Class::exit_code`. With the
+class `CantCreate` (T-1235), the variant has a class, and the consumer
+needs no private mapping.
+
+## Premise
+
+- Read: `crates/pod-release/src/lib.rs` (`Error`, `class`),
+  `crates/pod-release/src/cli.rs` (`code`, `facts`, the test of the
+  classes), `crates/pod-release/src/keep.rs` and
+  `crates/pod-release/src/update.rs` (the two places that make
+  `CantWrite`), `crates/pod-release/README.md` (section "Failures").
+- Read in podnet: `PodUtils/podnet:src/update.rs` uses `pod_release::update` and
+  `pod_release::keep` and does not read `Error::class()` or the variant,
+  by `grep`; podvm and podrunner do not use `pod-release`.
+- Not read: how podssh maps `CantWrite` today (its code is in a module
+  that T-820 of podssh moves).
+
+## Approach
+
+1. After T-1235: `Error::class()` gives `Class::CantCreate` for
+   `CantWrite`; the doc comment follows.
+2. `cli.rs`: `code` gives 73 for `CantWrite`, from a constant
+   `EXIT_CANT_CREATE`, and `facts` has a row `cantcreate` (73). Derive
+   the other constants from `Class::exit_code` where the crate allows, so
+   that no second table stays (`scripts/codegraph.py similar` shows the
+   twin).
+3. The README of the crate: remove "podssh maps `CantWrite` to
+   `EX_CANTCREAT` by the variant".
+4. Tests: the test of the classes in `cli.rs` holds 73 for `CantWrite`.
+5. Effect on a user: `pod-release` as a command exits 73, not 69, for a
+   binary that it could not replace. The manual of the command (its drift
+   test in `cargo test`) has the row.
+
+## Prove
+
+```sh
+cargo test -p pod-release --all-features
+cargo todo check
+```
+
+## Start condition
+
+T-1235 is done.
+
+# T-1238: `pod-core`: no class for `EX_DATAERR` (65), which podssh uses (PodUtils/podssh#352)
+
+**Source:** PodUtils/podssh#352 (COORD-142 of podssh): "`EX_DATAERR` (65)
+has no class either". Not an ask; recorded so that the gap has a decision.
+**Category:** research
+**Milestone:** M0
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The message names that 65 has no class and asks nothing for it.
+podssh uses `EX_DATAERR` in `PodUtils/podssh:crates/podssh-cli/src/net/join.rs`,
+`PodUtils/podssh:crates/podssh-cli/src/net/invite.rs` and
+`PodUtils/podssh:crates/podssh-cli/src/net/policy_cmd.rs`: a net state that cannot be
+read, a policy that widened, a check that failed. Its table gives 65 to a
+passphrase that does not open a key file. `Class` has `Usage` (64, a value
+of the caller) and `Protocol` (76, the far end), and no class for input
+that was there and was wrong. A consumer that needs 65 keeps its own
+number, as T-1236 lists.
+
+## Premise
+
+- Read: `crates/pod-core/src/failure.rs` (no class has 65),
+  `PodUtils/podssh:crates/podssh-cli/src/exitmap.rs` (the doc of
+  `EX_DATAERR`) and its uses by `grep`.
+- Not measured: how many failures of the other consumers are of this kind.
+  podnet, podvm and podrunner show no use of 65 in a match on `Class`.
+
+## Approach
+
+1. After T-1235 and T-1236, read the table test of podssh: it tells which
+   uses of 65 stay with no class.
+2. If two consumers or more have a use, add `Class::Data` (65, `EX_DATAERR`:
+   an input was there and its content is wrong) with the same steps as
+   T-1235 (README row, schema enum, `CHANGES.md` row, `pod-manual` meaning).
+   If only podssh has uses, list 65 in the section of T-1236 and keep it
+   out of `Class`.
+3. Write the call in `docs/decisions.md`.
+
+## Prove
+
+```sh
+cargo test -p pod-core
+cargo todo check
+```
+
+## Start condition
+
+T-1236 is done and podssh's table test at the tag of T-1235 shows the
+uses of 65.
