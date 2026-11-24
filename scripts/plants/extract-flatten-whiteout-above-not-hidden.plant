@@ -1,0 +1,7 @@
+# pod-extract flatten: a whiteout of a directory does not hide the paths
+# below it in the older layers (T-1193).
+ENTRY=T-1193
+GROUP=extract
+EXPECT='whiteouts_at_the_root_of_a_layer_and_below_it_hide_the_older_paths'
+RUN='cargo test -p pod-extract --all-features --test flatten whiteouts_at_the_root_of_a_layer_and_below_it_hide_the_older_paths'
+LIMIT=900

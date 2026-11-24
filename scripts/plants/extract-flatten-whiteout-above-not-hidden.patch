@@ -1,0 +1,13 @@
+diff --git a/crates/pod-extract/src/flatten/entry.rs b/crates/pod-extract/src/flatten/entry.rs
+index 7e7db498..3b5cbf07 100644
+--- a/crates/pod-extract/src/flatten/entry.rs
++++ b/crates/pod-extract/src/flatten/entry.rs
+@@ -185,7 +185,7 @@ impl State {
+             cur = self.child(cur, name)?;
+             let n = self.trie.node(cur);
+             let implied = !(hidden || n.removed > layer || n.nondir > layer);
+-            hidden |= n.removed > layer || n.opaque > layer || n.nondir > layer;
++            hidden |= n.opaque > layer || n.nondir > layer;
+             if implied {
+                 self.trie.node_mut(cur).implied = true;
+             }
