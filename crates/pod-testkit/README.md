@@ -28,6 +28,10 @@ consumer that wants it. It is never a dependency of a release binary.
   `PT_LOAD`, no `PT_INTERP`) that calls `exit_group(0)`, for a test of an
   exec with no tool of the host; `None` on another architecture.
   `elf::is_dynamic(bytes)`: a 64-bit ELF with `PT_INTERP`. Linux only.
+* `held::hold_until_exec(listener)`: a forked child that holds a copy of
+  a Unix listener until it takes one connect, then runs its exec; `join`
+  gives its exit status. A test closes its own listener after the call, and
+  the stale socket then takes one connect. Unix only.
 * `tamper::flip(path, at)`: one bit of the byte `at` of a file changed
   (the last byte for an `at` past the end), for the test of a check that
   must refuse one changed byte.

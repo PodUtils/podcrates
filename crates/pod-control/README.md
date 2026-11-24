@@ -152,7 +152,8 @@ the count before it opens one more connection (T-1070).
 ## Transports
 
 * Unix (`unix`): `bind` with `Settings::mode` (0600) from the first instant
-  (`pod_core::files::bind_staged`); a stale socket is replaced, a live socket
+  (`pod_core::files::bind_staged`); a stale socket is replaced (no answer to
+  `pod_core::files::socket_answers`), a live socket
   is `AddrInUse`, another file is `AlreadyExists`. The peer ids come from
   `SO_PEERCRED` or `getpeereid` (`pod_core::files::peer_ids`). The drop of
   `Server` removes its socket while the path holds it.

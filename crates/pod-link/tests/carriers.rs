@@ -128,6 +128,21 @@ mod unix {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// A forked child keeps a copy of the closed listener until its exec,
+    /// so the stale socket takes one connect: the claim still replaces it.
+    #[tokio::test]
+    async fn a_stale_socket_that_a_forked_child_holds_is_replaced() {
+        let dir = scratch("held");
+        let path = dir.join("h.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();
+        let held = pod_testkit::held::hold_until_exec(&listener);
+        drop(listener);
+        let door = Unix::default().listen(path.to_str().unwrap()).await;
+        assert!(held.join().success());
+        assert!(door.is_ok(), "{:?}", door.err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[tokio::test]
     async fn a_path_out_of_its_limits_is_a_usage_error() {
         let carrier = Unix::default();

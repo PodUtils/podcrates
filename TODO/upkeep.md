@@ -4584,7 +4584,7 @@ python3 -I scripts/codegraph.py similar retry after
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4681,6 +4681,54 @@ cargo test -p pod-control -p pod-link -p pod-warp --all-features
 python3 -I scripts/codegraph.py similar socket answers probe stale
 grep -rn "UnixStream::connect(.*)\.is_ok()" crates --include=*.rs
 ```
+
+## Done
+
+2026-11-24. `pod_core::files::socket_answers(path) -> bool` (Unix only),
+in `crates/pod-core/src/files/socket/answers.rs`, re-exported by
+`files.rs`: the socket answers only when each of `PROBES` (3) connects,
+`PROBE_GAP` (50 ms) apart, works; the first failed connect returns `false`.
+`pod_control::unix::bind`, the `claim` of `pod_link::unix` and
+`pod_warp::find::running` call it in place of one connect; each keeps its
+own refusal and text. `pod_warp::find::answers` is removed: no caller in
+this repository or in podnet (`1d446af`) uses it.
+
+The helper `pod_testkit::held::hold_until_exec` (Unix only; `libc` of
+pod-testkit is now a dependency for each Unix target, not Linux alone): a
+child made by `std::process::Command` with `pre_exec` holds a copy of the
+listener, takes one connect with `poll` and `accept`, then runs its exec.
+Thus the first connect of a probe always lands in the window, with no sleep
+of 40 ms as in podnet's test. The tests:
+
+- `files::socket::tests::a_socket_that_a_forked_child_holds_until_its_exec_is_stale`
+  (pod-core): the closed socket that the child holds does not answer; a
+  live listener answers; a path with no socket does not. With the plant
+  `PROBES = 1` it fails: "a closed socket that a child holds answers".
+  50 of 50 runs pass after the change.
+- `bind_replaces_a_stale_socket_that_a_forked_child_holds`
+  (`crates/pod-control/tests/server.rs`): on the old `bind` it fails with
+  `AddrInUse, "a live socket"`. In the same run, the child of this test
+  held the listener of `bind_keeps_a_live_socket_and_a_file_and_replaces_a_stale_socket`
+  too, and that test failed with "the socket of a dead listener is
+  replaced": the fault of podnet#709 between two tests of one process.
+- `unix::a_stale_socket_that_a_forked_child_holds_is_replaced`
+  (`crates/pod-link/tests/carriers.rs`): on the old `claim` it fails with
+  `InUse`, "... is served by another listener".
+- `find::tests::a_dead_socket_that_a_forked_child_holds_is_not_running`
+  (pod-warp): on the old `answers` it gives the dead socket.
+
+After the change, `cargo test --all-features`: pod-core 123, pod-control
+45, pod-link 282, pod-warp 234, pod-testkit 38 passed, 0 failed. The test
+binaries of pod-control and pod-link and the `find::` tests of pod-warp:
+20 of 20 runs each. Clippy and `cargo doc` with `-D warnings` of the five
+crates: clean. `check-windows.sh` and `check-macos.sh`: 0 faults.
+`codegraph.py dups`: no new finding. The `grep` of the Prove finds no
+one-connect probe in `crates`.
+
+For the hand-off: `pod_warp::find::answers` is removed (podnet does not
+call it). The answer to podnet#709 with the tag is step 4, at the next
+release; podnet then removes `socket_answers` and the rule of
+`claim_unix_path`.
 
 # T-1213: One watcher of the Actions runs of a repository: `scripts/agent/runs.py` with podvm's surface, in place of `watch-runs.sh` and the copies of podvm and podnet
 

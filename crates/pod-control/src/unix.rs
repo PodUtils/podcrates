@@ -16,15 +16,15 @@ use crate::server::{self, Incoming, Settings, Shared, Snapshot};
 use crate::wire::{Code, Fault};
 
 /// Bind the socket at `path` with `mode`, from the first instant
-/// (`pod_core::files::bind_staged`). A stale socket (no one answers) goes
-/// first; a live socket is `AddrInUse`, and a path that is not a socket is
+/// (`pod_core::files::bind_staged`). A stale socket (no one answers,
+/// `pod_core::files::socket_answers`) goes first; a live socket is `AddrInUse`, and a path that is not a socket is
 /// `AlreadyExists`: neither is removed.
 pub fn bind(path: &Path, mode: u32) -> io::Result<UnixListener> {
     match std::fs::symlink_metadata(path) {
         Err(e) if e.kind() == io::ErrorKind::NotFound => {}
         Err(e) => return Err(e),
         Ok(m) if m.file_type().is_socket() => {
-            if UnixStream::connect(path).is_ok() {
+            if pod_core::files::socket_answers(path) {
                 return Err(io::Error::new(io::ErrorKind::AddrInUse, "a live socket"));
             }
             std::fs::remove_file(path)?;

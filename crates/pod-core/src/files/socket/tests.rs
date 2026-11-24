@@ -159,3 +159,23 @@ fn a_client_reaches_a_socket_at_a_long_path() {
         let (_server, _) = listener.accept().unwrap();
     });
 }
+
+/// A forked child keeps a copy of the listener until its exec: the closed
+/// socket still takes a connect, but it does not answer. A live listener
+/// answers; a path with no socket does not.
+#[test]
+fn a_socket_that_a_forked_child_holds_until_its_exec_is_stale() {
+    let dir = long_dir("held", 40);
+    remove_long_after(&dir, || {
+        let path = dir.join("held.sock");
+        let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();
+        let held = pod_testkit::held::hold_until_exec(&listener);
+        drop(listener);
+        assert!(!socket_answers(&path), "a closed socket that a child holds answers");
+        assert!(held.join().success());
+        std::fs::remove_file(&path).unwrap();
+        let _live = std::os::unix::net::UnixListener::bind(&path).unwrap();
+        assert!(socket_answers(&path));
+        assert!(!socket_answers(&dir.join("none.sock")));
+    });
+}

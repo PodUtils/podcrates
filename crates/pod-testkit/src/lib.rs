@@ -11,6 +11,9 @@
 //!   switches of context (a call that blocks), of a scope on one thread.
 //! * [`freed`]: a search of each block that a scope frees for a marker, for
 //!   the test of a wipe of a secret.
+//! * `held` (Unix only): a forked child that holds a copy of a Unix
+//!   listener until its exec, as a child of another thread does, for the
+//!   test of a probe of a stale socket.
 //! * [`listener`]: a server child of a test on a port of the loopback that
 //!   it holds itself, with new ports where another process took one.
 //! * `nobody` (Linux only): a test as a caller with no capabilities; root
@@ -50,6 +53,8 @@ pub mod freed;
 pub mod githome;
 #[cfg(feature = "github")]
 pub mod github;
+#[cfg(unix)]
+pub mod held;
 pub mod host;
 pub mod listener;
 #[cfg(feature = "masque")]

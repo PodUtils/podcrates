@@ -23,6 +23,9 @@ use std::os::unix::fs::{DirBuilderExt, FileTypeExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 mod alias;
+mod answers;
+
+pub use answers::socket_answers;
 
 /// `sun_path` holds 108 bytes on Linux and 104 on the BSDs: the longest
 /// staged path that each takes, with its NUL.

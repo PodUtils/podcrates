@@ -65,9 +65,12 @@ pod-job = { workspace = true, optional = true }
 boon = { workspace = true, optional = true }
 
 # The probe of a user and a mount namespace (need_userns!): fork, unshare,
-# mount.
-[target.'cfg(target_os = "linux")'.dependencies]
+# mount. The child that holds a listener until its exec (src/held.rs):
+# poll, accept, write.
+[target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
 # The one detection of an emulator (host::emulated). pod-hostprobe and
 # pod-core take this crate as a dev-dependency by path only, so that cargo
 # publish can order them (scripts/check-publish-order.py).

@@ -107,15 +107,11 @@ pub fn candidates_of(
     out
 }
 
-/// Whether a stream connects to `socket`.
-pub fn answers(socket: &Path) -> bool {
-    std::os::unix::net::UnixStream::connect(socket).is_ok()
-}
-
-/// The first socket of `tried` that answers. Else `Unavailable` (exit 69)
+/// The first socket of `tried` that answers
+/// (`pod_core::files::socket_answers`). Else `Unavailable` (exit 69)
 /// that names each socket tried, and the state directory of `pointer`.
 pub fn running(tried: &[(&'static str, PathBuf)], pointer: Option<&Pointer>) -> Result<PathBuf, Failure> {
-    if let Some((_, socket)) = tried.iter().find(|(_, s)| answers(s)) {
+    if let Some((_, socket)) = tried.iter().find(|(_, s)| pod_core::files::socket_answers(s)) {
         return Ok(socket.clone());
     }
     Err(Failure::new(Stage::Warp, Class::Unavailable, not_running(tried, pointer)))
@@ -221,5 +217,20 @@ mod tests {
         assert!(text.contains("other-run/warp.sock (the pointer file)"), "{text}");
         let state = format!("the state directory {}", tmp.join("other").display());
         assert!(text.ends_with(&state), "{text}");
+    }
+
+    /// A dead daemon whose listener a forked child holds until its exec is
+    /// not the running daemon: the next socket of the list that answers is.
+    #[test]
+    fn a_dead_socket_that_a_forked_child_holds_is_not_running() {
+        let tmp = crate::test_dir("find-held");
+        let (dead, live) = (tmp.join("dead.sock"), tmp.join("live.sock"));
+        let listener = std::os::unix::net::UnixListener::bind(&dead).unwrap();
+        let held = pod_testkit::held::hold_until_exec(&listener);
+        drop(listener);
+        let _live = std::os::unix::net::UnixListener::bind(&live).unwrap();
+        let found = running(&[("the variable", dead), ("the run directory", live.clone())], None);
+        assert!(held.join().success());
+        assert_eq!(found.ok(), Some(live));
     }
 }

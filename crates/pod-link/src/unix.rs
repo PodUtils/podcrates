@@ -145,13 +145,13 @@ impl Drop for UnixCarrierListener {
     }
 }
 
-/// Make `path` free for a new listener. A socket that answers belongs to
-/// another listener: in use. A file that is not a socket is never removed.
+/// Make `path` free for a new listener. A socket that answers
+/// (`pod_core::files::socket_answers`) belongs to another listener: in use. A file that is not a socket is never removed.
 /// A stale socket is removed.
 fn claim(path: &Path) -> Result<(), CarrierError> {
     match std::fs::symlink_metadata(path) {
         Ok(meta) if meta.file_type().is_socket() => {
-            if std::os::unix::net::UnixStream::connect(path).is_ok() {
+            if pod_core::files::socket_answers(path) {
                 return Err(err(CarrierErrorKind::InUse, format!("{} is served by another listener", path.display())));
             }
             std::fs::remove_file(path)

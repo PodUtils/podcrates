@@ -226,6 +226,19 @@ fn bind_keeps_a_live_socket_and_a_file_and_replaces_a_stale_socket() {
     assert_eq!(std::fs::read(&file).unwrap(), b"x");
 }
 
+/// A forked child keeps a copy of the closed listener until its exec, so
+/// the stale socket takes one connect: the bind still replaces it.
+#[test]
+fn bind_replaces_a_stale_socket_that_a_forked_child_holds() {
+    let path = common::dir("held").join("ctl.sock");
+    let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();
+    let held = pod_testkit::held::hold_until_exec(&listener);
+    drop(listener);
+    let bound = unix::bind(&path, 0o600);
+    assert!(held.join().success());
+    assert!(bound.is_ok(), "{:?}", bound.err());
+}
+
 /// A `busy` line that comes, with a close, before the request is written is
 /// still the answer, not a broken pipe (podrunner's test of its client).
 #[test]
