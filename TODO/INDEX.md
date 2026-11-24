@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**960 entries: 171 open, 29 partial, 7 blocked, 753 done.**
+**960 entries: 170 open, 29 partial, 7 blocked, 754 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 226 | 240 |
 | P2 | 82 | 8 | 4 | 392 | 486 |
-| P3 | 85 | 11 | 3 | 133 | 232 |
-| **All** | 171 | 29 | 7 | 753 | 960 |
+| P3 | 84 | 11 | 3 | 134 | 232 |
+| **All** | 170 | 29 | 7 | 754 | 960 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -985,7 +985,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1168](relay.md) | P3 | M | M2 | feature | open | `pod-link`: the datagrams of the DNS carrier over DNS over HTTPS (RFC 8484), for a dialer behind an HTTP proxy with no UDP (PodUtils/podssh#349) |
 | [T-1169](relay.md) | P3 | M | M2 | chore | open | `pod-link`: a test of the DNS carrier through `unbound` with its default settings, in the box of CI (PodUtils/podssh#349) |
 | [T-1170](relay.md) | P2 | S | M2 | defect | done | `pod-link`: the DNS listener answers with the question in lower case, so a resolver that uses 0x20 rejects the answer |
-| [T-1171](relay.md) | P3 | S | M2 | defect | open | `pod-link`: a late query of an ended DNS session starts a new handshake and holds a permit |
+| [T-1171](relay.md) | P3 | S | M2 | defect | done | `pod-link`: a late query of an ended DNS session starts a new handshake and holds a permit |
 | [T-1180](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `aab63e5` (the third port of `source-driver.md`) |
 | [T-1181](fleet.md) | P1 | S | M0 | chore | done | `pod-unit`: the words of the forms at podssh `ea4c290` (port review of `text.rs`) |
 | [T-1182](fleet.md) | P2 | S | M0 | feature | open | `pod-unit`: the name of a unit has at most 64 characters, so podssh's longer node names are refused at `--install` |

@@ -11621,7 +11621,7 @@ test result: FAILED. 7 passed; 3 failed
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11654,3 +11654,53 @@ query of an ended id, and shows that a new session still starts.
 ```sh
 cargo test -p pod-link --all-features --test dns
 ```
+
+## Done
+
+2026-11-24, this commit. The DNS listener of `pod-link` keeps the id of a
+session that ended, and a late query of that id starts no handshake:
+
+- `crates/pod-link/src/dns/server.rs`: when the up queue of a session is
+  closed (its handshake failed, or its link ended and its ARQ is quiet), the
+  listener removes the session and keeps its id for `handshake_timeout`,
+  at most 4096 ids (`MAX_ENDED`). The check of each second removes the old
+  ids. A query of a kept id gets NOERROR with no record, AA set, and takes
+  no slot, also when it holds a part of a ClientHello (a retry of a
+  resolver).
+- A session that ended at its quiet time (T-1165) leaves no id: its dialer
+  can still be on the path and send its ClientHello again. A session whose
+  first record is refused leaves no id: a retry of it is refused again at
+  once.
+- The header of `server.rs` and the documentation of
+  `Dns::handshake_timeout` say it.
+
+The late query lands in the session while the ARQ of the session answers
+the frames of its peer after the end (two RTO ceilings of quiet, at most
+eight; 16 s to 64 s at the defaults), and the ARQ answers it with an `ACK`.
+The defect is for a later query.
+
+Test: `a_late_query_of_an_ended_session_starts_no_handshake` in
+`crates/pod-link/tests/dns.rs` (new; the listener with one slot, the
+`fast_arq` of the tests and `handshake_quiet` 2 s). A client of a key that
+the listener does not take dials through a relay that keeps its queries;
+the listener refuses the key. After the ARQ of the session is quiet and the
+listener removed the session, the test sends the first query of the session
+(the first part of its ClientHello) two times, checks the answers (NOERROR,
+no record, AA), and times a real dial. 10 runs in a loop: all passed, the
+dial took 30 to 34 ms. `cargo test -p pod-link --all-features --test dns
+--test dns_loss --test dns_resolver`: 12, 4 and 3 passed; `--lib dns`: 6
+passed; `cargo test -p pod-dns --all-features`: all passed; clippy and
+rustdoc: no warning; plants: 0 stale.
+
+On the old `server.rs`, the test fails: the late query starts a session
+that takes the one slot, and the dial waits for the retries of its ARQ:
+
+```text
+the dial after 2 late queries of an ended session: 15.046967793s
+a late query took the slot: the dial took 15.046967793s
+test a_late_query_of_an_ended_session_starts_no_handshake ... FAILED
+```
+
+For the hand-off: no public item changed. A listener answers a late query
+of an ended session with no record for `handshake_timeout` (20 s by
+default).

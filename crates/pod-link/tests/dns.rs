@@ -5,8 +5,9 @@
 //! dial; a query of a stranger changes nothing; each query of the zone that
 //! the listener cannot take gets an answer (T-1164, PodUtils/podssh#349);
 //! an answer keeps the bytes of the question and clears RA (T-1170); 64
-//! queries of new session ids keep no dial out (T-1165); an address or a
-//! setting out of its form is a usage error.
+//! queries of new session ids keep no dial out (T-1165); a late query of an
+//! ended session starts no handshake (T-1171); an address or a setting out
+//! of its form is a usage error.
 //! `tests/dns_loss.rs` has the loss, the reorder and the duplicates over the
 //! `Lossy` shim.
 
@@ -18,7 +19,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use common::dns::{ZONE, at, bound, carrier, query_name};
+use common::dns::{ZONE, at, bound, carrier, fast_arq, query_name};
 use common::tcp::{id, ring};
 use common::{echo, limit, pattern};
 use pod_core::Class;
@@ -29,6 +30,7 @@ use pod_link::dns::{Dns, DnsListener, DnsSettings, EDNS_SIZE};
 use pod_link::tcp::{Refusal, refusal};
 use pod_link::{Carrier, CarrierErrorKind, Cost, Facts, Link, Listener, Role, Settings};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::UdpSocket;
 use tokio::time::timeout;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -304,6 +306,77 @@ async fn queries_of_new_session_ids_do_not_keep_a_dial_out() {
     assert!(first < quiet, "the junk held a slot: the dial took {first:?}");
     let bound = pod_testkit::host::scaled(Duration::from_secs(8));
     assert!(second < bound, "the parts held a slot past the quiet time: the dial took {second:?}");
+}
+
+/// A relay at a free UDP port of the loopback that sends each query to
+/// `server` and each answer back, and keeps each query that holds a datagram
+/// (more than a poll) for a replay.
+async fn recording_relay(server: SocketAddr) -> (SocketAddr, Arc<std::sync::Mutex<Vec<Vec<u8>>>>) {
+    let (front, back) = (UdpSocket::bind("127.0.0.1:0").await.unwrap(), UdpSocket::bind("127.0.0.1:0").await.unwrap());
+    let addr = front.local_addr().unwrap();
+    let kept = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let keep = kept.clone();
+    tokio::spawn(async move {
+        let (mut up, mut down, mut client) = (vec![0u8; 1 << 16], vec![0u8; 1 << 16], None);
+        loop {
+            tokio::select! {
+                Ok((n, from)) = front.recv_from(&mut up) => {
+                    client = Some(from);
+                    // A poll of the dialer has a name of 13 characters.
+                    if n > 80 {
+                        keep.lock().unwrap().push(up[..n].to_vec());
+                    }
+                    let _ = back.send_to(&up[..n], server).await;
+                }
+                Ok((n, _)) = back.recv_from(&mut down) => {
+                    if let Some(to) = client {
+                        let _ = front.send_to(&down[..n], to).await;
+                    }
+                }
+                else => return,
+            }
+        }
+    });
+    (addr, kept)
+}
+
+/// A late query of an ended session (a retry of a resolver) that holds a
+/// part of its ClientHello starts no handshake and takes no slot (T-1171,
+/// PodUtils/podssh#349): with one slot, a real dial after it does not wait
+/// for `handshake_quiet`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_late_query_of_an_ended_session_starts_no_handshake() {
+    pod_testkit::need_loopback!();
+    let (server, client) = (id(1), id(2));
+    let mut listening = carrier(1, &[client.public()]);
+    listening.max_handshakes = 1;
+    let quiet = pod_testkit::host::scaled(Duration::from_secs(2));
+    listening.handshake_quiet = quiet;
+    listening.arq = fast_arq();
+    let mut door = bound(&listening).await;
+    // A client of a key that the listener does not take: its session ends
+    // at the refusal of its key.
+    let (relay, kept) = recording_relay(door.local_addr()).await;
+    let stranger = carrier(4, &[]).to(relay);
+    let address = at(&server.public());
+    let both = async { tokio::join!(stranger.dial(&address), door.accept_key()) };
+    let (near, far) = timeout(limit(), both).await.expect("the refusal in time");
+    assert!(near.is_err() && far.is_err(), "the listener refused the key 4");
+    // The first query of the session holds the first part of its ClientHello.
+    let first = kept.lock().unwrap().first().cloned().expect("a query of the ClientHello");
+    let (id, name) = (u16::from_be_bytes([first[0], first[1]]), txt::question(&first).unwrap().1);
+    // The ARQ of the session answers the frames of its peer until the peer
+    // is quiet for two RTO ceilings, at most for eight; the listener then
+    // removes the session at its next check of each second.
+    tokio::time::sleep(fast_arq().rto_ceiling * 8 + Duration::from_secs(1)).await;
+    let late = 2;
+    for n in 0..late {
+        let got = ask_bytes(door.local_addr(), &first).await;
+        assert_no_record(got.and_then(|got| txt::read(&got, id, &name, TXT).ok()), true, &format!("late query {n}"));
+    }
+    let took = timed_dial(&mut door, &server.public()).await;
+    eprintln!("the dial after {late} late queries of an ended session: {took:?}");
+    assert!(took < quiet, "a late query took the slot: the dial took {took:?}");
 }
 
 #[tokio::test]

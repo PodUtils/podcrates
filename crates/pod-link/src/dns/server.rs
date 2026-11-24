@@ -29,6 +29,12 @@
 //!
 //! A query of a new session at the limit of the handshakes gets no answer,
 //! so the dialer sends it again. An answer gets no answer.
+//!
+//! The listener keeps the id of a session that ended (its handshake failed,
+//! or its link ended) for [`crate::dns::Dns::handshake_timeout`]: a late
+//! query of that id (a retry of a resolver) gets NOERROR with no record and
+//! starts no handshake. A session that ended at its quiet time leaves no id,
+//! so its dialer can start it again.
 
 use std::collections::{HashMap, VecDeque};
 use std::fmt;
@@ -65,6 +71,10 @@ const PRUNE: Duration = Duration::from_secs(1);
 
 /// The pause after a failed read of the socket, so the task does not spin.
 const READ_PAUSE: Duration = Duration::from_millis(50);
+
+/// The most ids of ended sessions that the listener keeps; past it, a late
+/// query of an ended session can start a session again.
+const MAX_ENDED: usize = 4096;
 
 /// The result of one handshake.
 type Shaken = Result<(BoxIo, PublicKey), CarrierError>;
@@ -238,6 +248,7 @@ async fn serve(
     mut stop: oneshot::Receiver<()>,
 ) {
     let mut sessions: HashMap<u32, Entry> = HashMap::new();
+    let mut ended: HashMap<u32, Instant> = HashMap::new();
     let mut shakes = JoinSet::new();
     let mut stopped = false;
     let mut buf = vec![0u8; MAX_QUERY];
@@ -254,7 +265,8 @@ async fn serve(
                         continue;
                     }
                 };
-                answer(&socket, &zone, &shake, &settings, &limit, &out, &mut sessions, &mut shakes, &buf[..n], from, stopped).await;
+                let table = Table { sessions: &mut sessions, ended: &mut ended, shakes: &mut shakes, stopped };
+                answer(&socket, &zone, &shake, &settings, &limit, &out, table, &buf[..n], from).await;
             }
             _ = &mut stop, if !stopped => {
                 stopped = true;
@@ -264,13 +276,35 @@ async fn serve(
             }
             _ = prune.tick() => {
                 let now = Instant::now();
-                sessions.retain(|_, e| !e.up.is_closed() && !e.quiet(now, shake.quiet, &out));
+                ended.retain(|_, at| now.duration_since(*at) < shake.within);
+                sessions.retain(|id, e| {
+                    if e.up.is_closed() {
+                        keep_ended(&mut ended, *id, now);
+                    }
+                    !e.up.is_closed() && !e.quiet(now, shake.quiet, &out)
+                });
                 while shakes.try_join_next().is_some() {}
                 if stopped && sessions.is_empty() {
                     return;
                 }
             }
         }
+    }
+}
+
+/// The sessions of the listener, the ids of the sessions that ended, and the
+/// tasks of the handshakes.
+struct Table<'a> {
+    sessions: &'a mut HashMap<u32, Entry>,
+    ended: &'a mut HashMap<u32, Instant>,
+    shakes: &'a mut JoinSet<()>,
+    stopped: bool,
+}
+
+/// Keep the id `id` of a session that ended at `now`, while the map has room.
+fn keep_ended(ended: &mut HashMap<u32, Instant>, id: u32, now: Instant) {
+    if ended.len() < MAX_ENDED {
+        ended.insert(id, now);
     }
 }
 
@@ -285,12 +319,11 @@ async fn answer(
     settings: &DnsSettings,
     limit: &Arc<Semaphore>,
     out: &mpsc::Sender<Shaken>,
-    sessions: &mut HashMap<u32, Entry>,
-    shakes: &mut JoinSet<()>,
+    table: Table<'_>,
     query: &[u8],
     from: SocketAddr,
-    stopped: bool,
 ) {
+    let Table { sessions, ended, shakes, stopped } = table;
     // The name in lower case serves to decode; each answer copies the bytes
     // of the question, so a resolver that uses 0x20 takes it.
     let Ok((_, name, kind)) = txt::question(query) else { return };
@@ -324,7 +357,8 @@ async fn answer(
             // The listener starts no new session. An empty answer, not a
             // refusal: a resolver keeps no failure and marks the server as
             // bad for no time, and the dialer ends at its time limit.
-            if stopped {
+            // A late query of an ended session starts no handshake either.
+            if stopped || ended.contains_key(&session) {
                 return empty(socket, query, txt::RCODE_NOERROR, true, edns, from).await;
             }
             // Only a part of a ClientHello takes a slot.
@@ -362,6 +396,7 @@ async fn answer(
     }
     if entry.up.is_closed() {
         sessions.remove(&session);
+        keep_ended(ended, session, Instant::now());
     }
 }
 
