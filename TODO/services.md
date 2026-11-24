@@ -185,3 +185,48 @@ sh scripts/plant-each.sh --apply
 ```
 
 A dispatch of `services.yml` with `service=easybell-stun` passes.
+
+# T-1223: `services.yml` 45394042840: the Syncthing relay WMYMARB at a new address, the Trojan node `node-trojan-45-63-30-142` gone, and two hosts with a first no answer
+
+**Source:** the scheduled run 45394042840 of `services.yml` at `6d3f754` (2026-11-24, job `watch` 138444977173).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The step "Each watch" gave `213 hold, 0 skipped, 2 first with no answer, 2 moved or failed`:
+
+- `MOVED syncthing-relay http-json`: the endpoint `relay-wmymarb` of `crates/pod-services/services/syncthing-relay.toml` is `189.146.18.236`; the service gives the host `187.142.242.141` (source: https://relays.syncthing.net/endpoint/full, read 2026-11-12).
+- `FAILED node-trojan-45-63-30-142 proxy-banner`: "TLS for connectwithemployerstohireyouridealteam.com at 45.63.30.142:443: tls handshake eof". The run of 2026-11-23 gave `FAILED (first no answer)` for the same node and the same text (T-1093).
+- `FAILED (first no answer) node-trojan-64-176-7-205 proxy-banner`: "64.176.7.205:443: connecting to 64.176.7.205:443 timed out after 29s".
+- `FAILED (first no answer) freedos-image http-sha256`: "connecting to download.freedos.org:443 timed out after 29s".
+
+`temp-sh http-status` held: `https://temp.sh/upload answered 405` (T-1034).
+
+## Premise
+
+- Read: the log of the job (the URL of the log from the GitHub MCP tool); `crates/pod-services/services/syncthing-relay.toml`; T-1093, T-1096; call C901.
+- `syncthing-relay`: the pool (`https://relays.syncthing.net/endpoint/full`, read here 2026-11-24) gives the device WMYMARB (`providedBy=TacosAlPastor`, no rate limit, location MX) at `relay://187.142.242.141:443`, with `startTime` 2026-09-23 and `uptimeSeconds` 5328936 (61.7 days). The start time is the same as at the read of 2026-11-12 (49 days then): the relay did not restart, only its address changed. Call C901 removes a relay at a new address because the restart resets the uptime; here the uptime is far over the 7 days of call C104, so the relay stays with its new host.
+- `node-trojan-45-63-30-142`: no answer on two scheduled runs in a row with the same text (2026-11-23 first no answer, 2026-11-24 `FAILED`). The link is still in the list of barry-far (7 lines with `@45.63.30.142:` or `@64.176.7.205:`, read here 2026-11-24): the lists are made by a robot and keep dead nodes. The proxy of this sandbox resets a connect to an IP literal: no read of the node here.
+- `node-trojan-64-176-7-205`: a first no answer. It held on 2026-11-23. The rule of call C153 waits for the next scheduled run.
+- `freedos-image`: a first no answer. It held on 2026-11-23 (T-1096) and timed out on 2026-11-21 and 2026-11-22. T-1096 reopens at three runs in a row; the tally is 3 of the last 4 runs, not in a row.
+
+## Approach
+
+- `syncthing-relay`: set the host of `relay-wmymarb` to `187.142.242.141` with the read date 2026-11-24 and the uptime of 61 days in its note (the device id stays).
+- `node-trojan-45-63-30-142` leaves as `node-trojan-167-88-61-175` left (T-855) and the three nodes of T-1093: its file, and the count of the row `node-*` in `crates/pod-services/README.md` (3 to 2). The next hand-off tells podssh (PodUtils/podssh@T-574), the consumer of the nodes. Two files `node-*` stay: `node-trojan-64-176-7-205` and `node-xhttp-193-160-208-240`.
+- `node-trojan-64-176-7-205` and `freedos-image` wait for the next scheduled run. When `node-trojan-64-176-7-205` fails again, it leaves in the same way. When `freedos-image` times out on the next run too, T-1096 reopens with its step 2.
+
+## Prove
+
+```sh
+cargo test -p pod-services -p pod-services-watch --all-features
+cargo run -q -p pod-services-watch -- --service syncthing-relay
+```
+
+## Done
+
+2026-11-24. `crates/pod-services/services/syncthing-relay.toml`: the endpoint `relay-wmymarb` is `187.142.242.141` (read 2026-11-24, up 61 days) and the note of its fact names the new host. The file of the node `node-trojan-45-63-30-142` is gone; the row `node-*` of `crates/pod-services/README.md` counts 2. `cargo test -p pod-services -p pod-services-watch --all-features` passes, and `--service syncthing-relay` gives `holds` (24 endpoints). The tests: `each_syncthing_relay_is_an_ip_literal_on_443_with_its_device_id` and `the_watch_of_the_syncthing_relays_holds_each_endpoint_to_the_pool` (`crates/pod-services/tests/syncthing.rs`) and `a_proxy_node_link_is_a_form_that_podssh_reads` (`crates/pod-services/tests/public_carriers.rs`). The consumers: podssh (PodUtils/podssh@T-571, PodUtils/podssh#209) and podnet read the relay set, and podssh reads the nodes; they take the change at the next tag. Commit: see `git log` for T-1223.

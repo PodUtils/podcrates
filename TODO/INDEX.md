@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**959 entries: 171 open, 29 partial, 7 blocked, 752 done.**
+**960 entries: 171 open, 29 partial, 7 blocked, 753 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 226 | 240 |
-| P2 | 82 | 8 | 4 | 391 | 485 |
+| P2 | 82 | 8 | 4 | 392 | 486 |
 | P3 | 85 | 11 | 3 | 133 | 232 |
-| **All** | 171 | 29 | 7 | 752 | 959 |
+| **All** | 171 | 29 | 7 | 753 | 960 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1006,3 +1006,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1220](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the sequences over a `Transport` (create a primary, create a key under a PCR policy, load, sign) that flush each handle on each path (PodUtils/podssh#351) |
 | [T-1221](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the transports of Linux (`/dev/tpmrm0`, an swtpm socket) and of Windows (TBS), each command bounded in size and time (PodUtils/podssh#351) |
 | [T-1222](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: a TPM in software (feature `soft`) and a CI lane against swtpm and the reference simulator, with the key of PCR 7 as the proof (PodUtils/podssh#351) |
+| [T-1223](services.md) | P2 | S | M5 | defect | done | `services.yml` 45394042840: the Syncthing relay WMYMARB at a new address, the Trojan node `node-trojan-45-63-30-142` gone, and two hosts with a first no answer |
