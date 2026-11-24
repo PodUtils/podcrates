@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**964 entries: 169 open, 29 partial, 7 blocked, 759 done.**
+**965 entries: 169 open, 29 partial, 7 blocked, 760 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 226 | 240 |
+| P1 | 4 | 10 | 0 | 227 | 241 |
 | P2 | 81 | 8 | 4 | 396 | 489 |
 | P3 | 84 | 11 | 3 | 135 | 233 |
-| **All** | 169 | 29 | 7 | 759 | 964 |
+| **All** | 169 | 29 | 7 | 760 | 965 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1011,3 +1011,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1236](foundation.md) | P2 | S | M0 | docs | open | `pod-core`: the codes that a consumer keeps where its class gives another, in the README (PodUtils/podssh#352) |
 | [T-1237](foundation.md) | P2 | S | M0 | feature | done | `pod-release`: `Error::CantWrite` has the class `CantCreate` (73) (PodUtils/podssh#352) |
 | [T-1238](foundation.md) | P3 | S | M0 | research | open | `pod-core`: no class for `EX_DATAERR` (65), which podssh uses (PodUtils/podssh#352) |
+| [T-1243](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the auth of the fake broker at podrunner `2a55cd9` (port review of `auth.rs`) |

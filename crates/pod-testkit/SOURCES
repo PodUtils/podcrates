@@ -23,10 +23,13 @@ file 429a7e9cdd5e86a8847cf5dee4bcda59fb33fa2a tests/test_host/mod.rs -> crates/p
 # The block moved to 2aacaea (T-1160) with no port: clear_diag of
 # runner.rs clears the files of the official runner, which this crate
 # does not start; the key and the client assertion did not change.
-repo PodUtils/podrunner 2aacaea3127e37d3a5f0b98fddfce1b9b1ab007f
+# The block moved to 2a55cd9 (T-1243) with no port: auth.rs lets the job
+# token get the tarball of a commit (`/_checkout/COMMIT.tar.gz`) of the
+# local mode of podrunner; this fake GitHub serves no tree of a job.
+repo PodUtils/podrunner 2a55cd97d5f351ee936cb82d4ff5d58e76801abc
 file b7735e1ef9b59f14b0dd418e8aaa212fb7f0c207 crates/podrunner-broker-fake/src/lib.rs -> crates/pod-testkit/src/github.rs crates/pod-testkit/src/github/broker.rs
 file 10ed4007d192ec54c1add314a6fc0ecaaf956fa9 crates/podrunner-broker-fake/src/message.rs -> crates/pod-testkit/src/github/message.rs
-file 3c93b065172d634f957c3a4b70e27e207799f4db crates/podrunner-broker-fake/src/auth.rs -> crates/pod-testkit/src/github/broker.rs crates/pod-testkit/src/github/key.rs
+file fc88acde6a6badee66cb6d2666b87bd833a6034a crates/podrunner-broker-fake/src/auth.rs -> crates/pod-testkit/src/github/broker.rs crates/pod-testkit/src/github/key.rs
 file 5e9475d1efd27617f7017a28d8c71fa40a3b790d crates/podrunner-broker-fake/src/results.rs -> crates/pod-testkit/src/github/broker.rs
 file 7e3b6fae98e9eec26bd63da344a6c0496c7adeab crates/podrunner-broker-fake/src/files.rs -> crates/pod-testkit/src/github/api.rs
 file 53d32c12630ea80da37e4d013e5870014614136a crates/podrunner-broker-fake/src/runner.rs -> crates/pod-testkit/src/github/key.rs

@@ -3698,3 +3698,63 @@ cargo todo check
 
 T-1236 is done and podssh's table test at the tag of T-1235 shows the
 uses of 65.
+
+# T-1243: `pod-testkit`: the auth of the fake broker at podrunner `2a55cd9` (port review of `auth.rs`)
+
+**Source:** `upstream.yml` run 45423205689 at `5fd6fb7`, job `sources`.
+**Category:** chore
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+After T-1160, podrunner changed one imported file of `pod-testkit`:
+
+```text
+pod-testkit: changed PodUtils/podrunner:crates/podrunner-broker-fake/src/auth.rs -> crates/pod-testkit/src/github/broker.rs, crates/pod-testkit/src/github/key.rs
+check-sources: pod-testkit: PodUtils/podrunner at 2aacaea: 6 files, 1 changes
+```
+
+The commit is `2a55cd9` ("checkout: ref: of the same repository gives the
+commit of the ref in the local git", T-640 of podrunner). `need` of
+`auth.rs` lets the job token get `/_checkout/COMMIT.tar.gz`, the tarball of
+a commit of the local git. The route is in `actions.rs` of the fake broker,
+which is not an imported file.
+
+## Premise
+
+- Read: `git show 2a55cd9` of podrunner (`auth.rs`, `actions.rs`) and its
+  message; `crates/pod-testkit/src/github/broker.rs`,
+  `crates/pod-testkit/src/github/key.rs`, `crates/pod-testkit/SOURCES`.
+- The fake GitHub of `pod-testkit` runs a job of `run:` steps. It has no
+  route of the tree of a job (no `_checkout.tar.gz`) and no table of the
+  credential of each route.
+
+## Approach
+
+1. Compare the change with what the fake GitHub must do. The new route is
+   a route of the local mode of podrunner; the fake GitHub serves no tree:
+   no port.
+2. Move the broker block to `2a55cd9`, with the blobs of `git ls-tree`, and
+   say why in its comment. The block has no `taken` line, so none is due.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podrunner=PODRUNNER --clone PodUtils/podnet=PODNET pod-testkit
+```
+
+## Done
+
+2026-11-24. No port: `2a55cd9` adds `/_checkout/` to the routes of `need`
+that take the job token, for the tarball of a commit of the local git
+(the `ref:` of `actions/checkout` in the local mode of podrunner). The fake
+GitHub of `pod-testkit` serves no tree of a job, and its key and its client
+assertion did not change, so its wire does not change.
+`crates/pod-testkit/SOURCES`: the broker block is at `2a55cd9` (blob
+`fc88acd` of `auth.rs`; the other 5 blobs did not change), with the reason
+in its comment. `check-sources.py` with clones of podrunner (`c5c6b12`)
+and podnet: "PodUtils/podrunner at 2a55cd9: 6 files, 0 changes"; the
+other blocks of `pod-testkit` show 0 changes.
