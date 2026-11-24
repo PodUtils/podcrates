@@ -8,7 +8,7 @@ use super::links::{Ids, Links, Name};
 use super::trie::{List, Local, ROOT, Trie};
 use super::write::{Expand, Head, Kind, Out};
 use crate::error::{Result, refuse};
-use crate::safety::{self, Refusal};
+use crate::safety::{self, MADE_MODE, Refusal};
 use crate::sparse::Layout;
 use crate::whiteout::{self, Kind as Marker};
 use crate::{Layer, pax, xattr};
@@ -126,7 +126,9 @@ impl State {
         }
         self.links.replace(leaf, !hidden);
         if kind.is_hard_link() {
-            return self.hard_link(w, (digest, layer), (leaf, &parts, &path), &link_parts, &header, hidden, &chain);
+            let attrs = xattr::read(&member.xattrs, &parts.join("/"));
+            let at = (digest, layer, index);
+            return self.hard_link(w, at, (leaf, &parts, &path), &link_parts, (&header, attrs), hidden, &chain);
         }
         let (wkind, link) = match &target {
             Some(t) => (Kind::Symlink, Some(t.as_str())),
@@ -144,11 +146,16 @@ impl State {
                 }
                 return Ok(());
             };
-            let x = put(w, &self.trie.path(name.node), (wkind, &header, member), e, sparse.as_ref(), link)?;
+            let recs = &plan.as_ref().map_or(&[][..], |p| &p.recs);
+            let (x, out) =
+                put(w, &self.trie.path(name.node), (wkind, &header, member), e, sparse.as_ref(), (link, recs))?;
             self.total.xattrs.add(&x);
+            self.links.put_records(name.node, &out);
         } else {
-            let x = put(w, &parts.join("/"), (wkind, &header, member), e, sparse.as_ref(), link)?;
+            let recs = &plan.as_ref().map_or(&[][..], |p| &p.recs);
+            let (x, out) = put(w, &parts.join("/"), (wkind, &header, member), e, sparse.as_ref(), (link, recs))?;
             self.total.xattrs.add(&x);
+            self.links.put_records(leaf, &out);
             let n = self.trie.node_mut(leaf);
             n.emitted = layer;
             for a in chain {
@@ -172,10 +179,10 @@ impl State {
     fn hard_link<W: Write>(
         &mut self,
         w: &mut Out<'_, W>,
-        (digest, layer): (&str, u16),
+        (digest, layer, index): (&str, u16, u64),
         (leaf, parts, path): (u32, &[&str], &str),
         tparts: &[&str],
-        header: &tar::Header,
+        (header, attrs): (&tar::Header, xattr::Wanted),
         hidden: bool,
         chain: &[u32],
     ) -> Result<()> {
@@ -198,7 +205,11 @@ impl State {
                 }
             }
         }
-        let g = self.links.link(leaf, layer, (!hidden).then_some(Name { node: leaf, ids }));
+        // The records of the link go with the data of its inode (module
+        // `links`); a record past a bound is named, as `extract` names it.
+        self.total.xattrs.add(&xattr::Applied { set: 0, unset: attrs.refused });
+        let name = (!hidden).then_some(Name { node: leaf, ids });
+        let g = self.links.link((leaf, layer, index), name, attrs.attrs);
         if tparts.len() >= parts.len() && tparts[..parts.len()] == *parts {
             // `extract` removes the name of the link first.
             self.links.doomed(g, format!("{:?}: {}", tparts.join("/"), safety::LINK_MISSING));
@@ -269,7 +280,7 @@ impl State {
             }
             let path = self.trie.path(n);
             let head =
-                Head { path: &path, kind: Kind::Dir, mode: 0o755, uid: 0, gid: 0, mtime: 0, size: 0, link: None };
+                Head { path: &path, kind: Kind::Dir, mode: MADE_MODE, uid: 0, gid: 0, mtime: 0, size: 0, link: None };
             w.head(&head)?;
             self.trie.node_mut(n).emitted = super::IMPLIED;
             self.total.implied += 1;
@@ -347,7 +358,7 @@ impl State {
         digest: &str,
         e: &mut tar::Entry<'_, R>,
         member: &pax::Member,
-        names: &[Name],
+        (names, recs): (&[Name], &[xattr::Xattr]),
     ) -> Result<()> {
         let raw = member.path.clone().unwrap_or_else(|| e.path_bytes().to_vec());
         let path = String::from_utf8_lossy(&raw).into_owned();
@@ -355,8 +366,10 @@ impl State {
         let sparse = crate::sparse::layout(member.sparse.as_ref(), e, digest, &path)?;
         let target = header.entry_type().is_symlink().then(|| crate::apply::link_name(e, member));
         let kind = if target.is_some() { Kind::Symlink } else { Kind::File };
-        let x = put(w, &self.trie.path(names[0].node), (kind, &header, member), e, sparse.as_ref(), target.as_deref())?;
+        let lead = self.trie.path(names[0].node);
+        let (x, out) = put(w, &lead, (kind, &header, member), e, sparse.as_ref(), (target.as_deref(), recs))?;
         self.total.xattrs.add(&x);
+        self.links.put_records(names[0].node, &out);
         self.total.written += 1;
         self.links.reread_links(w, &self.trie, names)
     }
@@ -365,22 +378,26 @@ impl State {
 /// One entry of the stream at `path`: the header with the values of the
 /// image and the extended attributes that `extract` sets
 /// ([`crate::xattr::read`], an ACL in its binary form) as `SCHILY.xattr.`
-/// records, then the data of a file (its holes as zero bytes). Gives the
-/// attributes written and those named and not written.
+/// records, with the records of the hard links of its inode over them
+/// (`links`), then the data of a file (its holes as zero bytes). Gives the
+/// attributes written and those named and not written, and the records.
 fn put<W: Write, R: Read>(
     w: &mut Out<'_, W>,
     path: &str,
     (kind, header, member): (Kind, &tar::Header, &pax::Member),
     e: &mut tar::Entry<'_, R>,
     sparse: Option<&Layout>,
-    link: Option<&str>,
-) -> Result<xattr::Applied> {
+    (link, links): (Option<&str>, &[xattr::Xattr]),
+) -> Result<(xattr::Applied, Vec<xattr::Xattr>)> {
     let size = match (sparse, kind) {
         (Some(l), _) => l.real_size,
         (None, Kind::File) => e.size(),
         _ => 0,
     };
-    let wanted = xattr::read(&member.xattrs, path);
+    let mut wanted = xattr::read(&member.xattrs, path);
+    for x in links {
+        super::links::over(&mut wanted.attrs, x);
+    }
     let mut recs = Vec::new();
     for a in &wanted.attrs {
         let key = format!("{}{}", xattr::PAX_PREFIX, a.name);
@@ -402,5 +419,5 @@ fn put<W: Write, R: Read>(
         None if kind == Kind::File => w.data(e, size)?,
         None => {}
     }
-    Ok(xattr::Applied { set: wanted.attrs.len() as u64, unset: wanted.refused })
+    Ok((xattr::Applied { set: wanted.attrs.len() as u64, unset: wanted.refused }, wanted.attrs))
 }

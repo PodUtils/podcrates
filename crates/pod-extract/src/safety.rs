@@ -374,14 +374,54 @@ pub fn open_parent_with(
     if how == Resolve::InRoot {
         return in_root_parent(root, dirs, last, make_dirs);
     }
+    Ok(walk_parent(root, dirs, make_dirs, how)?.map(|(cur, _)| (cur, (*last).to_string())))
+}
+
+/// The mode of a directory that the walk makes for an entry below it. The
+/// umask of the process does not change it (README rule 6), and
+/// `crate::flatten` writes the same mode for such a directory.
+pub(crate) const MADE_MODE: u32 = 0o755;
+
+/// The parent of an entry that [`open_parent_made`] opened.
+pub(crate) struct Parent {
+    pub(crate) dir: Dir,
+    pub(crate) name: String,
+    /// The index in the parts of the first directory that the call made.
+    /// Each directory below it is new too: its parent was empty.
+    pub(crate) made: Option<usize>,
+}
+
+/// As [`open_parent`] with the directories made, and the first directory
+/// that this call made. The caller writes a sidecar row for each one.
+pub(crate) fn open_parent_made(root: &Dir, parts: &[&str]) -> Result<std::result::Result<Parent, Refusal>> {
+    let Some((last, dirs)) = parts.split_last() else {
+        return Ok(Err(Refusal::Empty));
+    };
+    Ok(walk_parent(root, dirs, true, Resolve::Auto)?.map(|(dir, made)| Parent { dir, name: (*last).to_string(), made }))
+}
+
+/// The walk of `dirs` from `root`, one [`step`] at a time, and the index of
+/// the first directory that it made.
+fn walk_parent(
+    root: &Dir,
+    dirs: &[&str],
+    make_dirs: bool,
+    how: Resolve,
+) -> Result<std::result::Result<(Dir, Option<usize>), Refusal>> {
     let mut cur = dup_dir(root, how)?;
-    for d in dirs {
+    let mut first = None;
+    for (i, d) in dirs.iter().enumerate() {
         match step(&cur, d, make_dirs, how)? {
-            Ok(next) => cur = next,
+            Ok((next, made)) => {
+                if made && first.is_none() {
+                    first = Some(i);
+                }
+                cur = next
+            }
             Err(r) => return Ok(Err(r)),
         }
     }
-    Ok(Ok((cur, (*last).to_string())))
+    Ok(Ok((cur, first)))
 }
 
 mod walk;

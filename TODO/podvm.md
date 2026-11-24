@@ -14593,7 +14593,7 @@ has this entry.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14635,6 +14635,53 @@ the owners) gives the removed entry's ids and mode to the new directory.
 ```sh
 cargo test -p pod-extract --all-features
 ```
+
+## Done
+
+2026-11-24, this commit. The second form of the approach: a row for each
+directory that the walk makes for an entry below it.
+
+The change. `safety::open_parent_made` (crate-private, with
+`safety::Parent`) walks as `open_parent` with the directories made, and
+gives the index of the first directory that the call made (`step` now
+says if its `mkdirat` made the directory; `EEXIST` is not a make).
+`apply_layer` and the hard links that wait for the end of the layer
+(`apply_later.rs`, `link_later`) take it, and `apply_made.rs` (`rows`)
+writes one row for each made directory, the parents first, before the
+row of the entry, with `Sidecar::push_dir`. The row has the form of each
+other row: owner 0, mode 0755 and the ids that the process applied, with
+the reason of each difference. The call: owner 0 and not the ids of the
+process, as the approach said, so that the row gives the directory that
+`flatten` writes for the same path (mode 0755, owner 0), and a reader of
+the sidecar needs no new field. Under a process that is not root the
+row names the ids that the kernel did not apply, as for a directory
+entry `0:0 0755` of the image. The README of the crate, rule 2, names the
+form. `pod_extract::safety::open_parent` and `open_parent_with` do not
+change.
+
+The test. `drive::records::a_directory_made_again_below_a_removed_one_does_not_keep_its_old_row`:
+layer one has `d/` with uid 1000 and mode 0700, layer two has `.wh.d`
+and `d/sub/x`; the last rows of `d` and `d/sub` give owner 0 and mode
+0755. On the code before it failed: `d: the last row is not of the new
+directory` with the last row
+`{"path":"d","uid":1000,"gid":1000,"mode":"0700",...}`. `support::same`
+of `crates/pod-extract/tests/` now needs the row of each directory of the
+stream, also of a directory that a file below it made (before: no row and
+mode 0755 and owner 0 in the stream); on the code before, the random tests
+of `crates/pod-extract/tests/flatten_random.rs` failed with it (`the ids
+of b/b (Directory, mode 0755)`, `left: None`). `cargo test -p
+pod-extract --all-features`: 115 unit tests, 20, 10, 2, 7 and 6
+integration tests pass. `cargo clippy -p pod-extract --all-targets
+--all-features -- -D warnings`, `cargo doc -p pod-extract --no-deps
+--all-features` with `-D warnings`, `cargo fmt --all --check` and `cargo
+check --manifest-path fuzz/Cargo.toml` pass; `sh scripts/plant-each.sh
+--apply`: 0 stale.
+
+For the hand-off: the sidecar has one row more for each directory that
+the extraction made for an entry below it (owner 0, mode 0755), so
+`Extracted::sidecar_rows` and, for a process that is not root,
+`Extracted::ownership_dropped` count them, and `Extracted::first_dropped`
+can name one. No public item changed.
 
 # T-1254: `pod-extract`: a fuzz target of `flatten`, the reader of untrusted layers into one tar stream
 
@@ -14686,7 +14733,7 @@ cargo check --manifest-path fuzz/Cargo.toml
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14727,6 +14774,51 @@ umask that is not 022, and the comparisons of
 cargo test -p pod-extract --all-features
 ```
 
+## Done
+
+2026-11-24, this commit.
+
+The change. `step` of `crates/pod-extract/src/safety/walk.rs` sets
+`safety::MADE_MODE` (0755) through the descriptor of the descent (opened
+with `O_NOFOLLOW` or `RESOLVE_NO_SYMLINKS`) on each directory that its
+`mkdirat` made, not on `EEXIST`; `in_root_parent` does the same through
+the descriptor that `RESOLVE_IN_ROOT` opened. `MADE_MODE` is also the
+mode of the sidecar row of such a directory (T-1253) and of the
+directory that `flatten` writes for it (`flatten/entry.rs`, `implied`).
+The README of the crate, rule 6, names it.
+
+The tests. `drive::umask::a_directory_made_for_a_file_below_it_has_mode_0755_under_a_umask_of_077`
+runs the test binary again (`drive::umask::worker_makes_a_directory_under_a_umask_of_077`,
+the start of the child now in `drive::umask::in_worker` for both
+workers): under the umask 077 a layer with `m/n/f` alone gives `m` and
+`m/n` mode 0755. On the code before it failed: `the umask changed the
+mode of m: 0700, not 0755`. The comparisons against `extract`: the umask
+of the test process applies to both sides, so each comparison now holds
+under each umask. `crates/pod-extract/tests/flatten_random.rs`,
+`random_layer_sets_give_the_tree_of_extract_under_a_umask_of_077`, runs
+its two random tests again in a child of the test binary, with the umask
+077 set before the exec (`pre_exec`). With the `fchmod` of `step` taken
+out it failed: `the tree of the stream differs from the tree of the
+layers`, `"b/b": Dir { mode: 493 }` (0755, the stream) against `448`
+(0700, `extract`), seed `0x5eedf1a9`. `cargo test -p pod-extract
+--all-features` under the umask 077 of the shell: 117 unit tests, 20,
+10, 3, 7 and 6 integration tests pass; the same under 022. `cargo test
+-p pod-rootfs --all-features`: 86 and 3 tests pass. `cargo clippy -p
+pod-extract --all-targets --all-features -- -D warnings`, `cargo doc -p
+pod-extract --no-deps --all-features` with `-D warnings`, `cargo fmt
+--all --check` and `cargo check --manifest-path fuzz/Cargo.toml` pass.
+
+The plant `rootfs-t604-make-in-closed-dir` had a stale patch (the new
+lines of `in_root_parent`); the new patch plants the same defect (no
+`OwnerBits::add` before the make): its RUN exits 101 with `a fixup
+failed in a closed directory`, and passes without it. `sh
+scripts/plant-each.sh --apply`: 0 stale.
+
+For the hand-off: `extract` and the writers of `pod-rootfs`
+(`safety::open_parent_with` with `Resolve::InRoot`) give a directory that
+they make for an entry below it the mode 0755 under each umask (before:
+0755 cut by the umask of the process). No public item changed.
+
 # T-1269: `pod-extract`: `flatten` fails with `Unsupported` for a hard link to an inode that no name of the stream holds after a second entry of its path in one layer
 
 **Source:** T-1194 (a finding of its work)
@@ -14734,7 +14826,7 @@ cargo test -p pod-extract --all-features
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14773,6 +14865,49 @@ takes the layers.
 cargo test -p pod-extract --all-features --test flatten_links
 ```
 
+## Done
+
+2026-11-24, this commit.
+
+The change. `Links::own` (`crates/pod-extract/src/flatten/links.rs`)
+keeps, for the current layer, the member of each file or symlink that
+went out at its own path (`Links::wrote`), and `end_layer` clears it. When
+a later entry of the path takes the name from a group with no name that
+the path held (`Links::replace`), the group takes `Bind::Reread` of that
+member and goes into the list of the second reads; a later link to the
+group joins its names (`Links::merge`), and the layer is read again
+after the last layer, as for a hidden file. `Bind::Lost` stays as a
+guard for a member that is not known. The README of the crate names the
+case and the memory.
+
+The memory, measured: one layer of 200 000 empty files, `flatten` into a
+sink in release, the peak RSS (`VmHWM` after a reset through
+`/proc/self/clear_refs`) 39.5 MB against 37.4 MB on the code before:
+about 2.1 MB, 11 bytes for each file. The map is of the current layer
+only.
+
+The test. `crates/pod-extract/tests/flatten_links.rs`,
+`a_link_to_an_inode_that_a_second_entry_of_its_path_replaced_takes_the_first_data`:
+one layer with `t` ("one"), `p` linked to `t`, a second `t` ("two"),
+then `q` linked to `p` (in the same layer, or in a newer layer), and a
+newer layer with a file `p`. The tree and the names of each inode of the
+stream are those of `extract` (`q` holds "one"), each link follows its
+target, `rereads` is 1, and `q` is a file entry. Not `support::same`:
+`t` is in the stream two times, in the order of the layer (T-1193). On
+the code before it failed: `flatten refused the layers: the hard link "q"
+names an inode that no name of the stream holds any more (a second entry
+of its path in one layer); flatten cannot write it`. `cargo test -p
+pod-extract --all-features`: 117 unit tests, 20, 11, 3, 7 and 6
+integration tests pass. `cargo clippy -p pod-extract --all-targets
+--all-features -- -D warnings`, `cargo doc -p pod-extract --no-deps
+--all-features` with `-D warnings`, `cargo fmt --all --check` and `cargo
+check --manifest-path fuzz/Cargo.toml` pass; `sh scripts/plant-each.sh
+--apply`: 0 stale.
+
+For the hand-off: `flatten` takes such a layer set, where it failed with
+`Unsupported` before, and reads the layer of the file a second time
+(`Flattened::rereads`). No public item changed.
+
 # T-1270: `pod-extract`: `flatten` drops the extended attributes of a hard-link entry, which `extract` sets on the inode
 
 **Source:** T-1195 (a finding of its work)
@@ -14780,7 +14915,7 @@ cargo test -p pod-extract --all-features --test flatten_links
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14819,3 +14954,65 @@ a tree from the stream that differs from the tree of `extract`.
 ```sh
 cargo test -p pod-extract --all-features --test flatten_records
 ```
+
+## Done
+
+2026-11-24, this commit.
+
+The measure. GNU tar 1.35 as root with the arguments of incusd
+(`--anchored --wildcards --exclude=dev/* --restrict --force-local -C OUT
+--numeric-owner --xattrs-include=* -xf -`), on a crafted PAX stream: a
+file `a` with `SCHILY.xattr.user.f=file`, then a hard-link entry `b` to
+`a` with `SCHILY.xattr.user.l=link` and `SCHILY.xattr.user.f=over`: exit
+0, `a` and `b` are one inode with `user.f=file` only. GNU tar sets no
+record of a link entry. The call: `flatten` writes the records of the
+inode on its data entry, its first name in the stream, because a record
+on a link entry does not reach the tree of incusd.
+
+The change. A group of names of an inode (`flatten/links.rs`) keeps the
+records of each of its link entries (`xattr::read` of the link entry,
+with its layer and member), also of a link whose name a newer layer
+hides, and a merge of groups joins them. `crates/pod-extract/src/flatten/links_recs.rs`
+(module `recs`): `union` orders the records as `extract` sets them (by
+layer, then by member; the last set of a name holds), and `put` of
+`flatten/entry.rs` writes them over the records of the same name of the
+file, on each data entry that the groups take (`Plan::recs`), and on a
+file read again (`Links::rereads` gives the records with the names).
+Where the data went out before the link was read (a link after its file
+in one layer, or a group bound to a holder that wrote the data before),
+each record of the links that the data entry did not write is named in
+`Flattened::xattrs` (`Links::unwritten`, the reason "a record of a
+hard-link entry after the data of its inode in the stream") and not
+written; a record with the value of the data entry (the
+`security.capability` that Docker writes on the file and on its link)
+is no loss. A record of a link past a bound is named, as `extract` names
+it. The records of the data entries are kept for the current layer only
+(`Links::recs_out`, the entries with records). The README of the crate
+names the rule.
+
+The tests. `crates/pod-extract/tests/flatten_records.rs` (`support::E::PaxLink`,
+`support::extracted_at`): `the_records_of_a_link_go_with_the_data_of_its_inode`
+(a file with `user.f`, a link of a newer layer with `user.l` and
+`user.f`, a link of a newer layer with `user.l`, also with the first link
+hidden by a whiteout: the data entry has `user.f=over` and
+`user.l=newer`, the tree of the stream, of `extract` and of GNU tar with
+the arguments of incusd have them on each name),
+`a_file_read_again_takes_the_records_of_its_link` (a hidden file and a
+link after it in its layer: the data under the name of the link has the
+records of both, `rereads` 1) and
+`a_record_of_a_link_after_the_data_of_its_inode_is_named` (one record
+named, the capability of the same value not named). On the code before
+the three failed: `the records of the data entry`, `left:
+[("user.f", "file")]`; `left: [("user.f", "file")]` for the file read
+again; `left: (1, 0)`, `right: (1, 1)` for the named record. `cargo test
+-p pod-extract --all-features`: 117 unit tests, 20, 11, 3, 10 and 6
+integration tests pass. `cargo clippy -p pod-extract --all-targets
+--all-features -- -D warnings`, `cargo doc -p pod-extract --no-deps
+--all-features` with `-D warnings`, `cargo fmt --all --check` and `cargo
+check --manifest-path fuzz/Cargo.toml` pass; `sh scripts/plant-each.sh
+--apply`: 0 stale.
+
+For the hand-off: the data entry of an inode in the stream of `flatten`
+now has the records of the hard-link entries of the image, so GNU tar
+in incusd sets them; `Flattened::xattrs` can name a record of a link
+that comes after the data of its inode. No public item changed.

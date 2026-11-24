@@ -6,6 +6,6 @@
                  // parent (0555) is opened for this one make.
 -                let open = OwnerBits::add(cur.fd());
 +                let open = ();
-                 match sys::mkdirat(cur.fd(), &c, 0o755) {
-                     Ok(_) => {}
-                     Err(e) if e == sys::EEXIST => {}
+                 let made = match sys::mkdirat(cur.fd(), &c, u64::from(MADE_MODE)) {
+                     Ok(_) => true,
+                     Err(e) if e == sys::EEXIST => false,

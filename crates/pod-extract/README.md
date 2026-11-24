@@ -11,7 +11,12 @@ does not call the `unpack()` of a library. Seven rules:
    not map gives `EINVAL`. The crate does not try: the ids of the image go
    into a sidecar (one JSON line for each path), with the ids that the
    kernel applied and the reason of each difference. The sidecar changes no
-   permission check of the kernel.
+   permission check of the kernel. A directory that the crate makes for an
+   entry below it (a file `usr/bin/x` with no entry for `usr/bin`) gets a
+   row of the same form, with owner 0 and mode 0755, the directory that
+   `flatten` writes for it: the last row of a path holds, and the row of a
+   path that a whiteout removed does not hold for a directory made again
+   there.
 3. **Whiteouts on the basename.** `.wh.NAME` and `.wh..wh..opq` are found on
    the basename, also at the root of a layer, where a glob `*/.wh.*` misses
    them.
@@ -33,7 +38,8 @@ does not call the `unpack()` of a library. Seven rules:
    last layer, each directory entry of the extraction gets the mode of the
    image (the last layer that names it wins), the deepest first, through
    the same descriptor: a directory of mode 0555 in the image is 0555 in
-   the tree.
+   the tree. A directory that the walk makes for an entry below it gets
+   mode 0755 through the descriptor of the descent, under each umask.
 7. **Whiteouts first.** The whiteouts of a layer apply to the tree before
    the entries of that layer. Hard links resolve in the destination: a
    link whose target, or a directory above its target, is missing at its
@@ -130,8 +136,14 @@ form (`SCHILY.xattr.system.posix_acl_access`), also when the layer has
 its text form. GNU tar with the arguments of incusd (`--xattrs-include=*`,
 no `--acls`) sets each `SCHILY.xattr.` record, the binary ACL and
 `security.capability` included (as root), and does not read
-`SCHILY.acl.`. A hard-link entry has no records: the inode has those of
-its file. `flatten_with` takes two closures: `before` writes entries
+`SCHILY.acl.`. GNU tar does not set a record of a hard-link entry, and
+`extract` sets the records of a link entry on its inode: so a hard-link
+entry of the stream has no records, and the records of the links of an
+inode go with its data entry, over the records of the same name of its
+file (a newer link over an older one). Where the data went out before
+the link was read (a link after its file in one layer), each record of
+the link that the data entry does not have is named in
+`Flattened::xattrs` and not written. `flatten_with` takes two closures: `before` writes entries
 before the tree, `after` after it, each through `Entries` (`dir`, `file`,
 `file_from`, `symlink`; owner 0, time 0, the path as the caller gives
 it). `Options::prefix` (`rootfs/` for the unified tarball of incus) goes
@@ -154,12 +166,16 @@ to a file that a newer layer replaced or removed keeps the old bytes: the
 file goes out under the name of the link, as it is read. A hidden file
 that a link of its layer names after it went by before the link: its
 layer is read a second time after the last layer, once for each such
-layer (`Flattened::rereads`), with its digest checked again. The inode
+layer (`Flattened::rereads`), with its digest checked again. So is a file
+whose path a later entry of its layer replaced, when a link names its
+inode through a link that has no name in the stream. The inode
 has the mode, the owner and the time of its file entry; a link entry has
 those of the link of the image. A link to a missing target or to a
 directory, and a link through a symlink or out of the tree, refuse the
 stream as `extract` refuses the layer. The memory: a group of names for
-each hard link of the image, and the hidden files of the current layer.
+each hard link of the image, and the files of the current layer (its
+hidden files, and the member of each file that went out at its own path:
+about 2 MiB more for one layer of 200 000 files).
 
 Each blob is hashed while it is read, in both passes, and the extraction is
 refused when the digest of the manifest does not agree. The completion
@@ -287,6 +303,10 @@ again (`a_later_layer_sets_the_mode_of_a_directory_again`), and the
 permission pass does not follow a symlink at the name of a directory to
 a file of the host
 (`the_permission_pass_does_not_follow_a_symlink_at_the_name_of_a_directory`).
+Under a umask of 077, a directory that a file below it made has mode 0755
+(`a_directory_made_for_a_file_below_it_has_mode_0755_under_a_umask_of_077`),
+and `tests/flatten_random.rs` runs its two comparisons again under that
+umask in a child (`random_layer_sets_give_the_tree_of_extract_under_a_umask_of_077`).
 The plants: `extract-t597-file-mode-set-only-when-it-differs`,
 `extract-t597-pass-only-widens`, `extract-t597-pass-follows-a-symlink`.
 

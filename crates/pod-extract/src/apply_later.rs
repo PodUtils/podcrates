@@ -10,9 +10,10 @@
 use pod_core::Failure;
 use pod_hostprobe::sys::{self, Errno};
 
-use super::replace;
+use super::{Ids, replace};
 use crate::error::{self, Result, cbuf, refuse};
 use crate::safety::{self, Dir, LINK_MISSING, Refusal};
+use crate::sidecar::Sidecar;
 use crate::xattr::Wanted;
 
 /// A hard link whose target was not there yet.
@@ -66,12 +67,22 @@ fn missing(f: &Failure) -> bool {
 
 /// A hard link of [`Later`], at the end of its layer, with the checks of
 /// the first try. A target that is still missing is named as such. Returns
-/// the parent and the name of the link.
-pub(super) fn link_later(root: &Dir, digest: &str, l: &Later) -> Result<(Dir, String)> {
+/// the parent and the name of the link. Each directory that the walk made
+/// for the link gets its row in `sidecar`.
+pub(super) fn link_later(
+    root: &Dir,
+    digest: &str,
+    l: &Later,
+    sidecar: &mut Sidecar,
+    ids: Ids,
+) -> Result<(Dir, String)> {
     let parts: Vec<&str> = l.parts.iter().map(String::as_str).collect();
     let tparts: Vec<&str> = l.tparts.iter().map(String::as_str).collect();
-    let (parent, name) = match safety::open_parent(root, &parts, true)? {
-        Ok(x) => x,
+    let (parent, name) = match safety::open_parent_made(root, &parts)? {
+        Ok(p) => {
+            super::made::rows(sidecar, &parts, p.made, ids)?;
+            (p.dir, p.name)
+        }
         Err(r) => return Err(refuse(digest, &l.path, r)),
     };
     let gone = || refuse(digest, &l.path, Refusal::Link(format!("{:?}: {LINK_MISSING}", l.target)));

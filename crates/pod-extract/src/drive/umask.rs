@@ -17,8 +17,36 @@ const MODES: [(&str, u32); 5] = [("d", 0o755), ("d/x", 0o755), ("d/y", 0o644), (
 /// layer and between two layers.
 #[test]
 fn the_modes_of_the_image_stay_under_a_umask_of_027() {
+    in_worker("worker_extracts_under_a_umask_of_027", "027");
+}
+
+/// A directory that a file below it made has mode 0755 under a umask of
+/// 077 (README rule 6), the mode that `flatten` writes for it.
+#[test]
+fn a_directory_made_for_a_file_below_it_has_mode_0755_under_a_umask_of_077() {
+    in_worker("worker_makes_a_directory_under_a_umask_of_077", "077");
+}
+
+/// The half that runs in the child. It does nothing with no [`WORKER`].
+#[test]
+fn worker_makes_a_directory_under_a_umask_of_077() {
+    if std::env::var_os(WORKER).is_none() {
+        return;
+    }
+    pod_hostprobe::sys::umask(0o077);
+    let s = Scratch::new("umask-made");
+    run(s.path(), &[layer(&[E::File("m/n/f", b"f", 0o644)])]).unwrap();
+    for (p, disk, _) in kept(s.path(), &["m", "m/n", "m/n/f"]) {
+        let want = if p == "m/n/f" { 0o644 } else { 0o755 };
+        assert_eq!(disk, want, "the umask changed the mode of {p}: {disk:04o}, not {want:04o}");
+    }
+}
+
+/// Run the test `name` of this module in a new process of the test binary,
+/// where it sets the umask `umask` (for the text of a failure).
+fn in_worker(name: &str, umask: &str) {
     let out = std::process::Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", "drive::umask::worker_extracts_under_a_umask_of_027", "--nocapture"])
+        .args(["--exact", &format!("drive::umask::{name}"), "--nocapture"])
         .env(WORKER, "1")
         .output();
     let out = match out {
@@ -34,7 +62,7 @@ fn the_modes_of_the_image_stay_under_a_umask_of_027() {
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
         out.status.success() && stdout.contains("1 passed"),
-        "the worker under a umask of 027 failed:\n--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}"
+        "the worker under a umask of {umask} failed:\n--- stdout ---\n{stdout}\n--- stderr ---\n{stderr}"
     );
 }
 

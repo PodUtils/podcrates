@@ -168,6 +168,39 @@ fn a_link_out_of_the_tree_or_through_a_symlink_is_refused() {
     }
 }
 
+/// A link to a link whose name a newer layer hides, after a second entry
+/// of the target in the same layer: the link names the first inode of the
+/// target, which no name of the stream holds after the second entry. The
+/// layer is read again for it (`rereads` 1). With the second link in the
+/// same layer, and in a newer layer under the layer that hides `p`.
+#[test]
+fn a_link_to_an_inode_that_a_second_entry_of_its_path_replaced_takes_the_first_data() {
+    let s = Scratch::new("lostlead");
+    let l0 = |q: bool| {
+        let mut e = vec![E::File("t", b"one", 0o644), E::Hardlink("p", "t"), E::File("t", b"two", 0o600)];
+        if q {
+            e.push(E::Hardlink("q", "p"));
+        }
+        tar(&e)
+    };
+    let cases = [
+        vec![l0(true), tar(&[E::File("p", b"newer p", 0o644)])],
+        vec![l0(false), tar(&[E::Hardlink("q", "p")]), tar(&[E::File("p", b"newer p", 0o644)])],
+    ];
+    for (i, layers) in cases.into_iter().enumerate() {
+        // Not `same`: `t` is in the stream two times, in the order of the
+        // layer.
+        let layers = plain(s.path(), &layers);
+        let want = extracted(&layers).unwrap();
+        let (stream, f) = flattened(&layers).unwrap_or_else(|e| panic!("case {i}: {}", e.chain()));
+        let got = extracted(&plain(s.path(), std::slice::from_ref(&stream))).unwrap();
+        assert_eq!((got.nodes, got.links), (want.nodes, want.links), "case {i}");
+        links_follow_their_targets(&stream);
+        assert_eq!(f.rereads, 1, "case {i}: the layer of the first t is read again");
+        assert_eq!(kind_of(&stream, "q").0, tar::EntryType::Regular, "case {i}: q holds the first data of t");
+    }
+}
+
 /// GNU tar with the arguments of incusd takes each name of an inode: the
 /// data at the first, a link entry after it for each other.
 #[test]

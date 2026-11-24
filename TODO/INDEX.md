@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**976 entries: 167 open, 28 partial, 7 blocked, 774 done.**
+**976 entries: 163 open, 28 partial, 7 blocked, 778 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 5 | 10 | 0 | 228 | 243 |
-| P2 | 78 | 7 | 4 | 404 | 493 |
-| P3 | 84 | 11 | 3 | 140 | 238 |
-| **All** | 167 | 28 | 7 | 774 | 976 |
+| P2 | 77 | 7 | 4 | 405 | 493 |
+| P3 | 81 | 11 | 3 | 143 | 238 |
+| **All** | 163 | 28 | 7 | 778 | 976 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1012,11 +1012,11 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1237](foundation.md) | P2 | S | M0 | feature | done | `pod-release`: `Error::CantWrite` has the class `CantCreate` (73) (PodUtils/podssh#352) |
 | [T-1238](foundation.md) | P3 | S | M0 | research | open | `pod-core`: no class for `EX_DATAERR` (65), which podssh uses (PodUtils/podssh#352) |
 | [T-1243](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the auth of the fake broker at podrunner `2a55cd9` (port review of `auth.rs`) |
-| [T-1253](podvm.md) | P2 | S | M6 | defect | open | `pod-extract`: the sidecar row of a removed path holds for a directory that an entry below it makes again |
+| [T-1253](podvm.md) | P2 | S | M6 | defect | done | `pod-extract`: the sidecar row of a removed path holds for a directory that an entry below it makes again |
 | [T-1254](podvm.md) | P2 | S | M6 | chore | open | `pod-extract`: a fuzz target of `flatten`, the reader of untrusted layers into one tar stream |
-| [T-1255](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: the umask of the process cuts the mode of a directory that an entry below it makes |
-| [T-1269](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: `flatten` fails with `Unsupported` for a hard link to an inode that no name of the stream holds after a second entry of its path in one layer |
-| [T-1270](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: `flatten` drops the extended attributes of a hard-link entry, which `extract` sets on the inode |
+| [T-1255](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: the umask of the process cuts the mode of a directory that an entry below it makes |
+| [T-1269](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: `flatten` fails with `Unsupported` for a hard link to an inode that no name of the stream holds after a second entry of its path in one layer |
+| [T-1270](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: `flatten` drops the extended attributes of a hard-link entry, which `extract` sets on the inode |
 | [T-1279](relay.md) | P3 | S | M2 | defect | open | `pod-dns`: a `Pipe` asks Cloudflare and Google over HTTP/1.1, so the queries of the DNS carrier over DoH go one at a time behind a held poll |
 | [T-1295](upkeep.md) | P1 | S | M6 | defect | done | `pod-extract`: `flatten` tests fail for a user that is not root: GNU tar cannot open `usr/bin/sh`, and `walk` cannot read a directory with no search mode |
 | [T-1296](upkeep.md) | P2 | S | M6 | defect | open | `pod-enter`: the two title tests of the init and the relay fail under qemu-user on each emulated job (the nightly at `f39b8e2`) |

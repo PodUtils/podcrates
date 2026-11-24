@@ -226,6 +226,7 @@ where
     let mut total = st.total;
     (total.layers, total.bytes, total.paths) = (layers.len(), w.bytes(), st.trie.len());
     total.links = st.links.written;
+    total.xattrs.merge(&st.links.xattrs);
     total.written += st.links.written;
     total.extra = caller.count;
     match done {
@@ -285,8 +286,8 @@ fn reread<W: Write>(
         for (i, e) in ar.entries().map_err(error::io)?.enumerate() {
             let mut e = e.map_err(|x| pax::failed(&side, &l.digest, x))?;
             let member = side.next();
-            if let Some(names) = members.get(&(i as u64)) {
-                st.reread(w, &l.digest, &mut e, &member, names)?;
+            if let Some((names, recs)) = members.get(&(i as u64)) {
+                st.reread(w, &l.digest, &mut e, &member, (names.as_slice(), recs.as_slice()))?;
             }
         }
         drop(ar);

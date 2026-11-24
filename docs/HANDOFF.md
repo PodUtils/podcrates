@@ -201,6 +201,12 @@ The asks of #259 to the consumers:
   HTTP/2 answers of `pod-dns` keep their headers. podssh gives `http2(true)`
   on its resolver. New entry T-1279.
 
+- T-1253, T-1255, T-1269 and T-1270 (`pod-extract`): the sidecar has a row
+  for each directory that the walk makes; a made directory has mode 0755
+  under any umask (`extract` and the `pod-rootfs` writers); `flatten` reads
+  again a file whose path a second entry replaced; the records of a hard
+  link go out with the data entry of its inode. No public item changed.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask.
