@@ -38,7 +38,8 @@ does not call the `unpack()` of a library. Seven rules:
    last layer, each directory entry of the extraction gets the mode of the
    image (the last layer that names it wins), the deepest first, through
    the same descriptor: a directory of mode 0555 in the image is 0555 in
-   the tree.
+   the tree. A directory that the walk makes for an entry below it gets
+   mode 0755 through the descriptor of the descent, under each umask.
 7. **Whiteouts first.** The whiteouts of a layer apply to the tree before
    the entries of that layer. Hard links resolve in the destination: a
    link whose target, or a directory above its target, is missing at its
@@ -286,6 +287,10 @@ again (`a_later_layer_sets_the_mode_of_a_directory_again`), and the
 permission pass does not follow a symlink at the name of a directory to
 a file of the host
 (`the_permission_pass_does_not_follow_a_symlink_at_the_name_of_a_directory`).
+Under a umask of 077, a directory that a file below it made has mode 0755
+(`a_directory_made_for_a_file_below_it_has_mode_0755_under_a_umask_of_077`),
+and `tests/flatten_random.rs` runs its two comparisons again under that
+umask in a child (`random_layer_sets_give_the_tree_of_extract_under_a_umask_of_077`).
 The plants: `extract-t597-file-mode-set-only-when-it-differs`,
 `extract-t597-pass-only-widens`, `extract-t597-pass-follows-a-symlink`.
 

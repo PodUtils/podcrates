@@ -58,14 +58,19 @@ pub(super) fn in_root_parent(
                 // A finished root keeps the modes of the image: a closed
                 // parent (0555) is opened for this one make.
                 let open = OwnerBits::add(cur.fd());
-                match sys::mkdirat(cur.fd(), &c, 0o755) {
-                    Ok(_) => {}
-                    Err(e) if e == sys::EEXIST => {}
+                let made = match sys::mkdirat(cur.fd(), &c, u64::from(MADE_MODE)) {
+                    Ok(_) => true,
+                    Err(e) if e == sys::EEXIST => false,
                     Err(e) => return Err(error::sys(format!("cannot create the directory {d:?}"), e)),
-                }
+                };
                 drop(open);
                 match open_at_root(&acc)? {
-                    Ok(next) => cur = next,
+                    Ok(next) => {
+                        if made {
+                            made_mode(next.fd());
+                        }
+                        cur = next
+                    }
                     Err(e) => return Ok(Err(Refusal::Escapes(format!("{d:?}: {}", e.name())))),
                 }
             }
@@ -88,6 +93,13 @@ pub(super) fn dup_dir(d: &Dir, how: Resolve) -> Result<Dir> {
     Ok(Dir(fd))
 }
 
+/// Set [`MADE_MODE`] on `fd`, a directory that this walk made: `mkdirat`
+/// takes the umask of the process off its mode. A failure shows at the
+/// first write below the directory.
+fn made_mode(fd: i64) {
+    let _ = sys::fchmod(fd, u64::from(MADE_MODE));
+}
+
 /// One component of the walk: descend into `name`, optionally creating it.
 /// True with the directory: this call made it.
 pub(super) fn step(
@@ -102,7 +114,7 @@ pub(super) fn step(
     // not an error here; the descent below refuses a symlink, whatever made it.
     let mut made = false;
     if make {
-        match sys::mkdirat(cur.fd(), &c, 0o755) {
+        match sys::mkdirat(cur.fd(), &c, u64::from(MADE_MODE)) {
             Ok(_) => made = true,
             Err(e) if e == sys::EEXIST => {}
             Err(e) => return Err(error::sys(format!("cannot create the directory {name:?}"), e)),
@@ -132,7 +144,14 @@ pub(super) fn step(
         sys::openat(cur.fd(), &c, flags | sys::O_NOFOLLOW, 0)
     };
     match r {
-        Ok(fd) => Ok(Ok((Dir(fd), made))),
+        Ok(fd) => {
+            // Through the descriptor of the descent, which refused a
+            // symlink: a mode change by the name follows one.
+            if made {
+                made_mode(fd);
+            }
+            Ok(Ok((Dir(fd), made)))
+        }
         // The finding, in three errnos: the resolution left the destination
         // or crossed a symlink. ELOOP is the refusal of O_NOFOLLOW (and of
         // RESOLVE_NO_SYMLINKS), EXDEV the refusal of RESOLVE_BENEATH, and

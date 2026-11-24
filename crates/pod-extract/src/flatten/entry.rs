@@ -8,7 +8,7 @@ use super::links::{Ids, Links, Name};
 use super::trie::{List, Local, ROOT, Trie};
 use super::write::{Expand, Head, Kind, Out};
 use crate::error::{Result, refuse};
-use crate::safety::{self, Refusal};
+use crate::safety::{self, MADE_MODE, Refusal};
 use crate::sparse::Layout;
 use crate::whiteout::{self, Kind as Marker};
 use crate::{Layer, pax, xattr};
@@ -269,7 +269,7 @@ impl State {
             }
             let path = self.trie.path(n);
             let head =
-                Head { path: &path, kind: Kind::Dir, mode: 0o755, uid: 0, gid: 0, mtime: 0, size: 0, link: None };
+                Head { path: &path, kind: Kind::Dir, mode: MADE_MODE, uid: 0, gid: 0, mtime: 0, size: 0, link: None };
             w.head(&head)?;
             self.trie.node_mut(n).emitted = super::IMPLIED;
             self.total.implied += 1;

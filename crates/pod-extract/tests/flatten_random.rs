@@ -123,6 +123,45 @@ fn random_layer_sets_with_hard_links_give_the_tree_of_extract() {
     run(SEED ^ 0x11, true);
 }
 
+/// The two tests above in a new process of this binary under the umask 077
+/// (the umask belongs to the whole process, and the tests of one binary run
+/// on threads of one process). README rule 6: the umask changes no mode,
+/// so the tree of `extract` and the tree of the stream agree under each
+/// umask, also on a directory that a file below it made.
+#[test]
+fn random_layer_sets_give_the_tree_of_extract_under_a_umask_of_077() {
+    use std::os::unix::process::CommandExt as _;
+    let mut child = std::process::Command::new(std::env::current_exe().unwrap());
+    child.args([
+        "--exact",
+        "random_layer_sets_give_the_tree_of_extract",
+        "random_layer_sets_with_hard_links_give_the_tree_of_extract",
+    ]);
+    // SAFETY: `umask(2)` is one system call, safe after `fork`; the exec
+    // keeps the mask.
+    unsafe {
+        child.pre_exec(|| {
+            pod_hostprobe::sys::umask(0o077);
+            Ok(())
+        });
+    }
+    let out = match child.output() {
+        Ok(o) => o,
+        // A test binary under an emulator with no binfmt registration.
+        Err(e) if e.raw_os_error() == Some(8) => {
+            pod_testkit::host::skip_line(&format!("this host cannot exec the test binary as a child ({e})"));
+            return;
+        }
+        Err(e) => panic!("the start of the child failed: {e}"),
+    };
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        out.status.success() && stdout.contains("2 passed"),
+        "under the umask 077:\n{stdout}\n{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+}
+
 fn run(first: u64, links: bool) {
     let (mut agreed, mut refused, mut differ) = (0, 0, 0);
     for case in 0..CASES {

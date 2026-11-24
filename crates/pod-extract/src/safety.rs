@@ -377,6 +377,11 @@ pub fn open_parent_with(
     Ok(walk_parent(root, dirs, make_dirs, how)?.map(|(cur, _)| (cur, (*last).to_string())))
 }
 
+/// The mode of a directory that the walk makes for an entry below it. The
+/// umask of the process does not change it (README rule 6), and
+/// `crate::flatten` writes the same mode for such a directory.
+pub(crate) const MADE_MODE: u32 = 0o755;
+
 /// The parent of an entry that [`open_parent_made`] opened.
 pub(crate) struct Parent {
     pub(crate) dir: Dir,

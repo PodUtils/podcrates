@@ -8,11 +8,8 @@
 
 use super::{Ids, resolve_ids};
 use crate::error::{self, Result};
+use crate::safety::MADE_MODE;
 use crate::sidecar::{Meta, Sidecar};
-
-/// The mode that the image means for such a directory: the mode of the walk
-/// ([`crate::safety`]), and the mode that `crate::flatten` writes for it.
-const MODE: u32 = 0o755;
 
 /// One row for each directory of `parts` from the index `first` to the
 /// parent of the entry. The image means owner 0 and mode 0755 for each, as
@@ -27,7 +24,7 @@ pub(super) fn rows(sidecar: &mut Sidecar, parts: &[&str], first: Option<usize>, 
             path: parts[..end].join("/"),
             uid: 0,
             gid: 0,
-            mode: MODE,
+            mode: MADE_MODE,
             applied_uid,
             applied_gid,
             reason: reason.clone(),

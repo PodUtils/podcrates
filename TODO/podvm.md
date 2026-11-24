@@ -14733,7 +14733,7 @@ cargo check --manifest-path fuzz/Cargo.toml
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14773,6 +14773,51 @@ umask that is not 022, and the comparisons of
 ```sh
 cargo test -p pod-extract --all-features
 ```
+
+## Done
+
+2026-11-24, this commit.
+
+The change. `step` of `crates/pod-extract/src/safety/walk.rs` sets
+`safety::MADE_MODE` (0755) through the descriptor of the descent (opened
+with `O_NOFOLLOW` or `RESOLVE_NO_SYMLINKS`) on each directory that its
+`mkdirat` made, not on `EEXIST`; `in_root_parent` does the same through
+the descriptor that `RESOLVE_IN_ROOT` opened. `MADE_MODE` is also the
+mode of the sidecar row of such a directory (T-1253) and of the
+directory that `flatten` writes for it (`flatten/entry.rs`, `implied`).
+The README of the crate, rule 6, names it.
+
+The tests. `drive::umask::a_directory_made_for_a_file_below_it_has_mode_0755_under_a_umask_of_077`
+runs the test binary again (`drive::umask::worker_makes_a_directory_under_a_umask_of_077`,
+the start of the child now in `drive::umask::in_worker` for both
+workers): under the umask 077 a layer with `m/n/f` alone gives `m` and
+`m/n` mode 0755. On the code before it failed: `the umask changed the
+mode of m: 0700, not 0755`. The comparisons against `extract`: the umask
+of the test process applies to both sides, so each comparison now holds
+under each umask. `crates/pod-extract/tests/flatten_random.rs`,
+`random_layer_sets_give_the_tree_of_extract_under_a_umask_of_077`, runs
+its two random tests again in a child of the test binary, with the umask
+077 set before the exec (`pre_exec`). With the `fchmod` of `step` taken
+out it failed: `the tree of the stream differs from the tree of the
+layers`, `"b/b": Dir { mode: 493 }` (0755, the stream) against `448`
+(0700, `extract`), seed `0x5eedf1a9`. `cargo test -p pod-extract
+--all-features` under the umask 077 of the shell: 117 unit tests, 20,
+10, 3, 7 and 6 integration tests pass; the same under 022. `cargo test
+-p pod-rootfs --all-features`: 86 and 3 tests pass. `cargo clippy -p
+pod-extract --all-targets --all-features -- -D warnings`, `cargo doc -p
+pod-extract --no-deps --all-features` with `-D warnings`, `cargo fmt
+--all --check` and `cargo check --manifest-path fuzz/Cargo.toml` pass.
+
+The plant `rootfs-t604-make-in-closed-dir` had a stale patch (the new
+lines of `in_root_parent`); the new patch plants the same defect (no
+`OwnerBits::add` before the make): its RUN exits 101 with `a fixup
+failed in a closed directory`, and passes without it. `sh
+scripts/plant-each.sh --apply`: 0 stale.
+
+For the hand-off: `extract` and the writers of `pod-rootfs`
+(`safety::open_parent_with` with `Resolve::InRoot`) give a directory that
+they make for an entry below it the mode 0755 under each umask (before:
+0755 cut by the umask of the process). No public item changed.
 
 # T-1269: `pod-extract`: `flatten` fails with `Unsupported` for a hard link to an inode that no name of the stream holds after a second entry of its path in one layer
 
