@@ -16,7 +16,13 @@
 //! to the same call. It sets the PID namespace of the children of the
 //! child, not of the child: the child forks the payload of the exec into
 //! it and stays as its relay (`ns_pid`).
+//!
+//! The init of such a namespace is not dumpable (`title`, T-1113), and the
+//! kernel gives its namespaces only to a holder of `CAP_SYS_PTRACE` over
+//! the user namespace of the caller of the run. A caller with no such
+//! capability joins the payload of the run in its place ([`joinable`]).
 
+use std::os::fd::{FromRawFd, OwnedFd};
 use std::os::unix::fs::MetadataExt;
 
 use pod_hostprobe::sys::{self, Errno};
@@ -81,6 +87,86 @@ impl Join {
 pub fn fdinfo_pid(text: &str) -> Option<i64> {
     let line = text.lines().find_map(|l| l.strip_prefix("Pid:"))?;
     line.trim().parse::<i64>().ok().filter(|&p| p > 0)
+}
+
+/// The numbers of the line `key:` of a text of `/proc` (`Pid`, `PPid`,
+/// `NSpid`); `None` where the line is absent or holds no number.
+pub fn ids_of(text: &str, key: &str) -> Option<Vec<i64>> {
+    let line = text.lines().find_map(|l| l.strip_prefix(key)?.strip_prefix(':'))?;
+    let ids: Option<Vec<i64>> = line.split_whitespace().map(|w| w.parse().ok()).collect();
+    ids.filter(|v| !v.is_empty())
+}
+
+/// The pid and the pids of each PID namespace of the process of `pidfd`,
+/// from its fdinfo: `None` for a process that ended.
+fn pidfd_ids(pidfd: i64) -> Option<(i64, Vec<i64>)> {
+    let text = std::fs::read_to_string(format!("/proc/self/fdinfo/{pidfd}")).ok()?;
+    Some((fdinfo_pid(&text)?, ids_of(&text, "NSpid")?))
+}
+
+/// The parent and the pids of each PID namespace of the process `pid` of
+/// `/proc` (`self` for this process).
+fn status_ids(pid: &str) -> Option<(i64, Vec<i64>)> {
+    let text = std::fs::read_to_string(format!("/proc/{pid}/status")).ok()?;
+    Some((*ids_of(&text, "PPid")?.first()?, ids_of(&text, "NSpid")?))
+}
+
+/// The payload of a run, which a join opens in place of its init
+/// ([`joinable`]).
+#[derive(Debug)]
+pub struct Member {
+    /// Its pid in the PID namespace of `/proc`.
+    pub pid: i64,
+    /// Its pidfd.
+    pub pidfd: OwnedFd,
+}
+
+/// The payload of the init of `pidfd`, where the process of `pidfd` is pid
+/// 1 of a PID namespace under the one of `/proc` and this process cannot
+/// open the namespaces of that init. `None` where a join opens the process
+/// of `pidfd`.
+///
+/// The init of `Plan::pid_namespace` is not dumpable (T-1113): the kernel
+/// opens its namespaces (`setns` on its pidfd, `/proc/PID/ns/*`,
+/// `/proc/PID/root`) only for a holder of `CAP_SYS_PTRACE` over the user
+/// namespace of its memory, the one of the caller of the run. A caller
+/// with no capabilities opens the payload: pid 2 of the namespace, the
+/// child of the init, in the namespaces of the run while it does not change
+/// them. A payload that is not dumpable refuses such a join too.
+pub fn joinable(pidfd: i64) -> Option<Member> {
+    let (init, ns) = pidfd_ids(pidfd).filter(|(_, ns)| ns.len() > 1 && ns.last() == Some(&1))?;
+    // A caller with the right opens the init: the payload can change its
+    // own namespaces, the init cannot.
+    if std::fs::metadata(format!("/proc/{init}/ns/pid")).is_ok() {
+        return None;
+    }
+    let pids: Vec<i64> = match std::fs::read_to_string(format!("/proc/{init}/task/{init}/children")) {
+        Ok(text) => text.split_whitespace().filter_map(|w| w.parse().ok()).collect(),
+        // A kernel with no `CONFIG_PROC_CHILDREN`: each process of `/proc`.
+        Err(_) => std::fs::read_dir("/proc")
+            .ok()?
+            .flatten()
+            .filter_map(|e| e.file_name().to_str().and_then(|n| n.parse().ok()))
+            .collect(),
+    };
+    // `pidfd_open` takes a pid of the PID namespace of this process, which
+    // is under the one of `/proc` after a join of the PID namespace of the
+    // run.
+    let depth = status_ids("self")?.1.len();
+    let payload = |c: i64| {
+        let (parent, of_c) = status_ids(&c.to_string())?;
+        (parent == init && of_c.len() == ns.len() && of_c.last() == Some(&2)).then_some(of_c)
+    };
+    pids.into_iter().find_map(|c| {
+        let fd = sys::pidfd_open(*payload(c)?.get(depth.checked_sub(1)?)?).ok()?;
+        // SAFETY: `pidfd_open` gave the descriptor, and nothing else owns it.
+        let member = Member { pid: c, pidfd: unsafe { OwnedFd::from_raw_fd(fd as i32) } };
+        // After the open: the descriptor names `c` before and after a new
+        // read of `c`, and the init lives, so no other process took either
+        // pid between the reads.
+        let names = |fd: i64, pid: i64| pidfd_ids(fd).is_some_and(|(p, _)| p == pid);
+        (names(fd, c) && payload(c).is_some() && names(fd, c) && names(pidfd, init)).then_some(member)
+    })
 }
 
 /// The device and inode of a namespace link.

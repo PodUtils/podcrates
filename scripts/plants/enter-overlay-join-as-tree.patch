@@ -1,13 +1,12 @@
 diff --git a/crates/pod-enter/src/entry.rs b/crates/pod-enter/src/entry.rs
-index fe5de8e1..64392070 100644
 --- a/crates/pod-enter/src/entry.rs
 +++ b/crates/pod-enter/src/entry.rs
-@@ -403,7 +403,7 @@ pub fn spawn_joined(root: &RootDir, plan: &Plan, pidfd: i64, err: &mut dyn Write
- /// enters an overlay root of its own ([`crate::spawn_namespace_root`]), which
- /// never falls back to chroot.
- pub fn spawn_joined_root(root: Root<'_>, plan: &Plan, pidfd: i64, err: &mut dyn Write) -> Result<Child> {
--    let join = NsEntry::Join(crate::ns_join::Join::of(pidfd, matches!(root, Root::Overlay { .. })), root.upper_dir());
-+    let join = NsEntry::Join(crate::ns_join::Join::of(pidfd, false), root.upper_dir());
+@@ -429,7 +429,7 @@
+     // The pidfd of the payload stays open until the child joined.
+     let member = crate::ns_join::joinable(pidfd);
+     let target = member.as_ref().map_or(pidfd, |m| i64::from(std::os::fd::AsRawFd::as_raw_fd(&m.pidfd)));
+-    let join = NsEntry::Join(crate::ns_join::Join::of(target, matches!(root, Root::Overlay { .. })), root.upper_dir());
++    let join = NsEntry::Join(crate::ns_join::Join::of(target, false), root.upper_dir());
      match spawn_with(root.dir(), plan, Rung::Namespace.word(), None, None, None, Some(join), true, err) {
          Err(Error::NsSetup { step, errno }) => {
              let cause = format!("{step} ({} ({}))", errno.name(), errno.0);

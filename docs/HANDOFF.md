@@ -34,8 +34,8 @@ is done. Git and the record keep finished work.
        `Class::Unavailable` (`StartServiceCtrlDispatcherW: An instance of
        the service is already running. (os error 1056)`) on the second
        call in `a_program_that_the_manager_did_not_start_gets_a_usage_failure`
-       instead of `Class::Usage`. Write an entry and fix this failure
-       before other work.
+       instead of `Class::Usage`. T-1089 (done, in `v0.82.1`) fixes it;
+       the proof is the next run of `nightly.yml` on Windows.
      - `cross (riscv64gc-unknown-linux-musl)` failed in `pod-iroh`
        (`road.rs`, `new_address.rs`, `share.rs`, T-916, T-938) and in
        45009375271 also in `pod-quic` (`datagrams.rs`). `loongarch64`
@@ -105,12 +105,8 @@ is done. Git and the record keep finished work.
      or fake assets, no `ghcr.io` images and no hand-off COORD issue.
      podnet (`4df28952`), podssh (`e728db9f`) and podvm (`4fa56ec` to
      `a43e80cd`) pin `v0.82.0`; podrunner stays on `v0.81.0`.
-   - Next release: once `ci.yml` 45144882072 and `plants.yml` 45144882160
-     finish green (and after the `service_live.rs` Windows fix), release the next patch tag (call C818, e.g.
-     `v0.82.1`) via `release.yml` (dry run, then `version=0.82.1`). Open
-     the new hand-off COORD issue `(to all)` (`docs/maintenance.md`, "A
-     release", call C780). It carries the parts of `v0.82.0` that podrunner
-     has not taken (#254 is closed).
+   - Next release: the release commit of `v0.82.1` is on `main` and
+     waits for `release.yml` ("Releases: v0.82.0 and v0.82.1", below).
    - The pushes of a cloud session of this account start no run of
      GitHub Actions: dispatch workflows via the GitHub MCP tool first,
      and use `[gh action] requested` (#255 is the last) when dispatch
@@ -135,49 +131,34 @@ is done. Git and the record keep finished work.
     `TMPDIR=/tmp`): a long one makes the socket paths of `pod-guest` too
     long for `sun_path` (T-920).
 
-## Releases: v0.82.0 and the next tag
+## Releases: v0.82.0 and v0.82.1
 
 `v0.82.0` (`51c09390`, `docs/releases/v0.82.0.md`) is tagged without a
-`release.yml` run (`publish.yml` 45122406747 passed; `ci.yml` 45122401625
-failed on `scripts/ci/turn-tests.sh`). It carries each fix of `main`
-after `v0.81.0` plus the five consolidated crates and transport/security
-updates (`6fd6b57b`, `3720250a`, `fc7cf63f`):
+`release.yml` run: it has no GitHub release, no signed `SHA256SUMS`, no
+assets, no `ghcr.io` images and no hand-off. Its content is in `v0.82.1`
+(call C818).
 
-- T-1086: `pod-extract` sets the ACLs of a layer of GNU tar `--acls`
-  (`SCHILY.acl.*` to `system.posix_acl_*`, counted in `xattrs`); a GNU
-  sparse file now refuses its layer (T-1087); call C899.
-- T-1080: `pod-enter` gives 126 to a file that `execve` found and refused
-  (`E2BIG`, `EINVAL`, `ELIBBAD` and five more), and the search of the path
-  keeps the errno of the refused file (PodUtils/podvm#639). podvm drops its
-  read of the text `E2BIG (7)` at its take.
-- T-1026: `pod_unit::windows::serve`, the dispatcher of the service
-  control manager. The README of `pod-unit`, "The dispatcher of a Windows
-  service", has the map of podrunner's loop (`ready`, `stop`, `stopping`,
-  the exit code).
-- T-1060: the server of `pod-control` wipes each answer that it drops.
-- T-1082: each gate of no blocking call runs alone in its test binary.
-- Consolidated crates and updates: `pod-shape`, `pod-cover`, `pod-harness`,
-  `pod-sidecar` (`sidecar` feature off by default), `pod-offline`,
-  `pod-link` (`ntp`/`smtp`/`imap` + IMAP `max_fetch` and `command_timeout`),
-  `pod-e2e` (shape + destination envelope), `pod-turn` (T-501 RFC 6062 TCP
-  relay), `pod-quic` (`migrate`), `pod-warp` (`provider`, H3 shape with
-  open control stream), `pod-egress` (`coalesce`, `replay`, `vless::early`,
-  Trojan UDP refusal, VMess nonce-wrap bound), `pod-ws` (HTTP/2 shape with
-  `MAX_CONCURRENT_STREAMS` and target connection window, plus fallback),
-  `pod-testkit` (`vectors`), `pod-core` (`Class::Permission`,
-  `Class::Suite`), `pod-manual` (`failure_classes`), and `url` 2.5.9
-  (RUSTSEC-2026-0592).
+The release commit of `v0.82.1` (`docs/releases/v0.82.1.md`) is on `main`:
+the version of the workspace and of each workspace dependency is 0.82.1,
+and `schemas/CHANGES.md` sets the `run-report.v1` row to `v0.82.1`. The
+tag waits for `release.yml`:
 
-`07d4cc4f` (`HEAD`) fixes `scripts/ci/turn-tests.sh` (`coturn_tcp`
-output line) on `main`. Cut the next patch tag (e.g. `v0.82.1`, call C818)
-through `release.yml` once `ci.yml` is green (after the `service_live.rs`
-Windows fix) so GitHub release assets,
-`ghcr.io` images and the hand-off COORD issue ship cleanly. T-963
-is partial.
-T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks their release
-part) are open. Before the release, read `docs/maintenance.md`, "A
-release": the steps of `release.yml` that run on a tag only are not tested
-by the dry run.
+1. Wait for the green `ci.yml` run of the release commit (`release.yml`
+   refuses a commit with no green `ci`).
+2. Run `release.yml` with no input (a dry run), then with
+   `version=0.82.1` (`docs/maintenance.md`, "A release", steps 3 to 5).
+   The steps that run on a tag only are not tested by the dry run.
+3. Open the hand-off COORD issue `(to all)` (call C780). It carries the
+   parts of `v0.82.0` that podrunner has not taken, and the asks of each
+   consumer of `docs/releases/v0.82.1.md`, "How a consumer takes it":
+   podrunner T-1110 (`service_account()`) and PodUtils/podrunner@T-595
+   (T-1098); podvm T-1124 (`pod_enter::joinable`), `Plan::relay_title` and
+   `pod_hostprobe::usage`; podnet T-1117 (the limits 110 s and 210 s);
+   podssh iroh 1.4.2, `Unit::public`, `older_mark`, `write_checked` and
+   `bind_staged`.
+
+T-963 is partial. T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks
+their release part) are open.
 
 ## Unfinished work
 

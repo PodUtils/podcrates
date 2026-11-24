@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**899 entries: 152 open, 27 partial, 7 blocked, 713 done.**
+**901 entries: 152 open, 27 partial, 7 blocked, 715 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 214 | 228 |
-| P2 | 70 | 7 | 4 | 368 | 449 |
+| P1 | 4 | 10 | 0 | 215 | 229 |
+| P2 | 70 | 7 | 4 | 369 | 450 |
 | P3 | 78 | 10 | 3 | 129 | 220 |
-| **All** | 152 | 27 | 7 | 713 | 899 |
+| **All** | 152 | 27 | 7 | 715 | 901 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -935,13 +935,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1110](fleet.md) | P2 | S | M8 | chore | open | `pod-unit`: podrunner's unit of the system loses `RemoveIPC=yes` at its take of the tag of T-1107, and its test of the unit fails |
 | [T-1111](foundation.md) | P2 | S | M0 | chore | done | `pod-guest`, `pod-release`, `pod-supervise`: the changes of podvm and podnet at their heads (port review) |
 | [T-1112](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the init of a PID namespace and the relay of a join show the command line and the environment of the caller to the payload, and a payload of the same user can trace them (PodUtils/podvm#646) |
-| [T-1113](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: the init of a PID namespace in a user namespace of the rung stays dumpable, so a payload of the same caller can trace it and read the memory of the caller |
+| [T-1113](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: the init of a PID namespace in a user namespace of the rung stays dumpable, so a payload of the same caller can trace it and read the memory of the caller |
 | [T-1114](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`: `bind_staged` binds at the path when the stage does not fit in `sun_path`, and macOS refuses a path in its temporary directory (PodUtils/podssh#343) |
 | [T-1115](upkeep.md) | P2 | S | M5 | chore | open | Two more copies of the bind of a Unix socket at a long path: `pod-link` (`bind_private`) and `pod-supervise` (`control_via_fd`) |
 | [T-1116](adapters.md) | P1 | S | M3 | defect | done | `pod-cloudflare`: the edge refuses a new quick tunnel with "Tunnel not found" for more than three tries, and the start exits 69 (PodUtils/podnet#685) |
 | [T-1117](adapters.md) | P3 | S | M3 | docs | open | podnet's documents give the serial limits of the legs of `pod-cloudflare` as 130 s and 280 s; T-1116 makes them 110 s and 210 s |
 | [T-1118](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686) |
+| [T-1120](podvm.md) | P1 | S | M6 | feature | done | `pod-hostprobe`: the CPU time, the peak of memory and the OOM kills of a cgroup at the end of a run (PodUtils/podvm#650) |
 | [T-1122](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`, `pod-unit`: the changes of podrunner and podssh at their heads (port review) |
+| [T-1124](podvm.md) | P2 | S | M6 | chore | open | podvm opens `/proc/PID` and the pidfd of the init of a run, which is not dumpable after T-1113, so its `exec -t`, `cp` and the join of the UTS namespace fail for a caller with no capabilities |
 | [T-1125](relay.md) | P1 | S | M2 | defect | done | `pod-hold`: a failed `execve` of `spawn::start` exits 127 with no errno, and `spawn::resolve` does not check a path with a `/` (PodUtils/podnet#707) |
 | [T-1126](relay.md) | P2 | S | M2 | defect | done | `pod-wormhole`: `Failed::Expired` rounds the life of the code up to whole minutes ("within its 1 minutes" for 5 s) (PodUtils/podnet#707) |
 | [T-1127](relay.md) | P2 | S | M2 | defect | done | `pod-wormhole`: `Failed::Unreachable` keeps only the words of each meeting point, so a caller loses the stage Proxy or Dns (PodUtils/podnet#707) |

@@ -1,0 +1,12 @@
+diff --git a/crates/pod-enter/src/title.rs b/crates/pod-enter/src/title.rs
+--- a/crates/pod-enter/src/title.rs
++++ b/crates/pod-enter/src/title.rs
+@@ -253,7 +253,7 @@
+             unsafe { blank(&m) };
+         }
+         let _ = sys::set_name(&self.title);
+-        let _ = sys::set_dumpable(false);
++        let _ = sys::set_dumpable(true);
+     }
+ }
+ 

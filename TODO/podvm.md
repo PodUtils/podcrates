@@ -12924,7 +12924,7 @@ of a run with an init that is not dumpable (root) and that is
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12969,9 +12969,240 @@ init that is not dumpable. Test: as the caller with no capabilities the
 payload cannot read `/proc/1/environ` or `/proc/1/mem`, and an exec still
 joins the run.
 
+## Decision
+
+Call C916: the join opens the payload (pid 2) in place of the init only
+where this process cannot open the namespaces of the init; a caller with
+`CAP_SYS_PTRACE` (root) opens the init, as before. Not taken: the caller
+keeps a pidfd of the payload (`Child`: a detached run of podvm keeps a
+host pid, not a descriptor), the init gives descriptors of its
+namespaces over a socket (a server in the loop of the init, which the
+payload of the same user can also reach), and `PR_SET_DUMPABLE` 1 around
+a handshake (a `ptrace` attach in that window stays after the flag goes
+back to 0).
+
 ## Prove
 
 ```sh
+cargo test -p pod-enter --all-features --lib ns_join::tests title::tests
 cargo test -p pod-enter --all-features --test userns the_init_and_the_relay_show_a_title_and_no_environment
 sh scripts/ci/userns-tests.sh
+sh scripts/plant-each.sh enter-pid-init-dumpable enter-pid-join-opens-the-init
 ```
+
+## Done
+
+2026-11-23, this commit. Measured first (uid 65534, Linux 6.18): with the
+init not dumpable and the join of the pidfd of the init, each join of
+`tests/userns.rs` falls back with "setns(pidfd, CLONE_NEWNS) (EPERM
+(1))". The step is `CLONE_NEWNS` alone, as `other_user_namespace` cannot
+read `/proc/PID/ns/user` of the init either. Now `Shown::apply`
+(`crates/pod-enter/src/title.rs`) makes each init and each relay not
+dumpable, and writes NUL over the old command line and environment
+(fields 48 to 51 of `/proc/self/stat` of the caller) also where the map
+takes. `pod_enter::joinable` (`crates/pod-enter/src/ns_join.rs`, with
+`Member` and `ids_of`) gives the payload of the init of a pidfd: only
+where the pidfd names pid 1 of a PID namespace under the one of `/proc`
+(the `NSpid` line of its fdinfo) and `/proc/PID/ns/pid` of the init does
+not open. It reads the children of the init (`/proc/PID/task/PID/children`,
+else each `/proc/PID/status`), takes the child with the parent of the
+init and pid 2 at the depth of the init, opens its pidfd with its pid in
+the PID namespace of this process (a caller that joined the PID
+namespace of the run is under the one of `/proc`), and checks after the
+open that the pidfd names it, that its parent is the init and that the
+init lives. `spawn_joined_root` joins the `Member` where there is one
+(call C916). Test: `the_init_and_the_relay_show_a_title_and_no_environment`
+(`crates/pod-enter/tests/userns/pid.rs`) as uid 65534: the payload cannot
+read `/proc/1/environ` (exit 55), the caller cannot read
+`/proc/PID/environ` and `/proc/PID/mem` of the init, which belong to
+root, and the exec still joins the run; as root, the bytes of
+`/proc/PID/mem` of the init at the old command line and environment are
+NUL. On the code before the fix it fails as root ("the init keeps 9874
+bytes of the command line and the environment of the caller") and as
+uid 65534 ("the init is dumpable: environ Ok(0), mem true, owner
+Ok(65534)"). A finding, fixed in place: the check of
+`/proc/PID/environ` of T-1112 (exit 53) ran `cat` with `2>/dev/null`, and
+the image of the test has no `/dev`, so the shell ran no `cat` and the
+check passed with no read; it writes to `/tmp` now. With a static busybox
+(`busybox-static` of Ubuntu), `sh scripts/ci/userns-tests.sh` passes as
+root, which runs each test again as uid 65534 (`tests/userns.rs` 15
+passed, no skip line), and `tests/userns.rs` passes run as uid 65534 (15
+passed). `cargo test -p pod-enter --all-features`: lib 271 passed,
+1 ignored (`ns_join::tests::the_ids_of_a_line_of_proc_are_read` and
+`ns_join::tests::a_process_that_is_no_init_is_joined_itself` are new).
+Plants: `enter-pid-init-dumpable` (the init stays dumpable: exit 55) and
+`enter-pid-join-opens-the-init` (the join opens the init: "does not share
+the mounts of the payload: setns"), each caught by hand with the same
+change; `enter-overlay-join-as-tree` and `enter-upper-join-in-the-lower`
+patch the new line. podvm reads `/proc/PID` of the init and joins its
+pidfd itself; that hand-off is T-1124. A finding in passing, fixed in
+place: `sh scripts/agent/check-windows.sh` gave a fault, the import of
+`Service` in `crates/pod-cloudflare/src/tunnel/tests.rs` that only the
+tests with `#[cfg(unix)]` use; the import has `#[cfg(unix)]` now.
+
+# T-1120: `pod-hostprobe`: the CPU time, the peak of memory and the OOM kills of a cgroup at the end of a run (PodUtils/podvm#650)
+
+**Source:** PodUtils/podvm#650 (COORD-234 of podvm, under the ruling "Shared code"; PodUtils/podvm@T-2076, for PodUtils/podrunner#345)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm: "podvm PodUtils/podvm@T-2076 (for podrunner, PodUtils/podrunner#345) reads CPU
+time, peak memory and OOM kills of a cgroup at the end of a run. No
+podcrates crate has this reader: `pod-hostprobe::cgroup` makes a leaf and
+sets `memory.max`, `cpu.max`, `pids.max` but reads no counter back."
+podvm has three copies of the reader:
+PodUtils/podvm:crates/podvm/src/incus/usage.rs (the texts of `cpu.stat`
+`usage_usec`, `cpuacct.usage` in nanoseconds, `memory.peak`,
+`memory.max_usage_in_bytes`, and `Meter`: files opened through a cgroup2
+mount where its memory controller is there, else the v1 hierarchies
+`memory` and `cpuacct`, kept open and read again from offset 0);
+PodUtils/podvm:crates/podvm-supervise/src/report.rs (`oom_kills_in`: the
+line `oom_kill N` of `memory.events` or `memory.oom_control`;
+`oom_kills_of(dir)`); PodUtils/podvm:crates/podvm/src/run/cgroup.rs
+(`release` calls the second).
+
+The ask: a module with pure parsers (each gives `None` for a missing line
+or a value that is not a count); a reader of a cgroup directory or of open
+files that gives one value struct `{ cpu_usec, peak_bytes, oom_kills }`,
+each an `Option`, with the reason of each `None`; and podvm's measured
+rule: "on a host with both versions, cgroup2 with no memory controller
+gives the host's `cpu.stat` (43 s in an instance that ran 1 s), so the
+reader takes cgroup2 only where its memory controller is present, else
+v1."
+
+## Premise
+
+- Read: podvm at `a4b75950` (the two files above, and `release` of
+  `run/cgroup.rs`); `crates/pod-hostprobe/src/cgroup.rs`;
+  `python3 -I scripts/codegraph.py similar cgroup usage memory peak oom`:
+  no reader of these counters in the workspace
+  (`pod-incus::state::oom_kills` reads the metrics of incusd, not a
+  cgroup).
+- Read: the cgroup documentation of Linux: `memory.peak` came in Linux
+  5.19; the memory controller of cgroup2, with `memory.events`, is older;
+  the line `oom_kill` of `memory.oom_control` came in Linux 4.13.
+  podvm's `Meter` takes the open of `memory.peak` as the sign of the
+  memory controller, so on Linux 5.8 to 5.18 a host with cgroup2 alone
+  goes to v1, which is not there, and gives no value.
+- Read: podvm's `Meter::read` gives `None` with no reason where a file
+  holds no count.
+- Not measured: a host with both versions (podvm measured it).
+
+## Approach
+
+A module `usage` of `pod-hostprobe` from podvm's code: the parsers
+`cpu_usec_v2`, `cpu_usec_v1` (nanoseconds rounded down to microseconds),
+`bytes`, `oom_kills_in` and `oom_kills_of`; `Meter` with the files open
+(`open(v2, v1_memory, v1_cpuacct)` by the rule, and `v2`, `v1_memory`,
+`v1_cpu` for a caller that mounts each hierarchy in turn at one place, as
+podvm does in an instance); `read() -> Usage` with a reason for each
+`None`. The sign of the memory controller is `memory.events`, not
+`memory.peak`. The open of cgroup2 fails with a `pod_core::Failure` at
+`Stage::Host`. Tests: parser tables, and made-up cgroup trees in the
+temporary directory for cgroup2 with its memory controller, cgroup2 with
+no memory controller beside v1, cgroup2 with no `memory.peak`, and missing
+files. `SOURCES` gets a block of podvm at `a4b75950`; the README an API
+row and adoption rows for podvm.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features --lib usage
+cargo clippy -p pod-hostprobe --all-targets --all-features -- -D warnings
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=PATH pod-hostprobe
+```
+
+## Done
+
+2026-11-23, this commit. The module `usage` of `pod-hostprobe`
+(`crates/pod-hostprobe/src/usage.rs`), from podvm at `a4b75950`: the
+parsers `cpu_usec_v2`, `cpu_usec_v1` (nanoseconds rounded down to
+microseconds), `bytes`, `oom_kills_in` and `oom_kills_of`; `Meter` keeps
+the files open and reads each again from offset 0 (`open(v2, v1_memory,
+v1_cpuacct)` by the rule; `v2`, `v1_memory`, `v1_cpu` and `note` for a
+caller that mounts each hierarchy in turn at one place); `read() ->
+Usage { cpu_usec, peak_bytes, oom_kills, why }`, with one line in `why`
+for each `None` and for a cgroup2 that the meter did not take. cgroup2
+serves only where `memory.events` opens (its memory controller), else
+cgroup v1. Two changes against podvm's copy: the sign of the memory
+controller is `memory.events`, not `memory.peak`, so Linux 5.8 to 5.18
+stay on cgroup2 with a peak of `None` and its reason (podvm's copy goes to
+an absent v1 there and gives no value); and a file with no count gives a
+reason (podvm's copy gave `None` with no reason). `Meter::v2` fails with a
+`pod_core::Failure` at `Stage::Host`, `Class::Unsupported`, with the I/O
+error as its cause. Tests (`usage::tests`, 12): the parser tables; made-up
+cgroup trees in the temporary directory:
+`cgroup2_with_its_memory_controller_serves`,
+`cgroup2_with_no_memory_controller_gives_way_to_v1` (the `cpu.stat` of the
+host, 43 s, is not taken), `cgroup2_with_no_memory_peak_stays_on_cgroup2`,
+`each_missing_value_gives_its_reason`,
+`a_meter_with_no_file_gives_a_reason_for_each_value`,
+`a_meter_reads_its_open_files_again_from_the_start` (also after the remove
+of the directory), `the_parts_of_v1_open_one_at_a_time` and
+`the_oom_kills_of_a_directory_come_from_memory_events`. `SOURCES` has a
+second block of podvm at `a4b75950`; `check-sources.py` with a clone of
+podvm: 0 changes in both blocks. The README has the API row, the adoption
+rows of podvm and the tests. `cargo test -p pod-hostprobe --all-features
+--lib usage`: 12 passed; clippy of the crate, `check-macos.sh`,
+`check-windows.sh` and `sh scripts/agent/check.sh`: 0 faults;
+`plant-each.sh --apply`: 0 stale; `codegraph.py new`: 0 clones or twins.
+
+# T-1124: podvm opens `/proc/PID` and the pidfd of the init of a run, which is not dumpable after T-1113, so its `exec -t`, `cp` and the join of the UTS namespace fail for a caller with no capabilities
+
+**Source:** T-1113 (PodUtils/podvm#646)
+**Category:** chore
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The init of `Plan::pid_namespace` is not dumpable (T-1113). The kernel
+opens `/proc/PID/ns/*`, `/proc/PID/root` and `setns` on the pidfd of
+such a process only for a caller with `CAP_SYS_PTRACE` over the user
+namespace of the caller of the run. podvm keeps the host pid of the init
+(`container.pid`) and uses it so: `userns::rejoin` and `join_if`
+(PodUtils/podvm:crates/podvm/src/userns/join.rs) read
+`/proc/PID/ns/user`, `uts` and `pid`; `exec::ns::join_mounts` and
+`join_uts` join the pidfd of the init; `exec::tty::open`
+(PodUtils/podvm:crates/podvm/src/exec/tty.rs) opens the pty under
+`/proc/PID/root/dev`. As a caller with no capabilities these fail with a
+pod-enter that has T-1113: `spawn_joined` still joins (it joins the
+payload itself), but `exec -t` takes a pty of the host, `cp` does not
+join the mounts, and the exec keeps the host name.
+
+## Premise
+
+- Read: PodUtils/podvm at `8e72b4c`: the files above, and
+  PodUtils/podvm:TODO/enter.md (PodUtils/podvm@T-2054: podvm keeps its own pid 1 and
+  pid 2 dumpable for the same reason).
+- Read: `crates/pod-enter/README.md`, the row of `joinable` in the table
+  of podvm.
+- Not measured: podvm with the pod-enter of T-1113.
+
+## Approach
+
+Name the change in the next COORD issue `(to podvm)`, with the release
+of pod-enter that has T-1113: call `pod_enter::joinable(pidfd of the
+init)`; where it gives a `Member`, read `/proc/PID` of `Member::pid` and
+join `Member::pidfd` in `rejoin`, `join_if`, `join_mounts`, `join_uts`
+and `tty::open`; `None` keeps the init (a caller with `CAP_SYS_PTRACE`).
+podvm can then make its own pid 1 and pid 2 not dumpable (PodUtils/podvm@T-2054).
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --test userns a_join_lands_in_the_pid_namespace_of_its_run
+sh scripts/ci/userns-tests.sh
+```
+
+## Start condition
+
+The coordinator names the change in a COORD issue `(to podvm)` and podvm
+answers.

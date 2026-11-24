@@ -77,10 +77,10 @@ fn a_hidden_process_shows_its_title_and_no_environment() {
 }
 
 /// The init and the relay take the title of the plan, else the product of
-/// the names; a title with a NUL is refused before the fork. The relay of
-/// a join and the init with no user namespace of the rung are not
-/// dumpable; the init in a user namespace of the rung is (T-1113). A child
-/// that stays no init and no relay takes nothing.
+/// the names; a title with a NUL is refused before the fork. Each init and
+/// each relay, also the init in a user namespace of the rung, becomes not
+/// dumpable in `Shown::apply` (T-1113). A child that stays no init and no
+/// relay takes nothing.
 #[test]
 fn the_title_and_the_dump_flag_follow_the_fork() {
     let mut plan = crate::tests::plain_plan();
@@ -88,12 +88,13 @@ fn the_title_and_the_dump_flag_follow_the_fork() {
     let user = Pid { flags: sys::CLONE_NEWPID | sys::CLONE_NEWUSER, ..own };
     let relay = Pid { relay: true, ..Pid::default() };
     assert!(Shown::of(&plan, &Pid::default()).unwrap().is_none());
-    let s = Shown::of(&plan, &own).unwrap().unwrap();
-    assert_eq!((s.len, s.dumpable), (plan.names.product.len() as u64 + 1, false));
-    assert!(Shown::of(&plan, &user).unwrap().unwrap().dumpable);
+    let product = plan.names.product.len() as u64 + 1;
+    for pid in [own, user] {
+        assert_eq!(Shown::of(&plan, &pid).unwrap().map(|s| s.len), Some(product), "{pid:?}");
+    }
     plan.relay_title = Some("unit-exec".to_string());
     let s = Shown::of(&plan, &relay).unwrap().unwrap();
-    assert_eq!((s.len, s.dumpable), (10, false));
+    assert_eq!(s.len, 10);
     assert!(s.map.is_some(), "the map of this process");
     plan.relay_title = Some("a\0b".to_string());
     let e = Shown::of(&plan, &relay).err().map(|e| e.to_string()).unwrap_or_default();
