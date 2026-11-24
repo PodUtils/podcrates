@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**908 entries: 153 open, 27 partial, 7 blocked, 721 done.**
+**909 entries: 154 open, 27 partial, 7 blocked, 721 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 219 | 233 |
-| P2 | 71 | 7 | 4 | 371 | 453 |
+| P2 | 72 | 7 | 4 | 371 | 454 |
 | P3 | 78 | 10 | 3 | 129 | 220 |
-| **All** | 153 | 27 | 7 | 721 | 908 |
+| **All** | 154 | 27 | 7 | 721 | 909 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -955,3 +955,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1141](podvm.md) | P2 | S | M6 | feature | done | `pod-incus`: no read of a storage pool, of the room of a pool, or of an image that incus has (PodUtils/podvm#651) |
 | [T-1142](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: `sys::Statfs` has no `f_bfree`, so a check for a daemon of root cannot name the blocks kept for root (PodUtils/podvm#651) |
 | [T-1143](podvm.md) | P2 | S | M6 | chore | open | podvm's class of a refusal by size reads the words of an `Io` error, and finds none after T-1138 |
+| [T-1144](transport.md) | P2 | M | M3 | feature | open | `pod-term`: a sans-IO 7-bit transfer codec for a pty that damages ZMODEM (PodUtils/podssh#346) |

@@ -7875,3 +7875,40 @@ larger than any bound". Tests of `crates/pod-proxy/tests/too_large.rs`:
 status and the `Content-Length`. `cargo test -p pod-proxy -p pod-incus
 -p pod-hostprobe --all-features --no-fail-fast`: 494 passed, 0 failed;
 clippy of the three crates with `-D warnings`: 0 warnings.
+
+# T-1144: `pod-term`: a sans-IO 7-bit transfer codec for a pty that damages ZMODEM (PodUtils/podssh#346)
+
+**Source:** PodUtils/podssh#346 (COORD-137 of podssh; PodUtils/podssh@T-831, step 2), answered in #258 (COORD-153).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh's T-831, step 2, needs a 7-bit transfer envelope for a pty that rewrites bytes and so damages ZMODEM (tmux drops ZDLE; a far pty can remap CR and LF). The framing and its state machine need no SSH: bytes in, bytes and events out. The ruling "Shared code first" puts such a codec in podcrates, so podssh writes no copy and any sibling that runs a transfer inside a terminal can take it.
+
+## Premise
+
+- Read: PodUtils/podssh#346 and the answer in #258.
+- Read: `crates/pod-term/src/lib.rs` (the sans-IO form of the crate: it reads and writes bytes, dials nothing, spawns nothing).
+- Not read yet: the parts of podssh's design that #346 does not give (the kinds of frames, the limits, the test vectors). podssh gives them as a comment on #258 or #346.
+
+## Approach
+
+A module `transfer` in `pod-term`. It takes bytes in and gives bytes and events out, with no tie to SSH:
+
+- Frames are `#KIND:` lines of base64, with one frame in flight.
+- The receiver echoes the count of bytes that it received.
+- The chunk size doubles after a fast ack and falls to 1 KiB after a slow one.
+- After a read that does not parse, the reader resyncs at the last `#KIND:`.
+- The rule of `PodUtils/podssh@T-134` is a set of events for the caller: a temporary name, the SHA-256 of the file, then the rename. The module does no file I/O.
+
+Tests use a stand-in for a pty that rewrites bytes (CR to LF, LF to CRLF, dropped ZDLE, repainted lines) and run a transfer through it. A plant covers each of the rules above. The tag that carries the module gets a hand-off COORD issue `(to all)`; podssh takes it from there.
+
+## Prove
+
+```sh
+cargo test -p pod-term --all-features
+```
