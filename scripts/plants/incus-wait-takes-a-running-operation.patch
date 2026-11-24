@@ -1,8 +1,10 @@
+diff --git a/crates/pod-incus/src/operation.rs b/crates/pod-incus/src/operation.rs
+index 1bc5eee..aa635ce 100644
 --- a/crates/pod-incus/src/operation.rs
 +++ b/crates/pod-incus/src/operation.rs
-@@ -154,7 +154,7 @@
+@@ -158,7 +158,7 @@ impl Client {
          };
-         let operation: Operation = crate::envelope::sync(call, reply)?;
+         let operation: Operation = crate::envelope::sync(call, reply).map_err(named)?;
          tracing::debug!(call, id, status = operation.status_code, "incus operation");
 -        if !operation.is_final() {
 +        if false && !operation.is_final() {
