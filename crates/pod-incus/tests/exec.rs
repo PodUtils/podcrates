@@ -71,3 +71,70 @@ async fn a_command_that_fails_to_start_gives_the_err_of_its_operation() {
     let e = client.exec_recorded("web", &Exec::new(["nope"])).await.unwrap_err();
     assert_eq!(e.incus_error(), Some("Command not found"));
 }
+
+/// incusd 6.0 ends an exec of 127 or 126 as a failure, and its wait answers
+/// an error envelope (PodUtils/podvm#653): the exit code and the logs come
+/// from the operation.
+async fn recorded_end(exit: i64) {
+    let stand = Stand::start();
+    let client = running(&stand, "web").await;
+    stand.state().plan = Plan { exit, stdout: b"out\n".to_vec(), stderr: b"err\n".to_vec(), ..Plan::default() };
+    let exec = Exec::new(["sh", "-c", &format!("echo out; echo err >&2; exit {exit}")]);
+    let output = client.exec_recorded("web", &exec).await.expect("the output");
+    assert_eq!(
+        (output.exit_code, output.stdout.as_slice(), output.stderr.as_slice()),
+        (exit as i32, &b"out\n"[..], &b"err\n"[..])
+    );
+    assert_eq!(stand.seen("DELETE", "/1.0/instances/web/logs/exec-output/").len(), 2);
+    assert!(stand.state().logs.is_empty(), "each log is deleted");
+}
+
+#[tokio::test]
+async fn a_command_that_ends_with_127_gives_its_code_and_its_logs() {
+    pod_testkit::need_loopback!();
+    recorded_end(127).await;
+}
+
+#[tokio::test]
+async fn a_command_that_ends_with_126_gives_its_code_and_its_logs() {
+    pod_testkit::need_loopback!();
+    recorded_end(126).await;
+}
+
+#[tokio::test]
+async fn an_operation_that_is_gone_gives_the_code_of_the_words() {
+    pod_testkit::need_loopback!();
+    let stand = Stand::start();
+    let client = running(&stand, "web").await;
+    stand.state().plan = Plan { exit: 127, stdout: b"out\n".to_vec(), ..Plan::default() };
+    stand.state().forget = true;
+    let output = client.exec_recorded("web", &Exec::new(["nope"])).await.expect("the output");
+    assert_eq!((output.exit_code, output.stdout.as_slice(), output.stderr.as_slice()), (127, &b""[..], &b""[..]));
+}
+
+#[tokio::test]
+async fn a_failed_read_of_the_operation_stays_the_error_of_that_read() {
+    pod_testkit::need_loopback!();
+    let stand = Stand::start();
+    let client = running(&stand, "web").await;
+    stand.state().plan = Plan { exit: 126, ..Plan::default() };
+    stand.state().op_read = Some((500, "database is locked".into()));
+    let e = client.exec_recorded("web", &Exec::new(["/etc/hosts"])).await.unwrap_err();
+    assert_eq!((e.status(), e.incus_error()), (Some(500), Some("database is locked")));
+    assert!(e.call().starts_with("GET /1.0/operations/"), "{e}");
+}
+
+#[tokio::test]
+async fn another_error_of_the_wait_stays_an_error_that_names_the_operation() {
+    pod_testkit::need_loopback!();
+    let stand = Stand::start();
+    let client = running(&stand, "web").await;
+    stand.state().plan = Plan { exit: 127, ..Plan::default() };
+    stand.state().refuse = Some(("GET".into(), "/1.0/operations/".into(), 400, "Instance is not running".into()));
+    let e = client.exec_recorded("web", &Exec::new(["nope"])).await.unwrap_err();
+    assert_eq!((e.status(), e.incus_error()), (Some(400), Some("Instance is not running")));
+    assert_eq!(e.call(), "POST /1.0/instances/web/exec");
+    let id = stand.state().ops.keys().last().cloned().expect("the operation of exec");
+    assert_eq!(e.operation(), Some(id.as_str()));
+    assert!(stand.seen("GET", &format!("/1.0/operations/{id}")).iter().all(|s| s.path.ends_with("/wait")));
+}

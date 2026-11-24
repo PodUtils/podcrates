@@ -89,3 +89,17 @@ async fn an_output_over_its_bound_is_refused() {
     assert!(e.to_string().ends_with("the output is longer than 16 bytes"), "{e}");
     assert!(!e.to_string().contains("secret"), "{e}");
 }
+
+/// incusd 6.0 ends an exec of 127 as a failure, and its wait answers an
+/// error envelope (PodUtils/podvm#653): the exit code comes from the
+/// operation.
+#[tokio::test]
+async fn the_wait_of_a_command_that_ends_with_127_gives_its_code() {
+    pod_testkit::need_loopback!();
+    let stand = Stand::start();
+    let client = running(&stand, "web").await;
+    stand.state().plan = Plan { exit: 127, stderr: b"sh: nope: not found\n".to_vec(), ..Plan::default() };
+    let attached = client.exec_attached("web", &Exec::new(["sh", "-c", "nope"])).await.unwrap();
+    let output = attached.output(b"", 1 << 10).await.expect("the output");
+    assert_eq!((output.exit_code, output.stderr.as_slice()), (127, &b"sh: nope: not found\n"[..]));
+}

@@ -13567,7 +13567,7 @@ it.
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13631,6 +13631,43 @@ The tests: `exec_recorded` of `sh -c 'echo out; echo err >&2; exit 127'`
 gives the code 127 with the two logs; the same with 126; an operation that
 is gone gives the code of the words; `Attached::wait` gives the code; an
 error of the wait that is not one of the two sentences stays an error.
+
+## Done
+
+2026-11-24, this commit. `Client::exec_end` (`crates/pod-incus/src/exec.rs`)
+ends `exec_recorded` and `Attached::wait`: where the wait gives `Incus`
+with the status 400 and the words "Command not found" or "Command not
+executable", it reads `GET /1.0/operations/ID` and takes `metadata.return`
+(0 to 255; else the code of the words, as podvm's `code_of_failure` does);
+`exec_recorded` then reads and deletes the two logs. A 404 of that read
+gives 127 or 126 by the words and empty output; another failure of the
+read is the error of the read. `Error::operation` gives the id of the
+operation of the call: `wait_for` adds it to each error of the wait (a
+private field, boxed to keep `Result` under `clippy::result_large_err`);
+the text of the error does not change. The stand-in ends an exec of 127
+or 126 as a failure, and its wait answers the error envelope; `forget`
+drops a final operation after its wait, and `op_read` refuses the read of
+an operation. The README gives the rule and the limit (one answer for a
+missing program and for `exit 127`).
+
+Tests (`tests/exec.rs`, `tests/attach.rs`):
+`a_command_that_ends_with_127_gives_its_code_and_its_logs`,
+`a_command_that_ends_with_126_gives_its_code_and_its_logs`,
+`an_operation_that_is_gone_gives_the_code_of_the_words`,
+`a_failed_read_of_the_operation_stays_the_error_of_that_read`,
+`another_error_of_the_wait_stays_an_error_that_names_the_operation`,
+`the_wait_of_a_command_that_ends_with_127_gives_its_code`. On the code
+before, the six fail, for example: `the output: Error { call: "POST
+/1.0/instances/web/exec", kind: Incus { status: 400, code: 400, error:
+"Command not found" } }` (127), the same with "Command not executable"
+(126), and the assert of the call of the read for the failed read.
+`cargo test -p pod-incus --all-features --test exec`: 9 passed;
+`cargo test -p pod-incus --all-features`: 69 passed; clippy with
+`-D warnings` and `cargo fmt --all --check` clean.
+
+For the hand-off: no break. `Error::operation` is a new method, and
+`Error` has a new private field. podvm can remove its `code_of_failure`
+read after the wait (T-1158).
 
 
 # T-1156: `pod-incus`: no bound of the answer of a call: a socket that takes the connection and never answers holds the caller (PodUtils/podvm#653)

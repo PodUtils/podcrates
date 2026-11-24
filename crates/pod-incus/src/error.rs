@@ -32,6 +32,13 @@ const TEXT_END: usize = 128;
 pub struct Error {
     call: String,
     kind: ErrorKind,
+    /// The background operation of the call, where the error came after
+    /// incus started it: a caller can read it (`Client::operation`). The
+    /// text of the error stays the same, for a caller that reads the text.
+    /// Boxed: a thin pointer keeps the error under the bound of
+    /// `clippy::result_large_err`.
+    #[expect(clippy::box_collection, reason = "a thin pointer keeps each Result of the crate small")]
+    operation: Option<Box<String>>,
 }
 
 /// What went wrong.
@@ -75,7 +82,13 @@ pub enum ErrorKind {
 
 impl Error {
     pub(crate) fn new(call: &str, kind: ErrorKind) -> Error {
-        Error { call: call.to_string(), kind }
+        Error { call: call.to_string(), kind, operation: None }
+    }
+
+    /// The error, with the id of the operation that the call started.
+    pub(crate) fn of_operation(mut self, id: &str) -> Error {
+        self.operation = Some(Box::new(id.to_string()));
+        self
     }
 
     pub(crate) fn protocol(call: &str, why: impl Into<String>) -> Error {
@@ -111,6 +124,16 @@ impl Error {
 
     pub fn kind(&self) -> &ErrorKind {
         &self.kind
+    }
+
+    /// The id of the background operation of the call, where incus started
+    /// one: an error of its wait, an operation that failed, a wait at its
+    /// limit.
+    pub fn operation(&self) -> Option<&str> {
+        match &self.kind {
+            ErrorKind::Operation { id, .. } | ErrorKind::Timeout { id, .. } => Some(id),
+            _ => self.operation.as_deref().map(String::as_str),
+        }
     }
 
     /// The `error` of incus, when incus answered with one.

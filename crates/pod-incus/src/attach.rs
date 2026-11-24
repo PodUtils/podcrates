@@ -18,7 +18,7 @@ use tokio::io::AsyncWriteExt;
 use crate::client::Client;
 use crate::envelope;
 use crate::error::{Error, ErrorKind, Result, far_text};
-use crate::exec::{Exec, ExecOutput, ExecPost, exec_path, exit_code};
+use crate::exec::{Exec, ExecOutput, ExecPost, exec_path};
 use crate::operation::Operation;
 use crate::wire::{HOST, escape};
 
@@ -159,9 +159,9 @@ impl Attached {
         let Attached { client, call, operation, stdin, stdout, stderr, control } = self;
         // incus ends the command when the control socket closes: it closes
         // here only after the end.
-        let done = client.finish(&call, &operation.id, client.settings().wait).await;
+        let done = client.exec_end(&call, &operation.id).await;
         drop((stdin, stdout, stderr, control));
-        exit_code(&call, &done?)
+        done.map(|(code, _)| code)
     }
 }
 

@@ -96,6 +96,9 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
   `Settings::max_body`: the HTTP status, the size as `BodySize`, the bound, the first 8 KiB of the body,
   and the `error` of an `error` envelope in them, which `Error::incus_error` gives). `Error::class` gives the class of
   `pod_core`; `pod_core::Failure::from(error)` is at the stage `host`.
+  `Error::operation` gives the id of the background operation of the call
+  where incus started one (an error of its wait, `Operation`, `Timeout`):
+  a caller can read the operation with `Client::operation`.
 * A body of an answer is read whole within `Settings::max_body` (64 MiB),
   except the body of `get_file_to`, which goes to the writer in pieces.
   An envelope of type `error` over the bound is read on, to
@@ -125,6 +128,18 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
   a command whose other stream fills its buffer. `Attached::wait` closes
   the control socket only after the end of the command, as incus kills a
   command whose control socket closes.
+* An exit of 127 or 126: incusd 6.0 ends such an exec as a failure
+  ("Command not found", "Command not executable"), and its wait answers
+  an error envelope (400, the same words), not the operation
+  (PodUtils/podvm#653). `exec_recorded` and `Attached::wait` then read
+  `GET /1.0/operations/ID` and give its `metadata.return` as the exit code
+  (a missing or odd `return`: the code of the words); `exec_recorded` also
+  reads and deletes the two logs. Where incusd no longer has the operation
+  (404), the words give the code (127, 126) and `exec_recorded` gives empty
+  output: the paths of the logs went with the operation. Another failure of
+  that read is the error of the read. The limit: incusd gives the same
+  answer for a program that is not there and for a command that ran and
+  ended with 127 (or 126); the crate cannot tell them apart.
 * incus pings each socket each 10 s and needs no answer. The crate reads
   the pings of stdout and stderr; those of stdin and control stay in the
   buffer of the socket (about 4 KiB an hour).
