@@ -7,8 +7,8 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use pod_incus::{Client, Settings};
-use tokio::io::AsyncWriteExt;
-use tokio::net::UnixListener;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{UnixListener, UnixStream};
 use tokio::task::JoinHandle;
 
 /// What the stand-in does after its answer.
@@ -16,15 +16,19 @@ use tokio::task::JoinHandle;
 pub enum After {
     /// Close the connection, with the rest of the request unread.
     Close,
-    /// Keep the connection open, send no more bytes, and read no more: the
-    /// writer of a body gets EPIPE, the reader of the answer gets nothing.
+    /// Keep the connection open and send no more bytes; shut its read side
+    /// and drop what came: the writer of a body gets EPIPE, the reader of
+    /// the answer gets nothing more.
     Hold,
+    /// [`After::Hold`], with the write side shut too: the reader of the
+    /// answer gets its end, and no error of a reset.
+    Shut,
 }
 
 pub struct Raw {
     pub socket: PathBuf,
     /// The connections that the stand-in holds.
-    held: Arc<Mutex<Vec<std::os::unix::net::UnixStream>>>,
+    held: Arc<Mutex<Vec<UnixStream>>>,
     task: JoinHandle<()>,
 }
 
@@ -42,9 +46,15 @@ impl Raw {
                 if !answer.is_empty() && stream.write_all(&answer).await.is_err() {
                     continue;
                 }
-                if after == After::Hold {
+                if after != After::Close {
                     let stream = stream.into_std().expect("the stream of the stand-in");
-                    let _ = stream.shutdown(std::net::Shutdown::Read);
+                    let how = if after == After::Shut { std::net::Shutdown::Both } else { std::net::Shutdown::Read };
+                    let _ = stream.shutdown(how);
+                    let mut stream = UnixStream::from_std(stream).expect("the stream of the stand-in");
+                    // The bytes in the queue keep a blocked writer asleep:
+                    // with them read, its next write sees the shut side.
+                    let mut sink = vec![0u8; 64 * 1024];
+                    while matches!(stream.read(&mut sink).await, Ok(n) if n > 0) {}
                     holding.lock().unwrap().push(stream);
                 }
             }

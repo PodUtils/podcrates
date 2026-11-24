@@ -107,6 +107,19 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
   and "… (N bytes more)": incusd puts the whole stderr of `tar` into the
   error of a full storage pool (PodUtils/podvm#651). Another answer over
   the bound is `ErrorKind::TooLarge`.
+* incus can refuse a body (an upload of an image, a file) before its end
+  and close the connection: incusd that cannot store an upload answers
+  500 ("no space left on device") while the client still writes. After
+  EPIPE or a reset on the write of a body, the crate reads the answer that
+  is already in the socket, as an envelope (an `error` envelope over the
+  bound is cut, as above), within 5 s (or `answer_timeout`, where it is
+  shorter), and gives it. With no head in that time, the error is the
+  `Io` error of the write; a silence in the body is `AnswerTimeout`.
+* SIGPIPE: that write raises SIGPIPE in a process that does not ignore
+  it, and the process ends with no error and no answer of incus. The
+  crate sets no signal. The caller sets SIGPIPE to ignore before its first
+  upload (the runtime of Rust ignores it in a binary, unless the caller
+  set it back to the default).
 * A text of incus in an error is made safe to print. A text over 512
   characters keeps its first 256 characters, the last 128 of its first
   line, and its last 128, with " … " between (call C920): the cause of a

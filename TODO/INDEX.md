@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**942 entries: 165 open, 28 partial, 7 blocked, 742 done.**
+**942 entries: 164 open, 28 partial, 7 blocked, 743 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 225 | 239 |
-| P2 | 74 | 8 | 4 | 384 | 470 |
+| P2 | 73 | 8 | 4 | 385 | 470 |
 | P3 | 87 | 10 | 3 | 131 | 231 |
-| **All** | 165 | 28 | 7 | 742 | 942 |
+| **All** | 164 | 28 | 7 | 743 | 942 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -971,7 +971,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1154](relay.md) | P3 | S | M2 | defect | done | `pod-natprobe`: the resolver of the servers is the system's, a setting is never read, and a doc names two servers |
 | [T-1155](podvm.md) | P1 | S | M6 | defect | done | `pod-incus`: an exec whose command ends with 126 or 127 ends the wait as an error of incusd, and `exec_recorded` and `Attached::wait` give no exit code, no output and no operation id (PodUtils/podvm#653) |
 | [T-1156](podvm.md) | P1 | S | M6 | feature | done | `pod-incus`: no bound of the answer of a call: a socket that takes the connection and never answers holds the caller (PodUtils/podvm#653) |
-| [T-1157](podvm.md) | P2 | S | M6 | defect | open | `pod-incus`: after a failed write of a body, the answer that incusd already sent is read with no bound and no test, and the documentation does not tell the caller about SIGPIPE (PodUtils/podvm#653) |
+| [T-1157](podvm.md) | P2 | S | M6 | defect | done | `pod-incus`: after a failed write of a body, the answer that incusd already sent is read with no bound and no test, and the documentation does not tell the caller about SIGPIPE (PodUtils/podvm#653) |
 | [T-1158](podvm.md) | P2 | S | M6 | chore | open | podvm removes its work-arounds for `pod-incus` at its take of the tag of T-1155 to T-1157 |
 | [T-1159](fleet.md) | P2 | S | M8 | defect | done | `issue-sync`: a close of an issue by a person is reverted at the next push, before a session can change the record |
 | [T-1160](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the fork fact of a job in the fake githome follows podrunner's rule of `e629fa8` (the second port after T-1122) |

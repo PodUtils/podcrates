@@ -13769,7 +13769,7 @@ first `GET /1.0` of each verb (T-1158).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13824,6 +13824,47 @@ words, in each of ten runs; a stand-in that closes with no answer gives the
 or `AnswerTimeout` at the bound; an `error` envelope over the bound gives
 `TooLarge` with its first words. Each test fails on the code before the
 change (the bound and the envelope read).
+
+## Done
+
+2026-11-24, this commit. `Client::answer_after_cut`
+(`crates/pod-incus/src/client.rs`): after EPIPE or a reset on the write of
+a request, the crate reads the head within `LATE_ANSWER` (5 s, or
+`answer_timeout` where it is shorter) and the body with
+`wire::envelope_body`, so an `error` envelope over `max_body` is cut
+(T-1139) or refused by size with its first words. A read that gives no
+head gives the `Io` error of the write, as before; an error of the body
+(`TooLarge`, `AnswerTimeout`) is the error of the call. The doc of
+`Client` and the README say that this write raises SIGPIPE in a process
+that does not ignore it, and that the caller sets SIGPIPE to ignore; the
+crate sets no signal. The stand-in `tests/common/raw.rs` answers at the
+first bytes of an upload and then closes (`Close`), holds with its read
+side shut and the queue read (`Hold`: the blocked writer gets EPIPE), or
+shuts both sides (`Shut`).
+
+Tests (`tests/images.rs`, an upload of 16 MiB):
+`an_upload_that_incus_refuses_and_closes_gives_the_answer_of_incus` (500
+with "no space left on device" in each of ten runs),
+`an_upload_that_incus_closes_with_no_answer_gives_the_error_of_the_write`,
+`an_answer_that_stalls_after_a_cut_ends_at_its_short_bound` (a whole
+answer is the answer; a stalled body is `AnswerTimeout` at 5 s, and at
+2 s with an `answer_timeout` of 2 s; paused clock),
+`an_error_envelope_over_the_bound_after_a_cut_gives_too_large_with_its_words`.
+On the code before, the last two fail: `Error { call: "POST /1.0/images",
+kind: Io(Os { code: 32, kind: BrokenPipe, message: "Broken pipe" }) }`
+where `AnswerTimeout` and `TooLarge` are due. The first two hold the rule
+that existed: they pass on the code before, and fail on planted defects
+(no read after the cut: `Io(BrokenPipe)` where 500 is due; the error of
+the read where no head came: `Io(UnexpectedEof)` where `BrokenPipe` is
+due). The four new tests of `images`, `server`, `exec` and `attach` ran
+30 times each with no failure.
+`cargo test -p pod-incus --all-features --test images`: 8 passed;
+`cargo test -p pod-incus --all-features`: 77 passed; clippy with
+`-D warnings` and `cargo fmt --all --check` clean.
+
+For the hand-off: no break; no public type changed. podvm can keep its
+`NoSigpipe` guard (the crate sets no signal) and drop its own read of the
+answer after a cut, where it has one (T-1158).
 
 
 # T-1158: podvm removes its work-arounds for `pod-incus` at its take of the tag of T-1155 to T-1157
