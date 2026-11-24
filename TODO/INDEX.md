@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**937 entries: 166 open, 28 partial, 7 blocked, 736 done.**
+**939 entries: 166 open, 28 partial, 7 blocked, 738 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 6 | 10 | 0 | 221 | 237 |
+| P1 | 6 | 10 | 0 | 223 | 239 |
 | P2 | 74 | 8 | 4 | 382 | 468 |
 | P3 | 86 | 10 | 3 | 131 | 230 |
-| **All** | 166 | 28 | 7 | 736 | 937 |
+| **All** | 166 | 28 | 7 | 738 | 939 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -984,3 +984,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1167](relay.md) | P3 | M | M2 | feature | open | `pod-link`: an option to carry the ARQ of the DNS carrier with no TLS for a caller that seals above (PodUtils/podssh#349) |
 | [T-1168](relay.md) | P3 | M | M2 | feature | open | `pod-link`: the datagrams of the DNS carrier over DNS over HTTPS (RFC 8484), for a dialer behind an HTTP proxy with no UDP (PodUtils/podssh#349) |
 | [T-1169](relay.md) | P3 | M | M2 | chore | open | `pod-link`: a test of the DNS carrier through `unbound` with its default settings, in the box of CI (PodUtils/podssh#349) |
+| [T-1180](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `aab63e5` (the third port of `source-driver.md`) |
+| [T-1181](fleet.md) | P1 | S | M0 | chore | done | `pod-unit`: the words of the forms at podssh `ea4c290` (port review of `text.rs`) |

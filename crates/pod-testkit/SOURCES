@@ -45,7 +45,7 @@ repo PodUtils/podrunner e629fa82aa839108a781b1b45e79beef81d5740d
 file 1b246d7ad58a6abe72bc4d3c953f050b89d1b86f crates/podrunner-fake/src/source.rs -> crates/pod-testkit/src/githome/wire.rs
 file cbd38bb1015c6de9cef469d6edaf2ed344dd3380 crates/podrunner-fake/src/assigned.rs -> crates/pod-testkit/src/githome/offer.rs
 
-repo PodUtils/podrunner 2aacaea3127e37d3a5f0b98fddfce1b9b1ab007f
+repo PodUtils/podrunner aab63e522126c841a503bb30ea8fd531994ea6f7
 # T-951 (PodUtils/podrunner#310): the 15 tests of the conformance suite
 # (test 15: a cancelled job is reported and released) and the contract,
 # for the test of the feature `githome`. The block moved to 43226db
@@ -54,6 +54,10 @@ repo PodUtils/podrunner 2aacaea3127e37d3a5f0b98fddfce1b9b1ab007f
 # as the session sends them. The block moved to 2aacaea (T-1160): the
 # contract defines head_is_fork as a head that is not the base, and `no`
 # for an event that is not a pull request (fork_fact in
-# src/githome/offer.rs; the doc of TrustInputs of pod-job).
+# src/githome/offer.rs; the doc of TrustInputs of pod-job). The block
+# moved to aab63e5 (T-1180) with no port: the contract adds the record of
+# the use at the stop of an incus instance (podvm 0.2.0-beta.39 or later)
+# to the rule of the measure of the incus kind; the fake keeps the fields
+# of a report as the session sends them.
 file ca245513ff48f33196a89e7291c2dfc3e04757a4 crates/podrunner-source/src/conformance.rs -> crates/pod-testkit/tests/githome.rs
-file b35639027413c339f4d46edbd0da1cef104bf1ec docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+file aca580d12b8ea91f943ea22137a77577d7083a5d docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
