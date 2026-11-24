@@ -11,3 +11,5 @@ repository.workspace = true
 # The typed failure and its class. No tokio and no C: the codec is bytes in
 # and bytes out, and a transport blocks.
 pod-core = { workspace = true }
+# The hash of a policy digest and of a name: SHA-256, SHA-384, SHA-512.
+sha2 = { workspace = true }

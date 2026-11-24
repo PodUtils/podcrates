@@ -12,15 +12,14 @@ dir crates/podssh-ssh/src/tpm
 file deb7dddb7719c276033728c6f9db6120bd11a74b crates/podssh-ssh/src/tpm/wire.rs -> crates/pod-tpm/src/wire.rs
 file 8169718e7a5aa88841e3a172e55385ecccb282bc crates/podssh-ssh/src/tpm/rc.rs -> crates/pod-tpm/src/rc.rs
 file 7fe173df1690bb68e6d0a7b1189b0333396cc0c5 crates/podssh-ssh/src/tpm/cmd.rs -> crates/pod-tpm/src/cmd.rs crates/pod-tpm/src/cmd/object.rs crates/pod-tpm/src/cmd/session.rs crates/pod-tpm/src/cmd/pcr.rs crates/pod-tpm/src/cmd/capability.rs
-file 3c88788085c65fd9f82ed890a6253e3971249043 crates/podssh-ssh/src/tpm/authorize.rs -> crates/pod-tpm/src/cmd/object.rs crates/pod-tpm/src/cmd/session.rs crates/pod-tpm/src/public.rs
+file 3c88788085c65fd9f82ed890a6253e3971249043 crates/podssh-ssh/src/tpm/authorize.rs -> crates/pod-tpm/src/cmd/object.rs crates/pod-tpm/src/cmd/session.rs crates/pod-tpm/src/public.rs crates/pod-tpm/src/policy.rs
+file cfdee26a8d75c9dac2a5625ef5011c06a11ecb30 crates/podssh-ssh/src/tpm/policy.rs -> crates/pod-tpm/src/policy.rs crates/pod-tpm/src/selection.rs
 file 2fd9c4002de2703de0179be4835d6ac7b7496ede crates/podssh-ssh/src/tpm/public.rs -> crates/pod-tpm/src/public.rs crates/pod-tpm/src/alg.rs
-file f0e1a224d6af8ef3b8736a303333fc1c0c20f497 crates/podssh-ssh/src/tpm/codec_tests.rs -> crates/pod-tpm/tests/frame.rs crates/pod-tpm/tests/commands.rs
-# The parts that the next entries of the crate take: the PCR selection and
-# the policy digest (T-1218), the key file and its
+file f0e1a224d6af8ef3b8736a303333fc1c0c20f497 crates/podssh-ssh/src/tpm/codec_tests.rs -> crates/pod-tpm/tests/frame.rs crates/pod-tpm/tests/commands.rs crates/pod-tpm/tests/policy.rs
+# The parts that the next entries of the crate take: the key file and its
 # vector of go-tpm-keyfiles (T-1219), the sequences and their tests
 # (T-1220), the transport of a Unix kernel and the stub of another system
 # (T-1221), the TPM in software (T-1222).
-skip crates/podssh-ssh/src/tpm/policy.rs
 skip crates/podssh-ssh/src/tpm/keyfile.rs
 skip crates/podssh-ssh/src/tpm/testdata
 skip crates/podssh-ssh/src/tpm/flow.rs

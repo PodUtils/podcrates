@@ -41,7 +41,11 @@ transact(&mut tpm, &cmd::flush_context(primary.handle)?)?.empty()?;
 | `cmd::{get_capability, get_manufacturer}` | the capabilities, and the reader `Capability` (algorithms, handles, properties, the manufacturer) |
 | `public::{storage_primary, signing_key, external_p256}` | the template H-2 of the storage primary; the template of a signing key (ECDSA, SHA-256, P-256, `sign`, the `authPolicy` of the caller, no `userWithAuth`); the public area of an outside P-256 key for `TPM2_LoadExternal` |
 | `EccPublic::read` | the public area of an ECC P-256 key; another type or curve is refused by its name |
-| `HashAlg`, `alg` | the hash algorithms and the algorithm ids |
+| `PcrSelection` (`parse`, `of`, `add`, `pcrs`, `only`, `count`, `check_policy`, `marshal`, `read`, `from_bytes`, `Display`) | a selection of PCRs in each bank (`TPML_PCR_SELECTION`): at most 16 banks, a bit set of at most 4 octets, PCRs 0 to 23; the text of tpm2-tools, `sha256:0,7+sha1:1` (a bare list is of SHA-256); a bank that was read keeps its bytes |
+| `policy::{policy_pcr_digest, policy_pcr_update, pcr_values_digest}` | the digest after `TPM2_PolicyPCR`: `H(old \|\| TPM_CC_PolicyPCR \|\| pcrs \|\| H(values))`, with the hash of the session; a list of values that does not match the selection is refused |
+| `policy::{policy_authorize_digest, approved_policy_hash, key_name}` | the digest after `TPM2_PolicyAuthorize` (`H(H(zeros \|\| TPM_CC_PolicyAuthorize \|\| name) \|\| policyRef)`), the hash that the policy key signs (`H(approvedPolicy \|\| policyRef)`), the name of a key (its name algorithm and the hash of its `TPMT_PUBLIC`) |
+| `Policy` (`digest`, `approved`), `Statement` (`pcr`, `authorize`, `read_pcr`), `Authorize` | a policy as a key file keeps it: statements of a command code and a body. PolicyPCR, PolicyAuthorize (last), PolicyAuthValue and PolicyPassword; another command is refused by its name |
+| `HashAlg`, `alg` | the hash algorithms (SHA-1 for the size of a bank alone; SHA-256, SHA-384 and SHA-512 hash) and the algorithm ids |
 | `Error` (`class`, `code`) | a response code, a malformed response, a bad value, an algorithm that the crate does not use, a failure of the transport; `Failure::from` at `Stage::Host` |
 
 There is no `Unseal`, no template of a data object and no Ed25519 key
@@ -75,8 +79,11 @@ None in this version. `device` and `tbs` (the transports, T-1221),
 | `cmd.rs` | `cmd`; the readers return types (`Created`, `PcrValues`, `Capability`); `create_primary` takes the hierarchy; `sign_by_password` is `sign` with `Auth::EMPTY_PASSWORD` |
 | `authorize.rs`: `load_external`, `verify_signature`, `ticket`, `null_ticket`, `policy_authorize`, `signer_public` | `cmd::load_external` (the hierarchy is an argument), `cmd::verify_signature`, `Ticket::read`, `Ticket::null`, `cmd::policy_authorize`, `public::external_p256` |
 | `public.rs`: `storage_template`, `sealed_template`, `EccPublic::parse`, `signature_blob` | `public::storage_primary`, `public::signing_key`, `EccPublic::read` (the point of 65 bytes), `EcdsaSignature::read`; podssh keeps `EccPublic::public_key` and the SSH blob of a signature |
+| `policy.rs`: `Pcrs` (the SHA-256 bank alone), `Pcrs::parse`, `text`, `selection`, `read_selection` | `PcrSelection` (each bank), `PcrSelection::parse`, `Display` (`sha256:0,7,11`), `marshal`, `read` with `only(HashAlg::Sha256)` |
+| `policy.rs`: `pcr_digest`, `pcr_body`, `split_pcr_body`, `digest`, `sha256` | `policy::pcr_values_digest`, `Statement::pcr`, `Statement::read_pcr`, `Policy::digest`, `policy::hash` |
+| `authorize.rs`: `Authorize`, `name`, `digest_after`, `signed` | `policy::Authorize`, `policy::key_name` (SHA-256, SHA-384, SHA-512), `policy::policy_authorize_digest`; the signature of `signed` stays in podssh with its `PolicyKey`, over `policy::approved_policy_hash` |
 | `flow::Transport::transact(&[u8]) -> Result<Vec<u8>, String>` | `Transport::submit(&[u8]) -> Result<Vec<u8>, Failure>` |
-| `codec_tests.rs` | `tests/frame.rs`, `tests/commands.rs` |
+| `codec_tests.rs` | `tests/frame.rs`, `tests/commands.rs`, `tests/policy.rs` |
 
 podssh keeps `mod.rs` (the probe, `PODSSH_TPM_DEVICE`, the SSH forms),
 `signer.rs` and its `PolicyKey` (p256 signs off the TPM). The patch
@@ -92,5 +99,11 @@ area of another type or curve; the bad values of a caller.
 `tests/frame.rs`: a response read or refused with its reason; a response
 over `MAX_RESPONSE`; each cut and a byte more; a sized buffer and a count
 past their bound; each changed byte of a response, never a panic; each
-code with its name, its place and its class. The plant
+code with its name, its place and its class. `tests/policy.rs`: the
+selection as a user names it and as the TPM reads it; each PCR alone;
+the bounds of a selection; the digests of PolicyPCR (podssh's vector, and
+by hand for a session of SHA-384, two banks and a second PolicyPCR), of
+PolicyAuthorize, of the approved policy and of a name; the values that
+do not match; the order of a policy; each bit of each input changes the
+digest. The digest that swtpm gives is the proof of T-1222. The plant
 `tpm-response-over-the-frame-bound` takes away the bound of the frame.

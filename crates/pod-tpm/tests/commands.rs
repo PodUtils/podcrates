@@ -6,9 +6,10 @@ mod common;
 
 use common::unhex;
 use pod_tpm::cmd::{self, SessionKind, Ticket};
+use pod_tpm::policy;
 use pod_tpm::public::{self, NULL_SIGNATURE};
 use pod_tpm::wire::{Auth, RH_OWNER};
-use pod_tpm::{EccPublic, EcdsaSignature, Error, HashAlg, Reply};
+use pod_tpm::{Authorize, EccPublic, EcdsaSignature, Error, HashAlg, PcrSelection, Policy, Reply, Statement};
 
 /// The name of a command, the bytes of the crate, and the bytes by hand.
 type Command<'a> = (&'a str, Result<Vec<u8>, Error>, String);
@@ -58,7 +59,7 @@ fn the_commands_are_the_bytes_of_part_3() {
         ),
         (
             "PCR_Read of 0,7,11",
-            cmd::pcr_read(&unhex("00000001 000b 03 810800")),
+            cmd::pcr_read(&PcrSelection::parse("0,7,11").unwrap()),
             "8001 00000014 0000017e 00000001 000b 03 810800".into(),
         ),
         (
@@ -73,7 +74,7 @@ fn the_commands_are_the_bytes_of_part_3() {
         ),
         (
             "PolicyPCR of PCR 7 with the digest of its values",
-            cmd::policy_pcr(0x0300_0000, &[0x33; 32], &unhex("00000001 000b 03 800000")),
+            cmd::policy_pcr(0x0300_0000, &[0x33; 32], &PcrSelection::parse("7").unwrap()),
             format!("8001 0000003a 0000017f 03000000 0020 {d} 00000001 000b 03 800000"),
         ),
         ("PolicyGetDigest", cmd::policy_get_digest(0x0300_0001), "8001 0000000e 00000189 03000001".into()),
@@ -104,6 +105,23 @@ fn the_parts_of_a_signed_policy_are_the_bytes_of_part_3() {
     let public = public::external_p256(&unhex(&format!("04 {x} {y}"))).unwrap();
     assert_eq!(public, unhex(&area));
     let named = "000b5b685f1846a972347b5dd1c29006510804caf58a5981ab0b44288538c20f4b17";
+    // The name of the policy key, and the digest of the policy of a key
+    // that names it (Python's hashlib: H(H(0 || 0x16A || name) || policyRef)).
+    assert_eq!(policy::key_name(&public).unwrap(), unhex(named));
+    let head = Authorize { public: public.clone(), policy_ref: unhex(&r), signature: vec![0x00, 0x10] };
+    let body = head.to_bytes().unwrap();
+    assert_eq!(body, unhex(&format!("{area} 0020 {r} 0010")));
+    assert_eq!(Authorize::parse(&body).unwrap(), head);
+    let authorize = Statement::authorize(&head).unwrap();
+    let digest = Policy::new(vec![authorize.clone()]).digest(HashAlg::Sha256).unwrap();
+    assert_eq!(digest, unhex("c35d02a67214c72b587ae44ed2f127e0beb02ce6b5844180470624b7b02a1ea7"));
+    // TPM2_PolicyAuthorize starts again: what came before it is gone.
+    let zeros = policy::pcr_values_digest(HashAlg::Sha256, &[&[0; 32]]).unwrap();
+    let pcr = Statement::pcr(&PcrSelection::parse("7").unwrap(), &zeros);
+    assert_eq!(Policy::new(vec![pcr, authorize]).digest(HashAlg::Sha256).unwrap(), digest);
+    for bad in ["0000 0000 0099", "0000 0000 0014", "0000 0000 0010 00", "0000 00"] {
+        assert!(Authorize::parse(&unhex(bad)).is_err(), "{bad}");
+    }
     check(vec![
         (
             "PolicyAuthorize in a trial, with the ticket of nothing",
@@ -197,7 +215,7 @@ fn the_responses_are_read_as_part_3_gives_them() {
     ))
     .unwrap();
     assert_eq!(values.counter, 7);
-    assert_eq!(values.selection, unhex("00000001 000b 03 800000"));
+    assert_eq!(values.selection, PcrSelection::parse("7").unwrap());
     assert_eq!(values.values, vec![vec![0u8; 32]]);
     let capability = cmd::Capability::read(&read(
         cmd::CC_GET_CAPABILITY,

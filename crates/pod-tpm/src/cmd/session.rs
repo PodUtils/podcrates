@@ -6,10 +6,12 @@ use super::object::Ticket;
 use super::{CC_POLICY_AUTHORIZE, CC_POLICY_GET_DIGEST, CC_POLICY_PCR, CC_START_AUTH_SESSION};
 use crate::alg::{ALG_NULL, HashAlg};
 use crate::error::Error;
+use crate::selection::PcrSelection;
 use crate::transport::Reply;
 use crate::wire::{MAX_DIGEST, Out, RH_NULL, command};
 
-/// The fewest bytes of the nonce of a caller (part 1, clause 19.6.2).
+/// The fewest bytes of the nonce of a caller (part 3, 11.1.1: a shorter one
+/// gives `TPM_RC_SIZE`).
 pub const MIN_NONCE: usize = 16;
 
 /// The kind of a session (`TPM_SE`).
@@ -68,11 +70,10 @@ impl Started {
 }
 
 /// `TPM2_PolicyPCR` in `session`: `digest` of the values that the PCRs must
-/// hold (the TPM compares it when it is not empty), and `selection`, a
-/// marshalled `TPML_PCR_SELECTION`.
-pub fn policy_pcr(session: u32, digest: &[u8], selection: &[u8]) -> Result<Vec<u8>, Error> {
+/// hold (the TPM compares it when it is not empty), and their selection.
+pub fn policy_pcr(session: u32, digest: &[u8], selection: &PcrSelection) -> Result<Vec<u8>, Error> {
     let mut params = Out::default();
-    params.sized(digest).raw(selection);
+    params.sized(digest).raw(&selection.marshal());
     command(CC_POLICY_PCR, &[session], &[], &params.finish()?)
 }
 

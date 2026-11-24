@@ -14,6 +14,10 @@
 //!   [`public`]: the two templates (the storage primary H-2 and a signing
 //!   key), the public area of a policy key, the reader of an ECC P-256
 //!   area and of an ECDSA signature.
+//! * [`selection`]: the PCR selection of each bank; [`policy`]: the digest
+//!   of `TPM2_PolicyPCR` and of `TPM2_PolicyAuthorize`, the approved policy
+//!   hash, the name of a key, and a [`Policy`] of statements as a key file
+//!   keeps them.
 //! * [`Transport`]: one whole command out, its whole response back;
 //!   [`transact`] sends a command and reads its [`Reply`].
 //!
@@ -24,13 +28,17 @@
 pub mod alg;
 pub mod cmd;
 pub mod error;
+pub mod policy;
 pub mod public;
 pub mod rc;
+pub mod selection;
 pub mod transport;
 pub mod wire;
 
 pub use alg::HashAlg;
 pub use error::Error;
+pub use policy::{Authorize, Policy, Statement};
 pub use public::{EccPublic, EcdsaSignature};
 pub use rc::{Code, ResponseCode, Subject};
+pub use selection::PcrSelection;
 pub use transport::{Reply, Transport, transact};

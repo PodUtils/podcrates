@@ -5500,6 +5500,7 @@ name = "pod-tpm"
 version = "0.83.0"
 dependencies = [
  "pod-core",
+ "sha2 0.11.1",
 ]
 
 [[package]]
