@@ -1,0 +1,11 @@
+--- a/crates/pod-turn/src/stun_auth.rs
++++ b/crates/pod-turn/src/stun_auth.rs
+@@ -171,7 +171,7 @@
+         return false;
+     }
+     let want = u32::from_be_bytes([bytes[start + 4], bytes[start + 5], bytes[start + 6], bytes[start + 7]]);
+-    crc32fast::hash(&bytes[..start]) ^ FINGERPRINT_XOR == want
++    crc32fast::hash(&bytes[..start]).reverse_bits() ^ FINGERPRINT_XOR == want
+ }
+ 
+ /// Each attribute of a whole message: its type, the offset of its header,

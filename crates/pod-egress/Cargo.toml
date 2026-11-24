@@ -28,8 +28,9 @@ cloudflare = ["dep:zeroize"]
 # connections): the ID of a word is a UUID of SHA-1.
 vless = ["dep:h2", "dep:http", "dep:bytes", "dep:sha1", "dep:tokio-rustls", "dep:rustls-pki-types"]
 # VMess's AEAD form over a WebSocket: AES-128 of its header's ID, the
-# AEADs of pod-tls's pure provider, MD5 and HMAC-SHA-256 of its keys.
-vmess = ["vless", "dep:aes", "dep:base64", "dep:hmac", "dep:md5", "dep:sha2", "pod-tls/pure"]
+# AEADs of pod-tls's pure provider, MD5 and HMAC-SHA-256 of its keys, the
+# CRC-32 of its auth ID.
+vmess = ["vless", "dep:aes", "dep:base64", "dep:crc32fast", "dep:hmac", "dep:md5", "dep:sha2", "pod-tls/pure"]
 # Trojan over TLS and over a WebSocket: the password goes as SHA-224.
 trojan = ["vless", "dep:sha2"]
 # Shadowsocks's AEAD form and Shadowsocks 2022, over TCP or a WebSocket:
@@ -85,6 +86,8 @@ md5 = { workspace = true, optional = true }
 hkdf = { workspace = true, optional = true }
 aes = { workspace = true, optional = true }
 blake3 = { workspace = true, optional = true }
+# The CRC-32 of the auth ID of VMess; pure Rust.
+crc32fast = { workspace = true, optional = true }
 
 [dev-dependencies]
 pod-testkit = { workspace = true }

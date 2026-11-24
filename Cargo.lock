@@ -4834,6 +4834,7 @@ dependencies = [
  "blake3",
  "bytes",
  "chacha20poly1305 0.11.0",
+ "crc32fast",
  "h2",
  "hkdf 0.13.0",
  "hmac 0.13.0",
@@ -4915,6 +4916,7 @@ dependencies = [
 name = "pod-harness"
 version = "0.83.0"
 dependencies = [
+ "crc32fast",
  "md5",
  "pod-core",
  "serde_json",
@@ -5517,6 +5519,7 @@ dependencies = [
 name = "pod-turn"
 version = "0.83.0"
 dependencies = [
+ "crc32fast",
  "hmac 0.13.0",
  "p256 0.14.0",
  "pod-core",

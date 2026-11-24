@@ -18,3 +18,5 @@ serde_json = { workspace = true }
 # specifications; no hash of this crate.
 md5 = { workspace = true }
 sha2 = { workspace = true }
+# The CRC-32 of each ZIP entry; pure Rust.
+crc32fast = { workspace = true }

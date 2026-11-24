@@ -1,0 +1,8 @@
+# The check of FINGERPRINT takes the CRC-32 with its bits in the reverse
+# order, the fault of a CRC with the wrong bit order of its polynomial; the
+# vectors of RFC 5769 must fail.
+ENTRY=T-1197
+GROUP=turn
+EXPECT='test stun::auth::tests::the_vectors_of_rfc_5769_check \.\.\. FAILED'
+RUN='cargo test -p pod-turn --all-features --lib -- stun::auth::tests::the_vectors_of_rfc_5769_check --exact'
+LIMIT=1800

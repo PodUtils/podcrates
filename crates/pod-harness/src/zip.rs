@@ -76,7 +76,7 @@ impl Zip {
                 return Err(Error::new(format!("the archive entry {} is too large", entry.name)));
             }
             let offset = local.len() as u32;
-            let crc = crc32(&entry.data);
+            let crc = crc32fast::hash(&entry.data);
             let size = entry.data.len() as u32;
             let name = entry.name.as_bytes();
             put_u32(&mut local, LOCAL);
@@ -167,7 +167,7 @@ impl Zip {
             let local_extra = read_u16(bytes, local + 28)? as usize;
             let start = local + 30 + local_name + local_extra;
             let data = slice(bytes, start, size)?.to_vec();
-            if crc32(&data) != crc {
+            if crc32fast::hash(&data) != crc {
                 return Err(Error::new(format!("the CRC of {name} does not match")));
             }
             zip.entries.push(ZipEntry { name, data, executable: external >> 16 & 0o111 != 0 });
@@ -206,19 +206,6 @@ impl Zip {
 
 fn plain_name(name: &str) -> bool {
     !name.is_empty() && !name.starts_with('/') && !name.split('/').any(|part| part == "..")
-}
-
-/// The CRC-32 of the ZIP specification (IEEE 802.3).
-pub fn crc32(data: &[u8]) -> u32 {
-    let mut crc = 0xffff_ffff_u32;
-    for &byte in data {
-        crc ^= byte as u32;
-        for _ in 0..8 {
-            let mask = 0_u32.wrapping_sub(crc & 1);
-            crc = (crc >> 1) ^ (0xedb8_8320 & mask);
-        }
-    }
-    !crc
 }
 
 fn find_end(bytes: &[u8]) -> Result<usize> {
@@ -267,8 +254,14 @@ mod tests {
 
     #[test]
     fn the_crc_is_the_check_value_of_the_specification() {
-        assert_eq!(crc32(b"123456789"), 0xcbf4_3926);
-        assert_eq!(crc32(b""), 0);
+        let mut zip = Zip::new();
+        zip.add("check", b"123456789".to_vec()).unwrap();
+        zip.add("empty", Vec::new()).unwrap();
+        let bytes = zip.to_bytes().unwrap();
+        // The CRC of a local header is at its offset 14; the second header
+        // starts after 30 bytes, the name and the data of the first.
+        assert_eq!(read_u32(&bytes, 14).unwrap(), 0xcbf4_3926);
+        assert_eq!(read_u32(&bytes, 30 + 5 + 9 + 14).unwrap(), 0);
     }
 
     #[test]

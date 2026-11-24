@@ -11,7 +11,7 @@ repository.workspace = true
 default = ["turn"]
 # The codec of STUN alone (`pod_turn::stun`, `pod_turn::md5`): pure Rust, no
 # async, no TLS. pod-proxy takes this feature alone.
-stun = ["dep:hmac", "dep:sha1", "dep:sha2"]
+stun = ["dep:crc32fast", "dep:hmac", "dep:sha1", "dep:sha2"]
 # The TURN client (`pod_turn::Client`) on tokio, with TLS through pod-tls.
 turn = ["stun", "dep:pod-core", "dep:pod-tls", "dep:tokio", "dep:tracing", "dep:zeroize"]
 
@@ -22,6 +22,8 @@ turn = ["stun", "dep:pod-core", "dep:pod-tls", "dep:tokio", "dep:tracing", "dep:
 hmac = { workspace = true, optional = true }
 sha1 = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }
+# The CRC-32 of FINGERPRINT (RFC 8489, 14.7); pure Rust.
+crc32fast = { workspace = true, optional = true }
 # The dial, the datagrams, the resolver, the entropy and the failure.
 pod-core = { workspace = true, features = ["async"], optional = true }
 # The TLS of TURN over TLS: the caller's context (its provider and its
