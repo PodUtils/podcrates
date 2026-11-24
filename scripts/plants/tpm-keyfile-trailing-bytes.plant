@@ -1,0 +1,7 @@
+# The reader of a key file takes bytes after a structure: after the
+# TPMKey SEQUENCE, after privkey, in a statement (T-1219).
+ENTRY=T-1219
+GROUP=tpm
+EXPECT='trailing_bytes_are_refused \.\.\. FAILED'
+RUN='cargo test -p pod-tpm --all-features --test keyfile_bounds trailing_bytes_are_refused'
+LIMIT=900

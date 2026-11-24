@@ -216,6 +216,12 @@ The asks of #259 to the consumers:
   already sent within `LATE_ANSWER`, else `Io(TimedOut)`. podvm: an upload
   whose socket takes no byte for 30 s now ends. New entry T-1303.
 
+- T-1219 and T-1220 (`pod-tpm`): the `TSS2 PRIVATE KEY` file (`KeyFile`,
+  `AuthPolicy`, `Kind::Loadable` alone, named refusals, strict DER, bounds),
+  and the sequences that flush each handle on every path (`flow::{primary,
+  session, create_signing, load, sign}`, the PCR helpers, `Error::Step`). A
+  `TPM2_PolicyAuthorize` resets the policy digest wherever it comes.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask.

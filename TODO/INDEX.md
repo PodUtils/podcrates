@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**977 entries: 163 open, 29 partial, 7 blocked, 778 done.**
+**977 entries: 161 open, 29 partial, 7 blocked, 780 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 11 | 0 | 228 | 243 |
-| P2 | 78 | 7 | 4 | 405 | 494 |
+| P2 | 76 | 7 | 4 | 407 | 494 |
 | P3 | 81 | 11 | 3 | 143 | 238 |
-| **All** | 163 | 29 | 7 | 778 | 977 |
+| **All** | 161 | 29 | 7 | 780 | 977 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1002,8 +1002,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1213](upkeep.md) | P2 | S | M5 | chore | done | One watcher of the Actions runs of a repository: `scripts/agent/runs.py` with podvm's surface, in place of `watch-runs.sh` and the copies of podvm and podnet |
 | [T-1217](fleet.md) | P2 | M | M8 | feature | done | `pod-tpm`: the crate, the TPM 2.0 command frame, the response codes and the commands of podssh's module, and the trait `Transport` (PodUtils/podssh#351) |
 | [T-1218](fleet.md) | P2 | S | M8 | feature | done | `pod-tpm`: the PCR selection and the policy digest of `TPM2_PolicyPCR` (PodUtils/podssh#351) |
-| [T-1219](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the key file `TSS2 PRIVATE KEY`, read and write in DER and PEM, with bounds on an untrusted file (PodUtils/podssh#351) |
-| [T-1220](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the sequences over a `Transport` (create a primary, create a key under a PCR policy, load, sign) that flush each handle on each path (PodUtils/podssh#351) |
+| [T-1219](fleet.md) | P2 | M | M8 | feature | done | `pod-tpm`: the key file `TSS2 PRIVATE KEY`, read and write in DER and PEM, with bounds on an untrusted file (PodUtils/podssh#351) |
+| [T-1220](fleet.md) | P2 | M | M8 | feature | done | `pod-tpm`: the sequences over a `Transport` (create a primary, create a key under a PCR policy, load, sign) that flush each handle on each path (PodUtils/podssh#351) |
 | [T-1221](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the transports of Linux (`/dev/tpmrm0`, an swtpm socket) and of Windows (TBS), each command bounded in size and time (PodUtils/podssh#351) |
 | [T-1222](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: a TPM in software (feature `soft`) and a CI lane against swtpm and the reference simulator, with the key of PCR 7 as the proof (PodUtils/podssh#351) |
 | [T-1223](services.md) | P2 | S | M5 | defect | done | `services.yml` 45394042840: the Syncthing relay WMYMARB at a new address, the Trojan node `node-trojan-45-63-30-142` gone, and two hosts with a first no answer |

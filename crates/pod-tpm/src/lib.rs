@@ -18,6 +18,14 @@
 //!   of `TPM2_PolicyPCR` and of `TPM2_PolicyAuthorize`, the approved policy
 //!   hash, the name of a key, and a [`Policy`] of statements as a key file
 //!   keeps them.
+//! * [`keyfile`]: the key file `TSS2 PRIVATE KEY` of a loadable key, in DER
+//!   and in PEM (draft-bottomley-tpm-keys-00), with its policy and its
+//!   signed policies as statements; each size and each count of the
+//!   untrusted file has a bound.
+//! * [`flow`]: the sequences (the storage primary, a new signing key and
+//!   its key file, a load, a signature under a policy of PCRs or a policy
+//!   key, the PCRs, the capabilities), each handle in a guard that flushes
+//!   it on each path.
 //! * [`Transport`]: one whole command out, its whole response back;
 //!   [`transact`] sends a command and reads its [`Reply`].
 //!
@@ -28,6 +36,8 @@
 pub mod alg;
 pub mod cmd;
 pub mod error;
+pub mod flow;
+pub mod keyfile;
 pub mod policy;
 pub mod public;
 pub mod rc;
@@ -37,6 +47,7 @@ pub mod wire;
 
 pub use alg::HashAlg;
 pub use error::Error;
+pub use keyfile::{AuthPolicy, KeyFile, Kind, Refusal};
 pub use policy::{Authorize, Policy, Statement};
 pub use public::{EccPublic, EcdsaSignature};
 pub use rc::{Code, ResponseCode, Subject};

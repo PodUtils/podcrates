@@ -1,0 +1,26 @@
+--- a/crates/pod-tpm/src/flow/sign.rs
++++ b/crates/pod-tpm/src/flow/sign.rs
+@@ -154,19 +154,19 @@
+     let a_hash = approved_policy_hash(alg, approved, &signed.policy_ref)?;
+     let command = cmd::load_external(&signed.public, RH_OWNER)?;
+     let reply = transact(transport, &command).map_err(step("the TPM did not load the policy key"))?;
+-    let mut external = Handle::new(transport, reply.handle()?, Held::External);
++    let external = Handle::new(transport, reply.handle()?, Held::External).release();
+     if cmd::Loaded::read(&reply)?.name != name {
+         return Err(fail(Class::Protocol, "the TPM names the policy key otherwise than the crate does"));
+     }
+-    let command = cmd::verify_signature(external.handle(), &a_hash, &signed.signature)?;
+-    let reply = transact(external.transport(), &command).map_err(|e| match code_of(&e) {
++    let command = cmd::verify_signature(external, &a_hash, &signed.signature)?;
++    let reply = transact(transport, &command).map_err(|e| match code_of(&e) {
+         Some(Code::Signature) => {
+             step("the signature of the signed policy is not the policy key's: the key file was changed")(e)
+         }
+         _ => step("the TPM did not check the signature of the signed policy")(e),
+     })?;
+     let ticket = Ticket::read(&reply)?;
+-    external.finish()?;
++    super::flush(transport, external)?;
+     let command = cmd::policy_authorize(session, approved, &signed.policy_ref, &name, &ticket)?;
+     transact(transport, &command).map_err(step("the TPM did not take the signed policy"))?.empty()
+ }

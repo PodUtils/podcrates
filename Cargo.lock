@@ -5499,8 +5499,10 @@ dependencies = [
 name = "pod-tpm"
 version = "0.83.0"
 dependencies = [
+ "base64 0.23.1",
  "pod-core",
  "sha2 0.11.1",
+ "tracing",
 ]
 
 [[package]]

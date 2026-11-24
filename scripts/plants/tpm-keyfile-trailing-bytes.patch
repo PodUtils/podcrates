@@ -1,0 +1,15 @@
+--- a/crates/pod-tpm/src/keyfile/der.rs
++++ b/crates/pod-tpm/src/keyfile/der.rs
+@@ -69,10 +69,8 @@
+ 
+     /// The end of the contents: a byte after the last element is refused.
+     pub fn finish(&self, after: &'static str) -> Result<(), Refusal> {
+-        match self.rest.len() {
+-            0 => Ok(()),
+-            count => Err(Refusal::Trailing { after, count }),
+-        }
++        let _ = (after, Refusal::Trailing { after, count: 0 });
++        Ok(())
+     }
+ }
+ 

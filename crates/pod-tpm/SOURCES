@@ -16,16 +16,21 @@ file 3c88788085c65fd9f82ed890a6253e3971249043 crates/podssh-ssh/src/tpm/authoriz
 file cfdee26a8d75c9dac2a5625ef5011c06a11ecb30 crates/podssh-ssh/src/tpm/policy.rs -> crates/pod-tpm/src/policy.rs crates/pod-tpm/src/selection.rs
 file 2fd9c4002de2703de0179be4835d6ac7b7496ede crates/podssh-ssh/src/tpm/public.rs -> crates/pod-tpm/src/public.rs crates/pod-tpm/src/alg.rs
 file f0e1a224d6af8ef3b8736a303333fc1c0c20f497 crates/podssh-ssh/src/tpm/codec_tests.rs -> crates/pod-tpm/tests/frame.rs crates/pod-tpm/tests/commands.rs crates/pod-tpm/tests/policy.rs
-# The parts that the next entries of the crate take: the key file and its
-# vector of go-tpm-keyfiles (T-1219), the sequences and their tests
-# (T-1220), the transport of a Unix kernel and the stub of another system
-# (T-1221), the TPM in software (T-1222).
-skip crates/podssh-ssh/src/tpm/keyfile.rs
-skip crates/podssh-ssh/src/tpm/testdata
-skip crates/podssh-ssh/src/tpm/flow.rs
-skip crates/podssh-ssh/src/tpm/flow_signed.rs
-skip crates/podssh-ssh/src/tpm/flow_tests.rs
-skip crates/podssh-ssh/src/tpm/signed_tests.rs
+# T-1219: the key file TSS2 PRIVATE KEY, and podssh's vector of
+# go-tpm-keyfiles (the body of a PEM text alone).
+file a6652e7219fbd2d780cad968872d9ec6e524e4ab crates/podssh-ssh/src/tpm/keyfile.rs -> crates/pod-tpm/src/keyfile.rs crates/pod-tpm/src/keyfile/der.rs crates/pod-tpm/src/keyfile/refusal.rs crates/pod-tpm/tests/keyfile.rs crates/pod-tpm/tests/keyfile_bounds.rs
+file 3b76faa6531060a6af2560bd0b0c01094e7d47a8 crates/podssh-ssh/src/tpm/testdata/p256-authvalue.b64 -> crates/pod-tpm/tests/testdata/p256-authvalue.b64
+# T-1220: the sequences that flush each handle on each path, and their
+# tests, run against a fake TPM of the tests (tests/common/fake.rs); the
+# tests that need the TPM in software, podssh's keygen or its probe of a
+# device move with T-1221 and T-1222.
+file 900dbc57b85a97949df019465dc1546cbba47c16 crates/podssh-ssh/src/tpm/flow.rs -> crates/pod-tpm/src/flow.rs crates/pod-tpm/src/flow/sign.rs crates/pod-tpm/src/flow/pcr.rs
+file 0081b9d2db80c45b107d9310c1aa6dcbcfd5e266 crates/podssh-ssh/src/tpm/flow_signed.rs -> crates/pod-tpm/src/flow/sign.rs crates/pod-tpm/src/flow/pcr.rs
+file c5596bd9a47450dec65982c8b56c296a3da77fd6 crates/podssh-ssh/src/tpm/flow_tests.rs -> crates/pod-tpm/tests/flow.rs crates/pod-tpm/tests/common/fake.rs
+file 7b3330475be6bad199203267bd0ff44dbd5284bd crates/podssh-ssh/src/tpm/signed_tests.rs -> crates/pod-tpm/tests/flow.rs
+# The parts that the next entries of the crate take: the transport of a
+# Unix kernel and the stub of another system (T-1221), the TPM in software
+# (T-1222).
 skip crates/podssh-ssh/src/tpm/unix.rs
 skip crates/podssh-ssh/src/tpm/other.rs
 skip crates/podssh-ssh/src/tpm/soft.rs
@@ -33,3 +38,9 @@ skip crates/podssh-ssh/src/tpm/soft.rs
 # SSH, and the signer of an SSH agent. They stay in podssh.
 skip crates/podssh-ssh/src/tpm/mod.rs
 skip crates/podssh-ssh/src/tpm/signer.rs
+
+repo Foxboron/go-tpm-keyfiles 8c9c2d1005f4527ada79bc29681bf53d3f0b4540
+# T-1219: a key file with a signed policy (MIT), a vector of the tests of
+# the key file. The crate keeps the body of its PEM text alone, as the scan
+# for private keys reads the guard lines as a credential.
+file 6fe1365728cfeee736dfd60bce43c16d5230c72c testdata/skey.tpm -> crates/pod-tpm/tests/testdata/skey.b64
