@@ -41,7 +41,14 @@ fn a_user_unit_is_written_enabled_and_started_and_its_removal_leaves_nothing() {
     assert!(matches!(removed, Removed::Done(_)), "{removed:?}");
     assert_eq!(host.runs.take()[0], "systemctl --user disable --now podrunner.service");
     assert_eq!(files(home.path()), Vec::<String>::new());
-    assert_eq!(install::remove(&podrunner(), Form::Systemd, &places, &host).expect("again"), Removed::Nothing);
+    let again = install::remove(&podrunner(), Form::Systemd, &places, &host).expect("again");
+    assert_eq!(again, Removed::Nothing);
+    // An unknown name exits 69 and names the command that lists the units.
+    let unknown = again.of_named("podrunner", "podnet autostart list").expect_err("no unit");
+    assert_eq!((unknown.class, unknown.class.exit_code()), (Class::Unavailable, 69));
+    assert_eq!(unknown.to_string(), "no unit podrunner is installed (podnet autostart list)");
+    let lines = Removed::Done(vec!["removed".into()]).of_named("podrunner", "list").expect("the lines");
+    assert_eq!(lines, ["removed"]);
 }
 
 #[test]

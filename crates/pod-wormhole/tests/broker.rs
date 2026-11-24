@@ -332,7 +332,7 @@ async fn giver_at(answer: Vec<u8>, opcode: u8) -> String {
     let failed = mqtt::opened(&ends, versions()).await.map(|_| ()).expect_err("a broker that goes wrong");
     task.abort();
     let Failed::Unreachable(why) = failed else { panic!("{failed:?}") };
-    why
+    why.to_string()
 }
 
 #[tokio::test]

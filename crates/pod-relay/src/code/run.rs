@@ -30,6 +30,7 @@ use std::time::Duration;
 
 use pod_core::Event;
 use pod_identity::PublicKey;
+use pod_wormhole::Missed;
 use pod_wormhole::meet::or_close;
 use pod_wormhole::mqtt::{self, Brokers, Point};
 use pod_wormhole::nostr::{self, Relays};
@@ -399,7 +400,7 @@ pub async fn opened(ends: &Ends, versions: Value) -> Result<(Wormhole, Code), Fa
         }
         noun = next.noun();
     }
-    Err(Failed::Unreachable(missed.join("; ")))
+    Err(Failed::Unreachable(Missed::join(missed)))
 }
 
 /// The wormhole of `code` at the mailbox where its giver waits, the key
@@ -451,7 +452,7 @@ pub async fn joined(ends: &Ends, code: &Code, versions: Value, waits: &Waits) ->
         reached |= answered;
         noun = next.noun();
     }
-    if reached { Err(Failed::Nobody) } else { Err(Failed::Unreachable(missed.join("; "))) }
+    if reached { Err(Failed::Nobody) } else { Err(Failed::Unreachable(Missed::join(missed))) }
 }
 
 fn now_ms() -> i64 {

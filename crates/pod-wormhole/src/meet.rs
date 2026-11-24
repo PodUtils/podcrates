@@ -18,7 +18,7 @@ use crate::mailbox::{Mailbox, Mood, crowded};
 use crate::message::hex;
 use crate::phrase::check_words;
 use crate::wormhole::Wormhole;
-use crate::{Code, Failed};
+use crate::{Code, Failed, Missed};
 
 /// Where the ends meet, and how they are reached.
 pub struct Ends {
@@ -40,7 +40,7 @@ pub async fn opened(ends: &Ends, versions: Value) -> Result<(Wormhole, Code), Fa
             Ok(mailbox) => mailbox,
             Err(why) => {
                 say(ends, Event::warn("wormhole.mailbox", reason(&why)));
-                missed.push(reason(&why));
+                missed.push(Missed::of(why));
                 continue;
             }
         };
@@ -54,7 +54,7 @@ pub async fn opened(ends: &Ends, versions: Value) -> Result<(Wormhole, Code), Fa
             Err(why) => {
                 mailbox.end().await;
                 say(ends, Event::warn("wormhole.mailbox", reason(&why)));
-                missed.push(reason(&why));
+                missed.push(Missed::of(why));
                 continue;
             }
         };
@@ -62,7 +62,7 @@ pub async fn opened(ends: &Ends, versions: Value) -> Result<(Wormhole, Code), Fa
         let hole = Wormhole::open(mailbox, side, nameplate, id, &code, versions).await?;
         return Ok((hole, code));
     }
-    Err(Failed::Unreachable(missed.join("; ")))
+    Err(Failed::Unreachable(Missed::join(missed)))
 }
 
 /// The wormhole of `code` at the mailbox where its giver waits, the key
@@ -76,7 +76,7 @@ pub async fn joined(ends: &Ends, code: &Code, versions: Value, giver: Duration) 
             Ok(mailbox) => mailbox,
             Err(why) => {
                 say(ends, Event::warn("wormhole.mailbox", reason(&why)));
-                missed.push(reason(&why));
+                missed.push(Missed::of(why));
                 continue;
             }
         };
@@ -86,7 +86,7 @@ pub async fn joined(ends: &Ends, code: &Code, versions: Value, giver: Duration) 
             Err(why) => {
                 mailbox.end().await;
                 say(ends, Event::warn("wormhole.mailbox", reason(&why)));
-                missed.push(reason(&why));
+                missed.push(Missed::of(why));
                 continue;
             }
         };
@@ -107,7 +107,7 @@ pub async fn joined(ends: &Ends, code: &Code, versions: Value, giver: Duration) 
             Err(why) => {
                 mailbox.end().await;
                 say(ends, Event::warn("wormhole.mailbox", reason(&why)));
-                missed.push(reason(&why));
+                missed.push(Missed::of(why));
                 continue;
             }
         };
@@ -118,7 +118,7 @@ pub async fn joined(ends: &Ends, code: &Code, versions: Value, giver: Duration) 
         }
         hole.close(Mood::Lonely).await;
     }
-    if reached { Err(Failed::Nobody) } else { Err(Failed::Unreachable(missed.join("; "))) }
+    if reached { Err(Failed::Nobody) } else { Err(Failed::Unreachable(Missed::join(missed))) }
 }
 
 /// `done`, or its failure after the wormhole closed with `errory`: the
@@ -140,7 +140,7 @@ pub(crate) fn new_side() -> Result<String, Failed> {
 /// The words of a failure at one mailbox, with no prefix of the whole run.
 pub(crate) fn reason(failed: &Failed) -> String {
     match failed {
-        Failed::Unreachable(why) => why.clone(),
+        Failed::Unreachable(why) => why.to_string(),
         other => other.to_string(),
     }
 }

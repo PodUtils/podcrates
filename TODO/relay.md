@@ -10634,3 +10634,184 @@ cargo tree -p pod-ws --all-features -i h2
 
 `cargo tree` shows one h2 package for `pod-ws`: the fork, with no patch in
 the workspace of a consumer.
+
+# T-1125: `pod-hold`: a failed `execve` of `spawn::start` exits 127 with no errno, and `spawn::resolve` does not check a path with a `/` (PodUtils/podnet#707)
+
+**Source:** PodUtils/podnet#707, asks 1 and 2 (COORD-115 of podnet; PodUtils/podnet@T-516).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet (its QA pass of 0.4.0-beta.18): "1. `pod_hold::spawn::start` runs
+`execve`, then `_exit(127)`. The parent never reads the errno. Report the
+errno of `execve` as a `Failure` with the class of the errno (ENOENT,
+EACCES, ENOEXEC). A pipe with `FD_CLOEXEC` gives it (as
+`PodUtils/podnet:crates/podnet-netns/src/raw.rs` does). 2. `spawn::resolve`:
+check a path with `/` as a bare name is checked (a regular file with an
+execute bit)." podnet checks the program before each backend
+(`PodUtils/podnet:crates/podnet-netns/src/program.rs`); a file that the
+kernel cannot run (ENOEXEC) still exits 127 on the seccomp backend.
+
+## Premise
+
+- Read: `crates/pod-hold/src/spawn.rs`, `crates/pod-hold/src/filter.rs`
+  (`Calls::sockets` stops `close`, and the helper thread that forks has
+  the filter), `crates/pod-enter/src/status.rs` (the split of 126 and 127
+  of T-1080), podnet's `raw.rs` and `program.rs` at `018f3ad`.
+- Not measured: the seccomp backend of podnet at the new tag.
+
+## Approach
+
+`start` opens a pipe with `O_CLOEXEC` in the calling thread. The child
+writes the errno of a failed `execve` into it; a good `execve` closes it.
+The calling thread closes its write end and reads the pipe (the helper
+thread closes nothing: its filter can stop `close`). An errno gives a
+`Failure` with the errno as its cause and the class of the errno. The
+split of "found and refused" from "absent" moves from `pod-enter` to
+`Errno::exec_refused` of `pod-hostprobe`, one copy for both crates.
+`resolve` checks a path with a `/` as each candidate of the search.
+
+## Prove
+
+```sh
+cargo test -p pod-hold --all-features
+cargo test -p pod-enter --all-features
+sh scripts/plant-each.sh --apply
+```
+
+## Done
+
+2026-11-23, this commit. `start` of `crates/pod-hold/src/spawn.rs` returns
+a failure "the program PATH could not be started: execve: ENAME" with the
+errno as its cause. The class: `ENOENT`, `ENOTDIR`, `ELOOP` and
+`ENAMETOOLONG` NotFound; `EACCES` and `EPERM` Permission; `E2BIG` Usage;
+`ETXTBSY` TempFail; `ENOEXEC`, `ELIBBAD`, `EISDIR` and `EINVAL`
+Unsupported; each other errno Unavailable. The split of 126 and 127 is
+`Errno::exec_refused` of `crates/pod-hostprobe/src/sys/numbers.rs` (it
+reads the numbers of the target from `linux_raw_sys`); `pod-enter` calls
+it in `status.rs` and `launch.rs`, and its own copy is gone. `resolve`
+gives NotFound for an absent path with a `/` and Permission for a
+directory or a file with no execute bit. A finding of the same file,
+fixed here: when `fork` failed, the helper thread dropped the listener,
+and its `close` is a call that `Calls::sockets` stops, with no supervisor
+to answer; the listener now comes back to the calling thread.
+
+Tests: `tests/hold.rs`, `a_program_that_cannot_run_gives_the_errno_of_execve`
+(an absent path, a directory and a text file with an execute bit give
+NotFound with ENOENT, Permission with EACCES and Unsupported with
+ENOEXEC); `spawn::tests::a_name_is_found_in_the_path_of_the_caller` (a path
+with a `/`). On the code before the fix the first fails with "started
+(child exit 127)", the second with `unwrap_err()` on an `Ok` value. After
+the fix: `cargo test -p pod-hold --all-features` passes (61 tests of the
+library and the holds), `cargo test -p pod-enter --all-features` passes
+(270 tests of the library), and the plants `enter-exec-e2big-not-found`
+and `enter-exec-candidate-refusal-masked` move to the new place (the
+first is caught: "E2BIG at step 4"). podnet can remove the check of a
+path with a `/` in its `program.rs` at the tag with this commit. Release
+notes: `pod-hold`: a program that the kernel does not run is a failure of
+`spawn::start` with its errno and class, not a child that exits 127.
+
+# T-1126: `pod-wormhole`: `Failed::Expired` rounds the life of the code up to whole minutes ("within its 1 minutes" for 5 s) (PodUtils/podnet#707)
+
+**Source:** PodUtils/podnet#707, ask 3 (COORD-115 of podnet; PodUtils/podnet@T-520).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet: "3. `Failed::Expired(life)` (`failed.rs:57`) writes `div_ceil(60)`
+and \" minutes\": `--timeout 5` gives \"within its 1 minutes\". Write the
+exact time: whole minutes as \"N minute(s)\", else \"N second(s)\", singular
+for 1. Test: 1 s, 5 s, 60 s, 90 s, 600 s." podnet writes its own line from
+the value of `--timeout` (`8537196`).
+
+## Premise
+
+- Read: `crates/pod-wormhole/src/failed.rs`; podnet's `exact_time` in
+  `PodUtils/podnet:src/transfer/mod.rs`.
+
+## Approach
+
+The words of `Expired` take the exact time from a private function of
+`failed.rs`, as podnet's `exact_time`.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features --lib failed
+```
+
+## Done
+
+2026-11-23, this commit. `Failed::Expired` writes "nobody took the code
+within its N minute(s); it is spent" for whole minutes, else "N
+second(s)", with no "s" for 1. Test: `failed::tests::no_failure_says_more_than_its_words`
+(1 s, 5 s, 60 s, 90 s, 600 s). On the code before the fix it fails at
+1 s: "within its 1 minutes". podnet can drop its own words for `Expired`
+at the tag with this commit. Release notes: `pod-wormhole`: the expiry of
+a code says its exact life ("5 seconds", "1 minute").
+
+# T-1127: `pod-wormhole`: `Failed::Unreachable` keeps only the words of each meeting point, so a caller loses the stage Proxy or Dns (PodUtils/podnet#707)
+
+**Source:** PodUtils/podnet#707, ask 4 (COORD-115 of podnet; PodUtils/podnet@T-520).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet: "4. `Failed::Unreachable` (`failed.rs:54`): keep the failure of
+each meeting point (its stage Proxy or Dns) as the source. Test: a dead
+proxy gives a chain with the stage Proxy." podnet reads the hop from the
+words of `pod_proxy::DialError` when the stage is lost
+(`PodUtils/podnet:crates/podnet-core/src/hop.rs`, `of_words`).
+
+## Premise
+
+- Read: `crates/pod-wormhole/src/failed.rs`, each dial of a meeting point
+  (`mailbox.rs`, `ntfy/conn.rs`, `nostr/relay.rs`, `tracker/link.rs`,
+  `mqtt/broker.rs`, `mqtt/board.rs`), the joins of the words in `meet.rs`,
+  `ntfy.rs`, `nostr.rs`, `tracker.rs`, `mqtt.rs` and
+  `crates/pod-relay/src/code/run.rs`.
+- Read: the use of `Failed` in podnet (`src/transfer/mod.rs` matches
+  `Failed::Unreachable(_)` with no wildcard) and in podssh at its head (no
+  match of `Unreachable`).
+
+## Approach
+
+`Unreachable` holds a `Missed` (call C917): the words, which it gives as
+a `str`, and the failure of each point with its stage. Its first failure
+is the source of `Failed`.
+
+## Prove
+
+```sh
+cargo test -p pod-wormhole --all-features
+cargo test -p pod-relay --all-features
+```
+
+## Done
+
+2026-11-23, this commit. `Failed::Unreachable(Missed)`: each dial keeps
+its `ConnectError` or `DialError` as a `pod_core::Failure` with its stage
+(`Missed::caused`); the joins keep each failure (`Missed::join`);
+`Missed::causes` gives them, and `Error::source` of `Failed` gives the
+first. The words stay the same. Test: `tests/faults.rs`,
+`a_dead_proxy_gives_a_chain_with_the_stage_proxy` (a mailbox through a
+proxy where nothing listens: the chain of the `Failure` holds the stage
+Proxy). On the code before the fix it fails: the chain holds only
+`[Rendezvous]`. After the fix `cargo test -p pod-wormhole --all-features`
+and `cargo test -p pod-relay --all-features` pass. A caller that binds
+the field as a `String` takes `.to_string()`; `Failed::Unreachable(_)` of
+podnet builds as it is. Release notes: `pod-wormhole`:
+`Failed::Unreachable` holds `Missed`, whose failures keep the stage of
+each meeting point (a dead proxy is the stage Proxy).

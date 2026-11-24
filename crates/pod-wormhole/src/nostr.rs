@@ -41,7 +41,7 @@ use crate::mailbox::Mood;
 use crate::meet::{new_side, reason};
 use crate::mqtt::{Role, nameplate, topic};
 use crate::wormhole::Wormhole;
-use crate::{Code, Failed};
+use crate::{Code, Failed, Missed};
 
 /// The kind of each event: of the ephemeral range, and of no NIP of
 /// `nostr-protocol/nips` (its list of kinds).
@@ -91,14 +91,14 @@ pub async fn opened(relays: &Relays, versions: Value) -> Result<(Wormhole, Code)
             Ok(relay) => relay,
             Err(why) => {
                 say(relays, Event::warn("wormhole.nostr", reason(&why)));
-                missed.push(reason(&why));
+                missed.push(Missed::of(why));
                 continue;
             }
         };
         let hole = Wormhole::open(relay, side, plate.clone(), tag, &code, versions).await?;
         return Ok((hole, code));
     }
-    Err(Failed::Unreachable(missed.join("; ")))
+    Err(Failed::Unreachable(Missed::join(missed)))
 }
 
 /// The wormhole of `code` at the relay where its giver waits, the key
@@ -113,7 +113,7 @@ pub async fn joined(relays: &Relays, code: &Code, versions: Value, giver: Durati
             Ok(relay) => relay,
             Err(why) => {
                 say(relays, Event::warn("wormhole.nostr", reason(&why)));
-                missed.push(reason(&why));
+                missed.push(Missed::of(why));
                 continue;
             }
         };
@@ -125,7 +125,7 @@ pub async fn joined(relays: &Relays, code: &Code, versions: Value, giver: Durati
         }
         hole.close(Mood::Lonely).await;
     }
-    if reached { Err(Failed::Nobody) } else { Err(Failed::Unreachable(missed.join("; "))) }
+    if reached { Err(Failed::Nobody) } else { Err(Failed::Unreachable(Missed::join(missed))) }
 }
 
 /// The seconds since the Unix epoch, as `created_at` and `since` count.
