@@ -1,0 +1,7 @@
+# The bare accept of the dns carrier does not check the hello of the dialer:
+# it takes the ClientHello of an end with TLS, and the two ends pair with
+# no seal on one side (T-1167).
+ENTRY=T-1167
+GROUP=link
+EXPECT='the bare accept took a ClientHello'
+RUN='cargo test -p pod-link --all-features --test dns_bare a_bare_end_and_an_end_with_tls_never_pair'

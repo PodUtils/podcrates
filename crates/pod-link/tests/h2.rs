@@ -14,7 +14,8 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use common::h2::{Tunnel, at, bound, carrier};
+use common::h2::{at, bound, carrier};
+use common::proxy::Tunnel;
 use common::tcp::{Direct, Fails, id, ring};
 use common::{echo, limit, pattern};
 use pod_core::{Class, Target};

@@ -5,8 +5,9 @@
 //! [`DnsSettings`]; when the ARQ has nothing to send, it polls, so the
 //! listener can send its bytes down. With [`DnsSettings::hold`], the
 //! listener holds a poll until it has bytes down, and the wait for the next
-//! poll starts at the answer of the last poll. A reader task matches each
-//! answer to its query by the DNS ID.
+//! poll starts at the answer of the last poll. Over UDP, a reader task
+//! matches each answer to its query by the DNS ID; over DNS over HTTPS
+//! (`dns::doh`), each GET gives the answer of its query.
 
 use std::collections::HashMap;
 use std::io;
@@ -19,6 +20,7 @@ use pod_dns::txt;
 use tokio::sync::{Mutex as AsyncMutex, mpsc, oneshot};
 use tokio::time::{Instant, sleep, sleep_until, timeout};
 
+use super::doh::Https;
 use super::settings::DnsSettings;
 use super::wire;
 use crate::datagram::{DatagramFuture, Datagrams};
@@ -38,23 +40,37 @@ pub(super) struct DnsClient {
     _stop: oneshot::Sender<()>,
 }
 
+/// Where the queries of a dialer go.
+pub(super) enum Path {
+    /// The UDP socket, toward the server.
+    Udp(Arc<dyn AddressedDatagrams>, SocketAddr),
+    /// DNS over HTTPS.
+    Https(Box<Https>),
+}
+
+/// Where the queries go, with the waiters of the answers over UDP.
+enum Route {
+    Udp { socket: Arc<dyn AddressedDatagrams>, server: SocketAddr, pending: Pending },
+    Https(Box<Https>),
+}
+
 impl DnsClient {
-    /// Start the carrier over `socket`, toward `server`, under `zone`, with
-    /// the session id `session`.
-    pub(super) fn new(
-        socket: Arc<dyn AddressedDatagrams>,
-        server: SocketAddr,
-        zone: String,
-        session: u32,
-        settings: DnsSettings,
-    ) -> Result<DnsClient, String> {
+    /// Start the carrier over `path`, under `zone`, with the session id
+    /// `session`.
+    pub(super) fn new(path: Path, zone: String, session: u32, settings: DnsSettings) -> Result<DnsClient, String> {
         let mtu = wire::payload_mtu(&zone)?;
         let (up_tx, up_rx) = mpsc::channel(settings.depth);
         let (down_tx, down_rx) = mpsc::channel(settings.depth);
         let (stop_tx, stop_rx) = oneshot::channel();
-        let pending: Pending = Arc::new(Mutex::new(HashMap::new()));
-        tokio::spawn(read(socket.clone(), pending.clone(), stop_rx));
-        tokio::spawn(drive(Driver { socket, server, zone, session, settings, pending }, up_rx, down_tx));
+        let route = match path {
+            Path::Udp(socket, server) => {
+                let pending: Pending = Arc::new(Mutex::new(HashMap::new()));
+                tokio::spawn(read(socket.clone(), pending.clone(), stop_rx));
+                Route::Udp { socket, server, pending }
+            }
+            Path::Https(https) => Route::Https(https),
+        };
+        tokio::spawn(drive(Driver { route, zone, session, settings }, up_rx, down_tx));
         Ok(DnsClient { mtu, up: up_tx, down: AsyncMutex::new(down_rx), _stop: stop_tx })
     }
 }
@@ -92,12 +108,10 @@ impl std::fmt::Debug for DnsClient {
 
 /// What the driver and its queries share.
 struct Driver {
-    socket: Arc<dyn AddressedDatagrams>,
-    server: SocketAddr,
+    route: Route,
     zone: String,
     session: u32,
     settings: DnsSettings,
-    pending: Pending,
 }
 
 /// Read the socket and give each answer to the query that waits for its ID.
@@ -144,8 +158,13 @@ async fn drive(driver: Driver, mut up: mpsc::Receiver<Vec<u8>>, down: mpsc::Send
     let mut last = None;
     loop {
         sleep_until(next_at).await;
-        next_at = Instant::now() + period;
         let Ok(permit) = limit.clone().acquire_owned().await else { return };
+        // A resolver of DNS over HTTPS that asked for fewer queries: after the
+        // permit, so that the answer of the query before it counts.
+        if let Route::Https(https) = &driver.route {
+            https.paused().await;
+        }
+        next_at = Instant::now() + period;
         let payload = tokio::select! {
             d = up.recv() => match d {
                 Some(d) => {
@@ -184,22 +203,41 @@ async fn drive(driver: Driver, mut up: mpsc::Receiver<Vec<u8>>, down: mpsc::Send
 /// One query of `payload`, and the datagrams of its answer. A failure or a
 /// time out is no datagram: the ARQ sends the frame again.
 async fn query(driver: &Driver, counter: u32, payload: &[u8]) -> io::Result<Vec<Vec<u8>>> {
-    let id = counter as u16;
+    // The ID 0 over HTTPS (RFC 8484, section 4.1): each GET has its own
+    // answer.
+    let id = if matches!(driver.route, Route::Https(_)) { 0 } else { counter as u16 };
     let name = wire::encode_query(&driver.zone, driver.session, counter, payload)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
     let message = txt::query(id, &name, txt::TXT, Some(driver.settings.answer))
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
+    let wait = driver.settings.query_timeout;
+    let answer = match &driver.route {
+        Route::Udp { socket, server, pending } => ask_udp(socket, *server, pending, id, &message, wait).await,
+        Route::Https(https) => timeout(wait, https.ask(&message)).await.ok().flatten(),
+    };
+    let Some(message) = answer else { return Ok(Vec::new()) };
+    Ok(datagrams(&message, id, &name))
+}
+
+/// The answer of the query `message` of the ID `id` over UDP, within `wait`.
+async fn ask_udp(
+    socket: &Arc<dyn AddressedDatagrams>,
+    server: SocketAddr,
+    pending: &Pending,
+    id: u16,
+    message: &[u8],
+    wait: Duration,
+) -> Option<Vec<u8>> {
     let (tx, rx) = oneshot::channel();
-    driver.pending.lock().unwrap_or_else(PoisonError::into_inner).insert(id, tx);
+    pending.lock().unwrap_or_else(PoisonError::into_inner).insert(id, tx);
     let answer = async {
-        pod_core::datagrams::send_to(&*driver.socket, &message, driver.server).await?;
+        pod_core::datagrams::send_to(&**socket, message, server).await?;
         rx.await.map_err(|_| io::Error::from(io::ErrorKind::BrokenPipe))
     };
-    let result = timeout(driver.settings.query_timeout, answer).await;
+    let result = timeout(wait, answer).await;
     // Remove a waiter that timed out or failed.
-    driver.pending.lock().unwrap_or_else(PoisonError::into_inner).remove(&id);
-    let Ok(Ok(message)) = result else { return Ok(Vec::new()) };
-    Ok(datagrams(&message, id, &name))
+    pending.lock().unwrap_or_else(PoisonError::into_inner).remove(&id);
+    result.ok()?.ok()
 }
 
 /// The datagrams down in the answer `message` to the query `id` for `name`.

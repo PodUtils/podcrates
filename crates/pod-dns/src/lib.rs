@@ -27,7 +27,8 @@
 //!
 //! [`txt`] builds a query with an ID and an EDNS0 size, and reads the TXT
 //! and CNAME records, the TC bit and the RCODE of its answer, for a carrier
-//! of bytes over DNS whose transport is the caller's.
+//! of bytes over DNS whose transport is the caller's; [`Pipe`] carries such
+//! messages to one resolver of DNS over HTTPS over one connection.
 //!
 //! **No process state, no output.** The settings, the pins, the cache of
 //! addresses ([`Memory`]) and the way out are values of the [`Resolver`]
@@ -47,6 +48,7 @@ mod lookup;
 mod memory;
 mod miss;
 mod order;
+mod pipe;
 mod question;
 mod resolver;
 pub mod route;
@@ -60,6 +62,7 @@ pub use json::Srv;
 pub use kept::{IDLE, Kept};
 pub use memory::{FRESH, Memory, Remembered, split};
 pub use order::{Found, Source};
+pub use pipe::Pipe;
 pub use pod_core::SOURCE_WAIT;
 pub use resolver::Resolver;
 pub use settings::{CONNECT, EACH, Nxdomain, Settings, parse_pins};

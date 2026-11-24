@@ -1,0 +1,7 @@
+# The dialer of the dns carrier over DNS over HTTPS does not pause at a
+# 429 of the resolver: it sends its next query at once, and a resolver
+# that limits it keeps the limit (T-1168).
+ENTRY=T-1168
+GROUP=link
+EXPECT='the next query after'
+RUN='cargo test -p pod-link --all-features --test dns_doh a_429_pauses_the_queries_for_its_retry_after'

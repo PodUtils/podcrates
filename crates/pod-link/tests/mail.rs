@@ -189,7 +189,7 @@ async fn a_wrong_credential_is_refused_by_the_server() {
     let server: SmtpServer = smtp_server(Mode::Implicit, None).await;
     let credential = pod_link::smtp::Credential::new("session-user", "another-secret").expect("a credential");
     let mut smtp = pod_link::smtp::Smtp::new(credential, "a@example.invalid", "b@example.invalid")
-        .with_tls(common::mail::client_config())
+        .with_tls(common::cert::client_config())
         .with_mode(Mode::Implicit);
     smtp.handshake_timeout = Duration::from_secs(5);
     let mut io = smtp.dial(&server.addr.to_string()).await.expect("a dial");

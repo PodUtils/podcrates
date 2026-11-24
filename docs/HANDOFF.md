@@ -185,6 +185,15 @@ The asks of #259 to the consumers:
   the soft TPM with its CI lane (T-1222) follow; podssh takes the crate at
   the tag of T-1222. The owner reserves the name on crates.io.
 
+- T-1167 and T-1168 (`pod-link`, the DNS carrier; PodUtils/podssh#349): the
+  bare form (`Dns::without_tls`, `connect_bare`, `connect_bare_over`,
+  `accept_bare_over`; the caller authenticates and seals the stream itself;
+  a bare end and a TLS end never pair; call C933), and the dialer's queries
+  over DNS over HTTPS (`Dns::over_https`, `DnsOverHttps`, through the way of
+  `with_way`; a 429 pauses the queries). `pod_dns::Pipe` is new, and the
+  HTTP/2 answers of `pod-dns` keep their headers. podssh gives `http2(true)`
+  on its resolver. New entry T-1279.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask.

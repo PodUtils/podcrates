@@ -38,6 +38,10 @@
 //!
 //! A poll of a session after its first record waits for data down for up
 //! to [`DnsSettings::hold`] (`dns::reply`).
+//!
+//! A bare listener ([`crate::dns::Dns::bare`]) takes a bare hello as the
+//! first record, not a ClientHello (`dns::bare`), and gives each client with
+//! no key.
 
 use std::collections::HashMap;
 use std::fmt;
@@ -49,19 +53,19 @@ use std::time::Duration;
 use pod_core::Datagrams as AddressedDatagrams;
 use pod_dns::txt;
 use pod_identity::PublicKey;
-use tokio::sync::{Mutex as AsyncMutex, OwnedSemaphorePermit, Semaphore, mpsc, oneshot};
+use tokio::sync::{OwnedSemaphorePermit, Semaphore, mpsc, oneshot};
 use tokio::task::{AbortHandle, JoinSet};
 use tokio::time::Instant;
 use tokio_rustls::TlsAcceptor;
 
+use super::bare;
 use super::hello::{self, Hello, Parts};
-use super::reply::{Down, Holds, Reply, Wake, empty};
+use super::reply::{Down, Holds, Reply, ServerSession, empty};
 use super::settings::DnsSettings;
 use super::wire;
 use super::{Dns, NAME, err};
 use crate::arq::wire::Datagram;
 use crate::carrier::{Accepted, BoxIo, CarrierError, CarrierErrorKind, Listener, Pending};
-use crate::datagram::{DatagramFuture, Datagrams};
 use crate::dgram_tls;
 
 /// The largest query that the reader takes.
@@ -80,8 +84,9 @@ const READ_PAUSE: Duration = Duration::from_millis(50);
 /// query of an ended session can start a session again.
 const MAX_ENDED: usize = 4096;
 
-/// The result of one handshake.
-type Shaken = Result<(BoxIo, PublicKey), CarrierError>;
+/// The result of one handshake, with the key of the client; no key at a
+/// bare listener.
+type Shaken = Result<(BoxIo, Option<PublicKey>), CarrierError>;
 
 /// A listener of the DNS carrier. Its drop ends each handshake under way and
 /// starts no new session; the task answers the sessions that it gave until
@@ -98,10 +103,10 @@ impl fmt::Debug for DnsListener {
     }
 }
 
-/// What each session of a listener needs.
+/// What each session of a listener needs. No acceptor: the bare form.
 #[derive(Clone)]
 struct Shake {
-    acceptor: TlsAcceptor,
+    acceptor: Option<TlsAcceptor>,
     alpn: &'static [u8],
     arq: crate::arq::ArqSettings,
     within: Duration,
@@ -159,7 +164,10 @@ pub(super) fn bind(dns: &Dns, socket: Arc<dyn AddressedDatagrams>, zone: String)
     }
     let mtu = wire::payload_mtu(&zone).map_err(|e| err(CarrierErrorKind::Usage, e))?;
     let shake = Shake {
-        acceptor: dgram_tls::acceptor(NAME, &dns.provider, &dns.identity, &dns.clients, dns.alpn)?,
+        acceptor: match dns.bare {
+            true => None,
+            false => Some(dgram_tls::acceptor(NAME, &dns.provider, &dns.identity, &dns.clients, dns.alpn)?),
+        },
         alpn: dns.alpn,
         arq: dns.arq,
         within: dns.handshake_timeout,
@@ -179,8 +187,17 @@ impl DnsListener {
         self.local
     }
 
-    /// The next client whose key is pinned, and that key.
+    /// The next client whose key is pinned, and that key. A bare listener
+    /// proves no key: it gives a usage error, and [`Listener::accept_peer`]
+    /// gives the client with no key.
     pub async fn accept_key(&mut self) -> Result<(BoxIo, PublicKey), CarrierError> {
+        match self.next().await? {
+            (io, Some(key)) => Ok((io, key)),
+            (_, None) => Err(err(CarrierErrorKind::Usage, "a bare listener proves no key: use accept or accept_peer")),
+        }
+    }
+
+    async fn next(&mut self) -> Shaken {
         match self.results.recv().await {
             Some(result) => result,
             None => Err(err(CarrierErrorKind::Io(io::ErrorKind::BrokenPipe), "the task of the listener ended")),
@@ -194,51 +211,11 @@ impl Listener for DnsListener {
     }
 
     fn accept(&mut self) -> Pending<'_, BoxIo> {
-        Box::pin(async move { self.accept_key().await.map(|(io, _)| io) })
+        Box::pin(async move { self.next().await.map(|(io, _)| io) })
     }
 
     fn accept_peer(&mut self) -> Pending<'_, Accepted> {
-        Box::pin(async move { self.accept_key().await.map(|(io, key)| Accepted { io, peer: Some(key) }) })
-    }
-}
-
-/// The per-session datagrams of the listener: the ARQ sends down through
-/// `down`, and reads up from `up`. When the task is gone, the peer is
-/// silence.
-struct ServerSession {
-    down: mpsc::Sender<Vec<u8>>,
-    wake: Wake,
-    up: AsyncMutex<mpsc::Receiver<Vec<u8>>>,
-    mtu: usize,
-}
-
-impl Datagrams for ServerSession {
-    fn mtu(&self) -> usize {
-        self.mtu
-    }
-
-    fn send<'a>(&'a self, datagram: &'a [u8]) -> DatagramFuture<'a, ()> {
-        Box::pin(async move {
-            if self.down.try_send(datagram.to_vec()).is_ok() {
-                self.wake.ring();
-            }
-            Ok(())
-        })
-    }
-
-    fn recv(&self) -> DatagramFuture<'_, Vec<u8>> {
-        Box::pin(async move {
-            match self.up.lock().await.recv().await {
-                Some(datagram) => Ok(datagram),
-                None => std::future::pending().await,
-            }
-        })
-    }
-}
-
-impl std::fmt::Debug for ServerSession {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ServerSession").field("mtu", &self.mtu).finish_non_exhaustive()
+        Box::pin(async move { self.next().await.map(|(io, peer)| Accepted { io, peer }) })
     }
 }
 
@@ -393,7 +370,7 @@ async fn answer(
                 return empty(socket, query, txt::RCODE_NOERROR, true, edns, from).await;
             }
             // Only a part of a ClientHello takes a slot.
-            let Some(part) = hello::part(&payload, shake.arq.start) else {
+            let Some(part) = hello::part(&payload, shake.arq.start, shake.acceptor.is_none()) else {
                 return empty(socket, query, txt::RCODE_NOERROR, true, edns, from).await;
             };
             // At the limit the query is lost: the dialer sends it again.
@@ -401,7 +378,7 @@ async fn answer(
             let (up, up_rx) = mpsc::channel(settings.depth);
             let (down_tx, down_rx) = mpsc::channel(settings.depth);
             let (down, wake) = Down::new(down_rx, session, wake.clone());
-            let server = ServerSession { down: down_tx, wake, up: AsyncMutex::new(up_rx), mtu: shake.mtu };
+            let server = ServerSession::new(down_tx, wake, up_rx, shake.mtu);
             let early = Early { parts: Parts::new(part.count), permit, server };
             let seen = Instant::now();
             slot.insert(Entry { up, down, from, seen, hello: Some(Box::new(early)), shake: None })
@@ -453,7 +430,7 @@ fn first_record(
     if payload.is_empty() || Datagram::decode(&payload).is_ok_and(|d| !matches!(d, Datagram::Data { .. })) {
         return true;
     }
-    let Some(part) = hello::part(&payload, shake.arq.start) else { return false };
+    let Some(part) = hello::part(&payload, shake.arq.start, shake.acceptor.is_none()) else { return false };
     if !early.parts.add(part, payload) {
         return false;
     }
@@ -461,7 +438,7 @@ fn first_record(
         return true;
     }
     let Early { parts, permit, server } = *entry.hello.take().expect("a session before its handshake");
-    let (datagrams, read) = parts.take(shake.alpn);
+    let (datagrams, read) = parts.take(shake.alpn, shake.acceptor.is_none());
     if read == Hello::Refused {
         return false;
     }
@@ -470,7 +447,13 @@ fn first_record(
     }
     let (shake, out, from) = (shake.clone(), out.clone(), entry.from);
     entry.shake = Some(shakes.spawn(async move {
-        let result = dgram_tls::accept(NAME, server, shake.acceptor, shake.alpn, shake.arq, &from, shake.within).await;
+        let (alpn, arq, within) = (shake.alpn, shake.arq, shake.within);
+        let result = match shake.acceptor {
+            Some(tls) => {
+                dgram_tls::accept(NAME, server, tls, alpn, arq, &from, within).await.map(|(io, k)| (io, Some(k)))
+            }
+            None => bare::accept(server, alpn, arq, &from, within).await.map(|io| (io, None)),
+        };
         // A failed handshake frees its slot before the caller takes the error.
         let _permit = result.is_ok().then_some(permit);
         let _ = out.send(result).await;

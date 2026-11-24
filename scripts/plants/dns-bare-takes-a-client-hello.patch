@@ -1,0 +1,14 @@
+diff --git a/crates/pod-link/src/dns/bare.rs b/crates/pod-link/src/dns/bare.rs
+index d2fd29fa..8dd88d33 100644
+--- a/crates/pod-link/src/dns/bare.rs
++++ b/crates/pod-link/src/dns/bare.rs
+@@ -85,9 +85,6 @@ pub(super) async fn accept<D: Datagrams>(
+     let shake = async {
+         let mut got = vec![0u8; want.len()];
+         stream.read_exact(&mut got).await?;
+-        if got != want {
+-            return Ok(false);
+-        }
+         stream.write_all(&[ACCEPTED]).await?;
+         stream.flush().await?;
+         Ok::<bool, io::Error>(true)

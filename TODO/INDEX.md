@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**970 entries: 164 open, 29 partial, 7 blocked, 770 done.**
+**971 entries: 163 open, 29 partial, 7 blocked, 772 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 227 | 241 |
 | P2 | 76 | 8 | 4 | 403 | 491 |
-| P3 | 84 | 11 | 3 | 138 | 236 |
-| **All** | 164 | 29 | 7 | 770 | 970 |
+| P3 | 83 | 11 | 3 | 140 | 237 |
+| **All** | 163 | 29 | 7 | 772 | 971 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -981,8 +981,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1164](relay.md) | P2 | S | M2 | defect | done | `pod-link`: the DNS listener sends no answer to a query that is not TXT or whose name does not decode, so a resolver retries and serves SERVFAIL (PodUtils/podssh#349) |
 | [T-1165](relay.md) | P2 | M | M2 | defect | done | `pod-link`: a query with a new session id takes a handshake slot of the DNS listener for 20 s before any key is checked (PodUtils/podssh#349) |
 | [T-1166](relay.md) | P3 | M | M2 | feature | done | `pod-link`: the DNS listener answers each poll at once; a held poll (dnstt's 1 s) halves the idle queries and cuts the latency of data down (PodUtils/podssh#349) |
-| [T-1167](relay.md) | P3 | M | M2 | feature | open | `pod-link`: an option to carry the ARQ of the DNS carrier with no TLS for a caller that seals above (PodUtils/podssh#349) |
-| [T-1168](relay.md) | P3 | M | M2 | feature | open | `pod-link`: the datagrams of the DNS carrier over DNS over HTTPS (RFC 8484), for a dialer behind an HTTP proxy with no UDP (PodUtils/podssh#349) |
+| [T-1167](relay.md) | P3 | M | M2 | feature | done | `pod-link`: an option to carry the ARQ of the DNS carrier with no TLS for a caller that seals above (PodUtils/podssh#349) |
+| [T-1168](relay.md) | P3 | M | M2 | feature | done | `pod-link`: the datagrams of the DNS carrier over DNS over HTTPS (RFC 8484), for a dialer behind an HTTP proxy with no UDP (PodUtils/podssh#349) |
 | [T-1169](relay.md) | P3 | M | M2 | chore | open | `pod-link`: a test of the DNS carrier through `unbound` with its default settings, in the box of CI (PodUtils/podssh#349) |
 | [T-1170](relay.md) | P2 | S | M2 | defect | done | `pod-link`: the DNS listener answers with the question in lower case, so a resolver that uses 0x20 rejects the answer |
 | [T-1171](relay.md) | P3 | S | M2 | defect | done | `pod-link`: a late query of an ended DNS session starts a new handshake and holds a permit |
@@ -1017,3 +1017,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1255](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: the umask of the process cuts the mode of a directory that an entry below it makes |
 | [T-1269](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: `flatten` fails with `Unsupported` for a hard link to an inode that no name of the stream holds after a second entry of its path in one layer |
 | [T-1270](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: `flatten` drops the extended attributes of a hard-link entry, which `extract` sets on the inode |
+| [T-1279](relay.md) | P3 | S | M2 | defect | open | `pod-dns`: a `Pipe` asks Cloudflare and Google over HTTP/1.1, so the queries of the DNS carrier over DoH go one at a time behind a held poll |

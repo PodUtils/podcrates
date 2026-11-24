@@ -106,6 +106,14 @@ where
 /// The bound of the connection's own end, after the answer.
 const CLOSE: Duration = Duration::from_secs(2);
 
+impl H2 {
+    /// A handle of the connection: each handle sends its own requests, at
+    /// the same time as the others.
+    pub(crate) fn handle(&self) -> h2::client::SendRequest<bytes::Bytes> {
+        self.client.clone()
+    }
+}
+
 /// One GET of `target` on the connection.
 pub(crate) async fn request(
     conn: &mut H2,
@@ -114,7 +122,18 @@ pub(crate) async fn request(
     accept: &str,
     max: usize,
 ) -> Result<Response, String> {
-    let client = conn.client.clone();
+    send(conn.handle(), name, target, accept, max).await
+}
+
+/// One GET of `target` on the connection of `client`, with the headers of
+/// the answer (a `Retry-After` of a `429`).
+pub(crate) async fn send(
+    client: h2::client::SendRequest<bytes::Bytes>,
+    name: &str,
+    target: &str,
+    accept: &str,
+    max: usize,
+) -> Result<Response, String> {
     let mut client = client.ready().await.map_err(|e| format!("HTTP/2: {e}"))?;
     let authority = if name.contains(':') { format!("[{name}]") } else { name.to_string() };
     let request = ::http::Request::get(format!("https://{authority}{target}"))
@@ -124,6 +143,13 @@ pub(crate) async fn request(
     let (response, _) = client.send_request(request, true).map_err(|e| format!("HTTP/2: {e}"))?;
     let response = response.await.map_err(|e| format!("HTTP/2: {e}"))?;
     let status = response.status().as_u16();
+    // As the reader of HTTP/1.1 gives them: the names in lower case, the
+    // values trimmed.
+    let headers = response
+        .headers()
+        .iter()
+        .map(|(name, value)| (name.as_str().to_string(), String::from_utf8_lossy(value.as_bytes()).trim().to_string()))
+        .collect();
     let mut body = response.into_body();
     let mut out = Vec::new();
     while let Some(chunk) = body.data().await {
@@ -134,7 +160,7 @@ pub(crate) async fn request(
         }
         out.extend_from_slice(&chunk);
     }
-    Ok(Response { status, reason: String::new(), headers: Vec::new(), body: out, url: String::new() })
+    Ok(Response { status, reason: String::new(), headers, body: out, url: String::new() })
 }
 
 #[cfg(test)]
