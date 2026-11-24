@@ -29,6 +29,9 @@ pub enum Error {
     Transport(Failure),
     /// A key file `TSS2 PRIVATE KEY` that the crate does not read or write.
     KeyFile(Refusal),
+    /// A step of a sequence of [`crate::flow`] failed: what it means, its
+    /// class, and the error of the command under it, when there is one.
+    Step { class: Class, why: String, cause: Option<Box<Error>> },
 }
 
 impl Error {
@@ -43,6 +46,7 @@ impl Error {
             Error::Unsupported(_) => Class::Unsupported,
             Error::Transport(failure) => failure.class,
             Error::KeyFile(refusal) => refusal.class(),
+            Error::Step { class, .. } => *class,
         }
     }
 
@@ -50,6 +54,7 @@ impl Error {
     pub fn code(&self) -> Option<ResponseCode> {
         match self {
             Error::Tpm(code) => Some(*code),
+            Error::Step { cause: Some(cause), .. } => cause.code(),
             _ => None,
         }
     }
@@ -63,6 +68,8 @@ impl fmt::Display for Error {
             Error::Usage(why) | Error::Unsupported(why) => f.write_str(why),
             Error::Transport(failure) => failure.fmt(f),
             Error::KeyFile(refusal) => write!(f, "the key file of a TPM: {refusal}"),
+            Error::Step { why, cause: Some(cause), .. } => write!(f, "{why}: {cause}"),
+            Error::Step { why, cause: None, .. } => f.write_str(why),
         }
     }
 }
@@ -71,6 +78,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::Transport(failure) => Some(failure),
+            Error::Step { cause: Some(cause), .. } => Some(cause.as_ref()),
             _ => None,
         }
     }

@@ -22,6 +22,10 @@
 //!   and in PEM (draft-bottomley-tpm-keys-00), with its policy and its
 //!   signed policies as statements; each size and each count of the
 //!   untrusted file has a bound.
+//! * [`flow`]: the sequences (the storage primary, a new signing key and
+//!   its key file, a load, a signature under a policy of PCRs or a policy
+//!   key, the PCRs, the capabilities), each handle in a guard that flushes
+//!   it on each path.
 //! * [`Transport`]: one whole command out, its whole response back;
 //!   [`transact`] sends a command and reads its [`Reply`].
 //!
@@ -32,6 +36,7 @@
 pub mod alg;
 pub mod cmd;
 pub mod error;
+pub mod flow;
 pub mod keyfile;
 pub mod policy;
 pub mod public;

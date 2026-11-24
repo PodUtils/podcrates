@@ -3,6 +3,8 @@
 
 #![allow(dead_code)]
 
+pub mod fake;
+
 use pod_core::{Class, Failure, Stage};
 
 /// The bytes of a text of hex digits; spaces and line ends do not count.

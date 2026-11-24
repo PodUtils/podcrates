@@ -1,0 +1,7 @@
+# The policy key that TPM2_LoadExternal loads has no guard: a failed
+# check of its signature leaves its handle in the TPM (T-1220).
+ENTRY=T-1220
+GROUP=tpm
+EXPECT='each_failed_step_of_a_signed_policy_flushes_each_live_handle \.\.\. FAILED'
+RUN='cargo test -p pod-tpm --all-features --test flow each_failed_step_of_a_signed_policy_flushes_each_live_handle'
+LIMIT=900
