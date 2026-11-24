@@ -4,10 +4,14 @@
 //! `tar`. The crate reads such an envelope past the bound and gives the
 //! words of incus; another answer over the bound is a refusal that names
 //! its status, its size, the bound and its start. The bound here is 64 KiB
-//! and the answers some MB, as the 64 MiB and the 108 MB of the report.
+//! and the answers some MB, as the 64 MiB and the 108 MB of the report. A
+//! cut envelope gives its size (T-1307, PodUtils/podvm#663), and a body
+//! that declares more than the bound and closes is refused by size.
 #![cfg(unix)]
 
 mod common;
+
+use std::time::Duration;
 
 use common::Stand;
 use pod_incus::{BodySize, Client, ErrorKind, NewInstance, Source};
@@ -65,8 +69,9 @@ async fn an_error_envelope_over_the_bound_gives_the_words_of_incus() {
     let body = envelope("error", 500, &words, &json!(null));
     stand.state().raw = Some(("GET".into(), "/1.0/operations/".into(), one_chunk(body.as_bytes())));
     let e = client(&stand).create_instance(&NewInstance::container("web", Source::None)).await.unwrap_err();
-    let ErrorKind::Incus { status, code, error } = e.kind() else { panic!("{e:?}") };
+    let ErrorKind::Incus { status, code, error, cut } = e.kind() else { panic!("{e:?}") };
     assert_eq!((*status, *code), (500, 500));
+    assert_eq!(*cut, Some(body.len() as u64), "the size of the cut envelope");
     // The words of incus on one line: the start, the end of the first line
     // of the stderr, and the end of the kept 64 KiB with the size of the cut.
     let first: String = words.split('\n').next().unwrap().chars().take(200).collect();
@@ -144,10 +149,49 @@ async fn a_pool_its_room_and_an_image_are_read() {
     assert_eq!((room.inodes.total, room.free_inodes()), (102_400, Some(11)));
     let e = client.storage_pool("other").await.unwrap_err();
     assert_eq!(e.status(), Some(404));
+    assert!(matches!(e.kind(), ErrorKind::Incus { cut: None, .. }), "a whole envelope is not cut: {e:?}");
     let image = client.image("ab12cd").await.unwrap().expect("the image");
     assert_eq!(
         (image.size, image.kind.as_str(), image.aliases[0].name.as_str()),
         (3_456_789, "container", "podvm/alpine")
     );
     assert_eq!(client.image("ffff").await.unwrap(), None);
+}
+
+/// A head that declares a body over the bound, its first bytes, then the
+/// close: by a chunk or by `Content-Length`, of an `error` envelope or of
+/// another type. Each is refused by size, with the words of the start of
+/// an `error` envelope, and none waits.
+#[tokio::test]
+async fn a_body_that_declares_more_than_the_bound_and_closes_is_refused_by_size() {
+    pod_testkit::need_loopback!();
+    let words = tar_error(3 << 20);
+    let error = envelope("error", 500, &words, &json!(null));
+    let sync = envelope("sync", 0, "", &json!(vec![1; 1_000_000]));
+    for (body, is_error) in [(&error, true), (&sync, false)] {
+        let start = &body.as_bytes()[..4096];
+        let chunked = format!("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n{:x}\r\n", body.len());
+        let length = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len());
+        let declared = [
+            (chunked, BodySize::Chunk { before: 0, size: body.len() as u64 }),
+            (length, BodySize::Length(body.len() as u64)),
+        ];
+        for (head, size) in declared {
+            let stand = Stand::start();
+            let mut raw = head.into_bytes();
+            raw.extend_from_slice(start);
+            stand.state().raw = Some(("GET".into(), "/1.0/operations/".into(), raw));
+            let (client, new) = (client(&stand), NewInstance::container("web", Source::None));
+            let call = client.create_instance(&new);
+            let e = tokio::time::timeout(Duration::from_secs(10), call).await.expect("an end, no wait").unwrap_err();
+            let ErrorKind::TooLarge { status, size: said, .. } = e.kind() else { panic!("{size}: {e:?}") };
+            assert_eq!((*status, *said), (200, size), "{e}");
+            if is_error {
+                let error = e.incus_error().unwrap_or_default();
+                assert!(error.starts_with("Failed creating instance from image: Unpack failed:"), "{e}");
+            } else {
+                assert_eq!(e.incus_error(), None, "{e}");
+            }
+        }
+    }
 }

@@ -51,8 +51,11 @@ pub enum ErrorKind {
     /// socket.
     NoServer { socket: PathBuf, cause: io::Error },
     /// incus answered with an error: the HTTP status, the `error_code` and
-    /// the `error` of its envelope.
-    Incus { status: u16, code: u16, error: String },
+    /// the `error` of its envelope. `cut` is the size in bytes of an `error`
+    /// envelope over `Settings::max_body` that the crate read with each
+    /// string cut to its start; `None` where the envelope was whole. The
+    /// caller tells "the answer was over the bound" by it, not by the words.
+    Incus { status: u16, code: u16, error: String, cut: Option<u64> },
     /// A background operation ended with no success: its id, its
     /// `status_code` (400 failure, 401 canceled) and its `err`.
     Operation { id: String, code: u16, err: String },
@@ -127,6 +130,15 @@ impl Error {
     /// The error, with the id of the operation that the call started.
     pub(crate) fn of_operation(mut self, id: &str) -> Error {
         self.operation = Some(Box::new(id.to_string()));
+        self
+    }
+
+    /// The error, with the size `cut` of an `error` envelope over the bound
+    /// that the crate cut: only an error of incus takes it.
+    pub(crate) fn cut_at(mut self, cut: Option<u64>) -> Error {
+        if let ErrorKind::Incus { cut: at, .. } = &mut self.kind {
+            *at = cut;
+        }
         self
     }
 
@@ -239,7 +251,7 @@ impl fmt::Display for Error {
             ErrorKind::NoServer { socket, cause } => {
                 write!(f, "{call}: no incus answers at {}: {cause}", socket.display())
             }
-            ErrorKind::Incus { status, code, error } => {
+            ErrorKind::Incus { status, code, error, .. } => {
                 write!(f, "{call}: incus refused the call ({status}, error_code {code}): {}", one_line(error))
             }
             ErrorKind::Operation { id, code, err } => {

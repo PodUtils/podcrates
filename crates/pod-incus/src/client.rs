@@ -121,7 +121,7 @@ impl Client {
     /// One request and its answer, whose body has `max` bytes at most.
     pub(crate) async fn exchange(&self, call: &str, request: Request, max: usize) -> Result<Response> {
         match self.request(call, request).await? {
-            Sent::Answer(answer) => Ok(answer),
+            Sent::Answer(answer, _) => Ok(answer),
             Sent::Stream(mut stream) => {
                 wire::read(&mut stream, max, self.settings.answer_timeout).await.map_err(|e| Error::io(call, e))
             }
@@ -144,8 +144,8 @@ impl Client {
                 io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset | io::ErrorKind::TimedOut
             );
             let gone = cut && !wire::of_payload(&e);
-            if gone && let Some(answer) = self.answer_after_cut(call, &mut stream).await? {
-                return Ok(Sent::Answer(answer));
+            if gone && let Some((answer, cut)) = self.answer_after_cut(call, &mut stream).await? {
+                return Ok(Sent::Answer(answer, cut));
             }
             return Err(sent(call, e));
         }
@@ -154,21 +154,22 @@ impl Client {
 
     /// The answer that incus sent before it closed a connection whose
     /// request was still going out, or stopped reading it, within
-    /// [`LATE_ANSWER`] (or `answer_timeout`, where it is shorter). `None`
-    /// where no head came: the error of the write then says what happened.
+    /// [`LATE_ANSWER`] (or `answer_timeout`, where it is shorter), with the
+    /// size of an `error` envelope that the crate cut. `None` where no head
+    /// came: the error of the write then says what happened.
     /// An error of the body (a refusal by size, a silence) is the error of
     /// the call: the answer came, and it says more than the close.
-    async fn answer_after_cut(&self, call: &str, stream: &mut BoxedIo) -> Result<Option<Response>> {
+    async fn answer_after_cut(&self, call: &str, stream: &mut BoxedIo) -> Result<Option<(Response, Option<u64>)>> {
         let bound = Some(self.settings.answer_timeout.map_or(LATE_ANSWER, |bound| bound.min(LATE_ANSWER)));
         let Ok((mut answer, rest)) = wire::read_head_within(stream, bound).await else { return Ok(None) };
         let max = self.settings.max_body;
-        let (body, skimmed) =
+        let (body, cut) =
             wire::envelope_body(stream, &answer, rest, max, bound).await.map_err(|e| Error::io(call, e))?;
-        if skimmed {
+        if cut.is_some() {
             tracing::debug!(call, "an error envelope over the bound, read with its strings cut");
         }
         answer.body = body;
-        Ok(Some(answer))
+        Ok(Some((answer, cut)))
     }
 
     /// One request whose answer is an envelope. An `error` envelope over
@@ -180,19 +181,19 @@ impl Client {
     /// [`Client::envelope`] with `bound` for the silence of the answer: the
     /// wait for an operation gives `None` and keeps its own bound.
     pub(crate) async fn envelope_within(&self, call: &str, request: Request, bound: Option<Duration>) -> Result<Reply> {
-        let answer = match self.request(call, request).await? {
-            Sent::Answer(answer) => answer,
+        let (answer, cut) = match self.request(call, request).await? {
+            Sent::Answer(answer, cut) => (answer, cut),
             Sent::Stream(mut stream) => {
                 let max = self.settings.max_body;
-                let (answer, skimmed) =
+                let (answer, cut) =
                     wire::read_envelope(&mut stream, max, bound).await.map_err(|e| Error::io(call, e))?;
-                if skimmed {
+                if cut.is_some() {
                     tracing::debug!(call, "an error envelope over the bound, read with its strings cut");
                 }
-                answer
+                (answer, cut)
             }
         };
-        envelope::read(call, answer.status, &answer.body)
+        envelope::read(call, answer.status, &answer.body).map_err(|e| e.cut_at(cut))
     }
 
     /// `GET path?query`: the metadata of its sync answer.
@@ -274,15 +275,16 @@ impl Client {
 pub(crate) fn refused(call: &str, status: u16, reason: &str, body: &[u8]) -> Error {
     match envelope::read(call, status, body) {
         Err(e) => e,
-        Ok(_) => Error::new(call, ErrorKind::Incus { status, code: status, error: reason.to_string() }),
+        Ok(_) => Error::new(call, ErrorKind::Incus { status, code: status, error: reason.to_string(), cut: None }),
     }
 }
 
 /// A request that went out: the connection of its answer, or the answer
-/// that incus gave before the end of the request.
+/// that incus gave before the end of the request, with the size of an
+/// `error` envelope that the crate cut.
 enum Sent {
     Stream(BoxedIo),
-    Answer(Response),
+    Answer(Response, Option<u64>),
 }
 
 /// The error of a request that did not go out whole.

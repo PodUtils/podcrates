@@ -109,8 +109,8 @@ impl Client {
             }
             status => {
                 let max = self.settings().max_body;
-                let (body, _) = wire::envelope_body(&mut stream, &answer, rest, max, bound).await.map_err(io)?;
-                return Err(refused(&call, status, &answer.reason, &body));
+                let (body, cut) = wire::envelope_body(&mut stream, &answer, rest, max, bound).await.map_err(io)?;
+                return Err(refused(&call, status, &answer.reason, &body).cut_at(cut));
             }
         };
         let meta = meta_of(&call, &answer)?;

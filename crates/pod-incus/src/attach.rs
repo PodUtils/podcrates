@@ -220,12 +220,13 @@ impl Client {
         let bound = self.settings().answer_timeout;
         let (answer, rest) = read_head_within(&mut stream, bound).await.map_err(|e| Error::io(&call, e))?;
         if answer.status != 101 {
-            let (body, _) = crate::wire::envelope_body(&mut stream, &answer, rest, self.settings().max_body, bound)
+            let (body, cut) = crate::wire::envelope_body(&mut stream, &answer, rest, self.settings().max_body, bound)
                 .await
                 .map_err(|e| Error::io(&call, e))?;
-            envelope::read(&call, answer.status, &body)?;
+            envelope::read(&call, answer.status, &body).map_err(|e| e.cut_at(cut))?;
             let error = far_text(&answer.reason);
-            return Err(Error::new(&call, ErrorKind::Incus { status: answer.status, code: answer.status, error }));
+            let status = answer.status;
+            return Err(Error::new(&call, ErrorKind::Incus { status, code: status, error, cut: None }));
         }
         let upgraded = answer.header("upgrade").is_some_and(|v| v.eq_ignore_ascii_case("websocket"));
         let accepted = answer.header("sec-websocket-accept") == Some(pod_ws::handshake::accept_key(&key).as_str());

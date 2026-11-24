@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 981 entries: 158 open, 31 partial, 7 blocked, 785 done.
+`TODO/INDEX.md` holds 981 entries: 157 open, 31 partial, 7 blocked, 786 done.
 
 ## State
 
@@ -115,8 +115,7 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   for the parity of PodUtils/podrunner#316; podvm answered in COORD-147,
   #242); T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604); T-1032
   (the launcher of `pod-supervise` blocks before the start of the
-  payload); T-927 (PodUtils/podvm#584); T-1307 (`pod-incus`: a flag on a
-  cut `error` envelope; PodUtils/podvm#663); T-1321 (a C backend of
+  payload); T-927 (PodUtils/podvm#584); T-1321 (a C backend of
   `pod-gzip`, measured).
 - podnet: T-1117 (the limits of the legs of `pod-cloudflare` in podnet's
   documents); T-1135 (`pod-cloudflare` says a cause two times); T-879

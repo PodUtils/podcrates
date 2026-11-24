@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**981 entries: 158 open, 31 partial, 7 blocked, 785 done.**
+**981 entries: 157 open, 31 partial, 7 blocked, 786 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 229 | 243 |
 | P2 | 71 | 10 | 4 | 410 | 495 |
-| P3 | 83 | 11 | 3 | 144 | 241 |
-| **All** | 158 | 31 | 7 | 785 | 981 |
+| P3 | 82 | 11 | 3 | 145 | 241 |
+| **All** | 157 | 31 | 7 | 786 | 981 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1024,7 +1024,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1298](upkeep.md) | P1 | M | M6 | defect | partial | `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes |
 | [T-1299](upkeep.md) | P3 | S | M6 | feature | open | `pod-extract`: a stream of `flatten` that GNU tar as a user that is not root can unpack |
 | [T-1303](upkeep.md) | P2 | S | M5 | defect | partial | The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows |
-| [T-1307](podvm.md) | P3 | S | M6 | feature | open | `pod-incus`: a cut `error` envelope has no flag, so a caller reads the words of its text to know that the answer was over `max_body` (PodUtils/podvm#663) |
+| [T-1307](podvm.md) | P3 | S | M6 | feature | done | `pod-incus`: a cut `error` envelope has no flag, so a caller reads the words of its text to know that the answer was over `max_body` (PodUtils/podvm#663) |
 | [T-1321](podvm.md) | P3 | S | M6 | measurement | open | `pod-gzip`: measure a C backend of deflate against `miniz_oxide` at four threads |
 | [T-1325](upkeep.md) | P2 | S | M5 | defect | open | `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met its limit of 40 minutes in "Build the probe" |
 | [T-1326](upkeep.md) | P3 | S | M5 | chore | open | Three readers of the fields after the name in `/proc/PID/stat`: `pod-hostprobe`, `pod-supervise` and `pod-enter` |

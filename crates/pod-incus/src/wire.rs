@@ -248,28 +248,30 @@ pub const MAX_SKIMMED: u64 = 1 << 30;
 /// The answer of a request whose body is an envelope. A body over
 /// `max_body` whose start is an envelope of type `error` is read on, to
 /// [`MAX_SKIMMED`] bytes, with each string cut to its first bytes
-/// ([`crate::skim`]); true where it was. Another body over `max_body` is
-/// the refusal by size.
+/// ([`crate::skim`]); the size of the body that incus sent where it was.
+/// Another body over `max_body` is the refusal by size.
 pub(crate) async fn read_envelope<S: AsyncRead + Unpin>(
     stream: &mut S,
     max_body: usize,
     bound: Option<Duration>,
-) -> io::Result<(Response, bool)> {
+) -> io::Result<(Response, Option<u64>)> {
     let (mut answer, rest) = read_head_within(stream, bound).await?;
-    let (body, skimmed) = envelope_body(stream, &answer, rest, max_body, bound).await?;
+    let (body, cut) = envelope_body(stream, &answer, rest, max_body, bound).await?;
     answer.body = body;
-    Ok((answer, skimmed))
+    Ok((answer, cut))
 }
 
 /// The body of `answer` as [`read_envelope`] reads it, after the head and
-/// the bytes `rest` that came with it, with `bound` for each read.
+/// the bytes `rest` that came with it, with `bound` for each read. A body
+/// that declares more than `max_body` and ends before its end is the
+/// refusal by size: the size that it declared says more than the close.
 pub(crate) async fn envelope_body<S: AsyncRead + Unpin>(
     stream: S,
     answer: &Response,
     rest: Vec<u8>,
     max_body: usize,
     bound: Option<Duration>,
-) -> io::Result<(Vec<u8>, bool)> {
+) -> io::Result<(Vec<u8>, Option<u64>)> {
     let framing = Framing::of(answer, false);
     let limit = u64::try_from(max_body).unwrap_or(u64::MAX);
     let stream = quiet(stream, AnswerPhase::Body, bound);
@@ -278,7 +280,7 @@ pub(crate) async fn envelope_body<S: AsyncRead + Unpin>(
     let mut piece = vec![0u8; CHUNK];
     let refused = loop {
         match body.read(&mut piece).await {
-            Ok(0) => return Ok((whole, false)),
+            Ok(0) => return Ok((whole, None)),
             Ok(n) => whole.extend_from_slice(&piece[..n]),
             Err(e) if TooLarge::of(&e).is_some() => break e,
             Err(e) => return Err(e),
@@ -286,6 +288,7 @@ pub(crate) async fn envelope_body<S: AsyncRead + Unpin>(
     };
     let mut skim = Skim::new(KEPT_TEXT);
     skim.feed(&whole);
+    let mut size = whole.len() as u64;
     drop(whole);
     let head = TooLarge::of(&refused).map(|refusal| refusal.head.clone()).unwrap_or_default();
     let mut ahead = Skim::new(KEPT_TEXT);
@@ -294,10 +297,13 @@ pub(crate) async fn envelope_body<S: AsyncRead + Unpin>(
         return Err(refused);
     }
     loop {
-        let n = body.read(&mut piece).await?;
-        if n == 0 {
-            break;
-        }
+        let n = match body.read(&mut piece).await {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => return Err(refused),
+            Err(e) => return Err(e),
+        };
+        size += n as u64;
         skim.feed(&piece[..n]);
         // A body of another type, or one whose structure passes the bound
         // and one kept string, keeps the refusal.
@@ -308,7 +314,7 @@ pub(crate) async fn envelope_body<S: AsyncRead + Unpin>(
     if skim.top_type() != Some("error") {
         return Err(refused);
     }
-    Ok((skim.finish(), true))
+    Ok((skim.finish(), Some(size)))
 }
 
 /// `text` with each byte that is not unreserved (RFC 3986 section 2.3)
