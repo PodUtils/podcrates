@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**948 entries: 165 open, 29 partial, 7 blocked, 747 done.**
+**949 entries: 166 open, 29 partial, 7 blocked, 747 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 225 | 239 |
+| P1 | 5 | 10 | 0 | 225 | 240 |
 | P2 | 77 | 8 | 4 | 387 | 476 |
 | P3 | 84 | 11 | 3 | 133 | 231 |
-| **All** | 165 | 29 | 7 | 747 | 948 |
+| **All** | 166 | 29 | 7 | 747 | 949 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -995,3 +995,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1194](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: `flatten` keeps the hard links across layers, with the target before the link (PodUtils/podvm#657) |
 | [T-1195](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: `flatten` keeps the PAX records of the image, and takes a prefix and the entries of the caller (PodUtils/podvm#657) |
 | [T-1196](podvm.md) | P2 | M | M6 | feature | open | `pod-gzip`: a writer of gzip members, one member for each block, by up to eight threads, with the same bytes for any count of threads (PodUtils/podvm#657) |
+| [T-1205](podvm.md) | P1 | S | M6 | feature | open | `pod-hostprobe`: `usage::Mounts`, the three cgroup directories of a process from the text of `/proc/self/mountinfo`, where a mount of cgroup is refused (PodUtils/podvm#659) |

@@ -14167,3 +14167,54 @@ A new crate `pod-gzip` (a name in the crate table of `docs/design.md`, section 4
 cargo test -p pod-gzip --all-features
 cargo clippy -p pod-gzip --all-targets --all-features -- -D warnings
 ```
+
+# T-1205: `pod-hostprobe`: `usage::Mounts`, the three cgroup directories of a process from the text of `/proc/self/mountinfo`, where a mount of cgroup is refused (PodUtils/podvm#659)
+
+**Source:** PodUtils/podvm#659 (COORD-243 of podvm; PodUtils/podvm@T-2086, for PodUtils/podrunner#350), ask 1 to 5.
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm: "The init of an incus instance of podvm (PID 1) mounts the cgroup file systems at `/.podvm/.meter` and opens the files with `usage::Meter::v2`, `v1_memory` and `v1_cpu`. On a hosted ubuntu-24.04 runner (incus of apt, cgroup v2), the AppArmor profile of incus allows a cgroup mount only under `/sys/fs/cgroup`. The mount failed with EACCES, and each value was null (podvm `kvm.yml` run 45381917515, experiment 471; the kernel log: `apparmor="DENIED" operation="mount" ... name="/.podvm/.meter/" fstype="cgroup2"`). The instance already has the mounts that LXC made in its cgroup namespace at `/sys/fs/cgroup`." The usage of a cgroup is the work of T-1120 (PodUtils/podvm#650). Without this entry each value of the meter is `None` on that runner, so podvm cannot report the CPU time, the peak of memory and the OOM kills of a run of an incus instance.
+
+The ask: a function of `pod_hostprobe::usage` that gives the three directories of `Meter::open(v2, v1_memory, v1_cpuacct)` from a text of `/proc/self/mountinfo`.
+
+1. A line with `cgroup2` as the file system type gives `v2`. A line with `cgroup` gives `v1_memory` where its super options hold the item `memory`, and `v1_cpuacct` where they hold `cpuacct` (an item, not a prefix: `memoryx` is not `memory`).
+2. Only a mount whose field `root` is `/` counts. In a cgroup namespace it is the root of the namespace. A mount of a sub-tree is another cgroup.
+3. The octal escapes of the mount point are undone (`\040`). A bad or cut escape, a path that is not absolute, or a line with no ` - ` does not count.
+4. The last line of a kind wins: a later mount at a point covers an earlier one.
+5. A check of each mount point with `statfs(2)` (`CGROUP2_SUPER_MAGIC`, `CGROUP_SUPER_MAGIC` 0x27e0eb), so that a mount over the point hides it. podvm gives the check as a function, so that a test can give the type.
+
+podvm has its own copy in `PodUtils/podvm:crates/podvm/src/incus/usage/mounts.rs` at `88e1a0d`, and takes the function at the next tag that has it. Its table test is `the_cgroup_mounts_of_the_instance_come_from_mountinfo` (`PodUtils/podvm:crates/podvm/src/incus/usage_tests.rs`): a hosted runner, a sub-tree, the hybrid layout, an option that only starts with `memory`, an escaped space, a bad and a cut escape, a relative path, no separator, too few fields, another file system, the last line, empty, and a tmpfs over the mount point. podvm also chooses, of two meters, the one that reads more values (`incus::usage::better`); that part stays in podvm.
+
+## Premise
+
+- Read: PodUtils/podvm#659 (the author is a COLLABORATOR); `crates/pod-hostprobe/src/usage.rs` (`Meter::open(v2, v1_memory, v1_cpuacct)` takes three `Option<&Path>` and opens the files; it reads no mountinfo and mounts nothing); `crates/pod-hostprobe/src/cgroup.rs` (`ROOT`, `CGROUP2_SUPER_MAGIC` from `linux_raw_sys`, and `probe`, which reads `/proc/self/cgroup` and runs `statfs` on `/sys/fs/cgroup` alone); `crates/pod-hostprobe/src/sys/statfs.rs` (`statfs(&CBuf) -> Result<Statfs, Errno>` with `f_type`, correct on 32-bit targets); `crates/pod-hostprobe/src/mounts.rs` (the verdicts of mount probes, not a reader of mountinfo). `linux-raw-sys` has `CGROUP_SUPER_MAGIC`.
+- Reuse: no module of the workspace parses a line of mountinfo. The one reader is `pod_testkit::nobody::mount_options` (`crates/pod-testkit/src/nobody.rs`): it is test support, takes the field 4 (the mount point) as plain text with no unescape, and returns the options of the top mount; it reads no file system type and no root. It stays as it is: a product crate does not depend on `pod-testkit`. `scripts/codegraph.py similar mountinfo` and `similar octal escape mount point` found no other reader or unescape of the octal form (`pod-incus::wire::escape` and the others write escapes of other formats).
+- Format of a line (`proc(5)`): `ID PARENT MAJ:MIN ROOT MOUNTPOINT OPTIONS [OPTIONAL...] - FSTYPE SOURCE SUPEROPTIONS`. The optional fields are 0 or more, so the separator ` - ` locates the end of them; the kernel escapes space, tab, newline and backslash in the mount point as `\040`, `\011`, `\012` and `\134`.
+- Not read: the code of podvm at `88e1a0d` (the mirror holds the issue, and the file is a copy that podvm moves here; its table test is the oracle of the cases above). Not measured: a hosted runner; the AppArmor refusal is the report of podvm.
+
+## Approach
+
+A new file crates/pod-hostprobe/src/usage/mounts.rs (a module of `usage`, which has 244 lines; each file stays under 500 lines), with the table of tests in crates/pod-hostprobe/src/usage/mounts/tests.rs. The module is pure: it reads no file and calls no system call, except in the one function that takes the `statfs`.
+
+1. The type: `pub struct Mounts { pub v2: Option<PathBuf>, pub v1_memory: Option<PathBuf>, pub v1_cpuacct: Option<PathBuf> }` with `Mounts::of(mountinfo: &str) -> Mounts` and `Mounts::of_host() -> Mounts` (reads `/proc/self/mountinfo` bounded by `MAX_FILE` times 16, takes the check of the type from `statfs`). A method `Mounts::meter(&self) -> Meter` calls `Meter::open(v2, v1_memory, v1_cpuacct)` with the three directories, so that a caller needs no glue.
+2. The order of the sources, for each line: split at the first ` - ` that follows the field 6 (the first six fields are `ID PARENT MAJ:MIN ROOT MOUNTPOINT OPTIONS`; the optional fields end at the separator, which is a field by itself); take `FSTYPE` and `SUPEROPTIONS` after it (the source field is the middle one; a line with fewer than 3 fields after the separator does not count). `ROOT` must be `/` (ask 2; a root that holds an octal escape is not `/`, so no unescape of it). `FSTYPE` `cgroup2` sets `v2`. `FSTYPE` `cgroup` sets `v1_memory` for the item `memory` in the comma list of `SUPEROPTIONS`, and `v1_cpuacct` for the item `cpuacct` (the whole item: `memoryx` does not count; a mount of `cpu,cpuacct` sets `v1_cpuacct` only, a mount of `memory,hugetlb` sets `v1_memory`).
+3. The mount point: undo `\NNN` (exactly three octal digits, value up to 255, bytes, not chars, then a UTF-8 check: a point that is not UTF-8 does not count, as `Path` takes bytes on Unix and `OsStr::from_bytes` keeps it, so keep the bytes as `PathBuf` through `OsStringExt`). A bad escape (`\9`, `\1x`), a cut one (`\04` at the end), a path that is not absolute, or a point with a NUL does not count. A line that does not count leaves the earlier value as it was (the line is skipped, not an error). `Mounts` keeps no reason for it.
+4. The last line wins: a later line of a kind replaces the earlier one (ask 4), but only a line that counts and whose mount point passes the check. The check is an argument: `Mounts::of_with(mountinfo: &str, magic: &dyn Fn(&Path) -> Option<u64>)` asks `magic` for the `f_type` of the mount point, and the line counts where the answer is the expected one (`CGROUP2_SUPER_MAGIC` for `cgroup2`, `CGROUP_SUPER_MAGIC` for `cgroup`). A mount point that a tmpfs covers answers the type of the tmpfs, so its line does not count and the earlier line of the kind stays. `Mounts::of` is `of_with` with a check that always agrees. `of_host` passes the `statfs` of `crate::sys` (`CBuf::new(path)` then `sys::statfs`, field `f_type`); the constants are `cgroup::CGROUP2_SUPER_MAGIC` and a new `CGROUP_SUPER_MAGIC` beside it, both from `linux_raw_sys`. The test names this choice.
+5. The bounds: at most 4096 lines are read, and a line past 8 KiB does not count, so that a hostile `mountinfo` costs a bounded work; the result has at most 3 paths.
+6. Tests (the table of podvm, as a table in crates/pod-hostprobe/src/usage/mounts/tests.rs): a hosted runner of cgroup2 (`/sys/fs/cgroup` of type `cgroup2`, with the optional fields `shared:5`); a hybrid layout with `cpu,cpuacct` and `memory`; a sub-tree (root `/lxc/x`) does not count; `memoryx` is not `memory`; an escaped space (`/a\040b`); a bad escape; a cut escape; a relative mount point; no ` - `; too few fields; `tmpfs` as `FSTYPE`; two lines of one kind, the last wins; an empty text; a tmpfs over the mount point (the check returns the tmpfs type: the line before wins, or the field is `None`); a line of 9 KiB. A test of `meter`: the three paths reach `Meter::open` (a tempdir with the files of `cgroup2` gives `Version::V2`). A test of `of_host`: the call returns with no panic and, where `/sys/fs/cgroup` is cgroup2, `v2` is a directory that exists (skip with a reason where the host has no cgroup file system, as the other host tests of the crate do).
+7. Docs: the row `usage` of `crates/pod-hostprobe/README.md` and the adoption map of `docs/design.md` (the row of `podvm::incus::usage::Meter`) name `Mounts`; podvm opens the meter with `Mounts::of_host().meter()` where its own mount at `/.podvm/.meter` fails (EACCES), and keeps `better`. The `SOURCES` file of the crate names `PodUtils/podvm:crates/podvm/src/incus/usage/mounts.rs` at `88e1a0d`.
+8. The hand-off: a COORD issue `(to podvm)` with the tag; podvm replaces its copy of `mounts.rs` with `usage::Mounts` on that day. The release tag follows the rule of `docs/maintenance.md`.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features usage
+cargo clippy -p pod-hostprobe --all-targets --all-features -- -D warnings
+python3 -I scripts/codegraph.py similar mountinfo
+```
