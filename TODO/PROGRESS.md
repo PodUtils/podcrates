@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 930 entries: 160 open, 28 partial, 7 blocked, 735 done.
+`TODO/INDEX.md` holds 937 entries: 166 open, 28 partial, 7 blocked, 736 done.
 
 ## State
 
@@ -40,7 +40,7 @@
   T-207, #70).
 - Red runs: the nightly (T-916 partial, T-938, T-789, T-766, T-1161 partial, for
   `riscv64` and `loongarch64`; the jobs of Windows and macOS pass);
-  `services.yml` (T-1034 alone).
+  none in `services.yml`: T-1034 is done; read the next scheduled run.
 - Open defects: T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
   a giver still waits its whole limit after a refusal of the relay);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
@@ -88,8 +88,8 @@ them by COORD issues, podrunner's first. Amend the hand-off COORD-152
 (#257) at each take (podrunner has taken `v0.82.1`), and answer
 PodUtils/podvm#570 in the next COORD message to podvm (T-1162). Then, in
 podcrates: the red nightly (T-916, T-938, T-1161),
-T-1053 (a lossy run of E2-1 that takes 20 s), the red `services.yml`
-(T-1034) and the red live run (T-963). Then the asks of podrunner
+T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
+`services.yml` run (read it) and the red live run (T-963). Then the asks of podrunner
 (COORD-134, #225): each new ask of podrunner. Then the entries that a need
 of githome or cfb names for their CI: T-106 (partial; cfb's A-X-18 waits
 for cfb's answer on #223, call C792), T-1118 (podnet writes the
@@ -113,7 +113,11 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
 - podnet: T-1117 (the limits of the legs of `pod-cloudflare` in podnet's
   documents); T-1135 (`pod-cloudflare` says a cause two times); T-879
   (`pod-detach`); T-897.
-- podssh: T-1144 (the sans-IO transfer codec of `pod-term` for a pty that
+- podssh: T-1164 and T-1165 (the DNS listener of `pod-link` answers each
+  query of its zone, and a query of a new session id does not hold a
+  slot 20 s; PodUtils/podssh#349, COORD-139), then T-1166 to T-1169 (the
+  same issue: a held poll, a carrier with no TLS, DNS over HTTPS, a test
+  through `unbound`); T-1144 (the sans-IO transfer codec of `pod-term` for a pty that
   damages ZMODEM; PodUtils/podssh#346, #258); T-1103 (iroh 1.5 and its fork
   of iroh-relay, after PodUtils/podssh#341); T-1095 (the order of the
   pseudo-fields of the HTTP/2 request of `pod-ws`; PodUtils/podssh#340);
@@ -179,7 +183,8 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
    first; then T-036 (with T-856, the vectors of `tokens.json`), T-039.
 10. **M5, the upkeep:** T-932 (the temp files, PodUtils/podvm#567), T-917
    (the copies of product code that `codegraph.py dups` finds), T-1115
-   (the two copies of the bind of a Unix socket at a long path), T-928 (the
+   (the two copies of the bind of a Unix socket at a long path), T-1163 (two
+   more readers of `Retry-After`), T-928 (the
    other readers of an HTTP/1.1 head), T-918 (the helpers that the tests
    copy), T-1044 (the doc tests that the checks for Windows and macOS do
    not compile), T-1146 (the comments of `pod-natprobe` in ASD-STE100);

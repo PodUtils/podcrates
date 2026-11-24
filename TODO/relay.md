@@ -11161,3 +11161,243 @@ the kind `stun` of the catalog. `cargo test -p pod-natprobe
 --all-features`: 37 passed, 1 ignored; `cargo clippy -p pod-natprobe
 --all-targets --all-features -- -D warnings`: no warning.
 
+
+# T-1164: `pod-link`: the DNS listener sends no answer to a query that is not TXT or whose name does not decode, so a resolver retries and serves SERVFAIL (PodUtils/podssh#349)
+
+**Source:** PodUtils/podssh#349 (COORD-139 of podssh), finding 1.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`answer` of `crates/pod-link/src/dns/server.rs` returns with no answer when
+the type of the question is not TXT (`if kind != txt::TXT { return; }`),
+when the name under the zone does not decode (`wire::decode_query`), and
+when a query of a new session comes after the stop or at the limit of the
+handshakes. The header of the module says that a wrong name gets an empty
+answer. A recursive resolver that gets no answer sends the query again,
+then serves SERVFAIL, and some resolvers keep the failure in their cache.
+A resolver that minimises the query name (RFC 9156) asks the zone for
+partial names and other types first.
+
+## Premise
+
+- Read: `crates/pod-link/src/dns/server.rs` (`answer`) at `v0.82.1`, as
+  the text of podssh#349 gives.
+- Not measured: a resolver that caches the failure of the zone.
+
+## Approach
+
+An authoritative answer (AA) for each query of the zone that the server
+cannot take: NOERROR with no record for a name of the zone of another type
+or a partial name (a resolver that minimises the name goes on), NXDOMAIN
+or REFUSED for a name out of the zone. A query of a new session at the
+limit stays with no answer, so the dialer sends it again (the comment of
+`answer`). Tests: an A query and a TXT query of a partial name, each with
+its answer read; the header of the module says what each case gets.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features dns
+```
+
+# T-1165: `pod-link`: a query with a new session id takes a handshake slot of the DNS listener for 20 s before any key is checked (PodUtils/podssh#349)
+
+**Source:** PodUtils/podssh#349 (COORD-139 of podssh), finding 2.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A query with a session id that the listener does not hold takes a permit
+of `max_handshakes` (64) and holds it until `dgram_tls::accept` ends or
+`handshake_timeout` (20 s) runs out. 64 queries with new random ids, from
+any address, keep the listener from taking a real dialer for 20 s, and the
+sender can do it again each 20 s. The UDP and TCP carriers bound the same
+class with their own limits; the DNS carrier has no source address that
+it can trust, as the queries come from resolvers.
+
+## Premise
+
+- Read: `crates/pod-link/src/dns/server.rs` (`answer`, the semaphore
+  `limit`) at `v0.82.1`.
+- Not measured: the time that a real dial takes after 64 queries of new
+  ids.
+
+## Approach
+
+A test first: 64 queries of new ids, then a real dial, timed. Then a slot
+that costs the sender work the listener can check at once: the first
+datagram of a session carries the ClientHello of TLS, so a session whose
+first datagram is not a ClientHello of the ALPN of the link frees its slot
+at once; a session that sends nothing more after its first datagram frees
+its slot after a short bound (some seconds), not after the whole
+handshake limit. Measure both against the test; record the bound in the
+documentation of `Dns`.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features dns
+```
+
+# T-1166: `pod-link`: the DNS listener answers each poll at once; a held poll (dnstt's 1 s) halves the idle queries and cuts the latency of data down (PodUtils/podssh#349)
+
+**Source:** PodUtils/podssh#349 (COORD-139 of podssh), finding 3.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The listener answers each query at once, also when it has no datagram
+down. The dialer then polls at its own interval, so data down waits for
+the next poll, and an idle link sends about 2,000 queries in one hour at
+the defaults (podssh's count). dnstt holds an empty poll for up to 1 s
+(`maxResponseDelay`) and answers it when data down comes.
+
+## Premise
+
+- Read: the text of podssh#349; `crates/pod-link/src/dns/server.rs`
+  (`answer`, `drain`) and `client.rs` (the poll interval).
+- Not measured: the queries of one idle hour and the latency of data down,
+  before and after; the timeout of the query in common resolvers (the
+  hold must stay well under it).
+
+## Approach
+
+A setting of `DnsSettings` (`hold`, default 1 s, 0 for no hold): a query
+with no datagram up and no datagram down waits up to `hold` for a datagram
+down of its session, then gets its answer. The reader of the socket does
+not wait: the held query goes to the session. Measure the idle queries and
+the latency of data down in a test with a fixed clock or a short hold, and
+keep the hold below the retry time of a resolver.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features dns
+```
+
+# T-1167: `pod-link`: an option to carry the ARQ of the DNS carrier with no TLS for a caller that seals above (PodUtils/podssh#349)
+
+**Source:** PodUtils/podssh#349 (COORD-139 of podssh), finding 4.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The DNS carrier runs DTLS-like TLS (`dgram_tls`) under its ARQ. A caller
+that seals its own stream above (podssh's Noise layer) pays a TLS record
+in each datagram: about 2.6 KB/s up and 18 KB/s down at the defaults
+(podssh's count), on a carrier where each byte costs a query.
+
+## Premise
+
+- Read: the text of podssh#349; `crates/pod-link/src/dgram_tls.rs` and
+  `dns/*.rs`.
+- Not measured: the overhead of a record in a datagram of the carrier.
+
+## Approach
+
+A carrier option that is explicit at both ends (the name of the carrier or
+a field of its settings, so that an end with TLS refuses an end without):
+the ARQ with no TLS, and no pin of the key of the peer. The documentation
+says that the caller must authenticate and seal the stream itself. A test
+of the bare form, and a test that a bare end and a TLS end do not pair.
+Measure the bytes of each datagram with and without.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features dns
+```
+
+# T-1168: `pod-link`: the datagrams of the DNS carrier over DNS over HTTPS (RFC 8484), for a dialer behind an HTTP proxy with no UDP (PodUtils/podssh#349)
+
+**Source:** PodUtils/podssh#349 (COORD-139 of podssh), the fifth ask.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The dialer of the DNS carrier sends UDP queries to a resolver. podssh's
+rule 2 allows one outbound connection through `HTTPS_PROXY`; UDP needs a
+ruling of the operator (podssh's Q107). A `Datagrams` of the dialer that
+sends each query as DNS over HTTPS (POST or GET of RFC 8484) to a public
+resolver, through the proxy, needs none.
+
+## Premise
+
+- Read: the text of podssh#349; `pod-dns` (its DoH client, `pod-proxy`'s
+  client through a proxy); `crates/pod-link/src/dns/client.rs`.
+- Not measured: the limits of the public DoH resolvers for a stream of
+  TXT queries (a 429).
+
+## Approach
+
+A dialer `Datagrams` over the DoH client of `pod-dns` (one HTTP/2 or
+HTTP/1.1 connection, through the proxy of the dial): each datagram up is
+one query, each answer one datagram down. A 429 pauses the sends for the
+`Retry-After` (`pod_core::clock::retry_after_secs`), bounded. Tests against
+a DoH stand-in on the loopback with the listener of the carrier behind it,
+and a 429 of the stand-in. A row of `docs/live-calls.md` for a live run.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features dns
+```
+
+# T-1169: `pod-link`: a test of the DNS carrier through `unbound` with its default settings, in the box of CI (PodUtils/podssh#349)
+
+**Source:** PodUtils/podssh#349 (COORD-139 of podssh), the last ask.
+**Category:** chore
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Each test of the DNS carrier runs against resolvers that podcrates wrote
+or set (the stand-ins, CoreDNS). A resolver that nobody here wrote, with
+its default settings, can do what a stand-in does not: `unbound` minimises
+query names (RFC 9156), sends other types, retries, and caches failures.
+The findings T-1164 and T-1165 are of this class.
+
+## Premise
+
+- Read: the text of podssh#349; the CoreDNS stand-in of T-350
+  (`docs/live-calls.md`, call C151: a server of another party runs on the
+  loopback from a pinned artifact).
+- Not measured: a pairing through `unbound`.
+
+## Approach
+
+A static `unbound` from a pinned artifact (PodUtils/static-pkgs, or a
+pinned package of the image of CI), on the loopback, with a stub zone that
+points at the listener of the carrier and the defaults otherwise. A test
+that pairs through it and moves data both ways; it skips with its reason
+where the artifact is absent, and a job of `ci.yml` has it. After T-1164.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test dns_unbound -- --nocapture
+```

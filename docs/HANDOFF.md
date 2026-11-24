@@ -12,7 +12,8 @@ is done. Git and the record keep finished work.
 1. Start the watcher under the Monitor tool and keep it running
    (`docs/maintenance.md`, "The issue loop"). Read the open COORD issues
    `(to podcrates)` of each repository of PodUtils. Each one maps to an
-   entry (PodUtils/podvm#570, COORD-183, maps to T-1162). Map each new one
+   entry (PodUtils/podvm#570, COORD-183, maps to T-1162; PodUtils/podssh#349,
+   COORD-139, maps to T-1164 to T-1169). Map each new one
    in the same commit.
 2. Coordinate the five sessions by COORD issues alone (the rulings
    "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),
@@ -37,7 +38,8 @@ is done. Git and the record keep finished work.
      clone of podrunner `27a2e5d` shows 0 changes. Read the next daily run.
    - `services.yml`: the scheduled run 45159148662 failed; the dispatches
      45174182632 and 45174187730 passed. T-1034 (`temp-sh` gets 429 from a
-     runner) is the one open entry.
+     runner) is done: a limit of the host gets one more try. Read the next
+     scheduled run.
    - `live.yml`: T-963 (partial; the second Nostr relay is `nos.lol`).
    - `publish.yml` 45321873395, the dry run on `v0.82.1`, passed.
    - `docs/research/hard-problems.md` has the hard open problems (H-01 to
@@ -69,6 +71,9 @@ is done. Git and the record keep finished work.
     - A push of this account starts the runs of Actions. Dispatch a
       workflow with the GitHub MCP tool (`actions_run_trigger`); no request
       `[gh action] requested` is needed.
+    - Delegate by the ruling "Delegation": Opus agents (medium or high
+      effort) implement entries; Sonnet agents (high effort) do housekeeping,
+      recon and basic fixes; the session coordinates and reviews.
     - The usage limit can stop an agent in a build. Tell each agent to
       commit early on its local branch (`docs/maintenance.md`, "Rules of
       the work").
@@ -128,9 +133,11 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
 - podssh: the STUN note above, T-1095 (the order of the pseudo-fields of
   the HTTP/2 request of `pod-ws`, PodUtils/podssh#340), T-1103 (iroh 1.5).
 - Asks of podvm and podssh that no one has started: T-1155, T-1156 and
-  T-1157 (`pod-incus`, PodUtils/podvm#653), T-1144 (`pod-term`).
+  T-1157 (`pod-incus`, PodUtils/podvm#653), T-1144 (`pod-term`), T-1164 to
+  T-1169 (`pod-link`, the DNS carrier; PodUtils/podssh#349).
 - Entries of podcrates that no one has started: T-1162
-  (the answer to PodUtils/podvm#570), T-1115 (the copies of the bind at a
+  (the answer to PodUtils/podvm#570), T-1163 (two more readers of
+  `Retry-After`), T-1115 (the copies of the bind at a
   long path), T-1135 (`pod-cloudflare` says a cause two times), T-1146 (the
   comments of `pod-natprobe` are not in ASD-STE100), T-1150 (a watch of the
   facts of RFC 5780 of `easybell-stun`).

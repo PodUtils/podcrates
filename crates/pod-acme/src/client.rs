@@ -211,17 +211,8 @@ fn cut(text: String, max: usize) -> String {
 /// How long to wait before asking again: the answer's Retry-After, in
 /// seconds or as a date, from 1 to 10 s; else 2 s.
 pub fn retry_after(answer: &Response, now_secs: i64) -> Duration {
-    let asked = answer.header("retry-after").and_then(|v| seconds_of(v.trim(), now_secs));
+    let asked = answer.header("retry-after").and_then(|v| pod_core::clock::retry_after_secs(v, now_secs));
     Duration::from_secs(asked.unwrap_or(2).clamp(1, 10))
-}
-
-/// Retry-After's seconds, or the seconds until its date (RFC 9110).
-fn seconds_of(value: &str, now_secs: i64) -> Option<u64> {
-    if let Ok(secs) = value.parse::<u64>() {
-        return Some(secs);
-    }
-    let at = pod_core::clock::parse_http_date(value)?;
-    Some(u64::try_from(at.saturating_sub(now_secs)).unwrap_or(0))
 }
 
 #[cfg(test)]

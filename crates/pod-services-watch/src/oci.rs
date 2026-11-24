@@ -143,15 +143,10 @@ async fn head(
     }
     let mut answer = net.send(request.clone()).await?;
     // A registry limits anonymous reads (429): one more try after the wait
-    // that it asks, at most RETRY_MOST.
-    if answer.status == 429 {
-        let wait = answer.header("retry-after").and_then(|w| w.trim().parse().ok()).unwrap_or(5u64);
-        tokio::time::sleep(std::time::Duration::from_secs(wait).min(RETRY_MOST)).await;
+    // that it asks.
+    if let Some(wait) = crate::net::limit_wait(answer.status, answer.header("retry-after")) {
+        tokio::time::sleep(wait).await;
         answer = net.send(request).await?;
     }
     Ok((answer.status, answer.header("docker-content-digest").map(str::to_string)))
 }
-
-/// The longest wait before the second try of a HEAD that a registry
-/// limited.
-const RETRY_MOST: std::time::Duration = std::time::Duration::from_secs(30);

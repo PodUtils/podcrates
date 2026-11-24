@@ -7757,7 +7757,7 @@ cargo test -p pod-dns --all-features --lib resolver
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7788,6 +7788,23 @@ same answer fails). Share the rule of `oci.rs` and each HTTP watch in one place.
 ```sh
 cargo test -p pod-services-watch --all-features
 ```
+
+## Done
+
+2026-11-24, the commits of this entry. `pod_core::clock::retry_after_secs` is the one reader of `Retry-After`
+(seconds or a date); `pod-acme` and `pod-opentunnel` use it, so `pod-opentunnel` reads a date too.
+`pod_services_watch::net::limit_wait` says that a 429, or a 503 with `Retry-After`, is a limit of the host of the
+run: the wait is the one that the host asks (5 s when a 429 asks none), at most 30 s. `http::status` and
+`oci::head` try once more after that wait. Two limits in a row give `Finding::no_answer` (the class of call
+C153), not a failure. Tests: `pod-core` `a_retry_after_is_seconds_or_a_date`, `pod-opentunnel`
+`a_retry_after_may_be_a_date`, `pod-services-watch` `limit_tests::a_429_or_a_503_with_a_wait_is_a_limit_of_the_host`
+and `tests/watches/http.rs::http_status_tries_a_limit_once_more`. Clippy with `-D warnings` is clean;
+`cargo test --all-features`: `pod-core` 102, `pod-acme` 26, `pod-services-watch` 10 + 71, `pod-opentunnel` 26 in the
+unit tests, all passed. With the retry in `http::status` switched off, the test fails:
+`FAILED l1 http-status: https://stand.test:PORT/once answered 429 ... a limit of the host of the run, not 405`
+(the stand-in answers 429 once, then 405). The next scheduled `services.yml` run shows whether `temp-sh` still
+answers 429 to two tries; read it.
+
 
 # T-1137: `pod-proxy`: a body over the bound is refused with no status, no size, no bound and no byte of the body (PodUtils/podvm#651)
 

@@ -228,6 +228,31 @@ async fn http_status_wants_the_status() {
     assert!(text(&report).contains("answered 404, not 200"), "{}", text(&report));
 }
 
+/// A 429 of `http-status` is a limit of the host of the run: one more try
+/// after the wait that it asks; two in a row are the class "no answer",
+/// not a moved status (T-1034).
+#[tokio::test]
+async fn http_status_tries_a_limit_once_more() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    pod_testkit::need_loopback!();
+    let once = AtomicUsize::new(0);
+    let stand = https(move |request: &Request| match request.path() {
+        "/limited" => Answer::new(429, "slow down").header("Retry-After", "0"),
+        "/once" if once.fetch_add(1, Ordering::SeqCst) == 0 => Answer::new(429, "slow down").header("Retry-After", "0"),
+        "/once" => Answer::new(405, "no"),
+        _ => Answer::new(404, "no"),
+    });
+    let ep = endpoint("up", "https", NAME, stand.port(), "");
+    let w = |path: &str| {
+        ep.clone() + &watch(&format!("kind = \"http-status\"\nendpoint = \"up\"\npath = \"{path}\"\nstatus = 405"))
+    };
+    let report = one(&file("l1", &w("/once"))).await;
+    assert!(report.holds(), "{}", text(&report));
+    let report = one(&file("l2", &w("/limited"))).await;
+    assert!(report.outcome.no_answer(), "{}", text(&report));
+    assert!(text(&report).contains("answered 429 two times"), "{}", text(&report));
+}
+
 /// `http-text` reads its URL, where the service of the file has no
 /// endpoint, as a relay of SSH whose document is on another host; or the
 /// URL of an endpoint.

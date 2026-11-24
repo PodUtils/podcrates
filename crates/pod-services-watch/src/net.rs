@@ -19,6 +19,23 @@ use tokio_rustls::client::TlsStream;
 use crate::Finding;
 use crate::heard::Heard;
 
+/// The longest wait before the second try of a request that the host
+/// limited.
+pub(crate) const LIMIT_WAIT_MOST: Duration = Duration::from_secs(30);
+
+/// The wait before a second try when an answer is a limit of the host of
+/// the run, not an answer about a fact: a 429, or a 503 with a
+/// `Retry-After`. The wait is the one that the host asks (5 s when a 429
+/// asks none), at most [`LIMIT_WAIT_MOST`]. `None` for each other answer.
+pub(crate) fn limit_wait(status: u16, retry_after: Option<&str>) -> Option<Duration> {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    let asked = retry_after.and_then(|v| pod_core::clock::retry_after_secs(v, i64::try_from(now).unwrap_or(i64::MAX)));
+    match (status, asked) {
+        (429, _) | (503, Some(_)) => Some(Duration::from_secs(asked.unwrap_or(5)).min(LIMIT_WAIT_MOST)),
+        _ => None,
+    }
+}
+
 /// The bases of the public APIs that some watch kinds read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Bases {
@@ -268,4 +285,19 @@ pub(crate) fn silent(dial: &DialError) -> bool {
 /// A URL with no query, for a line: a query may hold a token.
 pub fn shown(url: &str) -> &str {
     url.split('?').next().unwrap_or(url)
+}
+
+#[cfg(test)]
+mod limit_tests {
+    use super::*;
+
+    #[test]
+    fn a_429_or_a_503_with_a_wait_is_a_limit_of_the_host() {
+        assert_eq!(limit_wait(429, None), Some(Duration::from_secs(5)));
+        assert_eq!(limit_wait(429, Some("2")), Some(Duration::from_secs(2)));
+        assert_eq!(limit_wait(429, Some("3600")), Some(LIMIT_WAIT_MOST));
+        assert_eq!(limit_wait(503, Some("1")), Some(Duration::from_secs(1)));
+        assert_eq!(limit_wait(503, None), None, "a 503 with no wait is an answer");
+        assert_eq!(limit_wait(405, Some("1")), None);
+    }
 }

@@ -9,7 +9,7 @@ use pod_services::{Service, Value, Watch};
 use serde_json::Value as Json;
 
 use crate::args::{Args, https_url, named};
-use crate::net::shown;
+use crate::net::{limit_wait, shown};
 use crate::{Checked, Finding, Net, Outcome};
 
 /// `http-json`: the document at `url` has a value at `pointer`; with
@@ -274,8 +274,26 @@ pub async fn status(service: &Service, watch: &Watch, net: &Net) -> Checked {
     let mut out = Outcome::default();
     for endpoint in args.endpoints()? {
         let url = https_url(endpoint, args.opt_text("path"));
-        match net.streamed(net.request("GET", &url)).await {
+        let request = net.request("GET", &url);
+        let mut answer = net.streamed(request.clone()).await;
+        // A limit of the host of the run says nothing of the endpoint: one
+        // more try after the wait that the host asks.
+        if let Some(wait) = answer.as_ref().ok().and_then(|a| limit_wait(a.status, a.header("retry-after"))) {
+            drop(answer);
+            tokio::time::sleep(wait).await;
+            answer = net.streamed(request).await;
+        }
+        match answer {
             Ok(answer) if i64::from(answer.status) == want => out.saw(format!("{} answered {want}", shown(&url))),
+            // Two limits in a row are the class "no answer" (call C153): a
+            // first one does not fail the run.
+            Ok(answer) if limit_wait(answer.status, answer.header("retry-after")).is_some() => {
+                out.found(Finding::no_answer(format!(
+                    "{} answered {} two times, a limit of the host of the run, not {want}",
+                    shown(&url),
+                    answer.status
+                )))
+            }
             Ok(answer) => out.found(Finding::failed(format!("{} answered {}, not {want}", shown(&url), answer.status))),
             Err(finding) => out.found(finding),
         }

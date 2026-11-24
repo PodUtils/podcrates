@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**930 entries: 160 open, 28 partial, 7 blocked, 735 done.**
+**937 entries: 166 open, 28 partial, 7 blocked, 736 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 6 | 10 | 0 | 221 | 237 |
-| P2 | 73 | 8 | 4 | 381 | 466 |
-| P3 | 81 | 10 | 3 | 131 | 225 |
-| **All** | 160 | 28 | 7 | 735 | 930 |
+| P2 | 74 | 8 | 4 | 382 | 468 |
+| P3 | 86 | 10 | 3 | 131 | 230 |
+| **All** | 166 | 28 | 7 | 736 | 937 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -891,7 +891,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1031](fleet.md) | P3 | S | M8 | measurement | open | `pod-broker`: a Go job on macOS refuses the leaf of the job, and no variable gives Go the CA |
 | [T-1032](podvm.md) | P3 | S | M6 | defect | open | `pod-supervise`: a signal of the list to the detached launcher between the start of the payload and its block ends the launcher |
 | [T-1033](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: podvm's two rules for the take of `check_exec_argv` and `check_exec_guest`: a rule over a volume, and the `#!` chain (PodUtils/podvm#613) |
-| [T-1034](transport.md) | P2 | S | M1 | defect | open | `pod-services`: the watch `http-status` of the upload of `temp-sh` gets 429 from a runner of GitHub, not 405 |
+| [T-1034](transport.md) | P2 | S | M1 | defect | done | `pod-services`: the watch `http-status` of the upload of `temp-sh` gets 429 from a runner of GitHub, not 405 |
 | [T-1035](podvm.md) | P1 | S | M7 | defect | done | `pod-guest`: the live test of the warm start expects QEMU 11.0 to save the NVMe root disk of the plan, and only QEMU 11.1.0 and later migrate an NVMe device |
 | [T-1036](podvm.md) | P3 | S | M6 | defect | done | `pod-supervise`: `end_tree` waits on one pidfd at a time, so a tree with the init of a PID namespace and a second process of it waits the whole `TREE_KILL_MS` (PodUtils/podvm#624) |
 | [T-1037](podvm.md) | P2 | S | M7 | defect | done | `pod-guest`: `qmp::Monitor` waits 5 s for one answer with no bound of the caller and no read of a late answer, so a slow `query-migrate` fails a save (PodUtils/podvm#618) |
@@ -977,3 +977,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1160](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the fork fact of a job in the fake githome follows podrunner's rule of `e629fa8` (the second port after T-1122) |
 | [T-1161](upkeep.md) | P2 | S | M5 | defect | partial | `pod-control`: `a_call_back_meets_one_deadline_for_its_write` fails on riscv64 under the emulation of QEMU (the nightly at `0f5dad6`) |
 | [T-1162](fleet.md) | P3 | S | M8 | chore | open | Answer PodUtils/podvm#570 (COORD-183): name the commit of the sections "Shared code first" and "Quality first" of `docs/session-protocol.md` |
+| [T-1163](upkeep.md) | P3 | S | M5 | chore | open | Two more readers of a `Retry-After` value: `pod-cloudflare` and `pod-oci` keep their own copy of `pod_core::clock::retry_after_secs` |
+| [T-1164](relay.md) | P2 | S | M2 | defect | open | `pod-link`: the DNS listener sends no answer to a query that is not TXT or whose name does not decode, so a resolver retries and serves SERVFAIL (PodUtils/podssh#349) |
+| [T-1165](relay.md) | P2 | M | M2 | defect | open | `pod-link`: a query with a new session id takes a handshake slot of the DNS listener for 20 s before any key is checked (PodUtils/podssh#349) |
+| [T-1166](relay.md) | P3 | M | M2 | feature | open | `pod-link`: the DNS listener answers each poll at once; a held poll (dnstt's 1 s) halves the idle queries and cuts the latency of data down (PodUtils/podssh#349) |
+| [T-1167](relay.md) | P3 | M | M2 | feature | open | `pod-link`: an option to carry the ARQ of the DNS carrier with no TLS for a caller that seals above (PodUtils/podssh#349) |
+| [T-1168](relay.md) | P3 | M | M2 | feature | open | `pod-link`: the datagrams of the DNS carrier over DNS over HTTPS (RFC 8484), for a dialer behind an HTTP proxy with no UDP (PodUtils/podssh#349) |
+| [T-1169](relay.md) | P3 | M | M2 | chore | open | `pod-link`: a test of the DNS carrier through `unbound` with its default settings, in the box of CI (PodUtils/podssh#349) |

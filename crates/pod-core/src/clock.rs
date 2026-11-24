@@ -127,6 +127,18 @@ pub fn parse_http_date(text: &str) -> Option<i64> {
     Some(days_from_civil(year, month, day) * 86_400 + h * 3600 + m * 60 + s)
 }
 
+/// The seconds of a `Retry-After` value (RFC 9110): a number of seconds,
+/// or the seconds from `now_secs` (since the Unix epoch) to its date; 0 for
+/// a date in the past. `None` for anything else.
+pub fn retry_after_secs(value: &str, now_secs: i64) -> Option<u64> {
+    let value = value.trim();
+    if let Ok(secs) = value.parse::<u64>() {
+        return Some(secs);
+    }
+    let at = parse_http_date(value)?;
+    Some(u64::try_from(at.saturating_sub(now_secs)).unwrap_or(0))
+}
+
 /// Days since 1970-01-01 for a proleptic Gregorian date (Howard Hinnant's
 /// algorithm), the inverse of [`civil_from_days`].
 pub fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
@@ -192,6 +204,16 @@ mod tests {
         assert!(s.now() <= Instant::now());
     }
     use std::time::Duration;
+
+    #[test]
+    fn a_retry_after_is_seconds_or_a_date() {
+        let now = parse_http_date("Tue, 24 Nov 2026 08:00:00 GMT").unwrap();
+        assert_eq!(retry_after_secs(" 120 ", now), Some(120));
+        assert_eq!(retry_after_secs("Tue, 24 Nov 2026 08:00:30 GMT", now), Some(30));
+        assert_eq!(retry_after_secs("Tue, 24 Nov 2026 07:59:00 GMT", now), Some(0), "a date in the past");
+        assert_eq!(retry_after_secs("soon", now), None);
+        assert_eq!(retry_after_secs("-5", now), None);
+    }
 
     // The values of Python's datetime.fromtimestamp(t, timezone.utc).
     #[test]

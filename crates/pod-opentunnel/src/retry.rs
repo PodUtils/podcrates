@@ -37,9 +37,10 @@ pub fn retryable(status: u16, repeat: Repeat) -> bool {
     }
 }
 
-/// The seconds of a `Retry-After`, when it is a number of them.
+/// The seconds of a `Retry-After`, in seconds or as a date.
 pub fn retry_after_secs(value: Option<&str>) -> Option<u64> {
-    value.and_then(|text| text.trim().parse::<u64>().ok())
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    value.and_then(|text| pod_core::clock::retry_after_secs(text, i64::try_from(now).unwrap_or(i64::MAX)))
 }
 
 /// The bounds of the wait before retry `attempt`, from 0.
@@ -97,6 +98,14 @@ pub fn status_words(status: u16, body: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_retry_after_may_be_a_date() {
+        assert_eq!(retry_after_secs(Some("7")), Some(7));
+        assert_eq!(retry_after_secs(Some("Tue, 24 Nov 2020 08:00:30 GMT")), Some(0), "a past date");
+        assert_eq!(retry_after_secs(Some("soon")), None);
+        assert_eq!(retry_after_secs(None), None);
+    }
 
     /// `anomalyco/opentunnel:spec/vectors/api-retry.json` at v0.6.1.
     #[test]

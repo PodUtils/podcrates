@@ -4535,3 +4535,44 @@ The deadlines of the server stay as they are. Native:
 tests). Open: the job `cross (riscv64gc-unknown-linux-musl)` of the next
 `nightly.yml` run. When it passes, set the entry to `done`; when the test
 still fails, find the cause (T-916), not a larger bound.
+
+# T-1163: Two more readers of a `Retry-After` value: `pod-cloudflare` and `pod-oci` keep their own copy of `pod_core::clock::retry_after_secs`
+
+**Source:** the search for a reader of `Retry-After` in T-1034 (the ruling "Shared code").
+**Category:** chore
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_core::clock::retry_after_secs` reads a `Retry-After` value (RFC 9110):
+a number of seconds, or the seconds to its IMF-fixdate (T-1034; `pod-acme`,
+`pod-opentunnel` and `pod-services-watch` take it). Two crates keep their own reader:
+
+- `crates/pod-cloudflare/src/quicktunnel/retry.rs`, `parse_retry_after`: a
+  number or a date, with its own parse of the date (from podnet,
+  `crates/pod-cloudflare/SOURCES`).
+- `crates/pod-oci/src/registry/wire.rs`, `parse_retry_after`.
+
+## Premise
+
+- Read: `python3 -I scripts/codegraph.py similar retry after` (each reader
+  above), the two functions and their callers.
+- Not measured: whether a host of these crates sends a date.
+
+## Approach
+
+Each crate takes `pod_core::clock::retry_after_secs` with the time of its
+clock, and keeps its own bound of the wait. A block of `SOURCES` whose file
+a consumer has not taken stays frozen: change that file after the `taken`
+line, or port the change to the consumer by its COORD issue. A test of each
+crate holds a date.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare -p pod-oci --all-features
+python3 -I scripts/codegraph.py similar retry after
+```
