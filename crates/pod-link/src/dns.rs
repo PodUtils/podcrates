@@ -27,12 +27,16 @@
 //! * [`Dns::connect_over`] and [`Dns::accept_over`] run the same handshake
 //!   over any [`crate::datagram::Datagrams`] of one peer (a shim of loss in
 //!   a test, another carrier of datagrams).
+//! * A dialer behind an HTTP proxy with no UDP sends its queries over DNS
+//!   over HTTPS ([`Dns::over_https`], T-1168): GETs of the wire form to one
+//!   resolver, over one connection through [`Dns::with_way`].
 //! * The bare form ([`Dns::bare`], T-1167) runs the ARQ with no TLS, for a
 //!   caller that authenticates and seals its own stream. Both ends set it: a
 //!   bare end and an end with TLS never pair. The dial address is `ZONE`.
 
 mod bare;
 mod client;
+mod doh;
 mod hello;
 mod reply;
 mod server;
@@ -51,7 +55,8 @@ use pod_identity::{Identity, KeyName, PublicKey};
 use pod_tls::peer::{self, Keys};
 use rustls::crypto::CryptoProvider;
 
-use client::DnsClient;
+use client::{DnsClient, Path};
+pub use doh::{DOH_PAUSE, DOH_PAUSE_MAX, DnsOverHttps};
 pub use server::DnsListener;
 pub use settings::{DnsSettings, DnsSettingsError, EDNS_SIZE, HOLD};
 
@@ -86,6 +91,7 @@ pub struct Dns {
     pub(crate) identity: Arc<Identity>,
     pub(crate) clients: Keys,
     way: Option<Arc<dyn Dial>>,
+    https: Option<Arc<DnsOverHttps>>,
     /// The UDP address of the authoritative server or the recursive resolver
     /// that a dial sends its queries to.
     pub server: Option<SocketAddr>,
@@ -138,6 +144,7 @@ impl fmt::Debug for Dns {
             .field("server", &self.server)
             .field("zone", &self.zone)
             .field("way", &self.way.as_ref().map_or_else(|| "the system".into(), |w| w.label()))
+            .field("https", &self.https)
             .field("clients", &self.clients.list())
             .field("alpn", &String::from_utf8_lossy(self.alpn))
             .field("dns", &self.dns)
@@ -163,6 +170,7 @@ impl Dns {
             identity,
             clients: Keys::default(),
             way: None,
+            https: None,
             server: None,
             zone: String::new(),
             alpn: ALPN,
@@ -207,6 +215,14 @@ impl Dns {
         self
     }
 
+    /// Each dial sends its queries over DNS over HTTPS (`doh`), through the
+    /// way out of [`Dns::with_way`], not over UDP to [`Dns::server`]. The
+    /// listener is the same.
+    pub fn over_https(mut self, doh: DnsOverHttps) -> Dns {
+        self.https = Some(Arc::new(doh));
+        self
+    }
+
     pub fn clients(&self) -> &Keys {
         &self.clients
     }
@@ -242,13 +258,24 @@ impl Dns {
         self.dns.check().map_err(|e| err(CarrierErrorKind::Usage, format!("DNS: {e}")))
     }
 
-    /// The datagrams of one dial under `zone` toward [`Dns::server`].
+    /// The datagrams of one dial under `zone`: over DNS over HTTPS when
+    /// given, else over UDP toward [`Dns::server`].
     async fn client(&self, zone: &str) -> Result<DnsClient, CarrierError> {
-        let server = self.server.ok_or_else(|| err(CarrierErrorKind::Usage, "no DNS server: give Dns::to(addr)"))?;
-        let socket = self.socket(server).await?;
+        let path = match &self.https {
+            Some(doh) => {
+                let why = "DNS over HTTPS needs the way out of the dial: give Dns::with_way(way)";
+                let way = self.way.clone().ok_or_else(|| err(CarrierErrorKind::Usage, why))?;
+                Path::Https(Box::new(doh::Https::new(doh, way).map_err(|e| err(CarrierErrorKind::Usage, e))?))
+            }
+            None => {
+                let why = "no DNS server: give Dns::to(addr)";
+                let server = self.server.ok_or_else(|| err(CarrierErrorKind::Usage, why))?;
+                Path::Udp(self.socket(server).await?, server)
+            }
+        };
         let mut sid = [0u8; 4];
         OsEntropy.fill(&mut sid).map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
-        DnsClient::new(socket, server, zone.to_string(), u32::from_le_bytes(sid), self.dns)
+        DnsClient::new(path, zone.to_string(), u32::from_le_bytes(sid), self.dns)
             .map_err(|e| err(CarrierErrorKind::Usage, e))
     }
 
@@ -395,6 +422,9 @@ impl Carrier for Dns {
         self.dns.check().map_err(|e| err(CarrierErrorKind::Unavailable, format!("DNS: {e}")))?;
         if self.way.is_some() {
             return Ok(());
+        }
+        if self.https.is_some() {
+            return Err(err(CarrierErrorKind::Unavailable, "DNS over HTTPS with no way out of the dial"));
         }
         UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))
             .or_else(|_| UdpSocket::bind((Ipv6Addr::LOCALHOST, 0)))

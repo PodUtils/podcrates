@@ -74,7 +74,7 @@ async fn get_now(
 
 /// A new connection to `host`: the dial within `connect`, then TLS (HTTP/2
 /// alone where the resolver serves no HTTP/1.1).
-async fn open(way: &Way<'_>, resolver: &Doh, host: &str, connect: Duration) -> Result<Conn, Missed> {
+pub(crate) async fn open(way: &Way<'_>, resolver: &Doh, host: &str, connect: Duration) -> Result<Conn, Missed> {
     let config = way.context.config_for(&way.settings.trust).map_err(|e| Missed::words(e.to_string()))?;
     let server = rustls_pki_types::ServerName::try_from(host.to_string()).map_err(|e| Missed::words(e.to_string()))?;
     let to = Target::new(host, resolver.port);
@@ -99,6 +99,16 @@ async fn open(way: &Way<'_>, resolver: &Doh, host: &str, connect: Duration) -> R
     Ok(Conn::One(Box::new(tls)))
 }
 
+/// The `Host` header of a request to `resolver` at `host`: the port only
+/// when it is not 443, an IPv6 address in brackets.
+pub(crate) fn host_header(resolver: &Doh, host: &str) -> String {
+    match resolver.port {
+        443 if host.contains(':') => format!("[{host}]"),
+        443 => host.to_string(),
+        port => authority(host, port),
+    }
+}
+
 /// One GET on `conn`, and the connection when it can carry the next one. A
 /// way with no [`crate::Kept`] asks the server to close it.
 async fn send(
@@ -116,11 +126,7 @@ async fn send(
         },
         Conn::One(tls) => {
             let mut tls = tls;
-            let host_header = if resolver.port == 443 {
-                if host.contains(':') { format!("[{host}]") } else { host.to_string() }
-            } else {
-                authority(host, resolver.port)
-            };
+            let host_header = host_header(resolver, host);
             let headers = [("Accept", accept)];
             let user_agent = &way.settings.user_agent;
             if way.kept.is_none() {

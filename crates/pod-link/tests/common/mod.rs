@@ -4,10 +4,14 @@
 
 #![allow(dead_code)]
 
+#[cfg(any(feature = "dns", all(feature = "imap", feature = "smtp")))]
+pub mod cert;
 #[cfg(any(feature = "quic", feature = "udp"))]
 pub mod dgram;
 #[cfg(feature = "dns")]
 pub mod dns;
+#[cfg(feature = "dns")]
+pub mod doh;
 #[cfg(feature = "h2")]
 pub mod h2;
 #[cfg(feature = "icmp")]
@@ -18,6 +22,8 @@ pub mod mail;
 pub mod ntp;
 #[cfg(feature = "poll")]
 pub mod poll;
+#[cfg(any(feature = "dns", feature = "h2"))]
+pub mod proxy;
 #[cfg(feature = "quic")]
 pub mod quic;
 #[cfg(feature = "tcp")]
