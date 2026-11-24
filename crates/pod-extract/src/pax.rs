@@ -14,19 +14,24 @@
 //! data. It parses each record of an `x` by its length, as POSIX and Go's
 //! `archive/tar` do. Each record is in one class:
 //!
-//! * The crate uses it: the attribute records (`SCHILY.xattr.`, and the
-//!   ACLs `SCHILY.acl.`) and `path` and `linkpath` go to [`Side`], one
-//!   [`Member`] for each member that the `tar` reader gives.
+//! * The crate uses it: the attribute records (`SCHILY.xattr.`,
+//!   `LIBARCHIVE.xattr.`, and the ACLs `SCHILY.acl.`), the records of a GNU
+//!   sparse file (`GNU.sparse.`, [`crate::sparse`]) and `path` and
+//!   `linkpath` go to [`Side`], one [`Member`] for each member that the
+//!   `tar` reader gives. `GNU.sparse.name` is the path of its member.
 //! * The `tar` reader needs it: `size`, `uid`, `gid`, `path` and
 //!   `linkpath` go to the `tar` reader in a new `x` member. A `path` or a
 //!   `linkpath` with no newline byte goes to both, so the two readers
 //!   agree; one with a newline byte goes to the side only. A `uid` or a
 //!   `gid` with a newline byte is refused: the `tar` reader cuts it.
 //! * Neither uses it: each other record (`mtime`, `uname`, `SCHILY.fflags`,
-//!   `LIBARCHIVE.`, `RHT.`, a key of a vendor) is dropped, with any byte.
-//! * A GNU sparse file of the PAX form (`GNU.sparse.`) is refused: the
-//!   `tar` reader gives its data with no holes and, from version 0.1, under
-//!   the name `GNUSparseFile.N/NAME`, so the file comes out wrong.
+//!   the other `LIBARCHIVE.` records, `RHT.`, a key of a vendor) is
+//!   dropped, with any byte.
+//!
+//! The `tar` reader does not read a GNU sparse file of the PAX form: it
+//! gives the data of the member with no holes and, from version 0.1, under
+//! the name `GNUSparseFile.N/NAME`. The crate writes the file from its map
+//! ([`crate::sparse`]), and a map that does not hold refuses the layer.
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -46,8 +51,11 @@ pub struct Member {
     pub path: Option<Vec<u8>>,
     pub linkpath: Option<Vec<u8>>,
     /// The attribute records, the key with its prefix, in their order:
-    /// `SCHILY.xattr.` and the ACLs in their text form, `SCHILY.acl.`.
+    /// `SCHILY.xattr.`, `LIBARCHIVE.xattr.` and the ACLs in their text form,
+    /// `SCHILY.acl.`.
     pub xattrs: Vec<(Vec<u8>, Vec<u8>)>,
+    /// The records of a GNU sparse file of the PAX form.
+    pub sparse: Option<crate::sparse::Sparse>,
 }
 
 #[derive(Debug, Default)]
@@ -257,20 +265,20 @@ impl<R: Read> Read for Framed<R> {
 /// module for the class of each key.
 fn split(data: &[u8]) -> Result<(Member, Vec<u8>, Option<u64>), String> {
     let (mut m, mut kept, mut size) = (Member::default(), Vec::new(), None);
+    let mut sparse = crate::sparse::Records::default();
     for (key, value) in records(data)? {
         let newline = value.contains(&b'\n');
         match key {
             k if k.starts_with(crate::xattr::PAX_PREFIX.as_bytes())
+                || k.starts_with(crate::xattr::LIBARCHIVE_PREFIX.as_bytes())
                 || k.starts_with(crate::acl::PAX_PREFIX.as_bytes()) =>
             {
                 m.xattrs.push((k.to_vec(), value.to_vec()));
                 continue;
             }
             k if k.starts_with(b"GNU.sparse.") => {
-                return Err(format!(
-                    "the PAX record {:?} marks a GNU sparse file, which this crate does not read",
-                    String::from_utf8_lossy(key)
-                ));
+                sparse.push(&k[b"GNU.sparse.".len()..], value)?;
+                continue;
             }
             // An empty value removes the record (POSIX).
             b"path" => m.path = (!value.is_empty()).then(|| value.to_vec()),
@@ -304,6 +312,11 @@ fn split(data: &[u8]) -> Result<(Member, Vec<u8>, Option<u64>), String> {
     }
     if let Some(n) = size {
         push_record(&mut kept, b"size", n.to_string().as_bytes());
+    }
+    // `GNU.sparse.name` holds over `path` in any order (Go's `archive/tar`).
+    if let Some((s, name)) = sparse.finish()? {
+        m.path = name.or(m.path);
+        m.sparse = Some(s);
     }
     Ok((m, kept, size))
 }

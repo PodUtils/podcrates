@@ -1,0 +1,7 @@
+# The map of a GNU sparse file of the PAX form is read and not applied:
+# the regions are written one after the other, with no holes (T-1087).
+ENTRY=T-1087
+GROUP=extract
+EXPECT='the content differs'
+RUN='cargo test -p pod-extract --all-features --lib sparse::tests::each_version_of_a_gnu_sparse_file_of_pax_extracts_with_its_holes'
+LIMIT=900

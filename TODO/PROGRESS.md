@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 948 entries: 168 open, 28 partial, 7 blocked, 745 done.
+`TODO/INDEX.md` holds 948 entries: 166 open, 28 partial, 7 blocked, 747 done.
 
 ## State
 
@@ -104,9 +104,7 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   next tag; PodUtils/podvm#653); T-1193 to T-1196 (`pod-extract`: `flatten`, the layers of an
   image as one tar stream with no tree, its hard links, its PAX records and the
   entries of the caller; `pod-gzip`, a writer of gzip members; PodUtils/podvm#657);
-  T-1143 (podvm matches `ErrorKind::TooLarge`); T-1087
-  and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU
-  sparse file, the attributes of libarchive alone; PodUtils/podvm#643);
+  T-1143 (podvm matches `ErrorKind::TooLarge`);
   T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602, for the
   parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242);
   T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604); T-1032 (the

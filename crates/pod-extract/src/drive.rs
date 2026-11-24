@@ -21,10 +21,10 @@ use crate::sidecar::Sidecar;
 /// A scratch directory that removes itself. Named by the pid AND a counter:
 /// two tests in one process have the same pid, and a shared scratch
 /// directory is two tests that measure each other.
-struct Scratch(std::path::PathBuf);
+pub(crate) struct Scratch(std::path::PathBuf);
 
 impl Scratch {
-    fn new(tag: &str) -> Scratch {
+    pub(crate) fn new(tag: &str) -> Scratch {
         use std::sync::atomic::{AtomicU32, Ordering};
         static N: AtomicU32 = AtomicU32::new(0);
         let p = std::env::temp_dir().join(format!(
@@ -38,7 +38,7 @@ impl Scratch {
         Scratch(p)
     }
 
-    fn path(&self) -> &std::path::Path {
+    pub(crate) fn path(&self) -> &std::path::Path {
         &self.0
     }
 }
@@ -152,7 +152,7 @@ fn layer(entries: &[E]) -> Vec<u8> {
 
 /// Run the steps of each layer, whiteouts first, and the pass after the last
 /// layer, as [`crate::extract`] does.
-fn run(dir: &std::path::Path, layers: &[Vec<u8>]) -> crate::Result<u64> {
+pub(crate) fn run(dir: &std::path::Path, layers: &[Vec<u8>]) -> crate::Result<u64> {
     steps(dir, layers, true)
 }
 
@@ -208,7 +208,7 @@ fn kept(dir: &std::path::Path, paths: &[&str]) -> Vec<(String, u32, Option<Strin
 }
 
 /// The cause of a refused extraction, or a panic that says what came.
-fn refusal_of<T: std::fmt::Debug>(r: crate::Result<T>) -> crate::Refused {
+pub(crate) fn refusal_of<T: std::fmt::Debug>(r: crate::Result<T>) -> crate::Refused {
     match r {
         Err(f) => crate::refused(&f).cloned().unwrap_or_else(|| panic!("not a refusal: {}", f.chain())),
         Ok(v) => panic!("not refused: {v:?}"),

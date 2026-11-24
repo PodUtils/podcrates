@@ -60,6 +60,7 @@ mod place;
 pub mod remove;
 pub mod safety;
 pub mod sidecar;
+pub mod sparse;
 pub mod tree;
 pub mod whiteout;
 pub mod xattr;

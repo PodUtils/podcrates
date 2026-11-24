@@ -230,14 +230,14 @@ fn each_class_of_pax_record_goes_to_its_reader_with_a_newline_byte_or_none() {
         ("hdrcharset", b"BINARY", Dropped),
         ("SCHILY.fflags", b"nodump\n", Dropped),
         ("SCHILY.dev", b"2049", Dropped),
-        ("LIBARCHIVE.xattr.user.a", b"YQ==\n", Dropped),
+        ("LIBARCHIVE.xattr.user.a", b"YQ==\n", Side),
         ("LIBARCHIVE.creationtime", b"1795232499", Dropped),
         ("RHT.security.selinux", b"system_u:object_r:bin_t:s0\n", Dropped),
         ("VENDOR.key", b"x\ny", Dropped),
-        // A GNU sparse file, which the `tar` reader gives wrong.
-        ("GNU.sparse.major", b"1", Refused("GNU sparse file")),
-        ("GNU.sparse.map", b"499712,4096,1048576,0", Refused("GNU sparse file")),
-        ("GNU.sparse.size", b"1048576", Refused("GNU sparse file")),
+        // A record of a GNU sparse map alone: the map does not hold.
+        ("GNU.sparse.major", b"1", Refused("GNU sparse")),
+        ("GNU.sparse.map", b"499712,4096,1048576,0", Refused("GNU sparse")),
+        ("GNU.sparse.size", b"1048576", Refused("GNU sparse")),
     ];
     for (key, value, to) in rows {
         let mut data = Vec::new();

@@ -1,0 +1,7 @@
+# A `LIBARCHIVE.xattr.` record is dropped with no word: its attribute is
+# neither set nor named (T-1088).
+ENTRY=T-1088
+GROUP=extract
+EXPECT='left: \[\]'
+RUN='cargo test -p pod-extract --all-features --lib drive::xattrs::a_libarchive_xattr_record_alone_is_read_from_its_base64_value'
+LIMIT=900

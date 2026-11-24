@@ -176,22 +176,110 @@ fn a_record_past_a_bound_is_named_and_not_kept() {
         (&[(&format!("{PAX_PREFIX}trusted.overlay.redirect"), b"/x")], &[], "a mark of overlayfs"),
     ];
     for (records, kept, why) in cases {
-        let mut b = tar::Builder::new(Vec::new());
-        b.append_pax_extensions(records.iter().copied()).unwrap();
-        let mut h = tar::Header::new_ustar();
-        h.set_entry_type(tar::EntryType::Regular);
-        h.set_mode(0o644);
-        h.set_size(1);
-        b.append_data(&mut h, "f", Cursor::new(b"1")).unwrap();
-        let data = b.into_inner().unwrap();
-        let side = crate::pax::Side::default();
-        let mut ar = tar::Archive::new(crate::pax::Framed::new(Cursor::new(data), side.clone()));
-        ar.entries().unwrap().next().unwrap().unwrap();
-        let w = crate::xattr::read(&side.next().xattrs, "f");
+        let w = wanted(records);
         let names: Vec<&str> = w.attrs.iter().map(|x| x.name.as_str()).collect();
         assert_eq!(names, *kept, "{why}");
         assert_eq!(w.refused.len(), 1, "{why}: {:?}", w.refused);
         assert!(w.refused[0].reason.contains(why) && w.refused[0].value.is_none(), "{:?}", w.refused[0]);
         assert!(w.refused[0].name.len() <= NAME_MAX + 3, "the name in a message is cut");
+    }
+}
+
+/// The attributes that the extraction reads from `records`, the PAX records
+/// of a file `f`.
+fn wanted(records: &[(&str, &[u8])]) -> crate::xattr::Wanted {
+    let mut b = tar::Builder::new(Vec::new());
+    b.append_pax_extensions(records.iter().copied()).unwrap();
+    let mut h = tar::Header::new_ustar();
+    h.set_entry_type(tar::EntryType::Regular);
+    h.set_mode(0o644);
+    h.set_size(1);
+    b.append_data(&mut h, "f", Cursor::new(b"1")).unwrap();
+    let data = b.into_inner().unwrap();
+    let side = crate::pax::Side::default();
+    let mut ar = tar::Archive::new(crate::pax::Framed::new(Cursor::new(data), side.clone()));
+    ar.entries().unwrap().next().unwrap().unwrap();
+    crate::xattr::read(&side.next().xattrs, "f")
+}
+
+/// The records of `bsdtar --options xattrheader=LIBARCHIVE`: the name with
+/// percent escapes, the value in base64 with no padding.
+#[test]
+fn a_libarchive_xattr_record_alone_is_read_from_its_base64_value() {
+    let w = wanted(&[
+        ("LIBARCHIVE.xattr.security.capability", b"AQAAAgAgAAAAAAAAAAAAAAAAAAA"),
+        ("LIBARCHIVE.xattr.user.a%3Db%25c%20d", b"dgox"),
+        ("LIBARCHIVE.xattr.user.%E2%9c%93", b"eQ=="),
+        ("LIBARCHIVE.xattr.user.100%", b"eWVz"),
+    ]);
+    assert!(w.refused.is_empty(), "{:?}", w.refused);
+    let got: Vec<(&str, &[u8])> = w.attrs.iter().map(|x| (x.name.as_str(), x.value.as_slice())).collect();
+    let want: Vec<(&str, &[u8])> = vec![
+        ("security.capability", CAP_NET_RAW),
+        ("user.a=b%c d", b"v\n1"),
+        ("user.\u{2713}", b"y"),
+        ("user.100%", b"yes"),
+    ];
+    assert_eq!(got, want);
+}
+
+/// libarchive writes each attribute twice by default, its own record
+/// first: the `SCHILY.xattr.` record holds, and the attribute is one.
+#[test]
+fn a_schily_xattr_record_holds_over_its_libarchive_twin() {
+    let w = wanted(&[
+        ("LIBARCHIVE.xattr.user.a", b"bGli"),
+        ("SCHILY.xattr.user.a", b"schily"),
+        ("LIBARCHIVE.xattr.user.b", b"not base64!"),
+        ("SCHILY.xattr.user.b", b"b"),
+        ("LIBARCHIVE.xattr.user.c", b"eWVz"),
+        ("LIBARCHIVE.xattr.user.c", b"bGli"),
+    ]);
+    assert!(w.refused.is_empty(), "{:?}", w.refused);
+    let got: Vec<(&str, &[u8])> = w.attrs.iter().map(|x| (x.name.as_str(), x.value.as_slice())).collect();
+    assert_eq!(got, vec![("user.a", &b"schily"[..]), ("user.b", b"b"), ("user.c", b"yes")]);
+}
+
+#[test]
+fn a_libarchive_xattr_record_that_does_not_decode_is_named_and_not_set() {
+    let cases: &[(&str, &[u8], &str)] = &[
+        ("LIBARCHIVE.xattr.user.a", b"eW!z", "base64"),
+        ("LIBARCHIVE.xattr.user.a", b"e", "base64"),
+        ("LIBARCHIVE.xattr.user.a%00b", b"eQ", "a NUL in the name"),
+        ("LIBARCHIVE.xattr.user.%FF", b"eQ", "not UTF-8"),
+        ("LIBARCHIVE.xattr.", b"eQ", "an empty name"),
+    ];
+    for (key, value, why) in cases {
+        let w = wanted(&[(key, value), ("LIBARCHIVE.xattr.user.ok", b"eQ")]);
+        let names: Vec<&str> = w.attrs.iter().map(|x| x.name.as_str()).collect();
+        assert_eq!(names, ["user.ok"], "{key}");
+        assert_eq!(w.refused.len(), 1, "{key}: {:?}", w.refused);
+        assert!(w.refused[0].reason.contains(why) && w.refused[0].value.is_none(), "{key}: {:?}", w.refused[0]);
+    }
+}
+
+/// An archive with `LIBARCHIVE.xattr.` records alone: each attribute is set
+/// or named, as from a `SCHILY.xattr.` record.
+#[test]
+fn a_layer_of_libarchive_xattr_records_alone_sets_or_names_each_attribute() {
+    let s = Scratch::new("xattr-libarchive");
+    let probes = Scratch::new("xattr-libarchive-probe");
+    let mut b = tar::Builder::new(Vec::new());
+    b.append_pax_extensions([("LIBARCHIVE.xattr.user.test", &b"eWVz"[..])]).unwrap();
+    let mut h = tar::Header::new_ustar();
+    h.set_entry_type(tar::EntryType::Regular);
+    h.set_mode(0o644);
+    h.set_size(4);
+    b.append_data(&mut h, "marked", Cursor::new(b"data")).unwrap();
+    let root = Dir::open(&s.path().to_string_lossy()).unwrap();
+    let mut sc = Sidecar::create(&s.path().join(".meta.jsonl")).unwrap();
+    let l = b.into_inner().unwrap();
+    let st = apply_layer(&root, "sha256:libarchive", &mut Cursor::new(l), Ids::current(), &mut sc).unwrap();
+    assert_eq!(st.xattrs.set + st.xattrs.unset, 1, "{:?}", st.xattrs);
+    if can(probes.path(), Kind::File, "user.test", b"yes") {
+        assert_eq!(value_of(&s.path().join("marked"), "user.test").as_deref(), Some(&b"yes"[..]));
+    } else {
+        let u = st.xattrs.first_unset.first().expect("named");
+        assert_eq!((u.name.as_str(), u.value.as_deref()), ("user.test", Some(&b"yes"[..])));
     }
 }

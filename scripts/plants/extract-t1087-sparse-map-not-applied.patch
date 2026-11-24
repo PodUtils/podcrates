@@ -1,0 +1,11 @@
+--- a/crates/pod-extract/src/apply.rs
++++ b/crates/pod-extract/src/apply.rs
+@@ -220,7 +220,7 @@
+                 Err(e) => return Err(error::sys(format!("cannot link {path:?} to {target:?}"), e)),
+             }
+         } else if kind.is_file() {
+-            let (m, a) = write_file(&parent, &name, mode, &mut entry, &wanted, sparse.as_ref())?;
++            let (m, a) = write_file(&parent, &name, mode, &mut entry, &wanted, None)?;
+             (applied_mode, on_file) = (m, Some(a));
+             st.files += 1;
+         } else {
