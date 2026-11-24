@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**977 entries: 161 open, 29 partial, 7 blocked, 780 done.**
+**977 entries: 160 open, 30 partial, 7 blocked, 780 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 11 | 0 | 228 | 243 |
-| P2 | 76 | 7 | 4 | 407 | 494 |
+| P2 | 75 | 8 | 4 | 407 | 494 |
 | P3 | 81 | 11 | 3 | 143 | 238 |
-| **All** | 161 | 29 | 7 | 780 | 977 |
+| **All** | 160 | 30 | 7 | 780 | 977 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1023,4 +1023,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1297](upkeep.md) | P2 | S | M2 | defect | open | `pod-link`: `dns_hold` gives a hold that is longer than its query timeout under an emulator, and `a_server_that_never_answers_a_command_is_the_named_timeout` of `mail` ends with no error on arm |
 | [T-1298](upkeep.md) | P1 | M | M6 | defect | partial | `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes |
 | [T-1299](upkeep.md) | P3 | S | M6 | feature | open | `pod-extract`: a stream of `flatten` that GNU tar as a user that is not root can unpack |
-| [T-1303](upkeep.md) | P2 | S | M5 | defect | open | The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows |
+| [T-1303](upkeep.md) | P2 | S | M5 | defect | partial | The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows |

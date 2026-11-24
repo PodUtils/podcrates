@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 977 entries: 161 open, 29 partial, 7 blocked, 780 done.
+`TODO/INDEX.md` holds 977 entries: 160 open, 30 partial, 7 blocked, 780 done.
 
 ## State
 
@@ -43,7 +43,8 @@
   (T-938); the two jobs of macOS were cancelled at 60 minutes in
   `pod-incus` (T-1298, partial: the stand-in shut its read side, which
   gives the writer no EPIPE on macOS, and the write of a request had no
-  bound; the next nightly decides; T-1303 gives each binary a limit).
+  bound; the next nightly decides; T-1303 gives each binary a limit, partial:
+  the next nightly proves it on macOS and Windows).
   T-1161 is done; T-789 and T-766 passed. None open in `services.yml`:
   T-1223 is done; read the next scheduled run.
 - Open defects: T-963 (`live.yml`: the second Nostr relay is `nos.lol`;

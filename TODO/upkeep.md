@@ -3677,7 +3677,7 @@ sh scripts/agent/check-windows.sh
 
 ## Problem
 
-The job has no margin under `timeout-minutes: 90` (`.github/workflows/nightly.yml:196`), so a slow test of one night cancels the rest and hides their results.
+The job has no margin under `timeout-minutes: 90` (`.github/workflows/nightly.yml:199`), so a slow test of one night cancels the rest and hides their results.
 
 ## Premise
 
@@ -5262,7 +5262,7 @@ time.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5303,3 +5303,46 @@ A local run of the runner on a planted binary that sleeps past the limit
 gives a failed binary, and the binaries after it run. The
 next `nightly.yml` run prints the seconds of each binary on the jobs
 `test`.
+
+## Done
+
+2026-11-24, partial (this commit; the next `nightly.yml` run decides the
+jobs of macOS and Windows).
+
+The change. `scripts/ci/limit.sh SECONDS COMMAND` runs a command with a
+limit of real time: GNU `timeout` (Linux, `bash` of Git for Windows), else
+`gtimeout`, else perl (`fork`, `setpgrp`, `alarm`; the base system of
+macOS has perl and no `timeout`). At the limit it sends TERM to the process
+group, KILL 30 s later, and exits with 124. It prints the seconds and the
+exit status of each command, and a line with the name at the limit.
+`scripts/ci/test-limited.sh BINARY_SECONDS DOC_SECONDS ARGS` runs `cargo
+test ARGS --tests` with `limit.sh` as the runner of each test binary
+(`CARGO_TARGET_<HOST>_RUNNER`), then `cargo test ARGS --doc` under one
+limit, and fails at the end when one run failed. The runner keeps the
+filters, the environment and the working directory of each test as cargo
+sets them, and `--no-fail-fast` lets the step go on after a hung binary.
+The step "Test" of the jobs `test` calls it with 1200 s for each binary
+and 1800 s for the doc tests, and keeps `--exclude pod-gsr` on Windows
+ARM64; the step "Test pod-gsr" runs under `limit.sh` with 1200 s. The job
+`cross` takes `limit.sh` (2700 s, as before) in place of its own `timeout`
+and `date` lines. The limits are not measured: the log of the next nightly
+has the seconds of each binary.
+
+The local run, on Linux, with a tiny crate (a test that sleeps 600 s, a
+test that passes, a doc test) and limits of 3 s and 60 s: for both tools
+(`timeout`, and perl with `LIMIT_TOOL=perl`) the step printed "no end after
+3 s" with the path of `a_hangs`, cargo named `--test a_hangs` as the failed
+target, `b_passes` and the doc test ran and passed, and the step exited 1
+with "test runs that failed: 1". The perl path returned the exit status of
+a command (3), 124 at the limit, 127 for a program that does not exist, and
+left no orphan of a command that started a child. `python3 scripts/
+check-workflows.py`: 0 faults. `shellcheck` is not installed here: not run.
+
+For the next nightly: the log of each job `test` shows `== N s, exit 0:
+PATH` after each test binary (read the longest and set the limits from
+it), and the jobs end in the time of the build and the tests. A hang
+shows `limit.sh: no end after 1200 s` with the binary, the step goes on,
+and it fails at the end. The Windows jobs must run `limit.sh` with the
+`timeout` of Git for Windows (not `timeout.exe` of Windows: the check
+`--version` selects the GNU one) and the cargo runner through `sh`
+(`cygpath -m` gives the path). The macOS jobs must use the perl path.
