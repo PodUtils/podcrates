@@ -52,6 +52,7 @@ pub mod apply;
 #[cfg(test)]
 mod drive;
 pub mod error;
+pub mod flatten;
 pub mod layer;
 mod members;
 pub mod modes;

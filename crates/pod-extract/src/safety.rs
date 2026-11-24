@@ -39,6 +39,8 @@ pub enum Refusal {
     Escapes(String),
     /// More components than [`crate::tree::MAX_DEPTH`].
     TooDeep(usize),
+    /// A component of more bytes than [`COMPONENT_MAX`].
+    TooLong(usize),
     /// A PAX header or a GNU long name past its bound, or a PAX record that
     /// does not parse ([`crate::pax`]).
     Member(String),
@@ -62,6 +64,9 @@ impl Refusal {
             Refusal::TooDeep(n) => format!(
                 "it has more than {n} components, and the crate does not make a tree that its own walk and \
                  removal refuse"
+            ),
+            Refusal::TooLong(n) => format!(
+                "a component has more than {n} bytes, and a Linux file system takes no longer name"
             ),
             Refusal::Member(why) => why.clone(),
             Refusal::Escapes(e) => format!(
