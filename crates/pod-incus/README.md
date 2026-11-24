@@ -110,11 +110,16 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
 * incus can refuse a body (an upload of an image, a file) before its end
   and close the connection: incusd that cannot store an upload answers
   500 ("no space left on device") while the client still writes. After
-  EPIPE or a reset on the write of a body, the crate reads the answer that
-  is already in the socket, as an envelope (an `error` envelope over the
-  bound is cut, as above), within 5 s (or `answer_timeout`, where it is
-  shorter), and gives it. With no head in that time, the error is the
-  `Io` error of the write; a silence in the body is `AnswerTimeout`.
+  EPIPE or a reset on the write of a body, or a write that makes no
+  progress for `write_timeout` (incus that stopped reading and keeps the
+  connection open), the crate reads the answer that is already in the
+  socket, as an envelope (an `error` envelope over the bound is cut, as
+  above), within 5 s (or `answer_timeout`, where it is shorter), and
+  gives it. With no head in that time, the error is the
+  `Io` error of the write (`TimedOut` for the stall); a silence in the
+  body is `AnswerTimeout`. On macOS a peer of a Unix socket that shuts
+  its read side gives the writer no EPIPE: the writer waits until
+  `write_timeout`.
 * SIGPIPE: that write raises SIGPIPE in a process that does not ignore
   it, and the process ends with no error and no answer of incus. The
   crate sets no signal. The caller sets SIGPIPE to ignore before its first
@@ -165,7 +170,8 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
 socket of incus, `unix.socket.user`, needs `user-UID`), `user_agent`,
 `connect_timeout` (5 s), `max_body` (64 MiB), `wait` (the limit of each
 wait for an operation; `None`: no limit, `timeout=-1`), `write_timeout`
-(30 s, a frame of a websocket), `answer_timeout` (30 s: the limit of the
+(30 s: a frame of a websocket, and each write of a request that makes no
+progress), `answer_timeout` (30 s: the limit of the
 silence of incus in an answer, for the head and for each read of the
 body; `None`: no limit). A silence over `answer_timeout` is
 `ErrorKind::AnswerTimeout` with the phase (`AnswerPhase::Head` or

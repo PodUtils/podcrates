@@ -5046,7 +5046,7 @@ cargo test -p pod-link --all-features --test mail
 **Milestone:** M6
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5104,3 +5104,122 @@ cargo test -p pod-incus --all-features --test images
 
 The job `test (macos-15)` and `test (macos-15-intel)` of the next
 `nightly.yml` run end in less than 60 minutes.
+
+## Done
+
+2026-11-24, partial (this commit; the next `nightly.yml` run decides).
+
+The cause. The log of both jobs:
+`an_upload_that_incus_refuses_and_closes_gives_the_answer_of_incus` and
+`an_error_envelope_over_the_bound_after_a_cut_gives_too_large_with_its_words`
+(the stand-in `Close`) passed in less than 0.1 s; the two tests that use
+`Hold` and `Shut` did not end. Both forms shut the read side of the
+stand-in. XNU (`apple-oss-distributions/xnu`, `bsd/kern`):
+`soshutdownlock_final` calls only `sorflush` for `SHUT_RD`, and
+`pru_shutdown` (`uipc_shutdown`, `unp_shutdown`: `socantrcvmore` of the
+peer) only for `SHUT_WR`. `sorflush` drops the receive queue, sets its
+`sb_hiwat` to 0 and `SB_DROP` (a later append is dropped with no error),
+and calls no `uipc_rcvd`, which is the one call that gives the send space
+back to the writer and wakes it. `filt_sowrite_common` gives a Unix socket
+the space `MIN(sbspace(so_snd), sbspace(so2->so_rcv))`, 0 here, and
+reports EOF only for `SS_CANTSENDMORE` of the writer, which nothing sets.
+So on macOS a writer that waits when its peer shuts the read side waits
+for ever, and no EPIPE comes; `Shut` then shut the write side too, which
+ends only the read of the client. On Linux (`net/unix/af_unix.c`,
+`unix_shutdown`) a `SHUT_RD` sets `SEND_SHUTDOWN` on the peer and wakes
+it: EPIPE. A close (`unp_disconnect`) sets `SS_CANTSENDMORE` and
+`SS_CANTRCVMORE` on the peer on both systems, which is why `Close` passed.
+The product had a part in it: the write of a request (`wire::send`) had no
+bound, so a peer that reads nothing and keeps the connection open held the
+call with no end on each OS, and the test with the paused clock had no
+timer at all.
+
+The change. `Client::request` writes each request through
+`pod_proxy::write_limit::WriteLimit` with `Settings::write_timeout` (30 s
+of no progress). A stall is a cut, as EPIPE and a reset are: the crate
+reads the answer that is there within `LATE_ANSWER` and gives it, else the
+`Io` error `TimedOut` of the write. An error of the reader of a payload
+(`wire::from_payload`, `wire::of_payload`) keeps its kind and its text and
+is no cut, so a payload that fails with `TimedOut` or `BrokenPipe` waits
+for no answer. The doc of `Settings::write_timeout` and of `Client` and
+the README say so. The stand-in `tests/common/raw.rs` gives each cut on
+both systems: `Hold` keeps the connection and reads nothing (the write
+stalls to its bound), `Shut` shuts the read side, reads the queue and
+closes (EPIPE and the end of the read, no reset). Each call of the paused
+tests has a bound (600 s of the paused clock), so a hang is a named
+failure.
+
+Tests (`tests/images.rs`):
+`an_answer_that_stalls_after_a_cut_ends_at_its_short_bound` (the whole
+answer at `write_timeout`; a stalled body is `AnswerTimeout` at
+`write_timeout` + 5 s, and + 2 s with an `answer_timeout` of 2 s), the new
+`an_upload_that_incus_stops_reading_ends_at_the_bound_of_the_write`
+(`Io(TimedOut)`, class `Timeout`, at 7 + 5 s), and in `wire.rs`
+`an_error_of_the_payload_is_not_a_cut_of_the_socket`. On the code before
+(the plant `incus-request-write-unbounded`: no `WriteLimit`) the two tests
+of `images` fail in 0.08 s with "the call ends at the bound of the write:
+Elapsed(())": the hang of macOS, made on Linux by a peer that reads
+nothing. On Linux: `cargo test -p pod-incus --all-features --test images`:
+9 passed, and the binary passed 20 runs of 20 in a loop; `cargo test -p
+pod-incus --all-features`: 79 passed; `cargo clippy -p pod-incus
+--all-targets --all-features -- -D warnings`, `cargo doc -p pod-incus
+--no-deps --all-features` with `-D warnings` and `cargo fmt --all --check`
+pass; `sh scripts/plant-each.sh --apply`: 0 stale. The check of
+`check-macos.sh` for `pod-incus` alone (`cargo check --tests` for
+`x86_64-apple-darwin` with zig): 0 faults.
+
+For the next nightly: the jobs `test (macos-15)` and `test
+(macos-15-intel)` run the 9 tests of `images` of `pod-incus` in seconds,
+and the step "Test" goes on to the later binaries. A failure of `Shut` on
+macOS (an error other than `BrokenPipe`) or of `Close` names the error of
+the write. T-1303 gives each test binary of those jobs a limit of real
+time.
+
+# T-1303: The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows
+
+**Source:** T-1298: `nightly.yml` run 45452272145, the jobs `test (macos-15)` and `test (macos-15-intel)`, cancelled at 60 minutes in `images` of `pod-incus`.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The step "Test" of the job `test` (`.github/workflows/nightly.yml`, the
+rows macOS and Windows) runs `cargo test --workspace --no-fail-fast` with
+only the limit of the job (`timeout-minutes: 60`). A test that does not end
+holds the step until the job is cancelled: each binary after it does not
+run, and the log names no result for them. In run 45452272145 one test of
+`pod-incus` hid each later binary of the workspace on both macOS jobs. The
+jobs `cross` have a limit for each binary (`timeout -k 30 2700`, T-938);
+the jobs `test` do not. macOS has no `timeout` command in its base system.
+
+## Premise
+
+- Read: the step "Test" and the step "Run the tests" of `nightly.yml`;
+  the logs of the macOS jobs of run 45452272145.
+- Not measured: the time of the longest test binary on each runner of the
+  job `test`.
+
+## Approach
+
+Build the tests with `cargo test --no-run --message-format=json`, as the
+jobs `cross` do, and run each binary under a limit of real time: a small
+portable runner (a `perl -e 'alarm N; exec @ARGV'` line on macOS, which
+the runner image has, or a script of `scripts/ci/` that kills the process
+group at the limit) that also prints the seconds of each binary. A binary
+at its limit is a failed binary; the step runs the others and fails at the
+end with the count. Take the limit from the measured times (the longest
+binary, and a margin). Keep the exclusion of `pod-gsr` on Windows ARM64.
+
+## Prove
+
+```sh
+python3 -I scripts/check-workflows.py
+```
+
+A local run of the runner on a planted binary that sleeps past the limit
+gives a failed binary, and the binaries after it run. The
+next `nightly.yml` run prints the seconds of each binary on the jobs
+`test`.

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**975 entries: 167 open, 28 partial, 7 blocked, 773 done.**
+**976 entries: 167 open, 29 partial, 7 blocked, 773 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 6 | 10 | 0 | 227 | 243 |
-| P2 | 78 | 7 | 4 | 404 | 493 |
+| P1 | 5 | 11 | 0 | 227 | 243 |
+| P2 | 79 | 7 | 4 | 404 | 494 |
 | P3 | 83 | 11 | 3 | 140 | 237 |
-| **All** | 167 | 28 | 7 | 773 | 975 |
+| **All** | 167 | 29 | 7 | 773 | 976 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1021,4 +1021,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1295](upkeep.md) | P1 | S | M6 | defect | open | `pod-extract`: `flatten` tests fail for a user that is not root: GNU tar cannot open `usr/bin/sh`, and `walk` cannot read a directory with no search mode |
 | [T-1296](upkeep.md) | P2 | S | M6 | defect | open | `pod-enter`: the two title tests of the init and the relay fail under qemu-user on each emulated job (the nightly at `f39b8e2`) |
 | [T-1297](upkeep.md) | P2 | S | M2 | defect | open | `pod-link`: `dns_hold` gives a hold that is longer than its query timeout under an emulator, and `a_server_that_never_answers_a_command_is_the_named_timeout` of `mail` ends with no error on arm |
-| [T-1298](upkeep.md) | P1 | M | M6 | defect | open | `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes |
+| [T-1298](upkeep.md) | P1 | M | M6 | defect | partial | `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes |
+| [T-1303](upkeep.md) | P2 | S | M5 | defect | open | The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows |

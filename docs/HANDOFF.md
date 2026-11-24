@@ -40,7 +40,10 @@ is done. Git and the record keep finished work.
      `share.rs`: T-916, T-938, Q19) and was cancelled at 150 minutes in
      `session_resume_twice` (T-938; each binary now has a limit of 2700 s).
      Both jobs of macOS were cancelled at 60 minutes in `images` of
-     `pod-incus` (T-1298). T-1161 is done (the test passed on riscv64).
+     `pod-incus` (T-1298, partial: a write of a request now has the bound
+     `write_timeout`, and the stand-in gives each cut on macOS too; read
+     the macOS jobs of the next nightly. T-1303: a limit for each test
+     binary of the jobs `test`). T-1161 is done (the test passed on riscv64).
      T-789 and T-766 passed on this run. Open entries of the nightly:
      T-1295, T-1298, T-1296, T-1297, T-916 and T-938 (partial), T-789,
      T-766, and T-1044 (`check-windows.sh` and `check-macos.sh` compile no

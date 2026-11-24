@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use pod_core::BoxedIo;
 use pod_proxy::http::Response;
+use pod_proxy::write_limit::WriteLimit;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
@@ -36,7 +37,9 @@ pub struct Settings {
     pub max_body: usize,
     /// The limit of each wait for a background operation; `None`: no limit.
     pub wait: Option<Duration>,
-    /// The limit of the write of each frame on a websocket of exec.
+    /// The limit of the write of each frame on a websocket of exec, and of
+    /// each write of a request that makes no progress: incus that reads
+    /// nothing of a body ends the write there, as a cut (see [`Client`]).
     pub write_timeout: Duration,
     /// The limit of the silence of incus in an answer: the head, and each
     /// read of the body ([`ErrorKind::AnswerTimeout`]). A wait for an
@@ -67,8 +70,8 @@ impl Settings {
 }
 
 /// The bound of the read of an answer that incus sent before it closed a
-/// connection whose request was still going out: the answer is in the
-/// buffer of the socket, or it does not come.
+/// connection whose request was still going out, or stopped reading it:
+/// the answer is in the buffer of the socket, or it does not come.
 const LATE_ANSWER: Duration = Duration::from_secs(5);
 
 /// A client of one incus server. Each call opens its own connection, so a
@@ -82,6 +85,11 @@ const LATE_ANSWER: Duration = Duration::from_secs(5);
 /// for a binary, unless the caller set it back). With SIGPIPE ignored, the
 /// write fails with EPIPE, and the crate reads and gives the answer of
 /// incus.
+///
+/// A write of a request that makes no progress for `write_timeout` is a
+/// cut too: incus that answered and stopped reading, with the connection
+/// open, holds no caller. On macOS a peer of a Unix socket that shuts its
+/// read side gives the writer no EPIPE; the writer waits until this bound.
 #[derive(Debug, Clone)]
 pub struct Client {
     settings: Arc<Settings>,
@@ -124,10 +132,18 @@ impl Client {
     async fn request(&self, call: &str, request: Request) -> Result<Sent> {
         let mut stream = self.open(call).await?;
         tracing::debug!(call, "incus call");
-        if let Err(e) = wire::send(&mut stream, &self.settings.user_agent, request).await {
-            // incus can refuse a body before its end and close: its answer
-            // then says why, where the write only sees the close.
-            let gone = matches!(e.kind(), io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset);
+        // A peer that reads nothing holds a write with no end: no timer of
+        // the answer runs yet.
+        let mut bounded = WriteLimit::new(&mut stream, self.settings.write_timeout);
+        if let Err(e) = wire::send(&mut bounded, &self.settings.user_agent, request).await {
+            // incus can refuse a body before its end and close, or stop
+            // reading it: its answer then says why, where the write only
+            // sees the close or the stall.
+            let cut = matches!(
+                e.kind(),
+                io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset | io::ErrorKind::TimedOut
+            );
+            let gone = cut && !wire::of_payload(&e);
             if gone && let Some(answer) = self.answer_after_cut(call, &mut stream).await? {
                 return Ok(Sent::Answer(answer));
             }
@@ -137,11 +153,11 @@ impl Client {
     }
 
     /// The answer that incus sent before it closed a connection whose
-    /// request was still going out, within [`LATE_ANSWER`] (or
-    /// `answer_timeout`, where it is shorter). `None` where no head came:
-    /// the error of the write then says what happened. An error of the
-    /// body (a refusal by size, a silence) is the error of the call: the
-    /// answer came, and it says more than the close.
+    /// request was still going out, or stopped reading it, within
+    /// [`LATE_ANSWER`] (or `answer_timeout`, where it is shorter). `None`
+    /// where no head came: the error of the write then says what happened.
+    /// An error of the body (a refusal by size, a silence) is the error of
+    /// the call: the answer came, and it says more than the close.
     async fn answer_after_cut(&self, call: &str, stream: &mut BoxedIo) -> Result<Option<Response>> {
         let bound = Some(self.settings.answer_timeout.map_or(LATE_ANSWER, |bound| bound.min(LATE_ANSWER)));
         let Ok((mut answer, rest)) = wire::read_head_within(stream, bound).await else { return Ok(None) };

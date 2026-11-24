@@ -1,0 +1,20 @@
+--- a/crates/pod-incus/src/client.rs
++++ b/crates/pod-incus/src/client.rs
+@@ -10,7 +10,6 @@
+ 
+ use pod_core::BoxedIo;
+ use pod_proxy::http::Response;
+-use pod_proxy::write_limit::WriteLimit;
+ use serde::Serialize;
+ use serde::de::DeserializeOwned;
+ 
+@@ -134,8 +133,7 @@
+         tracing::debug!(call, "incus call");
+         // A peer that reads nothing holds a write with no end: no timer of
+         // the answer runs yet.
+-        let mut bounded = WriteLimit::new(&mut stream, self.settings.write_timeout);
+-        if let Err(e) = wire::send(&mut bounded, &self.settings.user_agent, request).await {
++        if let Err(e) = wire::send(&mut stream, &self.settings.user_agent, request).await {
+             // incus can refuse a body before its end and close, or stop
+             // reading it: its answer then says why, where the write only
+             // sees the close or the stall.

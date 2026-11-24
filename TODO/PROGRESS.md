@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 975 entries: 167 open, 28 partial, 7 blocked, 773 done.
+`TODO/INDEX.md` holds 976 entries: 167 open, 29 partial, 7 blocked, 773 done.
 
 ## State
 
@@ -41,8 +41,11 @@
   of `pod-link` (T-1297, with `mail` on arm); `riscv64` fails in `pod-iroh`
   (T-916) and was cancelled at 150 minutes in `session_resume_twice`
   (T-938); the two jobs of macOS were cancelled at 60 minutes in
-  `pod-incus` (T-1298). T-1161 is done; T-789 and T-766 passed. None open
-  in `services.yml`: T-1223 is done; read the next scheduled run.
+  `pod-incus` (T-1298, partial: the stand-in shut its read side, which
+  gives the writer no EPIPE on macOS, and the write of a request had no
+  bound; the next nightly decides; T-1303 gives each binary a limit).
+  T-1161 is done; T-789 and T-766 passed. None open in `services.yml`:
+  T-1223 is done; read the next scheduled run.
 - Open defects: T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
   a giver still waits its whole limit after a refusal of the relay);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
@@ -87,7 +90,8 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in
-podcrates: the red nightly (T-1295, T-1298, T-1296, T-1297, T-916, T-938),
+podcrates: the red nightly (T-1295, T-1298, T-1296, T-1297, T-916, T-938,
+T-1303),
 T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
 `services.yml` run (read it) and the red live run (T-963). Then the asks of podrunner
 (COORD-134, #225): each new ask of podrunner. Then the entries that a need

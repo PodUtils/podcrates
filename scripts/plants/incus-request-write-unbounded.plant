@@ -1,0 +1,6 @@
+# pod-incus: the write of a request has no bound, so incus that stops reading holds the call with no end (T-1298).
+ENTRY=T-1298
+GROUP=incus
+EXPECT='the call ends at the bound of the write'
+RUN='cargo test -p pod-incus --all-features --test images'
+LIMIT=900
