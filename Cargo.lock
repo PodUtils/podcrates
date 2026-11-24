@@ -5496,6 +5496,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "pod-tpm"
+version = "0.83.0"
+dependencies = [
+ "pod-core",
+]
+
+[[package]]
 name = "pod-transit"
 version = "0.83.0"
 dependencies = [
@@ -7371,6 +7378,7 @@ dependencies = [
  "pod-term",
  "pod-tls",
  "pod-tor",
+ "pod-tpm",
  "pod-transit",
  "pod-turn",
  "pod-udf",
@@ -7394,6 +7402,7 @@ dependencies = [
  "pod-core",
  "pod-natprobe",
  "pod-tls",
+ "pod-tpm",
  "pod-turn",
  "pod-udf",
  "pod-unit",

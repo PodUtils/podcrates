@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 968 entries: 166 open, 29 partial, 7 blocked, 766 done.
+`TODO/INDEX.md` holds 968 entries: 165 open, 29 partial, 7 blocked, 767 done.
 
 ## State
 
@@ -111,10 +111,10 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   of iroh-relay, after PodUtils/podssh#341); T-1095 (the order of the
   pseudo-fields of the HTTP/2 request of `pod-ws`; PodUtils/podssh#340);
   T-1238 (`EX_DATAERR`; PodUtils/podssh#352, COORD-142);
-  T-941 (PodUtils/podssh#319); T-1217 to T-1222 (the crate `pod-tpm`: the
-  TPM 2.0 codec, the policy digest, the key file `TSS2 PRIVATE KEY`, the
+  T-941 (PodUtils/podssh#319); T-1218 to T-1222 (the crate `pod-tpm`: the
+  policy digest, the key file `TSS2 PRIVATE KEY`, the
   sequences, the transports of Linux and Windows, a TPM in software and
-  an swtpm lane; PodUtils/podssh#351, COORD-141; T-1217 first; podssh
+  an swtpm lane; PodUtils/podssh#351, COORD-141; T-1218 first; podssh
   answered in PodUtils/podssh#353: an ECDSA P-256 key under a PCR policy or
   a policy key, no `Unseal`; call C931).
 

@@ -1,0 +1,36 @@
+//! A TPM 2.0 codec in pure Rust, for an ECDSA P-256 key that a TPM makes
+//! and keeps, and that signs only while its policy holds: the PCRs hold
+//! the values of a known boot state (`TPM2_PolicyPCR`), or a policy key
+//! signed the boot state (`TPM2_PolicyAuthorize`).
+//!
+//! * [`wire`]: the frame of a command and of a response, with the bounds of
+//!   an untrusted response: the size field equals the bytes that came, from
+//!   10 to [`wire::MAX_RESPONSE`]; each sized buffer and each count is
+//!   checked against the bytes that remain.
+//! * [`rc`]: each response code of part 2 as one line, the format-zero and
+//!   the format-one codes read apart; a code that the table does not know
+//!   keeps its number.
+//! * [`cmd`]: a builder and a reader for each of the fourteen commands;
+//!   [`public`]: the two templates (the storage primary H-2 and a signing
+//!   key), the public area of a policy key, the reader of an ECC P-256
+//!   area and of an ECDSA signature.
+//! * [`Transport`]: one whole command out, its whole response back;
+//!   [`transact`] sends a command and reads its [`Reply`].
+//!
+//! **No I/O, no environment and no global.** The codec reads no random
+//! source (the caller gives each nonce), no variable and no file. The
+//! default build has no C library and no tokio.
+
+pub mod alg;
+pub mod cmd;
+pub mod error;
+pub mod public;
+pub mod rc;
+pub mod transport;
+pub mod wire;
+
+pub use alg::HashAlg;
+pub use error::Error;
+pub use public::{EccPublic, EcdsaSignature};
+pub use rc::{Code, ResponseCode, Subject};
+pub use transport::{Reply, Transport, transact};

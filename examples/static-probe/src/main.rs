@@ -20,6 +20,7 @@ mod relay;
 mod relay_client;
 mod release;
 mod tor;
+mod tpm;
 mod transit;
 mod turn;
 mod udf;
@@ -135,6 +136,7 @@ fn main() {
     lines.push(job());
     lines.push(incus());
     lines.push(qga::qga());
+    lines.push(tpm::tpm());
     lines.extend([actions::actions(), actions::results()]);
     lines.push(netlab::netlab());
     lines.extend([turn::turn(), transit::transit()]);

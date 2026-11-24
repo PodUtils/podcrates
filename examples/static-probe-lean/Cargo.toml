@@ -31,3 +31,5 @@ pod-beneath = { workspace = true }
 pod-control = { workspace = true }
 # The service units: std only, no tokio.
 pod-unit = { workspace = true }
+# The TPM 2.0 codec: std only, no tokio, no C.
+pod-tpm = { workspace = true }

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**968 entries: 166 open, 29 partial, 7 blocked, 766 done.**
+**968 entries: 165 open, 29 partial, 7 blocked, 767 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 227 | 241 |
-| P2 | 80 | 8 | 4 | 399 | 491 |
+| P2 | 79 | 8 | 4 | 400 | 491 |
 | P3 | 82 | 11 | 3 | 138 | 234 |
-| **All** | 166 | 29 | 7 | 766 | 968 |
+| **All** | 165 | 29 | 7 | 767 | 968 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1000,7 +1000,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1205](podvm.md) | P1 | S | M6 | feature | done | `pod-hostprobe`: `usage::Mounts`, the three cgroup directories of a process from the text of `/proc/self/mountinfo`, where a mount of cgroup is refused (PodUtils/podvm#659) |
 | [T-1209](upkeep.md) | P2 | S | M5 | defect | done | `pod-core`: one probe of a Unix socket that a forked child can hold, for `pod-control`, `pod-link` and `pod-warp` (PodUtils/podnet#709) |
 | [T-1213](upkeep.md) | P2 | S | M5 | chore | done | One watcher of the Actions runs of a repository: `scripts/agent/runs.py` with podvm's surface, in place of `watch-runs.sh` and the copies of podvm and podnet |
-| [T-1217](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the crate, the TPM 2.0 command frame, the response codes and the commands of podssh's module, and the trait `Transport` (PodUtils/podssh#351) |
+| [T-1217](fleet.md) | P2 | M | M8 | feature | done | `pod-tpm`: the crate, the TPM 2.0 command frame, the response codes and the commands of podssh's module, and the trait `Transport` (PodUtils/podssh#351) |
 | [T-1218](fleet.md) | P2 | S | M8 | feature | open | `pod-tpm`: the PCR selection and the policy digest of `TPM2_PolicyPCR` (PodUtils/podssh#351) |
 | [T-1219](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the key file `TSS2 PRIVATE KEY`, read and write in DER and PEM, with bounds on an untrusted file (PodUtils/podssh#351) |
 | [T-1220](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the sequences over a `Transport` (create a primary, create a key under a PCR policy, load, sign) that flush each handle on each path (PodUtils/podssh#351) |

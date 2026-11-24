@@ -82,6 +82,7 @@ pod-tls = { path = "crates/pod-tls", version = "0.83.0" }
 pod-time = { path = "crates/pod-time", version = "0.83.0" }
 pod-transit = { path = "crates/pod-transit", version = "0.83.0" }
 pod-tor = { path = "crates/pod-tor", version = "0.83.0" }
+pod-tpm = { path = "crates/pod-tpm", version = "0.83.0" }
 # No default feature here: pod-proxy takes the codec of STUN alone (feature
 # `stun`); a crate that needs the TURN client names the feature `turn`.
 pod-turn = { path = "crates/pod-turn", version = "0.83.0", default-features = false }

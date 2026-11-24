@@ -1,0 +1,7 @@
+# The reader of a response takes one of more than MAX_RESPONSE (4096)
+# bytes when its size field agrees: no bound on the frame (T-1217).
+ENTRY=T-1217
+GROUP=tpm
+EXPECT='a_response_over_the_bound_of_the_frame_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-tpm --all-features --test frame a_response_over_the_bound_of_the_frame_is_refused'
+LIMIT=900
