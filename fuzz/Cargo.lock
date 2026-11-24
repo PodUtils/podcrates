@@ -2370,6 +2370,7 @@ dependencies = [
 name = "pod-turn"
 version = "0.83.0"
 dependencies = [
+ "crc32fast",
  "hmac 0.13.0",
  "sha1",
  "sha2 0.11.1",
