@@ -14175,7 +14175,7 @@ cargo clippy -p pod-gzip --all-targets --all-features -- -D warnings
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14218,3 +14218,74 @@ cargo test -p pod-hostprobe --all-features usage
 cargo clippy -p pod-hostprobe --all-targets --all-features -- -D warnings
 python3 -I scripts/codegraph.py similar mountinfo
 ```
+
+## Done
+
+2026-11-24, this commit. `pod_hostprobe::usage::Mounts`
+(`crates/pod-hostprobe/src/usage/mounts.rs`): the fields `v2`,
+`v1_memory` and `v1_cpuacct` (each an `Option<PathBuf>`), `of(text)` (no
+check of the mount points), `of_with(text, magic)` (`magic` gives the
+`f_type` of a mount point, or `None` where `statfs` fails), `of_host() ->
+Result<Mounts, Failure>` (reads `MOUNTINFO` up to `MAX_FILE` times 16 and
+checks each point with `statfs(2)`) and `meter()` (`Meter::open` of the
+three directories). The constants `MOUNTINFO`, `MAX_LINES` (4096) and
+`MAX_LINE` (8 KiB), and `cgroup::CGROUP_SUPER_MAGIC` from
+`linux_raw_sys`. The module reads the table as bytes: a mount point keeps
+its bytes also where they are not UTF-8. A line counts where the
+separator `-` is a field after the six fixed fields, three fields or more
+follow it, `ROOT` is `/`, the mount point is absolute after the octal
+escapes are undone (exactly three digits, up to `\377`; no NUL), and the
+check gives `CGROUP2_SUPER_MAGIC` for `cgroup2` or `CGROUP_SUPER_MAGIC`
+for `cgroup`. `memory` and `cpuacct` are whole items of the super
+options. The last line of a kind that counts wins.
+
+Two choices differ from the Approach. `of_host` returns a `Result` and
+not `Mounts`: a failed read of the table goes to `Meter::note`, so the
+reason of each `None` is not lost. The adoption map row of
+`podvm::incus::usage::Meter` is in `crates/pod-hostprobe/README.md`, not
+in `docs/design.md`; the new row is there, beside the `usage` row of the
+API. `SOURCES` names podvm's copy at `88e1a0d` in a comment, with no
+`file` line: the module is written from the ask, and the blob of podvm's
+file was not read (the session has no access to PodUtils/podvm).
+
+Tests (`crates/pod-hostprobe/src/usage/mounts/tests.rs`, 8):
+`usage::mounts::tests::the_cgroup_directories_come_from_mountinfo` (31
+rows: the table of PodUtils/podvm#659 and more), `a_line_of_the_bound_counts`,
+`a_line_past_the_line_bound_of_the_table_is_not_read`,
+`an_escape_keeps_the_bytes_of_the_mount_point`,
+`the_check_takes_the_magic_of_each_kind`,
+`a_mount_point_that_fails_the_check_does_not_count`,
+`the_meter_opens_the_directories_of_the_mounts` and
+`the_mounts_of_the_host_pass_their_check` (on this host, a hybrid:
+`unified`, `memory` and `cpuacct` of `/sys/fs/cgroup`). On a stub that
+returns no directory, 6 of the 8 fail (for example `left: Mounts { v2:
+None, .. }`, `right: Mounts { v2: Some("/sys/fs/cgroup"), .. }`). Seven
+mutations of the parser fail the table: no check of the root, a prefix
+match of the items, no check of an absolute path, no check of a NUL, a
+first digit of an escape up to 7 (`\501` gives `/aA`), the super options
+in the field of the source, and a search of the separator from field 0.
+
+The plant `hostprobe-mounts-point-check-ignored` (the two checks of
+`scan` removed) fails
+`a_mount_point_that_fails_the_check_does_not_count` (`left: Mounts { v2:
+Some("/b"), .. }`, `right: Mounts { v2: Some("/a"), .. }`, exit 101); the
+run without the plant passes (exit 0).
+
+`cargo test -p pod-hostprobe --all-features`: 200 unit tests and each
+test target pass. `cargo clippy -p pod-hostprobe --all-targets
+--all-features -- -D warnings`, `cargo doc -p pod-hostprobe --no-deps
+--all-features` with `-D warnings` and `cargo fmt --all --check` pass.
+`sh scripts/plant-each.sh --apply`: 0 stale. The test binary of
+`x86_64-unknown-linux-musl` (`cargo zigbuild`) is static
+(`scripts/check-static.sh`) and passes the 8 tests.
+`python3 -I scripts/codegraph.py similar mountinfo` finds `Mounts` first
+and `pod_testkit::nobody::mount_options` (test support) beside it.
+
+For the hand-off: `pod_hostprobe::usage::{Mounts, MOUNTINFO, MAX_LINES,
+MAX_LINE}` and `cgroup::CGROUP_SUPER_MAGIC` are new. Where the mount at
+`/.podvm/.meter` fails (EACCES), podvm opens the meter with
+`Mounts::of_host()?.meter()` (a caller that keeps the run can give a
+failure of `of_host` to `note` of `Meter::default()`), keeps
+`incus::usage::better`, and removes its copy
+`PodUtils/podvm:crates/podvm/src/incus/usage/mounts.rs` at the tag that
+has this entry.

@@ -1,0 +1,6 @@
+# pod-hostprobe: usage::Mounts counts a cgroup line whose mount point fails the statfs check (a tmpfs over it); the test of the check must fail (T-1205).
+ENTRY=T-1205
+GROUP=hostprobe
+EXPECT='test usage::mounts::tests::a_mount_point_that_fails_the_check_does_not_count \.\.\. FAILED'
+RUN='cargo test -p pod-hostprobe --lib -- usage::mounts::tests::a_mount_point_that_fails_the_check_does_not_count --exact'
+LIMIT=1800

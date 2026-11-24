@@ -1,0 +1,15 @@
+diff --git a/crates/pod-hostprobe/src/usage/mounts.rs b/crates/pod-hostprobe/src/usage/mounts.rs
+index f00baa7..58a423e 100644
+--- a/crates/pod-hostprobe/src/usage/mounts.rs
++++ b/crates/pod-hostprobe/src/usage/mounts.rs
+@@ -90,8 +90,8 @@ fn scan(text: &[u8], accept: &dyn Fn(&Path, u64) -> bool) -> Mounts {
+         let Some((point, kind)) = parse(line) else { continue };
+         let point = PathBuf::from(point);
+         match kind {
+-            Kind::V2 if accept(&point, CGROUP2_SUPER_MAGIC) => m.v2 = Some(point),
+-            Kind::V1 { memory, cpuacct } if accept(&point, CGROUP_SUPER_MAGIC) => {
++            Kind::V2 => m.v2 = Some(point),
++            Kind::V1 { memory, cpuacct } => {
+                 if memory {
+                     m.v1_memory = Some(point.clone());
+                 }

@@ -78,6 +78,7 @@ fn the_cgroup_directories_come_from_mountinfo() {
         ("bad escape 9", line("/", "/a\\9bc", "cgroup2", "rw"), Mounts::default()),
         ("bad escape x", line("/", "/a\\1x1", "cgroup2", "rw"), Mounts::default()),
         ("escape over 255", line("/", "/a\\400", "cgroup2", "rw"), Mounts::default()),
+        ("escape over 255 that wraps to a letter", line("/", "/a\\501", "cgroup2", "rw"), Mounts::default()),
         ("cut escape", line("/", "/a\\04", "cgroup2", "rw"), Mounts::default()),
         ("cut backslash", line("/", "/a\\", "cgroup2", "rw"), Mounts::default()),
         ("escaped NUL", line("/", "/a\\000b", "cgroup2", "rw"), Mounts::default()),
