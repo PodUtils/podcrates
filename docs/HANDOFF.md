@@ -149,6 +149,11 @@ The asks of #259 to the consumers:
   `pod_harness::zip::crc32` and `pod_egress::vmess::kdf::crc32` are removed (a
   caller takes `crc32fast::hash`).
 
+- T-1236 (`pod-core`, PodUtils/podssh#352): the section "Codes that a consumer
+  keeps" of the README (podssh's `Revoked` 69 and `Capability` 78) with a test
+  that holds it to `Class::exit_code`. The next hand-off answers #352 with it:
+  podssh may move to the table at any time.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask.
