@@ -14915,7 +14915,7 @@ For the hand-off: `flatten` takes such a layer set, where it failed with
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14954,3 +14954,65 @@ a tree from the stream that differs from the tree of `extract`.
 ```sh
 cargo test -p pod-extract --all-features --test flatten_records
 ```
+
+## Done
+
+2026-11-24, this commit.
+
+The measure. GNU tar 1.35 as root with the arguments of incusd
+(`--anchored --wildcards --exclude=dev/* --restrict --force-local -C OUT
+--numeric-owner --xattrs-include=* -xf -`), on a crafted PAX stream: a
+file `a` with `SCHILY.xattr.user.f=file`, then a hard-link entry `b` to
+`a` with `SCHILY.xattr.user.l=link` and `SCHILY.xattr.user.f=over`: exit
+0, `a` and `b` are one inode with `user.f=file` only. GNU tar sets no
+record of a link entry. The call: `flatten` writes the records of the
+inode on its data entry, its first name in the stream, because a record
+on a link entry does not reach the tree of incusd.
+
+The change. A group of names of an inode (`flatten/links.rs`) keeps the
+records of each of its link entries (`xattr::read` of the link entry,
+with its layer and member), also of a link whose name a newer layer
+hides, and a merge of groups joins them. `crates/pod-extract/src/flatten/links_recs.rs`
+(module `recs`): `union` orders the records as `extract` sets them (by
+layer, then by member; the last set of a name holds), and `put` of
+`flatten/entry.rs` writes them over the records of the same name of the
+file, on each data entry that the groups take (`Plan::recs`), and on a
+file read again (`Links::rereads` gives the records with the names).
+Where the data went out before the link was read (a link after its file
+in one layer, or a group bound to a holder that wrote the data before),
+each record of the links that the data entry did not write is named in
+`Flattened::xattrs` (`Links::unwritten`, the reason "a record of a
+hard-link entry after the data of its inode in the stream") and not
+written; a record with the value of the data entry (the
+`security.capability` that Docker writes on the file and on its link)
+is no loss. A record of a link past a bound is named, as `extract` names
+it. The records of the data entries are kept for the current layer only
+(`Links::recs_out`, the entries with records). The README of the crate
+names the rule.
+
+The tests. `crates/pod-extract/tests/flatten_records.rs` (`support::E::PaxLink`,
+`support::extracted_at`): `the_records_of_a_link_go_with_the_data_of_its_inode`
+(a file with `user.f`, a link of a newer layer with `user.l` and
+`user.f`, a link of a newer layer with `user.l`, also with the first link
+hidden by a whiteout: the data entry has `user.f=over` and
+`user.l=newer`, the tree of the stream, of `extract` and of GNU tar with
+the arguments of incusd have them on each name),
+`a_file_read_again_takes_the_records_of_its_link` (a hidden file and a
+link after it in its layer: the data under the name of the link has the
+records of both, `rereads` 1) and
+`a_record_of_a_link_after_the_data_of_its_inode_is_named` (one record
+named, the capability of the same value not named). On the code before
+the three failed: `the records of the data entry`, `left:
+[("user.f", "file")]`; `left: [("user.f", "file")]` for the file read
+again; `left: (1, 0)`, `right: (1, 1)` for the named record. `cargo test
+-p pod-extract --all-features`: 117 unit tests, 20, 11, 3, 10 and 6
+integration tests pass. `cargo clippy -p pod-extract --all-targets
+--all-features -- -D warnings`, `cargo doc -p pod-extract --no-deps
+--all-features` with `-D warnings`, `cargo fmt --all --check` and `cargo
+check --manifest-path fuzz/Cargo.toml` pass; `sh scripts/plant-each.sh
+--apply`: 0 stale.
+
+For the hand-off: the data entry of an inode in the stream of `flatten`
+now has the records of the hard-link entries of the image, so GNU tar
+in incusd sets them; `Flattened::xattrs` can name a record of a link
+that comes after the data of its inode. No public item changed.

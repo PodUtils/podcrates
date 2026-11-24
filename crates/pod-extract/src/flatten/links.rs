@@ -33,9 +33,14 @@ use super::trie::{Local, Trie};
 use super::write::{Head, Kind, Out};
 use crate::error::{self, Result, refuse};
 use crate::safety::Refusal;
+use crate::xattr::{self, Xattr};
 
 #[path = "links_end.rs"]
 mod end;
+#[path = "links_recs.rs"]
+mod recs;
+use recs::Rec;
+pub(super) use recs::over;
 
 /// An inode: the last entry of a visible path in a layer, written at that
 /// path, or a hidden entry (layer, member) of a layer.
@@ -109,6 +114,8 @@ struct Group {
     /// The node of the link entry and its layer, for a refusal.
     entry: u32,
     layer: u16,
+    /// The records of the link entries of the group (module `recs`).
+    recs: Vec<Rec>,
 }
 
 #[derive(Default)]
@@ -128,6 +135,12 @@ pub(super) struct Links {
     /// from a group of [`Links::leads`], which then reads it again.
     own: HashMap<u32, u64>,
     rereads: Vec<u32>,
+    /// The records that went out with the data of a name of the current
+    /// layer, where it had some. A record of a link of an older layer whose
+    /// data went out before it is named with no compare.
+    recs_out: HashMap<u32, Vec<Xattr>>,
+    /// The records of link entries that the stream does not have.
+    pub(super) xattrs: xattr::Count,
     /// The link entries of the stream.
     pub(super) written: u64,
 }
@@ -137,6 +150,8 @@ pub(super) struct Plan {
     groups: Vec<u32>,
     /// The name that gets the data when the entry is hidden.
     pub(super) name: Option<Name>,
+    /// The records of the links of the groups, which go with the data.
+    pub(super) recs: Vec<Xattr>,
 }
 
 impl Links {
@@ -197,7 +212,8 @@ impl Links {
             }
         }
         let first = groups.iter().flat_map(|g| self.groups[*g as usize].names.first()).next();
-        Plan { name: if visible { None } else { first.copied() }, groups }
+        let recs = recs::union(groups.iter().flat_map(|g| &self.groups[*g as usize].recs));
+        Plan { name: if visible { None } else { first.copied() }, groups, recs }
     }
 
     /// After the file entry (`member`) of `target` went out at its own
@@ -244,14 +260,22 @@ impl Links {
         Ok(())
     }
 
-    /// A link entry at `node` of `layer`: a new group, bound now when its
-    /// target is set in the layer before it, else waiting.
-    pub(super) fn link(&mut self, node: u32, layer: u16, name: Option<Name>) -> u32 {
+    /// A link entry at `node` of `layer` (its `member`, with the records
+    /// `attrs`): a new group, bound now when its target is set in the layer
+    /// before it, else waiting.
+    pub(super) fn link(
+        &mut self,
+        (node, layer, member): (u32, u16, u64),
+        name: Option<Name>,
+        attrs: Vec<Xattr>,
+    ) -> u32 {
         let g = self.groups.len() as u32;
         let names = name.into_iter().collect();
         let wait = Bind::Wait { target: node, layer, older: false };
         let fallback = Fallback::Open;
-        self.groups.push(Group { names, bind: wait, fallback, shows: None, src: None, entry: node, layer });
+        let recs = attrs.into_iter().map(|x| (layer, member, x)).collect();
+        let group = Group { names, bind: wait, fallback, shows: None, src: None, entry: node, layer, recs };
+        self.groups.push(group);
         self.last.insert(node, Last::Link(g));
         g
     }
@@ -329,6 +353,7 @@ impl Links {
                     return Ok(());
                 };
                 self.links(w, trie, g, l, src)?;
+                self.unwritten(trie, g, l);
                 l
             }
         };
@@ -358,9 +383,11 @@ impl Links {
             }
             _ => {
                 let names = std::mem::take(&mut self.group(g).names);
+                let recs = std::mem::take(&mut self.group(g).recs);
                 self.group(g).bind = Bind::Merged(h);
                 self.group(h).shows = None;
                 self.group(h).names.extend(names);
+                self.group(h).recs.extend(recs);
                 Ok(())
             }
         }

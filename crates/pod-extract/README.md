@@ -133,8 +133,14 @@ form (`SCHILY.xattr.system.posix_acl_access`), also when the layer has
 its text form. GNU tar with the arguments of incusd (`--xattrs-include=*`,
 no `--acls`) sets each `SCHILY.xattr.` record, the binary ACL and
 `security.capability` included (as root), and does not read
-`SCHILY.acl.`. A hard-link entry has no records: the inode has those of
-its file. `flatten_with` takes two closures: `before` writes entries
+`SCHILY.acl.`. GNU tar does not set a record of a hard-link entry, and
+`extract` sets the records of a link entry on its inode: so a hard-link
+entry of the stream has no records, and the records of the links of an
+inode go with its data entry, over the records of the same name of its
+file (a newer link over an older one). Where the data went out before
+the link was read (a link after its file in one layer), each record of
+the link that the data entry does not have is named in
+`Flattened::xattrs` and not written. `flatten_with` takes two closures: `before` writes entries
 before the tree, `after` after it, each through `Entries` (`dir`, `file`,
 `file_from`, `symlink`; owner 0, time 0, the path as the caller gives
 it). `Options::prefix` (`rootfs/` for the unified tarball of incus) goes

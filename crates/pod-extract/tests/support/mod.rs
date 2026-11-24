@@ -59,6 +59,9 @@ pub enum E<'a> {
     /// A file with the records of a PAX header: the name, the data, the
     /// mode and each record (key, value).
     Pax(&'a str, &'a [u8], u32, &'a [(&'a str, &'a [u8])]),
+    /// A hard link with the records of a PAX header: the name, the target
+    /// and each record (key, value).
+    PaxLink(&'a str, &'a str, &'a [(&'a str, &'a [u8])]),
 }
 
 /// One uncompressed layer.
@@ -100,19 +103,31 @@ pub fn tar(entries: &[E]) -> Vec<u8> {
             }
             E::Sparse(version, name, real, regions) => sparse(&mut b, version, name, *real, regions),
             E::Pax(p, data, mode, recs) => {
-                let mut x = Vec::new();
-                for (k, v) in *recs {
-                    record_bytes(&mut x, k, v);
-                }
-                let mut xh = tar::Header::new_ustar();
-                xh.set_entry_type(tar::EntryType::XHeader);
-                xh.set_size(x.len() as u64);
-                b.append_data(&mut xh, "././@PaxHeader", Cursor::new(x)).unwrap();
+                pax_header(&mut b, recs);
                 file(&mut b, &mut h, p, data, 0, 0, *mode);
+            }
+            E::PaxLink(p, t, recs) => {
+                pax_header(&mut b, recs);
+                h.set_entry_type(tar::EntryType::Link);
+                h.set_mode(0o644);
+                h.set_size(0);
+                b.append_link(&mut h, p, t).unwrap();
             }
         }
     }
     b.into_inner().unwrap()
+}
+
+/// A PAX header with `recs`, for the entry after it.
+fn pax_header(b: &mut tar::Builder<Vec<u8>>, recs: &[(&str, &[u8])]) {
+    let mut x = Vec::new();
+    for (k, v) in recs {
+        record_bytes(&mut x, k, v);
+    }
+    let mut xh = tar::Header::new_ustar();
+    xh.set_entry_type(tar::EntryType::XHeader);
+    xh.set_size(x.len() as u64);
+    b.append_data(&mut xh, "././@PaxHeader", Cursor::new(x)).unwrap();
 }
 
 fn file(b: &mut tar::Builder<Vec<u8>>, h: &mut tar::Header, p: &str, data: &[u8], uid: u64, gid: u64, mode: u32) {
@@ -310,6 +325,16 @@ pub fn extracted(layers: &[Layer]) -> pod_extract::Result<Tree> {
     let place = Place::under(&s.path().join("out"));
     extract(&Settings::default(), "test", layers, &place)?;
     Ok(Tree { nodes: walk(&place.rootfs), owners: owners(&place.sidecar), links: inodes(&place.rootfs) })
+}
+
+/// The root file system of `extract` of `layers`, in a new directory under
+/// `dir`.
+pub fn extracted_at(dir: &Path, layers: &[Layer]) -> PathBuf {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static N: AtomicU32 = AtomicU32::new(0);
+    let place = Place::under(&dir.join(format!("out-{}", N.fetch_add(1, Ordering::Relaxed))));
+    extract(&Settings::default(), "test", layers, &place).unwrap_or_else(|f| panic!("extract: {}", f.chain()));
+    place.rootfs
 }
 
 /// The stream of `flatten` of `layers`.

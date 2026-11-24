@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**970 entries: 161 open, 29 partial, 7 blocked, 773 done.**
+**970 entries: 160 open, 29 partial, 7 blocked, 774 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 227 | 241 |
 | P2 | 75 | 8 | 4 | 404 | 491 |
-| P3 | 82 | 11 | 3 | 140 | 236 |
-| **All** | 161 | 29 | 7 | 773 | 970 |
+| P3 | 81 | 11 | 3 | 141 | 236 |
+| **All** | 160 | 29 | 7 | 774 | 970 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1016,4 +1016,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1254](podvm.md) | P2 | S | M6 | chore | open | `pod-extract`: a fuzz target of `flatten`, the reader of untrusted layers into one tar stream |
 | [T-1255](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: the umask of the process cuts the mode of a directory that an entry below it makes |
 | [T-1269](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: `flatten` fails with `Unsupported` for a hard link to an inode that no name of the stream holds after a second entry of its path in one layer |
-| [T-1270](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: `flatten` drops the extended attributes of a hard-link entry, which `extract` sets on the inode |
+| [T-1270](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: `flatten` drops the extended attributes of a hard-link entry, which `extract` sets on the inode |

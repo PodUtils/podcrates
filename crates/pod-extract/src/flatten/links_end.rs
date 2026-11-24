@@ -6,11 +6,16 @@
 use std::collections::BTreeMap;
 use std::io::Write;
 
-use super::{Bind, Fallback, Last, Links, Name, Src, put_links};
+use super::{Bind, Fallback, Last, Links, Name, Rec, Src, put_links};
 use crate::error::Result;
 use crate::flatten::trie::{Local, ROOT, Trie};
 use crate::flatten::write::Out;
 use crate::safety::Refusal;
+use crate::xattr::Xattr;
+
+/// The members of one layer to read again: each with the names of its
+/// inode and the records of its links.
+pub(in crate::flatten) type Members<R> = BTreeMap<u64, (Vec<Name>, Vec<R>)>;
 
 /// The state of a path at the end of a layer.
 enum End {
@@ -107,6 +112,7 @@ impl Links {
         self.last.clear();
         self.leads.clear();
         self.own.clear();
+        self.recs_out.clear();
         Ok(())
     }
 
@@ -129,16 +135,20 @@ impl Links {
     }
 
     /// The hidden entries to read again, by layer: each member with the
-    /// names of its inode, the first one to get the data.
-    pub(in crate::flatten) fn rereads(&self) -> BTreeMap<u16, BTreeMap<u64, Vec<Name>>> {
-        let mut out: BTreeMap<u16, BTreeMap<u64, Vec<Name>>> = BTreeMap::new();
+    /// names of its inode, the first one to get the data, and the records
+    /// of its links (module `recs`).
+    pub(in crate::flatten) fn rereads(&self) -> BTreeMap<u16, Members<Xattr>> {
+        let mut each: BTreeMap<u16, Members<&Rec>> = BTreeMap::new();
         for &g in &self.rereads {
             let gr = &self.groups[g as usize];
             if let (Bind::Reread(Src::Hid(layer, m)), false) = (gr.bind, gr.names.is_empty()) {
-                out.entry(layer).or_default().entry(m).or_default().extend(gr.names.iter().copied());
+                let (names, recs) = each.entry(layer).or_default().entry(m).or_default();
+                names.extend(gr.names.iter().copied());
+                recs.extend(&gr.recs);
             }
         }
-        out
+        let union = |(m, (names, recs)): (u64, (Vec<Name>, Vec<&Rec>))| (m, (names, super::recs::union(recs)));
+        each.into_iter().map(|(layer, members)| (layer, members.into_iter().map(union).collect())).collect()
     }
 
     /// The names after the first of a member read again, as links to it.
