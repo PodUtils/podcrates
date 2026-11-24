@@ -24,6 +24,12 @@
 //! * [`Client::get_file`], [`Client::put_file`]: the files of an instance.
 //!   [`Client::get_file_to`]: a file of any size, or a [`ByteRange`] of it,
 //!   in pieces to a writer, with a bound of the caller.
+//! * [`Client::storage_pool`], [`Client::storage_pool_resources`] (the
+//!   space and the inodes that incusd measures), [`Client::image`] (an
+//!   image that incus has, with its size).
+//! * An answer over `Settings::max_body` is [`ErrorKind::TooLarge`], with
+//!   its status, its size, the bound and its start; an `error` envelope
+//!   over it is read with its strings cut, and gives the words of incus.
 //!
 //! **No environment and no global.** The caller gives the path of the
 //! socket; the crate reads no variable, keeps no process state, prints
@@ -40,7 +46,9 @@ pub mod images;
 pub mod instances;
 pub mod operation;
 pub mod server;
+mod skim;
 pub mod state;
+pub mod storage;
 mod upload;
 pub mod wire;
 
@@ -52,6 +60,8 @@ pub use files::{ByteRange, File, FileContent, FileKind, FileMeta, FileRead, File
 pub use images::{ImageAlias, ImageData, ImageImport, ImportedImage};
 pub use instances::{Action, Devices, Instance, Kind, NewInstance, Source, StateChange};
 pub use operation::{Operation, status};
+pub use pod_proxy::http::BodySize;
 pub use server::{Environment, NEEDED, Server};
 pub use state::{CpuState, DiskState, InstanceState, MemoryState, OOM_METRIC, Profile};
+pub use storage::{Image, ImageAliasName, PoolInodes, PoolResources, PoolSpace, StoragePool};
 pub use upload::Payload;

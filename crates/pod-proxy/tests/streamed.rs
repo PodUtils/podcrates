@@ -58,7 +58,9 @@ async fn the_buffered_send_keeps_its_bound() {
     pod_testkit::need_loopback!();
     let served = serve(Answer::Length, body(LARGE));
     let failed = client(&served).send(request(&served, "GET")).await.unwrap_err();
-    assert!(failed.text().ends_with("reading the answer: the response body is larger than allowed"), "{failed}");
+    let text = failed.text();
+    assert!(text.contains("reading the answer: the response body is larger than allowed (HTTP 200 "), "{failed}");
+    assert!(text.contains("a Content-Length of "), "{failed}");
 }
 
 #[tokio::test]

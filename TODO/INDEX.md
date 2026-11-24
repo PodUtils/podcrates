@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**897 entries: 152 open, 27 partial, 7 blocked, 711 done.**
+**904 entries: 153 open, 27 partial, 7 blocked, 717 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 214 | 228 |
-| P2 | 70 | 7 | 4 | 367 | 448 |
+| P1 | 4 | 10 | 0 | 218 | 232 |
+| P2 | 71 | 7 | 4 | 369 | 451 |
 | P3 | 78 | 10 | 3 | 128 | 219 |
-| **All** | 152 | 27 | 7 | 711 | 897 |
+| **All** | 153 | 27 | 7 | 717 | 904 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -944,3 +944,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1120](podvm.md) | P1 | S | M6 | feature | done | `pod-hostprobe`: the CPU time, the peak of memory and the OOM kills of a cgroup at the end of a run (PodUtils/podvm#650) |
 | [T-1122](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`, `pod-unit`: the changes of podrunner and podssh at their heads (port review) |
 | [T-1124](podvm.md) | P2 | S | M6 | chore | open | podvm opens `/proc/PID` and the pidfd of the init of a run, which is not dumpable after T-1113, so its `exec -t`, `cp` and the join of the UTS namespace fail for a caller with no capabilities |
+| [T-1137](transport.md) | P1 | S | M1 | feature | done | `pod-proxy`: a body over the bound is refused with no status, no size, no bound and no byte of the body (PodUtils/podvm#651) |
+| [T-1138](podvm.md) | P1 | S | M6 | feature | done | `pod-incus`: an answer over `max_body` is an I/O error with the words of pod-proxy alone, and the caller cannot tell it from another fault (PodUtils/podvm#651) |
+| [T-1139](podvm.md) | P1 | S | M6 | feature | done | `pod-incus`: an `error` envelope over `max_body` is refused by size, and the words of incusd go (PodUtils/podvm#651) |
+| [T-1140](podvm.md) | P1 | S | M6 | defect | done | `pod-incus`: a text of incus cut at 512 characters loses the cause after a long command line and a path (PodUtils/podvm#651) |
+| [T-1141](podvm.md) | P2 | S | M6 | feature | done | `pod-incus`: no read of a storage pool, of the room of a pool, or of an image that incus has (PodUtils/podvm#651) |
+| [T-1142](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: `sys::Statfs` has no `f_bfree`, so a check for a daemon of root cannot name the blocks kept for root (PodUtils/podvm#651) |
+| [T-1143](podvm.md) | P2 | S | M6 | chore | open | podvm's class of a refusal by size reads the words of an `Io` error, and finds none after T-1138 |

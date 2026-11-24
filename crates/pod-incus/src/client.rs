@@ -89,6 +89,14 @@ impl Client {
 
     /// One request and its answer, whose body has `max` bytes at most.
     pub(crate) async fn exchange(&self, call: &str, request: Request, max: usize) -> Result<Response> {
+        match self.request(call, request).await? {
+            Sent::Answer(answer) => Ok(answer),
+            Sent::Stream(mut stream) => wire::read(&mut stream, max).await.map_err(|e| Error::io(call, e)),
+        }
+    }
+
+    /// One request on a new connection: the connection for its answer.
+    async fn request(&self, call: &str, request: Request) -> Result<Sent> {
         let mut stream = self.open(call).await?;
         tracing::debug!(call, "incus call");
         if let Err(e) = wire::send(&mut stream, &self.settings.user_agent, request).await {
@@ -96,16 +104,27 @@ impl Client {
             // then says why, where the write only sees the close.
             let gone = matches!(e.kind(), io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset);
             if gone && let Ok(answer) = wire::read(&mut stream, self.settings.max_body).await {
-                return Ok(answer);
+                return Ok(Sent::Answer(answer));
             }
             return Err(sent(call, e));
         }
-        wire::read(&mut stream, max).await.map_err(|e| Error::io(call, e))
+        Ok(Sent::Stream(stream))
     }
 
-    /// One request whose answer is an envelope.
+    /// One request whose answer is an envelope. An `error` envelope over
+    /// `max_body` is read with its strings cut ([`wire::read_envelope`]).
     pub(crate) async fn envelope(&self, call: &str, request: Request) -> Result<Reply> {
-        let answer = self.exchange(call, request, self.settings.max_body).await?;
+        let answer = match self.request(call, request).await? {
+            Sent::Answer(answer) => answer,
+            Sent::Stream(mut stream) => {
+                let (answer, skimmed) =
+                    wire::read_envelope(&mut stream, self.settings.max_body).await.map_err(|e| Error::io(call, e))?;
+                if skimmed {
+                    tracing::debug!(call, "an error envelope over the bound, read with its strings cut");
+                }
+                answer
+            }
+        };
         envelope::read(call, answer.status, &answer.body)
     }
 
@@ -190,6 +209,13 @@ pub(crate) fn refused(call: &str, status: u16, reason: &str, body: &[u8]) -> Err
         Err(e) => e,
         Ok(_) => Error::new(call, ErrorKind::Incus { status, code: status, error: reason.to_string() }),
     }
+}
+
+/// A request that went out: the connection of its answer, or the answer
+/// that incus gave before the end of the request.
+enum Sent {
+    Stream(BoxedIo),
+    Answer(Response),
 }
 
 /// The error of a request that did not go out whole.

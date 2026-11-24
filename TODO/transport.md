@@ -3375,7 +3375,7 @@ of the review, the kernel refused `bbr` (ENOENT), and the socket kept
   SOCKS5 proxy, the socket to the proxy; through a proxy on a Unix socket
   or at a command, no socket. `blocking::Dialer` wraps the async `Dialer`
   (`crates/pod-proxy/src/blocking.rs:55-58`), so it gets the setting too.
-- Read: `crates/pod-proxy/README.md:189` (the parity row of `TCP_NODELAY`
+- Read: `crates/pod-proxy/README.md:190` (the parity row of `TCP_NODELAY`
   and `TCP_NOTSENT_LOWAT`) and `crates/pod-proxy/tests/mptcp.rs:153` (the
   ignored live test of MPTCP). They agree with the review.
 - No crate of this tree sets `TCP_CONGESTION`. The controller of the
@@ -7788,3 +7788,90 @@ same answer fails). Share the rule of `oci.rs` and each HTTP watch in one place.
 ```sh
 cargo test -p pod-services-watch --all-features
 ```
+
+# T-1137: `pod-proxy`: a body over the bound is refused with no status, no size, no bound and no byte of the body (PodUtils/podvm#651)
+
+**Source:** PodUtils/podvm#651 (COORD-235 of podvm, for PodUtils/podrunner#346), ask 1
+**Category:** feature
+**Milestone:** M1
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podvm's report: on a hosted `ubuntu-24.04` runner with incusd 6.0.0 and a
+pool of the driver `dir`, podvm gave "podvm create: incus tier: POST
+/1.0/instances: the response body is larger than allowed" and exit 125.
+On a full pool incusd puts the whole stderr of `tar` into the error of
+the operation; the wait answers HTTP 200, `Transfer-Encoding: chunked`,
+one chunk of 17 MB to 108 MB with an envelope of type `error`. The ask:
+"an answer over the bound keeps what it knows. Read up to the bound (or a
+head of some KiB) and give a typed error with the HTTP status and reason,
+the declared size (the chunk size or `Content-Length`) or the size seen,
+the bound, and the head of the body. A chunk size line with more hex
+digits than usize can hold stays 'larger than any bound', but says so.
+Both decoders (`http.rs` and `http/body.rs`) give the same error."
+
+## Premise
+
+- Read: `crates/pod-proxy/src/http.rs` (`decode_chunked`: a `String`
+  error) and `crates/pod-proxy/src/http/body.rs` (`too_large`: an
+  `InvalidData` error with the same words; `Body::new` refuses a
+  `Content-Length` over the bound before a read).
+- Read: the users of `Body::new`: `read_answer`, `exchange_keep`,
+  `client::streamed`, `pod-incus` (`attach.rs`, `files/read.rs`),
+  `pod-broker`, `pod-services-watch`. podvm matches the words "larger
+  than allowed" in an `InvalidData` error
+  (PodUtils/podvm:crates/podvm/src/incus/space.rs, `transport`).
+- Not measured: a real incusd; the stand-ins of the tests answer as
+  podvm's recording shows.
+
+## Approach
+
+One type, `pod_proxy::http::TooLarge` (`http/large.rs`): `status` and
+`reason` of the answer where the reader has its head, `size`
+(`BodySize`: `Length`, `Chunk { before, size }`, `PastAnyBound { digits
+}`, `Seen`), `bound`, `head` (the first `KEPT_HEAD`, 8 KiB, of the body).
+It is the inner error of an `InvalidData` I/O error (`TooLarge::of`); its
+text starts with the old words. `Body` keeps the first bytes that it
+gives, and at a refusal it copies the bytes of the declared size that
+follow (it reads for them; a body to the close takes only the bytes that
+it holds). `Body::of_answer` gives it the status; `read_answer`,
+`exchange_keep` and the streamed client call it. A `Content-Length` over
+the bound is refused at the first read, with its head. `decode_chunked`
+gives the text of the same type. The copied bytes stay in the buffer:
+`Body::read_on(more)` reads on after a refusal, for a reader that keeps
+the start of a large answer (T-1139).
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features --test too_large
+cargo test -p pod-proxy --all-features --lib large
+cargo test -p pod-proxy --all-features --test limits --test streamed --test http
+```
+
+## Done
+
+2026-11-24, this commit. `pod_proxy::http::TooLarge` with `BodySize`
+and `KEPT_HEAD` (`crates/pod-proxy/src/http/large.rs`, with
+`chunk_size`, the one parse of a chunk size line of both decoders).
+`Body` keeps the first 8 KiB that it gives; at a refusal it copies the
+bytes of the declared size that follow into the head, and leaves them in
+its buffer; `Body::of_answer` and `Body::read_on` are new.
+`read_answer`, `exchange_keep` and the streamed client give the status.
+The text: "the response body is larger than allowed (HTTP 200 OK): a chunk
+of 3189164 bytes, over the bound of 65536 bytes; the body starts with
+..."; a chunk size of 17 hex digits says "a chunk size of 17 hex digits,
+larger than any bound". Tests of `crates/pod-proxy/tests/too_large.rs`:
+`one_chunk_over_the_bound_keeps_the_status_the_size_and_the_envelope`
+(one chunk of 3 MiB, bound 64 KiB), `a_chunk_after_others_names_the_bytes_before_it`,
+`a_content_length_over_the_bound_keeps_the_start_of_the_body`,
+`a_chunk_size_past_any_width_says_so`, `a_body_to_the_close_names_the_bytes_seen`,
+`the_decoder_of_a_whole_body_gives_the_same_refusal`; the lib test
+`a_refusal_names_the_status_the_size_the_bound_and_the_head`;
+`the_buffered_send_keeps_its_bound` of `tests/streamed.rs` names the
+status and the `Content-Length`. `cargo test -p pod-proxy -p pod-incus
+-p pod-hostprobe --all-features --no-fail-fast`: 494 passed, 0 failed;
+clippy of the three crates with `-D warnings`: 0 warnings.

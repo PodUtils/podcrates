@@ -3,7 +3,7 @@
 
 use super::*;
 
-/// The six `statfs` fields this project reads, widened to one shape.
+/// The `statfs` fields this project reads, widened to one shape.
 ///
 /// **The kernel's own `struct statfs64` is the buffer**, taken per
 /// architecture from `linux_raw_sys`, and this is a normalised view built from
@@ -15,7 +15,11 @@ pub struct Statfs {
     pub f_bsize: i64,
     /// The size of the file system, in blocks of `f_bsize`.
     pub f_blocks: u64,
+    /// The free blocks for a user that is not root.
     pub f_bavail: u64,
+    /// The free blocks, also those that the file system keeps for root
+    /// (the reserved blocks of ext4): the room of a daemon of root.
+    pub f_bfree: u64,
     pub f_files: u64,
     pub f_ffree: u64,
     /// The mount flags (`ST_RDONLY`, `ST_NOSUID`, `ST_NODEV`, `ST_NOEXEC`,
@@ -94,6 +98,7 @@ fn statfs_call(call: i64, first: u64) -> Result<Statfs, Errno> {
         f_bsize: raw.f_bsize as i64,
         f_blocks: raw.f_blocks as u64,
         f_bavail: raw.f_bavail as u64,
+        f_bfree: raw.f_bfree as u64,
         f_files: raw.f_files as u64,
         f_ffree: raw.f_ffree as u64,
         // A signed `long` on most 64-bit targets, a `u32` on the 32-bit

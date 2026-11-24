@@ -9,7 +9,7 @@
 //! final operation. No secret goes into an error or a log.
 
 use pod_core::BoxedIo;
-use pod_proxy::http::{Body as AnswerBody, Framing, MAX_HEAD, read_head};
+use pod_proxy::http::{MAX_HEAD, read_head};
 use pod_ws::RelaySession;
 use pod_ws::SessionError;
 use pod_ws::frame::{OPCODE_BINARY, OPCODE_CLOSE, OPCODE_TEXT};
@@ -220,10 +220,7 @@ impl Client {
         stream.flush().await.map_err(|e| Error::io(&call, e))?;
         let (answer, rest) = read_head(&mut stream, Vec::new(), MAX_HEAD).await.map_err(|e| Error::io(&call, e))?;
         if answer.status != 101 {
-            let limit = u64::try_from(self.settings().max_body).unwrap_or(u64::MAX);
-            let body = AnswerBody::new(&mut stream, rest, Framing::of(&answer, false), Some(limit))
-                .map_err(|e| Error::io(&call, e))?
-                .to_end()
+            let (body, _) = crate::wire::envelope_body(&mut stream, &answer, rest, self.settings().max_body)
                 .await
                 .map_err(|e| Error::io(&call, e))?;
             envelope::read(&call, answer.status, &body)?;

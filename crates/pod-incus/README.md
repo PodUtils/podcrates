@@ -71,6 +71,9 @@ runs in the background returns after the wait for its operation.
 | `Client::get_file` | `GET /1.0/instances/NAME/files?path=` | `File` (`FileMeta` from `X-Incus-uid`, `-gid`, `-mode`, `-type`; `FileContent`: bytes, or the entries of a directory) | 6.0 |
 | `Client::get_file_to(name, path, range, limit, out)` | `GET /1.0/instances/NAME/files?path=` with `Range: bytes=START-` or `bytes=START-LAST` (`http.ServeContent` of incus: 206 with `Content-Range`; 416 with `bytes */SIZE` for a start at or past the end, an empty read); the body to a `std::io::Write` in pieces of `files::PIECE` (64 KiB), at most `limit` bytes, with no bound of `max_body`; a 200 to a range has the bytes before the start passed over | `ByteRange` (`start`, `end` not included), `FileRead` (`meta`, `start`, `written`, `size`, `ended`: false where the limit stopped the read first); a directory is `Usage`; a write of `out` that fails is `Output` | 6.0 |
 | `Client::put_file` | `POST /1.0/instances/NAME/files?path=` | `FileWrite` (`X-Incus-type`, `-uid`, `-gid`, `-mode`, `X-Incus-write: append`) | 6.0; a directory `directory_manipulation`, a link `file_symlinks`, an append `file_append` |
+| `Client::storage_pool` | `GET /1.0/storage-pools/NAME` | `StoragePool` (`driver`, `status`, `config`, `source()` of `config.source`, `used_by`) | 6.0 |
+| `Client::storage_pool_resources` | `GET /1.0/storage-pools/NAME/resources`: the space and the inodes that incusd measures in its own mount namespace | `PoolResources` (`space`, `inodes`: `PoolSpace`, `PoolInodes`, each `used` and `total`; `free_bytes`, `free_inodes`: `None` with no count of inodes) | 6.0 |
+| `Client::image` | `GET /1.0/images/FINGERPRINT`; a 404 is `None` | `Image` (`fingerprint`, `size`, `filename`, `architecture`, `kind` of `type`, `public`, `properties`, `aliases`: `ImageAliasName`) | 6.0 |
 | `Client::operation`, `wait`, `wait_success`, `cancel` | `GET /1.0/operations/ID`, `GET /1.0/operations/ID/wait?timeout=N`, `DELETE /1.0/operations/ID` | `Operation`, `status` | 6.0 |
 
 incus 6.0.0 has each extension of `NEEDED`. It has no
@@ -89,12 +92,21 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
   `Incus` (the HTTP status, `error_code` and `error` of incus), `Operation`
   (the `status_code` and `err` of an operation that failed or was
   canceled), `Timeout` (a wait at its limit), `Protocol`, `Unsupported`,
-  `Usage`, `Io`, `WebSocket`, `Output` (the writer of the caller refused a write). `Error::class` gives the class of
+  `Usage`, `Io`, `WebSocket`, `Output` (the writer of the caller refused a write), `TooLarge` (an answer over
+  `Settings::max_body`: the HTTP status, the size as `BodySize`, the bound, the first 8 KiB of the body,
+  and the `error` of an `error` envelope in them, which `Error::incus_error` gives). `Error::class` gives the class of
   `pod_core`; `pod_core::Failure::from(error)` is at the stage `host`.
 * A body of an answer is read whole within `Settings::max_body` (64 MiB),
   except the body of `get_file_to`, which goes to the writer in pieces.
-  A text of incus in an error is made safe to print and cut to 512
-  characters.
+  An envelope of type `error` over the bound is read on, to
+  `wire::MAX_SKIMMED` (1 GiB), with each string cut to its first 64 KiB
+  and "… (N bytes more)": incusd puts the whole stderr of `tar` into the
+  error of a full storage pool (PodUtils/podvm#651). Another answer over
+  the bound is `ErrorKind::TooLarge`.
+* A text of incus in an error is made safe to print. A text over 512
+  characters keeps its first 256 characters, the last 128 of its first
+  line, and its last 128, with " … " between (call C920): the cause of a
+  wrapped stderr ends its first line.
 
 ## exec
 

@@ -8,9 +8,11 @@
 //! The other side, a server's reading of a request, is [`request`].
 
 mod body;
+mod large;
 pub mod request;
 
 pub use body::{Body, Framing, Idle};
+pub use large::{BodySize, KEPT_HEAD, TooLarge};
 pub use pod_core::http1::{Head, parse_head, parse_status_line};
 pub use request::{Request, RequestError, read_request};
 
@@ -137,7 +139,7 @@ where
     let (mut response, rest) = read_head(&mut stream, Vec::new(), MAX_HEAD).await?;
     let framing = Framing::of(&response, method == "HEAD");
     let limit = u64::try_from(max_body).unwrap_or(u64::MAX);
-    let mut reading = Body::new(stream, rest, framing, Some(limit))?;
+    let mut reading = Body::new(stream, rest, framing, Some(limit))?.of_answer(&response);
     response.body = read_whole(&mut reading).await?;
     let closes = response.header("connection").is_some_and(|v| v.to_ascii_lowercase().contains("close"));
     Ok((response, if closes { None } else { reading.into_reusable() }))
@@ -191,7 +193,7 @@ where
     let (mut response, rest) = read_head(stream, buffered, reading.max_head).await?;
     let framing = Framing::of(&response, reading.head_only);
     let limit = u64::try_from(reading.max_body).unwrap_or(u64::MAX);
-    response.body = Body::new(stream, rest, framing, Some(limit))?.to_end().await?;
+    response.body = Body::new(stream, rest, framing, Some(limit))?.of_answer(&response).to_end().await?;
     Ok(response)
 }
 
@@ -289,22 +291,30 @@ async fn read_some<S: AsyncRead + Unpin>(stream: &mut S, buf: &mut [u8]) -> std:
 }
 
 /// Decode a complete chunked body. `Ok(None)` means more bytes are needed.
-/// Trailers are ignored; chunk extensions are skipped.
+/// Trailers are ignored; chunk extensions are skipped. A body over
+/// `max_body` is the text of a [`TooLarge`] with no status.
 pub fn decode_chunked(raw: &[u8], max_body: usize) -> Result<Option<Vec<u8>>, String> {
     let mut out = Vec::new();
     let mut at = 0;
     loop {
         let Some(line_end) = find(&raw[at..], b"\r\n") else { return Ok(None) };
-        let size_line =
-            std::str::from_utf8(&raw[at..at + line_end]).map_err(|_| "a chunk size line is not text".to_string())?;
-        let size_hex = size_line.split(';').next().unwrap_or_default().trim();
-        let size = match usize::from_str_radix(size_hex, 16) {
-            Ok(size) => size,
-            // Hex digits past the width of usize: a size larger than any bound.
-            Err(_) if !size_hex.is_empty() && size_hex.bytes().all(|b| b.is_ascii_hexdigit()) => usize::MAX,
-            Err(_) => return Err(format!("bad chunk size {size_hex:?}")),
-        };
+        let size = large::chunk_size(&raw[at..at + line_end])?;
         at += line_end + 2;
+        let refuse = |size| {
+            let mut head = out[..out.len().min(KEPT_HEAD)].to_vec();
+            let more = raw.len().saturating_sub(at).min(KEPT_HEAD - head.len());
+            head.extend_from_slice(&raw[at..at + more]);
+            let bound = max_body as u64;
+            TooLarge { status: None, reason: String::new(), size, bound, head }.to_string()
+        };
+        let size = match size {
+            Err(digits) => return Err(refuse(BodySize::PastAnyBound { digits })),
+            // The peer chooses the size: no sum with it may wrap.
+            Ok(size) if size > (max_body - out.len()) as u64 => {
+                return Err(refuse(BodySize::Chunk { before: out.len() as u64, size }));
+            }
+            Ok(size) => size as usize,
+        };
         if size == 0 {
             // Optional trailers, then the final CRLF.
             return match find(&raw[at..], b"\r\n\r\n") {
@@ -313,12 +323,8 @@ pub fn decode_chunked(raw: &[u8], max_body: usize) -> Result<Option<Vec<u8>>, St
                 None => Ok(None),
             };
         }
-        // The peer chooses the size: no sum with it may wrap.
-        if size > max_body.saturating_sub(out.len()) {
-            return Err("the response body is larger than allowed".into());
-        }
         let Some(end) = at.checked_add(size).and_then(|end| end.checked_add(2)) else {
-            return Err(format!("bad chunk size {size_hex:?}"));
+            return Err(format!("bad chunk size {size:#x}"));
         };
         if raw.len() < end {
             return Ok(None);
