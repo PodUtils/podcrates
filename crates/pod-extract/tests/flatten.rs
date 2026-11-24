@@ -219,7 +219,7 @@ fn a_sparse_file_of_each_version_is_written_with_its_holes_as_zero_bytes() {
 fn a_hard_link_to_a_file_of_its_layer_is_kept_and_the_other_links_wait_for_their_entry() {
     let s = Scratch::new("hardlink");
     let l0 = tar(&[E::File("a", b"data", 0o644), E::Hardlink("b", "a")]);
-    let stream = same(&plain(s.path(), &[l0.clone()]));
+    let stream = same(&plain(s.path(), std::slice::from_ref(&l0)));
     let link = entries(&stream).into_iter().find(|e| e.0 == "b").unwrap();
     assert_eq!((link.1, link.5), (tar::EntryType::Link, Some("a".to_string())));
     // A link to a file of an older layer: its target comes after it in a

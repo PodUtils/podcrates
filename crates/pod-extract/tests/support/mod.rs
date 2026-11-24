@@ -308,7 +308,7 @@ pub fn same(layers: &[Layer]) -> Vec<u8> {
     let want = extracted(layers).unwrap_or_else(|f| panic!("extract refused the layers: {}", f.chain()));
     let (stream, _) = flattened(layers).unwrap_or_else(|f| panic!("flatten refused the layers: {}", f.chain()));
     let s = Scratch::new("stream");
-    let got = extracted(&plain(s.path(), &[stream.clone()])).expect("the stream extracts");
+    let got = extracted(&plain(s.path(), std::slice::from_ref(&stream))).expect("the stream extracts");
     assert_eq!(got.nodes, want.nodes, "the tree of the stream differs from the tree of the layers");
     let listed = entries(&stream);
     let mut seen = std::collections::BTreeSet::new();

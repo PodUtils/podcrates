@@ -77,7 +77,8 @@ impl<'a, W: Write> Out<'a, W> {
         if let Some(l) = h.link {
             fit(&mut u.linkname, l, b"linkpath", &mut recs);
         }
-        for (key, value, max) in [(&b"size"[..], h.size, OCTAL_11), (b"uid", h.uid, OCTAL_7), (b"gid", h.gid, OCTAL_7)] {
+        for (key, value, max) in [(&b"size"[..], h.size, OCTAL_11), (b"uid", h.uid, OCTAL_7), (b"gid", h.gid, OCTAL_7)]
+        {
             if value >= max {
                 crate::pax::push_record(&mut recs, key, value.to_string().as_bytes());
             }

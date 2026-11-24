@@ -217,7 +217,8 @@ impl State {
                 continue;
             }
             let path = self.trie.path(n);
-            let head = Head { path: &path, kind: Kind::Dir, mode: 0o755, uid: 0, gid: 0, mtime: 0, size: 0, link: None };
+            let head =
+                Head { path: &path, kind: Kind::Dir, mode: 0o755, uid: 0, gid: 0, mtime: 0, size: 0, link: None };
             w.head(&head)?;
             self.total.implied += 1;
         }

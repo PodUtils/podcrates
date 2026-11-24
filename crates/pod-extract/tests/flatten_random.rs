@@ -109,7 +109,13 @@ fn random_layer_sets_give_the_tree_of_extract() {
                 assert!(result.is_ok(), "seed {seed:#x}: the trees differ for the layers {ops:#?}");
                 agreed += 1;
             }
-            (Err(_), Err(_)) => refused += 1,
+            (Err(a), Err(b)) => {
+                // The same kind of refusal: a failure of a system call of
+                // `extract` would be a defect of `extract`.
+                let kind = |f| pod_extract::refused(f).map(|r| std::mem::discriminant(&r.refusal));
+                assert!(kind(a).is_some() && kind(a) == kind(b), "seed {seed:#x}: {} | {}", a.chain(), b.chain());
+                refused += 1;
+            }
             (Ok(_), Err(f)) => panic!("seed {seed:#x}: flatten refused what extract took ({}): {ops:#?}", f.chain()),
             (Err(f), Ok(_)) => panic!("seed {seed:#x}: extract refused what flatten took ({}): {ops:#?}", f.chain()),
         }

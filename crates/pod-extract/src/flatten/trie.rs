@@ -219,7 +219,8 @@ impl Trie {
                 return true;
             }
             if above
-                && (self.any(cur, List::Opaque, |l| lo < l && l <= hi) || self.any(cur, List::Cut, |l| lo < l && l < hi))
+                && (self.any(cur, List::Opaque, |l| lo < l && l <= hi)
+                    || self.any(cur, List::Cut, |l| lo < l && l < hi))
             {
                 return true;
             }

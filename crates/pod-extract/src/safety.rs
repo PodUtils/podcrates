@@ -68,9 +68,9 @@ impl Refusal {
                 "it has more than {n} components, and the crate does not make a tree that its own walk and \
                  removal refuse"
             ),
-            Refusal::TooLong(n) => format!(
-                "a component has more than {n} bytes, and a Linux file system takes no longer name"
-            ),
+            Refusal::TooLong(n) => {
+                format!("a component has more than {n} bytes, and a Linux file system takes no longer name")
+            }
             Refusal::Stream(why) => format!("one tar stream of the final tree cannot hold it: {why}"),
             Refusal::Member(why) => why.clone(),
             Refusal::Escapes(e) => format!(
