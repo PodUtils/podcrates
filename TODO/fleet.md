@@ -8468,3 +8468,43 @@ fail on the code before the change at the check of the open state):
 `scripts/issue_sync_test.py` (5 new checks), `python3 -I
 scripts/issue-sync.py --self-test`: 0 failures. A replay of `plan` on the
 record and the issue list at `f9abd7bb` gives no open again.
+
+# T-1162: Answer PodUtils/podvm#570 (COORD-183): name the commit of the sections "Shared code first" and "Quality first" of `docs/session-protocol.md`
+
+**Source:** PodUtils/podvm#570 (COORD-183 of podvm, an open message `(to podcrates)` that no entry maps).
+**Category:** chore
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm answered COORD-131 (PodUtils/podcrates#221) in PodUtils/podvm#570: it
+wrote the two rulings from the owner's words, because `docs/session-protocol.md`
+had no section of either at its read, and it asks podcrates to name the
+commit of the text, so that podvm takes it word for word. The text is in
+`docs/session-protocol.md` (sections "Shared code first" and "Quality first")
+since `0fefea74`. No answer names it, and the message stays open. The same
+message states podvm's plan to remove the four copies that COORD-131 names
+(PodUtils/podvm@T-1955, partial).
+
+## Premise
+
+- Read: PodUtils/podvm#570; `git log -S` of the two headings in
+  `docs/session-protocol.md` (`0fefea74`).
+- Not measured: podvm's text against ours.
+
+## Approach
+
+Name `0fefea74` (and the tag that holds it) in the next COORD issue
+`(to podvm)`, with the hand-off of the next release, and say that podvm takes
+the two sections word for word. Ask podvm for the commit of its take of the
+four copies (PodUtils/podvm@T-1955) on the hand-off. Podvm closes #570 when it
+reads the answer.
+
+## Prove
+
+```sh
+git log --format=%h -S'## Quality first (the owner' -- docs/session-protocol.md
+```

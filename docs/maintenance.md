@@ -412,7 +412,9 @@ fourth argument of the script names the list when it is elsewhere.
   of a worktree. Remove the target dir of an agent when it finishes.
 * Each version bump makes a new copy of each workspace crate in
   `target/debug`. Before the check of a bump, remove `target/debug` when
-  `df -h /` shows less than 25 GB free.
+  `df -h /` shows less than 25 GB free. A full check needs 22 GB free.
+* The usage limit can stop an agent in the middle of a build. Tell each
+  agent to commit early on its local branch, so that no work is lost.
 * While agents build, run the full check and each agent build with
   `CARGO_INCREMENTAL=0`: the incremental data of the tests of `main` grows
   to 5 GB, and the disk fills during the test step.
@@ -475,6 +477,8 @@ fourth argument of the script names the list when it is elsewhere.
 * `sh scripts/agent/check.sh` runs the lint steps of `ci.yml` too (the
   scripts, the plants, `cargo doc`, `shellcheck` of the installer). Run
   it before each push, not only the four checks of `AGENTS.md`.
+* A pull request from outside the team gets CI runs with the state
+  `action_required`. Review its code before you approve or dispatch its CI.
 * A macOS arm64 job of `ci.yml` that no runner takes ("not acquired by
   Runner") is no defect: run the failed jobs again.
 * The watcher can end on a broken answer of the mirror: start it again

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**927 entries: 159 open, 27 partial, 7 blocked, 734 done.**
+**930 entries: 162 open, 27 partial, 7 blocked, 734 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 6 | 10 | 0 | 220 | 236 |
-| P2 | 73 | 7 | 4 | 381 | 465 |
-| P3 | 80 | 10 | 3 | 131 | 224 |
-| **All** | 159 | 27 | 7 | 734 | 927 |
+| P1 | 7 | 10 | 0 | 220 | 237 |
+| P2 | 74 | 7 | 4 | 381 | 466 |
+| P3 | 81 | 10 | 3 | 131 | 225 |
+| **All** | 162 | 27 | 7 | 734 | 930 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -974,3 +974,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1157](podvm.md) | P2 | S | M6 | defect | open | `pod-incus`: after a failed write of a body, the answer that incusd already sent is read with no bound and no test, and the documentation does not tell the caller about SIGPIPE (PodUtils/podvm#653) |
 | [T-1158](podvm.md) | P2 | S | M6 | chore | open | podvm removes its work-arounds for `pod-incus` at its take of the tag of T-1155 to T-1157 |
 | [T-1159](fleet.md) | P2 | S | M8 | defect | done | `issue-sync`: a close of an issue by a person is reverted at the next push, before a session can change the record |
+| [T-1160](foundation.md) | P1 | S | M0 | chore | open | `pod-testkit`: the fork fact of a job in the fake githome follows podrunner's rule of `e629fa8` (the second port after T-1122) |
+| [T-1161](upkeep.md) | P2 | S | M5 | defect | open | `pod-control`: `a_call_back_meets_one_deadline_for_its_write` fails on riscv64 under the emulation of QEMU (the nightly at `0f5dad6`) |
+| [T-1162](fleet.md) | P3 | S | M8 | chore | open | Answer PodUtils/podvm#570 (COORD-183): name the commit of the sections "Shared code first" and "Quality first" of `docs/session-protocol.md` |

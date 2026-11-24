@@ -471,7 +471,7 @@ The inventory of podssh (`docs/research/services/podssh.md`, A and E), at
 | `relay_checks.rs` the test `the_published_keys_are_well_formed_sha256_fingerprints` | [x] `tests/moved.rs`, the same name |
 | `crates/podssh-ws/src/resolve.rs` `DOH_RESOLVERS` | [x] `cloudflare-doh`, `google-doh`, `quad9-doh`: `ip` the endpoint's `addresses`, `name` its `host`, `json` the fact `json-path`, `wire` the fact `wire-path`, `http2` the fact `http2-only` |
 | `resolve.rs` the tests of the forms and of the names through a proxy | stay: they test the code of the resolver (pod-dns) |
-| `crates/podssh-cli/src/doctor/nat.rs` `DEFAULT` | [x] `cloudflare-stun`, `google-stun`, endpoint `udp` (`authority()`) |
+| `crates/podssh-cli/src/doctor/nat.rs` `DEFAULT` | [x] `cloudflare-stun`, `google-stun`, endpoint `udp` (`authority()`); the kind `stun` has `easybell-stun` as a third server, so a doctor that takes each server of the kind by rank has three, and its test `the_variable_names_the_servers_or_turns_the_line_off` pins two (call C923) |
 | `crates/podssh-relay/src/derp/servers.rs` `TAILCAT`, `PROBE_PATH` | [x] `tailcat-derp` endpoints of the role `region`, fact `probe-path` |
 | `crates/podssh-cli/src/ts/probe.rs` `DERP_MAP_HOST`, `DERP_MAP_PATH` | [x] `tailscale-derp-map` endpoint `map` |
 | `crates/podssh-iroh/src/relays.rs` `DEFAULT` | [x] `n0-iroh-relay` endpoints of the role `relay` (`url()` gives `https://use1-1.relay.n0.iroh.link.`) |

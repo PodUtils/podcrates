@@ -4476,3 +4476,50 @@ cargo test -p pod-link --all-features unix
 cargo test -p pod-supervise --all-features
 sh scripts/plant-each.sh --apply
 ```
+
+# T-1161: `pod-control`: `a_call_back_meets_one_deadline_for_its_write` fails on riscv64 under the emulation of QEMU (the nightly at `0f5dad6`)
+
+**Source:** `nightly.yml` run 45212967290 at `0f5dad6`, the job `cross (riscv64gc-unknown-linux-musl)`, step "Run the tests".
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The test binary `crates/pod-control/tests/server.rs` fails on riscv64 only
+(loongarch64 and powerpc64le pass):
+
+```text
+thread 'a_call_back_meets_one_deadline_for_its_write' panicked at crates/pod-control/tests/server.rs:365:23:
+the connection did not end after 0 bytes: Resource temporarily unavailable (os error 11)
+```
+
+The client socket of `ask` has a read timeout of 10 s. The server must
+build and write an 8 MiB line first; under the emulator it can need more
+than 10 s for its first byte, so the read ends with `EAGAIN` and the test
+reports a fault of the server that is not one. The same test passes on
+each native job. It is a time bound of the class of T-916.
+
+## Premise
+
+- Read: the log of the job (one failed binary of three: `pod-iroh` `road`
+  and `share` are T-916 and T-938), `crates/pod-control/tests/server.rs`
+  (`ask`, the test), `pod_testkit::scaled` and `emulated`.
+- Not measured: the time of the first byte under riscv64 (the log has no
+  time of the test; the binary ends after 10.07 s).
+
+## Approach
+
+The read timeout of `ask` and the bound `started.elapsed() < 10 s` of this
+test go through `pod_testkit::scaled`: they guard a hang, not a time that
+the test checks. The deadlines of the server (`write_timeout` 1 s) stay as
+they are: they are the subject of the test. Where the test still fails
+after the scaling, find the cause, not a larger bound (T-916).
+
+## Prove
+
+```sh
+cargo test -p pod-control --all-features --test server
+```

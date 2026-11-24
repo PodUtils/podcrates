@@ -3167,3 +3167,69 @@ blobs of `text.rs`, `system_text.rs`, `system_tests.rs` and
 at 9fdf2c3: 6 files, 0 changes", "at 43226db: 2 files, 0 changes",
 "pod-unit: PodUtils/podssh at 1fa8f87: 9 files, 0 changes", and 0 in
 each other block.
+
+# T-1160: `pod-testkit`: the fork fact of a job in the fake githome follows podrunner's rule of `e629fa8` (the second port after T-1122)
+
+**Source:** `scripts/check-sources.py` against the clones of the sources at podrunner `9b40e32` (the daily `upstream.yml` turns red at its next run).
+**Category:** chore
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+After T-1122, podrunner changed three imported files of `pod-testkit`:
+
+```text
+pod-testkit: changed PodUtils/podrunner:crates/podrunner-broker-fake/src/runner.rs -> crates/pod-testkit/src/github/key.rs
+check-sources: pod-testkit: PodUtils/podrunner at 9fdf2c3: 6 files, 1 changes
+pod-testkit: changed PodUtils/podrunner:crates/podrunner-fake/src/assigned.rs -> crates/pod-testkit/src/githome/offer.rs
+check-sources: pod-testkit: PodUtils/podrunner at b0f8a36: 2 files, 1 changes
+pod-testkit: changed PodUtils/podrunner:docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+check-sources: pod-testkit: PodUtils/podrunner at 43226db: 2 files, 1 changes
+```
+
+The commits are `e629fa8` ("a head that is not the base is a fork", T-518 of
+podrunner) and `2aacaea` ("R9 for the events that are not a pull request").
+`assigned.rs` of podrunner now never takes the fork fact of the offer for a
+real job: it takes the fact of the real job, or compares the head
+repository and the repository by name, else `unknown`. The fake githome of
+`pod-testkit` (`githome/offer.rs`, the match on `real.head_is_fork`) keeps
+the fact of the offer when the real job gives none, so its answer to
+`assigned` differs from podrunner's source. `source-driver.md` defines
+`trust_inputs.head_is_fork` (the same id rule, and the value `no` for each
+event that is not a pull request). `runner.rs` is the harness of the
+official runner, which this crate does not start.
+
+## Premise
+
+- Read: `git show e629fa8 2aacaea` of podrunner for the three files and
+  their messages; `crates/pod-testkit/src/githome/offer.rs`,
+  `crates/pod-testkit/SOURCES`.
+- Not measured: the conformance suite of podrunner against the fake githome
+  after the port (its 15 tests are the conformance suite of podrunner).
+
+## Approach
+
+1. Port the fork fact of `assigned.rs` into `githome/offer.rs`: the real
+   job's `head_is_fork`, else the head repository against the repository
+   (case-insensitive name), else `unknown`; never the fact of the offer.
+   The wire of the fake does not change for a job that gives the fact. Add
+   a test that fails on the code before (a real job with no fact and no
+   head repository gives `unknown`).
+2. `source-driver.md`: the new text of the field is the contract of the
+   fake; the test of the feature `githome` holds it where it checks the
+   field. No other change.
+3. `runner.rs` is the runner harness (the removal of `_diag/pages` and
+   `_diag/blocks`): no port, as the key and the client assertion of the
+   fake GitHub did not change. Say so in the comment of the block.
+4. Move each block of `SOURCES` to the commit of its change, with the blobs
+   of `git ls-tree`.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --all-features
+python3 -I scripts/check-sources.py --clone PodUtils/podrunner=PODRUNNER pod-testkit
+```

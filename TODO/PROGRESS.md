@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 927 entries: 159 open, 27 partial, 7 blocked, 734 done.
+`TODO/INDEX.md` holds 930 entries: 162 open, 27 partial, 7 blocked, 734 done.
 
 ## State
 
@@ -10,9 +10,16 @@
   the GitHub release, the signed `SHA256SUMS`, the assets and the images
   of `ghcr.io/podutils`. It carries `v0.82.0` (`51c09390`,
   `docs/releases/v0.82.0.md`, tagged without `release.yml`) and each
-  change of `main` after it. Its hand-off COORD-152 (#257) is open
+  change of `main` before the tag. Its hand-off COORD-152 (#257) is open
   (call C780): it closes when each consumer names `v0.82.1` or a later
   tag. The hand-off COORD-151 (#254) of `v0.81.0` is closed.
+- On `main` after `v0.82.1`, for the next tag: podnet's asks
+  (PodUtils/podnet#707: T-1125 to T-1134; T-1127 changes the field type of
+  `pod-wormhole` `Failed::Unreachable` to `Missed`), podvm's asks
+  (PodUtils/podvm#651: T-1137 to T-1142; podvm matches
+  `ErrorKind::TooLarge`, T-1143) and `pod-natprobe` (T-802, T-1151 to
+  T-1154; the kind `stun` of `pod-services` has three default servers, so
+  podssh's doctor test that pins two needs a COORD message at the tag).
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
   not on `main`. `release.yml` has steps that run on a tag only, which the
   dry run does not test (T-974; `docs/maintenance.md`, "A release").
@@ -22,17 +29,20 @@
 - podssh's ask PodUtils/podssh#346 (COORD-137 of podssh): the sans-IO
   transfer codec goes into `pod-term` (T-1144); the answer is #258
   (COORD-153).
-- The tag that the `main` of each consumer names: `v0.82.0` (podnet,
-  podssh, podvm), `v0.81.0` (podrunner). The details of the earlier takes
-  are on #250 and #254.
+- The tag that the `main` of each consumer names: `v0.82.1` (podrunner,
+  PodUtils/podrunner#348), `v0.82.0` (podnet, podssh, podvm). The details
+  of the earlier takes are on #250 and #254.
 - PodUtils/static-pkgs builds and publishes the static programs that no
   one else publishes in the form that PodUtils needs (the owner,
   2026-11-20); its first release is `qemu-11.1.3`.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
-- Open defects: T-916 (partial), T-938, T-789, T-766
-  (the nightly); T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
+- Red runs: the nightly (T-916 partial, T-938, T-789, T-766, T-1161 for
+  `riscv64` and `loongarch64`; the jobs of Windows and macOS pass);
+  `upstream.yml` until T-1160 (podrunner's new changes of `pod-testkit`);
+  `services.yml` (T-1034 alone).
+- Open defects: T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
   a giver still waits its whole limit after a refusal of the relay);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
   `pod-session`).
@@ -48,12 +58,11 @@
   CI of podrunner and githome is complete. podrunner's answer to
   COORD-135 (PodUtils/podrunner#294) is in T-922 and T-923.
 - The rest of M8 waits (the ruling "Priority"). The asks of podswarm wait
-  until the podswarm session starts, but for T-439, T-444, T-447 and
-  T-448 (the ruling "podswarm", call C245).
-- 102 of the 108 names of `docs/design.md`, section 4, are reserved on
-  crates.io; 6 are missing (`pod-beneath`, `pod-shape`, `pod-cover`,
-  `pod-harness`, `pod-sidecar`, `pod-offline`; "Owner actions"). No crate
-  goes to crates.io now (the ruling "Releases").
+  until the podswarm session starts, but for T-444, T-447 and T-448 (the
+  ruling "podswarm", call C245).
+- 108 of the 109 names of `docs/design.md`, section 4, are reserved on
+  crates.io; `pod-natprobe` is missing ("Owner actions"). No crate goes to
+  crates.io now (the ruling "Releases").
 - Blocked: T-217 to T-220 (`pod-git`, the rulings "pod-git" and
   "Renames": `PodUtils/podforge`, deferred). T-538 (the attribution line
   of a comment on GitHub): Q16. T-617 and T-832: their Blocker sections.
@@ -76,19 +85,44 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
-them by COORD issues, podrunner's first. Then, in podcrates: the red
-nightly (T-916, T-938), T-1053 (a lossy run of E2-1 that takes 20 s) and the red
-`services.yml` (T-1034) and the red live run (T-963). Then the asks of
-podrunner (COORD-134, #225): each new ask of podrunner.
-Then the
-entries that a need of githome or cfb names for their CI: T-106 (partial;
-cfb's A-X-18 waits for cfb's answer on #223, call C792),
-T-1118 (podnet writes the `release-index.json` of its releases). Then cfb's asks
-that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
-T-117. Then the open asks
-of the consumers: T-1155, T-1156, T-1157 and T-1158 (`pod-incus`: the exit code of an exec that ends with 126 or 127, a bound of each answer, the answer after a failed write, and the work-arounds that podvm then removes; PodUtils/podvm#653), T-1124 (podvm opens `/proc/PID` of the init of a run, which is not dumpable; it takes `pod_enter::joinable`; PodUtils/podvm#646), T-1103 (iroh 1.5 and its fork of iroh-relay, after PodUtils/podssh#341), T-1144 (the sans-IO transfer codec of `pod-term` for a pty that damages ZMODEM; PodUtils/podssh#346, #258), T-1087 and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU sparse file, the attributes of libarchive alone; PodUtils/podvm#643), T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
-for the parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-1032 (the launcher of `pod-supervise` blocks before the start of the payload), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852,
-T-851. Then T-920.
+them by COORD issues, podrunner's first. Amend the hand-off COORD-152
+(#257) at each take (podrunner has taken `v0.82.1`), and answer
+PodUtils/podvm#570 in the next COORD message to podvm (T-1162). Then, in
+podcrates: T-1160 (the port review of podrunner's new changes of
+`pod-testkit`: the daily `upstream.yml` is red until it is done, and the
+fakes serve the CI of podrunner), the red nightly (T-916, T-938, T-1161),
+T-1053 (a lossy run of E2-1 that takes 20 s), the red `services.yml`
+(T-1034) and the red live run (T-963). Then the asks of podrunner
+(COORD-134, #225): each new ask of podrunner. Then the entries that a need
+of githome or cfb names for their CI: T-106 (partial; cfb's A-X-18 waits
+for cfb's answer on #223, call C792), T-1118 (podnet writes the
+`release-index.json` of its releases). Then cfb's asks that podssh takes
+(call C782, PodUtils/podssh#316): T-112, T-110, T-111, T-117. Then the open
+asks of the consumers, podvm's first, then podnet's, then podssh's:
+
+- podvm: T-1155, T-1156, T-1157 and T-1158 (`pod-incus`: the exit code of an
+  exec that ends with 126 or 127, a bound of each answer, the answer after
+  a failed write, and the work-arounds that podvm then removes;
+  PodUtils/podvm#653); T-1124 (podvm opens `/proc/PID` of the init of a
+  run, which is not dumpable; it takes `pod_enter::joinable`;
+  PodUtils/podvm#646); T-1143 (podvm matches `ErrorKind::TooLarge`); T-1087
+  and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU
+  sparse file, the attributes of libarchive alone; PodUtils/podvm#643);
+  T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602, for the
+  parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242);
+  T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604); T-1032 (the
+  launcher of `pod-supervise` blocks before the start of the payload);
+  T-927 (PodUtils/podvm#584).
+- podnet: T-1117 (the limits of the legs of `pod-cloudflare` in podnet's
+  documents); T-1135 (`pod-cloudflare` says a cause two times); T-879
+  (`pod-detach`); T-897.
+- podssh: T-1144 (the sans-IO transfer codec of `pod-term` for a pty that
+  damages ZMODEM; PodUtils/podssh#346, #258); T-1103 (iroh 1.5 and its fork
+  of iroh-relay, after PodUtils/podssh#341); T-1095 (the order of the
+  pseudo-fields of the HTTP/2 request of `pod-ws`; PodUtils/podssh#340);
+  T-941 (PodUtils/podssh#319).
+
+Then T-899, T-900, T-852, T-851, and T-920.
 Then the ruling "Discipline": T-692
 (`pod-lab`, part 2), T-700 (`pod-manual`: the take of each consumer; its
 findings T-704 and T-705), T-767 (a stalled resume of `pod-session`,
@@ -147,16 +181,19 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
 9. **M4, the roads:** T-131 (a defect of `pod-gsr` on Windows ARM64)
    first; then T-036 (with T-856, the vectors of `tokens.json`), T-039.
 10. **M5, the upkeep:** T-932 (the temp files, PodUtils/podvm#567), T-917
-   (the copies of product code that `codegraph.py dups` finds), T-928 (the
+   (the copies of product code that `codegraph.py dups` finds), T-1115
+   (the two copies of the bind of a Unix socket at a long path), T-928 (the
    other readers of an HTTP/1.1 head), T-918 (the helpers that the tests
-   copy);
+   copy), T-1044 (the doc tests that the checks for Windows and macOS do
+   not compile), T-1146 (the comments of `pod-natprobe` in ASD-STE100);
    T-789, T-766, T-780 (a test that reads the pipes
    of its child after the child ends), T-781 (the findings of the study of
    zmux for the consumers), T-779; T-312 (a code fence that is not closed
    in the record). A "port" entry for each change that
    `scripts/check-sources.py` finds; T-199 after a release of snow on
    `chacha20poly1305` 0.11. The live calls of CI (`docs/live-calls.md`,
-   calls C150 to C153), in the order of their gain: T-351 (a host that
+   calls C150 to C153), in the order of their gain: T-1150 (a watch of the facts of
+   RFC 5780 of a STUN server), T-351 (a host that
    gives no answer to one runner reddens `services.yml`), T-371 (the same
    class for the DNS watches, `stun-binding` and the HTTP client), T-356
    (sish and sandhole), T-357 (gs-netcat). T-359 and T-360 go with T-028
@@ -196,10 +233,11 @@ takes the number after the last row of that table.
   `POD_DEVTUNNEL_ACCESS_TOKEN` for a tunnel with no anonymous access),
   host the tunnel (`devtunnel host -p 22 --allow-anonymous`), and tell
   the session: it dispatches `live.yml` with `measure=devtunnel`.
-- Reserve the names `pod-beneath` (call C834, T-997), `pod-shape`,
-  `pod-cover`, `pod-harness`, `pod-sidecar` and `pod-offline` on
-  crates.io, as for each name of `docs/design.md`, section 4 (`pod-unit`
-  is reserved).
+- Reserve the name `pod-natprobe` on crates.io (T-802), as for each name
+  of `docs/design.md`, section 4 (the other 108 are reserved;
+  `scripts/check-crates-io-names.py` reports `pod-natprobe` alone).
+- Delete the remote branch `wip/t1073` (merged into `main`): the proxy of
+  the sessions refuses `git push origin --delete`.
 
 The hand-off of each release is a COORD issue `(to all)`
 (`docs/maintenance.md`, "A release").

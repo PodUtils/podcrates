@@ -11,160 +11,143 @@ is done. Git and the record keep finished work.
 
 1. Start the watcher under the Monitor tool and keep it running
    (`docs/maintenance.md`, "The issue loop"). Read the open COORD issues
-   `(to podcrates)` of each repository of PodUtils.
+   `(to podcrates)` of each repository of PodUtils. Each one maps to an
+   entry (PodUtils/podvm#570, COORD-183, maps to T-1162). Map each new one
+   in the same commit.
 2. Coordinate the five sessions by COORD issues alone (the rulings
    "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),
    podssh, podnet and podvm. The owner starts the sessions; send no direct
    message. COORD-136 (#227) gives the order of each session. Read each
    answer `(to podcrates)`, route each ask of podrunner to its owner at
    once, and edit #227 when the order changes.
-3. The red scheduled runs and their entries:
-   - `nightly.yml` 44739339618 at `8a2cdd9`: T-1040, T-1041, T-1042, T-1043,
-     T-1021 and T-1030 are done. Open: T-1044 (the checks of Windows and
-     macOS here compile no doc test), T-916 (partial; `pod-iroh` on
-     riscv64 and loongarch64), T-938 (partial), T-789 and T-766.
-   - `nightly.yml` 44848003241 at `a7fb465` (#252): T-1082 (`80fa507a`)
-     moved each gate of `switches::count` into a test binary of its own,
-     and `i686` passed in `nightly.yml` 44891581672 and 45009375271.
-   - `nightly.yml` 44871383085 at `ab73e75` (#255), plus scheduled runs
-     44891581672 (2026-11-21) and 45009375271 (2026-11-22) at `50aa5e0b`:
-     - `test (windows-2025)` and `test (windows-11-arm)` failed in both
-       `Test` and `A Windows service of pod-unit`
-       (`crates/pod-unit/tests/service_live.rs`): `win::serve` returned
-       `Class::Unavailable` (`StartServiceCtrlDispatcherW: An instance of
-       the service is already running. (os error 1056)`) on the second
-       call in `a_program_that_the_manager_did_not_start_gets_a_usage_failure`
-       instead of `Class::Usage`. T-1089 (done, in `v0.82.1`) fixes it;
-       the proof is the next run of `nightly.yml` on Windows.
-     - `cross (riscv64gc-unknown-linux-musl)` failed in `pod-iroh`
-       (`road.rs`, `new_address.rs`, `share.rs`, T-916, T-938) and in
-       45009375271 also in `pod-quic` (`datagrams.rs`). `loongarch64`
-       (44891581672, 45009375271) and `powerpc64le` (45009375271) failed
-       in `pod-iroh` (`road.rs`, T-916).
-     - `ci` 44871374413, `adoption` 44871377124 and `plants` 44871380137
-       passed on `ab73e75`.
-   - Current `main` runs (`51c09390` `v0.82.0` and `07d4cc4f` `HEAD`):
-     - At `51c09390` (`v0.82.0`): `publish.yml` 45122406747 on `v0.82.0`
-       (`dry-run`, `crates-io = false`), `plants.yml` 45122401716,
-       `adoption.yml` 45122401663, `secrets.yml` 45122401645,
-       `vmess interop` 45122401640, `issue-sync.yml` 45122401611 and
-       `deny.yml` 45122401588 passed. `ci.yml` 45122401625 failed in
-       `test` on `scripts/ci/turn-tests.sh` (`coturn_tcp` output match).
-     - At `07d4cc4f`: `secrets.yml` 45144882194, `issue-sync.yml`
-       45144882108 and `deny.yml` 45144881966 (proving `url` 2.5.9 after
-       `deny.yml` 45035185940 failed on RUSTSEC-2026-0592) passed.
-       `ci.yml` 45144882072 and `plants.yml` 45144882160 are running;
-       read their results first.
-   - `services.yml` 45009160652 (2026-11-22): failed (`syncthing-relay`
-     `relay-dvwou27` moved to `1.168.95.18`, plus `freedos-image`,
-     `localtunnel`, `gosuda-portal`, `openbare-xyz`, `opentunnel` and
-     `node-trojan-66-163-112-121`; T-1093; T-1096 for the hosts that
-     gave no answer to the runners, which held on 45159148662).
-   - `ci.yml`: T-943 is done: the arm64 probe of macOS builds on the
-     Intel runner.
-   - `docs/research/hard-problems.md`: the hard open problems (H-01 to
-     H-18), with the questions that research must answer. T-978 has its
-     findings that no other entry had.
-   - `upstream.yml` 45224210077 (`sources`): red on `pod-testkit` and
-     `pod-unit`. T-1111 and T-1122 are done: each crate gives 0 changes
-     at the consumers' heads (podrunner `1f04680`, podssh `444b518`). No
-     drift remains.
-   A new red run needs an entry before other work. A plant that a run
-   misses once with no change of its crate runs its test five times in
-   its `.plant` (as `link-quic-drop-closes-at-once`).
+3. Read the runs of the head of `main` (`ci`, `plants`, `adoption`,
+   `secrets`, `deny`, `issue-sync`). A new red run needs an entry before
+   other work. A plant that a run misses once with no change of its crate
+   runs its test five times in its `.plant` (as
+   `link-quic-drop-closes-at-once`). Then read the scheduled runs:
+   - `nightly.yml` 45212967290 at `0f5dad6`: the jobs of Windows and macOS
+     and `powerpc64le` pass (T-1089 is proven). `riscv64` and `loongarch64`
+     fail in `pod-iroh` (`road.rs`, `share.rs`: T-916, T-938, Q19); `riscv64`
+     also fails in `pod-control` (`tests/server.rs`: T-1161). Open entries
+     of the nightly: T-916 and T-938 (partial), T-789, T-766, T-1161, and
+     T-1044 (`check-windows.sh` and `check-macos.sh` compile no doc test).
+   - `upstream.yml` 45224210077 (job `sources`) is red. Its changes at the
+     consumers' heads are done (T-1111, T-1122), but podrunner has since
+     changed three imported files of `pod-testkit`: T-1160. The next daily
+     run is red until T-1160 is done. The check
+     `scripts/check-sources.py` with clones of each source shows the same.
+   - `services.yml`: the scheduled run 45159148662 failed; the dispatches
+     45174182632 and 45174187730 passed. T-1034 (`temp-sh` gets 429 from a
+     runner) is the one open entry.
+   - `live.yml`: T-963 (partial; the second Nostr relay is `nos.lol`).
+   - `publish.yml` 45321873395, the dry run on `v0.82.1`, passed.
+   - `docs/research/hard-problems.md` has the hard open problems (H-01 to
+     H-18). T-978 (partial) holds the findings that no other entry has.
 4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the red
-   nightly above, then the entries for the CI of githome and cfb (T-106,
-   T-104 with T-880, T-100, T-105, T-103, T-102).
+   gates above, then the entries for the CI of githome and cfb (T-106,
+   T-1118), then the asks of the consumers.
 5. The fakes of the CI of podrunner and githome are release assets of
-   each tag from `v0.73.0`: `pod-fake-github` (T-921, call C785;
-   githome's G-30 and G-40) and `pod-fake-githome` (T-948, call C786;
-   githome's G-38 and PodUtils/podrunner@T-509), each for x86_64 and
-   aarch64 musl in the signed `SHA256SUMS`, and from `v0.75.0` an image
-   of each on ghcr.io (`crates/pod-testkit/README.md`). When podrunner
-   writes a step of githome's answers that differs from the fake, it is
-   an entry here.
+   each tag: `pod-fake-github` (T-921) and `pod-fake-githome` (T-948), for
+   x86_64 and aarch64 musl in the signed `SHA256SUMS`, and an image of
+   each on ghcr.io (`crates/pod-testkit/README.md`). When podrunner writes
+   a step of githome's answers that differs from the fake, it is an entry
+   here (T-1160 is one).
 6. The channel of cfb and githome is #223. podcrates keeps one reply
    comment to each there (cfb: 6970315549; githome: 6970683028) and edits
    it, with the UTC time of each update and of each acknowledgement. cfb
    is offline until the CI of podrunner and githome is complete; it reads
    `docs/research/fleet/asks.md` and the block of #223 at its next start.
-   githome's asks G-30 to G-35 are T-921 to T-923, T-099, T-100 and T-104.
-   G-34 (T-104, T-880, T-964, T-965) and G-35 (T-100) are done and shipped
-   in `v0.77.0` to `v0.79.0`. cfb's A-X-18 (T-106, partial) waits for
-   cfb's answer on #223. Both reply comments are current.
-7. Release and hand-off state:
-   - `v0.81.0` (`0707cfa`) is the last GitHub release with `release.yml`
-     assets and `ghcr.io` images. Its hand-off COORD-151 (#254) is closed
-     (call C780): podrunner took `v0.81.0` in PodUtils/podrunner#340,
-     podnet in PodUtils/podnet#654, podssh in PodUtils/podssh#337, and
-     podvm took `v0.82.0` in PodUtils/podvm#645.
-   - `v0.82.1` (`0d7832b`, `docs/releases/v0.82.1.md`) is the last GitHub
-     release with `release.yml` assets and `ghcr.io` images: the GitHub
-     release, the signed `SHA256SUMS`, the assets and the images of
-     `ghcr.io/podutils`. Its hand-off COORD-152 (#257) is open (call
-     C780): it closes when each consumer names `v0.82.1` or a later tag.
-   - `v0.82.0` (`51c09390`) is tagged without `release.yml`: it has no
-     GitHub release and no images. `v0.82.1` carries its content. podnet
-     (`4df28952`), podssh (`e728db9f`) and podvm (`4fa56ec` to
-     `a43e80cd`) name `v0.82.0`; podrunner names `v0.81.0`.
-   - The pushes of a cloud session of this account start no run of
-     GitHub Actions: dispatch workflows via the GitHub MCP tool first,
-     and use `[gh action] requested` (#255 is the last) when dispatch
-     fails; one request can run the workflows of PodUtils/static-pkgs
-     too. COORD-142 (#236) relays the ruling "ghcr.io" (call C789):
-     podcrates, podvm and podnet publish in its form, podssh pushes at its
-     next tag, and podrunner's T-553 is open.
-8. T-767 (PodUtils/podssh#283, partial) and T-939 (done as a guard, call
-   C784: a link is lost when a PING waits 30 s and nothing moves): the
-   eighth failure of podssh's gate did not come again on the loopback;
-   T-945 (done, in `v0.73.0`) gives the client's own line,
-   `resume::Note::Stall`, which tells its cause; podssh shows it at `-v`
-   at its take. T-959 (done) gives the channel's own line above the
-   layer, the event `e2e.wait` of `pod-e2e`: a write of the carry to the
-   application or to the layer that takes no byte for 20 s, with the bytes
-   of its way. With both lines, the eleventh failure (podssh's run
-   44506565889) names podssh's own SSH client as the reader that stopped;
-   podssh takes it (PodUtils/podssh@T-780), with no new ask of podcrates.
-   T-768 goes with T-767.
-9. Then the work order of `TODO/PROGRESS.md`.
-10. Run `scripts/agent/check.sh` with a short `TMPDIR` (for example
-    `TMPDIR=/tmp`): a long one makes the socket paths of `pod-guest` too
-    long for `sun_path` (T-920).
+   cfb's A-X-18 (T-106, partial) waits for cfb's answer on #223.
+7. T-767 (partial, PodUtils/podssh#283) and T-768: the client's line
+   `resume::Note::Stall` (T-945) and the channel's line `e2e.wait` of
+   `pod-e2e` (T-959) name the reader that stopped; podssh takes it
+   (PodUtils/podssh@T-780) with no new ask of podcrates.
+8. Then the work order of `TODO/PROGRESS.md`.
+9. Run `scripts/agent/check.sh` with a short `TMPDIR` (for example
+   `TMPDIR=/tmp`): a long one makes the socket paths of `pod-guest` too
+   long for `sun_path` (T-920).
+10. Rules of the session that the documents do not repeat:
+    - A push of this account starts the runs of Actions. Dispatch a
+      workflow with the GitHub MCP tool (`actions_run_trigger`); no request
+      `[gh action] requested` is needed.
+    - The usage limit can stop an agent in a build. Tell each agent to
+      commit early on its local branch (`docs/maintenance.md`, "Rules of
+      the work").
+    - Agents share one cargo lock (`flock`) and each builds in its own
+      `CARGO_TARGET_DIR`. A full check needs 22 GB free: read `df -h /`
+      first.
+    - A pull request from outside the team gets CI runs with the state
+      `action_required`. Review its code before you approve or dispatch
+      its CI (the ruling "Strangers").
 
 ## Release: v0.82.1
 
 `v0.82.1` (`0d7832b`, `docs/releases/v0.82.1.md`) is released: the GitHub
 release, the signed `SHA256SUMS`, the assets and the images of
 `ghcr.io/podutils` exist. It carries `v0.82.0` (`51c09390`,
-`docs/releases/v0.82.0.md`, tagged without `release.yml`) and each change
-of `main` after it.
+`docs/releases/v0.82.0.md`, tagged without `release.yml`, so with no
+release and no images) and each change of `main` before the tag.
 
-The hand-off COORD-152 (#257) is open (call C780). It carries the parts of
-`v0.82.0` that podrunner has not taken, and the asks of each consumer of
-`docs/releases/v0.82.1.md`, "How a consumer takes it": podrunner T-1110
-(`service_account()`) and PodUtils/podrunner@T-595 (T-1098); podvm T-1124
-(`pod_enter::joinable`), `Plan::relay_title` and `pod_hostprobe::usage`;
-podnet T-1117 (the limits 110 s and 210 s); podssh iroh 1.4.2,
-`Unit::public`, `older_mark`, `write_checked` and `bind_staged`. Amend its
-body at each take. The tag that each consumer names: `v0.82.0` (podnet,
-podssh, podvm), `v0.81.0` (podrunner).
+The hand-off COORD-152 (#257) is open (call C780). It closes when each
+consumer names `v0.82.1` or a later tag:
 
-T-963 is partial. T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks
-their release part) are open.
+- podrunner names `v0.82.1` (PodUtils/podrunner#348, closed): its unit of
+  the system calls `service_account()` (T-1110), and its report gives the
+  reason of each absent time (T-1098). Amend #257 with this take.
+- podnet, podssh and podvm name `v0.82.0`. Their asks of #257: podvm T-1124
+  (`pod_enter::joinable`), `Plan::relay_title` and `pod_hostprobe::usage`;
+  podnet T-1117 (the limits 110 s and 210 s); podssh iroh 1.4.2,
+  `Unit::public`, `older_mark`, `write_checked` and `bind_staged`.
+
+COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
+`pod-term` (T-1144, open). No tag has it.
+
+### On `main` after `v0.82.1` (for the next tag)
+
+- podnet's QA pass (PodUtils/podnet#707): T-1125 to T-1134. T-1127 changes
+  the field type of `pod-wormhole` `Failed::Unreachable` to `Missed`: a
+  caller that binds it as a `String` adds `.to_string()`.
+- podvm's asks (PodUtils/podvm#651): T-1137 to T-1142. podvm must match
+  `ErrorKind::TooLarge` of `pod-incus` (T-1143).
+- `pod-natprobe` (T-802, from PodUtils/podcrates#256, which is closed as
+  superseded by `f9abd7bb`), with T-1151 to T-1154. The kind `stun` of
+  `pod-services` has three default servers (call C923): the doctor of
+  podssh takes each server by rank, and its test
+  `the_variable_names_the_servers_or_turns_the_line_off` pins two. The
+  hand-off of the next tag names this change to podssh by a COORD message.
+
+### What the next hand-off carries
+
+- podrunner: no open ask; T-1160 is ours.
+- podvm: T-1124, T-1143, T-1158 (podvm removes its work-arounds at the tag
+  of T-1155 to T-1157).
+- podnet: T-1117 (documents), T-1118 (`release-index.json`).
+- podssh: the STUN note above, T-1095 (the order of the pseudo-fields of
+  the HTTP/2 request of `pod-ws`, PodUtils/podssh#340), T-1103 (iroh 1.5).
+- Asks of podvm and podssh that no one has started: T-1155, T-1156 and
+  T-1157 (`pod-incus`, PodUtils/podvm#653), T-1144 (`pod-term`).
+- Entries of podcrates that no one has started: T-1160 (port review of
+  podrunner's changes), T-1161 (a test of `pod-control` under QEMU), T-1162
+  (the answer to PodUtils/podvm#570), T-1115 (the copies of the bind at a
+  long path), T-1135 (`pod-cloudflare` says a cause two times), T-1146 (the
+  comments of `pod-natprobe` are not in ASD-STE100), T-1150 (a watch of the
+  facts of RFC 5780 of `easybell-stun`).
+- T-963 is partial. T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks
+  their release part) are open.
 
 ## Unfinished work
 
-- `origin/wip/t1073` is merged into `main` (T-1073, T-1070; the new API
-  `Context::call_within` of `pod-control`; no consumer must change). The
-  coordinator deletes the branch on GitHub by a request `[gh action]
-  requested` (the proxy drops `git push origin --delete`).
+- `origin/wip/t1073` is merged into `main` (T-1073, T-1070). The proxy
+  refuses `git push origin --delete`, so the owner deletes the branch on
+  GitHub (`TODO/PROGRESS.md`, "Owner actions"). No other `wip/` branch
+  exists.
 
 ## What waits
 
 - podvm: T-330 (its pair commands); T-207 (`pod-netlab`, #70) for
   PodUtils/podvm@T-1662.
-- podswarm: its asks wait until its session starts, but for T-439,
-  T-444, T-447 and T-448 (the ruling "podswarm").
+- podswarm: its asks wait until its session starts, but for T-444, T-447
+  and T-448 (the ruling "podswarm").
 - `pod-git` (T-217 to T-220) is blocked (`PodUtils/podforge`, deferred).
   The rest of M8 waits (the ruling "Priority"); the entries for the CI of
   githome and cfb are in the work order.
