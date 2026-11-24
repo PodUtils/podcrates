@@ -1,0 +1,11 @@
+--- a/crates/pod-term/src/transfer.rs
++++ b/crates/pod-term/src/transfer.rs
+@@ -425,7 +425,7 @@
+     fn finish(&mut self) {
+         if let Some(s) = self.session.take_if(|s| s.ended) {
+             self.out.extend_from_slice(&s.out);
+-            self.verdict = s.verdict;
++            self.verdict = None;
+         }
+     }
+ 

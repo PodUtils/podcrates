@@ -1,6 +1,6 @@
---- a/crates/pod-term/src/transfer/flow.rs
-+++ b/crates/pod-term/src/transfer/flow.rs
-@@ -381,7 +381,7 @@
+--- a/crates/pod-term/src/transfer/flow/receiver.rs
++++ b/crates/pod-term/src/transfer/flow/receiver.rs
+@@ -56,7 +56,7 @@
          if bytes.is_empty() || bytes.len() > self.cap || offset > self.count {
              return self.protocol("DATA out of order or out of size", events);
          }

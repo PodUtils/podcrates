@@ -1,12 +1,20 @@
 //! The trigger line, `#PODSSH-TX<version>:<dir>:<id>:<crc>`: the far end
-//! paints it, and the near end scans its output for it.
+//! paints it, and the near end scans its output for it. While the near end
+//! keeps the verdict of a file, the scanner also holds a line that starts
+//! with `#DONE:`: the `DONE` of the kept file gets the same `KEPT`.
 
 use std::collections::VecDeque;
 use std::time::Instant;
 
+use super::linger::Verdict;
+use super::reader::{Got, Reader};
 use super::{Dir, Event, IDS_KEPT, TRIGGER_HOLD, VERSION};
 
 const PREFIX: &[u8] = b"#PODSSH-TX";
+const DONE: &[u8] = b"#DONE:";
+/// The most bytes of a held `DONE` line, with its repaint: the frame has
+/// 69 painted bytes.
+const DONE_HELD_MAX: usize = 1024;
 
 /// The trigger line that the far end paints: a clean line first, then the
 /// trigger and CRLF.
@@ -97,18 +105,46 @@ pub(super) struct Start {
     pub used: usize,
 }
 
+/// Whether the held bytes can be a line of `DONE`.
+fn done_line(held: &[u8]) -> bool {
+    let n = held.len().min(DONE.len());
+    held[..n] == DONE[..n]
+}
+
+/// What a held `DONE` line is.
+enum Line {
+    Part,
+    /// The `DONE` of the kept file.
+    Answer,
+    Not,
+}
+
 /// The scanner of the near end's output while no session runs.
 #[derive(Debug, Clone, Default)]
 pub(super) struct Scanner {
     held: Vec<u8>,
     since: Option<Instant>,
     seen: VecDeque<[u8; 8]>,
+    /// The frame reader of a held `DONE` line, which drops a repaint.
+    line: Option<Reader>,
 }
 
 impl Scanner {
     /// Reads `bytes`: each byte that cannot begin a trigger shows at once.
-    pub(super) fn feed(&mut self, bytes: &[u8], now: Instant, events: &mut Vec<Event>) -> Option<Start> {
-        for (i, &b) in bytes.iter().enumerate() {
+    /// With a `verdict`, a `DONE` of its file does not show, and its `KEPT`
+    /// goes to `out`.
+    pub(super) fn feed(
+        &mut self,
+        bytes: &[u8],
+        now: Instant,
+        events: &mut Vec<Event>,
+        verdict: Option<&Verdict>,
+        out: &mut Vec<u8>,
+    ) -> Option<Start> {
+        let mut i = 0;
+        while i < bytes.len() {
+            let b = bytes[i];
+            i += 1;
             if self.held.is_empty() {
                 if b == b'#' {
                     self.held.push(b);
@@ -119,27 +155,30 @@ impl Scanner {
                 continue;
             }
             self.held.push(b);
+            if let Some(verdict) = verdict.filter(|_| done_line(&self.held)) {
+                match self.line(b, verdict) {
+                    Line::Part => {}
+                    Line::Answer => {
+                        self.release();
+                        out.extend_from_slice(verdict.kept());
+                        i += line_end(&bytes[i..]);
+                    }
+                    Line::Not => self.show_held(b, now, events),
+                }
+                continue;
+            }
             match read(&self.held) {
                 Held::Part => {}
-                Held::Not => {
-                    let restart = b == b'#';
-                    let keep = if restart { self.held.len() - 1 } else { self.held.len() };
-                    show(events, &self.held[..keep]);
-                    self.held.clear();
-                    if restart {
-                        self.held.push(b);
-                        self.since = Some(now);
-                    }
-                }
+                Held::Not => self.show_held(b, now, events),
                 Held::Whole { version, dir, id, crc_holds } => {
-                    let held = std::mem::take(&mut self.held);
+                    let held = self.release();
                     if crc_holds && version == VERSION && !self.seen.contains(&id) {
                         if self.seen.len() == IDS_KEPT {
                             self.seen.pop_front();
                         }
                         self.seen.push_back(id);
                         events.push(Event::Start { dir, id });
-                        return Some(Start { dir, id, used: i + 1 + line_end(&bytes[i + 1..]) });
+                        return Some(Start { dir, id, used: i + line_end(&bytes[i..]) });
                     }
                     show(events, &held);
                     if crc_holds && version != VERSION {
@@ -151,6 +190,46 @@ impl Scanner {
         None
     }
 
+    /// The held line of `DONE` after the byte `b`: it decides at the end of
+    /// the frame, at its CRC.
+    fn line(&mut self, b: u8, verdict: &Verdict) -> Line {
+        if self.held.len() < DONE.len() {
+            return Line::Part;
+        }
+        let reader = self.line.get_or_insert_with(Reader::new);
+        let pushed: &[u8] = if self.held.len() == DONE.len() { &self.held } else { &[b] };
+        let mut got = None;
+        for &c in pushed {
+            got = reader.push(c);
+        }
+        match got {
+            None if self.held.len() > DONE_HELD_MAX => Line::Not,
+            None => Line::Part,
+            Some(Got::Frame { kind, payload }) if verdict.answers(&kind, &payload) => Line::Answer,
+            Some(_) => Line::Not,
+        }
+    }
+
+    /// The held bytes go, with their frame reader.
+    fn release(&mut self) -> Vec<u8> {
+        self.line = None;
+        std::mem::take(&mut self.held)
+    }
+
+    /// The held bytes show; a `#` that ended them starts a new hold.
+    fn show_held(&mut self, b: u8, now: Instant, events: &mut Vec<Event>) {
+        let restart = b == b'#';
+        let mut held = self.release();
+        if restart {
+            held.pop();
+        }
+        show(events, &held);
+        if restart {
+            self.held.push(b);
+            self.since = Some(now);
+        }
+    }
+
     /// When the bytes of a trigger cut by a read show, if none comes.
     pub(super) fn deadline(&self) -> Option<Instant> {
         self.since.filter(|_| !self.held.is_empty()).map(|t| t + TRIGGER_HOLD)
@@ -159,7 +238,8 @@ impl Scanner {
     /// Shows the held bytes at their deadline.
     pub(super) fn tick(&mut self, now: Instant, events: &mut Vec<Event>) {
         if self.deadline().is_some_and(|d| now >= d) {
-            show(events, &std::mem::take(&mut self.held));
+            let held = self.release();
+            show(events, &held);
         }
     }
 }

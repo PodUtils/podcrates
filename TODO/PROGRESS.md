@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 968 entries: 167 open, 29 partial, 7 blocked, 765 done.
+`TODO/INDEX.md` holds 968 entries: 166 open, 29 partial, 7 blocked, 766 done.
 
 ## State
 
@@ -106,9 +106,7 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
 - podssh: T-1167 to T-1169 (`pod-link`, the DNS carrier; PodUtils/podssh#349,
   COORD-139: a carrier with no TLS, DNS over HTTPS, a test through
   `unbound`);
-  T-1198 (two gaps of the design of the transfer codec of `pod-term`: a
-  lost `KEPT` and the far sender's wait during an offer; podssh answered
-  in PodUtils/podssh#353 and the codec closes both: call C932); T-1103 (iroh 1.5 and its fork
+  T-1103 (iroh 1.5 and its fork
   of iroh-relay, after PodUtils/podssh#341); T-1095 (the order of the
   pseudo-fields of the HTTP/2 request of `pod-ws`; PodUtils/podssh#340);
   T-1238 (`EX_DATAERR`; PodUtils/podssh#352, COORD-142);

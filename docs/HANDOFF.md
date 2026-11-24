@@ -154,6 +154,13 @@ The asks of #259 to the consumers:
   that holds it to `Class::exit_code`. The next hand-off answers #352 with it:
   podssh may move to the table at any time.
 
+- T-1198 (`pod-term`, PodUtils/podssh#353): the transfer codec is wire version
+  2 (trigger `#PODSSH-TX2:`; a v1 end and a v2 end refuse to start): the
+  frame `HOLD` while a person answers an offer or the caller renames a copy,
+  the verdict kept for `LINGER` (25 s) after `KEPT`, `Transfer::lingers`,
+  `Ended::Unconfirmed`, `stop::UNSUPPORTED` at a `HELO` of another version.
+  podssh changes `docs/terminal.md` ("The 7-bit envelope") to match.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask.

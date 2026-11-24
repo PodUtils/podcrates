@@ -1,6 +1,6 @@
---- a/crates/pod-term/src/transfer/flow.rs
-+++ b/crates/pod-term/src/transfer/flow.rs
-@@ -399,7 +399,7 @@
+--- a/crates/pod-term/src/transfer/flow/receiver.rs
++++ b/crates/pod-term/src/transfer/flow/receiver.rs
+@@ -77,7 +77,7 @@
              return self.stop(stop::DIFFERS, "the size differs; nothing was kept", events);
          }
          let ours: [u8; 32] = self.hash.clone().finalize().into();

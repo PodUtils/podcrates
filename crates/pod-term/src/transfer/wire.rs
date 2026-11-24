@@ -20,7 +20,9 @@ pub(super) const BASE64: GeneralPurpose = GeneralPurpose::new(
 /// The largest size, offset or count: below 2^63.
 const SIZE_LIMIT: u64 = 1 << 63;
 
-/// One message of the codec.
+/// One message of the codec. `Hold` (no payload): the receiver waits for
+/// its caller, and the sender sends its frame in flight again after
+/// [`RESEND_MAX`](super::RESEND_MAX).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Msg {
     Helo { version: u8, id: [u8; 8], chunk: u32 },
@@ -31,6 +33,7 @@ pub(super) enum Msg {
     Ackn { of: u64, count: u64 },
     Done { size: u64, sha256: [u8; 32] },
     Kept { size: u64 },
+    Hold,
     Stop { code: u8, reason: Vec<u8> },
 }
 
@@ -54,6 +57,7 @@ impl Msg {
             Msg::Ackn { .. } => b"ACKN",
             Msg::Done { .. } => b"DONE",
             Msg::Kept { .. } => b"KEPT",
+            Msg::Hold => b"HOLD",
             Msg::Stop { .. } => b"STOP",
         }
     }
@@ -90,6 +94,7 @@ impl Msg {
                 p.push(*code);
                 put_str(&mut p, cut(reason));
             }
+            Msg::Hold => {}
         }
         p
     }
@@ -108,6 +113,7 @@ impl Msg {
             b"ACKN" => Msg::Ackn { of: r.size()?, count: r.size()? },
             b"DONE" => Msg::Done { size: r.size()?, sha256: r.array()? },
             b"KEPT" => Msg::Kept { size: r.size()? },
+            b"HOLD" => Msg::Hold,
             b"STOP" => Msg::Stop { code: r.u8()?, reason: r.str()? },
             _ => return Err(Bad::Kind),
         };

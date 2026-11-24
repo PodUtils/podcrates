@@ -7,18 +7,23 @@
 
 use std::time::{Duration, Instant};
 
-use pod_term::transfer::{CHUNK_MIN, Dir, Ended, Event, FileInfo, Transfer, WAIT, stop};
+use pod_term::transfer::{
+    CHUNK_MIN, Dir, Ended, Event, FileInfo, LINGER, RESEND_MAX, RESEND_MIN, Transfer, WAIT, stop,
+};
 
 const ID: [u8; 8] = [0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef];
-const T1: &[u8] = b"#PODSSH-TX1:S:0123456789abcdef:56fd5108\r\n";
-const T2: &[u8] = b"#PODSSH-TX1:R:0123456789abcdef:b9afe7e9\r\n";
-const HELO: &str = "#HELO:AQEjRWeJq83vAACAAA!21941b5b";
+const T1: &[u8] = b"#PODSSH-TX2:S:0123456789abcdef:f9541cc2\r\n";
+const T2: &[u8] = b"#PODSSH-TX2:R:0123456789abcdef:1606aa23\r\n";
+const HELO: &str = "#HELO:AgEjRWeJq83vAACAAA!9c5e7795";
 const OFFR: &str = "#OFFR:AAAAAAAAAAYAAAGkAAAAAAAAAAAABWEudHh0!51054221";
 const TAKE: &str = "#TAKE:AAAAAAAAAAA!5b64f8f9";
 const DATA: &str = "#DATA:AAAAAAAAAABoZWxsbwo!beee1f4d";
 const ACKN: &str = "#ACKN:AAAAAAAAAAAAAAAAAAAABg!168c223e";
 const DONE: &str = "#DONE:AAAAAAAAAAZYkbW1ItXfCG0P8LEQ+9nSG7T8cWOvNNCChqLoRva+Aw!6ff6dfbc";
 const KEPT: &str = "#KEPT:AAAAAAAAAAY!67cdbc05";
+const HOLD: &str = "#HOLD:!464f8be9";
+/// A `DONE` of the same size with a SHA-256 of zeros.
+const DONE_ZEROS: &str = "#DONE:AAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!b65d2465";
 const SHA256: &str = "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03";
 
 fn a_txt() -> FileInfo {
@@ -45,7 +50,7 @@ fn ended(events: &[Event]) -> Option<Ended> {
 fn code(events: &[Event]) -> Option<u8> {
     match ended(events)? {
         Ended::Stopped { code, .. } => Some(code),
-        Ended::Done => None,
+        Ended::Done | Ended::Unconfirmed => None,
     }
 }
 
@@ -132,6 +137,12 @@ fn the_far_end_of_each_exchange_byte_for_byte() {
     assert_eq!(text(&send.poll_output(now)), text(&far(DONE)));
     assert_eq!(ended(&send.feed(&near(KEPT), now)), Some(Ended::Done));
 
+    far_receiver(now, true);
+}
+
+/// The far end of the upload, byte for byte up to `Verified`, and up to
+/// the hand-over of its `KEPT` when `keep` is set.
+fn far_receiver(now: Instant, keep: bool) -> Transfer {
     let mut receive = Transfer::far_receive(ID, now);
     receive.poll_output(now);
     receive.feed(&near(HELO), now);
@@ -142,9 +153,12 @@ fn the_far_end_of_each_exchange_byte_for_byte() {
     receive.feed(&near(DATA), now);
     assert_eq!(text(&receive.poll_output(now)), text(&far(ACKN)));
     assert!(matches!(receive.feed(&near(DONE), now).last(), Some(Event::Verified { .. })));
-    receive.kept();
-    assert_eq!(text(&receive.poll_output(now)), text(&far(KEPT)));
-    assert_eq!(ended(&receive.events()), Some(Ended::Done));
+    if keep {
+        receive.kept();
+        assert_eq!(text(&receive.poll_output(now)), text(&far(KEPT)));
+        assert_eq!(ended(&receive.events()), Some(Ended::Done));
+    }
+    receive
 }
 
 #[test]
@@ -178,7 +192,7 @@ fn x3_a_duplicate_data_writes_nothing_and_is_acked_again() {
 #[test]
 fn x4_a_hash_that_differs_keeps_nothing() {
     let (mut t, now) = download(7);
-    let events = t.feed(&far("#DONE:AAAAAAAAAAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!b65d2465"), now);
+    let events = t.feed(&far(DONE_ZEROS), now);
     assert!(!events.iter().any(|e| matches!(e, Event::Verified { .. })), "{events:?}");
     assert_eq!(code(&events), Some(stop::DIFFERS));
     let stop = near("#STOP:AwAhU0hBLTI1NiBkaWZmZXJzOyBub3RoaW5nIHdhcyBrZXB0!59691c9e");
@@ -260,7 +274,7 @@ fn the_output_after_the_last_frame_shows_and_a_new_trigger_is_watched() {
     t.feed(&far(ACKN), now);
     let events = t.feed(&[far(KEPT).as_slice(), b"$ "].concat(), now);
     assert_eq!(events, [Event::End { ended: Ended::Done, rest: b"$ ".to_vec() }]);
-    let events = t.feed(b"ls\r\n#PODSSH-TX1:S:fedcba9876543210:dac7206b", now);
+    let events = t.feed(b"ls\r\n#PODSSH-TX2:S:fedcba9876543210:756e6da1", now);
     assert!(matches!(&events[..], [Event::Show(_), Event::Start { .. }]), "{events:?}");
 }
 
@@ -301,4 +315,180 @@ fn a_far_end_answers_a_helo_that_comes_again() {
     assert_eq!(text(&send.poll_output(now)), text(&[far(HELO), far(OFFR)].concat()));
     assert_eq!(send.feed(&near(HELO), now), []);
     assert_eq!(text(&send.poll_output(now)), text(&far(HELO)));
+}
+
+fn shown(events: &[Event]) -> Vec<u8> {
+    events.iter().flat_map(|e| if let Event::Show(b) = e { b.clone() } else { Vec::new() }).collect()
+}
+
+/// The near end of the download after its `KEPT`, handed over at the time.
+fn download_kept() -> (Transfer, Instant) {
+    let (mut t, now) = download(7);
+    assert!(matches!(t.feed(&far(DONE), now).last(), Some(Event::Verified { .. })));
+    t.kept();
+    assert_eq!(text(&t.poll_output(now)), text(&near(KEPT)));
+    assert_eq!(ended(&t.events()), Some(Ended::Done));
+    (t, now)
+}
+
+#[test]
+fn x13_a_kept_lost_in_a_download_goes_again_and_the_done_does_not_show() {
+    let (mut t, now) = download_kept();
+    assert!(t.lingers() && !t.active());
+    let later = now + Duration::from_secs(2);
+    assert_eq!(t.feed(&far(DONE), later), []);
+    assert_eq!(text(&t.poll_output(later)), text(&near(KEPT)));
+    // A frame cut by a read, and one that the terminal repaints.
+    let done = far(DONE);
+    assert_eq!(t.feed(&done[..20], later), []);
+    assert_eq!(t.feed(&done[20..], later), []);
+    let repainted = format!("\r\x1b[K{}\x1b[2;1H{}\r\n", &DONE[..40], &DONE[40..]);
+    assert_eq!(shown(&t.feed(repainted.as_bytes(), later)), b"\r\x1b[K");
+    assert_eq!(text(&t.poll_output(later)), text(&[near(KEPT), near(KEPT)].concat()));
+    // Other output shows, also a line that starts with `#`.
+    assert_eq!(shown(&t.feed(b"$ #DONE: no frame\r\n", later)), b"$ #DONE: no frame\r\n");
+    assert_eq!(t.poll_output(later), b"");
+}
+
+#[test]
+fn x14_a_kept_lost_in_an_upload_the_far_end_lingers_and_sends_it_again() {
+    let now = Instant::now();
+    let mut r = far_receiver(now, true);
+    assert!(r.lingers() && !r.active());
+    assert_eq!(r.deadline(), Some(now + LINGER));
+    let later = now + Duration::from_secs(5);
+    assert_eq!(r.feed(&near(DONE), later), []);
+    assert_eq!(text(&r.poll_output(later)), text(&far(KEPT)));
+    // Each other frame and byte is dropped: the far program ended.
+    assert_eq!(r.feed(&[b"ls\r".as_slice(), &near(DATA), &near(HELO)].concat(), later), []);
+    assert_eq!(r.poll_output(later), b"");
+    assert_eq!(r.tick(now + LINGER - Duration::from_millis(1)), []);
+    assert!(r.lingers());
+    assert_eq!(r.tick(now + LINGER), []);
+    assert!(!r.lingers());
+    assert_eq!(r.deadline(), None);
+    assert_eq!(r.feed(&near(DONE), now + LINGER), []);
+    assert_eq!(r.poll_output(now + LINGER), b"");
+
+    // The near sender sends DONE again, and the second KEPT ends it.
+    let (mut t, now) = upload(6);
+    t.feed(&far(ACKN), now);
+    assert_eq!(text(&t.poll_output(now)), text(&near(DONE)));
+    t.tick(now + RESEND_MIN);
+    assert_eq!(text(&t.poll_output(now + RESEND_MIN)), text(&near(DONE)));
+    assert_eq!(ended(&t.feed(&far(KEPT), now + RESEND_MIN)), Some(Ended::Done));
+}
+
+#[test]
+fn x15_a_done_after_the_linger_shows_as_text() {
+    let (mut t, now) = download_kept();
+    assert_eq!(t.deadline(), Some(now + LINGER));
+    let late = now + LINGER;
+    assert_eq!(shown(&t.feed(&far(DONE), late)), far(DONE));
+    assert_eq!(t.poll_output(late), b"");
+    assert!(!t.lingers());
+}
+
+#[test]
+fn x16_a_done_of_another_sha256_gets_no_kept() {
+    let (mut t, now) = download_kept();
+    assert_eq!(shown(&t.feed(&far(DONE_ZEROS), now)), far(DONE_ZEROS));
+    assert_eq!(t.poll_output(now), b"");
+    let mut r = far_receiver(now, true);
+    assert_eq!(r.feed(&near(DONE_ZEROS), now), []);
+    assert_eq!(r.poll_output(now), b"");
+    // A new trigger clears the verdict.
+    let new = b"#PODSSH-TX2:S:fedcba9876543210:756e6da1\r\n";
+    assert!(matches!(&t.feed(new, now)[..], [Event::Start { .. }]));
+    t.refuse("refused here");
+    t.poll_output(now);
+    assert!(!t.lingers());
+    assert_eq!(shown(&t.feed(&far(DONE), now)), far(DONE));
+}
+
+/// The sender at `at`: a `HOLD` comes, and its frame in flight goes again
+/// `RESEND_MAX` after it, for 12 rounds (a minute).
+fn hold_a_minute(t: &mut Transfer, frame: &str, mut at: Instant) -> Instant {
+    for _ in 0..12 {
+        at += Duration::from_millis(100);
+        assert_eq!(t.feed(&far(HOLD), at), []);
+        assert_eq!(t.deadline(), Some(at + RESEND_MAX));
+        assert_eq!(t.tick(at + RESEND_MAX - Duration::from_millis(1)), []);
+        at += RESEND_MAX;
+        assert_eq!(t.tick(at), []);
+        assert_eq!(text(&t.poll_output(at)), text(&near(frame)));
+    }
+    at
+}
+
+#[test]
+fn x17_a_person_who_answers_an_offer_after_60_s_gets_the_file() {
+    let (mut t, now) = download(4);
+    for s in 1..=12 {
+        let at = now + RESEND_MAX * s;
+        assert_eq!(t.feed(&far(OFFR), at), [], "the OFFR {s} is not a second offer");
+        assert_eq!(text(&t.poll_output(at)), text(&near(HOLD)));
+        assert_eq!(t.tick(at), []);
+    }
+    t.take();
+    assert_eq!(text(&t.poll_output(now + RESEND_MAX * 12)), text(&near(TAKE)));
+
+    let (mut t, now) = upload(4);
+    assert_eq!(t.deadline(), Some(now + RESEND_MIN));
+    let at = hold_a_minute(&mut t, OFFR, now);
+    assert_eq!(t.feed(&far(TAKE), at), [Event::NeedData { offset: 0, max: 1024 }]);
+}
+
+#[test]
+fn x18_a_rename_that_takes_60_s_ends_with_done_at_the_sender() {
+    let (mut t, now) = download(7);
+    assert!(matches!(t.feed(&far(DONE), now).last(), Some(Event::Verified { .. })));
+    for s in 1..=12 {
+        let at = now + RESEND_MAX * s;
+        assert_eq!(t.feed(&far(DONE), at), [], "the DONE {s} is not verified again");
+        assert_eq!(text(&t.poll_output(at)), text(&near(HOLD)));
+    }
+    t.kept();
+    assert_eq!(text(&t.poll_output(now + RESEND_MAX * 12)), text(&near(KEPT)));
+
+    let (mut t, now) = upload(6);
+    t.feed(&far(ACKN), now);
+    assert_eq!(text(&t.poll_output(now)), text(&near(DONE)));
+    let at = hold_a_minute(&mut t, DONE, now);
+    assert_eq!(ended(&t.feed(&far(KEPT), at)), Some(Ended::Done));
+}
+
+#[test]
+fn x19_no_frame_after_done_for_20_s_ends_unconfirmed_with_no_stop() {
+    let (mut t, now) = upload(6);
+    t.feed(&far(ACKN), now);
+    let mut sent = t.poll_output(now);
+    for s in 1..20 {
+        let at = now + Duration::from_secs(s);
+        assert_eq!(t.tick(at), []);
+        sent.extend(t.poll_output(at));
+    }
+    assert_eq!(ended(&t.tick(now + WAIT)), Some(Ended::Unconfirmed));
+    sent.extend(t.poll_output(now + WAIT));
+    assert!(text(&sent).starts_with(DONE) && !text(&sent).contains("#STOP:"), "{}", text(&sent));
+    assert!(!t.active() && !t.lingers());
+}
+
+#[test]
+fn x20_a_peer_of_version_1_gets_unsupported() {
+    let now = Instant::now();
+    // The trigger of a far end of version 1 starts nothing here.
+    let v1 = b"#PODSSH-TX1:S:0123456789abcdef:56fd5108\r\n";
+    let mut t = Transfer::near();
+    let events = t.feed(v1, now);
+    assert_eq!((shown(&events), events.contains(&Event::Unsupported { version: 1 })), (v1.to_vec(), true));
+    assert!(!t.active());
+    assert_eq!(t.poll_output(now), b"");
+    // The HELO of version 1 stops the far end with the code UNSUPPORTED.
+    let mut send = Transfer::far_send(a_txt(), ID, now);
+    send.poll_output(now);
+    let events = send.feed(&near("#HELO:AQEjRWeJq83vAACAAA!21941b5b"), now);
+    assert_eq!(code(&events), Some(stop::UNSUPPORTED));
+    let stop = "#STOP:BwArSEVMTyBvZiB2ZXJzaW9uIDE7IHRoaXMgZW5kIHRha2VzIHZlcnNpb24gMg!cb0e9a21";
+    assert_eq!(text(&send.poll_output(now)), text(&far(stop)));
 }
