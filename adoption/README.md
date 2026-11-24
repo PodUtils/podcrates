@@ -47,7 +47,8 @@ podnet `pod-hold` (podnet `b759937`) and its `connect` and `packet` (podnet
 `blocking` (podvm `15485d1b`, PodUtils/podvm#285); podssh `pod-release` (podssh
 `c9772a3`) and podnet `pod-release` (podnet `af42f0d`); podvm `pod-supervise`
 with its stream (podvm `93524ce`) and `pod-guest` with its warm line (podvm
-`8fd14c2`).
+`8fd14c2`); podvm `pod-enter` with `title` (podvm `18160173`) and
+`pod-hostprobe` with `usage` (podvm `39a8524`).
 
 A `.run` of podssh that moves a value of a service names the test
 `cargo test -p podssh-relay --test default_relay` too: the take of v0.4.0
