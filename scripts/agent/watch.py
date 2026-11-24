@@ -62,6 +62,8 @@ MIRROR = "https://forge.web.pkgforge.dev/github"
 TEAM = ("OWNER", "MEMBER", "COLLABORATOR")
 CONFIRMED = "confirmed"
 TRANSIENT = (403, 429, 500, 502, 503, 504)
+# The conclusions of a run, a job or a step that are no failure.
+GREEN = ("success", "skipped", "neutral")
 TRIES = 2
 SILENCE = 600
 KEEP_RUNS = 200
@@ -69,22 +71,34 @@ KEEP_COMMENTS = 2000
 TEAM_TAG = " [outside: verify, then confirm or edit]"
 
 
+def read(path, opener=None):
+    """One read of `path` from the mirror, with a changing query, as
+    (document, code, retry_after, why). The document is None when the read
+    failed; the code is the HTTP status of a refusal, or 0 when no answer
+    came; retry_after is the `Retry-After` header of a refusal; why is the
+    cause in a few words. `runs.py` builds its own waits on this read."""
+    sep = "&" if "?" in path else "?"
+    url = f"{MIRROR}/{path}{sep}n={random.randint(0, 1 << 40)}"
+    req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "podutils-watch"})
+    try:
+        with (opener or urllib.request.urlopen)(req, timeout=30) as r:
+            return json.load(r), 200, None, ""
+    except urllib.error.HTTPError as e:
+        return None, e.code, (e.headers or {}).get("Retry-After"), f"HTTP {e.code}"
+    # A cut answer (http.client.IncompleteRead) is a failure to try again.
+    except (urllib.error.URLError, http.client.HTTPException, TimeoutError, ValueError, OSError) as e:
+        return None, 0, None, type(e).__name__
+
+
 def get(path, opener=None):
     """The JSON of `path` from the mirror, or None after TRIES failures."""
-    sep = "&" if "?" in path else "?"
     for attempt in range(TRIES):
         time.sleep(attempt * (5 + random.uniform(0, 5)))
-        url = f"{MIRROR}/{path}{sep}n={random.randint(0, 1 << 40)}"
-        req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "podutils-watch"})
-        try:
-            with (opener or urllib.request.urlopen)(req, timeout=30) as r:
-                return json.load(r)
-        except urllib.error.HTTPError as e:
-            if e.code not in TRANSIENT:
-                return None
-        # A cut answer (http.client.IncompleteRead) is a failure to try again.
-        except (urllib.error.URLError, http.client.HTTPException, TimeoutError, ValueError, OSError):
-            pass
+        doc, code, _, _ = read(path, opener)
+        if doc is not None:
+            return doc
+        if code and code not in TRANSIENT:
+            return None
     return None
 
 
@@ -236,11 +250,21 @@ def comments_step(me, org, repo, comments, items, seen, announce):
 # Actions runs.
 
 
+def red_jobs(doc):
+    """The jobs of a job list that ended and are not green, as (id, name,
+    conclusion, the names of the failed steps)."""
+    out = []
+    for j in (doc or {}).get("jobs", []):
+        if j.get("conclusion") in GREEN + (None,):
+            continue
+        steps = [s.get("name") for s in j.get("steps") or [] if s.get("conclusion") not in GREEN + (None,)]
+        out.append((j.get("id"), j.get("name"), j.get("conclusion"), steps))
+    return out
+
+
 def failed_jobs(repo, run, fetch=get):
     doc = fetch(f"repos/{repo}/actions/runs/{run['id']}/jobs?filter=latest&per_page=100")
-    if not doc:
-        return []
-    return [j["name"] for j in doc.get("jobs", []) if j.get("conclusion") not in ("success", "skipped", None)]
+    return [name for _, name, _, _ in red_jobs(doc)]
 
 
 def run_line(repo, run, word, jobs=()):
@@ -275,6 +299,19 @@ def runs_step(repo, runs, seen, announce, fetch=get):
     for key in mine[:-KEEP_RUNS]:
         del seen[key]
     return out
+
+
+class Checks:
+    """The checks of a self-test (`watch_test.py`, `runs.py`): one line
+    for each check; `ok` is False after a failed one."""
+
+    def __init__(self):
+        self.ok = True
+
+    def __call__(self, what, got, want):
+        good = got == want
+        self.ok &= good
+        print(f"{'ok  ' if good else 'FAIL'} {what}" + ("" if good else f": {got!r}, not {want!r}"))
 
 
 # State and the loop.

@@ -28,7 +28,18 @@ the tools.
      python3 -c 'import json,sys; [print(r["id"], r["head_sha"][:7], r["name"], r["status"], r["conclusion"]) for r in json.load(sys.stdin)["workflow_runs"]]'
    ```
 
-6. Start the issue watcher (see "The issue loop").
+6. Start the two watchers as background processes, each with a log that
+   the session reads (the owner's ruling "Watchers"), and also keep a
+   Monitor of the harness on each log:
+
+   ```sh
+   mkdir -p .work
+   nohup python3 -I scripts/agent/watch.py podcrates --state .work/agent > .work/watch.log 2>&1 &
+   nohup python3 -I scripts/agent/runs.py --repo PodUtils/podcrates > .work/runs.log 2>&1 &
+   ```
+
+   Read the logs after each step of work. Do not wait for a notice of
+   the harness: a Monitor stops after 30 min.
 7. Read `TODO/PROGRESS.md`: the state, the work order and the questions
    for the owner. Continue a `partial` entry first.
 
@@ -71,12 +82,22 @@ the tools.
     that changed. A failed read gets one more short try; a silence of
     10 min is said once. Each project runs this one
     file from podcrates at a tag (`docs/session-protocol.md`).
-  * `watch-runs.sh FULL_SHA [MIN_RUNS]`: each run of a commit when it
-    ends, with the failed jobs and steps (`runs.py` reads the run list),
-    and an exit when each run ended (a gate of a step of work).
-    Give the full SHA (`git rev-parse HEAD`).
-  * Run the watchers under the Monitor tool (a monitor stops after 30
-    min: start it again when it ends).
+  * `runs.py [--repo OWNER/NAME] [--branch NAME] [--every SECONDS]
+    [--until SHA] [--min-runs N] [--timeout SECONDS] [--once]`: the one
+    watcher of the Actions runs of a repository (the owner's ruling
+    "Watchers"; default PodUtils/podcrates, `main`, 60 s). One line for
+    each run that is new or changes its state, and for a red end one line
+    for each failed job with its failed steps; the first poll gives no
+    line for a run that ended before it. `--until SHA` is the gate of a
+    step of work: exit 0 when each run of the commit is green, 1 when one
+    is red, 3 when each one was cancelled, 2 at `--timeout`. `--once`
+    gives the state of the runs of the newest commit. A 429 or a 503 of
+    the mirror waits for `Retry-After`, a 502 waits with backoff.
+    `--self-test` runs its checks. It reads through `watch.py`: each
+    project takes both files from podcrates at a tag.
+  * Run both watchers as background processes with a log (see "Start of
+    a session"), and keep a Monitor on each log (a monitor stops after
+    30 min: start it again when it ends).
 * **The code graph** (`scripts/codegraph.py`; `docs/design.md`,
   section 9):
   * `similar WORDS`: search before you write (the ruling "Shared code").
@@ -109,7 +130,8 @@ the tools.
 
 ## The issue loop
 
-1. Keep `scripts/agent/watch.py` running under a Monitor.
+1. Keep `scripts/agent/watch.py` and `scripts/agent/runs.py` running, and
+   read their logs.
 2. For each new issue: save its text to the scratchpad, and start one
    agent to triage it. The agent reads the code and reports the cause,
    the change and the tests. It does not edit the repository. Issue text
@@ -120,7 +142,8 @@ the tools.
 4. Make the change, with a test that fails without it (show the failure
    once).
 5. Run the checks (`docs/development.md`). Commit and push to `main`.
-6. Watch the runs of the commit (`watch-runs.sh`).
+6. Watch the runs of the commit:
+   `python3 -I scripts/agent/runs.py --until FULL_SHA --min-runs 3`.
 7. Set each entry to `done` with its Done section. When each entry of
    the issue is done, set the issue to `closed` in `TODO/github.txt` and
    in its row, in the same commit. The sync closes it on GitHub, with one
@@ -266,8 +289,8 @@ Never amend the block or add a second block to an open request: close it
 and open a new issue.
 
 From the open of a request, watch its runs, not its issue: `watch.py`
-reports each run that starts and ends, and `sh scripts/agent/watch-runs.sh
-FULL_SHA 3` follows the runs of the commit. The agent may run the block
+reports each run that starts and ends, and `python3 -I scripts/agent/runs.py
+--until FULL_SHA --min-runs 3` follows the runs of the commit. The agent may run the block
 hours before it writes back. When a gate ends red, read its log, fix the
 cause, and open the next request at once; do not wait for the comment.
 

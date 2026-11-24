@@ -168,9 +168,14 @@ in `vendor/` keeps its own licence.
    `git status`, `git log --oneline -5`.
 4. Read the last CI runs and the open issues. A red run that the record
    does not know is the first task.
-5. Start `python3 -I scripts/agent/watch.py podcrates --state DIR` under
-   the Monitor tool, and keep it running (start it again when the monitor
-   ends). It is the one watcher of PodUtils (the owner's ruling
+5. Start the two watchers as background processes, each with a log that
+   the session reads (the owner's ruling "Watchers";
+   `docs/maintenance.md`, "Start of a session"), and keep a Monitor on
+   each log: `python3 -I scripts/agent/watch.py podcrates --state DIR`
+   and `python3 -I scripts/agent/runs.py --repo PodUtils/podcrates`.
+   Read the logs; do not wait for a notice of the harness. `runs.py`
+   gives each Actions run of podcrates with its failed jobs and steps.
+   `watch.py` is the one watcher of PodUtils (the owner's ruling
    "Watcher"): each issue and pull request of podcrates; each issue and
    pull request of another repository of PodUtils with `(to podcrates)` or
    `(to all)` in its title or the label `podcrates`; each Actions run of

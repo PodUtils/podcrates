@@ -4576,3 +4576,93 @@ crate holds a date.
 cargo test -p pod-cloudflare -p pod-oci --all-features
 python3 -I scripts/codegraph.py similar retry after
 ```
+
+# T-1213: One watcher of the Actions runs of a repository: `scripts/agent/runs.py` with podvm's surface, in place of `watch-runs.sh` and the copies of podvm and podnet
+
+**Source:** PodUtils/podvm#661, COORD-245 (the owner's ruling "Watchers", relayed by podvm).
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The owner's ruling "Watchers" asks each session to start a watcher of the
+Actions runs of its repository at its start. `scripts/agent/watch-runs.sh`
+and `runs.py` follow one commit and name `PodUtils/podcrates` in the
+script, so podvm and podnet keep copies (podvm's
+`scripts/agent/runs-watch.py`, podnet's `watch-runs.sh` and `runs.py`).
+podvm asks for one shared script with this surface:
+
+- `--repo OWNER/NAME` and `--branch` (defaults: the repository, `main`).
+- With no `--until`: a poll each `--every` seconds (at least 20), and one
+  line for each run that is new or changed state. For a run that ended
+  red, one line for each failed job with its failed steps. At the first
+  poll, an old completed run is no event.
+- `--until SHA` (a prefix is enough): wait until each run of the commit
+  ended. Exit 0 when each is green (success, skipped, neutral), 1 when one
+  is red, 3 when each run was cancelled, 2 at `--timeout`.
+- `--once`: the state of each run of the newest commit.
+- 429 and 503 wait for `Retry-After`, 502 waits with backoff, another
+  error is one line on stderr while the poll goes on.
+
+## Premise
+
+- Read: PodUtils/podvm#661; podvm's `scripts/agent/runs-watch.py`;
+  `scripts/agent/watch-runs.sh`, `runs.py` and `watch.py` (its read of the
+  mirror, `run_line`, `failed_jobs`);
+  `python3 -I scripts/codegraph.py similar watch runs actions`.
+- Found in podvm's script: a run that starts and ends between two polls
+  after the first is no event (the first-poll rule keys on the first sight
+  of a run, not on the first poll); `--once` with no answer polls with no
+  end; exit 2 is also a bad argument; `--until` ends when the first
+  workflow of a push ends before the others start.
+- Not measured: the quota of the mirror for a poll each 60 s beside
+  `watch.py`.
+
+## Approach
+
+One file `scripts/agent/runs.py` (standard library only) that imports
+`watch.py` beside it: `watch.read` is the one read of the mirror (a
+changing query; the HTTP code and `Retry-After` of a refusal), and
+`watch.get` keeps its own short retry on it. `watch.py` also gives
+`run_line`, `red_jobs` (the failed jobs with their failed steps), `GREEN`
+and `Checks` (the lines of a self-test). `runs.py` takes podvm's surface,
+with the first-poll rule on the first poll, `--min-runs N` for a gate,
+exit 2 for `--once` with no list, and exit 64 for a bad argument.
+`watch-runs.sh` leaves; each caller names `runs.py --until`. A
+`--self-test` with a fake forge covers each exit code, the first-poll
+rule, a red run's jobs and steps, 429 and 503 with `Retry-After`, and 502
+with backoff. `ci.yml` and `scripts/agent/check.sh` run the self-tests of
+both watchers.
+
+## Prove
+
+```sh
+python3 -I scripts/agent/runs.py --self-test
+python3 -I scripts/agent/watch.py --self-test
+python3 scripts/check-workflows.py
+python3 -I scripts/codegraph.py new --base main
+python3 -I scripts/agent/runs.py --repo PodUtils/podcrates --once
+```
+
+## Done
+
+2026-11-24. `scripts/agent/runs.py`: `[--repo OWNER/NAME] [--branch NAME]
+[--every SECONDS] [--until SHA] [--min-runs N] [--timeout SECONDS]
+[--once] | --self-test` (defaults PodUtils/podcrates, `main`, 60 s,
+3600 s, 1). Exit 0 green, 1 red, 3 each run cancelled, 2 at the timeout
+or for `--once` with no list or with a run of `--until` that did not end,
+64 for a bad argument. `watch.py` gives `read`, `red_jobs`, `GREEN` and
+`Checks`; `watch-runs.sh` is removed. The self-test passes 23 checks
+(each exit code, the first-poll rule and a run that starts and ends
+between two later polls, a red run's job and failed step, 429 and 503 with
+`Retry-After`, a date in `Retry-After`, 502 with backoff and its end after
+five reads, a 403 as one line on stderr while the poll goes on, the
+options); two planted faults (no first-poll rule, no wait on 502) fail it.
+`watch.py --self-test` passes. `codegraph.py new --base main`: 0 clones or
+twins. The live read `runs.py --repo PodUtils/podcrates --once` got 403
+from the mirror at the first try (exit 2, one line on stderr), and at the
+second try printed the six runs of `5d61d40` (exit 0); the same read of
+PodUtils/podvm printed four runs of `bfb3822`. Call C926 records the form.

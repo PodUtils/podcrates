@@ -9,8 +9,12 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Start the watcher under the Monitor tool and keep it running
-   (`docs/maintenance.md`, "The issue loop"). Read the open COORD issues
+1. Start the two watchers, `scripts/agent/watch.py` and
+   `scripts/agent/runs.py`, as background processes with a log, and keep a
+   Monitor on each log (the ruling "Watchers"; `docs/maintenance.md`,
+   "Start of a session"). Resume from this page, and work until each task
+   is done or blocked on a thing out of the control of the session (the
+   ruling "Work until done"). Read the open COORD issues
    `(to podcrates)` of each repository of PodUtils. Each one maps to an
    entry (PodUtils/podvm#570, COORD-183, maps to T-1162; PodUtils/podssh#349,
    COORD-139, maps to T-1164 to T-1169; PodUtils/podssh#350, COORD-140, maps to
@@ -174,6 +178,12 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
   names `features = ["transfer"]`). New items only. T-1198 asks podssh about
   two gaps of its design (the `KEPT` that ends a session, the wait of the
   far sender during the offer).
+
+- T-1213 (PodUtils/podvm#661, COORD-245): `scripts/agent/runs.py`, the
+  shared watcher of the Actions runs of a repository (it reads through
+  `watch.py`; `watch-runs.sh` is removed). podvm and podnet take it at the
+  next tag in place of their copies (podvm's `runs-watch.py`, podnet's
+  `watch-runs.sh` and `runs.py`).
 
 ### What the next hand-off carries
 
