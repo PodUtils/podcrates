@@ -1,0 +1,7 @@
+# The modes of a terminal: restore resets the alternate screen with
+# `CSI ? 1049 l`, which restores a cursor, not with `CSI ? 47 l` (T-1191).
+ENTRY=T-1191
+GROUP=term
+EXPECT='test modes::tests::restore_resets_the_alternate_screen_with_47_and_sets_it_with_1049 \.\.\. FAILED'
+RUN='cargo test -p pod-term --lib modes::tests::restore_resets_the_alternate_screen_with_47_and_sets_it_with_1049 -- --exact'
+LIMIT=900

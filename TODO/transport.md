@@ -7971,7 +7971,7 @@ cargo test -p pod-tls --all-features --lib hint::tests
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8008,6 +8008,20 @@ The oracle test of the real captures is T-1192.
 cargo test -p pod-term --all-features modes
 cargo clippy -p pod-term --all-targets --all-features -- -D warnings
 ```
+
+## Done
+
+2026-11-24, the commit of this Done section. `pod_term::modes::Modes` (`crates/pod-term/src/modes.rs`): `new`, `feed`, `restore`, and an accessor for each mode (`cursor_keys`, `origin`, `autowrap`, `cursor_shown`, `alternate`, `mouse`, `mouse_encoding`, `focus`, `bracketed_paste`, `keypad`, `g0`), with the enums `Mouse`, `MouseEncoding` and `Charset` and the limit `CSI_MAX` (64). It reads with `grammar::next`, now `pub(crate)`, so the crate has one parser of ECMA-48. `PartialEq` compares the modes only. `restore` writes the alternate screen (`CSI ? 1049 h` or `CSI ? 47 l`), the resets of the mouse levels 9, 1000, 1002, 1003 and the encodings 1005, 1006, 1015, then the level and the encoding, the keypad, G0, and 1, 6, 7, 25, 1004, 2004 (113 bytes for a new terminal). The README of `pod-term` has the row and the adoption map.
+
+What the source of xterm (`charproc.c`, `dpmodes`, `really_set_mousemode`, `ReallyReset`) and of tmux (`input.c`, `input_csi_dispatch_sm_private`, `input_csi_dispatch_rm_private`, the table `input_csi_table`) gave for "measure first":
+
+- The mouse levels: a set replaces the level in both. A reset of any level ends the reports in both (xterm sets `MOUSE_OFF`; tmux clears `ALL_MOUSE_MODES`). So `Modes` takes that rule, not the rule of vt100 0.18.1 (a reset that names another level changes nothing) that the Approach named. xterm also reads mode 9 (X10) as a level, and vt100 reads it: `Modes` reads it as `Mouse::X10`.
+- The encodings: xterm holds one value; a set replaces it, and a reset changes it only when it names the current one (vt100 the same). tmux holds 1005 and 1006 as two flags and does not read 1015. So `Modes` holds one value, not the three flags of the Approach: with three flags, `restore` sets them in a fixed order and xterm ends with the last one, which is not always the one that the program set last.
+- DECSTR: xterm resets the cursor keys, the keypad, origin, the cursor and the sets with it; tmux has no DECSTR (no `!p` in its table). They do not agree, so `Modes` does not read it, and the rustdoc says so.
+
+Tests: 17 unit tests in `crates/pod-term/src/modes/tests.rs` (each mode set and reset, alone and as the second parameter; the defaults; RIS; the mouse rule; the encoding rule; the keypad and G0; a string holds no mode; CAN and SUB end a CSI; another marker or an intermediate byte is no mode; a parameter past `u16`; a CSI past 64 bytes; equality with a cut sequence; `restore` orders; the property tests `restore_puts_any_modes_into_any_modes` and `each_split_gives_the_modes_of_the_whole`), and 3 in `crates/pod-term/tests/modes.rs` (each split of a synthetic stream that holds 7, 1004, 1015, 1047 and G0 against vte's parser, anstyle-parse; `restore` from any modes against vte; `restore` of a new terminal leaves the model terminal as new). The module is new, so a test cannot run on the code before: the plant `scripts/plants/term-modes-alternate-reset.plant` (`restore` resets the alternate screen with `CSI ? 1049 l`) fails `modes::tests::restore_resets_the_alternate_screen_with_47_and_sets_it_with_1049` with `"\u{1b}[?1049l\u{1b}[?9l..."`, and the test passes without it. `cargo test -p pod-term --all-features`: each target passes (90 unit tests). `cargo clippy -p pod-term --all-targets --all-features -- -D warnings`, `cargo doc -p pod-term --no-deps --all-features` with `-D warnings`, `cargo fmt --all --check` and `sh scripts/plant-each.sh --apply` (0 stale): each exits 0.
+
+For the hand-off: no break; `pod_term::modes` is a new module. The mouse rule and the one encoding differ from the words of PodUtils/podssh#350 as above.
 
 # T-1192: `pod-term`: `Ring::modes_at`, the modes that the stream set before an offset, with an oracle test on the captures of vim, less and top (PodUtils/podssh#350)
 

@@ -1,0 +1,11 @@
+--- a/crates/pod-term/src/modes.rs
++++ b/crates/pod-term/src/modes.rs
+@@ -241,7 +241,7 @@ impl Modes {
+     pub fn restore(&self) -> Vec<u8> {
+         let v = &self.values;
+         let mut out = Vec::with_capacity(128);
+-        private(&mut out, if v.alternate { 1049 } else { 47 }, v.alternate);
++        private(&mut out, 1049, v.alternate);
+         for mode in [9, 1000, 1002, 1003, 1005, 1006, 1015] {
+             private(&mut out, mode, false);
+         }
