@@ -148,6 +148,15 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
   read within a short bound. `Settings` has a new public field: a consumer
   that builds it with all its fields adds it (podvm uses `Settings::new`).
 
+- T-1170 and T-1165 (`pod-link`, the DNS carrier; PodUtils/podssh#349): each
+  answer keeps the bytes of the question (0x20) and clears RA
+  (`pod_dns::txt::answer_to`, `set_no_recursion`); a new session id takes a
+  handshake slot only for a part of a ClientHello, and a poll of a new id
+  gets an empty answer and starts no session. `Dns::handshake_quiet`
+  (default 5 s) drops a session with no query before its handshake ends:
+  a caller whose dialers set `poll_max` above 5 s sets it above that on its
+  listeners.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask. T-1160 changes the answer of
@@ -160,8 +169,8 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
 - podssh: the STUN note above, T-1182 (the bound of a unit name), T-1095
   (the order of the pseudo-fields of the HTTP/2 request of `pod-ws`,
   PodUtils/podssh#340), T-1103 (iroh 1.5).
-- Asks of podvm and podssh that no one has started: T-1144 (`pod-term`), T-1165 to
-  T-1171 (`pod-link`, the DNS carrier; PodUtils/podssh#349).
+- Asks of podvm and podssh that no one has started: T-1144 (`pod-term`), T-1166 to
+  T-1169 and T-1171 (`pod-link`, the DNS carrier; PodUtils/podssh#349).
 - Entries of podcrates that no one has started: T-1162
   (the answer to PodUtils/podvm#570), T-1163 (two more readers of
   `Retry-After`), T-1115 (the copies of the bind at a

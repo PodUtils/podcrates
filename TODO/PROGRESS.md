@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 948 entries: 170 open, 28 partial, 7 blocked, 743 done.
+`TODO/INDEX.md` holds 948 entries: 168 open, 28 partial, 7 blocked, 745 done.
 
 ## State
 
@@ -116,10 +116,9 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   documents); T-1135 (`pod-cloudflare` says a cause two times); T-879
   (`pod-detach`); T-897.
 - podssh: T-1182 (a unit name over 64 characters in `pod-unit`;
-  PodUtils/podssh#347, COORD-138), T-1165 (a query of a new session id
-  does not hold a slot 20 s; PodUtils/podssh#349, COORD-139), T-1170 (the DNS listener keeps the case
-  of the question), T-1171 (a late query of an ended session starts no
-  handshake), then T-1166 to T-1169 (the same issue: a held poll, a
+  PodUtils/podssh#347, COORD-138), T-1171 (a late query of an ended DNS
+  session starts no handshake; PodUtils/podssh#349, COORD-139), then
+  T-1166 to T-1169 (the same issue: a held poll, a
   carrier with no TLS, DNS over HTTPS, a test through `unbound`); T-1191 and T-1192
   (`pod-term`: the modes of a terminal's output and the modes at an offset of a
   `Ring`, for the kept shells of `podssh serve`; PodUtils/podssh#350, COORD-140);

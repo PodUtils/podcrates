@@ -29,6 +29,7 @@
 //!   a test, another carrier of datagrams).
 
 mod client;
+mod hello;
 mod server;
 mod wire;
 
@@ -66,6 +67,11 @@ pub const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(20);
 /// The default count of handshakes that a listener runs at once.
 pub const MAX_HANDSHAKES: usize = 64;
 
+/// The default time that a session of a listener can stay silent before the
+/// end of its handshake: more than the longest poll interval of a dialer
+/// ([`DnsSettings::poll_max`], 2 s) and one lost poll.
+pub const HANDSHAKE_QUIET: Duration = Duration::from_secs(5);
+
 /// The DNS carrier: the TLS of this end, the ARQ, the DNS settings, the zone
 /// of a listener, the UDP address of the server for a dialer, and the client
 /// keys of its listeners. A clone shares the set of client keys.
@@ -88,8 +94,21 @@ pub struct Dns {
     pub dns: DnsSettings,
     /// The time limit of a handshake, on each side.
     pub handshake_timeout: Duration,
-    /// The most handshakes that a listener runs at once (at least 1).
+    /// The most handshakes that a listener runs at once (at least 1). A new
+    /// session id takes a slot only at a part of its ClientHello, and frees
+    /// it at once when its first record is no ClientHello that offers
+    /// [`Dns::alpn`]. 64 queries of new ids with no such part keep no dial
+    /// out (T-1165: a dial after them took 23 s before, and takes the time of
+    /// a handshake now).
     pub max_handshakes: usize,
+    /// The time that a session of a listener can stay silent (no query)
+    /// before the end of its handshake; the session then ends and frees its
+    /// slot. The listener checks each second, so a slot is free within
+    /// `handshake_quiet` and 1 s. Give more than the poll interval of the
+    /// dialers ([`DnsSettings::poll_max`]). At least 1 ms; by default
+    /// [`HANDSHAKE_QUIET`]. A sender of a part of a ClientHello for each new
+    /// id holds the slots for this time, not for `handshake_timeout`.
+    pub handshake_quiet: Duration,
 }
 
 impl fmt::Debug for Dns {
@@ -104,6 +123,7 @@ impl fmt::Debug for Dns {
             .field("dns", &self.dns)
             .field("handshake_timeout", &self.handshake_timeout)
             .field("max_handshakes", &self.max_handshakes)
+            .field("handshake_quiet", &self.handshake_quiet)
             .finish()
     }
 }
@@ -129,6 +149,7 @@ impl Dns {
             dns: DnsSettings::default(),
             handshake_timeout: HANDSHAKE_TIMEOUT,
             max_handshakes: MAX_HANDSHAKES,
+            handshake_quiet: HANDSHAKE_QUIET,
         }
     }
 

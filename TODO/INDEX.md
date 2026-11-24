@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**948 entries: 170 open, 28 partial, 7 blocked, 743 done.**
+**948 entries: 168 open, 28 partial, 7 blocked, 745 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 225 | 239 |
-| P2 | 79 | 8 | 4 | 385 | 476 |
+| P2 | 77 | 8 | 4 | 387 | 476 |
 | P3 | 87 | 10 | 3 | 131 | 231 |
-| **All** | 170 | 28 | 7 | 743 | 948 |
+| **All** | 168 | 28 | 7 | 745 | 948 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -979,12 +979,12 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1162](fleet.md) | P3 | S | M8 | chore | open | Answer PodUtils/podvm#570 (COORD-183): name the commit of the sections "Shared code first" and "Quality first" of `docs/session-protocol.md` |
 | [T-1163](upkeep.md) | P3 | S | M5 | chore | open | Two more readers of a `Retry-After` value: `pod-cloudflare` and `pod-oci` keep their own copy of `pod_core::clock::retry_after_secs` |
 | [T-1164](relay.md) | P2 | S | M2 | defect | done | `pod-link`: the DNS listener sends no answer to a query that is not TXT or whose name does not decode, so a resolver retries and serves SERVFAIL (PodUtils/podssh#349) |
-| [T-1165](relay.md) | P2 | M | M2 | defect | open | `pod-link`: a query with a new session id takes a handshake slot of the DNS listener for 20 s before any key is checked (PodUtils/podssh#349) |
+| [T-1165](relay.md) | P2 | M | M2 | defect | done | `pod-link`: a query with a new session id takes a handshake slot of the DNS listener for 20 s before any key is checked (PodUtils/podssh#349) |
 | [T-1166](relay.md) | P3 | M | M2 | feature | open | `pod-link`: the DNS listener answers each poll at once; a held poll (dnstt's 1 s) halves the idle queries and cuts the latency of data down (PodUtils/podssh#349) |
 | [T-1167](relay.md) | P3 | M | M2 | feature | open | `pod-link`: an option to carry the ARQ of the DNS carrier with no TLS for a caller that seals above (PodUtils/podssh#349) |
 | [T-1168](relay.md) | P3 | M | M2 | feature | open | `pod-link`: the datagrams of the DNS carrier over DNS over HTTPS (RFC 8484), for a dialer behind an HTTP proxy with no UDP (PodUtils/podssh#349) |
 | [T-1169](relay.md) | P3 | M | M2 | chore | open | `pod-link`: a test of the DNS carrier through `unbound` with its default settings, in the box of CI (PodUtils/podssh#349) |
-| [T-1170](relay.md) | P2 | S | M2 | defect | open | `pod-link`: the DNS listener answers with the question in lower case, so a resolver that uses 0x20 rejects the answer |
+| [T-1170](relay.md) | P2 | S | M2 | defect | done | `pod-link`: the DNS listener answers with the question in lower case, so a resolver that uses 0x20 rejects the answer |
 | [T-1171](relay.md) | P3 | S | M2 | defect | open | `pod-link`: a late query of an ended DNS session starts a new handshake and holds a permit |
 | [T-1180](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `aab63e5` (the third port of `source-driver.md`) |
 | [T-1181](fleet.md) | P1 | S | M0 | chore | done | `pod-unit`: the words of the forms at podssh `ea4c290` (port review of `text.rs`) |

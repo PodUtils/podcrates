@@ -30,6 +30,8 @@ const TRUNCATED: u16 = 0x0200;
 /// The AA bit: the server holds the zone of the name (RFC 1035, section
 /// 4.1.1).
 const AUTHORITATIVE: u16 = 0x0400;
+/// The RA bit: the server does recursion (RFC 1035, section 4.1.1).
+const RECURSION_AVAILABLE: u16 = 0x0080;
 const CUT: &str = "not a DNS message: it ends before its last record";
 
 /// The query of `kind` for `name` with the ID `id`, recursion desired, and
@@ -113,7 +115,31 @@ pub fn answer(id: u16, name: &str, kind: u16, records: &[&[u8]], edns: Option<u1
     // QR and RA set, RD kept, RCODE 0.
     out[2] |= 0x80;
     out[3] |= 0x80;
-    out[6..8].copy_from_slice(&(records.len() as u16).to_be_bytes());
+    push_records(&mut out, kind, records, edns)?;
+    Ok(out)
+}
+
+/// The answer to the query `request` with one record of the type of its
+/// question for each item of `records` (each cut into strings of 255 bytes
+/// for TXT), no error, and an OPT record of `edns` bytes when given. The
+/// header and the question are those of [`error_answer`]: the bytes of the
+/// question stay as the request sent them, so a resolver that sends the name
+/// in mixed case (0x20, Unbound `use-caps-for-id`) takes the answer. For a
+/// server that answers [`query`].
+pub fn answer_to(request: &[u8], records: &[&[u8]], edns: Option<u16>) -> Result<Vec<u8>, String> {
+    let mut out = error_answer(request, RCODE_NOERROR)?;
+    let at = out.len() - 4;
+    let kind = u16::from_be_bytes([out[at], out[at + 1]]);
+    push_records(&mut out, kind, records, edns)?;
+    Ok(out)
+}
+
+/// Append one record of `kind` for each item of `records` to the message
+/// `out`, which ends in its one question and has no record, then an OPT
+/// record of `edns` bytes when given, and count them.
+fn push_records(out: &mut Vec<u8>, kind: u16, records: &[&[u8]], edns: Option<u16>) -> Result<(), String> {
+    let count = u16::try_from(records.len()).map_err(|_| format!("{} records: give 65535 or less", records.len()))?;
+    out[6..8].copy_from_slice(&count.to_be_bytes());
     for record in records {
         // The owner points to the question name at offset 12.
         out.extend_from_slice(&[0xc0, 0x0c]);
@@ -128,9 +154,9 @@ pub fn answer(id: u16, name: &str, kind: u16, records: &[&[u8]], edns: Option<u1
         out.extend_from_slice(&data);
     }
     if let Some(size) = edns {
-        push_opt(&mut out, size)?;
+        push_opt(out, size)?;
     }
-    Ok(out)
+    Ok(())
 }
 
 /// Set the AA bit of the answer `msg`: the server holds the zone of the
@@ -139,6 +165,15 @@ pub fn answer(id: u16, name: &str, kind: u16, records: &[&[u8]], edns: Option<u1
 pub fn set_authoritative(msg: &mut [u8]) {
     if let Some(flags) = msg.get_mut(2) {
         *flags |= (AUTHORITATIVE >> 8) as u8;
+    }
+}
+
+/// Clear the RA bit of the answer `msg`: the server does no recursion, as a
+/// server that answers only for its own zone (RFC 1035, section 4.1.1). A
+/// message shorter than its header stays as it is.
+pub fn set_no_recursion(msg: &mut [u8]) {
+    if msg.len() >= HEADER {
+        msg[3] &= !((RECURSION_AVAILABLE & 0xff) as u8);
     }
 }
 
