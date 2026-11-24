@@ -1,11 +1,11 @@
 --- a/crates/pod-extract/src/pax.rs
 +++ b/crates/pod-extract/src/pax.rs
-@@ -266,7 +266,7 @@
+@@ -276,7 +276,7 @@
                  m.xattrs.push((k.to_vec(), value.to_vec()));
                  continue;
              }
 -            k if k.starts_with(b"GNU.sparse.") => {
 +            k if k.starts_with(b"GNU.sparse.none.") => {
-                 return Err(format!(
-                     "the PAX record {:?} marks a GNU sparse file, which this crate does not read",
-                     String::from_utf8_lossy(key)
+                 sparse.push(&k[b"GNU.sparse.".len()..], value)?;
+                 continue;
+             }

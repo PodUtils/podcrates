@@ -160,6 +160,12 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
   a caller whose dialers set `poll_max` above 5 s sets it above that on its
   listeners.
 
+- T-1087 and T-1088 (`pod-extract`, PodUtils/podvm#643): a GNU sparse file
+  of PAX (versions 0.0, 0.1 and 1.0) extracts with its holes (the module
+  `sparse`, bounded maps); a `LIBARCHIVE.xattr.` record sets its attribute
+  where no `SCHILY.xattr.` record of the same name is there. `pax::Member`
+  has a new public field `sparse` (podvm builds no `Member`).
+
 ### What the next hand-off carries
 
 - podrunner: no open ask. T-1160 changes the answer of

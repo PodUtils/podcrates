@@ -1,0 +1,11 @@
+--- a/crates/pod-extract/src/xattr.rs
++++ b/crates/pod-extract/src/xattr.rs
+@@ -191,7 +191,7 @@
+     }
+     for (raw, text) in libarchive {
+         let name = unescape(raw);
+-        if held(&w, &name) {
++        if !name.is_empty() || held(&w, &name) {
+             continue;
+         }
+         match base64::engine::general_purpose::STANDARD_NO_PAD_INDIFFERENT.decode(text) {

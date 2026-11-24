@@ -12643,7 +12643,7 @@ cause. The plants `extract-t1086-acl-text-dropped` and
 **Milestone:** M6
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12679,6 +12679,57 @@ hole stays a hole. Refuse a map that does not parse.
 cargo test -p pod-extract --all-features --lib pax
 ```
 
+## Done
+
+2026-11-24, this commit. The new module `sparse` reads the map of each
+version: `sparse::Records` takes the `GNU.sparse.` records in `pax::split`
+(0.0: `size`, `numblocks`, then `offset` and `numbytes` in turn; 0.1:
+`size`, `numblocks`, `map`, `name`; 1.0: `major=1`, `minor=0`, `name`,
+`realsize`), and `GNU.sparse.name` is the path of the member in any order.
+None of these records goes to the `tar` reader. `sparse::layout`, in
+`apply_layer` before the file is made, reads the map of 1.0 from the start
+of the data (decimal lines, whole blocks, the rest of the last block is
+padding), checks each region (in order, inside the real size, no overflow)
+and checks that the regions hold each byte of the data after the map. The
+write (`crates/pod-extract/src/apply_content.rs`) puts each region at its
+offset with `pwrite` and sets the real size with `ftruncate`, so each hole
+stays a hole. Bounds: `REGIONS_MAX` (262144 regions), `MAP_MAX` (a map in
+the data of 1 MiB, the bound of a PAX header), 20 digits for each number,
+a real size up to `i64::MAX`. A version that is not 0.0, 0.1 or 1.0, a
+`GNU.sparse.` key that GNU tar does not write, a map that does not parse
+or does not hold, and a map on an entry that is not a regular file refuse
+the layer (`Refusal::Member`, with the cause). Call C925.
+
+The format facts: the GNU tar manual, "PAX Format, Versions 0.0 and 0.1"
+and "PAX Format, Version 1.0" (gnu.org, read 2026-11-24); libarchive
+`tar(5)` at `v3.8.1`, the `GNU.sparse.*` keys; the checks of the regions
+follow Go `archive/tar` `validateSparseEntries`. Measured: GNU tar 1.35
+`-S --format=posix --sparse-version=0.0`, `0.1` and `1.0` on a file of
+1 MiB with `hello` at byte 499712 and `tail` at byte 700000 writes the
+records and the map that the tests build from bytes; the three real
+archives extract through the crate with the same content and 16 blocks of
+512 bytes on disk.
+
+Tests (`crates/pod-extract/src/sparse/tests.rs`):
+`sparse::tests::each_version_of_a_gnu_sparse_file_of_pax_extracts_with_its_holes`,
+`sparse::tests::a_gnu_sparse_map_of_pax_that_does_not_hold_is_refused`
+(19 cases), `sparse::tests::a_gnu_sparse_map_of_pax_on_an_entry_that_is_not_a_file_is_refused`,
+`sparse::tests::the_gnu_sparse_records_of_pax_give_the_map_and_the_name`.
+Before the change the first fails with "version 0.0: refusing layer
+sha256:layer0: the entry "the PAX header member at byte 0" is not
+extractable because the PAX record "GNU.sparse.size" marks a GNU sparse
+file, which this crate does not read", and the refusal tests fail as each
+refusal has that one cause. The plant `extract-t1087-sparse-map-not-applied`
+(the map is not applied) is caught; the plant
+`extract-t1086-sparse-not-refused` now drops the `GNU.sparse.` records,
+and is caught. `cargo test -p pod-extract --all-features --lib pax`: 14
+passed; `cargo test -p pod-extract --all-features`: lib 110 passed.
+
+For the hand-off: `pax::Member` has the new field `sparse`
+(`Option<sparse::Sparse>`); a caller that builds a `Member` with a struct
+literal adds it (podvm builds none). The new public module `sparse` is
+additive.
+
 # T-1088: `pod-extract`: the attributes of an archive of libarchive with `xattrheader=LIBARCHIVE` are dropped with no word
 
 **Source:** T-1086 (a finding of its work)
@@ -12686,7 +12737,7 @@ cargo test -p pod-extract --all-features --lib pax
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12717,6 +12768,48 @@ bounds; name a record that does not decode as not set.
 cargo test -p pod-extract --all-features --lib xattr
 ```
 
+## Done
+
+2026-11-24, this commit. `pax::split` puts each `LIBARCHIVE.xattr.`
+record in `Member::xattrs`. `xattr::read` reads the `SCHILY.xattr.`
+records first, then each `LIBARCHIVE.xattr.` record whose decoded name has
+no record yet: the name by its percent escapes (a `%` with no two hex
+digits stays, as libarchive `url_decode` reads it), the value from base64
+with or without padding (the `base64` crate of the workspace,
+`STANDARD_NO_PAD_INDIFFERENT`). The decoded attribute takes the same
+checks and bounds as a `SCHILY.xattr.` record (`take`), and each record
+counts in `RECORDS_MAX`. A value that does not decode is named as not set,
+with the cause and no value. The new constant `xattr::LIBARCHIVE_PREFIX`.
+Call C925.
+
+The format facts: libarchive `tar(5)` at `v3.8.1` (`LIBARCHIVE.xattr.`:
+the name URL-encoded, each non-ASCII byte, `=` and `%` as `%` and two
+uppercase hex digits; the value in base 64); libarchive
+`archive_write_set_format_pax.c` at `v3.8.1` (the default flags
+`WRITE_LIBARCHIVE_XATTR | WRITE_SCHILY_XATTR`, the option `xattrheader`
+with `ALL`, `SCHILY`, `LIBARCHIVE`; `url_encode` escapes each byte below
+33 or above 126; `base64_encode` writes no padding);
+`archive_read_support_format_tar.c` at `v3.8.1` (`url_decode`,
+`base64_decode`). Not measured: an archive of `bsdtar` (no `bsdtar` on the
+host); the tests build its records from bytes.
+
+Tests (`crates/pod-extract/src/drive/xattrs.rs`):
+`drive::xattrs::a_libarchive_xattr_record_alone_is_read_from_its_base64_value`,
+`drive::xattrs::a_schily_xattr_record_holds_over_its_libarchive_twin`,
+`drive::xattrs::a_libarchive_xattr_record_that_does_not_decode_is_named_and_not_set`,
+`drive::xattrs::a_layer_of_libarchive_xattr_records_alone_sets_or_names_each_attribute`;
+the row `LIBARCHIVE.xattr.user.a` of
+`pax::tests::each_class_of_pax_record_goes_to_its_reader_with_a_newline_byte_or_none`
+now goes to the member. Before the change the first fails with
+"assertion `left == right` failed, left: [], right:
+[("security.capability", ...), ("user.a=b%c d", ...), ...]", and the test
+of the layer with "left: 0, right: 1" (no attribute set or named). The
+plant `extract-t1088-libarchive-xattr-dropped` is caught.
+`cargo test -p pod-extract --all-features --lib xattr`: 7 passed.
+
+For the hand-off: no break. `xattr::read` now also sets the attributes of
+`LIBARCHIVE.xattr.` records alone, so a layer of `bsdtar --options
+xattrheader=LIBARCHIVE` gives more set or named attributes than before.
 
 # T-1094: `pod-confine`: the changes of podvm to the files of the loader (port review, `upstream.yml` 45024358679)
 
@@ -13945,7 +14038,7 @@ A module `flatten` of `pod-extract` (Linux only, as the crate; no system call: t
 1. API: `flatten(layers: &[Layer], out: &mut W, options: &Options) -> Result<Flattened>` with `W: Write`, the same `Layer` as `extract`, and `Flattened` (the entries written, the entries hidden, the whiteouts, the bytes, the layers). `Options` holds the `Report` of the events (`flatten.layer`, the text of `LAYER_EVENT`) and, with T-1195, the prefix and the entries of the caller. The failures are the same `pod_core::Failure` with the same causes (`Refused`, `Mismatch`).
 2. The model of the tree: a trie of the paths seen. A node holds the newest layer that names the path and its kind, the newest layer that whiteouts it, and the newest layer that makes it opaque. An entry of layer `i` at `P` is hidden when, for `P` or an ancestor `A`: a later layer whiteouts `A`; a later layer makes `A` opaque (and `A` is not `P`); a later layer has a non-directory at `A`; or a later layer has a non-directory or a directory at `P` itself (the last writer wins; two directories merge, so the older directory entry is hidden and the newest gives the mode, the owner and the attributes). A whiteout of layer `j` hides the paths of the layers before `j` only: the same layer can remove a path and make it again.
 3. The order, with the gate. Option A, one pass: the layers from the newest, the entries of a layer in their order, each visible entry written as it is read, with its data. A directory entry then follows its children, and a layer that wrote under a symlink of an older layer is found when the older layer is read (the node of the symlink has a newest writer after it). Option B, two passes: the first pass reads the headers of each layer from the newest and keeps the winning entries (a header and its place, no data); the second pass reads each layer from the oldest and writes the winning entries of it, a directory at the place of its oldest entry with the metadata of its newest. The stream then has each parent before its children. The first step of the work measures whether the unpacker of incusd (and GNU tar, bsdtar and Go `archive/tar`) takes a directory entry after its children, with its mode and owner kept. Option A when each takes it; else option B, and the entry records the minutes of its second read.
-4. The containment and the owners: each path is checked as `extract` checks it (no `..`, no absolute path, no NUL, at most `MAX_DEPTH` components). A path through a symlink that an older layer made is refused as `extract` refuses it: whole layer, `Refusal::Escapes`. Each symlink target is written as stored. The owners and the modes are those of the image, never those of the caller. A device, a FIFO and the other kinds are skipped and counted as `extract` counts them.
+4. The containment and the owners: each path is checked as `extract` checks it (no `..`, no absolute path, no NUL, at most `MAX_DEPTH` components). A path through a symlink that an older layer made is refused as `extract` refuses it: whole layer, `Refusal::Escapes`. Each symlink target is written as stored. The owners and the modes are those of the image, never those of the caller. A device, a FIFO and the other kinds are skipped and counted as `extract` counts them. A GNU sparse file of the PAX form (T-1087) gets the checks of `sparse::layout`, and is written under its name `GNU.sparse.name` with its real size: its regions and zero bytes for its holes, or a sparse member of version 1.0; the test of item 6 holds one of each version.
 5. The digest of each blob is checked while it is read, in each pass, as `open_hashed` does; a blob that does not agree fails the stream with `Mismatch`. The stream that has begun is then broken: the error says so, and the caller discards the upload.
 6. Tests: the test file `tests/flatten.rs` of the crate builds layers with the `tar` crate and compares `flatten` read by the `tar` reader with the tree of `extract` of the same layers (path, kind, mode, owner, symlink target, content): whiteouts at the root of a layer and below it, an opaque directory, a file replaced by a directory and back, a directory replaced by a symlink, a symlink that a layer made and a later entry through it (refused), a path with `..`, the same layer that removes and makes a path, two gzip members in one blob, a plain blob, a zstd blob, a digest that does not agree. A property test on random layers (a small alphabet of names and kinds) compares the two. A plant: an unhidden path of a removed directory fails the comparison.
 7. `crates/pod-extract/README.md` gets `flatten` in its table. `docs/design.md`, section 4, names it in the row of `pod-extract`.
@@ -14021,7 +14114,7 @@ An unified tarball of incus holds `metadata.yaml` and the tree under `rootfs/`. 
 
 In the `flatten` of T-1193.
 
-1. The records: for each visible entry, `SCHILY.xattr.NAME` for each attribute that `xattr::read` keeps, inside the same bounds, with the same refusals and the same count of those that it names (`Flattened.xattrs`), with `path` and `linkpath` where a name is past 100 bytes or not ASCII. An ACL that the entry holds in text is written as the text record that it read, and an ACL that it holds in the binary form is written as `SCHILY.xattr.system.posix_acl_access`; the first step of the work reads the unpack of incusd to decide, and the test names the choice. The marks of overlayfs (`trusted.overlay.`, `user.overlay.`) are named and not written, as `extract` does not set them. The other records (`mtime`, `uname`, `LIBARCHIVE.`) are dropped as `extract` drops them.
+1. The records: for each visible entry, `SCHILY.xattr.NAME` for each attribute that `xattr::read` keeps, inside the same bounds, with the same refusals and the same count of those that it names (`Flattened.xattrs`), with `path` and `linkpath` where a name is past 100 bytes or not ASCII. An ACL that the entry holds in text is written as the text record that it read, and an ACL that it holds in the binary form is written as `SCHILY.xattr.system.posix_acl_access`; the first step of the work reads the unpack of incusd to decide, and the test names the choice. The marks of overlayfs (`trusted.overlay.`, `user.overlay.`) are named and not written, as `extract` does not set them. A `LIBARCHIVE.xattr.` record that `xattr::read` decodes (T-1088) is written as `SCHILY.xattr.NAME`. The other records (`mtime`, `uname`, the other `LIBARCHIVE.` records) are dropped as `extract` drops them.
 2. The owners and the modes: the ids and the permission bits of the image, with the mode bits that `extract` keeps (setuid, setgid, sticky). The time of each entry is the time of the image, or 0 where the image has none, so that the stream does not depend on the clock of the caller.
 3. The place: `Options::prefix` (a path, for example `rootfs/`; it must pass the lexical check) goes before each path of the image, and the entry of the prefix directory is written first, with the mode that the caller gives.
 4. The entries of the caller: `Options::before` and `Options::after` take a closure that gets a `Builder` over the same writer (`tar::Builder` or a small wrapper), so that the caller writes `metadata.yaml` before the tree and `/.podvm/podvm` after it. An entry of the caller at a path of the image is refused with a name, not merged. The end blocks of the tar are written once, by `flatten`, after `after`; a flag leaves them out for a caller that appends more.

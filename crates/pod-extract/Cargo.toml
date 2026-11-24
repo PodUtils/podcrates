@@ -20,6 +20,8 @@ flate2 = { workspace = true }
 ruzstd = { workspace = true }
 # The digest of each blob, while the blob is read.
 sha2 = { workspace = true }
+# The values of the `LIBARCHIVE.xattr.` records.
+base64 = { workspace = true }
 
 [dev-dependencies]
 pod-testkit = { workspace = true }

@@ -1,5 +1,15 @@
 //! The extended attributes of an entry: the PAX records `SCHILY.xattr.NAME`
-//! that GNU tar, Go's `archive/tar`, containerd and BuildKit write.
+//! that GNU tar, Go's `archive/tar`, containerd and BuildKit write, and
+//! `LIBARCHIVE.xattr.NAME` that libarchive (`bsdtar`) writes.
+//!
+//! **libarchive.** libarchive `tar(5)`: the name of a `LIBARCHIVE.xattr.`
+//! record has percent escapes (`%` and two hex digits for each byte that is
+//! not printable ASCII, `=` and `%`), and the value is base64. libarchive
+//! writes each attribute twice by default, its own record and the
+//! `SCHILY.xattr.` record (the option `xattrheader`: `ALL`, `SCHILY`,
+//! `LIBARCHIVE`). The `SCHILY.xattr.` record of the same name holds; a
+//! `LIBARCHIVE.xattr.` record alone is decoded, and a record that does not
+//! decode is named as not set.
 //!
 //! **Each attribute is set or named.** `security.capability` of `ping` is
 //! the measured case (PodUtils/podrunner#317): a layer that loses it gives a
@@ -27,12 +37,16 @@
 //! attribute of its binary form ([`crate::acl`]) and follows the same path.
 //! The binary record of the same ACL, when the entry has one, holds.
 
+use base64::Engine as _;
 use pod_hostprobe::sys::{self, CBuf, Sysres};
 
 use crate::safety::Dir;
 
 /// The prefix of the PAX key of an extended attribute.
 pub const PAX_PREFIX: &str = "SCHILY.xattr.";
+/// The prefix of the PAX key of an extended attribute of libarchive: the
+/// name with percent escapes, the value in base64.
+pub const LIBARCHIVE_PREFIX: &str = "LIBARCHIVE.xattr.";
 /// The longest name, the namespace included (`XATTR_NAME_MAX`).
 pub const NAME_MAX: usize = 255;
 /// The longest value (`XATTR_SIZE_MAX`).
@@ -149,15 +163,18 @@ impl Count {
 
 /// Read the attribute records of an entry: the `SCHILY.xattr.` records of
 /// its PAX header, read by their length ([`crate::pax`]), so a value can
-/// hold any byte, and the ACLs in their text form (`SCHILY.acl.`), in their
-/// binary form ([`crate::acl`]). `path` is the path of the entry in the tree.
+/// hold any byte; the `LIBARCHIVE.xattr.` records with no `SCHILY.xattr.`
+/// record of the same name, decoded; and the ACLs in their text form
+/// (`SCHILY.acl.`), in their binary form ([`crate::acl`]). `path` is the
+/// path of the entry in the tree.
 pub fn read(exts: &[(Vec<u8>, Vec<u8>)], path: &str) -> Wanted {
     let mut w = Wanted { path: path.to_string(), ..Wanted::default() };
-    let (mut names, mut values, mut records) = (0usize, 0usize, 0usize);
-    let mut acls = Vec::new();
+    let (mut sum, mut records) = ((0usize, 0usize), 0usize);
+    let (mut acls, mut libarchive) = (Vec::new(), Vec::new());
     for (key, value) in exts {
         let acl = key.strip_prefix(crate::acl::PAX_PREFIX.as_bytes());
-        let Some(raw) = key.strip_prefix(PAX_PREFIX.as_bytes()).or(acl) else {
+        let lib = key.strip_prefix(LIBARCHIVE_PREFIX.as_bytes());
+        let Some(raw) = key.strip_prefix(PAX_PREFIX.as_bytes()).or(acl).or(lib) else {
             continue;
         };
         records += 1;
@@ -166,29 +183,20 @@ pub fn read(exts: &[(Vec<u8>, Vec<u8>)], path: &str) -> Wanted {
             refuse(&mut w, "(more records)".into(), why);
             break;
         }
-        if acl.is_some() {
-            acls.push((raw, value));
+        match (acl, lib) {
+            (Some(_), _) => acls.push((raw, value)),
+            (_, Some(_)) => libarchive.push((raw, value)),
+            _ => take(&mut w, &mut sum, raw, value),
+        }
+    }
+    for (raw, text) in libarchive {
+        let name = unescape(raw);
+        if held(&w, &name) {
             continue;
         }
-        let name = std::str::from_utf8(raw);
-        let why = if raw.is_empty() {
-            Some("an empty name".to_string())
-        } else if raw.len() > NAME_MAX {
-            Some(format!("the name is longer than {NAME_MAX} bytes"))
-        } else if raw.contains(&0) {
-            Some("a NUL in the name".to_string())
-        } else if name.is_err() {
-            Some("the name is not UTF-8".to_string())
-        } else if value.len() > VALUE_MAX {
-            Some(format!("the value is longer than {VALUE_MAX} bytes"))
-        } else if OVERLAY.iter().any(|p| raw.starts_with(p.as_bytes())) {
-            Some("a mark of overlayfs: an overlay mount of the tree reads it, so it is not set".to_string())
-        } else {
-            within(&mut names, &mut values, raw.len(), value.len())
-        };
-        match (why, name) {
-            (None, Ok(n)) => w.attrs.push(Xattr { name: n.to_string(), value: value.to_vec() }),
-            (why, _) => refuse(&mut w, shown(raw), why.unwrap_or_default()),
+        match base64::engine::general_purpose::STANDARD_NO_PAD_INDIFFERENT.decode(text) {
+            Ok(value) => take(&mut w, &mut sum, &name, &value),
+            Err(e) => refuse(&mut w, shown(&name), format!("the base64 value of a {LIBARCHIVE_PREFIX} record: {e}")),
         }
     }
     for (kind, text) in acls {
@@ -199,17 +207,68 @@ pub fn read(exts: &[(Vec<u8>, Vec<u8>)], path: &str) -> Wanted {
         };
         // GNU tar `--xattrs --acls` writes the binary form too: it holds the
         // same ACL with its ids, and it is read above.
-        if w.attrs.iter().any(|x| x.name == name) || w.refused.iter().any(|u| u.name == name) {
+        if held(&w, name.as_bytes()) {
             continue;
         }
         let converted = crate::acl::to_xattr(text)
-            .and_then(|v| within(&mut names, &mut values, name.len(), v.len()).map_or(Ok(v), Err));
+            .and_then(|v| within(&mut sum.0, &mut sum.1, name.len(), v.len()).map_or(Ok(v), Err));
         match converted {
             Ok(value) => w.attrs.push(Xattr { name: name.to_string(), value }),
             Err(why) => refuse(&mut w, name.to_string(), why),
         }
     }
     w
+}
+
+/// Keep the attribute `raw` with `value`, or name it with the check or the
+/// bound that refuses it. `sum` is the bytes of names and of values kept.
+fn take(w: &mut Wanted, sum: &mut (usize, usize), raw: &[u8], value: &[u8]) {
+    let name = std::str::from_utf8(raw);
+    let why = if raw.is_empty() {
+        Some("an empty name".to_string())
+    } else if raw.len() > NAME_MAX {
+        Some(format!("the name is longer than {NAME_MAX} bytes"))
+    } else if raw.contains(&0) {
+        Some("a NUL in the name".to_string())
+    } else if name.is_err() {
+        Some("the name is not UTF-8".to_string())
+    } else if value.len() > VALUE_MAX {
+        Some(format!("the value is longer than {VALUE_MAX} bytes"))
+    } else if OVERLAY.iter().any(|p| raw.starts_with(p.as_bytes())) {
+        Some("a mark of overlayfs: an overlay mount of the tree reads it, so it is not set".to_string())
+    } else {
+        within(&mut sum.0, &mut sum.1, raw.len(), value.len())
+    };
+    match (why, name) {
+        (None, Ok(n)) => w.attrs.push(Xattr { name: n.to_string(), value: value.to_vec() }),
+        (why, _) => refuse(w, shown(raw), why.unwrap_or_default()),
+    }
+}
+
+/// Is the attribute `name` kept or named already?
+fn held(w: &Wanted, name: &[u8]) -> bool {
+    w.attrs.iter().any(|x| x.name.as_bytes() == name) || w.refused.iter().any(|u| u.name.as_bytes() == name)
+}
+
+/// The name of a `LIBARCHIVE.xattr.` record with its percent escapes
+/// decoded. A `%` with no two hex digits after it stays, as libarchive
+/// reads it.
+fn unescape(raw: &[u8]) -> Vec<u8> {
+    let hex = |i: usize| raw.get(i).and_then(|b| char::from(*b).to_digit(16));
+    let (mut out, mut i) = (Vec::with_capacity(raw.len()), 0);
+    while i < raw.len() {
+        match (raw[i], hex(i + 1), hex(i + 2)) {
+            (b'%', Some(h), Some(l)) => {
+                out.push((h * 16 + l) as u8);
+                i += 3;
+            }
+            (b, _, _) => {
+                out.push(b);
+                i += 1;
+            }
+        }
+    }
+    out
 }
 
 fn refuse(w: &mut Wanted, name: String, reason: String) {

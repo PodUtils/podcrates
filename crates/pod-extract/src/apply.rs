@@ -24,6 +24,8 @@ use crate::sidecar::{Meta, Sidecar};
 use crate::whiteout::{self, Kind};
 use crate::xattr::{self, Wanted};
 
+#[path = "apply_content.rs"]
+mod content;
 #[path = "apply_later.rs"]
 mod later;
 use later::{Later, link_later};
@@ -147,6 +149,8 @@ pub fn apply_layer(
         let mode = header.mode().unwrap_or(0o644);
         let uid = header.uid().unwrap_or(0);
         let gid = header.gid().unwrap_or(0);
+        // The map of a GNU sparse file: read and checked before the file is made.
+        let sparse = crate::sparse::layout(member.sparse.as_ref(), &mut entry, digest, &path)?;
 
         // The parent is opened component by component with symlinks refused:
         // this stops `evil/passwd` after `evil -> /etc`.
@@ -216,7 +220,7 @@ pub fn apply_layer(
                 Err(e) => return Err(error::sys(format!("cannot link {path:?} to {target:?}"), e)),
             }
         } else if kind.is_file() {
-            let (m, a) = write_file(&parent, &name, mode, &mut entry, &wanted)?;
+            let (m, a) = write_file(&parent, &name, mode, &mut entry, &wanted, sparse.as_ref())?;
             (applied_mode, on_file) = (m, Some(a));
             st.files += 1;
         } else {
@@ -266,12 +270,6 @@ pub fn apply_layer(
     Ok(st)
 }
 
-/// The ownership decision for one entry.
-///
-/// The crate does not restore ownership: the applied ids are the ids of the
-/// extracting process. The reason names each difference, as a sidecar row
-/// that differs from the image with no word is what this crate must not
-/// write.
 /// The target of a link: the `linkpath` record of its PAX header, read by
 /// its length ([`pax`]), else what the `tar` reader gives.
 fn link_name<R: Read>(entry: &tar::Entry<'_, R>, member: &pax::Member) -> String {
@@ -281,6 +279,12 @@ fn link_name<R: Read>(entry: &tar::Entry<'_, R>, member: &pax::Member) -> String
     }
 }
 
+/// The ownership decision for one entry.
+///
+/// The crate does not restore ownership: the applied ids are the ids of the
+/// extracting process. The reason names each difference, as a sidecar row
+/// that differs from the image with no word is what this crate must not
+/// write.
 fn resolve_ids(uid: u64, gid: u64, ids: Ids) -> (u64, u64, Option<String>) {
     let mut why = Vec::new();
     if uid != ids.uid {
@@ -349,16 +353,18 @@ fn replace(parent: &Dir, name: &str) -> Result<()> {
     }
 }
 
-/// Write one regular file. Returns the mode that stayed on the file when it is
-/// not the mode of the image: the kernel refused the mode of the image after
-/// the write, or dropped its `S_ISUID` or `S_ISGID`; and what the set of its
-/// attributes gave.
+/// Write one regular file, or the regions of a sparse file at their offsets.
+/// Returns the mode that stayed on the file when it is not the mode of the
+/// image: the kernel refused the mode of the image after the write, or
+/// dropped its `S_ISUID` or `S_ISGID`; and what the set of its attributes
+/// gave.
 fn write_file(
     parent: &Dir,
     name: &str,
     mode: u32,
     r: &mut dyn Read,
     w: &Wanted,
+    sparse: Option<&crate::sparse::Layout>,
 ) -> Result<(Option<u32>, xattr::Applied)> {
     replace(parent, name)?;
     let n = cbuf(name)?;
@@ -375,38 +381,7 @@ fn write_file(
     )
     .map_err(|e| error::sys(format!("cannot create {name:?}"), e))?;
 
-    let mut buf = vec![0u8; 128 * 1024];
-    let mut err = None;
-    loop {
-        match r.read(&mut buf) {
-            Ok(0) => break,
-            Ok(n) => {
-                let mut off = 0;
-                while off < n {
-                    match sys::write(fd, &buf[off..n]) {
-                        Ok(w) if w > 0 => off += w as usize,
-                        Ok(_) => {
-                            err = Some(error::sys(format!("a write of {name:?} returned 0 with bytes left"), sys::EIO));
-                            break;
-                        }
-                        Err(e) if e == sys::EINTR => continue,
-                        Err(e) => {
-                            err = Some(error::sys(format!("cannot write {name:?}"), e));
-                            break;
-                        }
-                    }
-                }
-                if err.is_some() {
-                    break;
-                }
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-            Err(e) => {
-                err = Some(error::io(e));
-                break;
-            }
-        }
-    }
+    let err = content::write(fd, r, sparse, name).err();
 
     // After the last write and before the mode ([`xattr`]).
     let x = xattr::set_fd(fd, w);
