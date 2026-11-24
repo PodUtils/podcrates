@@ -82,7 +82,7 @@ pod-services = { workspace = true, features = ["overlay"] }
 pod-shape = { workspace = true }
 pod-sidecar = { workspace = true, features = ["sidecar"] }
 pod-supervise = { workspace = true }
-pod-term = { workspace = true }
+pod-term = { workspace = true, features = ["transfer"] }
 pod-tls = { workspace = true, features = ["pure", "rsa", "ech"] }
 # The TURN client turns on the codec of STUN (feature `stun`).
 pod-turn = { workspace = true, features = ["turn"] }
