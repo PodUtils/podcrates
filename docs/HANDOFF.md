@@ -98,10 +98,16 @@ consumer names `v0.82.1` or a later tag:
 - podrunner names `v0.82.1` (PodUtils/podrunner#348, closed): its unit of
   the system calls `service_account()` (T-1110), and its report gives the
   reason of each absent time (T-1098). Amend #257 with this take.
-- podnet, podssh and podvm name `v0.82.0`. Their asks of #257: podvm T-1124
-  (`pod_enter::joinable`), `Plan::relay_title` and `pod_hostprobe::usage`;
-  podnet T-1117 (the limits 110 s and 210 s); podssh iroh 1.4.2,
-  `Unit::public`, `older_mark`, `write_checked` and `bind_staged`.
+- podvm names `v0.82.1` (PodUtils/podvm#656, COORD-240): `18160173` takes
+  the tag (`pod_enter::joinable` in each join, `Plan::relay_title`,
+  `pod_enter::title`), and `39a85246` takes `pod_hostprobe::usage`. The
+  second blocks of `pod-enter` and `pod-hostprobe` in `SOURCES` have the
+  `taken` lines, and T-1124 is done.
+- podssh names `v0.82.1` (PodUtils/podssh#347, COORD-138, commit
+  `17999753`).
+- podnet names `v0.82.0`. Its asks of #257: T-1117 (the limits 110 s and
+  210 s in its documents). #257 stays open until podnet names `v0.82.1` or
+  a later tag; it can close then.
 
 COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
 `pod-term` (T-1144, open). No tag has it.
@@ -127,8 +133,8 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
 
 - podrunner: no open ask. T-1160 changes the answer of
   `pod-fake-githome` to `assigned` (the fork fact of the real job alone).
-- podvm: T-1124, T-1143, T-1158 (podvm removes its work-arounds at the tag
-  of T-1155 to T-1157).
+- podvm: T-1143, T-1158 (podvm removes its work-arounds at the tag of
+  T-1155 to T-1157).
 - podnet: T-1117 (documents), T-1118 (`release-index.json`).
 - podssh: the STUN note above, T-1095 (the order of the pseudo-fields of
   the HTTP/2 request of `pod-ws`, PodUtils/podssh#340), T-1103 (iroh 1.5).

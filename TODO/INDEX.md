@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**937 entries: 166 open, 28 partial, 7 blocked, 736 done.**
+**937 entries: 165 open, 28 partial, 7 blocked, 737 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 6 | 10 | 0 | 221 | 237 |
-| P2 | 74 | 8 | 4 | 382 | 468 |
+| P2 | 73 | 8 | 4 | 383 | 468 |
 | P3 | 86 | 10 | 3 | 131 | 230 |
-| **All** | 166 | 28 | 7 | 736 | 937 |
+| **All** | 165 | 28 | 7 | 737 | 937 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -943,7 +943,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1118](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686) |
 | [T-1120](podvm.md) | P1 | S | M6 | feature | done | `pod-hostprobe`: the CPU time, the peak of memory and the OOM kills of a cgroup at the end of a run (PodUtils/podvm#650) |
 | [T-1122](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`, `pod-unit`: the changes of podrunner and podssh at their heads (port review) |
-| [T-1124](podvm.md) | P2 | S | M6 | chore | open | podvm opens `/proc/PID` and the pidfd of the init of a run, which is not dumpable after T-1113, so its `exec -t`, `cp` and the join of the UTS namespace fail for a caller with no capabilities |
+| [T-1124](podvm.md) | P2 | S | M6 | chore | done | podvm opens `/proc/PID` and the pidfd of the init of a run, which is not dumpable after T-1113, so its `exec -t`, `cp` and the join of the UTS namespace fail for a caller with no capabilities |
 | [T-1125](relay.md) | P1 | S | M2 | defect | done | `pod-hold`: a failed `execve` of `spawn::start` exits 127 with no errno, and `spawn::resolve` does not check a path with a `/` (PodUtils/podnet#707) |
 | [T-1126](relay.md) | P2 | S | M2 | defect | done | `pod-wormhole`: `Failed::Expired` rounds the life of the code up to whole minutes ("within its 1 minutes" for 5 s) (PodUtils/podnet#707) |
 | [T-1127](relay.md) | P2 | S | M2 | defect | done | `pod-wormhole`: `Failed::Unreachable` keeps only the words of each meeting point, so a caller loses the stage Proxy or Dns (PodUtils/podnet#707) |

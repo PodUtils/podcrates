@@ -13159,7 +13159,7 @@ rows of podvm and the tests. `cargo test -p pod-hostprobe --all-features
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13206,6 +13206,20 @@ sh scripts/ci/userns-tests.sh
 
 The coordinator names the change in a COORD issue `(to podvm)` and podvm
 answers.
+
+## Done
+
+2026-11-24, this commit. podvm took `v0.82.1` (PodUtils/podvm#656,
+COORD-240; podvm `18160173`, `39a85246`, record `e7c19b16`). Each join of
+podvm opens the process that `pod_enter::joinable` gives: `userns::rejoin`
+and `join_if`, `join_mounts`, the join of the UTS namespace and
+`/proc/PID/root/dev` of `exec -t`. The `Plan` literals take `relay_title`.
+podvm's own pid 1, pid 2 and process of a join are not dumpable. podvm
+measured as uid 1000: `exec -t`, `cp` and the host name of the run work;
+the init is refused for `/proc/1/environ` and `/proc/INIT/ns`. Its test
+`pid_init_hidden` fails where the join opens the init. The `taken` lines
+of the second blocks of `pod-enter` and `pod-hostprobe` name those two
+commits: `check-sources.py --clone PodUtils/podvm=CLONE` shows 0 changes.
 
 # T-1138: `pod-incus`: an answer over `max_body` is an I/O error with the words of pod-proxy alone, and the caller cannot tell it from another fault (PodUtils/podvm#651)
 

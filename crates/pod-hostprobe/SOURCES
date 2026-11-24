@@ -52,5 +52,6 @@ file 0b0fefd7ac6ae59bc9d259141c7b6278c8ec28c8 crates/podvm-probe/tests/namespace
 # seal, Anchor and end_tree stay in podvm. Of report.rs oom_kills_in and
 # oom_kills_of come; finish and own_leaf stay in podvm.
 repo PodUtils/podvm a4b75950295fb9fa1eecd01b802a9fc953e424d5
+taken 39a8524605d0a5575b7f8799821090bf955282b5
 file 9fbda65cf6ae741a2b101877b52e06167302642f crates/podvm/src/incus/usage.rs -> crates/pod-hostprobe/src/usage.rs crates/pod-hostprobe/src/usage/tests.rs
 file 8a4dca69bc006f91945bb828aa7ea4e2fcc50e23 crates/podvm-supervise/src/report.rs -> crates/pod-hostprobe/src/usage.rs crates/pod-hostprobe/src/usage/tests.rs
