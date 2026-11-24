@@ -67,7 +67,6 @@ test-clone:855cccd178d30dc2  T-918: crates/pod-guest/src/evidence/tests.rs until
 test-clone:85c88d46eec9c46f  T-918: crates/pod-link/tests/resume.rs carrier and its copies
 test-clone:87157aafeef6b971  T-918: crates/pod-relay/tests/reverse_node.rs next and its copies
 test-clone:87dab4d2b089d241  T-918: crates/pod-egress/tests/via.rs root_file and its copies
-test-clone:8f067e21e924090c  T-918: crates/pod-extract/src/drive/deep.rs a_tree_deeper_than_the_descriptor_limit_is_walked_and_removed and its copies
 test-clone:8fb46f7d197e838f  T-918: crates/pod-e2e/tests/session_handover.rs exchange and its copies
 test-clone:900fc90dcea09d24  T-918: crates/pod-e2e/tests/session_handover.rs relayed and its copies
 test-clone:9092d12a56409932  T-918: crates/pod-actions-results/src/cache/tests.rs call and its copies
