@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**960 entries: 170 open, 29 partial, 7 blocked, 754 done.**
+**960 entries: 169 open, 29 partial, 7 blocked, 755 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 226 | 240 |
 | P2 | 82 | 8 | 4 | 392 | 486 |
-| P3 | 84 | 11 | 3 | 134 | 232 |
-| **All** | 170 | 29 | 7 | 754 | 960 |
+| P3 | 83 | 11 | 3 | 135 | 232 |
+| **All** | 169 | 29 | 7 | 755 | 960 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -980,7 +980,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1163](upkeep.md) | P3 | S | M5 | chore | open | Two more readers of a `Retry-After` value: `pod-cloudflare` and `pod-oci` keep their own copy of `pod_core::clock::retry_after_secs` |
 | [T-1164](relay.md) | P2 | S | M2 | defect | done | `pod-link`: the DNS listener sends no answer to a query that is not TXT or whose name does not decode, so a resolver retries and serves SERVFAIL (PodUtils/podssh#349) |
 | [T-1165](relay.md) | P2 | M | M2 | defect | done | `pod-link`: a query with a new session id takes a handshake slot of the DNS listener for 20 s before any key is checked (PodUtils/podssh#349) |
-| [T-1166](relay.md) | P3 | M | M2 | feature | open | `pod-link`: the DNS listener answers each poll at once; a held poll (dnstt's 1 s) halves the idle queries and cuts the latency of data down (PodUtils/podssh#349) |
+| [T-1166](relay.md) | P3 | M | M2 | feature | done | `pod-link`: the DNS listener answers each poll at once; a held poll (dnstt's 1 s) halves the idle queries and cuts the latency of data down (PodUtils/podssh#349) |
 | [T-1167](relay.md) | P3 | M | M2 | feature | open | `pod-link`: an option to carry the ARQ of the DNS carrier with no TLS for a caller that seals above (PodUtils/podssh#349) |
 | [T-1168](relay.md) | P3 | M | M2 | feature | open | `pod-link`: the datagrams of the DNS carrier over DNS over HTTPS (RFC 8484), for a dialer behind an HTTP proxy with no UDP (PodUtils/podssh#349) |
 | [T-1169](relay.md) | P3 | M | M2 | chore | open | `pod-link`: a test of the DNS carrier through `unbound` with its default settings, in the box of CI (PodUtils/podssh#349) |

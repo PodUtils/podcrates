@@ -19,7 +19,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use common::dns::{ZONE, at, bound, carrier, fast_arq, query_name};
+use common::dns::{ZONE, at, bound, carrier, fast_arq, query_name, relay};
 use common::tcp::{id, ring};
 use common::{echo, limit, pattern};
 use pod_core::Class;
@@ -30,7 +30,6 @@ use pod_link::dns::{Dns, DnsListener, DnsSettings, EDNS_SIZE};
 use pod_link::tcp::{Refusal, refusal};
 use pod_link::{Carrier, CarrierErrorKind, Cost, Facts, Link, Listener, Role, Settings};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::UdpSocket;
 use tokio::time::timeout;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -308,38 +307,6 @@ async fn queries_of_new_session_ids_do_not_keep_a_dial_out() {
     assert!(second < bound, "the parts held a slot past the quiet time: the dial took {second:?}");
 }
 
-/// A relay at a free UDP port of the loopback that sends each query to
-/// `server` and each answer back, and keeps each query that holds a datagram
-/// (more than a poll) for a replay.
-async fn recording_relay(server: SocketAddr) -> (SocketAddr, Arc<std::sync::Mutex<Vec<Vec<u8>>>>) {
-    let (front, back) = (UdpSocket::bind("127.0.0.1:0").await.unwrap(), UdpSocket::bind("127.0.0.1:0").await.unwrap());
-    let addr = front.local_addr().unwrap();
-    let kept = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let keep = kept.clone();
-    tokio::spawn(async move {
-        let (mut up, mut down, mut client) = (vec![0u8; 1 << 16], vec![0u8; 1 << 16], None);
-        loop {
-            tokio::select! {
-                Ok((n, from)) = front.recv_from(&mut up) => {
-                    client = Some(from);
-                    // A poll of the dialer has a name of 13 characters.
-                    if n > 80 {
-                        keep.lock().unwrap().push(up[..n].to_vec());
-                    }
-                    let _ = back.send_to(&up[..n], server).await;
-                }
-                Ok((n, _)) = back.recv_from(&mut down) => {
-                    if let Some(to) = client {
-                        let _ = front.send_to(&down[..n], to).await;
-                    }
-                }
-                else => return,
-            }
-        }
-    });
-    (addr, kept)
-}
-
 /// A late query of an ended session (a retry of a resolver) that holds a
 /// part of its ClientHello starts no handshake and takes no slot (T-1171,
 /// PodUtils/podssh#349): with one slot, a real dial after it does not wait
@@ -356,14 +323,15 @@ async fn a_late_query_of_an_ended_session_starts_no_handshake() {
     let mut door = bound(&listening).await;
     // A client of a key that the listener does not take: its session ends
     // at the refusal of its key.
-    let (relay, kept) = recording_relay(door.local_addr()).await;
+    let (relay, kept) = relay(door.local_addr()).await;
     let stranger = carrier(4, &[]).to(relay);
     let address = at(&server.public());
     let both = async { tokio::join!(stranger.dial(&address), door.accept_key()) };
     let (near, far) = timeout(limit(), both).await.expect("the refusal in time");
     assert!(near.is_err() && far.is_err(), "the listener refused the key 4");
-    // The first query of the session holds the first part of its ClientHello.
-    let first = kept.lock().unwrap().first().cloned().expect("a query of the ClientHello");
+    // The first query of the session that holds a datagram (a poll has a
+    // name of 13 characters) holds the first part of its ClientHello.
+    let first = kept.lock().unwrap().iter().find(|q| q.len() > 80).cloned().expect("a query of the ClientHello");
     let (id, name) = (u16::from_be_bytes([first[0], first[1]]), txt::question(&first).unwrap().1);
     // The ARQ of the session answers the frames of its peer until the peer
     // is quiet for two RTO ceilings, at most for eight; the listener then
@@ -410,6 +378,7 @@ async fn an_address_or_a_setting_out_of_its_form_is_a_usage_error() {
         DnsSettings { queries_per_second: 0.0, ..DnsSettings::default() },
         DnsSettings { in_flight: 0, ..DnsSettings::default() },
         DnsSettings { answer: 100, ..DnsSettings::default() },
+        DnsSettings { hold: Duration::from_secs(2), ..DnsSettings::default() },
     ] {
         assert!(dsettings.check().is_err(), "{dsettings:?}");
         let mut bad = dns.clone();
@@ -435,6 +404,7 @@ async fn the_carrier_says_what_it_gives_and_why_it_cannot_run() {
         (pod_link::dns::NAME, pod_link::dns::ALPN, pod_link::dns::MAX_HANDSHAKES, pod_link::dns::HANDSHAKE_QUIET),
         ("dns", &b"podlink/1"[..], 64, Duration::from_secs(5))
     );
+    assert_eq!((pod_link::dns::HOLD, DnsSettings::default().hold), (Duration::from_secs(1), Duration::from_secs(1)));
     let shown = format!("{dns:?}");
     assert!(shown.contains(&id(1).public().fingerprint()) && shown.contains("z.test"), "{shown}");
 }

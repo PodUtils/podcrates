@@ -1,7 +1,10 @@
 //! The helpers of the tests of the DNS carrier: a carrier of a made-up
 //! identity under a test zone, a listener on the loopback, a dial address,
-//! and ARQ and DNS settings that end a lost link fast.
+//! ARQ and DNS settings that end a lost link fast, and a relay that keeps
+//! the queries of a dialer.
 
+use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use pod_identity::{KeyName, PublicKey};
@@ -76,4 +79,44 @@ pub fn query_name(session: u32, counter: u32, payload: &[u8]) -> String {
     }
     let labels: Vec<&str> = chars.chunks(63).map(|l| std::str::from_utf8(l).expect("base32 is ASCII")).collect();
     format!("{}.{ZONE}", labels.join("."))
+}
+
+/// The session id in the name of the query `query` of a dialer: the first
+/// four bytes of the base32 of its first label.
+pub fn session_of(query: &[u8]) -> u32 {
+    let label = &query[13..13 + usize::from(query[12])];
+    let bits = label.iter().take(7).fold(0u64, |word, c| {
+        let v = if c.is_ascii_alphabetic() { c.to_ascii_lowercase() - b'a' } else { c - b'2' + 26 };
+        word << 5 | u64::from(v)
+    });
+    (bits >> 3) as u32
+}
+
+/// A relay at a free UDP port of the loopback that sends each query to
+/// `server` and each answer back, and keeps each query in order.
+pub async fn relay(server: SocketAddr) -> (SocketAddr, Arc<Mutex<Vec<Vec<u8>>>>) {
+    use tokio::net::UdpSocket;
+    let (front, back) = (UdpSocket::bind("127.0.0.1:0").await.unwrap(), UdpSocket::bind("127.0.0.1:0").await.unwrap());
+    let addr = front.local_addr().unwrap();
+    let kept = Arc::new(Mutex::new(Vec::new()));
+    let keep = kept.clone();
+    tokio::spawn(async move {
+        let (mut up, mut down, mut client) = (vec![0u8; 1 << 16], vec![0u8; 1 << 16], None);
+        loop {
+            tokio::select! {
+                Ok((n, from)) = front.recv_from(&mut up) => {
+                    client = Some(from);
+                    keep.lock().unwrap().push(up[..n].to_vec());
+                    let _ = back.send_to(&up[..n], server).await;
+                }
+                Ok((n, _)) = back.recv_from(&mut down) => {
+                    if let Some(to) = client {
+                        let _ = front.send_to(&down[..n], to).await;
+                    }
+                }
+                else => return,
+            }
+        }
+    });
+    (addr, kept)
 }
