@@ -2,11 +2,14 @@
 //! given from a boundary of the grammar. It drops its oldest bytes only up
 //! to a boundary, so the first byte that it gives after dropped bytes starts
 //! clean, and a client that attaches sees no part of a sequence as text.
+//! It keeps the [`Modes`] of the bytes that it dropped, so that
+//! [`Ring::modes_at`] gives the modes of the terminal at a byte it holds.
 
 use std::collections::VecDeque;
 use std::time::Instant;
 
 use super::{Boundary, Tracker};
+use crate::modes::Modes;
 
 /// The ring keeps about this many boundaries: one for each capacity / MARKS
 /// bytes, the first after a broken sequence, and the newest. A cut then
@@ -28,6 +31,8 @@ pub struct Ring {
     marks: VecDeque<u64>,
     /// The newest boundary, which the gap may have left out of the marks.
     newest: Option<u64>,
+    /// The modes of the bytes before `first`.
+    dropped: Modes,
 }
 
 impl Ring {
@@ -42,6 +47,7 @@ impl Ring {
             tracker: Tracker::new(),
             marks: VecDeque::new(),
             newest: None,
+            dropped: Modes::new(),
         }
     }
 
@@ -75,7 +81,9 @@ impl Ring {
             self.marks.push_back(newest);
         }
         let to = self.marks.front().copied().unwrap_or(from);
-        self.bytes.drain(..(to - self.first) as usize);
+        let n = (to - self.first) as usize;
+        feed_front(&mut self.dropped, &self.bytes, n);
+        self.bytes.drain(..n);
         self.first = to;
     }
 
@@ -98,6 +106,28 @@ impl Ring {
         }
     }
 
+    /// The modes that the stream set before the offset `at`, for
+    /// `start() <= at <= end()`; `None` outside, and while there is no
+    /// start.
+    ///
+    /// Give a boundary: [`Ring::start`], the offset of a boundary, or
+    /// [`Ring::end`]. At another offset the modes are those at a point inside
+    /// a sequence. The cost is one pass over the bytes held before `at`.
+    ///
+    /// [`Modes`] has no clock. After a broken sequence (see
+    /// [`crate::grammar::BROKEN_AFTER`]) it reads on as a terminal does,
+    /// which waits with no limit, so at a restart boundary the modes can
+    /// differ from those of a terminal that started there.
+    pub fn modes_at(&self, at: u64) -> Option<Modes> {
+        let start = self.start()?;
+        if at < start || at > self.end() {
+            return None;
+        }
+        let mut modes = self.dropped.clone();
+        feed_front(&mut modes, &self.bytes, (at - self.first) as usize);
+        Some(modes)
+    }
+
     /// The bytes held, never more than the capacity.
     pub fn len(&self) -> usize {
         self.bytes.len()
@@ -106,6 +136,14 @@ impl Ring {
     pub fn is_empty(&self) -> bool {
         self.bytes.is_empty()
     }
+}
+
+/// Feeds the first `n` bytes of `bytes` to `modes`.
+fn feed_front(modes: &mut Modes, bytes: &VecDeque<u8>, n: usize) {
+    let (a, b) = bytes.as_slices();
+    let from_a = n.min(a.len());
+    modes.feed(&a[..from_a]);
+    modes.feed(&b[..n - from_a]);
 }
 
 #[cfg(test)]

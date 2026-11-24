@@ -62,7 +62,8 @@ pod crate, so that each crate can dev-depend on the kit. The feature
 
 `pod_testkit::screen::Screen`: a model of a VT terminal (vt100) that reads
 the bytes of a program and tells what a person sees: each row, the
-cursor, the colors and the attributes of a cell. `pod-term` checks the
+cursor, the colors and the attributes of a cell, and the modes of input
+and of the screen (`Screen::modes`). `pod-term` checks the
 model against tmux (`crates/pod-term/tests/calibration.rs`).
 
 | Consumer | Old path | New path |

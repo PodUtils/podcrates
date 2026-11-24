@@ -14,7 +14,7 @@ dials nothing and spawns nothing. It has no pod dependency.
 | `termios` | `Tty`, `Termios`, `When`, `Event`, `Signal`, `flags`: the mode that follows the termios state of its child (`TCSETS`, `TCSETSW`, `TCSETSF`), with the rules of Linux `n_tty`: canonical editing, echo, signals, flow control, the mapping of input and output, and SIGWINCH; no prompt and no history |
 | `escape`, `refusal` | the escape parser; the escapes that the discipline refuses, with a bell |
 | `window` | `Window` and `Size`: the window changes of the session |
-| `grammar` | where a stream of output may start, and `grammar::ring`: the last bytes of a shell's output, given from a boundary |
+| `grammar` | where a stream of output may start, and `grammar::ring`: the last bytes of a shell's output, given from a boundary; `Ring::modes_at`, the `Modes` that the stream set before an offset that the ring holds, also after it dropped bytes |
 | `modes` | `Modes`: the modes that a stream of output set (the cursor keys, origin, autowrap, the cursor, the alternate screen, the mouse level and encoding, focus, bracketed paste, the keypad, G0), and `Modes::restore`, the bytes that put a new terminal in them |
 
 ## Parity
@@ -38,4 +38,4 @@ dials nothing and spawns nothing. It has no pod dependency.
 | podssh | the test switches `PODSSH_PLANT`, `PODSSH_TEST_TMUX` of the terminal's tests | `POD_TERM_PLANT`, `POD_TERM_TEST_TMUX` |
 | podssh | the tty of `podssh serve` with no `/dev/ptmx` (PodUtils/podssh@T-776, PodUtils/podssh@T-111) | `pod_term::termios::Tty`, which reads the state that serve answers to `TCGETS` |
 | podvm | its own discipline of its SSH server | `pod_term::echo::Discipline` (the same rules) |
-| podssh | the draft `modes_before` of `podssh-ssh/src/server/kept_screen.rs` (PodUtils/podssh@T-161) | `pod_term::modes::Modes` and its `restore` |
+| podssh | the draft `modes_before` of `podssh-ssh/src/server/kept_screen.rs` (PodUtils/podssh@T-161) | `Ring::modes_at`, then `pod_term::modes::Modes::restore` |

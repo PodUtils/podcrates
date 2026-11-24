@@ -8030,7 +8030,7 @@ For the hand-off: no break; `pod_term::modes` is a new module. The mouse rule an
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8061,3 +8061,11 @@ cargo test -p pod-term --all-features
 cargo test -p pod-testkit --all-features
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 ```
+
+## Done
+
+2026-11-24, the commit of this Done section. `Ring` has the field `dropped: Modes`: `trim` feeds the bytes that it drains (the two slices of the `VecDeque`) to it before the drain. `Ring::modes_at(at)` gives `None` unless `start() <= at <= end()`; else it clones `dropped` and feeds the held bytes before `at` (one pass). Its rustdoc says that `at` is a boundary and names the rule of a restart boundary. `pod_testkit::screen::Screen::modes` gives `screen::Modes`, a plain struct of the seven modes that vt100 reads (the mouse level and encoding as the number of their mode). The captures and the boundaries of `tests/grammar_boundary.rs` moved to `crates/pod-term/tests/captures/mod.rs`, which `tests/modes.rs` also takes. The `Debug` of `Modes` shows the modes and the state, not the 64 bytes of its buffer. The README of `pod-term` has the row.
+
+Tests in `crates/pod-term/tests/modes.rs`: `restore_of_the_modes_at_a_cut_and_the_rest_give_the_modes_of_the_whole_stream` (each capture, `less.bin`, `prompt.bin`, `top.bin`, `vi-pty.bin`, `vi.bin`, and two synthetic streams; each boundary, at most 4096 of each, chunks of 61 bytes: `restore` of `modes_at(at)` of a ring that holds the whole stream, then the bytes from `at`, give the modes of the whole stream to `Modes`, to vte and to the model terminal; `modes_at(at)` equals a `Modes` fed with the bytes before `at`), `a_ring_that_drops_bytes_keeps_the_modes_of_what_it_dropped` (rings of 40 and 300 bytes and a third and a half of each stream: the same from `start()` with `kept()`, `modes_at` at each boundary from `start()` to `end()`, and `None` before the start and after the end) and `a_ring_with_no_start_gives_no_modes`. less and top of busybox set no mode in their captures; vim sets 1049, 1, the keypad, 2004, 1004 and 25, and the synthetic streams hold the rest. `modes_at` is new, so a test cannot run on the code before: the plant `scripts/plants/term-ring-modes-dropped.plant` (`trim` does not feed `dropped`) fails `a_ring_that_drops_bytes_keeps_the_modes_of_what_it_dropped` with `vi-pty.bin in 40 bytes, at 5315` (the modes of the dropped `CSI ? 1049 h` are lost), and the test passes without it. `cargo test -p pod-term --all-features` and `cargo test -p pod-testkit --all-features`: each target passes. `cargo clippy -p pod-term -p pod-testkit --all-targets --all-features -- -D warnings`, `cargo doc` of both with `-D warnings`, `cargo fmt --all --check` and `sh scripts/plant-each.sh --apply` (0 stale): each exits 0. Not measured: the time of `modes_at` at the capacity of podssh.
+
+For the hand-off: no break; `Ring::modes_at` and `pod_testkit::screen::Modes` are new items. The hand-off COORD issue `(to podssh)` names the tag that carries T-1191 and T-1192; the coordinator opens it.

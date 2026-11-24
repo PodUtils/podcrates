@@ -1,0 +1,7 @@
+# The modes of a ring: trim drops bytes and does not feed them to the modes
+# of the dropped bytes, so modes_at loses the modes that they set (T-1192).
+ENTRY=T-1192
+GROUP=term
+EXPECT='test a_ring_that_drops_bytes_keeps_the_modes_of_what_it_dropped \.\.\. FAILED'
+RUN='cargo test -p pod-term --test modes a_ring_that_drops_bytes_keeps_the_modes_of_what_it_dropped -- --exact'
+LIMIT=900

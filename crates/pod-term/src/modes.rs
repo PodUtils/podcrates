@@ -121,7 +121,7 @@ const DEFAULTS: Values = Values {
 ///
 /// Two values are equal when their modes are equal; the state of the reader
 /// (a sequence cut by the end of a chunk) does not count.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Modes {
     values: Values,
     state: State,
@@ -135,6 +135,14 @@ pub struct Modes {
 impl Default for Modes {
     fn default() -> Self {
         Modes::new()
+    }
+}
+
+impl std::fmt::Debug for Modes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // The bytes of a cut sequence are not shown: a message of a failed
+        // check names the modes.
+        f.debug_struct("Modes").field("values", &self.values).field("state", &self.state).finish_non_exhaustive()
     }
 }
 
