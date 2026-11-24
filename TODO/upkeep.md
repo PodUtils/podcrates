@@ -4576,3 +4576,108 @@ crate holds a date.
 cargo test -p pod-cloudflare -p pod-oci --all-features
 python3 -I scripts/codegraph.py similar retry after
 ```
+
+# T-1209: `pod-core`: one probe of a Unix socket that a forked child can hold, for `pod-control`, `pod-link` and `pod-warp` (PodUtils/podnet#709)
+
+**Source:** PodUtils/podnet#709 (COORD-117 of podnet, from PodUtils/podnet@T-534): the ask for `pod-core` to have one function `files::socket::answers(path) -> bool`, and for `pod-control`, `pod-link` and `pod-warp` to use it (the ruling "Shared code").
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A program that probes a Unix socket with one `connect(2)` reads a stale
+socket as a live one. A child that another thread forks keeps a copy of
+each listener of its parent until its `exec`. A socket whose server closed
+its listener still takes a connect for that short time, because the copy in
+the child keeps the queue open. The probe then reports "served by another
+process". The text of podnet#709:
+
+- `gate.yml` 45309579073 and `ci` 45309573045 on podnet `9f3c8a2`: the test
+  `warp::proxy::tests::a_unix_socket_that_answers_is_not_taken` failed with
+  "a dead socket is taken".
+- The control in podnet: its test
+  `a_socket_that_a_forked_child_holds_until_its_exec_is_stale`
+  (`PodUtils/podnet:crates/podnet-core/src/net.rs`; a child sleeps 40 ms
+  between its fork and its exec) fails 5 of 5 runs with one connect. With 3
+  connects 50 ms apart it passes 20 of 20 runs.
+- The rule that podnet asks for: the socket answers only when each of 3
+  connects, 50 ms apart, works. A socket that does not answer costs one
+  connect. A socket that answers costs 100 ms. podnet's form is
+  `podnet_core::net::socket_answers`, with its test.
+
+Three places of this repository make the same one-connect probe:
+
+- `crates/pod-control/src/unix.rs:27`, in `bind`: a live socket gives
+  `AddrInUse`, a stale socket is removed. A false "live" refuses the bind
+  of a server that has a stale socket.
+- `crates/pod-link/src/unix.rs:154`, in `claim`: a live socket gives
+  `InUse`, a stale socket is removed. The same fault.
+- `crates/pod-warp/src/find.rs:112`, `answers`, used by `running`: the
+  first socket of the list that answers is the running daemon. A false
+  "live" names a dead socket as the daemon.
+
+`crates/pod-core/src/files/socket.rs` has the bind of the same sockets
+(`bind_staged`) and no probe. `python3 -I scripts/codegraph.py similar
+socket answers probe stale` finds no other copy. Other connects to a Unix
+socket in `crates` are real connections (`pod_control::unix::connect`, the
+carrier of `pod-link`), not probes.
+
+## Premise
+
+- Read: the three places above, `crates/pod-core/src/files/socket.rs` (165
+  lines, no probe), `crates/pod-core/src/files.rs` (the `pub use` of
+  `socket`), and the text of podnet#709. The author is of the team
+  (COLLABORATOR).
+- Read: `PodUtils/podnet:crates/podnet-core/src/net.rs`, `socket_answers`
+  and its test, is the model. Not read here: its exact text. Port it from
+  the repository of podnet.
+- Not measured: the 40 ms window and the 3 connects at 50 ms in this
+  repository. A fork holds the copy until its `exec`; a slower host can
+  hold it longer than 100 ms. The bound of 3 connects is the one that
+  podnet measured on its own runners.
+- Not measured: the cost of 100 ms for each live socket in
+  `pod_warp::find::running`, which tries each socket of the list in order.
+- T-1115 (the copies of the bind at a long path) edits the same files
+  (`crates/pod-link/src/unix.rs`). The two entries do not depend on each
+  other. The later one rebases.
+
+## Approach
+
+1. `pod-core`: add `pod_core::files::socket_answers(path: &Path) -> bool`
+   (Unix only, like the module) in `crates/pod-core/src/files/socket/`
+   as a new file, with the constants `PROBES` (3) and `PROBE_GAP` (50 ms),
+   and re-export it in `crates/pod-core/src/files.rs`. The socket answers
+   only when each connect works. The first failed connect returns `false`
+   at once, so a stale socket costs one connect. The comment says why: a
+   forked child that has not run `exec` holds a copy of the listener.
+2. `pod-control` (`bind`), `pod-link` (`claim`) and `pod-warp` (`answers`
+   of `find.rs`) call it in place of the one connect. `pod_warp::find::answers`
+   stays only when a caller outside `find.rs` needs it, else it goes. Each
+   crate keeps its own refusal and its own text.
+3. Tests. In `pod-core`: a test that pins the class. A child made by
+   `std::process::Command` with `pre_exec` sleeps 40 ms between its fork and
+   its exec, and holds the listener (the listener has `CLOEXEC`, so only the
+   `exec` closes the copy). The parent closes its listener while the child
+   sleeps. The closed socket is not answering. A live listener answers, and
+   a path with no socket does not answer. Add one test in `pod-control`
+   and one in `pod-link` that the replace of a stale socket works while a
+   child holds the closed listener; take the helper that holds the listener
+   from `pod-testkit` when two crates need it (`codegraph.py similar`
+   first).
+4. Release: the next tag has the function. Answer podnet#709 by a COORD
+   issue with the tag. podnet takes the tag, removes `socket_answers` and the
+   same rule in `PodUtils/podnet:crates/podnet-netns/src/listen.rs`
+   (`claim_unix_path`),
+   and so closes its side.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features files::socket
+cargo test -p pod-control -p pod-link -p pod-warp --all-features
+python3 -I scripts/codegraph.py similar socket answers probe stale
+grep -rn "UnixStream::connect(.*)\.is_ok()" crates --include=*.rs
+```
