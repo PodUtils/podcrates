@@ -290,16 +290,19 @@ impl Policy {
     }
 
     /// The digest that the statements reach with the hash of the session
-    /// `alg`: the `authPolicy` of a key. `TPM2_PolicyAuthorize` comes last.
+    /// `alg`: the `authPolicy` of a key. `TPM2_PolicyAuthorize` sets the
+    /// digest again from zeros, where it comes.
     /// Another command than PolicyPCR, PolicyAuthorize, PolicyAuthValue and
     /// PolicyPassword is refused by its name.
     pub fn digest(&self, alg: HashAlg) -> Result<Vec<u8>, Error> {
         let mut current = vec![0u8; alg.size()];
-        for (i, statement) in self.statements.iter().enumerate() {
+        for statement in &self.statements {
             current = match statement.code {
-                CC_POLICY_AUTHORIZE if i + 1 != self.statements.len() => {
-                    return Err(Error::Usage("TPM2_PolicyAuthorize comes last in a policy".into()));
-                }
+                // The TPM sets the digest to zeros before it takes the name
+                // and the policyRef (part 3, 23.16), so the statements before
+                // it do not count. A key file puts it first in the policy of
+                // a key (the draft of the key files, 4.3), and last in a
+                // signed policy (5.1.2).
                 CC_POLICY_AUTHORIZE => {
                     let authorize = Authorize::parse(&statement.body)?;
                     policy_authorize_digest(alg, &key_name(&authorize.public)?, &authorize.policy_ref)?

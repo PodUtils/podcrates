@@ -170,7 +170,7 @@ fn the_digests_of_policy_authorize_are_part_3s() {
 
 /// A signed policy: its approved policy is the digest before its last
 /// PolicyAuthorize, and the hash that the policy key signs comes from it.
-/// PolicyAuthorize comes last; PolicyAuthValue and PolicyPassword extend
+/// PolicyAuthorize sets the digest again; PolicyAuthValue and PolicyPassword extend
 /// with one code; a body of PolicyAuthValue is refused.
 #[test]
 fn a_policy_keeps_its_order_and_its_approved_digest() {
@@ -185,8 +185,14 @@ fn a_policy_keeps_its_order_and_its_approved_digest() {
     let signed = Policy::new(vec![pcr.clone(), Statement::authorize(&head).unwrap()]);
     assert_eq!(signed.approved(HashAlg::Sha256).unwrap(), unhex(PCR7_ZERO));
     assert!(Policy::new(vec![pcr.clone()]).approved(HashAlg::Sha256).is_err());
-    let wrong = Policy::new(vec![Statement::authorize(&head).unwrap(), pcr.clone()]);
-    assert!(matches!(wrong.digest(HashAlg::Sha256), Err(Error::Usage(_))), "PolicyAuthorize comes last");
+    // PolicyAuthorize first, as a key file has it in the policy of a key:
+    // the statements after it extend its digest; those before it do not count.
+    let first = Policy::new(vec![Statement::authorize(&head).unwrap(), pcr.clone()]);
+    let after = Policy::new(vec![Statement::authorize(&head).unwrap()]).digest(HashAlg::Sha256).unwrap();
+    let want = policy::policy_pcr_update(HashAlg::Sha256, &after, &sel("7"), &zeros).unwrap();
+    assert_eq!(first.digest(HashAlg::Sha256).unwrap(), want, "PolicyAuthorize first");
+    let before = Policy::new(vec![pcr.clone(), Statement::authorize(&head).unwrap()]);
+    assert_eq!(before.digest(HashAlg::Sha256).unwrap(), after, "the statements before PolicyAuthorize do not count");
     let value = Statement { code: CC_POLICY_AUTH_VALUE, body: vec![] };
     let password = Statement { code: CC_POLICY_PASSWORD, body: vec![] };
     let a = Policy::new(vec![pcr.clone(), value]).digest(HashAlg::Sha256).unwrap();

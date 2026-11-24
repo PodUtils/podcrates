@@ -3419,7 +3419,9 @@ copy misses the others. Among them:
   `check_answer` of WebTunnel beside `webtunnel_takes` of `pod-ws`;
 - `pem` of `pod-lab` and `pod-warp`; `attr` of `pod-hold` and `pod-lab`;
   `tcp_packet` of `pod-warp` and `pod-wg`; the base64 value of
-  `pod-cloudflare` and `pod-turn`;
+  `pod-cloudflare` and `pod-turn`; the PEM text of the key file of
+  `pod-tpm` (`KeyFile::to_pem`, `KeyFile::from_pem`) does the same work as
+  `pem` with code of its own, and takes the one place too;
 - `carry_heard` of `pod-opentunnel` and `pod-piping`; `poll_read` of
   `pod-opentunnel` and `pod-session`; `all` of `pod-piping` and
   `pod-relay`; `status` of `pair.rs` and `pair/renew.rs`; `parse` of

@@ -44,7 +44,9 @@ transact(&mut tpm, &cmd::flush_context(primary.handle)?)?.empty()?;
 | `PcrSelection` (`parse`, `of`, `add`, `pcrs`, `only`, `count`, `check_policy`, `marshal`, `read`, `from_bytes`, `Display`) | a selection of PCRs in each bank (`TPML_PCR_SELECTION`): at most 16 banks, a bit set of at most 4 octets, PCRs 0 to 23; the text of tpm2-tools, `sha256:0,7+sha1:1` (a bare list is of SHA-256); a bank that was read keeps its bytes |
 | `policy::{policy_pcr_digest, policy_pcr_update, pcr_values_digest}` | the digest after `TPM2_PolicyPCR`: `H(old \|\| TPM_CC_PolicyPCR \|\| pcrs \|\| H(values))`, with the hash of the session; a list of values that does not match the selection is refused |
 | `policy::{policy_authorize_digest, approved_policy_hash, key_name}` | the digest after `TPM2_PolicyAuthorize` (`H(H(zeros \|\| TPM_CC_PolicyAuthorize \|\| name) \|\| policyRef)`), the hash that the policy key signs (`H(approvedPolicy \|\| policyRef)`), the name of a key (its name algorithm and the hash of its `TPMT_PUBLIC`) |
-| `Policy` (`digest`, `approved`), `Statement` (`pcr`, `authorize`, `read_pcr`), `Authorize` | a policy as a key file keeps it: statements of a command code and a body. PolicyPCR, PolicyAuthorize (last), PolicyAuthValue and PolicyPassword; another command is refused by its name |
+| `Policy` (`digest`, `approved`), `Statement` (`pcr`, `authorize`, `read_pcr`), `Authorize` | a policy as a key file keeps it: statements of a command code and a body. PolicyPCR, PolicyAuthorize (it sets the digest again from zeros, where it comes), PolicyAuthValue and PolicyPassword; another command is refused by its name |
+| `KeyFile` (`loadable`, `to_der`, `to_pem`, `from_der`, `from_pem`, `read`), `AuthPolicy`, `Kind`, `keyfile::is_pem` | the key file `TSS2 PRIVATE KEY` of draft-bottomley-tpm-keys-00, in DER and in PEM (lines of 64): `Kind::Loadable` alone; the policy and the signed policies (`authPolicy`: a name and a `Policy`) as statements, so a file of another program writes back to the same bytes. The old OID of a loadable key (2.23.133.10.2) is read and written as 2.23.133.10.1.3 |
+| `Refusal` (`Error::KeyFile`) | why a key file is refused: `Sealed` and `Importable` by name (no `TPM2_Unseal`, no `TPM2_Import`; class `Unsupported`), `UnknownType`, `UnknownField`, `VolatileParent` (MSO 0x80), `BadParent`, `TooLarge`, `TooMany`, `Trailing`, `Malformed` (class `Config`). The bounds: DER of 16 KiB, PEM of 24 KiB, `pubkey` and `privkey` of 4096 bytes and each one whole `TPM2B`, 8 statements and 8 signed policies, a body of 1 KiB, a text of 256 bytes; definite lengths and integers in their fewest octets; each field once and in order; no `secret` in a loadable key; `TPM2_PolicyAuthorize` first in the policy of a key and last in a signed policy (the draft, 4.3 and 5.1.2). The writer refuses the same, so each file that it writes reads back |
 | `HashAlg`, `alg` | the hash algorithms (SHA-1 for the size of a bank alone; SHA-256, SHA-384 and SHA-512 hash) and the algorithm ids |
 | `Error` (`class`, `code`) | a response code, a malformed response, a bad value, an algorithm that the crate does not use, a failure of the transport; `Failure::from` at `Stage::Host` |
 
@@ -83,7 +85,9 @@ None in this version. `device` and `tbs` (the transports, T-1221),
 | `policy.rs`: `pcr_digest`, `pcr_body`, `split_pcr_body`, `digest`, `sha256` | `policy::pcr_values_digest`, `Statement::pcr`, `Statement::read_pcr`, `Policy::digest`, `policy::hash` |
 | `authorize.rs`: `Authorize`, `name`, `digest_after`, `signed` | `policy::Authorize`, `policy::key_name` (SHA-256, SHA-384, SHA-512), `policy::policy_authorize_digest`; the signature of `signed` stays in podssh with its `PolicyKey`, over `policy::approved_policy_hash` |
 | `flow::Transport::transact(&[u8]) -> Result<Vec<u8>, String>` | `Transport::submit(&[u8]) -> Result<Vec<u8>, Failure>` |
-| `codec_tests.rs` | `tests/frame.rs`, `tests/commands.rs`, `tests/policy.rs` |
+| `keyfile.rs`: `KeyFile` (`policy: Vec<(u32, Vec<u8>)>`, `auth_policies`), `AuthPolicy`, `to_der`, `to_pem`, `from_der`, `from_pem`, `is_pem`, `MAX_FILE` (64 KiB) | `keyfile::KeyFile` (`kind`, `policy: Policy`, `auth_policy`), `AuthPolicy` (`policy: Policy`), the same functions, which return `Error`; `to_der` and `to_pem` check the bounds first; `MAX_DER` (16 KiB) and `MAX_PEM` (24 KiB). A sealed key, an importable key and a volatile parent are refused by name; an unknown optional field is refused, not passed over |
+| `codec_tests.rs` | `tests/frame.rs`, `tests/commands.rs`, `tests/policy.rs`; its tests of the key file in `tests/keyfile.rs` |
+| `testdata/p256-authvalue.b64` | `tests/testdata/p256-authvalue.b64` |
 
 podssh keeps `mod.rs` (the probe, `PODSSH_TPM_DEVICE`, the SSH forms),
 `signer.rs` and its `PolicyKey` (p256 signs off the TPM). The patch
@@ -105,5 +109,12 @@ the bounds of a selection; the digests of PolicyPCR (podssh's vector, and
 by hand for a session of SHA-384, two banks and a second PolicyPCR), of
 PolicyAuthorize, of the approved policy and of a name; the values that
 do not match; the order of a policy; each bit of each input changes the
-digest. The digest that swtpm gives is the proof of T-1222. The plant
-`tpm-response-over-the-frame-bound` takes away the bound of the frame.
+digest. `tests/keyfile.rs`: the files of go-tpm-keyfiles (a policy of
+PCRs and PolicyAuthValue; a signed policy) read and written back to the
+same bytes; the layout of a signed policy written by hand from the draft;
+a key under a policy of PCRs and under signed policies in DER and PEM; the
+old OID. `tests/keyfile_bounds.rs`: each refusal by its name; each cut and
+each bit flip of a good file refused or read back to the same bytes. The
+digest that swtpm gives is the proof of T-1222. The plants
+`tpm-response-over-the-frame-bound` and `tpm-keyfile-trailing-bytes` take
+away the bound of the frame and the check of the bytes after a key file.

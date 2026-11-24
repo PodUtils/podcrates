@@ -13,3 +13,5 @@ repository.workspace = true
 pod-core = { workspace = true }
 # The hash of a policy digest and of a name: SHA-256, SHA-384, SHA-512.
 sha2 = { workspace = true }
+# The PEM text of a key file.
+base64 = { workspace = true }
