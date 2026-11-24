@@ -1,25 +1,19 @@
 # Progress
 
-`TODO/INDEX.md` holds 968 entries: 171 open, 29 partial, 7 blocked, 761 done.
+`TODO/INDEX.md` holds 968 entries: 170 open, 29 partial, 7 blocked, 762 done.
 
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
 - Last GitHub release with `release.yml` assets and `ghcr.io` images:
-  `v0.82.1` at `0d7832b` (`docs/releases/v0.82.1.md`, call C818). It has
+  `v0.83.0` at `5fd6fb7` (`docs/releases/v0.83.0.md`, call C818). It has
   the GitHub release, the signed `SHA256SUMS`, the assets and the images
-  of `ghcr.io/podutils`. It carries `v0.82.0` (`51c09390`,
-  `docs/releases/v0.82.0.md`, tagged without `release.yml`) and each
-  change of `main` before the tag. Its hand-off COORD-152 (#257) is closed
-  (call C780): each consumer names `v0.82.1`. The hand-off COORD-151
-  (#254) of `v0.81.0` is closed.
-- On `main` after `v0.82.1`, for the next tag: podnet's asks
-  (PodUtils/podnet#707: T-1125 to T-1134; T-1127 changes the field type of
-  `pod-wormhole` `Failed::Unreachable` to `Missed`), podvm's asks
-  (PodUtils/podvm#651: T-1137 to T-1142; podvm matches
-  `ErrorKind::TooLarge`, T-1143) and `pod-natprobe` (T-802, T-1151 to
-  T-1154; the kind `stun` of `pod-services` has three default servers, so
-  podssh's doctor test that pins two needs a COORD message at the tag).
+  of `ghcr.io/podutils`; the run on the tag and the dry run of
+  `publish.yml` passed. Its hand-off COORD-154 (#259) is open (call C780):
+  it closes when each consumer names `v0.83.0` or a later tag. The
+  hand-off COORD-152 (#257) of `v0.82.1` is closed.
+- On `main` after `v0.83.0`, for the next tag: T-1243 only (a port with no
+  change for a consumer).
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
   not on `main`. `release.yml` has steps that run on a tag only, which the
   dry run does not test (T-974; `docs/maintenance.md`, "A release").
@@ -27,8 +21,8 @@
   `vendor/iroh-relay` at 1.4.2 for iroh 1.4.2 (T-1102, call C905) is in
   `v0.82.1`; T-1103 (iroh 1.5) follows.
 - podssh's ask PodUtils/podssh#346 (COORD-137 of podssh): the sans-IO
-  transfer codec goes into `pod-term` (T-1144); the answer is #258
-  (COORD-153).
+  transfer codec is in `pod-term` (T-1144, `v0.83.0`); the answer is #258
+  (COORD-153), open until podssh names its take.
 - The tag that the `main` of each consumer names: `v0.82.1` (podrunner,
   PodUtils/podrunner#348; podssh, PodUtils/podssh#347; podvm,
   PodUtils/podvm#656; podnet, PodUtils/podnet#708). The details of the
@@ -85,8 +79,7 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
-them by COORD issues, podrunner's first. Answer
-PodUtils/podvm#570 in the next COORD message to podvm (T-1162). Then, in
+them by COORD issues, podrunner's first. Then, in
 podcrates: the red nightly (T-916, T-938, T-1161),
 T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
 `services.yml` run (read it) and the red live run (T-963). Then the asks of podrunner
