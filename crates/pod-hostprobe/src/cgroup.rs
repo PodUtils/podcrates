@@ -26,6 +26,10 @@ pub const WANTED: &[&str] = &["memory", "cpu", "pids"];
 /// `CGROUP2_SUPER_MAGIC` of `include/uapi/linux/magic.h`.
 pub const CGROUP2_SUPER_MAGIC: u64 = linux_raw_sys::general::CGROUP2_SUPER_MAGIC as u64;
 
+/// `CGROUP_SUPER_MAGIC` of `include/uapi/linux/magic.h`: a hierarchy of
+/// cgroup v1.
+pub const CGROUP_SUPER_MAGIC: u64 = linux_raw_sys::general::CGROUP_SUPER_MAGIC as u64;
+
 /// What the leg found.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Leg {

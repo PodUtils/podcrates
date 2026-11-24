@@ -14,7 +14,7 @@ is done. Git and the record keep finished work.
    `(to podcrates)` of each repository of PodUtils. Each one maps to an
    entry (PodUtils/podvm#570, COORD-183, maps to T-1162; PodUtils/podssh#349,
    COORD-139, maps to T-1164 to T-1169; PodUtils/podssh#350, COORD-140, maps to
-   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196). Map each new one
+   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205). Map each new one
    in the same commit.
 2. Coordinate the five sessions by COORD issues alone (the rulings
    "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),
@@ -174,6 +174,13 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
   names `features = ["transfer"]`). New items only. T-1198 asks podssh about
   two gaps of its design (the `KEPT` that ends a session, the wait of the
   far sender during the offer).
+
+- T-1205 (`pod-hostprobe`, PodUtils/podvm#659, P1 for
+  PodUtils/podrunner#350): `usage::Mounts` (`of`, `of_with`, `of_host`,
+  `meter`) gives the cgroup directories of the process from
+  `/proc/self/mountinfo`, and `cgroup::CGROUP_SUPER_MAGIC`. Where the mount
+  at `/.podvm/.meter` fails, podvm opens the meter with
+  `Mounts::of_host()?.meter()` and removes its copy `incus/usage/mounts.rs`.
 
 ### What the next hand-off carries
 

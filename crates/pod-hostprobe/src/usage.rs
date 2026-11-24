@@ -240,5 +240,8 @@ pub fn read(v2: Option<&Path>, v1_memory: Option<&Path>, v1_cpuacct: Option<&Pat
     Meter::open(v2, v1_memory, v1_cpuacct).read()
 }
 
+mod mounts;
+pub use mounts::{MAX_LINE, MAX_LINES, MOUNTINFO, Mounts};
+
 #[cfg(test)]
 mod tests;

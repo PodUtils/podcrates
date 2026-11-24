@@ -55,3 +55,7 @@ repo PodUtils/podvm a4b75950295fb9fa1eecd01b802a9fc953e424d5
 taken 39a8524605d0a5575b7f8799821090bf955282b5
 file 9fbda65cf6ae741a2b101877b52e06167302642f crates/podvm/src/incus/usage.rs -> crates/pod-hostprobe/src/usage.rs crates/pod-hostprobe/src/usage/tests.rs
 file 8a4dca69bc006f91945bb828aa7ea4e2fcc50e23 crates/podvm-supervise/src/report.rs -> crates/pod-hostprobe/src/usage.rs crates/pod-hostprobe/src/usage/tests.rs
+# usage/mounts.rs and its tests are written from the ask of
+# PodUtils/podvm#659, not copied: podvm's own copy is
+# crates/podvm/src/incus/usage/mounts.rs at 88e1a0d, and podvm replaces it
+# with usage::Mounts at the next tag.
