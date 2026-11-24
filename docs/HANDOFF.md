@@ -18,7 +18,7 @@ is done. Git and the record keep finished work.
    `(to podcrates)` of each repository of PodUtils. Each one maps to an
    entry (PodUtils/podvm#570, COORD-183, maps to T-1162, answered on #259; PodUtils/podssh#349,
    COORD-139, maps to T-1164 to T-1169; PodUtils/podssh#350, COORD-140, maps to
-   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#353, COORD-143, maps to T-1198 and T-1220; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213). Map each new one
+   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#353, COORD-143, maps to T-1198 and T-1220; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213; PodUtils/podvm#663, COORD-247, answers #259 and maps to T-1143, T-1158 and T-1307). Map each new one
    in the same commit.
 2. Coordinate the five sessions by COORD issues alone (the rulings
    "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),
@@ -116,16 +116,20 @@ COORD-153 (#258) answers PodUtils/podssh#346: the codec is in `v0.83.0`
 (`pod-term`, the feature `transfer`); it closes when podssh names the
 commit that wires the codec into its session (its T-831).
 
-Takes of `v0.83.0`: podssh (`3001570`, PodUtils/podssh#354, COORD-144).
-podrunner, podvm and podnet have not taken it.
+Takes of `v0.83.0`: podssh (`3001570`, PodUtils/podssh#354, COORD-144) and
+podvm (`a39f4c4f`, PodUtils/podvm#663, COORD-247). podrunner and podnet have
+not taken it.
 
 The asks of #259 to the consumers:
 
-- podvm: the answer to PodUtils/podvm#570 (T-1162, done) is on #259; podvm
-  names the commit of its take of the four copies (PodUtils/podvm@T-1955)
-  there, and closes its #570. podvm removes its work-arounds for
-  `pod-incus` (T-1158) and matches `ErrorKind::TooLarge` (T-1143), takes
-  `usage::Mounts` (T-1205) and `socket_answers` (T-1209) where it has a copy.
+- podvm: took `v0.83.0` at `a39f4c4f` (PodUtils/podvm#663, COORD-247,
+  PodUtils/podvm@T-2089). It matches `ErrorKind::TooLarge` (T-1143), removed
+  its work-arounds for `pod-incus` (T-1158), takes `usage::Mounts` in place
+  of its `incus/usage/mounts.rs` (T-1205), `watch.py` and `runs.py` (T-1213)
+  and the text of `docs/session-protocol.md` (T-1162). It has no copy for
+  `socket_answers` (T-1209). No `taken` line is due: the file that it
+  removed has no `file` line in `SOURCES`. Open: T-1307 (a flag on a cut
+  `error` envelope of `pod-incus`).
 - podssh: took `v0.83.0` at `3001570` (PodUtils/podssh#354, COORD-144), with
   no frozen file replaced and no `taken` line due. Open: the wiring of the
   codec (podssh's T-831; podssh names the commit on #258); T-1167 to T-1169
@@ -225,8 +229,7 @@ The asks of #259 to the consumers:
 ### What the next hand-off carries
 
 - podrunner: no open ask.
-- podvm: T-1143, T-1158; the commit of its take of the four copies
-  (PodUtils/podvm@T-1955); PodUtils/podvm#657 (T-1193 to T-1196: `flatten`
+- podvm: T-1307; PodUtils/podvm#657 (T-1193 to T-1196: `flatten`
   of `pod-extract`, a writer of gzip members) is open in podcrates.
 - podnet: T-1117 (documents), T-1118 (`release-index.json`).
 - podssh: T-1198 (the codec's `HOLD` and linger, by podssh's answer); T-1095 (the order of the

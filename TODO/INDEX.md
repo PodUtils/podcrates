@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**977 entries: 160 open, 30 partial, 7 blocked, 780 done.**
+**978 entries: 159 open, 30 partial, 7 blocked, 782 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 11 | 0 | 228 | 243 |
-| P2 | 75 | 8 | 4 | 407 | 494 |
-| P3 | 81 | 11 | 3 | 143 | 238 |
-| **All** | 160 | 30 | 7 | 780 | 977 |
+| P2 | 73 | 8 | 4 | 409 | 494 |
+| P3 | 82 | 11 | 3 | 143 | 239 |
+| **All** | 159 | 30 | 7 | 782 | 978 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -961,7 +961,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1140](podvm.md) | P1 | S | M6 | defect | done | `pod-incus`: a text of incus cut at 512 characters loses the cause after a long command line and a path (PodUtils/podvm#651) |
 | [T-1141](podvm.md) | P2 | S | M6 | feature | done | `pod-incus`: no read of a storage pool, of the room of a pool, or of an image that incus has (PodUtils/podvm#651) |
 | [T-1142](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: `sys::Statfs` has no `f_bfree`, so a check for a daemon of root cannot name the blocks kept for root (PodUtils/podvm#651) |
-| [T-1143](podvm.md) | P2 | S | M6 | chore | open | podvm's class of a refusal by size reads the words of an `Io` error, and finds none after T-1138 |
+| [T-1143](podvm.md) | P2 | S | M6 | chore | done | podvm's class of a refusal by size reads the words of an `Io` error, and finds none after T-1138 |
 | [T-1144](transport.md) | P2 | M | M3 | feature | done | `pod-term`: a sans-IO 7-bit transfer codec for a pty that damages ZMODEM (PodUtils/podssh#346) |
 | [T-1146](relay.md) | P3 | S | M2 | docs | open | `pod-natprobe`: the comments of the code are not in ASD-STE100 |
 | [T-1150](services.md) | P2 | S | M5 | feature | open | `pod-services-watch`: a watch of the facts of RFC 5780 of a STUN server (OTHER-ADDRESS, CHANGE-REQUEST, RESPONSE-PORT) |
@@ -972,7 +972,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1155](podvm.md) | P1 | S | M6 | defect | done | `pod-incus`: an exec whose command ends with 126 or 127 ends the wait as an error of incusd, and `exec_recorded` and `Attached::wait` give no exit code, no output and no operation id (PodUtils/podvm#653) |
 | [T-1156](podvm.md) | P1 | S | M6 | feature | done | `pod-incus`: no bound of the answer of a call: a socket that takes the connection and never answers holds the caller (PodUtils/podvm#653) |
 | [T-1157](podvm.md) | P2 | S | M6 | defect | done | `pod-incus`: after a failed write of a body, the answer that incusd already sent is read with no bound and no test, and the documentation does not tell the caller about SIGPIPE (PodUtils/podvm#653) |
-| [T-1158](podvm.md) | P2 | S | M6 | chore | open | podvm removes its work-arounds for `pod-incus` at its take of the tag of T-1155 to T-1157 |
+| [T-1158](podvm.md) | P2 | S | M6 | chore | done | podvm removes its work-arounds for `pod-incus` at its take of the tag of T-1155 to T-1157 |
 | [T-1159](fleet.md) | P2 | S | M8 | defect | done | `issue-sync`: a close of an issue by a person is reverted at the next push, before a session can change the record |
 | [T-1160](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the fork fact of a job in the fake githome follows podrunner's rule of `e629fa8` (the second port after T-1122) |
 | [T-1161](upkeep.md) | P2 | S | M5 | defect | done | `pod-control`: `a_call_back_meets_one_deadline_for_its_write` fails on riscv64 under the emulation of QEMU (the nightly at `0f5dad6`) |
@@ -1024,3 +1024,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1298](upkeep.md) | P1 | M | M6 | defect | partial | `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes |
 | [T-1299](upkeep.md) | P3 | S | M6 | feature | open | `pod-extract`: a stream of `flatten` that GNU tar as a user that is not root can unpack |
 | [T-1303](upkeep.md) | P2 | S | M5 | defect | partial | The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows |
+| [T-1307](podvm.md) | P3 | S | M6 | feature | open | `pod-incus`: a cut `error` envelope has no flag, so a caller reads the words of its text to know that the answer was over `max_body` (PodUtils/podvm#663) |
