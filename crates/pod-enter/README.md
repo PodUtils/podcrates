@@ -224,7 +224,18 @@ The entries:
   (`other_namespace`), the same call adds `CLONE_NEWPID`
   (`NS_JOIN_PID_STEP` 43, `NS_JOIN_USER_PID_STEP` 44): the child forks the
   payload of the exec into the namespace and stays as its relay, with the
-  loop of the init. The payload of the exec
+  loop of the init. The init of a run in a PID namespace is not
+  dumpable: the kernel opens its namespaces only for a caller with
+  `CAP_SYS_PTRACE` over the user namespace of the caller of the run. Where
+  the pidfd names such an init and this process cannot open
+  `/proc/PID/ns/pid` of it, the entry joins the payload of the run in its
+  place (`joinable`, a `Member`): pid 2 of the namespace, the child of the
+  init. It finds it in `/proc/PID/task/PID/children` of the init (else in
+  each `/proc/PID/status`), opens its pidfd with its pid in the PID
+  namespace of this process, and checks after the open that the pidfd
+  names it, that its parent is the init and that the init lives. A
+  payload that changed its own namespaces gives the exec those, and a
+  payload that is not dumpable refuses the join. The payload of the exec
   sees the `/tmp` and the `/proc` of the payload of the run; the entry
   mounts nothing. A refused join (a kernel before 5.8, `EPERM`, a process
   that ended) writes `ns_join_fallback_line` and enters
@@ -243,17 +254,17 @@ The entries:
   the title and its environment at nothing
   (`prctl(PR_SET_MM, PR_SET_MM_MAP)` with `exe_fd` -1: no capability,
   Linux 3.18 and later with `CONFIG_CHECKPOINT_RESTORE`), and sets its
-  name (`PR_SET_NAME`). Where the kernel refuses the map, it writes NUL
-  over its command line and its environment in place: it reads neither
-  again, and the payload execs with its own. `relay_title` `None` is the
-  product of `Plan::names`. The relay of a join, and the init where the
-  rung makes no user namespace (a caller with capabilities), become not
-  dumpable (`PR_SET_DUMPABLE` 0): a payload with no capability over their
-  memory cannot trace them or read their memory or `/proc/PID/environ`.
-  The init in a user namespace of the rung stays dumpable: the join of a
-  caller with no capabilities opens its namespaces, and the kernel
-  refuses the `/proc/PID/ns` and the pidfd of a process that is not
-  dumpable to that caller (T-1113).
+  name (`PR_SET_NAME`). Then it writes NUL over the old command line and
+  environment in its memory (the strings on the stack that the map moved
+  away from, or that `/proc/PID` shows where the kernel refuses the map):
+  it reads neither again, and the payload execs with its own.
+  `relay_title` `None` is the product of `Plan::names`. The init and the
+  relay become not dumpable (`PR_SET_DUMPABLE` 0), also in a user
+  namespace of the rung: a payload with no capability over their memory
+  (the user namespace of the caller) cannot trace them or read their
+  memory or `/proc/PID/environ`, and their files in `/proc/PID` belong to
+  the root of the host. A join of a caller with no capabilities opens the
+  payload of the run in place of the init (`joinable`, T-1113).
 * The entry with no chroot (`spawn_userland`, `userland`): the loader of
   the image by host path, or a staged memfd for a static payload; the
   table of path maps for the interposer (`userland::Maps`: the root pair
@@ -368,6 +379,7 @@ each entry takes; the payload owns the standard output.
 | `limits` | `Limit { resource, soft, hard }`, `Resource` (`from_word` of docker's `--ulimit` word, `word`, `number` of the kernel of this architecture, `name`), `INFINITY`, `MOST` (64): the child of each entry sets each limit (`prlimit64` on itself) and then `PR_SET_NO_NEW_PRIVS` where `Plan::no_new_privs` asks, after the root change and the `chdir`, before the exec; a refused call stops the payload and is named (`setrlimit(RLIMIT_NOFILE): EPERM`); `repeated` names the first resource that a list gives two times, and each entry refuses such a plan before the fork with `Error::LimitTwice`: the caller coalesces first (docker keeps the last value) |
 | `RootDir::open`, `Fds`, `Child`, `Bounded` | the held root; the descriptors of the payload (a passed descriptor onto the number of the root or of the memfd is refused before the fork; the readiness pipe moves clear of each passed number, and the child opens the paths of the rules of the confinement after the passes; a descriptor passed onto its own number loses its close-on-exec flag, so the payload holds it); a started payload (`wait`, `wait_forwarding`, `wait_bounded`); `WAIT_FORWARDED`, the signals that `wait_forwarding` and the init of `Plan::pid_namespace` give to the payload: SIGHUP, SIGINT, SIGQUIT, SIGUSR1, SIGUSR2, SIGTERM, SIGALRM and SIGPWR, as docker's `--sig-proxy` with no tty (SIGINT and SIGQUIT only from a process, as a terminal sends them to the process group of the payload too); each forward is a line on `err`. The list is `pod_hostprobe::sys::PROXIED_SIGNALS`. `wait_forwarding` blocks the list in its own thread only: each other thread of the process must block it (`block_forwarded`, at the start of the thread or around its spawn; also before the start of the payload: the child of the entry sets an empty mask before its `execve`; `std::process::Command` of Rust passes the mask of its caller), or a signal of the list ends the process and the payload stays |
 | `spawn`, `run`, `spawn_ladder`, `run_ladder`, `spawn_userland`, `run_userland`, `spawn_namespace`, `run_namespace`, `spawn_namespace_root`, `run_namespace_root`, `spawn_joined`, `spawn_joined_root`, `spawn_selected`, `run_selected` | the entries; a `run_*` waits and forwards each signal of `WAIT_FORWARDED`. `spawn_userland` and `run_userland` take `&Maps` after the plan: the working directory resolves through it before the fork, and a table whose root is not `root.path` is refused |
+| `joinable(pidfd)`, `Member { pid, pidfd }`, `ids_of(text, key)`, `fdinfo_pid`, `other_namespace`, `other_user_namespace` | the process that a join opens: `joinable` gives the payload of the run (pid 2 of its PID namespace, a pid of `/proc` and an owned pidfd) where `pidfd` names the init of a PID namespace whose namespaces this process cannot open, else `None` (join the process of `pidfd`); `spawn_joined` calls it. `ids_of` reads the numbers of a line of `/proc` (`NSpid`, `PPid`) |
 | `Root` (`Tree(&RootDir)`, `Overlay { lower, upper }`, `dir`), `Upper` (`Tmpfs { size }`, 0 is the default of the kernel; `Dir { upper, work }`, both absolute), `overlay_escape`, `overlay_options`, `USERXATTR`, `OVERLAY_OPTIONS_MOST` (4095: longer options, with `USERXATTR`, are a refusal before the fork), `NS_OVERLAY_TMPFS_STEP`, `NS_OVERLAY_DIRS_STEP`, `NS_OVERLAY_STEP` | the overlay root of the namespace rung |
 | `check_exec(&plan, program)` | whether the confinement of the plan lets the program at a host path run on the entry with no chroot: `Ok` with no confinement or under an execute path, `Error::CannotInvoke` outside each one, `Error::NotFound` where the path does not resolve |
 | `check_exec_argv(&plan, argv)`, `check_exec_guest(&plan, &maps, argv)` | `check_exec` for each file that the kernel executes for `argv`: the program, the interpreter of each `#!` line (at most 5, as the kernel; a sixth level is `ELOOP`), and each program of a dynamic loader (`pod_confine::loader::each_program`; a program with no `/`, one that does not resolve, and a loader as the program of a loader are `Error::CannotInvoke`). `check_exec_argv` takes host paths; `check_exec_guest` takes guest paths: a bare name on `plan.path_dirs`, a relative one under `plan.working_dir`, each one through `maps`, and a program or an interpreter that does not resolve is `Ok` (the spawn names it, 127) |
@@ -465,7 +477,8 @@ Against podvm `crates/podvm-enter` at `284f429`:
 | `userland::invocation_path` | the invoked spelling stays only where the host opens the resolved file through it (the same device and inode); else the resolved file |
 | the image's `USER` or `--user` of `run -d` and `create` on the namespace rung (PodUtils/podvm#447) | `Plan::userns_ids: Some((uid, gid))` with the ids that podvm resolves in the tree; `--user 0` is `None`. `Plan::env_for` adds `HOME=/root` where the image and the caller set no `HOME`: give the `HOME` of the user (docker reads the passwd of the image) in the caller's variables. Each file of the tree of the caller then shows as owned by the user |
 | the image's `USER` or `--user` of a foreground `run`, where podvm is uid 0 of a user namespace of its own (PodUtils/podvm#452) | the same `Plan::userns_ids: Some((uid, gid))`: the payload gets the ids through a nested user namespace (`<uid> 0 1`), on the namespace rung and the chroot rung, with no capability. Nothing more to give |
-| `podvm_enter::title` (`hide`, `restore`, `blank_in_place`), and `hide("podvm-init")` and `hide("podvm-exec")` around `spawn_selected` and `spawn_joined` (PodUtils/podvm#646) | `pod_enter::title`, the same items. For the init and the relay: `Plan::relay_title: Some("podvm-init".into())` or `Some("podvm-exec".into())`, and no `hide` around the spawn: the child sets the title with one thread (also with the threads of `-t`), and the relay is not dumpable |
+| `podvm_enter::title` (`hide`, `restore`, `blank_in_place`), and `hide("podvm-init")` and `hide("podvm-exec")` around `spawn_selected` and `spawn_joined` (PodUtils/podvm#646) | `pod_enter::title`, the same items. For the init and the relay: `Plan::relay_title: Some("podvm-init".into())` or `Some("podvm-exec".into())`, and no `hide` around the spawn: the child sets the title with one thread (also with the threads of `-t`), and the init and the relay are not dumpable |
+| the host pid of the init of a run (`container.pid`) for `/proc/PID/ns/*`, `/proc/PID/root` and `setns` on its pidfd as a caller with no capabilities (`userns::rejoin`, `join_if`, `exec::ns::join_mounts`, `join_uts`, `exec::tty::open`) | the init is not dumpable (T-1113), so these are refused to that caller: `pod_enter::joinable(pidfd of the init)` gives the `Member` (the payload, pid 2 of the run) with its pid and its pidfd; read `/proc/PID` of `Member::pid` and join `Member::pidfd`. `None`: the init itself (a caller with `CAP_SYS_PTRACE`). `spawn_joined` does this itself |
 
 ## Tests
 
@@ -573,10 +586,18 @@ the title of the plan, or `pod-enter` with no title, as the command line
 and the name, and no byte of an environment; the caller reads the same in
 `/proc/PID` of the relay of an exec (`unit-exec`), and as the caller with
 no capabilities the environment of the relay is refused and its
-`/proc/PID/environ` belongs to root (not dumpable). The plant
-`enter-pid-init-shows-the-caller` proves it. `title::tests` (a child
+`/proc/PID/environ` belongs to root (not dumpable). The same test (T-1113)
+checks the init: as the caller with no capabilities, the payload cannot
+read `/proc/1/environ`, the caller cannot read `/proc/PID/environ` and
+`/proc/PID/mem` of the init, whose files belong to root, and the exec
+still joins the run; as root, the old command line and environment in
+the memory of the init (`/proc/PID/mem` at the fields 48 to 51 of
+`/proc/self/stat`) are NUL. The plants
+`enter-pid-init-shows-the-caller`, `enter-pid-init-dumpable` and
+`enter-pid-join-opens-the-init` prove it. `title::tests` (a child
 process of its own) checks `hide` and `restore`, and the choice of the
-title and of the dump flag for each fork.
+title for each fork; `ns_join::tests` checks the read of the lines of
+`/proc` and that `joinable` keeps a process that is no init.
 `tests/overlay_root.rs` is podvm's acceptance test of the overlay root
 (PodUtils/podvm#323) with an upper directory of the caller: the writes
 are in the upper layer, the image is the same byte for byte, and a file

@@ -90,7 +90,8 @@ pub use ns_dev_bind::{
     refused_start as ns_dev_refused_start, skipped_line as ns_dev_skipped_line,
 };
 pub use ns_join::{
-    NS_JOIN_PID_STEP, NS_JOIN_USER_PID_STEP, NS_JOIN_USER_STEP, fdinfo_pid, other_namespace, other_user_namespace,
+    Member, NS_JOIN_PID_STEP, NS_JOIN_USER_PID_STEP, NS_JOIN_USER_STEP, fdinfo_pid, ids_of, joinable, other_namespace,
+    other_user_namespace,
 };
 pub use ns_optional::{NS_PROC_STEP, NS_PTS_STEP, ns_proc_refused, ns_proc_target, ns_pts_target, ns_refused_line};
 pub use ns_overlay::{

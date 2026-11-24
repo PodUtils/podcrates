@@ -1,0 +1,6 @@
+# pod-enter: a join opens the init of a PID namespace, which is not dumpable, in place of its payload, so a caller with no capabilities gets EPERM and enters a mount namespace of its own; the live tests of the join must fail (T-1113).
+ENTRY=T-1113
+GROUP=enter
+EXPECT='does not share the mounts of the payload: setns'
+RUN='sh scripts/ci/userns-tests.sh'
+LIMIT=1800

@@ -411,6 +411,8 @@ pub(crate) fn namespace_entry(root: &RootDir, plan: &Plan, banner: bool, err: &m
 /// volumes (a fallback below binds them). Where the
 /// payload is in a user namespace that is not the one of the caller (a run
 /// of a caller with no capabilities), the entry joins it too (`ns_join`).
+/// Where `pidfd` is the init of a PID namespace whose namespaces this
+/// process cannot open, the entry joins its payload ([`crate::joinable`]).
 ///
 /// A refused join (a kernel before 5.8, `EPERM`, a process that ended)
 /// names the step and enters a mount namespace of its own with
@@ -424,7 +426,10 @@ pub fn spawn_joined(root: &RootDir, plan: &Plan, pidfd: i64, err: &mut dyn Write
 /// enters an overlay root of its own ([`crate::spawn_namespace_root`]), which
 /// never falls back to chroot.
 pub fn spawn_joined_root(root: Root<'_>, plan: &Plan, pidfd: i64, err: &mut dyn Write) -> Result<Child> {
-    let join = NsEntry::Join(crate::ns_join::Join::of(pidfd, matches!(root, Root::Overlay { .. })), root.upper_dir());
+    // The pidfd of the payload stays open until the child joined.
+    let member = crate::ns_join::joinable(pidfd);
+    let target = member.as_ref().map_or(pidfd, |m| i64::from(std::os::fd::AsRawFd::as_raw_fd(&m.pidfd)));
+    let join = NsEntry::Join(crate::ns_join::Join::of(target, matches!(root, Root::Overlay { .. })), root.upper_dir());
     match spawn_with(root.dir(), plan, Rung::Namespace.word(), None, None, None, Some(join), true, err) {
         Err(Error::NsSetup { step, errno }) => {
             let cause = format!("{step} ({} ({}))", errno.name(), errno.0);

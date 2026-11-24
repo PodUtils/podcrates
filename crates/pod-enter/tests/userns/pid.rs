@@ -211,7 +211,7 @@ fn shows(pid: &str, title: &str) -> String {
     format!(
         "test \"$(tr '\\000' @ < /proc/{pid}/cmdline)\" = {title}@ || exit 51; \
          test \"$(cat /proc/{pid}/comm)\" = {title} || exit 52; \
-         test \"$(cat /proc/{pid}/environ 2>/dev/null | wc -c)\" = 0 || exit 53; "
+         test \"$(cat /proc/{pid}/environ 2>/tmp/environ.err | wc -c)\" = 0 || exit 53; "
     )
 }
 
@@ -219,16 +219,23 @@ fn shows(pid: &str, title: &str) -> String {
 /// product of the names, and no argument or variable of the caller
 /// (T-1112, PodUtils/podvm#646); the payload keeps its own environment.
 /// The relay is not in the PID namespace of the run (`setns` moves its
-/// children only): the caller reads its `/proc/PID`. The relay is not
-/// dumpable, so as a caller with no capabilities its environment is
-/// refused and its files in `/proc/PID` belong to root.
+/// children only): the caller reads its `/proc/PID`. The init and the
+/// relay are not dumpable (T-1113), so as a caller with no capabilities
+/// the payload and the caller cannot read the environment or the memory
+/// of the init, its files in `/proc/PID` belong to root, and a join of the
+/// run still lands in it. As root, the bytes of the old command line and
+/// environment in the memory of the init are NUL.
 pub fn shows_a_title(root: &Path) {
     if !caller() {
         return;
     }
     let dir = RootDir::open(root.to_str().unwrap()).unwrap();
+    // A payload of a user namespace of the rung holds no capability over
+    // the memory of the init: its environment is refused. The image has no
+    // `/dev`: the output goes to `/tmp`.
+    let refused = if nobody::is_root() { "" } else { "cat /proc/1/environ > /tmp/environ 2>&1 && exit 55; " };
     for (title, shown) in [(None, Names::DEFAULT.product), (Some("unit-init"), "unit-init")] {
-        let mut p = with_pid(&format!("{}test -n \"$PATH\" || exit 54", shows("1", shown)));
+        let mut p = with_pid(&format!("{}{refused}test -n \"$PATH\" || exit 54", shows("1", shown)));
         p.relay_title = title.map(str::to_string);
         let mut err = Vec::new();
         let code = run_namespace(&dir, &p, &mut err);
@@ -238,6 +245,7 @@ pub fn shows_a_title(root: &Path) {
     let mut err = Vec::new();
     let run = spawn_namespace(&dir, &with_pid("exec sleep 60"), &mut err).unwrap();
     wait_for(&run, "sleep");
+    let init = memory_of(run.pid);
     let pidfd = sys::pidfd_open(run.pid).unwrap();
     let mut p = plan("exec sleep 60", None);
     p.relay_title = Some("unit-exec".to_string());
@@ -254,6 +262,11 @@ pub fn shows_a_title(root: &Path) {
     let _ = sys::kill(run.pid, 9);
     let _ = run.wait();
     let joined = String::from_utf8_lossy(&joined);
+    match init {
+        Init::Blank => {}
+        Init::Shows(n) => panic!("the init keeps {n} bytes of the command line and the environment of the caller"),
+        Init::Dumpable(why) => panic!("the init is dumpable: {why}"),
+    }
     assert!(!joined.contains("does not share the mounts"), "{joined}");
     assert_eq!(String::from_utf8_lossy(&cmdline), "unit-exec\0", "the relay shows unit-exec: {joined}");
     assert_eq!(comm, "unit-exec\n", "the name of the relay");
@@ -263,4 +276,45 @@ pub fn shows_a_title(root: &Path) {
         assert!(environ.is_err(), "the relay is dumpable: its environment reads {environ:?}");
         assert_eq!(owner, 0, "the relay is dumpable: /proc/{}/environ belongs to {owner}", exec.pid);
     }
+}
+
+/// What the caller reads of the memory of an init.
+enum Init {
+    /// As root: NUL over the old command line and environment. As another
+    /// user: the environment and the memory are refused, and the files of
+    /// `/proc/PID` belong to root.
+    Blank,
+    /// As root: the count of bytes that are not NUL.
+    Shows(usize),
+    /// As another user: what read.
+    Dumpable(String),
+}
+
+/// The memory of the init `pid`, a fork of this process: the bytes of the
+/// command line and of the environment of this process, at the addresses
+/// of fields 48 to 51 of `/proc/self/stat`.
+fn memory_of(pid: i64) -> Init {
+    use std::os::unix::fs::{FileExt, MetadataExt};
+    let at = |f: &str| format!("/proc/{pid}/{f}");
+    if !nobody::is_root() {
+        let environ = fs::read(at("environ"));
+        let mem = fs::File::open(at("mem"));
+        let owner = fs::metadata(at("environ")).map(|m| m.uid());
+        return match (environ, mem, owner) {
+            (Err(_), Err(_), Ok(0)) => Init::Blank,
+            (e, m, o) => Init::Dumpable(format!("environ {:?}, mem {:?}, owner {o:?}", e.map(|v| v.len()), m.is_ok())),
+        };
+    }
+    let stat = fs::read_to_string("/proc/self/stat").unwrap();
+    let f: Vec<u64> = stat[stat.rfind(')').unwrap() + 1..].split_whitespace().map(|w| w.parse().unwrap_or(0)).collect();
+    // Field 3 is the first after the name.
+    let field = |n: usize| f[n - 3];
+    let mem = fs::File::open(at("mem")).unwrap();
+    let mut shown = 0;
+    for (start, end) in [(field(48), field(49)), (field(50), field(51))] {
+        let mut buf = vec![0u8; (end - start) as usize];
+        mem.read_exact_at(&mut buf, start).unwrap();
+        shown += buf.iter().filter(|&&b| b != 0).count();
+    }
+    if shown == 0 { Init::Blank } else { Init::Shows(shown) }
 }
