@@ -7,7 +7,7 @@ use std::path::Path;
 use std::process::Command;
 
 use common::{golden, node, podrunner, tool};
-use pod_unit::{Unit, cron, launchd, windows};
+use pod_unit::{Unit, cron, launchd, systemd, windows};
 
 fn agent() -> Unit {
     let mut unit = podrunner();
@@ -181,4 +181,38 @@ fn the_crontab_gets_the_lines_of_the_name_and_loses_them_again() {
     // A line below the mark that is not an @reboot line is the user's.
     let edited = format!("{}\n0 1 * * * mine\n", cron::mark(&unit));
     assert_eq!(cron::table(&edited, &unit, None), ("0 1 * * * mine\n".to_string(), true));
+}
+
+/// A name of `Unit::NAME_MAX` bytes renders for each manager; one byte more
+/// is a usage fault. A secret name keeps its bound of 64.
+#[test]
+fn a_long_name_renders_for_each_manager_up_to_its_bound() {
+    let long = |n: usize| format!("podssh-node-{}", "a".repeat(n - "podssh-node-".len()));
+    for n in [64, Unit::NAME_MAX] {
+        let mut user = podrunner();
+        user.name = long(n);
+        user.check().unwrap_or_else(|e| panic!("{n} bytes: {e}"));
+        assert_eq!(systemd::file_name(&user), format!("{}.service", user.name));
+        systemd::render(&user).unwrap_or_else(|e| panic!("{n} bytes: {e}"));
+        let text = launchd::render(&user).unwrap_or_else(|e| panic!("{n} bytes: {e}"));
+        assert!(text.contains(&format!("<string>{}</string>", user.name)), "{text}");
+        windows::task_xml(&user, "ci").unwrap_or_else(|e| panic!("{n} bytes: {e}"));
+        let mut node = service();
+        node.name = long(n);
+        let script = windows::service_script(&node).unwrap_or_else(|e| panic!("{n} bytes: {e}"));
+        assert!(script.contains(&node.name), "{script}");
+    }
+    let mut over = podrunner();
+    over.name = long(Unit::NAME_MAX + 1);
+    let fault = over.check().expect_err("one byte over the bound");
+    assert_eq!(fault.class, pod_core::Class::Usage);
+    assert!(fault.to_string().contains(&format!("1 to {}", Unit::NAME_MAX)), "{fault}");
+    let mut label = podrunner();
+    label.label = Some(long(Unit::NAME_MAX + 1));
+    assert_eq!(label.check().expect_err("a long label").class, pod_core::Class::Usage);
+    let secret = podrunner().secret_file(&"s".repeat(65), Path::new("/etc/x/token"), "TOKEN_FILE");
+    assert_eq!(secret.check().expect_err("a secret name of 65 bytes").class, pod_core::Class::Usage);
+    let mut state = podrunner();
+    state.state_dir = Some("d".repeat(65));
+    assert_eq!(state.check().expect_err("a state directory of 65 bytes").class, pod_core::Class::Usage);
 }

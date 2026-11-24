@@ -125,11 +125,12 @@ pub struct Secret {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Unit {
-    /// The name of the service: 1 to 64 of `A-Z a-z 0-9 _ . - @`. The file of
-    /// a unit of systemd is `NAME.service`; a task and a service of Windows
-    /// have this name.
+    /// The name of the service: 1 to [`Unit::NAME_MAX`] of
+    /// `A-Z a-z 0-9 _ . - @`. The file of a unit of systemd is
+    /// `NAME.service`; a task and a service of Windows have this name.
     pub name: String,
-    /// The label of launchd (`dev.podutils.podrunner`); None: the name.
+    /// The label of launchd (`dev.podutils.podrunner`): 1 to
+    /// [`Unit::NAME_MAX`] of `A-Z a-z 0-9 _ . -`; None: the name.
     pub label: Option<String>,
     /// One line that tells what the service does.
     pub description: String,
@@ -178,6 +179,12 @@ pub struct Unit {
 }
 
 impl Unit {
+    /// The most bytes of [`Unit::name`] and [`Unit::label`]. It is below the
+    /// lowest limit of the managers: a file name of 255 bytes holds
+    /// `NAME.service` and `NAME.plist`, and a task name of Windows has a
+    /// path limit of 238.
+    pub const NAME_MAX: usize = 200;
+
     /// A unit of the user that runs `program` with no argument, restarts
     /// after each end but after 64 and 78, and has the hardening of its
     /// scope.
@@ -267,9 +274,9 @@ impl Unit {
     /// The checks that each form shares: the names, the paths, no line
     /// break, and no secret ([`crate::secret::check`]).
     pub fn check(&self) -> Result<(), Failure> {
-        name_ok("the name", &self.name, b"_.-@")?;
+        name_ok("the name", &self.name, b"_.-@", Unit::NAME_MAX)?;
         if let Some(label) = &self.label {
-            name_ok("the label", label, b"_.-")?;
+            name_ok("the label", label, b"_.-", Unit::NAME_MAX)?;
         }
         if !absolute(&self.program) {
             return Err(usage(format!("the program {}: give an absolute path", self.program.display())));
@@ -286,7 +293,7 @@ impl Unit {
             }
         }
         for secret in &self.secrets {
-            name_ok("the name of a secret", &secret.name, b"_.-")?;
+            name_ok("the name of a secret", &secret.name, b"_.-", NAME_SHORT)?;
             key_ok(&secret.variable)?;
             if !absolute(&secret.path) {
                 return Err(usage(format!("the secret {}: give the absolute path of its file", secret.name)));
@@ -296,7 +303,7 @@ impl Unit {
             key_ok(&env.key)?;
         }
         if let Some(state) = &self.state_dir {
-            name_ok("the state directory", state, b"_.-")?;
+            name_ok("the state directory", state, b"_.-", NAME_SHORT)?;
         }
         for (what, word) in self.words() {
             if word.chars().any(char::is_control) {
@@ -359,12 +366,15 @@ pub(crate) fn unsupported(text: impl Into<String>) -> Failure {
     Failure::new(Stage::Host, Class::Unsupported, text)
 }
 
-fn name_ok(what: &str, name: &str, more: &[u8]) -> Result<(), Failure> {
+/// The most bytes of the name of a secret and of the state directory.
+const NAME_SHORT: usize = 64;
+
+fn name_ok(what: &str, name: &str, more: &[u8], max: usize) -> Result<(), Failure> {
     let fine = |b: u8| b.is_ascii_alphanumeric() || more.contains(&b);
-    if (1..=64).contains(&name.len()) && name.bytes().all(fine) && !name.starts_with(['.', '-']) {
+    if (1..=max).contains(&name.len()) && name.bytes().all(fine) && !name.starts_with(['.', '-']) {
         return Ok(());
     }
-    Err(usage(format!("{what} {name:?}: give 1 to 64 of A-Z a-z 0-9 {}", String::from_utf8_lossy(more))))
+    Err(usage(format!("{what} {name:?}: give 1 to {max} of A-Z a-z 0-9 {}", String::from_utf8_lossy(more))))
 }
 
 /// A name of a variable: a letter or `_`, then letters, digits and `_`.

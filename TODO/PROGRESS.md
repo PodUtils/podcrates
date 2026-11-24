@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 960 entries: 171 open, 29 partial, 7 blocked, 753 done.
+`TODO/INDEX.md` holds 960 entries: 170 open, 29 partial, 7 blocked, 754 done.
 
 ## State
 
@@ -113,8 +113,7 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   `pod-core`; PodUtils/podnet#709, COORD-117); T-1117 (the limits of the legs of `pod-cloudflare` in podnet's
   documents); T-1135 (`pod-cloudflare` says a cause two times); T-879
   (`pod-detach`); T-897.
-- podssh: T-1182 (a unit name over 64 characters in `pod-unit`;
-  PodUtils/podssh#347, COORD-138), T-1171 (a late query of an ended DNS
+- podssh: T-1171 (a late query of an ended DNS
   session starts no handshake; PodUtils/podssh#349, COORD-139), then
   T-1166 to T-1169 (the same issue: a held poll, a
   carrier with no TLS, DNS over HTTPS, a test through `unbound`);

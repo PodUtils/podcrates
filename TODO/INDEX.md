@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**960 entries: 171 open, 29 partial, 7 blocked, 753 done.**
+**960 entries: 170 open, 29 partial, 7 blocked, 754 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 226 | 240 |
-| P2 | 82 | 8 | 4 | 392 | 486 |
+| P2 | 81 | 8 | 4 | 393 | 486 |
 | P3 | 85 | 11 | 3 | 133 | 232 |
-| **All** | 171 | 29 | 7 | 753 | 960 |
+| **All** | 170 | 29 | 7 | 754 | 960 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -988,7 +988,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1171](relay.md) | P3 | S | M2 | defect | open | `pod-link`: a late query of an ended DNS session starts a new handshake and holds a permit |
 | [T-1180](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `aab63e5` (the third port of `source-driver.md`) |
 | [T-1181](fleet.md) | P1 | S | M0 | chore | done | `pod-unit`: the words of the forms at podssh `ea4c290` (port review of `text.rs`) |
-| [T-1182](fleet.md) | P2 | S | M0 | feature | open | `pod-unit`: the name of a unit has at most 64 characters, so podssh's longer node names are refused at `--install` |
+| [T-1182](fleet.md) | P2 | S | M0 | feature | done | `pod-unit`: the name of a unit has at most 64 characters, so podssh's longer node names are refused at `--install` |
 | [T-1191](transport.md) | P2 | M | M1 | feature | done | `pod-term`: `modes::Modes`, a sans-IO tracker of the modes of a terminal's output with `restore` (PodUtils/podssh#350) |
 | [T-1192](transport.md) | P2 | M | M1 | feature | done | `pod-term`: `Ring::modes_at`, the modes that the stream set before an offset, with an oracle test on the captures of vim, less and top (PodUtils/podssh#350) |
 | [T-1193](podvm.md) | P2 | L | M6 | feature | open | `pod-extract`: `flatten`, the final tree of the layers of an image as one tar stream with no tree on the disk (PodUtils/podvm#657) |

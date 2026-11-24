@@ -8576,7 +8576,7 @@ comment. `check-sources.py` with clones of podssh (`64e88d0`) and podnet:
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8629,6 +8629,29 @@ before; a secret name of 65 bytes is still refused.
 ```sh
 cargo test -p pod-unit --all-features
 ```
+
+## Done
+
+2026-11-24. `crates/pod-unit/src/model.rs`: the public constant
+`Unit::NAME_MAX` (200) is the bound of `Unit::name` and `Unit::label`. The
+name of a secret and the state directory keep the bound of 64 (the private
+`NAME_SHORT`). `name_ok` takes the bound; the check of the characters and of
+a first `.` or `-` did not change. The documents of `name` and `label` and
+the text of the failure say the bound.
+
+The test `a_long_name_renders_for_each_manager_up_to_its_bound`
+(`crates/pod-unit/tests/forms.rs`): a name of 64 and of 200 bytes passes
+`Unit::check` and renders for systemd, launchd, a task and a service of
+Windows; 201 bytes and a label of 201 bytes give `Class::Usage`; a secret
+name and a state directory of 65 bytes are still refused. With the
+constant and the old bound of 64 in `name_ok`, it fails: "200 bytes: the
+name ...: give 1 to 64 of A-Z a-z 0-9 _.-@". After the change,
+`cargo test -p pod-unit --all-features`: 61 passed, 0 failed. Clippy and
+`cargo doc` with `-D warnings`: clean.
+
+The answer to podssh: `unit.hardening.family("AF_NETLINK", WHY)` adds the
+family to a unit of the user. For the hand-off: no break; `Unit::NAME_MAX`
+is additive. podssh can remove its own length check at the tag.
 
 
 # T-1217: `pod-tpm`: the crate, the TPM 2.0 command frame, the response codes and the commands of podssh's module, and the trait `Transport` (PodUtils/podssh#351)
