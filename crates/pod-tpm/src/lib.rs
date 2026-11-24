@@ -27,10 +27,13 @@
 //!   key, the PCRs, the capabilities), each handle in a guard that flushes
 //!   it on each path.
 //! * [`Transport`]: one whole command out, its whole response back;
-//!   [`transact`] sends a command and reads its [`Reply`].
+//!   [`transact`] sends a command and reads its [`Reply`]. The transports
+//!   of [`transport`]: a device of a Unix kernel and the socket of a TPM in
+//!   software (feature `device`), the TBS of Windows (feature `tbs`).
 //!
-//! **No I/O, no environment and no global.** The codec reads no random
-//! source (the caller gives each nonce), no variable and no file. The
+//! **No I/O, no environment and no global in the codec.** The codec reads
+//! no random source (the caller gives each nonce), no variable and no file;
+//! a transport opens the path or the address of the caller alone. The
 //! default build has no C library and no tokio.
 
 pub mod alg;

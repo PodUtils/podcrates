@@ -1,11 +1,21 @@
 [package]
 name = "pod-tpm"
-description = "A TPM 2.0 codec in pure Rust: the command frame, the response codes, the commands of a signing key under a PCR policy or a policy key, and a blocking Transport trait, each response bounded."
+description = "A TPM 2.0 codec in pure Rust: the command frame, the response codes, the commands of a signing key under a PCR policy or a policy key, a blocking Transport trait, and the transports of a Unix device, of swtpm and of the Windows TBS, each response bounded."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+
+[features]
+# The transports of a device of a Unix kernel (`/dev/tpmrm0`, poll(2) of
+# libc) and of a socket of a TPM in software (swtpm, the simulator of the
+# reference): std alone for the socket.
+device = ["dep:libc"]
+# The transport of the TBS of Windows (`tbs.dll`, a DLL of the system, by
+# the raw-dylib imports of windows-sys: no import library). On another
+# system the feature holds the map of the codes of TBS alone.
+tbs = ["dep:windows-sys"]
 
 [dependencies]
 # The typed failure and its class. No tokio and no C: the codec is bytes in
@@ -17,3 +27,19 @@ sha2 = { workspace = true }
 base64 = { workspace = true }
 # A flush that failed on the drop of a guard of a handle: a diagnostic.
 tracing = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { version = "0.2", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+# Win32_Foundation: the TBS_E_ codes, compared with the crate's own at
+# build time.
+windows-sys = { version = "0.61", optional = true, features = ["Win32_Foundation", "Win32_System_TpmBaseServices"] }
+
+[dev-dependencies]
+# The guards of a test host and the socket directory of a test.
+pod-testkit = { workspace = true }
+
+[target.'cfg(unix)'.dev-dependencies]
+# mkfifo(3) of the FIFO that takes the place of a device.
+libc = "0.2"

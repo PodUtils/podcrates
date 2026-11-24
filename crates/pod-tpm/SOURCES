@@ -28,11 +28,15 @@ file 900dbc57b85a97949df019465dc1546cbba47c16 crates/podssh-ssh/src/tpm/flow.rs 
 file 0081b9d2db80c45b107d9310c1aa6dcbcfd5e266 crates/podssh-ssh/src/tpm/flow_signed.rs -> crates/pod-tpm/src/flow/sign.rs crates/pod-tpm/src/flow/pcr.rs
 file c5596bd9a47450dec65982c8b56c296a3da77fd6 crates/podssh-ssh/src/tpm/flow_tests.rs -> crates/pod-tpm/tests/flow.rs crates/pod-tpm/tests/common/fake.rs
 file 7b3330475be6bad199203267bd0ff44dbd5284bd crates/podssh-ssh/src/tpm/signed_tests.rs -> crates/pod-tpm/tests/flow.rs
-# The parts that the next entries of the crate take: the transport of a
-# Unix kernel and the stub of another system (T-1221), the TPM in software
+# T-1221: the transports. unix.rs gives the device (one write, one read,
+# the poll of a deadline) and the socket of swtpm; its probe `find` of
+# /dev/tpmrm0 and /dev/tpm0 with PODSSH_TPM_DEVICE stays in podssh (the
+# crate opens the path of the caller). other.rs, the refusal of a system
+# with no device, becomes the TBS of Windows.
+file 8a933b2cfc551ea5ca581f0ccac9e27b02d285aa crates/podssh-ssh/src/tpm/unix.rs -> crates/pod-tpm/src/transport/device.rs crates/pod-tpm/src/transport/socket.rs crates/pod-tpm/src/transport/bound.rs
+file 6d8361a8a7f8b329b1b9596a4639beb21a6eeed8 crates/podssh-ssh/src/tpm/other.rs -> crates/pod-tpm/src/transport/tbs.rs
+# The part that the next entry of the crate takes: the TPM in software
 # (T-1222).
-skip crates/podssh-ssh/src/tpm/unix.rs
-skip crates/podssh-ssh/src/tpm/other.rs
 skip crates/podssh-ssh/src/tpm/soft.rs
 # The glue of podssh: the probe through PODSSH_TPM_DEVICE, the forms of
 # SSH, and the signer of an SSH agent. They stay in podssh.
