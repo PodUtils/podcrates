@@ -4872,7 +4872,7 @@ PodUtils/podvm printed four runs of `bfb3822`. Call C926 records the form.
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4924,6 +4924,84 @@ Do not weaken a check of the tree.
 ```sh
 cargo test -p pod-extract --all-features --test flatten --test flatten_random
 setpriv --reuid=65534 --regid=65534 --clear-groups cargo test -p pod-extract --all-features --test flatten --test flatten_random
+```
+
+## Done
+
+2026-11-24, this commit. The cause is in the tests, not in `flatten` or
+`extract`:
+
+- `gnu_tar_with_the_arguments_of_incusd_takes_the_stream`: the stream
+  starts with the newest layer (`usr/bin` 0555, `usr/bin/ls`,
+  `usr/bin/dir`, `etc`, `etc/new`, `usr`, `usr/bin/sh`). GNU tar sets the
+  mode 0555 on `usr/bin` when the next entry is out of it, and then a user
+  that is not root cannot write the older `usr/bin/sh`. incusd runs GNU tar
+  as root, where the order holds. The test now gives the newer `usr/bin`
+  the mode 0775 and runs as each user. The new test
+  `gnu_tar_as_root_takes_a_directory_that_a_newer_layer_closed` keeps the
+  mode 0555, skips with its reason as a user that is not root, and
+  `scripts/ci/root-uid1000-tests.sh` runs it as root (its `test_bin` takes
+  a test target too). T-1299 has the stream for an unpacker that is not
+  root.
+- `random_layer_sets_give_the_tree_of_extract` (and
+  `random_layer_sets_with_hard_links_give_the_tree_of_extract`): the
+  generator gives a directory the mode 0644 or 0600, and `walk` of
+  `tests/support/mod.rs` cannot stat below it as a user that is not root.
+  `walk` now reads the mode of a directory first and then gives it `u+rwx`
+  when its owner cannot read or search it (a scratch tree), so `extract`
+  and `flatten` are compared on the same modes as each user.
+
+Runs: as the user `podtest` (uid 30033, `setpriv --reuid --regid
+--clear-groups`), before the change: `flatten` 19 passed, 1 failed
+(`gnu_tar_with_the_arguments_of_incusd_takes_the_stream`: "GNU tar refused
+the stream"); `flatten_random` 0 passed, 2 failed. After: `flatten` 21
+passed (the root test prints its skip line), `flatten_random` 2 passed. As
+root: `cargo test -p pod-extract --all-features` passes (each binary; the
+root test passes), and `test_bin pod-extract flatten` of the root script
+runs the root test: 1 passed. `cargo clippy -p pod-extract --all-targets
+--all-features -- -D warnings`, `cargo fmt --all --check` and
+`sh scripts/plant-each.sh --apply` (0 stale) pass.
+
+# T-1299: `pod-extract`: a stream of `flatten` that GNU tar as a user that is not root can unpack
+
+**Source:** T-1295 (the order of the stream of `gnu_tar_as_root_takes_a_directory_that_a_newer_layer_closed`).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`flatten` writes the newest layer first, so a child of an older layer
+comes after the entry of its directory from a newer layer. When the newer
+directory has no write or search mode for its owner (`usr/bin` 0555),
+GNU tar as a user that is not root sets that mode when it leaves the
+directory, and then cannot write the older child: "Cannot open:
+Permission denied". incusd runs GNU tar as root, so its import holds. An
+unpacker that is not root (a rootless runtime, a user of podvm) refuses
+the stream.
+
+## Premise
+
+- Read: the order of the stream of T-1295 and the error of GNU tar 1.35
+  as a user that is not root.
+- Not measured: whether a consumer streams the tree to an unpacker that
+  is not root.
+
+## Approach
+
+Hold each directory entry of a newer layer whose mode closes the write or
+the search mode of its owner, and write it after the last layer. A
+directory entry has no data: the memory is its header and its records.
+Then the test of GNU tar with the mode 0555 runs as each user, and the
+root step of CI no longer needs it.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features --test flatten
+setpriv --reuid=65534 --regid=65534 --clear-groups cargo test -p pod-extract --all-features --test flatten
 ```
 
 # T-1296: `pod-enter`: the two title tests of the init and the relay fail under qemu-user on each emulated job (the nightly at `f39b8e2`)

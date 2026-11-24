@@ -252,10 +252,32 @@ fn a_path_twice_in_one_layer_goes_out_in_the_order_of_the_layer() {
 }
 
 /// The unpacker of incusd is GNU tar with the arguments of
-/// `support::gnu_tar`, and it takes the order of the stream: a directory
-/// after its children, from the newest layer.
+/// `support::gnu_tar`, and it takes the order of the stream: the newest
+/// layer first, so a child of an older layer comes after the entry of its
+/// directory from a newer layer. Here the newer `usr/bin` keeps the write
+/// mode of its owner, so a user that is not root unpacks it too.
 #[test]
 fn gnu_tar_with_the_arguments_of_incusd_takes_the_stream() {
+    incusd_unpacks(0o775);
+}
+
+/// incusd runs GNU tar as root: a newer layer that removes the write mode
+/// of `usr/bin` does not stop the write of the older `usr/bin/sh` after it.
+/// A user that is not root cannot write below that directory, so the test
+/// skips there; `scripts/ci/root-uid1000-tests.sh` runs it as root.
+#[test]
+fn gnu_tar_as_root_takes_a_directory_that_a_newer_layer_closed() {
+    if let Err(why) = pod_testkit::host::root() {
+        pod_testkit::host::skip_line(&why);
+        return;
+    }
+    incusd_unpacks(0o555);
+}
+
+/// GNU tar with the arguments of incusd unpacks the stream of two layers,
+/// the newer of which gives `usr/bin` the mode `bin`, to the tree of
+/// `extract`.
+fn incusd_unpacks(bin: u32) {
     if let Err(why) = pod_testkit::host::tool("tar") {
         pod_testkit::host::skip_line(&why);
         return;
@@ -269,7 +291,7 @@ fn gnu_tar_with_the_arguments_of_incusd_takes_the_stream() {
         E::File("etc/old", b"old", 0o644),
     ]);
     let l1 = tar(&[
-        E::Dir("usr/bin", 0o555),
+        E::Dir("usr/bin", bin),
         E::File("usr/bin/ls", b"ls", 0o755),
         E::Symlink("usr/bin/dir", "ls"),
         E::File("etc/.wh.old", b"", 0),

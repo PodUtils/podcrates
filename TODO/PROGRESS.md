@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 975 entries: 167 open, 28 partial, 7 blocked, 773 done.
+`TODO/INDEX.md` holds 976 entries: 167 open, 28 partial, 7 blocked, 774 done.
 
 ## State
 
@@ -35,9 +35,9 @@
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
 - Red runs: the nightly 45452272145 at `f39b8e2` (a dispatch, cancelled): the
-  Windows jobs, `gate` and the installer jobs pass; the seven jobs `cross`
-  fail in `pod-extract` (T-1295, also red in `ci.yml` 45462046889 at
-  `65fa99f`); the emulated jobs fail in `pod-enter` (T-1296) and `dns_hold`
+  Windows jobs, `gate` and the installer jobs pass; the failure of the
+  seven jobs `cross` in `pod-extract` (also in `ci.yml` 45462046889 at
+  `65fa99f`) is fixed; the emulated jobs fail in `pod-enter` (T-1296) and `dns_hold`
   of `pod-link` (T-1297, with `mail` on arm); `riscv64` fails in `pod-iroh`
   (T-916) and was cancelled at 150 minutes in `session_resume_twice`
   (T-938); the two jobs of macOS were cancelled at 60 minutes in
@@ -87,7 +87,7 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in
-podcrates: the red nightly (T-1295, T-1298, T-1296, T-1297, T-916, T-938),
+podcrates: the red nightly (T-1298, T-1296, T-1297, T-916, T-938),
 T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
 `services.yml` run (read it) and the red live run (T-963). Then the asks of podrunner
 (COORD-134, #225): each new ask of podrunner. Then the entries that a need

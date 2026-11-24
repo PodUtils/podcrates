@@ -252,6 +252,11 @@ pub struct Tree {
 }
 
 /// The tree of a directory, each path relative to it.
+///
+/// A directory that its owner cannot read or search gets `u+rwx` after
+/// its mode is read: a user that is not root cannot stat below it, and the
+/// tree is a scratch tree. Root needs no change, so the walk gives the same
+/// modes as each user.
 pub fn walk(root: &Path) -> BTreeMap<String, Node> {
     let mut out = BTreeMap::new();
     let mut todo = vec![root.to_path_buf()];
@@ -264,6 +269,9 @@ pub fn walk(root: &Path) -> BTreeMap<String, Node> {
             let node = if md.file_type().is_symlink() {
                 Node::Symlink { target: std::fs::read_link(&p).unwrap().to_string_lossy().into_owned() }
             } else if md.is_dir() {
+                if mode & 0o500 != 0o500 {
+                    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(mode | 0o700)).unwrap();
+                }
                 todo.push(p.clone());
                 Node::Dir { mode }
             } else {

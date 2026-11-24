@@ -32,9 +32,9 @@ is done. Git and the record keep finished work.
    runs its test five times in its `.plant` (as
    `link-quic-drop-closes-at-once`). Then read the scheduled runs:
    - `nightly.yml` 45452272145 at `f39b8e2` (a dispatch, cancelled): the
-     jobs of Windows, `gate` and `install-os` pass. The seven jobs `cross`
-     fail in `pod-extract` for a user that is not root (T-1295; `ci.yml`
-     45462046889 at `65fa99f` fails the same). The emulated jobs fail in
+     jobs of Windows, `gate` and `install-os` pass. The failure of the
+     seven jobs `cross` in `pod-extract` for a user that is not root (also
+     in `ci.yml` 45462046889 at `65fa99f`) is fixed. The emulated jobs fail in
      `pod-enter` (T-1296) and in `dns_hold` of `pod-link` (T-1297; `mail`
      on arm and armv7 too). `riscv64` fails in `pod-iroh` (`road.rs`,
      `share.rs`: T-916, T-938, Q19) and was cancelled at 150 minutes in
@@ -42,7 +42,7 @@ is done. Git and the record keep finished work.
      Both jobs of macOS were cancelled at 60 minutes in `images` of
      `pod-incus` (T-1298). T-1161 is done (the test passed on riscv64).
      T-789 and T-766 passed on this run. Open entries of the nightly:
-     T-1295, T-1298, T-1296, T-1297, T-916 and T-938 (partial), T-789,
+     T-1298, T-1296, T-1297, T-916 and T-938 (partial), T-789,
      T-766, and T-1044 (`check-windows.sh` and `check-macos.sh` compile no
      doc test).
    - `upstream.yml` (job `sources`): the run 45423205689 at `5fd6fb7` found

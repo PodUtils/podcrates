@@ -287,7 +287,9 @@ jobs:
       # The proofs of a mode that a user keeps (the set-id bits, the
       # S_ISGID that the kernel drops, a closed tree, a closed etc: T-614)
       # start a worker of uid 1000 only as root, and skip the proof as the
-      # user of the runner: they run as root. A skip line fails the step.
+      # user of the runner: they run as root. GNU tar as root over a
+      # directory that a newer layer closed (T-1295) runs there too. A skip
+      # line fails the step.
       - name: The tests of pod-extract and pod-rootfs with a worker of uid 1000
         run: sh scripts/ci/root-uid1000-tests.sh
       # The netns tests of pod-hold skip for a user here (no user
