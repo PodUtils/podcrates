@@ -2423,7 +2423,7 @@ cargo test -p pod-cloudflare --all-features --lib tunnel::tests::the_serial_limi
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2448,6 +2448,11 @@ cargo test -p pod-core --all-features --lib text::tests
 cargo test -p pod-cloudflare --all-features --lib quicktunnel::tests
 ```
 
+## Done
+
+2026-11-24, 67980e7. `EnrolError::NoAnswer(PathFailure)` keeps the shared `Failure` of the path; `EnrolError::failure` gives a `Failure` at its stage under the failure at the stage Warp. `of_api` gives `Protocol` for an answer that does not decode. `device_of`, `json_of` and `registration_error` use `pod_core::text::body_line` (call C918). Tests: `provider::tests::an_enrolment_through_a_dead_proxy_keeps_the_stage_of_the_proxy` (before the fix the chain had the stage Warp alone) and `register::tests::an_answer_that_is_not_json_names_its_body` (before the fix the text had no word of the body), `text::tests::the_line_of_a_body_hides_its_secrets_and_keeps_its_words` of `pod-core`. `sh scripts/agent/check.sh`: each step 0.
+
+
 # T-1134: `pod-cloudflare`: the chain of a refused origin says the error of I/O two times (PodUtils/podnet#707, ask 10)
 
 **Source:** PodUtils/podnet#707 (COORD-115 of podnet, PodUtils/podnet@T-522, PodUtils/podnet#696), ask 10.
@@ -2455,7 +2460,7 @@ cargo test -p pod-cloudflare --all-features --lib quicktunnel::tests
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2482,6 +2487,11 @@ The rows of PodUtils/podnet#696:
 ```sh
 cargo test -p pod-cloudflare --all-features --lib origin::tests
 ```
+
+## Done
+
+2026-11-24, 67980e7. `fail::io_step` gives the step as the text and the error of I/O as the cause; `io_fail` and `connect_origin` use it. A row now: `connecting to 127.0.0.1:P: Connection refused (os error 111)`, once. Test: `crates/pod-cloudflare/src/origin.rs::a_refused_origin_says_its_cause_once` (failed before the fix: 2 times). `sh scripts/agent/check.sh`: each step 0.
+
 
 # T-1135: `pod-cloudflare`: each failure of `fail::caused`, `or_fail` and `wrap` holds the text of its cause and the cause, so a reader that joins each text of the chain says the cause two times
 

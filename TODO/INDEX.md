@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**902 entries: 159 open, 27 partial, 7 blocked, 709 done.**
+**902 entries: 153 open, 27 partial, 7 blocked, 715 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 213 | 227 |
-| P2 | 76 | 7 | 4 | 366 | 453 |
+| P2 | 70 | 7 | 4 | 372 | 453 |
 | P3 | 79 | 10 | 3 | 128 | 220 |
-| **All** | 159 | 27 | 7 | 709 | 902 |
+| **All** | 153 | 27 | 7 | 715 | 902 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -942,10 +942,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1117](adapters.md) | P3 | S | M3 | docs | open | podnet's documents give the serial limits of the legs of `pod-cloudflare` as 130 s and 280 s; T-1116 makes them 110 s and 210 s |
 | [T-1118](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686) |
 | [T-1122](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`, `pod-unit`: the changes of podrunner and podssh at their heads (port review) |
-| [T-1129](roads.md) | P2 | S | M2 | defect | open | `pod-ws`: a refusal of the proxy from a dialer of the caller loses the stage Proxy, and its line names the target two times (PodUtils/podnet#707, ask 5) |
-| [T-1130](roads.md) | P2 | S | M2 | defect | open | `pod-proxy`: the line of a proxy that does not answer names the proxy two times (PodUtils/podnet#707, ask 6) |
-| [T-1131](roads.md) | P2 | S | M2 | defect | open | `pod-dns`: the line of a name that does not resolve holds the list of each resolver of DNS over HTTPS, 567 bytes and more (PodUtils/podnet#707, ask 7) |
-| [T-1132](transport.md) | P2 | S | M1 | defect | open | `pod-tls`: the text of a certificate for another name holds the Debug form `DnsName("x")` of rustls-webpki (PodUtils/podnet#707, ask 8) |
-| [T-1133](adapters.md) | P2 | S | M3 | defect | open | `pod-warp`: an enrolment through a dead proxy loses the stage Proxy, and an answer that is not JSON shows no word of its body (PodUtils/podnet#707, ask 9) |
-| [T-1134](adapters.md) | P2 | S | M3 | defect | open | `pod-cloudflare`: the chain of a refused origin says the error of I/O two times (PodUtils/podnet#707, ask 10) |
+| [T-1129](roads.md) | P2 | S | M2 | defect | done | `pod-ws`: a refusal of the proxy from a dialer of the caller loses the stage Proxy, and its line names the target two times (PodUtils/podnet#707, ask 5) |
+| [T-1130](roads.md) | P2 | S | M2 | defect | done | `pod-proxy`: the line of a proxy that does not answer names the proxy two times (PodUtils/podnet#707, ask 6) |
+| [T-1131](roads.md) | P2 | S | M2 | defect | done | `pod-dns`: the line of a name that does not resolve holds the list of each resolver of DNS over HTTPS, 567 bytes and more (PodUtils/podnet#707, ask 7) |
+| [T-1132](transport.md) | P2 | S | M1 | defect | done | `pod-tls`: the text of a certificate for another name holds the Debug form `DnsName("x")` of rustls-webpki (PodUtils/podnet#707, ask 8) |
+| [T-1133](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: an enrolment through a dead proxy loses the stage Proxy, and an answer that is not JSON shows no word of its body (PodUtils/podnet#707, ask 9) |
+| [T-1134](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: the chain of a refused origin says the error of I/O two times (PodUtils/podnet#707, ask 10) |
 | [T-1135](adapters.md) | P3 | M | M3 | defect | open | `pod-cloudflare`: each failure of `fail::caused`, `or_fail` and `wrap` holds the text of its cause and the cause, so a reader that joins each text of the chain says the cause two times |

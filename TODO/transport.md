@@ -7796,7 +7796,7 @@ cargo test -p pod-services-watch --all-features
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7818,3 +7818,7 @@ A host whose proxy re-signs TLS gives: `TLS: invalid peer certificate: certifica
 ```sh
 cargo test -p pod-tls --all-features --lib hint::tests
 ```
+
+## Done
+
+2026-11-24, 67980e7. `pod_tls::plain_cert_names` writes `DnsName("a")`, `IpAddress(a)` and `UniformResourceIdentifier("a")` as `a`; `handshake_failure` uses it, and `handshake_error` gives its cause the plain words with the same kind, so the chain says the cause once. Test: `crates/pod-tls/src/hint.rs::the_names_of_a_certificate_are_plain` (before the fix the text held `DnsName("default.domain")`). `sh scripts/agent/check.sh`: each step 0.

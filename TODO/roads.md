@@ -2104,7 +2104,7 @@ sh scripts/plant-each.sh iroh-socks5-sends-the-name
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2128,6 +2128,11 @@ cargo test -p pod-ws --all-features --lib way::tests
 cargo test -p pod-proxy --all-features
 ```
 
+## Done
+
+2026-11-24, 67980e7. `dial_error` reads a lead `TARGET through the proxy P: `. A failure at the stage Proxy with no `DialError` cause becomes `ProxyRefused` with the status 0 (Refused), `ProxyProtocol` (Protocol) or `ProxyUnreachable`. The `Display` of `ProxyRefused` with the status 0 has no status, and `pod-relay` says "the proxy refused" for it. The line now: `the proxy http://p:1 refused CONNECT x:443: refused`, at (Proxy, Refused). Test: `crates/pod-ws/src/way.rs::a_refusal_of_the_proxy_keeps_its_stage` (failed before the fix: `(Connect, Unavailable)`). `sh scripts/agent/check.sh`: each step 0.
+
+
 # T-1130: `pod-proxy`: the line of a proxy that does not answer names the proxy two times (PodUtils/podnet#707, ask 6)
 
 **Source:** PodUtils/podnet#707 (COORD-115 of podnet, PodUtils/podnet@T-522), ask 6.
@@ -2135,7 +2140,7 @@ cargo test -p pod-proxy --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2157,6 +2162,11 @@ cargo test -p pod-proxy --all-features --test dial an_unreachable_proxy_is_named
 cargo test -p pod-proxy --all-features --lib error::tests
 ```
 
+## Done
+
+2026-11-24, 67980e7. `open_proxy` strips the lead `could not connect to TARGET` from the detail of a `DialError::Connect`, and the `Display` of `ProxyUnreachable` strips `could not connect to P` from the detail of another dialer. The line now: `could not reach the proxy 127.0.0.1:P: Connection refused (os error 111)`. Tests: `crates/pod-proxy/tests/dial.rs::an_unreachable_proxy_is_named` (failed before the fix: 2 names of the proxy) and `error::tests::the_words_of_a_dial_error_are_said_once`. The expected line of `api::tests::each_base_failed_at_one_hop_names_it_once` of `pod-warp` names the proxy once. `sh scripts/agent/check.sh`: each step 0.
+
+
 # T-1131: `pod-dns`: the line of a name that does not resolve holds the list of each resolver of DNS over HTTPS, 567 bytes and more (PodUtils/podnet#707, ask 7)
 
 **Source:** PodUtils/podnet#707 (COORD-115 of podnet, PodUtils/podnet@T-522, PodUtils/podnet#698), ask 7.
@@ -2164,7 +2174,7 @@ cargo test -p pod-proxy --all-features --lib error::tests
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2190,3 +2200,7 @@ could not resolve nowhere.invalid: system resolver: failed to lookup address inf
 ```sh
 cargo test -p pod-dns --all-features --lib
 ```
+
+## Done
+
+2026-11-24, 67980e7. `fold` gives one phrase (`each of N resolvers failed: CAUSE`, or `N resolvers failed, M with: CAUSE`), with no address and no `(os error N)`; `each` gives the full list at debug. `resolve_in` joins the phrases in at most 160 bytes (`fit`, `pod_core::text::clip`). The line of #698 now (195 bytes): `could not resolve nowhere.invalid: system resolver: failed to lookup address information: Try again; DNS over HTTPS: 8 resolvers failed, 4 with: could not connect: Address family not supported...`. Test: `crates/pod-dns/src/lookup.rs::a_name_that_does_not_resolve_gives_one_short_line` (failed before the fix: 472 bytes). The plant `dns-each-resolver-said-alone` patches the new `fold`. `sh scripts/agent/check.sh`: each step 0.
