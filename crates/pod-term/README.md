@@ -2,7 +2,9 @@
 
 A line discipline in user space, for a host with no pty, and the grammar
 of a terminal's output with its ring. It reads and writes bytes only: it
-dials nothing and spawns nothing. It has no pod dependency.
+dials nothing and spawns nothing. It has no pod dependency. The feature
+`transfer` adds base64, CRC-32 (crc32fast) and SHA-256 (sha2), each pure
+Rust.
 
 ## API
 
@@ -16,6 +18,7 @@ dials nothing and spawns nothing. It has no pod dependency.
 | `window` | `Window` and `Size`: the window changes of the session |
 | `grammar` | where a stream of output may start, and `grammar::ring`: the last bytes of a shell's output, given from a boundary; `Ring::modes_at`, the `Modes` that the stream set before an offset that the ring holds, also after it dropped bytes |
 | `modes` | `Modes`: the modes that a stream of output set (the cursor keys, origin, autowrap, the cursor, the alternate screen, the mouse level and encoding, focus, bracketed paste, the keypad, G0), and `Modes::restore`, the bytes that put a new terminal in them |
+| `transfer` (feature `transfer`) | `Transfer`: a sans-IO 7-bit transfer of one file through a terminal that repaints its output (`#KIND:` frames of base64 with a CRC-32, one frame in flight, the echo of the received count, a chunk of 1 to 32 KiB, a resync at the last `#KIND:`, and the SHA-256 and the rename as events), for a pty that damages ZMODEM; the design is podssh's `docs/terminal.md`, "The 7-bit envelope" |
 
 ## Parity
 
@@ -39,3 +42,4 @@ dials nothing and spawns nothing. It has no pod dependency.
 | podssh | the tty of `podssh serve` with no `/dev/ptmx` (PodUtils/podssh@T-776, PodUtils/podssh@T-111) | `pod_term::termios::Tty`, which reads the state that serve answers to `TCGETS` |
 | podvm | its own discipline of its SSH server | `pod_term::echo::Discipline` (the same rules) |
 | podssh | the draft `modes_before` of `podssh-ssh/src/server/kept_screen.rs` (PodUtils/podssh@T-161) | `Ring::modes_at`, then `pod_term::modes::Modes::restore` |
+| podssh | the 7-bit envelope of PodUtils/podssh@T-831, step 2 (not written in podssh) | `pod_term::transfer::Transfer`, with `features = ["transfer"]` |

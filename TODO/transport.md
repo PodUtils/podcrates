@@ -7900,7 +7900,7 @@ clippy of the three crates with `-D warnings`: 0 warnings.
 **Milestone:** M3
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -7929,6 +7929,16 @@ Tests use a stand-in for a pty that rewrites bytes (CR to LF, LF to CRLF, droppe
 ```sh
 cargo test -p pod-term --all-features
 ```
+
+## Done
+
+2026-11-24, the commit of this Done section. `pod_term::transfer` (feature `transfer` of `pod-term`; `crates/pod-term/src/transfer.rs` and `transfer/`): `Transfer::near`, `far_send`, `far_receive`, `feed`, `keys`, `poll_output`, `deadline`, `tick`, `events`, `accept`, `send_file`, `refuse`, `take`, `skip`, `supply`, `kept`, `stop`, `hangup`, `set_width`, with `Event`, `Ended`, `Dir`, `FileInfo`, the codes `stop::*` and the limits as constants. The design is podssh's, read at `PodUtils/podssh@1bb74cdb`, the section "The 7-bit envelope (T-831, step 2): the design for pod-term" of its document of the terminal: the trigger, the nine kinds, the flow, the limits, the ends, the interface and the test vectors. The feature takes base64 (0.23), sha2 (0.11) and crc32fast (1.5, new in the workspace and already in `Cargo.lock` under flate2): pure Rust, in `deny.toml`'s licences, static on each target. The reader of escape sequences is `grammar::next`; a DCS, SOS, PM or APC is so dropped up to its ST, where the design drops `ESC` and one byte.
+
+Calls made where the design is silent or open, each in the rustdoc: an action (`take`, `supply`, `kept` and the others) gives its events to the next `events`, `feed` or `tick`; `NeedData` gives the chunk as `max` (the vector `NeedData { 0, 1024 }` for a file of 6 bytes), and `supply` takes no byte past the size; the ack of a frame that went again does not time the path and does not change the chunk (Karn's rule; the vector X1 asks for 1 KiB after it); a repeated `HELO` gets `HELO` again from the far end, and a repeated `OFFR` gets the same `TAKE`; `End`'s `rest` does not hold the line end of the last frame; keys pass before the caller accepts a trigger.
+
+Tests: 16 unit tests in `crates/pod-term/src/transfer/tests.rs` (the rows T1 to T9 and F1 to F13 of the design, 9 damaged frames, five CAN from the peer, the wrap of a long frame, the rule of a name, the cut of a reason), 16 in `crates/pod-term/tests/transfer.rs` (the download and the upload byte for byte at both ends, the faults X1 to X12, the output after the last frame, a repeated `HELO`, and `the_chunk_doubles_after_a_fast_ack_and_halves_after_a_slow_one`), and 4 in `crates/pod-term/tests/transfer_pty.rs` (whole transfers of up to 300,000 bytes each way through a stand-in that is clean, maps CR to LF, maps LF to CRLF, drops CAN and repaints with a cursor move at each 80 columns as tmux does, paints each read twice, or loses each third read with `DATA`; and an empty file). The module is new, so a test cannot run on the code before: a plant for each rule, each fails its test and passes without it: `scripts/plants/term-transfer-resend.plant` (the frame in flight does not go again: `x1_a_lost_ack_sends_the_same_data_again_and_the_chunk_falls`), `term-transfer-count.plant` (the receiver writes a `DATA` from its offset: `x3_a_duplicate_data_writes_nothing_and_is_acked_again`), `term-transfer-chunk.plant` (no doubling: `the_chunk_doubles_after_a_fast_ack_and_halves_after_a_slow_one`), `term-transfer-resync.plant` (no resync at `#`: `transfer::tests::f10_a_damaged_frame_resyncs_at_the_next_hash`) and `term-transfer-verify.plant` (`Verified` with a SHA-256 that differs: `x4_a_hash_that_differs_keeps_nothing`). `cargo test -p pod-term --all-features` and `cargo test -p pod-term`: each target passes. `cargo clippy -p pod-term --all-targets` with and without `--all-features` and `-D warnings`, `cargo doc -p pod-term --no-deps --all-features` with `-D warnings`, `cargo fmt --all --check` and `sh scripts/plant-each.sh --apply` (0 stale): each exits 0. Not measured: a transfer through a real tmux. Two gaps of the design are T-1198; the three hand copies of CRC-32 in the workspace are T-1197.
+
+For the hand-off: no break; a new module behind the feature `transfer`, so podssh names `features = ["transfer"]`. The constructors of the far end take `now`, and the actions give their events through `events()`. The hand-off COORD issue `(to all)` names the tag; the coordinator opens it.
 
 # T-1132: `pod-tls`: the text of a certificate for another name holds the Debug form `DnsName("x")` of rustls-webpki (PodUtils/podnet#707, ask 8)
 
@@ -8069,3 +8079,62 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 Tests in `crates/pod-term/tests/modes.rs`: `restore_of_the_modes_at_a_cut_and_the_rest_give_the_modes_of_the_whole_stream` (each capture, `less.bin`, `prompt.bin`, `top.bin`, `vi-pty.bin`, `vi.bin`, and two synthetic streams; each boundary, at most 4096 of each, chunks of 61 bytes: `restore` of `modes_at(at)` of a ring that holds the whole stream, then the bytes from `at`, give the modes of the whole stream to `Modes`, to vte and to the model terminal; `modes_at(at)` equals a `Modes` fed with the bytes before `at`), `a_ring_that_drops_bytes_keeps_the_modes_of_what_it_dropped` (rings of 40 and 300 bytes and a third and a half of each stream: the same from `start()` with `kept()`, `modes_at` at each boundary from `start()` to `end()`, and `None` before the start and after the end) and `a_ring_with_no_start_gives_no_modes`. less and top of busybox set no mode in their captures; vim sets 1049, 1, the keypad, 2004, 1004 and 25, and the synthetic streams hold the rest. `modes_at` is new, so a test cannot run on the code before: the plant `scripts/plants/term-ring-modes-dropped.plant` (`trim` does not feed `dropped`) fails `a_ring_that_drops_bytes_keeps_the_modes_of_what_it_dropped` with `vi-pty.bin in 40 bytes, at 5315` (the modes of the dropped `CSI ? 1049 h` are lost), and the test passes without it. `cargo test -p pod-term --all-features` and `cargo test -p pod-testkit --all-features`: each target passes. `cargo clippy -p pod-term -p pod-testkit --all-targets --all-features -- -D warnings`, `cargo doc` of both with `-D warnings`, `cargo fmt --all --check` and `sh scripts/plant-each.sh --apply` (0 stale): each exits 0. Not measured: the time of `modes_at` at the capacity of podssh.
 
 For the hand-off: no break; `Ring::modes_at` and `pod_testkit::screen::Modes` are new items. The hand-off COORD issue `(to podssh)` names the tag that carries T-1191 and T-1192; the coordinator opens it.
+
+# T-1197: CRC-32 has three hand copies in the workspace; each crate takes `crc32fast`
+
+**Source:** T-1144 (the search before the transfer codec of `pod-term`: `python3 -I scripts/codegraph.py similar crc32`).
+**Category:** chore
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+CRC-32/ISO-HDLC has three hand copies, each a bitwise loop: `pod_harness::zip::crc32` (`crates/pod-harness/src/zip.rs`), `pod_egress::vmess::kdf::crc32` (`crates/pod-egress/src/vmess/kdf.rs`) and the private `crc32` of `crates/pod-turn/src/stun_auth.rs`. The token forms differ, so `codegraph.py dups` does not find them, but each is the same capability (the ruling "Shared code"). The workspace has `crc32fast` (T-1144 named it; flate2 brings it), which is pure Rust and faster.
+
+## Premise
+
+- Read: the three functions; `Cargo.toml` (`crc32fast = { version = "1.5", default-features = false }` in `[workspace.dependencies]`); `crates/pod-term/src/transfer/wire.rs` takes it.
+- Not read: whether a feature of `pod-egress` or `pod-turn` must stay free of a new dependency (their `Cargo.toml` features).
+
+## Approach
+
+Each of the three crates takes `crc32fast = { workspace = true }` and calls `crc32fast::hash`; each copy goes. The known vectors of each crate stay as its tests (`123456789` gives `cbf43926`). A plant changes the polynomial of one call site and a test of that crate fails.
+
+## Prove
+
+```sh
+cargo test -p pod-harness -p pod-egress -p pod-turn --all-features
+```
+
+# T-1198: `pod-term`: the transfer codec loses the `KEPT` that ends a session, and the far sender's 20 s wait runs while a person answers the offer
+
+**Source:** T-1144 (the design of PodUtils/podssh#346 at `PodUtils/podssh@1bb74cdb`, the section "The 7-bit envelope" of its document of the terminal).
+**Category:** defect
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Two gaps of the design, which `pod_term::transfer` follows:
+
+1. The receiver ends at `KEPT`. When the pty loses that frame, the sender sends `DONE` again (the frame in flight), but no session answers it: the near end shows the frame as text, or the far program has gone. After 20 s the sender stops with code 2, and its caller reports a failure for a file that the receiver kept.
+2. A receiver at the near end gives `Offer`, and its caller asks a person about a name that is taken. The far sender waits at most 20 s for `TAKE` (it sends `OFFR` again each 1 to 5 s, which the near end drops while it waits for its caller). A person who answers after 20 s gets a session that the far end stopped.
+
+## Premise
+
+- Read: the design (the flow, steps 2, 5, 6 and 7; the limits) and `crates/pod-term/src/transfer/flow.rs`.
+- Not measured: either case through tmux.
+
+## Approach
+
+Ask podssh by a COORD issue, with a recommendation: (1) after `KEPT` the near end keeps the session's id and `KEPT` for one `WAIT`, and answers a whole `DONE` frame of that session with the same `KEPT` instead of showing it; the far receiver stays the same time before it exits; (2) while the caller of a receiver answers an offer, the receiver answers each repeated `OFFR` with a frame that holds the wait (a new kind, `WAIT`, or a `TAKE` that comes later), or the far sender's wait for `TAKE` is the first wait of 120 s. Then change the codec and add a test for each case with the stand-in pty of `tests/transfer_pty.rs`.
+
+## Prove
+
+```sh
+cargo test -p pod-term --all-features --test transfer
+```

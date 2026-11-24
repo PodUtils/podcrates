@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**948 entries: 166 open, 28 partial, 7 blocked, 747 done.**
+**950 entries: 167 open, 28 partial, 7 blocked, 748 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 225 | 239 |
-| P2 | 75 | 8 | 4 | 389 | 476 |
-| P3 | 87 | 10 | 3 | 131 | 231 |
-| **All** | 166 | 28 | 7 | 747 | 948 |
+| P2 | 75 | 8 | 4 | 390 | 477 |
+| P3 | 88 | 10 | 3 | 131 | 232 |
+| **All** | 167 | 28 | 7 | 748 | 950 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -962,7 +962,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1141](podvm.md) | P2 | S | M6 | feature | done | `pod-incus`: no read of a storage pool, of the room of a pool, or of an image that incus has (PodUtils/podvm#651) |
 | [T-1142](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: `sys::Statfs` has no `f_bfree`, so a check for a daemon of root cannot name the blocks kept for root (PodUtils/podvm#651) |
 | [T-1143](podvm.md) | P2 | S | M6 | chore | open | podvm's class of a refusal by size reads the words of an `Io` error, and finds none after T-1138 |
-| [T-1144](transport.md) | P2 | M | M3 | feature | open | `pod-term`: a sans-IO 7-bit transfer codec for a pty that damages ZMODEM (PodUtils/podssh#346) |
+| [T-1144](transport.md) | P2 | M | M3 | feature | done | `pod-term`: a sans-IO 7-bit transfer codec for a pty that damages ZMODEM (PodUtils/podssh#346) |
 | [T-1146](relay.md) | P3 | S | M2 | docs | open | `pod-natprobe`: the comments of the code are not in ASD-STE100 |
 | [T-1150](services.md) | P2 | S | M5 | feature | open | `pod-services-watch`: a watch of the facts of RFC 5780 of a STUN server (OTHER-ADDRESS, CHANGE-REQUEST, RESPONSE-PORT) |
 | [T-1151](relay.md) | P3 | S | M2 | chore | done | `pod-natprobe`: the ignored live test runs in `live.yml` |
@@ -995,3 +995,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1194](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: `flatten` keeps the hard links across layers, with the target before the link (PodUtils/podvm#657) |
 | [T-1195](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: `flatten` keeps the PAX records of the image, and takes a prefix and the entries of the caller (PodUtils/podvm#657) |
 | [T-1196](podvm.md) | P2 | M | M6 | feature | open | `pod-gzip`: a writer of gzip members, one member for each block, by up to eight threads, with the same bytes for any count of threads (PodUtils/podvm#657) |
+| [T-1197](transport.md) | P3 | S | M5 | chore | open | CRC-32 has three hand copies in the workspace; each crate takes `crc32fast` |
+| [T-1198](transport.md) | P2 | S | M3 | defect | open | `pod-term`: the transfer codec loses the `KEPT` that ends a session, and the far sender's 20 s wait runs while a person answers the offer |

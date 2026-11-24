@@ -1,0 +1,6 @@
+# The transfer codec: the frame in flight does not go again, so a lost ack stops the upload (T-1144).
+ENTRY=T-1144
+GROUP=term
+EXPECT='test x1_a_lost_ack_sends_the_same_data_again_and_the_chunk_falls \.\.\. FAILED'
+RUN='cargo test -p pod-term --features transfer --test transfer x1_a_lost_ack_sends_the_same_data_again_and_the_chunk_falls -- --exact'
+LIMIT=900

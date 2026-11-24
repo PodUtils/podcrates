@@ -1,0 +1,6 @@
+# The transfer codec: the receiver writes a DATA again from its offset, not from its count (T-1144).
+ENTRY=T-1144
+GROUP=term
+EXPECT='test x3_a_duplicate_data_writes_nothing_and_is_acked_again \.\.\. FAILED'
+RUN='cargo test -p pod-term --features transfer --test transfer x3_a_duplicate_data_writes_nothing_and_is_acked_again -- --exact'
+LIMIT=900

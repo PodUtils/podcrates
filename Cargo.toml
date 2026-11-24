@@ -206,6 +206,9 @@ p384 = { version = "0.14", default-features = false, features = ["ecdsa", "arith
 # SHA-2 of the digest 0.10 line, under a name of its own.
 rsa = { version = "0.10", default-features = false, features = ["std", "encoding", "pkcs1v15"] }
 base64 = { version = "0.23", default-features = false, features = ["std"] }
+# The CRC-32 of the transfer codec of pod-term (feature transfer): pure
+# Rust, already under flate2.
+crc32fast = { version = "1.5", default-features = false }
 # The certificates of a Sigstore bundle (pod-release) and of an ACME order
 # (pod-acme): the names, the extensions and the life of a leaf, and the
 # blocks of a PEM file, with no crypto of its own. Pure Rust.

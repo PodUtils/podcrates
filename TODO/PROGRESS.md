@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 948 entries: 166 open, 28 partial, 7 blocked, 747 done.
+`TODO/INDEX.md` holds 950 entries: 167 open, 28 partial, 7 blocked, 748 done.
 
 ## State
 
@@ -120,8 +120,9 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   session starts no handshake; PodUtils/podssh#349, COORD-139), then
   T-1166 to T-1169 (the same issue: a held poll, a
   carrier with no TLS, DNS over HTTPS, a test through `unbound`);
-  T-1144 (the sans-IO transfer codec of `pod-term` for a pty that
-  damages ZMODEM; PodUtils/podssh#346, #258); T-1103 (iroh 1.5 and its fork
+  T-1198 (two gaps of the design of the transfer codec of `pod-term`: a
+  lost `KEPT` and the far sender's wait during an offer; a COORD issue to
+  podssh first); T-1103 (iroh 1.5 and its fork
   of iroh-relay, after PodUtils/podssh#341); T-1095 (the order of the
   pseudo-fields of the HTTP/2 request of `pod-ws`; PodUtils/podssh#340);
   T-941 (PodUtils/podssh#319).

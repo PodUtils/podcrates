@@ -1,0 +1,12 @@
+--- a/crates/pod-term/src/transfer/reader.rs
++++ b/crates/pod-term/src/transfer/reader.rs
+@@ -143,9 +143,6 @@
+             }
+             Part::Body | Part::Crc(_) => {
+                 self.part = Part::Outside;
+-                if b == b'#' {
+-                    self.start();
+-                }
+                 return Some(self.damage());
+             }
+         }
