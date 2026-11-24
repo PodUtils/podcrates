@@ -1,6 +1,7 @@
 //! The tar writer of the stream: a ustar header for each entry, a PAX
-//! header before it where a value does not fit, the data padded to a
-//! block, and the end blocks only after the last layer.
+//! header before it where a value does not fit or the entry has extended
+//! attributes, the data padded to a block, and the end blocks only after
+//! the last entry.
 //!
 //! The crate does not take `tar::Builder` for the stream: its drop writes
 //! the end blocks, also after a failure, and a stream that ends with them
@@ -40,15 +41,17 @@ pub(super) struct Head<'a> {
     pub(super) link: Option<&'a str>,
 }
 
-/// The writer of the caller, and the count of the bytes that went to it.
+/// The writer of the caller, the count of the bytes that went to it, and
+/// the prefix of each path of the image (`rootfs/`, or empty).
 pub(super) struct Out<'a, W: Write> {
     w: &'a mut W,
     bytes: u64,
+    prefix: String,
 }
 
 impl<'a, W: Write> Out<'a, W> {
-    pub(super) fn new(w: &'a mut W) -> Out<'a, W> {
-        Out { w, bytes: 0 }
+    pub(super) fn new(w: &'a mut W, prefix: String) -> Out<'a, W> {
+        Out { w, bytes: 0, prefix }
     }
 
     pub(super) fn bytes(&self) -> u64 {
@@ -66,16 +69,26 @@ impl<'a, W: Write> Out<'a, W> {
         self.put(&[0u8; BLOCK][..rest])
     }
 
-    /// The header of one entry: a PAX header first where a name has more
-    /// than 100 bytes or a byte that is not ASCII, or a number does not fit
-    /// its field.
+    /// The header of one entry of the image, below the prefix.
     pub(super) fn head(&mut self, h: &Head) -> Result<()> {
+        self.head_with(h, &[], true)
+    }
+
+    /// The header of one entry: a PAX header first where a name has more
+    /// than 100 bytes or a byte that is not ASCII, a number does not fit its
+    /// field, or `extra` has records (the extended attributes). With
+    /// `prefixed`, the prefix goes before the path, and before the target
+    /// of a hard link; a symlink keeps its target.
+    pub(super) fn head_with(&mut self, h: &Head, extra: &[u8], prefixed: bool) -> Result<()> {
         let mut recs = Vec::new();
         let mut t = tar::Header::new_ustar();
         let u = t.as_ustar_mut().expect("a ustar header");
-        fit(&mut u.name, h.path, b"path", &mut recs);
-        if let Some(l) = h.link {
-            fit(&mut u.linkname, l, b"linkpath", &mut recs);
+        let full = |p: &str| if prefixed { format!("{}{p}", self.prefix) } else { p.to_string() };
+        fit(&mut u.name, &full(h.path), b"path", &mut recs);
+        match (h.link, h.kind) {
+            (Some(l), Kind::Link) => fit(&mut u.linkname, &full(l), b"linkpath", &mut recs),
+            (Some(l), _) => fit(&mut u.linkname, l, b"linkpath", &mut recs),
+            (None, _) => {}
         }
         for (key, value, max) in [(&b"size"[..], h.size, OCTAL_11), (b"uid", h.uid, OCTAL_7), (b"gid", h.gid, OCTAL_7)]
         {
@@ -83,6 +96,7 @@ impl<'a, W: Write> Out<'a, W> {
                 crate::pax::push_record(&mut recs, key, value.to_string().as_bytes());
             }
         }
+        recs.extend_from_slice(extra);
         if !recs.is_empty() {
             let mut x = tar::Header::new_ustar();
             let name = b"././@PaxHeader";
@@ -135,6 +149,10 @@ impl<'a, W: Write> Out<'a, W> {
     /// The end of the archive: two zero blocks, then a flush.
     pub(super) fn end(&mut self) -> Result<()> {
         self.put(&[0u8; 2 * BLOCK])?;
+        self.flush()
+    }
+
+    pub(super) fn flush(&mut self) -> Result<()> {
         self.w.flush().map_err(error::io)
     }
 

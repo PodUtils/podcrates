@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**968 entries: 166 open, 29 partial, 7 blocked, 766 done.**
+**970 entries: 166 open, 29 partial, 7 blocked, 768 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 227 | 241 |
-| P2 | 80 | 8 | 4 | 399 | 491 |
-| P3 | 82 | 11 | 3 | 138 | 234 |
-| **All** | 166 | 29 | 7 | 766 | 968 |
+| P2 | 78 | 8 | 4 | 401 | 491 |
+| P3 | 84 | 11 | 3 | 138 | 236 |
+| **All** | 166 | 29 | 7 | 768 | 970 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -992,8 +992,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1191](transport.md) | P2 | M | M1 | feature | done | `pod-term`: `modes::Modes`, a sans-IO tracker of the modes of a terminal's output with `restore` (PodUtils/podssh#350) |
 | [T-1192](transport.md) | P2 | M | M1 | feature | done | `pod-term`: `Ring::modes_at`, the modes that the stream set before an offset, with an oracle test on the captures of vim, less and top (PodUtils/podssh#350) |
 | [T-1193](podvm.md) | P2 | L | M6 | feature | done | `pod-extract`: `flatten`, the final tree of the layers of an image as one tar stream with no tree on the disk (PodUtils/podvm#657) |
-| [T-1194](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: `flatten` keeps the hard links across layers, with the target before the link (PodUtils/podvm#657) |
-| [T-1195](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: `flatten` keeps the PAX records of the image, and takes a prefix and the entries of the caller (PodUtils/podvm#657) |
+| [T-1194](podvm.md) | P2 | M | M6 | feature | done | `pod-extract`: `flatten` keeps the hard links across layers, with the target before the link (PodUtils/podvm#657) |
+| [T-1195](podvm.md) | P2 | M | M6 | feature | done | `pod-extract`: `flatten` keeps the PAX records of the image, and takes a prefix and the entries of the caller (PodUtils/podvm#657) |
 | [T-1196](podvm.md) | P2 | M | M6 | feature | open | `pod-gzip`: a writer of gzip members, one member for each block, by up to eight threads, with the same bytes for any count of threads (PodUtils/podvm#657) |
 | [T-1197](transport.md) | P3 | S | M5 | chore | done | CRC-32 has three hand copies in the workspace; each crate takes `crc32fast` |
 | [T-1198](transport.md) | P2 | S | M3 | defect | done | `pod-term`: the transfer codec loses the `KEPT` that ends a session, and the far sender's 20 s wait runs while a person answers the offer |
@@ -1015,3 +1015,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1253](podvm.md) | P2 | S | M6 | defect | open | `pod-extract`: the sidecar row of a removed path holds for a directory that an entry below it makes again |
 | [T-1254](podvm.md) | P2 | S | M6 | chore | open | `pod-extract`: a fuzz target of `flatten`, the reader of untrusted layers into one tar stream |
 | [T-1255](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: the umask of the process cuts the mode of a directory that an entry below it makes |
+| [T-1269](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: `flatten` fails with `Unsupported` for a hard link to an inode that no name of the stream holds after a second entry of its path in one layer |
+| [T-1270](podvm.md) | P3 | S | M6 | defect | open | `pod-extract`: `flatten` drops the extended attributes of a hard-link entry, which `extract` sets on the inode |

@@ -122,7 +122,7 @@ pub struct Applied {
 }
 
 /// The attributes of a layer or of an extraction.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Count {
     pub set: u64,
     pub unset: u64,

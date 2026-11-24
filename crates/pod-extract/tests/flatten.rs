@@ -6,18 +6,7 @@
 mod support;
 
 use pod_extract::flatten::{Options, flatten};
-use support::{E, Node, Pack, Scratch, blobs, entries, extracted, flattened, plain, same, tar};
-
-fn refusal(r: pod_extract::Result<impl std::fmt::Debug>) -> pod_extract::Refused {
-    match r {
-        Err(f) => pod_extract::refused(&f).cloned().unwrap_or_else(|| panic!("not a refusal: {}", f.chain())),
-        Ok(v) => panic!("not refused: {v:?}"),
-    }
-}
-
-fn paths(stream: &[u8]) -> Vec<String> {
-    entries(stream).into_iter().map(|e| e.0).collect()
-}
+use support::{E, Node, Pack, Scratch, blobs, entries, extracted, flattened, paths, plain, refusal, same, tar};
 
 #[test]
 fn whiteouts_at_the_root_of_a_layer_and_below_it_hide_the_older_paths() {
@@ -216,17 +205,12 @@ fn a_sparse_file_of_each_version_is_written_with_its_holes_as_zero_bytes() {
 }
 
 #[test]
-fn a_hard_link_to_a_file_of_its_layer_is_kept_and_the_other_links_wait_for_their_entry() {
+fn a_hard_link_to_a_file_of_its_layer_follows_its_target() {
     let s = Scratch::new("hardlink");
     let l0 = tar(&[E::File("a", b"data", 0o644), E::Hardlink("b", "a")]);
     let stream = same(&plain(s.path(), std::slice::from_ref(&l0)));
     let link = entries(&stream).into_iter().find(|e| e.0 == "b").unwrap();
     assert_eq!((link.1, link.5), (tar::EntryType::Link, Some("a".to_string())));
-    // A link to a file of an older layer: its target comes after it in a
-    // stream from the newest layer.
-    let layers = plain(s.path(), &[l0, tar(&[E::Hardlink("c", "a")])]);
-    let f = flattened(&layers).expect_err("a link before its target is refused");
-    assert!(f.to_string().contains("hard link"), "{}", f.chain());
 }
 
 #[test]
@@ -267,10 +251,9 @@ fn a_path_twice_in_one_layer_goes_out_in_the_order_of_the_layer() {
     assert_eq!(r.entry, "x");
 }
 
-/// The unpacker of incusd is GNU tar with these arguments
-/// (`lxc/incus:shared/archive/archive.go`, `Unpack`), and it takes the
-/// order of the stream: a directory after its children, from the newest
-/// layer. `-p` keeps the modes as a user that is not root, as root does.
+/// The unpacker of incusd is GNU tar with the arguments of
+/// `support::gnu_tar`, and it takes the order of the stream: a directory
+/// after its children, from the newest layer.
 #[test]
 fn gnu_tar_with_the_arguments_of_incusd_takes_the_stream() {
     if let Err(why) = pod_testkit::host::tool("tar") {
@@ -300,16 +283,6 @@ fn gnu_tar_with_the_arguments_of_incusd_takes_the_stream() {
     // (`lxc/incus:shared/archive/detect.go`).
     assert_eq!(&stream[257..262], b"ustar");
     let out = s.path().join("gnu");
-    std::fs::create_dir_all(&out).unwrap();
-    let mut child = std::process::Command::new("tar")
-        .args(["--anchored", "--wildcards", "--exclude=dev/*", "--restrict", "--force-local", "-C"])
-        .arg(&out)
-        .args(["--numeric-owner", "--xattrs-include=*", "-p", "-xf", "-"])
-        .stdin(std::process::Stdio::piped())
-        .spawn()
-        .unwrap();
-    std::io::Write::write_all(child.stdin.as_mut().unwrap(), &stream).unwrap();
-    drop(child.stdin.take());
-    assert!(child.wait().unwrap().success(), "GNU tar refused the stream");
+    assert!(support::gnu_tar(&stream, &out).unwrap().success(), "GNU tar refused the stream");
     assert_eq!(support::walk(&out), want.nodes);
 }

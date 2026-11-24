@@ -7,7 +7,7 @@
 //! trees, not of two readers.
 #![allow(dead_code)]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Cursor, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
@@ -56,6 +56,9 @@ pub enum E<'a> {
     /// A GNU sparse file of the PAX form: the version (`"0.0"`, `"0.1"`,
     /// `"1.0"`), the name, the real size, and each region with its data.
     Sparse(&'a str, &'a str, u64, &'a [(u64, &'a [u8])]),
+    /// A file with the records of a PAX header: the name, the data, the
+    /// mode and each record (key, value).
+    Pax(&'a str, &'a [u8], u32, &'a [(&'a str, &'a [u8])]),
 }
 
 /// One uncompressed layer.
@@ -96,6 +99,17 @@ pub fn tar(entries: &[E]) -> Vec<u8> {
                 b.append_data(&mut h, p, std::io::empty()).unwrap();
             }
             E::Sparse(version, name, real, regions) => sparse(&mut b, version, name, *real, regions),
+            E::Pax(p, data, mode, recs) => {
+                let mut x = Vec::new();
+                for (k, v) in *recs {
+                    record_bytes(&mut x, k, v);
+                }
+                let mut xh = tar::Header::new_ustar();
+                xh.set_entry_type(tar::EntryType::XHeader);
+                xh.set_size(x.len() as u64);
+                b.append_data(&mut xh, "././@PaxHeader", Cursor::new(x)).unwrap();
+                file(&mut b, &mut h, p, data, 0, 0, *mode);
+            }
         }
     }
     b.into_inner().unwrap()
@@ -112,12 +126,18 @@ fn file(b: &mut tar::Builder<Vec<u8>>, h: &mut tar::Header, p: &str, data: &[u8]
 
 /// One PAX record, its length with its own digits.
 fn record(out: &mut Vec<u8>, key: &str, value: &str) {
+    record_bytes(out, key, value.as_bytes());
+}
+
+fn record_bytes(out: &mut Vec<u8>, key: &str, value: &[u8]) {
     let rest = key.len() + value.len() + 3;
     let mut len = rest + 1;
     while len != rest + len.to_string().len() {
         len = rest + len.to_string().len();
     }
-    out.extend_from_slice(format!("{len} {key}={value}\n").as_bytes());
+    out.extend_from_slice(format!("{len} {key}=").as_bytes());
+    out.extend_from_slice(value);
+    out.push(b'\n');
 }
 
 fn sparse(b: &mut tar::Builder<Vec<u8>>, version: &str, name: &str, real: u64, regions: &[(u64, &[u8])]) {
@@ -222,11 +242,13 @@ pub enum Node {
     Symlink { target: String },
 }
 
-/// A tree: each path with its node, and the ids of its last sidecar row.
+/// A tree: each path with its node, the ids of its last sidecar row, and
+/// the names of each inode with more than one name.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Tree {
     pub nodes: BTreeMap<String, Node>,
     pub owners: BTreeMap<String, (u64, u64)>,
+    pub links: BTreeSet<Vec<String>>,
 }
 
 /// The tree of a directory, each path relative to it.
@@ -253,6 +275,20 @@ pub fn walk(root: &Path) -> BTreeMap<String, Node> {
     out
 }
 
+/// The names of each inode of a directory that has more than one name,
+/// each list sorted.
+pub fn inodes(root: &Path) -> BTreeSet<Vec<String>> {
+    use std::os::unix::fs::MetadataExt;
+    let mut by: BTreeMap<(u64, u64), Vec<String>> = BTreeMap::new();
+    for path in walk(root).keys() {
+        let md = std::fs::symlink_metadata(root.join(path)).unwrap();
+        if !md.is_dir() && md.nlink() > 1 {
+            by.entry((md.dev(), md.ino())).or_default().push(path.clone());
+        }
+    }
+    by.into_values().filter(|v| v.len() > 1).collect()
+}
+
 /// The ids of the last sidecar row of each path.
 fn owners(sidecar: &Path) -> BTreeMap<String, (u64, u64)> {
     let text = std::fs::read_to_string(sidecar).unwrap_or_default();
@@ -273,7 +309,7 @@ pub fn extracted(layers: &[Layer]) -> pod_extract::Result<Tree> {
     let s = Scratch::new("tree");
     let place = Place::under(&s.path().join("out"));
     extract(&Settings::default(), "test", layers, &place)?;
-    Ok(Tree { nodes: walk(&place.rootfs), owners: owners(&place.sidecar) })
+    Ok(Tree { nodes: walk(&place.rootfs), owners: owners(&place.sidecar), links: inodes(&place.rootfs) })
 }
 
 /// The stream of `flatten` of `layers`.
@@ -310,6 +346,7 @@ pub fn same(layers: &[Layer]) -> Vec<u8> {
     let s = Scratch::new("stream");
     let got = extracted(&plain(s.path(), std::slice::from_ref(&stream))).expect("the stream extracts");
     assert_eq!(got.nodes, want.nodes, "the tree of the stream differs from the tree of the layers");
+    assert_eq!(got.links, want.links, "the names of the inodes of the stream differ from those of the layers");
     let listed = entries(&stream);
     let mut seen = std::collections::BTreeSet::new();
     for (path, kind, mode, uid, gid, _) in &listed {
@@ -321,4 +358,59 @@ pub fn same(layers: &[Layer]) -> Vec<u8> {
         assert!(ids == Some((*uid, *gid)) || ids.is_none() && implied, "the ids of {path}: {ids:?}");
     }
     stream
+}
+
+/// The [`pod_extract::Refused`] cause of a failure; a success or another
+/// failure panics.
+pub fn refusal(r: pod_extract::Result<impl std::fmt::Debug>) -> pod_extract::Refused {
+    match r {
+        Err(f) => pod_extract::refused(&f).cloned().unwrap_or_else(|| panic!("not a refusal: {}", f.chain())),
+        Ok(v) => panic!("not refused: {v:?}"),
+    }
+}
+
+/// The paths of a stream, in their order.
+pub fn paths(stream: &[u8]) -> Vec<String> {
+    entries(stream).into_iter().map(|e| e.0).collect()
+}
+
+/// Unpack `stream` into `out` with GNU tar and the arguments of incusd
+/// (`lxc/incus:shared/archive/archive.go`, `Unpack`). `-p` keeps the modes
+/// as a user that is not root, as root does. `Err` names a host with no
+/// GNU tar.
+pub fn gnu_tar(stream: &[u8], out: &Path) -> Result<std::process::ExitStatus, String> {
+    pod_testkit::host::tool("tar")?;
+    std::fs::create_dir_all(out).unwrap();
+    let mut child = std::process::Command::new("tar")
+        .args(["--anchored", "--wildcards", "--exclude=dev/*", "--restrict", "--force-local", "-C"])
+        .arg(out)
+        .args(["--numeric-owner", "--xattrs-include=*", "-p", "-xf", "-"])
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    child.stdin.as_mut().unwrap().write_all(stream).unwrap();
+    drop(child.stdin.take());
+    Ok(child.wait().unwrap())
+}
+
+/// The extended attribute records (`SCHILY.xattr.`) of the entry of `path`
+/// in a stream, each name with its value, sorted.
+pub fn xattrs(stream: &[u8], path: &str) -> Vec<(String, Vec<u8>)> {
+    let mut ar = tar::Archive::new(Cursor::new(stream));
+    for e in ar.entries().unwrap() {
+        let mut e = e.unwrap();
+        if String::from_utf8_lossy(&e.path_bytes()) != path {
+            continue;
+        }
+        let mut out = Vec::new();
+        for x in e.pax_extensions().unwrap().into_iter().flatten() {
+            let x = x.unwrap();
+            if let Some(name) = x.key().unwrap().strip_prefix("SCHILY.xattr.") {
+                out.push((name.to_string(), x.value_bytes().to_vec()));
+            }
+        }
+        out.sort();
+        return out;
+    }
+    panic!("no {path} in the stream")
 }

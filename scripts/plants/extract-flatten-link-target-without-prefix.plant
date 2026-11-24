@@ -1,0 +1,8 @@
+# pod-extract flatten: a hard link of the stream names its target with no
+# prefix, so a link of a unified tarball names a path outside rootfs/
+# (T-1195).
+ENTRY=T-1195
+GROUP=extract
+EXPECT='the_prefix_and_the_entries_of_the_caller_make_a_unified_tarball'
+RUN='cargo test -p pod-extract --all-features --test flatten_unified the_prefix_and_the_entries_of_the_caller_make_a_unified_tarball'
+LIMIT=900

@@ -47,21 +47,39 @@
 //! blob is known at its end, after its entries went out: a blob that does
 //! not agree fails the stream with the cause [`crate::Mismatch`].
 //!
-//! **Not in the stream:** the extended attributes and the ACLs of an
-//! entry, and the entries of the caller. A hard link whose target is not a
-//! file of the same layer that went out before it fails the stream
-//! (`Unsupported`, the link named). Each other PAX record is dropped, as
-//! `extract` drops it.
+//! **Hard links** (module `links`): each inode goes out once, at its first
+//! name in the stream, and each other name is a link entry after it. A
+//! link of a newer layer comes before its target in the pass, so it waits
+//! for the target; a file that a newer layer hides goes out under the name
+//! of the link that names it. A hidden file that a link of its own layer
+//! names after it went by: its layer is read a second time after the last
+//! layer.
+//!
+//! **The records.** The extended attributes and the ACLs that `extract`
+//! sets go out as `SCHILY.xattr.` records ([`crate::xattr::read`]: the same
+//! bounds, an ACL in its binary form), which GNU tar with the arguments of
+//! incusd sets. Each other PAX record is dropped, as `extract` drops it.
+//!
+//! **The place and the entries of the caller** ([`flatten_with`],
+//! module `extra`): [`Options::prefix`] goes before each path of the image
+//! (`rootfs/` of the unified tarball of incus), and the caller writes its
+//! own entries before and after the tree.
 
 use std::io::{Read, Write};
 
 use pod_core::{Class, Event, Failure, Report, Stage};
 
 use crate::error::{self, Result};
-use crate::{Layer, layer, pax};
+use crate::{Layer, layer, pax, safety, xattr};
+
+pub use extra::Entries;
 
 #[path = "flatten/entry.rs"]
 mod entry;
+#[path = "flatten/extra.rs"]
+mod extra;
+#[path = "flatten/links.rs"]
+mod links;
 #[path = "flatten/trie.rs"]
 mod trie;
 #[path = "flatten/write.rs"]
@@ -82,13 +100,33 @@ pub struct Options {
     /// The most paths of the image, with the layers of each whiteout and
     /// opaque marker. The path after it fails the stream (`Unsupported`).
     pub paths_max: usize,
+    /// A path before each path of the image (`rootfs/` for the unified
+    /// tarball of incus), or empty. It gets the lexical check of a path of
+    /// a layer; a prefix that does not pass fails before the first byte.
+    pub prefix: String,
+    /// The mode of the directory entry of each component of the prefix,
+    /// which goes out before the tree (owner 0, time 0).
+    pub prefix_mode: u32,
+    /// The end blocks of the tar after the last entry. `false` for a
+    /// caller that appends more entries and writes the end blocks itself.
+    pub end: bool,
 }
 
 impl Default for Options {
     fn default() -> Options {
-        Options { report: Report::default(), paths_max: PATHS_MAX }
+        Options {
+            report: Report::default(),
+            paths_max: PATHS_MAX,
+            prefix: String::new(),
+            prefix_mode: 0o755,
+            end: true,
+        }
     }
 }
+
+/// The value of `emitted` of a directory that the layers make with no
+/// entry, after it went out (no layer has this number).
+const IMPLIED: u16 = u16::MAX;
 
 /// What a flatten wrote.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -97,8 +135,14 @@ pub struct Flattened {
     /// The members of the layers that the crate read, as `extract` counts
     /// them: the root member and the markers included.
     pub entries: u64,
-    /// The entries of the stream.
+    /// The entries of the stream, the hard links included.
     pub written: u64,
+    /// The hard-link entries of the stream: each name of an inode after the
+    /// first.
+    pub links: u64,
+    /// The layers read a second time: each holds a hidden file that a hard
+    /// link of its layer names after it, and whose data no name took.
+    pub rereads: u64,
     /// The directories that the layers make with no entry (a file below
     /// them) and that no newer layer removes, written after the last layer
     /// with mode 0755 and owner 0, as `extract` makes them.
@@ -110,6 +154,14 @@ pub struct Flattened {
     /// The entries of a kind that `extract` does not make, with their kinds.
     pub skipped: u64,
     pub skipped_kinds: Vec<String>,
+    /// The extended attributes of the entries of the stream: `set` is the
+    /// count of `SCHILY.xattr.` records written, `unset` the records that
+    /// `extract` does not set either (past a bound, a mark of overlayfs, a
+    /// record that does not decode), with the first of them named.
+    pub xattrs: xattr::Count,
+    /// The entries that are not of the image: the directories of the
+    /// prefix and the entries of the caller.
+    pub extra: u64,
     /// The bytes of the stream, the end blocks included.
     pub bytes: u64,
     /// The paths of the trie at the end, with the layers of the markers.
@@ -119,6 +171,22 @@ pub struct Flattened {
 /// Write the final tree of `layers` (in the order of the manifest) to
 /// `out` as one tar stream. See the module.
 pub fn flatten<W: Write>(layers: &[Layer], out: &mut W, options: &Options) -> Result<Flattened> {
+    flatten_with(layers, out, options, |_| Ok(()), |_| Ok(()))
+}
+
+/// [`flatten`] with the entries of the caller: `before` writes entries
+/// before the tree (the `metadata.yaml` of incus), `after` writes entries
+/// after it (`rootfs/.podvm/podvm`), each through [`Entries`]. The order of
+/// the stream: the entries of `before`, the directories of
+/// [`Options::prefix`], the tree below the prefix, the entries of `after`,
+/// the end blocks once ([`Options::end`]). A failure of a closure fails
+/// the stream as each other failure.
+pub fn flatten_with<W, B, A>(layers: &[Layer], out: &mut W, options: &Options, before: B, after: A) -> Result<Flattened>
+where
+    W: Write,
+    B: FnOnce(&mut Entries<'_, '_, W>) -> Result<()>,
+    A: FnOnce(&mut Entries<'_, '_, W>) -> Result<()>,
+{
     // Each layer is checked before the first byte, as `extract` checks it.
     let mut plan = Vec::new();
     for l in layers {
@@ -134,18 +202,38 @@ pub fn flatten<W: Write>(layers: &[Layer], out: &mut W, options: &Options) -> Re
     if layers.len() >= usize::from(u16::MAX) {
         return Err(error::unsupported(format!("an image of {} layers: flatten reads 65534 at most", layers.len())));
     }
-    let mut w = write::Out::new(out);
+    let mut caller = extra::Caller::default();
+    if !options.prefix.is_empty() {
+        let parts = safety::components(&options.prefix)
+            .map_err(|r| error::usage(format!("the prefix {:?} is not a path: {}", options.prefix, r.why())))?;
+        caller.prefix = parts.iter().map(|p| p.to_string()).collect();
+    }
+    let prefix = caller.prefix.iter().map(|p| format!("{p}/")).collect();
+    let mut w = write::Out::new(out, prefix);
     let mut st = entry::State::new(options.paths_max, layers);
-    let done = layers_newest_first(&plan, &mut st, &mut w, &options.report)
-        .and_then(|()| st.implied(&mut w))
-        .and_then(|()| w.end());
+    let run = || -> Result<()> {
+        before(&mut Entries { out: &mut w, caller: &mut caller, image: None })?;
+        caller.prefix_dirs(&mut w, options.prefix_mode)?;
+        layers_newest_first(&plan, &mut st, &mut w, &options.report)?;
+        st.finish(&mut w)?;
+        reread(&plan, &mut st, &mut w)?;
+        st.implied(&mut w)?;
+        caller.check_before(&st.trie)?;
+        after(&mut Entries { out: &mut w, caller: &mut caller, image: Some(&st.trie) })?;
+        if options.end { w.end() } else { w.flush() }
+    };
+    let done = run();
     let mut total = st.total;
     (total.layers, total.bytes, total.paths) = (layers.len(), w.bytes(), st.trie.len());
+    total.links = st.links.written;
+    total.written += st.links.written;
+    total.extra = caller.count;
     match done {
         Ok(()) => Ok(total),
         Err(e) => {
             if w.bytes() > 0 {
                 w.broken();
+                total.bytes = w.bytes();
             }
             Err(e)
         }
@@ -166,7 +254,7 @@ fn layers_newest_first<W: Write>(
         read_layer(st, w, &l.digest, number, &mut stream)?;
         drop(stream);
         crate::verified(&hash, &l.digest, &l.blob)?;
-        st.end_layer(number)?;
+        st.end_layer(w, number)?;
         let t = &st.total;
         report.event(Event::info(
             LAYER_EVENT,
@@ -178,6 +266,33 @@ fn layers_newest_first<W: Write>(
                 t.whiteouts - before.whiteouts
             ),
         ));
+    }
+    Ok(())
+}
+
+/// The second read of each layer that holds a hidden file or symlink
+/// that a hard link of its layer names after it (module `links`).
+fn reread<W: Write>(
+    plan: &[(&Layer, layer::Compression)],
+    st: &mut entry::State,
+    w: &mut write::Out<'_, W>,
+) -> Result<()> {
+    for (number, members) in st.links.rereads() {
+        let (l, c) = plan[usize::from(number) - 1];
+        let (mut stream, hash) = layer::open_hashed(&l.blob, c)?;
+        let side = pax::Side::default();
+        let mut ar = tar::Archive::new(pax::Framed::new(&mut stream, side.clone()));
+        for (i, e) in ar.entries().map_err(error::io)?.enumerate() {
+            let mut e = e.map_err(|x| pax::failed(&side, &l.digest, x))?;
+            let member = side.next();
+            if let Some(names) = members.get(&(i as u64)) {
+                st.reread(w, &l.digest, &mut e, &member, names)?;
+            }
+        }
+        drop(ar);
+        drop(stream);
+        crate::verified(&hash, &l.digest, &l.blob)?;
+        st.total.rereads += 1;
     }
     Ok(())
 }

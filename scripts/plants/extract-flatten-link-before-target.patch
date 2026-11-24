@@ -1,0 +1,13 @@
+diff --git a/crates/pod-extract/src/flatten/links.rs b/crates/pod-extract/src/flatten/links.rs
+index ab9e336..5a193ee 100644
+--- a/crates/pod-extract/src/flatten/links.rs
++++ b/crates/pod-extract/src/flatten/links.rs
+@@ -253,7 +253,7 @@ impl Links {
+     ) -> Result<()> {
+         let n = trie.node(target);
+         if n.local != layer {
+-            self.group(g).bind = Bind::Wait { target, layer, older: true };
++            return self.settle(w, trie, g, Src::Own(target, layer), Some(target));
+             self.waiters.entry(target).or_default().push(g);
+             self.fresh.push(g);
+             return Ok(());

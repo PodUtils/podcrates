@@ -1,0 +1,7 @@
+# pod-extract flatten: a hard link to a file of an older layer goes out at
+# once, before the entry of its target (T-1194).
+ENTRY=T-1194
+GROUP=extract
+EXPECT='a_link_to_a_file_of_an_older_layer_follows_its_target'
+RUN='cargo test -p pod-extract --all-features --test flatten_links a_link_to_a_file_of_an_older_layer_follows_its_target'
+LIMIT=900
