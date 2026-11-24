@@ -1,11 +1,13 @@
 //! The first record of a new session of the DNS listener: the ClientHello of
-//! TLS, in `DATA` frames of the ARQ at the first sequences. A query of a new
+//! TLS, or the hello of a bare dialer (`dns::bare`) at a bare listener, in
+//! `DATA` frames of the ARQ at the first sequences. A query of a new
 //! session id takes a handshake slot only when it holds a part of that
 //! record, and the listener reads the whole record before it starts the
 //! handshake, so a query of junk holds no slot (T-1165). The parts can come
 //! in any order: the dialer sends its queries at once, and a resolver can
 //! reorder them.
 
+use super::bare;
 use crate::arq::wire::{DATA_HEADER, Datagram};
 
 /// The most parts of a first record that a session holds before its
@@ -29,8 +31,9 @@ pub(super) struct Part {
 /// The part of the first record that the datagram `datagram` of the ARQ
 /// holds: a `DATA` frame at the sequence `start` plus its index, of at most
 /// [`MAX_PARTS`] parts. The part 0 must open a TLS handshake record of a
-/// ClientHello. `None` for each other datagram (a poll, an `ACK`, junk).
-pub(super) fn part(datagram: &[u8], start: u32) -> Option<Part> {
+/// ClientHello, or a bare hello when `bare`. `None` for each other datagram
+/// (a poll, an `ACK`, junk).
+pub(super) fn part(datagram: &[u8], start: u32, bare: bool) -> Option<Part> {
     let Ok(Datagram::Data { seq, index, count, payload }) = Datagram::decode(datagram) else {
         return None;
     };
@@ -39,16 +42,20 @@ pub(super) fn part(datagram: &[u8], start: u32) -> Option<Part> {
     }
     // The record header (type, version, length), then the type of the
     // first handshake message.
-    let opens = payload.len() > 5 && payload[0] == HANDSHAKE && payload[1] == 0x03 && payload[5] == CLIENT_HELLO;
+    let opens = match bare {
+        true => payload.starts_with(bare::MAGIC),
+        false => payload.len() > 5 && payload[0] == HANDSHAKE && payload[1] == 0x03 && payload[5] == CLIENT_HELLO,
+    };
     (index != 0 || opens).then_some(Part { index, count })
 }
 
 /// What the whole first record shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Hello {
-    /// A ClientHello that offers the ALPN of the link.
+    /// A ClientHello, or a bare hello, that offers the ALPN of the link.
     Offers,
-    /// No ClientHello, or one with no offer of the ALPN of the link.
+    /// No ClientHello (no bare hello), or one with no offer of the ALPN of
+    /// the link.
     Refused,
     /// The ClientHello goes on past the first record: TLS checks it.
     Open,
@@ -86,12 +93,16 @@ impl Parts {
         self.missing == 0
     }
 
-    /// The datagrams in order, and what the record shows for `alpn`. Only
-    /// for a complete record.
-    pub(super) fn take(self, alpn: &[u8]) -> (Vec<Vec<u8>>, Hello) {
+    /// The datagrams in order, and what the record shows for `alpn`: a bare
+    /// hello when `bare`, else a ClientHello. Only for a complete record.
+    pub(super) fn take(self, alpn: &[u8], bare: bool) -> (Vec<Vec<u8>>, Hello) {
         let datagrams: Vec<Vec<u8>> = self.slots.into_iter().flatten().collect();
         let record: Vec<u8> = datagrams.iter().flat_map(|d| d[DATA_HEADER..].iter().copied()).collect();
-        let hello = read(&record, alpn);
+        let hello = match bare {
+            true if record.starts_with(&bare::hello(alpn)) => Hello::Offers,
+            true => Hello::Refused,
+            false => read(&record, alpn),
+        };
         (datagrams, hello)
     }
 }
@@ -155,15 +166,18 @@ mod tests {
     fn a_first_part_opens_a_client_hello_and_each_part_is_of_the_first_record() {
         let record = client_hello(b"podlink/1");
         for (want, frame) in frames(&record, 100, 7) {
-            assert_eq!(part(&frame, 7), Some(want), "{want:?}");
-            assert_eq!(part(&frame, 0), None, "another start: {want:?}");
+            assert_eq!(part(&frame, 7, false), Some(want), "{want:?}");
+            let bare = (want.index != 0).then_some(want);
+            assert_eq!(part(&frame, 7, true), bare, "a part 0 of a ClientHello at a bare listener: {want:?}");
+            assert_eq!(part(&frame, 0, false), None, "another start: {want:?}");
         }
         let junk = Datagram::Data { seq: 0, index: 0, count: 1, payload: b"GET / HTTP/1.1".to_vec() };
-        assert_eq!(part(&junk.to_vec(), 0), None, "a part 0 that opens no ClientHello");
+        assert_eq!(part(&junk.to_vec(), 0, false), None, "a part 0 that opens no ClientHello");
+        assert_eq!(part(&junk.to_vec(), 0, true), None, "a part 0 that opens no bare hello");
         let many = Datagram::Data { seq: 1, index: 1, count: MAX_PARTS + 1, payload: vec![0; 40] };
-        assert_eq!(part(&many.to_vec(), 0), None, "more parts than a session holds");
+        assert_eq!(part(&many.to_vec(), 0, false), None, "more parts than a session holds");
         for other in [&[][..], &[4u8][..], &[3u8; 39][..], &b"\x16\x03\x01\x00\x10\x01"[..]] {
-            assert_eq!(part(other, 0), None, "{other:?}");
+            assert_eq!(part(other, 0, false), None, "{other:?}");
         }
     }
 
@@ -179,7 +193,7 @@ mod tests {
             assert!(kept.add(part, frame));
         }
         assert!(kept.complete());
-        let (datagrams, hello) = kept.take(b"podlink/1");
+        let (datagrams, hello) = kept.take(b"podlink/1", false);
         assert_eq!(hello, Hello::Offers);
         let ordered: Vec<Vec<u8>> = parts.iter().rev().map(|(_, f)| f.clone()).collect();
         assert_eq!(datagrams, ordered, "the datagrams in the order of the record");
@@ -189,13 +203,34 @@ mod tests {
             parts.iter().for_each(|(p, f)| assert!(kept.add(*p, f.clone())));
             kept
         };
-        assert_eq!(fill(&parts).take(b"other/1").1, Hello::Refused, "another ALPN");
+        assert_eq!(fill(&parts).take(b"other/1", false).1, Hello::Refused, "another ALPN");
         let first = frames(&record[..record.len() - 10], 64, 0);
-        assert_eq!(fill(&first).take(b"podlink/1").1, Hello::Open, "a ClientHello past the record");
+        assert_eq!(fill(&first).take(b"podlink/1", false).1, Hello::Open, "a ClientHello past the record");
         let mut bad = record.clone();
         bad[0] = 0x17;
-        assert_eq!(fill(&frames(&bad, 64, 0)).take(b"podlink/1").1, Hello::Refused, "a record of application data");
+        assert_eq!(
+            fill(&frames(&bad, 64, 0)).take(b"podlink/1", false).1,
+            Hello::Refused,
+            "a record of application data"
+        );
         let mut other = Parts::new(3);
         assert!(!other.add(Part { index: 0, count: 2 }, Vec::new()), "a part of another count");
+        assert_eq!(fill(&parts).take(b"podlink/1", true).1, Hello::Refused, "a ClientHello at a bare listener");
+    }
+
+    #[test]
+    fn a_bare_hello_opens_a_first_record_only_at_a_bare_listener() {
+        let hello = bare::hello(b"podlink/1");
+        let parts = frames(&hello, 64, 3);
+        assert_eq!(part(&parts[0].1, 3, true), Some(parts[0].0));
+        assert_eq!(part(&parts[0].1, 3, false), None, "a bare hello at a listener with TLS");
+        let fill = |parts: &[(Part, Vec<u8>)]| {
+            let mut kept = Parts::new(parts[0].0.count);
+            parts.iter().for_each(|(p, f)| assert!(kept.add(*p, f.clone())));
+            kept
+        };
+        assert_eq!(fill(&parts).take(b"podlink/1", true).1, Hello::Offers);
+        assert_eq!(fill(&parts).take(b"other/1", true).1, Hello::Refused, "another ALPN");
+        assert_eq!(fill(&frames(&hello, 5, 0)).take(b"podlink/1", true).1, Hello::Offers, "in parts");
     }
 }

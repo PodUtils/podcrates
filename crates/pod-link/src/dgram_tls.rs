@@ -40,7 +40,11 @@ fn err(name: &'static str, kind: CarrierErrorKind, text: impl Into<String>) -> C
 /// the ARQ wraps with no rekey, and no direction stops at the wrap (call
 /// C290).
 #[cfg(any(feature = "dns", feature = "icmp"))]
-fn stream<D: Datagrams>(name: &'static str, datagrams: D, arq: ArqSettings) -> Result<ArqStream, CarrierError> {
+pub(crate) fn stream<D: Datagrams>(
+    name: &'static str,
+    datagrams: D,
+    arq: ArqSettings,
+) -> Result<ArqStream, CarrierError> {
     let stream = ArqStream::new(datagrams, arq).map_err(|e| err(name, CarrierErrorKind::Usage, format!("ARQ: {e}")))?;
     stream.wrap_freely();
     Ok(stream)

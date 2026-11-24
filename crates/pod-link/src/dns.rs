@@ -27,7 +27,11 @@
 //! * [`Dns::connect_over`] and [`Dns::accept_over`] run the same handshake
 //!   over any [`crate::datagram::Datagrams`] of one peer (a shim of loss in
 //!   a test, another carrier of datagrams).
+//! * The bare form ([`Dns::bare`], T-1167) runs the ARQ with no TLS, for a
+//!   caller that authenticates and seals its own stream. Both ends set it: a
+//!   bare end and an end with TLS never pair. The dial address is `ZONE`.
 
+mod bare;
 mod client;
 mod hello;
 mod reply;
@@ -112,6 +116,19 @@ pub struct Dns {
     /// [`HANDSHAKE_QUIET`]. A sender of a part of a ClientHello for each new
     /// id holds the slots for this time, not for `handshake_timeout`.
     pub handshake_quiet: Duration,
+    /// The bare form: the ARQ with no TLS above it, so no pin of a key and no
+    /// seal (false by default). **The caller must authenticate the peer and
+    /// seal each byte of the stream itself** (podssh's Noise layer), with
+    /// nonces of its own: a stranger on the path can read, change, add and
+    /// drop the bytes of a bare stream. Set it at both ends. The first record
+    /// of a bare dial is a bare hello, not a ClientHello, so a listener with
+    /// TLS refuses a bare dial and a bare listener refuses a dial with TLS;
+    /// the refused dial ends at its handshake time limit. A bare dial takes
+    /// [`Dns::connect_bare`] (`dial("ZONE")`); a bare listener gives each
+    /// client with no key (`accept_peer`) and ignores [`Dns::clients`]. A
+    /// datagram of the ARQ carries the bytes of the stream with no record of
+    /// TLS around them (T-1167 gives the measure).
+    pub bare: bool,
 }
 
 impl fmt::Debug for Dns {
@@ -127,6 +144,7 @@ impl fmt::Debug for Dns {
             .field("handshake_timeout", &self.handshake_timeout)
             .field("max_handshakes", &self.max_handshakes)
             .field("handshake_quiet", &self.handshake_quiet)
+            .field("bare", &self.bare)
             .finish()
     }
 }
@@ -153,7 +171,15 @@ impl Dns {
             handshake_timeout: HANDSHAKE_TIMEOUT,
             max_handshakes: MAX_HANDSHAKES,
             handshake_quiet: HANDSHAKE_QUIET,
+            bare: false,
         }
+    }
+
+    /// The bare form ([`Dns::bare`]): no TLS. The caller must authenticate
+    /// and seal the stream itself.
+    pub fn without_tls(mut self) -> Dns {
+        self.bare = true;
+        self
     }
 
     /// The client keys that a listener takes. The set is shared.
@@ -193,8 +219,37 @@ impl Dns {
     }
 
     fn check(&self) -> Result<(), CarrierError> {
+        self.check_as(false)
+    }
+
+    fn check_bare(&self) -> Result<(), CarrierError> {
+        self.check_as(true)
+    }
+
+    /// The form of the call (`bare` for a call of the bare form), the ARQ and
+    /// the DNS settings.
+    fn check_as(&self, bare: bool) -> Result<(), CarrierError> {
+        match (self.bare, bare) {
+            (true, false) => {
+                return Err(err(CarrierErrorKind::Usage, "a bare carrier proves no key: use the bare calls"));
+            }
+            (false, true) => {
+                return Err(err(CarrierErrorKind::Usage, "a carrier with TLS takes no bare call: set Dns::bare"));
+            }
+            _ => {}
+        }
         self.arq.check().map_err(|e| err(CarrierErrorKind::Usage, format!("ARQ: {e}")))?;
         self.dns.check().map_err(|e| err(CarrierErrorKind::Usage, format!("DNS: {e}")))
+    }
+
+    /// The datagrams of one dial under `zone` toward [`Dns::server`].
+    async fn client(&self, zone: &str) -> Result<DnsClient, CarrierError> {
+        let server = self.server.ok_or_else(|| err(CarrierErrorKind::Usage, "no DNS server: give Dns::to(addr)"))?;
+        let socket = self.socket(server).await?;
+        let mut sid = [0u8; 4];
+        OsEntropy.fill(&mut sid).map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
+        DnsClient::new(socket, server, zone.to_string(), u32::from_le_bytes(sid), self.dns)
+            .map_err(|e| err(CarrierErrorKind::Usage, e))
     }
 
     /// The socket of one dial toward the server.
@@ -222,12 +277,7 @@ impl Dns {
     /// names. It gives the stream and the key that the listener proved.
     pub async fn connect(&self, zone: &str, peer: &KeyName) -> Result<(BoxIo, PublicKey), CarrierError> {
         self.check()?;
-        let server = self.server.ok_or_else(|| err(CarrierErrorKind::Usage, "no DNS server: give Dns::to(addr)"))?;
-        let socket = self.socket(server).await?;
-        let mut sid = [0u8; 4];
-        OsEntropy.fill(&mut sid).map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
-        let client = DnsClient::new(socket, server, zone.to_string(), u32::from_le_bytes(sid), self.dns)
-            .map_err(|e| err(CarrierErrorKind::Usage, e))?;
+        let client = self.client(zone).await?;
         let target = Target::Name { host: zone.to_string(), port: 53 };
         dgram_tls::connect(
             NAME,
@@ -279,6 +329,36 @@ impl Dns {
         dgram_tls::accept(NAME, datagrams, acceptor, self.alpn, self.arq, from, self.handshake_timeout).await
     }
 
+    /// The bare dial under `zone` ([`Dns::bare`]): the ARQ and the bare
+    /// hello, no TLS and no key. The caller authenticates the listener and
+    /// seals the stream itself.
+    pub async fn connect_bare(&self, zone: &str) -> Result<BoxIo, CarrierError> {
+        self.check_bare()?;
+        let client = self.client(zone).await?;
+        bare::connect(client, self.alpn, self.arq, &zone, self.handshake_timeout).await
+    }
+
+    /// The bare dial over the datagrams of one peer ([`Dns::bare`]).
+    pub async fn connect_bare_over<D: Datagrams>(
+        &self,
+        datagrams: D,
+        target: &(dyn fmt::Display + Sync),
+    ) -> Result<BoxIo, CarrierError> {
+        self.check_bare()?;
+        bare::connect(datagrams, self.alpn, self.arq, target, self.handshake_timeout).await
+    }
+
+    /// The bare accept over the datagrams of one peer ([`Dns::bare`]): a
+    /// first record that is no bare hello of [`Dns::alpn`] is refused.
+    pub async fn accept_bare_over<D: Datagrams>(
+        &self,
+        datagrams: D,
+        from: &(dyn fmt::Display + Sync),
+    ) -> Result<BoxIo, CarrierError> {
+        self.check_bare()?;
+        bare::accept(datagrams, self.alpn, self.arq, from, self.handshake_timeout).await
+    }
+
     /// A listener on a UDP socket of the system at `addr` (port 0 takes a
     /// free port). The zone is [`Dns::zone`].
     pub async fn bind(&self, addr: SocketAddr) -> Result<DnsListener, CarrierError> {
@@ -290,7 +370,7 @@ impl Dns {
 
     /// A listener over the datagrams of the caller: its address is theirs.
     pub async fn bind_over(&self, socket: Arc<dyn AddressedDatagrams>) -> Result<DnsListener, CarrierError> {
-        self.check()?;
+        self.check_as(self.bare)?;
         if self.zone.is_empty() {
             return Err(err(CarrierErrorKind::Usage, "no zone: give Dns::zone(name)"));
         }
@@ -322,9 +402,16 @@ impl Carrier for Dns {
             .map_err(|e| err(CarrierErrorKind::Unavailable, format!("UDP sockets on the loopback: {e}")))
     }
 
-    /// Dial `KEY@ZONE` ([`Dns::address`]).
+    /// Dial `KEY@ZONE` ([`Dns::address`]); a bare carrier dials `ZONE`.
     fn dial<'a>(&'a self, address: &'a str) -> Pending<'a, BoxIo> {
         Box::pin(async move {
+            if self.bare {
+                if address.contains('@') {
+                    let why = format!("{address:?}: a bare dial pins no key: give ZONE");
+                    return Err(err(CarrierErrorKind::Usage, why));
+                }
+                return self.connect_bare(address).await;
+            }
             let (key, zone) = Dns::address(address)?;
             self.connect(&zone, &key).await.map(|(io, _)| io)
         })

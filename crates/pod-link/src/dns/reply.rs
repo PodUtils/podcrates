@@ -1,4 +1,5 @@
-//! The answers of the DNS listener, and the polls that it holds. A poll (a
+//! The answers of the DNS listener, the datagrams of each session
+//! ([`ServerSession`]), and the polls that it holds. A poll (a
 //! query with no datagram up) of a session with no datagram down waits in
 //! the session for up to [`DnsSettings::hold`](super::DnsSettings::hold):
 //! the first datagram down answers it at once, as dnstt's
@@ -13,8 +14,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use pod_core::Datagrams as AddressedDatagrams;
 use pod_dns::txt;
-use tokio::sync::mpsc;
+use tokio::sync::{Mutex as AsyncMutex, mpsc};
 use tokio::time::Instant;
+
+use crate::datagram::{DatagramFuture, Datagrams};
 
 /// The most polls that one session holds. A further poll answers the oldest
 /// at once, so a dialer that polls faster than the hold stacks no queries,
@@ -226,4 +229,55 @@ async fn send(socket: &Arc<dyn AddressedDatagrams>, mut message: Vec<u8>, author
         txt::set_authoritative(&mut message);
     }
     let _ = pod_core::datagrams::send_to(&**socket, &message, from).await;
+}
+
+/// The per-session datagrams of the listener: the ARQ sends down through
+/// `down`, and reads up from `up`. When the task is gone, the peer is
+/// silence.
+pub(super) struct ServerSession {
+    down: mpsc::Sender<Vec<u8>>,
+    wake: Wake,
+    up: AsyncMutex<mpsc::Receiver<Vec<u8>>>,
+    mtu: usize,
+}
+
+impl ServerSession {
+    pub(super) fn new(
+        down: mpsc::Sender<Vec<u8>>,
+        wake: Wake,
+        up: mpsc::Receiver<Vec<u8>>,
+        mtu: usize,
+    ) -> ServerSession {
+        ServerSession { down, wake, up: AsyncMutex::new(up), mtu }
+    }
+}
+
+impl Datagrams for ServerSession {
+    fn mtu(&self) -> usize {
+        self.mtu
+    }
+
+    fn send<'a>(&'a self, datagram: &'a [u8]) -> DatagramFuture<'a, ()> {
+        Box::pin(async move {
+            if self.down.try_send(datagram.to_vec()).is_ok() {
+                self.wake.ring();
+            }
+            Ok(())
+        })
+    }
+
+    fn recv(&self) -> DatagramFuture<'_, Vec<u8>> {
+        Box::pin(async move {
+            match self.up.lock().await.recv().await {
+                Some(datagram) => Ok(datagram),
+                None => std::future::pending().await,
+            }
+        })
+    }
+}
+
+impl std::fmt::Debug for ServerSession {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ServerSession").field("mtu", &self.mtu).finish_non_exhaustive()
+    }
 }
