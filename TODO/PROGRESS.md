@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 971 entries: 163 open, 29 partial, 7 blocked, 772 done.
+`TODO/INDEX.md` holds 975 entries: 167 open, 28 partial, 7 blocked, 773 done.
 
 ## State
 
@@ -34,9 +34,15 @@
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
-- Red runs: the nightly (T-916 partial, T-938, T-789, T-766, T-1161 partial, for
-  `riscv64` and `loongarch64`; the jobs of Windows and macOS pass);
-  none open in `services.yml`: T-1223 is done; read the next scheduled run.
+- Red runs: the nightly 45452272145 at `f39b8e2` (a dispatch, cancelled): the
+  Windows jobs, `gate` and the installer jobs pass; the seven jobs `cross`
+  fail in `pod-extract` (T-1295, also red in `ci.yml` 45462046889 at
+  `65fa99f`); the emulated jobs fail in `pod-enter` (T-1296) and `dns_hold`
+  of `pod-link` (T-1297, with `mail` on arm); `riscv64` fails in `pod-iroh`
+  (T-916) and was cancelled at 150 minutes in `session_resume_twice`
+  (T-938); the two jobs of macOS were cancelled at 60 minutes in
+  `pod-incus` (T-1298). T-1161 is done; T-789 and T-766 passed. None open
+  in `services.yml`: T-1223 is done; read the next scheduled run.
 - Open defects: T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
   a giver still waits its whole limit after a refusal of the relay);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
@@ -81,7 +87,7 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in
-podcrates: the red nightly (T-916, T-938, T-1161),
+podcrates: the red nightly (T-1295, T-1298, T-1296, T-1297, T-916, T-938),
 T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
 `services.yml` run (read it) and the red live run (T-963). Then the asks of podrunner
 (COORD-134, #225): each new ask of podrunner. Then the entries that a need

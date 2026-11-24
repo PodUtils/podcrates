@@ -31,13 +31,20 @@ is done. Git and the record keep finished work.
    other work. A plant that a run misses once with no change of its crate
    runs its test five times in its `.plant` (as
    `link-quic-drop-closes-at-once`). Then read the scheduled runs:
-   - `nightly.yml` 45212967290 at `0f5dad6`: the jobs of Windows and macOS
-     and `powerpc64le` pass (T-1089 is proven). `riscv64` and `loongarch64`
-     fail in `pod-iroh` (`road.rs`, `share.rs`: T-916, T-938, Q19); `riscv64`
-     also fails in `pod-control` (`tests/server.rs`: T-1161, partial: its
-     hang guards are scaled; read the next riscv64 job). Open entries
-     of the nightly: T-916 and T-938 (partial), T-789, T-766, T-1161, and
-     T-1044 (`check-windows.sh` and `check-macos.sh` compile no doc test).
+   - `nightly.yml` 45452272145 at `f39b8e2` (a dispatch, cancelled): the
+     jobs of Windows, `gate` and `install-os` pass. The seven jobs `cross`
+     fail in `pod-extract` for a user that is not root (T-1295; `ci.yml`
+     45462046889 at `65fa99f` fails the same). The emulated jobs fail in
+     `pod-enter` (T-1296) and in `dns_hold` of `pod-link` (T-1297; `mail`
+     on arm and armv7 too). `riscv64` fails in `pod-iroh` (`road.rs`,
+     `share.rs`: T-916, T-938, Q19) and was cancelled at 150 minutes in
+     `session_resume_twice` (T-938; each binary now has a limit of 2700 s).
+     Both jobs of macOS were cancelled at 60 minutes in `images` of
+     `pod-incus` (T-1298). T-1161 is done (the test passed on riscv64).
+     T-789 and T-766 passed on this run. Open entries of the nightly:
+     T-1295, T-1298, T-1296, T-1297, T-916 and T-938 (partial), T-789,
+     T-766, and T-1044 (`check-windows.sh` and `check-macos.sh` compile no
+     doc test).
    - `upstream.yml` (job `sources`): the run 45423205689 at `5fd6fb7` found
      one change, podrunner `2a55cd9` in `auth.rs` (`pod-testkit`). T-1243
      (done) ports it. Read the next daily run.

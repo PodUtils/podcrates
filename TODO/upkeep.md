@@ -2509,6 +2509,7 @@ armv7 (T-789) passed in that run.
 
 ## Premise
 
+- 2026-11-24, `nightly.yml` run 45452272145 at `f39b8e2` (job 138652267213, riscv64): `a_black_screen_or_the_first_screen_again_is_not_ready`, `a_session_goes_over_a_websocket_and_each_mode_of_xhttp`, `http1_alone_carries_packet_up_and_stream_up_on_two_connections`, `a_proxy_that_cuts_idle_connections_holds_no_push_back` and `the_one_form_carries_4_mib_each_way_on_one_stream_of_h2` all passed (the vless tests and the h2 test ran for over 60 s and passed).
 - Read: the log of the job (the two tests, the panics at
   `ready/tests.rs:217` and `vless.rs:57`); the tests.
 - Not measured: the time that each step takes under the emulation of
@@ -2805,6 +2806,7 @@ Both pass on each other target of the run. The earlier nightly at
 
 ## Premise
 
+- 2026-11-24, `nightly.yml` run 45452272145 at `f39b8e2` (job 138652267160): `a_board_puts_takes_and_clears_a_note` and `a_bad_topic_or_payload_is_refused_before_a_connection` passed on armv7, as at `0f5dad6`. Two nightly runs in a row pass; the cause is not found.
 - Read: the log of the job (the panics at `board.rs:55` and `board.rs:94`).
 - Not measured: the tests under qemu-user for armv7; the order of the
   clear and the check in the stand-in; what the put of `PAYLOAD_MOST`
@@ -3394,6 +3396,7 @@ cargo test -p pod-iroh --all-features --test road --test share --test tickets
 - 2026-11-21, the nightly run 44792996234 at `62b8039`: the same three tests, no new test of this class. `a_turn_of_the_arq_blocks_on_nothing` on i686 (job 136485246572: "4 voluntary switches in 1000 turns"; the one failed binary of the job). On riscv64 (job 136485246660) the two failed binaries are `pod-iroh`'s `road.rs` ("early eof" at `road.rs:47`, a broken pipe of the writer at `road.rs:43`, 158 s) and `share.rs` (`Elapsed` at `share.rs:155`, 306 s); `pod_job` passed 25 there. On loongarch64 (job 136485246683) `share.rs` gave `Elapsed` at `share.rs:155` (304 s), and `road.rs` gave a new form at `road.rs:98`: "Layer(Ended { end: Closing, received: 20971520, sent: 20971520 })", in 290 s. Each byte crossed; then the far end's answer to the `CLOSE` of this side did not come within `LINGER` (10 s, `crates/pod-session/src/pump.rs`), a time of the session that the emulation outruns, not a bound of the test.
 - 2026-11-21, the nightly run 44848003241 at `a7fb465`: the same three tests, no new test of this class. On i686 (job 136672368047) `a_turn_of_the_arq_blocks_on_nothing` counted "3 voluntary switches in 1000 turns", the one failed binary of the job. Its cause is found and fixed in T-1082: the other test threads of the binary hold the lock of the address space while musl's allocator unmaps and maps for the gate; each gate is now in a test binary of its own. On riscv64 (job 136672368153) the two failed binaries are `pod-iroh`'s `road.rs` ("early eof" at `road.rs:47`, a broken pipe of the writer at `road.rs:43`, 140 s) and `share.rs` ("early eof" at `share.rs:52`, 119 s). The "early eof" came after 78, 99, 119, 140 and 158 s in three runs, so the end comes from a timer of the stack under a slow clock, not from one fixed limit; `new_address.rs` passed in 607 s. Not reproduced on this host: no `qemu-riscv64`. Left for T-916: the two `pod-iroh` tests on the emulated targets (T-978 part 2 measures an optimised build of the dependencies first).
 
+- 2026-11-24, the nightly run 45452272145 at `f39b8e2`: on riscv64 (job 138652267213) the two failed binaries of this class are `pod-iroh`'s `road.rs` (`a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way`: "early eof" at `road.rs:47`, a broken pipe of the writer at `road.rs:43`, after 159.81 s) and `share.rs` (`two_sessions_of_one_process_share_one_connection_on_two_streams`: "early eof" at `share.rs:52`, after 119.62 s). The jobs of loongarch64, aarch64, armv7, arm and powerpc64le passed these two binaries, and i686 passed `a_turn_of_the_arq_blocks_on_nothing` (T-1082). The failures of the same run in other binaries are new entries: T-1295 to T-1298.
 
 # T-917: The copies of product code that `codegraph.py dups` finds: one place for each
 
@@ -3691,6 +3694,8 @@ The next run of `nightly.yml`: each cross job ends, none cancelled.
 2026-11-18, partial (the proof is the next run of `nightly.yml`: each cross job ends, none cancelled): the job `cross` takes its limit from its row (`timeout-minutes: ${{ matrix.minutes || 90 }}`), and the row of riscv64 has 150 minutes, a margin of a quarter over the time that the two runs show it needs. The step of the tests prints the seconds of each binary (`== N s: EXE`), so the next limit, or a split of the job by crate, comes from measured times. `check-workflows.py`: 0 faults.
 - 2026-11-20, the nightly 44739339618 at `8a2cdd9`: the riscv64 job ended in 89 minutes (13:11 to 14:40), not cancelled, under its limit of 150; it failed on the two tests of `pod-iroh` of T-916. The loongarch64 job ended in 56 minutes.
 - 2026-11-21, the nightly 44848003241 at `a7fb465`: the riscv64 job (136672368153) ended in 111 minutes (01:25 to 03:16), not cancelled, under its limit of 150; each of the 484 test binaries ran, and it failed on the two tests of `pod-iroh` of T-916.
+
+- 2026-11-24, the nightly run 45452272145 at `f39b8e2`: the riscv64 job (138652267213) was cancelled at its limit of 150 minutes (17:52 to 20:22). It ran 414 of 545 test binaries; the 414th, `session_resume_twice` of `pod-session` (one test, `two_resumes_in_quick_succession_after_the_open_links_are_cut_move_bytes_both_ways`, with timeouts of 60 s in its code), did not end, and the 131 binaries after it did not run. The longest binaries before it: `modes` 1886 s, `pairing` 950 s, `new_address` 720 s. The step "Run the tests" of `nightly.yml` gives each binary a limit of 2700 s (`timeout -k 30 2700`), so that one hung binary is a failed binary and the others run. Open: find why this test does not end under its 60 s timeouts (a blocking call in a task of the runtime, or a thread that does not end); read the next riscv64 job.
 
 # T-943: The static job of `aarch64-apple-darwin` in `ci.yml` gets no runner, four runs in a row
 
@@ -4484,7 +4489,7 @@ sh scripts/plant-each.sh --apply
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -4535,6 +4540,13 @@ The deadlines of the server stay as they are. Native:
 tests). Open: the job `cross (riscv64gc-unknown-linux-musl)` of the next
 `nightly.yml` run. When it passes, set the entry to `done`; when the test
 still fails, find the cause (T-916), not a larger bound.
+
+2026-11-24 (done). The job `cross (riscv64gc-unknown-linux-musl, riscv64, 150)`
+(138652267213) of `nightly.yml` run 45452272145 at `f39b8e2` ran the
+binary `server` of `pod-control`: `a_call_back_meets_one_deadline_for_its_write`
+and `a_call_back_meets_one_deadline_for_blank_lines` passed, with 17 tests
+passed in 21.76 s. The scaled bounds of the test hold under QEMU. The job
+itself was cancelled at its limit in another binary (T-938).
 
 # T-1163: Two more readers of a `Retry-After` value: `pod-cloudflare` and `pod-oci` keep their own copy of `pod_core::clock::retry_after_secs`
 
@@ -4851,3 +4863,244 @@ twins. The live read `runs.py --repo PodUtils/podcrates --once` got 403
 from the mirror at the first try (exit 2, one line on stderr), and at the
 second try printed the six runs of `5d61d40` (exit 0); the same read of
 PodUtils/podvm printed four runs of `bfb3822`. Call C926 records the form.
+
+
+# T-1295: `pod-extract`: `flatten` tests fail for a user that is not root: GNU tar cannot open `usr/bin/sh`, and `walk` cannot read a directory with no search mode
+
+**Source:** `nightly.yml` run 45452272145 at `f39b8e2`, each job `cross` (all seven, also `i686`, which runs with no emulator); `ci.yml` run 45462046889 at `65fa99f`, the job `test`, step "Test".
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Two test binaries of `pod-extract` fail on each job `cross`, and the first
+fails in `ci.yml` too (the run stops there, so the second is not known
+there):
+
+```text
+tar: usr/bin/sh: Cannot open: Permission denied
+tar: Exiting with failure status due to previous errors
+thread 'gnu_tar_with_the_arguments_of_incusd_takes_the_stream' panicked at crates/pod-extract/tests/flatten.rs:313:5:
+GNU tar refused the stream
+
+thread 'random_layer_sets_give_the_tree_of_extract' panicked at crates/pod-extract/tests/support/mod.rs:240:52:
+called `Result::unwrap()` on an `Err` value: Os { code: 13, kind: PermissionDenied, message: "Permission denied" }
+```
+
+The runner is a user that is not root. `flatten.rs` (`gnu_tar_with_the_arguments_of_incusd_takes_the_stream`) and
+`flatten_random.rs` (`random_layer_sets_give_the_tree_of_extract`) are the
+two failed binaries; each other binary of `pod-extract` passes. The line
+240 of `tests/support/mod.rs` (at `f39b8e2`) is the `symlink_metadata` of
+`walk`: a directory with the mode `0o600` or `0o644` (the modes of the
+generator) lets `read_dir` list its names, and a stat of a child gives
+`EACCES` for a user that is not root.
+
+## Premise
+
+- Read: the logs of the jobs `cross (aarch64 ...)` to `cross (i686 ...)`,
+  the log of `ci.yml` 45462046889, and the tests at `f39b8e2`.
+- Not measured: the order of the entries in the stream at the point where
+  GNU tar fails (the stream puts a directory after its children, from the
+  newest layer; the directory `usr/bin` of the newest layer has the mode
+  `0o555`); the same tests as a user that is not root on a developer host.
+
+## Approach
+
+Run both tests as a user that is not root (a user namespace with a mapped
+user, or `setpriv`), print the order of the entries of the stream, and find
+which one makes `usr/bin` read-only before `usr/bin/sh` is written. A cause
+in `flatten` (the order of a directory after its children) gets its fix and
+a test that holds without root. A cause in the test (a mode that only root
+can use) gets a layer set with usable modes, or `walk` that does not stat
+through a directory with no search mode. A test that needs root says so
+and skips with the reason, as a missing capability does (`pod_testkit::host`).
+Do not weaken a check of the tree.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features --test flatten --test flatten_random
+setpriv --reuid=65534 --regid=65534 --clear-groups cargo test -p pod-extract --all-features --test flatten --test flatten_random
+```
+
+# T-1296: `pod-enter`: the two title tests of the init and the relay fail under qemu-user on each emulated job (the nightly at `f39b8e2`)
+
+**Source:** `nightly.yml` run 45452272145 at `f39b8e2`, the jobs `cross` of aarch64, armv7, arm, riscv64, loongarch64 and powerpc64le (step "Run the tests", binary `pod_enter`). The job of i686 runs with no emulator and passes.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The two tests of the title (T-1112, T-1113) fail on each job with an
+emulator and pass on each native job:
+
+```text
+title::tests::a_hidden_process_shows_its_title_and_no_environment
+  crates/pod-enter/src/title/tests.rs:64:5: assertion `left == right` failed
+    left: "the parse of /proc/self/stat"
+   right: "a title with more than one thread"
+title::tests::the_title_and_the_dump_flag_follow_the_fork
+  crates/pod-enter/src/title/tests.rs:98:5: the map of this process
+test result: FAILED. 268 passed; 2 failed; 1 ignored (269 passed on aarch64)
+```
+
+`hide` fails at the parse of `/proc/self/stat`, before it counts the
+threads, and `Shown::of` gives no map for the relay. Under qemu-user the
+file `/proc/self/stat` is written by the emulator, and its fields can differ
+from the kernel's (the process name, the fields after it, the address
+fields of the map).
+
+## Premise
+
+- Read: the logs of the six jobs (the same two failures in each), the two
+  tests.
+- Not measured: the text of `/proc/self/stat` under qemu-user; which field
+  the parse refuses.
+
+## Approach
+
+Print the text of `/proc/self/stat` under qemu-user (`scripts/binfmt.sh`)
+and find the field that the parse refuses. When the emulator gives a file
+that a kernel never gives, the two tests skip with the reason when
+`pod_testkit::host::emulated()` is true, as the test of
+`PR_SET_MM_MAP` skips when the kernel refuses it. When the parse is wrong
+for a field that a real kernel can give too (a name with a space or a
+bracket), fix the parse and add a test with that name.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --lib title
+```
+
+# T-1297: `pod-link`: `dns_hold` gives a hold that is longer than its query timeout under an emulator, and `a_server_that_never_answers_a_command_is_the_named_timeout` of `mail` ends with no error on arm
+
+**Source:** `nightly.yml` run 45452272145 at `f39b8e2`: `dns_hold` in the jobs `cross` of aarch64, armv7, arm, riscv64, loongarch64 and powerpc64le; `mail` in the jobs of arm and armv7.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+- `crates/pod-link/tests/dns_hold.rs` (T-1166): the tests
+  `polls_faster_than_the_hold_stack_no_queries` and
+  `a_held_poll_halves_the_idle_queries_and_cuts_the_latency_down` fail in
+  six jobs, each after 96 s, in `tests/common/dns.rs:53` (`bound`):
+
+  ```text
+  bind on the loopback: CarrierError { carrier: "dns", kind: Usage, text: "DNS: a hold of 7.5s: give less than the query timeout of 2s", source: None }
+  bind on the loopback: CarrierError { carrier: "dns", kind: Usage, text: "DNS: a hold of 2s: give less than the query timeout of 2s", source: None }
+  ```
+
+  The first test takes `pod_testkit::host::scaled(1500 ms)`, which is
+  7.5 s under an emulator; the query timeout of the settings is not scaled,
+  so the settings are refused. The second test uses a hold of 2 s with the
+  same query timeout. Both bounds of the pair must go through one scale.
+- `crates/pod-link/tests/mail.rs:181`
+  (`a_server_that_never_answers_a_command_is_the_named_timeout`): "a failed
+  stream" on armv7 and arm. The stream ended with a read of 0 bytes, where
+  the error that names `UID FETCH` and "took more than" is due. The same
+  test passes on aarch64, riscv64, loongarch64, powerpc64le and i686 of
+  this run, and the jobs of arm passed at `0f5dad6`.
+
+## Premise
+
+- Read: the logs of the jobs, `tests/dns_hold.rs`, `tests/common/dns.rs`,
+  `src/dns/settings.rs` (the check that prints the text), `tests/mail.rs`.
+- Not measured: whether the end of the mail stream is a race of the
+  emulated 32-bit targets (the command timeout is 200 ms) or a fault of the
+  carrier; whether `dns_hold` passes with a scaled query timeout.
+
+## Approach
+
+`dns_hold`: scale the query timeout of the test settings with the same
+factor as the hold, or take the hold from the query timeout, so that
+`hold < wait` stays true under each factor. A test that must run at 96 s
+(the same time in six jobs) takes its measure from the settings, not from a
+fixed count of seconds. `mail`: run the test 50 times under qemu-user for
+arm (`scripts/binfmt.sh`); when it fails, read the error of the carrier at
+the end of the stream: a read that ends before the command timeout gives
+the error of the timeout, not the end of the stream. A cause in the
+carrier gets its fix and a test; a bound of the test that the emulator
+outruns goes through `pod_testkit::host::scaled` (T-916).
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test dns_hold
+cargo test -p pod-link --all-features --test mail
+```
+
+# T-1298: `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes
+
+**Source:** `nightly.yml` run 45452272145 at `f39b8e2`, the jobs `test (macos-15)` (138652266705) and `test (macos-15-intel)` (138652267051), step "Test", cancelled at 60 minutes.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Both jobs stop in the binary `tests/images.rs` of `pod-incus`, after 8
+tests start and 6 end:
+
+```text
+test an_answer_that_stalls_after_a_cut_ends_at_its_short_bound has been running for over 60 seconds
+test an_upload_that_incus_closes_with_no_answer_gives_the_error_of_the_write has been running for over 60 seconds
+test an_upload_that_incus_closes_with_no_answer_gives_the_error_of_the_write ... FAILED
+##[error]The operation was canceled.
+```
+
+The second test fails at its limit of 60 s (`expect("the call ends")`). The
+first test (`start_paused = true`, a stand-in on a real socket) never
+ends: the step holds until the limit of the job. Each later test of the
+workspace on macOS does not run, so the job hides their results. The two
+tests are of T-1157; the macOS jobs passed at `0f5dad6`. The same tests pass
+on each Linux job.
+
+A write to a Unix or TCP socket that the peer closed gives EPIPE on Linux
+(`MSG_NOSIGNAL` or a process that ignores SIGPIPE) and can give another
+error or no error on macOS (`SO_NOSIGPIPE`, a different order of the reset
+and the write), so the upload may wait for room in a buffer that nothing
+reads.
+
+## Premise
+
+- Read: the logs of both jobs, the tests (`crates/pod-incus/tests/images.rs`,
+  `tests/common/raw.rs`) and the Done of T-1157.
+- Not measured: the error of the write and of the read on macOS; the
+  behaviour of a paused clock beside a real socket on macOS.
+
+## Approach
+
+Run `cargo test -p pod-incus --all-features --test images` on macOS (the
+job `test` with the filter, or a local run) with `--nocapture` and print
+the error of the write and the state of the socket at the cut. Find the
+cause in the client (`Client::answer_after_cut`: a write that blocks on
+macOS, with no error after the peer closed) or in the stand-in (`Close`,
+`Hold`, `Shut`: the shutdown of one side does not give EPIPE there). A fault
+of the client gets its fix and a test that holds on Linux too; a fault of
+the stand-in gets a form that macOS can give. Each test of a socket gets
+a bound that ends the test with a named failure, not the limit of the job
+(the test of `start_paused` has no bound of real time). Add a per-test
+limit of real time to the step "Test" of the macOS jobs (T-938 gives the
+same for the jobs `cross`), so that one hung test does not hide the later
+binaries.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features --test images
+```
+
+The job `test (macos-15)` and `test (macos-15-intel)` of the next
+`nightly.yml` run end in less than 60 minutes.

@@ -251,6 +251,8 @@ jobs:
               if m.get("reason") == "compiler-artifact" and m.get("executable") and m["profile"]["test"]:
                   print(m["manifest_path"].rsplit("/", 1)[0], m["executable"])' "$RUNNER_TEMP/build.json" > "$RUNNER_TEMP/tests.txt"
           wc -l < "$RUNNER_TEMP/tests.txt"
+      # One binary that does not end is a failed binary, not the end of the
+      # job: the longest binary needs 1886 s under riscv64 (T-938).
       - name: Run the tests
         run: |
           set -u
@@ -258,7 +260,7 @@ jobs:
           while read -r dir exe; do
             echo "== $exe"
             start=$(date +%s)
-            (cd "$dir" && "$exe") || failed=$((failed + 1))
+            (cd "$dir" && timeout -k 30 2700 "$exe") || failed=$((failed + 1))
             echo "== $(( $(date +%s) - start )) s: $exe"
           done < "$RUNNER_TEMP/tests.txt"
           echo "test binaries that failed: $failed"
