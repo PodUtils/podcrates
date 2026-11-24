@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 937 entries: 166 open, 28 partial, 7 blocked, 736 done.
+`TODO/INDEX.md` holds 939 entries: 167 open, 28 partial, 7 blocked, 737 done.
 
 ## State
 
@@ -113,11 +113,11 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
 - podnet: T-1117 (the limits of the legs of `pod-cloudflare` in podnet's
   documents); T-1135 (`pod-cloudflare` says a cause two times); T-879
   (`pod-detach`); T-897.
-- podssh: T-1164 and T-1165 (the DNS listener of `pod-link` answers each
-  query of its zone, and a query of a new session id does not hold a
-  slot 20 s; PodUtils/podssh#349, COORD-139), then T-1166 to T-1169 (the
-  same issue: a held poll, a carrier with no TLS, DNS over HTTPS, a test
-  through `unbound`); T-1144 (the sans-IO transfer codec of `pod-term` for a pty that
+- podssh: T-1165 (a query of a new session id does not hold a slot 20 s;
+  PodUtils/podssh#349, COORD-139), T-1170 (the DNS listener keeps the case
+  of the question), T-1171 (a late query of an ended session starts no
+  handshake), then T-1166 to T-1169 (the same issue: a held poll, a
+  carrier with no TLS, DNS over HTTPS, a test through `unbound`); T-1144 (the sans-IO transfer codec of `pod-term` for a pty that
   damages ZMODEM; PodUtils/podssh#346, #258); T-1103 (iroh 1.5 and its fork
   of iroh-relay, after PodUtils/podssh#341); T-1095 (the order of the
   pseudo-fields of the HTTP/2 request of `pod-ws`; PodUtils/podssh#340);

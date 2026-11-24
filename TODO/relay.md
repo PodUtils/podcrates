@@ -11169,7 +11169,7 @@ the kind `stun` of the catalog. `cargo test -p pod-natprobe
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11204,6 +11204,53 @@ its answer read; the header of the module says what each case gets.
 ```sh
 cargo test -p pod-link --all-features dns
 ```
+
+## Done
+
+2026-11-24, this commit (code: `e1c2caf`). The listener of `pod-link`
+answers each query of its zone that it cannot take:
+
+- A name of the zone of another type, the zone itself, or a partial name
+  (labels that do not decode): NOERROR with no record, AA set, and an OPT
+  record when the query had one. Not NXDOMAIN: NXDOMAIN says that no name
+  exists below it (RFC 8020), and a resolver that minimises the name
+  (RFC 9156) would stop. No SOA, so a resolver keeps no negative answer
+  (RFC 2308, section 5).
+- A query of a new session after the drop of the listener: NOERROR with no
+  record, AA set. Not REFUSED: a resolver can mark a server that refuses
+  as lame, and that can block a new listener at the same address.
+- A name out of the zone: REFUSED, AA clear.
+- A query of a new session at the limit of the handshakes: no answer, so
+  the dialer sends it again.
+- An opcode other than QUERY: NOTIMP, AA clear. A message with QR set: no
+  answer, so two servers cannot loop.
+- The data answers set AA too.
+
+Supporting changes: `pod_dns::txt` has `empty_answer`, `set_authoritative`,
+`RCODE_NOERROR`, `RCODE_NOTIMP` and the field `Answer.authoritative` (a
+new field of a public struct); a private `push_opt` replaces three copies
+of the write of the OPT record. `crates/pod-link/src/dns/wire.rs` has
+`under(zone, name)`, and `decode_query` uses it. A grep of `Answer {` in
+shallow clones of podnet and podssh finds no build of `txt::Answer`.
+
+Tests: `txt::tests::an_empty_answer_holds_no_record_and_its_opt_record`
+(`pod-dns`); `wire::tests::a_query_round_trips_under_its_zone` (new
+asserts); `each_query_of_the_zone_that_the_listener_cannot_take_gets_an_answer`
+and `a_dropped_listener_answers_a_new_session_with_no_record` in
+`crates/pod-link/tests/dns.rs`. `cargo test -p pod-link --all-features
+--test dns --test dns_loss --test dns_resolver`: 9, 4 and 3 passed;
+`cargo test -p pod-dns --all-features`: all passed; clippy: no warning.
+
+On the old `server.rs` and `wire.rs` with the new tests, the two tests of
+`tests/dns.rs` fail (each read times out after 2 s):
+
+```text
+a_dropped_listener_answers_a_new_session_with_no_record ... FAILED: "a new session after the drop: no answer"
+each_query_of_the_zone_that_the_listener_cannot_take_gets_an_answer ... FAILED: "an A query: no answer"
+test result: FAILED. 7 passed; 2 failed
+```
+
+The findings of the review are T-1170 and T-1171.
 
 # T-1165: `pod-link`: a query with a new session id takes a handshake slot of the DNS listener for 20 s before any key is checked (PodUtils/podssh#349)
 
@@ -11400,4 +11447,91 @@ where the artifact is absent, and a job of `ci.yml` has it. After T-1164.
 
 ```sh
 cargo test -p pod-link --all-features --test dns_unbound -- --nocapture
+```
+
+# T-1170: `pod-link`: the DNS listener answers with the question in lower case, so a resolver that uses 0x20 rejects the answer
+
+**Source:** T-1164 (PodUtils/podssh#349), a review of
+`crates/pod-link/src/dns/server.rs`.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_dns::txt::question` gives the name in lower case. `answer` of
+`crates/pod-link/src/dns/server.rs` builds the data answer with
+`txt::answer(id, &name, ...)`, which writes the question from that name. A
+resolver with 0x20 case randomisation (Unbound `use-caps-for-id`, some
+public resolvers) compares the case of the question in the answer with its
+query, and it drops the answer or falls back. The data answers also set RA,
+but the listener is authoritative and does no recursion.
+
+## Premise
+
+- Read: `crates/pod-dns/src/txt.rs` (`question`, `answer`) and
+  `crates/pod-link/src/dns/server.rs` (`answer`).
+- The empty answers of T-1164 copy the question bytes of the query, so they
+  keep the case.
+- Not measured: a resolver with 0x20 against the listener.
+
+## Approach
+
+A builder of a data answer in `pod_dns::txt` that copies the question bytes
+of the request, or keep the name as sent and use the lower-case form only
+to decode. Clear RA in the answers of an authoritative server.
+
+## Prove
+
+A test in `crates/pod-link/tests/dns.rs` sends a TXT query of a session in
+mixed case, and the question of the answer has the bytes of the query. A
+unit test of the new builder in `pod-dns`.
+
+```sh
+cargo test -p pod-dns --all-features
+cargo test -p pod-link --all-features --test dns
+```
+
+# T-1171: `pod-link`: a late query of an ended DNS session starts a new handshake and holds a permit
+
+**Source:** T-1164 (PodUtils/podssh#349), a review of
+`crates/pod-link/src/dns/server.rs`.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`answer` removes a session when its up channel is closed. A late query of
+that id (a retry of a resolver, a poll in flight) finds a vacant slot and
+starts a new handshake. The handshake holds one of the `max_handshakes`
+permits until `handshake_timeout`, and it waits for a ClientHello that does
+not come.
+
+## Premise
+
+- Read: `crates/pod-link/src/dns/server.rs` (`answer`, the session map, the
+  semaphore).
+- Session ids are random u32 values of the dialer, so a late query of an
+  ended session is not a new session.
+- Not measured: how often a resolver sends such a query.
+
+## Approach
+
+Keep the ids of ended sessions for `handshake_timeout` in a small map,
+pruned on the PRUNE tick. Answer a query of a kept id with the empty answer
+of T-1164, and start no handshake. Related: T-1165.
+
+## Prove
+
+A test ends a session, sends a query of its id, and checks the empty
+answer. A second test fills the permits to one less than the limit, sends a
+query of an ended id, and shows that a new session still starts.
+
+```sh
+cargo test -p pod-link --all-features --test dns
 ```
