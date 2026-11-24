@@ -359,7 +359,7 @@ pub fn records(mut data: &[u8]) -> Result<Vec<Record<'_>>, String> {
     Ok(out)
 }
 
-fn push_record(out: &mut Vec<u8>, key: &[u8], value: &[u8]) {
+pub(crate) fn push_record(out: &mut Vec<u8>, key: &[u8], value: &[u8]) {
     // The length counts its own digits.
     let rest = key.len() + value.len() + 3;
     let mut len = rest + 1;

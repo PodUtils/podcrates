@@ -14014,7 +14014,7 @@ answers PodUtils/podvm#653 with the tag, and podvm takes it.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14049,6 +14049,131 @@ A module `flatten` of `pod-extract` (Linux only, as the crate; no system call: t
 cargo test -p pod-extract --all-features flatten
 cargo clippy -p pod-extract --all-targets --all-features -- -D warnings
 ```
+
+## Done
+
+2026-11-24, this commit. Option A: one pass over each blob, from the
+newest layer.
+
+The measure. incusd unpacks an image with GNU tar:
+`lxc/incus:shared/archive/archive.go` at `1eaba00d` (read through the
+mirror), `Unpack`, runs `tar --anchored --wildcards --exclude=dev/* ...
+--restrict --force-local -C PATH --numeric-owner --xattrs-include=* -xf -`
+(`-zxf`, `--zstd -xf` for a compressed file), and
+`lxc/incus:internal/server/storage/utils.go`, `ImageUnpack`, runs it as
+root on the stored upload, and on the `rootfs` part of a split image into
+`rootfs/`. `lxc/incus:shared/archive/detect.go` takes a tar by `ustar` at
+bytes 257 to 262 of its first block. GNU tar 1.35 as root with these
+arguments, on crafted streams: a directory entry after its children keeps
+its mode (0555, 0750, 0711) and its owner (1000:1000, 0:2), exit 0; a hard
+link before its target fails (`Cannot hard link to 'rootfs/a/target': No
+such file or directory`, exit 2); a file over a directory with an entry
+fails (`A: Cannot open: File exists`, exit 2); two files or two
+directories of one path: the last wins; a stream with no end blocks: exit
+0, a short tree taken as whole; a block of 0xff in their place: exit 2.
+`extract` takes the same order: each comparison below extracts the stream
+as one layer. bsdtar is not on the host; Go `archive/tar` is a reader with
+no unpacker: neither is measured. Not measured: the count of paths of the
+image of 57 GB and the speed of one pass (no real image on the host).
+
+The change. The module `flatten` (`crates/pod-extract/src/flatten.rs`,
+and `flatten/entry.rs`, `flatten/trie.rs`, `flatten/write.rs` beside it):
+`flatten(&layers, &mut out, &options) -> Result<Flattened>`, `Options`
+(`report`, `paths_max`), `Flattened` (`layers`, `entries`, `written`,
+`implied`, `hidden`, `whiteouts`, `skipped`, `skipped_kinds`, `bytes`,
+`paths`), `LAYER_EVENT` (`flatten.layer`), `PATHS_MAX` (8 Mi). It reuses
+`layer::open_hashed`, `pax::Framed`, `safety::components`,
+`safety::rebase_symlink_target`, `whiteout::classify`, `sparse::layout`,
+`apply::link_name` and the digest check of `extract` (`verified`). A trie
+of the paths holds, for each path, the newest layer of an entry, of a
+non-directory, of a whiteout and of an opaque marker; an entry of layer L
+is hidden when a newer layer removes it or a directory above it, empties
+a directory above it, has a non-directory above it, or has an entry at
+its path. An entry through a symlink or a file of an older layer: each
+directory above an entry whose kind its layer did not set yet takes a
+mark; the end of an older layer whose last entry at that path is not a
+directory refuses the newer layer (`Refusal::Escapes`, the entry of the
+newer layer named), unless a whiteout, an opaque marker or a
+non-directory above it in a layer between removed the path. A directory
+that an entry below it makes and no newer layer removes goes out after
+the last layer (mode 0755, owner 0, time 0) when the stream has no entry
+of it. A GNU sparse file goes out with its holes as zero bytes. The writer
+puts a ustar header for each entry, a PAX header before it for a name past
+100 bytes or not ASCII, a size of 8 GiB or more, an id of 2^21 or more,
+the end blocks only after the last layer, and one block of 0xff in their
+place after a failure. The memory: a node of 32 bytes (a unit test holds
+the size), its key in the index about 20 bytes, and its name (255 bytes at
+most): about 52 bytes and the name of each path, up to twice that while a
+table grows; `Options::paths_max` bounds the paths and the markers.
+
+Found by the comparison and fixed in place: a directory with entries that
+a later layer replaces with a file or a symlink gave `EEXIST` in
+`extract` (`apply::replace` now removes it with `remove::remove_at`);
+`DirModes` set the mode of a directory that a non-directory replaced on a
+directory that a later file below it made (`LayerStats::replaced`,
+`DirModes::layer`); `safety::components` refuses a component of more than
+255 bytes (`Refusal::TooLong`, `safety::COMPONENT_MAX`; the kernel gave
+`ENAMETOOLONG` after a part of the tree). The new refusal
+`Refusal::Stream`: a file or a link over a directory that its layer filled
+in the stream before it, which no reader of one stream can replace (GNU
+tar exit 2); `extract` takes it. The plant `extract-hash-stops-at-the-end-marker`
+has the new context of `verified`.
+
+The tests. `crates/pod-extract/tests/flatten.rs` (20 tests, each against
+`extract` of the same layers through `support::same`): whiteouts at the
+root of a layer and below it, an opaque directory and an opaque marker at
+the root, a file replaced by a directory and back, a directory replaced by
+a symlink, an entry through a symlink of an older layer (also with a
+later whiteout of it; legal with a whiteout of it in the layer of the
+write) and of the same layer, a path with `..` and a target above the
+root, the same layer that removes and makes a path, the owners and modes
+of the image (4755, uid 4000000), a plain, a gzip, a zstd blob and two gzip
+members in one blob, a digest that does not agree (`Mismatch`, the stream
+broken), a deep tree of 120 levels with a long name, a name of 256 bytes,
+a sparse file of each version, a hard link of one layer, a fifo, the
+counts, a path two times in one layer, and GNU tar with the arguments of
+incusd (`gnu_tar_with_the_arguments_of_incusd_takes_the_stream`).
+`crates/pod-extract/tests/flatten_random.rs`: 300 seeded layer sets (1 to
+4 layers, 0 to 8 entries of files, directories, symlinks, whiteouts and
+opaque markers over three names), the same tree or the same kind of
+refusal; 20000 sets of the same generator and 30000 of a denser one (two
+names, 6 layers, 14 entries) passed once in release. Against a stub that
+writes no stream, 21 of 21 failed ("the stub writes no stream"), and
+`a_file_replaced_by_a_directory_and_back` and
+`a_directory_replaced_by_a_symlink_hides_its_children` failed in `extract`
+first (`cannot create "q": EEXIST`). The test
+`drive::dirmodes::a_directory_that_a_file_replaced_does_not_get_its_old_mode`
+fails on the code before its fix (`0555`). `cargo test -p pod-extract
+--all-features`: 114 unit tests, 20 and 1 integration tests pass.
+`cargo clippy -p pod-extract --all-targets --all-features -- -D
+warnings`, `cargo doc -p pod-extract --no-deps --all-features` with `-D
+warnings`, `cargo fmt --all --check`, `cargo check --manifest-path
+fuzz/Cargo.toml` and `scripts/check-size.py` pass; `sh
+scripts/plant-each.sh --apply`: 0 stale.
+
+The plant `extract-flatten-whiteout-above-not-hidden` (a whiteout of a
+directory does not hide the paths below it) fails
+`whiteouts_at_the_root_of_a_layer_and_below_it_hide_the_older_paths`
+(exit 101); the run without it passes.
+
+New entries: T-1253 (the sidecar row of a removed path holds for a
+directory made again below it), T-1254 (a fuzz target of `flatten`),
+T-1255 (the umask cuts the mode of a directory that a file below it
+makes).
+
+For the hand-off: `pod_extract::flatten::{flatten, Options, Flattened,
+LAYER_EVENT, PATHS_MAX}`, `safety::{COMPONENT_MAX, Refusal::TooLong,
+Refusal::Stream}`, `apply::LayerStats::replaced` and
+`modes::DirModes::layer` are new. podvm streams its image to incusd with
+`pod_incus::ImageData::Split`: its `metadata.yaml` tarball in `metadata`,
+and in `rootfs` a `Payload` with no length that reads a pipe, which a
+thread fills with `flatten`; a failure of `flatten` ends the upload with an
+error and podvm deletes the image. The unified form (the prefix
+`rootfs/`, `metadata.yaml` and `/.podvm/podvm` in one stream), the
+extended attributes (`security.capability`) and the ACLs wait for
+T-1195; a hard link to a file of an older layer fails with `Unsupported`
+until T-1194, and podvm keeps its `extract` path for that image; the gzip
+of the upload is T-1196.
 
 # T-1194: `pod-extract`: `flatten` keeps the hard links across layers, with the target before the link (PodUtils/podvm#657)
 
@@ -14289,3 +14414,144 @@ failure of `of_host` to `note` of `Meter::default()`), keeps
 `incus::usage::better`, and removes its copy
 `PodUtils/podvm:crates/podvm/src/incus/usage/mounts.rs` at the tag that
 has this entry.
+
+# T-1253: `pod-extract`: the sidecar row of a removed path holds for a directory that an entry below it makes again
+
+**Source:** T-1193 (a finding of its work)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A whiteout or a replacement removes a path from the tree, and its sidecar
+row stays: the sidecar takes rows and never drops one. A later layer that
+writes `d/x` with no entry for `d` makes `d` again (mode 0755, the ids of
+the process), and no row of the new `d` comes. The last row of `d` is
+then the row of the removed directory: its ids, its mode and its
+attributes. A reader of the sidecar (the export of podvm, the restore of
+the owners) gives the removed entry's ids and mode to the new directory.
+
+## Premise
+
+- Read: `crates/pod-extract/src/sidecar.rs` (`push`, `push_dir`,
+  `kept_dir`; "the last row of a path holds"); `crates/pod-extract/src/remove.rs`
+  (`apply` writes no row); `crates/pod-extract/src/safety/walk.rs` (`step`
+  makes a missing directory with mode 0755 and no row).
+- `crates/pod-extract/src/modes.rs` (`DirModes::forget`,
+  `DirModes::layer`) already forgets the mode of a removed directory; the
+  sidecar has no such step.
+- Not measured: how many directories of real images a layer makes again
+  after a whiteout.
+
+## Approach
+
+1. When a whiteout, an opaque marker or a non-directory removes a path
+   that has a row, write a row that says that the path is gone (a field
+   `removed`), or write a row for each directory that `step` makes for an
+   entry below it, with the ids of the process, mode 0755 and the reason
+   "made for an entry below it". Take the form that the readers of the
+   sidecar can read; name it in the README of the crate.
+2. A test of `crates/pod-extract/src/drive.rs` or its modules: layer one
+   has `d/` with uid 1000 and mode 0700, layer two removes `d` and writes
+   `d/x`; the last row of `d` does not give uid 1000 or mode 0700. It
+   fails on the code before the fix.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```
+
+# T-1254: `pod-extract`: a fuzz target of `flatten`, the reader of untrusted layers into one tar stream
+
+**Source:** T-1193 (a finding of its work)
+**Category:** chore
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`flatten` reads the layers of an untrusted image and keeps a trie of its
+paths in memory. The fuzz target `extract_layer`
+(`fuzz/fuzz_targets/extract_layer.rs`) runs `apply_layer` alone, and no
+fuzz target runs `flatten`: a panic of the trie, of the marks or of the
+writer on a crafted layer is not searched for.
+
+## Premise
+
+- Read: `fuzz/src/targets/podvm.rs` (`extract_layer`, `layer_run`);
+  `fuzz/Cargo.toml` (one `[[bin]]` for each target); `fuzz/README.md`.
+- `flatten` makes no system call and needs no directory, so its target is
+  faster than `extract_layer`.
+
+## Approach
+
+1. A target `flatten_layers`: the input split into one to four layers
+   (a byte gives the count and the compression of each), each written as a
+   blob with its true digest, and `flatten` into a `Vec<u8>` with a small
+   `Options::paths_max`.
+2. The checks: no panic; on success the stream reads with the `tar`
+   reader to its end, each path is in it once, and no path has `..` or is
+   absolute; on a failure after the first byte the stream ends with the
+   block of 0xff.
+3. Seeds from the layers of `crates/pod-extract/tests/flatten.rs`; the
+   row of the target in `fuzz/README.md` and in the CI list of targets.
+
+## Prove
+
+```sh
+cargo check --manifest-path fuzz/Cargo.toml
+```
+
+# T-1255: `pod-extract`: the umask of the process cuts the mode of a directory that an entry below it makes
+
+**Source:** T-1193 (a finding of its work)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Rule 6 of `crates/pod-extract/README.md` says that the umask of the
+process does not change a mode. A directory that a layer names with no
+entry (a file `usr/bin/x` with no entry for `usr/bin`) is made by
+`step` with `mkdirat(0o755)`, and the kernel cuts that mode by the umask:
+a process with the umask 077 gives the directory 0700, and a user of the
+image that is not its owner cannot go through it. The pass after the last
+layer does not set it: it has no entry. `flatten` writes such a directory
+with mode 0755, so its tree differs from the tree of `extract` under a
+umask that is not 022, and the comparisons of
+`crates/pod-extract/tests/flatten.rs` and
+`crates/pod-extract/tests/flatten_random.rs` hold only under 022.
+
+## Premise
+
+- Read: `crates/pod-extract/src/safety/walk.rs` (`step`, `mkdirat` with
+  0o755); `crates/pod-extract/src/apply.rs` (`make_dir` sets the mode of a
+  directory entry through its descriptor; nothing sets the mode of a
+  directory made in the walk).
+- Not measured: the umask of the callers of podvm and podrunner.
+
+## Approach
+
+1. After `mkdirat` in `step` (and in `in_root_parent`), set the mode
+   0755 through a descriptor opened with `O_NOFOLLOW`, as `make_dir` does,
+   when the make came from this call (not on `EEXIST`).
+2. A test that runs `extract` in a worker with the umask 077 (the umask is
+   of the whole process: the test binary starts itself again, as
+   `crates/pod-extract/src/drive/deep.rs` does) and finds 0755 on a
+   directory that a file below it made. It fails on the code before the
+   fix.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features
+```

@@ -56,6 +56,11 @@ pub struct LayerStats {
     pub dir_modes: Vec<(Vec<String>, u32)>,
     /// The extended attributes of the layer, set and not set ([`xattr`]).
     pub xattrs: xattr::Count,
+    /// Each path where the layer made an entry that is not a directory,
+    /// with the count of `dir_modes` before it: the directory that was
+    /// there, with each directory below it, is gone
+    /// ([`crate::modes::DirModes::layer`]).
+    pub replaced: Vec<(usize, Vec<String>)>,
 }
 
 /// The ids that this process applies, read one time.
@@ -237,6 +242,9 @@ pub fn apply_layer(
 
         // The sidecar row, for each entry that was made, with the
         // attributes that it did not take.
+        if !kind.is_dir() {
+            st.replaced.push((wrote_dirs.len(), parts.iter().map(|p| (*p).to_string()).collect()));
+        }
         let x = on_file.unwrap_or_else(|| xattr::set_at(&parent, &name, &wanted));
         st.xattrs.add(&x);
         let (applied_uid, applied_gid, reason) = resolve_ids(uid, gid, ids);
@@ -246,6 +254,7 @@ pub fn apply_layer(
 
     for l in later {
         let (parent, name) = link_later(root, digest, &l)?;
+        st.replaced.push((wrote_dirs.len(), l.parts.clone()));
         let x = xattr::set_at(&parent, &name, &l.wanted);
         st.xattrs.add(&x);
         st.hardlinks += 1;
@@ -272,7 +281,7 @@ pub fn apply_layer(
 
 /// The target of a link: the `linkpath` record of its PAX header, read by
 /// its length ([`pax`]), else what the `tar` reader gives.
-fn link_name<R: Read>(entry: &tar::Entry<'_, R>, member: &pax::Member) -> String {
+pub(crate) fn link_name<R: Read>(entry: &tar::Entry<'_, R>, member: &pax::Member) -> String {
     match &member.linkpath {
         Some(b) => String::from_utf8_lossy(b).into_owned(),
         None => entry.link_name_bytes().map(|b| String::from_utf8_lossy(&b).into_owned()).unwrap_or_default(),
@@ -343,12 +352,11 @@ fn replace(parent: &Dir, name: &str) -> Result<()> {
     match sys::unlinkat(parent.fd(), &n, 0) {
         Ok(_) => Ok(()),
         Err(e) if e == sys::ENOENT => Ok(()),
-        // A file in place of a directory: remove the directory when it is
-        // empty, and keep it when it is not, as a union file system does.
-        Err(e) if e == sys::EISDIR => {
-            let _ = sys::unlinkat(parent.fd(), &n, sys::AT_REMOVEDIR);
-            Ok(())
-        }
+        // A file in place of a directory: the directory goes with each
+        // entry below it, as the newer entry hides the whole directory in a
+        // union file system. A directory that stays makes the create below
+        // fail with `EEXIST`.
+        Err(e) if e == sys::EISDIR => crate::remove::remove_at(parent.fd(), name).map(|_| ()),
         Err(e) => Err(error::sys(format!("cannot replace {name:?}"), e)),
     }
 }

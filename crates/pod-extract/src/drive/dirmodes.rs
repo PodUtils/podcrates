@@ -102,6 +102,20 @@ fn a_directory_that_a_whiteout_removed_does_not_get_its_old_mode() {
     assert_eq!(m & 0o200, 0o200, "the whiteout of d did not forget its mode of 0555: {m:04o}");
 }
 
+/// A later layer replaces a directory with a file, and a layer after it
+/// makes the directory again with no directory entry: the mode of the
+/// replaced directory is not set on it, as with a whiteout.
+#[test]
+fn a_directory_that_a_file_replaced_does_not_get_its_old_mode() {
+    let s = Scratch::new("filemode");
+    let one = layer(&[E::Dir("d/", 0o755), E::Dir("d/sub/", 0o555)]);
+    let two = layer(&[E::File("d", b"d", 0o644)]);
+    let three = layer(&[E::Dir("d/", 0o755), E::File("d/sub/x", b"x", 0o644)]);
+    run(s.path(), &[one, two, three]).unwrap();
+    let m = mode(&s.path().join("d/sub"));
+    assert_eq!(m & 0o200, 0o200, "the file over d did not forget the mode 0555 of d/sub: {m:04o}");
+}
+
 /// A second extraction over a tree that the first closed passes, a
 /// whiteout in a closed directory applies, and the tree is removed. Root
 /// passes each check of the permissions: as root, the worker runs as uid

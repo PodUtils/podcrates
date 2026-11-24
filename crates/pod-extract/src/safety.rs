@@ -39,6 +39,11 @@ pub enum Refusal {
     Escapes(String),
     /// More components than [`crate::tree::MAX_DEPTH`].
     TooDeep(usize),
+    /// A component of more bytes than [`COMPONENT_MAX`].
+    TooLong(usize),
+    /// A shape of a layer that one stream of the final tree cannot hold
+    /// ([`crate::flatten`]).
+    Stream(String),
     /// A PAX header or a GNU long name past its bound, or a PAX record that
     /// does not parse ([`crate::pax`]).
     Member(String),
@@ -63,6 +68,10 @@ impl Refusal {
                 "it has more than {n} components, and the crate does not make a tree that its own walk and \
                  removal refuse"
             ),
+            Refusal::TooLong(n) => {
+                format!("a component has more than {n} bytes, and a Linux file system takes no longer name")
+            }
+            Refusal::Stream(why) => format!("one tar stream of the final tree cannot hold it: {why}"),
             Refusal::Member(why) => why.clone(),
             Refusal::Escapes(e) => format!(
                 "resolving it against what the layers have written so far leaves \
@@ -94,6 +103,11 @@ pub fn is_root_entry(path: &str, is_dir: bool) -> bool {
     is_archive_root(path) || path.is_empty() && is_dir
 }
 
+/// The longest name of one component, in bytes: `NAME_MAX` of Linux. The
+/// kernel refuses a longer name (`ENAMETOOLONG`), and the check here also
+/// bounds the memory of a name in [`crate::flatten`].
+pub const COMPONENT_MAX: usize = 255;
+
 /// The lexical half: the same rule for the path of an entry and for a
 /// rebased symlink target.
 ///
@@ -116,6 +130,9 @@ pub fn components(path: &str) -> std::result::Result<Vec<&str>, Refusal> {
         }
         if c == ".." {
             return Err(Refusal::Component(c.into()));
+        }
+        if c.len() > COMPONENT_MAX {
+            return Err(Refusal::TooLong(COMPONENT_MAX));
         }
         out.push(c);
     }

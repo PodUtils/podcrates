@@ -36,6 +36,27 @@ impl DirModes {
         }
     }
 
+    /// Keep the mode of each directory entry of one layer, and forget each
+    /// directory that an entry of the layer that is not a directory
+    /// replaced, in the order of the layer. A directory that a later entry
+    /// makes again with no directory entry does not get the mode of the
+    /// replaced one.
+    pub fn layer(&mut self, st: &crate::apply::LayerStats) {
+        let mut gone = st.replaced.iter().peekable();
+        for i in 0..=st.dir_modes.len() {
+            while let Some((_, path)) = gone.next_if(|(at, _)| *at == i) {
+                let below: Vec<Vec<String>> =
+                    self.0.range(path.clone()..).map(|(k, _)| k).take_while(|k| k.starts_with(path)).cloned().collect();
+                for k in below {
+                    self.0.remove(&k);
+                }
+            }
+            if let Some((parts, mode)) = st.dir_modes.get(i) {
+                self.0.insert(parts.clone(), *mode);
+            }
+        }
+    }
+
     /// Forget each directory that the whiteouts of a layer removed. Call it
     /// with the whiteouts of a layer before [`DirModes::record`] of the same
     /// layer. A directory that a later entry makes again with no directory
