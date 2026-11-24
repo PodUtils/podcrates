@@ -5508,9 +5508,12 @@ name = "pod-tpm"
 version = "0.83.0"
 dependencies = [
  "base64 0.23.1",
+ "libc",
  "pod-core",
+ "pod-testkit",
  "sha2 0.11.1",
  "tracing",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

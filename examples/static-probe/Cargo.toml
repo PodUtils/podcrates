@@ -90,7 +90,8 @@ pod-turn = { workspace = true, features = ["turn"] }
 pod-transit = { workspace = true }
 # arti, with SQLite in C, and the two transports of a bridge.
 pod-tor = { workspace = true }
-pod-tpm = { workspace = true }
+# The transports of a device, of a socket of swtpm and of the TBS of Windows.
+pod-tpm = { workspace = true, features = ["device", "tbs"] }
 pod-acme = { workspace = true }
 pod-udf = { workspace = true }
 # `plain-ws` is out: it is for the tests of an embedder, and no binary turns it on.

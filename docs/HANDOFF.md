@@ -252,6 +252,13 @@ The asks of #259 to the consumers:
   `Upload` and `wanted`. The owner reserves the name on crates.io. New entry
   T-1321.
 
+- T-1221 (`pod-tpm`): the transports `transport::{Device, Socket, Framing,
+  Limits}` (feature `device`: `/dev/tpmrm0`, an swtpm socket in its raw form
+  or the `mssim` form) and `transport::tbs::{Tbs, failure, name}` (feature
+  `tbs`, the Windows TBS); a transport closes after a failure. podssh's
+  `unix::open` becomes `Device::open` or `Socket::connect_unix`, its
+  `other.rs` becomes `Tbs::open()`.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask.

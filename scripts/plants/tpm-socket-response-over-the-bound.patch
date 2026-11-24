@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/transport/socket.rs b/crates/pod-tpm/src/transport/socket.rs
+index 0c7eb576..07f2a872 100644
+--- a/crates/pod-tpm/src/transport/socket.rs
++++ b/crates/pod-tpm/src/transport/socket.rs
+@@ -181,7 +181,7 @@ impl Way<'_> {
+             Framing::Raw => {
+                 let mut header = [0u8; HEADER];
+                 self.fill(&mut header, true)?;
+-                let size = response_size(size_field(&header).unwrap_or(0), self.name)?;
++                let size = (size_field(&header).unwrap_or(0) as usize).max(HEADER);
+                 let mut answer = vec![0u8; size];
+                 answer[..HEADER].copy_from_slice(&header);
+                 self.fill(&mut answer[HEADER..], false)?;

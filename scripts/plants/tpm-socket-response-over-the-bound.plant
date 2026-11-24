@@ -1,0 +1,7 @@
+# The socket transport reads a response of more than MAX_RESPONSE (4096)
+# bytes when its header says so: no bound on the read (T-1221).
+ENTRY=T-1221
+GROUP=tpm
+EXPECT='a_response_over_the_bound_is_refused_before_it_is_read \.\.\. FAILED'
+RUN='cargo test -p pod-tpm --all-features --test socket a_response_over_the_bound_is_refused_before_it_is_read'
+LIMIT=900

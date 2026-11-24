@@ -21,6 +21,8 @@ use pod_tpm::{cmd, public, transact, wire::RH_OWNER};
 
 // A transport is a device, a socket of swtpm, the TBS of Windows, or a
 // closure of a test: FnMut(&[u8]) -> Result<Vec<u8>, pod_core::Failure>.
+// With the feature `device`:
+// let mut tpm = pod_tpm::transport::Device::open(Path::new("/dev/tpmrm0"), Limits::default())?;
 let primary = cmd::Primary::read(&transact(&mut tpm, &cmd::create_primary(RH_OWNER, &public::storage_primary()?)?)?)?;
 let template = public::signing_key(&auth_policy)?;
 let key = cmd::Created::read(&transact(&mut tpm, &cmd::create(primary.handle, &template)?)?)?;
@@ -54,6 +56,11 @@ transact(&mut tpm, &cmd::flush_context(primary.handle)?)?.empty()?;
 | `Error::Step` (`class`, `why`, `cause`) | a step of a sequence that failed, with the error of the command under it (`code()` gives its response code) |
 | `HashAlg`, `alg` | the hash algorithms (SHA-1 for the size of a bank alone; SHA-256, SHA-384 and SHA-512 hash) and the algorithm ids |
 | `Error` (`class`, `code`) | a response code, a malformed response, a bad value, an algorithm that the crate does not use, a failure of the transport; `Failure::from` at `Stage::Host` |
+| `transport::Device` (`open`, `from_fd`; feature `device`, Unix) | the device of a Unix kernel by the path of the caller (`/dev/tpmrm0`; `/dev/tpm0` has no resource manager, so the caller opts in by its path): one write of the command, one read of at most 4096 bytes whose size field must equal the bytes that came; not blocking, with poll(2) to the deadline. A socket, a regular file or a directory is refused before the open; a FIFO is the stand-in of a test. `from_fd` takes a descriptor that a helper opened |
+| `transport::Socket` (`connect_tcp`, `connect_unix`, `from_tcp`, `from_unix`, `with_framing`; feature `device`) | the command channel of swtpm (`--server type=tcp` or `type=unixio`) or of the simulator of the reference; `Framing::Raw` (swtpm's own: the bytes as they are) or `Framing::Mssim` (the prefix `TPM_SEND_COMMAND`, locality 0 and the size; the size of the response, the response, an acknowledgement of 0). The size of a response is checked (10 to 4096) before a byte more is read. The control channel and `TPM2_Startup` are the harness's |
+| `transport::Limits` (`command`) | the time limit of one command, from the write to the last byte (default 30 s, podssh's); past it the transport closes its file or its connection and is broken |
+| `transport::tbs::Tbs` (`open`; feature `tbs`, Windows) | a TBS context of a TPM 2.0 (`Tbsi_Context_Create`, `TBS_CONTEXT_PARAMS2` with `includeTpm20`), `Tbsip_Submit_Command` at locality 0 and the normal priority into a buffer of 4096 bytes, `Tbsip_Context_Close` on drop; the call blocks until the TPM answers |
+| `transport::tbs::{failure, name, TBS_E_*}` (feature `tbs`, each system) | each code of TBS with its name, its words and its class (`Unavailable` for no TPM, a service that does not run and a code that the table does not know; `Permission` for `TBS_E_ACCESS_DENIED`; `TempFail` for a service that starts or too many contexts); the Windows build checks each code against `windows-sys` |
 
 There is no `Unseal`, no template of a data object and no Ed25519 key
 (call C931). A command that needs a nonce takes it as an argument: the
@@ -64,17 +71,24 @@ global, prints nothing and starts no thread.
 
 | Class | When |
 | --- | --- |
+| `Timeout` | a transport did not get the whole response in `Limits::command`: it closes its device or connection |
+| `Permission` | the system refused the open of the device, or TBS refused the command (`TBS_E_ACCESS_DENIED`) |
 | `Policy` | the TPM refused by the policy, the PCRs, the authorization or the lockout (`TPM_RC_POLICY_FAIL`, `TPM_RC_PCR_CHANGED`, `TPM_RC_BAD_AUTH`, `TPM_RC_LOCKOUT`, `TPM_RC_INTEGRITY`, ...) |
 | `TempFail` | a warning of the TPM (`TPM_RC_RETRY`, `TPM_RC_OBJECT_MEMORY`, ...) |
 | `Unsupported` | the TPM does not have the algorithm, the curve or the command; a code of a TPM 1.2; a key of another type |
-| `Unavailable` | the TPM does not run (`TPM_RC_FAILURE`, `TPM_RC_INITIALIZE`), a layer in front of it refused, or the transport found no TPM |
-| `Usage` | a value of the caller cannot go into a command; a handle that is not loaded |
-| `Protocol` | a response that fails a bound; another refusal of the TPM |
+| `Unavailable` | the TPM does not run (`TPM_RC_FAILURE`, `TPM_RC_INITIALIZE`), a layer in front of it refused, or the transport found no TPM (no device at the path, no listener, a closed connection, TBS with no TPM 2.0); each call of a transport that broke on an earlier command |
+| `Usage` | a value of the caller cannot go into a command; a handle that is not loaded; a command of fewer than 10 or more than 4096 bytes given to a transport |
+| `Protocol` | a response that fails a bound (a transport reads at most 4096 bytes); a short response; an acknowledgement of the `mssim` interface that is not 0; another refusal of the TPM |
 
 ## Features
 
-None in this version. `device` and `tbs` (the transports, T-1221),
-`soft` (a TPM in software) and `fuzzing` (T-1222) come with their code.
+| Feature | What |
+| --- | --- |
+| `device` | `transport::Device` (Unix, with poll(2) of `libc`) and `transport::Socket` (std alone) |
+| `tbs` | `transport::tbs::Tbs` on Windows (`windows-sys`: raw-dylib imports of `tbs.dll`, a DLL of the system); the map of the codes of TBS on each system |
+
+`soft` (a TPM in software) and `fuzzing` come with T-1222. The default
+build is the codec alone.
 
 ## Adoption map (podssh)
 
@@ -94,6 +108,9 @@ None in this version. `device` and `tbs` (the transports, T-1221),
 | `flow.rs`: `Transport::transact`, `run`, `flush`, `manufacturer`, `read_pcrs`, `make`, `create_sealed`, `trial_digest`, `start_session`, `load`, `sign`, `sign_in`, `run_step`, `Unmet`, `refused` | `Transport::submit`, `transact`, `flow::flush` and the guard `flow::Handle`, `pcr::capabilities`, `pcr::pcr_read` (each bank), `pcr::policy_pcr_now` with `create_signing` (the parent is an argument: `0x40000001` or `0x81000001`), `flow::trial_digest` (a whole `Policy`), `flow::session`, `flow::load`, `sign::sign` (a loaded key in, `EcdsaSignature` out), `Error::Step` with the class `Policy` |
 | `flow_signed.rs`: `make`, `add_policy`, `head`, `sign`, `attempt`, `take_signed`, `summary` | `create_signing` of a `Policy` of one `TPM2_PolicyAuthorize`, then `sign::add_signed_policy` of the caller's signed policy (podssh's `PolicyKey` signs `policy::approved_policy_hash`); `sign::sign` |
 | `flow_tests.rs`, `signed_tests.rs` | `tests/flow.rs` with the fake TPM `tests/common/fake.rs`; the tests that need `soft.rs` or podssh's keygen wait for T-1222 |
+| `unix.rs`: `open`, `Device` (`transact`), `Socket` (`transact`), `wait`, `whole`; `COMMAND_LIMIT` of `mod.rs` | `transport::Device::open` and `transport::Socket::connect_unix` (the caller chooses the one of its path); one deadline for each command (`Limits::command`), not a time limit for each read; a response of at most 4096 bytes whose size field equals the bytes of the read (podssh read 8192 and did not check the size field); after a failure the transport is closed |
+| `unix.rs`: `Place`, `find`, `find_in` | stay in podssh: the probe of `/dev/tpmrm0` and `/dev/tpm0` with `PODSSH_TPM_DEVICE` (the crate reads no variable and chooses no path) |
+| `other.rs` | `transport::tbs::Tbs`: the TBS of Windows in the place of the refusal |
 | `codec_tests.rs` | `tests/frame.rs`, `tests/commands.rs`, `tests/policy.rs`; its tests of the key file in `tests/keyfile.rs` |
 | `testdata/p256-authvalue.b64` | `tests/testdata/p256-authvalue.b64` |
 
@@ -128,8 +145,23 @@ signed policy of the new state, and a policy of another key or a changed
 signature refused; each command of each sequence failed in turn, refused,
 lost or answered with its handles alone, and no handle stays.
 `tests/keyfile_bounds.rs`: each refusal by its name; each cut and
-each bit flip of a good file refused or read back to the same bytes. The
+each bit flip of a good file refused or read back to the same bytes.
+`tests/socket.rs` (feature `device`), against the stand-in
+`tests/standin/` that reads each command in one read as swtpm does: both
+framings, a response of 4096 bytes, a response over the bound refused
+before it is read, a short response, a bad acknowledgement, a closed
+socket, a late response (the socket closes), a command out of its bounds
+refused before it is sent, a Unix socket of a path and the TCP channel.
+`tests/device.rs` (feature `device`, Unix), with a socket pair or a FIFO
+in the place of the device: one write and one read, the bound, a short
+and a late response, the close on drop, a missing, a refused and a wrong
+file; the device of this host when it has one (else a skip with its
+reason). `tests/tbs.rs` (feature `tbs`): the class, the name and the
+number of each code of TBS on each host; the TBS of this host on
+Windows. The
 digest that swtpm gives is the proof of T-1222. The plants
-`tpm-response-over-the-frame-bound`, `tpm-keyfile-trailing-bytes` and
-`tpm-flow-external-key-not-flushed` take away the bound of the frame, the
-check of the bytes after a key file and the guard of the policy key.
+`tpm-response-over-the-frame-bound`, `tpm-keyfile-trailing-bytes`,
+`tpm-flow-external-key-not-flushed` and
+`tpm-socket-response-over-the-bound` take away the bound of the frame, the
+check of the bytes after a key file, the guard of the policy key and the
+bound of the read of the socket transport.
