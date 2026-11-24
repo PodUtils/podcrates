@@ -220,3 +220,34 @@ fn an_empty_answer_holds_no_record_and_its_opt_record() {
     set_authoritative(&mut short);
     assert_eq!(short, [0, 0], "a message with no flags stays");
 }
+
+/// A data answer copies the header and the question bytes of the request,
+/// so the case of a name in mixed case (0x20) stays; its records read back.
+/// RA clears on request.
+#[test]
+fn a_data_answer_keeps_the_question_bytes_of_the_request() {
+    let mixed = "A0b1.T.eXample";
+    let q = query(0x0607, mixed, TXT, Some(EDNS_SIZE)).unwrap();
+    let mut a = answer_to(&q, &[b"one", &[7u8; 300]], Some(EDNS_SIZE)).unwrap();
+    let end = 12 + mixed.len() + 2 + 4;
+    assert_eq!(&a[12..end], &q[12..end], "the question bytes of the request");
+    assert_eq!((&a[..2], a[2] & 0x81, a[3]), (&[0x06, 0x07][..], 0x81, 0x80), "the id, QR, RD and RA");
+    let found = read(&a, 0x0607, mixed, TXT).unwrap();
+    assert_eq!(found.txt(), vec![b"one".to_vec(), vec![7u8; 300]]);
+    assert_eq!((found.rcode, found.authoritative, found.edns), (0, false, Some(EDNS_SIZE)));
+    set_no_recursion(&mut a);
+    set_authoritative(&mut a);
+    assert_eq!((a[2] & 0x04, a[3] & 0x80), (0x04, 0), "AA set, RA clear");
+    assert!(read(&a, 0x0607, mixed, TXT).unwrap().authoritative);
+    // The type of the record is the type of the question.
+    let a_query = crate::wire::query("a.example", crate::wire::A).unwrap();
+    let ip = answer_to(&a_query, &[&[127, 0, 0, 1]], None).unwrap();
+    assert_eq!(
+        crate::wire::addrs(&ip, "a.example", crate::wire::A).unwrap(),
+        vec![std::net::IpAddr::from([127, 0, 0, 1])]
+    );
+    assert!(answer_to(&a, &[], None).is_err(), "an answer is no request");
+    let mut short = vec![0xffu8; 11];
+    set_no_recursion(&mut short);
+    assert_eq!(short, [0xff; 11], "a message shorter than its header stays");
+}

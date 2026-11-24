@@ -11457,7 +11457,7 @@ cargo test -p pod-link --all-features --test dns_unbound -- --nocapture
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11492,6 +11492,46 @@ unit test of the new builder in `pod-dns`.
 ```sh
 cargo test -p pod-dns --all-features
 cargo test -p pod-link --all-features --test dns
+```
+
+## Done
+
+2026-11-24, this commit. Each answer of the listener of `pod-link` copies
+the bytes of the question of its query, and has RA clear:
+
+- `pod_dns::txt::answer_to(request, records, edns)` builds a data answer
+  from the header and the question bytes of the request (the header of
+  `error_answer`), with one record of the type of the question for each
+  item. `txt::answer` and `answer_to` share a private `push_records`, which
+  also refuses more than 65535 records (the old cast cut the count).
+- `pod_dns::txt::set_no_recursion` clears RA. A private `send` of
+  `crates/pod-link/src/dns/server.rs` clears RA in each answer and sets AA
+  where the header of the module says. `txt::question` still gives the name
+  in lower case; the listener uses it only to decode.
+
+Two new public functions of `pod_dns::txt`, no break. A grep in shallow
+clones of podnet and podssh finds no use of `pod_dns::txt`.
+
+Tests: `txt::tests::a_data_answer_keeps_the_question_bytes_of_the_request`
+(`pod-dns`); `a_data_answer_keeps_the_bytes_of_the_question_and_clears_ra`
+in `crates/pod-link/tests/dns.rs`, and the helper `ask` of that file now
+checks that RA is clear in each answer. `cargo test -p pod-link
+--all-features --test dns --test dns_loss --test dns_resolver`: 10, 4 and
+3 passed; `cargo test -p pod-dns --all-features`: all passed; clippy: no
+warning. The plant `dns-answer-past-the-query-size` is made again on the
+new `server.rs` (it fails with the plant and passes without).
+
+On the old `server.rs` with the new tests, three tests of `tests/dns.rs`
+fail:
+
+```text
+a_data_answer_keeps_the_bytes_of_the_question_and_clears_ra ... FAILED:
+  the question of the answer has the bytes of the query
+  left:  [13, 97, 98, 99, 100, ...]  (abcd..., lower case)
+  right: [13, 97, 66, 99, 68, ...]   (aBcD..., as sent)
+a_dropped_listener_answers_a_new_session_with_no_record ... FAILED: RA is clear
+each_query_of_the_zone_that_the_listener_cannot_take_gets_an_answer ... FAILED: RA is clear
+test result: FAILED. 7 passed; 3 failed
 ```
 
 # T-1171: `pod-link`: a late query of an ended DNS session starts a new handshake and holds a permit

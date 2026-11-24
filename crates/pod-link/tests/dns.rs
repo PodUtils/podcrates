@@ -4,8 +4,10 @@
 //! another key is refused on each side and named; a silent server ends the
 //! dial; a query of a stranger changes nothing; each query of the zone that
 //! the listener cannot take gets an answer (T-1164, PodUtils/podssh#349);
-//! an address or a setting out of its form is a usage error. `tests/dns_loss.rs` has the loss, the
-//! reorder and the duplicates over the `Lossy` shim.
+//! an answer keeps the bytes of the question and clears RA (T-1170); an
+//! address or a setting out of its form is a usage error.
+//! `tests/dns_loss.rs` has the loss, the reorder and the duplicates over the
+//! `Lossy` shim.
 
 #![cfg(feature = "dns")]
 
@@ -152,17 +154,25 @@ async fn a_query_of_a_stranger_changes_nothing() {
     assert!(e.is_err(), "the stranger started no session");
 }
 
-/// The answer of the listener at `server` to the query of `kind` for `name`,
-/// with an OPT record of `edns` bytes when given; `None` when no answer
-/// comes in time.
-async fn ask(server: SocketAddr, name: &str, kind: u16, edns: Option<u16>) -> Option<txt::Answer> {
+/// The bytes of the answer of the listener at `server` to `query`; `None`
+/// when no answer comes in time.
+async fn ask_bytes(server: SocketAddr, query: &[u8]) -> Option<Vec<u8>> {
     let socket = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
-    let query = txt::query(0x5a5a, name, kind, edns).unwrap();
-    socket.send_to(&query, server).await.unwrap();
+    socket.send_to(query, server).await.unwrap();
     let mut buf = vec![0u8; 1 << 16];
     let wait = pod_testkit::host::scaled(Duration::from_secs(2));
     let (n, _) = timeout(wait, socket.recv_from(&mut buf)).await.ok()?.unwrap();
-    Some(txt::read(&buf[..n], 0x5a5a, name, kind).expect("an answer to the question"))
+    buf.truncate(n);
+    Some(buf)
+}
+
+/// The answer of the listener at `server` to the query of `kind` for `name`,
+/// with an OPT record of `edns` bytes when given; `None` when no answer
+/// comes in time. The listener does no recursion, so RA is clear.
+async fn ask(server: SocketAddr, name: &str, kind: u16, edns: Option<u16>) -> Option<txt::Answer> {
+    let bytes = ask_bytes(server, &txt::query(0x5a5a, name, kind, edns).unwrap()).await?;
+    assert_eq!(bytes[3] & 0x80, 0, "RA is clear: {name}");
+    Some(txt::read(&bytes, 0x5a5a, name, kind).expect("an answer to the question"))
 }
 
 /// NOERROR with no record and the AA bit, with the OPT record when the
@@ -210,6 +220,22 @@ async fn a_dropped_listener_answers_a_new_session_with_no_record() {
     // counter.
     let fresh = format!("abcdefghijklm.{ZONE}");
     assert_no_record(ask(local, &fresh, TXT, Some(EDNS_SIZE)).await, true, "a new session after the drop");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_data_answer_keeps_the_bytes_of_the_question_and_clears_ra() {
+    pod_testkit::need_loopback!();
+    let door = bound(&carrier(1, &[id(2).public()])).await;
+    // A resolver with 0x20 (Unbound `use-caps-for-id`) sends the name in
+    // mixed case, and it drops an answer whose question has other bytes.
+    let mixed = format!("aBcDeFgHiJkLm.{}", ZONE.to_uppercase());
+    let query = txt::query(0x0a0b, &mixed, TXT, Some(EDNS_SIZE)).unwrap();
+    let got = ask_bytes(door.local_addr(), &query).await.expect("an answer to a query of a session");
+    let end = 12 + mixed.len() + 2 + 4;
+    assert_eq!(&got[12..end], &query[12..end], "the question of the answer has the bytes of the query");
+    assert_eq!((got[2] & 0x84, got[3] & 0x80), (0x84, 0), "QR and AA set, RA clear");
+    let answer = txt::read(&got, 0x0a0b, &mixed, TXT).expect("an answer to the question");
+    assert_eq!((answer.rcode, answer.authoritative), (0, true), "{answer:?}");
 }
 
 #[tokio::test]

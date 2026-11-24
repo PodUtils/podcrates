@@ -16,6 +16,10 @@
 //! * A name out of the zone: REFUSED, AA clear.
 //! * An opcode other than QUERY: NOTIMP, AA clear.
 //!
+//! Each answer copies the bytes of the question of its query, so a resolver
+//! that sends the name in mixed case (0x20) takes it, and has RA clear: the
+//! listener does no recursion.
+//!
 //! A query of a new session at the limit of the handshakes gets no answer,
 //! so the dialer sends it again. An answer gets no answer.
 
@@ -235,7 +239,9 @@ async fn answer(
     from: SocketAddr,
     stopped: bool,
 ) {
-    let Ok((id, name, kind)) = txt::question(query) else { return };
+    // The name in lower case serves to decode; each answer copies the bytes
+    // of the question, so a resolver that uses 0x20 takes it.
+    let Ok((_, name, kind)) = txt::question(query) else { return };
     // The QR bit: a server that answers an answer can make a loop.
     if query[2] & 0x80 != 0 {
         return;
@@ -293,9 +299,8 @@ async fn answer(
     let size = asked.unwrap_or(txt::PLAIN_SIZE).min(settings.answer);
     let records = drain(entry, &name, size, asked.is_some());
     let refs: Vec<&[u8]> = records.iter().map(Vec::as_slice).collect();
-    if let Ok(mut message) = txt::answer(id, &name, txt::TXT, &refs, edns) {
-        txt::set_authoritative(&mut message);
-        let _ = pod_core::datagrams::send_to(&**socket, &message, from).await;
+    if let Ok(message) = txt::answer_to(query, &refs, edns) {
+        send(socket, message, true, from).await;
     }
     if entry.up.is_closed() {
         sessions.remove(&session);
@@ -312,7 +317,15 @@ async fn empty(
     edns: Option<u16>,
     from: SocketAddr,
 ) {
-    let Ok(mut message) = txt::empty_answer(query, rcode, edns) else { return };
+    if let Ok(message) = txt::empty_answer(query, rcode, edns) {
+        send(socket, message, authoritative, from).await;
+    }
+}
+
+/// Send the answer `message` to `from` with RA clear, as the listener does
+/// no recursion, and with the AA bit when `authoritative`.
+async fn send(socket: &Arc<dyn AddressedDatagrams>, mut message: Vec<u8>, authoritative: bool, from: SocketAddr) {
+    txt::set_no_recursion(&mut message);
     if authoritative {
         txt::set_authoritative(&mut message);
     }

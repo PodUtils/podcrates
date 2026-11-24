@@ -1,8 +1,8 @@
 diff --git a/crates/pod-link/src/dns/server.rs b/crates/pod-link/src/dns/server.rs
-index 30ea4e3..c7ae660 100644
+index 3855ad4..c05ef5e 100644
 --- a/crates/pod-link/src/dns/server.rs
 +++ b/crates/pod-link/src/dns/server.rs
-@@ -290,7 +290,7 @@ async fn answer(
+@@ -296,7 +296,7 @@ async fn answer(
      }
      // The answer keeps to the size that the query takes, 512 bytes with no
      // OPT record, so a resolver on the path does not cut it (call C291).
@@ -10,4 +10,4 @@ index 30ea4e3..c7ae660 100644
 +    let size = settings.answer;
      let records = drain(entry, &name, size, asked.is_some());
      let refs: Vec<&[u8]> = records.iter().map(Vec::as_slice).collect();
-     if let Ok(mut message) = txt::answer(id, &name, txt::TXT, &refs, edns) {
+     if let Ok(message) = txt::answer_to(query, &refs, edns) {
