@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 965 entries: 169 open, 29 partial, 7 blocked, 760 done.
+`TODO/INDEX.md` holds 965 entries: 167 open, 29 partial, 7 blocked, 762 done.
 
 ## State
 
@@ -186,8 +186,7 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
    first; then T-036 (with T-856, the vectors of `tokens.json`), T-039.
 10. **M5, the upkeep:** T-932 (the temp files, PodUtils/podvm#567), T-917
    (the copies of product code that `codegraph.py dups` finds), T-1115
-   (the two copies of the bind of a Unix socket at a long path), T-1163 (two
-   more readers of `Retry-After`), T-928 (the
+   (the two copies of the bind of a Unix socket at a long path), T-928 (the
    other readers of an HTTP/1.1 head), T-918 (the helpers that the tests
    copy), T-1044 (the doc tests that the checks for Windows and macOS do
    not compile), T-1146 (the comments of `pod-natprobe` in ASD-STE100);
