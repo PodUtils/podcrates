@@ -1,0 +1,13 @@
+diff --git a/crates/pod-services-watch/src/stun.rs b/crates/pod-services-watch/src/stun.rs
+index df82cc26..eb05b9ce 100644
+--- a/crates/pod-services-watch/src/stun.rs
++++ b/crates/pod-services-watch/src/stun.rs
+@@ -75,7 +75,7 @@ async fn ask(addr: SocketAddr) -> Result<SocketAddr, Finding> {
+                 return Err(Finding::failed(format!("{addr} answered the message type 0x{:04x}", message.kind)));
+             }
+             let mapped =
+-                message.mapped().and_then(Result::ok).or_else(|| message.xor_mapped_alt().and_then(Result::ok));
++                message.mapped_plain().and_then(Result::ok).or_else(|| message.mapped().and_then(Result::ok));
+             return mapped.ok_or_else(|| Finding::failed(format!("the answer of {addr} maps no address")));
+         }
+     }

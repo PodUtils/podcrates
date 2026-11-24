@@ -4,7 +4,7 @@
 /// `stun.rs`, moved out of `pod-proxy` with T-377): a message that decodes
 /// writes back to bytes that decode to the same type, id and attributes;
 /// its type reads back to its method and class; the readers of its
-/// attributes and the checks of its integrity and its fingerprint give an
+/// attributes (also those of RFC 5780) and the checks of its integrity and its fingerprint give an
 /// answer, never a panic. A refusal names an offset inside the input and
 /// the type of the header when the input has one, as `parse` does.
 pub fn stun_message(data: &[u8]) {
@@ -26,6 +26,10 @@ pub fn stun_message(data: &[u8]) {
     assert_eq!(stun::message_type(method, class), read.kind);
     let _ = read.mapped();
     let _ = read.error();
+    // The readers of RFC 5780 and of RFC 3489's attributes (T-802).
+    let _ = (read.xor_mapped(), read.xor_mapped_alt(), read.mapped_plain(), read.other_address());
+    let _ = (read.changed_address(), read.response_origin(), read.source_address());
+    let _ = (read.change_request(), read.response_port(), read.unknown_attributes());
     let _ = stun::integrity(data, b"key");
     let _ = stun::integrity_sha256(data, b"key");
     let _ = stun::fingerprint_ok(data);

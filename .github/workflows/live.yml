@@ -279,6 +279,20 @@ jobs:
             exit 1
           fi
           echo "a route that no bridge holds failed (exit $rc), as it must"
+      # A probe of the NAT of the runner by pod-natprobe (T-802, T-1151): the
+      # profile Fast against the STUN servers of the kind stun of
+      # pod-services. The NAT simulator of the crate and the stand-ins on the
+      # loopback prove the engine and the runner on each push (ci.yml).
+      - name: pod-natprobe, a fast probe of the NAT of the runner
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -eu
+          if [ "$EVENT" = schedule ] && [ "$(date -u +%u)" != 4 ]; then
+            echo "the probe of the NAT runs on Thursdays and by hand"
+            exit 0
+          fi
+          timeout 300 cargo test --locked -p pod-natprobe --test live -- --ignored --nocapture
       - name: pod-services, a round trip through each public file host
         env:
           EVENT: ${{ github.event_name }}

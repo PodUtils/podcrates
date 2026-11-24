@@ -9042,14 +9042,14 @@ of a road link. Plants `relay-layer-road-forward-path`,
 role serves the two opens at its take; its `relay_layer.rs` then calls
 `link_or_road` and `carry_or_road`.
 
-# T-802: `pod-turn`: a NAT probe (the mapping, the filtering and the port of RFC 5780) on the caller's datagrams (GitHub #212)
+# T-802: `pod-natprobe`: a NAT probe (the mapping, the filtering and the port of RFC 5780) on the caller's datagrams (GitHub #212)
 
 **Source:** GitHub #212 (an issue from outside the team, verified and confirmed).
 **Category:** feature
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9087,11 +9087,52 @@ The local address comes from a connect of the socket, as podssh's
 takes no code of the project that the issue names. A test against a
 stand-in STUN server with two addresses on the loopback, before T-499.
 
+## Decision
+
+Call C922: the probe is the crate `pod-natprobe` (PodUtils/podcrates#256),
+not a module of `pod-turn`. `pod-turn` keeps the codec, with the
+attributes of RFC 5780 (`crates/pod-turn/src/stun_nat.rs`, feature
+`stun`); the probe takes the codec. The probe is a state machine with no
+I/O; its runner takes the caller's sockets, clock, entropy and resolver.
+
 ## Prove
 
 ```sh
-cargo test -p pod-turn --all-features --test nat
+cargo test -p pod-turn --no-default-features --features stun
+cargo test -p pod-turn --all-features --lib
+cargo test -p pod-services --all-features
+cargo test -p pod-natprobe --all-features --all-targets
+cargo test -p pod-natprobe --all-features --test rfc5780
+cargo clippy -p pod-natprobe --no-default-features -- -D warnings
 ```
+
+## Done
+
+2026-11-24, this commit (calls C922 and C923; PodUtils/podcrates#256,
+squashed with its review). The crate `crates/pod-natprobe` (new code;
+pod-core, pod-turn with feature `stun`, pod-services with feature `run`),
+the attributes of RFC 5780 in `crates/pod-turn/src/stun_nat.rs`, the
+service `crates/pod-services/services/easybell-stun.toml` (rank 3), the
+preference of XOR-MAPPED-ADDRESS in `crates/pod-services-watch/src/stun.rs`,
+both static probes. The review added: the control of `CHANGE-REQUEST` 0x02
+alone proves address-and-port-dependent filtering (an address-dependent
+mapping with that filter has its class); no `unwrap` and no `unreachable!`
+on the input of a classifier; the caller's catalog and resolver for the
+servers; a simulator that filters a reply at its arrival
+(`sim_filters_a_reply_at_its_arrival`); `tests/rfc5780.rs`, the `Prober`
+against a stand-in RFC 5780 server on 127.0.0.1 and 127.0.0.2
+(`rfc5780_standin_on_two_loopback_addresses`: endpoint-independent mapping
+and filtering, no open question); T-1151 to T-1154. `cargo test -p
+pod-natprobe --all-features`: 37 passed, 1 ignored (the live test); `cargo
+clippy -p pod-natprobe --no-default-features` and `--all-targets
+--all-features`: no warning. The other commands of the Prove: B's review
+(T-1150 to T-1154).
+
+A change for a consumer (call C923): the doctor of podssh takes each
+service of the kind `stun` by rank, so at its next tag of `pod-services` it
+gets three default servers, and its test
+`the_variable_names_the_servers_or_turns_the_line_off` names two. The
+notes of the release and the COORD message to podssh name the change.
 
 # T-803: `pod-link`: an adaptive parity datagram for the ARQ, off on a clean link (GitHub #213)
 
@@ -10815,3 +10856,308 @@ the field as a `String` takes `.to_string()`; `Failed::Unreachable(_)` of
 podnet builds as it is. Release notes: `pod-wormhole`:
 `Failed::Unreachable` holds `Missed`, whose failures keep the stage of
 each meeting point (a dead proxy is the stage Proxy).
+
+# T-1146: `pod-natprobe`: the comments of the code are not in ASD-STE100
+
+**Source:** the review of PodUtils/podcrates#256 (T-802).
+**Category:** docs
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`AGENTS.md`, section 5, asks for ASD-STE100 in each comment. The crate
+`pod-natprobe` came from a pull request from outside the team with about
+570 lines of doc comments in free technical English: noun phrases, long
+sentences, words that are not approved ("Construct", "Initialize").
+The review of T-802 put the errors, the line of
+the report, `crates/pod-natprobe/src/lib.rs`, the manifest and
+`crates/pod-natprobe/README.md` into ASD-STE100; the comments of the other
+files stay as they came.
+
+## Premise
+
+- Read: each file of `crates/pod-natprobe/src` and `crates/pod-natprobe/tests`
+  (a sample of 40 comments); the comments of `crates/pod-turn/src/client/settings.rs`
+  for the style of the workspace.
+- Not measured: no tool checks ASD-STE100; the review is by hand.
+
+## Approach
+
+Rewrite each doc comment and each comment of `crates/pod-natprobe` in
+ASD-STE100: short sentences, active voice, approved words; keep each
+technical fact (an RFC section, a limit, a unit). Change no code. One
+commit for the crate.
+
+## Prove
+
+```sh
+cargo doc -p pod-natprobe --all-features --no-deps
+cargo test -p pod-natprobe --all-features
+```
+
+# T-1151: `pod-natprobe`: the ignored live test runs in `live.yml`
+
+**Source:** the review of PodUtils/podcrates#256 (T-802).
+**Category:** chore
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`crates/pod-natprobe/tests/live.rs` is ignored and runs in no workflow
+(row L57 of `docs/live-calls.md`). Rule 11 of `docs/design.md`, section 1:
+"A live test is `#[ignore]` and runs in a live workflow." Thus no run proves
+the runner of the crate against the real STUN servers of `pod-services`.
+
+## Premise
+
+- Read: `crates/pod-natprobe/tests/live.rs` (a probe of `Profile::Fast` on
+  `Seams::system()`, with the servers of `resolve_pod_services_stun`);
+  `docs/live-calls.md`, row L19: the runners of GitHub reach
+  stun.cloudflare.com:3478 and stun.l.google.com:19302 over UDP.
+- Not measured: a run of the test on a runner. A cloud session has no UDP
+  way out.
+
+## Approach
+
+1. Add a step "pod-natprobe, a fast probe of the NAT of the runner" to the
+   job of `live.yml` that runs each Thursday and by hand, with
+   `cargo test -p pod-natprobe --test live -- --ignored`.
+2. The test asserts only what each runner gives: an IPv4 report. A runner
+   behind a NAT with no answer of a server is a "no answer" (call C153),
+   not a failure.
+3. Change row L57 of `docs/live-calls.md` to "stub + weekly".
+
+## Prove
+
+```sh
+cargo test -p pod-natprobe --test live -- --ignored
+python3 -I scripts/check-workflows.py
+```
+
+The step of `live.yml` passes on a dispatch.
+
+## Done
+
+2026-11-24, this commit. The step "pod-natprobe, a fast probe of the NAT
+of the runner" of `.github/workflows/live.yml`, on Thursdays and by hand
+(the form of the other weekly steps), runs `cargo test -p pod-natprobe
+--test live -- --ignored`; the test prints the line of the report. Row L57
+of `docs/live-calls.md` is "stub + weekly" (13 rows of that class, 29 keep
+live). `python3 -I scripts/check-workflows.py`: 20 files, 0 faults. The
+first run of the step comes with the next Thursday or a dispatch.
+
+# T-1152: `pod-natprobe`: the SSRF guards of UPnP and of the STUN replies take a host from an untrusted reply
+
+**Source:** the review of PodUtils/podcrates#256 (T-802).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+1. `url_matches_host` (`crates/pod-natprobe/src/wire/ssdp.rs:63`) takes the
+   host as the text before the first `:` of the authority. It accepts
+   `http://192.168.1.1:80@attacker.example/x` for the gateway
+   192.168.1.1, but a URL parser (RFC 3986, WHATWG) reads
+   `192.168.1.1:80` as the user information and `attacker.example` as the
+   host. A LAN host that answers the M-SEARCH, or the description XML of
+   the gateway (a `URLBase` or an absolute `controlURL`), thus sends the
+   GET and the SOAP POST of the caller's `UpnpHttp` to any host. The text
+   of `LOCATION` can also hold a CR, a space or other control bytes, which
+   go into the request line of the caller's client.
+2. `usable_other` (`crates/pod-natprobe/src/wire/request.rs:54`) refuses
+   an unspecified, a multicast, a broadcast and a loopback OTHER-ADDRESS,
+   but not a private, a link-local or a CGNAT address under
+   `AddrPolicy::Internet`. A public STUN server (or one that a resolver
+   gave) names OTHER-ADDRESS, and the probe then sends Binding requests to
+   that address and to its ports (`Topology::pin`). The hairpin datagrams
+   go to the mapped addresses that the servers gave
+   (`crates/pod-natprobe/src/engine/portmap.rs:258`), with the same gap.
+
+## Premise
+
+- Read: `crates/pod-natprobe/src/wire/ssdp.rs`,
+  `crates/pod-natprobe/src/engine/portmap.rs`,
+  `crates/pod-natprobe/src/wire/request.rs`,
+  `crates/pod-natprobe/src/engine/handlers.rs`,
+  `crates/pod-natprobe/src/seams.rs` (`UpnpHttp` takes a URL text).
+- Not measured: a run against a hostile LAN host. The crate sends a
+  STUN Binding request of 20 bytes (or with CHANGE-REQUEST) and no
+  payload of the caller, and `UpnpHttp` is off in `Seams::system()`.
+
+## Approach
+
+1. `url_matches_host` accepts only `http://` + the IP address (IPv6 in
+   brackets) + an optional `:PORT` + a path of visible ASCII with no
+   `@`, `\`, `?` before the path, `#`, space or control byte. Better:
+   the engine gives `UpnpHttp` a typed target (`SocketAddr` and a path),
+   not a URL text, so that no client reads the host again.
+2. The doc of `UpnpHttp` names the contract of the caller: no redirect, a
+   bound on the body (64 KiB), a time limit, the address of the target
+   only.
+3. Under `AddrPolicy::Internet`, `usable_other` refuses an OTHER-ADDRESS
+   whose class (`classify_ip`) is not the class of the primary address of
+   the server; the hairpin round sends only to mapped addresses of the
+   class `Public` or `SharedCgnat` that two servers agree on. A refused
+   address gives a flag of the server (`AlternateNotDistinct` or a new
+   flag) and `Unknown` for the question, as now.
+
+## Prove
+
+```sh
+cargo test -p pod-natprobe --all-features ssrf
+cargo test -p pod-natprobe --all-features
+```
+
+The tests give `http://192.168.1.1:80@attacker.example/` and a LOCATION
+with a CR to the engine and see no HTTP output, and give a public server
+with an OTHER-ADDRESS of 192.168.1.1 and see no datagram to it; each test
+fails on the code of `2d213cba`.
+
+## Done
+
+2026-11-24, this commit. `pod_natprobe::wire::ssdp::gateway_url` takes
+`http://` + the IP of the gateway (IPv6 in brackets) + an optional port +
+a path of visible ASCII with no `@`, `\` or `#`, and gives the canonical
+`http://ADDRESS:PORT/PATH`; the engine takes an SSDP reply from the
+gateway alone and gives `UpnpHttp` the canonical URL alone (LOCATION and
+the control URL). The doc of `UpnpHttp` gives the contract of the client
+(the address alone, no redirect, at most 64 KiB, a time limit).
+`usable_other` and `Topology::pin` take the `AddrPolicy` and refuse an
+OTHER-ADDRESS whose class is not the class of the primary address; a
+hairpin round goes only to a public or shared (CGNAT) mapped address, and
+to an IP that another configured server gave when one answered. Tests in
+`crates/pod-natprobe/tests/guards.rs`:
+`ssrf_gateway_url_takes_the_gateway_alone`,
+`ssrf_engine_follows_no_location_with_user_information`,
+`ssrf_public_server_sends_the_probe_to_no_lan_other_address`,
+`ssrf_hairpin_goes_to_no_private_mapped_address`; each behaviour fails on
+the code of `2d213cba` (a copy of the tests run there: 4 failed).
+
+# T-1153: `pod-natprobe`: each stray datagram adds one observation, with no bound
+
+**Source:** the review of PodUtils/podcrates#256 (T-802).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`on_datagram` (`crates/pod-natprobe/src/engine/dispatch.rs:159`) records
+an observation for each datagram that it drops (`short-datagram`,
+`unknown-tid`, `malformed-stun`, `not-gateway`, `bad-pmp-pcp`), and
+`record_obs` (`crates/pod-natprobe/src/engine/machine.rs:268`) pushes
+each one to a `Vec` with no bound. The sockets of the probe are bound to
+the unspecified address, and a NAT with endpoint-independent filtering
+lets each host of the Internet reach a mapping. A host that sends
+datagrams to the sockets for the run of `Profile::Deep` (600 s) grows the
+memory of the caller and the JSON report with no limit. `ObsId` is a
+`u32` that wraps.
+
+## Premise
+
+- Read: `crates/pod-natprobe/src/engine/dispatch.rs`,
+  `crates/pod-natprobe/src/engine/machine.rs`,
+  `crates/pod-natprobe/src/engine/portmap.rs`,
+  `crates/pod-natprobe/src/settings.rs` (`max_duration_ms` 600,000 for
+  `Profile::Deep`), `crates/pod-natprobe/src/run/mod.rs` (a channel of 512
+  datagrams that the reader waits on, so no datagram is lost and each one
+  is recorded).
+- Not measured: the memory of a run under a flood.
+
+## Approach
+
+1. Keep the observations that a decision cites, and at most a bound
+   (for example 1,024) of the dropped ones; count the rest by reason in
+   the report (`dropped: {reason: count}`).
+2. `ObsId` stops at the bound; the counters saturate.
+3. A test sends 100,000 stray datagrams to the machine and checks the
+   bound of the report.
+
+## Prove
+
+```sh
+cargo test -p pod-natprobe --all-features stray
+```
+
+## Done
+
+2026-11-24, this commit. `ProbeMachine::record_dropped` keeps the first
+`MAX_DROPPED_OBS` (256) observations of dropped datagrams and counts the
+rest by reason in `Report::dropped_unrecorded`; the engine reads at most 64
+datagrams of the socket of the gateway (`gateway-flood` after that);
+`ObsId` saturates. Test: `stray_datagrams_keep_the_report_bounded` in
+`crates/pod-natprobe/tests/guards.rs` (100,000 stray datagrams: 256
+observations, the rest counted); on the code of `2d213cba` it fails
+(100,000 observations).
+
+# T-1154: `pod-natprobe`: the resolver of the servers is the system's, a setting is never read, and a doc names two servers
+
+**Source:** the review of PodUtils/podcrates#256 (T-802).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+1. `resolve_pod_services_stun`
+   (`crates/pod-natprobe/src/run/system.rs:163`) resolves the hosts with
+   `tokio::net::lookup_host` and reads the built-in catalog of
+   `pod-services` alone. Rule 5 of `docs/design.md`, section 1: the caller
+   gives the way out (its resolver); rule 6: the caller gives the
+   settings (a catalog with its overlay, `pod_services::Catalog`).
+2. `Settings::allow_portmap_side_effects`
+   (`crates/pod-natprobe/src/settings.rs:95`) is public, and no code reads
+   it. The doc of `map_request` (`crates/pod-natprobe/src/wire/pcp.rs:136`)
+   says that it gates a MAP request, but the engine sends no MAP request.
+3. The doc of `crates/pod-natprobe/tests/live.rs` names Cloudflare and
+   Google; the catalog has `easybell-stun` too.
+
+## Premise
+
+- Read: the three files; `crates/pod-services/src/catalog.rs`
+  (`Catalog::of_kind`); `crates/pod-core/src/dial.rs` (`Resolve`).
+- Not measured: none; each item is a reading of the code.
+
+## Approach
+
+1. `resolve_pod_services_stun` takes a `&pod_services::Catalog` and an
+   `Arc<dyn pod_core::Resolve>` of the caller.
+2. Remove `allow_portmap_side_effects` and the text of `map_request` that
+   names it, or make the engine send MAP only when it is true, with a
+   test.
+3. The doc of the live test names the kind `stun` of the catalog, not a
+   list of servers.
+
+## Prove
+
+```sh
+cargo test -p pod-natprobe --all-features
+cargo clippy -p pod-natprobe --all-targets --all-features -- -D warnings
+```
+
+## Done
+
+2026-11-24, this commit. `resolve_pod_services_stun(catalog, resolver)`
+takes the caller's `pod_services::Catalog` (the built-in set and its
+overlay) and `Arc<dyn pod_core::Resolve>`; the live test gives
+`Catalog::new()` and the system resolver of `pod-proxy`.
+`Settings::allow_portmap_side_effects` is removed: the probe sends no MAP,
+and the docs of the two `map_request` say so. `padding_request` (no
+caller) is removed. The doc of `crates/pod-natprobe/tests/live.rs` names
+the kind `stun` of the catalog. `cargo test -p pod-natprobe
+--all-features`: 37 passed, 1 ignored; `cargo clippy -p pod-natprobe
+--all-targets --all-features -- -D warnings`: no warning.
+

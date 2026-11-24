@@ -125,3 +125,63 @@ A dispatch of `services.yml` with `service=localtunnel` and `service=freedos-ima
 ## Done
 
 2026-11-23, no change of code. The scheduled run 45159148662 of `services.yml` at `23248f8` (2026-11-23, job `watch` 137639710258) gave `holds freedos-image http-sha256: the SHA-256 of https://download.freedos.org/1.4/FD14-LiteUSB.zip is the fact's` and `holds localtunnel tls-name: localtunnel.me verified at localtunnel.me:443`. The time-outs of 2026-11-20 to 2026-11-22 were of the hosts or of their routes to the runners, not a block of the runners that stays; the watches stay as they are. Time-outs of the same watches on three scheduled runs in a row reopen this entry with step 2 of the Approach.
+
+# T-1150: `pod-services-watch`: a watch of the facts of RFC 5780 of a STUN server (OTHER-ADDRESS, CHANGE-REQUEST, RESPONSE-PORT)
+
+**Source:** the review of PodUtils/podcrates#256 (T-802).
+**Category:** feature
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`easybell-stun` has the facts `rfc5780` and `response-port`
+(`crates/pod-services/services/easybell-stun.toml`), and `pod-natprobe`
+takes a server with `rfc5780 = true` for the tests of filtering. Its only
+watch is `stun-binding`, which checks a Binding success. No watch checks
+that the server still gives OTHER-ADDRESS, answers a CHANGE-REQUEST from
+the other address and port, and sends to the port of RESPONSE-PORT. The
+fact `response-port` comes from a measurement of the author of
+PodUtils/podcrates#256 alone, which this session cannot repeat (no UDP way
+out).
+
+## Premise
+
+- Read: `crates/pod-services-watch/src/stun.rs` (the watch `stun-binding`);
+  `crates/pod-turn/src/stun_nat.rs` (`NatRequestBuilder`, the readers of
+  OTHER-ADDRESS and RESPONSE-ORIGIN); the list
+  pradt2/always-online-stun:valid_nat_testing_hosts.txt (read 2026-11-24:
+  `stun.easybell.de:3478`; the list checks OTHER-ADDRESS only).
+- Measured 2026-11-24 from this session: `stun.easybell.de` A
+  `138.201.243.186` (`dns.google`); a UDP Binding request got no answer (no
+  UDP way out).
+- Not measured: the answers of easybell to CHANGE-REQUEST and
+  RESPONSE-PORT.
+
+## Approach
+
+1. A watch kind `stun-rfc5780` (arguments `endpoint`, `facts`): a Binding
+   request; the answer has OTHER-ADDRESS with another IP and another port,
+   and RESPONSE-ORIGIN equal to the source of the datagram. Then a
+   request with CHANGE-REQUEST 0x06 to the primary address gets its answer
+   from OTHER-ADDRESS, and one with 0x02 from the other port of the
+   primary IP. With the fact `response-port`, a request with RESPONSE-PORT
+   from a socket gets its answer at a second socket of the run.
+2. A stand-in of two loopback sockets (two ports of 127.0.0.1) proves the
+   watch, and a plant that skips the check of the source must fail its
+   test.
+3. Add the watch to `easybell-stun.toml`, the kind to the table of
+   `crates/pod-services/README.md`, and the hosts to row L19 of
+   `docs/live-calls.md`.
+
+## Prove
+
+```sh
+cargo test -p pod-services-watch --all-features stun_rfc5780
+cargo test -p pod-services --all-features
+sh scripts/plant-each.sh --apply
+```
+
+A dispatch of `services.yml` with `service=easybell-stun` passes.

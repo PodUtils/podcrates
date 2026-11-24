@@ -217,7 +217,7 @@ let relay = services.of_kind("relay").next();
 | `cloudflare-doh`, `google-doh` | `doh` | `v4-1`, `v4-2` (role `v4`), `v6-1`, `v6-2` (role `v6`) | `json-path`, `wire-path`, `http2-only` |
 | `quad9-doh` | `doh` | `v4-1`, `v4-2` (role `v4`) | `wire-path`, `http2-only` (no `json-path`: no JSON form) |
 | `cloudflare-dns` | `dns` | `udp-1`, `udp-2` (role `udp`), `trace` | `whoami-name`, `check-name` |
-| `cloudflare-stun`, `google-stun` | `stun` | `udp` | |
+| `cloudflare-stun`, `google-stun`, `easybell-stun` | `stun` | `udp` | `rfc5780`, `response-port` (`easybell-stun`) |
 | `tailcat-derp` | `derp` | `new-york`, `san-francisco`, `frankfurt`, `tokyo` (role `region`) | `probe-path` |
 | `tailscale-derp` | `derp` | one for each server, its role the code of its region (`nyc-1`, ...: 95 in 28 regions) | |
 | `tailscale-derp-map` | `derp-map` | `map` | |

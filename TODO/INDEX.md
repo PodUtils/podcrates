@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**916 entries: 155 open, 27 partial, 7 blocked, 727 done.**
+**922 entries: 156 open, 27 partial, 7 blocked, 732 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 219 | 233 |
-| P2 | 72 | 7 | 4 | 377 | 460 |
-| P3 | 79 | 10 | 3 | 129 | 221 |
-| **All** | 155 | 27 | 7 | 727 | 916 |
+| P1 | 4 | 10 | 0 | 220 | 234 |
+| P2 | 72 | 7 | 4 | 379 | 462 |
+| P3 | 80 | 10 | 3 | 131 | 224 |
+| **All** | 156 | 27 | 7 | 732 | 922 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -681,7 +681,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-799](relay.md) | P3 | M | M2 | feature | open | `pod-link`: two copies less of each byte: a read into the buffer of the decoder, and a writer queue of bytes |
 | [T-800](podvm.md) | P2 | S | M6 | feature | done | `pod-services`: the host of the virtio-win guest tools, fedorapeople.org (PodUtils/podvm#456) |
 | [T-801](relay.md) | P2 | M | M2 | feature | done | `pod-relay`: a link of the resumable layer over the HTTP road, where the way refuses the upgrade of a link (PodUtils/podssh#287) |
-| [T-802](relay.md) | P2 | M | M2 | feature | open | `pod-turn`: a NAT probe (the mapping, the filtering and the port of RFC 5780) on the caller's datagrams (GitHub #212) |
+| [T-802](relay.md) | P2 | M | M2 | feature | done | `pod-natprobe`: a NAT probe (the mapping, the filtering and the port of RFC 5780) on the caller's datagrams (GitHub #212) |
 | [T-803](relay.md) | P3 | M | M2 | feature | open | `pod-link`: an adaptive parity datagram for the ARQ, off on a clean link (GitHub #213) |
 | [T-804](podvm.md) | P1 | S | M5 | defect | done | `pod-qga` has no `LICENSE` beside its manifest; a check of each crate that cargo packs (PodUtils/podvm#456) |
 | [T-805](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: a node that gets `409` for its own lost socket gives up on that route sooner than `rejoin`, and says so (PodUtils/podnet#604) |
@@ -963,3 +963,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1142](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: `sys::Statfs` has no `f_bfree`, so a check for a daemon of root cannot name the blocks kept for root (PodUtils/podvm#651) |
 | [T-1143](podvm.md) | P2 | S | M6 | chore | open | podvm's class of a refusal by size reads the words of an `Io` error, and finds none after T-1138 |
 | [T-1144](transport.md) | P2 | M | M3 | feature | open | `pod-term`: a sans-IO 7-bit transfer codec for a pty that damages ZMODEM (PodUtils/podssh#346) |
+| [T-1146](relay.md) | P3 | S | M2 | docs | open | `pod-natprobe`: the comments of the code are not in ASD-STE100 |
+| [T-1150](services.md) | P2 | S | M5 | feature | open | `pod-services-watch`: a watch of the facts of RFC 5780 of a STUN server (OTHER-ADDRESS, CHANGE-REQUEST, RESPONSE-PORT) |
+| [T-1151](relay.md) | P3 | S | M2 | chore | done | `pod-natprobe`: the ignored live test runs in `live.yml` |
+| [T-1152](relay.md) | P1 | S | M2 | defect | done | `pod-natprobe`: the SSRF guards of UPnP and of the STUN replies take a host from an untrusted reply |
+| [T-1153](relay.md) | P2 | S | M2 | defect | done | `pod-natprobe`: each stray datagram adds one observation, with no bound |
+| [T-1154](relay.md) | P3 | S | M2 | defect | done | `pod-natprobe`: the resolver of the servers is the system's, a setting is never read, and a doc names two servers |

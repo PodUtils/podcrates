@@ -137,3 +137,40 @@ async fn stun_binding_wants_a_success_of_the_same_transaction() {
     let report = one(&file("u2", &(endpoint("udp", "stun", "127.0.0.1", bad.port(), "") + w))).await;
     assert!(text(&report).contains("did not answer"), "{}", text(&report));
 }
+
+/// The attributes of an answer: each type with its value.
+type Attributes = Vec<(u16, Vec<u8>)>;
+
+/// A stand-in that answers with the attributes that `attributes` makes for
+/// the transaction of the request.
+fn stun_stand_of(attributes: fn(&stun::TransactionId) -> Attributes) -> stand::Stand {
+    stand::udp(move |datagram| {
+        let request = stun::parse(datagram).ok()?;
+        let values = attributes(&request.id);
+        let refs: Vec<(u16, &[u8])> = values.iter().map(|(kind, value)| (*kind, value.as_slice())).collect();
+        Some(stun::message(stun::BINDING_SUCCESS, &request.id, &refs))
+    })
+    .expect("a UDP stand-in")
+}
+
+#[tokio::test]
+async fn stun_binding_takes_xor_mapped_address_before_a_plain_one_that_comes_first() {
+    pod_testkit::need_loopback!();
+    let w = "[[watch]]\nkind = \"stun-binding\"\nendpoint = \"udp\"\n";
+    // A box on the path (an ALG) rewrites the plain address; the XOR form holds.
+    let rewritten = stun_stand_of(|id| {
+        vec![
+            (stun::MAPPED_ADDRESS, stun::write_address("10.9.8.7:1".parse().unwrap(), None)),
+            (stun::XOR_MAPPED_ADDRESS, stun::write_address("198.51.100.4:4000".parse().unwrap(), Some(id))),
+        ]
+    });
+    let report = one(&file("u3", &(endpoint("udp", "stun", "127.0.0.1", rewritten.port(), "") + w))).await;
+    let said = text(&report);
+    assert!(report.holds() && said.contains("198.51.100.4:4000") && !said.contains("10.9.8.7"), "{said}");
+    // An older server gives the XOR form at 0x8020 alone.
+    let older = stun_stand_of(|id| {
+        vec![(stun::XOR_MAPPED_ADDRESS_ALT, stun::write_address("198.51.100.5:4001".parse().unwrap(), Some(id)))]
+    });
+    let report = one(&file("u4", &(endpoint("udp", "stun", "127.0.0.1", older.port(), "") + w))).await;
+    assert!(report.holds() && text(&report).contains("198.51.100.5:4001"), "{}", text(&report));
+}

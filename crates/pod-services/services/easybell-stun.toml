@@ -1,0 +1,33 @@
+# easybell's STUN server: the first server of the catalog with an other
+# address (RFC 5780), for the tests of the filtering of pod-natprobe.
+id = "easybell-stun"
+kind = "stun"
+party = "easybell"
+about = "A STUN server with OTHER-ADDRESS (RFC 5780): a second IPv4 address and a second port"
+
+[rank]
+value = 3
+source = { ruling = "call C923 (docs/decisions.md): after the two servers of PodUtils/podssh's call Q86, as the first server with OTHER-ADDRESS", read = 2026-11-24 }
+
+[[endpoint]]
+name = "udp"
+scheme = "stun"
+host = "stun.easybell.de"
+port = 3478
+source = { url = "https://raw.githubusercontent.com/pradt2/always-online-stun/master/valid_nat_testing_hosts.txt", read = 2026-11-24, note = "stun.easybell.de:3478; valid_nat_testing_ipv4s.txt: 138.201.243.186:3478; the A record of stun.easybell.de: 138.201.243.186" }
+
+[[fact]]
+name = "rfc5780"
+value = true
+type = "bool"
+source = { url = "https://raw.githubusercontent.com/pradt2/always-online-stun/master/valid_nat_testing_hosts.txt", read = 2026-11-24, note = "the list holds each server whose Binding response has OTHER-ADDRESS; the list does not test CHANGE-REQUEST" }
+
+[[fact]]
+name = "response-port"
+value = true
+type = "bool"
+source = { measured = "a Binding request with RESPONSE-PORT (0x0027) got its Binding success at a second socket of the client (PodUtils/podcrates#256)", read = 2026-11-24, note = "not measured again: a cloud session has no UDP way out; T-1150 adds the watch" }
+
+[[watch]]
+kind = "stun-binding"
+endpoint = "udp"

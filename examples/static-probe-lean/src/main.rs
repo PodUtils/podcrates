@@ -17,6 +17,8 @@ fn main() {
     let key = pod_turn::stun::long_term_key("probe", "probe.example", "probe");
     let signed = pod_turn::stun::signed(&pod_turn::stun::binding_request(&[7; 12]), &key);
     println!("pod-turn: a signed Binding request of {} bytes", signed.len());
+    let delta = pod_natprobe::classify::ring_delta(65532, 1026);
+    println!("pod-natprobe: ring delta {delta}");
     let udf = pod_udf::Udf::open(&[0u8; 4096][..]).map_or_else(|e| e.to_string(), |u| u.block_size().to_string());
     println!("pod-udf: {udf}");
     let methods = pod_control::Catalogue::core().entries().count();

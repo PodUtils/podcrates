@@ -1,0 +1,6 @@
+# The watch kind stun-binding: a plain MAPPED-ADDRESS that comes first is taken before XOR-MAPPED-ADDRESS; its test must fail.
+ENTRY=T-802
+GROUP=services
+EXPECT='test dns::stun_binding_takes_xor_mapped_address_before_a_plain_one_that_comes_first \.\.\. FAILED'
+RUN='cargo test -p pod-services-watch --test watches -- dns::stun_binding_takes_xor_mapped_address_before_a_plain_one_that_comes_first --exact'
+LIMIT=1800

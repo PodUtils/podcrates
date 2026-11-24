@@ -135,7 +135,7 @@ fn a_catalog_with_no_overlay_is_the_built_in_set() {
     assert_eq!(catalog.iter().count(), pod_services::all().len());
     assert_eq!(catalog.get("google-stun"), pod_services::get("google-stun"));
     let stun: Vec<&str> = catalog.of_kind("stun").map(|s| s.id()).collect();
-    assert_eq!(stun, ["cloudflare-stun", "google-stun"]);
+    assert_eq!(stun, ["cloudflare-stun", "google-stun", "easybell-stun"]);
     assert!(catalog.overlay().is_empty());
 }
 
