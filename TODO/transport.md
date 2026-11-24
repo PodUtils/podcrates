@@ -8087,7 +8087,7 @@ For the hand-off: no break; `Ring::modes_at` and `pod_testkit::screen::Modes` ar
 **Milestone:** M5
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8107,6 +8107,40 @@ Each of the three crates takes `crc32fast = { workspace = true }` and calls `crc
 ```sh
 cargo test -p pod-harness -p pod-egress -p pod-turn --all-features
 ```
+
+## Done
+
+2026-11-24, `2d760e97`. The three hand copies go: `pod_harness::zip::crc32`,
+`pod_egress::vmess::kdf::crc32` and the private `crc32` of
+`crates/pod-turn/src/stun_auth.rs`. Each call takes `crc32fast::hash`
+(`crc32fast = { workspace = true }`): always in `pod-harness`, by the feature
+`vmess` in `pod-egress`, by the feature `stun` in `pod-turn`. No copy runs with
+no `std` or in a loop that needs its own, so none stays. No file is frozen:
+`pod-harness` and `pod-turn` have no `SOURCES`, and podssh took the whole of
+`pod-egress` at `94ee6ac`.
+
+No behaviour changes. The known vectors stay at each call site:
+`zip::tests::the_crc_is_the_check_value_of_the_specification` reads the CRC
+of a ZIP local header (`123456789` gives `cbf43926`, an empty entry 0);
+`vmess::kdf::tests::the_auth_id_holds_the_time_and_its_checksum` holds the
+CRC-32 of the auth ID (`b85575f7`, the value of Go's `crc32.ChecksumIEEE`);
+`stun::auth::tests::the_vectors_of_rfc_5769_check` holds FINGERPRINT. The lib
+tests of `pod-egress`, `pod-harness` and `pod-turn` pass before and after the
+change (158, 51 and 39). The plant `scripts/plants/turn-fingerprint-crc-reflected.plant`
+reverses the bits of the CRC of the check of FINGERPRINT: the test of RFC 5769
+fails with it and passes without it. `cargo test`, `cargo clippy
+--all-targets --all-features -D warnings` and `cargo doc --no-deps
+--all-features` (`-D warnings`) of the three crates, `cargo fmt --all --check`:
+each exits 0. `sh scripts/plant-each.sh --apply`: 0 stale.
+`check-probe.py --no-tree`: 0 faults. `codegraph.py dups`: no new finding; no
+baseline line removed (no copy was in it).
+
+New dependency edges: `pod-harness -> crc32fast`, `pod-egress -> crc32fast`
+(feature `vmess`), `pod-turn -> crc32fast` (feature `stun`, so `pod-proxy`
+takes it through `pod-turn`). `crc32fast` 1.5 is in `Cargo.lock` already
+(flate2 and `pod-term` take it). The hand-off: `pod_harness::zip::crc32` and
+`pod_egress::vmess::kdf::crc32` (public) go; a consumer takes
+`crc32fast::hash`.
 
 # T-1198: `pod-term`: the transfer codec loses the `KEPT` that ends a session, and the far sender's 20 s wait runs while a person answers the offer
 

@@ -88,10 +88,10 @@ pub(super) fn class_of(code: u16) -> Class {
     }
 }
 
-/// Seconds only. The HTTP-date form is legal, and it gets the usual backoff,
-/// not a parsed date: a date read wrong is a wait of an unknown length.
+/// The wait of a `Retry-After` value at the clock of the system: seconds or
+/// an IMF-fixdate. [`backoff`] caps the wait of a far date.
 pub(super) fn parse_retry_after(v: &str) -> Option<Duration> {
-    v.trim().parse::<u64>().ok().map(Duration::from_secs)
+    pod_core::clock::retry_after(v, std::time::SystemTime::now())
 }
 
 pub(super) fn backoff(attempt: u32, asked: Option<Duration>) -> Duration {

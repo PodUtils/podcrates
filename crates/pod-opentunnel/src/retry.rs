@@ -39,8 +39,7 @@ pub fn retryable(status: u16, repeat: Repeat) -> bool {
 
 /// The seconds of a `Retry-After`, in seconds or as a date.
 pub fn retry_after_secs(value: Option<&str>) -> Option<u64> {
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
-    value.and_then(|text| pod_core::clock::retry_after_secs(text, i64::try_from(now).unwrap_or(i64::MAX)))
+    value.and_then(|text| pod_core::clock::retry_after(text, std::time::SystemTime::now())).map(|d| d.as_secs())
 }
 
 /// The bounds of the wait before retry `attempt`, from 0.

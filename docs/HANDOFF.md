@@ -141,6 +141,14 @@ The asks of #259 to the consumers:
   component over 255 bytes (`COMPONENT_MAX`), `Refusal::Stream`. New entries
   T-1253 to T-1255.
 
+- T-1163 (`pod-core`, `pod-oci`, `pod-cloudflare`): `pod_core::clock::retry_after`;
+  in podvm's pull a `Retry-After` date gives its wait (capped by
+  `BACKOFF_CAP`); `pod_cloudflare::quicktunnel::parse_retry_after` refuses a
+  date out of range. No break.
+- T-1197 (`pod-harness`, `pod-egress`, `pod-turn`): CRC-32 from `crc32fast`;
+  `pod_harness::zip::crc32` and `pod_egress::vmess::kdf::crc32` are removed (a
+  caller takes `crc32fast::hash`).
+
 ### What the next hand-off carries
 
 - podrunner: no open ask.

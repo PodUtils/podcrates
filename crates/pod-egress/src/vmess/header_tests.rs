@@ -11,7 +11,7 @@ fn server_opens(cmd_key: &[u8; 16], data: &[u8]) -> Result<(u64, Vec<u8>), &'sta
     let mut block = auth.into();
     aes.decrypt_block(&mut block);
     let plain: [u8; 16] = block.into();
-    if kdf::crc32(&plain[..12]) != u32::from_be_bytes(plain[12..].try_into().unwrap()) {
+    if crc32fast::hash(&plain[..12]) != u32::from_be_bytes(plain[12..].try_into().unwrap()) {
         return Err("the auth ID's checksum");
     }
     let unix = u64::from_be_bytes(plain[..8].try_into().unwrap());

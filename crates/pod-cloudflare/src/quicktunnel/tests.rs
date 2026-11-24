@@ -169,6 +169,17 @@ fn retry_after_values() {
     assert_eq!(parse_retry_after("soon"), None);
 }
 
+// A date out of the range of an IMF-fixdate is no wait, and a long year
+// does not overflow the count of seconds.
+#[test]
+fn a_retry_after_date_out_of_range_is_refused() {
+    for bad in
+        ["Sun, 32 Nov 1994 08:49:37 GMT", "Sun, 06 Nov 1994 25:61:00 GMT", "Sun, 06 Nov 99999999999999 08:49:37 GMT"]
+    {
+        assert_eq!(parse_retry_after(bad), None, "{bad}");
+    }
+}
+
 /// A response of a real `POST https://api.trycloudflare.com/tunnel` of the
 /// live service. The tunnel does not exist now; these tests read only the
 /// shape.

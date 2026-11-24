@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**968 entries: 170 open, 29 partial, 7 blocked, 762 done.**
+**970 entries: 170 open, 29 partial, 7 blocked, 764 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 227 | 241 |
 | P2 | 82 | 8 | 4 | 397 | 491 |
-| P3 | 84 | 11 | 3 | 136 | 234 |
-| **All** | 170 | 29 | 7 | 762 | 968 |
+| P3 | 84 | 11 | 3 | 138 | 236 |
+| **All** | 170 | 29 | 7 | 764 | 970 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -977,7 +977,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1160](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the fork fact of a job in the fake githome follows podrunner's rule of `e629fa8` (the second port after T-1122) |
 | [T-1161](upkeep.md) | P2 | S | M5 | defect | partial | `pod-control`: `a_call_back_meets_one_deadline_for_its_write` fails on riscv64 under the emulation of QEMU (the nightly at `0f5dad6`) |
 | [T-1162](fleet.md) | P3 | S | M8 | chore | done | Answer PodUtils/podvm#570 (COORD-183): name the commit of the sections "Shared code first" and "Quality first" of `docs/session-protocol.md` |
+| [T-1162](fleet.md) | P3 | S | M8 | chore | open | Answer PodUtils/podvm#570 (COORD-183): name the commit of the sections "Shared code first" and "Quality first" of `docs/session-protocol.md` |
 | [T-1163](upkeep.md) | P3 | S | M5 | chore | open | Two more readers of a `Retry-After` value: `pod-cloudflare` and `pod-oci` keep their own copy of `pod_core::clock::retry_after_secs` |
+| [T-1163](upkeep.md) | P3 | S | M5 | chore | done | Two more readers of a `Retry-After` value: `pod-cloudflare` and `pod-oci` keep their own copy of `pod_core::clock::retry_after_secs` |
 | [T-1164](relay.md) | P2 | S | M2 | defect | done | `pod-link`: the DNS listener sends no answer to a query that is not TXT or whose name does not decode, so a resolver retries and serves SERVFAIL (PodUtils/podssh#349) |
 | [T-1165](relay.md) | P2 | M | M2 | defect | done | `pod-link`: a query with a new session id takes a handshake slot of the DNS listener for 20 s before any key is checked (PodUtils/podssh#349) |
 | [T-1166](relay.md) | P3 | M | M2 | feature | done | `pod-link`: the DNS listener answers each poll at once; a held poll (dnstt's 1 s) halves the idle queries and cuts the latency of data down (PodUtils/podssh#349) |
@@ -995,7 +997,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1194](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: `flatten` keeps the hard links across layers, with the target before the link (PodUtils/podvm#657) |
 | [T-1195](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: `flatten` keeps the PAX records of the image, and takes a prefix and the entries of the caller (PodUtils/podvm#657) |
 | [T-1196](podvm.md) | P2 | M | M6 | feature | open | `pod-gzip`: a writer of gzip members, one member for each block, by up to eight threads, with the same bytes for any count of threads (PodUtils/podvm#657) |
-| [T-1197](transport.md) | P3 | S | M5 | chore | open | CRC-32 has three hand copies in the workspace; each crate takes `crc32fast` |
+| [T-1197](transport.md) | P3 | S | M5 | chore | done | CRC-32 has three hand copies in the workspace; each crate takes `crc32fast` |
 | [T-1198](transport.md) | P2 | S | M3 | defect | open | `pod-term`: the transfer codec loses the `KEPT` that ends a session, and the far sender's 20 s wait runs while a person answers the offer |
 | [T-1205](podvm.md) | P1 | S | M6 | feature | done | `pod-hostprobe`: `usage::Mounts`, the three cgroup directories of a process from the text of `/proc/self/mountinfo`, where a mount of cgroup is refused (PodUtils/podvm#659) |
 | [T-1209](upkeep.md) | P2 | S | M5 | defect | done | `pod-core`: one probe of a Unix socket that a forked child can hold, for `pod-control`, `pod-link` and `pod-warp` (PodUtils/podnet#709) |

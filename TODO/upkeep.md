@@ -4543,7 +4543,7 @@ still fails, find the cause (T-916), not a larger bound.
 **Milestone:** M5
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -4576,6 +4576,38 @@ crate holds a date.
 cargo test -p pod-cloudflare -p pod-oci --all-features
 python3 -I scripts/codegraph.py similar retry after
 ```
+
+## Done
+
+2026-11-24, `be0b20a4`. `pod_core::clock::retry_after(value, now)` is new: the
+wait of a `Retry-After` value at a wall time, by the rules of
+`retry_after_secs`. `pod_cloudflare::quicktunnel::parse_retry_after` and the
+`parse_retry_after` of `crates/pod-oci/src/registry/wire.rs` call it with the
+clock of the system; the own parse of the date of `pod-cloudflare` goes. Each
+crate keeps its bound of the wait (`PROVISION_BUDGET` of `pod-cloudflare`, the
+`BACKOFF_CAP` of `pod-oci`). `pod-opentunnel` (`retry::retry_after_secs`) and
+`pod-services-watch` (`net::limit_wait`) call it in place of their own read
+of the clock. Neither file is frozen: podnet took `pod-cloudflare` at
+`00b54ff`, podvm took `pod-oci` at `20ea781`.
+
+Tests: `quicktunnel::tests::a_retry_after_date_out_of_range_is_refused` fails
+on the old `pod-cloudflare` ("Sun, 32 Nov 1994 08:49:37 GMT" gave `Some(0ns)`;
+an hour of 25 and a long year that overflowed passed too);
+`registry::tests::a_retry_after_is_seconds_or_a_date_and_anything_else_falls_back`
+(the old `a_retry_after_that_is_not_a_number_falls_back_rather_than_waiting_forever`)
+fails on the old `pod-oci` (a date gave `None`), and holds that `BACKOFF_CAP`
+bounds the wait of a far date. The vectors of `quicktunnel::tests::retry_after_values`
+hold with the shared reader. `pod_core::clock::tests::a_retry_after_is_seconds_or_a_date`
+holds `retry_after`. `cargo test` of `pod-core`, `pod-cloudflare`, `pod-oci`,
+`pod-opentunnel`, `pod-services-watch` (with the three crates of T-1197) with
+`--all-features`: 969 passed, 0 failed. `cargo clippy --all-targets
+--all-features -D warnings`, `cargo doc --no-deps --all-features` with
+`RUSTDOCFLAGS="-D warnings"` and `cargo fmt --all --check` of these crates:
+each exits 0. `sh scripts/plant-each.sh --apply`: 0 stale.
+`codegraph.py dups`: no new finding; no baseline line removed. No new
+dependency edge. No public item removed: the hand-off adds
+`pod_core::clock::retry_after`, and a date of `Retry-After` now gives its wait
+in `pod-oci` (podvm's pull), not the backoff.
 
 # T-1209: `pod-core`: one probe of a Unix socket that a forked child can hold, for `pod-control`, `pod-link` and `pod-warp` (PodUtils/podnet#709)
 

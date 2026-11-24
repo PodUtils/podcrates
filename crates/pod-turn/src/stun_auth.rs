@@ -1,7 +1,8 @@
 //! The integrity of a STUN message (RFC 8489, 9 and 14.5 to 14.7) and the
 //! methods and attributes of TURN (RFC 8656, RFC 6062): a TURN client signs
 //! each request with its key, and checks each answer. Pure Rust: HMAC-SHA1
-//! of `hmac` and `sha1`, the MD5 of [`crate::md5`], and the CRC-32 here.
+//! of `hmac` and `sha1`, the MD5 of [`crate::md5`], and the CRC-32 of
+//! `crc32fast`.
 
 use hmac::{Hmac, KeyInit, Mac};
 use sha1::Sha1;
@@ -114,7 +115,7 @@ pub fn signed(message: &[u8], key: &[u8]) -> Vec<u8> {
 /// of the message whose length already counts it, XOR `0x5354554e`.
 pub fn fingerprinted(message: &[u8]) -> Vec<u8> {
     let mut out = with_length(message, FINGERPRINT_BYTES);
-    let crc = crc32(&out) ^ FINGERPRINT_XOR;
+    let crc = crc32fast::hash(&out) ^ FINGERPRINT_XOR;
     out.extend_from_slice(&FINGERPRINT.to_be_bytes());
     out.extend_from_slice(&4u16.to_be_bytes());
     out.extend_from_slice(&crc.to_be_bytes());
@@ -170,7 +171,7 @@ pub fn fingerprint_ok(bytes: &[u8]) -> bool {
         return false;
     }
     let want = u32::from_be_bytes([bytes[start + 4], bytes[start + 5], bytes[start + 6], bytes[start + 7]]);
-    crc32(&bytes[..start]) ^ FINGERPRINT_XOR == want
+    crc32fast::hash(&bytes[..start]) ^ FINGERPRINT_XOR == want
 }
 
 /// Each attribute of a whole message: its type, the offset of its header,
@@ -204,18 +205,6 @@ fn hmac_sha1(key: &[u8], bytes: &[u8]) -> [u8; 20] {
     let mut mac = <Hmac<Sha1> as KeyInit>::new_from_slice(key).expect("HMAC takes a key of any length");
     mac.update(bytes);
     mac.finalize().into_bytes().into()
-}
-
-/// The CRC-32 of ISO-HDLC (IEEE 802.3), as FINGERPRINT takes it.
-fn crc32(bytes: &[u8]) -> u32 {
-    let mut crc = 0xffff_ffffu32;
-    for b in bytes {
-        crc ^= u32::from(*b);
-        for _ in 0..8 {
-            crc = if crc & 1 == 1 { (crc >> 1) ^ 0xedb8_8320 } else { crc >> 1 };
-        }
-    }
-    !crc
 }
 
 #[cfg(test)]

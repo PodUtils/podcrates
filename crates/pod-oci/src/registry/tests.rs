@@ -146,9 +146,15 @@ fn only_the_statuses_worth_repeating_are_retried() {
 }
 
 #[test]
-fn a_retry_after_that_is_not_a_number_falls_back_rather_than_waiting_forever() {
+fn a_retry_after_is_seconds_or_a_date_and_anything_else_falls_back() {
     assert_eq!(parse_retry_after("7"), Some(Duration::from_secs(7)));
-    assert_eq!(parse_retry_after("Wed, 21 Oct 2026 07:28:00 GMT"), None);
+    assert_eq!(parse_retry_after("Wed, 21 Oct 2015 07:28:00 GMT"), Some(Duration::ZERO), "a date in the past");
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+    let wait = parse_retry_after(&pod_core::clock::http_date(now + 60)).expect("a date gives a wait");
+    assert!(wait.as_secs() > 50 && wait.as_secs() <= 60, "{wait:?}");
+    // The cap of the backoff bounds the wait of a far date.
+    assert_eq!(backoff(1, parse_retry_after(&pod_core::clock::http_date(now + 86_400))), BACKOFF_CAP);
+    assert_eq!(parse_retry_after("soon"), None);
 }
 
 #[test]

@@ -17,7 +17,7 @@ this crate depends on no other pod crate.
 | `http1` | the head of an HTTP/1.1 message, with no I/O and no tokio ("The head of HTTP/1.1", below): `Bounds` (`bytes`, `lines`; `DEFAULT`: `MAX_HEAD`, 16 KiB), `find_request`, `head_bounds`, `crlf_head_end`, `find`; `parse_request`, `Request` (`header`, `has`, `has_token`), `RequestError` (`status`); `parse_head`, `parse_status_line`, `Head`, `Framing::of`, `keeps`; `request_head`, `response_head`, `reason`, `refusal`, `answer`, `established`; `Exact` and `read_head_exact`: a head read one byte at a time, and not a byte further; `parse_content_range`, `Span`: a `Content-Range` (RFC 9110, section 14.4), the one parse of `pod-guest` and `pod-incus` |
 | `lock` | `FileLock` (`try_lock`, `lock_within`, `path`, `mode`, `file`) and `Mode`: an advisory lock of a file for the life of a value, `flock(2)` on Unix and `LockFileEx` on Windows, with no link at the last component, close-on-exec, and a bounded wait whose refusal names the file |
 | `backoff` | `backoff(retry)`, `CONNECT_TIMEOUT` |
-| `clock` | `Clock` (the monotonic time and the wall clock, which a test can plant), `SystemClock`, `ManualClock`; the hint of a refused certificate, HTTP dates, `utc_minutes`, `rfc3339` |
+| `clock` | `Clock` (the monotonic time and the wall clock, which a test can plant), `SystemClock`, `ManualClock`; the hint of a refused certificate, HTTP dates, the wait of a `Retry-After` (`retry_after_secs`, `retry_after`), `utc_minutes`, `rfc3339` |
 | `text` | `one_line`, `multi_line`: text of a peer, safe to print |
 | `names` | the checks of a host, a target and a node name |
 

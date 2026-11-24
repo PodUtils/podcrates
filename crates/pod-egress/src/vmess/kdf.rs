@@ -2,8 +2,8 @@
 //! them (`proxy/vmess/aead/kdf.go`, `authid.go`): a nested HMAC-SHA-256
 //! whose innermost key is a constant and whose each label keys one more HMAC
 //! over the one inside; the auth ID, which holds the time and a CRC-32 under
-//! AES; and FNV-1a, the request header's checksum. The two checksums are a
-//! few lines each, as no crate of the workspace has them.
+//! AES; and FNV-1a, the request header's checksum. The CRC-32 is
+//! `crc32fast`'s; FNV-1a is one line, as no crate of the workspace has it.
 
 use aes::cipher::BlockCipherEncrypt;
 use hmac::{Hmac, KeyInit, Mac};
@@ -89,24 +89,13 @@ pub fn auth_id(cmd_key: &[u8; 16], unix: u64, random: [u8; 4]) -> [u8; 16] {
     let mut block = [0u8; 16];
     block[..8].copy_from_slice(&unix.to_be_bytes());
     block[8..12].copy_from_slice(&random);
-    let check = crc32(&block[..12]);
+    // CRC-32 of IEEE 802.3, as Go's `crc32.ChecksumIEEE`.
+    let check = crc32fast::hash(&block[..12]);
     block[12..].copy_from_slice(&check.to_be_bytes());
     let aes = aes::Aes128::new(&kdf16(cmd_key, &[AUTH_ID_KEY]).into());
     let mut sealed = block.into();
     aes.encrypt_block(&mut sealed);
     sealed.into()
-}
-
-/// CRC-32 of IEEE 802.3, reflected, as Go's `crc32.ChecksumIEEE`.
-pub fn crc32(bytes: &[u8]) -> u32 {
-    let mut crc = !0u32;
-    for &b in bytes {
-        crc ^= u32::from(b);
-        for _ in 0..8 {
-            crc = if crc & 1 == 1 { (crc >> 1) ^ 0xedb8_8320 } else { crc >> 1 };
-        }
-    }
-    !crc
 }
 
 /// FNV-1a of 32 bits, as Go's `fnv.New32a`.
@@ -124,7 +113,6 @@ mod tests {
 
     #[test]
     fn the_checksums_are_go_s() {
-        assert_eq!(crc32(b"123456789"), 0xcbf4_3926);
         assert_eq!(fnv1a(b""), 0x811c_9dc5);
         assert_eq!(fnv1a(b"a"), 0xe40c_292c);
     }
@@ -157,6 +145,7 @@ mod tests {
         let plain: [u8; 16] = block.into();
         assert_eq!(u64::from_be_bytes(plain[..8].try_into().unwrap()), 1_700_000_000);
         assert_eq!(&plain[8..12], &[1, 2, 3, 4]);
-        assert_eq!(u32::from_be_bytes(plain[12..].try_into().unwrap()), crc32(&plain[..12]));
+        // Go's `crc32.ChecksumIEEE` of the 12 bytes before it.
+        assert_eq!(u32::from_be_bytes(plain[12..].try_into().unwrap()), 0xb855_75f7);
     }
 }
