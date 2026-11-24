@@ -10,8 +10,8 @@
   the GitHub release, the signed `SHA256SUMS`, the assets and the images
   of `ghcr.io/podutils`; the run on the tag and the dry run of
   `publish.yml` passed. Its hand-off COORD-154 (#259) is open (call C780):
-  it closes when each consumer names `v0.83.0` or a later tag. The
-  hand-off COORD-152 (#257) of `v0.82.1` is closed.
+  it closes when each consumer names `v0.83.0` or a later tag. Only podssh
+  names it. The hand-off COORD-152 (#257) of `v0.82.1` is closed.
 - On `main` after `v0.83.0`, for the next tag: T-1243 only (a port with no
   change for a consumer).
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
@@ -22,11 +22,12 @@
   `v0.82.1`; T-1103 (iroh 1.5) follows.
 - podssh's ask PodUtils/podssh#346 (COORD-137 of podssh): the sans-IO
   transfer codec is in `pod-term` (T-1144, `v0.83.0`); the answer is #258
-  (COORD-153), open until podssh names its take.
-- The tag that the `main` of each consumer names: `v0.82.1` (podrunner,
-  PodUtils/podrunner#348; podssh, PodUtils/podssh#347; podvm,
+  (COORD-153), open until podssh names the commit that wires the codec
+  (its T-831).
+- The tag that the `main` of each consumer names: `v0.83.0` (podssh,
+  PodUtils/podssh#354), `v0.82.1` (podrunner, PodUtils/podrunner#348; podvm,
   PodUtils/podvm#656; podnet, PodUtils/podnet#708). The details of the
-  earlier takes are on #250 and #254.
+  earlier takes are on #250, #254 and #259.
 - PodUtils/static-pkgs builds and publishes the static programs that no
   one else publishes in the form that PodUtils needs (the owner,
   2026-11-20); its first release is `qemu-11.1.3`.

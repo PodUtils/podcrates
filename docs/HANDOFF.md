@@ -103,7 +103,11 @@ consumer names `v0.83.0` or a later tag. Amend its body at each take. It has
 the digest of each image beside the SHA-256 of its asset, and the section
 of each consumer. The hand-off COORD-152 (#257) of `v0.82.1` is closed.
 COORD-153 (#258) answers PodUtils/podssh#346: the codec is in `v0.83.0`
-(`pod-term`, the feature `transfer`); it closes when podssh names its take.
+(`pod-term`, the feature `transfer`); it closes when podssh names the
+commit that wires the codec into its session (its T-831).
+
+Takes of `v0.83.0`: podssh (`3001570`, PodUtils/podssh#354, COORD-144).
+podrunner, podvm and podnet have not taken it.
 
 The asks of #259 to the consumers:
 
@@ -112,13 +116,13 @@ The asks of #259 to the consumers:
   there, and closes its #570. podvm removes its work-arounds for
   `pod-incus` (T-1158) and matches `ErrorKind::TooLarge` (T-1143), takes
   `usage::Mounts` (T-1205) and `socket_answers` (T-1209) where it has a copy.
-- podssh: two questions, answered in PodUtils/podssh#353 (COORD-143): the
-  codec closes both gaps of T-1198 (a `HOLD` frame, `VERSION` 2, the verdict
-  kept 25 s; call C932), and T-839 signs with an ECDSA P-256 key under a PCR
-  policy or a policy key, with no Unseal (T-1220; call C931). Also the STUN test (three
-  default servers), `code_of` of `devtunnel.rs` (`CantCreate`, `Internal`),
-  `Unit::NAME_MAX`, and the DNS carrier (`Dns::handshake_quiet`,
-  `DnsSettings::hold`).
+- podssh: took `v0.83.0` at `3001570` (PodUtils/podssh#354, COORD-144), with
+  no frozen file replaced and no `taken` line due. Open: the wiring of the
+  codec (podssh's T-831; podssh names the commit on #258); T-1167 to T-1169
+  and PodUtils/podssh#349 (the datagrams of the DNS carrier over DoH;
+  podssh's T-877 takes `Dns::handshake_quiet` and `DnsSettings::hold` at its
+  merge); PodUtils/podssh#352 (ask (b): the codes
+  that podssh keeps; T-1236 gives the README table, T-1238 the code 65).
 - podnet: T-1117 is partial (`docs/tunnels.md` and its copy in
   `llms-full.txt` give 130 s and 280 s; the limits are 110 s and 210 s);
   `socket_answers` replaces its own copy (T-1209, PodUtils/podnet#709).
