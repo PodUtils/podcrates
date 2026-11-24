@@ -1,9 +1,16 @@
 //! The listener's side of the DNS carrier: an authoritative server on a UDP
 //! socket. One task reads the socket, reads the question of each query, and
 //! takes the session, the counter and the datagram up from the labels of the
-//! name under the zone. A new session id starts a session and its handshake,
-//! at most [`crate::dns::Dns::max_handshakes`] at once. The answer of each
-//! query holds the datagrams down of that session in TXT records.
+//! name under the zone. The answer of each query holds the datagrams down of
+//! that session in TXT records.
+//!
+//! A new session id takes one of [`crate::dns::Dns::max_handshakes`] slots
+//! only at a part of its first record, the ClientHello of TLS (`dns::hello`).
+//! The session frees its slot at once when its first record is no
+//! ClientHello that offers the ALPN of the link, and when no query of the
+//! session comes for [`crate::dns::Dns::handshake_quiet`] before the end of
+//! its handshake (checked each [`PRUNE`]). A query of a new session id with
+//! no such part (a poll, junk) takes no slot and gets NOERROR with no record.
 //!
 //! Each other query gets an answer, so a resolver on the path does not send
 //! it again and then keep a SERVFAIL:
@@ -33,13 +40,16 @@ use std::time::Duration;
 use pod_core::Datagrams as AddressedDatagrams;
 use pod_dns::txt;
 use pod_identity::PublicKey;
-use tokio::sync::{Mutex as AsyncMutex, Semaphore, mpsc, oneshot};
-use tokio::task::JoinSet;
+use tokio::sync::{Mutex as AsyncMutex, OwnedSemaphorePermit, Semaphore, mpsc, oneshot};
+use tokio::task::{AbortHandle, JoinSet};
+use tokio::time::Instant;
 use tokio_rustls::TlsAcceptor;
 
+use super::hello::{self, Hello, Parts};
 use super::settings::DnsSettings;
 use super::wire;
 use super::{Dns, NAME, err};
+use crate::arq::wire::Datagram;
 use crate::carrier::{Accepted, BoxIo, CarrierError, CarrierErrorKind, Listener, Pending};
 use crate::datagram::{DatagramFuture, Datagrams};
 use crate::dgram_tls;
@@ -81,6 +91,7 @@ struct Shake {
     alpn: &'static [u8],
     arq: crate::arq::ArqSettings,
     within: Duration,
+    quiet: Duration,
     mtu: usize,
 }
 
@@ -90,11 +101,48 @@ struct Entry {
     up: mpsc::Sender<Vec<u8>>,
     down: mpsc::Receiver<Vec<u8>>,
     held: VecDeque<Vec<u8>>,
+    from: SocketAddr,
+    /// The time of the last query of the session.
+    seen: Instant,
+    /// The session before its handshake: the parts of its first record.
+    hello: Option<Box<Early>>,
+    /// The task of the handshake, once it runs.
+    shake: Option<AbortHandle>,
+}
+
+/// A session whose first record comes in: its parts, its slot, and the half
+/// of the datagrams that its handshake takes.
+struct Early {
+    parts: Parts,
+    permit: OwnedSemaphorePermit,
+    server: ServerSession,
+}
+
+impl Entry {
+    /// Whether the session is silent for `quiet` before the end of its
+    /// handshake. A handshake under way then ends, and gives its error to
+    /// `out` when the queue has room.
+    fn quiet(&self, now: Instant, quiet: Duration, out: &mpsc::Sender<Shaken>) -> bool {
+        if now.duration_since(self.seen) < quiet {
+            return false;
+        }
+        if self.hello.is_some() {
+            return true;
+        }
+        let Some(shake) = self.shake.as_ref().filter(|s| !s.is_finished()) else { return false };
+        shake.abort();
+        let why = format!("the handshake of {} sent nothing for {quiet:?}", self.from);
+        let _ = out.try_send(Err(err(CarrierErrorKind::Io(io::ErrorKind::TimedOut), why)));
+        true
+    }
 }
 
 pub(super) fn bind(dns: &Dns, socket: Arc<dyn AddressedDatagrams>, zone: String) -> Result<DnsListener, CarrierError> {
     if dns.max_handshakes == 0 {
         return Err(err(CarrierErrorKind::Usage, "max_handshakes is 0: give 1 or more"));
+    }
+    if dns.handshake_quiet.is_zero() {
+        return Err(err(CarrierErrorKind::Usage, "handshake_quiet is 0: give 1 ms or more"));
     }
     let mtu = wire::payload_mtu(&zone).map_err(|e| err(CarrierErrorKind::Usage, e))?;
     let shake = Shake {
@@ -102,6 +150,7 @@ pub(super) fn bind(dns: &Dns, socket: Arc<dyn AddressedDatagrams>, zone: String)
         alpn: dns.alpn,
         arq: dns.arq,
         within: dns.handshake_timeout,
+        quiet: dns.handshake_quiet,
         mtu,
     };
     let local = socket.local_addr().map_err(|e| CarrierError::io(NAME, "the address of the socket", e))?;
@@ -210,9 +259,12 @@ async fn serve(
             _ = &mut stop, if !stopped => {
                 stopped = true;
                 shakes.abort_all();
+                // A session before its handshake starts none now.
+                sessions.retain(|_, e| e.hello.is_none());
             }
             _ = prune.tick() => {
-                sessions.retain(|_, e| !e.up.is_closed());
+                let now = Instant::now();
+                sessions.retain(|_, e| !e.up.is_closed() && !e.quiet(now, shake.quiet, &out));
                 while shakes.try_join_next().is_some() {}
                 if stopped && sessions.is_empty() {
                     return;
@@ -275,22 +327,28 @@ async fn answer(
             if stopped {
                 return empty(socket, query, txt::RCODE_NOERROR, true, edns, from).await;
             }
+            // Only a part of a ClientHello takes a slot.
+            let Some(part) = hello::part(&payload, shake.arq.start) else {
+                return empty(socket, query, txt::RCODE_NOERROR, true, edns, from).await;
+            };
             // At the limit the query is lost: the dialer sends it again.
             let Ok(permit) = limit.clone().try_acquire_owned() else { return };
             let (up_tx, up_rx) = mpsc::channel(settings.depth);
             let (down_tx, down_rx) = mpsc::channel(settings.depth);
             let server = ServerSession { down: down_tx, up: AsyncMutex::new(up_rx), mtu: shake.mtu };
-            let (shake, out) = (shake.clone(), out.clone());
-            shakes.spawn(async move {
-                let _permit = permit;
-                let result =
-                    dgram_tls::accept(NAME, server, shake.acceptor, shake.alpn, shake.arq, &from, shake.within).await;
-                let _ = out.send(result).await;
-            });
-            slot.insert(Entry { up: up_tx, down: down_rx, held: VecDeque::new() })
+            let early = Early { parts: Parts::new(part.count), permit, server };
+            let (up, down, held) = (up_tx, down_rx, VecDeque::new());
+            let seen = Instant::now();
+            slot.insert(Entry { up, down, held, from, seen, hello: Some(Box::new(early)), shake: None })
         }
     };
-    if !payload.is_empty() {
+    entry.seen = Instant::now();
+    if entry.hello.is_some() {
+        if !first_record(entry, payload, shake, out, shakes) {
+            sessions.remove(&session);
+            return empty(socket, query, txt::RCODE_NOERROR, true, edns, from).await;
+        }
+    } else if !payload.is_empty() {
         // A full queue loses the datagram, as a lossy carrier does.
         let _ = entry.up.try_send(payload);
     }
@@ -305,6 +363,48 @@ async fn answer(
     if entry.up.is_closed() {
         sessions.remove(&session);
     }
+}
+
+/// Take the datagram `payload` of a session whose first record comes in. When
+/// the record is whole and offers the ALPN of the link, or goes on past its
+/// last part, give its parts to the session and start the handshake. False
+/// when the session ends: a part 0 that opens no ClientHello, a part of
+/// another count, or a record with no offer of the ALPN.
+fn first_record(
+    entry: &mut Entry,
+    payload: Vec<u8>,
+    shake: &Shake,
+    out: &mpsc::Sender<Shaken>,
+    shakes: &mut JoinSet<()>,
+) -> bool {
+    let Some(early) = entry.hello.as_mut() else { return true };
+    // A poll or another datagram before the handshake carries nothing.
+    if payload.is_empty() || Datagram::decode(&payload).is_ok_and(|d| !matches!(d, Datagram::Data { .. })) {
+        return true;
+    }
+    let Some(part) = hello::part(&payload, shake.arq.start) else { return false };
+    if !early.parts.add(part, payload) {
+        return false;
+    }
+    if !early.parts.complete() {
+        return true;
+    }
+    let Early { parts, permit, server } = *entry.hello.take().expect("a session before its handshake");
+    let (datagrams, read) = parts.take(shake.alpn);
+    if read == Hello::Refused {
+        return false;
+    }
+    for datagram in datagrams {
+        let _ = entry.up.try_send(datagram);
+    }
+    let (shake, out, from) = (shake.clone(), out.clone(), entry.from);
+    entry.shake = Some(shakes.spawn(async move {
+        let result = dgram_tls::accept(NAME, server, shake.acceptor, shake.alpn, shake.arq, &from, shake.within).await;
+        // A failed handshake frees its slot before the caller takes the error.
+        let _permit = result.is_ok().then_some(permit);
+        let _ = out.send(result).await;
+    }));
+    true
 }
 
 /// Send the answer of `rcode` with no record to `query`, with the AA bit when

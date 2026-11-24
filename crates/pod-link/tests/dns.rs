@@ -4,8 +4,9 @@
 //! another key is refused on each side and named; a silent server ends the
 //! dial; a query of a stranger changes nothing; each query of the zone that
 //! the listener cannot take gets an answer (T-1164, PodUtils/podssh#349);
-//! an answer keeps the bytes of the question and clears RA (T-1170); an
-//! address or a setting out of its form is a usage error.
+//! an answer keeps the bytes of the question and clears RA (T-1170); 64
+//! queries of new session ids keep no dial out (T-1165); an address or a
+//! setting out of its form is a usage error.
 //! `tests/dns_loss.rs` has the loss, the reorder and the duplicates over the
 //! `Lossy` shim.
 
@@ -15,14 +16,16 @@ mod common;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use common::dns::{ZONE, at, bound, carrier};
+use common::dns::{ZONE, at, bound, carrier, query_name};
 use common::tcp::{id, ring};
 use common::{echo, limit, pattern};
 use pod_core::Class;
 use pod_dns::txt::{self, TXT};
-use pod_link::dns::{Dns, DnsSettings, EDNS_SIZE};
+use pod_identity::PublicKey;
+use pod_link::arq::wire::Datagram;
+use pod_link::dns::{Dns, DnsListener, DnsSettings, EDNS_SIZE};
 use pod_link::tcp::{Refusal, refusal};
 use pod_link::{Carrier, CarrierErrorKind, Cost, Facts, Link, Listener, Role, Settings};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -226,9 +229,15 @@ async fn a_dropped_listener_answers_a_new_session_with_no_record() {
 async fn a_data_answer_keeps_the_bytes_of_the_question_and_clears_ra() {
     pod_testkit::need_loopback!();
     let door = bound(&carrier(1, &[id(2).public()])).await;
+    // A part of a ClientHello opens the session 7.
+    let part = Datagram::Data { seq: 1, index: 1, count: 2, payload: vec![0x5a; 60] }.to_vec();
+    let opens = txt::query(1, &query_name(7, 1, &part), TXT, Some(EDNS_SIZE)).unwrap();
+    assert!(ask_bytes(door.local_addr(), &opens).await.is_some(), "an answer to the part");
     // A resolver with 0x20 (Unbound `use-caps-for-id`) sends the name in
     // mixed case, and it drops an answer whose question has other bytes.
-    let mixed = format!("aBcDeFgHiJkLm.{}", ZONE.to_uppercase());
+    let poll = query_name(7, 2, &[]);
+    let mixed: String =
+        poll.chars().enumerate().map(|(i, c)| if i % 2 == 0 { c.to_ascii_uppercase() } else { c }).collect();
     let query = txt::query(0x0a0b, &mixed, TXT, Some(EDNS_SIZE)).unwrap();
     let got = ask_bytes(door.local_addr(), &query).await.expect("an answer to a query of a session");
     let end = 12 + mixed.len() + 2 + 4;
@@ -236,6 +245,65 @@ async fn a_data_answer_keeps_the_bytes_of_the_question_and_clears_ra() {
     assert_eq!((got[2] & 0x84, got[3] & 0x80), (0x84, 0), "QR and AA set, RA clear");
     let answer = txt::read(&got, 0x0a0b, &mixed, TXT).expect("an answer to the question");
     assert_eq!((answer.rcode, answer.authoritative), (0, true), "{answer:?}");
+}
+
+/// A dial of the client of the key 2 to `door`, timed. The errors of the
+/// handshakes of strangers before it are passed over.
+async fn timed_dial(door: &mut DnsListener, server: &PublicKey) -> Duration {
+    let mut dialing = carrier(2, &[]).to(door.local_addr());
+    dialing.handshake_timeout = limit();
+    let address = at(server);
+    let started = Instant::now();
+    let accept = async {
+        loop {
+            if let Ok(got) = door.accept_key().await {
+                return got;
+            }
+        }
+    };
+    let (near, _far) = timeout(limit(), async { tokio::join!(dialing.dial(&address), accept) })
+        .await
+        .expect("the dial and the accept in time");
+    near.expect("the dial");
+    started.elapsed()
+}
+
+/// 64 queries of new session ids (the limit of the handshakes) do not keep
+/// a real dial out (T-1165, PodUtils/podssh#349): a query that holds no part
+/// of a ClientHello takes no handshake slot, and a session that sends
+/// nothing after a part of its ClientHello frees its slot after
+/// `handshake_quiet`, not after `handshake_timeout`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn queries_of_new_session_ids_do_not_keep_a_dial_out() {
+    pod_testkit::need_loopback!();
+    let (server, client) = (id(1), id(2));
+    let mut listening = carrier(1, &[client.public()]);
+    let quiet = pod_testkit::host::scaled(Duration::from_secs(1));
+    listening.handshake_quiet = quiet;
+    let mut door = bound(&listening).await;
+    let local = door.local_addr();
+    // A poll and a datagram of junk of each new id.
+    for n in 0..64u32 {
+        let payload: &[u8] = if n % 2 == 0 { &[] } else { &[0x01, 0, 0, 0, 7, 0, 0, 0, 1, 0xee] };
+        let query = txt::query(n as u16, &query_name(0x1000 + n, 1, payload), TXT, Some(EDNS_SIZE)).unwrap();
+        assert!(ask_bytes(local, &query).await.is_some(), "an answer to the query {n}");
+    }
+    let first = timed_dial(&mut door, &server.public()).await;
+    // A part of a ClientHello of each new id, then nothing: the first part
+    // opens a TLS record of a ClientHello, the second part shows nothing.
+    let mut hello = vec![0x16, 0x03, 0x01, 0x00, 0xc0, 0x01, 0x00, 0x00, 0xbc, 0x03, 0x03];
+    hello.resize(100, 0x5a);
+    for n in 0..64u32 {
+        let index = (n % 2) as u16;
+        let part = Datagram::Data { seq: u32::from(index), index, count: 2, payload: hello.clone() }.to_vec();
+        let query = txt::query(n as u16, &query_name(0x2000 + n, 1, &part), TXT, Some(EDNS_SIZE)).unwrap();
+        assert!(ask_bytes(local, &query).await.is_some(), "an answer to the part {n}");
+    }
+    let second = timed_dial(&mut door, &server.public()).await;
+    eprintln!("the dial after 64 queries of junk: {first:?}; after 64 parts of a ClientHello: {second:?}");
+    assert!(first < quiet, "the junk held a slot: the dial took {first:?}");
+    let bound = pod_testkit::host::scaled(Duration::from_secs(8));
+    assert!(second < bound, "the parts held a slot past the quiet time: the dial took {second:?}");
 }
 
 #[tokio::test]
@@ -262,6 +330,9 @@ async fn an_address_or_a_setting_out_of_its_form_is_a_usage_error() {
     let mut none = dns.clone();
     none.max_handshakes = 0;
     assert_eq!(none.listen("127.0.0.1:0").await.err().unwrap().kind, CarrierErrorKind::Usage);
+    let mut never = dns.clone();
+    never.handshake_quiet = Duration::ZERO;
+    assert_eq!(never.listen("127.0.0.1:0").await.err().unwrap().kind, CarrierErrorKind::Usage);
     for dsettings in [
         DnsSettings { queries_per_second: 0.0, ..DnsSettings::default() },
         DnsSettings { in_flight: 0, ..DnsSettings::default() },
@@ -288,8 +359,8 @@ async fn the_carrier_says_what_it_gives_and_why_it_cannot_run() {
     let e = Dns::new(Arc::new(old), id(1)).zone("z.test").available().expect_err("a provider with no TLS 1.3");
     assert_eq!(e.kind, CarrierErrorKind::Unavailable, "{e}");
     assert_eq!(
-        (pod_link::dns::NAME, pod_link::dns::ALPN, pod_link::dns::MAX_HANDSHAKES),
-        ("dns", &b"podlink/1"[..], 64)
+        (pod_link::dns::NAME, pod_link::dns::ALPN, pod_link::dns::MAX_HANDSHAKES, pod_link::dns::HANDSHAKE_QUIET),
+        ("dns", &b"podlink/1"[..], 64, Duration::from_secs(5))
     );
     let shown = format!("{dns:?}");
     assert!(shown.contains(&id(1).public().fingerprint()) && shown.contains("z.test"), "{shown}");

@@ -11259,7 +11259,7 @@ The findings of the review are T-1170 and T-1171.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11293,6 +11293,85 @@ documentation of `Dns`.
 
 ```sh
 cargo test -p pod-link --all-features dns
+```
+
+## Done
+
+2026-11-24, this commit. A query of a new session id takes a handshake
+slot of the DNS listener only when it holds a part of the ClientHello of
+the session, and the slot is free again at once or after a short bound:
+
+- `crates/pod-link/src/dns/hello.rs` (new): a part of the first record of
+  the ARQ (a `DATA` frame at the sequence `ArqSettings::start` plus its
+  index, at most 128 parts; the part 0 opens a TLS handshake record of a
+  ClientHello), and the parts of one session in any order. When each part
+  came, the parser of rustls (`rustls::server::Acceptor`) reads the record:
+  a ClientHello that offers the ALPN of the link starts the handshake; no
+  ClientHello, or one with no offer of the ALPN, ends the session at once;
+  a ClientHello that goes on past the first record starts the handshake,
+  and TLS checks it.
+- `server.rs`: a query of a new id with no such part (a poll, junk, an
+  `ACK`) takes no slot and gets NOERROR with no record, AA set. A session
+  with no query for `Dns::handshake_quiet` before the end of its handshake
+  ends (checked each second): a session before its handshake frees its
+  slot; a handshake under way stops and gives a time-out error to the
+  accept when its queue has room. A failed handshake frees its slot before
+  the caller takes its error. The drop of the listener ends each session
+  before its handshake.
+- `Dns::handshake_quiet` (a new public field, default
+  `HANDSHAKE_QUIET`, 5 s: more than `DnsSettings::poll_max` of a dialer
+  and one lost poll; 0 is a usage error) and the constant
+  `pod_link::dns::HANDSHAKE_QUIET`. The documentation of `Dns` and the
+  README of `pod-link` give the bound.
+
+The measure (`queries_of_new_session_ids_do_not_keep_a_dial_out`, 64
+queries of new ids, then a real dial, timed from the end of the queries;
+the listener with `handshake_timeout` 20 s and `handshake_quiet` 1 s):
+
+| The 64 queries | Before | After |
+| --- | --- | --- |
+| A poll or a datagram of junk of each id | 23.0 s | 31 to 44 ms |
+| A part of a ClientHello of each id, then nothing | 23.0 s | 3.0 s |
+
+Before, each of the 64 queries held a slot for the handshake time (20 s),
+and the dialer took the slot at its next send after it. After, the junk
+holds no slot, and the parts hold the slots for `handshake_quiet` and the
+check of each second; the dialer takes a slot at its next send (an RTO of
+1 s, then 2 s). A sender of a part of a ClientHello for each new id holds
+the slots for `handshake_quiet` (5 s by default), not for 20 s.
+
+Related: T-1171. A late query of an ended session now starts no handshake
+unless it holds a part of a ClientHello; the entry stays open for a
+retransmitted ClientHello.
+
+For the hand-off: `Dns` has the new public field `handshake_quiet`. `Dns`
+has private fields, so no caller builds it with a literal; a grep in
+shallow clones of podnet and podssh finds only `Dns::new` and the builder
+methods (podnet `src/link_dns.rs`). A caller that sets `poll_max` of its
+dialers above 5 s sets `handshake_quiet` above it on its listeners. A
+listener now answers a poll of a new id with no record and starts no
+session for it.
+
+Tests: `queries_of_new_session_ids_do_not_keep_a_dial_out` (new; 8 runs in
+a loop, all passed),
+`a_data_answer_keeps_the_bytes_of_the_question_and_clears_ra` (it opens
+its session with a part of a ClientHello now), new asserts in
+`an_address_or_a_setting_out_of_its_form_is_a_usage_error` and
+`the_carrier_says_what_it_gives_and_why_it_cannot_run` in
+`crates/pod-link/tests/dns.rs`;
+`dns::hello::tests::a_first_part_opens_a_client_hello_and_each_part_is_of_the_first_record`
+and `dns::hello::tests::a_whole_record_in_any_order_shows_the_offer_of_the_alpn`.
+`cargo test -p pod-link --all-features --test dns --test dns_loss --test
+dns_resolver`: 11, 4 and 3 passed; `--lib dns`: 6 passed; `cargo test -p
+pod-dns --all-features`: all passed; clippy: no warning; plants: 0 stale.
+
+On the old `server.rs` (the test without the line of the new field), the
+test fails:
+
+```text
+the dial after 64 queries of junk: 23.049515218s; after 64 parts of a ClientHello: 23.036875823s
+test queries_of_new_session_ids_do_not_keep_a_dial_out ... FAILED
+test result: FAILED. 0 passed; 1 failed; finished in 46.30s
 ```
 
 # T-1166: `pod-link`: the DNS listener answers each poll at once; a held poll (dnstt's 1 s) halves the idle queries and cuts the latency of data down (PodUtils/podssh#349)

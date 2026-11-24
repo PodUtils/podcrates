@@ -54,3 +54,26 @@ pub async fn bound(dns: &Dns) -> DnsListener {
 pub fn at(key: &PublicKey) -> String {
     format!("{}@{}", key.hex(), ZONE)
 }
+
+/// The query name of a dialer for the datagram `payload` of the session
+/// `session` at `counter`, under [`ZONE`]: base32 of RFC 4648 (lower case,
+/// no padding) in labels of at most 63 characters. A test sends a query of
+/// its own session with it.
+pub fn query_name(session: u32, counter: u32, payload: &[u8]) -> String {
+    const ALPHABET: &[u8; 32] = b"abcdefghijklmnopqrstuvwxyz234567";
+    let blob = [&session.to_be_bytes()[..], &counter.to_be_bytes(), payload].concat();
+    let (mut chars, mut word, mut bits) = (Vec::new(), 0u32, 0u32);
+    for byte in blob {
+        word = (word << 8 | u32::from(byte)) & 0xfff;
+        bits += 8;
+        while bits >= 5 {
+            bits -= 5;
+            chars.push(ALPHABET[(word >> bits & 31) as usize]);
+        }
+    }
+    if bits > 0 {
+        chars.push(ALPHABET[(word << (5 - bits) & 31) as usize]);
+    }
+    let labels: Vec<&str> = chars.chunks(63).map(|l| std::str::from_utf8(l).expect("base32 is ASCII")).collect();
+    format!("{}.{ZONE}", labels.join("."))
+}
