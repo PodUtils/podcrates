@@ -170,7 +170,7 @@ The asks of #259 to the consumers:
   rereads}`), writes the attributes as `SCHILY.xattr.` records (ACLs in their
   binary form), takes `Options::{prefix, prefix_mode, end}` and the caller's
   entries by `flatten_with` and `Entries`. podvm streams the unified tarball
-  of incus with no tree on disk (`prefix: "rootfs/"`, `metadata.yaml` before,
+  of incus with no tree on disk (`prefix: "rootfs/"`, the metadata file of incus before,
   `rootfs/.podvm/podvm` after) into `pod_incus::ImageData::Unified`. `extract`
   refuses a link to a missing target or a directory with `Refusal::Link`
   (`safety::LINK_MISSING`), and a link waits for a missing directory above
