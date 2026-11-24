@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**968 entries: 168 open, 29 partial, 7 blocked, 764 done.**
+**968 entries: 167 open, 29 partial, 7 blocked, 765 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 227 | 241 |
-| P2 | 82 | 8 | 4 | 397 | 491 |
+| P2 | 81 | 8 | 4 | 398 | 491 |
 | P3 | 82 | 11 | 3 | 138 | 234 |
-| **All** | 168 | 29 | 7 | 764 | 968 |
+| **All** | 167 | 29 | 7 | 765 | 968 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1008,7 +1008,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1222](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: a TPM in software (feature `soft`) and a CI lane against swtpm and the reference simulator, with the key of PCR 7 as the proof (PodUtils/podssh#351) |
 | [T-1223](services.md) | P2 | S | M5 | defect | done | `services.yml` 45394042840: the Syncthing relay WMYMARB at a new address, the Trojan node `node-trojan-45-63-30-142` gone, and two hosts with a first no answer |
 | [T-1235](foundation.md) | P2 | S | M0 | feature | done | `pod-core`: the classes `CantCreate` (73) and `Internal` (70) (PodUtils/podssh#352) |
-| [T-1236](foundation.md) | P2 | S | M0 | docs | open | `pod-core`: the codes that a consumer keeps where its class gives another, in the README (PodUtils/podssh#352) |
+| [T-1236](foundation.md) | P2 | S | M0 | docs | done | `pod-core`: the codes that a consumer keeps where its class gives another, in the README (PodUtils/podssh#352) |
 | [T-1237](foundation.md) | P2 | S | M0 | feature | done | `pod-release`: `Error::CantWrite` has the class `CantCreate` (73) (PodUtils/podssh#352) |
 | [T-1238](foundation.md) | P3 | S | M0 | research | open | `pod-core`: no class for `EX_DATAERR` (65), which podssh uses (PodUtils/podssh#352) |
 | [T-1243](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the auth of the fake broker at podrunner `2a55cd9` (port review of `auth.rs`) |

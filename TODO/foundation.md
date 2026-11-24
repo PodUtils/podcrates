@@ -3478,7 +3478,7 @@ Azathothas, COLLABORATOR.
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3551,6 +3551,27 @@ cargo todo check
 
 T-1235 has its tag, so that the table of the section is the table of the
 code.
+
+## Done
+
+2026-11-24, this commit (call C929). `crates/pod-core/README.md`: the
+section "Codes that a consumer keeps", after "Exit codes and the log line".
+Its table has the columns consumer, fault, code, class, code of the class
+and effect on a supervisor. It has two rows, both of podssh, read from
+`PodUtils/podssh:crates/podssh-cli/src/exitmap.rs` (`Origin::Own`): `Revoked`
+(69, class `revoked`, 78) and `Capability` (78, class `unsupported`, 80).
+The text says that a consumer can move to the table at any time and lists
+here each code that it keeps. `Class::exit_code` takes no table of a
+caller. The test
+`a_kept_code_differs_from_the_code_of_its_class` in
+`crates/pod-core/tests/exit_codes.rs` reads the section: each row names a
+class of `Class::ALL`, the column "Code of the class" is the code of the
+class, the kept code is another one, the effect is not empty, and no pair
+of consumer and fault is twice. Before the section, it fails: "the README
+has no section \"Codes that a consumer keeps\"". With the code of the class
+of the `Revoked` row changed to 79, it fails: "the code of `revoked` is
+78, left: Some(79)". The reply to podssh (step 4) is a COORD comment of the
+coordinator.
 
 # T-1237: `pod-release`: `Error::CantWrite` has the class `CantCreate` (73) (PodUtils/podssh#352)
 

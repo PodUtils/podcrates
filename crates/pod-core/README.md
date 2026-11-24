@@ -140,6 +140,20 @@ for a failure, `stage` and `class` (the names of `Stage` and `Class`). The
 schema comes from the audit line of `pod-broker`, the one writer of these
 lines in podcrates.
 
+## Codes that a consumer keeps
+
+A consumer can move to the table above at any time. A consumer that keeps
+its own code for a fault lists the row here, so that a supervisor and a
+script find each difference in one place. Each row names the class that is
+nearest to the fault by its meaning. A test of this crate holds each row:
+the class exists, the column "Code of the class" is the code of that class,
+and the kept code is another one.
+
+| Consumer | Fault | Code | Class | Code of the class | Effect on a supervisor |
+| --- | --- | --- | --- | --- | --- |
+| podssh | `Revoked`: the operator stopped the reverse relay | 69 | `revoked` | 78 | With `RestartPreventExitStatus=64 78 79 80`, the unit restarts podssh on 69 and stops a tool that gives 78 |
+| podssh | `Capability`: the host lacks what a mode needs | 78 | `unsupported` | 80 | With `RestartPreventExitStatus=64 78 79 80`, the unit stops on both codes; with 80 alone, the unit restarts podssh on 78 |
+
 ## Adoption map
 
 | Consumer | Old path | New path |
