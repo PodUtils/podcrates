@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**960 entries: 171 open, 29 partial, 7 blocked, 753 done.**
+**964 entries: 175 open, 29 partial, 7 blocked, 753 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 226 | 240 |
-| P2 | 82 | 8 | 4 | 392 | 486 |
-| P3 | 85 | 11 | 3 | 133 | 232 |
-| **All** | 171 | 29 | 7 | 753 | 960 |
+| P2 | 85 | 8 | 4 | 392 | 489 |
+| P3 | 86 | 11 | 3 | 133 | 233 |
+| **All** | 175 | 29 | 7 | 753 | 964 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1007,3 +1007,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1221](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the transports of Linux (`/dev/tpmrm0`, an swtpm socket) and of Windows (TBS), each command bounded in size and time (PodUtils/podssh#351) |
 | [T-1222](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: a TPM in software (feature `soft`) and a CI lane against swtpm and the reference simulator, with the key of PCR 7 as the proof (PodUtils/podssh#351) |
 | [T-1223](services.md) | P2 | S | M5 | defect | done | `services.yml` 45394042840: the Syncthing relay WMYMARB at a new address, the Trojan node `node-trojan-45-63-30-142` gone, and two hosts with a first no answer |
+| [T-1235](foundation.md) | P2 | S | M0 | feature | open | `pod-core`: the classes `CantCreate` (73) and `Internal` (70) (PodUtils/podssh#352) |
+| [T-1236](foundation.md) | P2 | S | M0 | docs | open | `pod-core`: the codes that a consumer keeps where its class gives another, in the README (PodUtils/podssh#352) |
+| [T-1237](foundation.md) | P2 | S | M0 | feature | open | `pod-release`: `Error::CantWrite` has the class `CantCreate` (73) (PodUtils/podssh#352) |
+| [T-1238](foundation.md) | P3 | S | M0 | research | open | `pod-core`: no class for `EX_DATAERR` (65), which podssh uses (PodUtils/podssh#352) |
