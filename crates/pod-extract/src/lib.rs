@@ -284,7 +284,7 @@ fn extract_layers(
         let st = apply::apply_layer(root, &l.digest, &mut second, ids, side)?;
         drop(second);
         verified(&hash2, &l.digest, &l.blob)?;
-        dirs.record(&st.dir_modes);
+        dirs.layer(&st);
         total.entries += st.entries;
         total.skipped += st.skipped;
         total.xattrs.merge(&st.xattrs);
@@ -310,7 +310,7 @@ fn extract_layers(
     Ok(())
 }
 
-fn short(digest: &str) -> String {
+pub(crate) fn short(digest: &str) -> String {
     let hex = digest.split(':').next_back().unwrap_or(digest);
     hex.chars().take(12).collect()
 }
@@ -319,7 +319,7 @@ fn short(digest: &str) -> String {
 /// the pull: the hash of the stream is compared before the layer is trusted.
 /// A mismatch names the blob, the digest of the manifest and the computed
 /// one.
-fn verified(hash: &layer::HashedStream, want: &str, blob: &Path) -> Result<()> {
+pub(crate) fn verified(hash: &layer::HashedStream, want: &str, blob: &Path) -> Result<()> {
     // The extraction stops at the end of the archive: the rest of the blob
     // goes into the hash first (PodUtils/podvm#281).
     hash.finish()?;

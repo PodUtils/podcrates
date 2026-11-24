@@ -173,7 +173,7 @@ fn steps(dir: &std::path::Path, layers: &[Vec<u8>], last_pass: bool) -> crate::R
         removed += remove::apply(&root, &ops)?;
         dirs.forget(&ops);
         let st = apply_layer(&root, &format!("sha256:layer{n}"), &mut Cursor::new(l.clone()), Ids::current(), &mut sc)?;
-        dirs.record(&st.dir_modes);
+        dirs.layer(&st);
     }
     if last_pass {
         dirs.set(&root, &mut sc)?;

@@ -312,9 +312,13 @@ pub fn same(layers: &[Layer]) -> Vec<u8> {
     assert_eq!(got.nodes, want.nodes, "the tree of the stream differs from the tree of the layers");
     let listed = entries(&stream);
     let mut seen = std::collections::BTreeSet::new();
-    for (path, _, _, uid, gid, _) in &listed {
+    for (path, kind, mode, uid, gid, _) in &listed {
         assert!(seen.insert(path.clone()), "{path} is in the stream two times: {listed:?}");
-        assert_eq!(want.owners.get(path), Some(&(*uid, *gid)), "the ids of {path}");
+        // A directory that a file below it made has no row: the stream
+        // gives it the mode and the owner that `extract` gives it.
+        let ids = want.owners.get(path).copied();
+        let implied = (*kind, *mode, *uid, *gid) == (tar::EntryType::Directory, 0o755, 0, 0);
+        assert!(ids == Some((*uid, *gid)) || ids.is_none() && implied, "the ids of {path}: {ids:?}");
     }
     stream
 }

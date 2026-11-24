@@ -257,7 +257,8 @@ fn a_path_twice_in_one_layer_goes_out_in_the_order_of_the_layer() {
     let l = tar(&[E::File("f", b"one", 0o644), E::File("f", b"two", 0o600), E::Dir("d", 0o700), E::Dir("d", 0o751)]);
     let layers = plain(s.path(), &[l]);
     let (stream, _) = flattened(&layers).unwrap();
-    let got = extracted(&plain(s.path(), &[stream])).unwrap();
+    let t = Scratch::new("twice-stream");
+    let got = extracted(&plain(t.path(), &[stream])).unwrap();
     assert_eq!(got.nodes, extracted(&layers).unwrap().nodes);
     // A file over a directory that the same layer filled: a reader of the
     // stream cannot replace the full directory, so the layer is refused.

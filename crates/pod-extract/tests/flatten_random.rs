@@ -43,9 +43,12 @@ fn path(r: &mut Lcg) -> String {
 }
 
 /// One layer: each path at most once, as `flatten` writes a path again in
-/// the same layer in the order of the layer (a test of its own).
+/// the same layer in the order of the layer, and no file or symlink over a
+/// path that the layer wrote below before, which `flatten` refuses (each a
+/// test of its own).
 fn layer(r: &mut Lcg) -> Vec<Op> {
     let mut seen = std::collections::BTreeSet::new();
+    let mut written: Vec<String> = Vec::new();
     let mut out = Vec::new();
     for _ in 0..r.below(9) {
         let p = path(r);
@@ -63,7 +66,13 @@ fn layer(r: &mut Lcg) -> Vec<Op> {
         let key = match &op {
             Op::File(p, ..) | Op::Dir(p, _) | Op::Symlink(p, _) | Op::Whiteout(p) | Op::Opaque(p) => p.clone(),
         };
-        if seen.insert(key) {
+        if let Op::File(p, ..) | Op::Symlink(p, _) = &op
+            && written.iter().any(|w| w.starts_with(&format!("{p}/")))
+        {
+            continue;
+        }
+        if seen.insert(key.clone()) {
+            written.push(key);
             out.push(op);
         }
     }
