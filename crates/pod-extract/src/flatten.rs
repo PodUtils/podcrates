@@ -47,11 +47,11 @@
 //! blob is known at its end, after its entries went out: a blob that does
 //! not agree fails the stream with the cause [`crate::Mismatch`].
 //!
-//! **Not written yet:** the extended attributes and the ACLs of an entry, a
-//! hard link whose target is not a file of the same layer that went out
-//! before it (an unsupported failure that names the link), and the
-//! entries of the caller. Each other PAX record is dropped, as `extract`
-//! drops it.
+//! **Not in the stream:** the extended attributes and the ACLs of an
+//! entry, and the entries of the caller. A hard link whose target is not a
+//! file of the same layer that went out before it fails the stream
+//! (`Unsupported`, the link named). Each other PAX record is dropped, as
+//! `extract` drops it.
 
 use std::io::{Read, Write};
 

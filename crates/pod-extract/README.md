@@ -108,10 +108,10 @@ its holes as zero bytes. A failure after the first byte writes one block
 that is not a header in place of the end blocks: the reader fails and
 does not take a short tree, and the caller discards the upload. The
 memory: about 52 bytes and the name of each path, up to
-`Options::paths_max` paths (`PATHS_MAX`, 8 Mi). Not written yet: the
-extended attributes and the ACLs, a hard link whose target is not a file
-of its layer before it (the stream fails with `Unsupported`), and the
-entries of the caller.
+`Options::paths_max` paths (`PATHS_MAX`, 8 Mi). The stream does not hold
+the extended attributes, the ACLs and the entries of the caller (T-1195).
+A hard link whose target is not a file of its layer before it fails the
+stream with `Unsupported` (T-1194).
 
 Each blob is hashed while it is read, in both passes, and the extraction is
 refused when the digest of the manifest does not agree. The completion

@@ -21,7 +21,7 @@ pub(super) struct State {
     /// The paths whose kind the current layer set, for its end.
     touched: Vec<u32>,
     /// The paths below which the current layer wrote while their kind in
-    /// the layer was not known yet, with the node of the entry.
+    /// the layer was not known, with the node of the entry.
     pending: Vec<(u32, u32)>,
 }
 
@@ -127,7 +127,7 @@ impl State {
                 if !ok.is_some_and(|n| n.emitted == layer && n.emitted_file) {
                     return Err(error::unsupported(format!(
                         "layer {digest}: the hard link {path:?} names {t:?}, which is not a file of the same layer \
-                         before it; flatten does not write that hard link yet"
+                         before it; flatten writes a hard link to such a file only"
                     )));
                 }
                 (Kind::Link, Some(link_parts.join("/")))
@@ -174,7 +174,7 @@ impl State {
     ///
     /// A directory whose kind the layer set as a non-directory refuses the
     /// entry, as `extract` refuses a path through a symlink of the same
-    /// layer. A directory whose kind the layer did not set yet takes a mark
+    /// layer. A directory whose kind the layer did not set takes a mark
     /// at the end of the layer: the older layers must leave a directory
     /// there, or no path.
     fn ancestors(&mut self, digest: &str, layer: u16, path: &str, parts: &[&str]) -> Result<(u32, Vec<u32>, bool)> {

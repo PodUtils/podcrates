@@ -225,7 +225,7 @@ fn a_hard_link_to_a_file_of_its_layer_is_kept_and_the_other_links_wait_for_their
     // A link to a file of an older layer: its target comes after it in a
     // stream from the newest layer.
     let layers = plain(s.path(), &[l0, tar(&[E::Hardlink("c", "a")])]);
-    let f = flattened(&layers).expect_err("not written yet");
+    let f = flattened(&layers).expect_err("a link before its target is refused");
     assert!(f.to_string().contains("hard link"), "{}", f.chain());
 }
 
@@ -296,6 +296,9 @@ fn gnu_tar_with_the_arguments_of_incusd_takes_the_stream() {
     let layers = plain(s.path(), &[l0, l1]);
     let want = extracted(&layers).unwrap();
     let (stream, _) = flattened(&layers).unwrap();
+    // incusd takes a tarball by the magic of its first header
+    // (`lxc/incus:shared/archive/detect.go`).
+    assert_eq!(&stream[257..262], b"ustar");
     let out = s.path().join("gnu");
     std::fs::create_dir_all(&out).unwrap();
     let mut child = std::process::Command::new("tar")
