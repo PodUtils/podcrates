@@ -107,8 +107,8 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   COORD-139: a carrier with no TLS, DNS over HTTPS, a test through
   `unbound`);
   T-1198 (two gaps of the design of the transfer codec of `pod-term`: a
-  lost `KEPT` and the far sender's wait during an offer; a COORD issue to
-  podssh first); T-1103 (iroh 1.5 and its fork
+  lost `KEPT` and the far sender's wait during an offer; podssh answered
+  in PodUtils/podssh#353 and the codec closes both: call C932); T-1103 (iroh 1.5 and its fork
   of iroh-relay, after PodUtils/podssh#341); T-1095 (the order of the
   pseudo-fields of the HTTP/2 request of `pod-ws`; PodUtils/podssh#340);
   T-1236 and T-1238 (the list of the codes that a consumer keeps, and
@@ -116,8 +116,9 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   T-941 (PodUtils/podssh#319); T-1217 to T-1222 (the crate `pod-tpm`: the
   TPM 2.0 codec, the policy digest, the key file `TSS2 PRIVATE KEY`, the
   sequences, the transports of Linux and Windows, a TPM in software and
-  an swtpm lane; PodUtils/podssh#351, COORD-141; T-1217 first; T-1220
-  asks podssh for its key algorithm).
+  an swtpm lane; PodUtils/podssh#351, COORD-141; T-1217 first; podssh
+  answered in PodUtils/podssh#353: an ECDSA P-256 key under a PCR policy or
+  a policy key, no `Unseal`; call C931).
 
 Then T-899, T-900, T-852, T-851, and T-920.
 Then the ruling "Discipline": T-692

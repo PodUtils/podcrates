@@ -18,7 +18,7 @@ is done. Git and the record keep finished work.
    `(to podcrates)` of each repository of PodUtils. Each one maps to an
    entry (PodUtils/podvm#570, COORD-183, maps to T-1162, answered on #259; PodUtils/podssh#349,
    COORD-139, maps to T-1164 to T-1169; PodUtils/podssh#350, COORD-140, maps to
-   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213). Map each new one
+   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#353, COORD-143, maps to T-1198 and T-1220; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213). Map each new one
    in the same commit.
 2. Coordinate the five sessions by COORD issues alone (the rulings
    "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),
@@ -112,10 +112,10 @@ The asks of #259 to the consumers:
   there, and closes its #570. podvm removes its work-arounds for
   `pod-incus` (T-1158) and matches `ErrorKind::TooLarge` (T-1143), takes
   `usage::Mounts` (T-1205) and `socket_answers` (T-1209) where it has a copy.
-- podssh: two questions. T-1198 (the `KEPT` that ends a session and the wait
-  of 20 s of the far sender: does podssh change its design, or does the codec
-  close the gaps?) and T-1220 (the key that podssh's T-839 seals; a TPM signs
-  RSA or ECC P-256, not Ed25519; does it use Unseal?). Also the STUN test (three
+- podssh: two questions, answered in PodUtils/podssh#353 (COORD-143): the
+  codec closes both gaps of T-1198 (a `HOLD` frame, `VERSION` 2, the verdict
+  kept 25 s; call C932), and T-839 signs with an ECDSA P-256 key under a PCR
+  policy or a policy key, with no Unseal (T-1220; call C931). Also the STUN test (three
   default servers), `code_of` of `devtunnel.rs` (`CantCreate`, `Internal`),
   `Unit::NAME_MAX`, and the DNS carrier (`Dns::handshake_quiet`,
   `DnsSettings::hold`).
@@ -148,7 +148,7 @@ The asks of #259 to the consumers:
   (PodUtils/podvm@T-1955); PodUtils/podvm#657 (T-1193 to T-1196: `flatten`
   of `pod-extract`, a writer of gzip members) is open in podcrates.
 - podnet: T-1117 (documents), T-1118 (`release-index.json`).
-- podssh: the answers to T-1198 and T-1220; T-1095 (the order of the
+- podssh: T-1198 (the codec's `HOLD` and linger, by podssh's answer); T-1095 (the order of the
   pseudo-fields of the HTTP/2 request of `pod-ws`, PodUtils/podssh#340),
   T-1103 (iroh 1.5).
 - Asks of podssh that no one has started: T-1167 to T-1169 (`pod-link`,
