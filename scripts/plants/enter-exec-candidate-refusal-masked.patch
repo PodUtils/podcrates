@@ -1,8 +1,7 @@
 diff --git a/crates/pod-enter/src/launch.rs b/crates/pod-enter/src/launch.rs
-index bb24a283..81a71580 100644
 --- a/crates/pod-enter/src/launch.rs
 +++ b/crates/pod-enter/src/launch.rs
-@@ -417,23 +417,11 @@ pub(crate) fn spawn_with(
+@@ -423,23 +423,11 @@
                  sys::exit_group(NOT_FOUND)
              }
              let mut last = sys::ENOENT;
@@ -12,7 +11,7 @@ index bb24a283..81a71580 100644
 -                    // As `execvp`: a file that was found and refused is the
 -                    // answer, also when a later path is absent. Only
 -                    // `EACCES` lets the search go on.
--                    if crate::status::invocable_but_refused(e) {
+-                    if e.exec_refused() {
 -                        refused = Some(e);
 -                        if e != sys::EACCES {
 -                            break;

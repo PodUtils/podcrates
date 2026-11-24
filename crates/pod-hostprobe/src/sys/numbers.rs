@@ -75,6 +75,32 @@ impl Errno {
         };
         n.to_string()
     }
+
+    /// Was the file of an `execve` there and refused, and not absent?
+    ///
+    /// The shell and docker exit 126 for these, and 127 for each other
+    /// errno. `execve` gives `ENOENT` for a path that is not there, and
+    /// also for a dynamic loader that the binary names and that is not
+    /// there. These mean that the file was found and could not run:
+    ///
+    /// * `EPERM`: a mount with `nosuid`, or a security module.
+    /// * `E2BIG`: the argv and the environment are too large for the
+    ///   kernel. The command is there; each path refuses the same strings.
+    /// * `ENOEXEC`: a format that the kernel does not know.
+    /// * `EACCES`: no execute permission, or a file that is not regular.
+    /// * `EISDIR`: the ELF interpreter is a directory.
+    /// * `EINVAL`: the ELF names more than one interpreter.
+    /// * `ETXTBSY`: the file is open for a write.
+    /// * `ELIBBAD`: the ELF interpreter has a bad format.
+    ///
+    /// `ELOOP`, `ENAMETOOLONG` and `ENOTDIR` stay with "not found": each is
+    /// an answer about the resolution of the path, not about the file at
+    /// its end. `ENOMEM`, `EIO`, `EMFILE`, `ENFILE` and `EFAULT` stay too:
+    /// each is a failure of the host, not an answer about the file.
+    pub fn exec_refused(self) -> bool {
+        let Ok(n) = u32::try_from(self.0) else { return false };
+        matches!(n, e::EPERM | e::E2BIG | e::ENOEXEC | e::EACCES | e::EISDIR | e::EINVAL | e::ETXTBSY | e::ELIBBAD)
+    }
 }
 
 /// The errno `n` of the headers of the kernel.

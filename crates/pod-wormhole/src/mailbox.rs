@@ -77,7 +77,7 @@ impl Mailbox {
     pub async fn connect(url: &WsUrl, config: &Config, side: &str) -> Result<Mailbox, Failed> {
         let asking = Asking { limits: config.limits, ..Asking::default() };
         let dialed = url::dial_asking(url, &asking, &config.way, &config.trust, config.connect_timeout, None).await;
-        let session = dialed.map_err(|e| Failed::Unreachable(url::failure(url, &e)))?;
+        let session = dialed.map_err(|e| Failed::Unreachable(crate::Missed::caused(url::failure(url, &e), e)))?;
         let mut mailbox = Mailbox {
             session,
             shown: url.shown(),

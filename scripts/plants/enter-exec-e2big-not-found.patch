@@ -1,13 +1,12 @@
-diff --git a/crates/pod-enter/src/status.rs b/crates/pod-enter/src/status.rs
-index 00f4a4dc..4ce662fb 100644
---- a/crates/pod-enter/src/status.rs
-+++ b/crates/pod-enter/src/status.rs
-@@ -37,7 +37,7 @@ pub const NOT_FOUND: i32 = 127;
- /// end. `ENOMEM`, `EIO`, `EMFILE`, `ENFILE` and `EFAULT` stay too: each is
- /// a failure of the host, not an answer about the file.
- pub(crate) fn invocable_but_refused(e: sys::Errno) -> bool {
--    matches!(e.0, 1 | 7 | 8 | 13 | 21 | 22 | 26 | 80)
-+    matches!(e.0, 1 | 8 | 13 | 21 | 22 | 26 | 80)
+diff --git a/crates/pod-hostprobe/src/sys/numbers.rs b/crates/pod-hostprobe/src/sys/numbers.rs
+--- a/crates/pod-hostprobe/src/sys/numbers.rs
++++ b/crates/pod-hostprobe/src/sys/numbers.rs
+@@ -99,7 +99,7 @@
+     /// each is a failure of the host, not an answer about the file.
+     pub fn exec_refused(self) -> bool {
+         let Ok(n) = u32::try_from(self.0) else { return false };
+-        matches!(n, e::EPERM | e::E2BIG | e::ENOEXEC | e::EACCES | e::EISDIR | e::EINVAL | e::ETXTBSY | e::ELIBBAD)
++        matches!(n, e::EPERM | e::ENOEXEC | e::EACCES | e::EISDIR | e::EINVAL | e::ETXTBSY | e::ELIBBAD)
+     }
  }
  
- /// docker's translation of a wait status into an exit code.

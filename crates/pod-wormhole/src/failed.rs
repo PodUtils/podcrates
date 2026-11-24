@@ -1,6 +1,7 @@
 //! Why a use of a mailbox gave nothing. No variant holds the code.
 
 use std::fmt;
+use std::sync::Arc;
 use std::time::Duration;
 
 use pod_core::{Class, Failure, Stage};
@@ -9,8 +10,8 @@ use pod_core::{Class, Failure, Stage};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Failed {
     /// No mailbox, or no broker of [`crate::mqtt`], could be reached: why,
-    /// for each.
-    Unreachable(String),
+    /// for each, with the failure of each as the source.
+    Unreachable(Missed),
     /// A mailbox refused this end, in its words.
     Refused(String),
     /// Nobody took the code within its life: the giver's end.
@@ -53,9 +54,7 @@ impl fmt::Display for Failed {
             // The words of each name its mailbox or its broker.
             Failed::Unreachable(why) => write!(f, "no meeting point could be reached: {why}"),
             Failed::Refused(why) | Failed::Peer(why) | Failed::Mine(why) | Failed::Broken(why) => f.write_str(why),
-            Failed::Expired(life) => {
-                write!(f, "nobody took the code within its {} minutes; it is spent", life.as_secs().div_ceil(60))
-            }
+            Failed::Expired(life) => write!(f, "nobody took the code within its {}; it is spent", exact_time(*life)),
             Failed::Nobody => {
                 f.write_str("no giver waits at this code: it expired, it was used, or it was typed wrong")
             }
@@ -67,7 +66,97 @@ impl fmt::Display for Failed {
     }
 }
 
-impl std::error::Error for Failed {}
+impl std::error::Error for Failed {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Failed::Unreachable(missed) => missed.causes.first().map(|c| &**c as &(dyn std::error::Error + 'static)),
+            _ => None,
+        }
+    }
+}
+
+/// A time as a person reads it, with no rounding: whole minutes as
+/// "N minute(s)", else "N second(s)".
+fn exact_time(time: Duration) -> String {
+    let secs = time.as_secs();
+    let (n, unit) = if secs >= 60 && secs.is_multiple_of(60) { (secs / 60, "minute") } else { (secs, "second") };
+    format!("{n} {unit}{}", if n == 1 { "" } else { "s" })
+}
+
+/// Why each meeting point could not be reached: the words, and the
+/// failure of each point with its stage (a proxy, a name, the far end).
+/// Two are equal when their words are equal.
+#[derive(Debug, Clone, Default)]
+pub struct Missed {
+    text: String,
+    causes: Vec<Arc<Failure>>,
+}
+
+impl Missed {
+    /// The words `text`, with no failure.
+    pub fn new(text: impl Into<String>) -> Missed {
+        Missed { text: text.into(), causes: Vec::new() }
+    }
+
+    /// The words `text` of one point, and its failure `cause`.
+    pub fn caused(text: impl Into<String>, cause: impl Into<Failure>) -> Missed {
+        Missed { text: text.into(), causes: vec![Arc::new(cause.into())] }
+    }
+
+    /// The failure of each point, in the order of the points. The first is
+    /// the source of [`Failed::Unreachable`].
+    pub fn causes(&self) -> &[Arc<Failure>] {
+        &self.causes
+    }
+
+    /// The words and the failures of one point that failed with `failed`.
+    pub(crate) fn of(failed: Failed) -> Missed {
+        match failed {
+            Failed::Unreachable(missed) => missed,
+            other => Missed::new(other.to_string()),
+        }
+    }
+
+    /// The words of each of `each`, joined by "; ", and each failure.
+    pub fn join(each: Vec<Missed>) -> Missed {
+        let text = each.iter().map(|m| m.text.as_str()).collect::<Vec<_>>().join("; ");
+        Missed { text, causes: each.into_iter().flat_map(|m| m.causes).collect() }
+    }
+}
+
+impl std::ops::Deref for Missed {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        &self.text
+    }
+}
+
+impl fmt::Display for Missed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.text)
+    }
+}
+
+impl PartialEq for Missed {
+    fn eq(&self, other: &Missed) -> bool {
+        self.text == other.text
+    }
+}
+
+impl Eq for Missed {}
+
+impl From<String> for Missed {
+    fn from(text: String) -> Missed {
+        Missed::new(text)
+    }
+}
+
+impl From<&str> for Missed {
+    fn from(text: &str) -> Missed {
+        Missed::new(text)
+    }
+}
 
 impl From<Failed> for Failure {
     fn from(failed: Failed) -> Failure {
@@ -82,7 +171,11 @@ mod tests {
 
     #[test]
     fn no_failure_says_more_than_its_words() {
-        assert!(Failed::Expired(Duration::from_secs(600)).to_string().contains("within its 10 minutes"));
+        let rows = [(1, "1 second"), (5, "5 seconds"), (60, "1 minute"), (90, "90 seconds"), (600, "10 minutes")];
+        for (secs, time) in rows {
+            let text = Failed::Expired(Duration::from_secs(secs)).to_string();
+            assert_eq!(text, format!("nobody took the code within its {time}; it is spent"), "{secs} s");
+        }
         assert!(Failed::WrongCode.to_string().contains("the code is spent"));
         assert!(Failed::Nobody.to_string().starts_with("no giver waits at this code"));
         // A broker is no mailbox: the words fit both (T-261).

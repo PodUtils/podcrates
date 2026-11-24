@@ -46,7 +46,7 @@ use crate::mailbox::Mood;
 use crate::meet::{new_side, reason};
 use crate::message::hex;
 use crate::wormhole::Wormhole;
-use crate::{Code, Failed};
+use crate::{Code, Failed, Missed};
 
 /// The subprotocol of MQTT over a WebSocket (section 6 of the standard).
 pub const PROTOCOL: &str = "mqtt";
@@ -176,14 +176,14 @@ pub async fn opened(brokers: &Brokers, versions: Value) -> Result<(Wormhole, Cod
             Ok(broker) => broker,
             Err(why) => {
                 say(brokers, Event::warn("wormhole.broker", reason(&why)));
-                missed.push(reason(&why));
+                missed.push(Missed::of(why));
                 continue;
             }
         };
         let hole = Wormhole::open(broker, side, plate.clone(), topic, &code, versions).await?;
         return Ok((hole, code));
     }
-    Err(Failed::Unreachable(missed.join("; ")))
+    Err(Failed::Unreachable(Missed::join(missed)))
 }
 
 /// The wormhole of `code` at the broker where its giver waits, the key
@@ -199,7 +199,7 @@ pub async fn joined(brokers: &Brokers, code: &Code, versions: Value, giver: Dura
             Ok(broker) => broker,
             Err(why) => {
                 say(brokers, Event::warn("wormhole.broker", reason(&why)));
-                missed.push(reason(&why));
+                missed.push(Missed::of(why));
                 continue;
             }
         };
@@ -211,7 +211,7 @@ pub async fn joined(brokers: &Brokers, code: &Code, versions: Value, giver: Dura
         }
         hole.close(Mood::Lonely).await;
     }
-    if reached { Err(Failed::Nobody) } else { Err(Failed::Unreachable(missed.join("; "))) }
+    if reached { Err(Failed::Nobody) } else { Err(Failed::Unreachable(Missed::join(missed))) }
 }
 
 fn say(brokers: &Brokers, event: Event) {

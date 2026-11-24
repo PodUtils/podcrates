@@ -48,7 +48,7 @@ use crate::meet::{new_side, reason};
 use crate::message::hex;
 use crate::mqtt::{Role, nameplate, topic};
 use crate::wormhole::Wormhole;
-use crate::{Code, Failed};
+use crate::{Code, Failed, Missed};
 
 /// How often the taker sends its offer again until the giver answers, and
 /// asks for the giver's next messages meanwhile.
@@ -111,14 +111,14 @@ pub async fn opened(trackers: &Trackers, versions: Value) -> Result<(Wormhole, C
             Ok(tracker) => tracker,
             Err(why) => {
                 say(trackers, Event::warn("wormhole.tracker", reason(&why)));
-                missed.push(reason(&why));
+                missed.push(Missed::of(why));
                 continue;
             }
         };
         let hole = Wormhole::open(tracker, side, plate.clone(), tag, &code, versions).await?;
         return Ok((hole, code));
     }
-    Err(Failed::Unreachable(missed.join("; ")))
+    Err(Failed::Unreachable(Missed::join(missed)))
 }
 
 /// The wormhole of `code` at the tracker where its giver waits, the key
@@ -133,7 +133,7 @@ pub async fn joined(trackers: &Trackers, code: &Code, versions: Value, giver: Du
             Ok(tracker) => tracker,
             Err(why) => {
                 say(trackers, Event::warn("wormhole.tracker", reason(&why)));
-                missed.push(reason(&why));
+                missed.push(Missed::of(why));
                 continue;
             }
         };
@@ -145,7 +145,7 @@ pub async fn joined(trackers: &Trackers, code: &Code, versions: Value, giver: Du
         }
         hole.close(Mood::Lonely).await;
     }
-    if reached { Err(Failed::Nobody) } else { Err(Failed::Unreachable(missed.join("; "))) }
+    if reached { Err(Failed::Nobody) } else { Err(Failed::Unreachable(Missed::join(missed))) }
 }
 
 fn say(trackers: &Trackers, event: Event) {

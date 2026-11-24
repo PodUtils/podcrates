@@ -109,7 +109,7 @@ impl Relay {
     ) -> Result<Relay, Failed> {
         let asking = Asking { limits: config.limits, ..Asking::default() };
         let dialed = url::dial_asking(url, &asking, &config.way, &config.trust, config.connect_timeout, None);
-        let session = dialed.await.map_err(|e| Failed::Unreachable(url::failure(url, &e)))?;
+        let session = dialed.await.map_err(|e| Failed::Unreachable(crate::Missed::caused(url::failure(url, &e), e)))?;
         let mut drawn = [0u8; 8];
         OsEntropy.fill(&mut drawn).map_err(|_| Failed::NoRandom)?;
         let (inbox, outbox) = role.topics(tag);

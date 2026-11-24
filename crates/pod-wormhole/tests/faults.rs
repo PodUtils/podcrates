@@ -233,3 +233,31 @@ async fn a_mailbox_that_sends_more_than_it_was_asked_for_ends_the_exchange() {
     let Err(Failed::Broken(why)) = hole.agree(Duration::from_secs(5)).await else { panic!() };
     assert!(why.contains("sent more than 256 messages that were not asked for"), "{why}");
 }
+
+/// A mailbox behind a proxy that does not answer: the failure of the
+/// meeting point stays in the chain with its stage, so a caller tells a
+/// dead proxy from a dead mailbox.
+#[tokio::test]
+async fn a_dead_proxy_gives_a_chain_with_the_stage_proxy() {
+    need_loopback!();
+    let proxy = pod_proxy::Proxy::parse(&format!("http://127.0.0.1:{}", harness::free_port())).expect("a proxy URL");
+    let settings = pod_proxy::Settings::new("pod-wormhole", pod_proxy::ProxyChoice::Via(proxy));
+    let dial = pod_proxy::Dialer::new(settings, std::sync::Arc::new(pod_proxy::resolve::System::new()));
+    let mut way = harness::way();
+    way.dial = std::sync::Arc::new(dial);
+    let config = Config::new(harness::APPID, "pod-wormhole-test", "0.0.0", way);
+    let mailbox = pod_ws::url::WsUrl::parse("ws://mailbox.example/v1").unwrap();
+    let ends = pod_wormhole::Ends { mailboxes: vec![mailbox], config };
+    let Err(failed) = pod_wormhole::opened(&ends, json!({})).await.map(|_| ()) else { panic!("a giver") };
+    assert!(matches!(failed, Failed::Unreachable(_)), "{failed:?}");
+    let failure = pod_core::Failure::from(failed);
+    let mut stages = Vec::new();
+    let mut next: Option<&(dyn std::error::Error + 'static)> = Some(&failure);
+    while let Some(e) = next {
+        if let Some(f) = e.downcast_ref::<pod_core::Failure>() {
+            stages.push(f.stage);
+        }
+        next = e.source();
+    }
+    assert!(stages.contains(&pod_core::Stage::Proxy), "{stages:?}: {}", failure.chain());
+}

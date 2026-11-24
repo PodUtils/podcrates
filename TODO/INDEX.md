@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**895 entries: 152 open, 27 partial, 7 blocked, 709 done.**
+**899 entries: 152 open, 27 partial, 7 blocked, 713 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 213 | 227 |
-| P2 | 70 | 7 | 4 | 366 | 447 |
-| P3 | 78 | 10 | 3 | 128 | 219 |
-| **All** | 152 | 27 | 7 | 709 | 895 |
+| P1 | 4 | 10 | 0 | 214 | 228 |
+| P2 | 70 | 7 | 4 | 368 | 449 |
+| P3 | 78 | 10 | 3 | 129 | 220 |
+| **All** | 152 | 27 | 7 | 713 | 899 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -942,3 +942,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1117](adapters.md) | P3 | S | M3 | docs | open | podnet's documents give the serial limits of the legs of `pod-cloudflare` as 130 s and 280 s; T-1116 makes them 110 s and 210 s |
 | [T-1118](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686) |
 | [T-1122](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`, `pod-unit`: the changes of podrunner and podssh at their heads (port review) |
+| [T-1125](relay.md) | P1 | S | M2 | defect | done | `pod-hold`: a failed `execve` of `spawn::start` exits 127 with no errno, and `spawn::resolve` does not check a path with a `/` (PodUtils/podnet#707) |
+| [T-1126](relay.md) | P2 | S | M2 | defect | done | `pod-wormhole`: `Failed::Expired` rounds the life of the code up to whole minutes ("within its 1 minutes" for 5 s) (PodUtils/podnet#707) |
+| [T-1127](relay.md) | P2 | S | M2 | defect | done | `pod-wormhole`: `Failed::Unreachable` keeps only the words of each meeting point, so a caller loses the stage Proxy or Dns (PodUtils/podnet#707) |
+| [T-1128](fleet.md) | P3 | S | M8 | defect | done | `pod-unit`: podnet's `autostart remove` of an unknown name exits 69, and the import of `autostart.rs` is behind (PodUtils/podnet#707) |

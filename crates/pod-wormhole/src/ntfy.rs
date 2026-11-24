@@ -46,7 +46,7 @@ use crate::mailbox::Mood;
 use crate::meet::{new_side, reason};
 use crate::mqtt::{Role, nameplate, topic};
 use crate::wormhole::Wormhole;
-use crate::{Code, Failed};
+use crate::{Code, Failed, Missed};
 
 /// The largest message of a topic: one byte under ntfy's
 /// `message-size-limit` (4,096 bytes), as ntfy keeps a body of the whole
@@ -173,14 +173,14 @@ pub async fn opened(servers: &Servers, versions: Value) -> Result<(Wormhole, Cod
             Ok(topic) => topic,
             Err(why) => {
                 say(servers, Event::warn("wormhole.ntfy", reason(&why)));
-                missed.push(reason(&why));
+                missed.push(Missed::of(why));
                 continue;
             }
         };
         let hole = Wormhole::open(topic, side, plate.clone(), tag, &code, versions).await?;
         return Ok((hole, code));
     }
-    Err(Failed::Unreachable(missed.join("; ")))
+    Err(Failed::Unreachable(Missed::join(missed)))
 }
 
 /// The wormhole of `code` at the server where its giver waits, the key
@@ -195,7 +195,7 @@ pub async fn joined(servers: &Servers, code: &Code, versions: Value, giver: Dura
             Ok(topic) => topic,
             Err(why) => {
                 say(servers, Event::warn("wormhole.ntfy", reason(&why)));
-                missed.push(reason(&why));
+                missed.push(Missed::of(why));
                 continue;
             }
         };
@@ -207,7 +207,7 @@ pub async fn joined(servers: &Servers, code: &Code, versions: Value, giver: Dura
         }
         hole.close(Mood::Lonely).await;
     }
-    if reached { Err(Failed::Nobody) } else { Err(Failed::Unreachable(missed.join("; "))) }
+    if reached { Err(Failed::Nobody) } else { Err(Failed::Unreachable(Missed::join(missed))) }
 }
 
 fn say(servers: &Servers, event: Event) {

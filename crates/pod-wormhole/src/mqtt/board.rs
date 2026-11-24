@@ -130,7 +130,8 @@ impl Link {
     async fn open(point: &Point, config: &Config) -> Result<Link, Failed> {
         let asking = Asking { protocol: Some(PROTOCOL), limits: config.limits, ..Asking::default() };
         let dialed = url::dial_asking(&point.url, &asking, &config.way, &config.trust, config.connect_timeout, None);
-        let session = dialed.await.map_err(|e| Failed::Unreachable(url::failure(&point.url, &e)))?;
+        let session =
+            dialed.await.map_err(|e| Failed::Unreachable(crate::Missed::caused(url::failure(&point.url, &e), e)))?;
         let mut link = Link {
             session,
             shown: point.url.shown(),

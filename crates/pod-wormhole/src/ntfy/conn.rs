@@ -13,8 +13,8 @@ use tokio::task::JoinHandle;
 
 use super::Point;
 use super::wire::refusal;
-use crate::Failed;
 use crate::config::Config;
+use crate::{Failed, Missed};
 
 /// The largest body of an answer that a request reads whole: a poll gives
 /// the messages of one code, a few dozen at most.
@@ -79,14 +79,17 @@ impl Body {
 /// Dial `point` through the way of `config`; with `h2`, TLS offers HTTP/2
 /// first.
 pub async fn dial(point: &Point, config: &Config, h2: bool) -> Result<Conn, Failed> {
-    let unreachable = |why: String| Failed::Unreachable(format!("{}: {why}", point.shown()));
+    let unreachable = |why: String| Failed::Unreachable(format!("{}: {why}", point.shown()).into());
+    // The failure of the dial stays as the source: its stage tells a proxy
+    // or a name from the far end.
+    let missed = |e: &dyn std::fmt::Display| format!("{}: {e}", point.shown());
     if !point.tls {
         let tcp = config.way.tcp(&point.host, point.port, config.connect_timeout).await;
-        return Ok(Conn::Http1(Some(tcp.map_err(|e| unreachable(e.to_string()))?.io)));
+        return Ok(Conn::Http1(Some(tcp.map_err(|e| Failed::Unreachable(Missed::caused(missed(&e), e)))?.io)));
     }
     let alpn: &[&[u8]] = if h2 { &[H2, HTTP1] } else { &[HTTP1] };
     let opened = config.way.open_tls(&point.host, point.port, &point.host, &config.trust, config.connect_timeout, alpn);
-    let (tls, _) = opened.await.map_err(|e| unreachable(e.to_string()))?;
+    let (tls, _) = opened.await.map_err(|e| Failed::Unreachable(Missed::caused(missed(&e), e)))?;
     if tls.get_ref().1.alpn_protocol() != Some(H2) {
         return Ok(Conn::Http1(Some(Box::new(tls))));
     }
