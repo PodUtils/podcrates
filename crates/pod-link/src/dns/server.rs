@@ -3,9 +3,21 @@
 //! takes the session, the counter and the datagram up from the labels of the
 //! name under the zone. A new session id starts a session and its handshake,
 //! at most [`crate::dns::Dns::max_handshakes`] at once. The answer of each
-//! query holds the datagrams down of that session in TXT records. A wrong
-//! name, or a query of a session that the server does not hold, gets an
-//! empty answer.
+//! query holds the datagrams down of that session in TXT records.
+//!
+//! Each other query gets an answer, so a resolver on the path does not send
+//! it again and then keep a SERVFAIL:
+//!
+//! * A name of the zone with another type, or a name of the zone that holds
+//!   no query (the zone itself, or a part of a name that a resolver asks
+//!   first, RFC 9156): NOERROR with no record, AA set.
+//! * A query of a new session after the drop of the listener: NOERROR with
+//!   no record, AA set.
+//! * A name out of the zone: REFUSED, AA clear.
+//! * An opcode other than QUERY: NOTIMP, AA clear.
+//!
+//! A query of a new session at the limit of the handshakes gets no answer,
+//! so the dialer sends it again. An answer gets no answer.
 
 use std::collections::{HashMap, VecDeque};
 use std::fmt;
@@ -207,7 +219,8 @@ async fn serve(
 }
 
 /// Answer one query: take its datagram up and start or feed its session,
-/// then send the datagrams down of that session.
+/// then send the datagrams down of that session. The header of the module
+/// gives the answer of each other query.
 #[allow(clippy::too_many_arguments)]
 async fn answer(
     socket: &Arc<dyn AddressedDatagrams>,
@@ -223,16 +236,38 @@ async fn answer(
     stopped: bool,
 ) {
     let Ok((id, name, kind)) = txt::question(query) else { return };
-    if kind != txt::TXT {
+    // The QR bit: a server that answers an answer can make a loop.
+    if query[2] & 0x80 != 0 {
         return;
     }
-    let Ok((session, _counter, payload)) = wire::decode_query(zone, &name) else { return };
+    let asked = txt::asked_size(query);
+    let edns = asked.map(|_| settings.answer);
+    // The opcode: only QUERY reads a name.
+    if query[2] & 0x78 != 0 {
+        return empty(socket, query, txt::RCODE_NOTIMP, false, edns, from).await;
+    }
+    // REFUSED, as an authoritative server answers for a zone that it does not
+    // hold: NXDOMAIN with AA would say that the name does not exist.
+    if wire::under(zone, &name).is_none() {
+        return empty(socket, query, txt::RCODE_REFUSED, false, edns, from).await;
+    }
+    // NOERROR with no record, not NXDOMAIN: NXDOMAIN says that no name exists
+    // under this one (RFC 8020), so a resolver that asks for a part of the
+    // name first (RFC 9156) stops. With no SOA record, a resolver keeps no
+    // negative answer in its cache (RFC 2308, section 5).
+    let decoded = if kind == txt::TXT { wire::decode_query(zone, &name).ok() } else { None };
+    let Some((session, _counter, payload)) = decoded else {
+        return empty(socket, query, txt::RCODE_NOERROR, true, edns, from).await;
+    };
     use std::collections::hash_map::Entry as Slot;
     let entry = match sessions.entry(session) {
         Slot::Occupied(slot) => slot.into_mut(),
         Slot::Vacant(slot) => {
+            // The listener starts no new session. An empty answer, not a
+            // refusal: a resolver keeps no failure and marks the server as
+            // bad for no time, and the dialer ends at its time limit.
             if stopped {
-                return;
+                return empty(socket, query, txt::RCODE_NOERROR, true, edns, from).await;
             }
             // At the limit the query is lost: the dialer sends it again.
             let Ok(permit) = limit.clone().try_acquire_owned() else { return };
@@ -255,16 +290,33 @@ async fn answer(
     }
     // The answer keeps to the size that the query takes, 512 bytes with no
     // OPT record, so a resolver on the path does not cut it (call C291).
-    let asked = txt::asked_size(query);
     let size = asked.unwrap_or(txt::PLAIN_SIZE).min(settings.answer);
     let records = drain(entry, &name, size, asked.is_some());
     let refs: Vec<&[u8]> = records.iter().map(Vec::as_slice).collect();
-    if let Ok(message) = txt::answer(id, &name, txt::TXT, &refs, asked.map(|_| settings.answer)) {
+    if let Ok(mut message) = txt::answer(id, &name, txt::TXT, &refs, edns) {
+        txt::set_authoritative(&mut message);
         let _ = pod_core::datagrams::send_to(&**socket, &message, from).await;
     }
     if entry.up.is_closed() {
         sessions.remove(&session);
     }
+}
+
+/// Send the answer of `rcode` with no record to `query`, with the AA bit when
+/// `authoritative` and an OPT record of `edns` bytes when given.
+async fn empty(
+    socket: &Arc<dyn AddressedDatagrams>,
+    query: &[u8],
+    rcode: u8,
+    authoritative: bool,
+    edns: Option<u16>,
+    from: SocketAddr,
+) {
+    let Ok(mut message) = txt::empty_answer(query, rcode, edns) else { return };
+    if authoritative {
+        txt::set_authoritative(&mut message);
+    }
+    let _ = pod_core::datagrams::send_to(&**socket, &message, from).await;
 }
 
 /// The datagrams down that fit in an answer of `answer` bytes for `name`,

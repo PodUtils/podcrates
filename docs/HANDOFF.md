@@ -128,6 +128,13 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
 - T-1160: `pod-fake-githome` answers `assigned` with the fork fact of the
   real job alone (else `unknown`); the text of `head_is_fork` in
   `job-offer.v1`, `source-reply.v1` and `source-request.v1` changed.
+- T-1164: the DNS listener of `pod-link` answers each query of its zone
+  that it cannot take (NOERROR with no record and AA; REFUSED out of the
+  zone; NOTIMP for another opcode). `pod_dns::txt` has `empty_answer`,
+  `set_authoritative`, `RCODE_NOERROR`, `RCODE_NOTIMP` and
+  `Answer.authoritative`, a new field of a public struct: a consumer that
+  builds `Answer` with all its fields must add it. A grep of `Answer {` in
+  podnet and podssh finds no such build.
 
 ### What the next hand-off carries
 
@@ -139,8 +146,8 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
 - podssh: the STUN note above, T-1095 (the order of the pseudo-fields of
   the HTTP/2 request of `pod-ws`, PodUtils/podssh#340), T-1103 (iroh 1.5).
 - Asks of podvm and podssh that no one has started: T-1155, T-1156 and
-  T-1157 (`pod-incus`, PodUtils/podvm#653), T-1144 (`pod-term`), T-1164 to
-  T-1169 (`pod-link`, the DNS carrier; PodUtils/podssh#349).
+  T-1157 (`pod-incus`, PodUtils/podvm#653), T-1144 (`pod-term`), T-1165 to
+  T-1171 (`pod-link`, the DNS carrier; PodUtils/podssh#349).
 - Entries of podcrates that no one has started: T-1162
   (the answer to PodUtils/podvm#570), T-1163 (two more readers of
   `Retry-After`), T-1115 (the copies of the bind at a
