@@ -3236,11 +3236,28 @@ Part 1, 2026-11-15, commits b003f1fc and c3835991 (local branch
 - Findings: T-704 (the usage errors of clap in `podlab`), T-705 (the
   strings of Mach-O and PE binaries).
 
+Takes of the consumers:
+
+- podnet took the crate at `9217b0b` and podssh at `c4a2a64` and
+  `1e5de58` (the `taken` lines of `crates/pod-manual/SOURCES`).
+- podrunner takes `pod-manual` of `v0.82.1` (feature `core`) in `fc1e52f`
+  (PodUtils/podrunner#181, comment 7134301257, 2026-11-24;
+  PodUtils/podrunner@T-248 and PodUtils/podrunner@T-627). The help of each
+  command, `help COMMAND`, the top-level help, `podrunner man [SECTION...]
+  [--no-pager|--json|--roff]` and the checked-in man page come from one
+  model of the commands. Tests fail when the model and the parser of a
+  command differ, when its CLI document or its man page differ from the model,
+  and when the code reads a variable or gives an exit code that has no
+  fact. podrunner takes no `error::fault` (it keeps its form of an error)
+  and no `check::examples` (its model has no examples). The gate of
+  podrunner runs the checks (run 45401118463 at `9c59243`). Open in
+  podrunner: PodUtils/podrunner@T-645 (the man page through the groff and
+  mandoc check of podcrates in the gate, and the man page as a release
+  asset). podrunner imports no file, so `SOURCES` has no block for it.
+
 What stays: a parser driven by the model and contract tests from the
-rules (podrunner's take), the take of each consumer (podnet, podssh,
-podvm, podrunner: its help and its manual from `pod-manual`, `CLI man
---no-pager`, the checks in its CI), and the hand-off of the tag on
-PodUtils/podcrates#181.
+rules, the take of podvm (its help and its manual from `pod-manual`,
+`CLI man --no-pager`, the checks in its CI), and the hand-off of the tag on PodUtils/podcrates#181.
 
 # T-701: `pod-lab`: the host classes of podssh and podnet as profiles, with the lane of each project (PodUtils/podssh#268, PodUtils/podnet#585)
 

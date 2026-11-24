@@ -18,7 +18,7 @@ is done. Git and the record keep finished work.
    `(to podcrates)` of each repository of PodUtils. Each one maps to an
    entry (PodUtils/podvm#570, COORD-183, maps to T-1162; PodUtils/podssh#349,
    COORD-139, maps to T-1164 to T-1169; PodUtils/podssh#350, COORD-140, maps to
-   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238). Map each new one
+   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213). Map each new one
    in the same commit.
 2. Coordinate the five sessions by COORD issues alone (the rulings
    "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),
@@ -38,9 +38,9 @@ is done. Git and the record keep finished work.
      hang guards are scaled; read the next riscv64 job). Open entries
      of the nightly: T-916 and T-938 (partial), T-789, T-766, T-1161, and
      T-1044 (`check-windows.sh` and `check-macos.sh` compile no doc test).
-   - `upstream.yml` (job `sources`): the port of podrunner's changes of
-     `pod-testkit` is done (T-1160); `scripts/check-sources.py` with a
-     clone of podrunner `27a2e5d` shows 0 changes. Read the next daily run.
+   - `upstream.yml` (job `sources`): the run 45423205689 at `5fd6fb7` found
+     one change, podrunner `2a55cd9` in `auth.rs` (`pod-testkit`). T-1243
+     (done) ports it. Read the next daily run.
    - `services.yml`: the scheduled run 45394042840 failed (T-1223, done):
      the relay WMYMARB moved to a new address, and `node-trojan-45-63-30-142`
      left. `temp-sh` held (T-1034). `node-trojan-64-176-7-205` and
@@ -228,8 +228,8 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
 - podssh: the STUN note above, T-1182 (the bound of a unit name), T-1095
   (the order of the pseudo-fields of the HTTP/2 request of `pod-ws`,
   PodUtils/podssh#340), T-1103 (iroh 1.5).
-- Asks of podvm and podssh that no one has started: T-1166 to
-  T-1169 and T-1171 (`pod-link`, the DNS carrier; PodUtils/podssh#349).
+- Asks of podssh that no one has started: T-1167 to T-1169 (`pod-link`,
+  the DNS carrier; PodUtils/podssh#349).
 - Entries of podcrates that no one has started: T-1162
   (the answer to PodUtils/podvm#570), T-1163 (two more readers of
   `Retry-After`), T-1115 (the copies of the bind at a

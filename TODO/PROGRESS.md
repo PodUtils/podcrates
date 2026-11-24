@@ -41,7 +41,7 @@
   T-207, #70).
 - Red runs: the nightly (T-916 partial, T-938, T-789, T-766, T-1161 partial, for
   `riscv64` and `loongarch64`; the jobs of Windows and macOS pass);
-  none in `services.yml`: T-1034 is done; read the next scheduled run.
+  none open in `services.yml`: T-1223 is done; read the next scheduled run.
 - Open defects: T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
   a giver still waits its whole limit after a refusal of the relay);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
@@ -85,9 +85,7 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
-them by COORD issues, podrunner's first. Amend the hand-off COORD-152
-(#257) at each take (each consumer has taken `v0.82.1`, and #257 is
-closed), and answer
+them by COORD issues, podrunner's first. Answer
 PodUtils/podvm#570 in the next COORD message to podvm (T-1162). Then, in
 podcrates: the red nightly (T-916, T-938, T-1161),
 T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
