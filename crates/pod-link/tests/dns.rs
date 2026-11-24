@@ -5,8 +5,9 @@
 //! dial; a query of a stranger changes nothing; each query of the zone that
 //! the listener cannot take gets an answer (T-1164, PodUtils/podssh#349);
 //! an answer keeps the bytes of the question and clears RA (T-1170); 64
-//! queries of new session ids keep no dial out (T-1165); an address or a
-//! setting out of its form is a usage error.
+//! queries of new session ids keep no dial out (T-1165); a late query of an
+//! ended session starts no handshake (T-1171); an address or a setting out
+//! of its form is a usage error.
 //! `tests/dns_loss.rs` has the loss, the reorder and the duplicates over the
 //! `Lossy` shim.
 
@@ -18,7 +19,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use common::dns::{ZONE, at, bound, carrier, query_name};
+use common::dns::{ZONE, at, bound, carrier, fast_arq, query_name, relay};
 use common::tcp::{id, ring};
 use common::{echo, limit, pattern};
 use pod_core::Class;
@@ -306,6 +307,46 @@ async fn queries_of_new_session_ids_do_not_keep_a_dial_out() {
     assert!(second < bound, "the parts held a slot past the quiet time: the dial took {second:?}");
 }
 
+/// A late query of an ended session (a retry of a resolver) that holds a
+/// part of its ClientHello starts no handshake and takes no slot (T-1171,
+/// PodUtils/podssh#349): with one slot, a real dial after it does not wait
+/// for `handshake_quiet`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_late_query_of_an_ended_session_starts_no_handshake() {
+    pod_testkit::need_loopback!();
+    let (server, client) = (id(1), id(2));
+    let mut listening = carrier(1, &[client.public()]);
+    listening.max_handshakes = 1;
+    let quiet = pod_testkit::host::scaled(Duration::from_secs(2));
+    listening.handshake_quiet = quiet;
+    listening.arq = fast_arq();
+    let mut door = bound(&listening).await;
+    // A client of a key that the listener does not take: its session ends
+    // at the refusal of its key.
+    let (relay, kept) = relay(door.local_addr()).await;
+    let stranger = carrier(4, &[]).to(relay);
+    let address = at(&server.public());
+    let both = async { tokio::join!(stranger.dial(&address), door.accept_key()) };
+    let (near, far) = timeout(limit(), both).await.expect("the refusal in time");
+    assert!(near.is_err() && far.is_err(), "the listener refused the key 4");
+    // The first query of the session that holds a datagram (a poll has a
+    // name of 13 characters) holds the first part of its ClientHello.
+    let first = kept.lock().unwrap().iter().find(|q| q.len() > 80).cloned().expect("a query of the ClientHello");
+    let (id, name) = (u16::from_be_bytes([first[0], first[1]]), txt::question(&first).unwrap().1);
+    // The ARQ of the session answers the frames of its peer until the peer
+    // is quiet for two RTO ceilings, at most for eight; the listener then
+    // removes the session at its next check of each second.
+    tokio::time::sleep(fast_arq().rto_ceiling * 8 + Duration::from_secs(1)).await;
+    let late = 2;
+    for n in 0..late {
+        let got = ask_bytes(door.local_addr(), &first).await;
+        assert_no_record(got.and_then(|got| txt::read(&got, id, &name, TXT).ok()), true, &format!("late query {n}"));
+    }
+    let took = timed_dial(&mut door, &server.public()).await;
+    eprintln!("the dial after {late} late queries of an ended session: {took:?}");
+    assert!(took < quiet, "a late query took the slot: the dial took {took:?}");
+}
+
 #[tokio::test]
 async fn an_address_or_a_setting_out_of_its_form_is_a_usage_error() {
     let dns = carrier(1, &[]).to("127.0.0.1:53".parse().unwrap());
@@ -337,6 +378,7 @@ async fn an_address_or_a_setting_out_of_its_form_is_a_usage_error() {
         DnsSettings { queries_per_second: 0.0, ..DnsSettings::default() },
         DnsSettings { in_flight: 0, ..DnsSettings::default() },
         DnsSettings { answer: 100, ..DnsSettings::default() },
+        DnsSettings { hold: Duration::from_secs(2), ..DnsSettings::default() },
     ] {
         assert!(dsettings.check().is_err(), "{dsettings:?}");
         let mut bad = dns.clone();
@@ -362,6 +404,7 @@ async fn the_carrier_says_what_it_gives_and_why_it_cannot_run() {
         (pod_link::dns::NAME, pod_link::dns::ALPN, pod_link::dns::MAX_HANDSHAKES, pod_link::dns::HANDSHAKE_QUIET),
         ("dns", &b"podlink/1"[..], 64, Duration::from_secs(5))
     );
+    assert_eq!((pod_link::dns::HOLD, DnsSettings::default().hold), (Duration::from_secs(1), Duration::from_secs(1)));
     let shown = format!("{dns:?}");
     assert!(shown.contains(&id(1).public().fingerprint()) && shown.contains("z.test"), "{shown}");
 }

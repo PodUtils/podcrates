@@ -30,6 +30,7 @@
 
 mod client;
 mod hello;
+mod reply;
 mod server;
 mod wire;
 
@@ -48,7 +49,7 @@ use rustls::crypto::CryptoProvider;
 
 use client::DnsClient;
 pub use server::DnsListener;
-pub use settings::{DnsSettings, DnsSettingsError, EDNS_SIZE};
+pub use settings::{DnsSettings, DnsSettingsError, EDNS_SIZE, HOLD};
 
 use crate::arq::ArqSettings;
 use crate::carrier::{BoxIo, Carrier, CarrierError, CarrierErrorKind, Facts, Listener, Pending};
@@ -92,7 +93,9 @@ pub struct Dns {
     pub arq: ArqSettings,
     /// The DNS behaviour: the rate, the count in flight, the answer size.
     pub dns: DnsSettings,
-    /// The time limit of a handshake, on each side.
+    /// The time limit of a handshake, on each side. A listener keeps the id
+    /// of an ended session for this time, so a late query of it starts no
+    /// handshake.
     pub handshake_timeout: Duration,
     /// The most handshakes that a listener runs at once (at least 1). A new
     /// session id takes a slot only at a part of its ClientHello, and frees

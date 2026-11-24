@@ -3,13 +3,16 @@
 //! datagram down from the TXT records of the answer. A driver task starts a
 //! query for each datagram, at the rate and the count in flight of
 //! [`DnsSettings`]; when the ARQ has nothing to send, it polls, so the
-//! listener can send its bytes down. A reader task matches each answer to
-//! its query by the DNS ID.
+//! listener can send its bytes down. With [`DnsSettings::hold`], the
+//! listener holds a poll until it has bytes down, and the wait for the next
+//! poll starts at the answer of the last poll. A reader task matches each
+//! answer to its query by the DNS ID.
 
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex, PoisonError};
+use std::time::Duration;
 
 use pod_core::Datagrams as AddressedDatagrams;
 use pod_dns::txt;
@@ -118,14 +121,27 @@ async fn read(socket: Arc<dyn AddressedDatagrams>, pending: Pending, mut stop: o
     }
 }
 
+/// Wait for the answer of the last poll `last`, when one is out, then for
+/// `idle`.
+async fn idle_wait(last: &mut Option<oneshot::Receiver<()>>, idle: Duration) {
+    if let Some(answered) = last.as_mut() {
+        let _ = answered.await;
+        *last = None;
+    }
+    sleep(idle).await;
+}
+
 /// Start a query for each datagram up, or a poll when none waits.
 async fn drive(driver: Driver, mut up: mpsc::Receiver<Vec<u8>>, down: mpsc::Sender<Vec<u8>>) {
     let limit = Arc::new(tokio::sync::Semaphore::new(driver.settings.in_flight));
     let period = driver.settings.period();
+    let held = !driver.settings.hold.is_zero();
     let driver = Arc::new(driver);
     let mut next_at = Instant::now();
     let mut counter = 0u32;
     let mut idle = driver.settings.poll_min;
+    // The answer of the last poll, when the listener can hold it.
+    let mut last = None;
     loop {
         sleep_until(next_at).await;
         next_at = Instant::now() + period;
@@ -138,15 +154,22 @@ async fn drive(driver: Driver, mut up: mpsc::Receiver<Vec<u8>>, down: mpsc::Send
                 }
                 None => return,
             },
-            () = sleep(idle) => {
+            () = idle_wait(&mut last, idle) => {
                 idle = (idle * 2).min(driver.settings.poll_max);
                 Vec::new()
             }
         };
+        // Its drop at the end of the query tells the driver that the poll
+        // has its answer.
+        let answered = (held && payload.is_empty()).then(|| {
+            let (tx, rx) = oneshot::channel::<()>();
+            last = Some(rx);
+            tx
+        });
         counter = counter.wrapping_add(1);
         let (driver, down) = (driver.clone(), down.clone());
         tokio::spawn(async move {
-            let _permit = permit;
+            let (_permit, _answered) = (permit, answered);
             if let Ok(datagrams) = query(&driver, counter, &payload).await {
                 for d in datagrams {
                     if down.send(d).await.is_err() {

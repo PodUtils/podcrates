@@ -208,6 +208,14 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
   build at the tag until it adds both classes, the signal that podssh asked
   for; podnet's matches fall to their `_` arm.
 
+- T-1171 and T-1166 (`pod-link`, the DNS carrier; PodUtils/podssh#349): a
+  late query of an ended session takes no handshake slot; the listener
+  holds a poll (`DnsSettings::hold`, default 1 s, below `query_timeout`; at
+  most 2 held polls for each session) and the dialer waits for its next
+  idle poll from the answer of the last one. New public field `hold` and
+  variant `DnsSettingsError::Hold`; a caller with `query_timeout` of 1 s or
+  less lowers `hold`.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask. T-1160 changes the answer of

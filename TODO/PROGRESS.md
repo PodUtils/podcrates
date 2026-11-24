@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 964 entries: 171 open, 29 partial, 7 blocked, 757 done.
+`TODO/INDEX.md` holds 964 entries: 169 open, 29 partial, 7 blocked, 759 done.
 
 ## State
 
@@ -112,10 +112,9 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
 - podnet: T-1117 (the limits of the legs of `pod-cloudflare` in podnet's
   documents); T-1135 (`pod-cloudflare` says a cause two times); T-879
   (`pod-detach`); T-897.
-- podssh: T-1171 (a late query of an ended DNS
-  session starts no handshake; PodUtils/podssh#349, COORD-139), then
-  T-1166 to T-1169 (the same issue: a held poll, a
-  carrier with no TLS, DNS over HTTPS, a test through `unbound`);
+- podssh: T-1167 to T-1169 (`pod-link`, the DNS carrier; PodUtils/podssh#349,
+  COORD-139: a carrier with no TLS, DNS over HTTPS, a test through
+  `unbound`);
   T-1198 (two gaps of the design of the transfer codec of `pod-term`: a
   lost `KEPT` and the far sender's wait during an offer; a COORD issue to
   podssh first); T-1103 (iroh 1.5 and its fork

@@ -11381,7 +11381,7 @@ test result: FAILED. 0 passed; 1 failed; finished in 46.30s
 **Milestone:** M2
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11413,6 +11413,110 @@ keep the hold below the retry time of a resolver.
 ```sh
 cargo test -p pod-link --all-features dns
 ```
+
+## Done
+
+2026-11-24, this commit. The DNS listener of `pod-link` holds a poll, and
+the dialer starts its wait for the next poll at the answer of the last one
+(call C930):
+
+- `DnsSettings::hold` (a new public field, default
+  `pod_link::dns::HOLD`, 1 s; 0: no hold). `DnsSettings::check` refuses a
+  hold that is not less than `query_timeout` (the new variant
+  `DnsSettingsError::Hold`).
+- `crates/pod-link/src/dns/reply.rs` (new): the half down of a session
+  (`Down`: the queue of the ARQ, the datagrams that wait, the held polls),
+  the wake of a session at its first datagram down (one wake for each
+  session at a time, on an unbounded channel), the ends of the holds in
+  order (`Holds`), and the answers (moved from `server.rs`).
+- `server.rs`: a query with no datagram up, of a session past its first
+  record, with no datagram down, waits in its session; the reader of the
+  socket goes on. The task answers the held polls at the wake of the
+  session (with the datagrams down that fit) or at the end of the hold
+  (with no record), and answers each held poll of a session that ends.
+  A session holds at most 2 polls (`MAX_HELD`); a further poll answers the
+  oldest at once (dnstt holds one).
+- `client.rs`: with a hold, the wait for the next idle poll starts at the
+  answer of the last poll, so an idle link sends one query for each `hold`
+  and `poll_max`. A lost poll delays the next poll by `query_timeout`.
+- The documentation of `DnsSettings::hold` and `HOLD`, the headers of
+  `server.rs`, `reply.rs` and `client.rs`, and the README of `pod-link`
+  (also the kept ids of T-1171).
+
+The retry times that the hold stays under (read in the sources): glibc
+`RES_TIMEOUT` 5 s and 2 tries; musl a timeout of 5 s and 2 attempts, so a
+retry after 2.5 s; systemd-resolved `TRANSACTION_UDP_TIMEOUT_USEC`, 120 s
+for 24 attempts, 5 s; the dialer's `query_timeout`, 2 s; the DoH server of
+Quad9, 2 s (the comment of dnstt's `maxResponseDelay`). Unbound sends a
+query again after 376 ms (`UNKNOWN_SERVER_NICENESS`, the first RTO of a
+server that it does not know; `RTT_MIN_TIMEOUT` 50 ms) and then after the
+RTO that it measures; the listener holds the second query as one more poll
+of the session, within the bound of 2.
+
+The measure (`a_held_poll_halves_the_idle_queries_and_cuts_the_latency_down`,
+`poll_max` 100 ms, the queries of an idle link through a relay counted for
+3 s, 12 bytes down at gaps spread over the cycle; 10 runs):
+
+| `hold` | Queries in one idle minute | A byte down (median) |
+| --- | --- | --- |
+| 0 (as before) | 580 to 600 | 42 to 54 ms |
+| 100 ms (= `poll_max`) | 300 | 13 to 28 ms (the first form of the test) |
+| 400 ms | 120 | 0.47 to 0.61 ms |
+
+At the defaults (`poll_max` 2 s, `query_timeout` 2 s, 20 queries a second,
+8 in flight; one minute counted, 8 bytes down; one run):
+
+| `hold` | Queries in one idle minute | A byte down (median, mean) |
+| --- | --- | --- |
+| 0 (as before) | 30 | 951 ms, 915 ms |
+| 1 s (the default) | 20 | 770 ms, 795 ms |
+
+An idle cycle is `hold` plus `poll_max`: the count halves when the hold is
+`poll_max`, and falls by a third at the defaults. A byte down in a hold goes
+at once; at the defaults a poll is held for a third of the cycle. A caller
+that wants more takes a longer `hold` (under 2 s) or a shorter `poll_max`.
+
+Tests: `crates/pod-link/tests/dns_hold.rs` (new):
+`a_held_poll_halves_the_idle_queries_and_cuts_the_latency_down`,
+`polls_faster_than_the_hold_stack_no_queries` (6 polls of a live session at
+once, a hold of 1.5 s: 5 answered at once, 1 at the hold) and
+`the_session_of_a_query_comes_from_its_name`; the helpers `relay` (moved
+from `tests/dns.rs`, it keeps each query now) and `session_of` in
+`tests/common/dns.rs`; new asserts in
+`an_address_or_a_setting_out_of_its_form_is_a_usage_error` and
+`the_carrier_says_what_it_gives_and_why_it_cannot_run`. 10 runs of
+`tests/dns_hold.rs` in a loop: all passed (a first form of the test, with
+the latency at a hold of 100 ms, failed one run in 10: at a held part of
+one half the median is not stable; the latency is now measured at a hold of
+400 ms). `cargo test -p pod-link --all-features --test dns --test dns_loss
+--test dns_resolver --test dns_hold`: 12, 4, 3 and 3 passed; `--lib dns`:
+6 passed; `cargo test -p pod-dns --all-features`: all passed; clippy and
+rustdoc: no warning. The plant `dns-answer-past-the-query-size` is made
+again on the new `server.rs` (it fails with the plant, "An answer of 1206
+bytes to a query with no EDNS0", and passes without); plants: 0 stale.
+
+On the old `src/dns` (the test without the line of the new field), the
+measure fails:
+
+```text
+poll_max 100ms, queries in one idle minute: 600 with no hold, 600 with a hold of 100ms, 600 with a hold of 400ms; a byte down: 51.225945ms (median), 47.864801ms (mean) with no hold, 53.967824ms (median), 48.099579ms (mean) with a hold of 400ms
+the idle queries: 600 with no hold, 600 held
+test a_held_poll_halves_the_idle_queries_and_cuts_the_latency_down ... FAILED
+```
+
+With the bound removed (`MAX_HELD` not checked), the test of the bound
+fails: "6 polls of one session at once, a hold of 1.5s: 0 answered at once,
+6 at the hold".
+
+For the hand-off: `DnsSettings` has the new public field `hold`, and
+`DnsSettingsError` the new variant `Hold`. A struct literal of
+`DnsSettings` with no `..DnsSettings::default()`, and an exhaustive match of
+`DnsSettingsError`, break; a grep in shallow clones of podnet and podssh
+finds neither (podnet `src/link_dns.rs` uses only `Dns::new` and its
+builder methods). Both ends hold by default: a listener holds polls for up
+to 1 s, and a dialer waits for the answer of its last poll. A caller with
+`query_timeout` of 1 s or less sets `hold` below it (or 0). With
+`in_flight` 1, a datagram up waits for the held poll.
 
 # T-1167: `pod-link`: an option to carry the ARQ of the DNS carrier with no TLS for a caller that seals above (PodUtils/podssh#349)
 
@@ -11621,7 +11725,7 @@ test result: FAILED. 7 passed; 3 failed
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11654,3 +11758,53 @@ query of an ended id, and shows that a new session still starts.
 ```sh
 cargo test -p pod-link --all-features --test dns
 ```
+
+## Done
+
+2026-11-24, this commit. The DNS listener of `pod-link` keeps the id of a
+session that ended, and a late query of that id starts no handshake:
+
+- `crates/pod-link/src/dns/server.rs`: when the up queue of a session is
+  closed (its handshake failed, or its link ended and its ARQ is quiet), the
+  listener removes the session and keeps its id for `handshake_timeout`,
+  at most 4096 ids (`MAX_ENDED`). The check of each second removes the old
+  ids. A query of a kept id gets NOERROR with no record, AA set, and takes
+  no slot, also when it holds a part of a ClientHello (a retry of a
+  resolver).
+- A session that ended at its quiet time (T-1165) leaves no id: its dialer
+  can still be on the path and send its ClientHello again. A session whose
+  first record is refused leaves no id: a retry of it is refused again at
+  once.
+- The header of `server.rs` and the documentation of
+  `Dns::handshake_timeout` say it.
+
+The late query lands in the session while the ARQ of the session answers
+the frames of its peer after the end (two RTO ceilings of quiet, at most
+eight; 16 s to 64 s at the defaults), and the ARQ answers it with an `ACK`.
+The defect is for a later query.
+
+Test: `a_late_query_of_an_ended_session_starts_no_handshake` in
+`crates/pod-link/tests/dns.rs` (new; the listener with one slot, the
+`fast_arq` of the tests and `handshake_quiet` 2 s). A client of a key that
+the listener does not take dials through a relay that keeps its queries;
+the listener refuses the key. After the ARQ of the session is quiet and the
+listener removed the session, the test sends the first query of the session
+(the first part of its ClientHello) two times, checks the answers (NOERROR,
+no record, AA), and times a real dial. 10 runs in a loop: all passed, the
+dial took 30 to 34 ms. `cargo test -p pod-link --all-features --test dns
+--test dns_loss --test dns_resolver`: 12, 4 and 3 passed; `--lib dns`: 6
+passed; `cargo test -p pod-dns --all-features`: all passed; clippy and
+rustdoc: no warning; plants: 0 stale.
+
+On the old `server.rs`, the test fails: the late query starts a session
+that takes the one slot, and the dial waits for the retries of its ARQ:
+
+```text
+the dial after 2 late queries of an ended session: 15.046967793s
+a late query took the slot: the dial took 15.046967793s
+test a_late_query_of_an_ended_session_starts_no_handshake ... FAILED
+```
+
+For the hand-off: no public item changed. A listener answers a late query
+of an ended session with no record for `handshake_timeout` (20 s by
+default).

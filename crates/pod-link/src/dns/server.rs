@@ -29,8 +29,17 @@
 //!
 //! A query of a new session at the limit of the handshakes gets no answer,
 //! so the dialer sends it again. An answer gets no answer.
+//!
+//! The listener keeps the id of a session that ended (its handshake failed,
+//! or its link ended) for [`crate::dns::Dns::handshake_timeout`]: a late
+//! query of that id (a retry of a resolver) gets NOERROR with no record and
+//! starts no handshake. A session that ended at its quiet time leaves no id,
+//! so its dialer can start it again.
+//!
+//! A poll of a session after its first record waits for data down for up
+//! to [`DnsSettings::hold`] (`dns::reply`).
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::fmt;
 use std::io;
 use std::net::SocketAddr;
@@ -46,6 +55,7 @@ use tokio::time::Instant;
 use tokio_rustls::TlsAcceptor;
 
 use super::hello::{self, Hello, Parts};
+use super::reply::{Down, Holds, Reply, Wake, empty};
 use super::settings::DnsSettings;
 use super::wire;
 use super::{Dns, NAME, err};
@@ -65,6 +75,10 @@ const PRUNE: Duration = Duration::from_secs(1);
 
 /// The pause after a failed read of the socket, so the task does not spin.
 const READ_PAUSE: Duration = Duration::from_millis(50);
+
+/// The most ids of ended sessions that the listener keeps; past it, a late
+/// query of an ended session can start a session again.
+const MAX_ENDED: usize = 4096;
 
 /// The result of one handshake.
 type Shaken = Result<(BoxIo, PublicKey), CarrierError>;
@@ -96,11 +110,10 @@ struct Shake {
 }
 
 /// The listener's half of one session: the queue up that the ARQ reads, and
-/// the queue down that the ARQ fills, which the task drains into answers.
+/// the half down that the ARQ fills, which the task drains into answers.
 struct Entry {
     up: mpsc::Sender<Vec<u8>>,
-    down: mpsc::Receiver<Vec<u8>>,
-    held: VecDeque<Vec<u8>>,
+    down: Down,
     from: SocketAddr,
     /// The time of the last query of the session.
     seen: Instant,
@@ -194,6 +207,7 @@ impl Listener for DnsListener {
 /// silence.
 struct ServerSession {
     down: mpsc::Sender<Vec<u8>>,
+    wake: Wake,
     up: AsyncMutex<mpsc::Receiver<Vec<u8>>>,
     mtu: usize,
 }
@@ -205,7 +219,9 @@ impl Datagrams for ServerSession {
 
     fn send<'a>(&'a self, datagram: &'a [u8]) -> DatagramFuture<'a, ()> {
         Box::pin(async move {
-            let _ = self.down.try_send(datagram.to_vec());
+            if self.down.try_send(datagram.to_vec()).is_ok() {
+                self.wake.ring();
+            }
             Ok(())
         })
     }
@@ -238,6 +254,9 @@ async fn serve(
     mut stop: oneshot::Receiver<()>,
 ) {
     let mut sessions: HashMap<u32, Entry> = HashMap::new();
+    let mut ended: HashMap<u32, Instant> = HashMap::new();
+    let mut holds = Holds::default();
+    let (wake, mut woken) = mpsc::unbounded_channel();
     let mut shakes = JoinSet::new();
     let mut stopped = false;
     let mut buf = vec![0u8; MAX_QUERY];
@@ -254,7 +273,21 @@ async fn serve(
                         continue;
                     }
                 };
-                answer(&socket, &zone, &shake, &settings, &limit, &out, &mut sessions, &mut shakes, &buf[..n], from, stopped).await;
+                let table = Table { sessions: &mut sessions, ended: &mut ended, shakes: &mut shakes, holds: &mut holds, wake: &wake, stopped };
+                answer(&socket, &zone, &shake, &settings, &limit, &out, table, &buf[..n], from).await;
+            }
+            Some(id) = woken.recv() => {
+                if let Some(entry) = sessions.get_mut(&id) {
+                    entry.down.release(&socket).await;
+                }
+            }
+            () = tokio::time::sleep_until(holds.next().unwrap_or_else(Instant::now)), if holds.next().is_some() => {
+                let now = Instant::now();
+                for id in holds.due(now) {
+                    if let Some(entry) = sessions.get_mut(&id) {
+                        entry.down.expire(&socket, now).await;
+                    }
+                }
             }
             _ = &mut stop, if !stopped => {
                 stopped = true;
@@ -264,13 +297,45 @@ async fn serve(
             }
             _ = prune.tick() => {
                 let now = Instant::now();
-                sessions.retain(|_, e| !e.up.is_closed() && !e.quiet(now, shake.quiet, &out));
+                ended.retain(|_, at| now.duration_since(*at) < shake.within);
+                let gone: Vec<Entry> = sessions
+                    .extract_if(|id, e| {
+                        let closed = e.up.is_closed();
+                        if closed {
+                            keep_ended(&mut ended, *id, now);
+                        }
+                        closed || e.quiet(now, shake.quiet, &out)
+                    })
+                    .map(|(_, e)| e)
+                    .collect();
+                for mut entry in gone {
+                    entry.down.flush(&socket).await;
+                }
                 while shakes.try_join_next().is_some() {}
                 if stopped && sessions.is_empty() {
                     return;
                 }
             }
         }
+    }
+}
+
+/// The sessions of the listener, the ids of the sessions that ended, the
+/// tasks of the handshakes, the ends of the held polls, and the wake of the
+/// sessions.
+struct Table<'a> {
+    sessions: &'a mut HashMap<u32, Entry>,
+    ended: &'a mut HashMap<u32, Instant>,
+    shakes: &'a mut JoinSet<()>,
+    holds: &'a mut Holds,
+    wake: &'a mpsc::UnboundedSender<u32>,
+    stopped: bool,
+}
+
+/// Keep the id `id` of a session that ended at `now`, while the map has room.
+fn keep_ended(ended: &mut HashMap<u32, Instant>, id: u32, now: Instant) {
+    if ended.len() < MAX_ENDED {
+        ended.insert(id, now);
     }
 }
 
@@ -285,12 +350,11 @@ async fn answer(
     settings: &DnsSettings,
     limit: &Arc<Semaphore>,
     out: &mpsc::Sender<Shaken>,
-    sessions: &mut HashMap<u32, Entry>,
-    shakes: &mut JoinSet<()>,
+    table: Table<'_>,
     query: &[u8],
     from: SocketAddr,
-    stopped: bool,
 ) {
+    let Table { sessions, ended, shakes, holds, wake, stopped } = table;
     // The name in lower case serves to decode; each answer copies the bytes
     // of the question, so a resolver that uses 0x20 takes it.
     let Ok((_, name, kind)) = txt::question(query) else { return };
@@ -324,7 +388,8 @@ async fn answer(
             // The listener starts no new session. An empty answer, not a
             // refusal: a resolver keeps no failure and marks the server as
             // bad for no time, and the dialer ends at its time limit.
-            if stopped {
+            // A late query of an ended session starts no handshake either.
+            if stopped || ended.contains_key(&session) {
                 return empty(socket, query, txt::RCODE_NOERROR, true, edns, from).await;
             }
             // Only a part of a ClientHello takes a slot.
@@ -333,16 +398,17 @@ async fn answer(
             };
             // At the limit the query is lost: the dialer sends it again.
             let Ok(permit) = limit.clone().try_acquire_owned() else { return };
-            let (up_tx, up_rx) = mpsc::channel(settings.depth);
+            let (up, up_rx) = mpsc::channel(settings.depth);
             let (down_tx, down_rx) = mpsc::channel(settings.depth);
-            let server = ServerSession { down: down_tx, up: AsyncMutex::new(up_rx), mtu: shake.mtu };
+            let (down, wake) = Down::new(down_rx, session, wake.clone());
+            let server = ServerSession { down: down_tx, wake, up: AsyncMutex::new(up_rx), mtu: shake.mtu };
             let early = Early { parts: Parts::new(part.count), permit, server };
-            let (up, down, held) = (up_tx, down_rx, VecDeque::new());
             let seen = Instant::now();
-            slot.insert(Entry { up, down, held, from, seen, hello: Some(Box::new(early)), shake: None })
+            slot.insert(Entry { up, down, from, seen, hello: Some(Box::new(early)), shake: None })
         }
     };
     entry.seen = Instant::now();
+    let poll = payload.is_empty();
     if entry.hello.is_some() {
         if !first_record(entry, payload, shake, out, shakes) {
             sessions.remove(&session);
@@ -355,13 +421,18 @@ async fn answer(
     // The answer keeps to the size that the query takes, 512 bytes with no
     // OPT record, so a resolver on the path does not cut it (call C291).
     let size = asked.unwrap_or(txt::PLAIN_SIZE).min(settings.answer);
-    let records = drain(entry, &name, size, asked.is_some());
-    let refs: Vec<&[u8]> = records.iter().map(Vec::as_slice).collect();
-    if let Ok(message) = txt::answer_to(query, &refs, edns) {
-        send(socket, message, true, from).await;
+    // A poll of a session past its first record waits for data down.
+    if poll && entry.hello.is_none() && !settings.hold.is_zero() && !entry.down.has_data() && !entry.up.is_closed() {
+        let until = Instant::now() + settings.hold;
+        entry.down.hold(socket, Reply::new(query, from, size, edns, name.len(), until)).await;
+        holds.push(until, session);
+        return;
     }
+    entry.down.answer(socket, query, from, size, edns, name.len()).await;
     if entry.up.is_closed() {
-        sessions.remove(&session);
+        let mut gone = sessions.remove(&session).expect("the session of the query");
+        gone.down.flush(socket).await;
+        keep_ended(ended, session, Instant::now());
     }
 }
 
@@ -405,55 +476,4 @@ fn first_record(
         let _ = out.send(result).await;
     }));
     true
-}
-
-/// Send the answer of `rcode` with no record to `query`, with the AA bit when
-/// `authoritative` and an OPT record of `edns` bytes when given.
-async fn empty(
-    socket: &Arc<dyn AddressedDatagrams>,
-    query: &[u8],
-    rcode: u8,
-    authoritative: bool,
-    edns: Option<u16>,
-    from: SocketAddr,
-) {
-    if let Ok(message) = txt::empty_answer(query, rcode, edns) {
-        send(socket, message, authoritative, from).await;
-    }
-}
-
-/// Send the answer `message` to `from` with RA clear, as the listener does
-/// no recursion, and with the AA bit when `authoritative`.
-async fn send(socket: &Arc<dyn AddressedDatagrams>, mut message: Vec<u8>, authoritative: bool, from: SocketAddr) {
-    txt::set_no_recursion(&mut message);
-    if authoritative {
-        txt::set_authoritative(&mut message);
-    }
-    let _ = pod_core::datagrams::send_to(&**socket, &message, from).await;
-}
-
-/// The datagrams down that fit in an answer of `answer` bytes for `name`,
-/// with an OPT record when `opt`. Leftover datagrams wait in the session
-/// for the next query. The first datagram goes also over the size: a name
-/// of 253 bytes, the OPT record and the largest datagram of the carrier
-/// (147 bytes, [`wire::payload_mtu`]) make 442 bytes, so it fits in 512.
-fn drain(entry: &mut Entry, name: &str, answer: u16, opt: bool) -> Vec<Vec<u8>> {
-    while let Ok(datagram) = entry.down.try_recv() {
-        entry.held.push_back(datagram);
-    }
-    // A pointer to the name costs two bytes; the header, the question and the
-    // OPT record are the fixed part.
-    let fixed = 12 + name.len() + 2 + 4 + if opt { 11 } else { 0 };
-    let budget = usize::from(answer).saturating_sub(fixed);
-    let mut used = 0;
-    let mut records = Vec::new();
-    while let Some(datagram) = entry.held.front() {
-        let cost = 12 + datagram.len() + datagram.len().div_ceil(255).max(1);
-        if used + cost > budget && !records.is_empty() {
-            break;
-        }
-        used += cost;
-        records.push(entry.held.pop_front().expect("a datagram at the front"));
-    }
-    records
 }
