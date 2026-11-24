@@ -261,11 +261,8 @@ impl Carrier for Smtp {
             let ends = crate::pipes::Ends::new();
             let (stream, far) = pipes(PIPE, ends.clone());
             let smtp = self.clone();
-            let task = client::run(smtp, endpoint, mode, config, session, far);
-            tokio::spawn(async move {
-                if let Err(e) = task.await {
-                    ends.fail_with(Arc::new(move || io::Error::new(io::ErrorKind::InvalidData, e.to_string())));
-                }
+            crate::pipes::spawn_task(ends, far, move |far| {
+                Box::pin(client::run(smtp, endpoint, mode, config, session, far))
             });
             Ok(Box::new(UpOnly { inner: stream }) as BoxIo)
         })

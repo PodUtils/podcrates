@@ -31,7 +31,6 @@
 //! plain connection with TLS through `pod-tls`.
 
 use std::fmt;
-use std::io;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -247,12 +246,7 @@ impl Carrier for Imap {
             let ends = crate::pipes::Ends::new();
             let (stream, far) = crate::pipes::pipes(PIPE, ends.clone());
             let imap = self.clone();
-            let task = client::run(imap, endpoint, mode, config, far);
-            tokio::spawn(async move {
-                if let Err(e) = task.await {
-                    ends.fail_with(Arc::new(move || io::Error::new(io::ErrorKind::InvalidData, e.to_string())));
-                }
-            });
+            crate::pipes::spawn_task(ends, far, move |far| Box::pin(client::run(imap, endpoint, mode, config, far)));
             Ok(Box::new(stream) as BoxIo)
         })
     }

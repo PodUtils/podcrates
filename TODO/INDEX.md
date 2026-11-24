@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**977 entries: 162 open, 30 partial, 7 blocked, 778 done.**
+**977 entries: 161 open, 31 partial, 7 blocked, 778 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 11 | 0 | 228 | 243 |
-| P2 | 77 | 8 | 4 | 405 | 494 |
+| P2 | 76 | 9 | 4 | 405 | 494 |
 | P3 | 81 | 11 | 3 | 143 | 238 |
-| **All** | 162 | 30 | 7 | 778 | 977 |
+| **All** | 161 | 31 | 7 | 778 | 977 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1020,7 +1020,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1279](relay.md) | P3 | S | M2 | defect | open | `pod-dns`: a `Pipe` asks Cloudflare and Google over HTTP/1.1, so the queries of the DNS carrier over DoH go one at a time behind a held poll |
 | [T-1295](upkeep.md) | P1 | S | M6 | defect | done | `pod-extract`: `flatten` tests fail for a user that is not root: GNU tar cannot open `usr/bin/sh`, and `walk` cannot read a directory with no search mode |
 | [T-1296](upkeep.md) | P2 | S | M6 | defect | partial | `pod-enter`: the two title tests of the init and the relay fail under qemu-user on each emulated job (the nightly at `f39b8e2`) |
-| [T-1297](upkeep.md) | P2 | S | M2 | defect | open | `pod-link`: `dns_hold` gives a hold that is longer than its query timeout under an emulator, and `a_server_that_never_answers_a_command_is_the_named_timeout` of `mail` ends with no error on arm |
+| [T-1297](upkeep.md) | P2 | S | M2 | defect | partial | `pod-link`: `dns_hold` gives a hold that is longer than its query timeout under an emulator, and `a_server_that_never_answers_a_command_is_the_named_timeout` of `mail` ends with no error on arm |
 | [T-1298](upkeep.md) | P1 | M | M6 | defect | partial | `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes |
 | [T-1299](upkeep.md) | P3 | S | M6 | feature | open | `pod-extract`: a stream of `flatten` that GNU tar as a user that is not root can unpack |
 | [T-1303](upkeep.md) | P2 | S | M5 | defect | open | The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows |

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 977 entries: 162 open, 30 partial, 7 blocked, 778 done.
+`TODO/INDEX.md` holds 977 entries: 161 open, 31 partial, 7 blocked, 778 done.
 
 ## State
 
@@ -40,7 +40,9 @@
   `65fa99f`) is fixed; the emulated jobs fail in `pod-enter` (T-1296, partial:
   qemu-user writes `/proc/self/stat` with 44 fields and no map; the title
   reads the threads first; the next nightly decides) and `dns_hold`
-  of `pod-link` (T-1297, with `mail` on arm); `riscv64` fails in `pod-iroh`
+  of `pod-link` (T-1297, partial: the query timeout of the test now scales
+  with the hold; `mail` on arm was a race of the carriers, whose far ends
+  dropped before the fault; the next nightly decides); `riscv64` fails in `pod-iroh`
   (T-916) and was cancelled at 150 minutes in `session_resume_twice`
   (T-938); the two jobs of macOS were cancelled at 60 minutes in
   `pod-incus` (T-1298, partial: the stand-in shut its read side, which

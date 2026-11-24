@@ -167,7 +167,8 @@ async fn a_server_that_never_answers_a_command_is_the_named_timeout() {
     imap.command_timeout = Duration::from_millis(200);
     let mut io = imap.dial(&addr.to_string()).await.expect("a retrieval dial");
     let mut buf = [0u8; 1];
-    let failed = timeout(Duration::from_secs(5), async {
+    // The command timeout is the timer under test; this bound guards a hang.
+    let failed = timeout(pod_testkit::host::scaled(Duration::from_secs(5)), async {
         loop {
             match io.read(&mut buf).await {
                 Ok(0) => break None,

@@ -38,8 +38,10 @@ is done. Git and the record keep finished work.
      `pod-enter` (T-1296, partial: qemu-user writes `/proc/self/stat`
      with 44 fields and no map; the title reads the threads first and
      refuses with no map; read the emulated jobs of the next nightly) and
-     in `dns_hold` of `pod-link` (T-1297; `mail`
-     on arm and armv7 too). `riscv64` fails in `pod-iroh` (`road.rs`,
+     in `dns_hold` of `pod-link` (T-1297, partial; `mail` on arm and
+     armv7 too: the query timeout of `dns_hold` scales with the hold, and
+     `pipes::spawn_task` sets the fault of a carrier before its far ends
+     drop; read those jobs of the next nightly). `riscv64` fails in `pod-iroh` (`road.rs`,
      `share.rs`: T-916, T-938, Q19) and was cancelled at 150 minutes in
      `session_resume_twice` (T-938; each binary now has a limit of 2700 s).
      Both jobs of macOS were cancelled at 60 minutes in `images` of

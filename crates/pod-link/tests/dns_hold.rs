@@ -22,10 +22,14 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::{Instant, sleep, timeout};
 
 /// The DNS settings of the tests: a short poll interval and the hold
-/// `hold`.
+/// `hold`. The query timeout guards a lost answer, not a time that the
+/// test checks: it scales with the hold, so the hold stays under it under
+/// an emulator too (the settings refuse a hold of the query timeout or
+/// more).
 fn settings(hold: Duration) -> DnsSettings {
     let mut dns = fast_dns();
     dns.poll_max = pod_testkit::host::scaled(Duration::from_millis(100));
+    dns.query_timeout = pod_testkit::host::scaled(dns.query_timeout);
     dns.hold = hold;
     dns
 }

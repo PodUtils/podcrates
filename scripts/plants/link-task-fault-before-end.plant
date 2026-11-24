@@ -1,0 +1,6 @@
+# pod-link: the task of a carrier drops its far ends before it sets its fault, so a read in that gap gives a clean end in place of the error (the stream of the IMAP test "a failed stream" on arm); the unit test of the pipes must fail (T-1297).
+ENTRY=T-1297
+GROUP=link
+EXPECT='a_failed_task_never_reads_as_a_clean_end'
+RUN='cargo test -p pod-link --all-features --lib pipes'
+LIMIT=1800

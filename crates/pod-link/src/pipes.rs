@@ -13,6 +13,8 @@ use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream, ReadBuf};
 use tokio::sync::watch;
 
+use crate::carrier::Pending;
+
 /// The state of the two ends of a session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum State {
@@ -110,6 +112,24 @@ pub(crate) fn pipes(size: usize, ends: Arc<Ends>) -> (Pipes, Far) {
     (Pipes { from_peer, to_peer, ends }, Far { from_peer: far_in, to_peer: far_out })
 }
 
+/// Run the task of a carrier on `far`: its error becomes the fault of
+/// `ends`. `far` drops after the fault is set, so a read that meets the end
+/// of a pipe meets the fault too. A task that owns `far` drops it before
+/// the fault, and a read in that gap gives a clean end in place of the
+/// error.
+#[cfg_attr(not(any(feature = "imap", feature = "ntp", feature = "smtp")), allow(dead_code))]
+pub(crate) fn spawn_task<F>(ends: Arc<Ends>, mut far: Far, task: F)
+where
+    F: for<'a> FnOnce(&'a mut Far) -> Pending<'a, ()> + Send + 'static,
+{
+    tokio::spawn(async move {
+        if let Err(e) = task(&mut far).await {
+            ends.fail_with(Arc::new(move || io::Error::new(io::ErrorKind::InvalidData, e.to_string())));
+        }
+        drop(far);
+    });
+}
+
 impl Pipes {
     /// The fault that ended the session, when one did.
     #[cfg_attr(not(feature = "smtp"), allow(dead_code))]
@@ -182,5 +202,36 @@ mod tests {
         let mut state = ends.watch();
         drop(io);
         assert_eq!(*state.borrow_and_update(), State::Failed, "a drop after a fault keeps the fault");
+    }
+
+    /// A task that fails sets its fault before its far ends drop: a reader
+    /// that polls with no pause on another thread never meets a clean end.
+    #[test]
+    fn a_failed_task_never_reads_as_a_clean_end() {
+        use crate::carrier::{CarrierError, CarrierErrorKind};
+        let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(2).build().unwrap();
+        let _in = rt.enter();
+        for _ in 0..500 {
+            let ends = Ends::new();
+            let (mut io, far) = pipes(64, ends.clone());
+            let go = Arc::new(std::sync::Barrier::new(2));
+            let started = go.clone();
+            let spin = std::thread::spawn(move || {
+                started.wait();
+                let mut cx = Context::from_waker(std::task::Waker::noop());
+                let mut buf = [0u8; 8];
+                loop {
+                    let mut read = ReadBuf::new(&mut buf);
+                    if let Poll::Ready(r) = Pin::new(&mut io).poll_read(&mut cx, &mut read) {
+                        return r.map(|()| read.filled().len()).map_err(|e| e.kind());
+                    }
+                }
+            });
+            go.wait();
+            spawn_task(ends, far, |_| {
+                Box::pin(async { Err(CarrierError::new("test", CarrierErrorKind::Usage, "no")) })
+            });
+            assert_eq!(spin.join().unwrap(), Err(io::ErrorKind::InvalidData), "the fault, not a clean end");
+        }
     }
 }

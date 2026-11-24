@@ -5096,7 +5096,7 @@ pass there, set the entry to `done`.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5114,7 +5114,7 @@ pass there, set the entry to `done`.
   7.5 s under an emulator; the query timeout of the settings is not scaled,
   so the settings are refused. The second test uses a hold of 2 s with the
   same query timeout. Both bounds of the pair must go through one scale.
-- `crates/pod-link/tests/mail.rs:181`
+- `crates/pod-link/tests/mail.rs:182`
   (`a_server_that_never_answers_a_command_is_the_named_timeout`): "a failed
   stream" on armv7 and arm. The stream ended with a read of 0 bytes, where
   the error that names `UID FETCH` and "took more than" is due. The same
@@ -5148,6 +5148,45 @@ outruns goes through `pod_testkit::host::scaled` (T-916).
 cargo test -p pod-link --all-features --test dns_hold
 cargo test -p pod-link --all-features --test mail
 ```
+
+## Done
+
+2026-11-24 (partial). `dns_hold`: cause: the hold of
+`polls_faster_than_the_hold_stack_no_queries` is
+`pod_testkit::host::scaled(1500 ms)` (7.5 s under an emulator) and the
+hold of `a_held_poll_halves_the_idle_queries_and_cuts_the_latency_down` is
+four scaled poll intervals (2 s), but the query timeout stayed 2 s, so the
+settings check refused both binds. The query timeout guards a lost answer
+and is not the timer under test. Change (`crates/pod-link/tests/dns_hold.rs`,
+`settings`): the query timeout goes through `pod_testkit::host::scaled`
+too, so `hold < query_timeout` holds under each factor. Proof here: the
+old binary with `QEMU_UNAME` set (the emulated flag forced on) fails both
+tests after 95 s with the two texts of the nightly; the new binary with the
+same variable passes 3 tests in 167 s, and passes natively.
+
+`mail`: cause: a defect of the carriers, not a bound. `client::run` of the
+IMAP, SMTP and NTP carriers owned `Far` (the far ends of the pipes) and
+dropped it when it returned its error, before the spawned task set the
+fault in `Ends`. A read of the link in that gap met the end of the pipe
+with no fault and gave a clean end (`Ok(0)`), in place of the error of
+`UID FETCH` ("a failed stream", `crates/pod-link/tests/mail.rs:182`). The
+gap is short on a kernel and longer under the emulation of a 32-bit target.
+Change: `crate::pipes::spawn_task` runs the task on a borrow of `Far`, sets
+the fault, and then drops `Far`; the three carriers use it, and their `run`
+takes `&mut Far`. The bound of 5 s of the test guards a hang and goes
+through `pod_testkit::host::scaled`; the command timeout of 200 ms is the
+timer under test and stays. Proof here: the new unit test
+`pipes::tests::a_failed_task_never_reads_as_a_clean_end` (500 tasks, a
+reader that polls with no pause on another thread) fails in each of 3 runs
+with `left: Ok(0)` when `Far` drops before the fault (the plant
+`scripts/plants/link-task-fault-before-end.plant`), and passes 50 runs of
+50 with the fix. The IMAP test does not fail natively on the old code (0 of
+200 runs) and passes 50 of 50 runs with the fix. `cargo test -p pod-link
+--all-features`: 42 test binaries pass.
+
+Open: the next `nightly.yml` run: `dns_hold` in the six emulated jobs
+`cross`, and `mail` in the jobs of arm and armv7. When both pass, set the
+entry to `done`.
 
 # T-1298: `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes
 
