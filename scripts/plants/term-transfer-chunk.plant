@@ -1,0 +1,6 @@
+# The transfer codec: a fast ack does not double the chunk (T-1144).
+ENTRY=T-1144
+GROUP=term
+EXPECT='test the_chunk_doubles_after_a_fast_ack_and_halves_after_a_slow_one \.\.\. FAILED'
+RUN='cargo test -p pod-term --features transfer --test transfer the_chunk_doubles_after_a_fast_ack_and_halves_after_a_slow_one -- --exact'
+LIMIT=900

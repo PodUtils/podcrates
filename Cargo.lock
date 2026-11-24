@@ -5394,9 +5394,12 @@ name = "pod-term"
 version = "0.82.1"
 dependencies = [
  "anstyle-parse",
+ "base64 0.23.1",
+ "crc32fast",
  "libc",
  "pod-testkit",
  "proptest",
+ "sha2 0.11.1",
  "unicode-width",
 ]
 

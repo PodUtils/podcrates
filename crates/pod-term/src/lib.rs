@@ -69,9 +69,13 @@
 //! - [`escape`] — the escape-sequence parser: what counts as one key
 //! - [`grammar`] — where a stream of output may start, and the ring of a
 //!   kept shell's output that drops bytes only up to such a place
+//! - [`modes`] — the modes that a stream of output set, and the bytes that
+//!   put a new terminal in them
 //! - [`window`] — window size, deferred while a frame is mid-draw
 //! - [`passthrough`] — the second discipline, for a program that owns the screen
 //! - [`termios`] — the third discipline, which follows the termios of its child
+//! - `transfer` (feature `transfer`) — a 7-bit transfer of a file through a
+//!   terminal that repaints its output
 //! - [`refusal`] — the refusal catalogue that the cooked discipline answers from
 //! - [`session`] — the driver that chooses between them
 
@@ -79,10 +83,13 @@ pub mod bytes;
 pub mod echo;
 pub mod escape;
 pub mod grammar;
+pub mod modes;
 pub mod passthrough;
 pub mod refusal;
 pub mod session;
 pub mod termios;
+#[cfg(feature = "transfer")]
+pub mod transfer;
 pub mod window;
 
 pub use echo::{BELL, Discipline, EL, Event, HISTORY_CAP, IDLE, LINE_CAP, PROMPT, Sig};

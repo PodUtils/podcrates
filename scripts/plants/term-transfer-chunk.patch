@@ -1,0 +1,11 @@
+--- a/crates/pod-term/src/transfer/flow/sender.rs
++++ b/crates/pod-term/src/transfer/flow/sender.rs
+@@ -70,7 +70,7 @@
+         if let Some(ack) = handed.map(|h| now.saturating_duration_since(h)) {
+             self.last_ack = Some(ack);
+             if ack <= FAST_ACK {
+-                self.chunk = (self.chunk * 2).min(self.cap);
++                self.chunk = self.chunk.min(self.cap);
+             } else if ack > SLOW_ACK {
+                 self.chunk = (self.chunk / 2).max(self.floor());
+             }

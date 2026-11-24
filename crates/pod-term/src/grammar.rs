@@ -66,9 +66,9 @@ pub struct Boundary {
     pub restart: bool,
 }
 
-/// What the tracker is inside.
+/// What the tracker is inside. [`crate::modes`] reads with the same states.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum State {
+pub(crate) enum State {
     /// Text.
     Ground,
     /// A UTF-8 character with this many continuation bytes to come.
@@ -202,8 +202,9 @@ fn is_continuation(b: u8) -> bool {
     (0x80..=0xbf).contains(&b)
 }
 
-/// The state after `b`, in each state but a broken one.
-fn next(state: State, b: u8) -> State {
+/// The state after `b`, in each state but a broken one. The one reader of
+/// the grammar: the tracker and [`crate::modes`] take it.
+pub(crate) fn next(state: State, b: u8) -> State {
     match (state, b) {
         // ESC, CAN and SUB act in each state.
         (_, ESC) => State::Escape,

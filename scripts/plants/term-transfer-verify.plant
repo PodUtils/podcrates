@@ -1,0 +1,6 @@
+# The transfer codec: the receiver gives Verified when the SHA-256 differs (T-1144).
+ENTRY=T-1144
+GROUP=term
+EXPECT='test x4_a_hash_that_differs_keeps_nothing \.\.\. FAILED'
+RUN='cargo test -p pod-term --features transfer --test transfer x4_a_hash_that_differs_keeps_nothing -- --exact'
+LIMIT=900

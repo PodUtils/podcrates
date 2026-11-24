@@ -116,7 +116,7 @@ The hand-off COORD-152 (#257) is closed (call C780): each consumer names
   130 s and 280 s.
 
 COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
-`pod-term` (T-1144, open). No tag has it.
+`pod-term` (T-1144, done on `main`; the feature `transfer`). No tag has it.
 
 ### On `main` after `v0.82.1` (for the next tag)
 
@@ -166,6 +166,15 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
   where no `SCHILY.xattr.` record of the same name is there. `pax::Member`
   has a new public field `sparse` (podvm builds no `Member`).
 
+- T-1191, T-1192 and T-1144 (`pod-term`, PodUtils/podssh#350 and #346):
+  `modes::Modes` (`feed`, `restore`; the mouse level and the encoding as
+  xterm and tmux hold them, not as #350 words them; no DECSTR),
+  `Ring::modes_at`, `pod_testkit::screen::Screen::modes()`, and the 7-bit
+  transfer codec `pod_term::transfer` behind the feature `transfer` (podssh
+  names `features = ["transfer"]`). New items only. T-1198 asks podssh about
+  two gaps of its design (the `KEPT` that ends a session, the wait of the
+  far sender during the offer).
+
 ### What the next hand-off carries
 
 - podrunner: no open ask. T-1160 changes the answer of
@@ -178,7 +187,7 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
 - podssh: the STUN note above, T-1182 (the bound of a unit name), T-1095
   (the order of the pseudo-fields of the HTTP/2 request of `pod-ws`,
   PodUtils/podssh#340), T-1103 (iroh 1.5).
-- Asks of podvm and podssh that no one has started: T-1144 (`pod-term`), T-1166 to
+- Asks of podvm and podssh that no one has started: T-1166 to
   T-1169 and T-1171 (`pod-link`, the DNS carrier; PodUtils/podssh#349).
 - Entries of podcrates that no one has started: T-1162
   (the answer to PodUtils/podvm#570), T-1163 (two more readers of

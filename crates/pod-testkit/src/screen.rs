@@ -16,6 +16,19 @@ fn at_least_one(n: u16) -> std::num::NonZeroU16 {
     std::num::NonZeroU16::new(n).unwrap_or(std::num::NonZeroU16::MIN)
 }
 
+/// The modes of a model terminal ([`Screen::modes`]): the mouse level and
+/// encoding as the number of the DEC private mode that sets it, 0 for none.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Modes {
+    pub application_cursor: bool,
+    pub application_keypad: bool,
+    pub hide_cursor: bool,
+    pub bracketed_paste: bool,
+    pub mouse: u16,
+    pub mouse_encoding: u16,
+    pub alternate: bool,
+}
+
 /// A model terminal, and what it shows.
 pub struct Screen {
     parser: vt100::Parser,
@@ -115,6 +128,31 @@ impl Screen {
     /// makes it.
     pub fn alternate(&self) -> bool {
         self.parser.screen().alternate_screen()
+    }
+
+    /// The modes of input and of the screen that the model reads. The model
+    /// does not read the modes 7, 1004, 1015 and 1047, nor G0.
+    pub fn modes(&self) -> Modes {
+        let screen = self.parser.screen();
+        Modes {
+            application_cursor: screen.application_cursor(),
+            application_keypad: screen.application_keypad(),
+            hide_cursor: screen.hide_cursor(),
+            bracketed_paste: screen.bracketed_paste(),
+            mouse: match screen.mouse_protocol_mode() {
+                vt100::MouseProtocolMode::None => 0,
+                vt100::MouseProtocolMode::Press => 9,
+                vt100::MouseProtocolMode::PressRelease => 1000,
+                vt100::MouseProtocolMode::ButtonMotion => 1002,
+                vt100::MouseProtocolMode::AnyMotion => 1003,
+            },
+            mouse_encoding: match screen.mouse_protocol_encoding() {
+                vt100::MouseProtocolEncoding::Default => 0,
+                vt100::MouseProtocolEncoding::Utf8 => 1005,
+                vt100::MouseProtocolEncoding::Sgr => 1006,
+            },
+            alternate: screen.alternate_screen(),
+        }
     }
 
     /// The screen as a person sees it, for the message of a failed check:

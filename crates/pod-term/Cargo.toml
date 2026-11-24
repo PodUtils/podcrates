@@ -7,8 +7,15 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+# The 7-bit transfer codec (src/transfer.rs): base64, CRC-32 and SHA-256.
+transfer = ["dep:base64", "dep:crc32fast", "dep:sha2"]
+
 [dependencies]
 unicode-width = { version = "0.2", default-features = false }
+base64 = { workspace = true, optional = true }
+crc32fast = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
 
 [dev-dependencies]
 # The terminal oracle of the test kit: a model terminal reads what the

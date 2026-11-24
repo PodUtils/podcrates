@@ -1,0 +1,10 @@
+--- a/crates/pod-term/src/grammar/ring.rs
++++ b/crates/pod-term/src/grammar/ring.rs
+@@ -82,7 +82,6 @@
+         }
+         let to = self.marks.front().copied().unwrap_or(from);
+         let n = (to - self.first) as usize;
+-        feed_front(&mut self.dropped, &self.bytes, n);
+         self.bytes.drain(..n);
+         self.first = to;
+     }

@@ -1,0 +1,11 @@
+--- a/crates/pod-term/src/transfer/flow.rs
++++ b/crates/pod-term/src/transfer/flow.rs
+@@ -399,7 +399,7 @@
+             return self.stop(stop::DIFFERS, "the size differs; nothing was kept", events);
+         }
+         let ours: [u8; 32] = self.hash.clone().finalize().into();
+-        if ours != sha256 {
++        if ours != sha256 && size == 0 {
+             return self.stop(stop::DIFFERS, "SHA-256 differs; nothing was kept", events);
+         }
+         events.push(Event::Verified { size, sha256 });

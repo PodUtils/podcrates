@@ -1,0 +1,6 @@
+# The transfer codec: a damaged frame does not resync at the hash that damaged it (T-1144).
+ENTRY=T-1144
+GROUP=term
+EXPECT='test transfer::tests::f10_a_damaged_frame_resyncs_at_the_next_hash \.\.\. FAILED'
+RUN='cargo test -p pod-term --features transfer --lib transfer::tests::f10_a_damaged_frame_resyncs_at_the_next_hash -- --exact'
+LIMIT=900
