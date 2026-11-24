@@ -37,10 +37,11 @@ is done. Git and the record keep finished work.
    - `upstream.yml` (job `sources`): the port of podrunner's changes of
      `pod-testkit` is done (T-1160); `scripts/check-sources.py` with a
      clone of podrunner `27a2e5d` shows 0 changes. Read the next daily run.
-   - `services.yml`: the scheduled run 45159148662 failed; the dispatches
-     45174182632 and 45174187730 passed. T-1034 (`temp-sh` gets 429 from a
-     runner) is done: a limit of the host gets one more try. Read the next
-     scheduled run.
+   - `services.yml`: the scheduled run 45394042840 failed (T-1223, done):
+     the relay WMYMARB moved to a new address, and `node-trojan-45-63-30-142`
+     left. `temp-sh` held (T-1034). `node-trojan-64-176-7-205` and
+     `freedos-image` had a first no answer; read the next scheduled run
+     (T-1096 reopens when `freedos-image` times out again).
    - `live.yml`: T-963 (partial; the second Nostr relay is `nos.lol`).
    - `publish.yml` 45321873395, the dry run on `v0.82.1`, passed.
    - `docs/research/hard-problems.md` has the hard open problems (H-01 to

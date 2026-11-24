@@ -261,14 +261,14 @@ source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12
 [[endpoint]]
 name = "relay-wmymarb"
 scheme = "tls"
-host = "189.146.18.236"
+host = "187.142.242.141"
 port = 443
-source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "relay://189.146.18.236:443 of the device WMYMARB: up 49 days, no rate limit, location MX" }
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-24, note = "relay://187.142.242.141:443 of the device WMYMARB: up 61 days, no rate limit, location MX" }
 
 [[fact]]
 name = "device-id-relay-wmymarb"
 value = "WMYMARB-ZPYORNN-AIIH6ZO-KCXO3AR-HECRLY7-7SKSSNI-XOKLXYH-CNOXOA6"
-source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-12, note = "the id of the URL of the relay at 189.146.18.236" }
+source = { url = "https://relays.syncthing.net/endpoint/full", read = 2026-11-24, note = "the id of the URL of the relay at 187.142.242.141" }
 
 [[endpoint]]
 name = "relay-yd5lhxn"

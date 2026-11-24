@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**952 entries: 165 open, 29 partial, 7 blocked, 751 done.**
+**953 entries: 165 open, 29 partial, 7 blocked, 752 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 226 | 240 |
-| P2 | 76 | 8 | 4 | 390 | 478 |
+| P2 | 76 | 8 | 4 | 391 | 479 |
 | P3 | 85 | 11 | 3 | 133 | 232 |
-| **All** | 165 | 29 | 7 | 751 | 952 |
+| **All** | 165 | 29 | 7 | 752 | 953 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -999,3 +999,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1198](transport.md) | P2 | S | M3 | defect | open | `pod-term`: the transfer codec loses the `KEPT` that ends a session, and the far sender's 20 s wait runs while a person answers the offer |
 | [T-1205](podvm.md) | P1 | S | M6 | feature | done | `pod-hostprobe`: `usage::Mounts`, the three cgroup directories of a process from the text of `/proc/self/mountinfo`, where a mount of cgroup is refused (PodUtils/podvm#659) |
 | [T-1209](upkeep.md) | P2 | S | M5 | defect | open | `pod-core`: one probe of a Unix socket that a forked child can hold, for `pod-control`, `pod-link` and `pod-warp` (PodUtils/podnet#709) |
+| [T-1223](services.md) | P2 | S | M5 | defect | done | `services.yml` 45394042840: the Syncthing relay WMYMARB at a new address, the Trojan node `node-trojan-45-63-30-142` gone, and two hosts with a first no answer |
