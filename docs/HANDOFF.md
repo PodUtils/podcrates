@@ -16,7 +16,7 @@ is done. Git and the record keep finished work.
    is done or blocked on a thing out of the control of the session (the
    ruling "Work until done"). Read the open COORD issues
    `(to podcrates)` of each repository of PodUtils. Each one maps to an
-   entry (PodUtils/podvm#570, COORD-183, maps to T-1162; PodUtils/podssh#349,
+   entry (PodUtils/podvm#570, COORD-183, maps to T-1162, answered on #259; PodUtils/podssh#349,
    COORD-139, maps to T-1164 to T-1169; PodUtils/podssh#350, COORD-140, maps to
    T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213). Map each new one
    in the same commit.
@@ -47,7 +47,7 @@ is done. Git and the record keep finished work.
      `freedos-image` had a first no answer; read the next scheduled run
      (T-1096 reopens when `freedos-image` times out again).
    - `live.yml`: T-963 (partial; the second Nostr relay is `nos.lol`).
-   - `publish.yml` 45321873395, the dry run on `v0.82.1`, passed.
+   - `publish.yml` 45433657871, the dry run on `v0.83.0`, passed.
    - `docs/research/hard-problems.md` has the hard open problems (H-01 to
      H-18). T-978 (partial) holds the findings that no other entry has.
 4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the red
@@ -90,152 +90,66 @@ is done. Git and the record keep finished work.
       `action_required`. Review its code before you approve or dispatch
       its CI (the ruling "Strangers").
 
-## Release: v0.82.1
+## Release: v0.83.0
 
-`v0.82.1` (`0d7832b`, `docs/releases/v0.82.1.md`) is released: the GitHub
+`v0.83.0` (`5fd6fb7`, `docs/releases/v0.83.0.md`) is released: the GitHub
 release, the signed `SHA256SUMS`, the assets and the images of
-`ghcr.io/podutils` exist. It carries `v0.82.0` (`51c09390`,
-`docs/releases/v0.82.0.md`, tagged without `release.yml`, so with no
-release and no images) and each change of `main` before the tag.
+`ghcr.io/podutils` exist. The run on the tag (45432576718, with the jobs
+`image` and `notes`) and the dry run of `publish.yml` (45433657871) passed.
+It carries each change of `main` after `v0.82.1`.
 
-The hand-off COORD-152 (#257) is closed (call C780): each consumer names
-`v0.82.1`. Its Result line names the four takes:
+The hand-off COORD-154 (#259) is open (call C780). It closes when each
+consumer names `v0.83.0` or a later tag. Amend its body at each take. It has
+the digest of each image beside the SHA-256 of its asset, and the section
+of each consumer. The hand-off COORD-152 (#257) of `v0.82.1` is closed.
+COORD-153 (#258) answers PodUtils/podssh#346: the codec is in `v0.83.0`
+(`pod-term`, the feature `transfer`); it closes when podssh names its take.
 
-- podrunner names `v0.82.1` (PodUtils/podrunner#348, closed): its unit of
-  the system calls `service_account()` (T-1110), and its report gives the
-  reason of each absent time (T-1098).
-- podvm names `v0.82.1` (PodUtils/podvm#656, COORD-240): `18160173` takes
-  the tag (`pod_enter::joinable` in each join, `Plan::relay_title`,
-  `pod_enter::title`), and `39a85246` takes `pod_hostprobe::usage`. The
-  second blocks of `pod-enter` and `pod-hostprobe` in `SOURCES` have the
-  `taken` lines, and T-1124 is done.
-- podssh names `v0.82.1` (PodUtils/podssh#347, COORD-138, commit
-  `17999753`). Its ask of a longer bound for the name of a unit is T-1182.
-- podnet names `v0.82.1` (PodUtils/podnet#708, COORD-116): `a0b727c`
-  takes the tag in each manifest, each lock, `scripts/install/SOURCES` and
-  `issue-sync.yml`. `refusals` of `hop.rs` reads the typed `Refused` of the
-  last leg and the text of each leg (T-1116), and `pod_testkit::need_route!`
-  replaces its copy in `tests/test_host/mod.rs` (T-1097): the first block of
-  `pod-testkit` in `SOURCES` has the `taken` line. T-1117 is partial:
-  `docs/tunnels.md` of podnet and its copy in `llms-full.txt` still give
-  130 s and 280 s.
+The asks of #259 to the consumers:
 
-COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
-`pod-term` (T-1144, done on `main`; the feature `transfer`). No tag has it.
+- podvm: the answer to PodUtils/podvm#570 (T-1162, done) is on #259; podvm
+  names the commit of its take of the four copies (PodUtils/podvm@T-1955)
+  there, and closes its #570. podvm removes its work-arounds for
+  `pod-incus` (T-1158) and matches `ErrorKind::TooLarge` (T-1143), takes
+  `usage::Mounts` (T-1205) and `socket_answers` (T-1209) where it has a copy.
+- podssh: two questions. T-1198 (the `KEPT` that ends a session and the wait
+  of 20 s of the far sender: does podssh change its design, or does the codec
+  close the gaps?) and T-1220 (the key that podssh's T-839 seals; a TPM signs
+  RSA or ECC P-256, not Ed25519; does it use Unseal?). Also the STUN test (three
+  default servers), `code_of` of `devtunnel.rs` (`CantCreate`, `Internal`),
+  `Unit::NAME_MAX`, and the DNS carrier (`Dns::handshake_quiet`,
+  `DnsSettings::hold`).
+- podnet: T-1117 is partial (`docs/tunnels.md` and its copy in
+  `llms-full.txt` give 130 s and 280 s; the limits are 110 s and 210 s);
+  `socket_answers` replaces its own copy (T-1209, PodUtils/podnet#709).
+- podrunner: no open ask. The fork fact of `pod-fake-githome` (T-1160),
+  `usage::Mounts` for podvm's report (T-1205, PodUtils/podrunner#350), and
+  the shared watcher `scripts/agent/runs.py` with `watch.py` at the tag
+  (T-1213; the rulings "Watchers" and "Work until done").
 
-### On `main` after `v0.82.1` (for the next tag)
+### On `main` after `v0.83.0` (for the next tag)
 
-- podnet's QA pass (PodUtils/podnet#707): T-1125 to T-1134. T-1127 changes
-  the field type of `pod-wormhole` `Failed::Unreachable` to `Missed`: a
-  caller that binds it as a `String` adds `.to_string()`.
-- podvm's asks (PodUtils/podvm#651): T-1137 to T-1142. podvm must match
-  `ErrorKind::TooLarge` of `pod-incus` (T-1143).
-- `pod-natprobe` (T-802, from PodUtils/podcrates#256, which is closed as
-  superseded by `f9abd7bb`), with T-1151 to T-1154. The kind `stun` of
-  `pod-services` has three default servers (call C923): the doctor of
-  podssh takes each server by rank, and its test
-  `the_variable_names_the_servers_or_turns_the_line_off` pins two. The
-  hand-off of the next tag names this change to podssh by a COORD message.
-- T-1160: `pod-fake-githome` answers `assigned` with the fork fact of the
-  real job alone (else `unknown`); the text of `head_is_fork` in
-  `job-offer.v1`, `source-reply.v1` and `source-request.v1` changed.
-- T-1164: the DNS listener of `pod-link` answers each query of its zone
-  that it cannot take (NOERROR with no record and AA; REFUSED out of the
-  zone; NOTIMP for another opcode). `pod_dns::txt` has `empty_answer`,
-  `set_authoritative`, `RCODE_NOERROR`, `RCODE_NOTIMP` and
-  `Answer.authoritative`, a new field of a public struct: a consumer that
-  builds `Answer` with all its fields must add it. A grep of `Answer {` in
-  podnet and podssh finds no such build.
-
-- T-1155 to T-1157 (`pod-incus`, PodUtils/podvm#653): an exec that ends
-  with 127 or 126 gives its code (and its logs for `exec_recorded`) from
-  the operation (`Client::exec_end`); `Error::operation()` names the
-  operation of a failed wait; `Settings::answer_timeout` (default 30 s)
-  bounds each silence of an answer (`ErrorKind::AnswerTimeout`, with
-  `AnswerPhase`); after a failed write of a body the answer of incusd is
-  read within a short bound. `Settings` has a new public field: a consumer
-  that builds it with all its fields adds it (podvm uses `Settings::new`).
-
-- T-1170 and T-1165 (`pod-link`, the DNS carrier; PodUtils/podssh#349): each
-  answer keeps the bytes of the question (0x20) and clears RA
-  (`pod_dns::txt::answer_to`, `set_no_recursion`); a new session id takes a
-  handshake slot only for a part of a ClientHello, and a poll of a new id
-  gets an empty answer and starts no session. `Dns::handshake_quiet`
-  (default 5 s) drops a session with no query before its handshake ends:
-  a caller whose dialers set `poll_max` above 5 s sets it above that on its
-  listeners.
-
-- T-1087 and T-1088 (`pod-extract`, PodUtils/podvm#643): a GNU sparse file
-  of PAX (versions 0.0, 0.1 and 1.0) extracts with its holes (the module
-  `sparse`, bounded maps); a `LIBARCHIVE.xattr.` record sets its attribute
-  where no `SCHILY.xattr.` record of the same name is there. `pax::Member`
-  has a new public field `sparse` (podvm builds no `Member`).
-
-- T-1191, T-1192 and T-1144 (`pod-term`, PodUtils/podssh#350 and #346):
-  `modes::Modes` (`feed`, `restore`; the mouse level and the encoding as
-  xterm and tmux hold them, not as #350 words them; no DECSTR),
-  `Ring::modes_at`, `pod_testkit::screen::Screen::modes()`, and the 7-bit
-  transfer codec `pod_term::transfer` behind the feature `transfer` (podssh
-  names `features = ["transfer"]`). New items only. T-1198 asks podssh about
-  two gaps of its design (the `KEPT` that ends a session, the wait of the
-  far sender during the offer).
-
-- T-1205 (`pod-hostprobe`, PodUtils/podvm#659, P1 for
-  PodUtils/podrunner#350): `usage::Mounts` (`of`, `of_with`, `of_host`,
-  `meter`) gives the cgroup directories of the process from
-  `/proc/self/mountinfo`, and `cgroup::CGROUP_SUPER_MAGIC`. Where the mount
-  at `/.podvm/.meter` fails, podvm opens the meter with
-  `Mounts::of_host()?.meter()` and removes its copy `incus/usage/mounts.rs`.
-- T-1213 (PodUtils/podvm#661, COORD-245): `scripts/agent/runs.py`, the
-  shared watcher of the Actions runs of a repository (it reads through
-  `watch.py`; `watch-runs.sh` is removed). podvm and podnet take it at the
-  next tag in place of their copies (podvm's `runs-watch.py`, podnet's
-  `watch-runs.sh` and `runs.py`).
-
-- T-1182 (`pod-unit`, PodUtils/podssh#347): `Unit::NAME_MAX` (200) bounds a
-  unit name and label; secret names and the state directory keep 64. podssh
-  removes its own length check at the tag.
-- T-1209 (`pod-core`, PodUtils/podnet#709): `pod_core::files::socket_answers`
-  (three connects, 50 ms apart) for `pod-control`, `pod-link` and `pod-warp`;
-  `pod_warp::find::answers` is removed (podnet does not call it);
-  `pod_testkit::held::hold_until_exec`. podnet removes its own
-  `socket_answers` and the rule in `claim_unix_path` at the tag.
-
-- T-1235 and T-1237 (`pod-core`, `pod-release`, PodUtils/podssh#352): the
-  classes `CantCreate` (73) and `Internal` (70), the values `cantcreate` and
-  `internal` of `log.v1` `class`; `pod_release::Error::CantWrite` is
-  `CantCreate`. podssh's `code_of` (`devtunnel.rs`, no `_` arm) does not
-  build at the tag until it adds both classes, the signal that podssh asked
-  for; podnet's matches fall to their `_` arm.
-
-- T-1171 and T-1166 (`pod-link`, the DNS carrier; PodUtils/podssh#349): a
-  late query of an ended session takes no handshake slot; the listener
-  holds a poll (`DnsSettings::hold`, default 1 s, below `query_timeout`; at
-  most 2 held polls for each session) and the dialer waits for its next
-  idle poll from the answer of the last one. New public field `hold` and
-  variant `DnsSettingsError::Hold`; a caller with `query_timeout` of 1 s or
-  less lowers `hold`.
+- T-1243: a port of the auth of the fake broker of `pod-testkit` at podrunner
+  `2a55cd9`. No change for a consumer.
 
 ### What the next hand-off carries
 
-- podrunner: no open ask. T-1160 changes the answer of
-  `pod-fake-githome` to `assigned` (the fork fact of the real job alone).
-- podvm: T-1143, T-1158 (podvm removes its work-arounds at the tag of
-  T-1155 to T-1157: its read of the operation after the wait, `code_of_failure`,
-  and its bound of 30 s on the first `GET /1.0`; it keeps its guard of
-  SIGPIPE).
+- podrunner: no open ask.
+- podvm: T-1143, T-1158; the commit of its take of the four copies
+  (PodUtils/podvm@T-1955); PodUtils/podvm#657 (T-1193 to T-1196: `flatten`
+  of `pod-extract`, a writer of gzip members) is open in podcrates.
 - podnet: T-1117 (documents), T-1118 (`release-index.json`).
-- podssh: the STUN note above, T-1182 (the bound of a unit name), T-1095
-  (the order of the pseudo-fields of the HTTP/2 request of `pod-ws`,
-  PodUtils/podssh#340), T-1103 (iroh 1.5).
+- podssh: the answers to T-1198 and T-1220; T-1095 (the order of the
+  pseudo-fields of the HTTP/2 request of `pod-ws`, PodUtils/podssh#340),
+  T-1103 (iroh 1.5).
 - Asks of podssh that no one has started: T-1167 to T-1169 (`pod-link`,
-  the DNS carrier; PodUtils/podssh#349).
-- Entries of podcrates that no one has started: T-1162
-  (the answer to PodUtils/podvm#570), T-1163 (two more readers of
-  `Retry-After`), T-1115 (the copies of the bind at a
-  long path), T-1135 (`pod-cloudflare` says a cause two times), T-1146 (the
-  comments of `pod-natprobe` are not in ASD-STE100), T-1150 (a watch of the
-  facts of RFC 5780 of `easybell-stun`).
+  the DNS carrier; PodUtils/podssh#349), and `pod-tpm` (T-1217 to T-1222,
+  PodUtils/podssh#351).
+- Entries of podcrates that no one has started: T-1163 (two more readers of
+  `Retry-After`), T-1115 (the copies of the bind at a long path), T-1135
+  (`pod-cloudflare` says a cause two times), T-1146 (the comments of
+  `pod-natprobe` are not in ASD-STE100), T-1150 (a watch of the facts of
+  RFC 5780 of `easybell-stun`).
 - T-963 is partial. T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks
   their release part) are open.
 

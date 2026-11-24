@@ -8493,7 +8493,7 @@ record and the issue list at `f9abd7bb` gives no open again.
 **Milestone:** M8
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8523,8 +8523,18 @@ reads the answer.
 ## Prove
 
 ```sh
-git log --format=%h -S'## Quality first (the owner' -- docs/session-protocol.md
+git log --no-merges --format=%h -S'## Quality first (the owner' -- docs/session-protocol.md
 ```
+
+## Done
+
+2026-11-24. The answer is on the hand-off issue COORD-154 (#259), in the
+section of podvm: the text is at `0fefea74` and in each tag since (`v0.70.0`
+first); podvm takes the two sections word for word from the file at
+`v0.83.0` (the section "Shared code first" has one more sentence since
+`0fefea74`, the use of `codegraph.py`; "Quality first" is unchanged); podvm
+names the commit of its take of the four copies (PodUtils/podvm@T-1955) on
+#259. No code changed: the answer is the issue.
 
 # T-1181: `pod-unit`: the words of the forms at podssh `ea4c290` (port review of `text.rs`)
 
