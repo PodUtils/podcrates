@@ -64,7 +64,7 @@ async fn get_now(
             (Err(missed), _) => tracing::debug!(%host, why = %missed, "a kept connection failed; a new one follows"),
         }
     }
-    let conn = open(way, resolver, host, connect).await?;
+    let conn = open(way, resolver, host, connect, false).await?;
     let (answer, back) = send(way, conn, resolver, host, target, accept).await;
     if let (Some(kept), Some(conn)) = (way.kept, back) {
         kept.put(host, resolver.port, conn);
@@ -73,8 +73,16 @@ async fn get_now(
 }
 
 /// A new connection to `host`: the dial within `connect`, then TLS (HTTP/2
-/// alone where the resolver serves no HTTP/1.1).
-pub(crate) async fn open(way: &Way<'_>, resolver: &Doh, host: &str, connect: Duration) -> Result<Conn, Missed> {
+/// alone where the resolver serves no HTTP/1.1). With `pick`, the hello
+/// offers `h2` and `http/1.1`, and the connection speaks what the server
+/// chose; else HTTP/1.1.
+pub(crate) async fn open(
+    way: &Way<'_>,
+    resolver: &Doh,
+    host: &str,
+    connect: Duration,
+    pick: bool,
+) -> Result<Conn, Missed> {
     let config = way.context.config_for(&way.settings.trust).map_err(|e| Missed::words(e.to_string()))?;
     let server = rustls_pki_types::ServerName::try_from(host.to_string()).map_err(|e| Missed::words(e.to_string()))?;
     let to = Target::new(host, resolver.port);
@@ -95,7 +103,11 @@ pub(crate) async fn open(way: &Way<'_>, resolver: &Doh, host: &str, connect: Dur
     if resolver.http2 {
         return crate::h2::open(&config, io, host, words).await.map(Conn::Two);
     }
+    let config = if pick { crate::h2::config_h2_or_1(&config) } else { config };
     let tls = tokio_rustls::TlsConnector::from(config).connect(server, io).await.map_err(|e| Missed::tls(&e, words))?;
+    if pick && tls.get_ref().1.alpn_protocol() == Some(b"h2") {
+        return crate::h2::handshake(tls).await.map(Conn::Two);
+    }
     Ok(Conn::One(Box::new(tls)))
 }
 

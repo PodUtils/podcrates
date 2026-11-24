@@ -12023,7 +12023,7 @@ default).
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12055,3 +12055,40 @@ chooses it (HTTP/2 alone where `Doh::http2`). A test: the stand-in of
 ```sh
 cargo test -p pod-link --all-features --test dns_doh
 ```
+
+## Done
+
+2026-11-24, this commit. `pod_dns::Pipe` offers `h2` and then `http/1.1`
+by ALPN, and the connection speaks what the server chose; a resolver with
+`Doh::http2` stays HTTP/2 alone. `get::open` takes `pick`: the `Pipe`
+gives true; the lookups of `pod-dns` give false and keep a hello with no
+ALPN (the README says it). `h2::open` gives `h2::handshake` (the HTTP/2
+handshake over a TLS stream that chose `h2`), and `h2::config_h2_or_1`
+(new, crate-private) makes the offer of both. The doc of
+`DnsOverHttps::resolver`, the module doc of `pipe.rs` and the READMEs of
+`pod-dns` and `pod-link` say it; the example of `pod-link` drops its
+`.http2(true)` for Cloudflare. The search found the offer of both in
+`pod-piping` (`dial::config`, private) and in the private `open_tls` of
+`pod-proxy`'s client; neither is public, and the offer is three lines.
+
+Tests (`crates/pod-link/tests/dns_doh.rs`): `stand_in(listener, alpn)`
+of `tests/common/doh.rs` takes the ALPN that it serves and counts the
+connections over HTTP/2 (`Seen::over_h2`).
+`a_resolver_that_picks_http2_shares_the_connection` (new: a resolver with
+`http2(false)`, a stand-in that serves both, the hold of 1 s kept) and
+`a_link_over_dns_over_https_through_a_proxy_carries_streams` (HTTP/2 alone
+to a stand-in of both; `http2(false)` to a stand-in of `http/1.1` alone,
+which gets HTTP/1.1) check the protocol of the one connection. On the code
+before, the new test fails: `assertion left == right failed: the
+connections over HTTP/2, where HTTP/2 is due; left: 0, right: 1` (the link
+took 1.16 s over HTTP/1.1 behind the held polls). After: 206 to 337 ms
+over the HTTP/2 that the stand-in picked, 88 to 92 requests, in 5 runs.
+`h2::tests::h2_alone_or_h2_then_http_1_1_is_offered` holds the offer.
+`cargo test -p pod-link --all-features --test dns_doh`: 4 passed;
+`cargo test -p pod-dns --all-features`: 58 passed; clippy of `pod-dns` and
+`pod-link` with `-D warnings`, `cargo doc` with `-D warnings` and
+`cargo fmt --all --check` clean.
+
+For the hand-off: no break; no public item changed. Neither podssh nor
+podnet uses `Pipe` or `DnsOverHttps` yet (their code read at their heads);
+a DNS carrier over DoH asks Cloudflare and Google over HTTP/2.

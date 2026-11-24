@@ -15152,7 +15152,7 @@ that comes after the data of its inode. No public item changed.
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15200,6 +15200,53 @@ so in the Done.
 cargo test -p pod-incus --all-features --test too_large
 cargo test -p pod-incus --all-features
 ```
+
+## Done
+
+2026-11-24, this commit. `ErrorKind::Incus` has the field `cut:
+Option<u64>`: the size in bytes of an `error` envelope over
+`Settings::max_body` that the crate read with each string cut, `None` for
+a whole envelope. A field reads best in a `match`
+(`ErrorKind::Incus { cut: Some(size), .. }`). `wire::envelope_body` and
+`read_envelope` give the size in place of the flag; `Error::cut_at`
+(crate-private) sets it on the error of the envelope in each path that
+skims: `Client::envelope_within`, the answer after a cut write
+(`Sent::Answer` carries it), `get_file_to` and the websocket upgrade of
+`attach`. The doc of `ErrorKind::Incus`, the README, and a new row of the
+adoption map for podvm's `cut::no_space` say it.
+
+The second part: a body that declares a chunk or a `Content-Length` over
+the bound and then closes. A body that is not an `error` envelope was
+`TooLarge` already: the refusal comes at the size line. An `error`
+envelope was read on past the bound, and the close gave `Io`
+(`UnexpectedEof`, "the connection closed in the middle of the response
+body"). Now a close in that read gives the refusal by size: the declared
+size says more than the close, and the refusal keeps the words of the
+start of the envelope (`Error::incus_error`). A silence there stays
+`AnswerTimeout`. A body that closes before the bound with no declared
+size over it stays `Io`.
+
+Tests (`tests/too_large.rs`): `an_error_envelope_over_the_bound_gives_the_words_of_incus`
+checks `cut == Some(body.len())`, and `a_pool_its_room_and_an_image_are_read`
+checks `cut: None` for a 404 (on the code before, both do not build: "variant
+`Incus` does not have a field named `cut`").
+`a_body_that_declares_more_than_the_bound_and_closes_is_refused_by_size`
+(new: a chunk and a `Content-Length` of 3 MB, of an `error` envelope and of
+a `sync` one, 4 KiB of the start and then the close; each within 10 s)
+fails on the code before: `a chunk of 3189164 bytes: Error { call: "POST
+/1.0/instances", kind: Io(Custom { kind: UnexpectedEof, error: "the
+connection closed in the middle of the response body" }) }`.
+`cargo test -p pod-incus --all-features --test too_large`: 6 passed;
+`cargo test -p pod-incus --all-features`: 80 passed; clippy with
+`-D warnings`, `cargo doc` with `-D warnings` and `cargo fmt --all --check`
+clean.
+
+For the hand-off: `ErrorKind::Incus` has a new field, `cut`. A consumer
+that builds the variant, or matches it with all its fields and no `..`,
+does not build. podvm (read at its head) only calls `Error::incus_error`
+and matches other variants: it is not touched. podvm can read
+`cut.is_some()` for "the answer was over the bound"; its words of "No
+space left on device" stay the sign of a full pool.
 
 # T-1321: `pod-gzip`: measure a C backend of deflate against `miniz_oxide` at four threads
 

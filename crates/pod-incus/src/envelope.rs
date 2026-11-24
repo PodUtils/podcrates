@@ -41,7 +41,7 @@ pub(crate) fn read(call: &str, status: u16, body: &[u8]) -> Result<Reply> {
         Ok(envelope) => envelope,
         Err(_) if !(200..300).contains(&status) => {
             let error = far_text(&String::from_utf8_lossy(body));
-            return Err(Error::new(call, ErrorKind::Incus { status, code: status, error }));
+            return Err(Error::new(call, ErrorKind::Incus { status, code: status, error, cut: None }));
         }
         Err(e) => return Err(Error::protocol(call, format!("the body is not a JSON envelope: {e}"))),
     };
@@ -61,7 +61,7 @@ pub(crate) fn read(call: &str, status: u16, body: &[u8]) -> Result<Reply> {
         "error" => {
             let code = if envelope.error_code == 0 { status } else { envelope.error_code };
             let status = if (200..300).contains(&status) { code } else { status };
-            Err(Error::new(call, ErrorKind::Incus { status, code, error: far_text(&envelope.error) }))
+            Err(Error::new(call, ErrorKind::Incus { status, code, error: far_text(&envelope.error), cut: None }))
         }
         other => Err(Error::protocol(call, format!("an envelope of type {:?}", far_text(other)))),
     }

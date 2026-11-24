@@ -259,6 +259,14 @@ The asks of #259 to the consumers:
   `unix::open` becomes `Device::open` or `Socket::connect_unix`, its
   `other.rs` becomes `Tbs::open()`.
 
+- T-1279 (`pod-dns`): `Pipe` offers h2 and http/1.1 by ALPN and takes what
+  the resolver picks, so the DoH datagrams of `pod-link` go over HTTP/2 to
+  Cloudflare and Google. No public item changed.
+- T-1307 (`pod-incus`): `ErrorKind::Incus` has a new field `cut` (the size of
+  an `error` envelope cut at `max_body`); a body that declares more than the
+  bound and closes is `TooLarge`. A consumer that matches `Incus` with all
+  its fields and no `..` adds `cut` (podvm does not).
+
 ### What the next hand-off carries
 
 - podrunner: no open ask.

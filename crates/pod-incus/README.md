@@ -89,7 +89,9 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
   query: a secret of a websocket never goes into an error or a log) and
   its `ErrorKind`: `NoServer` (no incus at the socket: the path does not
   exist, the connection was refused, or the system has no Unix socket),
-  `Incus` (the HTTP status, `error_code` and `error` of incus), `Operation`
+  `Incus` (the HTTP status, `error_code` and `error` of incus, and `cut`:
+  the size of an `error` envelope over the bound that the crate cut, `None`
+  for a whole one), `Operation`
   (the `status_code` and `err` of an operation that failed or was
   canceled), `Timeout` (a wait at its limit), `Protocol`, `Unsupported`,
   `Usage`, `Io`, `WebSocket`, `Output` (the writer of the caller refused a write), `TooLarge` (an answer over
@@ -105,8 +107,11 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
   An envelope of type `error` over the bound is read on, to
   `wire::MAX_SKIMMED` (1 GiB), with each string cut to its first 64 KiB
   and "… (N bytes more)": incusd puts the whole stderr of `tar` into the
-  error of a full storage pool (PodUtils/podvm#651). Another answer over
-  the bound is `ErrorKind::TooLarge`.
+  error of a full storage pool (PodUtils/podvm#651). Such an error is
+  `ErrorKind::Incus` with `cut: Some(size)`: the caller reads the cut from
+  the field, not from the words. Another answer over the bound is
+  `ErrorKind::TooLarge`, also a body that declares a chunk or a
+  `Content-Length` over the bound and closes before its end.
 * incus can refuse a body (an upload of an image, a file) before its end
   and close the connection: incusd that cannot store an upload answers
   500 ("no space left on device") while the client still writes. After
@@ -202,6 +207,7 @@ of the user's own namespace) and its `INCUS_DIR`.
 | podvm | its exec (`record-output` or the websockets) | `exec_recorded`, or `exec_attached` with `Attached::output` |
 | podvm | its console log and its files (`X-Incus-uid`, `-gid`, `-mode`, `-type` of `file` and `directory`) | `console_log`, `get_file`, `put_file` with `FileWrite::file` or `FileWrite::directory` and its `uid`, `gid`, `mode` |
 | podvm | `logs --podvm-tier=incus`: a whole `get_file` on each poll, and its bound of 64 MiB | `get_file_to(name, LOG, Some(ByteRange::from(seen)), left, out)` on each poll: the bytes past the offset alone, in pieces; a `size` below `seen` sets the offset back (PodUtils/podvm#631) |
+| podvm | `cut::no_space`: the words "No space left on device" in an `error` envelope cut at `max_body` (PodUtils/podvm#663) | `ErrorKind::Incus { cut: Some(size), .. }` says that the answer was over the bound; the words stay the sign of a full pool |
 | podrunner (later) | a unit kind on incus | the same calls |
 
 ## Tests
