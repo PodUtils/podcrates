@@ -9,7 +9,7 @@
 //! incusd 6.0 ends an exec whose command ends with 127 or 126 as a failure
 //! ("Command not found", "Command not executable"), and its wait answers an
 //! error, not the operation (PodUtils/podvm#653). The crate then reads the
-//! operation and takes its `return` as the exit code ([`Client::exec_end`]).
+//! operation and takes its `return` as the exit code (`Client::exec_end`).
 
 use std::collections::BTreeMap;
 
