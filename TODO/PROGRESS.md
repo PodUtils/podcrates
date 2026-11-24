@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 977 entries: 163 open, 29 partial, 7 blocked, 778 done.
+`TODO/INDEX.md` holds 978 entries: 162 open, 29 partial, 7 blocked, 780 done.
 
 ## State
 
@@ -10,8 +10,8 @@
   the GitHub release, the signed `SHA256SUMS`, the assets and the images
   of `ghcr.io/podutils`; the run on the tag and the dry run of
   `publish.yml` passed. Its hand-off COORD-154 (#259) is open (call C780):
-  it closes when each consumer names `v0.83.0` or a later tag. Only podssh
-  names it. The hand-off COORD-152 (#257) of `v0.82.1` is closed.
+  it closes when each consumer names `v0.83.0` or a later tag. podssh
+  and podvm name it. The hand-off COORD-152 (#257) of `v0.82.1` is closed.
 - On `main` after `v0.83.0`, for the next tag: T-1243 only (a port with no
   change for a consumer).
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
@@ -25,8 +25,8 @@
   (COORD-153), open until podssh names the commit that wires the codec
   (its T-831).
 - The tag that the `main` of each consumer names: `v0.83.0` (podssh,
-  PodUtils/podssh#354), `v0.82.1` (podrunner, PodUtils/podrunner#348; podvm,
-  PodUtils/podvm#656; podnet, PodUtils/podnet#708). The details of the
+  PodUtils/podssh#354; podvm, PodUtils/podvm#663), `v0.82.1` (podrunner,
+  PodUtils/podrunner#348; podnet, PodUtils/podnet#708). The details of the
   earlier takes are on #250, #254 and #259.
 - PodUtils/static-pkgs builds and publishes the static programs that no
   one else publishes in the form that PodUtils needs (the owner,
@@ -100,15 +100,14 @@ for cfb's answer on #223, call C792), T-1118 (podnet writes the
 (call C782, PodUtils/podssh#316): T-112, T-110, T-111, T-117. Then the open
 asks of the consumers, podvm's first, then podnet's, then podssh's:
 
-- podvm: T-1158 (podvm removes its work-arounds for `pod-incus` at the
-  next tag; PodUtils/podvm#653); T-1196 (`pod-gzip`, a writer of gzip
-  members; PodUtils/podvm#657);
-  T-1143 (podvm matches `ErrorKind::TooLarge`);
+- podvm: T-1196 (`pod-gzip`, a writer of gzip members;
+  PodUtils/podvm#657);
   T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602, for the
   parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242);
   T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604); T-1032 (the
   launcher of `pod-supervise` blocks before the start of the payload);
-  T-927 (PodUtils/podvm#584).
+  T-927 (PodUtils/podvm#584); T-1307 (`pod-incus`: a flag on a cut
+  `error` envelope; PodUtils/podvm#663).
 - podnet: T-1117 (the limits of the legs of `pod-cloudflare` in podnet's
   documents); T-1135 (`pod-cloudflare` says a cause two times); T-879
   (`pod-detach`); T-897.

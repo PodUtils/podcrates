@@ -13615,7 +13615,7 @@ cargo test -p pod-hostprobe --all-features --lib statfs_reads_the_wide_struct_on
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13651,6 +13651,28 @@ cargo test -p pod-incus --all-features --test too_large
 
 The coordinator answers PodUtils/podvm#651 with the tag, and podvm takes
 it.
+
+## Done
+
+2026-11-24, this commit. podvm took `v0.83.0` in `a39f4c4f` (PodUtils/podvm#663,
+COORD-247, PodUtils/podvm@T-2089). Checked in its code at that commit: the
+`Cargo.toml` of each crate names `tag = "v0.83.0"` for each podcrates
+dependency (45 lines, no other tag); `PodUtils/podvm:crates/podvm/src/incus/space.rs`
+`transport` matches `pod_incus::ErrorKind::TooLarge { .. }` as
+`Transport::TooLarge`, gives `Io` and `AnswerTimeout` the class
+`Transport::Other`, and has the new class `Transport::NoSpace` for a text
+of incusd or tar with "No space left on device" (`cut::no_space`, any
+case), so that its line of the room of the pool stays after an `error`
+envelope over the bound comes as `ErrorKind::Incus` with its text cut.
+`space_tests.rs` holds the cases. The match of the words of an `Io` error
+("larger than allowed") is gone.
+
+Two parts of the Approach are not taken: podvm does not read the room with
+`Client::storage_pool_resources` yet, and it keeps its `statfs` path. Its
+issue says that the reads of incusd are its second path, later (it records
+the need of an imported tree in its store, PodUtils/podvm@T-2078). That is a choice
+of podvm, not an ask. The observation of podvm on the cut envelope is
+T-1307.
 
 
 # T-1155: `pod-incus`: an exec whose command ends with 126 or 127 ends the wait as an error of incusd, and `exec_recorded` and `Attached::wait` give no exit code, no output and no operation id (PodUtils/podvm#653)
@@ -13967,7 +13989,7 @@ answer after a cut, where it has one (T-1158).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14006,6 +14028,23 @@ cargo test -p pod-incus --all-features
 
 T-1155, T-1156 and T-1157 are done and a tag holds them. The coordinator
 answers PodUtils/podvm#653 with the tag, and podvm takes it.
+
+## Done
+
+2026-11-24, this commit. podvm took `v0.83.0` in `a39f4c4f` (PodUtils/podvm#663,
+COORD-247, PodUtils/podvm@T-2089). Checked in its code at that commit
+(`PodUtils/podvm:crates/podvm/src/incus/`): `attach.rs` has no `code_of_failure` and no
+read of `GET /1.0/operations/ID` after the wait; `finish` returns the code
+of `Attached::wait` (126 and 127 come as codes) and the error text of a
+failed wait. `verbs.rs` has no `tokio::time::timeout` on the first
+`GET /1.0`; `run.rs` and `verbs.rs` set
+`settings.answer_timeout = Some(FIRST_ANSWER)` (30 s) and map
+`ErrorKind::AnswerTimeout` to the line that names the socket. The guard of
+SIGPIPE stays, as the Approach says. `ErrorKind::AnswerTimeout` is a fault
+of the transport in `space.rs` (T-1143). `PodUtils/podvm:crates/podvm/src/incus/usage/mounts.rs`
+is gone with the work of T-1205: the meter takes
+`pod_hostprobe::usage::Mounts::of_host()?.meter()`.
+
 
 # T-1193: `pod-extract`: `flatten`, the final tree of the layers of an image as one tar stream with no tree on the disk (PodUtils/podvm#657)
 
@@ -15016,3 +15055,60 @@ For the hand-off: the data entry of an inode in the stream of `flatten`
 now has the records of the hard-link entries of the image, so GNU tar
 in incusd sets them; `Flattened::xattrs` can name a record of a link
 that comes after the data of its inode. No public item changed.
+
+
+# T-1307: `pod-incus`: a cut `error` envelope has no flag, so a caller reads the words of its text to know that the answer was over `max_body` (PodUtils/podvm#663)
+
+**Source:** PodUtils/podvm#663 (COORD-247 of podvm), the observation on `pod-incus`.
+**Category:** feature
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm's text: "An error envelope over `Settings::max_body` now comes as
+`ErrorKind::Incus` with its text cut, not as `TooLarge`. On a full pool,
+the error of tar comes that way; podvm now classes the words "No space left
+on device" (in any case) as a lack of space, so that its line of the room
+of the pool stays. A flag on the cut envelope (for example `cut: bool` or
+the size) would let a consumer tell "the answer was over the bound" without
+the words. A stand-in that declares a chunk over the bound and then closes
+the connection gives `Io` ("the connection closed in the middle of the
+response body"), not `TooLarge`."
+
+`wire::envelope_body` returns the flag already (`(Vec<u8>, bool)`: the
+body was skimmed), and `ErrorKind::Incus { status, code, error }` has no
+field for it. The only sign is the end of the text, "... (N bytes more)".
+
+## Premise
+
+- Read: podvm's text above (a39f4c4f is the commit of its take of
+  `v0.83.0`); `crates/pod-incus/src/wire.rs` (`envelope_body`),
+  `crates/pod-incus/src/error.rs` (`ErrorKind`).
+- Not read: the path from `envelope_body` to the error (`envelope.rs`,
+  `client.rs`), and the handling of a connection that closes in the middle
+  of the body (the second part of the text). Not measured here.
+
+## Approach
+
+Give the caller the fact and the size: a method of `Error`
+(for example `Error::cut() -> Option<u64>`, the bytes that the skim
+dropped) or a field of `ErrorKind::Incus`; no compatibility is needed
+(the owner's rule), so choose the one that reads best in a `match`. The
+README and the doc of `ErrorKind::Incus` name it, and the adoption map row
+of podvm's `cut::no_space` says that the words are no more the only way.
+Then check the second part: a body that declares a chunk (or a
+`Content-Length`) over the bound and then closes. Where the size that the
+head declares passes the bound, the answer is `TooLarge`, as for a body
+that arrives; where the connection closes before the bound, `Io` is right.
+Write the case as a test; if the check shows `Io` right in each case, say
+so in the Done.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features --test too_large
+cargo test -p pod-incus --all-features
+```
