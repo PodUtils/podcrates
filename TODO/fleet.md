@@ -8629,3 +8629,242 @@ before; a secret name of 65 bytes is still refused.
 ```sh
 cargo test -p pod-unit --all-features
 ```
+
+
+# T-1217: `pod-tpm`: the crate, the TPM 2.0 command frame, the response codes and the commands of podssh's module, and the trait `Transport` (PodUtils/podssh#351)
+
+**Source:** PodUtils/podssh#351 (COORD-141 of podssh; PodUtils/podssh@T-839), the ask: "Would podcrates take this module as a crate (`pod-tpm`), with Windows' TBS beside it?" Part 1 of 6 (T-1217 to T-1222). Call C927.
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh wrote, for its T-839 (a key sealed to the machine), a TPM 2.0 codec in pure Rust in the module `PodUtils/podssh:crates/podssh-ssh/src/tpm`, on its `main` (merged 2026-11-24). The issue lists its parts: the frame of a command and of a response and each response code as one line (its files wire.rs and rc.rs); the commands CreatePrimary, Create, Load, StartAuthSession, PolicyPCR, PolicyGetDigest, Sign, FlushContext, PCR_Read, PCR_Extend and GetCapability (cmd.rs), checked against byte vectors of part 3 written by hand; the policy (policy.rs); the key file (keyfile.rs); the sequences over a `Transport` (flow.rs); the way through `/dev/tpmrm0` or an swtpm socket (unix.rs); a TPM in software for the unit tests (soft.rs). It takes no podssh type but russh's `PublicKey`, so a move is a copy. No crate of podcrates speaks to a TPM. `tss-esapi` links the C tpm2-tss, which the static binaries avoid. A key sealed to the machine is of use to the node keys of podnet and podvm too. Until podcrates answers, the module stays in podssh, and podssh changes it only as T-839 needs.
+
+This entry makes the crate and takes the frame, the codes and the commands. T-1218 to T-1222 take the other parts.
+
+## Premise
+
+- Read: PodUtils/podssh#351 in full (author Azathothas, `author_association` COLLABORATOR, so the message is acted on). `docs/design.md`, sections 1 to 4 and 8; the call C927; the crates `pod-qga` (a blocking client with a sans-IO core, the model of this crate) and `pod-identity` (the Ed25519 seed, pins and allowlist: no device).
+- Not read: the module itself. The GitHub access of the triage session reaches podcrates alone, and the mirror's list of the directory crates/podssh-ssh/src of podssh shows no directory tpm on 2026-11-24, so its copy is older than the merge. Each fact about the module here is the issue's own word. The first step of the Approach reads it.
+- Read: the TCG TPM 2.0 Library specification, version 185 (March 2026), parts 0 to 3 at https://trustedcomputinggroup.org/resource/tpm-library-specification/ (also ISO/IEC 11889:2015, parts 1 to 4). The PDFs are not read in this triage; the entry names the parts: part 2 (structures: the tags, the response codes, the sized buffers `TPM2B_*`), part 3 (the commands). The Approach reads each part for each command before the code moves.
+- Read: crates.io on 2026-11-24. `tpm2-protocol` 1.2.4 (a marshaler and an unmarshaler, `no_std`, no dependency, MIT OR Apache-2.0, Rust 1.95, repository `jarkkojs/tpm2-library`, which also has `tpm2-device`, `tpm2-tpmkey`, `tpm2-policy-language` and `tpm2-crypto`); `azure-tpm` 0.1.1 (MIT; Linux device and the TBS of Windows; `sha1`, `sha2`, `windows-sys`); `tss-keyfile` 0.1.5 (MIT; a reader of the key file on `rasn`); `tss-esapi` 8.0.0-alpha.4 over `tss-esapi-sys` 0.7.0-alpha.2 (Apache-2.0; needs `pkg-config`, or the feature `bundled` that builds tpm2-tss with autotools). All of them allow the licences of `deny.toml`. The C stack decides against `tss-esapi` (call C927).
+- Not measured: the number of lines of podssh's module; the coverage of the eleven commands by `tpm2-protocol`; the size of a response on a TPM with many PCR banks.
+
+## Approach
+
+1. Read the module at its `main` commit (a clone of PodUtils/podssh; do not push to it). Write the commit in `SOURCES`. Compare the types of `wire.rs` and `cmd.rs` with `tpm2-protocol` 1.2.4 on the eleven commands, in a note of the entry's Done. Take podssh's code, as the call C927 says; take `tpm2-protocol` only if the note shows that it holds the eleven commands with a bound on each sized buffer and that podssh's byte vectors pass.
+2. The crate `pod-tpm` (the directory crates/pod-tpm, edition 2024, 0BSD): features `device` (T-1221), `tbs` (T-1221), `soft` and `fuzzing`. The default build is the codec alone: std, no tokio, no C. Its only pod dependency is `pod-core` (the failure, the entropy). Add it to the workspace, to `examples/static-probe` and to `examples/static-probe-lean` (no tokio), and the checks of `scripts/check-probe.py`.
+3. The frame (`wire`): the header of a command (tag, size, command code) and of a response (tag, size, response code); a reader that checks the response size field against the bytes that arrived (equal, at least 10, at most `MAX_RESPONSE`, 4096 bytes, the size of the buffer of the Linux driver; read its value in the kernel source before the code) and that refuses a sized buffer or an array count that passes the bytes that remain or the maximum of part 2. No `unwrap`, no index that can panic, no allocation from a number of the response before the check.
+4. The response codes (`rc`): each code of part 2 that the commands can return as one value of an enum with its words; the format-0 codes (a code of the TPM) and the format-1 codes (a code with the number of the parameter, the handle or the session) read apart; a code that the table does not know is `Unknown(u32)` and keeps the number.
+5. The commands (`cmd`): one builder of the command and one reader of the response for each of the eleven commands of the issue. A command that needs a nonce (StartAuthSession) takes it as an argument that the caller fills from `pod_core::entropy::Entropy`; the crate reads no random source. The byte vectors of the module move with the code and keep their names (design rule 11).
+6. `Transport`: `trait Transport { fn submit(&mut self, command: &[u8]) -> Result<Vec<u8>, Failure>; }` with `pod_core::Failure` at `Stage::Host`: the class `Unavailable` for no TPM or no device, `Protocol` for a response that fails a bound, `Policy` for a code of the TPM that means a refusal (the policy, the lockout, the authorization). A `FnMut` is a `Transport`, so a test needs no type. The doc says that a `Transport` runs one command at a time and may block.
+7. The README of the crate: purpose, API, features, the adoption map (the paths of podssh's module to the paths of the crate; podssh keeps its conversion to russh's `PublicKey`). The patch adoption/podssh/pod-tpm.patch is the hand-off to podssh (design, section 8, step 7).
+8. The row for `docs/design.md`, section 4, M8 (written with this entry's commit, not before):
+
+   | `pod-tpm` | PodUtils/podssh#351 (T-1217 to T-1222): podssh crates/podssh-ssh/src/tpm at COMMIT (`SOURCES`): the TPM 2.0 command frame and the response codes (the Library specification, version 185, parts 2 and 3), the commands CreatePrimary, Create, Load, StartAuthSession, PolicyPCR, PolicyGetDigest, Sign, FlushContext, PCR_Read, PCR_Extend and GetCapability, the `Transport` trait, the policy digest of PolicyPCR, the key file `TSS2 PRIVATE KEY` in DER and PEM, the sequences that flush each handle on each path, the transports of Linux (`/dev/tpmrm0`, an swtpm socket) and Windows (TBS) behind the features `device` and `tbs`, and a TPM in software (feature `soft`). No C library in the default build; the simulators are programs of the tests (call C927) | (T-1217) | pod-core |
+
+9. `TODO/PROGRESS.md`, "Owner actions": reserve the name `pod-tpm` on crates.io, as for each name of `docs/design.md`, section 4 (this entry's commit adds the line).
+
+## Decision
+
+Call C927: a new crate `pod-tpm`, not a module of `pod-identity` or `pod-tls`.
+
+## Prove
+
+```sh
+cargo test -p pod-tpm --all-features
+cargo clippy -p pod-tpm --all-targets --all-features -- -D warnings
+cargo todo check
+python3 -I scripts/check-probe.py
+```
+
+# T-1218: `pod-tpm`: the PCR selection and the policy digest of `TPM2_PolicyPCR` (PodUtils/podssh#351)
+
+**Source:** PodUtils/podssh#351 (COORD-141 of podssh), part 2 of 6, from policy.rs of podssh's module.
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A key sealed to PCR 7 (the state of Secure Boot) loads only when the PCRs hold the expected values. The key's `authPolicy` is a digest that the caller computes before it creates the key, and that the TPM computes again when it runs StartAuthSession and PolicyPCR. podssh's policy.rs holds the PCR selection and this digest. A second copy in podnet or podvm is repeated work.
+
+## Premise
+
+- Read: the issue's list (the PCR selection and the policy digest of `TPM2_PolicyPCR`).
+- Read: the key file draft (`draft-bottomley-tpm-keys-00`, section 4): a policy in a key file is a list of statements, each a command code and the marshalled body of the command (PolicyPCR is a statement of it); "the ultimate policy hash can be constructed" from the list.
+- Not read: the rule of the digest in part 1 of the specification (the policy session digest: the hash of the old digest, the command code and the arguments) and part 3, `TPM2_PolicyPCR`; the entry reads both before the code. Not read: the module's code and its vectors.
+- Not measured: the digest against a TPM. T-1222 measures it with `PolicyGetDigest` on swtpm.
+
+## Approach
+
+A module `policy` of `pod-tpm`, with no I/O.
+
+1. `PcrSelection`: banks (a hash algorithm and a bit set of PCR indices, with the number of bytes of the bit set that part 2 allows; refuse a larger one), `Display` for a log line, and the marshal and unmarshal of `TPML_PCR_SELECTION` with the bounds of T-1217 (a count of banks at most 16, no empty bank in a policy).
+2. `policy_pcr_digest(alg, previous, selection, pcr_values) -> Digest`: the digest after PolicyPCR from the old digest (the zero digest for a new session), the selection and the hash of the concatenated values of the selected PCRs, in the order of part 3. The algorithm of the session is an argument (SHA-256 by default; the digest of `sha2`, in the workspace; no new dependency). The function refuses a value list that does not match the selection.
+3. `Policy`: a list of statements (a command code and a body, as the key file stores them) with `digest()`. The first statement is PolicyPCR; another command code is refused by name (`Unsupported`) until an entry adds it.
+4. Tests: the vectors of the module (a selection of PCR 7 on SHA-256 and a value of 32 zero bytes, and others), each with the source (a hand computation from part 3 and the digest that swtpm gives in T-1222); a selection with each bit; a bad count; a property test that the digest changes with each bit of each input.
+
+## Prove
+
+```sh
+cargo test -p pod-tpm --all-features policy
+cargo clippy -p pod-tpm --all-targets --all-features -- -D warnings
+```
+
+# T-1219: `pod-tpm`: the key file `TSS2 PRIVATE KEY`, read and write in DER and PEM, with bounds on an untrusted file (PodUtils/podssh#351)
+
+**Source:** PodUtils/podssh#351 (COORD-141 of podssh), part 3 of 6, from keyfile.rs of podssh's module.
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh writes and reads the sealed key as the file `TSS2 PRIVATE KEY`, "in DER and PEM, as openssl_tpm2_engine and go-tpm-keyfiles write it". The format is the one that other tools read, so a key file of one tool loads in another. podnet and podvm need the same file for their node keys. The file is on a disk that other users or a stranger may change, so its reader is a parser of untrusted input.
+
+## Premise
+
+- Read in full: `draft-bottomley-tpm-keys-00` ("ASN.1 Specification for TPM 2.0 Key Files", J. Bottomley, 2024-07-23, expired 2025-01-24, informational) at https://www.hansenpartnership.com/draft-bottomley-tpm2-keys.txt. The structure: `TPMKey ::= SEQUENCE { type OBJECT IDENTIFIER, emptyAuth [0] EXPLICIT BOOLEAN OPTIONAL, policy [1] EXPLICIT SEQUENCE OF TPMPolicy OPTIONAL, secret [2] EXPLICIT OCTET STRING OPTIONAL, authPolicy [3] EXPLICIT SEQUENCE OF TPMAuthPolicy OPTIONAL, description [4] EXPLICIT UTF8String OPTIONAL, rsaParent [5] EXPLICIT BOOLEAN OPTIONAL, parent INTEGER, pubkey OCTET STRING, privkey OCTET STRING }`. The types are `id-tpmkey` 2.23.133.10.1 with 3 (loadable key, for TPM2_Load), 4 (importable key, for TPM2_Import, with `secret`) and 5 (sealed data, for TPM2_Unseal). The PEM guards are `TSS2 PRIVATE KEY`. `pubkey` is a marshalled `TPM2B_PUBLIC` and `privkey` a marshalled `TPM2B_PRIVATE`. `parent` is a handle: a persistent (0x81) or permanent (0x40) handle; for a permanent one the reader runs CreatePrimary with the TCG template H-2 (P-256), or H-1 (RSA 2048) when `rsaParent` is true. `emptyAuth` has three states (true, false, absent). `TPMPolicy ::= SEQUENCE { commandCode [0] EXPLICIT INTEGER, commandPolicy [1] EXPLICIT OCTET STRING }`.
+- Read: `tpm2-software/tpm2-tss-engine:src/tpm2-tss-engine-common.c`: its template holds `type`, `emptyAuth [0]`, `parent`, `pubkey` and `privkey` only, the PEM string is `TSS2 PRIVATE KEY`, and the reader tests the OID of the loadable key. So a file with a `policy` may not load in that engine (not measured). The documents of `tpm2-software/tpm2-openssl:docs/keys.md` say that its provider reads and writes the same PEM. `go-tpm-keyfiles` (`foxboron/go-tpm-keyfiles`, MIT) is the Go reader that podssh names.
+- Not read: the code of openssl_tpm2_engine (the writer that podssh names) and the module's keyfile.rs. The draft is an Internet-Draft, not a TCG standard: the TCG reserved the OID arc only.
+- Not measured: a file of podssh against `tpm2-openssl` and `go-tpm-keyfiles`. T-1222 does the first.
+
+## Approach
+
+A module `keyfile` of `pod-tpm` (its tests in a file of their own; each file under 500 lines).
+
+1. A DER reader and writer for this one structure, by hand (no `rasn`, no `der` crate: the structure has 10 fields; the workspace has the PEM helpers of `crates/pod-warp/src/der.rs` and `crates/pod-acme/src/certs.rs`; the entry runs `python3 -I scripts/codegraph.py similar pem der` first and takes the PEM and Base64 helper that exists in place of a new one). The writer is DER (definite lengths, minimal integers, no `emptyAuth` when false).
+2. The reader is strict on an untrusted file: a file of at most 16 KiB (a PEM block of at most 24 KiB); DER depth fixed by the structure; definite lengths only; no trailing byte after the sequence; `pubkey` and `privkey` at most 4096 bytes each; at most 8 policy statements and 8 `authPolicy` entries, each body at most 1 KiB; `description` valid UTF-8 and at most 256 bytes; a duplicate or out-of-order optional tag is refused; `parent` is a 32-bit handle with MSO 0x40 or 0x81, and 0x80 (a volatile handle) is refused with its reason, as the draft says. No panic on any input (a fuzz target, `fuzzing`).
+3. The types: `Kind` (`Loadable`, `Sealed`; `Importable` is read and refused with its name until `TPM2_Import` has an entry), `KeyFile { kind, empty_auth, policy, description, rsa_parent, parent, public, private }`; `to_der`, `to_pem`, `from_der`, `from_pem` (the PEM guards and the Base64 lines at 64 characters). `authPolicy` and `secret` are read and kept as bytes, and written back unchanged, so that a file of another tool round-trips; the crate does not use them.
+4. Tests: a round trip of each form; the files of `openssl_tpm2_engine` and `go-tpm-keyfiles` that the entry makes with those tools and keeps as vectors with their source (a made-up key, listed in `.github/secrets-allow.txt`, as the rule for a test credential says); each refusal above; each bit flip of a good file is accepted with the same fields or refused, never a panic.
+5. The README row.
+
+## Prove
+
+```sh
+cargo test -p pod-tpm --all-features keyfile
+cargo clippy -p pod-tpm --all-targets --all-features -- -D warnings
+python3 -I scripts/codegraph.py new
+```
+
+# T-1220: `pod-tpm`: the sequences over a `Transport` (create a primary, create a key under a PCR policy, load, sign) that flush each handle on each path (PodUtils/podssh#351)
+
+**Source:** PodUtils/podssh#351 (COORD-141 of podssh), part 4 of 6, from flow.rs of podssh's module.
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The commands are not enough for a caller: a sealed key needs a parent, a policy session, a load and a flush of each handle. A transient handle or a session that stays in the TPM fills a small table (a TPM holds few transient objects and loaded sessions), and then the next command fails with a resource error. podssh's flow.rs holds the sequences "which flush each handle on each path". Each consumer that copies them has to copy the flush on each error path too.
+
+## Premise
+
+- Read: the issue's list. Not read: flow.rs and the key algorithm that podssh uses. The issue says that `ssh-keygen -Y check-novalidate` verifies the signature, so the key is a type of OpenSSH. The issue does not say whether it is ECDSA P-256 or another type.
+- Finding: `pod-identity` holds Ed25519 seeds, and the consumers' node keys are Ed25519. The TPM 2.0 hardware that the issue targets signs RSA and ECC (P-256) keys; whether it signs Ed25519 is not read (the Library specification version 185 part 2, the algorithm list, and a TPM's `GetCapability` answer decide). So a node key sealed to the machine may be an ECDSA key, or a seed that the TPM unseals (the seed then lives in the memory of the process after the unseal). podssh's entry T-839 is the only source of the choice. Ask podssh by a COORD issue (step 6) before the node keys of podnet and podvm adopt the crate.
+- Not read: the rules for the number of loaded transient objects of a TPM (part 1, and `TPM_PT_HR_TRANSIENT_AVAIL` of `GetCapability`).
+
+## Approach
+
+A module `flow` of `pod-tpm`, over `&mut dyn Transport` and `&mut dyn Entropy`.
+
+1. A guard type for a handle (`Loaded`, `Session`) that flushes it with FlushContext when it drops, and `finish()` that flushes and returns the error of the flush. A failed flush on drop goes to `tracing` (rule 8). A test plays each command that can fail in each step and counts the FlushContext that the fake `Transport` sees: each handle that the TPM gave is flushed once, on success and on each error.
+2. The sequences: `primary(parent_hierarchy, template)` (the TCG template H-2, P-256, as the draft says); `create_sealed(primary, policy, public_template)` that gives the `KeyFile` of T-1219; `load(keyfile)` (a persistent parent loads directly; a permanent one runs `primary` first); `sign(loaded, policy, digest)` that opens a policy session, runs PolicyPCR with the selection of the key, checks the digest with PolicyGetDigest against the key's `authPolicy` before the Sign, signs, and flushes. A refusal of the TPM because the PCRs changed is `Failure` of class `Policy`, with the PCR index if the response gives it.
+3. `pcr_read` and `pcr_extend` as functions; `capabilities` (the algorithms and `TPM_PT_HR_TRANSIENT_AVAIL`) for a doctor line. The nonces come from the caller's `Entropy`.
+4. The public key of a loaded key as `PublicKey` bytes (the point of P-256, uncompressed; the modulus and exponent of RSA) so that a caller makes its own wire form. No `russh` type here (call C927).
+5. The signature of a TPM comes as `TPMT_SIGNATURE`; the function gives `r` and `s` (ECDSA) or the RSA bytes, bounded by the key's size.
+6. Ask podssh by a COORD issue `(to podssh)` for the key algorithm of T-839 and for the use of Unseal (the type `Sealed` of the key file), with the finding above. If the answer is that a node key needs Unseal, add the command and its flow as a new entry in the same commit as the answer.
+7. Tests with the fake `Transport` of T-1217 for the paths of errors; the real sequences run against a TPM in T-1222.
+
+## Prove
+
+```sh
+cargo test -p pod-tpm --all-features flow
+cargo clippy -p pod-tpm --all-targets --all-features -- -D warnings
+```
+
+# T-1221: `pod-tpm`: the transports of Linux (`/dev/tpmrm0`, an swtpm socket) and of Windows (TBS), each command bounded in size and time (PodUtils/podssh#351)
+
+**Source:** PodUtils/podssh#351 (COORD-141 of podssh), part 5 of 6, from unix.rs of podssh's module, and the ask for "Windows' TBS (`Tbsi_Context_Create`, `Tbsip_Submit_Command`) beside it".
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The codec needs a way to the TPM. podssh has `/dev/tpmrm0` and an swtpm socket, each command bounded. podssh also asks for the TBS of Windows. A TPM is a device that a person or a VM controls: a response can be late, short, long or wrong, so each read has a bound in bytes and in time.
+
+## Premise
+
+- Read: the kernel source `torvalds/linux:drivers/char/tpm/tpm-dev-common.c`: a write of more than `TPM_BUFSIZE` bytes gives `E2BIG`, and the process reads the response of a command before it writes the next. The value of `TPM_BUFSIZE` is not read here (a grep of `torvalds/linux:include/linux/tpm.h` gave no line). `/dev/tpmrm0` is the node of the in-kernel resource manager (it virtualizes the transient objects and sessions of each open file), `/dev/tpm0` has none (read in the kernel documents; not measured here).
+- Read: the Microsoft documents of `Tbsip_Submit_Command` (`tbs.h`, `Tbs.dll`, Windows Vista and later, desktop apps). The crate `windows-sys` 0.61.2 (the version of the workspace, five crates) holds `Win32::System::TpmBaseServices::Tbsi_Context_Create` and `Tbsip_Submit_Command` (docs.rs, 2026-11-24). `tbs.dll` is a DLL of the system; the static check refuses the DLLs of the C runtime only (`scripts/check-static.sh`, `WINDOWS_CRT`).
+- Read: the swtpm manual: `swtpm socket --tpm2 --server type=unixio,path=PATH` gives one socket for the commands of the TPM and `--ctrl` a second one for the control (init, shutdown). The data channel carries the raw frames (the issue says that podssh's unix.rs talks to it; the control commands and the exact framing are not read here).
+- Not read: the cancel of a running command on TBS (`Tbsip_Cancel_Commands`) and the TBS context parameters for TPM 2.0 (`TBS_CONTEXT_PARAMS2`). Not measured: the time of CreatePrimary on a TPM of hardware; any TPM on a GitHub runner of Windows.
+
+## Approach
+
+Modules `device` (feature `device`, unix) and `tbs` (feature `tbs`, windows) of `pod-tpm`. The caller gives the path or the socket (design rule 6: no variable, no directory chosen here).
+
+1. `Device::open(path)`: the path of the caller (the doc names `/dev/tpmrm0`, and says that `/dev/tpm0` has no resource manager, so the caller must opt in to it). Each command is one `write` of the whole command (refused over `MAX_COMMAND` before it is sent) and reads of the response up to `MAX_RESPONSE`, with a deadline for each command from `Limits { command: Duration }` (default fixed in this entry after a measurement of CreatePrimary on swtpm; the hardware value is not measured). On a deadline the fd is closed and the transport is `Broken`: each next call fails at once with the class `Unavailable`. A short read is `Protocol`. Use `poll(2)` through the syscall crate that the workspace uses.
+2. `Socket::connect(path)` (unix): the data channel of swtpm, with the same bounds. The control channel (power on, reset, shutdown) is the harness's (T-1222), not the transport's.
+3. `Tbs::open()` (windows): `Tbsi_Context_Create` for a TPM 2.0 context, `Tbsip_Submit_Command` with the normal priority and locality 0, the response buffer of `MAX_RESPONSE`, `Tbsip_Context_Close` on drop. The functions come from `windows-sys` (feature `Win32_System_TpmBaseServices`) as `raw-dylib` imports, so the Windows build needs no import library and no C. A TBS error is a `Failure` with the code's words; "no TPM" is `Unavailable`. On a time limit, call the cancel function if the documents give one for this call, else document that the call blocks.
+4. On a target with neither (macOS, the BSDs): the module `device` is absent and `Transport` is still the trait; the doc says that a caller handles `Unavailable`. The build is checked on each target of section 7 of `docs/design.md`.
+5. Tests: unit tests with a Unix socket pair that plays a slow, short, long, closed and bad-header TPM (`need_loopback!` where a bind is needed); the real device and TBS tests are `#[ignore]` and run in `live.yml` (no TPM on a runner is a named skip, as the rule for a live test says). The nightly of Windows builds the `tbs` feature. A plant: the bound of the response (a response of `MAX_RESPONSE + 1` bytes) must fail.
+6. The README rows, and the line in `docs/design.md` of the row of T-1217 (the transports).
+
+## Prove
+
+```sh
+cargo test -p pod-tpm --features device
+cargo clippy -p pod-tpm --all-targets --all-features -- -D warnings
+python3 -I scripts/check-probe.py
+```
+
+# T-1222: `pod-tpm`: a TPM in software (feature `soft`) and a CI lane against swtpm and the reference simulator, with the key of PCR 7 as the proof (PodUtils/podssh#351)
+
+**Source:** PodUtils/podssh#351 (COORD-141 of podssh), part 6 of 6, from soft.rs of podssh's module and its tests "against swtpm (libtpms)".
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The issue says: against swtpm a key sealed to PCR 7 verifies with OpenSSH's `ssh-keygen -Y check-novalidate`; a copy of the key on a second TPM does not load; after a `PCR_Extend` the key is refused. These three results are the proof of the crate. The unit tests of podssh run against `soft.rs`, "a TPM in software", which is not a real TPM: it needs a second oracle.
+
+## Premise
+
+- Read: swtpm (stefanberger/swtpm) at v0.10.2 (2026-08-19) and libtpms v0.10.2 (2026-01-02) publish a source tarball with a signature and no binary. So a pinned static binary with its SHA-256, as T-623 pinned SeaweedFS (`scripts/ci/fetch-tool.sh`), does not exist. The precedent for a C server of a test is an image pinned to a digest (`images/mosquitto/Dockerfile`, `scripts/ci/mosquitto-tests.sh`).
+- Read: the reference implementation, `microsoft/ms-tpm-20-ref` (its code is under the BSD licence of TCG, informative; GitHub reports no SPDX id; last push 2025-03-11). Its simulator speaks over TCP: the header TpmTcpProtocol.h defines `TPM_SIGNAL_POWER_ON` (1), `TPM_SIGNAL_NV_ON` (11), `TPM_SEND_COMMAND` (8), `TPM_SESSION_END` (20) and `TPM_STOP` (21); each call is acknowledged with a `uint32` 0. The ports are not read here.
+- Not read: soft.rs. Not measured: a build of swtpm in a CI image (time, size), and whether a runner has `swtpm` in its packages.
+- Static rule: swtpm and libtpms are C programs that run in the test. They are not linked into a crate, so no binary of a consumer holds them (call C927). `pod-tpm` stays free of C.
+
+## Approach
+
+1. Feature `soft`: a TPM in software, from podssh's `soft.rs`, as a `Transport` for the unit tests of a consumer (as `pod-wg`'s `standin`). It implements the eleven commands and the policy of PCR, with a seed for its keys, and it refuses what it does not know with the TPM's own response code. The doc says that it is a model and not a TPM.
+2. A file images/swtpm/Dockerfile: build swtpm and libtpms from the two source tarballs, each pinned by tag and SHA-256 and the tag's signature checked, `FROM` an image pinned to a digest; or take the package of that base image if it pins a version and a digest of the package. Choose after a measurement and write the choice in the Done. A script scripts/ci/tpm-tests.sh starts swtpm on a Unix socket in a state directory under a temporary directory (the control channel: init and power on), runs the tests with `POD_TPM_TEST_SWTPM=required`, and fails when a test skipped. The second simulator, `ms-tpm-20-ref`, runs in the same script for the commands of T-1217 to catch an error that is common to libtpms and to the code of this crate (a build from a pinned commit; add it only if the measurement shows a build under 10 minutes, else keep it in `live.yml`).
+3. The tests, against swtpm: the key sealed to PCR 7 signs, and the signature verifies with the `p256` crate of the workspace (the OpenSSH check is podssh's test, as it needs its `sshsig`); a copy of the key file on a second swtpm state does not load (a class `Policy` or `Protocol` failure that names the code of the TPM); after `PCR_Extend` of PCR 7 the key is refused and a fresh session shows another `PolicyGetDigest`; each flow of T-1220 leaves no transient handle (`GetCapability` of the handles before and after); the digest of T-1218 equals the `PolicyGetDigest` of the TPM; a key file that the crate wrote loads in `tpm2-openssl` or in `go-tpm-keyfiles` where the CI image can have one (a named skip else).
+4. Fuzz targets (feature `fuzzing`): the response reader and the key file reader. A plant for each bound of T-1217 and T-1219.
+5. The file `docs/live-calls.md` gets the row for the tests of a real TPM and of TBS (T-1221).
+
+## Prove
+
+```sh
+cargo test -p pod-tpm --all-features
+sh scripts/ci/tpm-tests.sh
+cargo clippy -p pod-tpm --all-targets --all-features -- -D warnings
+```
