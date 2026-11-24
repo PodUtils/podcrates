@@ -365,11 +365,17 @@ The checks must run on GitHub on each push, each night and each day, as
 python3 -I scripts/check-workflows.py
 ```
 
-The runs of the push are green on GitHub (`scripts/agent/watch-runs.sh`).
+The runs of the push are green on GitHub (`scripts/agent/runs.py`).
 
 ## Start condition
 
 T-003 and T-004 are done.
+
+## Correction
+
+2026-11-24: T-1213 removes `watch-runs.sh` of `scripts/agent/`, which the
+Prove named. The runs of a push are followed by
+`python3 -I scripts/agent/runs.py --until FULL_SHA --min-runs 3`.
 
 ## Done
 
@@ -1509,7 +1515,7 @@ contract.
 - Read: `crates/pod-core/src/files/closed_win.rs` (the private files of
   Windows) has no `MoveFileExW`.
 - Read: `scripts/check-size.py` runs in `.github/workflows/ci.yml:77` and
-  in `scripts/agent/check.sh:41`. A new check of the repository needs its
+  in `scripts/agent/check.sh:42`. A new check of the repository needs its
   plant in `scripts/plants` (T-003).
 - Found while reading: T-195 (two threads that store one name at once
   share the temporary name of `write_private`).
@@ -1861,7 +1867,7 @@ Each project of PodUtils wrote its own wrapper to watch GitHub: podcrates had `w
 
 ## Premise
 
-- Read: `scripts/agent/runs.py`, `scripts/agent/watch-runs.sh`; podssh's `watch-runs.py` at `cc0caa2`.
+- Read: `scripts/agent/runs.py`, `watch-runs.sh` (T-1213 removes it); podssh's `watch-runs.py` at `cc0caa2`.
 
 ## Approach
 

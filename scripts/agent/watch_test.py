@@ -1,16 +1,10 @@
 """The checks of watch.py: `python3 -I watch.py --self-test`."""
 
-from watch import KEEP_RUNS, comments_step, issues_step, options, runs_step, search
+from watch import KEEP_RUNS, Checks, comments_step, issues_step, options, runs_step, search
 
 
 def self_test():
-    ok = True
-
-    def check(what, got, want):
-        nonlocal ok
-        good = got == want
-        ok &= good
-        print(f"{'ok  ' if good else 'FAIL'} {what}" + ("" if good else f": {got!r}, not {want!r}"))
+    check = Checks()
 
     def item(n, title="a report", state="open", comments=0, updated="t1", pr=None, labels=(), user="tester",
              assoc="MEMBER", body=""):
@@ -153,5 +147,5 @@ def self_test():
         check("a cut answer gives no document", watch.get("repos/O/me/issues", opener=cut), None)
     finally:
         watch.time.sleep = sleep
-    print("watch self-test:", "passed" if ok else "FAILED")
-    return 0 if ok else 1
+    print("watch self-test:", "passed" if check.ok else "FAILED")
+    return 0 if check.ok else 1

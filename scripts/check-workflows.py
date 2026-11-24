@@ -55,6 +55,8 @@ LOOPBACK = {"127.0.0.1", "localhost"}
 NAMES_ONLY = {
     "token.actions.githubusercontent.com": "the OIDC issuer of GitHub Actions: a value of a signing certificate "
                                            "that scripts/release-index.py writes into the release index",
+    "forge.web.pkgforge.dev": "the mirror of GitHub that scripts/agent/watch.py and runs.py read in a session; "
+                              "their self-tests in ci.yml read a fake forge",
 }
 HOST = re.compile(r"https?://([A-Za-z0-9.-]+)")
 SCRIPT = re.compile(r"(scripts/[A-Za-z0-9/_.-]+\.(?:sh|py))")

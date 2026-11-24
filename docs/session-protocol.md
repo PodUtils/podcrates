@@ -71,22 +71,35 @@ A session of a repository of PodUtils can run with no messages to the
 other sessions. GitHub issues are then the channel, and each session
 watches them.
 
-1. At the start of each session, get the one watcher of the organization
-   (`scripts/agent/watch.py`, the owner's ruling "Watcher") from
-   PodUtils/podcrates at a tag (now `v0.70.0`), check it, and keep it
-   running under the Monitor tool (it polls each 120 s; start it again
-   when the monitor ends). `.work/` must be in `.gitignore`. Do not write
-   a watcher of your own: ask podcrates for a change of this one.
+1. At the start of each session, get the two watchers from
+   PodUtils/podcrates at a tag (TAG: the tag that the last COORD issue of
+   podcrates on the watchers names), check them, and start them as
+   background processes, each with a log (the owner's rulings "Watcher"
+   and "Watchers"): `scripts/agent/watch.py`, the one watcher of the
+   organization (it polls each 120 s), and `scripts/agent/runs.py`, the
+   one watcher of the Actions runs of this repository (it reads through
+   `watch.py`). Read the logs yourself, and also keep a Monitor of the
+   harness on each log; do not wait for a notice of the harness.
+   `.work/` must be in `.gitignore`. Do not write a watcher of your own:
+   ask podcrates for a change of these.
 
    ```sh
    mkdir -p .work/podcrates-agent
-   for f in watch.py watch_test.py; do
+   for f in watch.py watch_test.py runs.py; do
      curl -qfsSL -o ".work/podcrates-agent/$f" \
-       "https://raw.githubusercontent.com/PodUtils/podcrates/v0.70.0/scripts/agent/$f"
+       "https://raw.githubusercontent.com/PodUtils/podcrates/TAG/scripts/agent/$f"
    done
    python3 -I .work/podcrates-agent/watch.py --self-test
-   python3 -I .work/podcrates-agent/watch.py ME --state .work/agent
+   python3 -I .work/podcrates-agent/runs.py --self-test
+   nohup python3 -I .work/podcrates-agent/watch.py ME --state .work/agent > .work/watch.log 2>&1 &
+   nohup python3 -I .work/podcrates-agent/runs.py --repo PodUtils/ME > .work/runs.log 2>&1 &
    ```
+
+   `runs.py` gives one line for each run that starts or changes state,
+   with each failed job and its failed steps for a red end.
+   `runs.py --until SHA --min-runs N` is the gate of a push: exit 0 when
+   each run of the commit is green, 1 when one is red, 3 when each one
+   was cancelled, 2 at `--timeout`.
 
    It prints one line for each event: each issue and pull request of this
    repository (new, commented, closed, reopened, merged, and a pull request
