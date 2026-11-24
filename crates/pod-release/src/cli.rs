@@ -19,13 +19,14 @@ pub const EXIT_UNAVAILABLE: i32 = 69;
 /// (class `Refused`).
 pub const EXIT_REFUSED: i32 = 77;
 
-/// The exit code of `error`, by its class.
+/// The exit code of `error`: the code of its class, from the one table of
+/// `pod_core`. A setting of the command line that cannot be used is a usage
+/// error. The command replaces no binary, so it gives no `CantWrite`; a
+/// consumer that does gets 73.
 pub fn code(error: &Error) -> i32 {
     match error {
-        Error::Unavailable(_) | Error::CantWrite(_) => EXIT_UNAVAILABLE,
-        Error::NotFound(_) => EXIT_NOT_FOUND,
-        Error::Refused(_) => EXIT_REFUSED,
         Error::Config(_) => EXIT_USAGE,
+        _ => i32::from(error.class().exit_code()),
     }
 }
 
@@ -158,5 +159,8 @@ mod tests {
         {
             assert_eq!(code(&e), i32::from(e.class().exit_code()), "{e:?}");
         }
+        // A binary that could not be replaced is an output that cannot be
+        // written (`EX_CANTCREAT`), not a service that is not available.
+        assert_eq!((Error::CantWrite(s("x")).class(), code(&Error::CantWrite(s("x")))), (Class::CantCreate, 73));
     }
 }

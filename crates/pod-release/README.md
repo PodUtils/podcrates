@@ -204,8 +204,8 @@ gives the running one).
 directory needs and does not find), `Refused` (a signature, an identity, a
 SHA-256, an index, a trial run), `CantWrite` (the binary is as it was),
 `Config`.
-`Error::class()` gives the `pod_core::Class`; podssh maps `CantWrite` to
-`EX_CANTCREAT` by the variant.
+`Error::class()` gives the `pod_core::Class`: `CantWrite` is `CantCreate`
+(73, `EX_CANTCREAT`).
 
 ## Parity
 

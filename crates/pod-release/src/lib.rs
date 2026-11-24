@@ -87,12 +87,11 @@ impl Error {
     }
 
     /// The class of the failure. A consumer maps it to its exit code;
-    /// [`Error::CantWrite`] is `Unavailable` here, and a consumer with an
-    /// exit code of its own for a file that it cannot write (`EX_CANTCREAT`)
-    /// takes the variant.
+    /// [`Error::CantWrite`] is `CantCreate` (73, `EX_CANTCREAT`).
     pub fn class(&self) -> Class {
         match self {
-            Error::Unavailable(_) | Error::CantWrite(_) => Class::Unavailable,
+            Error::Unavailable(_) => Class::Unavailable,
+            Error::CantWrite(_) => Class::CantCreate,
             Error::NotFound(_) => Class::NotFound,
             Error::Refused(_) => Class::Refused,
             Error::Config(_) => Class::Config,

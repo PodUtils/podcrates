@@ -3560,7 +3560,7 @@ while reading the users of `Class` (a second user of the class 73).
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3614,6 +3614,37 @@ cargo todo check
 ## Start condition
 
 T-1235 is done.
+
+## Done
+
+2026-11-24, this commit. `crates/pod-release/src/lib.rs`: `Error::class()`
+gives `Class::CantCreate` (73) for `CantWrite`, not `Unavailable` (69); the
+doc comment says so. `crates/pod-release/src/cli.rs`: `code` gives the code
+of the class from `Class::exit_code`, and `Error::Config` stays a usage
+error (64); the second table of the variants is gone.
+`crates/pod-release/README.md`, "Failures": `CantWrite` is `CantCreate`
+(73, `EX_CANTCREAT`), in place of "podssh maps `CantWrite` to
+`EX_CANTCREAT` by the variant". A measurement changed steps 2 and 5 of the
+Approach: the command `pod-release` (verify, sums, index, man) replaces no
+binary and gives no `CantWrite`, so it gets no constant `EXIT_CANT_CREATE`
+and no fact `cantcreate`: a fact of a code that the command never gives
+is wrong in its manual. A consumer that calls `update` or `keep` and
+`cli::code` gets 73. The constants `EXIT_*` stay literals, as the drift
+test of the manual reads them from the source
+(`pod_manual::scan::exit_constants`); the test of the classes holds each
+one to `Class::exit_code`.
+
+The test `cli::tests::the_exit_codes_are_the_codes_of_the_classes` holds
+that `CantWrite` has the class `CantCreate` and the code 73. On the code
+before it fails: "assertion `left == right` failed, left: (Unavailable,
+69), right: (CantCreate, 73)". `cargo test -p pod-release --all-features`:
+each passed (lib 66). `cargo clippy --workspace --all-targets
+--all-features -- -D warnings`, `cargo doc` of pod-core, pod-manual and
+pod-release with `-D warnings`, and `cargo fmt --all --check`: clean.
+`sh scripts/plant-each.sh --apply`: 0 stale.
+
+For the hand-off: podnet's `src/update.rs` reads no `Error::class()`, so
+it does not change; podssh can drop its own mapping of `CantWrite` to 73.
 
 # T-1238: `pod-core`: no class for `EX_DATAERR` (65), which podssh uses (PodUtils/podssh#352)
 
