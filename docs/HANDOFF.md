@@ -176,6 +176,15 @@ The asks of #259 to the consumers:
   (`safety::LINK_MISSING`), and a link waits for a missing directory above
   its target. New entries T-1269 and T-1270.
 
+- T-1217 and T-1218: the new crate `pod-tpm` (PodUtils/podssh#351), from
+  podssh's module (`SOURCES`): the command frame (bounded by `TPM_BUFSIZE`,
+  4096), the response codes, the fourteen commands, `Transport` and
+  `transact`, the templates of a storage primary and of an ECDSA P-256
+  signing key, `PcrSelection` and the PolicyPCR and PolicyAuthorize digests.
+  The key file (T-1219), the sequences (T-1220), the transports (T-1221) and
+  the soft TPM with its CI lane (T-1222) follow; podssh takes the crate at
+  the tag of T-1222. The owner reserves the name on crates.io.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask.

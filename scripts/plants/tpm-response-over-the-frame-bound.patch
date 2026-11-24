@@ -1,0 +1,17 @@
+diff --git a/crates/pod-tpm/src/wire.rs b/crates/pod-tpm/src/wire.rs
+index 05deaf7c..fc6c05a1 100644
+--- a/crates/pod-tpm/src/wire.rs
++++ b/crates/pod-tpm/src/wire.rs
+@@ -164,12 +164,6 @@ pub struct Response<'a> {
+ /// the count of bytes that came, from [`HEADER`] to [`MAX_RESPONSE`]; a
+ /// code other than success is [`Error::Tpm`].
+ pub fn response(bytes: &[u8], handles: usize) -> Result<Response<'_>, Error> {
+-    if bytes.len() > MAX_RESPONSE {
+-        return Err(Error::Malformed(format!(
+-            "{} bytes came, more than the {MAX_RESPONSE} of a response",
+-            bytes.len()
+-        )));
+-    }
+     let mut input = In::new(bytes);
+     let tag = input.u16()?;
+     let size = input.u32()?;

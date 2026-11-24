@@ -1,0 +1,35 @@
+# The files of this crate that came from another repository
+# (docs/design.md, section 9). A file line holds the git blob id at the
+# commit (`git ls-tree COMMIT -- PATH` gives it). scripts/check-sources.py
+# compares each with the default branch of its repository.
+
+repo PodUtils/podssh de67da891d86d4a3f3b5c1a44c9ba8cde5149282
+# T-1217 and T-1218 (PodUtils/podssh#351, COORD-141): the codec of the TPM
+# module of podssh's T-839, by the ruling "Shared code". The crate takes no
+# type of russh: the forms of SSH (the public key, the signature blob) and
+# the policy key that signs with p256 stay in podssh.
+dir crates/podssh-ssh/src/tpm
+file deb7dddb7719c276033728c6f9db6120bd11a74b crates/podssh-ssh/src/tpm/wire.rs -> crates/pod-tpm/src/wire.rs
+file 8169718e7a5aa88841e3a172e55385ecccb282bc crates/podssh-ssh/src/tpm/rc.rs -> crates/pod-tpm/src/rc.rs
+file 7fe173df1690bb68e6d0a7b1189b0333396cc0c5 crates/podssh-ssh/src/tpm/cmd.rs -> crates/pod-tpm/src/cmd.rs crates/pod-tpm/src/cmd/object.rs crates/pod-tpm/src/cmd/session.rs crates/pod-tpm/src/cmd/pcr.rs crates/pod-tpm/src/cmd/capability.rs
+file 3c88788085c65fd9f82ed890a6253e3971249043 crates/podssh-ssh/src/tpm/authorize.rs -> crates/pod-tpm/src/cmd/object.rs crates/pod-tpm/src/cmd/session.rs crates/pod-tpm/src/public.rs crates/pod-tpm/src/policy.rs
+file cfdee26a8d75c9dac2a5625ef5011c06a11ecb30 crates/podssh-ssh/src/tpm/policy.rs -> crates/pod-tpm/src/policy.rs crates/pod-tpm/src/selection.rs
+file 2fd9c4002de2703de0179be4835d6ac7b7496ede crates/podssh-ssh/src/tpm/public.rs -> crates/pod-tpm/src/public.rs crates/pod-tpm/src/alg.rs
+file f0e1a224d6af8ef3b8736a303333fc1c0c20f497 crates/podssh-ssh/src/tpm/codec_tests.rs -> crates/pod-tpm/tests/frame.rs crates/pod-tpm/tests/commands.rs crates/pod-tpm/tests/policy.rs
+# The parts that the next entries of the crate take: the key file and its
+# vector of go-tpm-keyfiles (T-1219), the sequences and their tests
+# (T-1220), the transport of a Unix kernel and the stub of another system
+# (T-1221), the TPM in software (T-1222).
+skip crates/podssh-ssh/src/tpm/keyfile.rs
+skip crates/podssh-ssh/src/tpm/testdata
+skip crates/podssh-ssh/src/tpm/flow.rs
+skip crates/podssh-ssh/src/tpm/flow_signed.rs
+skip crates/podssh-ssh/src/tpm/flow_tests.rs
+skip crates/podssh-ssh/src/tpm/signed_tests.rs
+skip crates/podssh-ssh/src/tpm/unix.rs
+skip crates/podssh-ssh/src/tpm/other.rs
+skip crates/podssh-ssh/src/tpm/soft.rs
+# The glue of podssh: the probe through PODSSH_TPM_DEVICE, the forms of
+# SSH, and the signer of an SSH agent. They stay in podssh.
+skip crates/podssh-ssh/src/tpm/mod.rs
+skip crates/podssh-ssh/src/tpm/signer.rs
