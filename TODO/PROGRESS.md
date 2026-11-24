@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 978 entries: 159 open, 30 partial, 7 blocked, 782 done.
+`TODO/INDEX.md` holds 979 entries: 160 open, 29 partial, 7 blocked, 783 done.
 
 ## State
 
@@ -32,8 +32,10 @@
   one else publishes in the form that PodUtils needs (the owner,
   2026-11-20); its first release is `qemu-11.1.3`.
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
-  its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
-  T-207, #70).
+  podvm's lab guest (PodUtils/podvm@T-1662 to PodUtils/podvm@T-1664), which
+  takes T-345 to T-347 of `pod-netlab` (T-207, partial) when they are done.
+  podvm closed PodUtils/podvm#260 and took the reader of the modloop (T-206)
+  and the offline part of T-207.
 - Red runs: the nightly 45452272145 at `f39b8e2` (a dispatch, cancelled): the
   Windows jobs, `gate` and the installer jobs pass; the failure of the
   seven jobs `cross` in `pod-extract` (also in `ci.yml` 45462046889 at
@@ -45,7 +47,11 @@
   gives the writer no EPIPE on macOS, and the write of a request had no
   bound; the next nightly decides; T-1303 gives each binary a limit, partial:
   the next nightly proves it on macOS and Windows).
-  T-1161 is done; T-789 and T-766 passed. None open in `services.yml`:
+  T-1161 is done; T-789 and T-766 passed. `ci.yml` run 45487233017
+  (`25747d3b`, the fix of T-1295): each job passes but `static
+  (aarch64-apple-darwin, macos-15-intel)`, which met its limit of 40
+  minutes in "Build the probe" (T-1325); the runs after it were cancelled by
+  newer pushes. None open in `services.yml`:
   T-1223 is done; read the next scheduled run.
 - Open defects: T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
   a giver still waits its whole limit after a refusal of the relay);
@@ -65,8 +71,8 @@
 - The rest of M8 waits (the ruling "Priority"). The asks of podswarm wait
   until the podswarm session starts, but for T-444, T-447 and T-448 (the
   ruling "podswarm", call C245).
-- 108 of the 109 names of `docs/design.md`, section 4, are reserved on
-  crates.io; `pod-natprobe` is missing ("Owner actions"). No crate goes to
+- 108 of the 110 names of `docs/design.md`, section 4, are reserved on
+  crates.io; `pod-natprobe` and `pod-tpm` are missing ("Owner actions"). No crate goes to
   crates.io now (the ruling "Releases").
 - Blocked: T-217 to T-220 (`pod-git`, the rulings "pod-git" and
   "Renames": `PodUtils/podforge`, deferred). T-538 (the attribution line
@@ -91,7 +97,7 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in
-podcrates: the red nightly (T-1298, T-1296, T-1297, T-916, T-938),
+podcrates: the red nightly (T-1298, T-1296, T-1297, T-916, T-938), the macOS job of `ci` (T-1325),
 T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
 `services.yml` run (read it) and the red live run (T-963). Then the asks of podrunner
 (COORD-134, #225): each new ask of podrunner. Then the entries that a need
@@ -116,7 +122,8 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   COORD-139: a test through `unbound`);
   T-1103 (iroh 1.5 and its fork
   of iroh-relay, after PodUtils/podssh#341); T-1095 (the order of the
-  pseudo-fields of the HTTP/2 request of `pod-ws`; PodUtils/podssh#340);
+  pseudo-fields of the HTTP/2 request of `pod-ws`; PodUtils/podssh#340,
+  closed by podssh, which keeps its patch of h2 until a tag carries the order);
   T-1238 (`EX_DATAERR`; PodUtils/podssh#352, COORD-142);
   T-941 (PodUtils/podssh#319); T-1221 and T-1222 (the crate `pod-tpm`:
   the transports of Linux and Windows, a TPM in software and an swtpm
@@ -127,9 +134,7 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
 Then T-899, T-900, T-852, T-851, and T-920.
 Then the ruling "Discipline": T-692
 (`pod-lab`, part 2), T-700 (`pod-manual`: the take of each consumer; its
-findings T-704 and T-705), T-767 (a stalled resume of `pod-session`,
-PodUtils/podssh#283; the eleventh failure names podssh's own SSH
-client, which podssh takes) with T-768 (a late spare), T-703
+findings T-704 and T-705), T-768 (a late spare of `pod-session`), T-703
 (the issues against the record) and T-702 (the installer). Then the move
 of podssh (PodUtils/podssh#248): T-030, T-039; T-036. Then the link
 carriers of M2 for podnet: T-526. Then the items below, in order.
@@ -159,10 +164,11 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
    and the live run), T-482, T-481, T-470, T-410, T-409; T-407 (the fuzz
    targets of the server face of `pod-proxy`). T-121 and T-124 (the asks
    of podnet).
-5. **M6, the crates of podvm:** T-207 (`pod-netlab`: then T-345, the
-   probes, and T-346, the world), PodUtils/podvm#260 (PodUtils/podvm@T-1662
-   waits for it and for the module set of the modloop, which `pod-guest`
-   has); T-347 after both, then T-348; `exec_attached` of `pod-incus` when
+5. **M6, the crates of podvm:** T-207 (`pod-netlab`, partial: the offline
+   part is taken by podvm; PodUtils/podvm#260 is closed): T-345 (the
+   probes) and T-346 (the world), which podvm's lab guest
+   (PodUtils/podvm@T-1662 to PodUtils/podvm@T-1664) takes; T-347 after both,
+   then T-348; `exec_attached` of `pod-incus` when
    PodUtils/podvm@T-1722 asks for it. T-649 (a FAT image writer,
    PodUtils/podvm#386) is not urgent. T-448 (a wrong fact of FUSE in
    `pod-enter`); T-444 (the probe rows of the namespace and FUSE rungs;
@@ -240,6 +246,8 @@ takes the number after the last row of that table.
   `scripts/check-crates-io-names.py` reports `pod-natprobe` alone).
 - Reserve the name `pod-tpm` on crates.io (T-1217), as for each name of
   `docs/design.md`, section 4 (call C927).
+- Reserve the name `pod-gzip` on crates.io when T-1196 adds the crate and
+  its row to `docs/design.md`, section 4.
 - Delete the remote branch `wip/t1073` (merged into `main`): the proxy of
   the sessions refuses `git push origin --delete`.
 

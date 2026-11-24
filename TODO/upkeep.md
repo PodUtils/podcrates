@@ -5346,3 +5346,57 @@ and it fails at the end. The Windows jobs must run `limit.sh` with the
 `timeout` of Git for Windows (not `timeout.exe` of Windows: the check
 `--version` selects the GNU one) and the cargo runner through `sh`
 (`cygpath -m` gives the path). The macOS jobs must use the perl path.
+
+# T-1325: `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met its limit of 40 minutes in "Build the probe"
+
+**Source:** `ci.yml` run 45487233017 at `25747d3b`: the job `static (aarch64-apple-darwin, macos-15-intel, false)` was cancelled at 40 minutes while `rustc` ran in the step "Build the probe"; each other job passed.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The job `static` of `.github/workflows/ci.yml` has `timeout-minutes: 40`. In
+run 45487233017 the cross build of the probe for `aarch64-apple-darwin` on
+the Intel runner `macos-15-intel` ran 39 minutes in "Build the probe" and
+the job was cancelled at the limit (the log ends with "The operation was
+canceled" and two orphan processes, `cargo` and `rustc`). The job `all` then
+failed, and so did the run. In run 45432751161 (green) the same job took
+23.1 minutes (the step 22.5 minutes), the job of `x86_64-apple-darwin` 23.9
+minutes and the jobs of Windows 19.7 and 24.5 minutes. The job of this
+target has not run to its end since: each later run of `ci` on `main`
+(45494344023 and the ones after it) was cancelled by the next push within
+20 minutes.
+
+## Premise
+
+- Read: the jobs and the steps of runs 45487233017, 45494344023 and
+  45432751161; the log tail of the job of the first.
+- Not measured: whether the 39 minutes come from a slow runner, from a
+  build that is longer than before (the commits between the two runs
+  add `pod-tpm` and change `pod-extract`, `pod-link`, `pod-term`, `pod-dns`
+  and `pod-turn`), or from a hang in
+  `rustc`; the time of the step in the runs between 45432751161 and
+  45487233017.
+
+## Approach
+
+Read the next `ci` run of `main` that ends. Take the seconds of "Build the
+probe" of each target of macOS and Windows from the last five runs that
+ended. If the step is near its limit in more than one run, raise the limit
+of the job for the rows of macOS (a `timeout-minutes` that the matrix row
+gives) and find the part of the build that grew. If it is one slow runner,
+write the measurement here and close the entry with the times of five runs.
+Do not hide a hang: a build of one probe has no reason to run 16 minutes
+longer than its twin for another target of the same host.
+
+## Prove
+
+```sh
+python3 -I scripts/check-workflows.py
+```
+
+The next five `ci` runs that end show the job `static (aarch64-apple-darwin,
+macos-15-intel)` with its time; the entry closes with those times.

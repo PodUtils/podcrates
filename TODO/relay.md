@@ -8166,7 +8166,7 @@ cargo test -p pod-hold --all-features
 **Milestone:** M2
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -8314,6 +8314,25 @@ cargo test -p pod-session --all-features
 - 2026-11-19: podssh at `bcd2b2f` (podcrates `v0.73.0`: the guard of T-939 and the line of T-945) ran its loop of `m6_exit` on the iroh road 6 times, and each passed (PodUtils/podssh#320). The eighth failure did not come again; the entry stays partial until a run of the gate shows the cause or the gate holds over more runs.
 - 2026-11-19: the eleventh failure of podssh's gate (run 44506565889, `iroh::the_iroh_road_survives_a_new_address`, podcrates `v0.76.0`) names the reader that stopped: podssh's watch of its pipe said "SSH read nothing for 20 s while the channel waits to give it bytes", and the layer said that the application took no byte for 21 s while 961099 bytes waited. So podssh's own SSH client held the session; the layer (T-945) and the channel of `pod-e2e` (T-959) waited on it. podssh takes the rest (PodUtils/podssh@T-780, a watch of SSH's own write to the channel) and writes on PodUtils/podssh#283 if the next lines point back at a crate. Asks 2 to 4 of #283 stay open there with no new work for podcrates; this entry stays partial until podssh closes them or a run names a crate.
 
+## Done
+
+2026-11-24: the work of this entry in podcrates is done (commits `e52ebaa4`
+for the line of each resume, `4ca8423f` for the line of each stall of the
+reader, `8a160219` for the client's line `resume::Note::Stall` (T-945) and
+`b91e61d2` for the line of the channel of `pod-e2e` (T-959)). podssh closed
+PodUtils/podssh#283 on 2026-11-24 (comment 7137413235): ask 1 (`v0.62.0`) and
+ask 5 (`v0.76.0`) are delivered; the thirteenth to sixteenth failures put the
+hold in podssh's own code (the pump of its SSH session awaited a write while
+the queue of the channel filled; its repair is on podssh `main`,
+`io/beside.rs`, `d3aba042`); asks 2 to 4 are withdrawn; nothing more is asked
+of podcrates. Failures 1 to 7 have no cause proved here. No test of
+`pod-session` hangs, and a failure that names a crate gets a new entry.
+
+`cargo test -p pod-session --all-features`: 174 passed, 0 failed, 0 ignored,
+among them `tests/session_resume_again.rs` (2) and
+`tests/session_resume_twice.rs` (1). The line of each resume and each stall
+has its plants (`session-t767-stop-unsaid`, `session-t767-stall-twice`).
+T-768 (a spare that waits 20 s) stays open.
 
 # T-774: `pod-link`: a normative document of the wire, with the order of the checks and the rule of the timers, held to the code by a test
 
@@ -10644,6 +10663,10 @@ way to the wire at all.
   patch, and the size of the diff of podssh's h2 against h2 0.4.20.
 - `Shape::apply` is public and takes an `h2::client::Builder`, so h2 is
   part of the API of `pod-ws`.
+- Read, 2026-11-24: podssh closed PodUtils/podssh#340 with a comment that
+  names this entry as open here. podssh keeps its patch of h2 until a
+  tag of podcrates carries the order, and its move of the code stays its own
+  T-684. The ask is unchanged and no work is done; the entry stays open.
 
 ## Approach
 

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**978 entries: 159 open, 30 partial, 7 blocked, 782 done.**
+**979 entries: 160 open, 29 partial, 7 blocked, 783 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 11 | 0 | 228 | 243 |
-| P2 | 73 | 8 | 4 | 409 | 494 |
+| P1 | 4 | 10 | 0 | 229 | 243 |
+| P2 | 74 | 8 | 4 | 409 | 495 |
 | P3 | 82 | 11 | 3 | 143 | 239 |
-| **All** | 159 | 30 | 7 | 782 | 978 |
+| **All** | 160 | 29 | 7 | 783 | 979 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -654,7 +654,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-764](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `1739b5f` is red on windows-2025: the lower bound of a silence of `pod-link`'s split test does not allow the tick of the timer of Windows |
 | [T-765](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `1739b5f` is red on macos-15-intel: a dial of `pod-proxy` to a freed port gets a reset, not a refusal |
 | [T-766](upkeep.md) | P2 | S | M5 | defect | open | The nightly at `1739b5f` is red on riscv64: two time limits of tests that the emulation of QEMU outruns |
-| [T-767](relay.md) | P1 | M | M2 | defect | partial | `pod-session`: a resume that the client calls done, after which the session never moves (PodUtils/podssh#283) |
+| [T-767](relay.md) | P1 | M | M2 | defect | done | `pod-session`: a resume that the client calls done, after which the session never moves (PodUtils/podssh#283) |
 | [T-768](relay.md) | P2 | S | M2 | defect | open | `pod-session`: a spare waits 20 s, not 1 s to 3 s, when the client's writer is held by a full link |
 | [T-773](fleet.md) | P2 | S | M8 | defect | done | the installer core: a tree copy with no pins stops on a host with cosign (PodUtils/podnet#597) |
 | [T-774](relay.md) | P2 | S | M2 | docs | done | `pod-link`: a normative document of the wire, with the order of the checks and the rule of the timers, held to the code by a test |
@@ -1025,3 +1025,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1299](upkeep.md) | P3 | S | M6 | feature | open | `pod-extract`: a stream of `flatten` that GNU tar as a user that is not root can unpack |
 | [T-1303](upkeep.md) | P2 | S | M5 | defect | partial | The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows |
 | [T-1307](podvm.md) | P3 | S | M6 | feature | open | `pod-incus`: a cut `error` envelope has no flag, so a caller reads the words of its text to know that the answer was over `max_body` (PodUtils/podvm#663) |
+| [T-1325](upkeep.md) | P2 | S | M5 | defect | open | `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met its limit of 40 minutes in "Build the probe" |

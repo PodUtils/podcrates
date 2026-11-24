@@ -48,6 +48,11 @@ is done. Git and the record keep finished work.
      T-1298, T-1296, T-1297, T-916 and T-938 (partial), T-789,
      T-766, and T-1044 (`check-windows.sh` and `check-macos.sh` compile no
      doc test).
+   - `ci.yml` run 45487233017 at `25747d3b` (the fix of T-1295): each job
+     passes but `static (aarch64-apple-darwin, macos-15-intel)`, which met
+     its limit of 40 minutes in "Build the probe" (T-1325; the job took 23
+     minutes in the last green run). The runs after it were cancelled by
+     newer pushes. Read the next `ci` run that ends.
    - `upstream.yml` (job `sources`): the run 45423205689 at `5fd6fb7` found
      one change, podrunner `2a55cd9` in `auth.rs` (`pod-testkit`). T-1243
      (done) ports it. Read the next daily run.
@@ -75,10 +80,11 @@ is done. Git and the record keep finished work.
    is offline until the CI of podrunner and githome is complete; it reads
    `docs/research/fleet/asks.md` and the block of #223 at its next start.
    cfb's A-X-18 (T-106, partial) waits for cfb's answer on #223.
-7. T-767 (partial, PodUtils/podssh#283) and T-768: the client's line
-   `resume::Note::Stall` (T-945) and the channel's line `e2e.wait` of
-   `pod-e2e` (T-959) name the reader that stopped; podssh takes it
-   (PodUtils/podssh@T-780) with no new ask of podcrates.
+7. T-767 is done: podssh closed PodUtils/podssh#283, because the hold of its
+   later failures is in its own pump (the client's line `resume::Note::Stall`
+   of T-945 and the channel's line `e2e.wait` of T-959 named the reader), and
+   it asks nothing more of podcrates. T-768 (a spare of `pod-session` that
+   waits 20 s) is open.
 8. Then the work order of `TODO/PROGRESS.md`.
 9. Run `scripts/agent/check.sh` with a short `TMPDIR` (for example
    `TMPDIR=/tmp`): a long one makes the socket paths of `pod-guest` too
@@ -233,8 +239,9 @@ The asks of #259 to the consumers:
   of `pod-extract`, a writer of gzip members) is open in podcrates.
 - podnet: T-1117 (documents), T-1118 (`release-index.json`).
 - podssh: T-1198 (the codec's `HOLD` and linger, by podssh's answer); T-1095 (the order of the
-  pseudo-fields of the HTTP/2 request of `pod-ws`, PodUtils/podssh#340),
-  T-1103 (iroh 1.5).
+  pseudo-fields of the HTTP/2 request of `pod-ws`; podssh closed
+  PodUtils/podssh#340 and keeps its patch of h2 until a tag carries the
+  order), T-1103 (iroh 1.5).
 - Asks of podssh that no one has started: T-1167 to T-1169 (`pod-link`,
   the DNS carrier; PodUtils/podssh#349), and `pod-tpm` (T-1217 to T-1222,
   PodUtils/podssh#351).
@@ -255,8 +262,11 @@ The asks of #259 to the consumers:
 
 ## What waits
 
-- podvm: T-330 (its pair commands); T-207 (`pod-netlab`, #70) for
-  PodUtils/podvm@T-1662.
+- podvm: T-330 (its pair commands). T-207 (`pod-netlab`) does not wait for
+  podvm: podvm closed PodUtils/podvm#260 and took the offline part; T-345 to
+  T-347 (the probe program, the world and the run on a kernel) are open, and
+  podvm's lab guest (PodUtils/podvm@T-1662 to PodUtils/podvm@T-1664) takes
+  them when they are done.
 - podswarm: its asks wait until its session starts, but for T-444, T-447
   and T-448 (the ruling "podswarm").
 - `pod-git` (T-217 to T-220) is blocked (`PodUtils/podforge`, deferred).

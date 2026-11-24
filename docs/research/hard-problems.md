@@ -819,7 +819,7 @@ with machines.
 
 ## H-09. A stalled resume of `pod-session` (podssh#283)
 
-Entries: T-767 (partial, P1), T-768 (open), T-204 (open), T-939 (done),
+Entries: T-767 (done, P1), T-768 (open), T-204 (open), T-939 (done),
 T-945 (done), T-959 (done). Files: `TODO/relay.md`.
 Issue: `https://github.com/PodUtils/podssh/issues/283` (COORD-091).
 
@@ -860,6 +860,11 @@ The eleven failures, in short:
     (PodUtils/podssh@T-780). podssh says the channel carries both
     directions at once (`crates/pod-e2e/src/channel/carry.rs`) and a cycle
     through the pipe is possible.
+12. to 16. (podssh's close of #283): the hold is inside podssh's own code.
+    The pump of its SSH session awaited a write while the queue of the
+    channel filled, and nothing drained it. Its repair is on podssh `main`
+    (`io/beside.rs`). podssh withdrew asks 2 to 4 and asks nothing more of
+    podcrates, so T-767 is done.
 
 Failures 1 to 7 are not explained. The record says (T-767): a lost wake, a
 lost ACK, an offset gap, a deadlock of locks, an old link that does not
@@ -889,8 +894,8 @@ runs (the observation changes the timing).
    waits to write to the channel; the channel waits to write to SSH; both
    pipes are full? Read podssh's `channel::around` (the glue that writes the
    256 KiB pipe) and its SSH client, and `carry.rs` in podcrates. A test with two full pipes
-   and one task that does `select!` on both would show it. **This is the
-   best lead.** (A guess, from podssh's own words.)
+   and one task that does `select!` on both would show it. **podssh's close of
+   #283 confirms it:** the cycle is in its own pump (failures 12 to 16).
 2. Are failures 1 to 7 the same cause as 11 (a hold above the layer)? The
    far end's lines in 1 to 7 were not enough to say. Can podssh's
    log from the failed runs show "SSH read nothing"? (The watch came late.)
@@ -1413,9 +1418,9 @@ The ones that decide a design:
    the owner's order puts the red nightly first. Start with the cheap
    measurement: how fast do the iroh tests run in a release or optimized
    build under `qemu-riscv64`?
-2. **H-09 the stalled resume** (T-767). It is the one defect that a
-   consumer has seen eleven times. The best lead is the cycle through the
-   256 KiB pipe between `channel::carry` and podssh's SSH client.
+2. **H-09 the stalled resume** (T-767, done). The consumer saw it sixteen
+   times; podssh found the hold in its own pump and repaired it. T-768 and
+   T-204 stay open.
 3. **H-02 Windows**, starting with the skipped pod-gsr step: one line of
    the workflow gives the first measurement of T-131; T-935 and T-934 are
    small and well described.

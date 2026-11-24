@@ -3630,6 +3630,14 @@ each scenario on a real kernel with the planted flush (T-347), the VPN
 and live scenarios (T-348), the user-space variant and a second guest
 (T-349). `crates/pod-netlab/README.md` gives the parity with issue 178.
 
+2026-11-24: podvm closed PodUtils/podvm#260 as answered (its comment of that
+day). It took the offline part at its `v0.34.0` (`podvm lab scenarios` and
+`podvm lab plan`) and the reader of the modloop (T-206). podvm still needs
+the rest: it tracks the lab guest in PodUtils/podvm@T-1662,
+PodUtils/podvm@T-1663 and PodUtils/podvm@T-1664 (issues 178, 180 and 182), and
+those take T-345 to T-347 when they are done. No part of T-207 waits for
+podvm; the entry stays partial until T-345 to T-347 are done.
+
 # T-208: `pod-extract`: a root directory entry with an empty name refuses its layer (PodUtils/podvm#261)
 
 **Source:** PodUtils/podvm#261 (COORD-042 of podvm; PodUtils/podvm@T-1659, issue 172)
