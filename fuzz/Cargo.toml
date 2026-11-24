@@ -85,6 +85,9 @@ pod-turn = { path = "../crates/pod-turn", default-features = false, features = [
 # the parse of a challenge of a registry.
 pod-oci = { path = "../crates/pod-oci", features = ["fuzzing"] }
 pod-extract = { path = "../crates/pod-extract" }
+# The digests of the blobs and the reader of the stream of `flatten_layers`.
+sha2 = { version = "0.11", default-features = false }
+tar = { version = "0.4", default-features = false }
 pod-enter = { path = "../crates/pod-enter" }
 # The squashfs modloop of a guest kernel (T-206).
 pod-guest = { path = "../crates/pod-guest" }
@@ -409,6 +412,13 @@ bench = false
 [[bin]]
 name = "extract_layer"
 path = "fuzz_targets/extract_layer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "flatten_layers"
+path = "fuzz_targets/flatten_layers.rs"
 test = false
 doc = false
 bench = false

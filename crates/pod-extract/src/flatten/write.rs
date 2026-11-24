@@ -41,17 +41,19 @@ pub(super) struct Head<'a> {
     pub(super) link: Option<&'a str>,
 }
 
-/// The writer of the caller, the count of the bytes that went to it, and
-/// the prefix of each path of the image (`rootfs/`, or empty).
+/// The writer of the caller, the count of the bytes that went to it, the
+/// bytes of data and padding that the last header still owes, and the
+/// prefix of each path of the image (`rootfs/`, or empty).
 pub(super) struct Out<'a, W: Write> {
     w: &'a mut W,
     bytes: u64,
+    owed: u64,
     prefix: String,
 }
 
 impl<'a, W: Write> Out<'a, W> {
     pub(super) fn new(w: &'a mut W, prefix: String) -> Out<'a, W> {
-        Out { w, bytes: 0, prefix }
+        Out { w, bytes: 0, owed: 0, prefix }
     }
 
     pub(super) fn bytes(&self) -> u64 {
@@ -61,6 +63,7 @@ impl<'a, W: Write> Out<'a, W> {
     fn put(&mut self, b: &[u8]) -> Result<()> {
         self.w.write_all(b).map_err(error::io)?;
         self.bytes += b.len() as u64;
+        self.owed = self.owed.saturating_sub(b.len() as u64);
         Ok(())
     }
 
@@ -121,7 +124,9 @@ impl<'a, W: Write> Out<'a, W> {
         t.set_mtime(h.mtime);
         t.set_size(h.size);
         t.set_cksum();
-        self.put(t.as_bytes())
+        self.put(t.as_bytes())?;
+        self.owed = h.size.div_ceil(BLOCK as u64) * BLOCK as u64;
+        Ok(())
     }
 
     /// The data of a file: `size` bytes of `r`, then the padding. A reader
@@ -157,10 +162,16 @@ impl<'a, W: Write> Out<'a, W> {
     }
 
     /// One block that is not a header, in place of the end blocks: a
-    /// reader of the stream fails on it and does not take a short tree. An
-    /// error of the writer here is dropped: the caller gets the first one.
+    /// reader of the stream fails on it and does not take a short tree. In
+    /// the data of a file, the block alone could fill the data and the
+    /// padding that the header owes to a whole block, and the stream would
+    /// read as whole: where the header owes one block or less, 0xff fills
+    /// it first, so the block is where a header goes. Where it owes more,
+    /// the reader fails at the end of the stream, in the data. An error of
+    /// the writer here is dropped: the caller gets the first one.
     pub(super) fn broken(&mut self) {
-        if self.put(&[0xff; BLOCK]).is_ok() {
+        let fill = if self.owed <= BLOCK as u64 { self.owed as usize } else { 0 };
+        if self.put(&[0xff; 2 * BLOCK][..fill + BLOCK]).is_ok() {
             let _ = self.w.flush();
         }
     }

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**981 entries: 159 open, 31 partial, 7 blocked, 784 done.**
+**981 entries: 158 open, 31 partial, 7 blocked, 785 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 229 | 243 |
-| P2 | 71 | 10 | 4 | 410 | 495 |
+| P2 | 70 | 10 | 4 | 411 | 495 |
 | P3 | 84 | 11 | 3 | 143 | 241 |
-| **All** | 159 | 31 | 7 | 784 | 981 |
+| **All** | 158 | 31 | 7 | 785 | 981 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1013,7 +1013,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1238](foundation.md) | P3 | S | M0 | research | open | `pod-core`: no class for `EX_DATAERR` (65), which podssh uses (PodUtils/podssh#352) |
 | [T-1243](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the auth of the fake broker at podrunner `2a55cd9` (port review of `auth.rs`) |
 | [T-1253](podvm.md) | P2 | S | M6 | defect | done | `pod-extract`: the sidecar row of a removed path holds for a directory that an entry below it makes again |
-| [T-1254](podvm.md) | P2 | S | M6 | chore | open | `pod-extract`: a fuzz target of `flatten`, the reader of untrusted layers into one tar stream |
+| [T-1254](podvm.md) | P2 | S | M6 | chore | done | `pod-extract`: a fuzz target of `flatten`, the reader of untrusted layers into one tar stream |
 | [T-1255](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: the umask of the process cuts the mode of a directory that an entry below it makes |
 | [T-1269](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: `flatten` fails with `Unsupported` for a hard link to an inode that no name of the stream holds after a second entry of its path in one layer |
 | [T-1270](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: `flatten` drops the extended attributes of a hard-link entry, which `extract` sets on the inode |

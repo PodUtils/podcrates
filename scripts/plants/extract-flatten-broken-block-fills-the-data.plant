@@ -1,0 +1,8 @@
+# pod-extract flatten: the block of 0xff after a failure in the data of a
+# file fills the rest of the data and its padding to a whole block, and a
+# reader takes the short stream as whole (T-1254).
+ENTRY=T-1254
+GROUP=extract
+EXPECT='a_file_cut_one_byte_short_breaks_the_stream'
+RUN='cargo test -p pod-extract --all-features --test flatten a_file_cut_one_byte_short_breaks_the_stream'
+LIMIT=900
