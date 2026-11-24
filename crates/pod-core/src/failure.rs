@@ -108,11 +108,19 @@ pub enum Class {
     Permission,
     /// The far end and this end have no protocol or suite in common.
     Suite,
+    /// An output (a file or a directory) that the tool must make cannot be
+    /// made or written. An input path that does not exist stays `NotFound`,
+    /// and a mode check of a file stays `Permission`.
+    CantCreate,
+    /// A fault inside the tool, or a session that ended before its end with
+    /// no known fault of the far end or of the network. A far end that broke
+    /// the protocol stays `Protocol`.
+    Internal,
 }
 
 impl Class {
     /// Each class, in the order of the table of exit codes.
-    pub const ALL: [Class; 13] = [
+    pub const ALL: [Class; 15] = [
         Class::Usage,
         Class::Config,
         Class::Unavailable,
@@ -126,6 +134,8 @@ impl Class {
         Class::Unsupported,
         Class::Permission,
         Class::Suite,
+        Class::CantCreate,
+        Class::Internal,
     ];
 
     /// The exit code of a tool that ends on this class. The codes follow
@@ -133,7 +143,9 @@ impl Class {
     /// `Revoked` and `Suite` share 78 with `Config`, so that one
     /// `RestartPreventExitStatus=78` stops a restart loop for each of them.
     /// `Policy` and `Unsupported` take 79 and 80, past the range of
-    /// sysexits, as no code there has their meaning.
+    /// sysexits, as no code there has their meaning. `CantCreate` (73) and
+    /// `Internal` (70) are not in the list of codes that stop a restart: a
+    /// later try can work after a freed disk or a one-time fault.
     pub fn exit_code(self) -> u8 {
         match self {
             Class::Usage => 64,
@@ -147,6 +159,8 @@ impl Class {
             Class::Unsupported => 80,
             Class::Permission => 71,
             Class::Suite => 78,
+            Class::CantCreate => 73,
+            Class::Internal => 70,
         }
     }
 
@@ -165,6 +179,8 @@ impl Class {
             Class::Unsupported => "unsupported",
             Class::Permission => "permission",
             Class::Suite => "suite",
+            Class::CantCreate => "cantcreate",
+            Class::Internal => "internal",
         }
     }
 
@@ -355,6 +371,12 @@ mod tests {
         let own: std::collections::HashSet<_> =
             [Class::Refused, Class::Revoked, Class::Policy, Class::Unsupported].iter().map(|c| c.exit_code()).collect();
         assert_eq!(own.len(), 4, "refused, revoked, policy and unsupported each have a code of their own");
+        // podssh#352: 73 and 70 of sysexits(3), each in one row only.
+        for (class, code, name) in [(Class::CantCreate, 73, "cantcreate"), (Class::Internal, 70, "internal")] {
+            assert_eq!((class.exit_code(), class.name()), (code, name), "{class:?}");
+            let rows = Class::ALL.iter().filter(|c| c.exit_code() == code).count();
+            assert_eq!(rows, 1, "the code {code} is in {rows} rows");
+        }
     }
 
     /// A lead that the text names already is not said again; a text that

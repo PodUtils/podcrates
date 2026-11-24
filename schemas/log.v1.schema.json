@@ -25,6 +25,8 @@
         "unsupported",
         "permission",
         "suite",
+        "cantcreate",
+        "internal",
         null
       ]
     },

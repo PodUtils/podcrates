@@ -3330,7 +3330,7 @@ Azathothas, COLLABORATOR.
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3430,6 +3430,45 @@ cargo test -p pod-manual --all-features
 python3 -I scripts/check-schemas.py
 cargo todo check
 ```
+
+## Done
+
+2026-11-24, this commit (call C928). `crates/pod-core/src/failure.rs`:
+`Class::CantCreate` (name `cantcreate`, code 73, `EX_CANTCREAT`) and
+`Class::Internal` (name `internal`, code 70, `EX_SOFTWARE`), each with a
+doc comment, at the end of `Class::ALL` (15 classes), `name` and
+`exit_code`. `Class::of_io` did not change, and `Class` has no
+`non_exhaustive`. `crates/pod-core/README.md`: two rows of the table of
+exit codes, and a sentence that 70 and 73 are not in
+`RestartPreventExitStatus=64 78 79 80`. `crates/pod-manual/src/facts.rs`:
+a meaning for each in `failure_classes`. `schemas/log.v1.schema.json`:
+`cantcreate` and `internal` in the enum of `class`, written again by
+`POD_BROKER_WRITE_SCHEMAS=1 cargo test -p pod-broker --lib schemas`;
+`schemas/CHANGES.md`: the row `| next | log.v1 | class | added |` with the
+SHA-256 `1c210602aa854ae774a262e1ad9dee1f49eaaa1440ab331cc1a28c5f9c210ca6`.
+The users in this workspace: `pod-link` (`pin.rs`), `pod-proxy`
+(`serve.rs`) and `pod-ws` (`way.rs`) have a `_` arm, and no arm of theirs
+has a clear meaning for the two classes; `pod-harness` and `pod-unit` keep
+their tables.
+
+The test `failure::tests::each_class_has_a_name_and_an_exit_code` holds the
+two codes and names, and that 70 and 73 are each in one row. On the code
+before, it does not compile: "no variant, associated function, or constant
+named `CantCreate` found for enum `failure::Class`". With the plant 73
+changed to 69 it fails: "assertion `left == right` failed: CantCreate,
+left: (69, "cantcreate"), right: (73, "cantcreate")".
+`cargo clippy --workspace --all-targets --all-features -- -D warnings`:
+clean. `cargo test -p pod-core -p pod-manual -p pod-broker -p pod-harness
+-p pod-release --all-features`: each passed (pod-core lib 103). `cargo doc`
+of pod-core, pod-manual and pod-release with `-D warnings`: clean.
+`python3 -I scripts/check-schemas.py`: "13 schemas agree".
+`sh scripts/plant-each.sh --apply`: 0 stale.
+
+For the hand-off: podssh's `code_of` in
+`PodUtils/podssh:crates/podssh-cli/src/ssh/cloud/devtunnel.rs` has no `_`
+arm, and does not build at the tag until it adds both classes; that is the
+signal that podssh asked for. The matches of podnet on `Class` go to their
+`_` arm (`Fault::Unavailable`, 69, or `None`) until podnet adds an arm.
 
 # T-1236: `pod-core`: the codes that a consumer keeps where its class gives another, in the README (PodUtils/podssh#352)
 
