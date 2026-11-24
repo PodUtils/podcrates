@@ -1,9 +1,10 @@
 //! One connection to one resolver of DNS over HTTPS for DNS messages of the
 //! wire form (RFC 8484, a GET with `?dns=`), through the caller's dial: a
 //! carrier of bytes over DNS (`pod-link`'s dns carrier behind an HTTP proxy)
-//! sends each of its queries through it. Over HTTP/2 ([`Doh::http2`]) the
-//! questions share the connection at the same time; over HTTP/1.1 a
-//! question waits for the answer of the one before it. A failed question
+//! sends each of its queries through it. The hello offers `h2` and
+//! `http/1.1` (`h2` alone where [`Doh::http2`]), and the server picks. Over
+//! HTTP/2 the questions share the connection at the same time; over
+//! HTTP/1.1 a question waits for the answer of the one before it. A failed question
 //! closes the connection, and the next question opens a new one; a question
 //! on a kept connection that fails goes once more on a new one, as the
 //! server may have closed it.
@@ -97,7 +98,7 @@ impl Pipe {
         let kept = slot.is_some();
         if slot.is_none() {
             let way = Way { settings: &self.settings, context: &self.context, dial: &*self.dial, kept: None };
-            match open(&way, &self.resolver, &self.host, self.settings.connect).await {
+            match open(&way, &self.resolver, &self.host, self.settings.connect, true).await {
                 Ok(conn) => *slot = Some(conn),
                 Err(missed) => return (Err(missed), false),
             }

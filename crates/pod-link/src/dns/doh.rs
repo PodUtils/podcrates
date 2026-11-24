@@ -34,11 +34,13 @@ const TOO_MANY: u16 = 429;
 #[derive(Clone)]
 pub struct DnsOverHttps {
     /// The resolver: its address and its name, its port, the path of its
-    /// wire form (it must have one), and [`Doh::http2`]. Over HTTP/2 the
-    /// queries share the connection at the same time; over HTTP/1.1 a query
-    /// waits for the answer of the one before it, so a poll that the listener
-    /// holds ([`crate::dns::DnsSettings::hold`]) delays the next query. The
-    /// public resolvers serve HTTP/2.
+    /// wire form (it must have one), and [`Doh::http2`]. The connection
+    /// offers `h2` and `http/1.1` (`h2` alone with [`Doh::http2`]), and the
+    /// resolver picks. Over HTTP/2 the queries share the connection at the
+    /// same time; over HTTP/1.1 a query waits for the answer of the one
+    /// before it, so a poll that the listener holds
+    /// ([`crate::dns::DnsSettings::hold`]) delays the next query. The public
+    /// resolvers pick HTTP/2.
     pub resolver: Doh,
     /// The trust, the user agent and the time of a connection (`connect`).
     pub settings: pod_dns::Settings,

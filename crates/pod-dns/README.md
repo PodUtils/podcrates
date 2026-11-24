@@ -52,7 +52,7 @@ proxy.
 | `Resolver::set_pins(pins)`, `pins()` | the pin table in force: `Settings::pins` at the start, then each table that the caller gives; a lookup reads one table, and a replacement counts from the next lookup |
 | `Memory` (`new`, `is_on`, `set_remembered`, `remembered`, `note_dialed`, `dialed`, `last_dialed`), `Remembered`, `split`, `FRESH` | the cache of the addresses that carried a session (fresh for 7 days, then old and last), and the record of the source of each address that the dialer connected to (32 at most) |
 | `Way { settings, context, dial, kept }` | a way to the resolvers: the resolver's own (`Resolver::way`), or one that a caller makes for the proxy of one road |
-| `Pipe` (`new(resolver, settings, context, dial)`, `ask(message)`, `host`, `connections`) | one connection to one resolver of DNS over HTTPS for DNS messages of the wire form (a GET with `?dns=`): over HTTP/2 the questions share the connection at the same time, over HTTP/1.1 one after the other; a failure closes it, and a failed question on a kept connection goes once more on a new one; the answer keeps its status and headers (a `429` and its `Retry-After`); the DNS carrier of `pod-link` over DNS over HTTPS uses it |
+| `Pipe` (`new(resolver, settings, context, dial)`, `ask(message)`, `host`, `connections`) | one connection to one resolver of DNS over HTTPS for DNS messages of the wire form (a GET with `?dns=`): the hello offers `h2` and `http/1.1` (`h2` alone with `Doh::http2`) and the server picks; over HTTP/2 the questions share the connection at the same time, over HTTP/1.1 one after the other; a failure closes it, and a failed question on a kept connection goes once more on a new one; the answer keeps its status and headers (a `429` and its `Retry-After`); the DNS carrier of `pod-link` over DNS over HTTPS uses it |
 | `Kept` (`new`, `len`, `is_empty`, `clear`), `IDLE` | the connection that waits for the next question, one for each host and port of one way out (5 s idle; a `Resolver` owns one, a caller gives one to its `Way` for the dial of that way; `None`: a connection for each question); a kept connection that failed gets one reconnect |
 | `Way::lookup(host, deadline)`, `lookup_with(resolvers, ..)` | the addresses of DNS over HTTPS from the resolvers in turn |
 | `Way::ask(resolver, host, deadline)` | one resolver straight at its address: the addresses and the form, or a `pod_proxy::Missed` with how the connection ended (a doctor's question) |
@@ -223,8 +223,8 @@ and `txt-cut`. Plants: `dns-txt-cut-taken`, `dns-txt-opt-not-sent`,
   two.
 * A pin's host is letters, digits, `.`, `-` and `_` (podnet took any
   text).
-* The question over HTTP/1.1 offers no ALPN (podnet's `fetch` offered
-  `http/1.1`).
+* A question of a lookup over HTTP/1.1 offers no ALPN (podnet's `fetch`
+  offered `http/1.1`). A `Pipe` offers `h2` and `http/1.1`.
 * The word of an IP literal for the observer is `literal` (podnet: `ip`).
 
 ## Adoption map

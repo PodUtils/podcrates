@@ -2,7 +2,8 @@
 //! dialer behind a proxy of HTTP sends each query as a GET of the wire form
 //! to a stand-in resolver on the loopback, over one connection through the
 //! proxy, and the listener of the carrier answers behind the stand-in; over
-//! HTTP/2 and over HTTP/1.1. A `429` of the resolver pauses the queries for
+//! HTTP/2 and over HTTP/1.1. A resolver that is not HTTP/2 alone is asked
+//! over the protocol that it picks (T-1279). A `429` of the resolver pauses the queries for
 //! its `Retry-After`, at most `DnsOverHttps::pause_max`.
 
 #![cfg(feature = "dns")]
@@ -21,18 +22,23 @@ use pod_link::{Carrier, CarrierErrorKind, Link, Listener, Role, Settings};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
 
-/// A link over a stand-in of HTTP/2 or of HTTP/1.1 carries a stream both
-/// ways; the dialer opens one connection, through the proxy.
-async fn a_link_over(http2: bool) {
+/// The ALPN of a stand-in of HTTP/2 and HTTP/1.1, and of one of HTTP/1.1.
+const BOTH: &[&[u8]] = &[b"h2", b"http/1.1"];
+const ONE: &[&[u8]] = &[b"http/1.1"];
+
+/// A link over a stand-in that serves `alpn`, to a resolver of HTTP/2 alone
+/// when `http2`, carries a stream both ways; the dialer opens one
+/// connection, through the proxy, over HTTP/2 when `want_h2`.
+async fn a_link_over(http2: bool, alpn: &[&[u8]], want_h2: bool) {
     let client = id(2);
     let mut listening = carrier(1, &[client.public()]);
     let mut dialing = carrier(2, &[]);
-    if !http2 {
+    if !want_h2 {
         // Over HTTP/1.1 a held poll delays each query after it.
         (listening.dns.hold, dialing.dns.hold) = (Duration::ZERO, Duration::ZERO);
     }
     let mut door = bound(&listening).await;
-    let (port, seen) = stand_in(door.local_addr()).await;
+    let (port, seen) = stand_in(door.local_addr(), alpn).await;
     let proxy = Tunnel::start(([127, 0, 0, 1], port).into()).await;
     let dialing = dialing.with_way(proxy.way()).over_https(over(port, http2));
     let address = at(&id(1).public());
@@ -57,8 +63,11 @@ async fn a_link_over(http2: bool) {
     assert!(back == data, "the bytes came back whole");
     dialer.close().await;
     let requests = seen.requests.lock().unwrap().len();
-    let form = if http2 { "HTTP/2" } else { "HTTP/1.1" };
-    eprintln!("{form}: the dial and 8 KiB each way in {:?}, {requests} requests", started.elapsed());
+    let form = if want_h2 { "HTTP/2" } else { "HTTP/1.1" };
+    let elapsed = started.elapsed();
+    eprintln!("{form} (http2 {http2}): the dial and 8 KiB each way in {elapsed:?}, {requests} requests");
+    let over_h2 = seen.over_h2.load(Ordering::SeqCst);
+    assert_eq!(over_h2, usize::from(want_h2), "the connections over HTTP/2, where {form} is due");
     assert!(requests > 20, "{requests} requests");
     assert_eq!(proxy.tunnels.load(Ordering::SeqCst), 1, "one tunnel through the proxy for {requests} requests");
     assert_eq!(seen.connections.load(Ordering::SeqCst), 1, "one connection for {requests} requests");
@@ -67,8 +76,16 @@ async fn a_link_over(http2: bool) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_link_over_dns_over_https_through_a_proxy_carries_streams() {
     pod_testkit::need_loopback!();
-    a_link_over(true).await;
-    a_link_over(false).await;
+    a_link_over(true, BOTH, true).await;
+    a_link_over(false, ONE, false).await;
+}
+
+/// A resolver that serves HTTP/2 and HTTP/1.1 is asked over HTTP/2, so that
+/// a poll that the listener holds does not delay a query up.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_resolver_that_picks_http2_shares_the_connection() {
+    pod_testkit::need_loopback!();
+    a_link_over(false, BOTH, true).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -76,7 +93,7 @@ async fn a_429_pauses_the_queries_for_its_retry_after() {
     pod_testkit::need_loopback!();
     let client = id(2);
     let mut door = bound(&carrier(1, &[client.public()])).await;
-    let (port, seen) = stand_in(door.local_addr()).await;
+    let (port, seen) = stand_in(door.local_addr(), BOTH).await;
     let proxy = Tunnel::start(([127, 0, 0, 1], port).into()).await;
     let mut doh = over(port, true);
     doh.pause_max = Duration::from_millis(1500);

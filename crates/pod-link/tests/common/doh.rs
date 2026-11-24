@@ -1,6 +1,6 @@
 //! A stand-in resolver of DNS over HTTPS on the loopback, with the listener
 //! of the DNS carrier behind it: it takes each GET of the wire form of RFC
-//! 8484 (`?dns=`), over HTTP/2 or HTTP/1.1 by the ALPN of the client, sends
+//! 8484 (`?dns=`), over HTTP/2 or HTTP/1.1 by the ALPN that it chose, sends
 //! the query over UDP to the listener and gives its answer. It counts its
 //! connections, keeps the time of each request, and answers the next
 //! requests with `429` when the test says so.
@@ -27,6 +27,8 @@ pub const PATH: &str = "/dns-query";
 pub struct Seen {
     /// The connections that it accepted.
     pub connections: AtomicUsize,
+    /// The connections that took HTTP/2.
+    pub over_h2: AtomicUsize,
     /// The time of each request, and whether it got a `429`.
     pub requests: Mutex<Vec<(Instant, bool)>>,
     /// The next answers of `429`, each with its `Retry-After` when given.
@@ -34,12 +36,13 @@ pub struct Seen {
 }
 
 /// A stand-in at a free port of the loopback, before the listener of the
-/// carrier at `listener`.
-pub async fn stand_in(listener: SocketAddr) -> (u16, Arc<Seen>) {
+/// carrier at `listener`, that serves the protocols of `alpn` (HTTP/1.1
+/// where the client offers none of them).
+pub async fn stand_in(listener: SocketAddr, alpn: &[&[u8]]) -> (u16, Arc<Seen>) {
     let tcp = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = tcp.local_addr().unwrap().port();
     let seen = Arc::new(Seen::default());
-    let acceptor = acceptor_offering(&[b"h2", b"http/1.1"]);
+    let acceptor = acceptor_offering(alpn);
     let state = seen.clone();
     tokio::spawn(async move {
         while let Ok((stream, _)) = tcp.accept().await {
@@ -48,6 +51,7 @@ pub async fn stand_in(listener: SocketAddr) -> (u16, Arc<Seen>) {
             tokio::spawn(async move {
                 let Ok(tls) = acceptor.accept(stream).await else { return };
                 if tls.get_ref().1.alpn_protocol() == Some(b"h2") {
+                    state.over_h2.fetch_add(1, Ordering::SeqCst);
                     serve_h2(tls, listener, state).await;
                 } else {
                     serve_one(tls, listener, state).await;
@@ -59,7 +63,7 @@ pub async fn stand_in(listener: SocketAddr) -> (u16, Arc<Seen>) {
 }
 
 /// The queries of a dialer to the stand-in at `port`, by the name
-/// `localhost` of its certificate, over HTTP/2 when `http2`.
+/// `localhost` of its certificate, over HTTP/2 alone when `http2`.
 pub fn over(port: u16, http2: bool) -> DnsOverHttps {
     let resolver = Doh::new([127, 0, 0, 1].into(), "localhost").port(port).wire(PATH).http2(http2);
     let context = pod_tls::Context::new(provider(), pod_tls::Settings::new(pod_tls::Words::new("pod-link")));

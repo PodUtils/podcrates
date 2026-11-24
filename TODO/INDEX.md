@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**981 entries: 159 open, 31 partial, 7 blocked, 784 done.**
+**981 entries: 158 open, 31 partial, 7 blocked, 785 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 229 | 243 |
 | P2 | 71 | 10 | 4 | 410 | 495 |
-| P3 | 84 | 11 | 3 | 143 | 241 |
-| **All** | 159 | 31 | 7 | 784 | 981 |
+| P3 | 83 | 11 | 3 | 144 | 241 |
+| **All** | 158 | 31 | 7 | 785 | 981 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1017,7 +1017,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1255](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: the umask of the process cuts the mode of a directory that an entry below it makes |
 | [T-1269](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: `flatten` fails with `Unsupported` for a hard link to an inode that no name of the stream holds after a second entry of its path in one layer |
 | [T-1270](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: `flatten` drops the extended attributes of a hard-link entry, which `extract` sets on the inode |
-| [T-1279](relay.md) | P3 | S | M2 | defect | open | `pod-dns`: a `Pipe` asks Cloudflare and Google over HTTP/1.1, so the queries of the DNS carrier over DoH go one at a time behind a held poll |
+| [T-1279](relay.md) | P3 | S | M2 | defect | done | `pod-dns`: a `Pipe` asks Cloudflare and Google over HTTP/1.1, so the queries of the DNS carrier over DoH go one at a time behind a held poll |
 | [T-1295](upkeep.md) | P1 | S | M6 | defect | done | `pod-extract`: `flatten` tests fail for a user that is not root: GNU tar cannot open `usr/bin/sh`, and `walk` cannot read a directory with no search mode |
 | [T-1296](upkeep.md) | P2 | S | M6 | defect | partial | `pod-enter`: the two title tests of the init and the relay fail under qemu-user on each emulated job (the nightly at `f39b8e2`) |
 | [T-1297](upkeep.md) | P2 | S | M2 | defect | partial | `pod-link`: `dns_hold` gives a hold that is longer than its query timeout under an emulator, and `a_server_that_never_answers_a_command_is_the_named_timeout` of `mail` ends with no error on arm |

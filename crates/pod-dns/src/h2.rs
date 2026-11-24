@@ -21,6 +21,14 @@ pub fn config_h2(config: &Arc<ClientConfig>) -> Arc<ClientConfig> {
     Arc::new(config)
 }
 
+/// `config` offering `h2` and then `http/1.1`, so that the server picks:
+/// HTTP/2 lets the questions share the connection at the same time.
+pub(crate) fn config_h2_or_1(config: &Arc<ClientConfig>) -> Arc<ClientConfig> {
+    let mut config = (**config).clone();
+    config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+    Arc::new(config)
+}
+
 /// TLS for `name` (a resolver's address, or its name through a proxy) with
 /// ALPN `h2` over `stream`, then one GET of `target`. A failed handshake has
 /// the `words` of the consumer.
@@ -96,6 +104,14 @@ where
     if tls.get_ref().1.alpn_protocol() != Some(b"h2") {
         return Err(Missed::words("the resolver did not take HTTP/2"));
     }
+    handshake(tls).await
+}
+
+/// The HTTP/2 handshake over `tls`, after a TLS handshake that chose `h2`.
+pub(crate) async fn handshake<S>(tls: S) -> Result<H2, Missed>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
     let (client, connection) = h2::client::handshake(tls).await.map_err(|e| Missed::words(format!("HTTP/2: {e}")))?;
     let driver = tokio::spawn(async move {
         let _ = connection.await;
@@ -167,14 +183,18 @@ pub(crate) async fn send(
 mod tests {
     use super::*;
 
-    /// The configuration offers `h2` alone, and the caller's is unchanged.
+    /// The configurations offer `h2` alone, or `h2` then `http/1.1`, and the
+    /// caller's is unchanged.
     #[test]
-    fn only_h2_is_offered() {
+    fn h2_alone_or_h2_then_http_1_1_is_offered() {
         let provider = Arc::new(rustls::crypto::ring::default_provider());
         let context = pod_tls::Context::new(provider, pod_tls::Settings::new(Words::new("podssh")));
         let config = context.config_for(&pod_tls::Trust::Default).unwrap();
         let h2 = config_h2(&config);
         assert_eq!(h2.alpn_protocols, vec![b"h2".to_vec()]);
+        assert!(config.alpn_protocols.is_empty());
+        let both = config_h2_or_1(&config);
+        assert_eq!(both.alpn_protocols, vec![b"h2".to_vec(), b"http/1.1".to_vec()]);
         assert!(config.alpn_protocols.is_empty());
     }
 }
