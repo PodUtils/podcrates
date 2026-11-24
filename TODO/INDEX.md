@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**942 entries: 167 open, 28 partial, 7 blocked, 740 done.**
+**948 entries: 173 open, 28 partial, 7 blocked, 740 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 6 | 10 | 0 | 223 | 239 |
-| P2 | 74 | 8 | 4 | 384 | 470 |
+| P2 | 80 | 8 | 4 | 384 | 476 |
 | P3 | 87 | 10 | 3 | 131 | 231 |
-| **All** | 167 | 28 | 7 | 740 | 942 |
+| **All** | 173 | 28 | 7 | 740 | 948 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -989,3 +989,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1180](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `aab63e5` (the third port of `source-driver.md`) |
 | [T-1181](fleet.md) | P1 | S | M0 | chore | done | `pod-unit`: the words of the forms at podssh `ea4c290` (port review of `text.rs`) |
 | [T-1182](fleet.md) | P2 | S | M0 | feature | open | `pod-unit`: the name of a unit has at most 64 characters, so podssh's longer node names are refused at `--install` |
+| [T-1191](transport.md) | P2 | M | M1 | feature | open | `pod-term`: `modes::Modes`, a sans-IO tracker of the modes of a terminal's output with `restore` (PodUtils/podssh#350) |
+| [T-1192](transport.md) | P2 | M | M1 | feature | open | `pod-term`: `Ring::modes_at`, the modes that the stream set before an offset, with an oracle test on the captures of vim, less and top (PodUtils/podssh#350) |
+| [T-1193](podvm.md) | P2 | L | M6 | feature | open | `pod-extract`: `flatten`, the final tree of the layers of an image as one tar stream with no tree on the disk (PodUtils/podvm#657) |
+| [T-1194](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: `flatten` keeps the hard links across layers, with the target before the link (PodUtils/podvm#657) |
+| [T-1195](podvm.md) | P2 | M | M6 | feature | open | `pod-extract`: `flatten` keeps the PAX records of the image, and takes a prefix and the entries of the caller (PodUtils/podvm#657) |
+| [T-1196](podvm.md) | P2 | M | M6 | feature | open | `pod-gzip`: a writer of gzip members, one member for each block, by up to eight threads, with the same bytes for any count of threads (PodUtils/podvm#657) |

@@ -13,7 +13,8 @@ is done. Git and the record keep finished work.
    (`docs/maintenance.md`, "The issue loop"). Read the open COORD issues
    `(to podcrates)` of each repository of PodUtils. Each one maps to an
    entry (PodUtils/podvm#570, COORD-183, maps to T-1162; PodUtils/podssh#349,
-   COORD-139, maps to T-1164 to T-1169). Map each new one
+   COORD-139, maps to T-1164 to T-1169; PodUtils/podssh#350, COORD-140, maps to
+   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196). Map each new one
    in the same commit.
 2. Coordinate the five sessions by COORD issues alone (the rulings
    "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),

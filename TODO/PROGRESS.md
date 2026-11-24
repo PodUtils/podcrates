@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 942 entries: 167 open, 28 partial, 7 blocked, 740 done.
+`TODO/INDEX.md` holds 948 entries: 173 open, 28 partial, 7 blocked, 740 done.
 
 ## State
 
@@ -103,7 +103,10 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
 - podvm: T-1155, T-1156, T-1157 and T-1158 (`pod-incus`: the exit code of an
   exec that ends with 126 or 127, a bound of each answer, the answer after
   a failed write, and the work-arounds that podvm then removes;
-  PodUtils/podvm#653); T-1143 (podvm matches `ErrorKind::TooLarge`); T-1087
+  PodUtils/podvm#653); T-1193 to T-1196 (`pod-extract`: `flatten`, the layers of an
+  image as one tar stream with no tree, its hard links, its PAX records and the
+  entries of the caller; `pod-gzip`, a writer of gzip members; PodUtils/podvm#657);
+  T-1143 (podvm matches `ErrorKind::TooLarge`); T-1087
   and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU
   sparse file, the attributes of libarchive alone; PodUtils/podvm#643);
   T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602, for the
@@ -119,7 +122,10 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   does not hold a slot 20 s; PodUtils/podssh#349, COORD-139), T-1170 (the DNS listener keeps the case
   of the question), T-1171 (a late query of an ended session starts no
   handshake), then T-1166 to T-1169 (the same issue: a held poll, a
-  carrier with no TLS, DNS over HTTPS, a test through `unbound`); T-1144 (the sans-IO transfer codec of `pod-term` for a pty that
+  carrier with no TLS, DNS over HTTPS, a test through `unbound`); T-1191 and T-1192
+  (`pod-term`: the modes of a terminal's output and the modes at an offset of a
+  `Ring`, for the kept shells of `podssh serve`; PodUtils/podssh#350, COORD-140);
+  T-1144 (the sans-IO transfer codec of `pod-term` for a pty that
   damages ZMODEM; PodUtils/podssh#346, #258); T-1103 (iroh 1.5 and its fork
   of iroh-relay, after PodUtils/podssh#341); T-1095 (the order of the
   pseudo-fields of the HTTP/2 request of `pod-ws`; PodUtils/podssh#340);

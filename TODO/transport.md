@@ -7963,3 +7963,87 @@ cargo test -p pod-tls --all-features --lib hint::tests
 ## Done
 
 2026-11-24, 67980e7. `pod_tls::plain_cert_names` writes `DnsName("a")`, `IpAddress(a)` and `UniformResourceIdentifier("a")` as `a`; `handshake_failure` uses it, and `handshake_error` gives its cause the plain words with the same kind, so the chain says the cause once. Test: `crates/pod-tls/src/hint.rs::the_names_of_a_certificate_are_plain` (before the fix the text held `DnsName("default.domain")`). `sh scripts/agent/check.sh`: each step 0.
+
+# T-1191: `pod-term`: `modes::Modes`, a sans-IO tracker of the modes of a terminal's output with `restore` (PodUtils/podssh#350)
+
+**Source:** PodUtils/podssh#350 (COORD-140 of podssh; PodUtils/podssh@T-161, PodUtils/podssh@T-159 and PodUtils/podssh@T-833), ask 1. Related: T-1144 (the transfer codec of the same crate).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podssh serve` keeps a shell and its output. A client with a new terminal gets, in this order, the modes in effect at the first byte of its replay, the replay, and a redraw. `pod-term` keeps the bytes (`grammar::Ring`) and finds where a cut is clean (`grammar::Tracker`), but it reads no mode. Without the modes, a client that attaches while vim runs gets the screen of the program with a terminal in the wrong mode: no alternate screen, no mouse reports, no bracketed paste, a hidden or shown cursor that is wrong. The ruling "Shared code first" puts the tracker in `pod-term`, not in podssh.
+
+The ask, in the words that the design needs: `pod_term::modes::Modes` (Clone, Debug, Default, PartialEq), with no I/O: `Modes::new()`, `feed(&mut self, chunk: &[u8])`, `restore(&self) -> Vec<u8>`.
+
+- `feed` reads the DEC private modes 1 (cursor keys), 6 (origin), 7 (autowrap), 25 (cursor shown), 47, 1047 and 1049 (the alternate screen), 1000, 1002 and 1003 (mouse reports), 1004 (focus), 1005, 1006 and 1015 (mouse encodings) and 2004 (bracketed paste); several parameters in one CSI (`CSI ? 1 ; 2004 h`); a sequence split across two chunks; the keypad (`ESC =`, `ESC >`); the G0 set (`ESC ( 0`, `ESC ( B`); and RIS (`ESC c`) as each mode at its default.
+- `restore` writes each mode that it reads, set or reset, so that a terminal in any state ends in this one: the reset of the alternate screen is `CSI ? 47 l` (no cursor restored), its set is `CSI ? 1049 h`, and the resets of the mouse come before its set.
+
+## Premise
+
+- Read: PodUtils/podssh#350; `crates/pod-term/src/grammar.rs` (the `Tracker` and its private `next`, the DEC parser states that the crate follows; `ESC`, CAN and SUB act in each state); `crates/pod-term/src/grammar/ring.rs`; `crates/pod-term/README.md`; the `decset` and `decrst` of vt100 0.18.1, the model of `crates/pod-testkit/src/screen.rs`.
+- Read: vt100 0.18.1 reads the modes 1, 6, 9, 25, 47, 1000, 1002, 1003, 1005, 1006, 1049 and 2004 only. It does not read 7, 1004, 1015 and 1047, nor the G0 set, and it gives no accessor for the origin mode. It holds one mouse level and one encoding: a set replaces, and a reset changes the value only when the reset names it.
+- Not read: the source of xterm for the mouse levels (the same replace rule?) and for the list of DECSTR (`CSI ! p`, which `tput reset` sends). Not measured: the bytes of `restore` on tmux.
+- Not read: `modes_before` of `PodUtils/podssh:crates/podssh-ssh/src/server/kept_screen.rs` (a draft that builds only with the tag).
+
+## Approach
+
+A module `modes` of `pod-term` (a file for the code and a file for its tests, each under 500 lines). It has no dependency.
+
+1. One reader of the grammar. `Modes` takes the state machine of `grammar::next` (made `pub(crate)`), so that the crate has one parser of ECMA-48. It adds a bounded buffer of the bytes of a CSI (a CSI past 64 bytes is dropped whole) and the `ESC (` designation. A string (OSC, DCS, SOS, PM, APC) holds no mode: its text `?1049h` changes nothing, and an `ESC` in it starts a new sequence, as in a terminal. A split across chunks needs no extra code: the state lives in the value.
+2. The reading. `CSI ? Pm h` and `CSI ? Pm l` with parameters split by `;`; a CSI with another marker (`<`, `=`, `>`) or an intermediate byte is not a mode; a parameter past `u16` or a mode that is not in the list is skipped and the others in the same CSI count. The mouse level (1000, 1002, 1003) is one value, last set wins, and a reset of a level that is not the current one changes nothing; the encodings (1005, 1006, 1015) are three flags. The alternate screen is one flag for 47, 1047 and 1049. `ESC =` and `ESC >` set and clear the keypad. `ESC ( 0` and `ESC ( B` set G0; another final byte after `ESC (` changes nothing. `ESC c` gives `Modes::default()`: cursor keys, origin, focus, mouse, paste and keypad off, alternate screen off, G0 ASCII, autowrap and cursor shown on. DECSTR is read only with the list that the xterm text and tmux agree on (measure first); else the rustdoc names it as not read.
+3. `restore`. One fixed order, so that equal modes give equal bytes: the alternate screen (`CSI ? 47 l` or `CSI ? 1049 h`), the mouse resets (`1000`, `1002`, `1003`, `1005`, `1006`, `1015`), then the mouse set, then the keypad, G0, 1, 6, 7, 25, 1004 and 2004, each as `h` or `l`. The rustdoc says that `CSI ? 6 h` homes the cursor in a terminal, so the caller redraws after it, and that the cursor style, the scroll region, the tab stops, the attributes and G1 (`SO`, `SI`) are not modes of this type.
+4. `PartialEq` compares the modes only, not the state of the parser. `Default` is `new()`.
+5. Tests, in the crate: each mode, set and reset, alone and as the second parameter; the defaults; RIS; a property test that each split of a stream gives the same `Modes` as the whole (the splitting of `tests/grammar_boundary.rs`); a string that holds `?1049h` changes nothing; CAN and SUB end a CSI; the reading of a second parser (`anstyle-parse`, as `tests/grammar_boundary.rs`) for the modes that vt100 does not read; `restore` of the default is the same terminal as a new one; each byte of `restore` is 7-bit and the output is under 256 bytes. A plant for the rule "a reset of the alternate screen is `?47 l`".
+6. `crates/pod-term/README.md` gets the row of `modes` in its API table and its adoption map (podssh `modes_before`).
+
+The oracle test of the real captures is T-1192.
+
+## Prove
+
+```sh
+cargo test -p pod-term --all-features modes
+cargo clippy -p pod-term --all-targets --all-features -- -D warnings
+```
+
+# T-1192: `pod-term`: `Ring::modes_at`, the modes that the stream set before an offset, with an oracle test on the captures of vim, less and top (PodUtils/podssh#350)
+
+**Source:** PodUtils/podssh#350 (COORD-140 of podssh), ask 2 and its test. Needs T-1191.
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The kept shell of `podssh serve` sends a new client `restore()` of the modes at the first byte of its replay (`Ring::start()`), but the ring drops its oldest bytes: the modes of the dropped bytes are lost. The ask: `Ring::modes_at(&self, at: u64) -> Option<Modes>`, the modes that the stream set before the offset `at`, for `start() <= at <= end()`, and `None` outside. The ring keeps one `Modes` of the bytes that it drops, so the cost is one `Modes` for each ring.
+
+The test of the ask: the oracle (`pod-testkit`, `screen`) reads `restore()` of `modes_at(start)` and then the kept bytes, and shows the modes of a terminal that read the whole stream, for a cut at each offset of captures of vim, less and top.
+
+## Premise
+
+- Read: PodUtils/podssh#350; `crates/pod-term/src/grammar/ring.rs` (`trim` drops bytes up to the first mark, so `first` is `start()` whenever a mark exists; with no mark the ring holds bytes and gives none); `crates/pod-term/tests/grammar_boundary.rs` and the fixtures `less.bin`, `top.bin`, `vi.bin`, `vi-pty.bin`, `prompt.bin` (captures of the programs that the ask names, one of each); `crates/pod-testkit/src/screen.rs` (`Screen` has `alternate()` and no other accessor of the input modes).
+- Read: vt100 0.18.1 gives `application_cursor`, `application_keypad`, `hide_cursor`, `bracketed_paste`, `mouse_protocol_mode`, `mouse_protocol_encoding` and `alternate_screen`. It does not read the modes 7, 1004, 1015 and 1047 and the G0 set.
+- Not measured: the time of `modes_at` at the capacity that podssh uses (it feeds at most the held bytes, once for each attach).
+- A broken sequence (`Tracker`, `BROKEN_AFTER`) ends at a restart boundary. `Modes` has no clock and keeps reading as a terminal does, which waits with no limit. So at a restart boundary `modes_at` can differ from a terminal that started there. Not measured; the rustdoc names it.
+
+## Approach
+
+1. `Ring` gets a field `dropped: Modes`, the modes of the bytes before `first`. `trim` feeds each byte that it drains into `dropped` (the two slices of the `VecDeque`) before the drain. `Clone` of the ring clones it.
+2. `modes_at(at)`: `None` unless `start()` is `Some(s)` with `s <= at <= end()`. Else it clones `dropped`, feeds the held bytes from `first` to `at`, and gives the result. The cost is at most one pass over the held bytes. The rustdoc says that `at` is a boundary: `start()`, a mark, or `end()`. A caller that gives another offset gets the modes at a point inside a sequence.
+3. `pod-testkit` (`Screen`): `Screen::modes()` gives a plain struct of what vt100 shows (the seven items above), with `PartialEq` and `Debug`. This is one more reader of the model, not a second model.
+4. The oracle test, the file `tests/modes.rs` of the crate: for each capture, for the cuts of `grammar_boundary.rs` (each offset, or 4096 spread over a long capture), with chunks of 61 bytes: terminal A reads the whole stream; terminal B is new, reads `restore()` of `modes_at(at)` of a ring that holds the whole stream, then the stream from `at`; `Screen::modes()` of A and B are equal. A second pair of readers (`anstyle-parse`) checks the modes that vt100 does not read: 7, 1004, 1015, 1047 and G0 (the captures hold some of them; a small synthetic stream holds the rest).
+5. The same with a ring of a small capacity (the ring drops bytes): `modes_at(start())` and the kept bytes give the same modes as the whole stream; and for each `at` in `start()..=end()` at a boundary, `modes_at(at)` equals a `Modes` fed with `stream[..at]`. Out of range and no start give `None`. A plant: `trim` that does not feed `dropped` fails the test.
+6. The README of `pod-term` gets `Ring::modes_at` in its table. The hand-off COORD issue `(to podssh)` names the tag that carries T-1191 and T-1192.
+
+## Prove
+
+```sh
+cargo test -p pod-term --all-features
+cargo test -p pod-testkit --all-features
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+```

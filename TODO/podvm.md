@@ -13798,3 +13798,164 @@ cargo test -p pod-incus --all-features
 
 T-1155, T-1156 and T-1157 are done and a tag holds them. The coordinator
 answers PodUtils/podvm#653 with the tag, and podvm takes it.
+
+# T-1193: `pod-extract`: `flatten`, the final tree of the layers of an image as one tar stream with no tree on the disk (PodUtils/podvm#657)
+
+**Source:** PodUtils/podvm#657 (COORD-241 of podvm; PodUtils/podvm@T-2085; PodUtils/podrunner#347, ask 1), ask 1, items 1, 5 and 6.
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+podvm imports an image into incus. It extracts the tree into its store, then streams a unified tarball of the tree to incusd. For an image of 85 layers (17.0 GB of blobs, a tree of 57 GB) three copies of the tree stand on one file system: the tree in the store, the upload that incusd keeps, and the image volume of the pool. podrunner builds images and can need the same.
+
+The ask: a function that reads the layers of an image (the input of `pod_extract::extract`: each blob with its digest and media type, in order) and writes one tar stream of the final tree to a `Write`, with no tree on the disk. Item 1: the rules of `pod-extract` for the result: the whiteouts on the basename (`.wh.NAME`, `.wh..wh..opq`, also at the root of a layer), the last writer of a path wins, a file replaced by a directory and back, the containment of each path (no `..`, no absolute path, no NUL; no entry through a symlink that a layer made), the symlink targets as stored. Item 5: one pass over the blobs if possible (the layers in reverse order, the paths seen as a set), else two (the headers first); a second read of 17 GB of gzip takes minutes. Item 6: a test that compares the stream with `pod_extract::extract` of the same layers: whiteouts, opaque directories, a file replaced by a directory and back, hard links across layers, a symlink, modes and attributes. The hard links (T-1194), the PAX records and the entries of the caller (T-1195) are the other items.
+
+`pod_extract::extract` writes a tree and reads each layer twice: `remove::collect` reads the whiteouts, then `apply::apply_layer` reads the entries, each pass with the digest check. The crate has no tar writer and no flatten.
+
+## Premise
+
+- Read: PodUtils/podvm#657; `crates/pod-extract/README.md` (the seven rules, the API table); `crates/pod-extract/src/lib.rs` (`Layer`, `extract`); `crates/pod-extract/src/apply.rs` (the order: the whiteouts of a layer first, then its entries; the mode of a directory is that of the last layer that names it); `crates/pod-extract/src/layer.rs` (`open_hashed`); `crates/pod-extract/src/pax.rs` (`Framed`, `Side`, `Member`); `crates/pod-extract/src/safety.rs` and `crates/pod-extract/src/whiteout.rs` (the lexical rules); `crates/pod-extract/Cargo.toml` (`tar` 0.4 is a dependency; its `Builder` and `Header` can write).
+- Read: `crates/pod-incus/README.md`: `ImageData::Unified` takes a `Payload` with a length or none, so a stream of unknown length can go to incusd.
+- Not measured: the count of paths of an image of 57 GB (the memory of the set of paths); the speed of one pass; whether the unpacker of incusd takes a directory entry after its children (a pass over the layers from the newest gives that order).
+- Not read: the unpack of incusd (lxc/incus `shared/archive`).
+
+## Approach
+
+A module `flatten` of `pod-extract` (Linux only, as the crate; no system call: the module opens no tree). It reuses `layer::open_hashed`, `pax`, `safety::components`, `safety::rebase_symlink_target` and `whiteout::classify`, so that no rule has a second copy.
+
+1. API: `flatten(layers: &[Layer], out: &mut W, options: &Options) -> Result<Flattened>` with `W: Write`, the same `Layer` as `extract`, and `Flattened` (the entries written, the entries hidden, the whiteouts, the bytes, the layers). `Options` holds the `Report` of the events (`flatten.layer`, the text of `LAYER_EVENT`) and, with T-1195, the prefix and the entries of the caller. The failures are the same `pod_core::Failure` with the same causes (`Refused`, `Mismatch`).
+2. The model of the tree: a trie of the paths seen. A node holds the newest layer that names the path and its kind, the newest layer that whiteouts it, and the newest layer that makes it opaque. An entry of layer `i` at `P` is hidden when, for `P` or an ancestor `A`: a later layer whiteouts `A`; a later layer makes `A` opaque (and `A` is not `P`); a later layer has a non-directory at `A`; or a later layer has a non-directory or a directory at `P` itself (the last writer wins; two directories merge, so the older directory entry is hidden and the newest gives the mode, the owner and the attributes). A whiteout of layer `j` hides the paths of the layers before `j` only: the same layer can remove a path and make it again.
+3. The order, with the gate. Option A, one pass: the layers from the newest, the entries of a layer in their order, each visible entry written as it is read, with its data. A directory entry then follows its children, and a layer that wrote under a symlink of an older layer is found when the older layer is read (the node of the symlink has a newest writer after it). Option B, two passes: the first pass reads the headers of each layer from the newest and keeps the winning entries (a header and its place, no data); the second pass reads each layer from the oldest and writes the winning entries of it, a directory at the place of its oldest entry with the metadata of its newest. The stream then has each parent before its children. The first step of the work measures whether the unpacker of incusd (and GNU tar, bsdtar and Go `archive/tar`) takes a directory entry after its children, with its mode and owner kept. Option A when each takes it; else option B, and the entry records the minutes of its second read.
+4. The containment and the owners: each path is checked as `extract` checks it (no `..`, no absolute path, no NUL, at most `MAX_DEPTH` components). A path through a symlink that an older layer made is refused as `extract` refuses it: whole layer, `Refusal::Escapes`. Each symlink target is written as stored. The owners and the modes are those of the image, never those of the caller. A device, a FIFO and the other kinds are skipped and counted as `extract` counts them.
+5. The digest of each blob is checked while it is read, in each pass, as `open_hashed` does; a blob that does not agree fails the stream with `Mismatch`. The stream that has begun is then broken: the error says so, and the caller discards the upload.
+6. Tests: the test file `tests/flatten.rs` of the crate builds layers with the `tar` crate and compares `flatten` read by the `tar` reader with the tree of `extract` of the same layers (path, kind, mode, owner, symlink target, content): whiteouts at the root of a layer and below it, an opaque directory, a file replaced by a directory and back, a directory replaced by a symlink, a symlink that a layer made and a later entry through it (refused), a path with `..`, the same layer that removes and makes a path, two gzip members in one blob, a plain blob, a zstd blob, a digest that does not agree. A property test on random layers (a small alphabet of names and kinds) compares the two. A plant: an unhidden path of a removed directory fails the comparison.
+7. `crates/pod-extract/README.md` gets `flatten` in its table. `docs/design.md`, section 4, names it in the row of `pod-extract`.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features flatten
+cargo clippy -p pod-extract --all-targets --all-features -- -D warnings
+```
+
+# T-1194: `pod-extract`: `flatten` keeps the hard links across layers, with the target before the link (PodUtils/podvm#657)
+
+**Source:** PodUtils/podvm#657 (COORD-241 of podvm), ask 1, item 2. Needs T-1193.
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The ask, item 2: "The hard links: a link to a file of an earlier layer, and a link whose target a later layer replaced or removed (the link keeps the old bytes). The tar must name the target before the link, or give the link as a regular file."
+
+`extract` makes a hard link with `linkat` in the tree, in the layer that holds the link: the target is the path in the tree at that time, and the link keeps the inode when a later layer replaces or removes the target path (`crates/pod-extract/src/apply.rs`, the handling of a hard link and the links whose target comes later in the same layer). A stream that hides the target of an older layer because a newer layer replaced it loses the bytes that the link needs. In a pass over the layers from the newest, the link comes before its target.
+
+## Premise
+
+- Read: PodUtils/podvm#657; `crates/pod-extract/src/apply.rs` (`hardlinks`, `link_name`, the links whose target comes later in the layer: `crates/pod-extract/src/apply_later.rs`); `crates/pod-extract/README.md` (rule 7: "Hard links resolve in the destination").
+- Not read: how the unpackers of incusd handle a link to a name that the stream names once as a regular file.
+- Not measured: the count of hard links in a real image (the memory of the pending list).
+
+## Approach
+
+In the `flatten` of T-1193. A link entry is a name of an inode; the inode is the entry of its target at the layer of the link (the newest entry of the target path in the layers up to and including the link's layer, hardlink chains followed).
+
+1. Each link is found at its layer, and its target is resolved as of that layer: the node of the trie keeps, for a path, the entries of each layer that names it (the layer numbers only), so that the lookup "the newest entry of `T` in layers up to `j`" works.
+2. The inode is written once, at its first name in the stream that is visible: the name of the target path when it is visible, else the first visible link name, as a regular file with the data. Each other visible name is a hard-link entry that names the first name. A link entry follows its target in the stream (option A of T-1193: the link entries wait in a list by target, and go out after the data of the target is read, with the headers only in memory; option B: the winning entries order them).
+3. A target that is hidden and has no visible link is not written. A link whose target is not in an older layer or the same layer is refused as `extract` refuses it. A link that names a path outside the tree is refused with the refusal that `extract` gives.
+4. A link and its target in the same layer, the target hidden by a later layer and the link visible: the data of the target went by when it was read. The pass keeps the data of such a file in a spool file of a directory that the caller names (removed at the end) or, if `Options` has none, refuses with the cause that names it. The test of the premise on a real image decides if the spool is needed: the count and the bytes are in `Flattened`.
+5. The metadata of the inode (mode, owner, attributes) are those of the entry that holds the data.
+6. Tests in the test file `tests/flatten.rs` of the crate, each against `extract` of the same layers (the tree compared by inode: two names of one inode in both): a link to a file of an older layer; a link whose target a later layer replaced by a file, by a directory and removed; a chain (a link to a link); a link and its target in one layer; a link whose target comes after it in the layer; a link to a missing target; a link out of the tree; two links to one hidden target.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features flatten
+cargo clippy -p pod-extract --all-targets --all-features -- -D warnings
+```
+
+# T-1195: `pod-extract`: `flatten` keeps the PAX records of the image, and takes a prefix and the entries of the caller (PodUtils/podvm#657)
+
+**Source:** PodUtils/podvm#657 (COORD-241 of podvm), ask 1, items 3 and 4. Needs T-1193.
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The ask, item 3: "The PAX records that pod-extract keeps: `SCHILY.xattr.*`, the ACLs (`SCHILY.acl.*`, as records for the reader of the tar), `path`, `linkpath`; the owners and modes of the image (not of the caller); the digest of each blob checked while it is read." Item 4: "A hook for the caller's own entries (podvm adds `/.podvm/podvm` and a `metadata.yaml` of incus), or a writer that the caller can append to."
+
+An unified tarball of incus holds `metadata.yaml` and the tree under `rootfs/`. So the stream needs a prefix for each path, and a way for the caller to add entries before and after the tree.
+
+## Premise
+
+- Read: PodUtils/podvm#657; `crates/pod-extract/src/pax.rs` (`Member`, `records`: the classes of the PAX records; `xattrs` holds the `SCHILY.xattr.` and `SCHILY.acl.` records); `crates/pod-extract/src/xattr.rs` (`read`: the bounds `NAME_MAX`, `VALUE_MAX`, `NAMES_MAX`, `VALUES_MAX`, `RECORDS_MAX`, and the binary form of an ACL); `crates/pod-extract/src/acl.rs` (`to_xattr`: text to the binary form); `crates/pod-incus/README.md` (the unified tarball).
+- `extract` converts an ACL text to `system.posix_acl_access` because it sets it on the tree. A tar needs the records that its reader reads: GNU tar and bsdtar read `SCHILY.acl.access` and `SCHILY.xattr.system.posix_acl_access` in their own ways.
+- Not read: which records the unpack of incusd reads (`--xattrs`, `--acls`). Not measured: the size of the PAX headers of an image with many attributes.
+
+## Approach
+
+In the `flatten` of T-1193.
+
+1. The records: for each visible entry, `SCHILY.xattr.NAME` for each attribute that `xattr::read` keeps, inside the same bounds, with the same refusals and the same count of those that it names (`Flattened.xattrs`), with `path` and `linkpath` where a name is past 100 bytes or not ASCII. An ACL that the entry holds in text is written as the text record that it read, and an ACL that it holds in the binary form is written as `SCHILY.xattr.system.posix_acl_access`; the first step of the work reads the unpack of incusd to decide, and the test names the choice. The marks of overlayfs (`trusted.overlay.`, `user.overlay.`) are named and not written, as `extract` does not set them. The other records (`mtime`, `uname`, `LIBARCHIVE.`) are dropped as `extract` drops them.
+2. The owners and the modes: the ids and the permission bits of the image, with the mode bits that `extract` keeps (setuid, setgid, sticky). The time of each entry is the time of the image, or 0 where the image has none, so that the stream does not depend on the clock of the caller.
+3. The place: `Options::prefix` (a path, for example `rootfs/`; it must pass the lexical check) goes before each path of the image, and the entry of the prefix directory is written first, with the mode that the caller gives.
+4. The entries of the caller: `Options::before` and `Options::after` take a closure that gets a `Builder` over the same writer (`tar::Builder` or a small wrapper), so that the caller writes `metadata.yaml` before the tree and `/.podvm/podvm` after it. An entry of the caller at a path of the image is refused with a name, not merged. The end blocks of the tar are written once, by `flatten`, after `after`; a flag leaves them out for a caller that appends more.
+5. Tests in the test file `tests/flatten.rs` of the crate: a file with `security.capability` and a `user.` attribute, both read by the `tar` crate from the stream; an ACL in each form; a name past 100 bytes and a non-ASCII name; an attribute past a bound is named and not written; the prefix and the entries of the caller before and after (the order, the end blocks once); the same layers give the same bytes on two runs with a different clock.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features flatten
+cargo clippy -p pod-extract --all-targets --all-features -- -D warnings
+```
+
+# T-1196: `pod-gzip`: a writer of gzip members, one member for each block, by up to eight threads, with the same bytes for any count of threads (PodUtils/podvm#657)
+
+**Source:** PodUtils/podvm#657 (COORD-241 of podvm; PodUtils/podvm@T-2085 and PodUtils/podvm@T-2081; PodUtils/podrunner#347), ask 2.
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm uploads the unified tarball to incusd as gzip where incusd's images lack room: as gzip the upload is about a third of the tree. The ask: podvm's `PodUtils/podvm:crates/podvm/src/incus/gzip.rs` at `cd51868e` (`Members`, 186 lines with `Upload`): blocks of 2 MiB, each one gzip member (RFC 1952, section 2.2), compressed by up to eight threads in batches, written in order. The bytes do not depend on the count of threads, so a SHA-256 of the stream is stable (podvm uses it as the fingerprint of incusd, PodUtils/podvm@T-2081). Its tests: each size and thread count gives the input back with the same bytes; a writer that fails gives its error (EPIPE). podvm asks podcrates to take it as it is or with changes, and then takes the crate. podvm's note on the speed: its release profile is `opt-level = "z"` with LTO; the upload of a tree of 274 MB took about 3 s on four threads (about 90 MB/s, an estimate); `gzip -1` of GNU took 3.3 s on one thread; a per-package `opt-level = 3` changed no byte of the binary with LTO.
+
+No crate of podcrates writes gzip in parallel. `pod-core` has no compression crate, and `pod-extract` reads gzip only. The writers of `pod-actions-store` and the tests use `flate2` with one thread and a whole buffer.
+
+## Premise
+
+- Read: PodUtils/podvm#657; `PodUtils/podvm:crates/podvm/src/incus/gzip.rs` at `cd51868e` through the mirror (`Members`: `new(inner, threads)`, `write`, `finish`, `flush` that writes nothing; `BLOCK` 2 MiB; `MAX_THREADS` 8; `Compression::fast()`; `Upload` and `wanted` with `ROOM_TIMES`, which are the policy of podvm's incus upload); `crates/pod-extract/src/layer.rs` and `crates/pod-extract/src/members.rs` (the reader of many members); `Cargo.toml` (`flate2` with the Rust backend, no C).
+- Read in that file: `drain` spawns one thread for each full block, waits for all of them, then writes the members. So the caller does not write while a batch compresses, and the threads wait while the caller fills the next batch: the threads and the producer take turns.
+- Not read: the bytes of the header that `flate2` writes (the OS byte, the XFL byte): the SHA-256 must agree between hosts, so each of them must not depend on the host. The bytes of a member depend on the version of the backend; a bump of `flate2` or `miniz_oxide` can change the SHA-256.
+- Not measured: the speed in podcrates. podvm's figure is an estimate from one upload.
+
+## Approach
+
+A new crate `pod-gzip` (a name in the crate table of `docs/design.md`, section 4, with its entry in `README.md` and a crate README with its API table, adoption map and parity: `scripts/check-design-paths.py`). It is portable, has no pod dependency and prints nothing.
+
+1. Take `Members` as it is: `Members::new(inner, threads)`, `Write`, `finish() -> io::Result<W>`, `BLOCK`, `MAX_THREADS`, `host_threads()`. `Upload` and `wanted` (the choice of plain or gzip by the free space of incusd) stay in podvm: they are its policy.
+2. One change: a pipeline in place of the batch. A fixed pool of threads (the count given) takes blocks from a bounded queue and returns members in order, so the producer writes while the threads compress, and at most `threads` + 2 blocks are in memory. The bytes stay the same for each count of threads and each pattern of writes (the rule of the block offsets).
+3. An error of the inner writer (EPIPE) comes out of the next `write` or of `finish`, with the same `io::Error` kind; the threads stop; no thread outlives the value (drop joins them).
+4. The header: fixed bytes (no name, time 0, one XFL, one OS byte that does not depend on the host). A golden test holds the SHA-256 of the output for one input at the locked version of `flate2`; a bump of the backend fails it and the owner of the bump changes the vector in the same commit (the same rule as the wire vectors).
+5. The level: `Compression::fast()` as podvm; `with_level` for a caller that wants another. Measure the backends before the take: `miniz_oxide` (the default), and a C backend (`zlib-ng` or `libdeflate`, built by zig, allowed by the rule of the owner and static). The crate takes a C backend only when it is faster by 2x or more at four threads on the tree of the test and the static check on each target passes. Write the figures in the file RESULTS.md of the crate if the crate is a measured crate (`scripts/check-results.py`).
+6. Tests: for each size (0 bytes, 1, `BLOCK` - 1, `BLOCK`, `BLOCK` + 1, three blocks and a part) and each count of threads (1, 2, 4, 8) the output is read back by `flate2::read::MultiGzDecoder` and by the `gzip -dc` of the host (where it exists) to the input; the output bytes are equal for each count of threads and each split of the writes (1 byte, 4097 bytes, `BLOCK`); a writer that fails after N bytes gives its error and the value stops its threads; `flush` writes nothing; an empty stream is one empty member; a plant: a member written out of order fails the equality test.
+7. The hand-off: a COORD issue `(to podvm)` with the tag; podvm replaces its `PodUtils/podvm:crates/podvm/src/incus/gzip.rs` (`Members`) with the crate on that day. `pod-extract` `layer` may read the output (the test above reads it through that reader as a second reader).
+
+## Prove
+
+```sh
+cargo test -p pod-gzip --all-features
+cargo clippy -p pod-gzip --all-targets --all-features -- -D warnings
+```
