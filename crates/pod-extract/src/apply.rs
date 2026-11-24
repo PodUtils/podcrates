@@ -28,6 +28,8 @@ use crate::xattr::{self, Wanted};
 mod content;
 #[path = "apply_later.rs"]
 mod later;
+#[path = "apply_made.rs"]
+mod made;
 use later::{Later, link_later};
 
 /// What one layer did, for the transcript and for the record.
@@ -160,8 +162,11 @@ pub fn apply_layer(
 
         // The parent is opened component by component with symlinks refused:
         // this stops `evil/passwd` after `evil -> /etc`.
-        let (parent, name) = match safety::open_parent(root, &parts, true)? {
-            Ok(x) => x,
+        let (parent, name) = match safety::open_parent_made(root, &parts)? {
+            Ok(p) => {
+                made::rows(sidecar, &parts, p.made, ids)?;
+                (p.dir, p.name)
+            }
             Err(r) => return Err(refuse(digest, &path, r)),
         };
 
@@ -254,7 +259,7 @@ pub fn apply_layer(
     }
 
     for l in later {
-        let (parent, name) = link_later(root, digest, &l)?;
+        let (parent, name) = link_later(root, digest, &l, sidecar, ids)?;
         st.replaced.push((wrote_dirs.len(), l.parts.clone()));
         let x = xattr::set_at(&parent, &name, &l.wanted);
         st.xattrs.add(&x);

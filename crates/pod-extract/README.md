@@ -11,7 +11,12 @@ does not call the `unpack()` of a library. Seven rules:
    not map gives `EINVAL`. The crate does not try: the ids of the image go
    into a sidecar (one JSON line for each path), with the ids that the
    kernel applied and the reason of each difference. The sidecar changes no
-   permission check of the kernel.
+   permission check of the kernel. A directory that the crate makes for an
+   entry below it (a file `usr/bin/x` with no entry for `usr/bin`) gets a
+   row of the same form, with owner 0 and mode 0755, the directory that
+   `flatten` writes for it: the last row of a path holds, and the row of a
+   path that a whiteout removed does not hold for a directory made again
+   there.
 3. **Whiteouts on the basename.** `.wh.NAME` and `.wh..wh..opq` are found on
    the basename, also at the root of a layer, where a glob `*/.wh.*` misses
    them.

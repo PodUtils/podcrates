@@ -74,6 +74,37 @@ fn every_extracted_entry_has_a_sidecar_row() {
     }
 }
 
+/// A directory that a whiteout removed and that a file below it makes again
+/// gets a row of its own: the last row of `d` is not the row of the removed
+/// `d` (uid 1000, mode 0700). The new row is the directory that `flatten`
+/// writes for it: owner 0, mode 0755.
+#[test]
+fn a_directory_made_again_below_a_removed_one_does_not_keep_its_old_row() {
+    let mut b = tar::Builder::new(Vec::new());
+    let mut h = tar::Header::new_gnu();
+    h.set_entry_type(tar::EntryType::Directory);
+    h.set_mode(0o700);
+    h.set_uid(1000);
+    h.set_gid(1000);
+    h.set_size(0);
+    b.append_data(&mut h, "d/", std::io::empty()).unwrap();
+    let one = b.into_inner().unwrap();
+    let two = layer(&[E::File(".wh.d", b"", 0o644), E::File("d/sub/x", b"x", 0o644)]);
+    let s = Scratch::new("madeagain");
+    run(s.path(), &[one, two]).unwrap();
+    let m = meta(s.path());
+    for p in ["d", "d/sub"] {
+        let last = m
+            .lines()
+            .rfind(|l| l.contains(&format!(r#""path":"{p}""#)))
+            .unwrap_or_else(|| panic!("no sidecar row for {p} in:\n{m}"));
+        assert!(
+            last.contains(r#""uid":0,"gid":0,"mode":"0755""#),
+            "{p}: the last row is not of the new directory:\n{m}"
+        );
+    }
+}
+
 // ------------------------------------------------- the whole extraction
 
 /// The `sha256:<hex>` of `bytes`.

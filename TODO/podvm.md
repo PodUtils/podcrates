@@ -14593,7 +14593,7 @@ has this entry.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14635,6 +14635,53 @@ the owners) gives the removed entry's ids and mode to the new directory.
 ```sh
 cargo test -p pod-extract --all-features
 ```
+
+## Done
+
+2026-11-24, this commit. The second form of the approach: a row for each
+directory that the walk makes for an entry below it.
+
+The change. `safety::open_parent_made` (crate-private, with
+`safety::Parent`) walks as `open_parent` with the directories made, and
+gives the index of the first directory that the call made (`step` now
+says if its `mkdirat` made the directory; `EEXIST` is not a make).
+`apply_layer` and the hard links that wait for the end of the layer
+(`apply_later.rs`, `link_later`) take it, and `apply_made.rs` (`rows`)
+writes one row for each made directory, the parents first, before the
+row of the entry, with `Sidecar::push_dir`. The row has the form of each
+other row: owner 0, mode 0755 and the ids that the process applied, with
+the reason of each difference. The call: owner 0 and not the ids of the
+process, as the approach said, so that the row gives the directory that
+`flatten` writes for the same path (mode 0755, owner 0), and a reader of
+the sidecar needs no new field. Under a process that is not root the
+row names the ids that the kernel did not apply, as for a directory
+entry `0:0 0755` of the image. The README of the crate, rule 2, names the
+form. `pod_extract::safety::open_parent` and `open_parent_with` do not
+change.
+
+The test. `drive::records::a_directory_made_again_below_a_removed_one_does_not_keep_its_old_row`:
+layer one has `d/` with uid 1000 and mode 0700, layer two has `.wh.d`
+and `d/sub/x`; the last rows of `d` and `d/sub` give owner 0 and mode
+0755. On the code before it failed: `d: the last row is not of the new
+directory` with the last row
+`{"path":"d","uid":1000,"gid":1000,"mode":"0700",...}`. `support::same`
+of `crates/pod-extract/tests/` now needs the row of each directory of the
+stream, also of a directory that a file below it made (before: no row and
+mode 0755 and owner 0 in the stream); on the code before, the random tests
+of `crates/pod-extract/tests/flatten_random.rs` failed with it (`the ids
+of b/b (Directory, mode 0755)`, `left: None`). `cargo test -p
+pod-extract --all-features`: 115 unit tests, 20, 10, 2, 7 and 6
+integration tests pass. `cargo clippy -p pod-extract --all-targets
+--all-features -- -D warnings`, `cargo doc -p pod-extract --no-deps
+--all-features` with `-D warnings`, `cargo fmt --all --check` and `cargo
+check --manifest-path fuzz/Cargo.toml` pass; `sh scripts/plant-each.sh
+--apply`: 0 stale.
+
+For the hand-off: the sidecar has one row more for each directory that
+the extraction made for an entry below it (owner 0, mode 0755), so
+`Extracted::sidecar_rows` and, for a process that is not root,
+`Extracted::ownership_dropped` count them, and `Extracted::first_dropped`
+can name one. No public item changed.
 
 # T-1254: `pod-extract`: a fuzz target of `flatten`, the reader of untrusted layers into one tar stream
 

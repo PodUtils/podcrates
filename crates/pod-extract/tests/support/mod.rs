@@ -351,11 +351,10 @@ pub fn same(layers: &[Layer]) -> Vec<u8> {
     let mut seen = std::collections::BTreeSet::new();
     for (path, kind, mode, uid, gid, _) in &listed {
         assert!(seen.insert(path.clone()), "{path} is in the stream two times: {listed:?}");
-        // A directory that a file below it made has no row: the stream
-        // gives it the mode and the owner that `extract` gives it.
+        // A directory that a file below it made has the row of the walk
+        // (owner 0), as the stream gives it.
         let ids = want.owners.get(path).copied();
-        let implied = (*kind, *mode, *uid, *gid) == (tar::EntryType::Directory, 0o755, 0, 0);
-        assert!(ids == Some((*uid, *gid)) || ids.is_none() && implied, "the ids of {path}: {ids:?}");
+        assert_eq!(ids, Some((*uid, *gid)), "the ids of {path} ({kind:?}, mode {mode:04o})");
     }
     stream
 }

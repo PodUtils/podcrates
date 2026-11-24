@@ -89,14 +89,21 @@ pub(super) fn dup_dir(d: &Dir, how: Resolve) -> Result<Dir> {
 }
 
 /// One component of the walk: descend into `name`, optionally creating it.
-pub(super) fn step(cur: &Dir, name: &str, make: bool, how: Resolve) -> Result<std::result::Result<Dir, Refusal>> {
+/// True with the directory: this call made it.
+pub(super) fn step(
+    cur: &Dir,
+    name: &str,
+    make: bool,
+    how: Resolve,
+) -> Result<std::result::Result<(Dir, bool), Refusal>> {
     let c = cbuf(name)?;
     // The directory is made BEFORE the descent: a layer often names
     // `usr/bin/x` with no entry for `usr/bin`. `EEXIST` is the usual case and
     // not an error here; the descent below refuses a symlink, whatever made it.
+    let mut made = false;
     if make {
         match sys::mkdirat(cur.fd(), &c, 0o755) {
-            Ok(_) => {}
+            Ok(_) => made = true,
             Err(e) if e == sys::EEXIST => {}
             Err(e) => return Err(error::sys(format!("cannot create the directory {name:?}"), e)),
         }
@@ -125,7 +132,7 @@ pub(super) fn step(cur: &Dir, name: &str, make: bool, how: Resolve) -> Result<st
         sys::openat(cur.fd(), &c, flags | sys::O_NOFOLLOW, 0)
     };
     match r {
-        Ok(fd) => Ok(Ok(Dir(fd))),
+        Ok(fd) => Ok(Ok((Dir(fd), made))),
         // The finding, in three errnos: the resolution left the destination
         // or crossed a symlink. ELOOP is the refusal of O_NOFOLLOW (and of
         // RESOLVE_NO_SYMLINKS), EXDEV the refusal of RESOLVE_BENEATH, and
