@@ -11657,7 +11657,7 @@ peer.
 **Milestone:** M2
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -11688,6 +11688,94 @@ and a 429 of the stand-in. A row of `docs/live-calls.md` for a live run.
 ```sh
 cargo test -p pod-link --all-features dns
 ```
+
+## Done
+
+2026-11-24, this commit (code: `a3ca9fed`). A dialer of the DNS carrier of
+`pod-link` sends its queries over DNS over HTTPS:
+
+- `Dns::over_https(doh)` and `pod_link::dns::DnsOverHttps` (new): the
+  resolver (`pod_dns::Doh` with a wire path), the settings of `pod-dns`
+  (the trust, the user agent, `connect`), the TLS of the binary
+  (`Arc<pod_tls::Context>`) and `pause_max`. A dial then sends each query
+  as a GET of the wire form of RFC 8484 (ID 0, section 4.1) to the
+  resolver, over one connection through the way out of `Dns::with_way`;
+  with no way it is a usage error, and `available` says why. Each
+  datagram up is one query, and the TXT records of each answer are the
+  datagrams down; the listener is the same.
+- `crates/pod-link/src/dns/doh.rs` (new): a `429` pauses the start of each
+  query for its `Retry-After` (`pod_core::clock::retry_after`; seconds or
+  a date), `DOH_PAUSE` (1 s) with none, at most `pause_max` (by default
+  `DOH_PAUSE_MAX`, 10 s: less than the handshake time limit of 20 s). The
+  query of the `429` is a lost datagram; the ARQ sends it again. The
+  driver of `dns/client.rs` waits for the pause after it takes its permit,
+  so the answer of the query before counts. Each other status, and a
+  failure, is a lost datagram.
+- `pod_dns::Pipe` (new, `crates/pod-dns/src/pipe.rs`): one connection to
+  one resolver for DNS messages of the wire form, by its name through a
+  way whose far end resolves names, else by its address. Over HTTP/2
+  (`Doh::http2`) the questions share the connection at the same time;
+  over HTTP/1.1 one waits for the answer of the one before it, so a poll
+  that the listener holds delays the next query (the documentation of
+  `DnsOverHttps::resolver` says it). A failure closes the connection; a
+  failed question on a kept connection goes once more on a new one.
+  `get.rs` gives `open` and `host_header` to it; `h2.rs` gives `send` on
+  a handle of the connection.
+- A defect fixed in place: an answer of HTTP/2 of `pod-dns` had no headers
+  (`headers: Vec::new()`), so a `Retry-After` over HTTP/2 was lost. It
+  keeps them now, as the reader of HTTP/1.1 gives them.
+- The helpers of the tests: the test certificate moves from
+  `tests/common/mail.rs` to `tests/common/cert.rs` (with
+  `acceptor_offering(alpn)`), and the stand-in proxy `Tunnel` from
+  `tests/common/h2.rs` to `tests/common/proxy.rs`; `tests/common/doh.rs`
+  (new) is the stand-in resolver.
+- `docs/live-calls.md`: the row L58 (stub + by hand, planned) for a live
+  run through the public resolvers to a listener of a delegated zone. The
+  live run is not done: it needs a listener on UDP 53 that the resolvers
+  reach.
+
+Tests: `crates/pod-link/tests/dns_doh.rs` (new), against a stand-in
+resolver on the loopback (HTTP/2 and HTTP/1.1 by the ALPN of the client;
+each GET goes over UDP to the listener of the carrier) through the
+stand-in proxy:
+`a_link_over_dns_over_https_through_a_proxy_carries_streams` (over HTTP/2
+and over HTTP/1.1: the dial and 8 KiB each way; one tunnel through the
+proxy and one connection to the stand-in; 88 to 92 requests, 250 to
+380 ms over HTTP/2 with the hold of 1 s, 170 to 185 ms over HTTP/1.1
+with no hold), `a_429_pauses_the_queries_for_its_retry_after` (one query
+at a time; three answers of `429`: `Retry-After: 1`, `Retry-After: 3600`
+with `pause_max` 1.5 s, and none; the gaps to the next query were 1.04,
+1.50 and 1.00 s in each run) and `dns_over_https_needs_a_way_out`. 10
+runs of `tests/dns_doh.rs` in a loop: all passed. `cargo test -p pod-link
+--all-features --test dns --test dns_loss --test dns_resolver --test
+dns_hold --test dns_bare --test dns_doh --test h2 --test mail`: 12, 4, 3,
+3, 4, 3, 9 and 8 passed; `--lib dns`: 8 passed; `cargo test -p pod-dns
+--all-features`: all passed; clippy and rustdoc: no warning.
+
+The plant `dns-doh-429-not-paused` (no pause at a `429`) fails the test:
+`the gaps after the three 429: [86.8ms, 1.07ms, 3.69ms]` and `Retry-After
+"1": the next query after 86.831324ms`; the test passes without it.
+Plants: 0 stale.
+
+On the old source, the new tests do not compile:
+
+```text
+1 error[E0432]: unresolved import `pod_link::dns::DnsOverHttps`
+3 error[E0599]: no method named `over_https` found for struct `pod_link::dns::Dns`
+```
+
+With the headers of HTTP/2 dropped again, the test of the `429` fails:
+`the gaps after the three 429: [1.04s, 1.00s, 1.00s]` and `Retry-After
+"3600": the next query after 1.002407636s`.
+
+For the hand-off: `pod_link::dns` has the new items `DnsOverHttps`,
+`DOH_PAUSE`, `DOH_PAUSE_MAX` and `Dns::over_https`; `pod_dns` has the new
+`Pipe`; the answer of HTTP/2 of `pod-dns` now has headers. No item changed
+its form. A grep in shallow clones of podnet and podssh finds no use of
+`pod_dns::h2` or of the response of `Way` over HTTP/2. podssh gives
+`with_way(proxy)` and `over_https(DnsOverHttps::new(resolver, context))`
+with a resolver of `pod_dns::doh::defaults()` that serves HTTP/2
+(`http2(true)`), so the queries go at the same time.
 
 # T-1169: `pod-link`: a test of the DNS carrier through `unbound` with its default settings, in the box of CI (PodUtils/podssh#349)
 
@@ -11903,3 +11991,44 @@ test a_late_query_of_an_ended_session_starts_no_handshake ... FAILED
 For the hand-off: no public item changed. A listener answers a late query
 of an ended session with no record for `handshake_timeout` (20 s by
 default).
+
+# T-1279: `pod-dns`: a `Pipe` asks Cloudflare and Google over HTTP/1.1, so the queries of the DNS carrier over DoH go one at a time behind a held poll
+
+**Source:** T-1168 (PodUtils/podssh#349), a review of
+`crates/pod-dns/src/pipe.rs`.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_dns::Pipe` opens HTTP/2 only for a resolver with `Doh::http2` (HTTP/2
+alone), as the rest of `pod-dns` does (`get::open`). The default resolvers
+(`pod_dns::doh::defaults()`) set it only for Quad9; Cloudflare and Google
+serve HTTP/2 and HTTP/1.1, so a `Pipe` asks them over HTTP/1.1. Over
+HTTP/1.1 a question waits for the answer of the one before it. The DNS
+carrier over DNS over HTTPS (`Dns::over_https`) then has one query in
+flight, and a poll that the listener holds (`DnsSettings::hold`, 1 s)
+delays each datagram up behind it.
+
+## Premise
+
+- Read: `crates/pod-dns/src/pipe.rs`, `crates/pod-dns/src/get.rs`
+  (`open`), the facts `http2-only` of the services of the kind `doh`.
+- Not measured: the rate of a link over DoH at Cloudflare and Google over
+  HTTP/1.1 and over HTTP/2.
+
+## Approach
+
+`Pipe` offers `h2` and `http/1.1` by ALPN and takes HTTP/2 when the server
+chooses it (HTTP/2 alone where `Doh::http2`). A test: the stand-in of
+`crates/pod-link/tests/common/doh.rs` offers both, a resolver with
+`http2(false)` gets HTTP/2, and a held poll does not delay a query up.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features --test dns_doh
+```

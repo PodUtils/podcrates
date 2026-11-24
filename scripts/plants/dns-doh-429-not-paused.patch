@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/dns/doh.rs b/crates/pod-link/src/dns/doh.rs
+index e670d9c9..59a12f26 100644
+--- a/crates/pod-link/src/dns/doh.rs
++++ b/crates/pod-link/src/dns/doh.rs
+@@ -109,7 +109,6 @@ impl Https {
+                 let wait = wait.unwrap_or(DOH_PAUSE).min(self.pause_max);
+                 let until = Instant::now() + wait;
+                 let mut pause = self.until.lock().unwrap_or_else(PoisonError::into_inner);
+-                *pause = Some(pause.map_or(until, |was| was.max(until)));
+                 tracing::debug!(host = %self.pipe.host(), ?wait, "the resolver of a dns dialer asked for fewer queries");
+                 None
+             }
