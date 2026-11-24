@@ -18,7 +18,7 @@ is done. Git and the record keep finished work.
    `(to podcrates)` of each repository of PodUtils. Each one maps to an
    entry (PodUtils/podvm#570, COORD-183, maps to T-1162; PodUtils/podssh#349,
    COORD-139, maps to T-1164 to T-1169; PodUtils/podssh#350, COORD-140, maps to
-   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213). Map each new one
+   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#353, COORD-143, maps to T-1198 and T-1220; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213). Map each new one
    in the same commit.
 2. Coordinate the five sessions by COORD issues alone (the rulings
    "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),
@@ -176,9 +176,10 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
   xterm and tmux hold them, not as #350 words them; no DECSTR),
   `Ring::modes_at`, `pod_testkit::screen::Screen::modes()`, and the 7-bit
   transfer codec `pod_term::transfer` behind the feature `transfer` (podssh
-  names `features = ["transfer"]`). New items only. T-1198 asks podssh about
-  two gaps of its design (the `KEPT` that ends a session, the wait of the
-  far sender during the offer).
+  names `features = ["transfer"]`). New items only. T-1198 closes
+  two gaps of its design in the codec (the `KEPT` that ends a session, the
+  wait of the far sender during the offer), as podssh answered in
+  PodUtils/podssh#353; podssh changes its document to match.
 
 - T-1205 (`pod-hostprobe`, PodUtils/podvm#659, P1 for
   PodUtils/podrunner#350): `usage::Mounts` (`of`, `of_with`, `of_host`,

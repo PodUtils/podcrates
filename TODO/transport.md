@@ -8110,7 +8110,7 @@ cargo test -p pod-harness -p pod-egress -p pod-turn --all-features
 
 # T-1198: `pod-term`: the transfer codec loses the `KEPT` that ends a session, and the far sender's 20 s wait runs while a person answers the offer
 
-**Source:** T-1144 (the design of PodUtils/podssh#346 at `PodUtils/podssh@1bb74cdb`, the section "The 7-bit envelope" of its document of the terminal).
+**Source:** T-1144 (the design of PodUtils/podssh#346 at `PodUtils/podssh@1bb74cdb`, the section "The 7-bit envelope" of its document of the terminal); PodUtils/podssh#353 (COORD-143 of podssh, the answer to COORD-154, PodUtils/podcrates#259). Call C932.
 **Category:** defect
 **Milestone:** M3
 **Priority:** P2
@@ -8126,15 +8126,30 @@ Two gaps of the design, which `pod_term::transfer` follows:
 
 ## Premise
 
-- Read: the design (the flow, steps 2, 5, 6 and 7; the limits) and `crates/pod-term/src/transfer/flow.rs`.
+- Read: the design (the flow, steps 2, 5, 6 and 7; the limits) and `crates/pod-term/src/transfer/flow.rs`, `crates/pod-term/src/transfer.rs`, `crates/pod-term/src/transfer/wire.rs`.
+- Read: the answer of podssh, PodUtils/podssh#353 (author Azathothas, `author_association` COLLABORATOR, so the message is acted on). podssh does not change its design. The codec closes both gaps, and podssh then changes its document of the terminal ("The 7-bit envelope") to match the codec, which is the one source. podssh asks for this: (1) a receiver keeps the verdict of each file for the id of the session, and answers a `DONE` that comes again with the same `KEPT`; a sender never reports a stop for a file that the receiver kept; (2) while a person answers the offer, the receiver sends a frame of waiting (each 5 s, "say"), and the sender counts its 20 s from the last frame of any kind; (3) both as table cases in the tests of the codec; podssh's `pty_envelope` test runs the vectors of the codec through a real pty.
+- Read in the code: a `DONE` frame carries the size and the SHA-256 and no id (`Msg::Done`), so the verdict is the pair of these two values. The sender takes any valid frame as a sign of life (`wait_from` in `Session::frame`), so a frame of waiting needs no new timer in the sender. The sender sends `OFFR` again at `RESEND_MIN` (1 s) when no ack gives a time, and the receiver in the phase `Offered` drops it (`takes`). The receiver in the phase `Verify` (the caller renames the copy) drops a repeated `DONE` the same way, so a slow rename has the same gap (a finding, in this entry).
+- Read: `Session` ends at `kept()` and `Transfer::finish` drops it, so no state of the verdict exists after the end. The far receiver's program has no way to keep reading its input after the end.
 - Not measured: either case through tmux.
 
 ## Approach
 
-Ask podssh by a COORD issue, with a recommendation: (1) after `KEPT` the near end keeps the session's id and `KEPT` for one `WAIT`, and answers a whole `DONE` frame of that session with the same `KEPT` instead of showing it; the far receiver stays the same time before it exits; (2) while the caller of a receiver answers an offer, the receiver answers each repeated `OFFR` with a frame that holds the wait (a new kind, `WAIT`, or a `TAKE` that comes later), or the far sender's wait for `TAKE` is the first wait of 120 s. Then change the codec and add a test for each case with the stand-in pty of `tests/transfer_pty.rs`.
+The design, from the answer. Both gaps close in the codec. Each step has a table case in `crates/pod-term/tests/transfer.rs` (the next numbers after `x12`, with the design's byte vectors) and a case in `crates/pod-term/tests/transfer_pty.rs`.
+
+1. A new kind `HOLD` (empty payload) in `Msg` (`wire.rs`), in `KINDS` and in `takes`: the sender takes it in the phase `AwaitTake` and in the phase `AwaitKept`. Raise `VERSION` to 2: a peer of version 1 then answers `Unsupported`, and does not stop at a kind that it does not know. The vectors of the design change with the version; podssh changes its document to match.
+2. The receiver answers each repeated `OFFR` in the phase `Offered` with `HOLD`, and each repeated `DONE` in the phase `Verify` with `HOLD` (`answer_again` gets both phases; `takes` takes `OFFR` in `Offered` and `DONE` in `Verify`). The sender sets the next resend of its frame in flight to `RESEND_MAX` when a `HOLD` comes (it is not an ack and gives no time of the path), so a person who takes a minute makes about 12 frames of waiting and 12 of `OFFR`. The sender's `WAIT` of 20 s runs from the last frame of any kind, as it does now. The codec sets no cap on the time of the person: the caller of the receiver ends the wait with `skip` or `stop`, and Ctrl-C at the far end stops the sender.
+3. The verdict. `Transfer` keeps `Kept { size, sha256, until }` after `kept()` (the near end and the far end), for `LINGER` (a new constant, `WAIT + RESEND_MAX`, 25 s): the sender's last sign of life is before the `KEPT`, so it sends `DONE` again for at most `WAIT` after the `KEPT`, and the frame in transit needs one more `RESEND_MAX`.
+   - The far end: `feed` keeps a `Reader` on the input of the far end while the verdict is kept. A whole `DONE` frame with the kept size and SHA-256 gives the same `KEPT` frame again in `poll_output`. Any other frame, and any byte, is dropped (the far program is a receiver that ended). A new method `Transfer::lingers()` is true while the verdict is kept, and `deadline()` gives its end, so the far program reads its input until `lingers()` is false, and then it exits.
+   - The near end: the `Scanner` (`trigger.rs`) holds a line that starts with `#DONE:` while the verdict is kept, as it holds a part of a trigger (`TRIGGER_HOLD`). It decides at the end of the line: a good frame (CRC) with the kept size and SHA-256 gives `KEPT` and does not show; any other line shows as text. A `DONE` frame after `LINGER` shows as text, and the verdict is gone.
+   - A `DONE` of another size or SHA-256 is not answered with `KEPT`. A new session (a new `HELO`) or a new trigger clears the verdict.
+4. The sender that gets no frame in `WAIT` in the phase `AwaitKept` ends with a new `Ended::Unconfirmed` (the file and its hash went; the verdict is not known), not with `Stopped` and `stop::OUT_OF_TIME`. It sends no `STOP`. The caller words it as "sent; the receiver did not confirm". With steps 2 and 3, a sender gets `Stopped` for a file that the receiver kept in no case where one frame of the path passes in `WAIT`.
+5. Tests (a table case each): X13, a `KEPT` lost in a download (the near end answers the second `DONE` with the same `KEPT`, and the frame does not show); X14, the same in an upload (the far end lingers; `lingers()` is true until `LINGER` ends); X15, a `DONE` after `LINGER` shows as text; X16, a `DONE` with another SHA-256 is not answered; X17, a person who answers an offer after 60 s gets the file (the sender's `HOLD` count and no `OUT_OF_TIME`); X18, a rename that takes 60 s in `Verify` ends with `Done` at the sender; X19, no frame in `AwaitKept` for `WAIT` ends with `Unconfirmed`; X20, `HOLD` of a peer of version 1 gives `Unsupported`. A property test: for any loss of the frames of one session, a sender ends with `Done` or `Unconfirmed`, never with `Stopped` while the receiver kept the file. `transfer_pty.rs` runs a download and an upload through the stand-in pty with the first `KEPT` lost.
+6. The README of `pod-term` (the row `transfer`, and the line of the adoption map for podssh): the codec's frame table and waits are the source, and podssh's document follows it. The doc of `Ended` and of `Transfer::lingers` says what a caller does. The entry's commit lists the changes in `docs/HANDOFF.md` for podssh's take (`VERSION` is 2, and `Ended::Unconfirmed` and `Transfer::lingers` are new).
 
 ## Prove
 
 ```sh
 cargo test -p pod-term --all-features --test transfer
+cargo test -p pod-term --all-features --test transfer_pty
+cargo clippy -p pod-term --all-targets --all-features -- -D warnings
 ```
