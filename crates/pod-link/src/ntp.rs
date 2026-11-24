@@ -34,7 +34,6 @@ mod server;
 pub mod session;
 pub mod wire;
 
-use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
@@ -240,11 +239,8 @@ impl Carrier for Ntp {
             let (stream, far) = pipes(PIPE, ends.clone());
             let session = self.session();
             let (poll, reply_timeout, limits) = (self.poll, self.reply_timeout, self.limits.clone());
-            let task = client::run(socket, session, far, poll, reply_timeout, limits);
-            tokio::spawn(async move {
-                if let Err(e) = task.await {
-                    ends.fail_with(Arc::new(move || io::Error::new(io::ErrorKind::InvalidData, e.to_string())));
-                }
+            crate::pipes::spawn_task(ends, far, move |far| {
+                Box::pin(client::run(socket, session, far, poll, reply_timeout, limits))
             });
             Ok(Box::new(stream) as BoxIo)
         })

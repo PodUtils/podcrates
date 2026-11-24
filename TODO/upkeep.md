@@ -5013,7 +5013,7 @@ setpriv --reuid=65534 --regid=65534 --clear-groups cargo test -p pod-extract --a
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5059,6 +5059,38 @@ bracket), fix the parse and add a test with that name.
 cargo test -p pod-enter --all-features --lib title
 ```
 
+## Done
+
+2026-11-24 (partial). Cause: qemu-user writes `/proc/self/stat` itself
+(`open_self_stat`, `linux-user/syscall.c`): 44 fields; the name of
+`argv[0]` cut to 15 bytes; the pid, the state `R`, the parent, the group,
+the number of threads, the start time and the stack; 0 in each other
+field; the stack as a signed number (negative on a 32-bit guest). Fields
+45 to 52 are not there, as on a kernel before 3.5. The parse of the name
+up to the last `)` was right; `map_and_threads` read the map before the
+count of the threads, so a text with no map gave "the parse of
+/proc/self/stat" before the refusal of the threads. qemu-user also refuses
+`PR_SET_MM` with `EINVAL`, so no title takes under it in any case, and the
+host shows the command line of the emulator in `/proc/PID/cmdline`.
+Change (`crates/pod-enter/src/title.rs`): a tolerant reader. `current_of`
+reads the count of the threads first (field 20), then the map; a text with
+no map is the refusal "the map fields of /proc/self/stat". `map_of` and
+`threads_of` share `after_name`. The test
+`title::tests::the_title_and_the_dump_flag_follow_the_fork` asserts the map
+of `Shown::of` on a kernel only; under an emulator it writes the skip line
+(the call is refused there). `a_hidden_process_shows_its_title_and_no_environment`
+skips by the refusal of its child, as for `PR_SET_MM_MAP`. Proof here (no
+qemu-user on this host): the new unit test
+`title::tests::a_stat_of_qemu_user_gives_the_threads_and_no_map` takes the
+exact text of qemu-user for a 32-bit guest of three threads; with the old
+order it fails with `left: "the parse of /proc/self/stat"`, the text of the
+nightly; the plant `scripts/plants/enter-title-qemu-stat.plant` holds that
+order. With `QEMU_UNAME` set, `the_title_and_the_dump_flag_follow_the_fork`
+writes the skip line. `cargo test -p pod-enter --all-features`: 272 passed,
+1 ignored in the unit tests, each other binary passes. Open: the six
+emulated jobs `cross` of the next `nightly.yml` run. When the two tests
+pass there, set the entry to `done`.
+
 # T-1297: `pod-link`: `dns_hold` gives a hold that is longer than its query timeout under an emulator, and `a_server_that_never_answers_a_command_is_the_named_timeout` of `mail` ends with no error on arm
 
 **Source:** `nightly.yml` run 45452272145 at `f39b8e2`: `dns_hold` in the jobs `cross` of aarch64, armv7, arm, riscv64, loongarch64 and powerpc64le; `mail` in the jobs of arm and armv7.
@@ -5066,7 +5098,7 @@ cargo test -p pod-enter --all-features --lib title
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5084,7 +5116,7 @@ cargo test -p pod-enter --all-features --lib title
   7.5 s under an emulator; the query timeout of the settings is not scaled,
   so the settings are refused. The second test uses a hold of 2 s with the
   same query timeout. Both bounds of the pair must go through one scale.
-- `crates/pod-link/tests/mail.rs:181`
+- `crates/pod-link/tests/mail.rs:182`
   (`a_server_that_never_answers_a_command_is_the_named_timeout`): "a failed
   stream" on armv7 and arm. The stream ended with a read of 0 bytes, where
   the error that names `UID FETCH` and "took more than" is due. The same
@@ -5118,6 +5150,45 @@ outruns goes through `pod_testkit::host::scaled` (T-916).
 cargo test -p pod-link --all-features --test dns_hold
 cargo test -p pod-link --all-features --test mail
 ```
+
+## Done
+
+2026-11-24 (partial). `dns_hold`: cause: the hold of
+`polls_faster_than_the_hold_stack_no_queries` is
+`pod_testkit::host::scaled(1500 ms)` (7.5 s under an emulator) and the
+hold of `a_held_poll_halves_the_idle_queries_and_cuts_the_latency_down` is
+four scaled poll intervals (2 s), but the query timeout stayed 2 s, so the
+settings check refused both binds. The query timeout guards a lost answer
+and is not the timer under test. Change (`crates/pod-link/tests/dns_hold.rs`,
+`settings`): the query timeout goes through `pod_testkit::host::scaled`
+too, so `hold < query_timeout` holds under each factor. Proof here: the
+old binary with `QEMU_UNAME` set (the emulated flag forced on) fails both
+tests after 95 s with the two texts of the nightly; the new binary with the
+same variable passes 3 tests in 167 s, and passes natively.
+
+`mail`: cause: a defect of the carriers, not a bound. `client::run` of the
+IMAP, SMTP and NTP carriers owned `Far` (the far ends of the pipes) and
+dropped it when it returned its error, before the spawned task set the
+fault in `Ends`. A read of the link in that gap met the end of the pipe
+with no fault and gave a clean end (`Ok(0)`), in place of the error of
+`UID FETCH` ("a failed stream", `crates/pod-link/tests/mail.rs:182`). The
+gap is short on a kernel and longer under the emulation of a 32-bit target.
+Change: `crate::pipes::spawn_task` runs the task on a borrow of `Far`, sets
+the fault, and then drops `Far`; the three carriers use it, and their `run`
+takes `&mut Far`. The bound of 5 s of the test guards a hang and goes
+through `pod_testkit::host::scaled`; the command timeout of 200 ms is the
+timer under test and stays. Proof here: the new unit test
+`pipes::tests::a_failed_task_never_reads_as_a_clean_end` (500 tasks, a
+reader that polls with no pause on another thread) fails in each of 3 runs
+with `left: Ok(0)` when `Far` drops before the fault (the plant
+`scripts/plants/link-task-fault-before-end.plant`), and passes 50 runs of
+50 with the fix. The IMAP test does not fail natively on the old code (0 of
+200 runs) and passes 50 of 50 runs with the fix. `cargo test -p pod-link
+--all-features`: 42 test binaries pass.
+
+Open: the next `nightly.yml` run: `dns_hold` in the six emulated jobs
+`cross`, and `mail` in the jobs of arm and armv7. When both pass, set the
+entry to `done`.
 
 # T-1298: `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes
 
@@ -5400,3 +5471,45 @@ python3 -I scripts/check-workflows.py
 
 The next five `ci` runs that end show the job `static (aarch64-apple-darwin,
 macos-15-intel)` with its time; the entry closes with those times.
+
+# T-1326: Three readers of the fields after the name in `/proc/PID/stat`: `pod-hostprobe`, `pod-supervise` and `pod-enter`
+
+**Source:** T-1297 and T-1296 (a finding of their work: the readers that take the fields after the last `)`).
+**Category:** chore
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Three crates read the fields of `/proc/PID/stat` after the name with code
+of their own: `pod_hostprobe::probes::files::tty_nr`,
+`pod_supervise::launcher::tree::parent_of` and
+`pod_enter::title::after_name`. Each finds the last `)` and splits the
+rest. The bodies are not token clones, so `codegraph.py dups` does not
+flag them, but they do the same work (the ruling "Shared code"). A fix of
+the rule (a name with `)` or spaces, the short text of qemu-user that T-1296
+found) must be made three times.
+
+## Premise
+
+- Read: the three functions, and the Done of T-1296 (qemu-user writes 44
+  fields and no map).
+- Not measured: a reader of the same fields in other crates
+  (`python3 -I scripts/codegraph.py similar proc stat fields`).
+
+## Approach
+
+One function in `pod-core` (or `pod-hostprobe`, if each user depends on
+it already): the fields after the name of a stat text as a slice of
+`&str`, with the name up to the last `)`. Each of the three readers takes
+it and keeps its own field index and refusal text. A unit test with a
+kernel text, a name with `)` and spaces, and the text of qemu-user.
+
+## Prove
+
+```sh
+cargo test -p pod-core -p pod-hostprobe -p pod-supervise -p pod-enter --all-features
+python3 -I scripts/codegraph.py similar proc stat fields
+```

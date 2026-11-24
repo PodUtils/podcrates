@@ -42,7 +42,7 @@ pub(super) async fn run(
     endpoint: Endpoint,
     mode: Mode,
     config: Arc<ClientConfig>,
-    mut far: Far,
+    far: &mut Far,
 ) -> Result<(), CarrierError> {
     let (io, name) = mail::open(NAME, &endpoint, imap.connect_timeout).await?;
     let lines = if mode == Mode::Implicit {
@@ -84,7 +84,7 @@ pub(super) async fn run(
                 }
                 // The link reads at its own pace: a full pipe waits for the
                 // next turn, so no append waits on it.
-                written = drain(&mut far, &pending, written).await?;
+                written = drain(far, &pending, written).await?;
                 if written == pending.len() {
                     pending.clear();
                     written = 0;

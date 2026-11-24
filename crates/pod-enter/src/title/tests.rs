@@ -17,10 +17,30 @@ fn the_map_is_read_from_the_fields_of_proc_stat() {
     assert_eq!((t.arg_start, t.arg_end, t.env_start, t.env_end), (1000, 1006, 1006, 1006));
     assert_eq!(t.start_code, m.start_code);
     assert_eq!(std::mem::size_of::<Map>(), 104, "struct prctl_mm_map");
-    let threads = map_and_threads(&stat, 9).map(|(_, t)| t);
-    assert_eq!(threads, Some(20), "the threads");
+    assert_eq!(threads_of(&stat), Some(20), "the threads");
+    assert_eq!(current_of(&stat, 9, false), Ok(m));
     let state = stat.replace(" 26 ", " x ");
     assert_eq!(map_of(&state, 9), None, "a field that is no number");
+}
+
+/// The text of `open_self_stat` of qemu-user (`linux-user/syscall.c`) for
+/// a 32-bit guest with three threads: 44 fields, the name of `argv[0]` cut
+/// to 15 bytes, the number of threads, the start time, the stack as a
+/// signed number, and 0 in each other field.
+const QEMU_STAT: &str = "4242 (pod_enter-0f1e2d) R 4241 4242 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0 1234567 \
+    0 0 0 0 0 -69632 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\n";
+
+#[test]
+fn a_stat_of_qemu_user_gives_the_threads_and_no_map() {
+    assert_eq!(after_name(QEMU_STAT).map(|f| f.len()), Some(42), "44 fields");
+    assert_eq!(threads_of(QEMU_STAT), Some(3));
+    assert_eq!(map_of(QEMU_STAT, 9), None, "no fields 45 to 51");
+    let e = current_of(QEMU_STAT, 9, true).expect_err("three threads");
+    assert_eq!(e.call, "a title with more than one thread");
+    let e = current_of(QEMU_STAT, 9, false).expect_err("no map");
+    assert_eq!(e.call, "the map fields of /proc/self/stat");
+    let e = current_of("77 (x) S 1", 9, true).expect_err("no field 20");
+    assert_eq!(e.call, "the parse of /proc/self/stat");
 }
 
 /// The child of [`a_hidden_process_shows_its_title_and_no_environment`]:
@@ -70,7 +90,7 @@ fn a_hidden_process_shows_its_title_and_no_environment() {
         .unwrap();
     let text = String::from_utf8_lossy(&out.stdout);
     if text.contains("T-1112: REFUSED") {
-        return pod_testkit::host::skip_line("PR_SET_MM_MAP is refused here");
+        return pod_testkit::host::skip_line("the title is refused here (PR_SET_MM_MAP, or no map under qemu-user)");
     }
     assert!(text.contains("1 passed"), "{text}");
     assert!(out.status.success(), "{text}");
@@ -95,7 +115,12 @@ fn the_title_and_the_dump_flag_follow_the_fork() {
     plan.relay_title = Some("unit-exec".to_string());
     let s = Shown::of(&plan, &relay).unwrap().unwrap();
     assert_eq!(s.len, 10);
-    assert!(s.map.is_some(), "the map of this process");
+    if pod_testkit::host::emulated() {
+        // qemu-user writes no map in `/proc/self/stat` and refuses the call.
+        pod_testkit::host::skip_line("qemu-user gives no map of this process");
+    } else {
+        assert!(s.map.is_some(), "the map of this process");
+    }
     plan.relay_title = Some("a\0b".to_string());
     let e = Shown::of(&plan, &relay).err().map(|e| e.to_string()).unwrap_or_default();
     assert!(e.contains("contains a NUL byte"), "{e}");

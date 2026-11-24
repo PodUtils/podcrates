@@ -35,7 +35,7 @@ fn err(kind: CarrierErrorKind, text: impl Into<String>) -> CarrierError {
 pub(super) async fn run(
     socket: UdpSocket,
     mut session: Session,
-    mut far: crate::pipes::Far,
+    far: &mut crate::pipes::Far,
     poll: Duration,
     reply_timeout: Duration,
     limits: Limits,
@@ -50,7 +50,7 @@ pub(super) async fn run(
                 read.map_err(|e| CarrierError::io(NAME, "the stream", e))?
             }
             () = tokio::time::sleep(wait) => {
-                exchange(&socket, &mut session, &mut down, &mut far, reply_timeout, &limits).await?;
+                exchange(&socket, &mut session, &mut down, far, reply_timeout, &limits).await?;
                 next = Instant::now() + poll;
                 continue;
             }
@@ -60,7 +60,7 @@ pub(super) async fn run(
             // The link ended its bytes: send the last payload before the
             // close.
             while session.pending_up() > 0 {
-                exchange(&socket, &mut session, &mut down, &mut far, reply_timeout, &limits).await?;
+                exchange(&socket, &mut session, &mut down, far, reply_timeout, &limits).await?;
             }
             return Ok(());
         }

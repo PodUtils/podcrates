@@ -1,0 +1,6 @@
+# pod-enter: the title reads the map of /proc/self/stat before the count of the threads, so a text of qemu-user (44 fields, no map) gives the refusal of the parse, not the refusal of the threads; the unit test with the text of qemu-user must fail (T-1296).
+ENTRY=T-1296
+GROUP=enter
+EXPECT='a_stat_of_qemu_user_gives_the_threads_and_no_map'
+RUN='cargo test -p pod-enter --all-features --lib title'
+LIMIT=1800

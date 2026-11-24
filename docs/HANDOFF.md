@@ -35,8 +35,13 @@ is done. Git and the record keep finished work.
      jobs of Windows, `gate` and `install-os` pass. The failure of the
      seven jobs `cross` in `pod-extract` for a user that is not root (also
      in `ci.yml` 45462046889 at `65fa99f`) is fixed. The emulated jobs fail in
-     `pod-enter` (T-1296) and in `dns_hold` of `pod-link` (T-1297; `mail`
-     on arm and armv7 too). `riscv64` fails in `pod-iroh` (`road.rs`,
+     `pod-enter` (T-1296, partial: qemu-user writes `/proc/self/stat`
+     with 44 fields and no map; the title reads the threads first and
+     refuses with no map; read the emulated jobs of the next nightly) and
+     in `dns_hold` of `pod-link` (T-1297, partial; `mail` on arm and
+     armv7 too: the query timeout of `dns_hold` scales with the hold, and
+     `pipes::spawn_task` sets the fault of a carrier before its far ends
+     drop; read those jobs of the next nightly). `riscv64` fails in `pod-iroh` (`road.rs`,
      `share.rs`: T-916, T-938, Q19) and was cancelled at 150 minutes in
      `session_resume_twice` (T-938; each binary now has a limit of 2700 s).
      Both jobs of macOS were cancelled at 60 minutes in `images` of
@@ -231,6 +236,13 @@ The asks of #259 to the consumers:
   and the sequences that flush each handle on every path (`flow::{primary,
   session, create_signing, load, sign}`, the PCR helpers, `Error::Step`). A
   `TPM2_PolicyAuthorize` resets the policy digest wherever it comes.
+
+- T-1296 and T-1297 (partial: the next nightly decides): `pod-enter`'s title
+  reads the threads before the map of `/proc/self/stat` (qemu-user gives no
+  map, and an honest refusal); the IMAP, SMTP and NTP carriers of `pod-link`
+  set the fault of their task before the end of its pipes
+  (`pipes::spawn_task`), so a failed carrier never reads as a clean end.
+  New entry T-1326.
 
 ### What the next hand-off carries
 

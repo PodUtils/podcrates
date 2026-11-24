@@ -26,7 +26,7 @@ pub(super) async fn run(
     mode: mail::Mode,
     config: Arc<ClientConfig>,
     session: String,
-    mut far: Far,
+    far: &mut Far,
 ) -> Result<(), CarrierError> {
     let bound = smtp.handshake_timeout;
     let (io, name) = mail::open(NAME, &endpoint, smtp.connect_timeout).await?;
