@@ -4584,15 +4584,15 @@ python3 -I scripts/codegraph.py similar retry after
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
 The owner's ruling "Watchers" asks each session to start a watcher of the
-Actions runs of its repository at its start. `scripts/agent/watch-runs.sh`
-and `runs.py` follow one commit and name `PodUtils/podcrates` in the
-script, so podvm and podnet keep copies (podvm's
-`scripts/agent/runs-watch.py`, podnet's `watch-runs.sh` and `runs.py`).
+Actions runs of its repository at its start. `watch-runs.sh` and
+`runs.py` of `scripts/agent/` follow one commit and name
+`PodUtils/podcrates` in the script, so podvm and podnet keep copies
+(podvm's `runs-watch.py`, podnet's `watch-runs.sh` and `runs.py`).
 podvm asks for one shared script with this surface:
 
 - `--repo OWNER/NAME` and `--branch` (defaults: the repository, `main`).
@@ -4609,8 +4609,8 @@ podvm asks for one shared script with this surface:
 
 ## Premise
 
-- Read: PodUtils/podvm#661; podvm's `scripts/agent/runs-watch.py`;
-  `scripts/agent/watch-runs.sh`, `runs.py` and `watch.py` (its read of the
+- Read: PodUtils/podvm#661; podvm's `runs-watch.py`;
+  `watch-runs.sh`, `scripts/agent/runs.py` and `watch.py` (its read of the
   mirror, `run_line`, `failed_jobs`);
   `python3 -I scripts/codegraph.py similar watch runs actions`.
 - Found in podvm's script: a run that starts and ends between two polls

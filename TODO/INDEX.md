@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**950 entries: 164 open, 29 partial, 7 blocked, 750 done.**
+**951 entries: 164 open, 29 partial, 7 blocked, 751 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 225 | 239 |
-| P2 | 75 | 8 | 4 | 390 | 477 |
+| P2 | 75 | 8 | 4 | 391 | 478 |
 | P3 | 85 | 11 | 3 | 133 | 232 |
-| **All** | 164 | 29 | 7 | 750 | 950 |
+| **All** | 164 | 29 | 7 | 751 | 951 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -997,4 +997,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1196](podvm.md) | P2 | M | M6 | feature | open | `pod-gzip`: a writer of gzip members, one member for each block, by up to eight threads, with the same bytes for any count of threads (PodUtils/podvm#657) |
 | [T-1197](transport.md) | P3 | S | M5 | chore | open | CRC-32 has three hand copies in the workspace; each crate takes `crc32fast` |
 | [T-1198](transport.md) | P2 | S | M3 | defect | open | `pod-term`: the transfer codec loses the `KEPT` that ends a session, and the far sender's 20 s wait runs while a person answers the offer |
-| [T-1213](upkeep.md) | P2 | S | M5 | chore | open | One watcher of the Actions runs of a repository: `scripts/agent/runs.py` with podvm's surface, in place of `watch-runs.sh` and the copies of podvm and podnet |
+| [T-1213](upkeep.md) | P2 | S | M5 | chore | done | One watcher of the Actions runs of a repository: `scripts/agent/runs.py` with podvm's surface, in place of `watch-runs.sh` and the copies of podvm and podnet |
