@@ -1,35 +1,10 @@
 //! The retry rules of [`super::provision`].
 
-/// The wait of a `Retry-After` value: a number of seconds, or an HTTP date
-/// (IMF-fixdate).
+/// The wait of a `Retry-After` value at the clock of the system: a number
+/// of seconds, or an HTTP date (IMF-fixdate), by
+/// [`pod_core::clock::retry_after`].
 pub fn parse_retry_after(value: &str) -> Option<std::time::Duration> {
-    let value = value.trim();
-    if let Ok(secs) = value.parse::<u64>() {
-        return Some(std::time::Duration::from_secs(secs));
-    }
-    // Sun, 06 Nov 1994 08:49:37 GMT
-    let parts: Vec<&str> = value.split_whitespace().collect();
-    if parts.len() != 6 || parts[5] != "GMT" {
-        return None;
-    }
-    let day: i64 = parts[1].parse().ok()?;
-    const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    let month = MONTHS.iter().position(|m| *m == parts[2])? as i64 + 1;
-    let year: i64 = parts[3].parse().ok()?;
-    let hms: Vec<i64> = parts[4].split(':').filter_map(|p| p.parse().ok()).collect();
-    if hms.len() != 3 {
-        return None;
-    }
-    // Days from 1970-01-01 (the algorithm of H. Hinnant).
-    let (y, m) = if month <= 2 { (year - 1, month + 9) } else { (year, month - 3) };
-    let era = y.div_euclid(400);
-    let yoe = y - era * 400;
-    let doy = (153 * m + 2) / 5 + day - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    let days = era * 146_097 + doe - 719_468;
-    let at = days * 86_400 + hms[0] * 3600 + hms[1] * 60 + hms[2];
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).ok()?.as_secs() as i64;
-    Some(std::time::Duration::from_secs((at - now).max(0) as u64))
+    pod_core::clock::retry_after(value, std::time::SystemTime::now())
 }
 
 /// True for a transport error at the hop `dns`.

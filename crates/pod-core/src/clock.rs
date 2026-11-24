@@ -139,6 +139,13 @@ pub fn retry_after_secs(value: &str, now_secs: i64) -> Option<u64> {
     Some(u64::try_from(at.saturating_sub(now_secs)).unwrap_or(0))
 }
 
+/// The wait of a `Retry-After` value at the wall time `now`, by the rules of
+/// [`retry_after_secs`]; a `now` before the epoch counts as the epoch.
+pub fn retry_after(value: &str, now: SystemTime) -> Option<Duration> {
+    let now_secs = now.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    retry_after_secs(value, i64::try_from(now_secs).unwrap_or(i64::MAX)).map(Duration::from_secs)
+}
+
 /// Days since 1970-01-01 for a proleptic Gregorian date (Howard Hinnant's
 /// algorithm), the inverse of [`civil_from_days`].
 pub fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
@@ -213,6 +220,10 @@ mod tests {
         assert_eq!(retry_after_secs("Tue, 24 Nov 2026 07:59:00 GMT", now), Some(0), "a date in the past");
         assert_eq!(retry_after_secs("soon", now), None);
         assert_eq!(retry_after_secs("-5", now), None);
+        let wall = UNIX_EPOCH + Duration::from_secs(now as u64);
+        assert_eq!(retry_after("Tue, 24 Nov 2026 08:00:30 GMT", wall), Some(Duration::from_secs(30)));
+        assert_eq!(retry_after("7", wall), Some(Duration::from_secs(7)));
+        assert_eq!(retry_after("soon", wall), None);
     }
 
     // The values of Python's datetime.fromtimestamp(t, timezone.utc).

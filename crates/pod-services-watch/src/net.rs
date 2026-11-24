@@ -28,10 +28,9 @@ pub(crate) const LIMIT_WAIT_MOST: Duration = Duration::from_secs(30);
 /// `Retry-After`. The wait is the one that the host asks (5 s when a 429
 /// asks none), at most [`LIMIT_WAIT_MOST`]. `None` for each other answer.
 pub(crate) fn limit_wait(status: u16, retry_after: Option<&str>) -> Option<Duration> {
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
-    let asked = retry_after.and_then(|v| pod_core::clock::retry_after_secs(v, i64::try_from(now).unwrap_or(i64::MAX)));
+    let asked = retry_after.and_then(|v| pod_core::clock::retry_after(v, std::time::SystemTime::now()));
     match (status, asked) {
-        (429, _) | (503, Some(_)) => Some(Duration::from_secs(asked.unwrap_or(5)).min(LIMIT_WAIT_MOST)),
+        (429, _) | (503, Some(_)) => Some(asked.unwrap_or(Duration::from_secs(5)).min(LIMIT_WAIT_MOST)),
         _ => None,
     }
 }
