@@ -3257,3 +3257,61 @@ broker block and the contract block are at `2aacaea`, the block of the
 fake source at `e629fa8`. `check-sources.py` with a clone of podrunner
 (`27a2e5d`): "PodUtils/podrunner at 2aacaea: 6 files, 0 changes", "at
 e629fa8: 2 files, 0 changes", "at 2aacaea: 2 files, 0 changes".
+
+# T-1180: `pod-testkit`: the contract of the source and the driver at podrunner `aab63e5` (the third port of `source-driver.md`)
+
+**Source:** `upstream.yml` run 45362406553 at `41886ae`, job `sources`.
+**Category:** chore
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+After T-1160, podrunner changed one imported file of `pod-testkit`:
+
+```text
+pod-testkit: changed PodUtils/podrunner:docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+check-sources: pod-testkit: PodUtils/podrunner at 2aacaea: 2 files, 1 changes
+```
+
+The commit is `aab63e5` ("incus: the use of a stopped instance from podvm
+0.2.0-beta.39", T-611 of podrunner). The contract adds to the rule of the
+measure of the incus kind: at the stop, the record of the init of podvm
+`0.2.0-beta.39` or later gives the whole CPU time and the peak of the
+instance, and `peak_rss_mib` takes the peak of that record.
+
+## Premise
+
+- Read: `git show aab63e5 -- docs/contracts/source-driver.md` of podrunner
+  and its message; `crates/pod-testkit/src/githome/wire.rs`,
+  `crates/pod-testkit/SOURCES`.
+- The fake githome keeps the fields of a report as the session sends them
+  (the note of T-1122 in `SOURCES`). It measures nothing.
+
+## Approach
+
+1. Compare the change with what the fake githome must do. The rule is a
+   rule of the measure of a driver: no port.
+2. Move the block of the conformance suite and the contract to `aab63e5`,
+   with the blobs of `git ls-tree`, and say why in its comment.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podrunner=PODRUNNER pod-testkit
+```
+
+## Done
+
+2026-11-24. No port: the change of `source-driver.md` at `aab63e5` is a
+rule of the measure of the incus kind (the record of podvm at the stop of
+an instance). The fake githome measures nothing and keeps the fields of a
+report as the session sends them, so its wire does not change.
+`crates/pod-testkit/SOURCES`: the block of the conformance suite and the
+contract is at `aab63e5` (blob `aca580d` of `source-driver.md`; the blob of
+`conformance.rs` did not change), with the reason in its comment.
+`check-sources.py` with clones of podrunner (`aab63e5`), podssh and
+podnet: "PodUtils/podrunner at aab63e5: 2 files, 0 changes"; the other
+blocks of `pod-testkit` show 0 changes.

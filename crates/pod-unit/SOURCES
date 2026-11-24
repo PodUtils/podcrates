@@ -14,9 +14,13 @@
 # podssh 1fa8f87 (PodUtils/podssh#342) takes `quote`, `cron::WATCHDOG`,
 # `windows::utf16` and the values of `hardening::LINES`: no port. The
 # renderers and the install steps in the same files are not taken, so the
-# block moved to 1fa8f87 (T-1122) and the check follows each file.
-repo PodUtils/podssh 1fa8f873471ee267fe5f4aa297a1c49669232600
-file f27b930e8de9911abb9a40d81a415820ae02e5a8 crates/podssh-cli/src/node_install/text.rs -> crates/pod-unit/src/quote.rs crates/pod-unit/src/systemd.rs crates/pod-unit/src/launchd.rs crates/pod-unit/src/windows.rs crates/pod-unit/src/cron.rs
+# block moved to 1fa8f87 (T-1122) and the check follows each file. The
+# block moved to ea4c290 (T-1181) with no port: `old_cron_mark` became
+# `pub(super)` for a test of podssh that gives podssh's older marks to
+# `Unit::older_mark`; its text did not change. podssh takes v0.82.1 there
+# with the same items as above, so no `taken` line is due.
+repo PodUtils/podssh ea4c2905f2d8cb16cd4464cfc4b7a5b4af315a30
+file f237d045b3b5b97de0b01c909c2bb54b394e851c crates/podssh-cli/src/node_install/text.rs -> crates/pod-unit/src/quote.rs crates/pod-unit/src/systemd.rs crates/pod-unit/src/launchd.rs crates/pod-unit/src/windows.rs crates/pod-unit/src/cron.rs
 file a7b04be90c02039d26117028d7931715f529f051 crates/podssh-cli/src/node_install/system_text.rs -> crates/pod-unit/src/hardening.rs crates/pod-unit/src/systemd.rs
 file 6caee959d1c3a526ac0ddb155e7c7cf8b35bf77f crates/podssh-cli/src/node_install/launchd.rs -> crates/pod-unit/src/install_ways.rs
 file 654c8708cfaba0023dc13d4f8cddd4eceb5e4e49 crates/podssh-cli/src/node_install/windows.rs -> crates/pod-unit/src/install_ways.rs

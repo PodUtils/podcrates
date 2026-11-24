@@ -8508,3 +8508,63 @@ reads the answer.
 ```sh
 git log --format=%h -S'## Quality first (the owner' -- docs/session-protocol.md
 ```
+
+# T-1181: `pod-unit`: the words of the forms at podssh `ea4c290` (port review of `text.rs`)
+
+**Source:** `upstream.yml` run 45362406553 at `41886ae`, job `sources`.
+**Category:** chore
+**Milestone:** M0
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+After T-1122, podssh changed one imported file of `pod-unit`:
+
+```text
+pod-unit: changed PodUtils/podssh:crates/podssh-cli/src/node_install/text.rs -> crates/pod-unit/src/quote.rs, crates/pod-unit/src/systemd.rs, crates/pod-unit/src/launchd.rs, crates/pod-unit/src/windows.rs, crates/pod-unit/src/cron.rs
+check-sources: pod-unit: PodUtils/podssh at 1fa8f87: 9 files, 1 changes
+```
+
+The commit is `ea4c290` ("Take podcrates v0.82.1", T-820 of podssh).
+`old_cron_mark` of `text.rs` becomes `pub(super)`, so that the new test
+`node_install::pod_unit_tests` of podssh gives podssh's older marks to
+`pod_unit::Unit::older_mark`.
+
+## Premise
+
+- Read: `git show ea4c290` of podssh (`text.rs`, `pod_unit_tests.rs`,
+  its entry T-820) and its message; `crates/pod-unit/SOURCES`.
+- The comment of the podssh block: podssh takes `quote`, `cron::WATCHDOG`,
+  `windows::utf16` and the values of `hardening::LINES`; the renderers and
+  the install steps are not taken, so the check follows each file.
+
+## Approach
+
+1. Compare the change with what the unit writers of `pod-unit` must do. A
+   change of visibility for a test of podssh changes no text: no port.
+2. podssh takes `v0.82.1` with the same items; the renderers stay
+   podssh's (T-820 of podssh). So no `taken` line is due, and the block
+   keeps its check of each file.
+3. Move the podssh block to `ea4c290`, with the blobs of `git ls-tree`, and
+   say why in its comment.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podssh=PODSSH pod-unit
+```
+
+## Done
+
+2026-11-24. No port: `ea4c290` changes only the visibility of
+`old_cron_mark` (`fn` to `pub(super) fn`) for podssh's test of pod-unit's
+check; the text of the mark, the quoting and each renderer did not change.
+podssh's take of `v0.82.1` keeps the renderers, the install steps and
+`install_system` in podssh, so the block keeps no `taken` line.
+`crates/pod-unit/SOURCES`: the podssh block is at `ea4c290` (blob `f237d04`
+of `text.rs`; the other 8 blobs did not change), with the reason in its
+comment. `check-sources.py` with clones of podssh (`64e88d0`) and podnet:
+"PodUtils/podssh at ea4c290: 9 files, 0 changes", "PodUtils/podnet at
+7f38f91: 1 files, 0 changes".
