@@ -261,5 +261,5 @@
 254 issue closed
 255 issue closed
 256 pull closed
-257 issue open
+257 issue closed
 258 issue open

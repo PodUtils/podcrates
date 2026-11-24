@@ -93,8 +93,8 @@ release, the signed `SHA256SUMS`, the assets and the images of
 `docs/releases/v0.82.0.md`, tagged without `release.yml`, so with no
 release and no images) and each change of `main` before the tag.
 
-The hand-off COORD-152 (#257) is open (call C780). It closes when each
-consumer names `v0.82.1` or a later tag:
+The hand-off COORD-152 (#257) is closed (call C780): each consumer names
+`v0.82.1`. Its Result line names the four takes:
 
 - podrunner names `v0.82.1` (PodUtils/podrunner#348, closed): its unit of
   the system calls `service_account()` (T-1110), and its report gives the
@@ -106,11 +106,14 @@ consumer names `v0.82.1` or a later tag:
   `taken` lines, and T-1124 is done.
 - podssh names `v0.82.1` (PodUtils/podssh#347, COORD-138, commit
   `17999753`). Its ask of a longer bound for the name of a unit is T-1182.
-- #257 names the takes of podrunner, podvm and podssh. Amend it at the take
-  of podnet.
-- podnet names `v0.82.0`. Its asks of #257: T-1117 (the limits 110 s and
-  210 s in its documents). #257 stays open until podnet names `v0.82.1` or
-  a later tag; it can close then.
+- podnet names `v0.82.1` (PodUtils/podnet#708, COORD-116): `a0b727c`
+  takes the tag in each manifest, each lock, `scripts/install/SOURCES` and
+  `issue-sync.yml`. `refusals` of `hop.rs` reads the typed `Refused` of the
+  last leg and the text of each leg (T-1116), and `pod_testkit::need_route!`
+  replaces its copy in `tests/test_host/mod.rs` (T-1097): the first block of
+  `pod-testkit` in `SOURCES` has the `taken` line. T-1117 is partial:
+  `docs/tunnels.md` of podnet and its copy in `llms-full.txt` still give
+  130 s and 280 s.
 
 COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
 `pod-term` (T-1144, open). No tag has it.

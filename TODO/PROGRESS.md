@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 948 entries: 168 open, 28 partial, 7 blocked, 745 done.
+`TODO/INDEX.md` holds 948 entries: 167 open, 29 partial, 7 blocked, 745 done.
 
 ## State
 
@@ -10,10 +10,9 @@
   the GitHub release, the signed `SHA256SUMS`, the assets and the images
   of `ghcr.io/podutils`. It carries `v0.82.0` (`51c09390`,
   `docs/releases/v0.82.0.md`, tagged without `release.yml`) and each
-  change of `main` before the tag. Its hand-off COORD-152 (#257) is open
-  (call C780): it closes when each consumer names `v0.82.1` or a later
-  tag. Only podnet names `v0.82.0`. The hand-off COORD-151 (#254) of
-  `v0.81.0` is closed.
+  change of `main` before the tag. Its hand-off COORD-152 (#257) is closed
+  (call C780): each consumer names `v0.82.1`. The hand-off COORD-151
+  (#254) of `v0.81.0` is closed.
 - On `main` after `v0.82.1`, for the next tag: podnet's asks
   (PodUtils/podnet#707: T-1125 to T-1134; T-1127 changes the field type of
   `pod-wormhole` `Failed::Unreachable` to `Missed`), podvm's asks
@@ -32,8 +31,8 @@
   (COORD-153).
 - The tag that the `main` of each consumer names: `v0.82.1` (podrunner,
   PodUtils/podrunner#348; podssh, PodUtils/podssh#347; podvm,
-  PodUtils/podvm#656), `v0.82.0` (podnet). The details of the earlier
-  takes are on #250 and #254.
+  PodUtils/podvm#656; podnet, PodUtils/podnet#708). The details of the
+  earlier takes are on #250 and #254.
 - PodUtils/static-pkgs builds and publishes the static programs that no
   one else publishes in the form that PodUtils needs (the owner,
   2026-11-20); its first release is `qemu-11.1.3`.
@@ -87,8 +86,8 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Amend the hand-off COORD-152
-(#257) at each take (podrunner, podssh and podvm have taken `v0.82.1`, and
-#257 names them; podnet has not), and answer
+(#257) at each take (each consumer has taken `v0.82.1`, and #257 is
+closed), and answer
 PodUtils/podvm#570 in the next COORD message to podvm (T-1162). Then, in
 podcrates: the red nightly (T-916, T-938, T-1161),
 T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
