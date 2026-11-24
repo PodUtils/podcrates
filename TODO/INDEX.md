@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**941 entries: 166 open, 28 partial, 7 blocked, 740 done.**
+**942 entries: 167 open, 28 partial, 7 blocked, 740 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 6 | 10 | 0 | 223 | 239 |
-| P2 | 73 | 8 | 4 | 384 | 469 |
+| P2 | 74 | 8 | 4 | 384 | 470 |
 | P3 | 87 | 10 | 3 | 131 | 231 |
-| **All** | 166 | 28 | 7 | 740 | 941 |
+| **All** | 167 | 28 | 7 | 740 | 942 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -988,3 +988,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1171](relay.md) | P3 | S | M2 | defect | open | `pod-link`: a late query of an ended DNS session starts a new handshake and holds a permit |
 | [T-1180](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `aab63e5` (the third port of `source-driver.md`) |
 | [T-1181](fleet.md) | P1 | S | M0 | chore | done | `pod-unit`: the words of the forms at podssh `ea4c290` (port review of `text.rs`) |
+| [T-1182](fleet.md) | P2 | S | M0 | feature | open | `pod-unit`: the name of a unit has at most 64 characters, so podssh's longer node names are refused at `--install` |

@@ -97,14 +97,16 @@ consumer names `v0.82.1` or a later tag:
 
 - podrunner names `v0.82.1` (PodUtils/podrunner#348, closed): its unit of
   the system calls `service_account()` (T-1110), and its report gives the
-  reason of each absent time (T-1098). Amend #257 with this take.
+  reason of each absent time (T-1098).
 - podvm names `v0.82.1` (PodUtils/podvm#656, COORD-240): `18160173` takes
   the tag (`pod_enter::joinable` in each join, `Plan::relay_title`,
   `pod_enter::title`), and `39a85246` takes `pod_hostprobe::usage`. The
   second blocks of `pod-enter` and `pod-hostprobe` in `SOURCES` have the
   `taken` lines, and T-1124 is done.
 - podssh names `v0.82.1` (PodUtils/podssh#347, COORD-138, commit
-  `17999753`).
+  `17999753`). Its ask of a longer bound for the name of a unit is T-1182.
+- #257 names the takes of podrunner, podvm and podssh. Amend it at the take
+  of podnet.
 - podnet names `v0.82.0`. Its asks of #257: T-1117 (the limits 110 s and
   210 s in its documents). #257 stays open until podnet names `v0.82.1` or
   a later tag; it can close then.
@@ -143,8 +145,9 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
 - podvm: T-1143, T-1158 (podvm removes its work-arounds at the tag of
   T-1155 to T-1157).
 - podnet: T-1117 (documents), T-1118 (`release-index.json`).
-- podssh: the STUN note above, T-1095 (the order of the pseudo-fields of
-  the HTTP/2 request of `pod-ws`, PodUtils/podssh#340), T-1103 (iroh 1.5).
+- podssh: the STUN note above, T-1182 (the bound of a unit name), T-1095
+  (the order of the pseudo-fields of the HTTP/2 request of `pod-ws`,
+  PodUtils/podssh#340), T-1103 (iroh 1.5).
 - Asks of podvm and podssh that no one has started: T-1155, T-1156 and
   T-1157 (`pod-incus`, PodUtils/podvm#653), T-1144 (`pod-term`), T-1165 to
   T-1171 (`pod-link`, the DNS carrier; PodUtils/podssh#349).

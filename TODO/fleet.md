@@ -8568,3 +8568,64 @@ of `text.rs`; the other 8 blobs did not change), with the reason in its
 comment. `check-sources.py` with clones of podssh (`64e88d0`) and podnet:
 "PodUtils/podssh at ea4c290: 9 files, 0 changes", "PodUtils/podnet at
 7f38f91: 1 files, 0 changes".
+
+# T-1182: `pod-unit`: the name of a unit has at most 64 characters, so podssh's longer node names are refused at `--install`
+
+**Source:** PodUtils/podssh#347 (COORD-138 of podssh, its T-820).
+**Category:** feature
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`name_ok` of `crates/pod-unit/src/model.rs` accepts 1 to 64 bytes for four
+values: `Unit::name`, `Unit::label`, the name of a `Secret` and the state
+directory. podssh takes the renderers and `install_system` of `pod-unit`
+(its T-820), and its node names can be longer than 64 bytes. After the
+take, `Unit::check` would refuse the unit of an existing long node at
+`--install`. podssh asked for a longer bound, or a bound that the caller
+sets, with the same check of the characters.
+
+podssh asked also, as not blocking, for a user unit whose address families
+have `AF_NETLINK` (its `--exit`, `--routes` and `--iroh`). No change is
+due: `unit.hardening.family("AF_NETLINK", WHY)` adds the family to a unit
+of the user and of the system, with the reason in a comment of the unit.
+The answer to podssh names that call.
+
+## Premise
+
+- Read: `crates/pod-unit/src/model.rs` (`Unit::check`, `name_ok`, the
+  documents of `name` and `label`), `systemd::file_name`
+  (`NAME.service`), `launchd` (`NAME.plist`, the label), the task and the
+  service of Windows (`schtasks /TN`, `sc.exe`).
+- Not measured: the longest name that each manager accepts. A file name
+  has at most 255 bytes on Linux and macOS, so a name has at most 247
+  bytes with `.service`. A service name of Windows has at most 256
+  characters. A task name has a path limit of 238.
+- The record has no entry for this bound (`grep` of `TODO/fleet.md` for
+  the bound finds none).
+
+## Approach
+
+1. Raise the bound of `Unit::name` and `Unit::label` to a value under the
+   lowest limit of the three managers (200 bytes), as a public constant
+   `Unit::NAME_MAX`. Keep the bound of 64 for the name of a secret and for
+   the state directory: podssh did not ask for them.
+2. Keep the check of the characters and of a first `.` or `-` as it is.
+3. Change the documents of the field and the text of the failure to say
+   the bound from the constant.
+4. Tell podssh by a COORD message at the tag, so that it removes its own
+   length check.
+
+## Prove
+
+A test in `crates/pod-unit/tests/forms.rs`: a name of `NAME_MAX` bytes
+passes `Unit::check` and renders for systemd, launchd and Windows; a name
+of `NAME_MAX + 1` bytes gives `Class::Usage`; a name of 64 bytes passes as
+before; a secret name of 65 bytes is still refused.
+
+```sh
+cargo test -p pod-unit --all-features
+```
