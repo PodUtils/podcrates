@@ -113,8 +113,34 @@ its holes as zero bytes. A failure after the first byte writes one block
 that is not a header in place of the end blocks: the reader fails and
 does not take a short tree, and the caller discards the upload. The
 memory: about 52 bytes and the name of each path, up to
-`Options::paths_max` paths (`PATHS_MAX`, 8 Mi). The stream does not hold
-the extended attributes, the ACLs and the entries of the caller (T-1195).
+`Options::paths_max` paths (`PATHS_MAX`, 8 Mi).
+
+**The records and the entries of the caller (`flatten`).** Each entry of
+the stream has the owner ids and the mode of the image (with setuid,
+setgid and sticky), and the time of the image, or 0 for a directory that
+the layers make with no entry: the stream depends on the layers alone.
+The extended attributes that `extract` sets go into the stream as
+`SCHILY.xattr.NAME` records, inside the same bounds and with the same
+records named and not written (`Flattened::xattrs`): a `LIBARCHIVE.xattr.`
+record decoded, a mark of overlayfs not written, and an ACL in its binary
+form (`SCHILY.xattr.system.posix_acl_access`), also when the layer has
+its text form. GNU tar with the arguments of incusd (`--xattrs-include=*`,
+no `--acls`) sets each `SCHILY.xattr.` record, the binary ACL and
+`security.capability` included (as root), and does not read
+`SCHILY.acl.`. A hard-link entry has no records: the inode has those of
+its file. `flatten_with` takes two closures: `before` writes entries
+before the tree, `after` after it, each through `Entries` (`dir`, `file`,
+`file_from`, `symlink`; owner 0, time 0, the path as the caller gives
+it). `Options::prefix` (`rootfs/` for the unified tarball of incus) goes
+before each path of the image and before the target of each hard link,
+not before the target of a symlink; a directory entry of each of its
+components (`Options::prefix_mode`) goes out after the entries of
+`before`. An entry of the caller at a path of the image in the stream, at
+a directory of the prefix, or below a file or a symlink of the image is
+refused (`Usage`, the path named), not merged; an entry of `before` is
+checked after the tree. The end blocks go out once, after the entries of
+`after`, or not at all with `Options::end` false, for a caller that
+appends more.
 
 **The hard links of `flatten`.** Each inode goes out once, at its first
 name in the stream, and each other name is a hard-link entry after it. A
@@ -157,7 +183,7 @@ not change while the process runs).
 | `Mismatch`, `mismatch(&failure)` | the cause of a blob that does not agree with its digest: `what`, `want`, `got` |
 | `apply` | `apply_layer(root, digest, stream, ids, sidecar)`, `LayerStats` (`entries`: the members read; `skipped`, `skipped_kinds`: the entries of a type that the crate does not make, not the root member; `dir_modes`: each directory entry of the layer and its mode; `replaced`: each path where the layer made an entry that is not a directory, with the count of `dir_modes` before it; `xattrs`), `Ids::current()` |
 | `modes` | `DirModes` (`new`, `record(&stats.dir_modes)`, `layer(&stats)` (the modes of the layer, and each directory that a non-directory of the layer replaced is forgotten, in the order of the layer), `forget(&ops)`, `set(root, sidecar)`, `len`, `is_empty`): the mode of the image of each directory, the last layer wins, set after the last layer and read back, a mode that the kernel did not keep is one more row of the directory with `applied.mode`; `open_tree(root)`: the owner bits on each directory of a tree that was there before, with `O_NOFOLLOW`, also of a directory with no owner read, one directory open at a time, a tree deeper than `MAX_DEPTH` refused with the cause `TooDeep` |
-| `flatten` | `flatten(&layers, &mut out, &options) -> Result<Flattened>` (the final tree as one tar stream, see above), `Options` (`report`: one `flatten::LAYER_EVENT` for each layer, `flatten.layer`: `<12 hex digits>: Flattened (N entries written, H hidden, W whiteouts)`; `paths_max`, default `PATHS_MAX`), `Flattened` (`layers`, `entries`, `written` (the hard links included), `links` (the hard-link entries), `rereads` (the layers read a second time), `implied`, `hidden`, `whiteouts`, `skipped`, `skipped_kinds`, `bytes`, `paths`); a refusal is the cause `Refused` with `Refusal::Stream` for a file or a link over a directory that its layer filled in the stream before it, and `Refusal::Link` for a hard link as `extract` gives it |
+| `flatten` | `flatten(&layers, &mut out, &options) -> Result<Flattened>` (the final tree as one tar stream, see above), `flatten_with(&layers, &mut out, &options, before, after)` (with the entries of the caller through `Entries`: `dir(path, mode)`, `file(path, mode, data)`, `file_from(path, mode, size, reader)`, `symlink(path, target)`), `Options` (`report`: one `flatten::LAYER_EVENT` for each layer, `flatten.layer`: `<12 hex digits>: Flattened (N entries written, H hidden, W whiteouts)`; `paths_max`, default `PATHS_MAX`; `prefix`, default empty; `prefix_mode`, default 0755; `end`, default true), `Flattened` (`layers`, `entries`, `written` (the hard links included), `links` (the hard-link entries), `rereads` (the layers read a second time), `implied`, `hidden`, `whiteouts`, `skipped`, `skipped_kinds`, `xattrs` (`xattr::Count`: the records written, the records named and not written), `extra` (the directories of the prefix and the entries of the caller), `bytes`, `paths`); a refusal is the cause `Refused` with `Refusal::Stream` for a file or a link over a directory that its layer filled in the stream before it, and `Refusal::Link` for a hard link as `extract` gives it |
 | `layer` | `Compression::of(media_type)` (tar, `+gzip`, `.tar.gzip`, `+zstd`), `open_hashed(path, c)`, `HashedStream::digest`, `uncompressed_size(path, c, compressed)` (exact for gzip under 4 GiB, an estimate with its flag for the others) |
 | `pax` | `Framed::new(stream, side)` (the stream of a layer as the `tar` reader reads it: an `x` past `PAX_MAX` (1 MiB) and an `L` or a `K` past `LONG_MAX` (4096) refused before their data, with the cause `Refusal::Member`; the records of an `x` parsed by their length; one `size` record to the `tar` reader, the last; each class of record above), `Side` (`next()`: the `Member` of each entry of the `tar` reader, in order; `refused()`), `Member` (`path`, `linkpath`, `xattrs`: the `SCHILY.xattr.`, `LIBARCHIVE.xattr.` and `SCHILY.acl.` records; `sparse`: the `GNU.sparse.` records, `Option<sparse::Sparse>`), `records(data)` |
 | `sparse` | `Sparse` (`real_size`, `map`), `Map` (`Records(Vec<Region>)`: versions 0.0 and 0.1; `Data`: version 1.0), `Region` (`offset`, `len`), `Layout` (`real_size`, `regions`: the map read and checked), `REGIONS_MAX` (262144), `MAP_MAX` (1 MiB) |

@@ -1,0 +1,11 @@
+--- a/crates/pod-extract/src/flatten/write.rs
++++ b/crates/pod-extract/src/flatten/write.rs
+@@ -86,7 +86,7 @@
+         let full = |p: &str| if prefixed { format!("{}{p}", self.prefix) } else { p.to_string() };
+         fit(&mut u.name, &full(h.path), b"path", &mut recs);
+         match (h.link, h.kind) {
+-            (Some(l), Kind::Link) => fit(&mut u.linkname, &full(l), b"linkpath", &mut recs),
++            (Some(l), Kind::Link) => fit(&mut u.linkname, l, b"linkpath", &mut recs),
+             (Some(l), _) => fit(&mut u.linkname, l, b"linkpath", &mut recs),
+             (None, _) => {}
+         }

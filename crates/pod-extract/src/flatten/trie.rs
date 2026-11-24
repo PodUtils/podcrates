@@ -168,6 +168,11 @@ impl Trie {
         }
     }
 
+    /// The node of `name` below `parent`, when the trie has it.
+    pub(super) fn lookup_child(&self, parent: u32, name: &str) -> Option<u32> {
+        self.lookup(parent, name).ok()
+    }
+
     /// The node of `name` below `parent`, made when it is not there. The
     /// name has at most [`crate::safety::COMPONENT_MAX`] bytes.
     pub(super) fn child(&mut self, parent: u32, name: &str) -> Result<u32, Full> {

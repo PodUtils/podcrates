@@ -14314,7 +14314,7 @@ T-1195.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14344,6 +14344,84 @@ In the `flatten` of T-1193.
 cargo test -p pod-extract --all-features flatten
 cargo clippy -p pod-extract --all-targets --all-features -- -D warnings
 ```
+
+## Done
+
+2026-11-24, this commit.
+
+The measure (item 1, the first step). incusd unpacks with GNU tar and
+`--xattrs-include=*`, with no `--acls` (T-1193). GNU tar 1.35 as root
+with these arguments, on crafted streams: `SCHILY.xattr.security.capability`
+and `SCHILY.xattr.user.k` are set; `SCHILY.xattr.system.posix_acl_access`
+(the binary form) is set; `SCHILY.acl.access` (the text form) is not read
+(with `--acls` it is); a `SCHILY.xattr.` record of a hard-link entry is
+not set. The choice: each ACL goes out in its binary form, as `extract`
+sets it, also when the layer has its text form, so incusd sets it.
+
+The change. `put` of `crates/pod-extract/src/flatten/entry.rs` writes the
+attributes of `xattr::read` (the same bounds, the same records named, a
+`LIBARCHIVE.xattr.` record decoded, the marks of overlayfs not written,
+an ACL in its binary form) as `SCHILY.xattr.NAME` records in the PAX header
+of each entry (`write::Out::head_with`), also for a file under the name of
+a hard link and for a file read again; `Flattened::xattrs`
+(`xattr::Count`, now `PartialEq`) counts them. The owners, the modes and
+the times were those of the image already; a directory with no entry has
+the time 0. `Options::prefix` (the lexical check, else `Usage` before the
+first byte) goes before each path of the image and before the target of
+each hard link; `Options::prefix_mode` gives the mode of its directory
+entries; `Options::end` false leaves out the end blocks.
+`flatten_with(&layers, &mut out, &options, before, after)` takes two
+closures over `Entries` (`dir`, `file`, `file_from`, `symlink`; module
+`crates/pod-extract/src/flatten/extra.rs`) in place of the closures in
+`Options` of the approach, so that `Options` keeps `Clone` and `Debug`. The
+order: the entries of `before`, the directories of the prefix, the tree,
+the entries of `after`, the end blocks. An entry of the caller at a path
+of the image in the stream, at a directory of the prefix or below a file
+or a symlink of the image is refused (`Usage`, the path named); an entry
+of `before` is checked after the tree. `Flattened::extra` counts the
+directories of the prefix and the entries of the caller.
+
+The tests. `crates/pod-extract/tests/flatten_records.rs` (7 tests, each
+against `extract` of the same layers through `support::same`, the records
+read with the `tar` crate, `support::xattrs`): `security.capability` and
+a `user.` attribute, an ACL in each form, a `LIBARCHIVE.xattr.` record
+alone, an attribute past a bound and a mark of overlayfs not written, the
+records of a file under the name of a hard link, a name past 100 bytes
+that is not ASCII, and the same bytes on two runs (a directory with no
+entry at the time 0). `crates/pod-extract/tests/flatten_unified.rs` (6
+tests): the unified tarball (the order, the mode of `rootfs`, a hard link
+with the prefix, a symlink with its target, the end blocks once, the tree
+below `rootfs/` and the names of each inode against `extract`), no end
+blocks, an entry of the caller at a path of the image, below a symlink of
+the image (the stream broken) and at the prefix, a prefix that is not a
+path, the counts of the attributes, and GNU tar with the arguments of
+incusd on the unified tarball (`metadata.yaml`, `rootfs/.podvm/podvm`,
+`user.k` set). On the code before, 5 of the 7 tests of
+`flatten_records.rs` failed (no record in the stream: `left: []`), and
+`flatten_unified.rs` did not compile (no `flatten_with`, no
+`Options::prefix`, no `Flattened::xattrs`). `cargo test -p pod-extract
+--all-features`: 114 unit tests, 20, 10, 2, 7 and 6 integration tests
+pass. `cargo clippy -p pod-extract --all-targets --all-features -- -D
+warnings`, `cargo doc -p pod-extract --no-deps --all-features` with `-D
+warnings`, `cargo fmt --all --check`, `cargo check --manifest-path
+fuzz/Cargo.toml`, `scripts/check-size.py` and `codegraph.py dups` pass;
+`sh scripts/plant-each.sh --apply`: 0 stale.
+
+The plant `extract-flatten-link-target-without-prefix` (a hard link names
+its target with no prefix) fails
+`the_prefix_and_the_entries_of_the_caller_make_a_unified_tarball` (exit
+101, `left: Some("etc/a")`); the run without it passes.
+
+New entry: T-1270 (the attributes of a hard-link entry: `extract` sets
+them on the inode, the stream drops them, GNU tar does not set them).
+
+For the hand-off: `pod_extract::flatten::{flatten_with, Entries}`,
+`Options::{prefix, prefix_mode, end}`, `Flattened::{xattrs, extra}` are
+new. podvm can stream the unified tarball of incus with no tree on the
+disk: `flatten_with` with `Options { prefix: "rootfs/".into(), .. }`,
+`before` writes `metadata.yaml`, `after` writes `rootfs/.podvm/podvm`
+(and its directory), into a pipe that `pod_incus::ImageData::Unified`
+reads as a `Payload` with no length; the gzip of the upload is T-1196.
 
 # T-1196: `pod-gzip`: a writer of gzip members, one member for each block, by up to eight threads, with the same bytes for any count of threads (PodUtils/podvm#657)
 
@@ -14693,4 +14771,51 @@ takes the layers.
 
 ```sh
 cargo test -p pod-extract --all-features --test flatten_links
+```
+
+# T-1270: `pod-extract`: `flatten` drops the extended attributes of a hard-link entry, which `extract` sets on the inode
+
+**Source:** T-1195 (a finding of its work)
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`extract` sets the `SCHILY.xattr.` records of a hard-link entry on the
+inode of its target (`xattr::set_at` on the name of the link), so each
+name of the inode has them. `flatten` writes a hard-link entry with no
+records: the inode in the stream has the records of its file entry only.
+GNU tar 1.35 with the arguments of incusd does not set a record of a
+hard-link entry (measured on a crafted stream). So an image whose
+hard-link entry has an attribute that its file entry does not have gives
+a tree from the stream that differs from the tree of `extract`.
+
+## Premise
+
+- Read: `crates/pod-extract/src/apply.rs` (the attributes of a link are
+  set after the link is made), `crates/pod-extract/src/flatten/links.rs`
+  (`put_links` writes no record).
+- Measured: GNU tar 1.35 as root, `--xattrs-include=*`: a
+  `SCHILY.xattr.user.l` record on a hard-link entry is not set; exit 0.
+- Not measured: how many real images have records on a hard-link entry.
+
+## Approach
+
+1. Keep the records of each link entry with its name in the group of its
+   inode, and write the union of the records of the file and of its links
+   (a record of a link holds over the same name of the file, as the later
+   set of `extract`) with the data of the inode, where the inode goes out
+   after the link is read. Where the data went out before the link (a link
+   of the same layer after its visible file), name the records in
+   `Flattened::xattrs` as not written.
+2. A test in `crates/pod-extract/tests/flatten_records.rs` that fails on
+   the code before.
+
+## Prove
+
+```sh
+cargo test -p pod-extract --all-features --test flatten_records
 ```

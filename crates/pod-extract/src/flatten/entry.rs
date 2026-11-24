@@ -11,7 +11,7 @@ use crate::error::{Result, refuse};
 use crate::safety::{self, Refusal};
 use crate::sparse::Layout;
 use crate::whiteout::{self, Kind as Marker};
-use crate::{Layer, pax};
+use crate::{Layer, pax, xattr};
 
 /// The state of one flatten.
 pub(super) struct State {
@@ -144,9 +144,11 @@ impl State {
                 }
                 return Ok(());
             };
-            put(w, &self.trie.path(name.node), wkind, &header, e, sparse.as_ref(), link)?;
+            let x = put(w, &self.trie.path(name.node), (wkind, &header, member), e, sparse.as_ref(), link)?;
+            self.total.xattrs.add(&x);
         } else {
-            put(w, &parts.join("/"), wkind, &header, e, sparse.as_ref(), link)?;
+            let x = put(w, &parts.join("/"), (wkind, &header, member), e, sparse.as_ref(), link)?;
+            self.total.xattrs.add(&x);
             let n = self.trie.node_mut(leaf);
             n.emitted = layer;
             for a in chain {
@@ -269,6 +271,7 @@ impl State {
             let head =
                 Head { path: &path, kind: Kind::Dir, mode: 0o755, uid: 0, gid: 0, mtime: 0, size: 0, link: None };
             w.head(&head)?;
+            self.trie.node_mut(n).emitted = super::IMPLIED;
             self.total.implied += 1;
         }
         Ok(())
@@ -352,28 +355,37 @@ impl State {
         let sparse = crate::sparse::layout(member.sparse.as_ref(), e, digest, &path)?;
         let target = header.entry_type().is_symlink().then(|| crate::apply::link_name(e, member));
         let kind = if target.is_some() { Kind::Symlink } else { Kind::File };
-        put(w, &self.trie.path(names[0].node), kind, &header, e, sparse.as_ref(), target.as_deref())?;
+        let x = put(w, &self.trie.path(names[0].node), (kind, &header, member), e, sparse.as_ref(), target.as_deref())?;
+        self.total.xattrs.add(&x);
         self.total.written += 1;
         self.links.reread_links(w, &self.trie, names)
     }
 }
 
 /// One entry of the stream at `path`: the header with the values of the
-/// image, then the data of a file (its holes as zero bytes).
+/// image and the extended attributes that `extract` sets
+/// ([`crate::xattr::read`], an ACL in its binary form) as `SCHILY.xattr.`
+/// records, then the data of a file (its holes as zero bytes). Gives the
+/// attributes written and those named and not written.
 fn put<W: Write, R: Read>(
     w: &mut Out<'_, W>,
     path: &str,
-    kind: Kind,
-    header: &tar::Header,
+    (kind, header, member): (Kind, &tar::Header, &pax::Member),
     e: &mut tar::Entry<'_, R>,
     sparse: Option<&Layout>,
     link: Option<&str>,
-) -> Result<()> {
+) -> Result<xattr::Applied> {
     let size = match (sparse, kind) {
         (Some(l), _) => l.real_size,
         (None, Kind::File) => e.size(),
         _ => 0,
     };
+    let wanted = xattr::read(&member.xattrs, path);
+    let mut recs = Vec::new();
+    for a in &wanted.attrs {
+        let key = format!("{}{}", xattr::PAX_PREFIX, a.name);
+        pax::push_record(&mut recs, key.as_bytes(), &a.value);
+    }
     let head = Head {
         path,
         kind,
@@ -384,10 +396,11 @@ fn put<W: Write, R: Read>(
         size,
         link,
     };
-    w.head(&head)?;
+    w.head_with(&head, &recs, true)?;
     match sparse {
-        Some(l) => w.data(&mut Expand::new(e, l), size),
-        None if kind == Kind::File => w.data(e, size),
-        None => Ok(()),
+        Some(l) => w.data(&mut Expand::new(e, l), size)?,
+        None if kind == Kind::File => w.data(e, size)?,
+        None => {}
     }
+    Ok(xattr::Applied { set: wanted.attrs.len() as u64, unset: wanted.refused })
 }

@@ -56,6 +56,9 @@ pub enum E<'a> {
     /// A GNU sparse file of the PAX form: the version (`"0.0"`, `"0.1"`,
     /// `"1.0"`), the name, the real size, and each region with its data.
     Sparse(&'a str, &'a str, u64, &'a [(u64, &'a [u8])]),
+    /// A file with the records of a PAX header: the name, the data, the
+    /// mode and each record (key, value).
+    Pax(&'a str, &'a [u8], u32, &'a [(&'a str, &'a [u8])]),
 }
 
 /// One uncompressed layer.
@@ -96,6 +99,17 @@ pub fn tar(entries: &[E]) -> Vec<u8> {
                 b.append_data(&mut h, p, std::io::empty()).unwrap();
             }
             E::Sparse(version, name, real, regions) => sparse(&mut b, version, name, *real, regions),
+            E::Pax(p, data, mode, recs) => {
+                let mut x = Vec::new();
+                for (k, v) in *recs {
+                    record_bytes(&mut x, k, v);
+                }
+                let mut xh = tar::Header::new_ustar();
+                xh.set_entry_type(tar::EntryType::XHeader);
+                xh.set_size(x.len() as u64);
+                b.append_data(&mut xh, "././@PaxHeader", Cursor::new(x)).unwrap();
+                file(&mut b, &mut h, p, data, 0, 0, *mode);
+            }
         }
     }
     b.into_inner().unwrap()
@@ -112,12 +126,18 @@ fn file(b: &mut tar::Builder<Vec<u8>>, h: &mut tar::Header, p: &str, data: &[u8]
 
 /// One PAX record, its length with its own digits.
 fn record(out: &mut Vec<u8>, key: &str, value: &str) {
+    record_bytes(out, key, value.as_bytes());
+}
+
+fn record_bytes(out: &mut Vec<u8>, key: &str, value: &[u8]) {
     let rest = key.len() + value.len() + 3;
     let mut len = rest + 1;
     while len != rest + len.to_string().len() {
         len = rest + len.to_string().len();
     }
-    out.extend_from_slice(format!("{len} {key}={value}\n").as_bytes());
+    out.extend_from_slice(format!("{len} {key}=").as_bytes());
+    out.extend_from_slice(value);
+    out.push(b'\n');
 }
 
 fn sparse(b: &mut tar::Builder<Vec<u8>>, version: &str, name: &str, real: u64, regions: &[(u64, &[u8])]) {
@@ -371,4 +391,26 @@ pub fn gnu_tar(stream: &[u8], out: &Path) -> Result<std::process::ExitStatus, St
     child.stdin.as_mut().unwrap().write_all(stream).unwrap();
     drop(child.stdin.take());
     Ok(child.wait().unwrap())
+}
+
+/// The extended attribute records (`SCHILY.xattr.`) of the entry of `path`
+/// in a stream, each name with its value, sorted.
+pub fn xattrs(stream: &[u8], path: &str) -> Vec<(String, Vec<u8>)> {
+    let mut ar = tar::Archive::new(Cursor::new(stream));
+    for e in ar.entries().unwrap() {
+        let mut e = e.unwrap();
+        if String::from_utf8_lossy(&e.path_bytes()) != path {
+            continue;
+        }
+        let mut out = Vec::new();
+        for x in e.pax_extensions().unwrap().into_iter().flatten() {
+            let x = x.unwrap();
+            if let Some(name) = x.key().unwrap().strip_prefix("SCHILY.xattr.") {
+                out.push((name.to_string(), x.value_bytes().to_vec()));
+            }
+        }
+        out.sort();
+        return out;
+    }
+    panic!("no {path} in the stream")
 }
