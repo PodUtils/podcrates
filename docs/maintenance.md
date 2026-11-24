@@ -144,7 +144,9 @@ owner's ruling "Issues"):
   `scripts/issue-sync.py`, then syncs: it writes the block into the body
   of each issue (it keeps the rest of the body), closes an issue that the
   record closes (with one comment on a report, a deferred issue or a
-  tracker), and opens again one that the record opens. It fails on drift
+  tracker), and opens again one that the record opens. It keeps closed, for
+  24 hours, an issue that a person closed by hand while the record holds it
+  open, and prints a note: change the record in that time (call C924). It fails on drift
   that it cannot fix: an open issue with no row, a number that GitHub
   does not have as an issue, a body with a broken block. It does not edit
   an issue of an author outside the team with no label `confirmed`; it

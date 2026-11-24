@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**922 entries: 156 open, 27 partial, 7 blocked, 732 done.**
+**927 entries: 159 open, 27 partial, 7 blocked, 734 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 220 | 234 |
-| P2 | 72 | 7 | 4 | 379 | 462 |
+| P1 | 6 | 10 | 0 | 220 | 236 |
+| P2 | 73 | 7 | 4 | 381 | 465 |
 | P3 | 80 | 10 | 3 | 131 | 224 |
-| **All** | 156 | 27 | 7 | 732 | 922 |
+| **All** | 159 | 27 | 7 | 734 | 927 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -932,7 +932,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1107](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a unit of the system that runs as a named account removes the IPC of that account at its stop (`RemoveIPC=yes`) (PodUtils/podssh#342) |
 | [T-1108](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a unit of systemd has no limit of starts for systemd older than 230 (`StartLimitInterval=0`) (PodUtils/podssh#342) |
 | [T-1109](foundation.md) | P1 | S | M0 | feature | done | `pod-core`: an atomic replace has no check of the temporary file before the rename (PodUtils/podssh#342) |
-| [T-1110](fleet.md) | P2 | S | M8 | chore | open | `pod-unit`: podrunner's unit of the system loses `RemoveIPC=yes` at its take of the tag of T-1107, and its test of the unit fails |
+| [T-1110](fleet.md) | P2 | S | M8 | chore | done | `pod-unit`: podrunner's unit of the system loses `RemoveIPC=yes` at its take of the tag of T-1107, and its test of the unit fails |
 | [T-1111](foundation.md) | P2 | S | M0 | chore | done | `pod-guest`, `pod-release`, `pod-supervise`: the changes of podvm and podnet at their heads (port review) |
 | [T-1112](podvm.md) | P1 | S | M6 | defect | done | `pod-enter`: the init of a PID namespace and the relay of a join show the command line and the environment of the caller to the payload, and a payload of the same user can trace them (PodUtils/podvm#646) |
 | [T-1113](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: the init of a PID namespace in a user namespace of the rung stays dumpable, so a payload of the same caller can trace it and read the memory of the caller |
@@ -969,3 +969,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1152](relay.md) | P1 | S | M2 | defect | done | `pod-natprobe`: the SSRF guards of UPnP and of the STUN replies take a host from an untrusted reply |
 | [T-1153](relay.md) | P2 | S | M2 | defect | done | `pod-natprobe`: each stray datagram adds one observation, with no bound |
 | [T-1154](relay.md) | P3 | S | M2 | defect | done | `pod-natprobe`: the resolver of the servers is the system's, a setting is never read, and a doc names two servers |
+| [T-1155](podvm.md) | P1 | S | M6 | defect | open | `pod-incus`: an exec whose command ends with 126 or 127 ends the wait as an error of incusd, and `exec_recorded` and `Attached::wait` give no exit code, no output and no operation id (PodUtils/podvm#653) |
+| [T-1156](podvm.md) | P1 | S | M6 | feature | open | `pod-incus`: no bound of the answer of a call: a socket that takes the connection and never answers holds the caller (PodUtils/podvm#653) |
+| [T-1157](podvm.md) | P2 | S | M6 | defect | open | `pod-incus`: after a failed write of a body, the answer that incusd already sent is read with no bound and no test, and the documentation does not tell the caller about SIGPIPE (PodUtils/podvm#653) |
+| [T-1158](podvm.md) | P2 | S | M6 | chore | open | podvm removes its work-arounds for `pod-incus` at its take of the tag of T-1155 to T-1157 |
+| [T-1159](fleet.md) | P2 | S | M8 | defect | done | `issue-sync`: a close of an issue by a person is reverted at the next push, before a session can change the record |

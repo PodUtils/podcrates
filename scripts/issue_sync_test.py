@@ -19,7 +19,8 @@ def record(number, kind="report", state="open", date="2026-11-15", entries=None)
     return {"number": number, "kind": kind, "state": state, "entries": entries, "block": block(state, date)}
 
 
-def item(number, body, state="open", association="MEMBER", labels=(), pull=False, created="2026-01-01T00:00:00Z"):
+def item(number, body, state="open", association="MEMBER", labels=(), pull=False, created="2026-01-01T00:00:00Z",
+         closed_by=None, closed_ago_hours=None):
     out = {
         "created_at": created,
         "number": number,
@@ -30,6 +31,12 @@ def item(number, body, state="open", association="MEMBER", labels=(), pull=False
     }
     if pull:
         out["pull_request"] = {}
+    if closed_by is not None:
+        import datetime as dt
+
+        closed = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=closed_ago_hours or 0)
+        out["closed_at"] = closed.strftime("%Y-%m-%dT%H:%M:%SZ")
+        out["closed_by"] = {"login": closed_by[0], "type": closed_by[1]}
     return out
 
 
@@ -108,6 +115,33 @@ def run(sync):
     check(
         code == 0 and api.writes == [("edit", 25, {"state": "open", "state_reason": "reopened"})],
         "an open record opens its closed issue again",
+    )
+
+    # An issue that a person closed by hand while the record holds it open
+    # stays closed for HAND_HOURS, with a note; the block is still written.
+    person = ("someone", "User")
+    code, api, lines = run_sync(sync, [record(40)], [item(40, "A.", state="closed", closed_by=person, closed_ago_hours=2)])
+    check(
+        code == 0
+        and not [w for w in api.writes if w[2].get("state")]
+        and api.items[40]["state"] == "closed"
+        and api.items[40]["body"].endswith(block("open"))
+        and any("#40: closed by hand by someone" in x and "close it in the record" in x for x in lines),
+        "a close by a person is kept, reported, and the block is written",
+    )
+    code, api, lines = run_sync(sync, [record(41)], [item(41, "A.", state="closed", closed_by=person, closed_ago_hours=30)])
+    check(code == 0 and api.items[41]["state"] == "open", "a close by a person is reverted after the grace")
+    bot = ("github-actions[bot]", "Bot")
+    code, api, lines = run_sync(sync, [record(42)], [item(42, "A.", state="closed", closed_by=bot, closed_ago_hours=1)])
+    check(code == 0 and api.items[42]["state"] == "open", "a close by a bot is reverted at once")
+    code, api, lines = run_sync(sync, [record(43)], [item(43, "A.", state="closed")])
+    check(code == 0 and api.items[43]["state"] == "open", "a close with no closer is reverted at once")
+    code, api, lines = run_sync(
+        sync, [record(44)], [item(44, "A.", state="closed", closed_by=person, closed_ago_hours=2)], dry_run=True
+    )
+    check(
+        code == 0 and not api.writes and not any("open again" in x for x in lines),
+        "the dry run does not plan an open again inside the grace",
     )
 
     # The dry run prints each change and writes nothing.

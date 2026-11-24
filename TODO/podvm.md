@@ -13544,3 +13544,243 @@ cargo test -p pod-incus --all-features --test too_large
 
 The coordinator answers PodUtils/podvm#651 with the tag, and podvm takes
 it.
+
+
+# T-1155: `pod-incus`: an exec whose command ends with 126 or 127 ends the wait as an error of incusd, and `exec_recorded` and `Attached::wait` give no exit code, no output and no operation id (PodUtils/podvm#653)
+
+**Source:** PodUtils/podvm#653 (COORD-237 of podvm), ask 1.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+incusd 6.0.0 ends an operation of exec as a failure where the command
+ends with 127 or 126: `status_code` 400, `err` "Command not found" or
+"Command not executable". `GET /1.0/operations/ID/wait` then answers an
+envelope of type `error` (`error_code` 400, the same words), not the
+operation. The operation itself (`GET /1.0/operations/ID`, kept for some
+seconds after its end) still has `metadata.return` (127 or 126) and, with
+`record-output`, `metadata.output` (the two logs). incusd gives the same
+answer for a program that is not there (`return` 127, empty logs) and for
+`exit 127` of a shell, so the answer cannot tell them apart. So
+`Client::exec_recorded` and `Attached::wait` give `ErrorKind::Incus
+{status: 400, error: "Command not found"}` for a command that ran and
+ended with 127: `exec_recorded` loses its output, and the error does not
+carry the id of the operation, so a caller cannot read the operation.
+podvm asks: read the operation after that error and give its `return` as
+the exit code (with the logs for `exec_recorded`); where the operation is
+gone, the words give 127 or 126; or at least the id of the operation in
+the error.
+
+## Premise
+
+- Read in the text of podvm#653 (measured by podvm on 2026-11-24 with curl
+  on a root incusd 6.0.0): the three answers above.
+- Read: `crates/pod-incus/src/operation.rs` (`wait_for` reads the wait
+  with `envelope`, which turns an `error` envelope into `ErrorKind::Incus`
+  with no id), `crates/pod-incus/src/exec.rs` (`exec_recorded`),
+  `crates/pod-incus/src/attach.rs` (`Attached::wait`), and the test
+  `a_command_that_fails_to_start_gives_the_err_of_its_operation`
+  (`crates/pod-incus/tests/exec.rs`), which covers an operation that ends
+  as a failure with a body of type `async`, not this error envelope.
+- Not measured here: incusd. The stand-in of the tests answers what the
+  text of podvm#653 gives, until a live run (`live.yml`) holds it.
+
+## Approach
+
+In `exec_recorded` and `Attached::wait`: where the wait gives an
+`ErrorKind::Incus` with status 400 and the error "Command not found" or
+"Command not executable", read `GET /1.0/operations/ID` and take its
+`metadata.return` as the exit code. `exec_recorded` then reads and
+deletes the two logs of `metadata.output` as it does for a success. Where
+the operation is gone (404), the words give the code: 127 and 126. A
+failure of the call that reads the operation stays the error of that
+call. An exit of 127 or 126 that the operation reports as a success needs
+no change. The error of a failed wait names the id of the operation
+(a field of the `Incus` kind or an `Operation` kind), for a caller that
+reads it. The stand-in of the tests (`crates/pod-incus/tests/common`)
+answers an exec that ends with 127 as incusd does. The README of the
+crate gives the rule and names the limit: incusd gives one answer for a
+missing program and for `exit 127`.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features --test exec
+cargo test -p pod-incus --all-features
+```
+
+The tests: `exec_recorded` of `sh -c 'echo out; echo err >&2; exit 127'`
+gives the code 127 with the two logs; the same with 126; an operation that
+is gone gives the code of the words; `Attached::wait` gives the code; an
+error of the wait that is not one of the two sentences stays an error.
+
+
+# T-1156: `pod-incus`: no bound of the answer of a call: a socket that takes the connection and never answers holds the caller (PodUtils/podvm#653)
+
+**Source:** PodUtils/podvm#653 (COORD-237 of podvm), ask 2.
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Settings` has `connect_timeout` and `wait` but no bound of the answer of a
+call. A socket that takes the connection and never answers holds the
+caller with no bound: the outside pass of podvm killed `podvm ps
+--podvm-tier incus` at 90 s, and podvm 0.2.0-beta.38 still waited at 45 s.
+podvm asks `Settings::answer_timeout` (the head of an answer, and each
+read of its body) with its own `ErrorKind`. podvm's work-around is a bound
+of 30 s on the first `GET /1.0` of each verb.
+
+## Premise
+
+- Read in the text of podvm#653: the symptom and the work-around.
+- Read: `crates/pod-incus/src/client.rs` (`Settings`, `exchange`,
+  `envelope`, `request`) and `crates/pod-incus/src/wire.rs` (`read`,
+  `read_envelope`, `envelope_body`). The only time bounds are
+  `connect_timeout`, `write_timeout` (a frame of a websocket) and the
+  bound that `wait_for` sets on a wait (the limit and 30 s). A read of
+  the head of an answer and of its body has none.
+- Not measured: a read that stalls in the middle of a large body.
+
+## Approach
+
+`Settings::answer_timeout: Option<Duration>` with a default of 30 s (a
+value that no call of incusd needs more than: the waits keep their own
+bound and are not read under it; a read of a body is a bound for each
+read, not for the whole body). It covers the head of each answer and each
+read of its body, in `exchange`, `envelope`, the recovery of `request`
+(T-1157) and the read of the head of the websocket upgrade. A silence over
+the bound is `ErrorKind::AnswerTimeout { call phase }`, with the phase
+`head` or `body`, and no part of a secret. A wait for an operation keeps its own bound (its limit and
+`WAIT_SLACK`). `None` gives the old behaviour. The README lists the setting and the kind.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features --test server
+cargo test -p pod-incus --all-features
+```
+
+The tests: a stand-in that accepts and never answers gives
+`AnswerTimeout` with the phase `head` at the bound; one that sends a head
+and stalls in the body gives the phase `body`; a wait of 60 s under an
+`answer_timeout` of 1 s still waits; `None` waits.
+
+
+# T-1157: `pod-incus`: after a failed write of a body, the answer that incusd already sent is read with no bound and no test, and the documentation does not tell the caller about SIGPIPE (PodUtils/podvm#653)
+
+**Source:** PodUtils/podvm#653 (COORD-237 of podvm), ask 3; PodUtils/podrunner#347 ask 2 (PodUtils/podvm@T-2082).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+incusd that cannot store an upload answers 500 and closes the connection
+while the client still writes the body. With SIGPIPE ignored by podvm, in
+four runs of four on a cloud host `pod-incus` gave the answer of incusd
+(`incus refused the call (500): write .../incus_post_...: no space left
+on device`). podvm asks that this is a rule of the crate: after EPIPE or a
+reset on the write of a body, read the answer that is already there,
+within a short bound, and give it; and the documentation of `Client` says
+that a caller must not let SIGPIPE end the process (the crate cannot set
+it).
+
+## Premise
+
+- Read in the text of podvm#653: the symptom and the ask.
+- Read: `Client::request` in `crates/pod-incus/src/client.rs` already
+  reads the answer after `BrokenPipe` or `ConnectionReset` of the write
+  (`wire::read` with `max_body`). The rule exists. The read has no time
+  bound (a closed socket that holds a half answer holds the caller; T-1156
+  gives the bound), no test covers it (`grep` of `tests/` and `src/` finds
+  none), an answer over `max_body` is lost there (the read is `wire::read`,
+  not the read of an `error` envelope past the bound, T-1139), and the
+  README and the doc of `Client` say nothing of SIGPIPE.
+- Not measured: the order of the close and the answer on the socket of
+  incusd.
+
+## Approach
+
+Keep the rule and finish it. The read after the failed write goes through
+`wire::read_envelope` (an `error` envelope over the bound is cut, T-1139)
+under a short bound of its own (5 s, with `Settings::answer_timeout` as the
+upper limit, T-1156). A read that gives no answer gives the error of the
+write, as now. The doc of `Client` and the README say that a write to a
+socket that incusd closed raises SIGPIPE in a process that does not
+ignore it, and that the caller sets SIGPIPE to ignore before the first
+upload; the crate sets no signal. A stand-in (`crates/pod-incus/tests/common`)
+that answers 500 at the first bytes of an upload and closes, with a body
+over the socket buffer, proves the rule.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features --test images
+cargo test -p pod-incus --all-features
+```
+
+The tests: a stand-in that answers 500 with "no space left on device" and
+closes while the client writes 16 MiB gives `Incus` status 500 with those
+words, in each of ten runs; a stand-in that closes with no answer gives the
+`Io` error of the write; one that answers and then stalls gives the answer
+or `AnswerTimeout` at the bound; an `error` envelope over the bound gives
+`TooLarge` with its first words. Each test fails on the code before the
+change (the bound and the envelope read).
+
+
+# T-1158: podvm removes its work-arounds for `pod-incus` at its take of the tag of T-1155 to T-1157
+
+**Source:** T-1155, T-1156 and T-1157 (PodUtils/podvm#653).
+**Category:** chore
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podvm works around the three faults of PodUtils/podvm#653 in its own code:
+`exec_attached`, `Attached::operation` and `Client::operation` after a
+failed wait (`code_of_failure`, PodUtils/podvm:crates/podvm/src/incus/attach.rs),
+a bound of 30 s on the first `GET /1.0` of each verb (`verbs::first_answer`),
+and the ignore of SIGPIPE for an upload. After the tag with the three
+fixes, the work-arounds do the work twice, and a work-around that hides a
+fault of the crate hides the next one.
+
+## Premise
+
+- Read: the text of PodUtils/podvm#653 (the names above). podvm's code was
+  not read here.
+- Not measured: podvm at the tag.
+
+## Approach
+
+Name the changes in the COORD answer to PodUtils/podvm#653 with the tag that
+has T-1155 to T-1157 (a COORD issue of podcrates, `docs/maintenance.md`,
+"Talk between sessions"): `exec_recorded` and `Attached::wait` give the code
+of 126 and 127, so podvm drops `code_of_failure`; `Settings::answer_timeout`
+(30 s by default, `ErrorKind::AnswerTimeout`) replaces `first_answer`, and
+podvm maps the kind to its class; the SIGPIPE ignore stays (the crate sets
+no signal) and its comment names the doc of `Client`. The adoption map of
+`crates/pod-incus/README.md` names the three.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features
+```
+
+## Start condition
+
+T-1155, T-1156 and T-1157 are done and a tag holds them. The coordinator
+answers PodUtils/podvm#653 with the tag, and podvm takes it.

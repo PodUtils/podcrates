@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 922 entries: 156 open, 27 partial, 7 blocked, 732 done.
+`TODO/INDEX.md` holds 927 entries: 159 open, 27 partial, 7 blocked, 734 done.
 
 ## State
 
@@ -79,16 +79,14 @@ podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red
 nightly (T-916, T-938), T-1053 (a lossy run of E2-1 that takes 20 s) and the red
 `services.yml` (T-1034) and the red live run (T-963). Then the asks of
-podrunner (COORD-134, #225): each new ask of podrunner, and T-1110
-(tell podrunner to call `Hardening::service_account()` for its unit of the
-system at its take of the next tag).
+podrunner (COORD-134, #225): each new ask of podrunner.
 Then the
 entries that a need of githome or cfb names for their CI: T-106 (partial;
 cfb's A-X-18 waits for cfb's answer on #223, call C792),
 T-1118 (podnet writes the `release-index.json` of its releases). Then cfb's asks
 that podssh takes (call C782, PodUtils/podssh#316): T-112, T-110, T-111,
 T-117. Then the open asks
-of the consumers: T-1124 (podvm opens `/proc/PID` of the init of a run, which is not dumpable; it takes `pod_enter::joinable`; PodUtils/podvm#646), T-1103 (iroh 1.5 and its fork of iroh-relay, after PodUtils/podssh#341), T-1144 (the sans-IO transfer codec of `pod-term` for a pty that damages ZMODEM; PodUtils/podssh#346, #258), T-1087 and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU sparse file, the attributes of libarchive alone; PodUtils/podvm#643), T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
+of the consumers: T-1155, T-1156, T-1157 and T-1158 (`pod-incus`: the exit code of an exec that ends with 126 or 127, a bound of each answer, the answer after a failed write, and the work-arounds that podvm then removes; PodUtils/podvm#653), T-1124 (podvm opens `/proc/PID` of the init of a run, which is not dumpable; it takes `pod_enter::joinable`; PodUtils/podvm#646), T-1103 (iroh 1.5 and its fork of iroh-relay, after PodUtils/podssh#341), T-1144 (the sans-IO transfer codec of `pod-term` for a pty that damages ZMODEM; PodUtils/podssh#346, #258), T-1087 and T-1088 (the PAX forms of `pod-extract` that it does not read: a GNU sparse file, the attributes of libarchive alone; PodUtils/podvm#643), T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
 for the parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242), T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604), T-1032 (the launcher of `pod-supervise` blocks before the start of the payload), T-927 (PodUtils/podvm#584), T-941 (PodUtils/podssh#319), T-879 (`pod-detach`), T-897, T-899, T-900, T-852,
 T-851. Then T-920.
 Then the ruling "Discipline": T-692
@@ -230,7 +228,18 @@ The hand-off of each release is a COORD issue `(to all)`
   of `docs/research/hard-problems.md`. Recommendation: no network in the
   verifier; a test of `upstream.yml` tells of a new root, and a release
   takes it.
+- **Q21.** Must a close of an issue by a team member on GitHub win over
+  the record, with no limit of time? Today the sync opens it again after
+  24 hours (T-1159, call C924), because the ruling "Issues" (2026-11-15)
+  says that the record gives the state. It touches T-1159 and the open
+  issues #35, #36, #47, #82, #83, #84 and #109 to #123, whose entries
+  wait on start conditions or on the podswarm session (call C245).
+  Recommendation: yes for a close by the owner. The sync then does not
+  open the issue again. It fails with the line "closed by hand: close it
+  in the record or answer", and a session changes the record at once; an
+  entry that the owner calls stale is closed by a ruling of the owner,
+  which removes it (`TODO/RULES.md`, section 2).
 Write each question as `- **Qn.** QUESTION`, with the entries that it
-blocks and a recommendation. Number the questions in sequence from Q21
+blocks and a recommendation. Number the questions in sequence from Q22
 (Q1 to Q14: `docs/decisions.md`; Q15: the ruling "podswarm"; Q16: above;
 Q17: the packages of ghcr.io are public, no action).

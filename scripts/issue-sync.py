@@ -16,7 +16,9 @@ The record gives each issue its kind, its state and its status block
 * closes an issue that the record says is closed, with one comment that
   names the entries and their tags (a report, a deferred issue or a
   tracker; a message and a request of a run get no comment);
-* opens again an issue that the record says is open.
+* opens again an issue that the record says is open, except for HAND_HOURS
+  after a person closed it on GitHub by hand: it reports that close, so that
+  a session changes the record first (call C924).
 
 It does not edit an issue whose author is outside the team
 (`author_association` not OWNER, MEMBER or COLLABORATOR) and that has no
@@ -109,6 +111,9 @@ def comment_text(issue):
 
 
 GRACE_DAYS = 3
+# The time that a close by a person is kept, with the record open, before the
+# sync opens the issue again: a session changes the record in that time.
+HAND_HOURS = 24
 
 
 def age_days(item, now):
@@ -118,6 +123,23 @@ def age_days(item, now):
     except ValueError:
         return None
     return (now - made).total_seconds() / 86400
+
+
+def closed_by_hand(item, now):
+    """(login, hours since the close) of an issue that a person closed less
+    than HAND_HOURS ago, else None. A bot, an unknown closer and a close of
+    another age give None."""
+    closer = item.get("closed_by") or {}
+    if item.get("state") != "closed" or not closer or closer.get("type") == "Bot":
+        return None
+    try:
+        closed = datetime.datetime.fromisoformat((item.get("closed_at") or "").replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    hours = (now - closed).total_seconds() / 3600
+    if 0 <= hours < HAND_HOURS:
+        return closer.get("login") or "a person", hours
+    return None
 
 
 def plan(record, items, now=None):
@@ -167,8 +189,16 @@ def plan(record, items, now=None):
                 comment = comment_text(issue)
                 what.append("comment")
         elif state == "open" and item.get("state") == "closed":
-            fields["state"], fields["state_reason"] = "open", "reopened"
-            what.append("open again")
+            hand = closed_by_hand(item, now)
+            if hand:
+                notes.append(
+                    f"#{n}: closed by hand by {hand[0]} {hand[1]:.1f} h ago, and the record holds it open: "
+                    f"the sync opens it again after {HAND_HOURS} h; close it in the record, or ask the owner "
+                    "(TODO/RULES.md, section 4)"
+                )
+            else:
+                fields["state"], fields["state_reason"] = "open", "reopened"
+                what.append("open again")
         if fields:
             actions.append((n, fields, comment, ", ".join(what)))
     return actions, notes, faults

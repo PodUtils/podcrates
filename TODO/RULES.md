@@ -208,7 +208,9 @@ no XL: make two entries.
 - `.github/workflows/issue-sync.yml` runs `scripts/issue-sync.py` on each
   push to `main` and each day. It writes the block into the body of each
   issue, closes an issue that the record closes, and opens again one that
-  the record opens. Do not edit the block by hand: change the record.
+  the record opens. It waits 24 hours before it opens again an issue that a
+  person closed by hand: change the record in that time (call C924). Do not
+  edit the block by hand: change the record.
   Do not write the state of an issue in a comment.
 - Each pull request of the list is in one line of `TODO/issues.md` that
   ends with "are pull requests": `#2 and #5 to #7 are pull requests.`

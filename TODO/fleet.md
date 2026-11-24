@@ -8305,7 +8305,7 @@ before the fix): `a_unit_restarts_after_each_end_with_no_limit_of_starts`,
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8338,6 +8338,17 @@ as it is. The adoption map of `crates/pod-unit/README.md` names the call.
 ```sh
 cargo test -p pod-unit --all-features --test systemd
 ```
+
+## Done
+
+2026-11-24, this commit. podrunner took `v0.82.1` (PodUtils/podrunner#348,
+COORD-126, closed; its `T-619`) in `a100a40`, `632de1a` and `5dd215b`:
+`print-unit --system` calls `unit.hardening.service_account()`, so its unit
+of the account `podrunner` keeps `RemoveIPC=yes`, and its audit test now
+matches whole lines (the old test read the text of the relaxed comment and
+passed on the defect). COORD-152 (#257) named the change. CI of podrunner
+on the push: `level2.yml` 45329824805, green. `cargo test -p pod-unit
+--all-features --test systemd`: 13 passed.
 
 # T-1128: `pod-unit`: podnet's `autostart remove` of an unknown name exits 69, and the import of `autostart.rs` is behind (PodUtils/podnet#707)
 
@@ -8394,3 +8405,66 @@ PodUtils/podnet=CLONE --clone PodUtils/podssh=CLONE pod-unit` gives 0
 changes for both. The adoption map of `crates/pod-unit/README.md` names
 the call. Release notes: `pod-unit`: `Removed::of_named` turns the removal
 of an unknown unit into exit 69.
+
+
+# T-1159: `issue-sync`: a close of an issue by a person is reverted at the next push, before a session can change the record
+
+**Source:** the owner, 2026-11-24 ("issue-sync keeps opening deprecated/stale issues"); T-703, T-1095 (call C904).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The sync opens again each issue that the record holds open
+(`TODO/RULES.md`, section 4). A person closes an issue by hand when its
+subject is complete or stale, and a push to `main` starts the sync within
+minutes, so it opens the issue again before a session reads the close and
+changes the record. The events of the issues of this repository from
+2026-11-13 to 2026-11-24 show three opens again by the sync: #217, #229
+and #230. Each came 1 to 15 minutes after a close by the owner, and a
+second close (the owner's, or the sync's after the record changed) ended
+it.
+
+## Premise
+
+- Read: the issue events of this repository (the mirror, 500 events), the
+  runs of `issue-sync.yml` and the log of the run of `f9abd7bb` (one change:
+  the close of #212 by the record), `scripts/issue-sync.py` (`plan`), call
+  C904, the ruling "Issues" (2026-11-15: the state comes from the record
+  by a tool).
+- Measured: a replay of `plan` on the record and the issue list of the
+  mirror at `f9abd7bb` gives no change that opens an issue again.
+- Not measured: the case where a person opens again an issue that the
+  record closes (the list of issues does not say who opened it; the events
+  do).
+
+## Approach
+
+The list of issues has `closed_by` and `closed_at`. An issue that the
+record holds open and that a person (a closer that is not a bot) closed
+less than 24 h ago stays closed, with a note that names the closer and the
+hours; its block is written. After 24 h the sync opens it again, as the
+ruling needs. The rule does not change the ruling "Issues": the record
+stays the source of the state. Whether a close by a team member must win
+with no limit of time is a question of the owner (Q21).
+
+## Prove
+
+```sh
+python3 -I scripts/issue-sync.py --self-test
+```
+
+## Done
+
+2026-11-24, this commit (call C924). `plan` of `scripts/issue-sync.py`
+keeps closed an issue that the record holds open when a person closed it
+less than `HAND_HOURS` (24) ago, adds a note with the closer and the
+hours, and still writes the block; a close by a bot, a close with no
+closer and a close older than 24 h open it again as before. Tests (they
+fail on the code before the change at the check of the open state):
+`scripts/issue_sync_test.py` (5 new checks), `python3 -I
+scripts/issue-sync.py --self-test`: 0 failures. A replay of `plan` on the
+record and the issue list at `f9abd7bb` gives no open again.
