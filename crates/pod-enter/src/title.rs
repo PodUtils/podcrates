@@ -36,6 +36,11 @@
 //! (T-1113). The kernel opens the namespaces of such an init only for a
 //! caller with `CAP_SYS_PTRACE`, so a join of a caller with no
 //! capabilities opens the payload of the run ([`crate::joinable`]).
+//!
+//! Under qemu-user the title does not take, and the refusal says so: the
+//! emulator writes `/proc/self/stat` itself with 44 fields and no map, and
+//! refuses `PR_SET_MM` with `EINVAL`. The host shows the command line of the
+//! emulator in `/proc/PID/cmdline` in any case.
 
 use pod_core::Class;
 use pod_hostprobe::sys::{self, CBuf};
@@ -80,21 +85,26 @@ impl std::fmt::Display for Refused {
     }
 }
 
-/// The fields of the map in the text of `/proc/self/stat`: 26 to 28 and 45
-/// to 51 of `proc(5)`, counted after the last `)` of the command name.
-pub fn map_of(stat: &str, brk: u64) -> Option<Map> {
-    map_and_threads(stat, brk).map(|(m, _)| m)
+/// The fields after the command name of a text of `/proc/PID/stat`, field 3
+/// (the state) first. The name is up to the last `)`: it can hold a space
+/// and a `)`.
+fn after_name(stat: &str) -> Option<Vec<&str>> {
+    Some(stat[stat.rfind(')')? + 1..].split_whitespace().collect())
 }
 
-/// [`map_of`] and the number of threads, field 20 of `proc(5)`, from the
-/// same read: the count is of the moment of the map.
-fn map_and_threads(stat: &str, brk: u64) -> Option<(Map, u64)> {
-    let rest = &stat[stat.rfind(')')? + 1..];
-    // Field 3 (the state) is the first after the name.
-    let f: Vec<&str> = rest.split_whitespace().collect();
-    let at = |n: usize| -> Option<u64> { f.get(n.checked_sub(3)?)?.parse().ok() };
-    let threads = at(20)?;
-    let map = Map {
+/// Field `n` of `proc(5)` as a number.
+fn field(f: &[&str], n: usize) -> Option<u64> {
+    f.get(n.checked_sub(3)?)?.parse().ok()
+}
+
+/// The fields of the map in the text of `/proc/self/stat`: 26 to 28 and 45
+/// to 51 of `proc(5)`, counted after the last `)` of the command name.
+/// `None` also for a text of 44 fields: a kernel before 3.5 and qemu-user
+/// give no fields 45 to 52, and qemu-user writes 0 in most of the others.
+pub fn map_of(stat: &str, brk: u64) -> Option<Map> {
+    let f = after_name(stat)?;
+    let at = |n| field(&f, n);
+    Some(Map {
         start_code: at(26)?,
         end_code: at(27)?,
         start_stack: at(28)?,
@@ -109,8 +119,12 @@ fn map_and_threads(stat: &str, brk: u64) -> Option<(Map, u64)> {
         auxv: 0,
         auxv_size: 0,
         exe_fd: u32::MAX,
-    };
-    Some((map, threads))
+    })
+}
+
+/// The number of threads, field 20 of `proc(5)`.
+fn threads_of(stat: &str) -> Option<u64> {
+    field(&after_name(stat)?, 20)
 }
 
 /// `map` with the command line at `title` (its bytes and a NUL, at
@@ -125,10 +139,17 @@ pub fn titled(map: Map, at: u64, len: u64) -> Map {
 fn current(alone: bool) -> std::result::Result<Map, Refused> {
     let stat = std::fs::read_to_string("/proc/self/stat")
         .map_err(|e| Refused { call: "read(/proc/self/stat)", errno: e.raw_os_error().unwrap_or(0) })?;
-    match map_and_threads(&stat, sys::brk_now()) {
-        Some((m, n)) if n == 1 || !alone => Ok(m),
-        Some(_) => Err(Refused { call: "a title with more than one thread", errno: 0 }),
+    current_of(&stat, sys::brk_now(), alone)
+}
+
+/// [`current`] from the text `stat`. The count of the threads comes first:
+/// it needs no map, and a text with no map (qemu-user) still gives it. The
+/// count and the map are of the same read.
+fn current_of(stat: &str, brk: u64, alone: bool) -> std::result::Result<Map, Refused> {
+    match threads_of(stat) {
         None => Err(Refused { call: "the parse of /proc/self/stat", errno: 0 }),
+        Some(n) if alone && n != 1 => Err(Refused { call: "a title with more than one thread", errno: 0 }),
+        Some(_) => map_of(stat, brk).ok_or(Refused { call: "the map fields of /proc/self/stat", errno: 0 }),
     }
 }
 

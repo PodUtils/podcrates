@@ -5011,7 +5011,7 @@ setpriv --reuid=65534 --regid=65534 --clear-groups cargo test -p pod-extract --a
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5056,6 +5056,38 @@ bracket), fix the parse and add a test with that name.
 ```sh
 cargo test -p pod-enter --all-features --lib title
 ```
+
+## Done
+
+2026-11-24 (partial). Cause: qemu-user writes `/proc/self/stat` itself
+(`open_self_stat`, `linux-user/syscall.c`): 44 fields; the name of
+`argv[0]` cut to 15 bytes; the pid, the state `R`, the parent, the group,
+the number of threads, the start time and the stack; 0 in each other
+field; the stack as a signed number (negative on a 32-bit guest). Fields
+45 to 52 are not there, as on a kernel before 3.5. The parse of the name
+up to the last `)` was right; `map_and_threads` read the map before the
+count of the threads, so a text with no map gave "the parse of
+/proc/self/stat" before the refusal of the threads. qemu-user also refuses
+`PR_SET_MM` with `EINVAL`, so no title takes under it in any case, and the
+host shows the command line of the emulator in `/proc/PID/cmdline`.
+Change (`crates/pod-enter/src/title.rs`): a tolerant reader. `current_of`
+reads the count of the threads first (field 20), then the map; a text with
+no map is the refusal "the map fields of /proc/self/stat". `map_of` and
+`threads_of` share `after_name`. The test
+`title::tests::the_title_and_the_dump_flag_follow_the_fork` asserts the map
+of `Shown::of` on a kernel only; under an emulator it writes the skip line
+(the call is refused there). `a_hidden_process_shows_its_title_and_no_environment`
+skips by the refusal of its child, as for `PR_SET_MM_MAP`. Proof here (no
+qemu-user on this host): the new unit test
+`title::tests::a_stat_of_qemu_user_gives_the_threads_and_no_map` takes the
+exact text of qemu-user for a 32-bit guest of three threads; with the old
+order it fails with `left: "the parse of /proc/self/stat"`, the text of the
+nightly; the plant `scripts/plants/enter-title-qemu-stat.plant` holds that
+order. With `QEMU_UNAME` set, `the_title_and_the_dump_flag_follow_the_fork`
+writes the skip line. `cargo test -p pod-enter --all-features`: 272 passed,
+1 ignored in the unit tests, each other binary passes. Open: the six
+emulated jobs `cross` of the next `nightly.yml` run. When the two tests
+pass there, set the entry to `done`.
 
 # T-1297: `pod-link`: `dns_hold` gives a hold that is longer than its query timeout under an emulator, and `a_server_that_never_answers_a_command_is_the_named_timeout` of `mail` ends with no error on arm
 

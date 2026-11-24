@@ -1,0 +1,17 @@
+diff --git a/crates/pod-enter/src/title.rs b/crates/pod-enter/src/title.rs
+index 13a6b0e6..c3fc7795 100644
+--- a/crates/pod-enter/src/title.rs
++++ b/crates/pod-enter/src/title.rs
+@@ -146,10 +146,11 @@ fn current(alone: bool) -> std::result::Result<Map, Refused> {
+ /// it needs no map, and a text with no map (qemu-user) still gives it. The
+ /// count and the map are of the same read.
+ fn current_of(stat: &str, brk: u64, alone: bool) -> std::result::Result<Map, Refused> {
++    let Some(m) = map_of(stat, brk) else { return Err(Refused { call: "the parse of /proc/self/stat", errno: 0 }) };
+     match threads_of(stat) {
+         None => Err(Refused { call: "the parse of /proc/self/stat", errno: 0 }),
+         Some(n) if alone && n != 1 => Err(Refused { call: "a title with more than one thread", errno: 0 }),
+-        Some(_) => map_of(stat, brk).ok_or(Refused { call: "the map fields of /proc/self/stat", errno: 0 }),
++        Some(_) => Ok(m),
+     }
+ }
+ 

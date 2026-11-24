@@ -35,7 +35,10 @@ is done. Git and the record keep finished work.
      jobs of Windows, `gate` and `install-os` pass. The failure of the
      seven jobs `cross` in `pod-extract` for a user that is not root (also
      in `ci.yml` 45462046889 at `65fa99f`) is fixed. The emulated jobs fail in
-     `pod-enter` (T-1296) and in `dns_hold` of `pod-link` (T-1297; `mail`
+     `pod-enter` (T-1296, partial: qemu-user writes `/proc/self/stat`
+     with 44 fields and no map; the title reads the threads first and
+     refuses with no map; read the emulated jobs of the next nightly) and
+     in `dns_hold` of `pod-link` (T-1297; `mail`
      on arm and armv7 too). `riscv64` fails in `pod-iroh` (`road.rs`,
      `share.rs`: T-916, T-938, Q19) and was cancelled at 150 minutes in
      `session_resume_twice` (T-938; each binary now has a limit of 2700 s).

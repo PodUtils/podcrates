@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 977 entries: 163 open, 29 partial, 7 blocked, 778 done.
+`TODO/INDEX.md` holds 977 entries: 162 open, 30 partial, 7 blocked, 778 done.
 
 ## State
 
@@ -37,7 +37,9 @@
 - Red runs: the nightly 45452272145 at `f39b8e2` (a dispatch, cancelled): the
   Windows jobs, `gate` and the installer jobs pass; the failure of the
   seven jobs `cross` in `pod-extract` (also in `ci.yml` 45462046889 at
-  `65fa99f`) is fixed; the emulated jobs fail in `pod-enter` (T-1296) and `dns_hold`
+  `65fa99f`) is fixed; the emulated jobs fail in `pod-enter` (T-1296, partial:
+  qemu-user writes `/proc/self/stat` with 44 fields and no map; the title
+  reads the threads first; the next nightly decides) and `dns_hold`
   of `pod-link` (T-1297, with `mail` on arm); `riscv64` fails in `pod-iroh`
   (T-916) and was cancelled at 150 minutes in `session_resume_twice`
   (T-938); the two jobs of macOS were cancelled at 60 minutes in
