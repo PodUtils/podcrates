@@ -60,15 +60,18 @@ jobs:
         run: sh scripts/openssl-perl.sh
       # pod-gsr crashes with STATUS_ACCESS_VIOLATION in the handshake tests
       # on Windows ARM64 (T-131). The test of the workspace leaves it out
-      # there, and the next step runs it alone, with one thread and the
+      # there, and a later step runs it alone, with one thread and the
       # output on, to name the test and the call. --no-fail-fast: a red
-      # test binary does not hide the results of the others.
+      # test binary does not hide the results of the others. Each test
+      # binary has a limit of 1200 s, and the doc tests 1800 s in all
+      # (T-1303): a binary that does not end fails with its name, and the
+      # step goes on to the next one. The log has the seconds of each binary.
       - name: Test
         run: |
           if [ "${{ matrix.runner }}" = windows-11-arm ]; then
-            cargo test --locked --workspace --all-features --no-fail-fast --exclude pod-gsr
+            sh scripts/ci/test-limited.sh 1200 1800 --locked --workspace --all-features --no-fail-fast --exclude pod-gsr
           else
-            cargo test --locked --workspace --all-features --no-fail-fast
+            sh scripts/ci/test-limited.sh 1200 1800 --locked --workspace --all-features --no-fail-fast
           fi
       # A Windows service of a test program with the dispatcher of pod-unit
       # (T-1026): made, started, stopped with a drain, its exit codes read,
@@ -79,7 +82,7 @@ jobs:
       - name: Test pod-gsr (Windows ARM64, open defect)
         if: always() && matrix.runner == 'windows-11-arm'
         continue-on-error: true
-        run: cargo test --locked -p pod-gsr --all-features --no-fail-fast -- --nocapture --test-threads=1
+        run: sh scripts/ci/limit.sh 1200 cargo test --locked -p pod-gsr --all-features --no-fail-fast -- --nocapture --test-threads=1
       # The store of Windows: the test's root in the machine's ROOT store
       # lets a server that it signs through with the default trust; the same
       # server with the root out of the store is the control. The root
@@ -257,11 +260,10 @@ jobs:
         run: |
           set -u
           failed=0
+          root=$PWD
           while read -r dir exe; do
             echo "== $exe"
-            start=$(date +%s)
-            (cd "$dir" && timeout -k 30 2700 "$exe") || failed=$((failed + 1))
-            echo "== $(( $(date +%s) - start )) s: $exe"
+            (cd "$dir" && sh "$root/scripts/ci/limit.sh" 2700 "$exe") || failed=$((failed + 1))
           done < "$RUNNER_TEMP/tests.txt"
           echo "test binaries that failed: $failed"
           test "$failed" -eq 0

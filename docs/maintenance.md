@@ -337,6 +337,14 @@ and `scripts/ci/fetch-tool.sh` takes one program of a release archive by
 its SHA-256 (T-355): a consumer can call both in place of
 `cargo install`. The workflows of podcrates keep the archives and the
 cargo registry with actions/cache (call C152).
+`scripts/ci/limit.sh SECONDS COMMAND` runs one command with a limit of real
+time (GNU `timeout`, else `gtimeout`, else perl, so it needs no install on
+macOS) and prints its seconds; it kills the process group at the limit and
+exits with 124. `scripts/ci/test-limited.sh BINARY_SECONDS DOC_SECONDS
+CARGO_ARGS` runs `cargo test` with `limit.sh` as the runner of each test
+binary (`CARGO_TARGET_<TRIPLE>_RUNNER`), so a hung binary fails with its
+name and the later binaries run (T-1303). The jobs `test` and `cross` of
+`nightly.yml` use them.
 
 A consumer's workflow takes both files at a commit of podcrates:
 
