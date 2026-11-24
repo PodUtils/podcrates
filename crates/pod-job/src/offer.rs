@@ -65,7 +65,11 @@ pub enum Visibility {
 #[serde(deny_unknown_fields)]
 pub struct TrustInputs {
     pub event: Event,
-    /// `yes` when the head of a pull request is in a fork.
+    /// `yes` when the repository of the head is another repository than
+    /// the repository of the job (by id, else by `OWNER/REPO` in any
+    /// case); `no` when it is the same, and for an event that is not a pull
+    /// request; `unknown` when one of the two is not known. Not the `fork`
+    /// flag of the head repository.
     pub head_is_fork: Fact,
     pub actor_class: ActorClass,
     pub repo_visibility: Visibility,

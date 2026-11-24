@@ -4484,7 +4484,7 @@ sh scripts/plant-each.sh --apply
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -4523,3 +4523,15 @@ after the scaling, find the cause, not a larger bound (T-916).
 ```sh
 cargo test -p pod-control --all-features --test server
 ```
+
+## Done
+
+2026-11-24 (partial). `crates/pod-control/tests/server.rs`: the read
+timeout of `ask` and the bound of the loop of
+`a_call_back_meets_one_deadline_for_its_write` go through
+`pod_testkit::host::scaled` (50 s under an emulator, 10 s on a kernel).
+The deadlines of the server stay as they are. Native:
+`cargo test -p pod-control --all-features --test server` passes (16
+tests). Open: the job `cross (riscv64gc-unknown-linux-musl)` of the next
+`nightly.yml` run. When it passes, set the entry to `done`; when the test
+still fails, find the cause (T-916), not a larger bound.

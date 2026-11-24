@@ -419,7 +419,7 @@
           "pattern": "^[a-z0-9-]{1,63}(\\.[a-z0-9-]{1,63})*$"
         },
         "head_is_fork": {
-          "description": "`yes` when the head of a pull request is in a fork.",
+          "description": "`yes` when the repository of the head is another repository than\nthe repository of the job (by id, else by `OWNER/REPO` in any\ncase); `no` when it is the same, and for an event that is not a pull\nrequest; `unknown` when one of the two is not known. Not the `fork`\nflag of the head repository.",
           "$ref": "#/$defs/Fact"
         },
         "owner": {

@@ -424,6 +424,7 @@
           "type": "string"
         },
         "head_is_fork": {
+          "description": "True when the head is another repository than `repository`, as\n`TrustInputs::head_is_fork`.",
           "type": [
             "boolean",
             "null"

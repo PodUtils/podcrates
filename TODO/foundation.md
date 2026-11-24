@@ -3175,7 +3175,7 @@ each other block.
 **Milestone:** M0
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3233,3 +3233,27 @@ official runner, which this crate does not start.
 cargo test -p pod-testkit --all-features
 python3 -I scripts/check-sources.py --clone PodUtils/podrunner=PODRUNNER pod-testkit
 ```
+
+## Done
+
+2026-11-24. `crates/pod-testkit/src/githome/offer.rs`: `fork_fact` gives
+the fork fact of `assigned` from the real job alone: its `head_is_fork`,
+else its head repository against its repository (case-insensitive name),
+else `unknown`; never the fact of the offer, as podrunner's `assigned.rs`
+of `e629fa8`. Test:
+`githome::offer::tests::assigned_keeps_no_fork_fact_of_the_offer` (it
+fails on the code before: "no fact and no head", left `No`, right
+`Unknown`). Wire change for the release notes: `pod-fake-githome`
+answers `assigned` with `unknown` (not the fact of the offer) for a real
+job with no fork fact and no head repository; a head that is not the
+base gives `yes`.
+
+The contract text of `source-driver.md` (`2aacaea`) is in the doc of
+`TrustInputs::head_is_fork` and `RealJob::head_is_fork` of `pod-job`; the
+three schemas have a `text` row each in `schemas/CHANGES.md`.
+`runner.rs` (`clear_diag`, the files of the official runner) needs no
+port: this crate starts no runner. `crates/pod-testkit/SOURCES`: the
+broker block and the contract block are at `2aacaea`, the block of the
+fake source at `e629fa8`. `check-sources.py` with a clone of podrunner
+(`27a2e5d`): "PodUtils/podrunner at 2aacaea: 6 files, 0 changes", "at
+e629fa8: 2 files, 0 changes", "at 2aacaea: 2 files, 0 changes".

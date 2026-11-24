@@ -19,13 +19,16 @@ file 429a7e9cdd5e86a8847cf5dee4bcda59fb33fa2a tests/test_host/mod.rs -> crates/p
 # ring, and the crate starts no runner. The block moved to 9fdf2c3
 # (T-1122): its context data of `strategy`, `matrix`, `needs` and `vars`
 # is in src/github/message.rs; the overrides of a job are podrunner's.
-repo PodUtils/podrunner 9fdf2c30c2ab262e1d25839145f5acf30266db96
+# The block moved to 2aacaea (T-1160) with no port: clear_diag of
+# runner.rs clears the files of the official runner, which this crate
+# does not start; the key and the client assertion did not change.
+repo PodUtils/podrunner 2aacaea3127e37d3a5f0b98fddfce1b9b1ab007f
 file b7735e1ef9b59f14b0dd418e8aaa212fb7f0c207 crates/podrunner-broker-fake/src/lib.rs -> crates/pod-testkit/src/github.rs crates/pod-testkit/src/github/broker.rs
 file 10ed4007d192ec54c1add314a6fc0ecaaf956fa9 crates/podrunner-broker-fake/src/message.rs -> crates/pod-testkit/src/github/message.rs
 file 3c93b065172d634f957c3a4b70e27e207799f4db crates/podrunner-broker-fake/src/auth.rs -> crates/pod-testkit/src/github/broker.rs crates/pod-testkit/src/github/key.rs
 file 5e9475d1efd27617f7017a28d8c71fa40a3b790d crates/podrunner-broker-fake/src/results.rs -> crates/pod-testkit/src/github/broker.rs
 file 7e3b6fae98e9eec26bd63da344a6c0496c7adeab crates/podrunner-broker-fake/src/files.rs -> crates/pod-testkit/src/github/api.rs
-file 5e6a2846ace804533f429f47e6adbfed830b0ce2 crates/podrunner-broker-fake/src/runner.rs -> crates/pod-testkit/src/github/key.rs
+file 53d32c12630ea80da37e4d013e5870014614136a crates/podrunner-broker-fake/src/runner.rs -> crates/pod-testkit/src/github/key.rs
 
 # T-948 (PodUtils/podrunner#306): the rules of podrunner's fake source (a
 # claim, a withdraw, a release, the names of the canned credential) and its
@@ -35,17 +38,22 @@ file 5e6a2846ace804533f429f47e6adbfed830b0ce2 crates/podrunner-broker-fake/src/r
 # Imported at b1a1a28. The block moved to b0f8a36 (T-969) with no port: its
 # plant RefuseCancelled is a self-test of podrunner's suite; this fake has
 # no plant, and it takes the report of a cancelled job (test 15 in
-# tests/githome.rs).
-repo PodUtils/podrunner b0f8a36c6152cde3ed48a1c03cffb64f1293be52
+# tests/githome.rs). The block moved to e629fa8 (T-1160): the fork fact
+# of `assigned` comes from the real job alone (fork_fact in
+# src/githome/offer.rs).
+repo PodUtils/podrunner e629fa82aa839108a781b1b45e79beef81d5740d
 file 1b246d7ad58a6abe72bc4d3c953f050b89d1b86f crates/podrunner-fake/src/source.rs -> crates/pod-testkit/src/githome/wire.rs
-file 5a5c3a97f3b5962132bee859c957c20c64160988 crates/podrunner-fake/src/assigned.rs -> crates/pod-testkit/src/githome/offer.rs
+file cbd38bb1015c6de9cef469d6edaf2ed344dd3380 crates/podrunner-fake/src/assigned.rs -> crates/pod-testkit/src/githome/offer.rs
 
-repo PodUtils/podrunner 43226db1074dc131c26229e791a3cded02a25960
+repo PodUtils/podrunner 2aacaea3127e37d3a5f0b98fddfce1b9b1ab007f
 # T-951 (PodUtils/podrunner#310): the 15 tests of the conformance suite
 # (test 15: a cancelled job is reported and released) and the contract,
 # for the test of the feature `githome`. The block moved to 43226db
 # (T-1122) with no port: its rule of the CPU time of the incus kind is a
 # rule of the measure of a driver; the fake keeps the fields of a report
-# as the session sends them.
+# as the session sends them. The block moved to 2aacaea (T-1160): the
+# contract defines head_is_fork as a head that is not the base, and `no`
+# for an event that is not a pull request (fork_fact in
+# src/githome/offer.rs; the doc of TrustInputs of pod-job).
 file ca245513ff48f33196a89e7291c2dfc3e04757a4 crates/podrunner-source/src/conformance.rs -> crates/pod-testkit/tests/githome.rs
-file 71aa3c48227ed73a2f1fee1710d4ab4ed24398f6 docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+file b35639027413c339f4d46edbd0da1cef104bf1ec docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs

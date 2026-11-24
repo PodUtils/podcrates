@@ -83,9 +83,9 @@ pub(super) fn wire(offer: &JobOffer) -> Offer {
 }
 
 /// The answer to `assigned`, after podrunner's fake source: a real job of
-/// the owner of the offer is kept, with the trust facts of the offer where
-/// the real job gives none; a job of another owner ends with
-/// `not-of-this-source`.
+/// the owner of the offer is kept, with the actor and the visibility of the
+/// offer, and the event, the run and the fork fact of the real job; a job
+/// of another owner ends with `not-of-this-source`.
 pub(super) fn assigned(offer: &JobOffer, real: &RealJob) -> Reply {
     let mut t: TrustInputs = offer.trust_inputs.clone();
     let Some((owner, repo)) = real.repository.split_once('/') else {
@@ -97,12 +97,22 @@ pub(super) fn assigned(offer: &JobOffer, real: &RealJob) -> Reply {
     t.repo = repo.to_string();
     t.run_id = real.run_id;
     t.event = serde_json::from_value(Value::String(real.event.clone())).unwrap_or(ForgeEvent::Unknown);
-    t.head_is_fork = match real.head_is_fork {
-        Some(true) => Fact::Yes,
-        Some(false) => Fact::No,
-        None => t.head_is_fork,
-    };
+    t.head_is_fork = fork_fact(real);
     Reply::Keep { trust_inputs: t }
+}
+
+/// The fork fact of a real job, never the fact of the offer: the real job
+/// can be of another run and another event. A head is a fork when it is
+/// not the base.
+fn fork_fact(real: &RealJob) -> Fact {
+    match (real.head_is_fork, real.head_repository.as_deref()) {
+        (Some(true), _) => Fact::Yes,
+        (Some(false), _) => Fact::No,
+        (None, Some("")) => Fact::Unknown,
+        (None, Some(head)) if head.eq_ignore_ascii_case(&real.repository) => Fact::No,
+        (None, Some(_)) => Fact::Yes,
+        (None, None) => Fact::Unknown,
+    }
 }
 
 fn end(code: &str, detail: &str) -> Reply {
@@ -122,6 +132,33 @@ mod tests {
         assert!(build(&json!({ "tier": "local" }), 1, "githome").is_err(), "a tier of the configuration alone");
         assert!(build(&json!({ "arch": "mips" }), 1, "githome").is_err(), "an arch of no unit");
         assert!(build(&json!({ "env": {} }), 1, "githome").is_err(), "a field of no offer");
+    }
+
+    #[test]
+    fn assigned_keeps_no_fork_fact_of_the_offer() {
+        // The offer says "no fork"; the real job decides.
+        let o = build(&json!({ "repository": "example-org/app" }), 1, "githome").unwrap();
+        assert_eq!(o.trust_inputs.head_is_fork, Fact::No);
+        let real = |head: Option<&str>, fork: Option<bool>| RealJob {
+            run_id: 9,
+            job_name: "build".into(),
+            event: "pull_request".into(),
+            repository: "example-org/app".into(),
+            head_repository: head.map(str::to_string),
+            head_is_fork: fork,
+            actor: "someone".into(),
+            job_id: None,
+        };
+        let fact = |r: RealJob| match assigned(&o, &r) {
+            Reply::Keep { trust_inputs } => trust_inputs.head_is_fork,
+            other => panic!("not kept: {other:?}"),
+        };
+        assert_eq!(fact(real(None, None)), Fact::Unknown, "no fact and no head");
+        assert_eq!(fact(real(Some(""), None)), Fact::Unknown, "an empty head");
+        assert_eq!(fact(real(Some("Example-Org/App"), None)), Fact::No, "the base, in another case");
+        assert_eq!(fact(real(Some("someone/app"), None)), Fact::Yes, "another repository");
+        assert_eq!(fact(real(Some("example-org/app"), Some(true))), Fact::Yes, "the fact of the hook wins");
+        assert_eq!(fact(real(Some("someone/app"), Some(false))), Fact::No, "the fact of the hook wins");
     }
 
     #[test]

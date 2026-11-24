@@ -28,14 +28,13 @@ is done. Git and the record keep finished work.
    - `nightly.yml` 45212967290 at `0f5dad6`: the jobs of Windows and macOS
      and `powerpc64le` pass (T-1089 is proven). `riscv64` and `loongarch64`
      fail in `pod-iroh` (`road.rs`, `share.rs`: T-916, T-938, Q19); `riscv64`
-     also fails in `pod-control` (`tests/server.rs`: T-1161). Open entries
+     also fails in `pod-control` (`tests/server.rs`: T-1161, partial: its
+     hang guards are scaled; read the next riscv64 job). Open entries
      of the nightly: T-916 and T-938 (partial), T-789, T-766, T-1161, and
      T-1044 (`check-windows.sh` and `check-macos.sh` compile no doc test).
-   - `upstream.yml` 45224210077 (job `sources`) is red. Its changes at the
-     consumers' heads are done (T-1111, T-1122), but podrunner has since
-     changed three imported files of `pod-testkit`: T-1160. The next daily
-     run is red until T-1160 is done. The check
-     `scripts/check-sources.py` with clones of each source shows the same.
+   - `upstream.yml` (job `sources`): the port of podrunner's changes of
+     `pod-testkit` is done (T-1160); `scripts/check-sources.py` with a
+     clone of podrunner `27a2e5d` shows 0 changes. Read the next daily run.
    - `services.yml`: the scheduled run 45159148662 failed; the dispatches
      45174182632 and 45174187730 passed. T-1034 (`temp-sh` gets 429 from a
      runner) is the one open entry.
@@ -51,7 +50,7 @@ is done. Git and the record keep finished work.
    x86_64 and aarch64 musl in the signed `SHA256SUMS`, and an image of
    each on ghcr.io (`crates/pod-testkit/README.md`). When podrunner writes
    a step of githome's answers that differs from the fake, it is an entry
-   here (T-1160 is one).
+   here.
 6. The channel of cfb and githome is #223. podcrates keeps one reply
    comment to each there (cfb: 6970315549; githome: 6970683028) and edits
    it, with the UTC time of each update and of each acknowledgement. cfb
@@ -115,10 +114,14 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
   podssh takes each server by rank, and its test
   `the_variable_names_the_servers_or_turns_the_line_off` pins two. The
   hand-off of the next tag names this change to podssh by a COORD message.
+- T-1160: `pod-fake-githome` answers `assigned` with the fork fact of the
+  real job alone (else `unknown`); the text of `head_is_fork` in
+  `job-offer.v1`, `source-reply.v1` and `source-request.v1` changed.
 
 ### What the next hand-off carries
 
-- podrunner: no open ask; T-1160 is ours.
+- podrunner: no open ask. T-1160 changes the answer of
+  `pod-fake-githome` to `assigned` (the fork fact of the real job alone).
 - podvm: T-1124, T-1143, T-1158 (podvm removes its work-arounds at the tag
   of T-1155 to T-1157).
 - podnet: T-1117 (documents), T-1118 (`release-index.json`).
@@ -126,8 +129,7 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
   the HTTP/2 request of `pod-ws`, PodUtils/podssh#340), T-1103 (iroh 1.5).
 - Asks of podvm and podssh that no one has started: T-1155, T-1156 and
   T-1157 (`pod-incus`, PodUtils/podvm#653), T-1144 (`pod-term`).
-- Entries of podcrates that no one has started: T-1160 (port review of
-  podrunner's changes), T-1161 (a test of `pod-control` under QEMU), T-1162
+- Entries of podcrates that no one has started: T-1162
   (the answer to PodUtils/podvm#570), T-1115 (the copies of the bind at a
   long path), T-1135 (`pod-cloudflare` says a cause two times), T-1146 (the
   comments of `pod-natprobe` are not in ASD-STE100), T-1150 (a watch of the

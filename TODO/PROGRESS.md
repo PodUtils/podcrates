@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 930 entries: 162 open, 27 partial, 7 blocked, 734 done.
+`TODO/INDEX.md` holds 930 entries: 160 open, 28 partial, 7 blocked, 735 done.
 
 ## State
 
@@ -38,9 +38,8 @@
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
-- Red runs: the nightly (T-916 partial, T-938, T-789, T-766, T-1161 for
+- Red runs: the nightly (T-916 partial, T-938, T-789, T-766, T-1161 partial, for
   `riscv64` and `loongarch64`; the jobs of Windows and macOS pass);
-  `upstream.yml` until T-1160 (podrunner's new changes of `pod-testkit`);
   `services.yml` (T-1034 alone).
 - Open defects: T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
   a giver still waits its whole limit after a refusal of the relay);
@@ -88,9 +87,7 @@ podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Amend the hand-off COORD-152
 (#257) at each take (podrunner has taken `v0.82.1`), and answer
 PodUtils/podvm#570 in the next COORD message to podvm (T-1162). Then, in
-podcrates: T-1160 (the port review of podrunner's new changes of
-`pod-testkit`: the daily `upstream.yml` is red until it is done, and the
-fakes serve the CI of podrunner), the red nightly (T-916, T-938, T-1161),
+podcrates: the red nightly (T-916, T-938, T-1161),
 T-1053 (a lossy run of E2-1 that takes 20 s), the red `services.yml`
 (T-1034) and the red live run (T-963). Then the asks of podrunner
 (COORD-134, #225): each new ask of podrunner. Then the entries that a need

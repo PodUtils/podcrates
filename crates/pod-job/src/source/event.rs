@@ -58,6 +58,8 @@ pub struct RealJob {
     /// `OWNER/REPO` of the head of a pull request.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub head_repository: Option<String>,
+    /// True when the head is another repository than `repository`, as
+    /// `TrustInputs::head_is_fork`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub head_is_fork: Option<bool>,
     pub actor: String,

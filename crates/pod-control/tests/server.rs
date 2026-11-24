@@ -307,7 +307,8 @@ fn the_count_of_active_holds_the_places() {
 /// line of the call back.
 fn ask(path: &std::path::Path, params: &str) -> (UnixStream, std::io::BufReader<UnixStream>) {
     let mut s = UnixStream::connect(path).unwrap();
-    s.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+    // A guard of a hang: an emulator can take seconds to build a long line.
+    s.set_read_timeout(Some(pod_testkit::host::scaled(Duration::from_secs(10)))).unwrap();
     let reader = std::io::BufReader::new(s.try_clone().unwrap());
     let line = format!("{{\"schema\":1,\"id\":1,\"method\":\"ask\",\"params\":{params}}}\n");
     s.write_all(line.as_bytes()).unwrap();
@@ -364,7 +365,10 @@ fn a_call_back_meets_one_deadline_for_its_write() {
             Ok(n) => got += n,
             Err(e) => panic!("the connection did not end after {got} bytes: {e}"),
         }
-        assert!(started.elapsed() < Duration::from_secs(10), "the write goes on after {got} bytes");
+        assert!(
+            started.elapsed() < pod_testkit::host::scaled(Duration::from_secs(10)),
+            "the write goes on after {got} bytes"
+        );
         std::thread::sleep(Duration::from_millis(5));
     }
     assert!(got < 8 << 20, "the whole line came: {got} bytes");
