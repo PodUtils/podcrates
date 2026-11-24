@@ -201,6 +201,13 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
   `pod_testkit::held::hold_until_exec`. podnet removes its own
   `socket_answers` and the rule in `claim_unix_path` at the tag.
 
+- T-1235 and T-1237 (`pod-core`, `pod-release`, PodUtils/podssh#352): the
+  classes `CantCreate` (73) and `Internal` (70), the values `cantcreate` and
+  `internal` of `log.v1` `class`; `pod_release::Error::CantWrite` is
+  `CantCreate`. podssh's `code_of` (`devtunnel.rs`, no `_` arm) does not
+  build at the tag until it adds both classes, the signal that podssh asked
+  for; podnet's matches fall to their `_` arm.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask. T-1160 changes the answer of
