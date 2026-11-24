@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 952 entries: 165 open, 29 partial, 7 blocked, 751 done.
+`TODO/INDEX.md` holds 958 entries: 171 open, 29 partial, 7 blocked, 751 done.
 
 ## State
 
@@ -123,7 +123,11 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   podssh first); T-1103 (iroh 1.5 and its fork
   of iroh-relay, after PodUtils/podssh#341); T-1095 (the order of the
   pseudo-fields of the HTTP/2 request of `pod-ws`; PodUtils/podssh#340);
-  T-941 (PodUtils/podssh#319).
+  T-941 (PodUtils/podssh#319); T-1217 to T-1222 (the crate `pod-tpm`: the
+  TPM 2.0 codec, the policy digest, the key file `TSS2 PRIVATE KEY`, the
+  sequences, the transports of Linux and Windows, a TPM in software and
+  an swtpm lane; PodUtils/podssh#351, COORD-141; T-1217 first; T-1220
+  asks podssh for its key algorithm).
 
 Then T-899, T-900, T-852, T-851, and T-920.
 Then the ruling "Discipline": T-692
@@ -240,6 +244,8 @@ takes the number after the last row of that table.
 - Reserve the name `pod-natprobe` on crates.io (T-802), as for each name
   of `docs/design.md`, section 4 (the other 108 are reserved;
   `scripts/check-crates-io-names.py` reports `pod-natprobe` alone).
+- Reserve the name `pod-tpm` on crates.io (T-1217), as for each name of
+  `docs/design.md`, section 4 (call C927).
 - Delete the remote branch `wip/t1073` (merged into `main`): the proxy of
   the sessions refuses `git push origin --delete`.
 

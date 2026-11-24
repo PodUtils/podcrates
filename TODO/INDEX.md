@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**952 entries: 165 open, 29 partial, 7 blocked, 751 done.**
+**958 entries: 171 open, 29 partial, 7 blocked, 751 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 226 | 240 |
-| P2 | 76 | 8 | 4 | 390 | 478 |
+| P2 | 82 | 8 | 4 | 390 | 484 |
 | P3 | 85 | 11 | 3 | 133 | 232 |
-| **All** | 165 | 29 | 7 | 751 | 952 |
+| **All** | 171 | 29 | 7 | 751 | 958 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -999,3 +999,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1198](transport.md) | P2 | S | M3 | defect | open | `pod-term`: the transfer codec loses the `KEPT` that ends a session, and the far sender's 20 s wait runs while a person answers the offer |
 | [T-1205](podvm.md) | P1 | S | M6 | feature | done | `pod-hostprobe`: `usage::Mounts`, the three cgroup directories of a process from the text of `/proc/self/mountinfo`, where a mount of cgroup is refused (PodUtils/podvm#659) |
 | [T-1209](upkeep.md) | P2 | S | M5 | defect | open | `pod-core`: one probe of a Unix socket that a forked child can hold, for `pod-control`, `pod-link` and `pod-warp` (PodUtils/podnet#709) |
+| [T-1217](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the crate, the TPM 2.0 command frame, the response codes and the commands of podssh's module, and the trait `Transport` (PodUtils/podssh#351) |
+| [T-1218](fleet.md) | P2 | S | M8 | feature | open | `pod-tpm`: the PCR selection and the policy digest of `TPM2_PolicyPCR` (PodUtils/podssh#351) |
+| [T-1219](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the key file `TSS2 PRIVATE KEY`, read and write in DER and PEM, with bounds on an untrusted file (PodUtils/podssh#351) |
+| [T-1220](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the sequences over a `Transport` (create a primary, create a key under a PCR policy, load, sign) that flush each handle on each path (PodUtils/podssh#351) |
+| [T-1221](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the transports of Linux (`/dev/tpmrm0`, an swtpm socket) and of Windows (TBS), each command bounded in size and time (PodUtils/podssh#351) |
+| [T-1222](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: a TPM in software (feature `soft`) and a CI lane against swtpm and the reference simulator, with the key of PCR 7 as the proof (PodUtils/podssh#351) |
