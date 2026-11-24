@@ -87,7 +87,7 @@ impl Tracker {
     ) -> Result<Tracker, Failed> {
         let asking = Asking { limits: config.limits, ..Asking::default() };
         let dialed = url::dial_asking(url, &asking, &config.way, &config.trust, config.connect_timeout, None);
-        let session = dialed.await.map_err(|e| Failed::Unreachable(url::failure(url, &e)))?;
+        let session = dialed.await.map_err(|e| Failed::Unreachable(crate::Missed::caused(url::failure(url, &e), e)))?;
         let mut tracker = Tracker {
             session,
             shown: url.shown(),

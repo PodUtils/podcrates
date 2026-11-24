@@ -429,7 +429,7 @@ pub(crate) fn spawn_with(
                     // As `execvp`: a file that was found and refused is the
                     // answer, also when a later path is absent. Only
                     // `EACCES` lets the search go on.
-                    if crate::status::invocable_but_refused(e) {
+                    if e.exec_refused() {
                         refused = Some(e);
                         if e != sys::EACCES {
                             break;

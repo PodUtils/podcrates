@@ -4,8 +4,10 @@
 //! line that says so.
 
 use std::os::fd::{AsRawFd, OwnedFd};
+use std::os::unix::fs::PermissionsExt;
 use std::time::Duration;
 
+use pod_core::Class;
 use pod_hold::filter::Calls;
 use pod_hold::listen::Listener;
 use pod_hold::mem::Access;
@@ -401,6 +403,38 @@ fn a_namespace_makes_its_wire_where_udp_sockets_are_refused() {
     }
 }
 
+/// A failed `execve` is a failure of `start` with the errno and its class,
+/// not a child that exits 127 with no word.
+fn a_program_that_cannot_run_gives_the_errno_of_execve() {
+    const NAME: &str = "a_program_that_cannot_run_gives_the_errno_of_execve";
+    let calls = Calls::of(&[libc::SYS_connect]);
+    let Some(good) = payload("payload-none", &calls) else { return };
+    wait(good.pid);
+    let dir = std::env::temp_dir().join(format!("pod-hold-exec-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("a scratch directory");
+    let text = dir.join("text");
+    std::fs::write(&text, "not a program\n").expect("a file");
+    std::fs::set_permissions(&text, std::fs::Permissions::from_mode(0o755)).expect("a mode");
+    let rows = [
+        (dir.join("absent"), Class::NotFound, "ENOENT"),
+        (dir.clone(), Class::Permission, "EACCES"),
+        (text, Class::Unsupported, "ENOEXEC"),
+    ];
+    for (path, class, word) in rows {
+        let program = Program::new(&path, &["x"], &[] as &[&str]).expect("a program");
+        match start(program, &calls) {
+            Ok(started) => panic!("{NAME}: {path:?} started (child exit {})", wait(started.pid)),
+            Err(e) => {
+                let line = e.chain().to_string();
+                assert_eq!(e.class, class, "{NAME}: {line}");
+                assert!(line.contains(word) && line.contains(path.to_str().unwrap()), "{NAME}: {line}");
+            }
+        }
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+    println!("ok: {NAME}");
+}
+
 pub fn main() {
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
@@ -408,6 +442,7 @@ pub fn main() {
         Some("payload-socket") => std::process::exit(payload_socket()),
         Some("payload-raw") => std::process::exit(payload_raw()),
         Some("payload-open") => std::process::exit(payload_open(&args[2..])),
+        Some("payload-none") => std::process::exit(0),
         _ => {}
     }
     // The fork of the namespace test comes first, while the process has one
@@ -418,4 +453,5 @@ pub fn main() {
     a_socket_call_gets_the_descriptor_of_the_supervisor();
     a_raw_icmp_socket_gets_eperm_unless_the_hold_allows_it();
     each_part_of_the_socket_rules_has_its_own_opt_in();
+    a_program_that_cannot_run_gives_the_errno_of_execve();
 }

@@ -8338,3 +8338,59 @@ as it is. The adoption map of `crates/pod-unit/README.md` names the call.
 ```sh
 cargo test -p pod-unit --all-features --test systemd
 ```
+
+# T-1128: `pod-unit`: podnet's `autostart remove` of an unknown name exits 69, and the import of `autostart.rs` is behind (PodUtils/podnet#707)
+
+**Source:** PodUtils/podnet#707, ask 11 (COORD-115 of podnet; PodUtils/podnet@T-532).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet: "11. `PodUtils/podnet:crates/podnet-core/src/autostart.rs` (imported into
+`pod-unit`, not taken): `remove` of an unknown name now exits 69
+(`Fault::Unavailable`, \"no autostart entry NAME (podnet autostart
+list)\"), not 1 (`7f38f91`). Carry it into `pod-unit` if it takes
+`remove`." `check-sources.py` shows the change against the import at
+`f4ad31d`.
+
+## Premise
+
+- Read: the diff of `7f38f91` (one hunk of `remove`), `crates/pod-unit/SOURCES`,
+  `crates/pod-unit/src/install.rs` (`remove` gives `Removed::Nothing` for
+  a unit that is not there; the caller chooses the exit).
+- Measured: `git ls-tree 7f38f91 -- crates/podnet-core/src/autostart.rs`
+  gives the blob `2d260abe7bf0f72a0d64c9811d72bbc1d6680844`.
+
+## Approach
+
+`Removed::of_named(name, list)` gives the lines of a removal, or for
+`Nothing` a failure of class Unavailable (exit 69) that names the unit and
+the command that lists the units. The podnet block of `SOURCES` moves to
+`7f38f91`.
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features --test install
+python3 -I scripts/check-sources.py pod-unit
+```
+
+## Done
+
+2026-11-23, this commit. `Removed::of_named` in `crates/pod-unit/src/install.rs`:
+"no unit NAME is installed (LIST)", class Unavailable (exit 69); the
+words are generic, as podrunner and podssh take the crate too, and podnet
+gives `podnet autostart list` as LIST. Test: `tests/install.rs`,
+`a_user_unit_is_written_enabled_and_started_and_its_removal_leaves_nothing`
+(a second removal is `Nothing`, and `of_named` gives class Unavailable,
+exit 69 and the words). On the code before the fix the test does not
+build (no `of_named`). The block of podnet in `crates/pod-unit/SOURCES`
+is at `7f38f91` with the blob `2d260abe`; `check-sources.py --clone
+PodUtils/podnet=CLONE --clone PodUtils/podssh=CLONE pod-unit` gives 0
+changes for both. The adoption map of `crates/pod-unit/README.md` names
+the call. Release notes: `pod-unit`: `Removed::of_named` turns the removal
+of an unknown unit into exit 69.

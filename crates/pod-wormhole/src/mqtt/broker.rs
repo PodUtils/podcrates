@@ -82,7 +82,8 @@ impl Broker {
     ) -> Result<Broker, Failed> {
         let asking = Asking { protocol: Some(PROTOCOL), limits: config.limits, ..Asking::default() };
         let dialed = url::dial_asking(&point.url, &asking, &config.way, &config.trust, config.connect_timeout, None);
-        let session = dialed.await.map_err(|e| Failed::Unreachable(url::failure(&point.url, &e)))?;
+        let session =
+            dialed.await.map_err(|e| Failed::Unreachable(crate::Missed::caused(url::failure(&point.url, &e), e)))?;
         let (inbox, outbox) = role.topics(topic);
         let now = Instant::now();
         let mut broker = Broker {

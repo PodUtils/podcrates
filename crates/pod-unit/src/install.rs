@@ -179,6 +179,21 @@ pub enum Removed {
     Done(Vec<String>),
 }
 
+impl Removed {
+    /// The lines of a removal of the unit `name` that the caller asked
+    /// for. [`Removed::Nothing`] is `Class::Unavailable` (exit 69, as a
+    /// stop of an unknown unit): the words name the unit and `list`, the
+    /// command that lists the units.
+    pub fn of_named(self, name: &str, list: &str) -> Result<Vec<String>, Failure> {
+        match self {
+            Removed::Done(lines) => Ok(lines),
+            Removed::Nothing => {
+                Err(Failure::new(Stage::Host, Class::Unavailable, format!("no unit {name} is installed ({list})")))
+            }
+        }
+    }
+}
+
 /// The first form of the user that this host has, by a probe of each in
 /// order: `schtasks` on Windows; else `systemctl --user`, `launchctl` with
 /// the login session of the user, then `crontab -l`. With none, the reason

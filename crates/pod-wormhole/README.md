@@ -46,7 +46,7 @@ caller's protocol over a `Wormhole`; the exchange of podssh goes to
 | `phrase` | `Code`: `make(nameplate, words, &mut dyn Entropy)` (`Failed::Mine` for a count out of `check_words`), `parse(typed)`, `nameplate`, `password`, `for_terminal`, `words`; `check_words` (2 to 8), `nameplate_ok`, `WORDS` (3, the default), `WORDS_LEAST`, `WORDS_MOST`, `NAMEPLATE_MOST`, `TYPED_MOST` |
 | `words` | the PGP word list (`EVEN`, `ODD`, `list`, `word`, `find`) |
 | `message` | the pure reading of a mailbox's messages: `object`, `message_of`, `pake_of`, `words`, `hex`, `unhex`, `Message`, `WORDS_MOST` |
-| `failed` | `Failed` (`Unreachable`, `Refused`, `Expired`, `Nobody`, `WrongCode`, `Peer`, `Mine`, `Broken`, `NoRandom`), `stage_and_class()`, `From<Failed> for pod_core::Failure` |
+| `failed` | `Failed` (`Unreachable`, `Refused`, `Expired`, `Nobody`, `WrongCode`, `Peer`, `Mine`, `Broken`, `NoRandom`), `stage_and_class()`, `From<Failed> for pod_core::Failure`; `Missed` (the words of `Unreachable` as a `str`, and the failure of each meeting point with its stage: the first is the source) |
 | `standin` (feature `standin`) | a mailbox on the loopback that speaks the server protocol of version 1: `start()` gives a `Stand` (`url`, `moods`, `tamper(phase)`, `nameplates(appid)`; dropped, it stops); `scripted(script)` gives one upgraded connection to a script; `welcome()` |
 
 A giver calls `opened`, shows the code (`Code::for_terminal`), calls
@@ -291,6 +291,12 @@ the code. Each is also a `pod_core::Failure` (`From`):
 | `Peer` | `Rendezvous` | `Protocol` |
 | `Mine` | `Rendezvous` | `Policy` |
 | `NoRandom` | `Host` | `Unavailable` |
+
+The source of `Unreachable` is the failure of the first meeting point,
+with its own stage: `Proxy` for a proxy that does not answer, `Dns` for a
+name that does not resolve. `Missed::causes` gives the failure of each
+point. `Expired` says the exact life of the code: "5 seconds", "1 minute",
+"90 seconds".
 
 ## Parity
 

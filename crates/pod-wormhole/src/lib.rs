@@ -65,7 +65,7 @@ pub mod words;
 pub mod wormhole;
 
 pub use config::Config;
-pub use failed::Failed;
+pub use failed::{Failed, Missed};
 pub use meet::{Ends, joined, opened};
 pub use message::{hex, unhex};
 pub use phrase::{Code, WORDS, WORDS_LEAST, WORDS_MOST};

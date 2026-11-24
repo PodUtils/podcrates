@@ -29,8 +29,8 @@ file df256a833f564b504b75aa9135f0dcd6c12bcc34 crates/podssh-cli/src/node_install
 # podnet: the user unit and the line of the crontab of `podnet autostart`
 # (its log after the command, its probe of the forms). The command line, the
 # files of the arguments and of the variables of an entry stay in podnet.
-repo PodUtils/podnet f4ad31d5e45f9d82e050ad72bba6e6ae24128511
-file 244b31a6fb27ab9df6024b381719394689fdb6a0 crates/podnet-core/src/autostart.rs -> crates/pod-unit/src/cron.rs crates/pod-unit/src/install.rs
+repo PodUtils/podnet 7f38f91076feec22ec5ff63b55e0f4f2b3e37098
+file 2d260abe7bf0f72a0d64c9811d72bbc1d6680844 crates/podnet-core/src/autostart.rs -> crates/pod-unit/src/cron.rs crates/pod-unit/src/install.rs
 
 # podrunner: `print_unit` of `crates/podrunner/src/cli.rs` (blob
 # 358bcaeb1930358b5b2c78b76988b39d67944845 at

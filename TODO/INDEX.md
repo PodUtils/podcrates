@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**904 entries: 153 open, 27 partial, 7 blocked, 717 done.**
+**908 entries: 153 open, 27 partial, 7 blocked, 721 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 218 | 232 |
-| P2 | 71 | 7 | 4 | 369 | 451 |
-| P3 | 78 | 10 | 3 | 128 | 219 |
-| **All** | 153 | 27 | 7 | 717 | 904 |
+| P1 | 4 | 10 | 0 | 219 | 233 |
+| P2 | 71 | 7 | 4 | 371 | 453 |
+| P3 | 78 | 10 | 3 | 129 | 220 |
+| **All** | 153 | 27 | 7 | 721 | 908 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -944,6 +944,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1120](podvm.md) | P1 | S | M6 | feature | done | `pod-hostprobe`: the CPU time, the peak of memory and the OOM kills of a cgroup at the end of a run (PodUtils/podvm#650) |
 | [T-1122](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`, `pod-unit`: the changes of podrunner and podssh at their heads (port review) |
 | [T-1124](podvm.md) | P2 | S | M6 | chore | open | podvm opens `/proc/PID` and the pidfd of the init of a run, which is not dumpable after T-1113, so its `exec -t`, `cp` and the join of the UTS namespace fail for a caller with no capabilities |
+| [T-1125](relay.md) | P1 | S | M2 | defect | done | `pod-hold`: a failed `execve` of `spawn::start` exits 127 with no errno, and `spawn::resolve` does not check a path with a `/` (PodUtils/podnet#707) |
+| [T-1126](relay.md) | P2 | S | M2 | defect | done | `pod-wormhole`: `Failed::Expired` rounds the life of the code up to whole minutes ("within its 1 minutes" for 5 s) (PodUtils/podnet#707) |
+| [T-1127](relay.md) | P2 | S | M2 | defect | done | `pod-wormhole`: `Failed::Unreachable` keeps only the words of each meeting point, so a caller loses the stage Proxy or Dns (PodUtils/podnet#707) |
+| [T-1128](fleet.md) | P3 | S | M8 | defect | done | `pod-unit`: podnet's `autostart remove` of an unknown name exits 69, and the import of `autostart.rs` is behind (PodUtils/podnet#707) |
 | [T-1137](transport.md) | P1 | S | M1 | feature | done | `pod-proxy`: a body over the bound is refused with no status, no size, no bound and no byte of the body (PodUtils/podvm#651) |
 | [T-1138](podvm.md) | P1 | S | M6 | feature | done | `pod-incus`: an answer over `max_body` is an I/O error with the words of pod-proxy alone, and the caller cannot tell it from another fault (PodUtils/podvm#651) |
 | [T-1139](podvm.md) | P1 | S | M6 | feature | done | `pod-incus`: an `error` envelope over `max_body` is refused by size, and the words of incusd go (PodUtils/podvm#651) |

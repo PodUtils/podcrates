@@ -1869,7 +1869,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "pod-acme"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "p256",
@@ -1889,11 +1889,11 @@ dependencies = [
 
 [[package]]
 name = "pod-actions-expr"
-version = "0.82.0"
+version = "0.82.1"
 
 [[package]]
 name = "pod-actions-results"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "pod-core",
@@ -1903,7 +1903,7 @@ dependencies = [
 
 [[package]]
 name = "pod-actions-workflow"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "pod-actions-expr",
  "saphyr-parser",
@@ -1911,14 +1911,14 @@ dependencies = [
 
 [[package]]
 name = "pod-beneath"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "linux-raw-sys",
 ]
 
 [[package]]
 name = "pod-broker"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "pod-acme",
@@ -1941,7 +1941,7 @@ dependencies = [
 
 [[package]]
 name = "pod-cloudflare"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "bytes",
@@ -1972,7 +1972,7 @@ dependencies = [
 
 [[package]]
 name = "pod-confine"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "pod-core",
  "pod-hostprobe",
@@ -1980,7 +1980,7 @@ dependencies = [
 
 [[package]]
 name = "pod-control"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "pod-core",
  "serde",
@@ -1991,7 +1991,7 @@ dependencies = [
 
 [[package]]
 name = "pod-core"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "libc",
  "rand",
@@ -2001,7 +2001,7 @@ dependencies = [
 
 [[package]]
 name = "pod-devtunnel"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "pod-core",
  "pod-proxy",
@@ -2018,7 +2018,7 @@ dependencies = [
 
 [[package]]
 name = "pod-dns"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "bytes",
@@ -2038,7 +2038,7 @@ dependencies = [
 
 [[package]]
 name = "pod-e2e"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "aes-gcm 0.11.1",
  "chacha20poly1305 0.11.0",
@@ -2056,7 +2056,7 @@ dependencies = [
 
 [[package]]
 name = "pod-egress"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "pod-core",
  "pod-proxy",
@@ -2071,7 +2071,7 @@ dependencies = [
 
 [[package]]
 name = "pod-enter"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "pod-beneath",
  "pod-confine",
@@ -2081,7 +2081,7 @@ dependencies = [
 
 [[package]]
 name = "pod-extract"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "flate2",
  "pod-core",
@@ -2093,7 +2093,7 @@ dependencies = [
 
 [[package]]
 name = "pod-gsr"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "foreign-types",
  "openssl",
@@ -2108,7 +2108,7 @@ dependencies = [
 
 [[package]]
 name = "pod-guest"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "pod-core",
  "pod-hostprobe",
@@ -2119,7 +2119,7 @@ dependencies = [
 
 [[package]]
 name = "pod-hold"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "libc",
  "pod-core",
@@ -2129,7 +2129,7 @@ dependencies = [
 
 [[package]]
 name = "pod-hostprobe"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "linux-raw-sys",
  "pod-beneath",
@@ -2139,7 +2139,7 @@ dependencies = [
 
 [[package]]
 name = "pod-identity"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "ed25519-dalek 2.2.0",
@@ -2153,7 +2153,7 @@ dependencies = [
 
 [[package]]
 name = "pod-job"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -2162,7 +2162,7 @@ dependencies = [
 
 [[package]]
 name = "pod-link"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "kcp",
@@ -2179,7 +2179,7 @@ dependencies = [
 
 [[package]]
 name = "pod-netlab"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "pod-core",
  "serde_json",
@@ -2187,7 +2187,7 @@ dependencies = [
 
 [[package]]
 name = "pod-netstack"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "atomic-waker",
  "pod-core",
@@ -2198,7 +2198,7 @@ dependencies = [
 
 [[package]]
 name = "pod-oci"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "pod-core",
@@ -2212,7 +2212,7 @@ dependencies = [
 
 [[package]]
 name = "pod-opentunnel"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "pod-core",
  "pod-proxy",
@@ -2229,7 +2229,7 @@ dependencies = [
 
 [[package]]
 name = "pod-piping"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "bytes",
  "h2",
@@ -2252,7 +2252,7 @@ dependencies = [
 
 [[package]]
 name = "pod-proxy"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "libc",
@@ -2268,7 +2268,7 @@ dependencies = [
 
 [[package]]
 name = "pod-qga"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "pod-core",
@@ -2277,7 +2277,7 @@ dependencies = [
 
 [[package]]
 name = "pod-quic"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "atomic-waker",
  "hmac 0.13.0",
@@ -2292,7 +2292,7 @@ dependencies = [
 
 [[package]]
 name = "pod-relay"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "bytes",
@@ -2321,7 +2321,7 @@ dependencies = [
 
 [[package]]
 name = "pod-services"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "pod-core",
  "toml",
@@ -2329,7 +2329,7 @@ dependencies = [
 
 [[package]]
 name = "pod-session"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "hkdf 0.13.0",
  "hmac 0.13.0",
@@ -2344,11 +2344,11 @@ dependencies = [
 
 [[package]]
 name = "pod-time"
-version = "0.82.0"
+version = "0.82.1"
 
 [[package]]
 name = "pod-tls"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "p256",
@@ -2367,7 +2367,7 @@ dependencies = [
 
 [[package]]
 name = "pod-turn"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "hmac 0.13.0",
  "sha1",
@@ -2376,11 +2376,11 @@ dependencies = [
 
 [[package]]
 name = "pod-udf"
-version = "0.82.0"
+version = "0.82.1"
 
 [[package]]
 name = "pod-warp"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "bytes",
@@ -2407,7 +2407,7 @@ dependencies = [
 
 [[package]]
 name = "pod-wg"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "curve25519-dalek 5.0.0",
  "pod-core",
@@ -2418,7 +2418,7 @@ dependencies = [
 
 [[package]]
 name = "pod-wormhole"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "bytes",
  "crypto_secretbox",
@@ -2439,7 +2439,7 @@ dependencies = [
 
 [[package]]
 name = "pod-ws"
-version = "0.82.0"
+version = "0.82.1"
 dependencies = [
  "base64",
  "bytes",
