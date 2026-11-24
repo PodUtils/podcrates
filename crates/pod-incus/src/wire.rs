@@ -126,7 +126,7 @@ async fn write_upload<S: AsyncWrite + Unpin>(stream: &mut S, upload: Upload) -> 
                     if want == 0 {
                         break;
                     }
-                    let n = payload.reader.read(&mut buf[..want]).await?;
+                    let n = payload.reader.read(&mut buf[..want]).await.map_err(from_payload)?;
                     if n == 0 {
                         break;
                     }
@@ -138,7 +138,7 @@ async fn write_upload<S: AsyncWrite + Unpin>(stream: &mut S, upload: Upload) -> 
                         let why = format!("the payload ended after {sent} of its {length} bytes");
                         return Err(io::Error::new(io::ErrorKind::InvalidInput, why));
                     }
-                    if payload.reader.read(&mut buf[..1]).await? > 0 {
+                    if payload.reader.read(&mut buf[..1]).await.map_err(from_payload)? > 0 {
                         let why = format!("the payload holds more than its {length} bytes");
                         return Err(io::Error::new(io::ErrorKind::InvalidInput, why));
                     }
@@ -150,6 +150,32 @@ async fn write_upload<S: AsyncWrite + Unpin>(stream: &mut S, upload: Upload) -> 
         stream.write_all(b"0\r\n\r\n").await?;
     }
     Ok(())
+}
+
+/// An error of the reader of a payload: the caller's, not a cut of the
+/// socket. Its kind and its text stay those of the reader.
+#[derive(Debug)]
+struct FromPayload(io::Error);
+
+impl std::fmt::Display for FromPayload {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl std::error::Error for FromPayload {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.0.source()
+    }
+}
+
+fn from_payload(e: io::Error) -> io::Error {
+    io::Error::new(e.kind(), FromPayload(e))
+}
+
+/// True where `e` came from the reader of a payload, not from the socket.
+pub(crate) fn of_payload(e: &io::Error) -> bool {
+    e.get_ref().is_some_and(|inner| inner.is::<FromPayload>())
 }
 
 async fn write_piece<S: AsyncWrite + Unpin>(stream: &mut S, bytes: &[u8], chunked: bool) -> io::Result<()> {
@@ -359,6 +385,28 @@ mod tests {
         let request = Request { method: "POST", target: "/".into(), headers: Vec::new(), body: Body::Stream(long) };
         let e = sent(request).await.unwrap_err();
         assert_eq!(e.to_string(), "the payload holds more than its 3 bytes");
+    }
+
+    /// A reader of a payload that fails: the error keeps its kind and its
+    /// text, and is not taken for a cut of the socket.
+    struct Failing(io::ErrorKind);
+
+    impl AsyncRead for Failing {
+        fn poll_read(self: Pin<&mut Self>, _: &mut Context<'_>, _: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Err(io::Error::new(self.0, "the source failed")))
+        }
+    }
+
+    #[tokio::test]
+    async fn an_error_of_the_payload_is_not_a_cut_of_the_socket() {
+        for kind in [io::ErrorKind::BrokenPipe, io::ErrorKind::TimedOut] {
+            let upload = Upload::single("application/octet-stream", Payload::new(Failing(kind), None));
+            let request =
+                Request { method: "POST", target: "/".into(), headers: Vec::new(), body: Body::Stream(upload) };
+            let e = sent(request).await.unwrap_err();
+            assert_eq!((e.kind(), e.to_string().as_str(), of_payload(&e)), (kind, "the source failed", true));
+        }
+        assert!(!of_payload(&io::Error::from(io::ErrorKind::BrokenPipe)));
     }
 
     #[tokio::test]

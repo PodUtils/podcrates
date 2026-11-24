@@ -149,31 +149,59 @@ async fn an_upload_that_incus_closes_with_no_answer_gives_the_error_of_the_write
     assert!(matches!(e.kind(), ErrorKind::Io(io) if io.kind() == std::io::ErrorKind::BrokenPipe), "{e:?}");
 }
 
-/// After the cut, the answer is read within 5 s (or `answer_timeout`, where
-/// it is shorter): a whole answer is the answer, a stalled one ends there.
+/// incus that answers and then reads nothing more, with the connection
+/// open: the write stalls until `write_timeout`, and the answer is read
+/// within 5 s after it (or `answer_timeout`, where it is shorter). A whole
+/// answer is the answer, a stalled one ends at that bound. No peer of a
+/// Unix socket on macOS can give EPIPE and keep the read side open: the
+/// stall is the cut that each OS gives.
 #[tokio::test(start_paused = true)]
 async fn an_answer_that_stalls_after_a_cut_ends_at_its_short_bound() {
     pod_testkit::need_loopback!();
+    let limit = Duration::from_secs(600);
     let raw = common::raw::Raw::start(common::error(500, NO_SPACE), common::raw::After::Hold);
-    let e = raw.client().import_image(large_import()).await.unwrap_err();
+    let write = raw.settings().write_timeout;
+    let started = tokio::time::Instant::now();
+    let call = tokio::time::timeout(limit, async { raw.client().import_image(large_import()).await });
+    let e = call.await.expect("the call ends at the bound of the write").unwrap_err();
     assert_eq!((e.status(), e.incus_error()), (Some(500), Some(NO_SPACE)), "{e:?}");
+    assert_eq!(started.elapsed().as_secs(), write.as_secs(), "the answer is read at the stall");
 
     let mut stalled = common::error(500, NO_SPACE);
     stalled.truncate(stalled.len() - 10);
     let raw = common::raw::Raw::start(stalled, common::raw::After::Hold);
     let started = tokio::time::Instant::now();
-    let call =
-        tokio::time::timeout(Duration::from_secs(600), async { raw.client().import_image(large_import()).await });
+    let call = tokio::time::timeout(limit, async { raw.client().import_image(large_import()).await });
     let e = call.await.expect("the call ends at the bound").unwrap_err();
     assert!(matches!(e.kind(), ErrorKind::AnswerTimeout { phase: AnswerPhase::Body, .. }), "{e:?}");
-    assert_eq!(started.elapsed().as_secs(), 5, "5 s, under the 30 s of answer_timeout");
+    assert_eq!(started.elapsed().as_secs(), write.as_secs() + 5, "5 s, under the 30 s of answer_timeout");
 
     let mut settings = raw.settings();
     settings.answer_timeout = Some(Duration::from_secs(2));
     let started = tokio::time::Instant::now();
-    let e = Client::new(settings).import_image(large_import()).await.unwrap_err();
+    let call = tokio::time::timeout(limit, async { Client::new(settings).import_image(large_import()).await });
+    let e = call.await.expect("the call ends at the bound").unwrap_err();
     assert!(matches!(e.kind(), ErrorKind::AnswerTimeout { bound, .. } if bound.as_secs() == 2), "{e:?}");
-    assert_eq!(started.elapsed().as_secs(), 2);
+    assert_eq!(started.elapsed().as_secs(), write.as_secs() + 2);
+}
+
+/// incus that reads nothing of the body and does not answer: the call
+/// ends at `write_timeout` and the 5 s of the late answer, with the error
+/// of the write, not at the limit of the caller.
+#[tokio::test(start_paused = true)]
+async fn an_upload_that_incus_stops_reading_ends_at_the_bound_of_the_write() {
+    pod_testkit::need_loopback!();
+    let raw = common::raw::Raw::start(Vec::new(), common::raw::After::Hold);
+    let mut settings = raw.settings();
+    settings.write_timeout = Duration::from_secs(7);
+    let started = tokio::time::Instant::now();
+    let call = tokio::time::timeout(Duration::from_secs(600), async {
+        Client::new(settings).import_image(large_import()).await
+    });
+    let e = call.await.expect("the call ends at the bound of the write").unwrap_err();
+    assert!(matches!(e.kind(), ErrorKind::Io(io) if io.kind() == std::io::ErrorKind::TimedOut), "{e:?}");
+    assert_eq!(e.class(), pod_core::Class::Timeout);
+    assert_eq!(started.elapsed().as_secs(), 7 + 5);
 }
 
 /// An `error` envelope over `max_body` after the cut is refused by size,

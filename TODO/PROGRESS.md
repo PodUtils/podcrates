@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 976 entries: 163 open, 28 partial, 7 blocked, 778 done.
+`TODO/INDEX.md` holds 977 entries: 163 open, 29 partial, 7 blocked, 778 done.
 
 ## State
 
@@ -41,8 +41,11 @@
   of `pod-link` (T-1297, with `mail` on arm); `riscv64` fails in `pod-iroh`
   (T-916) and was cancelled at 150 minutes in `session_resume_twice`
   (T-938); the two jobs of macOS were cancelled at 60 minutes in
-  `pod-incus` (T-1298). T-1161 is done; T-789 and T-766 passed. None open
-  in `services.yml`: T-1223 is done; read the next scheduled run.
+  `pod-incus` (T-1298, partial: the stand-in shut its read side, which
+  gives the writer no EPIPE on macOS, and the write of a request had no
+  bound; the next nightly decides; T-1303 gives each binary a limit).
+  T-1161 is done; T-789 and T-766 passed. None open in `services.yml`:
+  T-1223 is done; read the next scheduled run.
 - Open defects: T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
   a giver still waits its whole limit after a refusal of the relay);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of

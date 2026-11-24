@@ -11,17 +11,21 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::task::JoinHandle;
 
-/// What the stand-in does after its answer.
+/// What the stand-in does after its answer. Each form gives the client the
+/// same cut on Linux and on macOS.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum After {
-    /// Close the connection, with the rest of the request unread.
+    /// Close the connection, with the rest of the request unread: the
+    /// writer of a body gets a reset (Linux) or EPIPE (macOS).
     Close,
-    /// Keep the connection open and send no more bytes; shut its read side
-    /// and drop what came: the writer of a body gets EPIPE, the reader of
-    /// the answer gets nothing more.
+    /// Keep the connection open, and read and send no more bytes: the
+    /// writer of a body stalls until `write_timeout`, the reader of the
+    /// answer gets nothing more. A shutdown of the read side does not do
+    /// this: on macOS it drops the queue and tells the writer nothing, so
+    /// the writer waits as here, and on Linux the writer gets EPIPE.
     Hold,
-    /// [`After::Hold`], with the write side shut too: the reader of the
-    /// answer gets its end, and no error of a reset.
+    /// Shut the read side, read what came, and close: the writer of a body
+    /// gets EPIPE and the reader of the answer its end, with no reset.
     Shut,
 }
 
@@ -46,16 +50,20 @@ impl Raw {
                 if !answer.is_empty() && stream.write_all(&answer).await.is_err() {
                     continue;
                 }
-                if after != After::Close {
-                    let stream = stream.into_std().expect("the stream of the stand-in");
-                    let how = if after == After::Shut { std::net::Shutdown::Both } else { std::net::Shutdown::Read };
-                    let _ = stream.shutdown(how);
-                    let mut stream = UnixStream::from_std(stream).expect("the stream of the stand-in");
-                    // The bytes in the queue keep a blocked writer asleep:
-                    // with them read, its next write sees the shut side.
-                    let mut sink = vec![0u8; 64 * 1024];
-                    while matches!(stream.read(&mut sink).await, Ok(n) if n > 0) {}
-                    holding.lock().unwrap().push(stream);
+                match after {
+                    After::Close => {}
+                    After::Hold => holding.lock().unwrap().push(stream),
+                    After::Shut => {
+                        // Linux: each later write of the peer fails, so the
+                        // read empties the queue and the close sends no
+                        // reset. macOS: the shutdown drops the queue, and
+                        // the close gives the peer EPIPE.
+                        let stream = stream.into_std().expect("the stream of the stand-in");
+                        let _ = stream.shutdown(std::net::Shutdown::Read);
+                        let mut stream = UnixStream::from_std(stream).expect("the stream of the stand-in");
+                        let mut sink = vec![0u8; 64 * 1024];
+                        while matches!(stream.read(&mut sink).await, Ok(n) if n > 0) {}
+                    }
                 }
             }
         });
