@@ -54,7 +54,7 @@ pub mod wire;
 
 pub use attach::{Attached, Control, Output, Stdin};
 pub use client::{Client, Settings};
-pub use error::{Error, ErrorKind, Result};
+pub use error::{AnswerPhase, Error, ErrorKind, Result};
 pub use exec::{Exec, ExecOutput};
 pub use files::{ByteRange, File, FileContent, FileKind, FileMeta, FileRead, FileWrite};
 pub use images::{ImageAlias, ImageData, ImageImport, ImportedImage};

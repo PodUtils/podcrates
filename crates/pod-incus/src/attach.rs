@@ -9,7 +9,6 @@
 //! final operation. No secret goes into an error or a log.
 
 use pod_core::BoxedIo;
-use pod_proxy::http::{MAX_HEAD, read_head};
 use pod_ws::RelaySession;
 use pod_ws::SessionError;
 use pod_ws::frame::{OPCODE_BINARY, OPCODE_CLOSE, OPCODE_TEXT};
@@ -20,7 +19,7 @@ use crate::envelope;
 use crate::error::{Error, ErrorKind, Result, far_text};
 use crate::exec::{Exec, ExecOutput, ExecPost, exec_path};
 use crate::operation::Operation;
-use crate::wire::{HOST, escape};
+use crate::wire::{HOST, escape, read_head_within};
 
 /// The session of one websocket of an operation.
 type Socket = RelaySession<BoxedIo>;
@@ -218,9 +217,10 @@ impl Client {
         head.push_str(&format!("Sec-WebSocket-Key: {key}\r\n\r\n"));
         stream.write_all(head.as_bytes()).await.map_err(|e| Error::io(&call, e))?;
         stream.flush().await.map_err(|e| Error::io(&call, e))?;
-        let (answer, rest) = read_head(&mut stream, Vec::new(), MAX_HEAD).await.map_err(|e| Error::io(&call, e))?;
+        let bound = self.settings().answer_timeout;
+        let (answer, rest) = read_head_within(&mut stream, bound).await.map_err(|e| Error::io(&call, e))?;
         if answer.status != 101 {
-            let (body, _) = crate::wire::envelope_body(&mut stream, &answer, rest, self.settings().max_body)
+            let (body, _) = crate::wire::envelope_body(&mut stream, &answer, rest, self.settings().max_body, bound)
                 .await
                 .map_err(|e| Error::io(&call, e))?;
             envelope::read(&call, answer.status, &body)?;

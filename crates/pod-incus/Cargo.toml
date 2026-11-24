@@ -26,4 +26,5 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 pod-testkit = { workspace = true }
-tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros"] }
+# `test-util`: a paused clock for the bounds of an answer and of a wait.
+tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros", "test-util"] }

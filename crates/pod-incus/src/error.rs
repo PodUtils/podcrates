@@ -9,6 +9,7 @@
 use std::fmt;
 use std::io;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use pod_core::text::one_line;
 use pod_core::{Class, Failure, Stage};
@@ -78,7 +79,45 @@ pub enum ErrorKind {
     /// bound, the first bytes of the body, and the `error` of an envelope
     /// of type `error` as far as those bytes hold it (unescaped).
     TooLarge { status: u16, size: BodySize, bound: u64, head: Vec<u8>, error: Option<String> },
+    /// incus sent no byte of the head, or of the body, of an answer within
+    /// `Settings::answer_timeout`: a socket that takes the connection and
+    /// does not answer. The wait for an operation has its own bound.
+    AnswerTimeout { phase: AnswerPhase, bound: Duration },
 }
+
+/// The part of an answer that a silence of incus stopped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AnswerPhase {
+    /// The status line and the headers.
+    Head,
+    /// A read of the body.
+    Body,
+}
+
+impl fmt::Display for AnswerPhase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            AnswerPhase::Head => "head",
+            AnswerPhase::Body => "body",
+        })
+    }
+}
+
+/// A silence of incus over the bound of an answer, carried in an
+/// `io::Error` to [`Error::io`].
+#[derive(Debug)]
+pub(crate) struct Silence {
+    pub phase: AnswerPhase,
+    pub bound: Duration,
+}
+
+impl fmt::Display for Silence {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "no byte of the {} of the answer in {} ms", self.phase, self.bound.as_millis())
+    }
+}
+
+impl std::error::Error for Silence {}
 
 impl Error {
     pub(crate) fn new(call: &str, kind: ErrorKind) -> Error {
@@ -102,6 +141,10 @@ impl Error {
     /// The error of a read or a write; a refusal by size of the reader is
     /// [`ErrorKind::TooLarge`].
     pub(crate) fn io(call: &str, e: io::Error) -> Error {
+        if let Some(silence) = e.get_ref().and_then(|inner| inner.downcast_ref::<Silence>()) {
+            let (phase, bound) = (silence.phase, silence.bound);
+            return Error::new(call, ErrorKind::AnswerTimeout { phase, bound });
+        }
         match TooLarge::of(&e) {
             Some(refusal) => Error::too_large(call, refusal),
             None => Error::new(call, ErrorKind::Io(e)),
@@ -174,7 +217,7 @@ impl Error {
             },
             ErrorKind::Operation { code: 401, .. } => Class::TempFail,
             ErrorKind::Operation { .. } => Class::Unavailable,
-            ErrorKind::Timeout { .. } => Class::Timeout,
+            ErrorKind::Timeout { .. } | ErrorKind::AnswerTimeout { .. } => Class::Timeout,
             ErrorKind::Protocol(_) | ErrorKind::WebSocket(_) => Class::Protocol,
             ErrorKind::Unsupported { .. } => Class::Unsupported,
             ErrorKind::Usage(_) => Class::Usage,
@@ -212,6 +255,9 @@ impl fmt::Display for Error {
             ErrorKind::Io(e) => write!(f, "{call}: {e}"),
             ErrorKind::WebSocket(why) => write!(f, "{call}: a websocket of the operation failed: {why}"),
             ErrorKind::Output(e) => write!(f, "{call}: the write of the output: {e}"),
+            ErrorKind::AnswerTimeout { phase, bound } => {
+                write!(f, "{call}: incus sent no byte of the {phase} of its answer in {} ms", bound.as_millis())
+            }
             ErrorKind::TooLarge { status, size, bound, head, error } => {
                 write!(
                     f,

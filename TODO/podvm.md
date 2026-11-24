@@ -13677,7 +13677,7 @@ read after the wait (T-1158).
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13723,6 +13723,43 @@ The tests: a stand-in that accepts and never answers gives
 `AnswerTimeout` with the phase `head` at the bound; one that sends a head
 and stalls in the body gives the phase `body`; a wait of 60 s under an
 `answer_timeout` of 1 s still waits; `None` waits.
+
+## Done
+
+2026-11-24, this commit. `Settings::answer_timeout: Option<Duration>`
+(default 30 s) bounds the silence of incus in an answer: the head and
+each read of the body. `wire::quiet` wraps the stream in `Idle` of
+`pod-proxy` and turns its silence into `ErrorKind::AnswerTimeout { phase,
+bound }` (`AnswerPhase::Head` or `Body`, class `Timeout`; no part of a
+request goes into it). It covers `exchange`, `envelope`, the read after a
+failed write of `request`, the head and the error body of the websocket
+upgrade, and the head and each read of `get_file_to`. The wait for an
+operation reads with `envelope_within(.., None)` and keeps its own bound
+(its limit and `WAIT_SLACK`). `None` gives the old behaviour. The README
+gives the setting and the kind. The dev-dependency tokio takes
+`test-util` for a paused clock. The stand-in `tests/common/raw.rs`
+answers each connection with bytes of the test and then closes or holds.
+
+Tests (`tests/server.rs`, paused clock):
+`a_server_that_never_answers_gives_answer_timeout_in_the_head` (at 30 s,
+the default), `a_body_that_stalls_gives_answer_timeout_in_the_body` (at
+2 s), `a_wait_past_the_answer_bound_still_waits` (a wait of 60 s under a
+bound of 1 s ends at 60 s with `Timeout`), `no_answer_bound_waits` (no end
+in an hour). Planted defects: with no bound in `envelope` (the code
+before), the first two fail with `the call ends at the bound:
+Elapsed(())`; with the bound on the wait, the third fails with `kind:
+AnswerTimeout { phase: Head, bound: 1s }`; with a bound for `None`, the
+fourth fails with `the call still waits after an hour`.
+`cargo test -p pod-incus --all-features --test server`: 10 passed;
+`cargo test -p pod-incus --all-features`: 73 passed; clippy with
+`-D warnings` and `cargo fmt --all --check` clean.
+
+For the hand-off: `Settings` has a new public field, `answer_timeout`. A
+consumer that builds `Settings` with a struct expression and all its
+fields does not build; podvm uses `Settings::new` and is not touched.
+`ErrorKind::AnswerTimeout` is a new variant of a `non_exhaustive` enum,
+and `AnswerPhase` is a new type. podvm can remove its bound of 30 s on the
+first `GET /1.0` of each verb (T-1158).
 
 
 # T-1157: `pod-incus`: after a failed write of a body, the answer that incusd already sent is read with no bound and no test, and the documentation does not tell the caller about SIGPIPE (PodUtils/podvm#653)

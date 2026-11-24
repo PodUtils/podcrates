@@ -94,7 +94,8 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
   canceled), `Timeout` (a wait at its limit), `Protocol`, `Unsupported`,
   `Usage`, `Io`, `WebSocket`, `Output` (the writer of the caller refused a write), `TooLarge` (an answer over
   `Settings::max_body`: the HTTP status, the size as `BodySize`, the bound, the first 8 KiB of the body,
-  and the `error` of an `error` envelope in them, which `Error::incus_error` gives). `Error::class` gives the class of
+  and the `error` of an `error` envelope in them, which `Error::incus_error` gives), `AnswerTimeout` (a silence
+  of incus over `Settings::answer_timeout` in the head or the body of an answer). `Error::class` gives the class of
   `pod_core`; `pod_core::Failure::from(error)` is at the stage `host`.
   `Error::operation` gives the id of the background operation of the call
   where incus started one (an error of its wait, `Operation`, `Timeout`):
@@ -151,7 +152,16 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
 socket of incus, `unix.socket.user`, needs `user-UID`), `user_agent`,
 `connect_timeout` (5 s), `max_body` (64 MiB), `wait` (the limit of each
 wait for an operation; `None`: no limit, `timeout=-1`), `write_timeout`
-(30 s, a frame of a websocket). The crate reads no variable of the
+(30 s, a frame of a websocket), `answer_timeout` (30 s: the limit of the
+silence of incus in an answer, for the head and for each read of the
+body; `None`: no limit). A silence over `answer_timeout` is
+`ErrorKind::AnswerTimeout` with the phase (`AnswerPhase::Head` or
+`AnswerPhase::Body`) and the bound: a socket that takes the connection
+and never answers does not hold the caller (PodUtils/podvm#653). A wait
+for an operation is not read under `answer_timeout`: it keeps its own
+bound (`wait`, or the limit of `Client::wait`, and 30 s more). A read of
+a large body (`get_file_to`) has no bound of its total time, only of each
+read. The crate reads no variable of the
 environment: `INCUS_DIR` and `INCUS_SOCKET` stay with the consumer.
 
 ## What stays in podvm

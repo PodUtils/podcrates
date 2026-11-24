@@ -8,6 +8,7 @@
 #![allow(dead_code)]
 
 pub mod model;
+pub mod raw;
 pub mod store;
 pub mod ws;
 

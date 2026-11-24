@@ -38,12 +38,17 @@ pub struct Settings {
     pub wait: Option<Duration>,
     /// The limit of the write of each frame on a websocket of exec.
     pub write_timeout: Duration,
+    /// The limit of the silence of incus in an answer: the head, and each
+    /// read of the body ([`ErrorKind::AnswerTimeout`]). A wait for an
+    /// operation is not read under it: it has its own bound (`wait`).
+    /// `None`: no limit.
+    pub answer_timeout: Option<Duration>,
 }
 
 impl Settings {
     /// The settings for the socket at `socket`: the default project, no
     /// user agent, 5 s for the connection, 64 MiB for a body, no limit for
-    /// a wait, 30 s for the write of a frame.
+    /// a wait, 30 s for the write of a frame, 30 s of silence in an answer.
     pub fn new(socket: impl Into<PathBuf>) -> Settings {
         Settings {
             socket: socket.into(),
@@ -53,6 +58,10 @@ impl Settings {
             max_body: 64 * 1024 * 1024,
             wait: None,
             write_timeout: Duration::from_secs(30),
+            // incusd answers each call that is not a wait at once; a socket
+            // that takes the connection and says nothing must not hold the
+            // caller (PodUtils/podvm#653).
+            answer_timeout: Some(Duration::from_secs(30)),
         }
     }
 }
@@ -91,7 +100,9 @@ impl Client {
     pub(crate) async fn exchange(&self, call: &str, request: Request, max: usize) -> Result<Response> {
         match self.request(call, request).await? {
             Sent::Answer(answer) => Ok(answer),
-            Sent::Stream(mut stream) => wire::read(&mut stream, max).await.map_err(|e| Error::io(call, e)),
+            Sent::Stream(mut stream) => {
+                wire::read(&mut stream, max, self.settings.answer_timeout).await.map_err(|e| Error::io(call, e))
+            }
         }
     }
 
@@ -103,7 +114,8 @@ impl Client {
             // incus can refuse a body before its end and close: its answer
             // then says why, where the write only sees the close.
             let gone = matches!(e.kind(), io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset);
-            if gone && let Ok(answer) = wire::read(&mut stream, self.settings.max_body).await {
+            let bound = self.settings.answer_timeout;
+            if gone && let Ok(answer) = wire::read(&mut stream, self.settings.max_body, bound).await {
                 return Ok(Sent::Answer(answer));
             }
             return Err(sent(call, e));
@@ -114,11 +126,18 @@ impl Client {
     /// One request whose answer is an envelope. An `error` envelope over
     /// `max_body` is read with its strings cut ([`wire::read_envelope`]).
     pub(crate) async fn envelope(&self, call: &str, request: Request) -> Result<Reply> {
+        self.envelope_within(call, request, self.settings.answer_timeout).await
+    }
+
+    /// [`Client::envelope`] with `bound` for the silence of the answer: the
+    /// wait for an operation gives `None` and keeps its own bound.
+    pub(crate) async fn envelope_within(&self, call: &str, request: Request, bound: Option<Duration>) -> Result<Reply> {
         let answer = match self.request(call, request).await? {
             Sent::Answer(answer) => answer,
             Sent::Stream(mut stream) => {
+                let max = self.settings.max_body;
                 let (answer, skimmed) =
-                    wire::read_envelope(&mut stream, self.settings.max_body).await.map_err(|e| Error::io(call, e))?;
+                    wire::read_envelope(&mut stream, max, bound).await.map_err(|e| Error::io(call, e))?;
                 if skimmed {
                     tracing::debug!(call, "an error envelope over the bound, read with its strings cut");
                 }
