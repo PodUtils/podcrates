@@ -192,6 +192,15 @@ COORD-153 (#258) answers PodUtils/podssh#346: the transfer codec goes into
   next tag in place of their copies (podvm's `runs-watch.py`, podnet's
   `watch-runs.sh` and `runs.py`).
 
+- T-1182 (`pod-unit`, PodUtils/podssh#347): `Unit::NAME_MAX` (200) bounds a
+  unit name and label; secret names and the state directory keep 64. podssh
+  removes its own length check at the tag.
+- T-1209 (`pod-core`, PodUtils/podnet#709): `pod_core::files::socket_answers`
+  (three connects, 50 ms apart) for `pod-control`, `pod-link` and `pod-warp`;
+  `pod_warp::find::answers` is removed (podnet does not call it);
+  `pod_testkit::held::hold_until_exec`. podnet removes its own
+  `socket_answers` and the rule in `claim_unix_path` at the tag.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask. T-1160 changes the answer of
