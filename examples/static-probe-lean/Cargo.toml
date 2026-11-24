@@ -23,6 +23,8 @@ pod-confine = { workspace = true }
 pod-turn = { workspace = true, features = ["stun"] }
 # The sans-IO NAT probe engine: std only, no tokio.
 pod-natprobe = { path = "../../crates/pod-natprobe", default-features = false }
+# The writer of gzip members: std threads and flate2, no tokio, no C.
+pod-gzip = { workspace = true }
 # The UDF reader: std only.
 pod-udf = { workspace = true }
 # The open under a base: no_std, with its calls through the C library.

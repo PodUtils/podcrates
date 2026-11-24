@@ -1,5 +1,5 @@
 //! The static probes of `pod-cover`, `pod-shape`, `pod-harness`,
-//! `pod-sidecar` and `pod-offline`.
+//! `pod-sidecar`, `pod-offline` and `pod-gzip`.
 
 /// pod-cover: the switch, the proof length and the mux link in.
 pub fn cover() -> String {
@@ -61,4 +61,13 @@ pub fn natprobe() -> String {
     let _ = pod_natprobe::Prober::new();
     let json_len = rep.to_json().map_or(0, |j| j.len());
     format!("pod-natprobe: {}, {} bytes JSON", rep, json_len)
+}
+
+/// pod-gzip: the members of a short stream, so that the pool and the
+/// encoder link in.
+pub fn gzip() -> String {
+    use std::io::Write;
+    let mut w = pod_gzip::Members::new(Vec::new(), pod_gzip::host_threads());
+    let out = w.write_all(b"static-probe").and_then(|()| w.finish());
+    format!("pod-gzip: {}", out.map_or_else(|e| e.to_string(), |o| format!("{} bytes", o.len())))
 }

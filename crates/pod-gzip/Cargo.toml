@@ -1,0 +1,19 @@
+[package]
+name = "pod-gzip"
+description = "A writer of gzip members: one member for each block of 2 MiB, compressed by a bounded pool of threads, written in order, with the same bytes for each count of threads."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# std and flate2 only, so that a synchronous consumer takes it with no
+# runtime. flate2 has the Rust backend (miniz_oxide) of the workspace: no C.
+[dependencies]
+flate2 = { workspace = true }
+
+[dev-dependencies]
+# The second reader of the members (MultiGzDecoder) in the tests.
+flate2 = { workspace = true }
+# The golden SHA-256 of the output (tests/golden.rs).
+sha2 = { workspace = true }

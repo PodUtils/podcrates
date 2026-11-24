@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 978 entries: 159 open, 30 partial, 7 blocked, 782 done.
+`TODO/INDEX.md` holds 979 entries: 159 open, 30 partial, 7 blocked, 783 done.
 
 ## State
 
@@ -101,14 +101,13 @@ for cfb's answer on #223, call C792), T-1118 (podnet writes the
 (call C782, PodUtils/podssh#316): T-112, T-110, T-111, T-117. Then the open
 asks of the consumers, podvm's first, then podnet's, then podssh's:
 
-- podvm: T-1196 (`pod-gzip`, a writer of gzip members;
-  PodUtils/podvm#657);
-  T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602, for the
-  parity of PodUtils/podrunner#316; podvm answered in COORD-147, #242);
-  T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604); T-1032 (the
-  launcher of `pod-supervise` blocks before the start of the payload);
-  T-927 (PodUtils/podvm#584); T-1307 (`pod-incus`: a flag on a cut
-  `error` envelope; PodUtils/podvm#663).
+- podvm: T-975 (a User-Mode Linux kernel for podvm, PodUtils/podvm#602,
+  for the parity of PodUtils/podrunner#316; podvm answered in COORD-147,
+  #242); T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604); T-1032
+  (the launcher of `pod-supervise` blocks before the start of the
+  payload); T-927 (PodUtils/podvm#584); T-1307 (`pod-incus`: a flag on a
+  cut `error` envelope; PodUtils/podvm#663); T-1321 (a C backend of
+  `pod-gzip`, measured).
 - podnet: T-1117 (the limits of the legs of `pod-cloudflare` in podnet's
   documents); T-1135 (`pod-cloudflare` says a cause two times); T-879
   (`pod-detach`); T-897.
@@ -240,6 +239,8 @@ takes the number after the last row of that table.
   `scripts/check-crates-io-names.py` reports `pod-natprobe` alone).
 - Reserve the name `pod-tpm` on crates.io (T-1217), as for each name of
   `docs/design.md`, section 4 (call C927).
+- Reserve the name `pod-gzip` on crates.io (T-1196), as for each name of
+  `docs/design.md`, section 4.
 - Delete the remote branch `wip/t1073` (merged into `main`): the proxy of
   the sessions refuses `git push origin --delete`.
 
