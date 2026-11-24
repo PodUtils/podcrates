@@ -34,6 +34,7 @@ pod-enter = { workspace = true }
 pod-extract = { workspace = true }
 pod-gsr = { workspace = true, features = ["blocking"] }
 pod-guest = { workspace = true }
+pod-gzip = { workspace = true }
 pod-harness = { workspace = true }
 # `report`: the probe writes the report of an empty set and reads it back.
 pod-hostprobe = { workspace = true, features = ["report"] }

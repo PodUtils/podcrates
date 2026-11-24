@@ -1,0 +1,7 @@
+# The writer gives each block to the pool with no wait: the blocks in
+# flight grow with the stream, and a slow pool holds them all (T-1196).
+ENTRY=T-1196
+GROUP=gzip
+EXPECT='did not wait at the limit'
+RUN='cargo test -p pod-gzip --lib a_fast_producer_waits_at_the_limit'
+LIMIT=900

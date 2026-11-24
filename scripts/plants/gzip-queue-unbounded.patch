@@ -1,0 +1,26 @@
+diff --git a/crates/pod-gzip/src/lib.rs b/crates/pod-gzip/src/lib.rs
+index be782df2..6620c483 100644
+--- a/crates/pod-gzip/src/lib.rs
++++ b/crates/pod-gzip/src/lib.rs
+@@ -104,7 +104,7 @@ impl<W: Write> Members<W> {
+     /// Give a full block to the pool: first wait until fewer than the
+     /// limit are in flight, then write each member that is there.
+     fn send(&mut self, block: Vec<u8>) -> io::Result<()> {
+-        while self.in_flight() >= self.limit {
++        while false && self.in_flight() >= self.limit {
+             self.write_next(true)?;
+         }
+         self.pool.send(self.sent, block)?;
+diff --git a/crates/pod-gzip/src/pool.rs b/crates/pod-gzip/src/pool.rs
+index b8714c27..1a9c93c3 100644
+--- a/crates/pod-gzip/src/pool.rs
++++ b/crates/pod-gzip/src/pool.rs
+@@ -28,7 +28,7 @@ impl Pool {
+     /// A pool of `threads` threads. The queue holds `queue` blocks: the
+     /// writer gives no more than that in flight, so a send never waits.
+     pub(crate) fn new(threads: usize, queue: usize, level: u32, compress: Compress) -> Pool {
+-        let (jobs, rx) = mpsc::sync_channel::<Job>(queue);
++        let (jobs, rx) = mpsc::sync_channel::<Job>(queue * 1024);
+         let (tx, done) = mpsc::channel::<Done>();
+         let rx = Arc::new(Mutex::new(rx));
+         let threads = (0..threads)

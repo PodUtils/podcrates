@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**980 entries: 159 open, 31 partial, 7 blocked, 783 done.**
+**981 entries: 159 open, 31 partial, 7 blocked, 784 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 229 | 243 |
-| P2 | 72 | 10 | 4 | 409 | 495 |
-| P3 | 83 | 11 | 3 | 143 | 240 |
-| **All** | 159 | 31 | 7 | 783 | 980 |
+| P2 | 71 | 10 | 4 | 410 | 495 |
+| P3 | 84 | 11 | 3 | 143 | 241 |
+| **All** | 159 | 31 | 7 | 784 | 981 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -994,7 +994,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1193](podvm.md) | P2 | L | M6 | feature | done | `pod-extract`: `flatten`, the final tree of the layers of an image as one tar stream with no tree on the disk (PodUtils/podvm#657) |
 | [T-1194](podvm.md) | P2 | M | M6 | feature | done | `pod-extract`: `flatten` keeps the hard links across layers, with the target before the link (PodUtils/podvm#657) |
 | [T-1195](podvm.md) | P2 | M | M6 | feature | done | `pod-extract`: `flatten` keeps the PAX records of the image, and takes a prefix and the entries of the caller (PodUtils/podvm#657) |
-| [T-1196](podvm.md) | P2 | M | M6 | feature | open | `pod-gzip`: a writer of gzip members, one member for each block, by up to eight threads, with the same bytes for any count of threads (PodUtils/podvm#657) |
+| [T-1196](podvm.md) | P2 | M | M6 | feature | done | `pod-gzip`: a writer of gzip members, one member for each block, by up to eight threads, with the same bytes for any count of threads (PodUtils/podvm#657) |
 | [T-1197](transport.md) | P3 | S | M5 | chore | done | CRC-32 has three hand copies in the workspace; each crate takes `crc32fast` |
 | [T-1198](transport.md) | P2 | S | M3 | defect | done | `pod-term`: the transfer codec loses the `KEPT` that ends a session, and the far sender's 20 s wait runs while a person answers the offer |
 | [T-1205](podvm.md) | P1 | S | M6 | feature | done | `pod-hostprobe`: `usage::Mounts`, the three cgroup directories of a process from the text of `/proc/self/mountinfo`, where a mount of cgroup is refused (PodUtils/podvm#659) |
@@ -1025,5 +1025,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1299](upkeep.md) | P3 | S | M6 | feature | open | `pod-extract`: a stream of `flatten` that GNU tar as a user that is not root can unpack |
 | [T-1303](upkeep.md) | P2 | S | M5 | defect | partial | The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows |
 | [T-1307](podvm.md) | P3 | S | M6 | feature | open | `pod-incus`: a cut `error` envelope has no flag, so a caller reads the words of its text to know that the answer was over `max_body` (PodUtils/podvm#663) |
+| [T-1321](podvm.md) | P3 | S | M6 | measurement | open | `pod-gzip`: measure a C backend of deflate against `miniz_oxide` at four threads |
 | [T-1325](upkeep.md) | P2 | S | M5 | defect | open | `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met its limit of 40 minutes in "Build the probe" |
 | [T-1326](upkeep.md) | P3 | S | M5 | chore | open | Three readers of the fields after the name in `/proc/PID/stat`: `pod-hostprobe`, `pod-supervise` and `pod-enter` |

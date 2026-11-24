@@ -150,6 +150,7 @@ fn main() {
         extra::sidecar(),
         extra::offline(),
         extra::natprobe(),
+        extra::gzip(),
     ]);
     let direct = pod_proxy::Dialer::new(
         pod_proxy::Settings::new("static-probe", pod_proxy::ProxyChoice::Direct),

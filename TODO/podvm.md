@@ -14477,7 +14477,7 @@ reads as a `Payload` with no length; the gzip of the upload is T-1196.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14510,6 +14510,86 @@ A new crate `pod-gzip` (a name in the crate table of `docs/design.md`, section 4
 cargo test -p pod-gzip --all-features
 cargo clippy -p pod-gzip --all-targets --all-features -- -D warnings
 ```
+
+## Done
+
+2026-11-24, this commit. The new crate `crates/pod-gzip` (`Members`), from
+podvm's writer, with a bounded pool of threads in place of the batch.
+
+What came from podvm (`crates/pod-gzip/SOURCES`, PodUtils/podvm at
+`cd51868e`): `Members::new`, `Write`, `finish`, `flush` that writes
+nothing, `BLOCK`, `MAX_THREADS`, `host_threads` and `member`
+(`PodUtils/podvm:crates/podvm/src/incus/gzip.rs` to
+`crates/pod-gzip/src/lib.rs`); the two tests of the writer with their
+names (`PodUtils/podvm:crates/podvm/src/incus/import_tests.rs` to
+`crates/pod-gzip/tests/members.rs`). `Upload`, `wanted` and `ROOM_TIMES`
+stay in podvm.
+
+The change. `crates/pod-gzip/src/pool.rs`: a fixed pool of `threads`
+threads takes the numbered blocks from a queue and gives back each member
+with its number. The writer gives a full block to the queue and returns;
+it writes each member that is ready, in order, from the caller's thread
+(the inner writer needs no `Send`). At most `limit()` = `threads` + 1
+blocks are in flight: a write that would give one more waits for the
+member of the oldest block. The first error (of the inner writer or of a
+thread) stops the threads and comes out of each later call with its
+`io::ErrorKind`; a panic of a thread is an error of its block, not a hang;
+drop joins the threads. `Members::with_level` and `FAST` give the level.
+The header of each member is fixed (MTIME 0, OS 255, the XFL of the
+level), so the bytes are equal to the bytes of podvm's writer.
+
+Found and fixed in place: in podvm's writer a write after an error went
+on, and the members of the failed batch were lost with no later error;
+here each call after the first error fails
+(`after_an_error_of_the_inner_writer_each_call_fails`).
+
+The tests, first against podvm's batch (the import with the test hook of
+the compressor), then against the pool:
+
+- `crates/pod-gzip/src/tests.rs` (a compressor that the test holds):
+  `the_producer_writes_while_the_threads_compress` and
+  `a_fast_producer_waits_at_the_limit` failed on the batch ("block 2
+  waits on the threads: timed out waiting on channel"; "block 2: timed
+  out waiting on channel"), and pass on the pool; also
+  `a_panic_of_a_thread_is_an_error_not_a_hang`,
+  `an_error_of_the_compressor_comes_out`, `no_thread_outlives_the_writer`,
+  `a_write_after_an_error_gives_the_error_again`. 50 runs in a loop
+  passed.
+- `crates/pod-gzip/tests/members.rs`: each size at 1, 2, 3, 8 and 64
+  threads through `MultiGzDecoder`; the split of the writes (1 byte, 4097
+  bytes, `BLOCK`) at 1, 2, 4 and 8 threads; one member for each block with
+  the fixed header; an empty stream is one member of 20 bytes; `gzip -dc`
+  of the host; EPIPE; the members reach the inner writer while the stream
+  goes on;
+  `after_an_error_of_the_inner_writer_each_call_fails`, which failed on
+  the batch ("block 3 written after the error of block Some(2)").
+- `crates/pod-gzip/tests/golden.rs`: the golden vector, the SHA-256 of
+  three blocks and 12345 bytes at flate2 1.1.11 and miniz_oxide 0.9.1,
+  equal at 1 and 8 threads and on the batch: level 1
+  `a735f6bd6d6ac30408360ad5269955db7aadbfe396083fe54d26a6311aab0046`,
+  level 6 `929099a82fa2032c76294be86155b5f1ff84db20a11a975992dee65a691572b2`.
+
+The plant `scripts/plants/gzip-queue-unbounded.patch` (no wait at the
+limit, a queue of 1024 times the limit): `a_fast_producer_waits_at_the_limit`
+fails with "the producer did not wait at the limit: Ok((4, 4, 3))"; it
+passes with no plant.
+
+Checks: `cargo test -p pod-gzip --all-features` (6 unit, 1 golden, 8
+members); clippy of `pod-gzip`, `static-probe` and `static-probe-lean`
+with `-D warnings`; `cargo doc` with `-D warnings`; `cargo fmt --all
+--check`; `scripts/check-design-paths.py`; `scripts/check-publish-order.py`
+(68 crates); `scripts/check-probe.py --no-tree` (0 faults);
+`scripts/check-sources.py` (2 files, 0 changes); `plant-each.sh --apply` (0
+stale); `codegraph.py new` (0 clones or twins); `check-windows.sh`
+(0 faults). The lean probe built with cargo-zigbuild for
+`x86_64-unknown-linux-musl` passed `scripts/check-static.sh`.
+
+Not done here: the measure of a C backend (Approach 5) is T-1321; the
+second reader through `pod-extract` (Approach 7) was not added: `gzip -dc`
+and `MultiGzDecoder` are the two readers. The hand-off: a COORD issue
+`(to podvm)` with the tag that carries the crate; podvm then replaces its
+`Members` with `pod_gzip::Members` (the adoption map of
+`crates/pod-gzip/README.md`), and keeps `Upload` and `wanted`.
 
 # T-1205: `pod-hostprobe`: `usage::Mounts`, the three cgroup directories of a process from the text of `/proc/self/mountinfo`, where a mount of cgroup is refused (PodUtils/podvm#659)
 
@@ -15119,4 +15199,51 @@ so in the Done.
 ```sh
 cargo test -p pod-incus --all-features --test too_large
 cargo test -p pod-incus --all-features
+```
+
+# T-1321: `pod-gzip`: measure a C backend of deflate against `miniz_oxide` at four threads
+
+**Source:** T-1196 (PodUtils/podvm#657, ask 2), Approach 5.
+**Category:** measurement
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod-gzip` compresses with the Rust backend of `flate2` (`miniz_oxide`).
+podvm's figure (a tree of 274 MB in about 3 s on four threads, an estimate
+from one upload) is the only measure of the speed. T-1196 asks for a
+measure of a C backend (`zlib-ng` or `libdeflate`, built by zig, static)
+before the crate takes one: a C backend is taken only when it is faster by
+2x or more at four threads and the static check passes on each target.
+
+## Premise
+
+- Read: `crates/pod-gzip/src/lib.rs` (`member`), `Cargo.toml` (`flate2`
+  with `rust_backend` only; the comment says that a C backend complicates
+  a static link).
+- Not measured: the speed of `pod-gzip` at 1, 2, 4 and 8 threads, with
+  `miniz_oxide` or with a C backend; the size of the output of each.
+
+## Approach
+
+1. An ignored test or an example of `pod-gzip` that writes one fixed tree
+   (a tar of a root file system of the tests, or a fixed mix of text and
+   noise of 256 MB) at 1, 2, 4 and 8 threads, in release, and prints the
+   MB/s and the ratio.
+2. The same with `flate2` on `zlib-ng` (feature `zlib-ng`, built with zig
+   cc for the musl targets), and with `libdeflater` where a member of 2 MiB
+   fits its whole-buffer API.
+3. Write the figures in the file RESULTS.md of the crate (`scripts/check-results.py`).
+   Take the C backend only on a gain of 2x or more at four threads and a
+   green static probe on each target of `docs/design.md`, section 7; then
+   write the new golden vector in the same commit.
+
+## Prove
+
+```sh
+cargo test -p pod-gzip --all-features
+python3 -I scripts/check-results.py
 ```

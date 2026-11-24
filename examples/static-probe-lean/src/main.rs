@@ -1,6 +1,6 @@
 //! A binary that links pod-core, pod-tls, pod-wg, pod-confine, the STUN
-//! codec of pod-turn, pod-udf, pod-beneath, pod-control, pod-unit and
-//! pod-tpm with no default feature, so that no tokio is in it.
+//! codec of pod-turn, pod-udf, pod-beneath, pod-control, pod-unit,
+//! pod-tpm and pod-gzip with no default feature, so that no tokio is in it.
 //! `scripts/check-static.sh` checks the binary on each target, and
 //! `scripts/check-probe.py` checks the tree (docs/design.md, section 7).
 
@@ -33,6 +33,9 @@ fn main() {
         .and_then(|t| pod_tpm::cmd::create_primary(pod_tpm::wire::RH_OWNER, &t))
         .map_or_else(|e| e.to_string(), |c| format!("{} bytes", c.len()));
     println!("pod-tpm: a CreatePrimary of {tpm}");
+    let mut gz = pod_gzip::Members::new(Vec::new(), pod_gzip::host_threads());
+    let gz = std::io::Write::write_all(&mut gz, b"static-probe-lean").and_then(|()| gz.finish());
+    println!("pod-gzip: {}", gz.map_or_else(|e| e.to_string(), |o| format!("{} bytes", o.len())));
     confine();
 }
 

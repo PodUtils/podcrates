@@ -244,6 +244,14 @@ The asks of #259 to the consumers:
   (`pipes::spawn_task`), so a failed carrier never reads as a clean end.
   New entry T-1326.
 
+- T-1196: the new crate `pod-gzip` (PodUtils/podvm#657), from podvm's
+  `incus/gzip.rs` (`SOURCES`): `Members` writes gzip members from a fixed
+  pool of threads with a bounded queue (at most `threads` + 1 blocks in
+  flight), in order, with the first error sticky; the bytes are those of
+  podvm's writer (golden vectors). podvm replaces its `Members` and keeps
+  `Upload` and `wanted`. The owner reserves the name on crates.io. New entry
+  T-1321.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask.
