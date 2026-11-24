@@ -12,18 +12,18 @@
   after the release) carries the parts of `v0.82.0` that podrunner has not
   taken.
 - `v0.82.0` (`51c09390`, `docs/releases/v0.82.0.md`) is tagged without
-  `release.yml` (`publish.yml` 45122406747 passed; `ci.yml` 45122401625
-  failed on `scripts/ci/turn-tests.sh`, fixed at `07d4cc4f`). Cut the
-  next patch tag (e.g. `v0.82.1`, call C818) through `release.yml` on
-  green `main` (`docs/HANDOFF.md`, "Releases: v0.82.0 and the next tag")
-  so podrunner (PodUtils/podrunner#339) gets release assets, `ghcr.io`
-  images and a hand-off COORD issue. T-963 is partial. T-975 and T-977
-  (podvm's asks) are open: their code is not on `main`. `release.yml`
-  has steps that run on a tag only, which the dry
+  `release.yml`. The release commit of `v0.82.1`
+  (`docs/releases/v0.82.1.md`, call C818) is on `main`: it carries the
+  content of `v0.82.0` and each change of `main` after it. It waits for
+  the green `ci.yml` run and `release.yml` (`docs/HANDOFF.md`, "Releases:
+  v0.82.0 and v0.82.1"), so podrunner (PodUtils/podrunner#339) gets
+  release assets, `ghcr.io` images and a hand-off COORD issue. T-963 is
+  partial. T-975 and T-977 (podvm's asks) are open: their code is not on
+  `main`. `release.yml` has steps that run on a tag only, which the dry
   run does not test (T-974; `docs/maintenance.md`, "A release").
 - podssh's ask PodUtils/podssh#341 (COORD-134 of podssh): the fork
-  `vendor/iroh-relay` at 1.4.2 for iroh 1.4.2 (T-1102, call C905). The
-  next tag carries it; T-1103 (iroh 1.5) follows.
+  `vendor/iroh-relay` at 1.4.2 for iroh 1.4.2 (T-1102, call C905) is in
+  `v0.82.1`; T-1103 (iroh 1.5) follows.
 - The tag that the `main` of each consumer names: `v0.82.0` (podnet,
   podssh, podvm), `v0.81.0` (podrunner). The details of the earlier takes
   are on #250 and #254.
@@ -33,9 +33,7 @@
 - Takes that wait: podvm's check of T-208 against `lambda-al2023`, and
   its module set of T-206 with PodUtils/podvm@T-1662 (after `pod-netlab`,
   T-207, #70).
-- Open defects: `crates/pod-unit/tests/service_live.rs` on `windows-2025`
-  and `windows-11-arm` (`os error 1056`, `nightly.yml` 44871383085,
-  44891581672 and 45009375271); T-916 (partial), T-938, T-789, T-766
+- Open defects: T-916 (partial), T-938, T-789, T-766
   (the nightly); T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
   a giver still waits its whole limit after a refusal of the relay);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
@@ -81,8 +79,7 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in podcrates: the red
-nightly (`pod-unit` `crates/pod-unit/tests/service_live.rs` on Windows;
-T-916, T-938), T-1053 (a lossy run of E2-1 that takes 20 s) and the red
+nightly (T-916, T-938), T-1053 (a lossy run of E2-1 that takes 20 s) and the red
 `services.yml` (T-1034) and the red live run (T-963). Then the asks of
 podrunner (COORD-134, #225): each new ask of podrunner, and T-1110
 (tell podrunner to call `Hardening::service_account()` for its unit of the
