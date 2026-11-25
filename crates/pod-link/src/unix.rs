@@ -14,7 +14,7 @@
 //!   against its own, unless [`Unix::allow_other_uid`] is set.
 
 use std::io;
-use std::os::unix::fs::{DirBuilderExt as _, FileTypeExt as _, PermissionsExt as _};
+use std::os::unix::fs::{FileTypeExt as _, PermissionsExt as _};
 use std::path::{Path, PathBuf};
 
 use tokio::net::{UnixListener, UnixStream};
@@ -174,8 +174,9 @@ fn bind_private(path: &Path) -> io::Result<UnixListener> {
         Some(p) if !p.as_os_str().is_empty() => p,
         _ => Path::new("."),
     };
-    let dir = parent.join(format!(".pod-link-{:016x}", nonce()));
-    std::fs::DirBuilder::new().mode(0o700).create(&dir)?;
+    // A new random name, never a directory that is there. The prefix lets
+    // a reader find a stage that a kill left.
+    let dir = pod_core::files::new_temp_dir(parent, ".pod-link")?;
     let staged = dir.join("s");
     let bound = if staged.as_os_str().len() > MAX_PATH {
         None
@@ -265,13 +266,6 @@ fn bind_socket(path: &Path, mode: libc::mode_t) -> io::Result<std::os::unix::net
         return Err(io::Error::new(e.kind(), format!("listen: {e}")));
     }
     Ok(std::os::unix::net::UnixListener::from(sock))
-}
-
-/// A value for a name that no other bind of this process or another
-/// process takes at the same time.
-fn nonce() -> u64 {
-    use std::hash::{BuildHasher as _, RandomState};
-    RandomState::new().hash_one((std::process::id(), std::time::SystemTime::now()))
 }
 
 /// Move `from` to `to` when `to` does not exist. An existing `to` is
