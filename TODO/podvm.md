@@ -15368,7 +15368,7 @@ python3 -I scripts/check-results.py
 **Milestone:** M6
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15410,3 +15410,40 @@ starts for offers with lower limits.
 ```sh
 cargo test -p pod-incus --all-features
 ```
+
+## Done
+
+2026-11-25, commits `9ac21d3` (the code) and `7d74e5b` (the plant).
+`Client::instance_with_etag(name)` gives `(Instance, Option<ETag>)`: the
+instance and its `ETag` header, as incus sent it (with its quotes); `None`
+where incus sent none. `Client::patch_instance_config(name, config,
+if_match)` sends `PATCH /1.0/instances/NAME` with `{"config": {...}}` (a
+`BTreeMap<String, String>`) and, with `if_match: Option<&ETag>`, the header
+`If-Match`. The answer is sync (`EmptySyncResponse` of incusd 6.0). A 412
+is `ErrorKind::EtagMismatch { error }` (`Error::status` 412, class
+`TempFail`, the words of incus in `Error::incus_error`); another refusal
+stays `ErrorKind::Incus` with its class. `Client::get` and the new
+`Client::get_tagged` share one path; `send_json` takes the headers. Read
+at lxc/incus `v6.0.0` and `845f3817`: `cmd/incusd/instance_patch.go` (the
+merge of the keys sent, `EtagCheck`, `PreconditionFailed`),
+`internal/server/util/http.go` (the ETag: a SHA-256 of the architecture,
+the local config, the local devices, `ephemeral` and the profiles; the
+quotes of `If-Match` trimmed) and `internal/server/response/response.go`
+(the quoted `ETag` header). The README has the two calls, the error kind,
+the section "The ETag of an instance" and a row of the adoption map.
+
+The stand-in gives an `ETag` on `GET /1.0/instances/NAME`, checks
+`If-Match` on `PATCH` (412, "ETag doesn't match") and sets the keys of
+`config`. Tests (`tests/instances.rs`):
+`a_patch_of_the_config_changes_only_the_keys_sent`,
+`a_refusal_of_a_patch_keeps_the_class_of_incus` (404, 400, 403) and
+`a_patch_on_a_stale_etag_is_an_etag_mismatch`; the unit test
+`a_config_patch_has_the_config_alone`. `cargo test -p pod-incus
+--all-features`: each test passes. The plant
+`incus-patch-drops-if-match` (no `If-Match`) is caught by
+`sh scripts/plant-each.sh incus-patch-drops-if-match`: the mismatch test
+fails (exit 101).
+
+Not done here: the answer to PodUtils/podvm#664 with the tag that carries
+the call goes with the next release. The row of `pod-incus` in
+`docs/design.md` does not name the PATCH yet.
