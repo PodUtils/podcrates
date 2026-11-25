@@ -12472,6 +12472,11 @@ repository has a fuzz target (`fuzz/README.md`). The bearer reader has none.
 It checks the size and the magic first, but no target holds that the reader
 never panics and that a bearer it reads writes back to the same bytes.
 
+## Premise
+
+- Read: the report of T-1368; `fuzz/README.md` (the list of targets).
+- Not read: the code of `Bearer::read` line by line.
+
 ## Approach
 
 Add the target `relay_bearer` in `fuzz/src/targets/` in the form of the
