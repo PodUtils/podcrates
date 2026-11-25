@@ -129,7 +129,7 @@ impl TunnelEnd for Splice {
             let (cr, cw) = tokio::io::split(client);
             let (ur, uw) = tokio::io::split(upstream);
             let (a, b) = tokio::join!(pipe(cr, uw, &tunnel.counts.up), pipe(ur, cw, &tunnel.counts.down));
-            a.and(b).map_err(|e| Failure::io(Stage::Connect, e))
+            a.and(b).map_err(|e| Failure::io(Stage::Connect, "the tunnel", e))
         })
     }
 }

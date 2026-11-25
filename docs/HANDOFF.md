@@ -180,6 +180,21 @@ The asks that #260 answers:
   writes a bearer back from its fields. The patch
   `vendor/patches/h2/0003-fuzz-docs.patch` lets the fuzz build of
   `pod-h2` pass. No change for a consumer.
+- T-1351 (`pod-core`, `pod-cloudflare`, `pod-quic`, `pod-warp`): the
+  text of these failures is the step, and the cause says the rest; read
+  `Failure::chain` or join the chain. `Failure::io(stage, step, e)`
+  takes a step (podssh: two tests). The changed texts for podnet:
+  "provisioning quick tunnel: ERROR" (the text of a `ProvisionError`
+  failure is "provisioning quick tunnel"); "no edge leg worked: LEG:
+  CHAIN; LEG: STEPS" (the cause of the last leg is the source, not in
+  the text); "TLS with the edge at ADDR: the connection was reset
+  during the TLS handshake: ERROR" ("the peer sent a TLS alert" in place
+  of "TLS alert from the peer: ALERT"); "REQUEST: TLS: WORDS: ERROR";
+  "could not open a local UDP socket (QUIC needs UDP; where it is
+  blocked, use PROTOCOL http2): no UDP socket for QUIC: ERROR"; "TLS
+  handshake with the MASQUE front door DOOR" (the error is the source);
+  "DOOR-A CHAIN; the other address of the front door failed too: DOOR-B
+  STEPS" (the cause of the last door is the source).
 - T-1325 (partial): the two macOS rows of `static` in `ci.yml` take 60
   minutes. This change is in the tag.
 
@@ -189,15 +204,15 @@ The asks that #260 answers:
 - podrunner: no open ask besides the take.
 - podvm: T-1321 (a C backend of deflate for `pod-gzip`, measured).
 - podnet: T-1343 is partial (the moves of the other crates of step 2 and
-  step 3 follow); T-1351 (failures whose text holds the words of a typed
-  cause).
+  step 3 follow); T-1377 and T-1378 (failures whose text holds the words
+  of a typed cause).
 - podssh: open: T-1169 (a test of the DNS carrier through `unbound`),
   T-1103 (iroh 1.5), T-1340 (a key file of `pod-tpm` in tpm2-openssl and
   go-tpm-keyfiles).
 - Entries of podcrates that no one has started: T-1115 (the copies of the
   bind at a long path), T-1146 (the comments of `pod-natprobe` are not in
   ASD-STE100), T-1150 (a watch of the facts of RFC 5780 of `easybell-stun`),
-  T-1351, T-1321.
+  T-1377, T-1378, T-1321.
 - T-963 is partial. T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks
   their release part) are open.
 

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**999 entries: 147 open, 30 partial, 8 blocked, 814 done.**
+**1001 entries: 148 open, 30 partial, 8 blocked, 815 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 237 | 250 |
 | P2 | 65 | 11 | 4 | 423 | 503 |
-| P3 | 78 | 10 | 4 | 152 | 244 |
-| **All** | 147 | 30 | 8 | 814 | 999 |
+| P3 | 79 | 10 | 4 | 153 | 246 |
+| **All** | 148 | 30 | 8 | 815 | 1001 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1032,7 +1032,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1340](fleet.md) | P2 | M | M8 | measurement | open | `pod-tpm`: a key file that the crate writes loads and signs in tpm2-openssl and in go-tpm-keyfiles against swtpm |
 | [T-1343](upkeep.md) | P2 | M | M5 | feature | partial | `pod-core`: one temp directory and one temp file with a random name (PodUtils/podnet#711, lesson 5 of PodUtils/podvm#567) |
 | [T-1347](relay.md) | P3 | S | M2 | chore | blocked | `pod-h2`: offer the setting of the order of the pseudo-fields to hyperium/h2, and drop the fork at its release |
-| [T-1351](adapters.md) | P3 | M | M3 | defect | open | `pod-cloudflare`, `pod-core`, `pod-proxy`: a failure whose text holds the words of its typed cause says them two times to a reader that joins the chain |
+| [T-1351](adapters.md) | P3 | M | M3 | defect | done | `pod-cloudflare`, `pod-core`, `pod-proxy`: a failure whose text holds the words of its typed cause says them two times to a reader that joins the chain |
 | [T-1355](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `4fc871c` (the fourth port of `source-driver.md`) |
 | [T-1359](upkeep.md) | P2 | S | M5 | defect | done | `pod-core`: three tests of `files::socket` fail on macOS because the temporary directory is longer than their directory of 40 bytes |
 | [T-1360](upkeep.md) | P3 | S | M5 | defect | done | `pod-cloudflare`: `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` cannot bind its UDP socket on Windows ARM64 (WSAEACCES) |
@@ -1046,3 +1046,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1369](relay.md) | P2 | S | M2 | chore | done | `pod-relay`: a fuzz target of `grant::bearer::Bearer::read`, the reader of a bearer from the peer |
 | [T-1370](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: warm and cold units in `run-report.v1` and `status.v1` (PodUtils/podrunner#353) |
 | [T-1371](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: the `Mint` of a grant writes no extension, so a stock sshd gives its certificate no pty and no forward (PodUtils/podssh#356) |
+| [T-1377](adapters.md) | P3 | M | M3 | defect | open | `pod-proxy`: the failure of a dial and of a request holds the words of its `DialError` or its cause, so a reader that joins the chain says them two times |
+| [T-1378](adapters.md) | P3 | S | M3 | defect | open | `pod-warp`: the failure of an enrolment with no answer says the text of the path three times to a reader that joins the chain |

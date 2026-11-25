@@ -196,11 +196,14 @@ impl DenyList {
     /// `file:LINE`.
     pub fn read(path: &Path) -> Result<DenyList, Failure> {
         const MOST: u64 = 4 << 20;
-        let size = std::fs::metadata(path).map_err(|e| Failure::io(Stage::Host, e))?.len();
+        let size = std::fs::metadata(path)
+            .map_err(|e| Failure::io(Stage::Host, format!("reading {}", path.display()), e))?
+            .len();
         if size > MOST {
             return Err(Failure::new(Stage::Host, Class::Usage, format!("{}: larger than 4 MiB", path.display())));
         }
-        let text = std::fs::read_to_string(path).map_err(|e| Failure::io(Stage::Host, e))?;
+        let text = std::fs::read_to_string(path)
+            .map_err(|e| Failure::io(Stage::Host, format!("reading {}", path.display()), e))?;
         DenyList::parse(&text, "file")
     }
 

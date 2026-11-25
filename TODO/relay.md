@@ -11198,7 +11198,7 @@ observations, the rest counted); on the code of `2d213cba` it fails
 ## Problem
 
 1. `resolve_pod_services_stun`
-   (`crates/pod-natprobe/src/run/system.rs:163`) resolves the hosts with
+   (`crates/pod-natprobe/src/run/system.rs:168`) resolves the hosts with
    `tokio::net::lookup_host` and reads the built-in catalog of
    `pod-services` alone. Rule 5 of `docs/design.md`, section 1: the caller
    gives the way out (its resolver); rule 6: the caller gives the

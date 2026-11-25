@@ -103,7 +103,7 @@ impl<T> IoFail<T> for std::io::Result<T> {
 /// ended: the step as the text and `e` as the cause, as
 /// [`Failure::caused`] says.
 pub fn io_step(stage: Stage, text: impl fmt::Display, e: std::io::Error) -> Failure {
-    Failure::caused(stage, Class::of_io(e.kind()), text.to_string(), e)
+    Failure::io(stage, text.to_string(), e)
 }
 
 /// The first error of type `E` in the chain of `failure`, the failure
@@ -164,20 +164,29 @@ impl From<Refused> for Failure {
     }
 }
 
-/// The text of an I/O error of a TLS handshake: an alert of the peer is
-/// named; a reset or an end of the stream is said as such.
-pub fn tls_text(err: &std::io::Error) -> String {
+/// The words that a failed TLS handshake adds to its error of I/O: an alert
+/// of the peer, a reset or an end of the stream is said as such; `None` for
+/// an error whose own words say it all. The error stays the cause and says
+/// its own words, so these words do not quote it.
+pub fn tls_text(err: &std::io::Error) -> Option<&'static str> {
     if let Some(inner) = err.get_ref()
-        && let Some(rustls::Error::AlertReceived(alert)) = inner.downcast_ref::<rustls::Error>()
+        && let Some(rustls::Error::AlertReceived(_)) = inner.downcast_ref::<rustls::Error>()
     {
-        return format!("TLS alert from the peer: {alert:?}");
+        return Some("the peer sent a TLS alert");
     }
     match err.kind() {
-        std::io::ErrorKind::ConnectionReset => {
-            format!("the connection was reset during the TLS handshake ({err})")
-        }
-        std::io::ErrorKind::UnexpectedEof => "the connection was closed during the TLS handshake".to_string(),
-        _ => err.to_string(),
+        std::io::ErrorKind::ConnectionReset => Some("the connection was reset during the TLS handshake"),
+        std::io::ErrorKind::UnexpectedEof => Some("the connection was closed during the TLS handshake"),
+        _ => None,
+    }
+}
+
+/// `step`, then the words of [`tls_text`] for `err` when it has some: the
+/// text of a failure whose cause is `err`.
+pub fn tls_step(step: &str, err: &std::io::Error) -> String {
+    match tls_text(err) {
+        Some(words) => format!("{step}: {words}"),
+        None => step.to_string(),
     }
 }
 
@@ -205,13 +214,39 @@ mod tests {
         use std::io::{Error, ErrorKind};
         let reset = Error::from(ErrorKind::ConnectionReset);
         assert_eq!(tls_stage(&reset), Stage::Network);
-        assert!(tls_text(&reset).contains("reset during the TLS handshake"));
+        assert_eq!(tls_text(&reset), Some("the connection was reset during the TLS handshake"));
         assert_eq!(tls_stage(&Error::from(ErrorKind::UnexpectedEof)), Stage::Network);
         let cert = Error::new(
             ErrorKind::InvalidData,
             rustls::Error::InvalidCertificate(rustls::CertificateError::UnknownIssuer),
         );
         assert_eq!(tls_stage(&cert), Stage::Tls);
+        assert_eq!(tls_text(&cert), None);
+    }
+
+    /// The text of a failed TLS handshake adds its hint, and the error of
+    /// I/O says its own words: a joined chain says them once.
+    #[test]
+    fn a_joined_tls_failure_says_its_cause_once() {
+        use std::io::{Error, ErrorKind};
+        let alert = || {
+            Error::new(ErrorKind::InvalidData, rustls::Error::AlertReceived(rustls::AlertDescription::HandshakeFailure))
+        };
+        let cases = [
+            (
+                Error::new(ErrorKind::ConnectionReset, "Connection reset by peer (os error 104)"),
+                "Connection reset by peer",
+            ),
+            (alert(), "HandshakeFailure"),
+            (Error::new(ErrorKind::InvalidData, "invalid peer certificate: UnknownIssuer"), "UnknownIssuer"),
+        ];
+        for (e, words) in cases {
+            let text = tls_step("TLS with the edge at 1.2.3.4:7844", &e);
+            let failure = Failure::caused(tls_stage(&e), Class::of_io(e.kind()), text, e);
+            let line = crate::testing::each_text(&failure);
+            assert_eq!(line.matches(words).count(), 1, "{line}");
+            assert_eq!(line, failure.chain());
+        }
     }
 
     #[test]

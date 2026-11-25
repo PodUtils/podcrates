@@ -133,13 +133,13 @@ async fn first_speaker(mut client: BoxedIo, mut upstream: BoxedIo) -> Result<Fir
     let (mut a, mut b) = (vec![0u8; 1], vec![0u8; 4096]);
     tokio::select! {
         n = client.read(&mut a) => {
-            let n = n.map_err(|e| Failure::io(Stage::Proxy, e))?;
+            let n = n.map_err(|e| Failure::io(Stage::Proxy, "reading the job", e))?;
             a.truncate(n);
             let client: BoxedIo = Box::new(Prefixed::new(a.clone(), client));
             Ok(if a.first() == Some(&HANDSHAKE) { First::Tls(client, upstream) } else { First::Other(client, upstream) })
         }
         n = upstream.read(&mut b) => {
-            let n = n.map_err(|e| Failure::io(Stage::Origin, e))?;
+            let n = n.map_err(|e| Failure::io(Stage::Origin, "reading the upstream", e))?;
             b.truncate(n);
             Ok(First::Other(client, Box::new(Prefixed::new(b, upstream))))
         }
@@ -173,7 +173,7 @@ impl TlsEnd {
         let accept = pod_tls::server::TlsAcceptor::from(config).accept(client);
         let tls = match tokio::time::timeout(self.bounds.handshake, accept).await {
             Ok(Ok(tls)) => tls,
-            Ok(Err(e)) => return Err(Failure::io(Stage::Tls, e)),
+            Ok(Err(e)) => return Err(Failure::io(Stage::Tls, "the TLS handshake of the job", e)),
             Err(_) => {
                 return Err(Failure::new(Stage::Tls, Class::Timeout, "the job did not end its handshake in time"));
             }
@@ -265,8 +265,8 @@ impl Exchange<'_, '_> {
         framing: pod_proxy::http::Framing,
         head: &str,
     ) -> Result<Next, Failure> {
-        let up = |e: std::io::Error| Failure::io(Stage::Origin, e);
-        let job = |e: std::io::Error| Failure::io(Stage::Proxy, e);
+        let up = |e: std::io::Error| Failure::io(Stage::Origin, "the exchange with the upstream", e);
+        let job = |e: std::io::Error| Failure::io(Stage::Proxy, "the exchange with the job", e);
         if request.minor == 1
             && request.has_token("expect", "100-continue")
             && framing != pod_proxy::http::Framing::Length(0)

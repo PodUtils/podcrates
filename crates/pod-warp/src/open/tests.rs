@@ -82,3 +82,36 @@ fn a_door_read_again_with_another_cause_is_named() {
     assert!(line.contains(&door(1).to_string()) && line.contains(&door(2).to_string()), "{line}");
     assert!(!line.contains("does not match either"), "{line}");
 }
+
+/// The doors that each failed for another cause than the key: the line says
+/// the cause of each door once, and the cause of the last door stays typed.
+#[test]
+fn each_failed_door_says_its_cause_once() {
+    let reset = handshake_failure(&door(2).to_string(), std::io::Error::from(std::io::ErrorKind::ConnectionReset));
+    let failure = each_door_failed(vec![refused(&door(1)), reset]);
+    let line = pod_core::failure::joined(&failure);
+    assert_eq!(line, failure.chain());
+    assert_eq!(line.matches(&door(1).to_string()).count(), 1, "{line}");
+    assert_eq!(line.matches(&door(2).to_string()).count(), 1, "{line}");
+    assert_eq!(line.matches("connection refused").count(), 1, "{line}");
+    assert_eq!(line.matches("connection reset").count(), 1, "{line}");
+    assert!(line.contains("the other address of the front door failed too"), "{line}");
+    assert_eq!(failure.io_cause().map(|e| e.kind()), Some(std::io::ErrorKind::ConnectionReset));
+    assert_eq!(failure.class, Class::Unavailable);
+    // One door alone is its own failure.
+    let one = each_door_failed(vec![refused(&door(1))]);
+    assert_eq!(pod_core::failure::joined(&one), refused(&door(1)).chain());
+}
+
+/// A handshake that failed says the step, and the error of I/O says its own
+/// words once on a join.
+#[test]
+fn a_joined_handshake_failure_says_its_cause_once() {
+    for failure in [shown(&door(2), MIDDLEBOX), refused(&door(1))] {
+        let line = pod_core::failure::joined(&failure);
+        assert_eq!(line, failure.chain());
+        assert_eq!(line.matches("TLS handshake with the MASQUE front door").count(), 1, "{line}");
+        assert!(!failure.text().contains(PIN_MISMATCH), "{}", failure.text());
+    }
+    assert!(is_pin_mismatch(&shown(&door(2), MIDDLEBOX)));
+}

@@ -172,7 +172,7 @@ fn quick_tunnel_standin_exits_when_the_edge_refuses_the_registration() {
     standin.edge.answer(Reply::Refuse("the tunnel is deleted".into()));
     let (host, _) = standin.host(true, None);
     let err = standin.run(host, standin.config(Service::HelloWorld)).err().expect("the start gives up");
-    assert!(err.to_string().contains("the tunnel is deleted"), "{err}");
+    assert!(err.chain().contains("the tunnel is deleted"), "{}", err.chain());
     let registrations = standin.edge.registrations.lock().unwrap().clone();
     assert!(!registrations.is_empty() && registrations.iter().all(|r| !r.accepted));
 }

@@ -29,8 +29,13 @@ impl UdpFactory for SystemUdpFactory {
                 Family::V6 => IpAddr::V6(Ipv6Addr::UNSPECIFIED),
             });
             let addr = SocketAddr::new(ip, spec.local_port.unwrap_or(0));
-            let dg = SystemDatagrams::bind(addr).await.map_err(|e| Failure::io(Stage::Connect, e))?;
-            let local = dg.socket().local_addr().map_err(|e| Failure::io(Stage::Connect, e))?;
+            let dg = SystemDatagrams::bind(addr)
+                .await
+                .map_err(|e| Failure::io(Stage::Connect, format!("binding UDP {addr}"), e))?;
+            let local = dg
+                .socket()
+                .local_addr()
+                .map_err(|e| Failure::io(Stage::Connect, "the local address of the UDP socket", e))?;
             Ok(Bound { socket: Arc::new(dg), local })
         })
     }

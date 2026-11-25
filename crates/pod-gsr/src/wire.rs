@@ -123,7 +123,10 @@ impl Reader {
         while self.filled < MESSAGE_LEN {
             // Ask for the bytes of this message alone: a byte of the payload
             // that follows must stay in the socket for the TLS layer.
-            let read = io.read(&mut self.buffer[self.filled..]).await.map_err(|e| Failure::io(Stage::Relay, e))?;
+            let read = io
+                .read(&mut self.buffer[self.filled..])
+                .await
+                .map_err(|e| Failure::io(Stage::Relay, "reading a message of the relay", e))?;
             if read == 0 {
                 return if self.filled == 0 {
                     Ok(None)

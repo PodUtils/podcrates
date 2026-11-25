@@ -1152,7 +1152,7 @@ or in spaces get one hash; each change of meaning gets another.
   `Serialize` with `deny_unknown_fields`. An empty `allow`, `deny` or
   `ports` and a missing `path` are not written (`skip_serializing_if`), so
   an empty list and a missing list give one hash. The rule `allow[{n}]`
-  comes from `:258-259`.
+  comes from `:259-260`.
 - Read: `crates/pod-broker/Cargo.toml:25` (`sha2` is a dependency);
   `crates/pod-broker/tests/audit.rs:16` (`no_audit_line_holds_a_planted_secret`
   reads the audit lines only); `schemas/log.v1.schema.json` (`fields` is an

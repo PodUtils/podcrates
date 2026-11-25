@@ -76,7 +76,7 @@ impl Resolve for System {
                         Ok(Found { addrs, source: SYSTEM, more: false })
                     }
                 }
-                Ok(Err(e)) => Err(Failure::io(Stage::Dns, e)),
+                Ok(Err(e)) => Err(Failure::io(Stage::Dns, "system resolver", e)),
                 Err(_) => Err(Failure::new(Stage::Dns, Class::Timeout, "timed out")),
             }
         })

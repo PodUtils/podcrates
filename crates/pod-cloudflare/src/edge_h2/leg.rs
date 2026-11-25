@@ -79,7 +79,7 @@ pub(super) async fn connect_one(
         .await
         .map_err(|_| crate::fail::new(Stage::Tls, Class::Timeout, format!("TLS with the edge at {addr} timed out")))?
         .map_err(|e| {
-            let text = format!("TLS with the edge at {addr}: {}", crate::fail::tls_text(&e));
+            let text = crate::fail::tls_step(&format!("TLS with the edge at {addr}"), &e);
             pod_core::Failure::caused(crate::fail::tls_stage(&e), Class::of_io(e.kind()), text, e)
         })?;
 

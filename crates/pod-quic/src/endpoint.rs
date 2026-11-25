@@ -8,7 +8,7 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket};
 use std::sync::Arc;
 
 use noq::{Endpoint, EndpointConfig, Runtime, ServerConfig, TokioRuntime};
-use pod_core::{Class, Datagrams, Failure, Stage};
+use pod_core::{Datagrams, Failure, Stage};
 
 use crate::bounded::Bounded;
 use crate::keys::{ResetKey, TokenKey};
@@ -26,11 +26,11 @@ pub fn server_config(crypto: Arc<dyn noq::crypto::ServerConfig>) -> Result<Serve
 }
 
 fn no_socket(e: std::io::Error) -> Failure {
-    Failure::caused(Stage::Connect, Class::of_io(e.kind()), format!("no UDP socket for QUIC: {e}"), e)
+    Failure::io(Stage::Connect, "no UDP socket for QUIC", e)
 }
 
 fn no_endpoint(e: std::io::Error) -> Failure {
-    Failure::caused(Stage::Quic, Class::of_io(e.kind()), format!("no QUIC endpoint: {e}"), e)
+    Failure::io(Stage::Quic, "no QUIC endpoint", e)
 }
 
 /// An endpoint on `socket`, a UDP socket that the caller bound, and a server

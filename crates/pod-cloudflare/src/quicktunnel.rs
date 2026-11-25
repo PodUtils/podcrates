@@ -225,7 +225,8 @@ pub async fn provision(
             }
             return Err(err.into());
         }
-        let text = format!("provisioning failed: {err}; the try {} is in {} s", attempt + 1, wait.as_secs());
+        let why = pod_core::failure::chain_of(&err);
+        let text = format!("provisioning failed: {why}; the try {} is in {} s", attempt + 1, wait.as_secs());
         host.event(Event::warn("quick.provision", text));
         tokio::time::sleep(wait).await;
     }

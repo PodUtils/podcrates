@@ -29,7 +29,8 @@ pub(super) async fn resolve_credentials(
                     Some(r) if r.status == 429 => Class::TempFail,
                     _ => Class::Unavailable,
                 };
-                let mut failure = crate::fail::wrap(e, "provisioning quick tunnel");
+                // The failure names the step of the provision already.
+                let mut failure = e;
                 failure.class = class;
                 failure
             })?;
@@ -271,20 +272,35 @@ where
 }
 
 /// The failure of a start when each leg failed: the text of each failure,
-/// the stage and the cause of the last one. When each leg failed with a
-/// refusal with retry: yes, the class is `TempFail` (a later start can
-/// work); else `Unavailable`.
+/// the stage of the last one, and the typed cause of the last one (a
+/// refusal of the registration, an error of I/O) as the cause. The words of
+/// that cause are in the chain once: the text of the last leg stops before
+/// them. When each leg failed with a refusal with retry: yes, the class is
+/// `TempFail` (a later start can work); else `Unavailable`.
 pub(super) fn no_leg_worked(plan: &[LegKind], failed: Vec<(usize, crate::fail::Failure)>) -> crate::fail::Failure {
-    let text: Vec<String> = failed.iter().map(|(i, err)| format!("{}: {}", plan[*i], err.chain())).collect();
     let retry = |err: &crate::fail::Failure| crate::fail::find::<rpc::Refused>(err).is_some_and(|r| r.should_retry);
     let class = if !failed.is_empty() && failed.iter().all(|(_, err)| retry(err)) {
         Class::TempFail
     } else {
         Class::Unavailable
     };
+    let mut text: Vec<String> = Vec::with_capacity(failed.len());
+    let mut last = None;
+    let n = failed.len();
+    for (k, (i, err)) in failed.into_iter().enumerate() {
+        if k + 1 < n {
+            text.push(format!("{}: {}", plan[i], err.chain()));
+            continue;
+        }
+        let stage = err.stage;
+        let (steps, root) = err.into_root();
+        text.push(format!("{}: {steps}", plan[i]));
+        last = Some((stage, root));
+    }
     let text = format!("no edge leg worked: {}", text.join("; "));
-    match failed.into_iter().last() {
-        Some((_, last)) => pod_core::Failure::caused(last.stage, class, text, last),
+    match last {
+        Some((stage, Some(root))) => pod_core::Failure::caused(stage, class, text, root),
+        Some((stage, None)) => crate::fail::new(stage, class, text),
         None => crate::fail::new(Stage::Connect, class, text),
     }
 }

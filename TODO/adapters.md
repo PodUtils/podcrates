@@ -2575,7 +2575,7 @@ coordinator gives the rule to the consumers by a COORD issue.
 **Milestone:** M3
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2635,6 +2635,13 @@ cargo test -p pod-core --all-features
 cargo test -p pod-proxy --all-features
 ```
 
+## Done
+
+2026-11-25, this commit. `pod-core`: `Failure::io(stage, step, e)` takes a step: the text is the step, and the error of I/O is the cause; each of the 43 callers names its step (for example "reading PATH", "writing to the relay", "system resolver"), and `fail::io_step` of `pod-cloudflare` calls it. `Failure::into_root` gives the text of a chain with no innermost typed cause, and that cause; `failure::joined` joins each text of a chain with no check (`testing::each_text` of `pod-cloudflare` calls it). `pod-cloudflare`: the failure of a `ProvisionError` is the step "provisioning quick tunnel" (`quicktunnel::PROVISIONING`) with the error as its cause, and `tunnel::plan` adds no context with the same words; the warning of a retry says the chain of the error. `no_leg_worked` names each leg, and keeps the typed cause of the last leg (a refusal of the registration, an error of I/O) as its cause, with no word of it in its text. `fail::tls_text` gives the words that a TLS failure adds to its error ("the peer sent a TLS alert", "the connection was reset during the TLS handshake", "the connection was closed during the TLS handshake", or none), and `fail::tls_step` puts them after the step; the leg of HTTP/2 and `host::sent` use them, and `sent` keeps the root of the chain as the cause. `build_endpoint`: "could not open a local UDP socket (QUIC needs UDP; where it is blocked, use PROTOCOL http2)", with the failure of the socket as the cause. `pod-quic`: `no_socket` and `no_endpoint` take `Failure::io` (the same defect). `pod-warp`: `tls::handshake_failure` is the step "TLS handshake with the MASQUE front door DOOR"; the failed doors join in `each_door_failed` (the text of each door, the typed cause of the last door as the cause); the join of the direct path and the relay keeps the root of the relay as the cause; the two failures of `open_after_mismatch` with no device record or no door hold no word of their source.
+
+Left: `From<DialError> for Failure` of `pod-proxy`. A step as its text drops the words of the dial for each reader of `Display` or `Failure::text` of a dial failure, and the compiler does not find them: in the trial, `pod-dns` (the reasons of `doh_names`), `pod-tor`, `pod-egress` and the request failures of `pod-proxy` (`within`, a redirect) lost the cause, and the consumers can read the same way. T-1377 moves the readers to `Failure::chain` first, then makes the change.
+
+Tests (each joins the chain and counts the words of the cause once): `failure::tests::an_io_failure_says_its_cause_once_on_a_join`, `failure::tests::the_root_of_a_chain_comes_out_with_the_steps_as_text` (`pod-core`, tests moved to `failure_tests.rs`); `quicktunnel::tests::a_joined_provision_failure_says_each_cause_once`, `tunnel::tests::the_class_of_no_edge_leg_worked`, `fail::tests::a_joined_tls_failure_says_its_cause_once`, `host::tests::a_reset_in_the_tls_handshake_is_named`, `cloudflare::quic::tests::a_joined_udp_refusal_says_its_cause_once` (`pod-cloudflare`); `open::tests::each_failed_door_says_its_cause_once`, `open::tests::a_joined_handshake_failure_says_its_cause_once` (`pod-warp`). `Failure::chain` leaves out the cause of the last leg or door when an earlier one said the same words; the join says it. New plant `warp-handshake-cause-twice`. It failed its test on its patch (run by hand); `sh scripts/plant-each.sh --apply`: 0 stale. `cargo clippy --workspace --all-targets --all-features -- -D warnings`: clean. `cargo test --workspace --all-features` with the trial of `pod-proxy`: 6539 passed, 8 failed (each of the trial, which this commit does not keep); after its revert, `cargo test -p pod-core -p pod-cloudflare -p pod-warp -p pod-proxy -p pod-dns -p pod-egress -p pod-tor --all-features`: 1180 passed, 0 failed, 10 ignored. No consumer text in `docs/HANDOFF.md` or a README matches a changed text; the code search of the mirror does not index podnet, so podnet is not searched. podssh calls `Failure::io(stage, e)` in two tests (`vless_coalesce` of its crate `podssh-ws`, `quick_edge_warp` of its crate `podssh-relay`).
 
 # T-1365: `pod-warp`: a client of the proxy with no WARP session gets a reset, not a SOCKS5 or HTTP failure reply (PodUtils/podnet#712)
 
@@ -2716,3 +2723,61 @@ sh scripts/plant-each.sh warp-door-issuer-unclassed warp-door-cause-twice warp-t
 ## Done
 
 2026-11-25, this commit. `why_shown` reads the issuer after `tls::SHOWN` in the failure of the door; `Issuer::of` gives `LetsEncrypt` ("WARP's side shows a certificate of Let's Encrypt at times in place of its key; a later try passes then"), `Warp` (Cloudflare, an unnamed issuer or none: the sentence of `v0.83.0`) or `Middlebox` ("A middlebox on the way terminates TLS; the key is pinned, so no root helps: go around it"; with a proxy, "The proxy PROXY, or a middlebox on the way, terminates TLS"). The other classes keep the sentence of a proxy. `after_mismatch` keeps the failure of the door that shows another key as the source and holds no word of it in its text; it names the first failure and the cause of another door only when the cause (with no address of the door) differs. Tests: `open::tests::the_cause_of_another_key_is_named_by_the_issuer_of_the_certificate` (the table of four issuers, each with and with no proxy), `open::tests::a_door_read_again_with_the_first_cause_says_it_once`, `open::tests::a_door_read_again_with_another_cause_is_named`; `tests/net.rs` 13 of 13. New plants `warp-door-issuer-unclassed` and `warp-door-cause-twice`; the plants `warp-t549-proxy-on-direct-road` and `warp-fresh-record-mismatch-unnamed` take the new code. Each of the four failed its test on its patch (run by hand); `sh scripts/plant-each.sh --apply`: 0 stale. `cargo test -p pod-warp --all-features`: 240 passed, 1 ignored. `cargo fmt --all --check`, `scripts/check-history.py`, `scripts/codegraph.py dups` and `new`: clean. T-1351 holds `tls::handshake_failure` and the fold of the failed doors of `open.rs`.
+
+
+# T-1377: `pod-proxy`: the failure of a dial and of a request holds the words of its `DialError` or its cause, so a reader that joins the chain says them two times
+
+**Source:** T-1351 (a finding of its work).
+**Category:** defect
+**Milestone:** M3
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`From<DialError> for Failure` keeps the text of the `DialError` as its text and the `DialError` as its cause. `client::within` puts the text of its cause after the request line and keeps the cause, and a redirect (`client/redirect.rs`) does the same. A reader that joins each text of the chain says the words two or three times (`docs/design.md`, section 1, rule 9). A step as the text drops the words for each reader of `Display` or `Failure::text` of these failures: in the trial of T-1351, the reasons of `pod-dns` (`tests/doh_names.rs`), `pod-tor` (`tests/proxied_tcp.rs`), `pod-egress` (`tests/via.rs`), `pod-warp` (`provider::of_api` reads `text`) and the tests of `pod-proxy` (`fetch`, `keep_alive`, `redirect`, `streamed`) lost the cause.
+
+## Premise
+
+- Read: `crates/pod-proxy/src/error.rs` (`From<DialError>`), `src/client.rs` (`within`), `src/client/redirect.rs`; the failed tests of the trial of T-1351.
+- Not measured: the readers of `Display` of these failures in the consumers.
+
+## Approach
+
+Move each reader of `Display` or `text` of a dial or request failure in the workspace to `Failure::chain`. Then make the text of the three failures their step (the request line, "redirected to URL", a step of the dial), and keep the cause. Tell the consumers in the hand-off: a reader of `Display` reads the step alone.
+
+## Prove
+
+```sh
+cargo test --workspace --all-features
+```
+
+
+# T-1378: `pod-warp`: the failure of an enrolment with no answer says the text of the path three times to a reader that joins the chain
+
+**Source:** T-1351 (a finding of its work).
+**Category:** defect
+**Milestone:** M3
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`PathFailure::cause` (`crates/pod-warp/src/provider.rs`) makes a failure with the text of the path and the path as its cause. `EnrolError::failure` for `NoAnswer` puts the text of the path in its text and keeps that failure as its cause. A reader that joins each text of the chain says the text of the path three times. `of_api` keeps `Failure::text` as the detail, so a failure of the API whose text is its step loses its cause.
+
+## Premise
+
+- Read: `crates/pod-warp/src/provider.rs` (`PathFailure::cause`, `EnrolError::text`, `EnrolError::failure`, `of_api`).
+- Not measured: a joined chain of a real enrolment with no answer.
+
+## Approach
+
+Give the failure of `NoAnswer` the text "the provider's API did not answer" alone, and make `PathFailure::cause` a failure that does not repeat the text of the path (a cause that reads the sources of the shared failure). `of_api` takes `Failure::chain`. A test joins the chain and counts the text of the path once.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features
+```

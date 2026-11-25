@@ -78,7 +78,7 @@ impl pod_core::Resolve for System {
         Box::pin(async move {
             let addrs: Vec<_> = tokio::net::lookup_host((host, port))
                 .await
-                .map_err(|e| pod_core::Failure::io(pod_core::Stage::Dns, e))?
+                .map_err(|e| pod_core::Failure::io(pod_core::Stage::Dns, "the lookup", e))?
                 .collect();
             Ok(pod_core::Found { addrs, source: pod_core::Source { rank: 0, name: "system" }, more: false })
         })
@@ -98,7 +98,7 @@ impl pod_core::Dial for System {
         Box::pin(async move {
             let tcp = tokio::net::TcpStream::connect(target.to_string())
                 .await
-                .map_err(|e| pod_core::Failure::io(pod_core::Stage::Connect, e))?;
+                .map_err(|e| pod_core::Failure::io(pod_core::Stage::Connect, "the connection", e))?;
             Ok(pod_core::Connected::new(Box::new(tcp)))
         })
     }

@@ -60,7 +60,7 @@ impl pod_core::Dial for Aimed {
             self.asked.lock().unwrap().push(target.to_string());
             let tcp = tokio::net::TcpStream::connect(("127.0.0.1", self.port))
                 .await
-                .map_err(|e| pod_core::Failure::io(pod_core::Stage::Connect, e))?;
+                .map_err(|e| pod_core::Failure::io(pod_core::Stage::Connect, "the connection", e))?;
             Ok(pod_core::Connected::new(Box::new(tcp)))
         })
     }

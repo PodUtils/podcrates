@@ -1,0 +1,12 @@
+diff --git a/crates/pod-warp/src/tls.rs b/crates/pod-warp/src/tls.rs
+--- a/crates/pod-warp/src/tls.rs
++++ b/crates/pod-warp/src/tls.rs
+@@ -119,7 +119,7 @@
+ pub fn handshake_failure(door: &str, e: std::io::Error) -> Failure {
+     let pin = e.to_string().contains(PIN_MISMATCH);
+     let class = if pin { Class::Protocol } else { Class::of_io(e.kind()) };
+-    Failure::caused(Stage::Tls, class, format!("TLS handshake with the MASQUE front door {door}"), e)
++    Failure::caused(Stage::Tls, class, format!("TLS handshake with the MASQUE front door {door}: {e}"), e)
+ }
+ 
+ /// True when `failure` is a key of the front door that is not the pinned

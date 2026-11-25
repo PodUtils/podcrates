@@ -230,7 +230,7 @@ pub async fn trace_at(net: &dyn Dial, tls: &Arc<rustls::ClientConfig>, address: 
         // HTTP/1.0: the body is not chunked, and ends with the connection.
         let request =
             format!("GET {} HTTP/1.0\r\nHost: {}\r\nUser-Agent: pod-warp\r\n\r\n", trace_path(), trace_name());
-        let io = |e: std::io::Error| Failure::io(Stage::Warp, e);
+        let io = |e: std::io::Error| Failure::io(Stage::Warp, format!("the trace request to {address}"), e);
         tls.write_all(request.as_bytes()).await.map_err(io)?;
         tls.flush().await.map_err(io)?;
         let mut answer = Vec::new();

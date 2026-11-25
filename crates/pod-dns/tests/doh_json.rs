@@ -108,7 +108,9 @@ impl Dial for NamesAlone {
             if let Target::Addr(_) = target {
                 return Err(Failure::new(Stage::Proxy, Class::Refused, "403 not on the allowlist"));
             }
-            let tcp = TcpStream::connect(("127.0.0.1", self.port)).await.map_err(|e| Failure::io(Stage::Connect, e))?;
+            let tcp = TcpStream::connect(("127.0.0.1", self.port))
+                .await
+                .map_err(|e| Failure::io(Stage::Connect, "the connection", e))?;
             Ok(Connected::new(Box::new(tcp)))
         })
     }

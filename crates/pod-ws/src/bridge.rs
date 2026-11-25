@@ -109,7 +109,7 @@ where
                 break Ok(());
             }
             if let Err(e) = io_w.write_all(&message.payload).await {
-                break Err(Failure::io(Stage::Connect, e));
+                break Err(Failure::io(Stage::Connect, "writing to the local stream", e));
             }
             tally.add_in(message.payload.len() as u64);
         };
@@ -128,7 +128,7 @@ where
             let n = match read {
                 Ok(0) => break Ok(()),
                 Ok(n) => n,
-                Err(e) => break Err(Failure::io(Stage::Connect, e)),
+                Err(e) => break Err(Failure::io(Stage::Connect, "reading the local stream", e)),
             };
             tally.add_out(n as u64);
             // A session that ended (a Close came, or the link broke) takes

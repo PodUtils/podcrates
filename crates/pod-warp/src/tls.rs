@@ -112,13 +112,14 @@ pub fn client_config(
 }
 
 /// The failure of a TLS handshake with the front door: a key that is not
-/// the pinned key is `Protocol` and says so (the caller reads the device
-/// record again); another failure is the class of its kind.
+/// the pinned key is `Protocol` and says so in its cause (the caller reads
+/// the device record again); another failure is the class of its kind. The
+/// text is the step, and the error is the cause, so a reader that joins the
+/// chain says its words once.
 pub fn handshake_failure(door: &str, e: std::io::Error) -> Failure {
     let pin = e.to_string().contains(PIN_MISMATCH);
     let class = if pin { Class::Protocol } else { Class::of_io(e.kind()) };
-    let text = format!("TLS handshake with the MASQUE front door {door}: {e}");
-    Failure::caused(Stage::Tls, class, text, e)
+    Failure::caused(Stage::Tls, class, format!("TLS handshake with the MASQUE front door {door}"), e)
 }
 
 /// True when `failure` is a key of the front door that is not the pinned

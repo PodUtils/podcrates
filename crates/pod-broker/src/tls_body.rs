@@ -14,11 +14,11 @@ use crate::replace::Replace;
 use crate::tls_end::{Ends, Exchange, body_of, read_whole, replace_of};
 
 fn up(e: std::io::Error) -> Failure {
-    Failure::io(Stage::Origin, e)
+    Failure::io(Stage::Origin, "the exchange with the upstream", e)
 }
 
 fn job(e: std::io::Error) -> Failure {
-    Failure::io(Stage::Proxy, e)
+    Failure::io(Stage::Proxy, "the exchange with the job", e)
 }
 
 /// Write `data` as one chunk; nothing for no data.

@@ -130,7 +130,7 @@ async fn async_prober_loopback_direct_and_pmp_gateway() {
                 let _ = spec;
                 let dg = pod_core::SystemDatagrams::bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0))
                     .await
-                    .map_err(|e| pod_core::Failure::io(pod_core::Stage::Connect, e))?;
+                    .map_err(|e| pod_core::Failure::io(pod_core::Stage::Connect, "the connection", e))?;
                 let local = dg.socket().local_addr().unwrap();
                 Ok(pod_natprobe::seams::async_seams::Bound { socket: Arc::new(dg), local })
             })
