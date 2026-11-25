@@ -8372,5 +8372,5 @@ The ask:
 cargo test -p pod-proxy --all-features
 cargo test -p pod-proxy --all-features --test exec_exit
 cargo clippy -p pod-proxy --all-targets --all-features -- -D warnings
-sh scripts/plant-each.sh proxy-exec-stderr-inherited
+sh scripts/plant-each.sh proxy-exec-stderr-inherited proxy-exec-started-each-dial proxy-exec-assignment-shown
 ```

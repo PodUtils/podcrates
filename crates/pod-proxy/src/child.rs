@@ -34,8 +34,10 @@ const EXIT_WAIT: Duration = Duration::from_secs(2);
 /// runs with `sh -c` on Unix and with `cmd.exe /D /S /C` on Windows. Its
 /// stderr goes to a pipe, never to the stderr of the process: a task of the
 /// runtime reads it and keeps its last [`STDERR_KEPT`] bytes
-/// ([`ChildIo::stderr_tail`]). The end of the stream closes its stdin; a
-/// drop kills it.
+/// ([`ChildIo::stderr_tail`]). On the runtime of the blocking face, that
+/// task runs only in a call: between two calls, a command that writes more
+/// than a pipe holds to its stderr waits, as one that writes to its stdout
+/// does. The end of the stream closes its stdin; a drop kills it.
 pub struct ChildIo {
     child: tokio::process::Child,
     stdin: Option<tokio::process::ChildStdin>,

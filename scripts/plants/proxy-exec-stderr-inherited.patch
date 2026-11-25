@@ -1,0 +1,13 @@
+diff --git a/crates/pod-proxy/src/child.rs b/crates/pod-proxy/src/child.rs
+index 04ea31b3..3355c4f1 100644
+--- a/crates/pod-proxy/src/child.rs
++++ b/crates/pod-proxy/src/child.rs
+@@ -59,7 +59,7 @@ impl ChildIo {
+         let mut child = tokio::process::Command::from(command)
+             .stdin(std::process::Stdio::piped())
+             .stdout(std::process::Stdio::piped())
+-            .stderr(std::process::Stdio::piped())
++            .stderr(std::process::Stdio::inherit())
+             .kill_on_drop(true)
+             .spawn()?;
+         let stdin = child.stdin.take();

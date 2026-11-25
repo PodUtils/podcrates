@@ -1,0 +1,13 @@
+diff --git a/crates/pod-proxy/src/child.rs b/crates/pod-proxy/src/child.rs
+index 04ea31b3..3e18214f 100644
+--- a/crates/pod-proxy/src/child.rs
++++ b/crates/pod-proxy/src/child.rs
+@@ -25,7 +25,7 @@ pub const STDERR_KEPT: usize = 512;
+ /// How long a command that exited 126 or 127 (9009 on Windows) is not
+ /// started again: each dial through it in this time gets the same failure
+ /// at once, and a loop of dials does not start a process for each one.
+-pub const EXEC_HOLD: Duration = Duration::from_secs(10);
++pub const EXEC_HOLD: Duration = Duration::ZERO;
+ 
+ /// The longest wait for the exit of a command that closed its stdout.
+ const EXIT_WAIT: Duration = Duration::from_secs(2);

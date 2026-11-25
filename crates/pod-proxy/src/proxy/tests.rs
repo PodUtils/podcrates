@@ -125,10 +125,7 @@ fn the_secret_parts_of_a_url() {
     assert_eq!(Proxy::secret_parts(" http+exec:ssh -i k gw "), ["-i k gw"]);
     assert!(Proxy::secret_parts("http+exec:/nonexist/prog").is_empty());
     // An assignment before the word, and a word with `@` after it.
-    assert_eq!(
-        Proxy::secret_parts("http+exec:TOKEN=s3 ssh -W %h:%p me@gw"),
-        ["-W %h:%p me@gw", "TOKEN=s3", "me@gw"]
-    );
+    assert_eq!(Proxy::secret_parts("http+exec:TOKEN=s3 ssh -W %h:%p me@gw"), ["-W %h:%p me@gw", "TOKEN=s3", "me@gw"]);
     // The word of the label is the program, also when an assignment holds
     // the same text.
     assert_eq!(Proxy::secret_parts("http+exec:A=nc nc gw 1"), ["gw 1", "A=nc"]);

@@ -36,8 +36,8 @@
 
 #[cfg(feature = "blocking")]
 pub mod blocking;
-pub mod client;
 mod child;
+pub mod client;
 mod connect;
 pub mod credentials;
 pub mod cut;
@@ -62,6 +62,7 @@ pub mod stream;
 pub use pod_turn::stun;
 pub mod write_limit;
 
+pub use child::{EXEC_HOLD, STDERR_KEPT};
 pub use client::Client;
 pub use connect::MAX_PROXY_RESPONSE;
 pub use credentials::Credentials;
@@ -80,7 +81,6 @@ pub use race::{dial_addrs, group_errors, group_texts, interleave};
 #[cfg(any(fuzzing, feature = "fuzzing"))]
 pub use socks5::fuzz_exchange;
 pub use socks5::udp;
-pub use child::{EXEC_HOLD, STDERR_KEPT};
 pub use stream::{ChildIo, Stream};
 
 /// The handshakes of a proxy on a stream that the caller holds: a hop of

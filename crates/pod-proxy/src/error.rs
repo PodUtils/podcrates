@@ -79,7 +79,8 @@ impl std::fmt::Display for DialError {
                 write!(f, "{} did not answer as its protocol says: {detail}", the_proxy(proxy))
             }
             DialError::ProxyExited { word, status, said } => {
-                let command = if word.is_empty() { "the proxy command".into() } else { format!("the proxy command {word}") };
+                let command =
+                    if word.is_empty() { "the proxy command".into() } else { format!("the proxy command {word}") };
                 write!(f, "{command} exited {status} before it answered")?;
                 if !said.is_empty() {
                     write!(f, ": {said}")?;
