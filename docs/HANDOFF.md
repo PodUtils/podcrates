@@ -167,6 +167,14 @@ The asks of #259 to the consumers:
 
 ### On `main` after `v0.83.0` (for the next tag)
 
+- T-1095 (`pod-ws`, `pod-egress`): the new workspace crate `pod-h2` is h2
+  0.4.20 with `client::Builder::pseudo_order` (`vendor/h2`, two patches,
+  checked by `scripts/check-vendor.py`). `Shape::browser` sends the Chrome
+  order of the pseudo-fields, `Shape::firefox` the Firefox order, and
+  `Shape::existing` the order of h2. `pod_ws::h2` re-exports the fork. At
+  this tag podssh removes its `vendor/h2` and its `[patch.crates-io]` line,
+  and its test `h2_fallback.rs` calls `pod_ws::h2::decode_header_block`
+  (PodUtils/podssh#340). The owner reserves the crates.io name `pod-h2`.
 - T-1359 (`pod-core`): three tests of `files::socket` take `near_dir`, the
   shortest directory under the temporary directory, in place of a directory
   of 40 bytes. The tests pass with the temporary directory of macOS. No

@@ -16,10 +16,12 @@
 //! its bytes without a caller asking.
 //!
 //! [`Shape::apply`] sets every SETTINGS parameter that the shape names,
-//! including `SETTINGS_MAX_CONCURRENT_STREAMS` (id 3), and the connection's
-//! window as the target from which h2 computes the WINDOW_UPDATE increment.
-//! The order of the request's pseudo-fields depends on the h2 crate in use.
-//! A PRIORITY frame or a padded DATA frame is data alone: h2 0.4 has no
+//! including `SETTINGS_MAX_CONCURRENT_STREAMS` (id 3), the connection's
+//! window as the target from which h2 computes the WINDOW_UPDATE increment,
+//! and the order of the request's pseudo-fields of [`Shape::headers`]: the
+//! fork pod-h2 of `vendor/h2` takes it as a setting of the client. A
+//! pseudo-field that the shape does not name (`:protocol` of a browser) comes
+//! after them, in the order of h2. A PRIORITY frame or a padded DATA frame is data alone: h2 0.4 has no
 //! call for either, so it is recorded in the shape and asserted against a
 //! reference, and the live connection sends neither.
 
@@ -209,8 +211,22 @@ impl Shape {
         (payload > padding.above && padding.to > payload).then_some(padding.to)
     }
 
-    /// Sets on `builder` each SETTINGS parameter that the library takes, and
-    /// the connection's window.
+    /// The pseudo-fields of [`Shape::headers`], in their order.
+    fn pseudo_fields(&self) -> Vec<h2::client::PseudoField> {
+        use h2::client::PseudoField;
+        let field = |name: &str| match name {
+            ":method" => Some(PseudoField::Method),
+            ":scheme" => Some(PseudoField::Scheme),
+            ":authority" => Some(PseudoField::Authority),
+            ":path" => Some(PseudoField::Path),
+            ":protocol" => Some(PseudoField::Protocol),
+            _ => None,
+        };
+        self.headers.iter().filter_map(|name| field(name)).collect()
+    }
+
+    /// Sets on `builder` each SETTINGS parameter that the library takes, the
+    /// connection's window, and the order of the request's pseudo-fields.
     pub fn apply(&self, builder: &mut h2::client::Builder) {
         if let Some(value) = self.setting(INITIAL_WINDOW_SIZE) {
             builder.initial_window_size(value);
@@ -231,6 +247,7 @@ impl Shape {
             builder.max_header_list_size(value);
         }
         builder.initial_connection_window_size(self.connection_window);
+        builder.pseudo_order(&self.pseudo_fields());
     }
 
     /// The shape in words, for a line of `-v` or a doctor.
@@ -330,6 +347,16 @@ mod tests {
         assert_ne!(Shape::browser(), Shape::firefox());
         assert_eq!(existing.headers[..5], [":method", ":scheme", ":authority", ":path", ":protocol"]);
         assert!(existing.words().contains("PRIORITY"));
+    }
+
+    /// The order of the pseudo-fields that `apply` gives h2 is the order of
+    /// each shape's data, and a field that is not a pseudo-field is not in it.
+    #[test]
+    fn the_pseudo_fields_of_each_shape_are_its_headers_in_order() {
+        use h2::client::PseudoField::{Authority, Method, Path, Protocol, Scheme};
+        assert_eq!(Shape::browser().pseudo_fields(), vec![Method, Authority, Scheme, Path]);
+        assert_eq!(Shape::firefox().pseudo_fields(), vec![Method, Path, Authority, Scheme]);
+        assert_eq!(Shape::existing().pseudo_fields(), vec![Method, Scheme, Authority, Path, Protocol]);
     }
 
     /// H2-1: the padding is a rule of the shape, above a threshold.

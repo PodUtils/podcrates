@@ -1,8 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "examples/*"]
+# vendor/h2 is pod-h2: h2 with the order of a request's pseudo-header
+# fields as a setting (crates/pod-ws/README.md, "The fork of h2"). It has a
+# name of its own, so a consumer of pod-ws gets it with no [patch]; a member,
+# so that `cargo publish --workspace` packs it before pod-ws.
+members = ["crates/*", "examples/*", "vendor/h2"]
 # The fuzz targets are a workspace of their own (fuzz/Cargo.toml): the
-# library crates do not build libFuzzer's C++. A fork of vendor/ is a
+# library crates do not build libFuzzer's C++. vendor/iroh-relay is a
 # package of its own, which [patch.crates-io] below puts in its place:
 # excluded, it is no member, and its tests and their dependencies are not
 # the workspace's.

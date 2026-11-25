@@ -69,6 +69,10 @@ pub use client::{
 pub use close::close_hint;
 pub use error::{SessionError, Verdict, WsError};
 pub use frame::Frame;
+/// The h2 that this crate builds with: pod-h2, the fork of `vendor/h2`
+/// (README.md, "The fork of h2"). A caller that gives this crate a type of
+/// h2 ([`h2_road::duplex`], [`h2_road::Shape::apply`]) takes it from here.
+pub use h2;
 pub use headers::{Extra, Headers};
 pub use limits::Limits;
 pub use pod_proxy::{Cut, DialError, Missed, TlsFailure};

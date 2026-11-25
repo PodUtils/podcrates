@@ -42,8 +42,10 @@ pod-identity = { workspace = true, optional = true }
 socket2 = { version = "0.6", features = ["all"], optional = true }
 # Sec-WebSocket-Key and Sec-WebSocket-Accept.
 base64 = { workspace = true }
-# HTTP/2's extended CONNECT (h2_road): h2 and its types, pure Rust.
-h2 = { workspace = true }
+# HTTP/2's extended CONNECT (h2_road): h2 and its types, pure Rust. The
+# fork pod-h2 of vendor/h2 (README.md, "The fork of h2"): its client takes
+# the order of the request's pseudo-fields from the shape.
+h2 = { package = "pod-h2", path = "../../vendor/h2", version = "0.4.20" }
 http = { workspace = true }
 bytes = { workspace = true }
 # The diagnostics: the time of each step, a Close of the far end.

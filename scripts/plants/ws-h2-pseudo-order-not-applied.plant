@@ -1,0 +1,7 @@
+# pod-ws: Shape::apply gives h2 no order of the pseudo-fields, so the browser's
+# request goes out in the order of h2 (T-1095).
+ENTRY=T-1095
+GROUP=ws
+EXPECT='chrome: the pseudo-fields on the wire'
+RUN='cargo test -p pod-ws --all-features --test h2_road the_request_sends_its_pseudo_fields_in_the_order_of_its_shape'
+LIMIT=1800

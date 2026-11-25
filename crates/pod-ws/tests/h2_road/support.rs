@@ -76,6 +76,9 @@ pub struct Seen {
     pub accepted: AtomicUsize,
     pub upgrades: AtomicUsize,
     pub headers: AtomicUsize,
+    /// The header block of each request, in the order of the wire: the
+    /// fragments of its HEADERS and CONTINUATION frames, joined.
+    pub blocks: Mutex<Vec<Vec<u8>>>,
     pub connects: Mutex<Vec<Asked>>,
     /// Each connection's task, for a cut.
     pub tasks: Mutex<Vec<tokio::task::AbortHandle>>,
@@ -114,15 +117,43 @@ pub fn config(port: u16, root: &Path) -> WsClientConfig {
     }
 }
 
-/// The frames of HTTP/2 that a client sends, read past the preface by their
-/// headers alone: each HEADERS (type 1) is counted.
+/// The frames of HTTP/2 that a client sends, read past the preface: each
+/// HEADERS (type 1) is counted, and the header block of a HEADERS frame and
+/// its CONTINUATION frames (type 9) is kept.
 struct Wire {
     preface: usize,
     head: Vec<u8>,
     skip: usize,
+    /// The payload of the frame that is read now, for a HEADERS or a
+    /// CONTINUATION frame, with its type and flags.
+    payload: Option<(u8, u8, Vec<u8>)>,
+    block: Vec<u8>,
 }
 
 impl Wire {
+    fn new() -> Wire {
+        Wire { preface: 24, head: Vec::new(), skip: 0, payload: None, block: Vec::new() }
+    }
+
+    /// The fragment of a whole HEADERS or CONTINUATION frame goes into the
+    /// block, without the padding and the priority of a HEADERS frame (RFC
+    /// 9113, section 6.2). END_HEADERS (0x4) ends the block.
+    fn frame_ends(&mut self, seen: &Seen) {
+        let Some((kind, flags, payload)) = self.payload.take() else { return };
+        let mut fragment = payload.as_slice();
+        if kind == 0x1 {
+            let pad = if flags & 0x8 != 0 { usize::from(fragment[0]) } else { 0 };
+            fragment = &fragment[usize::from(flags & 0x8 != 0)..fragment.len() - pad];
+            if flags & 0x20 != 0 {
+                fragment = &fragment[5..];
+            }
+        }
+        self.block.extend_from_slice(fragment);
+        if flags & 0x4 != 0 {
+            seen.blocks.lock().unwrap().push(std::mem::take(&mut self.block));
+        }
+    }
+
     fn feed(&mut self, mut bytes: &[u8], seen: &Seen) {
         while !bytes.is_empty() {
             let n = if self.preface > 0 {
@@ -132,6 +163,12 @@ impl Wire {
             } else if self.skip > 0 {
                 let n = self.skip.min(bytes.len());
                 self.skip -= n;
+                if let Some((_, _, payload)) = self.payload.as_mut() {
+                    payload.extend_from_slice(&bytes[..n]);
+                }
+                if self.skip == 0 {
+                    self.frame_ends(seen);
+                }
                 n
             } else {
                 let n = (9 - self.head.len()).min(bytes.len());
@@ -141,6 +178,12 @@ impl Wire {
                     self.skip = (h[0] as usize) << 16 | (h[1] as usize) << 8 | h[2] as usize;
                     if h[3] == 0x1 {
                         seen.headers.fetch_add(1, Ordering::SeqCst);
+                    }
+                    if h[3] == 0x1 || h[3] == 0x9 {
+                        self.payload = Some((h[3], h[4], Vec::new()));
+                        if self.skip == 0 {
+                            self.frame_ends(seen);
+                        }
                     }
                     self.head.clear();
                 }
@@ -200,8 +243,7 @@ pub async fn stand_in(offer: Offer) -> (u16, Arc<Seen>) {
                 let Ok(tls) = acceptor.accept(tcp).await else { return };
                 seen.accepted.fetch_add(1, Ordering::SeqCst);
                 if tls.get_ref().1.alpn_protocol() == Some(b"h2".as_slice()) {
-                    let wire = Wire { preface: 24, head: Vec::new(), skip: 0 };
-                    serve_h2(Tap { inner: tls, wire, seen: seen.clone() }, offer, seen).await;
+                    serve_h2(Tap { inner: tls, wire: Wire::new(), seen: seen.clone() }, offer, seen).await;
                 } else {
                     serve_h1(tls, seen).await;
                 }
