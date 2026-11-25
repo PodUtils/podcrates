@@ -1,0 +1,7 @@
+# A node connects again after a stream that ended for good, as after a
+# failed dial (T-1396, PodUtils/podssh#359).
+ENTRY=T-1396
+GROUP=relay
+EXPECT='an_ended_stream_ends_the_node_with_its_own_words_and_no_second_socket'
+RUN='cargo test -p pod-relay --all-features --test reverse_ended'
+LIMIT=1800

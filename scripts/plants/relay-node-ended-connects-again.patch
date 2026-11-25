@@ -1,0 +1,12 @@
+diff --git a/crates/pod-relay/src/reverse/node.rs b/crates/pod-relay/src/reverse/node.rs
+index 026b96af..1f5dca17 100644
+--- a/crates/pod-relay/src/reverse/node.rs
++++ b/crates/pod-relay/src/reverse/node.rs
+@@ -376,7 +376,6 @@ where
+             // no upgrade of this node's: the same request gets the same.
+             Err(ConnectError::Refused { status: 426, body }) => return Exit::Unusable(refused_upgrade(&body)),
+             // A stream that ended for good: a new socket meets the same end.
+-            Err(ConnectError::Ended(why)) => return Exit::Unusable(why),
+             Err(e) => {
+                 failed = Some(format!(
+                     "the node could not connect to the relay ({})",

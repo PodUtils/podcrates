@@ -1,0 +1,7 @@
+# The opener tries a stream that ended for good at the next host, as a
+# failed dial (T-1396, PodUtils/podssh#359).
+ENTRY=T-1396
+GROUP=relay
+EXPECT='an_ended_stream_stops_the_failover'
+RUN='cargo test -p pod-relay --all-features --lib an_ended_stream_stops_the_failover'
+LIMIT=1800
