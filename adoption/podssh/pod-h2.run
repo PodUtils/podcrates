@@ -1,0 +1,36 @@
+# The trial of pod-h2 in podssh (T-1095, call C934; PodUtils/podssh#340),
+# at podssh's main 3001570a (pod-h2.commit). The dependency `h2` of
+# podssh-relay and of podssh-ws is pod-h2 of the podcrates tag
+# (`package = "pod-h2"`), the h2 of pod-ws: a stream of the relay role's
+# HTTP/2 server goes to `podssh_ws::h2_road::duplex`, which takes the types
+# of `pod_ws::h2`. podssh's `vendor/h2` and its line of `[patch.crates-io]`
+# go. The test h2_fallback calls `h2::decode_header_block`, the function of
+# pod-h2. The trial of pod-tpm applies this patch first (pod-tpm.needs).
+# The first step removes vendor/h2: a patch that deletes its files carries
+# each line of them. Then the record, the repository checks; no copy of h2
+# stays; the build, the bans and the sources of cargo-deny; pod-h2 in the
+# tree of podssh-relay and of podssh-ws; clippy; the tests of the HTTP/2
+# road and of the relay role's HTTP/2 server; rustfmt of the crates that
+# the patch changes; the Rust toolchains; each test target that the gate
+# names; the binary of the release's features for x86_64 musl, built with
+# zig, and podssh's static check of it.
+git rm -rqf vendor/h2
+cargo run -q -p podssh-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podssh-todo -- check
+python3 scripts/check-repo.py
+test ! -e vendor/h2
+! grep -nE 'path = "vendor/h2"|^h2 = (\{ version|")' Cargo.toml crates/*/Cargo.toml
+cargo build -q
+command -v cargo-deny > /dev/null || cargo install -q --locked cargo-deny
+cargo deny --locked check bans sources
+cargo tree -q -p podssh-ws -i pod-h2 -e normal | grep -q '^pod-h2 v'
+cargo tree -q -p podssh-relay -F serve -i pod-h2 -e normal | grep -q 'podssh-relay v'
+cargo clippy -q --all-targets -p podssh-ws -p podssh-relay -F podssh-relay/serve,podssh-relay/quick,podssh-relay/piping,podssh-relay/plain-ws -- -D warnings -A clippy::collapsible_if
+cargo test -q -p podssh-ws --lib h2_road
+cargo test -q -p podssh-relay -F serve,plain-ws --test h2_fallback
+cargo test -q -p podssh-relay -F serve,plain-ws --test relay_serve_h2
+cargo fmt -p podssh-relay -p podssh-ws --check
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+python3 -I "$PODCRATES/scripts/check-consumer-tests.py"
+cargo zigbuild -q --target x86_64-unknown-linux-musl -p podssh-cli --bin podssh --features "$(sed -n 's/^  RELEASE_FEATURES: //p' .github/workflows/release.yml)"
+sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podssh"

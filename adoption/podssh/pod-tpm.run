@@ -16,7 +16,10 @@
 # the patch changes; each Rust toolchain of the workflows and build images
 # against the rust-version of podcrates; each test target that the gate
 # names; the binary of the release's features for x86_64 musl, built with
-# zig, and podssh's static check of it.
+# zig, and podssh's static check of it. The patch of pod-h2 goes first
+# (pod-tpm.needs, T-1095): the h2 types of the relay role are the types of
+# pod_ws::h2. The first step removes podssh's vendor/h2, as in pod-h2.run.
+git rm -rqf vendor/h2
 cargo run -q -p podssh-todo -- remap Cargo.lock > /dev/null
 cargo run -q -p podssh-todo -- check
 python3 scripts/check-repo.py

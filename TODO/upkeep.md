@@ -5975,3 +5975,81 @@ cause is in podcrates (the trial of T-1222, commit `732f8d13`), not in a
 change of podssh and not a flake of the runner. Checked: the patch applies
 to podssh `3001570`, and the narrowed grep gives no line. Not checked: the
 commands after the grep; the next `adoption.yml` run proves them.
+
+# T-1363: `adoption/podssh`: the trial `pod-tpm` does not build, because podssh's relay role gives a stream of the h2 of crates.io to `h2_road::duplex`, which takes the types of `pod-h2`
+
+**Source:** `adoption.yml` run 45533553364 at `5a528af4`, the job `adoption (podssh)` (138934522698), step "Each trial of the consumer"; T-1095.
+**Category:** defect
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The trial `pod-tpm` of podssh failed at `cargo build -q`:
+
+```text
+crates/podssh-relay/src/serve/http2/stream.rs:178:22
+178 |     let mut stream = podssh_ws::h2_road::duplex(send, body);
+expected `pod_h2::share::RecvStream`, found `h2::RecvStream`
+expected `pod_h2::share::SendStream<bytes::Bytes>`, found `h2::SendStream<bytes::Bytes>`
+error: could not compile `podssh-relay` (lib)
+```
+
+T-1095 made the workspace dependency `h2` the fork `pod-h2`, and
+`pod_ws::h2_road::duplex` takes its types (call C934). podssh's relay
+role builds its HTTP/2 server on its own `h2` (`vendor/h2` through
+`[patch.crates-io]`). The trial patch did not carry the move of podssh to
+`pod-h2`. The adoption map of `crates/pod-ws/README.md` said that podssh's
+own h2 server stays on the h2 of crates.io, which cannot compile.
+
+## Premise
+
+- Read: the log of the job, `scripts/adoption.sh` (`CRATE.needs`),
+  `adoption/podssh/pod-tpm.*`, the manifests of podssh at `3001570a`.
+- Measured: podssh-relay and podssh-ws name `h2` directly, and
+  podssh-relay has no dependency on `pod-ws`. A dependency
+  `h2 = { git = .., tag = .., package = "pod-h2" }` keeps the name `h2` in
+  the code. The second rewrite of `scripts/adoption.sh` points it at
+  `vendor/h2` of the tree.
+- Measured: a first patch moved two lines of `PodUtils/podssh:crates/podssh-relay/Cargo.toml`,
+  and podssh's record cites `vendor/h2` two times; `podssh-todo remap`
+  then found 12 problems.
+
+## Approach
+
+Add the trial `pod-h2` of podssh: `pod-h2.patch` gives podssh-relay and
+podssh-ws the dependency `h2` as `pod-h2` of the tag, removes the
+`[patch.crates-io]` line and the `exclude` entry of `vendor/h2`, keeps the
+line count of each cited manifest, and writes the two citations of
+`vendor/h2` in podssh's record as words. The first step of each `.run`
+removes `vendor/h2` (a patch that deletes its 56 files carries each line
+of them). `pod-tpm.needs` applies `pod-h2.patch` before `pod-tpm.patch`,
+which is made again on top of it. Correct the adoption map and the hand-off.
+
+## Prove
+
+```sh
+sh scripts/adoption.sh podssh pod-h2 "$TMPDIR/adoption"
+sh scripts/adoption.sh podssh pod-tpm "$TMPDIR/adoption"
+```
+
+The job `adoption (podssh)` of the next `adoption.yml` run passes both
+trials.
+
+## Done
+
+2026-11-25, the commit that names T-1363. The test is the trial of
+`.github/workflows/adoption.yml` (`scripts/adoption.sh` with
+`adoption/podssh/pod-tpm.run`): it fails at `cargo build -q` before the
+fix. After it, `scripts/adoption.sh podssh pod-tpm` passes each step at
+`869c1b3a`: the podssh record agrees (832 entries), the build, cargo-deny,
+clippy, the TPM tests (4, 1, 2 with swtpm, 5 and 1 passed), rustfmt, the
+toolchain and test-target checks, the zig build for x86_64 musl and
+`check-static.sh`. `scripts/adoption.sh podssh pod-h2` passes each step at
+`45aa8e57`: clippy of podssh-ws and podssh-relay with `serve`, `quick`,
+`piping` and `plain-ws`; `h2_road` 1, `h2_fallback` 4 and `relay_serve_h2`
+8 passed; the zig build and `check-static.sh`. `h2_fallback` passes with
+the order of `Shape::browser`, with no change to the test. Not checked: the
+run of `adoption.yml` on GitHub.

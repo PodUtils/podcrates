@@ -1,5 +1,5 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 76575b05..b951c7d0 100644
+index a15b02a..d131a2b 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -215,7 +215,7 @@ strip = true
@@ -12,7 +12,7 @@ index 76575b05..b951c7d0 100644
  # leading zero byte (T-609).
  ssh-key = { path = "vendor/ssh-key" }
 diff --git a/TODO/ssh.md b/TODO/ssh.md
-index 3f7d075c..111cb1db 100644
+index 3f7d075..111cb1d 100644
 --- a/TODO/ssh.md
 +++ b/TODO/ssh.md
 @@ -6032,7 +6032,7 @@ and tested (2026-11-24, Rust 1.99.1). The merge added two `type`s for clippy's `
@@ -49,7 +49,7 @@ index 3f7d075c..111cb1db 100644
    ticket. `cargo test -p podssh-ssh --lib tpm::signed_tests`: passed (signs; refused in one line
    after PCR 7 moved; signs again after a signed policy of the new value; another policy key, a
 diff --git a/crates/podssh-cli/Cargo.toml b/crates/podssh-cli/Cargo.toml
-index 0aae4d9b..13d5275a 100644
+index 0aae4d9..13d5275 100644
 --- a/crates/podssh-cli/Cargo.toml
 +++ b/crates/podssh-cli/Cargo.toml
 @@ -85,18 +85,18 @@ zerotier-test = ["zerotier", "podssh-zerotier/stand-in"]
@@ -146,7 +146,7 @@ index 0aae4d9b..13d5275a 100644
  # The pseudo console of `tests/console.rs` (T-132): the version above, with
  # the console's functions, which podssh-ssh builds too; and the job objects of
 diff --git a/crates/podssh-cli/src/keygen_tpm.rs b/crates/podssh-cli/src/keygen_tpm.rs
-index 23d2d7f5..deeebe05 100644
+index 23d2d7f..deeebe0 100644
 --- a/crates/podssh-cli/src/keygen_tpm.rs
 +++ b/crates/podssh-cli/src/keygen_tpm.rs
 @@ -38,7 +38,7 @@ struct Options {
@@ -233,7 +233,7 @@ index 23d2d7f5..deeebe05 100644
          assert_eq!(all.device, Some(PathBuf::from("/dev/tpmrm1")));
          assert_eq!(all.policy_key, Some(PathBuf::from("/media/key")));
 diff --git a/crates/podssh-cli/tests/keygen_tpm.rs b/crates/podssh-cli/tests/keygen_tpm.rs
-index 8b892f5e..5b2eb9b9 100644
+index 8b892f5..5b2eb9b 100644
 --- a/crates/podssh-cli/tests/keygen_tpm.rs
 +++ b/crates/podssh-cli/tests/keygen_tpm.rs
 @@ -265,7 +265,7 @@ fn a_sealed_key_logs_in_to_openssh_and_again_after_a_signed_policy() {
@@ -246,7 +246,7 @@ index 8b892f5e..5b2eb9b9 100644
      let args = ["keygen", "-t", "ecdsa-tpm", "-O", "add-policy", "-O", with_policy.as_str(), "-f", key.as_str()];
      let signed = podssh_with(&args, &vars);
 diff --git a/crates/podssh-gsr/Cargo.toml b/crates/podssh-gsr/Cargo.toml
-index adda642f..90baf413 100644
+index adda642..90baf41 100644
 --- a/crates/podssh-gsr/Cargo.toml
 +++ b/crates/podssh-gsr/Cargo.toml
 @@ -15,14 +15,14 @@ publish.workspace = true
@@ -269,7 +269,7 @@ index adda642f..90baf413 100644
 -pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.83.0" }
 +pod-testkit = { git = "https://github.com/PodUtils/podcrates", tag = "v0.84.0" }
 diff --git a/crates/podssh-relay/Cargo.toml b/crates/podssh-relay/Cargo.toml
-index 3035b687..74c0d2b3 100644
+index f220789..a4fcb75 100644
 --- a/crates/podssh-relay/Cargo.toml
 +++ b/crates/podssh-relay/Cargo.toml
 @@ -10,23 +10,23 @@ publish.workspace = true
@@ -324,7 +324,7 @@ index 3035b687..74c0d2b3 100644
 +pod-e2e = { git = "https://github.com/PodUtils/podcrates", tag = "v0.84.0" }
  # A quick tunnel's connection to Cloudflare's edge (src/quick/serve.rs, T-300):
  # the edge is the client of HTTP/2 on the connection that podssh dialed. Pure
- # Rust, in the lock already through hyper; only with the features `quick`,
+ # Rust; only with `quick`, `piping` and `serve` (T-321). pod-h2, the h2 of
 @@ -70,10 +70,10 @@ rustls = { workspace = true, optional = true }
  # The QUIC endpoint, its keys, the connection within its wait, the race of
  # handshakes and the probe of UDP (PodUtils/podcrates, T-019): pod-quic, on
@@ -375,7 +375,7 @@ index 3035b687..74c0d2b3 100644
  # server (its feature `server`: the handshake, the hook of access and the
  # registry of clients), the vendored 1.4.2 of PodUtils/podcrates through the
 diff --git a/crates/podssh-ssh/Cargo.toml b/crates/podssh-ssh/Cargo.toml
-index 6e1e5e44..180e2461 100644
+index 6e1e5e4..180e246 100644
 --- a/crates/podssh-ssh/Cargo.toml
 +++ b/crates/podssh-ssh/Cargo.toml
 @@ -30,7 +30,7 @@ rand = { workspace = true }
@@ -414,7 +414,7 @@ index 6e1e5e44..180e2461 100644
  tokio = { workspace = true, features = ["macros", "rt", "signal", "process", "test-util"] }
 diff --git a/crates/podssh-ssh/src/tpm/authorize.rs b/crates/podssh-ssh/src/tpm/authorize.rs
 deleted file mode 100644
-index 3c887880..00000000
+index 3c88788..0000000
 --- a/crates/podssh-ssh/src/tpm/authorize.rs
 +++ /dev/null
 @@ -1,251 +0,0 @@
@@ -671,7 +671,7 @@ index 3c887880..00000000
 -}
 diff --git a/crates/podssh-ssh/src/tpm/cmd.rs b/crates/podssh-ssh/src/tpm/cmd.rs
 deleted file mode 100644
-index 7fe173df..00000000
+index 7fe173d..0000000
 --- a/crates/podssh-ssh/src/tpm/cmd.rs
 +++ /dev/null
 @@ -1,179 +0,0 @@
@@ -856,7 +856,7 @@ index 7fe173df..00000000
 -}
 diff --git a/crates/podssh-ssh/src/tpm/codec_tests.rs b/crates/podssh-ssh/src/tpm/codec_tests.rs
 deleted file mode 100644
-index f0e1a224..00000000
+index f0e1a22..0000000
 --- a/crates/podssh-ssh/src/tpm/codec_tests.rs
 +++ /dev/null
 @@ -1,299 +0,0 @@
@@ -1161,7 +1161,7 @@ index f0e1a224..00000000
 -}
 diff --git a/crates/podssh-ssh/src/tpm/flow.rs b/crates/podssh-ssh/src/tpm/flow.rs
 deleted file mode 100644
-index 900dbc57..00000000
+index 900dbc5..0000000
 --- a/crates/podssh-ssh/src/tpm/flow.rs
 +++ /dev/null
 @@ -1,312 +0,0 @@
@@ -1479,7 +1479,7 @@ index 900dbc57..00000000
 -}
 diff --git a/crates/podssh-ssh/src/tpm/flow_signed.rs b/crates/podssh-ssh/src/tpm/flow_signed.rs
 deleted file mode 100644
-index 0081b9d2..00000000
+index 0081b9d..0000000
 --- a/crates/podssh-ssh/src/tpm/flow_signed.rs
 +++ /dev/null
 @@ -1,217 +0,0 @@
@@ -1702,7 +1702,7 @@ index 0081b9d2..00000000
 -}
 diff --git a/crates/podssh-ssh/src/tpm/flow_tests.rs b/crates/podssh-ssh/src/tpm/flow_tests.rs
 deleted file mode 100644
-index c5596bd9..00000000
+index c5596bd..0000000
 --- a/crates/podssh-ssh/src/tpm/flow_tests.rs
 +++ /dev/null
 @@ -1,151 +0,0 @@
@@ -1859,7 +1859,7 @@ index c5596bd9..00000000
 -}
 diff --git a/crates/podssh-ssh/src/tpm/keyfile.rs b/crates/podssh-ssh/src/tpm/keyfile.rs
 deleted file mode 100644
-index a6652e72..00000000
+index a6652e7..0000000
 --- a/crates/podssh-ssh/src/tpm/keyfile.rs
 +++ /dev/null
 @@ -1,321 +0,0 @@
@@ -2185,7 +2185,7 @@ index a6652e72..00000000
 -    Some(out)
 -}
 diff --git a/crates/podssh-ssh/src/tpm/mod.rs b/crates/podssh-ssh/src/tpm/mod.rs
-index abb4d029..ec76dca5 100644
+index abb4d02..ec76dca 100644
 --- a/crates/podssh-ssh/src/tpm/mod.rs
 +++ b/crates/podssh-ssh/src/tpm/mod.rs
 @@ -13,56 +13,59 @@
@@ -2463,7 +2463,7 @@ index abb4d029..ec76dca5 100644
 -mod soft;
 +mod tests;
 diff --git a/crates/podssh-ssh/src/tpm/other.rs b/crates/podssh-ssh/src/tpm/other.rs
-index 6d8361a8..b16cff32 100644
+index 6d8361a..b16cff3 100644
 --- a/crates/podssh-ssh/src/tpm/other.rs
 +++ b/crates/podssh-ssh/src/tpm/other.rs
 @@ -1,13 +1,14 @@
@@ -2522,7 +2522,7 @@ index 6d8361a8..b16cff32 100644
  }
 diff --git a/crates/podssh-ssh/src/tpm/policy.rs b/crates/podssh-ssh/src/tpm/policy.rs
 deleted file mode 100644
-index cfdee26a..00000000
+index cfdee26..0000000
 --- a/crates/podssh-ssh/src/tpm/policy.rs
 +++ /dev/null
 @@ -1,199 +0,0 @@
@@ -2727,7 +2727,7 @@ index cfdee26a..00000000
 -}
 diff --git a/crates/podssh-ssh/src/tpm/policy_key.rs b/crates/podssh-ssh/src/tpm/policy_key.rs
 new file mode 100644
-index 00000000..6665fa1b
+index 0000000..6665fa1
 --- /dev/null
 +++ b/crates/podssh-ssh/src/tpm/policy_key.rs
 @@ -0,0 +1,92 @@
@@ -2825,7 +2825,7 @@ index 00000000..6665fa1b
 +}
 diff --git a/crates/podssh-ssh/src/tpm/public.rs b/crates/podssh-ssh/src/tpm/public.rs
 deleted file mode 100644
-index 2fd9c400..00000000
+index 2fd9c40..0000000
 --- a/crates/podssh-ssh/src/tpm/public.rs
 +++ /dev/null
 @@ -1,193 +0,0 @@
@@ -3024,7 +3024,7 @@ index 2fd9c400..00000000
 -}
 diff --git a/crates/podssh-ssh/src/tpm/rc.rs b/crates/podssh-ssh/src/tpm/rc.rs
 deleted file mode 100644
-index 8169718e..00000000
+index 8169718..0000000
 --- a/crates/podssh-ssh/src/tpm/rc.rs
 +++ /dev/null
 @@ -1,139 +0,0 @@
@@ -3169,7 +3169,7 @@ index 8169718e..00000000
 -pub(super) const SIGNATURE: u32 = 0x09B;
 diff --git a/crates/podssh-ssh/src/tpm/signed_tests.rs b/crates/podssh-ssh/src/tpm/signed_tests.rs
 deleted file mode 100644
-index 7b333047..00000000
+index 7b33304..0000000
 --- a/crates/podssh-ssh/src/tpm/signed_tests.rs
 +++ /dev/null
 @@ -1,156 +0,0 @@
@@ -3331,7 +3331,7 @@ index 7b333047..00000000
 -}
 diff --git a/crates/podssh-ssh/src/tpm/soft.rs b/crates/podssh-ssh/src/tpm/soft.rs
 deleted file mode 100644
-index bd7bb566..00000000
+index bd7bb56..0000000
 --- a/crates/podssh-ssh/src/tpm/soft.rs
 +++ /dev/null
 @@ -1,377 +0,0 @@
@@ -3714,7 +3714,7 @@ index bd7bb566..00000000
 -}
 diff --git a/crates/podssh-ssh/src/tpm/ssh.rs b/crates/podssh-ssh/src/tpm/ssh.rs
 new file mode 100644
-index 00000000..024ae048
+index 0000000..024ae04
 --- /dev/null
 +++ b/crates/podssh-ssh/src/tpm/ssh.rs
 @@ -0,0 +1,50 @@
@@ -3770,7 +3770,7 @@ index 00000000..024ae048
 +}
 diff --git a/crates/podssh-ssh/src/tpm/tests.rs b/crates/podssh-ssh/src/tpm/tests.rs
 new file mode 100644
-index 00000000..8cd5c614
+index 0000000..8cd5c61
 --- /dev/null
 +++ b/crates/podssh-ssh/src/tpm/tests.rs
 @@ -0,0 +1,88 @@
@@ -3863,7 +3863,7 @@ index 00000000..8cd5c614
 +    std::fs::remove_dir_all(&dir).unwrap();
 +}
 diff --git a/crates/podssh-ssh/src/tpm/unix.rs b/crates/podssh-ssh/src/tpm/unix.rs
-index 8a933b2c..622bd2aa 100644
+index 8a933b2..622bd2a 100644
 --- a/crates/podssh-ssh/src/tpm/unix.rs
 +++ b/crates/podssh-ssh/src/tpm/unix.rs
 @@ -5,17 +5,11 @@
@@ -4020,7 +4020,7 @@ index 8a933b2c..622bd2aa 100644
  }
 diff --git a/crates/podssh-ssh/src/tpm/wire.rs b/crates/podssh-ssh/src/tpm/wire.rs
 deleted file mode 100644
-index deb7dddb..00000000
+index deb7ddd..0000000
 --- a/crates/podssh-ssh/src/tpm/wire.rs
 +++ /dev/null
 @@ -1,229 +0,0 @@
@@ -4254,7 +4254,7 @@ index deb7dddb..00000000
 -    }
 -}
 diff --git a/crates/podssh-ssh/tests/tpm_key.rs b/crates/podssh-ssh/tests/tpm_key.rs
-index 1885a403..323a0424 100644
+index 1885a40..323a042 100644
 --- a/crates/podssh-ssh/tests/tpm_key.rs
 +++ b/crates/podssh-ssh/tests/tpm_key.rs
 @@ -118,7 +118,7 @@ fn a_key_sealed_to_pcr_7_signs_until_the_boot_state_changes() {
@@ -4305,7 +4305,7 @@ index 1885a403..323a0424 100644
      assert!(why.contains("not the policy key's"), "{why}");
  }
 diff --git a/crates/podssh-todo/Cargo.toml b/crates/podssh-todo/Cargo.toml
-index 2366b99c..d943e430 100644
+index 2366b99..d943e43 100644
 --- a/crates/podssh-todo/Cargo.toml
 +++ b/crates/podssh-todo/Cargo.toml
 @@ -10,4 +10,4 @@ publish.workspace = true
@@ -4315,7 +4315,7 @@ index 2366b99c..d943e430 100644
 -pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.83.0" }
 +pod-todo = { git = "https://github.com/PodUtils/podcrates", tag = "v0.84.0" }
 diff --git a/crates/podssh-ts/Cargo.toml b/crates/podssh-ts/Cargo.toml
-index 6d4558dd..0e8124c7 100644
+index 6d4558d..0e8124c 100644
 --- a/crates/podssh-ts/Cargo.toml
 +++ b/crates/podssh-ts/Cargo.toml
 @@ -11,7 +11,7 @@ publish.workspace = true
@@ -4328,7 +4328,7 @@ index 6d4558dd..0e8124c7 100644
  zeroize.workspace = true
  # The digest of what the echo of the live test with two nodes got (T-106,
 diff --git a/crates/podssh-warp/Cargo.toml b/crates/podssh-warp/Cargo.toml
-index 4ebb05b3..98dabac2 100644
+index 4ebb05b..98dabac 100644
 --- a/crates/podssh-warp/Cargo.toml
 +++ b/crates/podssh-warp/Cargo.toml
 @@ -14,8 +14,8 @@ publish.workspace = true
@@ -4343,7 +4343,7 @@ index 4ebb05b3..98dabac2 100644
  
  [dev-dependencies]
 diff --git a/crates/podssh-ws/Cargo.toml b/crates/podssh-ws/Cargo.toml
-index e46f386c..ad34653d 100644
+index fcebc63..9112410 100644
 --- a/crates/podssh-ws/Cargo.toml
 +++ b/crates/podssh-ws/Cargo.toml
 @@ -10,30 +10,30 @@ publish.workspace = true
@@ -4403,7 +4403,7 @@ index e46f386c..ad34653d 100644
  # the plants that assert `????` rather than `ok` have to drive it as a caller
  # would. `macros` is what makes `#[tokio::test]` exist.
 diff --git a/crates/podssh-zerotier/Cargo.toml b/crates/podssh-zerotier/Cargo.toml
-index ab283473..3f1c2706 100644
+index ab28347..3f1c270 100644
 --- a/crates/podssh-zerotier/Cargo.toml
 +++ b/crates/podssh-zerotier/Cargo.toml
 @@ -19,7 +19,7 @@ stand-in = ["tokio/net"]
@@ -4422,7 +4422,7 @@ index ab283473..3f1c2706 100644
 -pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.83.0" }
 +pod-services = { git = "https://github.com/PodUtils/podcrates", tag = "v0.84.0" }
 diff --git a/docs/design.md b/docs/design.md
-index c53a04b2..d8f8ef99 100644
+index c53a04b..d8f8ef9 100644
 --- a/docs/design.md
 +++ b/docs/design.md
 @@ -811,7 +811,7 @@ and ssh-tpm-agent read (`crates/podssh-ssh/src/tpm/`).
