@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**982 entries: 154 open, 30 partial, 7 blocked, 791 done.**
+**983 entries: 154 open, 30 partial, 7 blocked, 792 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 229 | 243 |
+| P1 | 4 | 10 | 0 | 230 | 244 |
 | P2 | 70 | 10 | 4 | 412 | 496 |
 | P3 | 80 | 10 | 3 | 148 | 241 |
-| **All** | 154 | 30 | 7 | 791 | 982 |
+| **All** | 154 | 30 | 7 | 792 | 983 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1029,3 +1029,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1325](upkeep.md) | P2 | S | M5 | defect | open | `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met its limit of 40 minutes in "Build the probe" |
 | [T-1326](upkeep.md) | P3 | S | M5 | chore | done | Three readers of the fields after the name in `/proc/PID/stat`: `pod-hostprobe`, `pod-supervise` and `pod-enter` |
 | [T-1343](upkeep.md) | P2 | M | M5 | feature | open | `pod-core`: one temp directory and one temp file with a random name (PodUtils/podnet#711, lesson 5 of PodUtils/podvm#567) |
+| [T-1355](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `4fc871c` (the fourth port of `source-driver.md`) |

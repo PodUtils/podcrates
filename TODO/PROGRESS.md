@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 982 entries: 154 open, 30 partial, 7 blocked, 791 done.
+`TODO/INDEX.md` holds 983 entries: 154 open, 30 partial, 7 blocked, 792 done.
 
 ## State
 
@@ -9,11 +9,11 @@
   `v0.83.0` at `5fd6fb7` (`docs/releases/v0.83.0.md`, call C818). It has
   the GitHub release, the signed `SHA256SUMS`, the assets and the images
   of `ghcr.io/podutils`; the run on the tag and the dry run of
-  `publish.yml` passed. Its hand-off COORD-154 (#259) is open (call C780):
-  it closes when each consumer names `v0.83.0` or a later tag. podssh,
-  podvm and podnet name it; podrunner does not. The hand-off COORD-152 (#257) of `v0.82.1` is closed.
-- On `main` after `v0.83.0`, for the next tag: T-1243 only (a port with no
-  change for a consumer).
+  `publish.yml` passed. Each consumer names it (podssh, podvm, podnet and
+  podrunner), so its hand-off COORD-154 (#259) is closed (call C780), with
+  a Result line. The hand-off COORD-152 (#257) of `v0.82.1` is closed.
+- On `main` after `v0.83.0`, for the next tag: T-1243 and T-1355 (ports
+  with no change for a consumer).
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
   not on `main`. `release.yml` has steps that run on a tag only, which the
   dry run does not test (T-974; `docs/maintenance.md`, "A release").
@@ -26,8 +26,8 @@
   (its T-831).
 - The tag that the `main` of each consumer names: `v0.83.0` (podssh,
   PodUtils/podssh#354; podvm, PodUtils/podvm#663; podnet,
-  PodUtils/podnet#710), `v0.82.1` (podrunner, PodUtils/podrunner#348). The details of the
-  earlier takes are on #250, #254 and #259.
+  PodUtils/podnet#710; podrunner, PodUtils/podrunner#351). The details of
+  the earlier takes are on #250, #254 and #259.
 - PodUtils/static-pkgs builds and publishes the static programs that no
   one else publishes in the form that PodUtils needs (the owner,
   2026-11-20); its first release is `qemu-11.1.3`.
