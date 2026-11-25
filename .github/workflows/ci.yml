@@ -350,7 +350,9 @@ jobs:
 
   static:
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 40
+    # The macOS rows take 17 to 40 minutes or more for the same build (T-1325):
+    # they take 60, the other rows 40.
+    timeout-minutes: ${{ matrix.minutes || 40 }}
     strategy:
       fail-fast: false
       matrix:
@@ -366,8 +368,8 @@ jobs:
           # The arm64 probe builds on the Intel runner: no runner of the label
           # macos-15 took the job in runs of a day (T-943). The check reads the
           # Mach-O header, and nightly.yml runs the tests on arm64.
-          - { target: aarch64-apple-darwin, runner: macos-15-intel, zig: false }
-          - { target: x86_64-apple-darwin, runner: macos-15-intel, zig: false }
+          - { target: aarch64-apple-darwin, runner: macos-15-intel, zig: false, minutes: 60 }
+          - { target: x86_64-apple-darwin, runner: macos-15-intel, zig: false, minutes: 60 }
           - { target: x86_64-pc-windows-msvc, runner: windows-2025, zig: false }
           - { target: aarch64-pc-windows-msvc, runner: windows-11-arm, zig: false }
     defaults:

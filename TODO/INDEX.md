@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**999 entries: 149 open, 29 partial, 8 blocked, 813 done.**
+**999 entries: 148 open, 30 partial, 8 blocked, 813 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 237 | 250 |
-| P2 | 67 | 10 | 4 | 422 | 503 |
+| P2 | 66 | 11 | 4 | 422 | 503 |
 | P3 | 78 | 10 | 4 | 152 | 244 |
-| **All** | 149 | 29 | 8 | 813 | 999 |
+| **All** | 148 | 30 | 8 | 813 | 999 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1026,7 +1026,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1303](upkeep.md) | P2 | S | M5 | defect | done | The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows |
 | [T-1307](podvm.md) | P3 | S | M6 | feature | done | `pod-incus`: a cut `error` envelope has no flag, so a caller reads the words of its text to know that the answer was over `max_body` (PodUtils/podvm#663) |
 | [T-1321](podvm.md) | P3 | S | M6 | measurement | open | `pod-gzip`: measure a C backend of deflate against `miniz_oxide` at four threads |
-| [T-1325](upkeep.md) | P2 | S | M5 | defect | open | `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met its limit of 40 minutes in "Build the probe" |
+| [T-1325](upkeep.md) | P2 | S | M5 | defect | partial | `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met its limit of 40 minutes in "Build the probe" |
 | [T-1326](upkeep.md) | P3 | S | M5 | chore | done | Three readers of the fields after the name in `/proc/PID/stat`: `pod-hostprobe`, `pod-supervise` and `pod-enter` |
 | [T-1339](fleet.md) | P2 | S | M8 | chore | done | `pod-tpm`: the fuzz targets of the response reader and of the key file reader, and a plant for each bound of T-1217 and T-1219 |
 | [T-1340](fleet.md) | P2 | M | M8 | measurement | open | `pod-tpm`: a key file that the crate writes loads and signs in tpm2-openssl and in go-tpm-keyfiles against swtpm |

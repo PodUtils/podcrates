@@ -5496,7 +5496,7 @@ and it fails at the end. The Windows jobs must run `limit.sh` with the
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5542,6 +5542,45 @@ python3 -I scripts/check-workflows.py
 
 The next five `ci` runs that end show the job `static (aarch64-apple-darwin,
 macos-15-intel)` with its time; the entry closes with those times.
+
+## Done
+
+2026-11-25, this commit. The matrix of the job `static` in `ci.yml` has the
+field `minutes`. The two rows of macOS have 60, the other rows take the
+default of 40: `timeout-minutes: ${{ matrix.minutes || 40 }}`. The measures
+below show a slow runner (the whole build is slower, with no stall), so the
+limit is the fix. `python3 -I scripts/check-workflows.py`: 0 faults. Not
+done: the next five `ci` runs that end must show the macOS rows with their
+times, and the part of the build that grew (the dependencies or the last
+crate) is not found.
+
+Measures, 2026-11-25:
+
+Seconds of "Build the probe" (job total in brackets), from the
+jobs of five `ci` runs. The runner of each macOS row is `macos-15-intel`.
+
+| Run (commit) | aarch64-apple-darwin | x86_64-apple-darwin | x86_64-pc-windows-msvc | aarch64-pc-windows-msvc |
+| --- | --- | --- | --- | --- |
+| 45432751161 (`47a15cd`) | 1350 (1388) | 1408 (1435) | 1355 (1470) | 1131 (1184) |
+| 45487233017 (`25747d3`) | cancelled at 2358 (2422) | 1128 (1164) | 1238 (1273) | 1151 (1202) |
+| 45543054726 (`45aa8e5`) | 1116 (1170) | 1270 (1308) | 862 (900) | 1223 (1281) |
+| 45548340457 (`469f084`) | 1880 (1928) | 1031 (1056) | 1012 (1048) | 1103 (1154) |
+| 45561305578 (`3e95e54`) | cancelled at 2353 (2431) | 1234 (1263) | 1361 (1441) | 1144 (1197) |
+
+The step of the three other targets stays between 862 s and 1408 s in each
+run. The step of `aarch64-apple-darwin` takes 1116 s to 1350 s in three
+runs, 1880 s in one, and met the limit in two (runs 45487233017 and
+45561305578): a spread of more than two times for the same build on the
+same runner label.
+
+The log of the job 139025410312 (run 45561305578) shows no hang. The lines
+`Compiling` come at a steady rate until `pod-gsr` at 07:05:31Z (no gap of
+more than 2 minutes). The probe `static-probe` starts at 07:05:37Z, 29
+minutes after the step started (a green run needs 19 to 22 minutes for the
+whole step), and it has no end at the cancel at 07:14:59Z. So the whole
+build runs slower on that runner (the dependencies took 29 minutes), and the
+last crate had run 9 minutes when the job was cancelled. The log does not
+show how long the last crate needs in a green run.
 
 # T-1326: Three readers of the fields after the name in `/proc/PID/stat`: `pod-hostprobe`, `pod-supervise` and `pod-enter`
 

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 999 entries: 149 open, 29 partial, 8 blocked, 813 done.
+`TODO/INDEX.md` holds 999 entries: 148 open, 30 partial, 8 blocked, 813 done.
 
 ## State
 
@@ -56,8 +56,8 @@
   T-789 and T-766 passed again (partial in the record). `ci.yml` run
   45487233017 (`25747d3b`, the fix of T-1295): each job passes but `static
   (aarch64-apple-darwin, macos-15-intel)`, which met its limit of 40
-  minutes in "Build the probe" (T-1325); the runs after it were cancelled by
-  newer pushes. None open in `services.yml`:
+  minutes in "Build the probe" (T-1325; run 45561305578 met it again, and
+  the two macOS rows of `static` now take 60 minutes; read the next runs). None open in `services.yml`:
   T-1223 is done; read the next scheduled run.
 - Open defects: T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
   a giver still waits its whole limit after a refusal of the relay);
