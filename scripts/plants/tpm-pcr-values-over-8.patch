@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/cmd/pcr.rs b/crates/pod-tpm/src/cmd/pcr.rs
+index 65fefdc0..6f1647d4 100644
+--- a/crates/pod-tpm/src/cmd/pcr.rs
++++ b/crates/pod-tpm/src/cmd/pcr.rs
+@@ -47,7 +47,7 @@ impl PcrValues {
+         let mut p = reply.params();
+         let counter = p.u32()?;
+         let selection = PcrSelection::read(&mut p)?;
+-        let count = p.count(2, MAX_VALUES, "PCR values")?;
++        let count = p.count(2, 2 * MAX_VALUES, "PCR values")?;
+         let mut values = Vec::with_capacity(count);
+         for _ in 0..count {
+             values.push(p.sized_max(MAX_DIGEST, "a PCR value")?.to_vec());

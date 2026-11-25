@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/cmd/capability.rs b/crates/pod-tpm/src/cmd/capability.rs
+index 3277e006..84c2a29f 100644
+--- a/crates/pod-tpm/src/cmd/capability.rs
++++ b/crates/pod-tpm/src/cmd/capability.rs
+@@ -64,7 +64,7 @@ impl Capability {
+         let capability = p.u32()?;
+         let data = match capability {
+             CAP_ALGS => {
+-                let n = p.count(6, MAX_RESPONSE / 6, "algorithms")?;
++                let n = p.count(1, MAX_RESPONSE / 6, "algorithms")?;
+                 let mut list = Vec::with_capacity(n);
+                 for _ in 0..n {
+                     list.push((p.u16()?, p.u32()?));

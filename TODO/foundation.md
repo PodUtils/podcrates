@@ -3680,7 +3680,7 @@ has no class either". Not an ask; recorded so that the gap has a decision.
 **Milestone:** M0
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3713,10 +3713,18 @@ number, as T-1236 lists.
    out of `Class`.
 3. Write the call in `docs/decisions.md`.
 
+## Decision
+
+Two consumers use 65 (call C935): podssh and podnet. So `Class::Data`
+(name `data`, code 65, `EX_DATAERR`) is in `pod-core`: an input was there
+and its content is wrong.
+
 ## Prove
 
 ```sh
 cargo test -p pod-core
+cargo test -p pod-manual --all-features
+python3 -I scripts/check-schemas.py
 cargo todo check
 ```
 
@@ -3724,6 +3732,58 @@ cargo todo check
 
 T-1236 is done and podssh's table test at the tag of T-1235 shows the
 uses of 65.
+
+## Done
+
+2026-11-25, this commit (call C935). The reading, at the heads of the
+consumers:
+
+- podssh: `PodUtils/podssh:crates/podssh-cli/src/exitmap.rs` (raw file
+  of `main`) has `EX_DATAERR` (65) in `sysexits` ("a passphrase that does
+  not open its key file") and no row of 65 in `TABLE`: each use of 65
+  stays with no class. The code search of GitHub (forge.web.pkgforge.dev)
+  gives 14 files of podssh with `EX_DATAERR`, among them
+  `PodUtils/podssh:crates/podssh-cli/src/net/join.rs`,
+  `PodUtils/podssh:crates/podssh-cli/src/net/invite.rs`,
+  `PodUtils/podssh:crates/podssh-cli/src/net/policy_cmd.rs` and
+  `PodUtils/podssh:crates/podssh-cli/src/agent/credentials.rs`.
+- podnet, a shallow clone at `a8f6141`:
+  `PodUtils/podnet:crates/podnet-core/src/exit.rs` has `Fault::DataError`
+  and `DATA_ERROR` (65): "input that podnet refuses: a received entry with
+  a bad name or kind, a name that exists, data that does not agree"
+  (`podnet receive`; its manual row `data-error` in
+  `PodUtils/podnet:src/manual/facts.rs`, and five tests). Its
+  `code_of_class` maps a class to 65 only when the class gives 65.
+- podvm at `5735526` and podrunner at `83fb84c`: no exit code 65 (the one
+  match of `65` in podvm is the length of a node name of `uname`).
+
+Two consumers use 65, so step 2 takes the class.
+`crates/pod-core/src/failure.rs`: `Class::Data` (name `data`, code 65),
+with a doc comment, at the end of `Class::ALL` (16 classes), `name` and
+`exit_code`; the doc of `exit_code` says that 65 is not a code that stops
+a restart. `crates/pod-core/README.md`: a row of the table of exit codes,
+and 65 in the sentence of the codes that are not in
+`RestartPreventExitStatus=64 78 79 80`. `crates/pod-manual/src/facts.rs`:
+the meaning "An input was there, and its content is wrong."
+`schemas/log.v1.schema.json`: `data` in the enum of `class`, written again
+by `POD_BROKER_WRITE_SCHEMAS=1 cargo test -p pod-broker --lib schemas`;
+`schemas/CHANGES.md`: the row `| next | log.v1 | class | added |` with the
+SHA-256 `58fe3bcb786c9fc6d81fdd5154f62b9f68d1f494333041844ab42e0d3f460913`.
+The test `failure::tests::each_class_has_a_name_and_an_exit_code` holds
+`(65, "data")` and that 65 is in one row only; the tests of
+`crates/pod-core/tests/exit_codes.rs` hold the README and the schema to
+`Class::ALL`. Results: `cargo test -p pod-core -p pod-manual -p pod-broker
+--all-features`: 338 passed, 0 failed (pod-core lib 104, pod-manual lib
+71, pod-broker lib 21, `tests/exit_codes.rs` 3).
+`python3 -I scripts/check-schemas.py`: "13 schemas agree".
+`cargo clippy --workspace --all-targets --all-features -- -D warnings`:
+clean. The build of podssh and of podnet at the class is not measured.
+
+For the hand-off: podssh's `code_of` in
+`PodUtils/podssh:crates/podssh-cli/src/ssh/cloud/devtunnel.rs` has no `_`
+arm, so it does not build at the next tag until it adds `Class::Data`;
+podssh can then give its uses of 65 the class `Data`. podnet's `code_of_class`
+gives 1 for 65 until it adds `DATA_ERROR` to its list.
 
 # T-1243: `pod-testkit`: the auth of the fake broker at podrunner `2a55cd9` (port review of `auth.rs`)
 

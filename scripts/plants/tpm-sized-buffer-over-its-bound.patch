@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/wire.rs b/crates/pod-tpm/src/wire.rs
+index 05deaf7c..4c77e16f 100644
+--- a/crates/pod-tpm/src/wire.rs
++++ b/crates/pod-tpm/src/wire.rs
+@@ -246,7 +246,7 @@ impl<'a> In<'a> {
+     /// for `what`.
+     pub fn sized_max(&mut self, max: usize, what: &str) -> Result<&'a [u8], Error> {
+         let n = usize::from(self.u16()?);
+-        if n > max {
++        if n > max && max == 0 {
+             return Err(Error::Malformed(format!("{what} of {n} bytes, where part 2 allows {max}")));
+         }
+         self.take(n)

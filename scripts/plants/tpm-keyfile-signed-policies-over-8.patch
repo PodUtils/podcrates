@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/keyfile.rs b/crates/pod-tpm/src/keyfile.rs
+index e6faae46..9820d28d 100644
+--- a/crates/pod-tpm/src/keyfile.rs
++++ b/crates/pod-tpm/src/keyfile.rs
+@@ -50,7 +50,7 @@ pub const MAX_PEM: usize = 24 * 1024;
+ pub const MAX_PART: usize = 4096;
+ /// The most statements of a policy, and the most signed policies.
+ pub const MAX_STATEMENTS: usize = 8;
+-pub const MAX_AUTH_POLICIES: usize = 8;
++pub const MAX_AUTH_POLICIES: usize = 16;
+ /// The most bytes of the body of one statement.
+ pub const MAX_BODY: usize = 1024;
+ /// The most bytes of `description` and of the name of a signed policy.

@@ -1,0 +1,7 @@
+# `PcrSelection::read` takes a bit set of PCRs of more than 4 octets
+# (T-1217).
+ENTRY=T-1217
+GROUP=tpm
+EXPECT='a_selection_past_its_bounds_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-tpm --all-features --test policy a_selection_past_its_bounds_is_refused'
+LIMIT=900

@@ -1,0 +1,7 @@
+# A key file takes a pubkey or a privkey of more than MAX_PART (4096)
+# bytes (T-1219).
+ENTRY=T-1219
+GROUP=tpm
+EXPECT='an_oversize_field_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-tpm --all-features --test keyfile_bounds an_oversize_field_is_refused'
+LIMIT=900

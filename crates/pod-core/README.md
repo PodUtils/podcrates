@@ -128,10 +128,12 @@ crate holds this table to the code.
 | `suite` | 78 | the far end and this end have no protocol or suite in common |
 | `cantcreate` | 73 | an output (a file or a directory) cannot be made or written |
 | `internal` | 70 | a fault inside the tool, or a session that ended before its end with no known fault of the far end |
+| `data` | 65 | an input was there and its content is wrong: a received file that fails its check, a state file that cannot be read |
 
 A unit of a supervisor stops a restart loop with
-`RestartPreventExitStatus=64 78 79 80`. The codes 70 and 73 are not in
-the list: a later try can work after a freed disk or a one-time fault.
+`RestartPreventExitStatus=64 78 79 80`. The codes 65, 70 and 73 are not
+in the list: a later try can work with a correct input, after a freed disk
+or after a one-time fault.
 
 One JSON log line of a tool has the keys of `schemas/log.v1.schema.json`:
 `schema` (the constant `LOG_SCHEMA`, 1, the first key), `time` (RFC 3339, UTC), `level` (`LOG_LEVELS`: `error`, `warn`, `info`, `debug`, `trace`),

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/keyfile.rs b/crates/pod-tpm/src/keyfile.rs
+index e6faae46..a04cfc6a 100644
+--- a/crates/pod-tpm/src/keyfile.rs
++++ b/crates/pod-tpm/src/keyfile.rs
+@@ -202,7 +202,7 @@ impl KeyFile {
+     /// Read a PEM text: the first block between the guard lines; text
+     /// outside the block does not count (RFC 7468, section 2).
+     pub fn from_pem(text: &str) -> Result<KeyFile, Error> {
+-        if text.len() > MAX_PEM {
++        if text.len() > 4 * MAX_PEM {
+             return Err(Refusal::TooLarge { field: "the PEM text", size: text.len(), max: MAX_PEM }.into());
+         }
+         let bad = |why: &str| Error::from(Refusal::Malformed(why.into()));

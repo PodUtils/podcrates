@@ -1,0 +1,7 @@
+# `In::count` takes a list of more items than part 2 allows: 17 PCR
+# banks (T-1217).
+ENTRY=T-1217
+GROUP=tpm
+EXPECT='a_sized_buffer_or_a_count_past_its_bound_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-tpm --all-features --test frame a_sized_buffer_or_a_count_past_its_bound_is_refused'
+LIMIT=900

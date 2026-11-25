@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/selection.rs b/crates/pod-tpm/src/selection.rs
+index 161464c8..50100bd6 100644
+--- a/crates/pod-tpm/src/selection.rs
++++ b/crates/pod-tpm/src/selection.rs
+@@ -188,7 +188,7 @@ impl PcrSelection {
+     /// Read a `TPML_PCR_SELECTION` from `input`: at most 16 banks, each bit
+     /// set of at most 4 octets, and no PCR from 24 up.
+     pub fn read(input: &mut In) -> Result<PcrSelection, Error> {
+-        let count = input.count(3, MAX_BANKS, "PCR banks")?;
++        let count = input.count(3, 4 * MAX_BANKS, "PCR banks")?;
+         let mut banks = Vec::with_capacity(count);
+         for _ in 0..count {
+             let alg = input.u16()?;

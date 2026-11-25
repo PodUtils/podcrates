@@ -1,0 +1,7 @@
+# The reader of a response takes one whose size field is not the count
+# of the bytes that came (T-1217).
+ENTRY=T-1217
+GROUP=tpm
+EXPECT='a_response_is_read_or_refused_with_its_reason \.\.\. FAILED'
+RUN='cargo test -p pod-tpm --all-features --test frame a_response_is_read_or_refused_with_its_reason'
+LIMIT=900

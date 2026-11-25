@@ -98,3 +98,4 @@ that kept its id.
 | v0.83.0 | `source-request.v1` | `assigned.real.head_is_fork` | text | A description: true when the head is another repository than `repository` (T-1160). | 3a360c9ae3b6c3ed76aa611d68c72b3a28ff31b48ffa9566b62e15c3734e1c78 |
 | next | `source-request.v1` | `assigned.real.ref` | added | The full ref of the job (`GITHUB_REF`): at most 256 bytes, no control character; absent when the hook does not know it (T-1362, PodUtils/podrunner#352). | 6ec3a7a2661fcbb7ed833901dd226125575f77e0c8f45ce18d0b3f70f2927bca |
 | next | `source-request.v1` | `assigned.real.repo_id` | added | The numeric id of the repository (`GITHUB_REPOSITORY_ID`); absent when the hook does not know it (T-1362, PodUtils/podrunner#352). | 6ec3a7a2661fcbb7ed833901dd226125575f77e0c8f45ce18d0b3f70f2927bca |
+| next | `log.v1` | `class` | added | The class value `data` (65, `EX_DATAERR`) of PodUtils/podssh#352 (T-1238). | 58fe3bcb786c9fc6d81fdd5154f62b9f68d1f494333041844ab42e0d3f460913 |

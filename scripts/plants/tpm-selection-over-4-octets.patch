@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/selection.rs b/crates/pod-tpm/src/selection.rs
+index 161464c8..7c7f4594 100644
+--- a/crates/pod-tpm/src/selection.rs
++++ b/crates/pod-tpm/src/selection.rs
+@@ -193,7 +193,7 @@ impl PcrSelection {
+         for _ in 0..count {
+             let alg = input.u16()?;
+             let size = input.u8()?;
+-            if usize::from(size) > PCR_SELECT_MAX {
++            if usize::from(size) > 2 * PCR_SELECT_MAX {
+                 return Err(Error::Malformed(format!(
+                     "a bit set of PCRs of {size} octets, where part 2 allows {PCR_SELECT_MAX}"
+                 )));
