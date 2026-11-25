@@ -105,7 +105,7 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in
-podcrates: the red nightly (T-1444 and T-1445: the tests of `pod-core` on Windows and of `pod-tpm` on macOS; T-916, T-938; read the next `nightly.yml` run), the macOS job of `ci` (T-1325),
+podcrates: the red nightly (T-916, T-938; read the next `nightly.yml` run: it proves the fixes of the tests of `pod-core` on Windows and of `pod-tpm` on macOS), the macOS job of `ci` (T-1325),
 T-1159 (the ruling "A close by hand": `scripts/issue-sync.py` does not open again an issue that the owner closed), T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
 `services.yml` run (read it) and the red live run (T-963). Then the
 asks of podrunner

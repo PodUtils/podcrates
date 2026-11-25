@@ -55,7 +55,9 @@ is done. Git and the record keep finished work.
    - `nightly.yml` 45603454952 at `cd7cb5a`: T-1444 (`pod-core`,
      `files::temp` on Windows: `PermissionDenied` at the name of a
      directory) and T-1445 (`pod-tpm`, `tests/socket.rs` on macOS: the
-     timeouts of a closed Unix stream) are open; T-1446 (`pod-warp`, a
+     time limits of a closed Unix stream, `pod_core::sockopt`) are done on
+     `main`; the next nightly is their proof (no run on Windows or macOS
+     here). T-1446 (`pod-warp`, a
      socket path over 104 bytes on macOS) and T-1447 (the doc tests of
      `pod-h2`) are fixed on `main`. `riscv64` and `loongarch64` fail in
      `pod-iroh` (T-916, T-938, the ruling "Emulated nightly jobs"). T-1359
