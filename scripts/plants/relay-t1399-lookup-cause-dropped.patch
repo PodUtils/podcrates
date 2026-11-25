@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/quic_road/dial.rs b/crates/pod-relay/src/quic_road/dial.rs
+index 96ff8ba9..b2fc8e6c 100644
+--- a/crates/pod-relay/src/quic_road/dial.rs
++++ b/crates/pod-relay/src/quic_road/dial.rs
+@@ -209,7 +209,7 @@ async fn resolve(
+         None => pod_proxy::resolve::System::new().resolve(host, port, deadline).await,
+     };
+     // The chain: the error of the system under "system resolver".
+-    found.map_err(|f| f.chain())
++    found.map_err(|f| f.to_string())
+ }
+ 
+ #[cfg(test)]

@@ -1,0 +1,9 @@
+# pod-warp: the failure of each door looks for a failed proxy at the first
+# door alone, so a refusal at the proxy of the second door is not at the
+# stage Proxy (PodUtils/podssh#360, T-1400). The test of the stage must
+# fail.
+ENTRY=T-1400
+GROUP=warp
+EXPECT='test open::tests::a_proxy_that_failed_at_any_door_gives_the_stage_proxy \.\.\. FAILED'
+RUN='cargo test -p pod-warp --lib -- open::tests::a_proxy_that_failed_at_any_door_gives_the_stage_proxy --exact'
+LIMIT=1800

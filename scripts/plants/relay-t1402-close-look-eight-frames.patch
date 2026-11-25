@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/reverse/closes.rs b/crates/pod-relay/src/reverse/closes.rs
+index 3f8411a0..b6983e37 100644
+--- a/crates/pod-relay/src/reverse/closes.rs
++++ b/crates/pod-relay/src/reverse/closes.rs
+@@ -358,7 +358,7 @@ where
+ {
+     let look = async {
+         let mut passed = 0usize;
+-        while passed <= LOOK_BYTES {
++        while passed < 8 * 65_536 {
+             match session.read_frame().await {
+                 Ok(f) if f.opcode == pod_ws::frame::OPCODE_CLOSE => return Some(f.payload),
+                 Ok(f) => passed += f.payload.len(),

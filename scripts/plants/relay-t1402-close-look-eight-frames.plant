@@ -1,0 +1,8 @@
+# pod-relay: the read for the relay's Close behind a failed ping stops
+# after 8 frames of 64 KiB, so a Close behind more data is not read
+# (PodUtils/podssh#360, T-1402). The test of 12 frames must fail.
+ENTRY=T-1402
+GROUP=relay
+EXPECT='test a_close_behind_more_than_eight_frames_of_64_kib_is_read \.\.\. FAILED'
+RUN='cargo test -p pod-relay --all-features --test reverse_close_behind -- a_close_behind_more_than_eight_frames_of_64_kib_is_read --exact'
+LIMIT=1800
