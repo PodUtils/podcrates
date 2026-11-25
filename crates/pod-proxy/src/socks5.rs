@@ -16,6 +16,7 @@ use std::net::IpAddr;
 use pod_core::Stage;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
+use crate::child::or_exited;
 use crate::error::DialError;
 use crate::host::authority;
 use crate::proxy::{Proxy, ProxyKind};
@@ -156,6 +157,11 @@ async fn attempt(
     };
     match tokio::time::timeout_at(leg.deadline, work).await {
         Ok(Ok(())) => Ok(stream),
+        // A command that ended gives a broken read or a broken write.
+        Ok(Err(step @ (Step::Io(_) | Step::Protocol(_)))) => {
+            let broken = failure(proxy, "", Some(step), leg.budget);
+            Err(Some(Step::Unreachable(or_exited(&mut stream, proxy, leg.deadline, broken).await)))
+        }
         Ok(Err(step)) => Err(Some(step)),
         Err(_) => Err(None),
     }

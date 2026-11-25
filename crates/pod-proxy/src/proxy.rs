@@ -223,6 +223,6 @@ impl Proxy {
 /// The word of a command that a message shows: the first word that is not
 /// an assignment (`TOKEN=VALUE cmd` sets a secret for `cmd`), unless it
 /// holds `@`, as a user of a host or of a URL does.
-fn command_word(command: &str) -> Option<&str> {
+pub(crate) fn command_word(command: &str) -> Option<&str> {
     command.split_whitespace().find(|word| !word.contains('=')).filter(|word| !word.contains('@'))
 }

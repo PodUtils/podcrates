@@ -115,12 +115,25 @@ fn a_slash_in_the_password_names_the_encoding() {
 }
 
 /// The secret parts of a URL: none with no user part, the user and the
-/// password as written and decoded, and a command whole.
+/// password as written and decoded. Of a command: the text after the word
+/// that the label shows, and each word with `=` or `@`; the command whole
+/// when the label shows no word (PodUtils/podnet#754).
 #[test]
 fn the_secret_parts_of_a_url() {
     assert!(Proxy::secret_parts("http://proxy.example:3128").is_empty());
     assert_eq!(Proxy::secret_parts("socks5h://alice:s%40cret@h"), ["alice:s%40cret", "s%40cret", "s@cret"]);
-    assert_eq!(Proxy::secret_parts(" http+exec:ssh -i k gw "), ["http+exec:ssh -i k gw", "ssh -i k gw"]);
+    assert_eq!(Proxy::secret_parts(" http+exec:ssh -i k gw "), ["-i k gw"]);
+    assert!(Proxy::secret_parts("http+exec:/nonexist/prog").is_empty());
+    // An assignment before the word, and a word with `@` after it.
+    assert_eq!(
+        Proxy::secret_parts("http+exec:TOKEN=s3 ssh -W %h:%p me@gw"),
+        ["-W %h:%p me@gw", "TOKEN=s3", "me@gw"]
+    );
+    // The word of the label is the program, also when an assignment holds
+    // the same text.
+    assert_eq!(Proxy::secret_parts("http+exec:A=nc nc gw 1"), ["gw 1", "A=nc"]);
+    // A program word with `@` shows no word: the command is secret whole.
+    assert_eq!(Proxy::secret_parts("http+exec:me@gw -x"), ["http+exec:me@gw -x", "me@gw -x"]);
 }
 
 /// A `+exec:` or a `+unix:` inside the user or the password is a part of

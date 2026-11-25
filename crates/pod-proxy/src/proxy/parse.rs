@@ -178,12 +178,14 @@ impl Proxy {
     /// The parts of the proxy URL `spec` that are secret, for a consumer
     /// that hides them in each line that it writes: the user and password
     /// text, the password as written and percent-decoded. A URL with no user
-    /// part has no secret, so that the URL itself stays in a message. The
-    /// command of a `+exec:` proxy is secret as a whole.
+    /// part has no secret, so that the URL itself stays in a message. Of a
+    /// `+exec:` proxy: the text after the word that the label shows
+    /// (`exec:WORD ...`), and each word with `=` or `@`; the whole command,
+    /// and the spec, when the label shows no word.
     pub fn secret_parts(spec: &str) -> Vec<String> {
         let spec = spec.trim();
         if let Some((_, command)) = spec.split_once("+exec:") {
-            return vec![spec.to_string(), command.trim().to_string()];
+            return exec_secret_parts(spec, command.trim());
         }
         let rest = spec.split_once("://").map_or(spec, |(_, rest)| rest);
         let authority = rest.split('/').next().unwrap_or(rest);
@@ -199,6 +201,26 @@ impl Proxy {
         }
         parts
     }
+}
+
+/// The secret parts of the command of the spec `spec` ([`Proxy::secret_parts`]).
+fn exec_secret_parts(spec: &str, command: &str) -> Vec<String> {
+    let Some(word) = super::command_word(command) else {
+        return vec![spec.to_string(), command.to_string()];
+    };
+    // The word is a slice of the command: the text after it is the rest.
+    let end = word.as_ptr() as usize - command.as_ptr() as usize + word.len();
+    let mut parts: Vec<String> = Vec::new();
+    let rest = command[end..].trim();
+    if !rest.is_empty() {
+        parts.push(rest.to_string());
+    }
+    for each in command.split_whitespace().filter(|each| each.contains(['=', '@'])) {
+        if !parts.iter().any(|part| part == each) {
+            parts.push(each.to_string());
+        }
+    }
+    parts
 }
 
 /// Each byte but the unreserved ones of RFC 3986 as a `%` escape.

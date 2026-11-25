@@ -37,6 +37,7 @@
 #[cfg(feature = "blocking")]
 pub mod blocking;
 pub mod client;
+mod child;
 mod connect;
 pub mod credentials;
 pub mod cut;
@@ -79,6 +80,7 @@ pub use race::{dial_addrs, group_errors, group_texts, interleave};
 #[cfg(any(fuzzing, feature = "fuzzing"))]
 pub use socks5::fuzz_exchange;
 pub use socks5::udp;
+pub use child::{EXEC_HOLD, STDERR_KEPT};
 pub use stream::{ChildIo, Stream};
 
 /// The handshakes of a proxy on a stream that the caller holds: a hop of

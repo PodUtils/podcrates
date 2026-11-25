@@ -38,6 +38,12 @@ pub enum DialError {
     ProxyRefused { proxy: String, target: String, status: u16, reason: String },
     /// The proxy did not answer as its protocol says.
     ProxyProtocol { proxy: String, detail: String },
+    /// The command of a proxy (`+exec:`) ended before it wrote a byte: the
+    /// word of the command that a message shows (empty when it shows none),
+    /// the status in words (`127 (not found)`, `by signal 9`), and the last
+    /// line of its stderr (it can hold the words of the command: a caller
+    /// hides [`crate::Proxy::secret_parts`] in it).
+    ProxyExited { word: String, status: String, said: String },
     /// The proxy does not know the SOCKS5 command 0x83, UDP in the stream
     /// (reply 0x07). `UDP ASSOCIATE` is the other way.
     UdpRefused { proxy: String },
@@ -72,6 +78,14 @@ impl std::fmt::Display for DialError {
             DialError::ProxyProtocol { proxy, detail } => {
                 write!(f, "{} did not answer as its protocol says: {detail}", the_proxy(proxy))
             }
+            DialError::ProxyExited { word, status, said } => {
+                let command = if word.is_empty() { "the proxy command".into() } else { format!("the proxy command {word}") };
+                write!(f, "{command} exited {status} before it answered")?;
+                if !said.is_empty() {
+                    write!(f, ": {said}")?;
+                }
+                Ok(())
+            }
             DialError::UdpRefused { proxy } => {
                 write!(f, "the proxy {proxy} does not know the SOCKS5 command UDP in the stream (reply 7)")
             }
@@ -102,6 +116,9 @@ impl DialError {
             // Its authentication (407) or its rules (403, 405).
             DialError::ProxyRefused { .. } => (Stage::Proxy, Class::Refused),
             DialError::ProxyProtocol { .. } => (Stage::Proxy, Class::Protocol),
+            // Another start of the command can work; one that is not found
+            // is held (`EXEC_HOLD`).
+            DialError::ProxyExited { .. } => (Stage::Proxy, Class::Unavailable),
             DialError::UdpRefused { .. } => (Stage::Proxy, Class::Unsupported),
         }
     }
@@ -147,6 +164,18 @@ mod tests {
         assert_eq!(silent.stage_and_class(), (Stage::Connect, Class::Timeout));
         assert_eq!(DialError::InvalidTarget("x".into()).stage_and_class(), (Stage::Connect, Class::Usage));
         assert_eq!(DialError::BadProxy("x".into()).stage_and_class(), (Stage::Proxy, Class::Config));
+        let exited = DialError::ProxyExited {
+            word: "/nonexist/prog".into(),
+            status: "127 (not found)".into(),
+            said: "sh: 1: /nonexist/prog: not found".into(),
+        };
+        assert_eq!(exited.stage_and_class(), (Stage::Proxy, Class::Unavailable));
+        assert_eq!(
+            exited.to_string(),
+            "the proxy command /nonexist/prog exited 127 (not found) before it answered: sh: 1: /nonexist/prog: not found"
+        );
+        let quiet = DialError::ProxyExited { word: String::new(), status: "3".into(), said: String::new() };
+        assert_eq!(quiet.to_string(), "the proxy command exited 3 before it answered");
     }
 
     /// A detail that says the words of the error already is not said

@@ -10,6 +10,7 @@ use pod_core::entropy::OsEntropy;
 use pod_core::text::one_line;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
+use crate::child::or_exited;
 use crate::error::DialError;
 use crate::host::authority;
 use crate::proxy::Proxy;
@@ -86,10 +87,11 @@ pub(crate) async fn connect_via(
     let mut stream = open_proxy(leg, proxy).await?;
     let challenge =
         match exchange(&mut stream, (leg.deadline, leg.budget), ask, proxy, &target, basic.as_deref(), Sent::Basic)
-            .await?
+            .await
         {
-            Answer::Open => return Ok(stream),
-            Answer::Digest(challenge) => challenge,
+            Ok(Answer::Open) => return Ok(stream),
+            Ok(Answer::Digest(challenge)) => challenge,
+            Err(e) => return Err(or_exited(&mut stream, proxy, leg.deadline, e).await),
         };
     // A Digest proxy: the answer to its challenge goes on a new connection.
     // A challenge comes only after Basic, which only credentials send.
@@ -100,10 +102,11 @@ pub(crate) async fn connect_via(
     })?;
     let answer = crate::digest::authorization(&challenge, user, password, "CONNECT", &target, &nonce, 1);
     let mut stream = open_proxy(leg, proxy).await?;
-    match exchange(&mut stream, (leg.deadline, leg.budget), ask, proxy, &target, Some(&answer), Sent::Digest).await? {
-        Answer::Open => Ok(stream),
+    match exchange(&mut stream, (leg.deadline, leg.budget), ask, proxy, &target, Some(&answer), Sent::Digest).await {
+        Err(e) => Err(or_exited(&mut stream, proxy, leg.deadline, e).await),
+        Ok(Answer::Open) => Ok(stream),
         // A Digest answer gets no challenge back; a 407 is a refusal.
-        Answer::Digest(_) => Err(DialError::ProxyRefused {
+        Ok(Answer::Digest(_)) => Err(DialError::ProxyRefused {
             proxy: proxy.to_string(),
             target,
             status: 407,
