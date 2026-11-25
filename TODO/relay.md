@@ -12162,7 +12162,7 @@ a DNS carrier over DoH asks Cloudflare and Google over HTTP/2.
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -12194,3 +12194,7 @@ too.
 ```sh
 cargo test -p pod-ws --all-features --test h2_road the_request_sends_its_pseudo_fields_in_the_order_of_its_shape
 ```
+
+## Blocker
+
+Q22 (`TODO/PROGRESS.md`): an issue in hyperium/h2 is outside PodUtils, and it needs the yes of the owner.

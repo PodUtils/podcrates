@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 990 entries: 152 open, 28 partial, 7 blocked, 803 done.
+`TODO/INDEX.md` holds 990 entries: 151 open, 28 partial, 8 blocked, 803 done.
 
 ## State
 
@@ -285,7 +285,13 @@ The hand-off of each release is a COORD issue `(to all)`
   in the record or answer", and a session changes the record at once; an
   entry that the owner calls stale is closed by a ruling of the owner,
   which removes it (`TODO/RULES.md`, section 2).
+- **Q22.** Can a session of podcrates open an issue or a pull request in
+  hyperium/h2 that offers the setting `client::Builder::pseudo_order` of
+  the fork `pod-h2` (T-1095)? It blocks T-1347. Recommendation: yes, one
+  issue with the patch of `vendor/patches/h2/0001-pseudo-order.patch`,
+  in the name of the owner's account; the fork goes at the first release
+  of h2 that has the setting.
 Write each question as `- **Qn.** QUESTION`, with the entries that it
-blocks and a recommendation. Number the questions in sequence from Q22
+blocks and a recommendation. Number the questions in sequence from Q23
 (Q1 to Q14: `docs/decisions.md`; Q15: the ruling "podswarm"; Q16: above;
 Q17: the packages of ghcr.io are public, no action).
