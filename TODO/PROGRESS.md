@@ -138,11 +138,10 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   of iroh-relay, after PodUtils/podssh#341);
   T-941 (PodUtils/podssh#319); T-1340 (a key file of `pod-tpm` in
   tpm2-openssl and in go-tpm-keyfiles against swtpm; PodUtils/podssh#351);
-  the four asks of its take of `v0.84.0` (PodUtils/podssh#357, COORD-147):
+  the open asks of its take of `v0.84.0` (PodUtils/podssh#357, COORD-147):
   T-1380 (the `Tbs` transport of `pod-tpm` loaded at run time, with a time
   limit), T-1381 (an owner's password in `SoftTpm`, and the fallback to the
-  kept storage key), T-1382 (the trials of podssh leave, and `SOURCES` gets
-  its `taken` line) and T-1383 (`Mint` with an issuer that is not
+  kept storage key) and T-1383 (`Mint` with an issuer that is not
   Ed25519).
 
 Then T-899, T-900, T-852, T-851, and T-920.

@@ -9479,6 +9479,10 @@ A host with a TPM that does not answer, or a TBS service that hangs, holds the c
 3. Add the probe `Tbs::probe()` with `Tbsi_GetDeviceInfo`: no TPM, a TPM 1.2 alone and a TPM 2.0 are three answers.
 4. Take the tests of podssh's `tbs.rs` for the bound (a command in time, a late command that the cancel ends, a command that never ends, a thread that fails). The Windows jobs of `nightly.yml` run the tests; read whether they turn on the feature `tbs`, and if they do not, make them do it.
 
+5. `crates/pod-tpm/SOURCES` (T-1382): drop the lines `skip` of `tbs.rs`
+   and `windows.rs` when this entry is done, and run
+   `scripts/check-sources.py` with a clone of podssh: 0 changes.
+
 ## Prove
 
 ```sh
@@ -9517,6 +9521,10 @@ Two parts. First, a test of a consumer cannot make the TPM of a Windows host in 
 2. In `flow`, a function `create_signing_kept(transport, entropy, policy)` (or a parameter) that tries `RH_OWNER` and, on `BadAuth` or `AuthFail`, the persistent storage key `0x81000001`, and writes one line that names both reasons when no storage key is kept (as podssh does). The file names the parent that made the key. Keep `create_signing` as it is, so a caller that names a parent keeps its form.
 3. A test against swtpm in `crates/pod-tpm/tests/swtpm.rs`: set the owner password, persist a storage key at `0x81000001`, and make a key that signs. A plant for the retry.
 4. The README of `pod-tpm` names the new items.
+
+5. `crates/pod-tpm/SOURCES` (T-1382): drop the line `taken 0c6e9c4...` of
+   the five files of T-839 when this entry is done, and run
+   `scripts/check-sources.py` with a clone of podssh: 0 changes.
 
 ## Prove
 
