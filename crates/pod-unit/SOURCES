@@ -33,8 +33,13 @@ file df256a833f564b504b75aa9135f0dcd6c12bcc34 crates/podssh-cli/src/node_install
 # podnet: the user unit and the line of the crontab of `podnet autostart`
 # (its log after the command, its probe of the forms). The command line, the
 # files of the arguments and of the variables of an entry stay in podnet.
-repo PodUtils/podnet 7f38f91076feec22ec5ff63b55e0f4f2b3e37098
-file 2d260abe7bf0f72a0d64c9811d72bbc1d6680844 crates/podnet-core/src/autostart.rs -> crates/pod-unit/src/cron.rs crates/pod-unit/src/install.rs
+# The block moved to 83d4fdd (T-1398) with no port: 34f0d30 changes the
+# check of the place of podnet's own binary in `add` (only a directory
+# that the host clears at a reboot or a logout, exit 78). That check is
+# of the command line of podnet; this crate takes the program from its
+# caller and renders units for another host. The shared check is T-1460.
+repo PodUtils/podnet 83d4fddbe4de944944c4e5a989d34dc23a8b2f1a
+file 43f94c4c5893aa8c44fba88cd378bba5eda4eb4c crates/podnet-core/src/autostart.rs -> crates/pod-unit/src/cron.rs crates/pod-unit/src/install.rs
 
 # podrunner: `print_unit` of `crates/podrunner/src/cli.rs` (blob
 # 358bcaeb1930358b5b2c78b76988b39d67944845 at

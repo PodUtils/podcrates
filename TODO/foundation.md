@@ -4050,3 +4050,100 @@ for T-1375.
   --all-targets --all-features -- -D warnings` and `cargo fmt --all
   --check` passed.
 - The shared rule of a plain name of a credential file is T-1420.
+
+# T-1397: `pod-testkit`: the contract of the source and the driver after podrunner `7bf541c` (the sixth port of `source-driver.md`)
+
+**Source:** `upstream.yml` 45639205681 (job `sources`), `scripts/check-sources.py`.
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+After T-1375, podrunner changed one imported file of `pod-testkit`:
+
+```text
+pod-testkit: changed PodUtils/podrunner:docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+```
+
+The commit is `7bf541c` ("serve: require a declared runner hook for
+assignment checks", PodUtils/podrunner@T-663). It changes the rules of the job-started hook in the contract:
+
+- The hook asks `serve` for a verdict before each job when the pin sets
+  `assignment_hook = true`. When the runs differ, `serve` sends
+  `assigned` to the source with the facts of the real job.
+- A job of another run keeps a `rw` cache only when the ref and the
+  repository id of the hook agree with the source and the ref allows
+  writes.
+- For a job of the run of the offer, `serve` answers `keep` directly. The
+  first verdict is final. The control front returns `no-hook` for a unit
+  whose payload lacks the required hook.
+
+The rule of the handoff: a step of githome's answers that podrunner writes
+and that differs from `pod-fake-githome` or `pod-fake-github` is an entry
+here.
+
+## Premise
+
+- Read: `git diff fcff5bc b474354 -- docs/contracts/source-driver.md` of
+  podrunner (one hunk, from `7bf541c`); `git show 7bf541c` of
+  `PodUtils/podrunner:crates/podrunner-slots/src/assigned.rs` (`assignment_key`, `decide`),
+  `PodUtils/podrunner:crates/podrunner-slots/src/start.rs` (the variable
+  `PODRUNNER_ASSIGNMENT_HOOK` of the unit),
+  `PodUtils/podrunner:images/runner/podrunner-job-started.sh`,
+  `PodUtils/podrunner:crates/podrunner-broker-fake/tests/runner.rs`; `git show 192a7f5`
+  (the hook uses `agent: false`).
+- Read here: `crates/pod-testkit/src/githome/wire.rs` (`Request::Assigned`),
+  `crates/pod-testkit/src/githome/offer.rs` (`assigned`),
+  `crates/pod-testkit/src/github/message.rs` (the context `github`),
+  `crates/pod-testkit/SOURCES`.
+- `decide` at `b474354` gives `keep` with no question to the source for a
+  job of the run of the offer, as before. A source still gets `assigned`
+  only for a job of another run.
+- The strict hook sends the facts `run_id`, `job_name`, `event`,
+  `repository`, `actor`, `ref` and `repo_id` from `GITHUB_*` variables.
+  The job message of `pod-fake-github` gives each one but `actor`, which
+  was the same before `7bf541c` (the hook sends it empty).
+- Not measured: a run of the real runner with `PODRUNNER_ASSIGNMENT_HOOK=1`
+  against `pod-fake-github` (no guest, no runner here).
+
+## Approach
+
+1. Compare each new rule with the answers of the fake githome (the source
+   wire) and the job message of the fake GitHub.
+2. A rule of `serve`, of the control front or of the hook is no port.
+3. Move the block of the contract in `SOURCES` to the head of podrunner,
+   with the blobs of `git ls-tree`, and say why in its comment.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podrunner=PODRUNNER --clone PodUtils/podnet=PODNET pod-testkit
+cargo test -p pod-testkit --all-features
+```
+
+## Done
+
+2026-11-25. No port. Commit: see `git log` for T-1397.
+
+- The declaration `assignment_hook`, the verdict of `serve` for a job of
+  the run of the offer, the final first verdict and the code `no-hook` are
+  rules of podrunner (`serve`, its control front and the hook of the
+  runner image). The rule of a `rw` cache of a job of another run is a
+  rule of podrunner on the facts of `keep`, which the fake gives since
+  T-1375.
+- The answers of `pod-fake-githome` and `pod-fake-github` do not change:
+  the source gets `assigned` only for a job of another run, as before, and
+  the job message of the fake GitHub already gives the facts that the
+  strict hook sends. No difference remains, so no new entry.
+- `crates/pod-testkit/SOURCES`: the block of the contract and the
+  conformance suite is at podrunner `b474354` (`source-driver.md`
+  `0c80cce`; `conformance.rs` `3d8f939`, not changed), with the reason in
+  its comment. `check-sources.py --clone PodUtils/podrunner=CLONE --clone
+  PodUtils/podnet=CLONE pod-testkit` (podrunner at `b474354`): each block
+  0 changes, exit 0.
+- No code change, so no new test. `cargo test -p pod-testkit
+  --all-features`, `cargo clippy -p pod-testkit --all-targets
+  --all-features -- -D warnings` and `cargo fmt --all --check` passed.

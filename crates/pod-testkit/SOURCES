@@ -57,7 +57,7 @@ repo PodUtils/podrunner fcff5bccd7b96ad8b6d45fa6281e5d8028a8a376
 file 1b246d7ad58a6abe72bc4d3c953f050b89d1b86f crates/podrunner-fake/src/source.rs -> crates/pod-testkit/src/githome/wire.rs
 file a19de1a28ac4e60de51b7f76bcdc326677357872 crates/podrunner-fake/src/assigned.rs -> crates/pod-testkit/src/githome/offer.rs
 
-repo PodUtils/podrunner fcff5bccd7b96ad8b6d45fa6281e5d8028a8a376
+repo PodUtils/podrunner b474354509d83b91de66cb050d467efe0d2e0eb4
 # T-951 (PodUtils/podrunner#310): the 15 tests of the conformance suite
 # (test 15: a cancelled job is reported and released) and the contract,
 # for the test of the feature `githome`. The block moved to 43226db
@@ -83,5 +83,14 @@ repo PodUtils/podrunner fcff5bccd7b96ad8b6d45fa6281e5d8028a8a376
 # `started` to `running` are rules of podrunner, with no port: the fake
 # keeps no cache, has no hook, and its control API sends a `started` with
 # each runner name (POST /_fake/jobs/ID/started).
+# The block moved to b474354 (T-1397) with no port: 7bf541c makes the
+# question of the job-started hook depend on `assignment_hook = true` of
+# the pin, gives `keep` of `serve` alone for a job of the run of the
+# offer, keeps the first verdict, and gives the code `no-hook` of the
+# control front. Each is a rule of podrunner. A source still gets
+# `assigned` only for a job of another run, so the answers of the fake
+# githome do not change; the job message of the fake GitHub already gives
+# each fact that the hook sends (run, repository, job, event, ref,
+# repository id).
 file 3d8f939ffa29402d5dfd3216d6e78a8e2fec9d59 crates/podrunner-source/src/conformance.rs -> crates/pod-testkit/tests/githome.rs
-file 8f5167ab9172cbd19bbd84d7cb280ec4ffeb55ae docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+file 0c80ccec095b032ea2a453be3f8e0f93c892c297 docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs

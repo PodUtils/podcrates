@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1032 entries: 166 open, 31 partial, 6 blocked, 829 done.**
+**1035 entries: 167 open, 31 partial, 6 blocked, 831 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 6 | 9 | 0 | 243 | 258 |
-| P2 | 73 | 12 | 4 | 430 | 519 |
-| P3 | 87 | 10 | 2 | 154 | 253 |
-| **All** | 166 | 31 | 6 | 829 | 1032 |
+| P2 | 73 | 12 | 4 | 432 | 521 |
+| P3 | 88 | 10 | 2 | 154 | 254 |
+| **All** | 167 | 31 | 6 | 831 | 1035 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1069,6 +1069,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1393](transport.md) | P2 | M | M1 | defect | done | `pod-proxy`: a proxy at a command that does not exist floods the stderr of the process, gives a wrong cause and is started again for each dial (PodUtils/podnet#754) |
 | [T-1394](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: the DNS over HTTPS of the edge discovery waits about 35 s behind a proxy with no line, and with no cause at `-v` (PodUtils/podnet#755) |
 | [T-1395](relay.md) | P2 | S | M2 | feature | done | `pod-session`: `resume::move_under`, the largest move under the cap of a relay, and `Settings::under_cap` (PodUtils/podnet#756) |
+| [T-1397](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver after podrunner `7bf541c` (the sixth port of `source-driver.md`) |
+| [T-1398](fleet.md) | P2 | S | M0 | chore | done | `pod-unit`: podnet's `autostart.rs` after `34f0d30` (port review) |
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
@@ -1079,3 +1081,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1450](relay.md) | P2 | M | M2 | defect | open | `pod-session`: the window of a link bounds the payload in flight, not the bytes of its records, so small records pass the relay's hold for a slow receiver and the cap of a leg |
 | [T-1451](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: `Offer::fit` moves at three quarters of the cap with a window of an eighth, which `pod_session::resume::move_under` does not allow |
 | [T-1452](relay.md) | P3 | S | M2 | defect | open | `pod-session`: a window under 64 KiB waits 200 ms for each window, as the far end acknowledges each 64 KiB or after 200 ms |
+| [T-1460](fleet.md) | P3 | S | M8 | defect | open | `pod-unit`: an install accepts a program in a directory that the host clears at a reboot or a logout, so the unit fails after the next reboot |
