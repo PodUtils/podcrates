@@ -219,7 +219,8 @@ impl Warp {
         let text = format!("the MASQUE key is not the pinned key ({}); the device record is read again", err.chain());
         settings.report.event(Event::warn("warp.pin", text));
         let fresh = register::get_device(&settings.api, &self.device.id, &self.device.token).await.map_err(|e| {
-            let text = format!("{}; reading the device record again failed. {}", err.text(), why_shown(way, shown));
+            let why = why_shown(way.dial.proxy_label(shown), &err);
+            let text = format!("{}; reading the device record again failed. {why}", err.text());
             Failure::caused(e.stage, e.class, text, e)
         })?;
         let pinned = match crate::provider::Enrolled::of_device("cloudflare", fresh.clone()).pin {
@@ -261,7 +262,7 @@ impl Warp {
                 Err(e) => *last = e,
             }
         }
-        Err(after_mismatch(&err, failures, way))
+        Err(after_mismatch(&err, shown, failures, |door| way.dial.proxy_label(door)))
     }
 
     fn won_fresh(&self, door: &Target, session: MasqueSession) -> MasqueSession {
@@ -272,34 +273,109 @@ impl Warp {
 }
 
 /// One failure of the doors of the record read again after `err` (a key that
-/// is not the pinned one): it names that key, the cause of each door, and,
-/// when a door shows another key still, why ([`why_shown`]). The class is
-/// the one of a door that shows another key, else of the first door.
-fn after_mismatch(err: &Failure, mut failures: Vec<(Target, Failure)>, way: &Way) -> Failure {
-    let causes: Vec<String> = failures.iter().map(|(_, e)| e.chain()).collect();
-    let mut text = format!(
-        "{}; the device record was read again, and each of its doors failed: {}",
-        err.text(),
-        causes.join("; ")
-    );
-    let shown = failures.iter().position(|(_, e)| is_pin_mismatch(e));
-    if let Some(i) = shown {
-        let why = why_shown(way, &failures[i].0);
+/// is not the pinned one, at the door `shown`). The source is the failure
+/// of a door that shows another key, else of the first door; the text says
+/// each other cause once (docs/design.md, section 1, rule 9): `err` only
+/// when its cause is not the one of the source, and the cause of another
+/// door only when it is not the one of `err` (PodUtils/podnet#726). When a
+/// door shows another key still, the text says why ([`why_shown`]); `proxy`
+/// names the proxy on the way to a door.
+fn after_mismatch(
+    err: &Failure,
+    shown: &Target,
+    mut failures: Vec<(Target, Failure)>,
+    proxy: impl Fn(&Target) -> Option<String>,
+) -> Failure {
+    let which = failures.iter().position(|(_, e)| is_pin_mismatch(e));
+    let (door, cause) = failures.swap_remove(which.unwrap_or(0));
+    let first = cause_of(err, shown);
+    let mut text =
+        if cause_of(&cause, &door) == first { "the MASQUE key is not the pinned key".to_string() } else { err.chain() };
+    text.push_str("; the device record was read again, and each of its doors failed");
+    let mut others: Vec<String> = Vec::new();
+    for (other, e) in &failures {
+        let line = e.chain();
+        if cause_of(e, other) != first && !others.contains(&line) {
+            others.push(line);
+        }
+    }
+    if !others.is_empty() {
+        text.push_str(&format!(" ({})", others.join("; ")));
+    }
+    if which.is_some() {
+        let why = why_shown(proxy(&door), &cause);
         text.push_str(&format!(". The key of the device record read again does not match either. {why}"));
     }
-    let (_, cause) = failures.swap_remove(shown.unwrap_or(0));
     Failure::caused(cause.stage, cause.class, text, cause)
 }
 
-/// Why a front door shows a certificate in place of WARP's key, and what
-/// tells the causes apart. A proxy is named only where the way to `door`
-/// goes through one: a line that blames a proxy that is not there sends
-/// the user to look for it (PodUtils/podssh#234).
-fn why_shown(way: &Way, door: &Target) -> String {
-    let warp = "WARP's side shows such a certificate at times, while its API fails in the same minutes; \
-                a later try passes then";
-    match way.dial.proxy_label(door) {
-        Some(proxy) => format!("{warp}. Or the proxy {proxy} re-terminates TLS: then each try fails"),
-        None => format!("{warp}."),
+/// The cause of the failure `e` of `door`, with no address of the door: two
+/// doors that fail the same way give the same cause.
+fn cause_of(e: &Failure, door: &Target) -> String {
+    e.chain().replace(&door.to_string(), "")
+}
+
+/// Why a front door shows a certificate in place of WARP's key, by the
+/// issuer of that certificate in `failure` (PodUtils/podnet#726): Let's
+/// Encrypt and Cloudflare are WARP's side, and a later try passes; another
+/// issuer is a middlebox that terminates TLS, and no root helps, because
+/// the key is pinned. `proxy` is the proxy on the way to the door, which
+/// can terminate TLS too: a line that blames a proxy that is not there
+/// sends the user to look for it (PodUtils/podssh#234).
+fn why_shown(proxy: Option<String>, failure: &Failure) -> String {
+    let chain = failure.chain();
+    let issuer = chain.split_once(crate::tls::SHOWN).map_or("", |(_, issuer)| issuer);
+    let words = match Issuer::of(issuer) {
+        Issuer::LetsEncrypt => {
+            "WARP's side shows a certificate of Let's Encrypt at times in place of its key; \
+                               a later try passes then"
+        }
+        Issuer::Warp => {
+            "WARP's side shows such a certificate at times, while its API fails in the same minutes; \
+                         a later try passes then"
+        }
+        Issuer::Middlebox => {
+            return match proxy {
+                Some(proxy) => format!(
+                    "The proxy {proxy}, or a middlebox on the way, terminates TLS; the key is pinned, so no root helps: \
+                     go around it"
+                ),
+                None => "A middlebox on the way terminates TLS; the key is pinned, so no root helps: go around it"
+                    .to_string(),
+            };
+        }
+    };
+    match proxy {
+        Some(proxy) => format!("{words}. Or the proxy {proxy} re-terminates TLS: then each try fails"),
+        None => format!("{words}."),
     }
 }
+
+/// The class of the issuer of the certificate that a front door showed.
+#[derive(Debug, PartialEq, Eq)]
+enum Issuer {
+    /// Let's Encrypt: WARP's side shows it at times.
+    LetsEncrypt,
+    /// Cloudflare, or no issuer known: WARP's side.
+    Warp,
+    /// Another issuer: a middlebox on the way.
+    Middlebox,
+}
+
+impl Issuer {
+    /// The class of `words`, the issuer as [`crate::der::issuer_words`]
+    /// gives it (empty when the failure names none).
+    fn of(words: &str) -> Issuer {
+        let named = |org: &str| words.split(", ").any(|field| field.starts_with(&format!("O={org}")));
+        if named("Let's Encrypt") {
+            Issuer::LetsEncrypt
+        } else if words.is_empty() || words.starts_with("an unnamed issuer") || named("Cloudflare") {
+            Issuer::Warp
+        } else {
+            Issuer::Middlebox
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests;

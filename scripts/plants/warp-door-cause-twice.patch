@@ -1,0 +1,13 @@
+diff --git a/crates/pod-warp/src/open.rs b/crates/pod-warp/src/open.rs
+index a8ec319..edd55ce 100644
+--- a/crates/pod-warp/src/open.rs
++++ b/crates/pod-warp/src/open.rs
+@@ -295,7 +295,7 @@ fn after_mismatch(
+     let mut others: Vec<String> = Vec::new();
+     for (other, e) in &failures {
+         let line = e.chain();
+-        if cause_of(e, other) != first && !others.contains(&line) {
++        if !others.contains(&line) {
+             others.push(line);
+         }
+     }

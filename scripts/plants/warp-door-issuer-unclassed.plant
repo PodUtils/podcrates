@@ -1,0 +1,7 @@
+# A door behind a middlebox that shows its own certificate gets the
+# sentence of WARP's side: "a later try passes", where no try helps
+# (PodUtils/podnet#726, T-1366).
+ENTRY=T-1366
+GROUP=warp
+EXPECT='test open::tests::the_cause_of_another_key_is_named_by_the_issuer_of_the_certificate \.\.\. FAILED'
+RUN='cargo test -p pod-warp --lib -- open::tests::the_cause_of_another_key_is_named_by_the_issuer_of_the_certificate'
