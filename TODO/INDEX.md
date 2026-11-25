@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1035 entries: 167 open, 31 partial, 6 blocked, 831 done.**
+**1035 entries: 165 open, 31 partial, 6 blocked, 833 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 6 | 9 | 0 | 243 | 258 |
+| P1 | 4 | 9 | 0 | 245 | 258 |
 | P2 | 73 | 12 | 4 | 432 | 521 |
 | P3 | 88 | 10 | 2 | 154 | 254 |
-| **All** | 167 | 31 | 6 | 831 | 1035 |
+| **All** | 165 | 31 | 6 | 833 | 1035 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1074,8 +1074,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
-| [T-1444](upkeep.md) | P1 | S | M5 | defect | open | `pod-core`: `a_path_that_is_there_is_never_opened_truncated_or_removed` fails on Windows: a file made at the name of a directory gives "Access is denied", not `AlreadyExists` |
-| [T-1445](upkeep.md) | P1 | S | M5 | defect | open | `pod-tpm`: two tests of `tests/socket.rs` fail on macOS: `set_read_timeout` on a stream whose peer closed gives an error, so the call says `Unavailable`, not `Protocol` |
+| [T-1444](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`: `a_path_that_is_there_is_never_opened_truncated_or_removed` fails on Windows: a file made at the name of a directory gives "Access is denied", not `AlreadyExists` |
+| [T-1445](upkeep.md) | P1 | S | M5 | defect | done | `pod-tpm`: two tests of `tests/socket.rs` fail on macOS: `set_read_timeout` on a stream whose peer closed gives an error, so the call says `Unavailable`, not `Protocol` |
 | [T-1446](upkeep.md) | P1 | S | M5 | defect | done | `pod-warp`: `warp_exec_finds_warp_up_of_another_state_directory` fails on macOS: its socket path is longer than 104 bytes |
 | [T-1447](upkeep.md) | P1 | S | M5 | defect | done | `nightly.yml`: the step of the doc tests runs the doc tests of `pod-h2`, which name `h2` and not `pod_h2`, so 41 fail on each system |
 | [T-1450](relay.md) | P2 | M | M2 | defect | open | `pod-session`: the window of a link bounds the payload in flight, not the bytes of its records, so small records pass the relay's hold for a slow receiver and the cap of a leg |

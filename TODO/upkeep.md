@@ -6732,7 +6732,7 @@ sh scripts/agent/check.sh
 **Milestone:** M5
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6759,6 +6759,17 @@ sh scripts/agent/check-windows.sh
 ```
 The jobs `test (windows-2025)` and `test (windows-11-arm)` of the next `nightly.yml` run pass the binary `pod_core`.
 
+## Done
+
+2026-11-25. Commit: see `git log` for T-1444.
+
+- `crates/pod-core/src/files/temp.rs`: the new function `as_taken` makes `AlreadyExists` of a `PermissionDenied` when `symlink_metadata` finds something at the name; the text of the error stays. A `PermissionDenied` with nothing at the name, and each other error, stays as it is. `new_named` applies it to each create, so `new_temp_dir`, `new_temp_file` and `new_temp_with` (also with a create of the caller) take a new name on each system.
+- `crates/pod-core/src/files/closed_win.rs`: the Windows `create_new` (of `create_new_private` and `create_new_public`) applies it too, so `create_private` and its create in place give `Ok(false)` for a directory at the name, as on a Unix system.
+- Tests: `a_denied_create_at_a_name_that_is_there_takes_a_new_name` (a create that acts as Windows: a directory at the name, then the next name; `PermissionDenied` with nothing at the name ends the tries after 1 call) and `only_a_denied_create_at_a_name_that_is_there_is_a_taken_name`. Both run on Linux.
+- Plant `core-temp-denied-name-not-taken` (no `as_taken` in `new_named`): caught here, `a_denied_create_at_a_name_that_is_there_takes_a_new_name ... FAILED`. No Linux test catches the removal of the call in `closed_win.rs`: that code compiles for Windows alone.
+- Verified here: `cargo test -p pod-core --all-features --lib files::temp` (13 passed); `cargo clippy -p pod-core -p pod-tpm --all-targets --all-features --target x86_64-pc-windows-gnu -- -D warnings` (zig as the C compiler, as `check-windows.sh` does): no warning.
+- Not verified here: a run on Windows. The jobs `test (windows-2025)` and `test (windows-11-arm)` of the next `nightly.yml` run prove the fix.
+
 # T-1445: `pod-tpm`: two tests of `tests/socket.rs` fail on macOS: `set_read_timeout` on a stream whose peer closed gives an error, so the call says `Unavailable`, not `Protocol`
 
 **Source:** `nightly.yml` run 45603454952 at `cd7cb5a`, the jobs `test (macos-15)` (139168091509, one test) and `test (macos-15-intel)` (139168093296, two tests), step "Test", binary `socket` of `pod-tpm`.
@@ -6766,7 +6777,7 @@ The jobs `test (windows-2025)` and `test (windows-11-arm)` of the next `nightly.
 **Milestone:** M5
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6790,6 +6801,17 @@ cargo test -p pod-tpm --all-features --test socket
 sh scripts/agent/check-macos.sh
 ```
 The jobs `test (macos-15)` and `test (macos-15-intel)` of the next `nightly.yml` run pass the binary `socket` of `pod-tpm`.
+
+## Done
+
+2026-11-25. Commit: see `git log` for T-1445.
+
+- `crates/pod-tpm/src/transport/socket.rs`: `Way::wait` keeps the time limit of an earlier call of the same exchange when the system refuses the next limit with `EINVAL` (`shut_down`: the kind `InvalidInput` with a code of the system). XNU `sosetopt` refuses each option on a socket that cannot send or receive more, and such a socket never blocks a read or a write: the next read gives the bytes that remain, the end (a short response: `Protocol`) or the error. The rule is the same on each system: Linux sets the limit, so it does not meet the case. The first limit of an exchange (before the write) has no earlier limit, so its failure stays a failure. The time of zero of the standard library (`InvalidInput` with no code of the system) is not taken as a shut socket; `left` never gives zero.
+- This is in place of step 1 of the Approach (`cfg(target_vendor = "apple")`): the check of the code of the system and of an earlier limit is narrower than all `InvalidInput`, and a test on Linux runs the same function.
+- Test: `transport::socket::tests::only_an_invalid_argument_of_the_system_is_a_stream_that_is_shut_down` (lib, Linux and the other systems).
+- Plant `tpm-socket-shut-down-not-seen` (`shut_down` takes the wrong errors): caught here. No Linux test catches the removal of the call in `wait`: Linux sets a limit on a closed Unix stream, so `tests/socket.rs` passes with or without it.
+- Verified here: `cargo test -p pod-tpm --all-features --test socket` (10 passed) and `--lib transport::` (3 passed); clippy of `pod-tpm` for Linux and `x86_64-pc-windows-gnu`; `sh scripts/agent/check-macos.sh` (the workspace and its tests for `x86_64-apple-darwin`): 0 faults.
+- Not verified here: a run on macOS. The jobs `test (macos-15)` and `test (macos-15-intel)` of the next `nightly.yml` run prove the fix.
 
 # T-1446: `pod-warp`: `warp_exec_finds_warp_up_of_another_state_directory` fails on macOS: its socket path is longer than 104 bytes
 
