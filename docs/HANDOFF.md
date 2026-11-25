@@ -272,8 +272,8 @@ The asks of #259 to the consumers:
   `BACKOFF_CAP`); `pod_cloudflare::quicktunnel::parse_retry_after` refuses a
   date out of range. No break.
 - T-1197 (`pod-harness`, `pod-egress`, `pod-turn`): CRC-32 from `crc32fast`;
-  `pod_harness::zip::crc32` and `pod_egress::vmess::kdf::crc32` are removed (a
-  caller takes `crc32fast::hash`).
+  `pod_harness::zip::crc32` is removed (a caller takes `crc32fast::hash`). The
+  copy of `pod-egress` was private.
 
 - T-1236 (`pod-core`, PodUtils/podssh#352): the section "Codes that a consumer
   keeps" of the README (podssh's `Revoked` 69 and `Capability` 78) with a test
@@ -381,21 +381,24 @@ The asks of #259 to the consumers:
 ### What the next hand-off carries
 
 - podrunner: no open ask.
-- podvm: T-1307; PodUtils/podvm#657 (T-1193 to T-1196: `flatten`
-  of `pod-extract`, a writer of gzip members) is open in podcrates.
-- podnet: T-1343 (`new_temp_dir` and `new_temp_file`, PodUtils/podnet#711).
-- podssh: T-1198 (the codec's `HOLD` and linger, by podssh's answer); T-1095 (the order of the
-  pseudo-fields of the HTTP/2 request of `pod-ws`; podssh closed
-  PodUtils/podssh#340 and keeps its patch of h2 until a tag carries the
-  order), T-1103 (iroh 1.5).
-- Asks of podssh that no one has started: T-1167 to T-1169 (`pod-link`,
-  the DNS carrier; PodUtils/podssh#349), and `pod-tpm` (T-1217 to T-1222,
-  PodUtils/podssh#351).
-- Entries of podcrates that no one has started: T-1163 (two more readers of
-  `Retry-After`), T-1115 (the copies of the bind at a long path), T-1135
-  (`pod-cloudflare` says a cause two times), T-1146 (the comments of
-  `pod-natprobe` are not in ASD-STE100), T-1150 (a watch of the facts of
-  RFC 5780 of `easybell-stun`).
+- podvm: PodUtils/podvm#657 (T-1193 to T-1196: `flatten` of `pod-extract`,
+  `pod-gzip`) is done on `main`; the hand-off of the next tag answers it.
+- podnet: T-1343 is partial (`new_temp_dir` and `new_temp_file` are done;
+  the other crates of step 2 follow); the hand-off of the next tag answers
+  PodUtils/podnet#711 with the functions.
+- podssh: T-1095 (the fork `pod-h2`, PodUtils/podssh#340), T-1198 (the codec
+  version 2, PodUtils/podssh#353), T-1167 and T-1168 (PodUtils/podssh#349),
+  T-1217 to T-1222 (`pod-tpm`, PodUtils/podssh#351) and T-1236 and T-1238
+  (PodUtils/podssh#352) are done on `main`; the hand-off of the next tag
+  answers them. Open: T-1169 (a test of the DNS carrier through `unbound`),
+  T-1103 (iroh 1.5), T-1340 (a key file of `pod-tpm` in tpm2-openssl and
+  go-tpm-keyfiles).
+- Entries of podcrates that no one has started: T-1115 (the copies of the
+  bind at a long path), T-1146 (the comments of `pod-natprobe` are not in
+  ASD-STE100), T-1150 (a watch of the facts of RFC 5780 of `easybell-stun`),
+  T-1351 (failures whose text holds the words of a typed cause), T-1369 (a
+  fuzz target of the bearer reader), T-1321 (a C backend of deflate for
+  `pod-gzip`).
 - T-963 is partial. T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks
   their release part) are open.
 

@@ -8138,9 +8138,9 @@ baseline line removed (no copy was in it).
 New dependency edges: `pod-harness -> crc32fast`, `pod-egress -> crc32fast`
 (feature `vmess`), `pod-turn -> crc32fast` (feature `stun`, so `pod-proxy`
 takes it through `pod-turn`). `crc32fast` 1.5 is in `Cargo.lock` already
-(flate2 and `pod-term` take it). The hand-off: `pod_harness::zip::crc32` and
-`pod_egress::vmess::kdf::crc32` (public) go; a consumer takes
-`crc32fast::hash`.
+(flate2 and `pod-term` take it). The hand-off: `pod_harness::zip::crc32` (public)
+goes; a consumer takes `crc32fast::hash`. The copy of `pod-egress` was
+private (`mod kdf`).
 
 # T-1198: `pod-term`: the transfer codec loses the `KEPT` that ends a session, and the far sender's 20 s wait runs while a person answers the offer
 
