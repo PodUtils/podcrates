@@ -30,14 +30,14 @@ is done. Git and the record keep finished work.
      PodUtils/podnet#711 (COORD-119) is T-1343 (partial);
      PodUtils/podssh#349 (COORD-139) is T-1169.
    - The takes of `v0.84.0` (the hand-off #260, COORD-155): podssh
-     (`806e0a4`, #357) and podvm (`04c8b7f4`, #666) are verified; podnet
-     has none; PodUtils/podrunner#356 names `72cd0ab`, which is not on
-     `origin/main` of podrunner yet ("Release: v0.84.0"). T-1375 ports
-     podrunner's change of `source-driver.md`.
+     (`806e0a4`, #357), podvm (`04c8b7f4`, #666) and podrunner (`72cd0ab`,
+     PodUtils/podrunner#356) are verified; podnet has none. T-1375 ports
+     the four files of podrunner that changed in `pod-testkit`.
    - Answered by `v0.84.0`, waiting for the take of the consumer:
      PodUtils/podnet#712 (T-1365), #726 (T-1366); PodUtils/podssh#340,
-     #349, #351 to #353, #355, #356; PodUtils/podrunner#352 (T-1362),
-     #353 (T-1370); PodUtils/podvm#657 (T-1193 to T-1196).
+     #349, #351 to #353, #355, #356; PodUtils/podvm#657 (T-1193 to
+     T-1196). podrunner took PodUtils/podrunner#352 (T-1362) and #353
+     (T-1370) at `3391edc` and `f2716a1`; its session closes them.
    - Mapped, no step now: PodUtils/podssh#350 (T-1191, T-1192);
      PodUtils/podvm#659 (T-1205), #661 (T-1213); PodUtils/podnet#709
      (T-1209).
@@ -94,7 +94,7 @@ feature `transfer`) and its version 2 is in `v0.84.0`; it closes when
 podssh names the commit that wires the codec into its session (its
 T-831).
 
-Takes of `v0.84.0`: podssh and podvm are verified. The body of #260 has one
+Takes of `v0.84.0`: podssh, podvm and podrunner are verified. The body of #260 has one
 "- CONSUMER" line for each of the four consumers; the line changes at each
 verified take. podssh: PodUtils/podssh#357 (COORD-147) names the take at
 `806e0a4`. `git ls-remote` gives `806e0a4` as the head of `main` of
@@ -112,14 +112,13 @@ names `tag = "v0.84.0"` and no other tag (`Cargo.lock` of the workspace
 names no other). The line of podvm in #260 is the take line. podvm uses
 `pod_gzip::Members` behind its selection of the upload space; the use of
 `flatten_with` is in a follow-up. podrunner: PodUtils/podrunner#356 (COORD-134) names the take at
-`72cd0ab` (T-1362 at `3391edc`, T-1370 at `f2716a1`), but `origin/main` of
-podrunner holds none of these three commits (its head is `f6a9a940`, and
-each `Cargo.toml` there names `v0.83.0`). The line of podrunner in #260
-stays "not yet" until `git cat-file -t 72cd0ab` finds the commit and each
-`Cargo.toml` of podrunner at it names `tag = "v0.84.0"` and no other tag.
-Then write the line as the take lines of #259 (the commit, #356, COORD-134)
-and run `check-sources.py` for `pod-testkit`, `pod-job`, `pod-unit`,
-`pod-time`, `pod-actions-results` and `pod-actions-store`.
+`72cd0ab` (PodUtils/podrunner@T-664). `72cd0ab` is on `main` of podrunner, followed by
+`3391edc` (T-1362) and `f2716a1` (T-1370). Each `Cargo.toml` of podrunner
+at `72cd0ab` names `tag = "v0.84.0"` (27 lines) and no other tag, and
+`Cargo.lock` names no other. The line of podrunner in #260 is the take
+line. `check-sources.py` at `72cd0ab`: `pod-actions-results`,
+`pod-actions-store`, `pod-job` and `pod-time` give 0 changes;
+`pod-testkit` gives four changed files, which T-1375 ports.
 
 The asks that #260 answers:
 
@@ -141,9 +140,10 @@ The asks that #260 answers:
   the one cause of each failure of `pod-cloudflare` (T-1135), `new_temp_dir`
   and `new_temp_file` (PodUtils/podnet#711, T-1343) and the class `Data`
   (`DATA_ERROR`).
-- podrunner: no take. The fields `ref` and `repo_id` of `RealJob`
-  (PodUtils/podrunner#352, T-1362) and the warm units of `run-report.v1`
-  and `status.v1` (PodUtils/podrunner#353, T-1370).
+- podrunner: took the fields `ref` and `repo_id` of `RealJob`
+  (PodUtils/podrunner#352, T-1362) at `3391edc` and the warm units of
+  `run-report.v1` and `status.v1` (PodUtils/podrunner#353, T-1370) at
+  `f2716a1`, after its take `72cd0ab` (PodUtils/podrunner#356).
 
 ### On `main` after `v0.84.0` (for the next tag)
 
@@ -175,10 +175,10 @@ The asks that #260 answers:
 
 ### What the next hand-off carries
 
-- The takes of `v0.84.0` (#260): podnet and podrunner. podssh (`806e0a4`)
-  and podvm (`04c8b7f4`) named their takes.
-- podrunner: no open ask besides the take. T-1375 (a port of
-  `source-driver.md` for `pod-testkit`) is open.
+- The take of `v0.84.0` (#260): podnet. podssh (`806e0a4`), podvm
+  (`04c8b7f4`) and podrunner (`72cd0ab`) named their takes.
+- podrunner: no open ask. T-1375 (the port of four files of podrunner
+  into `pod-testkit`) is open.
 - podvm: T-1321 (a C backend of deflate for `pod-gzip`, measured).
 - podnet: T-1343 is partial (the moves of the other crates of step 2 and
   step 3 follow); T-1377 and T-1378 (failures whose text holds the words

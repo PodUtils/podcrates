@@ -30,9 +30,9 @@
   transfer codec is in `pod-term` (T-1144, `v0.83.0`); the answer is #258
   (COORD-153), open until podssh names the commit that wires the codec
   (its T-831).
-- The tag that the `main` of each consumer names: `v0.83.0` (podssh,
-  PodUtils/podssh#354; podvm, PodUtils/podvm#663; podnet,
-  PodUtils/podnet#710; podrunner, PodUtils/podrunner#351). The details of
+- The tag that the `main` of each consumer names: `v0.84.0` (podssh,
+  PodUtils/podssh#357; podvm, PodUtils/podvm#666; podrunner,
+  PodUtils/podrunner#356); `v0.83.0` (podnet, PodUtils/podnet#710). The details of
   the earlier takes are on #250, #254 and #259.
 - PodUtils/static-pkgs builds and publishes the static programs that no
   one else publishes in the form that PodUtils needs (the owner,
