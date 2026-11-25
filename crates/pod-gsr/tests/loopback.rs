@@ -127,7 +127,9 @@ impl Dial for Direct {
 
     fn dial<'a>(&'a self, target: &'a Target, _deadline: Instant) -> BoxFuture<'a, Result<Connected, Failure>> {
         Box::pin(async move {
-            let stream = TcpStream::connect(target.to_string()).await.map_err(|e| Failure::io(Stage::Connect, e))?;
+            let stream = TcpStream::connect(target.to_string())
+                .await
+                .map_err(|e| Failure::io(Stage::Connect, "the connection", e))?;
             Ok(Connected::new(Box::new(stream)))
         })
     }

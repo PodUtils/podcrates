@@ -262,7 +262,7 @@ impl pod_core::Dial for Loopback {
             let pod_core::Target::Addr(addr) = target else { panic!("the tests dial addresses") };
             let tcp = tokio::net::TcpStream::connect(addr)
                 .await
-                .map_err(|e| pod_core::Failure::io(pod_core::Stage::Connect, e))?;
+                .map_err(|e| pod_core::Failure::io(pod_core::Stage::Connect, "the connection", e))?;
             Ok(pod_core::Connected::new(Box::new(tcp)))
         })
     }

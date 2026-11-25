@@ -280,7 +280,9 @@ impl WarpNet {
             match self.inner.stack.bind_udp_any(port).await {
                 Ok(socket) => return Ok(socket),
                 Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => last = Some(e),
-                Err(e) => return Err(Failure::io(Stage::Warp, e)),
+                Err(e) => {
+                    return Err(Failure::io(Stage::Warp, format!("binding UDP port {port} in the WARP stack"), e));
+                }
             }
         }
         let e = last.unwrap_or_else(|| std::io::Error::from(std::io::ErrorKind::AddrInUse));

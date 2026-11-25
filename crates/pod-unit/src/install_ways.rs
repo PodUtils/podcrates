@@ -13,9 +13,11 @@ use crate::model::Unit;
 /// others may write), with its directory.
 fn write(path: &Path, text: &[u8], mode: u32) -> Result<(), Failure> {
     if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir).map_err(|e| Failure::io(Stage::Host, e))?;
+        std::fs::create_dir_all(dir).map_err(|e| Failure::io(Stage::Host, format!("making {}", dir.display()), e))?;
     }
-    pod_core::files::replace_private(path, text, mode, false).map(drop).map_err(|e| Failure::io(Stage::Host, e))
+    pod_core::files::replace_private(path, text, mode, false)
+        .map(drop)
+        .map_err(|e| Failure::io(Stage::Host, format!("writing {}", path.display()), e))
 }
 
 /// True when the file at `path` is there; an error when it is there and
@@ -25,7 +27,7 @@ fn ours(path: &Path, mark: &str, holds: impl Fn(&str) -> bool) -> Result<bool, F
         Ok(text) if holds(&text) => Ok(true),
         Ok(_) => Err(not_ours(path, mark)),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(e) => Err(Failure::io(Stage::Host, e)),
+        Err(e) => Err(Failure::io(Stage::Host, format!("reading {}", path.display()), e)),
     }
 }
 
@@ -83,7 +85,7 @@ pub(crate) fn remove_systemd(unit: &Unit, dir: &Path, user: bool, host: &dyn Hos
         return Ok(Removed::Nothing);
     }
     let stopped = step(host, "systemctl", &systemctl(user, &["disable", "--now", &file]), None);
-    std::fs::remove_file(&path).map_err(|e| Failure::io(Stage::Host, e))?;
+    std::fs::remove_file(&path).map_err(|e| Failure::io(Stage::Host, format!("removing {}", path.display()), e))?;
     let _ = host.run("systemctl", &systemctl(user, &["daemon-reload"]), None);
     let _ = host.run("systemctl", &systemctl(user, &["reset-failed", &file]), None);
     let what = if user { "the user unit" } else { "the unit of the system" };
@@ -123,7 +125,7 @@ pub(crate) fn remove_launchd(unit: &Unit, dir: &Path, domain: &str, host: &dyn H
     }
     let target = format!("{domain}/{}", unit.launchd_label());
     let stopped = step(host, "launchctl", &["bootout", &target], None);
-    std::fs::remove_file(&path).map_err(|e| Failure::io(Stage::Host, e))?;
+    std::fs::remove_file(&path).map_err(|e| Failure::io(Stage::Host, format!("removing {}", path.display()), e))?;
     let what = if domain == "system" { "LaunchDaemon" } else { "LaunchAgent" };
     Ok(Removed::Done(vec![format!("removed the {what} {} ({})", path.display(), how(stopped, "stopped"))]))
 }

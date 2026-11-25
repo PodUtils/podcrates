@@ -100,7 +100,7 @@ pub(crate) fn refuse(layer: &str, entry: &str, refusal: Refusal) -> Failure {
 }
 
 pub(crate) fn io(e: std::io::Error) -> Failure {
-    Failure::io(Stage::Host, e)
+    Failure::io(Stage::Host, "the extraction", e)
 }
 
 /// A refused system call: the text names the errno, and the cause is the

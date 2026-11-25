@@ -141,7 +141,9 @@ impl Dial for OverUnix {
 
     fn dial<'a>(&'a self, target: &'a Target, _deadline: Instant) -> BoxFuture<'a, Result<Connected, Failure>> {
         Box::pin(async move {
-            let stream = UnixStream::connect(target.host()).await.map_err(|e| Failure::io(Stage::Connect, e))?;
+            let stream = UnixStream::connect(target.host())
+                .await
+                .map_err(|e| Failure::io(Stage::Connect, "the connection", e))?;
             Ok(Connected::new(Box::new(stream)))
         })
     }

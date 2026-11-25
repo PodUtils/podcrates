@@ -93,17 +93,17 @@ pub fn build_endpoint(tls: &pod_tls::Context, protocol: &str) -> Result<Endpoint
     let endpoint = match pod_quic::endpoint::bind(bind) {
         Ok(endpoint) => endpoint,
         // A host with no IPv6 refuses `[::]`. Use IPv4 only.
-        Err(_) => pod_quic::endpoint::bind("0.0.0.0:0".parse().expect("a valid address")).map_err(|e| {
-            let text = format!(
-                "could not open a local UDP socket: {}. QUIC needs UDP; \
-                 where it is blocked, use {protocol} http2",
-                e.text()
-            );
-            Failure::caused(Stage::Quic, e.class, text, e)
-        })?,
+        Err(_) => pod_quic::endpoint::bind("0.0.0.0:0".parse().expect("a valid address"))
+            .map_err(|e| Failure::caused(Stage::Quic, e.class, udp_refused(protocol), e))?,
     };
     endpoint.set_default_client_config(client_config(tls)?);
     Ok(endpoint)
+}
+
+/// The step of a local UDP socket that the host refused, with what to do;
+/// the error stays the cause and says its own words.
+fn udp_refused(protocol: &str) -> String {
+    format!("could not open a local UDP socket (QUIC needs UDP; where it is blocked, use {protocol} http2)")
 }
 
 /// Complete a QUIC handshake with `addr`. The SNI is `quic.cftunnel.com`
@@ -176,6 +176,19 @@ mod tests {
         };
         let (accepted, opened) = tokio::join!(accept, opener);
         assert_eq!((accepted.len(), opened.unwrap().len()), (200, 200));
+    }
+
+    /// The failure of a refused UDP socket keeps its hint, and its cause
+    /// says its own words once on a join.
+    #[test]
+    fn a_joined_udp_refusal_says_its_cause_once() {
+        let e = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Operation not permitted (os error 1)");
+        let cause = Failure::io(Stage::Connect, "no UDP socket for QUIC", e);
+        let failure = Failure::caused(Stage::Quic, cause.class, udp_refused("podnet"), cause);
+        let line = crate::testing::each_text(&failure);
+        assert_eq!(line, failure.chain());
+        assert_eq!(line.matches("Operation not permitted").count(), 1, "{line}");
+        assert!(line.contains("use podnet http2"), "{line}");
     }
 
     #[test]

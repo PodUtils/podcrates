@@ -99,7 +99,7 @@ async fn wait_for_start(
 }
 
 async fn write(io: &mut BoxedIo, bytes: &[u8]) -> Result<(), Failure> {
-    io.write_all(bytes).await.map_err(|e| Failure::io(Stage::Relay, e))
+    io.write_all(bytes).await.map_err(|e| Failure::io(Stage::Relay, "writing to the relay", e))
 }
 
 fn check_secret(secret: &str, settings: &Settings) -> Result<(), Failure> {
@@ -146,7 +146,7 @@ fn status_failure(code: u8) -> Failure {
 /// transport instead of at the secret.
 fn handshake_failure(error: openssl::ssl::Error) -> Failure {
     if let Some(io) = error.io_error() {
-        return Failure::io(Stage::Tls, std::io::Error::new(io.kind(), io.to_string()));
+        return Failure::io(Stage::Tls, "the SRP handshake", std::io::Error::new(io.kind(), io.to_string()));
     }
     let detail = error.ssl_error().map(stack_text).unwrap_or_else(|| error.to_string());
     Failure::new(

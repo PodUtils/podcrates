@@ -264,17 +264,18 @@ impl Host {
 
 /// A failed request: the request and why, each once. A handshake that the
 /// network ended is said in the words of [`crate::fail::tls_text`] (a reset
-/// during the TLS handshake), not as a bare error of I/O; the cause of the
-/// failure stays, without the words that this text says in its place.
+/// during the TLS handshake), not as a bare error of I/O; the typed cause of
+/// the failure stays, without the steps that this text says in its place.
 fn sent(failure: Failure, what: &str) -> Failure {
-    let Some(io) = failure.io_cause().filter(|_| failure.stage == Stage::Network) else {
+    let Some(words) = failure.io_cause().filter(|_| failure.stage == Stage::Network).and_then(crate::fail::tls_text)
+    else {
         return crate::fail::wrap(failure, what);
     };
-    let text = format!("{what}: TLS: {}", crate::fail::tls_text(io));
+    let text = format!("{what}: TLS: {words}");
     let (stage, class) = (failure.stage, failure.class);
-    match failure.into_source() {
-        Some(cause) => Failure::caused(stage, class, text, cause),
-        None => Failure::new(stage, class, text),
+    match failure.into_root() {
+        (_, Some(cause)) => Failure::caused(stage, class, text, cause),
+        (_, None) => Failure::new(stage, class, text),
     }
 }
 
@@ -307,6 +308,10 @@ mod tests {
         );
         assert_eq!(text.matches(&format!("POST https://localhost:{port}/tunnel")).count(), 1, "{text}");
         assert_eq!(failure.stage, Stage::Network, "{text}");
+        let line = crate::testing::each_text(&failure);
+        assert_eq!(line, text);
+        let cause = failure.io_cause().expect("an error of I/O").to_string();
+        assert_eq!(line.matches(&cause).count(), 1, "{line}");
     }
 
     /// A request through a proxy that does not answer names the request

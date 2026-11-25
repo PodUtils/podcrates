@@ -1,0 +1,7 @@
+# The failure of a TLS handshake with a front door holds the words of its
+# error of I/O and keeps the error as its cause: a reader that joins the
+# chain says them two times (T-1351).
+ENTRY=T-1351
+GROUP=warp
+EXPECT='test open::tests::a_joined_handshake_failure_says_its_cause_once \.\.\. FAILED'
+RUN='cargo test -p pod-warp --lib -- open::tests::a_joined_handshake_failure_says_its_cause_once'

@@ -159,7 +159,7 @@ impl Broker {
         let result = match next {
             Next::Tunnel { authority } => {
                 if let Err(e) = io.write_all(&established()).await {
-                    let failure = Some(Failure::io(Stage::Proxy, e));
+                    let failure = Some(Failure::io(Stage::Proxy, "the answer to the job", e));
                     return self.ended(&note, &checked.rule, 200, (&counts, &report), failure);
                 }
                 let client: BoxedIo = Box::new(Prefixed::new(rest, io));
@@ -182,7 +182,7 @@ impl Broker {
                 let client: BoxedIo = Box::new(Prefixed::new(rest, io));
                 let head = head(&request, &target);
                 tokio::select! {
-                    r = exchange(client, upstream, head, framing, &counts) => r.err().map(|e| Failure::io(Stage::Origin, e)),
+                    r = exchange(client, upstream, head, framing, &counts) => r.err().map(|e| Failure::io(Stage::Origin, "the exchange", e)),
                     () = lease.ended() => Some(Failure::new(Stage::Proxy, Class::Revoked, "the job ended")),
                 }
             }

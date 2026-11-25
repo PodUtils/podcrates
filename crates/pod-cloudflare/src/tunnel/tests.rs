@@ -138,7 +138,14 @@ fn the_class_of_no_edge_leg_worked() {
         assert!(err.to_string().starts_with("no edge leg worked: quic: "), "{err}");
         assert_eq!(err.to_string().matches("quic: ").count() + err.to_string().matches("http2: ").count(), n.min(2));
         assert_eq!(Some(err.stage), last);
-        assert_eq!(err.chain(), err.to_string());
+        // Each text of the chain joined says the cause of each leg once;
+        // `chain` leaves out a cause that an earlier leg said in the same
+        // words.
+        let line = crate::testing::each_text(&err);
+        assert!(line.starts_with(&err.chain()), "{line}");
+        let refusals = line.matches("Unauthorized: Tunnel not found").count();
+        let timeouts = line.matches("did not end in 30 s").count();
+        assert_eq!(refusals + timeouts, n, "{line}");
     }
 }
 

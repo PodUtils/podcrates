@@ -26,7 +26,7 @@ test-clone:000c77b56fbcd6d0  T-918: crates/pod-egress/tests/shadowsocks.rs open 
 test-clone:01aa52b06359aeea  T-918: crates/pod-core/tests/files.rs scratch and its copies
 test-clone:09cc3db354e27990  T-918: crates/pod-enter/src/binfmt/tests.rs the_elf_machine_numbers_are_the_specifications and its copies
 test-clone:0b992bf3d297ec13  T-918: crates/pod-relay/tests/mailbox_harness/mod.rs way and its copies
-test-clone:0d6fbc4786ecae54  T-918: crates/pod-gsr/tests/blocking.rs dial and its copies
+test-clone:557474c908957248  T-918: crates/pod-gsr/tests/blocking.rs dial and its copies
 test-clone:0ebb92df39a6a012  T-918: crates/pod-e2e/tests/session_handover.rs client_session and its copies
 test-clone:16f54722f58f7f6b  T-918: crates/pod-link/tests/h2.rs a_silent_listener_ends_the_dial_at_its_time_limit and its copies
 test-clone:190dd0eef5b53639  T-918: crates/pod-tls/tests/no_permissive_verifier.rs rust_files and its copies

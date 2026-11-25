@@ -24,7 +24,7 @@ impl Dial for Loopback {
             let s = tokio::time::timeout_at(deadline, tokio::net::TcpStream::connect(addr))
                 .await
                 .map_err(|_| Failure::new(Stage::Connect, Class::Timeout, "no connection in time"))?
-                .map_err(|e| Failure::io(Stage::Connect, e))?;
+                .map_err(|e| Failure::io(Stage::Connect, "the connection", e))?;
             let (peer, local) = (s.peer_addr().ok(), s.local_addr().ok());
             Ok(Connected { io: Box::new(s), peer, local })
         })

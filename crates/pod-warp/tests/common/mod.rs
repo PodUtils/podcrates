@@ -81,7 +81,9 @@ impl Dial for Moved {
                 Target::Name { .. } => None,
             };
             let to = to.unwrap_or_else(|| SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), target.port()));
-            let tcp = tokio::net::TcpStream::connect(to).await.map_err(|e| Failure::io(Stage::Connect, e))?;
+            let tcp = tokio::net::TcpStream::connect(to)
+                .await
+                .map_err(|e| Failure::io(Stage::Connect, "the connection", e))?;
             Ok(Connected { io: Box::new(tcp), peer: Some(to), local: None })
         })
     }

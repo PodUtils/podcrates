@@ -252,10 +252,12 @@ impl Failure {
         Failure { stage, class, text: text.into(), source: Some(source.into()) }
     }
 
-    /// An I/O error at `stage`, with the class of its kind.
-    pub fn io(stage: Stage, e: io::Error) -> Failure {
+    /// The step `step` at `stage` that the I/O error `e` ended, with the
+    /// class of its kind. The text is the step and `e` is the cause, so that
+    /// a reader that joins the chain says the words of `e` once.
+    pub fn io(stage: Stage, step: impl Into<String>, e: io::Error) -> Failure {
         let class = Class::of_io(e.kind());
-        Failure { stage, class, text: e.to_string(), source: Some(Box::new(e)) }
+        Failure { stage, class, text: step.into(), source: Some(Box::new(e)) }
     }
 
     pub fn text(&self) -> &str {
@@ -276,6 +278,33 @@ impl Failure {
         self.source
     }
 
+    /// The text of the chain with no innermost typed cause, and that cause:
+    /// for a layer that names this failure among others in its own text and
+    /// keeps the typed cause (a refusal, an error of I/O) for a caller that
+    /// reads it. The innermost typed cause is the first cause that is not a
+    /// `Failure`; a chain of `Failure`s alone gives its text and no cause.
+    /// The new text with the cause as its source says each cause once on a
+    /// join, unless a text of the chain quotes the words of the cause.
+    /// [`Failure::chain`] of it leaves out the cause when the new text holds
+    /// the same words already (another failure with the same cause).
+    pub fn into_root(self) -> (String, Option<Box<dyn Error + Send + Sync + 'static>>) {
+        let mut text = self.text;
+        let mut next = self.source;
+        while let Some(e) = next {
+            match e.downcast::<Failure>() {
+                Ok(inner) => {
+                    if !text.contains(&inner.text) {
+                        text.push_str(": ");
+                        text.push_str(&inner.text);
+                    }
+                    next = inner.source;
+                }
+                Err(root) => return (text, Some(root)),
+            }
+        }
+        (text, None)
+    }
+
     /// The same failure at another stage, for a layer that knows better
     /// where it broke.
     pub fn at(mut self, stage: Stage) -> Failure {
@@ -294,6 +323,20 @@ pub fn chain_of(error: &(dyn Error + 'static)) -> String {
             out.push_str(": ");
             out.push_str(&more);
         }
+        next = e.source();
+    }
+    out
+}
+
+/// Each text of the chain of `error` joined with `: `, with no check: the
+/// line of a reader that walks the sources (anyhow's `{:#}`). A failure that
+/// keeps the rule of the step gives the line of [`chain_of`].
+pub fn joined(error: &(dyn Error + 'static)) -> String {
+    let mut out = error.to_string();
+    let mut next = error.source();
+    while let Some(e) = next {
+        out.push_str(": ");
+        out.push_str(&e.to_string());
         next = e.source();
     }
     out
@@ -331,111 +374,5 @@ impl Error for Failure {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// The cause of I/O comes back from a chain, and "not found" has its
-    /// own class.
-    #[test]
-    fn the_io_cause_comes_back_and_not_found_has_its_class() {
-        let missing = io::Error::new(io::ErrorKind::NotFound, "/store: no such directory");
-        assert_eq!(Class::of_io(missing.kind()), Class::NotFound);
-        let f = Failure::caused(Stage::Host, Class::of_io(missing.kind()), "the store", missing);
-        assert_eq!(f.io_cause().map(|e| e.kind()), Some(io::ErrorKind::NotFound));
-        assert_eq!(f.class.name(), "notfound");
-        assert!(Failure::new(Stage::Host, Class::Unavailable, "no space").io_cause().is_none());
-    }
-
-    #[test]
-    fn an_io_error_keeps_its_kind_as_a_class() {
-        let f = Failure::io(Stage::Connect, io::Error::new(io::ErrorKind::TimedOut, "no answer"));
-        assert_eq!((f.stage, f.class), (Stage::Connect, Class::Timeout));
-        assert_eq!(f.to_string(), "no answer");
-        let refused = Failure::io(Stage::Connect, io::Error::from(io::ErrorKind::ConnectionRefused));
-        assert_eq!(refused.class, Class::Unavailable);
-    }
-
-    #[test]
-    fn the_chain_names_each_cause_once() {
-        let cause = io::Error::new(io::ErrorKind::ConnectionReset, "reset by peer");
-        let f = Failure::caused(Stage::Tls, Class::Unavailable, "the handshake ended", cause);
-        assert_eq!(f.chain(), "the handshake ended: reset by peer");
-        assert!(f.source().is_some());
-        let same = Failure::caused(Stage::Dns, Class::Unavailable, "no answer", io::Error::other("no answer"));
-        assert_eq!(same.chain(), "no answer");
-        let quoted = io::Error::other("invalid peer certificate: UnknownIssuer");
-        let hinted = "invalid peer certificate: UnknownIssuer; give the CA of the proxy";
-        let f = Failure::caused(Stage::Tls, Class::Protocol, hinted, quoted);
-        assert_eq!(f.chain(), hinted);
-    }
-
-    /// Each class has its own name, and the codes are the table of the
-    /// README: the classes that a supervisor must not restart end with 78.
-    #[test]
-    fn each_class_has_a_name_and_an_exit_code() {
-        let names: std::collections::HashSet<_> = Class::ALL.iter().map(|c| c.name()).collect();
-        assert_eq!(names.len(), Class::ALL.len());
-        assert_eq!(Class::Revoked.exit_code(), Class::Config.exit_code());
-        assert_eq!(Class::Usage.exit_code(), 64);
-        assert_eq!(Class::Timeout.exit_code(), Class::TempFail.exit_code());
-        let own: std::collections::HashSet<_> =
-            [Class::Refused, Class::Revoked, Class::Policy, Class::Unsupported].iter().map(|c| c.exit_code()).collect();
-        assert_eq!(own.len(), 4, "refused, revoked, policy and unsupported each have a code of their own");
-        // podssh#352: 73, 70 and 65 of sysexits(3), each in one row only.
-        let rows =
-            [(Class::CantCreate, 73, "cantcreate"), (Class::Internal, 70, "internal"), (Class::Data, 65, "data")];
-        for (class, code, name) in rows {
-            assert_eq!((class.exit_code(), class.name()), (code, name), "{class:?}");
-            let rows = Class::ALL.iter().filter(|c| c.exit_code() == code).count();
-            assert_eq!(rows, 1, "the code {code} is in {rows} rows");
-        }
-    }
-
-    /// A lead that the text names already is not said again; a text that
-    /// starts with a longer word gets the lead (PodUtils/podnet#658).
-    #[test]
-    fn a_lead_is_said_once() {
-        let request = "POST https://api.example/tunnel";
-        let text = "POST https://api.example/tunnel: could not reach the proxy 127.0.0.1:1";
-        assert_eq!(lead(request, text), text);
-        assert_eq!(lead(request, request), request);
-        let longer = "POST https://api.example/tunnels: refused";
-        assert_eq!(lead(request, longer), format!("{request}: {longer}"));
-        assert_eq!(lead("could not connect to 127.0.0.1:1", "refused"), "could not connect to 127.0.0.1:1: refused");
-        assert_eq!(strip_lead("connecting to h:1: refused", "connecting to h:1"), "refused");
-        assert_eq!(strip_lead("connecting to h:12: refused", "connecting to h:1"), "connecting to h:12: refused");
-        let cause = io::Error::other("reset");
-        let f = Failure::caused(Stage::Tls, Class::Unavailable, "TLS: reset", cause);
-        assert_eq!(chain_of(&f), f.chain());
-        assert_eq!(f.into_source().map(|e| e.to_string()).as_deref(), Some("reset"));
-    }
-
-    /// The six codes of the verification harness (podnet#501) are in this
-    /// table, and each code is one value: 64, 66, 69, 71, 77 and 78.
-    #[test]
-    fn the_codes_of_the_harness_are_in_the_table_and_distinct() {
-        let table = [
-            (Class::Usage, 64_u8),
-            (Class::NotFound, 66),
-            (Class::Unavailable, 69),
-            (Class::Permission, 71),
-            (Class::Refused, 77),
-            (Class::Suite, 78),
-        ];
-        let codes: std::collections::HashSet<u8> = table.iter().map(|(_, code)| *code).collect();
-        assert_eq!(codes.len(), 6, "each code is one value");
-        for (class, code) in table {
-            assert_eq!(class.exit_code(), code, "{class:?}");
-            assert!(Class::ALL.contains(&class), "{class:?}");
-        }
-        assert_eq!(Class::Permission.name(), "permission");
-        assert_eq!(Class::Suite.name(), "suite");
-    }
-
-    #[test]
-    fn a_layer_can_move_the_stage() {
-        let f = Failure::new(Stage::Connect, Class::Timeout, "slow").at(Stage::Proxy);
-        assert_eq!(f.stage.name(), "proxy");
-        assert_eq!(f.class.to_string(), "timeout");
-    }
-}
+#[path = "failure_tests.rs"]
+mod tests;

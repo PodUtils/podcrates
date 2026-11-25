@@ -141,7 +141,8 @@ impl Policy {
     /// The policy file at `path`: TOML for a name that ends `.toml`, else
     /// JSON.
     pub fn read(path: &Path) -> Result<Policy, Failure> {
-        let text = std::fs::read_to_string(path).map_err(|e| Failure::io(Stage::Host, e))?;
+        let text = std::fs::read_to_string(path)
+            .map_err(|e| Failure::io(Stage::Host, format!("reading {}", path.display()), e))?;
         if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("toml")) {
             Policy::from_toml(&text)
         } else {

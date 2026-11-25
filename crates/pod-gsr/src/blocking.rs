@@ -65,8 +65,10 @@ pub fn open(
             "pod_gsr::blocking::open runs on its own runtime: call it outside a tokio task, or call pod_gsr::open",
         ));
     }
-    let runtime =
-        tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| Failure::io(Stage::Relay, e))?;
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| Failure::io(Stage::Relay, "starting the runtime of the blocking stream", e))?;
     let runtime = Arc::new(Background(Some(runtime)));
     let deadline = tokio::time::Instant::from_std(deadline);
     let inner = runtime.block_on(crate::session::open(dial, settings, role, secret, entropy, deadline))?;

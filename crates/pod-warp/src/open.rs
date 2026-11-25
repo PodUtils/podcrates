@@ -106,8 +106,13 @@ impl Warp {
         let (Some(direct), Some(through)) = (direct_err, relay_err) else {
             unreachable!("the loop ends when both legs failed");
         };
-        let text = format!("{}; and through the relay {}: {}", direct.chain(), relay.name, through.chain());
-        Err(Failure::caused(direct.stage, direct.class, text, direct))
+        let (stage, class) = (direct.stage, direct.class);
+        let (steps, cause) = through.into_root();
+        let text = format!("{}; and through the relay {}: {steps}", direct.chain(), relay.name);
+        Err(match cause {
+            Some(cause) => Failure::caused(stage, class, text, cause),
+            None => Failure::new(stage, class, text),
+        })
     }
 
     /// Open a session on the way `way`: each door in turn.
@@ -136,12 +141,7 @@ impl Warp {
                 }
             }
         }
-        let mut failures = failures.into_iter();
-        let first = failures.next().expect("one door at least");
-        Err(failures.fold(first, |acc, e| {
-            let text = format!("{}; the other address of the front door failed too ({})", acc.text(), e.chain());
-            Failure::caused(acc.stage, acc.class, text, acc)
-        }))
+        Err(each_door_failed(failures))
     }
 
     /// The doors that a session tries, in order, without a door of a family
@@ -210,17 +210,15 @@ impl Warp {
         let settings = &self.settings;
         if self.device.id.is_empty() {
             let provider = self.provider().unwrap_or("the provider");
-            let text = format!(
-                "the MASQUE key is not the pinned key ({}), and {provider} keeps no device record to read again",
-                err.chain()
-            );
+            let text =
+                format!("the MASQUE key is not the pinned key, and {provider} keeps no device record to read again");
             return Err(Failure::caused(Stage::Warp, Class::Protocol, text, err));
         }
         let text = format!("the MASQUE key is not the pinned key ({}); the device record is read again", err.chain());
         settings.report.event(Event::warn("warp.pin", text));
         let fresh = register::get_device(&settings.api, &self.device.id, &self.device.token).await.map_err(|e| {
             let why = why_shown(way.dial.proxy_label(shown), &err);
-            let text = format!("{}; reading the device record again failed. {why}", err.text());
+            let text = format!("{}; reading the device record again failed. {why}", err.chain());
             Failure::caused(e.stage, e.class, text, e)
         })?;
         let pinned = match crate::provider::Enrolled::of_device("cloudflare", fresh.clone()).pin {
@@ -236,7 +234,8 @@ impl Warp {
             doors.insert(0, door);
         }
         if doors.is_empty() {
-            let text = format!("{}; the device record read again has no MASQUE front door", err.text());
+            let text =
+                "the MASQUE key is not the pinned key, and the device record read again has no MASQUE front door";
             return Err(Failure::caused(Stage::Warp, Class::Protocol, text, err));
         }
         let mut failures: Vec<(Target, Failure)> = Vec::new();
@@ -269,6 +268,32 @@ impl Warp {
         self.note_won(door);
         self.settings.report.decision("warp.door", "fresh-record");
         session
+    }
+}
+
+/// One failure of the doors that each failed, in order (none showed another
+/// key): the text of each, and the typed cause of the last one as the
+/// cause, so that a reader that joins the chain says each cause once. The
+/// stage and the class are the ones of the first door.
+fn each_door_failed(failures: Vec<Failure>) -> Failure {
+    let (stage, class) = failures.first().map(|f| (f.stage, f.class)).expect("one door at least");
+    let n = failures.len();
+    let mut text: Vec<String> = Vec::with_capacity(n);
+    let mut cause = None;
+    for (i, failure) in failures.into_iter().enumerate() {
+        let words = if i + 1 < n {
+            failure.chain()
+        } else {
+            let (steps, root) = failure.into_root();
+            cause = root;
+            steps
+        };
+        text.push(if i == 1 { format!("the other address of the front door failed too: {words}") } else { words });
+    }
+    let text = text.join("; ");
+    match cause {
+        Some(cause) => Failure::caused(stage, class, text, cause),
+        None => Failure::new(stage, class, text),
     }
 }
 

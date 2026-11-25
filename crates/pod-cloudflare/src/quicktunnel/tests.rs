@@ -108,13 +108,34 @@ fn the_refusal_in_an_error_chain() {
             body: "error code: 1015".into(),
             retry_after: Some(std::time::Duration::from_secs(1379)),
         }),
-        "provisioning quick tunnel",
+        PROVISIONING,
     );
     let r = retry_of(&err).unwrap();
     assert_eq!(r, Refusal { status: 429, code: Some(1015), retry_after_s: Some(1379), retryable: true });
     let other = Failure::from(ProvisionError::Status { code: 404, body: String::new(), retry_after: None });
     assert!(!retry_of(&other).unwrap().retryable);
     assert!(retry_of(&Failure::new(Stage::Host, Class::Config, "other")).is_none());
+}
+
+/// The failure of a provision is its step, and the error is the cause: a
+/// reader that joins the chain says the words of the error once; the
+/// context of the plan with the same step adds nothing.
+#[test]
+fn a_joined_provision_failure_says_each_cause_once() {
+    let status = || ProvisionError::Status { code: 503, body: "busy".into(), retry_after: None };
+    let inner = || Failure::new(Stage::Proxy, Class::Refused, "POST https://a/tunnel: 403 not on the allowlist");
+    for failure in [Failure::from(status()), Failure::from(ProvisionError::Http(inner()))] {
+        let line = crate::testing::each_text(&failure);
+        assert_eq!(line, failure.chain());
+        assert_eq!(line.matches(PROVISIONING).count(), 1, "{line}");
+        assert_eq!(failure.text(), PROVISIONING);
+    }
+    let line = crate::testing::each_text(&Failure::from(status()));
+    assert_eq!(line, "provisioning quick tunnel: quick-tunnel service returned HTTP 503: busy");
+    let line = crate::testing::each_text(&Failure::from(ProvisionError::Http(inner())));
+    assert_eq!(line.matches("403 not on the allowlist").count(), 1, "{line}");
+    let planned = crate::fail::wrap(Failure::from(status()), PROVISIONING);
+    assert_eq!(crate::testing::each_text(&planned), crate::testing::each_text(&Failure::from(status())));
 }
 
 #[tokio::test]
@@ -133,7 +154,7 @@ async fn a_long_retry_after_fails_with_the_wait() {
     pod_testkit::need_loopback!();
     let (url, count) = scripted(vec![(429, "Retry-After: 9999\r\n", "error code: 1015")]);
     let err = provision(&crate::testing::host(), &url, AuthMode::Public, "t", TO, BUDGET).await.unwrap_err();
-    let text = err.to_string();
+    let text = err.chain();
     assert!(text.contains("HTTP 429 (Retry-After: 9999 s): error code: 1015"), "{text}");
     assert_eq!(hits(&count), 1);
 }
@@ -153,7 +174,7 @@ async fn a_5xx_is_retried_and_a_403_is_not() {
     let (url, count) = scripted(vec![(403, "", "forbidden\u{1b}[2J\u{7}\rnow")]);
     let err = provision(&crate::testing::host(), &url, AuthMode::Public, "t", TO, BUDGET).await.unwrap_err();
     assert_eq!(hits(&count), 1);
-    let text = err.to_string();
+    let text = err.chain();
     assert!(text.ends_with("HTTP 403: forbidden now"), "{text:?}");
 }
 

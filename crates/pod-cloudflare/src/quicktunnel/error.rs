@@ -90,10 +90,16 @@ pub fn retry_of(err: &Failure) -> Option<Refusal> {
     }
 }
 
+/// The step of a provision: the text of its failure, before the words of the
+/// [`ProvisionError`] in the chain.
+pub const PROVISIONING: &str = "provisioning quick tunnel";
+
 impl From<ProvisionError> for Failure {
     /// The stage of a provision is the registration with the edge. A 429 is
     /// temporary, a 5xx is the service, and another 4xx is a refusal. An
-    /// answer that does not decode is the protocol.
+    /// answer that does not decode is the protocol. The text is the step
+    /// alone: the error is the cause, so a reader that joins the chain says
+    /// its words once.
     fn from(err: ProvisionError) -> Failure {
         let (stage, class) = match &err {
             ProvisionError::BadEndpoint(_) => (Stage::Host, Class::Config),
@@ -107,11 +113,7 @@ impl From<ProvisionError> for Failure {
                 (Stage::EdgeRegister, Class::Protocol)
             }
         };
-        let text = match &err {
-            ProvisionError::Http(inner) => format!("{err}: {}", inner.chain()),
-            _ => err.to_string(),
-        };
-        Failure::caused(stage, class, text, err)
+        Failure::caused(stage, class, PROVISIONING, err)
     }
 }
 

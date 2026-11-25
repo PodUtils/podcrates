@@ -92,7 +92,9 @@ impl Dial for Counting {
     fn dial<'a>(&'a self, _target: &'a Target, _deadline: Instant) -> BoxFuture<'a, Result<Connected, Failure>> {
         Box::pin(async move {
             self.dials.fetch_add(1, Ordering::SeqCst);
-            let tcp = TcpStream::connect(("127.0.0.1", self.port)).await.map_err(|e| Failure::io(Stage::Connect, e))?;
+            let tcp = TcpStream::connect(("127.0.0.1", self.port))
+                .await
+                .map_err(|e| Failure::io(Stage::Connect, "the connection", e))?;
             Ok(Connected::new(Box::new(tcp)))
         })
     }
