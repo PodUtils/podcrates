@@ -1072,3 +1072,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
+| [T-1450](relay.md) | P2 | M | M2 | defect | open | `pod-session`: the window of a link bounds the payload in flight, not the bytes of its records, so small records pass the relay's hold for a slow receiver and the cap of a leg |
+| [T-1451](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: `Offer::fit` moves at three quarters of the cap with a window of an eighth, which `pod_session::resume::move_under` does not allow |
+| [T-1452](relay.md) | P3 | S | M2 | defect | open | `pod-session`: a window under 64 KiB waits 200 ms for each window, as the far end acknowledges each 64 KiB or after 200 ms |

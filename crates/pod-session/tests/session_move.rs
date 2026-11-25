@@ -8,7 +8,9 @@
 //! after the old link stopped, so none is one that the other side no longer
 //! keeps. And both ends end their bytes at once, 50 times, while the
 //! session moves each 16 KiB: no loss is said, as a move cuts no `CLOSE` in
-//! flight.
+//! flight. Four sessions at once, each at full speed both ways, move at
+//! `resume::move_under` of the cap and a window of 64 KiB: no link meets
+//! the cap.
 
 use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};

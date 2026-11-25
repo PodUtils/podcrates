@@ -12715,3 +12715,94 @@ cargo test -p pod-session --all-features
 cargo clippy -p pod-session --all-targets --all-features -- -D warnings
 sh scripts/plant-each.sh --apply
 ```
+
+# T-1450: `pod-session`: the window of a link bounds the payload in flight, not the bytes of its records, so small records pass the relay's hold for a slow receiver and the cap of a leg
+
+**Source:** T-1395 (a finding of the bound of the old leg of a move).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`Link::room_within` and `Link::again_fits` keep the payload that one end sends with no acknowledgement within the window. Each `DATA` record adds a head of 13 bytes, and the window does not count it. A far end whose application writes one byte at a time sends 14 bytes on the link for each byte of its window. With `PAIR_WINDOW` (768 KiB), that is 10.5 MiB with no acknowledgement: more than the 1 MiB that the relay holds for a slow receiver (the doc of `PAIR_WINDOW` keeps a quarter of it for the heads), and more than a cap of 1 MiB of a leg. So `resume::move_under(1 MiB, PAIR_WINDOW)` is `None`, and a consumer with a small cap must use a small window.
+
+## Premise
+
+- Read: `crates/pod-session/src/link.rs` (`room_within`: `window - kept`, `kept` is the payload of the replay buffer; `again_fits`: the span of the payload), `crates/pod-session/src/pump/up.rs` (one record for each read of the application, of 1 byte to `CHUNK`).
+- Measured (T-1395, `crates/pod-session/tests/session_mark.rs`): a far end whose application gives one byte at each read, with a window of 32 KiB, sent 458,856 bytes past the mark of a move, 14 for each byte of the window.
+- Not measured: the bytes of the relay's hold for a slow receiver with records of one byte.
+
+## Approach
+
+1. `Link` keeps the end offset of each record in flight (sent, not acknowledged), and `room_within` takes a head of 13 bytes for each of them, and one for the next record, from the window. `again_fits` the same.
+2. Then `resume::after_mark` counts the far end's window and one record, not 14 bytes for each byte of the window; change it and its test in the same commit.
+3. Tests: a far end of one byte for each record keeps the bytes of its records in flight within the window; the throughput of `session_move` stays.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features
+```
+
+# T-1451: `pod-relay`: `Offer::fit` moves at three quarters of the cap with a window of an eighth, which `pod_session::resume::move_under` does not allow
+
+**Source:** T-1395 (a finding of the bound of the old leg of a move).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Offer::fit` (`crates/pod-relay/src/forward_layer/offer.rs`) gives the layer a move at three quarters of the cap of the host and a window of an eighth (`window_under`). Its doc says that the old leg carries seven eighths of the cap and a record at most. The bound of the code (`pod_session::resume::after_mark`, T-1395) is larger: 14 bytes for each byte of the far end's window, as the window does not count the heads of the records (T-1450), the handshake of the leg and the small records of the hold. Under a cap of 1 MiB, the old leg can carry 768 KiB and 1.75 MiB and more.
+
+## Premise
+
+- Read: `crates/pod-relay/src/forward_layer/offer.rs` (`move_bytes`, `window`, `fit`, `window_under`) and `crates/pod-relay/tests/layer_cap.rs`.
+- Not measured: a far end of the relay's role that writes small records under a cap of 1 MiB.
+
+## Approach
+
+1. `Offer::fit` takes `Settings::under_cap` and `resume::move_under`: the move is the smaller of its rule and `move_under(cap, window)`; with no move, a smaller window.
+2. After T-1450, the rule of an eighth fits again; read the bound then.
+3. Test: `fit` under caps of 1, 8 and 64 MiB gives settings that `under_cap` takes.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features --lib forward_layer::
+cargo test -p pod-relay --all-features --test layer_cap
+```
+
+# T-1452: `pod-session`: a window under 64 KiB waits 200 ms for each window, as the far end acknowledges each 64 KiB or after 200 ms
+
+**Source:** T-1395 (a finding of the bound of the old leg of a move).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A receiver acknowledges when `ACK_EVERY` (64 KiB) reached its application, else 200 ms (`ACK_DELAY`) after the first byte not acknowledged (`Link::ack_due`, `pump/down.rs`). A sender with a window under 64 KiB fills it and waits for the `ACK` of the delay: a window of 32 KiB carries 160 KiB a second on a link of any speed. `resume::move_under` gives no move for a small cap with the window of the pair's road (T-1450), so a consumer with a small cap takes a small window, and its session is then slow.
+
+## Premise
+
+- Read: `crates/pod-session/src/link.rs` (`ACK_EVERY`, `ack_due`, `ack_pending`), `crates/pod-session/src/pump/down.rs` (the delay), `crates/pod-session/src/pump/up.rs` (the wait for room).
+- Not measured: the throughput of a link with a window of 32 KiB.
+
+## Approach
+
+1. The receiver acknowledges when half of its own window (the window of its road) reached the application, or `ACK_EVERY`, the smaller: the two ends of a road take the window of the road.
+2. Test: a session with a window of 32 KiB carries 4 MiB each way under a paused clock with no wait of `ACK_DELAY`.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features
+```

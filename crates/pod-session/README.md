@@ -23,7 +23,7 @@ handshake and what the layer defends against.
 | Module | What |
 | --- | --- |
 | (root) | `Settings` (what one end offers and keeps), `FEATURES`, `KEEP`, `SHELL_FEATURES`; re-exports of the main types of the modules below |
-| `Settings` | `features`, `replay_capacity`, `window`, `pair_window`, `resume_deadline`, `client_deadline`, `wall_clock`, `move_bytes`, `move_age`, `spare_links`, `resumes`, `half_close`; `on_the_pair()`, `off_the_pair()`, `link(&Established)` |
+| `Settings` | `features`, `replay_capacity`, `window`, `pair_window`, `resume_deadline`, `client_deadline`, `wall_clock`, `move_bytes`, `move_age`, `spare_links`, `resumes`, `half_close`; `on_the_pair()`, `off_the_pair()`, `link(&Established)`, `under_cap(cap)` (a failure of the class `Usage` when `move_bytes` is above `resume::move_under` of the relay's cap) |
 | `record`, `decode` | the records (`Record`, `Hello`, `Opening`, `Acceptance`, `Role`, `RefuseCode`), `Record::encode`, `Decoder` (whole records out of the bytes of a link), `decode_body`, the limits (`HEADER`, `MAX_BODY`, `MAX_DATA`, `MAX_REASON`, `MAGIC`, `VERSION`) |
 | `offset`, `replay` | `Inbound`, `Outbound`; `Replay`, `capacity(value)`, `DEFAULT_CAPACITY`, `MAX_CAPACITY`, `PAIR_WINDOW`, `NotKept` |
 | `secret` | `SessionId`, `Nonce`, `Proof`, `Secret`, `derive`, `prove`, `verify`; `Entropy`, `OsEntropy`, `NoRandom` of `pod-core` |
@@ -31,7 +31,7 @@ handshake and what the layer defends against.
 | `link` | `Link` (a session past its handshake, record by record), `Event`, `LinkError`, `LinkParts` |
 | `client`, `far` | the two ends over tokio streams: `client::start`, `Client`, `Outcome`, `Rewound` (`Rewound::new(first, link)`: the link with bytes that a router read given back first); `far::accept`, `accept_with_room`, `serve`, `serve_admitted`, `serve_admitted_by` (the link named for the line of a resume), `Accepted` (`by(name)`, `link_name`), `FarError` |
 | `pump` | one link of a session: `run`, `Carry`, `Watch`, `End`, `Ended`, `PING_EVERY`, `DEAD_AFTER`, `PING_ANSWER` (a link whose far end answers no `PING` for 30 s while the session does not move is lost, also while the far end's own records come: PodUtils/podssh#283, ask 4) |
-| `resume`, `beside`, `race` | the client's session across links (`resume::run`, `Next`, `Note`, `RESUME_DEADLINE`, `MOVE_BYTES`, `MOVE_AGE`); the spare link (`spare_after`, `SpareWait`, `Position`, `SPARE_AFTER`, `SPARE_SOONEST`, `SPARE_QUIET`, `SPARE_EVERY`); the race of roads to one far end (`race`, `in_turn`, `each_timed`) |
+| `resume`, `beside`, `race` | the client's session across links (`resume::run`, `Next`, `Note`, `RESUME_DEADLINE`, `MOVE_BYTES`, `MOVE_AGE`; `after_mark(window)` and `move_under(cap, window)`: the bytes of the old leg of a move, below); the spare link (`spare_after`, `SpareWait`, `Position`, `SPARE_AFTER`, `SPARE_SOONEST`, `SPARE_QUIET`, `SPARE_EVERY`); the race of roads to one far end (`race`, `in_turn`, `each_timed`) |
 | `keep`, `budget`, `sessions` | `Keeper` (the far end's sessions across links: `new`, `with_tell`, `census`, `admit`, `run_new`, `run_resumed`, `hand_over`, `hand_over_with`, `take_over`), `keep::RESUME` (the kind of the line of each resume); `Census`, `Told`, `Tell`, `refusal`, `filling`, `holders` |
 | `deadline`, `hearing`, `round_trip`, `once`, `half_close` | the deadline of each end, what the client heard, the round trip of a link, `once.v1`, `end.v1` |
 | `handover` | `LayerState::{encode, decode}`, `Handed`, `Moved`, `Movable` (for `tokio::net::TcpStream`), `Moving`, `scope`, `current` |
@@ -46,6 +46,28 @@ not records `Protocol`, a wait at its limit `Timeout`. `NoFlow` keeps the
 failure of the resolver, and a host that refuses UDP is `Policy` at the stage
 `Host`.
 
+## The old leg of a move
+
+The client moves the session when a leg carried `move_bytes`, both ways.
+The leg then holds until the new leg greets, and it still carries bytes.
+`resume::after_mark(window)` gives the most bytes past `move_bytes - 1`, and
+`resume::move_under(cap, window)` gives the largest `move_bytes` whose old
+leg stays under a relay's cap (`None` when no move fits).
+
+| Part of the bound | Bytes |
+| --- | --- |
+| The far end's `DATA` in flight: the window bounds the payload, and each record adds a head of 13 bytes | 14 for each byte of the window (a far end whose application writes one byte at a time), or one record of 64 KiB and 5 bytes (a resend) when that is more |
+| The record that this side's writer took before the hold | 64 KiB and 5 bytes |
+| The far end's `ACK`s of this side's window | 13 for each 64 KiB of the window, and 13 |
+| The handshake of the leg, which the relay counts | 1296 |
+| The small records of a hold of 100 s, and a last `CLOSE` of the far end | 8 KiB, and 1029 |
+
+Under the relay's cap of 64 MiB with the window of the pair's road
+(768 KiB), the largest move is 53.4 MiB, so `MOVE_BYTES` (48 MiB) fits.
+Under a cap of 1 MiB, the window of the pair's road gives no move: a window
+of 64 KiB gives a move at 54988 bytes. The bound counts the bytes of the
+records; a road that adds bytes to each frame adds them to each record.
+
 ## Features
 
 None.
@@ -58,7 +80,7 @@ state, except the task-local id of `handover::scope`.
 | Value | Where |
 | --- | --- |
 | The features, the replay buffer, the window, the deadlines, the move, the spare link, `--no-resume`, the end of one direction | `Settings` |
-| The limits of the relay: the window of the pair's road (1 MiB held for a slow receiver), the bytes (64 MiB) and the age (12 h) of a session | `Settings::pair_window`, `move_bytes`, `move_age` |
+| The limits of the relay: the window of the pair's road (1 MiB held for a slow receiver), the bytes (64 MiB) and the age (12 h) of a session | `Settings::pair_window`, `move_bytes`, `move_age`; `Settings::under_cap(cap)` checks `move_bytes` |
 | The value of the replay buffer of the consumer (podssh's `PODSSH_REPLAY_BUFFER`) | `replay::capacity(Option<&str>)` |
 | Where the budget's lines go, and the words of what changes the budget | `Keeper::with_tell(Tell::new(events, change))`: the events `session.budget.refused` and `session.budget.filling` |
 | Where the line of each resume goes | the same sink: the event `session.resume` (level `Info`), below |

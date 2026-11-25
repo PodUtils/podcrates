@@ -43,7 +43,8 @@ const RECORD: u64 = (HEADER + MAX_BODY) as u64;
 const HELLO: u64 = (HEADER + MAGIC.len() + 2 + KEY_LEN + 1 + MAX_FEATURES * (1 + MAX_FEATURE_NAME)) as u64;
 /// The handshake of a leg at most: a `GREETING`, an `OPEN` of a new
 /// session, its `ACCEPT`, and a `PROOF`.
-const HANDSHAKE: u64 = 2 * HELLO + (1 + KEY_LEN) as u64 + (HEADER + 1 + ID_LEN + KEY_LEN) as u64 + (HEADER + 8 + KEY_LEN) as u64;
+const HANDSHAKE: u64 =
+    2 * HELLO + (1 + KEY_LEN) as u64 + (HEADER + 1 + ID_LEN + KEY_LEN) as u64 + (HEADER + 8 + KEY_LEN) as u64;
 /// The small records of both ends while the leg holds: an `ACK` of the far
 /// end each 200 ms at most, a `PING` and a `PONG` each way each 10 s, an
 /// `ACK` and a `PONG` of this side that were on their way at the mark, and
@@ -89,7 +90,9 @@ impl Settings {
                 "a move at {} bytes lets the old leg reach the relay's cap of {cap} bytes: the largest move under it is {most} bytes",
                 self.move_bytes
             ),
-            None => format!("no move fits the relay's cap of {cap} bytes with a window of {window} bytes: use a smaller window"),
+            None => format!(
+                "no move fits the relay's cap of {cap} bytes with a window of {window} bytes: use a smaller window"
+            ),
         };
         Err(Failure::new(Stage::Session, Class::Usage, text))
     }

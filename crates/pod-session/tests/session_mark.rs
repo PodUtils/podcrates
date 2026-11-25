@@ -63,7 +63,11 @@ impl AsyncWrite for Source {
 }
 
 /// One way of the stand-in relay: each byte counted in `carried`.
-async fn one_way(mut from: tokio::io::ReadHalf<DuplexStream>, mut to: tokio::io::WriteHalf<DuplexStream>, carried: Arc<AtomicU64>) {
+async fn one_way(
+    mut from: tokio::io::ReadHalf<DuplexStream>,
+    mut to: tokio::io::WriteHalf<DuplexStream>,
+    carried: Arc<AtomicU64>,
+) {
     let mut buf = vec![0u8; 64 * 1024];
     while let Ok(n) = from.read(&mut buf).await {
         if n == 0 || to.write_all(&buf[..n]).await.is_err() {
