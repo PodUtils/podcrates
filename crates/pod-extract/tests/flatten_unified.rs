@@ -155,3 +155,24 @@ fn gnu_tar_takes_the_unified_tarball() {
     let n = pod_hostprobe::sys::fgetxattr(i64::from(f.as_raw_fd()), &name, &mut buf);
     assert_eq!(n.ok().map(|n| buf[..n as usize].to_vec()), Some(b"v".to_vec()), "GNU tar did not set user.k");
 }
+
+/// A directory entry that closes the write or the search mode of its owner
+/// waits until after the last layer: after the children of the older
+/// layers, a parent before its child, and before the entries of `after`.
+#[test]
+fn a_closed_directory_goes_after_the_tree_and_before_the_entries_of_after() {
+    let s = Scratch::new("held");
+    let l0 = tar(&[E::Dir("usr", 0o755), E::Dir("usr/bin", 0o755), E::File("usr/bin/sh", b"sh", 0o755)]);
+    let l1 = tar(&[E::Dir("usr/bin/x", 0o500), E::Dir("usr/bin", 0o555), E::File("usr/bin/ls", b"ls", 0o755)]);
+    let layers = plain(s.path(), &[l0, l1]);
+    let (stream, _) = unified(&layers, &rootfs()).unwrap();
+    let list = paths(&stream);
+    let at = |p: &str| list.iter().position(|n| n == p).unwrap_or_else(|| panic!("no {p} in {list:?}"));
+    assert!(at("rootfs/usr/bin") > at("rootfs/usr/bin/sh"), "{list:?}");
+    assert!(at("rootfs/usr/bin") > at("rootfs/usr"), "{list:?}");
+    assert_eq!(at("rootfs/usr/bin/x"), at("rootfs/usr/bin") + 1, "{list:?}");
+    assert_eq!(at("rootfs/.podvm"), at("rootfs/usr/bin/x") + 1, "{list:?}");
+    let all = entries(&stream);
+    let bin = all.iter().find(|e| e.0 == "rootfs/usr/bin").unwrap();
+    assert_eq!((bin.1, bin.2), (::tar::EntryType::Directory, 0o555));
+}

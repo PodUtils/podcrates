@@ -112,12 +112,15 @@ through a symlink of an older layer or of its layer, a target above the
 root, a name past 255 bytes); with faults in two layers, `flatten` names
 the fault that it reads first, from the newest layer. A directory entry can come after its
 children, and a child of an older layer comes after the entry of its
-directory from a newer layer. GNU tar with the arguments of incusd, as
-root, takes that order, with the mode and the owner of each directory. A
-user that is not root cannot write a child of an older layer below a
-directory that a newer layer closed. A directory that the layers make
-with no entry (a file below it) goes out after the last layer, with mode
-0755 and owner 0, as `extract` makes it. A GNU sparse file goes out with
+directory from a newer layer. GNU tar with the arguments of incusd takes
+that order, with the mode and the owner of each directory. GNU tar as a
+user that is not root sets the mode of a directory when the stream leaves
+it, so a directory entry whose mode takes the write or the search mode
+from its owner (`usr/bin` 0555) waits: it goes out after the last layer, a
+parent before its children, before the entries of `after`. The memory of
+such an entry is its header and its records. A directory that the layers
+make with no entry (a file below it) goes out after the last layer, with
+mode 0755 and owner 0, as `extract` makes it. A GNU sparse file goes out with
 its holes as zero bytes. A failure after the first byte writes one block
 that is not a header in place of the end blocks: the reader fails and
 does not take a short tree, and the caller discards the upload. The
@@ -277,10 +280,10 @@ at the tree. No test needs root, a namespace or the network. The walk and
 The tests with a worker of uid 1000 below run that worker only as root.
 CI runs them as root (`scripts/ci/root-uid1000-tests.sh`, a step of
 `ci.yml`), and a skip line fails the step (T-614; the plant
-`extract-t614-root-test-skips`). The same script runs the test of GNU tar
-over a directory that a newer layer closed
-(`gnu_tar_as_root_takes_a_directory_that_a_newer_layer_closed`), which
-skips as another user.
+`extract-t614-root-test-skips`). The test of GNU tar over a directory
+that a newer layer closed
+(`gnu_tar_takes_a_directory_that_a_newer_layer_closed`) runs as each
+user: `flatten` writes such a directory entry after the last layer.
 
 `drive::setid::set_id_bits_survive_the_write` extracts files of mode 4755,
 2755 and 6755 as the user of the test. As root it also runs the test

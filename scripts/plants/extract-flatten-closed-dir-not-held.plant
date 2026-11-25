@@ -1,0 +1,9 @@
+# pod-extract flatten: a directory entry that closes the write or the
+# search mode of its owner goes out in its place in the pass, before the
+# children of the older layers, and GNU tar as a user that is not root
+# cannot write them (T-1299).
+ENTRY=T-1299
+GROUP=extract
+EXPECT='a_closed_directory_goes_after_the_tree_and_before_the_entries_of_after'
+RUN='cargo test -p pod-extract --all-features --test flatten_unified a_closed_directory_goes_after_the_tree_and_before_the_entries_of_after'
+LIMIT=900

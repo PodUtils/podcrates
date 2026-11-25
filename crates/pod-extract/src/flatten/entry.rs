@@ -28,6 +28,10 @@ pub(super) struct State {
     pub(super) links: Links,
     /// The index of the next member of the current layer.
     member: u64,
+    /// The directory entries that close the write or the search mode of
+    /// their owner, with the components of each path: they go out after
+    /// the last layer ([`State::held`]).
+    held: Vec<(Vec<String>, Vec<u8>)>,
 }
 
 impl State {
@@ -41,6 +45,7 @@ impl State {
             pending: Vec::new(),
             links: Links::default(),
             member: 0,
+            held: Vec::new(),
         }
     }
 
@@ -153,7 +158,17 @@ impl State {
             self.links.put_records(name.node, &out);
         } else {
             let recs = &plan.as_ref().map_or(&[][..], |p| &p.recs);
-            let (x, out) = put(w, &parts.join("/"), (wkind, &header, member), e, sparse.as_ref(), (link, recs))?;
+            let what = (wkind, &header, member);
+            let (x, out) = if wkind == Kind::Dir && closes(header.mode().unwrap_or(0o755)) {
+                // A directory has no data: its header and its records wait.
+                let mut bytes = Vec::new();
+                let mut held = Out::new(&mut bytes, w.prefix().to_string());
+                let put = put(&mut held, &parts.join("/"), what, e, None, (None, recs))?;
+                self.held.push((parts.iter().map(|p| p.to_string()).collect(), bytes));
+                put
+            } else {
+                put(w, &parts.join("/"), what, e, sparse.as_ref(), (link, recs))?
+            };
             self.total.xattrs.add(&x);
             self.links.put_records(leaf, &out);
             let n = self.trie.node_mut(leaf);
@@ -288,6 +303,22 @@ impl State {
         Ok(())
     }
 
+    /// After the last layer and the implied directories: each held
+    /// directory entry. A newer layer goes out first, so its directory
+    /// entry comes before the children of the older layers. GNU tar as a
+    /// user that is not root sets the mode of a directory when the stream
+    /// leaves it, and then cannot write a later child below a directory
+    /// with no write or search mode. A parent goes before its children, so
+    /// that each child is set while its parent is still open.
+    pub(super) fn held<W: Write>(&mut self, w: &mut Out<'_, W>) -> Result<()> {
+        let mut held = std::mem::take(&mut self.held);
+        held.sort_by(|a, b| a.0.cmp(&b.0));
+        for (_, bytes) in held {
+            w.raw(&bytes)?;
+        }
+        Ok(())
+    }
+
     /// A whiteout (`name`) or an opaque marker (no name), with the checks
     /// of [`crate::remove::collect`].
     fn marker(&mut self, digest: &str, layer: u16, path: &str, name: Option<&str>) -> Result<()> {
@@ -373,6 +404,12 @@ impl State {
         self.total.written += 1;
         self.links.reread_links(w, &self.trie, names)
     }
+}
+
+/// True when `mode` takes the write or the search mode from the owner of a
+/// directory.
+fn closes(mode: u32) -> bool {
+    mode & 0o300 != 0o300
 }
 
 /// One entry of the stream at `path`: the header with the values of the

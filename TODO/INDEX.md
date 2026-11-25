@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**982 entries: 154 open, 31 partial, 7 blocked, 790 done.**
+**982 entries: 153 open, 31 partial, 7 blocked, 791 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 229 | 243 |
 | P2 | 69 | 10 | 4 | 412 | 495 |
-| P3 | 81 | 11 | 3 | 147 | 242 |
-| **All** | 154 | 31 | 7 | 790 | 982 |
+| P3 | 80 | 11 | 3 | 148 | 242 |
+| **All** | 153 | 31 | 7 | 791 | 982 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1022,7 +1022,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1296](upkeep.md) | P2 | S | M6 | defect | partial | `pod-enter`: the two title tests of the init and the relay fail under qemu-user on each emulated job (the nightly at `f39b8e2`) |
 | [T-1297](upkeep.md) | P2 | S | M2 | defect | partial | `pod-link`: `dns_hold` gives a hold that is longer than its query timeout under an emulator, and `a_server_that_never_answers_a_command_is_the_named_timeout` of `mail` ends with no error on arm |
 | [T-1298](upkeep.md) | P1 | M | M6 | defect | partial | `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes |
-| [T-1299](upkeep.md) | P3 | S | M6 | feature | open | `pod-extract`: a stream of `flatten` that GNU tar as a user that is not root can unpack |
+| [T-1299](upkeep.md) | P3 | S | M6 | feature | done | `pod-extract`: a stream of `flatten` that GNU tar as a user that is not root can unpack |
 | [T-1303](upkeep.md) | P2 | S | M5 | defect | partial | The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows |
 | [T-1307](podvm.md) | P3 | S | M6 | feature | done | `pod-incus`: a cut `error` envelope has no flag, so a caller reads the words of its text to know that the answer was over `max_body` (PodUtils/podvm#663) |
 | [T-1321](podvm.md) | P3 | S | M6 | measurement | open | `pod-gzip`: measure a C backend of deflate against `miniz_oxide` at four threads |

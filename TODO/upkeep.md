@@ -4971,7 +4971,7 @@ runs the root test: 1 passed. `cargo clippy -p pod-extract --all-targets
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5005,6 +5005,52 @@ root step of CI no longer needs it.
 cargo test -p pod-extract --all-features --test flatten
 setpriv --reuid=65534 --regid=65534 --clear-groups cargo test -p pod-extract --all-features --test flatten
 ```
+
+## Done
+
+2026-11-25, this commit. `flatten` holds each directory entry of the
+image whose mode takes the write or the search mode from its owner (a
+mode with `0o300` not set: `usr/bin` 0555, a directory 0644): `put` writes
+its header and its records into a buffer (`write::Out` over a `Vec`), and
+`entry::State::held` writes the buffers after the last layer, the hard
+links, the second reads and the implied directories, and before the
+entries of `after` and the end blocks. The held entries go in the order
+of their components, so a parent comes before its children. The memory of
+a held entry is its header and its records. Each other entry keeps its
+place.
+
+The tests. `crates/pod-extract/tests/flatten.rs`:
+`gnu_tar_as_root_takes_a_directory_that_a_newer_layer_closed` (T-1295)
+is now `gnu_tar_takes_a_directory_that_a_newer_layer_closed`, with no
+skip: it runs as each user, with `usr/bin` 0555 and 0644, and checks
+that `usr/bin` comes after `usr/bin/sh`. `scripts/ci/root-uid1000-tests.sh`
+no longer runs it, and `docs/design.md` and the README of `pod-extract`
+say so. `crates/pod-extract/tests/flatten_unified.rs`:
+`a_closed_directory_goes_after_the_tree_and_before_the_entries_of_after`
+(a held `usr/bin` and `usr/bin/x` 0500 after the tree, the parent first,
+before `rootfs/.podvm`). As the user `podtest` (uid 30033, `setpriv
+--reuid --regid --clear-groups`) on the code before the change (the test
+with no skip): `flatten` 1 passed, 1 failed (`tar: usr/bin/sh: Cannot
+open: Permission denied`, "GNU tar refused the stream"). After: as
+`podtest` and as root, `flatten` 22, `flatten_links` 11,
+`flatten_random` 3, `flatten_records` 10, `flatten_unified` 7 passed;
+the comparisons with `extract` hold (the generator of `flatten_random`
+gives directories the modes 0644 and 0600, which are now held). As root:
+`cargo test -p pod-extract --all-features` passes. `cargo clippy -p
+pod-extract --all-targets --all-features -- -D warnings`, `cargo doc -p
+pod-extract --no-deps --all-features` with `-D warnings`, `cargo fmt
+--all --check`, `cargo check --manifest-path fuzz/Cargo.toml` pass; `sh
+scripts/plant-each.sh --apply`: 0 stale.
+
+The plant `extract-flatten-closed-dir-not-held` (no directory is held)
+fails `a_closed_directory_goes_after_the_tree_and_before_the_entries_of_after`
+(exit 101); the run without it passes (exit 0).
+
+For the hand-off: podvm sees one change. A stream of `flatten` puts each
+directory entry that closes its owner's write or search mode after the
+tree and before the entries of `after`; GNU tar as a user that is not
+root unpacks it. No API changed.
+
 
 # T-1296: `pod-enter`: the two title tests of the init and the relay fail under qemu-user on each emulated job (the nightly at `f39b8e2`)
 

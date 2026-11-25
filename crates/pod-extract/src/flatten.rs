@@ -15,6 +15,11 @@
 //! the unpacker of incusd (`tar -xf -` with `--numeric-owner`, as root),
 //! takes that order with the mode and the owner of each directory, and so
 //! does `extract` (a directory that is there gets its mode at the end).
+//! GNU tar as a user that is not root sets the mode of a directory when the
+//! stream leaves it: a directory entry whose mode takes the write or the
+//! search mode from its owner (`usr/bin` 0555) waits, and goes out after
+//! the last layer, before the entries of the caller after the tree. Such a
+//! stream unpacks as each user.
 //!
 //! **The rules of `extract`, with no second copy.** The paths get
 //! [`crate::safety::components`], the symlink targets
@@ -178,7 +183,8 @@ pub fn flatten<W: Write>(layers: &[Layer], out: &mut W, options: &Options) -> Re
 /// before the tree (the `metadata.yaml` of incus), `after` writes entries
 /// after it (`rootfs/.podvm/podvm`), each through [`Entries`]. The order of
 /// the stream: the entries of `before`, the directories of
-/// [`Options::prefix`], the tree below the prefix, the entries of `after`,
+/// [`Options::prefix`], the tree below the prefix (each directory entry
+/// that closes its owner's write or search mode last), the entries of `after`,
 /// the end blocks once ([`Options::end`]). A failure of a closure fails
 /// the stream as each other failure.
 pub fn flatten_with<W, B, A>(layers: &[Layer], out: &mut W, options: &Options, before: B, after: A) -> Result<Flattened>
@@ -218,6 +224,7 @@ where
         st.finish(&mut w)?;
         reread(&plan, &mut st, &mut w)?;
         st.implied(&mut w)?;
+        st.held(&mut w)?;
         caller.check_before(&st.trie)?;
         after(&mut Entries { out: &mut w, caller: &mut caller, image: Some(&st.trie) })?;
         if options.end { w.end() } else { w.flush() }
