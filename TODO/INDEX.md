@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1035 entries: 165 open, 31 partial, 6 blocked, 833 done.**
+**1036 entries: 166 open, 31 partial, 6 blocked, 833 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 245 | 258 |
 | P2 | 73 | 12 | 4 | 432 | 521 |
-| P3 | 88 | 10 | 2 | 154 | 254 |
-| **All** | 165 | 31 | 6 | 833 | 1035 |
+| P3 | 89 | 10 | 2 | 154 | 255 |
+| **All** | 166 | 31 | 6 | 833 | 1036 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1081,4 +1081,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1450](relay.md) | P2 | M | M2 | defect | open | `pod-session`: the window of a link bounds the payload in flight, not the bytes of its records, so small records pass the relay's hold for a slow receiver and the cap of a leg |
 | [T-1451](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: `Offer::fit` moves at three quarters of the cap with a window of an eighth, which `pod_session::resume::move_under` does not allow |
 | [T-1452](relay.md) | P3 | S | M2 | defect | open | `pod-session`: a window under 64 KiB waits 200 ms for each window, as the far end acknowledges each 64 KiB or after 200 ms |
+| [T-1453](fleet.md) | P3 | S | M8 | chore | open | `pod-control`: take `pod_core::sockopt::shut_needs_no_limit` in place of `frame::shut_needs_no_timeout`, a twin of it |
 | [T-1460](fleet.md) | P3 | S | M8 | defect | open | `pod-unit`: an install accepts a program in a directory that the host clears at a reboot or a logout, so the unit fails after the next reboot |

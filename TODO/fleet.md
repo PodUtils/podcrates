@@ -9717,3 +9717,34 @@ later, with no cause at the install.
 ```sh
 cargo test -p pod-unit --all-features --test install
 ```
+
+# T-1453: `pod-control`: take `pod_core::sockopt::shut_needs_no_limit` in place of `frame::shut_needs_no_timeout`, a twin of it
+
+**Source:** T-1445 (the same refusal of macOS in `pod-tpm`), 2026-11-25.
+**Category:** chore
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod-control` (`crates/pod-control/src/frame.rs`, `shut_needs_no_timeout`, T-1041) takes the `EINVAL` of a set of a socket option on Darwin as no error: macOS refuses each socket option when the peer shut the socket. T-1445 needed the same rule for the socket transport of `pod-tpm` and put it in `pod-core` as `pod_core::sockopt::shut_needs_no_limit`, with the same result for each input. The function of `pod-control` is now a twin of the shared one (the owner's ruling "Shared code").
+
+## Premise
+
+- Read: `frame.rs` of `pod-control` (`shut_needs_no_timeout` and its test `only_the_einval_of_darwin_needs_no_timeout`) and `crates/pod-core/src/sockopt.rs`.
+- Not done: the change of `pod-control`; the worker of T-1445 had no leave to change that crate.
+
+## Approach
+
+1. In `frame.rs`, call `pod_core::sockopt::shut_needs_no_limit` in the `Stream` impl of `UnixStream`; remove `shut_needs_no_timeout`.
+2. Remove the test `only_the_einval_of_darwin_needs_no_timeout`: `sockopt::tests` of `pod-core` holds the same cases. Keep `a_closed_peer_with_bytes_left_gives_the_bytes_then_the_end`.
+3. `python3 -I scripts/codegraph.py similar shut socket EINVAL` gives no other twin.
+
+## Prove
+
+```sh
+cargo test -p pod-control --all-features --lib frame
+cargo test -p pod-core --all-features --lib sockopt
+```
