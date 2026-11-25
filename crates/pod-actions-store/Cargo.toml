@@ -8,6 +8,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+# The atomic replace of a tarball and the new scratch directory of a fetch.
+pod-core = { workspace = true }
 # The `uses:` of a workflow and the YAML of a composite `action.yml`.
 pod-actions-workflow = { workspace = true }
 # The entry API, to find the `action.yml` of a reference in its tar.

@@ -5781,16 +5781,67 @@ sh scripts/agent/check.sh
   `x86_64-apple-darwin` and `x86_64-unknown-linux-musl`, pass. FreeBSD was
   not built (no target here).
 
+2026-11-25 (partial, the second pass). Step 2 for seven crates, one crate
+in a commit, and one function of `pod-core`:
+
+- `a345ca54`, `pod-hostprobe`: `exec.rs` takes `new_temp_file`
+  (`.pod-hostprobe-exec-RANDOM`); its private name and loop are gone.
+  `writable.rs`, `probes/files.rs`, `probes/access.rs` and `cgroup.rs` take
+  `probes::unique` (the pid and 8 random bytes of `getrandom`), now
+  visible to the crate: the raw exclusive create is the instrument of the
+  probe, and `new_temp_file` sets the mode after the create, which a file
+  system can refuse (a wrong verdict). The test
+  `a_probe_file_never_takes_the_file_of_another` holds two names and a file
+  that is there kept; the plant `hostprobe-exec-probe-overwrites` (a name
+  of the pid, written over) follows and is caught.
+- `05b808b6`, `pod-enter`: the tmpfs and FUSE mount directories are
+  `mnt-RANDOM` (`new_temp_dir`). New test `each_mount_directory_is_new`.
+- `36c7878c`, `pod-actions-store`: `Store::put` takes
+  `pod_core::files::replace` (mode 0644); the old `std::fs::write` to
+  `SHA.tar.tmpPID` followed a link. The fetch directory is
+  `fetch-COMMIT-RANDOM`. The crate depends on `pod-core` (no default
+  feature). New tests `a_put_never_writes_through_a_link_at_a_name_of_the_pid`
+  (fails on the old code) and `two_fetches_of_one_commit_take_two_directories`.
+- `68441371`, `pod-link`: the stage of `bind_private` is
+  `.pod-link-RANDOM` (`new_temp_dir`, the same length); the private
+  `nonce` is gone. New test `each_bind_takes_a_new_stage_and_leaves_none`.
+- `bc98ebe1`, `pod-core`: `new_temp_with(parent, prefix, suffix, create)`,
+  the names and the bound of `files::temp` with the create of a caller (a
+  node by `mknodat` on a descriptor). New test
+  `the_create_of_a_caller_takes_the_same_rule`.
+- `86df91db`, `pod-rootfs`: the temporary device node is
+  `SCRATCH_PREFIX-RANDOM` (`new_temp_with`), 8 tries; the old loop had no
+  bound. New test `a_replaced_node_never_takes_a_name_of_another_run` (the
+  `mknod` arm ran on this host).
+- `b426dba6`, `pod-warp`: `test_dir` (tests only) takes `new_temp_dir`.
+  New test `two_test_directories_of_one_tag_differ`.
+- `c8cca46b`, `pod-supervise`: `create_locked` makes
+  `containers.json-RANDOM.partial.new` (`new_temp_file`), locks it and
+  names it `containers.json-RANDOM.partial`: the sweep of T-872 finds the
+  suffix `.partial` and never sees the file unlocked. The removals before
+  the create, which took a file of another writer of the same pid, are
+  gone. New test `each_temp_file_of_a_write_is_new`; the plant
+  `supervise-table-temp-unlocked` follows and is caught.
+- Measured: `cargo test --all-features` of each crate: `pod-hostprobe` 200
+  lib tests and 10 more, `pod-enter` 273 lib tests (1 ignored) and 47
+  more, `pod-actions-store` 23 lib tests and 6 more, `pod-link` 52 lib
+  tests and the integration tests, `pod-core` 117 lib tests and 21 more,
+  `pod-rootfs` 87 and 3, `pod-supervise` 45 and 1, `pod-warp` 169 and 59;
+  each passes. Clippy with `-D warnings` of each crate passes.
+  `cargo check --target x86_64-pc-windows-gnu`: `pod-core --tests` and
+  `pod-actions-store --tests` pass; `pod-link --lib` for
+  `x86_64-apple-darwin` passes. The other crates are Linux or Unix only.
+
 Remains:
 
-- Step 2 for the other crates, one crate in a commit: `pod-hostprobe`
-  (`exec.rs`, `writable.rs`, `probes/files.rs`, `access.rs`, `cgroup.rs`),
-  `pod-enter` (`stage.rs`, `fuse.rs`), `pod-guest` (`scratch.rs`: its test
-  `a_scratch_directory_is_named_for_the_run_and_closed_to_others` holds that
-  a second call with one tag gives the same directory; read the callers in
-  podvm first), `pod-actions-store` (`git.rs`, `store.rs`), `pod-link`
-  (`unix.rs`), `pod-rootfs` (`write/follow.rs`), `pod-warp` (`lib.rs`) and
-  `pod-supervise` (`table.rs`, after T-872).
+- Step 2: `pod-guest` (`scratch.rs`): its test
+  `a_scratch_directory_is_named_for_the_run_and_closed_to_others` and the
+  callers in podvm take the same directory again for one tag, so a new
+  name changes the contract; read the callers in podvm first.
+- `probes::unique` of `pod-hostprobe` is a second copy of the rule of the
+  random part (raw `getrandom`, the clock as the fallback). It names paths
+  for `mknod`, `symlink` and the raw `open` of the probes; a move to
+  `new_temp_with` keeps the raw calls. Decide at step 3.
 - Step 3: the directories of the tests through `pod-testkit`, and the check
   of T-932.
 - Step 5: the next tag carries the functions; answer PodUtils/podnet#711

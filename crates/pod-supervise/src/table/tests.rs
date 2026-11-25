@@ -206,14 +206,32 @@ fn a_crafted_id_names_no_directory_outside_the_containers() {
 fn the_temp_file_of_a_write_is_locked() {
     let s = scratch("locked");
     std::fs::create_dir_all(&s.root).unwrap();
-    let tmp = s.root.join("t.partial");
-    let file = create_locked(&tmp).expect("a new file");
+    let (tmp, file) = create_locked(&s.root).expect("a new file");
     let other = std::fs::File::open(&tmp).unwrap();
     let fd = std::os::fd::AsRawFd::as_raw_fd(&other) as i64;
     let op = pod_hostprobe::sys::LOCK_EX | pod_hostprobe::sys::LOCK_NB;
     assert!(pod_hostprobe::sys::flock(fd, op).is_err(), "a sweep got the lock of a live temp file");
     drop(file);
     assert!(pod_hostprobe::sys::flock(fd, op).is_ok(), "the lock goes with the writer");
+    let _ = std::fs::remove_dir_all(&s.root);
+}
+
+/// Two temp files of one directory have two new names that a sweep finds
+/// (`containers.json-RANDOM.partial`), and a temp file of another writer
+/// (a name of the pid of before) stays.
+#[test]
+fn each_temp_file_of_a_write_is_new() {
+    let s = scratch("temp-names");
+    std::fs::create_dir_all(&s.root).unwrap();
+    let other = s.root.join(format!("{TABLE_FILE}.{}.0.partial", std::process::id()));
+    std::fs::write(&other, b"another writer").unwrap();
+    let ((a, _fa), (b, _fb)) = (create_locked(&s.root).unwrap(), create_locked(&s.root).unwrap());
+    assert_ne!(a, b);
+    for tmp in [&a, &b] {
+        let name = tmp.file_name().unwrap().to_string_lossy();
+        assert!(name.starts_with(&format!("{TABLE_FILE}-")) && name.ends_with(".partial"), "{name}");
+    }
+    assert_eq!(std::fs::read(&other).unwrap(), b"another writer");
     let _ = std::fs::remove_dir_all(&s.root);
 }
 

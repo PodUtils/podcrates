@@ -82,19 +82,14 @@ impl Git {
         Ok(out.stdout)
     }
 
-    /// A new directory under `scratch`. `create_dir` fails on a name that
-    /// exists, so two fetches of one commit never share a directory.
+    /// A new directory `fetch-COMMIT-RANDOM` under `scratch`, never one
+    /// that is there: two fetches of one commit, also of two processes of
+    /// one pid, never share a directory. The commit in the name lets a
+    /// reader find the directory of a fetch that a kill stopped.
     fn fresh_dir(&self, commit: &str) -> Result<PathBuf, String> {
         std::fs::create_dir_all(&self.scratch).map_err(|e| format!("{}: {e}", self.scratch.display()))?;
-        for n in 0..u32::MAX {
-            let dir = self.scratch.join(format!("fetch-{}-{commit}-{n}", std::process::id()));
-            match std::fs::create_dir(&dir) {
-                Ok(()) => return Ok(dir),
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
-                Err(e) => return Err(format!("{}: {e}", dir.display())),
-            }
-        }
-        Err(format!("{}: no free name", self.scratch.display()))
+        pod_core::files::new_temp_dir(&self.scratch, &format!("fetch-{commit}"))
+            .map_err(|e| format!("{}: {e}", self.scratch.display()))
     }
 }
 
@@ -147,5 +142,30 @@ impl Forge for Git {
             .and_then(|_| self.run(&["archive", "--format=tar", &prefix, "FETCH_HEAD"], Some(&dir)));
         let _ = std::fs::remove_dir_all(&dir);
         r.map_err(|e| format!("`{repo}` at {commit}: {e}"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Two fetches of one commit take two new directories, and a directory
+    /// that is there stays as it was.
+    #[test]
+    fn two_fetches_of_one_commit_take_two_directories() {
+        let scratch = std::env::temp_dir().join(format!("pod-actions-store-fresh-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&scratch);
+        let other = scratch.join("fetch-abc-of-another-run");
+        std::fs::create_dir_all(&other).unwrap();
+        std::fs::write(other.join("kept"), b"x").unwrap();
+        let git = Git::new("file:///", &scratch);
+        let (a, b) = (git.fresh_dir("abc").unwrap(), git.fresh_dir("abc").unwrap());
+        assert_ne!(a, b);
+        for dir in [&a, &b] {
+            assert!(dir.file_name().unwrap().to_string_lossy().starts_with("fetch-abc-"), "{}", dir.display());
+            assert!(std::fs::read_dir(dir).unwrap().next().is_none());
+        }
+        assert_eq!(std::fs::read(other.join("kept")).unwrap(), b"x");
+        let _ = std::fs::remove_dir_all(&scratch);
     }
 }

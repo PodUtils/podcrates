@@ -337,3 +337,25 @@ fn the_git_command_takes_the_proxy_of_the_grant_and_https_only() {
     let c = local.command(&["ls-remote"], None);
     assert!(c.get_envs().any(|(k, v)| k == "GIT_CONFIG_KEY_1" && v.is_some_and(|v| v == "protocol.file.allow")));
 }
+
+/// A put never writes through a link at a temporary name of before (the
+/// pid alone): the target of the link keeps its bytes, and the store gets
+/// the new tarball.
+#[cfg(unix)]
+#[test]
+fn a_put_never_writes_through_a_link_at_a_name_of_the_pid() {
+    let s = store();
+    let path = s.path("o/link", A);
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let outside = s.dir.join("outside");
+    std::fs::write(&outside, b"the file of another run").unwrap();
+    let old = path.with_extension(format!("tmp{}", std::process::id()));
+    std::os::unix::fs::symlink(&outside, &old).unwrap();
+    s.put("o/link", A, b"a tar").unwrap();
+    s.put("o/link", A, b"a tar").unwrap();
+    assert_eq!(std::fs::read(&outside).unwrap(), b"the file of another run");
+    assert_eq!(s.get("o/link", A).unwrap().unwrap(), b"a tar");
+    let names: Vec<_> = std::fs::read_dir(path.parent().unwrap()).unwrap().map(|e| e.unwrap().file_name()).collect();
+    assert_eq!(names.len(), 2, "no temporary file stays: {names:?}");
+    let _ = std::fs::remove_dir_all(&s.dir);
+}

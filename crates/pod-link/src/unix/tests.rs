@@ -1,9 +1,7 @@
 use super::*;
 
 fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("pl-unit-{name}-{}-{:x}", std::process::id(), nonce()));
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+    pod_core::files::new_temp_dir(&std::env::temp_dir(), &format!("pl-unit-{name}")).unwrap()
 }
 
 fn mode(path: &Path) -> u32 {
@@ -47,5 +45,27 @@ async fn a_bind_with_the_mode_refuses_an_existing_path() {
     let e = bind_with_mode(&path).unwrap_err();
     assert_eq!(e.kind(), io::ErrorKind::AddrInUse, "{e}");
     assert!(path.exists(), "the socket of the first bind stays");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Two binds in one directory each take a new stage and leave none, and a
+/// stage of another run stays as it was.
+#[tokio::test]
+async fn each_bind_takes_a_new_stage_and_leaves_none() {
+    let dir = scratch("stage");
+    let other = dir.join(".pod-link-of-another-run");
+    std::fs::create_dir(&other).unwrap();
+    std::fs::write(other.join("s"), b"x").unwrap();
+    let a = bind_private(&dir.join("a.sock")).unwrap();
+    let b = bind_private(&dir.join("b.sock")).unwrap();
+    for name in ["a.sock", "b.sock"] {
+        assert_eq!(mode(&dir.join(name)), 0o600, "{name}");
+    }
+    let mut names: Vec<String> =
+        std::fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect();
+    names.sort();
+    assert_eq!(names, [".pod-link-of-another-run", "a.sock", "b.sock"]);
+    assert_eq!(std::fs::read(other.join("s")).unwrap(), b"x");
+    drop((a, b));
     let _ = std::fs::remove_dir_all(&dir);
 }

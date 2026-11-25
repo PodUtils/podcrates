@@ -174,6 +174,32 @@ fn a_fifo_at_a_device_path_is_replaced_and_named() {
     }
 }
 
+/// The node that replaces an entry takes a new random temporary name: a
+/// file at a name of the pid (another run of the same pid) stays, and no
+/// temporary node stays.
+#[test]
+fn a_replaced_node_never_takes_a_name_of_another_run() {
+    if no_in_root() {
+        return;
+    }
+    let d = Scratch::new("tempnode");
+    std::fs::create_dir_all(d.at("dev")).unwrap();
+    crate::testing::mkfifo(&d.at("dev/zero"));
+    let prefix = &settings().names.scratch_prefix;
+    let other = d.at(&format!("dev/{prefix}{}-0", std::process::id()));
+    std::fs::write(&other, b"another run").unwrap();
+    let fs = run(&d.root(), &settings()).unwrap();
+    let f = fs.iter().find(|f| f.path == "dev/zero").unwrap();
+    assert_eq!(f.action, Action::Rewrote, "{f:?}");
+    assert_eq!(std::fs::read(&other).unwrap(), b"another run");
+    let left: Vec<String> = std::fs::read_dir(d.at("dev"))
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|n| n.starts_with(prefix.as_str()))
+        .collect();
+    assert_eq!(left.len(), 1, "only the file of the other run: {left:?}");
+}
+
 /// The refusal of [`displace_link`] when the unlink fails. A directory is
 /// what each user cannot unlink (root passes the permission bits). The
 /// refusal names the path, the target and the risk of `mknod`.

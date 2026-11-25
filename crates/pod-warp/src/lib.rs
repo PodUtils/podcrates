@@ -110,10 +110,19 @@ pub use warp::{CARRY_MTU, MTU, Settings, Warp};
 /// A scratch directory of a test, new and empty.
 #[cfg(test)]
 pub(crate) fn test_dir(tag: &str) -> std::path::PathBuf {
-    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
-    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("pod-warp-{tag}-{}-{n}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+    // A random part, never a directory that is there: a removal of a name of
+    // the pid can take the directory of another run.
+    pod_core::files::new_temp_dir(&std::env::temp_dir(), &format!("pod-warp-{tag}")).unwrap()
+}
+
+#[cfg(test)]
+mod scratch_tests {
+    /// Two directories of one tag are two new, empty directories.
+    #[test]
+    fn two_test_directories_of_one_tag_differ() {
+        let (a, b) = (super::test_dir("twice"), super::test_dir("twice"));
+        assert_ne!(a, b);
+        assert!(std::fs::read_dir(&a).unwrap().next().is_none());
+        let _ = (std::fs::remove_dir(&a), std::fs::remove_dir(&b));
+    }
 }

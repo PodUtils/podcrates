@@ -123,13 +123,13 @@ pub(super) fn p_home_creat() -> Outcome {
         Ok(s) => flag(&s, sys::ST_NOEXEC),
         Err(e) => return Outcome { reason: "statfs(2) of HOME refused".to_string(), ..Outcome::denied(e) },
     };
-    let path = format!("{}/.pod-hostprobe-{}", home.trim_end_matches('/'), std::process::id());
+    let path = unique(&format!("{}/.pod-hostprobe", home.trim_end_matches('/')));
     let Some(file) = CBuf::new(&path) else {
         return Outcome::skip(None, "HOME holds a NUL");
     };
     let reason = items(&[("noexec", noexec)]);
     match sys::open(&file, sys::O_WRONLY | sys::O_CREAT | sys::O_EXCL | sys::O_CLOEXEC, 0o600) {
-        Err(sys::EEXIST) => Outcome::skip(Some(sys::EEXIST), "the scratch file of the probe is in HOME already"),
+        Err(sys::EEXIST) => Outcome::skip(Some(sys::EEXIST), "a file at the new scratch name of the probe is in HOME"),
         Err(e) => Outcome { reason, ..Outcome::denied(e) },
         Ok(fd) => {
             let _ = sys::close(fd);

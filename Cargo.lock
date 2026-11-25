@@ -4604,6 +4604,7 @@ version = "0.84.0"
 dependencies = [
  "flate2",
  "pod-actions-workflow",
+ "pod-core",
  "pod-testkit",
  "sha2 0.11.1",
  "tar",

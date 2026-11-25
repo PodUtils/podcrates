@@ -88,7 +88,7 @@ pub(super) fn p_open_by_name() -> Outcome {
 }
 
 pub(super) fn p_creat_toplevel() -> Outcome {
-    let path = format!("/pod-hostprobe-creat-{}", std::process::id());
+    let path = unique("/pod-hostprobe-creat");
     let cpath = match sys::CBuf::new(&path) {
         Some(b) => b,
         None => {

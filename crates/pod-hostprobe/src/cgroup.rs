@@ -168,8 +168,10 @@ fn controllers_at(dir: &Path) -> Delegation {
 /// file.
 fn write_test(dir: &Path) -> Result<(), Errno> {
     let path = |p: &Path| p.to_str().and_then(CBuf::new).ok_or(sys::EINVAL);
-    let child = dir.join(format!("pod-hostprobe-{}", std::process::id()));
-    let child = path(&child)?;
+    // A random part: two probes of one pid in two PID namespaces can share
+    // the cgroup tree.
+    let base = dir.join("pod-hostprobe");
+    let child = CBuf::new(&crate::probes::unique(base.to_str().ok_or(sys::EINVAL)?)).ok_or(sys::EINVAL)?;
     sys::mkdir(&child, 0o755)?;
     sys::unlinkat(sys::AT_FDCWD as i64, &child, sys::AT_REMOVEDIR)?;
     let fd = sys::open(&path(&dir.join("cgroup.subtree_control"))?, sys::O_WRONLY | sys::O_CLOEXEC, 0)?;

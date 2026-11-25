@@ -25,7 +25,6 @@
 //! detail. A failure is a [`Failure`] at [`Stage::Host`].
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicU64;
 
 use pod_core::{Class, Failure, Stage};
 
@@ -59,10 +58,6 @@ pub enum ExecVerdict {
     /// The kernel refused the run, with the errno named.
     Denied { reason: String },
 }
-
-/// Unique for each CALL, not for each process: two probes in one process
-/// must not take one name.
-static PROBE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// The bytes the probe executes. A script, so the probe needs no compiler;
 /// it exits 0, so any other exit is the environment answering, not the file.
@@ -111,7 +106,7 @@ const BUSY_PAUSE: std::time::Duration = std::time::Duration::from_millis(2);
 /// the cause that the flags of the mount establish (`denial_cause`), and
 /// `settings.directory_setting` where the remedy is to move the directory.
 pub fn probe_dir_exec(settings: &Settings, dir: &Path) -> Result<ExecProbe> {
-    let path = create_probe(dir, probe_name)?;
+    let path = create_probe(dir)?;
     let verdict = probe_file(&path);
     let _ = std::fs::remove_file(&path);
     let (ok, detail) = match verdict {
@@ -125,46 +120,22 @@ pub fn probe_dir_exec(settings: &Settings, dir: &Path) -> Result<ExecProbe> {
     Ok(ExecProbe { dir: dir.to_path_buf(), ok, detail })
 }
 
-/// The most names that [`create_probe`] tries.
-const NAME_TRIES: u32 = 8;
+/// The prefix of a probe file. A probe that a kill stopped leaves its file:
+/// the prefix lets a reader find it again.
+const PROBE_PREFIX: &str = ".pod-hostprobe-exec";
 
-/// A name of a probe file: the pid, the sequence and a random nonce. Two
-/// processes of two PID namespaces can have one pid (PodUtils/podvm#568):
-/// the nonce, and the exclusive create, keep their files apart.
-fn probe_name() -> String {
-    use pod_core::entropy::{Entropy, OsEntropy};
-    let seq = PROBE_SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let mut bytes = [0u8; 8];
-    // With no random bytes, the clock: the exclusive create still holds.
-    let nonce = match OsEntropy.fill(&mut bytes) {
-        Ok(()) => u64::from_ne_bytes(bytes),
-        Err(_) => std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64),
-    };
-    format!(".pod-hostprobe-exec.{}.{seq}.{nonce:016x}", std::process::id())
-}
-
-/// Create the probe file in `dir` with a name of `name`, which no other
-/// file had (`O_EXCL`): a name that exists takes the next one.
-fn create_probe(dir: &Path, mut name: impl FnMut() -> String) -> Result<PathBuf> {
+/// Create the probe file in `dir` with a new random name (`O_EXCL`, mode
+/// 0600): a name that exists takes the next one, and a file of another
+/// process of the same pid (PodUtils/podvm#568) is never opened.
+fn create_probe(dir: &Path) -> Result<PathBuf> {
     use std::io::Write;
-    use std::os::unix::fs::OpenOptionsExt;
-    for _ in 0..NAME_TRIES {
-        let path = dir.join(name());
-        let file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&path);
-        match file {
-            Ok(mut file) => {
-                if let Err(e) = file.write_all(PROBE_SCRIPT) {
-                    let _ = std::fs::remove_file(&path);
-                    return Err(io(&path, e));
-                }
-                return Ok(path);
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
-            Err(e) => return Err(io(&path, e)),
-        }
+    let (path, mut file) = pod_core::files::new_temp_file(dir, PROBE_PREFIX, "").map_err(|e| io(dir, e))?;
+    if let Err(e) = file.write_all(PROBE_SCRIPT) {
+        drop(file);
+        let _ = std::fs::remove_file(&path);
+        return Err(io(&path, e));
     }
-    let e = std::io::Error::new(std::io::ErrorKind::AlreadyExists, format!("{NAME_TRIES} names of a probe file exist"));
-    Err(io(dir, e))
+    Ok(path)
 }
 
 /// The `noexec` flag of the mount that holds `dir`, from `statfs(2)`.
@@ -214,26 +185,23 @@ fn probe_file(path: &Path) -> Result<ExecVerdict> {
 mod tests {
     use super::*;
 
-    /// A name that another process took is not opened again: the probe
-    /// takes the next name, and the file of the other stays as it was
-    /// (PodUtils/podvm#568).
+    /// Two probe files of one directory have two names, and a file that is
+    /// there stays as it was (PodUtils/podvm#568).
     #[test]
     fn a_probe_file_never_takes_the_file_of_another() {
-        let dir = std::env::temp_dir().join(format!("pod-hostprobe-exec-excl-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("taken"), b"the file of another run").unwrap();
-        let mut names = ["taken", "free"].into_iter().map(str::to_string);
-        let path = create_probe(&dir, || names.next().unwrap()).unwrap();
-        assert_eq!(path, dir.join("free"));
-        assert_eq!(std::fs::read(dir.join("taken")).unwrap(), b"the file of another run");
-        assert_eq!(std::fs::read(&path).unwrap(), PROBE_SCRIPT);
-        let all = create_probe(&dir, || "taken".to_string());
-        assert!(all.is_err(), "each name exists: {all:?}");
-        let (a, b) = (probe_name(), probe_name());
+        let d = scratch("excl");
+        std::fs::write(d.join("taken"), b"the file of another run").unwrap();
+        let (a, b) = (create_probe(&d).unwrap(), create_probe(&d).unwrap());
         assert_ne!(a, b);
-        assert!(a.starts_with(&format!(".pod-hostprobe-exec.{}.", std::process::id())), "{a}");
-        let _ = std::fs::remove_dir_all(&dir);
+        for path in [&a, &b] {
+            assert_eq!(std::fs::read(path).unwrap(), PROBE_SCRIPT);
+            let name = path.file_name().unwrap().to_string_lossy();
+            assert!(name.starts_with(&format!("{PROBE_PREFIX}-")), "{name}");
+        }
+        assert_eq!(std::fs::read(d.join("taken")).unwrap(), b"the file of another run");
+        let missing = create_probe(&d.join("no-such-directory"));
+        assert!(missing.is_err(), "a directory that is not there: {missing:?}");
+        let _ = std::fs::remove_dir_all(&d);
     }
 
     /// A directory only this test names: the suite runs threads in one

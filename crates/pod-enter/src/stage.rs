@@ -173,16 +173,10 @@ pub fn stage_tmpfs(store_root: &Path, rootfs: &Path) -> Result<PathBuf, Refusal>
     let base = store_root.join("tmpfs");
     std::fs::create_dir_all(&base)
         .map_err(|e| Refusal { path: base.clone(), why: format!("the tmpfs base could not be prepared: {e}") })?;
-    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
-    let dir = base.join(format!("mnt-{}-{nanos}", std::process::id()));
-    if dir.exists() {
-        return Err(Refusal {
-            path: dir,
-            why: "the staging directory already exists: refusing rather than merging into a stale tree".to_string(),
-        });
-    }
-    std::fs::create_dir_all(&dir)
-        .map_err(|e| Refusal { path: dir.clone(), why: format!("the staging directory could not be created: {e}") })?;
+    // A new directory, never one that is there: a stale tree never donates
+    // files. The prefix lets a reader find a directory that a kill left.
+    let dir = pod_core::files::new_temp_dir(&base, "mnt")
+        .map_err(|e| Refusal { path: base.clone(), why: format!("the staging directory could not be created: {e}") })?;
     let target = CBuf::new(&dir.to_string_lossy()).ok_or_else(|| Refusal {
         path: dir.clone(),
         why: "the staging path cannot be handed to the kernel".to_string(),
