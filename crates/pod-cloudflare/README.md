@@ -45,7 +45,7 @@ WARP are the caller's: the `Host`.
 | `ws` | `serve_websocket` (the edge side of a forward: 101 only for a target that answers, else 502), `forward_path`, `forward_path_with`, `forward_url`, `accept_key`, `DEFAULT_PATH`. |
 | `metrics` | `Metrics` (`new`, `with_prefix(name)`, the counters, `snapshot`, `prometheus`), `MetricsSnapshot`. |
 | `edge_h2` | The HTTP/2 leg: `connect`, `reactor`, `serve_connection`, `body_reader`, `body_writer`, `stream_type`, `connect_request`, `edge_response`, `H2Leg`, `Keepalive`, `Budget`, `server_builder`, the windows and the limits. |
-| `edge_discovery` | `discover(host, filter)` (DNS over HTTPS, the system resolver, the static list), `discover_doh`, `discover_system`, `checked_targets`, `checked_targets_with(targets, &Report)`, `fixed_targets`, `edge_srv`, `parse_srv`. |
+| `edge_discovery` | `discover(host, filter)` (DNS over HTTPS in `DOH_LIMIT` 8 s, the system resolver in the rest of `DISCOVERY_LIMIT` 12 s, the static list; one question to one resolver host in `DOH_EACH` 3 s; a source that takes more than `SLOW_SOURCE` 3 s gives one event `edge.discovery` with its time, its way (the proxy) and its cause; each failed DoH query goes to `tracing` at debug with each resolver and its cause; the legs of one start share one discovery), `discover_doh` (the A and AAAA questions at the same time), `discover_system`, `checked_targets`, `checked_targets_with(targets, &Report)`, `fixed_targets`, `edge_srv`, `parse_srv`. |
 | `cloudflare` | The protocol: `capnp` (`Message`, `Builder`, `StructReader`, with a bound check of each list), `schema`, `rpc` (`register_connection`, `register_connection_on`, `ControlSession`, `Refused`), `stream`, `http2`, `quic` (`build_endpoint(tls, protocol)`, `dial`, `dial_any`), `Protocol`, `EdgeAddr`, `for_connection`, `quic_alpn`, `quic_sni`, `h2_sni`, `edge_tls_config`, `edge_roots_pem`, `speaks`, `MAX_EDGE_STREAMS`. |
 | `race` | `race(attempts, failover, close)`: the staggered race of the legs (`LEG_STAGGER` 2 s) or a serial one; `Failover`, `Won`. |
 | `udp` | `Choice` (`Off`, `On`, `Probe`), `Egress`, `probe(target, deadline)`, `packet`, `default_probe_target`, `START_DEADLINE`, `DOCTOR_DEADLINE`. |
@@ -113,6 +113,7 @@ Each variable of a consumer is a field (`docs/design.md`, section 1, rule
 | The relay budget of the leg `http2+relay` (PodUtils/podnet#482) | the constants | [x] (`pod_relay::relay` limits) |
 | The relay on the leg `http2+relay` alone | `--transport relay` | [x] |
 | The discovery: DNS over HTTPS, the system resolver, the static list, the check of the SRV shape | yes | [x] (the system resolver is `SystemSrv`) |
+| The limits of the discovery and the event of a slow source (PodUtils/podnet#755) | no | [x] |
 | The UDP probe | yes | [x] |
 | The quick tunnels: provision, 429, `Retry-After`, the DNS retry, the hostname check | yes | [x] |
 | Named tunnels: a token, a credentials file | yes | [x] |
