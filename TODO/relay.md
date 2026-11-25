@@ -12727,6 +12727,64 @@ sh scripts/plant-each.sh --apply
 - The plant `scripts/plants/session-t1395-move-under-no-window.plant` drops the window from `after_mark`: the test of `session_mark.rs` fails with "the leg carried 589928 bytes, under the bound of 272684"; `sh scripts/plant-each.sh session-t1395-move-under-no-window`: 1 caught.
 - `cargo test -p pod-session --all-features`: 180 passed, 0 failed. `cargo clippy -p pod-session --all-targets --all-features -- -D warnings`, `cargo fmt --all --check` and `cargo todo check`: clean. `sh scripts/plant-each.sh --apply`: 0 stale. The tests of `pod-relay` with a move (`layer_cap`, `reverse_window`, `reverse_layered`, `layer_h2_spare`: 11) and of `pod-link` (`resume`: 1) pass.
 
+# T-1403: `pod-e2e`: a failure of the node's target reads as "the stream under the channel failed", and the node's line does not name the target
+
+**Source:** PodUtils/podssh#360 (COORD-150 of podssh), ask 5; author COLLABORATOR.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The text of the ask: "`pod-e2e` `channel/carry.rs:121`: when the node's
+read of its TARGET fails (a reset, os error 10054 on Windows), the carry
+reports 'the stream under the channel failed'. That is not true there: the
+target's stream failed, not the channel's. This is PodUtils/podssh@T-753. Ask:
+words of its own for a failure of the target's stream (or a variant), so
+that the operator's line names the target."
+
+The carry of `crates/pod-e2e/src/channel/carry.rs` maps each error of I/O
+to `Error::Io`: a read of the peer, a write to the peer, and also a read
+of the application and a write to it. At a node the application is the
+target. So the node's event `e2e.ended` says "the session of KEY ended:
+the stream under the channel failed: ..." for a reset of the target.
+
+## Premise
+
+- Read: `crates/pod-e2e/src/channel/carry.rs`, `crates/pod-e2e/src/lib.rs`
+  (`Error`), `crates/pod-e2e/src/failure.rs` (the class of each error),
+  `crates/pod-e2e/src/ends.rs` and `crates/pod-e2e/src/hold/resume.rs`
+  (the two carries of a node), the users of `pod_e2e::Error` in the
+  workspace. No crate matches `Error` exhaustively outside `pod-e2e`.
+  `crates/pod-relay/src/blocking/mod.rs` matches `Error::Cut` and
+  `Error::Io` at the operator's end: the operator's carry keeps
+  `Error::Io` for a failure of its own application, so that match keeps
+  its behavior.
+- `pod_core::Class::Unavailable` is exit code 69: "A service or a path is
+  not available". A target that fails is out of reach.
+
+## Approach
+
+- Add `Error::Target(std::io::Error)`: "the stream of the node's target
+  failed, not the stream under the channel: ...", of the class `Unavailable` for each
+  kind of I/O error, with the `io::Error` as its source.
+- Add `Channel::at_node`: the carry of such a channel maps a failed read
+  of its application, and a failed write to it, to `Error::Target`. The
+  two carries of a node (`ends::serve_asked`, `hold::resume`) call it.
+- Tests: a unit test of the carry with a target whose read fails with a
+  reset, and a test of `serve_node` that reads the node's line.
+- Add a plant that maps the target's failure to `Error::Io` again.
+- Update the README of `pod-e2e` (the API and the table of classes).
+
+## Prove
+
+```sh
+cargo test -p pod-e2e --all-features
+sh scripts/plant-each.sh e2e-target-failure-reads-as-the-channel
+```
+
 # T-1450: `pod-session`: the window of a link bounds the payload in flight, not the bytes of its records, so small records pass the relay's hold for a slow receiver and the cap of a leg
 
 **Source:** T-1395 (a finding of the bound of the old leg of a move).

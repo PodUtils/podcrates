@@ -110,6 +110,9 @@ pub struct Channel<T> {
     /// Where the carry says each wait that holds ([`stall`]); with none, it
     /// says nothing.
     events: Option<Arc<dyn Events>>,
+    /// The application of the carry is a node's target: its failure is
+    /// [`Error::Target`].
+    at_node: bool,
 }
 
 impl<T> Channel<T> {
@@ -161,6 +164,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
             exporter,
             pair: None,
             events: None,
+            at_node: false,
         }
     }
 
@@ -191,6 +195,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
             exporter: None,
             pair: None,
             events: None,
+            at_node: false,
         }
     }
 
@@ -199,6 +204,14 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     /// [`crate::ends::EVENT_WAIT`].
     pub fn with_events(mut self, events: Arc<dyn Events>) -> Self {
         self.events = Some(events);
+        self
+    }
+
+    /// This channel at a node: the application of its carry is the target,
+    /// and a failed read of it, or a failed write to it, is
+    /// [`Error::Target`], not [`Error::Io`] of the stream under the channel.
+    pub fn at_node(mut self) -> Self {
+        self.at_node = true;
         self
     }
 

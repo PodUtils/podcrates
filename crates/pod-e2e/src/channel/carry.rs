@@ -90,11 +90,18 @@ fn open(
     Ok((plain[0], n))
 }
 
+/// The error of a failed read of the application, or a failed write to it:
+/// at a node the application is the target, not the stream under the
+/// channel.
+fn of_app(at_node: bool) -> impl Fn(std::io::Error) -> Error + Copy {
+    move |e| if at_node { Error::Target(e) } else { Error::Io(e) }
+}
+
 /// The direction out: whether it ended, or a hold stopped it. `first` are
 /// whole messages sealed before, which go out before any new one.
 async fn outbound<T, A>(
     (state, sent): (&StatelessTransportState, &mut u64),
-    from_app: &mut ReadHalf<A>,
+    (from_app, app_failed): (&mut ReadHalf<A>, impl Fn(std::io::Error) -> Error),
     to_peer: &mut WriteHalf<T>,
     hold: Option<&Hold>,
     waits: &Waits,
@@ -117,7 +124,7 @@ where
         let n = tokio::select! {
             biased;
             () = held(hold) => return Ok(false),
-            read = from_app.read(&mut buf) => read.map_err(Error::Io)?,
+            read = from_app.read(&mut buf) => read.map_err(app_failed)?,
         };
         if n == 0 {
             // The stream stays open: the peer's bytes can still come.
@@ -137,14 +144,16 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
     where
         A: AsyncRead + AsyncWrite + Unpin,
     {
-        let Channel { transport, state, mut sent, mut received, net, keys, events, .. } = self;
+        let Channel { transport, state, mut sent, mut received, net, keys, events, at_node, .. } = self;
+        let app_failed = of_app(at_node);
         let waits = &Waits::new(events);
         let peer = net.as_ref().map(|(_, peer)| *peer);
         let (mut from_peer, mut to_peer) = tokio::io::split(transport);
         let (mut from_app, mut to_app) = tokio::io::split(app);
         let Start { out_ended, in_ended, unread, to_layer } = start;
         let state = &state;
-        let out = outbound((state, &mut sent), &mut from_app, &mut to_peer, hold, waits, (out_ended, to_layer));
+        let from = (&mut from_app, app_failed);
+        let out = outbound((state, &mut sent), from, &mut to_peer, hold, waits, (out_ended, to_layer));
         let inbound = async {
             let mut buf = unread;
             if in_ended {
@@ -155,7 +164,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Channel<T> {
                 while let Some(message) = take_frame(&mut buf)? {
                     match open(state, &mut received, &message, &mut plain)? {
                         (DATA, n) => {
-                            waits.write(Way::In, &mut to_app, &plain[1..n], buf.len()).await.map_err(Error::Io)?;
+                            waits.write(Way::In, &mut to_app, &plain[1..n], buf.len()).await.map_err(app_failed)?;
                         }
                         (END, _) => {
                             let _ = to_app.shutdown().await;

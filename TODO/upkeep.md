@@ -6725,6 +6725,61 @@ rebuilds the whole workspace.
 sh scripts/agent/check.sh
 ```
 
+# T-1401: `pod-core`: the drop of a `FileLock` only closes its descriptor, so a copy of the descriptor in a child that a spawn makes keeps the lock after the drop
+
+**Source:** PodUtils/podssh#360 (COORD-150 of podssh), ask 3; author COLLABORATOR.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The text of the ask: "`pod-core` `FileLock` has no `Drop`; only the close
+releases the `flock`. A sibling's spawn that copied the descriptor until
+its exec keeps the lock for a moment after the drop. PodUtils/podssh@T-849 saw
+this once on macOS, where a lock was refused after the other holder's
+drop. Ask: `impl Drop for FileLock` that unlocks explicitly before the
+close. An explicit unlock releases every copy of the descriptor."
+
+`crates/pod-core/src/lock.rs` holds the lock in a `std::fs::File`, and has
+no `Drop`. A lock of `flock(2)` belongs to the open file description, not
+to the descriptor: a close releases it only when no other descriptor of
+that description is open. The descriptor is close-on-exec (`O_CLOEXEC`,
+the default of `std`), so a child holds no copy after its exec. But a
+spawn of another thread of the same process (`fork` and then `exec`)
+copies each descriptor into the child, and the child closes the copy only
+at its exec. A drop of the lock in that window leaves the lock held until
+the exec. The root cause is that window, not a missing `O_CLOEXEC`.
+
+## Premise
+
+- Read: `crates/pod-core/src/lock.rs`, `crates/pod-core/src/lock_tests.rs`,
+  the users of `FileLock` in the workspace (none outside `pod-core`; the
+  documents of `pod-unit` name it), the text of the ask.
+- `std::fs::File::unlock` is `flock(fd, LOCK_UN)` on Unix and
+  `UnlockFile` on Windows.
+- Not measured: the window on macOS. A `dup` of the descriptor held by the
+  test is the same state as the copy of a child before its exec.
+
+## Approach
+
+- Add `impl Drop for FileLock` that calls `self.file.unlock()` before the
+  close; ignore its error, as the close releases the lock in the other
+  cases.
+- Test: hold a `dup` of the descriptor of a lock (`try_clone`), drop the
+  lock, and take the lock again at once through a new open of the path.
+- Add a plant that removes the unlock.
+- Update the README of `pod-core` and the module text of `lock.rs`.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features --lib lock
+sh scripts/plant-each.sh core-lock-drop-keeps-a-copy
+```
+
 # T-1444: `pod-core`: `a_path_that_is_there_is_never_opened_truncated_or_removed` fails on Windows: a file made at the name of a directory gives "Access is denied", not `AlreadyExists`
 
 **Source:** `nightly.yml` run 45603454952 at `cd7cb5a`, the jobs `test (windows-2025)` (139168091494) and `test (windows-11-arm)` (139168091781), step "Test", binary `pod_core` (lib tests). Beside T-1343.

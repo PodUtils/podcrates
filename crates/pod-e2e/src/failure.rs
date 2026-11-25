@@ -11,6 +11,9 @@ use crate::{Error, Refusal};
 pub(crate) fn class(e: &Error) -> Class {
     match e {
         Error::Io(io) => Class::of_io(io.kind()),
+        // The target is out of reach for each kind: a reset, a refusal or a
+        // bad byte of the target is no fault of the channel or of its peer.
+        Error::Target(_) => Class::Unavailable,
         // An end with no channel, or with the channel off: no try with the
         // same two ends works.
         Error::NotChannel(_) => Class::Unsupported,
@@ -49,6 +52,9 @@ mod tests {
             (Error::Timeout(crate::VERDICT_STEP), Class::Timeout),
             (Error::NoSuite("this end offers aes-256-gcm; the peer chacha20-poly1305".into()), Class::Config),
             (Error::Io(std::io::Error::from(std::io::ErrorKind::ConnectionReset)), Class::Unavailable),
+            (Error::Target(std::io::Error::from(std::io::ErrorKind::ConnectionReset)), Class::Unavailable),
+            (Error::Target(std::io::Error::from(std::io::ErrorKind::PermissionDenied)), Class::Unavailable),
+            (Error::Target(std::io::Error::from(std::io::ErrorKind::InvalidData)), Class::Unavailable),
         ];
         for (e, want) in cases {
             let text = e.to_string();
@@ -57,5 +63,7 @@ mod tests {
         }
         let failure: Failure = Error::Io(std::io::Error::from(std::io::ErrorKind::BrokenPipe)).into();
         assert!(failure.io_cause().is_some(), "the stream's error stays the cause");
+        let failure: Failure = Error::Target(std::io::Error::from(std::io::ErrorKind::ConnectionReset)).into();
+        assert!(failure.io_cause().is_some(), "the target's error stays the cause");
     }
 }
