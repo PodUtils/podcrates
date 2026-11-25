@@ -36,12 +36,13 @@ pub fn limited(root: &Path, _vols: &Path) {
     }
     let dir = RootDir::open(root.to_str().unwrap()).unwrap();
     // The error of the full write goes to the /tmp of the rung: the tmpfs
-    // has no room for it.
+    // has no room for it. The writes come before the checks of the mount
+    // line: a mount with no limit fails at the write over it (exit 6).
     let script = format!(
-        "{MOUNTED}; test \"$(pwd)\" = /work/sub || exit 3; \
+        "test \"$(pwd)\" = /work/sub || exit 3; \
          busybox yes 2>/tmp/yes | head -c 65536 > small || exit 4; test \"$(wc -c < small)\" = 65536 || exit 5; \
          (busybox yes | head -c 2000000) 2>/tmp/yes | busybox dd of=/work/big bs=65536 2>/tmp/err && exit 6; \
-         grep -q 'No space left on device' /tmp/err || exit 7"
+         grep -q 'No space left on device' /tmp/err || exit 7; {MOUNTED}"
     );
     let mut p = plan(&script, None);
     p.tmpfs = vec![work(LIMIT)];
