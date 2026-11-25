@@ -233,9 +233,15 @@ fn fd_path(fd: i64, buf: &mut [u8; 32]) -> u64 {
 /// `mount(2)` onto the file of the descriptor `fd`: the magic link names
 /// that file, and no link of the image redirects it.
 pub(crate) fn mount_on_fd(source: &CBuf, fd: i64, flags: u64, empty: &CBuf) -> sys::Sysres {
+    mount_data_on_fd(source, fd, empty, flags, 0)
+}
+
+/// [`mount_on_fd`] of the file system `fstype` with the options `data`
+/// (the address of a C string, or 0).
+pub(crate) fn mount_data_on_fd(source: &CBuf, fd: i64, fstype: &CBuf, flags: u64, data: u64) -> sys::Sysres {
     let mut buf = [0u8; 32];
     let target = fd_path(fd, &mut buf);
-    unsafe { sys::sys(sys::SYS_MOUNT, [source.ptr(), target, empty.ptr(), flags, 0, 0]) }
+    unsafe { sys::sys(sys::SYS_MOUNT, [source.ptr(), target, fstype.ptr(), flags, data, 0]) }
 }
 
 /// `mount(2)` of the file of the descriptor `src` onto the file of the

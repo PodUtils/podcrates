@@ -15,7 +15,9 @@
 //! gets them through a nested one (T-787, `userns/nested.rs`). With a PID
 //! namespace, the payload sees the processes of its run alone (T-806,
 //! `userns/pid.rs`). The unit gets a devpts instance of its own and a
-//! `/dev/ptmx` that opens (PodUtils/podvm#469, `userns/pts.rs`).
+//! `/dev/ptmx` that opens (PodUtils/podvm#469, `userns/pts.rs`). A tmpfs
+//! of the plan holds its byte limit, and a join finds it (PodUtils/podvm#667,
+//! `userns/tmpfs.rs`).
 //!
 //! As root, the test makes the image and starts its own binary again as
 //! uid and gid 65534 with no groups (`pod_testkit::nobody`). The test of
@@ -52,6 +54,8 @@ mod nested;
 mod pid;
 #[path = "userns/pts.rs"]
 mod pts;
+#[path = "userns/tmpfs.rs"]
+mod tmpfs;
 #[path = "userns/upper.rs"]
 mod upper;
 #[path = "userns/volumes.rs"]
@@ -119,6 +123,7 @@ fn plan(script: &str, hostname: Option<&str>) -> Plan {
         volumes: Vec::new(),
         userns_ids: None,
         pid_namespace: false,
+        tmpfs: Vec::new(),
         relay_title: None,
     }
 }
@@ -213,6 +218,16 @@ fn the_namespace_rung_binds_the_volumes_of_a_plan() {
 #[test]
 fn a_rule_of_the_confinement_holds_on_a_volume() {
     volumes::as_root_and_nobody("a_rule_of_the_confinement_holds_on_a_volume", volumes::confined);
+}
+
+#[test]
+fn a_tmpfs_of_the_plan_holds_its_byte_limit() {
+    volumes::as_root_and_nobody("a_tmpfs_of_the_plan_holds_its_byte_limit", tmpfs::limited);
+}
+
+#[test]
+fn a_join_finds_the_tmpfs_of_its_run_with_its_limit() {
+    volumes::as_root_and_nobody("a_join_finds_the_tmpfs_of_its_run_with_its_limit", tmpfs::joined);
 }
 
 #[test]

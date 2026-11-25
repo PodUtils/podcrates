@@ -62,6 +62,12 @@ pub struct Plan {
     /// the namespace rung does not fall back to chroot with one: the
     /// payload never runs with a volume missing.
     pub volumes: Vec<VolumeBind>,
+    /// The tmpfs mounts of the payload on the namespace rung, each with a
+    /// byte limit ([`TmpfsMount`], `ns_tmpfs`), mounted in this order
+    /// before the volumes. A join of a run mounts none: the mount namespace
+    /// of the run holds them. Each other entry refuses a plan with one, and
+    /// the namespace rung does not fall back to chroot with one.
+    pub tmpfs: Vec<TmpfsMount>,
     /// The uid and the gid of the payload inside the user namespace of the
     /// namespace rung (`ns_user`); `None` is 0. The one-line maps then map
     /// the effective ids of the caller to these ids: the files of the
@@ -111,6 +117,22 @@ pub struct VolumeBind {
     pub guest: String,
     pub read_only: bool,
     pub host_base: Option<String>,
+}
+
+/// One tmpfs of the namespace rung: a file system in memory of at most
+/// `bytes` bytes on the guest path `guest` (`--tmpfs GUEST:size=N`), with
+/// `nosuid` and `nodev`.
+///
+/// `guest` is an absolute normal path that is not `/`, and not at or under
+/// the guest path of a volume; the child makes each missing directory of
+/// it, and refuses a path through a symbolic link of the image. The kernel
+/// rounds `bytes` up to whole pages. After the mount the child reads the
+/// size back, and a mount with no such limit stops the payload: the
+/// payload never runs with no limit.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TmpfsMount {
+    pub guest: String,
+    pub bytes: std::num::NonZeroU64,
 }
 
 impl Plan {

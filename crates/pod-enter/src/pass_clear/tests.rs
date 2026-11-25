@@ -20,6 +20,7 @@ fn plan(pass: Vec<(i64, i64)>) -> Plan {
         volumes: Vec::new(),
         userns_ids: None,
         pid_namespace: false,
+        tmpfs: Vec::new(),
         relay_title: None,
     }
 }

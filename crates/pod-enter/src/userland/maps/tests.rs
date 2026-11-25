@@ -224,6 +224,7 @@ fn the_userland_entry_enters_a_workdir_in_a_volume() {
             volumes: Vec::new(),
             userns_ids: None,
             pid_namespace: false,
+            tmpfs: Vec::new(),
             relay_title: None,
             confine: None,
         };
@@ -249,6 +250,7 @@ fn the_userland_entry_enters_a_workdir_in_a_volume() {
         volumes: Vec::new(),
         userns_ids: None,
         pid_namespace: false,
+        tmpfs: Vec::new(),
         relay_title: None,
         confine: None,
     };

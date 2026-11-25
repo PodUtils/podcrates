@@ -67,6 +67,7 @@ fn plan(ids: Option<(u32, u32)>) -> Plan {
         volumes: Vec::new(),
         userns_ids: ids,
         pid_namespace: false,
+        tmpfs: Vec::new(),
         relay_title: None,
     }
 }
