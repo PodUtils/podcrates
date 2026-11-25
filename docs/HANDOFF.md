@@ -25,7 +25,8 @@ is done. Git and the record keep finished work.
 3. Answer the open COORD issues `(to podcrates)`. Map each new one in the
    same commit.
    - Open asks: PodUtils/podvm#664 (COORD-248, for
-     PodUtils/podrunner#354) is T-1379, the first entry of the work order;
+     PodUtils/podrunner#354) is T-1379, done on `main`: answer it with the
+     next tag;
      PodUtils/podssh#357 (COORD-147) asks T-1380 to T-1383;
      PodUtils/podnet#711 (COORD-119) is T-1343 (partial);
      PodUtils/podssh#349 (COORD-139) is T-1169.
@@ -55,7 +56,8 @@ is done. Git and the record keep finished work.
    - `upstream.yml` (job `sources`): read the next daily run.
    - A plant that a run misses once with no change of its crate runs its
      test five times in its `.plant` (as `link-quic-drop-closes-at-once`).
-5. The work order of `TODO/PROGRESS.md`: T-1379, then T-106 (the CI of
+5. The work order of `TODO/PROGRESS.md`: the next tag (it carries T-1379
+   and the role table of T-1387), then T-106 (the CI of
    githome and cfb), then the asks of the consumers.
    `docs/research/hard-problems.md` has the hard open problems (H-01 to
    H-18); T-978 (partial) holds the findings that no other entry has.
@@ -146,6 +148,27 @@ The asks that #260 answers:
   `f2716a1`, after its take `72cd0ab` (PodUtils/podrunner#356).
 
 ### On `main` after `v0.84.0` (for the next tag)
+
+- T-1379 (`pod-incus`, PodUtils/podvm#664 for PodUtils/podrunner#354):
+  `Client::instance_with_etag` gives an instance and its `ETag`;
+  `Client::patch_instance_config(name, config, if_match)` sends
+  `PATCH /1.0/instances/NAME` with `{"config": ...}` and `If-Match`. A 412
+  is the new `ErrorKind::EtagMismatch` (class `TempFail`; the enum is
+  `non_exhaustive`). New plant `incus-patch-drops-if-match`.
+- T-1375 (`pod-testkit`, port of podrunner `fcff5bc`): the fake GitHub
+  gives `ref` and `repository_id` in the `github` context of a job
+  (`JOB_REF`, `repository_id`); the `assigned` answer of the fake githome
+  gives an empty `ref` and no `repo_id` for a real job of another run or
+  repository, and each offer has `ref` and `repo_id`; a linked mint refuses
+  a credential file name that is not plain (`credential-unavailable`).
+- T-1382: the trials `adoption/podssh/pod-tpm.*` and `pod-h2.*` left
+  (podssh took them at `806e0a4`); the job `adoption (podssh)` is green
+  again with no trial.
+- T-1415 (`pod-services`): the node `node-trojan-64-176-7-205` left; one
+  file `node-*` stays (`node-xhttp-193-160-208-240`). The next hand-off
+  tells podssh (PodUtils/podssh@T-574). `magic-wormhole-mailbox` gave HTTP
+  500 on 2026-11-25: read the next scheduled `services.yml` run (T-1415
+  reopens on a second 5xx).
 
 - T-1369 (`pod-relay`, fuzz): the fuzz target `relay_bearer` reads a
   bearer with `Bearer::read` and `is_bearer`; `Bearer::to_bytes` (new)
