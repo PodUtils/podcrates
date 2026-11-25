@@ -1,0 +1,40 @@
+# The trial of pod-tpm in podssh (T-1217 to T-1222; calls C927 and C931;
+# PodUtils/podssh#351), at podssh's main 3001570a (pod-tpm.commit), its
+# module of T-839 at the blobs of crates/pod-tpm/SOURCES.
+# crates/podssh-ssh/src/tpm becomes glue over pod-tpm: podssh keeps Place,
+# find and find_in with PODSSH_TPM_DEVICE (unix.rs), the TBS of Windows
+# through pod-tpm (other.rs), the SSH forms of the public key and of the
+# signature (ssh.rs), the Ed25519 refusal and the p256 signature of its
+# PolicyKey (policy_key.rs), and the signer of a login (signer.rs). The
+# codec, the key file, the sequences, the transports and the TPM in software
+# leave podssh, with their tests; the glue's tests run against pod-tpm's
+# TPM in software. Each podcrates tag moves to v0.84.0. The record with its
+# citations, the repository checks; no moved file stays; the build, the
+# bans and the sources of cargo-deny; pod-tpm in the tree; clippy; the
+# tests of the glue, and of a TPM key and of keygen against swtpm (the
+# packages of scripts/ci/swtpm.sh of podcrates); rustfmt of the crates that
+# the patch changes; each Rust toolchain of the workflows and build images
+# against the rust-version of podcrates; each test target that the gate
+# names; the binary of the release's features for x86_64 musl, built with
+# zig, and podssh's static check of it.
+cargo run -q -p podssh-todo -- remap Cargo.lock > /dev/null
+cargo run -q -p podssh-todo -- check
+python3 scripts/check-repo.py
+test "$(ls crates/podssh-ssh/src/tpm | tr '\n' ' ')" = "mod.rs other.rs policy_key.rs signer.rs ssh.rs testdata tests.rs unix.rs "
+! grep -rnE --include='*.rs' -e '(fn|struct|enum|trait) (SoftTpm|Fault|Unmet|Out|In|Authorize|Transport)\b' crates/podssh-ssh/src
+cargo build -q
+command -v cargo-deny > /dev/null || cargo install -q --locked cargo-deny
+cargo deny --locked check bans sources
+cargo tree -q -p podssh-ssh -i pod-tpm | grep -q '^pod-tpm v'
+cargo clippy -q --all-targets -p podssh-ssh -p podssh-cli -- -D warnings -A clippy::collapsible_if
+cargo test -q -p podssh-ssh --lib tpm
+cargo test -q -p podssh-cli --lib keygen_tpm
+sh "$PODCRATES/scripts/ci/swtpm.sh"
+cargo test -q -p podssh-ssh --test tpm_key -- --ignored
+cargo test -q -p podssh-cli --test keygen_tpm
+cargo test -q -p podssh-cli --test keygen_tpm -- --ignored --skip a_sealed_key_logs_in_to_openssh
+cargo fmt -p podssh-ssh -p podssh-cli --check
+python3 -I "$PODCRATES/scripts/check-consumer-toolchains.py"
+python3 -I "$PODCRATES/scripts/check-consumer-tests.py"
+cargo zigbuild -q --target x86_64-unknown-linux-musl -p podssh-cli --bin podssh --features "$(sed -n 's/^  RELEASE_FEATURES: //p' .github/workflows/release.yml)"
+sh scripts/check-static.sh "${CARGO_TARGET_DIR:-target}/x86_64-unknown-linux-musl/debug/podssh"

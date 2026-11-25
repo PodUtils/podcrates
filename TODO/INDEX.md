@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**981 entries: 158 open, 31 partial, 7 blocked, 785 done.**
+**983 entries: 159 open, 31 partial, 7 blocked, 786 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 229 | 243 |
-| P2 | 70 | 10 | 4 | 411 | 495 |
+| P2 | 71 | 10 | 4 | 412 | 497 |
 | P3 | 84 | 11 | 3 | 143 | 241 |
-| **All** | 158 | 31 | 7 | 785 | 981 |
+| **All** | 159 | 31 | 7 | 786 | 983 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1005,7 +1005,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1219](fleet.md) | P2 | M | M8 | feature | done | `pod-tpm`: the key file `TSS2 PRIVATE KEY`, read and write in DER and PEM, with bounds on an untrusted file (PodUtils/podssh#351) |
 | [T-1220](fleet.md) | P2 | M | M8 | feature | done | `pod-tpm`: the sequences over a `Transport` (create a primary, create a key under a PCR policy, load, sign) that flush each handle on each path (PodUtils/podssh#351) |
 | [T-1221](fleet.md) | P2 | M | M8 | feature | done | `pod-tpm`: the transports of Linux (`/dev/tpmrm0`, an swtpm socket) and of Windows (TBS), each command bounded in size and time (PodUtils/podssh#351) |
-| [T-1222](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: a TPM in software (feature `soft`) and a CI lane against swtpm and the reference simulator, with the key of PCR 7 as the proof (PodUtils/podssh#351) |
+| [T-1222](fleet.md) | P2 | M | M8 | feature | done | `pod-tpm`: a TPM in software (feature `soft`) and a CI lane against swtpm and the reference simulator, with the key of PCR 7 as the proof (PodUtils/podssh#351) |
 | [T-1223](services.md) | P2 | S | M5 | defect | done | `services.yml` 45394042840: the Syncthing relay WMYMARB at a new address, the Trojan node `node-trojan-45-63-30-142` gone, and two hosts with a first no answer |
 | [T-1235](foundation.md) | P2 | S | M0 | feature | done | `pod-core`: the classes `CantCreate` (73) and `Internal` (70) (PodUtils/podssh#352) |
 | [T-1236](foundation.md) | P2 | S | M0 | docs | done | `pod-core`: the codes that a consumer keeps where its class gives another, in the README (PodUtils/podssh#352) |
@@ -1028,3 +1028,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1321](podvm.md) | P3 | S | M6 | measurement | open | `pod-gzip`: measure a C backend of deflate against `miniz_oxide` at four threads |
 | [T-1325](upkeep.md) | P2 | S | M5 | defect | open | `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met its limit of 40 minutes in "Build the probe" |
 | [T-1326](upkeep.md) | P3 | S | M5 | chore | open | Three readers of the fields after the name in `/proc/PID/stat`: `pod-hostprobe`, `pod-supervise` and `pod-enter` |
+| [T-1339](fleet.md) | P2 | S | M8 | chore | open | `pod-tpm`: the fuzz targets of the response reader and of the key file reader, and a plant for each bound of T-1217 and T-1219 |
+| [T-1340](fleet.md) | P2 | M | M8 | measurement | open | `pod-tpm`: a key file that the crate writes loads and signs in tpm2-openssl and in go-tpm-keyfiles against swtpm |

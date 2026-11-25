@@ -344,7 +344,9 @@ exits with 124. `scripts/ci/test-limited.sh BINARY_SECONDS DOC_SECONDS
 CARGO_ARGS` runs `cargo test` with `limit.sh` as the runner of each test
 binary (`CARGO_TARGET_<TRIPLE>_RUNNER`), so a hung binary fails with its
 name and the later binaries run (T-1303). The jobs `test` and `cross` of
-`nightly.yml` use them.
+`nightly.yml` use them. `scripts/ci/swtpm.sh` installs swtpm and libtpms of
+Ubuntu 24.04, each pinned by its version and its SHA-256 (T-1222): a
+consumer's test against a TPM in software can call it.
 
 A consumer's workflow takes both files at a commit of podcrates:
 

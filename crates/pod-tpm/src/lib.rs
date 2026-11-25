@@ -30,6 +30,8 @@
 //!   [`transact`] sends a command and reads its [`Reply`]. The transports
 //!   of [`transport`]: a device of a Unix kernel and the socket of a TPM in
 //!   software (feature `device`), the TBS of Windows (feature `tbs`).
+//! * `soft` (feature `soft`): a TPM in software for the tests of this crate
+//!   and of a consumer, a model that gives each field of each response.
 //!
 //! **No I/O, no environment and no global in the codec.** The codec reads
 //! no random source (the caller gives each nonce), no variable and no file;
@@ -45,6 +47,8 @@ pub mod policy;
 pub mod public;
 pub mod rc;
 pub mod selection;
+#[cfg(feature = "soft")]
+pub mod soft;
 pub mod transport;
 pub mod wire;
 

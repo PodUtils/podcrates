@@ -1,0 +1,8 @@
+# The TPM in software gives the response of TPM2_CreatePrimary with no
+# name, its last field, as podssh's soft.rs gave it with no parameter: the
+# strict reader of the crate must refuse it (T-1222).
+ENTRY=T-1222
+GROUP=tpm
+EXPECT='a_sealed_key_signs_while_the_boot_state_is_the_recorded_one \.\.\. FAILED'
+RUN='cargo test -p pod-tpm --features soft --test soft a_sealed_key_signs_while_the_boot_state_is_the_recorded_one'
+LIMIT=900

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 981 entries: 158 open, 31 partial, 7 blocked, 785 done.
+`TODO/INDEX.md` holds 983 entries: 159 open, 31 partial, 7 blocked, 786 done.
 
 ## State
 
@@ -128,10 +128,9 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   pseudo-fields of the HTTP/2 request of `pod-ws`; PodUtils/podssh#340,
   closed by podssh, which keeps its patch of h2 until a tag carries the order);
   T-1238 (`EX_DATAERR`; PodUtils/podssh#352, COORD-142);
-  T-941 (PodUtils/podssh#319); T-1222 (the crate `pod-tpm`: a TPM in
-  software and an swtpm lane; PodUtils/podssh#351, COORD-141; podssh
-  answered in PodUtils/podssh#353: an ECDSA P-256 key under a PCR policy or
-  a policy key, no `Unseal`; call C931).
+  T-941 (PodUtils/podssh#319); T-1339 and T-1340 (the fuzz targets of
+  `pod-tpm`, and a key file of the crate in tpm2-openssl and in
+  go-tpm-keyfiles against swtpm; PodUtils/podssh#351).
 
 Then T-899, T-900, T-852, T-851, and T-920.
 Then the ruling "Discipline": T-692

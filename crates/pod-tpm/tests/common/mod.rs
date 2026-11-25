@@ -4,6 +4,7 @@
 #![allow(dead_code)]
 
 pub mod fake;
+pub mod proof;
 
 use pod_core::{Class, Failure, Stage};
 

@@ -35,9 +35,11 @@ file 7b3330475be6bad199203267bd0ff44dbd5284bd crates/podssh-ssh/src/tpm/signed_t
 # with no device, becomes the TBS of Windows.
 file 8a933b2cfc551ea5ca581f0ccac9e27b02d285aa crates/podssh-ssh/src/tpm/unix.rs -> crates/pod-tpm/src/transport/device.rs crates/pod-tpm/src/transport/socket.rs crates/pod-tpm/src/transport/bound.rs
 file 6d8361a8a7f8b329b1b9596a4639beb21a6eeed8 crates/podssh-ssh/src/tpm/other.rs -> crates/pod-tpm/src/transport/tbs.rs
-# The part that the next entry of the crate takes: the TPM in software
-# (T-1222).
-skip crates/podssh-ssh/src/tpm/soft.rs
+# T-1222: the TPM in software (feature `soft`), with each field of each
+# response, its keys of p256 in place of aws-lc-rs, and the refusals and
+# the handles of a TPM; its tests run against swtpm and the simulator of
+# the reference too.
+file bd7bb5667b69d877a49c4c4f200a23721e3b0ac8 crates/podssh-ssh/src/tpm/soft.rs -> crates/pod-tpm/src/soft.rs crates/pod-tpm/src/soft/object.rs crates/pod-tpm/src/soft/session.rs
 # The glue of podssh: the probe through PODSSH_TPM_DEVICE, the forms of
 # SSH, and the signer of an SSH agent. They stay in podssh.
 skip crates/podssh-ssh/src/tpm/mod.rs
