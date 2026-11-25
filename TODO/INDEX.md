@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**999 entries: 147 open, 30 partial, 8 blocked, 814 done.**
+**1000 entries: 147 open, 30 partial, 8 blocked, 815 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 237 | 250 |
-| P2 | 65 | 11 | 4 | 423 | 503 |
+| P2 | 65 | 11 | 4 | 424 | 504 |
 | P3 | 78 | 10 | 4 | 152 | 244 |
-| **All** | 147 | 30 | 8 | 814 | 999 |
+| **All** | 147 | 30 | 8 | 815 | 1000 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1046,3 +1046,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1369](relay.md) | P2 | S | M2 | chore | done | `pod-relay`: a fuzz target of `grant::bearer::Bearer::read`, the reader of a bearer from the peer |
 | [T-1370](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: warm and cold units in `run-report.v1` and `status.v1` (PodUtils/podrunner#353) |
 | [T-1371](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: the `Mint` of a grant writes no extension, so a stock sshd gives its certificate no pty and no forward (PodUtils/podssh#356) |
+| [T-1374](upkeep.md) | P2 | M | M5 | chore | done | One session start for each harness and host: `scripts/session-start.sh` sets the identity, the hooks path and `main`, and starts both watchers |

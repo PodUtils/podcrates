@@ -1,0 +1,18 @@
+#!/bin/sh
+# Refuse a commit message with an agent attribution line (AGENTS.md,
+# section 3). A setting of one harness turns these lines off only in that
+# harness; this hook works in each. scripts/session-start.sh sets
+# core.hooksPath to this directory.
+#
+# Exit 0: the message is allowed. Exit 1: it is refused.
+set -u
+[ "$#" -ge 1 ] && [ -r "$1" ] || {
+    echo "commit-msg: git gave no readable message file; the message was not checked" >&2
+    exit 1
+}
+# The comment lines of git (after "#") are not part of the message.
+if grep -v '^#' "$1" | grep -i -n -E '^[[:space:]]*(co-authored-by|claude-session)[[:space:]]*:|^[^[:alnum:]]*generated with' >&2; then
+    echo "commit-msg: the message has an agent attribution line (AGENTS.md, section 3); remove it and commit again" >&2
+    exit 1
+fi
+exit 0

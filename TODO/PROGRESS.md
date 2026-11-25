@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 999 entries: 147 open, 30 partial, 8 blocked, 814 done.
+`TODO/INDEX.md` holds 1000 entries: 147 open, 30 partial, 8 blocked, 815 done.
 
 ## State
 
@@ -297,7 +297,17 @@ The hand-off of each release is a COORD issue `(to all)`
   issue with the patch of `vendor/patches/h2/0001-pseudo-order.patch`,
   in the name of the owner's account; the fork goes at the first release
   of h2 that has the setting.
+- **Q23.** Does podvm's ruling "Hosted sessions and worker roles"
+  (2026-11-25, PodUtils/podvm@2d36b23) apply to podcrates? It gives a
+  model and an effort for each role in two harnesses, and a third role
+  for the hardest tasks and for advisors. Here the ruling "Delegation"
+  (2026-11-24) gives two roles in one harness and leaves out the version
+  of each model. It touches T-1374 and `docs/maintenance.md`, "Rules of
+  the work". Recommendation: yes, one role table for each repository of
+  PodUtils, kept in `docs/session-protocol.md`, so that each project takes
+  it from one place; write it in `docs/decisions.md` as a ruling that
+  supersedes "Delegation".
 Write each question as `- **Qn.** QUESTION`, with the entries that it
-blocks and a recommendation. Number the questions in sequence from Q23
+blocks and a recommendation. Number the questions in sequence from Q24
 (Q1 to Q14: `docs/decisions.md`; Q15: the ruling "podswarm"; Q16: above;
 Q17: the packages of ghcr.io are public, no action).

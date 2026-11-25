@@ -7,8 +7,10 @@
 #   sh scripts/ci/fetch-tool.sh URL SHA256 MEMBER DIR
 #
 # MEMBER is the path of the program in the archive (.tar.xz, .tar.gz or
-# .zip). The program goes to DIR/NAME, NAME the last part of MEMBER. It
-# needs a POSIX shell, curl, sha256sum, and tar or unzip.
+# .zip). The program goes to DIR/NAME, NAME the last part of MEMBER. For a
+# program that is no archive (as rustup-init), MEMBER is the last part of
+# URL, and the checked download is the program. It needs a POSIX shell,
+# curl, sha256sum, and tar or unzip.
 set -eu
 url=${1:-}
 sum=${2:-}
@@ -34,7 +36,12 @@ case $archive in
     *.tar.xz) flag=-xJf ;;
     *.tar.gz | *.tgz) flag=-xzf ;;
     *.zip) flag=zip ;;
-    *) echo "fetch-tool: not a .tar.xz, a .tar.gz or a .zip: $archive" >&2; exit 64 ;;
+    */"$member")
+        chmod 755 "$archive"
+        echo "fetch-tool: $archive, SHA-256 $sum"
+        exit 0
+        ;;
+    *) echo "fetch-tool: not a .tar.xz, a .tar.gz, a .zip or the program $member: $archive" >&2; exit 64 ;;
 esac
 tmp=$dir/.unpack
 rm -rf "$tmp"
