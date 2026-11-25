@@ -353,13 +353,46 @@ pub(super) fn relay_for(kind: LegKind, host: &Host) -> Result<Option<crate::host
     }
 }
 
-pub(super) async fn direct_targets(host: &Host) -> Result<Vec<edge::EdgeAddr>> {
+pub(super) async fn direct_targets(host: &Host, discovery: &Discovery) -> Result<Vec<edge::EdgeAddr>> {
     if let Some(list) = edge_override(&host.settings) {
         return Ok(list);
     }
-    let discovered = crate::edge_discovery::discover(host, IpVersionFilter::Auto).await.context("edge discovery")?;
+    let discovered = discovery.edges(host, IpVersionFilter::Auto).await.context("edge discovery")?;
     if discovered.is_empty() {
         bail!(Stage::Dns, Class::Unavailable, "edge discovery returned no addresses");
     }
     Ok(discovered)
+}
+
+/// The result of a discovery, kept for each leg.
+type Discovered = std::result::Result<Vec<edge::EdgeAddr>, (Stage, Class, String)>;
+
+/// One discovery of the edge for the legs of one start: a leg that starts
+/// while another leg discovers waits for that result. Thus the questions
+/// and the events of the discovery come once.
+#[derive(Clone, Default)]
+pub(super) struct Discovery(Arc<tokio::sync::OnceCell<Discovered>>);
+
+impl Discovery {
+    /// The edge addresses that `filter` allows, from the one discovery of
+    /// both IP versions. When it gave addresses of the other version alone,
+    /// `filter` discovers on its own.
+    pub(super) async fn edges(&self, host: &Host, filter: IpVersionFilter) -> Result<Vec<edge::EdgeAddr>> {
+        let found = self
+            .0
+            .get_or_init(|| async {
+                let found = crate::edge_discovery::discover(host, IpVersionFilter::Auto).await;
+                found.map_err(|e| (e.stage, e.class, e.chain()))
+            })
+            .await;
+        let all = match found {
+            Ok(all) => all,
+            Err((stage, class, text)) => return Err(crate::fail::new(*stage, *class, text.clone())),
+        };
+        let kept: Vec<edge::EdgeAddr> = all.iter().copied().filter(|e| filter.allows(e.version)).collect();
+        if kept.is_empty() && !all.is_empty() {
+            return crate::edge_discovery::discover(host, filter).await;
+        }
+        Ok(kept)
+    }
 }

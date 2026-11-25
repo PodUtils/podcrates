@@ -16,6 +16,11 @@
 //! 3. A short list of anycast addresses, for a host where no DNS works. This
 //!    list is the last option, and its label tells so.
 //!
+//! The whole discovery has [`DISCOVERY_LIMIT`], and DoH has [`DOH_LIMIT`] in
+//! it: a proxy that connects each resolver and gives no answer does not
+//! hold the legs. A source that takes longer than [`SLOW_SOURCE`] gives one
+//! event `edge.discovery` with its time and its cause.
+//!
 //! The port comes from the SRV record, not from a constant. Thus the crate
 //! follows a change at Cloudflare and does not guess. An SRV answer of another
 //! shape (more than two targets, a target outside `argotunnel.com`, two
@@ -24,18 +29,37 @@
 //! The record, the zone of its targets, the fixed targets and the static
 //! addresses are data of the edge of `pod-services`.
 
+use std::future::Future;
 use std::net::IpAddr;
-
 use std::time::Duration;
+
+use tokio::time::Instant;
 
 use crate::Host;
 use crate::cloudflare::{EdgeAddr, EdgeIpVersion, IpVersionFilter};
-use crate::fail::{Context, OrFail, Result, bail};
+use crate::fail::{Context, Result, bail};
 use crate::services::{self, EDGE};
-use pod_core::{Class, Stage};
+use pod_core::{Class, Event, Stage};
 
-/// The time of one step of the chain of resolvers.
-const STEP_TIMEOUT: Duration = Duration::from_secs(5);
+mod doh;
+
+pub use doh::discover_doh;
+
+/// The limit of the whole discovery: DNS over HTTPS, then the system
+/// resolver in the rest of the time. The static list follows it, so the
+/// first leg starts in this time.
+pub const DISCOVERY_LIMIT: Duration = Duration::from_secs(12);
+
+/// The limit of the source DNS over HTTPS in the discovery.
+pub const DOH_LIMIT: Duration = Duration::from_secs(8);
+
+/// The limit of one DoH question to one host of a resolver: a connection
+/// that succeeds and gives no answer costs this, then the next host.
+pub const DOH_EACH: Duration = Duration::from_secs(3);
+
+/// A source of the discovery that takes longer gives one event when it
+/// ends.
+pub const SLOW_SOURCE: Duration = Duration::from_secs(3);
 
 /// The SRV record that cloudflared resolves: the fact `srv-name`.
 pub fn edge_srv() -> &'static str {
@@ -100,7 +124,7 @@ pub fn checked_targets_with(targets: Vec<(String, u16)>, report: &pod_core::Repo
                 names.join(" and "),
                 services::edge_port()
             );
-            report.event(pod_core::Event::warn("edge.discovery", text));
+            report.event(Event::warn("edge.discovery", text));
             fixed.into_iter().map(|(n, p)| (n.to_string(), p)).collect()
         }
     }
@@ -112,33 +136,88 @@ fn zone() -> &'static str {
 }
 
 /// Resolve the edge: DoH first, then the system resolver, then the static
-/// list. Gives at least one address, or an error that names each attempt.
+/// list, in [`DISCOVERY_LIMIT`]. Gives at least one address, or an error
+/// that names each attempt. A source that takes longer than
+/// [`SLOW_SOURCE`] gives one event `edge.discovery`.
 pub async fn discover(host: &Host, filter: IpVersionFilter) -> Result<Vec<EdgeAddr>> {
-    let mut failures = Vec::new();
+    let start = Instant::now();
+    // Each failure, and its short form when an event said its cause.
+    let mut failures: Vec<(String, Option<String>)> = Vec::new();
+    let after_doh = if host.system_srv.is_some() { "the system resolver" } else { "the static list" };
 
-    match discover_doh(host, filter).await {
+    let doh_end = start + DOH_LIMIT;
+    let doh = doh::discover_doh_until(host, filter, doh_end);
+    let (found, said) = timed(host, ("DoH", &doh::way_words(host)), after_doh, doh_end, doh).await;
+    match found {
         Ok(edges) if !edges.is_empty() => return Ok(edges),
-        Ok(_) => failures.push("DoH returned no addresses".to_string()),
-        Err(err) => failures.push(format!("DoH: {}", err.chain())),
+        Ok(_) => failures.push(("DoH returned no addresses".to_string(), said)),
+        Err(err) => failures.push((format!("DoH: {}", err.chain()), said)),
     }
 
-    match discover_system(host, filter).await {
+    let system = discover_system(host, filter);
+    let words = ("system resolver", "the system resolver");
+    let (found, said) = timed(host, words, "the static list", start + DISCOVERY_LIMIT, system).await;
+    match found {
         Ok(edges) if !edges.is_empty() => return Ok(edges),
-        Ok(_) => failures.push("the system resolver returned no addresses".to_string()),
-        Err(err) => failures.push(format!("system resolver: {}", err.chain())),
+        Ok(_) => failures.push(("the system resolver returned no addresses".to_string(), said)),
+        Err(err) => failures.push((format!("system resolver: {}", err.chain()), said)),
     }
 
     let edges = static_edges(filter);
-    if edges.is_empty() {
-        failures.push("the static list has no address for this IP version".to_string());
-    } else {
-        let text =
-            format!("DNS discovery of the edge failed ({}); the static edge list is in use", failures.join("; "));
-        host.event(pod_core::Event::warn("edge.discovery", text));
+    if !edges.is_empty() {
+        let short: Vec<&str> = failures.iter().map(|(full, said)| said.as_deref().unwrap_or(full)).collect();
+        let text = format!("DNS discovery of the edge failed ({}); the static edge list is in use", short.join("; "));
+        host.event(Event::warn("edge.discovery", text));
         return Ok(edges);
     }
+    let mut full: Vec<String> = failures.into_iter().map(|(full, _)| full).collect();
+    full.push("the static list has no address for this IP version".to_string());
+    bail!(Stage::Dns, Class::Unavailable, "edge discovery failed: {}", full.join("; "))
+}
 
-    bail!(Stage::Dns, Class::Unavailable, "edge discovery failed: {}", failures.join("; "))
+/// Run a source of the discovery until `deadline`; `words` are its short
+/// name and its name in a line. A source that takes longer than
+/// [`SLOW_SOURCE`] gives one event when it ends: its time, and its result,
+/// or its cause and `next`. With the event, the short form of a failure
+/// for a later line comes back.
+async fn timed(
+    host: &Host,
+    words: (&str, &str),
+    next: &str,
+    deadline: Instant,
+    source: impl Future<Output = Result<Vec<EdgeAddr>>>,
+) -> (Result<Vec<EdgeAddr>>, Option<String>) {
+    let start = Instant::now();
+    let limit = deadline.saturating_duration_since(start);
+    let found = tokio::time::timeout_at(deadline, source)
+        .await
+        .unwrap_or_else(|_| Err(crate::fail::new(Stage::Dns, Class::Timeout, "no answer")));
+    let took = start.elapsed();
+    if took < SLOW_SOURCE {
+        return (found, None);
+    }
+    host.event(slow_event(words.1, next, took, limit, &found));
+    (found, Some(format!("{}: the line before gives the cause", words.0)))
+}
+
+/// The event of a source that took `took` of its `limit`.
+fn slow_event(what: &str, next: &str, took: Duration, limit: Duration, found: &Result<Vec<EdgeAddr>>) -> Event {
+    let waited = format!("{:.1} s", took.as_secs_f64());
+    match found {
+        Ok(edges) if !edges.is_empty() => {
+            Event::info("edge.discovery", format!("the DNS of the edge took {waited} on {what}"))
+        }
+        Ok(_) => Event::warn(
+            "edge.discovery",
+            format!("the DNS of the edge waited {waited} on {what}, which gave no address; the client takes {next}"),
+        ),
+        Err(err) => {
+            let at = if took >= limit { format!(" (the limit of {} s)", limit.as_secs()) } else { String::new() };
+            let cause = err.chain();
+            let text = format!("the DNS of the edge waited {waited}{at} on {what}; {cause}; the client takes {next}");
+            Event::warn("edge.discovery", text)
+        }
+    }
 }
 
 /// Resolve the SRV record with the system resolver of the consumer, and its
@@ -164,70 +243,6 @@ pub async fn discover_system(host: &Host, filter: IpVersionFilter) -> Result<Vec
     }
     edges.sort_by_key(|e| e.version != EdgeIpVersion::V4);
     Ok(edges)
-}
-
-/// Resolve through the DNS-over-HTTPS JSON API of Cloudflare.
-pub async fn discover_doh(host: &Host, filter: IpVersionFilter) -> Result<Vec<EdgeAddr>> {
-    let srv = query(host, edge_srv(), "SRV").await?;
-    let mut targets: Vec<(String, u16)> = Vec::new();
-    for answer in &srv.records {
-        if answer.kind != 33 {
-            continue;
-        }
-        if let Some((target, port)) = parse_srv(&answer.data) {
-            targets.push((target, port));
-        }
-    }
-    let targets = checked_targets_with(targets, &host.report);
-
-    let mut edges = Vec::new();
-    for (region, (target, port)) in (0u8..).zip(targets) {
-        let records: &[(&str, u64)] = match filter {
-            IpVersionFilter::V4Only => &[("A", 1)],
-            IpVersionFilter::V6Only => &[("AAAA", 28)],
-            IpVersionFilter::Auto => &[("A", 1), ("AAAA", 28)],
-        };
-        for (rtype, wanted) in records {
-            let answer = match query(host, &target, rtype).await {
-                Ok(answer) => answer,
-                Err(err) => {
-                    tracing::debug!(%target, rtype, error = %err.chain(), "address lookup failed");
-                    continue;
-                }
-            };
-            for entry in &answer.records {
-                if entry.kind != *wanted {
-                    continue;
-                }
-                let Ok(ip) = entry.data.trim().parse::<IpAddr>() else {
-                    continue;
-                };
-                edges.push(EdgeAddr {
-                    ip,
-                    port,
-                    version: if ip.is_ipv4() { EdgeIpVersion::V4 } else { EdgeIpVersion::V6 },
-                    region,
-                });
-            }
-        }
-    }
-    Ok(edges)
-}
-
-/// Ask the DoH resolvers of the host for `rtype` records of `name`, one
-/// resolver after the other, until one answers.
-async fn query(host: &Host, name: &str, rtype: &str) -> Result<pod_dns::json::Answer> {
-    let resolver = &host.resolver;
-    let limit = STEP_TIMEOUT * (1 + 2 * resolver.settings().resolvers.len() as u32);
-    let deadline = tokio::time::Instant::now() + limit;
-    let way = resolver.way().or_fail(Stage::Dns, Class::Unsupported, "the resolver asks no DNS over HTTPS")?;
-    let answer =
-        way.query(name, rtype, deadline).await.map_err(|e| crate::fail::new(Stage::Dns, Class::Unavailable, e))?;
-    if answer.status != Some(0) {
-        let status = answer.status.map_or("missing".into(), |s| s.to_string());
-        bail!(Stage::Dns, Class::Unavailable, "DoH status {status} for {name} {rtype}");
-    }
-    Ok(answer)
 }
 
 /// Parse an SRV `data` field: `priority weight port target`.
@@ -269,56 +284,4 @@ fn static_edges(filter: IpVersionFilter) -> Vec<EdgeAddr> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_an_srv_data_field() {
-        assert_eq!(
-            parse_srv("2 1 7844 region2.v2.argotunnel.com."),
-            Some(("region2.v2.argotunnel.com".to_string(), 7844))
-        );
-        assert_eq!(parse_srv("garbage"), None);
-    }
-
-    #[test]
-    fn decodes_a_cloudflare_doh_answer() {
-        let body = r#"{"Status":0,"Answer":[{"name":"_v2-origintunneld._tcp.argotunnel.com","type":33,"TTL":300,"data":"2 1 7844 region2.v2.argotunnel.com"}]}"#;
-        let parsed = pod_dns::json::parse(body.as_bytes()).unwrap();
-        assert_eq!(parsed.status, Some(0));
-        assert_eq!(parsed.records.len(), 1);
-        assert_eq!(parsed.records[0].kind, 33);
-    }
-
-    #[test]
-    fn an_srv_answer_of_another_shape_gives_the_fixed_names() {
-        let t =
-            |list: &[(&str, u16)]| -> Vec<(String, u16)> { list.iter().map(|(n, p)| (n.to_string(), *p)).collect() };
-        let fixed = t(&fixed_targets());
-        let good = t(&[("region1.v2.argotunnel.com", 7844), ("region2.v2.argotunnel.com", 7844)]);
-        assert_eq!(checked_targets(good.clone()), good);
-        let three = t(&[("a.argotunnel.com", 7844), ("b.argotunnel.com", 7844), ("c.argotunnel.com", 7844)]);
-        assert_eq!(checked_targets(three), fixed);
-        assert_eq!(checked_targets(t(&[("evil.example.com", 7844)])), fixed);
-        assert_eq!(checked_targets(t(&[("a.argotunnel.com", 7844), ("b.argotunnel.com", 443)])), fixed);
-        assert_eq!(checked_targets(Vec::new()), fixed);
-    }
-
-    /// The reason of the fixed names is an event for the user.
-    #[test]
-    fn an_srv_answer_of_another_shape_is_an_event() {
-        let (report, seen) = crate::testing::recorded();
-        let three = ["a", "b", "c"].map(|n| (format!("{n}.argotunnel.com"), 7844)).to_vec();
-        checked_targets_with(three, &report);
-        let seen = seen.lock().unwrap();
-        assert_eq!(seen.len(), 1);
-        assert_eq!((seen[0].level, seen[0].kind), (pod_core::Level::Warn, "edge.discovery"));
-        assert!(seen[0].text.contains("3 targets"), "{}", seen[0].text);
-    }
-
-    #[test]
-    fn the_static_list_respects_the_filter() {
-        assert!(static_edges(IpVersionFilter::V4Only).iter().all(|e| e.version == EdgeIpVersion::V4));
-        assert!(static_edges(IpVersionFilter::V6Only).is_empty());
-    }
-}
+mod tests;

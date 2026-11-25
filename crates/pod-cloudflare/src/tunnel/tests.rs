@@ -293,3 +293,22 @@ async fn on_a_stepped_clock<F: std::future::Future>(future: F) -> F::Output {
         tokio::time::advance(Duration::from_millis(50)).await;
     }
 }
+
+/// The legs of one start share one discovery (PodUtils/podnet#755): a
+/// second leg that starts while the first discovers gives no second
+/// questions and no second events.
+#[tokio::test(start_paused = true)]
+async fn the_legs_of_one_start_share_one_discovery() {
+    let (host, seen, _) = crate::testing::silent_doh_host(1).await;
+    let discovery = Discovery::default();
+    let second = async {
+        tokio::time::sleep(crate::race::LEG_STAGGER).await;
+        discovery.edges(&host, IpVersionFilter::V4Only).await
+    };
+    let (all, v4) = tokio::join!(discovery.edges(&host, IpVersionFilter::Auto), second);
+    let (all, v4) = (all.unwrap(), v4.unwrap());
+    assert!(!v4.is_empty() && v4.iter().all(|e| e.version == edge::EdgeIpVersion::V4));
+    assert!(v4.iter().all(|e| all.contains(e)));
+    let events = seen.lock().unwrap();
+    assert_eq!(events.iter().filter(|e| e.kind == "edge.discovery").count(), 2, "{events:?}");
+}
