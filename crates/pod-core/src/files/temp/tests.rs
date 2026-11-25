@@ -97,6 +97,46 @@ fn a_path_that_is_there_is_never_opened_truncated_or_removed() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// (b) A create that says `PermissionDenied` for a name that is there (as
+/// Windows says for a file at the name of a directory) takes the next
+/// name; with nothing at the name, the error ends the tries.
+#[test]
+fn a_denied_create_at_a_name_that_is_there_takes_a_new_name() {
+    let dir = dir("denied");
+    std::fs::create_dir(dir.join(format!("d-{A}"))).unwrap();
+    let mut as_windows = |path: &Path| {
+        if is_there(path) { Err(io::Error::from(io::ErrorKind::PermissionDenied)) } else { create_file(path) }
+    };
+    let mut parts = Parts::new(&[A, C]);
+    let (path, file) = new_named(&dir, "d", "", &mut || parts.next(), &mut as_windows).unwrap();
+    drop(file);
+    assert_eq!((path, parts.calls), (dir.join(format!("d-{C}")), 2));
+    assert!(dir.join(format!("d-{A}")).is_dir(), "the directory stays");
+
+    let mut parts = Parts::new(&[B, C]);
+    let mut denied = |_: &Path| -> io::Result<()> { Err(io::Error::from(io::ErrorKind::PermissionDenied)) };
+    let e = new_named(&dir, "n", "", &mut || parts.next(), &mut denied).unwrap_err();
+    assert_eq!((e.kind(), parts.calls), (io::ErrorKind::PermissionDenied, 1), "{e}");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// `as_taken` makes `AlreadyExists` of a `PermissionDenied` alone, and only
+/// when something is at the name; the text of the error stays.
+#[test]
+fn only_a_denied_create_at_a_name_that_is_there_is_a_taken_name() {
+    let denied = || io::Error::new(io::ErrorKind::PermissionDenied, "Access is denied.");
+    let taken = as_taken(denied(), || true);
+    assert_eq!(taken.kind(), io::ErrorKind::AlreadyExists);
+    assert!(taken.to_string().contains("Access is denied."), "{taken}");
+    assert_eq!(as_taken(denied(), || false).kind(), io::ErrorKind::PermissionDenied);
+    let asked = std::cell::Cell::new(false);
+    let other = as_taken(io::Error::from(io::ErrorKind::NotFound), || {
+        asked.set(true);
+        true
+    });
+    assert_eq!((other.kind(), asked.get()), (io::ErrorKind::NotFound, false), "no look at the name for another error");
+}
+
 /// (b) A symbolic link at the name, to a file or to nothing, is not
 /// followed: its target keeps its bytes, and a missing target is not made.
 #[cfg(unix)]

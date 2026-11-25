@@ -296,7 +296,9 @@ fn create_new(path: &Path, descriptor: &Descriptor) -> io::Result<File> {
         )
     };
     if handle == INVALID_HANDLE_VALUE {
-        return Err(io::Error::last_os_error());
+        // A directory at the name gives "Access is denied": it is a name
+        // that is there, as on a Unix system.
+        return Err(super::temp::as_taken(io::Error::last_os_error(), || super::temp::is_there(path)));
     }
     // SAFETY: a handle that this call opened, owned by the File from now on.
     Ok(unsafe { File::from_raw_handle(handle as _) })
