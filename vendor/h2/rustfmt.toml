@@ -1,0 +1,2 @@
+# The style of h2 upstream: the defaults of rustfmt.
+edition = "2021"

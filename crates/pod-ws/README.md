@@ -21,7 +21,7 @@ The base is podssh's `crates/podssh-ws` (its WebSocket parts); podnet's
 | `limits` | `Limits { message, frame }`: `RELAY` (the default: 16 MiB and 262144 bytes), `TUNGSTENITE` (64 MiB and 16 MiB); `MAX_MESSAGE` |
 | `close` | `close_payload`, `close_code_and_reason`, `code::{NORMAL, GOING_AWAY, PROTOCOL, UNSUPPORTED, TOO_BIG, ERROR, TRY_LATER}`, `close_hint`, `ForwardClose`, `forward_close`, `ForwardClose::what(target, app)` |
 | `client` | `WsClientConfig { endpoint, trust, server_name, timeout, idle_timeout, way, limits }`, `Endpoint`, `check_path`, `relay_knobs_only`, `connect`, `open_tls`, `upgrade`, `upgrade_with`, `https_post_json`, `https_with_token`, `read_frame_over`, `next_event`, `next_event_capped`, `Event`, `doctor`, `is_policy_refusal`, `request_error`, `ConnectError` (and `cut`, `stage_and_class`), the bounds `DEFAULT_TIMEOUT`, `DEFAULT_IDLE_TIMEOUT`, `LIVENESS_EVERY`, `LIVENESS_ALLOWED`, `WRITE_TIMEOUT`, `UPGRADE_HEAD` |
-| `h2_road` | `Pool` (`const fn new`), `connect(&pool, &config, token)`, `connect_with(&pool, &config, token, &shape)` (the shape of its HTTP/2), `connect_link(&pool, &links, &config, token)`, `connect_link_with(.., &shape)` and `Links` (a link that replaces another link of its session takes only a connection newer than each that the session rode, T-686), `ANSWER_WAIT` and `PING_WAIT` (a CONNECT with no answer within `ANSWER_WAIT` asks its connection by a PING; with no answer to it, the pool retires the connection and the CONNECT goes once to a new one; a CONNECT that times out retires its connection, T-687), `probe(&way, ..)`, `Road`, `Fallback` (`NotChosen`, `NotOffered`, `Carried`, `Remembered`, `Refused(status)`, `Caller`; a CONNECT answered 4xx takes the upgrade of HTTP/1.1 on a new connection within half a second, and a refusal of the method is remembered), `Offered`, `Stream`, `duplex`, `Shape` (`existing` (the default), `browser` (Chrome's), `firefox`, `padded`, `setting`, `settings_frame`, `window_frame`, `priority_frames`, `pads`, `apply`, `words`), `Setting`, `Priority`, `Padding`, the windows and bounds |
+| `h2_road` | `Pool` (`const fn new`), `connect(&pool, &config, token)`, `connect_with(&pool, &config, token, &shape)` (the shape of its HTTP/2), `connect_link(&pool, &links, &config, token)`, `connect_link_with(.., &shape)` and `Links` (a link that replaces another link of its session takes only a connection newer than each that the session rode, T-686), `ANSWER_WAIT` and `PING_WAIT` (a CONNECT with no answer within `ANSWER_WAIT` asks its connection by a PING; with no answer to it, the pool retires the connection and the CONNECT goes once to a new one; a CONNECT that times out retires its connection, T-687), `probe(&way, ..)`, `Road`, `Fallback` (`NotChosen`, `NotOffered`, `Carried`, `Remembered`, `Refused(status)`, `Caller`; a CONNECT answered 4xx takes the upgrade of HTTP/1.1 on a new connection within half a second, and a refusal of the method is remembered), `Offered`, `Stream`, `duplex`, `Shape` (`existing` (the default), `browser` (Chrome's), `firefox`, `padded`, `setting`, `settings_frame`, `window_frame`, `priority_frames`, `pads`, `apply` (the SETTINGS, the window and the order of the request's pseudo-fields), `words`), `Setting`, `Priority`, `Padding`, the windows and bounds |
 | `cleartext` | `connect`, `tls_failed`, `probe(&way, host, port, wait)`, `Heard`, `PROBE_PATH`, `PLAIN_TO_TLS` |
 | `url` | `WsUrl` (`parse`, `shown`, `host_header`), `request_target`, `request`, `offering`, `asking`, `Asking { protocol, authorization, alpn, limits }`, `Stream`, `Carried`, `dial`, `dial_offering`, `dial_asking`, `failure` |
 | `server` | `check_upgrade`, `check_upgrade_or_raw`, `Upgrade`, `Refused`, `asks_upgrade`, `switching`, `switching_to(key, protocol)`, `switching_raw`, `session`; the subprotocol: `offers`, `check_protocol` (426 that names it), `is_protocol_name` (visible ASCII with no comma) |
@@ -156,8 +156,54 @@ Against podnet `src/ws.rs` at `76ffb5e`:
 | podnet | `trust::context().client_config_with(&[], &[b"http/1.1"])` of `ws::dial` | the `pod_tls::Context` of the `Way`; the bridge's dial offers `http/1.1` |
 | podnet | `crate::egress::dial` of `ws::dial` | the dialer of the `Way` (podnet's `Egress`) |
 
+| podssh | `vendor/h2` (h2 0.4.20 with Chrome's order of the pseudo-fields for each request) and its line `h2 = { path = "vendor/h2" }` of `[patch.crates-io]` | both go at the tag that carries T-1095: `pod-ws` sends the order of the shape (`connect_with(.., &Shape::browser())`: `:method`, `:authority`, `:scheme`, `:path`, `:protocol`). A request on `Shape::existing` sends the order of h2 (`:method`, `:scheme`, `:authority`, `:path`, `:protocol`). podssh's own h2 (its server) is the h2 of crates.io again |
+| podssh | `h2::decode_header_block` of its `vendor/h2` (`crates/podssh-relay/tests/h2_fallback.rs`) | `pod_ws::h2::decode_header_block`: the same function in `pod-h2` |
+| each consumer | an h2 type that goes to `pod_ws::h2_road` (`duplex`, `Shape::apply`) | the type of `pod_ws::h2` (`pod-h2`), not of the h2 of crates.io; no `[patch]` |
+
 The adoption trials are `adoption/podssh/pod-ws.patch` and
 `adoption/podnet/pod-ws.patch` with their `.run` files.
+
+## The fork of h2
+
+- **Upstream**: the crate `h2` 0.4.20 as crates.io publishes it (SHA-256
+  `7d29020232d6aa3fb1daca64c1127cf662cf97f254ae16c18c05b8ab635fc118`,
+  the `cksum` of the crates.io index), from hyperium/h2 at
+  `b0e890842ac16d3c76836fd4fcc06421acb15fa7` (its `.cargo_vcs_info.json`).
+  License: MIT (`vendor/h2/LICENSE`). h2 0.4.21 has no setting for the
+  order.
+- **The tree**: `vendor/h2` is that crate byte for byte, with the patches of
+  `vendor/patches/h2/` applied in order. `scripts/check-vendor.py` (CI)
+  compares the two.
+- **0001-pseudo-order.patch**: `client::Builder::pseudo_order(&[PseudoField])`.
+  The fields that it names come first, in its order; each other field comes
+  after them in the order of h2. The default is the order of h2, so another
+  user of the fork sees no change. The setting goes to the codec, which
+  encodes each HEADERS frame of a request in that order. The patch also adds
+  `decode_header_block` (hidden from the docs): it decodes an HPACK block in
+  the order of its fields, for a test that reads the wire.
+- **0002-package.patch**: the package is `pod-h2` and its library is
+  `pod_h2`, so it is not the h2 of crates.io and needs no `[patch]`. No
+  example, bench or doctest is built, and `cargo test` runs no test of h2
+  (`test = false`): its fixtures are not in the crate. The dev-dependencies
+  that its unit tests compile with stay, as `--all-targets` compiles them.
+  The clippy of the workspace does not lint the code of h2 (`[lints.clippy]`),
+  and `rustfmt.toml` keeps the style of h2 (the defaults of rustfmt).
+- **How the workspace uses it**: a member of the workspace, so that
+  `cargo publish --workspace` packs it before `pod-ws`. `pod-ws` and
+  `pod-egress` name it `h2` (`h2 = { package = "pod-h2", .. }`); `pod-egress`
+  gives its streams to `h2_road::duplex`. The other crates keep the h2 of
+  crates.io. `pod_ws::h2` re-exports it.
+- **`Shape::apply`**: it calls `pseudo_order` with the pseudo-fields of
+  `Shape::headers`, in their order. `:protocol` is in no
+  browser's list, so it comes last, as Chrome and Firefox send it.
+- **To carry it to another version**: download
+  `https://static.crates.io/crates/h2/h2-VERSION.crate`, compare its SHA-256
+  with the `cksum` of that version in `https://index.crates.io/2/h2`, and
+  unpack it into `vendor/h2`. Run
+  `git apply --directory=vendor/h2 vendor/patches/h2/*.patch`, and write
+  the version and the SHA-256 in `FORKS` of `scripts/check-vendor.py`. When
+  a hunk applies with an offset, make that patch again from the unpacked
+  crate. When a release of h2 has a setting for the order, remove the fork.
 
 ## Tests
 
@@ -165,7 +211,11 @@ The adoption trials are `adoption/podssh/pod-ws.patch` and
 (`need_loopback!`) with TLS on ring and certificates minted in pure Rust
 (`pod-tls`'s `tests/common/cert_for_test.rs`). No test reads the network
 or sets a variable. The browser's HTTP/2 shape is compared, field by
-field, with the recorded frames of the test (`h2_road::shape`); a CONNECT
+field, with the recorded frames of the test (`h2_road::shape`). The order of
+the request's pseudo-fields of each shape is read from the HPACK block on the
+wire (`tests/h2_road.rs`,
+`the_request_sends_its_pseudo_fields_in_the_order_of_its_shape`; plant
+`ws-h2-pseudo-order-not-applied`); a CONNECT
 answered 4xx falls back to the upgrade of HTTP/1.1 inside a second, and
 the host is remembered (`tests/h2_road.rs`,
 `a_refused_connect_falls_back_to_the_upgrade_and_the_session_completes`,

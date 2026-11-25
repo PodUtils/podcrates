@@ -172,6 +172,38 @@ async fn a_session_opens_on_the_browser_shape_when_a_caller_asks_for_it() {
     let _ = std::fs::remove_dir_all(root.parent().unwrap());
 }
 
+/// H2-1: the request sends its pseudo-fields in the order of its shape, read
+/// from the HPACK block of its HEADERS frame on the wire: the fields that
+/// the shape names first, then `:protocol`. The order of h2 alone is
+/// `:method`, `:scheme`, `:authority`, `:path`, `:protocol`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_request_sends_its_pseudo_fields_in_the_order_of_its_shape() {
+    pod_testkit::need_loopback!();
+    let root = root_file("pseudo-order");
+    let shapes = [
+        ("existing", h2_road::Shape::existing(), [":method", ":scheme", ":authority", ":path", ":protocol"]),
+        ("chrome", h2_road::Shape::browser(), [":method", ":authority", ":scheme", ":path", ":protocol"]),
+        ("firefox", h2_road::Shape::firefox(), [":method", ":path", ":authority", ":scheme", ":protocol"]),
+    ];
+    for (name, shape, order) in shapes {
+        let named: Vec<&str> = shape.headers.iter().copied().filter(|h| h.starts_with(':')).collect();
+        assert_eq!(named, order[..named.len()], "{name}: the shape's data is the order");
+        let (port, seen) = stand_in(Offer::Extended).await;
+        let config = config(port, &root);
+        let (session, _) = tokio::time::timeout(LIMIT * 2, h2_road::connect_with(&POOL, &config, TOKEN, &shape))
+            .await
+            .expect("an answer within the limit")
+            .expect("a session");
+        let block = seen.blocks.lock().unwrap().first().cloned().expect("the request's header block");
+        let fields = pod_ws::h2::decode_header_block(&block).expect("an HPACK block");
+        let pseudo: Vec<&str> = fields.iter().map(|(n, _)| n.as_str()).filter(|n| n.starts_with(':')).collect();
+        assert_eq!(pseudo, order, "{name}: the pseudo-fields on the wire: {fields:?}");
+        assert_eq!(fields[..5].iter().filter(|(n, _)| n.starts_with(':')).count(), 5, "the pseudo-fields come first");
+        let _ = session.send_close(1000, "").await;
+    }
+    let _ = std::fs::remove_dir_all(root.parent().unwrap());
+}
+
 /// A lost connection is a lost link for each of its sessions at once, and
 /// the next session opens a new connection.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -4,7 +4,9 @@
 # check of the record (cargo todo check), the size of the Rust files
 # (scripts/check-size.py, with its self-test), the tables of docs/design.md
 # and README.md (scripts/check-design-paths.py), the order of cargo publish
-# (scripts/check-publish-order.py), the rules of the workflows and each
+# (scripts/check-publish-order.py), each fork of vendor/ against its upstream
+# crate plus its patches (scripts/check-vendor.py, with its self-test), the
+# rules of the workflows and each
 # workflow that a document names (scripts/check-workflows.py, as ci.yml
 # runs it), the wire vectors against docs/wire.md
 # (scripts/check-wire-vectors.py, with its plant), no narrative history in
@@ -44,6 +46,7 @@ echo "record $r"; [ "$r" -eq 0 ] || { rc=1; head -20 "$log/record.log"; }
 echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/size.log" | head -20; }
 { python3 -I scripts/check-design-paths.py && python3 -I scripts/check-publish-order.py && python3 -I scripts/check-workflows.py &&
     python3 -I scripts/check-probe.py && python3 -I scripts/check-loopback.py &&
+    python3 -I scripts/check-vendor.py && python3 -I scripts/check-vendor.py --self-test &&
     python3 -I scripts/check-private-replace.py && python3 -I scripts/check-results.py &&
     python3 -I scripts/check-wire-vectors.py && python3 -I scripts/check-wire-vectors.py --plant &&
     python3 -I scripts/check-history.py && python3 -I scripts/check-history.py --self-test &&

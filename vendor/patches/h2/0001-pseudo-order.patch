@@ -1,0 +1,360 @@
+diff --git a/src/client.rs b/src/client.rs
+--- a/src/client.rs
++++ b/src/client.rs
+@@ -137,10 +137,11 @@
+ 
+ use crate::codec::{Codec, SendError, UserError};
+ use crate::ext::Protocol;
+-use crate::frame::{Headers, Pseudo, Reason, Settings, StreamId};
++use crate::frame::{Headers, Pseudo, PseudoOrder, Reason, Settings, StreamId};
+ use crate::proto::{self, Error};
+ use crate::{FlowControl, PingPong, RecvStream, SendStream};
+ 
++pub use crate::frame::PseudoField;
+ use bytes::{Buf, Bytes};
+ use http::{uri, HeaderMap, Method, Request, Response, Version};
+ use std::fmt;
+@@ -348,6 +349,9 @@ pub struct Builder {
+     ///
+     /// When this gets exhausted, we issue a GOAWAY with `ENHANCE_YOUR_CALM`.
+     data_frame_budget: proto::DataFrameBudget,
++
++    /// The order of the pseudo-header fields of each request.
++    pseudo_order: PseudoOrder,
+ }
+ 
+ #[derive(Debug)]
+@@ -669,9 +673,46 @@ impl Builder {
+             stream_id: 1.into(),
+             local_max_error_reset_streams: Some(proto::DEFAULT_LOCAL_RESET_COUNT_MAX),
+             data_frame_budget: proto::DataFrameBudget::Auto,
++            pseudo_order: PseudoOrder::DEFAULT,
+         }
+     }
+ 
++    /// Sets the order in which each request of the connection encodes its
++    /// pseudo-header fields.
++    ///
++    /// The fields of `order` come first, in that order. Each field that
++    /// `order` does not name comes after them, in the default order. RFC 9113
++    /// does not fix the order of the pseudo-header fields, and a peer can
++    /// tell clients apart by it.
++    ///
++    /// The default order is `:method`, `:scheme`, `:authority`, `:path`,
++    /// `:protocol`.
++    ///
++    /// # Examples
++    ///
++    /// ```
++    /// # use tokio::io::{AsyncRead, AsyncWrite};
++    /// # use h2::client::*;
++    /// # use bytes::Bytes;
++    /// #
++    /// # async fn doc<T: AsyncRead + AsyncWrite + Unpin>(my_io: T)
++    /// # -> Result<((SendRequest<Bytes>, Connection<T, Bytes>)), h2::Error>
++    /// # {
++    /// // `client_fut` is a future representing the completion of the HTTP/2
++    /// // handshake.
++    /// let client_fut = Builder::new()
++    ///     .pseudo_order(&[PseudoField::Method, PseudoField::Authority])
++    ///     .handshake(my_io);
++    /// # client_fut.await
++    /// # }
++    /// #
++    /// # pub fn main() {}
++    /// ```
++    pub fn pseudo_order(&mut self, order: &[PseudoField]) -> &mut Self {
++        self.pseudo_order = PseudoOrder::new(order);
++        self
++    }
++
+     /// Indicates the initial window size (in octets) for stream-level
+     /// flow control for received data.
+     ///
+@@ -1349,6 +1390,8 @@ where
+             codec.set_max_recv_header_list_size(max as usize);
+         }
+ 
++        codec.set_send_pseudo_order(builder.pseudo_order);
++
+         // Send initial settings frame
+         codec
+             .buffer(builder.settings.clone().into())
+diff --git a/src/codec/framed_write.rs b/src/codec/framed_write.rs
+--- a/src/codec/framed_write.rs
++++ b/src/codec/framed_write.rs
+@@ -33,6 +33,9 @@ struct Encoder<B> {
+     /// HPACK encoder
+     hpack: hpack::Encoder,
+ 
++    /// The order of the pseudo headers of a request
++    pseudo_order: frame::PseudoOrder,
++
+     /// Write buffer
+     ///
+     /// TODO: Should this be a ring buffer?
+@@ -93,6 +96,7 @@ where
+             final_flush_done: false,
+             encoder: Encoder {
+                 hpack: hpack::Encoder::default(),
++                pseudo_order: frame::PseudoOrder::DEFAULT,
+                 buf: Cursor::new(BytesMut::with_capacity(DEFAULT_BUFFER_CAPACITY)),
+                 next: None,
+                 last_data_frame: None,
+@@ -263,7 +267,8 @@ where
+             }
+             Frame::Headers(v) => {
+                 let mut buf = limited_write_buf!(self);
+-                if let Some(continuation) = v.encode(&mut self.hpack, &mut buf) {
++                let order = self.pseudo_order;
++                if let Some(continuation) = v.encode(order, &mut self.hpack, &mut buf) {
+                     self.next = Some(Next::Continuation(continuation));
+                 }
+             }
+@@ -343,6 +348,11 @@ impl<T, B> FramedWrite<T, B> {
+         self.encoder.hpack.update_max_size(val);
+     }
+ 
++    /// Set the order of the pseudo headers of each request that is sent.
++    pub fn set_pseudo_order(&mut self, order: frame::PseudoOrder) {
++        self.encoder.pseudo_order = order;
++    }
++
+     /// Retrieve the last data frame that has been sent
+     pub fn take_last_data_frame(&mut self) -> Option<frame::Data<B>> {
+         self.encoder.last_data_frame.take()
+diff --git a/src/codec/mod.rs b/src/codec/mod.rs
+--- a/src/codec/mod.rs
++++ b/src/codec/mod.rs
+@@ -95,6 +95,11 @@ impl<T, B> Codec<T, B> {
+         self.framed_write().set_header_table_size(val)
+     }
+ 
++    /// Set the order of the pseudo headers of each request that is sent.
++    pub fn set_send_pseudo_order(&mut self, order: frame::PseudoOrder) {
++        self.framed_write().set_pseudo_order(order)
++    }
++
+     /// Set the decoder header table size size.
+     pub fn set_recv_header_table_size(&mut self, val: usize) {
+         self.inner.set_header_table_size(val)
+diff --git a/src/frame/headers.rs b/src/frame/headers.rs
+--- a/src/frame/headers.rs
++++ b/src/frame/headers.rs
+@@ -77,11 +77,65 @@ pub struct Pseudo {
+     pub status: Option<StatusCode>,
+ }
+ 
++/// A pseudo-header field of a request (RFC 9113, section 8.3.1).
++#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
++pub enum PseudoField {
++    /// `:method`
++    Method,
++    /// `:scheme`
++    Scheme,
++    /// `:authority`
++    Authority,
++    /// `:path`
++    Path,
++    /// `:protocol` (RFC 8441)
++    Protocol,
++}
++
++/// The order in which a request encodes its pseudo-header fields.
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub struct PseudoOrder([PseudoField; 5]);
++
++impl PseudoOrder {
++    /// The order of h2: `:method`, `:scheme`, `:authority`, `:path`,
++    /// `:protocol`.
++    pub const DEFAULT: PseudoOrder = PseudoOrder([
++        PseudoField::Method,
++        PseudoField::Scheme,
++        PseudoField::Authority,
++        PseudoField::Path,
++        PseudoField::Protocol,
++    ]);
++
++    /// The fields of `first` in their order, then each other field in the
++    /// default order. A field that `first` repeats counts once.
++    pub fn new(first: &[PseudoField]) -> PseudoOrder {
++        let mut order = Self::DEFAULT.0;
++        let mut len = 0;
++        for field in first.iter().chain(Self::DEFAULT.0.iter()) {
++            if !order[..len].contains(field) {
++                order[len] = *field;
++                len += 1;
++            }
++        }
++        PseudoOrder(order)
++    }
++}
++
++impl Default for PseudoOrder {
++    fn default() -> PseudoOrder {
++        PseudoOrder::DEFAULT
++    }
++}
++
+ #[derive(Debug)]
+ pub struct Iter {
+     /// Pseudo headers
+     pseudo: Option<Pseudo>,
+ 
++    /// The order of the pseudo headers
++    order: PseudoOrder,
++
+     /// Header fields
+     fields: header::IntoIter<HeaderValue>,
+ }
+@@ -274,8 +328,10 @@ impl Headers {
+         self.header_block.fields
+     }
+ 
++    /// Encodes the frame with its pseudo-header fields in `order`.
+     pub fn encode(
+         self,
++        order: PseudoOrder,
+         encoder: &mut hpack::Encoder,
+         dst: &mut EncodeBuf<'_>,
+     ) -> Option<Continuation> {
+@@ -286,7 +342,7 @@ impl Headers {
+         let head = self.head();
+ 
+         self.header_block
+-            .into_encoding(encoder)
++            .into_encoding(order, encoder)
+             .encode(&head, dst, Some(encoder), |_| {})
+     }
+ 
+@@ -507,7 +563,7 @@ impl PushPromise {
+         let promised_id = self.promised_id;
+ 
+         self.header_block
+-            .into_encoding(encoder)
++            .into_encoding(PseudoOrder::DEFAULT, encoder)
+             .encode(&head, dst, Some(encoder), |dst| {
+                 dst.put_u32(promised_id.into());
+             })
+@@ -717,24 +773,17 @@ impl Iterator for Iter {
+         use crate::hpack::Header::*;
+ 
+         if let Some(ref mut pseudo) = self.pseudo {
+-            if let Some(method) = pseudo.method.take() {
+-                return Some(Method(method));
+-            }
+-
+-            if let Some(scheme) = pseudo.scheme.take() {
+-                return Some(Scheme(scheme));
+-            }
+-
+-            if let Some(authority) = pseudo.authority.take() {
+-                return Some(Authority(authority));
+-            }
+-
+-            if let Some(path) = pseudo.path.take() {
+-                return Some(Path(path));
+-            }
+-
+-            if let Some(protocol) = pseudo.protocol.take() {
+-                return Some(Protocol(protocol));
++            for field in self.order.0 {
++                let header = match field {
++                    PseudoField::Method => pseudo.method.take().map(Method),
++                    PseudoField::Scheme => pseudo.scheme.take().map(Scheme),
++                    PseudoField::Authority => pseudo.authority.take().map(Authority),
++                    PseudoField::Path => pseudo.path.take().map(Path),
++                    PseudoField::Protocol => pseudo.protocol.take().map(Protocol),
++                };
++                if header.is_some() {
++                    return header;
++                }
+             }
+ 
+             if let Some(status) = pseudo.status.take() {
+@@ -989,11 +1038,16 @@ impl HeaderBlock {
+         Ok(())
+     }
+ 
+-    fn into_encoding(self, encoder: &mut hpack::Encoder) -> EncodingHeaderBlock {
++    fn into_encoding(
++        self,
++        order: PseudoOrder,
++        encoder: &mut hpack::Encoder,
++    ) -> EncodingHeaderBlock {
+         let mut hpack = encoder.take_scratch();
+         hpack.clear();
+         let headers = Iter {
+             pseudo: Some(self.pseudo),
++            order,
+             fields: self.fields.into_iter(),
+         };
+ 
+@@ -1070,7 +1124,11 @@ mod test {
+         );
+ 
+         let continuation = headers
+-            .encode(&mut encoder, &mut (&mut dst).limit(frame::HEADER_LEN + 8))
++            .encode(
++                PseudoOrder::DEFAULT,
++                &mut encoder,
++                &mut (&mut dst).limit(frame::HEADER_LEN + 8),
++            )
+             .unwrap();
+ 
+         assert_eq!(17, dst.len());
+diff --git a/src/frame/mod.rs b/src/frame/mod.rs
+--- a/src/frame/mod.rs
++++ b/src/frame/mod.rs
+@@ -52,7 +52,8 @@ pub use self::data::Data;
+ pub use self::go_away::GoAway;
+ pub use self::head::{Head, Kind};
+ pub use self::headers::{
+-    parse_u64, Continuation, Headers, Pseudo, PushPromise, PushPromiseHeaderError,
++    parse_u64, Continuation, Headers, Pseudo, PseudoField, PseudoOrder, PushPromise,
++    PushPromiseHeaderError,
+ };
+ pub use self::ping::Ping;
+ pub use self::priority::{Priority, StreamDependency};
+diff --git a/src/lib.rs b/src/lib.rs
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -138,6 +138,38 @@ pub mod fuzz_bridge;
+ pub use crate::error::{Error, Reason};
+ pub use crate::share::{FlowControl, Ping, PingPong, Pong, RecvStream, SendStream, StreamId};
+ 
++/// Decodes one HPACK header block into its fields, in the order of the
++/// block. A test calls it to read the order of the fields on the wire.
++#[doc(hidden)]
++pub fn decode_header_block(block: &[u8]) -> Result<Vec<(String, String)>, String> {
++    use crate::hpack::Header;
++    use std::ops::ControlFlow;
++
++    let mut buffer = bytes::BytesMut::from(block);
++    let mut cursor = std::io::Cursor::new(&mut buffer);
++    let mut decoder = crate::hpack::Decoder::new(4096);
++    let mut fields = Vec::new();
++    decoder
++        .decode(&mut cursor, |header| {
++            let field = match header {
++                Header::Field { name, value } => (
++                    name.as_str().to_string(),
++                    value.to_str().unwrap_or_default().to_string(),
++                ),
++                Header::Authority(value) => (":authority".to_string(), value.as_str().to_string()),
++                Header::Method(value) => (":method".to_string(), value.as_str().to_string()),
++                Header::Scheme(value) => (":scheme".to_string(), value.as_str().to_string()),
++                Header::Path(value) => (":path".to_string(), value.as_str().to_string()),
++                Header::Protocol(value) => (":protocol".to_string(), value.as_str().to_string()),
++                Header::Status(value) => (":status".to_string(), value.as_str().to_string()),
++            };
++            fields.push(field);
++            ControlFlow::Continue(())
++        })
++        .map_err(|e| format!("{e:?}"))?;
++    Ok(fields)
++}
++
+ #[cfg(feature = "unstable")]
+ pub use codec::{Codec, SendError, UserError};
+ 

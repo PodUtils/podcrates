@@ -10629,7 +10629,7 @@ word does not.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10698,6 +10698,68 @@ cargo tree -p pod-ws --all-features -i h2
 
 `cargo tree` shows one h2 package for `pod-ws`: the fork, with no patch in
 the workspace of a consumer.
+
+
+## Done
+
+2026-11-25, the commit of this entry.
+
+- **The order**: Chrome sends `:method`, `:authority`, `:scheme`, `:path`;
+  Firefox sends `:method`, `:path`, `:authority`, `:scheme` (the Akamai
+  passive fingerprints, `m,a,s,p` and `m,p,a,s`, the data of
+  `Shape::browser` and `Shape::firefox`). `:protocol` is in no browser's
+  list and comes last, as both browsers send it on an extended CONNECT.
+  podssh's patch (`PodUtils/podssh:vendor/h2/src/frame/headers.rs` at
+  `e728db9f`) moved `:authority` before `:scheme` for each request. h2 0.4.21
+  (the newest release) has no setting for the order.
+- **The change**: `vendor/h2` is h2 0.4.20 as crates.io publishes it
+  (SHA-256 `7d29020232d6aa3fb1daca64c1127cf662cf97f254ae16c18c05b8ab635fc118`)
+  with `vendor/patches/h2/0001-pseudo-order.patch`
+  (`client::Builder::pseudo_order(&[PseudoField])`; the default is the order
+  of h2; the codec encodes each HEADERS frame in the order; and
+  `decode_header_block`, hidden, from podssh's patch) and
+  `0002-package.patch` (the package `pod-h2`, the library `pod_h2`, no
+  example, bench or doctest, `test = false`, no clippy of the workspace, the
+  `rustfmt.toml` of h2's style). It is a member of the workspace with a name
+  of its own: no `[patch.crates-io]`, and `cargo publish --workspace` packs
+  it before `pod-ws` (call C934; an excluded path package makes the
+  packing of `pod-ws` fail: "no matching package named"). `pod-ws` and
+  `pod-egress` name it `h2`; `pod_ws::h2` re-exports it. `Shape::apply`
+  calls `pseudo_order` with the pseudo-fields of `Shape::headers`.
+  `scripts/check-vendor.py` (CI, `check.sh`) compares each fork of `vendor/`
+  (`h2`, `iroh-relay`) with its crate plus its patches; `--self-test` finds a
+  planted byte in each. `crates/pod-ws/README.md`, "The fork of h2", has the
+  procedure to carry it to another version.
+- **The test**: `tests/h2_road.rs`,
+  `the_request_sends_its_pseudo_fields_in_the_order_of_its_shape`: the
+  stand-in keeps the HPACK block of each request from the wire (HEADERS and
+  CONTINUATION, before h2's server reads it) and decodes it in order, for
+  `existing`, `browser` and `firefox`. Before the change it failed:
+  `chrome: the pseudo-fields on the wire: [(":method", "CONNECT"),
+  (":scheme", "https"), (":authority", "relay.h2.test:45313"), (":path",
+  "/connect/127.0.0.1/22"), (":protocol", "websocket"), ...]`, left
+  `[":method", ":scheme", ":authority", ":path", ":protocol"]`, right
+  `[":method", ":authority", ":scheme", ":path", ":protocol"]`. The unit
+  test `the_pseudo_fields_of_each_shape_are_its_headers_in_order` holds the
+  data. `cargo test -p pod-ws --all-features`: 168 passed;
+  `cargo test -p pod-egress --all-features`: 247 passed.
+- **The plant**: `ws-h2-pseudo-order-not-applied` (`Shape::apply` without
+  the call of `pseudo_order`): caught with EXPECT `chrome: the pseudo-fields
+  on the wire`, and the test passes without it.
+- **New dependency edges**: `pod-ws` and `pod-egress` to `pod-h2` 0.4.20 (MIT)
+  in place of `h2` 0.4.20 (MIT). The dependencies of `pod-h2` are those of
+  h2 0.4.20. Its dev-dependencies, in the lock for `--all-targets` only:
+  env_logger 0.10 (MIT OR Apache-2.0), hex 0.4 (MIT OR Apache-2.0),
+  quickcheck 1 (Unlicense OR MIT), rand 0.8 (MIT OR Apache-2.0), serde_json 1
+  (MIT OR Apache-2.0). The other crates keep `h2` of crates.io.
+- **For the hand-off**: at the tag that carries this entry, podssh removes
+  `vendor/h2` and its line `h2 = { path = "vendor/h2" }` of
+  `[patch.crates-io]`; its `PodUtils/podssh:crates/podssh-relay/tests/h2_fallback.rs` calls
+  `pod_ws::h2::decode_header_block` in place of `h2::decode_header_block`. A
+  session on `Shape::existing` then sends the order of h2; `--h2-shape
+  browser` sends Chrome's order (the adoption map of
+  `crates/pod-ws/README.md`). The offer of the setting to hyperium/h2
+  (Approach 4) is not made.
 
 # T-1125: `pod-hold`: a failed `execve` of `spawn::start` exits 127 with no errno, and `spawn::resolve` does not check a path with a `/` (PodUtils/podnet#707)
 
@@ -12092,3 +12154,43 @@ over the HTTP/2 that the stand-in picked, 88 to 92 requests, in 5 runs.
 For the hand-off: no break; no public item changed. Neither podssh nor
 podnet uses `Pipe` or `DnsOverHttps` yet (their code read at their heads);
 a DNS carrier over DoH asks Cloudflare and Google over HTTP/2.
+
+# T-1347: `pod-h2`: offer the setting of the order of the pseudo-fields to hyperium/h2, and drop the fork at its release
+
+**Source:** T-1095, its Approach 4.
+**Category:** chore
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`vendor/h2` (`pod-h2`) is h2 0.4.20 with the setting
+`client::Builder::pseudo_order` (`vendor/patches/h2/0001-pseudo-order.patch`).
+Each release of h2 must be carried into the fork by hand, and each consumer
+of `pod-ws` builds two copies of h2 when its tree has the h2 of crates.io
+too.
+
+## Premise
+
+- Read: h2 0.4.21 (the newest release) has no setting for the order.
+- Not measured: whether hyperium/h2 takes such a setting.
+
+## Approach
+
+1. Open an issue at hyperium/h2 with the setting and its reason (a peer can
+   tell clients apart by the order of the pseudo-fields; RFC 9113 leaves it
+   open), with the patch as a proposal. An issue at another organization is
+   a write on GitHub: ask the owner first.
+2. When a release of h2 has a setting for the order, `pod-ws` and
+   `pod-egress` take the h2 of crates.io again with it, and `vendor/h2`,
+   `vendor/patches/h2/` and the row of `FORKS` of `scripts/check-vendor.py`
+   go. Keep `decode_header_block` for the test in `tests/h2_road/support.rs`,
+   or decode the block there.
+
+## Prove
+
+```sh
+cargo test -p pod-ws --all-features --test h2_road the_request_sends_its_pseudo_fields_in_the_order_of_its_shape
+```

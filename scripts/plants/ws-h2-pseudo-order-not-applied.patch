@@ -1,0 +1,10 @@
+--- a/crates/pod-ws/src/h2_road/shape.rs
++++ b/crates/pod-ws/src/h2_road/shape.rs
+@@ -247,7 +247,6 @@
+             builder.max_header_list_size(value);
+         }
+         builder.initial_connection_window_size(self.connection_window);
+-        builder.pseudo_order(&self.pseudo_fields());
+     }
+ 
+     /// The shape in words, for a line of `-v` or a doctor.

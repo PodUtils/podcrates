@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**981 entries: 154 open, 31 partial, 7 blocked, 789 done.**
+**982 entries: 154 open, 31 partial, 7 blocked, 790 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 229 | 243 |
-| P2 | 69 | 10 | 4 | 412 | 495 |
-| P3 | 81 | 11 | 3 | 146 | 241 |
-| **All** | 154 | 31 | 7 | 789 | 981 |
+| P2 | 68 | 10 | 4 | 413 | 495 |
+| P3 | 82 | 11 | 3 | 146 | 242 |
+| **All** | 154 | 31 | 7 | 790 | 982 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -920,7 +920,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1089](fleet.md) | P1 | S | M8 | defect | done | `pod-unit`: a second call of `windows::serve` in a program that the manager did not start gets `Class::Unavailable` (error 1056), not `Class::Usage` (nightly 44871383085) |
 | [T-1093](services.md) | P2 | S | M5 | defect | done | `services.yml` 45009160652: three `.xyz` RDAP records refused, three Trojan nodes gone, the Syncthing relay DVWOU27 at a new address, and two hosts dark to the runner |
 | [T-1094](podvm.md) | P1 | S | M7 | chore | done | `pod-confine`: the changes of podvm to the files of the loader (port review, `upstream.yml` 45024358679) |
-| [T-1095](relay.md) | P2 | M | M2 | feature | open | `pod-ws`: the order of the request's pseudo-fields of the browser shape is a patch of h2 in podssh, not a part of the crate (PodUtils/podssh#340) |
+| [T-1095](relay.md) | P2 | M | M2 | feature | done | `pod-ws`: the order of the request's pseudo-fields of the browser shape is a patch of h2 in podssh, not a part of the crate (PodUtils/podssh#340) |
 | [T-1096](services.md) | P2 | S | M5 | measurement | done | `pod-services`: `localtunnel.me` and `download.freedos.org` give no answer to the runners of GitHub on each run, but answer other networks |
 | [T-1097](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the change of podnet to `tests/test_host/mod.rs` (port review) |
 | [T-1098](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: `run-report.v1` refuses a reason of a time that the report does not know (`start_s`) (PodUtils/podrunner#342) |
@@ -1028,3 +1028,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1321](podvm.md) | P3 | S | M6 | measurement | open | `pod-gzip`: measure a C backend of deflate against `miniz_oxide` at four threads |
 | [T-1325](upkeep.md) | P2 | S | M5 | defect | open | `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met its limit of 40 minutes in "Build the probe" |
 | [T-1326](upkeep.md) | P3 | S | M5 | chore | done | Three readers of the fields after the name in `/proc/PID/stat`: `pod-hostprobe`, `pod-supervise` and `pod-enter` |
+| [T-1347](relay.md) | P3 | S | M2 | chore | open | `pod-h2`: offer the setting of the order of the pseudo-fields to hyperium/h2, and drop the fork at its release |

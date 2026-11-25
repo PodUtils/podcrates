@@ -1,0 +1,103 @@
+diff --git a/Cargo.toml b/Cargo.toml
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -12,7 +12,7 @@
+ [package]
+ edition = "2021"
+ rust-version = "1.63"
+-name = "h2"
++name = "pod-h2"
+ version = "0.4.20"
+ authors = [
+     "Carl Lerche <me@carllerche.com>",
+@@ -22,13 +22,16 @@ build = false
+ exclude = [
+     "fixtures/**",
+     "ci/**",
++    "Cargo.toml.orig",
++    ".cargo_vcs_info.json",
++    ".github/**",
+ ]
+ autolib = false
+ autobins = false
+ autoexamples = false
+ autotests = false
+ autobenches = false
+-description = "An HTTP/2 client and server"
++description = "h2 0.4.20, an HTTP/2 client and server, with the order of the pseudo-header fields of a request as a setting of the client (the fork of podcrates)"
+ documentation = "https://docs.rs/h2"
+ readme = "README.md"
+ keywords = [
+@@ -52,25 +55,10 @@ stream = []
+ unstable = []
+ 
+ [lib]
+-name = "h2"
++name = "pod_h2"
+ path = "src/lib.rs"
+-
+-[[example]]
+-name = "akamai"
+-path = "examples/akamai.rs"
+-
+-[[example]]
+-name = "client"
+-path = "examples/client.rs"
+-
+-[[example]]
+-name = "server"
+-path = "examples/server.rs"
+-
+-[[bench]]
+-name = "main"
+-path = "benches/main.rs"
+-harness = false
++test = false
++doctest = false
+ 
+ [dependencies.atomic-waker]
+ version = "1.0.0"
+@@ -129,31 +117,15 @@ default-features = false
+ [dev-dependencies.rand]
+ version = "0.8.4"
+ 
+-[dev-dependencies.serde]
+-version = "1.0.0"
+-
+ [dev-dependencies.serde_json]
+ version = "1.0.0"
+ 
+-[dev-dependencies.tokio]
+-version = "1"
+-features = [
+-    "rt-multi-thread",
+-    "macros",
+-    "sync",
+-    "net",
+-]
+-
+-[dev-dependencies.tokio-rustls]
+-version = "0.26"
+-
+-[dev-dependencies.walkdir]
+-version = "2.3.2"
+-
+-[dev-dependencies.webpki-roots]
+-version = "1"
+-
+ [lints.rust.unexpected_cfgs]
+ level = "warn"
+ priority = 0
+ check-cfg = ["cfg(fuzzing)"]
++
++# The code of h2 upstream: the clippy of the workspace does not lint it.
++[lints.clippy.all]
++level = "allow"
++priority = -1
+diff --git a/rustfmt.toml b/rustfmt.toml
+new file mode 100644
+--- /dev/null
++++ b/rustfmt.toml
+@@ -0,0 +1,2 @@
++# The style of h2 upstream: the defaults of rustfmt.
++edition = "2021"
