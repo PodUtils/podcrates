@@ -1,12 +1,13 @@
 diff --git a/crates/pod-hostprobe/src/exec.rs b/crates/pod-hostprobe/src/exec.rs
 --- a/crates/pod-hostprobe/src/exec.rs
 +++ b/crates/pod-hostprobe/src/exec.rs
-@@ -150,7 +150,7 @@ fn create_probe(dir: &Path, mut name: impl FnMut() -> String) -> Result<PathBuf>
-     use std::os::unix::fs::OpenOptionsExt;
-     for _ in 0..NAME_TRIES {
-         let path = dir.join(name());
--        let file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&path);
-+        let file = std::fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(&path);
-         match file {
-             Ok(mut file) => {
-                 if let Err(e) = file.write_all(PROBE_SCRIPT) {
+@@ -129,7 +129,8 @@
+ /// process of the same pid (PodUtils/podvm#568) is never opened.
+ fn create_probe(dir: &Path) -> Result<PathBuf> {
+     use std::io::Write;
+-    let (path, mut file) = pod_core::files::new_temp_file(dir, PROBE_PREFIX, "").map_err(|e| io(dir, e))?;
++    let path = dir.join(format!("{PROBE_PREFIX}-{}", std::process::id()));
++    let mut file = std::fs::File::create(&path).map_err(|e| io(dir, e))?;
+     if let Err(e) = file.write_all(PROBE_SCRIPT) {
+         drop(file);
+         let _ = std::fs::remove_file(&path);

@@ -16,8 +16,11 @@ pub(super) fn c(s: &str) -> CBuf {
 /// A scratch path of this probe: `base`, the pid and a random nonce. A
 /// fixed path is taken by a file that a killed probe or another tool left,
 /// and a pid repeats in each PID namespace (PodUtils/podvm#569): the probe
-/// then skips its row.
-pub(super) fn unique(base: &str) -> String {
+/// then skips its row. Here, and not `pod_core::files::new_temp_file`: a
+/// probe makes its own exclusive create with the raw call, as that call
+/// is the instrument, and that function also sets the mode after the
+/// create, which a filesystem can refuse.
+pub(crate) fn unique(base: &str) -> String {
     let mut bytes = [0u8; 8];
     let got = unsafe { sys::sys(sys::SYS_GETRANDOM, [bytes.as_mut_ptr() as u64, 8, 0, 0, 0, 0]) };
     let nonce = match got {

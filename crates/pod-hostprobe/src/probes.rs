@@ -393,6 +393,7 @@ pub fn find(name: &str) -> Option<&'static Probe> {
 
 mod scratch;
 pub use scratch::Step;
+pub(crate) use scratch::unique;
 use scratch::*;
 
 mod census;

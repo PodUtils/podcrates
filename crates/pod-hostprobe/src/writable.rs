@@ -72,8 +72,11 @@ pub fn candidates(named: &[(String, String)]) -> Vec<(String, String)> {
 
 /// One candidate: a real file created, written, closed and removed, then
 /// `statfs(2)` for blocks and inodes both.
-fn probe_one(path: &str, source: &str, tag: &str) -> WriteProbe {
-    let file = format!("{}/.pod-hostprobe-write-{tag}", path.trim_end_matches('/'));
+fn probe_one(path: &str, source: &str) -> WriteProbe {
+    // A new name for each call: two probes of one pid (two threads, or two
+    // PID namespaces) never take one name, and an EEXIST is then not the
+    // answer of a candidate that this machine can write.
+    let file = crate::probes::unique(&format!("{}/.pod-hostprobe-write", path.trim_end_matches('/')));
     let outcome = match crate::sys::CBuf::new(&file) {
         None => Outcome::skip(None, "the path contains a NUL and cannot reach the kernel"),
         Some(p) => match sys::open(&p, sys::O_WRONLY | sys::O_CREAT | sys::O_EXCL, 0o600) {
@@ -108,38 +111,17 @@ fn probe_one(path: &str, source: &str, tag: &str) -> WriteProbe {
     WriteProbe { path: path.to_string(), source: source.to_string(), outcome, space, space_error }
 }
 
-/// Distinguishes concurrent probes **within one process**, which the pid
-/// cannot.
-static CALL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
 /// Probe each of `candidates`, as [`candidates`] gives them.
 pub fn probe(candidates: &[(String, String)]) -> Vec<WriteProbe> {
-    // The tag keeps two concurrent probes from colliding on one name, which
-    // would make each report the other's EEXIST as its own answer, and a
-    // candidate this machine CAN write to would be reported as a skip.
-    //
-    // THE PID ALONE IS NOT ENOUGH: it gave an intermittent failure.
-    // `cargo test` runs tests in parallel THREADS of one process, so two
-    // concurrent `probe()` calls shared a pid and therefore a filename: the
-    // second saw `EEXIST` and skipped `/tmp`. It is not confined to tests: a
-    // run can call the probe while another thread measures for a cache.
-    //
-    // The counter is per PROCESS and the pid is per machine, so the pair is
-    // unique on both axes. A random number would need an entropy source in a
-    // function that is also called between fork and exec elsewhere in this
-    // crate; a counter needs nothing.
-    let tag = format!("{}-{}", std::process::id(), CALL.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
-    candidates.iter().map(|(p, src)| probe_one(p, src, &tag)).collect()
+    candidates.iter().map(|(p, src)| probe_one(p, src)).collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// The regression that produced the counter, made deterministic.
-    ///
     /// Two threads probe at once, which is exactly what `cargo test` does to
-    /// this crate. With the tag as the pid alone they share a filename, the
+    /// this crate. With a name of the pid alone they share a filename, the
     /// loser reads `EEXIST` and reports `/tmp` as a **skip**, and a caller sees
     /// a machine it can write to described as one it cannot.
     #[test]
@@ -183,7 +165,7 @@ mod tests {
     #[test]
     fn tmp_is_writable_here_and_reports_blocks_and_inodes() {
         // The real path, on this host.
-        let got = probe_one("/tmp", "test", "selftest");
+        let got = probe_one("/tmp", "test");
         assert!(got.writable(), "{:?}", got.outcome);
         let space = got.space.expect("statfs on /tmp");
         assert!(space.block_size > 0);
@@ -191,7 +173,7 @@ mod tests {
 
     #[test]
     fn a_directory_that_does_not_exist_is_a_skip_and_not_a_denial() {
-        let got = probe_one("/proc/self/no-such-directory", "test", "selftest");
+        let got = probe_one("/proc/self/no-such-directory", "test");
         assert_eq!(got.outcome.verdict, Verdict::Skip);
         assert_eq!(got.outcome.errno, Some(sys::ENOENT));
     }

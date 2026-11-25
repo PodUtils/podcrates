@@ -1,4 +1,4 @@
-# pod-hostprobe: the probe file opens a name that another run holds, and writes over it (T-873).
+# pod-hostprobe: the probe file opens a name of the pid that another run holds, and writes over it (T-873, T-1343).
 ENTRY=T-873
 GROUP=hostprobe
 EXPECT='a_probe_file_never_takes_the_file_of_another'
