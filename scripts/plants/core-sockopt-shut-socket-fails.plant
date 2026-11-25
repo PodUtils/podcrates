@@ -1,0 +1,9 @@
+# pod-core: the EINVAL of a socket option on a socket that the peer shut
+# (macOS) stays an error, so the socket transport of pod-tpm gives
+# Unavailable for a short or bad answer, not Protocol (T-1445). The plant
+# is in the rule; its call in pod-tpm runs on macOS alone (nightly.yml).
+ENTRY=T-1445
+GROUP=core
+EXPECT='test sockopt::tests::only_the_einval_of_darwin_is_a_shut_socket \.\.\. FAILED'
+RUN='cargo test -p pod-core --all-features --lib sockopt'
+LIMIT=900

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-core/src/sockopt.rs b/crates/pod-core/src/sockopt.rs
+index 2409b41e..f6db6374 100644
+--- a/crates/pod-core/src/sockopt.rs
++++ b/crates/pod-core/src/sockopt.rs
+@@ -20,7 +20,7 @@ fn shut_on(set: io::Result<()>, darwin: bool) -> io::Result<()> {
+     // `EINVAL` of Darwin; on Windows the code 22 is another error.
+     const EINVAL: i32 = 22;
+     match set {
+-        Err(e) if darwin && e.raw_os_error() == Some(EINVAL) => Ok(()),
++        Err(e) if darwin && e.raw_os_error() == Some(EINVAL) => Err(e),
+         set => set,
+     }
+ }

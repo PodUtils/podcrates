@@ -27,6 +27,7 @@ use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+use pod_core::sockopt::shut_needs_no_limit;
 use pod_core::{Class, Failure};
 
 use super::bound::{Limits, broken, host, late, left, response_size, size_field, system};
@@ -55,11 +56,18 @@ enum Stream {
 }
 
 impl Stream {
+    /// The read and the write limit. A socket that the peer shut needs none
+    /// ([`shut_needs_no_limit`]: macOS refuses the set on it): its next
+    /// read gives the bytes that remain, then the end, so a short response
+    /// is a short response and not a failure of the set.
     fn timeouts(&self, wait: Duration) -> io::Result<()> {
+        let wait = Some(wait);
         match self {
-            Stream::Tcp(s) => s.set_read_timeout(Some(wait)).and_then(|()| s.set_write_timeout(Some(wait))),
+            Stream::Tcp(s) => shut_needs_no_limit(s.set_read_timeout(wait))
+                .and_then(|()| shut_needs_no_limit(s.set_write_timeout(wait))),
             #[cfg(unix)]
-            Stream::Unix(s) => s.set_read_timeout(Some(wait)).and_then(|()| s.set_write_timeout(Some(wait))),
+            Stream::Unix(s) => shut_needs_no_limit(s.set_read_timeout(wait))
+                .and_then(|()| shut_needs_no_limit(s.set_write_timeout(wait))),
         }
     }
 

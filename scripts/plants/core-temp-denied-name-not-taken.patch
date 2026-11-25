@@ -1,0 +1,13 @@
+diff --git a/crates/pod-core/src/files/temp.rs b/crates/pod-core/src/files/temp.rs
+index cc209ed7..ae7c62f3 100644
+--- a/crates/pod-core/src/files/temp.rs
++++ b/crates/pod-core/src/files/temp.rs
+@@ -89,7 +89,7 @@ pub(super) fn new_named<T>(
+     let mut last = None;
+     for _ in 0..NAMES {
+         let path = parent.join(format!("{prefix}-{}{suffix}", random()));
+-        match create(&path).map_err(|e| as_taken(e, || is_there(&path))) {
++        match create(&path) {
+             Ok(made) => return Ok((path, made)),
+             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => last = Some(e),
+             Err(e) => return Err(e),

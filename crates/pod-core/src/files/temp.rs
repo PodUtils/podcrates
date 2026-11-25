@@ -46,8 +46,9 @@ pub fn new_temp_file(parent: &Path, prefix: &str, suffix: &str) -> io::Result<(P
 /// that the two functions above do not make (a device node, a call relative
 /// to a descriptor: give an empty `parent` and use the name as it is).
 /// `create` gets each path `parent/PREFIX-RANDOMSUFFIX` and must make it
-/// exclusively; an error of the kind `AlreadyExists` takes a new name, up
-/// to 8 tries, and another error ends the tries. The prefix and the suffix
+/// exclusively; an error of the kind `AlreadyExists` (or `PermissionDenied`
+/// with something at the name, as Windows gives for a directory there)
+/// takes a new name, up to 8 tries, and another error ends the tries. The prefix and the suffix
 /// follow the rules of [`new_temp_file`].
 pub fn new_temp_with<T>(
     parent: &Path,
@@ -74,9 +75,10 @@ fn new_checked<T>(
 
 /// The first path `parent/PREFIX-RANDOMSUFFIX` that `create` makes, with a
 /// new `RANDOM` from `random` after each `AlreadyExists`, up to [`NAMES`]
-/// tries. Another error of `create` ends the tries. The prefix and the
-/// suffix are parts of a file name that this crate gives (the name of a
-/// target file can hold `..`).
+/// tries; a `PermissionDenied` with something at the name is a name that is
+/// there too ([`as_taken`]). Another error of `create` ends the tries. The
+/// prefix and the suffix are parts of a file name that this crate gives
+/// (the name of a target file can hold `..`).
 pub(super) fn new_named<T>(
     parent: &Path,
     prefix: &str,
@@ -87,7 +89,7 @@ pub(super) fn new_named<T>(
     let mut last = None;
     for _ in 0..NAMES {
         let path = parent.join(format!("{prefix}-{}{suffix}", random()));
-        match create(&path) {
+        match create(&path).map_err(|e| as_taken(e, || is_there(&path))) {
             Ok(made) => return Ok((path, made)),
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => last = Some(e),
             Err(e) => return Err(e),
@@ -98,6 +100,27 @@ pub(super) fn new_named<T>(
         io::ErrorKind::AlreadyExists,
         format!("{}: each of {NAMES} names {prefix}-RANDOM{suffix} was there{why}", parent.display()),
     ))
+}
+
+/// The error of an exclusive create at a name. Windows refuses the create
+/// of a file at the name of a directory with "Access is denied"
+/// (`PermissionDenied`), where a Unix system says `AlreadyExists`. When
+/// `there` says that something is at the name, that error becomes
+/// `AlreadyExists` with the same text, so that the name is taken as there.
+/// A `PermissionDenied` with nothing at the name, and each other error,
+/// stays as it is.
+pub(super) fn as_taken(e: io::Error, there: impl FnOnce() -> bool) -> io::Error {
+    if e.kind() == io::ErrorKind::PermissionDenied && there() {
+        io::Error::new(io::ErrorKind::AlreadyExists, e)
+    } else {
+        e
+    }
+}
+
+/// Something is at `path`: a file, a directory or a link, also a dangling
+/// link (the link is not followed).
+pub(super) fn is_there(path: &Path) -> bool {
+    std::fs::symlink_metadata(path).is_ok()
 }
 
 /// A part of a name that cannot leave the directory or cut the name.

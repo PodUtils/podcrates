@@ -1,0 +1,8 @@
+# pod-core: a create that says PermissionDenied at a name that is there (as
+# Windows says for a file at the name of a directory) ends the tries, and
+# no new name is taken (T-1444).
+ENTRY=T-1444
+GROUP=core
+EXPECT='test files::temp::tests::a_denied_create_at_a_name_that_is_there_takes_a_new_name \.\.\. FAILED'
+RUN='cargo test -p pod-core --all-features --lib files::temp'
+LIMIT=900
