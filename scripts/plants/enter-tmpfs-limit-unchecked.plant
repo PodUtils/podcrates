@@ -1,0 +1,6 @@
+# pod-enter: the check after the mount of a tmpfs accepts each size; the live test of the tmpfs must fail where a limit near u64::MAX, which the kernel wraps to no limit, runs the payload (T-1389).
+ENTRY=T-1389
+GROUP=enter
+EXPECT='a limit that the kernel does not enforce as .*: Ok\(0\)'
+RUN='sh scripts/ci/userns-tests.sh'
+LIMIT=1800

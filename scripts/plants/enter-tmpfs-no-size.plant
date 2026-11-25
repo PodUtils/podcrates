@@ -1,0 +1,6 @@
+# pod-enter: the tmpfs of a plan mounts with no size= and the check after the mount accepts each size; the live test of the tmpfs must fail where a write over the limit of 1 MiB passes with no ENOSPC (T-1389).
+ENTRY=T-1389
+GROUP=enter
+EXPECT='left: Ok\(6\)'
+RUN='sh scripts/ci/userns-tests.sh'
+LIMIT=1800
