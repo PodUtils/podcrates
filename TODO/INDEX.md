@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1005 entries: 153 open, 30 partial, 6 blocked, 816 done.**
+**1006 entries: 154 open, 30 partial, 6 blocked, 816 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 237 | 250 |
+| P1 | 5 | 9 | 0 | 237 | 251 |
 | P2 | 67 | 11 | 4 | 423 | 505 |
 | P3 | 82 | 10 | 2 | 154 | 248 |
-| **All** | 153 | 30 | 6 | 816 | 1005 |
+| **All** | 154 | 30 | 6 | 816 | 1006 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1052,3 +1052,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1375](foundation.md) | P2 | S | M0 | chore | open | `pod-testkit`: the contract of the source and the driver after podrunner `4fc871c` (the fifth port of `source-driver.md`) |
 | [T-1377](adapters.md) | P3 | M | M3 | defect | open | `pod-proxy`: the failure of a dial and of a request holds the words of its `DialError` or its cause, so a reader that joins the chain says them two times |
 | [T-1378](adapters.md) | P3 | S | M3 | defect | open | `pod-warp`: the failure of an enrolment with no answer says the text of the path three times to a reader that joins the chain |
+| [T-1379](podvm.md) | P1 | S | M6 | feature | open | `pod-incus`: a typed config PATCH of an instance with an ETag condition, for live limits (PodUtils/podvm#664) |

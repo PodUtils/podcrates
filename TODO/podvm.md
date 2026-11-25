@@ -15360,3 +15360,53 @@ before the crate takes one: a C backend is taken only when it is faster by
 cargo test -p pod-gzip --all-features
 python3 -I scripts/check-results.py
 ```
+
+# T-1379: `pod-incus`: a typed config PATCH of an instance with an ETag condition, for live limits (PodUtils/podvm#664)
+
+**Source:** PodUtils/podvm#664 (COORD-248 of podvm, PodUtils/podvm@T-2093; author COLLABORATOR), for PodUtils/podrunner#354 (COORD-132 of podrunner).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podrunner sets the memory, CPU and process limits of a running Incus
+container through podvm. `pod_incus::Client` at `v0.84.0` has an instance
+GET and the lifecycle calls, but no public PATCH of the config of an
+instance. Incus 6.0 takes `PATCH /1.0/instances/NAME` with a `config` map,
+merges only the keys that it gets, applies the change at once and takes an
+`If-Match` header. podvm needs a write on the condition of the ETag of the
+instance that it read, so that a write after a concurrent replacement or
+config edit fails closed. Until a tag carries the call, podrunner uses cold
+starts for offers with lower limits.
+
+## Premise
+
+- Read: the body of PodUtils/podvm#664.
+- Not read: the code of `pod_incus::Client` for the GET of an instance and
+  its ETag, and the Incus 6.0 documentation of the PATCH and of `If-Match`.
+
+## Approach
+
+1. `python3 -I scripts/codegraph.py similar incus instance patch etag` first.
+2. Add `Client::patch_instance_config(name, config, if_match)` (a typed map
+   of keys and values; `if_match: Option<&ETag>`), in the project of the
+   client, with the bounded responses and the errors of the crate. The GET
+   of an instance gives its ETag, so a caller reads, then writes on that
+   ETag.
+3. A refusal of Incus keeps its class; a 412 (the ETag differs) is its own
+   kind, so podvm can read it again and decide.
+4. Tests against the fake Incus of the crate: a PATCH of the config alone
+   (only the keys sent change), a refusal of Incus, and an ETag mismatch
+   (412). A plant that drops the `If-Match` header makes the mismatch test
+   fail.
+5. Hand-off: name the tag that carries the call in the answer to
+   PodUtils/podvm#664.
+
+## Prove
+
+```sh
+cargo test -p pod-incus --all-features
+```
