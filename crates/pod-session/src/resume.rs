@@ -39,8 +39,10 @@ use super::pump::{self, Carry, End, Ended, GaveUp, GiveUp, Watch};
 use super::record::{RefuseCode, kind};
 use super::secret::{Entropy, Secret};
 
+mod cap;
 mod note;
 
+pub use cap::{after_mark, move_under};
 pub use note::Note;
 
 /// How long after a loss the session waits for a new link, at both ends:
@@ -49,7 +51,7 @@ pub use note::Note;
 pub const RESUME_DEADLINE: Duration = Duration::from_secs(600);
 /// The bytes of a link, both ways, at which the session moves: 75 % of the
 /// relay's 64 MiB, so the bytes in flight and a second try fit in the rest
-/// (the decision of podssh T-155).
+/// (the decision of podssh T-155); [`move_under`] gives the largest.
 pub const MOVE_BYTES: u64 = 48 << 20;
 /// The age of a link at which the session moves: an hour under the relay's
 /// 12 h.

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1028 entries: 163 open, 31 partial, 6 blocked, 828 done.**
+**1032 entries: 166 open, 31 partial, 6 blocked, 829 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 6 | 9 | 0 | 243 | 258 |
-| P2 | 71 | 12 | 4 | 429 | 516 |
-| P3 | 86 | 10 | 2 | 154 | 252 |
-| **All** | 163 | 31 | 6 | 828 | 1028 |
+| P2 | 73 | 12 | 4 | 430 | 519 |
+| P3 | 87 | 10 | 2 | 154 | 253 |
+| **All** | 166 | 31 | 6 | 829 | 1032 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1068,6 +1068,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1392](transport.md) | P2 | S | M1 | defect | done | `pod-dns`: the line of a name that does not resolve is cut inside the text of a cause, and it names the cause of one group of resolvers only (PodUtils/podnet#753) |
 | [T-1393](transport.md) | P2 | M | M1 | defect | done | `pod-proxy`: a proxy at a command that does not exist floods the stderr of the process, gives a wrong cause and is started again for each dial (PodUtils/podnet#754) |
 | [T-1394](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: the DNS over HTTPS of the edge discovery waits about 35 s behind a proxy with no line, and with no cause at `-v` (PodUtils/podnet#755) |
+| [T-1395](relay.md) | P2 | S | M2 | feature | done | `pod-session`: `resume::move_under`, the largest move under the cap of a relay, and `Settings::under_cap` (PodUtils/podnet#756) |
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
@@ -1075,3 +1076,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1445](upkeep.md) | P1 | S | M5 | defect | open | `pod-tpm`: two tests of `tests/socket.rs` fail on macOS: `set_read_timeout` on a stream whose peer closed gives an error, so the call says `Unavailable`, not `Protocol` |
 | [T-1446](upkeep.md) | P1 | S | M5 | defect | done | `pod-warp`: `warp_exec_finds_warp_up_of_another_state_directory` fails on macOS: its socket path is longer than 104 bytes |
 | [T-1447](upkeep.md) | P1 | S | M5 | defect | done | `nightly.yml`: the step of the doc tests runs the doc tests of `pod-h2`, which name `h2` and not `pod_h2`, so 41 fail on each system |
+| [T-1450](relay.md) | P2 | M | M2 | defect | open | `pod-session`: the window of a link bounds the payload in flight, not the bytes of its records, so small records pass the relay's hold for a slow receiver and the cap of a leg |
+| [T-1451](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: `Offer::fit` moves at three quarters of the cap with a window of an eighth, which `pod_session::resume::move_under` does not allow |
+| [T-1452](relay.md) | P3 | S | M2 | defect | open | `pod-session`: a window under 64 KiB waits 200 ms for each window, as the far end acknowledges each 64 KiB or after 200 ms |

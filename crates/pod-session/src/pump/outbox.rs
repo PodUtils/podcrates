@@ -20,7 +20,7 @@ use super::super::hearing::Hearing;
 use super::super::link::Link;
 use super::super::record::Record;
 use super::super::round_trip::{Timing, data_end};
-use super::{Watch, lock};
+use super::{Hold, Watch, lock};
 
 /// The last record that the pump asks the writer for, at a record boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -165,15 +165,19 @@ impl Outbox {
     }
 
     /// The next small record that waits: a `PONG` first, as the peer's
-    /// heartbeat waits for it, then an `ACK`, then a `PING`. A `held` link
+    /// heartbeat waits for it, then an `ACK`, then a `PING`. A held link
     /// sends no `ACK`: the one that waits goes when the hold lifts.
-    fn next(&self, state: &Mutex<Link>, held: bool) -> Option<Record> {
+    fn next(&self, state: &Mutex<Link>, hold: &Hold) -> Option<Record> {
         if let Some(pong) = lock(&self.pong).take() {
             return Some(pong);
         }
-        if !held && self.ack.swap(false, Ordering::SeqCst) {
+        if self.ack.load(Ordering::SeqCst) {
             let mut state = lock(state);
-            if state.ack_pending() {
+            // The hold is read under the lock: the reader starts it before
+            // it takes the bytes of its read into the state, so no `ACK`
+            // covers a byte read after the mark, and the far end sends one
+            // window at most past it (PodUtils/podnet#756).
+            if !hold.on() && self.ack.swap(false, Ordering::SeqCst) && state.ack_pending() {
                 return Some(state.ack());
             }
         }
@@ -258,7 +262,7 @@ where
             return close(link, outbox, watch).await;
         }
         let held = watch.hold.on();
-        if let Some(record) = outbox.next(state, held) {
+        if let Some(record) = outbox.next(state, &watch.hold) {
             if let Err(e) = put(link, &bytes_of(&record), outbox, watch).await {
                 return Written::Failed(e);
             }

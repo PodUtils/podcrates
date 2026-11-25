@@ -8,7 +8,9 @@
 //! after the old link stopped, so none is one that the other side no longer
 //! keeps. And both ends end their bytes at once, 50 times, while the
 //! session moves each 16 KiB: no loss is said, as a move cuts no `CLOSE` in
-//! flight.
+//! flight. Four sessions at once, each at full speed both ways, move at
+//! `resume::move_under` of the cap and a window of 64 KiB: no link meets
+//! the cap.
 
 use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -110,11 +112,15 @@ async fn exchange(stream: DuplexStream, out: Vec<u8>, paced: bool) -> Vec<u8> {
     got
 }
 
-/// `len` bytes each way through links capped at `cap`, with a move at
-/// `move_at`, whose new link never comes when `fails`: the notes, and the
+/// The default settings, with a move at `move_at`.
+fn moving_at(move_at: usize) -> Settings {
+    Settings { move_bytes: move_at as u64, ..Settings::default() }
+}
+
+/// `len` bytes each way through links capped at `cap`, with `settings` at
+/// both ends, whose new link never comes when `fails`: the notes, and the
 /// count of links that met their cap.
-async fn moved(move_at: usize, cap: usize, paced: bool, len: usize, fails: bool) -> (Vec<Note>, usize) {
-    let settings = Settings { move_bytes: move_at as u64, ..Settings::default() };
+async fn moved(settings: Settings, cap: usize, paced: bool, len: usize, fails: bool) -> (Vec<Note>, usize) {
     let capped = Arc::new(AtomicUsize::new(0));
     let keeper = Arc::new(Keeper::new(Duration::from_secs(30)));
     let (links_tx, mut links_rx) = mpsc::unbounded_channel::<DuplexStream>();
@@ -186,7 +192,7 @@ async fn a_session_moves_before_each_cap() {
     // handshake of the new link outlasts a margin of 256 KiB at the scaled
     // pace, so the margin is 512 KiB there.
     let move_at = if pod_testkit::host::emulated() { CAP / 2 } else { CAP * 3 / 4 };
-    let (notes, capped) = moved(move_at, CAP, true, 8 * MIB, false).await;
+    let (notes, capped) = moved(moving_at(move_at), CAP, true, 8 * MIB, false).await;
     let moves = notes.iter().filter(|n| matches!(n, Note::Moved { .. })).count();
     let losses: Vec<&Note> = notes.iter().filter(|n| !matches!(n, Note::Moved { .. })).collect();
     assert!(moves > 8, "{moves} moves for 16 MiB under a cap of 1 MiB");
@@ -198,7 +204,7 @@ async fn a_session_moves_before_each_cap() {
 /// the old link carries acknowledgements until it stops, and no move fails.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_session_moves_while_both_ends_send_at_full_speed() {
-    let (notes, capped) = moved(256 * KIB, 64 * MIB, false, 8 * MIB, false).await;
+    let (notes, capped) = moved(moving_at(256 * KIB), 64 * MIB, false, 8 * MIB, false).await;
     let moves = notes.iter().filter(|n| matches!(n, Note::Moved { .. })).count();
     let losses: Vec<&Note> = notes.iter().filter(|n| !matches!(n, Note::Moved { .. })).collect();
     assert!(moves > 16, "{moves} moves for 16 MiB, with a mark at 256 KiB of each link");
@@ -212,7 +218,7 @@ async fn a_session_moves_while_both_ends_send_at_full_speed() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn both_ends_close_at_once_while_the_session_moves() {
     for round in 0..50 {
-        let (notes, capped) = moved(16 * KIB, 64 * MIB, false, 64 * KIB, false).await;
+        let (notes, capped) = moved(moving_at(16 * KIB), 64 * MIB, false, 64 * KIB, false).await;
         let losses: Vec<&Note> = notes.iter().filter(|n| !matches!(n, Note::Moved { .. })).collect();
         assert!(losses.is_empty(), "session {round}: no loss, no failed move: {losses:?}");
         assert_eq!(capped, 0);
@@ -224,7 +230,29 @@ async fn both_ends_close_at_once_while_the_session_moves() {
 /// wait holds (PodUtils/podssh#325).
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_failed_move_does_not_stall_the_session() {
-    let (notes, capped) = moved(256 * KIB, 64 * MIB, false, 4 * MIB, true).await;
+    let (notes, capped) = moved(moving_at(256 * KIB), 64 * MIB, false, 4 * MIB, true).await;
     assert_eq!(notes, vec![Note::MoveFailed { why: "no new link".into() }], "one failed move, and no other step");
     assert_eq!(capped, 0);
+}
+
+/// Four sessions at once, each at full speed both ways, move at
+/// `resume::move_under` of a cap of 1 MiB and a window of 64 KiB, which
+/// `Settings::under_cap` takes: no link meets the cap of the stand-in relay
+/// (PodUtils/podnet#756). A loss that a resume carries over is not
+/// counted here (T-204).
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn sessions_at_the_move_under_a_cap_never_meet_it() {
+    let window = 64 * KIB;
+    let move_at = resume::move_under(CAP as u64, window).expect("a move under 1 MiB with a window of 64 KiB");
+    let settings = Settings { pair_window: window, ..moving_at(move_at as usize) }.on_the_pair();
+    let settings = settings.under_cap(CAP as u64).expect("the move fits the cap");
+    let runs: Vec<_> = (0..4).map(|_| tokio::spawn(moved(settings, CAP, false, 2 * MIB, false))).collect();
+    for run in runs {
+        let (notes, capped) = run.await.unwrap();
+        let moves = notes.iter().filter(|n| matches!(n, Note::Moved { .. })).count();
+        let failed: Vec<&Note> = notes.iter().filter(|n| matches!(n, Note::MoveFailed { .. })).collect();
+        assert!(moves > 16, "{moves} moves for 4 MiB, with a mark at {move_at} bytes of each link");
+        assert!(failed.is_empty(), "no failed move: {failed:?}");
+        assert_eq!(capped, 0, "no link met the cap of 1 MiB");
+    }
 }

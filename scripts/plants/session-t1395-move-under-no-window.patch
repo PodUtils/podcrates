@@ -1,0 +1,13 @@
+diff --git a/crates/pod-session/src/resume/cap.rs b/crates/pod-session/src/resume/cap.rs
+index a2253ff9..123269fa 100644
+--- a/crates/pod-session/src/resume/cap.rs
++++ b/crates/pod-session/src/resume/cap.rs
+@@ -59,7 +59,7 @@ const LAST_WORD: u64 = (HEADER + MAX_REASON) as u64;
+ /// capacity with no window).
+ pub fn after_mark(window: usize) -> u64 {
+     let window = window.max(1) as u64;
+-    let far = window.saturating_mul(DATA_HEAD + 1).max(RECORD);
++    let far = RECORD;
+     let acks = (window / ACK_EVERY + 1) * DATA_HEAD;
+     far.saturating_add(RECORD + acks + HANDSHAKE + HOLD_RECORDS + LAST_WORD)
+ }
