@@ -1,0 +1,7 @@
+# A stream that ended for good is shown with the words of a relay and of
+# HTTP, as a refusal of the upgrade (T-1396, PodUtils/podssh#359).
+ENTRY=T-1396
+GROUP=ws
+EXPECT='an_ended_stream_is_shown_in_its_own_words'
+RUN='cargo test -p pod-ws --all-features --lib ended_tests'
+LIMIT=1800

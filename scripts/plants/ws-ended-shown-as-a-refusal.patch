@@ -1,0 +1,13 @@
+diff --git a/crates/pod-ws/src/client.rs b/crates/pod-ws/src/client.rs
+index 37efaa31..2b9c5a36 100644
+--- a/crates/pod-ws/src/client.rs
++++ b/crates/pod-ws/src/client.rs
+@@ -171,7 +171,7 @@ impl std::fmt::Display for ConnectError {
+             }
+             ConnectError::Upgrade(why) => write!(f, "the WebSocket upgrade failed: {why}"),
+             ConnectError::Http(why) => write!(f, "the HTTPS request failed: {why}"),
+-            ConnectError::Ended(why) => write!(f, "{why}"),
++            ConnectError::Ended(why) => write!(f, "the relay refused the session: HTTP 410: {why}"),
+         }
+     }
+ }

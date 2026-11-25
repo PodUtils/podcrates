@@ -18,6 +18,19 @@ fn errors_every_host_would_repeat_stop_the_failover() {
     assert!(!refused(502, "relay: nope.invalid does not resolve").another_host_may_help());
 }
 
+/// A stream that ended for good ends the failover with its own line, where
+/// a dial that failed moves to the next host (PodUtils/podssh#359).
+#[test]
+fn an_ended_stream_stops_the_failover() {
+    let connect = |error| OpenError::Connect { error, origin: Origin::Minted };
+    let ended = connect(ConnectError::Ended("the carrier dns:FILE ended".into()));
+    assert!(!ended.another_host_may_help());
+    assert!(failures::reason(&ended).is_none());
+    let unreachable =
+        DialError::Connect { target: "relay:443".into(), detail: "refused".into(), cut: None, kind: None };
+    assert!(connect(ConnectError::Dial(unreachable)).another_host_may_help(), "a dial tries the next host");
+}
+
 #[test]
 fn errors_of_one_host_move_to_the_next() {
     assert!(OpenError::Deadline.another_host_may_help());

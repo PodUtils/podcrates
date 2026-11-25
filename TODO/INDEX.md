@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1036 entries: 166 open, 31 partial, 6 blocked, 833 done.**
+**1037 entries: 166 open, 31 partial, 6 blocked, 834 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 245 | 258 |
-| P2 | 73 | 12 | 4 | 432 | 521 |
+| P2 | 73 | 12 | 4 | 433 | 522 |
 | P3 | 89 | 10 | 2 | 154 | 255 |
-| **All** | 166 | 31 | 6 | 833 | 1036 |
+| **All** | 166 | 31 | 6 | 834 | 1037 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1069,6 +1069,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1393](transport.md) | P2 | M | M1 | defect | done | `pod-proxy`: a proxy at a command that does not exist floods the stderr of the process, gives a wrong cause and is started again for each dial (PodUtils/podnet#754) |
 | [T-1394](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: the DNS over HTTPS of the edge discovery waits about 35 s behind a proxy with no line, and with no cause at `-v` (PodUtils/podnet#755) |
 | [T-1395](relay.md) | P2 | S | M2 | feature | done | `pod-session`: `resume::move_under`, the largest move under the cap of a relay, and `Settings::under_cap` (PodUtils/podnet#756) |
+| [T-1396](transport.md) | P2 | S | M1 | feature | done | `pod-ws`: `ConnectError::Ended`, a final end of a stream with no relay and no HTTP, shown in its own words (PodUtils/podssh#359) |
 | [T-1397](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver after podrunner `7bf541c` (the sixth port of `source-driver.md`) |
 | [T-1398](fleet.md) | P2 | S | M0 | chore | done | `pod-unit`: podnet's `autostart.rs` after `34f0d30` (port review) |
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |

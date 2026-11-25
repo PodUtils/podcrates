@@ -20,7 +20,7 @@ The base is podssh's `crates/podssh-ws` (its WebSocket parts); podnet's
 | `session` | `RelaySession<S>`: `new`, `over_tls`, `over_cleartext`, `over_h2`, `with_limits`, `as_server`, `naming`, `with_zero_mask`, `with_max_message`, `holding_close_answer`, `without_pings`, `with_road`, `set_receive_cap`, `read_frame`, `send_binary`, `send_text`, `send_ping`, `send_pong`, `send_close`, `watch_liveness`, `take_pongs`, `pong_arrived`, `peer`, `road`, `last_heard`; `RelayStream`, `BoxedIo`, `PONGS_KEPT` |
 | `limits` | `Limits { message, frame }`: `RELAY` (the default: 16 MiB and 262144 bytes), `TUNGSTENITE` (64 MiB and 16 MiB); `MAX_MESSAGE` |
 | `close` | `close_payload`, `close_code_and_reason`, `code::{NORMAL, GOING_AWAY, PROTOCOL, UNSUPPORTED, TOO_BIG, ERROR, TRY_LATER}`, `close_hint`, `ForwardClose`, `forward_close`, `ForwardClose::what(target, app)` |
-| `client` | `WsClientConfig { endpoint, trust, server_name, timeout, idle_timeout, way, limits }`, `Endpoint`, `check_path`, `relay_knobs_only`, `connect`, `open_tls`, `upgrade`, `upgrade_with`, `https_post_json`, `https_with_token`, `read_frame_over`, `next_event`, `next_event_capped`, `Event`, `doctor`, `is_policy_refusal`, `request_error`, `ConnectError` (and `cut`, `stage_and_class`), the bounds `DEFAULT_TIMEOUT`, `DEFAULT_IDLE_TIMEOUT`, `LIVENESS_EVERY`, `LIVENESS_ALLOWED`, `WRITE_TIMEOUT`, `UPGRADE_HEAD` |
+| `client` | `WsClientConfig { endpoint, trust, server_name, timeout, idle_timeout, way, limits }`, `Endpoint`, `check_path`, `relay_knobs_only`, `connect`, `open_tls`, `upgrade`, `upgrade_with`, `https_post_json`, `https_with_token`, `read_frame_over`, `next_event`, `next_event_capped`, `Event`, `doctor`, `is_policy_refusal`, `request_error`, `ConnectError` (and `cut`, `stage_and_class`; `Ended(words)`: a stream that ended for good with no relay and no HTTP, shown as its words alone, `(Stage::Session, Class::Unavailable)`, exit code 69, final as `Refused { 404 | 410 }`), the bounds `DEFAULT_TIMEOUT`, `DEFAULT_IDLE_TIMEOUT`, `LIVENESS_EVERY`, `LIVENESS_ALLOWED`, `WRITE_TIMEOUT`, `UPGRADE_HEAD` |
 | `h2_road` | `Pool` (`const fn new`), `connect(&pool, &config, token)`, `connect_with(&pool, &config, token, &shape)` (the shape of its HTTP/2), `connect_link(&pool, &links, &config, token)`, `connect_link_with(.., &shape)` and `Links` (a link that replaces another link of its session takes only a connection newer than each that the session rode, T-686), `ANSWER_WAIT` and `PING_WAIT` (a CONNECT with no answer within `ANSWER_WAIT` asks its connection by a PING; with no answer to it, the pool retires the connection and the CONNECT goes once to a new one; a CONNECT that times out retires its connection, T-687), `probe(&way, ..)`, `Road`, `Fallback` (`NotChosen`, `NotOffered`, `Carried`, `Remembered`, `Refused(status)`, `Caller`; a CONNECT answered 4xx takes the upgrade of HTTP/1.1 on a new connection within half a second, and a refusal of the method is remembered), `Offered`, `Stream`, `duplex`, `Shape` (`existing` (the default), `browser` (Chrome's), `firefox`, `padded`, `setting`, `settings_frame`, `window_frame`, `priority_frames`, `pads`, `apply` (the SETTINGS, the window and the order of the request's pseudo-fields), `words`), `Setting`, `Priority`, `Padding`, the windows and bounds |
 | `cleartext` | `connect`, `tls_failed`, `probe(&way, host, port, wait)`, `Heard`, `PROBE_PATH`, `PLAIN_TO_TLS` |
 | `url` | `WsUrl` (`parse`, `shown`, `host_header`), `request_target`, `request`, `offering`, `asking`, `Asking { protocol, authorization, alpn, limits }`, `Stream`, `Carried`, `dial`, `dial_offering`, `dial_asking`, `failure` |
@@ -159,6 +159,7 @@ Against podnet `src/ws.rs` at `76ffb5e`:
 | podssh | `h2::decode_header_block` of its `vendor/h2` (`crates/podssh-relay/tests/h2_fallback.rs`) | `h2::decode_header_block` of `pod-h2` (the dependency `h2` of `podssh-relay`, below), the function of `pod_ws::h2::decode_header_block`. `podssh-relay` has no dependency on `pod-ws` |
 | podssh | `h2 = "0.4.19"` of `podssh-ws` and `h2 = { version = "0.4.19", optional = true }` of `podssh-relay` | `h2 = { git = "https://github.com/PodUtils/podcrates", tag = "vX.Y.Z", package = "pod-h2" }` (`optional = true` in `podssh-relay`): the code keeps the name `h2`. The trial `adoption/podssh/pod-h2.patch` has the change |
 | each consumer | an h2 type that goes to `pod_ws::h2_road` (`duplex`, `Shape::apply`) | the type of `pod_ws::h2` (`pod-h2`), not of the h2 of crates.io; no `[patch]` |
+| podssh | `ConnectError::Refused { status: 410, body }` of `start_again` of a carrier (`serve/reverse/carrier.rs`), whose line names a relay and HTTP | `ConnectError::Ended(body)`; podssh's `is_final` (`layered.rs`) adds `Ended(_)`. Each match of `ConnectError` in podssh and podnet has a wildcard arm, so the variant breaks no build |
 
 The adoption trials are `adoption/podssh/pod-ws.patch` and
 `adoption/podnet/pod-ws.patch` with their `.run` files.
@@ -230,7 +231,10 @@ the host is remembered (`tests/h2_road.rs`,
 of `pod-link`: its listener gets `KeyRefused` from the alert of a client
 that refused its key (`tests/ws.rs`,
 `the_dialer_refuses_a_listener_of_another_key_and_names_it`; plant
-`ws-serve-tls-failure-unreported`).
+`ws-serve-tls-failure-unreported`). `ConnectError::Ended` shows its words
+alone, with its stage and class (`client/ended_tests.rs`,
+`an_ended_stream_is_shown_in_its_own_words`; plant
+`ws-ended-shown-as-a-refusal`).
 
 ## Sources
 

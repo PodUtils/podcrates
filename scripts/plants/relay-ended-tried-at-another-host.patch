@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/open.rs b/crates/pod-relay/src/open.rs
+index 74e8d9f3..d419b223 100644
+--- a/crates/pod-relay/src/open.rs
++++ b/crates/pod-relay/src/open.rs
+@@ -79,7 +79,7 @@ impl OpenError {
+                 ConnectError::Refused { status: 502, body } => !target_name_fails(body),
+                 ConnectError::Refused { .. } => true,
+                 // A stream that ended for good ends at each host alike.
+-                ConnectError::Ended(_) => false,
++                ConnectError::Ended(_) => true,
+             },
+         }
+     }
