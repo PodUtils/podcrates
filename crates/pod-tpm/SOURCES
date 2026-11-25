@@ -44,6 +44,25 @@ file bd7bb5667b69d877a49c4c4f200a23721e3b0ac8 crates/podssh-ssh/src/tpm/soft.rs 
 # SSH, and the signer of an SSH agent. They stay in podssh.
 skip crates/podssh-ssh/src/tpm/mod.rs
 skip crates/podssh-ssh/src/tpm/signer.rs
+# T-1382: podssh took the crate at 806e0a4. Its T-839 merge (0c6e9c4) came
+# before the take and changed the files of the first `taken` line. T-1381
+# (the owner's password, the kept storage key) ports those changes; drop
+# the line when T-1381 is done and the blobs above are new.
+taken 0c6e9c42f174bc6903f962faacde374d0f5a08d5 crates/podssh-ssh/src/tpm/flow.rs crates/podssh-ssh/src/tpm/flow_signed.rs crates/podssh-ssh/src/tpm/flow_tests.rs crates/podssh-ssh/src/tpm/other.rs crates/podssh-ssh/src/tpm/soft.rs
+# New files of T-839 that stay in podssh: the agent, the host key of
+# `serve`, the policy key, the SSH forms and the tests of the glue.
+skip crates/podssh-ssh/src/tpm/agent.rs
+skip crates/podssh-ssh/src/tpm/agent_tests.rs
+skip crates/podssh-ssh/src/tpm/host.rs
+skip crates/podssh-ssh/src/tpm/host_tests.rs
+skip crates/podssh-ssh/src/tpm/policy_key.rs
+skip crates/podssh-ssh/src/tpm/ssh.rs
+skip crates/podssh-ssh/src/tpm/tests.rs
+# T-1380 ports the loader and the bound of the TBS transport; drop these
+# two lines when it is done.
+skip crates/podssh-ssh/src/tpm/tbs.rs
+skip crates/podssh-ssh/src/tpm/windows.rs
+taken 806e0a466d448edc3063236168fc9f9b38c9ceec
 
 repo Foxboron/go-tpm-keyfiles 8c9c2d1005f4527ada79bc29681bf53d3f0b4540
 # T-1219: a key file with a signed policy (MIT), a vector of the tests of

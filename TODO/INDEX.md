@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1015 entries: 161 open, 30 partial, 6 blocked, 818 done.**
+**1015 entries: 160 open, 30 partial, 6 blocked, 819 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 5 | 9 | 0 | 239 | 253 |
-| P2 | 71 | 11 | 4 | 423 | 509 |
+| P2 | 70 | 11 | 4 | 424 | 509 |
 | P3 | 85 | 10 | 2 | 154 | 251 |
-| **All** | 161 | 30 | 6 | 818 | 1015 |
+| **All** | 160 | 30 | 6 | 819 | 1015 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1036,7 +1036,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1355](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `4fc871c` (the fourth port of `source-driver.md`) |
 | [T-1359](upkeep.md) | P2 | S | M5 | defect | done | `pod-core`: three tests of `files::socket` fail on macOS because the temporary directory is longer than their directory of 40 bytes |
 | [T-1360](upkeep.md) | P3 | S | M5 | defect | done | `pod-cloudflare`: `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` cannot bind its UDP socket on Windows ARM64 (WSAEACCES) |
-| [T-1361](upkeep.md) | P1 | S | M8 | defect | done | `adoption/podssh/pod-tpm.run`: the check of the moved names reads all of `podssh-ssh/src`, and it finds two other structs named `Out` |
+| [T-1361](upkeep.md) | P1 | S | M8 | defect | done | adoption/podssh/pod-tpm.run: the check of the moved names reads all of `podssh-ssh/src`, and it finds two other structs named `Out` |
 | [T-1362](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: `RealJob` takes the optional fields `ref` and `repo_id` (PodUtils/podrunner#352) |
 | [T-1363](upkeep.md) | P1 | S | M8 | defect | done | `adoption/podssh`: the trial `pod-tpm` does not build, because podssh's relay role gives a stream of the h2 of crates.io to `h2_road::duplex`, which takes the types of `pod-h2` |
 | [T-1365](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: a client of the proxy with no WARP session gets a reset, not a SOCKS5 or HTTP failure reply (PodUtils/podnet#712) |
@@ -1055,7 +1055,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1379](podvm.md) | P1 | S | M6 | feature | open | `pod-incus`: a typed config PATCH of an instance with an ETag condition, for live limits (PodUtils/podvm#664) |
 | [T-1380](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the transport `Tbs` loads `tbs.dll` when the process starts and bounds no command, so podssh keeps its own copy (PodUtils/podssh#357, ask 1) |
 | [T-1381](fleet.md) | P2 | S | M8 | feature | open | `pod-tpm`: `SoftTpm` has no owner's hierarchy with a password, and `flow` has no fallback to the kept storage key, so podssh wraps the model and keeps the fallback itself (PodUtils/podssh#357, ask 2) |
-| [T-1382](upkeep.md) | P2 | S | M8 | chore | open | `adoption/podssh`: the trials `pod-tpm` and `pod-h2` stay after podssh took `v0.84.0`, and the list of the files of `tpm/` in `pod-tpm.run` is not podssh's (PodUtils/podssh#357, ask 3) |
+| [T-1382](upkeep.md) | P2 | S | M8 | chore | done | `adoption/podssh`: the trials `pod-tpm` and `pod-h2` stay after podssh took `v0.84.0`, and the list of the files of `tpm/` in `pod-tpm.run` is not podssh's (PodUtils/podssh#357, ask 3) |
 | [T-1383](relay.md) | P3 | M | M2 | feature | open | `pod-relay`: `Mint` signs a certificate with an Ed25519 issuer alone, so a gateway whose CA is ECDSA or RSA keeps its own signer (PodUtils/podssh#357, ask 4) |
 | [T-1384](upkeep.md) | P1 | S | M5 | defect | done | `scripts/agent/check.sh`: a full check in the main checkout runs test binaries that a worktree built in the shared target |
 | [T-1385](upkeep.md) | P1 | M | M8 | chore | done | agent tooling: read the latest commits of the sibling repositories and take each improvement of their agent tooling (Q23) |

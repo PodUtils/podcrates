@@ -117,8 +117,8 @@ The default build is the codec alone.
 | `testdata/p256-authvalue.b64` | `tests/testdata/p256-authvalue.b64` |
 
 podssh keeps `mod.rs` (the probe, `PODSSH_TPM_DEVICE`, the SSH forms),
-`signer.rs` and its `PolicyKey` (p256 signs off the TPM). The patch
-adoption/podssh/pod-tpm.patch is the trial of the adoption.
+`signer.rs` and its `PolicyKey` (p256 signs off the TPM). podssh took the
+crate at `806e0a4`.
 
 ## Tests
 
