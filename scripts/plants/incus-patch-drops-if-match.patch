@@ -1,0 +1,13 @@
+diff --git a/crates/pod-incus/src/instances.rs b/crates/pod-incus/src/instances.rs
+index 2945128..e1f31e2 100644
+--- a/crates/pod-incus/src/instances.rs
++++ b/crates/pod-incus/src/instances.rs
+@@ -273,7 +273,7 @@ impl Client {
+         config: &BTreeMap<String, String>,
+         if_match: Option<&ETag>,
+     ) -> Result<()> {
+-        let headers = if_match.map(|etag| vec![("If-Match".to_string(), etag.0.clone())]).unwrap_or_default();
++        let headers: Vec<(String, String)> = if_match.map(|_| Vec::new()).unwrap_or_default();
+         let body = ConfigPatch { config };
+         let sent = self.send_json::<IgnoredAny>("PATCH", &instance_path(name), headers, &body).await;
+         sent.map(drop).map_err(Error::of_condition)

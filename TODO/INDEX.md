@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1016 entries: 160 open, 30 partial, 6 blocked, 820 done.**
+**1016 entries: 159 open, 30 partial, 6 blocked, 821 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 5 | 9 | 0 | 239 | 253 |
+| P1 | 4 | 9 | 0 | 240 | 253 |
 | P2 | 70 | 11 | 4 | 425 | 510 |
 | P3 | 85 | 10 | 2 | 154 | 251 |
-| **All** | 160 | 30 | 6 | 820 | 1016 |
+| **All** | 159 | 30 | 6 | 821 | 1016 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1052,7 +1052,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1375](foundation.md) | P2 | S | M0 | chore | open | `pod-testkit`: the contract of the source and the driver after podrunner `4fc871c` (the fifth port of `source-driver.md`) |
 | [T-1377](adapters.md) | P3 | M | M3 | defect | open | `pod-proxy`: the failure of a dial and of a request holds the words of its `DialError` or its cause, so a reader that joins the chain says them two times |
 | [T-1378](adapters.md) | P3 | S | M3 | defect | open | `pod-warp`: the failure of an enrolment with no answer says the text of the path three times to a reader that joins the chain |
-| [T-1379](podvm.md) | P1 | S | M6 | feature | open | `pod-incus`: a typed config PATCH of an instance with an ETag condition, for live limits (PodUtils/podvm#664) |
+| [T-1379](podvm.md) | P1 | S | M6 | feature | done | `pod-incus`: a typed config PATCH of an instance with an ETag condition, for live limits (PodUtils/podvm#664) |
 | [T-1380](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the transport `Tbs` loads `tbs.dll` when the process starts and bounds no command, so podssh keeps its own copy (PodUtils/podssh#357, ask 1) |
 | [T-1381](fleet.md) | P2 | S | M8 | feature | open | `pod-tpm`: `SoftTpm` has no owner's hierarchy with a password, and `flow` has no fallback to the kept storage key, so podssh wraps the model and keeps the fallback itself (PodUtils/podssh#357, ask 2) |
 | [T-1382](upkeep.md) | P2 | S | M8 | chore | done | `adoption/podssh`: the trials `pod-tpm` and `pod-h2` stay after podssh took `v0.84.0`, and the list of the files of `tpm/` in `pod-tpm.run` is not podssh's (PodUtils/podssh#357, ask 3) |

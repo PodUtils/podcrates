@@ -1,0 +1,6 @@
+# pod-incus: a PATCH of the config of an instance sends no If-Match, so a write on a stale ETag is not refused (T-1379).
+ENTRY=T-1379
+GROUP=incus
+EXPECT='a_patch_on_a_stale_etag_is_an_etag_mismatch'
+RUN='cargo test -p pod-incus --all-features --test instances'
+LIMIT=900

@@ -155,6 +155,6 @@ impl Client {
     /// `fingerprint`.
     pub async fn create_alias(&self, name: &str, fingerprint: &str, description: &str) -> Result<()> {
         let body = AliasPost { name, target: fingerprint, description };
-        self.send_json::<Value>("POST", "/1.0/images/aliases", &body).await.map(drop)
+        self.send_json::<Value>("POST", "/1.0/images/aliases", Vec::new(), &body).await.map(drop)
     }
 }

@@ -61,6 +61,8 @@ runs in the background returns after the wait for its operation.
 | `Client::set_state`, `start`, `stop` | `PUT /1.0/instances/NAME/state`, then the wait | `StateChange` (`action`; `timeout` in seconds, -1 for the default of incus; `force`; `stateful`), `Action` | 6.0 |
 | `Client::instances` | `GET /1.0/instances?recursion=1` | `Vec<Instance>` | 6.0 |
 | `Client::instance` | `GET /1.0/instances/NAME` | `Instance` | 6.0 |
+| `Client::instance_with_etag` | `GET /1.0/instances/NAME`, and its `ETag` header | `(Instance, Option<ETag>)`; `None` where incus sent no `ETag` | 6.0 |
+| `Client::patch_instance_config(name, config, if_match)` | `PATCH /1.0/instances/NAME` with `{"config": {...}}` and, with `if_match`, `If-Match: ETAG`: incus sets each key sent, keeps each other key, the devices and the profiles, and applies the change to a running instance at once; a sync answer | `BTreeMap<String, String>`, `Option<&ETag>`; an ETag that is not that of the instance now: `ErrorKind::EtagMismatch` (412) | 6.0 |
 | `Client::delete_instance` | `DELETE /1.0/instances/NAME`, then the wait | | 6.0 |
 | `Client::console_log` | `GET /1.0/instances/NAME/console` | bytes | 6.0, `console` |
 | `Client::instance_state` | `GET /1.0/instances/NAME/state` | `InstanceState` (`status`, `disk` of each device, `memory` with `usage_peak`, `cpu.usage` in nanoseconds, `processes`, `pid`) | 6.0 |
@@ -80,6 +82,16 @@ incus 6.0.0 has each extension of `NEEDED`. It has no
 `image_import_alias` (the header `X-Incus-aliases`): the crate makes the
 aliases with `POST /1.0/images/aliases`, which works on each version.
 
+## The ETag of an instance
+
+incusd 6.0 makes the ETag of an instance from its architecture, its local
+config (with the `volatile.*` keys), its local devices, `ephemeral` and its
+profiles (`cmd/incusd/instance_patch.go`, `internal/server/util/http.go`
+at `v6.0.0`). The value has its quotes; the crate keeps it as it came and
+sends it back as it is. A write after a change of one of these fields, by
+another client or by incus itself, is refused with 412. The crate does not
+send the PATCH again: the caller reads the instance again, and decides.
+
 ## The answers and the errors
 
 * The type of the envelope decides, not the HTTP status: the wait of an
@@ -91,7 +103,9 @@ aliases with `POST /1.0/images/aliases`, which works on each version.
   exist, the connection was refused, or the system has no Unix socket),
   `Incus` (the HTTP status, `error_code` and `error` of incus, and `cut`:
   the size of an `error` envelope over the bound that the crate cut, `None`
-  for a whole one), `Operation`
+  for a whole one), `EtagMismatch` (412 to a write with `If-Match`: the
+  instance changed after the read of its ETag; `Error::status` gives 412
+  and the class is `TempFail`), `Operation`
   (the `status_code` and `err` of an operation that failed or was
   canceled), `Timeout` (a wait at its limit), `Protocol`, `Unsupported`,
   `Usage`, `Io`, `WebSocket`, `Output` (the writer of the caller refused a write), `TooLarge` (an answer over
@@ -208,6 +222,7 @@ of the user's own namespace) and its `INCUS_DIR`.
 | podvm | its console log and its files (`X-Incus-uid`, `-gid`, `-mode`, `-type` of `file` and `directory`) | `console_log`, `get_file`, `put_file` with `FileWrite::file` or `FileWrite::directory` and its `uid`, `gid`, `mode` |
 | podvm | `logs --podvm-tier=incus`: a whole `get_file` on each poll, and its bound of 64 MiB | `get_file_to(name, LOG, Some(ByteRange::from(seen)), left, out)` on each poll: the bytes past the offset alone, in pieces; a `size` below `seen` sets the offset back (PodUtils/podvm#631) |
 | podvm | `cut::no_space`: the words "No space left on device" in an `error` envelope cut at `max_body` (PodUtils/podvm#663) | `ErrorKind::Incus { cut: Some(size), .. }` says that the answer was over the bound; the words stay the sign of a full pool |
+| podvm | a cold start for an offer with lower limits (PodUtils/podvm#664) | `instance_with_etag`, then `patch_instance_config` with `limits.memory`, `limits.cpu`, `limits.processes` and `Some(&etag)`; on `ErrorKind::EtagMismatch`, read the instance again and decide |
 | podrunner (later) | a unit kind on incus | the same calls |
 
 ## Tests
@@ -218,7 +233,10 @@ and a stand-in incus on a Unix socket in the temporary directory
 (`tests/common/`): an HTTP/1.1 server that answers the documented JSON of
 each call, with the operation model (202, then the wait, with its limit),
 the websockets of exec with the barrier and the control socket, and an
-error on demand. A `Range` of a file gets the answer of `http.ServeContent`
+error on demand. A `GET` of an instance gives an `ETag` (a hash of the
+fields of the ETag of incusd), and a `PATCH` of an instance checks
+`If-Match` against it (412, "ETag doesn't match") and sets the keys of
+`config`. A `Range` of a file gets the answer of `http.ServeContent`
 (206, or 416 at the end), or the whole file where a test sets
 `ignore_range`. No `incusd` runs. A socket with no server is refused by
 name.

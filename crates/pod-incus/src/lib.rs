@@ -17,6 +17,10 @@
 //!   `force` and `timeout`), [`Client::instances`] (`recursion=1`),
 //!   [`Client::instance`], [`Client::delete_instance`],
 //!   [`Client::console_log`].
+//! * [`Client::instance_with_etag`] and [`Client::patch_instance_config`]:
+//!   a read of an instance with its [`ETag`], then a change of keys of its
+//!   config on the condition of that ETag (`If-Match`); a changed instance
+//!   is [`ErrorKind::EtagMismatch`].
 //! * [`Client::exec_recorded`]: a command with `record-output`: stdout and
 //!   stderr apart, and the exit code. [`Client::exec_attached`]: a command
 //!   with its websockets (stdin, stdout, stderr, control) on the same
@@ -58,7 +62,7 @@ pub use error::{AnswerPhase, Error, ErrorKind, Result};
 pub use exec::{Exec, ExecOutput};
 pub use files::{ByteRange, File, FileContent, FileKind, FileMeta, FileRead, FileWrite};
 pub use images::{ImageAlias, ImageData, ImageImport, ImportedImage};
-pub use instances::{Action, Devices, Instance, Kind, NewInstance, Source, StateChange};
+pub use instances::{Action, Devices, ETag, Instance, Kind, NewInstance, Source, StateChange};
 pub use operation::{Operation, status};
 pub use pod_proxy::http::BodySize;
 pub use server::{Environment, NEEDED, Server};
