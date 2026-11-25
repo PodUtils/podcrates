@@ -183,6 +183,12 @@ The asks that #260 answers:
 - T-1325 (partial): the two macOS rows of `static` in `ci.yml` take 60
   minutes. This change is in the tag.
 
+- T-1343 (partial): the temp names of `pod-hostprobe`, `pod-enter`,
+  `pod-actions-store`, `pod-link`, `pod-rootfs`, `pod-warp` and
+  `pod-supervise` have a random part; `pod_core::files::new_temp_with`
+  (new). The temp file of the table of `pod-supervise` is
+  `containers.json-RANDOM.partial`; a sweep of podvm finds the suffix.
+
 ### What the next hand-off carries
 
 - The takes of `v0.84.0` (#260): podssh, podvm, podnet and podrunner.
