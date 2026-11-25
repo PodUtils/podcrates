@@ -1,0 +1,7 @@
+# The line of the doors of the record read again says the first cause
+# again for each door that failed the same way (PodUtils/podnet#726,
+# T-1366).
+ENTRY=T-1366
+GROUP=warp
+EXPECT='test open::tests::a_door_read_again_with_the_first_cause_says_it_once \.\.\. FAILED'
+RUN='cargo test -p pod-warp --lib -- open::tests::a_door_read_again_with_the_first_cause_says_it_once'

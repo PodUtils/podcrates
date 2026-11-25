@@ -1,0 +1,13 @@
+diff --git a/crates/pod-warp/src/open.rs b/crates/pod-warp/src/open.rs
+index a8ec319..de9c8f1 100644
+--- a/crates/pod-warp/src/open.rs
++++ b/crates/pod-warp/src/open.rs
+@@ -372,7 +372,7 @@ impl Issuer {
+         } else if words.is_empty() || words.starts_with("an unnamed issuer") || named("Cloudflare") {
+             Issuer::Warp
+         } else {
+-            Issuer::Middlebox
++            Issuer::Warp
+         }
+     }
+ }

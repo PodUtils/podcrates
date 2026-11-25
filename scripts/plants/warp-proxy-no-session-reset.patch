@@ -1,0 +1,13 @@
+diff --git a/crates/pod-warp/src/proxy.rs b/crates/pod-warp/src/proxy.rs
+index d6dfc9a..bc77910 100644
+--- a/crates/pod-warp/src/proxy.rs
++++ b/crates/pod-warp/src/proxy.rs
+@@ -245,7 +245,7 @@ impl Proxy {
+                 Err(failure) => {
+                     tracing::warn!(error = %failure.chain(), "WARP proxy client refused: no session");
+                     // PodUtils/podnet#712: the failure reply of the protocol, not a reset.
+-                    let _ = refuse_client(stream, failure, &opening).await;
++                    let _ = (stream, &opening);
+                     return;
+                 }
+             };

@@ -1,13 +1,13 @@
+diff --git a/crates/pod-warp/src/open.rs b/crates/pod-warp/src/open.rs
+index a8ec319..ef32aed 100644
 --- a/crates/pod-warp/src/open.rs
 +++ b/crates/pod-warp/src/open.rs
-@@ -225,8 +225,8 @@
- fn after_mismatch(err: &Failure, mut failures: Vec<(Target, Failure)>, way: &Way) -> Failure {
-     let causes: Vec<String> = failures.iter().map(|(_, e)| e.chain()).collect();
-     let mut text = format!(
--        "{}; the device record was read again, and each of its doors failed: {}",
--        err.text(),
-+        "{}the device record was read again, and each of its doors failed: {}",
-+        err.text().get(..0).unwrap_or_default(),
-         causes.join("; ")
-     );
-     let shown = failures.iter().position(|(_, e)| is_pin_mismatch(e));
+@@ -290,7 +290,7 @@ fn after_mismatch(
+     let (door, cause) = failures.swap_remove(which.unwrap_or(0));
+     let first = cause_of(err, shown);
+     let mut text =
+-        if cause_of(&cause, &door) == first { "the MASQUE key is not the pinned key".to_string() } else { err.chain() };
++        if cause_of(&cause, &door) == first { "the MASQUE key is not the pinned key".to_string() } else { String::new() };
+     text.push_str("; the device record was read again, and each of its doors failed");
+     let mut others: Vec<String> = Vec::new();
+     for (other, e) in &failures {

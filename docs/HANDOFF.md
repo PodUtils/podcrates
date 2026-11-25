@@ -18,7 +18,7 @@ is done. Git and the record keep finished work.
    `(to podcrates)` of each repository of PodUtils. Each one maps to an
    entry (PodUtils/podvm#570, COORD-183, maps to T-1162, answered on #259; PodUtils/podssh#349,
    COORD-139, maps to T-1164 to T-1169; PodUtils/podssh#350, COORD-140, maps to
-   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podnet#710, COORD-118, answers #259 and maps to T-1117, T-1118 and T-1209; PodUtils/podnet#711, COORD-119, maps to T-1343; PodUtils/podrunner#351, COORD-129, answers #259 and maps to T-1355; PodUtils/podrunner#352, COORD-130, maps to T-1362, and the hand-off of the tag that carries T-1362 answers it; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#353, COORD-143, maps to T-1198 and T-1220; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213; PodUtils/podvm#663, COORD-247, answers #259 and maps to T-1143, T-1158 and T-1307). Map each new one
+   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podnet#710, COORD-118, answers #259 and maps to T-1117, T-1118 and T-1209; PodUtils/podnet#711, COORD-119, maps to T-1343; PodUtils/podnet#712, COORD-120, maps to T-1365 (done on `main`; the hand-off of the next tag answers it); PodUtils/podnet#726, COORD-121, maps to T-1366 (done on `main`; the hand-off of the next tag answers it); PodUtils/podrunner#351, COORD-129, answers #259 and maps to T-1355; PodUtils/podrunner#352, COORD-130, maps to T-1362, and the hand-off of the tag that carries T-1362 answers it; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#353, COORD-143, maps to T-1198 and T-1220; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213; PodUtils/podvm#663, COORD-247, answers #259 and maps to T-1143, T-1158 and T-1307). Map each new one
    in the same commit.
 2. Coordinate the five sessions by COORD issues alone (the rulings
    "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),
@@ -167,6 +167,19 @@ The asks of #259 to the consumers:
 
 ### On `main` after `v0.83.0` (for the next tag)
 
+- T-1365 (`pod-warp`, PodUtils/podnet#712): a client of the proxy with no
+  WARP session gets the SOCKS5 reply 1 (also for `UDP ASSOCIATE` and 0x83)
+  or the HTTP status 503 `no WARP session: CAUSE`, then a close with no
+  reset (`refuse_client`, `close_clean`). A connection of a forward with no
+  session closes with no reset. podnet takes the fix at this tag.
+- T-1366 (`pod-warp`, PodUtils/podnet#726): the line of a door that shows
+  another key names the class by the issuer of its certificate: Let's
+  Encrypt (WARP's side at times, a later try passes), Cloudflare or no
+  issuer (the sentence of `v0.83.0`), another issuer (a middlebox on the
+  way, no root helps: go around it). The line says each cause once: the
+  failure of the door is the source, and the text names the first failure
+  and the cause of another door only when they differ. podnet takes the
+  text at this tag.
 - T-1095 (`pod-ws`, `pod-egress`): the new workspace crate `pod-h2` is h2
   0.4.20 with `client::Builder::pseudo_order` (`vendor/h2`, two patches,
   checked by `scripts/check-vendor.py`). `Shape::browser` sends the Chrome

@@ -2598,6 +2598,10 @@ the words two times:
   UDP socket of QUIC (`cloudflare/quic.rs`, `build_endpoint`).
 - `Failure::io` of `pod-core` (the text is the text of the error of I/O)
   and `From<DialError> for Failure` of `pod-proxy`.
+- `pod-warp`: `tls::handshake_failure` (the text holds the error of I/O,
+  which is the source) and the fold of the failed doors in `open.rs` (the
+  text holds the text of the failure that is the source). T-1366 makes
+  `after_mismatch` of `open.rs` follow the rule; these two stay here.
 
 ## Premise
 
@@ -2630,3 +2634,85 @@ cargo test -p pod-cloudflare --all-features
 cargo test -p pod-core --all-features
 cargo test -p pod-proxy --all-features
 ```
+
+
+# T-1365: `pod-warp`: a client of the proxy with no WARP session gets a reset, not a SOCKS5 or HTTP failure reply (PodUtils/podnet#712)
+
+**Source:** PodUtils/podnet#712 (COORD-120 of podnet, PodUtils/podnet@T-546); the author is a COLLABORATOR.
+**Category:** defect
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The ask of podnet: "`pod_warp::proxy::Proxy::client` (podcrates `v0.83.0`, `crates/pod-warp/src/proxy.rs`, the `match proxy.tunnel.session().await`) logs `WARP proxy client refused: no session` and returns. The task drops the stream with the greeting of the client unread in the socket buffer. Linux then sends a TCP reset. The client gets no reply of its protocol."
+
+The evidence of podnet: in its `live` run 45518282050 (podnet `1bf4161`, step "WARP proxy"), three of four `podnet warp proxy` runs gave `curl: (97) Recv failure: Connection reset by peer` in the SOCKS5 handshake. The run before showed the cause class: both MASQUE doors gave a certificate that is not the pinned key.
+
+The asks: (1) when `session()` fails, answer the client in its protocol before the close: the SOCKS5 reply 1 (or 3), the HTTP status `503 Service Unavailable` with one line of the cause; then close with no reset. (2) A test that a client of a proxy with no session reads the failure reply, not a reset. (3) The same for `forward.rs` when it has the same path.
+
+## Premise
+
+- Read: PodUtils/podnet#712; `crates/pod-warp/src/proxy.rs` (`Proxy::client`), `src/proxy/client.rs` (`serve_client`), `src/forward.rs` (`Forward::connection`), `crates/pod-proxy/src/serve.rs` (`socks5_reply`, `reply_for`), `crates/pod-core/src/http1/write.rs` (`refusal`). Each fact of the issue agrees with `v0.83.0`: `Proxy::client` and `Forward::connection` return on the error of `session()` and drop the stream.
+- Measured: a TCP client that sends its request before the proxy has the answer of `session()` reads `Connection reset by peer` on the code before the fix (the SOCKS5, the HTTP and the forward test below).
+- Not measured: podnet's `live` step after the fix.
+
+## Approach
+
+`Proxy::client` gives the stream and the failure to a new `refuse_client`. It reads the request with the code of `serve_client` (the credentials too), makes no dial, and sends the failure answer: the SOCKS5 reply 1 (`REPLY_GENERAL_FAILURE`) for each command, also `UDP ASSOCIATE` and 0x83 (not 7); the HTTP status 503 with `no WARP session: CAUSE` (`refusal`) for `CONNECT` and an `http://` URL. Then `close_clean`: shut the write half, and read the bytes of the client until it closes, for 2 s at most. A forward has no protocol: `Forward::connection` calls `close_clean`. One helper `answer_failure` writes each failure answer of a dial, so the 403 and 502 answers keep one place.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features --lib -- with_no_session
+sh scripts/plant-each.sh warp-proxy-no-session-reset warp-forward-no-session-reset
+```
+
+## Done
+
+2026-11-25, this commit. `Proxy::client` gives a client with no session to `refuse_client`: the SOCKS5 reply 1 for each command (also `UDP ASSOCIATE` and 0x83), the HTTP status 503 `no WARP session: CAUSE` for `CONNECT` and an `http://` URL, then `close_clean` (the write half shut, the bytes of the client read until it closes, 2 s at most). `Forward::connection` with no session calls `close_clean`. `answer_failure` writes each failure answer of a dial (403, 502, 503, the SOCKS5 replies). Tests over TCP: `proxy::tests::a_socks5_client_with_no_session_gets_the_reply_1`, `proxy::tests::an_http_client_with_no_session_gets_the_status_503`, `proxy::tests::a_forward_with_no_session_closes_with_no_reset`; before the fix each client read `Connection reset by peer`. Plants `warp-proxy-no-session-reset` and `warp-forward-no-session-reset` (each test failed on its patch, run by hand; `sh scripts/plant-each.sh --apply`: 0 stale). `cargo test -p pod-warp --all-features`: 237 passed, 1 ignored. `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo fmt --all --check`, `scripts/check-history.py`, `scripts/codegraph.py dups` and `new`: clean.
+
+
+# T-1366: `pod-warp`: a pin mismatch names the cause by the issuer of the door certificate, and says each cause once (PodUtils/podnet#726)
+
+**Source:** PodUtils/podnet#726 (COORD-121 of podnet, PodUtils/podnet@T-550, PodUtils/podnet#715); the author is a COLLABORATOR.
+**Category:** defect
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The ask of podnet: "`pod_warp::open` (podcrates `v0.83.0`, `open.rs`, `why_shown` and the text after "the device record was read again") gives this line on a host whose TCP 443 goes through a middlebox that terminates TLS:"
+
+```text
+TLS handshake with the MASQUE front door 162.159.198.2:443: unexpected error: MASQUE peer key does not match the pinned key; the door showed a certificate of O=Anthropic, CN=Egress Gateway SDS Issuing CA (production); the device record was read again, and each of its doors failed: TLS handshake with the MASQUE front door 162.159.198.2:443: unexpected error: MASQUE peer key does not match the pinned key; the door showed a certificate of O=Anthropic, CN=Egress Gateway SDS Issuing CA (production). The key of the device record read again does not match either. WARP's side shows such a certificate at times, while its API fails in the same minutes; a later try passes then.
+```
+
+"1. The line blames WARP for a certificate of another issuer. A retry does not help there. 2. The cause comes two times (the first failure, and the same failure of the door read again)."
+
+The classes of the issue: WARP's own door shows `O=Cloudflare, Inc., CN=2024-02-27 Self-Signed Root`; WARP's side showed `O=Let's Encrypt, CN=YE1` at times, and a later try passed; a middlebox shows its own issuer. The asks: (1) in `why_shown`, name the class by the issuer: Let's Encrypt, "WARP's side shows a certificate of Let's Encrypt at times in place of its key; a later try passes"; another issuer that is not Cloudflare, "a middlebox on the way terminates TLS; the key is pinned, so no root helps: go around it"; a proxy on the way keeps its sentence. (2) After "each of its doors failed", give the cause of a door read again only when it differs from the first cause. (3) A table-driven test over the three issuers.
+
+## Premise
+
+- Read: PodUtils/podnet#726; `crates/pod-warp/src/open.rs` (`open_after_mismatch`, `after_mismatch`, `why_shown`), `src/tls.rs` (`PIN_MISMATCH`, `SHOWN`, `handshake_failure`, `is_pin_mismatch`), `src/der.rs` (`issuer_words`: `CN` and `O` in the order of the certificate), `crates/pod-core/src/failure.rs` (`chain_of` names a cause once when its text is in the chain already), `docs/design.md` section 1 rule 9, T-1135 and T-1351. Each fact of the issue agrees with `v0.83.0`: `why_shown` has one sentence for each issuer, and `after_mismatch` puts the text of the first failure and the chain of each door in its text.
+- Not measured: the line of podnet behind a middlebox after the fix.
+
+## Approach
+
+`why_shown` takes the failure of the door and reads the issuer after `tls::SHOWN`. `Issuer::of` gives the class: `O=Let's Encrypt` is `LetsEncrypt`; `O=Cloudflare`, no issuer or an unnamed issuer is `Warp` (the sentence of `v0.83.0`); another issuer is `Middlebox`, with no "a later try passes". A proxy on the way keeps its sentence. `after_mismatch` follows rule 9: the source is the failure of the door that shows another key (else of the first door), and the text holds no word of it. The text names the first failure only when its cause (with no address of the door) is not the cause of the source, and the cause of another door only when it is not the first cause. T-1351 does not list `pod-warp`; it now holds the two other places of `pod-warp` that break rule 9 (`tls::handshake_failure` and the fold of the failed doors), which this entry does not change.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features --lib -- open::tests
+cargo test -p pod-warp --all-features --test net
+sh scripts/plant-each.sh warp-door-issuer-unclassed warp-door-cause-twice warp-t549-proxy-on-direct-road warp-fresh-record-mismatch-unnamed
+```
+
+## Done
+
+2026-11-25, this commit. `why_shown` reads the issuer after `tls::SHOWN` in the failure of the door; `Issuer::of` gives `LetsEncrypt` ("WARP's side shows a certificate of Let's Encrypt at times in place of its key; a later try passes then"), `Warp` (Cloudflare, an unnamed issuer or none: the sentence of `v0.83.0`) or `Middlebox` ("A middlebox on the way terminates TLS; the key is pinned, so no root helps: go around it"; with a proxy, "The proxy PROXY, or a middlebox on the way, terminates TLS"). The other classes keep the sentence of a proxy. `after_mismatch` keeps the failure of the door that shows another key as the source and holds no word of it in its text; it names the first failure and the cause of another door only when the cause (with no address of the door) differs. Tests: `open::tests::the_cause_of_another_key_is_named_by_the_issuer_of_the_certificate` (the table of four issuers, each with and with no proxy), `open::tests::a_door_read_again_with_the_first_cause_says_it_once`, `open::tests::a_door_read_again_with_another_cause_is_named`; `tests/net.rs` 13 of 13. New plants `warp-door-issuer-unclassed` and `warp-door-cause-twice`; the plants `warp-t549-proxy-on-direct-road` and `warp-fresh-record-mismatch-unnamed` take the new code. Each of the four failed its test on its patch (run by hand); `sh scripts/plant-each.sh --apply`: 0 stale. `cargo test -p pod-warp --all-features`: 240 passed, 1 ignored. `cargo fmt --all --check`, `scripts/check-history.py`, `scripts/codegraph.py dups` and `new`: clean. T-1351 holds `tls::handshake_failure` and the fold of the failed doors of `open.rs`.
