@@ -18,8 +18,7 @@
 //! stage. `link(2)` takes a path of any length, so only a file name past
 //! the 255 bytes of a name fails.
 
-use std::hash::{BuildHasher, Hasher};
-use std::os::unix::fs::{DirBuilderExt, FileTypeExt, PermissionsExt};
+use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
 mod alias;
@@ -34,22 +33,18 @@ const SUN_PATH_MOST: usize = 103;
 /// The longest file name (`NAME_MAX`).
 const NAME_MOST: usize = 255;
 
-/// At most this many names are tried for the directory of the stage.
-const NAMES: usize = 8;
+/// The prefix of the name of a stage, and of a link to it: short, as each
+/// byte of the name is a byte less for the parent in `sun_path`.
+const STAGE: &str = ".pb";
 
-/// A name that another user cannot guess: the random keys of the standard
-/// hasher, which the operating system seeds. The name is short: each byte
-/// of it is a byte less for the parent in `sun_path`.
-fn random_name() -> String {
-    let mut h = std::collections::hash_map::RandomState::new().build_hasher();
-    h.write_u32(std::process::id());
-    format!(".pb-{:016x}", h.finish())
-}
+/// The length of the name of a stage: `.pb-RANDOM`
+/// ([`super::new_temp_dir`]).
+const STAGE_NAME: usize = STAGE.len() + 1 + super::temp::RANDOM_DIGITS;
 
 /// True when the stage of a socket in `parent` fits in `sun_path`: the
 /// parent, the name of the stage, and the leaf `s`.
 fn stage_fits(parent: &Path) -> bool {
-    parent.as_os_str().len() + 1 + random_name().len() + 2 <= SUN_PATH_MOST
+    parent.as_os_str().len() + 1 + STAGE_NAME + 2 <= SUN_PATH_MOST
 }
 
 /// The listener at `path` with `mode`, bound through a stage of mode 0700.
@@ -72,7 +67,9 @@ fn bind_by(path: &Path, mode: u32, route: &alias::Route<'_>) -> std::io::Result<
         Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
         _ => PathBuf::from("."),
     };
-    let stage = make_stage(&parent)?;
+    // A new directory of mode 0700 beside the path: `mkdir(2)` refuses a
+    // name that is there, so a directory of another user is never taken.
+    let stage = super::new_temp_dir(&parent, STAGE)?;
     let staged = stage.join("s");
     let bound = (|| {
         let listener = if stage_fits(&parent) {
@@ -104,25 +101,6 @@ fn bind_by(path: &Path, mode: u32, route: &alias::Route<'_>) -> std::io::Result<
     let _ = std::fs::remove_file(&staged);
     let _ = std::fs::remove_dir(&stage);
     bound
-}
-
-/// A new directory of mode 0700 beside the path. `mkdir(2)` refuses a name
-/// that is there, so a directory of another user is never taken.
-fn make_stage(parent: &Path) -> std::io::Result<PathBuf> {
-    let mut last = None;
-    for _ in 0..NAMES {
-        let stage = parent.join(random_name());
-        match std::fs::DirBuilder::new().mode(0o700).create(&stage) {
-            Ok(()) => {
-                // The umask can take bits away from 0700; set it whole.
-                std::fs::set_permissions(&stage, std::fs::Permissions::from_mode(0o700))?;
-                return Ok(stage);
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => last = Some(e),
-            Err(e) => return Err(e),
-        }
-    }
-    Err(last.unwrap_or_else(|| std::io::Error::other("no name for the stage of the bind")))
 }
 
 /// The ids of the peer of a Unix stream, as the kernel gave them at the
