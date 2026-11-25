@@ -10,6 +10,8 @@
     "actor": "a",
     "head_repository": "f/r",
     "head_is_fork": true,
-    "job_id": 99
+    "job_id": 99,
+    "ref": "refs/pull/12/merge",
+    "repo_id": 1296269
   }
 }

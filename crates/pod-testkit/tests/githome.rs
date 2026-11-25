@@ -155,6 +155,8 @@ impl Source {
             head_is_fork: Some(false),
             actor: "conformance".into(),
             job_id: None,
+            git_ref: None,
+            repo_id: None,
         };
         self.ask(Request::Assigned { job_id: job.clone(), real })
     }

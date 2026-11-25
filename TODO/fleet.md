@@ -9093,3 +9093,90 @@ The key file `TSS2 PRIVATE KEY` is the format that other tools read, so a key fi
 sh scripts/ci/tpm-tests.sh
 python3 scripts/check-workflows.py
 ```
+
+# T-1362: `pod-job`: `RealJob` takes the optional fields `ref` and `repo_id` (PodUtils/podrunner#352)
+
+**Source:** PodUtils/podrunner#352 (COORD-130 of podrunner, for PodUtils/podrunner@T-480 and PodUtils/podrunner@T-653)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podrunner asks (PodUtils/podrunner#352) for two optional fields of
+`RealJob` (`pod-job`):
+
+* "`ref`: a string, the full ref of the job (`GITHUB_REF` of the runner),
+  at most 256 bytes, no control character."
+* "`repo_id`: an integer, `GITHUB_REPOSITORY_ID`."
+
+"Each field is optional, so a hook that does not send them stays valid.
+`RealJob` has `deny_unknown_fields` in `v0.83.0`, so the hook cannot send
+them now." The job-started hook of podrunner sends them for a job of
+another run. `serve` compares them with the facts of `keep` before a job
+of another run keeps a `rw` cache. Until then, a job of another run never
+keeps a `rw` cache and ends with `cache-mismatch`. "The schema of
+`RealJob` and its example change. No other field changes. Please tag a
+release with them."
+
+## Premise
+
+- Read: PodUtils/podrunner#352; `crates/pod-job/src/source/event.rs`
+  (`RealJob` has `#[serde(deny_unknown_fields)]`, and its optional fields
+  have `default` and `skip_serializing_if`); `crates/pod-job/src/schemas.rs`
+  (the schema `source-request.v1` comes from `Request`, and each example
+  gets the verdict of the types and of the schema);
+  `crates/pod-job/tests/examples/source-request/valid-assigned.json`.
+- The constructors of `RealJob` in this repository: the tests of
+  `pod-job` and `pod-testkit` (`crates/pod-testkit/src/githome/offer.rs`,
+  `crates/pod-testkit/tests/githome.rs`).
+- Not measured: the hook and `serve` of podrunner.
+
+## Approach
+
+Two optional fields of `RealJob`: `git_ref: Option<String>` (the wire name
+is `ref`, a keyword of Rust) and `repo_id: Option<u64>`, absent on the wire
+when `None`. A `ref` over `REF_MAX` (256) bytes or with a control character
+(Unicode class Cc) is refused when read, with a text that holds no byte of
+the ref (`ref_fault`). The schema: `maxLength` 256 and a pattern with no
+control character; a row `added` for each field in `schemas/CHANGES.md`.
+The valid example `assigned` takes both fields; two invalid examples.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+cargo test -p pod-testkit --all-features
+python3 -I scripts/check-schemas.py
+```
+
+## Done
+
+2026-11-25, this commit. `pod_job::source::RealJob` has the fields
+`git_ref: Option<String>` (the wire name `ref`) and `repo_id: Option<u64>`;
+each is absent on the wire when `None`, so a hook that sends no one of them
+stays valid. `pod_job::source::{REF_MAX, ref_fault}`: a `ref` over 256 bytes
+or with a control character (Unicode class Cc) is `bad-request`, with a
+text that holds no byte of the ref. `schemas/source-request.v1.schema.json`
+written again (`ref`: `maxLength` 256 and a pattern with no control
+character; `repo_id`: an integer of 0 or more); the id stays `v1`, with two
+rows `added` in `schemas/CHANGES.md`. The example
+`crates/pod-job/tests/examples/source-request/valid-assigned.json` takes both fields (`refs/pull/12/merge`,
+1296269); new examples
+`crates/pod-job/tests/examples/source-request/invalid-assigned-ref-control.json`
+and `crates/pod-job/tests/examples/source-request/invalid-assigned-ref-long.json`
+(the types and the schema refuse each). The schema counts characters, not
+bytes: it takes a `ref` of at most 256 characters and more than
+256 bytes, which the type refuses. Tests: `source::tests::ref_and_repo_id_are_optional`
+(absent, `null`, present, round trip),
+`source::tests::a_bad_ref_is_a_bad_request` (256 bytes pass; 267 bytes, a
+line feed and U+009B are refused), and the round trip of `assigned` with
+`refs/heads/main` and 1296269. `cargo test -p pod-job --all-features`: lib
+28 passed (the examples: 43 valid and 50 invalid, each with the verdict of
+the types and of the schema);
+`cargo test -p pod-testkit --all-features`: 38 passed, 2 ignored;
+`python3 -I scripts/check-schemas.py`: 13 schemas agree. podrunner adds
+`git_ref: None, repo_id: None` to each struct literal of `RealJob`.
+Plant `job-t1362-ref-unchecked` added (the reader takes each `ref`).

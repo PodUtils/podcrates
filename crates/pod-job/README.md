@@ -47,7 +47,7 @@ failure.
 | `Status`, `Status::check`, `SourceStatus`, `KindStatus`, `PinStatus` | the status of a host; `KindStatus::probe` is a `Capability`; `check` reads the version and the probe of each kind; `SourceStatus::draining`, `Status::max_units` and `Status::units` are optional (T-947) |
 | `source::{Request, Reply, OPS, LINE_MAX}` | the source wire: a request (tag `op`) and a reply (tag `reply`) |
 | `source::{parse_request, parse_reply, request_line, reply_line}` | read one line (each fault is `bad-request`, with no value of the line in its detail); write one line with `"schema": 1` first and its end of line |
-| `source::{Event, Offer, RealJob, HostFacts, KindFacts}` | the events of `next` (tag `event`), the real job of `assigned`, the facts of a host in `hello` |
+| `source::{Event, Offer, RealJob, REF_MAX, ref_fault, HostFacts, KindFacts}` | the events of `next` (tag `event`), the real job of `assigned` and the rule of its `ref`, the facts of a host in `hello` |
 | `source::{SourceCode, SourceError}` | the refusal codes of a source (`ALL`, `as_str`) and a refusal |
 | `source::{Minted, MintedFile, Hidden}` | the credential of the reply `credential`: `Hidden` prints no byte in `Debug` and is wiped at its drop |
 
@@ -113,6 +113,12 @@ direction: a source reads `source-request.v1` and writes
 `source-reply.v1`, and podrunner the reverse. Each is a union on its own
 tag (`op`, `reply`), and the id of each can change alone. In each branch of
 a union, `schema` is the constant 1 and the first required key.
+
+The `real` of `assigned` (`RealJob`) has the optional fields `ref` (the
+full ref of the job, `GITHUB_REF`; the Rust field is `git_ref`) and
+`repo_id` (`GITHUB_REPOSITORY_ID`). A field that is `None` is not on the
+wire. A `ref` over 256 bytes (`REF_MAX`) or with a control character is
+`bad-request` (`ref_fault`).
 
 The operations, the order of one job, the events and the conformance
 tests are the contract of podrunner (`docs/contracts/source-driver.md` of

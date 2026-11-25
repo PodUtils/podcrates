@@ -1,6 +1,6 @@
 //! The events of `next`, and the real job of `assigned`.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Value};
 
 use crate::JobId;
@@ -66,4 +66,32 @@ pub struct RealJob {
     /// The numeric id of the job at the forge, when the hook knows it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub job_id: Option<u64>,
+    /// The full ref of the job (`GITHUB_REF`), for example
+    /// `refs/heads/main`: at most 256 bytes, no control character. The
+    /// wire name is `ref`.
+    #[serde(rename = "ref", default, skip_serializing_if = "Option::is_none", deserialize_with = "git_ref")]
+    #[cfg_attr(any(test, feature = "schema"), schemars(schema_with = "crate::json_schema::git_ref"))]
+    pub git_ref: Option<String>,
+    /// The numeric id of the repository (`GITHUB_REPOSITORY_ID`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repo_id: Option<u64>,
+}
+
+/// The longest `ref` of a [`RealJob`], in bytes.
+pub const REF_MAX: usize = 256;
+
+/// The fault of a `ref`, or `None`. The text names no byte of the ref.
+pub fn ref_fault(r: &str) -> Option<String> {
+    if r.len() > REF_MAX {
+        return Some(format!("a ref has at most {REF_MAX} bytes, not {}", r.len()));
+    }
+    r.contains(char::is_control).then(|| "a ref has no control character".to_string())
+}
+
+fn git_ref<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>, D::Error> {
+    let r = Option::<String>::deserialize(d)?;
+    match r.as_deref().and_then(ref_fault) {
+        Some(why) => Err(serde::de::Error::custom(why)),
+        None => Ok(r),
+    }
 }

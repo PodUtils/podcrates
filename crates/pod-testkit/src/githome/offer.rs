@@ -148,6 +148,8 @@ mod tests {
             head_is_fork: fork,
             actor: "someone".into(),
             job_id: None,
+            git_ref: None,
+            repo_id: None,
         };
         let fact = |r: RealJob| match assigned(&o, &r) {
             Reply::Keep { trust_inputs } => trust_inputs.head_is_fork,

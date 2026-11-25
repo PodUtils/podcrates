@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 pub use code::{SourceCode, SourceError};
-pub use event::{Event, Offer, RealJob};
+pub use event::{Event, Offer, REF_MAX, RealJob, ref_fault};
 pub use host::{HostFacts, KindFacts};
 pub use minted::{Hidden, Minted, MintedFile};
 

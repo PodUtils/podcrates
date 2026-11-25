@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 990 entries: 150 open, 29 partial, 8 blocked, 803 done.
+`TODO/INDEX.md` holds 991 entries: 150 open, 29 partial, 8 blocked, 804 done.
 
 ## State
 
@@ -13,7 +13,9 @@
   podrunner), so its hand-off COORD-154 (#259) is closed (call C780), with
   a Result line. The hand-off COORD-152 (#257) of `v0.82.1` is closed.
 - On `main` after `v0.83.0`, for the next tag: T-1243 and T-1355 (ports
-  with no change for a consumer).
+  with no change for a consumer); T-1362 (the fields `ref` and `repo_id`
+  of `RealJob`, PodUtils/podrunner#352, COORD-130 of podrunner; the
+  hand-off of the next tag answers it).
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
   not on `main`. `release.yml` has steps that run on a tag only, which the
   dry run does not test (T-974; `docs/maintenance.md`, "A release").

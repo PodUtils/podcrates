@@ -31,6 +31,8 @@
   "source-reply/invalid-offer-no-job-id.json": "missing field",
   "source-reply/invalid-schema-2.json": "no \"schema\": 1",
   "source-request/invalid-assigned-no-actor.json": "missing field",
+  "source-request/invalid-assigned-ref-control.json": "a ref has no control character",
+  "source-request/invalid-assigned-ref-long.json": "a ref has at most 256 bytes",
   "source-request/invalid-extra-field.json": "unknown field",
   "source-request/invalid-host-extra-field.json": "unknown field",
   "source-request/invalid-job-id-path.json": "bad-request: refused",
