@@ -12198,3 +12198,100 @@ cargo test -p pod-ws --all-features --test h2_road the_request_sends_its_pseudo_
 ## Blocker
 
 Q22 (`TODO/PROGRESS.md`): an issue in hyperium/h2 is outside PodUtils, and it needs the yes of the owner.
+
+# T-1371: `pod-relay`: the `Mint` of a grant writes no extension, so a stock sshd gives its certificate no pty and no forward (PodUtils/podssh#356)
+
+**Source:** PodUtils/podssh#356 (COORD-146 of podssh), by a member of the
+team.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The text of the ask: podssh's `podssh serve --gateway FILE` logs a client
+in to a private upstream with a short-lived OpenSSH user certificate,
+which a stock sshd takes by `TrustedUserCAKeys`. "`pod-relay`'s grant
+`Mint` (`src/grant/cert.rs` at `v0.83.0`) signs a certificate with
+principals, a window and critical options, but writes no extension. A
+stock sshd then refuses that certificate a pty and each forward
+(`permit-pty`, `permit-port-forwarding`, and the others of OpenSSH's
+PROTOCOL.certkeys). So podssh's gateway signs with podssh's own
+`cert::certify`." The ask: "let `Mint` take a list of extensions (the
+names and values of PROTOCOL.certkeys, with OpenSSH's defaults as a
+helper), so that a certificate of `pod-relay` can serve a stock sshd."
+Nothing in podssh waits on it.
+
+## Premise
+
+- Read: `crates/pod-relay/src/grant/cert.rs` (`Mint::sign` writes an
+  empty extensions field); OpenSSH's PROTOCOL.certkeys of V_9_9_P1 (the
+  options in the order of their names, each name once; the extensions
+  `no-touch-required`, `permit-X11-forwarding`, `permit-agent-forwarding`,
+  `permit-port-forwarding`, `permit-pty`, `permit-user-rc`, each with
+  empty data); `auth-options.c` of OpenSSH (sshd sets each permit only
+  for its extension, and refuses a certificate whose option has data
+  left after its parse); `ssh-keygen.c` (`CERTOPT_DEFAULT` is the five
+  permits; `show_options` lists the extensions last).
+- Read: podssh's head (the test `reverse_exit_caller` and the wire test
+  `grants` of its crate `podssh-relay` build `Mint` with each field and
+  call `sign`), so a new field of `Mint` or a new type of `sign` breaks its
+  trial (`docs/maintenance.md`, "Rules of the work").
+- Not measured: a login to a real sshd with a certificate of `Mint`;
+  this host has no `ssh-keygen` and no `sshd`.
+
+## Approach
+
+Keep `Mint` and `sign` as they are, and add beside them the typed
+`grant::Extension` (a variant for each extension of OpenSSH, `Other` for
+a custom one, `OPENSSH_DEFAULT`, `name`, `data`, `known`) and
+`Mint::sign_with(issuer, extensions) -> Result<Cert, String>`, which
+writes the extensions in the order of their names. It refuses a name
+twice in the critical options or in the extensions, and an `Other` that
+names an extension of OpenSSH. Tests: the bytes of a certificate with
+extensions against a second writer, a round trip through `Cert`, the
+refusals, `ssh-keygen -L` where it is installed, and a plant that drops
+the order.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --features grant --lib grant::
+sh scripts/plant-each.sh relay-mint-extensions-unsorted
+```
+
+## Done
+
+2026-11-25, this commit. `pod_relay::grant::Extension` (new,
+`src/grant/extension.rs`) and `Mint::sign_with` (new) write the
+extensions; `Mint::sign` is `write` with none and keeps its bytes. The
+writer of the options (`sorted`, `options_blob`, `once`) serves both
+fields. The data of a critical option is written as it is given:
+`source-address` and `force-command` need a string of the value, as
+OpenSSH writes it (the test does so). The README of `pod-relay` names
+the new items. `docs/wire.md` does not change: section 6 is the grant
+used once, which has no extension, and `sign` still writes it.
+
+Tests (`crates/pod-relay/src/grant/extension_tests.rs`, 6 new):
+`the_extensions_sign_to_the_bytes_of_a_second_writer` (a certificate of
+509 bytes, with `source-address` and six extensions given in no order,
+against the bytes that a Python writer from PROTOCOL.certkeys and
+`scripts/wire_ed25519.py` made), `a_certificate_with_extensions_reads_back_whole_and_verifies`,
+`no_extension_signs_the_bytes_of_a_grant`,
+`a_name_twice_or_a_known_name_as_other_is_refused`,
+`each_name_of_openssh_reads_to_its_variant`, and
+`ssh_keygen_lists_the_extensions` (skips with its reason here: no
+`ssh-keygen`). The plant `relay-mint-extensions-unsorted` writes the
+extensions in the order given; the vector test fails with "the bytes that
+the order of the names gives". `cargo test -p pod-relay --all-features`:
+502 passed, 0 failed, 22 ignored, in 53 targets; clippy of `pod-relay`,
+`pod-cloudflare`, `pod-piping` and `pod-ws` (all targets, all features,
+`-D warnings`), `cargo doc -p pod-relay` with `-D warnings`, `cargo fmt
+--all --check` and `plant-each.sh --apply` (0 stale) clean.
+
+For the hand-off: no break; `Mint`, `sign` and `Cert` keep their form.
+podssh's gateway can sign with
+`mint.sign_with(&ca, &Extension::OPENSSH_DEFAULT)` and drop
+`cert::certify` for it at the next tag.

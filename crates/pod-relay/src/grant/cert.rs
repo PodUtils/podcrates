@@ -12,6 +12,8 @@ use sha2::{Digest, Sha256};
 
 use pod_identity::{Identity, PublicKey};
 
+use super::Extension;
+
 /// The type of a certificate of an Ed25519 key.
 pub const CERT_TYPE: &str = "ssh-ed25519-cert-v01@openssh.com";
 /// The type of an Ed25519 key, and of its signature.
@@ -142,9 +144,10 @@ impl Cert {
     }
 }
 
-/// A new grant's fields, which [`Mint::sign`] signs with an issuer's key:
-/// the order and the form of `ssh-keygen -s`, so that the same fields and
-/// nonce give the same bytes.
+/// A new certificate's fields, which [`Mint::sign`] signs with an issuer's
+/// key as a grant, and [`Mint::sign_with`] with extensions for a stock
+/// sshd: the order and the form of `ssh-keygen -s`, so that the same fields
+/// and nonce give the same bytes.
 #[derive(Debug, Clone)]
 pub struct Mint<'a> {
     pub nonce: [u8; 32],
@@ -159,8 +162,31 @@ pub struct Mint<'a> {
 
 impl Mint<'_> {
     /// The user certificate of these fields, signed by `issuer`, with no
-    /// extension, as `ssh-keygen -O clear` makes it.
+    /// extension, as `ssh-keygen -O clear` makes it. A stock sshd gives such
+    /// a certificate no pty and no forward: [`Mint::sign_with`] writes the
+    /// extensions.
     pub fn sign(&self, issuer: &Identity) -> Cert {
+        self.write(issuer, &[])
+    }
+
+    /// The user certificate of these fields and `extensions`, signed by
+    /// `issuer`. [`Extension::OPENSSH_DEFAULT`] gives what `ssh-keygen -s`
+    /// writes when no `-O` changes it. A name twice in the critical options
+    /// or in the extensions is refused, as each reader refuses it; so is an
+    /// [`Extension::Other`] that names an extension of OpenSSH, because the
+    /// variant of that extension writes it with its correct data.
+    pub fn sign_with(&self, issuer: &Identity, extensions: &[Extension]) -> Result<Cert, String> {
+        once("critical option", self.critical.iter().map(|(name, _)| *name))?;
+        if let Some(Extension::Other(name, _)) =
+            extensions.iter().find(|e| matches!(e, Extension::Other(name, _) if Extension::known(name).is_some()))
+        {
+            return Err(format!("the extension {name} is an extension of OpenSSH: give its own variant"));
+        }
+        once("extension", extensions.iter().map(Extension::name))?;
+        Ok(self.write(issuer, extensions))
+    }
+
+    fn write(&self, issuer: &Identity, extensions: &[Extension]) -> Cert {
         let mut signed = Vec::with_capacity(512);
         put(&mut signed, CERT_TYPE.as_bytes());
         put(&mut signed, &self.nonce);
@@ -175,20 +201,16 @@ impl Mint<'_> {
         put(&mut signed, &list);
         signed.extend_from_slice(&self.valid_after.to_be_bytes());
         signed.extend_from_slice(&self.valid_before.to_be_bytes());
-        // OpenSSH writes the options in the order of their names.
-        let mut critical: Vec<(&str, &[u8])> = self.critical.to_vec();
-        critical.sort_by(|a, b| a.0.cmp(b.0));
-        let mut options = Vec::new();
-        for (name, data) in &critical {
-            put(&mut options, name.as_bytes());
-            put(&mut options, data);
-        }
-        put(&mut signed, &options);
-        // No extension, and the field reserved, empty.
-        put(&mut signed, &[]);
+        let critical = sorted(self.critical.iter().copied());
+        put(&mut signed, &options_blob(&critical));
+        let extensions = sorted(extensions.iter().map(|e| (e.name(), e.data())));
+        put(&mut signed, &options_blob(&extensions));
+        // The field reserved, empty.
         put(&mut signed, &[]);
         put(&mut signed, &key_blob(&issuer.public()));
         let signature = issuer.sign(&signed);
+        let owned =
+            |list: &[(&str, &[u8])]| list.iter().map(|(name, data)| (name.to_string(), data.to_vec())).collect();
         Cert {
             nonce: self.nonce.to_vec(),
             key: self.key,
@@ -198,13 +220,42 @@ impl Mint<'_> {
             principals: self.principals.to_vec(),
             valid_after: self.valid_after,
             valid_before: self.valid_before,
-            critical: critical.iter().map(|(name, data)| (name.to_string(), data.to_vec())).collect(),
-            extensions: Vec::new(),
+            critical: owned(&critical),
+            extensions: owned(&extensions),
             issuer: issuer.public(),
             signature,
             signed,
         }
     }
+}
+
+/// The options in the order of their names, as PROTOCOL.certkeys requires
+/// and OpenSSH writes them.
+fn sorted<'b>(list: impl Iterator<Item = (&'b str, &'b [u8])>) -> Vec<(&'b str, &'b [u8])> {
+    let mut list: Vec<_> = list.collect();
+    list.sort_by(|a, b| a.0.cmp(b.0));
+    list
+}
+
+/// The options field: each name string, then its data string.
+fn options_blob(list: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut out = Vec::new();
+    for (name, data) in list {
+        put(&mut out, name.as_bytes());
+        put(&mut out, data);
+    }
+    out
+}
+
+/// An error when a name comes twice in `names`.
+fn once<'b>(what: &str, names: impl Iterator<Item = &'b str>) -> Result<(), String> {
+    let mut seen = std::collections::BTreeSet::new();
+    for name in names {
+        if !seen.insert(name) {
+            return Err(format!("the {what} {name} twice: a certificate names each once"));
+        }
+    }
+    Ok(())
 }
 
 /// The key as OpenSSH writes a public key: `ssh-ed25519 BASE64`, the line

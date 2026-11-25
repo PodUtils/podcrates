@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/grant/cert.rs b/crates/pod-relay/src/grant/cert.rs
+index ff36a7a2..48458811 100644
+--- a/crates/pod-relay/src/grant/cert.rs
++++ b/crates/pod-relay/src/grant/cert.rs
+@@ -203,7 +203,7 @@ impl Mint<'_> {
+         signed.extend_from_slice(&self.valid_before.to_be_bytes());
+         let critical = sorted(self.critical.iter().copied());
+         put(&mut signed, &options_blob(&critical));
+-        let extensions = sorted(extensions.iter().map(|e| (e.name(), e.data())));
++        let extensions: Vec<_> = extensions.iter().map(|e| (e.name(), e.data())).collect();
+         put(&mut signed, &options_blob(&extensions));
+         // The field reserved, empty.
+         put(&mut signed, &[]);

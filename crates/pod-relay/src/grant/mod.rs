@@ -17,12 +17,14 @@
 
 pub mod cert;
 mod door;
+mod extension;
 mod spent;
 
 use std::path::Path;
 
 pub use cert::{CERT_TYPE, Cert, HOST, Mint, USER, openssh_public, parse_public};
 pub use door::{Door, Issuers, Redeemed};
+pub use extension::Extension;
 pub use spent::{NotRecorded, Spent};
 
 use pod_identity::PublicKey;

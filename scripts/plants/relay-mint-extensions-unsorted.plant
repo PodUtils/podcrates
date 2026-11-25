@@ -1,0 +1,7 @@
+# The Mint writes the extensions in the order given, not in the order of
+# their names that PROTOCOL.certkeys requires (PodUtils/podssh#356); the
+# vector of a second writer must fail.
+ENTRY=T-1371
+GROUP=relay
+EXPECT='the bytes that the order of the names gives'
+RUN='cargo test -p pod-relay --features grant --lib grant::extension::tests::the_extensions_sign_to_the_bytes_of_a_second_writer'
