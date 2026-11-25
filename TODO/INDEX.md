@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1020 entries: 162 open, 30 partial, 6 blocked, 822 done.**
+**1021 entries: 162 open, 30 partial, 6 blocked, 823 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 5 | 9 | 0 | 240 | 254 |
-| P2 | 71 | 11 | 4 | 426 | 512 |
+| P1 | 4 | 9 | 0 | 241 | 254 |
+| P2 | 72 | 11 | 4 | 426 | 513 |
 | P3 | 86 | 10 | 2 | 154 | 252 |
-| **All** | 162 | 30 | 6 | 822 | 1020 |
+| **All** | 162 | 30 | 6 | 823 | 1021 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1062,8 +1062,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1386](upkeep.md) | P3 | S | M5 | chore | open | `scripts/agent/check.sh`: the tests run in a temp directory of their own, and an entry that a test leaves there is a fault |
 | [T-1387](upkeep.md) | P2 | S | M8 | chore | open | COORD `(to all)`: one `docs/hosted-sessions.md` with one role table for each repository of PodUtils |
 | [T-1388](upkeep.md) | P3 | S | M5 | chore | open | The debug info of the dev and test profiles, measured for the size of the target |
-| [T-1389](podvm.md) | P1 | M | M6 | feature | open | `pod-enter`: a required tmpfs with a byte limit at a guest path of the namespace rung (PodUtils/podvm#667) |
+| [T-1389](podvm.md) | P1 | M | M6 | feature | done | `pod-enter`: a required tmpfs with a byte limit at a guest path of the namespace rung (PodUtils/podvm#667) |
 | [T-1390](transport.md) | P2 | M | M1 | feature | open | `pod-term`: the transfer codec keeps each frame within the rows of the pane, with a floor of the chunk under 1 KiB and a resend at the floor (PodUtils/podssh#358) |
 | [T-1391](podvm.md) | P2 | M | M6 | feature | open | A pinned static `mkfs.erofs` for a rootless disk image from a streamed OCI tar (PodUtils/podvm#668) |
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
+| [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |

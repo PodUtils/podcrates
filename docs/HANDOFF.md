@@ -27,7 +27,8 @@ is done. Git and the record keep finished work.
    - Open asks: PodUtils/podvm#664 (COORD-248, for
      PodUtils/podrunner#354) is T-1379, done on `main`: answer it with the
      next tag; PodUtils/podvm#667 (COORD-250, for ask 5 of
-     PodUtils/podrunner#296) is T-1389, after the tag;
+     PodUtils/podrunner#296) is T-1389, done on `main` after `v0.85.0`:
+     answer it with the tag after `v0.85.0`;
      PodUtils/podssh#358 (COORD-148) is T-1390 (its item 1 closed #258);
      PodUtils/podvm#668 (COORD-251) is T-1391;
      PodUtils/podssh#357 (COORD-147) asks T-1380 to T-1383;
@@ -149,6 +150,12 @@ The asks that #260 answers:
 
 ### On `main` after `v0.84.0` (for the next tag)
 
+- T-1389 (`pod-enter`, PodUtils/podvm#667 for ask 5 of
+  PodUtils/podrunner#296; after `v0.85.0`): `Plan::tmpfs` takes
+  `TmpfsMount { guest, bytes: NonZeroU64 }`; the namespace rung mounts
+  each with `size=N` and reads the limit back (steps 49 to 52). Breaking:
+  each struct literal of `Plan` adds `tmpfs: Vec::new()`. T-1430 (a rule of
+  the confinement on such a tmpfs) is open.
 - T-1379 (`pod-incus`, PodUtils/podvm#664 for PodUtils/podrunner#354):
   `Client::instance_with_etag` gives an instance and its `ETag`;
   `Client::patch_instance_config(name, config, if_match)` sends

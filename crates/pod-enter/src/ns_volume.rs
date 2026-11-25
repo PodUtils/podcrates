@@ -69,12 +69,15 @@ pub(crate) struct Prepared {
     beneath: Option<(Vec<u8>, Vec<u8>)>,
 }
 
-/// The volumes of a plan for the child, built before the fork.
+/// The volumes and the tmpfs mounts of a plan for the child, built before
+/// the fork.
 pub(crate) struct Volumes {
     /// The root path: the child opens it in its own mount namespace.
     root: CBuf,
     list: Vec<Prepared>,
     empty: CBuf,
+    /// The tmpfs mounts, before the volumes (`ns_tmpfs`).
+    tmpfs: crate::ns_tmpfs::Tmpfs,
 }
 
 /// A volume as `HOST:GUEST`, with `:ro` where it is read-only, for a
@@ -83,13 +86,21 @@ pub fn volume_label(v: &VolumeBind) -> String {
     format!("{}:{}{}", v.host, v.guest, if v.read_only { ":ro" } else { "" })
 }
 
+/// The first volume of `plan` (`the volume HOST:GUEST`), else its first
+/// tmpfs (`the tmpfs GUEST:size=N`), for a refusal of an entry with no
+/// mount namespace of its own.
+pub(crate) fn first_mount(plan: &Plan) -> Option<String> {
+    let volume = plan.volumes.first().map(|v| format!("the volume {}", volume_label(v)));
+    volume.or_else(|| plan.tmpfs.first().map(|t| format!("the tmpfs {}", crate::tmpfs_label(t))))
+}
+
 /// The components of a guest path, or why it is not one: absolute, not
 /// `/`, no `.`, `..` or empty component (a trailing `/` goes).
 pub fn guest_parts(guest: &str) -> std::result::Result<Vec<&str>, &'static str> {
     let Some(rest) = guest.strip_prefix('/') else { return Err("is not an absolute path") };
     let rest = rest.trim_end_matches('/');
     if rest.is_empty() {
-        return Err("is the guest root `/`, and a volume cannot replace the root");
+        return Err("is the guest root `/`, and a mount cannot replace the root");
     }
     let parts: Vec<&str> = rest.split('/').collect();
     if parts.iter().any(|c| c.is_empty() || *c == "." || *c == "..") {
@@ -98,22 +109,20 @@ pub fn guest_parts(guest: &str) -> std::result::Result<Vec<&str>, &'static str> 
     Ok(parts)
 }
 
-/// Check the volumes of `plan` and build them for the child. `without` is
-/// the entry with no mount namespace of its own (the chroot rung, a rung
-/// of the ladder, the entry with no chroot), which refuses each volume.
-/// Before the banner and the fork.
+/// Check the volumes and the tmpfs mounts of `plan` and build them for
+/// the child. `without` is the entry with no mount namespace of its own
+/// (the chroot rung, a rung of the ladder, the entry with no chroot), which
+/// refuses each one. Before the banner and the fork.
 pub(crate) fn prepare(plan: &Plan, root: &RootDir, without: Option<&str>) -> Result<Volumes> {
     let usage =
         |v: &VolumeBind, why: &str| Error::runtime(Class::Usage, format!("the volume {} {why}", volume_label(v)));
-    let mut out = Volumes { root: sys::cempty(), list: Vec::new(), empty: sys::cempty() };
-    let Some(first) = plan.volumes.first() else { return Ok(out) };
+    let tmpfs = crate::ns_tmpfs::Tmpfs::default();
+    let mut out = Volumes { root: sys::cempty(), list: Vec::new(), empty: sys::cempty(), tmpfs };
+    let Some(first) = first_mount(plan) else { return Ok(out) };
     if let Some(entry) = without {
         return Err(Error::runtime(
             Class::Unsupported,
-            format!(
-                "the volume {} needs the namespace rung; {entry} has no mount namespace of its own",
-                volume_label(first)
-            ),
+            format!("{first} needs the namespace rung; {entry} has no mount namespace of its own"),
         ));
     }
     if plan.volumes.len() > MOST {
@@ -122,7 +131,9 @@ pub(crate) fn prepare(plan: &Plan, root: &RootDir, without: Option<&str>) -> Res
             format!("{} volumes; a plan takes at most {MOST}", plan.volumes.len()),
         ));
     }
-    out.root = CBuf::new(&root.path).ok_or_else(|| usage(first, "has a root path with a NUL byte"))?;
+    out.root = CBuf::new(&root.path)
+        .ok_or_else(|| Error::runtime(Class::Usage, format!("{first} has a root path with a NUL byte")))?;
+    out.tmpfs = crate::ns_tmpfs::prepare(plan)?;
     let mut seen: Vec<Vec<&str>> = Vec::new();
     for v in &plan.volumes {
         let parts = guest_parts(&v.guest).map_err(|why| usage(v, &format!("has a guest path that {why}")))?;
@@ -250,10 +261,18 @@ fn component(dir: i64, name: &CBuf, as_dir: bool) -> std::result::Result<i64, (u
 
 /// The mount point of `v` under `root`, one component at a time.
 fn point(root: i64, v: &Prepared) -> std::result::Result<i64, (u8, Errno)> {
-    let last = v.parts.len() - 1;
+    walk(root, &v.parts, v.dir)
+}
+
+/// The mount point of the guest path `parts` (at least one) under `root`:
+/// each missing directory is made, and a missing last component is a
+/// directory where `dir_last`, else an empty file. The step of a refusal is a
+/// step of a volume. No allocation.
+pub(crate) fn walk(root: i64, parts: &[CBuf], dir_last: bool) -> std::result::Result<i64, (u8, Errno)> {
+    let last = parts.len() - 1;
     let mut dir = root;
-    for (at, name) in v.parts.iter().enumerate() {
-        let next = component(dir, name, at < last || v.dir);
+    for (at, name) in parts.iter().enumerate() {
+        let next = component(dir, name, at < last || dir_last);
         if dir != root {
             let _ = sys::close(dir);
         }
@@ -293,16 +312,21 @@ fn bind_one(root: i64, v: &Prepared, empty: &CBuf) -> std::result::Result<(), (u
 }
 
 /// In the child, after the mounts of the rung and before the chroot: each
-/// volume in its order. `Err` gives the step, the errno and the index of
-/// the volume. No allocation.
+/// tmpfs mount (`ns_tmpfs`), then each volume in its order. A volume can
+/// be under a tmpfs; a tmpfs under a volume is refused before the fork.
+/// `Err` gives the step, the errno and the index of the volume or the
+/// tmpfs. No allocation.
 pub(crate) fn bind_each(v: &Volumes) -> std::result::Result<(), (u8, Errno, u8)> {
-    if v.list.is_empty() {
+    if v.list.is_empty() && v.tmpfs.is_empty() {
         return Ok(());
     }
     let flags = sys::O_PATH | sys::O_DIRECTORY | sys::O_NOFOLLOW | sys::O_CLOEXEC;
     let root = sys::open(&v.root, flags, 0).map_err(|e| (NS_VOLUME_POINT_STEP, e, 0))?;
-    let mut out = Ok(());
+    let mut out = crate::ns_tmpfs::mount_each(root, &v.tmpfs);
     for (at, vol) in v.list.iter().enumerate() {
+        if out.is_err() {
+            break;
+        }
         if let Err((step, e)) = bind_one(root, vol, &v.empty) {
             out = Err((step, e, at as u8));
             break;
@@ -316,7 +340,7 @@ pub(crate) fn bind_each(v: &Volumes) -> std::result::Result<(), (u8, Errno, u8)>
 /// step is not a step of a volume.
 pub(crate) fn failure(plan: &Plan, step: u8, e: Errno, at: u8) -> Option<Error> {
     if !(NS_VOLUME_POINT_STEP..=NS_VOLUME_REMOUNT_STEP).contains(&step) && step != NS_VOLUME_SOURCE_STEP {
-        return None;
+        return crate::ns_tmpfs::failure(plan, step, e, at);
     }
     let words = ns_setup_step(step)?;
     let label = plan.volumes.get(usize::from(at)).map_or_else(|| format!("number {at}"), volume_label);
@@ -330,12 +354,13 @@ pub(crate) fn failure(plan: &Plan, step: u8, e: Errno, at: u8) -> Option<Error> 
     Some(Error::runtime(class, format!("{text}; the payload did not run")))
 }
 
-/// The components of a working directory under `/tmp` on the namespace
-/// rung, for [`make_workdir`]: the tmpfs of the rung hides a directory that
-/// the caller made in the image (PodUtils/podvm#569). Empty elsewhere.
+/// The components of a working directory under `/tmp` or in a tmpfs of
+/// the plan on the namespace rung, for [`make_workdir`]: the tmpfs hides a
+/// directory that the caller made in the image (PodUtils/podvm#569). Empty
+/// elsewhere.
 pub(crate) fn tmp_workdir_parts(plan: &Plan) -> Vec<CBuf> {
     let w = plan.working_dir.as_str();
-    if !w.starts_with("/tmp/") {
+    if !w.starts_with("/tmp/") && !crate::ns_tmpfs::holds(plan, w) {
         return Vec::new();
     }
     guest_parts(w).map(|parts| parts.iter().filter_map(|p| CBuf::new(p)).collect()).unwrap_or_default()
@@ -366,8 +391,12 @@ pub(crate) fn make_workdir(slash: &CBuf, parts: &[CBuf]) -> std::result::Result<
 /// Check the working directory before the fork, on a rung with a chroot: a
 /// directory of the image, of the upper directory of an overlay root over
 /// it (`upper`, [`crate::ns_upper`]), or of the host side of a volume that
-/// serves it.
+/// serves it. A working directory in a tmpfs of the plan passes: the child
+/// makes it there.
 pub(crate) fn check_workdir(root: &RootDir, plan: &Plan, upper: Option<crate::ns_upper::UpperDir<'_>>) -> Result<()> {
+    if crate::ns_tmpfs::holds(plan, &plan.working_dir) {
+        return Ok(());
+    }
     let refuse = |kind, label: Option<String>| {
         let mut context = format!("in the image's rootfs {:?}", root.path);
         if let Some(u) = upper {

@@ -69,6 +69,7 @@ mod ns_overlay;
 mod ns_pid;
 mod ns_proc_bind;
 mod ns_pts;
+mod ns_tmpfs;
 mod ns_upper;
 mod ns_user;
 mod ns_volume;
@@ -103,6 +104,10 @@ pub use ns_pid::{
 };
 pub use ns_proc_bind::{NS_PROC_BIND_STEP, NS_PROC_REMOUNT_STEP, proc_of_this_pid_namespace};
 pub use ns_pts::{DEVPTS_FLAGS, DEVPTS_OPTIONS, NS_DEVPTS_STEP, NS_PTMX_BIND_STEP, devpts_refused, ptmx_of};
+pub use ns_tmpfs::{
+    MOST as TMPFS_MOST, NS_TMPFS_LIMIT_STEP, NS_TMPFS_LINK_STEP, NS_TMPFS_MOUNT_STEP, NS_TMPFS_POINT_STEP,
+    tmpfs_enforced, tmpfs_label,
+};
 pub use ns_user::{
     NS_GID_MAP_STEP, NS_NESTED_GID_MAP_STEP, NS_NESTED_SETGROUPS_STEP, NS_NESTED_UID_MAP_STEP, NS_NESTED_USER_STEP,
     NS_SETGROUPS_STEP, NS_UID_MAP_STEP, NS_USER_STEP, both_refused, calls_for_user_namespace,
@@ -111,7 +116,7 @@ pub use ns_volume::{
     MOST as VOLUMES_MOST, NS_VOLUME_BIND_STEP, NS_VOLUME_LINK_STEP, NS_VOLUME_POINT_STEP, NS_VOLUME_REMOUNT_STEP,
     guest_parts as volume_guest_parts, remount_flags as volume_remount_flags, volume_label,
 };
-pub use plan::{Plan, Program, VolumeBind};
+pub use plan::{Plan, Program, TmpfsMount, VolumeBind};
 /// Block [`WAIT_FORWARDED`] in the calling thread, and report the earlier
 /// mask for `sys::sigrestore`: the call for each other thread of a process
 /// that waits with [`Child::wait_forwarding`].

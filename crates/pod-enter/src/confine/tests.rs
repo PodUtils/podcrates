@@ -99,6 +99,7 @@ fn plan(confine: Option<Spec>, env: Vec<String>) -> Plan {
         volumes: Vec::new(),
         userns_ids: None,
         pid_namespace: false,
+        tmpfs: Vec::new(),
         relay_title: None,
         confine,
     }

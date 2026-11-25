@@ -1,0 +1,14 @@
+diff --git a/crates/pod-enter/src/ns_tmpfs.rs b/crates/pod-enter/src/ns_tmpfs.rs
+index bd0a21b2..45a89180 100644
+--- a/crates/pod-enter/src/ns_tmpfs.rs
++++ b/crates/pod-enter/src/ns_tmpfs.rs
+@@ -154,8 +154,7 @@ fn mount_one(root: i64, t: &Prepared, fstype: &CBuf) -> std::result::Result<(),
+     let read = sys::fstatfs(top);
+     let _ = sys::close(top);
+     match read {
+-        Ok(fs) if tmpfs_enforced(&fs, t.bytes) => Ok(()),
+-        Ok(_) => Err((NS_TMPFS_LIMIT_STEP, Errno(0))),
++        Ok(_) => Ok(()),
+         Err(e) => Err((NS_TMPFS_LIMIT_STEP, e)),
+     }
+ }

@@ -1,0 +1,23 @@
+diff --git a/crates/pod-enter/src/ns_tmpfs.rs b/crates/pod-enter/src/ns_tmpfs.rs
+index bd0a21b2..10e142a0 100644
+--- a/crates/pod-enter/src/ns_tmpfs.rs
++++ b/crates/pod-enter/src/ns_tmpfs.rs
+@@ -146,7 +146,7 @@ fn walk_step(step: u8) -> u8 {
+ fn mount_one(root: i64, t: &Prepared, fstype: &CBuf) -> std::result::Result<(), (u8, Errno)> {
+     let fd = crate::ns_volume::walk(root, &t.parts, true).map_err(|(step, e)| (walk_step(step), e))?;
+     let flags = sys::MS_NOSUID | sys::MS_NODEV;
+-    let mounted = crate::ns_dev_bind::mount_data_on_fd(fstype, fd, fstype, flags, t.data.ptr());
++    let mounted = crate::ns_dev_bind::mount_data_on_fd(fstype, fd, fstype, flags, 0);
+     let _ = sys::close(fd);
+     mounted.map_err(|e| (NS_TMPFS_MOUNT_STEP, e))?;
+     // A new walk crosses into the mount: `fstatfs` reads the tmpfs.
+@@ -154,8 +154,7 @@ fn mount_one(root: i64, t: &Prepared, fstype: &CBuf) -> std::result::Result<(),
+     let read = sys::fstatfs(top);
+     let _ = sys::close(top);
+     match read {
+-        Ok(fs) if tmpfs_enforced(&fs, t.bytes) => Ok(()),
+-        Ok(_) => Err((NS_TMPFS_LIMIT_STEP, Errno(0))),
++        Ok(_) => Ok(()),
+         Err(e) => Err((NS_TMPFS_LIMIT_STEP, e)),
+     }
+ }

@@ -335,7 +335,11 @@ pub fn ns_setup_step(step: u8) -> Option<&'static str> {
         crate::ns_volume::NS_VOLUME_SOURCE_STEP => {
             Some("opening the host path of a volume under its base with no symbolic link")
         }
-        _ => crate::ns_user::step_name(step).or_else(|| crate::ns_pid::step_name(step)),
+        // The steps of a tmpfs come back as a refusal that names the tmpfs
+        // (`ns_tmpfs::failure`).
+        _ => crate::ns_user::step_name(step)
+            .or_else(|| crate::ns_pid::step_name(step))
+            .or_else(|| crate::ns_tmpfs::step_name(step)),
     }
 }
 
@@ -372,13 +376,9 @@ pub(crate) fn namespace_entry(root: &RootDir, plan: &Plan, banner: bool, err: &m
                 format!("the PID namespace needs the namespace rung, and {cause}"),
             ));
         }
-        // A volume has no place on the chroot rung either.
-        if let Some(v) = plan.volumes.first() {
-            let label = crate::ns_volume::volume_label(v);
-            return Err(Error::runtime(
-                Class::Unsupported,
-                format!("the volume {label} needs the namespace rung, and {cause}"),
-            ));
+        // A volume or a tmpfs has no place on the chroot rung either.
+        if let Some(mount) = crate::ns_volume::first_mount(plan) {
+            return Err(Error::runtime(Class::Unsupported, format!("{mount} needs the namespace rung, and {cause}")));
         }
         let _ = writeln!(err, "{}", ns_fallback_line(names, cause));
         spawn_with(root, plan, ENTERED_RUNG.word(), None, None, None, None, banner, err)

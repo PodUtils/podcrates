@@ -15454,7 +15454,7 @@ The answer to PodUtils/podvm#664 names the tag that carries the call
 **Milestone:** M6
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15508,6 +15508,94 @@ caller chooses. The ask:
 ```sh
 cargo test -p pod-enter --all-features tmpfs
 sh scripts/plant-each.sh --apply
+```
+
+## Done
+
+2026-11-25. `Plan::tmpfs` takes `TmpfsMount { guest, bytes: NonZeroU64 }`
+(`crates/pod-enter/src/ns_tmpfs.rs`). The entry checks each mount before
+the fork: a guest path that is not an absolute normal path or is `/`, a
+repeated path, a path at or under the guest path of a volume, and more
+than 255 mounts are refusals by name (`GUEST:size=N`). In the child,
+after the mounts of the rung and before the volumes, the walk of the
+volumes makes the mount point with no symbolic link, then the mount takes
+`size=N`, `nosuid` and `nodev`, and `fstatfs` reads the size back
+(`tmpfs_enforced`). The steps are 49 to 52 in `ns_setup_step`; a refused
+step is `Error::Runtime` with the mount, never a payload with no limit and
+never a fallback to chroot. The kernel wraps a size near `u64::MAX` to a
+tmpfs with no limit (measured here on Linux 6.18: `size=18446744073709551615`
+gives `size=0k`); the check after the mount refuses it. The chroot rung,
+the ladder, the entry with no chroot and the fallback of the namespace
+rung to chroot refuse a plan with a tmpfs. A join mounts nothing. A
+working directory in a tmpfs needs no directory of the image: the child
+makes it. The README of `pod-enter` has the section and the rows.
+
+Tests: the unit tests `a_tmpfs_is_checked_before_the_fork`,
+`the_limit_holds_only_on_a_tmpfs_of_that_size`,
+`a_refused_tmpfs_names_the_tmpfs_and_the_step`,
+`a_working_directory_in_a_tmpfs_is_made_by_the_child` and
+`an_entry_that_cannot_mount_refuses_a_tmpfs_by_name`
+(`crates/pod-enter/src/ns_tmpfs/tests.rs`); the tests
+`a_tmpfs_of_the_plan_holds_its_byte_limit` and
+`a_join_finds_the_tmpfs_of_its_run_with_its_limit` of
+`crates/pod-enter/tests/userns.rs` (`tests/userns/tmpfs.rs`), as root and
+as uid 65534 through a user namespace: a write of 64 KiB passes, a write
+of 2 MB over the limit of 1 MiB gets `ENOSPC`, the wrapped limit and a
+guest path through a link are refusals with their step, and a join sees
+the one mount with `size=1024k` and mounts nothing. Here (root in a cloud
+container, Linux 6.18) the mount of a tmpfs with `size=` passes as root
+and in a user namespace of uid 65534; each test ran, with no skip.
+`cargo test -p pod-enter --all-features` passed (278 unit tests); `sh
+scripts/ci/userns-tests.sh` passed with no skip line. The plants
+`enter-tmpfs-no-size` (the ENOSPC write passes: exit 6) and
+`enter-tmpfs-limit-unchecked` are caught by `sh scripts/plant-each.sh`; the
+patch of `enter-volume-skipped` follows the new loop of `bind_each` and
+is caught. A rule of the confinement on a tmpfs that the image does not
+hold is T-1430. Commit: see `git log` for T-1389.
+
+# T-1430: `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork
+
+**Source:** T-1389 (a finding of its work).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`confine::compile` opens the path of each rule of the spec before the
+fork, through the image and the volumes (`ns_upper::View`). It does not
+read `Plan::tmpfs`. A tmpfs at a guest path that the image does not hold
+(`--tmpfs /work:size=N` on an image with no `/work`) is made by the child.
+A rule on `/work` or under it gives `ENOENT` in the compile, and the entry
+refuses the run ("does not exist") before the fork, although the path
+exists in the view of the payload.
+
+## Premise
+
+- Read: `crates/pod-enter/src/confine.rs` (`compile`, `open_through`),
+  `crates/pod-enter/src/ns_tmpfs.rs` (`holds`), and the rule for a volume
+  that the image does not hold: the compile gets the root of the image, a
+  directory, and the child opens the made directory after the mounts.
+- Not measured: a run with a rule on such a path. The child opens the
+  paths of the rules after the mounts (`Compiled::open_paths`), so a rule
+  on a tmpfs that the image holds already holds the tmpfs.
+
+## Approach
+
+1. In `confine::compile`, take the path of `open_through` also where the
+   plan has a tmpfs. A path at or under a tmpfs (`ns_tmpfs::holds`) opens
+   the root of the image for the check of the type, as a directory above
+   a volume does.
+2. Add to `tests/userns/tmpfs.rs` a confined payload with a write rule on
+   `/work` of an image with no `/work`: the write passes, and a write
+   outside the rules fails.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --test userns tmpfs
 ```
 
 # T-1391: A pinned static `mkfs.erofs` for a rootless disk image from a streamed OCI tar (PodUtils/podvm#668)

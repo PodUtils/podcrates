@@ -328,6 +328,7 @@ pub(crate) fn spawn_sh(dir: &std::path::Path, script: String, pass: &[i64]) -> C
         volumes: Vec::new(),
         userns_ids: None,
         pid_namespace: false,
+        tmpfs: Vec::new(),
         relay_title: None,
     };
     let maps = crate::userland::Maps::of_root(dir.to_str().unwrap());
@@ -396,6 +397,7 @@ pub(crate) fn plain_plan() -> Plan {
         volumes: Vec::new(),
         userns_ids: None,
         pid_namespace: false,
+        tmpfs: Vec::new(),
         relay_title: None,
     }
 }

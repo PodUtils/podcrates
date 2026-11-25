@@ -24,6 +24,7 @@ fn plan(volumes: Vec<VolumeBind>) -> Plan {
         volumes,
         userns_ids: None,
         pid_namespace: false,
+        tmpfs: Vec::new(),
         relay_title: None,
     }
 }

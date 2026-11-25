@@ -57,6 +57,7 @@ fn run_in_overlay(lower: &Path, upper: &Path, argv: &[&str]) -> Result<i32, Stri
         volumes: Vec::new(),
         userns_ids: None,
         pid_namespace: false,
+        tmpfs: Vec::new(),
         relay_title: None,
         confine: None,
     };
