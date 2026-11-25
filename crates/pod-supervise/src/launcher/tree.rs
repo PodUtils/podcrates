@@ -54,14 +54,10 @@ pub(super) fn sweep(payload: i64) -> Swept {
     }
 }
 
-/// The parent pid in the text of `/proc/PID/stat`. The name of the command
-/// is in parentheses and can hold a space or a `)`, so the fields start
-/// after the last `)`.
+/// The parent pid in the text of `/proc/PID/stat`: field 4, the second
+/// after the name.
 pub fn parent_of(stat: &str) -> Option<i64> {
-    let rest = &stat[stat.rfind(')')? + 1..];
-    let mut fields = rest.split_whitespace();
-    fields.next()?; // the state
-    fields.next()?.parse().ok()
+    pod_core::proc_stat::after_name(stat)?.get(1)?.parse().ok()
 }
 
 /// The children of `pid` from the `children` file of each of its tasks.

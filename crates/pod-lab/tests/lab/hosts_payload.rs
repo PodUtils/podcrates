@@ -90,7 +90,7 @@ fn pty() -> Out {
     }
     std::fs::write("/dev/null", b"x").map_err(|e| format!("/dev/null: {e}"))?;
     let stat = std::fs::read_to_string("/proc/self/stat").map_err(|e| e.to_string())?;
-    let tty = stat.rsplit_once(')').and_then(|(_, r)| r.split_whitespace().nth(4).map(str::to_string));
+    let tty = pod_core::proc_stat::after_name(&stat).and_then(|f| f.get(4).map(|t| t.to_string()));
     if tty.as_deref() != Some("0") {
         return Err(format!("tty_nr is {tty:?}"));
     }

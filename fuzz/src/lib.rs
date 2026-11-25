@@ -69,6 +69,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("oci_manifest", targets::oci_manifest),
     ("oci_challenge", targets::oci_challenge),
     ("extract_layer", targets::extract_layer),
+    ("flatten_layers", targets::flatten_layers),
     ("elf_header", targets::elf_header),
     ("squashfs_image", targets::squashfs_image),
     ("udf_image", targets::udf_image),

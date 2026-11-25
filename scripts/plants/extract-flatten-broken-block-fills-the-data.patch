@@ -1,0 +1,11 @@
+--- a/crates/pod-extract/src/flatten/write.rs
++++ b/crates/pod-extract/src/flatten/write.rs
+@@ -170,7 +170,7 @@
+     /// the reader fails at the end of the stream, in the data. An error of
+     /// the writer here is dropped: the caller gets the first one.
+     pub(super) fn broken(&mut self) {
+-        let fill = if self.owed <= BLOCK as u64 { self.owed as usize } else { 0 };
++        let fill = 0;
+         if self.put(&[0xff; 2 * BLOCK][..fill + BLOCK]).is_ok() {
+             let _ = self.w.flush();
+         }

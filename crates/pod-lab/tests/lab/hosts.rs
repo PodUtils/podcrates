@@ -90,7 +90,7 @@ pub fn ctty_child() -> ! {
     let slave = ioctl(master, TIOCGPTPEER, flags).expect("the peer of the terminal");
     ioctl(slave, TIOCSCTTY, 0).expect("the controlling terminal");
     let stat = std::fs::read_to_string("/proc/self/stat").expect("/proc/self/stat");
-    let tty = stat.rsplit_once(')').and_then(|(_, r)| r.split_whitespace().nth(4).map(str::to_string));
+    let tty = pod_core::proc_stat::after_name(&stat).and_then(|f| f.get(4).map(|t| t.to_string()));
     assert_ne!(tty.as_deref(), Some("0"), "the child has no controlling terminal");
     case("no-ptmx", "pty", "no ptmx, no pts, no terminal, tty waits");
     std::process::exit(0)

@@ -306,7 +306,7 @@ fn memory_of(pid: i64) -> Init {
         };
     }
     let stat = fs::read_to_string("/proc/self/stat").unwrap();
-    let f: Vec<u64> = stat[stat.rfind(')').unwrap() + 1..].split_whitespace().map(|w| w.parse().unwrap_or(0)).collect();
+    let f: Vec<u64> = pod_core::proc_stat::after_name(&stat).unwrap().iter().map(|w| w.parse().unwrap_or(0)).collect();
     // Field 3 is the first after the name.
     let field = |n: usize| f[n - 3];
     let mem = fs::File::open(at("mem")).unwrap();

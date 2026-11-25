@@ -81,7 +81,7 @@ fn files(settings: &Settings, id: &identity::Identity) {
     assert_eq!(row(&s, "readlink(/proc/self/exe)").verdict, Verdict::Ok);
     // A probe child keeps the terminal of this process.
     let stat = std::fs::read_to_string("/proc/self/stat").expect("/proc/self/stat");
-    let tty = stat.rsplit_once(')').and_then(|(_, r)| r.split_whitespace().nth(4)).expect("tty_nr").to_string();
+    let tty = pod_core::proc_stat::after_name(&stat).and_then(|f| f.get(4).map(|t| t.to_string())).expect("tty_nr");
     assert_eq!(row(&s, "tty_nr of /proc/self/stat").value("tty_nr"), Some(tty.as_str()));
     let poll = row(&s, "open(/dev/tty, O_NONBLOCK)+poll");
     if tty == "0" {

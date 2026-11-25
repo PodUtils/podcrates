@@ -14817,7 +14817,7 @@ can name one. No public item changed.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -14851,7 +14851,73 @@ writer on a crafted layer is not searched for.
 
 ```sh
 cargo check --manifest-path fuzz/Cargo.toml
+cargo test --manifest-path fuzz/Cargo.toml --lib
+cargo test -p pod-extract --all-features --test flatten a_file_cut_one_byte_short_breaks_the_stream
+sh scripts/fuzz.sh 300 flatten_layers
 ```
+
+## Done
+
+2026-11-24, this commit.
+
+The change. The fuzz target `flatten_layers`
+(`fuzz/src/targets/flatten.rs`, `fuzz/fuzz_targets/flatten_layers.rs`,
+its `[[bin]]` in `fuzz/Cargo.toml`, its row in `fuzz/README.md` and in
+`TARGETS` of `fuzz/src/lib.rs`; `scripts/fuzz.sh` and `fuzz.yml` list
+the targets by `cargo fuzz list`). The first byte gives the count of
+layers (1 to 4) and the compression of each (tar, gzip, zstd); a length
+of two bytes goes before each blob but the last. Each blob is a file
+with its true digest. `flatten` writes into a sink of 4 MiB with
+`paths_max` 256. The checks: no panic; the count of the bytes; on success
+the `tar` reader reads the stream to its end, with one entry for each of
+`written + implied + extra`, no path or hard-link target absolute or with
+`..`, and each path once unless one layer names it twice (two entries of
+one path in one layer go out in their order, T-1193, so the check of the
+Approach holds only with that exception; a layer that the `tar` reader
+cannot read skips it); on a failure after the first byte the stream ends
+with the block of 0xff and the `tar` reader fails on it. The target does
+not compare the tree with `extract`: that needs a tree on the disk for
+each run, and `crates/pod-extract/tests/flatten_random.rs` does it. The
+fuzz crate takes `sha2` and `tar` (in its lock file already). Nine
+seeds in `fuzz/seeds/flatten_layers/`, from the layers of
+`crates/pod-extract/tests/flatten.rs`: whiteouts, an opaque directory, a
+file replaced by a directory and back, an entry through a symlink of an
+older layer, hard links across layers, a path two times in one layer,
+long names in PAX headers (gzip), a gzip, a zstd and a tar layer in one
+image, and an older gzip blob cut short. The unit test
+`targets::flatten::tests::the_seeds_of_flatten_layers_read` holds what
+each seed reaches.
+
+Found by the target and fixed in place (`crates/pod-extract/src/flatten/write.rs`):
+the stable test `each_target_survives_mutations` failed on a mutation,
+"a broken stream of 1538 bytes: the data ended 1 bytes early". After a
+failure in the data of a file, `Out::broken` wrote its block of 0xff
+where the data went. Where the data was short by the bytes that, with the
+padding, make one block, the block filled the data and the padding: the
+stream then ended at a header position with no end blocks, a reader took
+it as whole (GNU tar takes a stream with no end blocks, T-1193), and the
+last byte of the file was 0xff. `Out` now keeps the bytes of data and
+padding that the last header owes; where they are one block or less,
+`broken` writes them as 0xff first, so the block of 0xff is where a
+header goes. Where they are more, the stream ends in the data and the
+reader fails there. The test
+`a_file_cut_one_byte_short_breaks_the_stream` (`crates/pod-extract/tests/flatten.rs`)
+fails on the code before the fix ("the tar reader takes the broken
+stream of 1536 bytes"). The plant
+`extract-flatten-broken-block-fills-the-data` holds the old fill: with
+it, the test fails (exit 101); without it, it passes.
+
+The run. `sh scripts/fuzz.sh 300 flatten_layers` here (nightly-2026-11-18,
+cargo-fuzz 0.13.2, the address sanitizer): 382536 runs in 301 s, 2889 new
+units, no crash, exit 0. `cargo test --manifest-path fuzz/Cargo.toml
+--lib`: 15 passed, 5 ignored. `cargo test -p pod-extract --all-features`:
+each binary passes (117 unit tests; 22 in `flatten`). `cargo clippy -p
+pod-extract --all-targets --all-features -- -D warnings`, `cargo check
+--manifest-path fuzz/Cargo.toml --bins`, `cargo clippy --manifest-path
+fuzz/Cargo.toml --all-targets -- -D warnings`, `cargo fmt --all --check`
+and `cargo fmt --manifest-path fuzz/Cargo.toml --check` pass; `sh
+scripts/plant-each.sh --apply`: 0 stale; `python3 -I scripts/codegraph.py
+dups`: no new finding.
 
 # T-1255: `pod-extract`: the umask of the process cuts the mode of a directory that an entry below it makes
 

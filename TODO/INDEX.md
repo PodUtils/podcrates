@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**981 entries: 156 open, 31 partial, 7 blocked, 787 done.**
+**981 entries: 154 open, 31 partial, 7 blocked, 789 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 10 | 0 | 229 | 243 |
-| P2 | 70 | 10 | 4 | 411 | 495 |
-| P3 | 82 | 11 | 3 | 145 | 241 |
-| **All** | 156 | 31 | 7 | 787 | 981 |
+| P2 | 69 | 10 | 4 | 412 | 495 |
+| P3 | 81 | 11 | 3 | 146 | 241 |
+| **All** | 154 | 31 | 7 | 789 | 981 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1013,7 +1013,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1238](foundation.md) | P3 | S | M0 | research | open | `pod-core`: no class for `EX_DATAERR` (65), which podssh uses (PodUtils/podssh#352) |
 | [T-1243](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the auth of the fake broker at podrunner `2a55cd9` (port review of `auth.rs`) |
 | [T-1253](podvm.md) | P2 | S | M6 | defect | done | `pod-extract`: the sidecar row of a removed path holds for a directory that an entry below it makes again |
-| [T-1254](podvm.md) | P2 | S | M6 | chore | open | `pod-extract`: a fuzz target of `flatten`, the reader of untrusted layers into one tar stream |
+| [T-1254](podvm.md) | P2 | S | M6 | chore | done | `pod-extract`: a fuzz target of `flatten`, the reader of untrusted layers into one tar stream |
 | [T-1255](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: the umask of the process cuts the mode of a directory that an entry below it makes |
 | [T-1269](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: `flatten` fails with `Unsupported` for a hard link to an inode that no name of the stream holds after a second entry of its path in one layer |
 | [T-1270](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: `flatten` drops the extended attributes of a hard-link entry, which `extract` sets on the inode |
@@ -1027,4 +1027,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1307](podvm.md) | P3 | S | M6 | feature | done | `pod-incus`: a cut `error` envelope has no flag, so a caller reads the words of its text to know that the answer was over `max_body` (PodUtils/podvm#663) |
 | [T-1321](podvm.md) | P3 | S | M6 | measurement | open | `pod-gzip`: measure a C backend of deflate against `miniz_oxide` at four threads |
 | [T-1325](upkeep.md) | P2 | S | M5 | defect | open | `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met its limit of 40 minutes in "Build the probe" |
-| [T-1326](upkeep.md) | P3 | S | M5 | chore | open | Three readers of the fields after the name in `/proc/PID/stat`: `pod-hostprobe`, `pod-supervise` and `pod-enter` |
+| [T-1326](upkeep.md) | P3 | S | M5 | chore | done | Three readers of the fields after the name in `/proc/PID/stat`: `pod-hostprobe`, `pod-supervise` and `pod-enter` |

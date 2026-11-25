@@ -159,6 +159,24 @@ fn a_blob_that_does_not_agree_with_its_digest_breaks_the_stream() {
     assert!(ar.entries().unwrap().any(|e| e.is_err()), "the tar reader takes the broken stream");
 }
 
+/// A blob that ends one byte into the last block of the data of a file:
+/// the block of 0xff after the failure is not where a header goes, so it
+/// must not fill the rest of that data and its padding to a whole block,
+/// or a reader takes the short stream, with a wrong last byte, as whole.
+#[test]
+fn a_file_cut_one_byte_short_breaks_the_stream() {
+    let s = Scratch::new("cut");
+    let mut l = tar(&[E::File("a", &[b'x'; 513], 0o644)]);
+    l.truncate(1024);
+    let layers = plain(s.path(), &[l]);
+    let mut out = Vec::new();
+    let f = flatten(&layers, &mut out, &Options::default()).expect_err("a cut blob fails");
+    assert!(f.chain().contains("1 bytes early"), "{}", f.chain());
+    let mut ar = tar::Archive::new(std::io::Cursor::new(&out));
+    let read = ar.entries().unwrap().try_for_each(|e| std::io::copy(&mut e?, &mut std::io::sink()).map(|_| ()));
+    assert!(read.is_err(), "the tar reader takes the broken stream of {} bytes", out.len());
+}
+
 #[test]
 fn a_deep_tree_and_a_long_name_go_through() {
     let s = Scratch::new("deep");

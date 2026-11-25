@@ -43,6 +43,7 @@
 //! emulator in `/proc/PID/cmdline` in any case.
 
 use pod_core::Class;
+use pod_core::proc_stat::after_name;
 use pod_hostprobe::sys::{self, CBuf};
 
 use crate::ns_pid::Pid;
@@ -83,13 +84,6 @@ impl std::fmt::Display for Refused {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} failed with errno {}", self.call, self.errno)
     }
-}
-
-/// The fields after the command name of a text of `/proc/PID/stat`, field 3
-/// (the state) first. The name is up to the last `)`: it can hold a space
-/// and a `)`.
-fn after_name(stat: &str) -> Option<Vec<&str>> {
-    Some(stat[stat.rfind(')')? + 1..].split_whitespace().collect())
 }
 
 /// Field `n` of `proc(5)` as a number.

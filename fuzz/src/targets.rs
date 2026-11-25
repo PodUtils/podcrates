@@ -15,6 +15,7 @@ mod control;
 mod devtunnel;
 mod e2e;
 mod egress;
+mod flatten;
 mod http1;
 mod job;
 mod link;
@@ -43,6 +44,7 @@ pub use control::control_line;
 pub use devtunnel::devtunnel_connect_info;
 pub use e2e::{e2e_frame, e2e_handover, e2e_proof, e2e_record};
 pub use egress::{iap_message, wisp_packet};
+pub use flatten::flatten_layers;
 pub use http1::http_request;
 #[cfg(test)]
 pub(crate) use link::run_kcp;

@@ -267,6 +267,12 @@ The asks of #259 to the consumers:
   bound and closes is `TooLarge`. A consumer that matches `Incus` with all
   its fields and no `..` adds `cut` (podvm does not).
 
+- T-1254 and T-1326: the fuzz target `flatten_layers`; a fix of `flatten` (a
+  failure inside a file's data could leave a stream that a reader takes as
+  whole; the 0xff block now covers the bytes that the last header owes);
+  `pod_core::proc_stat::after_name` reads the fields after the name of
+  `/proc/PID/stat` for `pod-hostprobe`, `pod-supervise` and `pod-enter`.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask.

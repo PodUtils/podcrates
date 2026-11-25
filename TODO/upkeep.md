@@ -5479,7 +5479,7 @@ macos-15-intel)` with its time; the entry closes with those times.
 **Milestone:** M5
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5513,3 +5513,42 @@ kernel text, a name with `)` and spaces, and the text of qemu-user.
 cargo test -p pod-core -p pod-hostprobe -p pod-supervise -p pod-enter --all-features
 python3 -I scripts/codegraph.py similar proc stat fields
 ```
+
+## Done
+
+2026-11-24, this commit. A move with no change of behaviour.
+
+The change. `pod_core::proc_stat::after_name` (`crates/pod-core/src/proc_stat.rs`):
+the fields after the command name of a text of `/proc/PID/stat`, field 3
+first, the name up to the last `)`, with no check of the count of the
+fields (qemu-user and a kernel before 3.5 write 44, a new kernel 52).
+`pod-core` is a dependency of each user already. The readers take it,
+each with its own field index and refusal text:
+`pod_hostprobe::probes::files::tty_nr` (index 4),
+`pod_supervise::launcher::tree::parent_of` (index 1) and `pod-enter`'s
+`title::map_of` and `title::threads_of` (its own `after_name` is
+removed; `field` keeps the count from field 3). The search
+(`python3 -I scripts/codegraph.py similar proc stat fields` and a search
+of `rfind(')')` and `rsplit_once(')')`) found five more readers in tests,
+which take it too: `crates/pod-hostprobe/tests/host_rows/rows.rs`,
+`crates/pod-enter/tests/userns/pid.rs`, `crates/pod-guest/src/tests.rs`
+(`gone`), `crates/pod-lab/tests/lab/hosts.rs` and
+`crates/pod-lab/tests/lab/hosts_payload.rs`. No other reader of the
+crates splits the text after the name. The patch of the plant
+`hostprobe-tty-nr-field-shifted` has the new body of `tty_nr`.
+
+The tests. The unit test
+`proc_stat::tests::the_fields_start_after_the_last_parenthesis_of_the_name`
+takes a kernel text of 52 fields, a name with a space and a `)`, the text
+of qemu-user of 44 fields (field 20, the threads, is 3), a text with no
+field after the name, and a text with no `)`. `cargo test -p pod-core -p
+pod-hostprobe -p pod-supervise -p pod-enter --all-features`: before the
+change 681 passed, 0 failed in 24 binaries; after it 682 passed (the new
+unit test), 0 failed. `cargo clippy -p pod-core -p pod-hostprobe -p
+pod-supervise -p pod-enter -p pod-guest -p pod-lab --all-targets
+--all-features -- -D warnings` and `cargo fmt --all --check` pass. The
+plant `hostprobe-tty-nr-field-shifted`: with it,
+`probes::files::tests::the_field_tty_nr_follows_the_name_in_parentheses`
+fails (exit 101); without it, it passes. `sh scripts/plant-each.sh
+--apply`: 0 stale. `python3 -I scripts/codegraph.py dups`: no new
+finding.
