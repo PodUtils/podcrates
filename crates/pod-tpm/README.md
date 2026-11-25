@@ -60,6 +60,7 @@ transact(&mut tpm, &cmd::flush_context(primary.handle)?)?.empty()?;
 | `transport::Socket` (`connect_tcp`, `connect_unix`, `from_tcp`, `from_unix`, `with_framing`; feature `device`) | the command channel of swtpm (`--server type=tcp` or `type=unixio`) or of the simulator of the reference; `Framing::Raw` (swtpm's own: the bytes as they are) or `Framing::Mssim` (the prefix `TPM_SEND_COMMAND`, locality 0 and the size; the size of the response, the response, an acknowledgement of 0). The size of a response is checked (10 to 4096) before a byte more is read. The control channel and `TPM2_Startup` are the harness's |
 | `transport::Limits` (`command`) | the time limit of one command, from the write to the last byte (default 30 s, podssh's); past it the transport closes its file or its connection and is broken |
 | `transport::tbs::Tbs` (`open`; feature `tbs`, Windows) | a TBS context of a TPM 2.0 (`Tbsi_Context_Create`, `TBS_CONTEXT_PARAMS2` with `includeTpm20`), `Tbsip_Submit_Command` at locality 0 and the normal priority into a buffer of 4096 bytes, `Tbsip_Context_Close` on drop; the call blocks until the TPM answers |
+| `soft::SoftTpm` (`new`, `extend`, `persist`, `pcr`, `loaded`, `commands`; feature `soft`) | a model of a TPM, not a TPM, as a `Transport`: the fourteen commands with each field of each response and of each session, one PCR bank (SHA-256), keys of ECDSA P-256 from its seed (the same seed is the same TPM), a private part that loads only under its parent in a TPM of the same seed (`TPM_RC_INTEGRITY`), the policies of PCRs and of a policy key with the checks of part 3 (`TPM_RC_POLICY_FAIL`, `TPM_RC_VALUE`, `TPM_RC_SIGNATURE`, `TPM_RC_AUTH_UNAVAILABLE`), three transient objects and three sessions (`TPM_RC_OBJECT_MEMORY`); the code of a TPM for each refusal. Its digests of a policy come from the bytes of the command, not from `policy` |
 | `transport::tbs::{failure, name, TBS_E_*}` (feature `tbs`, each system) | each code of TBS with its name, its words and its class (`Unavailable` for no TPM, a service that does not run and a code that the table does not know; `Permission` for `TBS_E_ACCESS_DENIED`; `TempFail` for a service that starts or too many contexts); the Windows build checks each code against `windows-sys` |
 
 There is no `Unseal`, no template of a data object and no Ed25519 key
@@ -86,9 +87,9 @@ global, prints nothing and starts no thread.
 | --- | --- |
 | `device` | `transport::Device` (Unix, with poll(2) of `libc`) and `transport::Socket` (std alone) |
 | `tbs` | `transport::tbs::Tbs` on Windows (`windows-sys`: raw-dylib imports of `tbs.dll`, a DLL of the system); the map of the codes of TBS on each system |
+| `soft` | `soft::SoftTpm`, a TPM in software for the tests of this crate and of a consumer (`p256`, pure Rust): a consumer turns it on in `[dev-dependencies]` alone |
 
-`soft` (a TPM in software) and `fuzzing` come with T-1222. The default
-build is the codec alone.
+The default build is the codec alone.
 
 ## Adoption map (podssh)
 
@@ -107,7 +108,8 @@ build is the codec alone.
 | `keyfile.rs`: `KeyFile` (`policy: Vec<(u32, Vec<u8>)>`, `auth_policies`), `AuthPolicy`, `to_der`, `to_pem`, `from_der`, `from_pem`, `is_pem`, `MAX_FILE` (64 KiB) | `keyfile::KeyFile` (`kind`, `policy: Policy`, `auth_policy`), `AuthPolicy` (`policy: Policy`), the same functions, which return `Error`; `to_der` and `to_pem` check the bounds first; `MAX_DER` (16 KiB) and `MAX_PEM` (24 KiB). A sealed key, an importable key and a volatile parent are refused by name; an unknown optional field is refused, not passed over |
 | `flow.rs`: `Transport::transact`, `run`, `flush`, `manufacturer`, `read_pcrs`, `make`, `create_sealed`, `trial_digest`, `start_session`, `load`, `sign`, `sign_in`, `run_step`, `Unmet`, `refused` | `Transport::submit`, `transact`, `flow::flush` and the guard `flow::Handle`, `pcr::capabilities`, `pcr::pcr_read` (each bank), `pcr::policy_pcr_now` with `create_signing` (the parent is an argument: `0x40000001` or `0x81000001`), `flow::trial_digest` (a whole `Policy`), `flow::session`, `flow::load`, `sign::sign` (a loaded key in, `EcdsaSignature` out), `Error::Step` with the class `Policy` |
 | `flow_signed.rs`: `make`, `add_policy`, `head`, `sign`, `attempt`, `take_signed`, `summary` | `create_signing` of a `Policy` of one `TPM2_PolicyAuthorize`, then `sign::add_signed_policy` of the caller's signed policy (podssh's `PolicyKey` signs `policy::approved_policy_hash`); `sign::sign` |
-| `flow_tests.rs`, `signed_tests.rs` | `tests/flow.rs` with the fake TPM `tests/common/fake.rs`; the tests that need `soft.rs` or podssh's keygen wait for T-1222 |
+| `flow_tests.rs`, `signed_tests.rs` | `tests/flow.rs` with the fake TPM `tests/common/fake.rs`; `a_signer_that_ignores_the_policy_is_refused` and `a_ticket_of_nothing_is_refused_outside_a_trial` in `tests/soft.rs`, `tests/swtpm.rs` and `tests/mssim.rs` (`tests/common/proof.rs`) |
+| `soft.rs`: `SoftTpm` (`new`, `extend`, `loaded`, `messages`, `sent`) | `soft::SoftTpm` (feature `soft`): `new` takes a seed, `extend`, `loaded`, `commands`, `persist`, `pcr`; it signs the digest itself (`p256`, no list of messages, no aws-lc-rs) and gives each field of each response |
 | `unix.rs`: `open`, `Device` (`transact`), `Socket` (`transact`), `wait`, `whole`; `COMMAND_LIMIT` of `mod.rs` | `transport::Device::open` and `transport::Socket::connect_unix` (the caller chooses the one of its path); one deadline for each command (`Limits::command`), not a time limit for each read; a response of at most 4096 bytes whose size field equals the bytes of the read (podssh read 8192 and did not check the size field); after a failure the transport is closed |
 | `unix.rs`: `Place`, `find`, `find_in` | stay in podssh: the probe of `/dev/tpmrm0` and `/dev/tpm0` with `PODSSH_TPM_DEVICE` (the crate reads no variable and chooses no path) |
 | `other.rs` | `transport::tbs::Tbs`: the TBS of Windows in the place of the refusal |
@@ -116,7 +118,7 @@ build is the codec alone.
 
 podssh keeps `mod.rs` (the probe, `PODSSH_TPM_DEVICE`, the SSH forms),
 `signer.rs` and its `PolicyKey` (p256 signs off the TPM). The patch
-adoption/podssh/pod-tpm.patch comes with the last entry of the crate.
+adoption/podssh/pod-tpm.patch is the trial of the adoption.
 
 ## Tests
 
@@ -158,10 +160,25 @@ and a late response, the close on drop, a missing, a refused and a wrong
 file; the device of this host when it has one (else a skip with its
 reason). `tests/tbs.rs` (feature `tbs`): the class, the name and the
 number of each code of TBS on each host; the TBS of this host on
-Windows. The
-digest that swtpm gives is the proof of T-1222. The plants
+Windows. The proof against a TPM, `tests/common/proof.rs`, runs against
+three TPMs: `tests/soft.rs` (feature `soft`), `tests/swtpm.rs` (swtpm on
+a Unix socket of the test, `Framing::Raw`) and `tests/mssim.rs` (the
+simulator of `ms-tpm-20-ref` on 127.0.0.1, `Framing::Mssim`): a key
+sealed to PCR 7 signs and `p256` verifies the signature, and after
+`TPM2_PCR_Extend` it is refused; a key under a policy key signs again
+after a signed policy of the new state; a copy does not load in a
+second TPM; the password session and the ticket of nothing are refused
+by the TPM; the digests of `policy` are the TPM's (a trial session); no
+handle stays (`TPM2_GetCapability` of the handles); the time of
+`TPM2_CreatePrimary`. Each test of swtpm and of the simulator skips with
+its reason on a host with none (`tests/sim/mod.rs`);
+`scripts/ci/tpm-tests.sh` runs them in `ci.yml` and fails on a skip.
+`tests/soft.rs` also holds the model: each field of a response, the same
+seed as the same TPM, a persistent parent, the refusals of a TPM. The plants
 `tpm-response-over-the-frame-bound`, `tpm-keyfile-trailing-bytes`,
 `tpm-flow-external-key-not-flushed` and
 `tpm-socket-response-over-the-bound` take away the bound of the frame, the
 check of the bytes after a key file, the guard of the policy key and the
-bound of the read of the socket transport.
+bound of the read of the socket transport; `tpm-soft-primary-without-its-name`
+takes the name out of the response of `TPM2_CreatePrimary` of the TPM in
+software.

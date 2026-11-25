@@ -1,0 +1,12 @@
+diff --git a/crates/pod-tpm/src/soft/object.rs b/crates/pod-tpm/src/soft/object.rs
+index 975d0c7e..bdd33be6 100644
+--- a/crates/pod-tpm/src/soft/object.rs
++++ b/crates/pod-tpm/src/soft/object.rs
+@@ -131,7 +131,6 @@ impl SoftTpm {
+         let mut out = Out::default();
+         out.sized(&area);
+         self.creation(&mut out, &t, (ALG_NULL, &hierarchy.to_be_bytes()), hierarchy, &name)?;
+-        out.sized(&name);
+         let handle = self.place(Object::Storage { name, secret, hierarchy })?;
+         Ok((vec![handle], bytes(out)))
+     }

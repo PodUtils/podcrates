@@ -16,6 +16,11 @@ device = ["dep:libc"]
 # the raw-dylib imports of windows-sys: no import library). On another
 # system the feature holds the map of the codes of TBS alone.
 tbs = ["dep:windows-sys"]
+# A TPM in software (`soft::SoftTpm`) for the tests of this crate and of a
+# consumer: the fourteen commands with each field of each response, its
+# keys of ECDSA P-256 in pure Rust (p256). A consumer turns it on in
+# [dev-dependencies] alone; no binary carries it.
+soft = ["dep:p256"]
 
 [dependencies]
 # The typed failure and its class. No tokio and no C: the codec is bytes in
@@ -27,6 +32,9 @@ sha2 = { workspace = true }
 base64 = { workspace = true }
 # A flush that failed on the drop of a guard of a handle: a diagnostic.
 tracing = { workspace = true }
+# The keys of the TPM in software (feature `soft`): ECDSA P-256 in pure
+# Rust, no C.
+p256 = { workspace = true, optional = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = { version = "0.2", optional = true }
@@ -39,6 +47,9 @@ windows-sys = { version = "0.61", optional = true, features = ["Win32_Foundation
 [dev-dependencies]
 # The guards of a test host and the socket directory of a test.
 pod-testkit = { workspace = true }
+# The check of a signature of a TPM, and the policy key of a test, which
+# signs a boot state off the TPM.
+p256 = { workspace = true }
 
 [target.'cfg(unix)'.dev-dependencies]
 # mkfifo(3) of the FIFO that takes the place of a device.

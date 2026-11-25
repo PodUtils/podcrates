@@ -215,6 +215,17 @@ jobs:
       # the step.
       - name: pod-dns against CoreDNS
         run: sh scripts/ci/coredns-tests.sh
+      # The proof of pod-tpm against swtpm and against the simulator of the
+      # reference on 127.0.0.1 (T-1222): swtpm and libtpms of Ubuntu 24.04,
+      # each pinned by its version and SHA-256 (scripts/ci/swtpm.sh), and
+      # microsoft/ms-tpm-20-ref built from the commit of its tag v1.83r1,
+      # bound to 127.0.0.1. A skip fails the step; the step prints the time
+      # of TPM2_CreatePrimary on each.
+      - name: pod-tpm against swtpm and ms-tpm-20-ref
+        run: |
+          sh scripts/retry.sh sudo apt-get update
+          sh scripts/retry.sh sudo apt-get install -y --no-install-recommends autoconf-archive libssl-dev
+          sh scripts/ci/tpm-tests.sh
       # The client of pod-oci against the CNCF distribution registry on
       # 127.0.0.1 (T-353): the release of distribution 3.1.2, checked by its
       # SHA-256; htpasswd and token auth, an index of two platforms that the

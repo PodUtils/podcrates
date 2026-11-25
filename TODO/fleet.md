@@ -8979,7 +8979,7 @@ python3 -I scripts/check-probe.py
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9006,4 +9006,86 @@ The issue says: against swtpm a key sealed to PCR 7 verifies with OpenSSH's `ssh
 cargo test -p pod-tpm --all-features
 sh scripts/ci/tpm-tests.sh
 cargo clippy -p pod-tpm --all-targets --all-features -- -D warnings
+```
+
+## Done
+
+2026-11-24, this commit (calls C927, C931 and C151). The module `soft` of `crates/pod-tpm` (feature `soft`: `soft.rs`, `soft/object.rs`, `soft/session.rs`), the proof of the crate against three TPMs (`tests/common/proof.rs`, `tests/soft.rs`, `tests/swtpm.rs`, `tests/mssim.rs`, the harness `tests/sim/mod.rs`), the lane `scripts/ci/swtpm.sh` and `scripts/ci/tpm-tests.sh` (a step of the job `test` of `ci.yml`), and the trial `adoption/podssh/pod-tpm.patch`, `.run` and `.commit`. `p256` of the workspace is the one new dependency of the crate (optional, feature `soft`; a dev-dependency too); no new crate in the lock.
+
+- `soft::SoftTpm` (`new(seed)`, `extend`, `persist`, `pcr`, `loaded`, `commands`): a model, not a TPM, as a `Transport`. It reads the frame (`TPM_RC_COMMAND_SIZE`, `TPM_RC_COMMAND_CODE`, `TPM_RC_AUTH_MISSING`, `TPM_RC_AUTH_CONTEXT`, `TPM_RC_SIZE` for a byte after the parameters, `TPM_RC_REFERENCE_H0` and `TPM_RC_HANDLE` for a handle that is not there), the authorization area (the empty password; a key with no `userWithAuth` gives `TPM_RC_AUTH_UNAVAILABLE`; a policy session whose digest is not the key's `authPolicy` gives `TPM_RC_POLICY_FAIL` of session 1), and answers the fourteen commands with each field of part 3: `TPM2_CreatePrimary` gives the public area with its point, the creation data, its hash, the creation ticket and the name; `TPM2_Create` the private part, the public area and the three fields of the creation; each response of a command with sessions gives one answer of each session. Its keys of ECDSA P-256 come from the seed (the same seed is the same TPM, so a consumer can keep a key file as a vector); a private part carries a check keyed by the secret of its parent (`TPM_RC_INTEGRITY` in another TPM); the digests of PolicyPCR and of PolicyAuthorize are computed from the bytes of the command, by part 3 (23.7, 23.16), not by `policy`, so the model checks the crate; `TPM2_VerifySignature` checks ECDSA by `p256` and gives a ticket keyed by the seed (a NULL ticket for the NULL hierarchy); `TPM2_PolicyAuthorize` outside a trial refuses another digest (`TPM_RC_VALUE` of parameter 1) and a ticket that it did not make (`TPM_RC_VALUE` of parameter 4); one bank (SHA-256), three transient objects and three sessions (`TPM_RC_OBJECT_MEMORY`, `TPM_RC_SESSION_MEMORY`). No NV, no HMAC session, no salt, no lockout.
+- From podssh: `soft.rs` at `de67da8`. `crates/pod-tpm/SOURCES` moves it from a `skip` line to a `file` line (blob `bd7bb566`, to `src/soft.rs`, `src/soft/object.rs` and `src/soft/session.rs`); `python3 -I scripts/check-sources.py --clone ...`: 16 files of podssh and 1 of go-tpm-keyfiles, 0 changes. Differences from podssh's: the response of each command is whole (podssh's gave no parameter for `TPM2_CreatePrimary` and no creation data or ticket for `TPM2_Create`); `p256` signs the digest itself, so no list of the messages of a test and no aws-lc-rs (C); a seed of the caller in place of a random one; the refusals and the limits of a TPM; the digests from the bytes of the command, not from the crate's functions. podssh's tests that waited for it keep their names: `a_signer_that_ignores_the_policy_is_refused` and `a_ticket_of_nothing_is_refused_outside_a_trial`.
+- The proof (`tests/common/proof.rs`), the same checks against each TPM, each check a line that starts with the name of the TPM: a key sealed to PCR 7 signs and `p256` verifies the signature (and refuses it for other data); the trial digest of the TPM equals `Policy::digest` for PolicyPCR and for PolicyAuthorize (the vectors of T-1218 against a TPM); after `TPM2_PCR_Extend` of PCR 7 the key is refused with the class `Policy` ("the PCRs sha256:7 hold other values"), and a new trial reaches another digest; a key under a policy key signs in the signed boot state, is refused after `TPM2_PCR_Extend` ("no signed policy for this boot state"), and signs again after a signed policy of the new state, which the test signs off the TPM with `p256`; a copy of the key file does not load in a second TPM ("this TPM cannot load the key", class `Policy`); the password session on the key is `TPM_RC_AUTH_UNAVAILABLE`; the ticket of nothing outside a trial is `TPM_RC_VALUE` of parameter 4; a policy of other PCRs is refused before `TPM2_Sign`; no transient object and no session stays (`TPM2_GetCapability` of the handles of `0x80`, `0x02` and `0x03`); the capabilities name the TPM. The template of the key has no Ed25519 (`EccPublic::read` of each key that a TPM made: ECC P-256).
+- The lane. swtpm and libtpms publish no binary and no image (T-1222, Premise; no image on GHCR for `ms-tpm-20-ref` either: forge.web.pkgforge.dev, `ghcr/microsoft/ms-tpm-20-ref`: "GHCR holds no repository"). The choice: the packages of the runner's own system, Ubuntu 24.04, pinned by version and SHA-256 (`scripts/ci/swtpm.sh`: `swtpm` 0.7.3-0ubuntu5, SHA-256 `00f017ff...`, and `libtpms0` 0.9.3-0ubuntu4, SHA-256 `8095fd5f...`, the versions of the release of noble, which stay in its index where a version of noble-updates can go; `apt-get download`, `sha256sum -c`, `apt-get install` of the two files), not a Dockerfile that builds swtpm: no precedent builds an image, and the packages need no daemon of docker. A consumer can call `scripts/ci/swtpm.sh` (podssh, for its check with OpenSSH). The simulator of the reference: `microsoft/ms-tpm-20-ref` at `ee21db0a` (the commit of its tag v1.83r1), fetched by its commit and checked, its `TcpServer.c` changed to bind 127.0.0.1 (its source binds each address; the script fails when the change does not apply, and `pod_testkit::listener::start` takes a listener of 127.0.0.1 alone), built with autotools: 17 s here (the Approach takes it under 10 minutes), 11 s in the second run. `scripts/ci/tpm-tests.sh` runs `tests/swtpm.rs`, `tests/mssim.rs` and `tests/soft.rs` with `POD_TPM_TEST_SWTPM=required` and `POD_TPM_TEST_MSSIM=required` (a skip fails), and fails when the run does not say each line of the proof for each TPM. Each test starts its own TPM, with a state of its own: swtpm on a Unix socket of the test (`--flags not-need-init,startup-clear`, so no control channel), the simulator on a free port of 127.0.0.1 (`TPM_SIGNAL_POWER_ON`, `TPM_SIGNAL_NV_ON` and `TPM2_Startup` by the harness); `transport::Socket` with `Framing::Raw` and `Framing::Mssim`. A host with neither skips each test with its reason ("skipping, this host has no swtpm ..."). The whole script ran here, on Ubuntu 24.04 (the packages installed from the pins): each line for each TPM; 7, 7 and 10 tests passed.
+- The measure: `TPM2_CreatePrimary` of the storage primary H-2 (P-256) took 2.584 ms and 0.288 ms on swtpm 0.7.3 and 43.969 ms and 43.984 ms on the simulator of the reference, in the limit of 30 s of `Limits::default`: it fits, and the default stays (the test `the_storage_primary_fits_the_time_limit` asks for a tenth of the limit, and the run prints the time). The value of a TPM of hardware is not measured (no runner has one).
+- `docs/live-calls.md`: the row L59, infrastructure (the two packages and the fetch of the source of the simulator). The tests of the swtpm and of the simulator reach no other host: each TPM runs on a Unix socket of the test or on 127.0.0.1 (call C151). The device test and the TBS test of T-1221 reach no host either: each skips with its reason where the host has no TPM, so they need no row.
+- The trial of the adoption, `adoption/podssh/pod-tpm.patch` at podssh's main `3001570a` (`pod-tpm.commit`): the module `tpm` of podssh's `podssh-ssh` becomes `mod.rs` (the same functions over `pod_tpm::flow`: `probe`, `make`, `make_with`, `add_policy`, `signed_pcrs`, `takes_signed_policies`, `sign_blob`, `sign_on`, `sign_with`, `check`, `public_key`, `is_key_file`, `read_key_file`, `testing`; `Pcrs` is `PcrSelection`, `KeyFile` and `AuthPolicy` are the crate's), `unix.rs` (`Place`, `find`, `find_in` and `PODSSH_TPM_DEVICE` stay; the open is `Device::open` or `Socket::connect_unix` with `Limits::default`), `other.rs` (the TBS of Windows), `ssh.rs` (the SSH forms of the public key and of the signature), `policy_key.rs` (the Ed25519 refusal and the `p256` signature of `PolicyKey`), `signer.rs` (unchanged) and `tests.rs` (`a_host_with_no_tpm_says_so`, the Ed25519 part of `a_policy_key_must_be_p256_and_the_key_must_take_signed_policies`, and the glue against the TPM in software); twelve files and their tests leave podssh; each podcrates tag moves to v0.84.0; `keygen_tpm.rs` follows (`to_string`, `auth_policy`, a `to_pem` that can fail); the tests of podssh against swtpm follow the words of the crate ("the PCRs sha256:7 hold other values", "no signed policy for this boot state"). The trial built here against this tree (each podcrates manifest pointed to it, as `scripts/adoption.sh` does): `cargo test -p podssh-ssh --lib tpm` (4 passed), `cargo test -p podssh-ssh --test tpm_key -- --ignored` against swtpm (2 passed), `cargo test -p podssh-cli --test keygen_tpm` (5 passed) and its ignored test against swtpm (1 passed), `cargo test -p podssh-cli --lib keygen_tpm` (1 passed), clippy of podssh-ssh and podssh-cli with `-D warnings`, `cargo fmt --check`, `podssh-todo check` ("the record agrees", after the citations of its T-839 name `pod-tpm`), podssh's `check-repo.py`, `cargo build`, `check-consumer-toolchains.py` (0 below 1.99) and `check-consumer-tests.py` (17 targets): each passed. Not run here: cargo-deny (not on this host), the build for musl with zig and podssh's static check of it, and the login to OpenSSH's sshd (`a_sealed_key_logs_in_to_openssh_and_again_after_a_signed_policy`, which needs sshd): the job `adoption` must show the first two.
+- Tests (written first): `tests/soft.rs` (10), `tests/swtpm.rs` (7) and `tests/mssim.rs` (7). Against a stub of `SoftTpm` that answers each command with its handles and no parameter, as podssh's `soft.rs` answers `TPM2_CreatePrimary`, the 10 tests of `tests/soft.rs` failed, each at a strict reader of the crate or at a check of the model: `called Result::unwrap() on an Err value: Malformed("1 bytes were due and 0 are left")` (the PCRs and the capabilities), `Malformed("4 bytes were due and 0 are left")` (`TPM2_CreatePrimary` and `TPM2_Create`), `Malformed("2 bytes were due and 0 are left")` (a trial digest), `left: 32769` (the tag of a response with sessions) and `not a refusal of the TPM: Ok(Reply { handles: [], params: [] })`. Then `cargo test -p pod-tpm --all-features`: each test passed (with swtpm on this host, `tests/swtpm.rs` ran; `tests/mssim.rs` skipped with its reason).
+- The plant `scripts/plants/tpm-soft-primary-without-its-name.plant` takes the name, the last field, out of the response of `TPM2_CreatePrimary` of the model: `a_sealed_key_signs_while_the_boot_state_is_the_recorded_one` fails with it (`called Result::unwrap() on an Err value: Malformed("2 bytes were due and 0 are left")`, at the read of the name in `Primary::read`) and passes without it.
+- Checks: `cargo clippy -p pod-tpm --all-targets --all-features -- -D warnings` (and with no feature), `cargo test -p pod-tpm --all-features` (each test passed; `tests/soft.rs` 10, `tests/swtpm.rs` 7 against swtpm, `tests/mssim.rs` 7 skipped with their reason), `cargo doc -p pod-tpm --no-deps --all-features` with `RUSTDOCFLAGS="-D warnings"`, `cargo fmt --all --check`, `cargo clippy -p static-probe -- -D warnings`, `python3 -I scripts/check-probe.py --no-tree` (66 crates, 0 faults; `soft` in ALLOWED, as `s3-standin` is), `python3 scripts/check-workflows.py` (20 files, 0 faults), `sh scripts/plant-each.sh --apply` (0 stale), `python3 -I scripts/check-size.py`, `check-loopback.py`, `check-history.py`, `check-design-paths.py`, `python3 -I scripts/codegraph.py new --base main` (0 clones or twins), `codegraph.py dups` (no new finding), `sh scripts/agent/check-windows.sh` (0 faults; `tests/swtpm.rs`, `tests/mssim.rs` and `tests/sim/mod.rs` are of Unix alone), `sh scripts/ci/tpm-tests.sh` (as above).
+- New entries: T-1339 (the fuzz targets of the readers and a plant for each bound: the Approach, step 4) and T-1340 (a key file of the crate in tpm2-openssl and in go-tpm-keyfiles against swtpm: the Approach, step 3, the last item).
+- For the hand-off: `pod_tpm::soft::SoftTpm` (feature `soft`, for `[dev-dependencies]`), `scripts/ci/swtpm.sh` for a consumer's test against swtpm, and the adoption map of `soft.rs` and of the tests in the README. podssh takes `pod-tpm` at the next tag by the adoption map and `adoption/podssh/pod-tpm.patch`: its module keeps `Place`, `find`, `find_in`, `PODSSH_TPM_DEVICE`, the SSH form of the signature, the Ed25519 refusal of `PolicyKey` and the signer; its `soft.rs` and its codec leave.
+
+# T-1339: `pod-tpm`: the fuzz targets of the response reader and of the key file reader, and a plant for each bound of T-1217 and T-1219
+
+**Source:** T-1222, Approach, step 4 (PodUtils/podssh#351, COORD-141 of podssh); the Done sections of T-1217 and T-1219 name these fuzz targets as the work of T-1222.
+**Category:** chore
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The response of a TPM and a key file `TSS2 PRIVATE KEY` are untrusted input: a TPM is a device that a person or a VM controls, and a key file is on a disk that other users can change. The tests of T-1217 and T-1219 change each byte of some good inputs, but no fuzz target runs the readers, and each bound has no plant of its own: the plants of the crate are the bound of the frame (T-1217), the trailing bytes of a key file (T-1219), the guard of the policy key (T-1220) and the bound of the socket (T-1221). T-1222 made the TPM in software and the lane against swtpm; it did not make the fuzz targets.
+
+## Premise
+
+- Read: `fuzz/fuzz_targets/` (one file for each target, the feature `fuzzing` of each crate that has one, `fuzz/seeds/`), and the ALLOWED rows of `scripts/check-probe.py` for a feature `fuzzing`.
+- Read: the bounds of the readers: `wire::response` (10 to `MAX_RESPONSE`, the size field), `In::sized_max`, `In::count`, `PcrSelection::read` (16 banks, 4 octets), `PcrValues::read` (8 values), `Capability::read`, `EccPublic::read`, `KeyFile::from_der` and `from_pem` (`MAX_DER`, `MAX_PEM`, `MAX_PART`, `MAX_STATEMENTS`, `MAX_AUTH_POLICIES`, `MAX_BODY`, `MAX_TEXT`).
+- Not measured: the time of a run of each target in `fuzz.yml`.
+
+## Approach
+
+1. A feature `fuzzing` of `pod-tpm` (no code of its own when the readers are public; else the entry points of the targets), and its ALLOWED row of `scripts/check-probe.py`.
+2. Two targets: `tpm_response` (the frame, then the reader of each of the fourteen commands on the parameters) and `tpm_keyfile` (`KeyFile::read` of the bytes, and `from_pem` of the text). A file that reads must write back to the same bytes (DER) and read again to the same value. Seeds: the responses of the TPM in software of T-1222 and the vectors of `tests/testdata/`.
+3. A plant for each bound above that no plant holds now, each caught by a test of `tests/frame.rs`, `tests/policy.rs`, `tests/commands.rs` or `tests/keyfile_bounds.rs` (`scripts/plants/`).
+
+## Prove
+
+```sh
+cargo test -p pod-tpm --all-features
+sh scripts/plant-each.sh --apply
+python3 -I scripts/check-probe.py --no-tree
+```
+
+# T-1340: `pod-tpm`: a key file that the crate writes loads and signs in tpm2-openssl and in go-tpm-keyfiles against swtpm
+
+**Source:** T-1222, Approach, step 3, the last item (PodUtils/podssh#351, COORD-141 of podssh: the key file "as openssl_tpm2_engine and go-tpm-keyfiles write it"); the Done sections of T-1219 and T-1222.
+**Category:** measurement
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The key file `TSS2 PRIVATE KEY` is the format that other tools read, so a key file of one tool loads in another. T-1219 reads the files of go-tpm-keyfiles back to the same bytes, but no tool of another party loaded a file that this crate wrote. T-1222 made the lane against swtpm (`scripts/ci/swtpm.sh`, `scripts/ci/tpm-tests.sh`), where such a check can run, and did not run one.
+
+## Premise
+
+- Read: T-1219, Premise: tpm2-tss-engine's template has no `policy` field, so a file with a policy may not load in that engine (not measured); `tpm2-software/tpm2-openssl:docs/keys.md` says that its provider reads and writes the same PEM.
+- Not read: whether tpm2-openssl runs the `policy` of a key file (PolicyPCR, PolicyAuthorize with `authPolicy`), and the package of tpm2-openssl and of the TCTI of swtpm (`libtss2-tcti-swtpm0`) of Ubuntu 24.04, with their versions. Not read: whether go-tpm-keyfiles (`foxboron/go-tpm-keyfiles`, MIT) signs with a key under a policy, and with which Go.
+- Not measured: either tool against swtpm.
+
+## Approach
+
+1. Read the two tools for the policies that they run; write which of the keys of the crate (PolicyPCR, signed policies) each one can load.
+2. In `scripts/ci/tpm-tests.sh` (or a script beside it): a key file that a test of `pod-tpm` writes for swtpm loads and signs in tpm2-openssl (`openssl pkeyutl -provider tpm2` with the TCTI of swtpm on the socket of the test) and in a small Go program of go-tpm-keyfiles at a pinned commit; `p256` verifies each signature. A tool that cannot run a policy of the crate is a named skip with its reason, and the record says it.
+3. Each package and each source pinned by version and SHA-256 or by commit, as `scripts/ci/swtpm.sh` pins swtpm; a row of `docs/live-calls.md` for each download.
+
+## Prove
+
+```sh
+sh scripts/ci/tpm-tests.sh
+python3 scripts/check-workflows.py
 ```

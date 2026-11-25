@@ -273,6 +273,14 @@ The asks of #259 to the consumers:
   `pod_core::proc_stat::after_name` reads the fields after the name of
   `/proc/PID/stat` for `pod-hostprobe`, `pod-supervise` and `pod-enter`.
 
+- T-1222 (`pod-tpm`, the last entry of the crate): `soft::SoftTpm` (feature
+  `soft`, for `[dev-dependencies]`), the shared proof against the soft TPM,
+  swtpm and the reference simulator, the CI lane (`scripts/ci/swtpm.sh`,
+  `scripts/ci/tpm-tests.sh`), and the adoption trial
+  `adoption/podssh/pod-tpm.patch`: podssh takes `pod-tpm` at the next tag and
+  keeps its glue (`Place`, `find`, the SSH forms, the Ed25519 `PolicyKey`).
+  New entries T-1339 and T-1340.
+
 ### What the next hand-off carries
 
 - podrunner: no open ask.
