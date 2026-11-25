@@ -34,6 +34,10 @@ is done. Git and the record keep finished work.
      PodUtils/podnet#710 (COORD-118, T-1117, T-1118 and T-1209),
      PodUtils/podrunner#351 (COORD-129, T-1355) and PodUtils/podvm#663
      (COORD-247, T-1143, T-1158 and T-1307).
+   - A take of `v0.84.0`, to verify: PodUtils/podrunner#356 (COORD-134; it
+     answers #352 and #353, and it asks nothing). The change of
+     `docs/contracts/source-driver.md` that `check-sources.py` finds in
+     podrunner after `4fc871c` is T-1375.
    - Other mapped asks: PodUtils/podssh#350 (COORD-140, T-1191 and T-1192);
      PodUtils/podvm#659 (COORD-243, T-1205); PodUtils/podnet#709
      (COORD-117, T-1209); PodUtils/podvm#661 (COORD-245, T-1213).
@@ -148,8 +152,17 @@ feature `transfer`) and its version 2 is in `v0.84.0`; it closes when
 podssh names the commit that wires the codec into its session (its
 T-831).
 
-Takes of `v0.84.0`: none. The body of #260 has one "- CONSUMER" line for each of the four
-consumers; the line changes at each take.
+Takes of `v0.84.0`: none verified. The body of #260 has one "- CONSUMER"
+line for each of the four consumers; the line changes at each verified
+take. podrunner: PodUtils/podrunner#356 (COORD-134) names the take at
+`72cd0ab` (T-1362 at `3391edc`, T-1370 at `f2716a1`), but `origin/main` of
+podrunner holds none of these three commits (its head is `f6a9a940`, and
+each `Cargo.toml` there names `v0.83.0`). The line of podrunner in #260
+stays "not yet" until `git cat-file -t 72cd0ab` finds the commit and each
+`Cargo.toml` of podrunner at it names `tag = "v0.84.0"` and no other tag.
+Then write the line as the take lines of #259 (the commit, #356, COORD-134)
+and run `check-sources.py` for `pod-testkit`, `pod-job`, `pod-unit`,
+`pod-time`, `pod-actions-results` and `pod-actions-store`.
 
 The asks that #260 answers:
 
@@ -186,7 +199,8 @@ The asks that #260 answers:
 ### What the next hand-off carries
 
 - The takes of `v0.84.0` (#260): podssh, podvm, podnet and podrunner.
-- podrunner: no open ask besides the take.
+- podrunner: no open ask besides the take. T-1375 (a port of
+  `source-driver.md` for `pod-testkit`) is open.
 - podvm: T-1321 (a C backend of deflate for `pod-gzip`, measured).
 - podnet: T-1343 is partial (the moves of the other crates of step 2 and
   step 3 follow); T-1351 (failures whose text holds the words of a typed

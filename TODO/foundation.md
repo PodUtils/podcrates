@@ -3900,3 +3900,72 @@ suite and the contract is at `4fc871c` (blob `753c871` of
 reason in its comment. `check-sources.py` with clones of podrunner
 (`83fb84c`) and podnet: "PodUtils/podrunner at 4fc871c: 2 files, 0
 changes"; the other blocks of `pod-testkit` show 0 changes.
+
+# T-1375: `pod-testkit`: the contract of the source and the driver after podrunner `4fc871c` (the fifth port of `source-driver.md`)
+
+**Source:** `scripts/check-sources.py` against the clone of podrunner at `f6a9a940` (the head of `main`, while the take of `v0.84.0`, PodUtils/podrunner#356, was read).
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+After T-1355, podrunner changed one imported file of `pod-testkit`:
+
+```text
+pod-testkit: changed PodUtils/podrunner:docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+check-sources: pod-testkit: PodUtils/podrunner at 4fc871c: 2 files, 1 changes
+```
+
+Six commits of 2026-11-25 (`8199cb2c`, `6e4f876b`, `4fdad0c0`, `c6566972`,
+`caaaa2d7`, `f6a9a940`) add four rules to the contract:
+
+- A file of a `credential` has a plain name: 1 to 64 bytes, not `.` or `..`,
+  and no `/`, `\`, space, control byte or DEL. The mint refuses a credential
+  with no files or with another name (`credential-unavailable`).
+- A job with a `rw` cache ends with the code `cache-mismatch`. A job with a
+  `ro` cache keeps it only when the event of the hook is the event of the
+  facts of `assigned`, the hook names no head of a fork, and the facts give
+  the same scope.
+- The facts of `keep` give the `ref`, the `repo_id` and the event of the real
+  job. A source that does not know one gives it empty, never the value of
+  the offer.
+- podrunner moves a unit from `started` to `running` at the first of three
+  marks, and a `started` event that names another runner ends the unit
+  (`job-mismatch`). A job of the run of the offer gets a mark and no
+  question.
+
+## Premise
+
+- Read: `git diff 4fc871c f6a9a940 -- docs/contracts/source-driver.md` of
+  podrunner; `crates/pod-testkit/src/githome/offer.rs` (`assigned`,
+  `fork_fact`), `crates/pod-testkit/src/githome/wire.rs` (the mint),
+  `crates/pod-testkit/SOURCES`.
+- Not read: whether the fake githome must change for the second and third
+  rule (its `assigned` gives the fork fact of the real job alone, T-1160;
+  the cache facts are new). The mint of the fake gives fixed file names.
+- The take of `v0.84.0` of podrunner (PodUtils/podrunner#356) names the
+  commits `72cd0ab`, `3391edc` and `f2716a1`, which the remote of podrunner
+  did not hold when this entry was written. The change above is on `main`
+  of podrunner, before them. Read the diff of those commits when they are
+  on `main`.
+
+## Approach
+
+1. Compare each rule with what the fake githome must do. A rule of the
+   measure or of the runner (the marks, the move to `running`) is no port.
+2. Port the rules that the wire of the fake must follow: the facts `ref`,
+   `repo_id` and event of `assigned`, and the names of the files of the mint
+   (the fake gives fixed names; add a test of each refused name if the fake
+   checks a credential of its own).
+3. Move the block of the contract to the commit of the port, with the blobs
+   of `git ls-tree`, and say why in its comment.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podrunner=PODRUNNER --clone PodUtils/podnet=PODNET pod-testkit
+cargo test -p pod-testkit --all-features
+```
