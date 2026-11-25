@@ -464,10 +464,10 @@ fourth argument of the script names the list when it is elsewhere.
 * Each version bump makes a new copy of each workspace crate in
   `target/debug`. Before the check of a bump, remove `target/debug` when
   `df -h /` shows less than 25 GB free. A full check needs 22 GB free.
-* Delegate the work by the ruling "Delegation" (`docs/decisions.md`): Opus
-  agents at medium or high effort implement the entries; Sonnet agents at
-  high effort do housekeeping, recon and basic fixes. The session
-  coordinates and reviews.
+* Delegate the work by the ruling "Hosted sessions and worker roles"
+  (`docs/decisions.md`): the role table of podvm gives the model and the
+  effort of each role in each harness, until T-1385 brings it here. The
+  session coordinates and reviews.
 * The usage limit can stop an agent in the middle of a build. Tell each
   agent to commit early on its local branch, so that no work is lost.
 * While agents build, run the full check and each agent build with

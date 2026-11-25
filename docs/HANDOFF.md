@@ -31,6 +31,10 @@ is done. Git and the record keep finished work.
      PodUtils/podssh#356 (COORD-146, T-1371), PodUtils/podrunner#352
      (COORD-130, T-1362) and PodUtils/podrunner#353 (COORD-131, T-1370).
      PodUtils/podvm#657 (COORD-241, T-1193 to T-1196) is in the tag too.
+   - First of all: T-1385 (the ruling "Hosted sessions and worker roles",
+     Q23): read the latest commits of the agent tooling of podrunner,
+     podssh, podnet and podvm, and take each improvement; T-1374 left out
+     parts of PodUtils/podvm@2d36b23 that the owner wants.
    - New asks, open in the record: PodUtils/podvm#664 (COORD-248 of podvm,
      for PodUtils/podrunner#354) maps to T-1379, the config PATCH of
      `pod-incus` with an ETag condition; it is the first entry of the work
@@ -282,7 +286,7 @@ The asks that #260 answers:
   still waits 24 hours. T-1347 (the command of each patch of `pod-h2`) and
   T-1373 (the opt-in fetch of Sigstore roots from TUF) are open. The names
   `pod-natprobe`, `pod-tpm`, `pod-gzip` and `pod-h2` wait for the owner's
-  local agent: PodUtils/podcrates#261 (T-1372).
+  local agent: PodUtils/podcrates#261 (T-1372; the owner's registration is in progress).
 
 ## Unfinished work
 

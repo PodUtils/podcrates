@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 1011 entries: 159 open, 30 partial, 6 blocked, 816 done.
+`TODO/INDEX.md` holds 1012 entries: 160 open, 30 partial, 6 blocked, 816 done.
 
 ## State
 
@@ -109,7 +109,9 @@ podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in
 podcrates: the red nightly (T-916, T-938; read the macOS and Windows ARM64 jobs of the next `nightly.yml` run), the macOS job of `ci` (T-1325),
 T-1159 (the ruling "A close by hand": `scripts/issue-sync.py` does not open again an issue that the owner closed), T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
-`services.yml` run (read it) and the red live run (T-963). Then the asks of podrunner
+`services.yml` run (read it) and the red live run (T-963). First of all, T-1385 (the agent tooling of the sibling repositories and
+the role table of the ruling "Hosted sessions and worker roles"). Then the
+asks of podrunner
 (COORD-134, #225): each new ask of podrunner; first T-1379 (the config
 PATCH of `pod-incus` with an ETag condition, PodUtils/podvm#664 for
 PodUtils/podrunner#354: podrunner's warm units with lower limits wait for
@@ -262,19 +264,8 @@ The hand-off of each release is a COORD issue `(to all)`
 
 ## Questions for the owner
 
-- **Q23.** Does podvm's ruling "Hosted sessions and worker roles"
-  (2026-11-25, PodUtils/podvm@2d36b23) apply to podcrates? It gives a
-  model and an effort for each role in two harnesses, and a third role
-  for the hardest tasks and for advisors. Here the ruling "Delegation"
-  (2026-11-24) gives two roles in one harness and leaves out the version
-  of each model. It touches T-1374 and `docs/maintenance.md`, "Rules of
-  the work". Recommendation: yes, one role table for each repository of
-  PodUtils, kept in `docs/session-protocol.md`, so that each project takes
-  it from one place; write it in `docs/decisions.md` as a ruling that
-  supersedes "Delegation".
-
 Write each question as `- **Qn.** QUESTION`, with the entries that it
 blocks and a recommendation. Number the questions in sequence from Q24
 (Q1 to Q14: `docs/decisions.md`; Q15: the ruling "podswarm"; Q16, Q18 to
-Q22: the rulings of 2026-11-25 in `docs/decisions.md`; Q17: the packages of
+Q22, Q23: the rulings of 2026-11-25 in `docs/decisions.md`; Q17: the packages of
 ghcr.io are public, no action).

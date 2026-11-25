@@ -6382,3 +6382,56 @@ targets held a path of a worktree.
 ```sh
 sh scripts/agent/check.sh notest
 ```
+
+# T-1385: agent tooling: read the latest commits of the sibling repositories and take each improvement of their agent tooling (Q23)
+
+**Source:** the owner, 2026-11-25: the answer to Q23 (the ruling "Hosted sessions and worker roles", `docs/decisions.md`), and the word that the work of T-1374 left out improvements of the sibling repositories.
+**Category:** chore
+**Milestone:** M8
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+T-1374 took one commit of podvm (`2d36b23`) and left out parts of it,
+among them the role table of podvm's ruling "Hosted sessions and worker
+roles", which now holds for podcrates. podrunner, podssh, podnet and podvm
+change their agent tooling often: the start of a session, the watchers,
+the hooks, the instructions for each harness, the checks before a push,
+the role table, the QA passes. podcrates has no step that reads those
+changes, so its tooling falls behind its siblings.
+
+## Premise
+
+- Read: the report of T-1374 (the table of the parts of
+  PodUtils/podvm@2d36b23 that it took and did not take, in its Done
+  section).
+- Not read: the commits of podrunner, podssh, podnet and podvm after
+  2026-11-24 on `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.githooks/`,
+  `scripts/` (their agent and session scripts) and their docs of the
+  session protocol.
+
+## Approach
+
+1. For each sibling repository, list the commits since 2026-11-20 that
+   touch the files of the agent tooling (the forge mirror first, AGENTS.md
+   section 4; a shallow clone where the mirror fails).
+2. For each change: what it improves, whether podcrates has it, needs it,
+   or must not take it (a matter of that project alone), with the reason.
+   The parts that T-1374 left out are read again first. A change that
+   would alter a ruling of podcrates is a question for the owner.
+3. Take the role table of "Hosted sessions and worker roles" into
+   `docs/maintenance.md` ("Rules of the work") and the briefs of the
+   agents; propose one shared `docs/session-protocol.md` for each
+   repository of PodUtils by a COORD issue `(to all)`.
+4. Apply each needed part in the form of podcrates, test each script in a
+   scratch clone, and record the table of what was taken in the Done
+   section.
+
+## Prove
+
+```sh
+sh scripts/session-start.sh
+cargo todo check
+```
