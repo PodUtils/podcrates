@@ -79,6 +79,6 @@ mod tests {
         assert_ne!(CONTRACT[0].code, CONTRACT[1].code);
         assert_ne!(CONTRACT[4].class, CONTRACT[5].class);
         assert_eq!(code_of(Class::Suite), 78);
-        assert_eq!(class_of(65), None);
+        assert_eq!(class_of(67), None);
     }
 }

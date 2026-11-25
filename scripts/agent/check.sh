@@ -78,7 +78,7 @@ else
     echo "static skipped (no examples/static-probe, or no zig: sh scripts/cloud-setup.sh)"
 fi
 if [ "${1:-}" != notest ]; then
-    timeout 1800 cargo test --workspace --all-features > "$log/test.log" 2>&1; t=$?
+    timeout 1800 cargo test --workspace --all-features --no-fail-fast > "$log/test.log" 2>&1; t=$?
     echo "test $t"; [ "$t" -eq 0 ] || { rc=1; grep -E "FAILED|panicked|failed" "$log/test.log" | head -30; }
 fi
 exit "$rc"
