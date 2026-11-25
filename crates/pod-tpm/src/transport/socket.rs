@@ -27,6 +27,7 @@ use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+use pod_core::sockopt::shut_needs_no_limit;
 use pod_core::{Class, Failure};
 
 use super::bound::{Limits, broken, host, late, left, response_size, size_field, system};
@@ -55,11 +56,18 @@ enum Stream {
 }
 
 impl Stream {
+    /// The read and the write limit. A socket that the peer shut needs none
+    /// ([`shut_needs_no_limit`]: macOS refuses the set on it): its next
+    /// read gives the bytes that remain, then the end, so a short response
+    /// is a short response and not a failure of the set.
     fn timeouts(&self, wait: Duration) -> io::Result<()> {
+        let wait = Some(wait);
         match self {
-            Stream::Tcp(s) => s.set_read_timeout(Some(wait)).and_then(|()| s.set_write_timeout(Some(wait))),
+            Stream::Tcp(s) => shut_needs_no_limit(s.set_read_timeout(wait))
+                .and_then(|()| shut_needs_no_limit(s.set_write_timeout(wait))),
             #[cfg(unix)]
-            Stream::Unix(s) => s.set_read_timeout(Some(wait)).and_then(|()| s.set_write_timeout(Some(wait))),
+            Stream::Unix(s) => shut_needs_no_limit(s.set_read_timeout(wait))
+                .and_then(|()| shut_needs_no_limit(s.set_write_timeout(wait))),
         }
     }
 
@@ -147,8 +155,8 @@ impl Transport for Socket {
         let Some(stream) = self.stream.as_mut() else {
             return Err(broken(&self.name));
         };
-        let until = Instant::now() + self.limits.command;
-        let mut way = Way { stream, name: &self.name, limits: &self.limits, until, set: false };
+        let mut way =
+            Way { stream, name: &self.name, limits: &self.limits, until: Instant::now() + self.limits.command };
         let answer = way.exchange(self.framing, command);
         if answer.is_err() {
             // The drop closes the connection.
@@ -164,8 +172,6 @@ struct Way<'a> {
     name: &'a str,
     limits: &'a Limits,
     until: Instant,
-    /// A time limit of this exchange is on the stream.
-    set: bool,
 }
 
 impl Way<'_> {
@@ -207,19 +213,9 @@ impl Way<'_> {
     }
 
     /// Set the wait of the next call of the stream to the time that remains.
-    /// When the stream is shut down ([`shut_down`]) after an earlier limit
-    /// of this exchange, that limit stays: the next call cannot block, and
-    /// it gives the bytes that remain, the end or the error.
     fn wait(&mut self) -> Result<(), Failure> {
         let wait = left(self.until, self.name, self.limits)?;
-        match self.stream.timeouts(wait) {
-            Ok(()) => {
-                self.set = true;
-                Ok(())
-            }
-            Err(e) if self.set && shut_down(&e) => Ok(()),
-            Err(e) => Err(self.fault(e, "the time limit cannot be set on")),
-        }
+        self.stream.timeouts(wait).map_err(|e| self.fault(e, "the time limit cannot be set on"))
     }
 
     /// Fill `buffer`. `first` is the start of a response: an end there is a
@@ -249,35 +245,5 @@ impl Way<'_> {
             io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut => late(self.name, self.limits),
             _ => system(format!("{what} {}", self.name), e),
         }
-    }
-}
-
-/// The error of a time limit set on a stream that is shut down in both
-/// directions: macOS (XNU `sosetopt`) refuses each socket option with
-/// `EINVAL` after the peer closed, where Linux sets it. Only an error of the
-/// system says it: the standard library refuses a time of zero with
-/// `InvalidInput` and no code of the system.
-fn shut_down(e: &io::Error) -> bool {
-    e.kind() == io::ErrorKind::InvalidInput && e.raw_os_error().is_some()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn only_an_invalid_argument_of_the_system_is_a_stream_that_is_shut_down() {
-        #[cfg(unix)]
-        assert!(shut_down(&io::Error::from_raw_os_error(libc::EINVAL)), "EINVAL of setsockopt on macOS");
-        #[cfg(unix)]
-        assert!(!shut_down(&io::Error::from_raw_os_error(libc::EBADF)));
-        let zero = std::net::TcpListener::bind("127.0.0.1:0")
-            .and_then(|l| TcpStream::connect(l.local_addr()?))
-            .and_then(|s| s.set_read_timeout(Some(Duration::ZERO)))
-            .expect_err("a time of zero");
-        assert_eq!(zero.kind(), io::ErrorKind::InvalidInput, "{zero}");
-        assert!(!shut_down(&zero), "a time of zero is not a stream that is shut down: {zero}");
-        assert!(!shut_down(&io::Error::from(io::ErrorKind::InvalidInput)));
-        assert!(!shut_down(&io::Error::from(io::ErrorKind::TimedOut)));
     }
 }

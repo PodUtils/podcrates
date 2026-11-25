@@ -20,6 +20,7 @@ this crate depends on no other pod crate.
 | `clock` | `Clock` (the monotonic time and the wall clock, which a test can plant), `SystemClock`, `ManualClock`; the hint of a refused certificate, HTTP dates, the wait of a `Retry-After` (`retry_after_secs`, `retry_after`), `utc_minutes`, `rfc3339` |
 | `text` | `one_line`, `multi_line`: text of a peer, safe to print |
 | `names` | the checks of a host, a target and a node name |
+| `sockopt` | `shut_needs_no_limit`: the `EINVAL` of a socket option on a socket that the peer shut (macOS) is no failure, as a read of it cannot wait |
 
 A crate of podcrates prints nothing and reads no variable: it takes a
 `Dial`, a `Resolve` and a `Report` from its caller, and returns a

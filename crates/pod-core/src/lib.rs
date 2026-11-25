@@ -18,7 +18,7 @@
 //! * [`process`]: one run of a program within a time limit, with its output;
 //! * [`proc_stat`]: the fields of a text of `/proc/PID/stat`;
 //! * [`metered`], [`quota`], [`pick`], [`backoff`], [`clock`], [`text`],
-//!   [`names`]: the small helpers.
+//!   [`names`], [`sockopt`]: the small helpers.
 //!
 //! The feature `async` (on by default) gives [`dial`], [`datagrams`] and
 //! [`metered`], which are on tokio. With no default feature, the other
@@ -43,6 +43,7 @@ pub mod pick;
 pub mod proc_stat;
 pub mod process;
 pub mod quota;
+pub mod sockopt;
 pub mod text;
 
 #[cfg(feature = "async")]
