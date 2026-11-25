@@ -263,4 +263,4 @@
 256 pull closed
 257 issue closed
 258 issue open
-259 issue open
+259 issue closed

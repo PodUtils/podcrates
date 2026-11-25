@@ -3625,6 +3625,7 @@ podvm's outside tester found faults of temp files in crates of podcrates (T-872:
 
 - Read: PodUtils/podvm#567; T-872, T-873, T-891.
 - Not read: each place in `crates/*/src` that makes a temp file or a scratch directory (`tempfile`, `create_dir`, `.tmp`, `std::env::temp_dir`).
+- T-1343 (PodUtils/podnet#711, COORD-119) is the shared helper of the Approach below: `pod_core::files::new_temp_dir` and `new_temp_file`, with the list of the places of this repository that name a path with the pid. T-932 does its audit and its check of CI on that list after T-1343.
 
 ## Approach
 
@@ -4788,6 +4789,8 @@ call it). The answer to podnet#709 with the tag is step 4, at the next
 release; podnet then removes `socket_answers` and the rule of
 `claim_unix_path`.
 
+2026-11-25: podnet took `v0.83.0` in `a6a6ccb` (PodUtils/podnet#710, COORD-118; its T-542) and answered PodUtils/podnet#709. `podnet_core::net::socket_answers` and `podnet_netns::listen::socket_answers` re-export `pod_core::files::socket_answers`. podnet's own copy and its own rule in `claim_unix_path` are gone, and PodUtils/podnet#709 is closed. podnet did not call `pod_warp::find::answers`. No `file` line of a `SOURCES` names the removed copy, so no `taken` line is due.
+
 # T-1213: One watcher of the Actions runs of a repository: `scripts/agent/runs.py` with podvm's surface, in place of `watch-runs.sh` and the copies of podvm and podnet
 
 **Source:** PodUtils/podvm#661, COORD-245 (the owner's ruling "Watchers", relayed by podvm).
@@ -5574,6 +5577,63 @@ plant `hostprobe-tty-nr-field-shifted`: with it,
 fails (exit 101); without it, it passes. `sh scripts/plant-each.sh
 --apply`: 0 stale. `python3 -I scripts/codegraph.py dups`: no new
 finding.
+
+# T-1343: `pod-core`: one temp directory and one temp file with a random name (PodUtils/podnet#711, lesson 5 of PodUtils/podvm#567)
+
+**Source:** PodUtils/podnet#711 (COORD-119 of podnet, PodUtils/podnet@T-545), the answer to the ask of PodUtils/podvm#567 (COORD-180, lesson 5). T-932 holds the check of the temp files of this repository and names the shared helper of `pod-core`; this entry is that helper, with the public API that podnet asks for.
+**Category:** feature
+**Milestone:** M5
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A path that a program names with its pid alone is not new. In a PID namespace (a pod, a container) two processes that share a directory can have the same pid, and the second one takes or removes the path of the first. podnet has about 15 such paths: the socket of `warp run`, the `resolv.conf` of the netns backends, the probe files of `doctor` and the temp file of an atomic write of its state. `pod_core::files::create_new_private` gives `O_EXCL` with mode 0600, but `pod-core` has no public function that makes a new name: `random_name` of `crates/pod-core/src/files/socket.rs` is private.
+
+podnet asks for two functions in `pod_core::files` and a test:
+
+1. `new_temp_dir(parent: &Path, prefix: &str) -> io::Result<PathBuf>`: the name `PREFIX-RANDOM`, `mkdir` with mode 0700, a new name on `EEXIST` up to a bound of tries, never a name from the pid or the clock alone.
+2. `new_temp_file(parent: &Path, prefix: &str, suffix: &str) -> io::Result<(PathBuf, File)>`: the same rule for the name, `O_CREAT | O_EXCL`, mode 0600.
+3. A test that pins the class: two calls with the same prefix in one directory give two paths, and a path that exists is never opened or removed.
+
+Until a tag has them, podnet writes one function in `podnet-core` with the same contract, and a check refuses `process::id()` in a path of its code. When the tag is out, podnet takes it and removes its copy.
+
+This repository makes the same fault in its own code. The names of its temp paths:
+
+- The pid and a counter, with no random part: `temp_name` of `crates/pod-core/src/files/replace.rs` and the temp file of `crates/pod-core/src/files/own.rs` (the create is exclusive, but two processes of one pid and one counter value make the same name); `crates/pod-actions-store/src/git.rs` and `crates/pod-hostprobe/src/writable.rs`; `crates/pod-warp/src/lib.rs`; `crates/pod-rootfs/src/write/follow.rs`.
+- The pid alone: the temp file of `crates/pod-actions-store/src/store.rs` (`std::fs::write` follows a link and truncates a file that is there), `crates/pod-hostprobe/src/probes/files.rs`, `access.rs` and `cgroup.rs`.
+- The pid and the clock: `crates/pod-enter/src/stage.rs` and `fuse.rs` (`mnt-PID-NANOS`), `crates/pod-supervise/src/table.rs` (`TABLE.PID.NANOS.partial`), `crates/pod-link/src/unix.rs` (a hash of the pid and the clock).
+- The pid and a tag, and a directory that is there is taken: `scratch_dir` of `crates/pod-guest/src/scratch.rs` returns the path on `AlreadyExists`, so a second process of the same pid and tag shares the directory of the first (the QMP socket and the serial log of a guest go there).
+- A name with a random part already: `random_name` and `make_stage` of `crates/pod-core/src/files/socket.rs` (the rule that podnet asks for, in a private copy: 8 tries, mode 0700, a new name on `AlreadyExists`) and the name of `crates/pod-hostprobe/src/exec.rs` (the pid, a counter and a nonce).
+- The tests of about 40 files name a directory in `std::env::temp_dir()` with the pid alone (`pod-relay`, `pod-offline`, `pod-tls`, `pod-proxy`, `pod-testkit`, `pod-acme` and more).
+
+## Premise
+
+- Read: PodUtils/podnet#711 (the author is a MEMBER); `crates/pod-core/src/files/socket.rs` (`random_name`, `make_stage`), `replace.rs` (`temp_name`), `files.rs` (`create_new_private`), `entropy.rs` (`OsEntropy`); a search for `process::id()` in `crates/*/src`.
+- Read: T-932 (open, the audit of the temp files of this repository, the same lesson 5). It names "one shared helper of `pod-core`" and has no API, no consumer and no test. This entry is the helper: T-932 moves the places of the list above to it and adds its check of CI.
+- The search `python3 -I scripts/codegraph.py similar temp directory random name` finds no public function that makes a new name. `random_name` is the one copy of the rule.
+- Not read: the code of podnet (`podnet-core`, `state.rs`, the netns backends); its 15 paths are as the issue lists them.
+- Not measured: whether `getrandom` fails under a seccomp filter in a consumer. `OsEntropy` returns `NoRandom` then; see the Approach.
+- `RandomState::new()` keeps its keys in a thread-local value that a `fork` without `exec` copies, so a forked child repeats the names of its parent. The ask names the hasher keys; the Approach reads the system source first for this reason. Decide at the work: the tests show which of the two the contract holds.
+
+## Approach
+
+1. `pod-core`: a new module `files::temp` of `pod-core` (its own source file; the source files stay under 500 lines, and `files.rs` has 344) with `new_temp_dir` and `new_temp_file`, re-exported by `files.rs`. A shared private function makes the random part: 16 hex digits from `OsEntropy`; when the system gives no bytes, the hasher keys with the pid and the clock mixed in, so that a name is never a guess that matters (the create is exclusive). `PREFIX-RANDOM` for the directory; `PREFIX-RANDOMSUFFIX` for the file. A bound of tries (8, as `NAMES` of `socket.rs`) with a new name on `EEXIST`; the last `EEXIST` is the error after the bound. The directory has mode 0700 and the file mode 0600, set whole after the create where the umask can take bits away, and `O_NOFOLLOW` on Unix. A prefix or suffix with a `/`, a NUL byte or a `..` is `InvalidInput`. A path that exists is never opened, removed or changed. On Windows the same API uses `create_new_private` and a private directory (the module `closed_win`).
+2. Move the copies of this repository: `random_name` and `make_stage` of `socket.rs` use the new function (the stage keeps its short name: one prefix of 3 bytes), then the temp names of `replace.rs` and `own.rs`, `pod-hostprobe` (`exec.rs`, `writable.rs`, `probes/`), `pod-enter` (`stage.rs`, `fuse.rs`), `pod-guest` (`scratch.rs`: a directory that exists is then an error, or a new name; read its callers first), `pod-actions-store`, `pod-link` (`unix.rs`), `pod-rootfs` (`write/follow.rs`), `pod-warp` (`lib.rs`) and `pod-supervise` (`table.rs`; read T-872 first: its sweep reads the staging directory). A place whose name a reader must find again keeps the prefix and gains the random part; its reason goes in a comment. Do it in the order of the list, one crate in a commit.
+3. The tests of the tests: the directories of the tests take `new_temp_dir` through `pod-testkit` where the crate depends on it (one helper that removes the directory at the end; `codegraph.py similar` first), and the check of T-932 refuses a new `temp_dir().join(` with a fixed name in product code.
+4. Tests in `pod-core` (a test module of `files::temp`): (a) two calls with the same prefix in one directory give two paths; (b) a path that exists, a file, a directory and a symbolic link to a file, is never opened, truncated or removed: with a hook that gives the same random part two times, the second call takes the next name and the first path keeps its bytes; (c) a hook that gives only existing names fails with `AlreadyExists` after the bound, and no path is made; (d) the modes are 0700 and 0600 with a umask of 0; (e) a prefix with a `/` is refused; (f) two processes of the same pid in a PID namespace (a test with `unshare` that skips where it is not allowed) make two paths. A plant: the name from the pid alone makes (a) or (f) fail.
+5. Release: the next tag has the functions. Answer PodUtils/podnet#711 and PodUtils/podvm#567 with the tag by a COORD issue (the hand-off of the release). podnet takes the tag and removes its copy.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features files::temp
+cargo test --workspace --all-features
+python3 -I scripts/codegraph.py similar temp directory random name
+grep -rn "process::id()" crates --include=*.rs
+sh scripts/agent/check.sh
+```
 
 # T-1359: `pod-core`: three tests of `files::socket` fail on macOS because the temporary directory is longer than their directory of 40 bytes
 

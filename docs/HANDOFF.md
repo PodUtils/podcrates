@@ -18,7 +18,7 @@ is done. Git and the record keep finished work.
    `(to podcrates)` of each repository of PodUtils. Each one maps to an
    entry (PodUtils/podvm#570, COORD-183, maps to T-1162, answered on #259; PodUtils/podssh#349,
    COORD-139, maps to T-1164 to T-1169; PodUtils/podssh#350, COORD-140, maps to
-   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#353, COORD-143, maps to T-1198 and T-1220; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213; PodUtils/podvm#663, COORD-247, answers #259 and maps to T-1143, T-1158 and T-1307). Map each new one
+   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podnet#710, COORD-118, answers #259 and maps to T-1117, T-1118 and T-1209; PodUtils/podnet#711, COORD-119, maps to T-1343; PodUtils/podrunner#351, COORD-129, answers #259 and maps to T-1355; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#353, COORD-143, maps to T-1198 and T-1220; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213; PodUtils/podvm#663, COORD-247, answers #259 and maps to T-1143, T-1158 and T-1307). Map each new one
    in the same commit.
 2. Coordinate the five sessions by COORD issues alone (the rulings
    "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),
@@ -55,7 +55,8 @@ is done. Git and the record keep finished work.
      newer pushes. Read the next `ci` run that ends.
    - `upstream.yml` (job `sources`): the run 45423205689 at `5fd6fb7` found
      one change, podrunner `2a55cd9` in `auth.rs` (`pod-testkit`). T-1243
-     (done) ports it. Read the next daily run.
+     (done) ports it; T-1355 (done) ports podrunner `4fc871c` in
+     `source-driver.md`. Read the next daily run.
    - `services.yml`: the scheduled run 45394042840 failed (T-1223, done):
      the relay WMYMARB moved to a new address, and `node-trojan-45-63-30-142`
      left. `temp-sh` held (T-1034). `node-trojan-64-176-7-205` and
@@ -66,8 +67,8 @@ is done. Git and the record keep finished work.
    - `docs/research/hard-problems.md` has the hard open problems (H-01 to
      H-18). T-978 (partial) holds the findings that no other entry has.
 4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the red
-   gates above, then the entries for the CI of githome and cfb (T-106,
-   T-1118), then the asks of the consumers.
+   gates above, then the entries for the CI of githome and cfb (T-106),
+   then the asks of the consumers.
 5. The fakes of the CI of podrunner and githome are release assets of
    each tag: `pod-fake-github` (T-921) and `pod-fake-githome` (T-948), for
    x86_64 and aarch64 musl in the signed `SHA256SUMS`, and an image of
@@ -114,17 +115,18 @@ release, the signed `SHA256SUMS`, the assets and the images of
 `image` and `notes`) and the dry run of `publish.yml` (45433657871) passed.
 It carries each change of `main` after `v0.82.1`.
 
-The hand-off COORD-154 (#259) is open (call C780). It closes when each
-consumer names `v0.83.0` or a later tag. Amend its body at each take. It has
-the digest of each image beside the SHA-256 of its asset, and the section
-of each consumer. The hand-off COORD-152 (#257) of `v0.82.1` is closed.
+The hand-off COORD-154 (#259) is closed (call C780): each consumer names
+`v0.83.0`, and its body ends with the Result line. It has the digest of
+each image beside the SHA-256 of its asset, and the section of each
+consumer. The hand-off COORD-152 (#257) of `v0.82.1` is closed.
 COORD-153 (#258) answers PodUtils/podssh#346: the codec is in `v0.83.0`
 (`pod-term`, the feature `transfer`); it closes when podssh names the
 commit that wires the codec into its session (its T-831).
 
-Takes of `v0.83.0`: podssh (`3001570`, PodUtils/podssh#354, COORD-144) and
-podvm (`a39f4c4f`, PodUtils/podvm#663, COORD-247). podrunner and podnet have
-not taken it.
+Takes of `v0.83.0`: podssh (`3001570`, PodUtils/podssh#354, COORD-144),
+podvm (`a39f4c4f`, PodUtils/podvm#663, COORD-247), podnet (`a6a6ccb`,
+PodUtils/podnet#710, COORD-118) and podrunner (`4fc871c`,
+PodUtils/podrunner#351, COORD-129).
 
 The asks of #259 to the consumers:
 
@@ -143,18 +145,31 @@ The asks of #259 to the consumers:
   podssh's T-877 takes `Dns::handshake_quiet` and `DnsSettings::hold` at its
   merge); PodUtils/podssh#352 (ask (b): the codes
   that podssh keeps; T-1236 gives the README table, T-1238 the code 65).
-- podnet: T-1117 is partial (`docs/tunnels.md` and its copy in
-  `llms-full.txt` give 130 s and 280 s; the limits are 110 s and 210 s);
-  `socket_answers` replaces its own copy (T-1209, PodUtils/podnet#709).
-- podrunner: no open ask. The fork fact of `pod-fake-githome` (T-1160),
-  `usage::Mounts` for podvm's report (T-1205, PodUtils/podrunner#350), and
-  the shared watcher `scripts/agent/runs.py` with `watch.py` at the tag
-  (T-1213; the rulings "Watchers" and "Work until done").
+- podnet: took `v0.83.0` at `a6a6ccb` (PodUtils/podnet#710, COORD-118,
+  PodUtils/podnet@T-542). `socket_answers` replaces its own copy (T-1209,
+  PodUtils/podnet#709, closed); its documents give 110 s and 210 s (T-1117);
+  its `release.yml` writes `release-index.json` (T-1118); `can_run` calls
+  `pod_hold::spawn::resolve` and the netns backends call `execve` of the
+  resolved path (T-1125); `runs.py` and `watch.py` at the tag replace its
+  own scripts (T-1213). `pod-natprobe` is its T-543, not taken yet. It does not
+  take `pod-unit` (T-1128), `pod-acme` or `pod-opentunnel` (T-1034). No
+  `taken` line is due: the take replaced no frozen file. Open:
+  PodUtils/podnet#711 (T-1343).
+- podrunner: took `v0.83.0` at `4fc871c` (PodUtils/podrunner#351,
+  COORD-129, PodUtils/podrunner@T-647). Each `pod-*` dependency names the
+  tag; `issue-sync.yml` runs at `5fd6fb7`; `images/fake-githome.toml` and
+  `images/pod-release.toml` pin the assets of the tag; its
+  conformance script of the fake githome with `pod-fake-githome` 0.83.0 gives 15
+  of 15 (T-1160). It does not use `runs.py` (T-1213), `usage::Mounts`
+  (T-1205) or `Unit::NAME_MAX`. No source of it names `Class::CantCreate`
+  or `Class::Internal`. No `taken` line is due: its blocks in `SOURCES`
+  are taken already or stay (its fakes). No open ask.
 
 ### On `main` after `v0.83.0` (for the next tag)
 
-- T-1243: a port of the auth of the fake broker of `pod-testkit` at podrunner
-  `2a55cd9`. No change for a consumer.
+- T-1243 and T-1355: ports of `pod-testkit` at podrunner `2a55cd9` (the auth
+  of the fake broker) and `4fc871c` (the contract `source-driver.md`). No
+  change for a consumer.
 - T-1193 (`pod-extract`, PodUtils/podvm#657): `flatten` (`flatten`, `Options`,
   `Flattened`, `LAYER_EVENT`, `PATHS_MAX`) streams the final tree of the
   layers as one tar in one pass from the newest layer, in the order that
@@ -281,7 +296,7 @@ The asks of #259 to the consumers:
 - podrunner: no open ask.
 - podvm: T-1307; PodUtils/podvm#657 (T-1193 to T-1196: `flatten`
   of `pod-extract`, a writer of gzip members) is open in podcrates.
-- podnet: T-1117 (documents), T-1118 (`release-index.json`).
+- podnet: T-1343 (`new_temp_dir` and `new_temp_file`, PodUtils/podnet#711).
 - podssh: T-1198 (the codec's `HOLD` and linger, by podssh's answer); T-1095 (the order of the
   pseudo-fields of the HTTP/2 request of `pod-ws`; podssh closed
   PodUtils/podssh#340 and keeps its patch of h2 until a tag carries the

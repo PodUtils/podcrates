@@ -2395,7 +2395,7 @@ cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings
 **Milestone:** M3
 **Priority:** P3
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -2419,6 +2419,8 @@ cargo test -p pod-cloudflare --all-features --lib tunnel::tests::the_serial_limi
 ## Done
 
 2026-11-24, partial: podnet took `v0.82.1` in `a0b727c` (PodUtils/podnet#708, COORD-116). `PodUtils/podnet:docs/protocol.md`, section 3.3, gives 110 s and 210 s, and `PodUtils/podnet:docs/tunnels.md` gives the budget of 30 s for the new tries. One sentence stays in `PodUtils/podnet:docs/tunnels.md` and in its copy in `PodUtils/podnet:llms-full.txt`: "130 seconds for `quic`, 280 seconds for `http2`". Close this entry when podnet's head has 110 and 210 there.
+
+2026-11-25: podnet took `v0.83.0` in `a6a6ccb` (PodUtils/podnet#710, COORD-118). At that commit, `PodUtils/podnet:docs/tunnels.md` gives "110 seconds for `quic`, 210 seconds for `http2` and `http2+relay`", section 3.3 of `PodUtils/podnet:docs/protocol.md` gives 110 s and 210 s, and `llms-full.txt` has the same two texts (podnet's `4a4361a`). Only the notes of the release `v0.3.0-beta.12` keep 130 s and 280 s, as the text of that release. Check, in a clone of podnet at `a6a6ccb`: `grep -rnE "\b(130|280) ?(s|seconds)\b" docs README.md llms-full.txt src crates`.
 
 # T-1133: `pod-warp`: an enrolment through a dead proxy loses the stage Proxy, and an answer that is not JSON shows no word of its body (PodUtils/podnet#707, ask 9)
 

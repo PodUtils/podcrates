@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**985 entries: 155 open, 29 partial, 7 blocked, 794 done.**
+**987 entries: 155 open, 28 partial, 7 blocked, 797 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 230 | 243 |
-| P2 | 69 | 9 | 4 | 416 | 498 |
-| P3 | 82 | 11 | 3 | 146 | 242 |
-| **All** | 155 | 29 | 7 | 794 | 985 |
+| P1 | 4 | 9 | 0 | 231 | 244 |
+| P2 | 70 | 9 | 4 | 416 | 499 |
+| P3 | 81 | 10 | 3 | 148 | 242 |
+| **All** | 155 | 28 | 7 | 797 | 987 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -939,8 +939,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1114](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`: `bind_staged` binds at the path when the stage does not fit in `sun_path`, and macOS refuses a path in its temporary directory (PodUtils/podssh#343) |
 | [T-1115](upkeep.md) | P2 | S | M5 | chore | open | Two more copies of the bind of a Unix socket at a long path: `pod-link` (`bind_private`) and `pod-supervise` (`control_via_fd`) |
 | [T-1116](adapters.md) | P1 | S | M3 | defect | done | `pod-cloudflare`: the edge refuses a new quick tunnel with "Tunnel not found" for more than three tries, and the start exits 69 (PodUtils/podnet#685) |
-| [T-1117](adapters.md) | P3 | S | M3 | docs | partial | podnet's documents give the serial limits of the legs of `pod-cloudflare` as 130 s and 280 s; T-1116 makes them 110 s and 210 s |
-| [T-1118](fleet.md) | P3 | S | M8 | chore | open | `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686) |
+| [T-1117](adapters.md) | P3 | S | M3 | docs | done | podnet's documents give the serial limits of the legs of `pod-cloudflare` as 130 s and 280 s; T-1116 makes them 110 s and 210 s |
+| [T-1118](fleet.md) | P3 | S | M8 | chore | done | `pod-release`: podnet writes `release-index.json` in its release workflow (PodUtils/podnet#686) |
 | [T-1120](podvm.md) | P1 | S | M6 | feature | done | `pod-hostprobe`: the CPU time, the peak of memory and the OOM kills of a cgroup at the end of a run (PodUtils/podvm#650) |
 | [T-1122](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`, `pod-unit`: the changes of podrunner and podssh at their heads (port review) |
 | [T-1124](podvm.md) | P2 | S | M6 | chore | done | podvm opens `/proc/PID` and the pidfd of the init of a run, which is not dumpable after T-1113, so its `exec -t`, `cp` and the join of the UTS namespace fail for a caller with no capabilities |
@@ -1030,5 +1030,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1326](upkeep.md) | P3 | S | M5 | chore | done | Three readers of the fields after the name in `/proc/PID/stat`: `pod-hostprobe`, `pod-supervise` and `pod-enter` |
 | [T-1339](fleet.md) | P2 | S | M8 | chore | open | `pod-tpm`: the fuzz targets of the response reader and of the key file reader, and a plant for each bound of T-1217 and T-1219 |
 | [T-1340](fleet.md) | P2 | M | M8 | measurement | open | `pod-tpm`: a key file that the crate writes loads and signs in tpm2-openssl and in go-tpm-keyfiles against swtpm |
+| [T-1343](upkeep.md) | P2 | M | M5 | feature | open | `pod-core`: one temp directory and one temp file with a random name (PodUtils/podnet#711, lesson 5 of PodUtils/podvm#567) |
+| [T-1355](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `4fc871c` (the fourth port of `source-driver.md`) |
 | [T-1359](upkeep.md) | P2 | S | M5 | defect | open | `pod-core`: three tests of `files::socket` fail on macOS because the temporary directory is longer than their directory of 40 bytes |
 | [T-1360](upkeep.md) | P3 | S | M5 | defect | open | `pod-cloudflare`: `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` cannot bind its UDP socket on Windows ARM64 (WSAEACCES) |
