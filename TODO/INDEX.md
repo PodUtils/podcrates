@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**997 entries: 149 open, 29 partial, 8 blocked, 811 done.**
+**998 entries: 149 open, 29 partial, 8 blocked, 812 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 236 | 249 |
+| P1 | 4 | 9 | 0 | 237 | 250 |
 | P2 | 67 | 10 | 4 | 421 | 502 |
 | P3 | 78 | 10 | 4 | 152 | 244 |
-| **All** | 149 | 29 | 8 | 811 | 997 |
+| **All** | 149 | 29 | 8 | 812 | 998 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1044,3 +1044,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1367](relay.md) | P1 | S | M2 | feature | done | `pod-e2e`: the binding of the channel to the check of a grant, at the node and at the operator (PodUtils/podssh#355) |
 | [T-1368](relay.md) | P1 | S | M2 | feature | done | `pod-relay`: a bearer grant bound to the channel, and its verifier (PodUtils/podssh#355) |
 | [T-1369](relay.md) | P2 | S | M2 | chore | open | `pod-relay`: a fuzz target of `grant::bearer::Bearer::read`, the reader of a bearer from the peer |
+| [T-1370](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: warm and cold units in `run-report.v1` and `status.v1` (PodUtils/podrunner#353) |

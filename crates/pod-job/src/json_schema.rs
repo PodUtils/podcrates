@@ -130,11 +130,12 @@ fn report_rules(schema: &mut Schema, unit: &[&str]) {
 
 /// The rules of [`crate::RunReport::check`]: those of each report, and
 /// each key of `unknown_reasons` names a measured field that is `unknown`
-/// or a time that is absent. serde reads a `null` time as absent, so the
+/// or a time that is absent (a time of the unit is absent also when the
+/// report has no unit). serde reads a `null` time as absent, so the
 /// schema does too. The bound of `log_tail` in bytes stays in the check: a
 /// schema counts characters.
 pub fn run_report_rules(schema: &mut Schema) {
-    use crate::report::{MEASURED, TIMES};
+    use crate::report::{MEASURED, TIMES, UNIT_TIMES};
     report_rules(schema, &["unit"]);
     let when = |name: &str| json!({ "required": ["unknown_reasons"], "properties": { "unknown_reasons": { "required": [name] } } });
     let measured = MEASURED.iter().map(|name| {
@@ -142,10 +143,14 @@ pub fn run_report_rules(schema: &mut Schema) {
     });
     let times =
         TIMES.iter().map(|name| json!({ "if": when(name), "then": { "properties": { (*name): { "type": "null" } } } }));
+    let unit_times = UNIT_TIMES.iter().map(|name| {
+        let unit = json!({ "properties": { (*name): { "type": "null" } } });
+        json!({ "if": when(name), "then": { "properties": { "unit": unit } } })
+    });
     if let Some(Value::Array(rules)) = schema.get_mut("allOf") {
-        rules.extend(measured.chain(times));
+        rules.extend(measured.chain(times).chain(unit_times));
     }
-    let names: Vec<&str> = MEASURED.iter().chain(TIMES.iter()).copied().collect();
+    let names: Vec<&str> = MEASURED.iter().chain(TIMES.iter()).chain(UNIT_TIMES.iter()).copied().collect();
     if let Some(Value::Object(field)) = schema.get_mut("properties").and_then(|p| p.get_mut("unknown_reasons")) {
         field.insert("propertyNames".into(), json!({ "enum": names }));
     }

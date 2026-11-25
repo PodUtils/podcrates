@@ -232,7 +232,7 @@
       ]
     },
     "unknown_reasons": {
-      "description": "For each measured field that is `unknown` and each absent time (the\nlists `MEASURED` and `TIMES`): why, in one line. A kind that cannot\nmeasure a fact says `unknown` with a reason, never 0.",
+      "description": "For each measured field that is `unknown` and each absent time (the\nlists `MEASURED`, `TIMES` and `UNIT_TIMES`): why, in one line. A\nkind that cannot measure a fact says `unknown` with a reason, never 0.",
       "type": "object",
       "additionalProperties": {
         "type": "string"
@@ -250,7 +250,9 @@
           "prepare_s",
           "start_s",
           "run_s",
-          "destroy_s"
+          "destroy_s",
+          "boot_s",
+          "warm_s"
         ]
       }
     },
@@ -588,6 +590,56 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "boot_s"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "unit": {
+            "properties": {
+              "boot_s": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "unknown_reasons": {
+            "required": [
+              "warm_s"
+            ]
+          }
+        },
+        "required": [
+          "unknown_reasons"
+        ]
+      },
+      "then": {
+        "properties": {
+          "unit": {
+            "properties": {
+              "warm_s": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
     }
   ],
   "required": [
@@ -789,6 +841,15 @@
       "description": "The unit of a job that ran.",
       "type": "object",
       "properties": {
+        "boot_s": {
+          "description": "The seconds from the start of the unit to the ready mark of its\nscript.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
         "boundary": {
           "$ref": "#/$defs/Boundary"
         },
@@ -809,11 +870,31 @@
           "description": "The processes and files that `destroy` left; `unknown` when it\ncould not count.",
           "$ref": "#/$defs/Residual"
         },
+        "start": {
+          "description": "How the unit started: cold for the job, or warm before the claim.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UnitStart"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "unit_id": {
           "$ref": "#/$defs/UnitId"
         },
         "unit_kind": {
           "type": "string"
+        },
+        "warm_s": {
+          "description": "The seconds, rounded up, that the unit waited warm before its claim.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
         }
       },
       "additionalProperties": false,
@@ -831,6 +912,21 @@
     "UnitId": {
       "type": "string",
       "pattern": "^u-[0-9]{1,20}$"
+    },
+    "UnitStart": {
+      "description": "How a unit started (G-25 of githome).",
+      "oneOf": [
+        {
+          "description": "The unit booted for the job, after the claim.",
+          "type": "string",
+          "const": "cold"
+        },
+        {
+          "description": "The unit booted before the job and waited for one claim.",
+          "type": "string",
+          "const": "warm"
+        }
+      ]
     },
     "Unknown": {
       "description": "The word `unknown`.",

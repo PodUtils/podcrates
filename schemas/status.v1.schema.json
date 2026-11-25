@@ -73,6 +73,13 @@
       "format": "uint32",
       "default": 0,
       "minimum": 0
+    },
+    "warm_units": {
+      "description": "The warm units of the host now, across its kinds, booting and ready.",
+      "type": "integer",
+      "format": "uint32",
+      "default": 0,
+      "minimum": 0
     }
   },
   "additionalProperties": false,
@@ -292,6 +299,17 @@
           "type": "integer",
           "format": "uint32",
           "minimum": 0
+        },
+        "warm": {
+          "description": "The warm units of the kind; absent when the kind keeps none.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WarmStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false,
@@ -470,6 +488,43 @@
           "type": "string",
           "const": "verified"
         }
+      ]
+    },
+    "WarmStatus": {
+      "description": "The warm units of one kind: units that boot before a job and wait,\nfresh, for one claim.",
+      "type": "object",
+      "properties": {
+        "booting": {
+          "description": "The warm units that boot now.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "paused_reason": {
+          "description": "Why the kind boots no new warm unit now; absent when it does.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ready": {
+          "description": "The warm units that wait for a claim now.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "target": {
+          "description": "The warm units that the kind keeps.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "booting",
+        "ready"
       ]
     }
   }

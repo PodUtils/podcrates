@@ -1,9 +1,9 @@
 --- a/crates/pod-job/src/status.rs
 +++ b/crates/pod-job/src/status.rs
-@@ -88,6 +88,9 @@
-     /// The units that run on the host now.
+@@ -111,6 +111,9 @@
+     /// The warm units of the host now, across its kinds, booting and ready.
      #[serde(default)]
-     pub units: u32,
+     pub warm_units: u32,
 +    /// A planted field that the schema file does not have.
 +    #[serde(default)]
 +    pub uptime_s: u64,

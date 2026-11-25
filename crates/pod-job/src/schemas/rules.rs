@@ -144,7 +144,7 @@ fn the_public_report_holds_no_host_and_no_boundary_detail() {
         }
         reports += 1;
     }
-    assert_eq!(reports, 7);
+    assert_eq!(reports, 9);
 
     // A detail added to a public report is refused by the types and by the
     // schema.
@@ -381,4 +381,37 @@ fn a_reason_of_a_time_needs_the_time_absent() {
         }
     }
     assert_eq!((passed, refused), (10, 5));
+}
+
+/// A reason of `unknown_reasons` names a time of the unit (`unit.boot_s`,
+/// `unit.warm_s`) only when it is absent, `null`, or the report has no unit
+/// (PodUtils/podrunner#353). The types and the schema give the same verdict.
+#[test]
+fn a_reason_of_a_unit_time_needs_the_time_absent() {
+    let validator = Validator::new();
+    let base = example("run-report/valid-cold-unit.json");
+    let (mut passed, mut refused) = (0, 0);
+    for name in crate::report::UNIT_TIMES {
+        let cases = [(Some(None), true), (Some(Some(Value::Null)), true), (Some(Some(json!(3))), false), (None, true)];
+        for (value, ok) in cases {
+            let mut report = base.clone();
+            report["unknown_reasons"] = json!({ name: "the unit has no such time" });
+            let map = report.as_object_mut().expect("a report is an object");
+            match value {
+                None => drop(map.remove("unit")),
+                Some(v) => {
+                    let unit = map["unit"].as_object_mut().expect("a unit is an object");
+                    unit.remove(name);
+                    if let Some(v) = v {
+                        unit.insert(name.into(), v);
+                    }
+                }
+            }
+            let types = validate("run-report", &report.to_string());
+            assert_eq!(types.is_ok(), ok, "{name}: {report} {types:?}");
+            assert_eq!(validator.check("run-report", &report).is_ok(), ok, "{name}: {report}");
+            if ok { passed += 1 } else { refused += 1 }
+        }
+    }
+    assert_eq!((passed, refused), (6, 2));
 }
