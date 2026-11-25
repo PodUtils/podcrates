@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**989 entries: 151 open, 28 partial, 7 blocked, 803 done.**
+**989 entries: 150 open, 28 partial, 7 blocked, 804 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 232 | 245 |
 | P2 | 68 | 9 | 4 | 418 | 499 |
-| P3 | 79 | 10 | 3 | 151 | 243 |
-| **All** | 151 | 28 | 7 | 803 | 989 |
+| P3 | 78 | 10 | 3 | 152 | 243 |
+| **All** | 150 | 28 | 7 | 804 | 989 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1010,7 +1010,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1235](foundation.md) | P2 | S | M0 | feature | done | `pod-core`: the classes `CantCreate` (73) and `Internal` (70) (PodUtils/podssh#352) |
 | [T-1236](foundation.md) | P2 | S | M0 | docs | done | `pod-core`: the codes that a consumer keeps where its class gives another, in the README (PodUtils/podssh#352) |
 | [T-1237](foundation.md) | P2 | S | M0 | feature | done | `pod-release`: `Error::CantWrite` has the class `CantCreate` (73) (PodUtils/podssh#352) |
-| [T-1238](foundation.md) | P3 | S | M0 | research | open | `pod-core`: no class for `EX_DATAERR` (65), which podssh uses (PodUtils/podssh#352) |
+| [T-1238](foundation.md) | P3 | S | M0 | research | done | `pod-core`: no class for `EX_DATAERR` (65), which podssh uses (PodUtils/podssh#352) |
 | [T-1243](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the auth of the fake broker at podrunner `2a55cd9` (port review of `auth.rs`) |
 | [T-1253](podvm.md) | P2 | S | M6 | defect | done | `pod-extract`: the sidecar row of a removed path holds for a directory that an entry below it makes again |
 | [T-1254](podvm.md) | P2 | S | M6 | chore | done | `pod-extract`: a fuzz target of `flatten`, the reader of untrusted layers into one tar stream |

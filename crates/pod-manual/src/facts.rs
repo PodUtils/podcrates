@@ -192,6 +192,7 @@ pub fn failure_classes() -> Vec<Exit> {
         Class::Suite => "The far end and this end have no protocol or suite in common.",
         Class::CantCreate => "An output file or directory cannot be made or written.",
         Class::Internal => "A fault occurred inside the tool, or a session ended before its end.",
+        Class::Data => "An input was there, and its content is wrong.",
     };
     let mut out: Vec<Exit> = Vec::new();
     for c in Class::ALL {

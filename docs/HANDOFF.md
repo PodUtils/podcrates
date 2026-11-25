@@ -179,6 +179,11 @@ The asks of #259 to the consumers:
   and `tpm_keyfile`, their seeds from the TPM in software, and 16 plants,
   one for each bound of the readers of a response and of a key file. No
   change of the API for a consumer.
+- T-1238 (`pod-core`, PodUtils/podssh#352, COORD-142): the class `Data`
+  (name `data`, code 65, `EX_DATAERR`), as podssh and podnet both use 65
+  (call C935); `data` in the enum of `class` of `log.v1`. podssh's
+  `code_of` (no `_` arm) adds `Class::Data` at the tag, and podssh can give
+  its uses of 65 the class; podnet's `code_of_class` adds `DATA_ERROR`.
 
 - T-1243 and T-1355: ports of `pod-testkit` at podrunner `2a55cd9` (the auth
   of the fake broker) and `4fc871c` (the contract `source-driver.md`). No
