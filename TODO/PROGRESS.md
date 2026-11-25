@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 1010 entries: 158 open, 30 partial, 6 blocked, 816 done.
+`TODO/INDEX.md` holds 1011 entries: 159 open, 30 partial, 6 blocked, 816 done.
 
 ## State
 
@@ -110,7 +110,10 @@ them by COORD issues, podrunner's first. Then, in
 podcrates: the red nightly (T-916, T-938; read the macOS and Windows ARM64 jobs of the next `nightly.yml` run), the macOS job of `ci` (T-1325),
 T-1159 (the ruling "A close by hand": `scripts/issue-sync.py` does not open again an issue that the owner closed), T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
 `services.yml` run (read it) and the red live run (T-963). Then the asks of podrunner
-(COORD-134, #225): each new ask of podrunner. Then the entries that a need
+(COORD-134, #225): each new ask of podrunner; first T-1379 (the config
+PATCH of `pod-incus` with an ETag condition, PodUtils/podvm#664 for
+PodUtils/podrunner#354: podrunner's warm units with lower limits wait for
+it); then T-1384 (the shared target of the worktrees). Then the entries that a need
 of githome or cfb names for their CI: T-106 (partial; cfb's A-X-18 waits
 for cfb's answer on #223, call C792). Then cfb's asks that podssh takes
 (call C782, PodUtils/podssh#316): T-112, T-110, T-111, T-117. Then the open

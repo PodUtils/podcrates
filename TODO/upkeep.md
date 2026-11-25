@@ -6329,3 +6329,56 @@ sh scripts/adoption.sh podssh pod-tpm SCRATCH/adoption
 ```
 
 The first command gives 0 changes. After step 3 the second command exits 66 (`pod-tpm.patch` is missing), and `ls adoption/podssh` lists `commit` and `repo` alone.
+
+# T-1384: `scripts/agent/check.sh`: a full check in the main checkout runs test binaries that a worktree built in the shared target
+
+**Source:** the session of 2026-11-25: the full check of `66c91227` failed eight tests of `pod-job` with `NotFound`; the test binary held the path of a worktree that was removed. A full check of `ffe078b8` after a `touch` of each source of the workspace passed.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Agents that work in parallel in `.claude/worktrees/` share the target
+directory of the main checkout, because the disk does not hold one target
+for each worktree (`docs/maintenance.md`, "Rules of the work", asks for
+one target each). Cargo names a path crate by its path relative to the
+root of the workspace, so two worktrees build the same artifact names. The
+fingerprint of a path crate reads the times of its sources: an artifact
+that a worktree built later than the last change of the source in the main
+checkout is fresh for the main checkout. A full check then runs code of
+another tree. In this session it gave eight false failures (a removed
+worktree path in `CARGO_MANIFEST_DIR`), and it can give a false pass, as
+the code under test is not the code of `main`. The test binaries of 400
+targets held a path of a worktree.
+
+## Premise
+
+- Measured: `grep -l .claude/worktrees/` over the executables of
+  `target/debug/deps` after the merges of the day; the check of `66c91227`
+  (eight failures, `NotFound`) and of `ffe078b8` after a `touch` of each
+  source (all steps green).
+- Not measured: the time of a full rebuild of the crates of the workspace
+  against the time of a check with stale artifacts.
+
+## Approach
+
+1. `scripts/agent/check.sh`: before the build, find each executable and
+   rlib of `target/debug/deps` that holds a path under `.claude/worktrees/`
+   and remove it (or `touch` the sources of each crate that it names), so
+   that cargo builds it again from the checkout. Print the count.
+2. `docs/maintenance.md`, "Rules of the work": an agent in a worktree uses
+   `CARGO_TARGET_DIR` under the scratchpad when the disk holds it, and
+   builds only its crates with `-p`; else the shared target with a `touch`
+   of each file that the worktree changes before each cargo call; the
+   coordinator runs the full check only after step 1.
+3. A test of the check script: a fake artifact that holds a worktree path
+   is removed and named in the output.
+
+## Prove
+
+```sh
+sh scripts/agent/check.sh notest
+```

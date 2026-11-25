@@ -31,6 +31,14 @@ is done. Git and the record keep finished work.
      PodUtils/podssh#356 (COORD-146, T-1371), PodUtils/podrunner#352
      (COORD-130, T-1362) and PodUtils/podrunner#353 (COORD-131, T-1370).
      PodUtils/podvm#657 (COORD-241, T-1193 to T-1196) is in the tag too.
+   - New asks, open in the record: PodUtils/podvm#664 (COORD-248 of podvm,
+     for PodUtils/podrunner#354) maps to T-1379, the config PATCH of
+     `pod-incus` with an ETag condition; it is the first entry of the work
+     order, as podrunner's warm units with lower limits wait for it.
+     PodUtils/podssh#357 (COORD-147) maps to T-1380 to T-1383. T-1384 (the
+     shared target of the worktrees) comes before the next full check of
+     merged agent work: until it is done, `touch` each source of the
+     workspace before a full check in the main checkout.
    - Answered on #259 (closed): PodUtils/podvm#570 (COORD-183, T-1162),
      PodUtils/podnet#710 (COORD-118, T-1117, T-1118 and T-1209),
      PodUtils/podrunner#351 (COORD-129, T-1355) and PodUtils/podvm#663
@@ -278,6 +286,8 @@ The asks that #260 answers:
 
 ## Unfinished work
 
+- No agent work is in flight and no worktree is left. Each branch of the
+  agents is merged into `main`.
 - `origin/wip/t1073` is merged into `main` (T-1073, T-1070). The proxy
   refuses `git push origin --delete`, so the owner deletes the branch on
   GitHub (`TODO/PROGRESS.md`, "Owner actions"). No other `wip/` branch
