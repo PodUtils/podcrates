@@ -12249,7 +12249,7 @@ where a binding exists").
   ask and the grant's bytes, and no value of the channel. podssh builds
   `Node` with each field and a `Redeem` closure of three arguments
   (PodUtils/podssh:crates/podssh-relay/src/e2e/mod.rs, PodUtils/podssh:crates/podssh-cli/src/grants.rs
-  at podssh `3001570a`), and the pod-tpm trial (`adoption/podssh/pod-tpm.run`)
+  at podssh `3001570a`), and the pod-tpm trial (adoption/podssh/pod-tpm.run)
   builds podssh against this tree.
 - Read: `crates/pod-e2e/src/exporter.rs`. The handshake hash of Noise is
   not secret: a relay computes it from the messages that it carries.

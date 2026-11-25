@@ -6017,7 +6017,7 @@ warnings` and `cargo fmt --all --check` pass. Not measured: the failure
 on Windows ARM64 (Linux gives no 10013), and the excluded ranges of that
 runner.
 
-# T-1361: `adoption/podssh/pod-tpm.run`: the check of the moved names reads all of `podssh-ssh/src`, and it finds two other structs named `Out`
+# T-1361: adoption/podssh/pod-tpm.run: the check of the moved names reads all of `podssh-ssh/src`, and it finds two other structs named `Out`
 
 **Source:** `adoption.yml` run 45524129405 at `a847d777`, the job `adoption (podssh)` (138903109946), step "Each trial of the consumer".
 **Category:** defect
@@ -6051,8 +6051,8 @@ had no podssh trial: `adoption/podssh/pod-tpm.*` came with T-1222.
 
 ## Premise
 
-- Read: the log of the job, `adoption/podssh/pod-tpm.run`, `scripts/adoption.sh`.
-- Measured: podssh at `3001570` with `adoption/podssh/pod-tpm.patch`
+- Read: the log of the job, adoption/podssh/pod-tpm.run, `scripts/adoption.sh`.
+- Measured: podssh at `3001570` with adoption/podssh/pod-tpm.patch
   applied. `git apply` passes. The grep on `src/tpm` finds nothing. The grep
   on `src` finds the two structs `Out` above.
 - Not measured: the commands after the grep (build, deny, clippy, the tests,
@@ -6078,9 +6078,9 @@ The job `adoption (podssh)` of the next `adoption.yml` run passes the trial
 ## Done
 
 2026-11-25, the commit that names T-1361. The trial `scripts/adoption.sh`
-with `adoption/podssh/pod-tpm.run` is the test: it fails on the line
+with adoption/podssh/pod-tpm.run is the test: it fails on the line
 before the fix, and it passes that line after it. The line of the grep in
-`adoption/podssh/pod-tpm.run` ends in `PodUtils/podssh:crates/podssh-ssh/src/tpm`. The
+adoption/podssh/pod-tpm.run ends in `PodUtils/podssh:crates/podssh-ssh/src/tpm`. The
 cause is in podcrates (the trial of T-1222, commit `732f8d13`), not in a
 change of podssh and not a flake of the runner. Checked: the patch applies
 to podssh `3001570`, and the narrowed grep gives no line. Not checked: the
@@ -6152,7 +6152,7 @@ trials.
 
 2026-11-25, the commit that names T-1363. The test is the trial of
 `.github/workflows/adoption.yml` (`scripts/adoption.sh` with
-`adoption/podssh/pod-tpm.run`): it fails at `cargo build -q` before the
+adoption/podssh/pod-tpm.run): it fails at `cargo build -q` before the
 fix. After it, `scripts/adoption.sh podssh pod-tpm` passes each step at
 `869c1b3a`: the podssh record agrees (832 entries), the build, cargo-deny,
 clippy, the TPM tests (4, 1, 2 with swtpm, 5 and 1 passed), rustfmt, the
@@ -6295,22 +6295,22 @@ macOS, and in a Claude Code session (the hook ran by hand).
 
 # T-1382: `adoption/podssh`: the trials `pod-tpm` and `pod-h2` stay after podssh took `v0.84.0`, and the list of the files of `tpm/` in `pod-tpm.run` is not podssh's (PodUtils/podssh#357, ask 3)
 
-**Source:** PodUtils/podssh#357 (COORD-147 of podssh, the take of `v0.84.0` at `806e0a4`), ask 3, by a member of the team; T-1361, T-1363; `docs/maintenance.md`, "The take of a consumer".
+**Source:** the run 45593943689 of `adoption.yml` at `3e480aa` is red (the job `adoption (podssh)`: the trials build podssh at `3001570` against podcrates `main`, and `Failure::io(stage, step, e)` has three arguments since T-1351, while the tests `podssh-ws/tests/vless_coalesce.rs` and `quick_edge_warp` of `podssh-relay` call it with two); PodUtils/podssh#357 (COORD-147 of podssh, the take of `v0.84.0` at `806e0a4`), ask 3, by a member of the team; T-1361, T-1363; `docs/maintenance.md`, "The take of a consumer".
 **Category:** chore
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
-The text of the ask: "`adoption/podssh/pod-tpm.run`: its `ls` list of the directory no longer matches: podssh keeps `agent*.rs`, `host*.rs`, `windows.rs` and `tbs.rs`." The patch was cut at podssh `3001570`, before podssh merged the rest of its T-839 (the TPM keys of the agent, the host key of `serve`, the TBS of Windows). podssh applied four of its deletions and three files by hand.
+The text of the ask: "adoption/podssh/pod-tpm.run: its `ls` list of the directory no longer matches: podssh keeps `agent*.rs`, `host*.rs`, `windows.rs` and `tbs.rs`." The patch was cut at podssh `3001570`, before podssh merged the rest of its T-839 (the TPM keys of the agent, the host key of `serve`, the TBS of Windows). podssh applied four of its deletions and three files by hand.
 
 podssh took `pod-tpm` and `pod-h2` at `806e0a4`. The procedure of a take then applies: the trial leaves `adoption/podssh/`, `SOURCES` gets the line `taken COMMIT`, and the entry of the take closes. The trial files `adoption/podssh/pod-tpm.*` and `adoption/podssh/pod-h2.*` are still in the tree.
 
 ## Premise
 
-- Read: `adoption/podssh/pod-tpm.run` (the sixth command compares `ls crates/podssh-ssh/src/tpm` with `mod.rs other.rs policy_key.rs signer.rs ssh.rs testdata tests.rs unix.rs`); `adoption/podssh/pod-tpm.commit` and `adoption/podssh/pod-h2.commit` (both name `3001570a652aa9e48c6eb4dbd3ca7602f8a5854b`, so the trial runs at that commit and not at podssh's `main`); `adoption/README.md` ("When the consumer takes a crate, its trial leaves this directory"); `crates/pod-tpm/SOURCES` (the block `repo PodUtils/podssh` has no `taken` line).
+- Read: adoption/podssh/pod-tpm.run (the sixth command compares `ls crates/podssh-ssh/src/tpm` with `mod.rs other.rs policy_key.rs signer.rs ssh.rs testdata tests.rs unix.rs`); adoption/podssh/pod-tpm.commit and adoption/podssh/pod-h2.commit (both name `3001570a652aa9e48c6eb4dbd3ca7602f8a5854b`, so the trial runs at that commit and not at podssh's `main`); `adoption/README.md` ("When the consumer takes a crate, its trial leaves this directory"); `crates/pod-tpm/SOURCES` (the block `repo PodUtils/podssh` has no `taken` line).
 - Read in podssh at `806e0a4`: `PodUtils/podssh:crates/podssh-ssh/src/tpm` holds `agent.rs`, `agent_tests.rs`, `host.rs`, `host_tests.rs`, `mod.rs`, `other.rs`, `policy_key.rs`, `signer.rs`, `ssh.rs`, `tbs.rs`, `tests.rs`, `unix.rs`, `windows.rs` and `testdata`. Each `Cargo.toml` of podssh at `806e0a4` that names a crate of podcrates names `tag = "v0.84.0"` and no other tag (the 55 `Cargo.toml` files of the tree).
 - Not read: whether the trial `pod-tpm` still passes at `3001570` (the job `adoption (podssh)` of the last run of `adoption.yml` is the proof); `scripts/check-sources.py` with a clone of podssh; whether the fork `pod-h2` (the tree `vendor/h2` with `vendor/patches/h2/`) has a block of `SOURCES` that needs a `taken` line; the fork has no directory under `crates`.
 
@@ -6329,6 +6329,12 @@ sh scripts/adoption.sh podssh pod-tpm SCRATCH/adoption
 ```
 
 The first command gives 0 changes. After step 3 the second command exits 66 (`pod-tpm.patch` is missing), and `ls adoption/podssh` lists `commit` and `repo` alone.
+
+## Done
+
+Date: 2026-11-25. Commit: see `git log` for T-1382.
+
+Result: the trials `adoption/podssh/pod-tpm.*` and `adoption/podssh/pod-h2.*` left the tree; `adoption/podssh` holds `commit` and `repo`, and `adoption/README.md` lists the take. `crates/pod-tpm/SOURCES` has `taken 806e0a4...`. The check with a clone of podssh at `806e0a4` showed the changes of podssh's T-839 merge (`0c6e9c4`), which came before the take: T-1381 ports `flow.rs`, `flow_signed.rs`, `flow_tests.rs` and `soft.rs`; T-1380 ports `tbs.rs` and `windows.rs`; the files `agent`, `host`, `policy_key`, `ssh` and the tests stay in podssh (`skip`). The check gives 0 changes. The fork `pod-h2` has no block of `SOURCES`. No other trial lists the files of a module (step 4). The list of `ls` in `pod-tpm.run` went with the trial; no new port entry was necessary.
 
 # T-1384: `scripts/agent/check.sh`: a full check in the main checkout runs test binaries that a worktree built in the shared target
 
