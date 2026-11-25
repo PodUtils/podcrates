@@ -69,9 +69,9 @@ jobs:
       - name: Test
         run: |
           if [ "${{ matrix.runner }}" = windows-11-arm ]; then
-            sh scripts/ci/test-limited.sh 1200 1800 --locked --workspace --all-features --no-fail-fast --exclude pod-gsr
+            sh scripts/ci/test-limited.sh 300 600 --locked --workspace --all-features --no-fail-fast --exclude pod-gsr
           else
-            sh scripts/ci/test-limited.sh 1200 1800 --locked --workspace --all-features --no-fail-fast
+            sh scripts/ci/test-limited.sh 300 600 --locked --workspace --all-features --no-fail-fast
           fi
       # A Windows service of a test program with the dispatcher of pod-unit
       # (T-1026): made, started, stopped with a drain, its exit codes read,
@@ -82,7 +82,7 @@ jobs:
       - name: Test pod-gsr (Windows ARM64, open defect)
         if: always() && matrix.runner == 'windows-11-arm'
         continue-on-error: true
-        run: sh scripts/ci/limit.sh 1200 cargo test --locked -p pod-gsr --all-features --no-fail-fast -- --nocapture --test-threads=1
+        run: sh scripts/ci/limit.sh 300 cargo test --locked -p pod-gsr --all-features --no-fail-fast -- --nocapture --test-threads=1
       # The store of Windows: the test's root in the machine's ROOT store
       # lets a server that it signs through with the default trust; the same
       # server with the root out of the store is the control. The root

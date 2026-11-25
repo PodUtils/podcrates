@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 983 entries: 155 open, 31 partial, 7 blocked, 790 done.
+`TODO/INDEX.md` holds 985 entries: 155 open, 29 partial, 7 blocked, 794 done.
 
 ## State
 
@@ -36,23 +36,20 @@
   takes T-345 to T-347 of `pod-netlab` (T-207, partial) when they are done.
   podvm closed PodUtils/podvm#260 and took the reader of the modloop (T-206)
   and the offline part of T-207.
-- Red runs: the nightly 45452272145 at `f39b8e2` (a dispatch, cancelled): the
-  Windows jobs, `gate` and the installer jobs pass; the failure of the
-  seven jobs `cross` in `pod-extract` (also in `ci.yml` 45462046889 at
-  `65fa99f`) is fixed; the emulated jobs fail in `pod-enter` (T-1296, partial:
-  qemu-user writes `/proc/self/stat` with 44 fields and no map; the title
-  reads the threads first; the next nightly decides) and `dns_hold`
-  of `pod-link` (T-1297, partial: the query timeout of the test now scales
-  with the hold; `mail` on arm was a race of the carriers, whose far ends
-  dropped before the fault; the next nightly decides); `riscv64` fails in `pod-iroh`
-  (T-916) and was cancelled at 150 minutes in `session_resume_twice`
-  (T-938); the two jobs of macOS were cancelled at 60 minutes in
-  `pod-incus` (T-1298, partial: the stand-in shut its read side, which
-  gives the writer no EPIPE on macOS, and the write of a request had no
-  bound; the next nightly decides; T-1303 gives each binary a limit, partial:
-  the next nightly proves it on macOS and Windows).
-  T-1161 is done; T-789 and T-766 passed. `ci.yml` run 45487233017
-  (`25747d3b`, the fix of T-1295): each job passes but `static
+- Red runs: the nightly 45504345202 at `6f5f4951` (a dispatch): `gate`, the
+  installer jobs, `test (windows-2025)` and the jobs `cross` of aarch64,
+  arm, armv7, powerpc64le and i686 pass. T-1296, T-1297, T-1298 and T-1303
+  are done (the emulated jobs pass `pod-enter`, `dns_hold` and `mail`; the
+  macOS jobs pass `pod-incus` and end in 21 to 25 minutes; each job `test`
+  prints the seconds of each binary, the longest is 70 s, and the limits
+  are 300 s for a binary and 600 s for the doc tests). Open failures:
+  `riscv64` and `loongarch64` fail in `pod-iroh` (`road.rs`, `share.rs`:
+  T-916; Q19); the riscv64 job took 127 of its 150 minutes and
+  `session_resume_twice` ended in 91 s (T-938, partial); both macOS jobs
+  fail in three tests of `files::socket` of `pod-core` (T-1359); the job of
+  Windows ARM64 fails in the UDP bind of `quick_tunnel_standin` (T-1360).
+  T-789 and T-766 passed again (partial in the record). `ci.yml` run
+  45487233017 (`25747d3b`, the fix of T-1295): each job passes but `static
   (aarch64-apple-darwin, macos-15-intel)`, which met its limit of 40
   minutes in "Build the probe" (T-1325); the runs after it were cancelled by
   newer pushes. None open in `services.yml`:
@@ -101,7 +98,7 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in
-podcrates: the red nightly (T-1298, T-1296, T-1297, T-916, T-938), the macOS job of `ci` (T-1325),
+podcrates: the red nightly (T-1359, T-1360, T-916, T-938), the macOS job of `ci` (T-1325),
 T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
 `services.yml` run (read it) and the red live run (T-963). Then the asks of podrunner
 (COORD-134, #225): each new ask of podrunner. Then the entries that a need

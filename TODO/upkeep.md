@@ -2474,7 +2474,7 @@ The next nightly proves macOS.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2536,6 +2536,10 @@ cargo test -p pod-egress --all-features --test vless
 cargo test -p pod-link --all-features --test poll
 cargo test -p pod-relay --all-features --test http_road_one_h2
 ```
+
+## Done
+
+2026-11-25 (partial): `nightly.yml` run 45504345202 at `6f5f4951`: the job `cross (riscv64gc-unknown-linux-musl, riscv64)` passed `pod-guest`, `pod-egress` (`vless`) and `pod-link` (`poll`), the tests of this entry, in each of the last two nightlies (45452272145, 45504345202). In this run `pod_guest` took 58 s, `vless` 147 s and `poll` 44 s. Set to `partial`; set to `done` when a third nightly passes.
 
 # T-779: `pod-identity`: one stack of curve25519 and of SHA-2: take `ed25519-dalek` 3
 
@@ -2787,7 +2791,7 @@ pass_clear` (3 passed). The next nightly checks ppc64le.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -2826,6 +2830,10 @@ event, not a fixed sleep.
 ```sh
 cargo test -p pod-wormhole --all-features --test board
 ```
+
+## Done
+
+2026-11-25 (partial): `nightly.yml` run 45504345202 at `6f5f4951`: the job `cross (armv7-unknown-linux-musleabihf, arm)` passed `pod-wormhole` (`board`), the two tests of this entry, in each of the last two nightlies (45452272145, 45504345202). Set to `partial`; set to `done` when a third nightly passes.
 
 # T-790: `pod-services`: the Syncthing relay of the device DVWOU27 moved to 1.168.112.83
 
@@ -3398,6 +3406,8 @@ cargo test -p pod-iroh --all-features --test road --test share --test tickets
 
 - 2026-11-24, the nightly run 45452272145 at `f39b8e2`: on riscv64 (job 138652267213) the two failed binaries of this class are `pod-iroh`'s `road.rs` (`a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way`: "early eof" at `road.rs:47`, a broken pipe of the writer at `road.rs:43`, after 159.81 s) and `share.rs` (`two_sessions_of_one_process_share_one_connection_on_two_streams`: "early eof" at `share.rs:52`, after 119.62 s). The jobs of loongarch64, aarch64, armv7, arm and powerpc64le passed these two binaries, and i686 passed `a_turn_of_the_arq_blocks_on_nothing` (T-1082). The failures of the same run in other binaries are new entries: T-1295 to T-1298.
 
+- 2026-11-25, `nightly.yml` run 45504345202 at `6f5f4951`: on riscv64 (job 138835537702) the two failed binaries are `pod-iroh`'s `road.rs` (`a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way`: "early eof" at `road.rs:47`, a broken pipe of the writer at `road.rs:43`, after 221 s) and `share.rs` (`two_sessions_of_one_process_share_one_connection_on_two_streams`: "early eof" at `share.rs:52`, after 115 s). On loongarch64 (job 138835538233) `share.rs` gave `Elapsed` at `share.rs:155` ("each session's bytes within the limit") after 303 s; its `road.rs` passed in 189 s. The jobs of aarch64, armv7, arm and powerpc64le passed both binaries, and i686 passed `a_turn_of_the_arq_blocks_on_nothing`. No new test of this class.
+
 # T-917: The copies of product code that `codegraph.py dups` finds: one place for each
 
 **Source:** the first run of `python3 -I scripts/codegraph.py dups` (the ruling "Shared code").
@@ -3698,6 +3708,8 @@ The next run of `nightly.yml`: each cross job ends, none cancelled.
 - 2026-11-21, the nightly 44848003241 at `a7fb465`: the riscv64 job (136672368153) ended in 111 minutes (01:25 to 03:16), not cancelled, under its limit of 150; each of the 484 test binaries ran, and it failed on the two tests of `pod-iroh` of T-916.
 
 - 2026-11-24, the nightly run 45452272145 at `f39b8e2`: the riscv64 job (138652267213) was cancelled at its limit of 150 minutes (17:52 to 20:22). It ran 414 of 545 test binaries; the 414th, `session_resume_twice` of `pod-session` (one test, `two_resumes_in_quick_succession_after_the_open_links_are_cut_move_bytes_both_ways`, with timeouts of 60 s in its code), did not end, and the 131 binaries after it did not run. The longest binaries before it: `modes` 1886 s, `pairing` 950 s, `new_address` 720 s. The step "Run the tests" of `nightly.yml` gives each binary a limit of 2700 s (`timeout -k 30 2700`), so that one hung binary is a failed binary and the others run. Open: find why this test does not end under its 60 s timeouts (a blocking call in a task of the runtime, or a thread that does not end); read the next riscv64 job.
+
+- 2026-11-25, `nightly.yml` run 45504345202 at `6f5f4951`: the riscv64 job (138835537702) ended in 127 minutes (22:48 to 00:55; the step "Run the tests" 117 minutes), not cancelled, under its limit of 150. Each of the 557 test binaries ran and printed its seconds; `session_resume_twice` passed in 91 s (the binary that hung at the last nightly), and the job failed on the two binaries of `pod-iroh` of T-916. The longest binaries: `pairing` 846 s, `modes` 816 s, `new_address` 383 s, `blocking_streamed` 251 s, `streamed` 235 s; none met the limit of 2700 s. The margin of the job is 23 minutes: a slower runner can still cancel it. The loongarch64 job ended in 48 minutes, aarch64 in 36, arm in 48, armv7 in 46 and powerpc64le in 47. The hang of `session_resume_twice` did not come back (one run); keep the entry `partial` until a second run passes.
 
 # T-943: The static job of `aarch64-apple-darwin` in `ci.yml` gets no runner, four runs in a row
 
@@ -4964,6 +4976,8 @@ runs the root test: 1 passed. `cargo clippy -p pod-extract --all-targets
 --all-features -- -D warnings`, `cargo fmt --all --check` and
 `sh scripts/plant-each.sh --apply` (0 stale) pass.
 
+2026-11-25, `nightly.yml` run 45504345202 at `6f5f4951`: each `flatten` binary of `pod-extract` passes in the seven jobs `cross` (`flatten` 0 to 3 s, `flatten_random` 6 to 43 s, as the runner user that is not root).
+
 # T-1299: `pod-extract`: a stream of `flatten` that GNU tar as a user that is not root can unpack
 
 **Source:** T-1295 (the order of the stream of `gnu_tar_as_root_takes_a_directory_that_a_newer_layer_closed`).
@@ -5013,7 +5027,7 @@ setpriv --reuid=65534 --regid=65534 --clear-groups cargo test -p pod-extract --a
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -5091,6 +5105,8 @@ writes the skip line. `cargo test -p pod-enter --all-features`: 272 passed,
 emulated jobs `cross` of the next `nightly.yml` run. When the two tests
 pass there, set the entry to `done`.
 
+2026-11-25, `nightly.yml` run 45504345202 at `6f5f4951`: the title tests pass in the six emulated jobs `cross` (aarch64, arm, armv7, powerpc64le, riscv64, loongarch64: the binary `pod_enter` ends in 5 to 6 s with exit 0; `the_title_and_the_dump_flag_follow_the_fork`, `a_hidden_process_shows_its_title_and_no_environment` and `a_stat_of_qemu_user_gives_the_threads_and_no_map` are `ok`) and in the job of i686. Set to `done`.
+
 # T-1297: `pod-link`: `dns_hold` gives a hold that is longer than its query timeout under an emulator, and `a_server_that_never_answers_a_command_is_the_named_timeout` of `mail` ends with no error on arm
 
 **Source:** `nightly.yml` run 45452272145 at `f39b8e2`: `dns_hold` in the jobs `cross` of aarch64, armv7, arm, riscv64, loongarch64 and powerpc64le; `mail` in the jobs of arm and armv7.
@@ -5098,7 +5114,7 @@ pass there, set the entry to `done`.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -5190,6 +5206,8 @@ Open: the next `nightly.yml` run: `dns_hold` in the six emulated jobs
 `cross`, and `mail` in the jobs of arm and armv7. When both pass, set the
 entry to `done`.
 
+2026-11-25, `nightly.yml` run 45504345202 at `6f5f4951`: `dns_hold` passes in the six emulated jobs `cross` (168 s each, 169 s on riscv64, where it failed after 96 s before) and in i686 and the jobs `test` (34 s); `mail` passes in arm and armv7 (1 s each) and in each other job. Set to `done`.
+
 # T-1298: `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes
 
 **Source:** `nightly.yml` run 45452272145 at `f39b8e2`, the jobs `test (macos-15)` (138652266705) and `test (macos-15-intel)` (138652267051), step "Test", cancelled at 60 minutes.
@@ -5197,7 +5215,7 @@ entry to `done`.
 **Milestone:** M6
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -5326,6 +5344,8 @@ macOS (an error other than `BrokenPipe`) or of `Close` names the error of
 the write. T-1303 gives each test binary of those jobs a limit of real
 time.
 
+2026-11-25, `nightly.yml` run 45504345202 at `6f5f4951`: the jobs `test (macos-15)` and `test (macos-15-intel)` ran the four tests of `images` of `pod-incus` in less than 1 s each (`an_answer_that_stalls_after_a_cut_ends_at_its_short_bound`, `an_upload_that_incus_closes_with_no_answer_gives_the_error_of_the_write`, `an_upload_that_incus_stops_reading_ends_at_the_bound_of_the_write`, `an_upload_that_incus_refuses_and_closes_gives_the_answer_of_incus`: `ok`), and the step "Test" went on to each later binary: 557 binaries and the doc run ended in 21 minutes (macos-15) and 25 minutes (macos-15-intel) in place of the cancel at 60 minutes. Each macOS run of the stand-in cuts (`Shut`, `Hold`, `Close`) gave the expected error. The later binaries of those jobs show a new failure in `pod-core` (T-1359). Set to `done`.
+
 # T-1303: The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows
 
 **Source:** T-1298: `nightly.yml` run 45452272145, the jobs `test (macos-15)` and `test (macos-15-intel)`, cancelled at 60 minutes in `images` of `pod-incus`.
@@ -5333,7 +5353,7 @@ time.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -5417,6 +5437,8 @@ and it fails at the end. The Windows jobs must run `limit.sh` with the
 `timeout` of Git for Windows (not `timeout.exe` of Windows: the check
 `--version` selects the GNU one) and the cargo runner through `sh`
 (`cygpath -m` gives the path). The macOS jobs must use the perl path.
+
+2026-11-25, `nightly.yml` run 45504345202 at `6f5f4951`: the four jobs `test` print the line `== N s, exit RC: PATH` after each binary (one line for each of the 557 binaries and one for the doc run on macos-15, macos-15-intel and windows-2025, and 553 binaries on windows-11-arm, which skips `pod-gsr`), and the step goes on after a failed binary and ends with "test runs that failed: N" (1 in macos-15, macos-15-intel and windows-11-arm, 0 in windows-2025). The perl path of macOS and the `timeout` of Git for Windows both work. No binary met its limit, so `limit.sh: no end after` did not print: the hang path is proved only by the local run above. The longest test binary of each job: macos-15 57 s (`new_address`), macos-15-intel 70 s (`new_address`), windows-2025 52 s (`new_address`), windows-11-arm 54 s (`new_address`); the doc tests took 19 s, 37 s, 22 s and 23 s; the step of `pod-gsr` took 31 s. The limits were 1200 s for a binary and 1800 s for the doc tests. They are now 300 s and 600 s (a margin of 4 times over the longest binary), and the step of `pod-gsr` has 300 s. `python3 -I scripts/check-workflows.py`: 0 faults. Set to `done`.
 
 # T-1325: `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met its limit of 40 minutes in "Build the probe"
 
@@ -5552,3 +5574,116 @@ plant `hostprobe-tty-nr-field-shifted`: with it,
 fails (exit 101); without it, it passes. `sh scripts/plant-each.sh
 --apply`: 0 stale. `python3 -I scripts/codegraph.py dups`: no new
 finding.
+
+# T-1359: `pod-core`: three tests of `files::socket` fail on macOS because the temporary directory is longer than their directory of 40 bytes
+
+**Source:** `nightly.yml` run 45504345202 at `6f5f4951`, the jobs `test (macos-15)` (138835537563) and `test (macos-15-intel)` (138835541002), step "Test", binary `pod_core` (lib tests).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Three tests of `crates/pod-core/src/files/socket/tests.rs` fail on both
+macOS jobs, in less than 1 s, and pass on each Linux job (the tests are Unix only):
+
+```text
+files::socket::tests::a_file_name_longer_than_sun_path_binds
+files::socket::tests::a_file_name_past_255_bytes_fails_with_one_clear_line
+files::socket::tests::a_socket_that_a_forked_child_holds_until_its_exec_is_stale
+thread '...' panicked at crates/pod-core/src/files/socket/tests.rs:27:60:
+a temporary directory shorter than the test
+test result: FAILED. 99 passed; 3 failed; 0 ignored
+```
+
+Each test calls `long_dir(name, 40)`, which makes a directory of exactly 40
+bytes under `std::env::temp_dir()`. The temporary directory of macOS
+(`/var/folders/XX/YYYY.../T`) and the prefix `pb-NAME-PID` are longer than 40
+bytes, so `len.checked_sub(base.len() + 1)` is `None` and the `expect`
+panics. On Linux `/tmp` is short. The tests came with T-1114 (2026-11-23)
+and T-1209 (2026-11-24); this is the first nightly that runs them on macOS.
+The 40 is not a bound under test: each test needs only a directory that is
+short enough for a direct `bind` (under the 104 bytes of macOS) or that has
+a file name of its own that is long.
+
+## Premise
+
+- Read: the two logs of the jobs, `tests.rs` (`long_dir`, `remove_long`).
+- Not measured: the length of the temporary directory on the runner (the
+  test of 120 bytes passes, so the directory with its prefix is under 119
+  bytes).
+
+## Approach
+
+Add a helper `near_dir(name)` that gives the shortest directory that
+`remove_long` can remove: `long_dir(name, base_len + 2)` with `base_len` the
+length of `temp_dir().join("pb-NAME-PID")`. Use it in the three tests. Keep
+`long_dir` for the tests that need the exact lengths 120. Check that
+`dir.join("held.sock")` of the third test stays under 104 bytes on macOS.
+Run `scripts/agent/check-macos.sh`.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features --lib files::socket
+```
+
+The jobs `test (macos-15)` and `test (macos-15-intel)` of the next
+`nightly.yml` run pass the binary `pod_core`.
+
+# T-1360: `pod-cloudflare`: `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` cannot bind its UDP socket on Windows ARM64 (WSAEACCES)
+
+**Source:** `nightly.yml` run 45504345202 at `6f5f4951`, the job `test (windows-11-arm)` (138835537711), step "Test", binary `quick_tunnel_standin`.
+**Category:** defect
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+```text
+test quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped ... FAILED
+thread '...' panicked at crates\pod-cloudflare\tests\quick_tunnel_standin.rs:223:63:
+a UDP socket on the edge port: Os { code: 10013, kind: PermissionDenied, message: "An attempt was made to access a socket in a way forbidden by its access permissions." }
+test result: FAILED. 12 passed; 1 failed
+```
+
+The test binds a UDP socket on the number of the port of the stand-in edge,
+which is a TCP port that `edge::listen` took with `127.0.0.1:0`. The same
+test passes on `windows-2025` in this run. On Windows a bind to a port that
+is in an excluded range (Hyper-V, WinNAT) or that another socket holds with
+an exclusive use gives 10013, not 10048 (address in use). The ports of TCP
+and UDP are separate, so a free TCP port is not a free UDP port. The cause
+is not known: a reserved range of the runner image, or another socket that
+holds the port.
+
+## Premise
+
+- Read: the log of the job, `quick_tunnel_standin.rs` (lines 216 to 230),
+  `src/standin/edge.rs` (`listen`).
+- Not measured: `netsh int ipv4 show excludedportrange protocol=udp` on the
+  runner; how often the failure happens (one run seen); which other socket
+  holds the port.
+
+## Approach
+
+Print the excluded UDP ranges and the owner of the port in the step when the
+bind fails. Then make the test take a stand-in whose TCP port is also a free
+UDP port: bind the UDP socket first (`UdpSocket::bind("127.0.0.1:0")`), take
+its port, and bind the TCP listener of the edge to that port, with a retry of
+the pair a few times on `AddrInUse` or `PermissionDenied`. A fault of the
+runner image alone (an excluded range) skips the test with the reason, as a
+missing capability does (`pod_testkit::host`), and the job prints the line.
+Do not weaken the check of the leg `http2`.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
+```
+
+The job `test (windows-11-arm)` of the next `nightly.yml` run passes the
+binary `quick_tunnel_standin`.

@@ -31,26 +31,21 @@ is done. Git and the record keep finished work.
    other work. A plant that a run misses once with no change of its crate
    runs its test five times in its `.plant` (as
    `link-quic-drop-closes-at-once`). Then read the scheduled runs:
-   - `nightly.yml` 45452272145 at `f39b8e2` (a dispatch, cancelled): the
-     jobs of Windows, `gate` and `install-os` pass. The failure of the
-     seven jobs `cross` in `pod-extract` for a user that is not root (also
-     in `ci.yml` 45462046889 at `65fa99f`) is fixed. The emulated jobs fail in
-     `pod-enter` (T-1296, partial: qemu-user writes `/proc/self/stat`
-     with 44 fields and no map; the title reads the threads first and
-     refuses with no map; read the emulated jobs of the next nightly) and
-     in `dns_hold` of `pod-link` (T-1297, partial; `mail` on arm and
-     armv7 too: the query timeout of `dns_hold` scales with the hold, and
-     `pipes::spawn_task` sets the fault of a carrier before its far ends
-     drop; read those jobs of the next nightly). `riscv64` fails in `pod-iroh` (`road.rs`,
-     `share.rs`: T-916, T-938, Q19) and was cancelled at 150 minutes in
-     `session_resume_twice` (T-938; each binary now has a limit of 2700 s).
-     Both jobs of macOS were cancelled at 60 minutes in `images` of
-     `pod-incus` (T-1298, partial: a write of a request now has the bound
-     `write_timeout`, and the stand-in gives each cut on macOS too; read
-     the macOS jobs of the next nightly. T-1303: a limit for each test
-     binary of the jobs `test`). T-1161 is done (the test passed on riscv64).
-     T-789 and T-766 passed on this run. Open entries of the nightly:
-     T-1298, T-1296, T-1297, T-916 and T-938 (partial), T-789,
+   - `nightly.yml` 45504345202 at `6f5f4951` (a dispatch): `gate`, the
+     installer jobs, `test (windows-2025)` and the jobs `cross` of aarch64,
+     arm, armv7, powerpc64le and i686 pass. The emulated jobs pass
+     `pod-enter`, `dns_hold` and `mail` (T-1296 and T-1297 are done), the
+     macOS jobs pass `pod-incus` (T-1298 is done), and each job `test`
+     prints the seconds of each binary (T-1303 is done; the longest binary
+     takes 70 s, so the limits are 300 s and 600 s). Open failures:
+     `riscv64` fails in `pod-iroh` (`road.rs`, `share.rs`) and
+     `loongarch64` in `share.rs` (T-916, T-938, Q19); the riscv64 job took
+     127 of its 150 minutes, and `session_resume_twice` ended in 91 s. Both
+     jobs of macOS fail in three tests of `files::socket` of `pod-core`: the
+     temporary directory is longer than 40 bytes (T-1359). The job of
+     Windows ARM64 fails in the UDP bind of `quick_tunnel_standin`, with
+     10013 (T-1360). T-789 and T-766 passed again (partial). Open entries of
+     the nightly: T-1359, T-1360, T-916 and T-938 (partial), T-789,
      T-766, and T-1044 (`check-windows.sh` and `check-macos.sh` compile no
      doc test).
    - `ci.yml` run 45487233017 at `25747d3b` (the fix of T-1295): each job
@@ -225,7 +220,7 @@ The asks of #259 to the consumers:
   again a file whose path a second entry replaced; the records of a hard
   link go out with the data entry of its inode. No public item changed.
 
-- T-1298 (`pod-incus`, partial: the next nightly's macOS jobs decide): the
+- T-1298 (`pod-incus`, done: the macOS jobs of the nightly 45504345202 pass): the
   write of a request has a bound (`Settings::write_timeout`, 30 s with no
   progress); a stall is a cut, and the client reads the answer that incus
   already sent within `LATE_ANSWER`, else `Io(TimedOut)`. podvm: an upload
@@ -237,7 +232,7 @@ The asks of #259 to the consumers:
   session, create_signing, load, sign}`, the PCR helpers, `Error::Step`). A
   `TPM2_PolicyAuthorize` resets the policy digest wherever it comes.
 
-- T-1296 and T-1297 (partial: the next nightly decides): `pod-enter`'s title
+- T-1296 and T-1297 (done: the emulated jobs of the nightly 45504345202 pass): `pod-enter`'s title
   reads the threads before the map of `/proc/self/stat` (qemu-user gives no
   map, and an honest refusal); the IMAP, SMTP and NTP carriers of `pod-link`
   set the fault of their task before the end of its pipes

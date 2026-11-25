@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**983 entries: 155 open, 31 partial, 7 blocked, 790 done.**
+**985 entries: 155 open, 29 partial, 7 blocked, 794 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 10 | 0 | 229 | 243 |
-| P2 | 70 | 10 | 4 | 413 | 497 |
-| P3 | 81 | 11 | 3 | 146 | 241 |
-| **All** | 155 | 31 | 7 | 790 | 983 |
+| P1 | 4 | 9 | 0 | 230 | 243 |
+| P2 | 69 | 9 | 4 | 416 | 498 |
+| P3 | 82 | 11 | 3 | 146 | 242 |
+| **All** | 155 | 29 | 7 | 794 | 985 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -653,7 +653,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-763](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `1739b5f` is red on windows-2025: a test of `pod-link` writes a POST on TLS and reads the answer with no flush |
 | [T-764](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `1739b5f` is red on windows-2025: the lower bound of a silence of `pod-link`'s split test does not allow the tick of the timer of Windows |
 | [T-765](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `1739b5f` is red on macos-15-intel: a dial of `pod-proxy` to a freed port gets a reset, not a refusal |
-| [T-766](upkeep.md) | P2 | S | M5 | defect | open | The nightly at `1739b5f` is red on riscv64: two time limits of tests that the emulation of QEMU outruns |
+| [T-766](upkeep.md) | P2 | S | M5 | defect | partial | The nightly at `1739b5f` is red on riscv64: two time limits of tests that the emulation of QEMU outruns |
 | [T-767](relay.md) | P1 | M | M2 | defect | done | `pod-session`: a resume that the client calls done, after which the session never moves (PodUtils/podssh#283) |
 | [T-768](relay.md) | P2 | S | M2 | defect | open | `pod-session`: a spare waits 20 s, not 1 s to 3 s, when the client's writer is held by a full link |
 | [T-773](fleet.md) | P2 | S | M8 | defect | done | the installer core: a tree copy with no pins stops on a host with cosign (PodUtils/podnet#597) |
@@ -668,7 +668,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-786](podvm.md) | P1 | S | M6 | feature | done | `pod-enter`: the ids inside the user namespace of the namespace rung, so that a payload runs as the user of its image (PodUtils/podvm#447) |
 | [T-787](podvm.md) | P1 | S | M6 | feature | done | `pod-enter`: the ids of the plan for a caller that makes the namespace rung with no user namespace (root) |
 | [T-788](upkeep.md) | P2 | S | M5 | defect | done | The nightly at `f309b07` is red on ppc64le: a test of `pod-enter`'s `pass_clear` reads a closed number that another test thread can take |
-| [T-789](upkeep.md) | P2 | S | M5 | defect | open | The nightly at `f309b07` is red on armv7: two tests of the MQTT board of `pod-wormhole` against the stand-in |
+| [T-789](upkeep.md) | P2 | S | M5 | defect | partial | The nightly at `f309b07` is red on armv7: two tests of the MQTT board of `pod-wormhole` against the stand-in |
 | [T-790](upkeep.md) | P2 | S | M5 | chore | done | `pod-services`: the Syncthing relay of the device DVWOU27 moved to 1.168.112.83 |
 | [T-791](podvm.md) | P3 | S | M6 | feature | open | `pod-enter`: the ids of the plan for a host root (a change of ids with no user namespace) |
 | [T-792](fleet.md) | P2 | S | M8 | feature | done | `pod-lab`: with a way out, the certificate file of the lab holds the roots that the host trusts for its way out (PodUtils/podssh#285) |
@@ -1019,14 +1019,16 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1270](podvm.md) | P3 | S | M6 | defect | done | `pod-extract`: `flatten` drops the extended attributes of a hard-link entry, which `extract` sets on the inode |
 | [T-1279](relay.md) | P3 | S | M2 | defect | done | `pod-dns`: a `Pipe` asks Cloudflare and Google over HTTP/1.1, so the queries of the DNS carrier over DoH go one at a time behind a held poll |
 | [T-1295](upkeep.md) | P1 | S | M6 | defect | done | `pod-extract`: `flatten` tests fail for a user that is not root: GNU tar cannot open `usr/bin/sh`, and `walk` cannot read a directory with no search mode |
-| [T-1296](upkeep.md) | P2 | S | M6 | defect | partial | `pod-enter`: the two title tests of the init and the relay fail under qemu-user on each emulated job (the nightly at `f39b8e2`) |
-| [T-1297](upkeep.md) | P2 | S | M2 | defect | partial | `pod-link`: `dns_hold` gives a hold that is longer than its query timeout under an emulator, and `a_server_that_never_answers_a_command_is_the_named_timeout` of `mail` ends with no error on arm |
-| [T-1298](upkeep.md) | P1 | M | M6 | defect | partial | `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes |
+| [T-1296](upkeep.md) | P2 | S | M6 | defect | done | `pod-enter`: the two title tests of the init and the relay fail under qemu-user on each emulated job (the nightly at `f39b8e2`) |
+| [T-1297](upkeep.md) | P2 | S | M2 | defect | done | `pod-link`: `dns_hold` gives a hold that is longer than its query timeout under an emulator, and `a_server_that_never_answers_a_command_is_the_named_timeout` of `mail` ends with no error on arm |
+| [T-1298](upkeep.md) | P1 | M | M6 | defect | done | `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes |
 | [T-1299](upkeep.md) | P3 | S | M6 | feature | open | `pod-extract`: a stream of `flatten` that GNU tar as a user that is not root can unpack |
-| [T-1303](upkeep.md) | P2 | S | M5 | defect | partial | The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows |
+| [T-1303](upkeep.md) | P2 | S | M5 | defect | done | The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows |
 | [T-1307](podvm.md) | P3 | S | M6 | feature | done | `pod-incus`: a cut `error` envelope has no flag, so a caller reads the words of its text to know that the answer was over `max_body` (PodUtils/podvm#663) |
 | [T-1321](podvm.md) | P3 | S | M6 | measurement | open | `pod-gzip`: measure a C backend of deflate against `miniz_oxide` at four threads |
 | [T-1325](upkeep.md) | P2 | S | M5 | defect | open | `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met its limit of 40 minutes in "Build the probe" |
 | [T-1326](upkeep.md) | P3 | S | M5 | chore | done | Three readers of the fields after the name in `/proc/PID/stat`: `pod-hostprobe`, `pod-supervise` and `pod-enter` |
 | [T-1339](fleet.md) | P2 | S | M8 | chore | open | `pod-tpm`: the fuzz targets of the response reader and of the key file reader, and a plant for each bound of T-1217 and T-1219 |
 | [T-1340](fleet.md) | P2 | M | M8 | measurement | open | `pod-tpm`: a key file that the crate writes loads and signs in tpm2-openssl and in go-tpm-keyfiles against swtpm |
+| [T-1359](upkeep.md) | P2 | S | M5 | defect | open | `pod-core`: three tests of `files::socket` fail on macOS because the temporary directory is longer than their directory of 40 bytes |
+| [T-1360](upkeep.md) | P3 | S | M5 | defect | open | `pod-cloudflare`: `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` cannot bind its UDP socket on Windows ARM64 (WSAEACCES) |
