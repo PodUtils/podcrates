@@ -54,14 +54,21 @@ pub struct Standin {
 
 impl Standin {
     pub fn start() -> Standin {
+        Standin::start_at(SocketAddr::from(([127, 0, 0, 1], 0))).expect("bind the edge")
+    }
+
+    /// The stand-ins as [`Standin::start`] gives them, with the edge on
+    /// `edge`. A bind error of the edge goes to the caller, which can take
+    /// a different port.
+    pub fn start_at(edge: SocketAddr) -> std::io::Result<Standin> {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
             .enable_all()
             .build()
             .expect("a runtime for the stand-in");
-        let mut standin = runtime.block_on(Standin::start_here());
+        let mut standin = runtime.block_on(Standin::start_here_at(edge))?;
         standin.runtime = Some(runtime);
-        standin
+        Ok(standin)
     }
 
     /// The stand-ins on the runtime of the caller, for a test with a
@@ -69,6 +76,10 @@ impl Standin {
     /// [`Standin::run`], [`Standin::block_on`] and [`Standin::proxy`]: they
     /// need the runtime of [`Standin::start`].
     pub async fn start_here() -> Standin {
+        Standin::start_here_at(SocketAddr::from(([127, 0, 0, 1], 0))).await.expect("bind the edge")
+    }
+
+    async fn start_here_at(edge_at: SocketAddr) -> std::io::Result<Standin> {
         let dir = tempfile::tempdir().expect("a directory");
         let ca = ca::Ca::new();
         let ca_file = dir.path().join("standin-ca.pem");
@@ -76,11 +87,20 @@ impl Standin {
         let api = api::Api::new();
         let edge = edge::Edge::new(api.clone());
         let api_addr = api::serve(api.clone()).await;
-        let (listener, edge_addr) = edge::listen().await;
+        let (listener, edge_addr) = edge::listen_at(edge_at).await?;
         let names = [crate::cloudflare::h2_sni(), crate::cloudflare::quic_sni()];
         edge::serve(edge.clone(), listener, ca.server_config(&names));
         let front_addr = front::serve(edge.clone()).await;
-        Standin { runtime: None, api, api_url: format!("http://{api_addr}"), edge, edge_addr, front_addr, dir, ca_file }
+        Ok(Standin {
+            runtime: None,
+            api,
+            api_url: format!("http://{api_addr}"),
+            edge,
+            edge_addr,
+            front_addr,
+            dir,
+            ca_file,
+        })
     }
 
     /// Run a future of the stand-in to its end.

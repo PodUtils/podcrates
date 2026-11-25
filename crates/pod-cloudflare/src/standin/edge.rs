@@ -198,11 +198,12 @@ pub fn serve(edge: Arc<Edge>, listener: TcpListener, tls: Arc<rustls::ServerConf
     });
 }
 
-/// The address of a listener on the loopback.
-pub async fn listen() -> (TcpListener, SocketAddr) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind the edge");
-    let addr = listener.local_addr().unwrap();
-    (listener, addr)
+/// A listener and its address on `addr` of the loopback. A test can give
+/// a port that is also free for UDP; the caller retries on an error.
+pub async fn listen_at(addr: SocketAddr) -> std::io::Result<(TcpListener, SocketAddr)> {
+    let listener = TcpListener::bind(addr).await?;
+    let addr = listener.local_addr()?;
+    Ok((listener, addr))
 }
 
 async fn connection<T>(edge: Arc<Edge>, io: T) -> Result<(), Box<dyn std::error::Error>>

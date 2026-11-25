@@ -42,10 +42,10 @@ is done. Git and the record keep finished work.
      `loongarch64` in `share.rs` (T-916, T-938, Q19); the riscv64 job took
      127 of its 150 minutes, and `session_resume_twice` ended in 91 s. Both
      jobs of macOS fail in three tests of `files::socket` of `pod-core`: the
-     temporary directory is longer than 40 bytes (T-1359). The job of
-     Windows ARM64 fails in the UDP bind of `quick_tunnel_standin`, with
-     10013 (T-1360). T-789 and T-766 passed again (partial). Open entries of
-     the nightly: T-1359, T-1360, T-916 and T-938 (partial), T-789,
+     temporary directory is longer than 40 bytes (T-1359, done on `main`).
+     The job of Windows ARM64 fails in the UDP bind of
+     `quick_tunnel_standin`, with 10013 (T-1360, done on `main`). T-789 and T-766 passed again (partial). Open entries of
+     the nightly: T-916 and T-938 (partial), T-789,
      T-766, and T-1044 (`check-windows.sh` and `check-macos.sh` compile no
      doc test).
    - `ci.yml` run 45487233017 at `25747d3b` (the fix of T-1295): each job
@@ -166,6 +166,15 @@ The asks of #259 to the consumers:
   are taken already or stay (its fakes). No open ask.
 
 ### On `main` after `v0.83.0` (for the next tag)
+
+- T-1359 (`pod-core`): three tests of `files::socket` take `near_dir`, the
+  shortest directory under the temporary directory, in place of a directory
+  of 40 bytes. The tests pass with the temporary directory of macOS. No
+  change for a consumer.
+- T-1360 (`pod-cloudflare`, feature `standin`): `Standin::start_at` and
+  `standin::edge::listen_at` take the address of the edge (`edge::listen` is
+  removed). The test of the dropped UDP binds UDP first and the edge on the
+  same port, with a retry of the pair.
 
 - T-1243 and T-1355: ports of `pod-testkit` at podrunner `2a55cd9` (the auth
   of the fake broker) and `4fc871c` (the contract `source-driver.md`). No

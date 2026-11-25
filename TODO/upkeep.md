@@ -5688,7 +5688,7 @@ sh scripts/agent/check.sh
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5739,6 +5739,35 @@ cargo test -p pod-core --all-features --lib files::socket
 The jobs `test (macos-15)` and `test (macos-15-intel)` of the next
 `nightly.yml` run pass the binary `pod_core`.
 
+## Done
+
+2026-11-25, this commit (the next `nightly.yml` run decides the jobs of
+macOS).
+
+The change. `crates/pod-core/src/files/socket/tests.rs`: `near_dir(name)`
+gives `long_dir(name, N + 2)`, with `N` the length of the base
+`TEMP/pb-NAME-PID` (`base_dir`), so the directory is the base and one
+byte. The tests `a_file_name_longer_than_sun_path_binds`,
+`a_file_name_past_255_bytes_fails_with_one_clear_line` and
+`a_socket_that_a_forked_child_holds_until_its_exec_is_stale` take it in
+place of `long_dir(_, 40)`. The tests of 120 bytes keep `long_dir`.
+`link_dir` takes `base_dir` too.
+
+The length. The third test binds `held.sock` directly. Its path is
+`TEMP` + 1 + `pb-held-PID` (at most 15 bytes) + 2 + 9: 76 bytes for a
+macOS `TEMP` of 49 bytes, 87 bytes for a `TEMP` of 60 bytes, under the
+104 bytes of macOS.
+
+The proof. On the code before, with `TMPDIR` of 60 bytes on Linux,
+`cargo test -p pod-core --all-features --lib files::socket`: 6 passed,
+3 failed, each at "a temporary directory shorter than the test" (the
+failure of macOS). With the fix: 9 passed with `TMPDIR=/tmp`, with
+`TMPDIR` of 49 bytes and with `TMPDIR` of 60 bytes; `cargo test -p
+pod-core --all-features --lib`: 104 passed. `sh
+scripts/agent/check-macos.sh`: 0 faults. `cargo clippy -p pod-core -p
+pod-cloudflare --all-targets --all-features -- -D warnings` and `cargo
+fmt --all --check` pass. Not measured: a run on macOS.
+
 # T-1360: `pod-cloudflare`: `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` cannot bind its UDP socket on Windows ARM64 (WSAEACCES)
 
 **Source:** `nightly.yml` run 45504345202 at `6f5f4951`, the job `test (windows-11-arm)` (138835537711), step "Test", binary `quick_tunnel_standin`.
@@ -5746,7 +5775,7 @@ The jobs `test (macos-15)` and `test (macos-15-intel)` of the next
 **Milestone:** M5
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5793,6 +5822,34 @@ cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
 
 The job `test (windows-11-arm)` of the next `nightly.yml` run passes the
 binary `quick_tunnel_standin`.
+
+## Done
+
+2026-11-25, this commit (the next `nightly.yml` run decides the job
+`test (windows-11-arm)`).
+
+The change. `pod_cloudflare::standin::edge::listen_at(addr)` (in place
+of `listen`) binds the edge on a given address and gives the error to the
+caller. `Standin::start_at(edge)` starts the stand-ins with the edge on
+that address and gives a bind error; `Standin::start` and
+`Standin::start_here` take `127.0.0.1:0` as before. In
+`crates/pod-cloudflare/tests/quick_tunnel_standin.rs`, `standin_with_udp`
+binds the UDP socket first on `127.0.0.1:0` and then the edge on its
+port. On `AddrInUse` or `PermissionDenied` of either bind it takes a new
+pair, at most 8 times. When each try is refused, the test skips with
+the errors, and on Windows it prints the excluded ranges of
+`netsh int ipv4 show excludedportrange` for UDP and TCP. The check of the
+leg `http2` and of the QUIC packets on the silent socket do not change.
+
+The proof. `cargo test -p pod-cloudflare --all-features --test
+quick_tunnel_standin`: 13 passed; the test
+`quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` passed 10
+runs of 10 (2.1 s each). `cargo test -p pod-cloudflare --all-features`:
+215 passed. `sh scripts/agent/check-windows.sh`: 0 faults. `cargo clippy
+-p pod-core -p pod-cloudflare --all-targets --all-features -- -D
+warnings` and `cargo fmt --all --check` pass. Not measured: the failure
+on Windows ARM64 (Linux gives no 10013), and the excluded ranges of that
+runner.
 
 # T-1361: `adoption/podssh/pod-tpm.run`: the check of the moved names reads all of `podssh-ssh/src`, and it finds two other structs named `Out`
 

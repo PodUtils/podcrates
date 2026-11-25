@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**989 entries: 154 open, 28 partial, 7 blocked, 800 done.**
+**989 entries: 152 open, 28 partial, 7 blocked, 802 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 232 | 245 |
-| P2 | 70 | 9 | 4 | 416 | 499 |
-| P3 | 80 | 10 | 3 | 150 | 243 |
-| **All** | 154 | 28 | 7 | 800 | 989 |
+| P2 | 69 | 9 | 4 | 417 | 499 |
+| P3 | 79 | 10 | 3 | 151 | 243 |
+| **All** | 152 | 28 | 7 | 802 | 989 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1033,6 +1033,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1343](upkeep.md) | P2 | M | M5 | feature | open | `pod-core`: one temp directory and one temp file with a random name (PodUtils/podnet#711, lesson 5 of PodUtils/podvm#567) |
 | [T-1351](adapters.md) | P3 | M | M3 | defect | open | `pod-cloudflare`, `pod-core`, `pod-proxy`: a failure whose text holds the words of its typed cause says them two times to a reader that joins the chain |
 | [T-1355](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `4fc871c` (the fourth port of `source-driver.md`) |
-| [T-1359](upkeep.md) | P2 | S | M5 | defect | open | `pod-core`: three tests of `files::socket` fail on macOS because the temporary directory is longer than their directory of 40 bytes |
-| [T-1360](upkeep.md) | P3 | S | M5 | defect | open | `pod-cloudflare`: `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` cannot bind its UDP socket on Windows ARM64 (WSAEACCES) |
+| [T-1359](upkeep.md) | P2 | S | M5 | defect | done | `pod-core`: three tests of `files::socket` fail on macOS because the temporary directory is longer than their directory of 40 bytes |
+| [T-1360](upkeep.md) | P3 | S | M5 | defect | done | `pod-cloudflare`: `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` cannot bind its UDP socket on Windows ARM64 (WSAEACCES) |
 | [T-1361](upkeep.md) | P1 | S | M8 | defect | done | `adoption/podssh/pod-tpm.run`: the check of the moved names reads all of `podssh-ssh/src`, and it finds two other structs named `Out` |
