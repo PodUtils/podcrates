@@ -18,6 +18,25 @@ fn the_gate_opens_where_the_node_opens() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
+/// Two mount directories of one store have two names, and a directory
+/// that is there under the base stays as it was: no mount lands on a
+/// tree of another run of the same pid.
+#[test]
+fn each_mount_directory_is_new() {
+    let d = tree("mount-dir");
+    let other = d.join("store/fuse/mnt-of-another-run");
+    std::fs::create_dir_all(&other).unwrap();
+    std::fs::write(other.join("kept"), b"x").unwrap();
+    let (a, b) = (stage_mount_dir(&d.join("store")).unwrap(), stage_mount_dir(&d.join("store")).unwrap());
+    assert_ne!(a, b);
+    for dir in [&a, &b] {
+        assert!(dir.file_name().unwrap().to_string_lossy().starts_with("mnt-"), "{}", dir.display());
+        assert!(std::fs::read_dir(dir).unwrap().next().is_none());
+    }
+    assert_eq!(std::fs::read(other.join("kept")).unwrap(), b"x");
+    let _ = std::fs::remove_dir_all(&d);
+}
+
 /// The gate refuses naming the node where nothing opens: the absent
 /// path reads as the absent `/dev/fuse` does.
 #[test]

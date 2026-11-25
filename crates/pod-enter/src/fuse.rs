@@ -164,19 +164,12 @@ fn stage_mount_dir(store_root: &Path) -> Result<PathBuf, stage::Refusal> {
     let base = store_root.join("fuse");
     std::fs::create_dir_all(&base)
         .map_err(|e| stage::Refusal { path: base.clone(), why: format!("the fuse base could not be prepared: {e}") })?;
-    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
-    let dir = base.join(format!("mnt-{}-{nanos}", std::process::id()));
-    if dir.exists() {
-        return Err(stage::Refusal {
-            path: dir,
-            why: "the mount directory already exists: refusing rather than mounting over a stale tree".to_string(),
-        });
-    }
-    std::fs::create_dir_all(&dir).map_err(|e| stage::Refusal {
-        path: dir.clone(),
+    // A new directory, never one that is there: no mount over a stale
+    // tree. The prefix lets a reader find a directory that a kill left.
+    pod_core::files::new_temp_dir(&base, "mnt").map_err(|e| stage::Refusal {
+        path: base.clone(),
         why: format!("the mount directory could not be created: {e}"),
-    })?;
-    Ok(dir)
+    })
 }
 
 /// The serving mount: the server's pid and the directory it serves over.
