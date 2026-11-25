@@ -42,6 +42,22 @@ pub fn new_temp_file(parent: &Path, prefix: &str, suffix: &str) -> io::Result<(P
     new_checked(parent, prefix, suffix, &mut random_part, &mut create_file)
 }
 
+/// The names of [`new_temp_dir`] with the create of the caller, for a path
+/// that the two functions above do not make (a device node, a call relative
+/// to a descriptor: give an empty `parent` and use the name as it is).
+/// `create` gets each path `parent/PREFIX-RANDOMSUFFIX` and must make it
+/// exclusively; an error of the kind `AlreadyExists` takes a new name, up
+/// to 8 tries, and another error ends the tries. The prefix and the suffix
+/// follow the rules of [`new_temp_file`].
+pub fn new_temp_with<T>(
+    parent: &Path,
+    prefix: &str,
+    suffix: &str,
+    mut create: impl FnMut(&Path) -> io::Result<T>,
+) -> io::Result<(PathBuf, T)> {
+    new_checked(parent, prefix, suffix, &mut random_part, &mut create)
+}
+
 /// [`new_named`] of a prefix and a suffix that a caller gives: each must be
 /// a part of one file name.
 fn new_checked<T>(

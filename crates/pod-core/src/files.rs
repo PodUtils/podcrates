@@ -38,7 +38,7 @@ pub use owner::{Host, make_dirs as make_dirs_with, passwd_home};
 pub use replace::{Commit, Failed, Mode, Replace, Step, replace, replace_private};
 #[cfg(unix)]
 pub use socket::{PeerIds, bind_staged, peer_ids, socket_answers};
-pub use temp::{new_temp_dir, new_temp_file};
+pub use temp::{new_temp_dir, new_temp_file, new_temp_with};
 
 /// The largest cache file read (a pool of a few hundred host names fits).
 /// A larger one is not read: a cache file is ignored, and made again.

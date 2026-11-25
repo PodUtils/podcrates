@@ -142,6 +142,33 @@ fn only_names_that_are_there_fail_after_the_bound() {
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+/// The create of a caller: an `AlreadyExists` takes the next random name,
+/// another error ends the tries at once, and a bad prefix is refused before
+/// the first create.
+#[test]
+fn the_create_of_a_caller_takes_the_same_rule() {
+    let mut seen = Vec::new();
+    let (path, n) = new_temp_with(Path::new(""), ".node", ".x", |p| {
+        seen.push(p.to_path_buf());
+        if seen.len() < 3 { Err(io::ErrorKind::AlreadyExists.into()) } else { Ok(seen.len()) }
+    })
+    .unwrap();
+    assert_eq!((n, path.clone()), (3, seen[2].clone()));
+    let name = path.to_str().unwrap();
+    let part = name.strip_prefix(".node-").and_then(|r| r.strip_suffix(".x")).unwrap();
+    assert!(is_random(part), "{name}");
+    assert_ne!(seen[0], seen[1]);
+    let mut calls = 0;
+    let e = new_temp_with(Path::new(""), "p", "", |_| -> io::Result<()> {
+        calls += 1;
+        Err(io::ErrorKind::PermissionDenied.into())
+    })
+    .unwrap_err();
+    assert_eq!((e.kind(), calls), (io::ErrorKind::PermissionDenied, 1));
+    let e = new_temp_with(Path::new(""), "a/b", "", |_| -> io::Result<()> { panic!("no create") }).unwrap_err();
+    assert_eq!(e.kind(), io::ErrorKind::InvalidInput);
+}
+
 /// (e) A prefix or a suffix that can leave the directory or cut the name
 /// is refused before a name is made.
 #[test]
