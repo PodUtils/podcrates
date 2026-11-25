@@ -42,6 +42,20 @@ fn a_bearer_of_its_channel_is_taken_once() {
 }
 
 #[test]
+fn a_read_bearer_writes_back_to_its_bytes_from_its_fields() {
+    let blob = bearer_of(1, NOW);
+    let read = Bearer::read(&blob).unwrap();
+    assert_eq!(read.to_bytes()[..], blob[..]);
+    assert_eq!(read.to_bytes()[..SIGNED], read.signed[..]);
+    // Each field writes to its own place: a change of one field changes
+    // its bytes alone.
+    let mut later = read.clone();
+    later.exp += 1;
+    let changed: Vec<usize> = (0..LEN).filter(|&i| later.to_bytes()[i] != blob[i]).collect();
+    assert_eq!(changed, vec![MAGIC.len() + 64 + 15]);
+}
+
+#[test]
 fn a_bearer_of_another_channel_is_refused_by_its_binding() {
     let bearers = Bearers::default();
     let blob = bearer_of(1, NOW);

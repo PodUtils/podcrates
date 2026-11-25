@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**999 entries: 149 open, 29 partial, 8 blocked, 813 done.**
+**999 entries: 148 open, 29 partial, 8 blocked, 814 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 237 | 250 |
-| P2 | 67 | 10 | 4 | 422 | 503 |
+| P2 | 66 | 10 | 4 | 423 | 503 |
 | P3 | 78 | 10 | 4 | 152 | 244 |
-| **All** | 149 | 29 | 8 | 813 | 999 |
+| **All** | 148 | 29 | 8 | 814 | 999 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1043,6 +1043,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1366](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: a pin mismatch names the cause by the issuer of the door certificate, and says each cause once (PodUtils/podnet#726) |
 | [T-1367](relay.md) | P1 | S | M2 | feature | done | `pod-e2e`: the binding of the channel to the check of a grant, at the node and at the operator (PodUtils/podssh#355) |
 | [T-1368](relay.md) | P1 | S | M2 | feature | done | `pod-relay`: a bearer grant bound to the channel, and its verifier (PodUtils/podssh#355) |
-| [T-1369](relay.md) | P2 | S | M2 | chore | open | `pod-relay`: a fuzz target of `grant::bearer::Bearer::read`, the reader of a bearer from the peer |
+| [T-1369](relay.md) | P2 | S | M2 | chore | done | `pod-relay`: a fuzz target of `grant::bearer::Bearer::read`, the reader of a bearer from the peer |
 | [T-1370](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: warm and cold units in `run-report.v1` and `status.v1` (PodUtils/podrunner#353) |
 | [T-1371](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: the `Mint` of a grant writes no extension, so a stock sshd gives its certificate no pty and no forward (PodUtils/podssh#356) |

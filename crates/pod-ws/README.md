@@ -188,6 +188,10 @@ The adoption trials are `adoption/podssh/pod-ws.patch` and
   that its unit tests compile with stay, as `--all-targets` compiles them.
   The clippy of the workspace does not lint the code of h2 (`[lints.clippy]`),
   and `rustfmt.toml` keeps the style of h2 (the defaults of rustfmt).
+- **0003-fuzz-docs.patch**: under `--cfg fuzzing` the module `fuzz_bridge`
+  of h2 is allowed `missing_docs` with no feature. h2 allows it only with
+  the feature `unstable`. The fuzz build has no `unstable`, and the lints of
+  a path crate are not capped, so the build of each fuzz target failed.
 - **How the workspace uses it**: a member of the workspace, so that
   `cargo publish --workspace` packs it before `pod-ws`. The workspace
   dependency `h2` is the fork (`h2 = { package = "pod-h2", .. }`), so each

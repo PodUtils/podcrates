@@ -53,7 +53,7 @@ pub use opentunnel::{opentunnel_answer, opentunnel_message};
 pub use piping::{piping_answer, piping_hello};
 pub use podvm::{elf_header, extract_layer, oci_challenge, oci_manifest, squashfs_image};
 pub use qga::qga_answer;
-pub use relay::{relay_list, relay_pool};
+pub use relay::{relay_bearer, relay_list, relay_pool};
 pub use results::actions_results;
 pub use session::{session_handover, session_record, udp_frame};
 pub use time::tzif_zone;

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 999 entries: 149 open, 29 partial, 8 blocked, 813 done.
+`TODO/INDEX.md` holds 999 entries: 148 open, 29 partial, 8 blocked, 814 done.
 
 ## State
 
@@ -126,8 +126,7 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   COORD-139: a test through `unbound`);
   T-1103 (iroh 1.5 and its fork
   of iroh-relay, after PodUtils/podssh#341);
-  T-941 (PodUtils/podssh#319); T-1369 (a fuzz target of the bearer
-  reader of `pod-relay`); T-1340 (a key file of `pod-tpm` in
+  T-941 (PodUtils/podssh#319); T-1340 (a key file of `pod-tpm` in
   tpm2-openssl and in go-tpm-keyfiles against swtpm; PodUtils/podssh#351).
 
 Then T-899, T-900, T-852, T-851, and T-920.
