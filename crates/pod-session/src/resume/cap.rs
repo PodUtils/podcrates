@@ -23,6 +23,11 @@
 //!
 //! The bound counts the bytes of the records. A road that adds bytes to each
 //! frame (an id, a head of its own) adds them to each record.
+//!
+//! podnet's study gave `move_bytes + PAIR_WINDOW + 2 * CHUNK + 64`. The code
+//! gives more: the heads of the far end's records, the handshake and the
+//! small records are not in that sum. This side adds one record, not two
+//! chunks.
 
 use pod_core::{Class, Failure, Stage};
 
