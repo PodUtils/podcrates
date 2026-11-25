@@ -71,11 +71,13 @@ is done. Git and the record keep finished work.
      the nightly: T-916 and T-938 (partial), T-789,
      T-766, and T-1044 (`check-windows.sh` and `check-macos.sh` compile no
      doc test).
-   - `ci.yml` run 45487233017 at `25747d3b` (the fix of T-1295): each job
-     passes but `static (aarch64-apple-darwin, macos-15-intel)`, which met
-     its limit of 40 minutes in "Build the probe" (T-1325; the job took 23
-     minutes in the last green run). The runs after it were cancelled by
-     newer pushes. Read the next `ci` run that ends.
+   - `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met
+     its limit of 40 minutes in runs 45487233017 and 45561305578 (T-1325,
+     partial). The two macOS rows of `static` have a limit of 60 minutes
+     since `v0.84.0`. Runs 45568238286 at `ca1d3e3` and 45578000852 at
+     `d9e5da03` pass; the two macOS rows took 24.9 and 20.4 minutes in the
+     second. T-1325 closes with the times of five runs: read the next `ci`
+     runs that end.
    - `upstream.yml` (job `sources`): the run 45423205689 at `5fd6fb7` found
      one change, podrunner `2a55cd9` in `auth.rs` (`pod-testkit`). T-1243
      (done) ports it; T-1355 (done) ports podrunner `4fc871c` in
@@ -209,9 +211,6 @@ The asks that #260 answers:
   handshake with the MASQUE front door DOOR" (the error is the source);
   "DOOR-A CHAIN; the other address of the front door failed too: DOOR-B
   STEPS" (the cause of the last door is the source).
-- T-1325 (partial): the two macOS rows of `static` in `ci.yml` take 60
-  minutes. This change is in the tag.
-
 - T-1343 (partial): the temp names of `pod-hostprobe`, `pod-enter`,
   `pod-actions-store`, `pod-link`, `pod-rootfs`, `pod-warp` and
   `pod-supervise` have a random part; `pod_core::files::new_temp_with`
@@ -232,8 +231,7 @@ The asks that #260 answers:
   go-tpm-keyfiles).
 - Entries of podcrates that no one has started: T-1115 (the copies of the
   bind at a long path), T-1146 (the comments of `pod-natprobe` are not in
-  ASD-STE100), T-1150 (a watch of the facts of RFC 5780 of `easybell-stun`),
-  T-1377, T-1378, T-1321.
+  ASD-STE100), T-1150 (a watch of the facts of RFC 5780 of `easybell-stun`).
 - T-963 is partial. T-975 and T-977 (podvm's asks #602 and #604; the ruling
   "Assets of other licences" allows their release part) are open. T-1159 is
   open (the ruling "A close by hand"): the code of `scripts/issue-sync.py`

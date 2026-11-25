@@ -55,12 +55,14 @@
   fail in three tests of `files::socket` of `pod-core` (T-1359, done on
   `main`); the job of Windows ARM64 fails in the UDP bind of
   `quick_tunnel_standin` (T-1360, done on `main`).
-  T-789 and T-766 passed again (partial in the record). `ci.yml` run
-  45487233017 (`25747d3b`, the fix of T-1295): each job passes but `static
-  (aarch64-apple-darwin, macos-15-intel)`, which met its limit of 40
-  minutes in "Build the probe" (T-1325; run 45561305578 met it again, and
-  the two macOS rows of `static` now take 60 minutes, in `v0.84.0`; `ci` 45568238286 at `ca1d3e3` passed; read the next runs). None open in `services.yml`:
-  T-1223 is done; read the next scheduled run.
+  T-789 and T-766 passed again (partial in the record). `ci.yml`: the job
+  `static (aarch64-apple-darwin, macos-15-intel)` met its limit of 40
+  minutes in runs 45487233017 and 45561305578 (T-1325, partial). The two
+  macOS rows of `static` have a limit of 60 minutes since `v0.84.0`; `ci`
+  45568238286 at `ca1d3e3` and 45578000852 at `d9e5da03` pass (the two
+  macOS rows took 24.9 and 20.4 minutes in the second); read the next
+  runs. None open in `services.yml`: T-1223 is done; read the next
+  scheduled run.
 - Open defects: T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
   a giver still waits its whole limit after a refusal of the relay);
   T-131 (`pod-gsr` on Windows ARM64); T-204 (a random failure of
