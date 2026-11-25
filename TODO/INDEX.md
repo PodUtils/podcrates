@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1015 entries: 161 open, 30 partial, 6 blocked, 818 done.**
+**1016 entries: 161 open, 30 partial, 6 blocked, 819 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 5 | 9 | 0 | 239 | 253 |
-| P2 | 71 | 11 | 4 | 423 | 509 |
-| P3 | 85 | 10 | 2 | 154 | 251 |
-| **All** | 161 | 30 | 6 | 818 | 1015 |
+| P2 | 70 | 11 | 4 | 424 | 509 |
+| P3 | 86 | 10 | 2 | 154 | 252 |
+| **All** | 161 | 30 | 6 | 819 | 1016 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1049,7 +1049,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1372](fleet.md) | P3 | S | M8 | release | open | crates.io: the names `pod-natprobe`, `pod-tpm`, `pod-gzip` and `pod-h2` (GitHub #261) |
 | [T-1373](fleet.md) | P3 | M | M8 | feature | open | `pod-release`: an opt-in fetch of newer Sigstore roots from TUF at run time |
 | [T-1374](upkeep.md) | P2 | M | M5 | chore | done | One session start for each harness and host: `scripts/session-start.sh` sets the identity, the hooks path and `main`, and starts both watchers |
-| [T-1375](foundation.md) | P2 | S | M0 | chore | open | `pod-testkit`: the contract of the source and the driver after podrunner `4fc871c` (the fifth port of `source-driver.md`) |
+| [T-1375](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver after podrunner `4fc871c` (the fifth port of `source-driver.md`) |
 | [T-1377](adapters.md) | P3 | M | M3 | defect | open | `pod-proxy`: the failure of a dial and of a request holds the words of its `DialError` or its cause, so a reader that joins the chain says them two times |
 | [T-1378](adapters.md) | P3 | S | M3 | defect | open | `pod-warp`: the failure of an enrolment with no answer says the text of the path three times to a reader that joins the chain |
 | [T-1379](podvm.md) | P1 | S | M6 | feature | open | `pod-incus`: a typed config PATCH of an instance with an ETag condition, for live limits (PodUtils/podvm#664) |
@@ -1062,3 +1062,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1386](upkeep.md) | P3 | S | M5 | chore | open | `scripts/agent/check.sh`: the tests run in a temp directory of their own, and an entry that a test leaves there is a fault |
 | [T-1387](upkeep.md) | P2 | S | M8 | chore | open | COORD `(to all)`: one `docs/hosted-sessions.md` with one role table for each repository of PodUtils |
 | [T-1388](upkeep.md) | P3 | S | M5 | chore | open | The debug info of the dev and test profiles, measured for the size of the target |
+| [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |

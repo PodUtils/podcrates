@@ -3903,12 +3903,12 @@ changes"; the other blocks of `pod-testkit` show 0 changes.
 
 # T-1375: `pod-testkit`: the contract of the source and the driver after podrunner `4fc871c` (the fifth port of `source-driver.md`)
 
-**Source:** `scripts/check-sources.py` against the clone of podrunner at `f6a9a940` (the head of `main`, while the take of `v0.84.0`, PodUtils/podrunner#356, was read).
+**Source:** `scripts/check-sources.py` against the clone of podrunner at `f6a9a940` (the head of `main`, while the take of `v0.84.0`, PodUtils/podrunner#356, was read), then at `fcff5bc` (the head of `main` after the take at `72cd0ab`).
 **Category:** chore
 **Milestone:** M0
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -3937,6 +3937,28 @@ Six commits of 2026-11-25 (`8199cb2c`, `6e4f876b`, `4fdad0c0`, `c6566972`,
   (`job-mismatch`). A job of the run of the offer gets a mark and no
   question.
 
+podrunner took `v0.84.0` at `72cd0ab`; its `main` then holds `72cd0ab`,
+`3391edc` and `f2716a1`. Against podrunner at `fcff5bc`, four imported
+files of `pod-testkit` changed:
+
+```text
+pod-testkit: changed PodUtils/podrunner:crates/podrunner-broker-fake/src/message.rs -> crates/pod-testkit/src/github/message.rs
+pod-testkit: changed PodUtils/podrunner:crates/podrunner-fake/src/assigned.rs -> crates/pod-testkit/src/githome/offer.rs
+pod-testkit: changed PodUtils/podrunner:crates/podrunner-source/src/conformance.rs -> crates/pod-testkit/tests/githome.rs
+pod-testkit: changed PodUtils/podrunner:docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+```
+
+- `message.rs` (`3391edc`): the context `github` of the job message of the
+  fake broker gives `ref` and `repository_id`; the job-started hook sends
+  them in `assigned`.
+- `assigned.rs` (`8199cb2`): the fake source gives no `ref` of the offer
+  for a real job of another run, and no `repo_id` of the offer for a real
+  job of another repository.
+- `conformance.rs` (`72cd0ab`): the `RealJob` of the suite has the fields
+  `git_ref` and `repo_id` of `pod-job` v0.84.0.
+- `source-driver.md` (`3391edc`): the hook sends the `ref` and the
+  `repo_id` of the real job when the runner has them.
+
 ## Premise
 
 - Read: `git diff 4fc871c f6a9a940 -- docs/contracts/source-driver.md` of
@@ -3951,6 +3973,13 @@ Six commits of 2026-11-25 (`8199cb2c`, `6e4f876b`, `4fdad0c0`, `c6566972`,
   did not hold when this entry was written. The change above is on `main`
   of podrunner, before them. Read the diff of those commits when they are
   on `main`.
+- Read later: the head of podrunner's `main` is `fcff5bc`
+  (`git ls-remote`); no commit after `3391edc` changes the four files.
+  `git diff 2a55cd9 fcff5bc -- crates/podrunner-broker-fake/src/message.rs`,
+  `git diff e629fa8 fcff5bc -- crates/podrunner-fake/src/assigned.rs`,
+  `git diff 4fc871c fcff5bc -- crates/podrunner-source/src/conformance.rs docs/contracts/source-driver.md`;
+  `name_is_plain` of `podrunner-schema/src/secret.rs` at `fcff5bc`.
+- `tests/githome.rs` already gives `git_ref` and `repo_id` (T-1362).
 
 ## Approach
 
@@ -3969,3 +3998,55 @@ Six commits of 2026-11-25 (`8199cb2c`, `6e4f876b`, `4fdad0c0`, `c6566972`,
 python3 -I scripts/check-sources.py --clone PodUtils/podrunner=PODRUNNER --clone PodUtils/podnet=PODNET pod-testkit
 cargo test -p pod-testkit --all-features
 ```
+
+## Done
+
+2026-11-25. The port point is podrunner `fcff5bc`. Commit: see `git log`
+for T-1375.
+
+- The fake GitHub: the context `github` of each job message gives `ref`
+  (`refs/heads/main`, `JOB_REF`) and `repository_id`. The id is the id of
+  the repository in the webhooks (`pod_testkit::github::repository_id`),
+  not podrunner's fixed `4242`. Test
+  `github::message::tests::the_github_context_gives_the_ref_and_the_repository_id`.
+- The fake githome: `assigned` gives an empty `ref` for a real job of
+  another run or another repository (a run id is of one repository; podrunner's
+  fake clears it for another run alone), and no `repo_id` for a real job
+  of another repository. Each offer of the control API gives the `ref`
+  and the `repo_id` of its repository in a linked fake GitHub, so that the
+  facts of the hook and of the offer agree for the job of the offer. Test
+  `githome::offer::tests::assigned_gives_no_ref_or_repository_id_of_the_offer_for_another_job`.
+- The mint of a linked fake githome refuses a JIT configuration with no
+  file or with a file name that is not plain (`credential-unavailable`),
+  before it gives the job to the runner. Tests
+  `githome::link::tests::a_credential_file_has_a_plain_name` (each refused
+  name of the contract) and
+  `githome::wire::tests::the_made_up_files_have_plain_names`.
+- No port, with the reason in the comment of the block in `SOURCES`: the
+  rule of a cache of a unit, the marks of the job-started hooks and the
+  move from `started` to `running` are rules of podrunner. The fake keeps
+  no cache and has no hook, and its control API sends a `started` with
+  each runner name. `conformance.rs`: no code change (T-1362 gave the
+  fields).
+- The answers of `pod-fake-githome` and `pod-fake-github` and podrunner's
+  new steps: before this port, the job message of `pod-fake-github` gave
+  no `ref` and no `repository_id`, so the hook sent none; the `keep` of
+  `pod-fake-githome` gave the `ref` and the `repo_id` of the offer for a
+  job of another run or repository; and an offer gave no `repo_id`, so the
+  repository id of the hook never matched the facts. This port removes
+  each difference. No other difference remains, so no new entry.
+- Each new test failed with its defect planted by hand (the ref not
+  cleared, DEL and space taken as plain, no `repository_id` in the
+  context): 3 failed, 21 passed.
+- `crates/pod-testkit/SOURCES`: the three blocks of podrunner are at
+  `fcff5bc`, with the blobs of `git ls-tree` (`message.rs` `08b76aa`,
+  `assigned.rs` `a19de1a`, `conformance.rs` `3d8f939`,
+  `source-driver.md` `8f5167a`). `check-sources.py --clone
+  PodUtils/podrunner=CLONE pod-testkit` (the clone at `fcff5bc`): each
+  block 0 changes, exit 0.
+- `cargo test -p pod-testkit --all-features`: 24 unit tests, 5 of
+  `tests/githome.rs`, 3 of `tests/github.rs`, 7 of `tests/guards.rs` and
+  3 of `tests/listener.rs` passed. `cargo clippy -p pod-testkit
+  --all-targets --all-features -- -D warnings` and `cargo fmt --all
+  --check` passed.
+- The shared rule of a plain name of a credential file is T-1420.

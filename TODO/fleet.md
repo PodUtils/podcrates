@@ -9526,3 +9526,55 @@ sh scripts/ci/tpm-tests.sh
 ```
 
 A key of a TPM with an owner password and a kept storage key loads and signs in `SoftTpm` and in swtpm; with no kept storage key, one line says both reasons.
+
+# T-1420: `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner
+
+**Source:** T-1375 (the port of podrunner `fcff5bc` into `pod-testkit`).
+**Category:** chore
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The contract of the source and the driver (podrunner's `source-driver.md`
+at `fcff5bc`) says:
+
+> Each file of a `credential` has a plain name: 1 to 64 bytes, not `.` or
+> `..`, with no `/`, no `\`, no space, no control byte and no DEL. The
+> mint refuses a credential with no files or with another name
+> (`credential-unavailable`).
+
+The rule has two copies: `name_is_plain` of podrunner (its crate
+`podrunner-schema`, the file `secret.rs`) and `plain` of
+`crates/pod-testkit/src/githome/link.rs` (T-1375). `MintedFile` of
+`pod-job` is the form of the wire, but its doc says only "podrunner refuses
+a name with `/` or `..`", which is not the rule of the contract.
+
+## Premise
+
+- Read: `crates/pod-job/src/source/minted.rs` (the doc of
+  `MintedFile::name` and of the module: "the checks of their names stay in
+  podrunner"), `name_is_plain` of podrunner at `fcff5bc`, `plain` of
+  `pod-testkit`.
+- Not read: whether podrunner wants the check in `pod-job`. A source of
+  githome also mints credentials and can use the same check.
+
+## Approach
+
+1. Fix the doc of `MintedFile::name` in `pod-job`: give the rule of the
+   contract.
+2. Add `MintedFile::name_is_plain` (or `Minted::check`: one file or more,
+   each name plain) to `pod-job`, with the test of each refused name of
+   T-1375.
+3. Use it in `crates/pod-testkit/src/githome/link.rs` and remove `plain`.
+   Tell podrunner by the hand-off of the release (it can remove its own
+   copy).
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+cargo test -p pod-testkit --all-features
+```
