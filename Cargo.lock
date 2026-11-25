@@ -2420,25 +2420,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "h2"
-version = "0.4.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d29020232d6aa3fb1daca64c1127cf662cf97f254ae16c18c05b8ab635fc118"
-dependencies = [
- "atomic-waker",
- "bytes",
- "fnv",
- "futures-core",
- "futures-sink",
- "http",
- "indexmap 2.14.2",
- "slab",
- "tokio",
- "tokio-util",
- "tracing",
-]
-
-[[package]]
 name = "hash32"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4677,12 +4658,12 @@ dependencies = [
  "base64 0.23.1",
  "bytes",
  "futures",
- "h2",
  "http",
  "httparse",
  "noq",
  "pod-core",
  "pod-dns",
+ "pod-h2",
  "pod-proxy",
  "pod-quic",
  "pod-relay",
@@ -4797,10 +4778,10 @@ version = "0.83.0"
 dependencies = [
  "base64 0.23.1",
  "bytes",
- "h2",
  "http",
  "p256 0.14.0",
  "pod-core",
+ "pod-h2",
  "pod-proxy",
  "pod-services",
  "pod-testkit",
@@ -5087,13 +5068,13 @@ version = "0.83.0"
 dependencies = [
  "base64 0.23.1",
  "bytes",
- "h2",
  "hmac 0.13.0",
  "http",
  "kcp",
  "libc",
  "pod-core",
  "pod-dns",
+ "pod-h2",
  "pod-identity",
  "pod-proxy",
  "pod-quic",
@@ -5209,10 +5190,10 @@ name = "pod-piping"
 version = "0.83.0"
 dependencies = [
  "bytes",
- "h2",
  "hmac 0.13.0",
  "http",
  "pod-core",
+ "pod-h2",
  "pod-proxy",
  "pod-relay",
  "pod-services",
@@ -5283,7 +5264,6 @@ dependencies = [
  "base64 0.23.1",
  "bytes",
  "ed25519-dalek 2.2.0",
- "h2",
  "hmac 0.13.0",
  "http",
  "noq",
@@ -5291,6 +5271,7 @@ dependencies = [
  "pod-core",
  "pod-dns",
  "pod-e2e",
+ "pod-h2",
  "pod-identity",
  "pod-proxy",
  "pod-quic",
@@ -5365,11 +5346,11 @@ dependencies = [
  "base64 0.23.1",
  "bytes",
  "flate2",
- "h2",
  "http",
  "p256 0.14.0",
  "pod-core",
  "pod-dns",
+ "pod-h2",
  "pod-proxy",
  "pod-services",
  "pod-testkit",
@@ -5451,9 +5432,9 @@ dependencies = [
  "base64 0.23.1",
  "boon",
  "bytes",
- "h2",
  "http",
  "libc",
+ "pod-h2",
  "pod-hostprobe",
  "pod-job",
  "pod-manual",
@@ -5619,12 +5600,12 @@ version = "0.83.0"
 dependencies = [
  "base64 0.23.1",
  "bytes",
- "h2",
  "http",
  "libc",
  "p256 0.14.0",
  "pod-core",
  "pod-dns",
+ "pod-h2",
  "pod-netstack",
  "pod-proxy",
  "pod-quic",
@@ -5661,12 +5642,12 @@ version = "0.83.0"
 dependencies = [
  "bytes",
  "crypto_secretbox",
- "h2",
  "hkdf 0.13.0",
  "http",
  "k256",
  "p256 0.14.0",
  "pod-core",
+ "pod-h2",
  "pod-proxy",
  "pod-services",
  "pod-testkit",

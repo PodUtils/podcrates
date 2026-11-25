@@ -189,10 +189,11 @@ The adoption trials are `adoption/podssh/pod-ws.patch` and
   The clippy of the workspace does not lint the code of h2 (`[lints.clippy]`),
   and `rustfmt.toml` keeps the style of h2 (the defaults of rustfmt).
 - **How the workspace uses it**: a member of the workspace, so that
-  `cargo publish --workspace` packs it before `pod-ws`. `pod-ws` and
-  `pod-egress` name it `h2` (`h2 = { package = "pod-h2", .. }`); `pod-egress`
-  gives its streams to `h2_road::duplex`. The other crates keep the h2 of
-  crates.io. `pod_ws::h2` re-exports it.
+  `cargo publish --workspace` packs it before `pod-ws`. The workspace
+  dependency `h2` is the fork (`h2 = { package = "pod-h2", .. }`), so each
+  crate (`pod-egress`, `pod-link`, `pod-dns` and more) has the same h2 types,
+  and a stream of h2 goes to `h2_road::duplex` with no conversion.
+  `pod_ws::h2` re-exports it.
 - **`Shape::apply`**: it calls `pseudo_order` with the pseudo-fields of
   `Shape::headers`, in their order. `:protocol` is in no
   browser's list, so it comes last, as Chrome and Firefox send it.

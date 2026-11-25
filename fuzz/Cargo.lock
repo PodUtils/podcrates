@@ -1148,25 +1148,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "h2"
-version = "0.4.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d29020232d6aa3fb1daca64c1127cf662cf97f254ae16c18c05b8ab635fc118"
-dependencies = [
- "atomic-waker",
- "bytes",
- "fnv",
- "futures-core",
- "futures-sink",
- "http",
- "indexmap",
- "slab",
- "tokio",
- "tokio-util",
- "tracing",
-]
-
-[[package]]
 name = "hash32"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1946,12 +1927,12 @@ dependencies = [
  "base64",
  "bytes",
  "futures",
- "h2",
  "http",
  "httparse",
  "noq",
  "pod-core",
  "pod-dns",
+ "pod-h2",
  "pod-proxy",
  "pod-quic",
  "pod-relay",
@@ -2022,9 +2003,9 @@ version = "0.83.0"
 dependencies = [
  "base64",
  "bytes",
- "h2",
  "http",
  "pod-core",
+ "pod-h2",
  "pod-proxy",
  "pod-services",
  "pod-tls",
@@ -2116,6 +2097,23 @@ dependencies = [
  "sha2 0.11.1",
  "socket2",
  "xz4rust",
+]
+
+[[package]]
+name = "pod-h2"
+version = "0.4.20"
+dependencies = [
+ "atomic-waker",
+ "bytes",
+ "fnv",
+ "futures-core",
+ "futures-sink",
+ "http",
+ "indexmap",
+ "slab",
+ "tokio",
+ "tokio-util",
+ "tracing",
 ]
 
 [[package]]
@@ -2233,10 +2231,10 @@ name = "pod-piping"
 version = "0.83.0"
 dependencies = [
  "bytes",
- "h2",
  "hmac 0.13.0",
  "http",
  "pod-core",
+ "pod-h2",
  "pod-proxy",
  "pod-relay",
  "pod-services",
@@ -2298,12 +2296,12 @@ dependencies = [
  "base64",
  "bytes",
  "ed25519-dalek 2.2.0",
- "h2",
  "hmac 0.13.0",
  "http",
  "pod-core",
  "pod-dns",
  "pod-e2e",
+ "pod-h2",
  "pod-identity",
  "pod-proxy",
  "pod-services",
@@ -2386,12 +2384,12 @@ version = "0.83.0"
 dependencies = [
  "base64",
  "bytes",
- "h2",
  "http",
  "libc",
  "p256",
  "pod-core",
  "pod-dns",
+ "pod-h2",
  "pod-netstack",
  "pod-proxy",
  "pod-quic",
@@ -2424,11 +2422,11 @@ version = "0.83.0"
 dependencies = [
  "bytes",
  "crypto_secretbox",
- "h2",
  "hkdf 0.13.0",
  "http",
  "k256",
  "pod-core",
+ "pod-h2",
  "pod-proxy",
  "pod-ws",
  "rand_core 0.6.4",
@@ -2445,10 +2443,10 @@ version = "0.83.0"
 dependencies = [
  "base64",
  "bytes",
- "h2",
  "http",
  "libc",
  "pod-core",
+ "pod-h2",
  "pod-proxy",
  "pod-tls",
  "rustls",

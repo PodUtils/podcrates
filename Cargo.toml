@@ -121,9 +121,10 @@ schemars = "1.2"
 # derive, the help and the usage; no colour, no suggestion.
 clap = { version = "4.6", default-features = false, features = ["std", "derive", "help", "usage", "error-context"] }
 boon = "0.6"
-# DNS over HTTPS over HTTP/2 (pod-dns), for a resolver that serves no
-# HTTP/1.1: the client of h2, and the request of http.
-h2 = "0.4"
+# HTTP/2 for each crate (pod-dns, pod-ws, pod-link and more): the fork
+# pod-h2 of vendor/h2 (call C934). One h2 for the workspace, because a stream
+# of h2 goes from one crate to pod_ws::h2_road.
+h2 = { package = "pod-h2", path = "vendor/h2", version = "0.4.20" }
 http = "1"
 bytes = "1"
 
