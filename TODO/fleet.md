@@ -9586,3 +9586,134 @@ a name with `/` or `..`", which is not the rule of the contract.
 cargo test -p pod-job --all-features
 cargo test -p pod-testkit --all-features
 ```
+
+# T-1398: `pod-unit`: podnet's `autostart.rs` after `34f0d30` (port review)
+
+**Source:** `upstream.yml` 45639205681 (job `sources`), `scripts/check-sources.py`.
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+After T-1128, podnet changed one imported file of `pod-unit`:
+
+```text
+pod-unit: changed PodUtils/podnet:crates/podnet-core/src/autostart.rs -> crates/pod-unit/src/cron.rs, crates/pod-unit/src/install.rs
+```
+
+The commit is `34f0d30` (the fixes of the QA pass of podnet
+0.4.0-beta.19). Its part PodUtils/podnet@T-562 (PodUtils/podnet#734)
+changes the check of the place of podnet's own binary in `add`. Before, `add` refused a binary
+under the temporary directory, `/tmp` or `/var/tmp` (exit 64). Now it
+refuses a binary only under a directory that the host clears at a reboot
+or a logout: the temporary directory, `/tmp`, `/dev/shm` and
+`XDG_RUNTIME_DIR`, not `/var/tmp` and not `/`. The exit is 78
+(`Fault::Config`), and the text names the directory.
+
+## Premise
+
+- Read: `git diff 7f38f91 83d4fdd` of podnet for
+  `PodUtils/podnet:crates/podnet-core/src/autostart.rs` (the one commit
+  `34f0d30`: `cleared_dirs`, `cleared_dir`, the
+  check in `add`); `crates/pod-unit/SOURCES` (the podnet block: the
+  command line and the files of an entry stay in podnet);
+  `crates/pod-unit/src/install.rs`, `crates/pod-unit/src/model.rs`
+  (`Unit::check`).
+- `pod-unit` has no check of the place of the program: `Unit::check`
+  asks only for an absolute path, and the renderers render a unit for
+  another host.
+- podssh (`node_install/`) and podrunner have no such check.
+- Not measured: podnet's take of `pod-unit` (podnet does not take the
+  install steps yet).
+
+## Approach
+
+1. Compare the change with the code of `pod-unit`. The check reads the
+   path of podnet's own binary (`this_binary`) in the command flow of
+   `add`, which stays in podnet: no port.
+2. Write the shared check (a unit whose program is in a directory that the
+   host clears) as its own entry, as podssh and podrunner have no such
+   check.
+3. Move the podnet block of `SOURCES` to the head of podnet, with the blob
+   of `git ls-tree`, and say why in its comment.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podnet=PODNET --clone PodUtils/podssh=PODSSH pod-unit
+cargo test -p pod-unit --all-features
+```
+
+## Done
+
+2026-11-25. No port. Commit: see `git log` for T-1398.
+
+- The check of the place of the binary is of podnet's command line (`add`
+  reads the path of its own binary). `pod-unit` takes the program from its
+  caller and has no such check, so no code changes. The shared check for
+  each consumer is T-1460.
+- `crates/pod-unit/SOURCES`: the podnet block is at `83d4fdd` (blob
+  `43f94c4` of `autostart.rs`), with the reason in its comment.
+  `check-sources.py --clone PodUtils/podnet=CLONE --clone
+  PodUtils/podssh=CLONE pod-unit`: "PodUtils/podssh at ea4c290: 9 files,
+  0 changes", "PodUtils/podnet at 83d4fdd: 1 files, 0 changes", exit 0.
+- No code change, so no new test. `cargo test -p pod-unit --all-features`,
+  `cargo clippy -p pod-unit --all-targets --all-features -- -D warnings`
+  and `cargo fmt --all --check` passed.
+
+# T-1460: `pod-unit`: an install accepts a program in a directory that the host clears at a reboot or a logout, so the unit fails after the next reboot
+
+**Source:** T-1398 (podnet `34f0d30`, PodUtils/podnet#734).
+**Category:** defect
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`install::install` and `install::install_system` install a unit whose
+program is under `/tmp`, `/dev/shm`, the temporary directory or
+`XDG_RUNTIME_DIR`. The host clears these directories at a reboot or a
+logout, so the unit starts no program after the next reboot, and the
+manager starts it again in a loop. podnet refuses such a binary in its own
+`autostart add` (`34f0d30`, exit 78, the text names the directory).
+podssh (`--install`) and podrunner have no such check. A program that a
+person runs from a download directory under `/tmp` gets a unit that fails
+later, with no cause at the install.
+
+## Premise
+
+- Read: podnet `34f0d30` (`cleared_dirs`, `cleared_dir` of
+  `PodUtils/podnet:crates/podnet-core/src/autostart.rs`): the temporary directory, `/tmp`,
+  `/dev/shm` and `XDG_RUNTIME_DIR`, each made canonical, not `/var/tmp`
+  (FHS 5.15 keeps it across a reboot) and not `/`.
+- Read: `crates/pod-unit/src/install.rs` (`Host`, `install`),
+  `crates/pod-unit/src/model.rs` (`Unit::check` asks only for an absolute
+  path, as a render can be for another host).
+- Not measured: whether a test of podssh or podrunner installs a unit with
+  a program under the temporary directory through a fake host (such a test
+  fails at the take of this check).
+
+## Approach
+
+1. Add a probe to `Host` with a default that reads this host: the
+   directory that the host clears and that holds a path (the list of
+   podnet, each made canonical; the path made canonical).
+2. `install` and `install_system` refuse a unit whose program is in such a
+   directory, before any write, with `Class::Config` (78) and a text that
+   names the program, the directory, and a lasting place
+   (`~/.local/bin`, `/usr/local/bin`). The renderers do not check it.
+3. Tests with a fake host: a program under `/tmp` and under `/dev/shm` is
+   refused with no write; a program under `/var/tmp` installs.
+4. Tell podssh, podnet and podrunner at the release (podnet can then drop
+   its own check).
+
+## Prove
+
+```sh
+cargo test -p pod-unit --all-features --test install
+```
