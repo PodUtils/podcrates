@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**991 entries: 148 open, 29 partial, 8 blocked, 806 done.**
+**992 entries: 148 open, 29 partial, 8 blocked, 807 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 233 | 246 |
+| P1 | 4 | 9 | 0 | 234 | 247 |
 | P2 | 66 | 10 | 4 | 419 | 499 |
 | P3 | 78 | 10 | 4 | 152 | 244 |
-| **All** | 148 | 29 | 8 | 806 | 991 |
+| **All** | 148 | 29 | 8 | 807 | 992 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1038,3 +1038,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1360](upkeep.md) | P3 | S | M5 | defect | done | `pod-cloudflare`: `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` cannot bind its UDP socket on Windows ARM64 (WSAEACCES) |
 | [T-1361](upkeep.md) | P1 | S | M8 | defect | done | `adoption/podssh/pod-tpm.run`: the check of the moved names reads all of `podssh-ssh/src`, and it finds two other structs named `Out` |
 | [T-1362](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: `RealJob` takes the optional fields `ref` and `repo_id` (PodUtils/podrunner#352) |
+| [T-1363](upkeep.md) | P1 | S | M8 | defect | done | `adoption/podssh`: the trial `pod-tpm` does not build, because podssh's relay role gives a stream of the h2 of crates.io to `h2_road::duplex`, which takes the types of `pod-h2` |

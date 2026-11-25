@@ -173,8 +173,12 @@ The asks of #259 to the consumers:
   order of the pseudo-fields, `Shape::firefox` the Firefox order, and
   `Shape::existing` the order of h2. `pod_ws::h2` re-exports the fork. At
   this tag podssh removes its `vendor/h2` and its `[patch.crates-io]` line,
-  and its test `h2_fallback.rs` calls `pod_ws::h2::decode_header_block`
-  (PodUtils/podssh#340). The owner reserves the crates.io name `pod-h2`.
+  (PodUtils/podssh#340). The dependency `h2` of `podssh-ws` and of
+  `podssh-relay` becomes `pod-h2` of the tag (`package = "pod-h2"`): the
+  relay role's HTTP/2 server gives its streams to `h2_road::duplex`. The
+  test `h2_fallback.rs` then calls `h2::decode_header_block` of `pod-h2`
+  with no change (`adoption/podssh/pod-h2.patch`). The owner reserves the
+  crates.io name `pod-h2`.
 - T-1359 (`pod-core`): three tests of `files::socket` take `near_dir`, the
   shortest directory under the temporary directory, in place of a directory
   of 40 bytes. The tests pass with the temporary directory of macOS. No

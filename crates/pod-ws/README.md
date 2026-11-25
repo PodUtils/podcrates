@@ -155,9 +155,9 @@ Against podnet `src/ws.rs` at `76ffb5e`:
 | podnet | `relay_reverse::close_hint` | `pod_ws::close_hint` (`relay_reverse` re-exports it); the row `ws -> relay_reverse` of `scripts/layers-allow.txt` goes |
 | podnet | `trust::context().client_config_with(&[], &[b"http/1.1"])` of `ws::dial` | the `pod_tls::Context` of the `Way`; the bridge's dial offers `http/1.1` |
 | podnet | `crate::egress::dial` of `ws::dial` | the dialer of the `Way` (podnet's `Egress`) |
-
-| podssh | `vendor/h2` (h2 0.4.20 with Chrome's order of the pseudo-fields for each request) and its line `h2 = { path = "vendor/h2" }` of `[patch.crates-io]` | both go at the tag that carries T-1095: `pod-ws` sends the order of the shape (`connect_with(.., &Shape::browser())`: `:method`, `:authority`, `:scheme`, `:path`, `:protocol`). A request on `Shape::existing` sends the order of h2 (`:method`, `:scheme`, `:authority`, `:path`, `:protocol`). podssh's own h2 (its server) is the h2 of crates.io again |
-| podssh | `h2::decode_header_block` of its `vendor/h2` (`crates/podssh-relay/tests/h2_fallback.rs`) | `pod_ws::h2::decode_header_block`: the same function in `pod-h2` |
+| podssh | `vendor/h2` (h2 0.4.20 with Chrome's order of the pseudo-fields for each request) and its line `h2 = { path = "vendor/h2" }` of `[patch.crates-io]` | both go at the tag that carries T-1095: `pod-ws` sends the order of the shape (`connect_with(.., &Shape::browser())`: `:method`, `:authority`, `:scheme`, `:path`, `:protocol`). A request on `Shape::existing` sends the order of h2 (`:method`, `:scheme`, `:authority`, `:path`, `:protocol`). The relay role's HTTP/2 server of `podssh-relay` gives its streams to `podssh_ws::h2_road::duplex`, so it takes pod-h2 too |
+| podssh | `h2::decode_header_block` of its `vendor/h2` (`crates/podssh-relay/tests/h2_fallback.rs`) | `h2::decode_header_block` of `pod-h2` (the dependency `h2` of `podssh-relay`, below), the function of `pod_ws::h2::decode_header_block`. `podssh-relay` has no dependency on `pod-ws` |
+| podssh | `h2 = "0.4.19"` of `podssh-ws` and `h2 = { version = "0.4.19", optional = true }` of `podssh-relay` | `h2 = { git = "https://github.com/PodUtils/podcrates", tag = "vX.Y.Z", package = "pod-h2" }` (`optional = true` in `podssh-relay`): the code keeps the name `h2`. The trial `adoption/podssh/pod-h2.patch` has the change |
 | each consumer | an h2 type that goes to `pod_ws::h2_road` (`duplex`, `Shape::apply`) | the type of `pod_ws::h2` (`pod-h2`), not of the h2 of crates.io; no `[patch]` |
 
 The adoption trials are `adoption/podssh/pod-ws.patch` and
