@@ -237,9 +237,13 @@ pub async fn answer(shared: &Arc<Shared>, seen: Seen) -> Vec<u8> {
             }
         }
         ("GET", ["1.0", "instances", name]) => match shared.state.lock().unwrap().instances.get(*name) {
-            Some(instance) => sync(instance.clone()),
+            Some(instance) => {
+                let headers = [("Content-Type", "application/json".to_string()), ("ETag", etag(instance))];
+                http(200, &headers, super::sync_body(instance.clone()).as_bytes())
+            }
             None => error(404, "Instance not found"),
         },
+        ("PATCH", ["1.0", "instances", name]) => patch(shared, name, &seen),
         ("DELETE", ["1.0", "instances", name]) => {
             let mut state = shared.state.lock().unwrap();
             match state.instances.get(*name).map(|i| i["status"] == "Running") {
@@ -324,6 +328,36 @@ pub async fn answer(shared: &Arc<Shared>, seen: Seen) -> Vec<u8> {
         }
         _ => error(404, "not found"),
     }
+}
+
+/// The ETag of an instance, with its quotes: a hash of the fields of the
+/// ETag of incusd (`instancePatch`), so that a change of one changes it.
+pub fn etag(instance: &Value) -> String {
+    use std::hash::{Hash, Hasher};
+    let fields = [&instance["architecture"], &instance["config"], &instance["devices"], &instance["ephemeral"]];
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    (serde_json::to_string(&fields).unwrap_or_default(), instance["profiles"].to_string()).hash(&mut hasher);
+    format!("\"{:016x}\"", hasher.finish())
+}
+
+/// `PATCH /1.0/instances/NAME` as incusd 6.0 takes it: `If-Match` (its
+/// quotes trimmed) against the ETag, then each key of `config` set and each
+/// other key kept.
+fn patch(shared: &Arc<Shared>, name: &str, seen: &Seen) -> Vec<u8> {
+    let mut state = shared.state.lock().unwrap();
+    let Some(instance) = state.instances.get_mut(name) else { return error(404, "Instance not found") };
+    let now = etag(instance);
+    if let Some(sent) = seen.header("if-match").filter(|m| !m.is_empty())
+        && sent.trim_matches('"') != now.trim_matches('"')
+    {
+        return error(412, &format!("ETag doesn't match: {} vs {}", now.trim_matches('"'), sent.trim_matches('"')));
+    }
+    let Ok(body) = serde_json::from_slice::<Value>(&seen.body) else { return error(400, "invalid JSON") };
+    if let Some(config) = body["config"].as_object() {
+        let into = instance["config"].as_object_mut().expect("the config of the stand-in is a map");
+        into.extend(config.clone());
+    }
+    sync(json!({}))
 }
 
 /// `GET /1.0/operations/ID/wait?timeout=N`: the state at the end of the

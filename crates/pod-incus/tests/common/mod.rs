@@ -218,6 +218,7 @@ fn reason(status: u16) -> &'static str {
         400 => "Bad Request",
         403 => "Forbidden",
         404 => "Not Found",
+        412 => "Precondition Failed",
         416 => "Range Not Satisfiable",
         500 => "Internal Server Error",
         _ => "Other",

@@ -1,18 +1,19 @@
 //! The instances (`shared/api/instance.go`, `instance_state.go`): create
-//! from an image, change the state, list with `recursion=1`, get one,
-//! delete, and the console log. Each call that incus runs in the background
-//! (create, a state change, delete) returns after the wait for its
-//! operation.
+//! from an image, change the state, list with `recursion=1`, get one (with
+//! its ETag), change its config on the condition of that ETag, delete, and
+//! the console log. Each call that incus runs in the background (create, a
+//! state change, delete) returns after the wait for its operation.
 
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use serde::de::IgnoredAny;
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize, Serializer};
 
 use crate::client::Client;
 use crate::envelope::nullable;
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::operation::Operation;
 use crate::wire::{Body, escape};
 
@@ -181,6 +182,38 @@ impl Serialize for StateChange {
     }
 }
 
+/// The ETag of an instance, as incus gives it in the `ETag` header of
+/// `GET /1.0/instances/NAME` (with its quotes). The value is opaque: incus
+/// makes it from the architecture, the local config (with its `volatile.*`
+/// keys), the local devices, `ephemeral` and the profiles. A change of one
+/// of them changes the ETag.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ETag(String);
+
+impl ETag {
+    /// The ETag `value`, as incus gave it.
+    pub fn new(value: impl Into<String>) -> ETag {
+        ETag(value.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for ETag {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+/// The body of a PATCH of the config alone (`InstancePut` with only
+/// `config`): incus keeps each field that the body does not have.
+#[derive(Serialize)]
+struct ConfigPatch<'a> {
+    config: &'a BTreeMap<String, String>,
+}
+
 fn instance_path(name: &str) -> String {
     format!("/1.0/instances/{}", escape(name))
 }
@@ -216,6 +249,36 @@ impl Client {
         self.get(&instance_path(name), &[]).await
     }
 
+    /// `GET /1.0/instances/NAME`: the instance and its ETag, for a later
+    /// [`Client::patch_instance_config`]. `None`: incus sent no ETag.
+    pub async fn instance_with_etag(&self, name: &str) -> Result<(Instance, Option<ETag>)> {
+        let (instance, etag) = self.get_tagged(&instance_path(name), &[]).await?;
+        Ok((instance, etag.map(ETag)))
+    }
+
+    /// `PATCH /1.0/instances/NAME` with `{"config": config}`: incus sets
+    /// each key of `config` in the local config of the instance and keeps
+    /// each other key, the devices and the profiles; it applies the change
+    /// to a running instance at once. With `if_match`, incus makes the
+    /// change only while the ETag of the instance is that ETag
+    /// (`If-Match`); else the error is [`ErrorKind::EtagMismatch`]
+    /// (412). Another refusal of incus is [`ErrorKind::Incus`], with its
+    /// class.
+    ///
+    /// [`ErrorKind::EtagMismatch`]: crate::ErrorKind::EtagMismatch
+    /// [`ErrorKind::Incus`]: crate::ErrorKind::Incus
+    pub async fn patch_instance_config(
+        &self,
+        name: &str,
+        config: &BTreeMap<String, String>,
+        if_match: Option<&ETag>,
+    ) -> Result<()> {
+        let headers = if_match.map(|etag| vec![("If-Match".to_string(), etag.0.clone())]).unwrap_or_default();
+        let body = ConfigPatch { config };
+        let sent = self.send_json::<IgnoredAny>("PATCH", &instance_path(name), headers, &body).await;
+        sent.map(drop).map_err(Error::of_condition)
+    }
+
     /// `DELETE /1.0/instances/NAME`: delete the instance, and wait. incus
     /// refuses a running instance.
     pub async fn delete_instance(&self, name: &str) -> Result<Operation> {
@@ -246,6 +309,13 @@ mod tests {
         assert_eq!(json["profiles"], serde_json::json!([]));
         assert_eq!(json["source"], serde_json::json!({"type": "image", "fingerprint": "ab12"}));
         assert_eq!(serde_json::to_value(Source::None).unwrap(), serde_json::json!({"type": "none"}));
+    }
+
+    #[test]
+    fn a_config_patch_has_the_config_alone() {
+        let config: BTreeMap<String, String> = [("limits.memory".to_string(), "1GiB".to_string())].into();
+        let json = serde_json::to_value(ConfigPatch { config: &config }).unwrap();
+        assert_eq!(json, serde_json::json!({"config": {"limits.memory": "1GiB"}}));
     }
 
     #[test]

@@ -56,6 +56,11 @@ pub enum ErrorKind {
     /// string cut to its start; `None` where the envelope was whole. The
     /// caller tells "the answer was over the bound" by it, not by the words.
     Incus { status: u16, code: u16, error: String, cut: Option<u64> },
+    /// incus refused a write with `If-Match` (412): the ETag of the caller
+    /// is not the ETag of the instance now, so the instance changed after
+    /// the read. The `error` of incus. The caller reads the instance again,
+    /// and decides.
+    EtagMismatch { error: String },
     /// A background operation ended with no success: its id, its
     /// `status_code` (400 failure, 401 canceled) and its `err`.
     Operation { id: String, code: u16, err: String },
@@ -142,6 +147,15 @@ impl Error {
         self
     }
 
+    /// The error, with a refusal of 412 of incus as
+    /// [`ErrorKind::EtagMismatch`]: the error of a write with `If-Match`.
+    pub(crate) fn of_condition(self) -> Error {
+        match self.kind {
+            ErrorKind::Incus { status: 412, error, .. } => Error { kind: ErrorKind::EtagMismatch { error }, ..self },
+            _ => self,
+        }
+    }
+
     pub(crate) fn protocol(call: &str, why: impl Into<String>) -> Error {
         Error::new(call, ErrorKind::Protocol(why.into()))
     }
@@ -194,7 +208,7 @@ impl Error {
     /// The `error` of incus, when incus answered with one.
     pub fn incus_error(&self) -> Option<&str> {
         match &self.kind {
-            ErrorKind::Incus { error, .. } => Some(error),
+            ErrorKind::Incus { error, .. } | ErrorKind::EtagMismatch { error } => Some(error),
             ErrorKind::Operation { err, .. } => Some(err),
             ErrorKind::TooLarge { error, .. } => error.as_deref(),
             _ => None,
@@ -205,6 +219,7 @@ impl Error {
     pub fn status(&self) -> Option<u16> {
         match &self.kind {
             ErrorKind::Incus { status, .. } => Some(*status),
+            ErrorKind::EtagMismatch { .. } => Some(412),
             _ => None,
         }
     }
@@ -227,6 +242,7 @@ impl Error {
                 503 => Class::Unavailable,
                 _ => Class::Protocol,
             },
+            ErrorKind::EtagMismatch { .. } => Class::TempFail,
             ErrorKind::Operation { code: 401, .. } => Class::TempFail,
             ErrorKind::Operation { .. } => Class::Unavailable,
             ErrorKind::Timeout { .. } | ErrorKind::AnswerTimeout { .. } => Class::Timeout,
@@ -253,6 +269,9 @@ impl fmt::Display for Error {
             }
             ErrorKind::Incus { status, code, error, .. } => {
                 write!(f, "{call}: incus refused the call ({status}, error_code {code}): {}", one_line(error))
+            }
+            ErrorKind::EtagMismatch { error } => {
+                write!(f, "{call}: the instance changed after the read of its ETag (412): {}", one_line(error))
             }
             ErrorKind::Operation { id, code, err } => {
                 let how = if *code == 401 { "was canceled" } else { "failed" };

@@ -181,6 +181,11 @@ impl Client {
     /// [`Client::envelope`] with `bound` for the silence of the answer: the
     /// wait for an operation gives `None` and keeps its own bound.
     pub(crate) async fn envelope_within(&self, call: &str, request: Request, bound: Option<Duration>) -> Result<Reply> {
+        Ok(self.enveloped(call, request, bound).await?.1)
+    }
+
+    /// [`Client::envelope_within`] with the answer: its headers.
+    async fn enveloped(&self, call: &str, request: Request, bound: Option<Duration>) -> Result<(Response, Reply)> {
         let (answer, cut) = match self.request(call, request).await? {
             Sent::Answer(answer, cut) => (answer, cut),
             Sent::Stream(mut stream) => {
@@ -193,26 +198,41 @@ impl Client {
                 (answer, cut)
             }
         };
-        envelope::read(call, answer.status, &answer.body).map_err(|e| e.cut_at(cut))
+        let reply = envelope::read(call, answer.status, &answer.body).map_err(|e| e.cut_at(cut))?;
+        Ok((answer, reply))
     }
 
     /// `GET path?query`: the metadata of its sync answer.
     pub(crate) async fn get<T: DeserializeOwned>(&self, path: &str, query: &[(&str, &str)]) -> Result<T> {
+        Ok(self.get_tagged(path, query).await?.0)
+    }
+
+    /// `GET path?query`: the metadata of its sync answer, and the value of
+    /// its `ETag` header (`None` where incus sent none).
+    pub(crate) async fn get_tagged<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        query: &[(&str, &str)],
+    ) -> Result<(T, Option<String>)> {
         let call = format!("GET {path}");
         let request =
             Request { method: "GET", target: self.target(path, query), headers: Vec::new(), body: Body::Empty };
-        envelope::sync(&call, self.envelope(&call, request).await?)
+        let (answer, reply) = self.enveloped(&call, request, self.settings.answer_timeout).await?;
+        Ok((envelope::sync(&call, reply)?, answer.header("etag").map(String::from)))
     }
 
-    /// `METHOD path` with a JSON body: the metadata of its sync answer.
+    /// `METHOD path` with `headers` and a JSON body: the metadata of its
+    /// sync answer.
     pub(crate) async fn send_json<T: DeserializeOwned>(
         &self,
         method: &'static str,
         path: &str,
+        headers: Vec<(String, String)>,
         body: &impl Serialize,
     ) -> Result<T> {
         let call = format!("{method} {path}");
-        let request = self.json_request(&call, method, path, body)?;
+        let mut request = self.json_request(&call, method, path, body)?;
+        request.headers = headers;
         envelope::sync(&call, self.envelope(&call, request).await?)
     }
 
