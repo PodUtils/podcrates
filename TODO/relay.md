@@ -12454,3 +12454,35 @@ let in): caught. `cargo test -p pod-relay --all-features`: 241 passed in the
 library, 2 in `bearer`, 16 in `wire_vectors`, each other target passed;
 `python3 -I scripts/check-wire-vectors.py`: 123 vectors, ok; its `--plant`:
 each file found.
+
+# T-1369: `pod-relay`: a fuzz target of `grant::bearer::Bearer::read`, the reader of a bearer from the peer
+
+**Source:** the review of T-1368 (PodUtils/podssh#355).
+**Category:** chore
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Bearer::read` reads 221 bytes that the peer sends in the operator's proof
+of the end-to-end channel. Each other reader of bytes from a peer in this
+repository has a fuzz target (`fuzz/README.md`). The bearer reader has none.
+It checks the size and the magic first, but no target holds that the reader
+never panics and that a bearer it reads writes back to the same bytes.
+
+## Approach
+
+Add the target `relay_bearer` in `fuzz/src/targets/` in the form of the
+`tpm_keyfile` target: read the input with `Bearer::read` and `is_bearer`;
+for a bearer that reads, assert that its fields write back to the input.
+Add seeds from the vectors `bearer` of `grants.json`, a row in
+`fuzz/README.md`, and a run of 60 s with `scripts/fuzz.sh`.
+
+## Prove
+
+```sh
+cargo check --manifest-path fuzz/Cargo.toml --bins
+sh scripts/fuzz.sh 60 relay_bearer
+```
