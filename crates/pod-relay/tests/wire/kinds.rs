@@ -18,7 +18,7 @@ fn reader(part: &str, kind: &str) -> Option<Reader> {
     let run = match (part, kind) {
         ("closes", "close") => true,
         ("forward", "frame" | "frame-refused") => true,
-        ("grants", "grant" | "grant-forged" | "grant-refused") => cfg!(feature = "grant"),
+        ("grants", "grant" | "grant-forged" | "grant-refused" | "bearer" | "bearer-refused") => cfg!(feature = "grant"),
         ("layer", "record" | "refused" | "partial" | "secret") => true,
         (
             "reverse",

@@ -1,5 +1,5 @@
 {
-  "wire": 1,
+  "wire": 2,
   "part": "reverse",
   "about": "The frames of the reverse road's legs, and the node's control messages.",
   "vectors": [

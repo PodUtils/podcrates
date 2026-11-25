@@ -1,6 +1,6 @@
 # The wire of the relay of PodUtils
 
-Wire version: 1
+Wire version: 2
 
 This page gives the bytes of the relay's roads of PodUtils in one place, with
 a version. It is for another implementation: podnet, a Worker, a relay of
@@ -244,6 +244,19 @@ the vectors, and section 8 the versions.
 - An Ed25519 key in the vectors is made from its 32-byte seed, as RFC 8032 makes the public key of a private key.
 - The grant travels inside the end-to-end channel, never in a URL.
 
+### Bearers
+
+- A bearer is the other form of a grant: a token that a key of the user signs, bound to one end-to-end channel.
+- A bearer is 221 bytes, in order: the magic `pod-bearer/1` and a newline (13 bytes), the signer's key (32), the holder's key (32), `iat` u64, `exp` u64, the nonce (32), the `jti` (32), then the signature (64).
+- A certificate starts with a zero byte, so the first byte tells the two forms apart.
+- `iat` and `exp` are seconds since the epoch; `exp` is after `iat`, by at most 30 s.
+- The holder is the operator's key that the end-to-end channel proves.
+- The binding is SHA-256 of `pod-e2e grant binding`, a zero byte, and the Noise handshake hash after the second message of the handshake.
+- The `jti` is HMAC-SHA-256 of the nonce, with the binding as the key.
+- The signature is Ed25519 (RFC 8032), by the signer's key, of each byte before the signature.
+- A node refuses a bearer whose holder is not the channel's operator key, whose signer it does not take, whose signature fails, whose `jti` is not the one of its channel, or whose `jti` it took already.
+- A node refuses a bearer whose `iat` is more than 10 s after its clock, or whose `exp` and 10 s passed.
+
 ## 7. The vectors
 
 Each file of `crates/pod-relay/tests/vectors/` is JSON: `wire` (this page's version), `part`, `about`, and `vectors`.
@@ -289,6 +302,8 @@ Each vector has a `name` and a `kind`. Integers in the vectors are under 2^53.
 - `critical` is a list of `[name, data in hex]`, in the order of their names.
 - `grant-forged`: `hex`, a certificate whose `serial` changed; it reads, and its signature fails.
 - `grant-refused`: `hex`, which does not read.
+- `bearer`: the seeds of the signer and the holder, the keys `signer` and `holder`, the `handshake_hash`, the `binding`, `iat`, `exp`, `nonce`, `jti`, and `hex`, the bearer.
+- `bearer-refused`: `hex`, a `binding`, and the `reason` of the first check that fails, at `iat`, with a signer that the node takes: `form`, `signature`, `life` or `binding`.
 
 ## 8. Versions
 
@@ -298,3 +313,4 @@ The digest is SHA-256, in hex, of the vector files in the order of their names: 
 | Version | Date | Digest of the vectors |
 | --- | --- | --- |
 | 1 | 2026-11-17 | 35d1886cabad3c2027526ac909b285cee92bdbb148d0f3655f7acb6488eb106d |
+| 2 | 2026-11-25 | 746b4c220aefa8080f5eeb61475ae02eeef87c0e57dd7ea92ddf5d6c61edd3b2 |

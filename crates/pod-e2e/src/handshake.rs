@@ -18,6 +18,7 @@ use snow::params::NoiseParams;
 use snow::{Builder, HandshakeState};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 
+use crate::binding::Binding;
 use crate::channel::Channel;
 use crate::exporter::Exporter;
 use crate::frame::{read_frame, read_magic, write_frame};
@@ -73,6 +74,7 @@ pub struct Offered<T> {
     /// This end offered the net's document, and the node's proof took no
     /// part of it.
     unanswered: bool,
+    binding: Binding,
 }
 
 /// The node's side after the operator's proof: the operator's key, which the
@@ -83,6 +85,7 @@ pub struct Asked<T> {
     ask: Ask,
     net: Option<Talk>,
     grant: Option<Vec<u8>>,
+    binding: Binding,
 }
 
 /// A proof, read: the key, what its word asks, in the net's form what the
@@ -131,7 +134,9 @@ pub async fn initiate_with<T: AsyncRead + AsyncWrite + Unpin>(
         (Some(docs), Some((peer, _))) => Some(Talk { docs, peer }),
         _ => None,
     };
-    Ok(Offered { transport, state, peer: read.key, proof: proof(me), net, unanswered })
+    // The hash after the node's message, which the node has too.
+    let binding = Binding::of_hash(state.get_handshake_hash());
+    Ok(Offered { transport, state, peer: read.key, proof: proof(me), net, unanswered, binding })
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
@@ -146,6 +151,12 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
     /// own door; the caller says it.
     pub fn net_unanswered(&self) -> bool {
         self.unanswered
+    }
+
+    /// The binding of this channel ([`Binding`]), for a grant that names
+    /// it: the node gets the same value before it checks the grant.
+    pub fn binding(&self) -> &Binding {
+        &self.binding
     }
 
     /// Prove this end's key, with `route` of the node when one is asked, or
@@ -229,6 +240,9 @@ pub async fn respond_with<T: AsyncRead + AsyncWrite + Unpin>(
     };
     let mut out = vec![0u8; MAX_MESSAGE];
     let n = state.write_message(&mine, &mut out).map_err(noise)?;
+    // The hash after this node's message, before the operator's proof: the
+    // operator makes its grant with it.
+    let binding = Binding::of_hash(state.get_handshake_hash());
     write_frame(&mut transport, &out[..n]).await?;
     within("the operator's proof of its key", async { whole(read_frame(&mut transport, &mut message).await?) }).await?;
     let k = state.read_message(&message, &mut payload).map_err(not_noise("the operator's proof"))?;
@@ -251,7 +265,7 @@ pub async fn respond_with<T: AsyncRead + AsyncWrite + Unpin>(
         }
         _ => None,
     };
-    Ok(Asked { channel, peer: read.key, ask: read.ask, net, grant: read.grant })
+    Ok(Asked { channel, peer: read.key, ask: read.ask, net, grant: read.grant, binding })
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Asked<T> {
@@ -275,6 +289,12 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Asked<T> {
     /// door reads it before anything is dialed.
     pub fn grant(&self) -> Option<&[u8]> {
         self.grant.as_deref()
+    }
+
+    /// The binding of this channel ([`Binding`]), the operator's value too:
+    /// a grant that names it is for this channel alone.
+    pub fn binding(&self) -> &Binding {
+        &self.binding
     }
 
     /// Let the operator in: the verdict, then this node's document of the

@@ -1,0 +1,15 @@
+diff --git a/crates/pod-relay/src/grant/bearer.rs b/crates/pod-relay/src/grant/bearer.rs
+index 8ccc12d9..d8235857 100644
+--- a/crates/pod-relay/src/grant/bearer.rs
++++ b/crates/pod-relay/src/grant/bearer.rs
+@@ -296,9 +296,7 @@ impl Bearers {
+         if now >= until {
+             return Err(Refused::Expired);
+         }
+-        if !pod_core::entropy::same_secret(&jti(binding, &bearer.nonce), &bearer.jti) {
+-            return Err(Refused::Binding);
+-        }
++        let _ = binding;
+         self.record(bearer.jti, until, now)?;
+         Ok(Verified { signer: bearer.signer, iat: bearer.iat, exp: bearer.exp })
+     }

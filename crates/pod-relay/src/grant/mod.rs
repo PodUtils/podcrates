@@ -14,13 +14,19 @@
 //! synced before the node lets the operator in, so that a second use of the
 //! same grant is refused, also after a restart. A resume of the layer runs
 //! no new handshake, so a used grant ends no session that it opened.
+//!
+//! A bearer ([`bearer`], PodUtils/podssh#355) is the other form: a short
+//! token that a key of the user's identity file signs, bound to the channel
+//! that carries it, so that a person with no key file on the host gets in.
 
+pub mod bearer;
 pub mod cert;
 mod door;
 mod spent;
 
 use std::path::Path;
 
+pub use bearer::{Bearer, Bearers, Refused, Unsigned, Verified, is_bearer};
 pub use cert::{CERT_TYPE, Cert, HOST, Mint, USER, openssh_public, parse_public};
 pub use door::{Door, Issuers, Redeemed};
 pub use spent::{NotRecorded, Spent};

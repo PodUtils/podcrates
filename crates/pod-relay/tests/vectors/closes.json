@@ -1,5 +1,5 @@
 {
-  "wire": 1,
+  "wire": 2,
   "part": "closes",
   "about": "The closes of the reverse road: the payload of each, and what a client does.",
   "vectors": [

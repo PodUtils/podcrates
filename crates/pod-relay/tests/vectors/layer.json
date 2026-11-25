@@ -1,5 +1,5 @@
 {
-  "wire": 1,
+  "wire": 2,
   "part": "layer",
   "about": "The records of the resumable layer, the decoder's refusals, and the secret and proofs.",
   "vectors": [

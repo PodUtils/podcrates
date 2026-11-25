@@ -1,0 +1,7 @@
+# The verifier of bearers no longer checks the jti against the binding of
+# the channel, so a bearer copied from one channel lets its holder in on
+# another; the test of a bearer on another channel must fail.
+ENTRY=T-1368
+GROUP=relay
+EXPECT='test a_bearer_holds_on_its_channel_and_is_refused_by_its_binding_on_another \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features grant --test bearer -- a_bearer_holds_on_its_channel_and_is_refused_by_its_binding_on_another'

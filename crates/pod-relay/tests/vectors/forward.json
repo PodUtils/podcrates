@@ -1,5 +1,5 @@
 {
-  "wire": 1,
+  "wire": 2,
   "part": "forward",
   "about": "The WebSocket frames that carry the forward road.",
   "vectors": [

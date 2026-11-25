@@ -1,0 +1,18 @@
+diff --git a/crates/pod-e2e/src/handshake.rs b/crates/pod-e2e/src/handshake.rs
+index f9529f0c..98aaa1d7 100644
+--- a/crates/pod-e2e/src/handshake.rs
++++ b/crates/pod-e2e/src/handshake.rs
+@@ -240,12 +240,10 @@ pub async fn respond_with<T: AsyncRead + AsyncWrite + Unpin>(
+     };
+     let mut out = vec![0u8; MAX_MESSAGE];
+     let n = state.write_message(&mine, &mut out).map_err(noise)?;
+-    // The hash after this node's message, before the operator's proof: the
+-    // operator makes its grant with it.
+-    let binding = Binding::of_hash(state.get_handshake_hash());
+     write_frame(&mut transport, &out[..n]).await?;
+     within("the operator's proof of its key", async { whole(read_frame(&mut transport, &mut message).await?) }).await?;
+     let k = state.read_message(&message, &mut payload).map_err(not_noise("the operator's proof"))?;
++    let binding = Binding::of_hash(state.get_handshake_hash());
+     let read = proof_of(&payload[..k], state.get_remote_static(), docs.is_some())?;
+     // The node keeps the keys, which the binary after it takes.
+     let keys = crate::hold::state::split(&mut state);

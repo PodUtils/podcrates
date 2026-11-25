@@ -52,7 +52,7 @@ and prints nothing.
 | `health`, `addresses`, `keyed` | `/health` of a host; the addresses that carried a session; a request that the relay asks this client's key to sign |
 | `pair` (feature `pair`) | `PairContext`, `create`, `status`, `stop`, `revoke`, `halt`, `rotate`, the stores of a pair and of an operator's part, `newest` (the stored pair with the most time left, or the next one), `Pair::for_node` (a node's part of the name and the node token that its user gives, call C130) |
 | `reverse` (feature `pair`) | `run` (the node), `NodeConfig`, `NodeState`, `Handler`, `TcpHandler`, `UdpHandler`, `local::{Target, LocalHandler}`, `channel` and `ChannelHandler` (each session to a service of the process, T-150), `Layered`, `E2e`, `routes::Routes`, `operator` (`OperatorLimits::eof_idle`, `EOF_IDLE`), `serve`, `Settings` (`half_close`, `drain`, `lost_hold`), `HALF_CLOSE_IDLE`, `DRAIN`, `FIRST_CONFLICT`, `LOST_HOLD`, `held_line`, `wire::{Wire, Door, Carrier}`, the codecs |
-| `grant` (feature `grant`) | `Cert`, `Door`, `Mint`, `Spent`, `parse_public` |
+| `grant` (feature `grant`) | `Cert`, `Door`, `Mint`, `Spent`, `parse_public`; `bearer` (`Bearer`, `Bearers`, `Unsigned`, `Refused`, `Verified`, `mint`, `jti`, `is_bearer`, `MAGIC`, `LEN`, `LIFE`, `SKEW`, `SEEN`) |
 | `code` (feature `code`) | `exchange` (what the ends say), `run` (`give`, `take`, `give_with`, `take_with`, `Ends`, `Waits`; where no mailbox answers, the ntfy servers of `Ends::ntfy` (at `Ends::pace`) after the event `relay.code.ntfy` (`NTFY_WORDS`, T-554; first, before the mailboxes, where `Ends::upgrade_refused` says that the caller's probe found the WebSocket upgrade refused, after the words `UPGRADE_REFUSED`), the Nostr relays of `Ends::relays` after the event `relay.code.nostr` (`NOSTR_WORDS`, T-550), the WebTorrent trackers of `Ends::trackers` after the event `relay.code.tracker` (`TRACKER_WORDS`, T-551), then the MQTT brokers of `Ends::brokers` after the event `relay.code.broker` (`BROKER_WORDS`, T-277), the last three in the order of podssh's ruling Q77), `LIFETIME` |
 | `blocking` (feature `blocking`) | `Client`, `Config`, `NodeOptions` (`say`: the node's lines, call C131), `Say`, `Operator`, `Forward`, `Local`, `BlockingHandler`, `NodeChannel`, `OperatorChannel`, `Stopper` |
 | `failure` | the stage and the class of each error |
@@ -238,6 +238,35 @@ after 2 s with no mark on the stream; the plants
 `relay-t560-no-h2-offer`, `relay-t560-reset-is-an-end` and
 `relay-t560-http1-not-asked-again`.
 
+## Bearers
+
+`grant::bearer` (feature `grant`, PodUtils/podssh#355) is the other form of
+a grant: a token that a key of the user's identity file signs, so that a
+person with no key file on the host gets in. It rides in the operator's
+proof as a grant does, and it names the binding of its channel
+(`pod_e2e::Binding`), so a copy is worthless on each other channel.
+`docs/wire.md`, section 6, gives its 221 bytes.
+
+| Step | Call |
+| --- | --- |
+| The operator makes one | `pod_e2e::ends::operator_bound`, whose `mint` calls `bearer::mint(signer, holder, &binding, now, nonce)` with a key file, or `Unsigned::new(..)`, `Unsigned::message()` to the agent, then `Unsigned::signed(signature)`; `holder` is the operator's own key, the nonce is fresh |
+| The node tells it from a certificate | `is_bearer(blob)`: a certificate starts with a zero byte |
+| The node checks it | one `Bearers` for each node; in its `Redeem`: `bearers.verify(blob, ends::binding().as_ref(), peer, signers, now)`, `signers` the keys that the user's identity file lists |
+
+`Bearers::verify` checks, in this order, and refuses with one class of
+`Refused` (its `name()` in parentheses) at the first that fails: a binding
+came with it (`unbound`), the form (`form`), the holder is the key that the
+channel proved (`holder`), `signers` takes the signer (`signer`), the
+Ed25519 signature (`signature`), `exp` after `iat` by at most `LIFE` (30 s)
+(`life`), `iat` at most `SKEW` (10 s) after now (`early`), now before `exp`
+and the skew (`expired`), the `jti` against the binding, compared in
+constant time (`binding`), and the record of each `jti` until `exp` and the
+skew (`replayed`; `full` when it holds `SEEN` (16384) live entries). The
+record is in memory: a channel does not outlive its process, and a bearer
+of another channel fails `binding`. A resume of the layer runs no new
+handshake and no new check. No text and no `Debug` output of a bearer or a
+refusal holds the nonce, the `jti`, the signature or the binding.
+
 ## The layer under the cap of a relay
 
 A relay that gives `limits.max_session_bytes` ends a link at that cap
@@ -279,7 +308,7 @@ the session resumes within 3 s and the scaled work; the plant
 | `pair` | the pairs and the reverse road |
 | `blocking` | the blocking facade (with `pair`) |
 | `code` | the exchange of a pairing by code (with `pair`; `pod-wormhole`) |
-| `grant` | the grants used once |
+| `grant` | the grants used once, and the bearers bound to one channel |
 | `quic` | the QUIC road (`pod-quic`, noq) |
 | `plain-ws` | plain `ws://` to a stand-in relay on the loopback, for the tests of an embedder: `http://` and `ws://` in `parse_relay`, the forward opener's `open_on_loopback`, the reverse road's `Wire::PlainLoopback`, the facade's `forward_on_loopback`; a binary that takes a relay on the loopback turns it on, as podnet does (call C101); a host off the loopback stays refused |
 | `fuzzing` | the readers of the wire for `fuzz/`; no consumer turns it on |
