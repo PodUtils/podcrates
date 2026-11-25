@@ -12682,7 +12682,7 @@ A test signs with an ECDSA issuer and with a closure issuer, and `ssh-keygen -L`
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12715,6 +12715,17 @@ cargo test -p pod-session --all-features
 cargo clippy -p pod-session --all-targets --all-features -- -D warnings
 sh scripts/plant-each.sh --apply
 ```
+
+## Done
+
+2026-11-25. Commit: see `git log` for T-1395.
+
+- `resume::after_mark(window)` and `resume::move_under(cap, window)` (`crates/pod-session/src/resume/cap.rs`); `Settings::under_cap(cap)`: the settings, or a `Failure` of the stage `Session` and the class `Usage`. The window is `Settings::window`, else `Settings::pair_window`.
+- The bound of the code is not the asked sum. Past `move_bytes - 1`: 14 bytes for each byte of the far end's window (or one record of 65,541 bytes when that is more), one record of this side (65,541), 13 bytes for each 64 KiB of the window and 13, the handshake (1,296), the small records of a hold of 100 s (8 KiB) and a last `CLOSE` (1,029). Under 64 MiB with `PAIR_WINDOW`, the largest move is 56,022,589 bytes (53.4 MiB): `MOVE_BYTES` fits. Under 1 MiB, `PAIR_WINDOW` gives no move, and a window of 64 KiB gives 54,988 bytes. podnet's 160 KiB with the window of the pair's road can reach a cap of 1 MiB when the far end writes small records; T-1450 makes the window count the heads, and then the bound comes near the asked sum.
+- The writer reads the hold under the lock of the state before it takes an `ACK` (`crates/pod-session/src/pump/outbox.rs`).
+- Tests: `resume::cap::tests` (4). `crates/pod-session/tests/session_mark.rs`: a far end that writes one byte for each record, a window of 32 KiB and a mark of 128 KiB: the stand-in relay counted 589,928 bytes, 458,856 past the mark; the asked room is 98,368 and `after_mark` is 534,823; 40 of 40 runs passed. `sessions_at_the_move_under_a_cap_never_meet_it` (`crates/pod-session/tests/session_move.rs`): four sessions at once, 2 MiB each way at full speed, a move at 54,988 bytes, a stand-in relay of 1 MiB: no link met the cap; 40 of 40 runs passed.
+- The plant `scripts/plants/session-t1395-move-under-no-window.plant` drops the window from `after_mark`: the test of `session_mark.rs` fails with "the leg carried 589928 bytes, under the bound of 272684"; `sh scripts/plant-each.sh session-t1395-move-under-no-window`: 1 caught.
+- `cargo test -p pod-session --all-features`: 180 passed, 0 failed. `cargo clippy -p pod-session --all-targets --all-features -- -D warnings`, `cargo fmt --all --check` and `cargo todo check`: clean. `sh scripts/plant-each.sh --apply`: 0 stale. The tests of `pod-relay` with a move (`layer_cap`, `reverse_window`, `reverse_layered`, `layer_h2_spare`: 11) and of `pod-link` (`resume`: 1) pass.
 
 # T-1450: `pod-session`: the window of a link bounds the payload in flight, not the bytes of its records, so small records pass the relay's hold for a slow receiver and the cap of a leg
 
