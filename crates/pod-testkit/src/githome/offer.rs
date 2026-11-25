@@ -7,6 +7,8 @@ use pod_job::source::{HostFacts, Offer, RealJob, Reply};
 use pod_job::{ContainerRoute, Fact, JobOffer, SCHEMA};
 use serde_json::{Map, Value, json};
 
+use crate::github::{JOB_REF, repository_id};
+
 /// The owner and the repository of a job that names none.
 const REPOSITORY: &str = "example-org/app";
 /// The `wait_deadline_s` of a job that names none.
@@ -48,7 +50,10 @@ pub(super) fn build(body: &Value, n: u64, source: &str) -> Result<JobOffer, Stri
     inputs["owner"] = json!(owner);
     inputs["repo"] = json!(repo);
     inputs["run_id"] = json!(n);
-    inputs["ref"] = json!("refs/heads/main");
+    // The ref and the repository id of the job in a linked fake GitHub: the
+    // facts of the job-started hook there are the facts of the offer.
+    inputs["ref"] = json!(JOB_REF);
+    inputs["repo_id"] = json!(repository_id(&repository));
     inputs["workflow_ref"] = json!(format!("{repository}/.github/workflows/ci.yml@refs/heads/main"));
     defaults.insert("trust_inputs".into(), inputs);
     for (k, v) in defaults {
@@ -85,7 +90,10 @@ pub(super) fn wire(offer: &JobOffer) -> Offer {
 /// The answer to `assigned`, after podrunner's fake source: a real job of
 /// the owner of the offer is kept, with the actor and the visibility of the
 /// offer, and the event, the run and the fork fact of the real job; a job
-/// of another owner ends with `not-of-this-source`.
+/// of another owner ends with `not-of-this-source`. A fact that the fake
+/// does not know of the real job (the ref of another run, the id of another
+/// repository) is empty, never the fact of the offer: podrunner keeps a
+/// cache of the offer only for the scope of these facts.
 pub(super) fn assigned(offer: &JobOffer, real: &RealJob) -> Reply {
     let mut t: TrustInputs = offer.trust_inputs.clone();
     let Some((owner, repo)) = real.repository.split_once('/') else {
@@ -93,6 +101,15 @@ pub(super) fn assigned(offer: &JobOffer, real: &RealJob) -> Reply {
     };
     if !owner.eq_ignore_ascii_case(&t.owner) {
         return end("not-of-this-source", "the job is of another owner");
+    }
+    // A run id is of one repository: the ref of the offer is a fact of
+    // the real job only for the same repository and the same run.
+    let same_repo = repo.eq_ignore_ascii_case(&t.repo);
+    if !same_repo {
+        t.repo_id = None;
+    }
+    if !same_repo || real.run_id != t.run_id {
+        t.git_ref.clear();
     }
     t.repo = repo.to_string();
     t.run_id = real.run_id;
@@ -161,6 +178,38 @@ mod tests {
         assert_eq!(fact(real(Some("someone/app"), None)), Fact::Yes, "another repository");
         assert_eq!(fact(real(Some("example-org/app"), Some(true))), Fact::Yes, "the fact of the hook wins");
         assert_eq!(fact(real(Some("someone/app"), Some(false))), Fact::No, "the fact of the hook wins");
+    }
+
+    /// The contract: the facts of `keep` give the ref and the repository id
+    /// of the real job, empty when the source does not know one, never the
+    /// value of the offer.
+    #[test]
+    fn assigned_gives_no_ref_or_repository_id_of_the_offer_for_another_job() {
+        let o = build(&json!({ "repository": "example-org/app" }), 1, "githome").unwrap();
+        let ti = &o.trust_inputs;
+        assert_eq!((ti.git_ref.as_str(), ti.repo_id), (JOB_REF, Some(repository_id("example-org/app"))));
+        let real = |run_id: u64, repository: &str| RealJob {
+            run_id,
+            job_name: "build".into(),
+            event: "push".into(),
+            repository: repository.into(),
+            head_repository: None,
+            head_is_fork: None,
+            actor: "someone".into(),
+            job_id: None,
+            git_ref: None,
+            repo_id: None,
+        };
+        let facts = |r: RealJob| match assigned(&o, &r) {
+            Reply::Keep { trust_inputs } => (trust_inputs.git_ref, trust_inputs.repo_id, trust_inputs.run_id),
+            other => panic!("not kept: {other:?}"),
+        };
+        let id = Some(repository_id("example-org/app"));
+        assert_eq!(facts(real(1, "example-org/app")), (JOB_REF.to_string(), id, 1), "the job of the offer");
+        assert_eq!(facts(real(1, "Example-Org/App")), (JOB_REF.to_string(), id, 1), "the name in another case");
+        assert_eq!(facts(real(9, "example-org/app")), (String::new(), id, 9), "another run");
+        assert_eq!(facts(real(1, "example-org/other")), (String::new(), None, 1), "another repository");
+        assert_eq!(facts(real(9, "example-org/other")), (String::new(), None, 9), "both");
     }
 
     #[test]

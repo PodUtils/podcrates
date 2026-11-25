@@ -9,7 +9,8 @@
 //! * `mint` acts as the App: it mints a JIT runner with the runner name of
 //!   the claim and the labels of the offer, gives that job to that runner
 //!   (the control API: else the runner takes the oldest queued job of its
-//!   labels), and answers the files of `encoded_jit_config`.
+//!   labels), and answers the files of `encoded_jit_config`. A configuration
+//!   with no file, or with a name that is not [`plain`], gives no credential.
 
 use pod_job::JobOffer;
 use pod_job::source::{Hidden, MintedFile};
@@ -57,7 +58,42 @@ pub(super) fn mint(
     let repo = repository(offer);
     let token = installation_token(github, &app_key(github)?, &repo)?;
     let runner = jit_runner(github, &token, &repo, runner_name, &labels(offer))?;
+    if runner.files.is_empty() {
+        return Err("the JIT configuration has no file".into());
+    }
+    if !runner.files.iter().all(|(name, _)| plain(name)) {
+        return Err("a file name of the JIT configuration is not plain".into());
+    }
     control(github, "POST", &format!("jobs/{github_job}/assign"), &json!({ "runner_id": runner.id }), 200)?;
     let files = runner.files.into_iter().map(|(name, text)| MintedFile { name, content: Hidden::new(text) }).collect();
     Ok((runner.id, files))
+}
+
+/// A plain name of a file of a credential, by the contract of the source
+/// wire: 1 to 64 bytes, not `.` or `..`, and no `/`, `\`, space, control
+/// byte or DEL. A unit script of podrunner reads the names line by line and
+/// word by word, and its mint refuses another name.
+pub(super) fn plain(name: &str) -> bool {
+    (1..=64).contains(&name.len())
+        && name != "."
+        && name != ".."
+        && !name.contains(['/', '\\'])
+        && !name.bytes().any(|b| b <= b' ' || b == 0x7f)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::plain;
+
+    #[test]
+    fn a_credential_file_has_a_plain_name() {
+        let max = "n".repeat(64);
+        for ok in [".runner", ".credentials", ".credentials_rsaparams", "a", "\u{e9}t\u{e9}", max.as_str()] {
+            assert!(plain(ok), "{ok:?}");
+        }
+        let long = "n".repeat(65);
+        for bad in ["", ".", "..", "a/b", "/a", "a\\b", "a b", "a\tb", "a\nb", "a\u{0}b", "a\u{7f}b", long.as_str()] {
+            assert!(!plain(bad), "{bad:?}");
+        }
+    }
 }
