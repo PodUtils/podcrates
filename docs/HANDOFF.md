@@ -32,7 +32,8 @@ is done. Git and the record keep finished work.
    - Done on `main` after `v0.85.0`; answer each with the next tag:
      PodUtils/podvm#667 (COORD-250, T-1389), PodUtils/podnet#753 to #755
      (COORD-123 to COORD-125, T-1392 to T-1394).
-   - In work: PodUtils/podnet#756 (COORD-126; a worker writes its entry).
+   - Done on `main` after `v0.85.0`: PodUtils/podnet#756 (COORD-126,
+     T-1395); answer it with the next tag.
    - Open asks: PodUtils/podssh#358 (COORD-148) is T-1390;
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -124,6 +125,16 @@ closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
   each with `size=N` and reads the limit back (steps 49 to 52). Breaking:
   each struct literal of `Plan` adds `tmpfs: Vec::new()`. T-1430 (a rule of
   the confinement on such a tmpfs) is open.
+- T-1395 (`pod-session`, PodUtils/podnet#756): `resume::after_mark(window)`,
+  `resume::move_under(cap, window)` and `Settings::under_cap(cap)` (class
+  `Usage`). The bound of the code is larger than the bound of the ask: a
+  `DATA` record has a head of 13 bytes, so a far end that writes one byte
+  at a time sends 14 bytes for each byte of its window; the handshake and
+  the small records of the hold count too. With `PAIR_WINDOW`, a cap of
+  64 MiB takes a move of 53.4 MiB (the default 48 MiB fits) and a cap of
+  1 MiB takes no move: podnet's test of 1 MiB needs a window of 64 KiB (a
+  move at 54,988 bytes). The writer reads the hold under the lock of the
+  state before it sends an `ACK`.
 - T-1446 (`pod-warp`): a test socket path fits the 104 bytes of macOS.
   T-1447 (`scripts/ci/test-limited.sh`): the doc run of the nightly
   excludes `pod-h2`. No change for a consumer.
@@ -136,7 +147,9 @@ closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
   `mkfs.erofs`, PodUtils/podvm#668); T-1430; T-1321 (a C backend of
   deflate for `pod-gzip`, measured).
 - podnet: T-1392 to T-1394 (PodUtils/podnet#753 to #755) on `main`;
-  PodUtils/podnet#756 in work; T-1343 is partial (the moves of the other crates of step 2
+  T-1395 (PodUtils/podnet#756) on `main`; T-1450 to T-1452 (the findings
+  of T-1395: record heads against the window, `Offer::fit` of `pod-relay`,
+  the wait of a small window); T-1343 is partial (the moves of the other crates of step 2
   and step 3 follow); T-1377 and T-1378 (failures whose text holds the
   words of a typed cause).
 - podssh: open: T-1169 (a test of the DNS carrier through `unbound`),
@@ -157,10 +170,9 @@ closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
 
 ## Unfinished work
 
-- One worker is in flight: PodUtils/podnet#756 (`pod-session`, `resume::move_under`,
-  PodUtils/podnet#756) on the local branch `t1395` in
-  `.claude/worktrees/t1395`. Each other branch of the agents is merged into
-  `main`.
+- One worker is in flight: T-1444 and T-1445 (the red nightly) on the
+  local branch `nfix1125` in `.claude/worktrees/nfix1125`. Each other
+  branch of the agents is merged into `main`.
 - `origin/wip/t1073` is merged into `main` (T-1073, T-1070). The proxy
   refuses `git push origin --delete`, so the owner deletes the branch on
   GitHub (`TODO/PROGRESS.md`, "Owner actions"). No other `wip/` branch
