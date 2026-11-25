@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**999 entries: 147 open, 30 partial, 8 blocked, 814 done.**
+**1001 entries: 151 open, 30 partial, 6 blocked, 814 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 237 | 250 |
-| P2 | 65 | 11 | 4 | 423 | 503 |
-| P3 | 78 | 10 | 4 | 152 | 244 |
-| **All** | 147 | 30 | 8 | 814 | 999 |
+| P2 | 66 | 11 | 4 | 422 | 503 |
+| P3 | 81 | 10 | 2 | 153 | 246 |
+| **All** | 151 | 30 | 6 | 814 | 1001 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -457,7 +457,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-520](relay.md) | P2 | S | M2 | feature | done | `pod-link`: the default of the congestion window of KCP against podnet's gate of 20 % loss (PodUtils/podnet#515) |
 | [T-521](relay.md) | P2 | S | M2 | chore | done | `pod-link`: a fuzz target of the datagrams of the udp carrier (the input of KCP) |
 | [T-525](relay.md) | P3 | S | M2 | feature | done | `pod-link`: the bytes of a poll listener outside `max_bytes` (the pipes of each session, the connections after their handshake) |
-| [T-526](relay.md) | P3 | S | M2 | chore | partial | `pod-link`: the arithmetic of the crate `kcp` wraps by design: no overflow checks for it, and the fix upstream |
+| [T-526](relay.md) | P3 | S | M2 | chore | partial | `pod-link`: the arithmetic of the crate `kcp` wraps by design: no overflow checks for it, and the fix kept as a patch |
 | [T-527](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: the CPU time and the peak of resident memory of a job in `run-report.v1` (githome's G-06, #83) |
 | [T-528](transport.md) | P2 | M | M1 | defect | done | `pod-services`: three of the four file hosts fail live from GitHub: the download URL of tmpfiles.org, the upload form of litterbox, the busy answer of 0x0.st (PodUtils/podssh#230) |
 | [T-529](transport.md) | P2 | S | M1 | defect | done | `pod-services`: the result of the first live round trip of the file hosts; the text of litterbox's 412 |
@@ -468,7 +468,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-535](upkeep.md) | P1 | S | M5 | defect | done | The nightly at `72632b2` is red on riscv64 and armv7: the bounds of the tests of `pod-link` are not scaled under an emulator |
 | [T-536](upkeep.md) | P2 | S | M5 | defect | done | `pod-oci`: the test of the distribution registry with a bearer token fails at random: the registry refuses the connection |
 | [T-537](upkeep.md) | P2 | S | M5 | defect | done | `services.yml` at `4c2d17c` is red: the tox node `node-3091c6be` gives no TCP relay |
-| [T-538](upkeep.md) | P3 | S | M5 | docs | blocked | The rule of attribution of a comment on GitHub: the documents of podcrates and the practice of its sessions differ |
+| [T-538](upkeep.md) | P3 | S | M5 | docs | done | The rule of attribution of a comment on GitHub: the documents of podcrates and the practice of its sessions differ |
 | [T-539](transport.md) | P2 | M | M3 | feature | done | `pod-term`: a line discipline that follows a termios state, for the tty of `podssh serve` with no /dev/ptmx (PodUtils/podssh#232) |
 | [T-540](transport.md) | P3 | S | M3 | chore | done | `pod-term`: a test of `termios::Tty` against a pty of the kernel, where one opens |
 | [T-541](relay.md) | P1 | S | M2 | defect | done | `pod-link`: the dns and icmp carriers stop at the wrap of the sequence of the ARQ: `dgram_tls` never calls `rekeyed` (PodUtils/podnet#540) |
@@ -973,7 +973,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1156](podvm.md) | P1 | S | M6 | feature | done | `pod-incus`: no bound of the answer of a call: a socket that takes the connection and never answers holds the caller (PodUtils/podvm#653) |
 | [T-1157](podvm.md) | P2 | S | M6 | defect | done | `pod-incus`: after a failed write of a body, the answer that incusd already sent is read with no bound and no test, and the documentation does not tell the caller about SIGPIPE (PodUtils/podvm#653) |
 | [T-1158](podvm.md) | P2 | S | M6 | chore | done | podvm removes its work-arounds for `pod-incus` at its take of the tag of T-1155 to T-1157 |
-| [T-1159](fleet.md) | P2 | S | M8 | defect | done | `issue-sync`: a close of an issue by a person is reverted at the next push, before a session can change the record |
+| [T-1159](fleet.md) | P2 | S | M8 | defect | open | `issue-sync`: a close of an issue by a person is reverted at the next push, before a session can change the record |
 | [T-1160](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the fork fact of a job in the fake githome follows podrunner's rule of `e629fa8` (the second port after T-1122) |
 | [T-1161](upkeep.md) | P2 | S | M5 | defect | done | `pod-control`: `a_call_back_meets_one_deadline_for_its_write` fails on riscv64 under the emulation of QEMU (the nightly at `0f5dad6`) |
 | [T-1162](fleet.md) | P3 | S | M8 | chore | done | Answer PodUtils/podvm#570 (COORD-183): name the commit of the sections "Shared code first" and "Quality first" of `docs/session-protocol.md` |
@@ -1031,7 +1031,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1339](fleet.md) | P2 | S | M8 | chore | done | `pod-tpm`: the fuzz targets of the response reader and of the key file reader, and a plant for each bound of T-1217 and T-1219 |
 | [T-1340](fleet.md) | P2 | M | M8 | measurement | open | `pod-tpm`: a key file that the crate writes loads and signs in tpm2-openssl and in go-tpm-keyfiles against swtpm |
 | [T-1343](upkeep.md) | P2 | M | M5 | feature | partial | `pod-core`: one temp directory and one temp file with a random name (PodUtils/podnet#711, lesson 5 of PodUtils/podvm#567) |
-| [T-1347](relay.md) | P3 | S | M2 | chore | blocked | `pod-h2`: offer the setting of the order of the pseudo-fields to hyperium/h2, and drop the fork at its release |
+| [T-1347](relay.md) | P3 | S | M2 | chore | open | `pod-h2`: a command that reproduces the need of each patch of `vendor/patches/h2/`, and the check of each h2 release |
 | [T-1351](adapters.md) | P3 | M | M3 | defect | open | `pod-cloudflare`, `pod-core`, `pod-proxy`: a failure whose text holds the words of its typed cause says them two times to a reader that joins the chain |
 | [T-1355](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `4fc871c` (the fourth port of `source-driver.md`) |
 | [T-1359](upkeep.md) | P2 | S | M5 | defect | done | `pod-core`: three tests of `files::socket` fail on macOS because the temporary directory is longer than their directory of 40 bytes |
@@ -1046,3 +1046,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1369](relay.md) | P2 | S | M2 | chore | done | `pod-relay`: a fuzz target of `grant::bearer::Bearer::read`, the reader of a bearer from the peer |
 | [T-1370](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: warm and cold units in `run-report.v1` and `status.v1` (PodUtils/podrunner#353) |
 | [T-1371](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: the `Mint` of a grant writes no extension, so a stock sshd gives its certificate no pty and no forward (PodUtils/podssh#356) |
+| [T-1372](fleet.md) | P3 | S | M8 | release | open | crates.io: the names `pod-natprobe`, `pod-tpm`, `pod-gzip` and `pod-h2` (GitHub #261) |
+| [T-1373](fleet.md) | P3 | M | M8 | feature | open | `pod-release`: an opt-in fetch of newer Sigstore roots from TUF at run time |

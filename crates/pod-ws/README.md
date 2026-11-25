@@ -208,7 +208,8 @@ The adoption trials are `adoption/podssh/pod-ws.patch` and
   `git apply --directory=vendor/h2 vendor/patches/h2/*.patch`, and write
   the version and the SHA-256 in `FORKS` of `scripts/check-vendor.py`. When
   a hunk applies with an offset, make that patch again from the unpacked
-  crate. When a release of h2 has a setting for the order, remove the fork.
+  crate. Remove a patch only when a release of h2 carries the same change,
+  by the command of the patch (T-1347).
 
 ## Tests
 

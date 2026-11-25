@@ -57,7 +57,7 @@ is done. Git and the record keep finished work.
      prints the seconds of each binary (T-1303 is done; the longest binary
      takes 70 s, so the limits are 300 s and 600 s). Open failures:
      `riscv64` fails in `pod-iroh` (`road.rs`, `share.rs`) and
-     `loongarch64` in `share.rs` (T-916, T-938, Q19); the riscv64 job took
+     `loongarch64` in `share.rs` (T-916, T-938; the ruling "Emulated nightly jobs"); the riscv64 job took
      127 of its 150 minutes, and `session_resume_twice` ended in 91 s. Both
      jobs of macOS fail in three tests of `files::socket` of `pod-core`: the
      temporary directory is longer than 40 bytes (T-1359, done on `main`).
@@ -198,8 +198,13 @@ The asks that #260 answers:
   bind at a long path), T-1146 (the comments of `pod-natprobe` are not in
   ASD-STE100), T-1150 (a watch of the facts of RFC 5780 of `easybell-stun`),
   T-1351, T-1321.
-- T-963 is partial. T-975 and T-977 (podvm's asks #602 and #604; Q18 blocks
-  their release part) are open.
+- T-963 is partial. T-975 and T-977 (podvm's asks #602 and #604; the ruling
+  "Assets of other licences" allows their release part) are open. T-1159 is
+  open (the ruling "A close by hand"): the code of `scripts/issue-sync.py`
+  still waits 24 hours. T-1347 (the command of each patch of `pod-h2`) and
+  T-1373 (the opt-in fetch of Sigstore roots from TUF) are open. The names
+  `pod-natprobe`, `pod-tpm`, `pod-gzip` and `pod-h2` wait for the owner's
+  local agent: PodUtils/podcrates#261 (T-1372).
 
 ## Unfinished work
 

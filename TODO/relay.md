@@ -5973,7 +5973,7 @@ make them fail; the plants `link-poll-duplicate-taken`,
 new code and are caught. `cargo test -p pod-link --all-features --test
 poll_lanes`: 9 passed; the crate: 190 passed.
 
-# T-526: `pod-link`: the arithmetic of the crate `kcp` wraps by design: no overflow checks for it, and the fix upstream
+# T-526: `pod-link`: the arithmetic of the crate `kcp` wraps by design: no overflow checks for it, and the fix kept as a patch
 
 **Source:** T-521 (a finding of its work)
 **Category:** chore
@@ -5993,7 +5993,7 @@ The crate `kcp` 0.6.0 is a port of ikcp, whose clock (32 bits of milliseconds) a
 
 ## Approach
 
-Set `[profile.dev.package.kcp] overflow-checks = false` in `Cargo.toml` (the test profile takes it from dev). The test `a_datagram_that_breaks_kcp_ends_the_stream_with_an_error` of `crates/pod-link/tests/udp_loss.rs` then needs another panic of the task (a carrier of datagrams that panics in `recv`), and its plant stays. Keep the overflow checks of `kcp` in `fuzz/Cargo.toml` so that `link_kcp` exercises the guard (C279). Send the fix to `kcp` upstream (`wrapping_sub` in `timediff`, `saturating_mul` in `update_ack`, a `u8` check in `peeksize`), and tell podnet to set the same profile in its workspace by a COORD issue.
+Set `[profile.dev.package.kcp] overflow-checks = false` in `Cargo.toml` (the test profile takes it from dev). The test `a_datagram_that_breaks_kcp_ends_the_stream_with_an_error` of `crates/pod-link/tests/udp_loss.rs` then needs another panic of the task (a carrier of datagrams that panics in `recv`), and its plant stays. Keep the overflow checks of `kcp` in `fuzz/Cargo.toml` so that `link_kcp` exercises the guard (C279). Keep the fix of `kcp` as a patch in `docs/upstream/` (`wrapping_sub` in `timediff`, `saturating_mul` in `update_ack`, a `u8` check in `peeksize`); no session sends it to another project (the ruling "Vendoring"). Tell podnet to set the same profile in its workspace by a COORD issue.
 
 ## Prove
 
@@ -6004,8 +6004,8 @@ cargo test --manifest-path fuzz/Cargo.toml --lib
 
 ## Done
 
-- Part, 2026-11-13: `Cargo.toml` sets `[profile.dev.package.kcp] overflow-checks = false`. The test `a_panic_of_the_task_ends_the_stream_with_an_error` uses a carrier that panics in `recv`; the plant `link-udp-panic-hangs-the-stream` moved to it and fails it. `fuzz/Cargo.toml` keeps the checks. Open: the fix upstream in `kcp`. #139 (COORD-079) asks podnet to set the same profile; podnet sets it with its take of the udp carrier (PodUtils/podnet#527).
-- Part, 2026-11-14: `docs/upstream/kcp-0.6.0-wrapping.patch` holds the fix for `kcp` 0.6.0 (`timediff` with `wrapping_sub`; `update_ack` in 64 bits with saturation; `peeksize` with `usize::from(frg) + 1`); it applies to the source of the crate with `patch -p1`. Open: the owner sends it upstream ("Owner actions" of `TODO/PROGRESS.md`); a session cannot write outside PodUtils.
+- Part, 2026-11-13: `Cargo.toml` sets `[profile.dev.package.kcp] overflow-checks = false`. The test `a_panic_of_the_task_ends_the_stream_with_an_error` uses a carrier that panics in `recv`; the plant `link-udp-panic-hangs-the-stream` moved to it and fails it. `fuzz/Cargo.toml` keeps the checks. Open: #139 (COORD-079) asks podnet to set the same profile; podnet sets it with its take of the udp carrier (PodUtils/podnet#527).
+- Part, 2026-11-14: `docs/upstream/kcp-0.6.0-wrapping.patch` holds the fix for `kcp` 0.6.0 (`timediff` with `wrapping_sub`; `update_ack` in 64 bits with saturation; `peeksize` with `usize::from(frg) + 1`); it applies to the source of the crate with `patch -p1`. The patch stays in `docs/upstream/` as a record of the fix. No session sends it to another project (the ruling "Vendoring", 2026-11-25).
 
 # T-531: `pod-netstack`: tests of a far end that closed first and of the packets held while the queue out is full (PodUtils/podssh#231)
 
@@ -10682,8 +10682,8 @@ way to the wire at all.
    change. Do not use `[patch.crates-io]` for it.
 3. Keep h2 out of the new items of the API where it is possible: a type of
    `pod-ws` takes the builder, so a caller does not build one.
-4. Offer the setting to hyperium/h2. When a release of h2 has it, drop
-   the fork.
+4. Keep the fork. Drop it only when a release of h2 carries the same
+   change, by the check of T-1347 (the ruling "Vendoring").
 5. A test compares the first bytes of the HEADERS frame (the HPACK block)
    of a request with the order of each shape, for Chrome and Firefox.
 6. After the tag, podssh drops its copy of h2 (PodUtils/podssh:vendor/h2) and its `[patch.crates-io]`
@@ -10758,8 +10758,8 @@ the workspace of a consumer.
   `pod_ws::h2::decode_header_block` in place of `h2::decode_header_block`. A
   session on `Shape::existing` then sends the order of h2; `--h2-shape
   browser` sends Chrome's order (the adoption map of
-  `crates/pod-ws/README.md`). The offer of the setting to hyperium/h2
-  (Approach 4) is not made.
+  `crates/pod-ws/README.md`). The check of each release of h2
+  (Approach 4) is T-1347.
 
 # T-1125: `pod-hold`: a failed `execve` of `spawn::start` exits 127 with no errno, and `spawn::resolve` does not check a path with a `/` (PodUtils/podnet#707)
 
@@ -12155,49 +12155,64 @@ For the hand-off: no break; no public item changed. Neither podssh nor
 podnet uses `Pipe` or `DnsOverHttps` yet (their code read at their heads);
 a DNS carrier over DoH asks Cloudflare and Google over HTTP/2.
 
-# T-1347: `pod-h2`: offer the setting of the order of the pseudo-fields to hyperium/h2, and drop the fork at its release
+# T-1347: `pod-h2`: a command that reproduces the need of each patch of `vendor/patches/h2/`, and the check of each h2 release
 
-**Source:** T-1095, its Approach 4.
+**Source:** T-1095; the ruling "Vendoring" (2026-11-25).
 **Category:** chore
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** blocked
+**Status:** open
 
 ## Problem
 
 `vendor/h2` (`pod-h2`) is h2 0.4.20 with the setting
 `client::Builder::pseudo_order` (`vendor/patches/h2/0001-pseudo-order.patch`).
-Each release of h2 must be carried into the fork by hand, and each consumer
-of `pod-ws` builds two copies of h2 when its tree has the h2 of crates.io
-too.
+The record of a patch must say what it changes, the entry that it unblocks,
+why it is in the vendored tree, and a command that reproduces the need (the
+ruling "Vendoring"). Today `crates/pod-ws/README.md`, "The fork of h2", says
+what each patch changes, and no patch has a command. Without it, a new
+release of h2 is judged by a reading, and the fork stays by default. Each
+release of h2 must be carried into the fork by hand, and each consumer of
+`pod-ws` builds two copies of h2 when its tree has the h2 of crates.io too.
 
 ## Premise
 
 - Read: h2 0.4.21 (the newest release) has no setting for the order.
-- Not measured: whether hyperium/h2 takes such a setting.
+- Not measured: a command for each patch against a release of h2.
 
 ## Approach
 
-1. Open an issue at hyperium/h2 with the setting and its reason (a peer can
-   tell clients apart by the order of the pseudo-fields; RFC 9113 leaves it
-   open), with the patch as a proposal. An issue at another organization is
-   a write on GitHub: ask the owner first.
-2. When a release of h2 has a setting for the order, `pod-ws` and
-   `pod-egress` take the h2 of crates.io again with it, and `vendor/h2`,
-   `vendor/patches/h2/` and the row of `FORKS` of `scripts/check-vendor.py`
-   go. Keep `decode_header_block` for the test in `tests/h2_road/support.rs`,
-   or decode the block there.
+1. For each patch of `vendor/patches/h2/`, write in `crates/pod-ws/README.md`,
+   "The fork of h2", its record: what it changes (one line), the entry that
+   it unblocks, why it cannot live outside the vendored tree (the codec of
+   h2 has no seam for the order), and the command that reproduces the need.
+2. The command of `0001-pseudo-order.patch`: a script that takes the h2 of
+   crates.io at a version (its SHA-256 checked against the `cksum` of the
+   index), applies no patch, and runs the test
+   `the_request_sends_its_pseudo_fields_in_the_order_of_its_shape` of
+   `tests/h2_road.rs` against it. Exit 0 means that the release sends the
+   order that each shape names: the same change. Any other result means that
+   the need stays. The script also runs on the fork, where it must exit 0.
+   The commands of `0002-package.patch` and `0003-fuzz-docs.patch` are the
+   build of the workspace as a member and the build of a fuzz target with
+   `--cfg fuzzing`, on the release with no patch.
+3. The check of each release: `scripts/check-sources.py` finds a new release
+   of h2; a session runs the commands on it. Reconcile by reading, not by
+   preference: when a release changes a line that a patch changed, take its
+   version only when it fixes the need and is complete; where our version
+   is more correct, keep ours.
+4. A patch goes only when a release of h2 carries the same change, by the
+   check. When all three patches go, `pod-ws` and `pod-egress` take the h2 of
+   crates.io again, and `vendor/h2`, `vendor/patches/h2/` and the row of
+   `FORKS` of `scripts/check-vendor.py` go. Keep `decode_header_block` for
+   the test in `tests/h2_road/support.rs`, or decode the block there.
 
 ## Prove
 
 ```sh
 cargo test -p pod-ws --all-features --test h2_road the_request_sends_its_pseudo_fields_in_the_order_of_its_shape
 ```
-
-## Blocker
-
-Q22 (`TODO/PROGRESS.md`): an issue in hyperium/h2 is outside PodUtils, and it needs the yes of the owner.
 
 # T-1367: `pod-e2e`: the binding of the channel to the check of a grant, at the node and at the operator (PodUtils/podssh#355)
 

@@ -91,7 +91,7 @@ P2 worth doing, P3 record only).
 | H-15 | T-499, T-802, T-515, T-514, T-818, T-803 | NAT traversal and congestion control of `pod-link` | No real path was measured | D, K | P2 and P3 |
 | H-16 | T-490, T-821, T-436, T-433, T-430 | Large, deferred or unmeasured feature crates | The base facts are not measured | D, K | P2 and P3 |
 | H-17 | T-217 to T-220, T-832, T-617, T-538 | Blocked entries | Wait for the owner, podforge, podswarm or podvm | O | P2 and P3 |
-| H-18 | Q16 and the owner actions | Questions and actions only the owner can do | An agent must not decide them | O | n/a |
+| H-18 | The owner actions | Questions and actions only the owner can do | An agent must not decide them | O | n/a |
 
 The order follows the owner's ruling "podrunner first": H-01 to H-08 block
 podrunner or its CI; H-09 and H-10 are the consumers' (podssh, podnet);
@@ -718,11 +718,10 @@ Read today through the mirror (2026-11-20):
 3. The check `check-sources.py` finds a change of `trusted_root.json` in
    `upstream.yml`. Does it run daily and alert a session in time? Which
    job reads it? What is the maximum delay?
-4. Is a fetch of the trusted root by TUF at run time acceptable for a
-   consumer that has a network (C821 "Not taken")? A design with the
-   compiled roots as a floor and an optional newer set (signed by TUF) is a
-   guess; it needs the owner's call because it adds network code and a
-   trust root of its own.
+4. A fetch of the trusted root by TUF at run time (C821 "Not taken"): the
+   owner ruled "off by default, opt-in via flag/config" (Q20, the ruling
+   "Sigstore roots"). The compiled roots and no network stay the default
+   path; T-1373 builds the opt-in.
 5. T-967: does a release with a minisign signature beside the bundle
    help consumers if Sigstore is down? (Not measured.)
 6. T-966: do the trial patches of podnet's take pass its `update` tests?
@@ -1118,12 +1117,9 @@ allocate 8 GiB. `PaxExtensions` cuts records at each newline byte and not
 by the length, so a `SCHILY.xattr.` value with a 0x0a byte (a capability
 set with bits 1 and 3 in one byte) does not parse. `pod-extract` now frames
 the stream itself (`crates/pod-extract/src/pax.rs`: `PAX_MAX` 1 MiB,
-`LONG_MAX` 4096, parse by length). **Question:** is there an upstream issue
-or pull request at `alexcrichton/tar-rs` for these two? (`docs/upstream/`
-holds only the `kcp` patch; the record does not say that the `tar` problem
-was sent.) Do other `tar` users (cargo, container tools) need it? Guess: another
-reader crate (for example `astral-tokio-tar`) may already bound these
-headers; check.
+`LONG_MAX` 4096, parse by length). **Question:** does another reader crate
+(for example `astral-tokio-tar`) already bound these headers? (Check; the
+fix stays in `pod-extract`, the ruling "Vendoring".)
 
 ### `russh` 0.65.1 and `ssh-key` 0.7.0-rc.11 with a nightly compiler (T-968, done)
 
@@ -1156,10 +1152,8 @@ suitable for a 0BSD workspace of this size?
 by design, and with overflow checks (dev, test, fuzz) a forged segment or
 true traffic after 24.8 days panics. The workspace turns the checks off for
 `kcp` in the dev profile; the fuzz build keeps them. A patch
-`docs/upstream/kcp-0.6.0-wrapping.patch` exists. **Owner action:** send it
-upstream as a pull request (a session cannot write outside PodUtils).
-**Question:** does upstream `kcp` accept it (find the maintainer and the
-repository, and whether it is alive)?
+`docs/upstream/kcp-0.6.0-wrapping.patch` exists as a record; no session
+sends it to another project (the ruling "Vendoring").
 
 ### `iroh` and the fork `vendor/iroh-relay`
 
@@ -1168,7 +1162,8 @@ repository, and whether it is alive)?
 (`tokio-rustls-acme`, `wmi` of `netwatch`): unmaintained (RUSTSEC-2026-0543,
 T-852). T-809: "whether a custom transport of iroh 1.4 can carry the relay's
 connection" (not measured). **Questions:** which patches does the fork hold,
-and has iroh upstream accepted them? Does the next iroh drop `chrono`?
+and which command shows the need of each (the ruling "Vendoring")? Does the
+next iroh drop `chrono`?
 
 ### `arti` (pod-tor) and SQLite
 
@@ -1310,7 +1305,6 @@ in the "Not measured" lines of each entry.
 | T-217, T-218, T-219, T-220 (`pod-git`, L) | The owner moved `pod-git` to `PodUtils/podforge` and ordered "keep it deferred". The research (T-217) compares gix, grit-lib 0.5.33 and own code | the owner (podforge) |
 | T-832 (the dig study's intake for podswarm, L) | The ruling "podswarm": an ask that helps podswarm alone waits | the start of the podswarm session |
 | T-617 (an NTFS and hive writer for an offline Windows setup) | podvm must first measure whether `AutoRun` fires on the x64 image (PodUtils/podvm#350, item 6) | podvm |
-| T-538 (the rule on an attribution line in a GitHub comment) | Q16 | the owner |
 
 The entries must not be closed as "out of scope" (AGENTS.md section 9).
 
@@ -1320,37 +1314,30 @@ The entries must not be closed as "out of scope" (AGENTS.md section 9).
 
 ### Open questions (from `TODO/PROGRESS.md` and `docs/decisions.md`)
 
-- **Q16.** Does the word of the owner of 2026-11-11 in the `AGENTS.md` of
-  PodUtils/podrunner ("a comment on GitHub can end with the 'Generated by'
-  line of the harness; a commit cannot") apply to podcrates too? The ruling
-  "Git" of 2026-11-05 here forbids each attribution line in a comment, and
-  each comment of a session of podcrates has the line. Blocks T-538.
-  Recommendation of the record: yes, the same rule in each repository of
-  PodUtils.
 - Q1 to Q14 are answered (see `docs/decisions.md`). Q15 is the ruling
-  "podswarm". Q17: the packages of ghcr.io are public, no action. The next
-  free number is Q18.
+  "podswarm". Q17: the packages of ghcr.io are public, no action. The owner
+  answered Q16 and Q18 to Q22 on 2026-11-25 (the rulings "Comment footer",
+  "Assets of other licences", "Emulated nightly jobs", "Sigstore roots",
+  "A close by hand" and "Vendoring" in `docs/decisions.md`). The next free
+  number is Q23.
 - `docs/decisions.md` ends with "Questions for the owner" that points to
   `TODO/PROGRESS.md`: there is no other open question there.
 
-### Questions that this reading raises (not in the record; for the owner)
+### Questions that this reading raised
 
-- **Q-A.** UML and `runsc` are programs that are not Rust crates: may a
-  release publish a Linux kernel (GPL-2.0) and a gVisor binary
-  (Apache-2.0) as assets, and what is the source offer? (H-05; the project
-  licence is 0BSD and `deny.toml` forbids GPL crates.)
-- **Q-B.** May the slow QEMU targets (riscv64, loongarch64, powerpc64le)
-  skip the `pod-iroh` tests in the nightly while a real machine of the
-  owner runs them? (H-01.)
-- **Q-C.** May the verifier of `pod-release` get a TUF-signed newer set of
-  roots when a network exists? (H-07.)
+- **Q-A.** UML and `runsc` as assets of a release: answered (Q18, the ruling
+  "Assets of other licences").
+- **Q-B.** The slow QEMU targets skip the `pod-iroh` tests: answered (Q19,
+  the ruling "Emulated nightly jobs": measure first with T-978; skip only
+  where a native runner runs the same test).
+- **Q-C.** A TUF-signed newer set of roots for the verifier of
+  `pod-release`: answered (Q20, the ruling "Sigstore roots": off by default,
+  opt-in by a flag or a config value; T-1373).
 
 ### Owner actions (`TODO/PROGRESS.md`, "Owner actions")
 
-- Send `docs/upstream/kcp-0.6.0-wrapping.patch` to the `kcp` upstream (T-526).
-- Report to `Lazarus404/xsockets` that `recverr: true` is an option that no
-  Erlang/OTP release takes (C588); `scripts/ci/xturn-recverr.patch`
-  removes it for T-631 until xsockets drops it.
+- Reserve the names `pod-natprobe`, `pod-tpm`, `pod-gzip` and `pod-h2` on
+  crates.io (PodUtils/podcrates#261, T-1372).
 - Set the repository secrets `POD_DEVTUNNEL_TUNNEL`, `POD_DEVTUNNEL_PORT`
   (and `POD_DEVTUNNEL_ACCESS_TOKEN`), host the tunnel
   (`devtunnel host -p 22 --allow-anonymous`), and dispatch `live.yml` with

@@ -10471,7 +10471,7 @@ podvm's rung with no namespace, no root and no ptrace must run an image with sys
 
 ## Approach
 
-1. A reproducible build of a static `ARCH=um` kernel for x86_64 (a stock mainline release, 7.3.5 or later, `CONFIG_STATIC_LINK`, seccomp mode, SMP, no network), with no patch unless a test of podcrates meets a fault of pocket_vm's list (then the patch with its source and licence), built in CI and published as an asset of each release with its SHA-256 in `SHA256SUMS` and `release-index.json` (the one rule: a static binary).
+1. A reproducible build of a static `ARCH=um` kernel for x86_64 (a stock mainline release, 7.3.5 or later, `CONFIG_STATIC_LINK`, seccomp mode, SMP, no network), with no patch unless a test of podcrates meets a fault of pocket_vm's list (then the patch with its source and licence), built in CI and published as an asset of each release with its SHA-256 in `SHA256SUMS` and `release-index.json` (the one rule: a static binary). The kernel is GPL-2.0: the release carries the source of the kernel, with each patch, as an asset of the same release, with its SHA-256 in `SHA256SUMS` and `release-index.json` (the ruling "Assets of other licences", 2026-11-25).
 2. A launcher in `pod-microvm`: start the kernel with `seccomp=on ncpus=N`, the copy-on-write block device (`ubd0=COW,BASE`), and a channel that gives back the exit code and the stdout and stderr of the guest's command as two streams, in the form of the mailbox of `pod-guest`. Volumes wait for a later release.
 3. A test that starts the kernel under a launcher that gives EPERM to `ptrace`, `unshare`, `setns`, `chroot` and `mount`, boots a small image to its PID 1, and reads its exit code.
 
@@ -10565,7 +10565,7 @@ podvm's `runsc` tier boots an image's systemd as PID 1 in a gVisor sandbox in 7 
 
 ## Approach
 
-A module of `pod-release` (feature `fetch`): a `Tool` names a URL for each architecture and its SHA-256, pinned by the caller; `fetch` downloads it through the caller's `pod_proxy::Client` into the caller's store under a lock, checks the hash before it makes the file executable and before each first exec of a run, and gives one true line on each failure (no network, a proxy, a refusal, a hash mismatch, a full disk). A cached file whose hash holds is not fetched again. Tests against a stand-in server: a fetch, a cached second call, a mismatch that leaves no executable file, two callers at once. podrunner may take it for its units.
+A module of `pod-release` (feature `fetch`): a `Tool` names a URL for each architecture and its SHA-256, pinned by the caller; `fetch` downloads it through the caller's `pod_proxy::Client` into the caller's store under a lock, checks the hash before it makes the file executable and before each first exec of a run, and gives one true line on each failure (no network, a proxy, a refusal, a hash mismatch, a full disk). A cached file whose hash holds is not fetched again. Tests against a stand-in server: a fetch, a cached second call, a mismatch that leaves no executable file, two callers at once. podrunner may take it for its units. The release part: a release of podcrates can carry `runsc` (Apache-2.0) as an asset, with its licence file and its SHA-256 in `SHA256SUMS` and `release-index.json` (the ruling "Assets of other licences", 2026-11-25); a `Tool` can name that asset beside the URL of gVisor's release.
 
 ## Prove
 

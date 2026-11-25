@@ -7646,7 +7646,7 @@ chrono and humantime have no maintainer (RUSTSEC-2026-0543, RUSTSEC-2026-0542). 
 
 ## Approach
 
-At each release of iroh and of arti, look at `cargo tree -i chrono` and `cargo tree -i humantime`; remove each ignore when no crate brings it; ask upstream for the change where there is no plan.
+At each release of iroh and of arti, look at `cargo tree -i chrono` and `cargo tree -i humantime`; remove each ignore when no crate brings it; where no plan removes a crate, keep the ignore and read the next release.
 
 ## Prove
 

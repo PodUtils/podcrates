@@ -6256,6 +6256,11 @@ keys of Sigstore's timestamp authority, compiled in beside the Fulcio chain, and
 when the entry has no promise. Keep the promise where it is there. A test takes each part of the bundle
 of v0.76.0, and a fixture of a bundle of Rekor v2.
 
+The rule of the ruling "Sigstore roots" (2026-11-25): the roots are off by
+default and opt-in. `pod-release` keeps its compiled roots and does no
+network in its default path. A flag or a config value opts in to fetch newer
+roots from TUF at run time. That fetch is T-1373.
+
 ## Prove
 
 ```sh
@@ -8430,12 +8435,12 @@ of an unknown unit into exit 69.
 
 # T-1159: `issue-sync`: a close of an issue by a person is reverted at the next push, before a session can change the record
 
-**Source:** the owner, 2026-11-24 ("issue-sync keeps opening deprecated/stale issues"); T-703, T-1095 (call C904).
+**Source:** the owner, 2026-11-24 ("issue-sync keeps opening deprecated/stale issues"); T-703, T-1095 (call C904); the ruling "A close by hand" (2026-11-25, Q21).
 **Category:** defect
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** done
+**Status:** open
 
 ## Problem
 
@@ -8461,34 +8466,38 @@ it.
 - Not measured: the case where a person opens again an issue that the
   record closes (the list of issues does not say who opened it; the events
   do).
+- Done before the ruling (2026-11-24, call C924): `plan` of
+  `scripts/issue-sync.py` keeps closed an issue that the record holds open
+  when a person closed it less than `HAND_HOURS` (24) ago, adds a note with
+  the closer and the hours, and still writes the block; a close by a bot, a
+  close with no closer and a close older than 24 h open it again.
+  `scripts/issue_sync_test.py` has 5 checks of it. The ruling of 2026-11-25
+  replaces the wait of 24 hours.
 
 ## Approach
 
-The list of issues has `closed_by` and `closed_at`. An issue that the
-record holds open and that a person (a closer that is not a bot) closed
-less than 24 h ago stays closed, with a note that names the closer and the
-hours; its block is written. After 24 h the sync opens it again, as the
-ruling needs. The rule does not change the ruling "Issues": the record
-stays the source of the state. Whether a close by a team member must win
-with no limit of time is a question of the owner (Q21).
+The ruling "A close by hand" (2026-11-25): a close by the owner wins. The
+list of issues has `closed_by` and `closed_at`. An issue that the record
+holds open and that the owner closed by hand stays closed: the sync does not
+open it again, at any time. It fails (exit 1) with the line "closed by hand:
+close it in the record or answer", with the number of the issue and the
+closer, and it still writes the block. A session then changes the record at
+once: the row and `TODO/github.txt` go to `closed` when the subject is
+complete or each entry is done; an entry that the owner calls stale is
+removed only by a ruling of the owner (`TODO/RULES.md`, section 2). The owner is
+the closer that is the owner of the repository. A close by a bot, by another
+person and with no closer opens the issue again as before. This
+replaces the wait of 24 hours (`HAND_HOURS`, call C924): remove it. Change
+`scripts/issue-sync.py` and `scripts/issue_sync_test.py`, and the text of
+`TODO/RULES.md`, section 4, and `docs/maintenance.md`, "The issues", that
+names the 24 hours. A defect that this entry fixes names its test in `Done`
+(`scripts/issue_sync_test.py`); the test fails on the code of call C924.
 
 ## Prove
 
 ```sh
 python3 -I scripts/issue-sync.py --self-test
 ```
-
-## Done
-
-2026-11-24, this commit (call C924). `plan` of `scripts/issue-sync.py`
-keeps closed an issue that the record holds open when a person closed it
-less than `HAND_HOURS` (24) ago, adds a note with the closer and the
-hours, and still writes the block; a close by a bot, a close with no
-closer and a close older than 24 h open it again as before. Tests (they
-fail on the code before the change at the check of the open state):
-`scripts/issue_sync_test.py` (5 new checks), `python3 -I
-scripts/issue-sync.py --self-test`: 0 failures. A replay of `plan` on the
-record and the issue list at `f9abd7bb` gives no open again.
 
 # T-1162: Answer PodUtils/podvm#570 (COORD-183): name the commit of the sections "Shared code first" and "Quality first" of `docs/session-protocol.md`
 
@@ -9348,3 +9357,96 @@ scripts/plant-each.sh --apply`: 0 stale). podrunner adds `start: None,
 warm_s: None, boot_s: None` to each struct literal of `UnitFields`,
 `warm: None` to each of `KindStatus` and `warm_units: 0` to each of
 `Status`.
+
+# T-1372: crates.io: the names `pod-natprobe`, `pod-tpm`, `pod-gzip` and `pod-h2` (GitHub #261)
+
+**Source:** GitHub #261 (the coordinator, 2026-11-25; an ask for the owner's local agent), after T-043 and T-438.
+**Category:** release
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Four crates of podcrates have no name on crates.io: `pod-natprobe` (T-802),
+`pod-tpm` (T-1217), `pod-gzip` (T-1196) and `pod-h2` (T-1095, call C934).
+Each answered `HTTP 404` on `https://crates.io/api/v1/crates/NAME` on
+2026-11-25. Each needs a `0.0.0` placeholder that the owner owns, with the
+repository of podcrates and the trusted publisher of `publish.yml`, as the
+names of GitHub #1. The ruling "Releases" stays: podcrates publishes nothing
+else to crates.io now. `scripts/check-crates-io-names.py` did not read
+`pod-h2`: it reads the crate rows of `docs/design.md`, section 4, and the
+fork had no row.
+
+## Premise
+
+- Read: GitHub #261; `scripts/check-crates-io-names.py`; `docs/design.md`,
+  section 4.
+- Measured: `HTTP 404` for each of the four names on 2026-11-25 (#261).
+
+## Approach
+
+The row of `pod-h2` is in `docs/design.md`, section 4, so the script reads
+it. The owner's local agent publishes the four placeholders and sets their
+trusted publisher (the steps of #261). A session then runs the script and
+closes #261 in the record.
+
+## Prove
+
+```sh
+python3 -I scripts/check-crates-io-names.py
+```
+
+## Start condition
+
+The owner's local agent publishes the four placeholders (GitHub #261 is
+closed).
+
+# T-1373: `pod-release`: an opt-in fetch of newer Sigstore roots from TUF at run time
+
+**Source:** the ruling "Sigstore roots" (2026-11-25, Q20); H-07 of `docs/research/hard-problems.md`; T-964.
+**Category:** feature
+**Milestone:** M8
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod_release::sigstore` trusts only the roots that are compiled in
+(`Roots::sigstore()`, source `crates/pod-release/SOURCES`). A new
+shard of Rekor v2 needs a release of podcrates before the signing
+configuration of Sigstore sends signatures to it, and a consumer that does not
+take the new tag refuses the bundle. The owner ruled that a consumer can opt in
+to newer roots from TUF at run time: off by default.
+
+## Premise
+
+- Read: the ruling "Sigstore roots"; H-07 of `docs/research/hard-problems.md`,
+  "What is not known", item 4; the Done section of T-964.
+- Not measured: the size and the form of a TUF fetch of the trusted root of
+  Sigstore through `pod_proxy::Client`.
+
+## Approach
+
+The default path of `pod-release` keeps the compiled roots and does no
+network. A flag of the caller (a setting of `Roots`, a flag of the command
+line of each consumer) or a config value opts in: `pod-release` fetches the
+trusted root of Sigstore by TUF through the caller's `pod_proxy::Client`,
+checks its signatures against the TUF root that it holds, and uses the
+result for that run. A fetch that fails gives one true line and no change of
+the roots. Tests: the default path does no network (a stand-in server that
+counts requests sees none); the opt-in reads a stand-in TUF repository; a
+bad signature is refused.
+
+## Prove
+
+```sh
+cargo test -p pod-release --all-features tuf
+```
+
+## Start condition
+
+A consumer asks for it, or a new shard of Rekor v2 is announced before a
+release of podcrates carries it.
