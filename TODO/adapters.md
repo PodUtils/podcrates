@@ -2781,3 +2781,41 @@ Give the failure of `NoAnswer` the text "the provider's API did not answer" alon
 ```sh
 cargo test -p pod-warp --all-features
 ```
+
+
+# T-1394: `pod-cloudflare`: the DNS over HTTPS of the edge discovery waits about 35 s behind a proxy with no line, and with no cause at `-v` (PodUtils/podnet#755)
+
+**Source:** PodUtils/podnet#755 (COORD-125 of podnet, PodUtils/podnet@T-579; author COLLABORATOR).
+**Category:** defect
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The ask of podnet: "Behind an HTTPS proxy whose host has no SRV answer for the edge, `podnet tunnel` (podcrates `v0.84.0`) waits about 35 s before the first leg, with no line at the default level and no cause at `-v`." At `-v`, the wait holds about 30 lines `pod_proxy::dial: connected` (to 1.1.1.1, 1.0.0.1, 8.8.8.8, 8.8.4.4 and cloudflare-dns.com) and no failure line. "`query` gives each query a limit of `STEP_TIMEOUT * (1 + 2 * resolvers)` (5 s each), and `discover_doh` asks the SRV record, then A and AAAA for each target, one after the other. An address lookup that fails goes to the log at debug only; the failure of the SRV query goes into `failures` and is said only when each source fails."
+
+The asks: (1) one event (`edge.discovery`, level info or warn) when a source of the discovery takes more than a short time (for example 3 s), with its cause when it ends; (2) a limit for the whole discovery that is shorter than the start of the legs (the run then takes the system resolver or the static list), and a shorter limit for a DoH step whose connections succeed and give no answer; (3) at `-v`, the failure of each DoH query (the resolver and the cause), not only "connected"; (4) a test with a stand-in DoH resolver that accepts the connection and never answers: the discovery ends in the limit and says the cause in one event.
+
+## Premise
+
+- Read: PodUtils/podnet#755; `crates/pod-cloudflare/src/edge_discovery.rs` (`discover`, `discover_doh`, `query`, `STEP_TIMEOUT`); `src/tunnel.rs` and `src/tunnel/plan.rs`, `src/tunnel/warp_targets.rs` (each leg calls `discover` itself); `crates/pod-dns/src/question.rs` (`first`: each host of each resolver in turn, each within `Settings::each`, 5 s, and the deadline), `src/settings.rs` (`EACH`, `CONNECT`). Each fact of the issue agrees with the code: with four resolvers, one query has a limit of 45 s, and the queries run one after the other.
+- A leg of the staggered race starts 2 s after the leg before it, and each leg starts its own discovery: two or three discoveries run at the same time, and the `connected` lines repeat.
+- Not measured: the time of podnet behind the proxy of the issue after the fix.
+
+## Approach
+
+`discover` gets one limit for the whole discovery and a limit for the source DoH in it; the system resolver takes the rest, then the static list follows. One question to one resolver host takes a shorter limit than `pod-dns` `EACH` (a copy of the settings of the way, in `pod-cloudflare`; `pod-dns` does not change). The A and AAAA questions of the targets run at the same time. A source that takes more than 3 s gives one event `edge.discovery` when it ends: its time, the way (the proxy) and its result or its cause. Each failed DoH query goes to `tracing` at debug, with each resolver and its cause. The legs of one start share one discovery. A test with a stand-in resolver that accepts TCP and never answers proves the limit and the event; a plant removes the limit.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features
+cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh cloudflare-discovery-with-no-limit
+```
+
+## Done
+
+2026-11-25. Commit: see `git log` for T-1394. `edge_discovery::discover` has `DISCOVERY_LIMIT` (12 s) for DNS over HTTPS and the system resolver; DoH has `DOH_LIMIT` (8 s) in it, and the system resolver takes the rest; then the static list follows. One DoH question to one resolver host has `DOH_EACH` (3 s, a copy of the settings of the way; `pod_dns::EACH` is 5 s), so a connection that succeeds and gives no answer costs 3 s; the old limit of a query, `STEP_TIMEOUT * (1 + 2 * resolvers)`, is gone. The A and AAAA questions of the targets run at the same time (`edge_discovery/doh.rs`). A source that takes more than `SLOW_SOURCE` (3 s) gives one event `edge.discovery` when it ends: "the DNS of the edge took T s on WAY" (info), or "the DNS of the edge waited T s (the limit of N s) on DNS over HTTPS through the proxy P; CAUSE; the client takes NEXT" (warn). The line of the static list then says "DoH: the line before gives the cause" and does not repeat the cause. Each failed DoH query goes to `tracing` at debug ("a DoH query failed", with the name, the type and each resolver with its cause). When no address comes and an address query failed, the failures are the error of DoH. The legs of one start share one discovery (`tunnel::Discovery`, a `OnceCell`): a staggered leg that starts while another discovers waits for its result, so the questions and the events come once. Tests: `edge_discovery::tests::a_doh_resolver_that_never_answers_ends_in_the_limit_with_one_event` (a stand-in resolver that accepts TCP and never answers, `testing::silent_doh_host`, paused time: the discovery ends at 8 s with the static list and one event with the limit and the cause), `edge_discovery::tests::a_slow_source_that_answers_is_an_info_event`, `tunnel::tests::the_legs_of_one_start_share_one_discovery`. New plant `cloudflare-discovery-with-no-limit` (the DoH source with a limit of 45 s): the test failed on its patch (run by hand); `sh scripts/plant-each.sh --apply`: 0 stale. `cargo test -p pod-cloudflare --all-features`: 209 + 13 passed, 0 failed. `cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings` and `cargo fmt --all --check`: clean. Not measured: the time of podnet behind the proxy of the issue.

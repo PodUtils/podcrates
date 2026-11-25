@@ -235,14 +235,15 @@ impl Tunnel {
         let limited = plan.len() > 1 && failover == crate::race::Failover::Serial;
         let limit = |kind: LegKind| attempt_limit(kind).filter(|_| limited);
         let mut attempts: Vec<futures::future::BoxFuture<'_, Result<(First, Kept)>>> = Vec::new();
+        let discovery = Discovery::default();
         for kind in &plan {
             let auth = &auth;
             let runtime = runtime.clone();
             let ingress = ingress.clone();
-            let host = host.clone();
+            let (host, discovery) = (host.clone(), discovery.clone());
             let attempt: futures::future::BoxFuture<'_, Result<(First, Kept)>> = match kind {
                 LegKind::QuicDirect => Box::pin(bounded(limit(*kind), async move {
-                    let edges = direct_targets(&host).await?;
+                    let edges = direct_targets(&host, &discovery).await?;
                     let endpoint = quic_dial::build_endpoint(&host.tls, &host.settings.words.protocol)?;
                     let version = &host.settings.client_version;
                     let (conn, control, location) = register_retrying_with(&host.report, || {
@@ -253,7 +254,7 @@ impl Tunnel {
                 })),
                 LegKind::H2Direct | LegKind::H2Relay => Box::pin(bounded(limit(*kind), async move {
                     let relay = relay_for(*kind, &host)?;
-                    let edges = direct_targets(&host).await?;
+                    let edges = direct_targets(&host, &discovery).await?;
                     let options = rpc::ConnectionOptions::default_for_quick_tunnel(&host.settings.client_version);
                     let leg = register_retrying_with(&host.report, || {
                         let (runtime, ingress) = (runtime.clone(), ingress.clone());
@@ -263,7 +264,7 @@ impl Tunnel {
                     Ok((First::H2(edges, leg, relay), None))
                 })),
                 LegKind::QuicWarp => Box::pin(async move {
-                    let (edges, link, endpoint) = warp_targets(&host).await?;
+                    let (edges, link, endpoint) = warp_targets(&host, &discovery).await?;
                     let version = &host.settings.client_version;
                     let (conn, control, location) = register_retrying_with(&host.report, || {
                         connect_once(&endpoint, auth, tunnel_id, 0, false, &edges, version)

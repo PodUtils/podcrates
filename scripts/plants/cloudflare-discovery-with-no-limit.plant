@@ -1,0 +1,8 @@
+# The source DNS over HTTPS of the edge discovery has no limit of its own
+# (PodUtils/podnet#755): behind a proxy that connects each resolver and
+# gives no answer, the legs wait on it. The stand-in resolver that never
+# answers must see the discovery end in the limit, with one event.
+ENTRY=T-1394
+GROUP=cloudflare
+EXPECT='test edge_discovery::tests::a_doh_resolver_that_never_answers_ends_in_the_limit_with_one_event \.\.\. FAILED'
+RUN='cargo test -p pod-cloudflare --all-features --lib -- edge_discovery::tests::a_doh_resolver_that_never_answers_ends_in_the_limit_with_one_event --exact'

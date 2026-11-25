@@ -10,13 +10,16 @@ use super::{IpVersionFilter, edge, edge_override};
 use crate::Host;
 use crate::host::{WarpSession, WarpSessions};
 
-pub(super) async fn warp_targets(host: &Host) -> Result<(Vec<edge::EdgeAddr>, Arc<WarpLink>, noq::Endpoint)> {
+pub(super) async fn warp_targets(
+    host: &Host,
+    discovery: &super::Discovery,
+) -> Result<(Vec<edge::EdgeAddr>, Arc<WarpLink>, noq::Endpoint)> {
     let Some(sessions) = host.warp.clone() else {
         bail!(Stage::Warp, Class::Unsupported, "the consumer gives no WARP sessions");
     };
     let discovered = match edge_override(&host.settings) {
         Some(list) => list,
-        None => crate::edge_discovery::discover(host, IpVersionFilter::V4Only).await.context("edge discovery")?,
+        None => discovery.edges(host, IpVersionFilter::V4Only).await.context("edge discovery")?,
     };
     let Some(first) = discovered.first() else {
         bail!(Stage::Dns, Class::Unavailable, "edge discovery returned no addresses");

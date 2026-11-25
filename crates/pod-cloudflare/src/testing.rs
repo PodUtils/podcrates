@@ -90,3 +90,32 @@ pub fn recorded() -> (pod_core::Report, Arc<std::sync::Mutex<Vec<pod_core::Event
 pub fn each_text(err: &(dyn std::error::Error + 'static)) -> String {
     pod_core::failure::joined(err)
 }
+
+/// A stand-in DoH resolver that accepts each TCP connection and never
+/// answers, as a proxy that connects each resolver and gives no answer; and
+/// a host whose `resolvers` resolvers are each this stand-in, with the
+/// report of [`recorded`] and no system resolver. The returned counter
+/// counts the connections.
+pub async fn silent_doh_host(
+    resolvers: usize,
+) -> (crate::Host, Arc<std::sync::Mutex<Vec<pod_core::Event>>>, Arc<std::sync::atomic::AtomicUsize>) {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let accepted = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let count = accepted.clone();
+    tokio::spawn(async move {
+        let mut held = Vec::new();
+        while let Ok((stream, _)) = listener.accept().await {
+            count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            held.push(stream);
+        }
+    });
+    let ip = std::net::IpAddr::from([127, 0, 0, 1]);
+    let one = pod_dns::Doh::new(ip, "doh.test").port(port).json("/dns-query");
+    let settings = pod_dns::Settings { resolvers: vec![one; resolvers], memory: false, ..Default::default() };
+    let mut host = host();
+    host.resolver = Arc::new(pod_dns::Resolver::new(settings).with_doh(tls(), dial()));
+    let (report, seen) = recorded();
+    host.report = report;
+    (host, seen, accepted)
+}
