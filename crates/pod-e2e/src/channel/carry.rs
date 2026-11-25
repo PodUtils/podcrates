@@ -101,7 +101,7 @@ fn of_app(at_node: bool) -> impl Fn(std::io::Error) -> Error + Copy {
 /// whole messages sealed before, which go out before any new one.
 async fn outbound<T, A>(
     (state, sent): (&StatelessTransportState, &mut u64),
-    (from_app, app_failed): (&mut ReadHalf<A>, impl Fn(std::io::Error) -> Error),
+    (from_app, app_failed): (&mut ReadHalf<A>, impl Fn(std::io::Error) -> Error + Copy),
     to_peer: &mut WriteHalf<T>,
     hold: Option<&Hold>,
     waits: &Waits,

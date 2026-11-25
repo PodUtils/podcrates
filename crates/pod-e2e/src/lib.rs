@@ -166,7 +166,9 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Io(e) => write!(f, "the stream under the channel failed: {e}"),
-            Error::Target(e) => write!(f, "the stream of the node's target failed, not the stream under the channel: {e}"),
+            Error::Target(e) => {
+                write!(f, "the stream of the node's target failed, not the stream under the channel: {e}")
+            }
             // The words name the protocol, as MAGIC does, and no binary or
             // flag of a consumer.
             Error::NotChannel(saw) => write!(

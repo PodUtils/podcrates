@@ -10,7 +10,11 @@ mod e2e_harness;
 
 use e2e_harness::{Fault, LIMIT, Run, echo_back, identity, node, run, run_to};
 use pod_e2e::Error;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use std::io::{self, ErrorKind};
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
 fn session(up: Fault, down: Fault) -> Run {
     run(identity(1), |_| Ok(()), node(identity(2), |_| Ok(())), up, down)
@@ -121,32 +125,21 @@ async fn a_changed_verdict_or_handshake_fails_before_the_session() {
 /// A target whose each read fails with a reset, and which takes each write.
 struct Reset;
 
-impl tokio::io::AsyncRead for Reset {
-    fn poll_read(
-        self: std::pin::Pin<&mut Self>,
-        _: &mut std::task::Context<'_>,
-        _: &mut tokio::io::ReadBuf<'_>,
-    ) -> std::task::Poll<std::io::Result<()>> {
-        std::task::Poll::Ready(Err(std::io::ErrorKind::ConnectionReset.into()))
+impl AsyncRead for Reset {
+    fn poll_read(self: Pin<&mut Self>, _: &mut Context<'_>, _: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Err(ErrorKind::ConnectionReset.into()))
     }
 }
 
-impl tokio::io::AsyncWrite for Reset {
-    fn poll_write(
-        self: std::pin::Pin<&mut Self>,
-        _: &mut std::task::Context<'_>,
-        buf: &[u8],
-    ) -> std::task::Poll<std::io::Result<usize>> {
-        std::task::Poll::Ready(Ok(buf.len()))
+impl AsyncWrite for Reset {
+    fn poll_write(self: Pin<&mut Self>, _: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
+        Poll::Ready(Ok(buf.len()))
     }
-    fn poll_flush(self: std::pin::Pin<&mut Self>, _: &mut std::task::Context<'_>) -> std::task::Poll<std::io::Result<()>> {
-        std::task::Poll::Ready(Ok(()))
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
     }
-    fn poll_shutdown(
-        self: std::pin::Pin<&mut Self>,
-        _: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<std::io::Result<()>> {
-        std::task::Poll::Ready(Ok(()))
+    fn poll_shutdown(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -159,7 +152,10 @@ async fn a_failed_read_of_the_target_names_the_target_not_the_channel() {
     let open = || std::future::ready(Ok::<_, String>(Reset));
     let r = run_to(identity(1), |_| Ok(()), node(identity(2), |_| Ok(())), (Fault::None, Fault::None), (open, opened));
     let (outcome, lines) = node_lines(r).await;
-    assert!(lines.contains("ended: the stream of the node's target failed, not the stream under the channel"), "{lines}");
+    assert!(
+        lines.contains("ended: the stream of the node's target failed, not the stream under the channel"),
+        "{lines}"
+    );
     assert!(!lines.contains("the stream under the channel failed"), "{lines}");
     assert!(matches!(outcome, Err(Error::Cut)), "the operator's end sees a cut: {outcome:?}");
 }
