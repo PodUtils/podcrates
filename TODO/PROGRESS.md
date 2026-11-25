@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 981 entries: 154 open, 31 partial, 7 blocked, 789 done.
+`TODO/INDEX.md` holds 982 entries: 154 open, 30 partial, 7 blocked, 791 done.
 
 ## State
 
@@ -10,8 +10,8 @@
   the GitHub release, the signed `SHA256SUMS`, the assets and the images
   of `ghcr.io/podutils`; the run on the tag and the dry run of
   `publish.yml` passed. Its hand-off COORD-154 (#259) is open (call C780):
-  it closes when each consumer names `v0.83.0` or a later tag. podssh
-  and podvm name it. The hand-off COORD-152 (#257) of `v0.82.1` is closed.
+  it closes when each consumer names `v0.83.0` or a later tag. podssh,
+  podvm and podnet name it; podrunner does not. The hand-off COORD-152 (#257) of `v0.82.1` is closed.
 - On `main` after `v0.83.0`, for the next tag: T-1243 only (a port with no
   change for a consumer).
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
@@ -25,8 +25,8 @@
   (COORD-153), open until podssh names the commit that wires the codec
   (its T-831).
 - The tag that the `main` of each consumer names: `v0.83.0` (podssh,
-  PodUtils/podssh#354; podvm, PodUtils/podvm#663), `v0.82.1` (podrunner,
-  PodUtils/podrunner#348; podnet, PodUtils/podnet#708). The details of the
+  PodUtils/podssh#354; podvm, PodUtils/podvm#663; podnet,
+  PodUtils/podnet#710), `v0.82.1` (podrunner, PodUtils/podrunner#348). The details of the
   earlier takes are on #250, #254 and #259.
 - PodUtils/static-pkgs builds and publishes the static programs that no
   one else publishes in the form that PodUtils needs (the owner,
@@ -106,8 +106,7 @@ T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
 `services.yml` run (read it) and the red live run (T-963). Then the asks of podrunner
 (COORD-134, #225): each new ask of podrunner. Then the entries that a need
 of githome or cfb names for their CI: T-106 (partial; cfb's A-X-18 waits
-for cfb's answer on #223, call C792), T-1118 (podnet writes the
-`release-index.json` of its releases). Then cfb's asks that podssh takes
+for cfb's answer on #223, call C792). Then cfb's asks that podssh takes
 (call C782, PodUtils/podssh#316): T-112, T-110, T-111, T-117. Then the open
 asks of the consumers, podvm's first, then podnet's, then podssh's:
 
@@ -117,9 +116,9 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   (the launcher of `pod-supervise` blocks before the start of the
   payload); T-927 (PodUtils/podvm#584); T-1321 (a C backend of
   `pod-gzip`, measured).
-- podnet: T-1117 (the limits of the legs of `pod-cloudflare` in podnet's
-  documents); T-1135 (`pod-cloudflare` says a cause two times); T-879
-  (`pod-detach`); T-897.
+- podnet: T-1343 (a temp directory and a temp file with a random name,
+  PodUtils/podnet#711, COORD-119); T-1135 (`pod-cloudflare` says a cause two
+  times); T-879 (`pod-detach`); T-897.
 - podssh: T-1169 (`pod-link`, the DNS carrier; PodUtils/podssh#349,
   COORD-139: a test through `unbound`);
   T-1103 (iroh 1.5 and its fork
@@ -189,7 +188,8 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
 8. **M3, the adapters:** T-028, T-030.
 9. **M4, the roads:** T-131 (a defect of `pod-gsr` on Windows ARM64)
    first; then T-036 (with T-856, the vectors of `tokens.json`), T-039.
-10. **M5, the upkeep:** T-932 (the temp files, PodUtils/podvm#567), T-917
+10. **M5, the upkeep:** T-1343 (the shared temp names of `pod-core`), then
+   T-932 (the temp files, PodUtils/podvm#567), T-917
    (the copies of product code that `codegraph.py dups` finds), T-1115
    (the two copies of the bind of a Unix socket at a long path), T-928 (the
    other readers of an HTTP/1.1 head), T-918 (the helpers that the tests

@@ -8093,7 +8093,7 @@ cargo test -p pod-unit --all-features --lib secret
 **Milestone:** M8
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8118,6 +8118,10 @@ cargo test -p pod-release --all-features
 ## Start condition
 
 The coordinator names the step in a COORD issue `(to podnet)` and podnet answers.
+
+## Done
+
+2026-11-25: podnet's `release.yml` writes `release-index.json` before `SHA256SUMS` (PodUtils/podnet@T-540, `c6b5bdf`; in the take `a6a6ccb`, PodUtils/podnet#710, COORD-118). The step checks `scripts/release-index.py` of `5fd6fb7` (tag `v0.83.0`) against its SHA-256, which is the SHA-256 of the file of this tree. It runs the script over each asset, writes `SHA256SUMS` with the line of the index, and checks that each file of the index has its line in `SHA256SUMS`. Read here: the workflow at `a6a6ccb` and the SHA-256. podnet reports a dry run (45389095107) with an index of 13 files; not read here. The first release of podnet with the index is `v0.4.0-beta.19`.
 
 # T-1106: `pod-unit`: a removal and an install refuse what an older version of the program wrote, as its mark differs (PodUtils/podssh#342)
 
