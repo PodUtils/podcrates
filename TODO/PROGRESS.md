@@ -10,8 +10,7 @@
   release, the signed `SHA256SUMS`, 14 assets and the images of
   `ghcr.io/podutils`; `ci` 45568238286 at `ca1d3e3`, the run on the tag
   45574255033 and the dry run of `publish.yml` 45575024311 passed. Its
-  hand-off COORD-155 (#260) is open until each consumer names the tag (call
-  C780). The hand-off COORD-154 (#259) of `v0.83.0` is closed, with a Result
+  hand-off COORD-155 (#260) is closed: each consumer took the tag. The hand-off COORD-154 (#259) of `v0.83.0` is closed, with a Result
   line.
 - On `main` after `v0.84.0`, for the next tag: T-1369 (the fuzz target
   `relay_bearer` and `vendor/patches/h2/0003-fuzz-docs.patch`; no change for
@@ -32,7 +31,7 @@
   finding through tmux is T-1390.
 - The tag that the `main` of each consumer names: `v0.84.0` (podssh,
   PodUtils/podssh#357; podvm, PodUtils/podvm#666; podrunner,
-  PodUtils/podrunner#356); `v0.83.0` (podnet, PodUtils/podnet#710). The details of
+  PodUtils/podrunner#356; podnet, PodUtils/podnet#752). The details of
   the earlier takes are on #250, #254 and #259.
 - PodUtils/static-pkgs builds and publishes the static programs that no
   one else publishes in the form that PodUtils needs (the owner,

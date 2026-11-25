@@ -36,8 +36,9 @@ is done. Git and the record keep finished work.
      PodUtils/podssh#349 (COORD-139) is T-1169.
    - The takes of `v0.84.0` (the hand-off #260, COORD-155): podssh
      (`806e0a4`, #357), podvm (`04c8b7f4`, #666) and podrunner (`72cd0ab`,
-     PodUtils/podrunner#356) are verified; podnet has none. T-1375 ports
-     the four files of podrunner that changed in `pod-testkit`.
+     PodUtils/podrunner#356) and podnet (`405d47c`, PodUtils/podnet#752)
+     are verified, and #260 is closed (call C780). T-1375 ported the four
+     files of podrunner that changed in `pod-testkit`.
    - Answered by `v0.84.0`, waiting for the take of the consumer:
      PodUtils/podnet#712 (T-1365), #726 (T-1366); PodUtils/podssh#340,
      #349, #351 to #353, #355, #356; PodUtils/podvm#657 (T-1193 to
@@ -91,9 +92,8 @@ h2), `flatten` of `pod-extract`, the bearer grant, the bare and DoH
 forms of the DNS carrier, `RealJob` and the warm units, and the class
 `Data`.
 
-The hand-off COORD-155 (#260) is open. Its body has the digest of each
-image beside the SHA-256 of its asset, and the section of each consumer.
-It closes when each consumer names `v0.84.0` or a later tag (call C780).
+The hand-off COORD-155 (#260) is closed: each of the four consumers took
+`v0.84.0`, and its body has each take line.
 The hand-off COORD-154 (#259) of `v0.83.0` is closed. COORD-153 (#258)
 is closed: podssh wires the codec at `97cebe6` (PodUtils/podssh#358).
 
@@ -205,8 +205,7 @@ The asks that #260 answers:
 
 ### What the next hand-off carries
 
-- The take of `v0.84.0` (#260): podnet. podssh (`806e0a4`), podvm
-  (`04c8b7f4`) and podrunner (`72cd0ab`) named their takes.
+- The hand-off of `v0.85.0` (the next COORD number after COORD-155).
 - podrunner: no open ask. T-1375 (the port of four files of podrunner
   into `pod-testkit`) is open.
 - podvm: T-1321 (a C backend of deflate for `pod-gzip`, measured).
