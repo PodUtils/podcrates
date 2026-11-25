@@ -18,6 +18,8 @@ mod poll_seeds;
 mod record_seeds;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tpm_seeds;
 
 /// One fuzz target: it takes untrusted bytes. A parse error is a correct
 /// answer to bad bytes; a panic, a hang or a large allocation is a defect.
@@ -101,6 +103,8 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("request_head", targets::request_head),
     ("ingress_rule", targets::ingress_rule),
     ("config_yaml", targets::config_yaml),
+    ("tpm_response", targets::tpm_response),
+    ("tpm_keyfile", targets::tpm_keyfile),
 ];
 
 /// Whether `text` is safe on one line of a terminal, as

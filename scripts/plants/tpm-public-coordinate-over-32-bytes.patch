@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/public.rs b/crates/pod-tpm/src/public.rs
+index 5921cedf..f7e4eb1e 100644
+--- a/crates/pod-tpm/src/public.rs
++++ b/crates/pod-tpm/src/public.rs
+@@ -140,7 +140,7 @@ impl EccPublic {
+         }
+         let mut point = [0u8; 65];
+         point[0] = 4;
+-        let x = input.sized_max(P256_BYTES, "a coordinate of P-256")?;
++        let x = input.sized_max(2 * P256_BYTES, "a coordinate of P-256")?;
+         let y = input.sized_max(P256_BYTES, "a coordinate of P-256")?;
+         input.finish("the point")?;
+         // A shorter coordinate has its leading zeros cut: pad it again.

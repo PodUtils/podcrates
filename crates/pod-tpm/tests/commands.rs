@@ -280,3 +280,36 @@ fn a_bad_value_of_the_caller_is_refused() {
     let huge = vec![0u8; 70_000];
     assert!(cmd::verify_signature(0x8000_0000, &huge, NULL_SIGNATURE).is_err(), "a TPM2B over its length field");
 }
+
+/// A response of a command of `code` that succeeded, with no session and
+/// the parameters `params` (hex).
+fn reply(code: u32, params: &str) -> Reply {
+    let params = unhex(params);
+    let mut frame = unhex("8001");
+    frame.extend_from_slice(&(10 + params.len() as u32).to_be_bytes());
+    frame.extend_from_slice(&[0; 4]);
+    frame.extend_from_slice(&params);
+    Reply::read(code, &frame).unwrap()
+}
+
+/// A list over the bound of part 2 or over the bytes that remain, and a
+/// coordinate of P-256 of more than 32 bytes, are refused by their
+/// reader: nine PCR values, each list of `TPM2_GetCapability` with one item
+/// less than its count, a coordinate of 33 bytes.
+#[test]
+fn a_list_or_a_coordinate_past_its_bound_is_refused() {
+    let nine = reply(cmd::CC_PCR_READ, &format!("00000007 00000001 000b 03 800000 00000009 {}", "0000 ".repeat(9)));
+    let e = cmd::PcrValues::read(&nine).unwrap_err().to_string();
+    assert!(e.contains("9 PCR values, where part 2 allows 8"), "{e}");
+    for (capability, item) in
+        [("00000000", "0001 00000000"), ("00000001", "80000000"), ("00000006", "00000105 49465800")]
+    {
+        let short = reply(cmd::CC_GET_CAPABILITY, &format!("00 {capability} 00000002 {item}"));
+        let e = cmd::Capability::read(&short).unwrap_err().to_string();
+        assert!(e.contains("a list of 2") && e.contains("cannot hold them"), "{capability}: {e}");
+    }
+    let y = "22".repeat(32);
+    let long = format!("0057 0023 000b 00060040 0000 0010 0010 0003 0010 0021 {} 0020 {y}", "11".repeat(33));
+    let e = EccPublic::read(&unhex(&long)).unwrap_err().to_string();
+    assert!(e.contains("33 bytes, where part 2 allows 32"), "{e}");
+}

@@ -1,0 +1,7 @@
+# `Capability::read` checks a list of algorithms against one byte for
+# each item, not six: a count past the bytes reaches the reads (T-1217).
+ENTRY=T-1217
+GROUP=tpm
+EXPECT='a_list_or_a_coordinate_past_its_bound_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-tpm --all-features --test commands a_list_or_a_coordinate_past_its_bound_is_refused'
+LIMIT=900

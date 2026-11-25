@@ -111,6 +111,8 @@ fn an_oversize_field_is_refused() {
     let mut file = KeyFile::loadable(RH_OWNER, vec![0, 0], vec![0, 0]);
     file.policy = Policy::new(vec![statement(CC_POLICY_PCR, &[0; 1025])]);
     assert!(matches!(write(&file), Refusal::TooLarge { field: "the body of a policy statement", .. }));
+    let long = der_key(&[tlv(0xA1, &tlv(0x30, &der_statement(CC_POLICY_PCR, &[0; 1025])))], RH_OWNER);
+    assert!(matches!(read(&long), Refusal::TooLarge { field: "the body of a policy statement", .. }));
     file.policy = Policy::new(vec![statement(CC_POLICY_PCR, &[0]); 9]);
     assert!(matches!(write(&file), Refusal::TooMany { max: 8, .. }));
     let nine: Vec<u8> = (0..9).flat_map(|_| der_statement(CC_POLICY_PCR, &[0])).collect();
@@ -120,6 +122,10 @@ fn an_oversize_field_is_refused() {
     let signed = AuthPolicy { name: None, policy: Policy::new(vec![statement(CC_POLICY_AUTHORIZE, &[0])]) };
     file.auth_policy = vec![signed; 9];
     assert!(matches!(write(&file), Refusal::TooMany { field: "signed policies", max: 8 }));
+    let one = tlv(0x30, &tlv(0xA1, &tlv(0x30, &der_statement(CC_POLICY_AUTHORIZE, &[0]))));
+    let fields =
+        [tlv(0xA1, &tlv(0x30, &der_statement(CC_POLICY_AUTHORIZE, &[0]))), tlv(0xA3, &tlv(0x30, &one.repeat(9)))];
+    assert!(matches!(read(&der_key(&fields, RH_OWNER)), Refusal::TooMany { field: "signed policies", max: 8 }));
 
     let huge = der_key(&[tlv(0xA4, &tlv(0x0C, &vec![b'd'; MAX_DER]))], RH_OWNER);
     assert!(matches!(read(&huge), Refusal::TooLarge { field: "the key file", .. }));

@@ -1,0 +1,7 @@
+# `In::sized_max` takes a TPM2B longer than the bound of part 2: a
+# digest of 65 bytes (T-1217).
+ENTRY=T-1217
+GROUP=tpm
+EXPECT='a_sized_buffer_or_a_count_past_its_bound_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-tpm --all-features --test frame a_sized_buffer_or_a_count_past_its_bound_is_refused'
+LIMIT=900

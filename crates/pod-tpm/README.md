@@ -181,4 +181,11 @@ seed as the same TPM, a persistent parent, the refusals of a TPM. The plants
 check of the bytes after a key file, the guard of the policy key and the
 bound of the read of the socket transport; `tpm-soft-primary-without-its-name`
 takes the name out of the response of `TPM2_CreatePrimary` of the TPM in
-software.
+software. The plants of the bounds of the readers take away one bound
+each: the size field of a frame, `In::sized_max`, the two checks of
+`In::count`, 16 banks and 4 octets of a selection, 8 values of
+`TPM2_PCR_Read`, the size of an item of a list of `TPM2_GetCapability`, 32
+bytes of a coordinate of P-256, and `MAX_DER`, `MAX_PEM`, `MAX_PART`,
+`MAX_STATEMENTS`, `MAX_AUTH_POLICIES`, `MAX_BODY` and `MAX_TEXT` of a key
+file (`scripts/plants/tpm-*.plant`). The fuzz targets `tpm_response` and
+`tpm_keyfile` of `fuzz/` run the readers of a response and of a key file.

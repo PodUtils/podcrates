@@ -175,6 +175,10 @@ The asks of #259 to the consumers:
   `standin::edge::listen_at` take the address of the edge (`edge::listen` is
   removed). The test of the dropped UDP binds UDP first and the edge on the
   same port, with a retry of the pair.
+- T-1339 (`pod-tpm`, PodUtils/podssh#351): the fuzz targets `tpm_response`
+  and `tpm_keyfile`, their seeds from the TPM in software, and 16 plants,
+  one for each bound of the readers of a response and of a key file. No
+  change of the API for a consumer.
 
 - T-1243 and T-1355: ports of `pod-testkit` at podrunner `2a55cd9` (the auth
   of the fake broker) and `4fc871c` (the contract `source-driver.md`). No

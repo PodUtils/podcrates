@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/wire.rs b/crates/pod-tpm/src/wire.rs
+index 05deaf7c..9317c1a7 100644
+--- a/crates/pod-tpm/src/wire.rs
++++ b/crates/pod-tpm/src/wire.rs
+@@ -180,7 +180,7 @@ pub fn response(bytes: &[u8], handles: usize) -> Result<Response<'_>, Error> {
+     if tag != ST_NO_SESSIONS && tag != ST_SESSIONS {
+         return Err(Error::Malformed(format!("its tag is {tag:#06x}, which no TPM 2.0 gives")));
+     }
+-    if usize::try_from(size).ok() != Some(bytes.len()) {
++    if usize::try_from(size).is_err() {
+         return Err(Error::Malformed(format!("it says {size} bytes, and {} came", bytes.len())));
+     }
+     if code != 0 {

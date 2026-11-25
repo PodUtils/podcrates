@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/wire.rs b/crates/pod-tpm/src/wire.rs
+index 05deaf7c..5847c96d 100644
+--- a/crates/pod-tpm/src/wire.rs
++++ b/crates/pod-tpm/src/wire.rs
+@@ -266,7 +266,7 @@ impl<'a> In<'a> {
+     pub fn count(&mut self, item: usize, max: usize, what: &str) -> Result<usize, Error> {
+         let n = self.u32()?;
+         let n = usize::try_from(n).unwrap_or(usize::MAX);
+-        if n > max {
++        if n > max && max == 0 {
+             return Err(Error::Malformed(format!("a list of {n} {what}, where part 2 allows {max}")));
+         }
+         if n.saturating_mul(item) > self.rest.len() {

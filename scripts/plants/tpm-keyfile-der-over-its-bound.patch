@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/keyfile.rs b/crates/pod-tpm/src/keyfile.rs
+index e6faae46..47a513d0 100644
+--- a/crates/pod-tpm/src/keyfile.rs
++++ b/crates/pod-tpm/src/keyfile.rs
+@@ -215,7 +215,7 @@ impl KeyFile {
+ 
+     /// Read the DER of a key file.
+     pub fn from_der(bytes: &[u8]) -> Result<KeyFile, Error> {
+-        if bytes.len() > MAX_DER {
++        if bytes.len() > 4 * MAX_DER {
+             return Err(Refusal::TooLarge { field: "the key file", size: bytes.len(), max: MAX_DER }.into());
+         }
+         let body = Reader::only(bytes, SEQUENCE, "the TPMKey SEQUENCE")?;

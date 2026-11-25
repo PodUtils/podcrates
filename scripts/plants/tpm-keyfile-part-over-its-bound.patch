@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/keyfile.rs b/crates/pod-tpm/src/keyfile.rs
+index e6faae46..f07c43fb 100644
+--- a/crates/pod-tpm/src/keyfile.rs
++++ b/crates/pod-tpm/src/keyfile.rs
+@@ -271,7 +271,7 @@ impl KeyFile {
+             return Err(Refusal::Malformed("rsaParent with a parent that is not a permanent handle".into()));
+         }
+         for (field, part) in [("pubkey", &self.public), ("privkey", &self.private)] {
+-            if part.len() > MAX_PART {
++            if part.len() > 2 * MAX_PART {
+                 return Err(Refusal::TooLarge { field, size: part.len(), max: MAX_PART });
+             }
+             let mut input = In::new(part);

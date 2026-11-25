@@ -105,9 +105,19 @@ pod-warp = { path = "../crates/pod-warp" }
 # The feature `fuzzing` gives the entry points of the edge of Cloudflare and
 # of the configuration of a tunnel (podnet src/fuzzing.rs).
 pod-cloudflare = { path = "../crates/pod-cloudflare", features = ["fuzzing"] }
+# The response of a TPM and the key file `TSS2 PRIVATE KEY` (T-1339): the
+# readers are public, so the crate needs no feature `fuzzing`.
+pod-tpm = { path = "../crates/pod-tpm" }
 bytes = "1"
 # A job offer is JSON.
 serde_json = "1"
+
+# The seeds of the targets of pod-tpm are the responses of its TPM in
+# software (feature `soft`) and the key files that it makes; the policy key
+# of a signed policy signs with p256 (src/tpm_seeds.rs).
+[dev-dependencies]
+pod-tpm = { path = "../crates/pod-tpm", features = ["soft"] }
+p256 = { version = "0.14", default-features = false, features = ["ecdsa", "arithmetic"] }
 
 # A crash names its line.
 [profile.release]
@@ -643,6 +653,20 @@ bench = false
 [[bin]]
 name = "control_line"
 path = "fuzz_targets/control_line.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "tpm_response"
+path = "fuzz_targets/tpm_response.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "tpm_keyfile"
+path = "fuzz_targets/tpm_keyfile.rs"
 test = false
 doc = false
 bench = false

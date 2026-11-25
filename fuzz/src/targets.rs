@@ -28,6 +28,7 @@ mod relay;
 mod results;
 mod session;
 mod time;
+mod tpm;
 mod turn;
 mod udf;
 mod warp;
@@ -56,6 +57,9 @@ pub use relay::{relay_list, relay_pool};
 pub use results::actions_results;
 pub use session::{session_handover, session_record, udp_frame};
 pub use time::tzif_zone;
+#[cfg(test)]
+pub(crate) use tpm::COMMANDS;
+pub use tpm::{tpm_keyfile, tpm_response};
 pub use udf::udf_image;
 pub use warp::warp_capsule;
 pub use wg::{wg_cookie, wg_initiation, wg_response, wg_transport};

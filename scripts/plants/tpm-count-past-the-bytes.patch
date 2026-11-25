@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tpm/src/wire.rs b/crates/pod-tpm/src/wire.rs
+index 05deaf7c..d70cc5d8 100644
+--- a/crates/pod-tpm/src/wire.rs
++++ b/crates/pod-tpm/src/wire.rs
+@@ -269,7 +269,7 @@ impl<'a> In<'a> {
+         if n > max {
+             return Err(Error::Malformed(format!("a list of {n} {what}, where part 2 allows {max}")));
+         }
+-        if n.saturating_mul(item) > self.rest.len() {
++        if n.saturating_mul(item) > self.rest.len() && item == 0 {
+             return Err(Error::Malformed(format!(
+                 "a list of {n} {what} in {} bytes, which cannot hold them",
+                 self.rest.len()

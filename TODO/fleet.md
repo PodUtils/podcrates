@@ -9036,7 +9036,7 @@ cargo clippy -p pod-tpm --all-targets --all-features -- -D warnings
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9061,6 +9061,69 @@ cargo test -p pod-tpm --all-features
 sh scripts/plant-each.sh --apply
 python3 -I scripts/check-probe.py --no-tree
 ```
+
+## Done
+
+2026-11-25, this commit. Two fuzz targets and 16 plants.
+
+- The targets, in `fuzz/src/targets/tpm.rs`, each with its binary in
+  `fuzz/Cargo.toml` and `fuzz/fuzz_targets/`, a row in `fuzz/README.md`
+  and an item of `TARGETS`. `scripts/fuzz.sh` and `fuzz.yml` take each
+  target from `cargo fuzz list`: no list to change. `tpm_response`: the
+  first byte picks one of the fourteen commands, `Reply::read` reads the
+  frame, then each reader of `cmd` and `EccPublic::read` run on the
+  parameters. A frame that reads has 10 to `MAX_RESPONSE` bytes and the
+  handles of its command, a refusal of the TPM is one line, each value is
+  in its bound of part 2, and a selection and a signature write back to
+  the same value. `tpm_keyfile`: `KeyFile::read` of the bytes and
+  `from_pem` of the text. Each size and each count of a file that reads is
+  in its bound, its DER and its PEM text read back to the same file and
+  write the same DER again, and the input DER is the DER of the writer,
+  except for the old OID of openssl_tpm2_engine and an explicit BOOLEAN
+  that is not 0xFF, which the reader takes (the draft, section 6).
+- No feature `fuzzing` of `pod-tpm`: each reader is public, so the feature
+  has no code, and no row of `scripts/check-probe.py` is necessary.
+- The seeds (`fuzz/src/tpm_seeds.rs`, the form of `src/arq_seeds.rs`): 17
+  responses of `soft::SoftTpm` to the sequences of `flow` (one of each of
+  the fourteen commands, a refusal, the lists of algorithms and of
+  handles), and 4 key files (PCR 7 in DER, a signed policy in PEM, the
+  vectors of go-tpm-keyfiles and of openssl_tpm2_engine of
+  `crates/pod-tpm/tests/testdata/`). The test
+  `tpm_seeds::the_seeds_of_the_tpm_targets_are_the_responses_of_the_tpm_in_software`
+  holds the seeds to the writer; a dev-dependency of `pod-tpm` with
+  `soft` and of `p256` writes them, and `fuzz/Cargo.lock` changes.
+- The plants (`scripts/plants/tpm-*.plant`, group `tpm`), each one bound
+  away: `tpm-response-size-field-not-checked`,
+  `tpm-sized-buffer-over-its-bound`, `tpm-count-over-its-bound`,
+  `tpm-count-past-the-bytes`, `tpm-selection-over-16-banks`,
+  `tpm-selection-over-4-octets`, `tpm-pcr-values-over-8`,
+  `tpm-capability-list-past-the-bytes`,
+  `tpm-public-coordinate-over-32-bytes`, `tpm-keyfile-der-over-its-bound`,
+  `tpm-keyfile-pem-over-its-bound`, `tpm-keyfile-part-over-its-bound`,
+  `tpm-keyfile-statements-over-8`, `tpm-keyfile-signed-policies-over-8`,
+  `tpm-keyfile-body-over-its-bound` and `tpm-keyfile-text-over-its-bound`.
+  New test `a_list_or_a_coordinate_past_its_bound_is_refused` in
+  `crates/pod-tpm/tests/commands.rs` (nine PCR values, each list of
+  `TPM2_GetCapability` with one item less than its count, a coordinate of
+  33 bytes); `an_oversize_field_is_refused` of
+  `crates/pod-tpm/tests/keyfile_bounds.rs` also reads a body of 1025 bytes
+  and nine signed policies. The bound of 10 bytes of a frame has no plant:
+  the reads of the header fail on a shorter frame, with no check of its
+  own. The bound of each list of `Capability::read` (`MAX_RESPONSE / 6`)
+  is under the bound of the frame, so its plant takes the size of an item.
+
+Results: `cargo test -p pod-tpm --all-features`: 103 passed (7 in
+`tests/commands.rs`, 7 in `tests/keyfile_bounds.rs`; the tests of swtpm
+and of the simulator skip on this host). `cargo test --manifest-path
+fuzz/Cargo.toml --lib`: 16 passed, 6 ignored, in 5.0 s. `cargo clippy
+--manifest-path fuzz/Cargo.toml --all-targets -- -D warnings` and `cargo
+check --manifest-path fuzz/Cargo.toml --bins`: clean. `sh scripts/fuzz.sh
+60 tpm_response tpm_keyfile` (nightly-2026-11-18, cargo-fuzz of the
+script, AddressSanitizer): `tpm_response` 6163412 runs and
+`tpm_keyfile` 2029583 runs in 61 s each, no crash. `sh
+scripts/plant-each.sh` of the 16 new plants: 16 caught, 0 missed or stale,
+in 155 s. `sh scripts/plant-each.sh --apply`: 0 stale. Not measured: the
+time of the two targets in `fuzz.yml`.
 
 # T-1340: `pod-tpm`: a key file that the crate writes loads and signs in tpm2-openssl and in go-tpm-keyfiles against swtpm
 
