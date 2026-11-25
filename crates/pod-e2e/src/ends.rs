@@ -10,7 +10,9 @@
 //! operator's end gives it to the legs of its session ([`legs`]). A node's
 //! person, where the node has one, is asked after its door and after a
 //! grant alike ([`person`]), and the node's event says by what each
-//! operator came in.
+//! operator came in. The binding of the channel ([`Binding`]) reaches the
+//! node's check of a grant ([`binding`]) and the operator's maker of one
+//! ([`operator_bound`]), so that a grant can be for one channel alone.
 //!
 //! A node's lines are events of its [`Node::events`], one kind for each
 //! step: [`EVENT_HANDSHAKE`], [`EVENT_REFUSED`], [`EVENT_GRANT`],
@@ -29,7 +31,7 @@ use crate::hold::Holds;
 use crate::legs::{self, Leases};
 use crate::net::Docs;
 use crate::person::{self, Pass};
-use crate::{Ask, Error, Refusal, initiate_with, respond_with};
+use crate::{Ask, Binding, Error, Refusal, initiate_with, respond_with};
 use pod_identity::{Identity, PublicKey};
 
 tokio::task_local! {
@@ -37,12 +39,22 @@ tokio::task_local! {
     /// the grant named the route, so the route's own check of the key is
     /// done.
     static GRANTED: bool;
+    /// Set while a node's [`Redeem`] checks a grant: the binding of the
+    /// grant's channel.
+    static BINDING: Binding;
 }
 
 /// Whether the target that opens now is that of a session that a grant let
 /// in, whose route the grant named.
 pub fn granted() -> bool {
     GRANTED.try_with(|granted| *granted).unwrap_or(false)
+}
+
+/// The binding of the channel whose grant the node's [`Redeem`] checks now;
+/// `None` outside that call. A check of a grant that must name the binding
+/// refuses the grant when it gets `None`.
+pub fn binding() -> Option<Binding> {
+    BINDING.try_with(Binding::clone).ok()
 }
 
 /// Each direction of the pipe between the channel and the stream under it.
@@ -232,13 +244,17 @@ where
     // A grant decides alone: a key that the admission lets in, but that
     // brings a grant that fails, is refused, as it asked by the grant.
     let verdict = match (asked.grant(), &node.redeem) {
-        (Some(grant), Some(redeem)) => match redeem(&peer, &ask, grant) {
-            Ok(line) => Ok((true, Some(format!("the operator key {peer} came with {line}")))),
-            Err(why) => Err((
-                format!("refused the grant of the operator key {peer}: {why}"),
-                Refusal::Other(GRANT_REFUSED.into()),
-            )),
-        },
+        (Some(grant), Some(redeem)) => {
+            // The check gets the binding of this channel ([`binding`]).
+            let checked = BINDING.sync_scope(asked.binding().clone(), || redeem(&peer, &ask, grant));
+            match checked {
+                Ok(line) => Ok((true, Some(format!("the operator key {peer} came with {line}")))),
+                Err(why) => Err((
+                    format!("refused the grant of the operator key {peer}: {why}"),
+                    Refusal::Other(GRANT_REFUSED.into()),
+                )),
+            }
+        }
         (grant, _) => {
             let aside = grant.map(|_| format!("set aside the grant of the operator key {peer}: this end reads none"));
             match (node.admit)(&peer, &ask) {
@@ -394,6 +410,29 @@ where
     C: FnOnce(&PublicKey) -> Result<(), String> + Send + 'static,
     T: FnMut(Event) + Send + 'static,
 {
+    operator_bound(app, identity, check, route, move |_, _| std::future::ready(grant), docs, told)
+}
+
+/// [`operator_told`], whose grant `mint` makes once `check` let the node's
+/// key through: it gets that key and the binding of the channel, and gives
+/// the grant, or none. It runs within the node's wait for this end's proof
+/// ([`crate::HANDSHAKE_LIMIT`]).
+pub fn operator_bound<A, C, M, G, T>(
+    app: A,
+    identity: Arc<Identity>,
+    check: C,
+    route: Option<String>,
+    mint: M,
+    docs: Option<Arc<dyn Docs>>,
+    told: T,
+) -> (DuplexStream, impl Future<Output = Result<PublicKey, Error>> + Send)
+where
+    A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    C: FnOnce(&PublicKey) -> Result<(), String> + Send + 'static,
+    M: FnOnce(PublicKey, Binding) -> G + Send + 'static,
+    G: Future<Output = Option<Vec<u8>>> + Send,
+    T: FnMut(Event) + Send + 'static,
+{
     let (ours, theirs) = tokio::io::duplex(PIPE);
     // Both ways of the carry share `told`, which can change its own state.
     let told = Mutex::new(told);
@@ -407,6 +446,7 @@ where
             return Err(Error::NodeKey(why));
         }
         let unanswered = offered.net_unanswered();
+        let grant = mint(node, offered.binding().clone()).await;
         let channel = offered.accept_granted(route.as_deref(), grant.as_deref()).await?;
         if unanswered {
             events.event(Event::info(EVENT_NO_NET, NO_NET));

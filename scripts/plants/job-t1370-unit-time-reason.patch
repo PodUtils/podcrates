@@ -1,0 +1,11 @@
+--- a/crates/pod-job/src/report.rs
++++ b/crates/pod-job/src/report.rs
+@@ -275,7 +275,7 @@
+         let unit = self.unit.as_ref();
+         match name {
+             "boot_s" => Some(unit.and_then(|u| u.boot_s)),
+-            "warm_s" => Some(unit.and_then(|u| u.warm_s)),
++            "warm_s" => Some(None),
+             "claim_to_first_step_s" => Some(self.claim_to_first_step_s),
+             "prepare_s" => Some(self.prepare_s),
+             "start_s" => Some(self.start_s),

@@ -1,0 +1,6 @@
+# pod-job: the check of a run report takes a reason of warm_s when the unit has warm_s (T-1370).
+ENTRY=T-1370
+GROUP=job
+EXPECT='a_reason_of_a_unit_time_needs_the_time_absent|invalid-reason-of-a-present-unit-time'
+RUN='cargo test -p pod-job --all-features --lib schemas'
+LIMIT=900

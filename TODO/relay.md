@@ -12199,6 +12199,299 @@ cargo test -p pod-ws --all-features --test h2_road the_request_sends_its_pseudo_
 
 Q22 (`TODO/PROGRESS.md`): an issue in hyperium/h2 is outside PodUtils, and it needs the yes of the owner.
 
+# T-1367: `pod-e2e`: the binding of the channel to the check of a grant, at the node and at the operator (PodUtils/podssh#355)
+
+**Source:** PodUtils/podssh#355 (COORD-145 of podssh; PodUtils/podssh@T-834; author COLLABORATOR), ask 1. Needs nothing; T-1368 needs it.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The ask, ask 1: "The callback that checks a grant today gets the key that
+the channel proved. A bearer needs a value that both ends know and that is
+unique to this channel: the handshake hash (or an exporter of the channel's
+keys, as RFC 9266 does for TLS). Asked: give it to the grant's callback on
+the node's side, and to the client before it sends its grant."
+
+podssh's T-834 logs in a person with no key file on the host by a short
+signed token. The token must be worthless on another channel. On the
+reverse road and on each carrier with a relay in the middle, only the
+end-to-end channel binds the far end, and the grant rides in the
+operator's proof (podssh `docs/design.md`, section 5, "A bearer in `OPEN`:
+where a binding exists").
+
+## Premise
+
+- Read: `crates/pod-e2e/src/handshake.rs`. The grant rides in the third
+  message of Noise XX (the operator's proof, the form `GRANT_PROOF`). The
+  operator writes that message before the handshake ends, so the final
+  handshake hash and the exporter (`Channel::exporter`, from the split)
+  do not exist when the operator makes its grant.
+- Read: `crates/pod-e2e/src/ends.rs`. `Redeem` gets the operator's key, the
+  ask and the grant's bytes, and no value of the channel. podssh builds
+  `Node` with each field and a `Redeem` closure of three arguments
+  (PodUtils/podssh:crates/podssh-relay/src/e2e/mod.rs, PodUtils/podssh:crates/podssh-cli/src/grants.rs
+  at podssh `3001570a`), and the pod-tpm trial (`adoption/podssh/pod-tpm.run`)
+  builds podssh against this tree.
+- Read: `crates/pod-e2e/src/exporter.rs`. The handshake hash of Noise is
+  not secret: a relay computes it from the messages that it carries.
+- Not measured: the cost of one SHA-256 for each handshake (no
+  measurement is necessary for one hash).
+
+## Approach
+
+The binding is a value of the handshake after the node's message, before
+the operator's proof:
+
+- `Binding` (new, `crates/pod-e2e/src/binding.rs`): 32 bytes,
+  SHA-256 of `pod-e2e grant binding`, a zero byte, and the handshake hash
+  of Noise after the second message. Both ends have this hash at that
+  point: the operator after it reads the node's message, the node after it
+  writes it. The hash covers the prologue, the two ephemeral keys and the
+  node's encrypted static key and proof, so two channels never share it.
+  The label separates the binding from the final hash that
+  `Channel::handshake_hash` gives. `Binding::bytes`, `Binding::from_bytes`
+  (a vector or a test), an equality in constant time
+  (`pod_core::entropy::same_secret`), a `Debug` that prints no byte, and
+  zero bytes on drop.
+- The operator: `Offered::binding()`, before `accept_granted`; and
+  `ends::operator_bound`, the form of `operator_told` whose grant is a
+  closure of the node's key and the binding (async, so that an agent can
+  sign). The closure runs inside the node's wait for the proof
+  (`HANDSHAKE_LIMIT`, 30 s). `operator_told` stays, as `operator_bound`
+  with a fixed grant.
+- The node: `Asked::binding()`; and `ends::binding()`, which gives the
+  binding inside the node's call of its `Redeem` (a task-local value, as
+  `ends::granted()` is), and `None` elsewhere. `Redeem` and `Node` keep
+  their form, so podssh and the pod-tpm trial build with no change.
+- No byte of the wire changes: the binding is a value that each end
+  computes.
+
+What it closes: a grant whose content names the binding (the bearer of
+T-1368) is worthless on another channel, also when a relay, a log or a
+malicious node copies it. What it does not close: the binding is public,
+as the hash is (a relay computes it), so a grant that only names the
+binding and carries no signature of a key that the node trusts proves
+nothing; the binding does not cover the operator's static key, which comes
+in the proof after it (T-1368 names the holder key in the bearer for that
+reason); and a grant of the OpenSSH form (T-226) does not use it.
+
+## Prove
+
+```sh
+cargo test -p pod-e2e --test door
+cargo test -p pod-e2e --lib binding
+cargo clippy -p pod-e2e --all-targets --all-features -- -D warnings
+```
+
+## Done
+
+2026-11-25, this commit. The binding of a channel reaches the check of a
+grant at both ends; no byte of the wire changes:
+
+- `crates/pod-e2e/src/binding.rs` (new): `Binding`, SHA-256 of `LABEL`
+  (`pod-e2e grant binding` and a zero byte) and the Noise handshake hash
+  after the node's message; `of_hash`, `from_bytes`, `bytes`; equality by
+  `pod_core::entropy::same_secret`; `Debug` prints `Binding(..)`; zero
+  bytes on drop.
+- `crates/pod-e2e/src/handshake.rs`: `Offered::binding()` (after the read
+  of the node's message) and `Asked::binding()` (after the write of it,
+  before the read of the proof).
+- `crates/pod-e2e/src/ends.rs`: `ends::binding()`, a task-local value in
+  the call of `Node::redeem` and `None` elsewhere; `operator_bound`, whose
+  async `mint` gets the node's key and the binding; `operator_told` calls
+  it with a fixed grant. `Redeem`, `Node` and `operator_told` keep their
+  form (call C936).
+- The README of `pod-e2e`: the API rows and the section "The binding of a
+  grant".
+
+Tests: `both_ends_of_a_channel_get_one_binding_and_another_channel_another`
+(`crates/pod-e2e/tests/door.rs`: the operator's maker and the node's check
+get one binding, a second channel another, and the target and the code
+outside the check get none), and `binding::tests` (the hash and the
+`Debug` output). The plant `scripts/plants/e2e-grant-binding-after-the-proof.plant`
+(the node takes the hash after the proof) fails the first test: caught.
+`cargo test -p pod-e2e --all-features`: 100 passed in 14 targets;
+`cargo clippy -p pod-e2e -p pod-relay -p pod-cloudflare -p pod-piping
+--all-targets --all-features -- -D warnings`: no warning.
+
+# T-1368: `pod-relay`: a bearer grant bound to the channel, and its verifier (PodUtils/podssh#355)
+
+**Source:** PodUtils/podssh#355 (COORD-145 of podssh; PodUtils/podssh@T-834; author COLLABORATOR), ask 2. Needs T-1367.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The ask, ask 2: "`pod-relay`'s grant (or `pod-identity`): a bearer form and
+its verifier. A token signed by a key that the user's identity file lists
+(an OIDC ID token only later, and only with the cache below), with `exp` at
+most 30 s after its `iat`, and a `jti` that is `HMAC-SHA256(binding, client
+nonce)`. The verifier checks the signature, `exp` with a small skew, and the
+`jti` against the binding, and keeps each `jti` for the token's life so that
+a replay inside the same channel is refused too. A resume makes no new token
+unless the road runs a new handshake."
+
+podssh writes the use: the acceptance of a bearer by `podssh serve`, its
+record of the user and of the method on the session, and the client's
+source of the token (a key of the identity file or the agent).
+
+## Premise
+
+- Read: `crates/pod-relay/src/grant/mod.rs`, `door.rs`, `spent.rs` and
+  `cert.rs`: the grant of today is an OpenSSH user certificate, used once,
+  whose record is a file on the disk. A certificate starts with a length
+  of four bytes, so its first byte is 0.
+- Read: `crates/pod-identity/src/lib.rs`: `Identity::sign` and
+  `PublicKey::verifies` (Ed25519, the strict rules).
+- Read: `docs/wire.md`, section 6, and `crates/pod-relay/tests/vectors/grants.json`:
+  a new form of a grant is a change of the wire, with vectors.
+- Not measured: the clock skew of the hosts of podssh's users.
+
+## Approach
+
+A new module `grant::bearer` (feature `grant`):
+
+- The bearer, 221 bytes: the magic `pod-bearer/1` and a newline (13
+  bytes), the signer's Ed25519 key (32), the holder's key (32), `iat` u64,
+  `exp` u64 (seconds since the epoch), the client nonce (32), the `jti`
+  (32, HMAC-SHA-256 of the nonce under the binding of T-1367), then the
+  Ed25519 signature of the signer over each byte before it (64). Binary,
+  not a JWT: one form, no choice of algorithm, no JSON reader on the node.
+  The magic separates the signed bytes from SSH's signatures (which start
+  with a length), so an agent's signature of a bearer is no signature of
+  a login, and tells a bearer from a certificate at the node.
+- The holder is the operator's key that the channel proves. The binding
+  is taken before the operator's proof, so it does not cover that key;
+  the holder field does.
+- `Unsigned::new(signer, holder, binding, iat, nonce)` (`exp` is `iat` +
+  30 s), `Unsigned::message()` (the bytes to sign, for an agent),
+  `Unsigned::signed(signature)`, and `mint` with an `Identity`.
+- `Bearers` (the verifier, one for each node): `verify(blob, binding,
+  holder, signers, now)` checks, in this order: a binding is there (else
+  `Unbound`), the form (`Form`), the holder is the key that the channel
+  proved (`Holder`), `signers` lists the signer (`Signer`), the signature
+  (`Signature`), `exp` after `iat` and at most 30 s after it (`Life`),
+  `iat` at most `BEARER_SKEW` (10 s) after now (`Early`), now before `exp`
+  plus the skew (`Expired`), the `jti` against the binding, compared in
+  constant time (`Binding`), and last the record of each `jti` until its
+  `exp` plus the skew (`Replayed`; `Full` when the record holds
+  `BEARER_SEEN` (16384) live entries, so that the memory has a bound and
+  no bearer passes unrecorded). Each refusal is one variant of `Refused`,
+  with a stable name. No text and no `Debug` output holds the nonce, the
+  `jti`, the signature or the binding.
+- A bearer with no binding is refused (`Unbound`): the ask makes the
+  binding the proof that the token is for this channel, and a bearer
+  checked outside the node's check of a grant has none. A certificate
+  grant (T-226) keeps its own checks; it needs no binding, as it names the
+  key that the channel proves and its use is recorded on the disk.
+- The record is in memory: a bearer of another channel fails `Binding`,
+  and a channel does not outlive the process (a handover carries the
+  channel with no new handshake and no new check), so a record on the disk
+  adds nothing. A resume runs no handshake and no check.
+- `docs/wire.md`, section 6, and new vectors `bearer` and `bearer-refused`
+  in `grants.json` (wire version 2), read by the Rust test and by
+  `scripts/check-wire-vectors.py`.
+
+What it closes: a bearer copied from one channel (by a relay, a log, a
+malicious node that the user reached, or a person who reads the screen)
+fails on each other channel; a replay inside one channel fails on the
+record; a bearer minted ahead of time fails after 30 s and the skew. What
+it does not close: a thief of the signer's key or of the agent mints its
+own bearers; a node whose clock is off by more than 10 s refuses each
+bearer (`Early` or `Expired` says so in its log); the OIDC form is not
+built (the ask defers it).
+
+## Prove
+
+```sh
+cargo test -p pod-relay --features grant --lib grant::bearer
+cargo test -p pod-relay --features pair,grant --test bearer
+cargo test -p pod-relay --all-features --test wire_vectors
+python3 -I scripts/check-wire-vectors.py
+sh scripts/plant-each.sh --apply
+```
+
+## Done
+
+2026-11-25, this commit. `grant::bearer` of `pod-relay` (feature `grant`):
+
+- `crates/pod-relay/src/grant/bearer.rs` (new): the bearer of 221 bytes
+  (`MAGIC`, `LEN`), `jti`, `Unsigned` (`new`, `message`, `signed`) for an
+  agent, `mint` for a key file, `Bearer::read`, `is_bearer`, and `Bearers`
+  (`verify`, `with_limit`, `Default`) with `LIFE` 30 s, `SKEW` 10 s and
+  `SEEN` 16384. `Refused` has one variant for each check, with a stable
+  `name()`: `unbound`, `form`, `holder`, `signer`, `signature`, `life`,
+  `early`, `expired`, `binding`, `replayed`, `full`. The `jti` compares in
+  constant time; the `Debug` output of `Bearer` and `Bearers` and each text
+  of `Refused` hold no nonce, `jti`, signature or binding.
+- A bearer with no binding is refused (`unbound`), as the ask makes the
+  binding the proof that the token is for its channel.
+- `docs/wire.md`: section 6, "Bearers"; the vectors `bearer` (two) and
+  `bearer-refused` (four: another channel, a changed `jti`, a cut bearer, a
+  certificate) in `grants.json`; wire version 2, with its row and digest.
+  `scripts/wire_check_parts.py` reads them from the page alone.
+- The README of `pod-relay`: the API row and the section "Bearers".
+
+Tests: `a_bearer_holds_on_its_channel_and_is_refused_by_its_binding_on_another`
+and `a_changed_bearer_is_refused_by_its_signature` (`crates/pod-relay/tests/bearer.rs`,
+through the channel and a stand-in relay that never sees the bearer: the
+bearer of channel A lets its key in on A; the same bytes on channel B are
+refused as `binding` by the same node and by a new node, before a dial);
+eight tests of `grant::bearer::tests` (each class, the skew at each edge,
+the record and its limit, no secret in a text);
+`each_bearer_signs_to_its_bytes_and_holds_on_its_channel_alone` and
+`each_refused_bearer_fails_the_check_that_its_vector_names` (`crates/pod-relay/tests/wire/grants.rs`).
+The plant `scripts/plants/relay-bearer-binding-unchecked.plant` (no check of the
+`jti`) fails the first test (the second channel's bearer is `replayed`, then
+let in): caught. `cargo test -p pod-relay --all-features`: 241 passed in the
+library, 2 in `bearer`, 16 in `wire_vectors`, each other target passed;
+`python3 -I scripts/check-wire-vectors.py`: 123 vectors, ok; its `--plant`:
+each file found.
+
+# T-1369: `pod-relay`: a fuzz target of `grant::bearer::Bearer::read`, the reader of a bearer from the peer
+
+**Source:** the review of T-1368 (PodUtils/podssh#355).
+**Category:** chore
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`Bearer::read` reads 221 bytes that the peer sends in the operator's proof
+of the end-to-end channel. Each other reader of bytes from a peer in this
+repository has a fuzz target (`fuzz/README.md`). The bearer reader has none.
+It checks the size and the magic first, but no target holds that the reader
+never panics and that a bearer it reads writes back to the same bytes.
+
+## Premise
+
+- Read: the report of T-1368; `fuzz/README.md` (the list of targets).
+- Not read: the code of `Bearer::read` line by line.
+
+## Approach
+
+Add the target `relay_bearer` in `fuzz/src/targets/` in the form of the
+`tpm_keyfile` target: read the input with `Bearer::read` and `is_bearer`;
+for a bearer that reads, assert that its fields write back to the input.
+Add seeds from the vectors `bearer` of `grants.json`, a row in
+`fuzz/README.md`, and a run of 60 s with `scripts/fuzz.sh`.
+
+## Prove
+
+```sh
+cargo check --manifest-path fuzz/Cargo.toml --bins
+sh scripts/fuzz.sh 60 relay_bearer
+```
+
 # T-1371: `pod-relay`: the `Mint` of a grant writes no extension, so a stock sshd gives its certificate no pty and no forward (PodUtils/podssh#356)
 
 **Source:** PodUtils/podssh#356 (COORD-146 of podssh), by a member of the
@@ -12286,7 +12579,7 @@ against the bytes that a Python writer from PROTOCOL.certkeys and
 `ssh-keygen`). The plant `relay-mint-extensions-unsorted` writes the
 extensions in the order given; the vector test fails with "the bytes that
 the order of the names gives". `cargo test -p pod-relay --all-features`:
-502 passed, 0 failed, 22 ignored, in 53 targets; clippy of `pod-relay`,
+514 passed, 0 failed, 22 ignored, in 54 targets (after the merge of `main`); clippy of `pod-relay`,
 `pod-cloudflare`, `pod-piping` and `pod-ws` (all targets, all features,
 `-D warnings`), `cargo doc -p pod-relay` with `-D warnings`, `cargo fmt
 --all --check` and `plant-each.sh --apply` (0 stale) clean.

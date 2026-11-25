@@ -1,10 +1,12 @@
 //! `grants.json`: grants used once, OpenSSH user certificates of Ed25519
 //! keys, as `pod-relay`'s `grant::Mint` signs them and `grant::Cert` reads
-//! them. Ed25519 signs deterministically, so a seed and the fields give the
-//! bytes.
+//! them; and bearers bound to one channel, as `grant::bearer::mint` signs
+//! them and `grant::Bearers` checks them. Ed25519 signs deterministically,
+//! so a seed and the fields give the bytes.
 
+use pod_e2e::Binding;
 use pod_identity::Identity;
-use pod_relay::grant::{self, Cert, Mint, USER};
+use pod_relay::grant::{self, Bearer, Bearers, Cert, Mint, Refused, USER, bearer};
 
 use crate::common::{array, bytes, hex, name, number, of_kind, strings, text, unhex};
 
@@ -56,5 +58,47 @@ fn a_changed_grant_fails_its_signature_and_a_cut_one_its_form() {
     }
     for v in of_kind("grants", "grant-refused") {
         assert!(Cert::from_blob(&bytes(&v, "hex")).is_err(), "{}: read", name(&v));
+    }
+}
+
+/// 2026-11-25, past the `iat` of each bearer of the vectors.
+const LATER: u64 = 1_795_564_800 + 3_600;
+
+#[test]
+fn each_bearer_signs_to_its_bytes_and_holds_on_its_channel_alone() {
+    for v in of_kind("grants", "bearer") {
+        let signer = Identity::from_seed(&array(&v, "signer_seed"));
+        let holder = Identity::from_seed(&array(&v, "holder_seed")).public();
+        assert_eq!(signer.public().hex(), text(&v, "signer"), "{}", name(&v));
+        assert_eq!(holder.hex(), text(&v, "holder"), "{}", name(&v));
+        let binding = Binding::of_hash(&bytes(&v, "handshake_hash"));
+        assert_eq!(hex(binding.bytes()), text(&v, "binding"), "{}", name(&v));
+        let nonce = array(&v, "nonce");
+        assert_eq!(hex(&bearer::jti(&binding, &nonce)), text(&v, "jti"), "{}", name(&v));
+        let iat = number(&v, "iat");
+        let blob = bearer::mint(&signer, holder, &binding, iat, nonce);
+        assert_eq!(hex(&blob), text(&v, "hex"), "{}", name(&v));
+        let read = Bearer::read(&blob).unwrap_or_else(|e| panic!("{}: {e}", name(&v)));
+        assert_eq!((read.signer, read.holder, read.iat, read.exp), (signer.public(), holder, iat, number(&v, "exp")));
+        let verified = Bearers::default().verify(&blob, Some(&binding), &holder, |_| true, iat);
+        assert!(verified.is_ok(), "{}: {verified:?}", name(&v));
+        let elsewhere = Binding::from_bytes([0; 32]);
+        let refused = Bearers::default().verify(&blob, Some(&elsewhere), &holder, |_| true, iat);
+        assert_eq!(refused, Err(Refused::Binding), "{}", name(&v));
+        assert!(Bearers::default().verify(&blob, Some(&binding), &holder, |_| true, LATER).is_err());
+    }
+}
+
+#[test]
+fn each_refused_bearer_fails_the_check_that_its_vector_names() {
+    for v in of_kind("grants", "bearer-refused") {
+        let blob = bytes(&v, "hex");
+        let binding = Binding::from_bytes(array(&v, "binding"));
+        let (holder, now) = match Bearer::read(&blob) {
+            Ok(read) => (read.holder, read.iat),
+            Err(_) => (Identity::from_seed(&[0; 32]).public(), 0),
+        };
+        let refused = Bearers::default().verify(&blob, Some(&binding), &holder, |_| true, now);
+        assert_eq!(refused.map(|_| ()).map_err(Refused::name), Err(text(&v, "reason")), "{}", name(&v));
     }
 }

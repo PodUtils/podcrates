@@ -40,6 +40,7 @@
 //!   prelude and an identifier and never sees the destination.
 //! - [`knowledge`]: what each hop learns, as data, and the issue's table.
 //! - [`inspect`]: the exchange as one hop sees it, for `tunnel --inspect`.
+//! - [`binding`]: the binding of one channel for the check of a grant.
 //!
 //! The crate reads no environment variable and keeps no process state but
 //! task-local values: the caller gives the net's documents
@@ -49,6 +50,7 @@
 //! converts to a [`pod_core::Failure`] of the stage `Session`.
 
 mod ask;
+pub mod binding;
 mod channel;
 pub mod ends;
 pub mod envelope;
@@ -70,6 +72,7 @@ use std::fmt;
 use std::time::Duration;
 
 pub use ask::{Ask, MAX_WORD, exit_word};
+pub use binding::Binding;
 pub use channel::{Carried, Channel, Held, Pair, Start};
 pub use envelope::{Destination, EnvelopeError, Forwarder, Prelude, Sealed};
 pub use exporter::Exporter;

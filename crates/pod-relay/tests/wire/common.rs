@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use serde_json::Value;
 
 /// The version of `docs/wire.md` that these vectors are of.
-pub const WIRE: u64 = 1;
+pub const WIRE: u64 = 2;
 
 /// Each file of `tests/vectors/`.
 pub const PARTS: [&str; 6] = ["closes", "forward", "grants", "layer", "reverse", "tokens"];

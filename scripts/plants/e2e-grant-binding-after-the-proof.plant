@@ -1,0 +1,8 @@
+# The node takes the binding of the channel after the operator's proof, so
+# the two ends of one channel hold two bindings and a grant bound to the
+# operator's fails at the node; the test of one binding at both ends must
+# fail.
+ENTRY=T-1367
+GROUP=e2e
+EXPECT='test both_ends_of_a_channel_get_one_binding_and_another_channel_another \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --test door -- both_ends_of_a_channel_get_one_binding_and_another_channel_another'

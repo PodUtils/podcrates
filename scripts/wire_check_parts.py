@@ -268,7 +268,65 @@ def read_grant(raw: bytes) -> tuple[dict, bytes, bytes]:
     return f, signed, sig[1]
 
 
+BEARER = b"pod-bearer/1\n"
+BINDING_LABEL = b"pod-e2e grant binding\0"
+
+
+def read_bearer(raw: bytes) -> dict:
+    """The fields of a bearer; the signed bytes are each byte before `sig`."""
+    if len(raw) != len(BEARER) + 208 or not raw.startswith(BEARER):
+        raise Refused("form")
+    b = Body(raw[len(BEARER):])
+    return {"signer": b.take(32), "holder": b.take(32), "iat": b.u64(), "exp": b.u64(), "nonce": b.take(32),
+            "jti": b.take(32), "sig": b.take(64), "signed": raw[:-64]}
+
+
+def bearer_refusal(raw: bytes, binding: bytes) -> str | None:
+    """The first check of section 6 that the bearer fails on the channel of
+    `binding`, with a signer that the node takes and at its `iat`."""
+    try:
+        f = read_bearer(raw)
+    except Refused:
+        return "form"
+    if not ed.verify(f["signer"], f["signed"], f["sig"]):
+        return "signature"
+    if not 0 < f["exp"] - f["iat"] <= 30:
+        return "life"
+    if not hmac.compare_digest(hmac.new(binding, f["nonce"], hashlib.sha256).digest(), f["jti"]):
+        return "binding"
+    return None
+
+
+def check_bearer(v: dict) -> list[str]:
+    raw = bytes.fromhex(v["hex"])
+    if v["kind"] == "bearer-refused":
+        got = bearer_refusal(raw, bytes.fromhex(v["binding"]))
+        return [] if got == v["reason"] else [f"the page refuses it as {got}, the vector says {v['reason']}"]
+    problems = []
+    signer_seed, holder_seed = bytes.fromhex(v["signer_seed"]), bytes.fromhex(v["holder_seed"])
+    if ed.public(signer_seed).hex() != v["signer"] or ed.public(holder_seed).hex() != v["holder"]:
+        problems.append("a key is not the key of its seed")
+    binding = hashlib.sha256(BINDING_LABEL + bytes.fromhex(v["handshake_hash"])).digest()
+    if binding.hex() != v["binding"]:
+        problems.append("the binding is not the page's hash of the handshake hash")
+    nonce = bytes.fromhex(v["nonce"])
+    jti = hmac.new(binding, nonce, hashlib.sha256).digest()
+    if jti.hex() != v["jti"]:
+        problems.append("the jti is not the HMAC of the nonce under the binding")
+    signed = (BEARER + bytes.fromhex(v["signer"]) + bytes.fromhex(v["holder"]) + u64(v["iat"]) + u64(v["exp"])
+              + nonce + jti)
+    if signed + ed.sign(signer_seed, signed) != raw:
+        problems.append("its fields do not encode to its bytes")
+    if v["exp"] != v["iat"] + 30:
+        problems.append("a bearer of the vectors lives 30 s")
+    if bearer_refusal(raw, binding) is not None:
+        problems.append(f"the page refuses it as {bearer_refusal(raw, binding)}")
+    return problems
+
+
 def check_grants(v: dict) -> list[str]:
+    if v["kind"].startswith("bearer"):
+        return check_bearer(v)
     raw = bytes.fromhex(v["hex"])
     if v["kind"] == "grant-refused":
         try:

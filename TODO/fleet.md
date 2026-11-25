@@ -9243,3 +9243,108 @@ the types and of the schema);
 `python3 -I scripts/check-schemas.py`: 13 schemas agree. podrunner adds
 `git_ref: None, repo_id: None` to each struct literal of `RealJob`.
 Plant `job-t1362-ref-unchecked` added (the reader takes each `ref`).
+
+# T-1370: `pod-job`: warm and cold units in `run-report.v1` and `status.v1` (PodUtils/podrunner#353)
+
+**Source:** PodUtils/podrunner#353 (COORD-131 of podrunner, for PodUtils/podrunner@T-487 and PodUtils/podrunner@T-657; G-25 and G-11 of githome)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podrunner keeps warm units: "a unit that boots before a job and waits,
+fresh, for one claim. githome reads the start of a warm and of a cold unit
+in the run report (G-25)." podrunner asks (PodUtils/podrunner#353) for
+these optional fields of `pod-job`, each with
+`skip_serializing_if = "Option::is_none"`:
+
+* "`UnitFields.start: Option<UnitStart>`, with `UnitStart = cold | warm`
+  (kebab-case)."
+* "`UnitFields.warm_s: Option<u64>`: the whole seconds, rounded up, that
+  the unit waited warm before its claim."
+* "`UnitFields.boot_s: Option<u64>`: the seconds from the start of the
+  unit to the ready mark of its script."
+* "Let `unknown_reasons` name `boot_s` and `warm_s`."
+* "`KindStatus.warm: Option<WarmStatus>`, with `target: u32`,
+  `booting: u32`, `ready: u32` and `paused_reason: Option<String>`."
+* "`Status.warm_units: u32`, default 0."
+
+"No other field changes. Please tag a release with them. podrunner takes
+the next tag."
+
+## Premise
+
+- Read: PodUtils/podrunner#353; `crates/pod-job/src/report.rs`
+  (`UnitFields` and `RunReport` have `deny_unknown_fields`;
+  `RunReport::check` takes a key of `unknown_reasons` only for a measured
+  field that is `unknown` or an absent time of `TIMES`);
+  `crates/pod-job/src/status.rs`; `crates/pod-job/src/json_schema.rs`
+  (`run_report_rules` writes the same rule into the schema).
+- The constructors of `UnitFields`, `KindStatus` and `Status` in this
+  repository: the tests of `pod-job` only (no other crate builds them).
+- Not measured: the engine of podrunner and the reader of githome.
+
+## Approach
+
+`UnitFields` takes `start: Option<UnitStart>` (`cold`, `warm`),
+`warm_s: Option<u64>` and `boot_s: Option<u64>`, each absent on the wire
+when `None`. A new list `UNIT_TIMES` (`boot_s`, `warm_s`): a key of
+`unknown_reasons` that names one passes when the time of the unit is
+absent or `null`, or when the report has no unit; the schema has the same
+rule. `KindStatus` takes `warm: Option<WarmStatus>`; `WarmStatus` has
+`target`, `booting`, `ready` and `paused_reason` (absent when `None`).
+`Status` takes `warm_units: u32` (default 0). The schemas keep their ids,
+with rows `added` in `schemas/CHANGES.md`. The ask states no rule between
+`start` and `warm_s` and no bound of `WarmStatus`, so the types add none.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+python3 -I scripts/check-schemas.py
+```
+
+## Done
+
+2026-11-25, this commit. `pod_job::UnitFields` has `start:
+Option<UnitStart>` (`pod_job::UnitStart`: `cold`, `warm`), `warm_s:
+Option<u64>` and `boot_s: Option<u64>`. `pod_job::report::UNIT_TIMES`
+(`boot_s`, `warm_s`): `RunReport::check` takes a key of `unknown_reasons`
+that names one when the time of the unit is absent or `null`, or when the
+report has no unit; `run_report_rules` writes the same rule into the
+schema. `pod_job::KindStatus` has `warm: Option<WarmStatus>`
+(`pod_job::WarmStatus`: `target`, `booting`, `ready` as `u32`,
+`paused_reason: Option<String>`), and `pod_job::Status` has `warm_units:
+u32` (default 0). Each `Option` that is `None` is not on the wire. The
+public report does not change. `schemas/run-report.v1.schema.json` and
+`schemas/status.v1.schema.json` written again; the ids stay `v1`, with six
+rows `added` in `schemas/CHANGES.md`. New examples:
+`crates/pod-job/tests/examples/run-report/valid-warm-unit.json` (`warm`,
+41, 7), `crates/pod-job/tests/examples/run-report/valid-cold-unit.json`
+(`cold`, `boot_s` 9, a reason of `warm_s`),
+`crates/pod-job/tests/examples/status/valid-warm.json`, and the invalid
+`crates/pod-job/tests/examples/run-report/invalid-unit-start.json`,
+`crates/pod-job/tests/examples/run-report/invalid-reason-of-a-present-unit-time.json`
+and `crates/pod-job/tests/examples/status/invalid-warm-no-ready.json` (the
+types and the schema refuse each). Tests:
+`report::tests::the_start_of_a_warm_and_a_cold_unit_reads_and_writes_back_the_same`,
+`report::tests::a_unit_with_no_start_writes_no_start_warm_s_or_boot_s`,
+`schemas::rules::a_reason_of_a_unit_time_needs_the_time_absent` (6 pass,
+2 refused, the types and the schema agree),
+`status::tests::the_warm_units_of_a_kind_read_and_write_back_the_same`, and
+the defaults in
+`status::tests::a_status_with_no_draining_max_units_or_units_reads_with_the_defaults`.
+`cargo test -p pod-job --all-features`: lib 32 passed (the examples: 46
+valid and 53 invalid); `cargo test -p pod-testkit --all-features`: 38
+passed, 2 ignored; clippy of `pod-job` and `pod-testkit` (all targets, all
+features, `-D warnings`) clean; `python3 -I scripts/check-schemas.py`: 13
+schemas agree. Plant `job-t1370-unit-time-reason` added (the check takes a
+reason of a `warm_s` that the unit has); the patches of four plants of
+`report.rs`, `json_schema.rs` and `status.rs` made again (`sh
+scripts/plant-each.sh --apply`: 0 stale). podrunner adds `start: None,
+warm_s: None, boot_s: None` to each struct literal of `UnitFields`,
+`warm: None` to each of `KindStatus` and `warm_units: 0` to each of
+`Status`.

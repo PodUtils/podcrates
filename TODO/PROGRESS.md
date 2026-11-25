@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 995 entries: 148 open, 29 partial, 8 blocked, 810 done.
+`TODO/INDEX.md` holds 999 entries: 149 open, 29 partial, 8 blocked, 813 done.
 
 ## State
 
@@ -15,7 +15,9 @@
 - On `main` after `v0.83.0`, for the next tag: T-1243 and T-1355 (ports
   with no change for a consumer); T-1362 (the fields `ref` and `repo_id`
   of `RealJob`, PodUtils/podrunner#352, COORD-130 of podrunner; the
-  hand-off of the next tag answers it).
+  hand-off of the next tag answers it); T-1370 (warm and cold units in
+  `run-report.v1` and `status.v1`, PodUtils/podrunner#353, COORD-131 of
+  podrunner; the hand-off of the next tag answers it).
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
   not on `main`. `release.yml` has steps that run on a tag only, which the
   dry run does not test (T-974; `docs/maintenance.md`, "A release").
@@ -124,7 +126,8 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   COORD-139: a test through `unbound`);
   T-1103 (iroh 1.5 and its fork
   of iroh-relay, after PodUtils/podssh#341);
-  T-941 (PodUtils/podssh#319); T-1340 (a key file of `pod-tpm` in
+  T-941 (PodUtils/podssh#319); T-1369 (a fuzz target of the bearer
+  reader of `pod-relay`); T-1340 (a key file of `pod-tpm` in
   tpm2-openssl and in go-tpm-keyfiles against swtpm; PodUtils/podssh#351).
 
 Then T-899, T-900, T-852, T-851, and T-920.

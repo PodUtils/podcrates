@@ -35,13 +35,14 @@ channel defends against.
 
 | Module | What |
 | --- | --- |
-| (root) | `MAGIC`, `PATTERN`, `PROLOGUE`, `MAX_MESSAGE`, `TAG`, `MAX_DATA`, `MAX_GRANT`, `MAX_WORD`, `HANDSHAKE_LIMIT`, `VERDICT_LIMIT`, `VERDICT_STEP`; `Ask` (`of_route`, `read`, `word`, `route`, `exit`), `exit_word`; `Refusal`; `Error`; `initiate`, `initiate_with`, `Offered` (`peer`, `net_unanswered`, `accept`, `accept_granted`, `reject`); `respond`, `respond_with`, `Asked` (`peer`, `route`, `ask`, `grant`, `admit`, `admit_with`, `refuse`); `Channel` (`carry`, `carry_held`, `with_events`, `leg_seed`, `handshake_hash`, `exporter`, `agree`, `into_transport`, `bind`, `pair`), `Carried`, `Held`, `Start`, `Pair` (`new`, `named`, `bytes`); `Exporter`; `Destination` (`seal`, `open`, `host`, `port`, `service`, `authority`), `Sealed` (`id`, `bytes`, `prelude`), `Prelude` (`of`, `take`, `pass`, `id`, `bytes`), `Forwarder` (`new`, `route`, `forward`), `EnvelopeError`; `Hop` (`ALL`, `name`), `Knowledge` (`table`, `line`, `render`); `Inspect` (`new`, `observe`, `hop`, `fields`, `relay`, `render`), `Field` |
+| (root) | `MAGIC`, `PATTERN`, `PROLOGUE`, `MAX_MESSAGE`, `TAG`, `MAX_DATA`, `MAX_GRANT`, `MAX_WORD`, `HANDSHAKE_LIMIT`, `VERDICT_LIMIT`, `VERDICT_STEP`; `Ask` (`of_route`, `read`, `word`, `route`, `exit`), `exit_word`; `Refusal`; `Error`; `initiate`, `initiate_with`, `Offered` (`peer`, `net_unanswered`, `binding`, `accept`, `accept_granted`, `reject`); `respond`, `respond_with`, `Asked` (`peer`, `route`, `ask`, `grant`, `binding`, `admit`, `admit_with`, `refuse`); `Binding`; `Channel` (`carry`, `carry_held`, `with_events`, `leg_seed`, `handshake_hash`, `exporter`, `agree`, `into_transport`, `bind`, `pair`), `Carried`, `Held`, `Start`, `Pair` (`new`, `named`, `bytes`); `Exporter`; `Destination` (`seal`, `open`, `host`, `port`, `service`, `authority`), `Sealed` (`id`, `bytes`, `prelude`), `Prelude` (`of`, `take`, `pass`, `id`, `bytes`), `Forwarder` (`new`, `route`, `forward`), `EnvelopeError`; `Hop` (`ALL`, `name`), `Knowledge` (`table`, `line`, `render`); `Inspect` (`new`, `observe`, `hop`, `fields`, `relay`, `render`), `Field` |
+| `binding` | `Binding` (`of_hash`, `from_bytes`, `bytes`), `LABEL` |
 | `exporter` | `Exporter` (`export`, `handshake_hash`, `is_initiator`, `records`), `RESERVED`, `MAX_EXPORT` |
 | `record` | `Suite` (`ALL`, `name`, `id`, `of_id`), `agree`, `check_suites`; `Settings` (`DEFAULT`); `Records` (`seal`, `open`, `resume`, `replayed`, `epochs`, `counters`), `Opened`, `Record`, `Fault`; `Header` (`encode`, `parse`), `record_len`, `bucket`; `HEADER`, `VERSION`, `MAX_LENGTH`, `BUCKETS`, `PHASE`, `WINDOW`, `RESUME` |
 | `envelope` | `Destination` (`seal`, `open`, `host`, `port`, `service`, `authority`), `Sealed` (`id`, `bytes`, `prelude`), `Prelude` (`of`, `take`, `pass`, `id`, `bytes`), `Forwarder` (`new`, `route`, `forward`), `EnvelopeError`; `VERSION`, `ID`, `NONCE`, `BODY`, `SIZE` |
 | `knowledge` | `Hop` (`ALL`, `name`), `Knowledge` (`table`, `line`, `render`) |
 | `inspect` | `Inspect` (`new`, `observe`, `hop`, `fields`, `relay`, `render`), `Field`, `id_of` |
-| `ends` | `Node` (`identity`, `admit`, `events`, `redeem`, `leases`, `gate`, `docs`, `holds`; `open_to_all`), `Admit`, `Redeem`; `serve_node`, `serve_routed`, `serve_asked`, `granted`, `TARGET_WAIT`, `NO_EXIT`, `GRANT_REFUSED`; `operator`, `operator_to`, `operator_granted`, `operator_told`, `NO_NET`; the kinds of the events `EVENT_*` |
+| `ends` | `Node` (`identity`, `admit`, `events`, `redeem`, `leases`, `gate`, `docs`, `holds`; `open_to_all`), `Admit`, `Redeem`; `serve_node`, `serve_routed`, `serve_asked`, `granted`, `binding`, `TARGET_WAIT`, `NO_EXIT`, `GRANT_REFUSED`; `operator`, `operator_to`, `operator_granted`, `operator_told`, `operator_bound`, `NO_NET`; the kinds of the events `EVENT_*` |
 | `person` | `Gate` (`new`, `with_times`, `times`, `standing`, `cross`), `Times` (`DEFAULT`), `Question`, `Answer`, `Asker`, `Pass`, `By` |
 | `net` | `Docs` (`held`, `shares_with`, `take`), `Held` (`newer_than`), `OFFER` |
 | `legs` | `token`, `digest`, `hex`, `unhex`, `offered`, `frame`, `Frames`, `WINDOW`, `LIFE_MS`, `OFFER`; `Leases` (`attach`, `issue`, `restore`, `spent`, `held`), `Lease` (`seed`, `hand_over`); `during`, `current`, `Taker` (`give`, `holds`, `pick`, `upgraded`, `refused`, `token_at`), `Pick` |
@@ -65,6 +66,27 @@ with the error as its cause:
 A `record::Fault` converts to a `Failure` of the stage `Session`:
 `ResumeExpired` and `Exhausted` (the layer is ended) are `Unavailable`,
 each other is `Protocol`.
+
+## The binding of a grant
+
+A grant can be for one channel alone (PodUtils/podssh#355). The binding is
+SHA-256 of `LABEL` (`pod-e2e grant binding` and a zero byte) and the
+handshake hash of Noise after the node's message: the operator has it
+before it writes its proof, which carries the grant, and the node has it
+before it reads that proof. The hash covers both ephemeral keys, so two
+channels never share a binding.
+
+| End | Where it gets the binding |
+| --- | --- |
+| The operator | `Offered::binding()` before `accept_granted`; `ends::operator_bound(app, identity, check, route, mint, docs, told)`, whose `mint` gets the node's key and the binding and gives the grant (async, within the node's wait for the proof, `HANDSHAKE_LIMIT`) |
+| The node | `Asked::binding()`; `ends::binding()` inside the call of `Node::redeem`, `None` elsewhere |
+
+The binding is not secret (a relay computes the hash), and it does not
+cover the operator's key, which comes in the proof after it. A grant that
+names it must carry a signature of a key that the node trusts, and must
+name the operator's key: the bearer of `pod-relay`'s `grant::bearer` does
+both. `Binding` compares in constant time, prints no byte in its `Debug`
+output, and zeroes its bytes on drop. No byte of the wire changes.
 
 ## Records
 

@@ -127,3 +127,72 @@ async fn the_operator_s_end_gives_the_node_s_seed_to_the_taker_of_its_session() 
     let registered = registered.lock().unwrap().clone();
     assert!(registered.iter().any(|f| f.contains(&digest)), "the node registered the operator's first token");
 }
+
+/// What one session of [`bound_session`] saw: the binding that the
+/// operator's maker of the grant got, the one that the node's check got,
+/// and whether the target saw one.
+struct Bound {
+    minted: Option<pod_e2e::Binding>,
+    checked: Option<pod_e2e::Binding>,
+    at_target: bool,
+    ended: Result<PublicKey, Error>,
+}
+
+/// One session whose operator makes its grant from the node's key and the
+/// binding, to a node whose check takes a grant that names the binding it
+/// gets ([`ends::binding`]) and that refuses each key at its door.
+async fn bound_session() -> Bound {
+    let (mut node_end, _) = node(identity(2), |_| Err("not in the test's list".into()));
+    let checked: Arc<Mutex<Option<pod_e2e::Binding>>> = Arc::default();
+    let seen = checked.clone();
+    node_end.redeem = Some(Arc::new(move |_: &PublicKey, _: &Ask, grant: &[u8]| {
+        let binding = ends::binding().ok_or("no binding")?;
+        *seen.lock().unwrap() = Some(binding.clone());
+        (grant == binding.bytes()).then(|| "a bound grant".to_string()).ok_or_else(|| "another binding".into())
+    }));
+    let minted: Arc<Mutex<Option<pod_e2e::Binding>>> = Arc::default();
+    let kept = minted.clone();
+    let mint = move |node_key: PublicKey, binding: pod_e2e::Binding| {
+        assert_eq!(node_key, identity(2).public(), "the maker gets the node's key");
+        let grant = binding.bytes().to_vec();
+        *kept.lock().unwrap() = Some(binding);
+        std::future::ready(Some(grant))
+    };
+    let at_target = Arc::new(Mutex::new(false));
+    let target_saw = at_target.clone();
+    let (mut app, app_end) = tokio::io::duplex(PIPE);
+    let (cipher, session) = ends::operator_bound(app_end, identity(1), |_| Ok(()), None, mint, None, |_| {});
+    tokio::spawn(async move {
+        ends::serve_node(cipher, &node_end, move || {
+            *target_saw.lock().unwrap() = ends::binding().is_some();
+            echo(Arc::default())()
+        })
+        .await
+    });
+    let session = tokio::spawn(session);
+    if let Ok(back) = echo_back(&mut app, b"bound").await {
+        assert_eq!(back, b"bound");
+    }
+    let _ = app.shutdown().await;
+    let ended = tokio::time::timeout(LIMIT, session).await.unwrap().unwrap();
+    let minted = minted.lock().unwrap().take();
+    let checked = checked.lock().unwrap().take();
+    let at_target = *at_target.lock().unwrap();
+    Bound { minted, checked, at_target, ended }
+}
+
+/// The operator's maker of a grant and the node's check of it get one
+/// binding; another channel of the same two keys gets another; the binding
+/// is there only inside the check of the grant.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn both_ends_of_a_channel_get_one_binding_and_another_channel_another() {
+    let first = bound_session().await;
+    assert!(first.ended.is_ok(), "{:?}", first.ended);
+    let minted = first.minted.expect("the operator's maker ran");
+    assert_eq!(Some(&minted), first.checked.as_ref(), "the two ends got two bindings");
+    assert!(!first.at_target, "the binding stays inside the check of the grant");
+    assert!(ends::binding().is_none(), "no binding outside a node's check");
+    let second = bound_session().await;
+    assert!(second.ended.is_ok(), "{:?}", second.ended);
+    assert_ne!(second.minted.as_ref(), Some(&minted), "two channels share a binding");
+}
