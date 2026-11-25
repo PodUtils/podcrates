@@ -296,7 +296,8 @@ impl Tunnel {
             Err(failed) => return Err(no_leg_worked(&plan, failed)),
         };
         for (i, err) in &won.failures {
-            host.event(Event::warn("tunnel.leg_failed", format!("the edge leg {} failed: {err}", plan[*i])));
+            let why = err.chain();
+            host.event(Event::warn("tunnel.leg_failed", format!("the edge leg {} failed: {why}", plan[*i])));
         }
         let kind = plan[won.index];
         host.event(Event::info("tunnel.leg", format!("the edge leg {kind} won after {} ms", won.after.as_millis())));
@@ -346,7 +347,8 @@ impl Tunnel {
                         let endpoint = match source.endpoint(1).await {
                             Ok(endpoint) => endpoint,
                             Err(err) => {
-                                let text = format!("the edge connection {index} did not register: {err}");
+                                let why = err.chain();
+                                let text = format!("the edge connection {index} did not register: {why}");
                                 runtime.host().event(Event::warn("tunnel.leg_failed", text));
                                 return None;
                             }
@@ -374,7 +376,8 @@ impl Tunnel {
                                 .await
                             }
                             Err(err) => {
-                                let text = format!("the edge connection {index} did not register: {err}");
+                                let why = err.chain();
+                                let text = format!("the edge connection {index} did not register: {why}");
                                 runtime.host().event(Event::warn("tunnel.leg_failed", text));
                                 None
                             }
@@ -426,7 +429,8 @@ impl Tunnel {
                                         Some(leg)
                                     }
                                     Err(err) => {
-                                        let text = format!("the edge connection {index} did not register: {err}");
+                                        let why = err.chain();
+                                        let text = format!("the edge connection {index} did not register: {why}");
                                         runtime.host().event(Event::warn("tunnel.leg_failed", text));
                                         return None;
                                     }

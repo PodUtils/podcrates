@@ -61,7 +61,11 @@ apply to them.
 9. **Typed failures.** An error carries its stage (podnet's `Hop`: the
    proxy, DNS, TLS, the edge, the relay, WARP) and its class (podnet's
    `Fault`: usage, unavailable, config, protocol and the rest). The
-   consumer maps the class to its exit code. Counters (podnet's
+   consumer maps the class to its exit code. The text of a failure says
+   its own step, and `Failure::chain` says the causes: a failure does not
+   hold the text of its cause and the cause. A reader of a line uses
+   `Failure::chain`, or joins each text of the chain (anyhow's `{:#}`);
+   each says each cause once. Counters (podnet's
    `decisions`, `metrics`) go to an `Observer` that the consumer gives.
 10. **Names of the consumer are parameters.** An AppID, a user agent
     (podssh builds `podssh/VERSION` in about 15 places), a client name.

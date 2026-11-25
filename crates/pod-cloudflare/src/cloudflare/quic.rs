@@ -129,8 +129,8 @@ pub async fn dial_any(endpoint: &Endpoint, edges: &[EdgeAddr]) -> Result<noq::Co
         match dial(endpoint, addr).await {
             Ok(conn) => return Ok(conn),
             Err(err) => {
-                tracing::debug!(error = %err, "QUIC edge attempt failed");
-                failures.push(err.to_string());
+                tracing::debug!(error = %err.chain(), "QUIC edge attempt failed");
+                failures.push(err.chain());
             }
         }
     }

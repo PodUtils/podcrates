@@ -159,7 +159,7 @@ where
             }
             Ok(None) => return,
             Err(err) => {
-                debug!(error = %err, "the control stream sent a bad message");
+                debug!(error = %err.chain(), "the control stream sent a bad message");
                 return;
             }
         }
@@ -306,7 +306,7 @@ impl<W: AsyncWrite + Unpin> Session<W> {
                         Ok(true) => {}
                         Ok(false) => return,
                         Err(err) => {
-                            debug!(error = %err, "control stream error");
+                            debug!(error = %err.chain(), "control stream error");
                             return;
                         }
                     }
@@ -420,7 +420,7 @@ impl<W: AsyncWrite + Unpin> Session<W> {
                 let _ = self.send(finish(question, true)).await;
                 debug!("unregistered the connection");
             }
-            Ok(Err(err)) => debug!(error = %err, "unregisterConnection failed"),
+            Ok(Err(err)) => debug!(error = %err.chain(), "unregisterConnection failed"),
             Err(_) => debug!("unregisterConnection timed out"),
         }
     }

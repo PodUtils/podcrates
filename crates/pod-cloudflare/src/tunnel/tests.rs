@@ -34,7 +34,7 @@ async fn a_retryable_refusal_of_the_first_registration_is_tried_again() {
     .await
     .unwrap_err();
     assert_eq!(calls, 1);
-    assert!(format!("{err:#}").contains("retry: no"));
+    assert!(err.chain().contains("retry: no"));
     // Retry: yes at each try: the tries stop at the end of the budget, and
     // the last refusal comes back with its class and its type.
     let started = tokio::time::Instant::now();

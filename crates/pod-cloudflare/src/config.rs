@@ -250,7 +250,7 @@ impl ReconnectPolicy {
             }
         }
         if attempt >= self.max_attempts {
-            return Next::Stop(format!("{} attempts failed; the last: {err:#}", attempt));
+            return Next::Stop(format!("{attempt} attempts failed; the last: {}", err.chain()));
         }
         Next::Retry(self.backoff_with_jitter(attempt + 1))
     }

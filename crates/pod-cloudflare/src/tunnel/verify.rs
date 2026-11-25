@@ -68,7 +68,7 @@ pub(super) async fn verify_fetch(
             Err(err) => {
                 last_status = None;
                 if is_resolution_failure(&err) {
-                    last = format!("waiting for DNS: {err:#}");
+                    last = format!("waiting for DNS: {}", err.chain());
                     if attempt == 1 && crate::fail::stage_of(&err) == Some(Stage::Dns) {
                         let text =
                             format!("this host does not resolve the new name yet; {}", host.settings.words.resolve);
@@ -76,7 +76,7 @@ pub(super) async fn verify_fetch(
                     }
                 } else {
                     resolution_only = false;
-                    last = format!("{err:#}");
+                    last = err.chain();
                 }
             }
         }

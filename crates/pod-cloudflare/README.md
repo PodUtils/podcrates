@@ -18,7 +18,9 @@ adoption trial in podnet is open.
 The crate reads no environment variable and no file that the caller does
 not name, prints nothing and keeps no process state. Each failure is a
 `pod_core::Failure` with its stage (`EdgeRegister`, `EdgeStream`, `Quic`,
-`Tls`, `Dns`, `Origin`, `Relay`, `Warp`, `Host`) and its class; a line for
+`Tls`, `Dns`, `Origin`, `Relay`, `Warp`, `Host`) and its class. Its text
+says its own step; `Failure::chain` (or a join of each text of the chain,
+anyhow's `{:#}`) says the causes, each once. A line for
 the user is a `pod_core::Event` of the caller's `Report`; a decision goes to
 its `Observer`. The TLS provider, the way out, the resolver, the relay and
 WARP are the caller's: the `Host`.

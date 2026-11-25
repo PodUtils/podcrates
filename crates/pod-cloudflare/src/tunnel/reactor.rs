@@ -146,8 +146,9 @@ pub(super) async fn reactor(
                     metrics.error();
                     match policy.next(attempt, &err) {
                         Next::Retry(wait) => {
+                            let why = err.chain();
                             let text = format!(
-                                "the reconnect {attempt} of the edge connection {conn_index} failed: {err}; the next one is in {} s",
+                                "the reconnect {attempt} of the edge connection {conn_index} failed: {why}; the next one is in {} s",
                                 wait.as_secs()
                             );
                             runtime.host().event(Event::warn("tunnel.reconnect", text));

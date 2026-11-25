@@ -15,7 +15,7 @@ fn the_next_step_follows_the_flags_of_the_edge() {
             "registering",
         )
     };
-    let text = format!("{:#}", refused(false, 0));
+    let text = refused(false, 0).chain();
     assert!(text.contains(&format!("podnet speaks {}", crate::cloudflare::speaks())), "{text}");
     assert!(crate::cloudflare::speaks().starts_with("cloudflared 20"), "{text}");
     match policy.next(1, &refused(false, 0)) {
@@ -52,7 +52,7 @@ fn load_file_follows_cloudflared() {
     let path = dir.path().join("config.yml");
     let load = |text: String| {
         std::fs::write(&path, text).unwrap();
-        load_file(&path).map_err(|e| format!("{e:#}"))
+        load_file(&path).map_err(|e| e.chain())
     };
     let c = creds.display();
     let catch_all = "ingress:\n  - service: http://127.0.0.1:1\n";
@@ -102,7 +102,7 @@ fn load_file_reads_a_cloudflared_config() {
     assert!(config.ingress.rules[0].origin.no_tls_verify);
 
     std::fs::write(&path, "ingress:\n  - service: a\n    service: b\n").unwrap();
-    let err = format!("{:#}", load_file(&path).unwrap_err());
+    let err = load_file(&path).unwrap_err().chain();
     assert!(err.contains("line 3: the key \"service\" is given two times"), "{err}");
 }
 
@@ -113,7 +113,7 @@ fn a_token_key_makes_a_named_tunnel() {
     let path = dir.path().join("config.yml");
     let load = |text: String| {
         std::fs::write(&path, text).unwrap();
-        load_file(&path).map_err(|e| format!("{e:#}"))
+        load_file(&path).map_err(|e| e.chain())
     };
     let id = "ffd86bd5-1bff-456b-8c2c-75a014cdc4c8";
     let token = crate::cloudflare::http2::base64_encode(
@@ -146,7 +146,7 @@ fn url_and_hello_world_make_a_catch_all_rule() {
     let path = dir.path().join("config.yml");
     let load = |text: &str| {
         std::fs::write(&path, text).unwrap();
-        load_file(&path).map_err(|e| format!("{e:#}"))
+        load_file(&path).map_err(|e| e.chain())
     };
     let config = load("url: http://127.0.0.1:8080\n").unwrap();
     assert_eq!(config.ingress.rules.len(), 1);
@@ -177,7 +177,7 @@ fn a_path_is_a_regular_expression() {
             "ingress:\n  - service: http_status:404\n    path: {rule_path}\n  - path: '{rule_path}'\n    service: http://127.0.0.1:1\n  - service: http_status:503\n"
         );
         std::fs::write(&path, text).unwrap();
-        load_file(&path).map_err(|e| format!("{e:#}"))
+        load_file(&path).map_err(|e| e.chain())
     };
     let config = load("^/api/.*$").unwrap();
     let ingress = &config.ingress;
@@ -274,7 +274,7 @@ fn a_misspelt_rule_key_is_an_error() {
     let path = dir.path().join("config.yml");
     let load = |text: &str| {
         std::fs::write(&path, text).unwrap();
-        load_file(&path).map_err(|e| format!("{e:#}"))
+        load_file(&path).map_err(|e| e.chain())
     };
     let err =
         load("ingress:\n  - hostnam: a.example.com\n    service: http://127.0.0.1:1\n  - service: http_status:404\n")
@@ -320,7 +320,7 @@ fn config_errors_are_clear() {
     let path = dir.path().join("config.yml");
     let load = |text: &str| {
         std::fs::write(&path, text).unwrap();
-        load_file(&path).map(|_| ()).map_err(|e| format!("{e:#}"))
+        load_file(&path).map(|_| ()).map_err(|e| e.chain())
     };
     let err = load("- a\n- b\n").unwrap_err();
     assert!(err.contains("must be a mapping"), "{err}");
@@ -348,7 +348,7 @@ fn a_credentials_file_error_names_the_field() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("c.json");
     std::fs::write(&path, r#"{"AccountTag":"a","TunnelSecret":"AAAA"}"#).unwrap();
-    let err = format!("{:#}", parse_credentials_file(&path).unwrap_err());
+    let err = parse_credentials_file(&path).unwrap_err().chain();
     assert!(err.contains("TunnelID"), "{err}");
     assert!(!err.contains("not JSON"), "{err}");
 }
@@ -359,7 +359,7 @@ fn ha_connections_of_a_file_is_checked() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("config.yml");
     std::fs::write(&path, "ha-connections: 9\n").unwrap();
-    let err = format!("{:#}", load_file(&path).unwrap_err());
+    let err = load_file(&path).unwrap_err().chain();
     assert!(err.contains("not from 1 to 8"), "{err}");
 }
 
