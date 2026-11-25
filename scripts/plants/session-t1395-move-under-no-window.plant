@@ -1,0 +1,8 @@
+# The bound past the mark of a move counts no window of the far end: the
+# far end's bytes in flight, each in a record of its own, pass it, and a
+# move at `move_under` lets the old leg reach the relay's cap (T-1395,
+# PodUtils/podnet#756).
+ENTRY=T-1395
+GROUP=session
+EXPECT='under the bound of'
+RUN='cargo test -p pod-session --all-features --test session_mark'
