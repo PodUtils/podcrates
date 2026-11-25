@@ -20,15 +20,28 @@ fn the_peer_of_a_pair_is_this_process() {
     assert_eq!(ids.pid, Some(std::process::id()));
 }
 
+/// The directory of a test under the temporary directory, for this process.
+fn base_dir(name: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("pb-{name}-{}", std::process::id()))
+}
+
 /// A new directory of exactly `len` bytes under the temporary directory.
 fn long_dir(name: &str, len: usize) -> PathBuf {
-    let base = std::env::temp_dir().join(format!("pb-{name}-{}", std::process::id()));
+    let base = base_dir(name);
     let _ = std::fs::remove_dir_all(&base);
     let room = len.checked_sub(base.as_os_str().len() + 1).expect("a temporary directory shorter than the test");
     let dir = base.join("d".repeat(room));
     std::fs::create_dir_all(&dir).unwrap();
     assert_eq!(dir.as_os_str().len(), len);
     dir
+}
+
+/// The shortest directory that `remove_long` removes: one byte under the
+/// base of `long_dir`. The temporary directory of macOS is about 50 bytes,
+/// so a test that needs a direct bind (under 104 bytes) takes this
+/// directory and not an exact length.
+fn near_dir(name: &str) -> PathBuf {
+    long_dir(name, base_dir(name).as_os_str().len() + 2)
 }
 
 /// The directory of `long_dir` and each file in it go.
@@ -70,7 +83,7 @@ fn remove_long_after(dir: &Path, f: impl FnOnce()) {
 /// leaf `s` of the stage, and `link(2)` takes a name of up to 255 bytes.
 #[test]
 fn a_file_name_longer_than_sun_path_binds() {
-    let dir = long_dir("name", 40);
+    let dir = near_dir("name");
     let path = dir.join("n".repeat(110));
     let listener = bind_staged(&path, 0o600);
     remove_long_after(&dir, || {
@@ -81,7 +94,7 @@ fn a_file_name_longer_than_sun_path_binds() {
 
 #[test]
 fn a_file_name_past_255_bytes_fails_with_one_clear_line() {
-    let dir = long_dir("toolong", 40);
+    let dir = near_dir("toolong");
     let path = dir.join("n".repeat(256));
     let e = bind_staged(&path, 0o600).expect_err("a name of 256 bytes");
     let names = std::fs::read_dir(&dir).unwrap().count();
@@ -95,7 +108,7 @@ fn a_file_name_past_255_bytes_fails_with_one_clear_line() {
 /// A new directory of mode 0700 for the links of a test: a route through
 /// it alone is the route of a host with no `/proc`.
 fn link_dir(name: &str) -> PathBuf {
-    let links = std::env::temp_dir().join(format!("pb-{name}-{}", std::process::id()));
+    let links = base_dir(name);
     let _ = std::fs::remove_dir_all(&links);
     std::fs::create_dir_all(&links).unwrap();
     std::fs::set_permissions(&links, std::fs::Permissions::from_mode(0o700)).unwrap();
@@ -165,7 +178,7 @@ fn a_client_reaches_a_socket_at_a_long_path() {
 /// answers; a path with no socket does not.
 #[test]
 fn a_socket_that_a_forked_child_holds_until_its_exec_is_stale() {
-    let dir = long_dir("held", 40);
+    let dir = near_dir("held");
     remove_long_after(&dir, || {
         let path = dir.join("held.sock");
         let listener = std::os::unix::net::UnixListener::bind(&path).unwrap();

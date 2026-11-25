@@ -219,8 +219,7 @@ fn quick_tunnel_standin_edge_certificate_needs_its_ca() {
 #[test]
 fn quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped() {
     pod_testkit::need_loopback!();
-    let standin = Standin::start();
-    let silent = std::net::UdpSocket::bind(standin.edge_addr).expect("a UDP socket on the edge port");
+    let Some((standin, silent)) = standin_with_udp() else { return };
     let (mut host, events) = standin.host(true, None);
     host.settings.udp = pod_cloudflare::udp::Choice::On;
     let config = pod_cloudflare::config::Config { protocol: Protocol::Auto, ..standin.config(Service::HelloWorld) };
@@ -243,6 +242,44 @@ fn quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped() {
     }
     assert!(last.is_none(), "no QUIC packet came: {last:?}");
     standin.block_on(handle.shutdown());
+}
+
+/// A stand-in whose edge port is also held by a UDP socket. The ports of
+/// TCP and UDP are separate, so the UDP socket binds first, and the edge
+/// takes its port. Windows gives `PermissionDenied` (10013) for a port in
+/// an excluded range: the pair goes again on a different port. When each
+/// try is refused, the test skips with the reason and the excluded ranges.
+fn standin_with_udp() -> Option<(Standin, std::net::UdpSocket)> {
+    use std::io::ErrorKind::{AddrInUse, PermissionDenied};
+    let mut errors = Vec::new();
+    for _ in 0..8 {
+        let udp = match std::net::UdpSocket::bind("127.0.0.1:0") {
+            Ok(udp) => udp,
+            Err(e) if matches!(e.kind(), AddrInUse | PermissionDenied) => {
+                errors.push(format!("udp: {e}"));
+                continue;
+            }
+            Err(e) => panic!("a UDP socket on the loopback: {e}"),
+        };
+        let at = udp.local_addr().unwrap();
+        match Standin::start_at(at) {
+            Ok(standin) => return Some((standin, udp)),
+            Err(e) if matches!(e.kind(), AddrInUse | PermissionDenied) => errors.push(format!("tcp {at}: {e}")),
+            Err(e) => panic!("the edge on {at}: {e}"),
+        }
+    }
+    pod_testkit::host::skip_line(&format!("this host refuses each port pair of TCP and UDP: {errors:?}"));
+    #[cfg(windows)]
+    for protocol in ["udp", "tcp"] {
+        let arg = format!("protocol={protocol}");
+        let netsh =
+            std::process::Command::new("netsh").args(["int", "ipv4", "show", "excludedportrange", &arg]).output();
+        if let Ok(out) = netsh {
+            let ranges = String::from_utf8_lossy(&out.stdout);
+            pod_testkit::host::skip_line(&format!("excluded {protocol} ports: {}", ranges.trim()));
+        }
+    }
+    None
 }
 
 /// A proxy at the standard input and output of a command: the proxy

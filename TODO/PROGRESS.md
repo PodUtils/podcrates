@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 987 entries: 155 open, 28 partial, 7 blocked, 797 done.
+`TODO/INDEX.md` holds 987 entries: 153 open, 28 partial, 7 blocked, 799 done.
 
 ## State
 
@@ -46,8 +46,9 @@
   `riscv64` and `loongarch64` fail in `pod-iroh` (`road.rs`, `share.rs`:
   T-916; Q19); the riscv64 job took 127 of its 150 minutes and
   `session_resume_twice` ended in 91 s (T-938, partial); both macOS jobs
-  fail in three tests of `files::socket` of `pod-core` (T-1359); the job of
-  Windows ARM64 fails in the UDP bind of `quick_tunnel_standin` (T-1360).
+  fail in three tests of `files::socket` of `pod-core` (T-1359, done on
+  `main`); the job of Windows ARM64 fails in the UDP bind of
+  `quick_tunnel_standin` (T-1360, done on `main`).
   T-789 and T-766 passed again (partial in the record). `ci.yml` run
   45487233017 (`25747d3b`, the fix of T-1295): each job passes but `static
   (aarch64-apple-darwin, macos-15-intel)`, which met its limit of 40
@@ -98,7 +99,7 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in
-podcrates: the red nightly (T-1359, T-1360, T-916, T-938), the macOS job of `ci` (T-1325),
+podcrates: the red nightly (T-916, T-938; read the macOS and Windows ARM64 jobs of the next `nightly.yml` run), the macOS job of `ci` (T-1325),
 T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
 `services.yml` run (read it) and the red live run (T-963). Then the asks of podrunner
 (COORD-134, #225): each new ask of podrunner. Then the entries that a need
