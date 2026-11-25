@@ -12686,7 +12686,7 @@ A test signs with an ECDSA issuer and with a closure issuer, and `ssh-keygen -L`
 
 ## Problem
 
-The text of the ask: "A resumable session moves to a new leg after `move_bytes` (`resume::MOVE_BYTES`, 48 MiB). The old leg still carries bytes while the new leg opens. The worst case before the move is `move_bytes + PAIR_WINDOW (768 KiB) + 2 * CHUNK (64 KiB) + 64` (podnet's study H-19, `docs/research/podnet/hard-problems-results.md`). A caller that sets `move_bytes` for a relay with a small cap has no function for that bound: podnet's test `transfer_over_the_relay_crosses_the_cap` (a fake relay with a cap of 1 MiB) moved at 256 KiB and crossed the cap by 1033 bytes under load. podnet now moves at 160 KiB in the test, a number that podnet computed by hand from the constants of the crate."
+The text of the ask: "A resumable session moves to a new leg after `move_bytes` (`resume::MOVE_BYTES`, 48 MiB). The old leg still carries bytes while the new leg opens. The worst case before the move is `move_bytes + PAIR_WINDOW (768 KiB) + 2 * CHUNK (64 KiB) + 64` (podnet's study H-19, `PodUtils/podnet:docs/research/podnet/hard-problems-results.md`). A caller that sets `move_bytes` for a relay with a small cap has no function for that bound: podnet's test `transfer_over_the_relay_crosses_the_cap` (a fake relay with a cap of 1 MiB) moved at 256 KiB and crossed the cap by 1033 bytes under load. podnet now moves at 160 KiB in the test, a number that podnet computed by hand from the constants of the crate."
 
 The asks:
 
