@@ -15,7 +15,8 @@
   COORD-155 (#260) of `v0.84.0` is closed: each consumer took it.
 - On `main` after `v0.85.0`, for the next tag: T-1389 (`pod-enter`, the
   required tmpfs, PodUtils/podvm#667), T-1392 to T-1394 (`pod-dns`,
-  `pod-proxy`, `pod-cloudflare`; PodUtils/podnet#753 to #755), T-1446 and
+  `pod-proxy`, `pod-cloudflare`; PodUtils/podnet#753 to #755), T-1395
+  (`pod-session`, `move_under`; PodUtils/podnet#756), T-1446 and
   T-1447 (the nightly). `docs/HANDOFF.md` has the steps of the consumers.
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
   not on `main`. `release.yml` has steps that run on a tag only, which the
@@ -126,7 +127,8 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   payload); T-927 (PodUtils/podvm#584); T-1391 (a pinned static
   `mkfs.erofs`, PodUtils/podvm#668, COORD-251); T-1321 (a C backend of
   `pod-gzip`, measured).
-- podnet: T-1343 (partial: `new_temp_dir` and `new_temp_file` are on
+- podnet: T-1451 (`Offer::fit` of `pod-relay` takes `Settings::under_cap`),
+  T-1450 (the record heads against the window of a link), T-1452; T-1343 (partial: `new_temp_dir` and `new_temp_file` are on
   `main`, in `v0.84.0`; the moves of the other crates remain;
   PodUtils/podnet#711, COORD-119); T-1377 and T-1378 (a failure whose
   text holds the words of its cause: `pod-proxy`, the enrolment of
