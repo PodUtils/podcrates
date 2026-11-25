@@ -8498,7 +8498,7 @@ For the hand-off to podnet: the new `DialError::ProxyExited`, `ChildIo::{stderr_
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8566,5 +8566,54 @@ that the line has no word of a relay or of HTTP.
 ```sh
 cargo test -p pod-ws --all-features
 cargo test -p pod-relay --all-features
-sh scripts/plant-each.sh ws-ended-shown-as-a-refusal
+sh scripts/plant-each.sh ws-ended-shown-as-a-refusal relay-ended-tried-at-another-host relay-node-ended-connects-again
 ```
+
+## Done
+
+2026-11-25. Commit: see `git log` for T-1396.
+
+Result: `ConnectError::Ended(String)` of `pod-ws`. Its `Display` is the
+words alone; `stage_and_class` is `(Stage::Session,
+Class::Unavailable)`, exit code 69 (`Class::NotFound` is 66 in
+`pod-core`, so it does not keep 69 there); `cut` is none;
+`Extra::masked` masks its words. In `pod-relay`:
+`another_host_may_help` is false and `failures::reason` is none;
+`refused_for_good` of the forward layer and `decisive` of the QUIC road
+take it; a node ends with `Exit::Unusable(words)` and opens no second
+socket. The README of `pod-ws` names the variant, its test and its
+plant, and the step of podssh in its adoption map.
+
+Tests: `client::ended_tests::an_ended_stream_is_shown_in_its_own_words`
+(no "relay", no "HTTP", no "410"),
+`client::ended_tests::an_ended_stream_is_out_of_reach_with_exit_code_69`,
+the mask in `headers::tests::a_value_quoted_back_is_masked_and_the_status_stays`
+(`pod-ws`); `open::tests::an_ended_stream_stops_the_failover` (a dial
+tries the next host, `Ended` does not),
+`forward_layer::client::tests::a_refusal_that_a_new_link_gets_again_ends_the_session`,
+`quic_road::tests::only_the_relay_s_answer_ends_the_race`, and `tests/reverse_ended.rs`
+(`an_ended_stream_ends_the_node_with_its_own_words_and_no_second_socket`:
+a carrier's door that gives `Ended` is opened one time).
+
+Plants: `scripts/plants/ws-ended-shown-as-a-refusal.plant` (the words
+of a relay and of HTTP 410), `scripts/plants/relay-ended-tried-at-another-host.plant`
+(`another_host_may_help` true) and
+`scripts/plants/relay-node-ended-connects-again.plant` (the arm of the
+node removed): 3 caught, 0 missed or stale. The patch of
+`scripts/plants/relay-t643-426-reconnects.plant` is made again on the
+new `node.rs`; `sh scripts/plant-each.sh --apply`: 0 stale.
+
+Commands: `cargo test -p pod-ws --all-features` passes (18 targets, 170
+tests); `cargo test -p pod-relay --all-features` passes (55 targets,
+517 tests); `cargo clippy -p pod-ws -p pod-relay -p pod-egress -p
+pod-piping -p pod-iroh -p pod-services-watch --all-targets
+--all-features -- -D warnings` and `cargo fmt --all --check` exit 0.
+
+For the hand-off: `ConnectError` is not `non_exhaustive`, and podssh and
+podnet match it with a wildcard arm at each site; podvm does not name
+it. No build of a consumer breaks. podssh returns `Ended(body)` from
+`start_again` of its carrier and adds `ConnectError::Ended(_)` to
+`is_final` of `layered.rs`; its `masked_error` (`podssh-ws/src/access.rs`)
+can mask the words too. podnet's `dial_again` and `next` of
+`relay_reverse/resume.rs` try `Ended` again, but no road of podnet makes
+one. Not measured: a run of podssh with the variant.
