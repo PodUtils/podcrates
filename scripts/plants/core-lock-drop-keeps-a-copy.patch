@@ -1,0 +1,13 @@
+diff --git a/crates/pod-core/src/lock.rs b/crates/pod-core/src/lock.rs
+index 71dc6564..7c0f2769 100644
+--- a/crates/pod-core/src/lock.rs
++++ b/crates/pod-core/src/lock.rs
+@@ -140,7 +140,7 @@ impl Drop for FileLock {
+         // A copy of the descriptor in a child before its exec keeps a lock
+         // that only a close releases. The close follows, so an error here
+         // changes nothing.
+-        let _ = self.file.unlock();
++        let _ = &self.file;
+     }
+ }
+ 

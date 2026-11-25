@@ -1,0 +1,13 @@
+diff --git a/crates/pod-e2e/src/channel/carry.rs b/crates/pod-e2e/src/channel/carry.rs
+index f177babe..d5a0c939 100644
+--- a/crates/pod-e2e/src/channel/carry.rs
++++ b/crates/pod-e2e/src/channel/carry.rs
+@@ -94,7 +94,7 @@ fn open(
+ /// at a node the application is the target, not the stream under the
+ /// channel.
+ fn of_app(at_node: bool) -> impl Fn(std::io::Error) -> Error + Copy {
+-    move |e| if at_node { Error::Target(e) } else { Error::Io(e) }
++    move |e| { let _ = at_node; Error::Io(e) }
+ }
+ 
+ /// The direction out: whether it ended, or a hold stopped it. `first` are
