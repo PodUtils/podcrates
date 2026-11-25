@@ -8263,3 +8263,89 @@ not the same bytes.
 ```sh
 cargo test -p pod-term --all-features transfer
 ```
+
+# T-1392: `pod-dns`: the line of a name that does not resolve is cut inside the text of a cause, and it names the cause of one group of resolvers only (PodUtils/podnet#753)
+
+**Source:** PodUtils/podnet#753 (COORD-123 of podnet, PodUtils/podnet@T-575; author COLLABORATOR)
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podnet `0.4.0-beta.19` on podcrates `v0.84.0` (`bench`, `connect`,
+`tunnel`, `relay connect`, `forward`) prints:
+
+```text
+could not resolve nothing.invalid: system resolver: failed to lookup address information: Name does not resolve; DNS over HTTPS: 8 resolvers failed, 4 with: TLS: invalid peer certificate: cert...
+could not resolve example.com: system resolver: failed to lookup address information: Try again; DNS over HTTPS: 8 resolvers failed, 4 with: could not connect: Address family not supported...
+```
+
+`order::fit` cuts the joined failures of the sources at `LINE` (160
+bytes) with `pod_core::text::clip`, so the cut falls inside the text of a
+cause. `lookup::fold` names only the cause of the largest group of
+resolvers: the line does not give the cause of the other 4. The cut hides
+the cause that the user must act on (a TLS middlebox answers DNS over
+HTTPS: `UnknownIssuer`).
+
+The ask:
+
+1. A cut never falls inside the text of a cause. To fit the bound, drop
+   the detail of a cause at a part boundary (`: `) and keep its head
+   (`TLS: invalid peer certificate: UnknownIssuer` keeps the issuer word),
+   or name the cause by its class.
+2. `fold` names each group of one cause once:
+   `8 resolvers failed: 4 with CAUSE-A; 4 with CAUSE-B`. A group of one
+   resolver names it.
+3. The bound stays (podnet pins 300 bytes for each error line,
+   `PodUtils/podnet:tests/error_words.rs`).
+4. A test with the two lines above as rows: no `...` inside a cause, and
+   each group of resolvers has its cause.
+
+## Premise
+
+- Read: the body of PodUtils/podnet#753; `crates/pod-dns/src/order.rs`
+  (`resolve_in`, `fit`, `LINE`); `crates/pod-dns/src/lookup.rs` (`over`,
+  `groups`, `fold`, `each`); `crates/pod-dns/src/way.rs` (`Way::lookup`
+  gives a `String`, and podssh and `pod-services-watch` read it);
+  `crates/pod-dns/src/resolver.rs` (`system` puts `system resolver: `
+  before the error); `pod_core::text::clip`.
+- Read: the text of a TLS failure comes from `pod_proxy::Missed::tls`:
+  `TLS: ` and the words of `pod_tls::handshake_failure`, with a hint after
+  `; ` for an unknown issuer.
+- Read: `PodUtils/podnet:tests/error_words.rs` (each error line under 300
+  bytes, with the words of podnet before the line of the dialer).
+- Measured: the two rows with each cause whole and the form of ask 2 need
+  217 and 233 bytes, more than `LINE`. So the cause of a row loses words at
+  a part boundary to fit the bound.
+- Not measured: the lines of podnet in its lab after the fix.
+
+## Approach
+
+1. `fold` gives `N resolvers failed: K with CAUSE; K with CAUSE`, each
+   group once, the largest first; a group of one resolver is `1 with
+   CAUSE`; a failure of no resolver (`out of time`) comes last, with no
+   count. The one-group forms stay.
+2. The failure of each source keeps its parts: its lead (the source and
+   the count) and its causes. The DNS over HTTPS lookup gives this form to
+   `resolve_in` in the crate; `Way::lookup` keeps its `String`.
+3. `fit` makes the causes brief in steps until the line fits, the longest
+   cause first in each step: (a) drop what follows the first `; ` (a
+   hint, a list of names); (b) drop the middle parts between `: `, keep
+   the head and the last part (`TLS: UnknownIssuer`); (c) keep the last
+   part (the words of the system). A lead and a source name stay. Only a
+   cause whose last part alone is longer than the bound is cut, as the
+   last resort.
+4. `LINE` stays 160 bytes.
+5. Tests: the two rows of the issue, with no `...` and each group with
+   its cause; a plant that brings back the cut inside a cause.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features --lib
+cargo clippy -p pod-dns --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh dns-cause-cut-inside
+```
