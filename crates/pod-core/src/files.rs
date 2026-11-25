@@ -2,7 +2,8 @@
 //! user names: each file is read only when it is a regular file of this
 //! user that nobody else can read (as ssh reads a key), and is written
 //! through a private temporary file and a rename. [`replace`] and
-//! [`Replace`] replace a file at any path atomically.
+//! [`Replace`] replace a file at any path atomically. [`new_temp_dir`] and
+//! [`new_temp_file`] make a new path with a random name.
 //!
 //! The places of the files come from the caller's [`App`]: the directory
 //! that its variable names, the user's cache directory, the user's runtime
@@ -25,6 +26,7 @@ mod replace;
 mod replace_mode;
 #[cfg(unix)]
 mod socket;
+mod temp;
 #[cfg(windows)]
 pub use closed_win::{PrivateAttributes, sid_of_process, user_sid};
 #[cfg(unix)]
@@ -36,6 +38,7 @@ pub use owner::{Host, make_dirs as make_dirs_with, passwd_home};
 pub use replace::{Commit, Failed, Mode, Replace, Step, replace, replace_private};
 #[cfg(unix)]
 pub use socket::{PeerIds, bind_staged, peer_ids, socket_answers};
+pub use temp::{new_temp_dir, new_temp_file};
 
 /// The largest cache file read (a pool of a few hundred host names fits).
 /// A larger one is not read: a cache file is ignored, and made again.

@@ -26,7 +26,8 @@ use windows_sys::Win32::Security::{
     PSECURITY_DESCRIPTOR, PSID, SECURITY_ATTRIBUTES, TOKEN_QUERY, TOKEN_USER, TokenUser,
 };
 use windows_sys::Win32::Storage::FileSystem::{
-    CREATE_NEW, CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
+    CREATE_NEW, CreateDirectoryW, CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_DELETE, FILE_SHARE_READ,
+    FILE_SHARE_WRITE,
 };
 use windows_sys::Win32::System::Threading::{
     GetCurrentProcess, OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION,
@@ -215,11 +216,7 @@ unsafe impl Send for PrivateAttributes {}
 impl PrivateAttributes {
     pub fn new() -> io::Result<PrivateAttributes> {
         let descriptor = private_descriptor(false)?;
-        let attributes = SECURITY_ATTRIBUTES {
-            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
-            lpSecurityDescriptor: descriptor.0,
-            bInheritHandle: 0,
-        };
+        let attributes = attributes_of(&descriptor);
         Ok(PrivateAttributes { attributes, _descriptor: descriptor })
     }
 
@@ -256,6 +253,16 @@ fn descriptor(sddl: &str) -> io::Result<Descriptor> {
     Ok(Descriptor(descriptor))
 }
 
+/// The security attributes of a create with `descriptor`, not inherited
+/// by a child process; valid while `descriptor` lives.
+fn attributes_of(descriptor: &Descriptor) -> SECURITY_ATTRIBUTES {
+    SECURITY_ATTRIBUTES {
+        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
+        lpSecurityDescriptor: descriptor.0,
+        bInheritHandle: 0,
+    }
+}
+
 fn wide(path: &Path) -> Vec<u16> {
     path.as_os_str().encode_wide().chain(Some(0)).collect()
 }
@@ -273,11 +280,7 @@ pub(crate) fn create_new_public(path: &Path) -> io::Result<File> {
 }
 
 fn create_new(path: &Path, descriptor: &Descriptor) -> io::Result<File> {
-    let attributes = SECURITY_ATTRIBUTES {
-        nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
-        lpSecurityDescriptor: descriptor.0,
-        bInheritHandle: 0,
-    };
+    let attributes = attributes_of(descriptor);
     let name = wide(path);
     // SAFETY: `name` ends with a NUL, and `attributes` and its descriptor
     // live through the call; the handle that comes back is the file's.
@@ -297,6 +300,22 @@ fn create_new(path: &Path, descriptor: &Descriptor) -> io::Result<File> {
     }
     // SAFETY: a handle that this call opened, owned by the File from now on.
     Ok(unsafe { File::from_raw_handle(handle as _) })
+}
+
+/// A new directory that only the user, SYSTEM and the Administrators may
+/// open, and whose new files and directories get the same list; never one
+/// that is there. The list comes with the create, so no other user can
+/// open the directory before it has its list.
+pub(crate) fn create_new_private_dir(path: &Path) -> io::Result<()> {
+    let descriptor = private_descriptor(true)?;
+    let attributes = attributes_of(&descriptor);
+    let name = wide(path);
+    // SAFETY: `name` ends with a NUL, and `attributes` and its descriptor
+    // live through the call.
+    if unsafe { CreateDirectoryW(name.as_ptr(), &attributes) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(())
 }
 
 /// `dir` made, a real directory, and closed to others: when its list lets

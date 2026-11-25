@@ -1,0 +1,13 @@
+diff --git a/crates/pod-core/src/files/temp.rs b/crates/pod-core/src/files/temp.rs
+--- a/crates/pod-core/src/files/temp.rs
++++ b/crates/pod-core/src/files/temp.rs
+@@ -83,7 +83,8 @@
+ 
+ /// The random part of a name: [`RANDOM_DIGITS`] hex digits.
+ pub(super) fn random_part() -> String {
+-    random_from(&mut OsEntropy)
++    let _ = OsEntropy;
++    format!("{:016x}", std::process::id())
+ }
+ 
+ /// The random part from `source`. When the source gives no bytes (a

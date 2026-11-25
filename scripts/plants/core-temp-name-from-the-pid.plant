@@ -1,0 +1,8 @@
+# pod-core: the random part of a new temporary name is the pid alone, so
+# two calls of one process, and two processes of one pid in two PID
+# namespaces, take one name (T-1343, PodUtils/podnet#711).
+ENTRY=T-1343
+GROUP=core
+EXPECT='test files::temp::tests::two_calls_with_one_prefix_in_one_directory_give_two_paths \.\.\. FAILED'
+RUN='cargo test -p pod-core --all-features --lib files::temp'
+LIMIT=900

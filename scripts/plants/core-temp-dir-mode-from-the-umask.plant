@@ -1,0 +1,7 @@
+# pod-core: a new temporary directory keeps the mode that the umask left,
+# so a umask of 0277 gives 0500, not 0700 (T-1343).
+ENTRY=T-1343
+GROUP=core
+EXPECT='test files::temp::tests::the_modes_are_0700_and_0600_whatever_the_umask \.\.\. FAILED'
+RUN='cargo test -p pod-core --all-features --lib files::temp'
+LIMIT=900
