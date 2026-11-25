@@ -35,6 +35,22 @@ is done. Git and the record keep finished work.
      PodUtils/podnet#710 (COORD-118, T-1117, T-1118 and T-1209),
      PodUtils/podrunner#351 (COORD-129, T-1355) and PodUtils/podvm#663
      (COORD-247, T-1143, T-1158 and T-1307).
+   - A take of `v0.84.0`, verified: PodUtils/podssh#357 (COORD-147). The
+     commit `806e0a4` is on `main` of podssh, and each `Cargo.toml` there
+     that names a crate of podcrates names `tag = "v0.84.0"` and no other
+     tag. It takes PodUtils/podssh#340 (T-1095), #351 (T-1217 to T-1222),
+     #352 (T-1238) and #356 (T-1371); the bearer grant (#355, T-1367 and
+     T-1368) and the DNS carrier (#349, T-1167 and T-1168) are podssh's
+     open T-834 and T-900. It asks four things: T-1380 and T-1381
+     (`pod-tpm`: the time limit of `Tbs`, the owner's password in
+     `SoftTpm`), T-1382 (the trials of podssh and the `taken` line) and
+     T-1383 (`Mint` with an issuer that is not Ed25519).
+   - A take of `v0.84.0`, verified: PodUtils/podvm#666 (COORD-249). The
+     commit `04c8b7f4` is on `main` of podvm, and each `Cargo.toml` there
+     that names a crate of podcrates names `tag = "v0.84.0"` and no other
+     tag. It takes `pod_gzip::Members` (PodUtils/podvm#657, T-1196). It asks
+     nothing: the use of `pod_extract::flatten_with` (T-1193 to T-1195) is
+     a follow-up of podvm with its live proof pending.
    - A take of `v0.84.0`, to verify: PodUtils/podrunner#356 (COORD-134; it
      answers #352 and #353, and it asks nothing). The change of
      `docs/contracts/source-driver.md` that `check-sources.py` finds in
@@ -155,9 +171,24 @@ feature `transfer`) and its version 2 is in `v0.84.0`; it closes when
 podssh names the commit that wires the codec into its session (its
 T-831).
 
-Takes of `v0.84.0`: none verified. The body of #260 has one "- CONSUMER"
-line for each of the four consumers; the line changes at each verified
-take. podrunner: PodUtils/podrunner#356 (COORD-134) names the take at
+Takes of `v0.84.0`: podssh and podvm are verified. The body of #260 has one
+"- CONSUMER" line for each of the four consumers; the line changes at each
+verified take. podssh: PodUtils/podssh#357 (COORD-147) names the take at
+`806e0a4`. `git ls-remote` gives `806e0a4` as the head of `main` of
+podssh, and the 55 `Cargo.toml` files of that tree name `tag = "v0.84.0"`
+for each crate of podcrates and no other tag (`Cargo.lock` names no other).
+The line of podssh in #260 is the take line. The take replaces
+`vendor/h2` with `pod-h2`, makes `crates/podssh-ssh/src/tpm` glue over
+`pod-tpm`, adds `Class::Data` to the Dev Tunnels map, and signs the
+gateway certificate with `Mint::sign_with`. `check-sources.py` with a clone
+of podssh and the `taken` line of `pod-tpm` are in T-1382. podvm:
+PodUtils/podvm#666 (COORD-249; `PodUtils/podvm@T-2085`) names the take at
+`04c8b7f4`. `git ls-remote` gives `04c8b7f4` as the head of `main` of
+podvm, and each `Cargo.toml` of that tree that names a crate of podcrates
+names `tag = "v0.84.0"` and no other tag (`Cargo.lock` of the workspace
+names no other). The line of podvm in #260 is the take line. podvm uses
+`pod_gzip::Members` behind its selection of the upload space; the use of
+`flatten_with` is in a follow-up. podrunner: PodUtils/podrunner#356 (COORD-134) names the take at
 `72cd0ab` (T-1362 at `3391edc`, T-1370 at `f2716a1`), but `origin/main` of
 podrunner holds none of these three commits (its head is `f6a9a940`, and
 each `Cargo.toml` there names `v0.83.0`). The line of podrunner in #260
@@ -169,17 +200,19 @@ and run `check-sources.py` for `pod-testkit`, `pod-job`, `pod-unit`,
 
 The asks that #260 answers:
 
-- podvm: no take. `flatten` of `pod-extract` and `pod-gzip`
-  (PodUtils/podvm#657, T-1193 to T-1196), `Refusal::TooLong`,
-  `Refusal::Stream` and `Refusal::Link` (an exhaustive `match` adds three
-  arms), `Settings::write_timeout` and the field `cut` of
-  `ErrorKind::Incus` (T-1298, T-1307).
-- podssh: no take. `pod-tpm` (PodUtils/podssh#351), the fork `pod-h2` and
-  the removal of `vendor/h2` (PodUtils/podssh#340), the bare form and the
-  DoH form of the DNS carrier (PodUtils/podssh#349), the codec version 2
-  (PodUtils/podssh#353), the bearer grant and `Binding`
-  (PodUtils/podssh#355), `Mint::sign_with` (PodUtils/podssh#356), the
-  class `Data` and the table of codes (PodUtils/podssh#352).
+- podvm: took `pod-gzip` (`pod_gzip::Members`) at `04c8b7f4`
+  (PodUtils/podvm#666). Not named in its take: `flatten` of `pod-extract`
+  (PodUtils/podvm#657, T-1193 to T-1195; a follow-up of podvm),
+  `Refusal::TooLong`, `Refusal::Stream` and `Refusal::Link` (an exhaustive
+  `match` adds three arms), `Settings::write_timeout` and the field `cut`
+  of `ErrorKind::Incus` (T-1298, T-1307).
+- podssh: took `pod-tpm` (PodUtils/podssh#351), the fork `pod-h2` and the
+  removal of `vendor/h2` (PodUtils/podssh#340), `Mint::sign_with`
+  (PodUtils/podssh#356) and the class `Data` (PodUtils/podssh#352) at
+  `806e0a4` (PodUtils/podssh#357). Not taken yet: the bare form and the
+  DoH form of the DNS carrier (PodUtils/podssh#349; its T-900), the bearer
+  grant and `Binding` (PodUtils/podssh#355; its T-834), and the codec
+  version 2 (PodUtils/podssh#353; the take does not name it).
 - podnet: no take. The refusal replies of `pod-warp` (PodUtils/podnet#712,
   T-1365), the cause by issuer of the door (PodUtils/podnet#726, T-1366),
   the one cause of each failure of `pod-cloudflare` (T-1135), `new_temp_dir`
@@ -219,7 +252,8 @@ The asks that #260 answers:
 
 ### What the next hand-off carries
 
-- The takes of `v0.84.0` (#260): podssh, podvm, podnet and podrunner.
+- The takes of `v0.84.0` (#260): podnet and podrunner. podssh (`806e0a4`)
+  and podvm (`04c8b7f4`) named their takes.
 - podrunner: no open ask besides the take. T-1375 (a port of
   `source-driver.md` for `pod-testkit`) is open.
 - podvm: T-1321 (a C backend of deflate for `pod-gzip`, measured).
@@ -228,7 +262,9 @@ The asks that #260 answers:
   of a typed cause).
 - podssh: open: T-1169 (a test of the DNS carrier through `unbound`),
   T-1103 (iroh 1.5), T-1340 (a key file of `pod-tpm` in tpm2-openssl and
-  go-tpm-keyfiles).
+  go-tpm-keyfiles), T-1380 and T-1381 (`pod-tpm`: `Tbs`, `SoftTpm`),
+  T-1382 (the trials of podssh) and T-1383 (`Mint` with an issuer that is
+  not Ed25519).
 - Entries of podcrates that no one has started: T-1115 (the copies of the
   bind at a long path), T-1146 (the comments of `pod-natprobe` are not in
   ASD-STE100), T-1150 (a watch of the facts of RFC 5780 of `easybell-stun`).

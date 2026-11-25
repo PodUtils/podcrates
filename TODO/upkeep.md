@@ -6292,3 +6292,40 @@ Not taken from the commit, with the reason:
 
 Not verified: a run of the start in a harness other than Claude Code, on
 macOS, and in a Claude Code session (the hook ran by hand).
+
+# T-1382: `adoption/podssh`: the trials `pod-tpm` and `pod-h2` stay after podssh took `v0.84.0`, and the list of the files of `tpm/` in `pod-tpm.run` is not podssh's (PodUtils/podssh#357, ask 3)
+
+**Source:** PodUtils/podssh#357 (COORD-147 of podssh, the take of `v0.84.0` at `806e0a4`), ask 3, by a member of the team; T-1361, T-1363; `docs/maintenance.md`, "The take of a consumer".
+**Category:** chore
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The text of the ask: "`adoption/podssh/pod-tpm.run`: its `ls` list of the directory no longer matches: podssh keeps `agent*.rs`, `host*.rs`, `windows.rs` and `tbs.rs`." The patch was cut at podssh `3001570`, before podssh merged the rest of its T-839 (the TPM keys of the agent, the host key of `serve`, the TBS of Windows). podssh applied four of its deletions and three files by hand.
+
+podssh took `pod-tpm` and `pod-h2` at `806e0a4`. The procedure of a take then applies: the trial leaves `adoption/podssh/`, `SOURCES` gets the line `taken COMMIT`, and the entry of the take closes. The trial files `adoption/podssh/pod-tpm.*` and `adoption/podssh/pod-h2.*` are still in the tree.
+
+## Premise
+
+- Read: `adoption/podssh/pod-tpm.run` (the sixth command compares `ls crates/podssh-ssh/src/tpm` with `mod.rs other.rs policy_key.rs signer.rs ssh.rs testdata tests.rs unix.rs`); `adoption/podssh/pod-tpm.commit` and `adoption/podssh/pod-h2.commit` (both name `3001570a652aa9e48c6eb4dbd3ca7602f8a5854b`, so the trial runs at that commit and not at podssh's `main`); `adoption/README.md` ("When the consumer takes a crate, its trial leaves this directory"); `crates/pod-tpm/SOURCES` (the block `repo PodUtils/podssh` has no `taken` line).
+- Read in podssh at `806e0a4`: `PodUtils/podssh:crates/podssh-ssh/src/tpm` holds `agent.rs`, `agent_tests.rs`, `host.rs`, `host_tests.rs`, `mod.rs`, `other.rs`, `policy_key.rs`, `signer.rs`, `ssh.rs`, `tbs.rs`, `tests.rs`, `unix.rs`, `windows.rs` and `testdata`. Each `Cargo.toml` of podssh at `806e0a4` that names a crate of podcrates names `tag = "v0.84.0"` and no other tag (the 55 `Cargo.toml` files of the tree).
+- Not read: whether the trial `pod-tpm` still passes at `3001570` (the job `adoption (podssh)` of the last run of `adoption.yml` is the proof); `scripts/check-sources.py` with a clone of podssh; whether the fork `pod-h2` (the tree `vendor/h2` with `vendor/patches/h2/`) has a block of `SOURCES` that needs a `taken` line; the fork has no directory under `crates`.
+
+## Approach
+
+1. Run `scripts/check-sources.py --clone PodUtils/podssh=DIR pod-tpm`, with a clone of podssh at `806e0a4`, to read the drift of the files that podssh took. Each new change is a port entry (`TODO/RULES.md`).
+2. Add the line `taken 806e0a4...` (the full id) to the block `repo PodUtils/podssh` of `crates/pod-tpm/SOURCES`, for the files that the take replaced (`taken COMMIT PATH...` for the glue that stays: `mod.rs`, `signer.rs`). Run the check again: 0 changes.
+3. Remove `adoption/podssh/pod-tpm.*` and `adoption/podssh/pod-h2.*` (git keeps them). If `adoption/podssh/` holds no other trial, keep `repo` and `commit` as `adoption/podnet` and `adoption/podvm` do. Add the take to the list "Taken" in `adoption/README.md`.
+4. If the trial of another consumer needs the list of files of a module, make the list a pattern and not a fixed string; no other trial has this today (not read).
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podssh=SCRATCH/podssh pod-tpm
+sh scripts/adoption.sh podssh pod-tpm SCRATCH/adoption
+```
+
+The first command gives 0 changes. After step 3 the second command exits 66 (`pod-tpm.patch` is missing), and `ls adoption/podssh` lists `commit` and `repo` alone.
