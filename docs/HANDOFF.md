@@ -28,7 +28,9 @@ is done. Git and the record keep finished work.
    - The hand-off of `v0.85.0` is COORD-156 (#262). It answers
      PodUtils/podvm#664 (T-1379). Record each take on its body (the
      "Takes" lines, as #260), and close it when each consumer names the
-     tag (call C780).
+     tag (call C780). The take of podnet is `cb695dd` (PodUtils/podnet#757,
+     verified, on #262) and answered COORD-157 (#263: its role table is
+     in its `docs/hosted-sessions.md`).
    - Done on `main` after `v0.85.0`; answer each with the next tag:
      PodUtils/podvm#667 (COORD-250, T-1389), PodUtils/podnet#753 to #755
      (COORD-123 to COORD-125, T-1392 to T-1394).
