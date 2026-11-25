@@ -8203,3 +8203,63 @@ Tests: the vectors of the rows T1 to T9, F1 and the exchanges are at version 2 (
 Plants: `term-transfer-count` and `term-transfer-verify` patch `flow/receiver.rs` now, and `term-transfer-resend` takes the new lines of `flow.rs`; `sh scripts/plant-each.sh --apply` reports 0 stale. The new `scripts/plants/term-transfer-linger.plant` drops the verdict at the end of the session: `x14_a_kept_lost_in_an_upload_the_far_end_lingers_and_sends_it_again` fails with it and passes without it. The RUN of each of the six plants `term-transfer-*` fails with its patch and passes without it.
 
 For the hand-off: the wire version is 2, so a podssh of the codec of version 1 and one of version 2 do not meet (above). New items: `Ended::Unconfirmed` (the caller says "sent; the receiver did not confirm"), `Transfer::lingers`, `LINGER`, the frame `HOLD`, and the code `stop::UNSUPPORTED` at a `HELO` of another version. A far program that receives exits when `active()` and `lingers()` are both false. podssh changes its document of the terminal (`PodUtils/podssh:docs/terminal.md`, "The 7-bit envelope") to match the codec: the frame table with `HOLD`, the version 2 vectors, and the waits. Not measured: either case through a real tmux.
+
+# T-1390: `pod-term`: the transfer codec keeps each frame within the rows of the pane, with a floor of the chunk under 1 KiB and a resend at the floor (PodUtils/podssh#358)
+
+**Source:** PodUtils/podssh#358 (COORD-148 of podssh; author COLLABORATOR), finding 2. Item 1 of the issue (the codec is wired at podssh `97cebe6`, its T-831) closes COORD-153 (#258).
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podssh measured the codec of `v0.84.0` (version 2) through tmux 3.4 in a
+pane of 23 rows by 120 columns. When the client of tmux falls behind, tmux
+paints only the last screen: the lines that scroll off are never painted.
+A `DATA` frame of 2 KiB (about 23 rows) arrived with its `#DATA:` head cut
+off, and its resend (the same bytes, `resend` of `flow.rs`) was cut the
+same way; the near end stopped with "no frame in 64 KiB of output". A file
+of 500 bytes passed and one of 3,000 bytes failed. `CHUNK_MIN` (1 KiB) is
+also too tall for a narrow pane: at 48 columns, 1 KiB is about 30 rows.
+podssh writes each frame in parts of half its pane with 40 ms between the
+parts (1 MiB in 52 s); a codec that keeps a frame within the pane needs no
+pause.
+
+The ask: `set_size(cols, rows)` (or `set_rows`) beside `set_width`; a cap
+of the chunk so that the wrapped lines of a frame stay within the pane (for
+example `rows - 2`), sent to the peer in the chunk of `HELO` (the far end
+knows its pane, the near end does not); a floor under 1 KiB (for example
+256 B); and a resend after a loss that builds the frame again at the floor,
+not the same bytes.
+
+## Premise
+
+- Read: the body of PodUtils/podssh#358; `crates/pod-term/src/transfer.rs`
+  (`CHUNK_MIN` = 1024, `set_width`).
+- Not read: the frame layout and the size of a frame in rows for a chunk
+  and a width; the field of the chunk in `HELO`; whether a new field of
+  `HELO` needs version 3 of the codec or fits version 2 (a version 2 end
+  that reads an unknown field); the vectors of the codec.
+
+## Approach
+
+1. Compute the rows of a frame from its bytes and the width (the wrapped
+   lines). Add `set_size(cols, rows)`; `set_width` stays.
+2. Cap the chunk so that a frame takes at most `rows - 2` rows; carry the
+   cap of the far end in `HELO`, and let the near end take the smaller of
+   the two caps.
+3. A floor of 256 B under `CHUNK_MIN` when the pane is narrow or short.
+4. A resend after a loss builds the frame again at the floor.
+5. Decide version 3 or a compatible field of version 2 from the code;
+   change the vectors and `docs/` of the codec; give podssh the step in the
+   hand-off.
+6. Tests: a pane of 23 by 120 and of 23 by 48 keeps each frame within the
+   rows; a resend is at the floor; a version mismatch is refused, as now.
+
+## Prove
+
+```sh
+cargo test -p pod-term --all-features transfer
+```

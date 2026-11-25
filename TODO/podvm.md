@@ -15509,3 +15509,60 @@ caller chooses. The ask:
 cargo test -p pod-enter --all-features tmpfs
 sh scripts/plant-each.sh --apply
 ```
+
+# T-1391: A pinned static `mkfs.erofs` for a rootless disk image from a streamed OCI tar (PodUtils/podvm#668)
+
+**Source:** PodUtils/podvm#668 (COORD-251 of podvm, for PodUtils/podvm@T-1994 and PodUtils/podvm@T-1968; author COLLABORATOR).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm needs a rootless builder of a disk image from the full tar stream of
+an OCI image, for the machine tier. Its experiment 478 fed a tar on stdin
+to Debian `mkfs.erofs` 1.8.6 (`--tar=f`): the image kept late directory
+metadata, numeric ids, a setuid mode, a hard link, a symbolic link and the
+exact bytes of `system.posix_acl_access`, `security.capability` and
+`user.marker`. `sqfstar` 4.6.1 drops the access ACL and returns success
+(experiment 477). The ask: a shared static `mkfs.erofs` pin with its asset
+name, size and SHA-256 in `pod-services`, as `static-pkgs-qemu`, for
+x86_64 and aarch64 Linux. The tool takes a bounded full tar stream on
+stdin, builds one image with no privileges, keeps those records, and gives
+a usable failure when it cannot keep them. An adoption note names the
+build flags and the needs of scratch files or of the file system.
+
+## Premise
+
+- Read: the body of PodUtils/podvm#668; the service file
+  `crates/pod-services/services/static-pkgs-qemu.toml` and its entry in
+  `TODO/podvm.md`.
+- Not read: whether erofs-utils publishes static release assets; the
+  options of erofs-utils for a static build (liblz4, libzstd, libdeflate,
+  xxhash, libuuid, libselinux); the build recipes of PodUtils/static-pkgs.
+- The owner (2026-11-20): PodUtils/static-pkgs builds and publishes the
+  static programs that no one else publishes in the form that PodUtils
+  needs.
+
+## Approach
+
+1. Find a static `mkfs.erofs` of a trusted publisher. When none exists,
+   write the recipe in PodUtils/static-pkgs (erofs-utils at the latest
+   release, musl, static, with lz4 and zstd and no selinux), by the procedure
+   of `qemu-11.1.3`, for x86_64 and aarch64.
+2. Add the service file `static-pkgs-erofs-utils` (or the name of the
+   release) with the asset names, sizes and SHA-256 values, and a watch,
+   as `static-pkgs-qemu`.
+3. Test the pin on the fixture of podvm's experiment 478 (the tar records
+   above, read back with `fsck.erofs --extract` or `dump.erofs`), and with
+   a tar that has a record the format cannot keep: the tool fails.
+4. Write the adoption note (flags, scratch needs) in the README of
+   `pod-services`; name the tag in the answer to PodUtils/podvm#668.
+
+## Prove
+
+```sh
+cargo test -p pod-services --all-features
+```

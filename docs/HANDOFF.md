@@ -28,6 +28,8 @@ is done. Git and the record keep finished work.
      PodUtils/podrunner#354) is T-1379, done on `main`: answer it with the
      next tag; PodUtils/podvm#667 (COORD-250, for ask 5 of
      PodUtils/podrunner#296) is T-1389, after the tag;
+     PodUtils/podssh#358 (COORD-148) is T-1390 (its item 1 closed #258);
+     PodUtils/podvm#668 (COORD-251) is T-1391;
      PodUtils/podssh#357 (COORD-147) asks T-1380 to T-1383;
      PodUtils/podnet#711 (COORD-119) is T-1343 (partial);
      PodUtils/podssh#349 (COORD-139) is T-1169.
@@ -92,10 +94,7 @@ The hand-off COORD-155 (#260) is open. Its body has the digest of each
 image beside the SHA-256 of its asset, and the section of each consumer.
 It closes when each consumer names `v0.84.0` or a later tag (call C780).
 The hand-off COORD-154 (#259) of `v0.83.0` is closed. COORD-153 (#258)
-answers PodUtils/podssh#346: the codec is in `v0.83.0` (`pod-term`, the
-feature `transfer`) and its version 2 is in `v0.84.0`; it closes when
-podssh names the commit that wires the codec into its session (its
-T-831).
+is closed: podssh wires the codec at `97cebe6` (PodUtils/podssh#358).
 
 Takes of `v0.84.0`: podssh, podvm and podrunner are verified. The body of #260 has one
 "- CONSUMER" line for each of the four consumers; the line changes at each

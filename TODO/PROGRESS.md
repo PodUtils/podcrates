@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 1018 entries: 160 open, 30 partial, 6 blocked, 822 done.
+`TODO/INDEX.md` holds 1020 entries: 162 open, 30 partial, 6 blocked, 822 done.
 
 ## State
 
@@ -27,9 +27,9 @@
   `vendor/iroh-relay` at 1.4.2 for iroh 1.4.2 (T-1102, call C905) is in
   `v0.82.1`; T-1103 (iroh 1.5) follows.
 - podssh's ask PodUtils/podssh#346 (COORD-137 of podssh): the sans-IO
-  transfer codec is in `pod-term` (T-1144, `v0.83.0`); the answer is #258
-  (COORD-153), open until podssh names the commit that wires the codec
-  (its T-831).
+  transfer codec is in `pod-term` (T-1144, `v0.83.0`); podssh wires it at
+  `97cebe6` (PodUtils/podssh#358), and #258 (COORD-153) is closed. Its
+  finding through tmux is T-1390.
 - The tag that the `main` of each consumer names: `v0.84.0` (podssh,
   PodUtils/podssh#357; podvm, PodUtils/podvm#666; podrunner,
   PodUtils/podrunner#356); `v0.83.0` (podnet, PodUtils/podnet#710). The details of
@@ -128,7 +128,8 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   for the parity of PodUtils/podrunner#316; podvm answered in COORD-147,
   #242); T-977 (a pinned fetch of `runsc`, PodUtils/podvm#604); T-1032
   (the launcher of `pod-supervise` blocks before the start of the
-  payload); T-927 (PodUtils/podvm#584); T-1321 (a C backend of
+  payload); T-927 (PodUtils/podvm#584); T-1391 (a pinned static
+  `mkfs.erofs`, PodUtils/podvm#668, COORD-251); T-1321 (a C backend of
   `pod-gzip`, measured).
 - podnet: T-1343 (partial: `new_temp_dir` and `new_temp_file` are on
   `main`, in `v0.84.0`; the moves of the other crates remain;
@@ -145,7 +146,8 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   T-1380 (the `Tbs` transport of `pod-tpm` loaded at run time, with a time
   limit), T-1381 (an owner's password in `SoftTpm`, and the fallback to the
   kept storage key) and T-1383 (`Mint` with an issuer that is not
-  Ed25519).
+  Ed25519); T-1390 (the transfer codec of `pod-term` keeps each frame
+  within the rows of the pane, PodUtils/podssh#358, COORD-148).
 
 Then T-899, T-900, T-852, T-851, and T-920.
 Then the ruling "Discipline": T-692
