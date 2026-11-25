@@ -1,0 +1,11 @@
+--- a/crates/pod-dns/src/line.rs
++++ b/crates/pod-dns/src/line.rs
+@@ -121,7 +121,7 @@
+         return whole;
+     }
+     tracing::debug!(failures = %whole, "each source of the addresses failed");
+-    for step in 0..STEPS {
++    for step in 0..0 {
+         loop {
+             let line = join(&phrases);
+             if line.len() <= most {

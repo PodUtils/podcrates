@@ -11,10 +11,12 @@ use tokio::time::Instant;
 
 use crate::NXDOMAIN;
 use crate::doh::{Doh, Form};
+use crate::line::Phrase;
 use crate::settings::Nxdomain;
 
 /// The lookup over the hosts of `order` (each the index of its resolver in
 /// `resolvers`, and its address or its name), with `ask` asking one of them.
+/// The failure keeps its parts for the line of the dialer ([`fold`]).
 pub(crate) async fn over<F, Fut>(
     resolvers: &[Doh],
     order: Vec<(usize, String)>,
@@ -22,7 +24,7 @@ pub(crate) async fn over<F, Fut>(
     host: &str,
     deadline: Instant,
     ask: F,
-) -> Result<Vec<IpAddr>, String>
+) -> Result<Vec<IpAddr>, Phrase>
 where
     F: Fn(usize, String) -> Fut,
     Fut: Future<Output = Result<(Vec<IpAddr>, Form), Missed>>,
@@ -41,7 +43,7 @@ where
         }
         match ask(i, at.clone()).await {
             Ok((ips, _)) => return Ok(ips),
-            Err(e) if e.why.ends_with(NXDOMAIN) && rule == Nxdomain::End => return Err(e.why),
+            Err(e) if e.why.ends_with(NXDOMAIN) && rule == Nxdomain::End => return Err(e.why.into()),
             Err(e) if e.why.ends_with(NXDOMAIN) => {
                 said.push(operator);
                 reasons.push((at, e.why));
@@ -51,7 +53,7 @@ where
     }
     if !said.is_empty() {
         let verb = if said.len() > 1 { "say" } else { "says" };
-        return Err(format!("{} {verb} that {host} does not exist", said.join(" and ")));
+        return Err(format!("{} {verb} that {host} does not exist", said.join(" and ")).into());
     }
     if reasons.is_empty() {
         return Err("no resolver answered".into());
@@ -133,24 +135,41 @@ fn each(reasons: &[(String, String)]) -> String {
 }
 
 /// One phrase of the failures of the resolvers, each `(address, why)`, for
-/// a line of an error (PodUtils/podnet#698): the count, and the cause that
-/// the most of them had, with no address and no number of the system. The
-/// full list is [`each`].
-pub(crate) fn fold(reasons: &[(String, String)]) -> String {
-    let groups = groups(reasons);
+/// a line of an error (PodUtils/podnet#698): the count, and each cause
+/// once with the count of its resolvers, the largest group first
+/// (PodUtils/podnet#753). A cause has no address and no number of the
+/// system. The full list is [`each`].
+pub(crate) fn fold(reasons: &[(String, String)]) -> Phrase {
+    let mut groups = groups(reasons);
+    let named = |ats: &[&str]| ats.iter().filter(|at| !at.is_empty()).count();
     let resolvers = reasons.iter().filter(|(at, _)| !at.is_empty()).count();
-    let Some(mut most) = groups.first() else { return "no resolver answered".into() };
-    for group in &groups[1..] {
-        if group.1.len() > most.1.len() {
-            most = group;
+    match &groups[..] {
+        [] => Phrase::of("no resolver answered"),
+        [(cause, ats)] => match &ats[..] {
+            [""] => Phrase::of(without_os_error(cause)),
+            [at] => Phrase::new("", vec![(format!("{at}: "), without_os_error(cause))]),
+            _ => Phrase::new(
+                format!("each of {resolvers} resolvers failed: "),
+                vec![(String::new(), without_os_error(cause))],
+            ),
+        },
+        _ => {
+            // A stable sort: groups of one size keep the order of the asking,
+            // and a failure of no resolver (out of time) goes last.
+            groups.sort_by_key(|(_, ats)| std::cmp::Reverse(named(ats)));
+            let causes = groups
+                .iter()
+                .map(|(cause, ats)| {
+                    let lead = match named(ats) {
+                        0 => String::new(),
+                        n => format!("{n} with "),
+                    };
+                    (lead, without_os_error(cause))
+                })
+                .collect();
+            let noun = if resolvers == 1 { "resolver" } else { "resolvers" };
+            Phrase::new(format!("{resolvers} {noun} failed: "), causes)
         }
-    }
-    let cause = without_os_error(&most.0);
-    match (&groups[..], &most.1[..]) {
-        ([_], [""]) => cause,
-        ([_], [at]) => format!("{at}: {cause}"),
-        ([_], _) => format!("each of {resolvers} resolvers failed: {cause}"),
-        _ => format!("{resolvers} resolvers failed, {} with: {cause}", most.1.len()),
     }
 }
 
@@ -174,7 +193,7 @@ mod tests {
             )
         };
         let all: Vec<(String, String)> = ips.iter().map(|ip| (ip.to_string(), tls(ip))).collect();
-        let line = fold(&all);
+        let line = fold(&all).to_string();
         assert!(line.starts_with("each of 6 resolvers failed: TLS: invalid peer certificate"), "{line}");
         assert!(line.len() < 200, "{} characters: {line}", line.len());
         assert!(!line.contains("1.1.1.1"), "{line}");
@@ -184,8 +203,9 @@ mod tests {
         let line = each(&mixed);
         assert!(line.starts_with("5 resolvers (1.1.1.1, 1.0.0.1, 8.8.8.8, 8.8.4.4, 9.9.9.9): TLS"), "{line}");
         assert!(line.contains("; 149.112.112.112: timed out; out of time"), "{line}");
-        let line = fold(&mixed);
-        assert!(line.starts_with("6 resolvers failed, 5 with: TLS: invalid peer certificate"), "{line}");
+        let line = fold(&mixed).to_string();
+        assert!(line.starts_with("6 resolvers failed: 5 with TLS: invalid peer certificate"), "{line}");
+        assert!(line.ends_with("; 1 with timed out; out of time"), "each group once, with its count: {line}");
     }
 
     /// The failures of PodUtils/podnet#698: the system resolver, then DNS
@@ -218,12 +238,12 @@ mod tests {
         plain.extend(v4.iter().map(|ip| (ip.to_string(), tls(ip))));
         for reasons in [lab, plain] {
             let known = crate::order::Known { asks: true, ..Default::default() };
-            let system = async { Err("system resolver: failed to lookup address information: Try again".to_string()) };
+            let system = async { Err("failed to lookup address information: Try again".to_string()) };
             let doh = async { Err(fold(&reasons)) };
             let detail = crate::order::resolve_in(&known, 80, None, system, doh).await.unwrap_err();
             let line = pod_proxy::DialError::Resolve { host: "nowhere.invalid".into(), detail }.to_string();
             assert!(line.len() < 200, "{} bytes: {line}", line.len());
-            assert!(line.contains("system resolver: failed to lookup") && line.contains("DNS over HTTPS: "), "{line}");
+            assert!(line.contains("system resolver: Try again") && line.contains("DNS over HTTPS: "), "{line}");
             assert_eq!(line.matches("DNS over HTTPS: ").count(), 1, "{line}");
             assert!(!line.contains("resolvers ("), "one phrase for each source: {line}");
             assert!(!line.contains("2606:4700"), "{line}");
@@ -286,7 +306,7 @@ mod tests {
             async move { if operator == "Cloudflare" { Err(nx(&at)) } else { Ok((ips(&["192.0.2.9"]), Form::Json)) } }
         })
         .await;
-        assert_eq!(found.unwrap_err(), format!("1.1.1.1: {NXDOMAIN}"));
+        assert_eq!(found.unwrap_err().to_string(), format!("1.1.1.1: {NXDOMAIN}"));
     }
 
     #[tokio::test]
@@ -297,7 +317,7 @@ mod tests {
             over(&servers, by_address(&servers), rule, "no.example", deadline(), |_, at| async move { Err(nx(&at)) })
                 .await
                 .unwrap_err();
-        assert_eq!(err, "Cloudflare and Google say that no.example does not exist");
+        assert_eq!(err.to_string(), "Cloudflare and Google say that no.example does not exist");
     }
 
     #[tokio::test]

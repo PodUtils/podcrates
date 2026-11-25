@@ -1,0 +1,6 @@
+# pod-dns: the line of a name that does not resolve is cut inside the text of a cause, as before T-1392.
+ENTRY=T-1392
+GROUP=dns
+EXPECT='each_group_of_resolvers_keeps_its_cause_whole_in_the_bound'
+RUN='cargo test -p pod-dns --all-features --lib line'
+LIMIT=900
