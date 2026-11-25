@@ -7,12 +7,12 @@
 //! | `next` | the control events of the session, then up to `capacity` queued jobs that fit the host facts and that the session does not hold or refused; with nothing to give, it waits up to `wait_s` (at most [`WAIT_MAX`]) |
 //! | `ack` | a held job |
 //! | `claim` | a held job that no session claimed: else `already-claimed`, or `unknown-job` for a job that ended |
-//! | `mint` | the claim of the session for this runner name, else `not-claimed`; one credential for each claim (`credential-already-issued`); with a linked fake GitHub, the files of a JIT runner there that gets the job, else `credential-unavailable` |
+//! | `mint` | the claim of the session for this runner name, else `not-claimed`; one credential for each claim (`credential-already-issued`); with a linked fake GitHub, the files of a JIT runner there that gets the job, else `credential-unavailable` (also for a configuration with no file or with a name that is not plain) |
 //! | `report` | the claim of the session, else `not-claimed`; a second report replaces the first |
 //! | `audit` | each line |
 //! | `withdraw` | a held job that the session did not claim (`already-claimed`: release it); a reason that is not `wait-deadline`, `cancelled` or `conformance` is a refusal, and the session never gets the job again |
 //! | `release` | a held job; a claim with no report, or a report of `exit_reason` `lost`, queues the job again; a report with a `refusal_code` queues it for the other sessions; another report ends it |
-//! | `assigned` | the claim of the session, else `not-claimed`; `keep` with the trust facts of the real job, or `end` |
+//! | `assigned` | the claim of the session, else `not-claimed`; `keep` with the trust facts of the real job (the ref of another run and the id of another repository are empty), or `end` |
 //!
 //! A job that the session does not hold is `unknown-job` for each of them.
 //! The settings of the control API make each operation `unavailable`, or
@@ -322,4 +322,18 @@ fn claimed<'a>(st: &'a mut State, id: u64, job_id: &JobId) -> Result<&'a mut Job
         return Err(refused(SourceCode::NotClaimed, "this source holds no claim of the job"));
     }
     Ok(j)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The contract: each file of a credential has a plain name, and a
+    /// credential has a file.
+    #[test]
+    fn the_made_up_files_have_plain_names() {
+        let files = made_up_files(&JobId::new("j-1").unwrap(), "runner-1", 1);
+        assert!(!files.is_empty());
+        assert!(files.iter().all(|f| link::plain(&f.name)), "{files:?}");
+    }
 }

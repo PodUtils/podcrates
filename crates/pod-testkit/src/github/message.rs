@@ -8,7 +8,7 @@ use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde_json::{Value, json};
 
-use super::Job;
+use super::{JOB_REF, Job, repository_id};
 
 fn guid(n: u64) -> String {
     format!("00000000-0000-0000-0000-{n:012x}")
@@ -90,6 +90,9 @@ pub(super) fn job_message(base: &str, job: &Job) -> Value {
         "contextData": { "github": { "t": 2, "d": [
             s("repository", &job.repo), s("workflow", "pod-fake-github"), s("job", &job.name),
             s("run_id", &job.run_id.to_string()), s("event_name", "push"),
+            // The job-started hook of podrunner sends them in `assigned`
+            // (`GITHUB_REF`, `GITHUB_REPOSITORY_ID`), for the scope of a cache.
+            s("ref", JOB_REF), s("repository_id", &repository_id(&job.repo).to_string()),
             s("server_url", "https://github.com"), s("api_url", "https://api.github.com"),
             s("graphql_url", "https://api.github.com/graphql"),
         ] },
@@ -172,5 +175,19 @@ mod tests {
         assert_eq!(get("job-index"), Some(json!(0)));
         assert_eq!(get("job-total"), Some(json!(1)));
         assert_eq!(get("max-parallel"), Some(json!(1)));
+    }
+
+    /// The job-started hook of podrunner reads `GITHUB_REF` and
+    /// `GITHUB_REPOSITORY_ID` of the job for the scope of a cache: the
+    /// context `github` gives both, and the id is the id of the webhooks.
+    #[test]
+    fn the_github_context_gives_the_ref_and_the_repository_id() {
+        let m = job_message("http://127.0.0.1:1/", &job());
+        let d = m["contextData"]["github"]["d"].as_array().unwrap();
+        let get = |k: &str| d.iter().find(|e| e["k"] == k).map(|e| e["v"].clone());
+        assert_eq!(get("ref"), Some(json!("refs/heads/main")));
+        assert_eq!(get("repository_id"), Some(json!(repository_id("o/r").to_string())));
+        assert_ne!(repository_id("o/r"), repository_id("o/s"), "one id for each name");
+        assert!(repository_id("o/r") < 1 << 53, "a whole number of JSON");
     }
 }

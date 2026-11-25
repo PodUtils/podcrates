@@ -6,7 +6,7 @@ use std::sync::{Arc, Weak};
 
 use serde_json::{Value, json};
 
-use super::{INSTALLATION_ID, Job, Shared, State, Status, key, rfc3339};
+use super::{INSTALLATION_ID, Job, Shared, State, Status, key, repository_id, rfc3339};
 use crate::stand;
 
 /// One webhook to send.
@@ -54,8 +54,7 @@ pub(super) fn send(shared: &Shared, st: &mut State, action: &str, job_id: u64) {
         "action": action,
         "workflow_job": job_json(&shared.base, st, job),
         "repository": {
-            // One id for each name, the same in each payload.
-            "id": job.repo.bytes().fold(7u64, |h, b| h.wrapping_mul(31).wrapping_add(u64::from(b))) % 1_000_000_007,
+            "id": repository_id(&job.repo),
             "name": name, "full_name": job.repo, "private": true,
             "owner": { "login": owner, "type": "Organization" },
         },

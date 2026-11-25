@@ -112,7 +112,7 @@ tokens of each run.
 | --- | --- |
 | The App | an RS256 JWT of the made-up key with `iss` 1, alive now and for ten minutes at most: `GET /repos/OWNER/REPO/installation` (installation 1 holds each repository), `POST /app/installations/1/access_tokens` (201, a token for one hour) |
 | The runners, with the installation token | `POST /repos/OWNER/REPO/actions/runners/generate-jitconfig` (`name`, `labels`; 201 with `runner` and `encoded_jit_config`, the base64 of a JSON map of `.runner`, `.credentials` and `.credentials_rsaparams`, each in base64; 409 for a name in use), `GET .../actions/runners`, `DELETE .../actions/runners/ID`, `GET .../actions/jobs/ID` |
-| The broker of each runner | `POST /_apis/oauth2/token` (a client assertion of the made-up key whose `sub` is the client id of a runner), `POST` and `DELETE /session`, `GET /message` (a long poll of 2 s), `POST /acquirejob`, `/renewjob`, `/completejob`, the results service of the logs under `/twirp/`; the routes that the official runner calls with `--jitconfig`, for a job of `run:` steps |
+| The broker of each runner | `POST /_apis/oauth2/token` (a client assertion of the made-up key whose `sub` is the client id of a runner), `POST` and `DELETE /session`, `GET /message` (a long poll of 2 s), `POST /acquirejob`, `/renewjob`, `/completejob`, the results service of the logs under `/twirp/`; the routes that the official runner calls with `--jitconfig`, for a job of `run:` steps; the context `github` of a job gives the event `push`, the `ref` `refs/heads/main` and the `repository_id` of the webhooks (`pod_testkit::github::repository_id`), which the job-started hook of podrunner sends in `assigned` |
 | The webhooks | `workflow_job` with `queued`, `in_progress` (with `runner_id` and `runner_name`) and `completed` (with `conclusion`), in the order of the events, signed with `X-Hub-Signature-256` (HMAC-SHA256 of the webhook secret) |
 | The control API | `GET /_fake/app` (the App id, the installation id, the key in PEM, the webhook secret), `PUT /_fake/hook` (`url`, `secret`), `POST /_fake/jobs` (`repository`, `name`, `labels`, `steps`), `GET /_fake/jobs[/ID]`, `POST /_fake/jobs/ID/assign` (`runner_id`), `GET /_fake/runners`, `GET /_fake/deliveries` |
 
@@ -176,7 +176,9 @@ loopback (PodUtils/podrunner#329):
   the job, gives the job to that runner (`POST /_fake/jobs/ID/assign`), and
   answers the three files of the decoded `encoded_jit_config`. The official
   runner of these files takes exactly this job from the broker of the fake
-  GitHub. A step that fails is `credential-unavailable`. The record `mints`
+  GitHub. A step that fails, a configuration with no file, and a file name
+  that is not plain (1 to 64 bytes, not `.` or `..`, no `/`, `\`, space,
+  control byte or DEL) are `credential-unavailable`. The record `mints`
   names the runner as `github_runner_id`.
 * The report of podrunner is in `GET /_fake/reports` of githome, and the
   conclusion of the runner is in `GET /_fake/jobs/ID` of the fake GitHub.
@@ -188,7 +190,7 @@ loopback (PodUtils/podrunner#329):
 | `ack` | a job that the session holds |
 | `claim` | a held job that no session claimed: else `already-claimed`, or `unknown-job` for a job that ended |
 | `mint` | the claim of the session for this runner name (`not-claimed`); one credential for each claim (`credential-already-issued`); a mint error of the control API, or `source-revoked` |
-| `report`, `assigned` | the claim of the session (`not-claimed`); `assigned` gives `keep` with the trust facts of the real job, or `end` `not-of-this-source` for another owner |
+| `report`, `assigned` | the claim of the session (`not-claimed`); `assigned` gives `keep` with the trust facts of the real job, or `end` `not-of-this-source` for another owner; the `ref` of another run and the `repo_id` of another repository are empty, never the facts of the offer |
 | `audit` | each line |
 | `withdraw` | a held job that the session did not claim (`already-claimed`); a reason other than `wait-deadline`, `cancelled` or `conformance` keeps the job from the session |
 | `release` | a held job; no report, or `exit_reason` `lost`, queues the job again; a `refusal_code` queues it for the other sessions; another report ends it |
@@ -201,7 +203,7 @@ more for each further run.
 
 | Route of the control API | What |
 | --- | --- |
-| `POST /_fake/jobs` | the fields of a `job-offer.v1`, each optional, with `repository` (`OWNER/REPO`) and `tier` (`trusted` or `untrusted`), which give the trust inputs, and with `--github` the scripts of `steps`; 201 with the job |
+| `POST /_fake/jobs` | the fields of a `job-offer.v1`, each optional, with `repository` (`OWNER/REPO`) and `tier` (`trusted` or `untrusted`), which give the trust inputs (the `ref` `refs/heads/main` and the `repo_id` of the repository in `pod-fake-github`), and with `--github` the scripts of `steps`; 201 with the job |
 | `GET /_fake/jobs[/ID]` | each job: `status` (`queued`, `claimed`, `reported`, `done`, `cancelled`), `offer`, `claim`, `minted`, `refused_by`, `github_job_id` |
 | `POST /_fake/jobs/ID/cancel`, `/started` (`runner_name`), `/completed` (`result`) | the event of the forge to each session that holds the job |
 | `POST /_fake/jobs/ID/mint-error` | `code`: the next `mint` of the job fails with it |

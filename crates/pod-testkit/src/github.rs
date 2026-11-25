@@ -55,6 +55,14 @@ pub const APP_ID: u64 = 1;
 pub const INSTALLATION_ID: u64 = 1;
 /// The webhook secret until the control API sets another.
 pub const MADE_UP_WEBHOOK_SECRET: &str = "pod-fake-github-made-up-webhook-secret";
+/// The ref of each job: a push to the default branch.
+pub const JOB_REF: &str = "refs/heads/main";
+
+/// The id of the repository `OWNER/REPO`: one id for each name, the same in
+/// each webhook and each job message, below 2^53 (a whole number of JSON).
+pub fn repository_id(repo: &str) -> u64 {
+    repo.bytes().fold(7u64, |h, b| h.wrapping_mul(31).wrapping_add(u64::from(b))) % 1_000_000_007
+}
 
 /// A running fake GitHub.
 pub struct FakeGithub {

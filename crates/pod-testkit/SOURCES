@@ -26,9 +26,13 @@ file 429a7e9cdd5e86a8847cf5dee4bcda59fb33fa2a tests/test_host/mod.rs -> crates/p
 # The block moved to 2a55cd9 (T-1243) with no port: auth.rs lets the job
 # token get the tarball of a commit (`/_checkout/COMMIT.tar.gz`) of the
 # local mode of podrunner; this fake GitHub serves no tree of a job.
-repo PodUtils/podrunner 2a55cd97d5f351ee936cb82d4ff5d58e76801abc
+# The block moved to fcff5bc (T-1375): the context `github` of a job
+# gives `ref` and `repository_id` (3391edc), which the job-started hook of
+# podrunner sends in `assigned`; the id here is the id of the webhooks
+# (repository_id in src/github.rs), not podrunner's fixed 4242.
+repo PodUtils/podrunner fcff5bccd7b96ad8b6d45fa6281e5d8028a8a376
 file b7735e1ef9b59f14b0dd418e8aaa212fb7f0c207 crates/podrunner-broker-fake/src/lib.rs -> crates/pod-testkit/src/github.rs crates/pod-testkit/src/github/broker.rs
-file 10ed4007d192ec54c1add314a6fc0ecaaf956fa9 crates/podrunner-broker-fake/src/message.rs -> crates/pod-testkit/src/github/message.rs
+file 08b76aabc3e255bce0463e9b20d5ebfd9d13ba10 crates/podrunner-broker-fake/src/message.rs -> crates/pod-testkit/src/github/message.rs
 file fc88acde6a6badee66cb6d2666b87bd833a6034a crates/podrunner-broker-fake/src/auth.rs -> crates/pod-testkit/src/github/broker.rs crates/pod-testkit/src/github/key.rs
 file 5e9475d1efd27617f7017a28d8c71fa40a3b790d crates/podrunner-broker-fake/src/results.rs -> crates/pod-testkit/src/github/broker.rs
 file 7e3b6fae98e9eec26bd63da344a6c0496c7adeab crates/podrunner-broker-fake/src/files.rs -> crates/pod-testkit/src/github/api.rs
@@ -44,12 +48,16 @@ file 53d32c12630ea80da37e4d013e5870014614136a crates/podrunner-broker-fake/src/r
 # no plant, and it takes the report of a cancelled job (test 15 in
 # tests/githome.rs). The block moved to e629fa8 (T-1160): the fork fact
 # of `assigned` comes from the real job alone (fork_fact in
-# src/githome/offer.rs).
-repo PodUtils/podrunner e629fa82aa839108a781b1b45e79beef81d5740d
+# src/githome/offer.rs). The block moved to fcff5bc (T-1375): the answer
+# to `assigned` gives no ref of another run and no repository id of
+# another repository (8199cb2; here also no ref of another repository,
+# as a run id is of one repository), and each offer gives the repository
+# id of the linked fake GitHub (assigned and build in src/githome/offer.rs).
+repo PodUtils/podrunner fcff5bccd7b96ad8b6d45fa6281e5d8028a8a376
 file 1b246d7ad58a6abe72bc4d3c953f050b89d1b86f crates/podrunner-fake/src/source.rs -> crates/pod-testkit/src/githome/wire.rs
-file cbd38bb1015c6de9cef469d6edaf2ed344dd3380 crates/podrunner-fake/src/assigned.rs -> crates/pod-testkit/src/githome/offer.rs
+file a19de1a28ac4e60de51b7f76bcdc326677357872 crates/podrunner-fake/src/assigned.rs -> crates/pod-testkit/src/githome/offer.rs
 
-repo PodUtils/podrunner 4fc871c6b8c127f3f4e408db89b0f81bd724de4b
+repo PodUtils/podrunner fcff5bccd7b96ad8b6d45fa6281e5d8028a8a376
 # T-951 (PodUtils/podrunner#310): the 15 tests of the conformance suite
 # (test 15: a cancelled job is reported and released) and the contract,
 # for the test of the feature `githome`. The block moved to 43226db
@@ -65,5 +73,15 @@ repo PodUtils/podrunner 4fc871c6b8c127f3f4e408db89b0f81bd724de4b
 # of a report as the session sends them.
 # The block moved to 4fc871c (T-1355) with no port: the contract adds podvm
 # 0.2.0-beta.40 on a host with AppArmor and cgroup v2 to the same rule.
-file ca245513ff48f33196a89e7291c2dfc3e04757a4 crates/podrunner-source/src/conformance.rs -> crates/pod-testkit/tests/githome.rs
-file 753c871c15755518773ebcb3037d0bf413f2bdd7 docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+# The block moved to fcff5bc (T-1375). The suite gives the `ref` and the
+# `repo_id` of the real job (72cd0ab, pod-job v0.84.0): tests/githome.rs
+# has them. The contract adds four rules. The plain name of each file of a
+# credential is in the mint (plain in src/githome/link.rs). The facts of
+# `keep` (the ref, the repository id, the event of the real job, empty
+# when not known) are in assigned of src/githome/offer.rs. The rule of a
+# cache of a unit, the marks of the job-started hooks and the move from
+# `started` to `running` are rules of podrunner, with no port: the fake
+# keeps no cache, has no hook, and its control API sends a `started` with
+# each runner name (POST /_fake/jobs/ID/started).
+file 3d8f939ffa29402d5dfd3216d6e78a8e2fec9d59 crates/podrunner-source/src/conformance.rs -> crates/pod-testkit/tests/githome.rs
+file 8f5167ab9172cbd19bbd84d7cb280ec4ffeb55ae docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
