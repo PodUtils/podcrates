@@ -6856,3 +6856,33 @@ The doc step of each job `test` of the next `nightly.yml` run ends with no targe
 ## Done
 
 2026-11-25, this commit. `scripts/ci/test-limited.sh`: `--exclude pod-h2` in the `--doc` run, with a comment of one line. Proof as in the Premise (the two runs on Linux). Not measured: the full `--doc` run of the workspace here, and the run on Windows and macOS.
+
+# T-1463: `pod-core`: no check stops a new `to_string()` or `{}` of a `Failure` that drops its cause, and the `{}` of a `Failure` in a `format!` was not searched
+
+**Source:** finding of T-1399 (PodUtils/podssh#360, ask 1)
+**Category:** chore
+**Milestone:** M5
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`Display` of a `pod_core::Failure` writes its text alone. Since T-1351, a failure of a step keeps the error of the system as its cause and not in its text (`Failure::io`), so each `to_string()` of such a failure drops the cause: "no UDP socket for QUIC" with no cause (T-1399). T-1399 found the calls of `to_string()` by a temporary deprecated inherent method on `Failure`, on Linux only. Nothing stops a new call. A `format!("{e}")`, a `{}` and a `write!` of a `Failure` drop the cause the same way, and the temporary method does not see them.
+
+## Premise
+
+- Read: `crates/pod-core/src/failure.rs` (`Display` writes the text; `chain` joins each cause once); the search of T-1399.
+- Not searched: each `{}` of a `Failure` in a `format!`, `write!`, `tracing` field or `panic!`; the code of Windows and macOS alone (`cfg`).
+
+## Approach
+
+1. A search of each `{}` of a `Failure`: a temporary build in which `Failure` has no `Display` (and `Error` gives the chain by another type) names each site as an error of the compiler; read each, and use `chain()` where the cause is lost.
+2. A check in CI (`scripts/`): the temporary deprecated inherent `to_string` of T-1399 in a copy of the tree, `cargo check --workspace --all-targets` on Linux, Windows and macOS, and a failure on each new warning outside a test.
+
+## Prove
+
+```sh
+cargo check --workspace --all-targets --all-features
+cargo todo check
+```

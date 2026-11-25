@@ -102,7 +102,7 @@ impl Dialer {
                             conn
                         }
                         Err(why) => {
-                            missed.push(why.to_string());
+                            missed.push(why.chain());
                             continue;
                         }
                     }
@@ -111,7 +111,7 @@ impl Dialer {
             let link = match conn.open_link(self.node, &mut OsEntropy) {
                 Ok(link) => link,
                 Err(why) => {
-                    missed.push(why.to_string());
+                    missed.push(why.chain());
                     continue;
                 }
             };
@@ -170,7 +170,7 @@ where
     let connect = |_: &Ended| async move {
         match dialer.link().await {
             Ok(link) => Next::Link(link),
-            Err(why) => Next::Retry(why.to_string()),
+            Err(why) => Next::Retry(why.chain()),
         }
     };
     Ok(resume::run(client, app, connect, note, &mut OsEntropy).await)

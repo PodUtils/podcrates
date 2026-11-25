@@ -96,7 +96,7 @@ pub(crate) async fn open(
             let why = format!("no connection within {} s", connect.as_secs());
             return Err(Missed { why, cut: Some(Cut::TimedOut) });
         }
-        Ok(Err(failure)) => return Err(Missed { why: failure.to_string(), cut: Cut::of_failure(&failure) }),
+        Ok(Err(failure)) => return Err(Missed { why: failure.chain(), cut: Cut::of_failure(&failure) }),
         Ok(Ok(connected)) => connected.io,
     };
     let words = way.context.words();

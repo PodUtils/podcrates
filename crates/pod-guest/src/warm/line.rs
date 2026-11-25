@@ -409,7 +409,7 @@ pub fn running(monitor: &Path, mut child: Option<&mut Child>, wait: Duration) ->
         if m.is_none() {
             match qmp::Monitor::connect(monitor, Duration::ZERO) {
                 Ok(c) => m = Some(c),
-                Err(e) => last = e.to_string(),
+                Err(e) => last = e.chain(),
             }
         }
         if let Some(c) = m.as_mut() {
@@ -423,7 +423,7 @@ pub fn running(monitor: &Path, mut child: Option<&mut Child>, wait: Duration) ->
                     }
                 },
                 Err(e) => {
-                    last = e.to_string();
+                    last = e.chain();
                     m = None;
                 }
             }

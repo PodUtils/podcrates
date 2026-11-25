@@ -12727,6 +12727,74 @@ sh scripts/plant-each.sh --apply
 - The plant `scripts/plants/session-t1395-move-under-no-window.plant` drops the window from `after_mark`: the test of `session_mark.rs` fails with "the leg carried 589928 bytes, under the bound of 272684"; `sh scripts/plant-each.sh session-t1395-move-under-no-window`: 1 caught.
 - `cargo test -p pod-session --all-features`: 180 passed, 0 failed. `cargo clippy -p pod-session --all-targets --all-features -- -D warnings`, `cargo fmt --all --check` and `cargo todo check`: clean. `sh scripts/plant-each.sh --apply`: 0 stale. The tests of `pod-relay` with a move (`layer_cap`, `reverse_window`, `reverse_layered`, `layer_h2_spare`: 11) and of `pod-link` (`resume`: 1) pass.
 
+# T-1399: `pod-quic` and `pod-relay`: a failed UDP socket of QUIC reads "no UDP socket for QUIC" with no cause, as the race of handshakes and the QUIC road say the failure with `to_string()` (PodUtils/podssh#360)
+
+**Source:** PodUtils/podssh#360 (COORD-150 of podssh), ask 1; author COLLABORATOR
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The text of the ask: "`pod-quic` `connect::handshake` (`src/connect.rs:127`, `failed.iter().map(|f| f.to_string())`) and `pod-relay` `quic_road::dial` (`src/quic_road/dial.rs:164`, `endpoint::system(..).map_err(|f| failed(f.to_string()))`). At `v0.85.0`, a failed UDP socket there now reads \"no UDP socket for QUIC\" with no cause. Ask: `chain()` in both places."
+
+Since T-1351, `endpoint::system` gives `Failure::io(Stage::Connect, "no UDP socket for QUIC", e)`: the text is the step, and the error of the system is the cause. `Display` of a `Failure` gives the text alone, so each `to_string()` of such a failure drops the cause. The ask also covers each other `to_string()` of a `pod_core::Failure` in the workspace that drops its cause the same way.
+
+## Premise
+
+- Read: `crates/pod-core/src/failure.rs` (`Display` writes the text; `chain`, `into_root`, `io_cause`); `crates/pod-quic/src/endpoint.rs` (`no_socket`); `crates/pod-quic/src/connect.rs` (`handshake`); `crates/pod-quic/src/probe.rs` (`probe` gives a `Failure` with no cause); `crates/pod-relay/src/quic_road/dial.rs` (`session`, `resolve`); `crates/pod-proxy/src/resolve.rs` (the system resolver gives `Failure::io(Stage::Dns, "system resolver", e)`).
+- `quic_road::dial::resolve` drops the cause the same way: a name that the system does not resolve reads "system resolver" alone.
+- The search of the workspace: an inherent method `to_string` with `#[deprecated]` on `Failure`, for the time of one `cargo check --workspace --all-targets --all-features` (not committed), names each call of `to_string()` on a `Failure`; `grep -rn "to_string()" crates/ | grep -i fail` gives the rest to read.
+- Not measured: a real host that refuses a UDP socket.
+
+## Approach
+
+1. `pod-quic`: `connect::none_answered`, the failure of the race when no address answered: the chain of each address, and the typed cause of the last one as the cause when its text does not quote it.
+2. `pod-relay` `quic_road::dial`: `chain()` for the failure of the probe, of `endpoint::system` and of the resolver.
+3. Each other hit of the search in the crates of this work: `chain()`. A hit in a crate that other work changes now becomes a finding entry.
+4. Tests: `connect::tests` (a failed socket keeps its cause; each cause once), `quic_road::dial::tests::a_failed_lookup_keeps_the_error_of_the_system`. A plant for each fix that a test can catch.
+
+## Prove
+
+```sh
+cargo test -p pod-quic -p pod-relay --all-features
+cargo clippy -p pod-quic -p pod-relay --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh --apply
+```
+
+# T-1402: `pod-relay`: the node looks for the relay's Close behind a failed ping only 8 frames or 200 ms ahead, so a relay that sends data first gives "the link to the relay ended with no Close" (PodUtils/podssh#360)
+
+**Source:** PodUtils/podssh#360 (COORD-150 of podssh), ask 4; author COLLABORATOR
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The text of the ask: "`pod-relay` `reverse::closes::pending` (`crates/pod-relay/src/reverse/closes.rs:344-361` at `ca1d3e3`) looks for the relay's Close behind a failed ping only 8 frames or 200 ms ahead. A relay that sends the node another session's data before its Close puts the Close past that look. Its frames are 64 KiB, so 8 frames are 512 KiB. A slow host does the same. The node then says \"the link to the relay ended with no Close (sending a ping to the relay failed: Broken pipe)\" where the relay gave 1003. That is podssh's T-788, run 43657288233 on macOS. Ask: bound the look-ahead by time (about 1 s) and by bytes read (a few MiB), not by a count of frames. A read error still ends it with `None`."
+
+## Premise
+
+- Read: `crates/pod-relay/src/reverse/closes.rs` (`pending`); `crates/pod-relay/src/reverse/serve.rs` (the liveness watch that fails calls `pending`, and a Close from it is `End::Closed`); `crates/pod-ws/src/session.rs` (`read_frame` gives each data message and the Close; it answers a Ping and skips a Pong; `frames_received`).
+- Not measured: the run of podssh on macOS.
+
+## Approach
+
+1. `closes::LOOK_WAIT` (1 s) and `closes::LOOK_BYTES` (4 MiB of payload): `pending` reads frames until the Close, a failed read, more than `LOOK_BYTES` of payload, or `LOOK_WAIT`.
+2. Tests (`crates/pod-relay/tests/reverse_close_behind.rs`, a stand-in relay on a pipe): 12 frames of 64 KiB before a Close of 1003; a Close half of the wait late; data with no end stops at the bound of bytes; a failed read ends at once. A plant puts back the bound of 8 frames.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features --test reverse_close_behind
+cargo clippy -p pod-relay --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh --apply
+```
+
 # T-1450: `pod-session`: the window of a link bounds the payload in flight, not the bytes of its records, so small records pass the relay's hold for a slow receiver and the cap of a leg
 
 **Source:** T-1395 (a finding of the bound of the old leg of a move).

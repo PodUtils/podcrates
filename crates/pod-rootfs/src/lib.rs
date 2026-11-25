@@ -253,7 +253,7 @@ fn record_steps(r: &mut Report, id: &'static str, out: Result<(Vec<Fixup>, Vec<S
             r.fixups.extend(fs);
             r.steps.extend(st);
         }
-        Err(e) => r.fixups.push(Fixup::new(id, "", Action::Failed).why(e.to_string()).degraded()),
+        Err(e) => r.fixups.push(Fixup::new(id, "", Action::Failed).why(e.chain()).degraded()),
     }
 }
 

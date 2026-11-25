@@ -337,25 +337,37 @@ fn is_a_node_refusal(reason: &str) -> bool {
     REFUSALS.contains(&reason)
 }
 
+/// How long the read for the relay's Close behind a failed ping may take: a
+/// slow host reads it later than a fast one (PodUtils/podssh#360, ask 4).
+pub const LOOK_WAIT: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// The most bytes of payload that the read for the relay's Close may pass:
+/// a relay can send the data of other sessions first, in frames of 64 KiB
+/// and more.
+pub const LOOK_BYTES: usize = 4 * 1024 * 1024;
+
 /// The relay's Close that waits, read, behind a ping that failed: a relay
 /// that closes the socket can break the ping's write before the node reads
-/// its Close, and that Close says why. A short read, bounded in frames and
-/// in time, prefers it to the failed ping.
+/// its Close, and that Close says why. A short read prefers it to the
+/// failed ping. The read is bounded by [`LOOK_WAIT`] and by [`LOOK_BYTES`]
+/// of payload, not by a count of frames; a read that fails ends it with
+/// no Close.
 pub async fn pending<S>(session: &pod_ws::session::RelaySession<S>) -> Option<RelayClose>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + 'static,
 {
     let look = async {
-        for _ in 0..8 {
+        let mut passed = 0usize;
+        while passed <= LOOK_BYTES {
             match session.read_frame().await {
                 Ok(f) if f.opcode == pod_ws::frame::OPCODE_CLOSE => return Some(f.payload),
-                Ok(_) => {}
+                Ok(f) => passed += f.payload.len(),
                 Err(_) => return None,
             }
         }
         None
     };
-    let payload = tokio::time::timeout(std::time::Duration::from_millis(200), look).await.ok().flatten()?;
+    let payload = tokio::time::timeout(LOOK_WAIT, look).await.ok().flatten()?;
     let (code, reason) = pod_ws::session::close_code_and_reason(&payload);
     Some(RelayClose { code: code.unwrap_or(1005), reason, clean: true })
 }

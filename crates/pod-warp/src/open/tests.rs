@@ -103,6 +103,28 @@ fn each_failed_door_says_its_cause_once() {
     assert_eq!(pod_core::failure::joined(&one), refused(&door(1)).chain());
 }
 
+/// A proxy that refused the way to the second door alone: the failure of
+/// the doors is at the stage `Proxy`, so a reader that looks for a failure
+/// of the proxy in the chain sees it; the class stays the one of the first
+/// door (PodUtils/podssh#360, ask 2).
+#[test]
+fn a_proxy_that_failed_at_any_door_gives_the_stage_proxy() {
+    let at_the_proxy = |door: &Target| {
+        let proxy = Failure::new(Stage::Proxy, Class::Refused, "the proxy http://proxy.test:3128 refused CONNECT");
+        Failure::caused(Stage::Warp, Class::Unavailable, format!("the MASQUE front door {door}"), proxy)
+    };
+    let first = refused(&door(1));
+    let (stage, class) = (first.stage, first.class);
+    assert_ne!(stage, Stage::Proxy);
+    let failure = each_door_failed(vec![first, at_the_proxy(&door(2))]);
+    assert_eq!((failure.stage, failure.class), (Stage::Proxy, class), "{}", failure.chain());
+    let failure = each_door_failed(vec![at_the_proxy(&door(1)), refused(&door(2))]);
+    assert_eq!(failure.stage, Stage::Proxy, "{}", failure.chain());
+    // No proxy on the way: the stage of the first door.
+    let failure = each_door_failed(vec![refused(&door(1)), refused(&door(2))]);
+    assert_eq!((failure.stage, failure.class), (stage, class));
+}
+
 /// A handshake that failed says the step, and the error of I/O says its own
 /// words once on a join.
 #[test]

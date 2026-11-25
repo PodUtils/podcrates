@@ -54,7 +54,7 @@ impl Fetcher {
         }
         let request =
             Request::new("GET", url).header("Accept", accept).redirects(REDIRECTS).max_body(max).timeout(limit);
-        let answer = self.client.send(request).await.map_err(|e| Error::Unavailable(e.to_string()))?;
+        let answer = self.client.send(request).await.map_err(|e| Error::Unavailable(e.chain()))?;
         let last = shown(&answer.url);
         let last = if last.is_empty() { at } else { last };
         match answer.status {

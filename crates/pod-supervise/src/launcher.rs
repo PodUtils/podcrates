@@ -453,7 +453,7 @@ const CTL_READ_MS: u64 = 2_000;
 pub(crate) fn listen(s: &Settings, id: &str) -> std::result::Result<UnixListener, String> {
     let _ = std::fs::remove_file(table::control_path(s, id));
     // The directory stays open until after the bind (`control_via_fd`).
-    let (_dir, bind_path) = table::control_via_fd(s, id).map_err(|e| e.to_string())?;
+    let (_dir, bind_path) = table::control_via_fd(s, id).map_err(|e| e.chain())?;
     UnixListener::bind(&bind_path).map_err(|e| format!("binding the control socket: {e}"))
 }
 
