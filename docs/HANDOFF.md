@@ -35,7 +35,8 @@ is done. Git and the record keep finished work.
      workers in flight, which write their entries.
    - Done on `main` after `v0.85.0`; answer each with the next tag:
      PodUtils/podvm#667 (COORD-250, T-1389), PodUtils/podnet#753 to #755
-     (COORD-123 to COORD-125, T-1392 to T-1394).
+     (COORD-123 to COORD-125, T-1392 to T-1394), PodUtils/podssh#359
+     (COORD-149, T-1396).
    - Done on `main` after `v0.85.0`: PodUtils/podnet#756 (COORD-126,
      T-1395); answer it with the next tag.
    - Open asks: PodUtils/podssh#358 (COORD-148) is T-1390;
@@ -131,6 +132,13 @@ closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
   each with `size=N` and reads the limit back (steps 49 to 52). Breaking:
   each struct literal of `Plan` adds `tmpfs: Vec::new()`. T-1430 (a rule of
   the confinement on such a tmpfs) is open.
+- T-1396 (`pod-ws`, PodUtils/podssh#359): `ConnectError::Ended(String)`,
+  a final end of a stream with no relay and no HTTP in its cause; its
+  `Display` is the words alone, class `Unavailable` (exit 69). `pod-relay`
+  treats it as final (no other host, no second socket of the node). No
+  consumer matches `ConnectError` with no wildcard. podssh: return it from
+  `start_again` of `serve/reverse/carrier.rs`, and add
+  `ConnectError::Ended(_) => true` to `is_final` of `layered.rs`.
 - T-1395 (`pod-session`, PodUtils/podnet#756): `resume::after_mark(window)`,
   `resume::move_under(cap, window)` and `Settings::under_cap(cap)` (class
   `Usage`). The bound of the code is larger than the bound of the ask: a
