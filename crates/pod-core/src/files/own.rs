@@ -4,8 +4,8 @@
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 
+use super::temp::{new_named, random_part};
 use super::{MAX_FILE, closed, create_new_private, make_private_dir, open_no_follow};
 
 /// What users other than the owner may do with a file that [`read_own`]
@@ -65,19 +65,15 @@ pub fn read_own(path: &Path, others: Others) -> Result<Option<String>, String> {
 /// Where the file system has no hard links, the file is made in place. The
 /// directory must exist; its mode is not changed.
 pub fn create_private(path: &Path, body: &[u8]) -> std::io::Result<bool> {
-    // One name for each call, also for two threads of one process.
-    static NEXT: AtomicU64 = AtomicU64::new(0);
     let (Some(dir), Some(name)) = (path.parent(), path.file_name()) else {
         return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "not the path of a file"));
     };
-    let unique = NEXT.fetch_add(1, Ordering::Relaxed);
-    let tmp = dir.join(format!(".{}.{}.{unique}.tmp", name.to_string_lossy(), std::process::id()));
-    let _ = std::fs::remove_file(&tmp);
-    let written = (|| {
-        let mut file = create_new_private(&tmp)?;
-        file.write_all(body)?;
-        file.sync_all()
-    })();
+    // A new name for each call (T-1343): a name from the pid is not new in
+    // a PID namespace, and a file at the name is another call's.
+    let prefix = format!(".{}", name.to_string_lossy());
+    let (tmp, mut file) = new_named(dir, &prefix, ".tmp", &mut random_part, &mut create_new_private)?;
+    let written = file.write_all(body).and_then(|()| file.sync_all());
+    drop(file);
     if let Err(e) = written {
         let _ = std::fs::remove_file(&tmp);
         return Err(e);
@@ -128,4 +124,28 @@ pub fn create_file_in_first(dirs: &[PathBuf], name: &str, body: &[u8]) -> Result
         }
     }
     Err(format!("no directory would take {name} ({})", reasons.join("; ")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// T-1343: a file at the name that a temporary file of this process had
+    /// before (the pid and a counter) is another process's, of the same pid
+    /// in another PID namespace: it is not removed.
+    #[test]
+    fn a_file_at_a_name_of_the_pid_stays() {
+        let dir = super::super::new_temp_dir(&std::env::temp_dir(), "pod-core-own-pid").unwrap();
+        let pid = std::process::id();
+        let theirs: Vec<PathBuf> = (0..256).map(|n| dir.join(format!(".key.{pid}.{n}.tmp"))).collect();
+        theirs.iter().for_each(|p| std::fs::write(p, b"theirs").unwrap());
+        assert!(create_private(&dir.join("key"), b"ours").unwrap());
+        assert!(!create_private(&dir.join("key"), b"again").unwrap(), "a file there is not replaced");
+        assert_eq!(std::fs::read(dir.join("key")).unwrap(), b"ours");
+        for p in &theirs {
+            assert_eq!(std::fs::read(p).unwrap(), b"theirs", "{} stays", p.display());
+        }
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 257, "no temporary file stays");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }

@@ -5585,7 +5585,7 @@ finding.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -5634,6 +5634,62 @@ python3 -I scripts/codegraph.py similar temp directory random name
 grep -rn "process::id()" crates --include=*.rs
 sh scripts/agent/check.sh
 ```
+
+## Done
+
+2026-11-25 (partial). Steps 1 and 4, and the first moves of step 2.
+
+- `9a6b9933`: the module `files::temp` of `pod-core`, re-exported by
+  `files.rs`: `new_temp_dir(parent: &Path, prefix: &str) ->
+  io::Result<PathBuf>` and `new_temp_file(parent: &Path, prefix: &str,
+  suffix: &str) -> io::Result<(PathBuf, File)>`. The random part is 16 hex
+  digits from `OsEntropy`; when the system gives no bytes, the hasher keys
+  with the pid, the clock and a counter. 8 tries; the error after the bound
+  has the kind `AlreadyExists`. Mode 0700 and 0600, set whole after the
+  create (the directory through a descriptor with `O_NOFOLLOW`). A prefix
+  or a suffix with a path separator, a NUL byte or `..` is `InvalidInput`.
+  On Windows, `closed_win::create_new_private_dir` makes the directory with
+  its private access list in one `CreateDirectoryW`. 10 tests of
+  `files::temp`, (a) to (f) and the fallback with no random bytes; (d) runs
+  a child with a umask of 0 and of 0277; (f) runs two children, each pid 1
+  of a PID namespace of a user namespace, and skips where the host refuses
+  the namespace (it ran on this host). The decision of the Premise: the
+  system source, as the fork of a child copies the keys of the hasher.
+  Plants: `core-temp-name-from-the-pid` (caught by (a) and (f)) and
+  `core-temp-dir-mode-from-the-umask` (caught by (d), mode 500).
+- `f934bf9b`: `random_name` and `make_stage` of `files/socket.rs` are gone:
+  the stage is `new_temp_dir(parent, ".pb")`, the same name of 20 bytes,
+  and the link of `socket/alias.rs` takes the same loop with `symlink(2)`.
+- The commit of this Done: `temp_name` of `files/replace.rs` and the
+  temporary file of `files/own.rs` take the loop of `files::temp`
+  (`.NAME-RANDOM.tmp`, the mode of the replace before the first byte). A
+  file at a temporary name now gives a new name, not a failed replace. Fix:
+  `create_private` removed the path at its temporary name before the
+  create, so it removed the file of another process of the same pid; the
+  new test `a_file_at_a_name_of_the_pid_stays` fails on the old code (a
+  file of the 256 planted names is gone) and passes on the new. The plants
+  `core-replace-removes-a-file-it-did-not-make`, `core-store-shares-one-temp-name`
+  and `core-bind-long-at-the-stage` follow the new lines; each is caught.
+- Measured: `cargo test -p pod-core --all-features`: 116 lib tests and 21
+  integration tests pass; clippy of pod-core for the host, and
+  `cargo check -p pod-core --tests` for `x86_64-pc-windows-gnu`,
+  `x86_64-apple-darwin` and `x86_64-unknown-linux-musl`, pass. FreeBSD was
+  not built (no target here).
+
+Remains:
+
+- Step 2 for the other crates, one crate in a commit: `pod-hostprobe`
+  (`exec.rs`, `writable.rs`, `probes/files.rs`, `access.rs`, `cgroup.rs`),
+  `pod-enter` (`stage.rs`, `fuse.rs`), `pod-guest` (`scratch.rs`: its test
+  `a_scratch_directory_is_named_for_the_run_and_closed_to_others` holds that
+  a second call with one tag gives the same directory; read the callers in
+  podvm first), `pod-actions-store` (`git.rs`, `store.rs`), `pod-link`
+  (`unix.rs`), `pod-rootfs` (`write/follow.rs`), `pod-warp` (`lib.rs`) and
+  `pod-supervise` (`table.rs`, after T-872).
+- Step 3: the directories of the tests through `pod-testkit`, and the check
+  of T-932.
+- Step 5: the next tag carries the functions; answer PodUtils/podnet#711
+  and PodUtils/podvm#567 with it.
 
 # T-1359: `pod-core`: three tests of `files::socket` fail on macOS because the temporary directory is longer than their directory of 40 bytes
 

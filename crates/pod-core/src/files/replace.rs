@@ -13,7 +13,6 @@
 
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 pub use super::replace_mode::{Failed, Mode, Step};
 
@@ -129,9 +128,8 @@ impl Replace {
             false => Vec::new(),
         };
         let mode = self.mode.bits(&target).map_err(at(Step::ReadMode))?;
-        let tmp = (hooks.temp)(&dir, &name);
-        // A file at the temporary name is not this replace's: it stays.
-        let mut file = create(&tmp, mode).map_err(at(Step::Create))?;
+        // A file at a temporary name is not this replace's: it stays.
+        let (tmp, mut file) = temp_file(&dir, &name, mode, hooks.random).map_err(at(Step::Create))?;
         let written = (hooks.write)(&mut file, body)
             .map_err(at(Step::Write))
             .and_then(|()| file.sync_all().map_err(at(Step::Sync)));
@@ -186,18 +184,17 @@ fn replace_with(
 #[derive(Clone, Copy)]
 struct Hooks {
     rename: fn(&Path, &Path) -> io::Result<()>,
-    temp: fn(&Path, &str) -> PathBuf,
+    random: fn() -> String,
     write: fn(&mut std::fs::File, &[u8]) -> io::Result<()>,
 }
 
-const REAL: Hooks = Hooks { rename, temp: temp_name, write: |file, body| file.write_all(body) };
+const REAL: Hooks = Hooks { rename, random: super::temp::random_part, write: |file, body| file.write_all(body) };
 
-/// A name in `dir` that no other replace of this process takes, and that a
-/// replace of another process takes only with the same pid.
-fn temp_name(dir: &Path, name: &str) -> PathBuf {
-    static NEXT: AtomicU64 = AtomicU64::new(0);
-    let unique = NEXT.fetch_add(1, Ordering::Relaxed);
-    dir.join(format!(".{name}.{}.{unique}.tmp", std::process::id()))
+/// A new file `.NAME-RANDOM.tmp` in `dir` with the mode `mode`, and a new
+/// name while a name is there (T-1343): a name from the pid is not new in a
+/// PID namespace.
+fn temp_file(dir: &Path, name: &str, mode: u32, mut random: fn() -> String) -> io::Result<(PathBuf, std::fs::File)> {
+    super::temp::new_named(dir, &format!(".{name}"), ".tmp", &mut random, &mut |path| create(path, mode))
 }
 
 /// The target of the links at `path`, one link after the other; `path`

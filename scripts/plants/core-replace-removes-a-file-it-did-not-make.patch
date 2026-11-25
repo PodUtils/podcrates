@@ -1,16 +1,16 @@
 diff --git a/crates/pod-core/src/files/replace.rs b/crates/pod-core/src/files/replace.rs
-index 2e9983d7..2dc9dbac 100644
 --- a/crates/pod-core/src/files/replace.rs
 +++ b/crates/pod-core/src/files/replace.rs
-@@ -111,7 +111,10 @@ impl Replace {
-         let mode = self.mode.bits(&target).map_err(at(Step::ReadMode))?;
-         let tmp = (hooks.temp)(&dir, &name);
-         // A file at the temporary name is not this replace's: it stays.
--        let mut file = create(&tmp, mode).map_err(at(Step::Create))?;
-+        let mut file = create(&tmp, mode).map_err(|e| {
-+            let _ = std::fs::remove_file(&tmp);
-+            at(Step::Create)(e)
-+        })?;
-         let written = (hooks.write)(&mut file, body)
-             .map_err(at(Step::Write))
-             .and_then(|()| file.sync_all().map_err(at(Step::Sync)));
+@@ -194,7 +194,11 @@
+ /// name while a name is there (T-1343): a name from the pid is not new in a
+ /// PID namespace.
+ fn temp_file(dir: &Path, name: &str, mode: u32, mut random: fn() -> String) -> io::Result<(PathBuf, std::fs::File)> {
+-    super::temp::new_named(dir, &format!(".{name}"), ".tmp", &mut random, &mut |path| create(path, mode))
++    super::temp::new_named(dir, &format!(".{name}"), ".tmp", &mut random, &mut |path| {
++        create(path, mode).inspect_err(|_| {
++            let _ = std::fs::remove_file(path);
++        })
++    })
+ }
+ 
+ /// The target of the links at `path`, one link after the other; `path`

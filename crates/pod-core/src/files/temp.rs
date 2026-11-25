@@ -30,7 +30,7 @@ pub(super) const RANDOM_DIGITS: usize = 16;
 /// has the kind `AlreadyExists`. A prefix with a path separator, a NUL byte
 /// or `..` is `InvalidInput`.
 pub fn new_temp_dir(parent: &Path, prefix: &str) -> io::Result<PathBuf> {
-    new_named(parent, prefix, "", &mut random_part, &mut create_dir).map(|(path, ())| path)
+    new_checked(parent, prefix, "", &mut random_part, &mut create_dir).map(|(path, ())| path)
 }
 
 /// A new file `PREFIX-RANDOMSUFFIX` in `parent`, opened for writing, with
@@ -39,13 +39,12 @@ pub fn new_temp_dir(parent: &Path, prefix: &str) -> io::Result<PathBuf> {
 /// a suffix with a path separator, a NUL byte or `..` is `InvalidInput`.
 /// A symbolic link at the name is not followed: the name is taken as there.
 pub fn new_temp_file(parent: &Path, prefix: &str, suffix: &str) -> io::Result<(PathBuf, std::fs::File)> {
-    new_named(parent, prefix, suffix, &mut random_part, &mut create_file)
+    new_checked(parent, prefix, suffix, &mut random_part, &mut create_file)
 }
 
-/// The first path `parent/PREFIX-RANDOMSUFFIX` that `create` makes, with a
-/// new `RANDOM` from `random` after each `AlreadyExists`, up to [`NAMES`]
-/// tries. Another error of `create` ends the tries.
-pub(super) fn new_named<T>(
+/// [`new_named`] of a prefix and a suffix that a caller gives: each must be
+/// a part of one file name.
+fn new_checked<T>(
     parent: &Path,
     prefix: &str,
     suffix: &str,
@@ -54,6 +53,21 @@ pub(super) fn new_named<T>(
 ) -> io::Result<(PathBuf, T)> {
     check_part("prefix", prefix)?;
     check_part("suffix", suffix)?;
+    new_named(parent, prefix, suffix, random, create)
+}
+
+/// The first path `parent/PREFIX-RANDOMSUFFIX` that `create` makes, with a
+/// new `RANDOM` from `random` after each `AlreadyExists`, up to [`NAMES`]
+/// tries. Another error of `create` ends the tries. The prefix and the
+/// suffix are parts of a file name that this crate gives (the name of a
+/// target file can hold `..`).
+pub(super) fn new_named<T>(
+    parent: &Path,
+    prefix: &str,
+    suffix: &str,
+    random: &mut dyn FnMut() -> String,
+    create: &mut dyn FnMut(&Path) -> io::Result<T>,
+) -> io::Result<(PathBuf, T)> {
     let mut last = None;
     for _ in 0..NAMES {
         let path = parent.join(format!("{prefix}-{}{suffix}", random()));

@@ -1508,7 +1508,7 @@ contract.
   through them `pod-tls` (`crates/pod-tls/src/groups/dirs.rs:25`) and
   `pod-identity` (`crates/pod-identity/src/pins.rs:134`). The review
   agrees.
-- Read: `crates/pod-core/src/files/own.rs:67-98`. `create_private` syncs
+- Read: `crates/pod-core/src/files/own.rs:67-94`. `create_private` syncs
   the file, links it into place with a hard link (never over a file), and
   does not sync the directory. The review agrees. It is a create, not a
   replace.
@@ -1727,7 +1727,7 @@ it.
 ## Premise
 
 - Read: `crates/pod-core/src/files.rs:171-190`,
-  `crates/pod-core/src/files/own.rs:61-98`,
+  `crates/pod-core/src/files/own.rs:61-94`,
   `crates/pod-tls/src/groups/dirs.rs`, `crates/pod-identity/src/pins.rs`.
 - Read: `pin` (`crates/pod-identity/src/pins.rs:114-138`) reads the pins,
   adds a line and stores the whole file, with no lock. Two pins at once

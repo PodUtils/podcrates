@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 987 entries: 155 open, 28 partial, 7 blocked, 797 done.
+`TODO/INDEX.md` holds 987 entries: 154 open, 29 partial, 7 blocked, 797 done.
 
 ## State
 
@@ -113,7 +113,8 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   (the launcher of `pod-supervise` blocks before the start of the
   payload); T-927 (PodUtils/podvm#584); T-1321 (a C backend of
   `pod-gzip`, measured).
-- podnet: T-1343 (a temp directory and a temp file with a random name,
+- podnet: T-1343 (partial: `new_temp_dir` and `new_temp_file` are on
+  `main` for the next tag; the moves of the other crates remain;
   PodUtils/podnet#711, COORD-119); T-1135 (`pod-cloudflare` says a cause two
   times); T-879 (`pod-detach`); T-897.
 - podssh: T-1169 (`pod-link`, the DNS carrier; PodUtils/podssh#349,
@@ -184,7 +185,8 @@ carriers of M2 for podnet: T-526. Then the items below, in order.
 8. **M3, the adapters:** T-028, T-030.
 9. **M4, the roads:** T-131 (a defect of `pod-gsr` on Windows ARM64)
    first; then T-036 (with T-856, the vectors of `tokens.json`), T-039.
-10. **M5, the upkeep:** T-1343 (the shared temp names of `pod-core`), then
+10. **M5, the upkeep:** T-1343 (partial: the moves of step 2 in the other
+   crates, and step 3), then
    T-932 (the temp files, PodUtils/podvm#567), T-917
    (the copies of product code that `codegraph.py dups` finds), T-1115
    (the two copies of the bind of a Unix socket at a long path), T-928 (the

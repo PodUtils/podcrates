@@ -150,9 +150,9 @@ fn a_prefix_or_a_suffix_that_leaves_the_name_is_refused() {
     let bad = ["a/b", "/a", "..", "a..b", "a\0b", if cfg!(windows) { "a\\b" } else { "../a" }];
     for part in bad {
         let mut parts = Parts::new(&[A]);
-        let e = new_named(&dir, part, "", &mut || parts.next(), &mut create_dir).map(|(p, ())| p).unwrap_err();
+        let e = new_checked(&dir, part, "", &mut || parts.next(), &mut create_dir).map(|(p, ())| p).unwrap_err();
         assert_eq!(e.kind(), io::ErrorKind::InvalidInput, "prefix {part:?}");
-        let e = new_named(&dir, "p", part, &mut || parts.next(), &mut create_file).map(|(p, _)| p).unwrap_err();
+        let e = new_checked(&dir, "p", part, &mut || parts.next(), &mut create_file).map(|(p, _)| p).unwrap_err();
         assert_eq!(e.kind(), io::ErrorKind::InvalidInput, "suffix {part:?}");
         assert_eq!(parts.calls, 0, "no name is made for {part:?}");
     }

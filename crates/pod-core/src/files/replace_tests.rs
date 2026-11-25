@@ -113,10 +113,11 @@ fn on_windows_a_replace_takes_a_name_that_a_reader_holds() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The temporary name of a test that plants a file there first.
+/// The random part of each temporary name of a test that plants a file
+/// at the name first.
 #[cfg(unix)]
-fn fixed_temp(dir: &Path, _name: &str) -> PathBuf {
-    dir.join(".fixed.tmp")
+fn fixed_temp() -> String {
+    "fixed".to_string()
 }
 
 /// A write that puts half of the body, then fails as a full disk does.
@@ -173,17 +174,47 @@ fn a_loop_of_links_is_refused_at_the_follow() {
 #[test]
 fn a_link_at_the_temporary_name_is_never_followed_or_removed() {
     let dir = dir("tmplink");
-    let (path, victim, planted) = (dir.join("config"), dir.join("victim"), dir.join(".fixed.tmp"));
+    let (path, victim, planted) = (dir.join("config"), dir.join("victim"), dir.join(".config-fixed.tmp"));
     std::fs::write(&path, b"old").unwrap();
     std::fs::write(&victim, b"victim").unwrap();
     std::os::unix::fs::symlink(&victim, &planted).unwrap();
-    let hooks = Hooks { temp: fixed_temp, ..REAL };
+    let hooks = Hooks { random: fixed_temp, ..REAL };
     let failed = Replace::new(Mode::Private).run(&path, b"new", hooks).unwrap_err();
     assert_eq!(failed.step(), Step::Create);
     assert_eq!(failed.cause().kind(), io::ErrorKind::AlreadyExists);
     assert_eq!(std::fs::read(&victim).unwrap(), b"victim", "the link is not followed");
     assert!(std::fs::symlink_metadata(&planted).unwrap().file_type().is_symlink(), "the link is not removed");
     assert_eq!(std::fs::read(&path).unwrap(), b"old");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The random part "fixed" at the first call, then a random one.
+#[cfg(unix)]
+fn fixed_then_new() -> String {
+    static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    match CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed) {
+        0 => fixed_temp(),
+        _ => crate::files::temp::random_part(),
+    }
+}
+
+/// T-1343: a file at the temporary name of a replace, as another process
+/// of the same pid makes it in a PID namespace, gives a new name; the
+/// file stays as it is. A name of the target with `..` is a file name.
+#[cfg(unix)]
+#[test]
+fn a_file_at_the_temporary_name_gives_a_new_name_and_stays() {
+    let dir = dir("tmpthere");
+    let (path, planted) = (dir.join("config"), dir.join(".config-fixed.tmp"));
+    std::fs::write(&path, b"old").unwrap();
+    std::fs::write(&planted, b"another replace").unwrap();
+    Replace::new(Mode::Private).run(&path, b"new", Hooks { random: fixed_then_new, ..REAL }).unwrap();
+    assert_eq!(std::fs::read(&path).unwrap(), b"new");
+    assert_eq!(std::fs::read(&planted).unwrap(), b"another replace", "the file at the name stays");
+    let dots = dir.join("a..b");
+    replace(&dots, b"dots", Mode::Private).unwrap();
+    assert_eq!(std::fs::read(&dots).unwrap(), b"dots");
+    assert_eq!(names(&dir), [".config-fixed.tmp", "a..b", "config"], "no temporary file of the replace stays");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
