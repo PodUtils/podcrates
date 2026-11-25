@@ -32,7 +32,9 @@ is done. Git and the record keep finished work.
      PodUtils/podssh#358 (COORD-148) is T-1390 (its item 1 closed #258);
      PodUtils/podvm#668 (COORD-251) is T-1391;
      PodUtils/podssh#357 (COORD-147) asks T-1380 to T-1383;
-     PodUtils/podnet#711 (COORD-119) is T-1343 (partial);
+     PodUtils/podnet#753 to #755 (COORD-123 to COORD-125) are T-1392 to
+     T-1394, done on `main` after `v0.85.0`: answer them with the tag
+     after `v0.85.0`;
      PodUtils/podssh#349 (COORD-139) is T-1169.
    - The takes of `v0.84.0` (the hand-off #260, COORD-155): podssh
      (`806e0a4`, #357), podvm (`04c8b7f4`, #666) and podrunner (`72cd0ab`,
@@ -40,7 +42,7 @@ is done. Git and the record keep finished work.
      are verified, and #260 is closed (call C780). T-1375 ported the four
      files of podrunner that changed in `pod-testkit`.
    - Answered by `v0.84.0`, waiting for the take of the consumer:
-     PodUtils/podnet#712 (T-1365), #726 (T-1366); PodUtils/podssh#340,
+     PodUtils/podssh#340,
      #349, #351 to #353, #355, #356; PodUtils/podvm#657 (T-1193 to
      T-1196). podrunner took PodUtils/podrunner#352 (T-1362) and #353
      (T-1370) at `3391edc` and `f2716a1`; its session closes them.
@@ -138,11 +140,11 @@ The asks that #260 answers:
   DoH form of the DNS carrier (PodUtils/podssh#349; its T-900), the bearer
   grant and `Binding` (PodUtils/podssh#355; its T-834), and the codec
   version 2 (PodUtils/podssh#353; the take does not name it).
-- podnet: no take. The refusal replies of `pod-warp` (PodUtils/podnet#712,
-  T-1365), the cause by issuer of the door (PodUtils/podnet#726, T-1366),
-  the one cause of each failure of `pod-cloudflare` (T-1135), `new_temp_dir`
-  and `new_temp_file` (PodUtils/podnet#711, T-1343) and the class `Data`
-  (`DATA_ERROR`).
+- podnet: took `v0.84.0` at `405d47c` (PodUtils/podnet#752): the refusal
+  replies of `pod-warp` (T-1365), the cause by issuer of the door (T-1366),
+  `new_temp_dir` and `new_temp_file` (T-1343) and `DATA_ERROR`; it closed
+  PodUtils/podnet#711, #712 and #726. Not taken yet: `pod-natprobe`,
+  `pod-tpm`, `pod-gzip`.
 - podrunner: took the fields `ref` and `repo_id` of `RealJob`
   (PodUtils/podrunner#352, T-1362) at `3391edc` and the warm units of
   `run-report.v1` and `status.v1` (PodUtils/podrunner#353, T-1370) at
@@ -150,6 +152,20 @@ The asks that #260 answers:
 
 ### On `main` after `v0.84.0` (for the next tag)
 
+- T-1392 (`pod-dns`, PodUtils/podnet#753; after `v0.85.0`): the line of a
+  name that does not resolve names each group of resolvers once
+  (`N resolvers failed: K with CAUSE; K with CAUSE`) and shortens a cause
+  at a part boundary, never inside it. No change of the public API.
+- T-1393 (`pod-proxy`, PodUtils/podnet#754; after `v0.85.0`): the stderr
+  of an exec command goes to a pipe (`STDERR_KEPT` 512 bytes,
+  `ChildIo::stderr_tail`); the new `DialError::ProxyExited { word, status,
+  said }` (breaking: `DialError` is not `non_exhaustive`); a command that
+  exits 126 or 127 is held for `EXEC_HOLD` (10 s); `secret_parts` of an
+  exec spec keeps the program word readable.
+- T-1394 (`pod-cloudflare`, PodUtils/podnet#755; after `v0.85.0`): the
+  edge discovery has `DISCOVERY_LIMIT` 12 s, `DOH_LIMIT` 8 s, `DOH_EACH`
+  3 s and the event `edge.discovery` after `SLOW_SOURCE` 3 s; the legs of
+  one start share one discovery.
 - T-1389 (`pod-enter`, PodUtils/podvm#667 for ask 5 of
   PodUtils/podrunner#296; after `v0.85.0`): `Plan::tmpfs` takes
   `TmpfsMount { guest, bytes: NonZeroU64 }`; the namespace rung mounts
@@ -206,12 +222,13 @@ The asks that #260 answers:
 ### What the next hand-off carries
 
 - The hand-off of `v0.85.0` (the next COORD number after COORD-155).
-- podrunner: no open ask. T-1375 (the port of four files of podrunner
-  into `pod-testkit`) is open.
+- podrunner: the live limits (T-1379, in `v0.85.0`) and the tmpfs of ask
+  5 of PodUtils/podrunner#296 (T-1389, after it).
 - podvm: T-1321 (a C backend of deflate for `pod-gzip`, measured).
-- podnet: T-1343 is partial (the moves of the other crates of step 2 and
-  step 3 follow); T-1377 and T-1378 (failures whose text holds the words
-  of a typed cause).
+- podnet: T-1392 to T-1394 (PodUtils/podnet#753 to #755) after
+  `v0.85.0`; T-1343 is partial (the moves of the other crates of step 2
+  and step 3 follow); T-1377 and T-1378 (failures whose text holds the
+  words of a typed cause).
 - podssh: open: T-1169 (a test of the DNS carrier through `unbound`),
   T-1103 (iroh 1.5), T-1340 (a key file of `pod-tpm` in tpm2-openssl and
   go-tpm-keyfiles), T-1380 and T-1381 (`pod-tpm`: `Tbs`, `SoftTpm`),
