@@ -1,0 +1,13 @@
+diff --git a/crates/pod-cloudflare/src/edge_discovery.rs b/crates/pod-cloudflare/src/edge_discovery.rs
+index 872c8e78..1d9d32d1 100644
+--- a/crates/pod-cloudflare/src/edge_discovery.rs
++++ b/crates/pod-cloudflare/src/edge_discovery.rs
+@@ -145,7 +145,7 @@ pub async fn discover(host: &Host, filter: IpVersionFilter) -> Result<Vec<EdgeAd
+     let mut failures: Vec<(String, Option<String>)> = Vec::new();
+     let after_doh = if host.system_srv.is_some() { "the system resolver" } else { "the static list" };
+ 
+-    let doh_end = start + DOH_LIMIT;
++    let doh_end = start + Duration::from_secs(45);
+     let doh = doh::discover_doh_until(host, filter, doh_end);
+     let (found, said) = timed(host, ("DoH", &doh::way_words(host)), after_doh, doh_end, doh).await;
+     match found {
