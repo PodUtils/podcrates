@@ -232,16 +232,17 @@ impl Store {
         Ok(Some(tar))
     }
 
-    /// Keep a tar, compressed, through a temporary file.
+    /// Keep a tar, compressed, through a new temporary file with a random
+    /// name and a rename: a file or a link at a name of another process is
+    /// never written.
     fn put(&self, repo: &str, commit: &str, tar: &[u8]) -> Result<(), Error> {
         let path = self.path(repo, commit);
         let fail = |e: std::io::Error| Error::file(&path, &e);
         std::fs::create_dir_all(path.parent().expect("a directory of the repository")).map_err(fail)?;
-        let tmp = path.with_extension(format!("tmp{}", std::process::id()));
         let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         gz.write_all(tar).map_err(fail)?;
-        std::fs::write(&tmp, gz.finish().map_err(fail)?).map_err(fail)?;
-        std::fs::rename(&tmp, &path).map_err(fail)
+        let body = gz.finish().map_err(fail)?;
+        pod_core::files::replace(&path, &body, pod_core::files::Mode::Exact(0o644)).map(drop).map_err(fail)
     }
 }
 
