@@ -7,20 +7,41 @@
 #   sh scripts/cloud-setup.sh [TARGET...]
 #
 # With no TARGET, it adds x86_64-unknown-linux-musl. A new shell finds
-# cargo, rustup, zig and cargo-zigbuild with
-# `export PATH="$HOME/.local/bin:$PATH"`.
+# cargo, rustup, zig and cargo-zigbuild with `. ./scripts/cloud-env.sh`.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 # rustup reads rust-toolchain.toml in the directory of the command.
 cd "$here/.."
 ZIG_VERSION=${ZIG_VERSION:-0.16.0}
-ZIG_SHA256=${ZIG_SHA256:-70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00}
+# zig for the machine of the host: the pins of index.json of ziglang.org.
+case "$(uname -m)" in
+    aarch64 | arm64)
+        ZIG_ARCH=aarch64
+        zig_sum=ea4b09bfb22ec6f6c6ceac57ab63efb6b46e17ab08d21f69f3a48b38e1534f17
+        ;;
+    *)
+        ZIG_ARCH=x86_64
+        zig_sum=70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
+        ;;
+esac
+export ZIG_ARCH
+ZIG_SHA256=${ZIG_SHA256:-$zig_sum}
 ZIGBUILD_VERSION=${ZIGBUILD_VERSION:-0.23.4}
 ZIGBUILD_SHA256=${ZIGBUILD_SHA256:-9e3cf73485edbd45905c8aadbc0fdf869c7ddc3848f0c898229f2680db52e44b}
 RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.3}
 tools=${PODCRATES_TOOLS:-$HOME/.local/podcrates}
 cargo_bin=${CARGO_HOME:-$HOME/.cargo}/bin
 mkdir -p "$HOME/.local/bin"
+# A limit of time for each long step; a host with no timeout(1) runs it
+# with no limit.
+bounded() {
+    if command -v timeout > /dev/null 2>&1; then
+        timeout "$@"
+    else
+        shift
+        "$@"
+    fi
+}
 
 # A fresh host or a local machine with no rustup: the installer of the Rust
 # project, checked by the SHA-256 of its .sha256 file, with no toolchain
@@ -43,7 +64,7 @@ if ! command -v rustup > /dev/null 2>&1 && [ ! -x "$cargo_bin/rustup" ]; then
     sh "$here/ci/fetch-tool.sh" \
         "https://static.rust-lang.org/rustup/archive/$RUSTUP_VERSION/$arch-unknown-linux-gnu/rustup-init" \
         "$sum" rustup-init "$tools/rustup"
-    "$tools/rustup/rustup-init" -y --no-modify-path --default-toolchain none < /dev/null
+    bounded 300 "$tools/rustup/rustup-init" -y --no-modify-path --default-toolchain none < /dev/null
 fi
 if [ -x "$cargo_bin/rustup" ]; then
     case ":$PATH:" in *":$cargo_bin:"*) ;; *) PATH=$cargo_bin:$PATH && export PATH ;; esac
@@ -55,18 +76,18 @@ if [ -x "$cargo_bin/rustup" ]; then
 fi
 # The toolchain of rust-toolchain.toml, when rustup does not have it yet.
 if ! RUSTUP_AUTO_INSTALL=0 rustup which cargo > /dev/null 2>&1; then
-    rustup toolchain install --no-self-update < /dev/null
+    bounded 900 rustup toolchain install --no-self-update < /dev/null
 fi
 
 [ "$#" -gt 0 ] || set -- x86_64-unknown-linux-musl
-rustup target add "$@"
+bounded 600 rustup target add "$@" < /dev/null
 
 if ! command -v zig > /dev/null 2>&1; then
     mkdir -p "$tools"
     sh "$here/fetch-zig.sh" "$ZIG_VERSION" "$ZIG_SHA256" "$tools/zig.tar.xz"
     tar -xJf "$tools/zig.tar.xz" -C "$tools"
     rm -f "$tools/zig.tar.xz"
-    ln -sf "$tools/zig-x86_64-linux-$ZIG_VERSION/zig" "$HOME/.local/bin/zig"
+    ln -sf "$tools/zig-$ZIG_ARCH-linux-$ZIG_VERSION/zig" "$HOME/.local/bin/zig"
 fi
 # `cargo zigbuild --version` is refused as an argument of the build; the
 # binary itself prints its version.

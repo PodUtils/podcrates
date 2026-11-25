@@ -157,10 +157,13 @@ pub fn counts(root: &Path) -> Result<(), String> {
     write_like(root, PROGRESS, &new_progress)
 }
 
-/// The next free id.
-pub fn next_id(root: &Path) -> Result<String, String> {
+/// The next free id at or above `T-{from}`: one more than the highest id
+/// from `from` on, or `from` itself. Agents that work in parallel each take
+/// ids from a range of their own (`docs/hosted-sessions.md`), so two
+/// branches do not take the same id.
+pub fn next_id(root: &Path, from: u32) -> Result<String, String> {
     let index = read(root, INDEX).ok_or("TODO/INDEX.md is missing")?;
     let (rows, _) = parse::rows(INDEX, &index);
-    let max = rows.iter().map(|r| crate::model::id_number(&r.id)).max().unwrap_or(0);
-    Ok(format!("T-{:03}", max + 1))
+    let max = rows.iter().map(|r| crate::model::id_number(&r.id)).filter(|n| *n >= from).max();
+    Ok(format!("T-{:03}", max.map_or(from, |n| n + 1)))
 }

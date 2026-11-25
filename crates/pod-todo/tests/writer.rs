@@ -68,6 +68,10 @@ fn counts_are_derived_after_a_row_is_added_by_hand() {
     assert_eq!(code, 0, "{out}{err}");
     assert!(t.read("TODO/INDEX.md").contains("**4 entries: 2 open, 0 partial, 1 blocked, 1 done.**"));
     assert_eq!(run(&t, &["next"]).1.trim(), "T-005");
+    assert_eq!(run(&t, &["next", "--from", "3"]).1.trim(), "T-005", "a used range goes on after its highest id");
+    assert_eq!(run(&t, &["next", "--from", "T-40"]).1.trim(), "T-040", "a free range starts at its floor");
+    assert_eq!(run(&t, &["next", "--from", "0"]).0, 64, "the floor is at least 1");
+    assert_eq!(run(&t, &["next", "--to", "9"]).0, 64);
 }
 
 #[test]

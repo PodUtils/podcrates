@@ -2,16 +2,61 @@
 # Refuse a commit message with an agent attribution line (AGENTS.md,
 # section 3). A setting of one harness turns these lines off only in that
 # harness; this hook works in each. scripts/session-start.sh sets
-# core.hooksPath to this directory.
+# core.hooksPath to this directory. check.sh and ci.yml run the other two
+# forms: a commit made with no hook (another clone, --no-verify) is found
+# there.
 #
-# Exit 0: the message is allowed. Exit 1: it is refused.
+#   .githooks/commit-msg MESSAGE_FILE   (git calls it so)
+#   .githooks/commit-msg --range REV... (each commit that git rev-list REV... gives)
+#   .githooks/commit-msg --self-test    (planted messages)
+#
+# Exit 0: the message is allowed. Exit 1: it is refused. Exit 2: a usage
+# error.
 set -u
+
+# Print the attribution lines of the message on stdin. The comment lines of
+# git (after "#") are not part of the message.
+bad() {
+    grep -v '^#' | grep -i -n -E '^[[:space:]]*(co-authored-by|claude-session)[[:space:]]*:|^[^[:alnum:]]*generated with'
+}
+
+case "${1:-}" in
+    --range)
+        shift
+        [ "$#" -ge 1 ] || { echo "usage: commit-msg --range REV..." >&2; exit 2; }
+        revs=$(git rev-list "$@") || exit 2
+        rc=0
+        for rev in $revs; do
+            if git log -1 --format=%B "$rev" | bad > /dev/null; then
+                echo "commit-msg: commit $rev has an agent attribution line (AGENTS.md, section 3)" >&2
+                rc=1
+            fi
+        done
+        exit "$rc"
+        ;;
+    --self-test)
+        rc=0
+        t() {
+            if printf '%b' "$2" | bad > /dev/null; then got=1; else got=0; fi
+            if [ "$got" = "$1" ]; then echo "ok    $3"; else echo "FAIL  $3"; rc=1; fi
+        }
+        t 0 'T-1: a subject\n\nA body.\n' "a clean message passes"
+        t 0 'T-1: a subject\n\nThe code generated with zig.\n' "the words in a sentence pass"
+        t 0 'T-1: a subject\n\n# Co-Authored-By: a comment of git\n' "a comment line of git passes"
+        t 1 'x\n\nCo-Authored-By: A <a@example.invalid>\n' "Co-Authored-By is refused"
+        t 1 'x\n\n  co-authored-by : A <a@example.invalid>\n' "co-authored-by in lower case is refused"
+        t 1 'x\n\nClaude-Session: https://example.invalid/s\n' "Claude-Session is refused"
+        t 1 'x\n\nGenerated with a tool\n' "a line that starts with Generated with is refused"
+        t 1 'x\n\n- Generated with a tool\n' "the same line after a mark is refused"
+        echo "commit-msg self-test: $([ "$rc" = 0 ] && echo passed || echo FAILED)"
+        exit "$rc"
+        ;;
+esac
 [ "$#" -ge 1 ] && [ -r "$1" ] || {
     echo "commit-msg: git gave no readable message file; the message was not checked" >&2
     exit 1
 }
-# The comment lines of git (after "#") are not part of the message.
-if grep -v '^#' "$1" | grep -i -n -E '^[[:space:]]*(co-authored-by|claude-session)[[:space:]]*:|^[^[:alnum:]]*generated with' >&2; then
+if bad < "$1" >&2; then
     echo "commit-msg: the message has an agent attribution line (AGENTS.md, section 3); remove it and commit again" >&2
     exit 1
 fi

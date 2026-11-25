@@ -115,6 +115,20 @@ jobs:
           python3 -I scripts/agent/runs.py --self-test
       - name: The writer of the release index
         run: python3 -I scripts/release-index.py --self-test
+      # A commit made with no hook (another clone, --no-verify) has no
+      # check of its message before this step (AGENTS.md, section 3).
+      - name: No agent attribution line in the commits of the push
+        env:
+          BEFORE: ${{ github.event.before }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          sh .githooks/commit-msg --self-test
+          git fetch -q --deepen=200 origin "$GITHUB_SHA" || true
+          if [ "$EVENT" = push ] && git cat-file -e "$BEFORE^{commit}" 2> /dev/null; then
+            sh .githooks/commit-msg --range "$BEFORE..HEAD"
+          else
+            sh .githooks/commit-msg --range --max-count=1 HEAD
+          fi
       - name: No new repeated work (clones, twin entries, repeated paragraphs, the deps of design.md)
         run: |
           python3 -I scripts/codegraph.py dups

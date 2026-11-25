@@ -22,12 +22,35 @@
 # change against origin/main looks like (scripts/codegraph.py new), as a
 # hint. With the argument notest, the tests are skipped.
 #
+# First it makes the cargo target fit this checkout
+# (scripts/agent/stale_target.py, T-1384): a worktree of an agent can
+# leave artifacts in a shared target that cargo takes as fresh. It also
+# checks the merge driver of the record (scripts/agent/merge_todo.py), the
+# commit messages since origin/main (.githooks/commit-msg) and the session
+# start (sh -n). A run that passes writes the tree that it checked into
+# .work/agent/checked-trees (a full run) or .work/agent/linted-trees
+# (notest): .githooks/pre-push refuses a push of another tree.
+#
 #   sh scripts/agent/check.sh [notest]
 set -u
 cd "$(dirname "$0")/../.." || exit 1
 log=${TMPDIR:-/tmp}/podcrates-check
 mkdir -p "$log"
 rc=0
+# The tree of the working copy (tracked and new files), with no change to
+# the index.
+tree_now() {
+    idx=$(mktemp) || return 1
+    cp "$(git rev-parse --git-path index)" "$idx" &&
+        GIT_INDEX_FILE=$idx git add -A > /dev/null 2>&1 &&
+        GIT_INDEX_FILE=$idx git write-tree
+    e=$?
+    rm -f "$idx"
+    return "$e"
+}
+tree=$(tree_now)
+python3 -I scripts/agent/stale_target.py > "$log/target.log" 2>&1; g=$?
+echo "target $g"; cat "$log/target.log"; [ "$g" -eq 0 ] || rc=1
 cargo fmt --all --check > "$log/fmt.log" 2>&1; f=$?
 echo "fmt $f"; [ "$f" -eq 0 ] || { rc=1; head -20 "$log/fmt.log"; }
 cargo clippy --workspace --all-targets --all-features -- -D warnings > "$log/clippy.log" 2>&1; c=$?
@@ -52,6 +75,11 @@ echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/siz
     python3 -I scripts/check-history.py && python3 -I scripts/check-history.py --self-test &&
     python3 -I scripts/check-schemas.py && python3 -I scripts/release-index.py --self-test &&
     python3 -I scripts/agent/watch.py --self-test && python3 -I scripts/agent/runs.py --self-test &&
+    python3 -I scripts/agent/stale_target.py --self-test && python3 -I scripts/agent/merge_todo.py --self-test &&
+    sh .githooks/commit-msg --self-test &&
+    { ! git rev-parse -q --verify origin/main > /dev/null || sh .githooks/commit-msg --range origin/main..HEAD; } &&
+    sh -n scripts/session-start.sh && sh -n .claude/session-start.sh && sh -n scripts/cloud-env.sh &&
+    sh -n scripts/qa-bundle.sh && sh -n .githooks/pre-push &&
     python3 -I scripts/codegraph.py dups && python3 -I scripts/codegraph.py --self-test &&
     sh scripts/plant-each.sh --apply; } > "$log/paths.log" 2>&1; p=$?
 echo "paths $p"; [ "$p" -eq 0 ] || { rc=1; head -20 "$log/paths.log"; }
@@ -79,6 +107,16 @@ else
 fi
 if [ "${1:-}" != notest ]; then
     timeout 1800 cargo test --workspace --all-features --no-fail-fast > "$log/test.log" 2>&1; t=$?
-    echo "test $t"; [ "$t" -eq 0 ] || { rc=1; grep -E "FAILED|panicked|failed" "$log/test.log" | head -30; }
+    # Not "failed": each summary line has "0 failed" and would hide the cause.
+    echo "test $t"; [ "$t" -eq 0 ] || { rc=1; grep -E "FAILED|panicked|^error|^failures:|^---- " "$log/test.log" | head -30; }
+fi
+if [ "$rc" -eq 0 ]; then
+    stamps=.work/agent/checked-trees
+    [ "${1:-}" = notest ] && stamps=.work/agent/linted-trees
+    if [ -z "$tree" ] || [ "$(tree_now)" != "$tree" ]; then
+        echo "the tree changed during the checks: not recorded"
+    else
+        mkdir -p .work/agent && echo "$tree" >> "$stamps" && echo "tree $tree in $stamps"
+    fi
 fi
 exit "$rc"

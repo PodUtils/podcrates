@@ -34,7 +34,7 @@ use std::path::{Path, PathBuf};
 pub const USAGE: &str = "usage: pod-todo check
        pod-todo set T-NNN open|partial|blocked|done
        pod-todo counts
-       pod-todo next
+       pod-todo next [--from N]   (the next free id; with --from, the next free id from T-N: the range of one agent)
        pod-todo remap [--dry-run] FILE...   (after an edit of FILE: move its citations by a diff against HEAD)
        pod-todo issues --block NUMBER | --json   (the status block of an issue, from the record)
        pod-todo acceptance [--json] [--passed FILE]   (the asks of the acceptance registry, or those whose tests FILE passed)
@@ -106,15 +106,9 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
                 1
             }
         },
-        ["next"] => match write::next_id(&root) {
-            Ok(id) => {
-                let _ = writeln!(out, "{id}");
-                0
-            }
-            Err(e) => {
-                let _ = writeln!(err, "{}: {e}", tool());
-                1
-            }
+        ["next", rest @ ..] => match next_from(rest) {
+            Some(from) => print_next(&root, from, out, err),
+            None => usage(err, "next takes only --from N, as --from 1400"),
         },
         ["issues", rest @ ..] => block::command(&root, rest, out, err),
         ["acceptance", rest @ ..] => acceptance::command(&root, rest, out, err),
@@ -181,6 +175,28 @@ fn tool() -> String {
 /// The usage text with the name of the tool.
 pub fn usage_text() -> String {
     USAGE.replace("pod-todo", &tool())
+}
+
+/// The floor of `next`: 1 with no argument, N with `--from N`.
+fn next_from(rest: &[&str]) -> Option<u32> {
+    match rest {
+        [] => Some(1),
+        ["--from", n] => n.trim_start_matches("T-").parse().ok().filter(|n| *n > 0),
+        _ => None,
+    }
+}
+
+fn print_next(root: &Path, from: u32, out: &mut dyn std::io::Write, err: &mut dyn std::io::Write) -> i32 {
+    match write::next_id(root, from) {
+        Ok(id) => {
+            let _ = writeln!(out, "{id}");
+            0
+        }
+        Err(e) => {
+            let _ = writeln!(err, "{}: {e}", tool());
+            1
+        }
+    }
 }
 
 fn usage(err: &mut dyn std::io::Write, why: &str) -> i32 {

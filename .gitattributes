@@ -4,3 +4,9 @@
 fuzz/seeds/** -text
 # A signed file and its bundle are bytes: one changed byte fails the check.
 crates/pod-release/tests/fixtures/** -text
+# The merge of the branch of an agent: the rows of the index one id at a
+# time, and the counts derived again (scripts/agent/merge_todo.py; the
+# driver is set by scripts/session-start.sh). Without the driver, git
+# merges the text.
+TODO/INDEX.md merge=podcrates-todo
+TODO/PROGRESS.md merge=podcrates-todo
