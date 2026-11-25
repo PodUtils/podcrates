@@ -93,7 +93,7 @@ fn quick_tunnel_standin_exits_75_when_retry_after_exceeds_the_budget() {
     let err = standin.run(host, standin.config(Service::HelloWorld)).err().expect("the start gives up at once");
     assert_eq!(err.class, Class::TempFail, "{err}");
     assert_eq!(err.class.exit_code(), 75);
-    let text = err.to_string();
+    let text = err.chain();
     assert!(text.contains("429") && text.contains("3600"), "{text}");
     assert_eq!(standin.api.hits(), 1, "no second request");
     assert!(standin.edge.registrations.lock().unwrap().is_empty());

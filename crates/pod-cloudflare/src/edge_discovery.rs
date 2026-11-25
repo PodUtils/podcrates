@@ -119,13 +119,13 @@ pub async fn discover(host: &Host, filter: IpVersionFilter) -> Result<Vec<EdgeAd
     match discover_doh(host, filter).await {
         Ok(edges) if !edges.is_empty() => return Ok(edges),
         Ok(_) => failures.push("DoH returned no addresses".to_string()),
-        Err(err) => failures.push(format!("DoH: {err:#}")),
+        Err(err) => failures.push(format!("DoH: {}", err.chain())),
     }
 
     match discover_system(host, filter).await {
         Ok(edges) if !edges.is_empty() => return Ok(edges),
         Ok(_) => failures.push("the system resolver returned no addresses".to_string()),
-        Err(err) => failures.push(format!("system resolver: {err:#}")),
+        Err(err) => failures.push(format!("system resolver: {}", err.chain())),
     }
 
     let edges = static_edges(filter);
@@ -191,7 +191,7 @@ pub async fn discover_doh(host: &Host, filter: IpVersionFilter) -> Result<Vec<Ed
             let answer = match query(host, &target, rtype).await {
                 Ok(answer) => answer,
                 Err(err) => {
-                    tracing::debug!(%target, rtype, %err, "address lookup failed");
+                    tracing::debug!(%target, rtype, error = %err.chain(), "address lookup failed");
                     continue;
                 }
             };

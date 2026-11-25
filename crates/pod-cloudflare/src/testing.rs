@@ -84,3 +84,15 @@ pub fn recorded() -> (pod_core::Report, Arc<std::sync::Mutex<Vec<pod_core::Event
     let events = move |event: pod_core::Event| kept.lock().unwrap().push(event);
     (pod_core::Report { events: Arc::new(events), observer: Arc::new(pod_core::NoObserver) }, seen)
 }
+
+/// Each text of the chain joined with `: `, as a consumer that walks the
+/// sources writes it (anyhow's `{:#}`, PodUtils/podnet#707).
+pub fn each_text(err: &(dyn std::error::Error + 'static)) -> String {
+    let mut out = err.to_string();
+    let mut next = err.source();
+    while let Some(e) = next {
+        out.push_str(&format!(": {e}"));
+        next = e.source();
+    }
+    out
+}

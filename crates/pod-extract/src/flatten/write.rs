@@ -72,6 +72,17 @@ impl<'a, W: Write> Out<'a, W> {
         self.put(&[0u8; BLOCK][..rest])
     }
 
+    /// The prefix of each path of the image.
+    pub(super) fn prefix(&self) -> &str {
+        &self.prefix
+    }
+
+    /// Bytes of whole entries that a writer over a buffer made: a held
+    /// directory entry ([`super::entry::State::held`]).
+    pub(super) fn raw(&mut self, bytes: &[u8]) -> Result<()> {
+        self.put(bytes)
+    }
+
     /// The header of one entry of the image, below the prefix.
     pub(super) fn head(&mut self, h: &Head) -> Result<()> {
         self.head_with(h, &[], true)

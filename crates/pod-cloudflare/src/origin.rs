@@ -391,18 +391,6 @@ mod tests {
         assert_eq!(split_host_port("[::1]:8080"), Some(("::1", 8080)));
     }
 
-    /// Each text of the chain joined with `: `, as a consumer that walks
-    /// the sources writes it (anyhow's `{:#}`).
-    fn each_text(err: &(dyn std::error::Error + 'static)) -> String {
-        let mut out = err.to_string();
-        let mut next = err.source();
-        while let Some(e) = next {
-            out.push_str(&format!(": {e}"));
-            next = e.source();
-        }
-        out
-    }
-
     /// A refused origin says its cause once in the chain, and keeps the
     /// error of I/O as the cause (PodUtils/podnet#707, ask 10).
     #[tokio::test]
@@ -412,14 +400,14 @@ mod tests {
         let port = listener.local_addr().unwrap().port();
         drop(listener);
         let err = connect_origin("127.0.0.1", port).await.unwrap_err();
-        let all = each_text(&err);
+        let all = crate::testing::each_text(&err);
         assert_eq!(all.matches("refused").count(), 1, "{all}");
         assert_eq!(err.chain(), all);
         assert_eq!(err.io_cause().map(|e| e.kind()), Some(std::io::ErrorKind::ConnectionRefused));
         let unix = Err::<(), _>(std::io::Error::from(std::io::ErrorKind::ConnectionRefused))
             .io_fail(Stage::Origin, "connecting to unix:/run/o.sock")
             .unwrap_err();
-        let all = each_text(&unix);
+        let all = crate::testing::each_text(&unix);
         assert_eq!(all.matches("refused").count(), 1, "{all}");
         assert_eq!((unix.stage, unix.class), (Stage::Origin, Class::Unavailable));
     }

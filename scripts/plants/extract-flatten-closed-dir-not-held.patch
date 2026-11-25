@@ -1,0 +1,11 @@
+--- a/crates/pod-extract/src/flatten/entry.rs
++++ b/crates/pod-extract/src/flatten/entry.rs
+@@ -409,7 +409,7 @@
+ /// True when `mode` takes the write or the search mode from the owner of a
+ /// directory.
+ fn closes(mode: u32) -> bool {
+-    mode & 0o300 != 0o300
++    mode & 0o300 != 0o300 && false
+ }
+ 
+ /// One entry of the stream at `path`: the header with the values of the

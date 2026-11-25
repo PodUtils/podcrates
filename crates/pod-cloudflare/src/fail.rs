@@ -1,8 +1,10 @@
 //! The failures of the crate (`docs/design.md`, section 1, rule 9): each is
 //! a [`pod_core::Failure`] with its stage (the part of the path that broke,
 //! podnet's hop) and its class (what a caller can do, podnet's exit code).
-//! A context keeps the stage and the class of its cause, and its text holds
-//! the text of each cause.
+//! A context keeps the stage and the class of its cause. The text of a
+//! failure says its own step, and [`Failure::chain`] says the causes: a
+//! reader of a line takes `chain`, or joins each text of the chain (anyhow's
+//! `{:#}`), and then says each cause once.
 
 use std::error::Error;
 use std::fmt;
@@ -19,15 +21,14 @@ pub fn new(stage: Stage, class: Class, text: impl Into<String>) -> Failure {
 }
 
 /// A failure at `stage` of class `class` whose cause is `cause`. The text is
-/// `text`, a colon and the text of the cause.
+/// the step `text` alone; [`Failure::chain`] adds the text of the cause.
 pub fn caused(
     stage: Stage,
     class: Class,
     text: impl fmt::Display,
     cause: impl Error + Send + Sync + 'static,
 ) -> Failure {
-    let words = format!("{text}: {cause}");
-    Failure::caused(stage, class, words, cause)
+    Failure::caused(stage, class, text.to_string(), cause)
 }
 
 /// Return a [`Failure`] from the function: the stage, the class and the
@@ -39,7 +40,7 @@ macro_rules! bail {
 }
 pub(crate) use bail;
 
-/// The context of a failure: a text before the text of the failure. The
+/// The context of a failure: a step before the chain of the failure. The
 /// stage and the class stay.
 pub trait Context<T> {
     fn context(self, text: impl fmt::Display) -> Result<T>;
@@ -56,12 +57,17 @@ impl<T> Context<T> for Result<T> {
     }
 }
 
-/// `failure` with the text `text` before its own, once: a failure that
-/// starts with `text` (the request that `pod-proxy` names) keeps its words.
+/// `failure` as the cause of the step `text`, with its stage and its class:
+/// the text is `text` alone. A failure whose chain starts with `text` (the
+/// request that `pod-proxy` names) stays as it is, so the words are said
+/// once.
 pub fn wrap(failure: Failure, text: impl fmt::Display) -> Failure {
+    let (text, chain) = (text.to_string(), failure.chain());
+    if pod_core::failure::lead(&text, &chain) == chain {
+        return failure;
+    }
     let (stage, class) = (failure.stage, failure.class);
-    let words = pod_core::failure::lead(&text.to_string(), &failure.chain());
-    Failure::caused(stage, class, words, failure)
+    Failure::caused(stage, class, text, failure)
 }
 
 /// A stage and a class for an error of another crate.
@@ -137,7 +143,7 @@ impl fmt::Display for Refused {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "the edge refused the registration: {} (retry: {}, after {} s; {} speaks {})",
+            "{} (retry: {}, after {} s; {} speaks {})",
             self.cause,
             if self.should_retry { "yes" } else { "no" },
             self.retry_after.as_secs(),
@@ -151,10 +157,10 @@ impl Error for Refused {}
 
 impl From<Refused> for Failure {
     /// A refusal with no retry is final. A refusal with a retry is
-    /// temporary.
+    /// temporary. The text is the step; the refusal is the cause.
     fn from(refused: Refused) -> Failure {
         let class = if refused.should_retry { Class::TempFail } else { Class::Refused };
-        Failure::caused(Stage::EdgeRegister, class, refused.to_string(), refused)
+        Failure::caused(Stage::EdgeRegister, class, "the edge refused the registration", refused)
     }
 }
 
@@ -214,8 +220,8 @@ mod tests {
             .context("POST https://api.trycloudflare.com/tunnel")
             .unwrap_err();
         assert_eq!(stage_of(&err), Some(Stage::Proxy));
-        assert_eq!(format!("{err:#}"), "POST https://api.trycloudflare.com/tunnel: 403 not on the egress allowlist");
-        assert_eq!(err.chain(), err.to_string());
+        assert_eq!(err.chain(), "POST https://api.trycloudflare.com/tunnel: 403 not on the egress allowlist");
+        assert_eq!(crate::testing::each_text(&err), err.chain());
     }
 
     #[test]
@@ -223,7 +229,27 @@ mod tests {
         let err = new(Stage::Host, Class::Config, "bad edge list");
         let err = Err::<(), _>(err).context("starting the tunnel").unwrap_err();
         assert_eq!(class_of(&err), Some(Class::Config));
-        assert_eq!(format!("{err:#}"), "starting the tunnel: bad edge list");
+        assert_eq!(err.chain(), "starting the tunnel: bad edge list");
+        assert_eq!(err.to_string(), "starting the tunnel");
+    }
+
+    /// `caused`, `or_fail` and `context` keep the step alone as the text, so
+    /// that a reader that joins the chain says the cause once.
+    #[test]
+    fn a_joined_chain_says_each_cause_once() {
+        let cause = || std::io::Error::other("no route to the edge");
+        let caused = caused(Stage::Quic, Class::Unavailable, "QUIC handshake with 1.2.3.4:7844", cause());
+        let or_fail = Err::<(), _>(cause()).or_fail(Stage::Quic, Class::Unavailable, "the handshake").unwrap_err();
+        let context = Err::<(), _>(caused).context("the edge at 1.2.3.4:7844").unwrap_err();
+        for failure in [&or_fail, &context] {
+            let line = crate::testing::each_text(failure);
+            assert_eq!(line.matches("no route to the edge").count(), 1, "{line}");
+            assert_eq!(line, failure.chain());
+        }
+        assert_eq!(context.chain(), "the edge at 1.2.3.4:7844: QUIC handshake with 1.2.3.4:7844: no route to the edge");
+        let lead = new(Stage::Proxy, Class::Refused, "POST https://a/b: 403 not on the egress allowlist");
+        let kept = Err::<(), _>(lead).context("POST https://a/b").unwrap_err();
+        assert_eq!(crate::testing::each_text(&kept), "POST https://a/b: 403 not on the egress allowlist");
     }
 
     /// A typed cause is found in the chain.

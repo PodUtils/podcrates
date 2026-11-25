@@ -102,7 +102,7 @@ pub async fn serve_stream(
     metrics.stream_started();
     if let Err(err) = serve_inner(&runtime, &ingress, signature, send, recv).await {
         metrics.error();
-        tracing::warn!(error = %format!("{err:#}"), "stream failed");
+        tracing::warn!(error = %err.chain(), "stream failed");
     }
     metrics.stream_finished();
 }
@@ -139,7 +139,7 @@ pub async fn serve_decoded(
     metrics.stream_started();
     if let Err(err) = serve_request(&runtime, &ingress, request, reader, writer).await {
         metrics.error();
-        tracing::warn!(error = %format!("{err:#}"), "stream failed");
+        tracing::warn!(error = %err.chain(), "stream failed");
     }
     metrics.stream_finished();
 }

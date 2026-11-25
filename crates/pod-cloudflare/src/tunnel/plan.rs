@@ -275,7 +275,7 @@ where
 /// refusal with retry: yes, the class is `TempFail` (a later start can
 /// work); else `Unavailable`.
 pub(super) fn no_leg_worked(plan: &[LegKind], failed: Vec<(usize, crate::fail::Failure)>) -> crate::fail::Failure {
-    let text: Vec<String> = failed.iter().map(|(i, err)| format!("{}: {err:#}", plan[*i])).collect();
+    let text: Vec<String> = failed.iter().map(|(i, err)| format!("{}: {}", plan[*i], err.chain())).collect();
     let retry = |err: &crate::fail::Failure| crate::fail::find::<rpc::Refused>(err).is_some_and(|r| r.should_retry);
     let class = if !failed.is_empty() && failed.iter().all(|(_, err)| retry(err)) {
         Class::TempFail

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 988 entries: 155 open, 28 partial, 7 blocked, 798 done.
+`TODO/INDEX.md` holds 989 entries: 154 open, 28 partial, 7 blocked, 800 done.
 
 ## State
 
@@ -114,8 +114,8 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   payload); T-927 (PodUtils/podvm#584); T-1321 (a C backend of
   `pod-gzip`, measured).
 - podnet: T-1343 (a temp directory and a temp file with a random name,
-  PodUtils/podnet#711, COORD-119); T-1135 (`pod-cloudflare` says a cause two
-  times); T-879 (`pod-detach`); T-897.
+  PodUtils/podnet#711, COORD-119); T-1351 (a failure whose text holds the
+  words of its cause); T-879 (`pod-detach`); T-897.
 - podssh: T-1169 (`pod-link`, the DNS carrier; PodUtils/podssh#349,
   COORD-139: a test through `unbound`);
   T-1103 (iroh 1.5 and its fork

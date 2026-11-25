@@ -279,17 +279,16 @@ fn gnu_tar_with_the_arguments_of_incusd_takes_the_stream() {
     incusd_unpacks(0o775);
 }
 
-/// incusd runs GNU tar as root: a newer layer that removes the write mode
-/// of `usr/bin` does not stop the write of the older `usr/bin/sh` after it.
-/// A user that is not root cannot write below that directory, so the test
-/// skips there; `scripts/ci/root-uid1000-tests.sh` runs it as root.
+/// A newer layer that removes the write mode (0555) or the search mode
+/// (0644) of `usr/bin` from its owner: GNU tar as a user that is not root
+/// sets that mode when the stream leaves the directory, so the entry of
+/// `usr/bin` waits until after the last layer, and the older `usr/bin/sh`
+/// goes out before it. The stream unpacks as each user (incusd runs GNU tar
+/// as root).
 #[test]
-fn gnu_tar_as_root_takes_a_directory_that_a_newer_layer_closed() {
-    if let Err(why) = pod_testkit::host::root() {
-        pod_testkit::host::skip_line(&why);
-        return;
-    }
+fn gnu_tar_takes_a_directory_that_a_newer_layer_closed() {
     incusd_unpacks(0o555);
+    incusd_unpacks(0o644);
 }
 
 /// GNU tar with the arguments of incusd unpacks the stream of two layers,
@@ -325,4 +324,9 @@ fn incusd_unpacks(bin: u32) {
     let out = s.path().join("gnu");
     assert!(support::gnu_tar(&stream, &out).unwrap().success(), "GNU tar refused the stream");
     assert_eq!(support::walk(&out), want.nodes);
+    let names = support::paths(&stream);
+    let at = |name: &str| names.iter().position(|n| n == name).unwrap_or_else(|| panic!("no {name} in {names:?}"));
+    if bin & 0o300 != 0o300 {
+        assert!(at("usr/bin") > at("usr/bin/sh"), "the closed usr/bin comes before a child: {names:?}");
+    }
 }

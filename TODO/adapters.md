@@ -2506,7 +2506,7 @@ cargo test -p pod-cloudflare --all-features --lib origin::tests
 **Milestone:** M3
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2525,4 +2525,108 @@ One rule for the workspace, in `docs/design.md`, section 1, rule 9: the text of 
 
 ```sh
 cargo test -p pod-cloudflare --all-features
+```
+
+## Done
+
+2026-11-25, this commit. The rule is in `docs/design.md`, section 1, rule
+9: the text of a failure says its own step, and `Failure::chain` says the
+causes. In `pod-cloudflare`: `fail::caused` (and `OrFail::or_fail`) keeps
+the step alone as the text; `fail::wrap` (`Context::context`) keeps the
+step alone, and gives a failure whose chain starts with the step (the
+request that `pod-proxy` names) back as it is; `From<Refused> for
+Failure` has the text "the edge refused the registration", and the
+`Display` of `Refused` no longer starts with those words. Each line of
+the crate that says a `Failure` (the events `tunnel.leg_failed`,
+`tunnel.reconnect`, the registration of an edge connection, the stop of
+`ReconnectPolicy`, the result of `discover`, of `tunnel::verify` and of
+`no_leg_worked`, and the `tracing` fields) uses `chain()`. The test
+helper `each_text` (a join of each text of the chain) moves from
+`origin.rs` to `testing.rs`, for the tests of `fail.rs` and `origin.rs`.
+
+The test. `crates/pod-cloudflare/src/fail.rs::a_joined_chain_says_each_cause_once`
+(`caused`, `or_fail`, `context`, and a context whose step the chain
+names already) failed on the code before: `the handshake: no route to
+the edge: no route to the edge` (2 times). The tests that read a
+failure with `{}` or `{:#}` and expect a cause now read `chain()`
+(`config/tests.rs`, `tunnel/tests.rs`, `fail.rs`,
+`tests/quick_tunnel_standin.rs`). `cargo test -p pod-cloudflare
+--all-features`: 203 unit tests and each integration test pass. `cargo
+clippy -p pod-cloudflare --all-targets --all-features -- -D warnings`,
+`cargo doc -p pod-cloudflare --no-deps --all-features` with `-D
+warnings`, `cargo fmt --all --check` and `cargo check --manifest-path
+fuzz/Cargo.toml` pass; `sh scripts/plant-each.sh --apply`: 0 stale.
+
+New entry: T-1351 (the failures whose text holds the words of a typed
+cause: `From<ProvisionError>`, `no_leg_worked`, the texts with a hint,
+`Failure::io` of `pod-core`, `From<DialError>` of `pod-proxy`).
+
+For the hand-off: podnet sees a change. The `Display` of a failure of
+`pod-cloudflare` now gives its step alone (`provisioning quick tunnel`,
+`the edge refused the registration`); a line for the user takes
+`Failure::chain()` or anyhow's `{:#}`, and each says each cause once.
+podnet's `exit::text` and its rows of `--check` must read the chain. The
+coordinator gives the rule to the consumers by a COORD issue.
+
+# T-1351: `pod-cloudflare`, `pod-core`, `pod-proxy`: a failure whose text holds the words of its typed cause says them two times to a reader that joins the chain
+
+**Source:** T-1135 (a finding of its work).
+**Category:** defect
+**Milestone:** M3
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+After T-1135, `fail::caused`, `or_fail`, `wrap` and the refusal of a
+registration keep the step alone as the text. Other failures still hold
+the words of their cause in their text and keep the cause as the source.
+`Failure::chain` says each cause once, but a reader that joins each text
+of the chain (anyhow's `{:#}`, podnet's rows of PodUtils/podnet#696) says
+the words two times:
+
+- `From<ProvisionError> for Failure` (`crates/pod-cloudflare/src/quicktunnel/error.rs`):
+  the text is the text of the `ProvisionError`, and the source is the
+  `ProvisionError`; for `Http`, the text also holds the chain of the inner
+  failure, which is the source of the source.
+- `tunnel::plan::no_leg_worked`: the text names the chain of each leg, and
+  the source is the failure of the last leg.
+- The texts that quote their cause and add what to do: the TLS of an edge
+  leg of HTTP/2 (`edge_h2/leg.rs`, `tls_text` of the error of I/O, which is
+  the source), `host::sent` (a reset during the TLS handshake), and the
+  UDP socket of QUIC (`cloudflare/quic.rs`, `build_endpoint`).
+- `Failure::io` of `pod-core` (the text is the text of the error of I/O)
+  and `From<DialError> for Failure` of `pod-proxy`.
+
+## Premise
+
+- Read: `crates/pod-cloudflare/src/quicktunnel/error.rs`,
+  `crates/pod-cloudflare/src/tunnel/plan.rs`,
+  `crates/pod-cloudflare/src/edge_h2/leg.rs`,
+  `crates/pod-cloudflare/src/host.rs`,
+  `crates/pod-cloudflare/src/cloudflare/quic.rs`,
+  `crates/pod-core/src/failure.rs`.
+- Not measured: the count of the callers of `Failure::io` and of
+  `From<DialError>` in the workspace, and which of them a consumer prints
+  with a join of the chain.
+
+## Approach
+
+Apply the rule of `docs/design.md`, section 1, rule 9: the text of a
+failure says its own step. A typed cause whose `Display` is the whole line
+(`ProvisionError`) gets a `Display` of its detail, and the failure the
+step ("provisioning the quick tunnel"); the context of `tunnel::plan` then
+does not repeat it. `no_leg_worked` keeps the text of each leg and no
+source with the same words, or keeps the typed refusal alone as the cause.
+A text with a hint keeps its hint and drops the words of the cause.
+`Failure::io` takes a step. Each change gets a test with the join of the
+chain (`crate::testing::each_text` of `pod-cloudflare`).
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features
+cargo test -p pod-core --all-features
+cargo test -p pod-proxy --all-features
 ```

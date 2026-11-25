@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**988 entries: 155 open, 28 partial, 7 blocked, 798 done.**
+**989 entries: 154 open, 28 partial, 7 blocked, 800 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 232 | 245 |
 | P2 | 70 | 9 | 4 | 416 | 499 |
-| P3 | 81 | 10 | 3 | 148 | 242 |
-| **All** | 155 | 28 | 7 | 798 | 988 |
+| P3 | 80 | 10 | 3 | 150 | 243 |
+| **All** | 154 | 28 | 7 | 800 | 989 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -954,7 +954,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1132](transport.md) | P2 | S | M1 | defect | done | `pod-tls`: the text of a certificate for another name holds the Debug form `DnsName("x")` of rustls-webpki (PodUtils/podnet#707, ask 8) |
 | [T-1133](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: an enrolment through a dead proxy loses the stage Proxy, and an answer that is not JSON shows no word of its body (PodUtils/podnet#707, ask 9) |
 | [T-1134](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: the chain of a refused origin says the error of I/O two times (PodUtils/podnet#707, ask 10) |
-| [T-1135](adapters.md) | P3 | M | M3 | defect | open | `pod-cloudflare`: each failure of `fail::caused`, `or_fail` and `wrap` holds the text of its cause and the cause, so a reader that joins each text of the chain says the cause two times |
+| [T-1135](adapters.md) | P3 | M | M3 | defect | done | `pod-cloudflare`: each failure of `fail::caused`, `or_fail` and `wrap` holds the text of its cause and the cause, so a reader that joins each text of the chain says the cause two times |
 | [T-1137](transport.md) | P1 | S | M1 | feature | done | `pod-proxy`: a body over the bound is refused with no status, no size, no bound and no byte of the body (PodUtils/podvm#651) |
 | [T-1138](podvm.md) | P1 | S | M6 | feature | done | `pod-incus`: an answer over `max_body` is an I/O error with the words of pod-proxy alone, and the caller cannot tell it from another fault (PodUtils/podvm#651) |
 | [T-1139](podvm.md) | P1 | S | M6 | feature | done | `pod-incus`: an `error` envelope over `max_body` is refused by size, and the words of incusd go (PodUtils/podvm#651) |
@@ -1022,7 +1022,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1296](upkeep.md) | P2 | S | M6 | defect | done | `pod-enter`: the two title tests of the init and the relay fail under qemu-user on each emulated job (the nightly at `f39b8e2`) |
 | [T-1297](upkeep.md) | P2 | S | M2 | defect | done | `pod-link`: `dns_hold` gives a hold that is longer than its query timeout under an emulator, and `a_server_that_never_answers_a_command_is_the_named_timeout` of `mail` ends with no error on arm |
 | [T-1298](upkeep.md) | P1 | M | M6 | defect | done | `pod-incus`: two tests of `images` hang on macOS, and the job `test (macos-15)` and `test (macos-15-intel)` meet their limit of 60 minutes |
-| [T-1299](upkeep.md) | P3 | S | M6 | feature | open | `pod-extract`: a stream of `flatten` that GNU tar as a user that is not root can unpack |
+| [T-1299](upkeep.md) | P3 | S | M6 | feature | done | `pod-extract`: a stream of `flatten` that GNU tar as a user that is not root can unpack |
 | [T-1303](upkeep.md) | P2 | S | M5 | defect | done | The step "Test" of the jobs `test` of `nightly.yml` has no limit for each test binary, so one hung binary hides the later binaries of macOS and Windows |
 | [T-1307](podvm.md) | P3 | S | M6 | feature | done | `pod-incus`: a cut `error` envelope has no flag, so a caller reads the words of its text to know that the answer was over `max_body` (PodUtils/podvm#663) |
 | [T-1321](podvm.md) | P3 | S | M6 | measurement | open | `pod-gzip`: measure a C backend of deflate against `miniz_oxide` at four threads |
@@ -1031,6 +1031,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1339](fleet.md) | P2 | S | M8 | chore | open | `pod-tpm`: the fuzz targets of the response reader and of the key file reader, and a plant for each bound of T-1217 and T-1219 |
 | [T-1340](fleet.md) | P2 | M | M8 | measurement | open | `pod-tpm`: a key file that the crate writes loads and signs in tpm2-openssl and in go-tpm-keyfiles against swtpm |
 | [T-1343](upkeep.md) | P2 | M | M5 | feature | open | `pod-core`: one temp directory and one temp file with a random name (PodUtils/podnet#711, lesson 5 of PodUtils/podvm#567) |
+| [T-1351](adapters.md) | P3 | M | M3 | defect | open | `pod-cloudflare`, `pod-core`, `pod-proxy`: a failure whose text holds the words of its typed cause says them two times to a reader that joins the chain |
 | [T-1355](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `4fc871c` (the fourth port of `source-driver.md`) |
 | [T-1359](upkeep.md) | P2 | S | M5 | defect | open | `pod-core`: three tests of `files::socket` fail on macOS because the temporary directory is longer than their directory of 40 bytes |
 | [T-1360](upkeep.md) | P3 | S | M5 | defect | open | `pod-cloudflare`: `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` cannot bind its UDP socket on Windows ARM64 (WSAEACCES) |

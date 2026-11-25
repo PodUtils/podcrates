@@ -120,7 +120,7 @@ where
             let ingress = ingress.clone();
             tokio::spawn(async move {
                 if let Err(err) = serve_stream(kind, request, respond, runtime, ingress).await {
-                    debug!(error = %err, "HTTP/2 stream failed");
+                    debug!(error = %err.chain(), "HTTP/2 stream failed");
                 }
             });
         };
@@ -188,7 +188,7 @@ pub(super) async fn serve_stream(
     let mut from_service = from_service.compat();
     let (error, metadata) = match crate::cloudflare::stream::read_connect_response(&mut from_service).await {
         Ok(response) => response,
-        Err(err) => (err.to_string(), Vec::new()),
+        Err(err) => (err.chain(), Vec::new()),
     };
     let (status, headers) = edge_response(&error, &metadata);
     let mut response = http::Response::builder().status(status);
@@ -220,8 +220,8 @@ pub(super) async fn answer_configuration(
             format!(r#"{{"lastAppliedVersion":{version},"err":null}}"#)
         }
         Err(err) => {
-            debug!(error = %err, "the configuration push is refused");
-            serde_json::json!({ "lastAppliedVersion": -1, "err": err.to_string() }).to_string()
+            debug!(error = %err.chain(), "the configuration push is refused");
+            serde_json::json!({ "lastAppliedVersion": -1, "err": err.chain() }).to_string()
         }
     };
     let mut send = respond.send_response(http::Response::new(()), false).or_fail(
@@ -298,7 +298,7 @@ pub fn body_writer(send: h2::SendStream<Bytes>) -> tokio::io::DuplexStream {
     let (writer, reader) = tokio::io::duplex(PIPE_BUFFER);
     tokio::spawn(async move {
         if let Err(err) = pump_to_h2(reader, send).await {
-            debug!(error = %err, "HTTP/2 response body ended");
+            debug!(error = %err.chain(), "HTTP/2 response body ended");
         }
     });
     writer

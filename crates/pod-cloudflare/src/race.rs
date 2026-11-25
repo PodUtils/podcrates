@@ -108,7 +108,7 @@ pub async fn race<'a, 'c, T: Send + 'a>(
         };
         match result {
             Err(err) => {
-                tracing::debug!(attempt = index, error = %format!("{err:#}"), "an attempt failed");
+                tracing::debug!(attempt = index, error = %err.chain(), "an attempt failed");
                 failures.push((index, err));
                 // A failure starts the next attempt at once.
                 if launched < total {
