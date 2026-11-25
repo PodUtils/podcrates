@@ -1,0 +1,7 @@
+# A command that the shell does not find is started again for each dial
+# (no hold, PodUtils/podnet#754); the test that counts the starts must fail.
+ENTRY=T-1393
+GROUP=proxy
+EXPECT='test a_command_that_is_not_found_starts_once_for_many_dials \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --test exec_exit'
+LIMIT=1800

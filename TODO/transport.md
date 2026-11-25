@@ -3370,7 +3370,7 @@ of the review, the kernel refused `bbr` (ENOENT), and the socket kept
   `lowat::set` and writes `TCP_NOTSENT_LOWAT is not set` at debug). They
   agree with the review. `Dialer::tuned` runs on each stream of
   `Dialer::open` (`:261`) and of the dial of addresses (`:364`).
-- Read: `crates/pod-proxy/src/stream.rs:20-28`. `tuned` changes only a TCP
+- Read: `crates/pod-proxy/src/stream.rs:21-29`. `tuned` changes only a TCP
   stream: on the direct road, the socket to the target; through an HTTP or
   SOCKS5 proxy, the socket to the proxy; through a proxy on a Unix socket
   or at a command, no socket. `blocking::Dialer` wraps the async `Dialer`
@@ -8361,3 +8361,132 @@ sh scripts/plant-each.sh dns-cause-cut-inside
 - `cargo test -p pod-dns --all-features`: 61 passed in the library, and each test target passes (live tests ignored). `cargo clippy -p pod-dns --all-targets` with and without `--all-features` and `-D warnings`, `cargo doc -p pod-dns --no-deps --all-features` with `RUSTDOCFLAGS="-D warnings"` and `cargo fmt --all --check`: each exits 0. `grep -rn "resolvers failed" crates/` finds `crates/pod-dns` only.
 - Plants: the new `scripts/plants/dns-cause-cut-inside.plant` skips the brief steps, so the last resort cuts inside a cause: `each_group_of_resolvers_keeps_its_cause_whole_in_the_bound` fails with it. `dns-each-resolver-said-alone` and `dns-nxdomain-ends-the-lookup` take the new lines. `sh scripts/plant-each.sh --apply`: 0 stale. `sh scripts/plant-each.sh dns-cause-cut-inside dns-each-resolver-said-alone dns-nxdomain-ends-the-lookup`: 3 caught.
 - Not measured: the lines of podnet in its lab.
+
+# T-1393: `pod-proxy`: a proxy at a command that does not exist floods the stderr of the process, gives a wrong cause and is started again for each dial (PodUtils/podnet#754)
+
+**Source:** PodUtils/podnet#754 (COORD-124 of podnet, PodUtils/podnet@T-580; author COLLABORATOR)
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+podnet measured a proxy at a command that does not exist with podcrates
+`v0.84.0`:
+
+```
+$ podnet bench --duration 1 --proxy "http+exec:/nonexist/prog" https://example.com/
+sh: 1: /nonexist/prog: not found
+... (2430 lines of the same text in 1 s)
+podnet: bench: no request worked: GET https://example.com/: example.com:443 through the proxy <hidden> ...: the proxy exec:<hidden> ... did not answer as its protocol says: the connection closed before the response ended
+```
+
+- `ChildIo::spawn` gives the command the stderr of the process
+  (`Stdio::inherit`), so each try writes the line of `sh` to the terminal.
+- A command that exits before its first byte gives "did not answer as its
+  protocol says: the connection closed before the response ended". The
+  cause (the command is not found, exit 127) is not in the failure.
+- `Proxy::secret_parts` of an exec spec gives the whole command, so a
+  consumer that hides each secret part hides the program word that the
+  label shows (`exec:WORD ...`).
+
+The ask:
+
+1. `ChildIo` takes the stderr of the command through a pipe and keeps its
+   last bytes (a bound, for example 512). The stderr does not reach the
+   stderr of the process.
+2. A command that exits before it writes a byte gives a failure at the
+   stage `Proxy`, class `Unavailable`: `the proxy command WORD exited
+   STATUS before it answered: LAST-STDERR-LINE`. Exit 126 and 127 of `sh`
+   are named (cannot run, not found).
+3. A command that exited 126 or 127 is not started again for each
+   connection: the next dials of the same `Proxy` within a short time (or
+   for the process) give the same failure at once.
+4. `secret_parts` of an exec spec gives the words after the program word
+   (and each word with `=` or `@`), not the program word, so
+   `exec:/nonexist/prog ...` stays readable. A program word with `@` or
+   `=` stays secret.
+5. A test with `http+exec:/nonexist/prog`: one failure with the cause, no
+   line on the stderr of the process, and one start of the command for
+   many dials.
+
+## Premise
+
+- Read: the body of PodUtils/podnet#754;
+  `crates/pod-proxy/src/stream.rs` (`ChildIo`, `open_proxy`),
+  `crates/pod-proxy/src/connect.rs` (`connect_via`, `exchange`),
+  `crates/pod-proxy/src/socks5.rs` (`attempt`, `failure`),
+  `crates/pod-proxy/src/proxy.rs` (`command_word`, `carrier_text`),
+  `crates/pod-proxy/src/proxy/parse.rs` (`secret_parts`),
+  `crates/pod-proxy/src/error.rs` (`DialError`).
+- Read: the HTTP and SOCKS5 dials open the stream with `open_proxy` and
+  then read the answer; an exec command that exits closes its stdout, and
+  the read of the answer ends early. No code reads the exit of the command
+  after a failed exchange.
+- Read: `codegraph.py similar` finds no bounded tail of a stream in a
+  shared crate (`pod-core::process` keeps the whole output of a run, and
+  `pod-term::grammar::ring::Ring` keeps the bytes from a boundary of the
+  terminal grammar).
+- T-441 (GitHub #120, podswarm) asks for `ChildIo::spawn_args` with no
+  shell, a stderr pipe, `take_stderr` and a wait future. This entry adds
+  the stderr pipe with a kept tail only, for each `ChildIo`; `spawn_args`,
+  `take_stderr` and the public wait future stay in T-441. T-441 then
+  builds on the pipe of this entry: `take_stderr` gives the pipe to the
+  caller in place of the tail.
+- Not measured: a run of podnet with the fix; a run on Windows
+  (`cmd.exe` gives 9009 for a command that it does not find).
+
+## Approach
+
+1. `ChildIo` pipes the stderr of the command. A task of the runtime reads
+   it and keeps its last `STDERR_KEPT` (512) bytes. A flag records the
+   first byte on stdout.
+2. After a failed exchange on a `Stream::Exec` (HTTP and SOCKS5), when the
+   command gave no byte, wait a short bound for its exit and the end of
+   its stderr. A command that exited gives the new `DialError::ProxyExited`
+   (stage `Proxy`, class `Unavailable`): `the proxy command WORD exited
+   STATUS before it answered: LINE`, with 126 "cannot run" and 127 "not
+   found" (9009 "not found" on Windows), and the last line of its stderr
+   made safe with `one_line`.
+3. A command that exited 126 or 127 is held for a time (`EXEC_HOLD`)
+   by its command line in a map of the process: each `open_proxy` of the
+   same command in the hold gives the same failure and starts no process.
+4. `secret_parts` of an exec spec: the text after the program word, and
+   each word with `=` or `@`; the whole command and spec when no program
+   word shows (`command_word` gives none).
+5. Move `ChildIo` to its own file (`stream.rs` grows past 300 lines).
+6. Tests: a dial of `http+exec:/nonexist/prog` gives the failure with the
+   cause and the stage and class; a test that runs itself again as a child
+   process finds no byte on the stderr of that child; a command that counts
+   its starts runs one time for 20 dials; a `ChildIo` keeps only the last
+   bytes of a long stderr; the secret parts. A plant brings back the
+   inherited stderr and the start for each dial.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features
+cargo test -p pod-proxy --all-features --test exec_exit
+cargo clippy -p pod-proxy --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh proxy-exec-stderr-inherited proxy-exec-started-each-dial proxy-exec-assignment-shown
+```
+## Done
+
+2026-11-25. Commit: see `git log` for T-1393. Each ask of PodUtils/podnet#754 is in `pod-proxy`:
+
+1. `ChildIo` moved to `crates/pod-proxy/src/child.rs` (`pod_proxy::ChildIo` and `pod_proxy::stream::ChildIo` stay). It pipes the stderr of the command; a task of the runtime reads it and keeps its last `STDERR_KEPT` (512) bytes (`ChildIo::stderr_tail`). Nothing reaches the stderr of the process. `ChildIo::answered` is true after the first byte on the stdout. `spawn` outside a tokio runtime is an error of I/O.
+2. A failed HTTP or SOCKS5 exchange on a command that wrote no byte waits at most 2 s (and not past the deadline of the dial) for its exit and the end of its stderr. A command that exited gives the new `DialError::ProxyExited { word, status, said }`, stage `Proxy`, class `Unavailable`: "the proxy command /nonexist/prog exited 127 (not found) before it answered: sh: 1: /nonexist/prog: not found". 126 is "cannot run", 127 "not found", 9009 "not found" on Windows, a signal "by signal N"; `said` is the last line of the kept stderr that is not blank, made safe with `one_line`. A command that does not exit keeps the error of the exchange.
+3. A command that exited 126 or 127 (9009 on Windows) is held by its command line for `EXEC_HOLD` (10 s) in a map of the process: each `open_proxy` of the same command in the hold gives the same failure and starts no process.
+4. `Proxy::secret_parts` of an exec spec gives the text after the word that the label shows and each word with `=` or `@`; the whole command and the spec when the label shows no word (a program word with `@`). `http+exec:/nonexist/prog` has no secret part.
+
+How this relates to T-441 (GitHub #120, podswarm): this entry adds the stderr pipe with a kept tail to each `ChildIo`, and a private wait for the exit. `spawn_args` (no shell), `take_stderr` and a public wait future stay in T-441; `take_stderr` can give the pipe of this entry to the caller in place of the tail.
+
+Tests: the new target `crates/pod-proxy/tests/exec_exit.rs` (7 tests): `a_command_that_is_not_found_gives_its_cause` (`http+exec:/nonexist/prog`: the variant, the text, the stage and class, the same failure for the next dial), `a_socks5_command_that_is_not_found_gives_its_cause`, `a_command_that_exits_gives_the_last_line_of_its_stderr` (300 lines on stderr, exit 3, no hold), `a_command_that_is_not_found_starts_once_for_many_dials` (20 dials, 1 start), `the_stderr_of_a_command_does_not_reach_the_process` (the test binary runs itself again with `exec_exit_child`, 6 dials of commands that write to stderr, and its stderr holds none of their lines), and `a_child_keeps_the_last_bytes_of_its_stderr`. Unit tests: `child::tests::the_tail_keeps_the_last_bytes_only`, `child::tests::an_exit_of_the_shell_is_named`; `error::tests::each_error_has_its_stage_and_class_and_stays_the_cause` and `proxy::tests::the_secret_parts_of_a_url` take the new cases. On the code before, the target does not compile (no `ProxyExited`, `STDERR_KEPT`); the plants prove each behavior.
+
+Plants: `scripts/plants/proxy-exec-stderr-inherited.plant` (the stderr inherited again: `the_stderr_of_a_command_does_not_reach_the_process` fails) and `scripts/plants/proxy-exec-started-each-dial.plant` (`EXEC_HOLD` zero: `a_command_that_is_not_found_starts_once_for_many_dials` fails); `scripts/plants/proxy-exec-assignment-shown.patch` takes the `pub(crate)` of `command_word`. `sh scripts/plant-each.sh proxy-exec-stderr-inherited proxy-exec-started-each-dial proxy-exec-assignment-shown`: 3 caught, 0 missed or stale; `sh scripts/plant-each.sh --apply`: 0 stale.
+
+Commands: `cargo test -p pod-proxy --all-features` passes (27 targets, 238 tests); the target `exec_exit` ran 5 times with no failure. `cargo clippy -p pod-proxy --all-targets --all-features -- -D warnings`, `cargo fmt --all --check` and `cargo doc -p pod-proxy --no-deps --all-features` with `RUSTDOCFLAGS="-D warnings"` exit 0. The crates that name `DialError` (`pod-broker`, `pod-cloudflare`, `pod-dns`, `pod-egress`, `pod-relay`, `pod-services-watch`, `pod-warp`, `pod-ws`) pass `cargo check --all-targets --all-features`; `cargo test -p pod-egress -p pod-ws --all-features` passes (415 tests); `quick_tunnel_standin_goes_through_an_exec_proxy` of `pod-cloudflare` (an exec proxy) passes. No crate of the workspace but `pod-proxy` calls `secret_parts` or `ChildIo`.
+
+For the hand-off to podnet: the new `DialError::ProxyExited`, `ChildIo::{stderr_tail, answered}`, `STDERR_KEPT`, `EXEC_HOLD`; `secret_parts` of an exec spec no longer hides the program word. The last line of the stderr can hold words of the command: podnet hides `secret_parts` in it, as in each line. Not measured: a run of podnet with the fix, and a run on Windows.

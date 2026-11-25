@@ -1,6 +1,6 @@
 //! The stream of a dial: TCP, or a stream through a proxy that is on a Unix
-//! socket or at the stdin and the stdout of a command; and the opening of
-//! the stream to a proxy by its [`Carrier`].
+//! socket or at the stdin and the stdout of a command ([`ChildIo`]); and the
+//! opening of the stream to a proxy by its [`Carrier`].
 
 use std::io;
 use std::net::SocketAddr;
@@ -11,6 +11,7 @@ use pod_core::Stage;
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::TcpStream;
 
+pub use crate::child::ChildIo;
 use crate::error::DialError;
 use crate::host::check_name;
 use crate::proxy::{Carrier, Proxy};
@@ -119,101 +120,6 @@ impl AsyncWrite for Stream {
     }
 }
 
-/// The stdin and the stdout of a command as one byte stream. The command
-/// runs with `sh -c` on Unix and with `cmd.exe /D /S /C` on Windows; its
-/// stderr is the stderr of the process, as the ProxyCommand of SSH has it.
-/// The end of the stream closes its stdin; a drop kills it.
-pub struct ChildIo {
-    child: tokio::process::Child,
-    stdin: Option<tokio::process::ChildStdin>,
-    stdout: tokio::process::ChildStdout,
-}
-
-impl ChildIo {
-    pub fn spawn(command: &str) -> io::Result<ChildIo> {
-        ChildIo::start(shell(command))
-    }
-
-    fn start(command: std::process::Command) -> io::Result<ChildIo> {
-        let mut child = tokio::process::Command::from(command)
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::inherit())
-            .kill_on_drop(true)
-            .spawn()?;
-        let stdin = child.stdin.take();
-        let stdout = child.stdout.take().ok_or_else(|| io::Error::other("the command has no stdout"))?;
-        Ok(ChildIo { child, stdin, stdout })
-    }
-
-    /// The exit status, when the command has ended.
-    pub fn exited(&mut self) -> Option<std::process::ExitStatus> {
-        self.child.try_wait().ok().flatten()
-    }
-}
-
-/// The shell of the system with the command line of the user.
-#[cfg(not(windows))]
-fn shell(command: &str) -> std::process::Command {
-    let mut shell = std::process::Command::new("sh");
-    shell.arg("-c").arg(command);
-    shell
-}
-
-/// The shell of the system with the command line of the user. The line goes
-/// to `cmd.exe` as it is: an argument with quotes would get escapes that
-/// `cmd.exe` does not remove. `/S` removes only the outer quotes, and `/D`
-/// stops the AutoRun commands of the registry.
-#[cfg(windows)]
-fn shell(command: &str) -> std::process::Command {
-    use std::os::windows::process::CommandExt;
-    let mut shell = std::process::Command::new("cmd.exe");
-    shell.raw_arg(format!("/D /S /C \"{command}\""));
-    shell
-}
-
-impl AsyncRead for ChildIo {
-    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.stdout).poll_read(cx, buf)
-    }
-}
-
-impl AsyncWrite for ChildIo {
-    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, data: &[u8]) -> Poll<io::Result<usize>> {
-        match self.stdin.as_mut() {
-            Some(stdin) => Pin::new(stdin).poll_write(cx, data),
-            None => Poll::Ready(Err(io::ErrorKind::BrokenPipe.into())),
-        }
-    }
-
-    fn poll_write_vectored(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        bufs: &[io::IoSlice<'_>],
-    ) -> Poll<io::Result<usize>> {
-        match self.stdin.as_mut() {
-            Some(stdin) => Pin::new(stdin).poll_write_vectored(cx, bufs),
-            None => Poll::Ready(Err(io::ErrorKind::BrokenPipe.into())),
-        }
-    }
-
-    fn is_write_vectored(&self) -> bool {
-        self.stdin.as_ref().is_some_and(|stdin| stdin.is_write_vectored())
-    }
-
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match self.stdin.as_mut() {
-            Some(stdin) => Pin::new(stdin).poll_flush(cx),
-            None => Poll::Ready(Ok(())),
-        }
-    }
-
-    fn poll_shutdown(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        self.stdin = None;
-        Poll::Ready(Ok(()))
-    }
-}
-
 /// The stream to `proxy` by its carrier, within the deadline of `leg`. The
 /// host of a proxy on TCP is resolved with the resolver of the proxy's own
 /// name ([`Leg::proxy_resolve`]): a resolver that asks DNS over HTTPS through
@@ -253,8 +159,12 @@ pub(crate) async fn open_proxy(leg: Leg<'_>, proxy: &Proxy) -> Result<Stream, Di
         },
         #[cfg(not(unix))]
         Carrier::Unix(_) => Err(unreachable("a Unix socket needs a Unix host".into())),
-        Carrier::Exec(command) => ChildIo::spawn(command)
-            .map(|child| Stream::Exec(Box::new(child)))
-            .map_err(|e| unreachable(format!("starting the proxy command (sh -c): {e}"))),
+        Carrier::Exec(command) => match crate::child::held(command) {
+            // A command that the shell cannot run or does not find, again.
+            Some(failure) => Err(failure),
+            None => ChildIo::spawn(command)
+                .map(|child| Stream::Exec(Box::new(child)))
+                .map_err(|e| unreachable(format!("starting the proxy command (sh -c): {e}"))),
+        },
     }
 }

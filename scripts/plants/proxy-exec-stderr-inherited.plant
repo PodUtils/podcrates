@@ -1,0 +1,7 @@
+# The command of an exec proxy writes to the stderr of the process again
+# (PodUtils/podnet#754); the test that reads the stderr of a run must fail.
+ENTRY=T-1393
+GROUP=proxy
+EXPECT='test the_stderr_of_a_command_does_not_reach_the_process \.\.\. FAILED'
+RUN='cargo test -p pod-proxy --all-features --test exec_exit'
+LIMIT=1800

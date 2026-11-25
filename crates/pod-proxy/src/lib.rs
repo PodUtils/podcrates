@@ -36,6 +36,7 @@
 
 #[cfg(feature = "blocking")]
 pub mod blocking;
+mod child;
 pub mod client;
 mod connect;
 pub mod credentials;
@@ -61,6 +62,7 @@ pub mod stream;
 pub use pod_turn::stun;
 pub mod write_limit;
 
+pub use child::{EXEC_HOLD, STDERR_KEPT};
 pub use client::Client;
 pub use connect::MAX_PROXY_RESPONSE;
 pub use credentials::Credentials;
