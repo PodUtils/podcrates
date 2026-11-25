@@ -224,6 +224,7 @@ impl Extra {
             ConnectError::Upgrade(why) => ConnectError::Upgrade(self.mask(&why)),
             ConnectError::Http(why) => ConnectError::Http(self.mask(&why)),
             ConnectError::Config(why) => ConnectError::Config(self.mask(&why)),
+            ConnectError::Ended(why) => ConnectError::Ended(self.mask(&why)),
             other => other,
         }
     }

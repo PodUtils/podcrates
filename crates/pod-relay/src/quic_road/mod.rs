@@ -89,10 +89,11 @@ impl Choice {
     }
 }
 
-/// Whether `e` is the relay's own answer, or a fault of the request, which
-/// each road of the race would get alike: it ends the race.
+/// Whether `e` is the relay's own answer, a fault of the request, or a
+/// stream that ended for good, which each road of the race would get alike:
+/// it ends the race.
 pub fn decisive(e: &ConnectError) -> bool {
-    matches!(e, ConnectError::Refused { .. } | ConnectError::Config(_))
+    matches!(e, ConnectError::Refused { .. } | ConnectError::Config(_) | ConnectError::Ended(_))
 }
 
 /// The session of `config` with `token` to a host of a list that the user
@@ -147,6 +148,7 @@ mod tests {
         assert!(decisive(&ConnectError::Refused { status: 403, body: "forward: missing or wrong token".into() }));
         assert!(decisive(&ConnectError::Refused { status: 502, body: "relay: cannot reach x:22".into() }));
         assert!(decisive(&ConnectError::Config("the relay token contains a line break".into())));
+        assert!(decisive(&ConnectError::Ended("the carrier ended".into())));
         assert!(!decisive(&ConnectError::Upgrade("the relay closed the connection".into())));
         let late = ConnectError::Timeout { step: "the WebSocket upgrade", after: Duration::from_secs(20) };
         assert!(!decisive(&late));

@@ -78,6 +78,8 @@ impl OpenError {
                 ConnectError::Refused { status: 400 | 401 | 403, .. } => false,
                 ConnectError::Refused { status: 502, body } => !target_name_fails(body),
                 ConnectError::Refused { .. } => true,
+                // A stream that ended for good ends at each host alike.
+                ConnectError::Ended(_) => false,
             },
         }
     }

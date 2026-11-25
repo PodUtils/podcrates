@@ -82,6 +82,8 @@ fn a_value_quoted_back_is_masked_and_the_status_stays() {
     let http = extra.masked(ConnectError::Http(format!("HTTP 403 {SECRET}")));
     assert!(!http.to_string().contains(SECRET), "{http}");
     assert!(Extra::default().masked(ConnectError::Http(SECRET.into())).to_string().contains(SECRET), "none given");
+    let ended = extra.masked(ConnectError::Ended(format!("the carrier ended at {SECRET}")));
+    assert_eq!(ended, ConnectError::Ended(format!("the carrier ended at {MASK}")), "the kind stays");
 }
 
 /// The lines of a head of HTTP/1.1, in the caller's order.

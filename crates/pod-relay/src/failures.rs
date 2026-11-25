@@ -294,7 +294,7 @@ pub fn reason(e: &OpenError) -> Option<String> {
             ConnectError::Tls(_) => "TLS failed".into(),
             ConnectError::Timeout { step, after } => format!("{step} timed out after {} s", after.as_secs()),
             ConnectError::Upgrade(_) | ConnectError::Http(_) => "no WebSocket".into(),
-            ConnectError::Config(_) => return None,
+            ConnectError::Config(_) | ConnectError::Ended(_) => return None,
         },
         // A host that this process's gate held was not tried (podssh T-637).
         OpenError::Offline | OpenError::Held { .. } => return None,

@@ -29,6 +29,8 @@ pub use upgrade::{upgrade, upgrade_answering, upgrade_carrying, upgrade_with};
 
 #[cfg(test)]
 mod cut_tests;
+#[cfg(test)]
+mod ended_tests;
 
 /// Default bound on connecting: proxy exchange, TCP, TLS and the upgrade.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(20);
@@ -145,6 +147,11 @@ pub enum ConnectError {
     Upgrade(String),
     /// A plain HTTPS request (such as minting a token) failed after TLS.
     Http(String),
+    /// A stream ended for good with no relay and no HTTP in the cause, for
+    /// example a carrier's stream that cannot start again. It is final as
+    /// `Refused { 404 | 410 }` is: a new try meets the same end. The words
+    /// are the whole line.
+    Ended(String),
 }
 
 impl std::fmt::Display for ConnectError {
@@ -164,6 +171,7 @@ impl std::fmt::Display for ConnectError {
             }
             ConnectError::Upgrade(why) => write!(f, "the WebSocket upgrade failed: {why}"),
             ConnectError::Http(why) => write!(f, "the HTTPS request failed: {why}"),
+            ConnectError::Ended(why) => write!(f, "{why}"),
         }
     }
 }
@@ -197,6 +205,9 @@ impl ConnectError {
             ConnectError::Refused { .. } => (Stage::WebSocket, Class::Unavailable),
             ConnectError::Upgrade(_) => (Stage::WebSocket, Class::Protocol),
             ConnectError::Http(_) => (Stage::Connect, Class::Unavailable),
+            // Out of reach for good: exit code 69, as the table of podssh
+            // gives to `Refused { 404 | 410 }`.
+            ConnectError::Ended(_) => (Stage::Session, Class::Unavailable),
         }
     }
 }

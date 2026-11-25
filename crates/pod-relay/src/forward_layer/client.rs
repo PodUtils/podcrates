@@ -93,9 +93,10 @@ pub enum Missed {
     Road(ConnectError),
 }
 
-/// A refusal that a new link of the same host gets again.
+/// A refusal, or an end of the stream, that a new link of the same host
+/// gets again.
 fn refused_for_good(e: &ConnectError) -> bool {
-    matches!(e, ConnectError::Refused { status: 401 | 403 | 404 | 410, .. })
+    matches!(e, ConnectError::Refused { status: 401 | 403 | 404 | 410, .. } | ConnectError::Ended(_))
 }
 
 /// The words of a host that had no room for a new session: its `REFUSE`
@@ -412,6 +413,8 @@ mod tests {
         assert!(refused(401, "a key's signature").is_final());
         let offline = Missed::Open(Failure { attempts: vec![("r".into(), OpenError::Offline)] });
         assert!(offline.is_final());
+        let ended = || ConnectError::Ended("the carrier ended".into());
+        assert!(failed(ended()).is_final() && Missed::Road(ended()).is_final(), "a stream that ended for good");
     }
 
     /// The way's refusal of the upgrade sends the links to the HTTP road;

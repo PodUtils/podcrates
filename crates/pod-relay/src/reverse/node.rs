@@ -129,6 +129,7 @@ pub enum Exit {
     /// trust store, or a host that plain `ws://` refuses. A reconnection would
     /// repeat it. So would a relay of another dialect of the reverse road, by
     /// its `hello` or its `426` (podssh T-643): the sentence says whom to update.
+    /// So would a stream that ended for good (`ConnectError::Ended`).
     Unusable(String),
 }
 
@@ -374,6 +375,8 @@ where
             // The relay reads another dialect of the reverse road, or takes
             // no upgrade of this node's: the same request gets the same.
             Err(ConnectError::Refused { status: 426, body }) => return Exit::Unusable(refused_upgrade(&body)),
+            // A stream that ended for good: a new socket meets the same end.
+            Err(ConnectError::Ended(why)) => return Exit::Unusable(why),
             Err(e) => {
                 failed = Some(format!(
                     "the node could not connect to the relay ({})",
