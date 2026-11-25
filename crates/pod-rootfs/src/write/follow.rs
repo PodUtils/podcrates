@@ -283,21 +283,29 @@ fn mknod_in(
     }
 
     // An existing entry stays when the kernel refuses `mknod`: the crate
-    // makes a node under a temporary name first, then puts it in place with
-    // one rename. The name holds the process and a count, so two completions
-    // at the same time do not share it.
-    static CALL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let candidate = loop {
-        let call = CALL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let candidate = cbuf(&format!("{scratch_prefix}{}-{call}", std::process::id()))?;
+    // makes a node under a new random name first, then puts it in place
+    // with one rename. Two completions, also of two processes of one pid,
+    // never share the name; the prefix lets a reader find a node that a
+    // kill left.
+    let prefix = scratch_prefix.strip_suffix('-').unwrap_or(scratch_prefix);
+    let mut why = None;
+    let made = pod_core::files::new_temp_with(std::path::Path::new(""), prefix, "", |name| {
+        let candidate = name.to_str().and_then(CBuf::new).ok_or(std::io::ErrorKind::InvalidInput)?;
         match sys::mknodat(parent, &candidate, sys::S_IFCHR | mode as u64, dev) {
-            Ok(_) => match settled(&candidate) {
-                Ok(()) => break candidate,
-                Err(why) => return Ok(Err(why)),
-            },
-            Err(e) if e == sys::EEXIST => continue,
-            Err(e) => return Ok(Err(e.name())),
+            Ok(_) => settled(&candidate).map(|()| candidate).map_err(|w| {
+                why = Some(w);
+                std::io::Error::other("the node does not settle")
+            }),
+            Err(e) if e == sys::EEXIST => Err(std::io::ErrorKind::AlreadyExists.into()),
+            Err(e) => {
+                why = Some(e.name());
+                Err(std::io::Error::other("mknod"))
+            }
         }
+    });
+    let candidate = match made {
+        Ok((_, candidate)) => candidate,
+        Err(e) => return Ok(Err(why.unwrap_or_else(|| e.to_string()))),
     };
     match sys::renameat(parent, &candidate, parent, &c) {
         Ok(_) => Ok(Ok(())),
