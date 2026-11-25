@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1012 entries: 160 open, 30 partial, 6 blocked, 816 done.**
+**1015 entries: 161 open, 30 partial, 6 blocked, 818 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 7 | 9 | 0 | 237 | 253 |
-| P2 | 70 | 11 | 4 | 423 | 508 |
-| P3 | 83 | 10 | 2 | 154 | 249 |
-| **All** | 160 | 30 | 6 | 816 | 1012 |
+| P1 | 5 | 9 | 0 | 239 | 253 |
+| P2 | 71 | 11 | 4 | 423 | 509 |
+| P3 | 85 | 10 | 2 | 154 | 251 |
+| **All** | 161 | 30 | 6 | 818 | 1015 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1057,5 +1057,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1381](fleet.md) | P2 | S | M8 | feature | open | `pod-tpm`: `SoftTpm` has no owner's hierarchy with a password, and `flow` has no fallback to the kept storage key, so podssh wraps the model and keeps the fallback itself (PodUtils/podssh#357, ask 2) |
 | [T-1382](upkeep.md) | P2 | S | M8 | chore | open | `adoption/podssh`: the trials `pod-tpm` and `pod-h2` stay after podssh took `v0.84.0`, and the list of the files of `tpm/` in `pod-tpm.run` is not podssh's (PodUtils/podssh#357, ask 3) |
 | [T-1383](relay.md) | P3 | M | M2 | feature | open | `pod-relay`: `Mint` signs a certificate with an Ed25519 issuer alone, so a gateway whose CA is ECDSA or RSA keeps its own signer (PodUtils/podssh#357, ask 4) |
-| [T-1384](upkeep.md) | P1 | S | M5 | defect | open | `scripts/agent/check.sh`: a full check in the main checkout runs test binaries that a worktree built in the shared target |
-| [T-1385](upkeep.md) | P1 | M | M8 | chore | open | agent tooling: read the latest commits of the sibling repositories and take each improvement of their agent tooling (Q23) |
+| [T-1384](upkeep.md) | P1 | S | M5 | defect | done | `scripts/agent/check.sh`: a full check in the main checkout runs test binaries that a worktree built in the shared target |
+| [T-1385](upkeep.md) | P1 | M | M8 | chore | done | agent tooling: read the latest commits of the sibling repositories and take each improvement of their agent tooling (Q23) |
+| [T-1386](upkeep.md) | P3 | S | M5 | chore | open | `scripts/agent/check.sh`: the tests run in a temp directory of their own, and an entry that a test leaves there is a fault |
+| [T-1387](upkeep.md) | P2 | S | M8 | chore | open | COORD `(to all)`: one `docs/hosted-sessions.md` with one role table for each repository of PodUtils |
+| [T-1388](upkeep.md) | P3 | S | M5 | chore | open | The debug info of the dev and test profiles, measured for the size of the target |

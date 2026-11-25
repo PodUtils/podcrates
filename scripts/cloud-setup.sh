@@ -31,7 +31,12 @@ ZIGBUILD_SHA256=${ZIGBUILD_SHA256:-9e3cf73485edbd45905c8aadbc0fdf869c7ddc3848f0c
 RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.3}
 tools=${PODCRATES_TOOLS:-$HOME/.local/podcrates}
 cargo_bin=${CARGO_HOME:-$HOME/.cargo}/bin
-mkdir -p "$HOME/.local/bin"
+mkdir -p "$HOME/.local/bin" "$tools"
+# Two setups at the same time install each tool once.
+if command -v flock > /dev/null 2>&1; then
+    exec 9> "$tools/setup.lock"
+    flock -w 900 9 || { echo "cloud-setup: $tools/setup.lock is held" >&2; exit 1; }
+fi
 # A limit of time for each long step; a host with no timeout(1) runs it
 # with no limit.
 bounded() {

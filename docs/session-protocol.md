@@ -83,17 +83,26 @@ watches them.
    `.work/` must be in `.gitignore`. Do not write a watcher of your own:
    ask podcrates for a change of these.
 
+   The start of each session runs this, in a `scripts/session-start.sh`
+   of the repository that each harness runs (the Claude Code hook calls
+   it; Codex and each other harness run it by hand), as the start of
+   podrunner, podnet, podssh and podvm does:
+
+   - get `watch.py`, `watch_test.py` and `runs.py` at the pinned commit
+     of the tag into `.work/podcrates-agent/COMMIT/`, and check each one
+     by its SHA-256 (`sha256sum` of the file of the tag) before its use;
+   - run `watch.py --self-test` and `runs.py --self-test`, each with a
+     time limit;
+   - start each watcher that does not run, detached, under a lock that
+     it holds while it runs, with its log:
+
    ```sh
-   mkdir -p .work/podcrates-agent
-   for f in watch.py watch_test.py runs.py; do
-     curl -qfsSL -o ".work/podcrates-agent/$f" \
-       "https://raw.githubusercontent.com/PodUtils/podcrates/TAG/scripts/agent/$f"
-   done
-   python3 -I .work/podcrates-agent/watch.py --self-test
-   python3 -I .work/podcrates-agent/runs.py --self-test
-   nohup python3 -I .work/podcrates-agent/watch.py ME --state .work/agent > .work/watch.log 2>&1 &
-   nohup python3 -I .work/podcrates-agent/runs.py --repo PodUtils/ME > .work/runs.log 2>&1 &
+   setsid -f flock -n .work/watch.lock python3 -I .work/podcrates-agent/COMMIT/watch.py ME --state .work/agent >> .work/watch.log 2>&1 < /dev/null
+   setsid -f flock -n .work/runs.lock python3 -I .work/podcrates-agent/COMMIT/runs.py --repo PodUtils/ME --branch main --every 120 >> .work/runs.log 2>&1 < /dev/null
    ```
+
+   A watcher runs while its lock is held (`flock -n .work/NAME.lock
+   true` fails). A worktree of an agent starts no watcher.
 
    `runs.py` gives one line for each run that starts or changes state,
    with each failed job and its failed steps for a red end.
@@ -207,3 +216,22 @@ watches them.
      `bash --posix`) and in each profile of `pod-lab` of your lane
      (`crates/pod-lab/LANES.md`): a first run, a second run that downloads
      nothing, and a cut run, each with a time limit.
+
+## Hosted sessions and worker roles (the owner's ruling, 2026-11-25)
+
+Each repository of PodUtils keeps `docs/hosted-sessions.md`: the start of
+a session in each harness and on each host, the watchers and their logs,
+and the roles of the lead and its workers. The role table of
+`docs/hosted-sessions.md` of podcrates at the tag is the table of each
+repository: the model and the reasoning effort of the lead, the
+implementer, the housekeeper and the advisor (the hardest tasks), in
+Claude Code and in Codex. Ask podcrates for a change of the table by a
+COORD issue `(to podcrates)`.
+
+Each brief of a worker carries: the rules of `AGENTS.md` (read it first),
+the rule of findings (each finding becomes work, never a card), the rule
+of web access above, the lock of one cargo build at a time and a target
+dir of the worker, a worktree under `.claude/worktrees/` on a local
+branch (no `git stash`, no push, a commit early and often), and a range of
+ids of the record for the worker. The lead is the one writer of the work
+order, the handoff and the counts.

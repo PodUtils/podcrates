@@ -9,156 +9,67 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Make sure that the two watchers, `scripts/agent/watch.py` and
-   `scripts/agent/runs.py`, run as background processes with a log, and
-   keep a Monitor on each log (the ruling "Watchers"; `docs/maintenance.md`,
-   "Start of a session"). `scripts/session-start.sh` starts them; the
-   Claude Code hook runs it, and another harness runs it by hand. Resume
-   from this page, and work until each task is done or blocked on a thing
-   out of the control of the session (the ruling "Work until done"). Read
-   the open COORD issues `(to podcrates)` of each repository of PodUtils.
-   Each one maps to an entry:
-   - Answered by the tag `v0.84.0`; the hand-off #260 (COORD-155) is open
-     and waits for the takes: PodUtils/podnet#711 (COORD-119, T-1343,
-     partial: the functions are in the tag, the moves of the other crates
-     remain), PodUtils/podnet#712 (COORD-120, T-1365),
-     PodUtils/podnet#726 (COORD-121, T-1366), PodUtils/podssh#340 (T-1095),
-     PodUtils/podssh#349 (COORD-139, T-1164 to T-1169; T-1169 is open),
-     PodUtils/podssh#351 (COORD-141, T-1217 to T-1222),
-     PodUtils/podssh#352 (COORD-142, T-1235 to T-1238),
-     PodUtils/podssh#353 (COORD-143, T-1198 and T-1220),
-     PodUtils/podssh#355 (COORD-145, T-1367 and T-1368),
-     PodUtils/podssh#356 (COORD-146, T-1371), PodUtils/podrunner#352
-     (COORD-130, T-1362) and PodUtils/podrunner#353 (COORD-131, T-1370).
-     PodUtils/podvm#657 (COORD-241, T-1193 to T-1196) is in the tag too.
-   - First of all: T-1385 (the ruling "Hosted sessions and worker roles",
-     Q23): read the latest commits of the agent tooling of podrunner,
-     podssh, podnet and podvm, and take each improvement; T-1374 left out
-     parts of PodUtils/podvm@2d36b23 that the owner wants.
-   - New asks, open in the record: PodUtils/podvm#664 (COORD-248 of podvm,
-     for PodUtils/podrunner#354) maps to T-1379, the config PATCH of
-     `pod-incus` with an ETag condition; it is the first entry of the work
-     order, as podrunner's warm units with lower limits wait for it.
-     PodUtils/podssh#357 (COORD-147) maps to T-1380 to T-1383. T-1384 (the
-     shared target of the worktrees) comes before the next full check of
-     merged agent work: until it is done, `touch` each source of the
-     workspace before a full check in the main checkout.
-   - Answered on #259 (closed): PodUtils/podvm#570 (COORD-183, T-1162),
-     PodUtils/podnet#710 (COORD-118, T-1117, T-1118 and T-1209),
-     PodUtils/podrunner#351 (COORD-129, T-1355) and PodUtils/podvm#663
-     (COORD-247, T-1143, T-1158 and T-1307).
-   - A take of `v0.84.0`, verified: PodUtils/podssh#357 (COORD-147). The
-     commit `806e0a4` is on `main` of podssh, and each `Cargo.toml` there
-     that names a crate of podcrates names `tag = "v0.84.0"` and no other
-     tag. It takes PodUtils/podssh#340 (T-1095), #351 (T-1217 to T-1222),
-     #352 (T-1238) and #356 (T-1371); the bearer grant (#355, T-1367 and
-     T-1368) and the DNS carrier (#349, T-1167 and T-1168) are podssh's
-     open T-834 and T-900. It asks four things: T-1380 and T-1381
-     (`pod-tpm`: the time limit of `Tbs`, the owner's password in
-     `SoftTpm`), T-1382 (the trials of podssh and the `taken` line) and
-     T-1383 (`Mint` with an issuer that is not Ed25519).
-   - A take of `v0.84.0`, verified: PodUtils/podvm#666 (COORD-249). The
-     commit `04c8b7f4` is on `main` of podvm, and each `Cargo.toml` there
-     that names a crate of podcrates names `tag = "v0.84.0"` and no other
-     tag. It takes `pod_gzip::Members` (PodUtils/podvm#657, T-1196). It asks
-     nothing: the use of `pod_extract::flatten_with` (T-1193 to T-1195) is
-     a follow-up of podvm with its live proof pending.
-   - A take of `v0.84.0`, to verify: PodUtils/podrunner#356 (COORD-134; it
-     answers #352 and #353, and it asks nothing). The change of
-     `docs/contracts/source-driver.md` that `check-sources.py` finds in
-     podrunner after `4fc871c` is T-1375.
-   - Other mapped asks: PodUtils/podssh#350 (COORD-140, T-1191 and T-1192);
-     PodUtils/podvm#659 (COORD-243, T-1205); PodUtils/podnet#709
-     (COORD-117, T-1209); PodUtils/podvm#661 (COORD-245, T-1213).
-   Map each new one in the same commit.
+1. Start (`docs/hosted-sessions.md`, "Start"). The Claude Code hook runs
+   `scripts/session-start.sh`; in another harness, run it by hand, then
+   `sh scripts/cloud-setup.sh` on a new host and `. ./scripts/cloud-env.sh`
+   in each shell. Read `.work/watch.log` and `.work/runs.log` after each
+   step. Give the work to workers by the role table and the brief of
+   `docs/hosted-sessions.md`, "Lead and workers". Work until each task is
+   done or blocked on a thing out of the control of the session (the
+   ruling "Work until done").
 2. Coordinate the five sessions by COORD issues alone (the rulings
-   "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),
-   podssh, podnet and podvm. The owner starts the sessions; send no direct
-   message. COORD-136 (#227) gives the order of each session. Read each
-   answer `(to podcrates)`, route each ask of podrunner to its owner at
-   once, and edit #227 when the order changes.
-3. Read the runs of the head of `main` (`ci`, `plants`, `adoption`,
+   "Coordinator" and "COORD only"). COORD-136 (#227) gives the order of
+   each session; route each ask of podrunner first, and edit #227 when the
+   order changes. Send the COORD issue `(to all)` of T-1387 (one
+   `docs/hosted-sessions.md` and one role table for each repository).
+3. Answer the open COORD issues `(to podcrates)`. Map each new one in the
+   same commit.
+   - Open asks: PodUtils/podvm#664 (COORD-248, for
+     PodUtils/podrunner#354) is T-1379, the first entry of the work order;
+     PodUtils/podssh#357 (COORD-147) asks T-1380 to T-1383;
+     PodUtils/podnet#711 (COORD-119) is T-1343 (partial);
+     PodUtils/podssh#349 (COORD-139) is T-1169.
+   - The takes of `v0.84.0` (the hand-off #260, COORD-155): podssh
+     (`806e0a4`, #357) and podvm (`04c8b7f4`, #666) are verified; podnet
+     has none; PodUtils/podrunner#356 names `72cd0ab`, which is not on
+     `origin/main` of podrunner yet ("Release: v0.84.0"). T-1375 ports
+     podrunner's change of `source-driver.md`.
+   - Answered by `v0.84.0`, waiting for the take of the consumer:
+     PodUtils/podnet#712 (T-1365), #726 (T-1366); PodUtils/podssh#340,
+     #349, #351 to #353, #355, #356; PodUtils/podrunner#352 (T-1362),
+     #353 (T-1370); PodUtils/podvm#657 (T-1193 to T-1196).
+   - Mapped, no step now: PodUtils/podssh#350 (T-1191, T-1192);
+     PodUtils/podvm#659 (T-1205), #661 (T-1213); PodUtils/podnet#709
+     (T-1209).
+4. Read the runs of the head of `main` (`ci`, `plants`, `adoption`,
    `secrets`, `deny`, `issue-sync`). A new red run needs an entry before
-   other work. A plant that a run misses once with no change of its crate
-   runs its test five times in its `.plant` (as
-   `link-quic-drop-closes-at-once`). Then read the scheduled runs:
-   - `nightly.yml` 45504345202 at `6f5f4951` (a dispatch): `gate`, the
-     installer jobs, `test (windows-2025)` and the jobs `cross` of aarch64,
-     arm, armv7, powerpc64le and i686 pass. The emulated jobs pass
-     `pod-enter`, `dns_hold` and `mail` (T-1296 and T-1297 are done), the
-     macOS jobs pass `pod-incus` (T-1298 is done), and each job `test`
-     prints the seconds of each binary (T-1303 is done; the longest binary
-     takes 70 s, so the limits are 300 s and 600 s). Open failures:
-     `riscv64` fails in `pod-iroh` (`road.rs`, `share.rs`) and
-     `loongarch64` in `share.rs` (T-916, T-938; the ruling "Emulated nightly jobs"); the riscv64 job took
-     127 of its 150 minutes, and `session_resume_twice` ended in 91 s. Both
-     jobs of macOS fail in three tests of `files::socket` of `pod-core`: the
-     temporary directory is longer than 40 bytes (T-1359, done on `main`).
-     The job of Windows ARM64 fails in the UDP bind of
-     `quick_tunnel_standin`, with 10013 (T-1360, done on `main`). T-789 and T-766 passed again (partial). Open entries of
-     the nightly: T-916 and T-938 (partial), T-789,
-     T-766, and T-1044 (`check-windows.sh` and `check-macos.sh` compile no
-     doc test).
-   - `ci.yml`: the job `static (aarch64-apple-darwin, macos-15-intel)` met
-     its limit of 40 minutes in runs 45487233017 and 45561305578 (T-1325,
-     partial). The two macOS rows of `static` have a limit of 60 minutes
-     since `v0.84.0`. Runs 45568238286 at `ca1d3e3` and 45578000852 at
-     `d9e5da03` pass; the two macOS rows took 24.9 and 20.4 minutes in the
-     second. T-1325 closes with the times of five runs: read the next `ci`
-     runs that end.
-   - `upstream.yml` (job `sources`): the run 45423205689 at `5fd6fb7` found
-     one change, podrunner `2a55cd9` in `auth.rs` (`pod-testkit`). T-1243
-     (done) ports it; T-1355 (done) ports podrunner `4fc871c` in
-     `source-driver.md`. Read the next daily run.
-   - `services.yml`: the scheduled run 45394042840 failed (T-1223, done):
-     the relay WMYMARB moved to a new address, and `node-trojan-45-63-30-142`
-     left. `temp-sh` held (T-1034). `node-trojan-64-176-7-205` and
-     `freedos-image` had a first no answer; read the next scheduled run
-     (T-1096 reopens when `freedos-image` times out again).
-   - `live.yml`: T-963 (partial; the second Nostr relay is `nos.lol`).
-   - `publish.yml` 45575024311, the dry run on `v0.84.0`, passed.
-   - `docs/research/hard-problems.md` has the hard open problems (H-01 to
-     H-18). T-978 (partial) holds the findings that no other entry has.
-4. The work of podcrates (`TODO/PROGRESS.md`, "Work order"): the red
-   gates above, then the entries for the CI of githome and cfb (T-106),
-   then the asks of the consumers.
-5. The fakes of the CI of podrunner and githome are release assets of
-   each tag: `pod-fake-github` (T-921) and `pod-fake-githome` (T-948), for
-   x86_64 and aarch64 musl in the signed `SHA256SUMS`, and an image of
-   each on ghcr.io (`crates/pod-testkit/README.md`). When podrunner writes
-   a step of githome's answers that differs from the fake, it is an entry
-   here.
-6. The channel of cfb and githome is #223. podcrates keeps one reply
-   comment to each there (cfb: 6970315549; githome: 6970683028) and edits
-   it, with the UTC time of each update and of each acknowledgement. cfb
-   is offline until the CI of podrunner and githome is complete; it reads
-   `docs/research/fleet/asks.md` and the block of #223 at its next start.
-   cfb's A-X-18 (T-106, partial) waits for cfb's answer on #223.
-7. T-767 is done: podssh closed PodUtils/podssh#283, because the hold of its
-   later failures is in its own pump (the client's line `resume::Note::Stall`
-   of T-945 and the channel's line `e2e.wait` of T-959 named the reader), and
-   it asks nothing more of podcrates. T-768 (a spare of `pod-session` that
-   waits 20 s) is open.
-8. Then the work order of `TODO/PROGRESS.md`.
-9. Run `scripts/agent/check.sh` with a short `TMPDIR` (for example
-   `TMPDIR=/tmp`): a long one makes the socket paths of `pod-guest` too
-   long for `sun_path` (T-920).
-10. Rules of the session that the documents do not repeat:
-    - A push of this account starts the runs of Actions. Dispatch a
-      workflow with the GitHub MCP tool (`actions_run_trigger`); no request
-      `[gh action] requested` is needed.
-    - Delegate by the ruling "Delegation": Opus agents (medium or high
-      effort) implement entries; Sonnet agents (high effort) do housekeeping,
-      recon and basic fixes; the session coordinates and reviews.
-    - The usage limit can stop an agent in a build. Tell each agent to
-      commit early on its local branch (`docs/maintenance.md`, "Rules of
-      the work").
-    - Agents share one cargo lock (`flock`) and each builds in its own
-      `CARGO_TARGET_DIR`. A full check needs 22 GB free: read `df -h /`
-      first.
-    - A pull request from outside the team gets CI runs with the state
-      `action_required`. Review its code before you approve or dispatch
-      its CI (the ruling "Strangers").
+   other work. The open red runs and the runs to read:
+   - `nightly.yml`: `riscv64` and `loongarch64` fail in `pod-iroh`
+     (`road.rs`, `share.rs`; T-916, T-938, the ruling "Emulated nightly
+     jobs"). Read the macOS and Windows ARM64 jobs of the next run (T-1359
+     and T-1360 are done on `main`). Open: T-789, T-766, T-1044.
+   - `ci.yml`: T-1325 closes with the times of five runs of the two macOS
+     rows of `static` (limit 60 minutes): read the next `ci` runs.
+   - `services.yml`: read the next scheduled run (T-1096 reopens when
+     `freedos-image` times out again). `live.yml`: T-963 (partial).
+   - `upstream.yml` (job `sources`): read the next daily run.
+   - A plant that a run misses once with no change of its crate runs its
+     test five times in its `.plant` (as `link-quic-drop-closes-at-once`).
+5. The work order of `TODO/PROGRESS.md`: T-1379, then T-106 (the CI of
+   githome and cfb), then the asks of the consumers.
+   `docs/research/hard-problems.md` has the hard open problems (H-01 to
+   H-18); T-978 (partial) holds the findings that no other entry has.
+6. Rules of the session that the documents do not repeat:
+   - The channel of cfb and githome is #223. podcrates keeps one reply
+     comment to each there (cfb: 6970315549; githome: 6970683028) and
+     edits it, with the UTC time of each update. cfb is offline until the
+     CI of podrunner and githome is complete; cfb's A-X-18 (T-106,
+     partial) waits for its answer on #223.
+   - A step of githome's answers that podrunner writes and that differs
+     from `pod-fake-githome` or `pod-fake-github` is an entry here.
+   - A pull request from outside the team gets CI runs with the state
+     `action_required`. Review its code before you approve or dispatch
+     its CI (the ruling "Strangers").
 
 ## Release: v0.84.0
 

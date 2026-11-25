@@ -6337,7 +6337,7 @@ The first command gives 0 changes. After step 3 the second command exits 66 (`po
 **Milestone:** M5
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6383,6 +6383,33 @@ targets held a path of a worktree.
 sh scripts/agent/check.sh notest
 ```
 
+## Done
+
+2026-11-25, the commit that names T-1384 and T-1385.
+`scripts/agent/stale_target.py` (standard library of Python) runs first in
+`scripts/agent/check.sh` and prints its two counts. (1) Each unit of the
+target whose dep-info (`deps/NAME-HASH.d`) records a `CARGO_MANIFEST_DIR`
+in another checkout of the repository (the lead checkout or a worktree
+under `.claude/worktrees/`, also a removed one) loses its artifacts and
+its fingerprint dir (`.fingerprint/PKG-HASH`), in each profile and each
+target triple; cargo builds it again. A unit of the registry and a unit
+with no manifest dir stay. (2) Each file that another live checkout
+changed against the commit of the checkout, and each file that the
+checkout changed, gets a new time, so cargo builds its crate again from
+the text of the checkout. Its self-test (17 checks, run by check.sh)
+plants a fake target with units of a worktree, of a removed worktree, of
+the lead checkout, of the registry and of a target triple, and checks what
+goes and what stays, from the lead checkout and from a worktree. A dry
+run from a worktree over the shared target of the lead checkout found 119
+units to remove: 110 that name the removed worktrees `bearerfuzz`,
+`causeonce` and `tempmove`, and the units of the lead checkout. The rule
+of the target dirs of the workers is in `docs/hosted-sessions.md` ("The
+brief of a worker", "Parallel work and merges") and in
+`docs/maintenance.md`, "Rules of the work".
+
+Not measured: the time of the rebuild after a removal, and a full check of
+the lead checkout after a merge of agent work.
+
 # T-1385: agent tooling: read the latest commits of the sibling repositories and take each improvement of their agent tooling (Q23)
 
 **Source:** the owner, 2026-11-25: the answer to Q23 (the ruling "Hosted sessions and worker roles", `docs/decisions.md`), and the word that the work of T-1374 left out improvements of the sibling repositories.
@@ -6390,7 +6417,7 @@ sh scripts/agent/check.sh notest
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6434,4 +6461,248 @@ changes, so its tooling falls behind its siblings.
 ```sh
 sh scripts/session-start.sh
 cargo todo check
+```
+
+## Done
+
+2026-11-25, the commit that names T-1385 and T-1384. Read: the clones of
+podrunner (`f18c7e1`), podssh (`13623b3`), podnet (`46c7181`) and podvm
+(`34cac6e`), with the commits since 2026-11-18 of their `AGENTS.md`,
+`CLAUDE.md`, `.claude/`, `.githooks/`, start and setup scripts, agent
+scripts, `docs/hosted-sessions.md` and their docs of the work.
+
+| Improvement | Source | What it improves | Fate in podcrates |
+| --- | --- | --- | --- |
+| One start script for each harness; the hook only calls it | PodUtils/podvm@2d36b23, `PodUtils/podvm:scripts/session-start.sh` | A start in Codex and on each host | Already here (T-1374) |
+| `origin/main` by an explicit refspec | PodUtils/podnet@46c7181, PodUtils/podrunner@f18c7e1 | `origin/main` moves also in a clone of another branch | Taken: `scripts/session-start.sh` |
+| A branch with commits that `origin/main` does not have stays | PodUtils/podrunner@f18c7e1, `PodUtils/podnet:scripts/session-start.sh` | No unpublished work is left behind | Taken: `scripts/session-start.sh` |
+| Each watcher holds a lock while it runs (`flock -n`) | PodUtils/podnet@46c7181, PodUtils/podssh@a13fef7 | A true "runs" also across PID namespaces | Taken, with the process check where no `flock` exists |
+| A mask of 077 for `.work/`; a line of repair when the start fails | PodUtils/podrunner@f18c7e1, PodUtils/podvm@c5ea23c | Private logs; a clear next step | Taken: `scripts/session-start.sh`, `.claude/session-start.sh` |
+| The watchers at a pinned commit, each checked by SHA-256 | PodUtils/podnet@46c7181, PodUtils/podrunner@f18c7e1 | No changed watcher runs | Taken into the text for each repository (`docs/session-protocol.md`); podcrates runs the files of its own tree |
+| The shell gets the toolchain through `CLAUDE_ENV_FILE` | PodUtils/podssh@a13fef7, `PodUtils/podssh:.claude/session-start.sh` | Each command of the session finds cargo and zig | Taken: `.claude/session-start.sh`, new `scripts/cloud-env.sh` |
+| `scripts/cloud-env.sh` for each shell | PodUtils/podrunner@f18c7e1, PodUtils/podnet@46c7181 | One line makes a shell ready, in each harness | Taken (PATH, `CARGO_BUILD_JOBS=4`, `CARGO_INCREMENTAL=0`) |
+| The toolchain and the caches in `.work/cloud/` | PodUtils/podnet@46c7181, PodUtils/podssh@a13fef7 | A checkout that brings its toolchain | Not taken: one toolchain in `$HOME` serves the lead and each worktree; a copy in each checkout takes GB of disk |
+| zig for an aarch64 host; a time limit and a lock for the setup | PodUtils/podrunner@f18c7e1, `PodUtils/podrunner:scripts/cloud-setup.sh` | Setup on ARM64; no hang | Taken: `scripts/cloud-setup.sh`, `scripts/fetch-zig.sh` (`ZIG_ARCH`; the SHA-256 of index.json of ziglang.org) |
+| The setup inside each start (`cloud-setup.sh --native`) | PodUtils/podssh@a13fef7 | A ready host with no step by hand | Not taken: a download in the hook delays each start; the start says when cargo or zig is missing |
+| The debug info of the dev profile cut in `cloud-env.sh` | PodUtils/podnet@46c7181, PodUtils/podssh@a13fef7 | A smaller target | Not taken now: T-1388 measures it first |
+| The file creation mask of CI for the tests | PodUtils/podssh@13623b3 | A test of a file mode gives the result of CI | Taken: `umask 022` in `scripts/agent/check.sh` |
+| A subreaper where PID 1 keeps exited children | PodUtils/podnet@46c7181, `PodUtils/podrunner:docs/cold-start.md` | Tests of child processes pass on such a host | Taken: `docs/hosted-sessions.md` |
+| The role table of the ruling "Hosted sessions and worker roles" | PodUtils/podvm@2d36b23, `PodUtils/podvm:docs/hosted-sessions.md` | One choice of model and effort for each role | Taken: `docs/hosted-sessions.md` (podnet and podssh keep their start there too) |
+| A row for reviews | `PodUtils/podrunner:docs/maintenance.md` ("Subagents") | Reviews get deeper reasoning | Taken in the row of the implementer |
+| One writer of the record; tasks on disjoint files; a claim is a claim until read; the proof is the lead's | `PodUtils/podvm:TODO/RULES.md` (section 12) | Fewer conflicts and wrong counts | Taken: `docs/hosted-sessions.md` |
+| A stopped agent: a WIP commit on its branch; `partial` before a long step; a read again after a compaction | `PodUtils/podssh:AGENTS.md` ("Drafting agents", "The loop") | No work lost at a usage limit | Taken: `docs/hosted-sessions.md` |
+| Drafting agents that never build | `PodUtils/podssh:AGENTS.md` | One build machine for podssh | Not taken: the implementers of podcrates build under the one lock (the ruling) |
+| Do not end the turn to wait for CI | `PodUtils/podnet:CLAUDE.md` ("Work without a stop") | No idle wait | Taken: `docs/hosted-sessions.md` ("The watchers"); the ruling "Work until done" is here |
+| A dispatch with `gh workflow run` in Codex; read first whether a run started | PodUtils/podvm@34cac6e, PodUtils/podssh@6c4f76d | A dispatch in each harness | Taken: `AGENTS.md` section 4, `docs/maintenance.md`, `docs/hosted-sessions.md` |
+| A deny of force-push in the settings | `PodUtils/podvm:.claude/settings.json` | The rule of `AGENTS.md` section 3 in the tool | Taken: `.claude/settings.json` |
+| More tools allowed (worktrees, cron, artifacts) | `PodUtils/podssh:.claude/settings.json` | No prompt for a routine tool | Taken: `.claude/settings.json` |
+| A global git identity in a cloud session | PodUtils/podvm@2d36b23 | The identity outside the repository | Not taken: the identity of the repository and the `env` of `.claude/settings.json` cover each commit here |
+| The pre-push gate of a checked tree | PodUtils/podrunner, `PodUtils/podrunner:.githooks/pre-push` | No push of a tree that the checks did not pass | Taken: `.githooks/pre-push`; `notest` for `TODO/` and `docs/` alone; `wip/NAME` free |
+| The commit-msg check with a self-test and a range, in CI | `PodUtils/podrunner:scripts/check-commit-msg.sh` | A commit made with no hook is found | Taken: `.githooks/commit-msg`, `scripts/agent/check.sh`, `.github/workflows/ci.yml` |
+| A grep for failed tests that is not "failed" | `PodUtils/podrunner:scripts/agent/check.sh` | The cause of a failure shows; "0 failed" hid it | Taken (a defect of `scripts/agent/check.sh`, fixed) |
+| The tests leave nothing in their temp dir | `PodUtils/podrunner:scripts/agent/check.sh` | No leak of temp files | Not taken now: T-1386 |
+| A QA bundle (binary, manual, licence, `SHA256SUMS`) and the blind QA pass | PodUtils/podvm@2d36b23, PodUtils/podssh@6c4f76d, `PodUtils/podnet:scripts/agent/qa-pass.md` | An outside pass with the binary and the documents only | Taken: `scripts/qa-bundle.sh`, `docs/hosted-sessions.md` ("Blind QA"), for `podlab` and `pod-release` |
+| A cold start file (`PodUtils/podvm:TODO/RESUME.md`, `PodUtils/podrunner:docs/cold-start.md`) | PodUtils/podvm@c5ea23c, PodUtils/podrunner@f18c7e1 | A short path to the work | Taken in the form of podcrates: `docs/hosted-sessions.md` ("Start") and the first steps of `docs/HANDOFF.md`; no second work order |
+| The operator procedure `HUMAN.md`; the summary table and the reading receipt of a session; the task routing table | `PodUtils/podvm:HUMAN.md`, `PodUtils/podvm:docs/methodology/sessions.md`, `PodUtils/podvm:AGENTS.md` | The procedure of podvm and its corpus | Not taken: a saved summary is narrative history here (`scripts/check-history.py`); `AGENTS.md` section 8 names each document to read |
+| `podcrates.sh`, `parity-snapshot.sh`, `watch-issues.sh`, `delete-stale-branches.ps1` | `PodUtils/podnet:scripts/agent/` | The view of podcrates from podnet; a refactor of podnet; an old watcher; a tool of the owner | Not taken: a matter of podnet alone (`watch.py` of podcrates replaced the watcher) |
+| A merge driver or a tool for the record | none of the four | A merge of the branch of an agent with no conflict in the counts | New here: `scripts/agent/merge_todo.py`, `.gitattributes`, set by `scripts/session-start.sh` |
+| A range of ids for each agent | the brief of podcrates; none of the four has a tool | No two branches take one id | Taken with a tool: `cargo todo next --from N`; the renumber steps in `docs/hosted-sessions.md` |
+
+Also: `docs/session-protocol.md` has the section "Hosted sessions and
+worker roles" for each repository; T-1387 holds the COORD issue `(to all)`
+that proposes one table. `AGENTS.md` (sections 3, 4, 7, 8, 10, 11),
+`docs/maintenance.md` (the start, the tools, the rules of the work, a run
+of a workflow), `docs/HANDOFF.md` (the first steps) and `docs/design.md`
+name the new files. A stale citation of `scripts/agent/check.sh` in
+`TODO/foundation.md` points at the check of the size again. Call C938.
+
+Tests: `python3 -I scripts/agent/merge_todo.py --self-test` (9 checks: a
+real `git merge` of an agent branch with the driver ends clean with the
+sorted rows and the true counts, and conflicts with no driver; two changes
+of one row or one line stay a conflict); the driver over the real index:
+the same file three times gives the same file, and a status on each side
+plus a new row gives the counts that the rows give. `cargo test -p
+pod-todo` (the test of `next --from`), `cargo clippy -p pod-todo
+--all-targets -- -D warnings`. `.githooks/commit-msg --self-test` (8
+checks, in `sh` and `dash`) and `--range` over the last 30 commits.
+`scripts/qa-bundle.sh` with `pod-release`: the bundle passed `sha256sum
+-c`, a changed licence failed it, a second run and a binary with no manual
+exited 2 and 1 and left no stage dir. In a scratch clone of a bare copy of
+the branch, `scripts/session-start.sh` run from `/` set the identity,
+the hooks path and the merge driver, and started both watchers under their
+locks (exit 0); a second run said "runs already"; a stopped watcher started
+again alone; with a `PATH` with no `flock`, `setsid`, `pgrep` and
+`timeout` the start and the second run worked, and the next start with
+`flock` found those watchers. A clean branch at `origin/main` moved to
+`main`; a branch with a local commit and a tree with changes stayed; a
+worktree kept its branch and made no `.work/`; an origin that cannot be
+reached gave one line. The hook from `/tmp` with no `CLAUDE_PROJECT_DIR`
+wrote one line into `CLAUDE_ENV_FILE`, and a shell with an empty
+environment that loaded it found cargo, with 4 jobs and no incremental
+data. `.githooks/pre-push` refused a change of code with no check, passed
+it after its tree was checked, refused a change of `TODO/` that was not
+linted and passed it when linted, refused a linted change of
+`docs/wire.md`, passed a linted change of `docs/` against the tree of the
+remote ref with no checked tree, and passed a push to `wip/agent`.
+`sh scripts/agent/check.sh notest`, `cargo todo check`,
+`python3 -I scripts/check-history.py`, `python3 -I scripts/check-workflows.py`,
+`python3 -I scripts/check-design-paths.py`, `python3 -I scripts/codegraph.py dups`.
+
+Not verified: a start in Codex, on macOS and in a new Claude Code session
+(the hook ran by hand); `cloud-setup.sh` on an aarch64 host; the step of
+`ci.yml` on GitHub; a full check (with the tests) of the merged tree.
+
+# T-1386: `scripts/agent/check.sh`: the tests run in a temp directory of their own, and an entry that a test leaves there is a fault
+
+**Source:** T-1385: `PodUtils/podrunner:scripts/agent/check.sh` (its check `tmp-left`, podrunner's T-591).
+**Category:** chore
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A test that leaves a file or a directory in `TMPDIR` fills the disk of a
+long session and of a runner, and it can make a later test pass or fail
+by a stale file. No check of podcrates finds such a test. podrunner runs
+its tests in a temp directory of their own and fails when an entry stays.
+
+## Premise
+
+- Read: `PodUtils/podrunner:scripts/agent/check.sh` (`tmp_left`, the
+  tests with `TMPDIR` of their own).
+- Not measured: how many tests of podcrates leave an entry in `TMPDIR`.
+
+## Approach
+
+1. Run the tests of the workspace with `TMPDIR` set to a new short
+   directory (`mktemp -d /tmp/pc.XXXXXXXX`; a long one breaks the socket
+   paths of T-920), and list each entry that stays after the run.
+2. Fix each test that leaves an entry (a guard that removes its directory
+   also on a panic).
+3. Make an entry that stays a fault of `scripts/agent/check.sh` (a line
+   for each entry, as podrunner prints them), and remove the directory.
+
+## Prove
+
+```sh
+sh scripts/agent/check.sh
+```
+
+# T-1387: COORD `(to all)`: one `docs/hosted-sessions.md` with one role table for each repository of PodUtils
+
+**Source:** T-1385; the owner's ruling "Hosted sessions and worker roles" (Q23): one role table for each repository of PodUtils, which podcrates takes from podvm until a shared document holds it.
+**Category:** chore
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The role table of the ruling is in `PodUtils/podvm:docs/hosted-sessions.md`
+and now in `docs/hosted-sessions.md`. podnet and podssh keep a
+`docs/hosted-sessions.md` with no role table, and podrunner keeps an older
+table of its own in `PodUtils/podrunner:docs/maintenance.md`
+("Subagents"). Each session can choose the models of its workers in a
+different way. The tools of T-1385 (the merge driver of the record,
+`cargo todo next --from N`, the fit of a shared target, the pre-push
+gate, the check of commit messages in CI, `cloud-env.sh` through
+`CLAUDE_ENV_FILE`) can help each repository.
+
+## Premise
+
+- Read: `docs/hosted-sessions.md`, `docs/session-protocol.md` (the
+  section "Hosted sessions and worker roles"), the docs of the four
+  sibling repositories at the commits of the Done section of T-1385.
+
+## Approach
+
+The coordinator opens this issue in podcrates after the next tag, with
+the tag in place of TAG:
+
+```text
+COORD-NNN: one docs/hosted-sessions.md and one role table for each repository (to all)
+
+The owner's ruling "Hosted sessions and worker roles" (2026-11-25) gives
+one role table for each repository of PodUtils. podcrates TAG holds it in
+docs/hosted-sessions.md, with the brief of a worker, and
+docs/session-protocol.md, section "Hosted sessions and worker roles",
+gives the text for each repository.
+
+Ask (each repository, in its own form):
+1. Keep docs/hosted-sessions.md with the role table of podcrates at TAG
+   (lead, implementer, housekeeper, advisor; Claude Code and Codex), and
+   the items of the brief of a worker. podrunner: replace the table
+   "Subagents" of docs/maintenance.md with it.
+2. Ask podcrates for a change of the table by a COORD issue
+   (to podcrates); do not change it alone.
+
+Offered, optional, each at TAG:
+- scripts/agent/merge_todo.py: a merge driver of TODO/INDEX.md (the rows
+  by id, the counts derived again) and TODO/PROGRESS.md, for a record of
+  the form of pod-todo; .gitattributes and two lines of git config.
+- cargo todo next --from N (pod-todo): the ids of one worker in a range.
+- scripts/agent/stale_target.py: removes the units of a shared cargo
+  target that another worktree built, before a full check.
+- .githooks/commit-msg --range in CI: a commit made with no hook.
+- scripts/cloud-env.sh loaded by the Claude Code hook through
+  CLAUDE_ENV_FILE (podssh's form).
+
+Answer by a COORD issue (to podcrates) with the commit of the take.
+```
+
+Map the issue in `TODO/issues.md` and `TODO/github.txt`, and close this
+entry when each of the four sessions names its commit (or names why its
+table differs).
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+# T-1388: The debug info of the dev and test profiles, measured for the size of the target
+
+**Source:** T-1385: `PodUtils/podnet:scripts/cloud-env.sh` and `PodUtils/podssh:scripts/cloud-env.sh` set `CARGO_PROFILE_DEV_DEBUG` and `CARGO_PROFILE_TEST_DEBUG` (0, `line-tables-only`).
+**Category:** chore
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`target/` of podcrates grows past 20 GB, and a full check needs 22 GB
+free (`AGENTS.md`, section 7; `docs/maintenance.md`, "Rules of the
+work"). The full debug info of the dev and test profiles is a large part
+of it. podnet and podssh cut it in the environment of a shell. In
+podcrates a value in the environment of one shell alone gives another
+fingerprint than CI and than a shell with no value, so each change
+rebuilds the whole workspace.
+
+## Premise
+
+- Read: `PodUtils/podnet:scripts/cloud-env.sh`,
+  `PodUtils/podssh:scripts/cloud-env.sh`, `scripts/cloud-env.sh`.
+- Not measured: the size of `target/debug` after a full check with the
+  default debug info and with `debug = "line-tables-only"`, and the time
+  of each build.
+
+## Approach
+
+1. Measure both sizes and both times of a full check in a target dir of
+   its own (`du -sh`, the seconds of check.sh).
+2. When the gain is large, set `debug = "line-tables-only"` in
+   `[profile.dev]` and `[profile.test]` of `Cargo.toml`, so that CI, each
+   shell and each worker agree. A failed test still names its file and
+   line in a backtrace: check one.
+3. Write the result and the free space that a full check needs in
+   `docs/maintenance.md`.
+
+## Prove
+
+```sh
+sh scripts/agent/check.sh
 ```

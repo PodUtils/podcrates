@@ -9,7 +9,8 @@
 # tip is a checked tree, or when it is a linted tree that differs from the
 # last checked tree (else from the tree of the remote ref, which CI
 # checked) only in TODO/ and docs/: the tests read no file there but
-# docs/wire.md.
+# docs/wire.md. A push to wip/NAME (the unfinished work of an agent at
+# the end of a session, AGENTS.md, section 3) needs no check.
 #
 #   .githooks/pre-push REMOTE URL < REFS
 #
@@ -20,9 +21,10 @@ checked=$top/.work/agent/checked-trees
 linted=$top/.work/agent/linted-trees
 zero=0000000000000000000000000000000000000000
 rc=0
-while read -r _local sha _remote rsha; do
+while read -r _local sha remote rsha; do
     # A delete of a remote ref pushes no tree.
     [ "$sha" = "$zero" ] && continue
+    case "$remote" in refs/heads/wip/*) continue ;; esac
     tree=$(git rev-parse "$sha^{tree}") || exit 1
     if [ -f "$checked" ] && grep -qx "$tree" "$checked"; then
         continue

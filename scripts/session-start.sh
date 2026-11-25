@@ -169,5 +169,13 @@ fi
 status=0
 start watch.py podcrates --state .work/agent || status=1
 start runs.py --repo PodUtils/podcrates || status=1
+# The host: the free disk (a full check needs 22 GB, AGENTS.md, section 7)
+# and the tools of the static builds.
+free=$(df -Pk . 2> /dev/null | awk 'NR == 2 { print int($4 / 1048576) }')
+if [ -n "$free" ] && [ "$free" -lt 25 ]; then
+    echo "session-start: $free GB free on the disk of the checkout; a full check needs 22 GB (docs/hosted-sessions.md, \"Disk and memory\")" >&2
+fi
+(. ./scripts/cloud-env.sh && command -v cargo > /dev/null && command -v zig > /dev/null) ||
+    echo "session-start: cargo or zig is missing; run sh scripts/cloud-setup.sh" >&2
 echo "session-start: read .work/watch.log and .work/runs.log after each step; load the toolchain in each shell with . ./scripts/cloud-env.sh; then read docs/HANDOFF.md"
 exit "$status"

@@ -34,6 +34,9 @@
 #   sh scripts/agent/check.sh [notest]
 set -u
 cd "$(dirname "$0")/../.." || exit 1
+# The file creation mask of CI: a test of the mode of a file it makes
+# gives the same result here.
+umask 022
 log=${TMPDIR:-/tmp}/podcrates-check
 mkdir -p "$log"
 rc=0

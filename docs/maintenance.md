@@ -7,19 +7,19 @@ gives the procedures and the tools.
 
 ## Start of a session
 
+`docs/hosted-sessions.md` gives the start in each harness and on each host,
+the watchers and their logs, and the roles of the lead and its workers.
+
 1. Read `AGENTS.md` and this document. Read the handoff file (HANDOFF.md
    in `docs/`) first when a session left one.
 2. Run `sh scripts/session-start.sh` from the checkout when the harness
    did not run it (the Claude Code hook `.claude/session-start.sh` runs
-   it). It sets the identity and the hooks path of this repository, puts
-   a clean tree on `main` (an existing `main` only moves forward to
-   `origin/main`), and starts the two watchers of step 6. A worktree keeps
-   its branch and starts no watcher. Then make sure that the branch is
-   `main` and that the tree is clean: `git status`, `git log --oneline -5`.
-3. Make the session ready for the static builds:
-   `sh scripts/cloud-setup.sh` (rustup and the toolchain of
-   `rust-toolchain.toml` when the host has none, the musl target, zig,
-   cargo-zigbuild), then `export PATH="$HOME/.local/bin:$PATH"`.
+   it). It sets the identity, the hooks path and the merge driver of this
+   repository, puts a clean tree on `main`, and starts the two watchers of
+   step 6. Then make sure that the branch is `main` and that the tree is
+   clean: `git status`, `git log --oneline -5`.
+3. Make the session ready for the static builds: `sh scripts/cloud-setup.sh`
+   on a new host, then `. ./scripts/cloud-env.sh` in each shell.
 4. List the open issues:
 
    ```sh
@@ -34,20 +34,9 @@ gives the procedures and the tools.
      python3 -c 'import json,sys; [print(r["id"], r["head_sha"][:7], r["name"], r["status"], r["conclusion"]) for r in json.load(sys.stdin)["workflow_runs"]]'
    ```
 
-6. The two watchers run as background processes, each with a log that
-   the session reads (the owner's ruling "Watchers"). Keep a Monitor of
-   the harness on each log. `scripts/session-start.sh` starts each one
-   that does not run, after their self-tests. When it says that one did
-   not start, or a watcher ends, start it by hand:
-
-   ```sh
-   mkdir -p .work
-   nohup python3 -I scripts/agent/watch.py podcrates --state .work/agent >> .work/watch.log 2>&1 &
-   nohup python3 -I scripts/agent/runs.py --repo PodUtils/podcrates >> .work/runs.log 2>&1 &
-   ```
-
-   Read the logs after each step of work. Do not wait for a notice of
-   the harness: a Monitor stops after 30 min.
+6. Read the logs of the two watchers, `.work/watch.log` and
+   `.work/runs.log`, after each step of work (the owner's ruling
+   "Watchers"; `docs/hosted-sessions.md`, "The watchers").
 7. Read `TODO/PROGRESS.md`: the state, the work order and the questions
    for the owner. Continue a `partial` entry first.
 
@@ -69,10 +58,12 @@ gives the procedures and the tools.
   macro with a bracket in a body, or read the body back after the write.
 * **Pushes**: `git push origin main`. The identity comes from
   `scripts/session-start.sh`. Its hooks path gives `.githooks/commit-msg`,
-  which refuses a commit message with an agent attribution line.
+  which refuses a commit message with an agent attribution line, and
+  `.githooks/pre-push`, which refuses a tree that `check.sh` did not pass
+  (`docs/hosted-sessions.md`, "Checks and hooks").
 * **The record**: `cargo todo check`, `cargo todo set T-NNN STATUS`,
-  `cargo todo next`, `cargo todo counts`, `cargo todo remap FILE`
-  (`TODO/RULES.md`).
+  `cargo todo next [--from N]`, `cargo todo counts`, `cargo todo remap
+  FILE` (`TODO/RULES.md`).
 * **Helper scripts of the agent** (in `scripts/agent/`):
   * `watch.py ME [--state DIR] [--every SECONDS] [--runs REPO]...`: the
     one watcher of each session of PodUtils (the owner's ruling
@@ -104,9 +95,12 @@ gives the procedures and the tools.
     the mirror waits for `Retry-After`, a 502 waits with backoff.
     `--self-test` runs its checks. It reads through `watch.py`: each
     project takes both files from podcrates at a tag.
-  * Run both watchers as background processes with a log (see "Start of
-    a session"), and keep a Monitor on each log (a monitor stops after
-    30 min: start it again when it ends).
+  * Run both watchers as background processes with a log
+    (`docs/hosted-sessions.md`, "The watchers").
+  * `stale_target.py [--target DIR] [--dry-run]`: make a shared cargo
+    target fit this checkout (T-1384). check.sh runs it first.
+  * `merge_todo.py BASE OURS THEIRS PATH`: the merge driver of
+    `TODO/INDEX.md` and `TODO/PROGRESS.md` (`.gitattributes`).
 * **The code graph** (`scripts/codegraph.py`; `docs/design.md`,
   section 9):
   * `similar WORDS`: search before you write (the ruling "Shared code").
@@ -125,13 +119,20 @@ gives the procedures and the tools.
   in a document of the current state (a take at a commit, a `state:` line,
   a time stamp, "Before, ", the work of one session).
 * **Other scripts** (in `scripts/`):
-  * `session-start.sh`: the start of each session (see "Start of a
-    session"). Exit 0 when both watchers run, 1 when one did not start.
+  * `session-start.sh`: the start of each session
+    (`docs/hosted-sessions.md`). Exit 0 when both watchers run, 1 when
+    one did not start.
   * `cloud-setup.sh [TARGET...]`: rustup (its installer, checked by
     SHA-256) and the toolchain of `rust-toolchain.toml` when the host has
-    none, the rustup targets, zig (from the mirrors of `zig-mirrors.txt`,
-    through `fetch-zig.sh`) and cargo-zigbuild. It links `cargo`, `rustc`
-    and `rustup` into `$HOME/.local/bin` for a new shell.
+    none, the rustup targets, zig for the machine of the host (from the
+    mirrors of `zig-mirrors.txt`, through `fetch-zig.sh`) and
+    cargo-zigbuild. It links `cargo`, `rustc` and `rustup` into
+    `$HOME/.local/bin` for a new shell.
+  * `cloud-env.sh`: load it in each shell (`. ./scripts/cloud-env.sh`):
+    the tools on `PATH`, `CARGO_BUILD_JOBS=4`, `CARGO_INCREMENTAL=0`.
+  * `qa-bundle.sh BINARY OUTPUT_DIR`: the bundle of a blind QA pass: the
+    binary, its manual, the licence and `SHA256SUMS`
+    (`docs/hosted-sessions.md`, "Blind QA").
   * `retry.sh COMMAND...`: a command up to 5 times, for the steps of CI
     that read the network.
   * `check-github-numbers.py`: `TODO/github.txt` against GitHub.
@@ -274,9 +275,13 @@ For each consumer, the repositories are the channel:
 
 ### A run of a workflow
 
-The session dispatches a workflow with the GitHub MCP tool
-`actions_run_trigger` (`run_workflow`, with the ref and the inputs), and
-reads the run with `actions_list` and `actions_get`. A push to `main`
+Before a dispatch, read whether a push already started the run of the
+commit (`runs.py --once`). The session dispatches a workflow with the
+GitHub MCP tool `actions_run_trigger` (`run_workflow`, with the ref and the
+inputs), and reads the run with `actions_list` and `actions_get`. In a
+harness with no GitHub MCP tool, run `gh auth status`; when `gh` has
+access, dispatch with `gh workflow run WORKFLOW --repo PodUtils/podcrates
+--ref main`, and read the run with `gh run list` and `gh run view`. A push to `main`
 starts `ci.yml`, `adoption.yml`, `plants.yml`, `deny.yml`, `secrets.yml`
 and `issue-sync.yml`; a newer push cancels the queued run of `ci.yml`,
 `adoption.yml` and `plants.yml`. Dispatch the other workflows (`nightly.yml`, `live.yml`,
@@ -297,7 +302,7 @@ red for that time, and the mapping follows the tag). A push between the
 gates and the release gives `release.yml` a head with no run of `ci`, and
 the release fails.
 
-Only when the dispatch fails, open a new issue titled exactly
+Only when each dispatch route fails, open a new issue titled exactly
 `[gh action] requested`: one line of why, and one `sh` block with each
 `gh` command in full (`-R` and each flag), `set -e` first. The owner's
 local agent runs the block once and writes the output or the error back.
@@ -451,28 +456,26 @@ fourth argument of the script names the list when it is elsewhere.
 
 ## Rules of the work
 
+* Delegate by the ruling "Hosted sessions and worker roles"
+  (`docs/decisions.md`): `docs/hosted-sessions.md`, "Lead and workers",
+  has the role table, and "The brief of a worker" has what each brief
+  carries. The session coordinates and reviews.
 * Run one cargo build at a time, also with agents: each cargo command
-  takes the lock `flock SCRATCHPAD/cargo.lock`. An agent builds in its own
-  `CARGO_TARGET_DIR` in the scratchpad: an artifact of a worktree holds
-  its absolute paths (`include_str!` of `pod-services`,
-  `CARGO_MANIFEST_DIR` of `pod-job`), and a shared `target/` fails in the
-  main checkout after the worktree goes. Also, cargo hashes a path crate
-  by its path relative to the workspace root: two trees in one target dir
-  give their artifacts the same names, and a build of one tree takes the
-  artifact of the other as fresh. A build of `main` then checks the code
-  of a worktree. Remove the target dir of an agent when it finishes.
+  takes the lock `flock SCRATCHPAD/cargo.lock`. Cargo names a path crate
+  by its path relative to the workspace root, so two trees in one target
+  dir give their artifacts the same names, and a build of one tree takes
+  the artifact of the other as fresh. An agent builds in its own
+  `CARGO_TARGET_DIR` when the disk holds it; `check.sh` makes a shared
+  target fit the checkout first (`scripts/agent/stale_target.py`).
 * Each version bump makes a new copy of each workspace crate in
   `target/debug`. Before the check of a bump, remove `target/debug` when
   `df -h /` shows less than 25 GB free. A full check needs 22 GB free.
-* Delegate the work by the ruling "Hosted sessions and worker roles"
-  (`docs/decisions.md`): the role table of podvm gives the model and the
-  effort of each role in each harness, until T-1385 brings it here. The
-  session coordinates and reviews.
 * The usage limit can stop an agent in the middle of a build. Tell each
-  agent to commit early on its local branch, so that no work is lost.
-* While agents build, run the full check and each agent build with
-  `CARGO_INCREMENTAL=0`: the incremental data of the tests of `main` grows
-  to 5 GB, and the disk fills during the test step.
+  agent to commit early on its local branch, so that no work is lost
+  (`docs/hosted-sessions.md`, "Usage limits, restarts and compaction").
+* Run the full check and each agent build with `CARGO_INCREMENTAL=0`
+  (`scripts/cloud-env.sh` sets it): the incremental data of the tests of
+  `main` grows to 5 GB, and the disk fills during the test step.
 * Gate a commit and a push on the exit code of each check (`cmd && git
   commit`), never on a pipe into `tail`. After a change of code, run
   clippy of the crate too, not only its tests.
@@ -483,15 +486,17 @@ fourth argument of the script names the list when it is elsewhere.
   `plant-each.sh --apply`.
 * Take a new entry id or call number with `cargo todo next` just before
   the commit; sessions and agents add entries in parallel. Give each agent
-  its own range of ids and calls in its brief, and the rule of findings
-  of `AGENTS.md` (each finding becomes work, never a card).
-* A merge of an agent's branch conflicts in `TODO/INDEX.md` (the counts
-  and the rows), `TODO/PROGRESS.md` and `docs/decisions.md`: keep both
-  sides of the rows in id order, then take the counts that `cargo todo
-  check` reports.
-  After the merge commit, run `cargo todo check --base HEAD~1`: CI
-  checks the citations against the first parent, and a citation into a
-  file that the branch changed moves only in that check.
+  its own range of ids and calls in its brief (`cargo todo next --from
+  N`), and the rule of findings of `AGENTS.md` (each finding becomes
+  work, never a card).
+* A merge of an agent's branch: the merge driver of `.gitattributes`
+  merges the rows and the counts of `TODO/INDEX.md` and
+  `TODO/PROGRESS.md` (`docs/hosted-sessions.md`, "Parallel work and
+  merges"). A conflict in `docs/decisions.md`: keep both sides of the
+  rows in the order of their numbers. After the merge commit, run `cargo
+  todo check --base HEAD~1`: CI checks the citations against the first
+  parent, and a citation into a file that the branch changed moves only
+  in that check.
 * At the end of a session, an agent that has not finished commits its
   work as it is on its local branch, and the session pushes that branch
   as `wip/NAME` and names it in `docs/HANDOFF.md`. Never remove a
@@ -536,5 +541,5 @@ fourth argument of the script names the list when it is elsewhere.
   `action_required`. Review its code before you approve or dispatch its CI.
 * A macOS arm64 job of `ci.yml` that no runner takes ("not acquired by
   Runner") is no defect: run the failed jobs again.
-* The watcher can end on a broken answer of the mirror: start it again
-  when the Monitor reports an exit.
+* The watcher can end on a broken answer of the mirror: run
+  `sh scripts/session-start.sh` again when its log ends.
