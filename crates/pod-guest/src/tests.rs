@@ -40,7 +40,7 @@ fn request() -> Request {
 fn gone(pid: u32) -> bool {
     match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
         Err(_) => true,
-        Ok(stat) => stat.rsplit_once(')').map(|(_, rest)| rest.trim_start().starts_with('Z')).unwrap_or(false),
+        Ok(stat) => pod_core::proc_stat::after_name(&stat).is_some_and(|f| f.first() == Some(&"Z")),
     }
 }
 

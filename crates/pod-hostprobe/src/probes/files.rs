@@ -36,7 +36,7 @@ pub(super) fn p_readlink_exe() -> Outcome {
 /// The field `tty_nr` of a text of `/proc/PID/stat`: the seventh field,
 /// the fifth after the name in parentheses.
 pub fn tty_nr(stat: &str) -> Option<i64> {
-    stat.rsplit_once(')')?.1.split_whitespace().nth(4)?.parse().ok()
+    pod_core::proc_stat::after_name(stat)?.get(4)?.parse().ok()
 }
 
 /// A probe child keeps the session and the terminal of its parent.
