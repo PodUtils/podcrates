@@ -6615,7 +6615,7 @@ sh scripts/agent/check.sh
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 

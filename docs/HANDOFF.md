@@ -20,29 +20,24 @@ is done. Git and the record keep finished work.
 2. Coordinate the five sessions by COORD issues alone (the rulings
    "Coordinator" and "COORD only"). COORD-136 (#227) gives the order of
    each session; route each ask of podrunner first, and edit #227 when the
-   order changes. Send the COORD issue `(to all)` of T-1387 (one
-   `docs/hosted-sessions.md` and one role table for each repository).
+   order changes. COORD-157 (#263, T-1387) asks each repository for one
+   `docs/hosted-sessions.md` and one role table: record each answer on its
+   body, and close it when the four sessions answered.
 3. Answer the open COORD issues `(to podcrates)`. Map each new one in the
    same commit.
-   - Open asks: PodUtils/podvm#664 (COORD-248, for
-     PodUtils/podrunner#354) is T-1379, done on `main`: answer it with the
-     next tag; PodUtils/podvm#667 (COORD-250, for ask 5 of
-     PodUtils/podrunner#296) is T-1389, done on `main` after `v0.85.0`:
-     answer it with the tag after `v0.85.0`;
-     PodUtils/podssh#358 (COORD-148) is T-1390 (its item 1 closed #258);
-     PodUtils/podvm#668 (COORD-251) is T-1391;
-     PodUtils/podssh#357 (COORD-147) asks T-1380 to T-1383;
-     PodUtils/podnet#753 to #755 (COORD-123 to COORD-125) are T-1392 to
-     T-1394, done on `main` after `v0.85.0`: answer them with the tag
-     after `v0.85.0`;
-     PodUtils/podssh#349 (COORD-139) is T-1169.
-   - The takes of `v0.84.0` (the hand-off #260, COORD-155): podssh
-     (`806e0a4`, #357), podvm (`04c8b7f4`, #666) and podrunner (`72cd0ab`,
-     PodUtils/podrunner#356) and podnet (`405d47c`, PodUtils/podnet#752)
-     are verified, and #260 is closed (call C780). T-1375 ported the four
-     files of podrunner that changed in `pod-testkit`.
-   - Answered by `v0.84.0`, waiting for the take of the consumer:
-     PodUtils/podssh#340,
+   - The hand-off of `v0.85.0` is COORD-156 (#262). It answers
+     PodUtils/podvm#664 (T-1379). Record each take on its body (the
+     "Takes" lines, as #260), and close it when each consumer names the
+     tag (call C780).
+   - Done on `main` after `v0.85.0`; answer each with the next tag:
+     PodUtils/podvm#667 (COORD-250, T-1389), PodUtils/podnet#753 to #755
+     (COORD-123 to COORD-125, T-1392 to T-1394).
+   - In work: PodUtils/podnet#756 (COORD-126; a worker writes its entry).
+   - Open asks: PodUtils/podssh#358 (COORD-148) is T-1390;
+     PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
+     (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
+     (COORD-139) is T-1169.
+   - Answered, waiting for the take of the consumer: PodUtils/podssh#340,
      #349, #351 to #353, #355, #356; PodUtils/podvm#657 (T-1193 to
      T-1196). podrunner took PodUtils/podrunner#352 (T-1362) and #353
      (T-1370) at `3391edc` and `f2716a1`; its session closes them.
@@ -52,22 +47,29 @@ is done. Git and the record keep finished work.
 4. Read the runs of the head of `main` (`ci`, `plants`, `adoption`,
    `secrets`, `deny`, `issue-sync`). A new red run needs an entry before
    other work. The open red runs and the runs to read:
-   - `nightly.yml`: `riscv64` and `loongarch64` fail in `pod-iroh`
-     (`road.rs`, `share.rs`; T-916, T-938, the ruling "Emulated nightly
-     jobs"). Read the macOS and Windows ARM64 jobs of the next run (T-1359
-     and T-1360 are done on `main`). Open: T-789, T-766, T-1044.
+   - `nightly.yml` 45603454952 at `cd7cb5a`: T-1444 (`pod-core`,
+     `files::temp` on Windows: `PermissionDenied` at the name of a
+     directory) and T-1445 (`pod-tpm`, `tests/socket.rs` on macOS: the
+     timeouts of a closed Unix stream) are open; T-1446 (`pod-warp`, a
+     socket path over 104 bytes on macOS) and T-1447 (the doc tests of
+     `pod-h2`) are fixed on `main`. `riscv64` and `loongarch64` fail in
+     `pod-iroh` (T-916, T-938, the ruling "Emulated nightly jobs"). T-1359
+     and T-1360 held. Open: T-789, T-766, T-1044.
    - `ci.yml`: T-1325 closes with the times of five runs of the two macOS
      rows of `static` (limit 60 minutes): read the next `ci` runs.
-   - `services.yml`: read the next scheduled run (T-1096 reopens when
+   - `services.yml`: read the next scheduled run (T-1415 reopens on a
+     second 5xx of `magic-wormhole-mailbox`; T-1096 reopens when
      `freedos-image` times out again). `live.yml`: T-963 (partial).
    - `upstream.yml` (job `sources`): read the next daily run.
+   - The dry run of `publish.yml` on the tag `v0.85.0` (45631623920):
+     read it (step 5 of "A release").
    - A plant that a run misses once with no change of its crate runs its
      test five times in its `.plant` (as `link-quic-drop-closes-at-once`).
-5. The work order of `TODO/PROGRESS.md`: the next tag (it carries T-1379
-   and the role table of T-1387), then T-106 (the CI of
-   githome and cfb), then the asks of the consumers.
-   `docs/research/hard-problems.md` has the hard open problems (H-01 to
-   H-18); T-978 (partial) holds the findings that no other entry has.
+5. The work order of `TODO/PROGRESS.md`: the next tag (T-1389, T-1392 to
+   T-1394), then T-106 (the CI of githome and cfb), then the asks of the
+   consumers. `docs/research/hard-problems.md` has the hard open problems
+   (H-01 to H-18); T-978 (partial) holds the findings that no other entry
+   has.
 6. Rules of the session that the documents do not repeat:
    - The channel of cfb and githome is #223. podcrates keeps one reply
      comment to each there (cfb: 6970315549; githome: 6970683028) and
@@ -80,160 +82,68 @@ is done. Git and the record keep finished work.
      `action_required`. Review its code before you approve or dispatch
      its CI (the ruling "Strangers").
 
-## Release: v0.84.0
+## Release: v0.85.0
 
-`v0.84.0` (`ca1d3e3`, `docs/releases/v0.84.0.md`) is released: the GitHub
+`v0.85.0` (`1d1c9fc`, `docs/releases/v0.85.0.md`) is released: the GitHub
 release, the signed `SHA256SUMS` and `SHA256SUMS.sigstore.json`, 14 assets
 and the images of `ghcr.io/podutils` (`podlab`, `pod-fake-github`,
-`pod-fake-githome` and `pod-release`) exist. `ci` run 45568238286 at
-`ca1d3e3`, the dry run of `release.yml` 45573005407, the dispatch run
-45573664209, the run on the tag 45574255033 and the dry run of
-`publish.yml` 45575024311 passed. It carries each change of `main` after
-`v0.83.0`: the new crates `pod-tpm`, `pod-gzip` and `pod-h2` (the fork of
-h2), `flatten` of `pod-extract`, the bearer grant, the bare and DoH
-forms of the DNS carrier, `RealJob` and the warm units, and the class
-`Data`.
+`pod-fake-githome` and `pod-release`; each index passes `gh attestation
+verify`). `ci` 45620169994 at `1d1c9fc`, the dry run of `release.yml`
+45628517649, the dispatch run 45629559471 and the run on the tag
+45630869703 passed. It carries T-1379 (the config PATCH of `pod-incus` on
+an ETag), T-1351 (the step of a failure), T-1343 (random temp names, step
+2 in part), T-1375 (the port of podrunner `fcff5bc`), T-1369, T-1382,
+T-1385 and T-1415.
 
-The hand-off COORD-155 (#260) is closed: each of the four consumers took
-`v0.84.0`, and its body has each take line.
-The hand-off COORD-154 (#259) of `v0.83.0` is closed. COORD-153 (#258)
-is closed: podssh wires the codec at `97cebe6` (PodUtils/podssh#358).
+The hand-off is COORD-156 (#262), with the digest of each image and the
+section of each consumer. It closes when each consumer names `v0.85.0` or
+a later tag (call C780). The hand-off COORD-155 (#260) of `v0.84.0` is
+closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
+`806e0a4` took it. COORD-153 (#258) is closed: podssh wires the codec at
+`97cebe6` (PodUtils/podssh#358).
 
-Takes of `v0.84.0`: podssh, podvm and podrunner are verified. The body of #260 has one
-"- CONSUMER" line for each of the four consumers; the line changes at each
-verified take. podssh: PodUtils/podssh#357 (COORD-147) names the take at
-`806e0a4`. `git ls-remote` gives `806e0a4` as the head of `main` of
-podssh, and the 55 `Cargo.toml` files of that tree name `tag = "v0.84.0"`
-for each crate of podcrates and no other tag (`Cargo.lock` names no other).
-The line of podssh in #260 is the take line. The take replaces
-`vendor/h2` with `pod-h2`, makes `crates/podssh-ssh/src/tpm` glue over
-`pod-tpm`, adds `Class::Data` to the Dev Tunnels map, and signs the
-gateway certificate with `Mint::sign_with`. `check-sources.py` with a clone
-of podssh and the `taken` line of `pod-tpm` are in T-1382. podvm:
-PodUtils/podvm#666 (COORD-249; `PodUtils/podvm@T-2085`) names the take at
-`04c8b7f4`. `git ls-remote` gives `04c8b7f4` as the head of `main` of
-podvm, and each `Cargo.toml` of that tree that names a crate of podcrates
-names `tag = "v0.84.0"` and no other tag (`Cargo.lock` of the workspace
-names no other). The line of podvm in #260 is the take line. podvm uses
-`pod_gzip::Members` behind its selection of the upload space; the use of
-`flatten_with` is in a follow-up. podrunner: PodUtils/podrunner#356 (COORD-134) names the take at
-`72cd0ab` (PodUtils/podrunner@T-664). `72cd0ab` is on `main` of podrunner, followed by
-`3391edc` (T-1362) and `f2716a1` (T-1370). Each `Cargo.toml` of podrunner
-at `72cd0ab` names `tag = "v0.84.0"` (27 lines) and no other tag, and
-`Cargo.lock` names no other. The line of podrunner in #260 is the take
-line. `check-sources.py` at `72cd0ab`: `pod-actions-results`,
-`pod-actions-store`, `pod-job` and `pod-time` give 0 changes;
-`pod-testkit` gives four changed files, which T-1375 ports.
+### On `main` after `v0.85.0` (for the next tag)
 
-The asks that #260 answers:
-
-- podvm: took `pod-gzip` (`pod_gzip::Members`) at `04c8b7f4`
-  (PodUtils/podvm#666). Not named in its take: `flatten` of `pod-extract`
-  (PodUtils/podvm#657, T-1193 to T-1195; a follow-up of podvm),
-  `Refusal::TooLong`, `Refusal::Stream` and `Refusal::Link` (an exhaustive
-  `match` adds three arms), `Settings::write_timeout` and the field `cut`
-  of `ErrorKind::Incus` (T-1298, T-1307).
-- podssh: took `pod-tpm` (PodUtils/podssh#351), the fork `pod-h2` and the
-  removal of `vendor/h2` (PodUtils/podssh#340), `Mint::sign_with`
-  (PodUtils/podssh#356) and the class `Data` (PodUtils/podssh#352) at
-  `806e0a4` (PodUtils/podssh#357). Not taken yet: the bare form and the
-  DoH form of the DNS carrier (PodUtils/podssh#349; its T-900), the bearer
-  grant and `Binding` (PodUtils/podssh#355; its T-834), and the codec
-  version 2 (PodUtils/podssh#353; the take does not name it).
-- podnet: took `v0.84.0` at `405d47c` (PodUtils/podnet#752): the refusal
-  replies of `pod-warp` (T-1365), the cause by issuer of the door (T-1366),
-  `new_temp_dir` and `new_temp_file` (T-1343) and `DATA_ERROR`; it closed
-  PodUtils/podnet#711, #712 and #726. Not taken yet: `pod-natprobe`,
-  `pod-tpm`, `pod-gzip`.
-- podrunner: took the fields `ref` and `repo_id` of `RealJob`
-  (PodUtils/podrunner#352, T-1362) at `3391edc` and the warm units of
-  `run-report.v1` and `status.v1` (PodUtils/podrunner#353, T-1370) at
-  `f2716a1`, after its take `72cd0ab` (PodUtils/podrunner#356).
-
-### On `main` after `v0.84.0` (for the next tag)
-
-- T-1392 (`pod-dns`, PodUtils/podnet#753; after `v0.85.0`): the line of a
+- T-1392 (`pod-dns`, PodUtils/podnet#753: the line of a
   name that does not resolve names each group of resolvers once
   (`N resolvers failed: K with CAUSE; K with CAUSE`) and shortens a cause
   at a part boundary, never inside it. No change of the public API.
-- T-1393 (`pod-proxy`, PodUtils/podnet#754; after `v0.85.0`): the stderr
+- T-1393 (`pod-proxy`, PodUtils/podnet#754: the stderr
   of an exec command goes to a pipe (`STDERR_KEPT` 512 bytes,
   `ChildIo::stderr_tail`); the new `DialError::ProxyExited { word, status,
   said }` (breaking: `DialError` is not `non_exhaustive`); a command that
   exits 126 or 127 is held for `EXEC_HOLD` (10 s); `secret_parts` of an
   exec spec keeps the program word readable.
-- T-1394 (`pod-cloudflare`, PodUtils/podnet#755; after `v0.85.0`): the
+- T-1394 (`pod-cloudflare`, PodUtils/podnet#755: the
   edge discovery has `DISCOVERY_LIMIT` 12 s, `DOH_LIMIT` 8 s, `DOH_EACH`
   3 s and the event `edge.discovery` after `SLOW_SOURCE` 3 s; the legs of
   one start share one discovery.
 - T-1389 (`pod-enter`, PodUtils/podvm#667 for ask 5 of
-  PodUtils/podrunner#296; after `v0.85.0`): `Plan::tmpfs` takes
+  PodUtils/podrunner#296: `Plan::tmpfs` takes
   `TmpfsMount { guest, bytes: NonZeroU64 }`; the namespace rung mounts
   each with `size=N` and reads the limit back (steps 49 to 52). Breaking:
   each struct literal of `Plan` adds `tmpfs: Vec::new()`. T-1430 (a rule of
   the confinement on such a tmpfs) is open.
-- T-1379 (`pod-incus`, PodUtils/podvm#664 for PodUtils/podrunner#354):
-  `Client::instance_with_etag` gives an instance and its `ETag`;
-  `Client::patch_instance_config(name, config, if_match)` sends
-  `PATCH /1.0/instances/NAME` with `{"config": ...}` and `If-Match`. A 412
-  is the new `ErrorKind::EtagMismatch` (class `TempFail`; the enum is
-  `non_exhaustive`). New plant `incus-patch-drops-if-match`.
-- T-1375 (`pod-testkit`, port of podrunner `fcff5bc`): the fake GitHub
-  gives `ref` and `repository_id` in the `github` context of a job
-  (`JOB_REF`, `repository_id`); the `assigned` answer of the fake githome
-  gives an empty `ref` and no `repo_id` for a real job of another run or
-  repository, and each offer has `ref` and `repo_id`; a linked mint refuses
-  a credential file name that is not plain (`credential-unavailable`).
-- T-1382: the trials `adoption/podssh/pod-tpm.*` and `pod-h2.*` left
-  (podssh took them at `806e0a4`); the job `adoption (podssh)` is green
-  again with no trial.
-- T-1415 (`pod-services`): the node `node-trojan-64-176-7-205` left; one
-  file `node-*` stays (`node-xhttp-193-160-208-240`). The next hand-off
-  tells podssh (PodUtils/podssh@T-574). `magic-wormhole-mailbox` gave HTTP
-  500 on 2026-11-25: read the next scheduled `services.yml` run (T-1415
-  reopens on a second 5xx).
-
-- T-1369 (`pod-relay`, fuzz): the fuzz target `relay_bearer` reads a
-  bearer with `Bearer::read` and `is_bearer`; `Bearer::to_bytes` (new)
-  writes a bearer back from its fields. The patch
-  `vendor/patches/h2/0003-fuzz-docs.patch` lets the fuzz build of
-  `pod-h2` pass. No change for a consumer.
-- T-1351 (`pod-core`, `pod-cloudflare`, `pod-quic`, `pod-warp`): the
-  text of these failures is the step, and the cause says the rest; read
-  `Failure::chain` or join the chain. `Failure::io(stage, step, e)`
-  takes a step (podssh: two tests). The changed texts for podnet:
-  "provisioning quick tunnel: ERROR" (the text of a `ProvisionError`
-  failure is "provisioning quick tunnel"); "no edge leg worked: LEG:
-  CHAIN; LEG: STEPS" (the cause of the last leg is the source, not in
-  the text); "TLS with the edge at ADDR: the connection was reset
-  during the TLS handshake: ERROR" ("the peer sent a TLS alert" in place
-  of "TLS alert from the peer: ALERT"); "REQUEST: TLS: WORDS: ERROR";
-  "could not open a local UDP socket (QUIC needs UDP; where it is
-  blocked, use PROTOCOL http2): no UDP socket for QUIC: ERROR"; "TLS
-  handshake with the MASQUE front door DOOR" (the error is the source);
-  "DOOR-A CHAIN; the other address of the front door failed too: DOOR-B
-  STEPS" (the cause of the last door is the source).
-- T-1343 (partial): the temp names of `pod-hostprobe`, `pod-enter`,
-  `pod-actions-store`, `pod-link`, `pod-rootfs`, `pod-warp` and
-  `pod-supervise` have a random part; `pod_core::files::new_temp_with`
-  (new). The temp file of the table of `pod-supervise` is
-  `containers.json-RANDOM.partial`; a sweep of podvm finds the suffix.
+- T-1446 (`pod-warp`): a test socket path fits the 104 bytes of macOS.
+  T-1447 (`scripts/ci/test-limited.sh`): the doc run of the nightly
+  excludes `pod-h2`. No change for a consumer.
 
 ### What the next hand-off carries
 
-- The hand-off of `v0.85.0` (the next COORD number after COORD-155).
-- podrunner: the live limits (T-1379, in `v0.85.0`) and the tmpfs of ask
-  5 of PodUtils/podrunner#296 (T-1389, after it).
-- podvm: T-1321 (a C backend of deflate for `pod-gzip`, measured).
-- podnet: T-1392 to T-1394 (PodUtils/podnet#753 to #755) after
-  `v0.85.0`; T-1343 is partial (the moves of the other crates of step 2
+- The takes of `v0.85.0` (#262), and the answers to COORD-157 (#263).
+- podrunner: the tmpfs of ask 5 of PodUtils/podrunner#296 (T-1389).
+- podvm: T-1389 (PodUtils/podvm#667) on `main`; T-1391 (a static
+  `mkfs.erofs`, PodUtils/podvm#668); T-1430; T-1321 (a C backend of
+  deflate for `pod-gzip`, measured).
+- podnet: T-1392 to T-1394 (PodUtils/podnet#753 to #755) on `main`;
+  PodUtils/podnet#756 in work; T-1343 is partial (the moves of the other crates of step 2
   and step 3 follow); T-1377 and T-1378 (failures whose text holds the
   words of a typed cause).
 - podssh: open: T-1169 (a test of the DNS carrier through `unbound`),
   T-1103 (iroh 1.5), T-1340 (a key file of `pod-tpm` in tpm2-openssl and
   go-tpm-keyfiles), T-1380 and T-1381 (`pod-tpm`: `Tbs`, `SoftTpm`),
-  T-1382 (the trials of podssh) and T-1383 (`Mint` with an issuer that is
-  not Ed25519).
+  T-1383 (`Mint` with an issuer that is not Ed25519) and T-1390 (the rows
+  of the pane in the transfer codec, PodUtils/podssh#358).
 - Entries of podcrates that no one has started: T-1115 (the copies of the
   bind at a long path), T-1146 (the comments of `pod-natprobe` are not in
   ASD-STE100), T-1150 (a watch of the facts of RFC 5780 of `easybell-stun`).
@@ -247,8 +157,10 @@ The asks that #260 answers:
 
 ## Unfinished work
 
-- No agent work is in flight and no worktree is left. Each branch of the
-  agents is merged into `main`.
+- One worker is in flight: PodUtils/podnet#756 (`pod-session`, `resume::move_under`,
+  PodUtils/podnet#756) on the local branch `t1395` in
+  `.claude/worktrees/t1395`. Each other branch of the agents is merged into
+  `main`.
 - `origin/wip/t1073` is merged into `main` (T-1073, T-1070). The proxy
   refuses `git push origin --delete`, so the owner deletes the branch on
   GitHub (`TODO/PROGRESS.md`, "Owner actions"). No other `wip/` branch

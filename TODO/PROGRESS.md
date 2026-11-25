@@ -1,24 +1,22 @@
 # Progress
 
-`TODO/INDEX.md` holds 1028 entries: 164 open, 30 partial, 6 blocked, 828 done.
+`TODO/INDEX.md` holds 1028 entries: 163 open, 31 partial, 6 blocked, 828 done.
 
 ## State
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
 - Last GitHub release with `release.yml` assets and `ghcr.io` images:
-  `v0.84.0` at `ca1d3e3` (`docs/releases/v0.84.0.md`). It has the GitHub
+  `v0.85.0` at `1d1c9fc` (`docs/releases/v0.85.0.md`). It has the GitHub
   release, the signed `SHA256SUMS`, 14 assets and the images of
-  `ghcr.io/podutils`; `ci` 45568238286 at `ca1d3e3`, the run on the tag
-  45574255033 and the dry run of `publish.yml` 45575024311 passed. Its
-  hand-off COORD-155 (#260) is closed: each consumer took the tag. The hand-off COORD-154 (#259) of `v0.83.0` is closed, with a Result
-  line.
-- On `main` after `v0.84.0`, for the next tag: T-1369 (the fuzz target
-  `relay_bearer` and `vendor/patches/h2/0003-fuzz-docs.patch`; no change for
-  a consumer). `v0.84.0` carries T-1243, T-1355, T-1362 and T-1370 (the
-  fields `ref` and `repo_id` of `RealJob`, PodUtils/podrunner#352; the warm
-  and cold units of `run-report.v1` and `status.v1`,
-  PodUtils/podrunner#353), and the other changes of `main` after `v0.83.0`;
-  #260 answers them.
+  `ghcr.io/podutils` (each index passes `gh attestation verify`); `ci`
+  45620169994 at `1d1c9fc`, the dry run of `release.yml` 45628517649 and
+  the run on the tag 45630869703 passed. Its hand-off is COORD-156 (#262),
+  open until each consumer names the tag (call C780). The hand-off
+  COORD-155 (#260) of `v0.84.0` is closed: each consumer took it.
+- On `main` after `v0.85.0`, for the next tag: T-1389 (`pod-enter`, the
+  required tmpfs, PodUtils/podvm#667), T-1392 to T-1394 (`pod-dns`,
+  `pod-proxy`, `pod-cloudflare`; PodUtils/podnet#753 to #755), T-1446 and
+  T-1447 (the nightly). `docs/HANDOFF.md` has the steps of the consumers.
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
   not on `main`. `release.yml` has steps that run on a tag only, which the
   dry run does not test (T-974; `docs/maintenance.md`, "A release").
@@ -106,19 +104,16 @@ The order comes from the owner's rulings "Coordinator", "podrunner first"
 First, as the coordinator: read the answers of the sessions of podrunner,
 podssh, podnet and podvm to COORD-136 (#227), and route each ask between
 them by COORD issues, podrunner's first. Then, in
-podcrates: the red nightly (T-916, T-938; read the macOS and Windows ARM64 jobs of the next `nightly.yml` run), the macOS job of `ci` (T-1325),
+podcrates: the red nightly (T-1444 and T-1445: the tests of `pod-core` on Windows and of `pod-tpm` on macOS; T-916, T-938; read the next `nightly.yml` run), the macOS job of `ci` (T-1325),
 T-1159 (the ruling "A close by hand": `scripts/issue-sync.py` does not open again an issue that the owner closed), T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
 `services.yml` run (read it) and the red live run (T-963). Then the
 asks of podrunner
 (COORD-134, #225): each new ask of podrunner; first the next tag, which
-carries the config PATCH of `pod-incus` with an ETag condition (done on
-`main`; PodUtils/podvm#664 for PodUtils/podrunner#354: podrunner's
-warm units with lower limits wait for the tag), with its hand-off and the
-answer to PodUtils/podvm#664; then the tag after it, which carries the
-required tmpfs with a byte limit of `pod-enter` (done on `main`;
-PodUtils/podvm#667 for ask 5 of PodUtils/podrunner#296), with the answer
-to PodUtils/podvm#667; then T-1387 (the COORD issue `(to all)` of
-one `docs/hosted-sessions.md` for each repository, with that tag). Then the entries that a need
+carries the required tmpfs with a byte limit of `pod-enter` (done on
+`main`; PodUtils/podvm#667 for ask 5 of PodUtils/podrunner#296) and the
+answers to PodUtils/podnet#753 to #755, with its hand-off; then the
+answers to COORD-157 (#263, T-1387: one `docs/hosted-sessions.md` for each
+repository). Then the entries that a need
 of githome or cfb names for their CI: T-106 (partial; cfb's A-X-18 waits
 for cfb's answer on #223, call C792). Then cfb's asks that podssh takes
 (call C782, PodUtils/podssh#316): T-112, T-110, T-111, T-117. Then the open

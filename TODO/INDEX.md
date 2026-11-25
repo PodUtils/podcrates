@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1028 entries: 164 open, 30 partial, 6 blocked, 828 done.**
+**1028 entries: 163 open, 31 partial, 6 blocked, 828 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 6 | 9 | 0 | 243 | 258 |
-| P2 | 72 | 11 | 4 | 429 | 516 |
+| P2 | 71 | 12 | 4 | 429 | 516 |
 | P3 | 86 | 10 | 2 | 154 | 252 |
-| **All** | 164 | 30 | 6 | 828 | 1028 |
+| **All** | 163 | 31 | 6 | 828 | 1028 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1060,7 +1060,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1384](upkeep.md) | P1 | S | M5 | defect | done | `scripts/agent/check.sh`: a full check in the main checkout runs test binaries that a worktree built in the shared target |
 | [T-1385](upkeep.md) | P1 | M | M8 | chore | done | agent tooling: read the latest commits of the sibling repositories and take each improvement of their agent tooling (Q23) |
 | [T-1386](upkeep.md) | P3 | S | M5 | chore | open | `scripts/agent/check.sh`: the tests run in a temp directory of their own, and an entry that a test leaves there is a fault |
-| [T-1387](upkeep.md) | P2 | S | M8 | chore | open | COORD `(to all)`: one `docs/hosted-sessions.md` with one role table for each repository of PodUtils |
+| [T-1387](upkeep.md) | P2 | S | M8 | chore | partial | COORD `(to all)`: one `docs/hosted-sessions.md` with one role table for each repository of PodUtils |
 | [T-1388](upkeep.md) | P3 | S | M5 | chore | open | The debug info of the dev and test profiles, measured for the size of the target |
 | [T-1389](podvm.md) | P1 | M | M6 | feature | done | `pod-enter`: a required tmpfs with a byte limit at a guest path of the namespace rung (PodUtils/podvm#667) |
 | [T-1390](transport.md) | P2 | M | M1 | feature | open | `pod-term`: the transfer codec keeps each frame within the rows of the pane, with a floor of the chunk under 1 KiB and a resend at the floor (PodUtils/podssh#358) |
