@@ -14,7 +14,6 @@
 //! check of the start time beside it is a guess.
 
 use std::ops::{Deref, DerefMut};
-use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 
 use pod_core::{Class, Failure};
@@ -297,45 +296,35 @@ fn write<X: Serialize>(s: &Settings, table: &Table<X>) -> Result<()> {
 /// A temp file that went before its rename.
 struct Gone(Failure);
 
-/// A new file at `tmp`, mode 0600, under its exclusive lock, which a sweep
-/// of the staging directory needs to take a `.partial`
-/// (PodUtils/podvm#568). The file is made under a name that no sweep reads
-/// (`.new`), locked, and then named `tmp`: a sweep never sees it unlocked.
-fn create_locked(tmp: &std::path::Path) -> Result<std::fs::File> {
-    let mut fresh = tmp.as_os_str().to_owned();
-    fresh.push(".new");
-    let fresh = std::path::PathBuf::from(fresh);
-    let _ = std::fs::remove_file(&fresh);
-    let file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&fresh);
-    let file = file.map_err(|e| io_at(&fresh, e))?;
+/// A new temp file `TABLE-RANDOM.partial` in `dir`, mode 0600, under its
+/// exclusive lock, which a sweep of the staging directory needs to take a
+/// `.partial` (PodUtils/podvm#568). The file is made under a new random
+/// name that no sweep reads (`.partial.new`), locked, and then named
+/// `.partial`: a sweep never sees it unlocked. The random part keeps two
+/// writers of one pid (two PID namespaces) apart; the suffix `.partial` is
+/// the name that the sweep finds.
+fn create_locked(dir: &std::path::Path) -> Result<(PathBuf, std::fs::File)> {
+    let (fresh, file) = pod_core::files::new_temp_file(dir, TABLE_FILE, ".partial.new").map_err(|e| io_at(dir, e))?;
+    let tmp = fresh.with_extension("");
     let fd = std::os::fd::AsRawFd::as_raw_fd(&file) as i64;
     let locked = pod_hostprobe::sys::flock(fd, pod_hostprobe::sys::LOCK_EX | pod_hostprobe::sys::LOCK_NB);
     let named = match locked {
-        Ok(_) => std::fs::rename(&fresh, tmp).map_err(|e| io_at(tmp, e)),
+        Ok(_) => std::fs::rename(&fresh, &tmp).map_err(|e| io_at(&tmp, e)),
         Err(e) => Err(failure(Class::Unavailable, format!("{}: flock: {}", fresh.display(), e.name()))),
     };
     if let Err(e) = named {
         let _ = std::fs::remove_file(&fresh);
         return Err(e);
     }
-    Ok(file)
+    Ok((tmp, file))
 }
 
 fn write_once(s: &Settings, path: &std::path::Path, bytes: &[u8]) -> std::result::Result<Result<()>, Gone> {
-    // A new file and a rename, never a change in place.
-    let tmp = s.root.join(STAGING_DIR).join(format!(
-        "{TABLE_FILE}.{}.{}.partial",
-        std::process::id(),
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.subsec_nanos()).unwrap_or(0)
-    ));
-    if let Some(parent) = tmp.parent() {
-        let _ = crate::private_dir(parent);
-    }
-    // Mode 0600 from the first byte: the table holds the environment of
-    // each record. A new file, so the mode is this one and not of a file
-    // that a crash left.
-    let _ = std::fs::remove_file(&tmp);
-    let mut file = match create_locked(&tmp) {
+    // A new file and a rename, never a change in place. Mode 0600 from the
+    // first byte: the table holds the environment of each record.
+    let staging = s.root.join(STAGING_DIR);
+    let _ = crate::private_dir(&staging);
+    let (tmp, mut file) = match create_locked(&staging) {
         Ok(f) => f,
         Err(e) => return Ok(Err(e)),
     };
