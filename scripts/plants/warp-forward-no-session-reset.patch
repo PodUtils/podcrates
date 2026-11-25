@@ -1,0 +1,13 @@
+diff --git a/crates/pod-warp/src/forward.rs b/crates/pod-warp/src/forward.rs
+index e5ddd82..94927d7 100644
+--- a/crates/pod-warp/src/forward.rs
++++ b/crates/pod-warp/src/forward.rs
+@@ -173,7 +173,7 @@ impl Forward {
+                 Err(failure) => {
+                     tracing::warn!(error = %failure.chain(), "WARP forward: no session");
+                     // PodUtils/podnet#712: a close, not a reset.
+-                    crate::proxy::close_clean(&mut stream).await;
++                    let _ = &mut stream;
+                     return;
+                 }
+             };

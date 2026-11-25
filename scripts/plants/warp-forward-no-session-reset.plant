@@ -1,0 +1,7 @@
+# A connection of a WARP forward with no session is dropped with the bytes
+# of its client unread, and the kernel resets it (PodUtils/podnet#712,
+# T-1365).
+ENTRY=T-1365
+GROUP=warp
+EXPECT='test proxy::tests::a_forward_with_no_session_closes_with_no_reset \.\.\. FAILED'
+RUN='cargo test -p pod-warp --lib -- proxy::tests::a_forward_with_no_session_closes_with_no_reset'

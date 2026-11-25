@@ -304,3 +304,83 @@ async fn an_http_url_request_reaches_the_origin_in_origin_form() {
     drop(client);
     let _ = task.await;
 }
+
+/// A tunnel with no session: the doors refused the key. The answer comes
+/// after the bytes of the client, so a drop of the stream resets it.
+struct NoSession;
+
+impl Tunnel for NoSession {
+    fn session(&self) -> BoxFuture<'_, Result<Arc<dyn Dial>, Failure>> {
+        Box::pin(async {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            Err(Failure::new(Stage::Connect, Class::Refused, "the door gave another key"))
+        })
+    }
+}
+
+/// A TCP client of `serve`, which takes each accepted stream.
+async fn no_session_client(serve: impl Fn(tokio::net::TcpStream) + Send + 'static) -> tokio::net::TcpStream {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        while let Ok((stream, _)) = listener.accept().await {
+            serve(stream);
+        }
+    });
+    tokio::net::TcpStream::connect(addr).await.unwrap()
+}
+
+/// The bytes of `client` until the far end closes; a reset fails the test.
+async fn read_until_close(client: &mut tokio::net::TcpStream) -> Vec<u8> {
+    let mut got = Vec::new();
+    let read = tokio::time::timeout(Duration::from_secs(5), client.read_to_end(&mut got)).await;
+    read.expect("a close in 5 s").expect("a close, not a reset");
+    got
+}
+
+/// PodUtils/podnet#712: a SOCKS5 client of a proxy with no session gets
+/// the reply 1 and a close, not a reset, also when it sends more bytes
+/// than its request (CONNECT) or asks for UDP (reply 1, not 7).
+#[tokio::test]
+async fn a_socks5_client_with_no_session_gets_the_reply_1() {
+    let proxy = Arc::new(Proxy::new(Arc::new(NoSession), Arc::new(Nowhere)));
+    for (command, more) in [(1u8, 4096usize), (3, 0), (0x83, 0)] {
+        let by = proxy.clone();
+        let mut client = no_session_client(move |s| _ = by.client(s, None)).await;
+        let mut request = vec![5, 1, 0, 5, command, 0, 1, 1, 2, 3, 4, 0, 80];
+        request.resize(request.len() + more, b'x');
+        client.write_all(&request).await.unwrap();
+        let got = read_until_close(&mut client).await;
+        assert_eq!(got, [5, 0, 5, 1, 0, 1, 0, 0, 0, 0, 0, 0], "the command {command}");
+    }
+}
+
+/// PodUtils/podnet#712: an HTTP client of a proxy with no session gets the
+/// status 503 with the cause and a close, not a reset.
+#[tokio::test]
+async fn an_http_client_with_no_session_gets_the_status_503() {
+    let proxy = Arc::new(Proxy::new(Arc::new(NoSession), Arc::new(Nowhere)));
+    let requests = [
+        "CONNECT 10.1.2.3:443 HTTP/1.1\r\nHost: 10.1.2.3:443\r\n\r\nearly bytes of TLS",
+        "GET http://deb.example/dists HTTP/1.1\r\nHost: deb.example\r\n\r\n",
+    ];
+    for request in requests {
+        let by = proxy.clone();
+        let mut client = no_session_client(move |s| _ = by.client(s, None)).await;
+        client.write_all(request.as_bytes()).await.unwrap();
+        let got = String::from_utf8(read_until_close(&mut client).await).unwrap();
+        assert!(got.starts_with("HTTP/1.1 503 Service Unavailable"), "{got}");
+        assert!(got.ends_with("no WARP session: the door gave another key\n"), "{got}");
+    }
+}
+
+/// PodUtils/podnet#712: a connection of a forward with no session is
+/// closed, not reset, also when its client sent bytes.
+#[tokio::test]
+async fn a_forward_with_no_session_closes_with_no_reset() {
+    let rule = crate::forward::Rule::parse("5432=tunnel:db.internal:5432").unwrap();
+    let forward = Arc::new(crate::forward::Forward::new(rule, Arc::new(NoSession), Names::default(), 4));
+    let mut client = no_session_client(move |s| _ = forward.connection(s)).await;
+    client.write_all(&[b'x'; 4096]).await.unwrap();
+    assert!(read_until_close(&mut client).await.is_empty());
+}

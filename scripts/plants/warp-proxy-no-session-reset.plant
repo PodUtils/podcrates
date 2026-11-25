@@ -1,0 +1,7 @@
+# A client of the WARP proxy with no session gets no reply of its
+# protocol: the drop of the stream with its request unread resets it
+# (PodUtils/podnet#712, T-1365).
+ENTRY=T-1365
+GROUP=warp
+EXPECT='test proxy::tests::a_socks5_client_with_no_session_gets_the_reply_1 \.\.\. FAILED'
+RUN='cargo test -p pod-warp --lib -- proxy::tests::a_socks5_client_with_no_session_gets_the_reply_1'

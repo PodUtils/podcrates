@@ -172,6 +172,8 @@ impl Forward {
                 Ok(net) => net,
                 Err(failure) => {
                     tracing::warn!(error = %failure.chain(), "WARP forward: no session");
+                    // PodUtils/podnet#712: a close, not a reset.
+                    crate::proxy::close_clean(&mut stream).await;
                     return;
                 }
             };

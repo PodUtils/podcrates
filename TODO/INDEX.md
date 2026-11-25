@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**990 entries: 151 open, 28 partial, 8 blocked, 803 done.**
+**991 entries: 151 open, 28 partial, 8 blocked, 804 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 232 | 245 |
-| P2 | 68 | 9 | 4 | 418 | 499 |
+| P2 | 68 | 9 | 4 | 419 | 500 |
 | P3 | 79 | 10 | 4 | 151 | 244 |
-| **All** | 151 | 28 | 8 | 803 | 990 |
+| **All** | 151 | 28 | 8 | 804 | 991 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1037,3 +1037,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1359](upkeep.md) | P2 | S | M5 | defect | done | `pod-core`: three tests of `files::socket` fail on macOS because the temporary directory is longer than their directory of 40 bytes |
 | [T-1360](upkeep.md) | P3 | S | M5 | defect | done | `pod-cloudflare`: `quick_tunnel_standin_falls_back_to_http2_when_udp_is_dropped` cannot bind its UDP socket on Windows ARM64 (WSAEACCES) |
 | [T-1361](upkeep.md) | P1 | S | M8 | defect | done | `adoption/podssh/pod-tpm.run`: the check of the moved names reads all of `podssh-ssh/src`, and it finds two other structs named `Out` |
+| [T-1365](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: a client of the proxy with no WARP session gets a reset, not a SOCKS5 or HTTP failure reply (PodUtils/podnet#712) |

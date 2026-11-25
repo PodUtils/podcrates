@@ -61,6 +61,35 @@ where
     D: FnOnce(Target) -> F,
     F: std::future::Future<Output = Result<BoxedIo, Failure>>,
 {
+    serve(stream, dial, udp, None, opening).await
+}
+
+/// Answer a client of a proxy that has no session (PodUtils/podnet#712):
+/// read its request, send the SOCKS5 reply 1 or the HTTP status 503 with
+/// `cause`, then close with no reset. A client that gives no SOCKS5 or
+/// HTTP request gets the answer of [`serve_client`]. The error is `cause`.
+pub async fn refuse_client<S>(stream: S, cause: Failure, opening: &Opening<'_>) -> Result<(), Failure>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let dial = |_: Target| std::future::ready(Err(failure(Class::Internal, "no dial with no session")));
+    serve(stream, dial, None, Some(cause), opening).await
+}
+
+/// The way of [`serve_client`]; with `no_session`, no dial is made and
+/// each request gets the failure answer of that cause.
+async fn serve<S, D, F>(
+    stream: S,
+    dial: D,
+    udp: Option<Udp<'_>>,
+    mut no_session: Option<Failure>,
+    opening: &Opening<'_>,
+) -> Result<(), Failure>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+    D: FnOnce(Target) -> F,
+    F: std::future::Future<Output = Result<BoxedIo, Failure>>,
+{
     let (limit, report) = (opening.limit, opening.report);
     let mut stream = stream;
     let mut first = [0u8; 1];
@@ -119,6 +148,9 @@ where
                 return udp::associate(stream, udp, client, bind).await;
             }
             (serve::CMD_UDP_IN_STREAM, Some(udp)) => return udp::in_stream(stream, udp).await,
+            (serve::CMD_UDP_ASSOCIATE | serve::CMD_UDP_IN_STREAM, None) if let Some(cause) = no_session => {
+                return Err(answer_failure(&mut stream, true, cause, true).await);
+            }
             (other, _) => {
                 let _ = serve::socks5_reply(&mut stream, serve::REPLY_COMMAND_NOT_SUPPORTED, None).await;
                 return Err(failure(Class::Unsupported, format!("the SOCKS5 command {other} is not served")));
@@ -153,13 +185,14 @@ where
                 // to the origin, then the bytes both ways.
                 report.decision("warp.dispatch", "http_forward");
                 tracing::debug!(%target, "WARP proxy forward request");
-                let mut upstream = match dial(target).await {
+                let gone = no_session.is_some();
+                let dialed = match no_session.take() {
+                    Some(cause) => Err(cause),
+                    None => dial(target).await,
+                };
+                let mut upstream = match dialed {
                     Ok(upstream) => upstream,
-                    Err(e) => {
-                        let status = if e.class == Class::Policy { 403 } else { 502 };
-                        let _ = stream.write_all(&refusal(status, &e.chain(), &[])).await;
-                        return Err(e);
-                    }
+                    Err(e) => return Err(answer_failure(&mut stream, false, e, gone).await),
                 };
                 upstream.write_all(&head).await.map_err(|e| io_failure("the request to the origin", e))?;
                 upstream.write_all(&opened.rest).await.map_err(|e| io_failure("the request to the origin", e))?;
@@ -169,18 +202,14 @@ where
         }
     };
     tracing::debug!(%target, "WARP proxy request");
-    let mut upstream = match dial(target).await {
+    let gone = no_session.is_some();
+    let dialed = match no_session.take() {
+        Some(cause) => Err(cause),
+        None => dial(target).await,
+    };
+    let mut upstream = match dialed {
         Ok(upstream) => upstream,
-        Err(e) => {
-            // RFC 1928: 0x02, not allowed by the ruleset.
-            if is_socks {
-                let _ = serve::socks5_reply(&mut stream, serve::reply_for(&e), None).await;
-            } else {
-                let status = if e.class == Class::Policy { 403 } else { 502 };
-                let _ = stream.write_all(&refusal(status, &e.chain(), &[])).await;
-            }
-            return Err(e);
-        }
+        Err(e) => return Err(answer_failure(&mut stream, is_socks, e, gone).await),
     };
     if is_socks {
         serve::socks5_reply(&mut stream, serve::REPLY_SUCCEEDED, None).await
@@ -191,6 +220,44 @@ where
     upstream.write_all(&rest).await.map_err(|e| io_failure("the first bytes of the client", e))?;
     let _ = tokio::io::copy_bidirectional(&mut stream, &mut upstream).await;
     Ok(())
+}
+
+/// The time that a refused client has to close its end before the drop.
+const CLOSE_WAIT: Duration = Duration::from_secs(2);
+
+/// Send the answer of the failure `e` and give `e` back. RFC 1928: the
+/// reply 2 for a rule (class `Policy`). With `gone` (no session), the
+/// SOCKS5 reply 1 or the HTTP status 503, then [`close_clean`].
+async fn answer_failure<S>(stream: &mut S, is_socks: bool, e: Failure, gone: bool) -> Failure
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    if is_socks {
+        let code = if gone { serve::REPLY_GENERAL_FAILURE } else { serve::reply_for(&e) };
+        let _ = serve::socks5_reply(stream, code, None).await;
+    } else {
+        let (status, words) = match (gone, e.class) {
+            (true, _) => (503, format!("no WARP session: {}", e.chain())),
+            (false, Class::Policy) => (403, e.chain()),
+            (false, _) => (502, e.chain()),
+        };
+        let _ = stream.write_all(&refusal(status, &words, &[])).await;
+    }
+    if gone {
+        close_clean(stream).await;
+    }
+    e
+}
+
+/// Close `stream` with no reset: shut the write half, then read and drop
+/// the bytes of the far end until it closes, for [`CLOSE_WAIT`] at most. A
+/// drop with unread bytes makes the kernel send a reset, and the far end
+/// can then lose the answer.
+pub(crate) async fn close_clean<S: AsyncRead + AsyncWrite + Unpin>(stream: &mut S) {
+    let _ = stream.shutdown().await;
+    let mut sink = [0u8; 512];
+    let drain = async { while matches!(stream.read(&mut sink).await, Ok(n) if n > 0) {} };
+    let _ = tokio::time::timeout(CLOSE_WAIT, drain).await;
 }
 
 /// A stream with one byte put back in front of it.

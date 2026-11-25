@@ -2630,3 +2630,42 @@ cargo test -p pod-cloudflare --all-features
 cargo test -p pod-core --all-features
 cargo test -p pod-proxy --all-features
 ```
+
+
+# T-1365: `pod-warp`: a client of the proxy with no WARP session gets a reset, not a SOCKS5 or HTTP failure reply (PodUtils/podnet#712)
+
+**Source:** PodUtils/podnet#712 (COORD-120 of podnet, PodUtils/podnet@T-546); the author is a COLLABORATOR.
+**Category:** defect
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The ask of podnet: "`pod_warp::proxy::Proxy::client` (podcrates `v0.83.0`, `crates/pod-warp/src/proxy.rs`, the `match proxy.tunnel.session().await`) logs `WARP proxy client refused: no session` and returns. The task drops the stream with the greeting of the client unread in the socket buffer. Linux then sends a TCP reset. The client gets no reply of its protocol."
+
+The evidence of podnet: in its `live` run 45518282050 (podnet `1bf4161`, step "WARP proxy"), three of four `podnet warp proxy` runs gave `curl: (97) Recv failure: Connection reset by peer` in the SOCKS5 handshake. The run before showed the cause class: both MASQUE doors gave a certificate that is not the pinned key.
+
+The asks: (1) when `session()` fails, answer the client in its protocol before the close: the SOCKS5 reply 1 (or 3), the HTTP status `503 Service Unavailable` with one line of the cause; then close with no reset. (2) A test that a client of a proxy with no session reads the failure reply, not a reset. (3) The same for `forward.rs` when it has the same path.
+
+## Premise
+
+- Read: PodUtils/podnet#712; `crates/pod-warp/src/proxy.rs` (`Proxy::client`), `src/proxy/client.rs` (`serve_client`), `src/forward.rs` (`Forward::connection`), `crates/pod-proxy/src/serve.rs` (`socks5_reply`, `reply_for`), `crates/pod-core/src/http1/write.rs` (`refusal`). Each fact of the issue agrees with `v0.83.0`: `Proxy::client` and `Forward::connection` return on the error of `session()` and drop the stream.
+- Measured: a TCP client that sends its request before the proxy has the answer of `session()` reads `Connection reset by peer` on the code before the fix (the SOCKS5, the HTTP and the forward test below).
+- Not measured: podnet's `live` step after the fix.
+
+## Approach
+
+`Proxy::client` gives the stream and the failure to a new `refuse_client`. It reads the request with the code of `serve_client` (the credentials too), makes no dial, and sends the failure answer: the SOCKS5 reply 1 (`REPLY_GENERAL_FAILURE`) for each command, also `UDP ASSOCIATE` and 0x83 (not 7); the HTTP status 503 with `no WARP session: CAUSE` (`refusal`) for `CONNECT` and an `http://` URL. Then `close_clean`: shut the write half, and read the bytes of the client until it closes, for 2 s at most. A forward has no protocol: `Forward::connection` calls `close_clean`. One helper `answer_failure` writes each failure answer of a dial, so the 403 and 502 answers keep one place.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features --lib -- with_no_session
+sh scripts/plant-each.sh warp-proxy-no-session-reset warp-forward-no-session-reset
+```
+
+## Done
+
+2026-11-25, this commit. `Proxy::client` gives a client with no session to `refuse_client`: the SOCKS5 reply 1 for each command (also `UDP ASSOCIATE` and 0x83), the HTTP status 503 `no WARP session: CAUSE` for `CONNECT` and an `http://` URL, then `close_clean` (the write half shut, the bytes of the client read until it closes, 2 s at most). `Forward::connection` with no session calls `close_clean`. `answer_failure` writes each failure answer of a dial (403, 502, 503, the SOCKS5 replies). Tests over TCP: `proxy::tests::a_socks5_client_with_no_session_gets_the_reply_1`, `proxy::tests::an_http_client_with_no_session_gets_the_status_503`, `proxy::tests::a_forward_with_no_session_closes_with_no_reset`; before the fix each client read `Connection reset by peer`. Plants `warp-proxy-no-session-reset` and `warp-forward-no-session-reset` (each test failed on its patch, run by hand; `sh scripts/plant-each.sh --apply`: 0 stale). `cargo test -p pod-warp --all-features`: 237 passed, 1 ignored. `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo fmt --all --check`, `scripts/check-history.py`, `scripts/codegraph.py dups` and `new`: clean.

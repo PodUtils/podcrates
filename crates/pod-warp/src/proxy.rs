@@ -33,7 +33,8 @@ pub mod names;
 mod route;
 mod udp;
 
-pub use client::{Opening, Udp, serve_client};
+pub(crate) use client::close_clean;
+pub use client::{Opening, Udp, refuse_client, serve_client};
 pub use dns_bound::{DnsGate, MAX_DNS_TASKS};
 pub use names::{Names, Pins, order};
 pub use udp::relay_bind_ip;
@@ -232,22 +233,24 @@ impl Proxy {
         let proxy = self.clone();
         tokio::spawn(async move {
             let _admitted = admitted;
-            // The session of now: a new one after a reconnect.
-            let net = match proxy.tunnel.session().await {
-                Ok(net) => net,
-                Err(failure) => {
-                    tracing::warn!(error = %failure.chain(), "WARP proxy client refused: no session");
-                    return;
-                }
-            };
-            let (routed, by) = (net.clone(), proxy.clone());
-            let dial = move |target: Target| async move { by.route(routed, target).await };
             let opening = Opening {
                 credentials: proxy.credentials.as_ref(),
                 limit: proxy.request_limit,
                 report: &proxy.report,
                 control,
             };
+            // The session of now: a new one after a reconnect.
+            let net = match proxy.tunnel.session().await {
+                Ok(net) => net,
+                Err(failure) => {
+                    tracing::warn!(error = %failure.chain(), "WARP proxy client refused: no session");
+                    // PodUtils/podnet#712: the failure reply of the protocol, not a reset.
+                    let _ = refuse_client(stream, failure, &opening).await;
+                    return;
+                }
+            };
+            let (routed, by) = (net.clone(), proxy.clone());
+            let dial = move |target: Target| async move { by.route(routed, target).await };
             let udp = (!proxy.l4).then_some(Udp { net, names: &proxy.names });
             if let Err(failure) = serve_client(stream, dial, udp, &opening).await {
                 tracing::debug!(error = %failure.chain(), "WARP proxy client failed");
