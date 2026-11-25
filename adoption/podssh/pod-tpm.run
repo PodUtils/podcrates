@@ -21,7 +21,7 @@ cargo run -q -p podssh-todo -- remap Cargo.lock > /dev/null
 cargo run -q -p podssh-todo -- check
 python3 scripts/check-repo.py
 test "$(ls crates/podssh-ssh/src/tpm | tr '\n' ' ')" = "mod.rs other.rs policy_key.rs signer.rs ssh.rs testdata tests.rs unix.rs "
-! grep -rnE --include='*.rs' -e '(fn|struct|enum|trait) (SoftTpm|Fault|Unmet|Out|In|Authorize|Transport)\b' crates/podssh-ssh/src
+! grep -rnE --include='*.rs' -e '(fn|struct|enum|trait) (SoftTpm|Fault|Unmet|Out|In|Authorize|Transport)\b' crates/podssh-ssh/src/tpm
 cargo build -q
 command -v cargo-deny > /dev/null || cargo install -q --locked cargo-deny
 cargo deny --locked check bans sources

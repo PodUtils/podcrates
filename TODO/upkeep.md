@@ -5747,3 +5747,72 @@ cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
 
 The job `test (windows-11-arm)` of the next `nightly.yml` run passes the
 binary `quick_tunnel_standin`.
+
+# T-1361: `adoption/podssh/pod-tpm.run`: the check of the moved names reads all of `podssh-ssh/src`, and it finds two other structs named `Out`
+
+**Source:** `adoption.yml` run 45524129405 at `a847d777`, the job `adoption (podssh)` (138903109946), step "Each trial of the consumer".
+**Category:** defect
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The trial `pod-tpm` of podssh failed at its sixth command, the first run of
+this trial:
+
+```text
+adoption: podssh at 3001570 with pod-tpm of a847d77
+adoption: $ ! grep -rnE --include='*.rs' -e '(fn|struct|enum|trait) (SoftTpm|Fault|Unmet|Out|In|Authorize|Transport)\b' crates/podssh-ssh/src
+crates/podssh-ssh/src/io.rs:113:struct Out {
+crates/podssh-ssh/src/server/kept_flow.rs:164:pub(in crate::server) struct Out(pub(in crate::server) Arc<Shell>);
+adoption: FAILED: ! grep -rnE ... crates/podssh-ssh/src
+trials: 1, failed: 1
+```
+
+The command checks that the names of the TPM module (`SoftTpm`, `Fault`,
+`Unmet`, `Out`, `In`, `Authorize`, `Transport`) leave podssh. It reads the
+whole of `PodUtils/podssh:crates/podssh-ssh/src`. Two structs named `Out` in `io.rs` and in
+`server/kept_flow.rs` have nothing to do with the TPM, and podssh's main
+has them without the patch. The patch is correct: with it applied, the
+directory `PodUtils/podssh:crates/podssh-ssh/src/tpm` has no match. The step before it (the
+list of the files of `tpm/`) passed. The previous green run of `adoption`
+had no podssh trial: `adoption/podssh/pod-tpm.*` came with T-1222.
+
+## Premise
+
+- Read: the log of the job, `adoption/podssh/pod-tpm.run`, `scripts/adoption.sh`.
+- Measured: podssh at `3001570` with `adoption/podssh/pod-tpm.patch`
+  applied. `git apply` passes. The grep on `src/tpm` finds nothing. The grep
+  on `src` finds the two structs `Out` above.
+- Not measured: the commands after the grep (build, deny, clippy, the tests,
+  swtpm, rustfmt, the toolchain checks, the zig build). The run stopped
+  before them.
+
+## Approach
+
+Limit the grep to `PodUtils/podssh:crates/podssh-ssh/src/tpm`, the directory that the
+module of the TPM held. Names in other directories of podssh are not part
+of the module. Run the trial again in `adoption.yml` and read each command
+after the grep; fix each one that fails.
+
+## Prove
+
+```sh
+sh scripts/adoption.sh podssh pod-tpm "$TMPDIR/adoption"
+```
+
+The job `adoption (podssh)` of the next `adoption.yml` run passes the trial
+`pod-tpm`.
+
+## Done
+
+2026-11-25, the commit that names T-1361. The trial `scripts/adoption.sh`
+with `adoption/podssh/pod-tpm.run` is the test: it fails on the line
+before the fix, and it passes that line after it. The line of the grep in
+`adoption/podssh/pod-tpm.run` ends in `PodUtils/podssh:crates/podssh-ssh/src/tpm`. The
+cause is in podcrates (the trial of T-1222, commit `732f8d13`), not in a
+change of podssh and not a flake of the runner. Checked: the patch applies
+to podssh `3001570`, and the narrowed grep gives no line. Not checked: the
+commands after the grep; the next `adoption.yml` run proves them.
