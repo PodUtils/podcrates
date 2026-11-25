@@ -6,18 +6,20 @@
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
 - Last GitHub release with `release.yml` assets and `ghcr.io` images:
-  `v0.83.0` at `5fd6fb7` (`docs/releases/v0.83.0.md`, call C818). It has
-  the GitHub release, the signed `SHA256SUMS`, the assets and the images
-  of `ghcr.io/podutils`; the run on the tag and the dry run of
-  `publish.yml` passed. Each consumer names it (podssh, podvm, podnet and
-  podrunner), so its hand-off COORD-154 (#259) is closed (call C780), with
-  a Result line. The hand-off COORD-152 (#257) of `v0.82.1` is closed.
-- On `main` after `v0.83.0`, for the next tag: T-1243 and T-1355 (ports
-  with no change for a consumer); T-1362 (the fields `ref` and `repo_id`
-  of `RealJob`, PodUtils/podrunner#352, COORD-130 of podrunner; the
-  hand-off of the next tag answers it); T-1370 (warm and cold units in
-  `run-report.v1` and `status.v1`, PodUtils/podrunner#353, COORD-131 of
-  podrunner; the hand-off of the next tag answers it).
+  `v0.84.0` at `ca1d3e3` (`docs/releases/v0.84.0.md`). It has the GitHub
+  release, the signed `SHA256SUMS`, 14 assets and the images of
+  `ghcr.io/podutils`; `ci` 45568238286 at `ca1d3e3`, the run on the tag
+  45574255033 and the dry run of `publish.yml` 45575024311 passed. Its
+  hand-off COORD-155 (#260) is open until each consumer names the tag (call
+  C780). The hand-off COORD-154 (#259) of `v0.83.0` is closed, with a Result
+  line.
+- On `main` after `v0.84.0`, for the next tag: T-1369 (the fuzz target
+  `relay_bearer` and `vendor/patches/h2/0003-fuzz-docs.patch`; no change for
+  a consumer). `v0.84.0` carries T-1243, T-1355, T-1362 and T-1370 (the
+  fields `ref` and `repo_id` of `RealJob`, PodUtils/podrunner#352; the warm
+  and cold units of `run-report.v1` and `status.v1`,
+  PodUtils/podrunner#353), and the other changes of `main` after `v0.83.0`;
+  #260 answers them.
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
   not on `main`. `release.yml` has steps that run on a tag only, which the
   dry run does not test (T-974; `docs/maintenance.md`, "A release").
@@ -57,7 +59,7 @@
   45487233017 (`25747d3b`, the fix of T-1295): each job passes but `static
   (aarch64-apple-darwin, macos-15-intel)`, which met its limit of 40
   minutes in "Build the probe" (T-1325; run 45561305578 met it again, and
-  the two macOS rows of `static` now take 60 minutes; read the next runs). None open in `services.yml`:
+  the two macOS rows of `static` now take 60 minutes, in `v0.84.0`; `ci` 45568238286 at `ca1d3e3` passed; read the next runs). None open in `services.yml`:
   T-1223 is done; read the next scheduled run.
 - Open defects: T-963 (`live.yml`: the second Nostr relay is `nos.lol`;
   a giver still waits its whole limit after a refusal of the relay);
@@ -119,7 +121,7 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   payload); T-927 (PodUtils/podvm#584); T-1321 (a C backend of
   `pod-gzip`, measured).
 - podnet: T-1343 (partial: `new_temp_dir` and `new_temp_file` are on
-  `main` for the next tag; the moves of the other crates remain;
+  `main`, in `v0.84.0`; the moves of the other crates remain;
   PodUtils/podnet#711, COORD-119); T-1351 (a failure whose text holds the
   words of its cause); T-879 (`pod-detach`); T-897.
 - podssh: T-1169 (`pod-link`, the DNS carrier; PodUtils/podssh#349,
