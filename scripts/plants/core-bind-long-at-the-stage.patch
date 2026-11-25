@@ -2,7 +2,7 @@ diff --git a/crates/pod-core/src/files/socket.rs b/crates/pod-core/src/files/soc
 --- a/crates/pod-core/src/files/socket.rs
 +++ b/crates/pod-core/src/files/socket.rs
 @@ -72,7 +72,7 @@
-     let stage = make_stage(&parent)?;
+     let stage = super::new_temp_dir(&parent, STAGE)?;
      let staged = stage.join("s");
      let bound = (|| {
 -        let listener = if stage_fits(&parent) {

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**990 entries: 151 open, 28 partial, 8 blocked, 803 done.**
+**990 entries: 150 open, 29 partial, 8 blocked, 803 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 232 | 245 |
-| P2 | 68 | 9 | 4 | 418 | 499 |
+| P2 | 67 | 10 | 4 | 418 | 499 |
 | P3 | 79 | 10 | 4 | 151 | 244 |
-| **All** | 151 | 28 | 8 | 803 | 990 |
+| **All** | 150 | 29 | 8 | 803 | 990 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1030,7 +1030,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1326](upkeep.md) | P3 | S | M5 | chore | done | Three readers of the fields after the name in `/proc/PID/stat`: `pod-hostprobe`, `pod-supervise` and `pod-enter` |
 | [T-1339](fleet.md) | P2 | S | M8 | chore | open | `pod-tpm`: the fuzz targets of the response reader and of the key file reader, and a plant for each bound of T-1217 and T-1219 |
 | [T-1340](fleet.md) | P2 | M | M8 | measurement | open | `pod-tpm`: a key file that the crate writes loads and signs in tpm2-openssl and in go-tpm-keyfiles against swtpm |
-| [T-1343](upkeep.md) | P2 | M | M5 | feature | open | `pod-core`: one temp directory and one temp file with a random name (PodUtils/podnet#711, lesson 5 of PodUtils/podvm#567) |
+| [T-1343](upkeep.md) | P2 | M | M5 | feature | partial | `pod-core`: one temp directory and one temp file with a random name (PodUtils/podnet#711, lesson 5 of PodUtils/podvm#567) |
 | [T-1347](relay.md) | P3 | S | M2 | chore | blocked | `pod-h2`: offer the setting of the order of the pseudo-fields to hyperium/h2, and drop the fork at its release |
 | [T-1351](adapters.md) | P3 | M | M3 | defect | open | `pod-cloudflare`, `pod-core`, `pod-proxy`: a failure whose text holds the words of its typed cause says them two times to a reader that joins the chain |
 | [T-1355](foundation.md) | P1 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver at podrunner `4fc871c` (the fourth port of `source-driver.md`) |

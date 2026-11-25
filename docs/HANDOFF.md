@@ -196,6 +196,11 @@ The asks of #259 to the consumers:
   replaces, the mode of a remade directory, `Refusal::TooLong` for a
   component over 255 bytes (`COMPONENT_MAX`), `Refusal::Stream`. New entries
   T-1253 to T-1255.
+- T-1343 (`pod-core`, PodUtils/podnet#711): `files::new_temp_dir` and
+  `files::new_temp_file` make a new path with a random name (16 hex digits
+  of the system source, 8 tries, mode 0700 and 0600, never a path that is
+  there). The next tag carries the functions; podnet then removes its copy.
+  The stage of `bind_staged`, `replace` and `create_private` take them.
 
 - T-1163 (`pod-core`, `pod-oci`, `pod-cloudflare`): `pod_core::clock::retry_after`;
   in podvm's pull a `Retry-After` date gives its wait (capped by

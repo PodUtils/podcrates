@@ -62,21 +62,15 @@ pub(super) fn short(stage: &Path, route: &Route<'_>, most: usize) -> std::io::Re
     let target = std::path::absolute(stage)?;
     let mut last = None;
     for dir in route.link_dirs.iter().filter(|d| safe_dir(d)) {
-        for _ in 0..super::NAMES {
-            let link = dir.join(super::random_name());
-            let bind = link.join("s");
-            if bind.as_os_str().len() > most {
-                break;
-            }
-            // symlink(2) refuses a name that is there, and follows nothing.
-            match std::os::unix::fs::symlink(&target, &link) {
-                Ok(()) => return Ok(Short { bind, link: Some(link), _fd: None }),
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => last = Some(e),
-                Err(e) => {
-                    last = Some(e);
-                    break;
-                }
-            }
+        // The link, its name and the leaf `s`.
+        if dir.as_os_str().len() + 1 + super::STAGE_NAME + 2 > most {
+            continue;
+        }
+        // symlink(2) refuses a name that is there, and follows nothing.
+        let make = &mut |link: &Path| std::os::unix::fs::symlink(&target, link);
+        match crate::files::temp::new_named(dir, super::STAGE, "", &mut crate::files::temp::random_part, make) {
+            Ok((link, ())) => return Ok(Short { bind: link.join("s"), link: Some(link), _fd: None }),
+            Err(e) => last = Some(e),
         }
     }
     let why = last.map(|e| format!(": {e}")).unwrap_or_default();
