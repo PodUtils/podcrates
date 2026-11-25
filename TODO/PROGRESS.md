@@ -125,7 +125,7 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   T-1103 (iroh 1.5 and its fork
   of iroh-relay, after PodUtils/podssh#341);
   T-941 (PodUtils/podssh#319); T-1369 (a fuzz target of the bearer
-  reader of T-1368); T-1340 (a key file of `pod-tpm` in
+  reader of `pod-relay`); T-1340 (a key file of `pod-tpm` in
   tpm2-openssl and in go-tpm-keyfiles against swtpm; PodUtils/podssh#351).
 
 Then T-899, T-900, T-852, T-851, and T-920.
