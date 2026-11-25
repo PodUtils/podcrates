@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1002 entries: 151 open, 30 partial, 6 blocked, 815 done.**
+**1003 entries: 152 open, 30 partial, 6 blocked, 815 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 237 | 250 |
-| P2 | 66 | 11 | 4 | 423 | 504 |
+| P2 | 67 | 11 | 4 | 423 | 505 |
 | P3 | 81 | 10 | 2 | 153 | 246 |
-| **All** | 151 | 30 | 6 | 815 | 1002 |
+| **All** | 152 | 30 | 6 | 815 | 1003 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1049,3 +1049,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1372](fleet.md) | P3 | S | M8 | release | open | crates.io: the names `pod-natprobe`, `pod-tpm`, `pod-gzip` and `pod-h2` (GitHub #261) |
 | [T-1373](fleet.md) | P3 | M | M8 | feature | open | `pod-release`: an opt-in fetch of newer Sigstore roots from TUF at run time |
 | [T-1374](upkeep.md) | P2 | M | M5 | chore | done | One session start for each harness and host: `scripts/session-start.sh` sets the identity, the hooks path and `main`, and starts both watchers |
+| [T-1375](foundation.md) | P2 | S | M0 | chore | open | `pod-testkit`: the contract of the source and the driver after podrunner `4fc871c` (the fifth port of `source-driver.md`) |
