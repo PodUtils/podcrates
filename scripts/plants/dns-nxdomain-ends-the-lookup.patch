@@ -1,12 +1,12 @@
 diff --git a/crates/pod-dns/src/lookup.rs b/crates/pod-dns/src/lookup.rs
 --- a/crates/pod-dns/src/lookup.rs
 +++ b/crates/pod-dns/src/lookup.rs
-@@ -41,7 +41,7 @@ where
+@@ -43,7 +43,7 @@
          }
          match ask(i, at.clone()).await {
              Ok((ips, _)) => return Ok(ips),
--            Err(e) if e.why.ends_with(NXDOMAIN) && rule == Nxdomain::End => return Err(e.why),
-+            Err(e) if e.why.ends_with(NXDOMAIN) => return Err(e.why),
+-            Err(e) if e.why.ends_with(NXDOMAIN) && rule == Nxdomain::End => return Err(e.why.into()),
++            Err(e) if e.why.ends_with(NXDOMAIN) => return Err(e.why.into()),
              Err(e) if e.why.ends_with(NXDOMAIN) => {
                  said.push(operator);
                  reasons.push((at, e.why));

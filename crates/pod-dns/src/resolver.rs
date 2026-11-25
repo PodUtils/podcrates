@@ -11,6 +11,7 @@ use tokio::time::Instant;
 
 use crate::dns_safe;
 use crate::kept::Kept;
+use crate::line::Phrase;
 use crate::memory::{Memory, now_ms, split};
 use crate::order::{Found, Known, Source, resolve_in};
 use crate::settings::{Settings, key};
@@ -151,18 +152,18 @@ impl Resolver {
                         found.push(addr);
                     }
                 }
-                if found.is_empty() { Err("system resolver: no address".into()) } else { Ok(found) }
+                if found.is_empty() { Err("no address".into()) } else { Ok(found) }
             }
-            Ok(Err(e)) => Err(format!("system resolver: {e}")),
-            Err(_) => Err(format!("system resolver: no answer in {} s", bound.as_secs())),
+            Ok(Err(e)) => Err(e.to_string()),
+            Err(_) => Err(format!("no answer in {} s", bound.as_secs())),
         }
     }
 
     /// DNS over HTTPS through the way of the resolver, or why it is not
     /// asked.
-    async fn doh_lookup(&self, host: &str, deadline: Instant) -> Result<Vec<IpAddr>, String> {
+    async fn doh_lookup(&self, host: &str, deadline: Instant) -> Result<Vec<IpAddr>, Phrase> {
         match self.way() {
-            Some(way) => way.lookup(host, deadline).await,
+            Some(way) => way.lookup_in(&self.settings.resolvers, host, deadline).await,
             None => Err("not asked for this name".into()),
         }
     }

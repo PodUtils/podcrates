@@ -8263,3 +8263,101 @@ not the same bytes.
 ```sh
 cargo test -p pod-term --all-features transfer
 ```
+
+# T-1392: `pod-dns`: the line of a name that does not resolve is cut inside the text of a cause, and it names the cause of one group of resolvers only (PodUtils/podnet#753)
+
+**Source:** PodUtils/podnet#753 (COORD-123 of podnet, PodUtils/podnet@T-575; author COLLABORATOR)
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+podnet `0.4.0-beta.19` on podcrates `v0.84.0` (`bench`, `connect`,
+`tunnel`, `relay connect`, `forward`) prints:
+
+```text
+could not resolve nothing.invalid: system resolver: failed to lookup address information: Name does not resolve; DNS over HTTPS: 8 resolvers failed, 4 with: TLS: invalid peer certificate: cert...
+could not resolve example.com: system resolver: failed to lookup address information: Try again; DNS over HTTPS: 8 resolvers failed, 4 with: could not connect: Address family not supported...
+```
+
+`order::fit` cuts the joined failures of the sources at `LINE` (160
+bytes) with `pod_core::text::clip`, so the cut falls inside the text of a
+cause. `lookup::fold` names only the cause of the largest group of
+resolvers: the line does not give the cause of the other 4. The cut hides
+the cause that the user must act on (a TLS middlebox answers DNS over
+HTTPS: `UnknownIssuer`).
+
+The ask:
+
+1. A cut never falls inside the text of a cause. To fit the bound, drop
+   the detail of a cause at a part boundary (`: `) and keep its head
+   (`TLS: invalid peer certificate: UnknownIssuer` keeps the issuer word),
+   or name the cause by its class.
+2. `fold` names each group of one cause once:
+   `8 resolvers failed: 4 with CAUSE-A; 4 with CAUSE-B`. A group of one
+   resolver names it.
+3. The bound stays (podnet pins 300 bytes for each error line,
+   `PodUtils/podnet:tests/error_words.rs`).
+4. A test with the two lines above as rows: no `...` inside a cause, and
+   each group of resolvers has its cause.
+
+## Premise
+
+- Read: the body of PodUtils/podnet#753; `crates/pod-dns/src/order.rs`
+  (`resolve_in`, `fit`, `LINE`); `crates/pod-dns/src/lookup.rs` (`over`,
+  `groups`, `fold`, `each`); `crates/pod-dns/src/way.rs` (`Way::lookup`
+  gives a `String`, and podssh and `pod-services-watch` read it);
+  `crates/pod-dns/src/resolver.rs` (`system` puts `system resolver: `
+  before the error); `pod_core::text::clip`.
+- Read: the text of a TLS failure comes from `pod_proxy::Missed::tls`:
+  `TLS: ` and the words of `pod_tls::handshake_failure`, with a hint after
+  `; ` for an unknown issuer.
+- Read: `PodUtils/podnet:tests/error_words.rs` (each error line under 300
+  bytes, with the words of podnet before the line of the dialer).
+- Measured: the two rows with each cause whole and the form of ask 2 need
+  217 and 233 bytes, more than `LINE`. So the cause of a row loses words at
+  a part boundary to fit the bound.
+- Not measured: the lines of podnet in its lab after the fix.
+
+## Approach
+
+1. `fold` gives `N resolvers failed: K with CAUSE; K with CAUSE`, each
+   group once, the largest first; a group of one resolver is `1 with
+   CAUSE`; a failure of no resolver (`out of time`) comes last, with no
+   count. The one-group forms stay.
+2. The failure of each source keeps its parts: its lead (the source and
+   the count) and its causes. The DNS over HTTPS lookup gives this form to
+   `resolve_in` in the crate; `Way::lookup` keeps its `String`.
+3. `fit` makes the causes brief in steps until the line fits, the longest
+   cause first in each step: (a) drop what follows the first `; ` (a
+   hint, a list of names); (b) drop the middle parts between `: `, keep
+   the head and the last part (`TLS: UnknownIssuer`); (c) keep the last
+   part (the words of the system); (d) keep the head, the class of the
+   cause (`TLS`). A lead and a source name stay. Only a line whose leads
+   and classes do not fit is cut inside a cause, as the last resort.
+4. `LINE` stays 160 bytes.
+5. Tests: the two rows of the issue, with no `...` and each group with
+   its cause; a plant that brings back the cut inside a cause.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features --lib
+cargo clippy -p pod-dns --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh dns-cause-cut-inside
+```
+
+## Done
+
+2026-11-25. Commit: see `git log` for T-1392.
+
+- `lookup::fold` gives `N resolvers failed: K with CAUSE; K with CAUSE`: each group of one cause once, the largest first (groups of one size in the order of the asking), a group of one resolver as `1 with CAUSE`, and a failure of no resolver (`out of time`) last with no count. One resolver in all is `1 resolver failed`. The one-group forms (`each of N resolvers failed: CAUSE`, `ADDRESS: CAUSE`, `CAUSE`) stay. Ask 2 reads "a group of one resolver names it" as the cause of that group: the address of a resolver stays out of the line (PodUtils/podnet#698).
+- The new `crates/pod-dns/src/line.rs`: `Phrase` keeps the lead of a source (`system resolver: `, `DNS over HTTPS: 8 resolvers failed: `) apart from each cause and the lead of its group (`4 with `). `fit` moved there from `order.rs`, and it makes the causes brief in four steps at part boundaries (the Approach, step 3), the longest cause first in each step. `LINE` stays 160 bytes. `Way::lookup` and `Way::lookup_with` keep their `String`; the new crate-private `Way::lookup_in` gives the parts to `resolve_in`. `resolve_in` puts `system resolver: ` before the failure of the system resolver (before, `Resolver::system` did); the text is the same.
+- The lines now: `could not resolve nothing.invalid: system resolver: Name does not resolve; DNS over HTTPS: 8 resolvers failed: 4 with TLS: UnknownIssuer; 4 with Address family not supported by protocol` (185 bytes) and `could not resolve example.com: system resolver: Try again; DNS over HTTPS: 8 resolvers failed: 4 with Address family not supported by protocol; 4 with Network is unreachable` (173 bytes). Ask 1 asks that `could not connect: Address family not supported by protocol` stays whole: with each cause whole, the failures of the first line have 233 bytes (the bound is 160), so the bound keeps the words of the system and drops `could not connect: `. A proxy that re-signs TLS for another name gives `4 with TLS` (its class): the words of the name do not fit.
+- Tests in `crates/pod-dns/src/line/tests.rs`: `each_group_of_resolvers_keeps_its_cause_whole_in_the_bound` (the two lines of the issue as rows, with the words of `pod_proxy::Missed::tls` for `UnknownIssuer`, and a third row for a certificate of another name: the exact line, no `...`, under 200 bytes, two groups each with its cause), `a_cause_becomes_brief_at_a_part_boundary` and `the_leads_stay_and_only_a_cause_with_no_boundary_is_cut`. Changed for the new form: `the_failures_that_read_alike_are_said_once`, `a_name_that_does_not_resolve_gives_one_short_line` and `literals_and_pins_ask_nothing_and_a_failure_names_each_source`.
+- `cargo test -p pod-dns --all-features`: 61 passed in the library, and each test target passes (live tests ignored). `cargo clippy -p pod-dns --all-targets` with and without `--all-features` and `-D warnings`, `cargo doc -p pod-dns --no-deps --all-features` with `RUSTDOCFLAGS="-D warnings"` and `cargo fmt --all --check`: each exits 0. `grep -rn "resolvers failed" crates/` finds `crates/pod-dns` only.
+- Plants: the new `scripts/plants/dns-cause-cut-inside.plant` skips the brief steps, so the last resort cuts inside a cause: `each_group_of_resolvers_keeps_its_cause_whole_in_the_bound` fails with it. `dns-each-resolver-said-alone` and `dns-nxdomain-ends-the-lookup` take the new lines. `sh scripts/plant-each.sh --apply`: 0 stale. `sh scripts/plant-each.sh dns-cause-cut-inside dns-each-resolver-said-alone dns-nxdomain-ends-the-lookup`: 3 caught.
+- Not measured: the lines of podnet in its lab.

@@ -14,6 +14,7 @@ use crate::doh::{self, Doh, Form};
 use crate::https::{self, Published};
 use crate::json::{self, Srv};
 use crate::kept::Kept;
+use crate::line::Phrase;
 use crate::settings::Settings;
 use crate::{ask, lookup, question, wire};
 
@@ -51,6 +52,17 @@ impl Way<'_> {
 
     /// [`Way::lookup`] over a given list of resolvers.
     pub async fn lookup_with(&self, resolvers: &[Doh], host: &str, deadline: Instant) -> Result<Vec<IpAddr>, String> {
+        self.lookup_in(resolvers, host, deadline).await.map_err(|failure| failure.to_string())
+    }
+
+    /// [`Way::lookup_with`], with the failure in its parts for the line of
+    /// the dialer ([`crate::line::fit`]).
+    pub(crate) async fn lookup_in(
+        &self,
+        resolvers: &[Doh],
+        host: &str,
+        deadline: Instant,
+    ) -> Result<Vec<IpAddr>, Phrase> {
         let order = doh::order(resolvers, self.settings.names, self.dial.names_inside());
         lookup::over(resolvers, order, self.settings.nxdomain, host, deadline, |i, at| {
             let resolver = &resolvers[i];

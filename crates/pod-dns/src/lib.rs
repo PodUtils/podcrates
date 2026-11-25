@@ -44,6 +44,7 @@ pub mod h2;
 pub mod https;
 pub mod json;
 mod kept;
+mod line;
 mod lookup;
 mod memory;
 mod miss;

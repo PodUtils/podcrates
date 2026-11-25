@@ -5,6 +5,8 @@
 use std::future::Future;
 use std::net::{IpAddr, SocketAddr};
 
+use crate::line::{Phrase, fit};
+
 /// Where an address came from, in the order that a resolver asks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Source {
@@ -122,7 +124,7 @@ pub(crate) fn next(after: Option<Source>, known: &Known) -> Option<Source> {
 /// with the asking of the system resolver and of DNS over HTTPS given: each
 /// is awaited at most once, and only when the order reaches it. The caller
 /// names the host ("could not resolve HOST: ..."), so the error says only
-/// what each source answered.
+/// what each source answered, in at most [`LINE`] bytes.
 pub(crate) async fn resolve_in<S, D>(
     known: &Known,
     port: u16,
@@ -132,11 +134,11 @@ pub(crate) async fn resolve_in<S, D>(
 ) -> Result<Found, String>
 where
     S: Future<Output = Result<Vec<SocketAddr>, String>>,
-    D: Future<Output = Result<Vec<IpAddr>, String>>,
+    D: Future<Output = Result<Vec<IpAddr>, Phrase>>,
 {
     let (mut system, mut doh) = (Some(system), Some(doh));
     let at = |ips: &[IpAddr]| ips.iter().map(|ip| SocketAddr::new(*ip, port)).collect::<Vec<_>>();
-    let mut reasons: Vec<String> = Vec::new();
+    let mut reasons: Vec<Phrase> = Vec::new();
     let mut source = after;
     while let Some(asked) = next(source, known) {
         source = Some(asked);
@@ -146,11 +148,11 @@ where
             Source::Cache => Ok(at(&known.fresh)),
             Source::OldCache => Ok(at(&known.old)),
             Source::System => match system.take() {
-                Some(ask) => ask.await,
+                Some(ask) => ask.await.map_err(|e| Phrase::of(e).led("system resolver: ")),
                 None => continue,
             },
             Source::Doh => match doh.take() {
-                Some(ask) => ask.await.map(|ips| at(&ips)).map_err(|e| format!("DNS over HTTPS: {e}")),
+                Some(ask) => ask.await.map(|ips| at(&ips)).map_err(|e| e.led("DNS over HTTPS: ")),
                 None => continue,
             },
         };
@@ -159,7 +161,7 @@ where
                 let more = asked.falls_back() && next(Some(asked), known).is_some();
                 return Ok(Found { addrs, source: asked, more });
             }
-            Ok(_) => reasons.push(format!("{}: no addresses", asked.words())),
+            Ok(_) => reasons.push(Phrase::of(format!("{}: no addresses", asked.words()))),
             Err(e) => reasons.push(e),
         }
     }
@@ -169,27 +171,7 @@ where
 /// The most bytes of the failures of the sources: with the words of the
 /// dialer (`could not resolve HOST: `), the line of a short name stays under
 /// 200 bytes (PodUtils/podnet#698).
-const LINE: usize = 160;
-
-/// The phrase of each source, joined with `; `, in at most `most` bytes:
-/// the longest phrase is cut first, so that each source keeps its name. The
-/// whole line goes to the log at debug.
-fn fit(mut reasons: Vec<String>, most: usize) -> String {
-    let whole = reasons.join("; ");
-    if whole.len() <= most {
-        return whole;
-    }
-    tracing::debug!(failures = %whole, "each source of the addresses failed");
-    loop {
-        let line = reasons.join("; ");
-        let Some((i, long)) = reasons.iter().enumerate().max_by_key(|(_, r)| r.len()) else { return line };
-        if line.len() <= most || long.len() <= 32 {
-            return pod_core::text::clip(&line, most);
-        }
-        let keep = long.len().saturating_sub(line.len() - most).max(32);
-        reasons[i] = pod_core::text::clip(long, keep);
-    }
-}
+pub(crate) const LINE: usize = 160;
 
 #[cfg(test)]
 mod tests {
@@ -224,7 +206,7 @@ mod tests {
             },
             async {
                 asked.borrow_mut().push("doh");
-                doh
+                doh.map_err(Phrase::of)
             },
         )
         .await;
@@ -298,9 +280,9 @@ mod tests {
         assert_eq!((found.source, found.addrs, found.more, asked.len()), (Source::Pin, at(&["192.0.2.9"]), false, 0));
         let nothing = Known { asks: true, ..Known::default() };
         let (found, _) = run(&nothing, None, Err("Name or service not known".into()), Err("no answer".into())).await;
-        assert_eq!(found.unwrap_err(), "Name or service not known; DNS over HTTPS: no answer");
+        assert_eq!(found.unwrap_err(), "system resolver: Name or service not known; DNS over HTTPS: no answer");
         let unsafe_name = Known::default();
         let (found, asked) = run(&unsafe_name, None, Err("bad name".into()), Ok(ips(&["203.0.113.1"]))).await;
-        assert_eq!((found.unwrap_err(), asked), ("bad name".to_string(), vec!["system"]));
+        assert_eq!((found.unwrap_err(), asked), ("system resolver: bad name".to_string(), vec!["system"]));
     }
 }
