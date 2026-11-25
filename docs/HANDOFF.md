@@ -26,7 +26,8 @@ is done. Git and the record keep finished work.
    same commit.
    - Open asks: PodUtils/podvm#664 (COORD-248, for
      PodUtils/podrunner#354) is T-1379, done on `main`: answer it with the
-     next tag;
+     next tag; PodUtils/podvm#667 (COORD-250, for ask 5 of
+     PodUtils/podrunner#296) is T-1389, after the tag;
      PodUtils/podssh#357 (COORD-147) asks T-1380 to T-1383;
      PodUtils/podnet#711 (COORD-119) is T-1343 (partial);
      PodUtils/podssh#349 (COORD-139) is T-1169.

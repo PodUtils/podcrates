@@ -15444,6 +15444,68 @@ The stand-in gives an `ETag` on `GET /1.0/instances/NAME`, checks
 `sh scripts/plant-each.sh incus-patch-drops-if-match`: the mismatch test
 fails (exit 101).
 
-Not done here: the answer to PodUtils/podvm#664 with the tag that carries
-the call goes with the next release. The row of `pod-incus` in
-`docs/design.md` does not name the PATCH yet.
+The answer to PodUtils/podvm#664 names the tag that carries the call
+(`v0.85.0`). The row of `pod-incus` in `docs/design.md` names the PATCH.
+
+# T-1389: `pod-enter`: a required tmpfs with a byte limit at a guest path of the namespace rung (PodUtils/podvm#667)
+
+**Source:** PodUtils/podvm#667 (COORD-250 of podvm, PodUtils/podvm@T-1968; author COLLABORATOR), for ask 5 of PodUtils/podrunner#296.
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm needs a work directory with a memory-backed quota on the namespace
+rung, for `--tmpfs PATH:size=N`. At `v0.84.0` the launch of the namespace
+rung mounts one tmpfs on `/tmp` of the image, with no limit that the caller
+sets. `Plan` carries bind mounts, but no tmpfs at a guest path that the
+caller chooses. The ask:
+
+- A typed request of a namespace mount: an absolute guest path and a byte
+  limit that is not zero, through the namespace target and the mount steps
+  that exist.
+- The setup fails when the kernel cannot enforce the request (no silent
+  mount with no limit, no skip).
+- A detached caller joins the namespace later (`ns_join`) and finds the
+  mount with its limit; the join does not mount again.
+- Tests: a small write passes, a write over the limit gets `ENOSPC`, and a
+  host that refuses the mount gives a named refusal.
+
+## Premise
+
+- Read: the body of PodUtils/podvm#667; `crates/pod-enter/src/plan.rs`
+  (`Plan`); `crates/pod-enter/src/entry.rs` (the step "mounting tmpfs on
+  /tmp", the step codes of the entry).
+- Not read: the bind mounts of the namespace rung (`ns_volume`), the step
+  codes that a new mount needs, `ns_join`, and whether the mount of a
+  tmpfs with `size=` in a user namespace that a runner of GitHub gives
+  passes (podvm's cloud host refused it).
+
+## Approach
+
+1. `python3 -I scripts/codegraph.py similar tmpfs mount size namespace`
+   first; read `ns_volume` and the tmpfs of `/tmp`.
+2. Add a typed request (for example `TmpfsMount { guest: String, bytes:
+   NonZeroU64 }`) to the volumes of `Plan` or beside them. Check the
+   guest path (absolute, no `..`, not `/`) before the fork.
+3. Mount it in the namespace rung after the root and before the
+   confinement, with `size=N` and `nosuid,nodev`, at a step code of its
+   own. Read the limit back from `statfs` and fail with a named step when
+   it is not the limit asked (the kernel did not enforce it).
+4. `ns_join`: the mount is in the mount namespace, so a join finds it; a
+   test proves that the join sees the limit and mounts nothing.
+5. Tests: a write under the limit, `ENOSPC` over it, a refusal with its
+   step name where the host refuses a mount (skip with its reason where a
+   runner gives no user namespace; the root lane of CI runs it). A plant
+   that drops `size=` makes the `ENOSPC` test fail.
+6. Hand-off: name the tag in the answer to PodUtils/podvm#667.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features tmpfs
+sh scripts/plant-each.sh --apply
+```

@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 1017 entries: 159 open, 30 partial, 6 blocked, 822 done.
+`TODO/INDEX.md` holds 1018 entries: 160 open, 30 partial, 6 blocked, 822 done.
 
 ## State
 
@@ -115,7 +115,9 @@ asks of podrunner
 carries the config PATCH of `pod-incus` with an ETag condition (done on
 `main`; PodUtils/podvm#664 for PodUtils/podrunner#354: podrunner's
 warm units with lower limits wait for the tag), with its hand-off and the
-answer to PodUtils/podvm#664; then T-1387 (the COORD issue `(to all)` of
+answer to PodUtils/podvm#664; then T-1389 (a required tmpfs with a byte
+limit in `pod-enter`, PodUtils/podvm#667 for ask 5 of
+PodUtils/podrunner#296); then T-1387 (the COORD issue `(to all)` of
 one `docs/hosted-sessions.md` for each repository, with that tag). Then the entries that a need
 of githome or cfb names for their CI: T-106 (partial; cfb's A-X-18 waits
 for cfb's answer on #223, call C792). Then cfb's asks that podssh takes
