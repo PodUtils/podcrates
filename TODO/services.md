@@ -230,3 +230,41 @@ cargo run -q -p pod-services-watch -- --service syncthing-relay
 ## Done
 
 2026-11-24. `crates/pod-services/services/syncthing-relay.toml`: the endpoint `relay-wmymarb` is `187.142.242.141` (read 2026-11-24, up 61 days) and the note of its fact names the new host. The file of the node `node-trojan-45-63-30-142` is gone; the row `node-*` of `crates/pod-services/README.md` counts 2. `cargo test -p pod-services -p pod-services-watch --all-features` passes, and `--service syncthing-relay` gives `holds` (24 endpoints). The tests: `each_syncthing_relay_is_an_ip_literal_on_443_with_its_device_id` and `the_watch_of_the_syncthing_relays_holds_each_endpoint_to_the_pool` (`crates/pod-services/tests/syncthing.rs`) and `a_proxy_node_link_is_a_form_that_podssh_reads` (`crates/pod-services/tests/public_carriers.rs`). The consumers: podssh (PodUtils/podssh@T-571, PodUtils/podssh#209) and podnet read the relay set, and podssh reads the nodes; they take the change at the next tag. Commit: see `git log` for T-1223.
+
+# T-1415: `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500
+
+**Source:** the scheduled run 45603028501 of `services.yml` at `cd7cb5a` (2026-11-25, job `watch` 139166564269).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The step "Each watch" gave `214 hold, 0 skipped, 0 first with no answer, 2 moved or failed`:
+
+- `FAILED magic-wormhole-mailbox websocket-upgrade`: "wss://relay.magic-wormhole.io/v1 refused the upgrade: HTTP 500: Internal Server Error".
+- `FAILED node-trojan-64-176-7-205 proxy-banner`: "64.176.7.205:443: connecting to 64.176.7.205:443 timed out after 29s".
+
+## Premise
+
+- Read: the log of the job (`gh run view 45603028501 --log-failed`); `crates/pod-services/services/magic-wormhole-mailbox.toml`; T-1223; calls C153 and C155.
+- `node-trojan-64-176-7-205`: it held on 2026-11-23, gave a first no answer on 2026-11-24 (T-1223) and timed out again on 2026-11-25. The last scheduled run had a failure of the same class, so by call C153 the failure is a finding. T-1223 says that the node leaves in this case.
+- `magic-wormhole-mailbox`: an HTTP 500 is an answer of the server, not a no answer (call C155), so call C153 does not give it a first failure: the run is red at the first one. The host and the path did not move: the watch `github-file` of the same service holds, and `public_relay.py` of upstream still names `relay.magic-wormhole.io`. The run by hand from this sandbox (`cargo run -q -p pod-services-watch -- --service magic-wormhole-mailbox`, 2026-11-25) gave the same text: `FAILED ... HTTP 500: Internal Server Error`, and the `github-file` watch held. A server on the host answers, so the service is not gone. The cause of the 500 on the upgrade is not known here: it can be a fault of the server of the host, or a change in the way that it takes an upgrade. One read from two hosts is not enough to call it a change of the service.
+
+## Approach
+
+- `node-trojan-64-176-7-205` leaves as `node-trojan-45-63-30-142` left (T-1223): its file, and the count of the row `node-*` in `crates/pod-services/README.md` (2 to 1). One file `node-*` of the kind `proxy-node` stays besides the node `node-xhttp-193-160-208-240`. The next hand-off tells podssh (PodUtils/podssh@T-574), the consumer of the nodes.
+- `magic-wormhole-mailbox` keeps its file. The rule for the next scheduled run: when the `websocket-upgrade` watch gives a 5xx again on the next run, this entry reopens with step 2: read the upgrade with the mailbox client `pod-wormhole` against the host, and compare it with `leastauthority-mailbox`. When the watch holds, the 500 was a fault of the moment and this entry stays done. When the host gives no answer, or its upstream file names another host, the file changes by call C153.
+
+## Prove
+
+```sh
+cargo test -p pod-services -p pod-services-watch --all-features
+cargo run -q -p pod-services-watch -- --service magic-wormhole-mailbox
+```
+
+## Done
+
+2026-11-25. The file of the node `node-trojan-64-176-7-205` is gone, and the row `node-*` of `crates/pod-services/README.md` counts 1. `magic-wormhole-mailbox` is not changed; its watch still gives HTTP 500 from this sandbox, and the next scheduled run decides by the rule in the Approach. `cargo test -p pod-services -p pod-services-watch --all-features` is the proof; the tests are `a_proxy_node_link_is_a_form_that_podssh_reads` (`crates/pod-services/tests/public_carriers.rs`) and the tests of the catalog. The consumer: podssh (PodUtils/podssh@T-574) reads the nodes and takes the change at the next tag. Commit: see `git log` for T-1415.

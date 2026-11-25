@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1015 entries: 161 open, 30 partial, 6 blocked, 818 done.**
+**1016 entries: 161 open, 30 partial, 6 blocked, 819 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 5 | 9 | 0 | 239 | 253 |
-| P2 | 71 | 11 | 4 | 423 | 509 |
+| P2 | 71 | 11 | 4 | 424 | 510 |
 | P3 | 85 | 10 | 2 | 154 | 251 |
-| **All** | 161 | 30 | 6 | 818 | 1015 |
+| **All** | 161 | 30 | 6 | 819 | 1016 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1062,3 +1062,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1386](upkeep.md) | P3 | S | M5 | chore | open | `scripts/agent/check.sh`: the tests run in a temp directory of their own, and an entry that a test leaves there is a fault |
 | [T-1387](upkeep.md) | P2 | S | M8 | chore | open | COORD `(to all)`: one `docs/hosted-sessions.md` with one role table for each repository of PodUtils |
 | [T-1388](upkeep.md) | P3 | S | M5 | chore | open | The debug info of the dev and test profiles, measured for the size of the target |
+| [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
