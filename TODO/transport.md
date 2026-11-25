@@ -8263,3 +8263,114 @@ not the same bytes.
 ```sh
 cargo test -p pod-term --all-features transfer
 ```
+
+# T-1393: `pod-proxy`: a proxy at a command that does not exist floods the stderr of the process, gives a wrong cause and is started again for each dial (PodUtils/podnet#754)
+
+**Source:** PodUtils/podnet#754 (COORD-124 of podnet, PodUtils/podnet@T-580; author COLLABORATOR)
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet measured a proxy at a command that does not exist with podcrates
+`v0.84.0`:
+
+```
+$ podnet bench --duration 1 --proxy "http+exec:/nonexist/prog" https://example.com/
+sh: 1: /nonexist/prog: not found
+... (2430 lines of the same text in 1 s)
+podnet: bench: no request worked: GET https://example.com/: example.com:443 through the proxy <hidden> ...: the proxy exec:<hidden> ... did not answer as its protocol says: the connection closed before the response ended
+```
+
+- `ChildIo::spawn` gives the command the stderr of the process
+  (`Stdio::inherit`), so each try writes the line of `sh` to the terminal.
+- A command that exits before its first byte gives "did not answer as its
+  protocol says: the connection closed before the response ended". The
+  cause (the command is not found, exit 127) is not in the failure.
+- `Proxy::secret_parts` of an exec spec gives the whole command, so a
+  consumer that hides each secret part hides the program word that the
+  label shows (`exec:WORD ...`).
+
+The ask:
+
+1. `ChildIo` takes the stderr of the command through a pipe and keeps its
+   last bytes (a bound, for example 512). The stderr does not reach the
+   stderr of the process.
+2. A command that exits before it writes a byte gives a failure at the
+   stage `Proxy`, class `Unavailable`: `the proxy command WORD exited
+   STATUS before it answered: LAST-STDERR-LINE`. Exit 126 and 127 of `sh`
+   are named (cannot run, not found).
+3. A command that exited 126 or 127 is not started again for each
+   connection: the next dials of the same `Proxy` within a short time (or
+   for the process) give the same failure at once.
+4. `secret_parts` of an exec spec gives the words after the program word
+   (and each word with `=` or `@`), not the program word, so
+   `exec:/nonexist/prog ...` stays readable. A program word with `@` or
+   `=` stays secret.
+5. A test with `http+exec:/nonexist/prog`: one failure with the cause, no
+   line on the stderr of the process, and one start of the command for
+   many dials.
+
+## Premise
+
+- Read: the body of PodUtils/podnet#754;
+  `crates/pod-proxy/src/stream.rs` (`ChildIo`, `open_proxy`),
+  `crates/pod-proxy/src/connect.rs` (`connect_via`, `exchange`),
+  `crates/pod-proxy/src/socks5.rs` (`attempt`, `failure`),
+  `crates/pod-proxy/src/proxy.rs` (`command_word`, `carrier_text`),
+  `crates/pod-proxy/src/proxy/parse.rs` (`secret_parts`),
+  `crates/pod-proxy/src/error.rs` (`DialError`).
+- Read: the HTTP and SOCKS5 dials open the stream with `open_proxy` and
+  then read the answer; an exec command that exits closes its stdout, and
+  the read of the answer ends early. No code reads the exit of the command
+  after a failed exchange.
+- Read: `codegraph.py similar` finds no bounded tail of a stream in a
+  shared crate (`pod-core::process` keeps the whole output of a run, and
+  `pod-term::grammar::ring::Ring` keeps the bytes from a boundary of the
+  terminal grammar).
+- T-441 (GitHub #120, podswarm) asks for `ChildIo::spawn_args` with no
+  shell, a stderr pipe, `take_stderr` and a wait future. This entry adds
+  the stderr pipe with a kept tail only, for each `ChildIo`; `spawn_args`,
+  `take_stderr` and the public wait future stay in T-441. T-441 then
+  builds on the pipe of this entry: `take_stderr` gives the pipe to the
+  caller in place of the tail.
+- Not measured: a run of podnet with the fix; a run on Windows
+  (`cmd.exe` gives 9009 for a command that it does not find).
+
+## Approach
+
+1. `ChildIo` pipes the stderr of the command. A task of the runtime reads
+   it and keeps its last `STDERR_KEPT` (512) bytes. A flag records the
+   first byte on stdout.
+2. After a failed exchange on a `Stream::Exec` (HTTP and SOCKS5), when the
+   command gave no byte, wait a short bound for its exit and the end of
+   its stderr. A command that exited gives the new `DialError::ProxyExited`
+   (stage `Proxy`, class `Unavailable`): `the proxy command WORD exited
+   STATUS before it answered: LINE`, with 126 "cannot run" and 127 "not
+   found" (9009 "not found" on Windows), and the last line of its stderr
+   made safe with `one_line`.
+3. A command that exited 126 or 127 is held for a time (`EXEC_HOLD`)
+   by its command line in a map of the process: each `open_proxy` of the
+   same command in the hold gives the same failure and starts no process.
+4. `secret_parts` of an exec spec: the text after the program word, and
+   each word with `=` or `@`; the whole command and spec when no program
+   word shows (`command_word` gives none).
+5. Move `ChildIo` to its own file (`stream.rs` grows past 300 lines).
+6. Tests: a dial of `http+exec:/nonexist/prog` gives the failure with the
+   cause and the stage and class; a test that runs itself again as a child
+   process finds no byte on the stderr of that child; a command that counts
+   its starts runs one time for 20 dials; a `ChildIo` keeps only the last
+   bytes of a long stderr; the secret parts. A plant brings back the
+   inherited stderr and the start for each dial.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features
+cargo test -p pod-proxy --all-features --test exec_exit
+cargo clippy -p pod-proxy --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh proxy-exec-stderr-inherited
+```
