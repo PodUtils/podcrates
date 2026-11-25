@@ -199,7 +199,8 @@ mod tests {
     fn warp_exec_finds_warp_up_of_another_state_directory() {
         // A listener stands in for the socket of a proxy with another state
         // directory: only the pointer file names it.
-        let tmp = crate::test_dir("find-other");
+        // A short tag: the socket path must fit the 104 bytes of macOS.
+        let tmp = crate::test_dir("fo");
         let other = tmp.join("other-run/warp.sock");
         std::fs::create_dir_all(other.parent().unwrap()).unwrap();
         let listener = std::os::unix::net::UnixListener::bind(&other).unwrap();

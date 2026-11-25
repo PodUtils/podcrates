@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1021 entries: 162 open, 30 partial, 6 blocked, 823 done.**
+**1025 entries: 164 open, 30 partial, 6 blocked, 825 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 241 | 254 |
+| P1 | 6 | 9 | 0 | 243 | 258 |
 | P2 | 72 | 11 | 4 | 426 | 513 |
 | P3 | 86 | 10 | 2 | 154 | 252 |
-| **All** | 162 | 30 | 6 | 823 | 1021 |
+| **All** | 164 | 30 | 6 | 825 | 1025 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1068,3 +1068,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
+| [T-1444](upkeep.md) | P1 | S | M5 | defect | open | `pod-core`: `a_path_that_is_there_is_never_opened_truncated_or_removed` fails on Windows: a file made at the name of a directory gives "Access is denied", not `AlreadyExists` |
+| [T-1445](upkeep.md) | P1 | S | M5 | defect | open | `pod-tpm`: two tests of `tests/socket.rs` fail on macOS: `set_read_timeout` on a stream whose peer closed gives an error, so the call says `Unavailable`, not `Protocol` |
+| [T-1446](upkeep.md) | P1 | S | M5 | defect | done | `pod-warp`: `warp_exec_finds_warp_up_of_another_state_directory` fails on macOS: its socket path is longer than 104 bytes |
+| [T-1447](upkeep.md) | P1 | S | M5 | defect | done | `nightly.yml`: the step of the doc tests runs the doc tests of `pod-h2`, which name `h2` and not `pod_h2`, so 41 fail on each system |

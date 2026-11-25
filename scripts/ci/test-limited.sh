@@ -31,6 +31,7 @@ failed=0
 echo "== test binaries, limit $binary s each"
 env "$var=sh $here/limit.sh $binary" cargo test "$@" --tests || failed=$((failed + 1))
 echo "== doc tests, limit $doc s"
-sh "$here/limit.sh" "$doc" cargo test "$@" --doc || failed=$((failed + 1))
+# --doc ignores doctest = false of the library: the doc tests of pod-h2 name h2, not pod_h2.
+sh "$here/limit.sh" "$doc" cargo test "$@" --exclude pod-h2 --doc || failed=$((failed + 1))
 echo "test runs that failed: $failed"
 test "$failed" -eq 0
