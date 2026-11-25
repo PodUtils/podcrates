@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1001 entries: 151 open, 30 partial, 6 blocked, 814 done.**
+**1002 entries: 151 open, 30 partial, 6 blocked, 815 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 237 | 250 |
-| P2 | 66 | 11 | 4 | 422 | 503 |
+| P2 | 66 | 11 | 4 | 423 | 504 |
 | P3 | 81 | 10 | 2 | 153 | 246 |
-| **All** | 151 | 30 | 6 | 814 | 1001 |
+| **All** | 151 | 30 | 6 | 815 | 1002 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1048,3 +1048,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1371](relay.md) | P2 | S | M2 | feature | done | `pod-relay`: the `Mint` of a grant writes no extension, so a stock sshd gives its certificate no pty and no forward (PodUtils/podssh#356) |
 | [T-1372](fleet.md) | P3 | S | M8 | release | open | crates.io: the names `pod-natprobe`, `pod-tpm`, `pod-gzip` and `pod-h2` (GitHub #261) |
 | [T-1373](fleet.md) | P3 | M | M8 | feature | open | `pod-release`: an opt-in fetch of newer Sigstore roots from TUF at run time |
+| [T-1374](upkeep.md) | P2 | M | M5 | chore | done | One session start for each harness and host: `scripts/session-start.sh` sets the identity, the hooks path and `main`, and starts both watchers |

@@ -1,19 +1,25 @@
 # Maintenance by an agent session
 
-This document is for an agent session that maintains podcrates. A new
-cloud session has no memory of the sessions before. Read `AGENTS.md`
-first: its rules have priority. This document gives the procedures and
-the tools.
+This document is for an agent session that maintains podcrates, in each
+harness and on each host. A new session has no memory of the sessions
+before. Read `AGENTS.md` first: its rules have priority. This document
+gives the procedures and the tools.
 
 ## Start of a session
 
 1. Read `AGENTS.md` and this document. Read the handoff file (HANDOFF.md
    in `docs/`) first when a session left one.
-2. Make sure that the branch is `main` and that the tree is clean:
-   `git status`, `git log --oneline -5`.
+2. Run `sh scripts/session-start.sh` from the checkout when the harness
+   did not run it (the Claude Code hook `.claude/session-start.sh` runs
+   it). It sets the identity and the hooks path of this repository, puts
+   a clean tree on `main` (an existing `main` only moves forward to
+   `origin/main`), and starts the two watchers of step 6. A worktree keeps
+   its branch and starts no watcher. Then make sure that the branch is
+   `main` and that the tree is clean: `git status`, `git log --oneline -5`.
 3. Make the session ready for the static builds:
-   `sh scripts/cloud-setup.sh` (the musl target, zig, cargo-zigbuild),
-   then `export PATH="$HOME/.local/bin:$PATH"`.
+   `sh scripts/cloud-setup.sh` (rustup and the toolchain of
+   `rust-toolchain.toml` when the host has none, the musl target, zig,
+   cargo-zigbuild), then `export PATH="$HOME/.local/bin:$PATH"`.
 4. List the open issues:
 
    ```sh
@@ -28,14 +34,16 @@ the tools.
      python3 -c 'import json,sys; [print(r["id"], r["head_sha"][:7], r["name"], r["status"], r["conclusion"]) for r in json.load(sys.stdin)["workflow_runs"]]'
    ```
 
-6. Start the two watchers as background processes, each with a log that
-   the session reads (the owner's ruling "Watchers"), and also keep a
-   Monitor of the harness on each log:
+6. The two watchers run as background processes, each with a log that
+   the session reads (the owner's ruling "Watchers"). Keep a Monitor of
+   the harness on each log. `scripts/session-start.sh` starts each one
+   that does not run, after their self-tests. When it says that one did
+   not start, or a watcher ends, start it by hand:
 
    ```sh
    mkdir -p .work
-   nohup python3 -I scripts/agent/watch.py podcrates --state .work/agent > .work/watch.log 2>&1 &
-   nohup python3 -I scripts/agent/runs.py --repo PodUtils/podcrates > .work/runs.log 2>&1 &
+   nohup python3 -I scripts/agent/watch.py podcrates --state .work/agent >> .work/watch.log 2>&1 &
+   nohup python3 -I scripts/agent/runs.py --repo PodUtils/podcrates >> .work/runs.log 2>&1 &
    ```
 
    Read the logs after each step of work. Do not wait for a notice of
@@ -60,7 +68,8 @@ the tools.
   The tool of an issue body drops the `!` of `![`, as in `vec![`: write no
   macro with a bracket in a body, or read the body back after the write.
 * **Pushes**: `git push origin main`. The identity comes from
-  `.claude/session-start.sh`.
+  `scripts/session-start.sh`. Its hooks path gives `.githooks/commit-msg`,
+  which refuses a commit message with an agent attribution line.
 * **The record**: `cargo todo check`, `cargo todo set T-NNN STATUS`,
   `cargo todo next`, `cargo todo counts`, `cargo todo remap FILE`
   (`TODO/RULES.md`).
@@ -116,9 +125,13 @@ the tools.
   in a document of the current state (a take at a commit, a `state:` line,
   a time stamp, "Before, ", the work of one session).
 * **Other scripts** (in `scripts/`):
-  * `cloud-setup.sh [TARGET...]`: the rustup targets, zig (from the
-    mirrors of `zig-mirrors.txt`, through `fetch-zig.sh`) and
-    cargo-zigbuild.
+  * `session-start.sh`: the start of each session (see "Start of a
+    session"). Exit 0 when both watchers run, 1 when one did not start.
+  * `cloud-setup.sh [TARGET...]`: rustup (its installer, checked by
+    SHA-256) and the toolchain of `rust-toolchain.toml` when the host has
+    none, the rustup targets, zig (from the mirrors of `zig-mirrors.txt`,
+    through `fetch-zig.sh`) and cargo-zigbuild. It links `cargo`, `rustc`
+    and `rustup` into `$HOME/.local/bin` for a new shell.
   * `retry.sh COMMAND...`: a command up to 5 times, for the steps of CI
     that read the network.
   * `check-github-numbers.py`: `TODO/github.txt` against GitHub.
@@ -423,15 +436,17 @@ fourth argument of the script names the list when it is elsewhere.
 
 ## This sandbox
 
-* The egress is an HTTPS proxy with an allowlist: GitHub, crates.io, the
-  mirrors of zig and a few more. WARP, the edge of Cloudflare and the
-  relay are not reachable from here. Test them in the live workflows.
+* Check the egress of the current host. The egress of a cloud session is
+  an HTTPS proxy with an allowlist: GitHub, crates.io, the mirrors of zig
+  and a few more. WARP, the edge of Cloudflare and the relay are not
+  reachable from there. Test them in the live workflows.
 * The disk is limited. `target/` grows past 20 GB: remove `target/debug`
   when a build fails with "No space left on device". A full check and two
   agents that build at the same time fill the disk: run at most one agent
   build beside a check, and read `df -h /` before each large build (keep
   10 GB free).
-* A cloud session starts with a shallow clone. Run
+* A clone can be shallow (a cloud session starts with one). When
+  `git rev-parse --is-shallow-repository` prints `true`, run
   `git fetch --unshallow origin main` before a `git log` over a range.
 
 ## Rules of the work

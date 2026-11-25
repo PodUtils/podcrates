@@ -6112,3 +6112,132 @@ toolchain and test-target checks, the zig build for x86_64 musl and
 8 passed; the zig build and `check-static.sh`. `h2_fallback` passes with
 the order of `Shape::browser`, with no change to the test. Not checked: the
 run of `adoption.yml` on GitHub.
+
+# T-1374: One session start for each harness and host: `scripts/session-start.sh` sets the identity, the hooks path and `main`, and starts both watchers
+
+**Source:** PodUtils/podvm@2d36b23 (the shared session start of podvm).
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+The start of a session works only in Claude Code. The identity and the
+branch are in the Claude Code hook `.claude/session-start.sh`, and the
+hook acts on the current directory when `CLAUDE_PROJECT_DIR` is not set.
+Another harness (a tool that reads `AGENTS.md`) or a local machine runs
+no start. The hook does not start the two watchers of the owner's ruling
+"Watchers"; each session starts them by hand. Its `git fetch` has no time
+limit and can ask for credentials. In a worktree of an agent, the hook
+tries to check out `main`. No tool refuses an agent attribution line in a
+commit outside Claude Code. `scripts/cloud-setup.sh` fails at once on a
+host with no rustup, runs `rustup target add` for the toolchain of the
+current directory and not of `rust-toolchain.toml`, and its check
+`cargo zigbuild --version` always fails (cargo-zigbuild 0.23.4 refuses
+the argument), so each run fetches or builds cargo-zigbuild again.
+`AGENTS.md` and `docs/maintenance.md` state facts of one cloud host as
+facts of each host (a shallow clone, the egress proxy).
+
+## Premise
+
+- Read: the commit PodUtils/podvm@2d36b23 (its `.claude/session-start.sh`,
+  `PodUtils/podvm:scripts/session-start.sh`,
+  `PodUtils/podvm:scripts/cloud-setup.sh`, `PodUtils/podvm:AGENTS.md`,
+  `PodUtils/podvm:docs/hosted-sessions.md`,
+  `PodUtils/podvm:scripts/qa-bundle.sh`,
+  `PodUtils/podvm:scripts/common/bootstrap-env.sh`) and podvm's
+  `.githooks/commit-msg` at that commit.
+- Read: `.claude/session-start.sh`, `.claude/settings.json`,
+  `scripts/cloud-setup.sh`, `scripts/ci/fetch-tool.sh`, `scripts/agent/`,
+  `AGENTS.md`, `docs/maintenance.md`, `docs/HANDOFF.md`,
+  `docs/decisions.md` (the rulings "Watchers", "Delegation", "Web
+  access").
+- Measured: the SHA-256 of rustup-init 1.29.3 for x86_64 and aarch64
+  Linux in the `.sha256` files of static.rust-lang.org (read through
+  fetch.web.pkgforge.dev) are the values of podvm's script.
+
+## Approach
+
+Take the parts of the commit that podcrates needs, in the form of
+podcrates:
+
+- `scripts/session-start.sh` (POSIX sh) holds the start; the Claude Code
+  hook only calls it. It finds the checkout from its own path, sets the
+  local identity, `commit.gpgsign false` and `core.hooksPath .githooks`,
+  and changes no global setting. A worktree stops there. The lead
+  checkout fetches `origin/main` with a time limit and no prompt, keeps
+  the rules of the branch, runs the self-tests of both watchers, and
+  starts each watcher that does not run (detached, with a log in
+  `.work/`, under a lock). A watcher runs when a process has its exact
+  command line and this checkout as its directory. `flock`, `setsid`,
+  `pgrep` and `timeout` are used when the host has them.
+- `.githooks/commit-msg` refuses an agent attribution line.
+- `scripts/cloud-setup.sh` runs in the root of the repository, installs
+  rustup by its pinned installer (checked by SHA-256 through
+  `scripts/ci/fetch-tool.sh`, which now takes a program that is no
+  archive) when the host has none, installs the toolchain of
+  `rust-toolchain.toml`, links `cargo`, `rustc` and `rustup` into
+  `$HOME/.local/bin`, and checks `cargo-zigbuild --version`.
+- `AGENTS.md`, `docs/maintenance.md` and `docs/HANDOFF.md` name the
+  shared start, the permissions and `CARGO_BUILD_JOBS` of another
+  harness, the check of a shallow clone, and the egress of the current
+  host. Call C937.
+
+## Prove
+
+```sh
+sh scripts/session-start.sh          # twice, in a scratch clone
+sh .claude/session-start.sh          # from another directory
+sh scripts/cloud-setup.sh            # with an empty HOME, no rustup
+python3 -I scripts/check-history.py
+cargo todo check
+```
+
+## Done
+
+2026-11-25, the commit that names T-1374. In a scratch clone:
+`scripts/session-start.sh` run from `/` set the local identity,
+`commit.gpgsign` and `core.hooksPath`, and started both watchers (exit 0);
+a second run said "runs already" for each (exit 0). The watchers of
+another checkout with the same command line did not count (their
+directory differs). A watcher that was killed started again alone. With a
+`PATH` with no `flock`, `setsid`, `pgrep` and `timeout`, the start and the
+second run gave the same result. With an origin that cannot be reached,
+the fetch failed with one line and the start went on. A clean branch
+moved to `main`; a branch with changes stayed; a worktree kept its branch
+and made no `.work/`. The hook ran from `/tmp` with no
+`CLAUDE_PROJECT_DIR`. `.githooks/commit-msg` refused a message with
+`Co-Authored-By:` and with a line that starts with "Generated with",
+allowed "the code generated with zig" and a git comment line, and refused
+a call with no message file. `scripts/cloud-setup.sh` with an empty
+`HOME` and no rustup, zig or cargo on `PATH`: rustup-init 1.29.3 passed
+its SHA-256, the toolchain 1.99 of `rust-toolchain.toml`, the musl target,
+zig 0.16.0 and cargo-zigbuild 0.23.4 came in, and a new shell with
+`$HOME/.local/bin` on `PATH` found `cargo`, `zig` and `cargo-zigbuild`.
+The second run fetched nothing. A wrong SHA-256 of rustup-init failed.
+
+Not taken from the commit, with the reason:
+
+- The role table of models and efforts for two harnesses, and a third
+  role for the hardest tasks and advisors (podvm's ruling "Hosted
+  sessions and worker roles"): it changes the ruling "Delegation" of
+  podcrates, so it is Q23 of `TODO/PROGRESS.md`.
+- The footer of a GitHub comment for each harness: the ruling "Comment footer" settles it.
+- A global git identity in a cloud session: podcrates sets the identity
+  of the repository alone, and `.claude/settings.json` gives it to each
+  git command of Claude Code.
+- The watchers at a pinned tag of podcrates, fetched from
+  raw.githubusercontent.com: podcrates runs the files of its own tree.
+- `PodUtils/podvm:scripts/qa-bundle.sh` and the blind outside pass of a release: the
+  outside pass is a step of podvm's release of its own binary; the
+  release of podcrates has no such step.
+- The managed Docker socket of
+  `PodUtils/podvm:scripts/common/bootstrap-env.sh`, the KVM and cgroup
+  facts of one host, podvm's `HUMAN.md` and `README.md`,
+  `PodUtils/podvm:docs/hosted-sessions.md` and the record of podvm:
+  podcrates has none of these files or facts.
+
+Not verified: a run of the start in a harness other than Claude Code, on
+macOS, and in a Claude Code session (the hook ran by hand).

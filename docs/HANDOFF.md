@@ -9,14 +9,15 @@ is done. Git and the record keep finished work.
 
 ## The first steps of the next session
 
-1. Start the two watchers, `scripts/agent/watch.py` and
-   `scripts/agent/runs.py`, as background processes with a log, and keep a
-   Monitor on each log (the ruling "Watchers"; `docs/maintenance.md`,
-   "Start of a session"). Resume from this page, and work until each task
-   is done or blocked on a thing out of the control of the session (the
-   ruling "Work until done"). Read the open COORD issues
-   `(to podcrates)` of each repository of PodUtils. Each one maps to an
-   entry:
+1. Make sure that the two watchers, `scripts/agent/watch.py` and
+   `scripts/agent/runs.py`, run as background processes with a log, and
+   keep a Monitor on each log (the ruling "Watchers"; `docs/maintenance.md`,
+   "Start of a session"). `scripts/session-start.sh` starts them; the
+   Claude Code hook runs it, and another harness runs it by hand. Resume
+   from this page, and work until each task is done or blocked on a thing
+   out of the control of the session (the ruling "Work until done"). Read
+   the open COORD issues `(to podcrates)` of each repository of PodUtils.
+   Each one maps to an entry:
    - Answered by the tag `v0.84.0`; the hand-off #260 (COORD-155) is open
      and waits for the takes: PodUtils/podnet#711 (COORD-119, T-1343,
      partial: the functions are in the tag, the moves of the other crates
