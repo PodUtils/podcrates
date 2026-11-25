@@ -1,0 +1,10 @@
+# pod-tpm: the socket transport does not see a time limit that a stream
+# shut down in both directions refuses (EINVAL of setsockopt on macOS), so
+# a short or bad answer after the close of the peer is Unavailable, not
+# Protocol (T-1445). The plant is in the test of the error; the read after
+# a refused limit runs on macOS alone (nightly.yml).
+ENTRY=T-1445
+GROUP=tpm
+EXPECT='only_an_invalid_argument_of_the_system_is_a_stream_that_is_shut_down \.\.\. FAILED'
+RUN='cargo test -p pod-tpm --all-features --lib transport::socket'
+LIMIT=900
