@@ -18,7 +18,7 @@ is done. Git and the record keep finished work.
    `(to podcrates)` of each repository of PodUtils. Each one maps to an
    entry (PodUtils/podvm#570, COORD-183, maps to T-1162, answered on #259; PodUtils/podssh#349,
    COORD-139, maps to T-1164 to T-1169; PodUtils/podssh#350, COORD-140, maps to
-   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podnet#710, COORD-118, answers #259 and maps to T-1117, T-1118 and T-1209; PodUtils/podnet#711, COORD-119, maps to T-1343; PodUtils/podrunner#351, COORD-129, answers #259 and maps to T-1355; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#353, COORD-143, maps to T-1198 and T-1220; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213; PodUtils/podvm#663, COORD-247, answers #259 and maps to T-1143, T-1158 and T-1307). Map each new one
+   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podnet#710, COORD-118, answers #259 and maps to T-1117, T-1118 and T-1209; PodUtils/podnet#711, COORD-119, maps to T-1343; PodUtils/podrunner#351, COORD-129, answers #259 and maps to T-1355; PodUtils/podrunner#352, COORD-130, maps to T-1362, and the hand-off of the tag that carries T-1362 answers it; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#353, COORD-143, maps to T-1198 and T-1220; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213; PodUtils/podvm#663, COORD-247, answers #259 and maps to T-1143, T-1158 and T-1307). Map each new one
    in the same commit.
 2. Coordinate the five sessions by COORD issues alone (the rulings
    "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),
@@ -183,6 +183,13 @@ The asks of #259 to the consumers:
   `standin::edge::listen_at` take the address of the edge (`edge::listen` is
   removed). The test of the dropped UDP binds UDP first and the edge on the
   same port, with a retry of the pair.
+- T-1362 (`pod-job`, PodUtils/podrunner#352, COORD-130 of podrunner):
+  `RealJob` takes the optional fields `ref` (the Rust field `git_ref`; at
+  most 256 bytes, `REF_MAX`, no control character, `ref_fault`) and
+  `repo_id`. A field that is `None` is not on the wire. The schema
+  `source-request.v1` keeps its id (two rows `added`). podrunner adds
+  `git_ref: None, repo_id: None` to each struct literal of `RealJob`. The
+  hand-off of this tag answers PodUtils/podrunner#352.
 
 - T-1243 and T-1355: ports of `pod-testkit` at podrunner `2a55cd9` (the auth
   of the fake broker) and `4fc871c` (the contract `source-driver.md`). No

@@ -450,6 +450,24 @@
           "description": "The key of the job in its workflow (`GITHUB_JOB`).",
           "type": "string"
         },
+        "ref": {
+          "description": "The full ref of the job (`GITHUB_REF`), for example\n`refs/heads/main`: at most 256 bytes, no control character. The\nwire name is `ref`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$"
+        },
+        "repo_id": {
+          "description": "The numeric id of the repository (`GITHUB_REPOSITORY_ID`).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
         "repository": {
           "description": "`OWNER/REPO`.",
           "type": "string"

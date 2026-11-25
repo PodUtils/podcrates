@@ -1,0 +1,6 @@
+# pod-job: the reader of RealJob takes a ref over 256 bytes or with a control character (T-1362).
+ENTRY=T-1362
+GROUP=job
+EXPECT='a_bad_ref_is_a_bad_request|invalid-assigned-ref'
+RUN='cargo test -p pod-job --all-features --lib source'
+LIMIT=900

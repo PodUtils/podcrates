@@ -54,6 +54,13 @@ pub fn host_name(_: &mut SchemaGenerator) -> Schema {
     json_schema!({ "type": ["string", "null"], "maxLength": 253, "pattern": "^[a-z0-9-]{1,63}(\\.[a-z0-9-]{1,63})*$" })
 }
 
+/// The `ref` of a real job (`source::ref_fault`): no control character
+/// (Unicode class Cc). The type holds at most 256 bytes; `maxLength` counts
+/// characters, so the schema takes a longer ref of characters outside ASCII.
+pub fn git_ref(_: &mut SchemaGenerator) -> Schema {
+    json_schema!({ "type": ["string", "null"], "maxLength": 256, "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f]*$" })
+}
+
 /// The `image` of a sandbox: `NAME@sha256:` and 64 lower-case hex digits
 /// (`parts::is_pinned_image`).
 pub fn pinned_image(_: &mut SchemaGenerator) -> Schema {
