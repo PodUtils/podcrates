@@ -43,8 +43,9 @@ pod-session = { path = "../crates/pod-session" }
 # of a proof's seed is pod-identity's.
 pod-e2e = { path = "../crates/pod-e2e", features = ["fuzzing"] }
 pod-identity = { path = "../crates/pod-identity" }
-# The relay lists and the pools of a relay (podssh relay_list, relay_pool).
-pod-relay = { path = "../crates/pod-relay" }
+# The relay lists and the pools of a relay (podssh relay_list, relay_pool);
+# the feature `grant` gives the reader of a bearer (relay_bearer).
+pod-relay = { path = "../crates/pod-relay", features = ["grant"] }
 # The feature `fuzzing` gives the readers of a hello, of an answer of
 # HTTP/1.1 with no runtime and of a server's URL of the Piping Server
 # carrier.
@@ -667,6 +668,13 @@ bench = false
 [[bin]]
 name = "tpm_keyfile"
 path = "fuzz_targets/tpm_keyfile.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "relay_bearer"
+path = "fuzz_targets/relay_bearer.rs"
 test = false
 doc = false
 bench = false

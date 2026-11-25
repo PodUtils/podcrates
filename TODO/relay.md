@@ -12462,7 +12462,7 @@ each file found.
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12491,6 +12491,37 @@ Add seeds from the vectors `bearer` of `grants.json`, a row in
 cargo check --manifest-path fuzz/Cargo.toml --bins
 sh scripts/fuzz.sh 60 relay_bearer
 ```
+
+## Done
+
+2026-11-25, this commit. `Bearer::to_bytes` (new) writes the 221 bytes
+of a bearer from its fields; the private `joined` writes the layout for
+it and for `Unsigned::new`. The fuzz target `relay_bearer`
+(`fuzz/src/targets/relay.rs`) holds that `Bearer::read` accepts an input
+exactly when it is `LEN` bytes with the magic, else `Refused::Form`, and
+that a bearer it reads writes back to the input. It also gives each
+bearer to `Bearers::verify` on one channel with each signer allowed: a
+refusal gives one line with its name, and a bearer that passes is refused
+as `replayed` the second time. `fuzz/src/bearer_seeds.rs` writes five
+seeds (`fuzz/seeds/relay_bearer/`) from the vectors `bearer` and
+`bearer-refused` of `grants.json`, and its test holds the files to its
+output. The fuzz crate takes `pod-relay` with the feature `grant`.
+
+A defect found on the way: since T-1095 the fuzz build of each target
+failed. Under `--cfg fuzzing` the fork `pod-h2` adds `fuzz_bridge`, which
+h2 allows `missing_docs` only with the feature `unstable`, and the lints
+of a path crate are not capped. `vendor/patches/h2/0003-fuzz-docs.patch`
+allows it with no feature; `crates/pod-ws/README.md` lists the patch.
+
+Results: `cargo test -p pod-relay --all-features --lib`: 248 passed (1
+new, `a_read_bearer_writes_back_to_its_bytes_from_its_fields`). `cargo
+test --manifest-path fuzz/Cargo.toml --lib`: 17 passed, 7 ignored.
+`cargo clippy -p pod-relay --all-targets --all-features -- -D warnings`
+and `cargo clippy --manifest-path fuzz/Cargo.toml --all-targets -- -D
+warnings`: clean. `python3 -I scripts/check-vendor.py`: 2 forks agree.
+`sh scripts/fuzz.sh 60 relay_bearer` (nightly-2026-11-18, cargo-fuzz of
+the script, AddressSanitizer): 2327123 runs in 61 s, no crash. Not
+measured: the other targets of `fuzz.yml` after the patch of `pod-h2`.
 
 # T-1371: `pod-relay`: the `Mint` of a grant writes no extension, so a stock sshd gives its certificate no pty and no forward (PodUtils/podssh#356)
 

@@ -55,6 +55,18 @@ pub fn jti(binding: &Binding, nonce: &[u8; 32]) -> [u8; 32] {
     mac.finalize().into_bytes().into()
 }
 
+/// The `parts`, one after the other, in `N` bytes: the parts fill them.
+fn joined<const N: usize, const P: usize>(parts: [&[u8]; P]) -> [u8; N] {
+    let mut out = [0u8; N];
+    let mut at = 0;
+    for part in parts {
+        out[at..at + part.len()].copy_from_slice(part);
+        at += part.len();
+    }
+    debug_assert_eq!(at, N, "the parts fill the bytes");
+    out
+}
+
 /// The fields of a bearer before its signature: what the signer signs.
 #[derive(Clone)]
 pub struct Unsigned {
@@ -66,8 +78,7 @@ impl Unsigned {
     /// `binding`, made at `iat` with the client's fresh `nonce`; it ends
     /// [`LIFE`] seconds later.
     pub fn new(signer: PublicKey, holder: PublicKey, binding: &Binding, iat: u64, nonce: [u8; 32]) -> Unsigned {
-        let mut message = [0u8; SIGNED];
-        let parts: [&[u8]; 7] = [
+        let message = joined([
             MAGIC,
             &signer.0,
             &holder.0,
@@ -75,12 +86,7 @@ impl Unsigned {
             &iat.saturating_add(LIFE).to_be_bytes(),
             &nonce,
             &jti(binding, &nonce),
-        ];
-        let mut at = 0;
-        for part in parts {
-            message[at..at + part.len()].copy_from_slice(part);
-            at += part.len();
-        }
+        ]);
         Unsigned { message }
     }
 
@@ -150,6 +156,21 @@ impl Bearer {
             signature: blob[SIGNED..].try_into().expect("64 bytes"),
             signed: blob[..SIGNED].try_into().expect("the signed bytes"),
         })
+    }
+
+    /// The bytes of the bearer, written from its fields: a bearer that
+    /// [`Bearer::read`] took writes back to the same bytes.
+    pub fn to_bytes(&self) -> [u8; LEN] {
+        joined([
+            MAGIC,
+            &self.signer.0,
+            &self.holder.0,
+            &self.iat.to_be_bytes(),
+            &self.exp.to_be_bytes(),
+            &self.nonce,
+            &self.jti,
+            &self.signature,
+        ])
     }
 }
 

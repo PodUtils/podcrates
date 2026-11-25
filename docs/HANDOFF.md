@@ -175,6 +175,11 @@ The asks of #259 to the consumers:
   keep their form. podssh's gateway can sign with
   `sign_with(&ca, &Extension::OPENSSH_DEFAULT)` at this tag and drop its
   use of `cert::certify` there.
+- T-1369 (`pod-relay`, fuzz): the fuzz target `relay_bearer` reads a
+  bearer with `Bearer::read` and `is_bearer`; `Bearer::to_bytes` (new)
+  writes a bearer back from its fields. The patch
+  `vendor/patches/h2/0003-fuzz-docs.patch` lets the fuzz build of
+  `pod-h2` pass. No change for a consumer.
 - T-1365 (`pod-warp`, PodUtils/podnet#712): a client of the proxy with no
   WARP session gets the SOCKS5 reply 1 (also for `UDP ASSOCIATE` and 0x83)
   or the HTTP status 503 `no WARP session: CAUSE`, then a close with no

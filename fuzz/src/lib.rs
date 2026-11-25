@@ -9,6 +9,8 @@ pub mod targets;
 #[cfg(test)]
 mod arq_seeds;
 #[cfg(test)]
+mod bearer_seeds;
+#[cfg(test)]
 mod frame_seeds;
 #[cfg(test)]
 mod kcp_seeds;
@@ -105,6 +107,7 @@ pub const TARGETS: &[(&str, Target)] = &[
     ("config_yaml", targets::config_yaml),
     ("tpm_response", targets::tpm_response),
     ("tpm_keyfile", targets::tpm_keyfile),
+    ("relay_bearer", targets::relay_bearer),
 ];
 
 /// Whether `text` is safe on one line of a terminal, as
