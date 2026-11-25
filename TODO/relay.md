@@ -12634,3 +12634,43 @@ For the hand-off: no break; `Mint`, `sign` and `Cert` keep their form.
 podssh's gateway can sign with
 `mint.sign_with(&ca, &Extension::OPENSSH_DEFAULT)` and drop
 `cert::certify` for it at the next tag.
+
+# T-1383: `pod-relay`: `Mint` signs a certificate with an Ed25519 issuer alone, so a gateway whose CA is ECDSA or RSA keeps its own signer (PodUtils/podssh#357, ask 4)
+
+**Source:** PodUtils/podssh#357 (COORD-147 of podssh, the take of `v0.84.0` at `806e0a4`), ask 4, by a member of the team; T-1371.
+**Category:** feature
+**Milestone:** M2
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The text of the ask: "`Mint` with an issuer that is not Ed25519 (ECDSA, RSA through a signer that is not the `rsa` crate's private path), so that the gateway signs by one path; today an ECDSA or RSA CA of a route keeps podssh's `cert::certify`."
+
+`Mint::sign_with` (T-1371) takes the issuer as a `pod_identity::Identity`, which is an Ed25519 key. The gateway of `podssh serve --gateway` signs with `Mint::sign_with` where the CA of the route is Ed25519, and with `cert::certify` of podssh where it is another key. So podssh keeps two signers. A stock sshd takes a certificate that an ECDSA or an RSA CA signed, as long as `TrustedUserCAKeys` names that CA.
+
+## Premise
+
+- Read: `crates/pod-relay/src/grant/cert.rs` (`Mint::sign` and `Mint::sign_with` take `&Identity`; `write` puts `key_blob(&issuer.public())` and `issuer.sign(&signed)`; `Cert::issuer` is a `PublicKey` of 32 bytes; `issuer_key` refuses a key that is not Ed25519, so `Cert::from_blob` reads no certificate of another CA; the module doc says "Only this kind"). `crates/pod-relay/Cargo.toml` has `ed25519-dalek` in `[dependencies]` and `p256` in `[dev-dependencies]` alone; no `rsa` crate.
+- Read in podssh at `806e0a4`: `PodUtils/podssh:crates/podssh-ssh/src/server/gateway/upstream.rs` calls `mint.sign_with(&issuer, &PERMITS)` (two permits); `PodUtils/podssh:crates/podssh-cli/src/keygen_cert.rs` calls `cert::certify` for another CA, and `cert::certify_with_agent` for a CA in an agent.
+- Not read: how podssh holds the CA of a route when it is ECDSA or RSA (a key in memory, a file, an agent), and which RSA hash (`rsa-sha2-256`, `rsa-sha2-512`) a route needs. These decide the type of the signer. Ask podssh by a COORD issue before the API is fixed.
+- Not measured: a login to a stock sshd with a certificate of an ECDSA CA that `Mint` wrote.
+
+## Approach
+
+Keep `Mint::sign`, `Mint::sign_with` and `Cert` as they are, and add beside them, so that nothing breaks:
+
+1. A trait `Issuer` in `grant`: the SSH blob of its public key, the name of its signature type (`ssh-ed25519`, `ecdsa-sha2-nistp256`, `rsa-sha2-256`, `rsa-sha2-512`), and `sign(&[u8]) -> Result<Vec<u8>, String>` that returns the SSH signature blob. `Identity` implements it with the code of today, so the bytes of an Ed25519 certificate do not change.
+2. `Mint::sign_by(&dyn Issuer, extensions)`. The crate holds no RSA code: a caller gives the signer (a closure over its own key or over an agent), so the crate takes no new C or RSA dependency. An ECDSA signer can use `p256`, which is in the workspace; make it a feature, as the crate has features for the other parts.
+3. A reader that keeps the issuer's blob and signature type for a certificate of another CA (a new `Cert` form beside the old, or a new type `ForeignCert`), and verification of an ECDSA signature. Name the RSA verification as a separate step if no pure-Rust RSA crate is in the workspace (`pod-tls` has a feature `rsa`: read it first).
+4. Tests: the bytes of a certificate of an ECDSA issuer against a second writer (a script, as `scripts/wire_ed25519.py` does for Ed25519), a round trip, the refusal of a signer whose name is not in the list, and `ssh-keygen -L` where it is installed.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --features grant --lib grant::
+cargo clippy -p pod-relay --all-targets --all-features -- -D warnings
+```
+
+A test signs with an ECDSA issuer and with a closure issuer, and `ssh-keygen -L` reads the certificate.

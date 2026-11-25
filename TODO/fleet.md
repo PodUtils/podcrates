@@ -9450,3 +9450,79 @@ cargo test -p pod-release --all-features tuf
 
 A consumer asks for it, or a new shard of Rekor v2 is announced before a
 release of podcrates carries it.
+
+# T-1380: `pod-tpm`: the transport `Tbs` loads `tbs.dll` when the process starts and bounds no command, so podssh keeps its own copy (PodUtils/podssh#357, ask 1)
+
+**Source:** PodUtils/podssh#357 (COORD-147 of podssh, the take of `v0.84.0` at `806e0a4`), ask 1, by a member of the team; T-1221.
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The text of the ask: "`pod-tpm`'s `Tbs` (feature `tbs`) imports tbs.dll at the start of the process and bounds no command. podssh's T-839 decided against both, so podssh keeps its own `windows.rs`/`tbs.rs` over `pod-tpm`'s `Transport`: tbs.dll loaded at run time from System32 (`LoadLibraryExW`), each command on a thread of its own for 30 s, then `Tbsip_Cancel_Commands` and 5 s more, a context that takes no more after a timeout, and the probe `Tbsi_GetDeviceInfo` for a TPM 2.0. Asked: those in `pod-tpm`'s transport, so that podssh drops its copy."
+
+A host with a TPM that does not answer, or a TBS service that hangs, holds the caller of `Tbs::submit` for ever. The transports `Device` and `Socket` have a time limit (`Limits::command`, 30 s), and `Tbs` has none.
+
+## Premise
+
+- Read: `crates/pod-tpm/src/transport/tbs.rs` (the doc of `Tbs` says "TBS has no time limit that the caller sets, and this transport does not call `Tbsip_Cancel_Commands`"; `Tbs::open` calls `Tbsi_Context_Create` with a context of version two and the bit `includeTpm20`; a context that TBS refuses for a TPM 2.0 gives `TBS_E_INVALID_CONTEXT_PARAM`, class `Unsupported`); `crates/pod-tpm/src/transport/bound.rs` (`Limits`, `broken`, `late`: the bounds of `Device` and `Socket`); `crates/pod-tpm/Cargo.toml` (the feature `tbs` imports the functions of `windows-sys` by `raw-dylib`).
+- Read in podssh at `806e0a4`: `PodUtils/podssh:crates/podssh-ssh/src/tpm/windows.rs` (`LoadLibraryExW` with `LOAD_LIBRARY_SEARCH_SYSTEM32`, then `GetProcAddress` of `Tbsip_Cancel_Commands` and `Tbsi_GetDeviceInfo`) and `PodUtils/podssh:crates/podssh-ssh/src/tpm/tbs.rs` (`bounded`: a thread for each command, a limit, `GRACE` of 5 s, and the context `broken` after a timeout). The ask matches this code.
+- Not read: that an import by `raw-dylib` makes `tbs.dll` load at the start of the process (the ask says so; the platform does this for an import table, but no build measured it). Not measured: any Windows host. This host runs Linux, so the code of `Tbs` does not build here, and the tests of `crates/pod-tpm/tests/tbs.rs` run the map of the codes alone.
+
+## Approach
+
+1. Keep the map of the codes (`tbs::failure`) as it is. Load `tbs.dll` at run time with `LoadLibraryExW(LOAD_LIBRARY_SEARCH_SYSTEM32)`, and resolve `Tbsi_Context_Create`, `Tbsip_Submit_Command`, `Tbsip_Cancel_Commands`, `Tbsip_Context_Close` and `Tbsi_GetDeviceInfo` with `GetProcAddress`. A missing DLL or function is the class `Unavailable`. Then the feature `tbs` needs no `raw-dylib` import.
+2. Give `Tbs::open` a `Limits` (the type of `Device`). Run each command on a thread of its own for `Limits::command`; past it, call `Tbsip_Cancel_Commands`, wait a grace of 5 s, and mark the transport broken, as `broken` of `bound.rs` does. A command that never ends leaves its thread behind, and the transport says `late`.
+3. Add the probe `Tbs::probe()` with `Tbsi_GetDeviceInfo`: no TPM, a TPM 1.2 alone and a TPM 2.0 are three answers.
+4. Take the tests of podssh's `tbs.rs` for the bound (a command in time, a late command that the cancel ends, a command that never ends, a thread that fails). The Windows jobs of `nightly.yml` run the tests; read whether they turn on the feature `tbs`, and if they do not, make them do it.
+
+## Prove
+
+```sh
+cargo test -p pod-tpm --features tbs
+cargo clippy -p pod-tpm --all-targets --features tbs -- -D warnings
+sh scripts/agent/check-windows.sh
+```
+
+The job `test (windows-2025)` of `nightly.yml` runs the new tests of the bound with the feature `tbs`.
+
+# T-1381: `pod-tpm`: `SoftTpm` has no owner's hierarchy with a password, and `flow` has no fallback to the kept storage key, so podssh wraps the model and keeps the fallback itself (PodUtils/podssh#357, ask 2)
+
+**Source:** PodUtils/podssh#357 (COORD-147 of podssh, the take of `v0.84.0` at `806e0a4`), ask 2, by a member of the team; T-1220, T-1222.
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The text of the ask: "`pod-tpm`'s `SoftTpm`: a knob for an owner's hierarchy with a password (`TPM_RC_BAD_AUTH` at CreatePrimary). podssh's glue falls back to the persistent storage key `0x81000001` there (Windows keeps one and no owner password); its test wraps `SoftTpm` in a transport that answers BAD_AUTH. The fallback itself may belong in `pod-tpm`'s `flow`, as podnet and podvm meet Windows too."
+
+Two parts. First, a test of a consumer cannot make the TPM of a Windows host in `SoftTpm`: each hierarchy of the model has the empty password, so a consumer writes a wrapper that answers `TPM_RC_BAD_AUTH` to `TPM2_CreatePrimary`. Second, `flow::create_signing` with the parent `0x40000001` fails with "the hierarchy 0x40000001 has a password, and the crate gives the empty one" when the TPM refuses the primary; the caller must catch `Code::BadAuth` or `Code::AuthFail` and call `create_signing` again with the parent `0x81000001`. Each consumer that meets Windows writes this retry.
+
+## Premise
+
+- Read: `crates/pod-tpm/src/soft.rs` (`authorize`: "Each object, hierarchy and PCR of the model has the empty password"; `persist(handle)` makes the storage key at a persistent handle, as `tpm2_evictcontrol` does); `crates/pod-tpm/src/flow.rs` (`primary` maps `BadAuth` and `AuthFail` to the step above; `create_signing` takes `parent` and `with_parent` takes a permanent or a persistent handle, so the retry needs no new command).
+- Read in podssh at `806e0a4`: `PodUtils/podssh:crates/podssh-ssh/src/tpm/mod.rs` (`create_signing` retries under `PERSISTENT_SRK` after `Code::BadAuth | Code::AuthFail`, and says both reasons when no storage key is kept) and `PodUtils/podssh:crates/podssh-ssh/src/tpm/tests.rs` (`owner_password` answers `TPM_RC_BAD_AUTH` (0x09A2) to `CC_CREATE_PRIMARY`; the test `an_owner_with_a_password_makes_the_key_under_the_kept_storage_key`). The ask matches this code.
+- Not read: the TPM of a Windows host. That Windows keeps a persistent storage key at `0x81000001` and an owner password that nobody knows is the word of podssh (its T-839); no entry of this record measured it. podnet and podvm: that they meet Windows is the word of the ask; their code was not read.
+- Not measured: the fallback against swtpm with an owner password (`tpm2_changeauth -c owner`) and a key at `0x81000001` (`scripts/ci/tpm-tests.sh` does not set a password).
+
+## Approach
+
+1. In `SoftTpm`, a method `set_owner_password(&mut self, password: &[u8])` (or a field of `new`): a password session on `RH_OWNER` with another password gives `TPM_RC_BAD_AUTH` of the first session, as a TPM gives it; the empty password on a hierarchy with a password gives the same code. Keep the default (empty) so no consumer changes. A test in `crates/pod-tpm/tests/soft.rs`.
+2. In `flow`, a function `create_signing_kept(transport, entropy, policy)` (or a parameter) that tries `RH_OWNER` and, on `BadAuth` or `AuthFail`, the persistent storage key `0x81000001`, and writes one line that names both reasons when no storage key is kept (as podssh does). The file names the parent that made the key. Keep `create_signing` as it is, so a caller that names a parent keeps its form.
+3. A test against swtpm in `crates/pod-tpm/tests/swtpm.rs`: set the owner password, persist a storage key at `0x81000001`, and make a key that signs. A plant for the retry.
+4. The README of `pod-tpm` names the new items.
+
+## Prove
+
+```sh
+cargo test -p pod-tpm --features soft,device --test soft --test flow
+sh scripts/ci/tpm-tests.sh
+```
+
+A key of a TPM with an owner password and a kept storage key loads and signs in `SoftTpm` and in swtpm; with no kept storage key, one line says both reasons.

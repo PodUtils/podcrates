@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1006 entries: 154 open, 30 partial, 6 blocked, 816 done.**
+**1010 entries: 158 open, 30 partial, 6 blocked, 816 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 5 | 9 | 0 | 237 | 251 |
-| P2 | 67 | 11 | 4 | 423 | 505 |
-| P3 | 82 | 10 | 2 | 154 | 248 |
-| **All** | 154 | 30 | 6 | 816 | 1006 |
+| P2 | 70 | 11 | 4 | 423 | 508 |
+| P3 | 83 | 10 | 2 | 154 | 249 |
+| **All** | 158 | 30 | 6 | 816 | 1010 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1053,3 +1053,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1377](adapters.md) | P3 | M | M3 | defect | open | `pod-proxy`: the failure of a dial and of a request holds the words of its `DialError` or its cause, so a reader that joins the chain says them two times |
 | [T-1378](adapters.md) | P3 | S | M3 | defect | open | `pod-warp`: the failure of an enrolment with no answer says the text of the path three times to a reader that joins the chain |
 | [T-1379](podvm.md) | P1 | S | M6 | feature | open | `pod-incus`: a typed config PATCH of an instance with an ETag condition, for live limits (PodUtils/podvm#664) |
+| [T-1380](fleet.md) | P2 | M | M8 | feature | open | `pod-tpm`: the transport `Tbs` loads `tbs.dll` when the process starts and bounds no command, so podssh keeps its own copy (PodUtils/podssh#357, ask 1) |
+| [T-1381](fleet.md) | P2 | S | M8 | feature | open | `pod-tpm`: `SoftTpm` has no owner's hierarchy with a password, and `flow` has no fallback to the kept storage key, so podssh wraps the model and keeps the fallback itself (PodUtils/podssh#357, ask 2) |
+| [T-1382](upkeep.md) | P2 | S | M8 | chore | open | `adoption/podssh`: the trials `pod-tpm` and `pod-h2` stay after podssh took `v0.84.0`, and the list of the files of `tpm/` in `pod-tpm.run` is not podssh's (PodUtils/podssh#357, ask 3) |
+| [T-1383](relay.md) | P3 | M | M2 | feature | open | `pod-relay`: `Mint` signs a certificate with an Ed25519 issuer alone, so a gateway whose CA is ECDSA or RSA keeps its own signer (PodUtils/podssh#357, ask 4) |
