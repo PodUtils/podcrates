@@ -12674,3 +12674,44 @@ cargo clippy -p pod-relay --all-targets --all-features -- -D warnings
 ```
 
 A test signs with an ECDSA issuer and with a closure issuer, and `ssh-keygen -L` reads the certificate.
+
+# T-1395: `pod-session`: `resume::move_under`, the largest move under the cap of a relay, and `Settings::under_cap` (PodUtils/podnet#756)
+
+**Source:** PodUtils/podnet#756 (COORD-126 of podnet, PodUtils/podnet@T-476; author MEMBER)
+**Category:** feature
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The text of the ask: "A resumable session moves to a new leg after `move_bytes` (`resume::MOVE_BYTES`, 48 MiB). The old leg still carries bytes while the new leg opens. The worst case before the move is `move_bytes + PAIR_WINDOW (768 KiB) + 2 * CHUNK (64 KiB) + 64` (podnet's study H-19, `docs/research/podnet/hard-problems-results.md`). A caller that sets `move_bytes` for a relay with a small cap has no function for that bound: podnet's test `transfer_over_the_relay_crosses_the_cap` (a fake relay with a cap of 1 MiB) moved at 256 KiB and crossed the cap by 1033 bytes under load. podnet now moves at 160 KiB in the test, a number that podnet computed by hand from the constants of the crate."
+
+The asks:
+
+1. `resume::move_under(cap: u64, window: usize) -> Option<u64>`: the largest `move_bytes` whose worst case stays under `cap`, or `None` when no move fits.
+2. `Settings` (or its builder) refuses a `move_bytes` above `move_under(cap, pair_window)` when the caller gives the cap of the relay, with a failure of the class `Usage`.
+3. A test: for the real numbers (64 MiB, the default window) the default 48 MiB fits; for 1 MiB it gives the largest value that a stand-in relay with that cap never crosses under a parallel load.
+
+## Premise
+
+- Read: `crates/pod-session/src/pump/watch.rs` (`Watch::count` starts the hold in the call that passes `move_at`: the bytes counted before that call are `move_bytes - 1` at most); `pump/hold.rs`, `pump/up.rs`, `pump/outbox.rs` (a held link reads no byte of the application and writes no `DATA` and no `ACK`; one record that the writer took before the hold still goes; `PONG`, `PING` and `RETIRE` still go); `pump/down.rs` (a `PONG` of a held link gives the offset acknowledged before the hold); `link.rs` (`room_within` and `again_fits` bound the payload in flight, not the heads of the records); `record.rs` (`HEADER` 5, a `DATA` head of 13 bytes, `MAX_BODY` 64 KiB); `pump.rs` (`CHUNK` 32 KiB); `resume.rs` and `beside.rs` (the handshake of a leg is not in `Watch::bytes`; the new leg's greeting waits 30 s at most).
+- The ask's formula does not hold for the code. The far end's window bounds its payload in flight, and each `DATA` record adds 13 bytes: a far end whose application writes one byte at a time sends 14 bytes on the leg for each byte of its window. The handshake of the leg (`GREETING`, `OPEN`, `ACCEPT`, `PROOF`: 1.3 KiB at most) and the small records of the hold (`ACK`, `PING`, `PONG`, `RETIRE`, a last `CLOSE`) are not in the formula. This side carries one record after the mark at most, not two chunks: a `DATA` of 64 KiB and 5 bytes at most (a resend).
+- Read: the writer took an `ACK` with the state of the hold that it read before it locked the state, so an `ACK` could cover bytes that the reader took after the mark, and the far end could then send one more window.
+- Not measured: the bytes of a real relay of podnet's reverse road for each frame; the bound counts the bytes of the records.
+
+## Approach
+
+1. `resume::after_mark(window)`: the most bytes that the old leg carries after the mark, from the code: `max(14 * window, 64 KiB + 5)` of the far end, one record of this side, the far end's `ACK`s of this side's window, the handshake, the small records of a hold of 100 s, and a last `CLOSE`. `resume::move_under(cap, window)`: `cap - after_mark(window)`, `None` under 1. In `crates/pod-session/src/resume/cap.rs`.
+2. `Settings::under_cap(cap)`: these settings, or a `Failure` of the stage `Session` and the class `Usage` when `move_bytes` is above `move_under(cap, window)` (the window of the settings, else `pair_window`).
+3. The writer reads the hold again under the lock of the state before it takes an `ACK`.
+4. Tests: the numbers of the default relay and of 1 MiB; the bound of the handshake; a far end of one byte for each record passes the ask's formula and stays under `after_mark`; sessions at full speed both ways at `move_under(1 MiB, 32 KiB)` through a stand-in relay of 1 MiB never meet the cap. A plant drops the 13 bytes of each record from `after_mark`.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features
+cargo clippy -p pod-session --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh --apply
+```
