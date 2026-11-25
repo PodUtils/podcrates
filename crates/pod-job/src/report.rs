@@ -48,6 +48,27 @@ pub struct UnitFields {
     /// could not count.
     pub residual_processes: Residual,
     pub residual_files: Residual,
+    /// How the unit started: cold for the job, or warm before the claim.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start: Option<UnitStart>,
+    /// The seconds, rounded up, that the unit waited warm before its claim.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub warm_s: Option<u64>,
+    /// The seconds from the start of the unit to the ready mark of its
+    /// script.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub boot_s: Option<u64>,
+}
+
+/// How a unit started (G-25 of githome).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum UnitStart {
+    /// The unit booted for the job, after the claim.
+    Cold,
+    /// The unit booted before the job and waited for one claim.
+    Warm,
 }
 
 /// A count (of `destroy`, or of the use of a unit), or `unknown`.
@@ -149,8 +170,8 @@ pub struct RunReport {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_written_bytes: Option<Residual>,
     /// For each measured field that is `unknown` and each absent time (the
-    /// lists `MEASURED` and `TIMES`): why, in one line. A kind that cannot
-    /// measure a fact says `unknown` with a reason, never 0.
+    /// lists `MEASURED`, `TIMES` and `UNIT_TIMES`): why, in one line. A
+    /// kind that cannot measure a fact says `unknown` with a reason, never 0.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub unknown_reasons: BTreeMap<String, String>,
     /// The end of the log of a unit that failed before the runner
@@ -177,6 +198,10 @@ pub const MEASURED: [&str; 7] = [
 /// The times of a run report that can be absent. A time is a count or
 /// absent, never `unknown`: `unknown_reasons` can say why one is absent.
 pub const TIMES: [&str; 5] = ["claim_to_first_step_s", "prepare_s", "start_s", "run_s", "destroy_s"];
+
+/// The times of the unit (`unit.NAME`) that can be absent; also absent when
+/// no unit ran. `unknown_reasons` names one by its name alone.
+pub const UNIT_TIMES: [&str; 2] = ["boot_s", "warm_s"];
 
 /// The public report (`run-report-public.v1`). It never names the host.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -235,7 +260,8 @@ impl RunReport {
     }
 
     /// The field `name` is a measured field that is `unknown`, or a time of
-    /// [`TIMES`] that is absent: only such a field takes a reason.
+    /// [`TIMES`] or [`UNIT_TIMES`] that is absent: only such a field takes
+    /// a reason.
     fn has_no_value(&self, name: &str) -> bool {
         match self.time(name) {
             Some(time) => time.is_none(),
@@ -243,9 +269,13 @@ impl RunReport {
         }
     }
 
-    /// The time `name` of [`TIMES`]; `None` for a name that is not a time.
+    /// The time `name` of [`TIMES`] or [`UNIT_TIMES`]; `None` for a name
+    /// that is not a time.
     fn time(&self, name: &str) -> Option<Option<u64>> {
+        let unit = self.unit.as_ref();
         match name {
+            "boot_s" => Some(unit.and_then(|u| u.boot_s)),
+            "warm_s" => Some(unit.and_then(|u| u.warm_s)),
             "claim_to_first_step_s" => Some(self.claim_to_first_step_s),
             "prepare_s" => Some(self.prepare_s),
             "start_s" => Some(self.start_s),
@@ -311,5 +341,44 @@ fn rules(schema: u32, exit: ExitReason, code: bool, unit: bool) -> Result<(), St
         (_, true, _) => Err("refusal_code needs exit_reason refused".into()),
         (ExitReason::Withdrawn, false, true) => Err("a withdrawn report has no unit fields".into()),
         _ => Ok(()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{RunReport, UnitStart};
+
+    fn example(name: &str) -> RunReport {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/examples/run-report/");
+        let text = std::fs::read_to_string(format!("{path}{name}")).expect("an example");
+        serde_json::from_str(&text).expect("a report")
+    }
+
+    #[test]
+    fn the_start_of_a_warm_and_a_cold_unit_reads_and_writes_back_the_same() {
+        for (name, start, warm_s, boot_s) in [
+            ("valid-warm-unit.json", UnitStart::Warm, Some(41), Some(7)),
+            ("valid-cold-unit.json", UnitStart::Cold, None, Some(9)),
+        ] {
+            let report = example(name);
+            let unit = report.unit.clone().expect("a unit");
+            assert_eq!((unit.start, unit.warm_s, unit.boot_s), (Some(start), warm_s, boot_s), "{name}");
+            assert_eq!(report.check(), Ok(()), "{name}");
+            let text = serde_json::to_string(&report).expect("a report is JSON");
+            let word = if start == UnitStart::Warm { r#""start":"warm""# } else { r#""start":"cold""# };
+            assert!(text.contains(word), "{name}: {text}");
+            assert_eq!(serde_json::from_str::<RunReport>(&text).expect("a report"), report, "{name}");
+        }
+    }
+
+    #[test]
+    fn a_unit_with_no_start_writes_no_start_warm_s_or_boot_s() {
+        let report = example("valid-success.json");
+        let unit = report.unit.clone().expect("a unit");
+        assert_eq!((unit.start, unit.warm_s, unit.boot_s), (None, None, None));
+        let value = serde_json::to_value(&report).expect("a report is JSON");
+        for key in ["start", "warm_s", "boot_s"] {
+            assert!(value["unit"].get(key).is_none(), "{key}: {value}");
+        }
     }
 }

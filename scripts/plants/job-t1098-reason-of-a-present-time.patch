@@ -1,8 +1,8 @@
 diff --git a/crates/pod-job/src/report.rs b/crates/pod-job/src/report.rs
 --- a/crates/pod-job/src/report.rs
 +++ b/crates/pod-job/src/report.rs
-@@ -238,7 +238,7 @@
-     /// [`TIMES`] that is absent: only such a field takes a reason.
+@@ -264,7 +264,7 @@
+     /// a reason.
      fn has_no_value(&self, name: &str) -> bool {
          match self.time(name) {
 -            Some(time) => time.is_none(),
@@ -13,13 +13,13 @@ diff --git a/crates/pod-job/src/report.rs b/crates/pod-job/src/report.rs
 diff --git a/crates/pod-job/src/json_schema.rs b/crates/pod-job/src/json_schema.rs
 --- a/crates/pod-job/src/json_schema.rs
 +++ b/crates/pod-job/src/json_schema.rs
-@@ -136,7 +136,8 @@
-     let times =
-         TIMES.iter().map(|name| json!({ "if": when(name), "then": { "properties": { (*name): { "type": "null" } } } }));
+@@ -148,7 +148,8 @@
+         json!({ "if": when(name), "then": { "properties": { "unit": unit } } })
+     });
      if let Some(Value::Array(rules)) = schema.get_mut("allOf") {
--        rules.extend(measured.chain(times));
+-        rules.extend(measured.chain(times).chain(unit_times));
 +        let _ = times;
-+        rules.extend(measured);
++        rules.extend(measured.chain(unit_times));
      }
-     let names: Vec<&str> = MEASURED.iter().chain(TIMES.iter()).copied().collect();
+     let names: Vec<&str> = MEASURED.iter().chain(TIMES.iter()).chain(UNIT_TIMES.iter()).copied().collect();
      if let Some(Value::Object(field)) = schema.get_mut("properties").and_then(|p| p.get_mut("unknown_reasons")) {

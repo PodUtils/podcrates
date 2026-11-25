@@ -48,6 +48,26 @@ pub struct KindStatus {
     pub busy: u32,
     /// The capability record of the kind (`unit-capability.v1`).
     pub probe: Capability,
+    /// The warm units of the kind; absent when the kind keeps none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub warm: Option<WarmStatus>,
+}
+
+/// The warm units of one kind: units that boot before a job and wait,
+/// fresh, for one claim.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
+pub struct WarmStatus {
+    /// The warm units that the kind keeps.
+    pub target: u32,
+    /// The warm units that boot now.
+    pub booting: u32,
+    /// The warm units that wait for a claim now.
+    pub ready: u32,
+    /// Why the kind boots no new warm unit now; absent when it does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paused_reason: Option<String>,
 }
 
 /// One pinned payload in the status.
@@ -88,6 +108,9 @@ pub struct Status {
     /// The units that run on the host now.
     #[serde(default)]
     pub units: u32,
+    /// The warm units of the host now, across its kinds, booting and ready.
+    #[serde(default)]
+    pub warm_units: u32,
 }
 
 impl Status {
@@ -118,6 +141,25 @@ mod tests {
         let s: Status = serde_json::from_str(&example("valid-running.json")).unwrap();
         assert!(!s.sources[0].draining);
         assert_eq!((s.max_units, s.units), (None, 0));
+        assert_eq!((s.kinds[0].warm.as_ref(), s.warm_units), (None, 0));
+        let text = serde_json::to_string(&s).unwrap();
+        assert!(!text.contains("\"warm\""), "{text}");
+    }
+
+    #[test]
+    fn the_warm_units_of_a_kind_read_and_write_back_the_same() {
+        let s: Status = serde_json::from_str(&example("valid-warm.json")).unwrap();
+        let warm = s.kinds[0].warm.as_ref().expect("the warm units of the kind");
+        assert_eq!((warm.target, warm.booting, warm.ready), (2, 1, 0));
+        assert_eq!(warm.paused_reason.as_deref(), Some("the disk of the host is low"));
+        assert_eq!(s.warm_units, 1);
+        assert_eq!(s.check(), Ok(()));
+        let again: Status = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
+        assert_eq!(again, s);
+        let mut running = s.clone();
+        running.kinds[0].warm.as_mut().expect("warm").paused_reason = None;
+        let text = serde_json::to_string(&running).unwrap();
+        assert!(!text.contains("paused_reason"), "{text}");
     }
 
     #[test]

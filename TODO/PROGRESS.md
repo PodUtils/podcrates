@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 994 entries: 148 open, 29 partial, 8 blocked, 809 done.
+`TODO/INDEX.md` holds 995 entries: 148 open, 29 partial, 8 blocked, 810 done.
 
 ## State
 
@@ -15,7 +15,9 @@
 - On `main` after `v0.83.0`, for the next tag: T-1243 and T-1355 (ports
   with no change for a consumer); T-1362 (the fields `ref` and `repo_id`
   of `RealJob`, PodUtils/podrunner#352, COORD-130 of podrunner; the
-  hand-off of the next tag answers it).
+  hand-off of the next tag answers it); T-1370 (warm and cold units in
+  `run-report.v1` and `status.v1`, PodUtils/podrunner#353, COORD-131 of
+  podrunner; the hand-off of the next tag answers it).
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
   not on `main`. `release.yml` has steps that run on a tag only, which the
   dry run does not test (T-974; `docs/maintenance.md`, "A release").

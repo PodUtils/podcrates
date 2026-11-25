@@ -18,7 +18,7 @@ is done. Git and the record keep finished work.
    `(to podcrates)` of each repository of PodUtils. Each one maps to an
    entry (PodUtils/podvm#570, COORD-183, maps to T-1162, answered on #259; PodUtils/podssh#349,
    COORD-139, maps to T-1164 to T-1169; PodUtils/podssh#350, COORD-140, maps to
-   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podnet#710, COORD-118, answers #259 and maps to T-1117, T-1118 and T-1209; PodUtils/podnet#711, COORD-119, maps to T-1343; PodUtils/podnet#712, COORD-120, maps to T-1365 (done on `main`; the hand-off of the next tag answers it); PodUtils/podnet#726, COORD-121, maps to T-1366 (done on `main`; the hand-off of the next tag answers it); PodUtils/podrunner#351, COORD-129, answers #259 and maps to T-1355; PodUtils/podrunner#352, COORD-130, maps to T-1362, and the hand-off of the tag that carries T-1362 answers it; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#353, COORD-143, maps to T-1198 and T-1220; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213; PodUtils/podvm#663, COORD-247, answers #259 and maps to T-1143, T-1158 and T-1307). Map each new one
+   T-1191 and T-1192; PodUtils/podvm#657, COORD-241, maps to T-1193 to T-1196; PodUtils/podvm#659, COORD-243, maps to T-1205; PodUtils/podnet#709, COORD-117, maps to T-1209; PodUtils/podnet#710, COORD-118, answers #259 and maps to T-1117, T-1118 and T-1209; PodUtils/podnet#711, COORD-119, maps to T-1343; PodUtils/podnet#712, COORD-120, maps to T-1365 (done on `main`; the hand-off of the next tag answers it); PodUtils/podnet#726, COORD-121, maps to T-1366 (done on `main`; the hand-off of the next tag answers it); PodUtils/podrunner#351, COORD-129, answers #259 and maps to T-1355; PodUtils/podrunner#352, COORD-130, maps to T-1362, and the hand-off of the tag that carries T-1362 answers it; PodUtils/podrunner#353, COORD-131, maps to T-1370, and the hand-off of the tag that carries T-1370 answers it; PodUtils/podssh#351, COORD-141, maps to T-1217 to T-1222; PodUtils/podssh#353, COORD-143, maps to T-1198 and T-1220; PodUtils/podssh#352, COORD-142, maps to T-1235 to T-1238; PodUtils/podvm#661, COORD-245, maps to T-1213; PodUtils/podvm#663, COORD-247, answers #259 and maps to T-1143, T-1158 and T-1307). Map each new one
    in the same commit.
 2. Coordinate the five sessions by COORD issues alone (the rulings
    "Coordinator" and "COORD only"): podcrates, podrunner (the flagship),
@@ -207,6 +207,17 @@ The asks of #259 to the consumers:
   `source-request.v1` keeps its id (two rows `added`). podrunner adds
   `git_ref: None, repo_id: None` to each struct literal of `RealJob`. The
   hand-off of this tag answers PodUtils/podrunner#352.
+- T-1370 (`pod-job`, PodUtils/podrunner#353, COORD-131 of podrunner):
+  `UnitFields` takes `start` (`UnitStart`: `cold` or `warm`), `warm_s`
+  and `boot_s`; `unknown_reasons` can name `boot_s` and `warm_s` when the
+  time of the unit is absent (`UNIT_TIMES`). `KindStatus` takes `warm`
+  (`WarmStatus`: `target`, `booting`, `ready`, `paused_reason`), and
+  `Status` takes `warm_units` (default 0). Each `Option` that is `None` is
+  not on the wire. The schemas `run-report.v1` and `status.v1` keep their
+  ids (six rows `added`). podrunner adds `start: None, warm_s: None,
+  boot_s: None` to each struct literal of `UnitFields`, `warm: None` to
+  each of `KindStatus` and `warm_units: 0` to each of `Status`. The
+  hand-off of this tag answers PodUtils/podrunner#353.
 - T-1339 (`pod-tpm`, PodUtils/podssh#351): the fuzz targets `tpm_response`
   and `tpm_keyfile`, their seeds from the TPM in software, and 16 plants,
   one for each bound of the readers of a response and of a key file. No

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**994 entries: 148 open, 29 partial, 8 blocked, 809 done.**
+**995 entries: 148 open, 29 partial, 8 blocked, 810 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 234 | 247 |
+| P1 | 4 | 9 | 0 | 235 | 248 |
 | P2 | 66 | 10 | 4 | 421 | 501 |
 | P3 | 78 | 10 | 4 | 152 | 244 |
-| **All** | 148 | 29 | 8 | 809 | 994 |
+| **All** | 148 | 29 | 8 | 810 | 995 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1041,3 +1041,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1363](upkeep.md) | P1 | S | M8 | defect | done | `adoption/podssh`: the trial `pod-tpm` does not build, because podssh's relay role gives a stream of the h2 of crates.io to `h2_road::duplex`, which takes the types of `pod-h2` |
 | [T-1365](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: a client of the proxy with no WARP session gets a reset, not a SOCKS5 or HTTP failure reply (PodUtils/podnet#712) |
 | [T-1366](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: a pin mismatch names the cause by the issuer of the door certificate, and says each cause once (PodUtils/podnet#726) |
+| [T-1370](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: warm and cold units in `run-report.v1` and `status.v1` (PodUtils/podrunner#353) |
