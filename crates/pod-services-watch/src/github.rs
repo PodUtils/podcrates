@@ -42,7 +42,9 @@ fn text_of<'a>(args: &Args<'a>, name: &str) -> Result<&'a str, Finding> {
 }
 
 /// `github-release`: the release of the pinned tag of `fact` is younger
-/// than `max-age-days`; the newest release is reported.
+/// than `max-age-days`, or it is the newest release; the newest release is
+/// reported. No newer release exists then, so the rule of the age of a pin
+/// cannot apply to it.
 pub async fn release(service: &Service, watch: &Watch, net: &Net) -> Checked {
     let args = Args::new(service, watch);
     let (repo, max) = (args.text("repo")?, args.int("max-age-days")?);
@@ -53,7 +55,7 @@ pub async fn release(service: &Service, watch: &Watch, net: &Net) -> Checked {
     let age = days_since(day, net.today).ok_or_else(|| Finding::failed(format!("the release {pinned} has no day")))?;
     let mut out = Outcome::default();
     out.saw(format!("the newest release of {repo} is {tag}; {pinned} is {age} days old"));
-    if age > max {
+    if age > max && tag != pinned {
         let fact = args.fact("fact")?;
         let now = format!("a release of {age} days, past {max}; the newest is {tag}");
         out.found(Finding::moved(named(fact), pinned, now));
