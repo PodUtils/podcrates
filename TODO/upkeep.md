@@ -7115,3 +7115,175 @@ cargo test -p pod-iroh --all-features
 sh scripts/agent/check.sh
 ```
 `cargo tree` shows one version of `simple-dns`.
+
+# T-1517: `pod-core`: podssh's words of an I/O error with no "(os error N)" in the files of the cache and in `text.rs` (port of podssh's T-952)
+
+**Source:** `upstream.yml` 45838753274 (job `sources`), `scripts/check-sources.py`.
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+After T-1421, podssh changed four imported files of `pod-core`:
+
+```text
+pod-core: changed Azathothas/podssh:crates/podssh-relay/src/cache/closed_win.rs -> crates/pod-core/src/files/closed_win.rs
+pod-core: changed Azathothas/podssh:crates/podssh-relay/src/cache/own.rs -> crates/pod-core/src/files/own.rs
+pod-core: changed Azathothas/podssh:crates/podssh-relay/src/cache/owner.rs -> crates/pod-core/src/files/owner.rs
+pod-core: changed Azathothas/podssh:crates/podssh-ws/src/text.rs -> crates/pod-core/src/text.rs
+```
+
+The commits are `07d7d9b6`, `9f788985` and `0f1f64b2` (PodUtils/podssh@T-952
+and PodUtils/podssh@T-990). `07d7d9b6` adds
+`podssh_ws::text::plain` and `said`, which take Rust's " (os error N)"
+off a line that a user reads. `9f788985` uses `said` at each `{e}` of an
+`io::Error` in the files of the cache. `0f1f64b2` adds `file_said`: the
+words for a file that a flag names ("no such file", or the directory that
+is missing).
+
+## Premise
+
+- Read: `git diff 600d59e 595568e` of podssh for the four files;
+  `crates/pod-core/src/text.rs` (`plain` and `io_words` of T-1421 are
+  podssh's `plain` and `said`, with the same code); each `{e}` of an
+  `io::Error` in `crates/pod-core/src/files.rs` and `crates/pod-core/src/files/`.
+- `codegraph.py similar file missing directory does not exist no such
+  file`: no function of podcrates gives the words of `file_said`.
+- `crates/pod-core/src/lock.rs` and `crates/pod-core/src/process.rs` keep
+  the `io::Error` as the source of a `Failure` or of a `RunFault`:
+  `chain_of` names a cause once only when the text holds its words, so
+  `io_words` in such a text names the error two times. They stay.
+- Not measured: the code for Windows on Windows (`closed_win.rs`,
+  `replace_win.rs`); `cargo clippy --target x86_64-pc-windows-gnu`
+  checks it here.
+
+## Approach
+
+1. Port `file_said` as `pod_core::text::file_words(&Path, &io::Error)`,
+   with podssh's test, and podssh's added case of `plain`.
+2. Use `io_words` at each `{e}` of an `io::Error` in the files of the cache
+   (the change of `9f788985`), and at the other such lines of
+   `crates/pod-core/src/files/`: `crates/pod-core/src/files.rs`
+   (`store_noting`, `read_private`), `temp.rs`,
+   `crates/pod-core/src/files/socket/alias.rs`, `replace_win.rs`.
+3. Tests: a refused read (a name past `NAME_MAX`) and a directory that
+   takes no file in `own.rs`, the owner of such a path in `owner.rs`, the
+   names that are there in `temp.rs`, the refusal of each directory in
+   `crates/pod-core/tests/files.rs`. Plants: `read_own` keeps the code; `file_words`
+   says "no such file" for a missing directory.
+4. Move the podssh block of `SOURCES` to the head of podssh, with the
+   blobs of `git ls-tree`.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone Azathothas/podssh=PODSSH --clone PodUtils/podnet=PODNET pod-core
+cargo test -p pod-core --all-features
+sh scripts/plant-each.sh core-t1517-own-read-keeps-code core-t1517-file-words-no-directory
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1517. The port point is podssh
+`595568e`.
+
+- New public API of `pod-core`: `text::file_words(&Path, &io::Error)`
+  (podssh's `file_said`): "no such file", "the directory DIR does not
+  exist", or `io_words` of another error. `plain` and `io_words` (T-1421)
+  were already podssh's `plain` and `said`; podssh's added case of `plain`
+  (a code with no blank before it stays) is in the test.
+- Changed text for consumers: each line of `pod_core::files` that shows an
+  `io::Error` has no " (os error N)" now: `read_own`,
+  `create_file_in_first`, `store_noting` (and `store_file_in_first`),
+  `read_private`, the owner of a path (`owner_of`), the SID and the access
+  list on Windows, the names of `temp::new_named` that were there, the
+  short path of a socket, the rename on Windows. The lines of
+  `crates/pod-core/src/lock.rs` and `crates/pod-core/src/process.rs` keep
+  the error as their source and stay (the Premise).
+- Tests: `text::tests::file_words_say_what_is_missing`,
+  `files::own::tests::a_refused_read_or_directory_says_the_words_of_the_system_alone`,
+  `files::owner::tests::a_refused_owner_says_the_words_of_the_system_alone`;
+  new asserts in `only_names_that_are_there_fail_after_the_bound` and
+  `when_no_directory_works_the_error_names_each_one`.
+- The plants ran by hand in this worktree (apply the patch, run RUN, find EXPECT, revert): `core-t1517-own-read-keeps-code` and
+  `core-t1517-file-words-no-directory`: each caught (exit 101).
+- `crates/pod-core/SOURCES`: the podssh block is at `595568e` (blobs
+  `closed_win.rs` `2fd7bc9`, `own.rs` `1e5db84`, `owner.rs` `c23782a`,
+  `text.rs` `99168ec`). `check-sources.py --clone
+  Azathothas/podssh=CLONE --clone PodUtils/podnet=CLONE pod-core`: 14
+  files, 0 changes; 2 files, 0 changes; exit 0.
+- `cargo test -p pod-core --all-features`: 152 passed (the library 131),
+  0 failed. `cargo clippy -p pod-core --all-targets --all-features -- -D
+  warnings` and `cargo clippy -p pod-core --target x86_64-pc-windows-gnu
+  --all-features -- -D warnings` passed.
+
+# T-1519: `pod-gzip`: podvm took `Members` at `04c8b7f`, and the block of `SOURCES` has no `taken` line
+
+**Source:** `upstream.yml` 45838753274 (job `sources`), `scripts/check-sources.py`.
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`scripts/check-sources.py` reads two imported files of `pod-gzip` as
+changed:
+
+```text
+pod-gzip: changed PodUtils/podvm:crates/podvm/src/incus/gzip.rs -> crates/pod-gzip/src/lib.rs
+pod-gzip:     04c8b7f Take podcrates v0.84.0 and prepare the Incus quota proof
+pod-gzip: changed PodUtils/podvm:crates/podvm/src/incus/import_tests.rs -> crates/pod-gzip/tests/members.rs
+pod-gzip:     cff32d7 Support channels and process limits in saved guests
+pod-gzip:     04c8b7f Take podcrates v0.84.0 and prepare the Incus quota proof
+```
+
+`04c8b7f` is podvm's take of `pod_gzip::Members` (PodUtils/podvm#666):
+`gzip.rs` keeps `Upload` and `wanted` and calls `pod_gzip`; the two tests
+of the writer leave `import_tests.rs`. `cff32d7` changes the tests of the
+import of podvm, which stay in podvm.
+
+## Premise
+
+- Read: `git show 04c8b7f` and `git show cff32d7` of podvm for the two
+  files; `git diff cd51868 04c8b7f^` for the two files (no change before
+  the take); `docs/maintenance.md`, "After a consumer takes a crate";
+  T-1382 (the form of a `taken` line).
+- `adoption/podvm/` has no trial of `pod-gzip`.
+- Not done here: the record of the take on the hand-off issue (a write to
+  GitHub; the lead does it).
+
+## Approach
+
+1. Add `taken 04c8b7f...` to the podvm block of `crates/pod-gzip/SOURCES`,
+   with the reason in a comment: the files are then compared with the
+   parent of the take.
+2. No port: the take removes podvm's copy, and `cff32d7` changes the tests
+   of podvm's import alone.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=PODVM pod-gzip
+cargo test -p pod-gzip --all-features
+```
+
+## Done
+
+2026-11-26. No port. Commit: see `git log` for T-1519.
+
+- `crates/pod-gzip/SOURCES`: the podvm block has `taken 04c8b7f4...`,
+  with the reason in its comment. `check-sources.py --clone
+  PodUtils/podvm=CLONE pod-gzip`: "PodUtils/podvm at cd51868, taken at
+  04c8b7f: 2 files, 0 changes", exit 0.
+- `cff32d7` changes the tests of podvm's import (`Stub::layers`, the space
+  of the storage pool); they stay in podvm.
+- No trial of `pod-gzip` in `adoption/podvm/`, so no file to remove. The
+  record of the take on the hand-off issue and the list of takes in
+  `adoption/README.md` are for the lead.
+- No code change, so no new test. `cargo test -p pod-gzip
+  --all-features`: 15 passed, 0 failed.

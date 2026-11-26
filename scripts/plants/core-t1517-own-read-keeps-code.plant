@@ -1,0 +1,7 @@
+# pod-core: `read_own` shows a refused read of the system with Rust's
+# " (os error N)" (T-1517, podssh 9f788985). The test must fail.
+ENTRY=T-1517
+GROUP=core
+EXPECT='test files::own::tests::a_refused_read_or_directory_says_the_words_of_the_system_alone \.\.\. FAILED'
+RUN='cargo test -p pod-core --all-features --lib files::own::tests::a_refused_read_or_directory_says_the_words_of_the_system_alone -- --exact'
+LIMIT=900

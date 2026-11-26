@@ -95,7 +95,7 @@ pub(super) fn new_named<T>(
             Err(e) => return Err(e),
         }
     }
-    let why = last.map(|e| format!(": {e}")).unwrap_or_default();
+    let why = last.map(|e| format!(": {}", crate::text::io_words(&e))).unwrap_or_default();
     Err(io::Error::new(
         io::ErrorKind::AlreadyExists,
         format!("{}: each of {NAMES} names {prefix}-RANDOM{suffix} was there{why}", parent.display()),

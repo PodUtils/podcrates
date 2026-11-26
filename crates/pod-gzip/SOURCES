@@ -3,6 +3,11 @@
 # with the default branch of its repository.
 
 repo PodUtils/podvm cd51868e341d559ec0c85124fef9b13341c3a828
+# podvm took pod_gzip::Members, BLOCK and host_threads at 04c8b7f4 (podvm
+# v0.84.0 take, PodUtils/podvm#666): its gzip.rs keeps Upload and wanted,
+# and its import_tests.rs keeps the tests of the import. No change of the
+# two files came between cd51868 and the take (T-1519).
+taken 04c8b7f4d5d95b4e9091d92b2dd9372a80458a40
 # The writer of gzip members (PodUtils/podvm#657, ask 2). `Members`,
 # `BLOCK`, `MAX_THREADS`, `host_threads` and `member` came; the batch of
 # `drain` became the pool of src/pool.rs. `Upload`, `wanted` and

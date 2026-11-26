@@ -82,3 +82,12 @@ fn the_home_is_that_of_the_first_usable_entry_of_the_uid() {
     assert_eq!(passwd_home(text, 4242), None, "no entry");
     assert_eq!(passwd_home("", 0), None);
 }
+
+/// The owner of a path that the system refuses to read says the words of
+/// the system with no code of Rust (" (os error N)").
+#[test]
+fn a_refused_owner_says_the_words_of_the_system_alone() {
+    let long = std::env::temp_dir().join("n".repeat(300));
+    let e = owner_of(&long).unwrap_err();
+    assert!(e.starts_with(&long.display().to_string()) && !e.contains("os error"), "{e}");
+}

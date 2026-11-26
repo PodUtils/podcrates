@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1084 entries: 173 open, 31 partial, 6 blocked, 874 done.**
+**1090 entries: 174 open, 31 partial, 6 blocked, 879 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 73 | 12 | 4 | 468 | 557 |
-| P3 | 96 | 10 | 2 | 158 | 266 |
-| **All** | 173 | 31 | 6 | 874 | 1084 |
+| P2 | 73 | 12 | 4 | 473 | 562 |
+| P3 | 97 | 10 | 2 | 158 | 267 |
+| **All** | 174 | 31 | 6 | 879 | 1090 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1127,6 +1127,12 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1508](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: an exchange that the capture started always ends, also when the chunk decoder refuses the request body (PodUtils/podnet#781) |
 | [T-1513](services.md) | P2 | S | M5 | defect | done | `services.yml` 45805546683: the Tailscale DERP region 24 gone, and the runner pin of GitHub Actions past 30 days with no newer release |
 | [T-1516](roads.md) | P3 | S | M4 | chore | done | `pod-derp`: the derper tests read `PODSSH_DERP_TEST_*`, and the adoption map says that podnet has no DERP road (PodUtils/podnet#783) |
+| [T-1517](upkeep.md) | P2 | S | M5 | chore | done | `pod-core`: podssh's words of an I/O error with no "(os error N)" in the files of the cache and in `text.rs` (port of podssh's T-952) |
+| [T-1518](foundation.md) | P2 | S | M0 | chore | done | `pod-guest`: the parts of podvm's `ext.rs` for a disk of the tree of an image, after `a00e3a4` (port) |
+| [T-1519](upkeep.md) | P2 | S | M5 | chore | done | `pod-gzip`: podvm took `Members` at `04c8b7f`, and the block of `SOURCES` has no `taken` line |
+| [T-1520](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver after podrunner `7e79860` (the seventh port of `source-driver.md`) |
+| [T-1521](fleet.md) | P2 | S | M0 | chore | done | `pod-unit`: podssh's words of an I/O error with no "(os error N)" in podssh's node install after `9f788985` (port) |
+| [T-1522](podvm.md) | P3 | M | M6 | feature | open | `pod-guest`: podvm's writer of a read-only ext4 disk of the tree of an image stays in podvm (podvm `a00e3a4`) |
 | [T-1525](roads.md) | P2 | M | M4 | feature | done | `pod-egress`: a Wisp road that opens a new connection on the next dial after its connection ended, with a bound on the tries and a backoff (PodUtils/podnet#782, ask 1) |
 | [T-1526](roads.md) | P2 | M | M4 | feature | done | `pod-egress`: a Shadowsocks node that a key file builds whole (an Outline key with a `wss://` URL), and the salt prefix of Outline's keys (PodUtils/podnet#782, ask 3) |
 | [T-1527](roads.md) | P2 | S | M4 | feature | done | `pod-egress`: the password extension of Wisp v2, from a secret of the caller (PodUtils/podnet#782, ask 4) |

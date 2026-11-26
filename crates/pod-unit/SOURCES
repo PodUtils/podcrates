@@ -19,16 +19,24 @@
 # `pub(super)` for a test of podssh that gives podssh's older marks to
 # `Unit::older_mark`; its text did not change. podssh takes v0.82.1 there
 # with the same items as above, so no `taken` line is due.
-repo PodUtils/podssh ea4c2905f2d8cb16cd4464cfc4b7a5b4af315a30
-file f237d045b3b5b97de0b01c909c2bb54b394e851c crates/podssh-cli/src/node_install/text.rs -> crates/pod-unit/src/quote.rs crates/pod-unit/src/systemd.rs crates/pod-unit/src/launchd.rs crates/pod-unit/src/windows.rs crates/pod-unit/src/cron.rs
+# The block moved to 595568e (T-1521). podssh's T-952 (9f788985) says an
+# I/O error with no (os error N): the lines that this crate makes (the
+# reasons of a probe, a stop at a removal, a missing secret, the dispatcher
+# of Windows) use pod_core::text. A typed failure keeps its io::Error as
+# the source; a consumer says its chain with pod_core::text::plain. The
+# refusal of a printed unit of a pair that is not there (0fc86408, its
+# T-1024) and the absolute path of a file flag (text.rs) are of podssh's
+# command line: no port.
+repo PodUtils/podssh 595568ed2edbc7af1d896fed02a454a1a1cc68aa
+file fde0d66b47034894832f82f1afcbf69b6e0c60a9 crates/podssh-cli/src/node_install/text.rs -> crates/pod-unit/src/quote.rs crates/pod-unit/src/systemd.rs crates/pod-unit/src/launchd.rs crates/pod-unit/src/windows.rs crates/pod-unit/src/cron.rs
 file a7b04be90c02039d26117028d7931715f529f051 crates/podssh-cli/src/node_install/system_text.rs -> crates/pod-unit/src/hardening.rs crates/pod-unit/src/systemd.rs
-file 6caee959d1c3a526ac0ddb155e7c7cf8b35bf77f crates/podssh-cli/src/node_install/launchd.rs -> crates/pod-unit/src/install_ways.rs
+file c960cc96b3cb5ac59c6c4c57759256b69907ee12 crates/podssh-cli/src/node_install/launchd.rs -> crates/pod-unit/src/install_ways.rs
 file 654c8708cfaba0023dc13d4f8cddd4eceb5e4e49 crates/podssh-cli/src/node_install/windows.rs -> crates/pod-unit/src/install_ways.rs
-file 982c8a2108f207937ed49424266dcbc02c5b5243 crates/podssh-cli/src/node_install/unix.rs -> crates/pod-unit/src/install_ways.rs crates/pod-unit/src/install.rs
+file b60a297d67d6573645fc64e1742eb2bda491223b crates/podssh-cli/src/node_install/unix.rs -> crates/pod-unit/src/install_ways.rs crates/pod-unit/src/install.rs
 file 5fd3d52cc2b018a87103f6d3dfae73c201beaa99 crates/podssh-cli/src/node_install/tests.rs -> crates/pod-unit/src/quote.rs crates/pod-unit/tests/forms.rs crates/pod-unit/tests/systemd.rs
-file 7db61b469963b43a8b0178e57dbd484aa50bbe23 crates/podssh-cli/src/node_install/system_tests.rs -> crates/pod-unit/tests/systemd.rs crates/pod-unit/tests/install_system.rs
+file 88c70519b7acbc9591755912825ab6ed1f68108e crates/podssh-cli/src/node_install/system_tests.rs -> crates/pod-unit/tests/systemd.rs crates/pod-unit/tests/install_system.rs
 file 941fea84389ff2c0724d5fcecd018cb6a65017eb crates/podssh-cli/src/node_install/system.rs -> crates/pod-unit/src/install_system.rs crates/pod-unit/src/systemd.rs
-file df256a833f564b504b75aa9135f0dcd6c12bcc34 crates/podssh-cli/src/node_install/system_install.rs -> crates/pod-unit/src/install_system.rs crates/pod-unit/src/install_ways.rs
+file 9516175251102a1892fb101be00e0be39f3566d9 crates/podssh-cli/src/node_install/system_install.rs -> crates/pod-unit/src/install_system.rs crates/pod-unit/src/install_ways.rs
 
 # podnet: the user unit and the line of the crontab of `podnet autostart`
 # (its log after the command, its probe of the forms). The command line, the

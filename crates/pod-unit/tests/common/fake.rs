@@ -6,11 +6,13 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use pod_core::Failure;
 use pod_core::process::Ran;
+use pod_core::{Failure, Stage};
 use pod_unit::install::{FileMeta, Host};
 
-/// A run whose line starts with a word of `fail` ends with 1; `crontab -l`
+/// A run whose line starts with a word of `fail` ends with 1, and one that
+/// starts with a word of `missing` does not start, as a program that is not
+/// there (the error of the system, with its code); `crontab -l`
 /// gives `table`; `schtasks /Query` gives `task`; `sc.exe qdescription`
 /// gives `service`; `id -u NAME` gives the uid of `accounts`; a file of
 /// `files` has its owner and mode, and each other file is not there.
@@ -18,6 +20,7 @@ use pod_unit::install::{FileMeta, Host};
 pub struct Fake {
     pub runs: RefCell<Vec<String>>,
     pub fail: Vec<&'static str>,
+    pub missing: Vec<&'static str>,
     pub table: RefCell<Option<String>>,
     pub task: RefCell<Option<String>>,
     pub service: RefCell<Option<String>>,
@@ -39,6 +42,9 @@ impl Host for Fake {
         let line = format!("{program} {}", args.join(" "));
         self.runs.borrow_mut().push(line.clone());
         let ran = |code: i32, stdout: String, stderr: &str| Ran { code: Some(code), stdout, stderr: stderr.into() };
+        if self.missing.iter().any(|m| line.starts_with(m)) {
+            return Err(Failure::io(Stage::Host, line, std::io::Error::from_raw_os_error(2)));
+        }
         if self.fail.iter().any(|f| line.starts_with(f)) {
             return Ok(ran(1, String::new(), "refused by the test"));
         }
@@ -94,7 +100,9 @@ impl Host for Fake {
     }
 
     fn file_meta(&self, path: &Path) -> std::io::Result<FileMeta> {
-        self.files.get(path).copied().ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))
+        // ENOENT, and ERROR_FILE_NOT_FOUND on Windows: an error with the
+        // code of the system, as the host gives.
+        self.files.get(path).copied().ok_or_else(|| std::io::Error::from_raw_os_error(2))
     }
 }
 

@@ -143,6 +143,31 @@ fn a_unit_of_the_system_is_not_installed_here_and_a_probe_finds_the_first_form()
     assert_eq!(install::probe(&Fake::default(), &places).expect("a form"), Form::Systemd);
 }
 
+/// A program that is not there is said in the words of the system with no
+/// code of Rust (" (os error N)"): in the reasons of each probe, and in the
+/// line of a stop that failed at a removal.
+#[test]
+fn a_missing_program_is_said_in_the_words_of_the_system_alone() {
+    if cfg!(windows) {
+        return;
+    }
+    let home = tempfile::tempdir().expect("a directory");
+    let places = places(home.path());
+    let host = Fake { missing: vec!["systemctl", "launchctl", "crontab"], ..Fake::default() };
+    let text = install::probe(&host, &places).expect_err("no form").chain();
+    assert!(text.contains("systemctl --user") && text.contains("crontab -l"), "{text}");
+    assert!(!text.contains("os error"), "{text}");
+    let host = Fake { missing: vec!["launchctl"], ..Fake::default() };
+    let text = install::probe_system(&host).expect_err("no form of the system").chain();
+    assert!(text.contains("launchctl print system") && !text.contains("os error"), "{text}");
+    install::install(&podrunner(), Form::Systemd, &places, &Fake::default()).expect("an install");
+    let host = Fake { missing: vec!["systemctl"], ..Fake::default() };
+    let Removed::Done(lines) = install::remove(&podrunner(), Form::Systemd, &places, &host).expect("a removal") else {
+        panic!("the unit was there");
+    };
+    assert!(lines[0].contains("not now: systemctl --user disable") && !lines[0].contains("os error"), "{lines:?}");
+}
+
 /// PodUtils/podssh#342 (b): what an older version of the program wrote, with
 /// a mark that may hold `--`, is the program's own: an install replaces it
 /// and a removal removes it. A mark of an older version that is not in its

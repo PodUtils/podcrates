@@ -81,6 +81,21 @@ pub fn io_words(e: &std::io::Error) -> String {
     plain(&e.to_string())
 }
 
+/// What a user line shows of an error on a file that a flag or a setting
+/// names: "no such file", or the directory that is missing where the file's
+/// own must be, or [`io_words`] of another error. One set of words for each
+/// such file.
+pub fn file_words(path: &std::path::Path, e: &std::io::Error) -> String {
+    if e.kind() != std::io::ErrorKind::NotFound {
+        return io_words(e);
+    }
+    match path.parent().filter(|dir| !dir.as_os_str().is_empty()) {
+        // The user must make the directory, not the file.
+        Some(dir) if !dir.exists() => format!("the directory {} does not exist", dir.display()),
+        _ => "no such file".to_string(),
+    }
+}
+
 /// `text` with each escape sequence of a terminal removed whole, so that
 /// its parameters do not stay as text: a CSI (ESC `[`, or U+009B) up to its
 /// final byte, an OSC (ESC `]`, or U+009D) up to BEL or ST (ESC `\`, or
@@ -374,5 +389,26 @@ mod tests {
         assert_eq!(plain("x (os error -1)"), "x");
         assert_eq!(plain("x (os error )"), "x (os error )");
         assert_eq!(plain("x (other 2)"), "x (other 2)");
+        assert_eq!(plain("(os error 5)"), "(os error 5)", "no blank before the code: no suffix of Rust");
+    }
+
+    /// A missing file, a missing directory, and another error, each in one
+    /// set of words.
+    #[test]
+    fn file_words_say_what_is_missing() {
+        use std::io::{Error, ErrorKind};
+        let missing = Error::from(ErrorKind::NotFound);
+        let denied = Error::from_raw_os_error(13);
+        let here = std::env::temp_dir();
+        let gone = here.join(format!("pod-core-file-words-{}-none", std::process::id()));
+        for (path, e, want) in [
+            (here.join("none-such-file"), &missing, "no such file".to_string()),
+            (std::path::PathBuf::from("bare"), &missing, "no such file".to_string()),
+            (gone.join("a.log"), &missing, format!("the directory {} does not exist", gone.display())),
+            (here.join("x"), &denied, io_words(&denied)),
+        ] {
+            assert_eq!(file_words(&path, e), want, "{}", path.display());
+        }
+        assert!(!file_words(&here, &denied).contains("os error"));
     }
 }

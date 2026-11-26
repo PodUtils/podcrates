@@ -15917,3 +15917,52 @@ call `pod_guest::ext4::Layout::of` in `refusal` and
 `pod_guest::ext4::write_empty(&file, bytes, &Names::random("podvm-disk")?)`
 in `make` (with no `set_len` before it), and remove its `ext.rs`; a size
 that is not a whole number of blocks is then refused.
+
+# T-1522: `pod-guest`: podvm's writer of a read-only ext4 disk of the tree of an image stays in podvm (podvm `a00e3a4`)
+
+**Source:** T-1518 (podvm `a00e3a4`, PodUtils/podvm@T-1994).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm `a00e3a4` (PodUtils/podvm@T-1994) writes the root disk of a machine
+guest from the tree of its image with no tool of the host: an ext4 file
+system sized to its content, with owners, modes, hard links, links,
+FIFOs, devices, `security.capability`, `user.*` attributes and POSIX ACLs
+(`PodUtils/podvm:crates/podvm/src/machine/guest/disk/image.rs`,
+`inode.rs`, `tree.rs`, `root.rs`, about 1,300 lines with 423 lines of
+tests). It is new code of a consumer with no part that is only podvm's in
+`image.rs`, `inode.rs` and `tree.rs`. T-1518 ports the parts of `ext.rs`
+that it reads, so podvm can remove `ext.rs`; the writer itself stays in
+podvm. A second consumer that needs a disk of a tree (podrunner's microvm
+guests boot from an initramfs) would copy it.
+
+## Premise
+
+- Read: the stat and the head of `image.rs` of podvm at `797efc1`; the
+  uses of `ext::` in `image.rs`, `inode.rs` and `root.rs` (T-1518).
+- Not read: the whole of the writer, its tests, and whether podrunner or
+  podswarm asks for a disk of a tree. podswarm's asks wait (the owner's
+  ruling "podswarm").
+
+## Approach
+
+1. Ask podvm and podrunner by a COORD issue whether a second consumer
+   needs a disk of a tree, and whether podvm wants the writer in
+   `pod-guest`.
+2. When one does, import `image.rs`, `inode.rs`, `tree.rs` and their
+   tests into `pod_guest::ext4` by `docs/design.md`, section 8, with a
+   block in `crates/pod-guest/SOURCES`; `root.rs` (the cache of the disk
+   and the store of podvm) stays in podvm.
+3. Else record the answer and the call in `docs/decisions.md`.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features --lib -- ext4::
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=PODVM pod-guest
+```

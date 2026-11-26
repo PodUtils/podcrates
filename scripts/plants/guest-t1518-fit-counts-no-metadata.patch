@@ -1,0 +1,11 @@
+--- a/crates/pod-guest/src/ext4.rs
++++ b/crates/pod-guest/src/ext4.rs
+@@ -261,7 +261,7 @@
+                 gdt_blocks: (groups * DESC_SIZE).div_ceil(BLOCK),
+                 itable_blocks: ipg * INODE_SIZE / BLOCK,
+             };
+-            let need = (0..groups).map(|g| l.overhead(g)).sum::<u64>().saturating_add(data);
++            let need = data;
+             if need > l.blocks {
+                 groups = (groups + 1).max(need.div_ceil(BLOCKS_PER_GROUP));
+                 continue;

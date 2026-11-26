@@ -9847,3 +9847,105 @@ sh scripts/plant-each.sh release-t1411-former-past-last release-t1411-roots-hint
 - The plants `scripts/plants/release-t1411-former-past-last.plant` (no bound of the last tag) and `scripts/plants/release-t1411-roots-hint-for-signer.plant` (the hint for another signer): each test fails; run by hand with their RUN: 2 caught. The plant `scripts/plants/release-any-identity.plant` (T-104) now plants its defect in `verify_any`: caught.
 - `cargo test -p pod-session -p pod-release -p pod-manual --all-features`: 365 passed, 0 failed (pod-release 94). `cargo clippy` of the three crates with `--all-targets --all-features -- -D warnings` and `cargo fmt --all --check`: clean.
 - Consumers: `Source` has a new public field. podssh builds it with `Source::github` and `..Source::github(..)`, so it compiles as it is; podnet, podvm and podrunner build no `Source`. podssh's `moved` (`PodUtils/podssh:crates/podssh-cli/src/update/mod.rs`) still finds "; nothing was replaced" and the current URI in the new words. Whether podssh names a former signer stays PodUtils/podssh@T-967, a question for its owner.
+
+# T-1521: `pod-unit`: podssh's words of an I/O error with no "(os error N)" in podssh's node install after `9f788985` (port)
+
+**Source:** `upstream.yml` 45838753274 (job `sources`), `scripts/check-sources.py`.
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+After T-1398, podssh changed five imported files of `pod-unit`:
+
+```text
+pod-unit: changed PodUtils/podssh:crates/podssh-cli/src/node_install/launchd.rs -> crates/pod-unit/src/install_ways.rs
+pod-unit: changed PodUtils/podssh:crates/podssh-cli/src/node_install/system_install.rs -> crates/pod-unit/src/install_system.rs, crates/pod-unit/src/install_ways.rs
+pod-unit: changed PodUtils/podssh:crates/podssh-cli/src/node_install/system_tests.rs -> crates/pod-unit/tests/systemd.rs, crates/pod-unit/tests/install_system.rs
+pod-unit: changed PodUtils/podssh:crates/podssh-cli/src/node_install/text.rs -> crates/pod-unit/src/quote.rs, crates/pod-unit/src/systemd.rs, crates/pod-unit/src/launchd.rs, crates/pod-unit/src/windows.rs, crates/pod-unit/src/cron.rs
+pod-unit: changed PodUtils/podssh:crates/podssh-cli/src/node_install/unix.rs -> crates/pod-unit/src/install_ways.rs, crates/pod-unit/src/install.rs
+```
+
+`9f788985` (PodUtils/podssh@T-952) says each `io::Error` of a line of the
+install with `podssh_ws::text::said`, with no " (os error N)": the log
+file and the plist of launchd, the directory and the file of variables of
+a system install, the unit file, a failed write of a user unit, the
+absolute path of a file flag. `0fc86408` (PodUtils/podssh@T-1024) refuses
+a printed unit of a pair that is not there; its test gives a pair file.
+
+## Premise
+
+- Read: `git diff ea4c290 595568e` of podssh for the five files;
+  `crates/pod-unit/src/install.rs`, `crates/pod-unit/src/install_ways.rs`,
+  `crates/pod-unit/src/install_system.rs`,
+  `crates/pod-unit/src/service_scm.rs`; `crates/pod-core/src/failure.rs`
+  (`chain_of`).
+- The writes of `pod-unit` give a `Failure` with the `io::Error` as its
+  source (`Failure::io`): the caller says the chain, and podssh puts
+  `plain` over a typed failure (`9f788985`). The lines that `pod-unit`
+  makes itself are the reasons of `probe` and `probe_system`, the line of
+  a stop at a removal (`how`), a missing secret or file of variables
+  (`secrets`) and the two lines of the dispatcher of Windows.
+- The flags, the printed unit and the pair are of podssh's command line;
+  `pod-unit` has no `service_args` and no `--print-unit`.
+- Not measured: the code for Windows on Windows (`service_scm.rs`);
+  `cargo clippy --target x86_64-pc-windows-gnu` checks it here.
+
+## Approach
+
+1. The lines that `pod-unit` makes take `pod_core::text::plain` of a
+   chain, or `pod_core::text::io_words` of an `io::Error`. A `Failure`
+   keeps its source (the rule of T-1421).
+2. No port of the printed unit, of the pair and of the file flags: they
+   are of podssh's command line.
+3. Tests: the fake host of the tests gets programs that are not there (the
+   error of the system with its code); a probe, a probe of the system and
+   a removal with a missing `systemctl` say no "os error"; the refusal of
+   a missing file of variables says no "os error". A plant: the reasons of
+   a probe keep the code.
+4. Move the podssh block of `SOURCES` to the head of podssh, with the
+   blobs of `git ls-tree`.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podssh=PODSSH --clone PodUtils/podnet=PODNET pod-unit
+cargo test -p pod-unit --all-features
+sh scripts/plant-each.sh unit-t1521-probe-keeps-code
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1521. The port point is podssh
+`595568e`.
+
+- Changed text for consumers: the lines that `pod-unit` makes have no
+  " (os error N)" now: the reasons of `install::probe` and
+  `install::probe_system` (a program that is not there), the line "not
+  now: ..." of a stop at a removal, the refusal of a missing secret or
+  file of variables of a system install, and the two lines of the
+  dispatcher of a Windows service. A returned `Failure` keeps its
+  `io::Error` as the source: a consumer says its chain with
+  `pod_core::text::plain`.
+- No port: the refusal of a printed unit of a pair that is not there, the
+  pair file of its test, and the absolute path of a file flag are of
+  podssh's command line.
+- Tests: `a_missing_program_is_said_in_the_words_of_the_system_alone`
+  (`crates/pod-unit/tests/install.rs`); a new assert in the test of the
+  refusals of a system install (`crates/pod-unit/tests/install_system.rs`).
+  The fake host of the tests gets `missing` programs, and a missing file
+  gives the error of the system with its code.
+- The plants ran by hand in this worktree (apply the patch, run RUN, find EXPECT, revert): `unit-t1521-probe-keeps-code`: caught (exit 101).
+- `crates/pod-unit/SOURCES`: the podssh block is at `595568e` (blobs
+  `launchd.rs` `c960cc9`, `system_install.rs` `9516175`,
+  `system_tests.rs` `88c7051`, `text.rs` `fde0d66`, `unix.rs` `b60a297`).
+  `check-sources.py --clone PodUtils/podssh=CLONE --clone
+  PodUtils/podnet=CLONE pod-unit`: "PodUtils/podssh at 595568e: 9 files,
+  0 changes", "PodUtils/podnet at 83d4fdd: 1 files, 0 changes", exit 0.
+- `cargo test -p pod-unit --all-features`: 42 passed, 0 failed. `cargo
+  clippy -p pod-unit --all-targets --all-features -- -D warnings` and
+  `cargo clippy -p pod-unit --target x86_64-pc-windows-gnu --all-features
+  -- -D warnings` passed.

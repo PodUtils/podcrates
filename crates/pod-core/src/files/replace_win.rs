@@ -47,7 +47,12 @@ pub(super) fn rename(from: &Path, to: &Path) -> io::Result<()> {
             return Err(e);
         }
         if start.elapsed() >= BOUND {
-            let text = format!("the rename onto {} failed {tries} times in {:?}: {e}", to.display(), start.elapsed());
+            let text = format!(
+                "the rename onto {} failed {tries} times in {:?}: {}",
+                to.display(),
+                start.elapsed(),
+                crate::text::io_words(&e)
+            );
             return Err(io::Error::new(e.kind(), text));
         }
         std::thread::sleep(pause);

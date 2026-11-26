@@ -6,7 +6,8 @@ use std::fs::File;
 use std::os::unix::fs::FileExt;
 
 use super::{
-    BLOCK, BLOCKS_PER_GROUP, DESC_SIZE, FIRST_INO, INODE_SIZE, LOST_FOUND_INO, Layout, Names, ROOT_INO, has_super,
+    BLOCK, BLOCKS_PER_GROUP, Counts, DESC_SIZE, FIRST_INO, INODE_SIZE, LOST_FOUND_INO, Layout, Names, ROOT_INO,
+    has_super,
 };
 
 const COMPAT_EXT_ATTR: u32 = 0x8;
@@ -26,13 +27,14 @@ fn put32(b: &mut [u8], at: usize, v: u64) {
     b[at..at + 4].copy_from_slice(&(v as u32).to_le_bytes());
 }
 
-/// The superblock of the copy in group `g` (1024 bytes).
-pub(super) fn superblock(l: &Layout, g: u64, names: &Names, label: &[u8; 16], now: u64) -> Vec<u8> {
+/// The superblock of the copy in group `g` (1024 bytes): its free counts
+/// are the sums of the counts of the groups.
+pub(super) fn superblock(l: &Layout, g: u64, names: &Names, label: &[u8; 16], counts: &[Counts], now: u64) -> Vec<u8> {
     let mut s = vec![0u8; 1024];
     put32(&mut s, 0, l.inodes());
     put32(&mut s, 4, l.blocks);
-    put32(&mut s, 12, l.free_blocks());
-    put32(&mut s, 16, l.inodes() - u64::from(FIRST_INO));
+    put32(&mut s, 12, counts.iter().map(|c| c.free_blocks).sum());
+    put32(&mut s, 16, counts.iter().map(|c| c.free_inodes).sum());
     put32(&mut s, 24, 2); // 1024 << 2
     put32(&mut s, 28, 2);
     put32(&mut s, 32, BLOCKS_PER_GROUP);
@@ -68,24 +70,46 @@ pub(super) fn superblock(l: &Layout, g: u64, names: &Names, label: &[u8; 16], no
 }
 
 /// The group descriptor table (the first copy and each backup).
-fn descriptors(l: &Layout) -> Vec<u8> {
+fn descriptors(l: &Layout, counts: &[Counts]) -> Vec<u8> {
     let mut d = vec![0u8; (l.gdt_blocks * BLOCK) as usize];
-    for g in 0..l.groups {
+    for (g, c) in (0..l.groups).zip(counts) {
         let at = (g * DESC_SIZE) as usize;
         let e = &mut d[at..at + DESC_SIZE as usize];
         put32(e, 0, l.block_bitmap(g));
         put32(e, 4, l.block_bitmap(g) + 1);
         put32(e, 8, l.inode_table(g));
-        put16(e, 12, l.group_blocks(g) - l.used_blocks(g));
-        put16(e, 14, l.inodes_per_group - l.used_inodes(g));
-        put16(e, 16, if g == 0 { 2 } else { 0 });
+        put16(e, 12, c.free_blocks);
+        put16(e, 14, c.free_inodes);
+        put16(e, 16, c.dirs);
     }
     d
 }
 
+/// Write each superblock copy and each descriptor table of `l`, with the
+/// counts of each group, into `f`.
+pub(super) fn write_heads(
+    f: &File,
+    l: &Layout,
+    names: &Names,
+    label: &[u8; 16],
+    counts: &[Counts],
+    now: u64,
+) -> std::io::Result<()> {
+    let gdt = descriptors(l, counts);
+    for g in (0..l.groups).filter(|g| has_super(*g)) {
+        let start = l.group_start(g);
+        let sb = superblock(l, g, names, label, counts, now);
+        // Group 0 keeps its superblock 1024 bytes into the disk; each copy
+        // starts the first block of its group.
+        f.write_all_at(&sb, if g == 0 { 1024 } else { start * BLOCK })?;
+        f.write_all_at(&gdt, (start + 1) * BLOCK)?;
+    }
+    Ok(())
+}
+
 /// A bitmap block with the first `used` bits set, and each bit from
 /// `valid` to the end of the block set as padding.
-fn bitmap(used: u64, valid: u64) -> Vec<u8> {
+pub fn bitmap(used: u64, valid: u64) -> Vec<u8> {
     let mut b = vec![0u8; BLOCK as usize];
     for bit in (0..used).chain(valid..8 * BLOCK) {
         b[(bit / 8) as usize] |= 1 << (bit % 8);
@@ -130,16 +154,15 @@ fn dir_block(entries: &[(u32, &str)]) -> Vec<u8> {
 /// `l.blocks` blocks whose bytes are zero (a new sparse file).
 pub(super) fn write(f: &File, l: &Layout, names: &Names, label: &[u8; 16], now: u64) -> std::io::Result<()> {
     let at = |block: u64| block * BLOCK;
-    let gdt = descriptors(l);
+    let counts: Vec<Counts> = (0..l.groups)
+        .map(|g| Counts {
+            free_blocks: l.group_blocks(g) - l.used_blocks(g),
+            free_inodes: l.inodes_per_group - l.used_inodes(g),
+            dirs: if g == 0 { 2 } else { 0 },
+        })
+        .collect();
+    write_heads(f, l, names, label, &counts, now)?;
     for g in 0..l.groups {
-        let start = l.group_start(g);
-        if has_super(g) {
-            let sb = superblock(l, g, names, label, now);
-            // Group 0 keeps its superblock 1024 bytes into the disk; each
-            // copy starts the first block of its group.
-            f.write_all_at(&sb, if g == 0 { 1024 } else { at(start) })?;
-            f.write_all_at(&gdt, at(start + 1))?;
-        }
         let blocks = l.group_blocks(g);
         f.write_all_at(&bitmap(l.used_blocks(g), blocks), at(l.block_bitmap(g)))?;
         f.write_all_at(&bitmap(l.used_inodes(g), l.inodes_per_group), at(l.block_bitmap(g) + 1))?;

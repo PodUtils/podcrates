@@ -1,0 +1,8 @@
+# pod-guest: the superblock of `write_heads` counts the free blocks of an
+# empty layout, not the sum of the counts of the caller (T-1518, podvm
+# a00e3a4). The test must fail.
+ENTRY=T-1518
+GROUP=guest
+EXPECT='test ext4::tests::the_heads_carry_the_counts_of_the_caller \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- ext4::tests::the_heads_carry_the_counts_of_the_caller --exact'
+LIMIT=1800

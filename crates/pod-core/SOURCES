@@ -2,7 +2,12 @@
 # (docs/design.md, section 9). scripts/check-sources.py compares each
 # with the default branch of its repository.
 
-repo Azathothas/podssh 600d59edf38e3131439a4600130f34a6634184a8
+# The block moved to 595568e (T-1517). podssh's T-952 (07d7d9b6,
+# 9f788985, 0f1f64b2) says an I/O error with no (os error N): text::plain
+# and io_words (T-1421) are podssh's plain and said; file_words is its
+# file_said. The files of the cache (own.rs, owner.rs, closed_win.rs) use
+# io_words, and so do the other lines of src/files that show an io::Error.
+repo Azathothas/podssh 595568ed2edbc7af1d896fed02a454a1a1cc68aa
 taken 8caf2d131ba42581a7ff450d0abfe2832b7f3129 crates/podssh-relay/src/cache.rs crates/podssh-relay/src/session/secret.rs
 # T-308: podssh's take of pod-relay (0872c2c6) took the code of open.rs
 # and tests/cache.rs that this block reads; both were unchanged before it.
@@ -15,10 +20,10 @@ dir crates/podssh-relay/src/cache
 dir crates/podssh-relay/tests/cleanup
 file b9b5d6bc067adfab38fa0431035bf5ea5aaa7a3a crates/podssh-relay/src/cache.rs -> crates/pod-core/src/files.rs
 file 745f73f5caad490526f749491a7571c3899d11cb crates/podssh-relay/src/cache/closed.rs -> crates/pod-core/src/files/closed.rs
-file edabdb0cb2bb205f53a76ac5cfc9a83dc19da5df crates/podssh-relay/src/cache/closed_win.rs -> crates/pod-core/src/files/closed_win.rs
+file 2fd7bc90985e7427692ca846d0d8e0f5f7e62bf7 crates/podssh-relay/src/cache/closed_win.rs -> crates/pod-core/src/files/closed_win.rs
 file 1afcf628db0cca8dd4dca55dfda85fff75bb7fad crates/podssh-relay/src/cache/dirs.rs -> crates/pod-core/src/files/dirs.rs
-file 1b8e2a1deea467c32fda240fcda94aee65d1365b crates/podssh-relay/src/cache/own.rs -> crates/pod-core/src/files/own.rs
-file 1748b834e14fa8c40070d80e57012d2ca2d8b9be crates/podssh-relay/src/cache/owner.rs -> crates/pod-core/src/files/owner.rs
+file 1e5db84db6f5d9ea15b2cf227ead386004266ee6 crates/podssh-relay/src/cache/own.rs -> crates/pod-core/src/files/own.rs
+file c23782a126187b7a2f6b7255d47732afe9a478cc crates/podssh-relay/src/cache/owner.rs -> crates/pod-core/src/files/owner.rs
 file 0baf4955041a21592a4f9cff5ec762fa6dfcf80f crates/podssh-relay/src/cache/owner_tests.rs -> crates/pod-core/src/files/owner_tests.rs
 file fdd54ef6a0a569fc48770895534858e106bc504c crates/podssh-relay/src/open.rs -> crates/pod-core/src/backoff.rs
 file 520f899220059f295b2bbaa191246787e312426b crates/podssh-relay/src/session/secret.rs -> crates/pod-core/src/entropy.rs
@@ -26,7 +31,7 @@ file 074fdbdc074bce77c45fcbc1fbaabba03553214c crates/podssh-relay/tests/cache.rs
 file b56b20ac3ae7da9f400d96dd9e0cd82993f663d0 crates/podssh-relay/tests/cleanup/mod.rs -> crates/pod-core/tests/cleanup/mod.rs
 file 1b1cf086411b13ac47d46ab31f52701d787c3ef1 crates/podssh-ws/src/clock.rs -> crates/pod-core/src/clock.rs
 file 5db08596d7c4630eaf8f9e013e27960746932626 crates/podssh-ws/src/names.rs -> crates/pod-core/src/names.rs
-file 860d37176b0f904c6037e9cc65f43b762497968a crates/podssh-ws/src/text.rs -> crates/pod-core/src/text.rs
+file 99168ec47ddcaffeb41aa4cd19706d25b0d4b2e9 crates/podssh-ws/src/text.rs -> crates/pod-core/src/text.rs
 
 repo PodUtils/podnet 29ba18ae84e2e166e663ae4d7df8284a6bf26f8a
 taken 421eeb90795ed3efe1181a332381c1cb00ae407b

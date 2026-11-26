@@ -15,6 +15,11 @@
 //! Only the metadata blocks are written. Each other block stays a hole of
 //! the file, so a new disk takes some kilobytes of the host for each group,
 //! and the writes of the guest take host blocks as they come.
+//!
+//! A caller that writes a full file system itself, such as a disk of the
+//! tree of an image, takes the parts: [`Layout::fit`] sizes the groups to
+//! its content, [`bitmap`] makes its bitmap blocks, and [`write_heads`]
+//! writes the superblocks and the descriptors with its counts.
 
 use std::fs::File;
 
@@ -24,6 +29,8 @@ use pod_core::{Class, Failure, Stage};
 use crate::{Result, failure};
 
 mod blocks;
+
+pub use blocks::bitmap;
 
 /// The block of the file system, 4 KiB.
 pub const BLOCK: u64 = 4096;
@@ -35,12 +42,16 @@ pub const MAX_BYTES: u64 = u32::MAX as u64 * BLOCK;
 /// The most bytes of a label (`s_volume_name`).
 pub const LABEL_LEN: usize = 16;
 
-const BLOCKS_PER_GROUP: u64 = 8 * BLOCK;
-const INODE_SIZE: u64 = 256;
+/// The blocks of each group but the last: the bits of one bitmap block.
+pub const BLOCKS_PER_GROUP: u64 = 8 * BLOCK;
+/// The bytes of one inode.
+pub const INODE_SIZE: u64 = 256;
 const BYTES_PER_INODE: u64 = 16 << 10;
 const DESC_SIZE: u64 = 32;
-const FIRST_INO: u32 = 11;
-const ROOT_INO: u32 = 2;
+/// The first inode that is not reserved; the inodes below it are in use.
+pub const FIRST_INO: u32 = 11;
+/// The inode of the root directory.
+pub const ROOT_INO: u32 = 2;
 const LOST_FOUND_INO: u32 = 11;
 /// The fewest data blocks that a last group keeps; a smaller rest of the
 /// size is left out of the file system, as `mke2fs` does.
@@ -117,6 +128,42 @@ pub fn write_empty(file: &File, bytes: u64, names: &Names) -> Result<()> {
     blocks::write(file, &layout, names, &label, now).map_err(|e| io("write the ext4 metadata", e))
 }
 
+/// The counts of one group, in its descriptor and in the sums of the
+/// superblock.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Counts {
+    pub free_blocks: u64,
+    pub free_inodes: u64,
+    /// The directories whose inodes are in the group.
+    pub dirs: u64,
+}
+
+/// Write the superblock and each copy of it, and each copy of the group
+/// descriptors, of `l` into `file`, with the counts of each group: the
+/// heads of a file system whose other blocks the caller wrote, such as a
+/// disk of a tree of files. The refusals, each a [`Class::Usage`] failure:
+/// a label that [`Names`] refuses, and counts that are not one for each
+/// group or that a group cannot hold (more free blocks than its data
+/// blocks, more free inodes and directories than its inodes).
+pub fn write_heads(file: &File, l: &Layout, names: &Names, counts: &[Counts], now: u64) -> Result<()> {
+    let label = label_bytes(&names.label)?;
+    if counts.len() as u64 != l.groups {
+        let why = format!("{} counts are given for the {} groups of the file system", counts.len(), l.groups);
+        return Err(failure(Class::Usage, why));
+    }
+    for (g, c) in (0..l.groups).zip(counts) {
+        let data = l.group_blocks(g).saturating_sub(l.overhead(g));
+        if c.free_blocks > data || c.free_inodes.saturating_add(c.dirs) > l.inodes_per_group {
+            let why = format!(
+                "group {g} cannot hold the counts {c:?}: it has {data} data blocks and {} inodes",
+                l.inodes_per_group
+            );
+            return Err(failure(Class::Usage, why));
+        }
+    }
+    blocks::write_heads(file, l, names, &label, counts, now).map_err(|e| io("write the ext4 heads", e))
+}
+
 fn io(what: &str, e: std::io::Error) -> Failure {
     Failure::caused(Stage::Host, Class::of_io(e.kind()), format!("{what}: {e}"), e)
 }
@@ -187,11 +234,52 @@ impl Layout {
         }
     }
 
-    fn group_start(&self, g: u64) -> u64 {
+    /// The smallest layout whose groups hold `data` blocks beside their
+    /// metadata, and `inodes` inodes with the reserved ones: for a disk that
+    /// is written whole once and then only read, with no free block to
+    /// spare. More than a file system of 32-bit block numbers holds is a
+    /// [`Class::Usage`] failure that names both counts.
+    pub fn fit(data: u64, inodes: u64) -> Result<Layout> {
+        let per_block = BLOCK / INODE_SIZE;
+        let max_ipg = 8 * BLOCK;
+        let mut groups = inodes.div_ceil(max_ipg).max(1);
+        loop {
+            if groups.saturating_mul(BLOCKS_PER_GROUP) > u64::from(u32::MAX) {
+                return Err(failure(
+                    Class::Usage,
+                    format!(
+                        "{data} blocks of data and {inodes} inodes are more than an ext4 file system of 32-bit \
+                         block numbers holds (16 TiB)"
+                    ),
+                ));
+            }
+            let ipg = inodes.div_ceil(groups).div_ceil(per_block).max(1) * per_block;
+            let mut l = Layout {
+                blocks: groups * BLOCKS_PER_GROUP,
+                groups,
+                inodes_per_group: ipg,
+                gdt_blocks: (groups * DESC_SIZE).div_ceil(BLOCK),
+                itable_blocks: ipg * INODE_SIZE / BLOCK,
+            };
+            let need = (0..groups).map(|g| l.overhead(g)).sum::<u64>().saturating_add(data);
+            if need > l.blocks {
+                groups = (groups + 1).max(need.div_ceil(BLOCKS_PER_GROUP));
+                continue;
+            }
+            // The last group keeps its metadata and one block.
+            let last = groups - 1;
+            l.blocks = need.max(l.group_start(last) + l.overhead(last) + 1);
+            return Ok(l);
+        }
+    }
+
+    /// The first block of group `g`.
+    pub fn group_start(&self, g: u64) -> u64 {
         g * BLOCKS_PER_GROUP
     }
 
-    fn group_blocks(&self, g: u64) -> u64 {
+    /// The blocks of group `g`: [`BLOCKS_PER_GROUP`], or fewer in the last.
+    pub fn group_blocks(&self, g: u64) -> u64 {
         (self.blocks - self.group_start(g)).min(BLOCKS_PER_GROUP)
     }
 
@@ -200,16 +288,19 @@ impl Layout {
         if has_super(g) { 1 + self.gdt_blocks } else { 0 }
     }
 
-    /// The metadata blocks of group `g`.
-    fn overhead(&self, g: u64) -> u64 {
+    /// The metadata blocks of group `g`: its copy of the superblock and the
+    /// descriptors, its two bitmaps and its inode table.
+    pub fn overhead(&self, g: u64) -> u64 {
         self.super_blocks(g) + 2 + self.itable_blocks
     }
 
-    fn block_bitmap(&self, g: u64) -> u64 {
+    /// The block bitmap of group `g`; the inode bitmap is the next block.
+    pub fn block_bitmap(&self, g: u64) -> u64 {
         self.group_start(g) + self.super_blocks(g)
     }
 
-    fn inode_table(&self, g: u64) -> u64 {
+    /// The first block of the inode table of group `g`.
+    pub fn inode_table(&self, g: u64) -> u64 {
         self.block_bitmap(g) + 2
     }
 

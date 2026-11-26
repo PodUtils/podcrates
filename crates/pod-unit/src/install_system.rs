@@ -132,7 +132,11 @@ fn secrets(unit: &Unit, host: &dyn Host, owner: u32, who: &str) -> Result<(), Fa
     for (what, path) in files.chain(unit.env_file.iter().map(|f| ("the file of variables".to_string(), f.as_path()))) {
         let meta = host.file_meta(path).map_err(|e| {
             let class = if e.kind() == std::io::ErrorKind::NotFound { Class::NotFound } else { Class::Config };
-            Failure::new(Stage::Host, class, format!("{what}, {}: {e}: write it first", path.display()))
+            Failure::new(
+                Stage::Host,
+                class,
+                format!("{what}, {}: {}: write it first", path.display(), pod_core::text::io_words(&e)),
+            )
         })?;
         if let FileMeta { uid: Some(uid), mode: Some(mode) } = meta
             && (uid != owner || mode & 0o077 != 0)

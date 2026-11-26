@@ -146,6 +146,9 @@ fn each_missing_part_of_a_system_install_is_refused_with_its_words() {
     let mut env_file = node();
     env_file.env_file = Some("/etc/podnet/node.env".into());
     refused(&env_file, &host(), Class::NotFound, "the file of variables, /etc/podnet/node.env");
+    // The words of the system with no code of Rust (" (os error N)").
+    let fault = install::install_system(&env_file, Form::Systemd, &places, &host()).expect_err("no file");
+    assert!(!fault.text().contains("os error"), "{}", fault.text());
     assert_eq!(files(dir.path()), Vec::<String>::new());
 }
 

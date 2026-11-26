@@ -207,8 +207,10 @@ pub fn probe(host: &dyn Host, places: &Places) -> Result<Form, Failure> {
             why.push(format!("{program}: {}", ran.said()));
             false
         }
+        // A program that is not there: the words of the system, with no
+        // code of Rust.
         Err(e) => {
-            why.push(e.chain());
+            why.push(pod_core::text::plain(&e.chain()));
             false
         }
     };
@@ -243,7 +245,7 @@ pub fn probe_system(host: &dyn Host) -> Result<Form, Failure> {
     let launchd = match host.run("launchctl", &["print", "system"], None) {
         Ok(ran) if ran.success() => return Ok(Form::Launchd),
         Ok(ran) => format!("launchctl: {}", ran.said()),
-        Err(e) => e.chain(),
+        Err(e) => pod_core::text::plain(&e.chain()),
     };
     Err(Failure::new(
         Stage::Host,

@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 use pod_core::Class;
 use pod_core::entropy::{Entropy, NoRandom};
 
-use super::{BLOCK, Layout, MAX_BYTES, MIN_BYTES, Names, has_super, write_empty};
+use super::{
+    BLOCK, BLOCKS_PER_GROUP, Counts, Layout, MAX_BYTES, MIN_BYTES, Names, has_super, write_empty, write_heads,
+};
 
 /// Each size in and out of the bounds: the bytes of a disk, or the words
 /// of its refusal.
@@ -68,7 +70,7 @@ fn a_superblock_copy_past_group_65535_records_65535() {
     let names = Names { uuid: [1; 16], hash_seed: [2; 16], label: String::new() };
     for (g, want) in [(1u64, 1u16), (59_049, 59_049), (78_125, 0xffff), (117_649, 0xffff)] {
         assert!(has_super(g) && g < l.groups, "{g}");
-        let sb = super::blocks::superblock(&l, g, &names, &[0; 16], 0);
+        let sb = super::blocks::superblock(&l, g, &names, &[0; 16], &[], 0);
         assert_eq!(u16::from_le_bytes([sb[90], sb[91]]), want, "group {g}");
     }
 }
@@ -187,6 +189,66 @@ fn the_free_counts_agree_with_the_bitmaps() {
     let _ = std::fs::remove_dir_all(&d);
 }
 
+/// `Layout::fit` gives groups that hold the data blocks beside their
+/// metadata and the inodes, with no block to spare past the metadata of the
+/// last group; more than 32-bit block numbers hold is refused by name.
+#[test]
+fn a_fit_layout_holds_the_data_and_the_inodes_and_no_more() {
+    for (data, inodes) in [(0u64, 11u64), (2, 11), (30_000, 100), (40_002, 20_000), (1_000_000, 300_000), (10, 70_000)]
+    {
+        let l = Layout::fit(data, inodes).unwrap();
+        let meta: u64 = (0..l.groups).map(|g| l.overhead(g)).sum();
+        let last = l.groups - 1;
+        assert!(meta + data <= l.blocks, "{data} {inodes}: {l:?}");
+        assert_eq!(l.blocks, (meta + data).max(l.group_start(last) + l.overhead(last) + 1), "{data} {inodes}: {l:?}");
+        assert_eq!(l.groups, l.blocks.div_ceil(BLOCKS_PER_GROUP), "{data} {inodes}: {l:?}");
+        assert!(l.inodes() >= inodes && l.inodes_per_group <= 8 * BLOCK, "{data} {inodes}: {l:?}");
+        assert_eq!(l.inodes_per_group % (BLOCK / 256), 0, "{data} {inodes}");
+    }
+    let f = Layout::fit(u64::from(u32::MAX), 11).unwrap_err();
+    assert_eq!(f.class, Class::Usage);
+    assert!(f.to_string().contains("16 TiB") && f.to_string().contains("4294967295 blocks"), "{f}");
+}
+
+/// The heads carry the counts that the caller gives: each descriptor its
+/// group's, and the superblock their sums. Counts that are not one for each
+/// group, or that a group cannot hold, are refused.
+#[test]
+fn the_heads_carry_the_counts_of_the_caller() {
+    let d = scratch("heads");
+    let l = Layout::fit(40_002, 20_000).unwrap();
+    assert_eq!(l.groups, 2, "{l:?}");
+    let path = d.join("heads.raw");
+    let file = std::fs::OpenOptions::new().read(true).write(true).create_new(true).open(&path).unwrap();
+    file.set_len(l.blocks * BLOCK).unwrap();
+    let names = Names { uuid: [3; 16], hash_seed: [4; 16], label: "heads".into() };
+    let counts =
+        [Counts { free_blocks: 7, free_inodes: 9, dirs: 5 }, Counts { free_blocks: 3, free_inodes: 1, dirs: 0 }];
+    write_heads(&file, &l, &names, &counts, 0).unwrap();
+    let disk = std::fs::read(&path).unwrap();
+    for (sb, gdt) in
+        [(1024usize, 4096usize), ((BLOCKS_PER_GROUP * BLOCK) as usize, ((BLOCKS_PER_GROUP + 1) * BLOCK) as usize)]
+    {
+        assert_eq!((le32(&disk[sb..], 12), le32(&disk[sb..], 16)), (10, 10), "the sums at {sb}");
+        for (g, c) in counts.iter().enumerate() {
+            let e = &disk[gdt + g * 32..][..32];
+            assert_eq!(
+                (le16(e, 12), le16(e, 14), le16(e, 16)),
+                (c.free_blocks, c.free_inodes, c.dirs),
+                "group {g} at {gdt}"
+            );
+        }
+    }
+    let too_many = Counts { free_blocks: BLOCKS_PER_GROUP, ..counts[0] };
+    for bad in
+        [&counts[..1], &[too_many, counts[1]][..], &[counts[0], Counts { dirs: l.inodes_per_group, ..counts[1] }]]
+    {
+        let f = write_heads(&file, &l, &names, bad, 0).unwrap_err();
+        assert_eq!(f.class, Class::Usage, "{bad:?}");
+    }
+    let _ = std::fs::remove_dir_all(&d);
+}
+
 /// `e2fsck` of the host: in `PATH`, else in `/usr/sbin` or `/sbin`, which a
 /// user that is not root often has not in `PATH`.
 fn e2fsck() -> Option<PathBuf> {
@@ -214,6 +276,24 @@ fn e2fsck_finds_no_fault_in_the_disk() {
         assert!(
             out.status.success(),
             "{bytes}: e2fsck {}\n{}{}",
+            out.status,
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+    // A fit layout with the two directory blocks as its data: no free
+    // block in one group, and a short last group in two.
+    for (data, inodes) in [(2u64, 11u64), (40_002, 20_000)] {
+        let l = Layout::fit(data, inodes).unwrap();
+        let p = d.join(format!("fit-{data}.raw"));
+        let file = std::fs::OpenOptions::new().write(true).create_new(true).open(&p).unwrap();
+        file.set_len(l.blocks * BLOCK).unwrap();
+        let names = Names::random("fit").unwrap();
+        super::blocks::write(&file, &l, &names, &super::label_bytes("fit").unwrap(), 0).unwrap();
+        let out = std::process::Command::new(&fsck).args(["-f", "-n"]).arg(&p).output().unwrap();
+        assert!(
+            out.status.success(),
+            "fit {data} {inodes}: e2fsck {}\n{}{}",
             out.status,
             String::from_utf8_lossy(&out.stdout),
             String::from_utf8_lossy(&out.stderr)

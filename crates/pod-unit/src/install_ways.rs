@@ -205,6 +205,6 @@ pub(crate) fn remove_cron(unit: &Unit, host: &dyn Host) -> Result<Removed, Failu
 pub(crate) fn how(done: Result<pod_core::process::Ran, Failure>, did: &str) -> String {
     match done {
         Ok(_) => did.to_string(),
-        Err(e) => format!("not now: {}", e.chain()),
+        Err(e) => format!("not now: {}", pod_core::text::plain(&e.chain())),
     }
 }

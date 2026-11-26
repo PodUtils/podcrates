@@ -66,6 +66,7 @@ fn when_no_directory_works_the_error_names_each_one() {
     std::fs::write(&b, b"x").unwrap();
     let err = store_file_in_first(&[a.join("c"), b.join("c")], "kept.json", b"kept").unwrap_err();
     assert!(err.contains(&a.display().to_string()) && err.contains(&b.display().to_string()), "{err}");
+    assert!(!err.contains("os error"), "the words of the system alone: {err}");
 }
 
 /// An environment for [`candidate_dirs_from`]: each pair is a variable.

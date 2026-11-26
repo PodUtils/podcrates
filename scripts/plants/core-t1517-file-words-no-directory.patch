@@ -1,0 +1,11 @@
+--- a/crates/pod-core/src/text.rs
++++ b/crates/pod-core/src/text.rs
+@@ -91,7 +91,7 @@
+     }
+     match path.parent().filter(|dir| !dir.as_os_str().is_empty()) {
+         // The user must make the directory, not the file.
+-        Some(dir) if !dir.exists() => format!("the directory {} does not exist", dir.display()),
++        Some(dir) if dir.as_os_str().is_empty() => format!("the directory {} does not exist", dir.display()),
+         _ => "no such file".to_string(),
+     }
+ }
