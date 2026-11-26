@@ -67,7 +67,7 @@ async fn each_group_of_resolvers_keeps_its_cause_whole_in_the_bound() {
             "failed to lookup address information: Name does not resolve",
             middlebox,
             "could not resolve nothing.invalid: system resolver: Name does not resolve; DNS over HTTPS: 8 resolvers \
-             failed: 4 with TLS: UnknownIssuer; 4 with Address family not supported by protocol",
+             failed: 4 with a certificate that no trusted CA signed; 4 with could not connect",
         ),
         (
             "example.com",
