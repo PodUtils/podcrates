@@ -12854,3 +12854,36 @@ A receiver acknowledges when `ACK_EVERY` (64 KiB) reached its application, else 
 ```sh
 cargo test -p pod-session --all-features
 ```
+
+# T-1473: `pod-relay`: `grant::openssh_public` and `grant::parse_public` are a second encoder and reader of OpenSSH's public line of an Ed25519 key
+
+**Source:** T-1406 (a finding of `python3 -I scripts/codegraph.py similar openssh public line ed25519 base64 blob`).
+**Category:** chore
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_identity::PublicKey::openssh` and `PublicKey::from_openssh` (T-1406) write and read OpenSSH's public line `ssh-ed25519 BASE64 [comment]`. `crates/pod-relay/src/grant/cert.rs` keeps its own `openssh_public`, `parse_public` and `key_blob` for the same line. The ruling "Shared code" asks for one copy.
+
+## Premise
+
+- Read: `crates/pod-relay/src/grant/cert.rs` (`openssh_public`, `parse_public`, `key_blob`, `Reader`), `crates/pod-identity/src/openssh.rs`.
+- `parse_public` also reads a key as `PublicKey::parse` reads it, from the first word, and refuses a fingerprint; `KeyName::parse` takes a fingerprint, so `parse_public` stays a function of `pod-relay` that calls `PublicKey::from_openssh`.
+- `key_blob` and `Reader` also serve the certificate of the grant, which holds the key's blob.
+- Not measured: the effect on the tests of `pod-relay`.
+
+## Approach
+
+1. `openssh_public(key)` becomes `key.openssh()`; keep the name as a re-export or remove it and change its callers.
+2. `parse_public(text)`: `PublicKey::from_openssh(text)` for a line that starts with `pod_identity::OPENSSH_TYPE`, else `PublicKey::parse` of the first word.
+3. Keep `key_blob` only where the certificate needs it; `python3 -I scripts/codegraph.py new` shows no twin.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features grant
+python3 -I scripts/codegraph.py new
+```

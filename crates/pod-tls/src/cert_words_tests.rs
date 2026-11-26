@@ -2,10 +2,7 @@ use std::sync::Arc;
 
 use rustls::pki_types::{ServerName, UnixTime, alg_id};
 use rustls::{CertificateError, Error, ExtendedKeyPurpose, OtherError};
-use webpki::{
-    DerTypeId, InvalidNameContext, KeyUsage, RequiredEkuNotFoundContext, UnsupportedSignatureAlgorithmContext,
-    UnsupportedSignatureAlgorithmForPublicKeyContext,
-};
+use webpki::{DerTypeId, InvalidNameContext, KeyUsage};
 
 use super::*;
 
@@ -63,11 +60,12 @@ fn each_certificate_error() -> Vec<CertificateError> {
 fn each_webpki_error() -> Vec<webpki::Error> {
     use webpki::Error::*;
     let time = time();
-    let algorithm = || UnsupportedSignatureAlgorithmContext {
+    // The variants of the glob import hide the types of the same names.
+    let algorithm = || webpki::UnsupportedSignatureAlgorithmContext {
         signature_algorithm_id: vec![1],
         supported_algorithms: vec![alg_id::ED25519],
     };
-    let for_key = || UnsupportedSignatureAlgorithmForPublicKeyContext {
+    let for_key = || webpki::UnsupportedSignatureAlgorithmForPublicKeyContext {
         signature_algorithm_id: vec![1],
         public_key_algorithm_id: vec![2],
     };
@@ -101,7 +99,7 @@ fn each_webpki_error() -> Vec<webpki::Error> {
         NameConstraintViolation,
         PathLenConstraintViolated,
         RequiredEkuNotFound,
-        RequiredEkuNotFoundContext(RequiredEkuNotFoundContext {
+        RequiredEkuNotFoundContext(webpki::RequiredEkuNotFoundContext {
             required: KeyUsage::server_auth(),
             present: vec![vec![1, 3, 6]],
         }),
