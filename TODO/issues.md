@@ -264,4 +264,4 @@ kinds and the rules.
 | #262 | coord | COORD-156: v0.85.0: the config PATCH of pod-incus on an ETag, the step of a failure (Failure::io), the port of podrunner fcff5bc into pod-testkit, random temp names (to all) | closed (each consumer took `v0.85.0`: podrunner `f6dd20ee`, podvm `9466c98`, podnet `cb695dd`, podssh `f0f7e2c`; call C780) | T-1343, T-1351, T-1369, T-1375, T-1379, T-1382, T-1385, T-1415 |
 | #263 | coord | COORD-157: one docs/hosted-sessions.md and one role table for each repository (to all) | open (podnet, podvm and podrunner took the table; it closes when podssh names its commit, or why its table differs) | T-1387 |
 
-#79 to #81, #232 to #235 and #256 are pull requests: Dependabot's (T-243, T-955), and the crate `pod-natprobe` from outside the team (T-802; its review landed in one commit of `main`).
+#79 to #81, #232 to #235, #256 and #264 to #271 are pull requests: Dependabot's (T-243, T-955, T-1414), and the crate `pod-natprobe` from outside the team (T-802; its review landed in one commit of `main`).

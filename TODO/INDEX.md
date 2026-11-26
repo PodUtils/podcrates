@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1047 entries: 171 open, 31 partial, 6 blocked, 839 done.**
+**1049 entries: 172 open, 31 partial, 6 blocked, 840 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 245 | 258 |
-| P2 | 76 | 12 | 4 | 438 | 530 |
-| P3 | 91 | 10 | 2 | 154 | 257 |
-| **All** | 171 | 31 | 6 | 839 | 1047 |
+| P2 | 76 | 12 | 4 | 439 | 531 |
+| P3 | 92 | 10 | 2 | 154 | 258 |
+| **All** | 172 | 31 | 6 | 840 | 1049 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1081,6 +1081,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1407](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: the refusals of a pair: the body of a 403, a refusal of a new pair, a spent token of `--once`, and a doubled subject in `file_name` (PodUtils/podssh#362, ask 2) |
 | [T-1408](relay.md) | P2 | S | M2 | defect | open | `pod-e2e`: `Redeem` does not say whether a bearer or a grant was refused or let in, and the node says "a grant" for a bearer (PodUtils/podssh#362, ask 3) |
 | [T-1413](foundation.md) | P3 | S | M0 | feature | open | `pod-core`: a class for an output that could not be written (exit 74, `EX_IOERR`) (PodUtils/podssh#363, ask 3) |
+| [T-1414](upkeep.md) | P2 | M | M0 | chore | done | Dependabot of 2026-11-26: coturn 4.19.2, Mosquitto 2.1.4, TruffleHog 3.100.0, two actions, eight crates and saphyr-parser 0.4.1; iroh-dns 1.5.0, rand 0.10.4 in `pod-h2` and simple-dns 0.13.1 declined (GitHub #264 to #271) |
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
@@ -1094,3 +1095,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1453](fleet.md) | P3 | S | M8 | chore | open | `pod-control`: take `pod_core::sockopt::shut_needs_no_limit` in place of `frame::shut_needs_no_timeout`, a twin of it |
 | [T-1460](fleet.md) | P3 | S | M8 | defect | open | `pod-unit`: an install accepts a program in a directory that the host clears at a reboot or a logout, so the unit fails after the next reboot |
 | [T-1463](upkeep.md) | P3 | M | M5 | chore | open | `pod-core`: no check stops a new `to_string()` or `{}` of a `Failure` that drops its cause, and the `{}` of a `Failure` in a `format!` was not searched |
+| [T-1484](upkeep.md) | P3 | M | M0 | chore | open | `pod-iroh`: the move to iroh 1.5, iroh-dns 1.5 and simple-dns 0.13 together |

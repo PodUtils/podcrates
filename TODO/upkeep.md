@@ -6812,6 +6812,53 @@ Not measured: the window on macOS, and the test on Windows (CI runs it).
 The README of `pod-core` names the unlock, and the two functions
 `try_lock_existing` and `lock_until` that its row did not name.
 
+# T-1414: Dependabot of 2026-11-26: coturn 4.19.2, Mosquitto 2.1.4, TruffleHog 3.100.0, two actions, eight crates and saphyr-parser 0.4.1; iroh-dns 1.5.0, rand 0.10.4 in `pod-h2` and simple-dns 0.13.1 declined (GitHub #264 to #271)
+
+**Source:** GitHub #264 to #271 (Dependabot)
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+Eight updates of Dependabot wait for a judgement (the ruling "Dependabot": each judged update is a commit of its own on `main`, and the pull request closes with a link to it). Each branch is from an older `main`.
+
+## Premise
+
+- Read: the diff and the checks of each pull request; the index digests of `coturn/coturn:4.19.2`, `library/eclipse-mosquitto:2.1.4-alpine` and `trufflesecurity/trufflehog:3.100.0` at `registry-1.docker.io` (they agree with the diffs); `git ls-remote` of `actions/setup-go` `v7.1.0` (`d8cbb80`) and `docker/login-action` `v4.8.0` (`8aa5831`) (they agree with the diffs).
+- The index of crates.io: `iroh` 1.4.2 and `iroh-dns` 1.4.2 build `simple-dns` 0.12; `iroh-dns` 1.5.0 and `iroh` 1.5.0 build 0.13. `pod-iroh` holds `iroh` and `iroh-dns` below 1.5.
+- `vendor/h2` (`pod-h2`) is the fork of h2 0.4.20; `scripts/check-vendor.py` holds it to h2 plus its patches. `rand` 0.8.8 stays in the tree for `quickcheck` and `num-bigint-dig`.
+- The CHANGELOG of saphyr-parser 0.4.0 and 0.4.1: the API is the same; the span of a block scalar starts at its `|` or `>`.
+- `cargo update -p clap` on `main` locks "to highest Rust 1.63 compatible versions": `pod-h2` has `rust-version = "1.63"`, and the resolver of edition 2024 takes the lowest `rust-version` of the members.
+
+## Approach
+
+Apply #264 to #267 and #271 on the current `main` as commits of their own, with the documents that name a version. Apply #268 with no `iroh-dns` 1.5.0: it adds `simple-dns` 0.13 beside the 0.12 of `iroh` 1.4.2; the move to iroh 1.5 is T-1484. Set `incompatible-rust-versions = "allow"` in `.cargo/config.toml`, so that the fork does not hold each update to Rust 1.63. Decline #269 and #270 with the reason.
+
+## Prove
+
+```sh
+sh scripts/agent/check.sh
+cargo deny check
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1414.
+
+- #264: coturn 4.19.2 by the digest of its index, with the three lines of `crates/pod-turn/README.md` and the coturn rows and source S10 of `docs/live-calls.md` (they named 4.18.0) (`bb8d36e`).
+- #265: Eclipse Mosquitto 2.1.4 by the digest of its index, with its row and source S3 of `docs/live-calls.md` (`11d4ae0`).
+- #266: TruffleHog 3.100.0 by the digest of its index (`26cce5c`).
+- #267: `actions/setup-go` v7.1.0 and `docker/login-action` v4.8.0, each by the full commit SHA of its tag (`c60af07`); `check-workflows.py`: 0 faults.
+- #268: toml 1.2.2, clap 4.6.9, bytes 1.12.2, crc32fast 1.5.6, zeroize 1.9.2, russh 0.65.4, regex 1.13.2 and plist 1.10.4, with the resolver setting of `.cargo/config.toml`; ten crates with a wide range of a dependency now take its newest version (windows-sys 0.61, syn 3, thiserror 2, indexmap 2, getrandom 0.4); no crate is added or removed (`cf1508b`). `iroh-dns` 1.5.0 declined: `iroh` 1.4.2 builds `simple-dns` 0.12 and `iroh-dns` 1.5.0 builds 0.13, so the pair adds a second copy; T-1484 moves iroh, iroh-dns and simple-dns together.
+- #269 declined: the change of `vendor/h2/Cargo.toml` is not in the patches of the fork (`check-vendor.py` fails), the test code of h2 uses the API of rand 0.8 (the job `lint` of the pull request fails in Clippy: `rand::distributions`, `thread_rng`, `gen_range`), and `rand` 0.8.8 stays for `quickcheck` and `num-bigint-dig`, so no crate goes. The fork follows its upstream.
+- #270 declined: `iroh` 1.4.2 and `iroh-dns` 1.4.2 build `simple-dns` 0.12, and 0.13 adds a second copy; it moves with T-1484.
+- #271: saphyr-parser 0.4.1 (the requirement `0.4.1`, with the fixes of 0.4.1), with `fuzz/Cargo.lock`, and the test `a_block_scalar_starts_at_its_indicator` of `pod-actions-workflow` (`87384bc`).
+
+The full check and `cargo deny check` passed on the final tree (see the commit of this entry). Not verified here: the builds on Windows and macOS with the new edges of the lock file (CI), the coturn, Mosquitto and TruffleHog images in a run (CI), and the release job with the new login action (a run on a tag).
+
 # T-1444: `pod-core`: `a_path_that_is_there_is_never_opened_truncated_or_removed` fails on Windows: a file made at the name of a directory gives "Access is denied", not `AlreadyExists`
 
 **Source:** `nightly.yml` run 45603454952 at `cd7cb5a`, the jobs `test (windows-2025)` (139168091494) and `test (windows-11-arm)` (139168091781), step "Test", binary `pod_core` (lib tests). Beside T-1343.
@@ -6995,3 +7042,35 @@ The doc step of each job `test` of the next `nightly.yml` run ends with no targe
 cargo check --workspace --all-targets --all-features
 cargo todo check
 ```
+
+# T-1484: `pod-iroh`: the move to iroh 1.5, iroh-dns 1.5 and simple-dns 0.13 together
+
+**Source:** finding of T-1414 (GitHub #268, #270)
+**Category:** chore
+**Milestone:** M0
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`pod-iroh` holds `iroh` and `iroh-dns` below 1.5, and takes the `simple-dns` that `iroh-dns` builds (0.12), so that no crate is added. `iroh` 1.5.0 and `iroh-dns` 1.5.0 build `simple-dns` 0.13, and `n0-dns-resolver` 0.1.1 builds 0.13. Dependabot offers each part alone (`iroh-dns` 1.5.0 in GitHub #268, `simple-dns` 0.13 in GitHub #270), and each part alone adds a second copy of `simple-dns`. The workspace stays on iroh 1.4.
+
+## Premise
+
+- The index of crates.io: `iroh` 1.5.0 requires `iroh-dns` ^1.5.0, `iroh-relay` ^1.4.2, `noq` ^1.5.0 and `simple-dns` ^0.13; `iroh-dns` 1.5.0 requires `simple-dns` ^0.13; `n0-dns-resolver` 0.1.1 requires `simple-dns` ^0.13.
+- `crates/pod-iroh/Cargo.toml`: `iroh = ">=1.4.2, <1.5"` with `unstable-net-report` (an API outside the semver of iroh), `iroh-dns = ">=1.4.2, <1.5"`, `simple-dns = "0.12"`.
+- `vendor/iroh-relay` is the fork of iroh-relay 1.4.2 (`scripts/check-vendor.py`); `iroh` 1.5.0 accepts `iroh-relay` ^1.4.2.
+
+## Approach
+
+Move the three ranges of `crates/pod-iroh/Cargo.toml` to 1.5 and 0.13 in one commit, with `n0-dns-resolver` 0.1.1. Adapt the code of `pod-iroh` to the changes of `unstable-net-report` and `simple-dns` 0.13. Keep the fork of iroh-relay at 1.4.2 when iroh 1.5 builds with it; else rebase the fork and run the command of each of its patches (the ruling "Vendoring"). The lock file then has one `simple-dns`.
+
+## Prove
+
+```sh
+cargo tree -i simple-dns --workspace --all-features
+cargo test -p pod-iroh --all-features
+sh scripts/agent/check.sh
+```
+`cargo tree` shows one version of `simple-dns`.
