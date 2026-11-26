@@ -64,7 +64,7 @@ fn another_password_is_a_wrong_password_and_not_a_trojan_request_is_not() {
     let mut one = made("h.example");
     one[55] ^= 1;
     assert_eq!(parse(&one, &password()), Err(RequestError::WrongPassword));
-    let http = b"GET / HTTP/1.1\r\nHost: example.com\r\nUser-Agent: curl\r\n\r\n";
+    let http = b"GET / HTTP/1.1\r\nHost: example.com\r\nUser-Agent: curl/8.5.0\r\nAccept: */*\r\n\r\n";
     assert_eq!(parse(http, &password()), Err(RequestError::NotTrojan(Malformed::Hash)));
 }
 
@@ -86,7 +86,7 @@ fn a_bad_command_a_bad_type_a_bad_name_and_a_missing_crlf_are_not_trojan() {
     assert_eq!(malformed(|b| b[57] = b'x'), Malformed::HashEnd);
     assert_eq!(malformed(|b| b[56] = b' '), Malformed::HashEnd);
     assert_eq!(malformed(|b| *b.last_mut().unwrap() = b'x'), Malformed::End);
-    assert_eq!(malformed(|b| b.truncate(b.len() - 2)), Malformed::End);
+    assert_eq!(malformed(|b| b.extend_from_slice(b"xx")), Malformed::End);
 }
 
 #[test]

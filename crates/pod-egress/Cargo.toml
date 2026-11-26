@@ -53,7 +53,7 @@ plain-ws = ["pod-ws/plain-ws"]
 # ciphers (AES-GCM, ChaCha20-Poly1305, MD5, HKDF-SHA1, BLAKE3). For the tests
 # of this crate and of a consumer; no binary needs them.
 standin = [
-  "dep:h2", "dep:http", "dep:bytes", "dep:base64", "dep:hmac", "dep:sha2", "dep:tokio-rustls",
+  "trojan", "dep:h2", "dep:http", "dep:bytes", "dep:base64", "dep:hmac", "dep:sha2", "dep:tokio-rustls",
   "dep:aes-gcm", "dep:chacha20poly1305", "dep:md5", "dep:hkdf", "dep:sha1", "dep:blake3",
 ]
 # The readers of the wire for the fuzz targets of fuzz/ (src/fuzzing.rs):
