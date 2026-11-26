@@ -1,0 +1,7 @@
+# A failure of the chunk decoder of the crate counts as a refusal of the
+# sink (PodUtils/podnet#781): the sink is dropped and its record never gets
+# an end. The sink must get the fault and its end.
+ENTRY=T-1508
+GROUP=cloudflare
+EXPECT='test proxy::capture_route_tests::a_refused_chunk_body_still_gets_its_end \.\.\. FAILED'
+RUN='cargo test -p pod-cloudflare --all-features --lib -- proxy::capture_route_tests::a_refused_chunk_body_still_gets_its_end --exact'

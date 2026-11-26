@@ -481,7 +481,6 @@ done.
 
 2026-11-15, done: podssh took the crate. Part 1 at `3f6a9fe` with `v0.51.0` (PodUtils/podssh#260), parts 2 and 3 at `94ee6ac` with `v0.52.0` (PodUtils/podssh#263): each step of the three `.run` files passed there, and `cargo test --workspace` of podssh passed (3837 tests). `crates/pod-egress/SOURCES` has the `taken` lines; the trials left `adoption/podssh/`. The tag `v0.52.0` (`7998b72`, ci 43711409358, adoption 43711411992) carries the whole crate.
 
-
 # T-036: `pod-relay-serve`: the relay role and its mailbox
 
 **Source:** `docs/design.md`, section 4 (M4).
@@ -2132,7 +2131,6 @@ cargo test -p pod-proxy --all-features
 
 2026-11-24, 67980e7. `dial_error` reads a lead `TARGET through the proxy P: `. A failure at the stage Proxy with no `DialError` cause becomes `ProxyRefused` with the status 0 (Refused), `ProxyProtocol` (Protocol) or `ProxyUnreachable`. The `Display` of `ProxyRefused` with the status 0 has no status, and `pod-relay` says "the proxy refused" for it. The line now: `the proxy http://p:1 refused CONNECT x:443: refused`, at (Proxy, Refused). Test: `crates/pod-ws/src/way.rs::a_refusal_of_the_proxy_keeps_its_stage` (failed before the fix: `(Connect, Unavailable)`). `sh scripts/agent/check.sh`: each step 0.
 
-
 # T-1130: `pod-proxy`: the line of a proxy that does not answer names the proxy two times (PodUtils/podnet#707, ask 6)
 
 **Source:** PodUtils/podnet#707 (COORD-115 of podnet, PodUtils/podnet@T-522), ask 6.
@@ -2165,7 +2163,6 @@ cargo test -p pod-proxy --all-features --lib error::tests
 ## Done
 
 2026-11-24, 67980e7. `open_proxy` strips the lead `could not connect to TARGET` from the detail of a `DialError::Connect`, and the `Display` of `ProxyUnreachable` strips `could not connect to P` from the detail of another dialer. The line now: `could not reach the proxy 127.0.0.1:P: Connection refused (os error 111)`. Tests: `crates/pod-proxy/tests/dial.rs::an_unreachable_proxy_is_named` (failed before the fix: 2 names of the proxy) and `error::tests::the_words_of_a_dial_error_are_said_once`. The expected line of `api::tests::each_base_failed_at_one_hop_names_it_once` of `pod-warp` names the proxy once. `sh scripts/agent/check.sh`: each step 0.
-
 
 # T-1131: `pod-dns`: the line of a name that does not resolve holds the list of each resolver of DNS over HTTPS, 567 bytes and more (PodUtils/podnet#707, ask 7)
 
@@ -2204,6 +2201,200 @@ cargo test -p pod-dns --all-features --lib
 ## Done
 
 2026-11-24, 67980e7. `fold` gives one phrase (`each of N resolvers failed: CAUSE`, or `N resolvers failed, M with: CAUSE`), with no address and no `(os error N)`; `each` gives the full list at debug. `resolve_in` joins the phrases in at most 160 bytes (`fit`, `pod_core::text::clip`). The line of #698 now (195 bytes): `could not resolve nowhere.invalid: system resolver: failed to lookup address information: Try again; DNS over HTTPS: 8 resolvers failed, 4 with: could not connect: Address family not supported...`. Test: `crates/pod-dns/src/lookup.rs::a_name_that_does_not_resolve_gives_one_short_line` (failed before the fix: 472 bytes). The plant `dns-each-resolver-said-alone` patches the new `fold`. `sh scripts/agent/check.sh`: each step 0.
+
+# T-1516: `pod-derp`: the derper tests read `PODSSH_DERP_TEST_*`, and the adoption map says that podnet has no DERP road (PodUtils/podnet#783)
+
+**Source:** PodUtils/podnet#783 (COORD-138 of podnet, PodUtils/podnet@T-128; author MEMBER).
+**Category:** chore
+**Milestone:** M4
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The ignored tests `through_derper_*` of `crates/pod-derp/tests/derp_link.rs`
+read `PODSSH_DERP_TEST_SERVER` and `PODSSH_DERP_TEST_CA`: the names of one
+consumer, so another consumer cannot run them with names of its own. The
+README of `pod-derp` (section "podnet" of the adoption map) says that
+podnet has no DERP road; podnet takes the crate at `v0.86.0` (its T-128:
+`podnet derp node`, `derp connect`, `send --derp`).
+
+## Premise
+
+- Read: the body of PodUtils/podnet#783; `crates/pod-derp/tests/derp_link.rs`;
+  `crates/pod-derp/README.md`. No workflow of podcrates sets the two names
+  (`grep -rn PODSSH_DERP .github scripts`).
+
+## Approach
+
+Rename the two variables to `POD_DERP_TEST_SERVER` and `POD_DERP_TEST_CA`
+in the test and the README; write podnet's road in the adoption map, and
+the fact of podnet about the leaf certificate of a derper
+(`basicConstraints=critical,CA:FALSE`).
+
+## Prove
+
+```sh
+cargo test -p pod-derp --all-features
+```
+
+## Done
+
+2026-11-26. `derp_link.rs` reads `POD_DERP_TEST_SERVER` and
+`POD_DERP_TEST_CA`; the README names them, the fact of the leaf
+certificate, and podnet's DERP road. The tests that run with no derper
+pass. Commit: see `git log` for T-1516.
+
+# T-1432: `pod-egress`: the stand-ins of the second proxy over TLS, of a wstunnel server and of VLESS, Trojan, Shadowsocks and Wisp servers, behind the feature `standin` (PodUtils/podnet#779, ask 2; PodUtils/podnet#782, ask 2)
+
+**Source:** PodUtils/podnet#779 (COORD-134 of podnet), ask 2; PodUtils/podnet@T-126; author MEMBER. PodUtils/podnet#782 (COORD-137 of podnet), ask 2; PodUtils/podnet@T-127; author MEMBER
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The test servers of `pod-egress` (a forward proxy over TLS, a wstunnel
+server) are in its `tests/` folder, so a consumer cannot use them. podnet
+wrote small stand-ins of its own for its tests
+(`PodUtils/podnet:src/networks/road_stand.rs`). The ask: a feature
+`standin` (as `pod-devtunnel` has) that exports a `via` stand-in (HTTP/1.1
+and HTTP/2 CONNECT over TLS, with Basic) and a wstunnel stand-in (with the
+path prefix), so that podnet drops its copies.
+
+PodUtils/podnet#782, ask 2: "The tests of `pod-egress` have servers of
+VLESS, Trojan, Shadowsocks and Wisp (`tests/*_support`). A consumer cannot
+use them. Ask: a feature `standin` (or `pod-testkit`) with these servers,
+for `[dev-dependencies]` only. podnet then drops
+`src/networks/servers_stand.rs` and `src/networks/road_stand.rs`."
+
+## Premise
+
+- Read: `crates/pod-egress/tests/vless_support/mod.rs` (a VLESS server over
+  a WebSocket and over XHTTP on HTTP/2 and HTTP/1.1, with a fixed made-up
+  ID), `crates/pod-egress/tests/trojan_support/mod.rs` (Trojan in TLS and in
+  a WebSocket, with its fallback), `crates/pod-egress/tests/wisp_support/mod.rs`
+  (a Wisp server of version 1 and 2 that counts the credit), and the
+  servers of `crates/pod-egress/tests/shadowsocks.rs` and
+  `crates/pod-egress/tests/shadowsocks_2022.rs` (the specification's own
+  ciphers: AES-GCM, ChaCha20-Poly1305, MD5, HKDF-SHA1, BLAKE3).
+- Read: `crates/pod-egress/tests/via.rs` (the proxy over TLS: ALPN, a
+  mode, Basic, HTTP/1.1's and h2's CONNECT, the bridge of a stream of
+  HTTP/2) and `crates/pod-egress/tests/wstunnel.rs` (the reading of
+  wstunnel 11's `handle_tunnel_request`, the answers of 9 and of another
+  server, the masks, the Close).
+- Read: `crates/pod-devtunnel/Cargo.toml` and
+  `crates/pod-devtunnel/src/standin.rs`: the feature `standin`, a module of
+  the library, and `required-features` on each test that uses it.
+- The certificates of the tests come from
+  `crates/pod-tls/tests/common/cert_for_test.rs`, a file of tests. The
+  stand-in takes the caller's `rustls::ServerConfig`, so the library mints
+  no certificate and adds no dependency.
+
+## Approach
+
+1. `pod_egress::standin` (feature `standin`): `standin::target` (a version
+   line, then an echo); `standin::via` (`start` with a `Plan`: the ALPN,
+   the `Mode`, the Basic credentials; `Seen`); `standin::wstunnel`
+   (`start` with a `Wst`, over TLS or not; `Seen`); `standin::vless`,
+   `standin::trojan`, `standin::wisp`, and `standin::shadowsocks` (with the
+   feature `shadowsocks` too). A server of TLS takes the caller's
+   `rustls::ServerConfig`. The ciphers of the Shadowsocks servers become
+   optional dependencies of the feature.
+2. The tests use the exported stand-ins; `tests/*_support` keep the
+   certificates of the tests, the way out and the targets. The test names
+   stay.
+3. README of the crate; `crates/pod-egress/SOURCES` names the new place of
+   the files that came from podssh.
+
+## Prove
+
+```sh
+cargo test -p pod-egress --all-features
+cargo clippy -p pod-egress --all-targets --all-features -- -D warnings
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1432.
+
+- The feature `standin` of `pod-egress` exports `pod_egress::standin`
+  (`crates/pod-egress/src/standin.rs`): `echo` and `BANNER`; `Stand<S>`
+  (`port`, `seen`, `detach`); `standin::via` (a forward proxy over TLS:
+  HTTP/1.1's CONNECT and h2's, `Plan { alpn, mode, credentials }`, `Mode`,
+  Basic and `407`); `standin::wstunnel` (`Wst`, `Answer`: wstunnel 11, 10.0
+  with the signature, 9, another server; the path prefix, the masks, the
+  Close); `standin::vless` (a WebSocket at `/ws`, XHTTP on HTTP/2 and on
+  HTTP/1.1, the made-up `ID`); `standin::trojan` (TLS alone and a
+  WebSocket at `/tr`, the fallback, the made-up `PASSWORD`);
+  `standin::wisp` (version 1 and 2, the credit counted, `grant`); and with
+  the feature `shadowsocks` too, `standin::shadowsocks` (`aead`, `sip022`,
+  `Spec`, `evp`, `Answer`). A server of TLS takes the caller's
+  `rustls::ServerConfig`; the crate mints no certificate. AES-GCM and
+  ChaCha20-Poly1305 are new optional dependencies of the feature.
+- The tests of `via`, `wstunnel`, `vless`, `vmess`, `trojan`, `wisp`,
+  `shadowsocks` and `shadowsocks_2022` use the exported stand-ins, with the
+  same test names; `tests/*_support` keep the certificates of the tests,
+  the way out and the targets. `tests/vless_support/xhttp.rs` and
+  `xhttp1.rs` moved to `crates/pod-egress/src/standin/vless/`, and
+  `crates/pod-egress/SOURCES` names them there.
+- Commands: `cargo test -p pod-proxy -p pod-egress --all-features`: 491
+  passed, 0 failed. `cargo clippy -p pod-proxy -p pod-egress --all-targets
+  --all-features -- -D warnings` and `cargo fmt --all --check`: no finding.
+  The plants of the moved tests (`egress-via-*`, `egress-wstunnel-*`,
+  `egress-vless-*`, `egress-trojan-dial-untyped`, `egress-wisp-*`,
+  `egress-shadowsocks-dial-untyped`): 10 caught, 0 missed;
+  `scripts/plants/egress-via-dial-untyped.patch` now names
+  `pod_core::Stage`, as `via/mod.rs` no longer imports `Stage` (the TLS
+  hop moved to `pod-proxy`, T-1431). `sh scripts/plant-each.sh --apply`: 0
+  stale.
+- For podnet: a `[dev-dependencies]` entry
+  `pod-egress = { ..., features = ["standin", "shadowsocks"] }` replaces
+  `PodUtils/podnet:src/networks/servers_stand.rs` and
+  `PodUtils/podnet:src/networks/road_stand.rs`. Not measured: a run of the
+  tests of podnet on the exported stand-ins.
+
+# T-1433: `pod-iroh`: an `https` proxy goes to iroh's relay dial by its address, so TLS checks the proxy's certificate for the address and not the name
+
+**Source:** T-1431 (a finding of the work on PodUtils/podnet#779)
+**Category:** defect
+**Milestone:** M4
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+After T-1431, `Proxy::parse` takes `https://HOST`, and an environment
+gives such a proxy to `pod-iroh`. `relay_proxy` in
+`crates/pod-iroh/src/endpoint.rs` resolves the proxy host and gives iroh
+`proxy.url_at(ADDRESS)`. The fork of iroh-relay
+(`vendor/iroh-relay/src/client/tls.rs`, `dial_url_proxy`) makes TLS to a
+proxy whose scheme is not `http` with the server name of the URL, which is
+the address, and with the relay's TLS connector. A proxy certificate for
+its name fails, with words that do not name the cause.
+
+## Premise
+
+- Read: `crates/pod-iroh/src/endpoint.rs` (`relay_proxy`, `sendable`) and
+  `vendor/iroh-relay/src/client/tls.rs` (`dial_url_proxy`).
+- Not measured: a run of the iroh road through an HTTPS proxy.
+
+## Approach
+
+`relay_proxy` refuses a proxy of `ProxyKind::Https` with words (the iroh
+road takes an `http`, `socks5` or `socks5h` proxy), as it refuses a proxy
+that is not on TCP; or it gives iroh `proxy.url()` with the name and a
+resolver pin. A test of `relay_proxy` with `https://proxy.example`.
+
+## Prove
+
+```sh
+cargo test -p pod-iroh --all-features
+```
 
 # T-1505: `pod-acme`: the contacts of the account, sent in newAccount, a refused contact named
 

@@ -29,13 +29,21 @@ is done. Git and the record keep finished work.
      PodUtils/podvm#667; PodUtils/podnet#753 to #756, #758 and #776;
      PodUtils/podssh#359 to #363 and #367. Record each take on its body
      (the "Takes" lines, as #262), and close it when each consumer names the
-     tag (call C780). The take of podnet is `144a5ee`
-     (PodUtils/podnet#778, verified, on #272). COORD-157 (#263): podnet,
+     tag (call C780). The takes of podnet (`144a5ee`,
+     PodUtils/podnet#778) and podrunner (`879af093`, PodUtils/podrunner#366)
+     are verified and on #272. COORD-159 (#273) tells podvm of the defect
+     of its frozen `ext.rs` that T-1500 fixed. COORD-157 (#263): podnet,
      podvm and podrunner took the role table; it waits for podssh.
    - On `main` after `v0.86.0`: PodUtils/podvm#675 (COORD-256, T-1424) and
      PodUtils/podvm#677 (COORD-258, T-1425); answer each with the next tag.
    - On `main` after `v0.86.0`: PodUtils/podssh#358 (COORD-148, T-1390);
-     PodUtils/podvm#678 (COORD-259, T-1426, T-1427).
+     PodUtils/podvm#678 (COORD-259, T-1426, T-1427); PodUtils/podvm#680
+     (COORD-260, T-1500); PodUtils/podnet#781 (COORD-136, T-1507, T-1508);
+     PodUtils/podnet#783 (COORD-138, T-1516).
+   - Done on `main`: PodUtils/podnet#779 (T-1431, T-1432) and ask 2 of
+     PodUtils/podnet#782 (T-1432). In work: PodUtils/podnet#780, asks 1, 3,
+     4 and 5 of PodUtils/podnet#782, the ports of `upstream.yml`
+     45838753274 (workers write the entries).
    - Open asks:
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -111,6 +119,50 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   (`Option<PathBuf>`) and `Settings::with_emulator`; the machine legs run
   the emulator at that path. Breaking: `podvm-probe` builds `Settings`
   with each field and adds `emulator: None`.
+- T-1500 (`pod-guest`, PodUtils/podvm#680): the import of podvm's writer
+  of an empty ext4 disk (`crates/podvm/src/machine/guest/disk/ext.rs` at
+  `9c1edb5`): `pod_guest::ext4::write_empty(&file, bytes, &Names)`,
+  `Names::random(label)`, `Layout::of(bytes)`, `MIN_BYTES` 64 MiB,
+  `MAX_BYTES` 16 TiB less a block. A fix of the import: a superblock copy
+  past group 65535 records 65535, as `mke2fs` does (podvm's frozen copy
+  records the low 16 bits: tell podvm). A size that is not a whole number
+  of 4 KiB blocks is refused (podvm cut it down). `e2fsck` 1.47.0 passes a
+  wrong free count of the superblock alone: the plant and the test check
+  the counts of the group descriptors. podvm: depend on `pod-guest` in
+  `crates/podvm/Cargo.toml`, call `Layout::of` in `refusal` and
+  `write_empty(&file, bytes, &Names::random("podvm-disk")?)` in `make`
+  (no `set_len` before it), and remove `ext.rs`.
+- T-1507, T-1508 (`pod-cloudflare`, PodUtils/podnet#781): `Capture::route`
+  (`Route { rule, hostname, host }`, `non_exhaustive`) before the head of a
+  request that an ingress rule took, and `Capture::fault` (`Fault::
+  RequestChunking`) before `end`; both have default bodies, so podnet
+  builds with no change. A failure of the chunk decoder is not a refusal
+  of the sink: the sink gets `fault` and one `end`. `Dechunk` refuses a
+  chunk size over `i64::MAX` (`ffffffffffffffff` was taken as a size).
+- T-1431 (`pod-proxy`, PodUtils/podnet#779 ask 1): `ProxyKind::Https`
+  (`https://[USER[:PASS]@]HOST[:PORT]`, port 443), `Dialer::with_proxy_tls`
+  and `ProxyTls`, `pod_proxy::hop::tls` (moved from `pod_egress::via`, one
+  copy), `Stream::Tls`, `blocking::Stream::Tls`. With no proxy TLS given an
+  `https` proxy fails with `BadProxy`; `Dialer::tcp` refuses a TLS stream.
+  Breaking for podvm: `crates/podvm-ssh/src/transport/egress.rs` matches
+  `blocking::Stream` with no wildcard: add a `Stream::Tls` arm. Each
+  consumer adds `.with_proxy_tls(ctx, Trust::Default)` to take an `https`
+  proxy (podnet `src/egress.rs` and `podnet-core/src/connect.rs`; podvm
+  `mux.rs`, `egress.rs`; podssh `podssh-ws/src/dial.rs`, `resolve.rs`;
+  podrunner `podrunner-egress/src/dns.rs`). T-1433 (`pod-iroh` gives iroh
+  an `https` proxy by its address) and T-1434 (`pod-relay` dials a reverse
+  target with `Dialer::tcp` alone) are open.
+- T-1432 (`pod-egress`, PodUtils/podnet#779 ask 2 and #782 ask 2): the
+  feature `standin` exports the stand-ins of `via`, wstunnel, VLESS (ws,
+  xhttp h2 and HTTP/1.1), Trojan, Wisp (v1, v2) and Shadowsocks (with the
+  feature `shadowsocks`); a consumer takes them in `[dev-dependencies]`.
+- T-1513 (`pod-services`): DERP region 24 (Honolulu, `hnl-1` to `hnl-3`)
+  is gone from Tailscale's map, and `derp14e` (`ams-4`) is new: 93
+  endpoints in 27 regions (podnet and podssh read the set). The watch
+  `github-release` fails by age only when a newer release exists (the pin
+  `v2.338.2` is the newest).
+- T-1516 (`pod-derp`, PodUtils/podnet#783): the derper tests read
+  `POD_DERP_TEST_SERVER` and `POD_DERP_TEST_CA`.
 - T-1426 (`pod-oci`, PodUtils/podvm#678 ask 1): `Reference::parse` bounds
   the name to 255 characters (`NAME_MAX`) and a tag to 128 (`TAG_MAX`),
   refuses a tag that starts with `.` or `-`, and refuses a path component

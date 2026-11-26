@@ -67,7 +67,7 @@ fn ends(seen: &[Seen]) -> Vec<End> {
 /// A stand-in origin. `/plain` answers with a length, `/chunked` with
 /// chunks, `/upload` reads a chunked body and answers with chunks, and
 /// `/ws` answers 101 and sends back each byte.
-async fn origin() -> String {
+pub(super) async fn origin() -> String {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let at = format!("http://{}", listener.local_addr().unwrap());
     tokio::spawn(async move {
@@ -127,7 +127,7 @@ async fn origin() -> String {
     at
 }
 
-fn request(path: &str, extra: &[(&str, &str)], websocket: bool) -> cqstream::ConnectRequest {
+pub(super) fn request(path: &str, extra: &[(&str, &str)], websocket: bool) -> cqstream::ConnectRequest {
     let mut metadata = vec![(HTTP_METHOD_KEY.to_string(), "POST".to_string()), (HTTP_HOST_KEY.into(), "x".into())];
     for (name, value) in extra {
         metadata.push((format!("{HTTP_HEADER_KEY}:{name}"), value.to_string()));
@@ -138,7 +138,7 @@ fn request(path: &str, extra: &[(&str, &str)], websocket: bool) -> cqstream::Con
 
 /// Serve `request` with the visitor body `sent`, and give the status and
 /// the body that the visitor got.
-async fn visit(
+pub(super) async fn visit(
     runtime: &Runtime,
     ingress: &Ingress,
     request: cqstream::ConnectRequest,
@@ -164,7 +164,7 @@ async fn visit(
     got
 }
 
-fn runtime(ingress: &Ingress, sink: Option<Arc<dyn Capture>>) -> Runtime {
+pub(super) fn runtime(ingress: &Ingress, sink: Option<Arc<dyn Capture>>) -> Runtime {
     let mut host = crate::testing::host();
     host.capture = sink;
     Runtime::build(Arc::new(host), ingress, Metrics::new()).unwrap()

@@ -18,15 +18,15 @@
 mod http1;
 mod http2;
 
-use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::time::Instant;
 
 use base64::Engine as _;
 use bytes::Bytes;
-use pod_core::{BoxFuture, BoxedIo, Connected, Failure, Stage, Target};
+use pod_core::{BoxFuture, BoxedIo, Connected, Failure, Target};
 use pod_proxy::DialError;
+use pod_proxy::hop::ProxyTls;
 use pod_proxy::host::{authority, check_name, split_host_port};
 use pod_tls::Trust;
 use pod_ws::Way;
@@ -330,40 +330,15 @@ impl Client {
     }
 
     /// TCP to the proxy, through the host's own proxy when one is set, then
-    /// TLS checked for the proxy's name, offering `offer`.
+    /// TLS checked for the proxy's name, offering `offer`: the hop of
+    /// `pod_proxy::hop::tls`, as an `https://` proxy of the host takes it.
     async fn tls(&self, offer: Offer) -> Result<TlsStream<BoxedIo>, DialError> {
-        let (shown, limit, way) = (self.via.shown(), self.dial.timeout, &self.dial.way);
+        let (limit, way) = (self.dial.timeout, &self.dial.way);
         let tcp = way.tcp(&self.via.host, self.via.port, limit).await?.io;
-        let config = way.tls.config_for(&self.dial.trust).map_err(|e| DialError::BadProxy(e.to_string()))?;
-        let mut config = (*config).clone();
-        config.alpn_protocols = offer.alpn();
-        let name = rustls_pki_types::ServerName::try_from(self.via.host.clone())
-            .map_err(|e| DialError::InvalidTarget(format!("{:?} is not a server name: {e}", self.via.host)))?;
-        let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
-        tokio::time::timeout(limit, connector.connect(name, tcp))
-            .await
-            .map_err(|_| DialError::Timeout {
-                step: format!("the TLS handshake with {shown}"),
-                after: limit,
-                stage: Stage::Proxy,
-            })?
-            .map_err(|e| {
-                // A server with no protocol in common ends the handshake with
-                // this alert (rustls's and Go's do), where others choose none.
-                let none = e.get_ref().and_then(|inner| inner.downcast_ref::<rustls::Error>()).is_some_and(|r| {
-                    matches!(r, rustls::Error::AlertReceived(rustls::AlertDescription::NoApplicationProtocol))
-                });
-                if none && offer == Offer::Http2 {
-                    let detail = "it did not choose HTTP/2 by ALPN (h2), which was asked for: it ended TLS with \
-                                  no_application_protocol"
-                        .to_string();
-                    return DialError::ProxyProtocol { proxy: shown.clone(), detail };
-                }
-                DialError::ProxyUnreachable {
-                    proxy: shown,
-                    detail: format!("TLS: {}", pod_tls::handshake_failure(&e, way.tls.words())),
-                }
-            })
+        let tls = ProxyTls { context: way.tls.clone(), trust: self.dial.trust.clone() };
+        let alpn = offer.alpn();
+        let alpn: Vec<&[u8]> = alpn.iter().map(Vec::as_slice).collect();
+        pod_proxy::hop::tls(tcp, &self.via.shown(), &self.via.host, &tls, &alpn, limit).await
     }
 }
 

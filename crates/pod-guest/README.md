@@ -45,7 +45,9 @@ the stop:
 
 The crate also gives a guest kernel its modules: it reads the squashfs
 modloop of the kernel on the host and returns the modules that the guest
-needs, with their dependencies ("The modloop", below).
+needs, with their dependencies ("The modloop", below). It writes an
+empty ext4 file system into a sparse file for a writable disk of a guest,
+with no `mke2fs` on the host ("The ext4 disk", below).
 
 The crate is Linux only (`#![cfg(target_os = "linux")]`): on another
 target it is empty. It reads no variable of the environment and prints
@@ -83,6 +85,7 @@ restored at each later run in place of a boot ("The warm start", below).
 | `warm::line` | the saved state of any machine line, with no `Plan`: `freeze(&Freeze { monitor, stream, transport, fallback, wait }, &mut hooks) -> Frozen { stream, goes_on }`, the trait `Stopped` (`before`, `after`; `()` does nothing), `save(&Save { monitor, stream, record, fingerprint, notes, transport, fallback, unique, wait }, &mut hooks) -> SaveEnd { saved: Result<Saved { bytes, took, transport }>, goes_on }`, `Record { transport, bytes, notes, fingerprint }` (`text`, `parse`, `note`), `RECORD`, `check(stream, record, fingerprint) -> Record`, `first_difference`, `incoming(line, transport, stream)`, `running(monitor, Option<&mut Child>, wait)`, `Transport::{File, Pipe}` (`word`, `of`, `save_uri`, `load_uri`), `Inputs` (`new`, `with`, `emulator`, `file`, `digest`, `machine`, `entries`, `text`), `cpu(accel)` ("A saved state of any machine line") |
 | `swap` | `Swap::new(&plan, token)` (`Usage` for a mailbox that is not `MailboxBus::Usb`), `Swap::restored(&plan)` (the idle mailbox of a warm restore: an empty token), `current()`, `token()`, `poll()` (the settled outcome of the current command; `None` with no command), `next(&mut monitor, &s, agent, &request)` (a new mailbox with the next volume id in the other file, then QMP `blockdev-change-medium` with `force`; `Usage` before a settled result or, after a restore, with no idle agent; `Protocol` for a refusal, and the medium stays); `settled(&fat16, token)` (the code of the token and no `WQGO.TXT`), `change_request(file)` (the device by `id`, not by the deprecated `device`; with `force`: the guest locks its medium), `mailbox_locked(query_block)` (the lock in the entry whose `qdev` is `wqmbox`), `mailbox_file(query_block)` (the file of its medium), `other_file(&plan)` (`MAILBOX.swap`) ("The next command") |
 | `modloop` | `modules(reader, kernel_release, names) -> ModuleSet` (`release`, `modules`: each `Module { path, name, bytes }` in load order, `builtin`, `dep`, `size()`), `Fault`, `fault(&failure)`, `MAX_SET`, `RELEASE_DIRS` |
+| `ext4` | `write_empty(&file, bytes, &names)` (an empty file gets the length `bytes` and the metadata of an empty ext4 file system; the rest stays holes), `Names { uuid, hash_seed, label }` (`Names::random(label)`, `Names::from_entropy(&mut entropy, label)`: a version 4 UUID and a hash seed), `Layout::of(bytes)` (`blocks`, `groups`, `inodes_per_group`, `gdt_blocks`, `itable_blocks`, `free_blocks()`, `inodes()`), `has_super(group)`, `BLOCK`, `MIN_BYTES`, `MAX_BYTES`, `LABEL_LEN` ("The ext4 disk") |
 | `squashfs` | `Image::open(reader)` (`superblock`, `root`, `inode(reference)`, `entries(&dir)`, `lookup(path)`, `file_at(path)`, `read(&file)`, `ids`, `export(number)`), `Superblock::parse`, `Compressor`, `Inode`, `Kind`, `Dir`, `File`, `Entry`, `listing(bytes)`, `Fault`, `fault(&failure)`, the ceilings `MAX_FILE`, `MAX_LISTING`, `MAX_LINK` |
 
 Each failure is a `pod_core::Failure` at `Stage::Host`. A failure of I/O
@@ -358,6 +361,36 @@ there, `Unsupported` for a version or a compressor, `Policy` for a
 ceiling, `Usage` for a release that is not one part of a path, `Protocol`
 for the rest.
 
+## The ext4 disk
+
+`ext4::write_empty(&file, bytes, &names)` makes a disposable disk for a
+guest: the writable layer of its root, its working directory. The caller
+opens a new empty file and gives it to the guest as a raw disk; a write of
+the guest past the size fails with `ENOSPC` in the guest.
+
+* The layout is that of `mke2fs -t ext4 -O
+  ^has_journal,^flex_bg,^metadata_csum,^resize_inode -b 4096 -I 256 -m 0`:
+  4 KiB blocks, 32-bit block numbers, groups of 32,768 blocks, one inode
+  for each 16 KiB, `sparse_super`, `filetype`, `extents`, `dir_index`,
+  `ext_attr`, `large_file`, `dir_nlink`, `extra_isize`, no journal, no
+  checksums, no reserved blocks. The root directory and `lost+found` have
+  one block each. A last rest of the size that cannot hold its group
+  metadata and 50 data blocks is left out of the file system.
+* Only the superblock and its copies, the group descriptors, the bitmaps,
+  the two directory inodes and the two directory blocks are written. The
+  inode tables and the data blocks stay holes, so a disk of 64 MiB takes
+  less than 1 MiB of the host.
+* The size is 64 MiB (`MIN_BYTES`) to 16 TiB less one block
+  (`MAX_BYTES`), a whole number of 4096-byte blocks. Another size, a
+  label of more than 16 bytes or with a NUL byte, and a file that is not
+  empty are `Usage` failures that name the value. `Layout::of(bytes)`
+  gives the same refusal with no file, so a caller can refuse a size
+  before other work. An I/O failure has the class of its kind; the caller
+  removes the file.
+* The host must hold each byte that the guest can write: a write past the
+  free space of the host is `EIO` in the guest, not `ENOSPC`. The caller
+  checks the free space before it makes the disk.
+
 ## Parity
 
 Against podvm `crates/podvm-windows` at `6cd3442`:
@@ -381,6 +414,18 @@ Against podvm `crates/podvm-windows` at `6cd3442`:
 | [x] `qmp` | the same; `keys` of `lib.rs` is `qmp::key` |
 | [x] The tests: 60 unit tests | 58 with their names; the tests of `base_cache` and `cap_status` stay in podvm; 7 new |
 
+Against podvm `crates/podvm/src/machine/guest/disk/ext.rs` at `9c1edb5`
+(T-1500, PodUtils/podvm#680):
+
+| Capability of podvm | Here |
+| --- | --- |
+| [x] `Layout::of(bytes) -> Result<Layout, String>`, `has_super`, `free_blocks`, `inodes`, `BLOCK` | `ext4::Layout::of -> Result<Layout>`; the bounds of podvm's parser are in the crate: less than 64 MiB and a size that is not a whole number of blocks are refused (podvm cut a size to whole blocks) |
+| [x] `write(&file, &layout, uuid, seed)` on a file of the size | `write_empty(&file, bytes, &names)`: the crate sets the length and refuses a file that is not empty |
+| [x] the label `podvm-disk` | `Names::label`, at most 16 bytes |
+| [x] the UUID and the hash seed from `/dev/urandom` (`disk.rs`, `random`) | `Names::random` from `pod_core::entropy` |
+| [x] `s_block_group_nr` of a copy | 65535 for a copy past group 65535, as mke2fs (podvm wrote the low 16 bits) |
+| [x] The tests of the layout, of the sparse file and of `e2fsck` | with their names; 4 new: the refusals by name, the group number of a far copy, the names in the superblock, the free counts against the bitmaps |
+
 ## Adoption map (podvm)
 
 | Old path | New path |
@@ -398,6 +443,16 @@ Against podvm `crates/podvm-windows` at `6cd3442`:
 | `podvm_windows::{base_cache, cap_status}`, `podvm_windows::dos::base_cache` | stay in podvm |
 | `podvm_windows::dos::{argv, run, batch_from_argv, DEFAULT_MEM_MIB, CPUS, ...}` | `pod_guest::dos::*`, re-exported by `podvm_windows::dos` |
 | `crates/podvm-windows/src/{agent,dos,emulator,fat16,fat16/tests,fetch,plan,provision,qmp,scratch}.rs` | leave podvm |
+
+The disk of `--storage-opt size=` (T-1500): podvm adds `pod-guest` to
+`PodUtils/podvm:crates/podvm/Cargo.toml` at the tag that carries `ext4`.
+
+| Old path | New path |
+| --- | --- |
+| `machine::guest::disk::ext::Layout::of(bytes)` in `refusal` | `pod_guest::ext4::Layout::of(bytes)`; the text of the `Failure` is the reason |
+| `machine::guest::disk::random()` and `ext::write(&file, &layout, uuid, seed)` after `file.set_len(bytes)` in `make` | `pod_guest::ext4::write_empty(&file, bytes, &Names::random("podvm-disk")?)` on the new file |
+| the tests `the_superblock_copies_are_in_the_sparse_groups`, `a_layout_has_room_in_each_group`, `e2fsck_finds_no_fault_in_the_disk` | `pod_guest::ext4` tests; `the_disk_is_a_sparse_file_of_the_size` stays for `make` |
+| `crates/podvm/src/machine/guest/disk/ext.rs` | leaves podvm |
 
 ## Tests
 
@@ -518,6 +573,21 @@ it decoded and those with the x86 filter, and takes the module set of
 `modloop-virt` of Alpine 3.22.8 (2026-11-11): 1,016 streams, 8 with x86
 BCJ, 939 files of 114,162,529 bytes; the set has 20 modules of 2,194,724
 bytes for `6.12.115-0-virt`.
+
+The tests of the ext4 disk (`src/ext4/tests.rs`) write disks under the
+temporary directory and remove them: the refusal of each size out of
+the bounds by name, the copies of the superblock in the sparse groups,
+the layout of each shape (one group, 8 groups, a rest left out, 131,072
+groups), the group number 65535 of a copy past group 65535, a sparse file
+of the size and the refusal of a file that is not empty, the names in the
+superblock and its copy, a source with no random bytes, and the free
+counts of the superblock and of each descriptor against the clear bits of
+the bitmaps. `e2fsck_finds_no_fault_in_the_disk` runs `e2fsck -f -n` on a
+disk of 64 MiB and on a disk of 9 groups (copies in groups 1, 3, 5 and 7);
+it finds `e2fsck` in `PATH`, `/usr/sbin` or `/sbin`, and skips with a
+line `skipping, REASON` where the host has none. The plant
+`guest-ext4-free-blocks-count-wrong` (one free block too many in each
+group descriptor) fails it and the test of the free counts.
 
 ## Sources
 

@@ -25,6 +25,10 @@
 //! * `iap` ([`iap`]): Google Cloud's Identity-Aware Proxy for TCP, a session
 //!   that a new link takes up.
 //!
+//! The feature `standin` ([`standin`]) gives the far ends of two roads on
+//! the loopback, for the tests of this crate and of a consumer: a forward
+//! proxy over TLS and a wstunnel server.
+//!
 //! **Shared parts.** [`carry`] makes a WebSocket session a byte stream,
 //! [`end`] says what the end of this side's input does, [`Note`] takes a
 //! peer's words, [`Duplex`] is the stream of a tunnel. They have no
@@ -71,6 +75,8 @@ pub mod meek;
 pub mod pt;
 #[cfg(feature = "shadowsocks")]
 pub mod shadowsocks;
+#[cfg(feature = "standin")]
+pub mod standin;
 #[cfg(feature = "trojan")]
 pub mod trojan;
 #[cfg(feature = "via")]

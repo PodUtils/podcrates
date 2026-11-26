@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1071 entries: 170 open, 31 partial, 6 blocked, 864 done.**
+**1080 entries: 172 open, 31 partial, 6 blocked, 871 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 72 | 12 | 4 | 459 | 547 |
-| P3 | 94 | 10 | 2 | 157 | 263 |
-| **All** | 170 | 31 | 6 | 864 | 1071 |
+| P2 | 73 | 12 | 4 | 465 | 554 |
+| P3 | 95 | 10 | 2 | 158 | 265 |
+| **All** | 172 | 31 | 6 | 871 | 1080 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1100,6 +1100,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1427](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: the refusal of a missing working directory says "docker creates it" only for `run` (PodUtils/podvm#678) |
 | [T-1428](podvm.md) | P3 | S | M6 | defect | open | `pod-enter`: a file where the working directory should be says "docker creates it", which is false for `run` too |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
+| [T-1431](transport.md) | P2 | M | M1 | feature | done | `pod-proxy`: a proxy of the scheme `https`, TLS to the proxy with the caller's trust and then CONNECT, in `Dialer` and in each dial (PodUtils/podnet#779, ask 1) |
+| [T-1432](roads.md) | P2 | S | M4 | feature | done | `pod-egress`: the stand-ins of the second proxy over TLS, of a wstunnel server and of VLESS, Trojan, Shadowsocks and Wisp servers, behind the feature `standin` (PodUtils/podnet#779, ask 2; PodUtils/podnet#782, ask 2) |
+| [T-1433](roads.md) | P2 | S | M4 | defect | open | `pod-iroh`: an `https` proxy goes to iroh's relay dial by its address, so TLS checks the proxy's certificate for the address and not the name |
+| [T-1434](relay.md) | P3 | S | M2 | defect | open | `pod-relay`: the dial of a reverse TCP target takes a plain TCP connection only, so a proxy over TLS, on a Unix socket or at a command is refused |
 | [T-1444](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`: `a_path_that_is_there_is_never_opened_truncated_or_removed` fails on Windows: a file made at the name of a directory gives "Access is denied", not `AlreadyExists` |
 | [T-1445](upkeep.md) | P1 | S | M5 | defect | done | `pod-tpm`: two tests of `tests/socket.rs` fail on macOS: `set_read_timeout` on a stream whose peer closed gives an error, so the call says `Unavailable`, not `Protocol` |
 | [T-1446](upkeep.md) | P1 | S | M5 | defect | done | `pod-warp`: `warp_exec_finds_warp_up_of_another_state_directory` fails on macOS: its socket path is longer than 104 bytes |
@@ -1115,6 +1119,11 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1480](upkeep.md) | P3 | S | M5 | chore | done | three crates keep their own guard that aborts a tokio task on drop |
 | [T-1484](upkeep.md) | P3 | M | M0 | chore | open | `pod-iroh`: the move to iroh 1.5, iroh-dns 1.5 and simple-dns 0.13 together |
 | [T-1488](relay.md) | P3 | S | M2 | defect | done | `pod-link`: the line of the loopback bind keeps " (os error 13)" after the rule of T-1421 |
+| [T-1500](podvm.md) | P2 | M | M6 | feature | done | `pod-guest`: `ext4::write_empty`, an empty ext4 file system in a sparse file with no tool of the host (PodUtils/podvm#680) |
 | [T-1504](transport.md) | P3 | S | M5 | defect | open | `live.yml` 45797952128: the upload of temp.sh answered HTTP 500 |
 | [T-1505](roads.md) | P2 | S | M4 | feature | done | `pod-acme`: the contacts of the account, sent in newAccount, a refused contact named |
 | [T-1506](roads.md) | P2 | M | M4 | feature | done | `pod-acme`: a stand-in of an ACME CA behind the feature `standin` |
+| [T-1507](adapters.md) | P2 | S | M3 | feature | done | `pod-cloudflare`: the capture names the ingress rule that matched and the hostname of the visitor (PodUtils/podnet#781) |
+| [T-1508](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: an exchange that the capture started always ends, also when the chunk decoder refuses the request body (PodUtils/podnet#781) |
+| [T-1513](services.md) | P2 | S | M5 | defect | done | `services.yml` 45805546683: the Tailscale DERP region 24 gone, and the runner pin of GitHub Actions past 30 days with no newer release |
+| [T-1516](roads.md) | P3 | S | M4 | chore | done | `pod-derp`: the derper tests read `PODSSH_DERP_TEST_*`, and the adoption map says that podnet has no DERP road (PodUtils/podnet#783) |

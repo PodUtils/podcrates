@@ -2886,3 +2886,74 @@ sh scripts/plant-each.sh cloudflare-capture-before-the-write cloudflare-chunked-
 ## Done
 
 2026-11-25. Commit: see `git log` for T-1404. New public module `capture`: the trait `Capture` (`head(exchange, &Head)`, `body(exchange, Direction, &[u8])`, `end(exchange, &End)`), `Direction` (`Request`, `Response`), `Head` (`line`, `headers`; `direction()`, `header(name)`), `Line` (`Request { method, target }`, `Response { status }`), `End` (`status`, `started`, `elapsed`, `complete`) and `Refused`. `Host::capture: Option<Arc<dyn Capture>>` (`None` in `Host::new`) goes to `Origins::with_capture` in `Runtime::build`; `forward_http` keeps its signature. The sink is a non-blocking call with no queue in the crate: each method returns at once (a ring under a short lock, a `try_send`), and the crate calls it after the write (and the flush) to the peer. `Refused` drops the sink for that exchange: no other call and no end; the copy goes on with the same bytes. `Origins` gives each exchange an id from a counter; the crate-side `capture::Tap` joins the heads, the body parts and the end, and gives the end in its drop, once, after each other call. The request head is the head that went to the origin (`Head::of_request` of `build_request_head`): a request that the credential in front of the tunnel refuses (401) reaches no sink, and its `Authorization` is removed before; the headers of the visitor stay, and the doc of `capture` says that the consumer redacts. A chunked answer gives its decoded payload; a chunked request body is decoded for the sink only (`capture::Dechunk`, which takes the bytes in parts; a bad framing stops the capture, not the copy). An upgrade gives its two heads (101) and no body. Fixed in the same work: the answer to a chunked request (`proxy_bidi` with no upgrade) went to the visitor as raw bytes, so a chunked answer gave its size lines to the visitor; `forward_http` and `proxy_bidi` now share `answer`, which frames the answer the same way in both. Tests: `proxy::capture_tests::the_sink_sees_each_exchange` (a stand-in origin: a plain exchange with a request body, a chunked answer, a chunked request with a chunked answer, a WebSocket; each head, each payload, one end with the status, an id for each exchange), `a_sink_that_refuses_does_not_change_the_bytes`, `the_credential_of_the_tunnel_never_reaches_the_sink`, `the_sink_gets_a_part_after_the_visitor`; `capture::dechunk::tests` (3). New plants `cloudflare-capture-before-the-write` (the sink before the write of an answer part) and `cloudflare-chunked-request-answer-unframed` (the old raw answer to a chunked request): each test failed on its patch with the EXPECT line (run by hand in the worktree). `cargo test -p pod-cloudflare --all-features`: 216 + 13 passed, 0 failed. `cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings` and `cargo fmt --all --check`: clean. Not verified: the capture behind the real edge, and podnet's ring on the sink.
+
+# T-1507: `pod-cloudflare`: the capture names the ingress rule that matched and the hostname of the visitor (PodUtils/podnet#781)
+
+**Source:** PodUtils/podnet#781 (COORD-136 of podnet), ask 1; PodUtils/podnet@T-244; author MEMBER.
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The ask of podnet: "The head of the capture is the head that went to the origin. It names no ingress rule and no hostname of the visitor. With `httpHostHeader`, `Host` is the value of the rule. A replay must find the rule again by the path and `Host`; a file with two rules of the same `httpHostHeader` and the same path can replay to the wrong one. Ask: the capture gives the index (or the name) of the ingress rule that matched, and the hostname of the visitor, beside the head."
+
+## Premise
+
+- Read: PodUtils/podnet#781; T-1404; `crates/pod-cloudflare/src/capture.rs`, `src/proxy.rs` (`serve_request_inner` resolves the rule by `resolve_index`), `src/proxy/forward.rs`; podnet at a shallow clone (`src/tunnel/inspect.rs`, `inspect/tests.rs`, `inspect/replay.rs`).
+- podnet implements `Capture` (`head`, `body`, `end`) and builds `Head` and `End` in its tests. It calls `forward_http` in its replay. A new required method, a new field of `Head` or `End`, or a new argument of `forward_http` breaks podnet.
+- `IngressRule` has no name field, only `hostname`. The index is the key.
+
+## Approach
+
+A new method of `Capture` with a default body that does nothing: `route(&self, exchange, &Route) -> Result<(), Refused>`. `Route` is built by the crate only (`#[non_exhaustive]`): `rule` (the index in `Ingress::rules`), `hostname` (of the rule) and `host` (the `Host` of the visitor, as `serve_request_inner` resolved it, before `httpHostHeader`). The crate calls `route` once, before the request head, for a request that a rule took. `forward_http` keeps its signature (no route: no call); `serve_request_inner` calls a crate-private `forward_ruled`. podnet changes nothing to build; it implements `route` to put the index and the host in its record, and replays by the index.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features
+cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh cloudflare-capture-no-route
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1507. New in `pod_cloudflare::capture`: `Capture::route(&self, exchange, &Route) -> Result<(), Refused>` (a default body that does nothing) and `Route` (`#[non_exhaustive]`; `rule`, `hostname`, `host`). `serve_request_inner` gives the index of the matched rule, its `hostname` and the `Host` of the visitor (before `httpHostHeader`) through the crate-private `forward::forward_ruled`; the crate calls `route` once, before the request head. `forward_http` keeps its signature and gives no route. podnet must change nothing to build; it implements `route` to record the index and the host, and replays by the index. Tests: `proxy::capture_route_tests::the_sink_gets_the_rule_and_the_visitor` (two rules with one `httpHostHeader`, a catch-all, the route before the head, the `Host` that the origin got). Plant: `cloudflare-capture-no-route` (the test fails on it). `cargo test -p pod-cloudflare --all-features`, clippy and fmt: clean. Not verified: podnet's use of `route`; the capture behind the real edge.
+
+# T-1508: `pod-cloudflare`: an exchange that the capture started always ends, also when the chunk decoder refuses the request body (PodUtils/podnet#781)
+
+**Source:** PodUtils/podnet#781 (COORD-136 of podnet), ask 2; PodUtils/podnet@T-244; author MEMBER.
+**Category:** defect
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The ask of podnet: "When the chunk decoder of the crate refuses a chunked request body, the crate drops the sink of that exchange and calls no `end`. The record stays `open` until the start of the tunnel ends. Ask: the crate calls `end` (with the error) for each exchange that it started, also when the decoder refuses the body. A test: a request with the chunk size line `ffffffffffffffff` gives one `end` with an error, and no panic."
+
+## Premise
+
+- Read: PodUtils/podnet#781; T-1404 ("a refused sink is dropped for that exchange"); `capture.rs` (`Tap::body` gave a decoder failure to `Tap::take` as a `Refused`, which dropped the sink and so the end) and `capture/dechunk.rs`.
+- A failure of the crate decoder is not a refusal of the sink. A sink that refused stays dropped: no other call and no end.
+- `Dechunk` took the size `ffffffffffffffff` as a valid chunk of 2^64 - 1 bytes and waited for its data, so no error came. A size above 2^63 - 1 is not a real chunk.
+- A new field of `End` breaks the podnet code that builds `End` (its tests).
+
+## Approach
+
+`Dechunk` refuses a chunk size above `i64::MAX`. A failure of the decoder sets a fault in `Tap` and stops the capture of the request body only; the sink stays live, gets the rest of the exchange and its `end`. A new method of `Capture` with a default body that does nothing: `fault(&self, exchange, Fault)`, called at most once, just before `end`; `Fault` (`#[non_exhaustive]`, the crate builds it) has the variant `RequestChunking`. `End` stays as it is. podnet changes nothing to build; it implements `fault` to mark the record with the error.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features
+cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh cloudflare-capture-decoder-refusal-drops-end
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1508. A failure of the chunk decoder is no more a refusal of the sink: `Tap` keeps a `Fault`, stops the capture of the request body, and the sink stays live, gets the rest of the exchange, then `Capture::fault(&self, exchange, Fault)` (a default body that does nothing; `Fault` is `#[non_exhaustive]` with `RequestChunking`) and its `end`, once, last. A sink that returned `Refused` stays dropped (no call, no end). `Dechunk` refuses a chunk size above `i64::MAX`, so the size line `ffffffffffffffff` is a fault (it was a chunk of 2^64 - 1 bytes). `End` is not changed. podnet must change nothing to build; it implements `fault` to mark its record with the error. Tests: `proxy::capture_route_tests::a_refused_chunk_body_still_gets_its_end` (the sizes `ffffffffffffffff` at the start and after a good chunk, and `zz`: one fault, one end as the last call, no body byte after the fault, the visitor's bytes equal to the run with no sink, no panic); `capture::dechunk::tests::a_bad_framing_is_an_error` has the two new sizes. Plant: `cloudflare-capture-decoder-refusal-drops-end` (the test fails on it).

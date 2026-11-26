@@ -79,7 +79,7 @@ async fn until(what: &str, ready: impl Fn() -> bool) {
 async fn two_streams_at_once_on_one_websocket_each_carry_their_bytes() {
     pod_testkit::need_loopback!();
     // A credit of 4 packets: each MiB needs the server's CONTINUE often.
-    let stand = StandIn::start(Speaks::V1, 4).await;
+    let stand = StandIn::start(Speaks::V1, 4).await.unwrap();
     let notes = Notes::default();
     let wisp = connect(stand.port, &notes).await.unwrap();
     assert_eq!((wisp.opened().version, wisp.opened().buffer, wisp.confirms()), ((1, 0), 4, false));
@@ -104,7 +104,7 @@ async fn two_streams_at_once_on_one_websocket_each_carry_their_bytes() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_client_sends_no_data_past_the_server_s_credit() {
     pod_testkit::need_loopback!();
-    let stand = StandIn::start(Speaks::V1, 4).await;
+    let stand = StandIn::start(Speaks::V1, 4).await.unwrap();
     let notes = Notes::default();
     let wisp = connect(stand.port, &notes).await.unwrap();
     let mut held = wisp.open("hold.test", 9, AtEnd::Now).await.unwrap();
@@ -120,7 +120,7 @@ async fn the_client_sends_no_data_past_the_server_s_credit() {
     assert_eq!(sent, back, "the other stream is not held up");
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert_eq!((stand.data_of(1), stand.overruns()), (4, 0), "no DATA past the credit");
-    stand.grant(1, 4).await;
+    assert!(stand.grant(1, 4).await, "a CONTINUE to the connection");
     until("4 more after the CONTINUE", || stand.data_of(1) >= 8).await;
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert_eq!((stand.data_of(1), stand.overruns()), (8, 0), "the new credit, and no more");
@@ -130,7 +130,7 @@ async fn the_client_sends_no_data_past_the_server_s_credit() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_stream_that_the_server_closes_gives_its_reason() {
     pod_testkit::need_loopback!();
-    let stand = StandIn::start(Speaks::V1, 16).await;
+    let stand = StandIn::start(Speaks::V1, 16).await.unwrap();
     let notes = Notes::default();
     let wisp = connect(stand.port, &notes).await.unwrap();
     let mut blocked = wisp.open("close-48.test", 22, AtEnd::Now).await.unwrap();
@@ -155,7 +155,7 @@ async fn a_stream_that_the_server_closes_gives_its_reason() {
 async fn version_2_opens_with_both_infos_and_confirms_each_stream() {
     pod_testkit::need_loopback!();
     let extensions = vec![(0x01, Vec::new()), (0x04, b"demo and testing only\r\n".to_vec()), (0x05, Vec::new())];
-    let stand = StandIn::start(Speaks::V2 { extensions, refuse: None }, 16).await;
+    let stand = StandIn::start(Speaks::V2 { extensions, refuse: None }, 16).await.unwrap();
     let notes = Notes::default();
     let wisp = connect(stand.port, &notes).await.unwrap();
     assert_eq!((wisp.opened().version, wisp.opened().buffer, wisp.confirms()), ((2, 1), 16, true));
@@ -177,14 +177,14 @@ async fn version_2_opens_with_both_infos_and_confirms_each_stream() {
 async fn version_2_refusals_say_why() {
     pod_testkit::need_loopback!();
     // A server that requires a password: this side's CLOSE 0x04 on stream 0.
-    let password = StandIn::start(Speaks::V2 { extensions: vec![(0x02, vec![1])], refuse: None }, 16).await;
+    let password = StandIn::start(Speaks::V2 { extensions: vec![(0x02, vec![1])], refuse: None }, 16).await.unwrap();
     let notes = Notes::default();
     let e = connect(password.port, &notes).await.unwrap_err();
     assert!(e.to_string().contains("requires a user name and a password"), "{e}");
     until("the client's CLOSE", || !password.seen.lock().unwrap().closes.is_empty()).await;
     assert_eq!(password.seen.lock().unwrap().closes, [(0, 0x04)]);
     // A server that refuses the connection: its reason.
-    let throttled = StandIn::start(Speaks::V2 { extensions: Vec::new(), refuse: Some(0x49) }, 16).await;
+    let throttled = StandIn::start(Speaks::V2 { extensions: Vec::new(), refuse: Some(0x49) }, 16).await.unwrap();
     let e = connect(throttled.port, &notes).await.unwrap_err();
     assert_eq!(e, WispError::Refused(Reason::THROTTLED));
 }
@@ -198,7 +198,7 @@ fn dial(notes: &Notes, at_end: AtEnd) -> Dial {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_forwarder_s_road_carries_a_session_and_closes_its_stream_at_the_end() {
     pod_testkit::need_loopback!();
-    let stand = StandIn::start(Speaks::V1, 8).await;
+    let stand = StandIn::start(Speaks::V1, 8).await.unwrap();
     let notes = Notes::default();
     let template = Template::parse(&format!("wisp+ws://127.0.0.1:{}/", stand.port)).unwrap();
     let target = echo().await;
@@ -232,7 +232,7 @@ async fn the_forwarder_s_road_carries_a_session_and_closes_its_stream_at_the_end
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_pipe_s_end_of_input_sends_no_close_and_loses_no_byte() {
     pod_testkit::need_loopback!();
-    let stand = StandIn::start(Speaks::V1, 8).await;
+    let stand = StandIn::start(Speaks::V1, 8).await.unwrap();
     let notes = Notes::default();
     let template = Template::parse(&format!("wisp+ws://127.0.0.1:{}/", stand.port)).unwrap();
     let target = talker::talker().await;
@@ -293,7 +293,7 @@ async fn reference_a_stream_that_the_server_closes_gives_its_reason() {
 async fn a_wisp_road_is_a_dialer_and_a_blocked_target_is_a_typed_failure() {
     pod_testkit::need_loopback!();
     let extensions = vec![(0x05, Vec::new())];
-    let stand = StandIn::start(Speaks::V2 { extensions, refuse: None }, 16).await;
+    let stand = StandIn::start(Speaks::V2 { extensions, refuse: None }, 16).await.unwrap();
     let notes = Notes::default();
     let wisp = connect(stand.port, &notes).await.unwrap();
     assert!(wisp.confirms());

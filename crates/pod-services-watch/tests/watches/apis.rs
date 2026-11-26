@@ -33,6 +33,7 @@ fn answer(request: &Request, origin: &str) -> Answer {
     let json = |status, body: &str| Answer::new(status, body.to_string()).header("Content-Type", "application/json");
     match request.path() {
         "/api/repos/o/r/releases/latest" => json(200, r#"{"tag_name":"v2","published_at":"2026-11-01T00:00:00Z"}"#),
+        "/api/repos/o/r/releases/tags/v2" => json(200, r#"{"tag_name":"v2","published_at":"2026-11-01T00:00:00Z"}"#),
         "/api/repos/o/r/releases/tags/v1" => json(200, r#"{"tag_name":"v1","published_at":"2026-01-01T00:00:00Z"}"#),
         "/raw/o/r/v1/a.txt" | "/raw/o/r/v2/a.txt" => Answer::new(200, "one"),
         "/raw/o/r/v2/b.txt" => Answer::new(200, "two"),
@@ -98,6 +99,9 @@ async fn github_release_wants_a_young_pin() {
     assert!(report.holds() && text(&report).contains("the newest release of o/r is v2"), "{}", text(&report));
     let report = one_in(&mut net, &file("r2", &(fact("tag", "\"v1\"") + &w(274)))).await;
     assert!(text(&report).contains("a release of 313 days, past 274"), "{}", text(&report));
+    // The pin is the newest release: no newer release exists, so it holds at any age.
+    let report = one_in(&mut net, &file("r2b", &(fact("tag", "\"v2\"") + &w(1)))).await;
+    assert!(report.holds(), "{}", text(&report));
 }
 
 #[tokio::test]

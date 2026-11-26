@@ -8,7 +8,7 @@ use pod_core::Stage;
 use super::copy::*;
 use super::head::*;
 use super::{EdgeReader, EdgeWriter, cqstream};
-use crate::capture::{Direction, Head, Tap};
+use crate::capture::{Direction, Head, Route, Tap};
 use crate::ingress::{OriginOptions, Service};
 use crate::metrics::Metrics;
 use crate::origin::Origins;
@@ -26,7 +26,26 @@ pub async fn forward_http(
     writer: EdgeWriter,
     metrics: &Metrics,
 ) -> Result<()> {
+    forward_ruled(origins, service, options, request, reader, writer, metrics, None).await
+}
+
+/// [`forward_http`] for a request that an ingress rule took: the capture
+/// gets `route` before the request head.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn forward_ruled(
+    origins: &Origins,
+    service: &Service,
+    options: &OriginOptions,
+    request: &cqstream::ConnectRequest,
+    reader: EdgeReader,
+    writer: EdgeWriter,
+    metrics: &Metrics,
+    route: Option<Route>,
+) -> Result<()> {
     let tap = origins.tap();
+    if let Some(route) = route {
+        tap.route(|| route);
+    }
     let done = exchange(origins, service, options, request, reader, writer, metrics, &tap).await;
     if done.is_ok() {
         tap.complete();

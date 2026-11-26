@@ -21,7 +21,6 @@ clone:a9016a9e2d4b99f8  T-917: crates/pod-hostprobe/src/machine.rs detail and it
 clone:c71a1b1e2644130d  T-917: scripts/agent/watch.py trusted and its copies
 clone:d4b2c85b6d40ca13  T-917: crates/pod-warp/src/tun/probe.rs tcp_packet and its copies
 clone:e19da24559ee654c  T-917: crates/pod-relay/src/h2_road.rs parse and its copies
-test-clone:000c77b56fbcd6d0  T-918: crates/pod-egress/tests/shadowsocks.rs open and its copies
 test-clone:01aa52b06359aeea  T-918: crates/pod-core/tests/files.rs scratch and its copies
 test-clone:09cc3db354e27990  T-918: crates/pod-enter/src/binfmt/tests.rs the_elf_machine_numbers_are_the_specifications and its copies
 test-clone:0b992bf3d297ec13  T-918: crates/pod-relay/tests/mailbox_harness/mod.rs way and its copies
@@ -72,7 +71,6 @@ test-clone:91e9cf5ac1f45d3d  T-918: crates/pod-proxy/tests/limits.rs request_hea
 test-clone:957f4aa559aeaee1  T-918: crates/pod-link/tests/h2.rs a_peer_that_sends_nothing_holds_no_other_handshake and its copies
 test-clone:96db9cbce5a6b333  T-918: crates/pod-link/tests/quic.rs the_listener_refuses_a_client_of_another_key_and_stays_open and its copies
 test-clone:993ec93c0f174985  T-918: crates/pod-derp/tests/derp_link.rs echo and its copies
-test-clone:9cfeed90559efb8b  T-918: crates/pod-egress/tests/shadowsocks.rs seal and its copies
 test-clone:aca3079fceb95106  T-918: crates/pod-e2e/tests/e2e_harness/mod.rs echo and its copies
 test-clone:b3761f2c8c482dcc  T-918: crates/pod-e2e/tests/e2e_harness/mod.rs stand_in and its copies
 test-clone:b95ffdc8a76af2e2  T-918: crates/pod-confine/tests/apply.rs with_tcp_list and its copies

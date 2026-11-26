@@ -5646,7 +5646,6 @@ cargo test -p pod-devtunnel --all-features
 
 2026-11-17. `pod_ws::client::upgrade_answering` (beside `upgrade_with`, which keeps its type for its callers in `pod-piping`, `pod-egress` and `pod-iroh`) gives the subprotocol that the 101 names. `url::dial_asking` (so `dial_offering`) refuses with `ConnectError::Upgrade` an answer that names a subprotocol that the request did not offer, or one when it offered none (`url::check_chosen`: any of a list offered, in any case; its words clean the name); an answer that names none goes on, as a Wisp server of version 1 does. `handshake::check_chosen_protocol` stays the stricter rule of `pod-link`'s carrier, which refuses an answer with none too. The upgrade moved to `src/client/upgrade.rs`, so `client.rs` stays under 500 lines. Tests: `tests/subprotocol.rs` (3: another subprotocol refused, also when none was offered; the one offered, none, and none with none go on, through `dial_offering` against a server of the test; the rule). The tests of `pod-ws`, `pod-devtunnel`, `pod-egress`, `pod-services-watch` and `pod-wormhole` passed (630). The plant `ws-chosen-protocol-unchecked` is caught.
 
-
 # T-386: `pod-devtunnel`: the live run against the service with the owner's own token
 
 **Source:** T-378 (GitHub #94: a live test with a token of the user, never a shared account).
@@ -7431,7 +7430,6 @@ cargo test -p pod-core --all-features
 
 Open: a caller (the choice of a relay host of `pod-relay`, and podnet's selection, by a COORD issue); the grammar of tokens in a proxy credential, with podnet (RT-1); the length of a chain.
 
-
 # T-825: `pod-proxy`: a plan of the dial by address family, with the families of both ends and a timeout for each attempt
 
 **Source:** the dig study of 2026-11-16 (an archive of the owner), report 07.
@@ -7499,7 +7497,6 @@ cargo test -p pod-identity --all-features
 2026-11-17, part 1 (the slots on disk). `crates/pod-identity/src/rotate.rs`: the previous key is the file of the key with `.previous` after its name (`previous_path`). `rotate_at(path)` reads the current key (a rotation makes no first key), refuses when a previous key is there ("retire the previous key first", the current file unchanged), keeps the old key in the previous slot with `create_private` (a new file only, so of two rotations at once one is refused), then writes a new key with `pod_core::files::replace_private` (T-192) and gives `Rotated { previous, current, unconfirmed }`. `previous_at`, `slots_at` (`Single`, `Overlapping`), and `retire_at` (removes the previous slot and syncs the directory; `false` when there was none). `rotate`, `previous` and `retire` take a `Place` in the `Places` of the app; a key of the old name rotates in its own file (`file::kept_path_in`, which `existing_in` now uses). Tests: 6 in `src/rotate_tests.rs` (both keys kept and read by a new run, a second rotation refused with the current file byte for byte, a rotation again after a retire, a retire once then no change, no key and an ephemeral key refused with nothing made, both slots mode 0600, a key of the old name). The plant `identity-rotate-twice` (the two refusals removed) is caught.
 
 Part 2, open: the overlap at the handshake. A node that holds two keys proves the old one to a peer that pins only it (a second listener or a second certificate of `pod-tls`), and a test that such a peer connects during the overlap and fails after the retire. Its form waits for a consumer that rotates a key (podssh's node, podnet's identity), by a COORD issue at the release.
-
 
 # T-828: `pod-services`: the DIG relay, its measured limits and its framing, or a call that names it unfit
 
@@ -7804,7 +7801,6 @@ unit tests, all passed. With the retry in `http::status` switched off, the test 
 `FAILED l1 http-status: https://stand.test:PORT/once answered 429 ... a limit of the host of the run, not 405`
 (the stand-in answers 429 once, then 405). The next scheduled `services.yml` run shows whether `temp-sh` still
 answers 429 to two tries; read it.
-
 
 # T-1137: `pod-proxy`: a body over the bound is refused with no status, no size, no bound and no byte of the body (PodUtils/podvm#651)
 
@@ -8851,3 +8847,135 @@ runner; the live runs of 2026-11-13 held).
 ```sh
 cargo test -p pod-services-watch --all-features
 ```
+
+# T-1431: `pod-proxy`: a proxy of the scheme `https`, TLS to the proxy with the caller's trust and then CONNECT, in `Dialer` and in each dial (PodUtils/podnet#779, ask 1)
+
+**Source:** PodUtils/podnet#779 (COORD-134 of podnet), ask 1; PodUtils/podnet@T-126; author MEMBER
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+podnet takes `https://[USER@]HOST[:PORT]` and `wstunnel:` as networks of
+its registry, through `pod_egress::via` and `pod_egress::wstunnel`. The
+proxy of the process (`--proxy https://HOST`, `HTTPS_PROXY=https://HOST`)
+is still refused: that dialer is `pod_proxy::Dialer`, and its `Proxy` has
+no TLS hop to the proxy itself. The connection to the proxy is cleartext;
+TLS starts only after the CONNECT. `Proxy::parse` refuses the scheme:
+"https:// proxies (TLS to the proxy) are not supported".
+
+The ask: a `Proxy` of the scheme `https`
+(`https://[USER[:PASS]@]HOST[:PORT]`, the port 443 by default): TLS to the
+proxy with the caller's trust, then CONNECT inside that TLS, with the Basic
+of the URL as for `http`; in `Dialer` and in each dial, so that each road
+of a consumer (podnet's tunnel, relay, WARP, update) takes an HTTPS proxy
+of the process. podnet takes it with the next tag (PodUtils/podnet@T-614).
+
+## Premise
+
+- Read: `crates/pod-proxy/src/proxy/parse.rs` (the schemes, the refusal of
+  `https`, `secret_parts`), `crates/pod-proxy/src/env.rs` (the readers take
+  `Proxy::parse`), `crates/pod-proxy/src/stream.rs` (`open_proxy` by the
+  carrier), `crates/pod-proxy/src/connect.rs` (the CONNECT, Basic, Digest
+  on a new connection, the errors at the stage `Proxy`),
+  `crates/pod-proxy/src/dial.rs` and `crates/pod-proxy/src/blocking.rs`.
+- Read: `pod_egress::via::Client::tls` (`crates/pod-egress/src/via/mod.rs`)
+  makes a TLS hop to a proxy: the configuration of the trust in the
+  caller's `pod_tls::Context`, the ALPN, the SNI of the proxy host, the
+  bound, and the refusal as `ProxyUnreachable` with the words of
+  `pod_tls::handshake_failure`. `pod-egress` depends on `pod-proxy`, so the
+  lowest crate of both is `pod-proxy`.
+- Read: `pod_proxy::Stream` and `pod_proxy::blocking::Stream` are enums
+  that are not `non_exhaustive`; `ProxyKind` too. A new variant breaks a
+  consumer's exhaustive match.
+- A `Dialer` has no TLS context: the provider and the roots are the
+  caller's (`pod_tls::Context`).
+- Not measured: a run of podnet with an HTTPS proxy.
+
+## Approach
+
+1. `ProxyKind::Https`: the scheme `https`, the default port `HTTPS_PORT`
+   (443). `https+unix:` and `https+exec:` are refused: TLS checks the name
+   of the host, and a socket or a command has none.
+2. `pod_proxy::hop::tls`: the TLS hop to a proxy over a stream that the
+   caller holds, moved from `pod_egress::via::Client::tls`; `via` calls it.
+   A refused handshake is `ProxyUnreachable` (stage `Proxy`) with the words
+   of `pod-tls`; a time out is a `Timeout` at the stage `Proxy`.
+3. `Dialer::with_proxy_tls(context, trust)`: the TLS of an `https` proxy.
+   With none, an `https` proxy is a `BadProxy` that says so. `open_proxy`
+   makes TCP and then the hop, offering `http/1.1`; the CONNECT and its
+   Basic or Digest go inside. `Stream::Tls` and
+   `blocking::Stream::Tls` carry the stream.
+4. Tests against a stand-in TLS forward proxy on the loopback with a test
+   CA: a dial through it, a wrong certificate refused with its words, Basic
+   inside the TLS only (a recorder of the bytes between the dialer and the
+   proxy), `HTTPS_PROXY=https://...` read by the env reader. A plant makes
+   the hop cleartext.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features
+cargo test -p pod-proxy --all-features --test https_proxy
+cargo test -p pod-egress --all-features --test via
+cargo clippy -p pod-proxy -p pod-egress --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh proxy-https-hop-cleartext
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1431.
+
+- `ProxyKind::Https` (scheme and name `https`, request `CONNECT`) and
+  `proxy::HTTPS_PORT` (443): `Proxy::parse` takes
+  `https://[USER[:PASS]@]HOST[:PORT]`; `https+unix:` and `https+exec:` are
+  refused ("an https:// proxy is on TCP alone: TLS checks the name of its
+  host, and a Unix socket or a command has none; ..."). Each reader of a
+  spec takes it: `Environment::read` (`HTTPS_PROXY=https://...`), `detect`,
+  `parse_trusted`. The words of an unknown scheme name `http:// or https://`.
+- `pod_proxy::hop::tls` (`crates/pod-proxy/src/tls_hop.rs`) and
+  `ProxyTls { context, trust }`: the TLS hop to a proxy, moved from
+  `pod_egress::via::Client::tls`, which now calls it (one copy). A
+  configuration that the trust cannot give is `BadProxy`; a time out is
+  `Timeout` at the stage `Proxy`; the alert `no_application_protocol` is
+  `ProxyProtocol` ("it did not choose HTTP/2 (h2) by ALPN, which was asked
+  for: ..."); each other refusal is `ProxyUnreachable` with `TLS: ` and the
+  words of `pod_tls::handshake_failure`.
+- `Dialer::with_proxy_tls(context, trust)`: `open_proxy` makes TCP, then the
+  hop for the proxy's host with ALPN `http/1.1`; the CONNECT with its Basic
+  (and a Digest answer on a new connection) goes inside the TLS. With no TLS
+  given, a dial through an `https` proxy is `BadProxy`: "https://HOST:PORT is
+  reached over TLS, and this dial has no TLS context for a proxy". New
+  `Stream::Tls` and `blocking::Stream::Tls` (`blocking::TlsStream`: the
+  session of rustls over the standard socket, with each byte it holds);
+  `Dialer::tcp` refuses it ("... is reached over TLS (https://), and this
+  caller takes a plain TCP connection only"). The decision word of an
+  observer is `https`; `names_inside` is true.
+- Tests: `crates/pod-proxy/tests/https_proxy.rs` against the stand-in of
+  T-1432 (`pod_egress::standin::via`, a path-only dev-dependency of
+  `pod-proxy` with the feature `standin`; `scripts/check-publish-order.py`
+  finds no cycle): `a_dial_through_an_https_proxy_carries_the_target`,
+  `a_wrong_certificate_is_refused_with_the_words_of_pod_tls`,
+  `the_basic_of_an_https_proxy_goes_inside_the_tls_only` (a recorder of the
+  bytes in the open: the first is 0x16, and no CONNECT, header, Basic or
+  password), `https_proxy_of_the_environment_is_an_https_proxy`,
+  `the_blocking_face_carries_a_stream_through_an_https_proxy`; the unit
+  tests `proxy::tests::the_schemes` and
+  `tls_hop::tests::a_protocol_of_alpn_is_named_with_its_version`.
+- Plant: `scripts/plants/proxy-https-hop-cleartext.plant` (the hop stays
+  cleartext when TLS is given; the test of the bytes in the open fails):
+  `sh scripts/plant-each.sh proxy-https-hop-cleartext`: 1 caught.
+- Commands: `cargo test -p pod-proxy -p pod-egress --all-features`: 491
+  passed, 0 failed. `cargo clippy -p pod-proxy -p pod-egress --all-targets
+  --all-features -- -D warnings` and `cargo fmt --all --check`: no finding.
+  `sh scripts/plant-each.sh --apply`: 0 stale.
+- Findings: T-1433 (`pod-iroh` gives iroh an `https` proxy by its address)
+  and T-1434 (`pod-relay` dials a reverse target with `Dialer::tcp` only).
+- For the consumers: a consumer that dials through the proxy of a user or
+  of an environment calls `Dialer::with_proxy_tls` with its TLS context and
+  trust; a match of `pod_proxy::Stream`, `blocking::Stream` or `ProxyKind`
+  takes the new variants. Not measured: a run of a consumer through a real
+  HTTPS proxy.

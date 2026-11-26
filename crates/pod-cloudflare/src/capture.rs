@@ -9,10 +9,15 @@
 //! bounded channel that refuses when it is full). The crate has no queue of
 //! its own. A method that returns [`Refused`] drops the sink for that
 //! exchange: the crate calls no other method for it, also not
-//! [`Capture::end`], and the copy goes on with the same bytes.
+//! [`Capture::end`], and the copy goes on with the same bytes. A failure
+//! of the crate is not a refusal: the sink gets [`Capture::fault`] and the
+//! end of the exchange.
 //!
 //! What the sink gets:
 //!
+//! - The ingress rule that matched and the hostname of the visitor
+//!   ([`Route`], by [`Capture::route`]), before the request head. A
+//!   method that the consumer does not write does nothing.
 //! - The request head that went to the origin ([`Head`]), after the
 //!   credential in front of the tunnel is removed. A request that this
 //!   credential refuses (401) reaches no origin and no sink.
@@ -23,6 +28,9 @@
 //!   lines.
 //! - For an upgrade (a WebSocket), the two heads (the answer with its
 //!   status 101) and then no body in either direction.
+//! - A failure of the crate in the capture of a body ([`Fault`], by
+//!   [`Capture::fault`]). The sink stays live: it gets the other parts and
+//!   the end of the exchange.
 //! - The end, with the status and the time ([`End`]).
 //!
 //! The heads keep the headers of the visitor as they are: an
@@ -95,6 +103,38 @@ impl Head {
     }
 }
 
+/// The ingress rule that took an exchange, and the visitor of it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct Route {
+    /// The index of the rule in `Ingress::rules`.
+    pub rule: usize,
+    /// The `hostname` of the rule; `None` for a rule with no hostname.
+    pub hostname: Option<String>,
+    /// The `Host` of the request of the visitor, before `httpHostHeader`
+    /// of the rule changes it (the host of the URL when the request has
+    /// no `Host`).
+    pub host: String,
+}
+
+/// A failure of the crate in the capture of an exchange. The copy to the
+/// peers is not changed by it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Fault {
+    /// The framing of the chunked request body is not valid. The sink gets
+    /// no more of the request body.
+    RequestChunking,
+}
+
+impl std::fmt::Display for Fault {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Fault::RequestChunking => f.write_str("the chunked request body is not valid"),
+        }
+    }
+}
+
 /// The end of an exchange that the sink did not refuse.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct End {
@@ -127,6 +167,17 @@ impl std::error::Error for Refused {}
 /// joins the heads, the body parts and the end of one exchange; it is
 /// unique in one run of the tunnel. Each method must return at once.
 pub trait Capture: Send + Sync {
+    /// The rule and the visitor of the exchange. It comes once, before the
+    /// request head, for a request that an ingress rule took.
+    fn route(&self, _exchange: u64, _route: &Route) -> Result<(), Refused> {
+        Ok(())
+    }
+
+    /// A failure of the crate in the capture of the exchange. It comes at
+    /// most once, before [`Capture::end`]; the end follows, with
+    /// `complete` as the copy gave it.
+    fn fault(&self, _exchange: u64, _fault: Fault) {}
+
     /// A head that went to its peer.
     fn head(&self, exchange: u64, head: &Head) -> Result<(), Refused>;
 
@@ -150,6 +201,8 @@ pub(crate) struct Tap {
     status: AtomicU16,
     /// The decoder of a chunked request body, for the sink only.
     chunks: Mutex<Option<Dechunk>>,
+    /// The first failure of the capture; the sink gets it before the end.
+    fault: OnceLock<Fault>,
 }
 
 impl Tap {
@@ -163,6 +216,7 @@ impl Tap {
             complete: AtomicBool::new(false),
             status: AtomicU16::new(0),
             chunks: Mutex::new(None),
+            fault: OnceLock::new(),
         }
     }
 
@@ -197,6 +251,14 @@ impl Tap {
         }
     }
 
+    /// The rule and the visitor of the exchange.
+    pub(crate) fn route(&self, route: impl FnOnce() -> Route) {
+        if let Some(sink) = self.sink() {
+            self.begin();
+            self.take(sink.route(self.id, &route()));
+        }
+    }
+
     /// The request head that went to the origin. `head` runs only for a
     /// live sink.
     pub(crate) fn request(&self, head: impl FnOnce() -> Head) {
@@ -224,15 +286,22 @@ impl Tap {
         self.begin();
         if direction == Direction::Request {
             let mut chunks = self.chunks.lock().unwrap_or_else(|e| e.into_inner());
+            if self.fault.get().is_some() {
+                return;
+            }
             if let Some(decoder) = chunks.as_mut() {
                 let mut given = Ok(());
                 let framed = decoder.feed(bytes, &mut |payload| {
                     given = sink.body(self.id, direction, payload);
                     given.is_ok()
                 });
-                // A chunked body that the sink cannot decode stops the
-                // capture; the origin judges the bytes.
-                self.take(given.and(framed.map_err(|_| Refused)));
+                // A chunked body that the crate cannot decode stops the
+                // capture of the request body; the origin judges the bytes,
+                // and the sink still gets its end.
+                if framed.is_err() {
+                    let _ = self.fault.set(Fault::RequestChunking);
+                }
+                self.take(given);
                 return;
             }
         }
@@ -250,6 +319,9 @@ impl Drop for Tap {
         let (Some(sink), Some((at, started))) = (self.sink(), self.begun.get()) else {
             return;
         };
+        if let Some(fault) = self.fault.get() {
+            sink.fault(self.id, *fault);
+        }
         let status = Some(self.status.load(Ordering::Relaxed)).filter(|s| *s != 0);
         let end =
             End { status, started: *started, elapsed: at.elapsed(), complete: self.complete.load(Ordering::Relaxed) };

@@ -1,0 +1,7 @@
+# The hop to an https:// proxy stays cleartext: the CONNECT and its Basic
+# go in the open, and the test of the bytes to the proxy must fail.
+ENTRY=T-1431
+GROUP=proxy
+EXPECT='the Basic went in cleartext'
+RUN='cargo test -p pod-proxy --all-features --test https_proxy -- the_basic_of_an_https_proxy_goes_inside_the_tls_only'
+LIMIT=1800
