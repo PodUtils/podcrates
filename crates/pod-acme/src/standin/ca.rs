@@ -111,7 +111,7 @@ impl Ca {
         params.key_identifier_method = rcgen::KeyIdMethod::PreSpecified(key_id(&requested.0));
         let now = crate::order::now_secs();
         life(&mut params, now - 86_400, now + days * 86_400);
-        params.serial_number = Some(serial()?);
+        params.serial_number = Some(crate::certs::random_serial()?);
         let cert = params.signed_by(&requested, &self.issuer).map_err(|e| format!("the certificate: {e}"))?;
         Ok(format!("{}{}", certs::pem("CERTIFICATE", cert.der()), self.pem))
     }
@@ -148,7 +148,7 @@ fn dated(params: &mut rcgen::CertificateParams, key: &Key, days: i64) -> Result<
     let now = crate::order::now_secs();
     life(params, now - 86_400, now + days * 86_400);
     params.key_identifier_method = rcgen::KeyIdMethod::PreSpecified(key_id(key.public()));
-    params.serial_number = Some(serial()?);
+    params.serial_number = Some(crate::certs::random_serial()?);
     Ok(())
 }
 
@@ -166,13 +166,4 @@ fn life(params: &mut rcgen::CertificateParams, from: i64, to: i64) {
     };
     params.not_before = day(from);
     params.not_after = day(to);
-}
-
-/// A serial number of 16 random bytes, the first bit clear.
-fn serial() -> Result<rcgen::SerialNumber, String> {
-    use pod_core::entropy::Entropy as _;
-    let mut bytes = [0u8; 16];
-    pod_core::entropy::OsEntropy.fill(&mut bytes).map_err(|e| format!("no serial number: {e}"))?;
-    bytes[0] &= 0x7f;
-    Ok(rcgen::SerialNumber::from_slice(&bytes))
 }
