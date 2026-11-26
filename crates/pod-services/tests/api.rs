@@ -170,7 +170,7 @@ fn the_derp_fleets_come_in_their_order() {
     let first = main.endpoints().first().expect("a server");
     assert_eq!((first.role(), first.host()), (Some("nyc"), "derp1f.tailscale.com"));
     let regions: std::collections::BTreeSet<_> = main.endpoints().iter().filter_map(|e| e.role()).collect();
-    assert_eq!(regions.len(), 28, "{regions:?}");
+    assert_eq!(regions.len(), 27, "{regions:?}");
 }
 
 fn watch_text<'a>(w: &'a pod_services::Watch, name: &str) -> Option<&'a str> {
@@ -180,12 +180,12 @@ fn watch_text<'a>(w: &'a pod_services::Watch, name: &str) -> Option<&'a str> {
     }
 }
 
-/// The map of Tailscale has 95 servers on the day it was read, and the watch
+/// The map of Tailscale has 93 servers on the day it was read, and the watch
 /// of the map compares the host of each node.
 #[test]
 fn the_tailscale_fleet_holds_the_four_servers_and_a_watch_of_the_hosts() {
     let main = pod_services::get("tailscale-derp").unwrap();
-    assert_eq!(main.endpoints().len(), 95);
+    assert_eq!(main.endpoints().len(), 93);
     for host in ["derp1j", "derp1k", "derp4k", "derp4l"] {
         let host = format!("{host}.tailscale.com");
         assert!(main.endpoints().iter().any(|e| e.host() == host), "{host}");

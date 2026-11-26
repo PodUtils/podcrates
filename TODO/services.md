@@ -268,3 +268,48 @@ cargo run -q -p pod-services-watch -- --service magic-wormhole-mailbox
 ## Done
 
 2026-11-25. The file of the node `node-trojan-64-176-7-205` is gone, and the row `node-*` of `crates/pod-services/README.md` counts 1. `magic-wormhole-mailbox` is not changed; its watch still gives HTTP 500 from this sandbox, and the next scheduled run decides by the rule in the Approach. `cargo test -p pod-services -p pod-services-watch --all-features` is the proof; the tests are `a_proxy_node_link_is_a_form_that_podssh_reads` (`crates/pod-services/tests/public_carriers.rs`) and the tests of the catalog. The consumer: podssh (PodUtils/podssh@T-574) reads the nodes and takes the change at the next tag. Commit: see `git log` for T-1415.
+
+2026-11-26: the scheduled run 45805546683 held `magic-wormhole-mailbox`; the 500 was a fault of the moment.
+
+# T-1513: `services.yml` 45805546683: the Tailscale DERP region 24 gone, and the runner pin of GitHub Actions past 30 days with no newer release
+
+**Source:** the scheduled run 45805546683 of `services.yml` at `d5f0451` (2026-11-26, job `watch`).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The step "Each watch" gave `213 hold, 0 skipped, 0 first with no answer, 2 moved or failed`:
+
+- `MOVED tailscale-derp http-json`: the hosts `derp24b.tailscale.com`, `derp24c.tailscale.com` and `derp24d.tailscale.com` are endpoints of `crates/pod-services/services/tailscale-derp.toml`; the service gives no such `HostName` at `/Regions`.
+- `MOVED github-actions-runner github-release`: `runner-tag` is v2.338.2; the service gives a release of 31 days, past 30; the newest is v2.338.2 (source read 2026-11-11).
+
+`magic-wormhole-mailbox` held on this run (`websocket-upgrade` upgraded).
+
+## Premise
+
+- Read: the log of the job (`gh run view 45805546683 --log-failed`); `crates/pod-services/services/tailscale-derp.toml`; `crates/pod-services/services/github-actions-runner.toml`; `crates/pod-services-watch/src/github.rs`; T-1415.
+- `tailscale-derp`: the map `https://login.tailscale.com/derpmap/default` (read here 2026-11-26 through `fetch.web.pkgforge.dev` and direct) has 27 regions and 93 nodes. Region 24 (Honolulu) is not in it: the ids go 1 to 23 and 25 to 28. The map also has one node that the file did not have: `derp14e.tailscale.com` in region 14 (Amsterdam). The file had 95 endpoints, so the count is 95 - 3 + 1 = 93.
+- `github-actions-runner`: the newest release of `actions/runner` is v2.338.2, published 2026-10-26 (read here 2026-11-26). No newer runner exists. The rule of GitHub (an update within 30 days of a new release) cannot apply to a pin that is the newest release. The watch computes the age from the day of publication of the pin, not from the read date of the fact, so a new read date alone does not make the watch hold: after 30 days the watch fails on each run until a new release comes, with no change of the service. This is a defect of the watch `github-release`.
+
+## Approach
+
+- `tailscale-derp.toml`: remove the three endpoints `hnl-1`, `hnl-2` and `hnl-3`; add `ams-4` for `derp14e.tailscale.com` (read 2026-11-26). Change the count in `crates/pod-services/README.md` (93 in 27 regions) and in the test `the_tailscale_fleet_holds_the_four_servers_and_a_watch_of_the_hosts`.
+- `crates/pod-services-watch/src/github.rs`: the watch `github-release` holds when the pin is the newest release, at any age. It fails by age only when a newer release exists. A test covers the case.
+- `github-actions-runner.toml`: the read date of the facts is 2026-11-26; the comment of the file states the rule.
+- The consumers: podssh and podnet read the DERP set and take the change at the next tag. The runner pin has no new value: the runner image of podrunner and podvm keeps v2.338.2.
+
+## Prove
+
+```sh
+cargo test -p pod-services -p pod-services-watch --all-features
+cargo run -q -p pod-services-watch -- --service tailscale-derp
+cargo run -q -p pod-services-watch -- --service github-actions-runner
+```
+
+## Done
+
+2026-11-26. `crates/pod-services/services/tailscale-derp.toml`: the endpoints of region 24 (`hnl-1` to `hnl-3`) are gone, `ams-4` (`derp14e.tailscale.com`) is new, and the set counts 93 endpoints in 27 regions (`crates/pod-services/README.md` and `the_tailscale_fleet_holds_the_four_servers_and_a_watch_of_the_hosts` in `crates/pod-services/tests/api.rs` say 93). `crates/pod-services-watch/src/github.rs`: `github-release` holds when the pin is the newest release; the test `github_release_wants_a_young_pin` (`crates/pod-services-watch/tests/watches/apis.rs`) covers a pin that is the newest and past the age. `github-actions-runner.toml`: `runner-tag` stays v2.338.2 (still the newest on 2026-11-26), with the new read date. The consumers: podssh and podnet read the DERP set and take the change at the next tag. Commit: see `git log` for T-1513.

@@ -471,6 +471,15 @@ addresses = ["176.58.93.154", "2a00:dd80:3c::3d5"]
 source = { url = "https://login.tailscale.com/derpmap/default", read = 2026-11-06, note = "region 14 Amsterdam" }
 
 [[endpoint]]
+name = "ams-4"
+role = "ams"
+scheme = "https"
+host = "derp14e.tailscale.com"
+port = 443
+addresses = ["176.58.93.27", "2a00:dd80:3c::343"]
+source = { url = "https://login.tailscale.com/derpmap/default", read = 2026-11-26, note = "region 14 Amsterdam; new since the read of 2026-11-06; region 24 Honolulu is gone from the map" }
+
+[[endpoint]]
 name = "jnb-1"
 role = "jnb"
 scheme = "https"
@@ -712,33 +721,6 @@ host = "derp23d.tailscale.com"
 port = 443
 addresses = ["185.34.3.75", "2a00:dd80:3f:100::97e"]
 source = { url = "https://login.tailscale.com/derpmap/default", read = 2026-11-06, note = "region 23 Dubai" }
-
-[[endpoint]]
-name = "hnl-1"
-role = "hnl"
-scheme = "https"
-host = "derp24b.tailscale.com"
-port = 443
-addresses = ["208.83.234.151", "2001:19f0:c000:c586:5400:04ff:fe26:2ba6"]
-source = { url = "https://login.tailscale.com/derpmap/default", read = 2026-11-06, note = "region 24 Honolulu" }
-
-[[endpoint]]
-name = "hnl-2"
-role = "hnl"
-scheme = "https"
-host = "derp24c.tailscale.com"
-port = 443
-addresses = ["208.83.233.233", "2001:19f0:c000:c591:5400:04ff:fe26:2c5f"]
-source = { url = "https://login.tailscale.com/derpmap/default", read = 2026-11-06, note = "region 24 Honolulu" }
-
-[[endpoint]]
-name = "hnl-3"
-role = "hnl"
-scheme = "https"
-host = "derp24d.tailscale.com"
-port = 443
-addresses = ["208.72.155.133", "2001:19f0:c000:c564:5400:04ff:fe26:2ba8"]
-source = { url = "https://login.tailscale.com/derpmap/default", read = 2026-11-06, note = "region 24 Honolulu" }
 
 [[endpoint]]
 name = "nai-1"
