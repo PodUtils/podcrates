@@ -128,7 +128,8 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   payload); T-927 (PodUtils/podvm#584); T-1391 (a pinned static
   `mkfs.erofs`, PodUtils/podvm#668, COORD-251); T-1321 (a C backend of
   `pod-gzip`, measured).
-- podnet: T-502 (a headscale harness in podcrates, from podssh's
+- podnet: T-1488 (the loopback line of `pod-link` keeps " (os error N)");
+  T-502 (a headscale harness in podcrates, from podssh's
   `ts-headscale`; PodUtils/podnet#760, COORD-130); T-1451 (`Offer::fit` of
   `pod-relay` takes `Settings::under_cap`),
   T-1450 (the record heads against the window of a link), T-1452; T-1343 (partial: `new_temp_dir` and `new_temp_file` are on
