@@ -5,6 +5,13 @@
 [alias]
 todo = "run -q -p pod-todo --"
 
+# A fork of vendor/ keeps the rust-version of its upstream (pod-h2: 1.63).
+# The default resolver of edition 2024 takes the lowest rust-version of the
+# members, and then holds each update of the workspace to that version.
+# The workspace builds with the newest stable Rust: allow each version.
+[resolver]
+incompatible-rust-versions = "allow"
+
 # The userspace stack of pod-netstack owns more than two addresses (the
 # local address, the gateway, their IPv6 forms, each virtual listener).
 # smoltcp defaults IFACE_MAX_ADDR_COUNT to 2. Cargo does not read the
