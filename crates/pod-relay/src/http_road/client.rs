@@ -431,8 +431,12 @@ async fn open_at_with(
         let body = if words.is_empty() { answer.reason.clone() } else { words };
         return Err(ConnectError::Refused { status: answer.status, body });
     }
-    let doc: serde_json::Value = serde_json::from_slice(&body)
-        .map_err(|e| ConnectError::Http(format!("the answer to the open of the HTTP road: {e}")))?;
+    let doc: serde_json::Value = serde_json::from_slice(&body).map_err(|e| {
+        ConnectError::Http(format!(
+            "the answer to the open of the HTTP road: {}",
+            pod_core::text::plain(&e.to_string())
+        ))
+    })?;
     let id = doc["session"].as_str().filter(|id| is_id(id));
     let key = doc["key"].as_str().filter(|key| is_key(key));
     let (Some(id), Some(key)) = (id, key) else {

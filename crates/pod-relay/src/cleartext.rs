@@ -192,6 +192,13 @@ async fn mint_once(ctx: &Context, relay: &Relay, step: Duration) -> Result<Zeroi
     once_token(&response, crate::pool::now_ms())
 }
 
+/// The line of a mint that gave no answer: how the hop cut it, in the words of
+/// the system with no code.
+fn no_answer(e: &std::io::Error) -> String {
+    let cut = pod_proxy::Cut::of(e.kind()).words();
+    format!("the mint gave no answer ({cut}: {}): a hop may cut cleartext", pod_core::text::io_words(e))
+}
+
 /// `POST /v1/mint?once=1` with `body`, in cleartext, within `step`.
 async fn post(
     ctx: &Context,
@@ -211,10 +218,7 @@ async fn post(
     let asked = pod_proxy::http::exchange(&mut tcp, user_agent, "POST", named, &target, &headers, body, MINT_BODY);
     match tokio::time::timeout(step, asked).await {
         Err(_) => Err(format!("the mint gave no answer within {} s", step.as_secs())),
-        Ok(Err(e)) => {
-            let cut = pod_proxy::Cut::of(e.kind()).words();
-            Err(format!("the mint gave no answer ({cut}: {e}): a hop may cut cleartext"))
-        }
+        Ok(Err(e)) => Err(no_answer(&e)),
         // A refusal may quote a value back.
         Ok(Ok(mut response)) if !(200..300).contains(&response.status) && !extra.is_empty() => {
             response.body = extra.mask(&String::from_utf8_lossy(&response.body)).into_bytes();
@@ -267,6 +271,14 @@ pub fn once_token(response: &Response, now_ms: i64) -> Result<Zeroizing<String>,
 mod tests {
     use super::*;
     use pod_ws::ConnectError;
+
+    #[test]
+    fn a_mint_that_was_cut_shows_the_words_of_the_system_with_no_code() {
+        let line = no_answer(&std::io::Error::from_raw_os_error(104));
+        assert!(line.contains("Connection reset by peer"), "{line}");
+        assert!(!line.contains("os error"), "{line}");
+        assert!(line.ends_with("): a hop may cut cleartext"), "{line}");
+    }
 
     #[test]
     fn the_variable_is_yes_or_no() {

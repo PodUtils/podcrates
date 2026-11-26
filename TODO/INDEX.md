@@ -1089,6 +1089,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1413](foundation.md) | P3 | S | M0 | feature | open | `pod-core`: a class for an output that could not be written (exit 74, `EX_IOERR`) (PodUtils/podssh#363, ask 3) |
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
+| [T-1421](relay.md) | P2 | S | M2 | defect | done | `pod-core`, `pod-relay`: a line of a grant file that is not there says "No such file or directory (os error 2)" |
+| [T-1422](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the line of a mint that gave no answer says "Connection reset by peer (os error 104)" |
+| [T-1423](relay.md) | P2 | S | M2 | defect | done | `pod-tls`: the error of a CA bundle names the path twice ("CA bundle /x: /x: No such file or directory") |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
 | [T-1444](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`: `a_path_that_is_there_is_never_opened_truncated_or_removed` fails on Windows: a file made at the name of a directory gives "Access is denied", not `AlreadyExists` |
 | [T-1445](upkeep.md) | P1 | S | M5 | defect | done | `pod-tpm`: two tests of `tests/socket.rs` fail on macOS: `set_read_timeout` on a stream whose peer closed gives an error, so the call says `Unavailable`, not `Protocol` |

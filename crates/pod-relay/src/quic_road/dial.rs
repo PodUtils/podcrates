@@ -108,16 +108,19 @@ async fn connect(
     server_name: &str,
     tls: Arc<rustls::ClientConfig>,
 ) -> Result<Connection, String> {
-    let crypto = QuicClientConfig::try_from(tls).map_err(|e| format!("QUIC's TLS: {e}"))?;
+    let crypto = QuicClientConfig::try_from(tls)
+        .map_err(|e| format!("QUIC's TLS: {}", pod_core::text::plain(&e.to_string())))?;
     let mut config = ClientConfig::new(Arc::new(crypto));
     config.transport_config(Arc::new(transport()));
-    let connecting = endpoint.connect_with(config, addr, server_name).map_err(|e| format!("{addr}: {e}"))?;
+    let connecting = endpoint
+        .connect_with(config, addr, server_name)
+        .map_err(|e| format!("{addr}: {}", pod_core::text::plain(&e.to_string())))?;
     match tokio::time::timeout(HANDSHAKE_WAIT, connecting).await {
         Ok(Ok(connection)) => Ok(connection),
         Ok(Err(ConnectionError::TimedOut)) | Err(_) => {
             Err(format!("{addr}: no answer over QUIC within {} s", HANDSHAKE_WAIT.as_secs()))
         }
-        Ok(Err(e)) => Err(format!("{addr}: QUIC: {e}")),
+        Ok(Err(e)) => Err(format!("{addr}: QUIC: {}", pod_core::text::plain(&e.to_string()))),
     }
 }
 
@@ -170,7 +173,10 @@ pub async fn session(
         }
     };
     learn(ctx, host, port, Learned::Answered(addr));
-    let (send, recv) = connection.open_bi().await.map_err(|e| failed(format!("no stream: {e}")))?;
+    let (send, recv) = connection
+        .open_bi()
+        .await
+        .map_err(|e| failed(format!("no stream: {}", pod_core::text::plain(&e.to_string()))))?;
     let stream = QuicStream::client(send, recv, connection, endpoint);
     upgrade_on(stream, config, token, &extra).await
 }

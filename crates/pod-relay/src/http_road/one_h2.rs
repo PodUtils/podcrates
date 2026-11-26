@@ -48,7 +48,9 @@ pub(super) async fn open(
     let not_carried = |why: String| Some(Err(Failed::NotCarried(why)));
     let (client, connection) = match tokio::time::timeout(LIMIT, h2::client::handshake(io)).await {
         Ok(Ok(shaken)) => shaken,
-        Ok(Err(e)) => return not_carried(format!("the handshake of HTTP/2 failed: {e}")),
+        Ok(Err(e)) => {
+            return not_carried(format!("the handshake of HTTP/2 failed: {}", pod_core::text::plain(&e.to_string())));
+        }
         Err(_) => return not_carried("the handshake of HTTP/2 took too long".into()),
     };
     // The task that drives the connection: a drop ends the connection, and
@@ -58,7 +60,7 @@ pub(super) async fn open(
     }));
     let request = match request(road, path, token, extra) {
         Ok(request) => request,
-        Err(e) => return not_carried(format!("the request of HTTP/2: {e}")),
+        Err(e) => return not_carried(format!("the request of HTTP/2: {}", pod_core::text::plain(&e.to_string()))),
     };
     let sent = async {
         let mut client = client.ready().await?;
@@ -67,7 +69,9 @@ pub(super) async fn open(
     };
     let (client, response, send) = match tokio::time::timeout(LIMIT, sent).await {
         Ok(Ok(sent)) => sent,
-        Ok(Err(e)) => return not_carried(format!("the request of HTTP/2 did not go: {e}")),
+        Ok(Err(e)) => {
+            return not_carried(format!("the request of HTTP/2 did not go: {}", pod_core::text::plain(&e.to_string())));
+        }
         Err(_) => return not_carried("the request of HTTP/2 did not go in time".into()),
     };
     let (recv, first) = match tokio::time::timeout(MARK_WAIT, heard(response)).await {
@@ -113,7 +117,12 @@ async fn heard(response: ResponseFuture) -> Heard {
     let response = match response.await {
         Ok(response) => response,
         Err(e) if e.reason() == Some(Reason::HTTP_1_1_REQUIRED) => return Heard::Http1,
-        Err(e) => return Heard::Failed(Failed::NotCarried(format!("the answer of HTTP/2 failed: {e}"))),
+        Err(e) => {
+            return Heard::Failed(Failed::NotCarried(format!(
+                "the answer of HTTP/2 failed: {}",
+                pod_core::text::plain(&e.to_string())
+            )));
+        }
     };
     let status = response.status();
     let mut recv = response.into_body();
@@ -172,7 +181,10 @@ async fn pump(recv: &mut RecvStream, to_app: &mut WriteHalf<DuplexStream>, first
             Some(Ok(data)) => data,
             None => return End::Closed { code: 1000, reason: "target closed".into() },
             Some(Err(e)) => {
-                return End::Failed(format!("the relay cut the answer of the HTTP road's one-POST form: {e}"));
+                return End::Failed(format!(
+                    "the relay cut the answer of the HTTP road's one-POST form: {}",
+                    pod_core::text::plain(&e.to_string())
+                ));
             }
         };
         taken = bytes.len();
@@ -196,7 +208,10 @@ async fn up(mut send: SendStream<Bytes>, mut from_app: ReadHalf<DuplexStream>, e
             sent = give(&mut send, Bytes::copy_from_slice(&buf[..n]), fin) => sent,
         };
         if let Err(e) = sent {
-            return ended.set_once(End::Failed(format!("the stream of the HTTP road's one-POST form failed: {e}")));
+            return ended.set_once(End::Failed(format!(
+                "the stream of the HTTP road's one-POST form failed: {}",
+                pod_core::text::plain(&e.to_string())
+            )));
         }
         if fin {
             return ended.wait().await;

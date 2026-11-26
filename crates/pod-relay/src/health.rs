@@ -124,7 +124,7 @@ pub async fn fetch(ctx: &Context, relay: &Relay, trust: &Trust, timeout: Duratio
     let response = tokio::time::timeout(timeout, exchange)
         .await
         .map_err(|_| answer(format!("/health did not answer within {} s", timeout.as_secs())))?
-        .map_err(|e| answer(format!("/health: {e}")))?;
+        .map_err(|e| answer(format!("/health: {}", pod_core::text::io_words(&e))))?;
     if response.status != 200 {
         let words = extra.mask(&response.body_text(120));
         return Err(answer(format!("/health answered HTTP {} {words}", response.status)));

@@ -171,7 +171,7 @@ fn spawn(name: &str, work: impl FnOnce() + Send + 'static) -> Result<(), String>
         .name(name.into())
         .spawn(work)
         .map(|_| ())
-        .map_err(|e| format!("a thread for the session could not start: {e}"))
+        .map_err(|e| format!("a thread for the session could not start: {}", pod_core::text::io_words(&e)))
 }
 
 /// One stream from two pipes: it reads the input pipe and writes the output

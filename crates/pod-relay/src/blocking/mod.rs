@@ -258,10 +258,9 @@ impl Client {
     /// A client with its own runtime. It may be made, and dropped, anywhere;
     /// its calls refuse to run inside a tokio runtime.
     pub fn new(config: Config) -> Result<Client, Error> {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| Error::Start(format!("the async runtime could not start: {e}")))?;
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| {
+            Error::Start(format!("the async runtime could not start: {}", pod_core::text::io_words(&e)))
+        })?;
         Ok(Client { runtime: Some(runtime), config })
     }
 

@@ -53,6 +53,34 @@ pub fn multi_line(text: &str) -> String {
     out
 }
 
+/// `text` without each ` (os error N)` that Rust's `io::Error` adds to the
+/// system's words: a line says what happened once, in the system's words.
+pub fn plain(text: &str) -> String {
+    const MARK: &str = " (os error ";
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(at) = rest.find(MARK) {
+        let tail = &rest[at + MARK.len()..];
+        let digits = tail.bytes().take_while(|b| b.is_ascii_digit() || *b == b'-').count();
+        if digits > 0 && tail[digits..].starts_with(')') {
+            out.push_str(&rest[..at]);
+            rest = &tail[digits + 1..];
+        } else {
+            out.push_str(&rest[..at + 1]);
+            rest = &rest[at + 1..];
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// What a user line shows of an `io::Error`: its words with no
+/// ` (os error N)` ([`plain`]). The error stays the source of a failure;
+/// only the line changes.
+pub fn io_words(e: &std::io::Error) -> String {
+    plain(&e.to_string())
+}
+
 /// `text` with each escape sequence of a terminal removed whole, so that
 /// its parameters do not stay as text: a CSI (ESC `[`, or U+009B) up to its
 /// final byte, an OSC (ESC `]`, or U+009D) up to BEL or ST (ESC `\`, or
@@ -323,5 +351,28 @@ mod tests {
     #[test]
     fn multi_line_normalises_line_breaks() {
         assert_eq!(multi_line("a\r\nb\rc\nd\te"), "a\nb\nc\nd\te");
+    }
+
+    #[test]
+    fn io_words_drop_the_code_of_the_system_and_keep_its_words() {
+        use std::io::{Error, ErrorKind};
+        let table = [
+            (Error::from_raw_os_error(2), "No such file or directory"),
+            (Error::from_raw_os_error(104), "Connection reset by peer"),
+            (Error::from(ErrorKind::NotFound), "entity not found"),
+            (Error::new(ErrorKind::Other, "the pair is stale"), "the pair is stale"),
+            (Error::new(ErrorKind::Other, "kept (os error x) text"), "kept (os error x) text"),
+        ];
+        for (e, want) in table {
+            assert_eq!(io_words(&e), want, "{e:?}");
+        }
+    }
+
+    #[test]
+    fn plain_drops_each_code_in_the_text_and_no_other_bracket() {
+        assert_eq!(plain("a (os error 2): b (os error 104) c"), "a: b c");
+        assert_eq!(plain("x (os error -1)"), "x");
+        assert_eq!(plain("x (os error )"), "x (os error )");
+        assert_eq!(plain("x (other 2)"), "x (other 2)");
     }
 }

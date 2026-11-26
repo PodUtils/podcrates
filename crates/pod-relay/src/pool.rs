@@ -267,7 +267,7 @@ where
     accept.extend(extra.iter());
     let response = http::exchange(stream, user_agent, "GET", host_header, "/relays.json", &accept, b"", MAX_BODY)
         .await
-        .map_err(|e| format!("the pool request failed: {e}"))?;
+        .map_err(|e| format!("the pool request failed: {}", pod_core::text::io_words(&e)))?;
     if !(200..300).contains(&response.status) {
         return Err(format!("the pool request answered HTTP {}", response.status));
     }

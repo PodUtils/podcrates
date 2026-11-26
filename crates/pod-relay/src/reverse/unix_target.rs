@@ -47,12 +47,12 @@ pub async fn connect(path: &str, timeout: Duration) -> Result<TcpStream, String>
     let dial = tokio::task::spawn_blocking(move || open_std(&path));
     let tcp = match tokio::time::timeout(timeout, dial).await {
         Ok(Ok(Ok(tcp))) => tcp,
-        Ok(Ok(Err(e))) => return Err(format!("{shown}: {e}")),
+        Ok(Ok(Err(e))) => return Err(format!("{shown}: {}", pod_core::text::io_words(&e))),
         Ok(Err(e)) => return Err(format!("{shown}: {e}")),
         Err(_) => return Err(format!("{shown}: no answer within {} s", timeout.as_secs_f64())),
     };
-    tcp.set_nonblocking(true).map_err(|e| format!("{shown}: {e}"))?;
-    TcpStream::from_std(tcp).map_err(|e| format!("{shown}: {e}"))
+    tcp.set_nonblocking(true).map_err(|e| format!("{shown}: {}", pod_core::text::io_words(&e)))?;
+    TcpStream::from_std(tcp).map_err(|e| format!("{shown}: {}", pod_core::text::io_words(&e)))
 }
 
 /// The socket at `path`, connected, as a std `TcpStream` of the same

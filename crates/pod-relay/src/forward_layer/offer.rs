@@ -187,7 +187,7 @@ where
     let max = crate::pool::MAX_BODY;
     let response = http::exchange(stream, user_agent, "GET", host_header, "/relays.json", &accept, b"", max)
         .await
-        .map_err(|e| format!("/relays.json: {e}"))?;
+        .map_err(|e| format!("/relays.json: {}", pod_core::text::io_words(&e)))?;
     if !(200..300).contains(&response.status) {
         return Ok(Offer::default());
     }

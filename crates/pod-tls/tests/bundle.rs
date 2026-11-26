@@ -141,6 +141,21 @@ fn plant_a_missing_ca_bundle_fails_and_names_the_path() {
     }
 }
 
+/// The line of a missing bundle names the path once and shows no code of the
+/// system.
+#[test]
+fn a_missing_ca_bundle_line_names_the_path_once_with_no_os_code() {
+    let missing = PathBuf::from("/nonexistent/podssh-does-not-exist-ca.pem");
+    let err = pod_tls::roots_from_bundle(&missing).expect_err("a missing bundle");
+    let line = err.to_string();
+    assert_eq!(line.matches(missing.to_str().unwrap()).count(), 1, "{line}");
+    assert!(!line.contains("os error"), "{line}");
+    assert!(line.starts_with("CA bundle /nonexistent/"), "{line}");
+    let loaded = bundle::load_bundle(&missing).expect_err("a missing bundle");
+    assert_eq!(loaded.matches(missing.to_str().unwrap()).count(), 1, "{loaded}");
+    assert!(!loaded.contains("os error"), "{loaded}");
+}
+
 // ── a bundle that parses but holds nothing usable ───────────────────────────
 
 /// **A PEM file with no CERTIFICATE block is an error, not an empty trust
