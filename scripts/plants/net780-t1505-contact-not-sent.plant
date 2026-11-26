@@ -1,0 +1,7 @@
+# pod-acme: the account step sends no contact (T-1505). The whole order
+# against the stand-in must fail: the account has no contact.
+ENTRY=T-1505
+GROUP=acme
+EXPECT='test one_whole_order_gives_a_chain_of_the_ca_and_the_account_has_its_contact \.\.\. FAILED'
+RUN='cargo test -p pod-acme --all-features --test standin one_whole_order_gives_a_chain_of_the_ca_and_the_account_has_its_contact -- --exact'
+LIMIT=900

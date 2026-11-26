@@ -1,0 +1,7 @@
+# pod-acme: a contact with two addresses (',') is not refused by name
+# (T-1505). The test of the check must fail.
+ENTRY=T-1505
+GROUP=acme
+EXPECT='test contact::tests::a_contact_that_a_ca_refuses_is_refused_by_name_before_the_request \.\.\. FAILED'
+RUN='cargo test -p pod-acme --lib -- contact::tests::a_contact_that_a_ca_refuses_is_refused_by_name_before_the_request --exact'
+LIMIT=900

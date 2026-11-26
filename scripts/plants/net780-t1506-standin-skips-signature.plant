@@ -1,0 +1,7 @@
+# The stand-in CA takes a JWS whose signature does not verify (T-1506).
+# The test of the JWS checks must fail.
+ENTRY=T-1506
+GROUP=acme
+EXPECT='test the_stand_in_checks_each_jws_as_a_ca_does \.\.\. FAILED'
+RUN='cargo test -p pod-acme --all-features --test standin_checks the_stand_in_checks_each_jws_as_a_ca_does -- --exact'
+LIMIT=900

@@ -11,6 +11,7 @@ use pod_proxy::http::Response;
 use pod_tls::Trust;
 use serde_json::{Value, json};
 
+use crate::contact::Contact;
 use crate::jws::Account;
 
 /// The type of each JWS POST (RFC 8555, section 6.2).
@@ -23,6 +24,9 @@ const MAX_ANSWER: usize = 256 << 10;
 /// 5 % of good ones on purpose, and its test runs 15 %.
 const BAD_NONCE_TRIES: usize = 8;
 const BAD_NONCE: &str = "urn:ietf:params:acme:error:badNonce";
+/// The problems of a contact that the CA refuses (RFC 8555, section 6.7).
+const CONTACT_PROBLEMS: [&str; 2] =
+    ["urn:ietf:params:acme:error:invalidContact", "urn:ietf:params:acme:error:unsupportedContact"];
 
 /// An answer of the CA, or why none came.
 pub type Answer = Result<Response, String>;
@@ -84,6 +88,10 @@ impl Directory {
 pub struct Client {
     pub http: Http,
     pub directory: Directory,
+    /// The contacts that the account step sends (RFC 8555, section 7.3).
+    /// An account that exists takes them when its own differ; with none,
+    /// the account keeps what it has.
+    pub contacts: Vec<Contact>,
     key: Account,
     /// The account's URL, once newAccount gave it.
     kid: Option<String>,
@@ -98,7 +106,7 @@ impl Client {
             return Err(format!("the directory {url}: {}", problem(&answer)));
         }
         let directory = Directory::parse(&answer.body)?;
-        Ok(Client { http, directory, key, kid: None, nonce: None })
+        Ok(Client { http, directory, contacts: Vec::new(), key, kid: None, nonce: None })
     }
 
     pub fn key(&self) -> &Account {
@@ -106,18 +114,37 @@ impl Client {
     }
 
     /// The account of the key: made on its first use, else found by it
-    /// (RFC 8555, section 7.3). True when the CA made it now.
+    /// (RFC 8555, section 7.3), with the contacts of [`Client::contacts`].
+    /// True when the CA made it now. A contact that the CA refuses gives a
+    /// failure that names it.
     pub async fn account(&mut self) -> Result<bool, String> {
         let url = self.directory.new_account.clone();
-        let answer = self.post(&url, Some(&json!({"termsOfServiceAgreed": true})), "application/json").await?;
+        let mut payload = json!({"termsOfServiceAgreed": true});
+        if !self.contacts.is_empty() {
+            payload["contact"] = self.contact_list();
+        }
+        let answer = self.post(&url, Some(&payload), "application/json").await?;
         let made = match answer.status {
             201 => true,
             200 => false,
-            _ => return Err(format!("the account: {}", problem(&answer))),
+            _ => return Err(refusal("the account", &answer, &self.contacts)),
         };
-        let kid = answer.header("location").ok_or("the CA gave the account no Location")?;
-        self.kid = Some(kid.to_string());
+        let kid = answer.header("location").ok_or("the CA gave the account no Location")?.to_string();
+        self.kid = Some(kid.clone());
+        if !made && !self.contacts.is_empty() && !holds(&answer, &self.contacts) {
+            // An account that exists keeps its contacts at newAccount: an
+            // update sets them (RFC 8555, section 7.3.2).
+            let update = json!({"contact": self.contact_list()});
+            let answer = self.post(&kid, Some(&update), "application/json").await?;
+            if answer.status != 200 {
+                return Err(refusal("the contacts of the account", &answer, &self.contacts));
+            }
+        }
         Ok(made)
+    }
+
+    fn contact_list(&self) -> Value {
+        self.contacts.iter().map(|c| Value::from(c.as_str())).collect()
     }
 
     /// A JWS POST of `payload` to `url`, or a POST-as-GET with `None`.
@@ -148,6 +175,35 @@ impl Client {
         }
         let answer = self.http.send("GET", &self.directory.new_nonce, false, "*/*", b"").await?;
         replay_nonce(&answer).ok_or_else(|| format!("newNonce gave no Replay-Nonce (HTTP {})", answer.status))
+    }
+}
+
+/// The account object of `answer` holds `contacts`, in any order.
+fn holds(answer: &Response, contacts: &[Contact]) -> bool {
+    let Ok(account) = serde_json::from_slice::<Value>(&answer.body) else { return false };
+    let mut held: Vec<&str> = account["contact"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
+    let mut want: Vec<&str> = contacts.iter().map(Contact::as_str).collect();
+    held.sort_unstable();
+    want.sort_unstable();
+    held == want
+}
+
+/// The CA's refusal of `step`: a refused contact of `contacts` is named, as
+/// the problem may not name it.
+fn refusal(step: &str, answer: &Response, contacts: &[Contact]) -> String {
+    let why = problem(answer);
+    let kind = problem_type(answer).unwrap_or_default();
+    if !CONTACT_PROBLEMS.contains(&kind.as_str()) || contacts.is_empty() {
+        return format!("{step}: {why}");
+    }
+    let detail = String::from_utf8_lossy(&answer.body);
+    let named: Vec<&str> = contacts.iter().filter(|c| detail.contains(c.address())).map(Contact::as_str).collect();
+    let all: Vec<&str> = contacts.iter().map(Contact::as_str).collect();
+    match named.as_slice() {
+        [one] => format!("{step}: the CA refuses the contact {one}: {why}"),
+        [] if all.len() == 1 => format!("{step}: the CA refuses the contact {}: {why}", all[0]),
+        [] => format!("{step}: the CA refuses one of the contacts {}: {why}", all.join(", ")),
+        some => format!("{step}: the CA refuses the contacts {}: {why}", some.join(", ")),
     }
 }
 

@@ -2395,3 +2395,95 @@ resolver pin. A test of `relay_proxy` with `https://proxy.example`.
 ```sh
 cargo test -p pod-iroh --all-features
 ```
+
+# T-1505: `pod-acme`: the contacts of the account, sent in newAccount, a refused contact named
+
+**Source:** PodUtils/podnet#780 (COORD-135 of podnet), ask 1; PodUtils/podnet@T-129; author MEMBER.
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The text of the ask: "`Client::account` sends `termsOfServiceAgreed` only, and `Acme::new` takes no contact. A CA (Let's Encrypt) sends the warnings of expiry and of revocation to the contact of the account. podnet cannot give `--acme-email`. Ask: an optional list of contacts (`mailto:` URIs, RFC 8555 section 7.3) on `Acme::new` or on the account step, sent in `newAccount`. A contact that the CA refuses (`invalidContact`, `unsupportedContact`) gives a failure that names the contact." podnet adds `--acme-email` at the tag that has this ask.
+
+## Premise
+
+- Read: `crates/pod-acme/src/client.rs` (`Client::account` sends `{"termsOfServiceAgreed": true}` alone), `crates/pod-acme/src/lib.rs` (`Acme::new`, `Acme::obtain`), `crates/pod-acme/src/failed.rs`; RFC 8555, sections 6.7 (`invalidContact`, `unsupportedContact`), 7.3 (`contact`) and 7.3.2 (the update of an account).
+- Read: `PodUtils/podnet:crates/podnet-serve/src/acme.rs` at its default branch: it calls `Acme::new` and matches each variant of `Failed` in `failure`. A new variant of `Failed` breaks its build.
+- An account that exists keeps its contacts at newAccount (RFC 8555, section 7.3.1): a contact that a user adds later needs an update of the account.
+
+## Approach
+
+1. `contact::Contact` (crate root `Contact`): `parse` of a `mailto:` URI and `mailto` of an address; each checks one address, no `,`, no `?` header, no `%`, the characters of RFC 5322 atext, a domain of DNS labels, at most 254 characters; a refusal names the contact.
+2. `Acme::with_contacts(Vec<Contact>)` and the field `Acme::contacts` (a builder: `Acme::new` does not change); `Client::contacts`. `Client::account` sends `contact`; on 200 (the account exists) with other contacts, it posts the update to the account URL.
+3. A refusal of type `invalidContact` or `unsupportedContact` names the contact (the one that the problem names, else each), as `Failed::Ca`.
+4. Unit tests of the check and of the refusal; the whole order against the stand-in of T-1506.
+
+## Decision
+
+No new variant of `Failed`: podnet's `failure` matches each variant, and a new one breaks its build. The CA's refusal of a contact is `Failed::Ca` (`Origin`/`Unavailable`, exit 69 in podnet), with the contact in its words. A bad contact is refused before the request by `Contact::parse` and `Contact::mailto`, whose `String` error the consumer maps to a usage error.
+
+## Prove
+
+```sh
+cargo test -p pod-acme --all-features
+sh scripts/plant-each.sh net780-t1505-contact-not-sent net780-t1505-contact-two-addresses
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1505.
+
+- `contact::Contact` (crate root `Contact`): `parse("mailto:ADDR")` (the scheme in any case, kept in lower case), `mailto("ADDR")`, `as_str`, `address`, `Display`; `MAX_ADDRESS` (254). A refusal reads `the contact "TEXT": WHY`, for example `give one address alone: a contact has no ','`, `a contact has no header: remove '?' and the text after it`, `the character '%' is not allowed before '@'`.
+- `Acme::with_contacts(Vec<Contact>)` and the field `Acme::contacts` (none by default); `Client::contacts`. `Client::account` sends `contact` with `termsOfServiceAgreed`; on 200 (the account exists) whose account object holds other contacts, it posts `{"contact": [...]}` to the account URL. With no contact, nothing is sent and the account keeps its contacts.
+- A refusal of type `invalidContact` or `unsupportedContact` is `Failed::Ca` with the words "the account: the CA refuses the contact mailto:ADDR: invalidContact: DETAIL" (the contact that the detail names, else the one contact, else "one of the contacts A, B"). The line `acme.account` of a new account ends with ", contact mailto:ADDR".
+- Tests: `contact::tests::a_mailto_uri_of_one_address_is_a_contact`, `contact::tests::a_contact_that_a_ca_refuses_is_refused_by_name_before_the_request`, `client::tests::a_contact_that_the_ca_refuses_is_named_in_the_failure`, `client::tests::an_account_holds_its_contacts_in_any_order`; against the stand-in of T-1506: `one_whole_order_gives_a_chain_of_the_ca_and_the_account_has_its_contact`, `a_contact_that_the_ca_refuses_ends_the_order_with_a_failure_that_names_it`, `an_account_that_exists_takes_the_contacts_that_the_user_adds_later` (`crates/pod-acme/tests/standin.rs`).
+- Plants: `net780-t1505-contact-not-sent` (the account step sends no contact) and `net780-t1505-contact-two-addresses` (a `,` passes the check); each caught.
+- podnet: no change to build at the tag (no new variant of `Failed`, `Acme::new` as before). For `--acme-email`: `Contact::mailto(email)` (its error is a usage error, exit 64), then `Acme::new(...)?.with_contacts(vec![contact])`.
+
+# T-1506: `pod-acme`: a stand-in of an ACME CA behind the feature `standin`
+
+**Source:** PodUtils/podnet#780 (COORD-135 of podnet), ask 2; PodUtils/podnet@T-129; author MEMBER.
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+The text of the ask: "The crate has no stand-in of a CA. podnet tests the kept certificate, the modes, the challenge on the listener and a failed first order, but not one full order in `cargo test`. podnet runs Pebble in `live.yml` for the full order. Ask: a stand-in of a directory, an account, an order, a TLS-ALPN-01 challenge (the stand-in connects to the listener of the caller with ALPN `acme-tls/1` and checks the certificate of RFC 8737), a finalization and a certificate, behind a feature (`standin`), as `pod-derp` and `pod-egress` do. A consumer turns it on in `[dev-dependencies]` only." T-129 of podnet stays partial until its live step with Pebble passes.
+
+## Premise
+
+- Read: the stand-ins of `crates/pod-devtunnel/src/standin.rs` and `crates/pod-cloudflare/src/standin.rs` (a test CA of rcgen, TLS on the provider of the caller), the server of `crates/pod-tls/src/server.rs` and its `Served`, the request head of `pod_proxy::http::request`; RFC 8555, sections 6, 7.1 to 7.4 and 7.4.2; RFC 8737, sections 3 and 4.
+- No test of podcrates runs a whole order (T-637: Pebble in CI, open).
+- `rcgen` has no crypto feature here: each signature of the test CA is the P-256 `Key` of the crate. x509-parser has no `verify` feature: the stand-in checks the signature of a CSR with `p256`.
+
+## Approach
+
+1. The feature `standin` (tokio `net`, `io-util`, `rt`, `sync`). `src/standin.rs` with `Plan`, `Seen`, `Standin` (`start(provider, plan)`, `directory`, `ca_pem`, `trust`, `http`, `seen`), and the modules `ca`, `serve`, `signed`, `flow`, `validate`, each under 500 lines.
+2. The checks of a CA: the JWS (ES256, its signature, the nonce, the `url`, `jwk` for newAccount alone, the `kid` of a known account), each object of its own account, the contacts (`unsupportedContact`, `invalidContact` for a contact that the plan names), the order state (`orderNotReady`), the CSR (its signature, its names, a key that is not the account's), TLS-ALPN-01 of RFC 8737 (ALPN `acme-tls/1` alone and chosen, SNI, one dNSName, a critical `acmeIdentifier` with the SHA-256 of the key authorization), and a chain signed by its test CA.
+3. Tests (`tests/standin.rs`, `tests/standin_checks.rs`, feature `standin`): one full order through `Acme::obtain`, the refused contact, the update of the contacts, and a refusal of each check. Plants: the stand-in skips the `acmeIdentifier` check, the client omits it, the stand-in skips the JWS signature.
+
+## Prove
+
+```sh
+cargo test -p pod-acme --all-features --test standin --test standin_checks
+sh scripts/plant-each.sh net780-t1506-standin-skips-identifier net780-t1506-challenge-no-identifier net780-t1506-standin-skips-signature
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1506.
+
+- The feature `standin` (tokio `net`, `io-util`, `rt`; no new dependency). `standin::Standin` (`start(provider, plan)` on the caller's runtime and provider, `directory`, `ca_pem`, `trust()`, `http()`, `seen()`; the task ends at its drop), `Plan { validate_at, refused_contacts, bad_nonces, days }` (`Plan::new(validate_at)`), `Seen { accounts, refusals, validations, issued, bad_nonces }`; the modules `ca` (the test CA: rcgen with the crate's P-256 `Key`; a CSR checked by x509-parser and `p256`), `serve` (HTTPS, HTTP/1.1 with keep-alive), `signed` (the JWS checks, `Problem`), `flow` and `flow/orders` (the resources), `validate` (TLS-ALPN-01: `validate`, `check_certificate`, `ACME_IDENTIFIER`). The largest file has 340 lines.
+- The checks: ES256 and its signature, a nonce that the stand-in gave and no request used, the `url`, `jwk` at newAccount alone, the `kid` of a known account, the type `application/jose+json`; the terms; each contact (`unsupportedContact`, `invalidContact`, and `invalidContact` for each contact of the plan); the owner of each object; DNS names alone and no wildcard (`rejectedIdentifier`); `orderNotReady`; the CSR (its signature, its names against the order, a P-256 key that is not the account's: `badCSR`); TLS-ALPN-01 in a task after the client's POST (ALPN `acme-tls/1` alone and chosen, the name as SNI, one dNSName, one critical `acmeIdentifier` with the SHA-256 of the key authorization; the handshake signature checked with the key of the certificate, as webpki does not read a certificate with a critical acmeIdentifier). The authorization lists `http-01` too, and refuses it.
+- Tests (`crates/pod-acme/tests/standin.rs`, `crates/pod-acme/tests/standin_checks.rs`, each with `need_loopback!`): `one_whole_order_gives_a_chain_of_the_ca_and_the_account_has_its_contact` (two good nonces refused and sent again, the chain verified for the name against the test CA alone, a second order on the same account), `the_stand_in_refuses_a_certificate_of_tls_alpn_01_that_rfc_8737_does_not_allow`, `the_stand_in_checks_each_jws_as_a_ca_does`, `the_stand_in_issues_for_a_csr_of_the_names_of_the_order_and_a_key_of_its_own`.
+- `cargo test -p pod-acme --all-features`: 30 unit tests, 3 in `standin`, 3 in `standin_checks`, all passed. `cargo clippy -p pod-acme --all-targets` with `--all-features` and with no feature, `-D warnings`: clean. `cargo fmt --all --check`: clean.
+- Plants: `net780-t1506-standin-skips-identifier` (the stand-in skips the digest of the acmeIdentifier), `net780-t1506-challenge-no-identifier` (the client's certificate has no acmeIdentifier: the whole order fails), `net780-t1506-standin-skips-signature` (the stand-in takes a JWS whose signature does not verify); each caught.
+- podnet: `pod-acme = { git = "https://github.com/PodUtils/podcrates", tag = "vX.Y.Z", features = ["standin"] }` in the `[dev-dependencies]` of `podnet-serve`; a test binds its listener (`acceptor` with `HTTP1` and `ACME_TLS_1`, `serve_tls`), starts `Standin::start(provider, Plan::new(listener_addr))`, and gives `Standin::directory` and `Standin::http()` to `acme::open`.
+- Not done: a whole order against Pebble in podcrates stays T-637.

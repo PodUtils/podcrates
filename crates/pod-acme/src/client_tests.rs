@@ -106,3 +106,47 @@ fn json_is_taken_from_200_and_201_alone() {
     let refused = r#"{"type":"urn:ietf:params:acme:error:unauthorized","detail":"Account is not valid"}"#;
     assert_eq!(json_of(&answer(403, &[], refused)).unwrap_err(), "unauthorized: Account is not valid");
 }
+
+fn contacts(list: &[&str]) -> Vec<Contact> {
+    list.iter().map(|c| Contact::parse(c).unwrap()).collect()
+}
+
+/// Pebble's words for a contact of another scheme, and Boulder's for an
+/// address that it refuses.
+#[test]
+fn a_contact_that_the_ca_refuses_is_named_in_the_failure() {
+    let one = contacts(&["mailto:ops@example.org"]);
+    let unsupported = r#"{"type":"urn:ietf:params:acme:error:unsupportedContact","detail":"contact method \"tel\" is not supported","status":400}"#;
+    assert_eq!(
+        refusal("the account", &answer(400, &[], unsupported), &one),
+        "the account: the CA refuses the contact mailto:ops@example.org: unsupportedContact: contact method \"tel\" is not supported"
+    );
+    let two = contacts(&["mailto:ops@example.org", "mailto:root@example.net"]);
+    let invalid = r#"{"type":"urn:ietf:params:acme:error:invalidContact","detail":"Error validating contact(s) :: invalid contact domain. Contact emails @example.net are forbidden"}"#;
+    let text = refusal("the account", &answer(400, &[], invalid), &two);
+    assert_eq!(
+        text,
+        "the account: the CA refuses one of the contacts mailto:ops@example.org, mailto:root@example.net: invalidContact: \
+         Error validating contact(s) :: invalid contact domain. Contact emails @example.net are forbidden"
+    );
+    let named = r#"{"type":"urn:ietf:params:acme:error:invalidContact","detail":"root@example.net is refused"}"#;
+    let text = refusal("the account", &answer(400, &[], named), &two);
+    assert!(text.starts_with("the account: the CA refuses the contact mailto:root@example.net: "), "{text}");
+    // Another problem, or no contact: the CA's words alone.
+    let other = r#"{"type":"urn:ietf:params:acme:error:malformed","detail":"x"}"#;
+    assert_eq!(refusal("the account", &answer(400, &[], other), &one), "the account: malformed: x");
+    assert_eq!(
+        refusal("the account", &answer(400, &[], invalid), &[]),
+        format!("the account: {}", problem(&answer(400, &[], invalid)))
+    );
+}
+
+#[test]
+fn an_account_holds_its_contacts_in_any_order() {
+    let two = contacts(&["mailto:a@example.org", "mailto:b@example.org"]);
+    let account = r#"{"status":"valid","contact":["mailto:b@example.org","mailto:a@example.org"]}"#;
+    assert!(holds(&answer(200, &[], account), &two));
+    assert!(!holds(&answer(200, &[], r#"{"status":"valid","contact":["mailto:a@example.org"]}"#), &two));
+    assert!(!holds(&answer(200, &[], r#"{"status":"valid"}"#), &two));
+    assert!(!holds(&answer(200, &[], "not JSON"), &two));
+}

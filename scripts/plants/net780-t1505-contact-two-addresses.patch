@@ -1,0 +1,23 @@
+diff --git a/crates/pod-acme/src/contact.rs b/crates/pod-acme/src/contact.rs
+index 25ce01a64..a1a895628 100644
+--- a/crates/pod-acme/src/contact.rs
++++ b/crates/pod-acme/src/contact.rs
+@@ -15,7 +15,7 @@ const MAX_LOCAL: usize = 64;
+ /// The characters of a local part past letters and digits: the atext of
+ /// RFC 5322, section 3.2.3, and the dot. No `%`, `?` or `,`: each needs
+ /// the escapes of RFC 6068, and a CA refuses them.
+-const LOCAL_MARKS: &str = "!#$&'*+-/=^_`{|}~.";
++const LOCAL_MARKS: &str = "!#$&'*+-/=^_`{|}~.,";
+ 
+ /// A `mailto:` URI of one address, checked.
+ #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+@@ -67,9 +67,6 @@ fn check_address(address: &str) -> Result<(), String> {
+     if address.len() > MAX_ADDRESS {
+         return Err(format!("an address has at most {MAX_ADDRESS} characters"));
+     }
+-    if address.contains(',') {
+-        return Err("give one address alone: a contact has no ','".into());
+-    }
+     if address.contains('?') {
+         return Err("a contact has no header: remove '?' and the text after it".into());
+     }

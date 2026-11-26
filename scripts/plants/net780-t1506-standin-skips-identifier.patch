@@ -1,0 +1,13 @@
+diff --git a/crates/pod-acme/src/standin/validate.rs b/crates/pod-acme/src/standin/validate.rs
+index c1ae2598a..28a22d9cd 100644
+--- a/crates/pod-acme/src/standin/validate.rs
++++ b/crates/pod-acme/src/standin/validate.rs
+@@ -69,7 +69,7 @@ pub fn check_certificate(der: &[u8], name: &str, key_authorization: &str) -> Res
+     let digest = sha2::Sha256::digest(key_authorization.as_bytes());
+     let mut want = vec![0x04, 0x20];
+     want.extend_from_slice(&digest);
+-    if extension.value != want.as_slice() {
++    if extension.value.is_empty() && want.is_empty() {
+         return Err("the acmeIdentifier is not the SHA-256 of the key authorization".into());
+     }
+     Ok(())

@@ -16,10 +16,13 @@
 
 pub mod certs;
 pub mod client;
+pub mod contact;
 mod failed;
 pub mod jws;
 pub mod key;
 pub mod order;
+#[cfg(feature = "standin")]
+pub mod standin;
 pub mod store;
 pub mod url;
 
@@ -36,6 +39,7 @@ use client::{Client, Http};
 use store::Store;
 use url::Url;
 
+pub use contact::Contact;
 pub use failed::Failed;
 
 /// Let's Encrypt's directory, the default CA: the endpoint `directory` of
@@ -66,6 +70,9 @@ pub struct Acme {
     pub directory: String,
     pub http: Http,
     pub store: Store,
+    /// The contacts of the account (RFC 8555, section 7.3), where the CA
+    /// sends the warnings of expiry and of revocation. None by default.
+    pub contacts: Vec<Contact>,
     /// Where the lines for the user go: a new account, a certificate, a
     /// renewal that failed.
     pub events: Arc<dyn Events>,
@@ -78,6 +85,7 @@ impl std::fmt::Debug for Acme {
             .field("directory", &self.directory)
             .field("http", &self.http)
             .field("store", &self.store)
+            .field("contacts", &self.contacts)
             .finish_non_exhaustive()
     }
 }
@@ -97,7 +105,15 @@ impl Acme {
         let directory = directory.map_or_else(lets_encrypt, str::to_string);
         Url::parse(&directory).map_err(|why| Failed::Directory(format!("{directory}: {why}")))?;
         let store = Store::open(&directory, name, places).map_err(Failed::Store)?;
-        Ok(Acme { name: name.to_string(), directory, http, store, events })
+        Ok(Acme { name: name.to_string(), directory, http, store, contacts: Vec::new(), events })
+    }
+
+    /// The same client, its account with `contacts`: sent at newAccount,
+    /// and set on an account that exists when its own differ. Each contact
+    /// is checked when it is made ([`Contact::parse`], [`Contact::mailto`]).
+    pub fn with_contacts(mut self, contacts: Vec<Contact>) -> Acme {
+        self.contacts = contacts;
+        self
     }
 
     /// The CA's host, for a line.
@@ -120,9 +136,14 @@ impl Acme {
     pub async fn obtain(&self, served: &Served) -> Result<Leaf, Failed> {
         let account = self.store.account().map_err(Failed::Store)?;
         let mut client = Client::open(self.http.clone(), &self.directory, account).await.map_err(Failed::Ca)?;
+        client.contacts = self.contacts.clone();
         if client.account().await.map_err(Failed::Ca)? {
             let terms = client.directory.terms.clone().map(|t| format!(", under its terms ({t})")).unwrap_or_default();
-            self.events.event(Event::info("acme.account", format!("a new account at {}{terms}", self.host())));
+            let contacts: Vec<&str> = self.contacts.iter().map(Contact::as_str).collect();
+            let contacts =
+                if contacts.is_empty() { String::new() } else { format!(", contact {}", contacts.join(", ")) };
+            self.events
+                .event(Event::info("acme.account", format!("a new account at {}{terms}{contacts}", self.host())));
         }
         let ordered = order::order(&mut client, &self.name, served);
         let issued = match tokio::time::timeout(ORDER, ordered).await {

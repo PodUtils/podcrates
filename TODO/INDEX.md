@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1078 entries: 172 open, 31 partial, 6 blocked, 869 done.**
+**1080 entries: 172 open, 31 partial, 6 blocked, 871 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 73 | 12 | 4 | 463 | 552 |
+| P2 | 73 | 12 | 4 | 465 | 554 |
 | P3 | 95 | 10 | 2 | 158 | 265 |
-| **All** | 172 | 31 | 6 | 869 | 1078 |
+| **All** | 172 | 31 | 6 | 871 | 1080 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1121,6 +1121,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1488](relay.md) | P3 | S | M2 | defect | done | `pod-link`: the line of the loopback bind keeps " (os error 13)" after the rule of T-1421 |
 | [T-1500](podvm.md) | P2 | M | M6 | feature | done | `pod-guest`: `ext4::write_empty`, an empty ext4 file system in a sparse file with no tool of the host (PodUtils/podvm#680) |
 | [T-1504](transport.md) | P3 | S | M5 | defect | open | `live.yml` 45797952128: the upload of temp.sh answered HTTP 500 |
+| [T-1505](roads.md) | P2 | S | M4 | feature | done | `pod-acme`: the contacts of the account, sent in newAccount, a refused contact named |
+| [T-1506](roads.md) | P2 | M | M4 | feature | done | `pod-acme`: a stand-in of an ACME CA behind the feature `standin` |
 | [T-1507](adapters.md) | P2 | S | M3 | feature | done | `pod-cloudflare`: the capture names the ingress rule that matched and the hostname of the visitor (PodUtils/podnet#781) |
 | [T-1508](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: an exchange that the capture started always ends, also when the chunk decoder refuses the request body (PodUtils/podnet#781) |
 | [T-1513](services.md) | P2 | S | M5 | defect | done | `services.yml` 45805546683: the Tailscale DERP region 24 gone, and the runner pin of GitHub Actions past 30 days with no newer release |

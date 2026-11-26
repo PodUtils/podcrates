@@ -1,0 +1,13 @@
+diff --git a/crates/pod-acme/src/standin/signed.rs b/crates/pod-acme/src/standin/signed.rs
+index 955d1d6a6..006706bf7 100644
+--- a/crates/pod-acme/src/standin/signed.rs
++++ b/crates/pod-acme/src/standin/signed.rs
+@@ -96,7 +96,7 @@ pub fn check(body: &[u8], url: &str, new_account: bool, keys: &mut impl Keys) ->
+     let raw = b64(&signature)?;
+     let fixed = p256::ecdsa::Signature::from_slice(&raw)
+         .map_err(|_| Problem::malformed("the signature is not r and s of 32 bytes each"))?;
+-    if verifying.verify(format!("{protected}.{payload}").as_bytes(), &fixed).is_err() {
++    if verifying.verify(format!("{protected}.{payload}").as_bytes(), &fixed).is_err() && raw.is_empty() {
+         return Err(Problem::malformed("the JWS signature does not verify"));
+     }
+     let nonce = header["nonce"].as_str().unwrap_or_default();
