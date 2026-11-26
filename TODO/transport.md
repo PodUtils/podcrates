@@ -8625,17 +8625,17 @@ one. Not measured: a run of podssh with the variant.
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
-The ask of podssh: "`pod-tls` `src/hint.rs` (`handshake_failure`, `cause`). Keep one table of plain words for each rustls `CertificateError` and each webpki `Error`. Today `CaUsedAsEndEntity` reaches the user as `Other(OtherError(CaUsedAsEndEntity))`. podssh keeps such a table in `crates/podssh-ws/src/tls_words.rs` for now."
+The ask of podssh: "`pod-tls` `src/hint.rs` (`handshake_failure`, `cause`). Keep one table of plain words for each rustls `CertificateError` and each webpki `Error`. Today `CaUsedAsEndEntity` reaches the user as `Other(OtherError(CaUsedAsEndEntity))`. podssh keeps such a table in `PodUtils/podssh:crates/podssh-ws/src/tls_words.rs` for now."
 
 rustls's `Display` of a `CertificateError` writes each variant with no fields as its `Debug` name, and each error of rustls-webpki that it does not map as `Other(OtherError(NAME))`. `handshake_failure` and `cause` pass that text to the user.
 
 ## Premise
 
-- Read: PodUtils/podssh#362; podssh's `crates/podssh-ws/src/tls_words.rs` at `ec33fd8b`; `crates/pod-tls/src/hint.rs`; `CertificateError` of rustls 0.23.46 (`src/error.rs`, its `Display`) and `Error` of rustls-webpki 0.103.16 (`src/error.rs`), and rustls's `pki_error`, which maps some webpki errors to its own and gives the others in `Other`. Both enums are `non_exhaustive`.
+- Read: PodUtils/podssh#362; podssh's `PodUtils/podssh:crates/podssh-ws/src/tls_words.rs` at `ec33fd8b`; `crates/pod-tls/src/hint.rs`; `CertificateError` of rustls 0.23.46 (`src/error.rs`, its `Display`) and `Error` of rustls-webpki 0.103.16 (`src/error.rs`), and rustls's `pki_error`, which maps some webpki errors to its own and gives the others in `Other`. Both enums are `non_exhaustive`.
 - Not measured: the line of podssh with its table removed.
 
 ## Approach
@@ -8652,3 +8652,7 @@ rustls's `Display` of a `CertificateError` writes each variant with no fields as
 cargo test -p pod-tls --all-features
 sh scripts/plant-each.sh tls-certificate-words-debug-name
 ```
+
+## Done
+
+2026-11-26. `pod_tls::CERTIFICATE_WORDS` gives words to each `Debug` name of rustls 0.23.46's `CertificateError` and of rustls-webpki 0.103.16's `Error`; `certificate_name_words`, `certificate_words(&CertificateError)` (the webpki name in `Other` too; rustls's own words of a variant with fields; the words of another error in `Other`, as a refusal of `peer`; a name that the table does not know is said by its name, the last resort) and `plain_certificate(text)` (`src/cert_words.rs`). `handshake_failure` and `handshake_error` take the type first, then the text; `cause` and `handshake_hint` read the names and the words. `CaUsedAsEndEntity` is now "the certificate of a CA, served as the server's own: the server must serve a certificate that its CA signed"; `UnknownIssuer` is "a certificate that no trusted CA signed". Tests: `cert_words::tests::each_certificate_error_of_rustls_is_said_in_words` and `cert_words::tests::each_error_of_webpki_is_said_in_words` (each variant at these versions, all of which can be built), `cert_words::tests::a_ca_used_as_the_server_s_certificate_is_said_in_words`, `cert_words::tests::fields_go_and_an_unknown_name_is_kept`, `hint::tests::a_refused_certificate_is_said_in_words_by_type_and_by_text` (before the fix the text held `Other(OtherError(CaUsedAsEndEntity))`). The tests of `pod-tls` and `pod-dns` that read `UnknownIssuer` read the words. `cargo test -p pod-identity -p pod-iroh -p pod-tls --all-features`: 298 passed, 0 failed, 7 ignored; `cargo test -p pod-dns -p pod-proxy --all-features`: 323 passed, 0 failed, 5 ignored; `cargo clippy` of the three with `--all-targets --all-features -- -D warnings`: 0; plant `tls-certificate-words-debug-name`: caught. Commit: see `git log` for T-1409.
