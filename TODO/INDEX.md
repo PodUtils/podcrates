@@ -1137,3 +1137,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1526](roads.md) | P2 | M | M4 | feature | done | `pod-egress`: a Shadowsocks node that a key file builds whole (an Outline key with a `wss://` URL), and the salt prefix of Outline's keys (PodUtils/podnet#782, ask 3) |
 | [T-1527](roads.md) | P2 | S | M4 | feature | done | `pod-egress`: the password extension of Wisp v2, from a secret of the caller (PodUtils/podnet#782, ask 4) |
 | [T-1528](roads.md) | P3 | S | M4 | feature | open | `pod-egress`: a wait for the answer of a VLESS server that does not delay a protocol where the client speaks first (PodUtils/podnet#782, ask 5) |
+| [T-1529](fleet.md) | P1 | S | M8 | feature | open | `pod-job`: the limits that a unit got, as `unit.limits` in `run-report.v1` (PodUtils/podrunner#367) |

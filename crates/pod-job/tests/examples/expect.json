@@ -25,6 +25,8 @@
   "run-report/invalid-refused-no-code.json": "a refused report needs refusal_code",
   "run-report/invalid-refused-with-unit.json": "a refused report has no unit fields",
   "run-report/invalid-unit-id.json": "a unit id is u- and a decimal number",
+  "run-report/invalid-unit-limits-extra.json": "unknown field `swap_bytes`",
+  "run-report/invalid-unit-limits-negative.json": "invalid value: integer `-1`",
   "run-report/invalid-unit-start.json": "unknown variant `hot`",
   "source-reply/invalid-credential-file-extra.json": "unknown field",
   "source-reply/invalid-done-extra-field.json": "unknown field",

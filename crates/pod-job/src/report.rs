@@ -58,6 +58,32 @@ pub struct UnitFields {
     /// script.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub boot_s: Option<u64>,
+    /// The limits that the driver applied to the unit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limits: Option<UnitLimits>,
+}
+
+/// The limits that the driver applied to a unit, not the values of the
+/// offer. A unit gets the lesser of the limits of its kind and of its offer
+/// (podrunner T-198), but a kind can give more than the offer: a guest of a
+/// virtual machine needs its root in memory. A limit that the unit did not
+/// have is absent (or `null`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "schema"), derive(schemars::JsonSchema))]
+#[serde(deny_unknown_fields)]
+pub struct UnitLimits {
+    /// The memory of the unit, in bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub memory_bytes: Option<u64>,
+    /// The CPUs of the unit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpus: Option<u64>,
+    /// The processes of the unit.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pids: Option<u64>,
+    /// The disk of the unit, in bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub disk_bytes: Option<u64>,
 }
 
 /// How a unit started (G-25 of githome).
@@ -346,7 +372,7 @@ fn rules(schema: u32, exit: ExitReason, code: bool, unit: bool) -> Result<(), St
 
 #[cfg(test)]
 mod tests {
-    use super::{RunReport, UnitStart};
+    use super::{RunReport, UnitLimits, UnitStart};
 
     fn example(name: &str) -> RunReport {
         let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/examples/run-report/");
@@ -377,8 +403,20 @@ mod tests {
         let unit = report.unit.clone().expect("a unit");
         assert_eq!((unit.start, unit.warm_s, unit.boot_s), (None, None, None));
         let value = serde_json::to_value(&report).expect("a report is JSON");
-        for key in ["start", "warm_s", "boot_s"] {
+        for key in ["start", "warm_s", "boot_s", "limits"] {
             assert!(value["unit"].get(key).is_none(), "{key}: {value}");
         }
+    }
+
+    #[test]
+    fn the_limits_of_a_unit_read_null_as_absent_and_write_back_without_it() {
+        let report = example("valid-unit-limits.json");
+        let limits = report.unit.clone().expect("a unit").limits.expect("limits");
+        let want = UnitLimits { memory_bytes: Some(4_294_967_296), cpus: Some(2), pids: Some(512), disk_bytes: None };
+        assert_eq!(limits, want);
+        assert_eq!(report.check(), Ok(()));
+        let value = serde_json::to_value(&report).expect("a report is JSON");
+        assert!(value["unit"]["limits"].get("disk_bytes").is_none(), "{value}");
+        assert_eq!(serde_json::from_value::<RunReport>(value).expect("a report"), report);
     }
 }

@@ -32,7 +32,7 @@ pub use codes::{RefusalCode, Tier};
 pub use ids::{IdError, JOB_ID_MAX, JobId, UnitId, UnitIds};
 pub use offer::JobOffer;
 pub use parts::{Assigned, Cache, CacheMode, Sandbox, Verdict};
-pub use report::{ExitReason, PublicReport, Residual, RunReport, UnitFields, UnitStart};
+pub use report::{ExitReason, PublicReport, Residual, RunReport, UnitFields, UnitLimits, UnitStart};
 pub use status::{KindStatus, PinStatus, SourceStatus, Status, WarmStatus};
 
 /// The version of each record. A reader refuses another value. The name of

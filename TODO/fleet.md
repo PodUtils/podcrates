@@ -9949,3 +9949,52 @@ sh scripts/plant-each.sh unit-t1521-probe-keeps-code
   clippy -p pod-unit --all-targets --all-features -- -D warnings` and
   `cargo clippy -p pod-unit --target x86_64-pc-windows-gnu --all-features
   -- -D warnings` passed.
+
+# T-1529: `pod-job`: the limits that a unit got, as `unit.limits` in `run-report.v1` (PodUtils/podrunner#367)
+
+**Source:** PodUtils/podrunner#367 (COORD-140 of podrunner, for PodUtils/podrunner@T-691; G-06 and G-12 of githome; author COLLABORATOR)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A unit of podrunner gets the lesser of the limits of its kind and of its
+offer (podrunner T-198), and a guest of the microvm kind gets more memory
+than its offer (its unpacked image, at least the boot floor of the image).
+`run-report.v1` names none of these values, so an operator cannot see the
+memory, the CPUs, the processes and the disk that a job got. The ask: an
+optional object `unit.limits` with `memory_bytes`, `cpus`, `pids` and
+`disk_bytes`, each an integer, or absent when the unit had no such limit;
+the values that the driver applied, not the values of the offer; the
+schema id stays.
+
+## Premise
+
+- Read: PodUtils/podrunner#367; `crates/pod-job/src/report.rs`
+  (`UnitFields` has `deny_unknown_fields`); `schemas/CHANGES.md` (an
+  added optional field keeps the id, with a row `added`).
+- The example of the ask writes `"disk_bytes": null`: serde reads `null`
+  of an `Option` as absent, and the writer leaves it out.
+- Not measured: the driver of podrunner that fills it.
+
+## Approach
+
+`UnitFields` takes `limits: Option<UnitLimits>`; `UnitLimits` has
+`memory_bytes`, `cpus`, `pids` and `disk_bytes`, each `Option<u64>` and
+absent on the wire when `None`, with `deny_unknown_fields`. The doc names
+T-198 of podrunner and that a kind can give more than the offer. The
+public report does not change. The schema file is written again, with a
+row `added` (tag `next`) in `schemas/CHANGES.md`. Examples: one valid,
+one invalid with a negative value, one invalid with an unknown field.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+python3 -I scripts/check-schemas.py
+```
+
+## Done
