@@ -1,0 +1,8 @@
+# pod-guest: `Layout::fit` counts the data blocks and not the metadata of
+# the groups, so the groups cannot hold the data (T-1518, podvm a00e3a4).
+# The test must fail.
+ENTRY=T-1518
+GROUP=guest
+EXPECT='test ext4::tests::a_fit_layout_holds_the_data_and_the_inodes_and_no_more \.\.\. FAILED'
+RUN='cargo test -p pod-guest --all-features --lib -- ext4::tests::a_fit_layout_holds_the_data_and_the_inodes_and_no_more --exact'
+LIMIT=1800

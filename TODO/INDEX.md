@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1075 entries: 170 open, 31 partial, 6 blocked, 868 done.**
+**1077 entries: 171 open, 31 partial, 6 blocked, 869 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 72 | 12 | 4 | 462 | 550 |
-| P3 | 94 | 10 | 2 | 158 | 264 |
-| **All** | 170 | 31 | 6 | 868 | 1075 |
+| P2 | 72 | 12 | 4 | 463 | 551 |
+| P3 | 95 | 10 | 2 | 158 | 265 |
+| **All** | 171 | 31 | 6 | 869 | 1077 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1122,3 +1122,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1513](services.md) | P2 | S | M5 | defect | done | `services.yml` 45805546683: the Tailscale DERP region 24 gone, and the runner pin of GitHub Actions past 30 days with no newer release |
 | [T-1516](roads.md) | P3 | S | M4 | chore | done | `pod-derp`: the derper tests read `PODSSH_DERP_TEST_*`, and the adoption map says that podnet has no DERP road (PodUtils/podnet#783) |
 | [T-1517](upkeep.md) | P2 | S | M5 | chore | done | `pod-core`: podssh's words of an I/O error with no "(os error N)" in the files of the cache and in `text.rs` (port of podssh's T-952) |
+| [T-1518](foundation.md) | P2 | S | M0 | chore | done | `pod-guest`: the parts of podvm's `ext.rs` for a disk of the tree of an image, after `a00e3a4` (port) |
+| [T-1522](podvm.md) | P3 | M | M6 | feature | open | `pod-guest`: podvm's writer of a read-only ext4 disk of the tree of an image stays in podvm (podvm `a00e3a4`) |

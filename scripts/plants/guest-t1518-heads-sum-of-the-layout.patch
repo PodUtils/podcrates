@@ -1,0 +1,11 @@
+--- a/crates/pod-guest/src/ext4/blocks.rs
++++ b/crates/pod-guest/src/ext4/blocks.rs
+@@ -33,7 +33,7 @@
+     let mut s = vec![0u8; 1024];
+     put32(&mut s, 0, l.inodes());
+     put32(&mut s, 4, l.blocks);
+-    put32(&mut s, 12, counts.iter().map(|c| c.free_blocks).sum());
++    put32(&mut s, 12, l.free_blocks());
+     put32(&mut s, 16, counts.iter().map(|c| c.free_inodes).sum());
+     put32(&mut s, 24, 2); // 1024 << 2
+     put32(&mut s, 28, 2);

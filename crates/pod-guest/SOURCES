@@ -34,6 +34,11 @@ file 81ea50fbe1b18c654cdbd464284cc1e5bdb18442 crates/podvm/src/machine/guest/sta
 # Of tests.rs only the tests of the layout, of the sparse file and of
 # e2fsck came; the tests of the size flag, the kernel pin and the init of
 # the disk stay in podvm, with disk.rs and guest.rs.
-repo PodUtils/podvm 9c1edb5a55315d48e1d35afd5ea1d5305cd4b69a
-file 32bf6aac81fd1d89482c01135025752f01ae713c crates/podvm/src/machine/guest/disk/ext.rs -> crates/pod-guest/src/ext4.rs crates/pod-guest/src/ext4/blocks.rs
+# T-1518: podvm a00e3a4 (its T-1994) made the parts of ext.rs public for
+# its writer of a disk of an image tree: Layout::fit, the counts of each
+# group in write_heads, bitmap. They came. The writer (image.rs, inode.rs,
+# tree.rs, root.rs) stays in podvm (T-1522). podvm's superblock still
+# writes the low 16 bits of a group past 65535; the fix of T-1500 stays.
+repo PodUtils/podvm 797efc1f53f3b8869fb20545d7219fb6ee0a9ec8
+file 1e07d669a5745644fc75c88bd4921fa152570136 crates/podvm/src/machine/guest/disk/ext.rs -> crates/pod-guest/src/ext4.rs crates/pod-guest/src/ext4/blocks.rs
 file 94d61e12e5852338cc52abada133d7a38c8b91ec crates/podvm/src/machine/guest/disk/tests.rs -> crates/pod-guest/src/ext4/tests.rs

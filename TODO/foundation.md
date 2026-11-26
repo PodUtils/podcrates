@@ -4185,3 +4185,108 @@ podnet or podvm need the same, so the code has one copy.
 ```sh
 cargo test -p pod-core --all-features
 ```
+
+# T-1518: `pod-guest`: the parts of podvm's `ext.rs` for a disk of the tree of an image, after `a00e3a4` (port)
+
+**Source:** `upstream.yml` 45838753274 (job `sources`), `scripts/check-sources.py`.
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+After T-1500, podvm changed one imported file of `pod-guest`:
+
+```text
+pod-guest: changed PodUtils/podvm:crates/podvm/src/machine/guest/disk/ext.rs -> crates/pod-guest/src/ext4.rs, crates/pod-guest/src/ext4/blocks.rs
+```
+
+The commit is `a00e3a4` (PodUtils/podvm@T-1994, its experiment 482): the
+root of a machine guest on a read-only ext4 disk of the tree of its image.
+podvm's new writer of that disk (`image.rs`, `inode.rs`, `tree.rs`,
+`root.rs`) takes parts of `ext.rs`, which become public:
+`Layout::fit(data, inodes)` (the fewest groups that hold the data and the
+inodes, no free block to spare), `write_heads` (the superblocks and the
+descriptors with the counts of each group that the caller gives; the
+superblock holds their sums), `Names` with a label, `bitmap`, `put16`,
+`put32`, `now`, the layout methods and the constants. `write` of the empty
+disk calls `write_heads` with the counts of an empty disk.
+
+## Premise
+
+- Read: `git diff 9c1edb5 797efc1` of podvm for
+  `PodUtils/podvm:crates/podvm/src/machine/guest/disk/ext.rs` (the one
+  commit `a00e3a4`); the uses of `ext::` in `image.rs`, `inode.rs` and
+  `root.rs` at `797efc1`; `crates/pod-guest/src/ext4.rs`,
+  `crates/pod-guest/src/ext4/blocks.rs`.
+- The bytes of an empty disk do not change: the counts of `write` are the
+  counts that `descriptors` and `superblock` gave before.
+- podvm's superblock still writes the low 16 bits of a group past 65535
+  in `s_block_group_nr`; the fix of T-1500 stays here.
+- T-1500 hands off `ext.rs` to podvm: podvm removes its copy at the tag
+  that carries `ext4`. With `a00e3a4`, podvm can remove it only when
+  `pod_guest::ext4` gives the parts that its writer reads.
+- This host has `e2fsck` (e2fsprogs 1.47.0). Not measured: a mount of a
+  disk of a fit layout by a Linux kernel (no guest here).
+
+## Approach
+
+1. Port `Layout::fit` (a refusal is a `Class::Usage` failure that names
+   the counts), `write_heads` with a `Counts` struct (free blocks, free
+   inodes, directories), `bitmap`, the layout methods and the constants
+   as public API. `write_empty` calls `write_heads` with the counts of an
+   empty disk. `put16`, `put32` and `now` stay in podvm (trivial helpers
+   of its own code).
+2. `write_heads` refuses a label that `Names` refuses, counts that are
+   not one for each group, and counts that a group cannot hold.
+3. Tests: the layout of `fit` holds the data and the inodes with no block
+   to spare; the heads carry the counts of the caller and refuse bad
+   counts; `e2fsck` of an empty file system on two fit layouts. Plants:
+   `fit` with no metadata; the superblock counts of the empty layout.
+4. Move the block of `SOURCES` to the head of podvm; write the new parts
+   in the README (API, parity, adoption map). The writer of the disk of
+   an image tree stays in podvm: T-1522.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=PODVM pod-guest
+cargo test -p pod-guest --all-features --lib -- ext4::
+sh scripts/plant-each.sh guest-t1518-fit-counts-no-metadata guest-t1518-heads-sum-of-the-layout
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1518. The port point is podvm
+`797efc1`.
+
+- New public API of `pod_guest::ext4`: `Layout::fit(data, inodes)`,
+  `write_heads(&file, &layout, &names, &counts, now)` with
+  `Counts { free_blocks, free_inodes, dirs }`, `bitmap(used, valid)`, the
+  methods `group_start`, `group_blocks`, `overhead`, `block_bitmap`,
+  `inode_table`, and the constants `BLOCKS_PER_GROUP`, `INODE_SIZE`,
+  `FIRST_INO`, `ROOT_INO`. `write_heads` refuses (`Class::Usage`) a bad
+  label, counts that are not one for each group, and counts that a group
+  cannot hold. `fit` refuses more than 32-bit block numbers hold, with
+  both counts in the text. `write_empty` gives the same bytes as before.
+- podvm's `put16`, `put32` and `now` stay in podvm; podvm's tuple of
+  counts is a struct here, and `Names` keeps `hash_seed` and a `String`
+  label. The README of `pod-guest` has the API, the parity row and the
+  adoption rows.
+- Tests: `ext4::tests::a_fit_layout_holds_the_data_and_the_inodes_and_no_more`,
+  `ext4::tests::the_heads_carry_the_counts_of_the_caller`;
+  `e2fsck_finds_no_fault_in_the_disk` also checks an empty file system on
+  two fit layouts (no free block in one group; a short last group of two),
+  run with e2fsprogs 1.47.0 of this host.
+- The plants ran by hand in this worktree (apply the patch, run RUN, find EXPECT, revert): `guest-t1518-fit-counts-no-metadata` and
+  `guest-t1518-heads-sum-of-the-layout`: each caught (exit 101).
+- `crates/pod-guest/SOURCES`: the block of T-1500 is at `797efc1` (blob
+  `ext.rs` `1e07d66`; `tests.rs` `94d61e1`, not changed).
+  `check-sources.py --clone PodUtils/podvm=CLONE pod-guest`: each block 0
+  changes, exit 0.
+- `cargo test -p pod-guest --all-features`: the library 208 passed and 1
+  ignored, the other targets 1 passed and 2 ignored, 0 failed. `cargo
+  clippy -p pod-guest --all-targets --all-features -- -D warnings` passed.
+- The writer of the disk of an image tree is T-1522.

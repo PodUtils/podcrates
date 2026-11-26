@@ -85,7 +85,7 @@ restored at each later run in place of a boot ("The warm start", below).
 | `warm::line` | the saved state of any machine line, with no `Plan`: `freeze(&Freeze { monitor, stream, transport, fallback, wait }, &mut hooks) -> Frozen { stream, goes_on }`, the trait `Stopped` (`before`, `after`; `()` does nothing), `save(&Save { monitor, stream, record, fingerprint, notes, transport, fallback, unique, wait }, &mut hooks) -> SaveEnd { saved: Result<Saved { bytes, took, transport }>, goes_on }`, `Record { transport, bytes, notes, fingerprint }` (`text`, `parse`, `note`), `RECORD`, `check(stream, record, fingerprint) -> Record`, `first_difference`, `incoming(line, transport, stream)`, `running(monitor, Option<&mut Child>, wait)`, `Transport::{File, Pipe}` (`word`, `of`, `save_uri`, `load_uri`), `Inputs` (`new`, `with`, `emulator`, `file`, `digest`, `machine`, `entries`, `text`), `cpu(accel)` ("A saved state of any machine line") |
 | `swap` | `Swap::new(&plan, token)` (`Usage` for a mailbox that is not `MailboxBus::Usb`), `Swap::restored(&plan)` (the idle mailbox of a warm restore: an empty token), `current()`, `token()`, `poll()` (the settled outcome of the current command; `None` with no command), `next(&mut monitor, &s, agent, &request)` (a new mailbox with the next volume id in the other file, then QMP `blockdev-change-medium` with `force`; `Usage` before a settled result or, after a restore, with no idle agent; `Protocol` for a refusal, and the medium stays); `settled(&fat16, token)` (the code of the token and no `WQGO.TXT`), `change_request(file)` (the device by `id`, not by the deprecated `device`; with `force`: the guest locks its medium), `mailbox_locked(query_block)` (the lock in the entry whose `qdev` is `wqmbox`), `mailbox_file(query_block)` (the file of its medium), `other_file(&plan)` (`MAILBOX.swap`) ("The next command") |
 | `modloop` | `modules(reader, kernel_release, names) -> ModuleSet` (`release`, `modules`: each `Module { path, name, bytes }` in load order, `builtin`, `dep`, `size()`), `Fault`, `fault(&failure)`, `MAX_SET`, `RELEASE_DIRS` |
-| `ext4` | `write_empty(&file, bytes, &names)` (an empty file gets the length `bytes` and the metadata of an empty ext4 file system; the rest stays holes), `Names { uuid, hash_seed, label }` (`Names::random(label)`, `Names::from_entropy(&mut entropy, label)`: a version 4 UUID and a hash seed), `Layout::of(bytes)` (`blocks`, `groups`, `inodes_per_group`, `gdt_blocks`, `itable_blocks`, `free_blocks()`, `inodes()`), `has_super(group)`, `BLOCK`, `MIN_BYTES`, `MAX_BYTES`, `LABEL_LEN` ("The ext4 disk") |
+| `ext4` | `write_empty(&file, bytes, &names)` (an empty file gets the length `bytes` and the metadata of an empty ext4 file system; the rest stays holes), `Names { uuid, hash_seed, label }` (`Names::random(label)`, `Names::from_entropy(&mut entropy, label)`: a version 4 UUID and a hash seed), `Layout::of(bytes)` (`blocks`, `groups`, `inodes_per_group`, `gdt_blocks`, `itable_blocks`, `free_blocks()`, `inodes()`, `group_start(g)`, `group_blocks(g)`, `overhead(g)`, `block_bitmap(g)`, `inode_table(g)`), `Layout::fit(data, inodes)`, `write_heads(&file, &layout, &names, &counts, now)` with `Counts { free_blocks, free_inodes, dirs }`, `bitmap(used, valid)`, `has_super(group)`, `BLOCK`, `BLOCKS_PER_GROUP`, `INODE_SIZE`, `FIRST_INO`, `ROOT_INO`, `MIN_BYTES`, `MAX_BYTES`, `LABEL_LEN` ("The ext4 disk") |
 | `squashfs` | `Image::open(reader)` (`superblock`, `root`, `inode(reference)`, `entries(&dir)`, `lookup(path)`, `file_at(path)`, `read(&file)`, `ids`, `export(number)`), `Superblock::parse`, `Compressor`, `Inode`, `Kind`, `Dir`, `File`, `Entry`, `listing(bytes)`, `Fault`, `fault(&failure)`, the ceilings `MAX_FILE`, `MAX_LISTING`, `MAX_LINK` |
 
 Each failure is a `pod_core::Failure` at `Stage::Host`. A failure of I/O
@@ -390,6 +390,15 @@ the guest past the size fails with `ENOSPC` in the guest.
 * The host must hold each byte that the guest can write: a write past the
   free space of the host is `EIO` in the guest, not `ENOSPC`. The caller
   checks the free space before it makes the disk.
+* A caller that writes a full file system itself (podvm's read-only disk
+  of the tree of an image) takes the parts: `Layout::fit(data, inodes)`
+  gives the fewest groups that hold `data` blocks beside their metadata
+  and `inodes` inodes, with no free block to spare (more than 16 TiB is a
+  `Usage` failure); `bitmap(used, valid)` gives a bitmap block; and
+  `write_heads` writes the superblock, its copies and the descriptors with
+  the counts of each group that the caller gives (the superblock holds
+  their sums). Counts that are not one for each group, or that a group
+  cannot hold, are `Usage` failures.
 
 ## Parity
 
@@ -425,6 +434,7 @@ Against podvm `crates/podvm/src/machine/guest/disk/ext.rs` at `9c1edb5`
 | [x] the UUID and the hash seed from `/dev/urandom` (`disk.rs`, `random`) | `Names::random` from `pod_core::entropy` |
 | [x] `s_block_group_nr` of a copy | 65535 for a copy past group 65535, as mke2fs (podvm wrote the low 16 bits) |
 | [x] The tests of the layout, of the sparse file and of `e2fsck` | with their names; 4 new: the refusals by name, the group number of a far copy, the names in the superblock, the free counts against the bitmaps |
+| [x] At `797efc1` (podvm `a00e3a4`, T-1518): `Layout::fit`, `write_heads` with the `Counts` of each group, `Names` with a label, `bitmap`, `put16`, `put32`, `now`, the public layout methods and constants | the same, with `Counts` a struct and the refusals of `write_heads`; `put16`, `put32` and `now` stay in podvm; `e2fsck` of a fit layout is a test |
 
 ## Adoption map (podvm)
 
@@ -452,6 +462,8 @@ The disk of `--storage-opt size=` (T-1500): podvm adds `pod-guest` to
 | `machine::guest::disk::ext::Layout::of(bytes)` in `refusal` | `pod_guest::ext4::Layout::of(bytes)`; the text of the `Failure` is the reason |
 | `machine::guest::disk::random()` and `ext::write(&file, &layout, uuid, seed)` after `file.set_len(bytes)` in `make` | `pod_guest::ext4::write_empty(&file, bytes, &Names::random("podvm-disk")?)` on the new file |
 | the tests `the_superblock_copies_are_in_the_sparse_groups`, `a_layout_has_room_in_each_group`, `e2fsck_finds_no_fault_in_the_disk` | `pod_guest::ext4` tests; `the_disk_is_a_sparse_file_of_the_size` stays for `make` |
+| `ext::{Layout::fit, write_heads, bitmap, BLOCKS_PER_GROUP, INODE_SIZE, FIRST_INO, ROOT_INO}` and the layout methods in `image.rs` and `root.rs` | `pod_guest::ext4::*`; `write_heads` takes `&[Counts]` (a struct, not a tuple) and `&Names` (`hash_seed`, a `String` label) and gives a `Failure` |
+| `ext::{put16, put32, now}` in `inode.rs` and `image.rs` | stay in podvm |
 | `crates/podvm/src/machine/guest/disk/ext.rs` | leaves podvm |
 
 ## Tests
