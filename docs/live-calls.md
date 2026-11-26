@@ -152,7 +152,7 @@ script of `scripts/ci/` that fails on a skip, as
 
 | Server | Licence | Pin | Use | Source |
 | --- | --- | --- | --- | --- |
-| Eclipse Mosquitto 2.1.2 | EPL-2.0 or EDL-1.0 | `images/mosquitto/Dockerfile` (index `sha256:75d6662d...`, the same on Docker Hub) | MQTT over a WebSocket (in place) | S3 |
+| Eclipse Mosquitto 2.1.4 | EPL-2.0 or EDL-1.0 | `images/mosquitto/Dockerfile` (index `sha256:fa12172a...`, the same on Docker Hub) | MQTT over a WebSocket (in place) | S3 |
 | CoreDNS 1.15.0 | Apache-2.0 | image `coredns/coredns:1.15.0`, index `sha256:0a9d8c8ddf34347eb59aad9a8784f0710de88d6d112726d11d271f9bc6daca26`; release `coredns_1.15.0_linux_amd64.tgz`, SHA-256 `2495c5b8f3fab6d0a336c397f1227b75406d86e6ec7125744a29df9e936ab8cd` | DoH (the server block `https://`, plugin `tls`): the release archive, which the test starts with its own zone and certificate (call C156) | S4, S5 |
 | distribution 3.1.2 | Apache-2.0 | image `registry:3.1.2`, index `sha256:82f6ff4a7f982960c8aa51617fea3aabc485df6e55cce80d22deb1de36f1bc3c` | an OCI registry | S6 |
 | magic-wormhole-mailbox-server 0.8.0 | MIT | wheel SHA-256 `e03f6a60284c6174baf4d94ee880f90071c1d01afe7f65380fa5f20ff0f01ad4` | the mailbox (in place, daily) | S7 |
@@ -199,7 +199,7 @@ web.pkgforge.dev (forge, read, search, fetch).
   ("IP addresses": not limited to Azure ranges).
 - S2: https://github.com/actions/runner-images/issues/668 ("IPv6 on
   GitHub-hosted runners"; the last comments, 2026-09-18, ask for it).
-- S3: https://hub.docker.com/v2/repositories/library/eclipse-mosquitto/tags/2.1.2-alpine
+- S3: https://hub.docker.com/v2/repositories/library/eclipse-mosquitto/tags/2.1.4-alpine
   (the index digest of `images/mosquitto/Dockerfile`);
   https://github.com/eclipse-mosquitto/mosquitto (the files `epl-v20` and
   `edl-v10`).
