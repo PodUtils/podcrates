@@ -46,10 +46,15 @@ iap = ["dep:zeroize"]
 # A plain WebSocket over TCP to the loopback, for the tests of the Access
 # client (cloudflare::connect_loopback). No binary turns it on.
 plain-ws = ["pod-ws/plain-ws"]
-# The stand-ins of a forward proxy over TLS (HTTP/1.1's and HTTP/2's
-# CONNECT, Basic) and of a wstunnel server (src/standin.rs): for the tests of
-# this crate and of a consumer; no binary needs them.
-standin = ["dep:h2", "dep:http", "dep:bytes", "dep:base64", "dep:hmac", "dep:sha2", "dep:tokio-rustls"]
+# The stand-ins of the far ends of the roads (src/standin.rs): a forward
+# proxy over TLS, a wstunnel server, VLESS, Trojan and Wisp servers, and with
+# `shadowsocks` the servers of Shadowsocks from the specification's own
+# ciphers (AES-GCM, ChaCha20-Poly1305, MD5, HKDF-SHA1, BLAKE3). For the tests
+# of this crate and of a consumer; no binary needs them.
+standin = [
+  "dep:h2", "dep:http", "dep:bytes", "dep:base64", "dep:hmac", "dep:sha2", "dep:tokio-rustls",
+  "dep:aes-gcm", "dep:chacha20poly1305", "dep:md5", "dep:hkdf", "dep:sha1", "dep:blake3",
+]
 # The readers of the wire for the fuzz targets of fuzz/ (src/fuzzing.rs):
 # the packets of a Wisp server, the messages of IAP. No consumer turns it on.
 fuzzing = ["wisp", "iap"]
@@ -92,6 +97,10 @@ aes = { workspace = true, optional = true }
 blake3 = { workspace = true, optional = true }
 # The CRC-32 of the auth ID of VMess; pure Rust.
 crc32fast = { workspace = true, optional = true }
+# The ciphers of the Shadowsocks stand-ins (feature `standin`), not the
+# crate's own wrapper of them.
+aes-gcm = { workspace = true, optional = true }
+chacha20poly1305 = { workspace = true, optional = true }
 
 [dev-dependencies]
 pod-testkit = { workspace = true }
@@ -135,7 +144,7 @@ required-features = ["forwarder"]
 
 [[test]]
 name = "wisp"
-required-features = ["forwarder"]
+required-features = ["forwarder", "standin"]
 
 [[test]]
 name = "wstunnel"
@@ -151,23 +160,23 @@ required-features = ["webtunnel"]
 
 [[test]]
 name = "vless"
-required-features = ["vless"]
+required-features = ["vless", "standin"]
 
 [[test]]
 name = "vmess"
-required-features = ["vmess"]
+required-features = ["vmess", "standin"]
 
 [[test]]
 name = "trojan"
-required-features = ["trojan"]
+required-features = ["trojan", "standin"]
 
 [[test]]
 name = "shadowsocks"
-required-features = ["shadowsocks"]
+required-features = ["shadowsocks", "standin"]
 
 [[test]]
 name = "shadowsocks_2022"
-required-features = ["shadowsocks"]
+required-features = ["shadowsocks", "standin"]
 
 [[test]]
 name = "cloudflare_access"

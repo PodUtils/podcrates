@@ -98,12 +98,7 @@ pub struct Seen {
 }
 
 /// A server that runs: its port, and what it saw.
-#[derive(Debug)]
-pub struct Stand {
-    pub port: u16,
-    pub seen: Arc<Mutex<Seen>>,
-    _task: Task,
-}
+pub type Stand = super::Stand<Mutex<Seen>>;
 
 /// A server of `wst` on a free port of the loopback, over TLS with `tls`
 /// when one is given.
@@ -128,7 +123,7 @@ pub async fn start(wst: Wst, tls: Option<Arc<rustls::ServerConfig>>) -> io::Resu
             });
         }
     });
-    Ok(Stand { port, seen, _task: Task(task) })
+    Ok(Stand { port, seen, task: Task::of(task) })
 }
 
 fn refusal(words: &str) -> String {

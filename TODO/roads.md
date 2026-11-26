@@ -2205,9 +2205,9 @@ cargo test -p pod-dns --all-features --lib
 
 2026-11-24, 67980e7. `fold` gives one phrase (`each of N resolvers failed: CAUSE`, or `N resolvers failed, M with: CAUSE`), with no address and no `(os error N)`; `each` gives the full list at debug. `resolve_in` joins the phrases in at most 160 bytes (`fit`, `pod_core::text::clip`). The line of #698 now (195 bytes): `could not resolve nowhere.invalid: system resolver: failed to lookup address information: Try again; DNS over HTTPS: 8 resolvers failed, 4 with: could not connect: Address family not supported...`. Test: `crates/pod-dns/src/lookup.rs::a_name_that_does_not_resolve_gives_one_short_line` (failed before the fix: 472 bytes). The plant `dns-each-resolver-said-alone` patches the new `fold`. `sh scripts/agent/check.sh`: each step 0.
 
-# T-1432: `pod-egress`: the stand-ins of the second proxy over TLS and of a wstunnel server, behind the feature `standin` (PodUtils/podnet#779, ask 2)
+# T-1432: `pod-egress`: the stand-ins of the second proxy over TLS, of a wstunnel server and of VLESS, Trojan, Shadowsocks and Wisp servers, behind the feature `standin` (PodUtils/podnet#779, ask 2; PodUtils/podnet#782, ask 2)
 
-**Source:** PodUtils/podnet#779 (COORD-134 of podnet), ask 2; PodUtils/podnet@T-126; author MEMBER
+**Source:** PodUtils/podnet#779 (COORD-134 of podnet), ask 2; PodUtils/podnet@T-126; author MEMBER. PodUtils/podnet#782 (COORD-137 of podnet), ask 2; PodUtils/podnet@T-127; author MEMBER
 **Category:** feature
 **Milestone:** M4
 **Priority:** P2
@@ -2224,8 +2224,22 @@ wrote small stand-ins of its own for its tests
 and HTTP/2 CONNECT over TLS, with Basic) and a wstunnel stand-in (with the
 path prefix), so that podnet drops its copies.
 
+PodUtils/podnet#782, ask 2: "The tests of `pod-egress` have servers of
+VLESS, Trojan, Shadowsocks and Wisp (`tests/*_support`). A consumer cannot
+use them. Ask: a feature `standin` (or `pod-testkit`) with these servers,
+for `[dev-dependencies]` only. podnet then drops
+`src/networks/servers_stand.rs` and `src/networks/road_stand.rs`."
+
 ## Premise
 
+- Read: `crates/pod-egress/tests/vless_support/mod.rs` (a VLESS server over
+  a WebSocket and over XHTTP on HTTP/2 and HTTP/1.1, with a fixed made-up
+  ID), `crates/pod-egress/tests/trojan_support/mod.rs` (Trojan in TLS and in
+  a WebSocket, with its fallback), `crates/pod-egress/tests/wisp_support/mod.rs`
+  (a Wisp server of version 1 and 2 that counts the credit), and the
+  servers of `crates/pod-egress/tests/shadowsocks.rs` and
+  `crates/pod-egress/tests/shadowsocks_2022.rs` (the specification's own
+  ciphers: AES-GCM, ChaCha20-Poly1305, MD5, HKDF-SHA1, BLAKE3).
 - Read: `crates/pod-egress/tests/via.rs` (the proxy over TLS: ALPN, a
   mode, Basic, HTTP/1.1's and h2's CONNECT, the bridge of a stream of
   HTTP/2) and `crates/pod-egress/tests/wstunnel.rs` (the reading of
@@ -2242,17 +2256,23 @@ path prefix), so that podnet drops its copies.
 ## Approach
 
 1. `pod_egress::standin` (feature `standin`): `standin::target` (a version
-   line, then an echo); `standin::via` (`spawn` with a `Plan`: the ALPN,
+   line, then an echo); `standin::via` (`start` with a `Plan`: the ALPN,
    the `Mode`, the Basic credentials; `Seen`); `standin::wstunnel`
-   (`spawn` with a `Wst`, over TLS or not; `Seen`).
-2. `tests/via.rs` and `tests/wstunnel.rs` use the exported stand-ins; the
-   test names stay.
-3. README of the crate.
+   (`start` with a `Wst`, over TLS or not; `Seen`); `standin::vless`,
+   `standin::trojan`, `standin::wisp`, and `standin::shadowsocks` (with the
+   feature `shadowsocks` too). A server of TLS takes the caller's
+   `rustls::ServerConfig`. The ciphers of the Shadowsocks servers become
+   optional dependencies of the feature.
+2. The tests use the exported stand-ins; `tests/*_support` keep the
+   certificates of the tests, the way out and the targets. The test names
+   stay.
+3. README of the crate; `crates/pod-egress/SOURCES` names the new place of
+   the files that came from podssh.
 
 ## Prove
 
 ```sh
-cargo test -p pod-egress --all-features --test via --test wstunnel
+cargo test -p pod-egress --all-features
 cargo clippy -p pod-egress --all-targets --all-features -- -D warnings
 ```
 

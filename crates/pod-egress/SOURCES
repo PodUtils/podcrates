@@ -66,6 +66,9 @@ file 7d92c5b2c7ca2ee3b143b069181337de135dc54f crates/podssh-ws/tests/common/talk
 # AEAD form and SIP022). podssh keeps a copy of tests/vless_support/ and
 # tests/trojan_support/ for its tests of the public proxy nodes, Hysteria and
 # TUIC.
+# The servers of tests/vless_support/, trojan_support/ and wisp_support/,
+# and of tests/shadowsocks.rs and shadowsocks_2022.rs, are in src/standin/
+# (feature `standin`, T-1432): port a fix of them there.
 dir crates/podssh-ws/src/vless
 dir crates/podssh-ws/src/vmess
 dir crates/podssh-ws/src/trojan
@@ -111,8 +114,8 @@ file d120dc2764c5364f6bd101cb592c8be459473f8e crates/podssh-ws/tests/trojan.rs -
 file 3bf35e23f50589360e684c0e664b06cf32e5f50e crates/podssh-ws/tests/trojan_support/mod.rs -> crates/pod-egress/tests/trojan_support/mod.rs
 file 7469a80f1ee4ae06388aeac60ffe95f7066f6930 crates/podssh-ws/tests/vless.rs -> crates/pod-egress/tests/vless.rs
 file 59e468285f3c26acdf992c092e783a8a0ced2681 crates/podssh-ws/tests/vless_support/mod.rs -> crates/pod-egress/tests/vless_support/mod.rs
-file 6c5e909ea592754af2a4fcc4ea1e8f2aff9f163c crates/podssh-ws/tests/vless_support/xhttp.rs -> crates/pod-egress/tests/vless_support/xhttp.rs
-file 8b61d463acd74d804bbf4d5e98f3c14f2500fb41 crates/podssh-ws/tests/vless_support/xhttp1.rs -> crates/pod-egress/tests/vless_support/xhttp1.rs
+file 6c5e909ea592754af2a4fcc4ea1e8f2aff9f163c crates/podssh-ws/tests/vless_support/xhttp.rs -> crates/pod-egress/src/standin/vless/xhttp.rs
+file 8b61d463acd74d804bbf4d5e98f3c14f2500fb41 crates/podssh-ws/tests/vless_support/xhttp1.rs -> crates/pod-egress/src/standin/vless/xhttp1.rs
 file 22f9e1e30243827dfe2c3925e136688dcfe87033 crates/podssh-ws/tests/vmess.rs -> crates/pod-egress/tests/vmess.rs
 
 # The cloud roads (part 3 of T-035): AWS's EC2 Instance Connect Endpoint

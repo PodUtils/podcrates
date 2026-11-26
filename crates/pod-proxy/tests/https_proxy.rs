@@ -40,11 +40,8 @@ fn password() -> String {
 /// caller's TLS: a context of podnet and the trust of the test CA alone.
 async fn proxy() -> (Stand, Arc<Context>, Trust) {
     let (acceptor, roots) = cert::server_for(NAME).expect("a test server");
-    let plan = Plan {
-        alpn: vec![b"http/1.1".to_vec()],
-        mode: Mode::Carry,
-        credentials: Some((USER.to_string(), password())),
-    };
+    let plan =
+        Plan { alpn: vec![b"http/1.1".to_vec()], mode: Mode::Carry, credentials: Some((USER.to_string(), password())) };
     let stand = pod_egress::standin::via::start(acceptor.config().clone(), plan).await.expect("a stand-in");
     let provider = Arc::new(rustls::crypto::ring::default_provider());
     let context = Arc::new(Context::new(provider, pod_tls::Settings::new(Words::new("podnet"))));
@@ -134,7 +131,8 @@ async fn a_wrong_certificate_is_refused_with_the_words_of_pod_tls() {
     assert_eq!((failure.stage, failure.class), (Stage::Proxy, Class::Unavailable), "{failure}");
     let words = format!("could not reach the proxy {OTHER}:{}: TLS: ", stand.port);
     assert!(failure.text().starts_with(&words), "{failure}");
-    assert!(failure.text().contains(NAME) && failure.text().contains("not other.https.test"), "{failure}");
+    let said = format!("certificate not valid for name \"{OTHER}\"; certificate is only valid for {NAME}");
+    assert!(failure.text().ends_with(&said), "{failure}");
     let cause = std::error::Error::source(&failure).and_then(|e| e.downcast_ref::<DialError>());
     assert!(matches!(cause, Some(DialError::ProxyUnreachable { .. })), "{cause:?}");
     let none = dialer(via(NAME, stand.port), None);

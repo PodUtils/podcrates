@@ -92,12 +92,7 @@ impl Seen {
 }
 
 /// A proxy that runs: its port, and what it saw.
-#[derive(Debug)]
-pub struct Stand {
-    pub port: u16,
-    pub seen: Arc<Seen>,
-    _task: Task,
-}
+pub type Stand = super::Stand<Seen>;
 
 /// A proxy over TLS with `config` (its certificate; the ALPN of `plan`
 /// replaces its own) on a free port of the loopback.
@@ -123,7 +118,7 @@ pub async fn start(config: Arc<rustls::ServerConfig>, plan: Plan) -> io::Result<
             });
         }
     });
-    Ok(Stand { port, seen, _task: Task(task) })
+    Ok(Stand { port, seen, task: Task::of(task) })
 }
 
 /// The answer to a CONNECT: the target's stream, or a status.
