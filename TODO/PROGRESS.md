@@ -10,8 +10,8 @@
   release, the signed `SHA256SUMS`, 14 assets and the images of
   `ghcr.io/podutils` (each index passes `gh attestation verify`); `ci`
   45620169994 at `1d1c9fc`, the dry run of `release.yml` 45628517649 and
-  the run on the tag 45630869703 passed. Its hand-off is COORD-156 (#262),
-  open until each consumer names the tag (call C780). The hand-off
+  the run on the tag 45630869703 passed. Its hand-off COORD-156 (#262) is
+  closed: each consumer took the tag. The hand-off
   COORD-155 (#260) of `v0.84.0` is closed: each consumer took it.
 - On `main` after `v0.85.0`, for the next tag: T-1389 (`pod-enter`, the
   required tmpfs, PodUtils/podvm#667), T-1392 to T-1394 (`pod-dns`,
@@ -28,9 +28,10 @@
   transfer codec is in `pod-term` (T-1144, `v0.83.0`); podssh wires it at
   `97cebe6` (PodUtils/podssh#358), and #258 (COORD-153) is closed. Its
   finding through tmux is T-1390.
-- The tag that the `main` of each consumer names: `v0.85.0` (podnet,
-  `cb695dd`, PodUtils/podnet#757; podssh, `f0f7e2c`, PodUtils/podssh#360);
-  `v0.84.0` (podvm, PodUtils/podvm#666; podrunner, PodUtils/podrunner#356). The details of
+- The tag that the `main` of each consumer names: `v0.85.0` (podnet
+  `cb695dd`, PodUtils/podnet#757; podssh `f0f7e2c`, PodUtils/podssh#360;
+  podvm `9466c98`, PodUtils/podvm#669; podrunner `f6dd20ee`,
+  PodUtils/podrunner#360). The details of
   the earlier takes are on #250, #254 and #259.
 - PodUtils/static-pkgs builds and publishes the static programs that no
   one else publishes in the form that PodUtils needs (the owner,

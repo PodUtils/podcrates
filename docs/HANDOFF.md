@@ -25,14 +25,10 @@ is done. Git and the record keep finished work.
    body, and close it when the four sessions answered.
 3. Answer the open COORD issues `(to podcrates)`. Map each new one in the
    same commit.
-   - The hand-off of `v0.85.0` is COORD-156 (#262). It answers
-     PodUtils/podvm#664 (T-1379). Record each take on its body (the
-     "Takes" lines, as #260), and close it when each consumer names the
-     tag (call C780). The take of podnet is `cb695dd` (PodUtils/podnet#757,
-     verified, on #262) and answered COORD-157 (#263: its role table is
-     in its `docs/hosted-sessions.md`). The take of podssh is `f0f7e2c`
-     (PodUtils/podssh#360, verified, on #262); its five asks go to two
-     workers in flight, which write their entries.
+   - The hand-off of `v0.85.0`, COORD-156 (#262), is closed: podrunner
+     `f6dd20ee`, podvm `9466c98`, podnet `cb695dd` and podssh `f0f7e2c`
+     took it. COORD-157 (#263): podnet, podvm and podrunner took the role
+     table; it waits for podssh.
    - Done on `main` after `v0.85.0`; answer each with the next tag:
      PodUtils/podvm#667 (COORD-250, T-1389), PodUtils/podnet#753 to #755
      (COORD-123 to COORD-125, T-1392 to T-1394), PodUtils/podssh#359
@@ -110,9 +106,8 @@ an ETag), T-1351 (the step of a failure), T-1343 (random temp names, step
 2 in part), T-1375 (the port of podrunner `fcff5bc`), T-1369, T-1382,
 T-1385 and T-1415.
 
-The hand-off is COORD-156 (#262), with the digest of each image and the
-section of each consumer. It closes when each consumer names `v0.85.0` or
-a later tag (call C780). The hand-off COORD-155 (#260) of `v0.84.0` is
+The hand-off COORD-156 (#262) is closed: each of the four consumers took
+`v0.85.0`, and its body has each take line. The hand-off COORD-155 (#260) of `v0.84.0` is
 closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
 `806e0a4` took it. COORD-153 (#258) is closed: podssh wires the codec at
 `97cebe6` (PodUtils/podssh#358).

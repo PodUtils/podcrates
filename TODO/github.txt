@@ -266,5 +266,5 @@
 259 issue closed
 260 issue closed
 261 issue open
-262 issue open
+262 issue closed
 263 issue open
