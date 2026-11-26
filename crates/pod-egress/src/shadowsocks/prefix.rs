@@ -31,7 +31,12 @@ pub fn from_text(text: &str) -> Result<Vec<u8>, String> {
 /// The prefix as an `ss://` link gives it: the UTF-8 of each byte's code
 /// point, each byte of that a `%` escape.
 pub fn to_url_text(prefix: &[u8]) -> String {
-    prefix.iter().map(|b| char::from(*b).to_string()).flat_map(|c| c.into_bytes()).map(|b| format!("%{b:02X}")).collect()
+    prefix
+        .iter()
+        .map(|b| char::from(*b).to_string())
+        .flat_map(|c| c.into_bytes())
+        .map(|b| format!("%{b:02X}"))
+        .collect()
 }
 
 /// Whether `prefix` fits the salt of `method`.

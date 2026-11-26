@@ -233,9 +233,7 @@ async fn serve(
         locked(&seen).client_infos.push(theirs.clone());
         confirm = extensions.iter().any(|(id, _)| *id == 0x05) && extension(&theirs, 0x05).is_some();
         let refuse = match &speaks {
-            Speaks::Password { user, password, required } => {
-                login_refusal(&theirs, user, password, *required, &seen)
-            }
+            Speaks::Password { user, password, required } => login_refusal(&theirs, user, password, *required, &seen),
             _ => *refuse,
         };
         if let Some(reason) = refuse {

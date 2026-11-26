@@ -111,7 +111,8 @@ impl Node {
         match query.and_then(|q| q.split('&').find_map(|pair| pair.strip_prefix("prefix="))) {
             // `+` is a space in a query, as Outline's client reads it.
             Some(value) => {
-                let text = percent_decode(&value.replace('+', "%20")).ok_or("its prefix is not percent-encoded text")?;
+                let text =
+                    percent_decode(&value.replace('+', "%20")).ok_or("its prefix is not percent-encoded text")?;
                 node.with_prefix(&super::prefix::from_text(&text)?)
             }
             None => Ok(node),
