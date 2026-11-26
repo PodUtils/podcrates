@@ -138,6 +138,11 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   builds with no change. A failure of the chunk decoder is not a refusal
   of the sink: the sink gets `fault` and one `end`. `Dechunk` refuses a
   chunk size over `i64::MAX` (`ffffffffffffffff` was taken as a size).
+- T-1513 (`pod-services`): DERP region 24 (Honolulu, `hnl-1` to `hnl-3`)
+  is gone from Tailscale's map, and `derp14e` (`ams-4`) is new: 93
+  endpoints in 27 regions (podnet and podssh read the set). The watch
+  `github-release` fails by age only when a newer release exists (the pin
+  `v2.338.2` is the newest).
 - T-1516 (`pod-derp`, PodUtils/podnet#783): the derper tests read
   `POD_DERP_TEST_SERVER` and `POD_DERP_TEST_CA`.
 - T-1426 (`pod-oci`, PodUtils/podvm#678 ask 1): `Reference::parse` bounds
