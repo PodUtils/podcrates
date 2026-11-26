@@ -15727,7 +15727,7 @@ cargo test -p pod-oci --all-features rootfs
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -15758,3 +15758,64 @@ cargo clippy -p pod-guest --all-targets --all-features -- -D warnings
 sh scripts/plant-each.sh guest-ext4-free-blocks-count-wrong
 python3 -I scripts/check-sources.py pod-guest
 ```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1500. The import of
+`PodUtils/podvm:crates/podvm/src/machine/guest/disk/ext.rs` and the tests
+of `PodUtils/podvm:crates/podvm/src/machine/guest/disk/tests.rs` at
+`9c1edb5` (a block in `crates/pod-guest/SOURCES`; podvm is edition 2024, so
+no edition step), then the adaptation into `pod_guest::ext4`:
+`write_empty(&file, bytes, &names)`, `Names { uuid, hash_seed, label }`
+with `Names::random` and `Names::from_entropy` (`pod_core::entropy`),
+`Layout::of(bytes) -> Result<Layout>`, `has_super`, `BLOCK`, `MIN_BYTES`,
+`MAX_BYTES`, `LABEL_LEN`. The metadata blocks are in
+`crates/pod-guest/src/ext4/blocks.rs`. The refusals are `Class::Usage`
+failures that name the value: a size under 64 MiB, over 16 TiB less one
+block, or not a whole number of 4096-byte blocks (podvm cut such a size);
+a label of more than 16 bytes or with a NUL byte; a file that is not
+empty. podvm's `disk.rs`, `guest.rs` and the tests of the size flag, the
+kernel pin and the init stay in podvm.
+
+Found and fixed in place: a copy of the superblock past group 65535 (a
+disk of more than 8 TiB) wrote the low 16 bits of its group number in
+`s_block_group_nr`; it now writes 65535, as mke2fs does.
+`a_superblock_copy_past_group_65535_records_65535` failed on the code
+before the fix (group 78125: 12589, not 65535).
+
+Measured: e2fsck 1.47.0 exits 0 on an ext4 disk whose superblock alone
+has a wrong count of free blocks (it corrects the sum with no fault), and
+exits 4 on a wrong count in a group descriptor. So the plant puts the
+wrong count in each descriptor, and the new test
+`the_free_counts_agree_with_the_bitmaps` also compares the counts of the
+superblock with the bitmaps, on a host with no e2fsck too. The note for
+podvm's hand-off: a plant of podvm's test on the superblock count alone
+is not caught by e2fsck 1.47.0.
+
+Tests: `cargo test -p pod-guest --all-features`: the library 206 passed
+and 1 ignored, the other targets 1 passed and 2 ignored, 0 failed; the 9 tests
+of `ext4` pass, with `e2fsck_finds_no_fault_in_the_disk` run on this host
+(`/usr/sbin/e2fsck`, e2fsprogs 1.47.0) on a disk of 64 MiB and one of 9
+groups. The plant `guest-ext4-free-blocks-count-wrong`: caught (exit
+101), and both `e2fsck_finds_no_fault_in_the_disk` and
+`the_free_counts_agree_with_the_bitmaps` fail on it.
+
+Checks: `cargo clippy -p pod-guest --all-targets --all-features -- -D
+warnings`; `cargo fmt --all --check`; `sh scripts/plant-each.sh --apply`
+(0 stale); `python3 -I scripts/check-sources.py --clone
+PodUtils/podvm=DIR pod-guest` (the new block: 2 files, 0 changes);
+`check-size.py`, `check-history.py`, `check-design-paths.py`,
+`codegraph.py dups` (no new finding) and `codegraph.py new` (0 clones or
+twins); `cargo todo check`.
+
+No adoption trial: the trial needs a build of podvm's workspace, which the
+disk of a session does not hold (`docs/design.md`, section 8, step 7), and
+the change of podvm is three lines; the adoption map of
+`crates/pod-guest/README.md` is the hand-off, as for T-1196. Not measured:
+a mount of a written disk by a Linux kernel (no guest here; podvm's
+experiment 481 mounted its copy). The step of podvm: at the tag that
+carries `ext4`, add `pod-guest` to `PodUtils/podvm:crates/podvm/Cargo.toml`,
+call `pod_guest::ext4::Layout::of` in `refusal` and
+`pod_guest::ext4::write_empty(&file, bytes, &Names::random("podvm-disk")?)`
+in `make` (with no `set_len` before it), and remove its `ext.rs`; a size
+that is not a whole number of blocks is then refused.
