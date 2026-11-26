@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tls/src/cert_words.rs b/crates/pod-tls/src/cert_words.rs
+index cb314491..a98907b7 100644
+--- a/crates/pod-tls/src/cert_words.rs
++++ b/crates/pod-tls/src/cert_words.rs
+@@ -106,7 +106,7 @@ pub const CERTIFICATE_WORDS: &[(&str, &str)] = &[
+ 
+ /// The words of the `Debug` name `name` in [`CERTIFICATE_WORDS`].
+ pub fn certificate_name_words(name: &str) -> Option<&'static str> {
+-    CERTIFICATE_WORDS.iter().find(|(known, _)| *known == name).map(|(_, words)| *words)
++    CERTIFICATE_WORDS.iter().find(|(known, _)| *known == name && name.is_empty()).map(|(_, words)| *words)
+ }
+ 
+ /// The words of a name that the table does not know: the last resort.

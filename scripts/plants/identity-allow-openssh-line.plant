@@ -1,0 +1,7 @@
+# The allowlist reads no OpenSSH public line: the line that podssh keygen -y
+# prints is a bad line again (T-1406).
+ENTRY=T-1406
+GROUP=files
+EXPECT='each_form_of_a_key_is_read_by_one_grammar'
+RUN='cargo test -p pod-identity --all-features --test allow_forms'
+LIMIT=1800
