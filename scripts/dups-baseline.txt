@@ -31,7 +31,6 @@ test-clone:0ebb92df39a6a012  T-918: crates/pod-e2e/tests/session_handover.rs cli
 test-clone:16f54722f58f7f6b  T-918: crates/pod-link/tests/h2.rs a_silent_listener_ends_the_dial_at_its_time_limit and its copies
 test-clone:190dd0eef5b53639  T-918: crates/pod-tls/tests/no_permissive_verifier.rs rust_files and its copies
 test-clone:1a457abd8468005d  T-918: crates/pod-relay/tests/e2e_layered.rs session_of and its copies
-test-clone:1ba5f1400d0d0154  T-918: crates/pod-e2e/tests/e2e_harness/mod.rs run and its copies
 test-clone:1bece899176c329b  T-918: crates/pod-turn/tests/juice.rs juice and its copies
 test-clone:1e28d7f0fcfedb9e  T-918: crates/pod-relay/tests/reverse_layered.rs until_close and its copies
 test-clone:23962a32fc573ba4  T-918: crates/pod-relay/tests/http_road_layer/role.rs refusal and its copies

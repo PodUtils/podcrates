@@ -6742,7 +6742,7 @@ is ignored and runs in `scripts/ci/turn-tests.sh` against coturn.
 
 # T-502: `pod-testkit`: a headscale harness for the tests of a Tailscale node (PodUtils/podnet#521)
 
-**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-114.
+**Source:** PodUtils/podnet#521 (COORD-064), PodUtils/podnet@T-114; PodUtils/podnet#760 (COORD-130 of podnet: a shared harness from podssh's `ts-headscale`: headscale, its DERP, a `tailscaled` target and a userspace peer, the plant `unknown-key`, and a reusable workflow).
 **Category:** feature
 **Milestone:** M1
 **Priority:** P3
