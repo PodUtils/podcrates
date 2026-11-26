@@ -79,7 +79,7 @@ iroh-tickets = "1"
 # A node's record of pkarr as iroh writes and reads it, its signature
 # checked: the iroh-dns that iroh builds, in iroh's range, so no crate is
 # added and the two move together.
-iroh-dns = { version = ">=1.4.2, <1.5", default-features = false }
+iroh-dns = { version = ">=1.4.2, <1.6", default-features = false }
 # The DNS packet of a record with the `_podssh` names beside iroh's `_iroh`,
 # which iroh-dns builds for one name alone: the simple-dns that iroh-dns
 # builds and reads with, so no crate is added.
