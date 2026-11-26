@@ -148,11 +148,10 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   limit), T-1381 (an owner's password in `SoftTpm`, and the fallback to the
   kept storage key) and T-1383 (`Mint` with an issuer that is not
   Ed25519); T-1390 (the transfer codec of `pod-term` keeps each frame
-  within the rows of the pane, PodUtils/podssh#358, COORD-148); T-1405
-  (`pod-relay`: a dropped leg closes its socket, PodUtils/podssh#361);
-  T-1407 and T-1408 (the words of a pair refusal and of a bearer,
-  PodUtils/podssh#362); T-1413 (a class for a failed write, optional,
-  PodUtils/podssh#363).
+  within the rows of the pane, PodUtils/podssh#358, COORD-148); T-1473
+  (`pod-relay` takes the OpenSSH line of `pod-identity`); T-1480 (one
+  abort-on-drop guard for the workspace); T-1413 (a class for a failed
+  write, optional, PodUtils/podssh#363).
 
 Then T-899, T-900, T-852, T-851, and T-920.
 Then the ruling "Discipline": T-692

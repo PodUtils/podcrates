@@ -35,13 +35,11 @@ is done. Git and the record keep finished work.
      (COORD-149, T-1396).
    - Done on `main` after `v0.85.0`: PodUtils/podnet#756 (COORD-126,
      T-1395); answer it with the next tag.
-   - PodUtils/podssh#360 (COORD-150): T-1399 to T-1403, done on `main`. PodUtils/podssh#361
-     (COORD-151) is T-1405; PodUtils/podssh#362 (COORD-152): asks 1 and 4
-     are T-1406 and T-1409, done on `main`; asks 2 and 3 (T-1407, T-1408)
-     and ask 5 are with workers;
-     PodUtils/podssh#363 (COORD-153): ask 3 is T-1413 (optional), asks 1
-     and 2 are with a worker. PodUtils/podnet#758 (COORD-128) is T-1404,
-     done on `main`.
+   - Done on `main` after `v0.85.0`: PodUtils/podssh#360 (COORD-150,
+     T-1399 to T-1403), PodUtils/podssh#361 (COORD-151, T-1405),
+     PodUtils/podssh#362 (COORD-152, T-1406 to T-1410), PodUtils/podssh#363
+     (COORD-153, T-1411, T-1412; ask 3 is T-1413, optional) and
+     PodUtils/podnet#758 (COORD-128, T-1404). Answer each with the next tag.
    - Open asks: PodUtils/podssh#358 (COORD-148) is T-1390;
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -134,6 +132,38 @@ closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
   each with `size=N` and reads the limit back (steps 49 to 52). Breaking:
   each struct literal of `Plan` adds `tmpfs: Vec::new()`. T-1430 (a rule of
   the confinement on such a tmpfs) is open.
+- T-1405 (`pod-relay`, PodUtils/podssh#361): a dropped
+  `reverse::operator::exchange` aborts its two tasks, so the leg closes its
+  socket and its local stream at once.
+- T-1407 (`pod-relay`, PodUtils/podssh#362 ask 2), breaking:
+  `PairError::Forbidden { detail, once }` (it was a unit variant) and the
+  new `PairError::NotMade { detail }` for a 403 of `/v1/pair`; the new
+  fields `Pair::once` and `OperatorPart::once` (stored as `"once": true`);
+  `file_name` says "the label is empty". podssh: write
+  `PairError::Forbidden { .. }` in `pairs.rs`, `relay_halt.rs`,
+  `relay_renew.rs`, `node_expiry.rs`, `node_rotate.rs` and
+  `relay_conform_reverse.rs`; its glue `made_refusal`, `TOKEN_ENDED` and
+  `label_words` can go.
+- T-1408 (`pod-e2e`, PodUtils/podssh#362 ask 3), breaking: `Redeem` returns
+  `ends::Redemption { credential, result }` (`Redemption::grant`,
+  `Redemption::bearer`); `ends::BEARER_REFUSED`; the node says "by a
+  bearer". podssh: wrap each arm of `grants.rs::door` in
+  `Redemption::bearer(..)` or `Redemption::grant(..)`, match
+  `BEARER_REFUSED` in `channel.rs::judged`, and wrap the redeem of
+  `podssh-relay/tests/reverse_exit_caller.rs` in `Redemption::grant`.
+- T-1410 (`pod-session`, PodUtils/podssh#362 ask 5): `client::Unheard {
+  Closed, Silent }` and `Greeted::unheard()`; a close reads "the far end
+  closed the link before it said anything" (class `Unavailable`).
+- T-1411 (`pod-release`, PodUtils/podssh#363 ask 1): former signers:
+  `update::Former { repo, last }`, the new public field `Source::former`
+  (empty from `Source::github`), `Source::identities(tag)`,
+  `sigstore::verify_any`; a former identity is taken only for a tag at or
+  before `last`; the hint of Sigstore's roots comes only when the chain
+  fails. Whether podssh names a former signer is its owner's question.
+- T-1412 (`pod-manual`, PodUtils/podssh#363 ask 2), breaking:
+  `pager::run_program` returns `Paged { status, read_all }`; a pager that
+  fails before it read the text gives one line on stderr and the text with
+  no pager. podssh's T-975 can drop its own line.
 - T-1406 (`pod-identity`, `pod-iroh`; PodUtils/podssh#362 ask 1): the
   OpenSSH line `ssh-ed25519 BASE64 [comment]` in `KeyName::parse` and
   `Allowlist::parse_with`, `PublicKey::openssh`/`from_openssh`,
