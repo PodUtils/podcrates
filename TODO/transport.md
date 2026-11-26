@@ -8725,7 +8725,7 @@ cargo test -p pod-dns --all-features line
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8836,7 +8836,8 @@ sh scripts/plant-each.sh proxy-https-hop-cleartext
   tests `proxy::tests::the_schemes` and
   `tls_hop::tests::a_protocol_of_alpn_is_named_with_its_version`.
 - Plant: `scripts/plants/proxy-https-hop-cleartext.plant` (the hop stays
-  cleartext when TLS is given; the test of the bytes in the open fails).
+  cleartext when TLS is given; the test of the bytes in the open fails):
+  `sh scripts/plant-each.sh proxy-https-hop-cleartext`: 1 caught.
 - Commands: `cargo test -p pod-proxy -p pod-egress --all-features`: 491
   passed, 0 failed. `cargo clippy -p pod-proxy -p pod-egress --all-targets
   --all-features -- -D warnings` and `cargo fmt --all --check`: no finding.

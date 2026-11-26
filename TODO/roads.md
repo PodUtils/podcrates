@@ -2212,7 +2212,7 @@ cargo test -p pod-dns --all-features --lib
 **Milestone:** M4
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2305,8 +2305,11 @@ cargo clippy -p pod-egress --all-targets --all-features -- -D warnings
   --all-features -- -D warnings` and `cargo fmt --all --check`: no finding.
   The plants of the moved tests (`egress-via-*`, `egress-wstunnel-*`,
   `egress-vless-*`, `egress-trojan-dial-untyped`, `egress-wisp-*`,
-  `egress-shadowsocks-dial-untyped`) are caught; `sh scripts/plant-each.sh
-  --apply`: 0 stale.
+  `egress-shadowsocks-dial-untyped`): 10 caught, 0 missed;
+  `scripts/plants/egress-via-dial-untyped.patch` now names
+  `pod_core::Stage`, as `via/mod.rs` no longer imports `Stage` (the TLS
+  hop moved to `pod-proxy`, T-1431). `sh scripts/plant-each.sh --apply`: 0
+  stale.
 - For podnet: a `[dev-dependencies]` entry
   `pod-egress = { ..., features = ["standin", "shadowsocks"] }` replaces
   `PodUtils/podnet:src/networks/servers_stand.rs` and
