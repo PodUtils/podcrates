@@ -7219,3 +7219,71 @@ sh scripts/plant-each.sh core-t1517-own-read-keeps-code core-t1517-file-words-no
   0 failed. `cargo clippy -p pod-core --all-targets --all-features -- -D
   warnings` and `cargo clippy -p pod-core --target x86_64-pc-windows-gnu
   --all-features -- -D warnings` passed.
+
+# T-1519: `pod-gzip`: podvm took `Members` at `04c8b7f`, and the block of `SOURCES` has no `taken` line
+
+**Source:** `upstream.yml` 45838753274 (job `sources`), `scripts/check-sources.py`.
+**Category:** chore
+**Milestone:** M5
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`scripts/check-sources.py` reads two imported files of `pod-gzip` as
+changed:
+
+```text
+pod-gzip: changed PodUtils/podvm:crates/podvm/src/incus/gzip.rs -> crates/pod-gzip/src/lib.rs
+pod-gzip:     04c8b7f Take podcrates v0.84.0 and prepare the Incus quota proof
+pod-gzip: changed PodUtils/podvm:crates/podvm/src/incus/import_tests.rs -> crates/pod-gzip/tests/members.rs
+pod-gzip:     cff32d7 Support channels and process limits in saved guests
+pod-gzip:     04c8b7f Take podcrates v0.84.0 and prepare the Incus quota proof
+```
+
+`04c8b7f` is podvm's take of `pod_gzip::Members` (PodUtils/podvm#666):
+`gzip.rs` keeps `Upload` and `wanted` and calls `pod_gzip`; the two tests
+of the writer leave `import_tests.rs`. `cff32d7` changes the tests of the
+import of podvm, which stay in podvm.
+
+## Premise
+
+- Read: `git show 04c8b7f` and `git show cff32d7` of podvm for the two
+  files; `git diff cd51868 04c8b7f^` for the two files (no change before
+  the take); `docs/maintenance.md`, "After a consumer takes a crate";
+  T-1382 (the form of a `taken` line).
+- `adoption/podvm/` has no trial of `pod-gzip`.
+- Not done here: the record of the take on the hand-off issue (a write to
+  GitHub; the lead does it).
+
+## Approach
+
+1. Add `taken 04c8b7f...` to the podvm block of `crates/pod-gzip/SOURCES`,
+   with the reason in a comment: the files are then compared with the
+   parent of the take.
+2. No port: the take removes podvm's copy, and `cff32d7` changes the tests
+   of podvm's import alone.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podvm=PODVM pod-gzip
+cargo test -p pod-gzip --all-features
+```
+
+## Done
+
+2026-11-26. No port. Commit: see `git log` for T-1519.
+
+- `crates/pod-gzip/SOURCES`: the podvm block has `taken 04c8b7f4...`,
+  with the reason in its comment. `check-sources.py --clone
+  PodUtils/podvm=CLONE pod-gzip`: "PodUtils/podvm at cd51868, taken at
+  04c8b7f: 2 files, 0 changes", exit 0.
+- `cff32d7` changes the tests of podvm's import (`Stub::layers`, the space
+  of the storage pool); they stay in podvm.
+- No trial of `pod-gzip` in `adoption/podvm/`, so no file to remove. The
+  record of the take on the hand-off issue and the list of takes in
+  `adoption/README.md` are for the lead.
+- No code change, so no new test. `cargo test -p pod-gzip
+  --all-features`: 15 passed, 0 failed.
