@@ -17,6 +17,13 @@ impl Session {
         }
         let left = usize::try_from(self.size() - offset).unwrap_or(usize::MAX);
         let bytes = bytes[..bytes.len().min(max).min(left)].to_vec();
+        // Each byte goes into the hash once, when it is first supplied: an
+        // ack can count bytes of an earlier frame that this end cut since.
+        let new = usize::try_from(self.sent.saturating_sub(offset)).unwrap_or(usize::MAX);
+        if let Some(new) = bytes.get(new..) {
+            self.hash.update(new);
+            self.sent += new.len() as u64;
+        }
         self.fly(&Msg::Data { offset, bytes });
         self.phase = Phase::Data;
         self.wait_peer(None);
@@ -42,35 +49,33 @@ impl Session {
         } else {
             // The chunk, as the design's vectors give it: the caller reads up
             // to it, and `supply` takes no byte past the size.
-            events.push(Event::NeedData { offset: self.count, max: self.chunk });
-            self.phase = Phase::Supply { offset: self.count, max: self.chunk };
+            let max = self.chunk.min(self.limit());
+            events.push(Event::NeedData { offset: self.count, max });
+            self.phase = Phase::Supply { offset: self.count, max };
             self.wait_caller();
         }
     }
 
     pub(super) fn on_ack(&mut self, of: u64, count: u64, now: Instant, events: &mut Vec<Event>) {
-        let Some((offset, len, handed)) =
-            self.flight.as_ref().map(|f| (f.offset, f.data.len() as u64, f.handed.filter(|_| !f.resent)))
-        else {
+        let Some((offset, handed)) = self.flight.as_ref().map(|f| (f.offset, f.handed.filter(|_| !f.resent))) else {
             return;
         };
         if of != offset {
             return; // Stale: an ack of a frame before.
         }
-        if count < of || count > of + len || count > self.size() {
+        // The count can pass the frame in flight: a longer frame of this
+        // offset, cut at its resend, came late.
+        if count < of || count > self.sent || count > self.size() {
             return self.protocol("ACKN counts bytes that were not sent", events);
         }
         if count == of {
             return self.resend();
         }
-        if let Some(flight) = self.flight.take() {
-            let acked = usize::try_from(count - of).unwrap_or(usize::MAX);
-            self.hash.update(&flight.data[..acked]);
-        }
+        self.flight = None;
         if let Some(ack) = handed.map(|h| now.saturating_duration_since(h)) {
             self.last_ack = Some(ack);
             if ack <= FAST_ACK {
-                self.chunk = (self.chunk * 2).min(self.cap);
+                self.chunk = (self.chunk * 2).min(self.limit());
             } else if ack > SLOW_ACK {
                 self.chunk = (self.chunk / 2).max(self.floor());
             }

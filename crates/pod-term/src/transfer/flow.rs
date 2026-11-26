@@ -12,7 +12,8 @@ use super::linger::Verdict;
 use super::reader::{Got, Reader};
 use super::wire::{self, Bad, Msg, file_name, reason_text};
 use super::{
-    CHUNK_MAX, CHUNK_MIN, Dir, Ended, Event, FIRST_WAIT, FileInfo, RESEND_MAX, RESEND_MIN, VERSION, WAIT, WRAP, stop,
+    CHUNK_FLOOR, CHUNK_MAX, CHUNK_MIN, Dir, Ended, Event, FIRST_WAIT, FileInfo, RESEND_MAX, RESEND_MIN, VERSION, WAIT,
+    WRAP, stop,
 };
 
 const KINDS: [&[u8; 4]; 10] =
@@ -43,7 +44,8 @@ enum Phase {
     AwaitKept,
 }
 
-/// The frame that waits for its answer, sent again with the same bytes.
+/// The frame that waits for its answer. It goes again with the same bytes;
+/// a `DATA` goes again built at [`CHUNK_FLOOR`].
 #[derive(Debug, Clone)]
 struct Flight {
     bytes: Vec<u8>,
@@ -54,7 +56,8 @@ struct Flight {
     /// A `HOLD` came: the receiver is there and waits for its caller, so
     /// the frame goes again after `RESEND_MAX`.
     held: bool,
-    /// The offset and the file's bytes of a `DATA`.
+    /// The offset and the file's bytes of a `DATA`, cut to
+    /// [`CHUNK_FLOOR`] when it goes again.
     offset: u64,
     data: Vec<u8>,
 }
@@ -68,7 +71,12 @@ pub(super) struct Session {
     reader: Reader,
     file: Option<FileInfo>,
     chunk: usize,
+    /// The cap of `HELO`: the larger `DATA` from the peer breaks the
+    /// protocol.
     cap: usize,
+    /// The cap of this end's pane, in `HELO` and for each `DATA` that it
+    /// sends.
+    pane: usize,
     flight: Option<Flight>,
     last_ack: Option<Duration>,
     wait_limit: Option<Duration>,
@@ -76,6 +84,9 @@ pub(super) struct Session {
     /// The receiver: the bytes received in order. The sender: the bytes
     /// acknowledged.
     count: u64,
+    /// The sender: the bytes supplied, each in the hash once. An ack counts
+    /// at most these.
+    sent: u64,
     hash: Sha256,
     width: usize,
     /// The receiver's `TAKE`, sent again when `OFFR` comes again.
@@ -98,11 +109,13 @@ impl Session {
             file: None,
             chunk: CHUNK_MIN,
             cap: CHUNK_MAX,
+            pane: CHUNK_MAX,
             flight: None,
             last_ack: None,
             wait_limit: None,
             wait_from: None,
             count: 0,
+            sent: 0,
             hash: Sha256::new(),
             width: WRAP,
             answer: None,
@@ -132,8 +145,20 @@ impl Session {
         self.width = width;
     }
 
+    /// A new size of the pane: the chunk falls under its cap at once.
+    pub(super) fn set_pane(&mut self, pane: usize) {
+        self.pane = pane;
+        self.chunk = self.chunk.min(self.limit());
+    }
+
     pub(super) fn chunk(&self) -> usize {
         self.chunk
+    }
+
+    /// The largest `DATA` that this end sends: the cap of `HELO` and of the
+    /// pane.
+    fn limit(&self) -> usize {
+        self.cap.min(self.pane)
     }
 
     /// Whether the caller accepted the trigger.
@@ -141,9 +166,12 @@ impl Session {
         self.phase != Phase::Pending
     }
 
+    fn line_end(&self) -> &'static [u8] {
+        if self.far { b"\r\n" } else { b"\r" }
+    }
+
     fn send(&mut self, msg: &Msg) -> Vec<u8> {
-        let end: &[u8] = if self.far { b"\r\n" } else { b"\r" };
-        let bytes = wire::frame(msg, end, self.width);
+        let bytes = wire::frame(msg, self.line_end(), self.width);
         self.out.extend_from_slice(&bytes);
         bytes
     }
@@ -185,7 +213,8 @@ impl Session {
     }
 
     fn hello(&self) -> Msg {
-        Msg::Helo { version: VERSION as u8, id: self.id, chunk: CHUNK_MAX as u32 }
+        // Version 2 takes this field as a cap: each end takes the smaller.
+        Msg::Helo { version: VERSION as u8, id: self.id, chunk: self.limit() as u32 }
     }
 
     /// The near end of a download accepts the trigger.
@@ -334,7 +363,7 @@ impl Session {
             self.send(&self.hello());
             return;
         }
-        self.cap = CHUNK_MAX.min(chunk as usize);
+        self.cap = self.limit().min(chunk as usize);
         self.chunk = self.floor();
         self.flight = None;
         if self.far {
@@ -347,7 +376,9 @@ impl Session {
                 size: f.size,
                 mode: f.mode.unwrap_or(0) & 0o7777,
                 mtime: f.mtime.unwrap_or(0),
-                name: f.name.into_bytes(),
+                // The receiver keeps the last component only; a path would
+                // make the frame taller than a pane.
+                name: f.name.rsplit('/').next().unwrap_or_default().as_bytes().to_vec(),
             };
             self.fly(&offer);
             self.phase = Phase::AwaitTake;
@@ -357,22 +388,31 @@ impl Session {
     }
 
     fn floor(&self) -> usize {
-        CHUNK_MIN.min(self.cap)
+        CHUNK_MIN.min(self.limit())
     }
 
     fn size(&self) -> u64 {
         self.file.as_ref().map_or(0, |f| f.size)
     }
 
-    /// The frame in flight again, with the same bytes, and the chunk at its
-    /// floor.
+    /// The frame in flight again. A `DATA` is built again with its first
+    /// [`CHUNK_FLOOR`] bytes, as the path cut the frame that went and would
+    /// cut the same bytes again; the chunk falls to [`CHUNK_FLOOR`].
     fn resend(&mut self) {
-        if let Some(flight) = &mut self.flight {
-            self.out.extend_from_slice(&flight.bytes);
-            flight.handed = None;
-            flight.resent = true;
-            self.chunk = CHUNK_MIN.min(self.cap);
+        let floor = CHUNK_FLOOR.min(self.limit());
+        let (end, width) = (self.line_end(), self.width);
+        let Some(flight) = &mut self.flight else { return };
+        if !flight.data.is_empty() {
+            self.chunk = floor;
         }
+        if flight.data.len() > floor {
+            flight.data.truncate(floor);
+            let msg = Msg::Data { offset: flight.offset, bytes: flight.data.clone() };
+            flight.bytes = wire::frame(&msg, end, width);
+        }
+        self.out.extend_from_slice(&flight.bytes);
+        flight.handed = None;
+        flight.resent = true;
     }
 
     /// A `HOLD`: it is no ack and does not time the path. The frame in

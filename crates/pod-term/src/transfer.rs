@@ -9,7 +9,7 @@
 //! the paint. The design comes from podssh (`docs/terminal.md`, "The 7-bit
 //! envelope (T-831, step 2): the design for pod-term"):
 //!
-//! - The far end paints a trigger line, `#PODSSH-TX1:<S|R>:<id>:<crc>`. The
+//! - The far end paints a trigger line, `#PODSSH-TX2:<S|R>:<id>:<crc>`. The
 //!   near end ([`Transfer::near`]) scans its output for it: a trigger whose
 //!   CRC holds and whose id is new gives [`Event::Start`], and its caller
 //!   calls [`Transfer::accept`] (a download), [`Transfer::send_file`] (an
@@ -22,8 +22,18 @@
 //! - One frame waits for its answer at a time. The receiver echoes the
 //!   count of bytes it received in order (`ACKN`). The chunk starts at
 //!   [`CHUNK_MIN`], doubles after an ack in [`FAST_ACK`] and halves after
-//!   one past [`SLOW_ACK`], up to [`CHUNK_MAX`]; a resend sets it to
-//!   [`CHUNK_MIN`].
+//!   one past [`SLOW_ACK`] (not under [`CHUNK_MIN`]), up to the cap.
+//! - The cap: each end sends the largest chunk that it takes in `HELO`, and
+//!   each end takes the smaller of the two, at most [`CHUNK_MAX`]. The end
+//!   whose frames a pane paints ([`Transfer::set_size`]) caps the chunk so
+//!   that a `DATA` frame takes at most `rows - SPARE_ROWS` lines, and never
+//!   under [`CHUNK_FLOOR`]: tmux, when its client falls behind, paints only
+//!   the last screen, so the head of a taller frame is lost.
+//! - A frame lost (no ack in time, or an ack that does not advance) goes
+//!   again. A `DATA` goes again built at [`CHUNK_FLOOR`] (its first bytes),
+//!   not as the same bytes that the path cut, and the chunk falls to
+//!   [`CHUNK_FLOOR`]. An ack can count past the frame in flight: an earlier,
+//!   longer frame of the same offset came late.
 //! - The file comes as a copy under a temporary name: the receiver's
 //!   caller writes each [`Event::Write`], and on [`Event::Verified`] (the
 //!   size and the SHA-256 hold) it renames the copy and calls
@@ -52,6 +62,7 @@ use std::time::{Duration, Instant};
 
 mod flow;
 mod linger;
+mod pane;
 mod reader;
 mod trigger;
 mod wire;
@@ -74,9 +85,16 @@ pub const FRAME_MAX: usize = 44_032;
 pub const JUNK_MAX: usize = 64 * 1024;
 /// The most damaged frames in a row.
 pub const DAMAGED_MAX: usize = 8;
-/// The least and the largest chunk of `DATA`.
+/// The chunk of `DATA` at the start, and the least after a slow ack, when
+/// the cap allows it; the largest chunk.
 pub const CHUNK_MIN: usize = 1024;
 pub const CHUNK_MAX: usize = 32 * 1024;
+/// The least cap of a pane, and the most bytes of a `DATA` that goes again
+/// after a loss.
+pub const CHUNK_FLOOR: usize = 256;
+/// The rows of the pane that a `DATA` frame leaves free: the row of the
+/// cursor after its line end, and one more.
+pub const SPARE_ROWS: usize = 2;
 /// The longest name of a file on the wire, and its last component.
 pub const NAME_MAX: usize = 1024;
 pub const COMPONENT_MAX: usize = 255;
@@ -210,6 +228,8 @@ pub struct Transfer {
     out: Vec<u8>,
     events: Vec<Event>,
     width: usize,
+    /// The cap of the chunk from the pane ([`Transfer::set_size`]).
+    pane: usize,
     /// The receiver's verdict after `KEPT`.
     verdict: Option<Verdict>,
 }
@@ -217,7 +237,7 @@ pub struct Transfer {
 impl Transfer {
     fn new(near: bool, session: Option<Session>) -> Transfer {
         let (scanner, out, events) = (Scanner::default(), Vec::new(), Vec::new());
-        Transfer { near, scanner, session, out, events, width: WRAP, verdict: None }
+        Transfer { near, scanner, session, out, events, width: WRAP, pane: CHUNK_MAX, verdict: None }
     }
 
     /// The near end: it scans the output of the far end for a trigger.
@@ -249,6 +269,26 @@ impl Transfer {
         if let Some(s) = &mut self.session {
             s.set_width(self.width);
         }
+    }
+
+    /// The end whose output a pane of `cols` columns and `rows` rows paints
+    /// (the far end) breaks a frame at `cols - 1` bytes, and caps the chunk
+    /// so that a `DATA` frame takes at most `rows - SPARE_ROWS` lines, not
+    /// under [`CHUNK_FLOOR`]. It sends the cap to the peer in `HELO`. Call
+    /// it before the session starts, and again at each change of the size: a
+    /// change during a session can lower the chunk, never raise it past the
+    /// cap of `HELO`. A size of 0 is not known: no cap.
+    pub fn set_size(&mut self, cols: usize, rows: usize) {
+        self.set_width(cols);
+        self.pane = pane::chunk(cols, rows);
+        if let Some(s) = &mut self.session {
+            s.set_pane(self.pane);
+        }
+    }
+
+    /// The cap of the chunk that [`Transfer::set_size`] gives for a pane.
+    pub fn pane_chunk(cols: usize, rows: usize) -> usize {
+        pane::chunk(cols, rows)
     }
 
     /// Whether a session runs.
@@ -302,6 +342,7 @@ impl Transfer {
             self.verdict = None;
             let mut s = Session::near(start.dir, start.id);
             s.set_width(self.width);
+            s.set_pane(self.pane);
             self.session = Some(s);
             at += start.used;
         }
