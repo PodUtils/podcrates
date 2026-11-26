@@ -134,14 +134,46 @@ where
 /// sends `OPEN`, and its far end never dials its target.
 pub struct Greeted<L> {
     link: L,
-    /// The far end's first bytes; none after a silent wait.
+    /// The far end's first bytes; none after a silent wait or a close.
     first: Vec<u8>,
+    /// The far end closed the link (a read of 0 bytes) before it said
+    /// anything.
+    closed: bool,
 }
+
+/// Why the far end of a link said nothing first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Unheard {
+    /// It closed the link (a read of 0 bytes) before it said anything.
+    Closed,
+    /// It kept silent for [`FIRST_BYTE_WAIT`].
+    Silent,
+}
+
+impl fmt::Display for Unheard {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Unheard::Closed => f.write_str("the far end closed the link before it said anything"),
+            Unheard::Silent => write!(f, "the far end said nothing within {} s", FIRST_BYTE_WAIT.as_secs()),
+        }
+    }
+}
+
+impl std::error::Error for Unheard {}
 
 impl<L> Greeted<L> {
     /// Whether the far end said anything in the wait.
     pub fn spoke(&self) -> bool {
         !self.first.is_empty()
+    }
+
+    /// Why the far end said nothing in the wait; `None` when it spoke.
+    pub fn unheard(&self) -> Option<Unheard> {
+        match (self.spoke(), self.closed) {
+            (true, _) => None,
+            (false, true) => Some(Unheard::Closed),
+            (false, false) => Some(Unheard::Silent),
+        }
     }
 
     /// Whether the far end greets with the resumable layer.
@@ -205,13 +237,14 @@ where
     L: AsyncRead + Unpin,
 {
     let mut buf = vec![0u8; 64 * 1024];
-    let first = match tokio::time::timeout(FIRST_BYTE_WAIT, link.read(&mut buf)).await {
-        Err(_) => 0,
-        Ok(Ok(n)) => n,
+    let (first, closed) = match tokio::time::timeout(FIRST_BYTE_WAIT, link.read(&mut buf)).await {
+        Err(_) => (0, false),
+        // A read of 0 bytes into a buffer with room: the end of the link.
+        Ok(Ok(n)) => (n, n == 0),
         Ok(Err(e)) => return Err(ClientError::Io(e)),
     };
     buf.truncate(first);
-    Ok(Greeted { link, first: buf })
+    Ok(Greeted { link, first: buf, closed })
 }
 
 impl<L> Greeted<L>
@@ -226,7 +259,7 @@ where
         settings: Settings,
         entropy: &mut (dyn Entropy + Send),
     ) -> Result<Client<L>, ClientError> {
-        let Greeted { mut link, first } = self;
+        let Greeted { mut link, first, .. } = self;
         if !first.first().is_some_and(|b| *b == kind::GREETING) {
             let found = Found::Plain { first: first.first().copied() };
             return Ok(Client { link, found, early: first, layer: None, settings, hearing: Arc::default() });

@@ -41,7 +41,8 @@ impl std::fmt::Display for Lost {
     }
 }
 
-/// A road's link, greeted: an error when the far end kept silent.
+/// A road's link, greeted: an error when the far end closed the link or
+/// kept silent, each in its own words ([`Unheard`](super::client::Unheard)).
 async fn greeting<L, F>(road: F) -> Result<Greeted<L>, String>
 where
     L: AsyncRead + Unpin,
@@ -49,10 +50,9 @@ where
 {
     let link = road.await?;
     let greeted = greeted(link).await.map_err(|e| e.to_string())?;
-    if greeted.spoke() {
-        Ok(greeted)
-    } else {
-        Err(format!("the far end said nothing within {} s", super::client::FIRST_BYTE_WAIT.as_secs()))
+    match greeted.unheard() {
+        None => Ok(greeted),
+        Some(why) => Err(why.to_string()),
     }
 }
 

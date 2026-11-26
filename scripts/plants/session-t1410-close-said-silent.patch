@@ -1,0 +1,12 @@
+diff --git a/crates/pod-session/src/client.rs b/crates/pod-session/src/client.rs
+--- a/crates/pod-session/src/client.rs
++++ b/crates/pod-session/src/client.rs
+@@ -240,7 +240,7 @@
+     let (first, closed) = match tokio::time::timeout(FIRST_BYTE_WAIT, link.read(&mut buf)).await {
+         Err(_) => (0, false),
+         // A read of 0 bytes into a buffer with room: the end of the link.
+-        Ok(Ok(n)) => (n, n == 0),
++        Ok(Ok(n)) => (n, false),
+         Ok(Err(e)) => return Err(ClientError::Io(e)),
+     };
+     buf.truncate(first);

@@ -130,6 +130,41 @@ async fn a_silent_far_end_loses_to_one_that_speaks() {
     assert!(matches!(won, Won::Second(_)));
 }
 
+/// A road whose far end closes the link `closes` after the link comes,
+/// with no byte said.
+async fn closing(connect: Duration, closes: Duration) -> Result<DuplexStream, String> {
+    tokio::time::sleep(connect).await;
+    let (ours, theirs) = tokio::io::duplex(4096);
+    tokio::spawn(async move {
+        tokio::time::sleep(closes).await;
+        drop(theirs);
+    });
+    Ok(ours)
+}
+
+/// A far end that closes the link is said as such, at the time of the
+/// close; a far end that keeps silent keeps the words of the wait.
+#[tokio::test(start_paused = true)]
+async fn a_far_end_that_closes_is_told_from_one_that_keeps_silent() {
+    let (silent, _) = road(10 * MS, Duration::from_secs(3600));
+    let lost = race(closing(10 * MS, 15 * MS), silent, HEAD_START).await.err().expect("no winner");
+    assert_eq!(
+        lost,
+        Lost {
+            first: "the far end closed the link before it said anything".into(),
+            second: "the far end said nothing within 30 s".into(),
+        }
+    );
+    let timed =
+        each_timed(vec![(Start::After(HEAD_START), boxed(closing(10 * MS, 15 * MS)))], Duration::from_secs(60)).await;
+    let closed = Timed {
+        started: Duration::ZERO,
+        took: 25 * MS,
+        answered: Err("the far end closed the link before it said anything".into()),
+    };
+    assert_eq!(timed, [Some(closed)]);
+}
+
 #[tokio::test(start_paused = true)]
 async fn when_both_roads_fail_each_reason_is_said() {
     let lost = race(failing(10 * MS, "the iroh relay refused"), failing(20 * MS, "the pair expired"), HEAD_START)
