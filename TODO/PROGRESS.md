@@ -123,8 +123,7 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   payload); T-927 (PodUtils/podvm#584); T-1391 (a pinned static
   `mkfs.erofs`, PodUtils/podvm#668, COORD-251); T-1321 (a C backend of
   `pod-gzip`, measured).
-- podnet: T-1488 (the loopback line of `pod-link` keeps " (os error N)");
-  T-502 (a headscale harness in podcrates, from podssh's
+- podnet: T-502 (a headscale harness in podcrates, from podssh's
   `ts-headscale`; PodUtils/podnet#760, COORD-130); T-1451 (`Offer::fit` of
   `pod-relay` takes `Settings::under_cap`),
   T-1450 (the record heads against the window of a link), T-1452; T-1343 (partial: `new_temp_dir` and `new_temp_file` are on
@@ -143,9 +142,7 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   limit), T-1381 (an owner's password in `SoftTpm`, and the fallback to the
   kept storage key) and T-1383 (`Mint` with an issuer that is not
   Ed25519); T-1390 (the transfer codec of `pod-term` keeps each frame
-  within the rows of the pane, PodUtils/podssh#358, COORD-148); T-1473
-  (`pod-relay` takes the OpenSSH line of `pod-identity`); T-1480 (one
-  abort-on-drop guard for the workspace); T-1413 (a class for a failed
+  within the rows of the pane, PodUtils/podssh#358, COORD-148); T-1413 (a class for a failed
   write, optional, PodUtils/podssh#363).
 
 Then T-899, T-900, T-852, T-851, and T-920.

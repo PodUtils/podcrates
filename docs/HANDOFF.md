@@ -108,6 +108,14 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   (`Option<PathBuf>`) and `Settings::with_emulator`; the machine legs run
   the emulator at that path. Breaking: `podvm-probe` builds `Settings`
   with each field and adds `emulator: None`.
+- T-1488 (`pod-link`): the loopback, UDP and split lines show no
+  " (os error N)" (`pod_core::text::io_words`).
+- T-1473 (`pod-relay`), breaking: `grant::openssh_public` is removed. podssh
+  (`crates/podssh-cli/src/grants.rs`, three places): `grant::openssh_public(&k)`
+  becomes `k.openssh()` (`pod_identity::PublicKey::openssh`, the same type).
+  `grant::parse_public` reads with `PublicKey::from_openssh`.
+- T-1480 (`pod-core`): `pod_core::abort::AbortOnDrop` (feature `async`) in
+  place of the copies of `pod-relay`, `pod-cloudflare` and `pod-warp`.
 - T-1425 (`pod-oci`, PodUtils/podvm#677): `spec::Config::rootfs`,
   `spec::RootFs`, `spec::check_layers`, `MAX_LAYERS`. No build change.
 
@@ -117,11 +125,11 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   (#263).
 - podvm: T-1424, T-1425 (on `main`); T-1391 (a static `mkfs.erofs`,
   PodUtils/podvm#668); T-1430; T-1321.
-- podnet: T-1488; T-502 (PodUtils/podnet#760); T-1450 to T-1452; T-1343
+- podnet: T-502 (PodUtils/podnet#760); T-1450 to T-1452; T-1343
   (partial); T-1377, T-1378.
-- podssh: T-1390 (PodUtils/podssh#358); T-1413 (optional); T-1473; T-1169,
+- podssh: T-1390 (PodUtils/podssh#358); T-1413 (optional); T-1169,
   T-1103, T-1340, T-1380, T-1381, T-1383.
-- podcrates: T-1480 (one abort-on-drop guard), T-1463 (a check that stops
+- podcrates: T-1463 (a check that stops
   a `to_string()` of a failure), T-1460, T-1453, T-1484 (iroh 1.5).
 
 ## Unfinished work
