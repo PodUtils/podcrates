@@ -1,0 +1,12 @@
+diff --git a/crates/pod-relay/src/pair/once.rs b/crates/pod-relay/src/pair/once.rs
+--- a/crates/pod-relay/src/pair/once.rs
++++ b/crates/pod-relay/src/pair/once.rs
+@@ -36,7 +36,7 @@
+             }
+             409 => continue,
+             // A `403` here names no pair: none was made.
+-            status => return Err(not_made(status, &response)),
++            status => return Err(super::refused(status, &response)),
+         }
+     }
+     Err(PairError::Failed { status: 409, detail: ": the relay asked twice to pair again".into() })

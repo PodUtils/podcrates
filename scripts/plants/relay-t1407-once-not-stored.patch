@@ -1,0 +1,12 @@
+diff --git a/crates/pod-relay/src/pair.rs b/crates/pod-relay/src/pair.rs
+--- a/crates/pod-relay/src/pair.rs
++++ b/crates/pod-relay/src/pair.rs
+@@ -359,7 +359,7 @@
+         connect_token: pair.connect_token(),
+         stop_token: pair.stop_token(),
+         expires: pair.expires_ms,
+-        once: pair.once,
++        once: false,
+     };
+     let body = Zeroizing::new(serde_json::to_vec(&stored).map_err(|e| PairError::Store(e.to_string()))?);
+     cache::store_file_in_first(dirs, &name, &body).map_err(PairError::Store)

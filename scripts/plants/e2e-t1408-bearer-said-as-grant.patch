@@ -1,0 +1,12 @@
+diff --git a/crates/pod-e2e/src/ends.rs b/crates/pod-e2e/src/ends.rs
+--- a/crates/pod-e2e/src/ends.rs
++++ b/crates/pod-e2e/src/ends.rs
+@@ -243,7 +243,7 @@
+                 Ok(line) => Ok((Some(credential), Some(format!("the operator key {peer} came with {line}")))),
+                 Err(why) => Err((
+                     format!("refused {} of the operator key {peer}: {why}", credential.words()),
+-                    Refusal::Other(credential.refused().into()),
++                    Refusal::Other(GRANT_REFUSED.into()),
+                 )),
+             }
+         }
