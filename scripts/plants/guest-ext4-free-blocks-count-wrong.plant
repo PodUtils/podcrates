@@ -1,6 +1,7 @@
-# Each group descriptor of a new ext4 disk counts one free block too many
-# (T-1500). The test of the free counts against the bitmaps must fail on
-# each host, and e2fsck must fail where the host has it.
+# Each group of a new ext4 disk counts one free block too many, in its
+# descriptor and in the sum of the superblock (T-1500, T-1518). The test
+# of the free counts against the bitmaps must fail on each host, and
+# e2fsck must fail where the host has it.
 ENTRY=T-1500
 GROUP=guest
 EXPECT='test ext4::tests::(the_free_counts_agree_with_the_bitmaps|e2fsck_finds_no_fault_in_the_disk) \.\.\. FAILED'

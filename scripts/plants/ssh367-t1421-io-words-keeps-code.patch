@@ -1,8 +1,6 @@
-diff --git a/crates/pod-core/src/text.rs b/crates/pod-core/src/text.rs
-index 1e42e20e..04b535a2 100644
 --- a/crates/pod-core/src/text.rs
 +++ b/crates/pod-core/src/text.rs
-@@ -78,7 +78,7 @@ pub fn plain(text: &str) -> String {
+@@ -78,7 +78,7 @@
  /// ` (os error N)` ([`plain`]). The error stays the source of a failure;
  /// only the line changes.
  pub fn io_words(e: &std::io::Error) -> String {
@@ -10,4 +8,4 @@ index 1e42e20e..04b535a2 100644
 +    e.to_string()
  }
  
- /// `text` with each escape sequence of a terminal removed whole, so that
+ /// What a user line shows of an error on a file that a flag or a setting
