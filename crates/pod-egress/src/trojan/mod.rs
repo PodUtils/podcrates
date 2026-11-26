@@ -13,8 +13,14 @@
 //! (a pipe) takes the stream after a short silence. The settings of a dial
 //! are VLESS's ([`crate::vless::Dial`]), as both roads dial alike.
 //!
+//! The accept side, for a server that a consumer writes, is [`accept`]: the
+//! parser of a request, which shares the codec of the address with the
+//! client's `request`.
+//!
 //! A [`Road`] is a [`pod_core::Dial`]: a dial of a target is a session to it.
 
+pub mod accept;
+mod address;
 mod answer;
 pub mod link;
 mod request;

@@ -44,7 +44,7 @@ pub use cloudflare::{
 pub use control::control_line;
 pub use devtunnel::devtunnel_connect_info;
 pub use e2e::{e2e_frame, e2e_handover, e2e_proof, e2e_record};
-pub use egress::{iap_message, wisp_packet};
+pub use egress::{iap_message, trojan_request_accept, wisp_packet};
 pub use flatten::flatten_layers;
 pub use http1::http_request;
 #[cfg(test)]

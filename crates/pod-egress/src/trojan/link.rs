@@ -42,6 +42,16 @@ impl Password {
     pub fn hex(&self) -> &[u8; 56] {
         &self.0
     }
+
+    /// Whether `hash` is this password's hex, compared in constant time: no
+    /// early return, so that the time does not tell how many bytes match.
+    pub fn matches(&self, hash: &[u8]) -> bool {
+        let mut difference = u8::from(hash.len() != self.0.len());
+        for (left, right) in self.0.iter().zip(hash) {
+            difference |= left ^ right;
+        }
+        std::hint::black_box(difference) == 0
+    }
 }
 
 const HEX: &[u8; 16] = b"0123456789abcdef";

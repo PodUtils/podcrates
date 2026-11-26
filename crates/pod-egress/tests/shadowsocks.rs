@@ -125,6 +125,46 @@ fn the_published_sip004_answers_are_the_ones_that_this_codec_makes() {
     assert_eq!(check_shadowsocks(&Ours).unwrap(), 3 * pod_testkit::vectors::SHADOWSOCKS.len());
 }
 
+/// The accept side: a server feeds a client's stream to a `Decoder`, takes
+/// the request's salt for its replay window, and reads the target of the
+/// first chunk with `parse_address`. The salt is the one that the encoder of
+/// each vector wrote, and it is `None` until its bytes came.
+#[test]
+fn the_decoder_of_the_accept_side_gives_the_salt_that_the_encoder_wrote_and_the_target() {
+    use pod_egress::replay::{Admitted, ReplayWindow};
+    for vector in pod_testkit::vectors::SHADOWSOCKS.iter() {
+        let method = Method::parse(vector.method).expect("a method of the vector");
+        let mut wire = Vec::new();
+        let mut encoder = Encoder::with_salt(method, vector.master_key, vector.salt).unwrap();
+        encoder.seal(vector.plain, &mut wire).unwrap();
+        assert_eq!(&wire[..vector.salt.len()], vector.salt, "{}", vector.method);
+        let mut decoder = Decoder::new(method, vector.master_key);
+        assert_eq!(decoder.salt(), None);
+        decoder.feed(&wire[..vector.salt.len() - 1]);
+        assert_eq!(decoder.chunk().unwrap(), None);
+        assert_eq!(decoder.salt(), None, "a salt cut short is no salt");
+        decoder.feed(&wire[vector.salt.len() - 1..]);
+        let first = decoder.chunk().unwrap().expect("the first chunk");
+        assert_eq!(decoder.salt(), Some(vector.salt), "{}", vector.method);
+        assert_eq!(decoder.salt(), Some(encoder.request_salt()));
+        let (host, port, used) = shadowsocks::parse_address(&first).expect("the target");
+        assert_eq!((host.as_str(), port, &first[used..]), ("example.com", 22, &b"hello"[..]));
+        let window = ReplayWindow::default();
+        let salt = decoder.salt().expect("the salt");
+        assert_eq!(window.admit(salt), Admitted::Fresh);
+        assert_eq!(window.admit(salt), Admitted::Repeat, "the same salt is a replay");
+    }
+    let method = Method::Aes256Gcm;
+    let master = shadowsocks::master_key(b"random salt", method.key_len());
+    let mut encoder = Encoder::new(method, &master).unwrap();
+    let mut wire = Vec::new();
+    encoder.seal(b"x", &mut wire).unwrap();
+    let mut decoder = Decoder::new(method, &master);
+    decoder.feed(&wire);
+    decoder.chunk().unwrap();
+    assert_eq!(decoder.salt(), Some(encoder.request_salt()));
+}
+
 /// This crate's stream (podssh's codec) opens with the specification's
 /// reading, chunk by chunk, and the specification's stream opens with it, across
 /// several chunks of the largest size.

@@ -2778,3 +2778,89 @@ failure of the first read, in the words of `vless::ENDED`.
 ```sh
 cargo test -p pod-egress --all-features --test vless
 ```
+
+# T-1531: `pod-egress`: a parser of a Trojan request on the accept side (PodUtils/podnet#785, ask 1)
+
+**Source:** PodUtils/podnet#785 (COORD-140 of podnet), ask 1; PodUtils/podnet@T-295; author MEMBER
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+PodUtils/podnet#785, ask 1: "A Trojan service at a peer waits: the feature
+`trojan` has the client side only (`trojan::request` builds a request;
+`answer` is private). podnet does not write a codec that the crate holds.
+Ask: a parser of a Trojan request." The parser compares the 56 hex bytes of
+SHA-224 in constant time, reads the command, the address and the port, and
+tells "not this password" from "not a Trojan request", so that a server can
+give its fallback answer.
+
+## Premise
+
+- Read: trojan-gfw `docs/protocol.md` and Xray-core
+  `proxy/trojan/protocol.go`: the request is the hash, CRLF, the command
+  (`0x01` CONNECT, `0x03` UDP ASSOCIATE), the address as SOCKS5 writes it
+  (types 1, 3 and 4), the port, CRLF.
+- Read: `crates/pod-egress/src/trojan/request.rs` (the client's writer) and
+  `crates/pod-egress/src/standin/trojan.rs` (a reader for the stand-in,
+  which stays: its feature does not turn on `trojan`).
+- `pod_testkit::vectors::TROJAN` holds three published requests.
+
+## Approach
+
+1. `trojan::address` (private): `write` and `read` of the SOCKS5 address,
+   used by the client's `request` and by the parser: one codec.
+2. `trojan::accept::parse(buf, &Password) -> Result<Option<Request>,
+   RequestError>`: `None` while the bytes are too short; `Request {
+   command, host, port, used }`; `RequestError::WrongPassword` and
+   `RequestError::NotTrojan(Malformed)`. `MAX_REQUEST` (320) bounds the
+   request; a name has 1 to 255 bytes.
+3. `Password::matches`: the compare of the hash, in constant time.
+4. The fuzz target `trojan_request_accept` (feature `fuzzing` turns on
+   `trojan`).
+
+## Prove
+
+```sh
+cargo test -p pod-egress --all-features trojan
+cargo test -p podcrates-fuzz
+sh scripts/plant-each.sh egress-trojan-accept-password-unchecked
+```
+
+# T-1532: `pod-egress`: the accept-side API of Shadowsocks: `Decoder::salt` and the docs of `parse_address` and `Decoder::new` (PodUtils/podnet#785, ask 2)
+
+**Source:** PodUtils/podnet#785 (COORD-140 of podnet), ask 2; PodUtils/podnet@T-295; author MEMBER
+**Category:** feature
+**Milestone:** M4
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+PodUtils/podnet#785, ask 2 (minor): "`parse_address` says 'for the tests' in
+its doc, and `Decoder::new` does not say that it is the accept side. Ask:
+document both as API of the accept side, and add `Decoder::salt()`, so that
+a server puts the salt of the request in its replay window without reading
+the first bytes itself."
+
+## Premise
+
+- Read: `crates/pod-egress/src/shadowsocks/codec.rs` (`Decoder` takes the
+  salt from the first bytes of the stream and keeps no copy of it) and
+  `crates/pod-egress/src/replay.rs` (`ReplayWindow::admit`).
+
+## Approach
+
+1. `Decoder::salt() -> Option<&[u8]>`: the peer's salt once its bytes came.
+2. The docs of `Decoder`, `Decoder::new` and `parse_address` name the accept
+   side.
+
+## Prove
+
+```sh
+cargo test -p pod-egress --all-features --test shadowsocks
+```

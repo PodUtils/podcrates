@@ -195,9 +195,13 @@ impl Encoder {
 }
 
 /// The receiving side of a stream: the salt, then each chunk as its bytes
-/// come.
+/// come. A server reads a client's stream with it (the accept side): it
+/// takes the request's salt from [`Decoder::salt`] for its replay window,
+/// and the target from the first chunk by [`parse_address`].
 pub struct Decoder {
     method: Method,
+    /// The peer's salt, once its bytes came.
+    salt: Option<Vec<u8>>,
     master: Zeroizing<Vec<u8>>,
     opener: Option<Sealer>,
     buf: Vec<u8>,
@@ -211,9 +215,13 @@ pub struct Decoder {
 }
 
 impl Decoder {
+    /// The decoder of a peer's stream under `master`: on the accept side,
+    /// the client's request; on the client side, a stream with no header of
+    /// SIP022 to check ([`Decoder::answer`] checks one).
     pub fn new(method: Method, master: &[u8]) -> Decoder {
         Decoder {
             method,
+            salt: None,
             master: Zeroizing::new(master.to_vec()),
             opener: None,
             buf: Vec::new(),
@@ -244,6 +252,13 @@ impl Decoder {
         self.opener.is_some()
     }
 
+    /// The peer's salt, once its bytes came: `None` before. A server puts
+    /// it in its replay window ([`crate::replay::ReplayWindow`]) at once,
+    /// with no read of the first bytes of its own.
+    pub fn salt(&self) -> Option<&[u8]> {
+        self.salt.as_deref()
+    }
+
     /// The bytes that came and are no whole chunk yet: at the end of a
     /// stream, a chunk cut short.
     pub fn buffered(&self) -> usize {
@@ -259,6 +274,7 @@ impl Decoder {
             }
             let salt: Vec<u8> = self.buf.drain(..n).collect();
             self.opener = Some(Sealer::new(self.method, &self.master, &salt)?);
+            self.salt = Some(salt);
         }
         if self.method.is_2022() && !self.headed && !self.response_header()? {
             return Ok(None);
@@ -353,7 +369,9 @@ pub fn address(host: &str, port: u16) -> Result<Vec<u8>, String> {
 
 /// The address at the start of `bytes`: the host, the port, and the bytes
 /// that it took; `None` when it is cut short, of no known type, or a name
-/// that is not text. The server's side, for the tests.
+/// that is not text. The accept side's reader of a target: a server calls
+/// it on the first chunk that a [`Decoder`] gives, and the bytes that it
+/// took are the address's; the payload follows.
 pub fn parse_address(bytes: &[u8]) -> Option<(String, u16, usize)> {
     let (host, at) = match *bytes.first()? {
         1 => {
