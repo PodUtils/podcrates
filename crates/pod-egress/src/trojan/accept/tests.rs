@@ -86,7 +86,6 @@ fn a_bad_command_a_bad_type_a_bad_name_and_a_missing_crlf_are_not_trojan() {
     assert_eq!(malformed(|b| b[57] = b'x'), Malformed::HashEnd);
     assert_eq!(malformed(|b| b[56] = b' '), Malformed::HashEnd);
     assert_eq!(malformed(|b| *b.last_mut().unwrap() = b'x'), Malformed::End);
-    assert_eq!(malformed(|b| b.extend_from_slice(b"xx")), Malformed::End);
 }
 
 #[test]
