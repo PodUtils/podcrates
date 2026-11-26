@@ -251,7 +251,7 @@ async fn coredns_with_a_certificate_of_another_root_is_refused() {
         let way = Way { settings: &settings, context: &context, dial: &dial, kept: None };
         let refused = way.lookup("host.test", deadline()).await;
         let why = refused.expect_err("a root that the test does not trust");
-        assert!(why.contains("UnknownIssuer"), "{why}");
+        assert!(why.contains("no trusted CA signed"), "{why}");
     }
     println!("CoreDNS: a certificate of another root was refused");
 }

@@ -13,6 +13,7 @@
 pub mod allow;
 pub mod display;
 pub mod file;
+mod openssh;
 pub mod pins;
 pub mod rotate;
 
@@ -33,6 +34,13 @@ const BINDING_LABEL: &[u8] = b"podssh-e2e/1 static key\0";
 
 /// The prefix of a fingerprint, as OpenSSH writes one.
 pub const FINGERPRINT_PREFIX: &str = "SHA256:";
+/// The first word of OpenSSH's public line of an Ed25519 key.
+pub const OPENSSH_TYPE: &str = "ssh-ed25519";
+/// The forms of a key that [`KeyName::parse`] reads, for the words of a
+/// refusal.
+pub const KEY_FORMS: &str = "a key as podssh keygen -y prints it (ssh-ed25519 BASE64, then an optional comment), \
+                             64 hex digits, 52 characters of base32, a fingerprint SHA256:..., or a display \
+                             fingerprint (five groups of eight characters)";
 
 /// An end's secret: the 32-byte Ed25519 seed, which iroh takes as its secret
 /// key too, and the Noise static key derived from it. It prints as its
@@ -114,12 +122,7 @@ impl PublicKey {
     /// The SHA-256 digest of the key's SSH encoding: the bytes of
     /// [`PublicKey::fingerprint`] and of [`PublicKey::display_fingerprint`].
     fn digest(&self) -> [u8; 32] {
-        let mut blob = Vec::with_capacity(51);
-        for part in [&b"ssh-ed25519"[..], &self.0[..]] {
-            blob.extend_from_slice(&(part.len() as u32).to_be_bytes());
-            blob.extend_from_slice(part);
-        }
-        Sha256::digest(&blob).into()
+        Sha256::digest(openssh::blob(&self.0)).into()
     }
 
     /// The key in lower-case hex, as iroh shows it.
@@ -196,8 +199,8 @@ fn from_base32(word: &str) -> Option<[u8; 32]> {
     (at == 32 && acc == 0).then_some(out)
 }
 
-/// A key as a person names it: the key itself, its fingerprint, or the
-/// display form of its fingerprint.
+/// A key as a person names it: the key itself (also as OpenSSH's public
+/// line), its fingerprint, or the display form of its fingerprint.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KeyName {
     Key(PublicKey),
@@ -211,10 +214,27 @@ pub enum KeyName {
 }
 
 impl KeyName {
-    /// A fingerprint (with or without its padding), a key as
+    /// A name in one of the [`KEY_FORMS`]: OpenSSH's public line, with or
+    /// without its comment ([`PublicKey::from_openssh`]); or one word: a
+    /// fingerprint (with or without its padding), a key as
     /// [`PublicKey::parse`] reads one, or the display form, whose checksum
-    /// must match.
-    pub fn parse(word: &str) -> Option<KeyName> {
+    /// must match. A word of another form with more words after it is
+    /// none: a stray word can hide that the key is not the one meant.
+    pub fn parse(text: &str) -> Option<KeyName> {
+        let mut words = text.split_whitespace();
+        let first = words.next()?;
+        if first == OPENSSH_TYPE {
+            return PublicKey::from_openssh(text).map(KeyName::Key);
+        }
+        match words.next() {
+            None => KeyName::parse_word(first),
+            Some(_) => None,
+        }
+    }
+
+    /// A name in one word: each form of [`KeyName::parse`] but OpenSSH's
+    /// line.
+    fn parse_word(word: &str) -> Option<KeyName> {
         if let Some(rest) = word.strip_prefix(FINGERPRINT_PREFIX) {
             let rest = rest.strip_suffix('=').unwrap_or(rest);
             let digest = base64::engine::general_purpose::STANDARD_NO_PAD.decode(rest).ok()?;

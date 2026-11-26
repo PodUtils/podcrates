@@ -1,10 +1,13 @@
-//! The words of a failed handshake, and what to do about it: for an issuer
-//! that no root here signs, where a CA goes; for a certificate that is
-//! expired or not valid yet, this host's clock and its reading. The names
-//! in the words (the program, its flag, its variable, its file) are the
-//! consumer's, in [`Words`].
+//! The words of a failed handshake, and what to do about it: a refused
+//! certificate in plain words ([`crate::CERTIFICATE_WORDS`]); for an issuer that no
+//! root here signs, where a CA goes; for a certificate that is expired or
+//! not valid yet, this host's clock and its reading. The names in the words
+//! (the program, its flag, its variable, its file) are the consumer's, in
+//! [`Words`].
 
 use pod_core::{Class, Failure, Stage};
+
+use crate::cert_words::{UNKNOWN_ISSUER, certificate_words, plain_certificate, words_in};
 
 /// The names of the consumer that the words of a failure give.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,6 +68,7 @@ pub fn handshake_hint(error: &std::io::Error, words: &Words) -> Option<String> {
     let text = error.to_string();
     if matches!(inner, Some(Error::InvalidCertificate(CertificateError::UnknownIssuer)))
         || text.contains("UnknownIssuer")
+        || text.contains(UNKNOWN_ISSUER)
     {
         return Some(words.unknown_issuer_hint());
     }
@@ -102,9 +106,10 @@ pub fn clock_hint(chain: &str) -> Option<String> {
 
 /// The cause of a failed handshake in a few plain words, from the text of
 /// its error (rustls's words, also inside a wrapper): a certificate for
-/// another name (with its names, as rustls gives them), one that no trusted
-/// CA signed, an expired one, one that is not valid yet. `None` for another
-/// failure: the caller keeps the text of the error.
+/// another name (with its names, as rustls gives them), or the words of
+/// [`crate::CERTIFICATE_WORDS`] for each other refused
+/// certificate, from its `Debug` name or from those words. `None` for
+/// another failure: the caller keeps the text of the error.
 pub fn cause(text: &str) -> Option<String> {
     let lower = text.to_ascii_lowercase();
     if let Some(at) = text.find("not valid for name \"") {
@@ -115,6 +120,9 @@ pub fn cause(text: &str) -> Option<String> {
             Some(names) if !names.is_empty() => format!("a certificate for {names}, not {want}"),
             _ => format!("a certificate that is not for {want}"),
         });
+    }
+    if let Some(words) = words_in(text) {
+        return Some(words.into());
     }
     if lower.contains("notvalidforname") {
         return Some("a certificate for another name".into());
@@ -153,14 +161,27 @@ fn plain_names(list: &str) -> String {
         .join(" or ")
 }
 
-/// The text of a failed handshake, with its hint when it has one. The names
-/// of a certificate are plain: rustls-webpki writes `DnsName("a")`.
+/// The text of a failed handshake, with its hint when it has one. A refused
+/// certificate is in plain words ([`crate::certificate_words`]), and the names of
+/// a certificate are plain: rustls-webpki writes `DnsName("a")`.
 pub fn handshake_failure(error: &std::io::Error, words: &Words) -> String {
-    let said = plain_cert_names(&error.to_string());
+    let said = said_plainly(error);
     match handshake_hint(error, words) {
         Some(hint) => format!("{said}; {hint}"),
         None => said,
     }
+}
+
+/// The text of `error` with a refused certificate in plain words: by its
+/// type, else by its text, when a wrapper hides the type.
+fn said_plainly(error: &std::io::Error) -> String {
+    let said = match error.get_ref().and_then(|inner| inner.downcast_ref::<rustls::Error>()) {
+        Some(rustls::Error::InvalidCertificate(refused)) => {
+            format!("{}{}", crate::cert_words::PREFIX, certificate_words(refused))
+        }
+        _ => plain_certificate(&error.to_string()),
+    };
+    plain_cert_names(&said)
 }
 
 /// `text` with each name of a certificate in the Debug form of
@@ -196,7 +217,7 @@ pub fn plain_cert_names(text: &str) -> String {
 pub fn handshake_error(error: std::io::Error, words: &Words) -> Failure {
     let text = handshake_failure(&error, words);
     let raw = error.to_string();
-    let plain = plain_cert_names(&raw);
+    let plain = said_plainly(&error);
     // The cause in the plain words too, so that the chain says it once.
     let error = if plain == raw { error } else { std::io::Error::new(error.kind(), plain) };
     Failure::caused(Stage::Tls, Class::of_io(error.kind()), text, error)
@@ -235,6 +256,38 @@ mod tests {
         let early = Error::InvalidCertificate(CertificateError::NotValidYet).to_string();
         assert_eq!(cause(&early).as_deref(), Some("a certificate that is not valid yet"), "{early}");
         assert_eq!(cause("connection reset by peer"), None);
+    }
+
+    /// A refused certificate is said in the words of the table, by type and
+    /// by text, in the failure and in its chain, and the cause reads it
+    /// (PodUtils/podssh#362, ask 4); an error of `peer` keeps its own words.
+    #[test]
+    fn a_refused_certificate_is_said_in_words_by_type_and_by_text() {
+        use std::sync::Arc;
+        let words = podssh();
+        let ca = || CertificateError::Other(rustls::OtherError(Arc::new(webpki::Error::CaUsedAsEndEntity)));
+        let typed = std::io::Error::new(std::io::ErrorKind::InvalidData, Error::InvalidCertificate(ca()));
+        let text = std::io::Error::other(format!("TLS with the relay failed: {}", Error::InvalidCertificate(ca())));
+        for error in [typed, text] {
+            let said = handshake_failure(&error, &words);
+            assert!(said.contains("the certificate of a CA, served as the server's own"), "{said}");
+            assert!(!said.contains("CaUsedAsEndEntity") && !said.contains("OtherError"), "{said}");
+            assert_eq!(cause(&said).as_deref(), cause(&error.to_string()).as_deref());
+            let failure = handshake_error(error, &words);
+            assert!(!failure.chain().contains("OtherError"), "{}", failure.chain());
+        }
+        let refusal = crate::peer::Refusal::NotEd25519;
+        let pin = std::io::Error::new(std::io::ErrorKind::InvalidData, rustls::Error::from(refusal));
+        assert_eq!(
+            handshake_failure(&pin, &words),
+            "invalid peer certificate: the peer's certificate holds no Ed25519 key"
+        );
+        let expired = Error::InvalidCertificate(CertificateError::ExpiredContext {
+            time: rustls_pki_types::UnixTime::since_unix_epoch(std::time::Duration::from_secs(20)),
+            not_after: rustls_pki_types::UnixTime::since_unix_epoch(std::time::Duration::from_secs(10)),
+        });
+        let said = handshake_failure(&std::io::Error::new(std::io::ErrorKind::InvalidData, expired), &words);
+        assert!(said.starts_with("invalid peer certificate: certificate expired: "), "rustls's own words: {said}");
     }
 
     /// The names of a certificate for another name are plain in the text
@@ -303,7 +356,8 @@ mod tests {
         );
         assert_eq!(handshake_hint(&typed, &words), Some(words.unknown_issuer_hint()));
         let said = handshake_failure(&typed, &words);
-        assert!(said.contains("UnknownIssuer") && said.contains("--ca-file FILE or SSL_CERT_FILE"), "{said}");
+        assert!(said.starts_with("invalid peer certificate: a certificate that no trusted CA signed; "), "{said}");
+        assert!(!said.contains("UnknownIssuer") && said.contains("--ca-file FILE or SSL_CERT_FILE"), "{said}");
         let text = std::io::Error::other("TLS with the relay failed: invalid peer certificate: UnknownIssuer");
         assert_eq!(handshake_hint(&text, &words), Some(words.unknown_issuer_hint()));
         let name = std::io::Error::new(
@@ -311,7 +365,7 @@ mod tests {
             Error::InvalidCertificate(CertificateError::NotValidForName),
         );
         assert_eq!(handshake_hint(&name, &words), None);
-        assert_eq!(handshake_failure(&name, &words), name.to_string());
+        assert_eq!(handshake_failure(&name, &words), "invalid peer certificate: a certificate for another name");
         let reset = std::io::Error::from(std::io::ErrorKind::ConnectionReset);
         assert_eq!(handshake_hint(&reset, &words), None);
     }
@@ -376,7 +430,7 @@ mod tests {
         );
         let failure = handshake_error(refused, &words);
         assert_eq!((failure.stage, failure.class), (Stage::Tls, Class::Protocol));
-        assert!(failure.text().contains("UnknownIssuer") && failure.text().contains("--ca-file"), "{failure}");
+        assert!(failure.text().contains(UNKNOWN_ISSUER) && failure.text().contains("--ca-file"), "{failure}");
         assert_eq!(failure.chain(), failure.text());
         let cause = std::error::Error::source(&failure).and_then(|e| e.downcast_ref::<std::io::Error>());
         assert_eq!(cause.map(|e| e.kind()), Some(std::io::ErrorKind::InvalidData));

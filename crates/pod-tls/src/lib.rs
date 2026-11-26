@@ -35,6 +35,7 @@ pub mod crypto;
 pub mod ech;
 
 pub mod bundle;
+mod cert_words;
 mod context;
 mod env_bundle;
 mod error;
@@ -52,6 +53,7 @@ mod trust;
 mod validity;
 mod wrap;
 
+pub use cert_words::{CERTIFICATE_WORDS, certificate_name_words, certificate_words, plain_certificate};
 pub use context::{Context, Settings, client_config};
 pub use env_bundle::{BUNDLE_VARS, EnvBundle, Passed, env_bundle};
 pub use error::Error;

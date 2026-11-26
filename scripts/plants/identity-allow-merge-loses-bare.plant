@@ -1,0 +1,8 @@
+# The merge of a key's lines drops the mark of a line with no routes=, so a
+# key with a bare line after a line of routes does not reach the target
+# with no route (T-1406).
+ENTRY=T-1406
+GROUP=files
+EXPECT='a_line_of_routes_alone_does_not_reach_the_target_with_no_route'
+RUN='cargo test -p pod-identity --all-features --test allow_forms'
+LIMIT=1800

@@ -1,0 +1,13 @@
+diff --git a/crates/pod-identity/src/allow.rs b/crates/pod-identity/src/allow.rs
+index e227a644..9eeea8a5 100644
+--- a/crates/pod-identity/src/allow.rs
++++ b/crates/pod-identity/src/allow.rs
+@@ -55,7 +55,7 @@ impl Allowlist {
+             let mut words = line.split_whitespace();
+             let first = words.next().unwrap_or_default();
+             let name = match first {
+-                OPENSSH_TYPE => words.next().and_then(|blob| super::openssh::from_words(first, blob)).map(KeyName::Key),
++                OPENSSH_TYPE => None,
+                 _ => KeyName::parse(first),
+             };
+             let routes = match words.next().and_then(|w| w.strip_prefix("routes=")) {

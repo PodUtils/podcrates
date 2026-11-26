@@ -1,0 +1,12 @@
+diff --git a/crates/pod-identity/src/allow.rs b/crates/pod-identity/src/allow.rs
+index e227a644..15aca7ea 100644
+--- a/crates/pod-identity/src/allow.rs
++++ b/crates/pod-identity/src/allow.rs
+@@ -76,7 +76,6 @@ impl Allowlist {
+                         Some(entry) => {
+                             entry.routes.extend(routes);
+                             entry.all |= all;
+-                            entry.bare |= bare;
+                         }
+                         None if full => list.bad.push(n + 1),
+                         None => list.keys.push(Entry { name, routes, all, bare }),

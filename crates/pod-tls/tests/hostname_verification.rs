@@ -196,7 +196,7 @@ async fn both_on(provider: Arc<CryptoProvider>) {
 }
 
 /// A certificate whose root is in no store that the context reads, as a
-/// proxy's that re-signs TLS is, ends with rustls's `UnknownIssuer` and the
+/// proxy's that re-signs TLS is, ends with the words of an unknown issuer and the
 /// hint that names `--ca-file` (podssh's words); the same server through a
 /// file that holds its root is the control.
 #[tokio::test]
@@ -228,7 +228,7 @@ async fn issuer_on(provider: Arc<CryptoProvider>) {
     let _ = server.await;
     let refused = refused.expect("no root of the default trust signs the test's certificate").to_string();
     assert!(
-        refused.contains("UnknownIssuer") && refused.contains("--ca-file FILE or SSL_CERT_FILE"),
+        refused.contains("no trusted CA signed") && refused.contains("--ca-file FILE or SSL_CERT_FILE"),
         "the failure must be the unknown issuer, with the hint: {refused}"
     );
 

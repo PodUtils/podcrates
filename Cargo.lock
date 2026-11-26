@@ -5470,6 +5470,7 @@ dependencies = [
  "rsa 0.10.0",
  "rustls",
  "rustls-pki-types",
+ "rustls-webpki",
  "security-framework",
  "sha2 0.11.1",
  "tokio",

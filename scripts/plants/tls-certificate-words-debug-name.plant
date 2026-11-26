@@ -1,0 +1,7 @@
+# The table of words of a refused certificate finds no name, so each
+# refusal is said by its Debug name (T-1409).
+ENTRY=T-1409
+GROUP=tls
+EXPECT='each_error_of_webpki_is_said_in_words'
+RUN='cargo test -p pod-tls --all-features --lib cert_words::tests'
+LIMIT=1800

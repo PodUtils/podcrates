@@ -13033,6 +13033,7 @@ log says "by a bearer".
 ```sh
 cargo test -p pod-e2e --all-features
 ```
+
 # T-1399: `pod-quic` and `pod-relay`: a failed UDP socket of QUIC reads "no UDP socket for QUIC" with no cause, as the race of handshakes and the QUIC road say the failure with `to_string()` (PodUtils/podssh#360)
 
 **Source:** PodUtils/podssh#360 (COORD-150 of podssh), ask 1; author COLLABORATOR
@@ -13122,3 +13123,76 @@ sh scripts/plant-each.sh --apply
 - Plant `relay-t1402-close-look-eight-frames` (the bound of 8 frames of 64 KiB again): caught (applied by hand).
 - `cargo test -p pod-relay --all-features` with the other crates of T-1399: 1730 passed, 0 failed. `cargo clippy -p pod-relay --all-targets --all-features -- -D warnings`: clean. `sh scripts/plant-each.sh --apply`: 0 stale. Not measured: the run of podssh on macOS.
 
+# T-1406: `pod-identity`: an allowlist refuses the line that `podssh keygen -y` prints, a bad line does not name the forms of a key, and a key with `routes=` alone also reaches the target with no route
+
+**Source:** PodUtils/podssh#362 (COORD-152 of podssh), ask 1; PodUtils/podssh@T-938, PodUtils/podssh@T-945; author MEMBER
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+The ask of podssh: "`pod-identity` `KeyName::parse` (`src/lib.rs`) and `Allowlist::parse_with` (`src/allow.rs`); `pod-iroh` `src/allow.rs`. Read OpenSSH's public line, `ssh-ed25519 BASE64 [comment]`, which `podssh keygen -y` prints. Today only `SHA256:` and 64 hex digits are read. Name the accepted forms in a bad line's refusal. Add `reaches_target`: a key whose lines all say `routes=A,B` reaches those routes alone, never the TARGET with no route. Keep a mark of a key's line with no `routes=` when lines are merged. podssh normalises the line in `PodUtils/podssh:crates/podssh-relay/src/identity/allow.rs` for now."
+
+A user who pastes the line of `podssh keygen -y` into an allowlist gets a bad line, and the key stays out. The merge of a key's lines into one entry keeps no mark of a line with no `routes=` word, so a consumer cannot tell whether a key reaches the target with no route.
+
+## Premise
+
+- Read: PodUtils/podssh#362; podssh's glue `PodUtils/podssh:crates/podssh-relay/src/identity/allow.rs` at `ec33fd8b` (`openssh`, `key_name`, `normalised`, `reaches_target`, `bad_lines_said`, `FORMS`); `crates/pod-identity/src/lib.rs` (`KeyName::parse`, `PublicKey::digest`), `crates/pod-identity/src/allow.rs`, `crates/pod-iroh/src/allow.rs`.
+- `pod-iroh`'s `Allowlist` wraps `pod_identity::allow::Allowlist`: it holds no copy of the parser (`codegraph.py similar`).
+- `codegraph.py similar openssh public line` finds `pod_relay::grant::{openssh_public, parse_public}`, a second encoder of the same line (T-1473).
+- Not measured: podssh with its glue removed.
+
+## Approach
+
+1. `PublicKey::openssh` writes the line, `PublicKey::from_openssh` reads it (the type, then the BASE64 of the type and the 32 bytes); `PublicKey::digest` takes the same encoding. `OPENSSH_TYPE` and `KEY_FORMS` are public.
+2. `KeyName::parse` reads OpenSSH's line with or without its comment, or one word; a word of another form with more words after it is none.
+3. `Allowlist::parse_with` reads a line that starts with OpenSSH's line; the `routes=` word comes after the BASE64. Each entry keeps `bare`, the mark of a line with no `routes=` word, through the merge. `Allowlist::reaches_target` and `allow::reaches_target(path, key)`: a line with no `routes=` word or with `routes=*`.
+4. `allow::bad_lines_said(lines)` and `Allowlist::bad_lines_said` name the lines and `KEY_FORMS`; `allow::admits`, `grants` and `reaches_target` add them to the refusal of a key that is not in the list.
+5. `pod-iroh`'s `Allowlist` adds `grants`, `reaches_target` and `bad_lines_said`, with iroh's keys.
+
+## Prove
+
+```sh
+cargo test -p pod-identity -p pod-iroh --all-features
+sh scripts/plant-each.sh identity-allow-openssh-line identity-allow-merge-loses-bare
+```
+
+## Done
+
+2026-11-26. `PublicKey::openssh` and `PublicKey::from_openssh` write and read OpenSSH's public line (`src/openssh.rs`), and `PublicKey::digest` takes the same encoding; `KeyName::parse` reads the line with or without its comment, or one word; `Allowlist::parse_with` reads a line that starts with it, with `routes=` after the BASE64. Each entry keeps the mark of a line with no `routes=` word through the merge: `Allowlist::reaches_target` and `allow::reaches_target(path, key)`. `KEY_FORMS`, `allow::bad_lines_said` and `Allowlist::bad_lines_said` name the forms, and `allow::admits`, `grants` and `reaches_target` add the bad lines to the refusal of a key that is not in the list. `pod_iroh::Allowlist` adds `grants`, `reaches_target` and `bad_lines_said` over the one parser of `pod-identity`; it holds no copy. Tests: `crates/pod-identity/tests/allow_forms.rs` (`each_form_of_a_key_is_read_by_one_grammar`, `a_line_of_routes_alone_does_not_reach_the_target_with_no_route`, `a_bad_line_is_refused_with_the_forms_of_a_key`, `an_argument_is_openssh_s_line_or_one_word`, `the_public_line_is_openssh_s`; before the fix the line of `podssh keygen -y` was a bad line), `crates/pod-iroh/tests/keys.rs` (`the_line_of_keygen_y_lets_the_iroh_key_in`). `cargo test -p pod-identity -p pod-iroh -p pod-tls --all-features`: 298 passed, 0 failed, 7 ignored; `cargo clippy` of the three with `--all-targets --all-features -- -D warnings`: 0; plants `identity-allow-openssh-line` and `identity-allow-merge-loses-bare`: caught. Finding: T-1473. Commit: see `git log` for T-1406.
+
+# T-1473: `pod-relay`: `grant::openssh_public` and `grant::parse_public` are a second encoder and reader of OpenSSH's public line of an Ed25519 key
+
+**Source:** T-1406 (a finding of `python3 -I scripts/codegraph.py similar openssh public line ed25519 base64 blob`).
+**Category:** chore
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`pod_identity::PublicKey::openssh` and `PublicKey::from_openssh` (T-1406) write and read OpenSSH's public line `ssh-ed25519 BASE64 [comment]`. `crates/pod-relay/src/grant/cert.rs` keeps its own `openssh_public`, `parse_public` and `key_blob` for the same line. The ruling "Shared code" asks for one copy.
+
+## Premise
+
+- Read: `crates/pod-relay/src/grant/cert.rs` (`openssh_public`, `parse_public`, `key_blob`, `Reader`), `crates/pod-identity/src/openssh.rs`.
+- `parse_public` also reads a key as `PublicKey::parse` reads it, from the first word, and refuses a fingerprint; `KeyName::parse` takes a fingerprint, so `parse_public` stays a function of `pod-relay` that calls `PublicKey::from_openssh`.
+- `key_blob` and `Reader` also serve the certificate of the grant, which holds the key's blob.
+- Not measured: the effect on the tests of `pod-relay`.
+
+## Approach
+
+1. `openssh_public(key)` becomes `key.openssh()`; keep the name as a re-export or remove it and change its callers.
+2. `parse_public(text)`: `PublicKey::from_openssh(text)` for a line that starts with `pod_identity::OPENSSH_TYPE`, else `PublicKey::parse` of the first word.
+3. Keep `key_blob` only where the certificate needs it; `python3 -I scripts/codegraph.py new` shows no twin.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features grant
+python3 -I scripts/codegraph.py new
+```

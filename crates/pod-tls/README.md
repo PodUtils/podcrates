@@ -27,7 +27,8 @@ shares it.
 | `Trust` (`File`, `Default`, `Caller`), `Trust::caller(config)`, `CallerConfig` | where the anchors come from, for each connection; a caller's own configuration, refused with ALPN, used as it is |
 | `Context::roots()`, `Context::client_config_with(extra, alpn)`, `roots::load`, `Roots` (`store`, `sources`, `with_extra`), `CaFile` | the roots of the settings in podnet's order: the CA file alone, else the extra bundle, the first system bundle with a usable root and the compiled-in roots; each source named with its counts (`2 roots, 1 skipped`); read one time in the context, a failure too; a new configuration over them with extra roots (PEM texts) and the caller's ALPN |
 | `TlsRoots`, `roots_from_bundle`, `roots_from_compiled_set`, `SYSTEM_BUNDLES`, `ROOTS_VERSION`, `ROOTS_PUBLISHED` | the roots and their sources |
-| `Words`, `handshake_hint`, `handshake_failure`, `handshake_error`, `clock_refused`, `clock_hint(chain)` | the words of a failed handshake: an unknown issuer gets where a CA goes, a certificate refused by its time gets this host's clock; `clock_hint` reads the text of an error chain |
+| `Words`, `handshake_hint`, `handshake_failure`, `handshake_error`, `clock_refused`, `clock_hint(chain)` | the words of a failed handshake: a refused certificate in plain words, an unknown issuer gets where a CA goes, a certificate refused by its time gets this host's clock; `clock_hint` reads the text of an error chain |
+| `CERTIFICATE_WORDS`, `certificate_name_words(name)`, `certificate_words(&CertificateError)`, `plain_certificate(text)` | one table of plain words for each `Debug` name of rustls's `CertificateError` and of rustls-webpki's `Error` (`CaUsedAsEndEntity` in `Other(OtherError(..))` too); rustls's own words of a variant with fields stay; only a name that the table does not know is said by its name (T-1409) |
 | `not_after_dates(pem)` | the notAfter (`YYYY-MM-DD`) of each certificate of a PEM text |
 | `Error` (`Bundle`, `Config`, `Roots`, `Server`, `Split`) | a trust, the roots, a configuration, the pair of a server or a split that cannot be used; `From<Error> for Failure` (`Class::Config`) |
 | `groups` | `GroupFile`, `Groups`, `Kept` (the group that each server took, kept across runs), `Dirs` (the file `tls-groups.txt` in the first of the consumer's directories), `HEADER` |
@@ -128,6 +129,7 @@ shares it.
 | podssh | `tls::connect_over(s, name, &trust, limit)` (`Err(String)`) | `context.connect_over(s, name, &trust, limit)` (`Err(Failure)`, the same words) |
 | podssh | `tls::UNKNOWN_ISSUER_HINT` | `context.words().unknown_issuer_hint()`, with the words of the settings above |
 | podssh | `tls::{handshake_hint, handshake_failure}(e)` | `pod_tls::{handshake_hint, handshake_failure}(e, context.words())` |
+| podssh | `podssh_ws::tls_words::{WORDS, plain}` | `pod_tls::{CERTIFICATE_WORDS, plain_certificate}`; `handshake_failure` and `handshake_error` say the words already |
 | podssh | `tls::groups::{GroupFile, Groups, Kept, HEADER, MOST, MAX_AGE_MS}` | `pod_tls::groups::*`; the header is `pod-tls groups 1` (a file of podssh's header is set aside once, with the note) |
 | podssh | `tls::groups::{process, keep_in, take_note}` | `context.groups()`, `.keep_in(file)`, `.take_note()` |
 | podssh | `podssh_relay::tls_groups::{In, FILE}`, `install()` | `pod_tls::groups::{Dirs, FILE}`; `context.groups().keep_in(Box::new(Dirs(dirs)))` once, before the first dial |
