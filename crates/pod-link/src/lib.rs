@@ -83,6 +83,8 @@ pub mod icmp;
 pub mod imap;
 mod inbound;
 mod link;
+#[cfg(any(feature = "tcp", feature = "imap", feature = "smtp"))]
+mod loopback;
 #[cfg(any(feature = "imap", feature = "smtp"))]
 mod mail;
 pub mod memory;

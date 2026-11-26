@@ -215,12 +215,6 @@ pub(crate) fn proved(
 /// The provider makes TLS 1.3 and verifies Ed25519, and a TCP socket binds
 /// on the loopback: the host allows the family.
 pub(crate) fn available(carrier: &'static str, provider: &rustls::crypto::CryptoProvider) -> Result<(), CarrierError> {
-    use std::net::{Ipv4Addr, Ipv6Addr};
     peer::supports(provider).map_err(|why| CarrierError::new(carrier, CarrierErrorKind::Unavailable, why))?;
-    std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
-        .or_else(|_| std::net::TcpListener::bind((Ipv6Addr::LOCALHOST, 0)))
-        .map(drop)
-        .map_err(|e| {
-            CarrierError::new(carrier, CarrierErrorKind::Unavailable, format!("TCP sockets on the loopback: {e}"))
-        })
+    crate::loopback::tcp_available(carrier)
 }

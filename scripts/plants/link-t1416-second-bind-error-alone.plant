@@ -1,0 +1,6 @@
+# pod-link: the error of the loopback bind is the error of the second bind alone (T-1416); the table test must fail.
+ENTRY=T-1416
+GROUP=link
+EXPECT='test loopback::tests::a_missing_family_never_hides_the_cause_of_the_other_bind \.\.\. FAILED'
+RUN='cargo test -p pod-link --all-features --lib loopback::tests::a_missing_family_never_hides_the_cause_of_the_other_bind -- --exact'
+LIMIT=900
