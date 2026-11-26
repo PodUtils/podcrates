@@ -12825,7 +12825,7 @@ cargo test -p pod-session --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12852,3 +12852,14 @@ cargo test -p pod-session --all-features --lib failure
 cargo clippy -p pod-session --all-targets --all-features -- -D warnings
 sh scripts/plant-each.sh session-t1410-close-said-silent
 ```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1410.
+
+- `client::Unheard` (`Closed`, `Silent`) and `Greeted::unheard()`. `greeted` marks a read of 0 bytes as a close. `Unheard` says "the far end closed the link before it said anything" or "the far end said nothing within 30 s"; `From<Unheard> for pod_core::Failure`: the stage `Session`, `Closed` is `Unavailable`, `Silent` is `Timeout`.
+- `race::greeting` gives the words of `Unheard`, so `race`, `in_turn` and `each_timed` give a close as a close, at its time.
+- Tests: `a_far_end_that_closes_is_told_from_one_that_keeps_silent` (`crates/pod-session/tests/session_race.rs`: a road that closes after 15 ms and a silent road in `race`; the close in `each_timed` at 25 ms), `failure::tests::a_close_before_the_first_byte_is_unavailable_and_a_silent_wait_a_timeout`.
+- The plant `scripts/plants/session-t1410-close-said-silent.plant` drops the mark of the close: the race test fails; run by hand with its RUN: caught.
+- `cargo test -p pod-session -p pod-release -p pod-manual --all-features`: 365 passed, 0 failed (pod-session 182); the random test of T-204 passed in this run. `cargo clippy` of the three crates with `--all-targets --all-features -- -D warnings` and `cargo fmt --all --check`: clean.
+- A new public enum and method only: no consumer must change. podssh's `true_why` (`PodUtils/podssh:crates/podssh-cli/src/ping/node.rs`) can go once it takes the release.

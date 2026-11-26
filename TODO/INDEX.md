@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1037 entries: 166 open, 31 partial, 6 blocked, 834 done.**
+**1040 entries: 166 open, 31 partial, 6 blocked, 837 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 245 | 258 |
-| P2 | 73 | 12 | 4 | 433 | 522 |
+| P1 | 4 | 9 | 0 | 246 | 259 |
+| P2 | 73 | 12 | 4 | 435 | 524 |
 | P3 | 89 | 10 | 2 | 154 | 255 |
-| **All** | 166 | 31 | 6 | 834 | 1037 |
+| **All** | 166 | 31 | 6 | 837 | 1040 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1072,9 +1072,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1396](transport.md) | P2 | S | M1 | feature | done | `pod-ws`: `ConnectError::Ended`, a final end of a stream with no relay and no HTTP, shown in its own words (PodUtils/podssh#359) |
 | [T-1397](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver after podrunner `7bf541c` (the sixth port of `source-driver.md`) |
 | [T-1398](fleet.md) | P2 | S | M0 | chore | done | `pod-unit`: podnet's `autostart.rs` after `34f0d30` (port review) |
-| [T-1410](relay.md) | P2 | S | M2 | defect | open | `pod-session`: a far end that closes the link before its first byte is said as one that "said nothing within 30 s" |
-| [T-1411](fleet.md) | P2 | S | M8 | feature | open | `pod-release`: former signers of a moved repository, and the hint of Sigstore's roots only for a chain that failed |
-| [T-1412](fleet.md) | P1 | S | M8 | defect | open | `pod-manual`: a pager program that fails at once (`PAGER=false`) leaves the text unshown, with exit 0 |
+| [T-1410](relay.md) | P2 | S | M2 | defect | done | `pod-session`: a far end that closes the link before its first byte is said as one that "said nothing within 30 s" |
+| [T-1411](fleet.md) | P2 | S | M8 | feature | done | `pod-release`: former signers of a moved repository, and the hint of Sigstore's roots only for a chain that failed |
+| [T-1412](fleet.md) | P1 | S | M8 | defect | done | `pod-manual`: a pager program that fails at once (`PAGER=false`) leaves the text unshown, with exit 0 |
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
