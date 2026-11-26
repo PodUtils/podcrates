@@ -42,10 +42,9 @@ is done. Git and the record keep finished work.
      PodUtils/podnet#783 (COORD-138, T-1516).
    - Done on `main`: PodUtils/podnet#779 (T-1431, T-1432) and ask 2 of
      PodUtils/podnet#782 (T-1432). Done on `main`: PodUtils/podnet#780
-     (T-1505, T-1506). In work: asks 1, 3, 4 and 5 of PodUtils/podnet#782, the ports of `upstream.yml`
-     45838753274 (workers write the entries). PodUtils/podnet#785 (COORD-140:
-     a Trojan request parser on the accept side, the accept-side API of
-     Shadowsocks) waits for the merge of #782 (`pod-egress`).
+     (T-1505, T-1506). Done on `main`: PodUtils/podnet#782
+     (T-1525 to T-1527; ask 5 is T-1528, open). In work: PodUtils/podnet#785
+     (a worker writes the entries).
    - Open asks:
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -169,6 +168,30 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   `http`, `seen`), a CA that checks the JWS, the nonces, the account of
   each object, the CSR and the TLS-ALPN-01 certificate of RFC 8737. No
   build change for podnet.
+- T-1525 (`pod-egress`, PodUtils/podnet#782 ask 1): `Wisp::is_open()` and
+  `wisp::Reopening`, a `Dial` that opens a new connection on the next dial
+  after the old one ended (3 tries with a backoff, in the deadline; a
+  refused credential is tried once). podnet can drop its `Held`.
+- T-1527 (`pod-egress`, PodUtils/podnet#782 ask 4): `wisp::Login` (zeroed on
+  drop, never shown) and the field `Connect::login`. Breaking: podnet's
+  literal of `Connect` (`src/networks/servers/wisp.rs`) adds
+  `login: None`. A login over `ws://` to a host that is not the loopback is
+  refused. A refused credential (0xc0 to 0xc2) is stage `Relay` now, not
+  `Origin`.
+- T-1526 (`pod-egress`, PodUtils/podnet#782 ask 3): `shadowsocks::key_file`
+  (an `ss://` link, SIP008 JSON or Outline YAML in a private file), the
+  `Display` of a `Node` shows no password and no path, Outline's salt
+  prefix (`Node::with_prefix`; it was refused in YAML and JSON and dropped
+  from an `ss://` link), and YAML merge keys. T-1528 (a wait for the answer
+  of a VLESS server) is open with its decision.
+- T-1517 to T-1521 (the ports of `upstream.yml` 45838753274):
+  `pod_core::text::file_words`, and the lines of `pod_core::files` and of
+  `pod-unit` show no " (os error N)"; `pod-guest` `ext4` gains
+  `Layout::fit`, `write_heads`, `Counts`, `bitmap` and the layout methods
+  of podvm's change at `a00e3a4` (`write_empty` gives the same bytes);
+  `pod-gzip` `SOURCES` has the `taken` line of podvm's take at `04c8b7f4`;
+  no change of the fakes of `pod-testkit`. T-1522 (podvm's writer of a
+  read-only ext4 disk of an image tree stays in podvm) is open.
 - T-1513 (`pod-services`): DERP region 24 (Honolulu, `hnl-1` to `hnl-3`)
   is gone from Tailscale's map, and `derp14e` (`ams-4`) is new: 93
   endpoints in 27 regions (podnet and podssh read the set). The watch

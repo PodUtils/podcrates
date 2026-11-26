@@ -50,7 +50,7 @@ with its stream (podvm `93524ce`) and `pod-guest` with its warm line (podvm
 `8fd14c2`); podvm `pod-enter` with `title` (podvm `18160173`) and
 `pod-hostprobe` with `usage` (podvm `39a8524`) and with `usage::Mounts` in place of
 its own `incus/usage/mounts.rs` (podvm `a39f4c4f`); podnet `pod-testkit` with `need_route!` (podnet `a0b727c`); podssh `pod-tpm` and
-`pod-h2` (podssh `806e0a4`, PodUtils/podssh#357).
+`pod-h2` (podssh `806e0a4`, PodUtils/podssh#357); podvm `pod-gzip` (`Members`, podvm `04c8b7f4`, PodUtils/podvm#666).
 
 A `.run` of podssh that moves a value of a service names the test
 `cargo test -p podssh-relay --test default_relay` too: the take of v0.4.0
