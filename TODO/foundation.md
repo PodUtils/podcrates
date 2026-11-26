@@ -4290,3 +4290,82 @@ sh scripts/plant-each.sh guest-t1518-fit-counts-no-metadata guest-t1518-heads-su
   ignored, the other targets 1 passed and 2 ignored, 0 failed. `cargo
   clippy -p pod-guest --all-targets --all-features -- -D warnings` passed.
 - The writer of the disk of an image tree is T-1522.
+
+# T-1520: `pod-testkit`: the contract of the source and the driver after podrunner `7e79860` (the seventh port of `source-driver.md`)
+
+**Source:** `upstream.yml` 45838753274 (job `sources`), `scripts/check-sources.py`.
+**Category:** chore
+**Milestone:** M0
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+After T-1397, podrunner changed one imported file of `pod-testkit`:
+
+```text
+pod-testkit: changed PodUtils/podrunner:docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+```
+
+The commit is `7e79860` ("images: T-682 End the runner worker on a refused
+assignment", PodUtils/podrunner@T-682). The contract now says: on a
+refused job, "the hook ends the runner worker, so no step runs, also no
+step of `if: always()`. The report of the unit names the code; the job log
+on the forge does not." Before, the job ended before its first step with
+an annotation that named the code.
+
+The rule of the handoff: a step of githome's answers that podrunner writes
+and that differs from `pod-fake-githome` or `pod-fake-github` is an entry
+here.
+
+## Premise
+
+- Read: `git diff b474354 f9d93c3 -- docs/contracts/source-driver.md` of
+  podrunner (one hunk, from `7e79860`); `git show 7e79860` of
+  `PodUtils/podrunner:images/runner/podrunner-job-started.sh` (the hook
+  kills `Runner.Worker` after its `ended:` line) and
+  `PodUtils/podrunner:crates/podrunner-broker-fake/tests/runner.rs` (the
+  completion of a refused job stays `failed`; the code is read from the
+  line of the hook, not from the job log); `git log b474354..f9d93c3` for
+  each imported file of podrunner (no other change).
+- Read here: `crates/pod-testkit/SOURCES`; `grep` of the annotation of a
+  foreign job and of `always()` in `crates/pod-testkit` (none).
+- Not measured: a run of the real runner with the hook of the image
+  against `pod-fake-github` (no runner and no guest here).
+
+## Approach
+
+1. Compare the new rule with the answers of the fake githome (the source
+   wire) and of the fake GitHub (the broker).
+2. A rule of the hook of the runner image is no port.
+3. Move the block of the contract in `SOURCES` to the head of podrunner,
+   with the blobs of `git ls-tree`, and say why in its comment.
+
+## Prove
+
+```sh
+python3 -I scripts/check-sources.py --clone PodUtils/podrunner=PODRUNNER --clone PodUtils/podnet=PODNET pod-testkit
+cargo test -p pod-testkit --all-features
+```
+
+## Done
+
+2026-11-26. No port. Commit: see `git log` for T-1520.
+
+- The end of the runner worker after the `ended:` line of the hook is a
+  rule of the hook of podrunner's runner image. The fake githome gets the
+  same `assigned` and gives the same verdicts. The fake GitHub gets the
+  same completion (`failed`) from the listener: podrunner's fake broker
+  did not change in `7e79860`, and its test of a refused job still reads
+  `failed`. No test of `pod-testkit` reads the annotation of a foreign
+  job or a step of `if: always()`. So the answers of `pod-fake-githome`
+  and `pod-fake-github` do not change, and no new entry is necessary.
+- `crates/pod-testkit/SOURCES`: the block of the contract and the
+  conformance suite is at podrunner `f9d93c3` (`source-driver.md`
+  `9ccd3bd`; `conformance.rs` `3d8f939`, not changed), with the reason in
+  its comment. `check-sources.py --clone PodUtils/podrunner=CLONE --clone
+  PodUtils/podnet=CLONE pod-testkit`: each block 0 changes, exit 0.
+- No code change, so no new test. `cargo test -p pod-testkit
+  --all-features`: 42 passed, 2 ignored, 0 failed. `cargo clippy -p
+  pod-testkit --all-targets --all-features -- -D warnings` passed.

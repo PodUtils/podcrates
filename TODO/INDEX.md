@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1078 entries: 171 open, 31 partial, 6 blocked, 870 done.**
+**1079 entries: 171 open, 31 partial, 6 blocked, 871 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 72 | 12 | 4 | 464 | 552 |
+| P2 | 72 | 12 | 4 | 465 | 553 |
 | P3 | 95 | 10 | 2 | 158 | 265 |
-| **All** | 171 | 31 | 6 | 870 | 1078 |
+| **All** | 171 | 31 | 6 | 871 | 1079 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1124,4 +1124,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1517](upkeep.md) | P2 | S | M5 | chore | done | `pod-core`: podssh's words of an I/O error with no "(os error N)" in the files of the cache and in `text.rs` (port of podssh's T-952) |
 | [T-1518](foundation.md) | P2 | S | M0 | chore | done | `pod-guest`: the parts of podvm's `ext.rs` for a disk of the tree of an image, after `a00e3a4` (port) |
 | [T-1519](upkeep.md) | P2 | S | M5 | chore | done | `pod-gzip`: podvm took `Members` at `04c8b7f`, and the block of `SOURCES` has no `taken` line |
+| [T-1520](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver after podrunner `7e79860` (the seventh port of `source-driver.md`) |
 | [T-1522](podvm.md) | P3 | M | M6 | feature | open | `pod-guest`: podvm's writer of a read-only ext4 disk of the tree of an image stays in podvm (podvm `a00e3a4`) |

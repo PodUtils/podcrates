@@ -57,7 +57,7 @@ repo PodUtils/podrunner fcff5bccd7b96ad8b6d45fa6281e5d8028a8a376
 file 1b246d7ad58a6abe72bc4d3c953f050b89d1b86f crates/podrunner-fake/src/source.rs -> crates/pod-testkit/src/githome/wire.rs
 file a19de1a28ac4e60de51b7f76bcdc326677357872 crates/podrunner-fake/src/assigned.rs -> crates/pod-testkit/src/githome/offer.rs
 
-repo PodUtils/podrunner b474354509d83b91de66cb050d467efe0d2e0eb4
+repo PodUtils/podrunner f9d93c31fced12917cd21eb4c641a72fc4a74ef9
 # T-951 (PodUtils/podrunner#310): the 15 tests of the conformance suite
 # (test 15: a cancelled job is reported and released) and the contract,
 # for the test of the feature `githome`. The block moved to 43226db
@@ -92,5 +92,11 @@ repo PodUtils/podrunner b474354509d83b91de66cb050d467efe0d2e0eb4
 # githome do not change; the job message of the fake GitHub already gives
 # each fact that the hook sends (run, repository, job, event, ref,
 # repository id).
+# The block moved to f9d93c3 (T-1520) with no port: 7e79860 makes the
+# job-started hook end the runner worker on a refused assignment, so no
+# step runs, also no step of `if: always()`, and the job log loses the
+# annotation of the code. It is a rule of the hook of the runner image.
+# The fake githome gets the same `assigned` and gives the same verdicts;
+# the fake GitHub takes the same completion (`failed`) from the listener.
 file 3d8f939ffa29402d5dfd3216d6e78a8e2fec9d59 crates/podrunner-source/src/conformance.rs -> crates/pod-testkit/tests/githome.rs
-file 0c80ccec095b032ea2a453be3f8e0f93c892c297 docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
+file 9ccd3bdce83e6fe1f2b716c3c3fa6eda2eeab972 docs/contracts/source-driver.md -> crates/pod-testkit/src/githome/wire.rs
