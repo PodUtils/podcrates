@@ -64,7 +64,8 @@ impl Spent {
             Place::Dir(dir) => dir,
             Place::Nowhere(why) => return Err(NotRecorded::Failed(why.clone())),
         };
-        let failed = |e: std::io::Error| NotRecorded::Failed(format!("{}: {e}", dir.display()));
+        let failed =
+            |e: std::io::Error| NotRecorded::Failed(format!("{}: {}", dir.display(), pod_core::text::io_words(&e)));
         crate::cache::private_dir(dir).map_err(failed)?;
         prune(dir, now);
         let until = cert.valid_before.saturating_add(SKEW_SECS);

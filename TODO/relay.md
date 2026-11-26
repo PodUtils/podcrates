@@ -13275,7 +13275,6 @@ sh scripts/plant-each.sh session-t1410-close-said-silent
 - `cargo test -p pod-session -p pod-release -p pod-manual --all-features`: 365 passed, 0 failed (pod-session 182); the random test of T-204 passed in this run. `cargo clippy` of the three crates with `--all-targets --all-features -- -D warnings` and `cargo fmt --all --check`: clean.
 - A new public enum and method only: no consumer must change. podssh's `true_why` (`PodUtils/podssh:crates/podssh-cli/src/ping/node.rs`) can go once it takes the release.
 
-
 # T-1416: `pod-link`: the error of the loopback bind names each family, so "Address family not supported by protocol" no longer hides a refused IPv4 bind (PodUtils/podnet#776)
 
 **Source:** PodUtils/podnet#776 (COORD-131 of podnet, PodUtils/podnet@T-598; author COLLABORATOR).
@@ -13329,3 +13328,124 @@ sh scripts/plant-each.sh link-t1416-second-bind-error-alone
 - Tests: `loopback::tests::a_missing_family_never_hides_the_cause_of_the_other_bind` (the three pairs), `loopback::tests::the_loopback_binds_on_this_host_or_says_why`.
 - The plant `scripts/plants/link-t1416-second-bind-error-alone.plant` keeps the second error alone: the table test fails.
 - `cargo test -p pod-link --all-features`: 300 passed, 0 failed. `cargo clippy -p pod-link --all-targets --all-features -- -D warnings` and `cargo fmt --all --check`: clean.
+
+# T-1421: `pod-core`, `pod-relay`: a line of a grant file that is not there says "No such file or directory (os error 2)"
+
+**Source:** PodUtils/podssh#367 (COORD-154 of podssh), ask 1; PodUtils/podssh@T-1022; author MEMBER.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The text of the ask: "`grant::read_file` shows an `io::Error` by `{e}`, so `podssh operator --grant MISSING` said '... No such file or directory (os error 2)'. Ask: plain words at the source (a helper like podssh's `said`, which drops the suffix and keeps the system's words), for each `io::Error` the crate puts into a line." The ask also wants one helper for "an I/O error in a user's line" in `pod-core`, with a table test.
+
+## Premise
+
+- Read: `crates/pod-relay/src/grant/mod.rs` (`read_file`: `metadata` and `read_to_string` shown by `{e}`), `crates/pod-core/src/text.rs` (no function that drops the code of the system), `crates/pod-core/src/failure.rs` (the source chain of a `Failure` keeps the `io::Error`; not changed).
+- Read: podssh's `podssh_ws::text::{plain, said}` (`PodUtils/podssh:crates/podssh-ws/src/text.rs`), the reference.
+- Searched: `codegraph.py similar os error words plain io`: `pod-dns::lookup` has a private function with the same job for one crate, in `pod-dns`, which another worker changes now; it stays as it is.
+
+## Approach
+
+1. `pod_core::text::plain(&str)` drops each ` (os error N)`; `pod_core::text::io_words(&io::Error)` is `plain` of the text of an error. The `io::Error` stays the source of a failure; only the words of a line change.
+2. `grant::read_file` uses `io_words`.
+3. Each other `{e}` of an `io::Error` in a line of `pod-relay` uses it too (the list is in the Done section).
+4. Tests: a table in `pod-core` (a code 2, a reset with code 104, an error with no code, a custom error, a bracket that is no code); a test of `read_file` on a missing file. A plant: `io_words` that keeps the suffix.
+
+## Prove
+
+```sh
+cargo test -p pod-core -p pod-relay --all-features
+cargo clippy -p pod-core -p pod-relay --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh ssh367-t1421-io-words-keeps-code
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1421.
+
+- New public API of `pod-core`: `text::plain(&str) -> String`, `text::io_words(&io::Error) -> String`. Changed text: `{path}: No such file or directory (os error 2)` is `{path}: No such file or directory`, in `grant::read_file` and in the lines listed in the Problem of T-1422.
+- Other lines of `pod-relay` and `pod-tls` that show an `io::Error` by `{e}` use the same words: `grant::spent` (`NotRecorded::Failed`), `reverse::unix_target::connect`, `pool` (the request of `/relays.json`), `forward_layer::offer`, `health` (`/health`), `blocking::bridge` (the thread of a session), `blocking` (the async runtime), `pod_tls::roots::add_file`, `env_bundle`. A line of an error that can hold an `io::Error` in a text of another type (`h2`, `quinn`, the HTTP road) goes through `pod_core::text::plain`.
+- Tests: `text::tests::io_words_drop_the_code_of_the_system_and_keep_its_words`, `text::tests::plain_drops_each_code_in_the_text_and_no_other_bracket` (`crates/pod-core/src/text.rs`), `grant::tests::a_grant_file_that_is_not_there_shows_the_words_of_the_system_alone`.
+- The plant `scripts/plants/ssh367-t1421-io-words-keeps-code.plant` makes `io_words` keep the suffix: the table fails.
+
+# T-1422: `pod-relay`: the line of a mint that gave no answer says "Connection reset by peer (os error 104)"
+
+**Source:** PodUtils/podssh#367 (COORD-154 of podssh), ask 2; PodUtils/podssh@T-1009; author MEMBER.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The text of the ask: "`cleartext.rs`, `post`: the mint's failure is worded `({cut}: {e})`, e.g. 'the mint gave no answer (reset: Connection reset by peer (os error 104))'. Same ask." (the rule of T-1421.)
+
+## Premise
+
+- Read: `crates/pod-relay/src/cleartext.rs` (`post`: `Cut::words()` and the `io::Error` in one line).
+
+## Approach
+
+1. `cleartext::no_answer(&io::Error)` words the line with `pod_core::text::io_words`.
+2. Test: a reset with code 104 gives "Connection reset by peer" and no "os error". A plant: the line shows the error by `to_string`.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features cleartext
+sh scripts/plant-each.sh ssh367-t1422-mint-line-keeps-code
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1422.
+
+- `cleartext::no_answer` (private): "the mint gave no answer (reset: Connection reset by peer): a hop may cut cleartext". The other lines of `pod-relay` that show an `io::Error` are in the Done section of T-1421.
+- Test: `cleartext::tests::a_mint_that_was_cut_shows_the_words_of_the_system_with_no_code`.
+- The plant `scripts/plants/ssh367-t1422-mint-line-keeps-code.plant` shows the error by `to_string`: the test fails.
+
+# T-1423: `pod-tls`: the error of a CA bundle names the path twice ("CA bundle /x: /x: No such file or directory")
+
+**Source:** PodUtils/podssh#367 (COORD-154 of podssh), ask 3; PodUtils/podssh@T-1011; author MEMBER.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The text of the ask: "`bundle.rs` `load_bundle` puts `PATH:` before the error, and `error.rs` `Error::Bundle` adds `CA bundle PATH:` again, so a missing `--ca-file` read 'CA bundle /x: /x: No such file or directory'. Ask: one of them drops the path."
+
+## Premise
+
+- Read: `crates/pod-tls/src/bundle.rs` (`load_bundle`, `parse_bundle`), `crates/pod-tls/src/trust.rs` (`roots_from_bundle` makes `Error::Bundle { path, why }` from the string of `load_bundle`), `crates/pod-tls/src/error.rs` (`Error::Bundle` shows the path).
+- `load_bundle` and `parse_bundle` are public and name the path (a doctor reads them alone): they stay as they are.
+
+## Approach
+
+1. `bundle::read_certificates(path)` (crate-private) reads and parses with no path in its error, and a read error in `io_words`. `load_bundle` adds the path to it.
+2. `roots_from_bundle` uses `read_certificates`, so `Error::Bundle` names the path once.
+3. The lines of `roots::add_file` and `env_bundle` use `io_words`.
+4. Tests: the line of a missing bundle holds the path once and no "os error". A plant: `read_certificates` names the path again.
+
+## Prove
+
+```sh
+cargo test -p pod-tls --all-features --test bundle
+sh scripts/plant-each.sh ssh367-t1423-bundle-path-twice
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1423.
+
+- "CA bundle /x: /x: No such file or directory (os error 2)" is now "CA bundle /x: No such file or directory". `load_bundle` and `parse_bundle` keep their text, with no code of the system.
+- `roots::add_file` and `env_bundle` show a read error with `io_words`.
+- Test: `a_missing_ca_bundle_line_names_the_path_once_with_no_os_code` (`crates/pod-tls/tests/bundle.rs`).
+- The plant `scripts/plants/ssh367-t1423-bundle-path-twice.plant` puts the path in the error of `read_certificates`: the test fails.

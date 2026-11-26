@@ -136,7 +136,7 @@ impl Added {
 /// cannot use as a root is skipped with a warning; a file that cannot be
 /// read or parsed is an error, and adds no root.
 fn add_file(store: &mut RootCertStore, path: &Path) -> Result<Added, String> {
-    let pem = std::fs::read(path).map_err(|e| format!("reading the file: {e}"))?;
+    let pem = std::fs::read(path).map_err(|e| format!("reading the file: {}", pod_core::text::io_words(&e)))?;
     let certs = bundle::pem_certificates(&pem).map_err(|why| format!("parsing the PEM: {why}"))?;
     Ok(add_each(store, certs, path))
 }

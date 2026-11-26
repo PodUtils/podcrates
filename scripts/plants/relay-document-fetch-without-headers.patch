@@ -1,8 +1,8 @@
 diff --git a/crates/pod-relay/src/forward_layer/offer.rs b/crates/pod-relay/src/forward_layer/offer.rs
-index 5e4a71d..1753148 100644
+index 993db16c..8964fe82 100644
 --- a/crates/pod-relay/src/forward_layer/offer.rs
 +++ b/crates/pod-relay/src/forward_layer/offer.rs
-@@ -131,7 +131,7 @@ where
+@@ -183,7 +183,7 @@ where
      S: AsyncRead + AsyncWrite + Unpin,
  {
      let mut accept = vec![("Accept", "application/json")];
@@ -12,7 +12,7 @@ index 5e4a71d..1753148 100644
      let response = http::exchange(stream, user_agent, "GET", host_header, "/relays.json", &accept, b"", max)
          .await
 diff --git a/crates/pod-relay/src/pool.rs b/crates/pod-relay/src/pool.rs
-index 2a9161d..ee7dd09 100644
+index 0dbbfcbf..667c5642 100644
 --- a/crates/pod-relay/src/pool.rs
 +++ b/crates/pod-relay/src/pool.rs
 @@ -264,7 +264,7 @@ where
@@ -23,4 +23,4 @@ index 2a9161d..ee7dd09 100644
 +    let _ = extra;
      let response = http::exchange(stream, user_agent, "GET", host_header, "/relays.json", &accept, b"", MAX_BODY)
          .await
-         .map_err(|e| format!("the pool request failed: {e}"))?;
+         .map_err(|e| format!("the pool request failed: {}", pod_core::text::io_words(&e)))?;

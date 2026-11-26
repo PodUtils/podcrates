@@ -267,7 +267,10 @@ async fn up(mut to: WriteHalf<BoxIo>, mut from_app: ReadHalf<DuplexStream>, ende
             } => wrote,
         };
         if let Err(e) = wrote {
-            return ended.set_once(End::Failed(format!("the connection of the HTTP road's one-POST form failed: {e}")));
+            return ended.set_once(End::Failed(format!(
+                "the connection of the HTTP road's one-POST form failed: {}",
+                pod_core::text::plain(&e.to_string())
+            )));
         }
         if fin {
             return ended.wait().await;

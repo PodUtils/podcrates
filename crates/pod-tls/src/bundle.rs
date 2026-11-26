@@ -24,8 +24,15 @@ use rustls_pki_types::CertificateDer;
 /// deployment that cannot find its trust store cannot be diagnosed from "TLS
 /// failed".
 pub fn load_bundle(path: &Path) -> Result<Vec<CertificateDer<'static>>, String> {
-    let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    parse_bundle(path, &bytes)
+    read_certificates(path).map_err(|why| format!("{}: {why}", path.display()))
+}
+
+/// [`load_bundle`] with no path in its error, for a caller that names the
+/// path itself ([`crate::Error::Bundle`]). A read error has the system's
+/// words alone.
+pub(crate) fn read_certificates(path: &Path) -> Result<Vec<CertificateDer<'static>>, String> {
+    let bytes = std::fs::read(path).map_err(|e| pod_core::text::io_words(&e))?;
+    certificates_of(&bytes)
 }
 
 /// **The count is checked, not dropped.** "Loaded 0 certificates" is a
@@ -34,9 +41,13 @@ pub fn load_bundle(path: &Path) -> Result<Vec<CertificateDer<'static>>, String> 
 /// bundle — an empty `RootCertStore` would reject every chain with a message
 /// that looks like a network fault.
 pub fn parse_bundle(path: &Path, bytes: &[u8]) -> Result<Vec<CertificateDer<'static>>, String> {
-    let certs = pem_certificates(bytes).map_err(|why| format!("{}: {why}", path.display()))?;
+    certificates_of(bytes).map_err(|why| format!("{}: {why}", path.display()))
+}
+
+fn certificates_of(bytes: &[u8]) -> Result<Vec<CertificateDer<'static>>, String> {
+    let certs = pem_certificates(bytes)?;
     if certs.is_empty() {
-        return Err(format!("{}: parsed as PEM but held no CERTIFICATE block", path.display()));
+        return Err("parsed as PEM but held no CERTIFICATE block".into());
     }
     Ok(certs)
 }

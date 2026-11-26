@@ -1,0 +1,13 @@
+diff --git a/crates/pod-relay/src/cleartext.rs b/crates/pod-relay/src/cleartext.rs
+index f9131edb..8a93bdf1 100644
+--- a/crates/pod-relay/src/cleartext.rs
++++ b/crates/pod-relay/src/cleartext.rs
+@@ -196,7 +196,7 @@ async fn mint_once(ctx: &Context, relay: &Relay, step: Duration) -> Result<Zeroi
+ /// the system with no code.
+ fn no_answer(e: &std::io::Error) -> String {
+     let cut = pod_proxy::Cut::of(e.kind()).words();
+-    format!("the mint gave no answer ({cut}: {}): a hop may cut cleartext", pod_core::text::io_words(e))
++    format!("the mint gave no answer ({cut}: {}): a hop may cut cleartext", e)
+ }
+ 
+ /// `POST /v1/mint?once=1` with `body`, in cleartext, within `step`.

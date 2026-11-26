@@ -150,7 +150,8 @@ fn add_extra(roots: &mut RootCertStore, sources: &mut Vec<String>, path: &Path) 
 
 /// The roots of the PEM file at `path`, alone.
 pub fn roots_from_bundle(path: &Path) -> Result<TlsRoots, Error> {
-    let certs = bundle::load_bundle(path).map_err(|why| Error::Bundle { path: path.display().to_string(), why })?;
+    let certs =
+        bundle::read_certificates(path).map_err(|why| Error::Bundle { path: path.display().to_string(), why })?;
     let offered = certs.len();
     let mut roots = RootCertStore::empty();
     // `add_parsable_certificates` returns `(valid, invalid)` counts. A

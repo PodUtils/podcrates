@@ -1,0 +1,13 @@
+diff --git a/crates/pod-tls/src/trust.rs b/crates/pod-tls/src/trust.rs
+index 192c69d4..72a9fee7 100644
+--- a/crates/pod-tls/src/trust.rs
++++ b/crates/pod-tls/src/trust.rs
+@@ -151,7 +151,7 @@ fn add_extra(roots: &mut RootCertStore, sources: &mut Vec<String>, path: &Path)
+ /// The roots of the PEM file at `path`, alone.
+ pub fn roots_from_bundle(path: &Path) -> Result<TlsRoots, Error> {
+     let certs =
+-        bundle::read_certificates(path).map_err(|why| Error::Bundle { path: path.display().to_string(), why })?;
++        bundle::load_bundle(path).map_err(|why| Error::Bundle { path: path.display().to_string(), why })?;
+     let offered = certs.len();
+     let mut roots = RootCertStore::empty();
+     // `add_parsable_certificates` returns `(valid, invalid)` counts. A

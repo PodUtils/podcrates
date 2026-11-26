@@ -40,8 +40,10 @@ pub fn env_bundle(get: impl Fn(&str) -> Option<String>) -> (Option<EnvBundle>, V
         let path = PathBuf::from(&value);
         let why = match std::fs::metadata(&path) {
             Ok(m) if !m.is_file() => Some(format!("{value} is not a file")),
-            Ok(_) => std::fs::File::open(&path).err().map(|e| format!("{value} cannot be read: {e}")),
-            Err(e) => Some(format!("{value} cannot be read: {e}")),
+            Ok(_) => std::fs::File::open(&path)
+                .err()
+                .map(|e| format!("{value} cannot be read: {}", pod_core::text::io_words(&e))),
+            Err(e) => Some(format!("{value} cannot be read: {}", pod_core::text::io_words(&e))),
         };
         match why {
             Some(why) => passed.push(Passed { var, why }),

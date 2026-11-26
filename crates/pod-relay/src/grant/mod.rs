@@ -72,7 +72,7 @@ pub fn read_file(path: &Path) -> Result<Cert, String> {
     if looks_like_url(&path.to_string_lossy()) {
         return Err(format!("{shown}: a grant is a file, never a URL: it goes in the end-to-end channel alone"));
     }
-    let meta = std::fs::metadata(path).map_err(|e| format!("{shown}: {e}"))?;
+    let meta = std::fs::metadata(path).map_err(|e| format!("{shown}: {}", pod_core::text::io_words(&e)))?;
     if !meta.is_file() {
         return Err(format!("{shown} is not a regular file"));
     }
@@ -80,7 +80,7 @@ pub fn read_file(path: &Path) -> Result<Cert, String> {
     if meta.len() > (4 * MAX_GRANT) as u64 {
         return Err(format!("{shown} is larger than a grant can be"));
     }
-    let text = std::fs::read_to_string(path).map_err(|e| format!("{shown}: {e}"))?;
+    let text = std::fs::read_to_string(path).map_err(|e| format!("{shown}: {}", pod_core::text::io_words(&e)))?;
     Cert::from_text(&text).map_err(|why| format!("{shown}: {why}"))
 }
 
@@ -106,5 +106,12 @@ mod tests {
         }
         let refused = read_file(Path::new("https://relay.example/grant")).unwrap_err();
         assert!(refused.contains("never a URL"), "{refused}");
+    }
+
+    #[test]
+    fn a_grant_file_that_is_not_there_shows_the_words_of_the_system_alone() {
+        let line = read_file(Path::new("/nonexistent/grant-cert.pub")).unwrap_err();
+        assert!(line.starts_with("/nonexistent/grant-cert.pub: "), "{line}");
+        assert!(!line.contains("os error"), "{line}");
     }
 }

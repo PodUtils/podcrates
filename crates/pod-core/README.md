@@ -18,7 +18,7 @@ this crate depends on no other pod crate.
 | `lock` | `FileLock` (`try_lock`, `try_lock_existing`, `lock_within`, `lock_until`, `path`, `mode`, `file`) and `Mode`: an advisory lock of a file for the life of a value, `flock(2)` on Unix and `LockFileEx` on Windows, with no link at the last component, close-on-exec, an unlock at the drop (a copy of the descriptor in a child before its exec does not keep the lock), and a bounded wait whose refusal names the file |
 | `backoff` | `backoff(retry)`, `CONNECT_TIMEOUT` |
 | `clock` | `Clock` (the monotonic time and the wall clock, which a test can plant), `SystemClock`, `ManualClock`; the hint of a refused certificate, HTTP dates, the wait of a `Retry-After` (`retry_after_secs`, `retry_after`), `utc_minutes`, `rfc3339` |
-| `text` | `one_line`, `multi_line`: text of a peer, safe to print |
+| `text` | `one_line`, `multi_line`: text of a peer, safe to print; `plain`, `io_words(&io::Error)`: the words of the system with no ` (os error N)`, for a line that a user reads (T-1421) |
 | `names` | the checks of a host, a target and a node name |
 | `sockopt` | `shut_needs_no_limit`: the `EINVAL` of a socket option on a socket that the peer shut (macOS) is no failure, as a read of it cannot wait |
 
