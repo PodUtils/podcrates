@@ -39,7 +39,9 @@ is done. Git and the record keep finished work.
      T-1399 to T-1403), PodUtils/podssh#361 (COORD-151, T-1405),
      PodUtils/podssh#362 (COORD-152, T-1406 to T-1410), PodUtils/podssh#363
      (COORD-153, T-1411, T-1412; ask 3 is T-1413, optional) and
-     PodUtils/podnet#758 (COORD-128, T-1404). Answer each with the next tag.
+     PodUtils/podnet#758 (COORD-128, T-1404), PodUtils/podnet#776
+     (COORD-131, T-1416). Answer each with the next tag.
+   - In work: PodUtils/podssh#367 (COORD-154; a worker writes its entries).
    - Open asks: PodUtils/podssh#358 (COORD-148) is T-1390;
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -132,6 +134,24 @@ closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
   each with `size=N` and reads the limit back (steps 49 to 52). Breaking:
   each struct literal of `Plan` adds `tmpfs: Vec::new()`. T-1430 (a rule of
   the confinement on such a tmpfs) is open.
+- T-1474 (`pod-dns`, PodUtils/podnet#753 again): the bound of the line
+  of a name that does not resolve counts the name: the whole line
+  ("could not resolve HOST: " and the failures) has at most 206 bytes
+  (`order::LINE`), the failures keep at least 112 (`LEAST`). Each cause of
+  the two rows of #753 is whole again. Call C973: podnet's `bench` line
+  can pass its 300 bytes by a few bytes in the worst case; podnet can drop
+  its own "connecting to HOST:PORT: " before the words of `pod-dns`.
+- T-1416 (`pod-link`, PodUtils/podnet#776): `loopback::tcp_available`
+  names each family when both binds fail ("127.0.0.1: Permission denied
+  (os error 13); ::1: no IPv6 on this host"); the kind stays
+  `Unavailable`; `mail::tcp_available` is gone (one copy).
+- T-1414 (Dependabot #264 to #271): coturn 4.19.2, Mosquitto 2.1.4,
+  TruffleHog 3.100.0, `actions/setup-go` v7.1.0, `docker/login-action`
+  v4.8.0, eight cargo updates and `saphyr-parser` 0.4.1; `rand` 0.10 of
+  `vendor/h2` and `simple-dns` 0.13 declined (T-1484: iroh 1.5).
+  `.cargo/config.toml` has `incompatible-rust-versions = "allow"`, so the
+  lock takes the newest version of each range (windows-sys 0.61, syn 3,
+  thiserror 2, indexmap 2, getrandom 0.4 in the lock).
 - T-1405 (`pod-relay`, PodUtils/podssh#361): a dropped
   `reverse::operator::exchange` aborts its two tasks, so the leg closes its
   socket and its local stream at once.
