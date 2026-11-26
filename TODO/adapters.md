@@ -2827,7 +2827,7 @@ sh scripts/plant-each.sh cloudflare-discovery-with-no-limit
 **Milestone:** M3
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2843,12 +2843,16 @@ The asks: (1) "A capture sink that the consumer gives in `Config` (or in the `Ho
 
 ## Approach
 
-A new public module `capture`: the trait `Capture` (`head`, `body`, `end`), `Direction`, `Head`, `End` and `Refused`. `Host::capture` (`Option<Arc<dyn Capture>>`, `None` in `Host::new`) goes to `Origins::with_capture` in `Runtime::build`; `forward_http` takes it from `Origins`, so its signature stays. One exchange gets an id from a counter of `Origins`; a `Tap` of the crate joins the head, the body parts and the end. The sink is a non-blocking call (not a bounded hand-off of the crate): each method returns at once, and the crate calls it after the write to the peer; an `Err` drops the sink for that exchange, and the copy goes on. The request head is the head that went to the origin; a chunked request body is decoded for the sink only (the origin gets it as it is). An upgrade gives its heads and no body. The answer of `proxy_bidi` that is not an upgrade takes the same framing as `forward_http` (the chunks decoded). Tests use a stand-in origin; a plant calls the sink before the write.
+A new public module `capture`: the trait `Capture` (`head`, `body`, `end`), `Direction`, `Head`, `End` and `Refused`. `Host::capture` (`Option<Arc<dyn Capture>>`, `None` in `Host::new`) goes to `Origins::with_capture` in `Runtime::build`; `forward_http` takes it from `Origins`, so its signature stays. One exchange gets an id from a counter of `Origins`; a `Tap` of the crate joins the head, the body parts and the end. The sink is a non-blocking call (not a bounded hand-off of the crate): each method returns at once, and the crate calls it after the write to the peer; an `Err` drops the sink for that exchange, and the copy goes on. The request head is the head that went to the origin; a chunked request body is decoded for the sink only (the origin gets it as it is). An upgrade gives its heads and no body. The answer of `proxy_bidi` that is not an upgrade takes the same framing as `forward_http` (the chunks decoded). Tests use a stand-in origin; a plant calls the sink before the write, and a plant sends the answer to a chunked request with no framing.
 
 ## Prove
 
 ```sh
 cargo test -p pod-cloudflare --all-features
 cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings
-sh scripts/plant-each.sh cloudflare-capture-before-the-write
+sh scripts/plant-each.sh cloudflare-capture-before-the-write cloudflare-chunked-request-answer-unframed
 ```
+
+## Done
+
+2026-11-25. Commit: see `git log` for T-1404. New public module `capture`: the trait `Capture` (`head(exchange, &Head)`, `body(exchange, Direction, &[u8])`, `end(exchange, &End)`), `Direction` (`Request`, `Response`), `Head` (`line`, `headers`; `direction()`, `header(name)`), `Line` (`Request { method, target }`, `Response { status }`), `End` (`status`, `started`, `elapsed`, `complete`) and `Refused`. `Host::capture: Option<Arc<dyn Capture>>` (`None` in `Host::new`) goes to `Origins::with_capture` in `Runtime::build`; `forward_http` keeps its signature. The sink is a non-blocking call with no queue in the crate: each method returns at once (a ring under a short lock, a `try_send`), and the crate calls it after the write (and the flush) to the peer. `Refused` drops the sink for that exchange: no other call and no end; the copy goes on with the same bytes. `Origins` gives each exchange an id from a counter; the crate-side `capture::Tap` joins the heads, the body parts and the end, and gives the end in its drop, once, after each other call. The request head is the head that went to the origin (`Head::of_request` of `build_request_head`): a request that the credential in front of the tunnel refuses (401) reaches no sink, and its `Authorization` is removed before; the headers of the visitor stay, and the doc of `capture` says that the consumer redacts. A chunked answer gives its decoded payload; a chunked request body is decoded for the sink only (`capture::Dechunk`, which takes the bytes in parts; a bad framing stops the capture, not the copy). An upgrade gives its two heads (101) and no body. Fixed in the same work: the answer to a chunked request (`proxy_bidi` with no upgrade) went to the visitor as raw bytes, so a chunked answer gave its size lines to the visitor; `forward_http` and `proxy_bidi` now share `answer`, which frames the answer the same way in both. Tests: `proxy::capture_tests::the_sink_sees_each_exchange` (a stand-in origin: a plain exchange with a request body, a chunked answer, a chunked request with a chunked answer, a WebSocket; each head, each payload, one end with the status, an id for each exchange), `a_sink_that_refuses_does_not_change_the_bytes`, `the_credential_of_the_tunnel_never_reaches_the_sink`, `the_sink_gets_a_part_after_the_visitor`; `capture::dechunk::tests` (3). New plants `cloudflare-capture-before-the-write` (the sink before the write of an answer part) and `cloudflare-chunked-request-answer-unframed` (the old raw answer to a chunked request): each test failed on its patch with the EXPECT line (run by hand in the worktree). `cargo test -p pod-cloudflare --all-features`: 216 + 13 passed, 0 failed. `cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings` and `cargo fmt --all --check`: clean. Not verified: the capture behind the real edge, and podnet's ring on the sink.

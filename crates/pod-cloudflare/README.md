@@ -101,7 +101,8 @@ Each variable of a consumer is a field (`docs/design.md`, section 1, rule
 * The plants of the group `cloudflare` (`scripts/plants/cloudflare-*`):
   the bound check of a list of Cap'n Proto, `noTLSVerify` with no
   configuration, the relay on a leg other than `http2+relay`, the sink
-  of the capture called before the write to the visitor.
+  of the capture called before the write to the visitor, the answer to a
+  chunked request with no framing.
 * The fuzz targets of `fuzz/` (`fuzz/README.md`).
 
 ## The parity list
