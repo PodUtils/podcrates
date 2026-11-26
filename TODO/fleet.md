@@ -9957,7 +9957,7 @@ sh scripts/plant-each.sh unit-t1521-probe-keeps-code
 **Milestone:** M8
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -9998,3 +9998,18 @@ python3 -I scripts/check-schemas.py
 ```
 
 ## Done
+
+2026-11-26, this commit. `pod_job::UnitFields` has `limits:
+Option<UnitLimits>`; `pod_job::UnitLimits` has `memory_bytes`, `cpus`,
+`pids` and `disk_bytes`, each `Option<u64>`, absent on the wire when
+`None` (a `null` reads as absent), with `deny_unknown_fields`. The doc
+names podrunner T-198 and that a kind can give more than the offer. The
+public report does not change. `schemas/run-report.v1.schema.json`
+written again; the id stays `v1`, with one row `added` (`next`) in
+`schemas/CHANGES.md`. New examples:
+`crates/pod-job/tests/examples/run-report/valid-unit-limits.json`, and
+the invalid `invalid-unit-limits-negative.json` and
+`invalid-unit-limits-extra.json`. New test
+`report::tests::the_limits_of_a_unit_read_null_as_absent_and_write_back_without_it`.
+`cargo test -p pod-job --all-features`: 33 passed; clippy clean;
+`python3 -I scripts/check-schemas.py --no-fetch`: 13 schemas agree.

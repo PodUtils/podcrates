@@ -856,6 +856,17 @@
         "egress_hold": {
           "$ref": "#/$defs/EgressHold"
         },
+        "limits": {
+          "description": "The limits that the driver applied to the unit.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UnitLimits"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "payload": {
           "description": "The digest of the payload.",
           "type": "string"
@@ -912,6 +923,49 @@
     "UnitId": {
       "type": "string",
       "pattern": "^u-[0-9]{1,20}$"
+    },
+    "UnitLimits": {
+      "description": "The limits that the driver applied to a unit, not the values of the\noffer. A unit gets the lesser of the limits of its kind and of its offer\n(podrunner T-198), but a kind can give more than the offer: a guest of a\nvirtual machine needs its root in memory. A limit that the unit did not\nhave is absent (or `null`).",
+      "type": "object",
+      "properties": {
+        "cpus": {
+          "description": "The CPUs of the unit.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "disk_bytes": {
+          "description": "The disk of the unit, in bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "memory_bytes": {
+          "description": "The memory of the unit, in bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "pids": {
+          "description": "The processes of the unit.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
     },
     "UnitStart": {
       "description": "How a unit started (G-25 of githome).",
