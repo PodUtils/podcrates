@@ -1,0 +1,12 @@
+diff --git a/crates/pod-manual/src/pager.rs b/crates/pod-manual/src/pager.rs
+--- a/crates/pod-manual/src/pager.rs
++++ b/crates/pod-manual/src/pager.rs
+@@ -160,7 +160,7 @@
+             Err(_) => {
+                 let _ = page(text, rows - 1, keys, out, err);
+             }
+-            Ok(end) if end.failed() => {
++            Ok(end) if end.failed() && end.read_all => {
+                 // A pager that a setting names wrongly must not hide the
+                 // text: say so, then write the text as with no pager.
+                 let _ = writeln!(err, "{}", end.words(&cmd[0]));

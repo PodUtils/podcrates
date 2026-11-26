@@ -1,0 +1,6 @@
+# pod-manual: a pager program that fails before it read the text leaves the text unshown (T-1412); the test of PAGER=false must fail.
+ENTRY=T-1412
+GROUP=manual
+EXPECT='test pager::tests::pager_false_writes_the_text_with_no_pager_after_one_line \.\.\. FAILED'
+RUN='cargo test -p pod-manual --all-features --lib pager::tests::pager_false_writes_the_text_with_no_pager_after_one_line -- --exact'
+LIMIT=900

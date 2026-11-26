@@ -130,6 +130,75 @@ fn a_pager_gets_the_whole_text_on_its_stdin() {
     let _ = std::fs::remove_file(&file);
 }
 
+/// A stand-in for `PAGER=false`: a program that ends with exit 1 at once.
+fn fails_at_once() -> Vec<OsString> {
+    if cfg!(windows) { vec!["cmd".into(), "/C".into(), "exit 1".into()] } else { vec!["false".into()] }
+}
+
+/// A program that ends with a failure before it read the text is a failed
+/// pager, with its status; also with more text than a pipe holds.
+#[test]
+fn a_pager_that_fails_at_once_is_a_failed_pager() {
+    let _one = SIGNALS.lock().unwrap_or_else(|e| e.into_inner());
+    for text in [lines(3), lines(100_000)] {
+        let end = run_program(&fails_at_once(), &text).unwrap();
+        assert_eq!(end.status.code(), Some(1));
+        assert!(!end.read_all);
+        assert!(end.failed());
+        assert_eq!(
+            end.words(std::ffi::OsStr::new("false")),
+            "The pager false failed (exit 1). The text follows with no pager."
+        );
+    }
+}
+
+/// The control: a program that read all of the text is no failed pager,
+/// whatever its status. Only the status is told then.
+#[cfg(unix)]
+#[test]
+fn a_pager_that_read_all_of_the_text_did_not_fail() {
+    let _one = SIGNALS.lock().unwrap_or_else(|e| e.into_inner());
+    let cmd: Vec<OsString> = vec!["sh".into(), "-c".into(), "cat >/dev/null; exit 3".into()];
+    let end = run_program(&cmd, &lines(10_000)).unwrap();
+    assert_eq!(end.status.code(), Some(3));
+    assert!(end.read_all);
+    assert!(!end.failed());
+}
+
+/// `PAGER=false` on a terminal: one line on stderr names the pager and its
+/// status, and the whole text follows on stdout.
+#[cfg(unix)]
+#[test]
+fn pager_false_writes_the_text_with_no_pager_after_one_line() {
+    let _one = SIGNALS.lock().unwrap_or_else(|e| e.into_inner());
+    let text = lines(PAGE_LINES * 3);
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    show_with(&text, &env(Some("false"), Some("xterm"), true, false), &mut Cursor::new(Vec::new()), &mut out, &mut err);
+    assert_eq!(String::from_utf8(out).unwrap(), text);
+    assert_eq!(String::from_utf8(err).unwrap(), "The pager false failed (exit 1). The text follows with no pager.\n");
+}
+
+/// The control: a pager that reads all of the text and ends with success
+/// gets no line, and the text is not written a second time.
+#[cfg(unix)]
+#[test]
+fn a_pager_that_reads_all_of_the_text_gets_no_line() {
+    let _one = SIGNALS.lock().unwrap_or_else(|e| e.into_inner());
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    let pager = env(Some("sort -o /dev/null"), Some("xterm"), true, false);
+    show_with(&lines(PAGE_LINES * 3), &pager, &mut Cursor::new(Vec::new()), &mut out, &mut err);
+    assert!(out.is_empty());
+    assert!(err.is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn a_status_is_told_as_its_exit_code_or_its_signal() {
+    use std::os::unix::process::ExitStatusExt as _;
+    assert_eq!(status_words(std::process::ExitStatus::from_raw(1 << 8)), "exit 1");
+    assert_eq!(status_words(std::process::ExitStatus::from_raw(9)), "signal 9");
+}
+
 /// A program holds SIGINT and SIGQUIT with `Interrupts` while its own child
 /// (an editor) reads the terminal; the drop puts back each action.
 #[cfg(unix)]

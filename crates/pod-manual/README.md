@@ -25,8 +25,9 @@ the code, the parser and the files of the repository fails a test.
 | `sections::sections`, `sections::find` | the sections of the page: each command, topic and table of facts |
 | `help::request(manual, args)`, `help::render`, `help::answer` | `CLI --help`, `CLI COMMAND --help`, `CLI help COMMAND`, and `--json` |
 | `Request`, `body`, `run` | `CLI man [SECTION...] [--no-pager \| --roff \| --json]`, through the pager |
-| `pager::{Tty, PagerEnv, choose, show, page, variables, find_program, SOURCE}` | the pager, and its variables as facts; `find_program` is `program::find` with no extension of `PATHEXT` |
+| `pager::{Tty, PagerEnv, choose, show, show_with, page, variables, find_program, SOURCE}` | the pager, and its variables as facts; `find_program` is `program::find` with no extension of `PATHEXT` |
 | `program::{find, names, extensions, is_path, runnable, PATHEXT_DEFAULT}` | the lookup of a program in a search path, as a shell finds it; on Windows a name with no extension also matches each extension of `PATHEXT` (`.COM;.EXE;.BAT;.CMD` when it is not set). The caller gives `PATH` and `PATHEXT`; `pod-testkit` (`host::tool`) and the pager use it |
+| `pager::{run_program, Paged, status_words}` | a pager program with the text on its stdin: its exit status, whether it read all of the text (`Paged::failed`), and the line of a failed pager (`Paged::words`) |
 | `pager::Interrupts::ignore()` | SIGINT and SIGQUIT ignored until the value drops, then each action put back: for a child that reads the terminal (a pager, an editor) |
 | `rules::{faults, char_faults, work_ids, sentences, words, Kind, Fault}` | the text rules |
 | `check::{texts, generated, variables, exit_codes, flags, model, help, examples, assert_none, Finding}` | the checks that a program calls from its tests |
@@ -40,6 +41,14 @@ is the text with no `--no-pager`. It takes `PAGER` when it is set (empty or
 `cat`: no pager); else `less` where a probe of `PATH` finds it and `TERM`
 names a terminal that is not `dumb`; else the built-in pager of this crate
 (call C682). It starts no other program. It needs no dynamic library.
+
+`pager::run_program` gives a `Paged`: the exit status of the program, and
+whether it read all of the text (a second read end of the pipe counts the
+bytes that stay; off Unix only a success counts as all read). When the
+program ends with a failure before it read all of the text (`PAGER=false`),
+`show_with` writes one line on stderr, "The pager NAME failed (exit N). The
+text follows with no pager.", and then the text on stdout. A program that
+does not start falls back to the built-in pager.
 
 ## The text rules
 

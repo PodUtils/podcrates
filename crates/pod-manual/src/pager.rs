@@ -11,9 +11,11 @@
 //!    the host.
 //!
 //! No other program is tried. A program that does not start falls back to
-//! the built-in pager. A pager program gets the text on its stdin and
-//! writes to the terminal itself; the built-in pager writes the text to
-//! stdout and its prompt to stderr.
+//! the built-in pager. A program that ends with a failure before it read
+//! all of the text (`PAGER=false`) gets one line on stderr, and the text
+//! follows on stdout with no pager. A pager program gets the text on its
+//! stdin and writes to the terminal itself; the built-in pager writes the
+//! text to stdout and its prompt to stderr.
 
 use std::ffi::OsString;
 use std::io::{BufRead, Write};
@@ -154,11 +156,20 @@ pub fn show_with(text: &str, env: &PagerEnv, keys: &mut dyn BufRead, out: &mut d
             let _ = out.write_all(text.as_bytes());
             let _ = out.flush();
         }
-        Choice::Program(cmd) => {
-            if run_program(&cmd, text).is_err() {
+        Choice::Program(cmd) => match run_program(&cmd, text) {
+            Err(_) => {
                 let _ = page(text, rows - 1, keys, out, err);
             }
-        }
+            Ok(end) if end.failed() => {
+                // A pager that a setting names wrongly must not hide the
+                // text: say so, then write the text as with no pager.
+                let _ = writeln!(err, "{}", end.words(&cmd[0]));
+                let _ = err.flush();
+                let _ = out.write_all(text.as_bytes());
+                let _ = out.flush();
+            }
+            Ok(_) => {}
+        },
         Choice::BuiltIn => {
             let _ = page(text, rows - 1, keys, out, err);
         }
@@ -180,28 +191,102 @@ fn terminal_rows() -> Option<usize> {
     None
 }
 
+/// How a pager program ended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Paged {
+    /// The exit status of the program.
+    pub status: std::process::ExitStatus,
+    /// Whether the program read all of the text before it ended. Off Unix
+    /// the bytes that stay in the pipe cannot be counted: then it is `true`
+    /// only when the program ended with success.
+    pub read_all: bool,
+}
+
+impl Paged {
+    /// The program ended with a failure before it read all of the text: the
+    /// text was not shown.
+    pub fn failed(&self) -> bool {
+        !self.status.success() && !self.read_all
+    }
+
+    /// The line that tells the user that the pager `program` failed.
+    pub fn words(&self, program: &std::ffi::OsStr) -> String {
+        format!(
+            "The pager {} failed ({}). The text follows with no pager.",
+            program.to_string_lossy(),
+            status_words(self.status)
+        )
+    }
+}
+
+/// "exit 1", or "signal 9" for a program that a signal stopped.
+pub fn status_words(status: std::process::ExitStatus) -> String {
+    if let Some(code) = status.code() {
+        return format!("exit {code}");
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt as _;
+        if let Some(signal) = status.signal() {
+            return format!("signal {signal}");
+        }
+    }
+    "no exit code".to_string()
+}
+
 /// Start `cmd` with `text` on its stdin and wait for it. `Err` only when it
-/// did not start. Ctrl-C belongs to the pager while it runs, so the program
-/// ignores it and does not leave the pager behind on the terminal.
-pub fn run_program(cmd: &[OsString], text: &str) -> std::io::Result<()> {
+/// did not start, or when its end could not be read. Ctrl-C belongs to the
+/// pager while it runs, so the program ignores it and does not leave the
+/// pager behind on the terminal.
+pub fn run_program(cmd: &[OsString], text: &str) -> std::io::Result<Paged> {
     let Some((program, args)) = cmd.split_first() else {
         return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "no pager program"));
     };
+    let (reader, mut writer) = std::io::pipe()?;
+    // A second read end, kept here: after the end of the program it counts
+    // the bytes that the program did not read.
+    let probe = reader.try_clone()?;
     let mut command = std::process::Command::new(program);
-    command.args(args).stdin(std::process::Stdio::piped());
+    command.args(args).stdin(reader);
     if std::env::var_os("LESS").is_none() {
         // Quit when the text fits one screen, pass control characters, and
         // leave the text on the screen at the end.
         command.env("LESS", "FRX");
     }
     let mut child = command.spawn()?;
+    // The command holds its copy of the read end until it drops.
+    drop(command);
     let _ignored = Interrupts::ignore();
-    if let Some(mut stdin) = child.stdin.take() {
-        // A pager that quits early closes its input: not an error.
-        let _ = stdin.write_all(text.as_bytes());
-    }
-    let _ = child.wait();
-    Ok(())
+    std::thread::scope(|scope| {
+        // The writer drops at the end of the thread: the end of the input.
+        let feed = scope.spawn(move || writer.write_all(text.as_bytes()).is_ok());
+        let status = child.wait();
+        let left = unread(&probe);
+        // With no read end left, a write that waits for room fails at once.
+        drop(probe);
+        let wrote = feed.join().unwrap_or(false);
+        let status = status?;
+        let read_all = match left {
+            Some(left) => wrote && left == 0,
+            None => status.success(),
+        };
+        Ok(Paged { status, read_all })
+    })
+}
+
+/// The bytes that wait in the pipe of `pipe`.
+#[cfg(unix)]
+fn unread(pipe: &std::io::PipeReader) -> Option<usize> {
+    use std::os::fd::AsRawFd as _;
+    let mut left: libc::c_int = 0;
+    // SAFETY: FIONREAD writes one int into the value that it gets.
+    let ok = unsafe { libc::ioctl(pipe.as_raw_fd(), libc::FIONREAD as _, &mut left) } == 0;
+    ok.then(|| usize::try_from(left).unwrap_or(0))
+}
+
+#[cfg(not(unix))]
+fn unread(_pipe: &std::io::PipeReader) -> Option<usize> {
+    None
 }
 
 /// SIGINT and SIGQUIT ignored while the value lives, then restored: while a
