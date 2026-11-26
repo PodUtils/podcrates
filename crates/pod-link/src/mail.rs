@@ -204,7 +204,7 @@ pub(crate) async fn wrap(
     let words = pod_tls::Words::new("pod-link");
     let tls = pod_tls::tls_over(io, name, config, bound, &words)
         .await
-        .map_err(|e| CarrierError::new(carrier, CarrierErrorKind::Io(io::ErrorKind::InvalidData), e.to_string()))?;
+        .map_err(|e| CarrierError::new(carrier, CarrierErrorKind::Io(io::ErrorKind::InvalidData), e.chain()))?;
     Ok(BufReader::new(Box::new(tls) as BoxIo))
 }
 

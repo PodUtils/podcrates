@@ -24,7 +24,7 @@ caller's.
 | `Settings` | `handshake_wait`, `silence`, `keepalive`, `first_packet_v4`, `first_packet_v6`, `max_streams`, `datagram_buffer`, `mtu_ceiling`; `first_packet(v6)`, `transport(v6)` (a `noq::TransportConfig`) |
 | `keys` | `ResetKey` (`noq::crypto::HmacKey`), `TokenKey` (`noq::crypto::HandshakeTokenKey`): HMAC-SHA-256 of 32 random bytes; `random()`, `from_entropy(&mut dyn pod_core::entropy::Entropy)` |
 | `endpoint` | `config()` (an `EndpointConfig` with a `ResetKey`), `server_config(crypto)` (a `ServerConfig` with a `TokenKey`), `on_socket(std UdpSocket, Option<ServerConfig>)`, `bind(addr)`, `system(v6)`, `server(config, addr)`, `over(Arc<dyn Datagrams>, Option<ServerConfig>)` |
-| `connect` | `tls(provider, roots, alpn)` (TLS 1.3 alone), `client_config(tls, &Settings, v6)`, `connect(&endpoint, addr, server_name, tls, &Settings)`, `handshake(&[addr], server_name, tls, &Settings)` (each address at once; the first that answers and its time) |
+| `connect` | `tls(provider, roots, alpn)` (TLS 1.3 alone), `client_config(tls, &Settings, v6)`, `connect(&endpoint, addr, server_name, tls, &Settings)`, `handshake(&[addr], server_name, tls, &Settings)` (each address at once; the first that answers and its time; else one failure with the chain of each address, and the typed cause of the last) |
 | `probe` | `RESERVED`, `PADDED`, `WAIT`, `packet(&dcid)`, `answers(datagram, &dcid)`, `probe(&[addr], wait)` |
 | `queued` | `Link` (async `send_to`, `recv_from`, `local_addr`), `QueuedDatagrams::{new, with_queue, counts}` (a `pod_core::Datagrams`), `SEND_QUEUE` |
 | `socket` | `DatagramSocket::new(Arc<dyn Datagrams>)`: noq's `AsyncUdpSocket` with a `UdpSender` for each task of noq |

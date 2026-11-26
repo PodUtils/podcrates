@@ -212,7 +212,7 @@ pub fn restore(
         // A cold boot after this one takes the store of the caller.
         let _ = std::fs::write(&plan.firmware_vars, &fresh_vars);
     }
-    loaded.map_err(|e| Cold::Failed { why: e.to_string() }.failure())
+    loaded.map_err(|e| Cold::Failed { why: e.chain() }.failure())
 }
 
 /// The files of the run from the state, the emulator, the load, and the

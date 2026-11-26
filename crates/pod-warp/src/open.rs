@@ -274,9 +274,14 @@ impl Warp {
 /// One failure of the doors that each failed, in order (none showed another
 /// key): the text of each, and the typed cause of the last one as the
 /// cause, so that a reader that joins the chain says each cause once. The
-/// stage and the class are the ones of the first door.
+/// class is the one of the first door. The stage is `Proxy` when the proxy
+/// on the way to any door failed ([`at_proxy`]): the chain keeps the root of
+/// the last door alone, so a reader that looks for a failure of the proxy
+/// in it (podssh's choice of HTTP/3) sees the proxy of each door here
+/// (PodUtils/podssh#360, ask 2). Else it is the stage of the first door.
 fn each_door_failed(failures: Vec<Failure>) -> Failure {
-    let (stage, class) = failures.first().map(|f| (f.stage, f.class)).expect("one door at least");
+    let (first, class) = failures.first().map(|f| (f.stage, f.class)).expect("one door at least");
+    let stage = if failures.iter().any(at_proxy) { Stage::Proxy } else { first };
     let n = failures.len();
     let mut text: Vec<String> = Vec::with_capacity(n);
     let mut cause = None;
@@ -295,6 +300,19 @@ fn each_door_failed(failures: Vec<Failure>) -> Failure {
         Some(cause) => Failure::caused(stage, class, text, cause),
         None => Failure::new(stage, class, text),
     }
+}
+
+/// Whether the chain of `failure` holds a failure at the stage `Proxy`: the
+/// proxy on the way to the door failed, not the door.
+fn at_proxy(failure: &Failure) -> bool {
+    let mut next: Option<&(dyn std::error::Error + 'static)> = Some(failure);
+    while let Some(e) = next {
+        if e.downcast_ref::<Failure>().is_some_and(|f| f.stage == Stage::Proxy) {
+            return true;
+        }
+        next = e.source();
+    }
+    false
 }
 
 /// One failure of the doors of the record read again after `err` (a key that

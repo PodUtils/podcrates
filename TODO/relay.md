@@ -7299,7 +7299,6 @@ takes the new context of `one.rs`. `cargo test -p pod-relay
 --all-features -- -D warnings`, the check of Windows and of macOS:
 clean.
 
-
 # T-561: `pod-wg`: the preshared key of a handshake (PodUtils/podnet#547)
 
 **Source:** PodUtils/podnet#547 (COORD-076 of podnet), ask 2; it blocks PodUtils/podnet@T-337.
@@ -8981,7 +8980,6 @@ cargo test --release -p pod-link --all-features --test measure -- --ignored --no
 cargo test -p pod-link --all-features
 ```
 
-
 # T-801: `pod-relay`: a link of the resumable layer over the HTTP road, where the way refuses the upgrade of a link (PodUtils/podssh#287)
 
 **Source:** PodUtils/podssh#287 (COORD-095 of podssh, PodUtils/podssh@T-798).
@@ -9510,7 +9508,6 @@ The clamp has no call in a crate yet, by design: the stack's own TCP (smoltcp) t
 
 Open: the call of the class on the outbound path of the stack and the settings of a carrier for each class (`pod-link`'s ARQ); the carrier of `pod-link` sends each probe of the ladder as a padded packet, sealed as data, and tells the ladder of its answers and of a black hole (TR-3).
 
-
 # T-820: The datapath: GSO with a fate rule, rings for each worker, a pool of source ports, the offload of TUN, a table of MAC addresses in O(1) (DP-1 to DP-5 of the ingest study)
 
 **Source:** the ingest study of 2026-11-16 (an archive of the owner), DP-1 to DP-5.
@@ -9682,7 +9679,6 @@ cargo test -p pod-relay --features pair --test live_measure -- --ignored --nocap
 
 2026-11-17. `crates/pod-relay/tests/live_measure.rs` copies 5 sessions of 56 MiB one way through the default relay (a first byte `SINK`, the node's answer `READY`, then the bytes; the echo has a queue of 64 MiB) and writes the seconds of each session and of its open. Three runs failed first and each named a cause: the operator streamed before the node was ready (`NeverReady`, more than 1 MiB of input), then the node's bound of 1 MiB of waiting bytes ended a session whose local side still read (T-837, fixed). `live.yml` run 44009291585: 280 MiB in 11.80 s (23.72 MiB/s); 33 to 60 MiB/s for each session after its open; an open of 0.36 to 1.96 s (a mean of 1.06 s), 45 % of the time of the copy. The readings of five runs and the spread between them are in `docs/research/relay-rates.md`. A session opened ahead of the move (a spare) is the way to take the cost back; podssh has spares (its T-650).
 
-
 # T-836: `pod-relay`: a route of a node to a Unix socket (PodUtils/podssh#295)
 
 **Source:** PodUtils/podssh#295 (COORD-099 of podssh, PodUtils/podssh@T-714; cfb's ask A-S-08).
@@ -9747,7 +9743,6 @@ cargo test -p pod-relay --all-features --test reverse_node
 ## Done
 
 2026-11-17. `crates/pod-relay/src/reverse/route.rs`: each route keeps when its copy to the local side last moved (a write ended, or it waited for bytes: `Moved`, milliseconds since the route was made). `offer` ends a session past `queue_bytes` only when the copy did not move for `STALL_GRACE` (2 s), or when the bytes that wait pass `HARD_LIMIT` (4) times `queue_bytes`; a local side that reads gets the bursts of the relay. The memory of a stuck session stays at most 4 MiB for a handler with no layer. Tests: `a_local_side_that_reads_slower_than_a_burst_keeps_its_session` (a queue of 256 KiB, a burst of 768 KiB, a reader of 16 KiB each 5 ms: each byte comes, no close of a stall), and the flood of `a_local_side_that_does_not_read_ends_its_session_and_not_the_others` now passes the hard bound (5 MiB). `cargo test --all-features` of `pod-relay` passed. The plant `relay-stall-at-first-mib` (the old rule) is caught by the new test. The live copy gives its echo a queue of 64 MiB still, so that it measures the relay alone.
-
 
 # T-844: `pod-relay`: a route to a Unix socket on Windows (PodUtils/podssh#298)
 
@@ -10096,7 +10091,6 @@ cargo test -p pod-session --all-features
 
 2026-11-18, 81b979b52. In the drain after `Written::Failed`, an `End::Lost(Some(_))` that `down` gives (the cause of the link: a relay's Close with its code and reason) wins over the error of the write; a drain that times out or gives `Lost(None)` keeps the error of the write. Test `tests/session_close_over_write.rs` `the_relays_close_wins_over_the_failed_write`: a link that the relay cuts while the application writes, the write fails at once with `broken pipe`, the relay's reason comes to the read 300 ms later; the end names `1009 session byte cap`. Plant `session-drain-drops-the-close`, caught.
 
-
 # T-909: `pod-relay`: the link budget of the layer under a small cap of the relay; the cap in `forward_layer::Offer` (PodUtils/podssh#314, ask 2)
 
 **Source:** PodUtils/podssh#314 (COORD-117 of podssh, PodUtils/podssh@T-826), ask 2.
@@ -10403,7 +10397,6 @@ cargo test -p pod-relay --all-features --test layer_cap
 2026-11-19, this commit. The client holds the old link of a move (`pod_session::pump::Hold`, the field `hold` of `pump::Watch`, call C790): `beside::next` starts the hold when it decides `Beside::Move`, and a failed move (`Note::MoveFailed`) or a session that closes on the old link lifts it; a spare holds nothing. While the hold is on, the reader of the application reads nothing, the writer sends no `DATA` and no `ACK`, and a `PONG` carries the last offset acknowledged (`Link::pong_held`). The wire does not change. `forward_layer::offer::window_under` is an eighth of the cap: the old link carries the threshold (three quarters), the far end's window and one record at most. `tests/layer_cap.rs`: `a_move_at_the_rate_of_a_loopback_stays_under_a_small_cap` (1 MiB, no pace, a handshake of 30 ms) and the two tests before it pass in 5 runs of 5; the most bytes on one link were 918,361 at the rate of a loopback and 951,090 with the slow way back (of 1,048,576). On the code before the fix, the new test fails in 3 runs of 3 (8 links met the cap); with the hold and a window of a quarter, 19 links met it in 3 runs. The tests of the cache of the offer take a directory each (two tests of 1 MiB ran at once and removed the directory of the other). New tests: `pump::hold::tests::a_held_link_takes_no_bytes_and_acknowledges_none_until_the_hold_lifts`, `beside::tests::a_move_holds_the_old_link_and_a_failed_move_lifts_the_hold`, `session_move::a_failed_move_does_not_stall_the_session`; `cargo test -p pod-session --all-features`: 169 passed; `cargo test -p pod-relay --all-features`: 496 passed. Plant `session-t958-move-not-held`, caught; the plant of T-953 takes the new comment of `Offer::fit` and the words of the new window.
 
 podssh at `ba19367` (`v0.75.0`): its `tests/layer_cap.rs` through `podssh relay serve --max-session-mib 1`, 3 MiB each way, has no link that ends with `1009 session byte cap` in 8 runs of 8 (PodUtils/podssh#327); its T-826 closes.
-
 
 # T-959: `pod-e2e`: the channel says no wait of its own, so a hang where the layer holds bytes for the channel cannot tell the channel from its reader (PodUtils/podssh#283, ask 5)
 
@@ -11245,7 +11238,6 @@ caller) is removed. The doc of `crates/pod-natprobe/tests/live.rs` names
 the kind `stun` of the catalog. `cargo test -p pod-natprobe
 --all-features`: 37 passed, 1 ignored; `cargo clippy -p pod-natprobe
 --all-targets --all-features -- -D warnings`: no warning.
-
 
 # T-1164: `pod-link`: the DNS listener sends no answer to a query that is not TXT or whose name does not decode, so a resolver retries and serves SERVFAIL (PodUtils/podssh#349)
 
@@ -13041,3 +13033,92 @@ log says "by a bearer".
 ```sh
 cargo test -p pod-e2e --all-features
 ```
+# T-1399: `pod-quic` and `pod-relay`: a failed UDP socket of QUIC reads "no UDP socket for QUIC" with no cause, as the race of handshakes and the QUIC road say the failure with `to_string()` (PodUtils/podssh#360)
+
+**Source:** PodUtils/podssh#360 (COORD-150 of podssh), ask 1; author COLLABORATOR
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The text of the ask: "`pod-quic` `connect::handshake` (`src/connect.rs:127`, `failed.iter().map(|f| f.to_string())`) and `pod-relay` `quic_road::dial` (`src/quic_road/dial.rs:164`, `endpoint::system(..).map_err(|f| failed(f.to_string()))`). At `v0.85.0`, a failed UDP socket there now reads \"no UDP socket for QUIC\" with no cause. Ask: `chain()` in both places."
+
+Since T-1351, `endpoint::system` gives `Failure::io(Stage::Connect, "no UDP socket for QUIC", e)`: the text is the step, and the error of the system is the cause. `Display` of a `Failure` gives the text alone, so each `to_string()` of such a failure drops the cause. The ask also covers each other `to_string()` of a `pod_core::Failure` in the workspace that drops its cause the same way.
+
+## Premise
+
+- Read: `crates/pod-core/src/failure.rs` (`Display` writes the text; `chain`, `into_root`, `io_cause`); `crates/pod-quic/src/endpoint.rs` (`no_socket`); `crates/pod-quic/src/connect.rs` (`handshake`); `crates/pod-quic/src/probe.rs` (`probe` gives a `Failure` with no cause); `crates/pod-relay/src/quic_road/dial.rs` (`session`, `resolve`); `crates/pod-proxy/src/resolve.rs` (the system resolver gives `Failure::io(Stage::Dns, "system resolver", e)`).
+- `quic_road::dial::resolve` drops the cause the same way: a name that the system does not resolve reads "system resolver" alone.
+- The search of the workspace: an inherent method `to_string` with `#[deprecated]` on `Failure`, for the time of one `cargo check --workspace --all-targets --all-features` (not committed), names each call of `to_string()` on a `Failure`; `grep -rn "to_string()" crates/ | grep -i fail` gives the rest to read.
+- Not measured: a real host that refuses a UDP socket.
+
+## Approach
+
+1. `pod-quic`: `connect::none_answered`, the failure of the race when no address answered: the chain of each address, and the typed cause of the last one as the cause when its text does not quote it.
+2. `pod-relay` `quic_road::dial`: `chain()` for the failure of the probe, of `endpoint::system` and of the resolver.
+3. Each other hit of the search in the crates of this work: `chain()`. A hit in a crate that other work changes now becomes a finding entry.
+4. Tests: `connect::tests` (a failed socket keeps its cause; each cause once), `quic_road::dial::tests::a_failed_lookup_keeps_the_error_of_the_system`. A plant for each fix that a test can catch.
+
+## Prove
+
+```sh
+cargo test -p pod-quic -p pod-relay --all-features
+cargo clippy -p pod-quic -p pod-relay --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh --apply
+```
+
+## Done
+
+2026-11-25. Commit: see `git log` for T-1399.
+
+- `pod-quic`: `connect::handshake` gives `connect::none_answered`: "no address answered over QUIC: " and the chain of each address; the typed cause of the last address is the cause when its text does not quote it, so `Failure::io_cause` finds a failed socket. A failed socket reads "no UDP socket for QUIC: CAUSE".
+- `pod-relay` `quic_road::dial`: `chain()` for the failure of `endpoint::system`, of the probe, of the TLS of QUIC (`tls`) and of the resolver (`resolve`). A failed lookup read "system resolver" with no cause; it now reads "system resolver: CAUSE".
+- The search (a temporary deprecated inherent `to_string` on `Failure`, `cargo check --workspace --all-targets --all-features` on Linux, not committed) named each other call outside a test; each now gives `chain()`: `crates/pod-acme/src/client.rs` (the request of the ACME client), `crates/pod-derp/src/client.rs` (three: the dial and the link of a node, the retry), `crates/pod-dns/src/get.rs` (the dial of DNS over HTTPS), `crates/pod-guest/src/evidence.rs`, `crates/pod-guest/src/warm/line.rs` (two) and `crates/pod-guest/src/warm/state.rs` (QMP), `crates/pod-link/src/mail.rs` (TLS of the mail carrier), `crates/pod-link/src/quic/listen.rs` (two: the server configuration and the endpoint), `crates/pod-natprobe/src/run/mod.rs` (a failed bind), `crates/pod-release/src/fetch.rs` (a fetch), `crates/pod-rootfs/src/devices.rs`, `crates/pod-rootfs/src/lib.rs` and `crates/pod-rootfs/src/write.rs`, `crates/pod-supervise/src/launcher.rs` (the control socket), `crates/pod-tor/src/runtime.rs` (the dial of Tor). Read to drop a cause now: the socket and the lookup of the QUIC road and the socket of the race. The others say the same words or more with `chain()` (a text that quotes its cause, or a failure with no cause).
+- Not changed: `examples/static-probe` and `examples/static-probe-lean` (link probes; the text shows no user a cause); `crates/pod-warp/src/provider.rs` `of_api` takes `text()`: each failure with a status quotes its `ApiError` in the text, and the text of the limit 1015 is a summary of its own. No call in `pod-core`, `pod-tpm`, `pod-ws`, `pod-testkit`, `pod-unit` or `pod-e2e` outside a test. A `{}` of a `Failure` in a `format!` was not searched: T-1463.
+- Tests: `connect::tests::a_failed_socket_keeps_its_cause_in_the_line_of_the_race`, `connect::tests::each_address_says_its_cause_once`, `connect::tests::the_class_is_the_first_that_is_not_a_timeout` (`crates/pod-quic/src/connect_tests.rs`); `quic_road::dial::tests::a_failed_lookup_keeps_the_error_of_the_system`.
+- Plants: `quic-t1399-handshake-first-cause-dropped`, `quic-t1399-handshake-last-cause-dropped`, `relay-t1399-lookup-cause-dropped`: each caught (each patch applied by hand and its `RUN` with the target of the work).
+- `cargo test --all-features` of `pod-quic`, `pod-relay`, `pod-warp`, `pod-acme`, `pod-derp`, `pod-dns`, `pod-guest`, `pod-link`, `pod-natprobe`, `pod-release`, `pod-rootfs`, `pod-supervise`, `pod-tor`: 1730 passed, 0 failed, 40 ignored. `cargo clippy` of the same with `--all-targets --all-features -- -D warnings` and `cargo fmt --all --check`: clean. `sh scripts/plant-each.sh --apply`: 0 stale. Not measured: a real host that refuses a UDP socket.
+
+# T-1402: `pod-relay`: the node looks for the relay's Close behind a failed ping only 8 frames or 200 ms ahead, so a relay that sends data first gives "the link to the relay ended with no Close" (PodUtils/podssh#360)
+
+**Source:** PodUtils/podssh#360 (COORD-150 of podssh), ask 4; author COLLABORATOR
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The text of the ask: "`pod-relay` `reverse::closes::pending` (`crates/pod-relay/src/reverse/closes.rs:344-361` at `ca1d3e3`) looks for the relay's Close behind a failed ping only 8 frames or 200 ms ahead. A relay that sends the node another session's data before its Close puts the Close past that look. Its frames are 64 KiB, so 8 frames are 512 KiB. A slow host does the same. The node then says \"the link to the relay ended with no Close (sending a ping to the relay failed: Broken pipe)\" where the relay gave 1003. That is podssh's T-788, run 43657288233 on macOS. Ask: bound the look-ahead by time (about 1 s) and by bytes read (a few MiB), not by a count of frames. A read error still ends it with `None`."
+
+## Premise
+
+- Read: `crates/pod-relay/src/reverse/closes.rs` (`pending`); `crates/pod-relay/src/reverse/serve.rs` (the liveness watch that fails calls `pending`, and a Close from it is `End::Closed`); `crates/pod-ws/src/session.rs` (`read_frame` gives each data message and the Close; it answers a Ping and skips a Pong; `frames_received`).
+- Not measured: the run of podssh on macOS.
+
+## Approach
+
+1. `closes::LOOK_WAIT` (1 s) and `closes::LOOK_BYTES` (4 MiB of payload): `pending` reads frames until the Close, a failed read, more than `LOOK_BYTES` of payload, or `LOOK_WAIT`.
+2. Tests (`crates/pod-relay/tests/reverse_close_behind.rs`, a stand-in relay on a pipe): 12 frames of 64 KiB before a Close of 1003; a Close half of the wait late; data with no end stops at the bound of bytes; a failed read ends at once. A plant puts back the bound of 8 frames.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features --test reverse_close_behind
+cargo clippy -p pod-relay --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh --apply
+```
+
+## Done
+
+2026-11-25. Commit: see `git log` for T-1402.
+
+- `reverse::closes::LOOK_WAIT` (1 s) and `reverse::closes::LOOK_BYTES` (4 MiB of payload): `closes::pending` reads frames until the Close, a failed read (`None`), more than `LOOK_BYTES` of payload, or `LOOK_WAIT`.
+- Tests (`crates/pod-relay/tests/reverse_close_behind.rs`, a stand-in relay on a pipe): `a_close_behind_more_than_eight_frames_of_64_kib_is_read` (12 frames of 64 KiB, then a Close of 1003: the node reads 1003), `a_close_that_comes_late_within_the_wait_is_read` (500 ms late), `a_relay_that_sends_data_with_no_close_ends_the_read_at_the_bound_of_bytes` (65 frames at most), `a_read_that_fails_ends_the_look_with_no_close`.
+- Plant `relay-t1402-close-look-eight-frames` (the bound of 8 frames of 64 KiB again): caught (applied by hand).
+- `cargo test -p pod-relay --all-features` with the other crates of T-1399: 1730 passed, 0 failed. `cargo clippy -p pod-relay --all-targets --all-features -- -D warnings`: clean. `sh scripts/plant-each.sh --apply`: 0 stale. Not measured: the run of podssh on macOS.
+

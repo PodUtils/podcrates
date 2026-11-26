@@ -2819,3 +2819,45 @@ sh scripts/plant-each.sh cloudflare-discovery-with-no-limit
 ## Done
 
 2026-11-25. Commit: see `git log` for T-1394. `edge_discovery::discover` has `DISCOVERY_LIMIT` (12 s) for DNS over HTTPS and the system resolver; DoH has `DOH_LIMIT` (8 s) in it, and the system resolver takes the rest; then the static list follows. One DoH question to one resolver host has `DOH_EACH` (3 s, a copy of the settings of the way; `pod_dns::EACH` is 5 s), so a connection that succeeds and gives no answer costs 3 s; the old limit of a query, `STEP_TIMEOUT * (1 + 2 * resolvers)`, is gone. The A and AAAA questions of the targets run at the same time (`edge_discovery/doh.rs`). A source that takes more than `SLOW_SOURCE` (3 s) gives one event `edge.discovery` when it ends: "the DNS of the edge took T s on WAY" (info), or "the DNS of the edge waited T s (the limit of N s) on DNS over HTTPS through the proxy P; CAUSE; the client takes NEXT" (warn). The line of the static list then says "DoH: the line before gives the cause" and does not repeat the cause. Each failed DoH query goes to `tracing` at debug ("a DoH query failed", with the name, the type and each resolver with its cause). When no address comes and an address query failed, the failures are the error of DoH. The legs of one start share one discovery (`tunnel::Discovery`, a `OnceCell`): a staggered leg that starts while another discovers waits for its result, so the questions and the events come once. Tests: `edge_discovery::tests::a_doh_resolver_that_never_answers_ends_in_the_limit_with_one_event` (a stand-in resolver that accepts TCP and never answers, `testing::silent_doh_host`, paused time: the discovery ends at 8 s with the static list and one event with the limit and the cause), `edge_discovery::tests::a_slow_source_that_answers_is_an_info_event`, `tunnel::tests::the_legs_of_one_start_share_one_discovery`. New plant `cloudflare-discovery-with-no-limit` (the DoH source with a limit of 45 s): the test failed on its patch (run by hand); `sh scripts/plant-each.sh --apply`: 0 stale. `cargo test -p pod-cloudflare --all-features`: 209 + 13 passed, 0 failed. `cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings` and `cargo fmt --all --check`: clean. Not measured: the time of podnet behind the proxy of the issue.
+
+# T-1400: `pod-warp`: the failure of each door keeps the stage of the first door, so a refusal at a proxy of the second door alone is not seen by a reader that looks for the stage `Proxy` (PodUtils/podssh#360)
+
+**Source:** PodUtils/podssh#360 (COORD-150 of podssh), ask 2; author COLLABORATOR
+**Category:** defect
+**Milestone:** M3
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The text of the ask: "`pod-warp` `open::each_door_failed` keeps the first door's stage. `podssh_warp::at_proxy` looks through the cause chain for `Stage::Proxy`, and now finds only the root of the last door. So a refusal at a proxy of the second door alone is no longer seen. Ask: the stage `Proxy` when any door failed at a proxy, or a way to ask the joined failure whether any door did."
+
+## Premise
+
+- Read: `crates/pod-warp/src/open.rs` (`each_door_failed` keeps the text of each door, the typed root of the last door as the cause, and the stage and the class of the first door); `PodUtils/podssh:crates/podssh-warp/src/lib.rs` (`at_proxy` walks the chain from the failure itself and is true at the first `Failure` of the stage `Proxy`; `worth_h3` uses it).
+- The form: the stage `Proxy` on the joined failure. podssh's `at_proxy` reads the stage of the failure itself first, so it needs no change, and no new public API is necessary. The class stays the one of the first door.
+- Not measured: a real proxy on the way to a door.
+
+## Approach
+
+1. `open::at_proxy`: true when the chain of a failure holds a `Failure` of the stage `Proxy`.
+2. `each_door_failed`: the stage `Proxy` when `at_proxy` is true for any door; else the stage of the first door.
+3. Test: `a_proxy_that_failed_at_any_door_gives_the_stage_proxy`. A plant takes the stage of the first door again.
+
+## Prove
+
+```sh
+cargo test -p pod-warp --all-features
+cargo clippy -p pod-warp --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh --apply
+```
+
+## Done
+
+2026-11-25. Commit: see `git log` for T-1400.
+
+- The form: the stage `Proxy` on the joined failure. `open::each_door_failed` gives the stage `Proxy` when the chain of any door holds a `Failure` of the stage `Proxy` (`open::at_proxy`, private); else the stage of the first door. The class stays the one of the first door. podssh's `at_proxy` reads the stage of the failure itself first, so podssh takes it with no change. No new public API.
+- Test: `open::tests::a_proxy_that_failed_at_any_door_gives_the_stage_proxy` (the proxy of the second door alone, of the first door alone, and no proxy).
+- Plant `warp-t1400-door-stage-of-first` (looks at the first door alone): caught (applied by hand).
+- `cargo test -p pod-warp --all-features` with the other crates of T-1399: 1730 passed, 0 failed. `cargo clippy -p pod-warp --all-targets --all-features -- -D warnings`: clean. `sh scripts/plant-each.sh --apply`: 0 stale. Not measured: a real proxy on the way to a door.

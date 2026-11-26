@@ -1,0 +1,13 @@
+diff --git a/crates/pod-quic/src/connect.rs b/crates/pod-quic/src/connect.rs
+index d23fad75..138c3e17 100644
+--- a/crates/pod-quic/src/connect.rs
++++ b/crates/pod-quic/src/connect.rs
+@@ -139,7 +139,7 @@ fn none_answered(failed: Vec<Failure>) -> Failure {
+     let mut cause = None;
+     for (i, failure) in failed.into_iter().enumerate() {
+         if i + 1 < n {
+-            said.push(failure.chain());
++            said.push(failure.to_string());
+         } else {
+             let (steps, root) = failure.into_root();
+             cause = root.filter(|root| !steps.contains(&root.to_string()));

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1043 entries: 170 open, 31 partial, 6 blocked, 836 done.**
+**1047 entries: 171 open, 31 partial, 6 blocked, 839 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 245 | 258 |
-| P2 | 76 | 12 | 4 | 435 | 527 |
-| P3 | 90 | 10 | 2 | 154 | 256 |
-| **All** | 170 | 31 | 6 | 836 | 1043 |
+| P2 | 76 | 12 | 4 | 438 | 530 |
+| P3 | 91 | 10 | 2 | 154 | 257 |
+| **All** | 171 | 31 | 6 | 839 | 1047 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1072,7 +1072,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1396](transport.md) | P2 | S | M1 | feature | done | `pod-ws`: `ConnectError::Ended`, a final end of a stream with no relay and no HTTP, shown in its own words (PodUtils/podssh#359) |
 | [T-1397](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver after podrunner `7bf541c` (the sixth port of `source-driver.md`) |
 | [T-1398](fleet.md) | P2 | S | M0 | chore | done | `pod-unit`: podnet's `autostart.rs` after `34f0d30` (port review) |
+| [T-1399](relay.md) | P2 | S | M2 | defect | done | `pod-quic` and `pod-relay`: a failed UDP socket of QUIC reads "no UDP socket for QUIC" with no cause, as the race of handshakes and the QUIC road say the failure with `to_string()` (PodUtils/podssh#360) |
+| [T-1400](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: the failure of each door keeps the stage of the first door, so a refusal at a proxy of the second door alone is not seen by a reader that looks for the stage `Proxy` (PodUtils/podssh#360) |
 | [T-1401](upkeep.md) | P2 | S | M5 | defect | done | `pod-core`: the drop of a `FileLock` only closes its descriptor, so a copy of the descriptor in a child that a spawn makes keeps the lock after the drop |
+| [T-1402](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the node looks for the relay's Close behind a failed ping only 8 frames or 200 ms ahead, so a relay that sends data first gives "the link to the relay ended with no Close" (PodUtils/podssh#360) |
 | [T-1403](relay.md) | P2 | S | M2 | defect | done | `pod-e2e`: a failure of the node's target reads as "the stream under the channel failed", and the node's line does not name the target |
 | [T-1405](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: `reverse::operator::exchange` leaves its two tasks alive when it is dropped, so a dropped leg keeps its socket open (PodUtils/podssh#361) |
 | [T-1407](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: the refusals of a pair: the body of a 403, a refusal of a new pair, a spent token of `--once`, and a doubled subject in `file_name` (PodUtils/podssh#362, ask 2) |
@@ -1090,3 +1093,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1452](relay.md) | P3 | S | M2 | defect | open | `pod-session`: a window under 64 KiB waits 200 ms for each window, as the far end acknowledges each 64 KiB or after 200 ms |
 | [T-1453](fleet.md) | P3 | S | M8 | chore | open | `pod-control`: take `pod_core::sockopt::shut_needs_no_limit` in place of `frame::shut_needs_no_timeout`, a twin of it |
 | [T-1460](fleet.md) | P3 | S | M8 | defect | open | `pod-unit`: an install accepts a program in a directory that the host clears at a reboot or a logout, so the unit fails after the next reboot |
+| [T-1463](upkeep.md) | P3 | M | M5 | chore | open | `pod-core`: no check stops a new `to_string()` or `{}` of a `Failure` that drops its cause, and the `{}` of a `Failure` in a `format!` was not searched |

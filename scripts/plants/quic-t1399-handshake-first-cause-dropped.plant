@@ -1,0 +1,9 @@
+# pod-quic: the race of handshakes says an address that is not the last
+# with to_string(), so a failed UDP socket there reads "no UDP socket for
+# QUIC" with no cause (PodUtils/podssh#360, T-1399). The test of each cause
+# must fail.
+ENTRY=T-1399
+GROUP=link
+EXPECT='test connect::tests::each_address_says_its_cause_once \.\.\. FAILED'
+RUN='cargo test -p pod-quic --lib -- connect::tests::each_address_says_its_cause_once --exact'
+LIMIT=1800

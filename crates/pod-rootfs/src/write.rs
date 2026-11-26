@@ -180,7 +180,7 @@ impl Root {
         match safety::open_parent_with(&self.dir, &parts, make_dirs, Resolve::InRoot) {
             Ok(Ok(x)) => Ok(Ok(x)),
             Ok(Err(r)) => Ok(Err(r.why())),
-            Err(e) => Ok(Err(e.to_string())),
+            Err(e) => Ok(Err(e.chain())),
         }
     }
 

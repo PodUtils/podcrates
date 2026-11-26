@@ -1,0 +1,8 @@
+# pod-relay: the QUIC road says a failed lookup with to_string(), so it
+# reads "system resolver" with no error of the system
+# (PodUtils/podssh#360, T-1399). The test of the lookup must fail.
+ENTRY=T-1399
+GROUP=relay
+EXPECT='test quic_road::dial::tests::a_failed_lookup_keeps_the_error_of_the_system \.\.\. FAILED'
+RUN='cargo test -p pod-relay --all-features --lib -- quic_road::dial::tests::a_failed_lookup_keeps_the_error_of_the_system --exact'
+LIMIT=1800

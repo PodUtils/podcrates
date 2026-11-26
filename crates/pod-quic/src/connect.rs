@@ -118,16 +118,44 @@ pub async fn handshake(
             Err(e) => failed.push(Failure::new(Stage::Quic, Class::Unavailable, e.to_string())),
         }
     }
-    // Each address timed out: the class is a timeout; else the class of the
-    // first failure.
+    Err(none_answered(failed))
+}
+
+/// One failure of the addresses that each failed, in order: the chain of
+/// each (an endpoint with no UDP socket keeps the error of the system), and
+/// the typed cause of the last one as the cause, so that a reader that
+/// joins the chain says each cause once and [`Failure::io_cause`] finds it.
+/// A cause whose words the text of its address quotes already stays out:
+/// a reader that joins with no check would say them two times.
+/// The class is a timeout when each address timed out; else the class of
+/// the first failure that is not a timeout.
+fn none_answered(failed: Vec<Failure>) -> Failure {
     let class = match failed.iter().all(|f| f.class == Class::Timeout) {
         true => Class::Timeout,
         false => failed.iter().find(|f| f.class != Class::Timeout).map_or(Class::Unavailable, |f| f.class),
     };
-    let said: Vec<String> = failed.iter().map(|f| f.to_string()).collect();
-    let text = match said.is_empty() {
-        true => "no address to try over QUIC".to_string(),
-        false => format!("no address answered over QUIC: {}", said.join("; ")),
-    };
-    Err(Failure::new(Stage::Quic, if said.is_empty() { Class::Usage } else { class }, text))
+    let n = failed.len();
+    let mut said: Vec<String> = Vec::with_capacity(n);
+    let mut cause = None;
+    for (i, failure) in failed.into_iter().enumerate() {
+        if i + 1 < n {
+            said.push(failure.chain());
+        } else {
+            let (steps, root) = failure.into_root();
+            cause = root.filter(|root| !steps.contains(&root.to_string()));
+            said.push(steps);
+        }
+    }
+    if said.is_empty() {
+        return Failure::new(Stage::Quic, Class::Usage, "no address to try over QUIC");
+    }
+    let text = format!("no address answered over QUIC: {}", said.join("; "));
+    match cause {
+        Some(cause) => Failure::caused(Stage::Quic, class, text, cause),
+        None => Failure::new(Stage::Quic, class, text),
+    }
 }
+
+#[cfg(test)]
+#[path = "connect_tests.rs"]
+mod tests;

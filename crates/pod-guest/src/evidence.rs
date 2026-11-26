@@ -57,7 +57,7 @@ pub(crate) fn screen(s: &Settings, plan: &Plan, token: &str) -> Option<Result<Pa
         qmp::Monitor::connect(&plan.monitor, SCREEN_WAIT)?.screendump(&file)?;
         Ok(file)
     };
-    Some(shot().map_err(|e| e.to_string()))
+    Some(shot().map_err(|e| e.chain()))
 }
 
 /// The text that a run that timed out adds to its failure, after the stop:

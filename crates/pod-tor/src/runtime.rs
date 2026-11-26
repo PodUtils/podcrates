@@ -143,7 +143,7 @@ impl NetStreamProvider<SocketAddr> for ProxiedTcp {
             .dial
             .dial(&Target::Addr(*addr), deadline)
             .await
-            .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e.to_string()))?;
+            .map_err(|e| Error::new(ErrorKind::ConnectionRefused, e.chain()))?;
         Ok(ProxiedStream { inner: Inner::Tcp(SyncWrapper::new(connected.io.compat())) })
     }
 

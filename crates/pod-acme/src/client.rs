@@ -53,7 +53,7 @@ impl Http {
         if method != "GET" {
             request = request.body(body.to_vec());
         }
-        self.client.send(request).await.map_err(|e| e.to_string())
+        self.client.send(request).await.map_err(|e| e.chain())
     }
 }
 

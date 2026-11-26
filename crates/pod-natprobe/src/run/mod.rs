@@ -203,7 +203,7 @@ async fn perform_output(
                 let _ = ctl_tx.send(Input::Bound { sock, local });
             }
             Err(e) => {
-                let _ = ctl_tx.send(Input::BindFailed { sock, reason: e.to_string() });
+                let _ = ctl_tx.send(Input::BindFailed { sock, reason: e.chain() });
             }
         },
         Output::Send { sock, dest, bytes } => {

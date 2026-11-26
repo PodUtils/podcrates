@@ -1,0 +1,13 @@
+diff --git a/crates/pod-quic/src/connect.rs b/crates/pod-quic/src/connect.rs
+index d23fad75..e1008887 100644
+--- a/crates/pod-quic/src/connect.rs
++++ b/crates/pod-quic/src/connect.rs
+@@ -141,7 +141,7 @@ fn none_answered(failed: Vec<Failure>) -> Failure {
+         if i + 1 < n {
+             said.push(failure.chain());
+         } else {
+-            let (steps, root) = failure.into_root();
++            let (steps, root) = (failure.to_string(), None::<Box<dyn std::error::Error + Send + Sync>>);
+             cause = root.filter(|root| !steps.contains(&root.to_string()));
+             said.push(steps);
+         }

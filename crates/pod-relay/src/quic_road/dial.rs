@@ -86,7 +86,7 @@ pub fn tls(
     provider: Arc<rustls::crypto::CryptoProvider>,
     roots: &pod_tls::TlsRoots,
 ) -> Result<Arc<rustls::ClientConfig>, String> {
-    pod_quic::connect::tls(provider, Arc::new(roots.roots.clone()), &[ALPN]).map_err(|f| f.to_string())
+    pod_quic::connect::tls(provider, Arc::new(roots.roots.clone()), &[ALPN]).map_err(|f| f.chain())
 }
 
 /// The settings of a client's connection: the role opens no stream to it.
@@ -156,12 +156,12 @@ pub async fn session(
                 Ok((at, _)) => at,
                 Err(why) => {
                     learn(ctx, host, port, Learned::Failed);
-                    return Err(failed(why.to_string()));
+                    return Err(failed(why.chain()));
                 }
             }
         }
     };
-    let endpoint = pod_quic::endpoint::system(addr.is_ipv6()).map_err(|f| failed(f.to_string()))?;
+    let endpoint = pod_quic::endpoint::system(addr.is_ipv6()).map_err(|f| failed(f.chain()))?;
     let connection = match connect(&endpoint, addr, &config.server_name, tls).await {
         Ok(connection) => connection,
         Err(why) => {
@@ -208,7 +208,8 @@ async fn resolve(
         Some(resolver) => resolver.resolve(host, port, deadline).await,
         None => pod_proxy::resolve::System::new().resolve(host, port, deadline).await,
     };
-    found.map_err(|f| f.to_string())
+    // The chain: the error of the system under "system resolver".
+    found.map_err(|f| f.chain())
 }
 
 #[cfg(test)]
@@ -268,6 +269,18 @@ mod tests {
                 Err(e) => assert_eq!(e, ConnectError::Refused { status: 403, body: format!("denied {MASK}") }),
             }
         }
+    }
+
+    /// A name that the system does not resolve: the words of the dial say
+    /// the error of the system, not only "system resolver"
+    /// (PodUtils/podssh#360, ask 1).
+    #[tokio::test]
+    async fn a_failed_lookup_keeps_the_error_of_the_system() {
+        let ctx = crate::testing::context();
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        let said = resolve(&ctx, "nul\0name.example", 443, deadline).await.expect_err("a name with a NUL");
+        let cause = said.strip_prefix("system resolver: ").unwrap_or_default();
+        assert!(!cause.is_empty(), "{said}");
     }
 
     /// QUIC's TLS offers the role's ALPN alone, over TLS 1.3, which QUIC's

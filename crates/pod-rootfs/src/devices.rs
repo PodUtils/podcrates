@@ -85,7 +85,7 @@ fn displace_link(root: &Root, path: &str, target: &str) -> std::result::Result<S
         Err(e) if crate::write::layer_refusal(&e).is_some() => {
             Ok(format!("a symlink to {target} of the lower layer, which the new entry of the upper layer hides"))
         }
-        Err(e) => Err(refused(e.to_string())),
+        Err(e) => Err(refused(e.chain())),
     }
 }
 

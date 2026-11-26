@@ -70,7 +70,7 @@ pub(super) fn bind(quic: &Quic, socket: Socket) -> Result<QuicListener, CarrierE
         .map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
     let crypto = QuicServerConfig::try_from(tls).map_err(|e| err(CarrierErrorKind::Unavailable, e.to_string()))?;
     let mut config = pod_quic::endpoint::server_config(Arc::new(crypto))
-        .map_err(|f| err(CarrierErrorKind::Unavailable, f.to_string()))?;
+        .map_err(|f| err(CarrierErrorKind::Unavailable, f.chain()))?;
     let v6 = match &socket {
         Socket::System(addr) => addr.is_ipv6(),
         Socket::Over(datagrams) => datagrams.local_addr().is_ok_and(|a| a.is_ipv6()),
@@ -84,7 +84,7 @@ pub(super) fn bind(quic: &Quic, socket: Socket) -> Result<QuicListener, CarrierE
         }
         Socket::Over(datagrams) => pod_quic::endpoint::over(datagrams, Some(config)),
     }
-    .map_err(|f| err(CarrierErrorKind::Unavailable, f.to_string()))?;
+    .map_err(|f| err(CarrierErrorKind::Unavailable, f.chain()))?;
     let local = endpoint.local_addr().map_err(|e| CarrierError::io(NAME, "the address of the endpoint", e))?;
     let (out, results) = mpsc::channel(QUEUE);
     let limit = Arc::new(Semaphore::new(quic.max_handshakes));

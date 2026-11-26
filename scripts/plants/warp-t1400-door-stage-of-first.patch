@@ -1,0 +1,13 @@
+diff --git a/crates/pod-warp/src/open.rs b/crates/pod-warp/src/open.rs
+index 4b1f475d..8a24ebae 100644
+--- a/crates/pod-warp/src/open.rs
++++ b/crates/pod-warp/src/open.rs
+@@ -281,7 +281,7 @@ impl Warp {
+ /// (PodUtils/podssh#360, ask 2). Else it is the stage of the first door.
+ fn each_door_failed(failures: Vec<Failure>) -> Failure {
+     let (first, class) = failures.first().map(|f| (f.stage, f.class)).expect("one door at least");
+-    let stage = if failures.iter().any(at_proxy) { Stage::Proxy } else { first };
++    let stage = if failures.first().is_some_and(at_proxy) { Stage::Proxy } else { first };
+     let n = failures.len();
+     let mut text: Vec<String> = Vec::with_capacity(n);
+     let mut cause = None;
