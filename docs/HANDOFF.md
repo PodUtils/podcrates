@@ -63,7 +63,8 @@ is done. Git and the record keep finished work.
      rows of `static` (limit 60 minutes): read the next `ci` runs.
    - `services.yml`: read the next scheduled run (T-1415 reopens on a
      second 5xx of `magic-wormhole-mailbox`; T-1096 reopens when
-     `freedos-image` times out again). `live.yml`: T-963 (partial).
+     `freedos-image` times out again). `live.yml`: T-963 (partial); T-1504 (the upload of temp.sh
+     answered 500 on 2026-11-26: read the next scheduled run).
    - `upstream.yml` (job `sources`): read the next daily run.
    - The dry run of `publish.yml` on the tag `v0.86.0` (45786405631):
      read it (step 5 of "A release").

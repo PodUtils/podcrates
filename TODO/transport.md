@@ -8810,3 +8810,44 @@ cargo test -p pod-dns --all-features line
 - Tests: `line::tests::each_group_of_resolvers_keeps_its_cause_whole_in_the_bound` (four rows: each cause whole, the bound, podnet's line under 300 bytes), `line::tests::a_longer_name_leaves_fewer_bytes_to_the_failures`; `lookup::tests::a_name_that_does_not_resolve_gives_one_short_line` measures against `order::LINE`.
 - Plants: the new `dns-bound-ignores-the-name` gives each name the bound of an empty name, and the row test fails; `dns-cause-cut-inside` applies with no change.
 - README of `pod-dns`: the bound, and the step of the head in plain words.
+
+# T-1504: `live.yml` 45797952128: the upload of temp.sh answered HTTP 500
+
+**Source:** the scheduled run 45797952128 of `live.yml` at `85dbecc` (2026-11-26, job `live`).
+**Category:** defect
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`crates/pod-services-watch/tests/file_host_live.rs`
+(`a_file_goes_up_and_down_through_each_file_host`) failed: "the file hosts
+that failed: ["temp-sh"]"; "temp-sh: the upload answered HTTP 500" (an
+nginx page, `nginx/1.30.7`); "file hosts: 2 ran, 1 failed". The other host
+held. A 5xx is an answer of the host, not a failure of the client, and the
+record has no earlier 500 of temp.sh (T-1034: 429 of the watch from a
+runner; the live runs of 2026-11-13 held).
+
+## Premise
+
+- Read: the log of the failed step of the job `live`.
+- Not read: the next scheduled `live.yml` run; whether the upload of
+  temp.sh answers 500 to each client or to a runner of GitHub alone.
+
+## Approach
+
+1. Read the next scheduled `live.yml` run. When temp.sh holds, the 500 was
+   a fault of the host at that time: close this entry with the run.
+2. When it answers 5xx again, measure one upload from a runner by a
+   dispatch of `live.yml`, read the page of the host, and decide by the
+   rules of the live calls (`docs/live-calls.md`): the host leaves the
+   list of the live test, or the test takes a 5xx of a host as a skip
+   with its words (as a watch takes a first no answer, call C153).
+
+## Prove
+
+```sh
+cargo test -p pod-services-watch --all-features
+```
