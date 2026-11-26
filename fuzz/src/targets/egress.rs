@@ -1,8 +1,8 @@
 //! The fuzz targets of `pod-egress` (feature `fuzzing`).
 
 use pod_egress::fuzzing::{
-    Command, MAX_DATA, MAX_REQUEST, Message, Packet, encode, iap_ack, iap_data, iap_message as iap_read,
-    trojan_parse, trojan_request, wisp_answer, wisp_packet as read,
+    Command, MAX_DATA, MAX_REQUEST, Message, Packet, encode, iap_ack, iap_data, iap_message as iap_read, trojan_parse,
+    trojan_request, wisp_answer, wisp_packet as read,
 };
 
 /// The newest version of Wisp that the client speaks.
@@ -63,7 +63,8 @@ pub fn trojan_request_accept(data: &[u8]) {
             assert_eq!(trojan_parse(&bytes[..request.used], &password), Ok(Some(request.clone())));
             assert_eq!(trojan_parse(&bytes[..request.used - 1], &password), Ok(None));
             if request.command == Command::Connect && !request.host.is_empty() {
-                let host = if request.host.contains(':') { format!("[{}]", request.host) } else { request.host.clone() };
+                let host =
+                    if request.host.contains(':') { format!("[{}]", request.host) } else { request.host.clone() };
                 let again = trojan_request(TROJAN_PASSWORD, &host, request.port).expect("a host that parsed writes");
                 assert_eq!(again, bytes[..request.used], "{request:?}");
             }
