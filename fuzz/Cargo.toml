@@ -323,6 +323,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "trojan_request_accept"
+path = "fuzz_targets/trojan_request_accept.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "opentunnel_message"
 path = "fuzz_targets/opentunnel_message.rs"
 test = false

@@ -1,7 +1,8 @@
 //! The fuzz targets of `pod-egress` (feature `fuzzing`).
 
 use pod_egress::fuzzing::{
-    MAX_DATA, Message, Packet, encode, iap_ack, iap_data, iap_message as iap_read, wisp_answer, wisp_packet as read,
+    Command, MAX_DATA, MAX_REQUEST, Message, Packet, encode, iap_ack, iap_data, iap_message as iap_read,
+    trojan_parse, trojan_request, wisp_answer, wisp_packet as read,
 };
 
 /// The newest version of Wisp that the client speaks.
@@ -37,5 +38,37 @@ pub fn iap_message(data: &[u8]) {
         Message::Ack(n) => assert!(iap_read(&iap_ack(*n)) == Ok(message)),
         Message::LongClose { reason, .. } => assert!(!reason.contains(char::is_control), "{reason:?}"),
         _ => {}
+    }
+}
+
+/// The password of the target `trojan_request`: a made-up value.
+const TROJAN_PASSWORD: &str = "a-password-of-the-fuzz-target";
+
+/// A Trojan request at a server (`fuzzing::trojan_parse`): the first byte
+/// picks whether the hash of the password goes first, so that the bytes
+/// reach the address. A request that parses is at most `MAX_REQUEST` bytes,
+/// no prefix of it is a request, and a CONNECT writes back to its bytes;
+/// bytes of `MAX_REQUEST` or more are never "too short".
+pub fn trojan_request_accept(data: &[u8]) {
+    let Some((&pick, rest)) = data.split_first() else { return };
+    let password = pod_egress::fuzzing::Password::new(TROJAN_PASSWORD).expect("a password");
+    let mut bytes = Vec::new();
+    if pick & 1 == 0 {
+        bytes.extend_from_slice(password.hex());
+    }
+    bytes.extend_from_slice(rest);
+    match trojan_parse(&bytes, &password) {
+        Ok(Some(request)) => {
+            assert!((60..=MAX_REQUEST).contains(&request.used) && request.used <= bytes.len());
+            assert_eq!(trojan_parse(&bytes[..request.used], &password), Ok(Some(request.clone())));
+            assert_eq!(trojan_parse(&bytes[..request.used - 1], &password), Ok(None));
+            if request.command == Command::Connect && !request.host.is_empty() {
+                let host = if request.host.contains(':') { format!("[{}]", request.host) } else { request.host.clone() };
+                let again = trojan_request(TROJAN_PASSWORD, &host, request.port).expect("a host that parsed writes");
+                assert_eq!(again, bytes[..request.used], "{request:?}");
+            }
+        }
+        Ok(None) => assert!(bytes.len() < MAX_REQUEST, "{} bytes are no request yet", bytes.len()),
+        Err(_) => {}
     }
 }

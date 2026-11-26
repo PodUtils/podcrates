@@ -5,12 +5,9 @@
 //! `0x04` and sixteen bytes), the port in network order, CRLF. The payload
 //! follows with no answer between: the server dials the target and relays.
 
-use std::net::IpAddr;
-
+use super::CONNECT;
+use super::address;
 use super::link::Password;
-
-/// CONNECT: a stream to the target. UDP's `0x03` is not spoken.
-const CONNECT: u8 = 0x01;
 
 /// The request for `host:port`, or why the target cannot go in it.
 pub fn request(password: &Password, host: &str, port: u16) -> Result<Vec<u8>, String> {
@@ -18,28 +15,7 @@ pub fn request(password: &Password, host: &str, port: u16) -> Result<Vec<u8>, St
     out.extend_from_slice(password.hex());
     out.extend_from_slice(b"\r\n");
     out.push(CONNECT);
-    // A literal in brackets is an address, as a link writes IPv6.
-    let bare = host.strip_prefix('[').and_then(|h| h.strip_suffix(']')).unwrap_or(host);
-    match bare.parse::<IpAddr>() {
-        Ok(IpAddr::V4(v4)) => {
-            out.push(0x01);
-            out.extend_from_slice(&v4.octets());
-        }
-        Ok(IpAddr::V6(v6)) => {
-            out.push(0x04);
-            out.extend_from_slice(&v6.octets());
-        }
-        Err(_) => {
-            let len = u8::try_from(bare.len()).map_err(|_| "a name of more than 255 bytes")?;
-            if len == 0 {
-                return Err("an empty name".into());
-            }
-            out.push(0x03);
-            out.push(len);
-            out.extend_from_slice(bare.as_bytes());
-        }
-    }
-    out.extend_from_slice(&port.to_be_bytes());
+    address::write(&mut out, host, port)?;
     out.extend_from_slice(b"\r\n");
     Ok(out)
 }

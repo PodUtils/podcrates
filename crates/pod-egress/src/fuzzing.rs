@@ -1,8 +1,13 @@
 //! The readers of the wire that the fuzz targets of `fuzz/` call (feature
 //! `fuzzing`): a packet of a Wisp server, this client's answer to the INFO
-//! of a server, and a message of IAP's relay. No consumer turns it on.
+//! of a server, a message of IAP's relay, and the accept side's reader of a
+//! Trojan request. No consumer turns it on.
 
 pub use crate::iap::frame::{MAX_DATA, Message, ack as iap_ack, data as iap_data};
+#[cfg(feature = "trojan")]
+pub use crate::trojan::accept::{Command, MAX_REQUEST, Request, parse as trojan_parse};
+#[cfg(feature = "trojan")]
+pub use crate::trojan::{Password, request as trojan_request};
 pub use crate::wisp::packet::{Info, Packet, decode, encode};
 use crate::wisp::{Opened, answer};
 

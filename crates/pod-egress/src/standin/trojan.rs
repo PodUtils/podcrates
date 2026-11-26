@@ -11,6 +11,8 @@ use std::time::Duration;
 
 use pod_ws::session::RelaySession;
 use sha2::{Digest, Sha224};
+
+use crate::trojan::{Password, accept};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -33,37 +35,19 @@ pub struct Seen {
     pub paths: Mutex<Vec<String>>,
 }
 
-/// Trojan's request at the front of `buf`, once whole: the hash, the target
-/// and the request's length; `None` until it is.
-fn parse(buf: &[u8]) -> Option<(Vec<u8>, String, usize)> {
-    if buf.len() < 60 {
-        return None;
-    }
-    let hash = buf[..56].to_vec();
-    if &buf[56..58] != b"\r\n" || buf[58] != 0x01 {
-        return None;
-    }
-    let (host, at) = match buf[59] {
-        0x01 => (std::net::Ipv4Addr::from(<[u8; 4]>::try_from(buf.get(60..64)?).ok()?).to_string(), 64),
-        0x03 => {
-            let len = usize::from(*buf.get(60)?);
-            (String::from_utf8(buf.get(61..61 + len)?.to_vec()).ok()?, 61 + len)
-        }
-        0x04 => (std::net::Ipv6Addr::from(<[u8; 16]>::try_from(buf.get(60..76)?).ok()?).to_string(), 76),
-        _ => return None,
-    };
-    let port = u16::from_be_bytes([*buf.get(at)?, *buf.get(at + 1)?]);
-    if buf.get(at + 2..at + 4)? != b"\r\n" {
-        return None;
-    }
-    Some((hash, format!("{host}:{port}"), at + 4))
+/// Trojan's request at the front of `buf` by the accept side's parser: the
+/// target and the request's length of a request of [`PASSWORD`], `Ok(None)`
+/// to read more bytes, and an error for the fallback.
+fn parse(buf: &[u8]) -> Result<Option<(String, usize)>, accept::RequestError> {
+    let password = Password::new(PASSWORD).map_err(|_| accept::RequestError::WrongPassword)?;
+    Ok(accept::parse(buf, &password)?.map(|r| {
+        let host = if r.host.contains(':') { format!("[{}]", r.host) } else { r.host };
+        (format!("{host}:{}", r.port), r.used)
+    }))
 }
 
-/// The target of a request whose hash is the stand-in's, else none.
-async fn dial(hash: &[u8], target: &str, seen: &Seen) -> Option<TcpStream> {
-    if hash != hash_of(PASSWORD).as_slice() {
-        return None;
-    }
+/// The target of a request that the parser took, if it dials.
+async fn dial(target: &str, seen: &Seen) -> Option<TcpStream> {
     locked(&seen.targets).push(target.to_string());
     TcpStream::connect(target).await.ok()
 }
@@ -97,17 +81,22 @@ where
 pub async fn serve_tls<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(mut tls: S, seen: Arc<Seen>) {
     let mut got = Vec::new();
     let mut buf = [0u8; 4096];
-    let (hash, target, used) = loop {
+    let request = loop {
         let Ok(n) = tls.read(&mut buf).await else { return };
         if n == 0 {
             return;
         }
         got.extend_from_slice(&buf[..n]);
-        if let Some(request) = parse(&got) {
-            break request;
+        match parse(&got) {
+            Ok(None) => {}
+            other => break other.ok().flatten(),
         }
     };
-    let Some(mut tcp) = dial(&hash, &target, &seen).await else {
+    let tcp = match request {
+        Some((target, used)) => dial(&target, &seen).await.map(|tcp| (tcp, used)),
+        None => None,
+    };
+    let Some((mut tcp, used)) = tcp else {
         let _ = tls.write_all(FALLBACK).await;
         let _ = tls.shutdown().await;
         return;
@@ -151,14 +140,19 @@ pub async fn serve_ws<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(mut tl
     }
     let session = Arc::new(RelaySession::new(tls, Vec::new(), None, Duration::from_secs(30)).as_server());
     let mut got = Vec::new();
-    let (hash, target, used) = loop {
+    let request = loop {
         let Ok(frame) = session.read_frame().await else { return };
         got.extend_from_slice(&frame.payload);
-        if let Some(request) = parse(&got) {
-            break request;
+        match parse(&got) {
+            Ok(None) => {}
+            other => break other.ok().flatten(),
         }
     };
-    let Some(tcp) = dial(&hash, &target, &seen).await else {
+    let tcp = match request {
+        Some((target, used)) => dial(&target, &seen).await.map(|tcp| (tcp, used)),
+        None => None,
+    };
+    let Some((tcp, used)) = tcp else {
         let _ = session.send_binary(FALLBACK).await;
         let _ = session.send_close(1000, "").await;
         return;
