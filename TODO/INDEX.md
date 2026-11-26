@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1062 entries: 171 open, 31 partial, 6 blocked, 854 done.**
+**1063 entries: 172 open, 31 partial, 6 blocked, 854 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
 | P2 | 73 | 12 | 4 | 452 | 541 |
-| P3 | 94 | 10 | 2 | 154 | 260 |
-| **All** | 171 | 31 | 6 | 854 | 1062 |
+| P3 | 95 | 10 | 2 | 154 | 261 |
+| **All** | 172 | 31 | 6 | 854 | 1063 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1109,3 +1109,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1474](transport.md) | P2 | S | M1 | defect | done | `pod-dns`: after the plain certificate words of T-1409, the line of a name that does not resolve shortens the second cause to "could not connect" |
 | [T-1480](upkeep.md) | P3 | S | M5 | chore | open | three crates keep their own guard that aborts a tokio task on drop |
 | [T-1484](upkeep.md) | P3 | M | M0 | chore | open | `pod-iroh`: the move to iroh 1.5, iroh-dns 1.5 and simple-dns 0.13 together |
+| [T-1488](relay.md) | P3 | S | M2 | defect | open | `pod-link`: the line of the loopback bind keeps " (os error 13)" after the rule of T-1421 |
