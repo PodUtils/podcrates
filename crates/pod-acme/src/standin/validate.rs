@@ -30,15 +30,25 @@ pub async fn validate(
     name: &str,
     key_authorization: &str,
 ) -> Result<(), String> {
-    let config = config(provider)?;
+    let verifier = Arc::new(ChallengeCertificate {
+        provider: provider.clone(),
+        name: name.to_string(),
+        key_authorization: key_authorization.to_string(),
+        refusal: std::sync::Mutex::new(None),
+    });
+    let config = config(provider, verifier.clone())?;
     let tcp = tokio::time::timeout(LIMIT, tokio::net::TcpStream::connect(at))
         .await
         .map_err(|_| format!("no connection to {at} within {} s", LIMIT.as_secs()))?
         .map_err(|e| format!("no connection to {at}: {}", pod_core::text::io_words(&e)))?;
     let words = pod_tls::Words::new("the stand-in CA");
-    let tls = pod_tls::tls_over(tcp, name, config, LIMIT, &words)
-        .await
-        .map_err(|e| format!("the TLS handshake with {at} for {name}: {}", e.chain()))?;
+    let tls = pod_tls::tls_over(tcp, name, config, LIMIT, &words).await.map_err(|e| {
+        match verifier.refusal.lock().ok().and_then(|mut r| r.take()) {
+            // The words of the check, as the challenge's error gives them.
+            Some(reason) => reason,
+            None => format!("the TLS handshake with {at} for {name}: {}", e.chain()),
+        }
+    })?;
     let (_, session) = tls.get_ref();
     if session.alpn_protocol() != Some(pod_tls::server::ACME_TLS_1) {
         return Err(format!("{at} did not choose the protocol acme-tls/1 for {name}"));
@@ -76,10 +86,12 @@ pub fn check_certificate(der: &[u8], name: &str, key_authorization: &str) -> Res
 }
 
 /// The client configuration of a validation: TLS 1.3 and 1.2 on
-/// `provider`, ALPN `acme-tls/1` alone, any certificate whose key signs
-/// the handshake.
-fn config(provider: Arc<CryptoProvider>) -> Result<Arc<rustls::ClientConfig>, String> {
-    let verifier = Arc::new(AnyCertificate(provider.clone()));
+/// `provider`, ALPN `acme-tls/1` alone, and the certificate that
+/// `verifier` takes alone: its key signs the handshake.
+fn config(
+    provider: Arc<CryptoProvider>,
+    verifier: Arc<ChallengeCertificate>,
+) -> Result<Arc<rustls::ClientConfig>, String> {
     let mut config = rustls::ClientConfig::builder_with_provider(provider)
         .with_protocol_versions(&[&rustls::version::TLS13, &rustls::version::TLS12])
         .map_err(|e| format!("the TLS versions: {e}"))?
@@ -90,12 +102,22 @@ fn config(provider: Arc<CryptoProvider>) -> Result<Arc<rustls::ClientConfig>, St
     Ok(Arc::new(config))
 }
 
-/// Takes the certificate of a challenge, which is self-signed, and checks
-/// the signature of the handshake with its key.
+/// Takes the certificate of the challenge of one name and one key
+/// authorization. It is self-signed, so no root signs it: the verifier
+/// refuses each other certificate by [`check_certificate`] (the pin of
+/// RFC 8737, section 3), and checks the signature of the handshake with
+/// the key of the certificate.
 #[derive(Debug)]
-struct AnyCertificate(Arc<CryptoProvider>);
+struct ChallengeCertificate {
+    provider: Arc<CryptoProvider>,
+    name: String,
+    key_authorization: String,
+    /// Why the verifier refused the certificate, for the error of the
+    /// validation.
+    refusal: std::sync::Mutex<Option<String>>,
+}
 
-impl AnyCertificate {
+impl ChallengeCertificate {
     /// The signature of the handshake, by the key of `cert`. webpki does
     /// not read a certificate with a critical acmeIdentifier, so the key
     /// comes from x509-parser, and the algorithms of the scheme are the
@@ -109,7 +131,7 @@ impl AnyCertificate {
         let bad = || rustls::Error::InvalidCertificate(rustls::CertificateError::BadSignature);
         let (_, parsed) = parse_x509_certificate(cert.as_ref()).map_err(|_| bad())?;
         let key = &parsed.public_key().subject_public_key.data;
-        let algorithms = &self.0.signature_verification_algorithms;
+        let algorithms = &self.provider.signature_verification_algorithms;
         let (_, each) = algorithms.mapping.iter().find(|(scheme, _)| *scheme == dss.scheme).ok_or_else(bad)?;
         if each.iter().any(|alg| alg.verify_signature(key, message, dss.signature()).is_ok()) {
             return Ok(HandshakeSignatureValid::assertion());
@@ -118,15 +140,21 @@ impl AnyCertificate {
     }
 }
 
-impl ServerCertVerifier for AnyCertificate {
+impl ServerCertVerifier for ChallengeCertificate {
     fn verify_server_cert(
         &self,
-        _end_entity: &CertificateDer<'_>,
+        end_entity: &CertificateDer<'_>,
         _intermediates: &[CertificateDer<'_>],
         _server_name: &ServerName<'_>,
         _ocsp_response: &[u8],
         _now: UnixTime,
     ) -> Result<ServerCertVerified, rustls::Error> {
+        check_certificate(end_entity.as_ref(), &self.name, &self.key_authorization).map_err(|reason| {
+            if let Ok(mut refusal) = self.refusal.lock() {
+                *refusal = Some(reason.clone());
+            }
+            rustls::Error::General(reason)
+        })?;
         Ok(ServerCertVerified::assertion())
     }
 
@@ -149,6 +177,6 @@ impl ServerCertVerifier for AnyCertificate {
     }
 
     fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-        self.0.signature_verification_algorithms.supported_schemes()
+        self.provider.signature_verification_algorithms.supported_schemes()
     }
 }
