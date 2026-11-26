@@ -10,22 +10,29 @@
 //!
 //! The dial is that of a WebSocket by its URL (`pod_ws::url`): TLS checked
 //! for the server's name, through the caller's way out, one connection, and
-//! no token. A forwarder whose template is `wisp+wss://HOST/PATH/` takes
-//! this road (`forward`). A [`Road`] is a [`pod_core::Dial`]: a dial of a
-//! target is a stream to it.
+//! no token. A server of version 2 that asks for a password takes the
+//! caller's [`Login`] (the password extension). A forwarder whose template
+//! is `wisp+wss://HOST/PATH/` takes this road (`forward`). A [`Road`] is a
+//! [`pod_core::Dial`] on one connection: a dial of a target is a stream to
+//! it. A [`Reopening`] is one that opens a new connection on the next dial
+//! after its connection ended.
 
 #[cfg(feature = "forwarder")]
 pub(crate) mod forward;
 mod handshake;
+mod login;
 mod mux;
 pub mod packet;
+mod reopen;
 mod stream;
 
 use std::sync::Arc;
 use std::time::Duration;
 
 pub use handshake::{Opened, answer};
+pub use login::{Login, MAX_USER};
 pub use packet::Reason;
+pub use reopen::{Reopening, TRIES};
 pub use stream::WispStream;
 // What the end of a stream's input does, as on each forwarder's road.
 pub use crate::end::AtEnd;
@@ -71,11 +78,18 @@ pub struct Connect {
     pub timeout: Duration,
     /// Where the server's message of the day and its other words go.
     pub note: Note,
+    /// The user name and the password for a server of version 2 that lists
+    /// the password extension; it goes over `wss://` alone, or to this host.
+    pub login: Option<Login>,
 }
 
 impl std::fmt::Debug for Connect {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Connect").field("way", &self.way).field("timeout", &self.timeout).finish_non_exhaustive()
+        f.debug_struct("Connect")
+            .field("way", &self.way)
+            .field("timeout", &self.timeout)
+            .field("login", &self.login)
+            .finish_non_exhaustive()
     }
 }
 
@@ -123,6 +137,8 @@ impl WispError {
         match self {
             WispError::Connect(e) => e.stage_and_class(),
             WispError::Opening(_) => (Stage::WebSocket, Class::Protocol),
+            // The server refused the credential: a new try meets the same.
+            WispError::Refused(r) if r.is_credential() => (Stage::Relay, Class::Refused),
             WispError::Refused(_) => (Stage::Origin, Class::Refused),
             WispError::Closed(r) if *r == Reason::BLOCKED => (Stage::Origin, Class::Policy),
             WispError::Closed(_) => (Stage::Origin, Class::Unavailable),
@@ -194,6 +210,10 @@ impl Wisp {
     /// server that refuses the offer of a protocol (HTTP 400) is dialed once
     /// more with none, as version 1 asks none.
     pub async fn connect(url: &WsUrl, how: &Connect) -> Result<Wisp, WispError> {
+        if how.login.is_some() && !url.tls && !pod_proxy::env::is_loopback(&url.host) {
+            let why = "a Wisp password goes over wss:// alone, or to this host: the server's URL is ws://";
+            return Err(WispError::Connect(ConnectError::Config(why.into())));
+        }
         let idle = Some(pod_ws::DEFAULT_IDLE_TIMEOUT);
         let offered = url::dial_offering(url, Some(PROTOCOL), &how.way, &how.trust, how.timeout, idle).await;
         let session = match offered {
@@ -205,7 +225,7 @@ impl Wisp {
         };
         let session = session.naming("the Wisp server");
         session.set_receive_cap(RECEIVE_CAP);
-        let opened = handshake::open(&session, how.timeout).await?;
+        let opened = handshake::open(&session, how.timeout, how.login.as_ref()).await?;
         if let Some(motd) = &opened.motd {
             how.note.event(Event::info(NOTE, format!("the Wisp server's message: {motd}")));
         }
@@ -224,6 +244,13 @@ impl Wisp {
     /// open (stream open confirmation, on both sides' INFO).
     pub fn confirms(&self) -> bool {
         self.shared.opened.confirm
+    }
+
+    /// Whether the connection is still open: false once its WebSocket
+    /// closed or failed, or the server closed stream 0. A connection that is
+    /// not open opens no stream.
+    pub fn is_open(&self) -> bool {
+        self.shared.is_open()
     }
 
     /// A stream to `host:port`: its CONNECT is sent, and its bytes may go at
@@ -272,25 +299,34 @@ impl pod_core::Dial for Road {
     /// server confirms streams, else not closed by the server within
     /// [`crate::carry::EARLY_WAIT`].
     fn dial<'a>(&'a self, target: &'a Target, deadline: Instant) -> BoxFuture<'a, Result<Connected, Failure>> {
-        Box::pin(async move {
-            let left = crate::road::left(deadline, target)?;
-            let host = target.host();
-            let opening = self.wisp.open(&host, target.port(), self.at_end);
-            let mut stream = tokio::time::timeout_at(deadline, opening)
-                .await
-                .map_err(|_| crate::road::late(target, &self.shown))??;
-            let wait = if self.wisp.confirms() { left } else { left.min(crate::carry::EARLY_WAIT) };
-            if let Err(e) = stream.opened(wait).await {
-                stream.close().await;
-                return Err(e.into());
-            }
-            Ok(Connected::new(Box::new(stream)))
-        })
+        Box::pin(stream_to(&self.wisp, target, deadline, self.at_end, &self.shown))
     }
 
     fn names_inside(&self) -> bool {
         true
     }
+}
+
+/// A stream of `wisp` to `target`, open before `deadline`, as a dial of a
+/// road gives it.
+async fn stream_to(
+    wisp: &Wisp,
+    target: &Target,
+    deadline: Instant,
+    at_end: AtEnd,
+    shown: &str,
+) -> Result<Connected, Failure> {
+    let left = crate::road::left(deadline, target)?;
+    let host = target.host();
+    let opening = wisp.open(&host, target.port(), at_end);
+    let mut stream =
+        tokio::time::timeout_at(deadline, opening).await.map_err(|_| crate::road::late(target, shown))??;
+    let wait = if wisp.confirms() { left } else { left.min(crate::carry::EARLY_WAIT) };
+    if let Err(e) = stream.opened(wait).await {
+        stream.close().await;
+        return Err(e.into());
+    }
+    Ok(Connected::new(Box::new(stream)))
 }
 
 impl Drop for Wisp {

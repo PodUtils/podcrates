@@ -1,6 +1,7 @@
 //! A stream to a target through a Shadowsocks server: TCP to the server,
 //! through the caller's way out as each road dials; the salt and
-//! the target's address in the first chunk; then, where the target speaks
+//! the target's address in the first chunk (the salt after a key's prefix,
+//! when it gives one); then, where the target speaks
 //! first (an SSH server), the server's salt and its first chunk within a
 //! limit. That answer tells a server that took the key from one that did
 //! not: a server is silent to a stream that it cannot open, and a proxy
@@ -169,7 +170,9 @@ pub async fn open(node: &Node, host: &str, port: u16, dial: &Dial) -> Result<Ope
         None => Box::new(dial.way.tcp(&node.host, node.port, dial.timeout).await.map_err(OpenError::Dial)?.io),
     };
     let master = node.master_key();
-    let mut encoder = Encoder::new(node.method, &master).map_err(|e| OpenError::Send(e.to_string()))?;
+    let salt = super::prefix::salt(node.method, node.prefix().unwrap_or_default());
+    let encoder = salt.and_then(|salt| Encoder::with_salt(node.method, &master, &salt));
+    let mut encoder = encoder.map_err(|e| OpenError::Send(e.to_string()))?;
     let mut first = Vec::new();
     // The address in the first chunk, or in SIP022's headers.
     encoder.first(&header, &mut first).map_err(|e| OpenError::Send(e.to_string()))?;

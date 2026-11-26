@@ -8,8 +8,11 @@
 //! (hexadecimal); any other host is dialed, and its bytes carried. The
 //! stand-in gives a stream its credit again only once the client spent it,
 //! when no DATA of the client's can be on its way: so each DATA past the
-//! credit is counted exactly, as an overrun. It takes a WebSocket with no
-//! TLS.
+//! credit is counted exactly, as an overrun. A server of
+//! [`Speaks::Password`] asks for a user name and a password (the password
+//! extension) and refuses a wrong one with a CLOSE 0xc0, or none with 0xc2
+//! where it requires one. [`Stand::end_all`] closes each WebSocket, as a
+//! server that goes away. It takes a WebSocket with no TLS.
 
 use std::collections::{HashMap, HashSet};
 use std::io;
@@ -34,6 +37,11 @@ pub enum Speaks {
     /// extensions (id, metadata), then its CONTINUE on stream 0, or its CLOSE
     /// with the reason of `refuse`.
     V2 { extensions: Vec<(u8, Vec<u8>)>, refuse: Option<u8> },
+    /// Version 2 with the password extension alone: `required` is its byte
+    /// in the INFO. A client's extension with another user name or password
+    /// is a CLOSE 0xc0 on stream 0; none, where it is required, a CLOSE
+    /// 0xc2.
+    Password { user: String, password: String, required: bool },
 }
 
 /// What the stand-in saw, over each connection.
@@ -45,6 +53,9 @@ pub struct Seen {
     pub protocols: Vec<Option<String>>,
     /// The payload of each INFO of the client's.
     pub client_infos: Vec<Vec<u8>>,
+    /// For a server of [`Speaks::Password`], the user name of each client's
+    /// password extension; `None` where the client sent none.
+    pub logins: Vec<Option<String>>,
     /// Each CONNECT: its stream, its host, its port.
     pub connects: Vec<(u32, String, u16)>,
     /// The DATA packets of each stream.
@@ -97,17 +108,39 @@ fn info_packet(extensions: &[(u8, Vec<u8>)]) -> Vec<u8> {
     packet(0x05, 0, &payload)
 }
 
-/// Whether the payload of an INFO lists extension `id`.
-fn lists(info: &[u8], id: u8) -> bool {
+/// The metadata of extension `id` in the payload of an INFO, when it lists
+/// it.
+fn extension(info: &[u8], id: u8) -> Option<&[u8]> {
     let mut rest = info.get(2..).unwrap_or_default();
     while rest.len() >= 5 {
         let len = u32::from_le_bytes([rest[1], rest[2], rest[3], rest[4]]) as usize;
         if rest[0] == id {
-            return true;
+            return rest.get(5..5 + len);
         }
         rest = rest.get(5 + len..).unwrap_or_default();
     }
-    false
+    None
+}
+
+/// The client's metadata of the password extension: the length of the user
+/// name, the user name, the password.
+fn login_of(metadata: &[u8]) -> Option<(String, String)> {
+    let (len, rest) = metadata.split_first()?;
+    let (user, password) = (rest.get(..usize::from(*len))?, rest.get(usize::from(*len)..)?);
+    Some((String::from_utf8(user.to_vec()).ok()?, String::from_utf8(password.to_vec()).ok()?))
+}
+
+/// The reason of the CLOSE of a server of [`Speaks::Password`] for a
+/// client's INFO, or `None` when it lets the client in.
+fn login_refusal(info: &[u8], user: &str, password: &str, required: bool, seen: &Mutex<Seen>) -> Option<u8> {
+    let given = extension(info, 0x02).map(|m| login_of(m).unwrap_or_default());
+    locked(seen).logins.push(given.as_ref().map(|(u, _)| u.clone()));
+    match given {
+        Some((u, p)) if u == user && p == password => None,
+        Some(_) => Some(0xc0),
+        None if required => Some(0xc2),
+        None => None,
+    }
 }
 
 impl Stand {
@@ -134,6 +167,15 @@ impl Stand {
 
     pub fn overruns(&self) -> usize {
         locked(&self.seen).overruns
+    }
+
+    /// Close the WebSocket of each connection (1001), as a server that goes
+    /// away: each stream of it ends.
+    pub async fn end_all(&self) {
+        let conns = std::mem::take(&mut *locked(&self.conns));
+        for conn in conns {
+            let _ = conn.session.send_close(1001, "going away").await;
+        }
     }
 
     /// A CONTINUE of `left` for stream `id` of the last connection; false
@@ -168,8 +210,13 @@ async fn serve(
     }
     let session = Arc::new(pod_ws::server::session(tcp, pending, None));
     let mut confirm = false;
+    let v2 = match &speaks {
+        Speaks::V1 => None,
+        Speaks::V2 { extensions, refuse } => Some((extensions.clone(), *refuse)),
+        Speaks::Password { required, .. } => Some((vec![(0x02, vec![u8::from(*required)])], None)),
+    };
     // Version 2 only where the upgrade offered a protocol.
-    if let (Speaks::V2 { extensions, refuse }, true) = (&speaks, protocol.is_some()) {
+    if let (Some((extensions, refuse)), true) = (&v2, protocol.is_some()) {
         if session.send_binary(&info_packet(extensions)).await.is_err() {
             return;
         }
@@ -184,9 +231,13 @@ async fn serve(
             _ => return,
         };
         locked(&seen).client_infos.push(theirs.clone());
-        confirm = extensions.iter().any(|(id, _)| *id == 0x05) && lists(&theirs, 0x05);
+        confirm = extensions.iter().any(|(id, _)| *id == 0x05) && extension(&theirs, 0x05).is_some();
+        let refuse = match &speaks {
+            Speaks::Password { user, password, required } => login_refusal(&theirs, user, password, *required, &seen),
+            _ => *refuse,
+        };
         if let Some(reason) = refuse {
-            let _ = session.send_binary(&close_packet(0, *reason)).await;
+            let _ = session.send_binary(&close_packet(0, reason)).await;
             let _ = session.send_close(1000, "").await;
             return;
         }

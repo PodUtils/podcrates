@@ -138,6 +138,11 @@ impl Shared {
         self.idle.notify_one();
     }
 
+    /// Whether the connection has not ended.
+    pub(super) fn is_open(&self) -> bool {
+        self.streams().gone.is_none()
+    }
+
     fn unused(&self) -> bool {
         !self.held.load(Ordering::SeqCst) && self.streams().open.is_empty()
     }

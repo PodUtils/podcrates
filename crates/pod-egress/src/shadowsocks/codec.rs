@@ -141,7 +141,8 @@ impl Encoder {
         Encoder::with_salt(method, master, &salt)
     }
 
-    /// A stream with this salt: for the tests, whose vectors fix it.
+    /// A stream with this salt: for the tests, whose vectors fix it, and for
+    /// a salt that starts with a key's prefix (`super::prefix::salt`).
     pub fn with_salt(method: Method, master: &[u8], salt: &[u8]) -> Result<Encoder, ChunkError> {
         if salt.len() != method.salt_len() || master.len() != method.key_len() {
             return Err(ChunkError::Cipher);

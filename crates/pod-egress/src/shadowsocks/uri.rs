@@ -3,8 +3,9 @@
 //! `method:password` in base64url, with or without padding, or
 //! percent-encoded with its `:` as it is. The older form, the whole
 //! `method:password@host:port` in base64, is read too: many lists still
-//! serve it. A URI holds a password, so no message here quotes it: each
-//! says what is wrong, never the text.
+//! serve it. Outline's `prefix=` of the query is the salt's prefix
+//! (`super::prefix`). A URI holds a password, so no message here quotes it:
+//! each says what is wrong, never the text.
 
 use std::fmt;
 
@@ -30,6 +31,16 @@ pub struct Node {
     /// servers serve it; `None` for raw TCP to `host:port`. Its path
     /// is often the server's secret: no line shows it.
     pub ws: Option<pod_ws::url::WsUrl>,
+    /// Outline's salt prefix: the first bytes of each stream's salt.
+    prefix: Option<Vec<u8>>,
+}
+
+/// The server as [`Node::shown`] gives it: never its password, nor the
+/// WebSocket's path.
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.shown())
+    }
 }
 
 impl fmt::Debug for Node {
@@ -41,6 +52,7 @@ impl fmt::Debug for Node {
             .field("port", &self.port)
             .field("tag", &self.tag)
             .field("websocket", &self.ws.as_ref().map(|ws| ws.host.clone()))
+            .field("prefix", &self.prefix)
             .finish()
     }
 }
@@ -62,7 +74,7 @@ impl Node {
             super::sip022::psk(password, method)?;
         }
         let password = Zeroizing::new(password.to_string());
-        Ok(Node { method, password, host: host.to_string(), port, tag: None, ws: None })
+        Ok(Node { method, password, host: host.to_string(), port, tag: None, ws: None, prefix: None })
     }
 
     /// An `ss://` URI. A plugin is refused, as it is another program that
@@ -96,7 +108,29 @@ impl Node {
         };
         let mut node = Node::new(Method::parse(&method)?, &password, &host, port)?;
         node.tag = tag.map(tag_of).filter(|t| !t.is_empty());
-        Ok(node)
+        match query.and_then(|q| q.split('&').find_map(|pair| pair.strip_prefix("prefix="))) {
+            // `+` is a space in a query, as Outline's client reads it.
+            Some(value) => {
+                let text =
+                    percent_decode(&value.replace('+', "%20")).ok_or("its prefix is not percent-encoded text")?;
+                node.with_prefix(&super::prefix::from_text(&text)?)
+            }
+            None => Ok(node),
+        }
+    }
+
+    /// This server with Outline's salt `prefix`, which leaves
+    /// [`super::prefix::MIN_RANDOM`] bytes of the salt random; an empty one
+    /// is none.
+    pub fn with_prefix(mut self, prefix: &[u8]) -> Result<Node, String> {
+        super::prefix::check(prefix, self.method)?;
+        self.prefix = (!prefix.is_empty()).then(|| prefix.to_vec());
+        Ok(self)
+    }
+
+    /// Outline's salt prefix, when the key gives one.
+    pub fn prefix(&self) -> Option<&[u8]> {
+        self.prefix.as_deref()
     }
 
     /// A server whose stream goes in the WebSocket at `url`: its host and
@@ -169,7 +203,8 @@ impl Node {
         };
         let tag = self.tag.as_deref().map(|t| format!("#{}", percent_encode(t))).unwrap_or_default();
         let at = pod_proxy::host::authority(&self.host, self.port);
-        Zeroizing::new(format!("ss://{}@{at}{tag}", encoded.as_str()))
+        let query = self.prefix.as_deref().map(|p| format!("/?prefix={}", super::prefix::to_url_text(p)));
+        Zeroizing::new(format!("ss://{}@{at}{}{tag}", encoded.as_str(), query.unwrap_or_default()))
     }
 }
 

@@ -81,10 +81,23 @@ impl Info {
 }
 
 /// One extension of an INFO: its id and its metadata.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Extension {
     pub id: u8,
     pub payload: Vec<u8>,
+}
+
+impl std::fmt::Debug for Extension {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut out = f.debug_struct("Extension");
+        out.field("id", &self.id);
+        // The client's metadata of the password extension holds the password.
+        match self.id {
+            ext::PASSWORD => out.field("payload", &format_args!("<{} bytes>", self.payload.len())),
+            _ => out.field("payload", &self.payload),
+        };
+        out.finish()
+    }
 }
 
 /// The reason of a CLOSE, in the words of the protocol's document.
@@ -104,6 +117,16 @@ impl Reason {
     pub const TRANSFER_TIMED_OUT: Reason = Reason(0x47);
     pub const BLOCKED: Reason = Reason(0x48);
     pub const THROTTLED: Reason = Reason(0x49);
+    /// A wrong user name or password.
+    pub const WRONG_PASSWORD: Reason = Reason(0xc0);
+    pub const WRONG_SIGNATURE: Reason = Reason(0xc1);
+    /// The server requires credentials, and the client gave none.
+    pub const NO_CREDENTIAL: Reason = Reason(0xc2);
+
+    /// Whether it refuses this side's credential, or the lack of one.
+    pub fn is_credential(self) -> bool {
+        (0xc0..=0xc2).contains(&self.0)
+    }
 
     /// What it means.
     pub fn words(self) -> &'static str {

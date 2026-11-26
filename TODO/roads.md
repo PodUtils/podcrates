@@ -2487,3 +2487,294 @@ sh scripts/plant-each.sh net780-t1506-standin-skips-identifier net780-t1506-chal
 - Plants: `net780-t1506-standin-skips-identifier` (the stand-in skips the digest of the acmeIdentifier), `net780-t1506-challenge-no-identifier` (the client's certificate has no acmeIdentifier: the whole order fails), `net780-t1506-standin-skips-signature` (the stand-in takes a JWS whose signature does not verify); each caught.
 - podnet: `pod-acme = { git = "https://github.com/PodUtils/podcrates", tag = "vX.Y.Z", features = ["standin"] }` in the `[dev-dependencies]` of `podnet-serve`; a test binds its listener (`acceptor` with `HTTP1` and `ACME_TLS_1`, `serve_tls`), starts `Standin::start(provider, Plan::new(listener_addr))`, and gives `Standin::directory` and `Standin::http()` to `acme::open`.
 - Not done: a whole order against Pebble in podcrates stays T-637.
+
+# T-1525: `pod-egress`: a Wisp road that opens a new connection on the next dial after its connection ended, with a bound on the tries and a backoff (PodUtils/podnet#782, ask 1)
+
+**Source:** PodUtils/podnet#782 (COORD-137 of podnet), ask 1; PodUtils/podnet@T-127; author MEMBER
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+PodUtils/podnet#782, ask 1: "`wisp::Wisp` ends with its WebSocket (Gone,
+Failed, or a CLOSE on stream 0). A long run needs a road that keeps its URL
+and `Connect` and opens a new connection when the old one ended, or
+`Wisp::is_open()`. podnet holds one retry in
+`src/networks/servers/wisp.rs` (`Held`) and drops it at the tag that has
+this."
+
+`wisp::Road` holds one `Wisp`. After the end of its WebSocket, each dial
+fails, and a consumer cannot see the end before a dial.
+
+## Premise
+
+- Read: `crates/pod-egress/src/wisp/mod.rs` (`Wisp`, `Road`) and
+  `crates/pod-egress/src/wisp/mux.rs` (`Streams::gone`: the end of the
+  connection, set before each stream ends).
+- Read: `PodUtils/podnet:src/networks/servers/wisp.rs` (`Held`: a road
+  under a lock, forgotten when a dial fails with `Gone`, `Failed` or
+  `Refused`, then one new connection).
+- Read: `crates/pod-core/src/backoff.rs` (`backoff(retry)`: 1 s, 2 s, 4 s
+  to 30 s, each scaled by a random factor).
+
+## Approach
+
+1. `Wisp::is_open()`: false once the connection ended.
+2. `wisp::Reopening`: a `pod_core::Dial` that keeps the URL, the `Connect`
+   and the end of input. A dial takes the open connection, or opens a new
+   one. No task opens a connection with no dial. A dial makes `TRIES`
+   connections at most, with `pod_core::backoff` between two, before its
+   deadline. A failure that a new try cannot change (a refusal of the
+   server, a usage error) stops the tries. After a dial that found no
+   connection, the next dial before the end of the backoff fails at once
+   with the same words. A stream whose connection ended under it is tried
+   one more time on a new connection.
+3. The stand-in of Wisp gains `Stand::end_all`, which closes each
+   WebSocket. Tests: a new connection after the end, one connection for
+   many dials, the bound on the tries, the quiet time.
+
+## Prove
+
+```sh
+cargo test -p pod-egress --all-features --test wisp_more
+cargo clippy -p pod-egress --all-targets --all-features -- -D warnings
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1525.
+
+- `Wisp::is_open()`: false once the WebSocket closed or failed, or the
+  server closed stream 0 (`crates/pod-egress/src/wisp/mux.rs`, `is_open`).
+- `wisp::Reopening` (`crates/pod-egress/src/wisp/reopen.rs`): `new(url,
+  connect, at_end)`, `connect(..)` (the first connection at once),
+  `with_tries`, `shown`, `is_open`, `opened`; a `pod_core::Dial`. A dial
+  takes the open connection or opens a new one; `TRIES` (3) connections at
+  most for one dial, `pod_core::backoff` between two, within the deadline;
+  a failure of a class other than unavailable, timeout or temporary stops
+  the tries; a dial in the backoff after a failed dial fails at once with
+  the last words and "(no new connection to the Wisp server within N s)";
+  a stream whose connection ended under it is tried once more. No task
+  opens a connection with no dial.
+- The stand-in: `standin::wisp::Stand::end_all`.
+- Tests: `tests/wisp_more.rs`,
+  `a_reopening_road_opens_a_new_connection_on_the_next_dial_after_the_end`,
+  `a_dial_opens_a_bounded_number_of_connections_and_the_next_dial_waits_for_the_backoff`,
+  `a_refused_credential_is_not_tried_again`; the unit test
+  `only_a_server_that_was_down_or_slow_is_tried_again`. Plants:
+  `scripts/plants/egress-wisp-reopen-kept.plant`,
+  `scripts/plants/egress-wisp-reopen-unbounded.plant`.
+- `cargo test -p pod-egress --all-features`: each target passes (unit 165,
+  `wisp_more` 5, `wisp` 10). `cargo clippy -p pod-egress --all-targets
+  --all-features -- -D warnings`: clean.
+- podnet can drop `Held` and `connection_ended` of
+  `src/networks/servers/wisp.rs`: `Reopening::connect` gives the road and
+  `opened()` the status.
+
+# T-1526: `pod-egress`: a Shadowsocks node that a key file builds whole (an Outline key with a `wss://` URL), and the salt prefix of Outline's keys (PodUtils/podnet#782, ask 3)
+
+**Source:** PodUtils/podnet#782 (COORD-137 of podnet), ask 3; PodUtils/podnet@T-127; author MEMBER
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+PodUtils/podnet#782, ask 3: "Shadowsocks over a WebSocket (Outline) from a
+key file: a `Node` that a key file builds whole, with the `wss://` URL and
+its secret path, so the path stays out of argv."
+
+`shadowsocks::access_key` reads the body of an Outline key, but a caller
+must read the file itself, and `Node` has no `Display`. Outline's keys can
+carry a salt `prefix` (in the YAML of a dynamic key, or as `prefix=` in an
+`ss://` link): `access_key` refuses it, and `Node::parse` drops it with no
+word, so the stream goes with no disguise.
+
+## Premise
+
+- Read: `crates/pod-egress/src/shadowsocks/key.rs` (`access_key`: an
+  `ss://` link, SIP008's JSON, Outline's YAML with a `websocket`
+  endpoint), `crates/pod-egress/src/shadowsocks/uri.rs` (`Node`, `shown`)
+  and `crates/pod-egress/src/shadowsocks/open.rs` (the salt goes first).
+- Read: Outline's documents, "Disguise Connections with Prefixes"
+  (developer.getoutline.org/vpn/advanced/prefixing): the prefix is the
+  first bytes of the salt, at most 16 bytes; in YAML each code point
+  U+0000 to U+00FF is one byte; in an `ss://` link it is the URL-encoded
+  UTF-8 of the same code points.
+- Read: `crates/pod-core/src/files.rs` (`read_private_up_to`: a regular
+  file of this user that nobody else can read).
+
+## Approach
+
+1. `shadowsocks::key_file(path)`: the node of a private file, as
+   `access_key` reads its body. A failure names the file and never its
+   text.
+2. `impl Display for Node`: `shown()`, which shows no password and no path
+   of a WebSocket.
+3. The prefix: `Node::prefix()`, read from `prefix` of a key and from
+   `prefix=` of an `ss://` link; the salt of each stream starts with it.
+   A prefix leaves 8 random bytes of the salt at least, and is 16 bytes at
+   most. `Node::to_uri` writes it back.
+
+## Prove
+
+```sh
+cargo test -p pod-egress --all-features --test shadowsocks_outline
+cargo test -p pod-egress --all-features --lib shadowsocks
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1526.
+
+- `shadowsocks::key_file(path)`: the node of an access key in a private
+  file (`pod_core::files::read_private_up_to`, 64 KiB at most); a failure
+  names the file and never its text. `impl Display for Node` (`shown()`).
+- `shadowsocks::prefix` (`from_text`, `to_url_text`, `check`, `salt`,
+  `MAX_PREFIX`, `MIN_RANDOM`), `Node::with_prefix` and `Node::prefix`: the
+  prefix of Outline's YAML, of SIP008's JSON and of `prefix=` in an `ss://`
+  link goes first in each stream's salt; at most 16 bytes, and 8 bytes of
+  the salt stay random. `Node::to_uri` writes it back. The reader of YAML
+  takes merge keys (`<<`), as Outline's example of a prefix has them.
+- Tests: `tests/shadowsocks_outline.rs`,
+  `a_key_file_builds_the_whole_node_and_no_line_shows_its_path_or_secret`,
+  `a_key_file_that_others_can_read_is_refused`,
+  `a_prefix_goes_first_in_the_salt_and_the_server_reads_the_stream`,
+  `a_prefix_that_leaves_too_few_random_bytes_is_refused`; the unit tests
+  `a_merge_key_takes_the_keys_of_its_mapping_and_the_own_keys_win`,
+  `a_prefix_is_a_byte_for_each_code_point_and_its_url_text_is_outline_s`,
+  `the_salt_starts_with_the_prefix_and_keeps_eight_random_bytes`. Plant:
+  `scripts/plants/egress-shadowsocks-prefix-unsent.plant`.
+- `cargo test -p pod-egress --all-features`: each target passes
+  (`shadowsocks_outline` 4, `shadowsocks` 10). Clippy: clean.
+
+# T-1527: `pod-egress`: the password extension of Wisp v2, from a secret of the caller (PodUtils/podnet#782, ask 4)
+
+**Source:** PodUtils/podnet#782 (COORD-137 of podnet), ask 4; PodUtils/podnet@T-127; author MEMBER
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+PodUtils/podnet#782, ask 4: "The crate refuses a server that asks for a
+password. Ask: send it from a secret of the caller."
+
+## Premise
+
+- Read: MercuryWorkshop/wisp-protocol:protocol.md (branch v2), "0x02 -
+  Password Authentication": the server's metadata is one byte, whether the
+  password is required; the client's metadata is the length of the user
+  name (one byte), the user name, then the password to the end, each UTF-8.
+  A wrong user name or password is a CLOSE 0xc0 on stream 0, then the
+  Close of the WebSocket. "If either key or password auth is required, the
+  client must prompt the user for their credentials."
+- Read: `crates/pod-egress/src/wisp/handshake.rs` (`answer` refuses a
+  server that requires a password or a key).
+
+## Approach
+
+1. `wisp::Login` (`new`, `parse` of `USER:PASSWORD`): no `Debug` and no
+   line shows the password; it is zeroed on drop.
+2. `Connect::login`: when the server lists the extension, this side's
+   INFO carries it. A server that requires it, with no login, is refused
+   as before. A login goes over `wss://` only, or to the loopback.
+3. A CLOSE 0xc0, 0xc1 or 0xc2 on stream 0 is a refusal of the credential
+   (stage relay, class refused).
+4. The stand-in of Wisp gains `Speaks::Password`, a server that asks for a
+   password and refuses a wrong one.
+
+## Prove
+
+```sh
+cargo test -p pod-egress --all-features --test wisp_more
+cargo test -p pod-egress --all-features --lib wisp
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1527.
+
+- `wisp::Login` (`new`, `parse`, `user`; `MAX_USER`), `Connect::login`,
+  `answer(info, login)`: the password extension goes where the server
+  lists it; a server that requires it with no login is refused as before;
+  a login goes over `wss://` alone, or to the loopback (else a
+  `ConnectError::Config` before the dial). The `Debug` of `Login`,
+  `Connect` and of an `Extension` 0x02 shows no password; the metadata is
+  zeroed once it is encoded.
+- `Reason::WRONG_PASSWORD`, `WRONG_SIGNATURE`, `NO_CREDENTIAL`,
+  `is_credential`; `WispError::Refused` of these is stage relay, class
+  refused.
+- The stand-in: `standin::wisp::Speaks::Password { user, password,
+  required }`, `Seen::logins`.
+- Tests: `tests/wisp_more.rs`,
+  `a_server_that_asks_for_a_password_takes_the_login_and_refuses_a_wrong_one`,
+  `an_optional_password_is_not_needed_and_a_login_goes_over_wss_alone`; the
+  unit tests
+  `a_login_goes_where_the_server_lists_the_password_extension_and_nowhere_else`,
+  `a_bad_login_is_refused_and_no_message_or_debug_holds_the_password`.
+  Plant: `scripts/plants/egress-wisp-password-unsent.plant`.
+- `cargo test -p pod-egress --all-features`: each target passes. Clippy:
+  clean.
+
+# T-1528: `pod-egress`: a wait for the answer of a VLESS server that does not delay a protocol where the client speaks first (PodUtils/podnet#782, ask 5)
+
+**Source:** PodUtils/podnet#782 (COORD-137 of podnet), ask 5; PodUtils/podnet@T-127; author MEMBER
+**Category:** feature
+**Milestone:** M4
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+PodUtils/podnet#782, ask 5 (optional): "A wait for the answer of the
+server that does not delay a protocol where the client speaks first, so
+that a refused ID can be a failure of the dial, not of the first read."
+
+The answer of a VLESS server comes with the first bytes of the target
+(Xray-core flushes its answer with the first write). Where the client
+speaks first, no answer comes before the client writes. `vless::Dial`
+waits `answer` for it; podnet sets `answer: Duration::ZERO` and
+`silence_is_ready: true`, so that a pipe is not delayed, and a refused ID
+is then the failure of the first read.
+
+## Premise
+
+- Read: `crates/pod-egress/src/vless/mod.rs` (`open_as`: the wait for the
+  answer, `silence_is_ready`) and `crates/pod-egress/src/vless/header.rs`
+  (`Answered`).
+- Read: `PodUtils/podnet:src/networks/servers/vless.rs` (`answer:
+  Duration::ZERO`).
+- Not measured: the time from the request to the end of the session at a
+  server that refuses the ID.
+
+## Approach
+
+1. A server that refuses the ID ends the session, or sends its fallback,
+   one round trip after the request. The dial measures the round trip of
+   its last step (the upgrade, or the first HTTP answer of XHTTP).
+2. `Dial::answer_wait`: a wait of a number of those round trips (bounded
+   by `answer`), after which silence is a stream to take. An end or bytes
+   of another protocol in that wait fail the dial.
+
+## Decision
+
+Left open: the wait needs the round trip of the last step of each
+transport, and `pod_ws::url::dial` and the XHTTP modes do not give it. The
+first step is a measurement of that round trip in `pod-ws`, a shared part.
+Until then, podnet keeps `answer: Duration::ZERO`, and a refused ID is the
+failure of the first read, in the words of `vless::ENDED`.
+
+## Prove
+
+```sh
+cargo test -p pod-egress --all-features --test vless
+```

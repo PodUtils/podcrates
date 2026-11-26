@@ -1,0 +1,7 @@
+# The salt of a Shadowsocks stream does not start with the key's prefix:
+# the test of the prefix on the wire must fail.
+ENTRY=T-1526
+GROUP=egress
+EXPECT='test a_prefix_goes_first_in_the_salt_and_the_server_reads_the_stream \.\.\. FAILED'
+RUN='cargo test -p pod-egress --all-features --test shadowsocks_outline -- a_prefix_goes_first_in_the_salt_and_the_server_reads_the_stream'
+LIMIT=2400
