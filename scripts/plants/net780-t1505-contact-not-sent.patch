@@ -1,0 +1,14 @@
+diff --git a/crates/pod-acme/src/client.rs b/crates/pod-acme/src/client.rs
+index 7a1910608..4143a1dc7 100644
+--- a/crates/pod-acme/src/client.rs
++++ b/crates/pod-acme/src/client.rs
+@@ -120,9 +120,6 @@ impl Client {
+     pub async fn account(&mut self) -> Result<bool, String> {
+         let url = self.directory.new_account.clone();
+         let mut payload = json!({"termsOfServiceAgreed": true});
+-        if !self.contacts.is_empty() {
+-            payload["contact"] = self.contact_list();
+-        }
+         let answer = self.post(&url, Some(&payload), "application/json").await?;
+         let made = match answer.status {
+             201 => true,

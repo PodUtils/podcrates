@@ -1,0 +1,13 @@
+diff --git a/crates/pod-acme/src/certs.rs b/crates/pod-acme/src/certs.rs
+index f8ff8acd7..ab9bb00fb 100644
+--- a/crates/pod-acme/src/certs.rs
++++ b/crates/pod-acme/src/certs.rs
+@@ -78,7 +78,7 @@ pub fn challenge(name: &str, key_authorization: &str, now_secs: i64) -> Result<(
+     params.not_before = day(now_secs - 86_400);
+     params.not_after = day(now_secs + CHALLENGE_DAYS * 86_400);
+     let digest = sha2::Sha256::digest(key_authorization.as_bytes());
+-    params.custom_extensions = vec![rcgen::CustomExtension::new_acme_identifier(&digest[..])];
++    let _ = digest;
+     let cert = params.self_signed(&key).map_err(|e| format!("the challenge's certificate for {name}: {e}"))?;
+     Ok((pem("CERTIFICATE", cert.der()), key.pem()))
+ }
