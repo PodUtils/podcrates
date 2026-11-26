@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1069 entries: 170 open, 31 partial, 6 blocked, 862 done.**
+**1070 entries: 170 open, 31 partial, 6 blocked, 863 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 72 | 12 | 4 | 457 | 545 |
+| P2 | 72 | 12 | 4 | 458 | 546 |
 | P3 | 94 | 10 | 2 | 157 | 263 |
-| **All** | 170 | 31 | 6 | 862 | 1069 |
+| **All** | 170 | 31 | 6 | 863 | 1070 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1115,4 +1115,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1480](upkeep.md) | P3 | S | M5 | chore | done | three crates keep their own guard that aborts a tokio task on drop |
 | [T-1484](upkeep.md) | P3 | M | M0 | chore | open | `pod-iroh`: the move to iroh 1.5, iroh-dns 1.5 and simple-dns 0.13 together |
 | [T-1488](relay.md) | P3 | S | M2 | defect | done | `pod-link`: the line of the loopback bind keeps " (os error 13)" after the rule of T-1421 |
+| [T-1500](podvm.md) | P2 | M | M6 | feature | done | `pod-guest`: `ext4::write_empty`, an empty ext4 file system in a sparse file with no tool of the host (PodUtils/podvm#680) |
 | [T-1504](transport.md) | P3 | S | M5 | defect | open | `live.yml` 45797952128: the upload of temp.sh answered HTTP 500 |

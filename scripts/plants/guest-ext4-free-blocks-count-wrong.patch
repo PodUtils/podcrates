@@ -1,0 +1,11 @@
+--- a/crates/pod-guest/src/ext4/blocks.rs
++++ b/crates/pod-guest/src/ext4/blocks.rs
+@@ -76,7 +76,7 @@
+         put32(e, 0, l.block_bitmap(g));
+         put32(e, 4, l.block_bitmap(g) + 1);
+         put32(e, 8, l.inode_table(g));
+-        put16(e, 12, l.group_blocks(g) - l.used_blocks(g));
++        put16(e, 12, l.group_blocks(g) - l.used_blocks(g) + 1);
+         put16(e, 14, l.inodes_per_group - l.used_inodes(g));
+         put16(e, 16, if g == 0 { 2 } else { 0 });
+     }
