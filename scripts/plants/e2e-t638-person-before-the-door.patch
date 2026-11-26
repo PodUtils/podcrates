@@ -1,12 +1,11 @@
 diff --git a/crates/pod-e2e/src/ends.rs b/crates/pod-e2e/src/ends.rs
-index 5fc485a..4dad9fd 100644
 --- a/crates/pod-e2e/src/ends.rs
 +++ b/crates/pod-e2e/src/ends.rs
-@@ -239,6 +239,7 @@ where
-             by_grant
+@@ -263,6 +263,7 @@
+             credential
          }
          Err((line, refusal)) => {
-+            let _ = Box::pin(person_of(node, peer, &ask, false)).await;
++            let _ = Box::pin(person_of(node, peer, &ask, None)).await;
              node.say(EVENT_REFUSED, line);
              asked.refuse(refusal).await;
              return;
