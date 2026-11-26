@@ -1,0 +1,13 @@
+diff --git a/crates/pod-term/src/transfer.rs b/crates/pod-term/src/transfer.rs
+index bf2bdf1d7..94787891e 100644
+--- a/crates/pod-term/src/transfer.rs
++++ b/crates/pod-term/src/transfer.rs
+@@ -280,7 +280,7 @@ impl Transfer {
+     /// cap of `HELO`. A size of 0 is not known: no cap.
+     pub fn set_size(&mut self, cols: usize, rows: usize) {
+         self.set_width(cols);
+-        self.pane = pane::chunk(cols, rows);
++        self.pane = pane::chunk(cols, 0);
+         if let Some(s) = &mut self.session {
+             s.set_pane(self.pane);
+         }

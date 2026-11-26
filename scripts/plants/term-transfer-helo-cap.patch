@@ -1,0 +1,13 @@
+diff --git a/crates/pod-term/src/transfer/flow.rs b/crates/pod-term/src/transfer/flow.rs
+index 9778fcb1a..0fda6e772 100644
+--- a/crates/pod-term/src/transfer/flow.rs
++++ b/crates/pod-term/src/transfer/flow.rs
+@@ -363,7 +363,7 @@ impl Session {
+             self.send(&self.hello());
+             return;
+         }
+-        self.cap = self.limit().min(chunk as usize);
++        self.cap = self.limit();
+         self.chunk = self.floor();
+         self.flight = None;
+         if self.far {

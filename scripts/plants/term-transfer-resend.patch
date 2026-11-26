@@ -1,10 +1,12 @@
+diff --git a/crates/pod-term/src/transfer/flow.rs b/crates/pod-term/src/transfer/flow.rs
+index 9778fcb1a..38474e1e1 100644
 --- a/crates/pod-term/src/transfer/flow.rs
 +++ b/crates/pod-term/src/transfer/flow.rs
-@@ -368,7 +368,6 @@
-     /// floor.
-     fn resend(&mut self) {
-         if let Some(flight) = &mut self.flight {
--            self.out.extend_from_slice(&flight.bytes);
-             flight.handed = None;
-             flight.resent = true;
-             self.chunk = CHUNK_MIN.min(self.cap);
+@@ -410,7 +410,6 @@ impl Session {
+             let msg = Msg::Data { offset: flight.offset, bytes: flight.data.clone() };
+             flight.bytes = wire::frame(&msg, end, width);
+         }
+-        self.out.extend_from_slice(&flight.bytes);
+         flight.handed = None;
+         flight.resent = true;
+     }

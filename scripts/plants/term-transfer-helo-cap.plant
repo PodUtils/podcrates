@@ -1,0 +1,6 @@
+# The transfer codec: the near end ignores the cap of the far end in HELO (T-1390).
+ENTRY=T-1390
+GROUP=term
+EXPECT='test the_cap_of_the_far_end_in_helo_lowers_the_chunk_of_the_near_end \.\.\. FAILED'
+RUN='cargo test -p pod-term --features transfer --test transfer_pane the_cap_of_the_far_end_in_helo_lowers_the_chunk_of_the_near_end -- --exact'
+LIMIT=900
