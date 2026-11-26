@@ -1116,3 +1116,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1484](upkeep.md) | P3 | M | M0 | chore | open | `pod-iroh`: the move to iroh 1.5, iroh-dns 1.5 and simple-dns 0.13 together |
 | [T-1488](relay.md) | P3 | S | M2 | defect | done | `pod-link`: the line of the loopback bind keeps " (os error 13)" after the rule of T-1421 |
 | [T-1504](transport.md) | P3 | S | M5 | defect | open | `live.yml` 45797952128: the upload of temp.sh answered HTTP 500 |
+| [T-1505](roads.md) | P2 | S | M4 | feature | open | `pod-acme`: the contacts of the account, sent in newAccount, a refused contact named |
+| [T-1506](roads.md) | P2 | M | M4 | feature | open | `pod-acme`: a stand-in of an ACME CA behind the feature `standin` |

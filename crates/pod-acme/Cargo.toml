@@ -7,6 +7,12 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+# A stand-in of an ACME CA on the loopback (src/standin.rs): for the tests
+# of this crate and of a consumer, in its `[dev-dependencies]` alone. No
+# binary needs it.
+standin = ["tokio/net", "tokio/io-util", "tokio/rt"]
+
 [dependencies]
 # The failure with its stage and class, the events, the entropy of the
 # keys, the clock, the text made safe to print, the private files.
@@ -38,4 +44,17 @@ zeroize = { workspace = true }
 # A key that ring wrote, as podssh kept its keys (aws-lc-rs writes the same
 # form).
 ring = { workspace = true }
-tokio = { workspace = true, features = ["time", "rt", "macros"] }
+tokio = { workspace = true, features = ["time", "rt", "rt-multi-thread", "macros"] }
+# The tests run TLS on ring (docs/design.md, section 1, rule 4).
+rustls = { workspace = true, features = ["ring"] }
+# `need_loopback!` of the tests against the stand-in.
+pod-testkit = { workspace = true }
+
+# The tests against the stand-in.
+[[test]]
+name = "standin"
+required-features = ["standin"]
+
+[[test]]
+name = "standin_checks"
+required-features = ["standin"]
