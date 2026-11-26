@@ -39,6 +39,13 @@ is done. Git and the record keep finished work.
      (COORD-149, T-1396).
    - Done on `main` after `v0.85.0`: PodUtils/podnet#756 (COORD-126,
      T-1395); answer it with the next tag.
+   - PodUtils/podssh#360 (COORD-150): asks 3 and 5 are T-1401 and T-1403,
+     done on `main`; asks 1, 2 and 4 are with a worker. PodUtils/podssh#361
+     (COORD-151) is T-1405; PodUtils/podssh#362 (COORD-152): asks 2 and 3
+     are T-1407 and T-1408, asks 1, 4 and 5 are with workers;
+     PodUtils/podssh#363 (COORD-153): ask 3 is T-1413 (optional), asks 1
+     and 2 are with a worker. PodUtils/podnet#758 (COORD-128) is with a
+     worker.
    - Open asks: PodUtils/podssh#358 (COORD-148) is T-1390;
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -132,6 +139,14 @@ closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
   each with `size=N` and reads the limit back (steps 49 to 52). Breaking:
   each struct literal of `Plan` adds `tmpfs: Vec::new()`. T-1430 (a rule of
   the confinement on such a tmpfs) is open.
+- T-1401 (`pod-core`, PodUtils/podssh#360 ask 3): `impl Drop for
+  FileLock` unlocks before the close, so a copy of the descriptor in a
+  child between fork and exec does not keep the lock.
+- T-1403 (`pod-e2e`, PodUtils/podssh#360 ask 5): `Error::Target(io::Error)`
+  ("the stream of the node's target failed, not the stream under the
+  channel", class `Unavailable`) and `Channel::at_node()`; the carries of
+  a node use it. Breaking: `pod_e2e::Error` is not `non_exhaustive`, so an
+  exhaustive `match` adds an arm.
 - T-1396 (`pod-ws`, PodUtils/podssh#359): `ConnectError::Ended(String)`,
   a final end of a stream with no relay and no HTTP in its cause; its
   `Display` is the words alone, class `Unavailable` (exit 69). `pod-relay`
