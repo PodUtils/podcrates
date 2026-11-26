@@ -29,8 +29,9 @@ is done. Git and the record keep finished work.
      PodUtils/podvm#667; PodUtils/podnet#753 to #756, #758 and #776;
      PodUtils/podssh#359 to #363 and #367. Record each take on its body
      (the "Takes" lines, as #262), and close it when each consumer names the
-     tag (call C780). COORD-157 (#263): podnet, podvm and podrunner took the
-     role table; it waits for podssh.
+     tag (call C780). The take of podnet is `144a5ee`
+     (PodUtils/podnet#778, verified, on #272). COORD-157 (#263): podnet,
+     podvm and podrunner took the role table; it waits for podssh.
    - On `main` after `v0.86.0`: PodUtils/podvm#675 (COORD-256, T-1424) and
      PodUtils/podvm#677 (COORD-258, T-1425); answer each with the next tag.
    - Open asks: PodUtils/podssh#358 (COORD-148) is T-1390;
