@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1037 entries: 166 open, 31 partial, 6 blocked, 834 done.**
+**1041 entries: 170 open, 31 partial, 6 blocked, 834 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 245 | 258 |
-| P2 | 73 | 12 | 4 | 433 | 522 |
-| P3 | 89 | 10 | 2 | 154 | 255 |
-| **All** | 166 | 31 | 6 | 834 | 1037 |
+| P2 | 76 | 12 | 4 | 433 | 525 |
+| P3 | 90 | 10 | 2 | 154 | 256 |
+| **All** | 170 | 31 | 6 | 834 | 1041 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1072,6 +1072,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1396](transport.md) | P2 | S | M1 | feature | done | `pod-ws`: `ConnectError::Ended`, a final end of a stream with no relay and no HTTP, shown in its own words (PodUtils/podssh#359) |
 | [T-1397](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver after podrunner `7bf541c` (the sixth port of `source-driver.md`) |
 | [T-1398](fleet.md) | P2 | S | M0 | chore | done | `pod-unit`: podnet's `autostart.rs` after `34f0d30` (port review) |
+| [T-1405](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: `reverse::operator::exchange` leaves its two tasks alive when it is dropped, so a dropped leg keeps its socket open (PodUtils/podssh#361) |
+| [T-1407](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: the refusals of a pair: the body of a 403, a refusal of a new pair, a spent token of `--once`, and a doubled subject in `file_name` (PodUtils/podssh#362, ask 2) |
+| [T-1408](relay.md) | P2 | S | M2 | defect | open | `pod-e2e`: `Redeem` does not say whether a bearer or a grant was refused or let in, and the node says "a grant" for a bearer (PodUtils/podssh#362, ask 3) |
+| [T-1413](foundation.md) | P3 | S | M0 | feature | open | `pod-core`: a class for an output that could not be written (exit 74, `EX_IOERR`) (PodUtils/podssh#363, ask 3) |
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |

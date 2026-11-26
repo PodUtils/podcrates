@@ -12817,3 +12817,124 @@ A receiver acknowledges when `ACK_EVERY` (64 KiB) reached its application, else 
 ```sh
 cargo test -p pod-session --all-features
 ```
+
+# T-1405: `pod-relay`: `reverse::operator::exchange` leaves its two tasks alive when it is dropped, so a dropped leg keeps its socket open (PodUtils/podssh#361)
+
+**Source:** PodUtils/podssh#361 (COORD-151 of podssh, PodUtils/podssh@T-627; author MEMBER).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`exchange` of `crates/pod-relay/src/reverse/operator.rs` spawns
+`frames_of` and `input_of`, and aborts them only at its own end. When the
+task that runs `exchange` is aborted or dropped, the two tasks live on:
+`frames_task` holds the WebSocket session and answers the pings of the
+role, so the role sees no loss; `input_task` holds the read half of the
+local stream of the leg, so the link of the client gets no EOF. The leg is
+dead but open until the next write of the layer (its `PING` after 10 s).
+podssh's test of a resume by the next token aborted the task of a leg as
+its cut, and one run timed out.
+
+## Premise
+
+- Read: the body of PodUtils/podssh#361.
+- Not read: `operator.rs` at `main`; whether the crate has a guard that
+  aborts a task on drop (`codegraph.py similar abort drop guard`).
+
+## Approach
+
+1. Hold the two handles in a guard that aborts them on drop (a guard of
+   the crate, or one that the workspace has already).
+2. Test: abort the task that runs `exchange`; the role's side sees the
+   close of the WebSocket and the local stream gets EOF within a short
+   time, with no write of the layer.
+3. A plant that drops the guard makes the test fail.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```
+
+# T-1407: `pod-relay`: the refusals of a pair: the body of a 403, a refusal of a new pair, a spent token of `--once`, and a doubled subject in `file_name` (PodUtils/podssh#362, ask 2)
+
+**Source:** PodUtils/podssh#362 (COORD-152 of podssh, ask 2; PodUtils/podssh@T-939, PodUtils/podssh@T-949; author MEMBER).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh fixed these in its glue at `72b2afc` and asks for them in the crate
+(`crates/pod-relay/src/pair.rs`, `pair/part.rs`):
+
+- `PairError::Forbidden` does not carry the relay's own 403 body as its
+  detail.
+- A 403 from `/v1/pair`, where no pair exists yet, is said as "a pair that
+  is stopped or has expired".
+- `pair::store` does not record a `--once` pair, so a spent once token
+  cannot be named as such.
+- `file_name` says "the label the pair name is empty": one subject is
+  doubled.
+
+## Premise
+
+- Read: the body of PodUtils/podssh#362.
+- Not read: `pair.rs` at `main`; podssh's glue at `72b2afc`.
+
+## Approach
+
+1. `Forbidden` takes the 403 body (bounded, one line) as its detail.
+2. The refusal of `/v1/pair` with no pair has words of its own.
+3. `pair::store` records the `--once` mark; the refusal of a spent token
+   names it.
+4. Fix the words of `file_name` in both places.
+5. A test for each line; a plant for the refusal of a new pair.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features pair
+```
+
+# T-1408: `pod-e2e`: `Redeem` does not say whether a bearer or a grant was refused or let in, and the node says "a grant" for a bearer (PodUtils/podssh#362, ask 3)
+
+**Source:** PodUtils/podssh#362 (COORD-152 of podssh, ask 3; PodUtils/podssh@T-942; author MEMBER).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`crates/pod-e2e/src/ends.rs` refuses with `GRANT_REFUSED` and logs "a
+grant" in `person_of` for a bearer too (T-1368 added the bearer grant).
+podssh asks: `Redeem` reports whether a bearer or a grant was refused or
+let in; the wire uses the words of a bearer for a bearer, and the node's
+log says "by a bearer".
+
+## Premise
+
+- Read: the body of PodUtils/podssh#362.
+- Not read: `ends.rs` at `main` (a worker changes `channel/carry.rs` of the
+  same crate now).
+
+## Approach
+
+1. A kind of the credential (bearer or grant) in the outcome of `Redeem`.
+2. A refusal word for a bearer beside `GRANT_REFUSED`; the log line of the
+   node names the kind.
+3. Tests for both kinds, refused and let in.
+
+## Prove
+
+```sh
+cargo test -p pod-e2e --all-features
+```

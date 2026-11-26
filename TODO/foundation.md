@@ -4147,3 +4147,41 @@ cargo test -p pod-testkit --all-features
 - No code change, so no new test. `cargo test -p pod-testkit
   --all-features`, `cargo clippy -p pod-testkit --all-targets
   --all-features -- -D warnings` and `cargo fmt --all --check` passed.
+
+# T-1413: `pod-core`: a class for an output that could not be written (exit 74, `EX_IOERR`) (PodUtils/podssh#363, ask 3)
+
+**Source:** PodUtils/podssh#363 (COORD-153 of podssh, ask 3, optional; PodUtils/podssh@T-965; author MEMBER).
+**Category:** feature
+**Milestone:** M0
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh gives exit 74 (`EX_IOERR` of sysexits) with one line when a write of
+its output fails (`output::deliver` in its `podssh-cli`; a closed stdout at
+the start is told from the `/dev/null` stand-in of Rust). podssh asks for a
+class of `pod_core::Class` for "an output that could not be written", if
+podnet or podvm need the same, so the code has one copy.
+
+## Premise
+
+- Read: the body of PodUtils/podssh#363; `Class` has 16 items with `Data`
+  (T-1238).
+- Not read: whether podnet, podvm or podrunner give an exit code for a
+  failed write of their output; whether `Class::Io` or a near class exists.
+
+## Approach
+
+1. Read the exit codes of the four consumers for a failed write of the
+   output.
+2. When two or more need it, add the class (code 74) and its row in the
+   README of `pod-core`; else record the reading and close the entry with
+   the class not added, by a call in `docs/decisions.md`.
+
+## Prove
+
+```sh
+cargo test -p pod-core --all-features
+```
