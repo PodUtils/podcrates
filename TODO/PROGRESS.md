@@ -6,18 +6,16 @@
 
 - `docs/HANDOFF.md` has what is in flight and what waits.
 - Last GitHub release with `release.yml` assets and `ghcr.io` images:
-  `v0.85.0` at `1d1c9fc` (`docs/releases/v0.85.0.md`). It has the GitHub
+  `v0.86.0` at `22d1a75` (`docs/releases/v0.86.0.md`). It has the GitHub
   release, the signed `SHA256SUMS`, 14 assets and the images of
   `ghcr.io/podutils` (each index passes `gh attestation verify`); `ci`
-  45620169994 at `1d1c9fc`, the dry run of `release.yml` 45628517649 and
-  the run on the tag 45630869703 passed. Its hand-off COORD-156 (#262) is
-  closed: each consumer took the tag. The hand-off
-  COORD-155 (#260) of `v0.84.0` is closed: each consumer took it.
-- On `main` after `v0.85.0`, for the next tag: T-1389 (`pod-enter`, the
-  required tmpfs, PodUtils/podvm#667), T-1392 to T-1394 (`pod-dns`,
-  `pod-proxy`, `pod-cloudflare`; PodUtils/podnet#753 to #755), T-1395
-  (`pod-session`, `move_under`; PodUtils/podnet#756), T-1446 and
-  T-1447 (the nightly). `docs/HANDOFF.md` has the steps of the consumers.
+  45779678814 at `22d1a75`, the dry run of `release.yml` 45784561978 and
+  the run on the tag 45785761766 passed. Its hand-off is COORD-158 (#272),
+  open until each consumer names the tag (call C780). The hand-off
+  COORD-156 (#262) of `v0.85.0` is closed.
+- On `main` after `v0.86.0`, for the next tag: T-1424 (`pod-hostprobe`,
+  `Settings::emulator`, PodUtils/podvm#675) and T-1425 (`pod-oci`,
+  `rootfs` and `check_layers`, PodUtils/podvm#677).
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
   not on `main`. `release.yml` has steps that run on a tag only, which the
   dry run does not test (T-974; `docs/maintenance.md`, "A release").
@@ -110,10 +108,8 @@ podcrates: the red nightly (T-916, T-938; read the next `nightly.yml` run: it pr
 T-1159 (the ruling "A close by hand": `scripts/issue-sync.py` does not open again an issue that the owner closed), T-1053 (a lossy run of E2-1 that takes 20 s), the next scheduled
 `services.yml` run (read it) and the red live run (T-963). Then the
 asks of podrunner
-(COORD-134, #225): each new ask of podrunner; first the next tag, which
-carries the required tmpfs with a byte limit of `pod-enter` (done on
-`main`; PodUtils/podvm#667 for ask 5 of PodUtils/podrunner#296) and the
-answers to PodUtils/podnet#753 to #755, with its hand-off; then the
+(COORD-134, #225): each new ask of podrunner; first the takes of
+`v0.86.0` (#272, COORD-158); then the
 answers to COORD-157 (#263, T-1387: one `docs/hosted-sessions.md` for each
 repository). Then the entries that a need
 of githome or cfb names for their CI: T-106 (partial; cfb's A-X-18 waits
