@@ -1,0 +1,7 @@
+# pod-core: `file_words` says "no such file" where the directory of the
+# file is not there (T-1517, podssh 07d7d9b6). The test must fail.
+ENTRY=T-1517
+GROUP=core
+EXPECT='test text::tests::file_words_say_what_is_missing \.\.\. FAILED'
+RUN='cargo test -p pod-core --all-features --lib text::tests::file_words_say_what_is_missing -- --exact'
+LIMIT=900

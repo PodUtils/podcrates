@@ -1,0 +1,11 @@
+--- a/crates/pod-core/src/files/own.rs
++++ b/crates/pod-core/src/files/own.rs
+@@ -33,7 +33,7 @@
+         Err(e) if matches!(e.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory) => {
+             return Ok(None);
+         }
+-        Err(e) => return Err(format!("{shown}: {}", crate::text::io_words(&e))),
++        Err(e) => return Err(format!("{shown}: {e}")),
+         // A process substitution, as `--allow <(...)`, gives such a link
+         // (`/dev/fd/63` on Linux), which a user finds only by trial.
+         Ok(meta) if meta.file_type().is_symlink() => {

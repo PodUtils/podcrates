@@ -74,7 +74,7 @@ pub fn store_noting(dirs: &[PathBuf], name: &str, body: &[u8]) -> Result<Stored,
     for dir in dirs {
         match write_private(dir, name, body) {
             Ok(path) => return Ok(Stored { path, refused }),
-            Err(e) => refused.push(format!("{}: {e}", dir.display())),
+            Err(e) => refused.push(format!("{}: {}", dir.display(), crate::text::io_words(&e))),
         }
     }
     Err(format!("no directory would take {name} ({})", refused.join("; ")))
@@ -129,8 +129,8 @@ pub fn read_private(path: &Path) -> Result<String, String> {
 /// cache.
 pub fn read_private_up_to(path: &Path, most: u64) -> Result<String, String> {
     let shown = path.display();
-    let file = std::fs::File::open(path).map_err(|e| format!("{shown}: {e}"))?;
-    let meta = file.metadata().map_err(|e| format!("{shown}: {e}"))?;
+    let file = std::fs::File::open(path).map_err(|e| format!("{shown}: {}", crate::text::io_words(&e)))?;
+    let meta = file.metadata().map_err(|e| format!("{shown}: {}", crate::text::io_words(&e)))?;
     if !meta.is_file() {
         return Err(format!("{shown} is not a regular file"));
     }
@@ -142,7 +142,8 @@ pub fn read_private_up_to(path: &Path, most: u64) -> Result<String, String> {
     }
     closed(path, &file, Others::NoAccess)?;
     let mut text = String::new();
-    std::io::Read::read_to_string(&mut &file, &mut text).map_err(|e| format!("{shown}: {e}"))?;
+    std::io::Read::read_to_string(&mut &file, &mut text)
+        .map_err(|e| format!("{shown}: {}", crate::text::io_words(&e)))?;
     Ok(text)
 }
 
@@ -316,7 +317,7 @@ pub fn closed(path: &Path, file: &std::fs::File, others: Others) -> Result<(), S
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
-        let meta = file.metadata().map_err(|e| format!("{shown}: {e}"))?;
+        let meta = file.metadata().map_err(|e| format!("{shown}: {}", crate::text::io_words(&e)))?;
         let (open, why) = match others {
             Others::NoAccess => (0o077, "others can read it; make it private (chmod 600)"),
             Others::Read => (0o022, "others can change it; chmod go-w"),

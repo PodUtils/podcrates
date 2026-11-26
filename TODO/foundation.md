@@ -1501,14 +1501,14 @@ contract.
 
 ## Premise
 
-- Read (this tree): `crates/pod-core/src/files.rs:177-193`.
+- Read (this tree): `crates/pod-core/src/files.rs:178-194`.
   `write_private` syncs the file and renames it, and does not sync the
   directory; its temporary name is `.NAME.PID.tmp`. It is private to the
   crate: `store_noting` (`:69-81`) and `store_file_in_first` call it, and
   through them `pod-tls` (`crates/pod-tls/src/groups/dirs.rs:25`) and
   `pod-identity` (`crates/pod-identity/src/pins.rs:134`). The review
   agrees.
-- Read: `crates/pod-core/src/files/own.rs:67-94`. `create_private` syncs
+- Read: `crates/pod-core/src/files/own.rs:68-95`. `create_private` syncs
   the file, links it into place with a hard link (never over a file), and
   does not sync the directory. The review agrees. It is a create, not a
   replace.
@@ -1633,7 +1633,7 @@ example `eyJ`).
   reads the whole file with `std::fs::read`. `follow_tail` (`:109-129`)
   calls it, then `tail_offset` (`:78`), then `follow_from` at the length
   of that read. The review agrees.
-- Read: `crates/pod-core/src/files.rs:170` (`read_trusted`) and
+- Read: `crates/pod-core/src/files.rs:171` (`read_trusted`) and
   `crates/pod-core/src/files/own.rs:28` (`read_own`), the neighbours of
   the new function.
 - Found, not in the review: `logs` gives bytes (`Vec<u8>`), the raw output
@@ -1709,14 +1709,14 @@ The tests:
 ## Problem
 
 `write_private` names its temporary file `.NAME.PID.tmp`
-(`crates/pod-core/src/files.rs:180`) and first removes a file of that name
-(`:181`). Two threads of one process that store the same name at once
+(`crates/pod-core/src/files.rs:181`) and first removes a file of that name
+(`:182`). Two threads of one process that store the same name at once
 share that file. Thread B removes the file of thread A and makes its own.
 The rename of A then puts the file of B in place, possibly before B wrote
 all of it. The rename of B then fails, so `store_noting` tries the next
 directory. A reader can see half a file, and the file can be in two
 directories. `create_private` makes a unique name with a counter of the
-process (`crates/pod-core/src/files/own.rs:68-74`).
+process (`crates/pod-core/src/files/own.rs:69-75`).
 
 The callers: `pod-tls` keeps its file of TLS groups
 (`crates/pod-tls/src/groups/dirs.rs:25`), and `pod-identity` keeps the pins
@@ -1726,8 +1726,8 @@ it.
 
 ## Premise
 
-- Read: `crates/pod-core/src/files.rs:174-193`,
-  `crates/pod-core/src/files/own.rs:61-94`,
+- Read: `crates/pod-core/src/files.rs:175-194`,
+  `crates/pod-core/src/files/own.rs:62-95`,
   `crates/pod-tls/src/groups/dirs.rs`, `crates/pod-identity/src/pins.rs`.
 - Read: `pin` (`crates/pod-identity/src/pins.rs:114-138`) reads the pins,
   adds a line and stores the whole file, with no lock. Two pins at once
@@ -2564,7 +2564,7 @@ python3 -I scripts/codegraph.py dups
 
 # T-935: `pod-core`: two renames onto one name at once give "Access is denied" on Windows
 
-**Source:** nightly run 44275593101, `threads_that_store_one_name_at_once_leave_one_whole_body` on both Windows jobs (`crates/pod-core/tests/files.rs:249`: "Access is denied. (os error 5)").
+**Source:** nightly run 44275593101, `threads_that_store_one_name_at_once_leave_one_whole_body` on both Windows jobs (`crates/pod-core/tests/files.rs:250`: "Access is denied. (os error 5)").
 **Category:** defect
 **Milestone:** M0
 **Priority:** P2

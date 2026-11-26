@@ -33,7 +33,7 @@ pub fn read_own(path: &Path, others: Others) -> Result<Option<String>, String> {
         Err(e) if matches!(e.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory) => {
             return Ok(None);
         }
-        Err(e) => return Err(format!("{shown}: {e}")),
+        Err(e) => return Err(format!("{shown}: {}", crate::text::io_words(&e))),
         // A process substitution, as `--allow <(...)`, gives such a link
         // (`/dev/fd/63` on Linux), which a user finds only by trial.
         Ok(meta) if meta.file_type().is_symlink() => {
@@ -44,8 +44,8 @@ pub fn read_own(path: &Path, others: Others) -> Result<Option<String>, String> {
         }
         Ok(_) => {}
     }
-    let file = open_no_follow(path).map_err(|e| format!("{shown}: {e}"))?;
-    let meta = file.metadata().map_err(|e| format!("{shown}: {e}"))?;
+    let file = open_no_follow(path).map_err(|e| format!("{shown}: {}", crate::text::io_words(&e)))?;
+    let meta = file.metadata().map_err(|e| format!("{shown}: {}", crate::text::io_words(&e)))?;
     if !meta.is_file() {
         return Err(format!("{shown} is not a regular file: name one (a process substitution, <(...), gives a pipe)"));
     }
@@ -54,7 +54,8 @@ pub fn read_own(path: &Path, others: Others) -> Result<Option<String>, String> {
     }
     closed(path, &file, others)?;
     let mut text = String::new();
-    std::io::Read::read_to_string(&mut &file, &mut text).map_err(|e| format!("{shown}: {e}"))?;
+    std::io::Read::read_to_string(&mut &file, &mut text)
+        .map_err(|e| format!("{shown}: {}", crate::text::io_words(&e)))?;
     Ok(Some(text))
 }
 
@@ -120,7 +121,7 @@ pub fn create_file_in_first(dirs: &[PathBuf], name: &str, body: &[u8]) -> Result
         let path = dir.join(name);
         match make_private_dir(dir).and_then(|()| create_private(&path, body)) {
             Ok(made) => return Ok((path, made)),
-            Err(e) => reasons.push(format!("{}: {e}", dir.display())),
+            Err(e) => reasons.push(format!("{}: {}", dir.display(), crate::text::io_words(&e))),
         }
     }
     Err(format!("no directory would take {name} ({})", reasons.join("; ")))
@@ -147,5 +148,23 @@ mod tests {
         }
         assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 257, "no temporary file stays");
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A read that the system refuses, and a directory that takes no file,
+    /// each say the words of the system with no code of Rust
+    /// (" (os error N)"), after the path.
+    #[cfg(unix)]
+    #[test]
+    fn a_refused_read_or_directory_says_the_words_of_the_system_alone() {
+        // A name past NAME_MAX: ENAMETOOLONG, which is not "none there".
+        let long = std::env::temp_dir().join("n".repeat(300));
+        let e = read_own(&long, Others::Read).unwrap_err();
+        assert!(e.starts_with(&long.display().to_string()) && !e.contains("os error"), "{e}");
+        let dir = super::super::new_temp_dir(&std::env::temp_dir(), "pod-core-own-words").unwrap();
+        let file = dir.join("file");
+        std::fs::write(&file, b"a file, not a directory").unwrap();
+        let e = create_file_in_first(&[file.join("sub")], "key", b"k").unwrap_err();
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert!(e.contains(&file.join("sub").display().to_string()) && !e.contains("os error"), "{e}");
     }
 }

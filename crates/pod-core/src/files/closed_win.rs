@@ -47,7 +47,8 @@ const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
 /// Whether `file` is this user's and closed to others beyond `others`.
 pub(crate) fn closed(file: &File, others: Others) -> Result<(), String> {
     let user = user_sid().map_err(|e| format!("this user's SID cannot be read: {e}"))?;
-    let acl = acl_of(file).map_err(|e| format!("its owner and access list cannot be read: {e}"))?;
+    let acl =
+        acl_of(file).map_err(|e| format!("its owner and access list cannot be read: {}", crate::text::io_words(&e)))?;
     judge(&acl, user, others)
 }
 
@@ -55,7 +56,7 @@ pub(crate) fn closed(file: &File, others: Others) -> Result<(), String> {
 pub fn user_sid() -> Result<&'static str, String> {
     static USER: OnceLock<Result<String, String>> = OnceLock::new();
     // SAFETY: the pseudo-handle of this process needs no close.
-    USER.get_or_init(|| process_user_sid(unsafe { GetCurrentProcess() }).map_err(|e| e.to_string()))
+    USER.get_or_init(|| process_user_sid(unsafe { GetCurrentProcess() }).map_err(|e| crate::text::io_words(&e)))
         .as_deref()
         .map_err(Clone::clone)
 }

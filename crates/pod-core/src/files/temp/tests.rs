@@ -174,6 +174,7 @@ fn only_names_that_are_there_fail_after_the_bound() {
     let e = new_named(&dir, "p", "", &mut || parts.next(), &mut create_file).map(|(p, _)| p).unwrap_err();
     assert_eq!((e.kind(), parts.calls), (io::ErrorKind::AlreadyExists, NAMES));
     assert!(e.to_string().contains("each of 8 names p-RANDOM was there"), "{e}");
+    assert!(!e.to_string().contains("os error"), "the words of the system alone: {e}");
     let mut parts = Parts::new(&[A]);
     let e = new_named(&dir, "p", "", &mut || parts.next(), &mut create_dir).map(|(p, ())| p).unwrap_err();
     assert_eq!((e.kind(), parts.calls), (io::ErrorKind::AlreadyExists, NAMES));

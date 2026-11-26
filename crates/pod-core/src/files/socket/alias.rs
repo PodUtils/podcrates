@@ -73,7 +73,7 @@ pub(super) fn short(stage: &Path, route: &Route<'_>, most: usize) -> std::io::Re
             Err(e) => last = Some(e),
         }
     }
-    let why = last.map(|e| format!(": {e}")).unwrap_or_default();
+    let why = last.map(|e| format!(": {}", crate::text::io_words(&e))).unwrap_or_default();
     Err(std::io::Error::new(
         std::io::ErrorKind::InvalidInput,
         format!(

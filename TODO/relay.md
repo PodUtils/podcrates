@@ -3162,7 +3162,7 @@ Not measured: a relay at an IPv6 address on port 443.
 
 ## Problem
 
-`pod_core::files::safe_name` (`crates/pod-core/src/files.rs:161`) writes
+`pod_core::files::safe_name` (`crates/pod-core/src/files.rs:162`) writes
 each character other than `[a-z0-9.-]` as `_`, and `check_host` takes `_`
 in a name. Thus a name with `_` and an IPv6 address, or a name with a port,
 can give one file name: the host `__1` and the address `::1` share
