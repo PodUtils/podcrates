@@ -1,0 +1,6 @@
+# pod-oci: Reference::parse does not bound the name (T-1426).
+ENTRY=T-1426
+GROUP=oci
+EXPECT='a_name_of_255_characters_parses_and_one_more_is_refused'
+RUN='cargo test -p pod-oci --all-features --lib reference::rules'
+LIMIT=900

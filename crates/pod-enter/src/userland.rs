@@ -28,7 +28,7 @@ use pod_core::Class;
 use pod_hostprobe::sys::CBuf;
 
 use crate::abi::{GuestRoot, resolve_dir};
-use crate::entry::refuse_workdir;
+use crate::workdir::refuse_workdir;
 use crate::{Error, Names, RootDir, memfd};
 
 /// Which no-chroot family a payload takes.
@@ -399,6 +399,7 @@ pub(crate) fn userland_workdir(root: &RootDir, maps: &Maps, working_dir: &str) -
             &format!("in the image's rootfs {:?} or its volumes", root.path),
             kind,
             volume.as_deref(),
+            None,
         )
     })?;
     let text = if maps.in_volume(&parts) {

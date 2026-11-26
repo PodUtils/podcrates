@@ -1,0 +1,6 @@
+# pod-enter: the refusal of a missing working directory always says "docker creates it" (T-1427).
+ENTRY=T-1427
+GROUP=enter
+EXPECT='the_docker_creates_clause_is_said_for_run_only'
+RUN='cargo test -p pod-enter --all-features --lib the_docker_creates_clause'
+LIMIT=1200

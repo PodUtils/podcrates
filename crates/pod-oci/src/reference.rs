@@ -17,6 +17,10 @@ use std::fmt;
 use crate::digest::Digest;
 use crate::error::{Result, usage};
 
+mod rules;
+
+pub use rules::{NAME_MAX, TAG_MAX};
+
 /// The domain of a name with no domain. `docker.io` is the name that docker
 /// prints, and `registry-1.docker.io` is the host that answers `/v2/`.
 pub const DEFAULT_DOMAIN: &str = "docker.io";
@@ -76,6 +80,7 @@ impl Reference {
         // docker's rule: the first component is a domain when it has a `.` or
         // a `:`, or is `localhost`. Each other name is a path on the hub.
         // With no rule, `myhost:5000/x` and `user/x:5000` are the same.
+        let mut explicit_domain = true;
         let (domain, remainder) = match rest.split_once('/') {
             Some((head, tail)) if head == "localhost" || head.contains('.') || head.contains(':') => {
                 // Checked, not only found. `..` has a dot, so the rule above
@@ -89,7 +94,10 @@ impl Reference {
                 }
                 (head.to_string(), tail)
             }
-            _ => (DEFAULT_DOMAIN.to_string(), rest),
+            _ => {
+                explicit_domain = false;
+                (DEFAULT_DOMAIN.to_string(), rest)
+            }
         };
 
         // The tag is after the last colon, and only when no `/` comes after
@@ -109,18 +117,14 @@ impl Reference {
                      name a repository and cannot be a store directory"
                 )));
             }
-            if !component.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"._-".contains(&b)) {
-                return Err(usage(format!(
-                    "invalid reference: {input:?}: repository component {component:?} is not lowercase \
-                     alphanumeric with separators"
-                )));
-            }
+            rules::check_component(input, component)?;
         }
-        if let Some(t) = &tag
-            && (t.is_empty() || !t.bytes().all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b)))
-        {
-            return Err(usage(format!("invalid reference: {input:?}: tag {t:?} is not valid")));
+        if let Some(t) = &tag {
+            rules::check_tag(input, t)?;
         }
+        // The name as written: the domain only where the caller wrote one.
+        let written = if explicit_domain { domain.len() + 1 + path.len() } else { path.len() };
+        rules::check_name_length(input, written)?;
 
         let repository = if domain == DEFAULT_DOMAIN && !path.contains('/') {
             format!("{OFFICIAL_PREFIX}/{path}")

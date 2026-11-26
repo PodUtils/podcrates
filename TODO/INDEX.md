@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1065 entries: 169 open, 31 partial, 6 blocked, 859 done.**
+**1068 entries: 170 open, 31 partial, 6 blocked, 861 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 73 | 12 | 4 | 454 | 543 |
-| P3 | 92 | 10 | 2 | 157 | 261 |
-| **All** | 169 | 31 | 6 | 859 | 1065 |
+| P2 | 73 | 12 | 4 | 456 | 545 |
+| P3 | 93 | 10 | 2 | 157 | 262 |
+| **All** | 170 | 31 | 6 | 861 | 1068 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1096,6 +1096,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1423](relay.md) | P2 | S | M2 | defect | done | `pod-tls`: the error of a CA bundle names the path twice ("CA bundle /x: /x: No such file or directory") |
 | [T-1424](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: `Settings::emulator`, the path of the emulator that the machine legs run (PodUtils/podvm#675) |
 | [T-1425](podvm.md) | P2 | S | M6 | feature | done | `pod-oci`: `Config` reads `rootfs`, and `spec::check_layers` checks the count of layers (PodUtils/podvm#677) |
+| [T-1426](podvm.md) | P2 | S | M6 | defect | done | `pod-oci`: `Reference::parse` bounds the name and the tag, and refuses a path component outside docker's grammar (PodUtils/podvm#678) |
+| [T-1427](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: the refusal of a missing working directory says "docker creates it" only for `run` (PodUtils/podvm#678) |
+| [T-1428](podvm.md) | P3 | S | M6 | defect | open | `pod-enter`: a file where the working directory should be says "docker creates it", which is false for `run` too |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
 | [T-1444](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`: `a_path_that_is_there_is_never_opened_truncated_or_removed` fails on Windows: a file made at the name of a directory gives "Access is denied", not `AlreadyExists` |
 | [T-1445](upkeep.md) | P1 | S | M5 | defect | done | `pod-tpm`: two tests of `tests/socket.rs` fail on macOS: `set_read_timeout` on a stream whose peer closed gives an error, so the call says `Unavailable`, not `Protocol` |

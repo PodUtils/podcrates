@@ -208,6 +208,26 @@ fn a_missing_workdir_is_a_sentence_naming_path_and_image() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// `docker run -w` makes a missing directory, and `docker exec -w` fails on
+/// it: the clause "docker creates it" is only for the first.
+#[test]
+fn the_docker_creates_clause_is_said_for_run_only() {
+    let dir = std::env::temp_dir().join(format!("pod-enter-workdir-made-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("tmp")).unwrap();
+    let root = dir.to_str().unwrap();
+    let run = check_workdir_as(root, "/gone", "img", WorkdirMade::ByDocker).unwrap_err().to_string();
+    assert!(run.contains("docker creates it, and the entry refuses it instead"), "{run}");
+    assert_eq!(run, check_workdir(root, "/gone", "img").unwrap_err().to_string());
+    let exec = check_workdir_as(root, "/gone", "img", WorkdirMade::NotMade).unwrap_err().to_string();
+    assert!(!exec.contains("docker"), "{exec}");
+    assert!(exec.contains("\"/gone\"") && exec.contains("for image \"img\" is not a directory in the image"), "{exec}");
+    // An escape is not a missing directory: no clause in any form.
+    let e = check_workdir_as(root, "/../outside", "img", WorkdirMade::ByDocker).unwrap_err().to_string();
+    assert!(!e.contains("docker creates"), "{e}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// The control that passes. `/`, the empty default
 /// and an image-held `/tmp` all pass, so the refusal above is about the
 /// missing directory rather than about the flag.
