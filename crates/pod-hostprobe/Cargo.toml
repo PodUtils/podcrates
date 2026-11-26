@@ -66,3 +66,9 @@ harness = false
 [[test]]
 name = "host_rows"
 harness = false
+
+# The machine legs with `Settings::emulator`: probe children of this
+# binary, so no libtest.
+[[test]]
+name = "emulator"
+harness = false

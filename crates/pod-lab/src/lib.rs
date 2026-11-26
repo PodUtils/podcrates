@@ -87,6 +87,7 @@ impl Default for Settings {
                 child_name: "podlab".to_string(),
                 directory_setting: None,
                 network: None,
+                emulator: None,
             },
             lab_flag: "--podlab-lab".to_string(),
             profiles: PROFILES,
