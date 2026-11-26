@@ -2786,7 +2786,7 @@ cargo test -p pod-egress --all-features --test vless
 **Milestone:** M4
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2800,7 +2800,7 @@ give its fallback answer.
 
 ## Premise
 
-- Read: trojan-gfw `docs/protocol.md` and Xray-core
+- Read: the protocol page of trojan-gfw and Xray-core
   `proxy/trojan/protocol.go`: the request is the hash, CRLF, the command
   (`0x01` CONNECT, `0x03` UDP ASSOCIATE), the address as SOCKS5 writes it
   (types 1, 3 and 4), the port, CRLF.
@@ -2830,6 +2830,25 @@ cargo test -p podcrates-fuzz
 sh scripts/plant-each.sh egress-trojan-accept-password-unchecked
 ```
 
+## Done
+
+2026-11-26. Commit: see `git log` for T-1531.
+
+- `trojan::accept::{parse, Request, Command, RequestError, Malformed,
+  MAX_REQUEST}`; `Password::matches` (constant time). The client's
+  `request` and the parser share `trojan::address`. The stand-in of Trojan
+  reads its request with `accept::parse`; the feature `standin` turns on
+  `trojan`.
+- The fuzz target `trojan_request_accept` with its seeds; the feature
+  `fuzzing` turns on `trojan`.
+- Tests: the unit tests of `trojan::accept` (the vectors of
+  `pod_testkit::vectors::TROJAN` parse back and each prefix gives `None`;
+  a wrong password; a bad command, address type and name; a missing CRLF;
+  the longest request; the compare). Plant:
+  `scripts/plants/egress-trojan-accept-password-unchecked.plant`.
+- `cargo test -p pod-egress --all-features`: each target passes (172 unit
+  tests). Clippy and doc: clean.
+
 # T-1532: `pod-egress`: the accept-side API of Shadowsocks: `Decoder::salt` and the docs of `parse_address` and `Decoder::new` (PodUtils/podnet#785, ask 2)
 
 **Source:** PodUtils/podnet#785 (COORD-140 of podnet), ask 2; PodUtils/podnet@T-295; author MEMBER
@@ -2837,7 +2856,7 @@ sh scripts/plant-each.sh egress-trojan-accept-password-unchecked
 **Milestone:** M4
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2864,3 +2883,16 @@ the first bytes itself."
 ```sh
 cargo test -p pod-egress --all-features --test shadowsocks
 ```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1532.
+
+- `Decoder::salt()`; the docs of `Decoder`, `Decoder::new` and
+  `parse_address` name the accept side.
+- Test: `tests/shadowsocks.rs`,
+  `the_decoder_of_the_accept_side_gives_the_salt_that_the_encoder_wrote_and_the_target`
+  (the salt of the decoder equals the salt that the encoder of each vector
+  wrote; the replay window refuses it twice).
+- `cargo test -p pod-egress --all-features`: each target passes.
+

@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1090 entries: 174 open, 31 partial, 6 blocked, 879 done.**
+**1092 entries: 174 open, 31 partial, 6 blocked, 881 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 73 | 12 | 4 | 473 | 562 |
-| P3 | 97 | 10 | 2 | 158 | 267 |
-| **All** | 174 | 31 | 6 | 879 | 1090 |
+| P2 | 73 | 12 | 4 | 474 | 563 |
+| P3 | 97 | 10 | 2 | 159 | 268 |
+| **All** | 174 | 31 | 6 | 881 | 1092 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1137,5 +1137,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1526](roads.md) | P2 | M | M4 | feature | done | `pod-egress`: a Shadowsocks node that a key file builds whole (an Outline key with a `wss://` URL), and the salt prefix of Outline's keys (PodUtils/podnet#782, ask 3) |
 | [T-1527](roads.md) | P2 | S | M4 | feature | done | `pod-egress`: the password extension of Wisp v2, from a secret of the caller (PodUtils/podnet#782, ask 4) |
 | [T-1528](roads.md) | P3 | S | M4 | feature | open | `pod-egress`: a wait for the answer of a VLESS server that does not delay a protocol where the client speaks first (PodUtils/podnet#782, ask 5) |
-| [T-1531](roads.md) | P2 | S | M4 | feature | open | `pod-egress`: a parser of a Trojan request on the accept side (PodUtils/podnet#785, ask 1) |
-| [T-1532](roads.md) | P3 | S | M4 | feature | open | `pod-egress`: the accept-side API of Shadowsocks: `Decoder::salt` and the docs of `parse_address` and `Decoder::new` (PodUtils/podnet#785, ask 2) |
+| [T-1531](roads.md) | P2 | S | M4 | feature | done | `pod-egress`: a parser of a Trojan request on the accept side (PodUtils/podnet#785, ask 1) |
+| [T-1532](roads.md) | P3 | S | M4 | feature | done | `pod-egress`: the accept-side API of Shadowsocks: `Decoder::salt` and the docs of `parse_address` and `Decoder::new` (PodUtils/podnet#785, ask 2) |
