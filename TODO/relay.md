@@ -13274,3 +13274,58 @@ sh scripts/plant-each.sh session-t1410-close-said-silent
 - The plant `scripts/plants/session-t1410-close-said-silent.plant` drops the mark of the close: the race test fails; run by hand with its RUN: caught.
 - `cargo test -p pod-session -p pod-release -p pod-manual --all-features`: 365 passed, 0 failed (pod-session 182); the random test of T-204 passed in this run. `cargo clippy` of the three crates with `--all-targets --all-features -- -D warnings` and `cargo fmt --all --check`: clean.
 - A new public enum and method only: no consumer must change. podssh's `true_why` (`PodUtils/podssh:crates/podssh-cli/src/ping/node.rs`) can go once it takes the release.
+
+
+# T-1416: `pod-link`: the error of the loopback bind names each family, so "Address family not supported by protocol" no longer hides a refused IPv4 bind (PodUtils/podnet#776)
+
+**Source:** PodUtils/podnet#776 (COORD-131 of podnet, PodUtils/podnet@T-598; author COLLABORATOR).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`pin::available` and `mail::tcp_available` bind `127.0.0.1:0` and, when it
+fails, `[::1]:0`. The error of the carrier is the error of the second bind.
+A host that refuses a TCP bind (EACCES) and has no IPv6 (EAFNOSUPPORT)
+gives "TCP sockets on the loopback: Address family not supported by
+protocol". The words hide the true cause. The two functions are copies of
+one check.
+
+## Premise
+
+- Read: `crates/pod-link/src/pin.rs`, `crates/pod-link/src/mail.rs`, the
+  text of PodUtils/podnet#776.
+- Not read: the code that podnet uses to print the row.
+
+## Approach
+
+1. One function, `loopback::tcp_available`, serves `pin::available`,
+   `imap` and `smtp`. The pure part, `both`, turns two `io::Error` values
+   into the words.
+2. The words name each family: `127.0.0.1: Permission denied (os error 13);
+   ::1: no IPv6 on this host`. An error of the kind `Unsupported` or
+   `AddrNotAvailable`, or the code of "address family not supported" of the
+   platform, says that the family is absent.
+3. The kind of the `CarrierError` stays `Unavailable`.
+4. A table test over (EACCES, EAFNOSUPPORT), (EAFNOSUPPORT, EACCES) and
+   (EACCES, EACCES). A plant keeps the second error alone.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features loopback
+sh scripts/plant-each.sh link-t1416-second-bind-error-alone
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1416.
+
+- `crates/pod-link/src/loopback.rs`: one `tcp_available` for `pin::available`, `imap` and `smtp` (the copy in `mail.rs` is gone). `both` gives the words of the two errors; a family that the host lacks (`Unsupported`, `AddrNotAvailable`, or the code of "address family not supported" of the platform) reads "no IPv6 on this host". The kind of the error stays `Unavailable`.
+- New text: `TCP sockets on the loopback: 127.0.0.1: Permission denied (os error 13); ::1: no IPv6 on this host`.
+- Tests: `loopback::tests::a_missing_family_never_hides_the_cause_of_the_other_bind` (the three pairs), `loopback::tests::the_loopback_binds_on_this_host_or_says_why`.
+- The plant `scripts/plants/link-t1416-second-bind-error-alone.plant` keeps the second error alone: the table test fails.
+- `cargo test -p pod-link --all-features`: 300 passed, 0 failed. `cargo clippy -p pod-link --all-targets --all-features -- -D warnings` and `cargo fmt --all --check`: clean.

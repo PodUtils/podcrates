@@ -43,17 +43,6 @@ pub const CLIENT_NAME: &str = "podlink.local";
 /// or an IMAP response line. A longer one ends the session.
 pub const MAX_LINE: usize = 8 << 10;
 
-/// Check that a TCP socket binds on the loopback.
-pub(crate) fn tcp_available(carrier: &'static str) -> Result<(), CarrierError> {
-    use std::net::{Ipv4Addr, Ipv6Addr, TcpListener};
-    TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
-        .or_else(|_| TcpListener::bind((Ipv6Addr::LOCALHOST, 0)))
-        .map(drop)
-        .map_err(|e| {
-            CarrierError::new(carrier, CarrierErrorKind::Unavailable, format!("TCP sockets on the loopback: {e}"))
-        })
-}
-
 /// How TLS starts on the connection of a mail service.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Mode {

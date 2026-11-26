@@ -1,0 +1,12 @@
+diff --git a/crates/pod-link/src/loopback.rs b/crates/pod-link/src/loopback.rs
+--- a/crates/pod-link/src/loopback.rs
++++ b/crates/pod-link/src/loopback.rs
+@@ -27,7 +27,7 @@
+ /// The words of two failed binds. A family that the host lacks is no cause:
+ /// the words say it is absent, so the error of the other family stays.
+ fn both(v4: &io::Error, v6: &io::Error) -> String {
+-    format!("127.0.0.1: {}; ::1: {}", side(v4, "IPv4"), side(v6, "IPv6"))
++    format!("{}", { let _ = v4; v6 })
+ }
+ 
+ fn side(e: &io::Error, family: &str) -> String {

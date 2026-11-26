@@ -233,7 +233,7 @@ impl Carrier for Imap {
 
     /// A TCP socket binds on the loopback: the host allows the family.
     fn available(&self) -> Result<(), CarrierError> {
-        mail::tcp_available(NAME)
+        crate::loopback::tcp_available(NAME)
     }
 
     /// Retrieve from `HOST:PORT` ([`Imap::address`]): both directions of

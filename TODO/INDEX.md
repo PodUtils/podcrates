@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1056 entries: 171 open, 31 partial, 6 blocked, 848 done.**
+**1057 entries: 171 open, 31 partial, 6 blocked, 849 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 74 | 12 | 4 | 446 | 536 |
+| P2 | 74 | 12 | 4 | 447 | 537 |
 | P3 | 93 | 10 | 2 | 154 | 259 |
-| **All** | 171 | 31 | 6 | 848 | 1056 |
+| **All** | 171 | 31 | 6 | 849 | 1057 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1088,6 +1088,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1412](fleet.md) | P1 | S | M8 | defect | done | `pod-manual`: a pager program that fails at once (`PAGER=false`) leaves the text unshown, with exit 0 |
 | [T-1413](foundation.md) | P3 | S | M0 | feature | open | `pod-core`: a class for an output that could not be written (exit 74, `EX_IOERR`) (PodUtils/podssh#363, ask 3) |
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
+| [T-1416](relay.md) | P2 | S | M2 | defect | done | `pod-link`: the error of the loopback bind names each family, so "Address family not supported by protocol" no longer hides a refused IPv4 bind (PodUtils/podnet#776) |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
 | [T-1444](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`: `a_path_that_is_there_is_never_opened_truncated_or_removed` fails on Windows: a file made at the name of a directory gives "Access is denied", not `AlreadyExists` |

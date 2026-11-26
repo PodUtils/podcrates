@@ -247,7 +247,7 @@ impl Carrier for Smtp {
 
     /// A TCP socket binds on the loopback: the host allows the family.
     fn available(&self) -> Result<(), CarrierError> {
-        mail::tcp_available(NAME)
+        crate::loopback::tcp_available(NAME)
     }
 
     /// Submit to `HOST:PORT` ([`Smtp::address`]); the stream takes the
