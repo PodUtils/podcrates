@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1036 entries: 170 open, 31 partial, 6 blocked, 829 done.**
+**1036 entries: 167 open, 31 partial, 6 blocked, 832 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 6 | 9 | 0 | 243 | 258 |
-| P2 | 76 | 12 | 4 | 430 | 522 |
+| P2 | 73 | 12 | 4 | 433 | 522 |
 | P3 | 88 | 10 | 2 | 154 | 254 |
-| **All** | 170 | 31 | 6 | 829 | 1036 |
+| **All** | 167 | 31 | 6 | 832 | 1036 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1069,9 +1069,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1393](transport.md) | P2 | M | M1 | defect | done | `pod-proxy`: a proxy at a command that does not exist floods the stderr of the process, gives a wrong cause and is started again for each dial (PodUtils/podnet#754) |
 | [T-1394](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: the DNS over HTTPS of the edge discovery waits about 35 s behind a proxy with no line, and with no cause at `-v` (PodUtils/podnet#755) |
 | [T-1395](relay.md) | P2 | S | M2 | feature | done | `pod-session`: `resume::move_under`, the largest move under the cap of a relay, and `Settings::under_cap` (PodUtils/podnet#756) |
-| [T-1399](relay.md) | P2 | S | M2 | defect | open | `pod-quic` and `pod-relay`: a failed UDP socket of QUIC reads "no UDP socket for QUIC" with no cause, as the race of handshakes and the QUIC road say the failure with `to_string()` (PodUtils/podssh#360) |
-| [T-1400](adapters.md) | P2 | S | M3 | defect | open | `pod-warp`: the failure of each door keeps the stage of the first door, so a refusal at a proxy of the second door alone is not seen by a reader that looks for the stage `Proxy` (PodUtils/podssh#360) |
-| [T-1402](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: the node looks for the relay's Close behind a failed ping only 8 frames or 200 ms ahead, so a relay that sends data first gives "the link to the relay ended with no Close" (PodUtils/podssh#360) |
+| [T-1399](relay.md) | P2 | S | M2 | defect | done | `pod-quic` and `pod-relay`: a failed UDP socket of QUIC reads "no UDP socket for QUIC" with no cause, as the race of handshakes and the QUIC road say the failure with `to_string()` (PodUtils/podssh#360) |
+| [T-1400](adapters.md) | P2 | S | M3 | defect | done | `pod-warp`: the failure of each door keeps the stage of the first door, so a refusal at a proxy of the second door alone is not seen by a reader that looks for the stage `Proxy` (PodUtils/podssh#360) |
+| [T-1402](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the node looks for the relay's Close behind a failed ping only 8 frames or 200 ms ahead, so a relay that sends data first gives "the link to the relay ended with no Close" (PodUtils/podssh#360) |
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |

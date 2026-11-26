@@ -2827,7 +2827,7 @@ sh scripts/plant-each.sh cloudflare-discovery-with-no-limit
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2852,3 +2852,12 @@ cargo test -p pod-warp --all-features
 cargo clippy -p pod-warp --all-targets --all-features -- -D warnings
 sh scripts/plant-each.sh --apply
 ```
+
+## Done
+
+2026-11-25. Commit: see `git log` for T-1400.
+
+- The form: the stage `Proxy` on the joined failure. `open::each_door_failed` gives the stage `Proxy` when the chain of any door holds a `Failure` of the stage `Proxy` (`open::at_proxy`, private); else the stage of the first door. The class stays the one of the first door. podssh's `at_proxy` reads the stage of the failure itself first, so podssh takes it with no change. No new public API.
+- Test: `open::tests::a_proxy_that_failed_at_any_door_gives_the_stage_proxy` (the proxy of the second door alone, of the first door alone, and no proxy).
+- Plant `warp-t1400-door-stage-of-first` (looks at the first door alone): caught (applied by hand).
+- `cargo test -p pod-warp --all-features` with the other crates of T-1399: 1730 passed, 0 failed. `cargo clippy -p pod-warp --all-targets --all-features -- -D warnings`: clean. `sh scripts/plant-each.sh --apply`: 0 stale. Not measured: a real proxy on the way to a door.
