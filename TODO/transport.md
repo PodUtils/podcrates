@@ -8717,3 +8717,80 @@ cargo test -p pod-dns --all-features line
 - Tests: `line::tests::each_group_of_resolvers_keeps_its_cause_whole_in_the_bound` (four rows: each cause whole, the bound, podnet's line under 300 bytes), `line::tests::a_longer_name_leaves_fewer_bytes_to_the_failures`; `lookup::tests::a_name_that_does_not_resolve_gives_one_short_line` measures against `order::LINE`.
 - Plants: the new `dns-bound-ignores-the-name` gives each name the bound of an empty name, and the row test fails; `dns-cause-cut-inside` applies with no change.
 - README of `pod-dns`: the bound, and the step of the head in plain words.
+
+# T-1431: `pod-proxy`: a proxy of the scheme `https`, TLS to the proxy with the caller's trust and then CONNECT, in `Dialer` and in each dial (PodUtils/podnet#779, ask 1)
+
+**Source:** PodUtils/podnet#779 (COORD-134 of podnet), ask 1; PodUtils/podnet@T-126; author MEMBER
+**Category:** feature
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podnet takes `https://[USER@]HOST[:PORT]` and `wstunnel:` as networks of
+its registry, through `pod_egress::via` and `pod_egress::wstunnel`. The
+proxy of the process (`--proxy https://HOST`, `HTTPS_PROXY=https://HOST`)
+is still refused: that dialer is `pod_proxy::Dialer`, and its `Proxy` has
+no TLS hop to the proxy itself. The connection to the proxy is cleartext;
+TLS starts only after the CONNECT. `Proxy::parse` refuses the scheme:
+"https:// proxies (TLS to the proxy) are not supported".
+
+The ask: a `Proxy` of the scheme `https`
+(`https://[USER[:PASS]@]HOST[:PORT]`, the port 443 by default): TLS to the
+proxy with the caller's trust, then CONNECT inside that TLS, with the Basic
+of the URL as for `http`; in `Dialer` and in each dial, so that each road
+of a consumer (podnet's tunnel, relay, WARP, update) takes an HTTPS proxy
+of the process. podnet takes it with the next tag (PodUtils/podnet@T-614).
+
+## Premise
+
+- Read: `crates/pod-proxy/src/proxy/parse.rs` (the schemes, the refusal of
+  `https`, `secret_parts`), `crates/pod-proxy/src/env.rs` (the readers take
+  `Proxy::parse`), `crates/pod-proxy/src/stream.rs` (`open_proxy` by the
+  carrier), `crates/pod-proxy/src/connect.rs` (the CONNECT, Basic, Digest
+  on a new connection, the errors at the stage `Proxy`),
+  `crates/pod-proxy/src/dial.rs` and `crates/pod-proxy/src/blocking.rs`.
+- Read: `pod_egress::via::Client::tls` (`crates/pod-egress/src/via/mod.rs`)
+  makes a TLS hop to a proxy: the configuration of the trust in the
+  caller's `pod_tls::Context`, the ALPN, the SNI of the proxy host, the
+  bound, and the refusal as `ProxyUnreachable` with the words of
+  `pod_tls::handshake_failure`. `pod-egress` depends on `pod-proxy`, so the
+  lowest crate of both is `pod-proxy`.
+- Read: `pod_proxy::Stream` and `pod_proxy::blocking::Stream` are enums
+  that are not `non_exhaustive`; `ProxyKind` too. A new variant breaks a
+  consumer's exhaustive match.
+- A `Dialer` has no TLS context: the provider and the roots are the
+  caller's (`pod_tls::Context`).
+- Not measured: a run of podnet with an HTTPS proxy.
+
+## Approach
+
+1. `ProxyKind::Https`: the scheme `https`, the default port `HTTPS_PORT`
+   (443). `https+unix:` and `https+exec:` are refused: TLS checks the name
+   of the host, and a socket or a command has none.
+2. `pod_proxy::hop::tls`: the TLS hop to a proxy over a stream that the
+   caller holds, moved from `pod_egress::via::Client::tls`; `via` calls it.
+   A refused handshake is `ProxyUnreachable` (stage `Proxy`) with the words
+   of `pod-tls`; a time out is a `Timeout` at the stage `Proxy`.
+3. `Dialer::with_proxy_tls(context, trust)`: the TLS of an `https` proxy.
+   With none, an `https` proxy is a `BadProxy` that says so. `open_proxy`
+   makes TCP and then the hop, offering `http/1.1`; the CONNECT and its
+   Basic or Digest go inside. `Stream::Tls` and
+   `blocking::Stream::Tls` carry the stream.
+4. Tests against a stand-in TLS forward proxy on the loopback with a test
+   CA: a dial through it, a wrong certificate refused with its words, Basic
+   inside the TLS only (a recorder of the bytes between the dialer and the
+   proxy), `HTTPS_PROXY=https://...` read by the env reader. A plant makes
+   the hop cleartext.
+
+## Prove
+
+```sh
+cargo test -p pod-proxy --all-features
+cargo test -p pod-proxy --all-features --test https_proxy
+cargo test -p pod-egress --all-features --test via
+cargo clippy -p pod-proxy -p pod-egress --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh proxy-https-hop-cleartext
+```

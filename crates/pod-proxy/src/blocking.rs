@@ -17,6 +17,7 @@ use pod_core::{Failure, Resolve};
 use pod_tls::{Context, Trust};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::runtime::Runtime;
+use tokio_rustls::rustls;
 
 use crate::client::Request;
 use crate::http::Response;
@@ -122,6 +123,13 @@ impl Dialer {
             crate::Stream::Exec(child) => {
                 Stream::Exec(Exec { child, runtime: self.runtime.clone(), limit: Default::default() })
             }
+            // The session of rustls goes on over the standard socket, with
+            // each byte that it holds already.
+            crate::Stream::Tls(tls) => {
+                let (tcp, session) = tls.into_inner();
+                let tcp = to_std_tcp(tcp).map_err(|e| lost(host, port, e))?;
+                Stream::Tls(Box::new(rustls::StreamOwned::new(session, tcp)))
+            }
         };
         Ok((stream, how))
     }
@@ -143,10 +151,16 @@ fn lost(host: &str, port: u16, e: io::Error) -> DialError {
     }
 }
 
+/// The TLS to an `https://` proxy over the standard socket, and the tunnel
+/// inside it.
+pub type TlsStream = rustls::StreamOwned<rustls::ClientConnection, std::net::TcpStream>;
+
 /// The stream of a blocking dial.
-#[derive(Debug)]
 pub enum Stream {
     Tcp(std::net::TcpStream),
+    /// Through an `https://` proxy (boxed: a TLS session holds far more than
+    /// a socket).
+    Tls(Box<TlsStream>),
     /// Through a proxy on a Unix socket.
     #[cfg(unix)]
     Unix(std::os::unix::net::UnixStream),
@@ -154,8 +168,20 @@ pub enum Stream {
     Exec(Exec),
 }
 
+impl std::fmt::Debug for Stream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Stream::Tcp(tcp) => f.debug_tuple("Tcp").field(tcp).finish(),
+            Stream::Tls(tls) => f.debug_tuple("Tls").field(&tls.sock).finish(),
+            #[cfg(unix)]
+            Stream::Unix(unix) => f.debug_tuple("Unix").field(unix).finish(),
+            Stream::Exec(exec) => f.debug_tuple("Exec").field(exec).finish(),
+        }
+    }
+}
+
 impl Stream {
-    /// The TCP connection, when the stream is one.
+    /// The TCP connection, when the stream is plain TCP.
     pub fn tcp(&self) -> Option<&std::net::TcpStream> {
         match self {
             Stream::Tcp(tcp) => Some(tcp),
@@ -164,9 +190,12 @@ impl Stream {
     }
 
     /// The address of the far end of a TCP connection (a proxy's, through a
-    /// proxy).
+    /// proxy; the TCP under the TLS of an `https://` proxy too).
     pub fn peer_addr(&self) -> Option<SocketAddr> {
-        self.tcp().and_then(|tcp| tcp.peer_addr().ok())
+        match self {
+            Stream::Tls(tls) => tls.sock.peer_addr().ok(),
+            _ => self.tcp().and_then(|tcp| tcp.peer_addr().ok()),
+        }
     }
 
     /// The limit of each read and each write. At the limit the call fails
@@ -177,6 +206,10 @@ impl Stream {
             Stream::Tcp(tcp) => {
                 tcp.set_read_timeout(limit)?;
                 tcp.set_write_timeout(limit)
+            }
+            Stream::Tls(tls) => {
+                tls.sock.set_read_timeout(limit)?;
+                tls.sock.set_write_timeout(limit)
             }
             #[cfg(unix)]
             Stream::Unix(unix) => {
@@ -259,6 +292,7 @@ impl Read for Stream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match self {
             Stream::Tcp(s) => s.read(buf),
+            Stream::Tls(s) => s.read(buf),
             #[cfg(unix)]
             Stream::Unix(s) => s.read(buf),
             Stream::Exec(s) => s.read(buf),
@@ -270,6 +304,7 @@ impl Write for Stream {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         match self {
             Stream::Tcp(s) => s.write(buf),
+            Stream::Tls(s) => s.write(buf),
             #[cfg(unix)]
             Stream::Unix(s) => s.write(buf),
             Stream::Exec(s) => s.write(buf),
@@ -280,6 +315,7 @@ impl Write for Stream {
     fn write_vectored(&mut self, bufs: &[IoSlice<'_>]) -> io::Result<usize> {
         match self {
             Stream::Tcp(s) => s.write_vectored(bufs),
+            Stream::Tls(s) => s.write_vectored(bufs),
             #[cfg(unix)]
             Stream::Unix(s) => s.write_vectored(bufs),
             Stream::Exec(s) => s.write_vectored(bufs),
@@ -289,6 +325,7 @@ impl Write for Stream {
     fn flush(&mut self) -> io::Result<()> {
         match self {
             Stream::Tcp(s) => s.flush(),
+            Stream::Tls(s) => s.flush(),
             #[cfg(unix)]
             Stream::Unix(s) => s.flush(),
             Stream::Exec(s) => s.flush(),

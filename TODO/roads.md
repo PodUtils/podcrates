@@ -2204,3 +2204,93 @@ cargo test -p pod-dns --all-features --lib
 ## Done
 
 2026-11-24, 67980e7. `fold` gives one phrase (`each of N resolvers failed: CAUSE`, or `N resolvers failed, M with: CAUSE`), with no address and no `(os error N)`; `each` gives the full list at debug. `resolve_in` joins the phrases in at most 160 bytes (`fit`, `pod_core::text::clip`). The line of #698 now (195 bytes): `could not resolve nowhere.invalid: system resolver: failed to lookup address information: Try again; DNS over HTTPS: 8 resolvers failed, 4 with: could not connect: Address family not supported...`. Test: `crates/pod-dns/src/lookup.rs::a_name_that_does_not_resolve_gives_one_short_line` (failed before the fix: 472 bytes). The plant `dns-each-resolver-said-alone` patches the new `fold`. `sh scripts/agent/check.sh`: each step 0.
+
+# T-1432: `pod-egress`: the stand-ins of the second proxy over TLS and of a wstunnel server, behind the feature `standin` (PodUtils/podnet#779, ask 2)
+
+**Source:** PodUtils/podnet#779 (COORD-134 of podnet), ask 2; PodUtils/podnet@T-126; author MEMBER
+**Category:** feature
+**Milestone:** M4
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The test servers of `pod-egress` (a forward proxy over TLS, a wstunnel
+server) are in its `tests/` folder, so a consumer cannot use them. podnet
+wrote small stand-ins of its own for its tests
+(`PodUtils/podnet:src/networks/road_stand.rs`). The ask: a feature
+`standin` (as `pod-devtunnel` has) that exports a `via` stand-in (HTTP/1.1
+and HTTP/2 CONNECT over TLS, with Basic) and a wstunnel stand-in (with the
+path prefix), so that podnet drops its copies.
+
+## Premise
+
+- Read: `crates/pod-egress/tests/via.rs` (the proxy over TLS: ALPN, a
+  mode, Basic, HTTP/1.1's and h2's CONNECT, the bridge of a stream of
+  HTTP/2) and `crates/pod-egress/tests/wstunnel.rs` (the reading of
+  wstunnel 11's `handle_tunnel_request`, the answers of 9 and of another
+  server, the masks, the Close).
+- Read: `crates/pod-devtunnel/Cargo.toml` and
+  `crates/pod-devtunnel/src/standin.rs`: the feature `standin`, a module of
+  the library, and `required-features` on each test that uses it.
+- The certificates of the tests come from
+  `crates/pod-tls/tests/common/cert_for_test.rs`, a file of tests. The
+  stand-in takes the caller's `rustls::ServerConfig`, so the library mints
+  no certificate and adds no dependency.
+
+## Approach
+
+1. `pod_egress::standin` (feature `standin`): `standin::target` (a version
+   line, then an echo); `standin::via` (`spawn` with a `Plan`: the ALPN,
+   the `Mode`, the Basic credentials; `Seen`); `standin::wstunnel`
+   (`spawn` with a `Wst`, over TLS or not; `Seen`).
+2. `tests/via.rs` and `tests/wstunnel.rs` use the exported stand-ins; the
+   test names stay.
+3. README of the crate.
+
+## Prove
+
+```sh
+cargo test -p pod-egress --all-features --test via --test wstunnel
+cargo clippy -p pod-egress --all-targets --all-features -- -D warnings
+```
+
+# T-1433: `pod-iroh`: an `https` proxy goes to iroh's relay dial by its address, so TLS checks the proxy's certificate for the address and not the name
+
+**Source:** T-1431 (a finding of the work on PodUtils/podnet#779)
+**Category:** defect
+**Milestone:** M4
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+After T-1431, `Proxy::parse` takes `https://HOST`, and an environment
+gives such a proxy to `pod-iroh`. `relay_proxy` in
+`crates/pod-iroh/src/endpoint.rs` resolves the proxy host and gives iroh
+`proxy.url_at(ADDRESS)`. The fork of iroh-relay
+(`vendor/iroh-relay/src/client/tls.rs`, `dial_url_proxy`) makes TLS to a
+proxy whose scheme is not `http` with the server name of the URL, which is
+the address, and with the relay's TLS connector. A proxy certificate for
+its name fails, with words that do not name the cause.
+
+## Premise
+
+- Read: `crates/pod-iroh/src/endpoint.rs` (`relay_proxy`, `sendable`) and
+  `vendor/iroh-relay/src/client/tls.rs` (`dial_url_proxy`).
+- Not measured: a run of the iroh road through an HTTPS proxy.
+
+## Approach
+
+`relay_proxy` refuses a proxy of `ProxyKind::Https` with words (the iroh
+road takes an `http`, `socks5` or `socks5h` proxy), as it refuses a proxy
+that is not on TCP; or it gives iroh `proxy.url()` with the name and a
+resolver pin. A test of `relay_proxy` with `https://proxy.example`.
+
+## Prove
+
+```sh
+cargo test -p pod-iroh --all-features
+```

@@ -62,6 +62,7 @@ The base is podssh's `crates/podssh-ws/src/` at `2ffb7cd7`: `via/`,
 | `shadowsocks` (feature `shadowsocks`) | `Node` (`parse`, `new`, `shown`), `Method`, `Dial { way, trust, timeout, answer, silence_is_ready }`, `open(node, host, port, dial)`, `Opened { carried, answered_in }`, `Carried`, `Status`, `Ended`, `Road { node, dial }` (a `pod_core::Dial`), `OpenError` (`line`, `stage_and_class`; a `pod_core::Failure`), `access_key`, `subscription`, `Listed`, `codec` (`Encoder`, `Decoder`, `ChunkError`, `address`, `parse_address`, `MAX_PAYLOAD`), `sip022`, `master_key`, `ANSWER_WAIT`, `TAG_LEN` |
 | `eice` (feature `eice`) | `Endpoint` (`parse`), `Target`, `Credentials` (`check`; no value in `Debug`), `connect(endpoint, target, credentials, way, trust, timeout)`, `presigned_path`, `request`, `sigv4` (`Presign` with `canonical_request`, `string_to_sign`, `signature`, `query`; `escape`, `amz_date`, `ALGORITHM`, `EMPTY_SHA256`), `PORT`, `PATH`, `SERVICE`, `EXPIRES`, `MAX_DURATION`, `MAX_FRAME` |
 | `iap` (feature `iap`) | `Target` (`new`), `Resume`, `connect(target, resume, token, way, trust, timeout)`, `path`, `request`, `check_token`, `carry` (`open(dial, note)`, `Dial`, `Dialing`, `Carried` (`get`, `ended`), `NotOpen` and `Ended` (each `stage_and_class`; a `pod_core::Failure`), `LOST`, `RESUMED`, `STEP`, `FIRST_MESSAGE`, `RECONNECTS`, `RECONNECT_WAIT`, `ACK_WAIT`, `DRAIN`), `close` (`fate`, `Fate`, `Why`, `stage_and_class`, the codes), `flow` (`Flow`), `frame` (`Message`, `decode`, `data`, `ack`, `MAX_DATA`, the tags), `HOST`, `PORT`, `CONNECT_PATH`, `RECONNECT_PATH`, `SUBPROTOCOL`, `ORIGIN`, `INTERFACE`, `MAX_TOKEN` |
+| `standin` (feature `standin`) | `standin::echo()` (an `Echo { port }`: `BANNER`, then each byte back); `standin::via::start(server_config, Plan)` (a `Stand { port, seen }`: TLS with the caller's `rustls::ServerConfig` and the `Plan`'s ALPN, HTTP/1.1's CONNECT or h2's for `h2`, `Plan { alpn, mode, credentials }` with `Mode` (`Carry`, `Forbid`: 403, `ResetHttp2`: the reset of a stream of HTTP/2), `Plan::basic`, and `407` with `Proxy-Authenticate: Basic` without the Basic of the credentials; `Seen` (`accepted()`, `connects()`: each `Connect { version, target, authorization }`)); `standin::wstunnel::start(Wst, Option<server_config>)` (a `Stand { port, seen }`: wstunnel 11's reading of a client, `Wst { restrict, authorization, checks_signature, unmask, answer, answers_close }`, `Wst::v11()`, `Answer` (`Tunnel`, `Refuse9`, `NoSubprotocol`); `Seen { requests: Vec<Asked { path, protocol, authorization }>, targets, keys }`). A stand-in stops taking connections when its `Stand` drops. The crate mints no certificate: the caller gives the server configuration |
 | `fuzzing` (feature `fuzzing`) | `wisp_packet`, `wisp_answer`, `iap_message`, `iap_data`, `iap_ack` |
 
 ## Each road as a dialer
@@ -105,6 +106,7 @@ end that the bridge, the tunnel or the cloud names: they are not dialers.
 | `forwarder` | the forwarders and the built-in ones (pod-services); turns on `wisp` |
 | `wisp` | the Wisp client |
 | `wstunnel` | wstunnel (HMAC-SHA-256 of its token) |
+| `standin` | the stand-ins of a forward proxy over TLS and of a wstunnel server on the loopback, for the tests of this crate and of a consumer (h2, http, bytes, base64, hmac, sha2, tokio-rustls); no binary needs it |
 | `meek`, `webtunnel` | Tor's pluggable transports (SHA-256) |
 | `cloudflare` | the Access road |
 | `vless` | VLESS (h2, http, bytes, SHA-1, tokio-rustls) |
@@ -139,6 +141,11 @@ words of a refusal is the `app` of the TLS words of the way
 ## Failures
 
 `via` returns `pod_proxy::DialError` (its stage and class are pod-proxy's).
+Its TLS to the second proxy is `pod_proxy::hop::tls`, the hop of an
+`https://` proxy of the host: a refused handshake is `ProxyUnreachable`
+(`TLS: ` and the words of pod-tls); a proxy that chose no protocol of the
+offer (the alert `no_application_protocol`) is `ProxyProtocol` (`it did not
+choose HTTP/2 (h2) by ALPN, which was asked for: ...`).
 `ForwarderError`: `Target` is `Connect`/`Usage`; `Connect` is the stage and
 the class of `pod_ws::ConnectError`; `Answer` is `WebSocket`/`Protocol`;
 `Closed` (the forwarder's Close before the target's bytes) is
@@ -288,7 +295,8 @@ Close, the flow, the messages, and the carrier against a stand-in in
 memory (both ways, a lost link taken up, no session, a bad
 acknowledgement, the end of input).
 
-The tests of each road against stand-ins on the loopback:
+The tests of each road against stand-ins on the loopback (the tests of
+`via` and `wstunnel` take the exported ones of the feature `standin`):
 
 - `tests/via.rs`: `the_credential_goes_with_each_connect_and_a_407_says_what_is_missing`,
   `two_tunnels_share_one_http2_connection`,

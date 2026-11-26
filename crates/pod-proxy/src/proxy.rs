@@ -1,6 +1,7 @@
 //! The proxy that a URL names: HTTP `CONNECT` (`http://`, or a bare
-//! `host:port`) or SOCKS5 (`socks5://` resolves the target's name on this
-//! host, `socks5h://` gives the name to the proxy), with the user and the
+//! `host:port`), HTTP `CONNECT` inside TLS to the proxy (`https://`) or
+//! SOCKS5 (`socks5://` resolves the target's name on this host,
+//! `socks5h://` gives the name to the proxy), with the user and the
 //! password that it carries, which no message shows. The proxy is on TCP,
 //! on a Unix socket (`SCHEME+unix:/PATH`, `SCHEME://unix:/PATH`), or at the
 //! stdin and the stdout of a command (`SCHEME+exec:COMMAND`), which only a
@@ -12,7 +13,7 @@ mod tests;
 
 use std::path::PathBuf;
 
-pub use parse::{HTTP_PORT, SOCKS_PORT, percent_decode};
+pub use parse::{HTTP_PORT, HTTPS_PORT, SOCKS_PORT, percent_decode};
 
 use crate::host::authority;
 
@@ -21,6 +22,11 @@ use crate::host::authority;
 pub enum ProxyKind {
     /// HTTP `CONNECT`: `http://`, or a bare `host:port`.
     Http,
+    /// HTTP `CONNECT` inside TLS to the proxy (`https://`): the certificate
+    /// of the proxy is checked for its host with the caller's trust
+    /// ([`crate::Dialer::with_proxy_tls`]), and the credentials go inside
+    /// the TLS only. On TCP only: TLS checks the name of the host.
+    Https,
     /// SOCKS5 (RFC 1928). With `remote_dns`, the proxy resolves the name
     /// (`socks5h://`), so that a host with no DNS needs none; else this
     /// host resolves it and sends the address (`socks5://`), as curl does.
@@ -29,19 +35,21 @@ pub enum ProxyKind {
 
 impl ProxyKind {
     /// The scheme of a URL that names a proxy of this kind: `http`,
-    /// `socks5` or `socks5h`.
+    /// `https`, `socks5` or `socks5h`.
     pub fn scheme(self) -> &'static str {
         match self {
             ProxyKind::Http => "http",
+            ProxyKind::Https => "https",
             ProxyKind::Socks5 { remote_dns: false } => "socks5",
             ProxyKind::Socks5 { remote_dns: true } => "socks5h",
         }
     }
 
-    /// The kind as a word of a report: `http` or `socks5`.
+    /// The kind as a word of a report: `http`, `https` or `socks5`.
     pub fn name(self) -> &'static str {
         match self {
             ProxyKind::Http => "http",
+            ProxyKind::Https => "https",
             ProxyKind::Socks5 { .. } => "socks5",
         }
     }
@@ -50,7 +58,7 @@ impl ProxyKind {
     /// connection was opened names it.
     pub fn request(self) -> &'static str {
         match self {
-            ProxyKind::Http => "CONNECT",
+            ProxyKind::Http | ProxyKind::Https => "CONNECT",
             ProxyKind::Socks5 { .. } => "SOCKS5 CONNECT",
         }
     }
@@ -70,7 +78,8 @@ pub enum Carrier {
     Exec(String),
 }
 
-/// A proxy that tunnels: HTTP `CONNECT`, or SOCKS5 `CONNECT`.
+/// A proxy that tunnels: HTTP `CONNECT` (in cleartext or inside TLS), or
+/// SOCKS5 `CONNECT`.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Proxy {
     /// The host of the proxy; empty for a proxy on a Unix socket or at a
@@ -141,7 +150,7 @@ impl Proxy {
         self.credentials.is_some()
     }
 
-    /// `http`, `socks5` or `socks5h`.
+    /// `http`, `https`, `socks5` or `socks5h`.
     pub fn scheme(&self) -> &'static str {
         self.kind.scheme()
     }
@@ -167,7 +176,7 @@ impl Proxy {
     }
 
     /// The word of the proxy in the decisions of an observer: `unix`, `exec`,
-    /// `http` or `socks5`.
+    /// `http`, `https` or `socks5`.
     pub fn outcome(&self) -> &'static str {
         match (&self.carrier, self.kind) {
             (Carrier::Unix(_), _) => "unix",
@@ -190,6 +199,8 @@ impl Proxy {
     /// The proxy as a URL at `addr`, its resolved address, with its
     /// credentials escaped again: for a library that takes a URL, as the
     /// iroh road's relay dial does. For a proxy on TCP; never for a message.
+    /// The URL of an `https` proxy names no host, and TLS would check the
+    /// address: give such a library [`Proxy::url`].
     pub fn url_at(&self, addr: std::net::SocketAddr) -> String {
         format!("{}://{}{addr}", self.kind.scheme(), self.userinfo())
     }

@@ -32,6 +32,8 @@ pub(crate) struct Leg<'a> {
     pub deadline: Instant,
     /// The whole bound, for the words of a timeout.
     pub budget: Duration,
+    /// The TLS of an `https://` proxy, when the caller gave one.
+    pub proxy_tls: Option<&'a crate::tls_hop::ProxyTls>,
 }
 
 /// Resolve and connect, with plain TCP: [`connect_race`].
@@ -242,6 +244,7 @@ pub async fn dial_addrs(addrs: &[SocketAddr], timeout: Duration) -> Result<(usiz
         families: None,
         deadline,
         budget: timeout,
+        proxy_tls: None,
     };
     let target = match addrs {
         [one] => one.to_string(),

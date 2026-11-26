@@ -10,7 +10,7 @@ repository.workspace = true
 [features]
 default = []
 # A second forward proxy over TLS, by HTTP/1.1's or HTTP/2's CONNECT.
-via = ["dep:h2", "dep:http", "dep:bytes", "dep:base64", "dep:zeroize", "dep:tokio-rustls", "dep:rustls-pki-types"]
+via = ["dep:h2", "dep:http", "dep:bytes", "dep:base64", "dep:zeroize", "dep:tokio-rustls"]
 # The WebSocket forwarders of other products, the built-in ones of
 # pod-services among them; a template wisp+wss:// takes the Wisp road.
 forwarder = ["wisp", "dep:pod-services"]
@@ -46,6 +46,10 @@ iap = ["dep:zeroize"]
 # A plain WebSocket over TCP to the loopback, for the tests of the Access
 # client (cloudflare::connect_loopback). No binary turns it on.
 plain-ws = ["pod-ws/plain-ws"]
+# The stand-ins of a forward proxy over TLS (HTTP/1.1's and HTTP/2's
+# CONNECT, Basic) and of a wstunnel server (src/standin.rs): for the tests of
+# this crate and of a consumer; no binary needs them.
+standin = ["dep:h2", "dep:http", "dep:bytes", "dep:base64", "dep:hmac", "dep:sha2", "dep:tokio-rustls"]
 # The readers of the wire for the fuzz targets of fuzz/ (src/fuzzing.rs):
 # the packets of a Wisp server, the messages of IAP. No consumer turns it on.
 fuzzing = ["wisp", "iap"]
@@ -119,7 +123,7 @@ blake3 = { workspace = true }
 
 [[test]]
 name = "via"
-required-features = ["via"]
+required-features = ["via", "standin"]
 
 [[test]]
 name = "forwarder"
@@ -135,7 +139,7 @@ required-features = ["forwarder"]
 
 [[test]]
 name = "wstunnel"
-required-features = ["wstunnel"]
+required-features = ["wstunnel", "standin"]
 
 [[test]]
 name = "meek"
