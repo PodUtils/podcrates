@@ -27,9 +27,9 @@
   `97cebe6` (PodUtils/podssh#358), and #258 (COORD-153) is closed. Its
   finding through tmux is T-1390.
 - The tag that the `main` of each consumer names: `v0.86.0` (podnet
-  `144a5ee`, PodUtils/podnet#778); `v0.85.0` (podssh `f0f7e2c`,
-  PodUtils/podssh#360; podvm `9466c98`, PodUtils/podvm#669; podrunner
-  `f6dd20ee`, PodUtils/podrunner#360).
+  `144a5ee`, PodUtils/podnet#778; podrunner `879af093`,
+  PodUtils/podrunner#366); `v0.85.0` (podssh `f0f7e2c`, PodUtils/podssh#360;
+  podvm `9466c98`, PodUtils/podvm#669).
 - PodUtils/static-pkgs builds and publishes the static programs that no
   one else publishes in the form that PodUtils needs (the owner,
   2026-11-20); its first release is `qemu-11.1.3`.

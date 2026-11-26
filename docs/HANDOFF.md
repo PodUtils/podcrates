@@ -29,14 +29,20 @@ is done. Git and the record keep finished work.
      PodUtils/podvm#667; PodUtils/podnet#753 to #756, #758 and #776;
      PodUtils/podssh#359 to #363 and #367. Record each take on its body
      (the "Takes" lines, as #262), and close it when each consumer names the
-     tag (call C780). The take of podnet is `144a5ee`
-     (PodUtils/podnet#778, verified, on #272). COORD-157 (#263): podnet,
+     tag (call C780). The takes of podnet (`144a5ee`,
+     PodUtils/podnet#778) and podrunner (`879af093`, PodUtils/podrunner#366)
+     are verified and on #272. COORD-159 (#273) tells podvm of the defect
+     of its frozen `ext.rs` that T-1500 fixed. COORD-157 (#263): podnet,
      podvm and podrunner took the role table; it waits for podssh.
    - On `main` after `v0.86.0`: PodUtils/podvm#675 (COORD-256, T-1424) and
      PodUtils/podvm#677 (COORD-258, T-1425); answer each with the next tag.
    - On `main` after `v0.86.0`: PodUtils/podssh#358 (COORD-148, T-1390);
      PodUtils/podvm#678 (COORD-259, T-1426, T-1427); PodUtils/podvm#680
-     (COORD-260, T-1500).
+     (COORD-260, T-1500); PodUtils/podnet#781 (COORD-136, T-1507, T-1508);
+     PodUtils/podnet#783 (COORD-138, T-1516).
+   - In work (workers write the entries): PodUtils/podnet#779 (with ask 2
+     of #782), PodUtils/podnet#780. Asks 1, 3, 4 and 5 of
+     PodUtils/podnet#782 wait for the merge of #779 (`pod-egress`).
    - Open asks:
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -125,6 +131,15 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   `crates/podvm/Cargo.toml`, call `Layout::of` in `refusal` and
   `write_empty(&file, bytes, &Names::random("podvm-disk")?)` in `make`
   (no `set_len` before it), and remove `ext.rs`.
+- T-1507, T-1508 (`pod-cloudflare`, PodUtils/podnet#781): `Capture::route`
+  (`Route { rule, hostname, host }`, `non_exhaustive`) before the head of a
+  request that an ingress rule took, and `Capture::fault` (`Fault::
+  RequestChunking`) before `end`; both have default bodies, so podnet
+  builds with no change. A failure of the chunk decoder is not a refusal
+  of the sink: the sink gets `fault` and one `end`. `Dechunk` refuses a
+  chunk size over `i64::MAX` (`ffffffffffffffff` was taken as a size).
+- T-1516 (`pod-derp`, PodUtils/podnet#783): the derper tests read
+  `POD_DERP_TEST_SERVER` and `POD_DERP_TEST_CA`.
 - T-1426 (`pod-oci`, PodUtils/podvm#678 ask 1): `Reference::parse` bounds
   the name to 255 characters (`NAME_MAX`) and a tag to 128 (`TAG_MAX`),
   refuses a tag that starts with `.` or `-`, and refuses a path component
