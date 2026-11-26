@@ -40,9 +40,10 @@ is done. Git and the record keep finished work.
      PodUtils/podvm#678 (COORD-259, T-1426, T-1427); PodUtils/podvm#680
      (COORD-260, T-1500); PodUtils/podnet#781 (COORD-136, T-1507, T-1508);
      PodUtils/podnet#783 (COORD-138, T-1516).
-   - In work (workers write the entries): PodUtils/podnet#779 (with ask 2
-     of #782), PodUtils/podnet#780. Asks 1, 3, 4 and 5 of
-     PodUtils/podnet#782 wait for the merge of #779 (`pod-egress`).
+   - Done on `main`: PodUtils/podnet#779 (T-1431, T-1432) and ask 2 of
+     PodUtils/podnet#782 (T-1432). In work: PodUtils/podnet#780, asks 1, 3,
+     4 and 5 of PodUtils/podnet#782, the ports of `upstream.yml`
+     45838753274 (workers write the entries).
    - Open asks:
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -138,6 +139,23 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   builds with no change. A failure of the chunk decoder is not a refusal
   of the sink: the sink gets `fault` and one `end`. `Dechunk` refuses a
   chunk size over `i64::MAX` (`ffffffffffffffff` was taken as a size).
+- T-1431 (`pod-proxy`, PodUtils/podnet#779 ask 1): `ProxyKind::Https`
+  (`https://[USER[:PASS]@]HOST[:PORT]`, port 443), `Dialer::with_proxy_tls`
+  and `ProxyTls`, `pod_proxy::hop::tls` (moved from `pod_egress::via`, one
+  copy), `Stream::Tls`, `blocking::Stream::Tls`. With no proxy TLS given an
+  `https` proxy fails with `BadProxy`; `Dialer::tcp` refuses a TLS stream.
+  Breaking for podvm: `crates/podvm-ssh/src/transport/egress.rs` matches
+  `blocking::Stream` with no wildcard: add a `Stream::Tls` arm. Each
+  consumer adds `.with_proxy_tls(ctx, Trust::Default)` to take an `https`
+  proxy (podnet `src/egress.rs` and `podnet-core/src/connect.rs`; podvm
+  `mux.rs`, `egress.rs`; podssh `podssh-ws/src/dial.rs`, `resolve.rs`;
+  podrunner `podrunner-egress/src/dns.rs`). T-1433 (`pod-iroh` gives iroh
+  an `https` proxy by its address) and T-1434 (`pod-relay` dials a reverse
+  target with `Dialer::tcp` alone) are open.
+- T-1432 (`pod-egress`, PodUtils/podnet#779 ask 2 and #782 ask 2): the
+  feature `standin` exports the stand-ins of `via`, wstunnel, VLESS (ws,
+  xhttp h2 and HTTP/1.1), Trojan, Wisp (v1, v2) and Shadowsocks (with the
+  feature `shadowsocks`); a consumer takes them in `[dev-dependencies]`.
 - T-1513 (`pod-services`): DERP region 24 (Honolulu, `hnl-1` to `hnl-3`)
   is gone from Tailscale's map, and `derp14e` (`ams-4`) is new: 93
   endpoints in 27 regions (podnet and podssh read the set). The watch
