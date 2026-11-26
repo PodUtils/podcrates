@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 1051 entries: 172 open, 31 partial, 6 blocked, 842 done.
+`TODO/INDEX.md` holds 1052 entries: 173 open, 31 partial, 6 blocked, 842 done.
 
 ## State
 
@@ -128,7 +128,8 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   payload); T-927 (PodUtils/podvm#584); T-1391 (a pinned static
   `mkfs.erofs`, PodUtils/podvm#668, COORD-251); T-1321 (a C backend of
   `pod-gzip`, measured).
-- podnet: T-502 (a headscale harness in podcrates, from podssh's
+- podnet: T-1474 (the line of `pod-dns` keeps each cause after the plain
+  certificate words); T-502 (a headscale harness in podcrates, from podssh's
   `ts-headscale`; PodUtils/podnet#760, COORD-130); T-1451 (`Offer::fit` of
   `pod-relay` takes `Settings::under_cap`),
   T-1450 (the record heads against the window of a link), T-1452; T-1343 (partial: `new_temp_dir` and `new_temp_file` are on

@@ -8656,3 +8656,49 @@ sh scripts/plant-each.sh tls-certificate-words-debug-name
 ## Done
 
 2026-11-26. `pod_tls::CERTIFICATE_WORDS` gives words to each `Debug` name of rustls 0.23.46's `CertificateError` and of rustls-webpki 0.103.16's `Error`; `certificate_name_words`, `certificate_words(&CertificateError)` (the webpki name in `Other` too; rustls's own words of a variant with fields; the words of another error in `Other`, as a refusal of `peer`; a name that the table does not know is said by its name, the last resort) and `plain_certificate(text)` (`src/cert_words.rs`). `handshake_failure` and `handshake_error` take the type first, then the text; `cause` and `handshake_hint` read the names and the words. `CaUsedAsEndEntity` is now "the certificate of a CA, served as the server's own: the server must serve a certificate that its CA signed"; `UnknownIssuer` is "a certificate that no trusted CA signed". Tests: `cert_words::tests::each_certificate_error_of_rustls_is_said_in_words` and `cert_words::tests::each_error_of_webpki_is_said_in_words` (each variant at these versions, all of which can be built), `cert_words::tests::a_ca_used_as_the_server_s_certificate_is_said_in_words`, `cert_words::tests::fields_go_and_an_unknown_name_is_kept`, `hint::tests::a_refused_certificate_is_said_in_words_by_type_and_by_text` (before the fix the text held `Other(OtherError(CaUsedAsEndEntity))`). The tests of `pod-tls` and `pod-dns` that read `UnknownIssuer` read the words. `cargo test -p pod-identity -p pod-iroh -p pod-tls --all-features`: 298 passed, 0 failed, 7 ignored; `cargo test -p pod-dns -p pod-proxy --all-features`: 323 passed, 0 failed, 5 ignored; `cargo clippy` of the three with `--all-targets --all-features -- -D warnings`: 0; plant `tls-certificate-words-debug-name`: caught. Commit: see `git log` for T-1409.
+
+# T-1474: `pod-dns`: after the plain certificate words of T-1409, the line of a name that does not resolve shortens the second cause to "could not connect"
+
+**Source:** T-1409 (a finding of its merge); PodUtils/podnet#753 (T-1392).
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-1409 gives a refused certificate plain words in `pod-tls` ("a
+certificate that no trusted CA signed", 39 bytes, where the line of T-1392
+had "TLS: UnknownIssuer", 18 bytes). The failures of the sources of
+`pod-dns` must fit `order::LINE` (160 bytes), so the first row of the
+test `line::tests::each_group_of_resolvers_keeps_its_cause_whole_in_the_bound`
+now reads "4 with a certificate that no trusted CA signed; 4 with could not
+connect": the cause of the second group lost the words that podnet asked
+to keep ("Address family not supported by protocol", PodUtils/podnet#753,
+ask 1). podnet pins 300 bytes for each error line of its own.
+
+## Premise
+
+- Read: `crates/pod-dns/src/line/tests.rs` (the rows), `order::LINE`.
+- Not read: the longest prefix that the line of podnet adds before the text
+  of `pod-dns` ("could not resolve NAME: "; a name has at most 253 bytes);
+  whether another consumer pins the length of the line.
+
+## Approach
+
+1. Measure the head of the line of each consumer of `pod-dns` (podnet,
+   podssh).
+2. Either raise `LINE` so that the two causes of the first row fit whole
+   (about 200 bytes) while the line of podnet stays within its 300 bytes
+   for a name of usual length, or give the shortening steps of `line::fit`
+   a step that keeps the last part of each cause before it keeps the head
+   ("could not connect: Address family not supported by protocol" keeps
+   "Address family not supported by protocol").
+3. The row test asks for each cause in its own words again.
+
+## Prove
+
+```sh
+cargo test -p pod-dns --all-features line
+```

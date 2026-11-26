@@ -36,8 +36,9 @@ is done. Git and the record keep finished work.
    - Done on `main` after `v0.85.0`: PodUtils/podnet#756 (COORD-126,
      T-1395); answer it with the next tag.
    - PodUtils/podssh#360 (COORD-150): T-1399 to T-1403, done on `main`. PodUtils/podssh#361
-     (COORD-151) is T-1405; PodUtils/podssh#362 (COORD-152): asks 2 and 3
-     are T-1407 and T-1408, asks 1, 4 and 5 are with workers;
+     (COORD-151) is T-1405; PodUtils/podssh#362 (COORD-152): asks 1 and 4
+     are T-1406 and T-1409, done on `main`; asks 2 and 3 (T-1407, T-1408)
+     and ask 5 are with workers;
      PodUtils/podssh#363 (COORD-153): ask 3 is T-1413 (optional), asks 1
      and 2 are with a worker. PodUtils/podnet#758 (COORD-128) is T-1404,
      done on `main`.
@@ -133,6 +134,17 @@ closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
   each with `size=N` and reads the limit back (steps 49 to 52). Breaking:
   each struct literal of `Plan` adds `tmpfs: Vec::new()`. T-1430 (a rule of
   the confinement on such a tmpfs) is open.
+- T-1406 (`pod-identity`, `pod-iroh`; PodUtils/podssh#362 ask 1): the
+  OpenSSH line `ssh-ed25519 BASE64 [comment]` in `KeyName::parse` and
+  `Allowlist::parse_with`, `PublicKey::openssh`/`from_openssh`,
+  `KEY_FORMS`, `reaches_target` and `bad_lines_said`; the refusal of a bad
+  line names the forms. T-1473 (`pod-relay` takes the OpenSSH line of
+  `pod-identity`) is open.
+- T-1409 (`pod-tls`, PodUtils/podssh#362 ask 4): plain words for each
+  refused certificate (`CERTIFICATE_WORDS`, `certificate_words`,
+  `plain_certificate`); `UnknownIssuer` reads "a certificate that no
+  trusted CA signed". A consumer test that matches the old rustls names
+  changes. T-1474: the line of `pod-dns` now shortens a second cause.
 - T-1404 (`pod-cloudflare`, PodUtils/podnet#758): the module `capture`
   (trait `Capture` with `head`, `body`, `end`; `Head`, `End`, `Direction`,
   `Refused`) and `Origins::with_capture`; the sink is called after the
