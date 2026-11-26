@@ -18,6 +18,18 @@ pub use crate::key::Key;
 /// minutes, and a clock a day off still takes it.
 const CHALLENGE_DAYS: i64 = 7;
 
+/// A serial number of 16 random bytes from the system, the first bit
+/// clear (a positive number): rcgen with no crypto feature draws none. The
+/// one serial of the CAs of this workspace (the stand-in CA of this crate,
+/// the job CA of `pod-broker`).
+pub fn random_serial() -> Result<rcgen::SerialNumber, String> {
+    use pod_core::entropy::Entropy as _;
+    let mut bytes = [0u8; 16];
+    pod_core::entropy::OsEntropy.fill(&mut bytes).map_err(|e| format!("no serial number: {e}"))?;
+    bytes[0] &= 0x7f;
+    Ok(rcgen::SerialNumber::from_slice(&bytes))
+}
+
 /// `der` as a PEM block of `label`, its lines of 64 characters.
 pub fn pem(label: &str, der: &[u8]) -> String {
     let text = base64::engine::general_purpose::STANDARD.encode(der);

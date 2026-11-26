@@ -51,16 +51,6 @@ fn set_life(params: &mut rcgen::CertificateParams, life: (i64, i64)) {
     params.not_after = day(life.1);
 }
 
-/// A serial number of 16 random bytes: with no crypto feature, rcgen draws
-/// none.
-fn serial() -> Result<rcgen::SerialNumber, String> {
-    use pod_core::entropy::Entropy as _;
-    let mut bytes = [0u8; 16];
-    pod_core::entropy::OsEntropy.fill(&mut bytes).map_err(|e| format!("no serial number: {e}"))?;
-    bytes[0] &= 0x7f;
-    Ok(rcgen::SerialNumber::from_slice(&bytes))
-}
-
 impl JobCa {
     /// A new CA for the job `job`, for `ttl` from now.
     pub fn new(job: &str, ttl: Duration) -> Result<JobCa, String> {
@@ -73,7 +63,7 @@ impl JobCa {
         params.distinguished_name.push(rcgen::DnType::CommonName, format!("pod-broker CA of the job {job}"));
         params.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Constrained(0));
         params.key_usages = vec![rcgen::KeyUsagePurpose::KeyCertSign, rcgen::KeyUsagePurpose::DigitalSignature];
-        params.serial_number = Some(serial()?);
+        params.serial_number = Some(pod_acme::certs::random_serial()?);
         set_life(&mut params, life);
         let cert = params.self_signed(&key).map_err(|e| format!("the CA of the job: {e}"))?;
         let pem = pod_acme::certs::pem("CERTIFICATE", cert.der());
@@ -99,7 +89,7 @@ impl JobCa {
         let mut params = rcgen::CertificateParams::new(vec![name.clone()]).map_err(|e| format!("{name}: {e}"))?;
         params.distinguished_name = rcgen::DistinguishedName::new();
         params.distinguished_name.push(rcgen::DnType::CommonName, name.as_str());
-        params.serial_number = Some(serial()?);
+        params.serial_number = Some(pod_acme::certs::random_serial()?);
         set_life(&mut params, self.life);
         params.key_usages = vec![rcgen::KeyUsagePurpose::DigitalSignature];
         params.extended_key_usages = vec![rcgen::ExtendedKeyUsagePurpose::ServerAuth];

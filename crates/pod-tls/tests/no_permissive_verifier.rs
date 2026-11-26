@@ -31,11 +31,17 @@ const FORBIDDEN: [&str; 3] = ["ServerCertVerifier for", "set_certificate_verifie
 /// The pin of WARP's front door in `pod-warp` (T-028): its `tests/net.rs`
 /// fails when the pin is skipped (plant `warp-pin-unchecked`). The pin of
 /// the Ed25519 key of a peer (T-304): its `tests/peer.rs` fails when the pin
-/// is skipped (plant `tls-peer-pin-skipped`).
+/// is skipped (plant `tls-peer-pin-skipped`). The pin of the certificate of
+/// a TLS-ALPN-01 challenge in the stand-in CA of `pod-acme` (T-1506, feature
+/// `standin`, tests only): it takes the one certificate whose acmeIdentifier
+/// holds the digest of the key authorization of the name (RFC 8737), and
+/// its tests fail when the check is skipped (plant
+/// `net780-t1506-standin-skips-identifier`).
 const PINNED: &[(&str, &str)] = &[
     ("pod-tls/src/mutual.rs", "self.pins.holds(&pin)"),
     ("pod-tls/src/peer.rs", "self.keys.admits(&key)"),
     ("pod-warp/src/tls.rs", "if got != self.expected"),
+    ("pod-acme/src/standin/validate.rs", "check_certificate(end_entity.as_ref(), &self.name, &self.key_authorization)"),
 ];
 
 /// Each file that calls `dangerous()`, and the build of the WebPKI verifier
@@ -47,6 +53,7 @@ const DANGEROUS: &[(&str, &str)] = &[
     ("pod-tls/src/mutual.rs", "self.pins.holds(&pin)"),
     ("pod-tls/src/peer.rs", "self.keys.admits(&key)"),
     ("pod-warp/src/tls.rs", "if got != self.expected"),
+    ("pod-acme/src/standin/validate.rs", "check_certificate(end_entity.as_ref(), &self.name, &self.key_authorization)"),
 ];
 
 /// What the scan read and found.
