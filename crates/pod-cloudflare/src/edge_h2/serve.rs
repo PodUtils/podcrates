@@ -3,6 +3,7 @@
 //! drain.
 
 use super::*;
+use pod_core::abort::AbortOnDrop;
 
 /// Serve the HTTP/2 connection `io` of the edge (the client is the HTTP/2 server).
 /// One task accepts the streams, gives the control stream to the caller,
@@ -133,29 +134,6 @@ where
         let _ = tokio::time::timeout(DRAIN_LIMIT, closed).await;
     });
     Ok(Served { control: control_rx, serve, draining: drain_rx })
-}
-
-/// A task that is aborted when this value is dropped. A failed attempt
-/// stops the tasks that it started.
-pub(super) struct AbortOnDrop(Option<JoinHandle<()>>);
-
-impl AbortOnDrop {
-    pub(super) fn new(task: JoinHandle<()>) -> Self {
-        Self(Some(task))
-    }
-
-    /// The task, which then goes on when the handle is dropped.
-    pub(super) fn into_inner(mut self) -> JoinHandle<()> {
-        self.0.take().expect("the task is held until here")
-    }
-}
-
-impl Drop for AbortOnDrop {
-    fn drop(&mut self) {
-        if let Some(task) = self.0.take() {
-            task.abort();
-        }
-    }
 }
 
 /// Serve one stream that is not the control stream.

@@ -302,7 +302,12 @@ impl Carrier for Udp {
         UdpSocket::bind((Ipv4Addr::LOCALHOST, 0))
             .or_else(|_| UdpSocket::bind((Ipv6Addr::LOCALHOST, 0)))
             .map(drop)
-            .map_err(|e| err(CarrierErrorKind::Unavailable, format!("UDP sockets on the loopback: {e}")))
+            .map_err(|e| {
+                err(
+                    CarrierErrorKind::Unavailable,
+                    format!("UDP sockets on the loopback: {}", pod_core::text::io_words(&e)),
+                )
+            })
     }
 
     /// Dial `KEY@HOST:PORT` ([`Udp::address`]).

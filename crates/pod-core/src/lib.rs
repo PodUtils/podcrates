@@ -17,13 +17,15 @@
 //!   system;
 //! * [`process`]: one run of a program within a time limit, with its output;
 //! * [`proc_stat`]: the fields of a text of `/proc/PID/stat`;
-//! * [`metered`], [`quota`], [`pick`], [`backoff`], [`clock`], [`text`],
+//! * [`abort`], [`metered`], [`quota`], [`pick`], [`backoff`], [`clock`], [`text`],
 //!   [`names`], [`sockopt`]: the small helpers.
 //!
-//! The feature `async` (on by default) gives [`dial`], [`datagrams`] and
-//! [`metered`], which are on tokio. With no default feature, the other
+//! The feature `async` (on by default) gives [`dial`], [`datagrams`],
+//! [`metered`] and [`abort`], which are on tokio. With no default feature, the other
 //! parts build with no tokio, for a synchronous consumer.
 
+#[cfg(feature = "async")]
+pub mod abort;
 pub mod backoff;
 pub mod clock;
 #[cfg(feature = "async")]

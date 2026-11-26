@@ -11,8 +11,8 @@ use pod_ws::frame;
 use pod_ws::session::{RelaySession, close_code_and_reason};
 use pod_ws::{SessionError, Trust};
 
-use crate::abort::AbortOnDrop;
 use crate::context::Context;
+use pod_core::abort::AbortOnDrop;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -178,7 +178,7 @@ where
     // A drop of this future (its task aborted) stops both tasks too: else the
     // frames' task keeps the socket and answers the role's pings, and the
     // input's task keeps the local stream, so the leg is dead but open.
-    let tasks = (AbortOnDrop(input_task), AbortOnDrop(frames_task));
+    let tasks = (AbortOnDrop::new(input_task), AbortOnDrop::new(frames_task));
     let outcome = carry(&session, frames, input, &mut local_write, limits).await;
     drop(tasks);
     let _ = local_write.shutdown().await;

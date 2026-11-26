@@ -137,7 +137,7 @@ async fn send_main(mut w: WriteHalf<BoxIo>, mut from: DuplexStream, half: Half, 
             read = from.read(&mut buf) => read,
             () = tokio::time::sleep(s.timing.beat) => {
                 if let Err(e) = wire::write(&mut w, kind::BEAT, &[]).await {
-                    return s.lose_later(half, format!("a beat: {e}")).await;
+                    return s.lose_later(half, format!("a beat: {}", pod_core::text::io_words(&e))).await;
                 }
                 continue;
             }
@@ -153,7 +153,7 @@ async fn send_main(mut w: WriteHalf<BoxIo>, mut from: DuplexStream, half: Half, 
             Ok(n) => (kind::DATA, n),
         };
         if let Err(e) = wire::write(&mut w, kind, &buf[..n]).await {
-            return s.lose_later(half, format!("the bytes of this end: {e}")).await;
+            return s.lose_later(half, format!("the bytes of this end: {}", pod_core::text::io_words(&e))).await;
         }
         if kind == kind::END {
             s.progress.send_modify(|p| p.sent_end = true);
@@ -180,7 +180,9 @@ async fn recv_main(mut r: ReadHalf<BoxIo>, mut to: DuplexStream, half: Half, s: 
         let frame = match frame {
             Err(_) if gone => (kind::END, Vec::new()),
             Err(_) => return s.lose(half, format!("no frame for {lost_after:?}")),
-            Ok(Err(e)) => return s.lose_later(half, format!("the bytes of the peer: {e}")).await,
+            Ok(Err(e)) => {
+                return s.lose_later(half, format!("the bytes of the peer: {}", pod_core::text::io_words(&e))).await;
+            }
             Ok(Ok(None)) => {
                 return s.lose_later(half, "the carrier ended before the end of the bytes of the peer".into()).await;
             }
@@ -215,7 +217,7 @@ async fn beat_back(mut w: WriteHalf<BoxIo>, half: Half, s: Arc<Shared>) {
         if let Err(e) = wire::write(&mut w, kind::BEAT, &[]).await {
             // A peer whose bytes ended may close its half.
             if !s.progress().got_end {
-                s.lose_later(half, format!("a beat: {e}")).await;
+                s.lose_later(half, format!("a beat: {}", pod_core::text::io_words(&e))).await;
             }
             return;
         }
@@ -241,7 +243,9 @@ async fn hear_back(mut r: ReadHalf<BoxIo>, half: Half, s: Arc<Shared>) {
             Ok(Ok(None)) if ended(s.progress()) => return,
             Ok(Ok(None)) => return s.lose_later(half, "the peer closed the carrier".into()).await,
             Ok(Err(_)) if ended(s.progress()) => return,
-            Ok(Err(e)) => return s.lose_later(half, format!("the beats of the peer: {e}")).await,
+            Ok(Err(e)) => {
+                return s.lose_later(half, format!("the beats of the peer: {}", pod_core::text::io_words(&e))).await;
+            }
         }
     }
 }

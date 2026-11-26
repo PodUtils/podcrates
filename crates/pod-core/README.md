@@ -11,6 +11,7 @@ this crate depends on no other pod crate.
 | `datagrams` | `Datagrams` in the shape of the UDP socket of quinn and noq, `SystemDatagrams`, `send_to`, `recv_from` |
 | `failure` | `Failure` with its `Stage` (where the path broke) and its `Class` (what a caller can do) |
 | `event` | `Event` (a line for the user), `Events`, `Observer` (the count of decisions), `Report` |
+| `abort` | `AbortOnDrop`: a guard that aborts its tokio task when it drops (`new`, `into_inner`) |
 | `metered` | `Metered`: a stream that counts its bytes and signals at a limit |
 | `files` | the private files of a program and of a user: `App` (its name and its variable), `places_from`, `candidate_dirs_from`, `chosen_from`, `Places` with the places passed over in another user's tree, `store_file_in_first`, `load_file_from`, `read_private`, `read_own`, `create_private`, `create_new_private`, `private_dir`, `safe_name`, a new temporary path with a random name, never a path that is there (`new_temp_dir`: mode 0700; `new_temp_file`: mode 0600), the owners and the access lists of Unix and Windows; a Unix socket with its mode from the first instant at a path of any length, also past `sun_path`: `bind_staged`, `peer_ids`, and `socket_answers` (3 connects 50 ms apart, so that a listener that a forked child holds until its exec is stale); the atomic replace of a file at any path: `replace`, `Replace`, `Mode`, `Commit`, `Failed`, `Step`, `replace_private` ("The replace of a file", below) |
 | `entropy` | `Entropy`, `OsEntropy`, `NoRandom`: the random source, which a test can plant |

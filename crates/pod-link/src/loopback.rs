@@ -33,7 +33,7 @@ fn both(v4: &io::Error, v6: &io::Error) -> String {
 fn side(e: &io::Error, family: &str) -> String {
     let absent = matches!(e.kind(), io::ErrorKind::Unsupported | io::ErrorKind::AddrNotAvailable)
         || e.raw_os_error() == Some(NO_FAMILY);
-    if absent { format!("no {family} on this host") } else { e.to_string() }
+    if absent { format!("no {family} on this host") } else { pod_core::text::io_words(e) }
 }
 
 #[cfg(test)]
@@ -59,6 +59,16 @@ mod tests {
         for (v4, v6, want) in rows {
             assert_eq!(both(&v4, &v6), want);
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_words_of_the_system_show_no_code() {
+        let v4 = io::Error::from_raw_os_error(libc::EACCES);
+        let line = both(&v4, &no_family());
+        assert!(!line.contains("os error"), "{line}");
+        assert!(line.starts_with("127.0.0.1: "), "{line}");
+        assert!(line.ends_with("; ::1: no IPv6 on this host"), "{line}");
     }
 
     #[test]

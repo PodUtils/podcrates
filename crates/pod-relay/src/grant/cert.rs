@@ -258,28 +258,15 @@ fn once<'b>(what: &str, names: impl Iterator<Item = &'b str>) -> Result<(), Stri
     Ok(())
 }
 
-/// The key as OpenSSH writes a public key: `ssh-ed25519 BASE64`, the line
-/// that `ssh-keygen -s` signs.
-pub fn openssh_public(key: &PublicKey) -> String {
-    format!("{KEY_TYPE} {}", base64::engine::general_purpose::STANDARD.encode(key_blob(key)))
-}
-
-/// A key as a person gives it: OpenSSH's line `ssh-ed25519 BASE64 [COMMENT]`,
-/// or the key as [`PublicKey::parse`] reads it. A fingerprint names a key
-/// but is none, so it is refused here.
+/// A key as a person gives it: OpenSSH's line `ssh-ed25519 BASE64 [COMMENT]`
+/// ([`PublicKey::from_openssh`]), or the key as [`PublicKey::parse`] reads
+/// it. A fingerprint names a key but is none, so it is refused here.
 pub fn parse_public(text: &str) -> Option<PublicKey> {
-    let mut words = text.split_whitespace();
-    let first = words.next()?;
-    if first != KEY_TYPE {
-        return PublicKey::parse(first);
+    let first = text.split_whitespace().next()?;
+    if first == pod_identity::OPENSSH_TYPE {
+        return PublicKey::from_openssh(text);
     }
-    let blob = base64::engine::general_purpose::STANDARD.decode(words.next()?).ok()?;
-    let mut r = Reader(&blob);
-    if r.bytes().ok()? != KEY_TYPE.as_bytes() {
-        return None;
-    }
-    let key = key32(r.bytes().ok()?).ok()?;
-    r.0.is_empty().then_some(PublicKey(key))
+    PublicKey::parse(first)
 }
 
 /// The SSH encoding of an Ed25519 key: its type, then its 32 bytes.
@@ -432,7 +419,7 @@ mod tests {
     #[test]
     fn a_public_key_reads_in_openssh_s_form_and_in_podssh_s() {
         let key = Identity::from_seed(&[0x11; 32]).public();
-        assert_eq!(parse_public(&format!("{} a comment", openssh_public(&key))), Some(key));
+        assert_eq!(parse_public(&format!("{} a comment", key.openssh())), Some(key));
         assert_eq!(parse_public(&key.hex()), Some(key));
         assert_eq!(parse_public(&key.fingerprint()), None, "a fingerprint names a key, but is none");
         // The test vector of the key of seed 0x11, as OpenSSL derives it.
