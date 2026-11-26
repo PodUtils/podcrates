@@ -1,5 +1,5 @@
 //! The words of a failed handshake, and what to do about it: a refused
-//! certificate in plain words ([`crate::cert_words`]); for an issuer that no
+//! certificate in plain words ([`crate::CERTIFICATE_WORDS`]); for an issuer that no
 //! root here signs, where a CA goes; for a certificate that is expired or
 //! not valid yet, this host's clock and its reading. The names in the words
 //! (the program, its flag, its variable, its file) are the consumer's, in
@@ -107,7 +107,7 @@ pub fn clock_hint(chain: &str) -> Option<String> {
 /// The cause of a failed handshake in a few plain words, from the text of
 /// its error (rustls's words, also inside a wrapper): a certificate for
 /// another name (with its names, as rustls gives them), or the words of
-/// [`crate::cert_words::CERTIFICATE_WORDS`] for each other refused
+/// [`crate::CERTIFICATE_WORDS`] for each other refused
 /// certificate, from its `Debug` name or from those words. `None` for
 /// another failure: the caller keeps the text of the error.
 pub fn cause(text: &str) -> Option<String> {
@@ -162,7 +162,7 @@ fn plain_names(list: &str) -> String {
 }
 
 /// The text of a failed handshake, with its hint when it has one. A refused
-/// certificate is in plain words ([`certificate_words`]), and the names of
+/// certificate is in plain words ([`crate::certificate_words`]), and the names of
 /// a certificate are plain: rustls-webpki writes `DnsName("a")`.
 pub fn handshake_failure(error: &std::io::Error, words: &Words) -> String {
     let said = said_plainly(error);
