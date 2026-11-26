@@ -402,7 +402,7 @@ pub(crate) fn check_workdir(root: &RootDir, plan: &Plan, upper: Option<crate::ns
         if let Some(u) = upper {
             context.push_str(&format!(" under the upper layer {:?}", u.path));
         }
-        crate::entry::refuse_workdir(&plan.working_dir, &context, kind, label.as_deref())
+        crate::workdir::refuse_workdir(&plan.working_dir, &context, kind, label.as_deref(), None)
     };
     if plan.volumes.is_empty() && upper.is_none() {
         return crate::entry::workdir_kind(root.path.as_str(), &plan.working_dir).map_err(|k| refuse(k, None));

@@ -74,6 +74,7 @@ mod ns_upper;
 mod ns_user;
 mod ns_volume;
 mod pass_clear;
+mod workdir;
 
 use std::io::Write;
 
@@ -122,6 +123,7 @@ pub use plan::{Plan, Program, TmpfsMount, VolumeBind};
 /// that waits with [`Child::wait_forwarding`].
 pub use pod_hostprobe::sys::sigblock_proxied as block_forwarded;
 pub use status::exit_status;
+pub use workdir::{WorkdirMade, check_workdir, check_workdir_as};
 
 /// The rung that the chroot sequence enters. It is not always the rung
 /// that the probe selects.

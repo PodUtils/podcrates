@@ -15719,3 +15719,101 @@ cargo test -p pod-oci --all-features rootfs
 ## Done
 
 2026-11-26, Commit: see `git log` for T-1425. `Config` has `rootfs: Option<RootFs>` (`kind` with serde name `type`, `diff_ids` as strings; `RootFs::parsed_diff_ids` gives `Digest` values). `spec::check_layers(&manifest, &config)` fails with `Class::Protocol` when the type is not `layers` or when the count of `diff_ids` is not the count of layers, and names both counts; a config with no `rootfs` passes; a count past `MAX_LAYERS` (4096) is `Class::Policy`. The code is in `crates/pod-oci/src/rootfs.rs` (`spec.rs` is at 500 lines) and `spec` re-exports it. Tests in `rootfs.rs`: matching counts, 2 layers and 1 `diff_id`, no `rootfs`, a wrong type, the bound, the parse of a config with `diff_ids`. Plant `oci-check-layers-ignores-count`, caught. podvm needs no code change to build: it reads its own `oci::Config` through `serde`, with no struct literal.
+
+# T-1426: `pod-oci`: `Reference::parse` bounds the name and the tag, and refuses a path component outside docker's grammar (PodUtils/podvm#678)
+
+**Source:** PodUtils/podvm#678 (COORD-259 of podvm), ask 1; PodUtils/podvm@T-2100; author COLLABORATOR
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`Reference::parse` accepts a repository of 5000 characters, a tag of any length, a tag that starts with `.` or `-`, and a path component such as `-a` or `a..b`. podvm records the name and sends it to the registry. docker bounds the name to 255 characters (`NameTotalLengthMax`), a tag to `[\w][\w.-]{0,127}`, and a path component to `[a-z0-9]+(?:(?:[._]|__|[-]+)[a-z0-9]+)*`.
+
+## Premise
+
+- Read: PodUtils/podvm#678, `crates/pod-oci/src/reference.rs`, `regexp.go` of `distribution/reference`.
+- No other crate of the workspace uses `pod-oci`. The fixtures of `crates/pod-oci/tests` use names inside the grammar (the tests pass).
+- A domain keeps its own rules (`crate::host`): upper case and a port stay allowed there.
+- `reference.rs` has 314 lines; the rules go into `reference/rules.rs`.
+- Not measured: the build of podvm with the new error texts.
+
+## Approach
+
+`NAME_MAX` (255, the domain and the path as written, with no implied `library/`) and `TAG_MAX` (128) in `reference/rules.rs`, `check_name_length`, `check_tag` and `check_component` (the grammar of docker). Each refusal is `Class::Usage` and names the bound and the length, or the component. A table test for each case and for the cases that parse; a plant for the bound.
+
+## Prove
+
+```sh
+cargo test -p pod-oci --all-features reference
+```
+
+## Done
+
+2026-11-26, Commit: see `git log` for T-1426. `Reference::parse` refuses a name of more than `NAME_MAX` (255) characters ("the name has N characters, and the most is 255"), a tag of more than `TAG_MAX` (128) characters, a tag that does not start with a letter, a digit or `_`, and a path component outside `[a-z0-9]+(?:(?:[._]|__|[-]+)[a-z0-9]+)*` (the error names the component). The input in an error is cut to 64 characters. Tests in `reference/rules/tests.rs` (`a_name_of_255_characters_parses_and_one_more_is_refused`, `a_repository_of_5000_characters_is_refused_with_its_length`, `a_tag_of_128_characters_parses_and_one_more_is_refused`, `a_tag_starting_with_a_dot_or_a_dash_is_refused`, `a_component_outside_docker_grammar_is_refused_by_name`, `the_references_that_must_parse_still_parse`): the name of 255 and 256, a repository of 5000, the tag of 128 and 129, the tags `.x` and `-x`, the components `-a`, `a..b` and more, and the references that parse (`alpine`, `docker.io/library/alpine:3.20`, `localhost:5000/a/b`, a digest reference, a domain with upper case and a port). Plant `oci-reference-name-unbounded`, caught. podvm needs no code change to build.
+
+# T-1427: `pod-enter`: the refusal of a missing working directory says "docker creates it" only for `run` (PodUtils/podvm#678)
+
+**Source:** PodUtils/podvm#678 (COORD-259 of podvm), ask 2; PodUtils/podvm@T-2100; author COLLABORATOR
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The refusal of a missing working directory ends with "docker creates it, and the entry refuses it instead". That is true for `docker run -w`, and false for `docker exec -w`: docker fails on a missing directory (runc exits 126). `podvm exec -w /nonexistent` says the false clause.
+
+## Premise
+
+- Read: PodUtils/podvm#678, `crates/pod-enter/src/entry.rs` (`refuse_workdir`), `plan.rs`, and a shallow clone of podvm.
+- `Plan` has no `Default`, and podvm builds it in several literals; a new field breaks them again. `Names` is a `const` literal of the caller and holds names, not rules.
+- podvm calls the public `check_workdir` before the fork, for `run` (`run/prepare.rs`) and for `exec` (`exec/command.rs`, `exec/enter.rs`). The checks in the plan (`ns_volume::check_workdir`, `userland_workdir`) know no caller.
+- `entry.rs` has 478 lines; the code moves to `workdir.rs`.
+
+## Approach
+
+No new field of `Plan`. `WorkdirMade { ByDocker, NotMade }` and `check_workdir_as(root, workdir, image, made)`; `check_workdir` stays and means `ByDocker`. The clause is said for a missing directory with `ByDocker` only. The checks in the plan say no clause. Tests for both forms and for the plan; a plant for the clause.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features workdir
+```
+
+## Done
+
+2026-11-26, Commit: see `git log` for T-1427. New in `pod_enter`: `WorkdirMade` and `check_workdir_as`. `check_workdir(root, workdir, image)` is `check_workdir_as(.., WorkdirMade::ByDocker)`, so the text of `run` does not change. `NotMade` gives "the working directory "/gone" for image "img" is not a directory in the image", with no clause. An escape never had the clause. A file reads as a missing directory and keeps the clause for `ByDocker` (T-1428). The checks in the plan say no clause. Tests: `the_docker_creates_clause_is_said_for_run_only` and the check of the plan in `ns_volume`. Plant `enter-workdir-clause-always`, caught. `Plan` has no new field.
+
+# T-1428: `pod-enter`: a file where the working directory should be says "docker creates it", which is false for `run` too
+
+**Source:** found in the work of T-1427
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`workdir_kind` gives `ResolveKind::Absent` for a missing path and for a path that is a file. `docker run -w /file` does not make a directory over a file: it fails. The refusal of `check_workdir` says "docker creates it, and the entry refuses it instead" for both. The words are false for a file.
+
+## Premise
+
+- Read: `crates/pod-enter/src/workdir.rs`, `crates/pod-enter/src/abi/search.rs` (`ResolveKind`).
+- A new variant of the public enum `ResolveKind` can break a `match` of a consumer.
+- Not measured: the use of `ResolveKind` in podvm.
+
+## Approach
+
+Give the file case its own value (a variant `NotDir`, or a field of `Absent`), say "is not a directory" for it with no clause, and test a file in each form of `WorkdirMade`. Name the change for podvm in the release notes if a `match` of a consumer needs an arm.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features workdir
+```

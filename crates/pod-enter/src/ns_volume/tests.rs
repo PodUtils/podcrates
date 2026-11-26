@@ -209,6 +209,8 @@ fn a_working_directory_in_a_volume_resolves_in_the_volume() {
     p.working_dir = "/work/v/sub".to_string();
     let e = check_workdir(&root, &p, None).err().unwrap().to_string();
     assert!(e.contains("is not a directory in the image"), "{e}");
+    // The check of the plan knows no caller, so it does not say what docker does.
+    assert!(!e.contains("docker"), "{e}");
     let _ = fs::remove_dir_all(&d);
 }
 

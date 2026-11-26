@@ -1,0 +1,13 @@
+diff --git a/crates/pod-oci/src/reference/rules.rs b/crates/pod-oci/src/reference/rules.rs
+index fc2969215..cfa88b9a3 100644
+--- a/crates/pod-oci/src/reference/rules.rs
++++ b/crates/pod-oci/src/reference/rules.rs
+@@ -23,7 +23,7 @@ fn cut(text: &str) -> String {
+ /// Refuse a name of more than [`NAME_MAX`] characters. `len` is the length of
+ /// the name as written, with no `library/` that the parse adds.
+ pub(crate) fn check_name_length(input: &str, len: usize) -> Result<()> {
+-    if len > NAME_MAX {
++    if len > NAME_MAX && false {
+         return Err(usage(format!(
+             "invalid reference: {}: the name has {len} characters, and the most is {NAME_MAX}",
+             cut(input)

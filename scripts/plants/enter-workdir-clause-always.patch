@@ -1,0 +1,13 @@
+diff --git a/crates/pod-enter/src/workdir.rs b/crates/pod-enter/src/workdir.rs
+index d213a6caa..1694aa406 100644
+--- a/crates/pod-enter/src/workdir.rs
++++ b/crates/pod-enter/src/workdir.rs
+@@ -47,7 +47,7 @@ pub(crate) fn refuse_workdir(
+     };
+     // Only a missing directory is one that docker could make.
+     let clause = match (kind, made) {
+-        (ResolveKind::Absent, Some(WorkdirMade::ByDocker)) => ": docker creates it, and the entry refuses it instead",
++        (ResolveKind::Absent, Some(_)) => ": docker creates it, and the entry refuses it instead",
+         _ => "",
+     };
+     Error::runtime(Class::NotFound, format!("the working directory {workdir:?} {context} {why}{clause}"))
