@@ -275,8 +275,8 @@ async fn a_node_whose_home_went_away_moves_and_a_client_of_the_old_ticket_finds_
 /// The server and the trust of the derper of podssh's
 /// `scripts/interop-derp.sh`.
 fn derper() -> (Dial, Server) {
-    let server = std::env::var("PODSSH_DERP_TEST_SERVER").expect("PODSSH_DERP_TEST_SERVER=HOST:PORT of a derper");
-    let ca = std::env::var("PODSSH_DERP_TEST_CA").expect("PODSSH_DERP_TEST_CA=FILE, the derper's certificate");
+    let server = std::env::var("POD_DERP_TEST_SERVER").expect("POD_DERP_TEST_SERVER=HOST:PORT of a derper");
+    let ca = std::env::var("POD_DERP_TEST_CA").expect("POD_DERP_TEST_CA=FILE, the derper's certificate");
     let trust = pod_ws::Trust::File(ca.into());
     (dial::tls(common::direct().0, trust), Server::parse(&server).expect("HOST:PORT"))
 }

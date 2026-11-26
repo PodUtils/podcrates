@@ -111,7 +111,10 @@ state.
 
 ### podnet
 
-podnet has no DERP road. No file of podnet is replaced.
+podnet takes the crate for its DERP road (`src/derp.rs`: `podnet derp node`,
+`podnet derp connect TICKET`, `podnet send --derp`), with its own `Names`
+(app `podnet`) and the default fleet of the crate. No file of podnet is
+replaced.
 
 ## Tests
 
@@ -125,7 +128,9 @@ a server that closes in the handshake, the node's events of each kind
 (`a_node_s_lines_are_events_of_their_kinds`), and the stage and the class
 of each failure (`a_failure_of_the_road_carries_its_stage_and_class`). Its
 three `through_derper_*` tests are ignored: they need a derper
-(`PODSSH_DERP_TEST_SERVER`, `PODSSH_DERP_TEST_CA`). `derp_live` (tailcat's
+(`POD_DERP_TEST_SERVER`, `POD_DERP_TEST_CA`; the leaf certificate of a
+derper with `-certmode manual` needs `basicConstraints=critical,CA:FALSE`,
+as rustls refuses a self-signed certificate with `CA:TRUE`). `derp_live` (tailcat's
 fleet) and `derp_main_live` (the first server of each region of the main
 fleet) are live and ignored; `live.yml` runs each by hand (its input
 `measure`: `derp-tailcat`, `derp-main`).

@@ -2204,3 +2204,47 @@ cargo test -p pod-dns --all-features --lib
 ## Done
 
 2026-11-24, 67980e7. `fold` gives one phrase (`each of N resolvers failed: CAUSE`, or `N resolvers failed, M with: CAUSE`), with no address and no `(os error N)`; `each` gives the full list at debug. `resolve_in` joins the phrases in at most 160 bytes (`fit`, `pod_core::text::clip`). The line of #698 now (195 bytes): `could not resolve nowhere.invalid: system resolver: failed to lookup address information: Try again; DNS over HTTPS: 8 resolvers failed, 4 with: could not connect: Address family not supported...`. Test: `crates/pod-dns/src/lookup.rs::a_name_that_does_not_resolve_gives_one_short_line` (failed before the fix: 472 bytes). The plant `dns-each-resolver-said-alone` patches the new `fold`. `sh scripts/agent/check.sh`: each step 0.
+
+# T-1516: `pod-derp`: the derper tests read `PODSSH_DERP_TEST_*`, and the adoption map says that podnet has no DERP road (PodUtils/podnet#783)
+
+**Source:** PodUtils/podnet#783 (COORD-138 of podnet, PodUtils/podnet@T-128; author MEMBER).
+**Category:** chore
+**Milestone:** M4
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The ignored tests `through_derper_*` of `crates/pod-derp/tests/derp_link.rs`
+read `PODSSH_DERP_TEST_SERVER` and `PODSSH_DERP_TEST_CA`: the names of one
+consumer, so another consumer cannot run them with names of its own. The
+README of `pod-derp` (section "podnet" of the adoption map) says that
+podnet has no DERP road; podnet takes the crate at `v0.86.0` (its T-128:
+`podnet derp node`, `derp connect`, `send --derp`).
+
+## Premise
+
+- Read: the body of PodUtils/podnet#783; `crates/pod-derp/tests/derp_link.rs`;
+  `crates/pod-derp/README.md`. No workflow of podcrates sets the two names
+  (`grep -rn PODSSH_DERP .github scripts`).
+
+## Approach
+
+Rename the two variables to `POD_DERP_TEST_SERVER` and `POD_DERP_TEST_CA`
+in the test and the README; write podnet's road in the adoption map, and
+the fact of podnet about the leaf certificate of a derper
+(`basicConstraints=critical,CA:FALSE`).
+
+## Prove
+
+```sh
+cargo test -p pod-derp --all-features
+```
+
+## Done
+
+2026-11-26. `derp_link.rs` reads `POD_DERP_TEST_SERVER` and
+`POD_DERP_TEST_CA`; the README names them, the fact of the leaf
+certificate, and podnet's DERP road. The tests that run with no derper
+pass. Commit: see `git log` for T-1516.
