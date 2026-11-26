@@ -5,7 +5,7 @@ use rustls::CertificateError;
 
 use super::*;
 use crate::lookup::fold;
-use crate::order::{Known, LINE, resolve_in};
+use crate::order::{Known, LEAST, LINE, most, resolve_in};
 
 const V6: [&str; 4] = ["2606:4700:4700::1111", "2606:4700:4700::1001", "2001:4860:4860::8888", "2001:4860:4860::8844"];
 const V4: [&str; 4] = ["1.1.1.1", "1.0.0.1", "8.8.8.8", "8.8.4.4"];
@@ -44,15 +44,27 @@ async fn line(host: &str, system: &str, resolvers: &[(String, String)]) -> Strin
     let known = Known { asks: true, ..Default::default() };
     let system = async { Err(system.to_string()) };
     let doh = async { Err(fold(resolvers)) };
-    let detail = resolve_in(&known, 80, None, system, doh).await.unwrap_err();
-    assert!(detail.len() <= LINE, "{} bytes: {detail}", detail.len());
+    let detail = resolve_in(&known, host, 80, None, system, doh).await.unwrap_err();
+    assert!(detail.len() <= most(host), "{} bytes: {detail}", detail.len());
     pod_proxy::DialError::Resolve { host: host.into(), detail }.to_string()
 }
 
-/// The two lines of PodUtils/podnet#753, and a proxy that re-signs TLS for
-/// another name: the bound holds, no cut falls inside a cause, and each
-/// group of resolvers has its cause. The cause of the third, with each of
-/// its words, does not fit: its class (`TLS`) names it.
+/// The error line of podnet with the line of the dialer: podnet's words
+/// before it (`connecting to HOST:PORT`, `failed` in podnet's
+/// `src/egress.rs`), with a port of 5 digits.
+fn podnet(host: &str, line: &str) -> String {
+    format!("podnet: connecting to {host}:65535: {line}")
+}
+
+/// podnet's bound of each error line (podnet's `tests/error_words.rs`): a
+/// line has fewer bytes.
+const PODNET: usize = 300;
+
+/// The two lines of PodUtils/podnet#753, a proxy that re-signs TLS for
+/// another name, and the first of them for a name of 63 bytes: the bound
+/// holds, also in the line of podnet; no cut falls inside a cause; each
+/// group of resolvers has its cause. A cause that does not fit with each
+/// of its words keeps its class (`TLS`, `could not connect`).
 #[tokio::test]
 async fn each_group_of_resolvers_keeps_its_cause_whole_in_the_bound() {
     let mut middlebox = each(&V4, unknown_issuer);
@@ -61,39 +73,65 @@ async fn each_group_of_resolvers_keeps_its_cause_whole_in_the_bound() {
     lab.extend(each(&V4, unreachable));
     let mut renamed = each(&V4, other_name);
     renamed.extend(each(&V6, no_family));
+    let long = format!("{}.example.com", "x".repeat(51));
+    let no_name = "failed to lookup address information: Name does not resolve";
     let rows = [
         (
-            "nothing.invalid",
-            "failed to lookup address information: Name does not resolve",
-            middlebox,
+            "nothing.invalid".to_string(),
+            no_name,
+            middlebox.clone(),
             "could not resolve nothing.invalid: system resolver: Name does not resolve; DNS over HTTPS: 8 resolvers \
-             failed: 4 with a certificate that no trusted CA signed; 4 with could not connect",
+             failed: 4 with a certificate that no trusted CA signed; 4 with Address family not supported by protocol"
+                .to_string(),
         ),
         (
-            "example.com",
+            "example.com".to_string(),
             "failed to lookup address information: Try again",
             lab,
             "could not resolve example.com: system resolver: Try again; DNS over HTTPS: 8 resolvers failed: 4 with \
-             Address family not supported by protocol; 4 with Network is unreachable",
+             Address family not supported by protocol; 4 with could not connect: Network is unreachable"
+                .to_string(),
         ),
         (
-            "nothing.invalid",
-            "failed to lookup address information: Name does not resolve",
+            "nothing.invalid".to_string(),
+            no_name,
             renamed,
             "could not resolve nothing.invalid: system resolver: Name does not resolve; DNS over HTTPS: 8 resolvers \
-             failed: 4 with TLS; 4 with Address family not supported by protocol",
+             failed: 4 with TLS; 4 with Address family not supported by protocol"
+                .to_string(),
+        ),
+        (
+            long.clone(),
+            no_name,
+            middlebox,
+            format!(
+                "could not resolve {long}: system resolver: Name does not resolve; DNS over HTTPS: 8 resolvers failed: \
+                 4 with TLS; 4 with could not connect"
+            ),
         ),
     ];
+    assert_eq!(long.len(), 63);
     for (host, system, resolvers, want) in rows {
-        let line = line(host, system, &resolvers).await;
+        let line = line(&host, system, &resolvers).await;
         assert_eq!(line, want);
         assert!(!line.contains("..."), "a cut inside a cause: {line}");
-        assert!(line.len() < 200, "{} bytes: {line}", line.len());
+        assert!(line.len() <= LINE, "{} bytes: {line}", line.len());
+        let podnet = podnet(&host, &line);
+        assert!(podnet.len() < PODNET, "{} bytes: {podnet}", podnet.len());
         let groups = line.split_once("8 resolvers failed: ").map(|(_, g)| g).unwrap_or_default();
         let causes: Vec<&str> = groups.split("4 with ").filter(|g| !g.is_empty()).collect();
         assert_eq!(causes.len(), 2, "each group has its cause: {line}");
         assert!(causes.iter().all(|c| c.trim_end_matches("; ").len() >= 3), "{line}");
     }
+}
+
+/// The failures of a longer name get fewer bytes, and a name too long for
+/// the bound keeps the leads and the classes ([`LEAST`]).
+#[test]
+fn a_longer_name_leaves_fewer_bytes_to_the_failures() {
+    assert_eq!(most("nothing.invalid"), LINE - "could not resolve nothing.invalid: ".len());
+    assert!(most("example.com") > most("nothing.invalid"));
+    assert_eq!(most(&"x".repeat(253)), LEAST);
 }
 
 /// The forms of a brief cause, each at a part boundary.

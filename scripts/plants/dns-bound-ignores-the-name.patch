@@ -1,0 +1,13 @@
+diff --git a/crates/pod-dns/src/order.rs b/crates/pod-dns/src/order.rs
+index 8ff862dc..2f652d20 100644
+--- a/crates/pod-dns/src/order.rs
++++ b/crates/pod-dns/src/order.rs
+@@ -166,7 +166,7 @@ where
+             Err(e) => reasons.push(e),
+         }
+     }
+-    Err(if reasons.is_empty() { "no source gave an address".into() } else { fit(reasons, most(host)) })
++    Err(if reasons.is_empty() { "no source gave an address".into() } else { fit(reasons, most("")) })
+ }
+ 
+ /// The most bytes of the line of the dialer, `could not resolve HOST: ` and
