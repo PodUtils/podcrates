@@ -198,13 +198,16 @@ pub struct Host {
     pub relay: Option<EdgeRelay>,
     /// The WARP sessions of the leg `quic+warp`.
     pub warp: Option<Arc<dyn WarpSessions>>,
+    /// The sink of the HTTP exchanges of the origins (an inspector);
+    /// `None`: no capture ([`crate::capture`]).
+    pub capture: Option<Arc<dyn crate::capture::Capture>>,
     pub settings: Settings,
 }
 
 impl Host {
     /// A host with the TLS `tls` and the way out `dial`, the resolver of
     /// `pod-dns` with its default settings over the same way, no services,
-    /// no relay and no WARP.
+    /// no relay, no WARP and no capture.
     pub fn new(tls: Arc<pod_tls::Context>, dial: Arc<dyn Dial>) -> Host {
         let resolver = pod_dns::Resolver::new(pod_dns::Settings::default()).with_doh(tls.clone(), dial.clone());
         Host {
@@ -217,6 +220,7 @@ impl Host {
             report: Report::default(),
             relay: None,
             warp: None,
+            capture: None,
             settings: Settings::default(),
         }
     }

@@ -19,12 +19,15 @@ use crate::ingress::{Ingress, Service};
 use crate::metrics::Metrics;
 use crate::origin::Origins;
 
+#[cfg(test)]
+mod capture_tests;
 mod copy;
 mod forward;
 mod head;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use copy::MAX_TRAILER_LINE;
 #[cfg(test)]
 use copy::*;
 pub use forward::{forward_http, forward_tcp, tcp_http_body};
@@ -60,7 +63,8 @@ impl Runtime {
         let origins = Origins::new(host.tls.clone())
             .with_report(host.report.clone())
             .with_words(host.settings.words.clone())
-            .with_no_verify(host.origin_no_verify.clone());
+            .with_no_verify(host.origin_no_verify.clone())
+            .with_capture(host.capture.clone());
         Ok(Self { host, origins, metrics })
     }
 

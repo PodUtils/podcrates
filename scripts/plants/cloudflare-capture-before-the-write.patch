@@ -1,0 +1,19 @@
+diff --git a/crates/pod-cloudflare/src/proxy/copy.rs b/crates/pod-cloudflare/src/proxy/copy.rs
+--- a/crates/pod-cloudflare/src/proxy/copy.rs
++++ b/crates/pod-cloudflare/src/proxy/copy.rs
+@@ -121,6 +121,7 @@
+         if n == 0 {
+             break;
+         }
++        tap.body(Direction::Response, &buf[..n]);
+         futures::io::AsyncWriteExt::write_all(dst, &buf[..n])
+             .await
+             .io_fail(Stage::EdgeStream, "writing to the edge")?;
+@@ -128,7 +129,6 @@
+         // start of a page) goes to the visitor at once.
+         futures::io::AsyncWriteExt::flush(dst).await.io_fail(Stage::EdgeStream, "writing to the edge")?;
+         metrics.add_out(n as u64);
+-        tap.body(Direction::Response, &buf[..n]);
+         total += n as u64;
+     }
+     Ok(total)

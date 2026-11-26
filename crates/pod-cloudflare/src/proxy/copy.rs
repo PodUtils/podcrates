@@ -1,9 +1,12 @@
 //! The copy of a body between the edge (futures I/O) and the origin (tokio
-//! I/O), with the counters of the tunnel.
+//! I/O), with the counters of the tunnel and the capture of the consumer.
+//! The capture gets each part after its write to the peer: a slow sink
+//! holds no byte back.
 
 use crate::fail::{IoFail, OrFail, Result, bail};
 use pod_core::{Class, Stage};
 
+use crate::capture::{Direction, Tap};
 use crate::metrics::Metrics;
 
 /// The longest line of the trailer of a chunked answer of the origin.
@@ -19,6 +22,7 @@ pub(crate) async fn copy_futures_to_tokio_n<R, W>(
     dst: &mut W,
     mut remaining: u64,
     metrics: &Metrics,
+    tap: &Tap,
 ) -> Result<()>
 where
     R: futures::io::AsyncRead + Unpin,
@@ -35,12 +39,18 @@ where
         }
         tokio::io::AsyncWriteExt::write_all(dst, &buf[..n]).await.io_fail(Stage::Origin, "writing to the origin")?;
         metrics.add_in(n as u64);
+        tap.body(Direction::Request, &buf[..n]);
         remaining -= n as u64;
     }
     Ok(())
 }
 
-pub(crate) async fn copy_futures_to_tokio_eof<R, W>(src: &mut R, dst: &mut W, metrics: &Metrics) -> Result<u64>
+pub(crate) async fn copy_futures_to_tokio_eof<R, W>(
+    src: &mut R,
+    dst: &mut W,
+    metrics: &Metrics,
+    tap: &Tap,
+) -> Result<u64>
 where
     R: futures::io::AsyncRead + Unpin,
     W: tokio::io::AsyncWrite + Unpin,
@@ -55,6 +65,7 @@ where
         }
         tokio::io::AsyncWriteExt::write_all(dst, &buf[..n]).await.io_fail(Stage::Origin, "writing to the origin")?;
         metrics.add_in(n as u64);
+        tap.body(Direction::Request, &buf[..n]);
         total += n as u64;
     }
     Ok(total)
@@ -65,6 +76,7 @@ pub(crate) async fn copy_tokio_to_futures_n<R, W>(
     dst: &mut W,
     mut remaining: u64,
     metrics: &Metrics,
+    tap: &Tap,
 ) -> Result<()>
 where
     R: tokio::io::AsyncRead + Unpin,
@@ -86,12 +98,18 @@ where
         // start of a page) goes to the visitor at once.
         futures::io::AsyncWriteExt::flush(dst).await.io_fail(Stage::EdgeStream, "writing to the edge")?;
         metrics.add_out(n as u64);
+        tap.body(Direction::Response, &buf[..n]);
         remaining -= n as u64;
     }
     Ok(())
 }
 
-pub(crate) async fn copy_tokio_to_futures_eof<R, W>(src: &mut R, dst: &mut W, metrics: &Metrics) -> Result<u64>
+pub(crate) async fn copy_tokio_to_futures_eof<R, W>(
+    src: &mut R,
+    dst: &mut W,
+    metrics: &Metrics,
+    tap: &Tap,
+) -> Result<u64>
 where
     R: tokio::io::AsyncRead + Unpin,
     W: futures::io::AsyncWrite + Unpin,
@@ -110,6 +128,7 @@ where
         // start of a page) goes to the visitor at once.
         futures::io::AsyncWriteExt::flush(dst).await.io_fail(Stage::EdgeStream, "writing to the edge")?;
         metrics.add_out(n as u64);
+        tap.body(Direction::Response, &buf[..n]);
         total += n as u64;
     }
     Ok(total)
@@ -118,7 +137,7 @@ where
 /// Decode the chunked body of `src` and write its payload to `dst`. The
 /// trailer is read and dropped. A size line of more than 4096 bytes, a bad
 /// size or an early end is an error.
-pub(crate) async fn copy_chunked_to_futures<R, W>(src: &mut R, dst: &mut W, metrics: &Metrics) -> Result<()>
+pub(crate) async fn copy_chunked_to_futures<R, W>(src: &mut R, dst: &mut W, metrics: &Metrics, tap: &Tap) -> Result<()>
 where
     R: tokio::io::AsyncBufRead + Unpin,
     W: futures::io::AsyncWrite + Unpin,
@@ -174,7 +193,7 @@ where
                 }
             }
         }
-        copy_tokio_to_futures_n(src, dst, size, metrics).await?;
+        copy_tokio_to_futures_n(src, dst, size, metrics, tap).await?;
         line.clear();
         tokio::io::AsyncReadExt::take(&mut *src, 2)
             .read_until(b'\n', &mut line)

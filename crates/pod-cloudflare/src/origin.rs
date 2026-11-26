@@ -35,6 +35,10 @@ pub struct Origins {
     words: crate::Words,
     /// True after the note of the first HTTP request to a raw TCP origin.
     noted_http_to_tcp: std::sync::atomic::AtomicBool,
+    /// The capture of the consumer for the HTTP exchanges.
+    capture: Option<Arc<dyn crate::capture::Capture>>,
+    /// The id of the next exchange of the capture.
+    exchanges: std::sync::atomic::AtomicU64,
 }
 
 impl Origins {
@@ -47,6 +51,26 @@ impl Origins {
             report: pod_core::Report::default(),
             words: crate::Words::default(),
             noted_http_to_tcp: std::sync::atomic::AtomicBool::new(false),
+            capture: None,
+            exchanges: std::sync::atomic::AtomicU64::new(1),
+        }
+    }
+
+    /// The capture of the consumer gets each HTTP exchange of
+    /// [`crate::proxy::forward_http`] ([`crate::capture`]).
+    pub fn with_capture(mut self, capture: Option<Arc<dyn crate::capture::Capture>>) -> Origins {
+        self.capture = capture;
+        self
+    }
+
+    /// The capture of one new exchange.
+    pub(crate) fn tap(&self) -> crate::capture::Tap {
+        match &self.capture {
+            Some(sink) => {
+                let id = self.exchanges.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                crate::capture::Tap::new(Some(sink.clone()), id)
+            }
+            None => crate::capture::Tap::off(),
         }
     }
 

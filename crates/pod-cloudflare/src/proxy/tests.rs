@@ -101,9 +101,13 @@ async fn small_writes_go_out_at_once() {
         let (mut origin, mut src) = tokio::io::duplex(1 << 16);
         let copy = tokio::spawn(async move {
             if with_length {
-                copy_tokio_to_futures_n(&mut src, &mut dst, 20, &Metrics::new()).await.map(|_| ())
+                copy_tokio_to_futures_n(&mut src, &mut dst, 20, &Metrics::new(), &crate::capture::Tap::off())
+                    .await
+                    .map(|_| ())
             } else {
-                copy_tokio_to_futures_eof(&mut src, &mut dst, &Metrics::new()).await.map(|_| ())
+                copy_tokio_to_futures_eof(&mut src, &mut dst, &Metrics::new(), &crate::capture::Tap::off())
+                    .await
+                    .map(|_| ())
             }
         });
         tokio::io::AsyncWriteExt::write_all(&mut origin, b"data: event-1\n\n").await.unwrap();
@@ -169,14 +173,16 @@ async fn the_trailer_of_the_origin_has_a_cap() {
     for (raw, want) in [(&many, "larger than 64 KiB"), (&long, "longer than 8 KiB")] {
         let mut source = tokio::io::BufReader::new(&raw[..]);
         let mut out = futures::io::Cursor::new(Vec::new());
-        let err = copy_chunked_to_futures(&mut source, &mut out, &Metrics::new()).await.unwrap_err();
+        let err = copy_chunked_to_futures(&mut source, &mut out, &Metrics::new(), &crate::capture::Tap::off())
+            .await
+            .unwrap_err();
         assert!(err.to_string().contains(want), "{err:#}");
     }
     // A small trailer is read and dropped.
     let raw = b"1\r\na\r\n0\r\nX-Sum: 1\r\n\r\n";
     let mut source = tokio::io::BufReader::new(&raw[..]);
     let mut out = futures::io::Cursor::new(Vec::new());
-    copy_chunked_to_futures(&mut source, &mut out, &Metrics::new()).await.unwrap();
+    copy_chunked_to_futures(&mut source, &mut out, &Metrics::new(), &crate::capture::Tap::off()).await.unwrap();
     assert_eq!(out.into_inner(), b"a");
 }
 
@@ -201,7 +207,7 @@ async fn a_chunked_body_is_decoded() {
     let mut out = futures::io::Cursor::new(Vec::new());
     tokio::time::timeout(
         std::time::Duration::from_secs(5),
-        copy_chunked_to_futures(&mut source, &mut out, &Metrics::new()),
+        copy_chunked_to_futures(&mut source, &mut out, &Metrics::new(), &crate::capture::Tap::off()),
     )
     .await
     .expect("the decoder ends at the last chunk")
@@ -213,7 +219,7 @@ async fn a_chunked_body_is_decoded() {
         let mut source = tokio::io::BufReader::new(bad);
         let mut out = futures::io::Cursor::new(Vec::new());
         assert!(
-            copy_chunked_to_futures(&mut source, &mut out, &Metrics::new()).await.is_err(),
+            copy_chunked_to_futures(&mut source, &mut out, &Metrics::new(), &crate::capture::Tap::off()).await.is_err(),
             "{:?}",
             String::from_utf8_lossy(bad)
         );
