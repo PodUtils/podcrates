@@ -8664,7 +8664,7 @@ sh scripts/plant-each.sh tls-certificate-words-debug-name
 **Milestone:** M1
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8702,3 +8702,18 @@ ask 1). podnet pins 300 bytes for each error line of its own.
 ```sh
 cargo test -p pod-dns --all-features line
 ```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1474.
+
+- Measured heads (podnet at `8b5e7d01`, read, not run): `connect` writes `podnet: connecting to HOST:PORT: ` before the line of the dialer (`src/egress.rs`, `failed`), 28 bytes and the name for the port 443; `bench` writes `podnet: bench: no request worked: GET http://HOST/: connecting to HOST:80: ` (podnet's T-575), 67 bytes and the name two times. podssh writes `could not resolve HOST: ` before the failures and pins no length.
+- The bound counts the name (call C973): the line of the dialer (`could not resolve HOST: ` and the failures) has at most 206 bytes (`order::LINE`), and the failures keep at least 112 bytes (`order::LEAST`, the leads and the classes of the causes). `resolve_in` takes the host; `order::most(host)` gives the bound of `fit`. The shortening steps of `line::fit` do not change: they keep the last part of a cause before its head already; the first row lost its words to the bytes.
+- The two rows of PodUtils/podnet#753 now:
+  - `could not resolve nothing.invalid: system resolver: Name does not resolve; DNS over HTTPS: 8 resolvers failed: 4 with a certificate that no trusted CA signed; 4 with Address family not supported by protocol` (206 bytes)
+  - `could not resolve example.com: system resolver: Try again; DNS over HTTPS: 8 resolvers failed: 4 with Address family not supported by protocol; 4 with could not connect: Network is unreachable` (192 bytes)
+- A name of 63 bytes with the failures of the first row: `could not resolve NAME: system resolver: Name does not resolve; DNS over HTTPS: 8 resolvers failed: 4 with TLS; 4 with could not connect` (195 bytes); with podnet's words of `connect` and a port of 5 digits, 288 bytes.
+- For podnet (the hand-off): the `bench` line names the host three times, so with the failures at the bound a name of 15 bytes gives 303 bytes; `connecting to HOST:PORT: ` before `could not resolve HOST` says the host again and can go at the stage `dns`.
+- Tests: `line::tests::each_group_of_resolvers_keeps_its_cause_whole_in_the_bound` (four rows: each cause whole, the bound, podnet's line under 300 bytes), `line::tests::a_longer_name_leaves_fewer_bytes_to_the_failures`; `lookup::tests::a_name_that_does_not_resolve_gives_one_short_line` measures against `order::LINE`.
+- Plants: the new `dns-bound-ignores-the-name` gives each name the bound of an empty name, and the row test fails; `dns-cause-cut-inside` applies with no change.
+- README of `pod-dns`: the bound, and the step of the head in plain words.

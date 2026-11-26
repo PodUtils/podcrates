@@ -1098,4 +1098,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1460](fleet.md) | P3 | S | M8 | defect | open | `pod-unit`: an install accepts a program in a directory that the host clears at a reboot or a logout, so the unit fails after the next reboot |
 | [T-1463](upkeep.md) | P3 | M | M5 | chore | open | `pod-core`: no check stops a new `to_string()` or `{}` of a `Failure` that drops its cause, and the `{}` of a `Failure` in a `format!` was not searched |
 | [T-1473](relay.md) | P3 | S | M2 | chore | open | `pod-relay`: `grant::openssh_public` and `grant::parse_public` are a second encoder and reader of OpenSSH's public line of an Ed25519 key |
-| [T-1474](transport.md) | P2 | S | M1 | defect | open | `pod-dns`: after the plain certificate words of T-1409, the line of a name that does not resolve shortens the second cause to "could not connect" |
+| [T-1474](transport.md) | P2 | S | M1 | defect | done | `pod-dns`: after the plain certificate words of T-1409, the line of a name that does not resolve shortens the second cause to "could not connect" |

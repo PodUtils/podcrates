@@ -1,0 +1,6 @@
+# pod-dns: the bound of the failures of the sources does not count the name, so the line of a long name passes the line of podnet (300 bytes).
+ENTRY=T-1474
+GROUP=dns
+EXPECT='each_group_of_resolvers_keeps_its_cause_whole_in_the_bound'
+RUN='cargo test -p pod-dns --all-features --lib line'
+LIMIT=900
