@@ -70,6 +70,16 @@ fn keys_keep_their_order_and_their_lines() {
 }
 
 #[test]
+fn a_block_scalar_starts_at_its_indicator() {
+    // As libyaml and the runner name the place of a `run: |` script.
+    let node = load("a: 1\nrun: |\n  echo one\n  echo two\nb: >-\n  x\n", Limits::default()).unwrap();
+    let run = node.get("run").unwrap();
+    assert_eq!(run.text().as_deref(), Some("echo one\necho two\n"));
+    assert_eq!(run.mark, Mark { line: 2, column: 6 });
+    assert_eq!(node.get("b").unwrap().mark, Mark { line: 5, column: 4 });
+}
+
+#[test]
 fn a_duplicate_key_is_an_error_by_name() {
     let e = load("a: 1\nb: 2\na: 3\n", Limits::default()).unwrap_err();
     assert_eq!(e.kind, ErrorKind::DuplicateKey("a".into()));

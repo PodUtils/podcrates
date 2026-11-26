@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1056 entries: 171 open, 31 partial, 6 blocked, 848 done.**
+**1058 entries: 172 open, 31 partial, 6 blocked, 849 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 74 | 12 | 4 | 446 | 536 |
-| P3 | 93 | 10 | 2 | 154 | 259 |
-| **All** | 171 | 31 | 6 | 848 | 1056 |
+| P2 | 74 | 12 | 4 | 447 | 537 |
+| P3 | 94 | 10 | 2 | 154 | 260 |
+| **All** | 172 | 31 | 6 | 849 | 1058 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1087,6 +1087,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1411](fleet.md) | P2 | S | M8 | feature | done | `pod-release`: former signers of a moved repository, and the hint of Sigstore's roots only for a chain that failed |
 | [T-1412](fleet.md) | P1 | S | M8 | defect | done | `pod-manual`: a pager program that fails at once (`PAGER=false`) leaves the text unshown, with exit 0 |
 | [T-1413](foundation.md) | P3 | S | M0 | feature | open | `pod-core`: a class for an output that could not be written (exit 74, `EX_IOERR`) (PodUtils/podssh#363, ask 3) |
+| [T-1414](upkeep.md) | P2 | M | M0 | chore | done | Dependabot of 2026-11-26: coturn 4.19.2, Mosquitto 2.1.4, TruffleHog 3.100.0, two actions, eight crates and saphyr-parser 0.4.1; iroh-dns 1.5.0, rand 0.10.4 in `pod-h2` and simple-dns 0.13.1 declined (GitHub #264 to #271) |
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
@@ -1103,3 +1104,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1473](relay.md) | P3 | S | M2 | chore | open | `pod-relay`: `grant::openssh_public` and `grant::parse_public` are a second encoder and reader of OpenSSH's public line of an Ed25519 key |
 | [T-1474](transport.md) | P2 | S | M1 | defect | open | `pod-dns`: after the plain certificate words of T-1409, the line of a name that does not resolve shortens the second cause to "could not connect" |
 | [T-1480](upkeep.md) | P3 | S | M5 | chore | open | three crates keep their own guard that aborts a tokio task on drop |
+| [T-1484](upkeep.md) | P3 | M | M0 | chore | open | `pod-iroh`: the move to iroh 1.5, iroh-dns 1.5 and simple-dns 0.13 together |
