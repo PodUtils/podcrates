@@ -4562,6 +4562,7 @@ dependencies = [
  "pod-core",
  "pod-proxy",
  "pod-services",
+ "pod-testkit",
  "pod-tls",
  "rcgen",
  "ring",
