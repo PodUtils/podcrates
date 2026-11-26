@@ -1,8 +1,9 @@
 //! The messages of the broker: the job request of the long poll, and the
 //! job message of `acquirejob` that the Worker of the runner runs. The
 //! shapes are the ones that the official runner reads
-//! (`AgentJobRequestMessage`, camel case), for a job of `run:` steps; a
-//! field that the runner does not need is left out.
+//! (`AgentJobRequestMessage`, camel case), for a job of `run:` steps with
+//! an optional job container and service containers; a field that the
+//! runner does not need is left out.
 
 use base64::Engine as _;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -78,7 +79,8 @@ pub(super) fn job_message(base: &str, job: &Job) -> Value {
             "repositories": [],
         },
         "workspace": {},
-        "jobContainer": null,
+        // Template tokens (module `container`); the runner starts each one.
+        "jobContainer": job.container, "jobServiceContainers": job.services,
         "environmentVariables": [],
         "variables": {
             "system.github.job": { "value": job.name },
@@ -126,6 +128,8 @@ mod tests {
             name: "build".into(),
             labels: vec!["self-hosted".into()],
             steps: vec!["true".into(), "false".into()],
+            container: None,
+            services: None,
             status: Status::Given,
             assigned: None,
             runner: None,
@@ -135,6 +139,7 @@ mod tests {
             created_at: 0,
             started_at: None,
             completed_at: None,
+            logs: Default::default(),
         }
     }
 
@@ -155,6 +160,26 @@ mod tests {
         assert_eq!(parts.len(), 3);
         let claims: Value = serde_json::from_slice(&URL_SAFE_NO_PAD.decode(parts[1]).unwrap()).unwrap();
         assert!(claims["exp"].as_u64().unwrap() > 4_000_000_000);
+    }
+
+    /// The runner reads `jobContainer` and `jobServiceContainers` as
+    /// template tokens and starts each container; a job with neither has
+    /// `null` in both.
+    #[test]
+    fn a_job_with_a_container_and_services_gives_the_fields_of_the_runner() {
+        let plain = job_message("http://127.0.0.1:1/", &job());
+        assert!(plain["jobContainer"].is_null() && plain["jobServiceContainers"].is_null(), "{plain}");
+        let mut j = job();
+        j.container = crate::github::container::container(&json!({ "image": "node:22", "ports": [80] })).unwrap();
+        j.services = crate::github::container::services(&json!({ "db": { "image": "postgres:16" } })).unwrap();
+        let m = job_message("http://127.0.0.1:1/", &j);
+        let c = &m["jobContainer"];
+        assert_eq!((c["type"].as_u64(), &c["map"][0]), (Some(2), &json!({ "Key": "image", "Value": "node:22" })));
+        assert_eq!(c["map"][1], json!({ "Key": "ports", "Value": { "type": 1, "seq": ["80"] } }));
+        let s = &m["jobServiceContainers"];
+        assert_eq!(s["type"], 2);
+        assert_eq!(s["map"][0]["Key"], "db");
+        assert_eq!(s["map"][0]["Value"]["map"][0], json!({ "Key": "image", "Value": "postgres:16" }));
     }
 
     /// The runner expands an expression of an action's input default

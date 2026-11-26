@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1090 entries: 174 open, 31 partial, 6 blocked, 879 done.**
+**1091 entries: 175 open, 31 partial, 6 blocked, 879 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 246 | 259 |
+| P1 | 5 | 9 | 0 | 246 | 260 |
 | P2 | 73 | 12 | 4 | 473 | 562 |
 | P3 | 97 | 10 | 2 | 158 | 267 |
-| **All** | 174 | 31 | 6 | 879 | 1090 |
+| **All** | 175 | 31 | 6 | 879 | 1091 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1137,3 +1137,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1526](roads.md) | P2 | M | M4 | feature | done | `pod-egress`: a Shadowsocks node that a key file builds whole (an Outline key with a `wss://` URL), and the salt prefix of Outline's keys (PodUtils/podnet#782, ask 3) |
 | [T-1527](roads.md) | P2 | S | M4 | feature | done | `pod-egress`: the password extension of Wisp v2, from a secret of the caller (PodUtils/podnet#782, ask 4) |
 | [T-1528](roads.md) | P3 | S | M4 | feature | open | `pod-egress`: a wait for the answer of a VLESS server that does not delay a protocol where the client speaks first (PodUtils/podnet#782, ask 5) |
+| [T-1530](fleet.md) | P1 | M | M8 | feature | open | `pod-testkit`: `container:` and `services:` jobs and the step logs of a job in the fake of GitHub (PodUtils/podrunner#373) |

@@ -112,9 +112,9 @@ tokens of each run.
 | --- | --- |
 | The App | an RS256 JWT of the made-up key with `iss` 1, alive now and for ten minutes at most: `GET /repos/OWNER/REPO/installation` (installation 1 holds each repository), `POST /app/installations/1/access_tokens` (201, a token for one hour) |
 | The runners, with the installation token | `POST /repos/OWNER/REPO/actions/runners/generate-jitconfig` (`name`, `labels`; 201 with `runner` and `encoded_jit_config`, the base64 of a JSON map of `.runner`, `.credentials` and `.credentials_rsaparams`, each in base64; 409 for a name in use), `GET .../actions/runners`, `DELETE .../actions/runners/ID`, `GET .../actions/jobs/ID` |
-| The broker of each runner | `POST /_apis/oauth2/token` (a client assertion of the made-up key whose `sub` is the client id of a runner), `POST` and `DELETE /session`, `GET /message` (a long poll of 2 s), `POST /acquirejob`, `/renewjob`, `/completejob`, the results service of the logs under `/twirp/`; the routes that the official runner calls with `--jitconfig`, for a job of `run:` steps; the context `github` of a job gives the event `push`, the `ref` `refs/heads/main` and the `repository_id` of the webhooks (`pod_testkit::github::repository_id`), which the job-started hook of podrunner sends in `assigned` |
+| The broker of each runner | `POST /_apis/oauth2/token` (a client assertion of the made-up key whose `sub` is the client id of a runner), `POST` and `DELETE /session`, `GET /message` (a long poll of 2 s), `POST /acquirejob`, `/renewjob`, `/completejob`, the results service of the logs under `/twirp/` (each log of a step and of the job goes to a signed URL `/_blobs/...` of the fake, as one `PUT` or as blocks of `comp=appendblock`); the routes that the official runner calls with `--jitconfig`, for a job of `run:` steps with an optional job container and service containers (`jobContainer` and `jobServiceContainers` of the job message, the template tokens that the runner reads); the context `github` of a job gives the event `push`, the `ref` `refs/heads/main` and the `repository_id` of the webhooks (`pod_testkit::github::repository_id`), which the job-started hook of podrunner sends in `assigned` |
 | The webhooks | `workflow_job` with `queued`, `in_progress` (with `runner_id` and `runner_name`) and `completed` (with `conclusion`), in the order of the events, signed with `X-Hub-Signature-256` (HMAC-SHA256 of the webhook secret) |
-| The control API | `GET /_fake/app` (the App id, the installation id, the key in PEM, the webhook secret), `PUT /_fake/hook` (`url`, `secret`), `POST /_fake/jobs` (`repository`, `name`, `labels`, `steps`), `GET /_fake/jobs[/ID]`, `POST /_fake/jobs/ID/assign` (`runner_id`), `GET /_fake/runners`, `GET /_fake/deliveries` |
+| The control API | `GET /_fake/app` (the App id, the installation id, the key in PEM, the webhook secret), `PUT /_fake/hook` (`url`, `secret`), `POST /_fake/jobs` (`repository`, `name`, `labels`, `steps`, `container`, `services`; a container is an image, or `image`, `options`, `env`, `ports`, `volumes` and `credentials` as a workflow gives them; 422 for a key that the runner refuses), `GET /_fake/jobs[/ID]`, `GET /_fake/jobs/ID/logs` (a job that ended: `conclusion`, `job_log`, and `steps` with `id`, `number`, `name`, `conclusion` and the text of `log`; 404 for no such job, 409 for a job that did not end), `POST /_fake/jobs/ID/assign` (`runner_id`), `GET /_fake/runners`, `GET /_fake/deliveries` |
 
 A runner takes the queued job that `assign` gave it, else the oldest
 queued job of its repository with each label of the job, as GitHub gives
@@ -167,8 +167,9 @@ loopback (PodUtils/podrunner#329):
 
 * `POST /_fake/jobs` also queues the job in the fake GitHub, through its
   control API: the repository of the offer, its labels (`self-hosted` when
-  it has none), and the scripts of `steps` (the default `run:` step when
-  there are none). `GET /_fake/jobs/ID` names that job as `github_job_id`.
+  it has none), the scripts of `steps` (the default `run:` step when
+  there are none), and `container` and `services` as they are.
+  `GET /_fake/jobs/ID` names that job as `github_job_id`.
   A job that the fake GitHub refuses is not queued (502).
 * `mint` of a claimed job acts as the App: it reads the made-up key at
   `GET /_fake/app` of the fake GitHub, gets an installation token, calls
@@ -182,6 +183,8 @@ loopback (PodUtils/podrunner#329):
   names the runner as `github_runner_id`.
 * The report of podrunner is in `GET /_fake/reports` of githome, and the
   conclusion of the runner is in `GET /_fake/jobs/ID` of the fake GitHub.
+  The logs of its steps are in `GET /_fake/jobs/ID/logs` of the fake
+  GitHub.
 
 | Op | The rule |
 | --- | --- |
@@ -203,7 +206,7 @@ more for each further run.
 
 | Route of the control API | What |
 | --- | --- |
-| `POST /_fake/jobs` | the fields of a `job-offer.v1`, each optional, with `repository` (`OWNER/REPO`) and `tier` (`trusted` or `untrusted`), which give the trust inputs (the `ref` `refs/heads/main` and the `repo_id` of the repository in `pod-fake-github`), and with `--github` the scripts of `steps`; 201 with the job |
+| `POST /_fake/jobs` | the fields of a `job-offer.v1`, each optional, with `repository` (`OWNER/REPO`) and `tier` (`trusted` or `untrusted`), which give the trust inputs (the `ref` `refs/heads/main` and the `repo_id` of the repository in `pod-fake-github`), and with `--github` the scripts of `steps`, `container` and `services`; 201 with the job |
 | `GET /_fake/jobs[/ID]` | each job: `status` (`queued`, `claimed`, `reported`, `done`, `cancelled`), `offer`, `claim`, `minted`, `refused_by`, `github_job_id` |
 | `POST /_fake/jobs/ID/cancel`, `/started` (`runner_name`), `/completed` (`result`) | the event of the forge to each session that holds the job |
 | `POST /_fake/jobs/ID/mint-error` | `code`: the next `mint` of the job fails with it |

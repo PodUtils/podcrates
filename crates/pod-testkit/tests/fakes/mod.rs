@@ -101,13 +101,43 @@ impl Runner {
         let job = m["resources"]["endpoints"][0]["authorization"]["parameters"]["AccessToken"].as_str().unwrap();
         let (status, _) = call("POST", &format!("{}renewjob", self.base), Some(job), &json!({ "jobId": m["jobId"] }));
         assert_eq!(status, 200);
-        let logs = format!("{}twirp/results.services.receiver.Receiver/GetStepLogsSignedBlobURL", self.base);
-        let (status, blob) = call("POST", &logs, Some(job), &json!({}));
-        assert_eq!(status, 200);
-        assert_eq!(stand::call("PUT", blob["logs_url"].as_str().unwrap(), &[], b"a line").unwrap().0, 201);
-        let end = json!({ "planId": m["plan"]["planId"], "jobId": m["jobId"], "conclusion": conclusion });
+        let steps = self.logs(&m, job);
+        let end = json!({
+            "planId": m["plan"]["planId"], "jobId": m["jobId"], "conclusion": conclusion, "stepResults": steps,
+        });
         let (status, _) = call("POST", &format!("{}completejob", self.base), Some(job), &end);
         assert_eq!(status, 200);
         m
+    }
+
+    /// Upload the log of each step and of the job as the Worker does, with
+    /// the job token `job`: the first step in blocks of an append blob, each
+    /// other step in one `PUT`. The `stepResults` of `completejob`, with the
+    /// number 1 for the step "Set up job" that the runner adds.
+    fn logs(&self, m: &Value, job: &str) -> Vec<Value> {
+        let results = format!("{}twirp/results.services.receiver.Receiver/", self.base);
+        let ids = json!({ "workflow_run_backend_id": m["plan"]["planId"], "workflow_job_run_backend_id": m["jobId"] });
+        let put = |url: &str, body: &[u8]| assert_eq!(stand::call("PUT", url, &[], body).unwrap().0, 201, "{url}");
+        let mut steps = Vec::new();
+        for (i, step) in m["steps"].as_array().unwrap().iter().enumerate() {
+            let mut ask = ids.clone();
+            ask["step_backend_id"] = step["id"].clone();
+            let (status, blob) = call("POST", &format!("{results}GetStepLogsSignedBlobURL"), Some(job), &ask);
+            assert_eq!(status, 200, "{blob}");
+            let url = blob["logs_url"].as_str().unwrap();
+            if i == 0 {
+                put(url, b"");
+                put(&format!("{url}&comp=appendblock"), b"a line of step 1\n");
+                put(&format!("{url}&comp=appendblock&seal=true"), b"the end of step 1\n");
+            } else {
+                put(url, format!("a line of step {}\n", i + 1).as_bytes());
+            }
+            let name = step["displayName"].clone();
+            steps.push(json!({ "external_id": step["id"], "number": i + 2, "name": name, "conclusion": "succeeded" }));
+        }
+        let (status, blob) = call("POST", &format!("{results}GetJobLogsSignedBlobURL"), Some(job), &ids);
+        assert_eq!(status, 200, "{blob}");
+        put(blob["logs_url"].as_str().unwrap(), b"the log of the job\n");
+        steps
     }
 }

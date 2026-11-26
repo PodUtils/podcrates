@@ -8,13 +8,14 @@
 //!   `sub` of the assertion names the runner.
 //! * The session, the long poll and `acquirejob` take that token.
 //! * `renewjob`, `completejob` and the results take the job token of the
-//!   job message, or the runner's token.
+//!   job message, or the runner's token. The signed URL of a log takes no
+//!   credential (module `logs`).
 
 use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 
-use super::{Shared, State, Status, body, credential, has_labels, hook, json_answer, key, message, now};
+use super::{Shared, State, Status, body, credential, has_labels, hook, json_answer, key, logs, message, now};
 use crate::stand::{Answer, Request};
 
 /// How long a long poll of `/message` waits for a job.
@@ -54,11 +55,11 @@ pub(super) fn route(shared: &Shared, req: &Request, path: &str) -> Option<Answer
             None => refused(),
         },
         ("POST", p) if p.starts_with("/twirp/") => match job(shared, req) {
-            Some(_) => results(shared, p),
+            Some(id) => logs::results(shared, id, p, &body(req)),
             None => refused(),
         },
-        // A log blob: the fake keeps no log.
-        ("PUT", p) if p.starts_with("/_blobs/") => Answer::new(201, Vec::new()),
+        // A signed URL of a log: it needs no credential.
+        ("PUT", p) if p.starts_with("/_blobs/") => logs::put(shared, req),
         _ => return None,
     };
     Some(answer)
@@ -201,6 +202,7 @@ fn complete(shared: &Shared, job: u64, req: &Value) -> Answer {
     j.reported = Some(reported);
     j.conclusion = Some(conclusion.to_string());
     j.completed_at = Some(now());
+    j.logs.ended(req);
     let runner = j.runner;
     if let Some(r) = runner.and_then(|r| st.runner(r)) {
         r.gone = true;
@@ -208,25 +210,6 @@ fn complete(shared: &Shared, job: u64, req: &Value) -> Answer {
     hook::send(shared, &mut st, "completed", job);
     shared.changed.notify_all();
     Answer::new(200, Vec::new())
-}
-
-/// The results service of the Worker: a signed URL is a blob of the fake,
-/// and each other call is `ok`.
-fn results(shared: &Shared, path: &str) -> Answer {
-    let receiver = "/twirp/results.services.receiver.Receiver/";
-    match path.strip_prefix(receiver) {
-        Some(call) if call.starts_with("Get") => {
-            let url = format!("{}_blobs/{}", shared.base, call.trim_start_matches("Get"));
-            json_answer(
-                200,
-                &json!({
-                    "logs_url": url, "summary_url": url, "blob_storage_type": "BLOB_STORAGE_TYPE_UNSPECIFIED",
-                    "soft_size_limit": 1u64 << 30,
-                }),
-            )
-        }
-        _ => json_answer(200, &json!({ "ok": true })),
-    }
 }
 
 /// The text of a form value: `%XX` and `+`.
@@ -265,6 +248,8 @@ mod tests {
             name: format!("build-{id}"),
             labels: Vec::new(),
             steps: Vec::new(),
+            container: None,
+            services: None,
             status: Status::Queued,
             assigned: None,
             runner: None,
@@ -274,6 +259,7 @@ mod tests {
             created_at: 0,
             started_at: None,
             completed_at: None,
+            logs: Default::default(),
         }
     }
 

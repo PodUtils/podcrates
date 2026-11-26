@@ -423,7 +423,8 @@ fn the_program_needs_the_address_of_serve() {
 }
 
 /// One job through a linked `pod-fake-github`: the job is queued there too,
-/// the mint gives the files of a JIT runner there, and that runner takes
+/// with its steps, its container and its services; the mint gives the
+/// files of a JIT runner there, and that runner takes
 /// this job from the broker, not an older queued job of the same labels.
 /// The report of the source and the conclusion of the fake GitHub are both
 /// read.
@@ -437,7 +438,10 @@ fn a_minted_runner_takes_its_job_from_the_linked_fake_github() {
     let older = json!({ "repository": repo, "name": "older", "labels": labels });
     let (status, older) = call("POST", &format!("{gh}_fake/jobs"), None, &older);
     assert_eq!(status, 201, "{older}");
-    let job = fake.queue(json!({ "labels": labels, "repository": repo, "steps": ["echo one"] }));
+    let job = fake.queue(json!({
+        "labels": labels, "repository": repo, "steps": ["echo one"],
+        "container": "node:22", "services": { "db": { "image": "postgres:16" } },
+    }));
     let github_job = fake.control("GET", &format!("jobs/{job}"), &Value::Null).1["github_job_id"].as_u64();
     let github_job = github_job.expect("githome names the job of the fake GitHub");
     let there = |id: u64| call("GET", &format!("{gh}_fake/jobs/{id}"), None, &Value::Null).1;
@@ -456,6 +460,9 @@ fn a_minted_runner_takes_its_job_from_the_linked_fake_github() {
     let message = runner.run(github_job, "succeeded");
     assert_eq!(message["jobDisplayName"], job.as_str());
     assert_eq!(message["steps"][0]["inputs"]["map"][0]["Value"], "echo one");
+    assert_eq!(message["jobContainer"], "node:22", "githome gives the container to the fake GitHub");
+    let db = json!({ "Key": "db", "Value": { "type": 2, "map": [{ "Key": "image", "Value": "postgres:16" }] } });
+    assert_eq!(message["jobServiceContainers"]["map"][0], db);
     done(s.report(&job, json!({ "exit_reason": "success" })));
     done(s.release(&job));
 

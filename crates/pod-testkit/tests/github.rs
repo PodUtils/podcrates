@@ -208,3 +208,59 @@ fn a_runner_gets_only_a_job_of_its_repository_and_labels() {
     stranger[".credentials"]["data"]["clientId"] = json!("00000000-0000-4000-8000-999999999999");
     assert_eq!(Runner::connect(base, &stranger).err(), Some(401));
 }
+
+/// podrunner's `container:` and `services:` jobs (PodUtils/podrunner#373):
+/// the job message gives both as the runner reads them, a container that
+/// the runner refuses is refused, and the control API gives the log of each
+/// step of a job that ended: 404 for no such job, 409 before its end.
+#[test]
+fn a_container_job_gives_its_containers_and_the_log_of_each_step() {
+    need_loopback!();
+    let fake = FakeGithub::start().unwrap();
+    let base = fake.base();
+    let jobs = format!("{base}_fake/jobs");
+    let bad =
+        json!({ "repository": "o/r", "name": "bad", "labels": LABELS, "container": { "image": "a", "command": "x" } });
+    assert_eq!(call("POST", &jobs, None, &bad).0, 422, "a key that the runner refuses");
+    let job = json!({
+        "repository": "o/r", "name": "with-db", "labels": LABELS, "steps": ["echo one", "echo two"],
+        "container": { "image": "node:22", "env": { "CI": true }, "options": "--cpus 1" },
+        "services": { "db": { "image": "postgres:16", "ports": [5432], "volumes": ["/d:/d"] }, "cache": "redis:7" },
+    });
+    let (status, v) = call("POST", &jobs, None, &job);
+    assert_eq!(status, 201, "{v}");
+    let id = v["id"].as_u64().unwrap();
+    assert_eq!(call("GET", &format!("{jobs}/{id}/logs"), None, &Value::Null).0, 409, "a queued job");
+    assert_eq!(call("GET", &format!("{jobs}/999/logs"), None, &Value::Null).0, 404, "no such job");
+
+    let token = installation_token(base, &Key::made_up(), "o/r");
+    let (_, files) = mint(base, &token, "o/r", "runner-c");
+    let runner = Runner::connect(base, &files).unwrap();
+    assert_eq!(runner.poll(), Some(id));
+    let m = runner.run(id, "failed");
+    let pair = |k: &str, v: Value| json!({ "Key": k, "Value": v });
+    let c = &m["jobContainer"]["map"];
+    assert!(c.as_array().unwrap().contains(&pair("image", json!("node:22"))), "{c}");
+    assert!(c.as_array().unwrap().contains(&pair("env", json!({ "type": 2, "map": [pair("CI", json!("true"))] }))));
+    let s = m["jobServiceContainers"]["map"].as_array().unwrap();
+    let db = &s.iter().find(|p| p["Key"] == "db").unwrap()["Value"]["map"];
+    assert!(db.as_array().unwrap().contains(&pair("ports", json!({ "type": 1, "seq": ["5432"] }))), "{db}");
+    assert!(s.contains(&pair("cache", json!("redis:7"))), "{s:?}");
+
+    let (status, logs) = call("GET", &format!("{jobs}/{id}/logs"), None, &Value::Null);
+    assert_eq!(status, 200, "{logs}");
+    assert_eq!(
+        (logs["conclusion"].as_str(), logs["job_log"].as_str()),
+        (Some("failure"), Some("the log of the job\n"))
+    );
+    let steps: Vec<(u64, &str, &str)> = logs["steps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| (s["number"].as_u64().unwrap(), s["name"].as_str().unwrap(), s["log"].as_str().unwrap()))
+        .collect();
+    assert_eq!(
+        steps,
+        [(2, "Run step 1", "a line of step 1\nthe end of step 1\n"), (3, "Run step 2", "a line of step 2\n")]
+    );
+}

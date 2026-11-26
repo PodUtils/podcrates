@@ -9949,3 +9949,109 @@ sh scripts/plant-each.sh unit-t1521-probe-keeps-code
   clippy -p pod-unit --all-targets --all-features -- -D warnings` and
   `cargo clippy -p pod-unit --target x86_64-pc-windows-gnu --all-features
   -- -D warnings` passed.
+
+# T-1530: `pod-testkit`: `container:` and `services:` jobs and the step logs of a job in the fake of GitHub (PodUtils/podrunner#373)
+
+**Source:** PodUtils/podrunner#373 (COORD-145 of podrunner, for PodUtils/podrunner@T-509; G-09 and G-38 of githome)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+githome runs `container:` and `services:` jobs (G-09, G-38). podrunner
+proves its source path with `pod-fake-githome serve --github` and the
+pinned `pod-fake-github` (`user-gate.yml`, lane `serve-incus-kvm`). In
+`v0.86.0`:
+
+* "`POST /_fake/jobs` takes only `repository`, `name`, `labels` and
+  `steps` (scripts of `run:` steps)."
+* "The job message has `"jobContainer": null` and no
+  `serviceContainers`."
+* "The step log goes to the results service of the fake; the control API
+  does not give it, so a failed job gives the lane only `failure`."
+
+The asks:
+
+1. "`POST /_fake/jobs` takes optional `container` (image, options, env,
+   ports, volumes) and `services` (a map of name to the same shape), as a
+   workflow gives them. The job message carries them as `jobContainer`
+   and `serviceContainers`, in the shape of the real service, so
+   `actions/runner` starts them."
+2. "`pod-fake-githome serve --github` passes them through."
+3. "`GET /_fake/jobs/ID/logs` gives the text of the log of each step of a
+   job that ended."
+
+"Name the podcrates version that has them. podrunner then turns the check
+`serve:job:engine:microvm` into a real `services:` job and a `container:`
+job."
+
+## Premise
+
+- Read: the source of `actions/runner` at `4812b901a6bf` (the head of
+  `main` on 2026-11-26):
+  - `src/Sdk/DTPipelines/Pipelines/AgentJobRequestMessage.cs`: the members
+    `JobContainer` and `JobServiceContainers` are `TemplateToken`, with a
+    `DataMember` of no name. Newtonsoft reads a name with no case, so the
+    fields are `jobContainer` and `jobServiceContainers`. The runner reads
+    no field `serviceContainers`: the name of the ask does not start a
+    service.
+  - `src/Runner.Worker/JobExtension.cs`: `EvaluateJobContainer` and
+    `EvaluateJobServiceContainers` read the two tokens; a service with an
+    empty image does not start.
+  - `src/Sdk/DTPipelines/workflow-v1.0.json`: `container` is a string or a
+    `container-mapping`; `services` is a mapping of a name to a string or
+    a `service-container-mapping`. The keys: `image`, `options`, `env` (a
+    mapping of strings), `ports` and `volumes` (sequences of strings that
+    are not empty), `credentials` (`username`, `password`).
+  - `PipelineTemplateConverter.ConvertToJobContainer`: another key is an
+    error; `entrypoint` and `command` of a service need the setting
+    `AllowServiceContainerCommand` of the runner.
+  - `TemplateTokenJsonConverter.cs` and `TokenType.cs`: a string token is a
+    JSON string; a sequence is `{"type": 1, "seq": [...]}`; a mapping is
+    `{"type": 2, "map": [{"Key": K, "Value": V}...]}`.
+  - `src/Sdk/WebApi/WebApi/ResultsHttpClient.cs` and `Contracts.cs`: the
+    Worker asks `GetStepLogsSignedBlobURL` (`step_backend_id`, the GUID of
+    the step) and `GetJobLogsSignedBlobURL`; with the blob type
+    `BLOB_STORAGE_TYPE_UNSPECIFIED` it does one `PUT` of the whole log, or
+    a `PUT` with no body and then a `PUT` of `URL&comp=appendblock` (with
+    `&seal=true` at the end) for each block.
+  - `src/Runner.Worker/JobRunner.cs`: the queue of uploads ends before
+    `completejob`. `CompleteJobRequest.stepResults` gives `external_id`,
+    `number` and `name` of each step
+    (`src/Sdk/RSWebApi/Contracts/StepResult.cs`).
+- Read: `crates/pod-testkit/src/github/broker.rs`: the fake gives one blob
+  URL (`_blobs/StepLogsSignedBlobURL`) to each step and drops each `PUT`.
+  `crates/pod-testkit/src/githome/link.rs` sends only `steps`.
+- Not measured: a run of `actions/runner` with a container or a service
+  against the fake. podrunner's lane does that run.
+
+## Approach
+
+- A new module `github/container.rs` makes the template tokens of
+  `container` and `services` from the control API. A container is an
+  image, or an object of `image`, `options`, `env`, `ports`, `volumes`
+  and `credentials`; a number or a boolean of a workflow becomes text.
+  Each key or shape that the runner refuses gives 422. The job message
+  gives `jobContainer` and `jobServiceContainers` (`null` when absent).
+- A new module `github/logs.rs` takes the results service from
+  `broker.rs`. The signed URL names the job and the step
+  (`_blobs/JOB/steps/GUID`, `_blobs/JOB/job`) and has a query, so the
+  `&comp=appendblock` of the runner is a query too. A `PUT` writes the
+  log, and an append block adds to it. `completejob` keeps
+  `stepResults`.
+- `GET /_fake/jobs/ID/logs`: 404 for no such job, 409 for a job that did
+  not end (its logs are not whole); else `conclusion`, `job_log` and
+  `steps` (`id`, `number`, `name`, `conclusion`, the text of `log`, in
+  the order of the numbers).
+- `pod-fake-githome serve --github` gives `steps`, `container` and
+  `services` of its `POST /_fake/jobs` to the fake GitHub as they are.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --all-features
+sh scripts/plant-each.sh testkit-t1530-no-service-containers
+```

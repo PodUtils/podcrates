@@ -1,0 +1,7 @@
+# The job message of the fake GitHub has no `jobServiceContainers`: the
+# runner then starts no service of a `services:` job (T-1530).
+ENTRY=T-1530
+GROUP=actions
+EXPECT='test github::message::tests::a_job_with_a_container_and_services_gives_the_fields_of_the_runner \.\.\. FAILED'
+RUN='cargo test -p pod-testkit --features github --lib -- github::message::tests::a_job_with_a_container_and_services_gives_the_fields_of_the_runner --exact'
+LIMIT=1800
