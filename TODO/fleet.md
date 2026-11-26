@@ -9957,7 +9957,7 @@ sh scripts/plant-each.sh unit-t1521-probe-keeps-code
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -10055,3 +10055,50 @@ job."
 cargo test -p pod-testkit --all-features
 sh scripts/plant-each.sh testkit-t1530-no-service-containers
 ```
+
+## Done
+
+2026-11-26, this commit (the work: `46d4df9cc`). podcrates names the
+version that has it at its next release.
+
+- `pod-fake-github`: `POST /_fake/jobs` takes `container` and `services`
+  (module `crates/pod-testkit/src/github/container.rs`): an image, or
+  `image`, `options`, `env`, `ports`, `volumes` and `credentials`; a
+  number or a boolean of a workflow becomes text; 422 for a key or a shape
+  that the runner refuses (`entrypoint` and `command` too). The job
+  message gives them as `jobContainer` and `jobServiceContainers`, the
+  template tokens of `AgentJobRequestMessage`. The ask names
+  `serviceContainers`: the runner reads no field of that name, so
+  podrunner reads `jobServiceContainers`.
+- The logs (module `crates/pod-testkit/src/github/logs.rs`): the signed
+  URL of a log names the job and the step; a `PUT` writes the log and a
+  `comp=appendblock` block adds to it; `completejob` keeps
+  `stepResults`. `GET /_fake/jobs/ID/logs`: 404 for no such job, 409 for
+  a job that did not end; else `conclusion`, `job_log` and `steps` (`id`,
+  `number`, `name`, `conclusion`, the text of `log`, `null` with no
+  upload), in the order of the numbers. The answer of a signed URL now has
+  `diag_logs_url` too.
+- `pod-fake-githome serve --github` gives `steps`, `container` and
+  `services` to the fake GitHub as they are (`githome/link.rs`,
+  `link::FIELDS`).
+- Tests: `github::container::tests::a_container_of_a_workflow_is_a_mapping_token`,
+  `github::container::tests::services_are_a_mapping_of_each_name_to_a_container`,
+  `github::container::tests::a_container_that_the_runner_refuses_is_refused`,
+  `github::message::tests::a_job_with_a_container_and_services_gives_the_fields_of_the_runner`,
+  `github::logs::tests::a_step_id_is_a_guid_of_the_runner`,
+  `a_container_job_gives_its_containers_and_the_log_of_each_step`
+  (`crates/pod-testkit/tests/github.rs`), and new asserts in
+  `a_minted_runner_takes_its_job_from_the_linked_fake_github`
+  (`crates/pod-testkit/tests/githome.rs`). The runner of the tests
+  (`crates/pod-testkit/tests/fakes/mod.rs`) uploads the log of each step
+  as the Worker does.
+- `cargo test -p pod-testkit --all-features`: lib 29 passed; `github` 4,
+  `githome` 5, `guards` 7, `listener` 3 passed; 2 ignored.
+- Plant `testkit-t1530-no-service-containers` (the message has no
+  `jobServiceContainers`): `sh scripts/plant-each.sh
+  testkit-t1530-no-service-containers`: caught (exit 101); `sh
+  scripts/plant-each.sh --apply`: 0 stale.
+- `sh scripts/agent/check.sh`: fmt, clippy, lint, doc, record, size,
+  paths, static and test passed.
+- Not measured: a run of `actions/runner` with a container against the
+  fake; podrunner's lane `serve-incus-kvm` does it.
