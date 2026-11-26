@@ -106,7 +106,7 @@ toml = { version = "1", default-features = false, features = ["std", "parse", "s
 # The YAML 1.2 events of a workflow file (pod-actions-workflow, call C105):
 # pure Rust with no unsafe code; the crate builds its own tree with the
 # lines, the order of the keys and the limits.
-saphyr-parser = "0.3.4"
+saphyr-parser = "0.4.0"
 # The JSON form of DNS over HTTPS (pod-dns): a document read as a value,
 # with no derive.
 serde_json = "1"
