@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1078 entries: 172 open, 31 partial, 6 blocked, 869 done.**
+**1082 entries: 176 open, 31 partial, 6 blocked, 869 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 73 | 12 | 4 | 463 | 552 |
-| P3 | 95 | 10 | 2 | 158 | 265 |
-| **All** | 172 | 31 | 6 | 869 | 1078 |
+| P2 | 76 | 12 | 4 | 463 | 555 |
+| P3 | 96 | 10 | 2 | 158 | 266 |
+| **All** | 176 | 31 | 6 | 869 | 1082 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1125,3 +1125,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1508](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: an exchange that the capture started always ends, also when the chunk decoder refuses the request body (PodUtils/podnet#781) |
 | [T-1513](services.md) | P2 | S | M5 | defect | done | `services.yml` 45805546683: the Tailscale DERP region 24 gone, and the runner pin of GitHub Actions past 30 days with no newer release |
 | [T-1516](roads.md) | P3 | S | M4 | chore | done | `pod-derp`: the derper tests read `PODSSH_DERP_TEST_*`, and the adoption map says that podnet has no DERP road (PodUtils/podnet#783) |
+| [T-1525](roads.md) | P2 | M | M4 | feature | open | `pod-egress`: a Wisp road that opens a new connection on the next dial after its connection ended, with a bound on the tries and a backoff (PodUtils/podnet#782, ask 1) |
+| [T-1526](roads.md) | P2 | M | M4 | feature | open | `pod-egress`: a Shadowsocks node that a key file builds whole (an Outline key with a `wss://` URL), and the salt prefix of Outline's keys (PodUtils/podnet#782, ask 3) |
+| [T-1527](roads.md) | P2 | S | M4 | feature | open | `pod-egress`: the password extension of Wisp v2, from a secret of the caller (PodUtils/podnet#782, ask 4) |
+| [T-1528](roads.md) | P3 | S | M4 | feature | open | `pod-egress`: a wait for the answer of a VLESS server that does not delay a protocol where the client speaks first (PodUtils/podnet#782, ask 5) |
