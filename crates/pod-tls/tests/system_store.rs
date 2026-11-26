@@ -86,7 +86,9 @@ async fn a_server_that_the_root_signs_is_trusted_through_the_store_alone() {
             (true, Ok(_)) => {}
             (true, Err(why)) => panic!("the root is in the store, and the handshake failed: {why}"),
             (false, Ok(_)) => panic!("the root is in no store, and the handshake passed"),
-            (false, Err(why)) => assert!(why.contains("no trusted CA signed"), "the control must fail on the issuer: {why}"),
+            (false, Err(why)) => {
+                assert!(why.contains("no trusted CA signed"), "the control must fail on the issuer: {why}")
+            }
         }
     }
 }
