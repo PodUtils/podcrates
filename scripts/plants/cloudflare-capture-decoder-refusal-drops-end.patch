@@ -1,0 +1,16 @@
+diff --git a/crates/pod-cloudflare/src/capture.rs b/crates/pod-cloudflare/src/capture.rs
+index 69d058faa..2ed91c57a 100644
+--- a/crates/pod-cloudflare/src/capture.rs
++++ b/crates/pod-cloudflare/src/capture.rs
+@@ -298,10 +298,7 @@ impl Tap {
+                 // A chunked body that the crate cannot decode stops the
+                 // capture of the request body; the origin judges the bytes,
+                 // and the sink still gets its end.
+-                if framed.is_err() {
+-                    let _ = self.fault.set(Fault::RequestChunking);
+-                }
+-                self.take(given);
++                self.take(given.and(framed.map_err(|_| Refused)));
+                 return;
+             }
+         }

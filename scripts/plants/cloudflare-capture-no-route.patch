@@ -1,0 +1,13 @@
+diff --git a/crates/pod-cloudflare/src/proxy/forward.rs b/crates/pod-cloudflare/src/proxy/forward.rs
+index a8d37e630..1e138c2b6 100644
+--- a/crates/pod-cloudflare/src/proxy/forward.rs
++++ b/crates/pod-cloudflare/src/proxy/forward.rs
+@@ -44,7 +44,7 @@ pub(crate) async fn forward_ruled(
+ ) -> Result<()> {
+     let tap = origins.tap();
+     if let Some(route) = route {
+-        tap.route(|| route);
++        let _ = route;
+     }
+     let done = exchange(origins, service, options, request, reader, writer, metrics, &tap).await;
+     if done.is_ok() {

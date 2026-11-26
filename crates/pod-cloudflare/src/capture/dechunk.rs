@@ -7,6 +7,10 @@ const MAX_SIZE_LINE: usize = 4096;
 /// The longest trailer line.
 const MAX_TRAILER_LINE: usize = crate::proxy::MAX_TRAILER_LINE;
 
+/// The largest chunk size: more than 2^63 - 1 bytes is not a real chunk,
+/// and a decoder must not wait for it.
+const MAX_CHUNK: u64 = i64::MAX as u64;
+
 #[derive(Debug, Default, PartialEq, Eq)]
 enum State {
     /// In a size line.
@@ -83,6 +87,7 @@ impl Dechunk {
                 let hex = text.split(';').next().unwrap_or("").trim();
                 match u64::from_str_radix(hex, 16).map_err(|_| BadFraming)? {
                     0 => State::Trailer,
+                    size if size > MAX_CHUNK => return Err(BadFraming),
                     size => State::Data(size),
                 }
             }
@@ -135,6 +140,8 @@ mod tests {
             assert_eq!(decode(&[bad]), Err(BadFraming), "{:?}", String::from_utf8_lossy(bad));
         }
         assert_eq!(decode(&[&[b'1'; MAX_SIZE_LINE + 1]]), Err(BadFraming));
+        assert_eq!(decode(&[b"ffffffffffffffff\r\nab"]), Err(BadFraming));
+        assert_eq!(decode(&[b"7fffffffffffffff\r\nab"]), Ok(b"ab".to_vec()));
     }
 
     /// The decoder stops when the sink takes no more.

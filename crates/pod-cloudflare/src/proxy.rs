@@ -13,12 +13,15 @@ use crate::fail::{Context, OrFail, Result};
 use pod_core::{Class, Stage};
 
 use crate::Host;
+use crate::capture::Route;
 use crate::cloudflare::stream as cqstream;
 use crate::cloudflare::stream::{HTTP_HEADER_KEY, HTTP_HOST_KEY, HTTP_METHOD_KEY};
 use crate::ingress::{Ingress, Service};
 use crate::metrics::Metrics;
 use crate::origin::Origins;
 
+#[cfg(test)]
+mod capture_route_tests;
 #[cfg(test)]
 mod capture_tests;
 mod copy;
@@ -200,7 +203,18 @@ async fn serve_request_inner(
     let metrics = runtime.metrics();
     match &rule.service {
         service @ (Service::Http(_) | Service::Unix(_) | Service::UnixTls(_)) => {
-            forward_http(runtime.origins(), service, &rule.origin, &request, reader, writer, metrics).await
+            let route = Route { rule: index, hostname: rule.hostname.clone(), host: host.clone() };
+            forward::forward_ruled(
+                runtime.origins(),
+                service,
+                &rule.origin,
+                &request,
+                reader,
+                writer,
+                metrics,
+                Some(route),
+            )
+            .await
         }
         service @ Service::Tcp(_) => {
             forward_tcp(runtime.origins(), service, &rule.origin, &request, reader, writer, metrics).await
