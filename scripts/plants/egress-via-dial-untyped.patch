@@ -8,7 +8,7 @@ index ed5f4db..ea2f4a4 100644
                  .await
 -                .map_err(|_| crate::road::late(target, &self.via.shown()))??;
 +                .map_err(|_| crate::road::late(target, &self.via.shown()))?
-+                .map_err(|e| Failure::new(Stage::Connect, pod_core::Class::Unavailable, e.to_string()))?;
++                .map_err(|e| Failure::new(pod_core::Stage::Connect, pod_core::Class::Unavailable, e.to_string()))?;
              Ok(Connected::new(Box::new(opened.stream)))
          })
      }

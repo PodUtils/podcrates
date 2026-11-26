@@ -5208,6 +5208,7 @@ dependencies = [
  "libc",
  "p256 0.14.0",
  "pod-core",
+ "pod-egress",
  "pod-testkit",
  "pod-tls",
  "pod-turn",

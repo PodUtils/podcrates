@@ -13514,3 +13514,39 @@ sh scripts/plant-each.sh --apply
 - Other lines: the three `UDP sockets on the loopback: {e}` lines (`ntp.rs`, `udp.rs`, `dns.rs`) and the five `split/run.rs` lines of a beat and of the bytes of an end (`io::Error` of `wire`) give `io_words` too. The other `{e}` lines of `pod-link` show a `CarrierError`, a KCP or ARQ error or a `SessionError`, not an `io::Error`.
 - Test: `loopback::tests::the_words_of_the_system_show_no_code` (code 13 of the system, Unix). The plant `link-t1416-second-bind-error-alone` patches `both`, so it stays applied and caught.
 - `cargo test -p pod-link --all-features`: 0 failed.
+
+# T-1434: `pod-relay`: the dial of a reverse TCP target takes a plain TCP connection only, so a proxy over TLS, on a Unix socket or at a command is refused
+
+**Source:** T-1431 (a finding of the work on PodUtils/podnet#779)
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`crates/pod-relay/src/reverse/local.rs` (`connect`) and
+`crates/pod-relay/src/reverse/tcp.rs` (`dial_target`) call
+`pod_proxy::Dialer::tcp`, which gives a plain TCP connection only. When the
+settings of the dialer choose a proxy of the scheme `https` (T-1431), on a
+Unix socket or at a command, the dial of the target fails with "this
+caller takes a plain TCP connection only".
+
+## Premise
+
+- Read: both functions; `dial_target` gives a `TcpStream` to `sshd::check`
+  and to its caller.
+- Not measured: a node that dials its targets through a proxy.
+
+## Approach
+
+Take `Dialer::stream` (each kind of stream) where the caller takes a
+`BoxedIo`; make `sshd::check` take a stream that is not TCP. A test with a
+target through an `https` proxy stand-in.
+
+## Prove
+
+```sh
+cargo test -p pod-relay --all-features
+```

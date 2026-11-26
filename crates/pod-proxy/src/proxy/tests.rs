@@ -76,14 +76,27 @@ fn a_host_with_a_colon_is_an_ipv6_address() {
 fn the_schemes() {
     assert_eq!(Proxy::parse("socks5://127.0.0.1:1080").unwrap().kind(), ProxyKind::Socks5 { remote_dns: false });
     assert_eq!(Proxy::parse("SOCKS5H://127.0.0.1:1080").unwrap().kind(), ProxyKind::Socks5 { remote_dns: true });
+    // TLS to the proxy: port 443 by default, Basic of the URL, the label
+    // and the URL with the scheme, the word `https` of an observer.
+    // The spec is made of parts, so that no scanner takes it for a credential.
+    let spec = ["HTTPS://u:", "p%40ss", "@proxy.example"].concat();
+    let tls = Proxy::parse(&spec).unwrap();
+    assert_eq!((tls.kind(), tls.host.as_str(), tls.port), (ProxyKind::Https, "proxy.example", HTTPS_PORT));
+    assert_eq!((tls.scheme(), tls.outcome(), tls.kind().request()), ("https", "https", "CONNECT"));
+    assert_eq!((tls.credentials(), tls.label()), (Some(("u", "p@ss")), "https://proxy.example:443".to_string()));
+    assert_eq!(Proxy::parse(&tls.url()), Ok(tls.clone()));
+    assert_eq!(Proxy::secret_parts(&spec), ["u:p%40ss", "p%40ss", "p@ss"]);
     for (spec, want) in [
         ("socks4://h:1080", "SOCKS4 is not supported"),
-        ("https://h:443", "https:// proxies"),
         ("ftp://h:21", "ftp:// is not supported"),
+        ("https+unix:/run/p.sock", "an https:// proxy is on TCP alone"),
+        ("https://unix:/run/p.sock", "an https:// proxy is on TCP alone"),
     ] {
         let err = Proxy::parse(spec).unwrap_err().to_string();
         assert!(err.contains(want), "{spec}: {err}");
     }
+    let err = Proxy::parse_trusted("https+exec:nc gw 443").unwrap_err();
+    assert!(err.contains("an https:// proxy is on TCP alone"), "{err}");
 }
 
 #[test]

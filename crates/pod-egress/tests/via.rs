@@ -6,20 +6,21 @@
 //! target: an SSH-like server that sends its version line and echoes. The
 //! TLS is checked for the proxy's name with the test's root; the host's own
 //! proxy, a plain CONNECT stand-in, carries the TCP first where one is set.
-//! The tests against Caddy and squid themselves are podssh's
+//! The stand-ins are the crate's own (`pod_egress::standin`, feature
+//! `standin`). The tests against Caddy and squid themselves are podssh's
 //! `scripts/interop-via.sh`, which drive its binary.
 
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use bytes::Bytes;
+use pod_egress::standin::via::{Mode, Plan, Stand};
+use pod_egress::standin::{BANNER, Echo};
 use pod_egress::via::{Client, Dial, Offer, Version, Via};
 use pod_proxy::{DialError, Proxy, ProxyChoice};
 use pod_tls::Trust;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 // Shared test support; this file uses part of it.
@@ -33,7 +34,6 @@ mod way;
 
 const NAME: &str = "proxy.via.test";
 const LIMIT: Duration = Duration::from_secs(20);
-const BANNER: &[u8] = b"SSH-2.0-stand-in\r\n";
 const USER: &str = "podssh";
 const H1: &[&[u8]] = &[b"http/1.1"];
 const H2: &[&[u8]] = &[b"h2"];
@@ -42,26 +42,6 @@ const BOTH: &[&[u8]] = &[b"h2", b"http/1.1"];
 /// line for a credential.
 fn password() -> String {
     ["pw", "-of-", "the-test"].concat()
-}
-
-/// What a stand-in proxy does with a CONNECT that carries the credentials.
-#[derive(Clone, Copy, PartialEq)]
-enum Mode {
-    /// Carry the target.
-    Carry,
-    /// Refuse it with 403.
-    Forbid,
-    /// HTTP/2 only: reset the stream, as a proxy that takes no CONNECT over
-    /// HTTP/2 may; HTTP/1.1 carries it.
-    ResetHttp2,
-}
-
-/// What a stand-in proxy saw: its TLS connections, and each CONNECT's
-/// version, target and `Proxy-Authorization`.
-#[derive(Default)]
-struct Seen {
-    accepted: AtomicUsize,
-    connects: Mutex<Vec<(&'static str, String, Option<String>)>>,
 }
 
 /// The way out through `proxy`, with the names of the stand-ins at the
@@ -88,175 +68,24 @@ fn root_file(tag: &str) -> PathBuf {
 }
 
 /// The target: its version line, then an echo.
-async fn target() -> u16 {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-    tokio::spawn(async move {
-        while let Ok((mut tcp, _)) = listener.accept().await {
-            tokio::spawn(async move {
-                if tcp.write_all(BANNER).await.is_err() {
-                    return;
-                }
-                let (mut r, mut w) = tcp.split();
-                let _ = tokio::io::copy(&mut r, &mut w).await;
-            });
-        }
-    });
-    port
+async fn target() -> Echo {
+    pod_egress::standin::echo().await.unwrap()
+}
+
+/// The plan of a stand-in that takes `alpn` and asks for the test's Basic.
+fn plan(alpn: &[&[u8]], mode: Mode) -> Plan {
+    let alpn = alpn.iter().map(|p| p.to_vec()).collect();
+    Plan { alpn, mode, credentials: Some((USER.to_string(), password())) }
 }
 
 fn basic() -> String {
-    use base64::Engine as _;
-    format!("Basic {}", base64::engine::general_purpose::STANDARD.encode(format!("{USER}:{}", password())))
+    plan(H1, Mode::Carry).basic().unwrap()
 }
 
 /// A stand-in proxy over TLS for [`NAME`] that offers `alpn`.
-async fn proxy(alpn: &[&[u8]], mode: Mode) -> (u16, Arc<Seen>) {
+async fn proxy(alpn: &[&[u8]], mode: Mode) -> Stand {
     let (acceptor, _) = cert::server_for(NAME).unwrap();
-    let mut config = (**acceptor.config()).clone();
-    config.alpn_protocols = alpn.iter().map(|p| p.to_vec()).collect();
-    let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let seen: Arc<Seen> = Arc::default();
-    let kept = seen.clone();
-    tokio::spawn(async move {
-        while let Ok((tcp, _)) = listener.accept().await {
-            let (acceptor, seen) = (acceptor.clone(), kept.clone());
-            tokio::spawn(async move {
-                let Ok(tls) = acceptor.accept(tcp).await else { return };
-                seen.accepted.fetch_add(1, Ordering::SeqCst);
-                if tls.get_ref().1.alpn_protocol() == Some(b"h2".as_slice()) {
-                    serve_h2(tls, mode, seen).await;
-                } else {
-                    serve_h1(tls, mode, seen).await;
-                }
-            });
-        }
-    });
-    (port, seen)
-}
-
-/// The answer to a CONNECT: its status, or the target's stream.
-async fn decide(
-    version: &'static str,
-    target: &str,
-    auth: Option<String>,
-    mode: Mode,
-    seen: &Seen,
-) -> Result<TcpStream, u16> {
-    seen.connects.lock().unwrap().push((version, target.to_string(), auth.clone()));
-    if auth.as_deref() != Some(basic().as_str()) {
-        return Err(407);
-    }
-    if mode == Mode::Forbid {
-        return Err(403);
-    }
-    TcpStream::connect(target).await.map_err(|_| 502)
-}
-
-async fn serve_h1<S: AsyncRead + AsyncWrite + Unpin>(mut tls: S, mode: Mode, seen: Arc<Seen>) {
-    let mut head = Vec::new();
-    let mut byte = [0u8; 1];
-    while !head.ends_with(b"\r\n\r\n") {
-        match tls.read(&mut byte).await {
-            Ok(1) => head.push(byte[0]),
-            _ => return,
-        }
-    }
-    let head = String::from_utf8_lossy(&head).into_owned();
-    let target = head.split(' ').nth(1).unwrap_or_default().to_string();
-    let auth = head
-        .split("\r\n")
-        .filter_map(|l| l.split_once(':'))
-        .find(|(n, _)| n.trim().eq_ignore_ascii_case("proxy-authorization"))
-        .map(|(_, v)| v.trim().to_string());
-    match decide("HTTP/1.1", &target, auth, mode, &seen).await {
-        Ok(mut tcp) => {
-            if tls.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").await.is_ok() {
-                let _ = tokio::io::copy_bidirectional(&mut tls, &mut tcp).await;
-            }
-        }
-        Err(407) => {
-            let answer = "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic \
-                          realm=\"stand-in\"\r\nContent-Length: 0\r\n\r\n";
-            let _ = tls.write_all(answer.as_bytes()).await;
-        }
-        Err(status) => {
-            let _ = tls.write_all(format!("HTTP/1.1 {status} No\r\nContent-Length: 0\r\n\r\n").as_bytes()).await;
-        }
-    }
-}
-
-async fn serve_h2<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(tls: S, mode: Mode, seen: Arc<Seen>) {
-    let Ok(mut connection) = h2::server::handshake(tls).await else { return };
-    while let Some(Ok((request, mut respond))) = connection.accept().await {
-        let seen = seen.clone();
-        tokio::spawn(async move {
-            let target = request.uri().authority().map(|a| a.to_string()).unwrap_or_default();
-            assert_eq!(request.method(), http::Method::CONNECT);
-            assert!(request.uri().scheme().is_none() && request.uri().path_and_query().is_none());
-            let auth = request.headers().get("proxy-authorization").and_then(|v| v.to_str().ok()).map(String::from);
-            if mode == Mode::ResetHttp2 {
-                seen.connects.lock().unwrap().push(("HTTP/2", target, auth));
-                respond.send_reset(h2::Reason::REFUSED_STREAM);
-                return;
-            }
-            let status = match decide("HTTP/2", &target, auth, mode, &seen).await {
-                Ok(tcp) => {
-                    let answer = http::Response::builder().status(200).body(()).unwrap();
-                    let Ok(send) = respond.send_response(answer, false) else { return };
-                    return bridge(request.into_body(), send, tcp).await;
-                }
-                Err(status) => status,
-            };
-            let mut answer = http::Response::builder().status(status);
-            if status == 407 {
-                answer = answer.header("proxy-authenticate", "Basic realm=\"stand-in\"");
-            }
-            let _ = respond.send_response(answer.body(()).unwrap(), true);
-        });
-    }
-}
-
-/// A stream of HTTP/2 and the target's TCP, both ways.
-async fn bridge(mut recv: h2::RecvStream, mut send: h2::SendStream<Bytes>, tcp: TcpStream) {
-    let (mut rd, mut wr) = tcp.into_split();
-    let up = async move {
-        while let Some(Ok(chunk)) = recv.data().await {
-            let _ = recv.flow_control().release_capacity(chunk.len());
-            if wr.write_all(&chunk).await.is_err() {
-                return;
-            }
-        }
-        let _ = wr.shutdown().await;
-    };
-    let down = async move {
-        let mut buf = vec![0u8; 16 * 1024];
-        loop {
-            let n = match rd.read(&mut buf).await {
-                Ok(0) | Err(_) => break,
-                Ok(n) => n,
-            };
-            let mut rest = &buf[..n];
-            while !rest.is_empty() {
-                send.reserve_capacity(rest.len());
-                match std::future::poll_fn(|cx| send.poll_capacity(cx)).await {
-                    Some(Ok(0)) => continue,
-                    Some(Ok(room)) => {
-                        let take = room.min(rest.len());
-                        if send.send_data(Bytes::copy_from_slice(&rest[..take]), false).is_err() {
-                            return;
-                        }
-                        rest = &rest[take..];
-                    }
-                    _ => return,
-                }
-            }
-        }
-        let _ = send.send_data(Bytes::new(), true);
-    };
-    tokio::join!(up, down);
+    pod_egress::standin::via::start(acceptor.config().clone(), plan(alpn, mode)).await.unwrap()
 }
 
 /// The host's own proxy: plain CONNECT, which sends a name of [`pins`] to
@@ -322,16 +151,18 @@ async fn open(client: &Client, port: u16) -> Result<pod_egress::via::Opened, Dia
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_credential_goes_with_each_connect_and_a_407_says_what_is_missing() {
     pod_testkit::need_loopback!();
-    let (root, aim) = (root_file("credential"), target().await);
+    let (root, echo) = (root_file("credential"), target().await);
+    let aim = echo.port;
     for (alpn, version) in [(H1, Version::Http1), (H2, Version::Http2)] {
-        let (port, seen) = proxy(alpn, Mode::Carry).await;
+        let stand = proxy(alpn, Mode::Carry).await;
+        let port = stand.port;
         let with = client(port, &root, Offer::Both, true, ProxyChoice::Direct);
         let mut opened = open(&with, aim).await.unwrap_or_else(|e| panic!("{}: {e}", version.name()));
         assert_eq!(opened.version, version);
         carries(&mut opened, b"through the second proxy").await;
-        let (said, target, auth) = seen.connects.lock().unwrap()[0].clone();
-        assert_eq!((said, target.as_str()), (version.name(), format!("127.0.0.1:{aim}").as_str()));
-        assert_eq!(auth.as_deref(), Some(basic().as_str()));
+        let first = stand.seen.connects()[0].clone();
+        assert_eq!((first.version, first.target.as_str()), (version.name(), format!("127.0.0.1:{aim}").as_str()));
+        assert_eq!(first.authorization.as_deref(), Some(basic().as_str()));
         let without = client(port, &root, Offer::Both, false, ProxyChoice::Direct);
         let why = open(&without, aim).await.err().expect("a refusal").to_string();
         let words = format!("the proxy https://{NAME}:{port} refused CONNECT 127.0.0.1:{aim}: 407 Proxy");
@@ -346,9 +177,10 @@ async fn the_credential_goes_with_each_connect_and_a_407_says_what_is_missing() 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn two_tunnels_share_one_http2_connection() {
     pod_testkit::need_loopback!();
-    let (root, aim) = (root_file("shared"), target().await);
-    let (port, seen) = proxy(BOTH, Mode::Carry).await;
-    let client = client(port, &root, Offer::Both, true, ProxyChoice::Direct);
+    let (root, echo) = (root_file("shared"), target().await);
+    let aim = echo.port;
+    let stand = proxy(BOTH, Mode::Carry).await;
+    let client = client(stand.port, &root, Offer::Both, true, ProxyChoice::Direct);
     let mut first = open(&client, aim).await.unwrap();
     let mut second = open(&client, aim).await.unwrap();
     assert_eq!((first.version, first.shared), (Version::Http2, false));
@@ -356,8 +188,8 @@ async fn two_tunnels_share_one_http2_connection() {
     carries(&mut second, b"the second").await;
     let big = vec![7u8; 300_000];
     carries(&mut first, &big).await;
-    assert_eq!(seen.accepted.load(Ordering::SeqCst), 1, "one TLS connection");
-    assert_eq!(seen.connects.lock().unwrap().len(), 2);
+    assert_eq!(stand.seen.accepted(), 1, "one TLS connection");
+    assert_eq!(stand.seen.connects().len(), 2);
     let _ = std::fs::remove_dir_all(root.parent().unwrap());
 }
 
@@ -366,15 +198,17 @@ async fn two_tunnels_share_one_http2_connection() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_host_s_proxy_carries_the_tls_to_the_second_proxy() {
     pod_testkit::need_loopback!();
-    let (root, aim) = (root_file("hop"), target().await);
-    let (port, seen) = proxy(BOTH, Mode::Carry).await;
+    let (root, echo) = (root_file("hop"), target().await);
+    let aim = echo.port;
+    let stand = proxy(BOTH, Mode::Carry).await;
+    let port = stand.port;
     let (hop, asked) = host_proxy().await;
     let first = ProxyChoice::Via(Proxy::parse(&format!("http://127.0.0.1:{hop}")).unwrap());
     let mut opened = open(&client(port, &root, Offer::Http1, true, first), aim).await.unwrap();
     assert_eq!(opened.version, Version::Http1, "HTTP/1.1 alone was offered");
     carries(&mut opened, b"two proxies").await;
     assert_eq!(*asked.lock().unwrap(), vec![format!("{NAME}:{port}")]);
-    assert_eq!(seen.connects.lock().unwrap()[0].1, format!("127.0.0.1:{aim}"));
+    assert_eq!(stand.seen.connects()[0].target, format!("127.0.0.1:{aim}"));
     let _ = std::fs::remove_dir_all(root.parent().unwrap());
 }
 
@@ -383,17 +217,19 @@ async fn the_host_s_proxy_carries_the_tls_to_the_second_proxy() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_connect_that_http2_resets_goes_over_http1() {
     pod_testkit::need_loopback!();
-    let (root, aim) = (root_file("reset"), target().await);
-    let (port, seen) = proxy(BOTH, Mode::ResetHttp2).await;
+    let (root, echo) = (root_file("reset"), target().await);
+    let aim = echo.port;
+    let stand = proxy(BOTH, Mode::ResetHttp2).await;
+    let port = stand.port;
     let mut opened = open(&client(port, &root, Offer::Both, true, ProxyChoice::Direct), aim).await.unwrap();
     assert_eq!(opened.version, Version::Http1);
     assert!(opened.fell_back.as_deref().is_some_and(|w| w.contains("HTTP/2 did not carry")), "{:?}", opened.fell_back);
     carries(&mut opened, b"after the reset").await;
-    assert_eq!(seen.accepted.load(Ordering::SeqCst), 2);
+    assert_eq!(stand.seen.accepted(), 2);
     let only = open(&client(port, &root, Offer::Http2, true, ProxyChoice::Direct), aim).await;
     assert!(matches!(only, Err(DialError::ProxyProtocol { .. })), "{:?}", only.err());
-    let (h1, _) = proxy(H1, Mode::Carry).await;
-    let refused = open(&client(h1, &root, Offer::Http2, true, ProxyChoice::Direct), aim).await.err().unwrap();
+    let h1 = proxy(H1, Mode::Carry).await;
+    let refused = open(&client(h1.port, &root, Offer::Http2, true, ProxyChoice::Direct), aim).await.err().unwrap();
     assert!(refused.to_string().contains("did not choose HTTP/2"), "{refused}");
     let _ = std::fs::remove_dir_all(root.parent().unwrap());
 }
@@ -403,18 +239,19 @@ async fn a_connect_that_http2_resets_goes_over_http1() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_refusal_an_unreachable_target_and_another_name_fail_with_their_words() {
     pod_testkit::need_loopback!();
-    let (root, aim) = (root_file("refusals"), target().await);
+    let (root, echo) = (root_file("refusals"), target().await);
+    let aim = echo.port;
     for alpn in [H1, H2] {
-        let (port, _) = proxy(alpn, Mode::Forbid).await;
-        let e = open(&client(port, &root, Offer::Both, true, ProxyChoice::Direct), aim).await.err().unwrap();
+        let forbids = proxy(alpn, Mode::Forbid).await;
+        let e = open(&client(forbids.port, &root, Offer::Both, true, ProxyChoice::Direct), aim).await.err().unwrap();
         assert!(matches!(e, DialError::ProxyRefused { status: 403, .. }), "{e}");
         let closed = TcpListener::bind("127.0.0.1:0").await.unwrap().local_addr().unwrap().port();
-        let (port, _) = proxy(alpn, Mode::Carry).await;
-        let e = open(&client(port, &root, Offer::Both, true, ProxyChoice::Direct), closed).await.err().unwrap();
+        let carries = proxy(alpn, Mode::Carry).await;
+        let e = open(&client(carries.port, &root, Offer::Both, true, ProxyChoice::Direct), closed).await.err().unwrap();
         assert!(matches!(e, DialError::ProxyRefused { status: 502, .. }), "{e}");
     }
-    let (port, _) = proxy(H2, Mode::Carry).await;
-    let via = Via::parse(&format!("https://other.via.test:{port}")).unwrap();
+    let other = proxy(H2, Mode::Carry).await;
+    let via = Via::parse(&format!("https://other.via.test:{}", other.port)).unwrap();
     let e = Client::new(via, dial(&root, Offer::Both, ProxyChoice::Direct)).open("127.0.0.1", aim).await.err().unwrap();
     assert!(matches!(&e, DialError::ProxyUnreachable { detail, .. } if detail.starts_with("TLS")), "{e}");
     let _ = std::fs::remove_dir_all(root.parent().unwrap());
@@ -426,8 +263,10 @@ async fn a_refusal_an_unreachable_target_and_another_name_fail_with_their_words(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn the_client_is_a_dialer_and_a_refusal_is_a_typed_failure() {
     pod_testkit::need_loopback!();
-    let (root, aim) = (root_file("dialer"), target().await);
-    let (port, _) = proxy(BOTH, Mode::Carry).await;
+    let (root, echo) = (root_file("dialer"), target().await);
+    let aim = echo.port;
+    let stand = proxy(BOTH, Mode::Carry).await;
+    let port = stand.port;
     let carrying = client(port, &root, Offer::Both, true, ProxyChoice::Direct);
     let dialer: &dyn pod_core::Dial = &carrying;
     let target = pod_core::Target::new("127.0.0.1", aim);
@@ -444,8 +283,8 @@ async fn the_client_is_a_dialer_and_a_refusal_is_a_typed_failure() {
     };
     tokio::time::timeout(LIMIT, both).await.expect("the bytes within the limit");
     assert_eq!((banner.as_slice(), &back), (BANNER, b"a dialer!"));
-    let (forbids, _) = proxy(H1, Mode::Forbid).await;
-    let refusing = client(forbids, &root, Offer::Both, true, ProxyChoice::Direct);
+    let forbids = proxy(H1, Mode::Forbid).await;
+    let refusing = client(forbids.port, &root, Offer::Both, true, ProxyChoice::Direct);
     let failure = (&refusing as &dyn pod_core::Dial).dial(&target, deadline).await.expect_err("a refusal");
     assert_eq!((failure.stage, failure.class), (pod_core::Stage::Proxy, pod_core::Class::Refused), "{failure}");
     assert!(failure.text().contains(&format!("refused CONNECT 127.0.0.1:{aim}: 403")), "{failure}");

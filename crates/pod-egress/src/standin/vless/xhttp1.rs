@@ -17,6 +17,7 @@ use tokio::sync::mpsc;
 
 use super::xhttp::{Sessions, padding_of, upsert};
 use super::{Seen, dial, parse_request};
+use crate::standin::locked;
 
 /// The packets that a kept connection takes before the stand-in closes it.
 pub const CLOSE_AFTER: usize = 3;
@@ -52,14 +53,18 @@ async fn answer<W: AsyncWrite + Unpin>(io: &mut W, code: u16, close: bool) -> bo
 }
 
 /// Each request of one connection, in order, until it ends or is closed.
-pub async fn serve<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(io: S, seen: Arc<Seen>, sessions: Sessions) {
+pub(super) async fn serve<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(
+    io: S,
+    seen: Arc<Seen>,
+    sessions: Sessions,
+) {
     seen.connections.fetch_add(1, Ordering::SeqCst);
     let mut io = BufReader::new(io);
     let mut packets = 0;
     while let Some((method, path, fields)) = head(&mut io).await {
         let field = |name: &str| fields.get(name).cloned().unwrap_or_default();
         let pad = padding_of(&field("referer"));
-        seen.requests.lock().unwrap().push((method.clone(), path.clone(), field("host"), pad));
+        locked(&seen.requests).push((method.clone(), path.clone(), field("host"), pad));
         if !(100..=1000).contains(&pad) {
             let _ = answer(io.get_mut(), 400, true).await;
             return;
@@ -71,7 +76,7 @@ pub async fn serve<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(io: S, se
         let parts: Vec<String> = rest.split('/').filter(|p| !p.is_empty()).map(String::from).collect();
         match (method.as_str(), parts.as_slice()) {
             ("GET", [id]) => {
-                let Some(rx) = upsert(&mut sessions.lock().unwrap(), id).rx.take() else {
+                let Some(rx) = upsert(&mut locked(&sessions), id).rx.take() else {
                     let _ = answer(io.get_mut(), 409, true).await;
                     return;
                 };
@@ -90,7 +95,7 @@ pub async fn serve<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(io: S, se
                 }
                 let seq: u64 = seq.parse().unwrap_or(u64::MAX);
                 {
-                    let mut map = sessions.lock().unwrap();
+                    let mut map = locked(&sessions);
                     let upload = upsert(&mut map, id);
                     upload.held.insert(seq, whole);
                     while let Some(bytes) = upload.held.remove(&upload.next) {
@@ -105,7 +110,7 @@ pub async fn serve<S: AsyncRead + AsyncWrite + Unpin + Send + 'static>(io: S, se
                 }
             }
             ("POST", [id]) => {
-                let tx = upsert(&mut sessions.lock().unwrap(), id).tx.clone();
+                let tx = upsert(&mut locked(&sessions), id).tx.clone();
                 while let Some(chunk) = chunk(&mut io).await {
                     if chunk.is_empty() || tx.send(chunk).is_err() {
                         break;

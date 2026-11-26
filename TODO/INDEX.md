@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1074 entries: 170 open, 31 partial, 6 blocked, 867 done.**
+**1078 entries: 172 open, 31 partial, 6 blocked, 869 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 72 | 12 | 4 | 461 | 549 |
-| P3 | 94 | 10 | 2 | 158 | 264 |
-| **All** | 170 | 31 | 6 | 867 | 1074 |
+| P2 | 73 | 12 | 4 | 463 | 552 |
+| P3 | 95 | 10 | 2 | 158 | 265 |
+| **All** | 172 | 31 | 6 | 869 | 1078 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1100,6 +1100,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1427](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: the refusal of a missing working directory says "docker creates it" only for `run` (PodUtils/podvm#678) |
 | [T-1428](podvm.md) | P3 | S | M6 | defect | open | `pod-enter`: a file where the working directory should be says "docker creates it", which is false for `run` too |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
+| [T-1431](transport.md) | P2 | M | M1 | feature | done | `pod-proxy`: a proxy of the scheme `https`, TLS to the proxy with the caller's trust and then CONNECT, in `Dialer` and in each dial (PodUtils/podnet#779, ask 1) |
+| [T-1432](roads.md) | P2 | S | M4 | feature | done | `pod-egress`: the stand-ins of the second proxy over TLS, of a wstunnel server and of VLESS, Trojan, Shadowsocks and Wisp servers, behind the feature `standin` (PodUtils/podnet#779, ask 2; PodUtils/podnet#782, ask 2) |
+| [T-1433](roads.md) | P2 | S | M4 | defect | open | `pod-iroh`: an `https` proxy goes to iroh's relay dial by its address, so TLS checks the proxy's certificate for the address and not the name |
+| [T-1434](relay.md) | P3 | S | M2 | defect | open | `pod-relay`: the dial of a reverse TCP target takes a plain TCP connection only, so a proxy over TLS, on a Unix socket or at a command is refused |
 | [T-1444](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`: `a_path_that_is_there_is_never_opened_truncated_or_removed` fails on Windows: a file made at the name of a directory gives "Access is denied", not `AlreadyExists` |
 | [T-1445](upkeep.md) | P1 | S | M5 | defect | done | `pod-tpm`: two tests of `tests/socket.rs` fail on macOS: `set_read_timeout` on a stream whose peer closed gives an error, so the call says `Unavailable`, not `Protocol` |
 | [T-1446](upkeep.md) | P1 | S | M5 | defect | done | `pod-warp`: `warp_exec_finds_warp_up_of_another_state_directory` fails on macOS: its socket path is longer than 104 bytes |

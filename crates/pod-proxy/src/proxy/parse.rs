@@ -2,16 +2,18 @@
 //!
 //! * `[SCHEME://][USER[:PASSWORD]@]HOST[:PORT][/]`, with the schemes `http`
 //!   (the default; [`HTTP_PORT`] with no port, or the port that the caller
-//!   gives), `socks5` and `socks5h` ([`SOCKS_PORT`]). The user and the
-//!   password are percent-decoded; a bad escape is an error.
+//!   gives), `https` ([`HTTPS_PORT`]: TLS to the proxy, then CONNECT),
+//!   `socks5` and `socks5h` ([`SOCKS_PORT`]). The user and the password are
+//!   percent-decoded; a bad escape is an error.
 //! * `SCHEME+unix:/PATH` and `SCHEME://unix:/PATH`: the proxy on a Unix
-//!   socket, at an absolute path with no `@` and no control character. A
+//!   socket, at an absolute path with no `@` and no control character
+//!   (not `https`: TLS checks the name of a host, and a socket has none). A
 //!   host or a user (`SCHEME+unix://USER@HOST/PATH`) is an error: the label
 //!   shows the path, and a socket takes no credentials. `///PATH` is a path.
 //! * `SCHEME+exec:COMMAND`: the proxy at the stdin and the stdout of a
 //!   command, taken only when the caller says that the user gave the value
 //!   on purpose; a variable that other programs read must not start a
-//!   program.
+//!   program. Not `https`, for the same reason as a socket.
 
 use std::path::PathBuf;
 
@@ -21,6 +23,9 @@ use crate::host::split_host_port;
 /// The port of an `http://` proxy URL with no port, as Go and Python's
 /// requests read it. A consumer can give another ([`Proxy::parse_with`]).
 pub const HTTP_PORT: u16 = 80;
+
+/// The port of an `https://` proxy URL with no port.
+pub const HTTPS_PORT: u16 = 443;
 
 /// The port of a `socks5://` or `socks5h://` URL with no port.
 pub const SOCKS_PORT: u16 = 1080;
@@ -89,24 +94,20 @@ impl Proxy {
         };
         let (kind, default_port) = match scheme.as_str() {
             "http" => (ProxyKind::Http, http_port),
+            "https" => (ProxyKind::Https, HTTPS_PORT),
             "socks5" => (ProxyKind::Socks5 { remote_dns: false }, SOCKS_PORT),
             "socks5h" => (ProxyKind::Socks5 { remote_dns: true }, SOCKS_PORT),
-            "https" => {
-                return Err("https:// proxies (TLS to the proxy) are not supported; HTTP CONNECT goes to an http:// \
-                            proxy, and SOCKS5 to a socks5:// or socks5h:// one"
-                    .into());
-            }
             "socks4" | "socks4a" => {
                 return Err(format!(
                     "SOCKS4 is not supported ({scheme}://): it has no authentication, no IPv6 and, in its first \
                      form, no host names; SOCKS5 goes to a socks5:// or socks5h:// proxy, and HTTP CONNECT to an \
-                     http:// one"
+                     http:// or https:// one"
                 ));
             }
             other => {
                 return Err(format!(
-                    "the proxy scheme {other}:// is not supported; HTTP CONNECT goes to an http:// proxy, and SOCKS5 \
-                     to a socks5:// or socks5h:// one"
+                    "the proxy scheme {other}:// is not supported; HTTP CONNECT goes to an http:// or https:// \
+                     proxy, and SOCKS5 to a socks5:// or socks5h:// one"
                 ));
             }
         };
@@ -166,9 +167,15 @@ impl Proxy {
         Ok(Proxy { host, port, kind, credentials, carrier: Carrier::Tcp })
     }
 
-    /// A proxy of `scheme` that `carrier` reaches: no host, no port.
+    /// A proxy of `scheme` that `carrier` reaches: no host, no port. TLS
+    /// checks the name of a host, so `https` is on TCP alone.
     fn elsewhere(scheme: &str, carrier: Carrier, http_port: u16) -> Result<Proxy, String> {
         let mut proxy = Proxy::parse_with(&format!("{scheme}://elsewhere.invalid"), false, http_port)?;
+        if proxy.kind == ProxyKind::Https {
+            return Err("an https:// proxy is on TCP alone: TLS checks the name of its host, and a Unix socket or a \
+                        command has none; give https://HOST[:PORT], or http+unix: or http+exec:"
+                .into());
+        }
         proxy.host.clear();
         proxy.port = 0;
         proxy.carrier = carrier;

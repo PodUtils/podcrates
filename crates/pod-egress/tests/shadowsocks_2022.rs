@@ -1,5 +1,5 @@
-//! Shadowsocks 2022 (SIP022), against a stand-in server written here
-//! from shadowsocks.org's `sip022.html` with the AEAD crates and BLAKE3
+//! Shadowsocks 2022 (SIP022), against a stand-in server
+//! (`pod_egress::standin::shadowsocks`, feature `standin`) written from shadowsocks.org's `sip022.html` with the AEAD crates and BLAKE3
 //! themselves, not this crate's codec: each stream's key by `derive_key` with
 //! "shadowsocks 2022 session subkey" over the key and the salt; the
 //! request's fixed header (type 0, a timestamp, the next header's length)
@@ -13,72 +13,14 @@
 //! timestamp in milliseconds) is refused by the stand-in as a replay, and
 //! the first test fails.
 
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
-use aes_gcm::aead::{Aead, KeyInit};
-use aes_gcm::{Aes128Gcm, Aes256Gcm};
-use chacha20poly1305::ChaCha20Poly1305;
 use pod_egress::shadowsocks::{self, ChunkError, Method, Node, OpenError};
+use pod_egress::standin::shadowsocks::{Answer, RIGHT, Served};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[path = "common/way.rs"]
 mod way;
-use tokio::net::TcpStream;
-
-const CONTEXT: &str = "shadowsocks 2022 session subkey";
-
-/// The specification's cipher of one direction: BLAKE3's key, and the count
-/// of operations as the nonce, from zero.
-enum Spec {
-    Chacha(Box<ChaCha20Poly1305>),
-    Aes256(Box<Aes256Gcm>),
-    Aes128(Box<Aes128Gcm>),
-}
-
-impl Spec {
-    fn new(method: Method, psk: &[u8], salt: &[u8]) -> Spec {
-        let mut hasher = blake3::Hasher::new_derive_key(CONTEXT);
-        hasher.update(psk).update(salt);
-        let mut key = vec![0u8; psk.len()];
-        hasher.finalize_xof().fill(&mut key);
-        match method {
-            Method::Blake3Chacha20Poly1305 => Spec::Chacha(Box::new(ChaCha20Poly1305::new_from_slice(&key).unwrap())),
-            Method::Blake3Aes256Gcm => Spec::Aes256(Box::new(Aes256Gcm::new_from_slice(&key).unwrap())),
-            Method::Blake3Aes128Gcm => Spec::Aes128(Box::new(Aes128Gcm::new_from_slice(&key).unwrap())),
-            other => panic!("{other:?} is no method of SIP022"),
-        }
-    }
-
-    fn nonce(n: u64) -> [u8; 12] {
-        let mut nonce = [0u8; 12];
-        nonce[..8].copy_from_slice(&n.to_le_bytes());
-        nonce
-    }
-
-    fn seal(&self, n: u64, plain: &[u8]) -> Vec<u8> {
-        let nonce = Spec::nonce(n);
-        let gcm: aes_gcm::Nonce<aes_gcm::aead::consts::U12> = nonce.into();
-        match self {
-            Spec::Chacha(c) => c.encrypt(&chacha20poly1305::Nonce::from(nonce), plain).unwrap(),
-            Spec::Aes256(c) => c.encrypt(&gcm, plain).unwrap(),
-            Spec::Aes128(c) => c.encrypt(&gcm, plain).unwrap(),
-        }
-    }
-
-    fn open(&self, n: u64, sealed: &[u8]) -> Option<Vec<u8>> {
-        let nonce = Spec::nonce(n);
-        let gcm: aes_gcm::Nonce<aes_gcm::aead::consts::U12> = nonce.into();
-        match self {
-            Spec::Chacha(c) => c.decrypt(&chacha20poly1305::Nonce::from(nonce), sealed).ok(),
-            Spec::Aes256(c) => c.decrypt(&gcm, sealed).ok(),
-            Spec::Aes128(c) => c.decrypt(&gcm, sealed).ok(),
-        }
-    }
-}
-
-fn now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
-}
 
 /// A key of `method`'s length, and its base64.
 fn key_of(method: Method, seed: u8) -> (Vec<u8>, String) {
@@ -88,103 +30,13 @@ fn key_of(method: Method, seed: u8) -> (Vec<u8>, String) {
     (key, text)
 }
 
-/// How the stand-in answers: its clock's offset from this host's, and
-/// whether it names another request's salt.
-#[derive(Clone, Copy)]
-struct Answer {
-    skew: i64,
-    other_salt: bool,
-}
-
-const RIGHT: Answer = Answer { skew: 0, other_salt: false };
-
-/// The stand-in's task: the target that it read, when the key was right.
-type Served = tokio::task::JoinHandle<Option<String>>;
-
-/// Read until `buf` holds `n` bytes; `false` when the client went first.
-async fn fill(tcp: &mut TcpStream, wire: &mut Vec<u8>, n: usize) -> bool {
-    let mut buf = vec![0u8; 65536];
-    while wire.len() < n {
-        match tcp.read(&mut buf).await {
-            Ok(0) | Err(_) => return false,
-            Ok(k) => wire.extend_from_slice(&buf[..k]),
-        }
-    }
-    true
-}
-
-/// A stand-in server of SIP022 for one connection: with the right key and a
+/// A stand-in server of SIP022 for one connection
+/// (`pod_egress::standin::shadowsocks::sip022`): with the right key and a
 /// timestamp within 30 s it answers `banner` and echoes; a wrong key is
 /// silence until the client goes, and a timestamp out of the window a
 /// close, as shadowsocks-rust does. The target that it read comes back.
 async fn stand_in(method: Method, psk: Vec<u8>, banner: &'static [u8], answer: Answer) -> (u16, Served) {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let task = tokio::spawn(async move {
-        let (mut tcp, _) = listener.accept().await.unwrap();
-        let salt_len = method.salt_len();
-        let mut wire = Vec::new();
-        if !fill(&mut tcp, &mut wire, salt_len + 11 + 16).await {
-            return None;
-        }
-        let request_salt = wire[..salt_len].to_vec();
-        let reader = Spec::new(method, &psk, &request_salt);
-        let Some(fixed) = reader.open(0, &wire[salt_len..salt_len + 27]) else {
-            let mut buf = [0u8; 4096];
-            while tcp.read(&mut buf).await.unwrap_or(0) > 0 {}
-            return None;
-        };
-        assert_eq!(fixed[0], 0, "a request's type");
-        let stamp = u64::from_be_bytes(fixed[1..9].try_into().unwrap());
-        if stamp.abs_diff(now()) > 30 {
-            return None;
-        }
-        let var_len = usize::from(u16::from_be_bytes([fixed[9], fixed[10]]));
-        let at = salt_len + 27;
-        assert!(fill(&mut tcp, &mut wire, at + var_len + 16).await, "the variable header came whole");
-        let variable = reader.open(1, &wire[at..at + var_len + 16]).expect("the variable header opens");
-        let (host, port, used) = shadowsocks::parse_address(&variable).expect("an address");
-        let padding = usize::from(u16::from_be_bytes([variable[used], variable[used + 1]]));
-        assert!((1..=900).contains(&padding), "padding, as no payload came with the header: {padding}");
-        assert_eq!(variable.len(), used + 2 + padding, "nothing after the padding");
-        let target = Some(format!("{host}:{port}"));
-
-        let server_salt = vec![0x5au8; salt_len];
-        let writer = Spec::new(method, &psk, &server_salt);
-        let named = if answer.other_salt { vec![0xa5u8; salt_len] } else { request_salt.clone() };
-        let mut head = vec![1u8];
-        head.extend_from_slice(&((now() as i64 + answer.skew) as u64).to_be_bytes());
-        head.extend_from_slice(&named);
-        head.extend_from_slice(&(banner.len() as u16).to_be_bytes());
-        let mut out = server_salt.clone();
-        out.extend(writer.seal(0, &head));
-        out.extend(writer.seal(1, banner));
-        tcp.write_all(&out).await.unwrap();
-        // Echo each later chunk: its sealed length, then its payload.
-        let (mut n_in, mut n_out) = (2u64, 2u64);
-        let mut rest = wire.split_off(at + var_len + 16);
-        loop {
-            while rest.len() >= 18 {
-                let Some(l) = reader.open(n_in, &rest[..18]) else { return target };
-                let l = usize::from(u16::from_be_bytes([l[0], l[1]]));
-                if rest.len() < 18 + l + 16 {
-                    break;
-                }
-                let plain = reader.open(n_in + 1, &rest[18..18 + l + 16]).unwrap();
-                n_in += 2;
-                rest.drain(..18 + l + 16);
-                let mut back = writer.seal(n_out, &(plain.len() as u16).to_be_bytes());
-                back.extend(writer.seal(n_out + 1, &plain));
-                n_out += 2;
-                tcp.write_all(&back).await.unwrap();
-            }
-            let more = rest.len() + 1;
-            if !fill(&mut tcp, &mut rest, more).await {
-                return target;
-            }
-        }
-    });
-    (port, task)
+    pod_egress::standin::shadowsocks::sip022(method, psk, banner, answer).await.unwrap()
 }
 
 fn dial(answer: Duration) -> shadowsocks::Dial {

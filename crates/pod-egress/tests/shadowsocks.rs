@@ -6,90 +6,27 @@
 //! (shadowsocks.org's `aead.html`), with the AEAD crates themselves and not
 //! this crate's wrapper of them: it opens this crate's stream, and this
 //! crate opens its own. And `open` against a stand-in server of that codec on the loopback,
-//! where a wrong password ends in silence that names the server. Then the
+//! where a wrong password ends in silence that names the server (the
+//! stand-in of `pod_egress::standin::shadowsocks`, feature `standin`). Then the
 //! `ss://` URIs of SIP002, and the forms of a subscription's list.
 
 use std::time::Duration;
 
-use aes_gcm::aead::{Aead, KeyInit};
-use aes_gcm::{Aes128Gcm, Aes256Gcm};
-use chacha20poly1305::ChaCha20Poly1305;
 use pod_egress::shadowsocks::{self, Decoder, Encoder, Method, Node, OpenError};
+use pod_egress::standin::shadowsocks::{Served, Spec, evp};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[path = "common/way.rs"]
 mod way;
 
-/// EVP_BytesToKey with MD5 from its definition: D1 = MD5(password),
-/// Dn = MD5(Dn-1 || password), the key the first bytes of D1 || D2 ...
-fn evp(password: &[u8], len: usize) -> Vec<u8> {
-    let (mut out, mut last) = (Vec::new(), Vec::new());
-    while out.len() < len {
-        let mut input = last.clone();
-        input.extend_from_slice(password);
-        last = md5::compute(&input).0.to_vec();
-        out.extend_from_slice(&last);
-    }
-    out.truncate(len);
-    out
-}
-
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-/// The specification's cipher of one direction: HKDF-SHA1 with
-/// `ss-subkey`, and the count of operations as the nonce.
-enum Spec {
-    Chacha(Box<ChaCha20Poly1305>),
-    Aes256(Box<Aes256Gcm>),
-    Aes128(Box<Aes128Gcm>),
-}
-
-impl Spec {
-    fn new(method: Method, master: &[u8], salt: &[u8]) -> Spec {
-        let mut key = vec![0u8; master.len()];
-        hkdf::Hkdf::<sha1::Sha1>::new(Some(salt), master).expand(b"ss-subkey", &mut key).unwrap();
-        match method {
-            Method::Chacha20IetfPoly1305 => Spec::Chacha(Box::new(ChaCha20Poly1305::new_from_slice(&key).unwrap())),
-            Method::Aes256Gcm => Spec::Aes256(Box::new(Aes256Gcm::new_from_slice(&key).unwrap())),
-            Method::Aes128Gcm => Spec::Aes128(Box::new(Aes128Gcm::new_from_slice(&key).unwrap())),
-            // SIP022's streams are read in tests/shadowsocks_2022.rs.
-            other => panic!("{other:?} is a method of Shadowsocks 2022"),
-        }
-    }
-
-    fn nonce(n: u64) -> [u8; 12] {
-        let mut nonce = [0u8; 12];
-        nonce[..8].copy_from_slice(&n.to_le_bytes());
-        nonce
-    }
-
-    fn seal(&self, n: u64, plain: &[u8]) -> Vec<u8> {
-        let nonce = Spec::nonce(n);
-        let gcm: aes_gcm::Nonce<aes_gcm::aead::consts::U12> = nonce.into();
-        match self {
-            Spec::Chacha(c) => c.encrypt(&chacha20poly1305::Nonce::from(nonce), plain).unwrap(),
-            Spec::Aes256(c) => c.encrypt(&gcm, plain).unwrap(),
-            Spec::Aes128(c) => c.encrypt(&gcm, plain).unwrap(),
-        }
-    }
-
-    fn open(&self, n: u64, sealed: &[u8]) -> Option<Vec<u8>> {
-        let nonce = Spec::nonce(n);
-        let gcm: aes_gcm::Nonce<aes_gcm::aead::consts::U12> = nonce.into();
-        match self {
-            Spec::Chacha(c) => c.decrypt(&chacha20poly1305::Nonce::from(nonce), sealed).ok(),
-            Spec::Aes256(c) => c.decrypt(&gcm, sealed).ok(),
-            Spec::Aes128(c) => c.decrypt(&gcm, sealed).ok(),
-        }
-    }
 }
 
 /// A whole stream as the specification writes it: the salt, then for each
 /// payload of 0x3FFF bytes at most its sealed length and itself sealed.
 fn spec_stream(method: Method, master: &[u8], salt: &[u8], data: &[u8]) -> Vec<u8> {
-    let spec = Spec::new(method, master, salt);
+    let spec = Spec::aead(method, master, salt).unwrap();
     let mut out = salt.to_vec();
     for (i, payload) in data.chunks(0x3FFF).enumerate() {
         let n = 2 * i as u64;
@@ -103,7 +40,7 @@ fn spec_stream(method: Method, master: &[u8], salt: &[u8], data: &[u8]) -> Vec<u
 /// `None` at the first piece that does not open.
 fn spec_read(method: Method, master: &[u8], wire: &[u8]) -> Option<Vec<u8>> {
     let salt_len = method.salt_len();
-    let spec = Spec::new(method, master, wire.get(..salt_len)?);
+    let spec = Spec::aead(method, master, wire.get(..salt_len)?)?;
     let (mut at, mut n, mut out) = (salt_len, 0u64, Vec::new());
     while at < wire.len() {
         let len = spec.open(n, wire.get(at..at + 18)?)?;
@@ -214,7 +151,7 @@ fn podssh_and_the_specification_read_each_other_s_streams() {
         assert_eq!(back, sent, "{method:?}: ours reads the spec");
         // The nonce of the length and of the payload are two: one stream
         // with one count for both does not open.
-        let skewed = Spec::new(method, &master, &salt);
+        let skewed = Spec::aead(method, &master, &salt).unwrap();
         let mut wrong = salt.clone();
         wrong.extend(skewed.seal(0, &5u16.to_be_bytes()));
         wrong.extend(skewed.seal(0, b"hello"));
@@ -224,81 +161,13 @@ fn podssh_and_the_specification_read_each_other_s_streams() {
     }
 }
 
-/// The stand-in's task: the target that it read, when its key was right.
-type Served = tokio::task::JoinHandle<Option<String>>;
-
-/// A stand-in server of the specification's codec on the loopback: it
-/// reads the salt and the address; with the right key it answers with
-/// `banner` and then echoes, and with another it stays silent until the
-/// client goes. The address that it read comes back.
+/// A stand-in server of the specification's codec on the loopback
+/// (`pod_egress::standin::shadowsocks::aead`): it reads the salt and the
+/// address; with the right key it answers with `banner` and then echoes,
+/// and with another it stays silent until the client goes. The address that
+/// it read comes back.
 async fn stand_in(method: Method, password: &[u8], banner: &'static [u8]) -> (u16, Served) {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let port = listener.local_addr().unwrap().port();
-    let master = evp(password, method.key_len());
-    let task = tokio::spawn(async move {
-        let (mut tcp, _) = listener.accept().await.unwrap();
-        let mut wire = Vec::new();
-        let mut buf = vec![0u8; 65536];
-        let (mut first, mut n_in) = (None, 0u64);
-        let reader = loop {
-            let n = tcp.read(&mut buf).await.unwrap_or(0);
-            if n == 0 {
-                return None;
-            }
-            wire.extend_from_slice(&buf[..n]);
-            if wire.len() >= method.salt_len() + 18 {
-                break Spec::new(method, &master, &wire[..method.salt_len()]);
-            }
-        };
-        let at = method.salt_len();
-        let Some(len) = reader.open(0, &wire[at..at + 18]) else {
-            // Another key: silence until the client goes, as a server is.
-            while tcp.read(&mut buf).await.unwrap_or(0) > 0 {}
-            return None;
-        };
-        let len = usize::from(u16::from_be_bytes([len[0], len[1]]));
-        while wire.len() < at + 18 + len + 16 {
-            let n = tcp.read(&mut buf).await.unwrap_or(0);
-            assert!(n > 0, "the address chunk came whole");
-            wire.extend_from_slice(&buf[..n]);
-        }
-        let header = reader.open(1, &wire[at + 18..at + 18 + len + 16]).unwrap();
-        if let Some((host, port, _)) = shadowsocks::parse_address(&header) {
-            first = Some(format!("{host}:{port}"));
-        }
-        let salt = vec![0x5au8; method.salt_len()];
-        let writer = Spec::new(method, &master, &salt);
-        let mut answer = salt.clone();
-        answer.extend(writer.seal(0, &(banner.len() as u16).to_be_bytes()));
-        answer.extend(writer.seal(1, banner));
-        let mut n_out = 2u64;
-        tcp.write_all(&answer).await.unwrap();
-        // Echo each later chunk.
-        let mut rest = wire.split_off(at + 18 + len + 16);
-        n_in += 2;
-        loop {
-            while rest.len() >= 18 {
-                let Some(l) = reader.open(n_in, &rest[..18]) else { return first };
-                let l = usize::from(u16::from_be_bytes([l[0], l[1]]));
-                if rest.len() < 18 + l + 16 {
-                    break;
-                }
-                let plain = reader.open(n_in + 1, &rest[18..18 + l + 16]).unwrap();
-                n_in += 2;
-                rest.drain(..18 + l + 16);
-                let mut out = writer.seal(n_out, &(plain.len() as u16).to_be_bytes());
-                out.extend(writer.seal(n_out + 1, &plain));
-                n_out += 2;
-                tcp.write_all(&out).await.unwrap();
-            }
-            let n = tcp.read(&mut buf).await.unwrap_or(0);
-            if n == 0 {
-                return first;
-            }
-            rest.extend_from_slice(&buf[..n]);
-        }
-    });
-    (port, task)
+    pod_egress::standin::shadowsocks::aead(method, password, banner).await.unwrap()
 }
 
 fn dial(answer: Duration) -> shadowsocks::Dial {

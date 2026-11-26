@@ -1,10 +1,11 @@
 //! The connection to a target: directly over TCP, with the race of its
 //! addresses and Multipath TCP on request, or through an HTTP CONNECT proxy
-//! or a SOCKS5 proxy that the settings choose, on TCP, on a Unix socket or
-//! at a command. A [`Dialer`] is made once from its [`Settings`] and the
+//! (in cleartext, or inside TLS to an `https://` proxy with the TLS of
+//! [`Dialer::with_proxy_tls`]) or a SOCKS5 proxy that the settings choose,
+//! on TCP, on a Unix socket or at a command. A [`Dialer`] is made once from its [`Settings`] and the
 //! caller's resolver, and implements [`pod_core::Dial`].
 //!
-//! An HTTP proxy and a `socks5h://` proxy get the target's name, never an
+//! An HTTP or HTTPS proxy and a `socks5h://` proxy get the target's name, never an
 //! address, and this host needs no DNS: the proxy resolves the name. A
 //! `socks5://` proxy and the direct path ask the caller's resolver
 //! ([`pod_core::Resolve`]) for the addresses. Each choice of a proxy is one
@@ -27,6 +28,7 @@ use crate::mptcp::Multipath;
 use crate::proxy::{Proxy, ProxyKind};
 use crate::race::{Leg, connect_race, race};
 use crate::stream::Stream;
+use crate::tls_hop::ProxyTls;
 use crate::write_limit::WriteLimit;
 
 /// How long one address may take to connect before the next is tried as
@@ -103,6 +105,8 @@ pub struct Dialer {
     resolve: Arc<dyn Resolve>,
     /// The resolver of a proxy's own host; `None`: `resolve`.
     proxy_resolve: Option<Arc<dyn Resolve>>,
+    /// The TLS of an `https://` proxy; `None`: such a proxy is refused.
+    proxy_tls: Option<ProxyTls>,
     observer: Arc<dyn Observer>,
 }
 
@@ -112,6 +116,7 @@ impl fmt::Debug for Dialer {
             .field("settings", &self.settings)
             .field("resolve", &self.resolve.label())
             .field("proxy_resolve", &self.proxy_resolve.as_ref().map(|r| r.label()))
+            .field("proxy_tls", &self.proxy_tls)
             .finish()
     }
 }
@@ -120,7 +125,17 @@ impl Dialer {
     /// A dialer with `settings`, which asks `resolve` for the addresses of
     /// a direct connection and for the pins of a name.
     pub fn new(settings: Settings, resolve: Arc<dyn Resolve>) -> Dialer {
-        Dialer { settings, resolve, proxy_resolve: None, observer: Arc::new(NoObserver) }
+        Dialer { settings, resolve, proxy_resolve: None, proxy_tls: None, observer: Arc::new(NoObserver) }
+    }
+
+    /// The TLS of an `https://` proxy: the caller's context (its provider,
+    /// its roots, its words) and the trust of the proxy's certificate, which
+    /// is checked for the proxy's host. With none, a dial through an
+    /// `https://` proxy fails at the stage `Proxy` and says so; a consumer
+    /// that takes the proxy of a user or of an environment gives it.
+    pub fn with_proxy_tls(mut self, context: Arc<pod_tls::Context>, trust: pod_tls::Trust) -> Dialer {
+        self.proxy_tls = Some(ProxyTls { context, trust });
+        self
     }
 
     /// The resolver of the host of a proxy on TCP. A consumer whose
@@ -136,7 +151,7 @@ impl Dialer {
     /// connection, with the outcome `direct` (the settings choose no
     /// proxy), `via` (the settings choose one proxy), `none` (the
     /// environment names no proxy), `loopback`, `no_proxy`, `unusable`, or
-    /// the word of the proxy (`http`, `socks5`, `unix`, `exec`).
+    /// the word of the proxy (`http`, `https`, `socks5`, `unix`, `exec`).
     pub fn with_observer(mut self, observer: Arc<dyn Observer>) -> Dialer {
         self.observer = observer;
         self
@@ -183,8 +198,8 @@ impl Dialer {
     /// Open a TCP connection to `host:port`, through the proxy that the
     /// settings select. The whole operation (resolution, connect, and the
     /// exchange with a proxy) is bounded by `timeout`. A proxy on a Unix
-    /// socket or at a command gives no TCP connection: [`Dialer::stream`]
-    /// gives each kind.
+    /// socket, at a command or over TLS (`https://`) gives no plain TCP
+    /// connection: [`Dialer::stream`] gives each kind.
     pub async fn tcp(&self, host: &str, port: u16, timeout: Duration) -> Result<TcpStream, DialError> {
         self.tcp_multipath(host, port, timeout).await.map(|(stream, _)| stream)
     }
@@ -202,15 +217,20 @@ impl Dialer {
         let (stream, how) = self.stream(host, port, timeout).await?;
         match stream.into_tcp() {
             Ok(tcp) => Ok((tcp, how)),
+            Err(Stream::Tls(_)) => Err(DialError::BadProxy(format!(
+                "the proxy for {} is reached over TLS (https://), and this caller takes a plain TCP connection only",
+                authority(host, port)
+            ))),
             Err(_) => Err(DialError::BadProxy(format!(
-                "the proxy for {} is not on TCP, and this caller takes a TCP connection only",
+                "the proxy for {} is not on TCP, and this caller takes a plain TCP connection only",
                 authority(host, port)
             ))),
         }
     }
 
     /// The stream to `host:port` as [`Dialer::tcp_multipath`] opens it, of
-    /// any kind: TCP, or through a proxy on a Unix socket or at a command.
+    /// any kind: TCP, TLS to an `https://` proxy, or through a proxy on a
+    /// Unix socket or at a command.
     pub async fn stream(&self, host: &str, port: u16, timeout: Duration) -> Result<(Stream, Multipath), DialError> {
         self.open(Scheme::Https, host, port, Instant::now() + timeout, timeout).await
     }
@@ -224,6 +244,7 @@ impl Dialer {
             families: self.settings.families,
             deadline,
             budget,
+            proxy_tls: self.proxy_tls.as_ref(),
         }
     }
 
@@ -273,7 +294,7 @@ impl Dialer {
     /// that refuses the option keeps its buffer. A stream that is not TCP
     /// stays as it is.
     fn tuned(&self, stream: Stream) -> Stream {
-        let Some(tcp) = stream.tcp() else { return stream };
+        let Some(tcp) = stream.socket() else { return stream };
         let _ = tcp.set_nodelay(true);
         if let Some(bytes) = self.settings.lowat
             && let Err(why) = crate::lowat::set(tcp, bytes)
@@ -365,7 +386,7 @@ impl Dial for Dialer {
         })
     }
 
-    /// True through an HTTP proxy and a `socks5h://` proxy; a `socks5://`
+    /// True through an HTTP or HTTPS proxy and a `socks5h://` proxy; a `socks5://`
     /// proxy takes addresses that this host resolves.
     fn names_inside(&self) -> bool {
         let resolves = |p: &Proxy| p.kind != (ProxyKind::Socks5 { remote_dns: false });

@@ -1,0 +1,11 @@
+--- a/crates/pod-proxy/src/stream.rs
++++ b/crates/pod-proxy/src/stream.rs
+@@ -153,7 +153,7 @@
+ /// its exchange.
+ pub(crate) async fn open_proxy(leg: Leg<'_>, proxy: &Proxy) -> Result<Stream, DialError> {
+     let stream = open_carrier(leg, proxy).await?;
+-    if proxy.kind() != ProxyKind::Https {
++    if proxy.kind() != ProxyKind::Https || leg.proxy_tls.is_some() {
+         return Ok(stream);
+     }
+     let Some(tls) = leg.proxy_tls else {

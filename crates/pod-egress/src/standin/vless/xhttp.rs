@@ -16,9 +16,10 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 
 use super::{Seen, dial, parse_request};
+use crate::standin::locked;
 
 /// The upload of a session of packet-up or stream-up.
-pub struct Upload {
+pub(super) struct Upload {
     pub(super) tx: mpsc::UnboundedSender<Vec<u8>>,
     pub(super) rx: Option<mpsc::UnboundedReceiver<Vec<u8>>>,
     pub(super) next: u64,
@@ -34,7 +35,7 @@ pub(super) fn upsert<'a>(map: &'a mut HashMap<String, Upload>, id: &str) -> &'a 
 }
 
 /// The uploads by each session's id.
-pub type Sessions = Arc<Mutex<HashMap<String, Upload>>>;
+pub(super) type Sessions = Arc<Mutex<HashMap<String, Upload>>>;
 
 /// The length of `x_padding` in `Referer`'s query.
 pub(super) fn padding_of(referer: &str) -> usize {
@@ -46,7 +47,7 @@ fn status(respond: &mut SendResponse<Bytes>, code: u16, end: bool) -> Option<Sen
     respond.send_response(answer, end).ok()
 }
 
-pub async fn handle(
+pub(super) async fn handle(
     request: http::Request<RecvStream>,
     mut respond: SendResponse<Bytes>,
     seen: Arc<Seen>,
@@ -55,7 +56,7 @@ pub async fn handle(
     let (method, path) = (request.method().to_string(), request.uri().path().to_string());
     let host = request.uri().authority().map(|a| a.to_string()).unwrap_or_default();
     let pad = padding_of(request.headers().get("referer").and_then(|v| v.to_str().ok()).unwrap_or_default());
-    seen.requests.lock().unwrap().push((method.clone(), path.clone(), host, pad));
+    locked(&seen.requests).push((method.clone(), path.clone(), host, pad));
     if !(100..=1000).contains(&pad) {
         status(&mut respond, 400, true);
         return;
@@ -74,7 +75,7 @@ pub async fn handle(
             vless(rx, down, seen).await;
         }
         ("GET", [id]) => {
-            let rx = upsert(&mut sessions.lock().unwrap(), id).rx.take();
+            let rx = upsert(&mut locked(&sessions), id).rx.take();
             let Some(rx) = rx else {
                 status(&mut respond, 409, true);
                 return;
@@ -83,7 +84,7 @@ pub async fn handle(
             vless(rx, down, seen).await;
         }
         ("POST", [id]) => {
-            let tx = upsert(&mut sessions.lock().unwrap(), id).tx.clone();
+            let tx = upsert(&mut locked(&sessions), id).tx.clone();
             let Some(mut answer) = status(&mut respond, 200, false) else { return };
             forward(body, tx).await;
             let _ = answer.send_data(Bytes::new(), true);
@@ -96,7 +97,7 @@ pub async fn handle(
             }
             let seq: u64 = seq.parse().unwrap_or(u64::MAX);
             {
-                let mut map = sessions.lock().unwrap();
+                let mut map = locked(&sessions);
                 let upload = upsert(&mut map, id);
                 upload.held.insert(seq, whole);
                 while let Some(bytes) = upload.held.remove(&upload.next) {

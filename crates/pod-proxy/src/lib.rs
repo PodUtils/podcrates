@@ -4,8 +4,10 @@
 //! * [`Dialer`] ([`dial`]): directly, with the race of the addresses that
 //!   the caller's resolver gives (RFC 8305) and Multipath TCP on request
 //!   ([`mptcp`]); or through an HTTP CONNECT proxy, with Basic or Digest
-//!   ([`digest`]) and the words of a 407 ([`proxy_auth`]), or a SOCKS5 proxy (`socks5://`
-//!   resolves the name here, `socks5h://` sends it). It implements
+//!   ([`digest`]) and the words of a 407 ([`proxy_auth`]), in cleartext or
+//!   inside TLS to an `https://` proxy ([`Dialer::with_proxy_tls`]), or a
+//!   SOCKS5 proxy (`socks5://` resolves the name here, `socks5h://` sends
+//!   it). It implements
 //!   [`pod_core::Dial`]; a proxy on a Unix socket or at a command gives a
 //!   [`Stream`] of its own kind.
 //! * [`Proxy`] ([`proxy`]): the proxy that a URL names, on TCP, on a Unix
@@ -60,6 +62,7 @@ pub mod serve;
 mod socks5;
 pub mod stream;
 pub use pod_turn::stun;
+mod tls_hop;
 pub mod write_limit;
 
 pub use child::{EXEC_HOLD, STDERR_KEPT};
@@ -82,10 +85,13 @@ pub use race::{dial_addrs, group_errors, group_texts, interleave};
 pub use socks5::fuzz_exchange;
 pub use socks5::udp;
 pub use stream::{ChildIo, Stream};
+pub use tls_hop::ProxyTls;
 
 /// The handshakes of a proxy on a stream that the caller holds: a hop of
-/// a chain, whose order stays the caller's (PodUtils/podnet#652).
+/// a chain, whose order stays the caller's (PodUtils/podnet#652). The TLS
+/// to an `https://` proxy comes before its CONNECT ([`hop::tls`]).
 pub mod hop {
     pub use crate::connect::{Ask, handshake as connect};
     pub use crate::socks5::handshake as socks5;
+    pub use crate::tls_hop::{ProxyTls, handshake as tls};
 }

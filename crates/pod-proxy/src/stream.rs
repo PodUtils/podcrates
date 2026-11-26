@@ -1,6 +1,7 @@
-//! The stream of a dial: TCP, or a stream through a proxy that is on a Unix
-//! socket or at the stdin and the stdout of a command ([`ChildIo`]); and the
-//! opening of the stream to a proxy by its [`Carrier`].
+//! The stream of a dial: TCP, TLS to an `https://` proxy over TCP, or a
+//! stream through a proxy that is on a Unix socket or at the stdin and the
+//! stdout of a command ([`ChildIo`]); and the opening of the stream to a
+//! proxy by its [`Carrier`] and its kind.
 
 use std::io;
 use std::net::SocketAddr;
@@ -14,12 +15,18 @@ use tokio::net::TcpStream;
 pub use crate::child::ChildIo;
 use crate::error::DialError;
 use crate::host::check_name;
-use crate::proxy::{Carrier, Proxy};
+use crate::proxy::{Carrier, Proxy, ProxyKind};
 use crate::race::{Leg, connect_direct};
+
+/// The ALPN of the TLS to an `https://` proxy: its CONNECT is HTTP/1.1.
+const HTTP1: &[&[u8]] = &[b"http/1.1"];
 
 /// The stream of a dial.
 pub enum Stream {
     Tcp(TcpStream),
+    /// Through an `https://` proxy: the TLS to the proxy, over TCP, and the
+    /// tunnel inside it (boxed: a TLS session holds far more than a socket).
+    Tls(Box<tokio_rustls::client::TlsStream<TcpStream>>),
     /// Through a proxy on a Unix socket.
     #[cfg(unix)]
     Unix(tokio::net::UnixStream),
@@ -32,6 +39,7 @@ impl std::fmt::Debug for Stream {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Stream::Tcp(tcp) => f.debug_tuple("Tcp").field(&tcp.peer_addr().ok()).finish(),
+            Stream::Tls(tls) => f.debug_tuple("Tls").field(&tls.get_ref().0.peer_addr().ok()).finish(),
             #[cfg(unix)]
             Stream::Unix(_) => f.write_str("Unix"),
             Stream::Exec(_) => f.write_str("Exec"),
@@ -40,7 +48,9 @@ impl std::fmt::Debug for Stream {
 }
 
 impl Stream {
-    /// The TCP connection, when the stream is one.
+    /// The TCP connection, when the stream is plain TCP. The TCP under the
+    /// TLS of an `https://` proxy is not given: a write on it would break
+    /// the TLS.
     pub fn tcp(&self) -> Option<&TcpStream> {
         match self {
             Stream::Tcp(tcp) => Some(tcp),
@@ -57,13 +67,23 @@ impl Stream {
     }
 
     /// The address of the far end of a TCP connection (a proxy's, through a
-    /// proxy).
+    /// proxy; the TCP under the TLS of an `https://` proxy too).
     pub fn peer_addr(&self) -> Option<SocketAddr> {
-        self.tcp().and_then(|tcp| tcp.peer_addr().ok())
+        self.socket().and_then(|tcp| tcp.peer_addr().ok())
     }
 
     pub fn local_addr(&self) -> Option<SocketAddr> {
-        self.tcp().and_then(|tcp| tcp.local_addr().ok())
+        self.socket().and_then(|tcp| tcp.local_addr().ok())
+    }
+
+    /// The TCP socket of the stream, plain or under TLS: for its options
+    /// and its addresses, never for its bytes.
+    pub(crate) fn socket(&self) -> Option<&TcpStream> {
+        match self {
+            Stream::Tcp(tcp) => Some(tcp),
+            Stream::Tls(tls) => Some(tls.get_ref().0),
+            _ => None,
+        }
     }
 }
 
@@ -71,6 +91,10 @@ macro_rules! each {
     ($self:ident, $s:ident => $e:expr) => {
         match $self.get_mut() {
             Stream::Tcp($s) => $e,
+            Stream::Tls($s) => {
+                let $s = &mut **$s;
+                $e
+            }
             #[cfg(unix)]
             Stream::Unix($s) => $e,
             Stream::Exec($s) => {
@@ -105,6 +129,7 @@ impl AsyncWrite for Stream {
     fn is_write_vectored(&self) -> bool {
         match self {
             Stream::Tcp(s) => s.is_write_vectored(),
+            Stream::Tls(s) => s.is_write_vectored(),
             #[cfg(unix)]
             Stream::Unix(s) => s.is_write_vectored(),
             Stream::Exec(s) => s.is_write_vectored(),
@@ -123,8 +148,35 @@ impl AsyncWrite for Stream {
 /// The stream to `proxy` by its carrier, within the deadline of `leg`. The
 /// host of a proxy on TCP is resolved with the resolver of the proxy's own
 /// name ([`Leg::proxy_resolve`]): a resolver that asks DNS over HTTPS through
-/// this same proxy would otherwise call itself without end.
+/// this same proxy would otherwise call itself without end. An `https://`
+/// proxy gets TLS over the TCP, with the TLS of the leg, before a byte of
+/// its exchange.
 pub(crate) async fn open_proxy(leg: Leg<'_>, proxy: &Proxy) -> Result<Stream, DialError> {
+    let stream = open_carrier(leg, proxy).await?;
+    if proxy.kind() != ProxyKind::Https {
+        return Ok(stream);
+    }
+    let Some(tls) = leg.proxy_tls else {
+        return Err(DialError::BadProxy(format!(
+            "{} is reached over TLS, and this dial has no TLS context for a proxy",
+            proxy.label()
+        )));
+    };
+    let Stream::Tcp(tcp) = stream else {
+        return Err(DialError::BadProxy(format!("{} is reached over TLS, on TCP alone", proxy.label())));
+    };
+    let left = leg.deadline.saturating_duration_since(tokio::time::Instant::now());
+    let tls = crate::tls_hop::handshake(tcp, &proxy.to_string(), &proxy.host, tls, HTTP1, left).await;
+    // A time out names the whole bound of the dial, as each other step does.
+    let tls = tls.map_err(|e| match e {
+        DialError::Timeout { step, .. } => DialError::Timeout { step, after: leg.budget, stage: Stage::Proxy },
+        other => other,
+    })?;
+    Ok(Stream::Tls(Box::new(tls)))
+}
+
+/// The stream to `proxy` by its carrier alone.
+async fn open_carrier(leg: Leg<'_>, proxy: &Proxy) -> Result<Stream, DialError> {
     let unreachable = |detail: String| DialError::ProxyUnreachable { proxy: proxy.to_string(), detail };
     match proxy.carrier() {
         Carrier::Tcp => {
