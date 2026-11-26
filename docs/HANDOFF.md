@@ -43,8 +43,11 @@ is done. Git and the record keep finished work.
    - Done on `main`: PodUtils/podnet#779 (T-1431, T-1432) and ask 2 of
      PodUtils/podnet#782 (T-1432). Done on `main`: PodUtils/podnet#780
      (T-1505, T-1506). Done on `main`: PodUtils/podnet#782
-     (T-1525 to T-1527; ask 5 is T-1528, open). In work: PodUtils/podnet#785
-     (a worker writes the entries).
+     (T-1525 to T-1527; ask 5 is T-1528, open). Done on `main`:
+     PodUtils/podnet#785 (T-1531, T-1532). Done on `main`:
+     PodUtils/podrunner#367 (COORD-140, T-1529). In work:
+     PodUtils/podrunner#373 (COORD-145; a worker writes the entry in
+     `.claude/worktrees/gh373`).
    - Open asks:
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -230,6 +233,20 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   place of the copies of `pod-relay`, `pod-cloudflare` and `pod-warp`.
 - T-1425 (`pod-oci`, PodUtils/podvm#677): `spec::Config::rootfs`,
   `spec::RootFs`, `spec::check_layers`, `MAX_LAYERS`. No build change.
+- T-1529 (`pod-job`, PodUtils/podrunner#367): `UnitFields::limits`
+  (`pod_job::UnitLimits`: `memory_bytes`, `cpus`, `pids`, `disk_bytes`,
+  each `Option<u64>`). Each literal of `UnitFields` adds `limits: None`;
+  the schema id stays `run-report.v1`.
+- T-1531 (`pod-egress`, PodUtils/podnet#785): `trojan::accept::parse`
+  (the server side of a Trojan request: `Request`, `Command`,
+  `RequestError`, `Malformed`, `MAX_REQUEST`) and
+  `trojan::Password::matches` (constant time). The features `fuzzing`
+  and `standin` turn on `trojan`.
+- T-1532 (`pod-egress`, PodUtils/podnet#785): `shadowsocks::Decoder::salt`
+  and the docs of the accept side of the codec.
+- T-1506 (`pod-acme`, feature `standin`): the TLS-ALPN-01 verifier of the
+  stand-in takes only the certificate of the challenge (a pinned
+  verifier); the error of a refused certificate is the words of the check.
 
 ### What the next hand-off carries
 
@@ -246,8 +263,9 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
 
 ## Unfinished work
 
-- No worker is in flight and no worktree is left. Each branch of the
-  agents is merged into `main`.
+- A worker writes the entry of PodUtils/podrunner#373 in
+  `.claude/worktrees/gh373` (local branch `gh373`). Each other branch of
+  the agents is merged into `main`.
 - `origin/wip/t1073` is merged into `main` (T-1073, T-1070). The proxy
   refuses `git push origin --delete`, so the owner deletes the branch on
   GitHub (`TODO/PROGRESS.md`, "Owner actions"). No other `wip/` branch
