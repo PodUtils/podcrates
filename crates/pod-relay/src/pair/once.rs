@@ -4,7 +4,7 @@
 //! nothing. The query holds no credential, and the proof of a key (podssh T-448)
 //! signs the path alone, as the role checks it.
 
-use super::{Pair, PairContext, PairError, now_ms, parse, refused};
+use super::{Pair, PairContext, PairError, not_made, now_ms, parse};
 
 /// `POST /v1/pair`, asking with `once` for a connect token of one upgrade:
 /// the pair, and whether the relay said that its token is so (`"once":
@@ -31,10 +31,12 @@ pub async fn create_by(
         match response.status {
             200..=299 => {
                 let pair = parse(ctx.relay, &response.body, now_ms())?;
-                return Ok((pair, said_once(&response.body)));
+                let once = pair.once;
+                return Ok((pair, once));
             }
             409 => continue,
-            status => return Err(refused(status, &response)),
+            // A `403` here names no pair: none was made.
+            status => return Err(not_made(status, &response)),
         }
     }
     Err(PairError::Failed { status: 409, detail: ": the relay asked twice to pair again".into() })

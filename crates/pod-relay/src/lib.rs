@@ -56,6 +56,7 @@
 //! **Typed failures.** Each error converts to a `pod_core::Failure` with its
 //! stage and class (the module [`failure`]).
 
+mod abort;
 pub mod addresses;
 #[cfg(feature = "blocking")]
 pub mod blocking;

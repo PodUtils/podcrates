@@ -1,0 +1,7 @@
+# The operator's exchange holds its two tasks with no guard again, so an
+# abort of the task that runs it leaves the socket and the local stream
+# open (PodUtils/podssh#361); the test of an aborted exchange must fail.
+ENTRY=T-1405
+GROUP=relay
+EXPECT='test an_aborted_exchange_closes_the_socket_and_the_local_stream_at_once \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair --test reverse_operator -- an_aborted_exchange_closes_the_socket_and_the_local_stream_at_once'

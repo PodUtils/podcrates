@@ -256,6 +256,7 @@ the vectors, and section 8 the versions.
 - The signature is Ed25519 (RFC 8032), by the signer's key, of each byte before the signature.
 - A node refuses a bearer whose holder is not the channel's operator key, whose signer it does not take, whose signature fails, whose `jti` is not the one of its channel, or whose `jti` it took already.
 - A node refuses a bearer whose `iat` is more than 10 s after its clock, or whose `exp` and 10 s passed.
+- A node's refusal names the form that it refused: a bearer in the words of a bearer, a certificate in the words of a grant. The reason stays in the node's log.
 
 ## 7. The vectors
 

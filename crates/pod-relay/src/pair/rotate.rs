@@ -92,6 +92,7 @@ impl Pair {
             connect_token: self.connect_token.clone(),
             stop_token: Zeroizing::new(stop_token.to_string()),
             expires_ms: self.expires_ms,
+            once: self.once,
         }
     }
 }

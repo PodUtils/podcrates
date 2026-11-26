@@ -13,10 +13,10 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use e2e_harness::{PIPE, echo, echo_back, identity, node};
-use pod_e2e::ends::{self, Redeem};
+use pod_e2e::ends::{self, BEARER_REFUSED, Credential, GRANT_REFUSED, Redeem, Redemption};
 use pod_e2e::legs::{self, Frames};
 use pod_e2e::person::{Answer, Asker, Gate, Question};
-use pod_e2e::{Ask, Error};
+use pod_e2e::{Ask, Error, Refusal};
 use pod_identity::PublicKey;
 use tokio::io::AsyncWriteExt;
 
@@ -24,10 +24,14 @@ const LIMIT: Duration = Duration::from_secs(30);
 /// The grant that the node's check takes, made up for the tests.
 const GRANT: &[u8] = b"a grant of the tests";
 
-/// A check of grants that takes [`GRANT`] alone.
-fn redeem() -> Arc<Redeem> {
-    Arc::new(|_: &PublicKey, _: &Ask, grant: &[u8]| {
-        (grant == GRANT).then(|| "the grant of the tests".to_string()).ok_or_else(|| "not the test's grant".into())
+/// A check of credentials that takes [`GRANT`] alone, and says that it
+/// checked a `credential`.
+fn redeem(credential: Credential) -> Arc<Redeem> {
+    Arc::new(move |_: &PublicKey, _: &Ask, grant: &[u8]| Redemption {
+        credential,
+        result: (grant == GRANT)
+            .then(|| "the grant of the tests".to_string())
+            .ok_or_else(|| "not the test's grant".into()),
     })
 }
 
@@ -37,9 +41,10 @@ fn redeem() -> Arc<Redeem> {
 async fn granted_session(
     grant: Option<&[u8]>,
     gate: Option<Arc<Gate>>,
+    credential: Credential,
 ) -> (Vec<bool>, Result<PublicKey, Error>, Vec<String>) {
     let (mut node_end, lines) = node(identity(2), |_| Err("not in the test's list".into()));
-    node_end.redeem = Some(redeem());
+    node_end.redeem = Some(redeem(credential));
     node_end.gate = gate;
     let marks: Arc<Mutex<Vec<bool>>> = Arc::default();
     let seen = marks.clone();
@@ -68,16 +73,37 @@ async fn granted_session(
 /// of no grant that the admission refuses, open nothing.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_session_that_a_grant_let_in_opens_its_target_marked() {
-    let (marks, ended, lines) = granted_session(Some(GRANT), None).await;
+    let (marks, ended, lines) = granted_session(Some(GRANT), None, Credential::Grant).await;
     assert!(ended.is_ok(), "{ended:?}");
     assert_eq!(marks, vec![true], "the grant's target opened unmarked");
     assert!(lines.iter().any(|l| l.contains("came with the grant of the tests")), "{lines:?}");
-    let (marks, ended, _) = granted_session(Some(b"another grant"), None).await;
+    let (marks, ended, _) = granted_session(Some(b"another grant"), None, Credential::Grant).await;
     assert!(matches!(ended, Err(Error::Refused(_))), "{ended:?}");
     assert!(marks.is_empty());
-    let (marks, ended, _) = granted_session(None, None).await;
+    let (marks, ended, _) = granted_session(None, None, Credential::Grant).await;
     assert!(matches!(ended, Err(Error::Refused(_))), "{ended:?}");
     assert!(marks.is_empty());
+}
+
+/// The node names the credential that it let in or refused: the operator
+/// hears the words of a bearer for a bearer and of a grant for a grant, and
+/// the node's lines say the same (PodUtils/podssh#362, ask 3).
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn the_node_names_the_credential_that_it_let_in_or_refused() {
+    assert_ne!(GRANT_REFUSED, BEARER_REFUSED);
+    for credential in [Credential::Grant, Credential::Bearer] {
+        let words = credential.words();
+        let (marks, ended, lines) = granted_session(Some(GRANT), None, credential).await;
+        assert!(ended.is_ok(), "{credential:?}: {ended:?}");
+        assert_eq!(marks, vec![true], "{credential:?}");
+        assert!(lines.iter().any(|l| l.contains(&format!("came in, by {words}"))), "{credential:?}: {lines:?}");
+        let (marks, ended, lines) = granted_session(Some(b"another grant"), None, credential).await;
+        assert!(marks.is_empty(), "{credential:?}");
+        let heard = matches!(&ended, Err(Error::Refused(Refusal::Other(why))) if why == credential.refused());
+        assert!(heard, "{credential:?}: {ended:?}");
+        let said = format!("refused {words} of the operator key {}: not the test's grant", identity(1).public());
+        assert!(lines.iter().any(|l| l.contains(&said)), "{credential:?}: {lines:?}");
+    }
 }
 
 /// A key that a grant let through the door meets the node's person, as a
@@ -90,7 +116,7 @@ async fn a_grant_meets_the_node_s_person_as_a_key_of_the_door_does() {
         kept.lock().unwrap().push(question);
         Box::pin(async { Ok(()) })
     });
-    let (marks, ended, lines) = granted_session(Some(GRANT), Some(Gate::new(asker))).await;
+    let (marks, ended, lines) = granted_session(Some(GRANT), Some(Gate::new(asker)), Credential::Grant).await;
     assert!(ended.is_ok(), "{ended:?}");
     assert_eq!(marks, vec![true]);
     let questions = asked.lock().unwrap().clone();
@@ -146,9 +172,11 @@ async fn bound_session() -> Bound {
     let checked: Arc<Mutex<Option<pod_e2e::Binding>>> = Arc::default();
     let seen = checked.clone();
     node_end.redeem = Some(Arc::new(move |_: &PublicKey, _: &Ask, grant: &[u8]| {
-        let binding = ends::binding().ok_or("no binding")?;
-        *seen.lock().unwrap() = Some(binding.clone());
-        (grant == binding.bytes()).then(|| "a bound grant".to_string()).ok_or_else(|| "another binding".into())
+        Redemption::grant((|| -> Result<String, String> {
+            let binding = ends::binding().ok_or("no binding")?;
+            *seen.lock().unwrap() = Some(binding.clone());
+            (grant == binding.bytes()).then(|| "a bound grant".to_string()).ok_or_else(|| "another binding".into())
+        })())
     }));
     let minted: Arc<Mutex<Option<pod_e2e::Binding>>> = Arc::default();
     let kept = minted.clone();

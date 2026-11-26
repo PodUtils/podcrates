@@ -31,8 +31,8 @@ async fn a_pair_is_made_asked_about_and_stopped() {
     let stopped = pair::stop(&ctx, &made).await.expect("the stop");
     eprintln!("stopped: {stopped:?}");
 
-    assert!(matches!(pair::status(&ctx, &part).await, Err(PairError::Forbidden)), "after the stop");
-    assert!(matches!(pair::stop(&ctx, &made).await, Err(PairError::Forbidden)), "a second stop");
+    assert!(matches!(pair::status(&ctx, &part).await, Err(PairError::Forbidden { .. })), "after the stop");
+    assert!(matches!(pair::stop(&ctx, &made).await, Err(PairError::Forbidden { .. })), "a second stop");
 }
 
 fn now_ms() -> i64 {

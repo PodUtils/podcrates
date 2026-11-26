@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1055 entries: 173 open, 31 partial, 6 blocked, 845 done.**
+**1056 entries: 171 open, 31 partial, 6 blocked, 848 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 77 | 12 | 4 | 443 | 536 |
-| P3 | 92 | 10 | 2 | 154 | 258 |
-| **All** | 173 | 31 | 6 | 845 | 1055 |
+| P2 | 74 | 12 | 4 | 446 | 536 |
+| P3 | 93 | 10 | 2 | 154 | 259 |
+| **All** | 171 | 31 | 6 | 848 | 1056 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1078,10 +1078,10 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1402](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the node looks for the relay's Close behind a failed ping only 8 frames or 200 ms ahead, so a relay that sends data first gives "the link to the relay ended with no Close" (PodUtils/podssh#360) |
 | [T-1403](relay.md) | P2 | S | M2 | defect | done | `pod-e2e`: a failure of the node's target reads as "the stream under the channel failed", and the node's line does not name the target |
 | [T-1404](adapters.md) | P2 | M | M3 | feature | done | `pod-cloudflare`: a capture sink of the HTTP exchanges of a tunnel, for `podnet tunnel --inspect` (PodUtils/podnet#758) |
-| [T-1405](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: `reverse::operator::exchange` leaves its two tasks alive when it is dropped, so a dropped leg keeps its socket open (PodUtils/podssh#361) |
+| [T-1405](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: `reverse::operator::exchange` leaves its two tasks alive when it is dropped, so a dropped leg keeps its socket open (PodUtils/podssh#361) |
 | [T-1406](relay.md) | P2 | M | M2 | defect | done | `pod-identity`: an allowlist refuses the line that `podssh keygen -y` prints, a bad line does not name the forms of a key, and a key with `routes=` alone also reaches the target with no route |
-| [T-1407](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: the refusals of a pair: the body of a 403, a refusal of a new pair, a spent token of `--once`, and a doubled subject in `file_name` (PodUtils/podssh#362, ask 2) |
-| [T-1408](relay.md) | P2 | S | M2 | defect | open | `pod-e2e`: `Redeem` does not say whether a bearer or a grant was refused or let in, and the node says "a grant" for a bearer (PodUtils/podssh#362, ask 3) |
+| [T-1407](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the refusals of a pair: the body of a 403, a refusal of a new pair, a spent token of `--once`, and a doubled subject in `file_name` (PodUtils/podssh#362, ask 2) |
+| [T-1408](relay.md) | P2 | S | M2 | defect | done | `pod-e2e`: `Redeem` does not say whether a bearer or a grant was refused or let in, and the node says "a grant" for a bearer (PodUtils/podssh#362, ask 3) |
 | [T-1409](transport.md) | P2 | M | M1 | defect | done | `pod-tls`: a refused certificate reaches the user in rustls's `Debug` names (`Other(OtherError(CaUsedAsEndEntity))`) |
 | [T-1410](relay.md) | P2 | S | M2 | defect | done | `pod-session`: a far end that closes the link before its first byte is said as one that "said nothing within 30 s" |
 | [T-1411](fleet.md) | P2 | S | M8 | feature | done | `pod-release`: former signers of a moved repository, and the hint of Sigstore's roots only for a chain that failed |
@@ -1102,3 +1102,4 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1463](upkeep.md) | P3 | M | M5 | chore | open | `pod-core`: no check stops a new `to_string()` or `{}` of a `Failure` that drops its cause, and the `{}` of a `Failure` in a `format!` was not searched |
 | [T-1473](relay.md) | P3 | S | M2 | chore | open | `pod-relay`: `grant::openssh_public` and `grant::parse_public` are a second encoder and reader of OpenSSH's public line of an Ed25519 key |
 | [T-1474](transport.md) | P2 | S | M1 | defect | open | `pod-dns`: after the plain certificate words of T-1409, the line of a name that does not resolve shortens the second cause to "could not connect" |
+| [T-1480](upkeep.md) | P3 | S | M5 | chore | open | three crates keep their own guard that aborts a tokio task on drop |

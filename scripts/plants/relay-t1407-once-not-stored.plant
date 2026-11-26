@@ -1,0 +1,7 @@
+# The store of pairs drops the mark of a connect token of one upgrade, so a
+# 403 of a spent token is said as a stopped pair (PodUtils/podssh#362); the
+# test of a spent token of one upgrade must fail.
+ENTRY=T-1407
+GROUP=relay
+EXPECT='test a_refused_token_carries_the_relays_words_and_a_spent_once_token_is_named \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair --test pair_refusals -- a_refused_token_carries_the_relays_words_and_a_spent_once_token_is_named'

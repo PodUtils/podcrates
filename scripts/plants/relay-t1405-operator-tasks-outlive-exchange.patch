@@ -1,0 +1,24 @@
+diff --git a/crates/pod-relay/src/reverse/operator.rs b/crates/pod-relay/src/reverse/operator.rs
+--- a/crates/pod-relay/src/reverse/operator.rs
++++ b/crates/pod-relay/src/reverse/operator.rs
+@@ -11,7 +11,6 @@
+ use pod_ws::session::{RelaySession, close_code_and_reason};
+ use pod_ws::{SessionError, Trust};
+ 
+-use crate::abort::AbortOnDrop;
+ use crate::context::Context;
+ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
+ use tokio::sync::mpsc;
+@@ -178,9 +177,10 @@
+     // A drop of this future (its task aborted) stops both tasks too: else the
+     // frames' task keeps the socket and answers the role's pings, and the
+     // input's task keeps the local stream, so the leg is dead but open.
+-    let tasks = (AbortOnDrop(input_task), AbortOnDrop(frames_task));
++    let tasks = (input_task, frames_task);
+     let outcome = carry(&session, frames, input, &mut local_write, limits).await;
+-    drop(tasks);
++    tasks.0.abort();
++    tasks.1.abort();
+     let _ = local_write.shutdown().await;
+     outcome
+ }

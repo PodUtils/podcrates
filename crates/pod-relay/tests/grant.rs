@@ -23,7 +23,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use e2e_harness::{Fault, LIMIT, PIPE, echo, echo_back, holds, identity, stand_in};
-use pod_e2e::ends::{self, GRANT_REFUSED, Node, Redeem};
+use pod_e2e::ends::{self, GRANT_REFUSED, Node, Redeem, Redemption};
 use pod_e2e::person::{Answer, Asker, Gate, Question};
 use pod_e2e::{Ask, Error, Refusal};
 use pod_identity::PublicKey;
@@ -71,7 +71,7 @@ type Served = (Node, Arc<Mutex<Vec<String>>>);
 /// The check of `door` at `now`, as a node's end runs it.
 fn redeem_of(door: Door, now: u64) -> Arc<Redeem> {
     Arc::new(move |peer: &PublicKey, ask: &Ask, blob: &[u8]| {
-        door.redeem(peer, ask, blob, now).map(|redeemed| redeemed.to_string())
+        Redemption::grant(door.redeem(peer, ask, blob, now).map(|redeemed| redeemed.to_string()))
     })
 }
 

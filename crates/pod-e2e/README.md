@@ -42,7 +42,7 @@ channel defends against.
 | `envelope` | `Destination` (`seal`, `open`, `host`, `port`, `service`, `authority`), `Sealed` (`id`, `bytes`, `prelude`), `Prelude` (`of`, `take`, `pass`, `id`, `bytes`), `Forwarder` (`new`, `route`, `forward`), `EnvelopeError`; `VERSION`, `ID`, `NONCE`, `BODY`, `SIZE` |
 | `knowledge` | `Hop` (`ALL`, `name`), `Knowledge` (`table`, `line`, `render`) |
 | `inspect` | `Inspect` (`new`, `observe`, `hop`, `fields`, `relay`, `render`), `Field`, `id_of` |
-| `ends` | `Node` (`identity`, `admit`, `events`, `redeem`, `leases`, `gate`, `docs`, `holds`; `open_to_all`), `Admit`, `Redeem`; `serve_node`, `serve_routed`, `serve_asked`, `granted`, `binding`, `TARGET_WAIT`, `NO_EXIT`, `GRANT_REFUSED`; `operator`, `operator_to`, `operator_granted`, `operator_told`, `operator_bound`, `NO_NET`; the kinds of the events `EVENT_*` |
+| `ends` | `Node` (`identity`, `admit`, `events`, `redeem`, `leases`, `gate`, `docs`, `holds`; `open_to_all`), `Admit`, `Redeem` (gives a `Redemption`: the `Credential`, a grant or a bearer, and the result); `serve_node`, `serve_routed`, `serve_asked`, `granted`, `binding`, `TARGET_WAIT`, `NO_EXIT`, `GRANT_REFUSED`, `BEARER_REFUSED` (the words that the operator hears for each credential that the node refuses; the node's line says "refused a grant" or "refused a bearer", and "by a grant" or "by a bearer"); `operator`, `operator_to`, `operator_granted`, `operator_told`, `operator_bound`, `NO_NET`; the kinds of the events `EVENT_*` |
 | `person` | `Gate` (`new`, `with_times`, `times`, `standing`, `cross`), `Times` (`DEFAULT`), `Question`, `Answer`, `Asker`, `Pass`, `By` |
 | `net` | `Docs` (`held`, `shares_with`, `take`), `Held` (`newer_than`), `OFFER` |
 | `legs` | `token`, `digest`, `hex`, `unhex`, `offered`, `frame`, `Frames`, `WINDOW`, `LIFE_MS`, `OFFER`; `Leases` (`attach`, `issue`, `restore`, `spent`, `held`), `Lease` (`seed`, `hand_over`); `during`, `current`, `Taker` (`give`, `holds`, `pick`, `upgraded`, `refused`, `token_at`), `Pick` |
@@ -260,7 +260,7 @@ task, the mark of a granted target, the taker of an operator's tokens).
 
 | Value | Where |
 | --- | --- |
-| The node's key, who can come in, a grant's check | `Node::identity`, `Node::admit`, `Node::redeem` |
+| The node's key, who can come in, the check of a grant or a bearer | `Node::identity`, `Node::admit`, `Node::redeem` |
 | Where a node's lines go | `Node::events` |
 | Where the lines of the carry's waits go | `Node::events`; the operator: `told` of `operator_told`; a channel of the caller's own: `Channel::with_events` |
 | The node's person: who answers, and the times | `Node::gate`: `Gate::new(asker)` or `Gate::with_times(asker, Times)` |

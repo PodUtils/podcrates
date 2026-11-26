@@ -11,6 +11,7 @@ use pod_ws::frame;
 use pod_ws::session::{RelaySession, close_code_and_reason};
 use pod_ws::{SessionError, Trust};
 
+use crate::abort::AbortOnDrop;
 use crate::context::Context;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
 use tokio::sync::mpsc;
@@ -163,7 +164,8 @@ fn socket_config(config: &OperatorConfig<'_>) -> Result<WsClientConfig, ConnectE
 
 /// Carry `io` over a connected operator socket (any stream, for tests). At
 /// each end, the write side of `io` is shut, so its reader sees the end, and
-/// the tasks that read stop.
+/// the tasks that read stop. A drop of the future (an abort of its task)
+/// stops those tasks too: the socket and `io` close at once.
 pub async fn exchange<S, IO>(session: RelaySession<S>, io: IO, limits: OperatorLimits) -> Outcome
 where
     S: AsyncRead + AsyncWrite + Send + 'static,
@@ -173,9 +175,12 @@ where
     let (local_read, mut local_write) = tokio::io::split(io);
     let (frames, frames_task) = frames_of(session.clone());
     let (input, input_task) = input_of(local_read);
+    // A drop of this future (its task aborted) stops both tasks too: else the
+    // frames' task keeps the socket and answers the role's pings, and the
+    // input's task keeps the local stream, so the leg is dead but open.
+    let tasks = (AbortOnDrop(input_task), AbortOnDrop(frames_task));
     let outcome = carry(&session, frames, input, &mut local_write, limits).await;
-    input_task.abort();
-    frames_task.abort();
+    drop(tasks);
     let _ = local_write.shutdown().await;
     outcome
 }

@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
-use super::{OperatorPart, PairError};
+use super::{OperatorPart, PairError, check_label};
 use crate::cache::{self, Cache, MIN_REMAINING_MS, valid_token};
 use crate::relay::{check_node_name, parse_relay};
 use crate::token::relay_name;
@@ -23,6 +23,8 @@ pub(crate) struct PartRef<'a> {
     name: &'a str,
     connect_token: &'a str,
     expires: i64,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    once: bool,
 }
 
 /// The part as it is read; its token goes into `Zeroizing` at once.
@@ -32,6 +34,8 @@ pub(crate) struct PartStored {
     name: String,
     connect_token: String,
     expires: i64,
+    #[serde(default)]
+    once: bool,
 }
 
 impl OperatorPart {
@@ -54,7 +58,7 @@ impl OperatorPart {
         if left_ms < MIN_REMAINING_MS {
             return Err(PairError::ShortLived { left_ms });
         }
-        Ok(OperatorPart { relay, name, connect_token, expires_ms })
+        Ok(OperatorPart { relay, name, connect_token, expires_ms, once: false })
     }
 
     /// The part in the form of the operator's file, for a message.
@@ -64,6 +68,7 @@ impl OperatorPart {
             name: &self.name,
             connect_token: self.connect_token(),
             expires: self.expires_ms,
+            once: self.once,
         }
     }
 
@@ -71,14 +76,15 @@ impl OperatorPart {
     /// its one reader.
     #[cfg(feature = "code")]
     pub(crate) fn from_wire(stored: PartStored, now_ms: i64) -> Result<OperatorPart, PairError> {
-        let PartStored { relay, name, connect_token, expires } = stored;
-        OperatorPart::checked(&relay, name, Zeroizing::new(connect_token), expires, now_ms)
+        let PartStored { relay, name, connect_token, expires, once } = stored;
+        let part = OperatorPart::checked(&relay, name, Zeroizing::new(connect_token), expires, now_ms)?;
+        Ok(OperatorPart { once, ..part })
     }
 }
 
 /// `operator-<label>.json`, for a label that podssh T-076 accepts as a name.
 pub fn file_name(label: &str) -> Result<String, PairError> {
-    check_node_name(label).map_err(|why| PairError::BadLabel(format!("the label {why}")))?;
+    check_label(label)?;
     Ok(format!("operator-{label}.json"))
 }
 
@@ -108,14 +114,14 @@ pub fn load_from(dirs: &[PathBuf], label: &str) -> Result<Option<OperatorPart>, 
     let what = format!("the operator's part stored under {label:?}");
     let stored: PartStored =
         serde_json::from_str(&text).map_err(|_| PairError::Store(format!("{what} is not readable")))?;
-    let PartStored { relay, name, connect_token, expires } = stored;
+    let PartStored { relay, name, connect_token, expires, once } = stored;
     let connect_token = Zeroizing::new(connect_token);
     check_node_name(&name).map_err(|_| PairError::Store(format!("{what} names no pair")))?;
     if !valid_token(&connect_token) {
         return Err(PairError::Store(format!("{what} holds no usable connect token")));
     }
     let relay = parse_relay(&relay).map_err(|_| PairError::Store(format!("{what} names no relay")))?;
-    Ok(Some(OperatorPart { relay, name, connect_token, expires_ms: expires }))
+    Ok(Some(OperatorPart { relay, name, connect_token, expires_ms: expires, once }))
 }
 
 /// Forget the part kept under `label`, in each directory where it is ours.

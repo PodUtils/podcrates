@@ -18,20 +18,12 @@ use tokio::io::{AsyncWriteExt, DuplexStream, ReadHalf, WriteHalf};
 
 use pod_ws::Extra;
 
+use crate::abort::AbortOnDrop;
+
 use super::client::{End, Ended, LIMIT, Opened, Road, gather};
 use super::conn::BoxIo;
 use super::one::{CHUNK, Failed, MARK_WAIT, PIPE, REFUSAL_MAX, no_mark, refused, words};
 use super::{Form, MARK};
-
-/// The task that drives the connection; a drop ends the connection, and so
-/// the session at the role.
-struct Driver(tokio::task::JoinHandle<()>);
-
-impl Drop for Driver {
-    fn drop(&mut self) {
-        self.0.abort();
-    }
-}
 
 /// What the answer said up to its mark.
 enum Heard {
@@ -59,7 +51,9 @@ pub(super) async fn open(
         Ok(Err(e)) => return not_carried(format!("the handshake of HTTP/2 failed: {e}")),
         Err(_) => return not_carried("the handshake of HTTP/2 took too long".into()),
     };
-    let driver = Driver(tokio::spawn(async move {
+    // The task that drives the connection: a drop ends the connection, and
+    // so the session at the role.
+    let driver = AbortOnDrop(tokio::spawn(async move {
         let _ = connection.await;
     }));
     let request = match request(road, path, token, extra) {
@@ -155,7 +149,7 @@ async fn down(
     mut to_app: WriteHalf<DuplexStream>,
     first: Bytes,
     ended: Arc<Ended>,
-    keep: (SendRequest<Bytes>, Driver),
+    keep: (SendRequest<Bytes>, AbortOnDrop),
 ) {
     let end = pump(&mut recv, &mut to_app, first).await;
     ended.set_once(end);

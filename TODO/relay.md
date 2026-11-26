@@ -12920,7 +12920,7 @@ cargo test -p pod-session --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12955,6 +12955,15 @@ its cut, and one run timed out.
 cargo test -p pod-relay --all-features
 ```
 
+## Done
+
+2026-11-26. Commit: see `git log` for T-1405.
+
+- `crates/pod-relay/src/abort.rs`: `AbortOnDrop`, a crate guard that aborts a task when it drops. `reverse::operator::exchange` holds `frames_of` and `input_of` in it, so a drop of the future of `exchange` (an abort of its task) aborts both: the socket and the local stream close at once. `http_road/one_h2.rs` uses the same guard in the place of its own `Driver` (one copy in the crate). The copies in `pod-cloudflare` and `pod-warp`: T-1480.
+- Test: `an_aborted_exchange_closes_the_socket_and_the_local_stream_at_once` (`crates/pod-relay/tests/reverse_operator.rs`): after `ready` and bytes both ways, an abort of the task; the scripted relay reads the end of the socket, and the local stream reads its end, each within 1 s, with no write of either side.
+- Plant `relay-t1405-operator-tasks-outlive-exchange` (the tasks with no guard, aborted at the end alone): caught (applied by hand).
+- `cargo test -p pod-relay -p pod-e2e --all-features`: 631 passed, 0 failed. `cargo clippy -p pod-relay -p pod-e2e --all-targets --all-features -- -D warnings`: clean.
+
 # T-1407: `pod-relay`: the refusals of a pair: the body of a 403, a refusal of a new pair, a spent token of `--once`, and a doubled subject in `file_name` (PodUtils/podssh#362, ask 2)
 
 **Source:** PodUtils/podssh#362 (COORD-152 of podssh, ask 2; PodUtils/podssh@T-939, PodUtils/podssh@T-949; author MEMBER).
@@ -12962,7 +12971,7 @@ cargo test -p pod-relay --all-features
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12998,6 +13007,18 @@ podssh fixed these in its glue at `72b2afc` and asks for them in the crate
 cargo test -p pod-relay --all-features pair
 ```
 
+## Done
+
+2026-11-26. Commit: see `git log` for T-1407.
+
+- `crates/pod-relay/src/pair/error.rs` (new; `pair.rs` was near 500 lines): `PairError::Forbidden { detail, once }` carries the relay's own `403` body (one line, 200 characters at most, as `: WORDS`). Text: "the relay refused the token (403: WORDS): the pair is stopped or has expired"; with `once`: "...: the pair's connect token is for one upgrade, and that upgrade is used; or the pair is stopped or has expired".
+- `PairError::NotMade { detail }`: a `403` of `/v1/pair` (`create`, `once::create_with`, `once::create_by`). Text: "the relay refused to make a pair (403: WORDS): a relay that makes pairs for the keys of a list alone refuses each other key". Class `Refused`.
+- `Pair::once` and `OperatorPart::once` (public fields): `parse` reads `"once": true`; `store`, `load`, `read_file`, `write_operator_file`, `read_operator_file`, `part::store` and `part::load` keep the mark (`"once": true` in the file; a file with no mark reads `false`); the part of a pairing by code carries it. `status` and `renew::status` name a spent token when the part has the mark. `pair::status` now calls `renew::status` (one copy).
+- `file_name` and `part::file_name`: "the label is empty", "the label is longer than 128 characters" (`pair::check_label`).
+- Tests: `crates/pod-relay/tests/pair_refusals.rs` (a stand-in control host of TLS on the loopback that answers `403` with its words): `a_refused_new_pair_is_said_as_one_and_not_as_a_stopped_pair`, `a_refused_token_carries_the_relays_words_and_a_spent_once_token_is_named`, `the_words_of_a_403_are_one_short_line`, `the_operator_s_part_keeps_the_mark_of_one_upgrade`, `a_bad_label_is_said_once_in_both_stores`; `pair::error::tests::a_bad_label_is_said_once`.
+- Plants `relay-t1407-new-pair-refused-as-stopped` and `relay-t1407-once-not-stored`: caught (applied by hand).
+- `cargo test -p pod-relay -p pod-e2e --all-features`: 631 passed, 0 failed. `cargo clippy`: clean. The wire does not change (`docs/wire.md` names the `403` already).
+
 # T-1408: `pod-e2e`: `Redeem` does not say whether a bearer or a grant was refused or let in, and the node says "a grant" for a bearer (PodUtils/podssh#362, ask 3)
 
 **Source:** PodUtils/podssh#362 (COORD-152 of podssh, ask 3; PodUtils/podssh@T-942; author MEMBER).
@@ -13005,7 +13026,7 @@ cargo test -p pod-relay --all-features pair
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13033,6 +13054,17 @@ log says "by a bearer".
 ```sh
 cargo test -p pod-e2e --all-features
 ```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1408.
+
+- `crates/pod-e2e/src/redeem.rs` (new; `ends` re-exports it): `Credential` (`Grant`, `Bearer`; `words()`, `refused()`), `Redemption { credential, result }` (`Redemption::grant`, `Redemption::bearer`), and `Redeem` now gives a `Redemption`. `BEARER_REFUSED` beside `GRANT_REFUSED`: "this bearer does not let this key in: it was used already, its 30 s passed, the node does not take its signer for this, or it is not for this key or this channel; the node's log says which".
+- The node: a refused credential is "refused a bearer of the operator key KEY: WHY" (or "a grant"), the operator hears the words of its form, and a session let in is "came in, by a bearer" (or "by a grant", with "and a yes of the node's person" after a gate).
+- `docs/wire.md`, section 6: one line, a node's refusal names the form that it refused. The wire version does not change (the words are text of a refusal, not a format).
+- Tests: `the_node_names_the_credential_that_it_let_in_or_refused` (`crates/pod-e2e/tests/door.rs`, both forms, let in and refused); `crates/pod-relay/tests/bearer.rs` now asks `BEARER_REFUSED`, "refused a bearer of the operator key" and "came in, by a bearer".
+- Plant `e2e-t1408-bearer-said-as-grant`: caught (applied by hand). The plants `e2e-t638-grant-skips-the-person` and `e2e-t638-person-before-the-door` were stale (`person_of` takes the credential now): made again on the new code, each caught.
+- `cargo test -p pod-relay -p pod-e2e --all-features`: 631 passed, 0 failed. `cargo clippy`: clean.
 
 # T-1399: `pod-quic` and `pod-relay`: a failed UDP socket of QUIC reads "no UDP socket for QUIC" with no cause, as the race of handshakes and the QUIC road say the failure with `to_string()` (PodUtils/podssh#360)
 

@@ -314,3 +314,28 @@ async fn the_node_bytes_reach_a_buffered_local_side_at_once() {
     tokio::time::timeout(LIMIT, local.read_exact(&mut got)).await.expect("the bytes before the end").unwrap();
     assert_eq!(&got[..], &want[..]);
 }
+
+/// An abort of the task that runs `exchange` (a leg cut by its owner, as in
+/// podssh's test of a resume) closes the socket and the local stream at
+/// once, with no write of either side to find the loss (PodUtils/podssh#361).
+#[tokio::test]
+async fn an_aborted_exchange_closes_the_socket_and_the_local_stream_at_once() {
+    let (mut relay, mut local, task) = start(limits());
+    relay.send(frame::OPCODE_TEXT, ready().as_bytes()).await;
+    local.write_all(b"up").await.unwrap();
+    assert_eq!(relay.next(LIMIT).await.expect("the input").payload, b"up");
+    relay.send(frame::OPCODE_BINARY, b"down").await;
+    let mut down = [0u8; 4];
+    local.read_exact(&mut down).await.unwrap();
+    task.abort();
+    let cut = Duration::from_secs(1);
+    let socket_closed = tokio::time::timeout(cut, async {
+        let mut chunk = [0u8; 8192];
+        while relay.peer.read(&mut chunk).await.map(|n| n > 0).unwrap_or(false) {}
+    })
+    .await;
+    assert!(socket_closed.is_ok(), "the role's socket stays open after the abort");
+    let mut rest = Vec::new();
+    let local_ended = tokio::time::timeout(cut, local.read_to_end(&mut rest)).await;
+    assert!(local_ended.is_ok(), "the local stream gets no end after the abort");
+}

@@ -1,0 +1,7 @@
+# A 403 of /v1/pair is said as a refused token of a pair again, "the pair
+# is stopped or has expired", where no pair was made (PodUtils/podssh#362);
+# the test of a refused new pair must fail.
+ENTRY=T-1407
+GROUP=relay
+EXPECT='test a_refused_new_pair_is_said_as_one_and_not_as_a_stopped_pair \.\.\. FAILED'
+RUN='cargo test -p pod-relay --features pair --test pair_refusals -- a_refused_new_pair_is_said_as_one_and_not_as_a_stopped_pair'

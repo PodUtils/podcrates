@@ -1,0 +1,6 @@
+# A node refuses a bearer in the words of a grant again (PodUtils/podssh#362,
+# ask 3); the test of the credential that the node names must fail.
+ENTRY=T-1408
+GROUP=e2e
+EXPECT='test the_node_names_the_credential_that_it_let_in_or_refused \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --test door -- the_node_names_the_credential_that_it_let_in_or_refused'

@@ -99,7 +99,7 @@ fn no_token_is_in_a_debug_text_or_an_error() {
         format!("{:?}", Operator::of(&pair)),
         format!("{client:?}"),
         format!("{:?}", NodeOptions::default()),
-        Error::Pair(PairError::Forbidden).to_string(),
+        Error::Pair(PairError::Forbidden { detail: String::new(), once: false }).to_string(),
         Error::InsideRuntime.to_string(),
     ];
     for text in texts {
