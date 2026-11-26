@@ -39,8 +39,8 @@ is done. Git and the record keep finished work.
      (COORD-151) is T-1405; PodUtils/podssh#362 (COORD-152): asks 2 and 3
      are T-1407 and T-1408, asks 1, 4 and 5 are with workers;
      PodUtils/podssh#363 (COORD-153): ask 3 is T-1413 (optional), asks 1
-     and 2 are with a worker. PodUtils/podnet#758 (COORD-128) is with a
-     worker.
+     and 2 are with a worker. PodUtils/podnet#758 (COORD-128) is T-1404,
+     done on `main`.
    - Open asks: PodUtils/podssh#358 (COORD-148) is T-1390;
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -133,6 +133,15 @@ closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
   each with `size=N` and reads the limit back (steps 49 to 52). Breaking:
   each struct literal of `Plan` adds `tmpfs: Vec::new()`. T-1430 (a rule of
   the confinement on such a tmpfs) is open.
+- T-1404 (`pod-cloudflare`, PodUtils/podnet#758): the module `capture`
+  (trait `Capture` with `head`, `body`, `end`; `Head`, `End`, `Direction`,
+  `Refused`) and `Origins::with_capture`; the sink is called after the
+  write to the peer, a refused sink is dropped for that exchange, a
+  chunked body is decoded for the sink, the credential of the tunnel never
+  reaches it. Breaking: `Host` has the new public field `capture`
+  (`Host::new` sets `None`). The defect of `proxy_bidi` (a chunked answer
+  reached the visitor with its size lines) is fixed: both paths share
+  `answer`.
 - T-1399, T-1400, T-1402 (PodUtils/podssh#360 asks 1, 2, 4): `pod-quic`
   `connect::handshake` and `pod-relay` `quic_road::dial` keep the cause of
   a failed UDP socket ("no UDP socket for QUIC: CAUSE"), and 14 more sites
