@@ -1,0 +1,12 @@
+diff --git a/crates/pod-cloudflare/src/proxy/forward.rs b/crates/pod-cloudflare/src/proxy/forward.rs
+--- a/crates/pod-cloudflare/src/proxy/forward.rs
++++ b/crates/pod-cloudflare/src/proxy/forward.rs
+@@ -73,7 +73,7 @@
+         } else {
+             tap.chunked_request();
+         }
+-        return proxy_bidi(&mut reader, &mut writer, io, !upgrade, metrics, tap).await;
++        return proxy_bidi(&mut reader, &mut writer, io, false, metrics, tap).await;
+     }
+ 
+     if let Some(len) = content_length(request)

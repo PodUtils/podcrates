@@ -396,7 +396,6 @@ for its aborted connection at a shutdown (a test failed one run in two).
 
 2026-11-17: podnet took `pod-cloudflare` with `v0.69.0` at `00b54ff` (its T-423): the crate holds the edge client, the named tunnel and the quick tunnel, and podnet keeps its glue (`crates/pod-cloudflare/README.md`). The trial `adoption/podnet/pod-cloudflare.*` is removed. `crates/pod-cloudflare/SOURCES` takes the block at `00b54ff`; the one change before it (`7eca389`, `dial` and `dial_again` of podnet's `src/ws.rs`, its client side) needs no port, and `check-sources.py` gives 39 files, 0 changes. What stays has its own entry: the pin of cloudflared (T-851), the two `Protocol` types (T-853), podssh's quick tunnels (T-030).
 
-
 # T-030: `pod-cloudflare`: podssh's quick tunnels onto the edge client
 
 **Source:** `docs/design.md`, section 8, step 5.
@@ -2124,7 +2123,6 @@ Item 2, d34ef23: the input of podnet's step "A planted pointer loop ends" (one s
 
 2026-11-17: items 1, 2 and 3, as the Correction says. The move of the pin is T-851.
 
-
 # T-850: `pod-core`: one clean text of a peer: the strip of escape sequences and the words of a TLS failure
 
 **Source:** T-029, the adoption trial of podnet (finding 5).
@@ -2155,7 +2153,6 @@ cargo test -p pod-core -p pod-cloudflare --all-features
 ## Done
 
 2026-11-17, 55d990853 and 9ab942b: `pod_core::text::one_line` and `multi_line` first take out each escape sequence of a terminal whole (`without_escapes`): a CSI (ESC `[` or U+009B) up to its final byte, an OSC (ESC `]` or U+009D) up to BEL or ST, and another escape with its intermediates and its final character. Before, only ESC went, and its parameters (`[2J`, `]0;title`) stayed as text. `pod_cloudflare::text::clean` is now `multi_line`; the body of a refused quick tunnel and the destination in a log line take `one_line`; `proxy::path_and_query` is public, and `fail::tls_text` was already, so podnet can drop its copies. Tests: `each_escape_sequence_goes_with_its_parameters` (pod-core), and 13 tests of `pod-core`, `pod-egress`, `pod-incus`, `pod-session`, `pod-ws`, `pod-proxy` and `pod-cloudflare` that held the old leftovers now hold the clean text. The plant `fuzz-one-line-escape` skips the strip too, and is caught. The tests of those seven crates and of `fuzz/` pass.
-
 
 # T-851: `pod-cloudflare`: the pin of cloudflared moves to 2026.11.0
 
@@ -2259,7 +2256,6 @@ cargo test -p pod-cloudflare --all-features --test quick_tunnel_standin
 
 2026-11-18: podnet answered (PodUtils/podnet#654, 13:20 UTC): two edge connections for a quick tunnel are its choice, for redundancy; `podnet --ha-connections 1` gives the one connection of cloudflared. No change of behaviour: the doc of `Config::ha_connections` (`crates/pod-cloudflare/src/config.rs`) says the default, its reason, and how to get cloudflared's one connection. The test of the behaviour that stays: `crates/pod-cloudflare/tests/quick_tunnel_standin.rs` (a quick tunnel registers one leg to `ha_connections` legs at the stand-in edge).
 
-
 # T-985: `pod-cloudflare`: an error line names the request two times with a proxy that does not answer (PodUtils/podnet#658)
 
 **Source:** PodUtils/podnet#658 (COORD-111 of podnet, PodUtils/podnet@T-497), part 1.
@@ -2303,7 +2299,6 @@ cargo test -p pod-services-watch --all-features
 
 2026-11-20, 993bf43. `pod_core::failure::lead` (call C827) puts words before a text once; `pod-cloudflare`'s `fail::wrap` and `Host::send`, `pod-proxy`'s `within` and `pod-devtunnel`'s `wrap` use it, and `pod_proxy::client::Request::line` gives the words of the request. `pod-services-watch` keeps the words of the failure. A reset of the TLS handshake keeps its cause without the words of the request (`Failure::into_source`). The line now: `POST https://api.example/tunnel: could not reach the proxy 127.0.0.1:P: could not connect to 127.0.0.1:P: Connection refused (os error 111)`. Tests, each failed before the fix with 2 names of the request: `crates/pod-cloudflare/src/host.rs::a_dead_proxy_names_the_request_once`, `a_reset_in_the_tls_handshake_is_named`, `crates/pod-devtunnel/tests/login.rs::a_dead_base_names_the_request_once`, `crates/pod-services-watch/tests/watches/http.rs::a_dead_host_names_the_url_once`; and `failure::tests::a_lead_is_said_once` of `pod-core`. `cargo test` of `pod-core`, `pod-proxy`, `pod-cloudflare`, `pod-warp`, `pod-ws`, `pod-devtunnel` and `pod-services-watch` with `--all-features`: 1028 passed, 0 failed, 5 ignored; clippy of the same crates with `-D warnings`: clean.
 
-
 # T-986: `pod-warp`: an error of the WARP API names a proxy that does not answer once for each host (PodUtils/podnet#658)
 
 **Source:** PodUtils/podnet#658 (COORD-111 of podnet, PodUtils/podnet@T-497), part 2.
@@ -2343,7 +2338,6 @@ cargo test -p pod-proxy --all-features --lib race::tests
 ## Done
 
 2026-11-20, 993bf43. `Api::send` gives `each_failed`: the hop that each failed base shares (the outer `Failure` or `DialError` of each chain with the same text) is one entry of `pod_proxy::group_texts`, and stays the cause of the failure (`EachHost`), so a caller reads its `DialError`. With one base, the line names the request once: `the WARP API: POST https://HOST/...: ...`. The line now: `the WARP API: each host failed: 2 hosts (https://api.one.example, https://api.two.example): could not reach the proxy 127.0.0.1:P: could not connect to 127.0.0.1:P: Connection refused (os error 111)`. Tests: `crates/pod-warp/tests/register.rs::each_api_host_failed_at_the_proxy_names_it_once` (failed before the fix: 2 names of the proxy) and `api::tests::each_base_failed_at_one_hop_names_it_once` (the chain of podnet's dialer, a `DialError` under its own words). `cargo test -p pod-warp --all-features` and `-p pod-proxy`: green (the run of T-985).
-
 
 # T-1116: `pod-cloudflare`: the edge refuses a new quick tunnel with "Tunnel not found" for more than three tries, and the start exits 69 (PodUtils/podnet#685)
 
@@ -2458,7 +2452,6 @@ cargo test -p pod-cloudflare --all-features --lib quicktunnel::tests
 
 2026-11-24, 67980e7. `EnrolError::NoAnswer(PathFailure)` keeps the shared `Failure` of the path; `EnrolError::failure` gives a `Failure` at its stage under the failure at the stage Warp. `of_api` gives `Protocol` for an answer that does not decode. `device_of`, `json_of` and `registration_error` use `pod_core::text::body_line` (call C918). Tests: `provider::tests::an_enrolment_through_a_dead_proxy_keeps_the_stage_of_the_proxy` (before the fix the chain had the stage Warp alone) and `register::tests::an_answer_that_is_not_json_names_its_body` (before the fix the text had no word of the body), `text::tests::the_line_of_a_body_hides_its_secrets_and_keeps_its_words` of `pod-core`. `sh scripts/agent/check.sh`: each step 0.
 
-
 # T-1134: `pod-cloudflare`: the chain of a refused origin says the error of I/O two times (PodUtils/podnet#707, ask 10)
 
 **Source:** PodUtils/podnet#707 (COORD-115 of podnet, PodUtils/podnet@T-522, PodUtils/podnet#696), ask 10.
@@ -2497,7 +2490,6 @@ cargo test -p pod-cloudflare --all-features --lib origin::tests
 ## Done
 
 2026-11-24, 67980e7. `fail::io_step` gives the step as the text and the error of I/O as the cause; `io_fail` and `connect_origin` use it. A row now: `connecting to 127.0.0.1:P: Connection refused (os error 111)`, once. Test: `crates/pod-cloudflare/src/origin.rs::a_refused_origin_says_its_cause_once` (failed before the fix: 2 times). `sh scripts/agent/check.sh`: each step 0.
-
 
 # T-1135: `pod-cloudflare`: each failure of `fail::caused`, `or_fail` and `wrap` holds the text of its cause and the cause, so a reader that joins each text of the chain says the cause two times
 
@@ -2681,7 +2673,6 @@ sh scripts/plant-each.sh warp-proxy-no-session-reset warp-forward-no-session-res
 
 2026-11-25, this commit. `Proxy::client` gives a client with no session to `refuse_client`: the SOCKS5 reply 1 for each command (also `UDP ASSOCIATE` and 0x83), the HTTP status 503 `no WARP session: CAUSE` for `CONNECT` and an `http://` URL, then `close_clean` (the write half shut, the bytes of the client read until it closes, 2 s at most). `Forward::connection` with no session calls `close_clean`. `answer_failure` writes each failure answer of a dial (403, 502, 503, the SOCKS5 replies). Tests over TCP: `proxy::tests::a_socks5_client_with_no_session_gets_the_reply_1`, `proxy::tests::an_http_client_with_no_session_gets_the_status_503`, `proxy::tests::a_forward_with_no_session_closes_with_no_reset`; before the fix each client read `Connection reset by peer`. Plants `warp-proxy-no-session-reset` and `warp-forward-no-session-reset` (each test failed on its patch, run by hand; `sh scripts/plant-each.sh --apply`: 0 stale). `cargo test -p pod-warp --all-features`: 237 passed, 1 ignored. `cargo clippy --workspace --all-targets --all-features -- -D warnings`, `cargo fmt --all --check`, `scripts/check-history.py`, `scripts/codegraph.py dups` and `new`: clean.
 
-
 # T-1366: `pod-warp`: a pin mismatch names the cause by the issuer of the door certificate, and says each cause once (PodUtils/podnet#726)
 
 **Source:** PodUtils/podnet#726 (COORD-121 of podnet, PodUtils/podnet@T-550, PodUtils/podnet#715); the author is a COLLABORATOR.
@@ -2724,7 +2715,6 @@ sh scripts/plant-each.sh warp-door-issuer-unclassed warp-door-cause-twice warp-t
 
 2026-11-25, this commit. `why_shown` reads the issuer after `tls::SHOWN` in the failure of the door; `Issuer::of` gives `LetsEncrypt` ("WARP's side shows a certificate of Let's Encrypt at times in place of its key; a later try passes then"), `Warp` (Cloudflare, an unnamed issuer or none: the sentence of `v0.83.0`) or `Middlebox` ("A middlebox on the way terminates TLS; the key is pinned, so no root helps: go around it"; with a proxy, "The proxy PROXY, or a middlebox on the way, terminates TLS"). The other classes keep the sentence of a proxy. `after_mismatch` keeps the failure of the door that shows another key as the source and holds no word of it in its text; it names the first failure and the cause of another door only when the cause (with no address of the door) differs. Tests: `open::tests::the_cause_of_another_key_is_named_by_the_issuer_of_the_certificate` (the table of four issuers, each with and with no proxy), `open::tests::a_door_read_again_with_the_first_cause_says_it_once`, `open::tests::a_door_read_again_with_another_cause_is_named`; `tests/net.rs` 13 of 13. New plants `warp-door-issuer-unclassed` and `warp-door-cause-twice`; the plants `warp-t549-proxy-on-direct-road` and `warp-fresh-record-mismatch-unnamed` take the new code. Each of the four failed its test on its patch (run by hand); `sh scripts/plant-each.sh --apply`: 0 stale. `cargo test -p pod-warp --all-features`: 240 passed, 1 ignored. `cargo fmt --all --check`, `scripts/check-history.py`, `scripts/codegraph.py dups` and `new`: clean. T-1351 holds `tls::handshake_failure` and the fold of the failed doors of `open.rs`.
 
-
 # T-1377: `pod-proxy`: the failure of a dial and of a request holds the words of its `DialError` or its cause, so a reader that joins the chain says them two times
 
 **Source:** T-1351 (a finding of its work).
@@ -2753,7 +2743,6 @@ Move each reader of `Display` or `text` of a dial or request failure in the work
 cargo test --workspace --all-features
 ```
 
-
 # T-1378: `pod-warp`: the failure of an enrolment with no answer says the text of the path three times to a reader that joins the chain
 
 **Source:** T-1351 (a finding of its work).
@@ -2781,7 +2770,6 @@ Give the failure of `NoAnswer` the text "the provider's API did not answer" alon
 ```sh
 cargo test -p pod-warp --all-features
 ```
-
 
 # T-1394: `pod-cloudflare`: the DNS over HTTPS of the edge discovery waits about 35 s behind a proxy with no line, and with no cause at `-v` (PodUtils/podnet#755)
 
@@ -2861,3 +2849,40 @@ sh scripts/plant-each.sh --apply
 - Test: `open::tests::a_proxy_that_failed_at_any_door_gives_the_stage_proxy` (the proxy of the second door alone, of the first door alone, and no proxy).
 - Plant `warp-t1400-door-stage-of-first` (looks at the first door alone): caught (applied by hand).
 - `cargo test -p pod-warp --all-features` with the other crates of T-1399: 1730 passed, 0 failed. `cargo clippy -p pod-warp --all-targets --all-features -- -D warnings`: clean. `sh scripts/plant-each.sh --apply`: 0 stale. Not measured: a real proxy on the way to a door.
+
+# T-1404: `pod-cloudflare`: a capture sink of the HTTP exchanges of a tunnel, for `podnet tunnel --inspect` (PodUtils/podnet#758)
+
+**Source:** PodUtils/podnet#758 (COORD-128 of podnet, PodUtils/podnet@T-244; author COLLABORATOR).
+**Category:** feature
+**Milestone:** M3
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+The ask of podnet: "podnet plans `podnet tunnel --inspect`: a ring in memory of the last N HTTP exchanges of a tunnel (heads and bodies up to a cap, redacted by default), shown and replayed over a private unix socket. Each exchange goes through `proxy::forward::forward_http` and the copy helpers of `proxy/copy.rs` (`copy_chunked_to_futures`) and `proxy_bidi` of `pod-cloudflare` `v0.85.0`. podnet has no place to see the bytes: the code is in the crate."
+
+The asks: (1) "A capture sink that the consumer gives in `Config` (or in the `Host`), `None` by default: a trait with `head(direction, &head)` and `body(direction, &[u8])` for each exchange, and the end with the status and the time." (2) "The helpers call the sink after the write to the peer, so a slow or full sink holds no byte back. A sink that fails is dropped for that exchange, and the copy goes on." (3) "A chunked body gives the decoded payload that `copy_chunked_to_futures` writes, never the size lines. `proxy_bidi` (WebSocket) gives the head and the 101 status, then no body." (4) "A request that the credential of the tunnel refuses is not given to the sink." (5) "A test with a stand-in origin: the sink sees each head and body of a plain, a chunked and a WebSocket exchange, and a sink that fails does not change the bytes of the visitor." podnet keeps the ring, the redaction, the socket and the replay.
+
+## Premise
+
+- Read: PodUtils/podnet#758; `crates/pod-cloudflare/src/proxy.rs` (`Runtime::build`, `serve_request_inner`: the credential of the tunnel answers 401 before `forward_http` and removes `Authorization` from the request), `src/proxy/forward.rs` (`forward_http`, `proxy_bidi`), `src/proxy/copy.rs`, `src/proxy/head.rs` (`build_request_head` adds `Host`, `Upgrade` and `Connection` only, no credential), `src/host.rs` (`Host`, `Host::new`), `src/origin.rs` (`Origins`, which `forward_http` takes).
+- `python3 -I scripts/codegraph.py similar capture sink hook copy`: no capture of a byte stream exists to reuse.
+- `proxy_bidi` also carries a request with a chunked body that is not an upgrade. Its answer goes to the edge as raw bytes: a chunked answer then gives its size lines to the visitor, while `forward_http` sends only the payload of the chunks.
+
+## Approach
+
+A new public module `capture`: the trait `Capture` (`head`, `body`, `end`), `Direction`, `Head`, `End` and `Refused`. `Host::capture` (`Option<Arc<dyn Capture>>`, `None` in `Host::new`) goes to `Origins::with_capture` in `Runtime::build`; `forward_http` takes it from `Origins`, so its signature stays. One exchange gets an id from a counter of `Origins`; a `Tap` of the crate joins the head, the body parts and the end. The sink is a non-blocking call (not a bounded hand-off of the crate): each method returns at once, and the crate calls it after the write to the peer; an `Err` drops the sink for that exchange, and the copy goes on. The request head is the head that went to the origin; a chunked request body is decoded for the sink only (the origin gets it as it is). An upgrade gives its heads and no body. The answer of `proxy_bidi` that is not an upgrade takes the same framing as `forward_http` (the chunks decoded). Tests use a stand-in origin; a plant calls the sink before the write, and a plant sends the answer to a chunked request with no framing.
+
+## Prove
+
+```sh
+cargo test -p pod-cloudflare --all-features
+cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh cloudflare-capture-before-the-write cloudflare-chunked-request-answer-unframed
+```
+
+## Done
+
+2026-11-25. Commit: see `git log` for T-1404. New public module `capture`: the trait `Capture` (`head(exchange, &Head)`, `body(exchange, Direction, &[u8])`, `end(exchange, &End)`), `Direction` (`Request`, `Response`), `Head` (`line`, `headers`; `direction()`, `header(name)`), `Line` (`Request { method, target }`, `Response { status }`), `End` (`status`, `started`, `elapsed`, `complete`) and `Refused`. `Host::capture: Option<Arc<dyn Capture>>` (`None` in `Host::new`) goes to `Origins::with_capture` in `Runtime::build`; `forward_http` keeps its signature. The sink is a non-blocking call with no queue in the crate: each method returns at once (a ring under a short lock, a `try_send`), and the crate calls it after the write (and the flush) to the peer. `Refused` drops the sink for that exchange: no other call and no end; the copy goes on with the same bytes. `Origins` gives each exchange an id from a counter; the crate-side `capture::Tap` joins the heads, the body parts and the end, and gives the end in its drop, once, after each other call. The request head is the head that went to the origin (`Head::of_request` of `build_request_head`): a request that the credential in front of the tunnel refuses (401) reaches no sink, and its `Authorization` is removed before; the headers of the visitor stay, and the doc of `capture` says that the consumer redacts. A chunked answer gives its decoded payload; a chunked request body is decoded for the sink only (`capture::Dechunk`, which takes the bytes in parts; a bad framing stops the capture, not the copy). An upgrade gives its two heads (101) and no body. Fixed in the same work: the answer to a chunked request (`proxy_bidi` with no upgrade) went to the visitor as raw bytes, so a chunked answer gave its size lines to the visitor; `forward_http` and `proxy_bidi` now share `answer`, which frames the answer the same way in both. Tests: `proxy::capture_tests::the_sink_sees_each_exchange` (a stand-in origin: a plain exchange with a request body, a chunked answer, a chunked request with a chunked answer, a WebSocket; each head, each payload, one end with the status, an id for each exchange), `a_sink_that_refuses_does_not_change_the_bytes`, `the_credential_of_the_tunnel_never_reaches_the_sink`, `the_sink_gets_a_part_after_the_visitor`; `capture::dechunk::tests` (3). New plants `cloudflare-capture-before-the-write` (the sink before the write of an answer part) and `cloudflare-chunked-request-answer-unframed` (the old raw answer to a chunked request): each test failed on its patch with the EXPECT line (run by hand in the worktree). `cargo test -p pod-cloudflare --all-features`: 216 + 13 passed, 0 failed. `cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings` and `cargo fmt --all --check`: clean. Not verified: the capture behind the real edge, and podnet's ring on the sink.

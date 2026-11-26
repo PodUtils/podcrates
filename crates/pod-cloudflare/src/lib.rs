@@ -2,6 +2,7 @@
 //! HTTP/2, Cap'n Proto RPC, the legs and their race, ingress, and the quick
 //! tunnels.
 
+pub mod capture;
 pub mod cloudflare;
 pub mod config;
 pub mod edge_discovery;

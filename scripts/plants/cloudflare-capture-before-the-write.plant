@@ -1,0 +1,8 @@
+# The copy of an answer gives each part to the capture sink before its
+# write to the visitor (PodUtils/podnet#758): a slow or full sink then
+# holds the bytes of the visitor back. At each call, the visitor must have
+# each byte that the sink got.
+ENTRY=T-1404
+GROUP=cloudflare
+EXPECT='test proxy::capture_tests::the_sink_gets_a_part_after_the_visitor \.\.\. FAILED'
+RUN='cargo test -p pod-cloudflare --all-features --lib -- proxy::capture_tests::the_sink_gets_a_part_after_the_visitor --exact'

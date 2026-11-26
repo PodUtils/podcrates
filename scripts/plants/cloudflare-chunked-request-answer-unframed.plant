@@ -1,0 +1,7 @@
+# The answer to a chunked request goes to the visitor as raw bytes, with
+# no framing (PodUtils/podnet#758): a chunked answer then gives its size
+# lines to the visitor. The visitor and the sink must get the payload only.
+ENTRY=T-1404
+GROUP=cloudflare
+EXPECT='test proxy::capture_tests::the_sink_sees_each_exchange \.\.\. FAILED'
+RUN='cargo test -p pod-cloudflare --all-features --lib -- proxy::capture_tests::the_sink_sees_each_exchange --exact'

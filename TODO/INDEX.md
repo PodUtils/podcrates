@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1047 entries: 171 open, 31 partial, 6 blocked, 839 done.**
+**1048 entries: 171 open, 31 partial, 6 blocked, 840 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 245 | 258 |
-| P2 | 76 | 12 | 4 | 438 | 530 |
+| P2 | 76 | 12 | 4 | 439 | 531 |
 | P3 | 91 | 10 | 2 | 154 | 257 |
-| **All** | 171 | 31 | 6 | 839 | 1047 |
+| **All** | 171 | 31 | 6 | 840 | 1048 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1077,6 +1077,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1401](upkeep.md) | P2 | S | M5 | defect | done | `pod-core`: the drop of a `FileLock` only closes its descriptor, so a copy of the descriptor in a child that a spawn makes keeps the lock after the drop |
 | [T-1402](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the node looks for the relay's Close behind a failed ping only 8 frames or 200 ms ahead, so a relay that sends data first gives "the link to the relay ended with no Close" (PodUtils/podssh#360) |
 | [T-1403](relay.md) | P2 | S | M2 | defect | done | `pod-e2e`: a failure of the node's target reads as "the stream under the channel failed", and the node's line does not name the target |
+| [T-1404](adapters.md) | P2 | M | M3 | feature | done | `pod-cloudflare`: a capture sink of the HTTP exchanges of a tunnel, for `podnet tunnel --inspect` (PodUtils/podnet#758) |
 | [T-1405](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: `reverse::operator::exchange` leaves its two tasks alive when it is dropped, so a dropped leg keeps its socket open (PodUtils/podssh#361) |
 | [T-1407](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: the refusals of a pair: the body of a 403, a refusal of a new pair, a spent token of `--once`, and a doubled subject in `file_name` (PodUtils/podssh#362, ask 2) |
 | [T-1408](relay.md) | P2 | S | M2 | defect | open | `pod-e2e`: `Redeem` does not say whether a bearer or a grant was refused or let in, and the node says "a grant" for a bearer (PodUtils/podssh#362, ask 3) |

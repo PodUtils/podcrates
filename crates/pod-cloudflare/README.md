@@ -29,7 +29,7 @@ WARP are the caller's: the `Host`.
 
 | Item | Contents |
 | --- | --- |
-| `Host` | What the consumer gives: `tls: Arc<pod_tls::Context>` (the provider, the roots; the edge roots of Cloudflare are added as extra roots), `dial: Arc<dyn Dial>` (the way out: direct or through the proxy), `resolver: Arc<pod_dns::Resolver>` (the SRV record of the edge by DNS over HTTPS, the step that answers a name), `system_srv: Option<Arc<dyn SystemSrv>>` (the SRV record of the system resolver), `origin_no_verify: Option<Arc<rustls::ClientConfig>>` (the TLS of an origin with `noTLSVerify`), `services: Arc<dyn ServiceDispatch>`, `report: Report` (events and decisions), `relay: Option<EdgeRelay>`, `warp: Option<Arc<dyn WarpSessions>>`, `settings: Settings`. `Host::new(tls, dial)`: the resolver of `pod-dns` over the same way, no services, no relay, no WARP. `event`, `client`, `send` (a request of `pod_proxy::Client`; the failure names the request), `answering_step`, `proxy_for`, `connect`. |
+| `Host` | What the consumer gives: `tls: Arc<pod_tls::Context>` (the provider, the roots; the edge roots of Cloudflare are added as extra roots), `dial: Arc<dyn Dial>` (the way out: direct or through the proxy), `resolver: Arc<pod_dns::Resolver>` (the SRV record of the edge by DNS over HTTPS, the step that answers a name), `system_srv: Option<Arc<dyn SystemSrv>>` (the SRV record of the system resolver), `origin_no_verify: Option<Arc<rustls::ClientConfig>>` (the TLS of an origin with `noTLSVerify`), `services: Arc<dyn ServiceDispatch>`, `report: Report` (events and decisions), `relay: Option<EdgeRelay>`, `warp: Option<Arc<dyn WarpSessions>>`, `capture: Option<Arc<dyn capture::Capture>>` (the sink of the HTTP exchanges, see `capture`), `settings: Settings`. `Host::new(tls, dial)`: the resolver of `pod-dns` over the same way, no services, no relay, no WARP, no capture. `event`, `client`, `send` (a request of `pod_proxy::Client`; the failure names the request), `answering_step`, `proxy_for`, `connect`. |
 | `Settings` | See [Settings](#settings). |
 | `Words` | The words of the consumer in the texts for the user: `name`, `protocol`, `udp_off`, `strict`, `resolve`, `tcp_origin`. The default names no consumer. |
 | `ServiceDispatch` | The services of the consumer (`Service::Static`, `Service::Custom`): `prepare(index, service)` before the start (a bad service stops the start), `serve(index, request, host, reader, writer)` for each request of the rule. `NoServices` refuses each. |
@@ -40,8 +40,9 @@ WARP are the caller's: the `Host`.
 | `config` | `Config { service_url, user_agent, credentials, protocol, transport, ha_connections, reconnect, ingress, verify, failover, secrets }`; `Credentials` (`Quick`, `Token`, `File`, `Explicit`; `Debug` hides the secrets), `parse_token`, `parse_credentials_file`, `Protocol`, `Transport` (`Auto`, `Direct`, `Warp`, `Relay`), `ReconnectPolicy` (`next(attempt, &Failure) -> Next`; a refusal with no retry stops the leg), `MAX_RETRY_AFTER`; `load_file`, `load_file_with(path, &Report)` (cloudflared's `config.yml`: its keys, the types of its values, a near key for a typo, the ingress rules), `CLOUDFLARED_KEYS`, `ORIGIN_REQUEST_KEYS`, `RULE_KEYS`. |
 | `quicktunnel` | `provision(host, endpoint, auth_mode, user_agent, timeout, budget)` (429 and 5xx tried again after `Retry-After` or a backoff, at most `PROVISION_ATTEMPTS` in `PROVISION_BUDGET`; a name that does not resolve once, then only on a new answering step), `request_quick_tunnel`, `QuickTunnel` (`secret_bytes`), `AuthMode` (`Public`, `Otp`), `ProvisionError` (the cause of the failure), `retry_of(&Failure) -> Option<Refusal>`, `parse_retry_after`, `validate_quick_hostname`, `default_quick_service`. |
 | `ingress` | `Ingress { rules, auth }` (`rule`, `rule_with`, `catch_all`, `resolve`, `resolve_index`), `IngressRule`, `Service` (`Http`, `Unix`, `UnixTls`, `Tcp`, `Forward`, `HelloWorld`, `Status`, `Static`, `Metrics`, `Custom`; `parse` of cloudflared's forms), `Custom`, `ForwardTarget`, `OriginOptions` (cloudflared's `originRequest`), `PathPattern` (a regular expression on the decoded path, as cloudflared), `credentials(user, file)` (the credential in front of the tunnel), `ingress_from_raw`. |
-| `origin` | `Origins` (`new(tls)`, `with_report`, `with_words`, `with_no_verify`, `dial(service, options)`, `words`): HTTP, HTTPS, unix, TLS over unix, TCP; `noTLSVerify` with no configuration of the consumer is a failure of the class `Policy`. `connect_origin` (`localhost` with no resolver), `parse_http_url`, `split_host_port`, `local_name`, `origin_label`. |
+| `origin` | `Origins` (`new(tls)`, `with_report`, `with_words`, `with_no_verify`, `with_capture`, `dial(service, options)`, `words`): HTTP, HTTPS, unix, TLS over unix, TCP; `noTLSVerify` with no configuration of the consumer is a failure of the class `Policy`. `connect_origin` (`localhost` with no resolver), `parse_http_url`, `split_host_port`, `local_name`, `origin_label`. |
 | `proxy` | `Runtime` (`build(host, &ingress, metrics)`, `host`, `origins`, `metrics`), `serve_stream` (a QUIC stream), `serve_decoded` (a stream of the HTTP/2 leg), `EdgeReader`, `EdgeWriter`, `forward_http`, `forward_tcp`, `build_request_head`, `write_response_meta`, `write_simple_response`, `write_simple_response_with`, `header_value`, `content_length`, `is_websocket`, `auth_body`, `tcp_http_body`, `RPC_STREAM_REFUSED`. |
+| `capture` | The capture of each HTTP exchange of an origin (`forward_http`), for an inspector of the consumer. `Capture` (`head(exchange, &Head)`, `body(exchange, Direction, &[u8])`, `end(exchange, &End)`), `Direction` (`Request`, `Response`), `Head` (`line`, `headers`, `direction`, `header`), `Line` (`Request { method, target }`, `Response { status }`), `End` (`status`, `started`, `elapsed`, `complete`), `Refused`. The crate calls the sink after each write to the peer; each method returns at once (a non-blocking call: a ring under a short lock, a `try_send`), and the crate keeps no queue. `Refused` drops the sink for that exchange (no other call, no end); the copy goes on with the same bytes. A chunked body gives its payload, never the size lines; an upgrade gives its two heads (101) and no body. The request head is the head that went to the origin: a request that the credential in front of the tunnel refuses reaches no sink, and its `Authorization` is removed. The headers of the visitor (a `Cookie`, an `Authorization` for the origin) stay: the consumer redacts. |
 | `ws` | `serve_websocket` (the edge side of a forward: 101 only for a target that answers, else 502), `forward_path`, `forward_path_with`, `forward_url`, `accept_key`, `DEFAULT_PATH`. |
 | `metrics` | `Metrics` (`new`, `with_prefix(name)`, the counters, `snapshot`, `prometheus`), `MetricsSnapshot`. |
 | `edge_h2` | The HTTP/2 leg: `connect`, `reactor`, `serve_connection`, `body_reader`, `body_writer`, `stream_type`, `connect_request`, `edge_response`, `H2Leg`, `Keepalive`, `Budget`, `server_builder`, the windows and the limits. |
@@ -93,9 +94,15 @@ Each variable of a consumer is a field (`docs/design.md`, section 1, rule
 * A refusal of the registration with retry: yes gets new tries for 30 s
   from the first refusal; when each leg failed so, the start fails with
   the class TempFail and the typed `fail::Refused` in its chain.
+* `src/proxy/capture_tests.rs`: the sink of the capture with a stand-in
+  origin: the heads and the bodies of a plain, a chunked and a WebSocket
+  exchange, a sink that refuses, the credential in front of the tunnel,
+  and the order of the write and the sink.
 * The plants of the group `cloudflare` (`scripts/plants/cloudflare-*`):
   the bound check of a list of Cap'n Proto, `noTLSVerify` with no
-  configuration, the relay on a leg other than `http2+relay`.
+  configuration, the relay on a leg other than `http2+relay`, the sink
+  of the capture called before the write to the visitor, the answer to a
+  chunked request with no framing.
 * The fuzz targets of `fuzz/` (`fuzz/README.md`).
 
 ## The parity list
@@ -126,7 +133,7 @@ Each variable of a consumer is a field (`docs/design.md`, section 1, rule
 | The edge side of a forward (WebSocket to TCP or unix) | yes | [x] |
 | Hello world, a status, the metrics | yes | [x] |
 | podnet's services (files, git, shares, the PIN gate) | yes | [ ] stays in podnet, behind `ServiceDispatch` |
-| `tunnel --inspect` (the capture of each exchange) | no | [ ] a hook on `forward_http` (open) |
+| `tunnel --inspect` (the capture of each exchange) | no | [x] the sink `Host::capture` (`capture::Capture`) |
 | The check of the public URL | yes | [x] |
 | The header oracle of cloudflared | yes | [x] (`tools/`) |
 | The pin of cloudflared and its watch | yes | [ ] the pin is here; its watch (podnet `tools/check-upstream.py`, `upstream.yml`, removed by the adoption) is open |
