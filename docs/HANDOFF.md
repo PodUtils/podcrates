@@ -35,8 +35,7 @@ is done. Git and the record keep finished work.
      (COORD-149, T-1396).
    - Done on `main` after `v0.85.0`: PodUtils/podnet#756 (COORD-126,
      T-1395); answer it with the next tag.
-   - PodUtils/podssh#360 (COORD-150): asks 3 and 5 are T-1401 and T-1403,
-     done on `main`; asks 1, 2 and 4 are with a worker. PodUtils/podssh#361
+   - PodUtils/podssh#360 (COORD-150): T-1399 to T-1403, done on `main`. PodUtils/podssh#361
      (COORD-151) is T-1405; PodUtils/podssh#362 (COORD-152): asks 2 and 3
      are T-1407 and T-1408, asks 1, 4 and 5 are with workers;
      PodUtils/podssh#363 (COORD-153): ask 3 is T-1413 (optional), asks 1
@@ -134,6 +133,14 @@ closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
   each with `size=N` and reads the limit back (steps 49 to 52). Breaking:
   each struct literal of `Plan` adds `tmpfs: Vec::new()`. T-1430 (a rule of
   the confinement on such a tmpfs) is open.
+- T-1399, T-1400, T-1402 (PodUtils/podssh#360 asks 1, 2, 4): `pod-quic`
+  `connect::handshake` and `pod-relay` `quic_road::dial` keep the cause of
+  a failed UDP socket ("no UDP socket for QUIC: CAUSE"), and 14 more sites
+  of 11 crates show `chain()` of a failure; `pod-warp`'s joined failure of
+  the doors has the stage `Proxy` when any door failed at a proxy;
+  `pod-relay` `reverse::closes::pending` looks for the Close for
+  `LOOK_WAIT` (1 s) or `LOOK_BYTES` (4 MiB), not 8 frames. T-1463 (a check
+  that stops a new `to_string()` of a failure) is open.
 - T-1401 (`pod-core`, PodUtils/podssh#360 ask 3): `impl Drop for
   FileLock` unlocks before the close, so a copy of the descriptor in a
   child between fork and exec does not keep the lock.
