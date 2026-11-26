@@ -124,9 +124,10 @@ pub(crate) fn next(after: Option<Source>, known: &Known) -> Option<Source> {
 /// with the asking of the system resolver and of DNS over HTTPS given: each
 /// is awaited at most once, and only when the order reaches it. The caller
 /// names the host ("could not resolve HOST: ..."), so the error says only
-/// what each source answered, in at most [`LINE`] bytes.
+/// what each source answered, in the bytes that [`most`] gives for `host`.
 pub(crate) async fn resolve_in<S, D>(
     known: &Known,
+    host: &str,
     port: u16,
     after: Option<Source>,
     system: S,
@@ -165,13 +166,29 @@ where
             Err(e) => reasons.push(e),
         }
     }
-    Err(if reasons.is_empty() { "no source gave an address".into() } else { fit(reasons, LINE) })
+    Err(if reasons.is_empty() { "no source gave an address".into() } else { fit(reasons, most(host)) })
 }
 
-/// The most bytes of the failures of the sources: with the words of the
-/// dialer (`could not resolve HOST: `), the line of a short name stays under
-/// 200 bytes (PodUtils/podnet#698).
-pub(crate) const LINE: usize = 160;
+/// The most bytes of the line of the dialer, `could not resolve HOST: ` and
+/// the failures of the sources (`pod_proxy::DialError::Resolve`). The
+/// failures of a long name get fewer bytes, so that podnet's line of a name
+/// of 63 bytes (`podnet: connecting to HOST:PORT: ` and this line) stays
+/// under its 300 bytes; a name of 15 bytes keeps the two causes of
+/// PodUtils/podnet#753 whole.
+pub(crate) const LINE: usize = 206;
+
+/// The fewest bytes of the failures, for a name too long for [`LINE`]: the
+/// leads of each source and the class of each cause fit.
+pub(crate) const LEAST: usize = 112;
+
+/// The words of the dialer before the name.
+const DIALER: &str = "could not resolve ";
+
+/// The most bytes of the failures of the sources for `host`: [`LINE`] less
+/// the words of the dialer, at least [`LEAST`].
+pub(crate) fn most(host: &str) -> usize {
+    LINE.saturating_sub(DIALER.len() + host.len() + ": ".len()).max(LEAST)
+}
 
 #[cfg(test)]
 mod tests {
@@ -198,6 +215,7 @@ mod tests {
         let asked = RefCell::new(Vec::new());
         let found = resolve_in(
             known,
+            "example.com",
             443,
             after,
             async {

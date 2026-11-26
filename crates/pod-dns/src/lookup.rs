@@ -240,9 +240,10 @@ mod tests {
             let known = crate::order::Known { asks: true, ..Default::default() };
             let system = async { Err("failed to lookup address information: Try again".to_string()) };
             let doh = async { Err(fold(&reasons)) };
-            let detail = crate::order::resolve_in(&known, 80, None, system, doh).await.unwrap_err();
-            let line = pod_proxy::DialError::Resolve { host: "nowhere.invalid".into(), detail }.to_string();
-            assert!(line.len() < 200, "{} bytes: {line}", line.len());
+            let host = "nowhere.invalid";
+            let detail = crate::order::resolve_in(&known, host, 80, None, system, doh).await.unwrap_err();
+            let line = pod_proxy::DialError::Resolve { host: host.into(), detail }.to_string();
+            assert!(line.len() <= crate::order::LINE, "{} bytes: {line}", line.len());
             assert!(line.contains("system resolver: Try again") && line.contains("DNS over HTTPS: "), "{line}");
             assert_eq!(line.matches("DNS over HTTPS: ").count(), 1, "{line}");
             assert!(!line.contains("resolvers ("), "one phrase for each source: {line}");

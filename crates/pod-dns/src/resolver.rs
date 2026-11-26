@@ -123,7 +123,7 @@ impl Resolver {
         // DNS over HTTPS leaves the old addresses their turn.
         let doh_by =
             if known.old.is_empty() { deadline } else { deadline.checked_sub(SOURCE_WAIT).unwrap_or(deadline) };
-        resolve_in(&known, port, after, self.system(host, port, deadline), self.doh_lookup(host, doh_by)).await
+        resolve_in(&known, host, port, after, self.system(host, port, deadline), self.doh_lookup(host, doh_by)).await
     }
 
     /// The addresses of `host`, with no port: the first source that gives
