@@ -41,7 +41,8 @@ is done. Git and the record keep finished work.
      (COORD-153, T-1411, T-1412; ask 3 is T-1413, optional) and
      PodUtils/podnet#758 (COORD-128, T-1404), PodUtils/podnet#776
      (COORD-131, T-1416). Answer each with the next tag.
-   - In work: PodUtils/podssh#367 (COORD-154; a worker writes its entries).
+   - Done on `main` after `v0.85.0`: PodUtils/podssh#367 (COORD-154, T-1421
+     to T-1423).
    - Open asks: PodUtils/podssh#358 (COORD-148) is T-1390;
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -134,6 +135,12 @@ closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
   each with `size=N` and reads the limit back (steps 49 to 52). Breaking:
   each struct literal of `Plan` adds `tmpfs: Vec::new()`. T-1430 (a rule of
   the confinement on such a tmpfs) is open.
+- T-1421 to T-1423 (`pod-core`, `pod-relay`, `pod-tls`; PodUtils/podssh#367):
+  `pod_core::text::plain` and `io_words` drop Rust's " (os error N)" from
+  a line; `grant::read_file`, the cleartext mint and 13 more lines of
+  `pod-relay` and `pod-tls` use them (`pod-dns` too, in place of its own
+  copy); the CA bundle names its path once ("CA bundle /x: No such file or
+  directory").
 - T-1474 (`pod-dns`, PodUtils/podnet#753 again): the bound of the line
   of a name that does not resolve counts the name: the whole line
   ("could not resolve HOST: " and the failures) has at most 206 bytes
@@ -272,9 +279,8 @@ closed: podrunner `72cd0ab`, podvm `04c8b7f4`, podnet `405d47c` and podssh
 
 ## Unfinished work
 
-- One worker is in flight: T-1444 and T-1445 (the red nightly) on the
-  local branch `nfix1125` in `.claude/worktrees/nfix1125`. Each other
-  branch of the agents is merged into `main`.
+- No worker is in flight and no worktree is left. Each branch of the
+  agents is merged into `main`.
 - `origin/wip/t1073` is merged into `main` (T-1073, T-1070). The proxy
   refuses `git push origin --delete`, so the owner deletes the branch on
   GitHub (`TODO/PROGRESS.md`, "Owner actions"). No other `wip/` branch

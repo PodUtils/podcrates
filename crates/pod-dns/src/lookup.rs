@@ -104,17 +104,6 @@ fn without_address(cause: &str, at: &str) -> String {
     out
 }
 
-/// `text` with no `(os error N)` of the system: the kind says it in words.
-fn without_os_error(text: &str) -> String {
-    match text.find(" (os error ") {
-        Some(i) => match text[i..].find(')') {
-            Some(end) => format!("{}{}", &text[..i], without_os_error(&text[i + end + 1..])),
-            None => text.to_string(),
-        },
-        None => text.to_string(),
-    }
-}
-
 /// The full list of the failures of the resolvers, for a log at debug: a
 /// failure that each resolver had in the same words is said once with the
 /// count, and a resolver is named alone only where its failure differs
@@ -146,11 +135,11 @@ pub(crate) fn fold(reasons: &[(String, String)]) -> Phrase {
     match &groups[..] {
         [] => Phrase::of("no resolver answered"),
         [(cause, ats)] => match &ats[..] {
-            [""] => Phrase::of(without_os_error(cause)),
-            [at] => Phrase::new("", vec![(format!("{at}: "), without_os_error(cause))]),
+            [""] => Phrase::of(pod_core::text::plain(cause)),
+            [at] => Phrase::new("", vec![(format!("{at}: "), pod_core::text::plain(cause))]),
             _ => Phrase::new(
                 format!("each of {resolvers} resolvers failed: "),
-                vec![(String::new(), without_os_error(cause))],
+                vec![(String::new(), pod_core::text::plain(cause))],
             ),
         },
         _ => {
@@ -164,7 +153,7 @@ pub(crate) fn fold(reasons: &[(String, String)]) -> Phrase {
                         0 => String::new(),
                         n => format!("{n} with "),
                     };
-                    (lead, without_os_error(cause))
+                    (lead, pod_core::text::plain(cause))
                 })
                 .collect();
             let noun = if resolvers == 1 { "resolver" } else { "resolvers" };
