@@ -8,7 +8,7 @@
 use std::time::{Duration, Instant};
 
 use pod_term::transfer::{
-    CHUNK_MIN, Dir, Ended, Event, FileInfo, LINGER, RESEND_MAX, RESEND_MIN, Transfer, WAIT, stop,
+    CHUNK_FLOOR, CHUNK_MIN, Dir, Ended, Event, FileInfo, LINGER, RESEND_MAX, RESEND_MIN, Transfer, WAIT, stop,
 };
 
 const ID: [u8; 8] = [0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef];
@@ -172,7 +172,9 @@ fn x1_a_lost_ack_sends_the_same_data_again_and_the_chunk_falls() {
     assert_eq!(text(&t.poll_output(later)), text(&near(DATA)));
     t.feed(&far(ACKN), later);
     assert_eq!(text(&t.poll_output(later)), text(&near(DONE)));
-    assert_eq!(t.chunk(), Some(1024));
+    // The 6 bytes are under the floor, so the DATA built again is the same.
+    // The chunk falls to the floor after a loss (T-1390); it was CHUNK_MIN.
+    assert_eq!(t.chunk(), Some(CHUNK_FLOOR));
 }
 
 #[test]

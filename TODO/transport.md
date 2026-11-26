@@ -8211,7 +8211,7 @@ For the hand-off: the wire version is 2, so a podssh of the codec of version 1 a
 **Milestone:** M1
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -8238,10 +8238,23 @@ not the same bytes.
 
 - Read: the body of PodUtils/podssh#358; `crates/pod-term/src/transfer.rs`
   (`CHUNK_MIN` = 1024, `set_width`).
-- Not read: the frame layout and the size of a frame in rows for a chunk
-  and a width; the field of the chunk in `HELO`; whether a new field of
-  `HELO` needs version 3 of the codec or fits version 2 (a version 2 end
-  that reads an unknown field); the vectors of the codec.
+- Read: the frame layout (`wire::frame`: `#KIND:`, the base64 with no
+  padding, `!` and 8 hex digits of the CRC; a line breaks at the width,
+  and the CRC goes on a new line when it does not fit). A `DATA` of `n`
+  bytes takes `(6 + ceil(4 * (8 + n) / 3) + 9) / width` lines, rounded up.
+- Read: `HELO` is `version` (1 byte), `id` (8), `chunk` (4, big-endian).
+  `Msg::decode` refuses bytes after the last field (`Bad::Field`, a stop
+  with `stop::PROTOCOL`). `on_hello` of version 2 sets
+  `cap = min(CHUNK_MAX, chunk)`, starts the chunk at `min(CHUNK_MIN,
+  cap)`, and the receiver stops at a `DATA` longer than `cap`. Each end
+  sent `CHUNK_MAX`.
+- Read: the vectors (`src/transfer/tests.rs`, rows T and F;
+  `tests/transfer.rs`, the exchanges and the faults X; 
+  `PodUtils/podssh:docs/terminal.md`, "The 7-bit envelope", follows them); the resend
+  (`resend` of `flow.rs`: `flight.bytes` again, chunk to `CHUNK_MIN`);
+  the far program of podssh (`PodUtils/podssh:crates/podssh-ssh/src/zmodem/far.rs`:
+  `set_width` from the size at the start, and `put` writes a poll in parts
+  of half the pane with 40 ms between them).
 
 ## Approach
 
@@ -8258,11 +8271,91 @@ not the same bytes.
 6. Tests: a pane of 23 by 120 and of 23 by 48 keeps each frame within the
    rows; a resend is at the floor; a version mismatch is refused, as now.
 
+## Decision
+
+The cap goes in the field `chunk` of `HELO` of version 2; there is no
+version 3. A new field would break the pair: a version 2 end refuses
+bytes after the last field of `HELO` (`Bad::Field`). The field `chunk`
+is already a cap in version 2: each end takes `min(CHUNK_MAX, chunk)`,
+sends no larger `DATA`, and refuses a larger one. Thus a far end that
+sends the cap of its pane pairs with a near end of `v0.84.0`, and the
+near end of this change pairs with a far end of `v0.84.0` (which sends
+`CHUNK_MAX`, as before). A `DATA` sent again with fewer bytes is a valid
+`DATA` of version 2 (the receiver skips the bytes it has). The wire
+bytes of the vectors do not change: with no `set_size`, `HELO` carries
+`CHUNK_MAX`.
+
 ## Prove
 
 ```sh
 cargo test -p pod-term --all-features transfer
+sh scripts/plant-each.sh term-transfer-pane-cap term-transfer-resend-floor term-transfer-helo-cap
 ```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1390.
+
+Result: `Transfer::set_size(cols, rows)` beside `set_width`, and
+`Transfer::pane_chunk(cols, rows)`; the constants `CHUNK_FLOOR` (256 B)
+and `SPARE_ROWS` (2). The cap of a pane is the largest chunk whose `DATA`
+frame takes at most `rows - SPARE_ROWS` lines at `cols - 1` bytes, not
+under `CHUNK_FLOOR` and not over `CHUNK_MAX` (1855 B at 23 by 120, 721 B
+at 23 by 48; a size of 0 gives no cap). Each end sends the cap of its
+pane in `HELO` and takes the smaller of the two caps; a resize during a
+session can lower the chunk, never raise it past the cap of `HELO`. A
+`DATA` lost (no ack in time, or an ack that does not advance) goes again
+with its first `CHUNK_FLOOR` bytes, built again at the width of now, and
+the chunk falls to `CHUNK_FLOOR` (it fell to `CHUNK_MIN`). The sender
+hashes each byte when it is first supplied, and takes an ack that counts
+past the frame in flight up to the bytes supplied: a longer frame of the
+same offset that came late is no fault. An `OFFR` carries the last
+component of the name only (the receiver keeps only it; a path made the
+frame taller). The doc of the module named the trigger `#PODSSH-TX1:`; it
+is `#PODSSH-TX2:`.
+
+Tests: `tests/transfer_pane.rs`, a model of a tmux pane that paints only
+the last screen of each read:
+`a_download_through_a_pane_keeps_each_read_within_its_rows` (23 by 120
+and 23 by 48: each read within 21 rows, no line cut, the chunk grows to
+the cap and not past it),
+`the_cap_of_the_far_end_in_helo_lowers_the_chunk_of_the_near_end` (an
+upload: the near end's largest chunk is the far cap),
+`a_data_cut_by_a_narrower_pane_goes_again_at_the_floor_and_arrives` (the
+pane falls from 120 to 48 columns after a `DATA` at the cap: the frame is
+cut, and the resend at the floor arrives),
+`the_cap_of_a_pane_keeps_a_data_frame_within_its_rows_with_a_floor`. In
+`src/transfer/tests.rs`: `the_lines_of_a_frame_are_those_that_wire_breaks`,
+`each_chunk_up_to_the_cap_of_a_pane_stays_within_its_rows` (each chunk
+from 1 to the cap, and the cap is the largest that fits),
+`a_data_lost_goes_again_at_the_floor_and_a_late_ack_of_the_first_counts`
+(the resent frame differs, carries 256 B, and the `DONE` has the SHA-256
+of the file), `an_ack_past_the_bytes_supplied_stops_the_session`,
+`an_offer_names_the_last_component_only`. The vectors pass unchanged,
+except `x1_a_lost_ack_sends_the_same_data_again_and_the_chunk_falls`: the
+chunk after the loss is `CHUNK_FLOOR`, not 1024 (the 6 bytes are under
+the floor, so the frame sent again is the same). `cargo test -p pod-term
+--all-features`: each target passed (`transfer` 24, `transfer_pty` 7,
+`transfer_pane` 4, the unit tests 112).
+
+Plants: `scripts/plants/term-transfer-pane-cap.plant` (no cap from the
+rows), `scripts/plants/term-transfer-resend-floor.plant` (the resend
+repeats the same bytes), `scripts/plants/term-transfer-helo-cap.plant`
+(the near end ignores the cap of `HELO`): each caught. The patches of
+`term-transfer-chunk` and `term-transfer-resend` follow the changed
+lines; both caught.
+
+The step for podssh: take the next tag; in the far program
+(`PodUtils/podssh:crates/podssh-ssh/src/zmodem/far.rs`) call `codec.set_size(cols, rows)`
+in place of `set_width`, at the start and at each resize, and write each
+`poll_output` at once (drop `PACE` and the parts of `put`). The near end
+needs no call: it learns the cap from `HELO`. The vectors of
+`PodUtils/podssh:crates/podssh-ssh/tests/pty_envelope.rs` keep their bytes when no size is
+set; a far end with a size sends its cap in `HELO` (for example
+`chunk = 721` at 23 by 48). `PodUtils/podssh:docs/terminal.md` names the cap of
+`HELO`, `CHUNK_FLOOR` and the resend at the floor. Not verified here: a
+run through tmux (the gate `pty.envelope.*` of podssh, the files of 3,000
+bytes and 1 MiB with no pause).
 
 # T-1392: `pod-dns`: the line of a name that does not resolve is cut inside the text of a cause, and it names the cause of one group of resolvers only (PodUtils/podnet#753)
 

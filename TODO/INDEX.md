@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1065 entries: 169 open, 31 partial, 6 blocked, 859 done.**
+**1065 entries: 168 open, 31 partial, 6 blocked, 860 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 73 | 12 | 4 | 454 | 543 |
+| P2 | 72 | 12 | 4 | 455 | 543 |
 | P3 | 92 | 10 | 2 | 157 | 261 |
-| **All** | 169 | 31 | 6 | 859 | 1065 |
+| **All** | 168 | 31 | 6 | 860 | 1065 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1063,7 +1063,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1387](upkeep.md) | P2 | S | M8 | chore | partial | COORD `(to all)`: one `docs/hosted-sessions.md` with one role table for each repository of PodUtils |
 | [T-1388](upkeep.md) | P3 | S | M5 | chore | open | The debug info of the dev and test profiles, measured for the size of the target |
 | [T-1389](podvm.md) | P1 | M | M6 | feature | done | `pod-enter`: a required tmpfs with a byte limit at a guest path of the namespace rung (PodUtils/podvm#667) |
-| [T-1390](transport.md) | P2 | M | M1 | feature | open | `pod-term`: the transfer codec keeps each frame within the rows of the pane, with a floor of the chunk under 1 KiB and a resend at the floor (PodUtils/podssh#358) |
+| [T-1390](transport.md) | P2 | M | M1 | feature | done | `pod-term`: the transfer codec keeps each frame within the rows of the pane, with a floor of the chunk under 1 KiB and a resend at the floor (PodUtils/podssh#358) |
 | [T-1391](podvm.md) | P2 | M | M6 | feature | open | A pinned static `mkfs.erofs` for a rootless disk image from a streamed OCI tar (PodUtils/podvm#668) |
 | [T-1392](transport.md) | P2 | S | M1 | defect | done | `pod-dns`: the line of a name that does not resolve is cut inside the text of a cause, and it names the cause of one group of resolvers only (PodUtils/podnet#753) |
 | [T-1393](transport.md) | P2 | M | M1 | defect | done | `pod-proxy`: a proxy at a command that does not exist floods the stderr of the process, gives a wrong cause and is started again for each dial (PodUtils/podnet#754) |

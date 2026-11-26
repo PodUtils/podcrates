@@ -1,0 +1,6 @@
+# The transfer codec: a DATA lost goes again with the same bytes, which the pane cuts again (T-1390).
+ENTRY=T-1390
+GROUP=term
+EXPECT='test a_data_cut_by_a_narrower_pane_goes_again_at_the_floor_and_arrives \.\.\. FAILED'
+RUN='cargo test -p pod-term --features transfer --test transfer_pane a_data_cut_by_a_narrower_pane_goes_again_at_the_floor_and_arrives -- --exact'
+LIMIT=900

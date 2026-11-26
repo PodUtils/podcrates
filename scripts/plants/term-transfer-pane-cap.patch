@@ -1,0 +1,11 @@
+--- a/crates/pod-term/src/transfer.rs
++++ b/crates/pod-term/src/transfer.rs
+@@ -281,7 +281,7 @@
+     /// 16 bytes at least, so a pane under 17 columns wraps its lines.
+     pub fn set_size(&mut self, cols: usize, rows: usize) {
+         self.set_width(cols);
+-        self.pane = pane::chunk(cols, rows);
++        self.pane = pane::chunk(cols, 0);
+         if let Some(s) = &mut self.session {
+             s.set_pane(self.pane);
+         }

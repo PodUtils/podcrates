@@ -1,0 +1,6 @@
+# The transfer codec: set_size takes no cap from the rows, so a DATA frame is taller than the pane (T-1390).
+ENTRY=T-1390
+GROUP=term
+EXPECT='test a_download_through_a_pane_keeps_each_read_within_its_rows \.\.\. FAILED'
+RUN='cargo test -p pod-term --features transfer --test transfer_pane a_download_through_a_pane_keeps_each_read_within_its_rows -- --exact'
+LIMIT=900

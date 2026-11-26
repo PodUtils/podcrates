@@ -235,3 +235,112 @@ fn a_reason_is_cut_to_200_bytes_at_a_character() {
     let stop = Msg::Stop { code: 4, reason: format!("x{long}").into_bytes() };
     assert_eq!(stop.payload().len(), 1 + 2 + 199);
 }
+
+/// The lines of a frame: each ends in CR LF.
+fn lines_of(frame: &[u8]) -> usize {
+    frame.windows(2).filter(|w| w == b"\r\n").count()
+}
+
+#[test]
+fn the_lines_of_a_frame_are_those_that_wire_breaks() {
+    for width in [16, 39, 47, 79, 119] {
+        assert_eq!(pane::lines(0, width), lines_of(&wire::frame(&Msg::Hold, b"\r\n", width)));
+        for n in 0..3000 {
+            let data = Msg::Data { offset: 9, bytes: vec![b'x'; n] };
+            let frame = wire::frame(&data, b"\r\n", width);
+            let len = data.payload().len();
+            assert_eq!(pane::lines(len, width), lines_of(&frame), "width {width}, payload {len}");
+        }
+    }
+}
+
+#[test]
+fn each_chunk_up_to_the_cap_of_a_pane_stays_within_its_rows() {
+    for (cols, rows) in [(120, 23), (48, 23), (80, 24), (200, 60)] {
+        let cap = pane::chunk(cols, rows);
+        let data = |n: usize| Msg::Data { offset: 1 << 40, bytes: vec![0xa5; n] };
+        let most = (1..=cap).map(|n| lines_of(&wire::frame(&data(n), b"\r\n", cols - 1))).max();
+        assert!(most <= Some(rows - SPARE_ROWS), "{rows} by {cols}: {most:?} lines at the cap {cap}");
+        // The cap is the largest that fits.
+        let next = lines_of(&wire::frame(&data(cap + 1), b"\r\n", cols - 1));
+        assert!(cap == CHUNK_MAX || next > rows - SPARE_ROWS, "{rows} by {cols}: {cap} + 1 fits");
+    }
+}
+
+/// A far sender of `file` after `TAKE`, the time, and its `NeedData`.
+fn far_sender(file: &[u8], now: Instant) -> (Transfer, Vec<Event>) {
+    let info = FileInfo { name: "f".into(), size: file.len() as u64, mode: None, mtime: None };
+    let mut far = Transfer::far_send(info, ID, now);
+    far.poll_output(now);
+    let hello = Msg::Helo { version: 2, id: ID, chunk: CHUNK_MAX as u32 };
+    far.feed(&wire::frame(&hello, b"\r", WRAP), now);
+    far.poll_output(now);
+    let events = far.feed(&wire::frame(&Msg::Take { from: 0 }, b"\r", WRAP), now);
+    (far, events)
+}
+
+fn ackn(of: u64, count: u64) -> Vec<u8> {
+    wire::frame(&Msg::Ackn { of, count }, b"\r", WRAP)
+}
+
+#[test]
+fn a_data_lost_goes_again_at_the_floor_and_a_late_ack_of_the_first_counts() {
+    use sha2::{Digest, Sha256};
+    let mut now = Instant::now();
+    let file: Vec<u8> = (0..3000u32).map(|i| (i * 7) as u8).collect();
+    let (mut far, events) = far_sender(&file, now);
+    assert_eq!(events, [Event::NeedData { offset: 0, max: CHUNK_MIN }]);
+    far.supply(&file[..CHUNK_MIN]);
+    let first = far.poll_output(now);
+    assert_eq!(frames(&[&first]), [Ok(Msg::Data { offset: 0, bytes: file[..CHUNK_MIN].to_vec() })]);
+    now += RESEND_MIN;
+    far.tick(now);
+    let again = far.poll_output(now);
+    assert_ne!(again, first, "the resend repeats the bytes that the path cut");
+    assert_eq!(frames(&[&again]), [Ok(Msg::Data { offset: 0, bytes: file[..CHUNK_FLOOR].to_vec() })]);
+    assert_eq!(far.chunk(), Some(CHUNK_FLOOR));
+    // A second loss sends the frame at the floor again.
+    now += RESEND_MIN;
+    far.tick(now);
+    assert_eq!(far.poll_output(now), again);
+    // The first frame came late, and its ack counts past the frame in
+    // flight: no fault, and the next DATA starts at the count.
+    let mut events = far.feed(&ackn(0, CHUNK_MIN as u64), now);
+    let next = Event::NeedData { offset: CHUNK_MIN as u64, max: CHUNK_FLOOR };
+    assert_eq!(events, [Event::Progress { done: CHUNK_MIN as u64, size: 3000 }, next]);
+    while let Some(Event::NeedData { offset, max }) = events.pop() {
+        let (from, to) = (offset as usize, (offset as usize + max).min(file.len()));
+        far.supply(&file[from..to]);
+        far.poll_output(now);
+        events = far.feed(&ackn(offset, to as u64), now);
+    }
+    let sha256: [u8; 32] = Sha256::digest(&file).into();
+    assert_eq!(frames(&[&far.poll_output(now)]), [Ok(Msg::Done { size: 3000, sha256 })]);
+}
+
+#[test]
+fn an_ack_past_the_bytes_supplied_stops_the_session() {
+    let now = Instant::now();
+    let file = vec![1u8; 3000];
+    let (mut far, _) = far_sender(&file, now);
+    far.supply(&file[..CHUNK_MIN]);
+    far.poll_output(now);
+    let events = far.feed(&ackn(0, CHUNK_MIN as u64 + 1), now);
+    assert!(
+        matches!(events.last(), Some(Event::End { ended: Ended::Stopped { code: stop::PROTOCOL, .. }, .. })),
+        "{events:?}"
+    );
+}
+
+#[test]
+fn an_offer_names_the_last_component_only() {
+    let now = Instant::now();
+    let info = FileInfo { name: "a/b/c.txt".into(), size: 1, mode: None, mtime: None };
+    let mut far = Transfer::far_send(info, ID, now);
+    far.poll_output(now);
+    far.feed(&wire::frame(&Msg::Helo { version: 2, id: ID, chunk: 300 }, b"\r", WRAP), now);
+    let sent = frames(&[&far.poll_output(now)]);
+    let offer = Msg::Offr { size: 1, mode: 0, mtime: 0, name: b"c.txt".to_vec() };
+    // The far end answers with the smaller cap of the two.
+    assert_eq!(sent, [Ok(Msg::Helo { version: 2, id: ID, chunk: 300 }), Ok(offer)]);
+}
