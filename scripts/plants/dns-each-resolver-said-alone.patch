@@ -1,11 +1,11 @@
 --- a/crates/pod-dns/src/lookup.rs
 +++ b/crates/pod-dns/src/lookup.rs
-@@ -149,7 +149,7 @@
-             [""] => Phrase::of(without_os_error(cause)),
-             [at] => Phrase::new("", vec![(format!("{at}: "), without_os_error(cause))]),
+@@ -138,7 +138,7 @@
+             [""] => Phrase::of(pod_core::text::plain(cause)),
+             [at] => Phrase::new("", vec![(format!("{at}: "), pod_core::text::plain(cause))]),
              _ => Phrase::new(
 -                format!("each of {resolvers} resolvers failed: "),
 +                format!("{}: ", ats.join(", ")),
-                 vec![(String::new(), without_os_error(cause))],
+                 vec![(String::new(), pod_core::text::plain(cause))],
              ),
          },
