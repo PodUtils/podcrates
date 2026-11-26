@@ -162,23 +162,120 @@ pub fn verify(bundle: &[u8], artifact: &[u8], who: &Identity) -> Result<Logged, 
     verify_with(bundle, artifact, who, &Roots::sigstore())
 }
 
+/// Why a bundle did not verify, by the part that refused it: a caller says
+/// a chain that its roots cannot check apart from a signer that is not the
+/// one that it accepts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Unverified {
+    /// The leaf's chain to Fulcio's root failed at a time that the bundle
+    /// proves: newer roots of Sigstore can be the cause.
+    Chain(String),
+    /// The leaf is for another signer: not for code signing, another URI,
+    /// or a token of another issuer.
+    Identity(String),
+    /// Another part: the document, the digest, the signature, the entry of
+    /// the log, a timestamp.
+    Bundle(String),
+}
+
+impl Unverified {
+    /// The text of the refusal.
+    pub fn why(&self) -> &str {
+        match self {
+            Unverified::Chain(why) | Unverified::Identity(why) | Unverified::Bundle(why) => why,
+        }
+    }
+}
+
+impl std::fmt::Display for Unverified {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.why())
+    }
+}
+
 /// [`verify()`] by `roots`. The bundle needs an entry of a log of `roots`
 /// with Rekor's promise or an inclusion proof, and a time: the promise's,
 /// or an RFC 3161 timestamp. Each proof and each timestamp that the bundle
 /// holds must verify (call C820).
 pub fn verify_with(bundle: &[u8], artifact: &[u8], who: &Identity, roots: &Roots) -> Result<Logged, String> {
-    let b: serde_json::Value = serde_json::from_slice(bundle).map_err(|e| format!("the bundle is not JSON: {e}"))?;
-    if !text(&b, &["mediaType"])?.starts_with("application/vnd.dev.sigstore.bundle") {
+    verify_any(bundle, artifact, std::slice::from_ref(who), roots).map(|(logged, _)| logged).map_err(|e| e.to_string())
+}
+
+/// [`verify_with`] for the first identity of `who` that the leaf names:
+/// what the bundle proves, and the place of that identity in `who`. Each
+/// identity is compared whole, as [`verify_with`] compares one.
+pub fn verify_any(
+    bundle: &[u8],
+    artifact: &[u8],
+    who: &[Identity],
+    roots: &Roots,
+) -> Result<(Logged, usize), Unverified> {
+    let b: serde_json::Value =
+        serde_json::from_slice(bundle).map_err(|e| Unverified::Bundle(format!("the bundle is not JSON: {e}")))?;
+    let Proofs { leaf: leaf_der, signature, entry, times } = proofs(&b, artifact, roots).map_err(Unverified::Bundle)?;
+    let (_, leaf) = X509Certificate::from_der(&leaf_der).map_err(|e| Unverified::Bundle(format!("the leaf: {e}")))?;
+    let Some(&time) = times.first() else {
+        return Err(Unverified::Bundle(
+            "the bundle proves no time: it has no promise of Rekor and no timestamp".into(),
+        ));
+    };
+    let chain = certificates(&roots.fulcio, "Fulcio's chain").map_err(Unverified::Chain)?;
+    let Some(root) = chain.last() else {
+        return Err(Unverified::Chain("no chain of Fulcio to check the leaf by".into()));
+    };
+    // Each certificate by the next, the leaf first; the root by itself; at
+    // each time that the bundle proves.
+    for at in times {
+        let mut cert = &leaf;
+        for issuer in &chain {
+            chain::signed_by(cert, issuer, at).map_err(Unverified::Chain)?;
+            cert = issuer;
+        }
+        chain::signed_by(root, root, at).map_err(Unverified::Chain)?;
+    }
+    let mut refused = Vec::new();
+    let mut place = None;
+    for (at, one) in who.iter().enumerate() {
+        match chain::identity(&leaf, one) {
+            Ok(()) => {
+                place = Some(at);
+                break;
+            }
+            Err(why) => refused.push(why),
+        }
+    }
+    let Some(place) = place else {
+        let why = if refused.is_empty() { "no identity to check the leaf by".into() } else { refused.join("; ") };
+        return Err(Unverified::Identity(why));
+    };
+    rekor::names(&entry.body, &crate::sha256(artifact), &signature, &leaf_der).map_err(Unverified::Bundle)?;
+    Ok((Logged { time, index: entry.index }, place))
+}
+
+/// The parts of a bundle that its chain does not check.
+struct Proofs {
+    /// The leaf's DER; its key signed the artifact.
+    leaf: Vec<u8>,
+    signature: Vec<u8>,
+    /// The entry of a log of the roots.
+    entry: rekor::Entry,
+    /// Each time that the bundle proves.
+    times: Vec<i64>,
+}
+
+/// The [`Proofs`] of the bundle `b` of `artifact`, by `roots`.
+fn proofs(b: &serde_json::Value, artifact: &[u8], roots: &Roots) -> Result<Proofs, String> {
+    if !text(b, &["mediaType"])?.starts_with("application/vnd.dev.sigstore.bundle") {
         return Err("not a Sigstore bundle".into());
     }
     let digest = crate::sha256(artifact);
     // The bundle names its digest as the protobuf enum SHA2_256 does.
-    if !text(&b, &["messageSignature", "messageDigest", "algorithm"])?.eq_ignore_ascii_case("sha2_256")
-        || b64(text(&b, &["messageSignature", "messageDigest", "digest"])?, "the digest")? != digest
+    if !text(b, &["messageSignature", "messageDigest", "algorithm"])?.eq_ignore_ascii_case("sha2_256")
+        || b64(text(b, &["messageSignature", "messageDigest", "digest"])?, "the digest")? != digest
     {
         return Err("the bundle signs another file".into());
     }
-    let signature = b64(text(&b, &["messageSignature", "signature"])?, "the signature")?;
+    let signature = b64(text(b, &["messageSignature", "signature"])?, "the signature")?;
     let material = &b["verificationMaterial"];
     let leaf_b64 = text(material, &["certificate", "rawBytes"])
         .ok()
@@ -202,25 +299,8 @@ pub fn verify_with(bundle: &[u8], artifact: &[u8], who: &Identity, roots: &Roots
     let Some(entry) = found else {
         return Err(if refused.is_empty() { "the bundle has no entry of Rekor".into() } else { refused.join("; ") });
     };
-    let times: Vec<i64> = entry.time.into_iter().chain(timestamps(&b, &signature, roots)?).collect();
-    let Some(&time) = times.first() else {
-        return Err("the bundle proves no time: it has no promise of Rekor and no timestamp".into());
-    };
-    let chain = certificates(&roots.fulcio, "Fulcio's chain")?;
-    let Some(root) = chain.last() else { return Err("no chain of Fulcio to check the leaf by".into()) };
-    // Each certificate by the next, the leaf first; the root by itself; at
-    // each time that the bundle proves.
-    for at in times {
-        let mut cert = &leaf;
-        for issuer in &chain {
-            chain::signed_by(cert, issuer, at)?;
-            cert = issuer;
-        }
-        chain::signed_by(root, root, at)?;
-    }
-    chain::identity(&leaf, who)?;
-    rekor::names(&entry.body, &digest, &signature, &leaf_der)?;
-    Ok(Logged { time, index: entry.index })
+    let times: Vec<i64> = entry.time.into_iter().chain(timestamps(b, &signature, roots)?).collect();
+    Ok(Proofs { leaf: leaf_der, signature, entry, times })
 }
 
 #[cfg(test)]

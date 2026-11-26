@@ -1,0 +1,12 @@
+diff --git a/crates/pod-release/src/update.rs b/crates/pod-release/src/update.rs
+--- a/crates/pod-release/src/update.rs
++++ b/crates/pod-release/src/update.rs
+@@ -230,7 +230,7 @@
+ /// signer that differs is said as such.
+ pub fn refused(e: &Unverified, source: &Source, tag: &str) -> String {
+     match e {
+-        Unverified::Chain(why) => format!(
++        Unverified::Chain(why) | Unverified::Identity(why) => format!(
+             "the signature of {SUMS}: {why}; nothing was replaced. If Sigstore changed its roots, download the release by hand: {}/{}/releases/tag/{tag}",
+             source.web, source.repo
+         ),

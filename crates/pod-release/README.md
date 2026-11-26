@@ -112,6 +112,12 @@ if update::plan(&newest, &current, false, false, false) == Plan::Install {
   against the file, the signature and the leaf. A bundle needs the
   promise or the proof, and a time: the promise's or a timestamp's (call
   C820). Gives `Logged { time, index }`.
+- `sigstore::verify_any(bundle, artifact, &[identity], roots) -> (Logged,
+  place)`: the same check for the first identity of the list that the
+  leaf names, each compared whole. A refusal is `Unverified::Chain` (the
+  chain to Fulcio's root: newer roots can be the cause),
+  `Unverified::Identity` (another signer) or `Unverified::Bundle` (any
+  other part).
 - `Identity { uri, issuer }`, `Identity::github(repo, workflow, tag)`.
 - `Roots { fulcio, logs, tsa }`, `Roots::sigstore()`: the Fulcio chain,
   the logs (`Log { name, key }`: `rekor.sigstore.dev` and the shard
@@ -148,6 +154,17 @@ if update::plan(&newest, &current, false, false, false) == Plan::Install {
   a 404 is `Error::NotFound`; no message holds the query of a URL.
 - `update::Source`, `update::newest`, `update::plan`, `update::signed`,
   `update::binary`, `update::install` (feature `fetch`).
+- `update::Source::former` (a list of `update::Former { repo, last }`,
+  empty for `Source::github`): the former names of the repository. For a
+  tag at or before `last`, in the order of semver, the release workflow
+  of `repo` (the workflow of the `Source`) also signs; the files still
+  come from the current repository. A tag that does not parse, or that has
+  `+BUILD`, never takes a former signer. `Source::identities(tag)`: the
+  current identity first, then each former one. `update::refused(&e,
+  &source, tag)`: the words of a bundle that did not verify; only a chain
+  that failed gives the hint of newer roots ("If Sigstore changed its
+  roots, download the release by hand: URL"), and another signer is "SHA256SUMS
+  of TAG is signed by a signer that this program does not accept: WHY".
 - `cli` (feature `cli`): the exit codes `EXIT_*`, `cli::code(&Error)`,
   `cli::line(&Error)`, `cli::facts()`, `cli::manual(clap::Command)`.
 
