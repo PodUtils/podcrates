@@ -277,7 +277,8 @@ impl Transfer {
     /// under [`CHUNK_FLOOR`]. It sends the cap to the peer in `HELO`. Call
     /// it before the session starts, and again at each change of the size: a
     /// change during a session can lower the chunk, never raise it past the
-    /// cap of `HELO`. A size of 0 is not known: no cap.
+    /// cap of `HELO`. A size of 0 is not known: no cap. A frame breaks at
+    /// 16 bytes at least, so a pane under 17 columns wraps its lines.
     pub fn set_size(&mut self, cols: usize, rows: usize) {
         self.set_width(cols);
         self.pane = pane::chunk(cols, rows);

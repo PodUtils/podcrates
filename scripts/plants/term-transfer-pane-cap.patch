@@ -1,9 +1,7 @@
-diff --git a/crates/pod-term/src/transfer.rs b/crates/pod-term/src/transfer.rs
-index bf2bdf1d7..94787891e 100644
 --- a/crates/pod-term/src/transfer.rs
 +++ b/crates/pod-term/src/transfer.rs
-@@ -280,7 +280,7 @@ impl Transfer {
-     /// cap of `HELO`. A size of 0 is not known: no cap.
+@@ -281,7 +281,7 @@
+     /// 16 bytes at least, so a pane under 17 columns wraps its lines.
      pub fn set_size(&mut self, cols: usize, rows: usize) {
          self.set_width(cols);
 -        self.pane = pane::chunk(cols, rows);
