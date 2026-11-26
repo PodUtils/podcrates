@@ -9748,3 +9748,78 @@ cargo test -p pod-unit --all-features --test install
 cargo test -p pod-control --all-features --lib frame
 cargo test -p pod-core --all-features --lib sockopt
 ```
+
+# T-1412: `pod-manual`: a pager program that fails at once (`PAGER=false`) leaves the text unshown, with exit 0
+
+**Source:** PodUtils/podssh#363 (COORD-153 of podssh), ask 2; PodUtils/podssh@T-975; author MEMBER. PodUtils/podssh@T-975 waits for it.
+**Category:** defect
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The text of the ask: "`PAGER=false podssh man man` on a terminal prints nothing and exits 0. Ask: `run_program` returns the pager's exit status, and `show_with` prints the text with no pager, after one line that says the pager failed (its name and status), when the pager ends non-zero before it read all of it. podssh's T-975 waits for this."
+
+## Premise
+
+- Read: `crates/pod-manual/src/pager.rs` (`run_program` gave `Ok(())` once the program started, whatever its exit; `show_with` fell back to the built-in pager only when the program did not start).
+- Read: podssh's glue `PodUtils/podssh:crates/podssh-cli/src/pager.rs` calls `show_with`; no consumer calls `run_program` (podssh, podnet, podvm and podrunner at their heads of 2026-11-26).
+- A pipe does not tell the writer how much the reader took. A program that ends early can leave the bytes in the pipe, and a write of a short text can pass before the program ends.
+- Not measured: a real terminal; the tests use the seam `show_with` with buffers.
+
+## Approach
+
+1. `run_program` gives `Paged { status, read_all }`. The text goes on a pipe of `std::io::pipe`; a writer thread feeds it; the parent keeps a second read end, and after the end of the program counts the bytes that stay (`FIONREAD`). The text was read all when the write completed and no byte stays. Off Unix only a success counts as all read.
+2. `show_with`: when `Paged::failed` (a status that is not success, and the text not read all), one line on `err`, "The pager NAME failed (exit N). The text follows with no pager.", then the text on `out`.
+3. Tests: `false` (and `cmd /C exit 1` on Windows) with a short text and with more than a pipe holds; a program that reads all and exits 3 is no failure; `show_with` with `PAGER=false`; a pager that reads all and ends with success gets no line. A plant drops the fallback.
+
+## Prove
+
+```sh
+cargo test -p pod-manual --all-features --lib pager
+cargo clippy -p pod-manual --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh manual-t1412-failed-pager-hides-text
+```
+
+# T-1411: `pod-release`: former signers of a moved repository, and the hint of Sigstore's roots only for a chain that failed
+
+**Source:** PodUtils/podssh#363 (COORD-153 of podssh), ask 1; PodUtils/podssh@T-967; author MEMBER.
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The text of the ask: "`podssh update --version TAG` cannot install a release made before the repository moved: those releases are signed with the release workflow identity under the repository's former name, and `Source` checks only the current one. Ask: `Source` takes a list of former signers (a repository and the last tag that it signed). For a tag at or before that tag, the identity of that repository is accepted, and the files are still fetched from the current repository. Also: the hint about Sigstore's roots should come only when the certificate chain fails, not when the identity differs (an identity that differs is its own line). Whether podssh may accept the former signer at all is a question for podssh's owner (T-967); podssh asks for the mechanism, and names the list itself."
+
+## Premise
+
+- Read: `crates/pod-release/src/update.rs` (`Source::identity` gave one identity, of `repo`; `signed` added the hint "If Sigstore changed its roots" to each refusal of the bundle); `crates/pod-release/src/sigstore.rs` (`verify_with` gave each refusal as a `String`; the identity check of the leaf is exact: the URI of the workflow at the tag and the issuer); `crates/pod-release/src/version.rs` (`Version` ignores `+BUILD` in its order).
+- Read: podssh builds its `Source` with `Source::github` or `..Source::github(..)` (`PodUtils/podssh:crates/podssh-cli/src/update/mod.rs`, `PodUtils/podssh:crates/podssh-cli/tests/update.rs`); podnet, podvm and podrunner build no `Source` (their heads of 2026-11-26).
+- The fixtures are podcrates v0.76.0 and v0.77.0, signed by `PodUtils/podcrates`; a stand-in serves them as the releases of another repository. Not measured: a real moved repository.
+
+## Approach
+
+1. `update::Former { repo, last }` and `Source::former` (empty for `Source::github`). `Former::signed(tag)`: the tag and `last` parse as `vVERSION` and are written as `Version::tag` writes them (no `+BUILD`), and the tag is at or before `last` in the order of semver. Else never.
+2. `Source::identities(tag)`: the current identity, then the release workflow (the workflow of the `Source`) of each former repository that signed the tag. The files come from `Source::repo` alone.
+3. `sigstore::verify_any(bundle, artifact, &[Identity], roots)`: one check of the bundle, and the first identity that the leaf names, each compared whole. A refusal is `Unverified::Chain`, `Unverified::Identity` or `Unverified::Bundle`. `verify_with` is `verify_any` with one identity.
+4. `update::refused`: only `Chain` gives the hint of the roots; another signer has its own words.
+5. Tests: the order and the refusals of `Former::signed`; a release before the move verifies by its former signer from the current repository; the security bound: v0.77.0, signed by the former identity, is refused with a last tag of v0.76.0; the hint only for a chain that failed. Plants: a former signer past its last tag, and the hint for another signer.
+
+## Decision
+
+- The workflow of a former signer is the workflow of the `Source`: the ask names a repository and a tag only. A former signer with another workflow file needs a new field of `Former`, when a consumer asks for it.
+- The files come only from the current repository, which only its owner writes. A reclaimed former name can sign a tag at or before `last`, but it cannot put the bundle into a release of the current repository; with that access, the current identity signs anyway.
+
+## Prove
+
+```sh
+cargo test -p pod-release --all-features --lib update
+cargo test -p pod-release --all-features --lib sigstore
+cargo clippy -p pod-release --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh release-t1411-former-past-last release-t1411-roots-hint-for-signer
+```

@@ -12817,3 +12817,38 @@ A receiver acknowledges when `ACK_EVERY` (64 KiB) reached its application, else 
 ```sh
 cargo test -p pod-session --all-features
 ```
+
+# T-1410: `pod-session`: a far end that closes the link before its first byte is said as one that "said nothing within 30 s"
+
+**Source:** PodUtils/podssh#362 (COORD-152 of podssh), ask 5; PodUtils/podssh@T-948; author MEMBER.
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The text of the ask: "**pod-session** `src/client.rs:208` (`greeted`) and `src/race.rs:55` (`greeting`). (podssh T-948) Tell a close (a read of 0 bytes) from a silent 30 s wait. Today `ping --nodes` said "failed after 24.7 ms: the far end said nothing within 30 s"."
+
+## Premise
+
+- Read: `crates/pod-session/src/client.rs` (`greeted`: a read of 0 bytes and a wait of `FIRST_BYTE_WAIT` that passed both gave a `Greeted` with no first bytes); `crates/pod-session/src/race.rs` (`greeting` said each as "the far end said nothing within 30 s"; `race`, `in_turn` and `each_timed` give that text as the reason of a road).
+- Read: podssh holds the fix in its glue (`true_why`, `PodUtils/podssh:crates/podssh-cli/src/ping/node.rs`), with the words "the far end closed the link before it said anything".
+- Not measured: a real relay; the tests use the stand-in roads of `crates/pod-session/tests/session_race.rs` on a paused clock.
+
+## Approach
+
+1. `Greeted` keeps whether the read gave 0 bytes. `Greeted::unheard()` gives `client::Unheard::Closed` or `Unheard::Silent`, `None` when the far end spoke.
+2. `Unheard` says "the far end closed the link before it said anything" or "the far end said nothing within 30 s"; as a `pod_core::Failure` of the stage `Session`, a close is `Unavailable` (as a handshake that the far end closed) and a silent wait is `Timeout`.
+3. `greeting` gives the words of `Unheard`.
+4. Tests: a road that closes after 15 ms and a silent road in `race`, and the close in `each_timed` with its time; the classes. A plant drops the mark of the close.
+
+## Prove
+
+```sh
+cargo test -p pod-session --all-features --test session_race
+cargo test -p pod-session --all-features --lib failure
+cargo clippy -p pod-session --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh session-t1410-close-said-silent
+```
