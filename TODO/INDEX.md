@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1064 entries: 172 open, 31 partial, 6 blocked, 855 done.**
+**1065 entries: 172 open, 31 partial, 6 blocked, 856 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 73 | 12 | 4 | 453 | 542 |
+| P2 | 73 | 12 | 4 | 454 | 543 |
 | P3 | 95 | 10 | 2 | 154 | 261 |
-| **All** | 172 | 31 | 6 | 855 | 1064 |
+| **All** | 172 | 31 | 6 | 856 | 1065 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1095,6 +1095,7 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1422](relay.md) | P2 | S | M2 | defect | done | `pod-relay`: the line of a mint that gave no answer says "Connection reset by peer (os error 104)" |
 | [T-1423](relay.md) | P2 | S | M2 | defect | done | `pod-tls`: the error of a CA bundle names the path twice ("CA bundle /x: /x: No such file or directory") |
 | [T-1424](podvm.md) | P2 | S | M6 | feature | done | `pod-hostprobe`: `Settings::emulator`, the path of the emulator that the machine legs run (PodUtils/podvm#675) |
+| [T-1425](podvm.md) | P2 | S | M6 | feature | done | `pod-oci`: `Config` reads `rootfs`, and `spec::check_layers` checks the count of layers (PodUtils/podvm#677) |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |
 | [T-1444](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`: `a_path_that_is_there_is_never_opened_truncated_or_removed` fails on Windows: a file made at the name of a directory gives "Access is denied", not `AlreadyExists` |
 | [T-1445](upkeep.md) | P1 | S | M5 | defect | done | `pod-tpm`: two tests of `tests/socket.rs` fail on macOS: `set_read_timeout` on a stream whose peer closed gives an error, so the call says `Unavailable`, not `Protocol` |

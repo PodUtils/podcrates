@@ -1,0 +1,13 @@
+diff --git a/crates/pod-oci/src/rootfs.rs b/crates/pod-oci/src/rootfs.rs
+index 6130d0c55..b8b43f449 100644
+--- a/crates/pod-oci/src/rootfs.rs
++++ b/crates/pod-oci/src/rootfs.rs
+@@ -63,7 +63,7 @@ pub fn check_layers(manifest: &Manifest, config: &Config) -> Result<()> {
+             ),
+         ));
+     }
+-    if layers != ids {
++    if layers != ids && false {
+         return Err(registry(
+             Class::Protocol,
+             format!("the manifest names {layers} layer(s) and the configuration has {ids} diff_id(s)"),

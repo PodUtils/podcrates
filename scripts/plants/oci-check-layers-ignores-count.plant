@@ -1,0 +1,6 @@
+# pod-oci: check_layers ignores the count of diff_ids (T-1425).
+ENTRY=T-1425
+GROUP=oci
+EXPECT='two_layers_and_one_diff_id_fail_with_both_counts'
+RUN='cargo test -p pod-oci --all-features --lib rootfs'
+LIMIT=900

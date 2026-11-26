@@ -8446,7 +8446,6 @@ cargo test -p pod-services --all-features
 
 2026-11-15, the commit of the change. The service file `pkgforge-qemu.toml` of `crates/pod-services/services` (kind `tool`; T-1013 removed it): the endpoints `qemu-system-x86-64` and `qemu-img` (a name is a word, so `_` is `-`), the version and the sha256 and the length of each file, and an `http-sha256` watch of each. A GET of each file from this session gave 42899120 and 11009488 bytes and the sha256 values that podvm pins at `25024cb3`. The test `the_static_qemu_holds_the_pins_of_podvm` of `tests/podvm.rs`; `cargo test -p pod-services --all-features` passed.
 
-
 # T-648: `pod-hostprobe`: a leg that reports a delegated cgroup2 subtree with no root (PodUtils/podvm#390)
 
 **Source:** PodUtils/podvm#390 (COORD-125 of podvm; PodUtils/podvm@T-1747; the ask V-3 of podswarm in #124; G-12 of #36).
@@ -8478,7 +8477,6 @@ cargo test -p pod-hostprobe --all-features
 ## Done
 
 2026-11-15, the commit of the change. `crates/pod-hostprobe/src/cgroup.rs`: `probe()` (the `statfs` of `/sys/fs/cgroup`, the line `0::` of `/proc/self/cgroup`, the write test of `mkdir` and `rmdir` of a child and an open of `cgroup.subtree_control` for write) and `assess` over a made-up tree; `Delegation::Delegated { path, controllers, enabled }` or `None(Reason)` with `NoMount`, `NotCgroup2`, `NoMembership`, `NotWritable`, `MissingControllers`; `words` for one line. A membership with `..` is refused, and the walk does not leave the root. Six tests in `src/cgroup/tests.rs` (`cargo test -p pod-hostprobe --all-features --lib cgroup`: 6 passed). The plant `hostprobe-cgroup-missing-controller-delegated` (a directory with no `cpu` read as delegated) fails the first test. This session (cgroup v1 or no delegation) gives a verdict of none; a host with a delegation is podvm's run.
-
 
 # T-649: `pod-guest`: a FAT image writer with directories, long names and a size from the content (PodUtils/podvm#386)
 
@@ -11060,7 +11058,6 @@ as a link to `libc.so`, a link to the loader, a loader as the program of a
 loader). `cargo test -p pod-enter --all-features --lib confine` passes 7;
 the plant `enter-loader-program-unchecked` is caught by it too.
 
-
 # T-1009: `pod-supervise` and `pod-enter`: the thread of a foreground hold blocks only SIGHUP, SIGINT, SIGQUIT and SIGTERM, so a SIGUSR1 to a waiter with a hold ends the process and leaves the payload
 
 **Source:** PodUtils/podvm#616 (COORD-216 of podvm), the finding "One finding for `wait_forwarding`"
@@ -13391,7 +13388,6 @@ change (T-1143, the release notes). Tests of
 `a_file_larger_than_max_body_is_read_in_pieces` of `tests/files.rs` now
 matches the kind. 494 passed in the run of T-1137.
 
-
 # T-1139: `pod-incus`: an `error` envelope over `max_body` is refused by size, and the words of incusd go (PodUtils/podvm#651)
 
 **Source:** PodUtils/podvm#651 (COORD-235 of podvm, for PodUtils/podrunner#346), ask 3
@@ -13460,7 +13456,6 @@ surrogate pair and a UTF-8 character gives JSON) and
 `the_start_of_an_envelope_gives_the_error_up_to_the_cut`. 494 passed in
 the run of T-1137.
 
-
 # T-1140: `pod-incus`: a text of incus cut at 512 characters loses the cause after a long command line and a path (PodUtils/podvm#651)
 
 **Source:** PodUtils/podvm#651 (COORD-235 of podvm, for PodUtils/podrunner#346), ask 4
@@ -13514,7 +13509,6 @@ space left on device", 200 lines more) and
 `error::tests::a_short_text_and_a_long_line_are_cut_by_the_same_rule`.
 Both fail on the old cut of 512 characters (shown once: 2 failed). 494
 passed in the run of T-1137.
-
 
 # T-1141: `pod-incus`: no read of a storage pool, of the room of a pool, or of an image that incus has (PodUtils/podvm#651)
 
@@ -13574,7 +13568,6 @@ cargo test -p pod-incus --all-features --lib storage
 lib test `the_resources_of_a_pool_read_resource_go`. 494 passed in the
 run of T-1137.
 
-
 # T-1142: `pod-hostprobe`: `sys::Statfs` has no `f_bfree`, so a check for a daemon of root cannot name the blocks kept for root (PodUtils/podvm#651)
 
 **Source:** PodUtils/podvm#651 (COORD-235 of podvm, for PodUtils/podrunner#346), ask 6
@@ -13614,7 +13607,6 @@ cargo test -p pod-hostprobe --all-features --lib statfs_reads_the_wide_struct_on
 (`crates/pod-hostprobe/src/sys/statfs.rs`); the README names the field.
 `statfs_reads_the_wide_struct_on_each_width` holds `f_bavail <= f_bfree
 <= f_blocks` for `/`. 494 passed in the run of T-1137.
-
 
 # T-1143: podvm's class of a refusal by size reads the words of an `Io` error, and finds none after T-1138
 
@@ -13681,7 +13673,6 @@ issue says that the reads of incusd are its second path, later (it records
 the need of an imported tree in its store, PodUtils/podvm@T-2078). That is a choice
 of podvm, not an ask. The observation of podvm on the cut envelope is
 T-1307.
-
 
 # T-1155: `pod-incus`: an exec whose command ends with 126 or 127 ends the wait as an error of incusd, and `exec_recorded` and `Attached::wait` give no exit code, no output and no operation id (PodUtils/podvm#653)
 
@@ -13792,7 +13783,6 @@ For the hand-off: no break. `Error::operation` is a new method, and
 `Error` has a new private field. podvm can remove its `code_of_failure`
 read after the wait (T-1158).
 
-
 # T-1156: `pod-incus`: no bound of the answer of a call: a socket that takes the connection and never answers holds the caller (PodUtils/podvm#653)
 
 **Source:** PodUtils/podvm#653 (COORD-237 of podvm), ask 2.
@@ -13883,7 +13873,6 @@ fields does not build; podvm uses `Settings::new` and is not touched.
 `ErrorKind::AnswerTimeout` is a new variant of a `non_exhaustive` enum,
 and `AnswerPhase` is a new type. podvm can remove its bound of 30 s on the
 first `GET /1.0` of each verb (T-1158).
-
 
 # T-1157: `pod-incus`: after a failed write of a body, the answer that incusd already sent is read with no bound and no test, and the documentation does not tell the caller about SIGPIPE (PodUtils/podvm#653)
 
@@ -13989,7 +13978,6 @@ For the hand-off: no break; no public type changed. podvm can keep its
 `NoSigpipe` guard (the crate sets no signal) and drop its own read of the
 answer after a cut, where it has one (T-1158).
 
-
 # T-1158: podvm removes its work-arounds for `pod-incus` at its take of the tag of T-1155 to T-1157
 
 **Source:** T-1155, T-1156 and T-1157 (PodUtils/podvm#653).
@@ -14052,7 +14040,6 @@ SIGPIPE stays, as the Approach says. `ErrorKind::AnswerTimeout` is a fault
 of the transport in `space.rs` (T-1143). `PodUtils/podvm:crates/podvm/src/incus/usage/mounts.rs`
 is gone with the work of T-1205: the meter takes
 `pod_hostprobe::usage::Mounts::of_host()?.meter()`.
-
 
 # T-1193: `pod-extract`: `flatten`, the final tree of the layers of an image as one tar stream with no tree on the disk (PodUtils/podvm#657)
 
@@ -15210,7 +15197,6 @@ now has the records of the hard-link entries of the image, so GNU tar
 in incusd sets them; `Flattened::xattrs` can name a record of a link
 that comes after the data of its inode. No public item changed.
 
-
 # T-1307: `pod-incus`: a cut `error` envelope has no flag, so a caller reads the words of its text to know that the answer was over `max_body` (PodUtils/podvm#663)
 
 **Source:** PodUtils/podvm#663 (COORD-247 of podvm), the observation on `pod-incus`.
@@ -15699,3 +15685,37 @@ cargo clippy -p pod-hostprobe --all-targets --all-features -- -D warnings
 - Texts: with a path set, the version line and the accelerator list end with ` (PATH)`; a missing file reads "no emulator at PATH, so ...". With no path the words are as before.
 - Test: `crates/pod-hostprobe/tests/emulator.rs` (a `sh` script as the emulator, `PATH` empty).
 - The plant `scripts/plants/podvm675-t1424-emulator-ignored.plant` makes the spawner drop the setting: the test fails.
+
+# T-1425: `pod-oci`: `Config` reads `rootfs`, and `spec::check_layers` checks the count of layers (PodUtils/podvm#677)
+
+**Source:** PodUtils/podvm#677 (COORD-258 of podvm, PodUtils/podvm@T-2100; author COLLABORATOR)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`spec::Config` has `architecture`, `os`, `created` and `config`, but not `rootfs`. podvm cannot see `rootfs.diff_ids`. An OCI archive whose manifest names 2 layers and whose config has 1 `diff_id` loads and runs; Docker refuses it. The ask: (1) `Config` gives `rootfs: Option<RootFs>` with `type` and `diff_ids`, each a digest; (2) a check that a consumer calls after the parse of a manifest and its config, for example `spec::check_layers(&manifest, &config) -> Result<()>`: the count of `diff_ids` equals the count of `manifest.layers`, and `rootfs.type` is `layers`; the error names both counts; a config with no `rootfs` (an old image) passes.
+
+## Premise
+
+- Read: PodUtils/podvm#677, `crates/pod-oci/src/spec.rs`, `crates/pod-oci/src/digest.rs`, `crates/pod-oci/src/error.rs`, the `rootfs` section of the OCI image spec `config.md`.
+- `Descriptor` keeps a digest as a `String` and gives `parsed_digest()`; `Digest` has no `serde` impl. `RootFs` follows this form.
+- `spec.rs` has 498 lines; the new code goes into a new file.
+- Not measured: the build of podvm with the new field.
+
+## Approach
+
+`RootFs { kind, diff_ids }` (serde name `type`), `RootFs::parsed_diff_ids`, `check_layers` and a bound on the count of layers (`MAX_LAYERS`, `Class::Policy`) in `crates/pod-oci/src/rootfs.rs`, re-exported from `spec`. A mismatch or a wrong type is `Class::Protocol` and names both counts. Tests for each case, a plant for the count, the README of the crate.
+
+## Prove
+
+```sh
+cargo test -p pod-oci --all-features rootfs
+```
+
+## Done
+
+2026-11-26, Commit: see `git log` for T-1425. `Config` has `rootfs: Option<RootFs>` (`kind` with serde name `type`, `diff_ids` as strings; `RootFs::parsed_diff_ids` gives `Digest` values). `spec::check_layers(&manifest, &config)` fails with `Class::Protocol` when the type is not `layers` or when the count of `diff_ids` is not the count of layers, and names both counts; a config with no `rootfs` passes; a count past `MAX_LAYERS` (4096) is `Class::Policy`. The code is in `crates/pod-oci/src/rootfs.rs` (`spec.rs` is at 500 lines) and `spec` re-exports it. Tests in `rootfs.rs`: matching counts, 2 layers and 1 `diff_id`, no `rootfs`, a wrong type, the bound, the parse of a config with `diff_ids`. Plant `oci-check-layers-ignores-count`, caught. podvm needs no code change to build: it reads its own `oci::Config` through `serde`, with no struct literal.
