@@ -1,0 +1,12 @@
+diff --git a/crates/pod-release/src/update.rs b/crates/pod-release/src/update.rs
+--- a/crates/pod-release/src/update.rs
++++ b/crates/pod-release/src/update.rs
+@@ -109,7 +109,7 @@
+     /// first, then the release workflow of each former repository that
+     /// signed `tag` ([`Former::signed`]).
+     pub fn identities(&self, tag: &str) -> Vec<Identity> {
+-        let former = self.former.iter().filter(|f| f.signed(tag)).map(|f| self.identity_of(&f.repo, tag));
++        let former = self.former.iter().map(|f| self.identity_of(&f.repo, tag));
+         std::iter::once(self.identity(tag)).chain(former).collect()
+     }
+ 

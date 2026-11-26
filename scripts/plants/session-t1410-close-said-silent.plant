@@ -1,0 +1,6 @@
+# pod-session: a far end that closes the link before its first byte is said as a silent one (T-1410); the race test must fail.
+ENTRY=T-1410
+GROUP=session
+EXPECT='test a_far_end_that_closes_is_told_from_one_that_keeps_silent \.\.\. FAILED'
+RUN='cargo test -p pod-session --all-features --test session_race -- a_far_end_that_closes_is_told_from_one_that_keeps_silent --exact'
+LIMIT=900

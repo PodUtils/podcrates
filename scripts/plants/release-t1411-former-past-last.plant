@@ -1,0 +1,6 @@
+# pod-release: a former signer is accepted past its last tag (T-1411); the test of the security bound must fail.
+ENTRY=T-1411
+GROUP=release
+EXPECT='test update::tests::former::a_later_tag_signed_by_the_former_identity_is_refused \.\.\. FAILED'
+RUN='cargo test -p pod-release --all-features --lib update::tests::former::a_later_tag_signed_by_the_former_identity_is_refused -- --exact'
+LIMIT=900

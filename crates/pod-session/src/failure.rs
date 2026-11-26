@@ -4,7 +4,7 @@
 
 use pod_core::{Class, Failure, Stage};
 
-use crate::client::ClientError;
+use crate::client::{ClientError, Unheard};
 use crate::decode::DecodeError;
 use crate::far::FarError;
 use crate::handover::Unreadable;
@@ -72,6 +72,18 @@ impl From<ClientError> for Failure {
             ClientError::Decode(_) => Class::Protocol,
             ClientError::Handshake(h) => of_handshake(h),
             ClientError::Timeout => Class::Timeout,
+        };
+        session(class, e)
+    }
+}
+
+impl From<Unheard> for Failure {
+    /// A close is `Unavailable`, as a handshake that the far end closed; a
+    /// silent wait is `Timeout`.
+    fn from(e: Unheard) -> Failure {
+        let class = match e {
+            Unheard::Closed => Class::Unavailable,
+            Unheard::Silent => Class::Timeout,
         };
         session(class, e)
     }
@@ -156,6 +168,15 @@ mod tests {
         assert_eq!(timeout.class, Class::Timeout);
         let gone: Failure = LinkError::Refused { code: RefuseCode::UNKNOWN_SESSION, reason: String::new() }.into();
         assert_eq!(gone.class, Class::Unavailable);
+    }
+
+    #[test]
+    fn a_close_before_the_first_byte_is_unavailable_and_a_silent_wait_a_timeout() {
+        let closed: Failure = Unheard::Closed.into();
+        assert_eq!((closed.stage, closed.class), (Stage::Session, Class::Unavailable));
+        assert!(closed.to_string().contains("closed the link before it said anything"));
+        let silent: Failure = Unheard::Silent.into();
+        assert_eq!(silent.class, Class::Timeout);
     }
 
     #[test]

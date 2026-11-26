@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1052 entries: 173 open, 31 partial, 6 blocked, 842 done.**
+**1055 entries: 173 open, 31 partial, 6 blocked, 845 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 245 | 258 |
-| P2 | 77 | 12 | 4 | 441 | 534 |
+| P1 | 4 | 9 | 0 | 246 | 259 |
+| P2 | 77 | 12 | 4 | 443 | 536 |
 | P3 | 92 | 10 | 2 | 154 | 258 |
-| **All** | 173 | 31 | 6 | 842 | 1052 |
+| **All** | 173 | 31 | 6 | 845 | 1055 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1083,6 +1083,9 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1407](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: the refusals of a pair: the body of a 403, a refusal of a new pair, a spent token of `--once`, and a doubled subject in `file_name` (PodUtils/podssh#362, ask 2) |
 | [T-1408](relay.md) | P2 | S | M2 | defect | open | `pod-e2e`: `Redeem` does not say whether a bearer or a grant was refused or let in, and the node says "a grant" for a bearer (PodUtils/podssh#362, ask 3) |
 | [T-1409](transport.md) | P2 | M | M1 | defect | done | `pod-tls`: a refused certificate reaches the user in rustls's `Debug` names (`Other(OtherError(CaUsedAsEndEntity))`) |
+| [T-1410](relay.md) | P2 | S | M2 | defect | done | `pod-session`: a far end that closes the link before its first byte is said as one that "said nothing within 30 s" |
+| [T-1411](fleet.md) | P2 | S | M8 | feature | done | `pod-release`: former signers of a moved repository, and the hint of Sigstore's roots only for a chain that failed |
+| [T-1412](fleet.md) | P1 | S | M8 | defect | done | `pod-manual`: a pager program that fails at once (`PAGER=false`) leaves the text unshown, with exit 0 |
 | [T-1413](foundation.md) | P3 | S | M0 | feature | open | `pod-core`: a class for an output that could not be written (exit 74, `EX_IOERR`) (PodUtils/podssh#363, ask 3) |
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |

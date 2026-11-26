@@ -185,3 +185,25 @@ fn a_leaf_with_no_subject_is_named_by_its_place_with_its_window() {
     );
     assert!(!why.contains("  "), "{why}");
 }
+
+/// `verify_any`: the place of the identity that the leaf names, and each
+/// refusal by its part.
+#[test]
+fn verify_any_gives_the_place_of_the_signer_and_the_part_that_refused() {
+    let other = Identity::github("PodUtils/podnew", "release.yml", "v0.76.0");
+    let (logged, place) = verify_any(BUNDLE.as_bytes(), SUMS, &[other.clone(), who()], &Roots::sigstore()).unwrap();
+    assert_eq!((logged.index, place), (3992748924, 1));
+    match verify_any(BUNDLE.as_bytes(), SUMS, std::slice::from_ref(&other), &Roots::sigstore()) {
+        Err(Unverified::Identity(why)) => assert!(why.contains("not https://github.com/PodUtils/podnew/"), "{why}"),
+        other => panic!("{other:?}"),
+    }
+    assert!(matches!(verify_any(BUNDLE.as_bytes(), SUMS, &[], &Roots::sigstore()), Err(Unverified::Identity(_))));
+    let roots = Roots::sigstore();
+    let root_only = Roots { fulcio: roots.fulcio[roots.fulcio.len() - 1..].to_vec(), ..roots };
+    assert!(matches!(verify_any(BUNDLE.as_bytes(), SUMS, &[who()], &root_only), Err(Unverified::Chain(_))));
+    assert!(matches!(verify_any(b"{", SUMS, &[who()], &Roots::sigstore()), Err(Unverified::Bundle(_))));
+    assert!(matches!(
+        verify_any(BUNDLE.as_bytes(), b"other", &[who()], &Roots::sigstore()),
+        Err(Unverified::Bundle(_))
+    ));
+}

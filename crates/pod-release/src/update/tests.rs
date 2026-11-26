@@ -227,3 +227,5 @@ fn plan_tells_an_equal_release_from_an_older_one() {
     assert_eq!(plan(&v("1.1.9"), &v("1.2.0"), false, true, false), Plan::Newer);
     assert_eq!(plan(&v("1.2.0"), &v("1.2.0-beta.3"), false, true, false), Plan::Available);
 }
+
+mod former;

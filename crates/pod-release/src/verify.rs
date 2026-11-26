@@ -30,6 +30,11 @@ pub struct Verified {
 pub fn verify_release(sums: &[u8], bundle: &[u8], who: &Identity, roots: &Roots) -> Result<Verified, Error> {
     let logged = sigstore::verify_with(bundle, sums, who, roots)
         .map_err(|why| Error::Refused(format!("the signature of {SUMS}: {why}")))?;
+    verified(sums, logged)
+}
+
+/// `sums`, whose bundle verified as `logged`, read.
+pub(crate) fn verified(sums: &[u8], logged: Logged) -> Result<Verified, Error> {
     let parsed = Sums::parse(sums).map_err(Error::Refused)?;
     Ok(Verified { sums: parsed, logged, digest: crate::sha256(sums) })
 }

@@ -1,0 +1,6 @@
+# pod-release: another signer gets the hint of Sigstore's roots (T-1411); the test of the hint must fail.
+ENTRY=T-1411
+GROUP=release
+EXPECT='test update::tests::former::only_a_chain_that_fails_gives_the_hint_of_the_roots \.\.\. FAILED'
+RUN='cargo test -p pod-release --all-features --lib update::tests::former::only_a_chain_that_fails_gives_the_hint_of_the_roots -- --exact'
+LIMIT=900

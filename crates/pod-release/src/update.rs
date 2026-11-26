@@ -1,6 +1,7 @@
 //! The steps of the self-update of a running binary (feature `fetch`):
 //! which release ([`newest`], [`plan`]); its `SHA256SUMS` and the bundle,
-//! checked by the identity of the product's release workflow ([`signed`]);
+//! checked by the identity of the product's release workflow ([`signed`]),
+//! or, for a tag before a move of the repository, of a [`Former`] one;
 //! the binary of this target, checked against `SHA256SUMS` ([`binary`]);
 //! then run once here and in place of the running one, the one before it
 //! kept beside it ([`install`]). A consumer runs the steps in this order
@@ -15,9 +16,9 @@ use std::time::Duration;
 
 use crate::fetch::Fetcher;
 use crate::replace::{self, Replaced, Stopped};
-use crate::sigstore::{GITHUB_ISSUER, Identity, Roots};
+use crate::sigstore::{self, GITHUB_ISSUER, Identity, Roots, Unverified};
 use crate::trial::{self, Expect};
-use crate::verify::{BUNDLE, SUMS, Verified, verify_release};
+use crate::verify::{self, BUNDLE, SUMS, Verified};
 use crate::version::{self, Version};
 use crate::{Error, hex};
 
@@ -49,6 +50,39 @@ pub struct Source {
     pub issuer: String,
     /// The roots of Sigstore that check the bundle.
     pub roots: Roots,
+    /// The repositories that signed the releases before `repo` took them:
+    /// the consumer names each one. Empty for [`Source::github`].
+    pub former: Vec<Former>,
+}
+
+/// A former name of the repository of the releases: its release workflow
+/// (the workflow of the [`Source`]) signed each tag up to `last`. The files
+/// of each release still come from the repository of the [`Source`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Former {
+    /// `OWNER/REPO` on GitHub, as the leaf of a release before the move
+    /// names it.
+    pub repo: String,
+    /// The last tag that `repo` signed, `vVERSION`.
+    pub last: String,
+}
+
+impl Former {
+    pub fn new(repo: &str, last: &str) -> Former {
+        Former { repo: repo.to_string(), last: last.to_string() }
+    }
+
+    /// Whether `repo` may have signed `tag`: both are tags of a version,
+    /// written as [`Version::tag`] writes them, and `tag` is at or before
+    /// `last` in the order of semver. A tag that does not parse, or that
+    /// has a part that the order ignores (`+BUILD`), is never one.
+    pub fn signed(&self, tag: &str) -> bool {
+        let version = |text: &str| Version::of_tag(text).filter(|v| v.tag() == text);
+        match (version(tag), version(&self.last)) {
+            (Some(tag), Some(last)) => tag <= last,
+            _ => false,
+        }
+    }
 }
 
 impl Source {
@@ -62,12 +96,25 @@ impl Source {
             workflow: workflow.to_string(),
             issuer: GITHUB_ISSUER.into(),
             roots: Roots::sigstore(),
+            former: Vec::new(),
         }
     }
 
     /// The identity that signs the release `tag`.
     pub fn identity(&self, tag: &str) -> Identity {
-        Identity { issuer: self.issuer.clone(), ..Identity::github(&self.repo, &self.workflow, tag) }
+        self.identity_of(&self.repo, tag)
+    }
+
+    /// Each identity that may sign the release `tag`: [`Source::identity`]
+    /// first, then the release workflow of each former repository that
+    /// signed `tag` ([`Former::signed`]).
+    pub fn identities(&self, tag: &str) -> Vec<Identity> {
+        let former = self.former.iter().filter(|f| f.signed(tag)).map(|f| self.identity_of(&f.repo, tag));
+        std::iter::once(self.identity(tag)).chain(former).collect()
+    }
+
+    fn identity_of(&self, repo: &str, tag: &str) -> Identity {
+        Identity { issuer: self.issuer.clone(), ..Identity::github(repo, &self.workflow, tag) }
     }
 
     /// The URL of the file `name` of the release `tag`.
@@ -171,16 +218,29 @@ pub async fn signed(fetcher: &Fetcher, source: &Source, version: &Version) -> Re
         other => other,
     })?;
     let bundle = small(BUNDLE).await?;
-    let identity = source.identity(&tag);
-    let verified = verify_release(&sums, &bundle, &identity, &source.roots).map_err(|e| {
-        Error::Refused(format!(
-            "{}; nothing was replaced. If Sigstore changed its roots, download the release by hand: {}/{}/releases/tag/{tag}",
-            e.why(),
-            source.web,
-            source.repo
-        ))
-    })?;
-    Ok(Signed { version: version.clone(), identity, verified })
+    let mut identities = source.identities(&tag);
+    let (logged, place) = sigstore::verify_any(&bundle, &sums, &identities, &source.roots)
+        .map_err(|e| Error::Refused(refused(&e, source, &tag)))?;
+    let verified = verify::verified(&sums, logged)?;
+    Ok(Signed { version: version.clone(), identity: identities.swap_remove(place), verified })
+}
+
+/// The words of a bundle of the release `tag` that did not verify. Only a
+/// chain that the roots cannot check gives the hint of newer roots: a
+/// signer that differs is said as such.
+pub fn refused(e: &Unverified, source: &Source, tag: &str) -> String {
+    match e {
+        Unverified::Chain(why) => format!(
+            "the signature of {SUMS}: {why}; nothing was replaced. If Sigstore changed its roots, download the release by hand: {}/{}/releases/tag/{tag}",
+            source.web, source.repo
+        ),
+        Unverified::Identity(why) => {
+            format!(
+                "{SUMS} of {tag} is signed by a signer that this program does not accept: {why}; nothing was replaced"
+            )
+        }
+        Unverified::Bundle(why) => format!("the signature of {SUMS}: {why}; nothing was replaced"),
+    }
 }
 
 /// The file `asset` of a signed release, checked against its
