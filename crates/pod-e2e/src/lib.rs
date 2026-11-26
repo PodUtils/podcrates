@@ -22,7 +22,7 @@
 //! - [`initiate_with`] and [`respond_with`]: the handshake, sans transport
 //!   of its own; [`Channel`]: the channel after it, and its carry.
 //! - [`ends`]: the two ends as a session runs them: the node's door, its
-//!   grant used once ([`ends::Redeem`]), its person ([`person`]), its
+//!   grant or bearer used once ([`ends::Redeem`]), its person ([`person`]), its
 //!   target; the operator's check of the node's key before its own proof.
 //! - [`net`]: two ends that hold the net's document give each other the
 //!   newer one inside the channel.
@@ -67,6 +67,7 @@ pub mod legs;
 pub mod net;
 pub mod person;
 pub mod record;
+mod redeem;
 
 use std::fmt;
 use std::time::Duration;

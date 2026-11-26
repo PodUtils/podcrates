@@ -6995,3 +6995,45 @@ The doc step of each job `test` of the next `nightly.yml` run ends with no targe
 cargo check --workspace --all-targets --all-features
 cargo todo check
 ```
+
+# T-1480: three crates keep their own guard that aborts a tokio task on drop
+
+**Source:** finding of T-1405 (PodUtils/podssh#361)
+**Category:** chore
+**Milestone:** M5
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The rule "Shared code" asks for one copy of a capability. A guard that
+aborts a tokio task when it drops exists three times:
+`crates/pod-relay/src/abort.rs` (`AbortOnDrop`, T-1405, which replaced the
+`Driver` of `http_road/one_h2.rs`), `crates/pod-cloudflare/src/edge_h2/serve.rs`
+(`AbortOnDrop`, with `into_inner`) and `crates/pod-warp/src/tun.rs`
+(`Abort`). `codegraph.py similar abort drop guard` finds none of them by
+these words.
+
+## Premise
+
+- Read: the three guards; `pod-core` has the feature `async` with tokio,
+  but not the feature `rt` of tokio that `JoinHandle` needs.
+- Not read: each other `impl Drop` that aborts a task in the workspace
+  (`pod-natprobe` `TaskPool`, `pod-relay` `blocking::Client`).
+
+## Approach
+
+1. One guard in `pod-core` (feature `async`, with tokio's `rt`):
+   `AbortOnDrop(JoinHandle<T>)` with `into_inner`.
+2. `pod-relay`, `pod-cloudflare` and `pod-warp` use it; remove the three
+   copies.
+3. The tests of each crate stay green; a test in `pod-core` that a drop
+   aborts the task.
+
+## Prove
+
+```sh
+python3 -I scripts/codegraph.py dups
+cargo test -p pod-core -p pod-relay -p pod-cloudflare -p pod-warp --all-features
+```

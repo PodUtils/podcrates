@@ -76,6 +76,7 @@ impl Pair {
             connect_token: self.connect_token.clone(),
             stop_token: self.stop_token.clone(),
             expires_ms,
+            once: self.once,
         }
     }
 }
@@ -113,7 +114,7 @@ pub async fn status(ctx: &PairContext<'_>, part: &OperatorPart) -> Result<Status
         200..=299 => {
             serde_json::from_slice(&response.body).map_err(|_| PairError::BadAnswer("not the expected status"))
         }
-        status => Err(refused(status, &response)),
+        status => Err(refused(status, &response).for_once(part.once)),
     }
 }
 

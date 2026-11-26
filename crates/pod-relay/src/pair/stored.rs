@@ -59,6 +59,7 @@ mod tests {
             connect_token: token(),
             stop_token: token(),
             expires_ms,
+            once: false,
         }
     }
 

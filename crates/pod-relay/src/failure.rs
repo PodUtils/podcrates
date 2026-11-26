@@ -83,7 +83,7 @@ mod pair {
             PairError::Connect(c) => c.stage_and_class(),
             PairError::RateLimited { .. } => (Stage::Relay, Class::TempFail),
             PairError::NotIssued { .. } => (Stage::Relay, Class::Unsupported),
-            PairError::Forbidden => (Stage::Relay, Class::Refused),
+            PairError::Forbidden { .. } | PairError::NotMade { .. } => (Stage::Relay, Class::Refused),
             PairError::ShortLived { .. } => (Stage::Relay, Class::Revoked),
             PairError::BadAnswer(_) => (Stage::Relay, Class::Protocol),
             PairError::BadLabel(_) => (Stage::Relay, Class::Usage),

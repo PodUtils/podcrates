@@ -118,7 +118,7 @@ async fn a_grant_is_used_once_through_the_live_relay() {
         ends::Node::open_to_all(node_key.clone(), Arc::new(move |event: pod_core::Event| say(event.text)));
     node_end.admit = Arc::new(|_: &PublicKey, _: &Ask| -> Result<(), String> { Err("no allowlist".into()) });
     node_end.redeem = Some(Arc::new(move |peer: &PublicKey, ask: &Ask, blob: &[u8]| {
-        door.redeem(peer, ask, blob, now_secs()).map(|redeemed| redeemed.to_string())
+        ends::Redemption::grant(door.redeem(peer, ask, blob, now_secs()).map(|redeemed| redeemed.to_string()))
     }));
     let stop = Arc::new(Notify::new());
     let stopper = stop.clone();

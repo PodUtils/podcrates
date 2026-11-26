@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use e2e_harness::{Fault, LIMIT, PIPE, echo, echo_back, holds, identity, stand_in};
-use pod_e2e::ends::{self, GRANT_REFUSED, Redeem};
+use pod_e2e::ends::{self, BEARER_REFUSED, Redeem, Redemption};
 use pod_e2e::{Ask, Binding, Error, Refusal};
 use pod_identity::PublicKey;
 use pod_relay::grant::{Bearers, bearer};
@@ -27,14 +27,16 @@ fn now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
-/// A node's check of a grant that takes a bearer of [`SIGNER`] with the
-/// binding of the channel that carries it.
+/// A node's check of a credential that takes a bearer of [`SIGNER`] with the
+/// binding of the channel that carries it, and says that it checked a
+/// bearer.
 fn redeem_of(bearers: Arc<Bearers>) -> Arc<Redeem> {
     let signer = identity(SIGNER).public();
     Arc::new(move |peer: &PublicKey, _: &Ask, blob: &[u8]| {
         let binding = ends::binding();
         let taken = |key: &PublicKey| *key == signer;
-        bearers.verify(blob, binding.as_ref(), peer, taken, now()).map(|v| v.to_string()).map_err(|e| e.to_string())
+        let verified = bearers.verify(blob, binding.as_ref(), peer, taken, now());
+        Redemption::bearer(verified.map(|v| v.to_string()).map_err(|e| e.to_string()))
     })
 }
 
@@ -101,9 +103,13 @@ async fn session(grant: Grant, bearers: Arc<Bearers>) -> Ran {
     Ran { result, echoed, opened: opened.load(Ordering::SeqCst), carried, lines }
 }
 
+/// The operator hears the words of a bearer, and the node's line names a
+/// refused bearer and the check that failed (PodUtils/podssh#362, ask 3).
 fn refused_by(ran: &Ran, class: &str) -> bool {
-    let refused = matches!(&ran.result, Err(Error::Refused(Refusal::Other(why))) if why == GRANT_REFUSED);
-    refused && ran.opened == 0 && ran.lines.iter().any(|l| l.contains(&format!("a bearer refused ({class})")))
+    let refused = matches!(&ran.result, Err(Error::Refused(Refusal::Other(why))) if why == BEARER_REFUSED);
+    let said =
+        format!("refused a bearer of the operator key {}: a bearer refused ({class})", identity(OPERATOR).public());
+    refused && ran.opened == 0 && ran.lines.iter().any(|l| l.contains(&said))
 }
 
 /// A bearer of its channel lets the operator in; the same bearer on another
@@ -116,6 +122,7 @@ async fn a_bearer_holds_on_its_channel_and_is_refused_by_its_binding_on_another(
     let first = session(Grant::Bound { nonce: 1, change: None, kept: kept.clone() }, bearers.clone()).await;
     assert!(first.result.is_ok() && first.echoed, "{:?} {:?}", first.result, first.lines);
     assert!(first.lines.iter().any(|l| l.contains("came with the bearer of")), "{:?}", first.lines);
+    assert!(first.lines.iter().any(|l| l.contains("came in, by a bearer")), "{:?}", first.lines);
     let blob = kept.lock().unwrap().clone();
     assert_eq!(blob.len(), bearer::LEN);
     assert!(!holds(&first.carried, &blob[blob.len() - 64..]), "the relay saw the bearer");

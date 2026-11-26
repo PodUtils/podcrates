@@ -33,6 +33,7 @@ impl Pair {
             connect_token: Zeroizing::new(String::new()),
             stop_token: Zeroizing::new(String::new()),
             expires_ms: UNKNOWN_EXPIRY,
+            once: false,
         })
     }
 }

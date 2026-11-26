@@ -94,7 +94,8 @@ fn no_token_is_in_debug_or_in_an_error() {
     no_token(&debug);
     assert!(debug.contains(NAME) && debug.contains("<redacted>"), "{debug}");
     for error in [
-        PairError::Forbidden,
+        PairError::Forbidden { detail: ": reverse: forbidden".into(), once: true },
+        PairError::NotMade { detail: String::new() },
         PairError::NotIssued { detail: String::new() },
         PairError::BadAnswer("x"),
         PairError::ShortLived { left_ms: 1 },

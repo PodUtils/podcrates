@@ -10,7 +10,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use pod_ws::{ConnectError, Trust};
+use pod_ws::Trust;
 use serde::{Deserialize, Serialize};
 use zeroize::Zeroizing;
 
@@ -19,6 +19,8 @@ use crate::context::Context;
 use crate::relay::{Relay, check_node_name, parse_relay};
 use crate::token::relay_name;
 
+/// Why a pairing call failed.
+mod error;
 /// A node's pair from the parts that its user gives (podvm).
 pub mod given;
 /// A pair that its owner halts and resumes in podssh's relay role (podssh T-647).
@@ -36,6 +38,8 @@ pub mod rotate;
 /// The labels of the store, and the pair with the most time left (podnet).
 pub mod stored;
 
+pub use error::PairError;
+pub(crate) use error::{check_label, not_made, refused};
 pub use stored::{labels, labels_from, newest, newest_from};
 
 /// A pair, as `POST /v1/pair` gives it.
@@ -50,6 +54,10 @@ pub struct Pair {
     stop_token: Zeroizing<String>,
     /// When the relay forgets the pair, in milliseconds since the epoch.
     pub expires_ms: i64,
+    /// The relay said that its connect token takes one upgrade alone
+    /// (`"once": true`): the store keeps the mark, so that a `403` of a spent
+    /// token is named as such.
+    pub once: bool,
 }
 
 impl Pair {
@@ -79,6 +87,7 @@ impl Pair {
             connect_token: self.connect_token.clone(),
             stop_token: self.stop_token.clone(),
             expires_ms: self.expires_ms,
+            once: self.once,
         }
     }
 }
@@ -90,6 +99,7 @@ impl std::fmt::Debug for Pair {
             .field("name", &self.name)
             .field("tokens", &"<redacted>")
             .field("expires_ms", &self.expires_ms)
+            .field("once", &self.once)
             .finish()
     }
 }
@@ -102,69 +112,6 @@ pub struct PairContext<'a> {
     pub trust: &'a Trust,
     pub timeout: Duration,
 }
-
-/// Why a pairing call failed. No variant holds a token, and none quotes the
-/// body of a 2xx answer, which holds them.
-#[derive(Debug)]
-pub enum PairError {
-    Connect(ConnectError),
-    /// `429`: the brake that pairs share with mints, or a key past its share
-    /// of podssh's relay role (podssh T-630), with what it said.
-    RateLimited {
-        retry_after: Option<String>,
-        detail: String,
-    },
-    /// `503`: the relay makes no pairs, with what it said (an answer that is
-    /// not a 2xx holds no token). Seen once, and gone at the
-    /// next request.
-    NotIssued {
-        detail: String,
-    },
-    /// `403 reverse: forbidden`: a wrong token, an expired pair or a stopped
-    /// one look the same.
-    Forbidden,
-    /// The pair has less than 10 minutes left.
-    ShortLived {
-        left_ms: i64,
-    },
-    /// A 2xx answer that is not a usable pair, with what is wrong with it.
-    BadAnswer(&'static str),
-    /// A label that cannot be a file name, no pair under a label, or a
-    /// name or a token of [`Pair::for_node`] that does not have its shape.
-    BadLabel(String),
-    /// The pair could not be kept or read in a private file.
-    Store(String),
-    Failed {
-        status: u16,
-        detail: String,
-    },
-}
-
-impl std::fmt::Display for PairError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PairError::Connect(e) => write!(f, "{e}"),
-            PairError::RateLimited { retry_after: Some(s), detail } => {
-                write!(f, "the relay is limiting new pairs; try again in {s} s{detail}")
-            }
-            PairError::RateLimited { retry_after: None, detail } => {
-                write!(f, "the relay is limiting new pairs; try again later{detail}")
-            }
-            PairError::NotIssued { detail } => write!(f, "the relay makes no pairs (503){detail}"),
-            PairError::Forbidden => {
-                write!(f, "the relay refused the token (403 reverse: forbidden): the pair is stopped or has expired")
-            }
-            PairError::ShortLived { left_ms } => {
-                write!(f, "the pair has {} min left, under the 10 min that a node needs", left_ms / 60_000)
-            }
-            PairError::BadAnswer(what) => write!(f, "the relay's answer is not a usable pair: {what}"),
-            PairError::BadLabel(why) | PairError::Store(why) => write!(f, "{why}"),
-            PairError::Failed { status, detail } => write!(f, "the relay answered {status}{detail}"),
-        }
-    }
-}
-
-impl std::error::Error for PairError {}
 
 #[derive(Deserialize)]
 struct PairAnswer {
@@ -191,7 +138,8 @@ pub fn parse(relay: &Relay, body: &[u8], now_ms: i64) -> Result<Pair, PairError>
     if left_ms < MIN_REMAINING_MS {
         return Err(PairError::ShortLived { left_ms });
     }
-    Ok(Pair { relay: relay.clone(), name, node_token, connect_token, stop_token, expires_ms: expires })
+    let once = once::said_once(body);
+    Ok(Pair { relay: relay.clone(), name, node_token, connect_token, stop_token, expires_ms: expires, once })
 }
 
 /// `POST /v1/pair` with `{}`, and once more with this client's key when the
@@ -211,14 +159,7 @@ pub struct Presence {
 /// accepts there (as measured; the other two get `403`). The
 /// operator's part holds it, so an operator's host asks too (podssh T-591).
 pub async fn status(ctx: &PairContext<'_>, part: &OperatorPart) -> Result<Presence, PairError> {
-    let path = format!("/v1/status/{}", checked(&part.name)?);
-    let response = with_token(ctx, "GET", &path, part.connect_token()).await?;
-    match response.status {
-        200..=299 => {
-            serde_json::from_slice(&response.body).map_err(|_| PairError::BadAnswer("not the expected status"))
-        }
-        status => Err(refused(status, &response)),
-    }
+    renew::status(ctx, part).await.map(|status| status.presence())
 }
 
 /// What `/v1/stop/<name>` answered.
@@ -279,20 +220,6 @@ async fn with_token(
     .map_err(PairError::Connect)
 }
 
-/// An answer that is not a 2xx. Its body is quoted (it holds no token), safe
-/// to print and short.
-fn refused(status: u16, response: &pod_proxy::http::Response) -> PairError {
-    let body = response.body_text(200);
-    let detail = if body.is_empty() { String::new() } else { format!(": {body}") };
-    match status {
-        403 => PairError::Forbidden,
-        // The brake's words, or a key's share of podssh's relay role (podssh T-630).
-        429 => PairError::RateLimited { retry_after: response.header_text("retry-after", 64), detail },
-        503 => PairError::NotIssued { detail },
-        _ => PairError::Failed { status, detail },
-    }
-}
-
 fn checked(name: &str) -> Result<&str, PairError> {
     check_node_name(name).map(|()| name).map_err(PairError::BadLabel)
 }
@@ -310,6 +237,8 @@ struct StoredRef<'a> {
     connect_token: &'a str,
     stop_token: &'a str,
     expires: i64,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    once: bool,
 }
 
 /// A pair as it is read; its tokens go into `Zeroizing` at once.
@@ -321,6 +250,8 @@ struct Stored {
     connect_token: String,
     stop_token: String,
     expires: i64,
+    #[serde(default)]
+    once: bool,
 }
 
 /// The operator's part of a pair, as its file holds it: what an operator
@@ -331,6 +262,8 @@ struct OperatorPartRef<'a> {
     name: &'a str,
     connect_token: &'a str,
     expires: i64,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    once: bool,
 }
 
 /// The operator's part, as it is read back; a whole pair has these fields too.
@@ -340,6 +273,8 @@ struct OperatorStored {
     name: String,
     connect_token: String,
     expires: i64,
+    #[serde(default)]
+    once: bool,
 }
 
 /// The operator's part of a pair: the relay, the pair's name and the connect
@@ -350,6 +285,8 @@ pub struct OperatorPart {
     pub name: String,
     connect_token: Zeroizing<String>,
     pub expires_ms: i64,
+    /// The connect token takes one upgrade alone ([`Pair::once`]).
+    pub once: bool,
 }
 
 impl OperatorPart {
@@ -360,6 +297,7 @@ impl OperatorPart {
             name: pair.name.clone(),
             connect_token: pair.connect_token.clone(),
             expires_ms: pair.expires_ms,
+            once: pair.once,
         }
     }
 
@@ -375,6 +313,7 @@ impl std::fmt::Debug for OperatorPart {
             .field("name", &self.name)
             .field("connect_token", &"<redacted>")
             .field("expires_ms", &self.expires_ms)
+            .field("once", &self.once)
             .finish()
     }
 }
@@ -387,20 +326,20 @@ pub fn read_operator_file(path: &Path) -> Result<OperatorPart, PairError> {
     let what = format!("the file {}", path.display());
     let stored: OperatorStored = serde_json::from_str(&text)
         .map_err(|_| PairError::Store(format!("{what} holds no operator's part of a pair")))?;
-    let OperatorStored { relay, name, connect_token, expires } = stored;
+    let OperatorStored { relay, name, connect_token, expires, once } = stored;
     let connect_token = Zeroizing::new(connect_token);
     check_node_name(&name).map_err(|_| PairError::Store(format!("{what} names no pair")))?;
     if !valid_token(&connect_token) {
         return Err(PairError::Store(format!("{what} holds no usable connect token")));
     }
     let relay = parse_relay(&relay).map_err(|_| PairError::Store(format!("{what} names no relay")))?;
-    Ok(OperatorPart { relay, name, connect_token, expires_ms: expires })
+    Ok(OperatorPart { relay, name, connect_token, expires_ms: expires, once })
 }
 
 /// `pair-<label>.json`. A label is the user's name for a pair (podssh T-083); it must
 /// be a name that podssh T-076 accepts, so it cannot leave the cache directory.
 pub fn file_name(label: &str) -> Result<String, PairError> {
-    check_node_name(label).map_err(|why| PairError::BadLabel(format!("the label {why}")))?;
+    check_label(label)?;
     Ok(format!("pair-{label}.json"))
 }
 
@@ -420,6 +359,7 @@ pub fn store_in_first(dirs: &[PathBuf], label: &str, pair: &Pair) -> Result<Path
         connect_token: pair.connect_token(),
         stop_token: pair.stop_token(),
         expires: pair.expires_ms,
+        once: pair.once,
     };
     let body = Zeroizing::new(serde_json::to_vec(&stored).map_err(|e| PairError::Store(e.to_string()))?);
     cache::store_file_in_first(dirs, &name, &body).map_err(PairError::Store)
@@ -457,11 +397,11 @@ fn parse_stored(text: &str, what: &str) -> Result<Pair, PairError> {
             format!("{what} is not readable")
         })
     })?;
-    let Stored { relay, name, node_token, connect_token, stop_token, expires } = stored;
+    let Stored { relay, name, node_token, connect_token, stop_token, expires, once } = stored;
     let (node_token, connect_token, stop_token) =
         (Zeroizing::new(node_token), Zeroizing::new(connect_token), Zeroizing::new(stop_token));
     let relay = parse_relay(&relay).map_err(|_| PairError::Store(format!("{what} names no relay")))?;
-    Ok(Pair { relay, name, node_token, connect_token, stop_token, expires_ms: expires })
+    Ok(Pair { relay, name, node_token, connect_token, stop_token, expires_ms: expires, once })
 }
 
 /// Forget the pair kept under `label`, in each directory where it is ours, a
@@ -484,6 +424,7 @@ pub fn write_operator_file(path: &Path, pair: &Pair) -> std::io::Result<()> {
         name: &pair.name,
         connect_token: pair.connect_token(),
         expires: pair.expires_ms,
+        once: pair.once,
     };
     let body = Zeroizing::new(serde_json::to_vec_pretty(&part).map_err(std::io::Error::other)?);
     let mut file = cache::create_new_private(path)?;

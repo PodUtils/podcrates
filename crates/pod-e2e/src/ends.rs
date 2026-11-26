@@ -31,6 +31,7 @@ use crate::hold::Holds;
 use crate::legs::{self, Leases};
 use crate::net::Docs;
 use crate::person::{self, Pass};
+pub use crate::redeem::{BEARER_REFUSED, Credential, GRANT_REFUSED, Redeem, Redemption};
 use crate::{Ask, Binding, Error, Refusal, initiate_with, respond_with};
 use pod_identity::{Identity, PublicKey};
 
@@ -66,9 +67,10 @@ pub const TARGET_WAIT: Duration = Duration::from_secs(20);
 /// The event of a session that ended in the channel's handshake.
 pub const EVENT_HANDSHAKE: &str = "e2e.handshake";
 /// The event of an operator that the node refused: a no of its person that
-/// stands, its admission, a grant that failed, or its person.
+/// stands, its admission, a grant or a bearer that failed, or its person.
 pub const EVENT_REFUSED: &str = "e2e.refused";
-/// The event of a grant that let a key in, or that the node set aside.
+/// The event of a grant or a bearer that let a key in, or of a grant that the
+/// node set aside.
 pub const EVENT_GRANT: &str = "e2e.grant";
 /// The event of a target that refused the operator, or did not answer.
 pub const EVENT_TARGET: &str = "e2e.target";
@@ -103,19 +105,8 @@ pub(crate) fn of_session(events: &Arc<dyn Events>, peer: PublicKey) -> Arc<dyn E
 /// node's event; the operator learns only that it is not let in.
 pub type Admit = dyn Fn(&PublicKey, &Ask) -> Result<(), String> + Send + Sync;
 
-/// A node's check of an operator's grant: the operator's key, which the
-/// channel proved, what it asked, and the grant's bytes. `Ok` lets it in,
-/// once, with the words of the node's event; `Err` is why not, for the
-/// node's event.
-pub type Redeem = dyn Fn(&PublicKey, &Ask, &[u8]) -> Result<String, String> + Send + Sync;
-
 /// The refusal of an exit's target by a node that is no exit.
 pub const NO_EXIT: &str = "this node is no exit: it lends no egress";
-
-/// What an operator whose grant the node refused hears: the reasons stay in
-/// the node's events, as they can name its files.
-pub const GRANT_REFUSED: &str = "this grant does not let this key in: it was used already, its window is not now, or \
-                                 it is not for this key, this node or this route; the node's log says which";
 
 /// A node's end: its key, who can come in, where its events go, its door
 /// for grants, its tokens of one leg, its person, its documents of the net
@@ -126,8 +117,8 @@ pub struct Node {
     pub admit: Arc<Admit>,
     /// Where the node's lines go, as events of the kinds `e2e.*`.
     pub events: Arc<dyn Events>,
-    /// The check of a grant used once; with none, a grant is set aside and
-    /// the admission decides.
+    /// The check of a credential (a grant or a bearer) used once; with none,
+    /// a credential is set aside and the admission decides.
     pub redeem: Option<Arc<Redeem>>,
     /// The tokens of one leg of each session let in, which the node's
     /// socket to its role registers; each clone shares them.
@@ -246,29 +237,30 @@ where
     let verdict = match (asked.grant(), &node.redeem) {
         (Some(grant), Some(redeem)) => {
             // The check gets the binding of this channel ([`binding`]).
-            let checked = BINDING.sync_scope(asked.binding().clone(), || redeem(&peer, &ask, grant));
-            match checked {
-                Ok(line) => Ok((true, Some(format!("the operator key {peer} came with {line}")))),
+            let Redemption { credential, result } =
+                BINDING.sync_scope(asked.binding().clone(), || redeem(&peer, &ask, grant));
+            match result {
+                Ok(line) => Ok((Some(credential), Some(format!("the operator key {peer} came with {line}")))),
                 Err(why) => Err((
-                    format!("refused the grant of the operator key {peer}: {why}"),
-                    Refusal::Other(GRANT_REFUSED.into()),
+                    format!("refused {} of the operator key {peer}: {why}", credential.words()),
+                    Refusal::Other(credential.refused().into()),
                 )),
             }
         }
         (grant, _) => {
             let aside = grant.map(|_| format!("set aside the grant of the operator key {peer}: this end reads none"));
             match (node.admit)(&peer, &ask) {
-                Ok(()) => Ok((false, aside)),
+                Ok(()) => Ok((None, aside)),
                 Err(why) => Err((format!("refused the operator key {peer}: {why}"), Refusal::NotAllowed)),
             }
         }
     };
-    let by_grant = match verdict {
-        Ok((by_grant, line)) => {
+    let credential = match verdict {
+        Ok((credential, line)) => {
             if let Some(line) = line {
                 node.say(EVENT_GRANT, line);
             }
-            by_grant
+            credential
         }
         Err((line, refusal)) => {
             node.say(EVENT_REFUSED, line);
@@ -279,7 +271,8 @@ where
     // The node's person, after the door or the grant, whichever let the key
     // through: neither passes it, and it lets in nothing that they refused.
     // Its pass holds the key's cover while the session lives.
-    let (_pass, by) = match Box::pin(person_of(node, peer, &ask, by_grant)).await {
+    let by_grant = credential.is_some();
+    let (_pass, by) = match Box::pin(person_of(node, peer, &ask, credential)).await {
         Ok(passed) => passed,
         Err(line) => {
             node.say(EVENT_REFUSED, line);
@@ -326,11 +319,16 @@ where
 /// The gate of the node's person: by what the session came in, for the
 /// node's event, and the pass that holds the key's cover while the session
 /// lives; `Err` is the text of the refusal. With no gate, the door or the
-/// grant let it in alone.
-async fn person_of(node: &Node, peer: PublicKey, ask: &Ask, by_grant: bool) -> Result<(Option<Pass>, String), String> {
-    let door = if by_grant { "a grant" } else { "the door" };
+/// credential (a grant or a bearer) let it in alone.
+async fn person_of(
+    node: &Node,
+    peer: PublicKey,
+    ask: &Ask,
+    credential: Option<Credential>,
+) -> Result<(Option<Pass>, String), String> {
+    let door = credential.map_or("the door", Credential::words);
     let Some(gate) = &node.gate else { return Ok((None, door.to_string())) };
-    match gate.cross(peer, ask, by_grant).await {
+    match gate.cross(peer, ask, credential.is_some()).await {
         Ok((pass, by)) => Ok((Some(pass), format!("{door} and {by}"))),
         Err(why) => Err(format!("refused the operator key {peer}{ask}, which {door} let through: {why}")),
     }
