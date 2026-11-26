@@ -40,6 +40,7 @@ pub mod platform;
 pub mod pull;
 pub mod reference;
 pub mod registry;
+mod rootfs;
 pub mod spec;
 pub mod transport;
 pub mod trust;

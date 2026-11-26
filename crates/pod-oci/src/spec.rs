@@ -11,6 +11,7 @@ use serde::Deserialize;
 
 use crate::digest::Digest;
 use crate::error::{Class, Refusal, Result, registry};
+pub use crate::rootfs::{MAX_LAYERS, ROOTFS_LAYERS, RootFs, check_layers};
 
 /// The OS of the client. [`crate::platform`] decides the platform at run
 /// time.
@@ -124,9 +125,8 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    /// The bytes of the configuration and the layers as fetched: the check
-    /// of the free space before a pull. These are compressed bytes; the
-    /// extracted size is not guessed here.
+    /// The bytes of the configuration and the layers as fetched (compressed):
+    /// the check of the free space before a pull.
     pub fn stored_bytes(&self) -> u64 {
         self.config.size + self.layers.iter().map(|l| l.size).sum::<u64>()
     }
@@ -146,6 +146,9 @@ pub struct Config {
     /// What the image says to run.
     #[serde(default)]
     pub config: RunConfig,
+    /// Absent on some old images: [`check_layers`] passes.
+    #[serde(default)]
+    pub rootfs: Option<RootFs>,
 }
 
 /// The `config` object of an image configuration: the fields of an entry.
@@ -335,8 +338,7 @@ mod tests {
         let Fetched::Index(index) = Fetched::parse(INDEX.as_bytes(), None).unwrap() else {
             panic!("parsed as a manifest");
         };
-        // amd64 is the second entry and arm64 the first: a choice of the head
-        // passes each other assertion here.
+        // amd64 is the second entry: a choice of the head fails here.
         let picked = select_platform(&index, &p("linux/amd64")).unwrap();
         assert!(picked.digest.ends_with("2222"));
         let arm = select_platform(&index, &p("linux/arm64")).unwrap();

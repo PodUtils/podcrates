@@ -15654,3 +15654,37 @@ build flags and the needs of scratch files or of the file system.
 ```sh
 cargo test -p pod-services --all-features
 ```
+
+# T-1425: `pod-oci`: `Config` reads `rootfs`, and `spec::check_layers` checks the count of layers (PodUtils/podvm#677)
+
+**Source:** PodUtils/podvm#677 (COORD-258 of podvm, PodUtils/podvm@T-2100; author COLLABORATOR)
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`spec::Config` has `architecture`, `os`, `created` and `config`, but not `rootfs`. podvm cannot see `rootfs.diff_ids`. An OCI archive whose manifest names 2 layers and whose config has 1 `diff_id` loads and runs; Docker refuses it. The ask: (1) `Config` gives `rootfs: Option<RootFs>` with `type` and `diff_ids`, each a digest; (2) a check that a consumer calls after the parse of a manifest and its config, for example `spec::check_layers(&manifest, &config) -> Result<()>`: the count of `diff_ids` equals the count of `manifest.layers`, and `rootfs.type` is `layers`; the error names both counts; a config with no `rootfs` (an old image) passes.
+
+## Premise
+
+- Read: PodUtils/podvm#677, `crates/pod-oci/src/spec.rs`, `crates/pod-oci/src/digest.rs`, `crates/pod-oci/src/error.rs`, the `rootfs` section of the OCI image spec `config.md`.
+- `Descriptor` keeps a digest as a `String` and gives `parsed_digest()`; `Digest` has no `serde` impl. `RootFs` follows this form.
+- `spec.rs` has 498 lines; the new code goes into a new file.
+- Not measured: the build of podvm with the new field.
+
+## Approach
+
+`RootFs { kind, diff_ids }` (serde name `type`), `RootFs::parsed_diff_ids`, `check_layers` and a bound on the count of layers (`MAX_LAYERS`, `Class::Policy`) in `crates/pod-oci/src/rootfs.rs`, re-exported from `spec`. A mismatch or a wrong type is `Class::Protocol` and names both counts. Tests for each case, a plant for the count, the README of the crate.
+
+## Prove
+
+```sh
+cargo test -p pod-oci --all-features rootfs
+```
+
+## Done
+
+2026-11-26, Commit: see `git log` for T-1425. `Config` has `rootfs: Option<RootFs>` (`kind` with serde name `type`, `diff_ids` as strings; `RootFs::parsed_diff_ids` gives `Digest` values). `spec::check_layers(&manifest, &config)` fails with `Class::Protocol` when the type is not `layers` or when the count of `diff_ids` is not the count of layers, and names both counts; a config with no `rootfs` passes; a count past `MAX_LAYERS` (4096) is `Class::Policy`. The code is in `crates/pod-oci/src/rootfs.rs` (`spec.rs` is at 500 lines) and `spec` re-exports it. Tests in `rootfs.rs`: matching counts, 2 layers and 1 `diff_id`, no `rootfs`, a wrong type, the bound, the parse of a config with `diff_ids`. Plant `oci-check-layers-ignores-count`, caught. podvm needs no code change to build: it reads its own `oci::Config` through `serde`, with no struct literal.
