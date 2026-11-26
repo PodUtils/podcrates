@@ -77,7 +77,7 @@ impl Dechunk {
     fn end_line(&mut self) -> Result<(), BadFraming> {
         let line = std::mem::take(&mut self.line);
         let empty = line == b"\r\n" || line == b"\n";
-        self.state = match self.state {
+        self.state = match std::mem::take(&mut self.state) {
             State::Size => {
                 let text = std::str::from_utf8(&line).map_err(|_| BadFraming)?;
                 let hex = text.split(';').next().unwrap_or("").trim();
@@ -90,7 +90,8 @@ impl Dechunk {
             State::DataEnd => return Err(BadFraming),
             State::Trailer if empty => State::Done,
             State::Trailer => State::Trailer,
-            State::Data(_) | State::Done => unreachable!("a line ends only in a line state"),
+            // A line ends only in a line state.
+            state @ (State::Data(_) | State::Done) => state,
         };
         Ok(())
     }

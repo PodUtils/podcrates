@@ -278,7 +278,8 @@ async fn the_credential_of_the_tunnel_never_reaches_the_sink() {
     assert_eq!(status, "401");
     assert!(recorder.seen().is_empty(), "{:?}", recorder.seen());
     let right = creds.basic_header();
-    let (status, _) = visit(&runtime, &ingress, request("/chunked", &[("Authorization", right.as_str())], false), b"").await;
+    let (status, _) =
+        visit(&runtime, &ingress, request("/chunked", &[("Authorization", right.as_str())], false), b"").await;
     assert_eq!(status, "200");
     let seen = format!("{:?}", recorder.seen());
     assert!(!seen.to_ascii_lowercase().contains("authorization") && !seen.contains(&right), "{seen}");
