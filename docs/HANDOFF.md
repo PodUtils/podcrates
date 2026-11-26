@@ -35,7 +35,8 @@ is done. Git and the record keep finished work.
    - On `main` after `v0.86.0`: PodUtils/podvm#675 (COORD-256, T-1424) and
      PodUtils/podvm#677 (COORD-258, T-1425); answer each with the next tag.
    - On `main` after `v0.86.0`: PodUtils/podssh#358 (COORD-148, T-1390);
-     PodUtils/podvm#678 (COORD-259, T-1426, T-1427).
+     PodUtils/podvm#678 (COORD-259, T-1426, T-1427); PodUtils/podvm#680
+     (COORD-260, T-1500).
    - Open asks:
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -111,6 +112,19 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   (`Option<PathBuf>`) and `Settings::with_emulator`; the machine legs run
   the emulator at that path. Breaking: `podvm-probe` builds `Settings`
   with each field and adds `emulator: None`.
+- T-1500 (`pod-guest`, PodUtils/podvm#680): the import of podvm's writer
+  of an empty ext4 disk (`crates/podvm/src/machine/guest/disk/ext.rs` at
+  `9c1edb5`): `pod_guest::ext4::write_empty(&file, bytes, &Names)`,
+  `Names::random(label)`, `Layout::of(bytes)`, `MIN_BYTES` 64 MiB,
+  `MAX_BYTES` 16 TiB less a block. A fix of the import: a superblock copy
+  past group 65535 records 65535, as `mke2fs` does (podvm's frozen copy
+  records the low 16 bits: tell podvm). A size that is not a whole number
+  of 4 KiB blocks is refused (podvm cut it down). `e2fsck` 1.47.0 passes a
+  wrong free count of the superblock alone: the plant and the test check
+  the counts of the group descriptors. podvm: depend on `pod-guest` in
+  `crates/podvm/Cargo.toml`, call `Layout::of` in `refusal` and
+  `write_empty(&file, bytes, &Names::random("podvm-disk")?)` in `make`
+  (no `set_len` before it), and remove `ext.rs`.
 - T-1426 (`pod-oci`, PodUtils/podvm#678 ask 1): `Reference::parse` bounds
   the name to 255 characters (`NAME_MAX`) and a tag to 128 (`TAG_MAX`),
   refuses a tag that starts with `.` or `-`, and refuses a path component
