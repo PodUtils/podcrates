@@ -2276,6 +2276,43 @@ cargo test -p pod-egress --all-features
 cargo clippy -p pod-egress --all-targets --all-features -- -D warnings
 ```
 
+## Done
+
+2026-11-26. Commit: see `git log` for T-1432.
+
+- The feature `standin` of `pod-egress` exports `pod_egress::standin`
+  (`crates/pod-egress/src/standin.rs`): `echo` and `BANNER`; `Stand<S>`
+  (`port`, `seen`, `detach`); `standin::via` (a forward proxy over TLS:
+  HTTP/1.1's CONNECT and h2's, `Plan { alpn, mode, credentials }`, `Mode`,
+  Basic and `407`); `standin::wstunnel` (`Wst`, `Answer`: wstunnel 11, 10.0
+  with the signature, 9, another server; the path prefix, the masks, the
+  Close); `standin::vless` (a WebSocket at `/ws`, XHTTP on HTTP/2 and on
+  HTTP/1.1, the made-up `ID`); `standin::trojan` (TLS alone and a
+  WebSocket at `/tr`, the fallback, the made-up `PASSWORD`);
+  `standin::wisp` (version 1 and 2, the credit counted, `grant`); and with
+  the feature `shadowsocks` too, `standin::shadowsocks` (`aead`, `sip022`,
+  `Spec`, `evp`, `Answer`). A server of TLS takes the caller's
+  `rustls::ServerConfig`; the crate mints no certificate. AES-GCM and
+  ChaCha20-Poly1305 are new optional dependencies of the feature.
+- The tests of `via`, `wstunnel`, `vless`, `vmess`, `trojan`, `wisp`,
+  `shadowsocks` and `shadowsocks_2022` use the exported stand-ins, with the
+  same test names; `tests/*_support` keep the certificates of the tests,
+  the way out and the targets. `tests/vless_support/xhttp.rs` and
+  `xhttp1.rs` moved to `crates/pod-egress/src/standin/vless/`, and
+  `crates/pod-egress/SOURCES` names them there.
+- Commands: `cargo test -p pod-proxy -p pod-egress --all-features`: 491
+  passed, 0 failed. `cargo clippy -p pod-proxy -p pod-egress --all-targets
+  --all-features -- -D warnings` and `cargo fmt --all --check`: no finding.
+  The plants of the moved tests (`egress-via-*`, `egress-wstunnel-*`,
+  `egress-vless-*`, `egress-trojan-dial-untyped`, `egress-wisp-*`,
+  `egress-shadowsocks-dial-untyped`) are caught; `sh scripts/plant-each.sh
+  --apply`: 0 stale.
+- For podnet: a `[dev-dependencies]` entry
+  `pod-egress = { ..., features = ["standin", "shadowsocks"] }` replaces
+  `PodUtils/podnet:src/networks/servers_stand.rs` and
+  `PodUtils/podnet:src/networks/road_stand.rs`. Not measured: a run of the
+  tests of podnet on the exported stand-ins.
+
 # T-1433: `pod-iroh`: an `https` proxy goes to iroh's relay dial by its address, so TLS checks the proxy's certificate for the address and not the name
 
 **Source:** T-1431 (a finding of the work on PodUtils/podnet#779)

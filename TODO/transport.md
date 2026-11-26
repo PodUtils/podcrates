@@ -8794,3 +8794,57 @@ cargo test -p pod-egress --all-features --test via
 cargo clippy -p pod-proxy -p pod-egress --all-targets --all-features -- -D warnings
 sh scripts/plant-each.sh proxy-https-hop-cleartext
 ```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1431.
+
+- `ProxyKind::Https` (scheme and name `https`, request `CONNECT`) and
+  `proxy::HTTPS_PORT` (443): `Proxy::parse` takes
+  `https://[USER[:PASS]@]HOST[:PORT]`; `https+unix:` and `https+exec:` are
+  refused ("an https:// proxy is on TCP alone: TLS checks the name of its
+  host, and a Unix socket or a command has none; ..."). Each reader of a
+  spec takes it: `Environment::read` (`HTTPS_PROXY=https://...`), `detect`,
+  `parse_trusted`. The words of an unknown scheme name `http:// or https://`.
+- `pod_proxy::hop::tls` (`crates/pod-proxy/src/tls_hop.rs`) and
+  `ProxyTls { context, trust }`: the TLS hop to a proxy, moved from
+  `pod_egress::via::Client::tls`, which now calls it (one copy). A
+  configuration that the trust cannot give is `BadProxy`; a time out is
+  `Timeout` at the stage `Proxy`; the alert `no_application_protocol` is
+  `ProxyProtocol` ("it did not choose HTTP/2 (h2) by ALPN, which was asked
+  for: ..."); each other refusal is `ProxyUnreachable` with `TLS: ` and the
+  words of `pod_tls::handshake_failure`.
+- `Dialer::with_proxy_tls(context, trust)`: `open_proxy` makes TCP, then the
+  hop for the proxy's host with ALPN `http/1.1`; the CONNECT with its Basic
+  (and a Digest answer on a new connection) goes inside the TLS. With no TLS
+  given, a dial through an `https` proxy is `BadProxy`: "https://HOST:PORT is
+  reached over TLS, and this dial has no TLS context for a proxy". New
+  `Stream::Tls` and `blocking::Stream::Tls` (`blocking::TlsStream`: the
+  session of rustls over the standard socket, with each byte it holds);
+  `Dialer::tcp` refuses it ("... is reached over TLS (https://), and this
+  caller takes a plain TCP connection only"). The decision word of an
+  observer is `https`; `names_inside` is true.
+- Tests: `crates/pod-proxy/tests/https_proxy.rs` against the stand-in of
+  T-1432 (`pod_egress::standin::via`, a path-only dev-dependency of
+  `pod-proxy` with the feature `standin`; `scripts/check-publish-order.py`
+  finds no cycle): `a_dial_through_an_https_proxy_carries_the_target`,
+  `a_wrong_certificate_is_refused_with_the_words_of_pod_tls`,
+  `the_basic_of_an_https_proxy_goes_inside_the_tls_only` (a recorder of the
+  bytes in the open: the first is 0x16, and no CONNECT, header, Basic or
+  password), `https_proxy_of_the_environment_is_an_https_proxy`,
+  `the_blocking_face_carries_a_stream_through_an_https_proxy`; the unit
+  tests `proxy::tests::the_schemes` and
+  `tls_hop::tests::a_protocol_of_alpn_is_named_with_its_version`.
+- Plant: `scripts/plants/proxy-https-hop-cleartext.plant` (the hop stays
+  cleartext when TLS is given; the test of the bytes in the open fails).
+- Commands: `cargo test -p pod-proxy -p pod-egress --all-features`: 491
+  passed, 0 failed. `cargo clippy -p pod-proxy -p pod-egress --all-targets
+  --all-features -- -D warnings` and `cargo fmt --all --check`: no finding.
+  `sh scripts/plant-each.sh --apply`: 0 stale.
+- Findings: T-1433 (`pod-iroh` gives iroh an `https` proxy by its address)
+  and T-1434 (`pod-relay` dials a reverse target with `Dialer::tcp` only).
+- For the consumers: a consumer that dials through the proxy of a user or
+  of an environment calls `Dialer::with_proxy_tls` with its TLS context and
+  trust; a match of `pod_proxy::Stream`, `blocking::Stream` or `ProxyKind`
+  takes the new variants. Not measured: a run of a consumer through a real
+  HTTPS proxy.
