@@ -269,10 +269,21 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   of PodUtils/podrunner#373 (COORD-145 of podrunner) with its code in
   `pod-testkit` and `pod-fake-githome`: `POST /_fake/jobs` takes
   `container` and `services`, the job message carries `jobContainer` and
-  `serviceContainers`, `pod-fake-githome serve --github` passes them
-  through, and `GET /_fake/jobs/ID/logs` gives the step logs of a job that
-  ended. The entry is `done` on the branch. `scripts/agent/check.sh`
-  passed on its tree; the final report of its worker did not arrive.
+  `jobServiceContainers` (template tokens, `null` when absent),
+  `pod-fake-githome serve --github` passes them through, and
+  `GET /_fake/jobs/ID/logs` gives the step logs of a job that ended (404
+  for an unknown job, 409 for a job that did not end). The entry is `done`
+  on the branch; plant `testkit-t1530-no-service-containers`.
+  `scripts/agent/check.sh` passed on the work commit, and `check.sh
+  notest` on the record commit.
+  The ask names the field `serviceContainers`, but `AgentJobRequestMessage`
+  of actions/runner (`main` at `4812b901a6bf`) has `JobServiceContainers`:
+  the answer to PodUtils/podrunner#373 tells podrunner to read
+  `jobServiceContainers`. The githome fake has no route for the logs: a
+  lane reads `github_job_id` of the githome job and calls
+  `/_fake/jobs/ID/logs` of `pod-fake-github`. No run of the real
+  `actions/runner` with a container or a service against the fake: the
+  lane of podrunner does it.
   Next steps:
   1. `git fetch origin wip/gh373 && git merge --no-edit FETCH_HEAD` on
      `main`. Resolve a conflict in `TODO/` by entry id; run
