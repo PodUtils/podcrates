@@ -417,6 +417,7 @@ mod attribution;
 use attribution::*;
 
 mod machine;
+pub use machine::EMULATOR_VARIABLE;
 use machine::*;
 mod kvm;
 

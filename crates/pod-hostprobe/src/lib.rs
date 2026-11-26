@@ -59,6 +59,12 @@ pub struct Settings {
     /// default): each of them is a skip that names this setting, and no
     /// row sends a packet out.
     pub network: Option<Network>,
+    /// The path of the emulator that the machine legs (`qemu-system-x86_64
+    /// --version` and `-accel help`) run, for example the QEMU of the store
+    /// of the caller. `None` (the default): they search `PATH` for
+    /// `qemu-system-x86_64`. A path with no `/` is read from the working
+    /// directory, never from `PATH`. The text of a leg names the path.
+    pub emulator: Option<std::path::PathBuf>,
 }
 
 impl Default for Settings {
@@ -68,7 +74,17 @@ impl Default for Settings {
             child_name: "pod-hostprobe".to_string(),
             directory_setting: None,
             network: None,
+            emulator: None,
         }
+    }
+}
+
+impl Settings {
+    /// These settings with the machine legs set to run the emulator at
+    /// `path` ([`Settings::emulator`]).
+    pub fn with_emulator(mut self, path: impl Into<std::path::PathBuf>) -> Settings {
+        self.emulator = Some(path.into());
+        self
     }
 }
 

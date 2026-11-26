@@ -1,0 +1,12 @@
+diff --git a/crates/pod-hostprobe/src/child.rs b/crates/pod-hostprobe/src/child.rs
+--- a/crates/pod-hostprobe/src/child.rs
++++ b/crates/pod-hostprobe/src/child.rs
+@@ -92,7 +92,7 @@
+         {
+             envp_owned.push(c);
+         }
+-        if let Some(path) = &settings.emulator {
++        if let Some(path) = settings.emulator.as_ref().filter(|_| false) {
+             // A path that cannot cross as text goes as an empty value: the
+             // leg then says so, and never falls back to `PATH`.
+             let text = path.to_str().filter(|t| !t.contains('\0')).unwrap_or("");

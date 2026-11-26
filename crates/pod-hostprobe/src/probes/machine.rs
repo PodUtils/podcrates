@@ -6,6 +6,72 @@ use super::*;
 /// spawn it cannot drift onto two different binaries.
 const QEMU: &str = "qemu-system-x86_64";
 
+/// The variable through which a probe child learns the path of the emulator
+/// from [`crate::Settings::emulator`]. The parent sets it from the settings
+/// alone, so that a variable of the caller never changes the emulator.
+pub const EMULATOR_VARIABLE: &str = "POD_HOSTPROBE_EMULATOR";
+
+/// The emulator of one leg: the default name, found on `PATH`, or the path
+/// that the caller gave.
+struct Emu {
+    prog: String,
+    given: bool,
+}
+
+impl Emu {
+    /// The setting in a probe child. An empty value is a path that the
+    /// parent could not pass (a NUL or a byte that is not UTF-8).
+    fn read() -> Result<Emu, Outcome> {
+        match std::env::var_os(EMULATOR_VARIABLE) {
+            None => Ok(Emu { prog: QEMU.to_string(), given: false }),
+            Some(v) => match v.into_string() {
+                Ok(p) if !p.is_empty() => {
+                    // A name with no `/` would go to the PATH lookup: the path
+                    // of the caller never does.
+                    let prog = if p.contains('/') { p } else { format!("./{p}") };
+                    Ok(Emu { prog, given: true })
+                }
+                _ => Err(Outcome::skip(
+                    None,
+                    "Settings::emulator is not a path that a child can read, so the emulator leg could not run",
+                )),
+            },
+        }
+    }
+
+    /// The words for an emulator that is not there.
+    fn absent(&self, then: &str) -> Outcome {
+        let what = if self.given { format!("no emulator at {}", self.prog) } else { format!("no {QEMU} on PATH") };
+        Outcome::skip(Some(sys::ENOENT), format!("{what}, so {then}"))
+    }
+
+    /// Run the emulator with `args` and take its stdout.
+    ///
+    /// Through [`sys::shed_after_fork`], like [`run_payload`]: libstd forks
+    /// inside `output()`, and without the hook every lock another thread
+    /// holds is duplicated into the child at the fork.
+    fn output(&self, args: &[&str]) -> EmuAnswer {
+        let mut cmd = std::process::Command::new(&self.prog);
+        cmd.args(args);
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::null());
+        let out = match sys::shed_after_fork(&mut cmd).output() {
+            Ok(o) => o,
+            Err(e) => match e.raw_os_error() {
+                // The lookup is `execvp`'s, so ENOENT is the binary's absence
+                // and not a statement about the machine's acceleration.
+                Some(n) if n == sys::ENOENT.0 => return EmuAnswer::Absent,
+                Some(n) => return EmuAnswer::Unusable(Errno(n)),
+                None => return EmuAnswer::Failed(format!("spawning {} failed: {e}", self.prog)),
+            },
+        };
+        if !out.status.success() {
+            return EmuAnswer::Exited(out.status.code().unwrap_or(-1));
+        }
+        EmuAnswer::Said(String::from_utf8_lossy(&out.stdout).into_owned())
+    }
+}
+
 /// What running the emulator answered: its stdout, or why there is none.
 enum EmuAnswer {
     Said(String),
@@ -15,47 +81,28 @@ enum EmuAnswer {
     Failed(String),
 }
 
-/// Run the emulator with `args` and take its stdout.
-///
-/// Through [`sys::shed_after_fork`], like [`run_payload`]: libstd forks
-/// inside `output()`, and without the hook every lock another thread holds is
-/// duplicated into the child at the fork.
-fn qemu_output(args: &[&str]) -> EmuAnswer {
-    let mut cmd = std::process::Command::new(QEMU);
-    cmd.args(args);
-    cmd.stdout(std::process::Stdio::piped());
-    cmd.stderr(std::process::Stdio::null());
-    let out = match sys::shed_after_fork(&mut cmd).output() {
-        Ok(o) => o,
-        Err(e) => match e.raw_os_error() {
-            // The lookup is `execvp`'s, so ENOENT is the binary's absence from
-            // PATH and not a statement about the machine's acceleration.
-            Some(n) if n == sys::ENOENT.0 => return EmuAnswer::Absent,
-            Some(n) => return EmuAnswer::Unusable(Errno(n)),
-            None => return EmuAnswer::Failed(format!("spawning {QEMU} failed: {e}")),
-        },
-    };
-    if !out.status.success() {
-        return EmuAnswer::Exited(out.status.code().unwrap_or(-1));
-    }
-    EmuAnswer::Said(String::from_utf8_lossy(&out.stdout).into_owned())
-}
-
 pub(super) fn m_qemu_version() -> Outcome {
-    match qemu_output(&["--version"]) {
+    let emu = match Emu::read() {
+        Ok(e) => e,
+        Err(o) => return o,
+    };
+    match emu.output(&["--version"]) {
         EmuAnswer::Said(out) => match out.lines().next().map(str::trim).filter(|l| !l.is_empty()) {
-            Some(line) => Outcome::ok_with(line.chars().take(160).collect::<String>()),
-            None => Outcome::skip(None, "qemu-system-x86_64 --version ran and answered nothing"),
+            Some(line) => {
+                let line: String = line.chars().take(160).collect();
+                // The path that ran, so a row of a store emulator says which.
+                Outcome::ok_with(if emu.given { format!("{line} ({})", emu.prog) } else { line })
+            }
+            None => Outcome::skip(None, format!("{} --version ran and answered nothing", emu.prog)),
         },
-        EmuAnswer::Absent => {
-            Outcome::skip(Some(sys::ENOENT), "no qemu-system-x86_64 on PATH, so the emulator leg could not run")
-        }
+        EmuAnswer::Absent => emu.absent("the emulator leg could not run"),
         EmuAnswer::Unusable(e) => Outcome::denied(e),
         EmuAnswer::Exited(code) => Outcome::skip(
             None,
             format!(
-                "qemu-system-x86_64 --version ran and exited {code}; the emulator \
-                 runs but did not answer"
+                "{} --version ran and exited {code}; the emulator \
+                 runs but did not answer",
+                emu.prog
             ),
         ),
         EmuAnswer::Failed(why) => Outcome::skip(None, why),
@@ -127,24 +174,28 @@ pub(super) fn m_space() -> Outcome {
 }
 
 pub(super) fn m_accel() -> Outcome {
+    let emu = match Emu::read() {
+        Ok(e) => e,
+        Err(o) => return o,
+    };
     // Ask the emulator rather than deciding from the kvm leg. An
     // accelerator the build was compiled without is as absent as a missing
     // node, and the node alone cannot say which builds carry what.
-    match qemu_output(&["-accel", "help"]) {
+    match emu.output(&["-accel", "help"]) {
         EmuAnswer::Said(out) => {
             let accels: Vec<&str> = out.lines().map(str::trim).filter(|l| !l.is_empty() && !l.ends_with(':')).collect();
             if accels.is_empty() {
-                Outcome::skip(None, "qemu-system-x86_64 -accel help ran and listed no accelerator")
+                Outcome::skip(None, format!("{} -accel help ran and listed no accelerator", emu.prog))
+            } else if emu.given {
+                Outcome::ok_with(format!("accelerators: {} ({})", accels.join(" "), emu.prog))
             } else {
                 Outcome::ok_with(format!("accelerators: {}", accels.join(" ")))
             }
         }
-        EmuAnswer::Absent => {
-            Outcome::skip(Some(sys::ENOENT), "no qemu-system-x86_64 on PATH, so the accelerator list could not be read")
-        }
+        EmuAnswer::Absent => emu.absent("the accelerator list could not be read"),
         EmuAnswer::Unusable(e) => Outcome::denied(e),
         EmuAnswer::Exited(code) => {
-            Outcome::skip(None, format!("qemu-system-x86_64 -accel help ran and exited {code}; the list is unread"))
+            Outcome::skip(None, format!("{} -accel help ran and exited {code}; the list is unread", emu.prog))
         }
         EmuAnswer::Failed(why) => Outcome::skip(None, why),
     }

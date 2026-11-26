@@ -1,0 +1,6 @@
+# pod-hostprobe: the spawner drops Settings::emulator, so the machine legs search PATH only (T-1424). The test must fail.
+ENTRY=T-1424
+GROUP=hostprobe
+EXPECT='version leg: no qemu-system-x86_64 on PATH'
+RUN='cargo test -p pod-hostprobe --all-features --test emulator'
+LIMIT=900

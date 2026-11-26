@@ -73,7 +73,7 @@ impl Spawner {
         let (exe, source) = Self::find_self();
         let network = settings.network.as_ref().and_then(crate::probes::send::encode);
         let mut envp_owned: Vec<CBuf> = std::env::vars_os()
-            .filter(|(k, _)| k != crate::probes::NETWORK_VARIABLE)
+            .filter(|(k, _)| k != crate::probes::NETWORK_VARIABLE && k != crate::probes::EMULATOR_VARIABLE)
             .filter_map(|(k, v)| {
                 let mut s = Vec::new();
                 s.extend_from_slice(k.as_bytes());
@@ -91,6 +91,14 @@ impl Spawner {
             && let Some(c) = CBuf::new(&format!("{}={text}", crate::probes::NETWORK_VARIABLE))
         {
             envp_owned.push(c);
+        }
+        if let Some(path) = &settings.emulator {
+            // A path that cannot cross as text goes as an empty value: the
+            // leg then says so, and never falls back to `PATH`.
+            let text = path.to_str().filter(|t| !t.contains('\0')).unwrap_or("");
+            if let Some(c) = CBuf::new(&format!("{}={text}", crate::probes::EMULATOR_VARIABLE)) {
+                envp_owned.push(c);
+            }
         }
         Spawner {
             exe,

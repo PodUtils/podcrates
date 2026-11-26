@@ -15654,3 +15654,48 @@ build flags and the needs of scratch files or of the file system.
 ```sh
 cargo test -p pod-services --all-features
 ```
+
+# T-1424: `pod-hostprobe`: `Settings::emulator`, the path of the emulator that the machine legs run (PodUtils/podvm#675)
+
+**Source:** PodUtils/podvm#675 (COORD-256 of podvm, PodUtils/podvm@T-2100; author COLLABORATOR).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`qemu_output` of `crates/pod-hostprobe/src/probes/machine.rs` runs the constant name `qemu-system-x86_64`. The two machine legs (`--version` and `-accel help`) search `PATH` only. A host that has the static QEMU of podvm in its store and none on `PATH` reads "no qemu-system-x86_64 on PATH". The ask: a caller gives the path of the emulator to the legs, the `PATH` lookup stays the default, and the text of a leg names the path that it ran.
+
+## Premise
+
+- Read: PodUtils/podvm#675 (the author is a COLLABORATOR); `crates/pod-hostprobe/src/probes/machine.rs`, `src/lib.rs` (`Settings`), `src/child.rs` (`Spawner::new`).
+- A leg runs in a child that the parent re-executes, and the child takes no argument but the row name. The setting reaches it as a variable that the parent sets from `Settings` alone, like `POD_HOSTPROBE_NETWORK`.
+- `Settings` has public fields. podvm (`podvm-probe`) and `pod-lab` build it with all fields, so a new field needs `emulator: None` there.
+
+## Approach
+
+1. `Settings::emulator: Option<PathBuf>` (default `None`) and `Settings::with_emulator(path)`.
+2. `Spawner::new` sets `POD_HOSTPROBE_EMULATOR` in each child from the setting, and drops the variable of the caller.
+3. The legs run the path where it is set; a name with no `/` is read from the working directory. A path that cannot cross as text is a skip. The default words stay.
+4. The text of a leg names the path: the version line and the accelerator list end with `(PATH)`, and a missing file reads "no emulator at PATH".
+5. `pod-lab` sets `emulator: None`. The README names the setting.
+6. Tests with a fake emulator script and an empty `PATH`, a test of the default words, and a plant.
+
+## Prove
+
+```sh
+cargo test -p pod-hostprobe --all-features
+cargo clippy -p pod-hostprobe --all-targets --all-features -- -D warnings
+```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1424.
+
+- `Settings::emulator: Option<PathBuf>` and `Settings::with_emulator(path)`. The new field breaks a literal of `Settings` with all fields: `pod-lab` and `podvm-probe` add `emulator: None` (or `..Settings::default()`).
+- `probes::EMULATOR_VARIABLE` (`POD_HOSTPROBE_EMULATOR`): the spawner sets it in each child from the setting, and drops the one of the caller.
+- Texts: with a path set, the version line and the accelerator list end with ` (PATH)`; a missing file reads "no emulator at PATH, so ...". With no path the words are as before.
+- Test: `crates/pod-hostprobe/tests/emulator.rs` (a `sh` script as the emulator, `PATH` empty).
+- The plant `scripts/plants/podvm675-t1424-emulator-ignored.plant` makes the spawner drop the setting: the test fails.

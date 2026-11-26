@@ -24,7 +24,7 @@ s390x; mips and 32-bit powerpc refuse to compile).
 
 | Item | What |
 | --- | --- |
-| `Settings` | `child_flag`, `child_name` (the private argument and the `argv[0]` of a probe child), `directory_setting` (the setting that the messages of `space` and `exec` name, or none) |
+| `Settings` | `child_flag`, `child_name` (the private argument and the `argv[0]` of a probe child), `directory_setting` (the setting that the messages of `space` and `exec` name, or none), `emulator` (the path of the emulator that the machine legs run; `None`, the default: `qemu-system-x86_64` on `PATH`; `with_emulator(path)` sets it; the text of a leg names the path, and a path with no file reads "no emulator at PATH") |
 | `run(&Settings, candidates) -> Findings` | the whole set: one child for each row of `probes::PROBES`, the identity, the write probes |
 | `run_child(name, &mut dyn Write) -> i32` | the work of a child: the binary calls it when its first argument is `Settings::child_flag` |
 | `Findings` | the rows, `identity`, `writable`, `self_exe` |
