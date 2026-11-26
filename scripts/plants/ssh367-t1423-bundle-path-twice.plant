@@ -2,5 +2,5 @@
 ENTRY=T-1423
 GROUP=tls
 EXPECT='test a_missing_ca_bundle_line_names_the_path_once_with_no_os_code \.\.\. FAILED'
-RUN='cargo test -p pod-tls --all-features --test bundle a_missing_ca_bundle_line_names_the_path_once_with_no_os_code --exact'
+RUN='cargo test -p pod-tls --all-features --test bundle a_missing_ca_bundle_line_names_the_path_once_with_no_os_code -- --exact'
 LIMIT=900

@@ -2,5 +2,5 @@
 ENTRY=T-1421
 GROUP=core
 EXPECT='test text::tests::io_words_drop_the_code_of_the_system_and_keep_its_words \.\.\. FAILED'
-RUN='cargo test -p pod-core --all-features --lib text::tests::io_words_drop_the_code_of_the_system_and_keep_its_words --exact'
+RUN='cargo test -p pod-core --all-features --lib text::tests::io_words_drop_the_code_of_the_system_and_keep_its_words -- --exact'
 LIMIT=900

@@ -2,5 +2,5 @@
 ENTRY=T-1422
 GROUP=relay
 EXPECT='test cleartext::tests::a_mint_that_was_cut_shows_the_words_of_the_system_with_no_code \.\.\. FAILED'
-RUN='cargo test -p pod-relay --all-features --lib cleartext::tests::a_mint_that_was_cut_shows_the_words_of_the_system_with_no_code --exact'
+RUN='cargo test -p pod-relay --all-features --lib cleartext::tests::a_mint_that_was_cut_shows_the_words_of_the_system_with_no_code -- --exact'
 LIMIT=900
