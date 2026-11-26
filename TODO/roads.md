@@ -2501,7 +2501,7 @@ word, so the stream goes with no disguise.
 ## Prove
 
 ```sh
-cargo test -p pod-egress --all-features --test shadowsocks
+cargo test -p pod-egress --all-features --test shadowsocks_outline
 cargo test -p pod-egress --all-features --lib shadowsocks
 ```
 

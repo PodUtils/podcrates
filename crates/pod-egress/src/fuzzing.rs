@@ -15,7 +15,7 @@ pub fn wisp_packet(data: &[u8]) -> Result<(u32, Packet), String> {
 /// This client's INFO and what the opening settles, in answer to a
 /// server's `info`.
 pub fn wisp_answer(info: &Info) -> Result<(Info, Opened), String> {
-    answer(info)
+    answer(info, None)
 }
 
 /// The message of IAP's relay in one WebSocket message, as the carrier

@@ -14,8 +14,8 @@ use crate::forwarder::{Carried, Dial, EARLY_WAIT, Ended, ForwarderError, Status,
 /// A session to `host:port` through the Wisp server of `template`.
 pub(crate) async fn open(template: &Template, host: &str, port: u16, dial: &Dial) -> Result<Carried, ForwarderError> {
     let url = template.fill(host, port).map_err(ForwarderError::Target)?;
-    let how =
-        Connect { way: dial.way.clone(), trust: dial.trust.clone(), timeout: dial.timeout, note: dial.note.clone() };
+    let (way, trust, note) = (dial.way.clone(), dial.trust.clone(), dial.note.clone());
+    let how = Connect { way, trust, timeout: dial.timeout, note, login: None };
     let wisp = Wisp::connect(&url, &how).await.map_err(refused)?;
     let status = Status::default();
     let kept = status.clone();

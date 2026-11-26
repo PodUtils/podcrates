@@ -17,8 +17,9 @@
 //! refused by its name, and so is a plugin, another program that this client does
 //! not start. The server is reached as each road reaches its first host: TCP
 //! through the proxy of the environment ([`open`]), or, for a server of an
-//! Outline access key that names one ([`access_key`]), a WebSocket over
-//! TLS.
+//! Outline access key that names one ([`access_key`], [`key_file`]), a
+//! WebSocket over TLS. An Outline key's salt prefix ([`prefix`]) goes first
+//! in the salt of each stream.
 //!
 //! The password goes into the master key and nowhere else: no message, no
 //! `Debug` and no line of a log holds it.
@@ -28,6 +29,7 @@ pub mod codec;
 mod key;
 mod list;
 mod open;
+pub mod prefix;
 pub mod sip022;
 mod uri;
 mod ws;
@@ -35,7 +37,7 @@ mod yaml;
 
 pub use carry::{Carried, Ended, Status};
 pub use codec::{ChunkError, Decoder, Encoder, MAX_PAYLOAD, address, parse_address};
-pub use key::access_key;
+pub use key::{access_key, key_file};
 pub use list::{Listed, subscription};
 pub use open::{ANSWER_WAIT, Dial, OpenError, Opened, Road, open};
 pub use uri::Node;

@@ -12,15 +12,30 @@
 //!   `$type: first-supported` with its `options`, of which this client takes the
 //!   first that it reads.
 //!
-//! The UDP part is not read: this client carries TCP. A salt's `prefix`, a
-//! WebSocket's own `endpoint` (a dial to another address than its URL's)
-//! and the other types of Outline's configuration are refused by name. A
-//! key holds a password: no message here quotes it.
+//! The UDP part is not read: this client carries TCP. A salt's `prefix`
+//! (`super::prefix`) goes first in each stream's salt. A WebSocket's own
+//! `endpoint` (a dial to another address than its URL's) and the other
+//! types of Outline's configuration are refused by name. [`key_file`] reads
+//! the key from a private file, so that a WebSocket's secret path stays out
+//! of a command line. A key holds a password: no message here quotes it.
+
+use std::path::Path;
 
 use serde_json::Value;
 
 use super::uri::authority_of;
 use super::{Method, Node};
+
+/// The most bytes of a key file: a key is some lines.
+const MAX_KEY_FILE: u64 = 64 * 1024;
+
+/// The server of the access key in the private file at `path`: a regular
+/// file of this user that nobody else can read, of 64 KiB at most, read as
+/// [`access_key`] reads a body. A failure names the file and never its text.
+pub fn key_file(path: &Path) -> Result<Node, String> {
+    let text = zeroize::Zeroizing::new(pod_core::files::read_private_up_to(path, MAX_KEY_FILE)?);
+    access_key(text.as_bytes()).map_err(|why| format!("{}: {why}", path.display()))
+}
 
 /// The server of an access key's `body`.
 pub fn access_key(body: &[u8]) -> Result<Node, String> {
@@ -39,10 +54,7 @@ pub fn access_key(body: &[u8]) -> Result<Node, String> {
     };
     match doc.get("transport") {
         Some(transport) => self::transport(transport),
-        None if doc.get("server").is_some() => {
-            refuse_prefix(&doc)?;
-            super::list::sip008_node(&doc)
-        }
+        None if doc.get("server").is_some() => with_prefix(&doc, super::list::sip008_node(&doc)?),
         None => Err("the access key names neither a transport nor a server".into()),
     }
 }
@@ -65,11 +77,11 @@ fn transport(transport: &Value) -> Result<Node, String> {
         Some(other) => return Err(format!("its TCP part is of the type {other}, which this client does not speak")),
         None => return Err("its TCP part has no $type".into()),
     }
-    refuse_prefix(tcp)?;
     let text = |key: &str| tcp.get(key).and_then(Value::as_str);
     let method = Method::parse(text("cipher").ok_or("its TCP part has no cipher")?)?;
     let secret = text("secret").ok_or("its TCP part has no secret")?;
-    endpoint(tcp.get("endpoint").ok_or("its TCP part has no endpoint")?, method, secret)
+    let node = endpoint(tcp.get("endpoint").ok_or("its TCP part has no endpoint")?, method, secret)?;
+    with_prefix(tcp, node)
 }
 
 /// The server of an endpoint, for `method` and `secret`.
@@ -109,14 +121,13 @@ fn endpoint(endpoint: &Value, method: Method, secret: &str) -> Result<Node, Stri
     }
 }
 
-/// A salt's prefix makes the stream's first bytes look like another
-/// protocol's; this client sends none, so a key that asks for one is refused.
-fn refuse_prefix(part: &Value) -> Result<(), String> {
+/// `node` with the salt's prefix of `part`, which makes the stream's first
+/// bytes look like another protocol's.
+fn with_prefix(part: &Value, node: Node) -> Result<Node, String> {
     match part.get("prefix") {
-        Some(Value::String(p)) if !p.is_empty() => {
-            Err("it asks for a salt prefix, which this client does not send; ask for a key without one".into())
-        }
-        _ => Ok(()),
+        None | Some(Value::Null) => Ok(node),
+        Some(Value::String(text)) => node.with_prefix(&super::prefix::from_text(text)?),
+        Some(_) => Err("its prefix is not a string".into()),
     }
 }
 
@@ -159,9 +170,10 @@ mod tests {
         assert!(why.contains("wss://") && !why.contains("hunter2"), "{why}");
         let prefix = concat!(
             r#"{"server":"s.example","server_port":1,"password":"hunter2","method":"aes-128-gcm","#,
-            r#""prefix":"\u0016\u0003"}"#
+            r#""prefix":"\u0016\u0003\u0001\u0000\u00a8\u0001\u0001\u0000\u0000"}"#
         );
-        assert!(refused(prefix).contains("salt prefix"));
+        let long = refused(prefix);
+        assert!(long.contains("9 bytes; with aes-128-gcm it has 8 at most") && !long.contains("hunter2"), "{long}");
         assert!(refused("transport:\n  $type: tcpudp\n  tcp:\n    $type: vless\n").contains("type vless"));
         let own = "transport:\n  $type: shadowsocks\n  endpoint:\n    $type: websocket\n    \
                    url: wss://a.example/p\n    \

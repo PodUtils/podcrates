@@ -14,8 +14,9 @@ via = ["dep:h2", "dep:http", "dep:bytes", "dep:base64", "dep:zeroize", "dep:toki
 # The WebSocket forwarders of other products, the built-in ones of
 # pod-services among them; a template wisp+wss:// takes the Wisp road.
 forwarder = ["wisp", "dep:pod-services"]
-# Many TCP streams over one WebSocket, by the Wisp protocol.
-wisp = []
+# Many TCP streams over one WebSocket, by the Wisp protocol; the password
+# of its extension is zeroed on drop.
+wisp = ["dep:zeroize"]
 # A server of erebe/wstunnel: the token is a JWT signed with HMAC-SHA-256.
 wstunnel = ["dep:base64", "dep:zeroize", "dep:hmac", "dep:sha2"]
 # Tor's meek_lite: the session id is a part of SHA-256.
@@ -147,6 +148,10 @@ name = "wisp"
 required-features = ["forwarder", "standin"]
 
 [[test]]
+name = "wisp_more"
+required-features = ["wisp", "standin"]
+
+[[test]]
 name = "wstunnel"
 required-features = ["wstunnel", "standin"]
 
@@ -172,6 +177,10 @@ required-features = ["trojan", "standin"]
 
 [[test]]
 name = "shadowsocks"
+required-features = ["shadowsocks", "standin"]
+
+[[test]]
+name = "shadowsocks_outline"
 required-features = ["shadowsocks", "standin"]
 
 [[test]]

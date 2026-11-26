@@ -12,7 +12,9 @@ to a tunnel of Cloudflare:
   of JSON, or by Wisp (`wisp+wss://`); the built-in ones are the services
   of the kind `forwarder` of `pod-services`;
 * `wisp`: many TCP streams over one WebSocket, by Mercury Workshop's Wisp
-  protocol, versions 1 and 2;
+  protocol, versions 1 and 2, with the password extension of version 2,
+  and a road that opens a new connection on the next dial after the old
+  one ended;
 * `wstunnel`: a server of erebe/wstunnel, 9.1 to 11, with its token, its
   path prefix and its `Authorization`;
 * `meek` and `webtunnel`: Tor's pluggable transports meek_lite and
@@ -25,7 +27,8 @@ to a tunnel of Cloudflare:
 * `trojan`: a Trojan server over TLS or a WebSocket over TLS;
 * `shadowsocks`: a Shadowsocks server in the AEAD form or Shadowsocks 2022,
   over TCP or a WebSocket (an Outline access key), with the `ss://` URIs,
-  the subscriptions and the access keys that name one;
+  the subscriptions, the access keys that name one, a private key file,
+  and Outline's salt prefix;
 * `eice`: AWS's EC2 Instance Connect Endpoint, as `aws ec2-instance-connect
   open-tunnel` reaches it, its URL presigned with SigV4;
 * `iap`: Google Cloud's Identity-Aware Proxy for TCP, as `gcloud compute
@@ -50,7 +53,7 @@ The base is podssh's `crates/podssh-ws/src/` at `2ffb7cd7`: `via/`,
 | `end` | `AtEnd` (`Now`, `AfterPeer`), `end_of_input(at, peer_ended, close)` |
 | `via` (feature `via`) | `Via` (`parse`, `with_credentials`, `shown`, `names_user`, `has_credentials`), `Dial { way, trust, timeout, offer, auth_file }`, `Offer`, `Version`, `Client` (`new`, `via`, `open(host, port)`; a `pod_core::Dial`), `Opened { stream, version, shared, fell_back }`, `Stream` (`pod_ws::h2_road::Stream`), `DEFAULT_PORT` |
 | `forwarder` (feature `forwarder`) | `Template` (`parse`, `form`, `shown`, `fill`, `first_frame`), `Dial { way, trust, timeout, at_end, note }`, `open(template, host, port, dial)`, `Forwarder { template, dial }` (a `pod_core::Dial`), `ForwarderError` (`line`, `stage_and_class`; a `pod_core::Failure`), `builtin` (`builtin()`, `lookup`, `words`, `Builtin`), `HOST`, `PORT`, `WISP`, `RECEIVE_CAP`, and the shared parts again |
-| `wisp` (feature `wisp`) | `Wisp` (`connect(url, connect)`, `opened`, `confirms`, `open(host, port, at)`), `Connect { way, trust, timeout, note }`, `WispStream` (`id`, `opened(wait)`, `end`, `close`), `Road { wisp, at_end, shown }` (a `pod_core::Dial`), `WispError` (`stage_and_class`; a `pod_core::Failure`), `End`, `Opened`, `answer`, `packet` (`Packet`, `Info`, `Extension`, `Reason`, `encode`, `decode`, `data`), `PROTOCOL`, `VERSION`, `RECEIVE_CAP`, `NOTE` (the kind `wisp.note`) |
+| `wisp` (feature `wisp`) | `Wisp` (`connect(url, connect)`, `opened`, `confirms`, `is_open`, `open(host, port, at)`), `Connect { way, trust, timeout, note, login }`, `Login` (`new(user, password)`, `parse("USER:PASSWORD")`, `user`; no `Debug` or line shows the password, zeroed on drop; over `wss://` alone, or to the loopback), `MAX_USER`, `WispStream` (`id`, `opened(wait)`, `end`, `close`), `Road { wisp, at_end, shown }` (a `pod_core::Dial` on one connection), `Reopening` (`new(url, connect, at_end)`, `connect(..)`, `with_tries`, `shown`, `is_open`, `opened`; a `pod_core::Dial` that opens a new connection on the next dial after the old one ended: `TRIES` connections at most in one dial, `pod_core::backoff` between two, and a dial in the backoff after a failed one fails at once; a refused credential is not tried again), `TRIES`, `WispError` (`stage_and_class`; a `pod_core::Failure`; a CLOSE 0xc0 to 0xc2 on stream 0 is of the stage relay and the class refused), `End`, `Opened`, `answer(info, login)`, `packet` (`Packet`, `Info`, `Extension`, `Reason` with `WRONG_PASSWORD`, `WRONG_SIGNATURE`, `NO_CREDENTIAL`, `is_credential`, `encode`, `decode`, `data`), `PROTOCOL`, `VERSION`, `RECEIVE_CAP`, `NOTE` (the kind `wisp.note`) |
 | `wstunnel` (feature `wstunnel`) | `Server` (`parse`, `shown`, `tls`, `host`, `port`, `is_loopback`), `Secret` (`parse`, `is_default`), `check(server, secret)`, `Dial { way, trust, timeout, at_end }`, `open(server, secret, host, port, dial)`, `Tunnel { server, secret, dial }` (a `pod_core::Dial`), `WstunnelError` (`line`, `stage_and_class`; a `pod_core::Failure`), `upgrade` (`request`, `upgrade`, `words`, `SUBPROTOCOL`, `VERSIONS`, `REFUSED_9`, `REFUSED_10`), `claims`, `host_claim`, `sign`, `uuid_text`, `KEY`, `PREFIX`, `DEFAULT_PREFIX`, `RECEIVE_CAP`, `PEER` |
 | `pt` (feature `meek` or `webtunnel`) | `Reach { way, trust, wait }`, `HttpUrl` (`parse`, `path`, `shown`), `host_port`, `get` |
 | `meek` (feature `meek`) | `Args` (`parse`), `Front`, `open(args, reach)`, `Session` (`shown`, `carry(local)`), `Ended`, `next_poll`, `session_id`, `MAX_PAYLOAD`, `INIT_POLL`, `MAX_POLL`, `MAX_TRIES`, `RETRY_DELAY`, `EXCHANGE_WAIT` |
@@ -59,10 +62,10 @@ The base is podssh's `crates/podssh-ws/src/` at `2ffb7cd7`: `via/`,
 | `vless` (feature `vless`) | `Server` (`parse`, `shown`, `with_early_data`), `Id`, `Transport`, `Mode`, `Extra`, `link`, `Dial { way, trust, timeout, answer, silence_is_ready, at_end, early }`, `open(server, host, port, dial)`, `open_as(server, transport, ..)`, `modes(transport)`, `Opened { stream, how, answered, first_write, early }`, `Road { server, dial }` (a `pod_core::Dial`), `VlessError` (`line`, `stage_and_class`; a `pod_core::Failure`), `early` (`Early::new`, `admit`, `Offer { ZeroRtt, OneRtt, Absent }` with `of`, `zero_rtt`, `words`), `ReplayWindow`, `Admitted`, `WINDOW`, `coalesce::TARGET`, `ENDED`, `not_vless`, `ANSWER_WAIT`, `EARLY_WAIT` |
 | `vmess` (feature `vmess`) | `Server` (`parse`, `shown`), `Cipher`, `link`, `Dial` (VLESS's), `open`, `open_at(.., unix)`, `Opened`, `Road { server, dial }` (a `pod_core::Dial`), `VmessError` (`line`, `stage_and_class`; a `pod_core::Failure`), `ANSWER_WAIT`, `EARLY_WAIT` |
 | `trojan` (feature `trojan`) | `Server` (`parse`, `shown`), `Password`, `Transport`, `link`, `request(password, host, port)` (the bytes of the published layout), `capability()` and `Capability` (`Tcp`, `UdpAssociate`; `ALL`, `carried`, `command`, `words`) for the doctor's line, `CONNECT` and `UDP_ASSOCIATE`, `Dial` (VLESS's), `open`, `Opened`, `Road { server, dial }` (a `pod_core::Dial`), `TrojanError` (`line`, `stage_and_class`; a `pod_core::Failure`), `ANSWER_WAIT`, `EARLY_WAIT` |
-| `shadowsocks` (feature `shadowsocks`) | `Node` (`parse`, `new`, `shown`), `Method`, `Dial { way, trust, timeout, answer, silence_is_ready }`, `open(node, host, port, dial)`, `Opened { carried, answered_in }`, `Carried`, `Status`, `Ended`, `Road { node, dial }` (a `pod_core::Dial`), `OpenError` (`line`, `stage_and_class`; a `pod_core::Failure`), `access_key`, `subscription`, `Listed`, `codec` (`Encoder`, `Decoder`, `ChunkError`, `address`, `parse_address`, `MAX_PAYLOAD`), `sip022`, `master_key`, `ANSWER_WAIT`, `TAG_LEN` |
+| `shadowsocks` (feature `shadowsocks`) | `Node` (`parse`, `new`, `shown`, `Display` as `shown`, `with_prefix`, `prefix`), `Method`, `Dial { way, trust, timeout, answer, silence_is_ready }`, `open(node, host, port, dial)`, `Opened { carried, answered_in }`, `Carried`, `Status`, `Ended`, `Road { node, dial }` (a `pod_core::Dial`), `OpenError` (`line`, `stage_and_class`; a `pod_core::Failure`), `access_key`, `key_file(path)` (an access key in a private file of 64 KiB at most: an `ss://` link, SIP008's JSON or Outline's YAML, its anchors and merge keys), `prefix` (Outline's salt prefix: `from_text`, `to_url_text`, `check`, `salt`, `MAX_PREFIX` 16, `MIN_RANDOM` 8), `subscription`, `Listed`, `codec` (`Encoder`, `Decoder`, `ChunkError`, `address`, `parse_address`, `MAX_PAYLOAD`), `sip022`, `master_key`, `ANSWER_WAIT`, `TAG_LEN` |
 | `eice` (feature `eice`) | `Endpoint` (`parse`), `Target`, `Credentials` (`check`; no value in `Debug`), `connect(endpoint, target, credentials, way, trust, timeout)`, `presigned_path`, `request`, `sigv4` (`Presign` with `canonical_request`, `string_to_sign`, `signature`, `query`; `escape`, `amz_date`, `ALGORITHM`, `EMPTY_SHA256`), `PORT`, `PATH`, `SERVICE`, `EXPIRES`, `MAX_DURATION`, `MAX_FRAME` |
 | `iap` (feature `iap`) | `Target` (`new`), `Resume`, `connect(target, resume, token, way, trust, timeout)`, `path`, `request`, `check_token`, `carry` (`open(dial, note)`, `Dial`, `Dialing`, `Carried` (`get`, `ended`), `NotOpen` and `Ended` (each `stage_and_class`; a `pod_core::Failure`), `LOST`, `RESUMED`, `STEP`, `FIRST_MESSAGE`, `RECONNECTS`, `RECONNECT_WAIT`, `ACK_WAIT`, `DRAIN`), `close` (`fate`, `Fate`, `Why`, `stage_and_class`, the codes), `flow` (`Flow`), `frame` (`Message`, `decode`, `data`, `ack`, `MAX_DATA`, the tags), `HOST`, `PORT`, `CONNECT_PATH`, `RECONNECT_PATH`, `SUBPROTOCOL`, `ORIGIN`, `INTERFACE`, `MAX_TOKEN` |
-| `standin` (feature `standin`) | `standin::echo()` (an `Echo { port }`: `BANNER`, then each byte back); `standin::via::start(server_config, Plan)` (a `Stand { port, seen }`: TLS with the caller's `rustls::ServerConfig` and the `Plan`'s ALPN, HTTP/1.1's CONNECT or h2's for `h2`, `Plan { alpn, mode, credentials }` with `Mode` (`Carry`, `Forbid`: 403, `ResetHttp2`: the reset of a stream of HTTP/2), `Plan::basic`, and `407` with `Proxy-Authenticate: Basic` without the Basic of the credentials; `Seen` (`accepted()`, `connects()`: each `Connect { version, target, authorization }`)); `standin::wstunnel::start(Wst, Option<server_config>)` (a `Stand { port, seen }`: wstunnel 11's reading of a client, `Wst { restrict, authorization, checks_signature, unmask, answer, answers_close }`, `Wst::v11()`, `Answer` (`Tunnel`, `Refuse9`, `NoSubprotocol`); `Seen { requests: Vec<Asked { path, protocol, authorization }>, targets, keys }`). `standin::vless` (`ws_server(config)`, `xhttp_server(config, alpn)`, `xhttp1_server(Option<config>)`: Xray-core's VLESS over a WebSocket at `/ws` and over XHTTP at `/xh/` on HTTP/2 or HTTP/1.1, the users' `ID`, `CLOSE_AFTER`, `parse_request`, `Seen`); `standin::trojan` (`listen(config, serve)` with `serve_tls` or `serve_ws`: trojan-gfw's Trojan in TLS alone or in a WebSocket at `/tr`, `PASSWORD`, `FALLBACK`, `hash_of`, `Seen`); `standin::wisp` (`Stand::start(Speaks, buffer)`: a Wisp server of version 1 or 2 that counts the credit of each stream, `data_of`, `overruns`, `grant`, `packet`, `Seen`); `standin::shadowsocks` (with the feature `shadowsocks` too: `aead(method, password, banner)` and `sip022(method, psk, banner, Answer)`, one connection each, from the specification's own ciphers `Spec` (`aead`, `sip022`, `seal`, `open`), `evp`, `RIGHT`, `Served`). Each `Stand<S>` (`port`, `seen`) stops taking connections when it drops; `detach` keeps it until the runtime ends. The IDs, passwords and keys are made-up values or the caller's. The crate mints no certificate: the caller gives the server configuration |
+| `standin` (feature `standin`) | `standin::echo()` (an `Echo { port }`: `BANNER`, then each byte back); `standin::via::start(server_config, Plan)` (a `Stand { port, seen }`: TLS with the caller's `rustls::ServerConfig` and the `Plan`'s ALPN, HTTP/1.1's CONNECT or h2's for `h2`, `Plan { alpn, mode, credentials }` with `Mode` (`Carry`, `Forbid`: 403, `ResetHttp2`: the reset of a stream of HTTP/2), `Plan::basic`, and `407` with `Proxy-Authenticate: Basic` without the Basic of the credentials; `Seen` (`accepted()`, `connects()`: each `Connect { version, target, authorization }`)); `standin::wstunnel::start(Wst, Option<server_config>)` (a `Stand { port, seen }`: wstunnel 11's reading of a client, `Wst { restrict, authorization, checks_signature, unmask, answer, answers_close }`, `Wst::v11()`, `Answer` (`Tunnel`, `Refuse9`, `NoSubprotocol`); `Seen { requests: Vec<Asked { path, protocol, authorization }>, targets, keys }`). `standin::vless` (`ws_server(config)`, `xhttp_server(config, alpn)`, `xhttp1_server(Option<config>)`: Xray-core's VLESS over a WebSocket at `/ws` and over XHTTP at `/xh/` on HTTP/2 or HTTP/1.1, the users' `ID`, `CLOSE_AFTER`, `parse_request`, `Seen`); `standin::trojan` (`listen(config, serve)` with `serve_tls` or `serve_ws`: trojan-gfw's Trojan in TLS alone or in a WebSocket at `/tr`, `PASSWORD`, `FALLBACK`, `hash_of`, `Seen`); `standin::wisp` (`Stand::start(Speaks, buffer)`: a Wisp server of version 1 or 2 that counts the credit of each stream, `Speaks::Password { user, password, required }` a server that asks for a password and refuses a wrong one with 0xc0, `data_of`, `overruns`, `grant`, `end_all` (each WebSocket closed), `packet`, `Seen` with `logins`); `standin::shadowsocks` (with the feature `shadowsocks` too: `aead(method, password, banner)` and `sip022(method, psk, banner, Answer)`, one connection each, from the specification's own ciphers `Spec` (`aead`, `sip022`, `seal`, `open`), `evp`, `RIGHT`, `Served`). Each `Stand<S>` (`port`, `seen`) stops taking connections when it drops; `detach` keeps it until the runtime ends. The IDs, passwords and keys are made-up values or the caller's. The crate mints no certificate: the caller gives the server configuration |
 | `fuzzing` (feature `fuzzing`) | `wisp_packet`, `wisp_answer`, `iap_message`, `iap_data`, `iap_ack` |
 
 ## Each road as a dialer
@@ -104,7 +107,7 @@ end that the bridge, the tunnel or the cloud names: they are not dialers.
 | --- | --- |
 | `via` | the second proxy (h2, http, bytes, base64, zeroize, tokio-rustls) |
 | `forwarder` | the forwarders and the built-in ones (pod-services); turns on `wisp` |
-| `wisp` | the Wisp client |
+| `wisp` | the Wisp client (zeroize) |
 | `wstunnel` | wstunnel (HMAC-SHA-256 of its token) |
 | `standin` | the stand-ins of a forward proxy over TLS, of a wstunnel server and of VLESS, Trojan, Wisp and (with `shadowsocks`) Shadowsocks servers on the loopback, for the tests of this crate and of a consumer (h2, http, bytes, base64, hmac, sha2, tokio-rustls, aes-gcm, chacha20poly1305, md5, hkdf, sha1, blake3); no binary needs it |
 | `meek`, `webtunnel` | Tor's pluggable transports (SHA-256) |
@@ -150,7 +153,8 @@ choose HTTP/2 (h2) by ALPN, which was asked for: ...`).
 the class of `pod_ws::ConnectError`; `Answer` is `WebSocket`/`Protocol`;
 `Closed` (the forwarder's Close before the target's bytes) is
 `Origin`/`Unavailable`. `WispError`: `Opening` is `WebSocket`/`Protocol`;
-`Refused` is `Origin`/`Refused`; `Closed` with 0x48 is `Origin`/`Policy`,
+`Refused` is `Origin`/`Refused`, and `Relay`/`Refused` with 0xc0 to 0xc2
+(a credential); `Closed` with 0x48 is `Origin`/`Policy`,
 another `Closed` is `Origin`/`Unavailable`; `Gone` and `Failed` are
 `WebSocket`/`Unavailable`. `WstunnelError`: `Target` is `Connect`/`Usage`;
 `Refused` (each 400 of wstunnel) is `WebSocket`/`Refused`; `NotWstunnel` is
@@ -192,7 +196,8 @@ Each line of the source, as it is here:
   the status, the liveness, text frames as bytes (frps);
 - [x] the end of input: `Now` and `AfterPeer`;
 - [x] Wisp: versions 1 and 2, the credit, the streams, the reasons, the
-  message of the day, stream open confirmation, the forwarder's road;
+  message of the day, stream open confirmation, the password extension,
+  the forwarder's road, a road that opens a new connection after the end;
 - [x] wstunnel: the server's URL, the secret file, the token and its
   claims, the upgrade and the words of each version;
 - [x] meek_lite: the fronts, the polls, the session id, the exchanges and
@@ -210,7 +215,8 @@ Each line of the source, as it is here:
   a WebSocket over TLS, the fallback told from the target;
 - [x] Shadowsocks: the AEAD form and SIP022, `ss://` of SIP002, the
   subscriptions (SIP008 and lists), Outline's access keys and their YAML,
-  a server in a WebSocket, a silence that names a proxy, the half-close.
+  a key file, Outline's salt prefix, a server in a WebSocket, a silence
+  that names a proxy, the half-close.
 - [x] EICE: the endpoint by its DNS name, SigV4 in a query string as
   botocore signs it, the URL signed once TLS is up and kept in memory that
   is wiped, awscrt's upgrade, the largest frame, a refusal with no part of
@@ -317,6 +323,10 @@ certificates of the tests, the way out and the targets):
   two tests against wisp-server-python where it is installed
   (`POD_EGRESS_TEST_WISP_PYTHON`; `POD_EGRESS_TEST_WISP_REQUIRED` makes a
   missing one a failure);
+- `tests/wisp_more.rs`: the road that opens a new connection after the end
+  of the old one, the bound on the tries and the backoff, a refused
+  credential tried once, the password extension and a wrong password, a
+  login over `ws://` refused;
 - `tests/wstunnel.rs`: each server of 9.1 to 11, the secret, the words of
   another version and of another server, a pipe's end of input, `wss://`,
   `a_tunnel_is_a_dialer_and_a_refusal_is_a_typed_failure`;
@@ -344,6 +354,10 @@ certificates of the tests, the way out and the targets):
   specification on the loopback, a wrong password or key, the half-close, a
   pipe, the URIs and the lists, a server 60 s off,
   `a_shadowsocks_road_is_a_dialer_and_a_silence_is_a_typed_failure`;
+- `tests/shadowsocks_outline.rs`: a key file that builds the whole node and
+  shows no path, a key file that others can read, the salt prefix on the
+  wire and read by the stand-in server, a prefix that leaves too few random
+  bytes;
 - `tests/vmess.rs`, against Xray-core (`vmess-interop.yml`, each day;
   `POD_EGRESS_XRAY_TEST_BIN` names it, and each test says "did not run"
   with none): each cipher, a pipe, a clock 5 minutes off, another ID and

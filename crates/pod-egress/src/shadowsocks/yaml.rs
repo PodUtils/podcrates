@@ -1,11 +1,11 @@
 //! The part of YAML that an Outline access key uses: block mappings
 //! and sequences by their indentation, plain and quoted scalars, comments,
-//! a document's `---`, and anchors with their aliases, as the examples of
-//! Outline's configuration share one transport between `tcp` and `udp`
-//! (`&shared`, `*shared`). Flow collections (`{...}`, `[...]`), block
-//! scalars (`|`, `>`), tags and merge keys are refused by name: no key that
-//! Outline documents needs them, and a reader of the whole of YAML is a
-//! crate that the build does not hold. Each scalar is a JSON string; the
+//! a document's `---`, anchors with their aliases, and merge keys (`<<`),
+//! as the examples of Outline's configuration share one transport between
+//! `tcp` and `udp` (`&shared`, `*shared`, `<<: &shared`). Flow collections
+//! (`{...}`, `[...]`), block scalars (`|`, `>`) and tags are refused by
+//! name: no key that Outline documents needs them, and a reader of the
+//! whole of YAML is a crate that the build does not hold. Each scalar is a JSON string; the
 //! reader of the key reads a number from it where it wants one. A key holds
 //! a password: no message here quotes a line, only its number.
 
@@ -85,6 +85,7 @@ impl Reader {
 
     fn mapping(&mut self, indent: usize) -> Result<Value, String> {
         let mut map = Map::new();
+        let mut merged = Vec::new();
         while let Some(line) = self.lines.get(self.at) {
             if line.indent < indent {
                 break;
@@ -97,9 +98,6 @@ impl Reader {
                 return Err(format!("line {no}: neither key: value nor - item"));
             };
             let key = unquote(&key, no)?;
-            if key == "<<" {
-                return Err(format!("line {no}: a merge key (<<), which this reader of YAML does not take"));
-            }
             self.at += 1;
             let (anchor, rest) = anchor_of(&rest);
             // `key: # a comment` has no value on its line either.
@@ -108,7 +106,17 @@ impl Reader {
             if let Some(name) = anchor {
                 self.anchors.insert(name, value.clone());
             }
-            map.insert(key, value);
+            match (key == "<<", value) {
+                (true, Value::Object(keys)) => merged.push(keys),
+                (true, _) => return Err(format!("line {no}: a merge key (<<) whose value is not a mapping")),
+                (false, value) => {
+                    map.insert(key, value);
+                }
+            }
+        }
+        // A key of the mapping's own wins over a merged one.
+        for (key, value) in merged.into_iter().flatten() {
+            map.entry(key).or_insert(value);
         }
         Ok(Value::Object(map))
     }
@@ -258,6 +266,32 @@ transport:
         assert_eq!(tcp["endpoint"]["url"], "wss://ss.example/SECRET_PATH/tcp");
         assert_eq!(tcp["secret"], "with # and \"quotes\"");
         assert_eq!(doc["transport"]["udp"], *tcp, "an alias is its anchor's value");
+    }
+
+    #[test]
+    fn a_merge_key_takes_the_keys_of_its_mapping_and_the_own_keys_win() {
+        // The form of Outline's example of a prefix ("Disguise Connections
+        // with Prefixes"), with a made-up address and secret.
+        let text = "\
+transport:
+  $type: tcpudp
+  tcp:
+    <<: &shared
+      $type: shadowsocks
+      endpoint: 192.0.2.7:20478
+      secret: made-up-outline-secret
+      cipher: chacha20-ietf-poly1305
+    prefix: \"\\u0013\\u0003\\u0003\\u003F\"
+  udp:
+    <<: *shared
+    prefix: \"\\u006b\\u007b\\u0001\\u0020\"
+    cipher: aes-128-gcm
+";
+        let doc = parse(text).unwrap();
+        let (tcp, udp) = (&doc["transport"]["tcp"], &doc["transport"]["udp"]);
+        assert_eq!((tcp["$type"].as_str(), tcp["prefix"].as_str()), (Some("shadowsocks"), Some("\u{13}\u{3}\u{3}?")));
+        assert_eq!((udp["endpoint"].as_str(), udp["cipher"].as_str()), (Some("192.0.2.7:20478"), Some("aes-128-gcm")));
+        assert!(parse("a:\n  <<: plain\n").unwrap_err().contains("not a mapping"));
     }
 
     #[test]
