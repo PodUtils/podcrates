@@ -30,8 +30,10 @@ is done. Git and the record keep finished work.
      PodUtils/podssh#359 to #363 and #367. Record each take on its body
      (the "Takes" lines, as #262), and close it when each consumer names the
      tag (call C780). The takes of podnet (`144a5ee`,
-     PodUtils/podnet#778) and podrunner (`879af093`, PodUtils/podrunner#366)
-     are verified and on #272. COORD-159 (#273) is closed: podvm fixed its
+     PodUtils/podnet#778), podrunner (`879af093`, PodUtils/podrunner#366)
+     and podvm (`71a15d3` in `ef541f1`, PodUtils/podvm#690) are verified.
+     The take of podrunner is on the body of #272; the takes of podnet and
+     podvm are in a comment, and go to the body at the close. COORD-159 (#273) is closed: podvm fixed its
      frozen `ext.rs` at `846e733` (PodUtils/podvm#687). COORD-157 (#263): podnet,
      podvm and podrunner took the role table; it waits for podssh.
    - On `main` after `v0.86.0`: PodUtils/podvm#675 (COORD-256, T-1424) and
