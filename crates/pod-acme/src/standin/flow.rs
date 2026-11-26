@@ -1,7 +1,7 @@
 //! The resources of the stand-in CA (RFC 8555, section 7): the directory,
 //! the nonces, the accounts with their contacts; the orders, their
 //! authorizations and challenges, the finalization and the certificates are
-//! in [`orders`]. Each answer to a POST carries a new nonce, a refusal too.
+//! in the module `orders`. Each answer to a POST carries a new nonce, a refusal too.
 
 mod orders;
 
