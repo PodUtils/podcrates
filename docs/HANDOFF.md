@@ -41,8 +41,8 @@ is done. Git and the record keep finished work.
      (COORD-260, T-1500); PodUtils/podnet#781 (COORD-136, T-1507, T-1508);
      PodUtils/podnet#783 (COORD-138, T-1516).
    - Done on `main`: PodUtils/podnet#779 (T-1431, T-1432) and ask 2 of
-     PodUtils/podnet#782 (T-1432). In work: PodUtils/podnet#780, asks 1, 3,
-     4 and 5 of PodUtils/podnet#782, the ports of `upstream.yml`
+     PodUtils/podnet#782 (T-1432). Done on `main`: PodUtils/podnet#780
+     (T-1505, T-1506). In work: asks 1, 3, 4 and 5 of PodUtils/podnet#782, the ports of `upstream.yml`
      45838753274 (workers write the entries). PodUtils/podnet#785 (COORD-140:
      a Trojan request parser on the accept side, the accept-side API of
      Shadowsocks) waits for the merge of #782 (`pod-egress`).
@@ -158,6 +158,17 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   feature `standin` exports the stand-ins of `via`, wstunnel, VLESS (ws,
   xhttp h2 and HTTP/1.1), Trojan, Wisp (v1, v2) and Shadowsocks (with the
   feature `shadowsocks`); a consumer takes them in `[dev-dependencies]`.
+- T-1505 (`pod-acme`, PodUtils/podnet#780 ask 1): `Contact` (`parse`,
+  `mailto`; a bad contact is refused by name before any request) and
+  `Acme::with_contacts`; `newAccount` sends them, and an account that
+  exists gets an update. A refused contact is `Failed::Ca` with the
+  contact in its words. podnet: `--acme-email` as
+  `acme::open(..)?.with_contacts(vec![Contact::mailto(email)?])`.
+- T-1506 (`pod-acme`, PodUtils/podnet#780 ask 2): the feature `standin`:
+  `standin::Standin` (`start(provider, Plan)`, `directory`, `trust`,
+  `http`, `seen`), a CA that checks the JWS, the nonces, the account of
+  each object, the CSR and the TLS-ALPN-01 certificate of RFC 8737. No
+  build change for podnet.
 - T-1513 (`pod-services`): DERP region 24 (Honolulu, `hnl-1` to `hnl-3`)
   is gone from Tailscale's map, and `derp14e` (`ams-4`) is new: 93
   endpoints in 27 regions (podnet and podssh read the set). The watch
