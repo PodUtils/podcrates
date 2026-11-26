@@ -12734,7 +12734,7 @@ sh scripts/plant-each.sh --apply
 **Milestone:** M2
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -12784,6 +12784,51 @@ the stream under the channel failed: ..." for a reset of the target.
 cargo test -p pod-e2e --all-features
 sh scripts/plant-each.sh e2e-target-failure-reads-as-the-channel
 ```
+
+## Done
+
+2026-11-25. Commit: see `git log` for T-1403.
+
+The change:
+
+- `crates/pod-e2e/src/lib.rs`: `Error::Target(std::io::Error)`, with the
+  text "the stream of the node's target failed, not the stream under the
+  channel: ERROR" and the `io::Error` as its source.
+- `crates/pod-e2e/src/failure.rs`: `Error::Target` is of the class
+  `Unavailable` (exit code 69) for each kind of I/O error.
+- `crates/pod-e2e/src/channel.rs`: `Channel::at_node`.
+  `crates/pod-e2e/src/channel/carry.rs`: the carry of such a channel maps a
+  failed read of the application, and a failed write to it, to
+  `Error::Target`. Each other carry keeps `Error::Io`.
+- `crates/pod-e2e/src/ends.rs` (`serve_asked`) and
+  `crates/pod-e2e/src/hold/resume.rs` (`resume`) call `at_node`. The
+  node's event `e2e.ended` now reads "the session of KEY ended: the stream
+  of the node's target failed, not the stream under the channel: ...".
+- The operator's carry keeps `Error::Io` for a failure of its own
+  application, so `crates/pod-relay/src/blocking/mod.rs` (which matches
+  `Error::Cut | Error::Io(_)`) keeps its behavior.
+
+The tests. `tests/e2e_faults.rs`:
+`a_failed_read_of_the_target_names_the_target_not_the_channel` serves a
+node whose target fails each read with a reset (`run_to` of the harness,
+with a target of its own): the node's line names the target, no line says
+"the stream under the channel failed", and the operator's end sees
+`Error::Cut`. `failure::tests::each_error_has_the_stage_of_the_session_and_a_class`
+checks the class `Unavailable` for three kinds and the source. The plant
+`e2e-target-failure-reads-as-the-channel` maps the failure of the target
+to `Error::Io` again, and the test fails there (the code before the fix).
+
+The results:
+
+- `cargo test -p pod-core -p pod-e2e --all-features`: 242 passed, 0
+  failed.
+- `cargo clippy -p pod-core -p pod-e2e --all-targets --all-features -- -D
+  warnings`: clean. `cargo fmt --all --check`: clean.
+- `sh scripts/plant-each.sh --apply`: 0 stale. The two plants: 2 caught.
+
+The API: `Error::Target` is a new variant of a public enum, and
+`Channel::at_node` is new. A consumer that matches `pod_e2e::Error`
+exhaustively adds the arm.
 
 # T-1450: `pod-session`: the window of a link bounds the payload in flight, not the bytes of its records, so small records pass the relay's hold for a slow receiver and the cap of a leg
 

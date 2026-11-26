@@ -6732,7 +6732,7 @@ sh scripts/agent/check.sh
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -6779,6 +6779,38 @@ the exec. The root cause is that window, not a missing `O_CLOEXEC`.
 cargo test -p pod-core --all-features --lib lock
 sh scripts/plant-each.sh core-lock-drop-keeps-a-copy
 ```
+
+## Done
+
+2026-11-25. Commit: see `git log` for T-1401.
+
+The change. `crates/pod-core/src/lock.rs`: `impl Drop for FileLock` calls
+`File::unlock` (`flock(fd, LOCK_UN)` on Unix, `UnlockFile` on Windows)
+before the close, and ignores its error. The module text says the rule.
+The descriptor was close-on-exec before the change (`O_CLOEXEC`, the
+default of `std`): the cause is the window between the `fork` and the
+`exec` of a spawn of another thread, not a missing flag.
+
+The test. `lock_tests::a_dropped_lock_is_free_while_a_copy_of_its_descriptor_is_open`
+holds a `dup` of the descriptor (`try_clone`), drops the lock, and takes
+the lock again at once, for each mode. The plant
+`core-lock-drop-keeps-a-copy` removes the unlock, and the test fails
+there (the code before the fix).
+
+The results:
+
+- `cargo test -p pod-core -p pod-e2e --all-features`: 242 passed, 0
+  failed.
+- `cargo clippy -p pod-core -p pod-e2e --all-targets --all-features -- -D
+  warnings`: clean. `cargo fmt --all --check`: clean.
+- `sh scripts/plant-each.sh --apply`: 0 stale.
+  `sh scripts/plant-each.sh core-lock-drop-keeps-a-copy
+  e2e-target-failure-reads-as-the-channel`: 2 caught.
+- `sh scripts/agent/check-macos.sh`: 0 faults.
+
+Not measured: the window on macOS, and the test on Windows (CI runs it).
+The README of `pod-core` names the unlock, and the two functions
+`try_lock_existing` and `lock_until` that its row did not name.
 
 # T-1444: `pod-core`: `a_path_that_is_there_is_never_opened_truncated_or_removed` fails on Windows: a file made at the name of a directory gives "Access is denied", not `AlreadyExists`
 
