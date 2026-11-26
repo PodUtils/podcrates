@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1069 entries: 170 open, 31 partial, 6 blocked, 862 done.**
+**1071 entries: 170 open, 31 partial, 6 blocked, 864 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 246 | 259 |
-| P2 | 72 | 12 | 4 | 457 | 545 |
+| P2 | 72 | 12 | 4 | 459 | 547 |
 | P3 | 94 | 10 | 2 | 157 | 263 |
-| **All** | 170 | 31 | 6 | 862 | 1069 |
+| **All** | 170 | 31 | 6 | 864 | 1071 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1116,5 +1116,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1484](upkeep.md) | P3 | M | M0 | chore | open | `pod-iroh`: the move to iroh 1.5, iroh-dns 1.5 and simple-dns 0.13 together |
 | [T-1488](relay.md) | P3 | S | M2 | defect | done | `pod-link`: the line of the loopback bind keeps " (os error 13)" after the rule of T-1421 |
 | [T-1504](transport.md) | P3 | S | M5 | defect | open | `live.yml` 45797952128: the upload of temp.sh answered HTTP 500 |
-| [T-1507](adapters.md) | P2 | S | M3 | feature | open | `pod-cloudflare`: the capture names the ingress rule that matched and the hostname of the visitor (PodUtils/podnet#781) |
-| [T-1508](adapters.md) | P2 | S | M3 | defect | open | `pod-cloudflare`: an exchange that the capture started always ends, also when the chunk decoder refuses the request body (PodUtils/podnet#781) |
+| [T-1507](adapters.md) | P2 | S | M3 | feature | done | `pod-cloudflare`: the capture names the ingress rule that matched and the hostname of the visitor (PodUtils/podnet#781) |
+| [T-1508](adapters.md) | P2 | S | M3 | defect | done | `pod-cloudflare`: an exchange that the capture started always ends, also when the chunk decoder refuses the request body (PodUtils/podnet#781) |

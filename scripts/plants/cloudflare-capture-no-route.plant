@@ -1,0 +1,7 @@
+# The crate does not call the route of the capture for a request that an
+# ingress rule took (PodUtils/podnet#781): the sink then cannot tell two
+# rules with the same httpHostHeader apart.
+ENTRY=T-1507
+GROUP=cloudflare
+EXPECT='test proxy::capture_route_tests::the_sink_gets_the_rule_and_the_visitor \.\.\. FAILED'
+RUN='cargo test -p pod-cloudflare --all-features --lib -- proxy::capture_route_tests::the_sink_gets_the_rule_and_the_visitor --exact'

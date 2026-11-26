@@ -2894,7 +2894,7 @@ sh scripts/plant-each.sh cloudflare-capture-before-the-write cloudflare-chunked-
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2918,6 +2918,10 @@ cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings
 sh scripts/plant-each.sh cloudflare-capture-no-route
 ```
 
+## Done
+
+2026-11-26. Commit: see `git log` for T-1507. New in `pod_cloudflare::capture`: `Capture::route(&self, exchange, &Route) -> Result<(), Refused>` (a default body that does nothing) and `Route` (`#[non_exhaustive]`; `rule`, `hostname`, `host`). `serve_request_inner` gives the index of the matched rule, its `hostname` and the `Host` of the visitor (before `httpHostHeader`) through the crate-private `forward::forward_ruled`; the crate calls `route` once, before the request head. `forward_http` keeps its signature and gives no route. podnet must change nothing to build; it implements `route` to record the index and the host, and replays by the index. Tests: `proxy::capture_route_tests::the_sink_gets_the_rule_and_the_visitor` (two rules with one `httpHostHeader`, a catch-all, the route before the head, the `Host` that the origin got). Plant: `cloudflare-capture-no-route` (the test fails on it). `cargo test -p pod-cloudflare --all-features`, clippy and fmt: clean. Not verified: podnet's use of `route`; the capture behind the real edge.
+
 # T-1508: `pod-cloudflare`: an exchange that the capture started always ends, also when the chunk decoder refuses the request body (PodUtils/podnet#781)
 
 **Source:** PodUtils/podnet#781 (COORD-136 of podnet), ask 2; PodUtils/podnet@T-244; author MEMBER.
@@ -2925,7 +2929,7 @@ sh scripts/plant-each.sh cloudflare-capture-no-route
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2949,3 +2953,7 @@ cargo test -p pod-cloudflare --all-features
 cargo clippy -p pod-cloudflare --all-targets --all-features -- -D warnings
 sh scripts/plant-each.sh cloudflare-capture-decoder-refusal-drops-end
 ```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1508. A failure of the chunk decoder is no more a refusal of the sink: `Tap` keeps a `Fault`, stops the capture of the request body, and the sink stays live, gets the rest of the exchange, then `Capture::fault(&self, exchange, Fault)` (a default body that does nothing; `Fault` is `#[non_exhaustive]` with `RequestChunking`) and its `end`, once, last. A sink that returned `Refused` stays dropped (no call, no end). `Dechunk` refuses a chunk size above `i64::MAX`, so the size line `ffffffffffffffff` is a fault (it was a chunk of 2^64 - 1 bytes). `End` is not changed. podnet must change nothing to build; it implements `fault` to mark its record with the error. Tests: `proxy::capture_route_tests::a_refused_chunk_body_still_gets_its_end` (the sizes `ffffffffffffffff` at the start and after a good chunk, and `zz`: one fault, one end as the last call, no body byte after the fault, the visitor's bytes equal to the run with no sink, no panic); `capture::dechunk::tests::a_bad_framing_is_an_error` has the two new sizes. Plant: `cloudflare-capture-decoder-refusal-drops-end` (the test fails on it).
