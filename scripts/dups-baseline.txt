@@ -13,7 +13,6 @@ clone:3c55564a56a6c9c3  T-917: crates/pod-opentunnel/src/conn.rs poll_read and i
 clone:3c7f258c3fecde69  T-917: crates/pod-link/src/h2/listen.rs serve and its copies
 clone:412bbd18ca3d888a  T-917: crates/pod-piping/src/http1.rs all and its copies
 clone:45c80f8e87e02356  T-917: crates/pod-hold/src/netns/veth.rs attr and its copies
-clone:601085135ed37cda  T-917: crates/pod-relay/src/pair.rs status and its copies
 clone:69235a440b2c5d46  T-917: crates/pod-egress/src/trojan/mod.rs dial and its copies
 clone:87052f73cfc969be  T-917: crates/pod-lab/src/net/tls.rs pem and its copies
 clone:8bd80df22a712e8a  T-917: crates/pod-wormhole/src/mqtt/board.rs read_packet and its copies
