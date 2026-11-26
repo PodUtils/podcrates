@@ -70,7 +70,11 @@ impl Shared {
         // stays valid for the life of the process; the status is a local.
         if unsafe { SetServiceStatus(self.handle.load(Ordering::Acquire), &status) } == 0 {
             let e = std::io::Error::last_os_error();
-            return Err(Failure::new(Stage::Host, Class::Unavailable, format!("SetServiceStatus: {e}")));
+            return Err(Failure::new(
+                Stage::Host,
+                Class::Unavailable,
+                format!("SetServiceStatus: {}", pod_core::text::io_words(&e)),
+            ));
         }
         Ok(())
     }
@@ -153,7 +157,11 @@ where
     *lock(&DISPATCH) = state;
     if !dispatched {
         return Err(state.refusal(name).unwrap_or_else(|| {
-            Failure::new(Stage::Host, Class::Unavailable, format!("StartServiceCtrlDispatcherW: {e}"))
+            Failure::new(
+                Stage::Host,
+                Class::Unavailable,
+                format!("StartServiceCtrlDispatcherW: {}", pod_core::text::io_words(&e)),
+            )
         }));
     }
     match lock(&END).take() {

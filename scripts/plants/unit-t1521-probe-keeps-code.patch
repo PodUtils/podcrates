@@ -1,0 +1,11 @@
+--- a/crates/pod-unit/src/install.rs
++++ b/crates/pod-unit/src/install.rs
+@@ -210,7 +210,7 @@
+         // A program that is not there: the words of the system, with no
+         // code of Rust.
+         Err(e) => {
+-            why.push(pod_core::text::plain(&e.chain()));
++            why.push(e.chain());
+             false
+         }
+     };

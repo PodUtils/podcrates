@@ -1,0 +1,7 @@
+# pod-unit: the reasons of a probe show a program that is not there with
+# Rust's " (os error N)" (T-1521, podssh 9f788985). The test must fail.
+ENTRY=T-1521
+GROUP=unit
+EXPECT='a_missing_program_is_said_in_the_words_of_the_system_alone \.\.\. FAILED'
+RUN='cargo test -p pod-unit --all-features --test install a_missing_program_is_said_in_the_words_of_the_system_alone -- --exact'
+LIMIT=900
