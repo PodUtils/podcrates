@@ -35,6 +35,8 @@
 //! The crate also reads the squashfs modloop of a guest kernel
 //! ([`modloop::modules`], over the reader of [`squashfs`]): the modules that
 //! a guest needs, with their dependencies and a `modules.dep` of the set.
+//! It writes an empty ext4 file system into a sparse file, for a writable
+//! disk of a guest with no `mke2fs` on the host ([`ext4::write_empty`]).
 //!
 //! The crate reads no variable of the environment and prints nothing. The
 //! caller gives the names and the places in [`Settings`]. At run time the
@@ -48,6 +50,7 @@ pub mod agent;
 pub mod dos;
 pub mod emulator;
 pub mod evidence;
+pub mod ext4;
 pub mod fat16;
 pub mod fetch;
 pub mod modloop;

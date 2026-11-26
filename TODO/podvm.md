@@ -15719,3 +15719,42 @@ cargo test -p pod-oci --all-features rootfs
 ## Done
 
 2026-11-26, Commit: see `git log` for T-1425. `Config` has `rootfs: Option<RootFs>` (`kind` with serde name `type`, `diff_ids` as strings; `RootFs::parsed_diff_ids` gives `Digest` values). `spec::check_layers(&manifest, &config)` fails with `Class::Protocol` when the type is not `layers` or when the count of `diff_ids` is not the count of layers, and names both counts; a config with no `rootfs` passes; a count past `MAX_LAYERS` (4096) is `Class::Policy`. The code is in `crates/pod-oci/src/rootfs.rs` (`spec.rs` is at 500 lines) and `spec` re-exports it. Tests in `rootfs.rs`: matching counts, 2 layers and 1 `diff_id`, no `rootfs`, a wrong type, the bound, the parse of a config with `diff_ids`. Plant `oci-check-layers-ignores-count`, caught. podvm needs no code change to build: it reads its own `oci::Config` through `serde`, with no struct literal.
+
+# T-1500: `pod-guest`: `ext4::write_empty`, an empty ext4 file system in a sparse file with no tool of the host (PodUtils/podvm#680)
+
+**Source:** PodUtils/podvm#680 (COORD-260 of podvm, PodUtils/podvm@T-1968; author COLLABORATOR).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The ask 5 of PodUtils/podrunner#296 is a sized writable disk of the machine tier of podvm: `run --podvm-tier=machine --storage-opt size=N` gives the guest a disposable ext4 disk of N bytes (64 MiB to 16 TiB) for its writable root layer and its working directory. podvm is static and must not need `mke2fs` on the host, and podcrates `v0.85.0` has no ext4 writer. So podvm writes the empty file system itself: `PodUtils/podvm:crates/podvm/src/machine/guest/disk/ext.rs` on `main` (commit `9c1edb5` merges it). It is a plain ext4 layout with no journal, 4 KiB blocks and 32-bit block numbers. Only the metadata blocks are written, so the file stays sparse. A test runs `e2fsck -f -n` on a 64 MiB disk and on a disk of 9 groups where the host has `e2fsck`, and it fails on a planted wrong count of free blocks.
+
+The ask, under the owner's ruling "Shared code first": take the writer into `pod-guest` beside `fat16` (for example `pod_guest::ext4::write_empty(file, bytes, uuid, label) -> Result<()>`), with its tests. podvm then takes it and removes its copy. Until a tag carries it, podvm's copy is frozen to fixes only, and each fix comes as a COORD issue.
+
+## Premise
+
+- Read: PodUtils/podvm#680; `PodUtils/podvm:crates/podvm/src/machine/guest/disk/ext.rs` (319 lines: `Layout::of`, `has_super`, `write`, the superblock, the group descriptors, the bitmaps, the root directory and `lost+found`), `PodUtils/podvm:crates/podvm/src/machine/guest/disk/tests.rs` (the tests of the layout, the sparse file and `e2fsck`) and `PodUtils/podvm:crates/podvm/src/machine/guest/disk.rs` (`make`: a new file, `set_len`, a random UUID and hash seed from `/dev/urandom`) at `9c1edb5`, in a clone of podvm.
+- Read: `PodUtils/podvm:crates/podvm/src/run/parse/limits.rs` at `9c1edb5`: the parser of `--storage-opt size=` refuses less than 64 MiB; `Layout::of` refuses less than 4 MiB and more blocks than 32 bits count; a size that is not a whole number of 4 KiB blocks is cut to whole blocks.
+- `codegraph.py similar ext4 superblock group descriptor` finds no ext4 writer in podcrates; the squashfs reader of `pod-guest` is the nearest.
+- This host has `e2fsck` (`/usr/sbin/e2fsck`). Not measured: a mount of a written disk by a Linux kernel (no guest in this session); podvm measured it in its experiment 481.
+
+## Approach
+
+1. Import `ext.rs` and the tests at `9c1edb5` (`docs/design.md`, section 8), with a block in `crates/pod-guest/SOURCES`.
+2. Adapt: `pod_guest::ext4` with `Layout::of(bytes)`, `Names` (UUID, hash seed, label; `Names::random(label)` from `pod_core::entropy`) and `write_empty(file, bytes, &names)`; the failures of `pod-guest` (`pod_core::Failure`); the bounds 64 MiB to 16 TiB less one block, and a size that is not a whole number of 4096-byte blocks, refused by name (`Class::Usage`); a label of more than 16 bytes refused by name; a file that is not empty refused (the inode tables must be zero bytes). Each file at most 500 lines.
+3. Tests: the tests of the layout, of the sparse file and of `e2fsck` keep their names; the `e2fsck` test skips with its reason where the host has none. A new test reads the written disk and compares the free counts of the superblock and the descriptors with the bitmaps, so that a wrong count fails also with no `e2fsck`. A plant of a wrong count of free blocks.
+4. Document: the README of `pod-guest` (API, adoption map), the row of `pod-guest` in `docs/design.md`.
+5. The hand-off: podvm adds `pod-guest` to `PodUtils/podvm:crates/podvm/Cargo.toml`, calls `pod_guest::ext4` in `make` and `refusal`, and removes its `ext.rs`.
+
+## Prove
+
+```sh
+cargo test -p pod-guest --all-features --lib -- ext4::
+cargo clippy -p pod-guest --all-targets --all-features -- -D warnings
+sh scripts/plant-each.sh guest-ext4-free-blocks-count-wrong
+python3 -I scripts/check-sources.py pod-guest
+```

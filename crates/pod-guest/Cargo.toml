@@ -1,6 +1,6 @@
 [package]
 name = "pod-guest"
-description = "A disposable QEMU guest on Linux: the boot plan on KVM or TCG, a per-run overlay, a FAT16 mailbox, a cmd.exe or DOS agent, QMP, a bounded stop, a warm start from a saved state with a fingerprint and a cold fallback, the store of a base image with its pinned digest, and the module set of a guest kernel from its squashfs modloop."
+description = "A disposable QEMU guest on Linux: the boot plan on KVM or TCG, a per-run overlay, a FAT16 mailbox, a cmd.exe or DOS agent, QMP, a bounded stop, a warm start from a saved state with a fingerprint and a cold fallback, the store of a base image with its pinned digest, the module set of a guest kernel from its squashfs modloop, and an empty ext4 disk in a sparse file."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
