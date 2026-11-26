@@ -360,8 +360,8 @@ mod tests {
             (Error::from_raw_os_error(2), "No such file or directory"),
             (Error::from_raw_os_error(104), "Connection reset by peer"),
             (Error::from(ErrorKind::NotFound), "entity not found"),
-            (Error::new(ErrorKind::Other, "the pair is stale"), "the pair is stale"),
-            (Error::new(ErrorKind::Other, "kept (os error x) text"), "kept (os error x) text"),
+            (Error::other("the pair is stale"), "the pair is stale"),
+            (Error::other("kept (os error x) text"), "kept (os error x) text"),
         ];
         for (e, want) in table {
             assert_eq!(io_words(&e), want, "{e:?}");
