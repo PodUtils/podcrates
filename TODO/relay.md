@@ -12959,7 +12959,7 @@ cargo test -p pod-relay --all-features
 
 2026-11-26. Commit: see `git log` for T-1405.
 
-- `crates/pod-relay/src/abort.rs`: `AbortOnDrop`, a crate guard that aborts a task when it drops. `reverse::operator::exchange` holds `frames_of` and `input_of` in it, so a drop of the future of `exchange` (an abort of its task) aborts both: the socket and the local stream close at once. `http_road/one_h2.rs` uses the same guard in the place of its own `Driver` (one copy in the crate). The copies in `pod-cloudflare` and `pod-warp`: T-1480.
+- `AbortOnDrop` (moved to `pod_core::abort` by T-1480), a guard that aborts a task when it drops. `reverse::operator::exchange` holds `frames_of` and `input_of` in it, so a drop of the future of `exchange` (an abort of its task) aborts both: the socket and the local stream close at once. `http_road/one_h2.rs` uses the same guard in the place of its own `Driver` (one copy in the crate). The copies in `pod-cloudflare` and `pod-warp`: T-1480.
 - Test: `an_aborted_exchange_closes_the_socket_and_the_local_stream_at_once` (`crates/pod-relay/tests/reverse_operator.rs`): after `ready` and bytes both ways, an abort of the task; the scripted relay reads the end of the socket, and the local stream reads its end, each within 1 s, with no write of either side.
 - Plant `relay-t1405-operator-tasks-outlive-exchange` (the tasks with no guard, aborted at the end alone): caught (applied by hand).
 - `cargo test -p pod-relay -p pod-e2e --all-features`: 631 passed, 0 failed. `cargo clippy -p pod-relay -p pod-e2e --all-targets --all-features -- -D warnings`: clean.
@@ -13203,7 +13203,7 @@ sh scripts/plant-each.sh identity-allow-openssh-line identity-allow-merge-loses-
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13228,6 +13228,14 @@ sh scripts/plant-each.sh identity-allow-openssh-line identity-allow-merge-loses-
 cargo test -p pod-relay --all-features grant
 python3 -I scripts/codegraph.py new
 ```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1473.
+
+- `crates/pod-relay/src/grant/cert.rs`: `openssh_public` is gone (callers use `PublicKey::openssh`); `parse_public` calls `PublicKey::from_openssh` for a line of type `ssh-ed25519`, else `PublicKey::parse` of the first word. `key_blob`, `put` and `Reader` stay: the certificate holds the key's blob. `pod-relay` already depends on `pod-identity`.
+- Public API: `pod_relay::grant::openssh_public` is removed.
+- Tests: `a_public_key_reads_in_openssh_s_form_and_in_podssh_s` and `tests/grant.rs` are the same and pass.
 
 # T-1410: `pod-session`: a far end that closes the link before its first byte is said as one that "said nothing within 30 s"
 
@@ -13457,7 +13465,7 @@ sh scripts/plant-each.sh ssh367-t1423-bundle-path-twice
 **Milestone:** M2
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -13497,3 +13505,12 @@ cargo test -p pod-link --all-features loopback
 sh scripts/plant-each.sh link-t1416-second-bind-error-alone
 sh scripts/plant-each.sh --apply
 ```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1488.
+
+- `crates/pod-link/src/loopback.rs`: `side` gives `pod_core::text::io_words`, so the line of `tcp_available` shows no ` (os error N)`. The kind stays `Unavailable`.
+- Other lines: the three `UDP sockets on the loopback: {e}` lines (`ntp.rs`, `udp.rs`, `dns.rs`) and the five `split/run.rs` lines of a beat and of the bytes of an end (`io::Error` of `wire`) give `io_words` too. The other `{e}` lines of `pod-link` show a `CarrierError`, a KCP or ARQ error or a `SessionError`, not an `io::Error`.
+- Test: `loopback::tests::the_words_of_the_system_show_no_code` (code 13 of the system, Unix). The plant `link-t1416-second-bind-error-alone` patches `both`, so it stays applied and caught.
+- `cargo test -p pod-link --all-features`: 0 failed.

@@ -28,7 +28,7 @@ mod spent;
 use std::path::Path;
 
 pub use bearer::{Bearer, Bearers, Refused, Unsigned, Verified, is_bearer};
-pub use cert::{CERT_TYPE, Cert, HOST, Mint, USER, openssh_public, parse_public};
+pub use cert::{CERT_TYPE, Cert, HOST, Mint, USER, parse_public};
 pub use door::{Door, Issuers, Redeemed};
 pub use extension::Extension;
 pub use spent::{NotRecorded, Spent};

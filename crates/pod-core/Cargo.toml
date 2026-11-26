@@ -15,7 +15,7 @@ default = ["async"]
 async = ["dep:tokio"]
 
 [dependencies]
-tokio = { workspace = true, optional = true, features = ["io-util", "net", "time", "sync"] }
+tokio = { workspace = true, optional = true, features = ["io-util", "net", "time", "sync", "rt"] }
 rand = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]

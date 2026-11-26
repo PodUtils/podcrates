@@ -18,7 +18,7 @@ use tokio::io::{AsyncWriteExt, DuplexStream, ReadHalf, WriteHalf};
 
 use pod_ws::Extra;
 
-use crate::abort::AbortOnDrop;
+use pod_core::abort::AbortOnDrop;
 
 use super::client::{End, Ended, LIMIT, Opened, Road, gather};
 use super::conn::BoxIo;
@@ -55,7 +55,7 @@ pub(super) async fn open(
     };
     // The task that drives the connection: a drop ends the connection, and
     // so the session at the role.
-    let driver = AbortOnDrop(tokio::spawn(async move {
+    let driver = AbortOnDrop::new(tokio::spawn(async move {
         let _ = connection.await;
     }));
     let request = match request(road, path, token, extra) {

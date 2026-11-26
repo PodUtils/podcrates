@@ -4,6 +4,7 @@
 use super::*;
 use crate::host::EdgeRelay;
 use pod_core::Event;
+use pod_core::abort::AbortOnDrop;
 
 /// Dial the first edge address that answers, register, and serve streams.
 #[allow(clippy::too_many_arguments)]

@@ -6992,13 +6992,13 @@ cargo todo check
 **Milestone:** M5
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
 The rule "Shared code" asks for one copy of a capability. A guard that
 aborts a tokio task when it drops exists three times:
-`crates/pod-relay/src/abort.rs` (`AbortOnDrop`, T-1405, which replaced the
+`pod-relay` (`AbortOnDrop`, in `src/abort.rs` before this entry, T-1405, which replaced the
 `Driver` of `http_road/one_h2.rs`), `crates/pod-cloudflare/src/edge_h2/serve.rs`
 (`AbortOnDrop`, with `into_inner`) and `crates/pod-warp/src/tun.rs`
 (`Abort`). `codegraph.py similar abort drop guard` finds none of them by
@@ -7026,6 +7026,16 @@ these words.
 python3 -I scripts/codegraph.py dups
 cargo test -p pod-core -p pod-relay -p pod-cloudflare -p pod-warp --all-features
 ```
+
+## Done
+
+2026-11-26. Commit: see `git log` for T-1480.
+
+- `pod-core`: new module `abort` (feature `async`; tokio gets the feature `rt`): `AbortOnDrop<T = ()>` with `new` and `into_inner`. The copies of `pod-relay` (`src/abort.rs`), `pod-cloudflare` (`edge_h2/serve.rs`) and `pod-warp` (`tun.rs`, `Abort`) are gone.
+- Public API: `pod_core::abort::AbortOnDrop` is new.
+- Tests: `abort::tests::a_dropped_guard_aborts_its_task`, `abort::tests::into_inner_lets_the_task_go_on`; the tests of the three crates pass.
+- The plant `relay-t1405-operator-tasks-outlive-exchange` has its patch made again on the new import and call.
+- `scripts/dups-baseline.txt` had no line for this clone.
 
 # T-1414: Dependabot of 2026-11-26: coturn 4.19.2, Mosquitto 2.1.4, TruffleHog 3.100.0, two actions, eight crates and saphyr-parser 0.4.1; iroh-dns 1.5.0, rand 0.10.4 in `pod-h2` and simple-dns 0.13.1 declined (GitHub #264 to #271)
 

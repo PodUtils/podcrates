@@ -12,6 +12,7 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd, RawFd};
 use std::time::Duration;
 
+use pod_core::abort::AbortOnDrop;
 use pod_core::{Class, Failure, Report, Stage};
 use tokio::io::unix::AsyncFd;
 
@@ -270,7 +271,7 @@ pub async fn run(tun: &Tun, session: MasqueSession, settings: &TunSettings) -> R
     let _recheck = settings.rp_filter.clone().map(|filter| {
         filter.apply(&tun.name, &settings.report);
         let (name, report) = (tun.name.clone(), settings.report.clone());
-        Abort(tokio::spawn(async move {
+        AbortOnDrop::new(tokio::spawn(async move {
             tokio::time::sleep(Duration::from_secs(2)).await;
             filter.apply(&name, &report);
         }))
@@ -357,15 +358,6 @@ pub async fn run(tun: &Tun, session: MasqueSession, settings: &TunSettings) -> R
             Err(ended(Class::Unavailable, "the MASQUE session ended"))
         }
         _ = aged => Err(ended(Class::TempFail, "the session ends on purpose at its most age")),
-    }
-}
-
-/// Abort the task when the value drops.
-struct Abort(tokio::task::JoinHandle<()>);
-
-impl Drop for Abort {
-    fn drop(&mut self) {
-        self.0.abort();
     }
 }
 

@@ -24,6 +24,7 @@ mod scan;
 mod serve;
 pub use leg::*;
 use scan::*;
+#[cfg(test)]
 use serve::*;
 pub use serve::{MAX_CONFIGURATION, body_reader, body_writer, serve_connection};
 
