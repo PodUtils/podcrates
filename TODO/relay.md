@@ -12727,6 +12727,43 @@ sh scripts/plant-each.sh --apply
 - The plant `scripts/plants/session-t1395-move-under-no-window.plant` drops the window from `after_mark`: the test of `session_mark.rs` fails with "the leg carried 589928 bytes, under the bound of 272684"; `sh scripts/plant-each.sh session-t1395-move-under-no-window`: 1 caught.
 - `cargo test -p pod-session --all-features`: 180 passed, 0 failed. `cargo clippy -p pod-session --all-targets --all-features -- -D warnings`, `cargo fmt --all --check` and `cargo todo check`: clean. `sh scripts/plant-each.sh --apply`: 0 stale. The tests of `pod-relay` with a move (`layer_cap`, `reverse_window`, `reverse_layered`, `layer_h2_spare`: 11) and of `pod-link` (`resume`: 1) pass.
 
+# T-1406: `pod-identity`: an allowlist refuses the line that `podssh keygen -y` prints, a bad line does not name the forms of a key, and a key with `routes=` alone also reaches the target with no route
+
+**Source:** PodUtils/podssh#362 (COORD-152 of podssh), ask 1; PodUtils/podssh@T-938, PodUtils/podssh@T-945; author MEMBER
+**Category:** defect
+**Milestone:** M2
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The ask of podssh: "`pod-identity` `KeyName::parse` (`src/lib.rs`) and `Allowlist::parse_with` (`src/allow.rs`); `pod-iroh` `src/allow.rs`. Read OpenSSH's public line, `ssh-ed25519 BASE64 [comment]`, which `podssh keygen -y` prints. Today only `SHA256:` and 64 hex digits are read. Name the accepted forms in a bad line's refusal. Add `reaches_target`: a key whose lines all say `routes=A,B` reaches those routes alone, never the TARGET with no route. Keep a mark of a key's line with no `routes=` when lines are merged. podssh normalises the line in `crates/podssh-relay/src/identity/allow.rs` for now."
+
+A user who pastes the line of `podssh keygen -y` into an allowlist gets a bad line, and the key stays out. The merge of a key's lines into one entry keeps no mark of a line with no `routes=` word, so a consumer cannot tell whether a key reaches the target with no route.
+
+## Premise
+
+- Read: PodUtils/podssh#362; podssh's glue `crates/podssh-relay/src/identity/allow.rs` at `ec33fd8b` (`openssh`, `key_name`, `normalised`, `reaches_target`, `bad_lines_said`, `FORMS`); `crates/pod-identity/src/lib.rs` (`KeyName::parse`, `PublicKey::digest`), `crates/pod-identity/src/allow.rs`, `crates/pod-iroh/src/allow.rs`.
+- `pod-iroh`'s `Allowlist` wraps `pod_identity::allow::Allowlist`: it holds no copy of the parser (`codegraph.py similar`).
+- `codegraph.py similar openssh public line` finds `pod_relay::grant::{openssh_public, parse_public}`, a second encoder of the same line (T-1473).
+- Not measured: podssh with its glue removed.
+
+## Approach
+
+1. `PublicKey::openssh` writes the line, `PublicKey::from_openssh` reads it (the type, then the BASE64 of the type and the 32 bytes); `PublicKey::digest` takes the same encoding. `OPENSSH_TYPE` and `KEY_FORMS` are public.
+2. `KeyName::parse` reads OpenSSH's line with or without its comment, or one word; a word of another form with more words after it is none.
+3. `Allowlist::parse_with` reads a line that starts with OpenSSH's line; the `routes=` word comes after the BASE64. Each entry keeps `bare`, the mark of a line with no `routes=` word, through the merge. `Allowlist::reaches_target` and `allow::reaches_target(path, key)`: a line with no `routes=` word or with `routes=*`.
+4. `allow::bad_lines_said(lines)` and `Allowlist::bad_lines_said` name the lines and `KEY_FORMS`; `allow::admits`, `grants` and `reaches_target` add them to the refusal of a key that is not in the list.
+5. `pod-iroh`'s `Allowlist` adds `grants`, `reaches_target` and `bad_lines_said`, with iroh's keys.
+
+## Prove
+
+```sh
+cargo test -p pod-identity -p pod-iroh --all-features
+sh scripts/plant-each.sh identity-allow-openssh-line identity-allow-merge-loses-bare
+```
+
 # T-1450: `pod-session`: the window of a link bounds the payload in flight, not the bytes of its records, so small records pass the relay's hold for a slow receiver and the cap of a leg
 
 **Source:** T-1395 (a finding of the bound of the old leg of a move).

@@ -8617,3 +8617,38 @@ it. No build of a consumer breaks. podssh returns `Ended(body)` from
 can mask the words too. podnet's `dial_again` and `next` of
 `relay_reverse/resume.rs` try `Ended` again, but no road of podnet makes
 one. Not measured: a run of podssh with the variant.
+
+# T-1409: `pod-tls`: a refused certificate reaches the user in rustls's `Debug` names (`Other(OtherError(CaUsedAsEndEntity))`)
+
+**Source:** PodUtils/podssh#362 (COORD-152 of podssh), ask 4; PodUtils/podssh@T-944; author MEMBER
+**Category:** defect
+**Milestone:** M1
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The ask of podssh: "`pod-tls` `src/hint.rs` (`handshake_failure`, `cause`). Keep one table of plain words for each rustls `CertificateError` and each webpki `Error`. Today `CaUsedAsEndEntity` reaches the user as `Other(OtherError(CaUsedAsEndEntity))`. podssh keeps such a table in `crates/podssh-ws/src/tls_words.rs` for now."
+
+rustls's `Display` of a `CertificateError` writes each variant with no fields as its `Debug` name, and each error of rustls-webpki that it does not map as `Other(OtherError(NAME))`. `handshake_failure` and `cause` pass that text to the user.
+
+## Premise
+
+- Read: PodUtils/podssh#362; podssh's `crates/podssh-ws/src/tls_words.rs` at `ec33fd8b`; `crates/pod-tls/src/hint.rs`; `CertificateError` of rustls 0.23.46 (`src/error.rs`, its `Display`) and `Error` of rustls-webpki 0.103.16 (`src/error.rs`), and rustls's `pki_error`, which maps some webpki errors to its own and gives the others in `Other`. Both enums are `non_exhaustive`.
+- Not measured: the line of podssh with its table removed.
+
+## Approach
+
+1. `pod_tls::CERTIFICATE_WORDS`: each `Debug` name of the two enums at the versions of `Cargo.lock`, and its words. `certificate_name_words(name)`.
+2. `certificate_words(&CertificateError)`: the table's words of the name, or of the webpki name in `Other`; rustls's own words of a variant with fields (a name, a time); the words of another error in `Other` (a refusal of `peer`); only a name that the table does not know is said by its name, the last resort.
+3. `plain_certificate(text)`: the `Debug` name after "invalid peer certificate: " in words, with its fields, for a wrapper that hides the type.
+4. `handshake_failure` and `handshake_error` take the type first, then the text; `cause` and `handshake_hint` read the names and the words.
+5. Tests: each variant of the two enums that can be built (all of them at these versions) is in the table and is said with no `Debug` name, by type and by text.
+
+## Prove
+
+```sh
+cargo test -p pod-tls --all-features
+sh scripts/plant-each.sh tls-certificate-words-debug-name
+```

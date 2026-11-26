@@ -1,7 +1,9 @@
 //! Who may reach a node over the iroh road (PodUtils/podssh@T-163): the client
 //! keys of the node's allowlist, the same file and the same reading on each
-//! road (`pod_identity::allow`, PodUtils/podssh@T-087). A line holds a key's
-//! fingerprint, or the key in iroh's hex or base32.
+//! road (`pod_identity::allow`, PodUtils/podssh@T-087). This type asks that
+//! one parser with iroh's keys; it holds no copy of it. A line holds a key in
+//! one of the forms of `pod_identity::KEY_FORMS`: OpenSSH's public line, the
+//! fingerprint, the key in iroh's hex or base32, or the display fingerprint.
 
 use std::path::Path;
 
@@ -33,6 +35,17 @@ impl Allowlist {
         self.0.admits(&crate::keys::identity_key(key))
     }
 
+    /// Whether `key` may use `route` of the node.
+    pub fn grants(&self, key: &PublicKey, route: &str) -> bool {
+        self.0.grants(&crate::keys::identity_key(key), route)
+    }
+
+    /// Whether `key` may reach the node's target that has no route: a key
+    /// whose lines all say `routes=A,B` reaches those routes alone.
+    pub fn reaches_target(&self, key: &PublicKey) -> bool {
+        self.0.reaches_target(&crate::keys::identity_key(key))
+    }
+
     /// How many keys the list holds.
     pub fn len(&self) -> usize {
         self.0.len()
@@ -45,5 +58,11 @@ impl Allowlist {
     /// The numbers of the lines that are not a key, from 1.
     pub fn bad_lines(&self) -> &[usize] {
         self.0.bad_lines()
+    }
+
+    /// The words of a refusal of the bad lines, with the forms of a line;
+    /// `None` when each line is a key or a comment.
+    pub fn bad_lines_said(&self) -> Option<String> {
+        self.0.bad_lines_said()
     }
 }

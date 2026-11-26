@@ -1072,6 +1072,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1396](transport.md) | P2 | S | M1 | feature | done | `pod-ws`: `ConnectError::Ended`, a final end of a stream with no relay and no HTTP, shown in its own words (PodUtils/podssh#359) |
 | [T-1397](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver after podrunner `7bf541c` (the sixth port of `source-driver.md`) |
 | [T-1398](fleet.md) | P2 | S | M0 | chore | done | `pod-unit`: podnet's `autostart.rs` after `34f0d30` (port review) |
+| [T-1406](relay.md) | P2 | M | M2 | defect | open | `pod-identity`: an allowlist refuses the line that `podssh keygen -y` prints, a bad line does not name the forms of a key, and a key with `routes=` alone also reaches the target with no route |
+| [T-1409](transport.md) | P2 | M | M1 | defect | open | `pod-tls`: a refused certificate reaches the user in rustls's `Debug` names (`Other(OtherError(CaUsedAsEndEntity))`) |
 | [T-1415](services.md) | P2 | S | M5 | defect | done | `services.yml` 45603028501: the Trojan node `node-trojan-64-176-7-205` gone, and the mailbox of magic-wormhole with an HTTP 500 |
 | [T-1420](fleet.md) | P3 | S | M8 | chore | open | `pod-job`: the rule of a plain name of a file of a credential, shared by the source and podrunner |
 | [T-1430](podvm.md) | P2 | S | M6 | defect | open | `pod-enter`: a rule of the confinement on a tmpfs of the plan that the image does not hold is refused before the fork |

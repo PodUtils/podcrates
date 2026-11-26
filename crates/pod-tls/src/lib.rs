@@ -35,6 +35,7 @@ pub mod crypto;
 pub mod ech;
 
 pub mod bundle;
+mod cert_words;
 mod context;
 mod env_bundle;
 mod error;
@@ -55,6 +56,7 @@ mod wrap;
 pub use context::{Context, Settings, client_config};
 pub use env_bundle::{BUNDLE_VARS, EnvBundle, Passed, env_bundle};
 pub use error::Error;
+pub use cert_words::{CERTIFICATE_WORDS, certificate_name_words, certificate_words, plain_certificate};
 pub use hint::{
     Words, cause as handshake_cause, clock_hint, clock_refused, handshake_error, handshake_failure, handshake_hint,
     plain_cert_names,

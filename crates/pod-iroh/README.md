@@ -29,7 +29,7 @@ the pure-Rust provider of `pod-tls`.
 | `stream`, `share` | `open_session`, `open_lane`, `accept_session`, `Lane`, `Stream`; `share::lease`, `Lease`: one connection to a node for the sessions of a process |
 | `ticket` | `parse` (`iroh:TICKET` or iroh's ticket alone), `format`, `of`, `home_relay`, `follow` |
 | `keys` | `load(places, place, entropy)`, `load_in`, `Key`, `identity_key`, `fingerprint`, `name`; the places of `pod_identity::file` |
-| `allow` | `Allowlist` (`parse`, `read`, `admits`, `bad_lines`); `REFUSED`, `REFUSED_REASON` |
+| `allow` | `Allowlist` (`parse`, `read`, `admits`, `grants`, `reaches_target`, `bad_lines`, `bad_lines_said`), with `pod-identity`'s one parser: each form of `pod_identity::KEY_FORMS`, OpenSSH's public line too (T-1406); `REFUSED`, `REFUSED_REASON` |
 | `home_relay` | `say_changes(endpoint, say)`: a line when the connection to a home relay ends and iroh dials it again, one for each new cause of a failed dial, and one when it is back, with the time of the gap (PodUtils/podssh#283, ask 4); `Relays::look`, `Status` |
 | `relays` | `default_urls`, `defaults`, `parse_url`, `parse_list`, `select(flag, variable)`, `Source`; `ping`, `ping_kept`, `home(relays, trust, way)`; `ENV` |
 | `pkarr` | `Server`, `Choice`, `choice(value)`, `server_for`, `n0_relays`; `publish`, `lookup`, `lookup_with`, `read`; `keep`, `keep_roads` (a node's record, put again as its roads change); `Finder::new(server, trust, way)`; `record::{Roads, Record, packet, quick_name, pinggy_address, tunnel_name, onion_address, opentunnel_name}`; `ENV` |

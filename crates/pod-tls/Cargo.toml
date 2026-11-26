@@ -75,6 +75,9 @@ windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Securit
 security-framework = { version = "3.7", default-features = false }
 
 [dev-dependencies]
+# Each error of rustls-webpki, built for the test of the words of a refused
+# certificate: the version that rustls builds, so no crate is added.
+webpki = { package = "rustls-webpki", version = "0.103", default-features = false, features = ["alloc"] }
 pod-testkit = { workspace = true }
 tokio = { workspace = true, features = ["io-util", "net", "time", "sync", "rt", "rt-multi-thread", "macros"] }
 # The tests that are not about the pure provider run on ring.

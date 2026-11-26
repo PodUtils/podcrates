@@ -57,6 +57,25 @@ fn a_key_is_shown_by_its_fingerprint_which_the_allowlist_takes() {
     assert!(Allowlist::parse(&format!("{}\n", key.public())).admits(&key.public()), "iroh's hex too");
 }
 
+/// The iroh road reads the allowlist with pod-identity's one parser
+/// (PodUtils/podssh#362, ask 1): OpenSSH's public line lets the key in, its
+/// routes count, and a key whose lines all name routes does not reach the
+/// target with no route.
+#[test]
+fn the_line_of_keygen_y_lets_the_iroh_key_in() {
+    let path = scratch("openssh").join("client.key");
+    let key = keys::load_in(&[], &Place::File(path), &mut Fixed(0x5d)).unwrap();
+    let line = key.identity.public().openssh();
+    assert!(line.starts_with("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5"), "{line}");
+    let list = Allowlist::parse(&format!("{line} routes=web me@lab\n"));
+    assert!(list.admits(&key.public()) && list.grants(&key.public(), "web") && !list.grants(&key.public(), "db"));
+    assert!(!list.reaches_target(&key.public()), "routes alone");
+    let bare = Allowlist::parse(&format!("{line} routes=web\n{line} me@lab\n"));
+    assert!(bare.reaches_target(&key.public()), "a line with no routes= word");
+    let bad = Allowlist::parse("ssh-ed25519\n");
+    assert!(bad.bad_lines_said().is_some_and(|said| said.contains("ssh-ed25519 BASE64")));
+}
+
 #[test]
 fn a_key_file_of_t163_stays_the_iroh_key() {
     let dir = scratch("old");

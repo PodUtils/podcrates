@@ -11,11 +11,11 @@ identity.
 
 | Module | What |
 | --- | --- |
-| crate root | `Identity` (`from_seed`, `public`, `sign`, `dh_public`, `binding`), `PublicKey` (`parse`, `fingerprint`, `display_fingerprint`, `hex`, `verifies`, `signed`), `KeyName` |
+| crate root | `Identity` (`from_seed`, `public`, `sign`, `dh_public`, `binding`), `PublicKey` (`parse`, `openssh`, `from_openssh`, `fingerprint`, `display_fingerprint`, `hex`, `verifies`, `signed`), `KeyName` (`parse`: OpenSSH's public line `ssh-ed25519 BASE64 [comment]`, or one word), `KEY_FORMS`, `OPENSSH_TYPE` |
 | `display` | `DisplayFingerprint` (`of`, `parse`, `matches`): the display form of a fingerprint, five groups of eight characters of base32 with a checksum of 4 bytes, for a person (T-278, call C118); `DisplayError` |
 | `file` | `Place` (`Cache`, `File`, `Ephemeral`), `node_place`, `client_place`, `load(places, place, entropy)`, `existing(places, place)`, `load_in`, `load_split`, `existing_in` |
 | `pins` | `check(places, label, key)`, `check_in`, `check_split`, `Seen`, `PinError` |
-| `allow` | `Allowlist` (`parse`, `read`, `admits`, `grants`), `admits(path, key)`, `grants(path, key, route)` |
+| `allow` | `Allowlist` (`parse`, `parse_with`, `read`, `admits`, `grants`, `reaches_target`, `bad_lines`, `bad_lines_said`), `admits(path, key)`, `grants(path, key, route)`, `reaches_target(path, key)`, `bad_lines_said(lines)`: a line in each form of `KEY_FORMS`, OpenSSH's public line too; a key whose lines all say `routes=A,B` does not reach the target with no route (T-1406) |
 
 The places come from the caller: `pod_core::files::places_from(&App, var,
 cwd)`. The random bytes of a new key come from a `pod_core::entropy::Entropy`.
@@ -41,4 +41,5 @@ they change with `pod-e2e` (T-021), in one step for both crates.
 | podssh | `identity::file::load(place, entropy)` | `pod_identity::file::load(&places, place, entropy)`, with `places = pod_core::files::places_from(&App { name: "podssh", dir_env: "PODSSH_CACHE_DIR" }, &|n| std::env::var_os(n), std::env::current_dir().ok())` |
 | podssh | `identity::file::existing(place)`, `identity::pins::check(label, key)` | the same, with `&places` first |
 | podssh | `session::{Entropy, OsEntropy, NoRandom}` | `pod_core::entropy::*` |
+| podssh | `podssh_relay::identity::allow::{key_name, normalised, parse, parse_with, read, admits, grants, reaches_target, bad_lines_said, FORMS}` | `pod_identity::KeyName::parse`, `pod_identity::allow::*`, `pod_identity::KEY_FORMS`: the crate reads OpenSSH's line itself (T-1406) |
 | podssh | `cache::{read_private, read_own, create_private, Others, ...}` (the generic part) | `pod_core::files::*` |
