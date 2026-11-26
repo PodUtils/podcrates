@@ -228,7 +228,7 @@ async fn issuer_on(provider: Arc<CryptoProvider>) {
     let _ = server.await;
     let refused = refused.expect("no root of the default trust signs the test's certificate").to_string();
     assert!(
-        refused.contains("UnknownIssuer") && refused.contains("--ca-file FILE or SSL_CERT_FILE"),
+        refused.contains("no trusted CA signed") && refused.contains("--ca-file FILE or SSL_CERT_FILE"),
         "the failure must be the unknown issuer, with the hint: {refused}"
     );
 

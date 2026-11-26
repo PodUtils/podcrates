@@ -70,7 +70,7 @@ async fn a_callers_configuration_reaches_a_server_that_the_default_store_does_no
         let (addr, _, task) = server().await;
         let error =
             open(&context, addr, &Trust::Default).await.expect_err("the default store does not know the test CA");
-        assert!(error.contains("UnknownIssuer") || error.contains("issuer"), "{each}: {error}");
+        assert!(error.contains("no trusted CA signed"), "{each}: {error}");
         task.await.unwrap();
     }
 }

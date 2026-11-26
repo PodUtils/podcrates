@@ -59,7 +59,7 @@ fn a_refusal_with_none_or_another_failure_is_a_refusal_in_words() {
     assert_eq!(after(&rejected(Some(Vec::new())), &words()), none);
     let unknown = ended(rustls::Error::InvalidCertificate(rustls::CertificateError::UnknownIssuer));
     match after(&unknown, &words()) {
-        Next::Refused(why) => assert!(why.contains("UnknownIssuer") && why.contains("--ca-file"), "{why}"),
+        Next::Refused(why) => assert!(why.contains("no trusted CA signed") && why.contains("--ca-file"), "{why}"),
         other => panic!("an unknown issuer is no retry: {other:?}"),
     }
     let reset = std::io::Error::from(ErrorKind::ConnectionReset);
