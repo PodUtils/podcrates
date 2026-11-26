@@ -125,3 +125,21 @@ fn a_lock_file_that_the_caller_cannot_write_opens_read_only() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// A drop releases the lock also while another descriptor of the same open
+/// file holds on: the copy of a child that a spawn makes before its exec.
+/// A close alone keeps the lock for that copy.
+#[test]
+fn a_dropped_lock_is_free_while_a_copy_of_its_descriptor_is_open() {
+    let dir = scratch("copy");
+    let path = dir.join("lock");
+    for mode in [Mode::Exclusive, Mode::Shared] {
+        let held = FileLock::try_lock(&path, mode).unwrap().expect("a free lock");
+        let copy = held.file().try_clone().unwrap();
+        drop(held);
+        let again = FileLock::try_lock(&path, Mode::Exclusive).unwrap();
+        assert!(again.is_some(), "a {mode:?} lock stays held by a copy of its descriptor after the drop");
+        drop((again, copy));
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}

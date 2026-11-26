@@ -8,9 +8,13 @@
 
 mod e2e_harness;
 
-use e2e_harness::{Fault, LIMIT, Run, echo_back, identity, node, run};
+use e2e_harness::{Fault, LIMIT, Run, echo_back, identity, node, run, run_to};
 use pod_e2e::Error;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use std::io::{self, ErrorKind};
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
 fn session(up: Fault, down: Fault) -> Run {
     run(identity(1), |_| Ok(()), node(identity(2), |_| Ok(())), up, down)
@@ -116,4 +120,42 @@ async fn a_changed_verdict_or_handshake_fails_before_the_session() {
     let (outcome, _) = node_lines(r).await;
     assert!(matches!(outcome, Err(Error::Handshake(_))), "the node's handshake message: {outcome:?}");
     assert_eq!(opened.load(std::sync::atomic::Ordering::SeqCst), 0, "no target behind a failed handshake");
+}
+
+/// A target whose each read fails with a reset, and which takes each write.
+struct Reset;
+
+impl AsyncRead for Reset {
+    fn poll_read(self: Pin<&mut Self>, _: &mut Context<'_>, _: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Err(ErrorKind::ConnectionReset.into()))
+    }
+}
+
+impl AsyncWrite for Reset {
+    fn poll_write(self: Pin<&mut Self>, _: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
+        Poll::Ready(Ok(buf.len()))
+    }
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+    fn poll_shutdown(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Poll::Ready(Ok(()))
+    }
+}
+
+/// A read of the node's target that fails ends the session with a line
+/// that names the target, not the stream under the channel; the operator
+/// sees a cut.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_failed_read_of_the_target_names_the_target_not_the_channel() {
+    let opened = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let open = || std::future::ready(Ok::<_, String>(Reset));
+    let r = run_to(identity(1), |_| Ok(()), node(identity(2), |_| Ok(())), (Fault::None, Fault::None), (open, opened));
+    let (outcome, lines) = node_lines(r).await;
+    assert!(
+        lines.contains("ended: the stream of the node's target failed, not the stream under the channel"),
+        "{lines}"
+    );
+    assert!(!lines.contains("the stream under the channel failed"), "{lines}");
+    assert!(matches!(outcome, Err(Error::Cut)), "the operator's end sees a cut: {outcome:?}");
 }

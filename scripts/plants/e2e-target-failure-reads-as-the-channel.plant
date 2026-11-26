@@ -1,0 +1,7 @@
+# pod-e2e: a failure of the node's target reads as a failure of the stream
+# under the channel (T-1403).
+ENTRY=T-1403
+GROUP=e2e
+EXPECT='test a_failed_read_of_the_target_names_the_target_not_the_channel \.\.\. FAILED'
+RUN='cargo test -p pod-e2e --all-features --test e2e_faults -- a_failed_read_of_the_target_names_the_target_not_the_channel'
+LIMIT=1800

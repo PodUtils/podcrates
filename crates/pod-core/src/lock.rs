@@ -7,7 +7,11 @@
 //!
 //! * The file opens with no link at its last component (`O_NOFOLLOW` on
 //!   Unix): a link there never sends the lock to another file.
-//! * The descriptor is close-on-exec: a child never holds the lock.
+//! * The descriptor is close-on-exec: a child holds no copy after its exec.
+//! * A drop unlocks before the close. A spawn of another thread copies the
+//!   descriptor into its child until the exec, and a close releases a lock
+//!   of `flock(2)` only when no copy is open; an unlock releases it for
+//!   each copy.
 //! * A lock held by another process is a refusal that names the file and
 //!   says that another process holds it; a wait has a bound, or ends when
 //!   the caller says stop (a flag that a signal handler sets).
@@ -128,6 +132,15 @@ impl FileLock {
     /// lock file of another user is open read only.
     pub fn file(&self) -> &File {
         &self.file
+    }
+}
+
+impl Drop for FileLock {
+    fn drop(&mut self) {
+        // A copy of the descriptor in a child before its exec keeps a lock
+        // that only a close releases. The close follows, so an error here
+        // changes nothing.
+        let _ = self.file.unlock();
     }
 }
 

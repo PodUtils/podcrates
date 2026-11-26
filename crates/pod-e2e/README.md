@@ -35,7 +35,7 @@ channel defends against.
 
 | Module | What |
 | --- | --- |
-| (root) | `MAGIC`, `PATTERN`, `PROLOGUE`, `MAX_MESSAGE`, `TAG`, `MAX_DATA`, `MAX_GRANT`, `MAX_WORD`, `HANDSHAKE_LIMIT`, `VERDICT_LIMIT`, `VERDICT_STEP`; `Ask` (`of_route`, `read`, `word`, `route`, `exit`), `exit_word`; `Refusal`; `Error`; `initiate`, `initiate_with`, `Offered` (`peer`, `net_unanswered`, `binding`, `accept`, `accept_granted`, `reject`); `respond`, `respond_with`, `Asked` (`peer`, `route`, `ask`, `grant`, `binding`, `admit`, `admit_with`, `refuse`); `Binding`; `Channel` (`carry`, `carry_held`, `with_events`, `leg_seed`, `handshake_hash`, `exporter`, `agree`, `into_transport`, `bind`, `pair`), `Carried`, `Held`, `Start`, `Pair` (`new`, `named`, `bytes`); `Exporter`; `Destination` (`seal`, `open`, `host`, `port`, `service`, `authority`), `Sealed` (`id`, `bytes`, `prelude`), `Prelude` (`of`, `take`, `pass`, `id`, `bytes`), `Forwarder` (`new`, `route`, `forward`), `EnvelopeError`; `Hop` (`ALL`, `name`), `Knowledge` (`table`, `line`, `render`); `Inspect` (`new`, `observe`, `hop`, `fields`, `relay`, `render`), `Field` |
+| (root) | `MAGIC`, `PATTERN`, `PROLOGUE`, `MAX_MESSAGE`, `TAG`, `MAX_DATA`, `MAX_GRANT`, `MAX_WORD`, `HANDSHAKE_LIMIT`, `VERDICT_LIMIT`, `VERDICT_STEP`; `Ask` (`of_route`, `read`, `word`, `route`, `exit`), `exit_word`; `Refusal`; `Error`; `initiate`, `initiate_with`, `Offered` (`peer`, `net_unanswered`, `binding`, `accept`, `accept_granted`, `reject`); `respond`, `respond_with`, `Asked` (`peer`, `route`, `ask`, `grant`, `binding`, `admit`, `admit_with`, `refuse`); `Binding`; `Channel` (`carry`, `carry_held`, `with_events`, `at_node`, `leg_seed`, `handshake_hash`, `exporter`, `agree`, `into_transport`, `bind`, `pair`), `Carried`, `Held`, `Start`, `Pair` (`new`, `named`, `bytes`); `Exporter`; `Destination` (`seal`, `open`, `host`, `port`, `service`, `authority`), `Sealed` (`id`, `bytes`, `prelude`), `Prelude` (`of`, `take`, `pass`, `id`, `bytes`), `Forwarder` (`new`, `route`, `forward`), `EnvelopeError`; `Hop` (`ALL`, `name`), `Knowledge` (`table`, `line`, `render`); `Inspect` (`new`, `observe`, `hop`, `fields`, `relay`, `render`), `Field` |
 | `binding` | `Binding` (`of_hash`, `from_bytes`, `bytes`), `LABEL` |
 | `exporter` | `Exporter` (`export`, `handshake_hash`, `is_initiator`, `records`), `RESERVED`, `MAX_EXPORT` |
 | `record` | `Suite` (`ALL`, `name`, `id`, `of_id`), `agree`, `check_suites`; `Settings` (`DEFAULT`); `Records` (`seal`, `open`, `resume`, `replayed`, `epochs`, `counters`), `Opened`, `Record`, `Fault`; `Header` (`encode`, `parse`), `record_len`, `bucket`; `HEADER`, `VERSION`, `MAX_LENGTH`, `BUCKETS`, `PHASE`, `WINDOW`, `RESUME` |
@@ -55,6 +55,7 @@ with the error as its cause:
 | Error | Class |
 | --- | --- |
 | `Io` | the class of its `io::ErrorKind` (`Class::of_io`); the `io::Error` is its source |
+| `Target` (a read of the node's target, or a write to it, failed in the carry of a channel `at_node`) | `Unavailable`, for each `io::ErrorKind`; the `io::Error` is its source |
 | `NotChannel` (the peer does not speak the channel) | `Unsupported` |
 | `Handshake`, `Tampered`, `Malformed` | `Protocol` |
 | `Cut` (the stream ended before the clean end) | `Unavailable` |

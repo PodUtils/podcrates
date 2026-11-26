@@ -1,0 +1,7 @@
+# pod-core: the drop of a lock only closes its descriptor, so a copy of the
+# descriptor (a child before its exec) keeps the lock (T-1401).
+ENTRY=T-1401
+GROUP=core
+EXPECT='a_dropped_lock_is_free_while_a_copy_of_its_descriptor_is_open'
+RUN='cargo test -p pod-core --all-features --lib lock'
+LIMIT=900

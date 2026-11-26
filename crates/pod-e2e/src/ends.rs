@@ -318,7 +318,7 @@ where
     // A handover holds the carry between two messages, and takes the
     // channel and its target to the next binary.
     let hold = crate::hold::current();
-    let channel = channel.with_events(of_session(&node.events, peer));
+    let channel = channel.with_events(of_session(&node.events, peer)).at_node();
     let carried = channel.carry_held(target, hold.as_deref(), crate::Start::default()).await;
     crate::hold::after(carried, hold.as_deref(), peer, lease, &*node.events).await;
 }

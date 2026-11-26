@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1041 entries: 170 open, 31 partial, 6 blocked, 834 done.**
+**1043 entries: 170 open, 31 partial, 6 blocked, 836 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
 | P1 | 4 | 9 | 0 | 245 | 258 |
-| P2 | 76 | 12 | 4 | 433 | 525 |
+| P2 | 76 | 12 | 4 | 435 | 527 |
 | P3 | 90 | 10 | 2 | 154 | 256 |
-| **All** | 170 | 31 | 6 | 834 | 1041 |
+| **All** | 170 | 31 | 6 | 836 | 1043 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1072,6 +1072,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1396](transport.md) | P2 | S | M1 | feature | done | `pod-ws`: `ConnectError::Ended`, a final end of a stream with no relay and no HTTP, shown in its own words (PodUtils/podssh#359) |
 | [T-1397](foundation.md) | P2 | S | M0 | chore | done | `pod-testkit`: the contract of the source and the driver after podrunner `7bf541c` (the sixth port of `source-driver.md`) |
 | [T-1398](fleet.md) | P2 | S | M0 | chore | done | `pod-unit`: podnet's `autostart.rs` after `34f0d30` (port review) |
+| [T-1401](upkeep.md) | P2 | S | M5 | defect | done | `pod-core`: the drop of a `FileLock` only closes its descriptor, so a copy of the descriptor in a child that a spawn makes keeps the lock after the drop |
+| [T-1403](relay.md) | P2 | S | M2 | defect | done | `pod-e2e`: a failure of the node's target reads as "the stream under the channel failed", and the node's line does not name the target |
 | [T-1405](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: `reverse::operator::exchange` leaves its two tasks alive when it is dropped, so a dropped leg keeps its socket open (PodUtils/podssh#361) |
 | [T-1407](relay.md) | P2 | S | M2 | defect | open | `pod-relay`: the refusals of a pair: the body of a 403, a refusal of a new pair, a spent token of `--once`, and a doubled subject in `file_name` (PodUtils/podssh#362, ask 2) |
 | [T-1408](relay.md) | P2 | S | M2 | defect | open | `pod-e2e`: `Redeem` does not say whether a bearer or a grant was refused or let in, and the node says "a grant" for a bearer (PodUtils/podssh#362, ask 3) |

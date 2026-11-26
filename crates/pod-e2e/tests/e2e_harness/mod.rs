@@ -5,6 +5,7 @@
 
 #![allow(dead_code)]
 
+use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -110,12 +111,28 @@ pub fn run(
     down: Fault,
 ) -> Run {
     let opened = Arc::new(AtomicUsize::new(0));
+    run_to(operator, check, node, (up, down), (echo(opened.clone()), opened))
+}
+
+/// [`run`] to the target that `open` gives; `opened` counts how often it
+/// opens.
+pub fn run_to<A, O, F>(
+    operator: Arc<Identity>,
+    check: impl FnOnce(&PublicKey) -> Result<(), String> + Send + 'static,
+    node: (Node, Arc<Mutex<Vec<String>>>),
+    (up, down): (Fault, Fault),
+    (open, opened): (O, Arc<AtomicUsize>),
+) -> Run
+where
+    A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    O: FnOnce() -> F + Send + 'static,
+    F: Future<Output = Result<A, String>> + Send,
+{
     let (app, app_end) = tokio::io::duplex(PIPE);
     let (cipher, session) = ends::operator(app_end, operator, check);
     let (node_link, relay_end) = tokio::io::duplex(PIPE);
     let (node_end, lines) = node;
-    let target = echo(opened.clone());
-    let node_task = tokio::spawn(async move { ends::serve_node(node_link, &node_end, target).await });
+    let node_task = tokio::spawn(async move { ends::serve_node(node_link, &node_end, open).await });
     let carried = Arc::new(Mutex::new(Vec::new()));
     let up_frames = Arc::new(AtomicUsize::new(0));
     stand_in(cipher, relay_end, (up, up_frames.clone()), down, carried.clone());

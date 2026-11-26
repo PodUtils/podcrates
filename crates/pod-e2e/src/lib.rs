@@ -136,6 +136,9 @@ pub const VERDICT_STEP: &str = "the node's verdict";
 pub enum Error {
     /// The stream under the channel failed.
     Io(std::io::Error),
+    /// The node's target failed: a read of it, or a write to it, in the
+    /// carry of a channel [`Channel::at_node`].
+    Target(std::io::Error),
     /// The peer does not speak the channel: what it sent first, made safe.
     NotChannel(String),
     /// The handshake failed: a message that is not Noise's, or a key that
@@ -163,6 +166,9 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Io(e) => write!(f, "the stream under the channel failed: {e}"),
+            Error::Target(e) => {
+                write!(f, "the stream of the node's target failed, not the stream under the channel: {e}")
+            }
             // The words name the protocol, as MAGIC does, and no binary or
             // flag of a consumer.
             Error::NotChannel(saw) => write!(
@@ -191,7 +197,7 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::Io(e) => Some(e),
+            Error::Io(e) | Error::Target(e) => Some(e),
             _ => None,
         }
     }
