@@ -141,8 +141,7 @@ asks of the consumers, podvm's first, then podnet's, then podssh's:
   T-1380 (the `Tbs` transport of `pod-tpm` loaded at run time, with a time
   limit), T-1381 (an owner's password in `SoftTpm`, and the fallback to the
   kept storage key) and T-1383 (`Mint` with an issuer that is not
-  Ed25519); T-1390 (the transfer codec of `pod-term` keeps each frame
-  within the rows of the pane, PodUtils/podssh#358, COORD-148); T-1413 (a class for a failed
+  Ed25519); T-1413 (a class for a failed
   write, optional, PodUtils/podssh#363).
 
 Then T-899, T-900, T-852, T-851, and T-920.

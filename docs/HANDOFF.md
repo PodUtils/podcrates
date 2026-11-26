@@ -34,7 +34,8 @@ is done. Git and the record keep finished work.
      podvm and podrunner took the role table; it waits for podssh.
    - On `main` after `v0.86.0`: PodUtils/podvm#675 (COORD-256, T-1424) and
      PodUtils/podvm#677 (COORD-258, T-1425); answer each with the next tag.
-   - Open asks: PodUtils/podssh#358 (COORD-148) is T-1390;
+   - On `main` after `v0.86.0`: PodUtils/podssh#358 (COORD-148, T-1390).
+   - Open asks:
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
      (COORD-139) is T-1169.
@@ -108,6 +109,15 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   (`Option<PathBuf>`) and `Settings::with_emulator`; the machine legs run
   the emulator at that path. Breaking: `podvm-probe` builds `Settings`
   with each field and adds `emulator: None`.
+- T-1390 (`pod-term`, PodUtils/podssh#358): `Transfer::set_size(cols,
+  rows)`, `pane_chunk`, `CHUNK_FLOOR` (256), `SPARE_ROWS` (2): a `DATA`
+  frame takes at most `rows - 2` lines; each end sends its pane cap in the
+  `chunk` of `HELO` and takes the smaller cap; a lost `DATA` goes again
+  built from its first `CHUNK_FLOOR` bytes. The codec stays version 2 (the
+  `chunk` of `HELO` was a cap already), so old and new ends pair. podssh:
+  in `crates/podssh-ssh/src/zmodem/far.rs` call `codec.set_size(cols,
+  rows)` at the start and at each resize in place of `set_width`, drop
+  `PACE` and the parts of `put`, and name the cap in `docs/terminal.md`.
 - T-1488 (`pod-link`): the loopback, UDP and split lines show no
   " (os error N)" (`pod_core::text::io_words`).
 - T-1473 (`pod-relay`), breaking: `grant::openssh_public` is removed. podssh
@@ -127,7 +137,7 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   PodUtils/podvm#668); T-1430; T-1321.
 - podnet: T-502 (PodUtils/podnet#760); T-1450 to T-1452; T-1343
   (partial); T-1377, T-1378.
-- podssh: T-1390 (PodUtils/podssh#358); T-1413 (optional); T-1169,
+- podssh: T-1390 on `main`; T-1413 (optional); T-1169,
   T-1103, T-1340, T-1380, T-1381, T-1383.
 - podcrates: T-1463 (a check that stops
   a `to_string()` of a failure), T-1460, T-1453, T-1484 (iroh 1.5).
