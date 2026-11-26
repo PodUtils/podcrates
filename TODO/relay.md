@@ -13449,3 +13449,51 @@ sh scripts/plant-each.sh ssh367-t1423-bundle-path-twice
 - `roots::add_file` and `env_bundle` show a read error with `io_words`.
 - Test: `a_missing_ca_bundle_line_names_the_path_once_with_no_os_code` (`crates/pod-tls/tests/bundle.rs`).
 - The plant `scripts/plants/ssh367-t1423-bundle-path-twice.plant` puts the path in the error of `read_certificates`: the test fails.
+
+# T-1488: `pod-link`: the line of the loopback bind keeps " (os error 13)" after the rule of T-1421
+
+**Source:** finding of the notes of `v0.86.0` (T-1416, T-1421).
+**Category:** defect
+**Milestone:** M2
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+T-1421 makes each line of `pod-relay` and `pod-tls` that a user reads show
+the words of the system with no ` (os error N)` (`pod_core::text::io_words`).
+`loopback::tcp_available` of `pod-link` (T-1416) shows each failed bind
+with `io::Error::to_string`: the line reads "TCP sockets on the loopback:
+127.0.0.1: Permission denied (os error 13); ::1: no IPv6 on this host".
+podnet shows this line to the user (PodUtils/podnet#776). The rule of one
+line in the words of the system is not applied there.
+
+## Premise
+
+- Read: `crates/pod-link/src/loopback.rs` (`side` gives `e.to_string()`),
+  `crates/pod-core/src/text.rs` (`io_words`), the Done sections of T-1416
+  and T-1421, the patch of the plant `link-t1416-second-bind-error-alone`.
+- Not read: each other line of `pod-link` that shows an `io::Error` with
+  `{e}`; the lines of the other crates outside `pod-relay` and `pod-tls`.
+
+## Approach
+
+1. `side` gives `pod_core::text::io_words(e)` in place of `e.to_string()`.
+2. The table test of `loopback::tests` takes an error with a code of the
+   system (`io::Error::from_raw_os_error(13)` on Unix) and asks for no
+   `os error` in the line.
+3. Search the other lines of `pod-link` that show an `io::Error` by `{e}`
+   (`grep -rn '{e}' crates/pod-link/src`), and give the lines that a user
+   reads `io_words`. Write an entry for each other crate that the search
+   finds, or add it to T-1463.
+4. The plant `link-t1416-second-bind-error-alone` stays caught;
+   `sh scripts/plant-each.sh --apply` gives 0 stale.
+
+## Prove
+
+```sh
+cargo test -p pod-link --all-features loopback
+sh scripts/plant-each.sh link-t1416-second-bind-error-alone
+sh scripts/plant-each.sh --apply
+```
