@@ -277,4 +277,4 @@
 270 pull closed
 271 pull closed
 272 issue open
-273 issue open
+273 issue closed

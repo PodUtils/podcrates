@@ -31,8 +31,8 @@ is done. Git and the record keep finished work.
      (the "Takes" lines, as #262), and close it when each consumer names the
      tag (call C780). The takes of podnet (`144a5ee`,
      PodUtils/podnet#778) and podrunner (`879af093`, PodUtils/podrunner#366)
-     are verified and on #272. COORD-159 (#273) tells podvm of the defect
-     of its frozen `ext.rs` that T-1500 fixed. COORD-157 (#263): podnet,
+     are verified and on #272. COORD-159 (#273) is closed: podvm fixed its
+     frozen `ext.rs` at `846e733` (PodUtils/podvm#687). COORD-157 (#263): podnet,
      podvm and podrunner took the role table; it waits for podssh.
    - On `main` after `v0.86.0`: PodUtils/podvm#675 (COORD-256, T-1424) and
      PodUtils/podvm#677 (COORD-258, T-1425); answer each with the next tag.
@@ -43,7 +43,9 @@ is done. Git and the record keep finished work.
    - Done on `main`: PodUtils/podnet#779 (T-1431, T-1432) and ask 2 of
      PodUtils/podnet#782 (T-1432). In work: PodUtils/podnet#780, asks 1, 3,
      4 and 5 of PodUtils/podnet#782, the ports of `upstream.yml`
-     45838753274 (workers write the entries).
+     45838753274 (workers write the entries). PodUtils/podnet#785 (COORD-140:
+     a Trojan request parser on the accept side, the accept-side API of
+     Shadowsocks) waits for the merge of #782 (`pod-egress`).
    - Open asks:
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
