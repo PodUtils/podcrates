@@ -34,7 +34,8 @@ is done. Git and the record keep finished work.
      podvm and podrunner took the role table; it waits for podssh.
    - On `main` after `v0.86.0`: PodUtils/podvm#675 (COORD-256, T-1424) and
      PodUtils/podvm#677 (COORD-258, T-1425); answer each with the next tag.
-   - On `main` after `v0.86.0`: PodUtils/podssh#358 (COORD-148, T-1390).
+   - On `main` after `v0.86.0`: PodUtils/podssh#358 (COORD-148, T-1390);
+     PodUtils/podvm#678 (COORD-259, T-1426, T-1427).
    - Open asks:
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -110,6 +111,18 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   (`Option<PathBuf>`) and `Settings::with_emulator`; the machine legs run
   the emulator at that path. Breaking: `podvm-probe` builds `Settings`
   with each field and adds `emulator: None`.
+- T-1426 (`pod-oci`, PodUtils/podvm#678 ask 1): `Reference::parse` bounds
+  the name to 255 characters (`NAME_MAX`) and a tag to 128 (`TAG_MAX`),
+  refuses a tag that starts with `.` or `-`, and refuses a path component
+  outside docker's grammar (`-a`, `a..b`); each error is `Class::Usage`
+  and cuts the input to 64 characters. No build change.
+- T-1427 (`pod-enter`, PodUtils/podvm#678 ask 2): `WorkdirMade { ByDocker,
+  NotMade }` and `check_workdir_as(root, workdir, image, made)`; the clause
+  "docker creates it" is said for `ByDocker` alone. No `Plan` field. podvm:
+  add `check_workdir_as, WorkdirMade` to the re-export of
+  `crates/podvm-enter/src/lib.rs`, and call it with `WorkdirMade::NotMade`
+  in `crates/podvm/src/exec/command.rs` and `crates/podvm/src/exec/enter.rs`.
+  T-1428 (a file at the working directory reads as absent) is open.
 - T-1390 (`pod-term`, PodUtils/podssh#358): `Transfer::set_size(cols,
   rows)`, `pane_chunk`, `CHUNK_FLOOR` (256), `SPARE_ROWS` (2): a `DATA`
   frame takes at most `rows - 2` lines; each end sends its pane cap in the
