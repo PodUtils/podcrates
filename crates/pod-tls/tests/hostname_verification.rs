@@ -196,7 +196,7 @@ async fn both_on(provider: Arc<CryptoProvider>) {
 }
 
 /// A certificate whose root is in no store that the context reads, as a
-/// proxy's that re-signs TLS is, ends with rustls's `UnknownIssuer` and the
+/// proxy's that re-signs TLS is, ends with the words of an unknown issuer and the
 /// hint that names `--ca-file` (podssh's words); the same server through a
 /// file that holds its root is the control.
 #[tokio::test]
