@@ -1,0 +1,14 @@
+diff --git a/crates/pod-egress/src/wisp/reopen.rs b/crates/pod-egress/src/wisp/reopen.rs
+index 814e4184b..77050a112 100644
+--- a/crates/pod-egress/src/wisp/reopen.rs
++++ b/crates/pod-egress/src/wisp/reopen.rs
+@@ -103,9 +103,6 @@ impl Reopening {
+     /// The open connection; one that ended is let go.
+     fn current(&self) -> Option<Arc<Wisp>> {
+         let mut state = self.state();
+-        if state.wisp.as_ref().is_some_and(|wisp| !wisp.is_open()) {
+-            state.wisp = None;
+-        }
+         state.wisp.clone()
+     }
+ 

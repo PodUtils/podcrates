@@ -1,0 +1,13 @@
+diff --git a/crates/pod-egress/src/wisp/reopen.rs b/crates/pod-egress/src/wisp/reopen.rs
+index 814e4184b..f1a7b48b2 100644
+--- a/crates/pod-egress/src/wisp/reopen.rs
++++ b/crates/pod-egress/src/wisp/reopen.rs
+@@ -149,7 +149,7 @@ impl Reopening {
+                 pod_core::backoff::backoff(state.failures)
+             };
+             let resume = Instant::now() + wait;
+-            if tried >= self.tries || !worth_again(&e) || resume >= deadline {
++            if !worth_again(&e) || resume >= deadline {
+                 self.state().quiet = Some((resume, e.clone()));
+                 return Err(e.into());
+             }

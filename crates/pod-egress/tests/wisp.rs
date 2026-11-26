@@ -39,7 +39,7 @@ fn noting(notes: &Notes) -> pod_egress::Note {
 }
 
 fn how(notes: &Notes) -> Connect {
-    Connect { way: way::direct(), trust: Trust::Default, timeout: LIMIT, note: noting(notes) }
+    Connect { way: way::direct(), trust: Trust::Default, timeout: LIMIT, note: noting(notes), login: None }
 }
 
 async fn connect(port: u16, notes: &Notes) -> Result<Wisp, WispError> {

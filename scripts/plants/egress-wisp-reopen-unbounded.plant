@@ -1,0 +1,7 @@
+# One dial of the Wisp road opens connections until its deadline, with no
+# bound on the tries: the test of the bound must fail.
+ENTRY=T-1525
+GROUP=egress
+EXPECT='test a_dial_opens_a_bounded_number_of_connections_and_the_next_dial_waits_for_the_backoff \.\.\. FAILED'
+RUN='cargo test -p pod-egress --all-features --test wisp_more -- a_dial_opens_a_bounded_number_of_connections_and_the_next_dial_waits_for_the_backoff'
+LIMIT=2400

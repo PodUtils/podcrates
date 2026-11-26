@@ -1,0 +1,7 @@
+# The Wisp road keeps a connection that ended, and each dial after the end
+# fails: the test of the road that opens again must fail.
+ENTRY=T-1525
+GROUP=egress
+EXPECT='test a_reopening_road_opens_a_new_connection_on_the_next_dial_after_the_end \.\.\. FAILED'
+RUN='cargo test -p pod-egress --all-features --test wisp_more -- a_reopening_road_opens_a_new_connection_on_the_next_dial_after_the_end'
+LIMIT=2400
