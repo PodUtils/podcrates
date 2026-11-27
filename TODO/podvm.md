@@ -15680,7 +15680,7 @@ cargo clippy -p pod-hostprobe --all-targets --all-features -- -D warnings
 
 2026-11-26. Commit: see `git log` for T-1424.
 
-- `Settings::emulator: Option<PathBuf>` and `Settings::with_emulator(path)`. The new field breaks a literal of `Settings` with all fields: `pod-lab` and `podvm-probe` add `emulator: None` (or `..Settings::default()`).
+- `Settings::emulator: Option<PathBuf>` and `Settings::with_emulator(path)`. The new field breaks a literal of `Settings` with all fields: `pod-lab`, `podvm-probe` and podrunner (`probe_settings` of `PodUtils/podrunner:crates/podrunner/src/doctor.rs`) add `emulator: None` (or `..Settings::default()`).
 - `probes::EMULATOR_VARIABLE` (`POD_HOSTPROBE_EMULATOR`): the spawner sets it in each child from the setting, and drops the one of the caller.
 - Texts: with a path set, the version line and the accelerator list end with ` (PATH)`; a missing file reads "no emulator at PATH, so ...". With no path the words are as before.
 - Test: `crates/pod-hostprobe/tests/emulator.rs` (a `sh` script as the emulator, `PATH` empty).
@@ -16108,7 +16108,9 @@ pod-supervise --all-features`: 47 passed and the steps of `foreground`,
 returns `Result<Payload, EntryFailure>` with
 `EntryFailure::coded(e.exit_code(), e.to_string())`, and its caller reads
 `EntryFailure::of(&failure)`. An entry that returns `String` builds with
-no change.
+no change. A call that names the type parameters does not build: `start` has a third (`E`), so `pod_supervise::start::<table::Detail, _>` of
+`PodUtils/podvm:crates/podvm-supervise/tests/restart_clears_end.rs` (twice) becomes
+`start::<table::Detail, _, _>`.
 
 # T-1582: `pod-rootfs`: the completion writes `/etc/hosts` each time, so an `exec` loses the edits of the payload (PodUtils/podvm#692, ask 4)
 
