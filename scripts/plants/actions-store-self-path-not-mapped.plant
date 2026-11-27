@@ -1,0 +1,6 @@
+# pod-actions-store: $/PATH of a composite action is not the repository of that action (T-1542).
+ENTRY=T-1542
+GROUP=actions
+EXPECT='a_uses_of_the_repository_of_its_action_takes_its_ref'
+RUN='cargo test -p pod-actions-store --all-features --lib store'
+LIMIT=900

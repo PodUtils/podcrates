@@ -1,0 +1,6 @@
+# pod-actions-store: two spellings of one action give two fetches (T-1541).
+ENTRY=T-1541
+GROUP=actions
+EXPECT='two_spellings_of_one_action_give_one_fetch_and_one_pin'
+RUN='cargo test -p pod-actions-store --all-features --lib store'
+LIMIT=900

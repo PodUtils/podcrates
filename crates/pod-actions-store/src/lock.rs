@@ -50,9 +50,21 @@ pub(crate) fn is_digest(s: &str) -> bool {
 }
 
 impl Lock {
+    /// The pin of `key` (`OWNER/REPO@REF`) and the key of its line: the
+    /// owner and the name match with no case, the ref with case, as GitHub
+    /// matches a `uses:`.
+    pub fn pin(&self, key: &str) -> Option<(&str, &Pin)> {
+        if let Some((k, p)) = self.pins.get_key_value(key) {
+            return Some((k, p));
+        }
+        let folded = crate::store::uses::fold(key);
+        self.pins.iter().find(|(k, _)| crate::store::uses::fold(k) == folded).map(|(k, p)| (k.as_str(), p))
+    }
+
     pub fn parse(text: &str) -> Result<Lock, Error> {
         let mut pins = BTreeMap::new();
         let mut images = BTreeMap::new();
+        let mut folded = std::collections::BTreeSet::new();
         for (n, line) in text.lines().enumerate() {
             let bad = |fault| Error::Line { path: None, line: n + 1, fault };
             let line = line.trim();
@@ -84,9 +96,13 @@ impl Lock {
                 return Err(bad(LineFault::Form));
             }
             let pin = Pin { commit: commit.to_ascii_lowercase(), digest: digest.to_ascii_lowercase() };
-            if pins.insert(key.to_string(), pin).is_some() {
+            // Two spellings of one action (the owner and the name in another
+            // case) are one reference: a lookup could take either.
+            // The same key twice is the same fault.
+            if !folded.insert(crate::store::uses::fold(key)) {
                 return Err(bad(LineFault::Again(key.to_string())));
             }
+            pins.insert(key.to_string(), pin);
         }
         Ok(Lock { pins, images })
     }
@@ -150,6 +166,32 @@ mod tests {
         assert!(text.contains("docker://redis:7-alpine sha256:"), "an image line: {text}");
         assert!(text.find("a/b@main").unwrap() < text.find("o/r@v1").unwrap(), "sorted: {text}");
         assert_eq!(Lock::parse(&text).unwrap(), lock);
+    }
+
+    /// PodUtils/podrunner#380: a lookup folds the case of the owner and the
+    /// name, not of the ref; two spellings of one action in a lock fail.
+    #[test]
+    fn a_pin_is_found_by_any_case_of_the_owner_and_the_name() {
+        let (c, d) = ("a".repeat(40), format!("sha256:{}", "b".repeat(64)));
+        let lock = Lock::parse(&format!("actions/checkout@v4 {c} {d}\nO/Tool@Main {c} {d}\n")).unwrap();
+        let rows = [
+            ("actions/checkout@v4", Some("actions/checkout@v4")),
+            ("Actions/Checkout@v4", Some("actions/checkout@v4")),
+            ("ACTIONS/CHECKOUT@v4", Some("actions/checkout@v4")),
+            ("actions/checkout@V4", None),
+            ("actions/checkout@v5", None),
+            ("o/tool@Main", Some("O/Tool@Main")),
+            ("o/tool@main", None),
+        ];
+        for (key, want) in rows {
+            assert_eq!(lock.pin(key).map(|(k, _)| k), want, "{key}");
+        }
+        let e = Lock::parse(&format!("actions/checkout@v4 {c} {d}\nActions/Checkout@v4 {c} {d}\n")).unwrap_err();
+        assert!(
+            matches!(&e, Error::Line { line: 2, fault: LineFault::Again(k), .. } if k == "Actions/Checkout@v4"),
+            "{e:?}"
+        );
+        assert!(Lock::parse(&format!("o/r@v1 {c} {d}\no/r@V1 {c} {d}\n")).is_ok(), "the ref keeps its case");
     }
 
     #[test]

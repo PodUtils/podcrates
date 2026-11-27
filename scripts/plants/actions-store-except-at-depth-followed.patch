@@ -1,0 +1,13 @@
+diff --git a/crates/pod-actions-store/src/store.rs b/crates/pod-actions-store/src/store.rs
+index b9762db9..479fb957 100644
+--- a/crates/pod-actions-store/src/store.rs
++++ b/crates/pod-actions-store/src/store.rs
+@@ -265,7 +265,7 @@ pub fn resolve_with(
+             return Err(Error::SelfUses { uses: u, fault });
+         }
+         let (repo, path, r) = split(&u).ok_or_else(|| Error::Uses { uses: u.clone() })?;
+-        if excepted(options.except, &repo) {
++        if uses.contains(&u) && excepted(options.except, &repo) {
+             continue;
+         }
+         let key = format!("{repo}@{r}");

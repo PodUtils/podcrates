@@ -30,6 +30,17 @@ pub enum CheckoutFault {
     NotRepository,
 }
 
+/// What is wrong with a `uses: $/PATH`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SelfFault {
+    /// `$/PATH@REF`: the ref is the ref of the action, or in a workflow,
+    /// the commit of the run.
+    Ref,
+    /// A `$/PATH` of the workflow: the consumer maps it to the repository
+    /// of the run at its commit ([`crate::self_uses`]).
+    NoParent,
+}
+
 /// A failure of this crate.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
@@ -40,6 +51,8 @@ pub enum Error {
     File { path: PathBuf, kind: std::io::ErrorKind, reason: String },
     /// A `uses:` that is not `OWNER/REPO[/PATH]@REF`.
     Uses { uses: String },
+    /// A `uses: $/PATH` that is not a reference of the store.
+    SelfUses { uses: String, fault: SelfFault },
     /// The forge did not resolve a ref, or did not give a tar.
     Forge { repo: String, reason: String },
     /// A tarball that is not a tar.
@@ -99,6 +112,13 @@ impl fmt::Display for Error {
             Error::Line { path: None, line, fault } => write!(f, "line {line}: {fault}"),
             Error::File { path, reason, .. } => write!(f, "{}: {reason}", path.display()),
             Error::Uses { uses } => write!(f, "`uses: {uses}` is not OWNER/REPO[/PATH]@REF"),
+            Error::SelfUses { uses, fault: SelfFault::Ref } => {
+                write!(f, "`uses: {uses}`: `$/PATH` takes no @REF; it takes the ref of its action")
+            }
+            Error::SelfUses { uses, fault: SelfFault::NoParent } => write!(
+                f,
+                "`uses: {uses}`: `$/PATH` of the workflow is the repository of the run at its commit; give it as OWNER/REPO/PATH@COMMIT"
+            ),
             Error::Forge { reason, .. } => f.write_str(reason),
             Error::Tarball { key, reason } => write!(f, "the tarball of `{key}`: {reason}"),
             Error::NoAction { uses, path } => write!(f, "`uses: {uses}`: the tarball has no action.yml at `{path}`"),

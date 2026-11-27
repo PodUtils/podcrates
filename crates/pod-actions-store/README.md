@@ -20,14 +20,16 @@ the consumer names the lock, the store and the scratch directory of git.
 ## Use
 
 ```rust
-use pod_actions_store::{Git, Lock, Mode, Store, add_trees, images, resolve, workflow_trees, workflow_uses};
+use pod_actions_store::{Git, Lock, Mode, Options, Store, add_trees, images, resolve_with, workflow_trees, workflow_uses};
 
 let workflow = pod_actions_workflow::parse(&text)?.workflow;
 let lock = Lock::read(&lock_path)?;                       // no file: an empty lock
 let store = Store { dir: store_dir };                     // DIR/OWNER_REPO/SHA.tar.gz
 let git = Git::new("https://github.com/", scratch_dir);   // git in PATH
-let uses = workflow_uses(&workflow, &["actions/checkout"]);
-let r = resolve(&uses, &lock, &store, &git, Mode::Online, "actions.lock")?;
+let except = ["actions/checkout"];                        // given in the consumer's own way
+let uses = workflow_uses(&workflow, &except);
+let options = Options { except: &except };                // no fetch of it at each depth
+let r = resolve_with(&uses, &options, &lock, &store, &git, Mode::Online, "actions.lock")?;
 if r.changed {
     r.lock.write(&lock_path)?;                            // sorted, through a temporary file
 }
@@ -47,12 +49,14 @@ let (pins, changed) = images::resolve(&tags, &mut r.lock, &source, Mode::Online,
 
 | Item | What |
 | --- | --- |
-| `lock::Lock`, `Pin` | `pins`: each `OWNER/REPO@REF` and its commit and `sha256:HEX` digest; `images`: each image `NAME:TAG` and its `sha256:HEX` digest; `parse`, `read` (no file: an empty lock), `render`, `render_with` (the consumer's comment on top), `write`, `write_with` (through a temporary file) |
+| `lock::Lock`, `Pin` | `pins`: each `OWNER/REPO@REF` and its commit and `sha256:HEX` digest; `images`: each image `NAME:TAG` and its `sha256:HEX` digest; `pin(key)`: the pin and the key of its line, with no case of the owner and the name; `parse`, `read` (no file: an empty lock), `render`, `render_with` (the consumer's comment on top), `write`, `write_with` (through a temporary file) |
 | `lock::HEADER`, `is_commit` | the comment of `render`; a full commit id (40 hex digits) |
-| `store::workflow_uses` | each remote `uses:` of the steps of a `pod_actions_workflow::Workflow`, but the repositories of `except` |
+| `store::workflow_uses(w, except)` | each remote `uses:` of the steps of a `pod_actions_workflow::Workflow`, but each `uses:` whose `OWNER/REPO` is in `except` (no case); a `$/PATH` stays as written |
 | `store::resolve`, `Resolved` | each reference and each reference of each composite action that it names, against the lock, the store and the forge, until no new reference is left; `commits`, the `lock` after the run, `changed` |
+| `store::resolve_with(uses, options, lock, store, forge, mode, lock_name)`, `Options` | `resolve` with settings: `except`, the names `OWNER/REPO` (no case, no ref) that it does not fetch, follow or lock, at each depth; `resolve` is `Options::default()` |
+| `store::self_uses(uses, repo, ref)`, `SELF_PREFIX` | `uses: $/PATH` as `REPO/PATH@REF`, as the runner resolves it (`$/` alone: `REPO@REF`); `None` for another `uses:`; `$/PATH@REF` fails (`SelfFault::Ref`) |
 | `store::checkout_target(with, self_repo)` | `OWNER/REPO@REF` of the `with:` of a checkout (`HEAD` when no ref), or `None` for the repository of the run |
-| `store::workflow_trees(w, self_repo)` | each checkout of another repository in the steps of the workflow (`actions/checkout@REF` with `with: repository`) |
+| `store::workflow_trees(w, self_repo)` | each checkout of another repository in the steps of the workflow (`actions/checkout@REF`, no case of the owner and the name, with `with: repository`) |
 | `store::add_trees(trees, resolved, store, forge, mode, lock_name)` | each tree resolved, pinned and kept as an action is, with no action file to read |
 | `images::ImageSource` | `pull(image)`: the consumer pulls `NAME:TAG` into its store of images and gives the digest `sha256:HEX` |
 | `images::by_tag` | an image that a tag names, as `NAME:TAG` (`NAME` alone is `NAME:latest`); `None` for an image by digest |
@@ -63,7 +67,7 @@ let (pins, changed) = images::resolve(&tags, &mut r.lock, &source, Mode::Online,
 | `store::Git` (also `Git`) | the forge of git as a program: `base`, `scratch`, `program`, `proxy`; `Git::new(base, scratch)`; `command(args, dir)`, the git command that each call runs |
 | `store::Store`, `archive_name` | the tarballs `DIR/OWNER_REPO/SHA.tar.gz`, the layout of the archive cache of the runner; `path` |
 | `store::digest` | `sha256:HEX` of bytes |
-| `Error`, `LineFault`, `CheckoutFault` | each failure with its reference, its commit or its file (below) |
+| `Error`, `LineFault`, `CheckoutFault`, `SelfFault` | each failure with its reference, its commit or its file (below) |
 
 ## The rules
 
@@ -75,6 +79,25 @@ let (pins, changed) = images::resolve(&tags, &mut r.lock, &source, Mode::Online,
 * An image line is `docker://NAME:TAG sha256:HEX`, after the references.
   `NAME:TAG` is the form of `images::by_tag`: a line with no tag or with a
   digest fails, as a lookup never finds it.
+* The names (PodUtils/podrunner#380): GitHub matches the owner and the
+  name of `uses:` with no case, and the ref and the path with case. So do
+  `except`, `workflow_trees`, the lookup of the lock and the dedupe of a
+  run: two spellings of one action (`actions/checkout@v4`,
+  `Actions/Checkout@v4`) give one resolve, one tar and one pin. The lock
+  keeps the first spelling of the run; `commits` has each spelling as the
+  workflow wrote it; the store keeps the tar under each spelling (a copy,
+  not a fetch), as a consumer finds a tarball by the name of `uses:`. A
+  lock with two spellings of one reference fails (`LineFault::Again`).
+* `except` (PodUtils/podrunner#379): a `uses:` whose `OWNER/REPO` is in
+  `except` is not fetched, not followed and not locked, in the list of the
+  workflow and in each composite action at each depth.
+* `$/PATH` (PodUtils/podrunner#381): in a composite action, the
+  repository and the ref of that action, followed as any reference
+  (`TryParseSelfRepository` of `actions/runner` `v2.338.2`); `$/` alone is
+  the root of the repository. `$/PATH@REF` fails (`SelfFault::Ref`). In
+  the list of `resolve`, a `$/PATH` fails (`SelfFault::NoParent`): it is
+  the repository of the run at its commit, which only the consumer knows;
+  `self_uses` maps it.
 * The digest covers the uncompressed tar, so the version of git or of
   gzip does not change it.
 * `resolve` reads `action.yml` (or `action.yaml`) at the path of each
@@ -127,6 +150,7 @@ let (pins, changed) = images::resolve(&tags, &mut r.lock, &source, Mode::Online,
 | `Line` | a line of a lock: the file, the number, `LineFault::Form` or `LineFault::Again` |
 | `File` | a file of the lock or of the store: the path and the `io::ErrorKind` |
 | `Uses` | a `uses:` that is not `OWNER/REPO[/PATH]@REF` |
+| `SelfUses` | a `$/PATH@REF` (`SelfFault::Ref`); a `$/PATH` in the list of `resolve` (`SelfFault::NoParent`) |
 | `Forge` | the text of the forge, or a commit that is not a full commit id |
 | `Tarball`, `NoAction`, `Action` | a tarball that is not a tar; no `action.yml` at the path; an `action.yml` that does not parse |
 | `Moved`, `Pinned` | a tag or a branch that names another commit than the lock; a reference by commit that the lock pins to another commit |
@@ -192,6 +216,9 @@ to C324, C376 to C378, C462 to C463):
 | podrunner | `podrunner_local::images::{ImageSource, by_tag, workflow_images, resolve}` | `pod_actions_store::images::` with the same names and parameters; podrunner matches `ImageNotLocked { mode, .. }` for the words of its flags |
 | podrunner | `podrunner_local::images::PodvmPull` | stays in podrunner, as an `ImageSource` |
 | podrunner | `podrunner_broker_fake::actions::archive_name` in `Store::path` | `pod_actions_store::archive_name` (the same layout) |
+| podrunner | `resolve(&uses, ...)` and the placeholder tar of `actions/checkout` of its forge (PodUtils/podrunner#379) | `resolve_with(&uses, &Options { except: &["actions/checkout"] }, ...)`; the checkout is not in `commits` |
+| podrunner | `store::self_path`, `self_uses` (PodUtils/podrunner@T-729) | `pod_actions_store::self_uses(uses, repo, ref)`, an `Error::SelfUses` for `$/PATH@REF` |
+| podrunner | the arm `Error::Uses` of `$/PATH` in `run_local/actions.rs` (`with_fix`) | `Error::SelfUses`: `resolve` follows a `$/PATH` of a composite action |
 | podrunner | `flate2`, `tar`, `ring` in `crates/podrunner-local/Cargo.toml` for the store | removed when nothing else of the crate needs them |
 
 ## Tests
@@ -201,7 +228,8 @@ line by its number, a file written whole); the resolve against a forge in
 memory that counts its calls (a composite action by tag, a moved tag, the
 offline and frozen modes, a tarball that differs from the lock, the digest
 of the uncompressed tar, a forge that gives no commit id, a local reference that stays out of the
-lock); the git command (the protocol of the base, the proxy); the checkouts of
+lock; `except` at each depth, two spellings of one action, `$/PATH` at depth
+1 and 2 and `$/PATH@REF`); the git command (the protocol of the base, the proxy); the checkouts of
 other repositories (each fault of `with:`, a tree pinned with no action
 file, a moved tree); the images by tag against a registry in memory (the
 images of a workflow, a moved tag, the modes, a digest that is not
@@ -222,7 +250,9 @@ Plants (`scripts/plants/`): `actions-store-lock-unsorted`,
 `actions-store-git-head-unresolved`, `actions-store-image-moved-taken`,
 `actions-store-image-digest-unchecked` (T-587);
 `actions-store-local-reference-locked`, `actions-store-git-any-protocol`
-(T-613).
+(T-613); `actions-store-except-at-depth-followed` (T-1540),
+`actions-store-name-case-fetched-twice` (T-1541),
+`actions-store-self-path-not-mapped` (T-1542).
 
 ## Sources
 

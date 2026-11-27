@@ -1,0 +1,13 @@
+diff --git a/crates/pod-actions-store/src/store.rs b/crates/pod-actions-store/src/store.rs
+index b9762db9..4fd9cc13 100644
+--- a/crates/pod-actions-store/src/store.rs
++++ b/crates/pod-actions-store/src/store.rs
+@@ -269,7 +269,7 @@ pub fn resolve_with(
+             continue;
+         }
+         let key = format!("{repo}@{r}");
+-        let folded = fold(&key);
++        let folded = key.clone();
+         if !tars.contains_key(&folded) {
+             let at = At { repo: &repo, r: &r, key: &key, lock_name };
+             tars.insert(folded.clone(), fetch(&at, &mut out, store, forge, mode)?);

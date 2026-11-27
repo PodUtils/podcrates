@@ -2,6 +2,9 @@ use std::cell::{Cell, RefCell};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use super::*;
+use pod_actions_workflow::Limits;
+
+mod asks;
 
 /// A forge in memory: each `OWNER/REPO@REF` names a commit, and each commit
 /// has files. It counts its calls.
@@ -24,9 +27,12 @@ impl Fake {
 }
 
 impl Forge for Fake {
+    /// GitHub takes the owner and the name in any case, the ref in its own.
     fn resolve(&self, repo: &str, r: &str) -> Result<String, String> {
         self.resolves.set(self.resolves.get() + 1);
-        self.refs.borrow().get(&format!("{repo}@{r}")).cloned().ok_or_else(|| format!("no {repo}@{r}"))
+        let want = fold(&format!("{repo}@{r}"));
+        let refs = self.refs.borrow();
+        refs.iter().find(|(k, _)| fold(k) == want).map(|(_, c)| c.clone()).ok_or_else(|| format!("no {repo}@{r}"))
     }
 
     fn tar(&self, _repo: &str, commit: &str) -> Result<Vec<u8>, String> {

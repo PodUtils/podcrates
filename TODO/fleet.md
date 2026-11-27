@@ -10242,3 +10242,199 @@ literal of podrunner is `PodUtils/podrunner:crates/podrunner-slots/src/status.rs
 (`Slots::status`): it needs `no_tier_served_causes` (`Vec::new()` until
 podrunner fills it), as `Status` has no `Default`. The other uses of the
 flag in podrunner read JSON and do not break.
+
+# T-1540: `pod-actions-store`: `resolve` takes an `except` list at each depth of a composite action (PodUtils/podrunner#379)
+
+**Source:** PodUtils/podrunner#379 (COORD-148 of podrunner, for PodUtils/podrunner@T-697, PodUtils/podrunner@T-708, PodUtils/podrunner@T-713, PodUtils/podrunner@T-718; author COLLABORATOR)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`resolve` of `v0.86.0` follows each `uses:` of a composite action of the
+store, also `actions/checkout@v4`. podrunner gives `actions/checkout` a
+stand-in in its local mode, so a run fetched the real checkout and pinned
+it, and an offline run with no pin refused. podrunner works around it with
+a placeholder tar in its forge. The ask: an `except` list on `resolve`, as
+`workflow_uses` has: names `OWNER/REPO` with no ref that `resolve` does not
+fetch, follow or lock, in each composite action at each depth.
+
+## Premise
+
+- Read: PodUtils/podrunner#379; `crates/pod-actions-store/src/store.rs`;
+  `PodUtils/podrunner:crates/podrunner/src/run_local/actions.rs` (the one caller
+  of `resolve` in a run) and `PodUtils/podrunner:crates/podrunner-local/src/localrepo.rs`
+  (`Local::is_local` takes the checkout as local, the placeholder).
+- No caller must break when the cost is nothing (C981).
+
+## Approach
+
+`resolve_with(uses, &Options { except }, lock, store, forge, mode,
+lock_name)`; `resolve` is `resolve_with` with `Options::default()`. The
+loop skips each reference whose `OWNER/REPO` is in `except` (no case,
+T-1541), at depth 0 and at each depth. Tests: a table of `except` lists
+(the checkout at depth 1 and 2, in other cases, with a path, a name that
+only starts the same); an offline run with the lock needs no pin of the
+checkout. Plant `actions-store-except-at-depth-followed`.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-store --all-features
+sh scripts/plant-each.sh actions-store-except-at-depth-followed
+```
+
+## Done
+
+2026-11-27, commit `1723dd25` (docs `eb113c9b`, plant `b4fdc905`).
+`pod_actions_store::{Options, resolve_with}`: `Options { except }` names
+the `OWNER/REPO` that the resolve does not fetch, follow or lock, at each
+depth, with no case. `resolve` keeps its parameters. New test
+`store::tests::asks::a_name_of_except_is_not_fetched_followed_or_locked_at_each_depth`.
+The plant `actions-store-except-at-depth-followed` (except at depth 0
+only) is caught. `cargo test -p pod-actions-store --all-features`: 30 unit tests, 5 git tests, 1 doc test passed, 1 live test ignored; clippy clean. No breaking change. For podrunner:
+`PodUtils/podrunner:crates/podrunner/src/run_local/actions.rs` calls
+`resolve_with(&uses, &Options { except: &["actions/checkout"] }, ...)`;
+the placeholder tar of `actions/checkout` of
+`PodUtils/podrunner:crates/podrunner-local/src/localrepo.rs` (`is_local` of
+`is_checkout`) and the `retain` of `is_checkout` keys can go, as the
+checkout is not in `commits`.
+
+# T-1541: `pod-actions-store`: the owner and the name of an action match with no case (PodUtils/podrunner#380)
+
+**Source:** PodUtils/podrunner#380 (COORD-149 of podrunner, for PodUtils/podrunner@T-726; author COLLABORATOR)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+GitHub matches the owner and the repository of `uses:` with no case,
+and the ref and the path with case (`actions/runner` `v2.338.2` sends
+`NameWithOwner` as written). Three matches of `v0.86.0` used case: the
+`except` of `workflow_uses`, `workflow_trees` (`actions/checkout@`), and
+`resolve` (its dedupe, the lookup of the lock, and the new `except` of
+T-1540). The ask: these fold the case of the owner and the name, keep the
+case of the ref and of the path, and the lock keeps the name as the
+workflow wrote it. Two spellings of one action in one tree must not give
+two fetches with a conflict.
+
+## Premise
+
+- Read: PodUtils/podrunner#380; podrunner
+  `PodUtils/podrunner:crates/podrunner-broker-fake/src/actions.rs` (its `archive_name` keeps
+  the case; the pins are keyed by the name that the runner sends) and
+  `PodUtils/podrunner:crates/podrunner-local/src/exec/docker.rs` (the store by
+  `pod_actions_store::archive_name`).
+- Not measured: the run of github.com that the ask cites.
+
+## Approach
+
+`store::uses::fold` (owner and name in lowercase, path and ref as
+written) keys the dedupe of a run and the lookup of the lock
+(`Lock::pin`). One resolve, one tar and one pin for each action; the lock
+keeps the first spelling; `commits` has each spelling; the store keeps
+the tar under each spelling (C980). `Lock::parse` refuses two spellings
+of one reference. `add_trees` takes the commit of another spelling with
+no fetch. Tests: tables of the fold, of `except`, of `Lock::pin`, of
+`workflow_uses` and `workflow_trees`; a run with three spellings asks the
+forge once; offline and frozen runs of another spelling take the pin and
+the tar of the first; `@V2` is another ref. Plant
+`actions-store-name-case-fetched-twice`.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-store --all-features
+sh scripts/plant-each.sh actions-store-name-case-fetched-twice
+```
+
+## Done
+
+2026-11-27, commit `1723dd25` (docs `eb113c9b`, plant `b4fdc905`).
+`store::uses::fold`, `excepted`; `Lock::pin(key)`; `Lock::parse` fails on
+two spellings (`LineFault::Again`); `workflow_uses`, `workflow_trees`,
+`resolve`, `resolve_with` and `add_trees` match with no case; the call is
+C980. New tests
+`lock::tests::a_pin_is_found_by_any_case_of_the_owner_and_the_name`,
+`store::uses::tests::the_case_of_the_owner_and_the_name_folds_and_the_ref_and_the_path_stay`,
+`store::tests::asks::two_spellings_of_one_action_give_one_fetch_and_one_pin`,
+`store::tests::asks::the_except_of_the_workflow_and_its_checkouts_match_with_no_case`.
+The plant `actions-store-name-case-fetched-twice` is caught. `cargo test -p pod-actions-store --all-features`: 30 unit tests, 5 git tests, 1 doc test passed, 1 live test ignored; clippy clean.
+Changes of behaviour for podrunner (no change of a signature):
+`workflow_uses` drops `Actions/Checkout@v4` and `actions/checkout/sub@v4`
+too, so the `retain(!is_checkout)` of
+`PodUtils/podrunner:crates/podrunner-local/src/store.rs` (`workflow_uses`) is no longer
+needed; a lock of podrunner with two spellings of one reference now fails
+to read.
+
+# T-1542: `pod-actions-store`: `uses: $/PATH` in a composite action is the repository and the ref of that action (PodUtils/podrunner#381)
+
+**Source:** PodUtils/podrunner#381 (COORD-150 of podrunner, for PodUtils/podrunner@T-729; author COLLABORATOR)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+GitHub takes `uses: $/PATH`: in a workflow, the repository of the run
+at its commit; in a composite action, the repository and the ref of that
+action (`actions/runner` `v2.338.2`, `TryParseSelfRepository`).
+`$/PATH@REF` is refused. `resolve` of `v0.86.0` read `$/PATH` of a
+composite action as `OWNER/REPO@REF` and failed with `Error::Uses`, so
+podrunner stops such a run. The ask: `composite_uses` and `resolve` map
+`$/PATH` to the repository and the ref of the parent action, follow it,
+and refuse `$/PATH@REF` by name.
+
+## Premise
+
+- Read: PodUtils/podrunner#381; podrunner
+  `PodUtils/podrunner:crates/podrunner-local/src/store.rs` (`self_path`, `self_uses`,
+  `self_of`, PodUtils/podrunner@T-729) and `PodUtils/podrunner:crates/podrunner/src/run_local/actions.rs` (it
+  takes each `$/PATH` of the workflow out of the list of `resolve`, and
+  maps `Error::Uses` of `$/PATH` to a fix).
+- The crate before: `workflow_uses` gave a `$/PATH` of the workflow as
+  written, and `resolve` refused it (`Error::Uses`).
+
+## Approach
+
+`store::uses::self_uses(uses, repo, ref)` (public) maps `$/PATH` to
+`REPO/PATH@REF` (`$/` alone to `REPO@REF`) and refuses `$/PATH@REF`
+(`Error::SelfUses { fault: SelfFault::Ref }`). `composite_uses(text,
+parent)` maps each `$/PATH` with the `OWNER/REPO` and the ref of
+`parent` as written. In the list of `resolve` a `$/PATH` fails with
+`SelfFault::NoParent` (C982); `workflow_uses` keeps it as written. Tests:
+`$/PATH` at depth 1 and 2, by tag, by commit and in another case, across
+two repositories; `$/PATH@REF` in a composite action and in the list;
+a `$/PATH` with no action. Plant `actions-store-self-path-not-mapped`.
+
+## Prove
+
+```sh
+cargo test -p pod-actions-store --all-features
+sh scripts/plant-each.sh actions-store-self-path-not-mapped
+```
+
+## Done
+
+2026-11-27, commit `1723dd25` (docs `eb113c9b`, plant `b4fdc905`).
+`pod_actions_store::{self_uses, SELF_PREFIX, SelfFault}` and
+`Error::SelfUses { uses, fault }`; `resolve` follows a `$/PATH` of a
+composite action at each depth; the call is C982. New tests
+`store::uses::tests::a_uses_of_the_repository_of_its_action`,
+`store::tests::asks::a_uses_of_the_repository_of_its_action_takes_its_ref`.
+The plant `actions-store-self-path-not-mapped` is caught. `cargo test -p pod-actions-store --all-features`: 30 unit tests, 5 git tests, 1 doc test passed, 1 live test ignored; clippy clean.
+Breaking for podrunner: `Error` has the new variant `SelfUses` (a match
+with no `_` arm breaks); the arm `(Error::Uses { uses }, _) if
+is_self(uses)` of `with_fix` in
+`PodUtils/podrunner:crates/podrunner/src/run_local/actions.rs` no longer matches, as a
+`$/PATH` gives `Error::SelfUses`; `self_path` and `self_uses` of
+`PodUtils/podrunner:crates/podrunner-local/src/store.rs` can take
+`pod_actions_store::self_uses`.
