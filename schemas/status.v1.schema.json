@@ -44,6 +44,13 @@
       "description": "No unit kind of the host meets the floor of any source: no source\ngets an offer.",
       "type": "boolean"
     },
+    "no_tier_served_causes": {
+      "description": "Why no unit kind meets the floor: one entry for each kind of each\nsource. Absent when empty. [`Status::check`] refuses entries when\n`no_tier_served` is false; a writer that knows no cause leaves the\nlist empty.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/NoTierCause"
+      }
+    },
     "pins": {
       "type": "array",
       "items": {
@@ -335,6 +342,37 @@
           "type": "string",
           "const": "reported"
         }
+      ]
+    },
+    "NoTierCause": {
+      "description": "One cause of `no_tier_served`: why a unit kind of a source does not meet\nthe floor of the source.",
+      "type": "object",
+      "properties": {
+        "cause": {
+          "description": "The boundary or the hold below the floor of the source, or the claim\nthat the start lowered, with its proof (for example\n`guest-self-test-failed`).",
+          "type": "string"
+        },
+        "fix": {
+          "description": "The missing key or flag, when the writer knows one; absent when not.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "description": "The unit kind.",
+          "type": "string"
+        },
+        "source": {
+          "description": "The name of the source.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "kind",
+        "cause"
       ]
     },
     "PinStatus": {

@@ -42,8 +42,10 @@ const RECORDS: [&str; 7] =
     ["job-offer", "unit-capability", "run-report", "run-report-public", "status", "source-request", "source-reply"];
 
 /// The examples whose rule no schema can hold: the kind of a source is in
-/// the configuration of the runner, not in the offer.
-const CHECK_ONLY: [&str; 1] = ["job-offer/invalid-scaleset-payload.json"];
+/// the configuration of the runner, not in the offer; the causes of
+/// `no_tier_served` depend on the flag beside them.
+const CHECK_ONLY: [&str; 2] =
+    ["job-offer/invalid-scaleset-payload.json", "status/invalid-no-tier-causes-without-flag.json"];
 
 fn schema_of<T: JsonSchema>(name: &str) -> Schema {
     let mut s = schemars::schema_for!(T);
@@ -181,8 +183,8 @@ fn each_example_passes_or_fails_for_its_reason() {
             }
         }
     }
-    assert_eq!((valid, invalid), (47, 55));
-    assert_eq!(expect.len(), 55, "expect.json names a file that does not exist");
+    assert_eq!((valid, invalid), (48, 58));
+    assert_eq!(expect.len(), 58, "expect.json names a file that does not exist");
 }
 
 #[test]
