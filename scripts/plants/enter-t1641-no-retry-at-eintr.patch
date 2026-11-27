@@ -1,0 +1,14 @@
+diff --git a/crates/pod-enter/src/ns_lock.rs b/crates/pod-enter/src/ns_lock.rs
+index 190b0457..9fe84b98 100644
+--- a/crates/pod-enter/src/ns_lock.rs
++++ b/crates/pod-enter/src/ns_lock.rs
+@@ -236,6 +236,9 @@ impl Nested {
+ 
+ /// `call` again while it fails with `EINTR`. Async-signal-safe.
+ fn retry(mut call: impl FnMut() -> sys::Sysres) -> sys::Sysres {
++    if true {
++        return call();
++    }
+     loop {
+         match call() {
+             Err(e) if e == sys::EINTR => continue,

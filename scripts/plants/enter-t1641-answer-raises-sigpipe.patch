@@ -1,0 +1,15 @@
+diff --git a/crates/pod-enter/src/ns_lock.rs b/crates/pod-enter/src/ns_lock.rs
+index 190b0457..4962a916 100644
+--- a/crates/pod-enter/src/ns_lock.rs
++++ b/crates/pod-enter/src/ns_lock.rs
+@@ -352,6 +352,10 @@ fn serve(lines: &(Vec<u8>, Vec<u8>), pid: i64, ask: i64, answer: i64) {
+ /// then raises SIGPIPE, which ends a caller that did not ignore it. A
+ /// SIGPIPE that the write raised is taken back before the mask returns.
+ fn answer_with_no_sigpipe(answer: i64, bytes: &[u8]) {
++    if !bytes.is_empty() {
++        let _ = sys::write(answer, bytes);
++        return;
++    }
+     let pipe = sys::sigbit(sys::SIGPIPE);
+     let mut old = 0u64;
+     let blocked = sys::sigblock(pipe, &mut old).is_ok();

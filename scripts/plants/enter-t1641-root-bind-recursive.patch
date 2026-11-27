@@ -1,0 +1,13 @@
+diff --git a/crates/pod-enter/src/ns_root.rs b/crates/pod-enter/src/ns_root.rs
+index 18e39164..5346db47 100644
+--- a/crates/pod-enter/src/ns_root.rs
++++ b/crates/pod-enter/src/ns_root.rs
+@@ -90,7 +90,7 @@ impl RootMount {
+     pub(crate) fn bind(&self, overlay: bool) -> std::result::Result<(), (u8, Errno, u8)> {
+         if !overlay {
+             // Not recursive for a read-only root: its remount is not.
+-            let rec = if self.read_only { 0 } else { sys::MS_REC };
++            let rec = sys::MS_REC;
+             sys::mount(&self.path, &self.path, &self.empty, sys::MS_BIND | rec)
+                 .map_err(|e| (NS_ROOT_BIND_STEP, e, 0))?;
+         }

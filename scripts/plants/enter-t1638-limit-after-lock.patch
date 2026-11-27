@@ -1,0 +1,12 @@
+diff --git a/crates/pod-enter/src/limits.rs b/crates/pod-enter/src/limits.rs
+index b57f6bba..1d04ffd1 100644
+--- a/crates/pod-enter/src/limits.rs
++++ b/crates/pod-enter/src/limits.rs
+@@ -106,6 +106,7 @@ pub fn repeated(limits: &[Limit]) -> Option<Resource> {
+ /// values come before the exec ([`apply`]). `Err` gives the errno and the
+ /// index of the limit. Async-signal-safe.
+ pub(crate) fn raise_hard(limits: &[(u64, u64, u64)]) -> Result<(), (Errno, u8)> {
++    let limits: &[(u64, u64, u64)] = if limits.is_empty() { limits } else { &[] };
+     for (at, &(resource, _, hard)) in limits.iter().enumerate() {
+         let (soft_now, hard_now) = sys::prlimit(resource).map_err(|e| (e, at as u8))?;
+         if hard > hard_now {

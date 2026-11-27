@@ -1,0 +1,9 @@
+# pod-enter: the proc of the namespace rung has no read-only /proc/sys and
+# no masks for a payload of uid 0 of the host: the payload under the lock
+# opens /proc/sys/kernel/core_pattern for a write (T-1636, the review of
+# PodUtils/podvm#695).
+ENTRY=T-1636
+GROUP=confine
+EXPECT='the mounts of the rung are locked and the root holds, with no PID namespace \.\.\. FAILED: write:/proc/sys/kernel/core_pattern gave 0'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

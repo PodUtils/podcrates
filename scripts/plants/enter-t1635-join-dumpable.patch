@@ -1,0 +1,25 @@
+diff --git a/crates/pod-enter/src/launch.rs b/crates/pod-enter/src/launch.rs
+index 3fe84c1f..2cd7372b 100644
+--- a/crates/pod-enter/src/launch.rs
++++ b/crates/pod-enter/src/launch.rs
+@@ -301,7 +301,7 @@ pub(crate) fn spawn_with(
+                 Some(n @ NsEntry::Join(..)) => crate::ns_root::landed(&n, root_fd, &empty, &slash),
+                 None => false,
+             };
+-            if ns.is_none()
++            if !in_root
+                 && let Err(e) = sys::fchdir(root_fd)
+             {
+                 report(1, e);
+diff --git a/crates/pod-enter/src/ns_join.rs b/crates/pod-enter/src/ns_join.rs
+index 157b55bb..ca96104e 100644
+--- a/crates/pod-enter/src/ns_join.rs
++++ b/crates/pod-enter/src/ns_join.rs
+@@ -104,7 +104,6 @@ impl Join {
+     /// flag keeps it out of `/proc/PID/fd` of the child. The `execve` of
+     /// the payload sets the flag again.
+     pub(crate) fn enter(&self) -> std::result::Result<(), (u8, Errno)> {
+-        sys::set_dumpable(false).map_err(|e| (self.step(), e))?;
+         if let Some(owner) = self.owner {
+             sys::setns(owner, sys::CLONE_NEWUSER).map_err(|e| (NS_JOIN_OWNER_STEP, e))?;
+         }
