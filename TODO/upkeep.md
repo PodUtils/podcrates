@@ -7522,8 +7522,8 @@ runs, and a release workflow runs seldom.
 ## Approach
 
 A pinned actionlint release binary for Linux x86_64 and arm64, fetched
-with `scripts/ci/fetch-tool.sh` by its SHA-256, in a script
-`scripts/actionlint.sh`. The job `workflows` of `ci.yml` runs it on each
+with `scripts/ci/fetch-tool.sh` by its SHA-256, in a new script
+`actionlint.sh` of `scripts/`. The job `workflows` of `ci.yml` runs it on each
 workflow; `check.sh` runs it when the binary is there. Fix each fault
 that it finds first, or name each kept one with its reason.
 
