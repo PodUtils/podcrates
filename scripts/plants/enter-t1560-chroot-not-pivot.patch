@@ -1,0 +1,15 @@
+diff --git a/crates/pod-enter/src/ns_root.rs b/crates/pod-enter/src/ns_root.rs
+index a087328c..da76f6a9 100644
+--- a/crates/pod-enter/src/ns_root.rs
++++ b/crates/pod-enter/src/ns_root.rs
+@@ -118,9 +118,7 @@ impl RootMount {
+         sys::chdir(&self.path).map_err(|e| (NS_PIVOT_STEP, e))?;
+         // `pivot_root(".", ".")` stacks the old root on the new one; the
+         // detach of "." then removes it, with each mount under it.
+-        unsafe { sys::sys(sys::SYS_PIVOT_ROOT, [self.dot.ptr(), self.dot.ptr(), 0, 0, 0, 0]) }
+-            .map_err(|e| (NS_PIVOT_STEP, e))?;
+-        sys::umount_detach(&self.dot).map(drop).map_err(|e| (NS_OLD_ROOT_STEP, e))
++        sys::chroot(&self.dot).map(drop).map_err(|e| (NS_PIVOT_STEP, e))
+     }
+ }
+ 

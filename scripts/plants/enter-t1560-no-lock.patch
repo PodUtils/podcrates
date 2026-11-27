@@ -1,0 +1,22 @@
+diff --git a/crates/pod-enter/src/ns_lock.rs b/crates/pod-enter/src/ns_lock.rs
+index 931a82d2..21724971 100644
+--- a/crates/pod-enter/src/ns_lock.rs
++++ b/crates/pod-enter/src/ns_lock.rs
+@@ -144,7 +144,7 @@ pub(crate) fn nested_for(plan: &Plan, ns: Option<&NsEntry<'_>>, userland: bool)
+         let ids = userns_ids(plan)?;
+         let child = Some(Maps::with_inside(ids, ids.0, ids.1));
+         let lock = Nested { child, parent_lines: None, mount: true, host_root: false, ids: false };
+-        return Ok((ids.0 == 0).then_some(lock));
++        return Ok(false.then_some(lock));
+     }
+     let euid = unsafe { sys::syscall6(sys::SYS_GETEUID, 0, 0, 0, 0, 0, 0) } as u32;
+     if euid != 0 {
+@@ -157,7 +157,7 @@ pub(crate) fn nested_for(plan: &Plan, ns: Option<&NsEntry<'_>>, userland: bool)
+         let maps = Maps::of_caller_inside(ids);
+         return Ok(Some(Nested { child: Some(maps), parent_lines: None, mount: own, host_root: false, ids: true }));
+     }
+-    if !own {
++    if true || !own {
+         return Ok(None);
+     }
+     let egid = unsafe { sys::syscall6(sys::SYS_GETEGID, 0, 0, 0, 0, 0, 0) } as u32;
