@@ -39,6 +39,9 @@ pub struct Maps {
     setgroups: CBuf,
     uid_map: CBuf,
     gid_map: CBuf,
+    /// The same three files by name, under a descriptor of `/proc/self`
+    /// ([`write_maps_at`]).
+    names: [CBuf; 3],
     uid_line: Vec<u8>,
     gid_line: Vec<u8>,
 }
@@ -64,6 +67,7 @@ impl Maps {
             setgroups: c("/proc/self/setgroups"),
             uid_map: c("/proc/self/uid_map"),
             gid_map: c("/proc/self/gid_map"),
+            names: [c("setgroups"), c("uid_map"), c("gid_map")],
             uid_line: map_line(inside.0, uid).into_bytes(),
             gid_line: map_line(inside.1, gid).into_bytes(),
         }
@@ -102,10 +106,10 @@ pub fn is_initial_map(uid_map: &str) -> bool {
     first.as_deref() == Some(&["0", "0", "4294967295"][..]) && lines.next().is_none()
 }
 
-/// Write `bytes` into the file at `path` in one `write(2)`: the kernel
-/// takes a map in one write only. No allocation.
-fn write_file(path: &CBuf, bytes: &[u8]) -> Result<(), Errno> {
-    let fd = sys::open(path, sys::O_WRONLY | sys::O_CLOEXEC, 0)?;
+/// Write `bytes` into the file at `path` under the directory `dir` in one
+/// `write(2)`: the kernel takes a map in one write only. No allocation.
+fn write_file_at(dir: i64, path: &CBuf, bytes: &[u8]) -> Result<(), Errno> {
+    let fd = sys::openat(dir, path, sys::O_WRONLY | sys::O_CLOEXEC, 0)?;
     let n = sys::write(fd, bytes);
     let _ = sys::close(fd);
     match n {
@@ -128,14 +132,30 @@ pub fn enter(m: &Maps) -> Result<(), (Step, Errno)> {
 /// clone makes the user namespace first, so it owns each other namespace
 /// of the same call. Async-signal-safe.
 pub fn write_maps(m: &Maps) -> Result<(), (Step, Errno)> {
+    write_three(sys::AT_FDCWD as i64, [&m.setgroups, &m.uid_map, &m.gid_map], m)
+}
+
+/// [`write_maps`] through `proc_self`, a descriptor of `/proc/self` that
+/// the process opened before it changed its root: a process whose root
+/// holds no `/proc` writes its maps through it. The kernel opens a map of
+/// the user namespace that the process is in at the time of the open, so
+/// a descriptor of the directory serves a user namespace made after it.
+/// Async-signal-safe.
+pub fn write_maps_at(proc_self: i64, m: &Maps) -> Result<(), (Step, Errno)> {
+    let [setgroups, uid_map, gid_map] = &m.names;
+    write_three(proc_self, [setgroups, uid_map, gid_map], m)
+}
+
+/// `deny` into `setgroups`, then the two maps, each under `dir`.
+fn write_three(dir: i64, [setgroups, uid_map, gid_map]: [&CBuf; 3], m: &Maps) -> Result<(), (Step, Errno)> {
     // A kernel before 3.19 has no `setgroups` file, and takes the map of
     // the group with no `deny`.
-    match write_file(&m.setgroups, b"deny") {
+    match write_file_at(dir, setgroups, b"deny") {
         Ok(()) | Err(sys::ENOENT) => {}
         Err(e) => return Err((Step::Setgroups, e)),
     }
-    write_file(&m.uid_map, &m.uid_line).map_err(|e| (Step::UidMap, e))?;
-    write_file(&m.gid_map, &m.gid_line).map_err(|e| (Step::GidMap, e))
+    write_file_at(dir, uid_map, &m.uid_line).map_err(|e| (Step::UidMap, e))?;
+    write_file_at(dir, gid_map, &m.gid_line).map_err(|e| (Step::GidMap, e))
 }
 
 #[cfg(test)]

@@ -128,6 +128,8 @@ pub const EEXIST: Errno = errno(e::EEXIST);
 /// or the wrong file.
 pub const EXDEV: Errno = errno(e::EXDEV);
 pub const ENOTDIR: Errno = errno(e::ENOTDIR);
+/// `EROFS`: a write to a file system or a mount that is read-only.
+pub const EROFS: Errno = errno(e::EROFS);
 pub const EISDIR: Errno = errno(e::EISDIR);
 pub const EINVAL: Errno = errno(e::EINVAL);
 pub const ENOSYS: Errno = errno(e::ENOSYS);

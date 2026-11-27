@@ -226,6 +226,7 @@ fn the_userland_entry_enters_a_workdir_in_a_volume() {
             pid_namespace: false,
             tmpfs: Vec::new(),
             relay_title: None,
+            read_only_root: false,
             confine: None,
         };
         let argv = vec!["/bin/sh".to_string(), "-c".to_string(), format!("pwd -P > {}", s(&out))];
@@ -252,6 +253,7 @@ fn the_userland_entry_enters_a_workdir_in_a_volume() {
         pid_namespace: false,
         tmpfs: Vec::new(),
         relay_title: None,
+        read_only_root: false,
         confine: None,
     };
     let other = Maps::of_root("/elsewhere");

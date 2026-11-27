@@ -64,11 +64,14 @@ mod launch;
 mod names;
 mod ns_dev_bind;
 mod ns_join;
+mod ns_lock;
 mod ns_optional;
 mod ns_overlay;
+mod ns_own;
 mod ns_pid;
 mod ns_proc_bind;
 mod ns_pts;
+mod ns_root;
 mod ns_tmpfs;
 mod ns_upper;
 mod ns_user;
@@ -92,9 +95,10 @@ pub use ns_dev_bind::{
     refused_start as ns_dev_refused_start, skipped_line as ns_dev_skipped_line,
 };
 pub use ns_join::{
-    Member, NS_JOIN_PID_STEP, NS_JOIN_USER_PID_STEP, NS_JOIN_USER_STEP, fdinfo_pid, ids_of, joinable, other_namespace,
-    other_user_namespace,
+    Member, NS_JOIN_OWNER_STEP, NS_JOIN_PID_STEP, NS_JOIN_USER_PID_STEP, NS_JOIN_USER_STEP, fdinfo_pid, ids_of,
+    joinable, mount_owner, other_namespace, other_user_namespace,
 };
+pub use ns_lock::{NS_LOCK_USER_STEP, NS_NESTED_NS_STEP};
 pub use ns_optional::{NS_PROC_STEP, NS_PTS_STEP, ns_proc_refused, ns_proc_target, ns_pts_target, ns_refused_line};
 pub use ns_overlay::{
     NS_OVERLAY_DIRS_STEP, NS_OVERLAY_STEP, NS_OVERLAY_TMPFS_STEP, OVERLAY_OPTIONS_MOST, Root, USERXATTR, Upper,
@@ -105,6 +109,7 @@ pub use ns_pid::{
 };
 pub use ns_proc_bind::{NS_PROC_BIND_STEP, NS_PROC_REMOUNT_STEP, proc_of_this_pid_namespace};
 pub use ns_pts::{DEVPTS_FLAGS, DEVPTS_OPTIONS, NS_DEVPTS_STEP, NS_PTMX_BIND_STEP, devpts_refused, ptmx_of};
+pub use ns_root::{NS_DEV_KEEP_STEP, NS_OLD_ROOT_STEP, NS_PIVOT_STEP, NS_READ_ONLY_STEP, NS_ROOT_BIND_STEP};
 pub use ns_tmpfs::{
     MOST as TMPFS_MOST, NS_TMPFS_LIMIT_STEP, NS_TMPFS_LINK_STEP, NS_TMPFS_MOUNT_STEP, NS_TMPFS_POINT_STEP,
     tmpfs_enforced, tmpfs_label,

@@ -132,6 +132,7 @@ fn a_name_with_a_slash_is_a_path_and_never_searched_on_path() {
         pid_namespace: false,
         tmpfs: Vec::new(),
         relay_title: None,
+        read_only_root: false,
     };
     assert_eq!(p.program_candidates(), v(&["/bin/echo"]));
 

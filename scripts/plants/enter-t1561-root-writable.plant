@@ -1,0 +1,7 @@
+# The namespace rung does not remount the root read-only: a plan with
+# Plan::read_only_root gets a writable root (T-1561, PodUtils/podvm#695).
+ENTRY=T-1561
+GROUP=confine
+EXPECT='a read-only root refuses a write, with no PID namespace \.\.\. FAILED: write:/made gave 0'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

@@ -1,4 +1,5 @@
 use super::*;
+use crate::ns_lock::{failure as nested_failure, nested_for, nested_step};
 use crate::{NS_JOIN_STEP, NS_PROC_STEP, NS_PTS_STEP};
 
 /// Each call of the user namespace has its own byte, a name for the
@@ -50,7 +51,7 @@ fn the_cause_names_both_refusals() {
     assert_eq!(c, "unshare(CLONE_NEWNS) (EPERM (1)), and in a user namespace at unshare(CLONE_NEWUSER) (EINVAL (22))");
 }
 
-fn plan(ids: Option<(u32, u32)>) -> Plan {
+pub(crate) fn plan(ids: Option<(u32, u32)>) -> Plan {
     Plan {
         argv: vec!["/bin/true".to_string()],
         env: Vec::new(),
@@ -69,6 +70,7 @@ fn plan(ids: Option<(u32, u32)>) -> Plan {
         pid_namespace: false,
         tmpfs: Vec::new(),
         relay_title: None,
+        read_only_root: false,
     }
 }
 
@@ -133,7 +135,8 @@ fn only_uid_0_of_a_user_namespace_takes_a_nested_one() {
 /// the ids; a plan with no ids takes none on each entry.
 #[test]
 fn a_join_and_the_entry_with_no_chroot_take_no_nested_namespace() {
-    let join = NsEntry::Join(crate::ns_join::Join { pidfd: -1, overlay: false, user: false, pid: false }, None);
+    let join =
+        NsEntry::Join(crate::ns_join::Join { pidfd: -1, overlay: false, user: false, pid: false, owner: None }, None);
     let p = plan(Some((1001, 1001)));
     assert!(nested_for(&p, Some(&join), false).unwrap().is_none());
     assert!(nested_for(&p, None, true).unwrap().is_none());
@@ -147,10 +150,31 @@ fn a_join_and_the_entry_with_no_chroot_take_no_nested_namespace() {
 #[test]
 fn a_refused_nested_step_names_the_ids_and_the_call() {
     let p = plan(Some((1001, 1002)));
-    let e = nested_failure(&p, NS_NESTED_UID_MAP_STEP, sys::EPERM).unwrap().to_string();
+    let e = nested_failure(&p, NS_NESTED_UID_MAP_STEP, sys::EPERM, 0).unwrap().to_string();
     assert!(e.contains("the ids 1001:1002 of the plan need a nested user namespace"), "{e}");
     assert!(e.contains("writing /proc/self/uid_map failed with EPERM (1); the payload did not run"), "{e}");
-    assert!(nested_failure(&p, NS_UID_MAP_STEP, sys::EPERM).is_none());
+    assert!(nested_failure(&p, NS_UID_MAP_STEP, sys::EPERM, 0).is_none());
     let e = crate::status::step_failure(&p, NS_NESTED_USER_STEP, sys::EINVAL, 0).to_string();
     assert!(e.contains("unshare(CLONE_NEWUSER) failed with EINVAL (22)"), "{e}");
+}
+
+/// The user namespace of the rung: a payload of uid 0 there takes the lock
+/// with a map of one id that the child writes (PodUtils/podvm#695); a
+/// payload of other ids holds no capability after its exec, and takes none.
+#[test]
+fn the_payload_of_uid_0_of_the_rung_takes_the_lock() {
+    let tmp = pod_hostprobe::sys::CBuf::new("/tmp").unwrap();
+    let mount = NsMount {
+        user: Some(Maps::of_caller_inside((0, 0))),
+        tmp_target: tmp,
+        optional: Vec::new(),
+        overlay: None,
+        devices: None,
+    };
+    let own = NsEntry::Own(&mount);
+    let lock = nested_for(&plan(None), Some(&own), false).unwrap().expect("the lock of uid 0");
+    assert_eq!(lock.at(), 1, "the refusal of the lock names the lock");
+    assert!(lock.parent_lines.is_none(), "the child writes the map of one id");
+    assert!(nested_for(&plan(Some((0, 0))), Some(&own), false).unwrap().is_some());
+    assert!(nested_for(&plan(Some((1001, 1001))), Some(&own), false).unwrap().is_none());
 }

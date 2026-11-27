@@ -1,0 +1,10 @@
+# The namespace rung enters its root with chroot(2), not pivot_root(2):
+# the host's root stays in the mount namespace of the payload (T-1560,
+# PodUtils/podvm#695). The nested user namespace of the payload is then
+# refused, as the kernel refuses a chrooted process: the confine test of
+# root names it first.
+ENTRY=T-1560
+GROUP=confine
+EXPECT='refused at unshare\(CLONE_NEWUSER\) of the nested user namespace of host root \(EPERM'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

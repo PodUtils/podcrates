@@ -5,7 +5,7 @@ use std::io::Write;
 use pod_core::Class;
 use pod_hostprobe::sys::{self, CBuf};
 
-use crate::entry::{NsEntry, chroot_landed, ns_setup_step};
+use crate::entry::{NsEntry, ns_setup_step};
 use crate::names::var_name;
 use crate::status::NOT_FOUND;
 use crate::userland::Maps;
@@ -15,6 +15,10 @@ use crate::{Child, Error, Plan, Result, RootDir, errno_failure};
 /// pipe. The parent reaps that child and reads the step from the pipe, so
 /// no caller sees this code. It is docker's code of a runtime error.
 const SETUP_FAILED: i32 = 125;
+
+/// The flags of a descriptor of a directory that the child only opens
+/// under.
+const DIR: u64 = sys::O_PATH | sys::O_DIRECTORY | sys::O_CLOEXEC;
 
 /// The one entry sequence of [`crate::spawn`], [`crate::spawn_ladder`] and
 /// [`crate::spawn_userland`].
@@ -95,16 +99,13 @@ pub(crate) fn spawn_with(
     let slash = CBuf::new("/").expect("a literal");
     let dot = CBuf::new(".").expect("a literal");
     let tmp_workdir = if ns.is_some() { crate::ns_volume::tmp_workdir_parts(plan) } else { Vec::new() };
-    let tmpfs = CBuf::new("tmpfs").expect("a literal");
     // The empty path through which `execveat` execs a descriptor.
     let empty = sys::cempty();
-    // The path by which the namespace rung changes its root. The entry
-    // descriptor was opened before the fork, in the mount namespace of the
-    // caller, and `fchdir` with `chroot(".")` anchors the new root in that
-    // mount: the tmpfs that the child mounts in its own namespace stays
-    // hidden under it. The path resolves in the new namespace, under the
-    // private mount, and the device and inode check after the chroot
-    // refuses a path that changed.
+    // The path by which the namespace rung changes its root (`ns_root`).
+    // The entry descriptor was opened before the fork, in the mount
+    // namespace of the caller: the mounts of the child are not under it.
+    // The path resolves in the new namespace, and the device and inode
+    // check after the change refuses a path that changed.
     let rootpath = CBuf::new(&root.path).ok_or_else(|| nul("the root path contains a NUL byte".to_string()))?;
     let hostname = crate::uts::checked(plan)?;
     let hostname_len = plan.hostname.as_ref().map_or(0, String::len);
@@ -122,9 +123,18 @@ pub(crate) fn spawn_with(
     // The volumes: a join binds none, as the mount namespace of the run
     // holds them; an entry with no mount namespace refuses them.
     let volumes = crate::ns_volume::prepare(plan, root, entry.filter(|_| ns.is_none()))?;
-    // The ids of the plan for a caller that is uid 0 of a user namespace
-    // that is not the initial one: a nested one (`ns_user`).
-    let nested = crate::ns_user::nested_for(plan, ns.as_ref(), userland.is_some())?;
+    // The nested user namespace of the payload (`ns_lock`).
+    let nested = crate::ns_lock::nested_for(plan, ns.as_ref(), userland.is_some())?;
+    let proc_self = CBuf::new("/proc/self").expect("a literal");
+    let own = match ns {
+        Some(NsEntry::Own(m)) => Some(crate::ns_own::OwnSteps {
+            hostname: hostname.as_ref(),
+            hostname_len,
+            cloned_user: pid_ns.own,
+            ..crate::ns_own::OwnSteps::new(m, crate::ns_root::RootMount::of(plan, root)?, &volumes, &rootpath)
+        }),
+        _ => None,
+    };
 
     let mut argv: Vec<*const u8> = argv_owned.iter().map(|c| c.ptr() as *const u8).collect();
     argv.push(std::ptr::null());
@@ -194,6 +204,12 @@ pub(crate) fn spawn_with(
     let pid_ns = pid_ns.with_parent(plan.die_with_parent).inspect_err(|_| {
         let _ = (sys::close(read_end), sys::close(write_end));
     })?;
+    // The two pipes of the maps that the parent writes (`ns_lock`).
+    let maps_pipes = crate::ns_lock::Pipes::of(plan, nested.as_ref()).inspect_err(|_| {
+        let _ = (sys::close(read_end), sys::close(write_end));
+        pid_ns.close();
+    })?;
+    let own = own.map(|o| crate::ns_own::OwnSteps { root_fd, ..o });
 
     // The limits as numbers, made before the fork: the child only reads
     // them.
@@ -205,6 +221,7 @@ pub(crate) fn spawn_with(
         Ok(0) => {
             // The child: async-signal-safe work only, then execve.
             let _ = sys::close(read_end);
+            maps_pipes.close_parent_ends();
             // Four bytes to the readiness pipe: the step and the errno.
             let report_at = |step: u8, e: sys::Errno, at: u8| -> ! {
                 let msg = [step, (e.0 & 0xff) as u8, ((e.0 >> 8) & 0xff) as u8, at];
@@ -239,67 +256,49 @@ pub(crate) fn spawn_with(
                     let _ = sys::fcntl(*child_fd, sys::F_SETFD, 0);
                 }
             }
-            // The namespace rung: a mount namespace of its own, `/` private
-            // and recursive so that its mounts cannot reach the host, then
-            // its private tmpfs on the `/tmp` of the image. A failure
-            // reports its step, and the parent enters chroot.
-            if let Some(NsEntry::Own(m)) = ns {
-                // A user namespace first, where the rung needs one (`ns_user`).
-                if let Some(Err((step, e))) = m.user.as_ref().map(|u| crate::ns_user::enter_with(u, pid_ns.own)) {
-                    report(step, e);
-                }
-                // The lower layer of an overlay is the working directory:
-                // the unshare moves it into the new namespace, and a
-                // descriptor of the old one does not mount there.
-                if m.overlay.is_some()
-                    && let Err(e) = sys::fchdir(root_fd)
-                {
-                    report(crate::ns_overlay::NS_OVERLAY_STEP, e);
-                }
-                if let Err(e) = sys::unshare(sys::CLONE_NEWNS) {
-                    report(7, e);
-                }
-                if let Err(e) = sys::mount(&empty, &slash, &empty, sys::MS_REC | sys::MS_PRIVATE) {
-                    report(8, e);
-                }
-                // The overlay root on the root path, before each mount
-                // under it (`ns_overlay`).
-                if let Some(o) = &m.overlay
-                    && let Err((step, e)) = crate::ns_overlay::mount(o, &rootpath, m.user.is_some())
-                {
-                    report(step, e);
-                }
-                if let Err(e) = sys::mount(&tmpfs, &m.tmp_target, &tmpfs, 0) {
-                    report(9, e);
-                }
-                // `/proc`, `/dev/pts` and the host's devices: a refused one
-                // writes one line and the rung goes on.
-                crate::ns_optional::mount_each(m);
-                // The volumes of the plan, after each mount of the rung: a
-                // refused one stops the payload (`ns_volume`).
-                if let Err((step, e, at)) = crate::ns_volume::bind_each(&volumes) {
-                    report_at(step, e, at);
-                }
-                if let Some(name) = &hostname
-                    && let Err((step, e)) = crate::uts::enter(name, hostname_len)
-                {
-                    report(step, e);
-                }
+            // The namespace rung (`ns_own`): a mount namespace of its own,
+            // `/` private and recursive so that its mounts cannot reach the
+            // host, the mounts, then `pivot_root` into the root. A failure
+            // reports its step, and the parent enters chroot. A descriptor of
+            // `/proc/self` first, for the maps of the nested namespace.
+            let self_fd = match nested.as_ref().map(|_| sys::open(&proc_self, DIR, 0)) {
+                Some(Err(e)) => report(crate::ns_user::NS_NESTED_USER_STEP, e),
+                Some(Ok(fd)) => fd,
+                None => -1,
+            };
+            if let Some(Err((step, e, at))) = own.as_ref().map(crate::ns_own::OwnSteps::run) {
+                report_at(step, e, at);
             }
-            // The nested user namespace: after each mount, while the
-            // `/proc` of the root of the caller holds the maps, and before the
-            // root change, the confinement and the exec.
-            if let Some(Err((step, e))) = nested.as_ref().map(crate::ns_user::enter_nested) {
-                report(step, e);
+            // The nested user namespace (`ns_lock`): after each mount, and
+            // after the pivot (the kernel refuses a chrooted process), or
+            // before the chroot of another entry.
+            if let Some(n) = &nested
+                && let Err((step, e)) = n.enter(self_fd, &maps_pipes)
+            {
+                report_at(step, e, n.at());
             }
+            let _ = sys::close(self_fd);
+            maps_pipes.close_child_ends();
             // `fchdir` onto the checked descriptor: a path can change after
             // its check, and a descriptor cannot. The working directory is
-            // the root file system from here until the `chdir` below.
-            if let Err(e) = sys::fchdir(root_fd) {
+            // the root file system from here until the `chdir` below. The
+            // namespace rung is in its root already, and a join of a run of
+            // it too: the join sets the root of the mount namespace.
+            let in_root = match ns {
+                Some(NsEntry::Own(_)) => true,
+                Some(n @ NsEntry::Join(..)) => crate::ns_root::landed(&n, root_fd, &empty, &slash),
+                None => false,
+            };
+            if !in_root && let Err(e) = sys::fchdir(root_fd) {
                 report(1, e);
             }
             if chroot {
-                let changed = if ns.is_some() { sys::chroot(&rootpath) } else { sys::chroot(&dot) };
+                // A join of a run with no pivot changes its root by path.
+                let changed = match ns {
+                    _ if in_root => Ok(0),
+                    Some(_) => sys::chroot(&rootpath),
+                    None => sys::chroot(&dot),
+                };
                 if let Err(e) = changed {
                     report(2, e);
                 }
@@ -321,24 +320,12 @@ pub(crate) fn spawn_with(
                 {
                     report(11, e);
                 }
-                // The device and inode check: the chroot by path of the
-                // namespace rung must land on the opened descriptor. A
-                // mismatch is a path that changed or a mount that the new
-                // root cannot see. `fstatat` on the descriptor needs no
-                // path, so it works after the chroot; `EXDEV` names a
-                // landing on another file. `slash`, not `dot`: the working
-                // directory can be the `WorkingDir` of the image.
-                // An overlay root lands on an overlay, never on the lower.
-                if let Some(n) = ns {
-                    let anchored = sys::fstatat(root_fd, &empty, sys::AT_EMPTY_PATH).ok();
-                    let ok = match anchored {
-                        Some(a) if n.overlay() => crate::ns_overlay::landed(&a, &slash),
-                        Some(a) => sys::fstatat(sys::AT_FDCWD as i64, &slash, 0).is_ok_and(|b| chroot_landed(&a, &b)),
-                        None => false,
-                    };
-                    if !ok {
-                        report(10, sys::EXDEV);
-                    }
+                // The device and inode check: the root of the namespace rung
+                // must be the opened descriptor (`ns_root::landed`).
+                if let Some(n) = ns
+                    && !crate::ns_root::landed(&n, root_fd, &empty, &slash)
+                {
+                    report(10, sys::EXDEV);
                 }
             } else if let Some(w) = &workdir_host
                 && let Err(e) = sys::chdir(w)
@@ -450,6 +437,8 @@ pub(crate) fn spawn_with(
         Err(e) => {
             let _ = (sys::close(read_end), sys::close(write_end));
             pid_ns.close();
+            maps_pipes.close_parent_ends();
+            maps_pipes.close_child_ends();
             // A refused PID namespace is a refusal of the rung.
             if let Some(step) = ns_setup_step(pid_ns.clone_step()).filter(|_| pid_ns.flags != 0) {
                 return Err(Error::NsSetup { step, errno: e });
@@ -458,6 +447,10 @@ pub(crate) fn spawn_with(
         }
     };
     pid_ns.close();
+    // The maps of the nested namespace that the parent writes (`ns_lock`).
+    maps_pipes.close_child_ends();
+    maps_pipes.serve(nested.as_ref(), pid);
+    maps_pipes.close_parent_ends();
 
     // The parent closes its write end first. Otherwise the read below
     // never sees the end of the file: the copy of this process holds the
@@ -484,8 +477,11 @@ pub(crate) fn spawn_with(
         return Err(crate::confine::failure(confined.as_ref(), &buf));
     }
     let errno = sys::Errno(i32::from(buf[1]) | (i32::from(buf[2]) << 8));
-    // A refused volume names the volume, and never falls back.
-    if let Some(e) = crate::ns_volume::failure(plan, buf[0], errno, buf[3]) {
+    // A refused volume names the volume, and never falls back; nor does a
+    // refused read-only root.
+    if let Some(e) = crate::ns_volume::failure(plan, buf[0], errno, buf[3])
+        .or_else(|| crate::ns_root::failure(buf[0], errno, buf[3]))
+    {
         return Err(e);
     }
     // A failure of the namespace setup does not fail the run: the caller

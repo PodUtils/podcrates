@@ -87,11 +87,12 @@ pub fn volume_label(v: &VolumeBind) -> String {
 }
 
 /// The first volume of `plan` (`the volume HOST:GUEST`), else its first
-/// tmpfs (`the tmpfs GUEST:size=N`), for a refusal of an entry with no
-/// mount namespace of its own.
+/// tmpfs (`the tmpfs GUEST:size=N`), else its read-only root, for a refusal
+/// of an entry with no mount namespace of its own.
 pub(crate) fn first_mount(plan: &Plan) -> Option<String> {
     let volume = plan.volumes.first().map(|v| format!("the volume {}", volume_label(v)));
-    volume.or_else(|| plan.tmpfs.first().map(|t| format!("the tmpfs {}", crate::tmpfs_label(t))))
+    let tmpfs = || plan.tmpfs.first().map(|t| format!("the tmpfs {}", crate::tmpfs_label(t)));
+    volume.or_else(tmpfs).or_else(|| plan.read_only_root.then(|| "the read-only root".to_string()))
 }
 
 /// The components of a guest path, or why it is not one: absolute, not

@@ -17,12 +17,19 @@
 //! child, not of the child: the child forks the payload of the exec into
 //! it and stays as its relay (`ns_pid`).
 //!
+//! The kernel checks `CAP_SYS_ADMIN` over the owner of the mount namespace
+//! with the credentials from before the call. Where the mount namespace of
+//! the run belongs to a user namespace that is neither the one of the
+//! payload nor the one of this process (a payload in a nested user
+//! namespace whose mounts its parent namespace made, PodUtils/podvm#695),
+//! the child joins that owner first ([`mount_owner`]), then the payload.
+//!
 //! The init of such a namespace is not dumpable (`title`, T-1113), and the
 //! kernel gives its namespaces only to a holder of `CAP_SYS_PTRACE` over
 //! the user namespace of the caller of the run. A caller with no such
 //! capability joins the payload of the run in its place ([`joinable`]).
 
-use std::os::fd::{FromRawFd, OwnedFd};
+use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 use std::os::unix::fs::MetadataExt;
 
 use pod_hostprobe::sys::{self, Errno};
@@ -36,6 +43,13 @@ pub const NS_JOIN_USER_STEP: u8 = 27;
 pub const NS_JOIN_PID_STEP: u8 = 43;
 pub const NS_JOIN_USER_PID_STEP: u8 = 44;
 
+/// The step byte of the join of the owner of the mount namespace of the run.
+pub const NS_JOIN_OWNER_STEP: u8 = 60;
+
+/// `NS_GET_USERNS` of `<linux/nsfs.h>`: `_IO(0xb7, 0x1)`, the owner of a
+/// namespace.
+const NS_GET_USERNS: u64 = 0xb701;
+
 /// The join, decided before the fork.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Join {
@@ -48,13 +62,17 @@ pub(crate) struct Join {
     /// The payload is in a PID namespace that is not the one of the
     /// caller: the child joins it for its children.
     pub(crate) pid: bool,
+    /// A descriptor of the owner of the mount namespace of the run, which
+    /// the child joins first ([`mount_owner`]); the caller holds it open.
+    pub(crate) owner: Option<i64>,
 }
 
 impl Join {
     /// The join of the payload of `pidfd`. It reads the user and the PID
     /// namespaces here, before the fork.
     pub(crate) fn of(pidfd: i64, overlay: bool) -> Join {
-        Join { pidfd, overlay, user: other_user_namespace(pidfd), pid: other_namespace(pidfd, "pid") }
+        let (user, pid) = (other_user_namespace(pidfd), other_namespace(pidfd, "pid"));
+        Join { pidfd, overlay, user, pid, owner: None }
     }
 
     /// The namespaces of the call.
@@ -74,9 +92,13 @@ impl Join {
         }
     }
 
-    /// In the child, first after the death signal. One call: a pidfd with
+    /// In the child, first after the death signal: the owner of the mount
+    /// namespace where it is another one, then one call: a pidfd with
     /// several flags joins all of them, or none. Async-signal-safe.
     pub(crate) fn enter(&self) -> std::result::Result<(), (u8, Errno)> {
+        if let Some(owner) = self.owner {
+            sys::setns(owner, sys::CLONE_NEWUSER).map_err(|e| (NS_JOIN_OWNER_STEP, e))?;
+        }
         sys::setns(self.pidfd, self.flags()).map(drop).map_err(|e| (self.step(), e))
     }
 }
@@ -181,14 +203,38 @@ pub fn other_user_namespace(pidfd: i64) -> bool {
     other_namespace(pidfd, "user")
 }
 
-/// The name of the step of a join with `CLONE_NEWPID`, for
+/// The name of the step of a join with `CLONE_NEWPID` or of the owner, for
 /// [`crate::ns_setup_step`].
 pub(crate) fn pid_step_name(byte: u8) -> Option<&'static str> {
     match byte {
         NS_JOIN_PID_STEP => Some("setns(pidfd, CLONE_NEWNS | CLONE_NEWPID)"),
         NS_JOIN_USER_PID_STEP => Some("setns(pidfd, CLONE_NEWUSER | CLONE_NEWNS | CLONE_NEWPID)"),
+        NS_JOIN_OWNER_STEP => Some("setns(the owner of the mount namespace of the run, CLONE_NEWUSER)"),
         _ => None,
     }
+}
+
+/// The owner of the mount namespace of the process of `pidfd`, where it is
+/// a user namespace that is neither the one of that process nor the one
+/// of this process: the join enters it first. `None` where `/proc` or the
+/// kernel (`NS_GET_USERNS`, Linux 4.9) does not tell: the join then goes
+/// as before, and a refusal falls back.
+pub fn mount_owner(pidfd: i64) -> Option<OwnedFd> {
+    let fdinfo = format!("/proc/self/fdinfo/{pidfd}");
+    let pid = || std::fs::read_to_string(&fdinfo).ok().as_deref().and_then(fdinfo_pid);
+    let p = pid()?;
+    let mnt = std::fs::File::open(format!("/proc/{p}/ns/mnt")).ok()?;
+    let theirs = ns_id(&format!("/proc/{p}/ns/user"));
+    // SAFETY: an open descriptor of a namespace and a request with no
+    // argument; the kernel gives a new descriptor or an errno.
+    let fd = unsafe { sys::sys(sys::SYS_IOCTL, [mnt.as_raw_fd() as u64, NS_GET_USERNS, 0, 0, 0, 0]) }.ok()?;
+    // SAFETY: the ioctl gave the descriptor, and nothing else owns it.
+    let owner = unsafe { OwnedFd::from_raw_fd(fd as i32) };
+    let of_owner = std::fs::File::from(owner.try_clone().ok()?).metadata().ok().map(|m| (m.dev(), m.ino()));
+    // The pid again: a process that ended between the reads gave its
+    // number free.
+    let other = of_owner.is_some() && of_owner != theirs && of_owner != ns_id("/proc/self/ns/user");
+    (other && pid() == Some(p)).then_some(owner)
 }
 
 /// Is the process of `pidfd` in a namespace of the kind `kind` (a name

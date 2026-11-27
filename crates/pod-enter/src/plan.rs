@@ -75,9 +75,11 @@ pub struct Plan {
     /// 0 drops each capability of the payload. A caller that is uid 0 of a
     /// user namespace that is not the initial one gets them on each entry
     /// with a chroot through a nested user namespace (`<uid> 0 1`), after
-    /// the mounts and before the root change. A host root (the initial
-    /// namespace), a join of a run (the map of the run holds) and the entry
-    /// with no chroot keep the ids of the caller. `u32::MAX` is refused
+    /// the mounts. A host root (the initial namespace), a join of a run (the
+    /// map of the run holds) and the entry with no chroot keep the ids of
+    /// the caller. With no ids, a payload of uid 0 of the namespace rung
+    /// gets a nested user namespace too, which locks the mounts of the rung
+    /// (`ns_lock`). `u32::MAX` is refused
     /// before the fork: the kernel maps no such id.
     pub userns_ids: Option<(u32, u32)>,
     /// A PID namespace of the payload on the namespace rung (`ns_pid`): a
@@ -91,6 +93,14 @@ pub struct Plan {
     /// environment ([`crate::title`]); `None` is the product of
     /// [`Plan::names`]. Each other entry reads none.
     pub relay_title: Option<String>,
+    /// A read-only root of the payload on the namespace rung (`ns_root`):
+    /// the root mount is remounted read-only after each mount of the rung,
+    /// and `/dev` of the tree, each volume that is not `read_only`, each
+    /// tmpfs and `/tmp` stay writable. A join of a run lands on the root of
+    /// the run. Each other entry refuses the plan, and the namespace rung
+    /// does not fall back to chroot with it: the payload never runs on a
+    /// writable root.
+    pub read_only_root: bool,
 }
 
 /// One volume of the namespace rung: a recursive bind of the host path

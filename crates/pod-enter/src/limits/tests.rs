@@ -34,6 +34,7 @@ fn plan_with(limits: Vec<Limit>, no_new_privs: bool, die_with_parent: bool) -> P
         pid_namespace: false,
         tmpfs: Vec::new(),
         relay_title: None,
+        read_only_root: false,
     }
 }
 

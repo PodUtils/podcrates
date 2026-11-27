@@ -1,0 +1,8 @@
+# The namespace rung gives its payload of uid 0 no nested user and mount
+# namespace: the payload remounts a read-only volume writable, clears the
+# flags of /proc, resizes a tmpfs of the plan (T-1560, PodUtils/podvm#695).
+ENTRY=T-1560
+GROUP=confine
+EXPECT='the mounts of the rung are locked and the root holds, with no PID namespace \.\.\. FAILED: remount:/ro gave 0'
+RUN='sh scripts/ci/root-enter-confine-tests.sh'
+LIMIT=1800

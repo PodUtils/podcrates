@@ -125,6 +125,7 @@ fn plan(script: &str, hostname: Option<&str>) -> Plan {
         pid_namespace: false,
         tmpfs: Vec::new(),
         relay_title: None,
+        read_only_root: false,
     }
 }
 

@@ -10,7 +10,7 @@
 //! upper layer is a tmpfs), the upper and work directories in it, then
 //! overlayfs on the root path with `lowerdir=.`. The lower layer is the
 //! descriptor, not a path. Then the rung goes on as for a tree: the tmpfs
-//! on `/tmp`, the optional mounts, the chroot by path. The landing check
+//! on `/tmp`, the optional mounts, the pivot into the root (`ns_root`). The landing check
 //! asks for an overlay that is not the lower directory.
 //!
 //! A refusal at any step is [`Error::Overlay`]: there is no fallback to

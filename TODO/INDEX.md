@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1104 entries: 174 open, 31 partial, 6 blocked, 893 done.**
+**1106 entries: 174 open, 31 partial, 6 blocked, 895 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 253 | 266 |
+| P1 | 4 | 9 | 0 | 255 | 268 |
 | P2 | 73 | 12 | 4 | 479 | 568 |
 | P3 | 97 | 10 | 2 | 159 | 268 |
-| **All** | 174 | 31 | 6 | 893 | 1104 |
+| **All** | 174 | 31 | 6 | 895 | 1106 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1145,6 +1145,8 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1541](fleet.md) | P1 | S | M8 | feature | done | `pod-actions-store`: the owner and the name of an action match with no case (PodUtils/podrunner#380) |
 | [T-1542](fleet.md) | P1 | S | M8 | feature | done | `pod-actions-store`: `uses: $/PATH` in a composite action is the repository and the ref of that action (PodUtils/podrunner#381) |
 | [T-1550](fleet.md) | P1 | S | M8 | feature | done | `pod-job`: the causes of `no_tier_served`, as `no_tier_served_causes` in `status.v1` (PodUtils/podrunner#375) |
+| [T-1560](podvm.md) | P1 | M | M6 | defect | done | `pod-enter`: the namespace rung enters the tree with `pivot_root`, and the payload of uid 0 gets a nested user and mount namespace, so it cannot leave the tree or remount a `:ro` volume (PodUtils/podvm#695, asks 1 to 4) |
+| [T-1561](podvm.md) | P1 | S | M6 | feature | done | `pod-enter`: `Plan::read_only_root`, a read-only root of the namespace rung (PodUtils/podvm#695, ask 5) |
 | [T-1580](podvm.md) | P2 | S | M6 | feature | done | `pod-oci`: no `GET /v2/` ping, so `podvm login` checks no password (PodUtils/podvm#692, ask 1) |
 | [T-1581](podvm.md) | P2 | S | M6 | feature | done | `pod-supervise`: the exit code of a failed spawn of the entry is text, so podvm puts a marker in it (PodUtils/podvm#692, ask 3) |
 | [T-1582](podvm.md) | P2 | S | M6 | feature | done | `pod-rootfs`: the completion writes `/etc/hosts` each time, so an `exec` loses the edits of the payload (PodUtils/podvm#692, ask 4) |

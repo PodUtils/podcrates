@@ -1,12 +1,12 @@
 diff --git a/crates/pod-enter/src/entry.rs b/crates/pod-enter/src/entry.rs
 --- a/crates/pod-enter/src/entry.rs
 +++ b/crates/pod-enter/src/entry.rs
-@@ -429,7 +429,7 @@
-     // The pidfd of the payload stays open until the child joined.
-     let member = crate::ns_join::joinable(pidfd);
-     let target = member.as_ref().map_or(pidfd, |m| i64::from(std::os::fd::AsRawFd::as_raw_fd(&m.pidfd)));
--    let join = NsEntry::Join(crate::ns_join::Join::of(target, matches!(root, Root::Overlay { .. })), root.upper_dir());
-+    let join = NsEntry::Join(crate::ns_join::Join::of(target, matches!(root, Root::Overlay { .. })), None);
+@@ -388,7 +388,7 @@ pub fn spawn_joined_root(root: Root<'_>, plan: &Plan, pidfd: i64, err: &mut dyn
+     let owner = crate::ns_join::mount_owner(target);
+     let mut j = crate::ns_join::Join::of(target, matches!(root, Root::Overlay { .. }));
+     j.owner = owner.as_ref().map(|o| i64::from(std::os::fd::AsRawFd::as_raw_fd(o)));
+-    let join = NsEntry::Join(j, root.upper_dir());
++    let join = NsEntry::Join(j, None);
      match spawn_with(root.dir(), plan, Rung::Namespace.word(), None, None, None, Some(join), true, err) {
          Err(Error::NsSetup { step, errno }) => {
              let cause = format!("{step} ({} ({}))", errno.name(), errno.0);
