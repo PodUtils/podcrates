@@ -305,6 +305,15 @@ pub(crate) fn resolve_file<G: GuestRoot + ?Sized>(
     guest: &str,
 ) -> Result<(PathBuf, Vec<String>), ResolveKind> {
     let (full, parts) = walk_in(root, guest)?;
+    file_at(root, full, parts)
+}
+
+/// The last check of [`resolve_file`]: the walk gave a file.
+fn file_at<G: GuestRoot + ?Sized>(
+    root: &G,
+    full: PathBuf,
+    parts: Vec<String>,
+) -> Result<(PathBuf, Vec<String>), ResolveKind> {
     match std::fs::symlink_metadata(&full) {
         Ok(m) if m.file_type().is_file() => Ok((full, parts)),
         // A volume can serve one file: its host side is read as a mount.
@@ -329,6 +338,15 @@ pub fn resolve_dir_in<G: GuestRoot + ?Sized>(root: &G, guest: &str) -> Result<Pa
 /// [`resolve_dir_in`], and the resolved guest path as its components.
 pub(crate) fn resolve_dir<G: GuestRoot + ?Sized>(root: &G, guest: &str) -> Result<(PathBuf, Vec<String>), ResolveKind> {
     let (full, parts) = walk_in(root, guest)?;
+    dir_at(root, full, parts)
+}
+
+/// The last check of [`resolve_dir`]: the walk gave a directory.
+fn dir_at<G: GuestRoot + ?Sized>(
+    root: &G,
+    full: PathBuf,
+    parts: Vec<String>,
+) -> Result<(PathBuf, Vec<String>), ResolveKind> {
     let mount = root.host_of(&parts).1;
     let md = if mount { std::fs::metadata(&full) } else { std::fs::symlink_metadata(&full) };
     match md {
@@ -337,7 +355,33 @@ pub(crate) fn resolve_dir<G: GuestRoot + ?Sized>(root: &G, guest: &str) -> Resul
     }
 }
 
-/// The walk of the links that [`resolve_in`] and [`resolve_dir_in`] share.
+/// What a `..` at the guest root does in a walk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AtRoot {
+    /// The walk stops with [`ResolveKind::Escapes`]: for a path that must
+    /// not go above the root.
+    Escape,
+    /// The `..` stays at the root, as `openat2(RESOLVE_IN_ROOT)` and
+    /// `docker cp` resolve it: `/../etc` is `/etc`, and a relative link
+    /// that climbs above the root stops at the root.
+    Clamp,
+}
+
+/// [`resolve_in`] with [`AtRoot::Clamp`]: a `..` at the root, also in the
+/// target of a link, stays at the root. No result is outside the root.
+pub fn resolve_in_clamped<G: GuestRoot + ?Sized>(root: &G, guest: &str) -> Result<PathBuf, ResolveKind> {
+    let (full, parts) = walk_in_at(root, guest, AtRoot::Clamp)?;
+    file_at(root, full, parts).map(|(host, _)| host)
+}
+
+/// [`resolve_dir_in`] with [`AtRoot::Clamp`], as [`resolve_in_clamped`].
+pub fn resolve_dir_in_clamped<G: GuestRoot + ?Sized>(root: &G, guest: &str) -> Result<PathBuf, ResolveKind> {
+    let (full, parts) = walk_in_at(root, guest, AtRoot::Clamp)?;
+    dir_at(root, full, parts).map(|(host, _)| host)
+}
+
+/// The walk of the links that [`resolve_in`] and [`resolve_dir_in`] share,
+/// with [`AtRoot::Escape`].
 ///
 /// Empty parts are skipped, so `"/tmp/"` and `"tmp"` resolve like
 /// `"/tmp"`, and `"/"` resolves to the root itself. `..` past the root
@@ -346,6 +390,15 @@ pub(crate) fn resolve_dir<G: GuestRoot + ?Sized>(root: &G, guest: &str) -> Resul
 /// parent of a side of the table. The confinement opens the path of each
 /// rule through it where a plan has volumes (`confine::compile`).
 pub(crate) fn walk_in<G: GuestRoot + ?Sized>(root: &G, guest: &str) -> Result<(PathBuf, Vec<String>), ResolveKind> {
+    walk_in_at(root, guest, AtRoot::Escape)
+}
+
+/// [`walk_in`], where `at_root` gives what a `..` at the root does.
+pub(crate) fn walk_in_at<G: GuestRoot + ?Sized>(
+    root: &G,
+    guest: &str,
+    at_root: AtRoot,
+) -> Result<(PathBuf, Vec<String>), ResolveKind> {
     const MAX_LINKS: usize = 40;
     let mut parts: Vec<String> = guest.split('/').filter(|s| !s.is_empty()).map(str::to_string).collect();
     let mut out: Vec<String> = Vec::new();
@@ -358,7 +411,7 @@ pub(crate) fn walk_in<G: GuestRoot + ?Sized>(root: &G, guest: &str) -> Result<(P
             continue;
         }
         if p == ".." {
-            if out.pop().is_none() {
+            if out.pop().is_none() && at_root == AtRoot::Escape {
                 return Err(ResolveKind::Escapes);
             }
             i += 1;

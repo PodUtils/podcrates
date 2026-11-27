@@ -1,0 +1,7 @@
+# The clamp mode of the walk refuses a `..` at the root as the strict mode
+# does (T-1610, PodUtils/podvm#684).
+ENTRY=T-1610
+GROUP=enter
+EXPECT='test abi::tests::clamp::a_clamped_walk_keeps_dot_dot_at_the_root \.\.\. FAILED'
+RUN='cargo test -p pod-enter --all-features --lib abi::tests::clamp'
+LIMIT=900

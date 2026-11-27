@@ -1,0 +1,11 @@
+--- a/crates/pod-enter/src/abi/search.rs
++++ b/crates/pod-enter/src/abi/search.rs
+@@ -407,7 +407,7 @@
+             continue;
+         }
+         if p == ".." {
+-            if out.pop().is_none() && at_root == AtRoot::Escape {
++            if out.pop().is_none() {
+                 return Err(ResolveKind::Escapes);
+             }
+             i += 1;

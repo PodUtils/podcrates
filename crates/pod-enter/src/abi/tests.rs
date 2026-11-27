@@ -1,6 +1,7 @@
 use super::*;
 use std::os::unix::process::CommandExt;
 
+mod clamp;
 pub(crate) mod dynamic;
 pub(super) mod labels;
 

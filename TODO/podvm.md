@@ -16528,3 +16528,242 @@ one). podvm drops `podvm_enter::read_only::seal` and `own_mounts`
 (`PodUtils/podvm:crates/podvm-enter/src/read_only.rs`) and sets the flag
 in place of the seal (`PodUtils/podvm:crates/podvm/src/run/read_only.rs`).
 Not measured: an overlay root with the flag.
+
+# T-1610: `pod-enter`: the walk in a root refuses a `..` at the root, so podvm's `cp` cannot resolve a path as docker does (PodUtils/podvm#684)
+
+**Source:** PodUtils/podvm#684 (COORD-262 of podvm, PodUtils/podvm@T-2087; author COLLABORATOR).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+"`podvm cp` now resolves a container path in the root of the container
+with `pod_enter::abi::resolve_dir_in` (podvm commit `595f9bb`) ... But
+`crates/pod-enter/src/abi/search.rs::walk_in` (podcrates `v0.85.0`)
+returns `ResolveKind::Escapes` for a `..` at the root and for a relative
+link that climbs above the root. The kernel (`openat2` with
+`RESOLVE_IN_ROOT`) and docker keep both at the root: `docker cp
+c:/etc/../../../../etc/shadow .` copies the container's `/etc/shadow`, and
+a link `../../../lib/x` that climbs too far resolves inside the root." The
+ask: a public clamp mode of the walk, where `..` at the root and a link
+above the root stay at the root, with a table test: `/../../etc/x` resolves
+to `ROOT/etc/x`; a link `tmp/up -> ../../..` with `tmp/up/etc/x` resolves to
+`ROOT/etc/x`; `/a/../b` is unchanged; no row names a path outside the root.
+The strict mode stays.
+
+## Premise
+
+- Read: the body of PodUtils/podvm#684;
+  `PodUtils/podvm:crates/podvm/src/lifecycle/cp_root.rs` of podvm `main`
+  (it calls `resolve_dir_in` only); `crates/pod-enter/src/abi/search.rs`
+  (`walk_in`, `resolve_file`, `resolve_dir`).
+- The walk keeps the guest path as components, so a clamp is one rule at
+  the pop of `..`: an empty guest path stays empty. A link target goes
+  through the same loop, so the rule holds for a link too.
+
+## Approach
+
+`abi::AtRoot { Escape, Clamp }` and `walk_in_at(root, guest, at_root)`;
+`walk_in` is `walk_in_at(.., AtRoot::Escape)`. New public
+`resolve_in_clamped` and `resolve_dir_in_clamped`, with the last checks of
+`resolve_in` and `resolve_dir_in` shared. A table test of both modes, also
+through a table of volumes (`Maps::of_binds`).
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features clamp
+```
+
+## Done
+
+2026-11-27, the first commit of the branch `enter689` (named by its
+subject, `pod-enter: a clamp mode of the walk in a root (T-1610)`).
+`pod_enter::abi::{AtRoot, resolve_in_clamped, resolve_dir_in_clamped}` as
+asked; `resolve_in` and `resolve_dir_in` keep the strict mode. Test of the
+asks: `abi::tests::clamp::a_clamped_walk_keeps_dot_dot_at_the_root` (ten
+rows, each in both modes: `/../../etc/x`, `tmp/up/etc/x` through
+`tmp/up -> ../../..`, `/tmp/far -> ../../../etc/x`, an absolute link
+`/../../etc`, `/a/../b` unchanged, `/../nothing` `Absent`; each result is
+under the root) and
+`abi::tests::clamp::a_clamped_walk_never_reads_the_host_parent_of_a_volume`
+(through `Maps::of_binds`). `cargo test -p pod-enter --all-features --lib`:
+293 passed. Plant: `scripts/plants/enter-t1610-clamp-escapes.plant`,
+caught here (both tests fail). No break for podvm: a new function. podvm
+then calls `resolve_dir_in_clamped` in
+`PodUtils/podvm:crates/podvm/src/lifecycle/cp_root.rs` and drops its
+refusal of a `..` above the root.
+
+# T-1611: `pod-enter`: `TmpfsMount` has no mode, so podvm refuses `--tmpfs P:mode=M,size=N` (PodUtils/podvm#692, ask 2)
+
+**Source:** PodUtils/podvm#692 (COORD-266 of podvm, ask 2, PodUtils/podvm@T-2079; author COLLABORATOR).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+"`--tmpfs P:mode=M,size=N` (docker gives the mode to the mount).
+`TmpfsMount` at `v0.86.0` has `guest` and `bytes` only, and `ns_tmpfs.rs`
+mounts with `size={bytes}`, so the mode is the kernel's 1777. podvm refuses
+a mode other than 1777 with a size by name today." The ask:
+`TmpfsMount.mode: Option<u32>`, passed as `mode=%o` in the mount data, with
+a row of the test; a mode over `0o7777` is refused.
+
+## Premise
+
+- Read: the body of PodUtils/podvm#692, ask 2;
+  `crates/pod-enter/src/ns_tmpfs.rs`, `tests/userns/tmpfs.rs`.
+- The kernel takes `mode=` of a tmpfs in octal and shows it in
+  `/proc/self/mountinfo` where it is not `1777`.
+
+## Approach
+
+`TmpfsMount::mode`; `ns_tmpfs::tmpfs_options` gives `size=N[,mode=M]`;
+`prepare` refuses a mode over `MODE_MOST` (`0o7777`) by name;
+`tmpfs_label` gives `GUEST:mode=M,size=N` with a mode. A row of the unit
+test of `prepare`, and a run in `tests/userns/tmpfs.rs` that reads the mode
+of the root of the tmpfs and the line of the mount.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features ns_tmpfs
+PODVM_T486_BUSYBOX=/path/to/busybox cargo test -p pod-enter --all-features --test userns a_tmpfs_of_the_plan_holds_its_byte_limit
+```
+
+# T-1612: `pod-enter`: no overlay kind of volume in `Plan::volumes`, so podvm mounts `-v HOST:GUEST:overlay` in a namespace step of its own (PodUtils/podvm#689)
+
+**Source:** PodUtils/podvm#689 (COORD-264 of podvm, PodUtils/podvm@T-2101, from PodUtils/podrunner#368; author COLLABORATOR).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P1
+**Effort:** M
+**Status:** open
+
+## Problem
+
+podvm `main` (`74c3b46`) serves `-v HOST:GUEST:overlay` on the namespace
+rung: "The lower layer is a held descriptor of HOST (under
+`--podvm-volume-base` it opens beneath the base with `pod-beneath`). The
+upper and work directories are in the tree of the container. The mount
+uses pod-enter's own `overlay_options` with `lowerdir=.`, and `userxattr`
+in a user namespace with no retry without it." `run -d`, `create` and
+`start` cannot do that through `Plan::volumes`, so the launcher of
+`podvm-supervise` enters a user and a mount namespace of its own, mounts
+the layers, and then calls `spawn_namespace`: a second namespace step
+beside pod-enter's. The ask:
+
+- `VolumeBind` gets a kind or a field: `Overlay { upper, work }`.
+- In the child, at the place of the bind in `ns_volume::bind_one`: open
+  HOST (under `host_base` with `pod-beneath` where set), and mount
+  overlayfs on the descriptor of the mount point with `overlay_options`
+  (`lowerdir=` the held lower descriptor) and `userxattr` in a user
+  namespace, with no fallback without it.
+- Refuse `read_only` together with an overlay.
+- Step bytes for the open, the mount, and overlapping layers (`ELOOP`,
+  `EBUSY`).
+- `check_workdir`'s `View` accepts a working directory in an overlay
+  volume.
+- A table test: a layer whose lower stays byte for byte after a write, a
+  change, a removal with a whiteout; the refusals.
+
+The overlay volume must be mounted before the nested user namespace of
+T-1560, so that it is locked as the other mounts.
+
+## Premise
+
+- Read: the body of PodUtils/podvm#689; podvm `main`:
+  `PodUtils/podvm:crates/podvm-enter/src/overlay.rs` (`mount_one`: the
+  upper and the work directory at `<tree>/overlay/<n>/`, made by podvm with
+  the mode of HOST; `enter_own_namespace`; `check_guests`),
+  `PodUtils/podvm:crates/podvm/src/run/overlay.rs`;
+  `crates/pod-enter/src/ns_volume.rs`, `ns_overlay.rs`, `ns_upper.rs`,
+  `ns_own.rs`.
+- The volumes are mounted after `/tmp`, `/proc` and `/dev` of the rung, so
+  a layer under them is not hidden (podvm's `check_guests` refuses those
+  guest paths for its own order). The nested user namespace of T-1560
+  comes after each volume.
+- Not measured: `EBUSY` of an upper directory that another overlay uses
+  (the kernel gives it only with `index=on`); a kernel before 5.11.
+
+## Approach
+
+1. `VolumeBind::overlay: Option<OverlayLayers { upper, work }>` (a field:
+   `VolumeBind` keeps `Default`). Call C1003.
+2. A new module `ns_layer.rs`: the checks before the fork (not
+   `read_only`, HOST a directory, `upper` and `work` absolute paths of
+   directories, the options with `userxattr` in one page), the mount in the
+   child (`fchdir` to the lower descriptor, `mount("overlay",
+   /proc/self/fd/N, "overlay", 0, options)`), steps 61 (the lower layer),
+   62 (the mount) and 63 (`ELOOP`, `EBUSY`), and the words of a refusal.
+3. `ns_volume::bind_one` opens the lower layer (by `pod-beneath` under
+   `host_base`, step 48 as a bind) and mounts the layer in place of the
+   bind. `volume_label` gives `HOST:GUEST:overlay`.
+4. `ns_upper::View`: the upper directory of an overlay volume over its host
+   path, by the rules of the overlay root; `UpperDir::path` is optional,
+   and `userxattr` is the one of the mounts.
+5. Tests: unit tests of the checks, the steps and the view; a case of
+   `tests/locked.rs` on each path (host root, the user namespace of the
+   rung, uid 0 of a user namespace of the caller).
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features ns_layer
+cargo test -p pod-enter --all-features ns_upper
+cargo test -p pod-enter --all-features --test locked
+```
+
+# T-1613: `pod-enter`: the namespace rung of a caller in a user namespace binds no device of the host, so the image keeps regular files at `/dev/null` (PodUtils/podvm#689, PodUtils/podvm@T-2107)
+
+**Source:** PodUtils/podvm#689 (COORD-264 of podvm, the part added for PodUtils/podvm@T-2107; author COLLABORATOR).
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+"With the launcher's own user namespace, pod-enter's first
+`unshare(CLONE_NEWNS)` works, so `spawn_own` never takes the second try,
+the only path that sets `m.devices` and calls `ns_dev_bind::bind_each`. The
+payload of an overlay `run -d` then kept the image's regular files for
+`/dev/null`, `/dev/zero` and `/dev/urandom` and had no `/dev/ptmx`." podvm
+(`1a6aeee`) binds the nodes itself in `podvm_enter::devices`. The ask:
+pod-enter binds the devices in its first try too wherever a user namespace
+owns the mount namespace. The same holds for podvm's foreground run (uid 0
+of a user namespace of one id).
+
+## Premise
+
+- Read: the body of PodUtils/podvm#689;
+  `PodUtils/podvm:crates/podvm-enter/src/devices.rs` (the six nodes of
+  `pod_enter::DEVICES`, and a new devpts instance for `/dev/ptmx`);
+  `crates/pod-enter/src/ns_user.rs` (`spawn_own`), `ns_optional.rs`
+  (`mount_each`: the new devpts instance, the bind of the host's `/proc` at
+  `EPERM`, and the devices, each only with `m.user`), `ns_dev_bind.rs`.
+- In a user namespace that the caller made, the kernel refuses `mknod`
+  (the image holds regular files) and a fresh proc of the PID namespace of
+  the host, as in the user namespace of the rung.
+
+## Approach
+
+`NsMount::caller_userns` (set by `spawn_own` from `/proc/self/uid_map`)
+and `NsMount::userns()`: the user namespace of the rung or the one of the
+caller. Where the caller is in a user namespace, `spawn_own` builds the
+devices for the first try. `ns_optional::mount_each` takes `userns()` for
+the new devpts instance, the fallback of `/proc` and the devices. Call
+C1004.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --test locked
+```
