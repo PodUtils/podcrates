@@ -14,11 +14,11 @@
 # each change of a schema (scripts/check-schemas.py), the writer of the
 # release index (scripts/release-index.py --self-test), the self-tests of the
 # watchers (scripts/agent/watch.py, runs.py), no new repeated work
-# (scripts/codegraph.py dups), that each planted defect applies (scripts/plant-each.sh
-# --apply), shellcheck of the installer when it is there, and the static probes and
-# the binary pod-release of x86_64 musl when zig is there (scripts/check-static.sh,
-# scripts/check-strings.py). Print each exit
-# code and the first faults; exit 1 on a fault. It also prints what the
+# (scripts/codegraph.py dups), that each planted defect applies
+# (scripts/plant-each.sh --apply), shellcheck of the installer and of the
+# start scripts when it is there, and the static probes and the binary
+# pod-release of x86_64 musl when zig is there (scripts/check-static.sh,
+# scripts/check-strings.py). Print each exit code and the first faults; exit 1 on a fault. It also prints what the
 # change against origin/main looks like (scripts/codegraph.py new), as a
 # hint. With the argument notest, the tests are skipped.
 #
@@ -26,14 +26,28 @@
 # (scripts/agent/stale_target.py, T-1384): a worktree of an agent can
 # leave artifacts in a shared target that cargo takes as fresh. It also
 # checks the merge driver of the record (scripts/agent/merge_todo.py), the
-# commit messages since origin/main (.githooks/commit-msg) and the session
-# start (sh -n). A run that passes writes the tree that it checked into
+# commit messages since origin/main (.githooks/commit-msg), the session
+# start and the setup (sh -n, the refusal of a bad flag, and the JSON of
+# .agents/environment.json). It loads scripts/cloud-env.sh itself. A run
+# that passes writes the tree that it checked into
 # .work/agent/checked-trees (a full run) or .work/agent/linted-trees
 # (notest): .githooks/pre-push refuses a push of another tree.
 #
 #   sh scripts/agent/check.sh [notest]
 set -u
 cd "$(dirname "$0")/../.." || exit 1
+# The toolchain and the cargo limits in a harness that does not load
+# cloud-env.sh in each shell (no CLAUDE_ENV_FILE). A value that is set
+# already stays.
+# shellcheck source=scripts/cloud-env.sh
+. ./scripts/cloud-env.sh
+# check-workflows.py needs PyYAML: the python3 of the system has it on
+# some hosts where the python3 of PATH does not.
+yaml_py=python3
+if ! python3 -I -c 'import yaml' > /dev/null 2>&1 && [ -x /usr/bin/python3 ] &&
+    /usr/bin/python3 -I -c 'import yaml' > /dev/null 2>&1; then
+    yaml_py=/usr/bin/python3
+fi
 # The file creation mask of CI: a test of the mode of a file it makes
 # gives the same result here.
 umask 022
@@ -70,7 +84,7 @@ cargo run -q -p pod-todo -- check > "$log/record.log" 2>&1; r=$?
 echo "record $r"; [ "$r" -eq 0 ] || { rc=1; head -20 "$log/record.log"; }
 { python3 -I scripts/check-size.py && python3 -I scripts/check-size.py --self-test; } > "$log/size.log" 2>&1; s=$?
 echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/size.log" | head -20; }
-{ python3 -I scripts/check-design-paths.py && python3 -I scripts/check-publish-order.py && python3 -I scripts/check-workflows.py &&
+{ python3 -I scripts/check-design-paths.py && python3 -I scripts/check-publish-order.py && "$yaml_py" -I scripts/check-workflows.py &&
     python3 -I scripts/check-probe.py && python3 -I scripts/check-loopback.py &&
     python3 -I scripts/check-vendor.py && python3 -I scripts/check-vendor.py --self-test &&
     python3 -I scripts/check-private-replace.py && python3 -I scripts/check-results.py &&
@@ -82,6 +96,8 @@ echo "size $s"; [ "$s" -eq 0 ] || { rc=1; grep -v "^ok \|^check-size:" "$log/siz
     sh .githooks/commit-msg --self-test &&
     { ! git rev-parse -q --verify origin/main > /dev/null || sh .githooks/commit-msg --range origin/main..HEAD; } &&
     sh -n scripts/session-start.sh && sh -n .claude/session-start.sh && sh -n scripts/cloud-env.sh &&
+    sh -n scripts/cloud-setup.sh && python3 -I -m json.tool .agents/environment.json > /dev/null &&
+    { sh scripts/session-start.sh --bad-flag 2> /dev/null; [ "$?" -eq 64 ]; } &&
     sh -n scripts/qa-bundle.sh && sh -n .githooks/pre-push &&
     python3 -I scripts/codegraph.py dups && python3 -I scripts/codegraph.py --self-test &&
     sh scripts/plant-each.sh --apply; } > "$log/paths.log" 2>&1; p=$?
@@ -91,7 +107,8 @@ echo "paths $p"; [ "$p" -eq 0 ] || { rc=1; head -20 "$log/paths.log"; }
 python3 -I scripts/codegraph.py new --base origin/main 2>&1 | grep -v "^codegraph: 0 new items" | head -20
 if command -v shellcheck > /dev/null 2>&1; then
     shellcheck -x --shell=sh scripts/install/core.sh scripts/install/core-net.sh scripts/install/podlab.sh \
-        scripts/install/test.sh scripts/install/test-cases.sh > "$log/shellcheck.log" 2>&1; sc=$?
+        scripts/install/test.sh scripts/install/test-cases.sh scripts/session-start.sh scripts/cloud-setup.sh \
+        scripts/cloud-env.sh scripts/agent/check.sh .claude/session-start.sh > "$log/shellcheck.log" 2>&1; sc=$?
     echo "shellcheck $sc"; [ "$sc" -eq 0 ] || { rc=1; head -20 "$log/shellcheck.log"; }
 fi
 if [ -f examples/static-probe/Cargo.toml ] && command -v zig > /dev/null 2>&1; then
