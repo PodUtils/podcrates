@@ -51,7 +51,7 @@ fn eperm_of_the_pid_namespace_calls_for_a_user_namespace() {
 fn the_pid_namespace_of_each_entry() {
     let mut plan = plan();
     assert_eq!(Pid::of(&plan, None, Some("the chroot rung")).unwrap(), Pid::default());
-    let join = crate::ns_join::Join { pidfd: -1, overlay: false, user: false, pid: true };
+    let join = crate::ns_join::Join { pidfd: -1, overlay: false, user: false, pid: true, owner: None };
     let joined = Pid::of(&plan, Some(&NsEntry::Join(join, None)), None).unwrap();
     assert_eq!(joined, Pid { relay: true, ..Pid::default() });
     plan.pid_namespace = true;

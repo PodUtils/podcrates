@@ -18,7 +18,7 @@ fn the_pid_of_a_pidfd_is_read_from_its_fdinfo() {
 /// of the caller joins the mount namespace alone.
 #[test]
 fn the_join_takes_the_user_namespace_only_where_it_differs() {
-    let own = Join { pidfd: 9, overlay: false, user: false, pid: false };
+    let own = Join { pidfd: 9, overlay: false, user: false, pid: false, owner: None };
     assert_eq!(own.flags(), sys::CLONE_NEWNS);
     assert_eq!(own.step(), NS_JOIN_STEP);
     let other = Join { user: true, ..own };
@@ -32,7 +32,7 @@ fn the_join_takes_the_user_namespace_only_where_it_differs() {
 /// one call, with a step of its own.
 #[test]
 fn the_join_takes_the_pid_namespace_only_where_it_differs() {
-    let own = Join { pidfd: 9, overlay: false, user: false, pid: true };
+    let own = Join { pidfd: 9, overlay: false, user: false, pid: true, owner: None };
     assert_eq!(own.flags(), sys::CLONE_NEWNS | sys::CLONE_NEWPID);
     assert_eq!(own.step(), NS_JOIN_PID_STEP);
     let other = Join { user: true, ..own };
@@ -58,7 +58,7 @@ fn a_child_in_the_own_user_namespace_is_not_in_another() {
     };
     assert!(!other_user_namespace(pidfd));
     assert!(!other_namespace(pidfd, "pid"));
-    assert_eq!(Join::of(pidfd, true), Join { pidfd, overlay: true, user: false, pid: false });
+    assert_eq!(Join::of(pidfd, true), Join { pidfd, overlay: true, user: false, pid: false, owner: None });
     let _ = sys::close(pidfd);
     let _ = child.kill();
     let _ = child.wait();

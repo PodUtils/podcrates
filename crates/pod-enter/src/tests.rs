@@ -350,6 +350,7 @@ pub(crate) fn spawn_sh(dir: &std::path::Path, script: String, pass: &[i64]) -> C
         pid_namespace: false,
         tmpfs: Vec::new(),
         relay_title: None,
+        read_only_root: false,
     };
     let maps = crate::userland::Maps::of_root(dir.to_str().unwrap());
     let root = RootDir::open(maps.rootfs()).unwrap();
@@ -419,5 +420,6 @@ pub(crate) fn plain_plan() -> Plan {
         pid_namespace: false,
         tmpfs: Vec::new(),
         relay_title: None,
+        read_only_root: false,
     }
 }

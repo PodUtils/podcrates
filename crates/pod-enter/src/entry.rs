@@ -292,7 +292,9 @@ pub fn ns_setup_step(step: u8) -> Option<&'static str> {
         // (`ns_tmpfs::failure`).
         _ => crate::ns_user::step_name(step)
             .or_else(|| crate::ns_pid::step_name(step))
-            .or_else(|| crate::ns_tmpfs::step_name(step)),
+            .or_else(|| crate::ns_tmpfs::step_name(step))
+            .or_else(|| crate::ns_root::step_name(step))
+            .or_else(|| crate::ns_lock::step_name(step)),
     }
 }
 
@@ -382,7 +384,11 @@ pub fn spawn_joined_root(root: Root<'_>, plan: &Plan, pidfd: i64, err: &mut dyn 
     // The pidfd of the payload stays open until the child joined.
     let member = crate::ns_join::joinable(pidfd);
     let target = member.as_ref().map_or(pidfd, |m| i64::from(std::os::fd::AsRawFd::as_raw_fd(&m.pidfd)));
-    let join = NsEntry::Join(crate::ns_join::Join::of(target, matches!(root, Root::Overlay { .. })), root.upper_dir());
+    // The owner of the mounts of the run stays open until the child joined.
+    let owner = crate::ns_join::mount_owner(target);
+    let mut j = crate::ns_join::Join::of(target, matches!(root, Root::Overlay { .. }));
+    j.owner = owner.as_ref().map(|o| i64::from(std::os::fd::AsRawFd::as_raw_fd(o)));
+    let join = NsEntry::Join(j, root.upper_dir());
     match spawn_with(root.dir(), plan, Rung::Namespace.word(), None, None, None, Some(join), true, err) {
         Err(Error::NsSetup { step, errno }) => {
             let cause = format!("{step} ({} ({}))", errno.name(), errno.0);

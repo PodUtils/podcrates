@@ -58,12 +58,13 @@ pub fn inside(root: &Path) {
     assert!(!err.contains("entered chroot instead"), "{err}");
     assert!(!err.contains("runs with no /proc"), "{err}");
 
-    // No ids: the payload is 0 and holds its capabilities, as before.
+    // No ids: the payload is 0 and holds its capabilities, in the nested
+    // user namespace of the lock (T-1560), whose map is `0 0 1`.
     let script = format!(
         "test \"$(id -u)\" = 0 || exit 31; test \"$(id -g)\" = 0 || exit 32; \
          test \"$(stat -c %u:%g /{OF_THE_CALLER})\" = 0:0 || exit 33; \
          grep -Eq '^CapEff:[[:space:]]+0+$' /proc/self/status && exit 34; \
-         read a b c < /proc/self/uid_map; test \"$a $b $c\" = \"0 {uid} 1\" || exit 35"
+         read a b c < /proc/self/uid_map; test \"$a $b $c\" = \"0 0 1\" || exit 35"
     );
     let mut err = Vec::new();
     let code = run_namespace(&dir, &with_ids(&script, None), &mut err);

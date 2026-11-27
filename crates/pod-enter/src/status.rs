@@ -46,7 +46,7 @@ pub(crate) fn signal_name(signo: i64) -> String {
 /// The error for a step that the child reported.
 pub(crate) fn step_failure(plan: &Plan, step_byte: u8, errno: sys::Errno, at: u8) -> Error {
     // A refused nested user namespace names the ids of the plan.
-    if let Some(e) = crate::ns_user::nested_failure(plan, step_byte, errno) {
+    if let Some(e) = crate::ns_lock::failure(plan, step_byte, errno, at) {
         return e;
     }
     // A refused limit, `no_new_privs` or the death signal: the call, by

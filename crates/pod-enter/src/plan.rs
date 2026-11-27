@@ -91,6 +91,14 @@ pub struct Plan {
     /// environment ([`crate::title`]); `None` is the product of
     /// [`Plan::names`]. Each other entry reads none.
     pub relay_title: Option<String>,
+    /// A read-only root of the payload on the namespace rung (`ns_root`):
+    /// the root mount is remounted read-only after each mount of the rung,
+    /// and `/dev` of the tree, each volume that is not `read_only`, each
+    /// tmpfs and `/tmp` stay writable. A join of a run lands on the root of
+    /// the run. Each other entry refuses the plan, and the namespace rung
+    /// does not fall back to chroot with it: the payload never runs on a
+    /// writable root.
+    pub read_only_root: bool,
 }
 
 /// One volume of the namespace rung: a recursive bind of the host path

@@ -58,6 +58,7 @@ fn plan(confine: Option<Spec>, working_dir: &str, path_dirs: &[&str]) -> Plan {
         pid_namespace: false,
         tmpfs: Vec::new(),
         relay_title: None,
+        read_only_root: false,
     }
 }
 

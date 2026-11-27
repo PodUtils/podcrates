@@ -27,13 +27,11 @@
 //! A caller that is uid 0 of a user namespace that is not the initial one
 //! (podvm's foreground run, PodUtils/podvm#452) makes the mount namespace
 //! with no user namespace of the rung. Where its plan names ids, the child
-//! opens a nested user namespace ([`nested_for`], [`enter_nested`]) after
-//! each mount and before the root change: `/proc/self` of the root of the
-//! caller is there for the maps, and the kernel refuses each mount of the
-//! mount namespace of the caller after it. The maps are `<uid> 0 1` and
-//! `<gid> 0 1`; the chroot needs only `CAP_SYS_CHROOT` in the namespace of
-//! the child, which it holds. A host root (the initial namespace) keeps the
-//! ids of the caller (T-791).
+//! opens a nested user namespace (`ns_lock`) after each mount: the maps
+//! are `<uid> 0 1` and `<gid> 0 1` ([`nested_ids`]). A host root (the
+//! initial namespace) keeps the ids of the caller (T-791). With no ids,
+//! the payload of uid 0 of the rung gets a nested namespace too, with the
+//! identity of the maps, which locks the mounts of the rung (`ns_lock`).
 
 use std::io::Write;
 
@@ -142,17 +140,6 @@ pub const NS_NESTED_SETGROUPS_STEP: u8 = 38;
 pub const NS_NESTED_UID_MAP_STEP: u8 = 39;
 pub const NS_NESTED_GID_MAP_STEP: u8 = 40;
 
-/// The step of the nested user namespace that a byte names.
-fn nested_step(byte: u8) -> Option<Step> {
-    match byte {
-        NS_NESTED_USER_STEP => Some(Step::Unshare),
-        NS_NESTED_SETGROUPS_STEP => Some(Step::Setgroups),
-        NS_NESTED_UID_MAP_STEP => Some(Step::UidMap),
-        NS_NESTED_GID_MAP_STEP => Some(Step::GidMap),
-        _ => None,
-    }
-}
-
 /// The ids of a nested user namespace for the ids `ids` of a plan, a
 /// caller of the effective uid `euid` and the read of its `uid_map`: the
 /// ids where the caller is uid 0 of a namespace that is not the initial
@@ -178,54 +165,6 @@ pub(crate) fn nested_ids(
     }
 }
 
-/// The maps of the nested user namespace for `plan` on an entry, built
-/// before the fork, or `None`. Each entry with a chroot takes it, but not a
-/// join (the map of the run holds) and not the rung through a user
-/// namespace of its own (its maps hold the ids already). The outside ids
-/// are the effective ids of the caller (0): the kernel takes that one
-/// line with no capability in the namespace of the caller.
-pub(crate) fn nested_for(plan: &Plan, ns: Option<&NsEntry<'_>>, userland: bool) -> Result<Option<Maps>> {
-    let own_user = matches!(ns, Some(NsEntry::Own(m)) if m.user.is_some());
-    if userland || own_user || matches!(ns, Some(NsEntry::Join(..))) || plan.userns_ids.is_none() {
-        return Ok(None);
-    }
-    let ids = userns_ids(plan)?;
-    let euid = unsafe { sys::syscall6(sys::SYS_GETEUID, 0, 0, 0, 0, 0, 0) } as u32;
-    let read = || std::fs::read_to_string("/proc/self/uid_map");
-    Ok(nested_ids(Some(ids), euid, read)?.map(Maps::of_caller_inside))
-}
-
-/// In the child, after the mounts and before the root change.
-/// Async-signal-safe: `maps` was built before the fork.
-pub(crate) fn enter_nested(maps: &Maps) -> std::result::Result<(), (u8, Errno)> {
-    pod_hostprobe::userns::enter(maps).map_err(|(step, e)| {
-        let byte = match step {
-            Step::Unshare => NS_NESTED_USER_STEP,
-            Step::Setgroups => NS_NESTED_SETGROUPS_STEP,
-            Step::UidMap => NS_NESTED_UID_MAP_STEP,
-            Step::GidMap => NS_NESTED_GID_MAP_STEP,
-        };
-        (byte, e)
-    })
-}
-
-/// The refusal of a step of the nested user namespace, or `None` where
-/// `byte` is another step.
-pub(crate) fn nested_failure(plan: &Plan, byte: u8, errno: Errno) -> Option<Error> {
-    let step = nested_step(byte)?;
-    let (u, g) = plan.userns_ids.unwrap_or((0, 0));
-    Some(Error::runtime(
-        crate::errno_class(errno),
-        format!(
-            "the ids {u}:{g} of the plan need a nested user namespace (the caller is uid 0 of a user namespace \
-             that is not the initial one), and {} failed with {} ({}); the payload did not run",
-            step.name(),
-            errno.name(),
-            errno.0
-        ),
-    ))
-}
-
 /// Enter the namespace rung with the mounts of `mount`, and, at `EPERM` of
 /// `unshare(CLONE_NEWNS)`, again in a user namespace of its own. `banner`
 /// is the banner of the first try; the second try writes none.
@@ -247,4 +186,4 @@ pub(crate) fn spawn_own(root: &RootDir, plan: &Plan, mount: &mut NsMount, banner
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

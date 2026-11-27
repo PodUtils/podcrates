@@ -30,6 +30,7 @@ fn plan(tmpfs: Vec<TmpfsMount>, volumes: Vec<VolumeBind>) -> Plan {
         pid_namespace: false,
         tmpfs,
         relay_title: None,
+        read_only_root: false,
     }
 }
 
