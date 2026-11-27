@@ -12,8 +12,8 @@
 //!   `DELETE .../actions/runners/ID`, `GET .../actions/jobs/ID`;
 //! * the runner broker of each minted configuration (the token of its
 //!   OAuth client, the session, the long poll of messages, `acquirejob`,
-//!   `renewjob`, `completejob` and the results service of the logs), the
-//!   routes that the official runner calls;
+//!   `renewjob`, `completejob` and the results service of the logs, module
+//!   `logs`), the routes that the official runner calls;
 //! * the `workflow_job` webhooks `queued`, `in_progress` and `completed`,
 //!   signed with the webhook secret (`X-Hub-Signature-256`), to the URL of
 //!   the hook;
@@ -33,9 +33,11 @@
 mod api;
 mod broker;
 pub mod client;
+mod container;
 mod control;
 mod hook;
 pub mod key;
+mod logs;
 mod message;
 
 use std::io;
@@ -114,6 +116,10 @@ pub(crate) struct Job {
     labels: Vec<String>,
     /// The script of each `run:` step.
     steps: Vec<String>,
+    /// The template tokens of `container:` and `services:` (module
+    /// `container`).
+    container: Option<Value>,
+    services: Option<Value>,
     status: Status,
     /// The runner that the control API gave the job to.
     assigned: Option<u64>,
@@ -127,6 +133,7 @@ pub(crate) struct Job {
     created_at: u64,
     started_at: Option<u64>,
     completed_at: Option<u64>,
+    logs: logs::Logs,
 }
 
 pub(crate) struct Runner {

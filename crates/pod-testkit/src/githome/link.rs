@@ -4,8 +4,8 @@
 //!
 //! * a queued job is also queued in the fake GitHub (its control API), in
 //!   the repository of the offer, with the labels of the offer and the
-//!   `steps` of the control API (the fake GitHub's default `run:` step when
-//!   there are none);
+//!   `steps`, `container` and `services` of the control API (the fake
+//!   GitHub's default `run:` step when there are no steps);
 //! * `mint` acts as the App: it mints a JIT runner with the runner name of
 //!   the claim and the labels of the offer, gives that job to that runner
 //!   (the control API: else the runner takes the oldest queued job of its
@@ -14,7 +14,7 @@
 
 use pod_job::JobOffer;
 use pod_job::source::{Hidden, MintedFile};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use crate::github::client::{app_key, call_expect, installation_token, jit_runner};
 
@@ -36,13 +36,20 @@ fn control(github: &str, method: &str, path: &str, body: &Value, want: u16) -> R
     call_expect(method, &format!("{github}_fake/{path}"), None, body, want).map_err(|e| format!("the fake GitHub: {e}"))
 }
 
-/// Queue the job of `offer` in the fake GitHub, with the scripts `steps`
-/// (`Null` for the default step); the id of the job there.
-pub(super) fn queue(github: &str, offer: &JobOffer, steps: &Value) -> Result<u64, String> {
-    let job = json!({
+/// The fields of a queued job that go to the fake GitHub as they are.
+pub(super) const FIELDS: [&str; 3] = ["steps", "container", "services"];
+
+/// Queue the job of `offer` in the fake GitHub, with the fields of
+/// [`FIELDS`] in `extra` (the default `run:` step with no `steps`, no
+/// container with no `container`); the id of the job there.
+pub(super) fn queue(github: &str, offer: &JobOffer, extra: &Map<String, Value>) -> Result<u64, String> {
+    let mut job = json!({
         "repository": repository(offer), "name": offer.job_id, "labels": labels(offer),
-        "run_id": offer.trust_inputs.run_id, "steps": steps,
+        "run_id": offer.trust_inputs.run_id,
     });
+    for (name, v) in extra.iter().filter(|(name, _)| FIELDS.contains(&name.as_str())) {
+        job[name] = v.clone();
+    }
     let v = control(github, "POST", "jobs", &job, 201)?;
     v["id"].as_u64().ok_or_else(|| format!("the fake GitHub gives no id of the job: {v}"))
 }

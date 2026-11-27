@@ -1,0 +1,12 @@
+diff --git a/crates/pod-testkit/src/github/message.rs b/crates/pod-testkit/src/github/message.rs
+--- a/crates/pod-testkit/src/github/message.rs
++++ b/crates/pod-testkit/src/github/message.rs
+@@ -80,7 +80,7 @@
+         },
+         "workspace": {},
+         // Template tokens (module `container`); the runner starts each one.
+-        "jobContainer": job.container, "jobServiceContainers": job.services,
++        "jobContainer": job.container,
+         "environmentVariables": [],
+         "variables": {
+             "system.github.job": { "value": job.name },

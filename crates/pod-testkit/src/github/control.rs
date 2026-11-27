@@ -5,15 +5,19 @@
 //! | --- | --- |
 //! | `GET /_fake/app` | the App id, the installation id, the made-up key in PEM, the webhook secret |
 //! | `PUT /_fake/hook` | `{"url": URL, "secret": TEXT}`: where each webhook goes, and its secret |
-//! | `POST /_fake/jobs` | `{"repository": "OWNER/REPO", "name": NAME, "labels": [...], "steps": [SCRIPT...]}`: a queued job; its `queued` webhook |
+//! | `POST /_fake/jobs` | `{"repository": "OWNER/REPO", "name": NAME, "labels": [...], "steps": [SCRIPT...], "container": C, "services": {NAME: C}}`: a queued job; its `queued` webhook. `steps`, `container` and `services` are optional. A container `C` is an image, or `image`, `options`, `env`, `ports`, `volumes` and `credentials` as a workflow gives them; the job message has it as `jobContainer` and `jobServiceContainers` (module `container`) |
 //! | `GET /_fake/jobs`, `GET /_fake/jobs/ID` | each job as a `workflow_job`, with `assigned_runner_id` and `reported` |
+//! | `GET /_fake/jobs/ID/logs` | the logs of a job that ended: `conclusion`, `job_log`, and `steps`, each with `id`, `number`, `name`, `conclusion` and the text of its `log` (`null` with no upload); 404 for no such job, 409 for a job that did not end (module `logs`) |
 //! | `POST /_fake/jobs/ID/assign` | `{"runner_id": ID}`: the runner gets this queued job at its next poll |
 //! | `GET /_fake/runners` | each runner of each repository, with `repository` and `job_id` |
 //! | `GET /_fake/deliveries` | each webhook: its action, its job, the status of its delivery or its error |
 
 use serde_json::{Value, json};
 
-use super::{Job, Shared, State, Status, api, body, error, has_labels, hook, json_answer, key, labels, message, now};
+use super::{
+    Job, Shared, State, Status, api, body, container, error, has_labels, hook, json_answer, key, labels, logs, message,
+    now,
+};
 use crate::stand::{Answer, Request};
 
 /// The answer of a route of the control API, or none for another path.
@@ -51,6 +55,7 @@ pub(super) fn route(shared: &Shared, req: &Request, parts: &[&str]) -> Option<An
                 None => error(404, "Not Found"),
             }
         }
+        ("GET", ["jobs", id, "logs"]) => logs::answer(&shared.lock(), id),
         ("POST", ["jobs", id, "assign"]) => assign(shared, id, &body(req)),
         ("GET", ["runners"]) => {
             let st = shared.lock();
@@ -91,6 +96,12 @@ fn queue(shared: &Shared, req: &Value) -> Answer {
             None => return error(422, "the steps are an array of scripts"),
         },
     };
+    let containers =
+        container::container(&req["container"]).and_then(|c| Ok((c, container::services(&req["services"])?)));
+    let (container, services) = match containers {
+        Ok(both) => both,
+        Err(e) => return error(422, &e),
+    };
     let mut st = shared.lock();
     let id = st.next_id();
     let run_id = req["run_id"].as_u64().unwrap_or(id);
@@ -101,6 +112,8 @@ fn queue(shared: &Shared, req: &Value) -> Answer {
         name: name.to_string(),
         labels,
         steps,
+        container,
+        services,
         status: Status::Queued,
         assigned: None,
         runner: None,
@@ -110,6 +123,7 @@ fn queue(shared: &Shared, req: &Value) -> Answer {
         created_at: now(),
         started_at: None,
         completed_at: None,
+        logs: Default::default(),
     });
     hook::send(shared, &mut st, "queued", id);
     shared.changed.notify_all();
