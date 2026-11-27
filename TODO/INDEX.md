@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1102 entries: 174 open, 31 partial, 6 blocked, 891 done.**
+**1104 entries: 174 open, 31 partial, 6 blocked, 893 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 252 | 265 |
-| P2 | 73 | 12 | 4 | 478 | 567 |
+| P1 | 4 | 9 | 0 | 253 | 266 |
+| P2 | 73 | 12 | 4 | 479 | 568 |
 | P3 | 97 | 10 | 2 | 159 | 268 |
-| **All** | 174 | 31 | 6 | 891 | 1102 |
+| **All** | 174 | 31 | 6 | 893 | 1104 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1149,3 +1149,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1581](podvm.md) | P2 | S | M6 | feature | done | `pod-supervise`: the exit code of a failed spawn of the entry is text, so podvm puts a marker in it (PodUtils/podvm#692, ask 3) |
 | [T-1582](podvm.md) | P2 | S | M6 | feature | done | `pod-rootfs`: the completion writes `/etc/hosts` each time, so an `exec` loses the edits of the payload (PodUtils/podvm#692, ask 4) |
 | [T-1583](podvm.md) | P2 | S | M6 | feature | done | `pod-extract`: no reader of the extended attributes of a path, so podvm keeps its own with a bound of 4096 bytes (PodUtils/podvm#683) |
+| [T-1600](upkeep.md) | P1 | S | M5 | defect | done | `pod-core`, `pod-relay`: two tests take the error codes and the words of Linux, and fail on Windows and macOS |
+| [T-1601](relay.md) | P2 | S | M2 | defect | done | `pod-session`: `a_cap_of_1_mib_takes_a_smaller_window` fails on a target of 32 bits: `after_mark(usize::MAX)` does not saturate there |

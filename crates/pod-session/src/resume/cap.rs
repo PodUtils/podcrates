@@ -143,7 +143,13 @@ mod tests {
             assert!(most <= before, "a larger window {window} gives no larger move");
             before = most;
         }
-        assert_eq!(move_under(u64::MAX, usize::MAX), None, "no overflow");
+        // The widest window saturates; on a target of 32 bits it is 4 GiB,
+        // and 14 bytes for each of its bytes still fit in a u64.
+        let widest = after_mark(usize::MAX);
+        assert!(widest >= (usize::MAX as u64).saturating_mul(DATA_HEAD + 1), "no overflow");
+        assert_eq!(move_under(widest, usize::MAX), None);
+        #[cfg(target_pointer_width = "64")]
+        assert_eq!(move_under(u64::MAX, usize::MAX), None, "the sum saturates at u64::MAX");
     }
 
     /// The largest handshake that the records can carry fits its bound.

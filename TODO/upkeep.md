@@ -3413,6 +3413,11 @@ cargo test -p pod-iroh --all-features --test road --test share --test tickets
 - `cross (loongarch64-unknown-linux-musl, loong64)` (job 139168091791): only `two_sessions_of_one_process_share_one_connection_on_two_streams` fails (`tests/share.rs:52`, `Custom { kind: UnexpectedEof, error: "early eof" }`, after 59 s). `road.rs` passes on loongarch64 in this run.
 - `cross (riscv64gc-unknown-linux-musl, riscv64, 150)` (job 139168091852): `road.rs` (265 s, `early eof` at `road.rs:47`), `new_address.rs` (758 s: `Lost` after 30 s with no acknowledgement, "the session hung after the move"), `share.rs` (310 s, "each session's bytes within the limit: Elapsed") fail in `pod-iroh`. Two more tests fail only in this run, as the same class (a time of the emulation): `edge_h2::tests::small_frames_of_slow_visitors_do_not_end_the_connection` of `pod-cloudflare` (`edge_h2/tests.rs:165`, "an answer: Elapsed", 38 s) and `a_resolver_that_picks_http2_shares_the_connection` and `a_link_over_dns_over_https_through_a_proxy_carries_streams` of `pod-link` (`tests/dns_doh.rs:70`: 12 and 6 connections over HTTP/2, where 1 is due; 12.6 s and 22.7 s for the dial; 106 and 113 requests). Each of the three passed in the run 45504345202 (`dns_doh` took 6 s, `new_address` 383 s). The runner was slower in this run: `modes` of `pod-term` took 1900 s (816 s before), `pairing` 968 s (846 s before). The cause of the extra connections of `dns_doh` is not measured (a connection that the slow emulation lets time out, or the change of `pod-h2` of `aa52569d`); the ruling "Emulated nightly jobs" applies: measure first.
 
+2026-11-27, seen: `nightly.yml` run 45806031483 at `f2f8e3f5`.
+- `cross (powerpc64le-unknown-linux-musl)` (job 139861405326): the one failed binary is `pod-iroh`'s `road.rs`. `a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way` fails at `road.rs:98` with "Layer(Ended { end: Closing, received: 20971520, sent: 20971520 })" after 238 s: each byte crossed, then the answer to this side's `CLOSE` did not come within `LINGER` (10 s). It is the form of loongarch64 of 2026-11-21, now on powerpc64le.
+- `cross (riscv64gc-unknown-linux-musl, riscv64, 150)` (job 139861405165): cancelled at the time limit of the job (T-938).
+- The other failed jobs of the run are T-1600 (Windows and macOS) and T-1601 (arm, armv7, i686).
+
 # T-917: The copies of product code that `codegraph.py dups` finds: one place for each
 
 **Source:** the first run of `python3 -I scripts/codegraph.py dups` (the ruling "Shared code").
@@ -7287,3 +7292,75 @@ cargo test -p pod-gzip --all-features
   `adoption/README.md` are for the lead.
 - No code change, so no new test. `cargo test -p pod-gzip
   --all-features`: 15 passed, 0 failed.
+
+# T-1600: `pod-core`, `pod-relay`: two tests take the error codes and the words of Linux, and fail on Windows and macOS
+
+**Source:** `nightly.yml` run 45806031483 at `f2f8e3f5` (schedule, 2026-11-26), the jobs `test (windows-2025)` (139861405017), `test (windows-11-arm)` (139861405515), `test (macos-15)` (139861405141) and `test (macos-15-intel)` (139861405216), step "Test".
+**Category:** defect
+**Milestone:** M5
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Two tests make an `io::Error` with `from_raw_os_error` and a number of
+Linux, then compare the words of the system with the words of Linux:
+
+- `pod-core` `text::tests::io_words_drop_the_code_of_the_system_and_keep_its_words`
+  (`text.rs:367` at `f2f8e3f5`). On Windows, code 2 gives "The system
+  cannot find the file specified.", not "No such file or directory". On
+  macOS, code 104 is `ENOTRECOVERABLE` ("State not recoverable"), as
+  `ECONNRESET` is 54 there.
+- `pod-relay` `cleartext::tests::a_mint_that_was_cut_shows_the_words_of_the_system_with_no_code`
+  (`cleartext.rs:278`): code 104 gives "Cannot request exclusive
+  semaphores at interrupt time." on Windows and "State not recoverable"
+  on macOS, with the cut `other`, not `reset`.
+
+The code under test is correct: it removes " (os error N)" from the words
+of each system. Each of the four jobs runs all its test binaries; these
+two are the only failures.
+
+## Premise
+
+- Read: the logs of the four jobs; `text::io_words`; `cleartext::no_answer`.
+- The test of T-1517 (`file_words_say_what_is_missing`) uses code 13 and
+  compares with `io_words` of the same error, so it does not depend on the
+  system.
+- Not measured: the words of Windows in a language other than English
+  (the runners are English).
+
+## Approach
+
+`pod_testkit::os` (Unix and Windows) gives `RESET` and `MISSING`, each
+the code and the words of this system: `libc::ECONNRESET` and
+`libc::ENOENT` on Unix, WSAECONNRESET (10054) and ERROR_FILE_NOT_FOUND (2)
+on Windows. A test of the module checks that `io::Error` shows each code
+with these words. The two tests take the code and the words from it. The
+test of `pod-relay` also checks the cut `reset`.
+
+## Prove
+
+```sh
+cargo test -p pod-testkit --all-features --lib os::
+cargo test -p pod-core --all-features --lib text::
+cargo test -p pod-relay --all-features --lib cleartext
+cargo clippy -p pod-core -p pod-testkit --lib --tests --target x86_64-pc-windows-gnu -- -D warnings
+cargo clippy -p pod-core -p pod-testkit --lib --tests --target x86_64-apple-darwin -- -D warnings
+```
+The jobs `test (windows-2025)`, `test (windows-11-arm)`, `test (macos-15)`
+and `test (macos-15-intel)` of the next `nightly.yml` run pass the binaries
+`pod_core` and `pod_relay`.
+
+## Done
+
+2026-11-27, commit 37270e68 (branch `night1126`). New module
+`crates/pod-testkit/src/os.rs` (`RESET`, `MISSING`, and the test
+`os::tests::each_code_has_the_words_of_this_system`). The tests of
+`crates/pod-core/src/text.rs` and `crates/pod-relay/src/cleartext.rs` use
+it. On Linux x86_64: `cargo test -p pod-core -p pod-testkit -p pod-session
+-p pod-relay --all-features`: 914 passed, 0 failed; clippy clean. `cargo
+clippy -p pod-core -p pod-testkit --lib --tests -- -D warnings` for
+`x86_64-pc-windows-gnu` and `x86_64-apple-darwin`: clean. `pod-relay`
+does not build for Windows on this host (no C compiler for `ring`). Not
+verified: a run on Windows and macOS; the next `nightly.yml` run proves it.
