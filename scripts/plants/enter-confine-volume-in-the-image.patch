@@ -1,12 +1,10 @@
-diff --git a/crates/pod-enter/src/confine.rs b/crates/pod-enter/src/confine.rs
-index 9c405318..778be50c 100644
 --- a/crates/pod-enter/src/confine.rs
 +++ b/crates/pod-enter/src/confine.rs
-@@ -39,10 +39,6 @@ pub(crate) fn compile(plan: &Plan, root: Option<&RootDir>, upper: Option<&str>)
+@@ -49,10 +49,6 @@
      let Some(spec) = &plan.confine else { return Ok(None) };
      let abi = pod_confine::check()?;
      let mut compiled = match root {
--        Some(r) if !plan.volumes.is_empty() || upper.is_some() => {
+-        Some(r) if !plan.volumes.is_empty() || upper.is_some_and(|u| u.path.is_some()) => {
 -            let view = View::new(r, plan, upper);
 -            spec.compile_by(abi, |path| open_through(&view, r, path))?
 -        }

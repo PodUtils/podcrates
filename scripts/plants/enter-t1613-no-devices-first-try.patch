@@ -6,6 +6,6 @@
      mount.caller_userns = crate::ns_overlay::caller_in_user_namespace();
 -    if mount.caller_userns {
 +    if false && mount.caller_userns {
-         mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names));
+         mount.devices = Some(crate::ns_dev_bind::devices(root, &plan.names, plan.read_only_root));
      }
      match spawn_with(root, plan, word, None, None, None, Some(NsEntry::Own(mount)), banner, err) {

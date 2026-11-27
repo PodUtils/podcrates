@@ -1,10 +1,8 @@
-diff --git a/crates/pod-enter/src/ns_root.rs b/crates/pod-enter/src/ns_root.rs
-index 18e39164..793d28a3 100644
 --- a/crates/pod-enter/src/ns_root.rs
 +++ b/crates/pod-enter/src/ns_root.rs
-@@ -101,7 +101,6 @@ impl RootMount {
-     /// the devices of the tmpfs of `/dev` where no user namespace of the
-     /// rung binds them (`user`: one does). Async-signal-safe.
+@@ -102,7 +102,6 @@
+     /// them (`user`: a user namespace owns the mount namespace, and
+     /// `ns_optional` binds them). Async-signal-safe.
      pub(crate) fn after_optional(&self, user: bool) -> std::result::Result<(), (u8, Errno, u8)> {
 -        self.mask.apply()?;
          if let Some(dev) = self.dev.as_ref().filter(|_| !user) {

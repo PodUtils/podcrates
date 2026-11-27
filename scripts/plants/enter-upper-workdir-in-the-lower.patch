@@ -1,9 +1,7 @@
-diff --git a/crates/pod-enter/src/launch.rs b/crates/pod-enter/src/launch.rs
-index 6f9bdaf2..783b5a4b 100644
 --- a/crates/pod-enter/src/launch.rs
 +++ b/crates/pod-enter/src/launch.rs
-@@ -148,7 +148,7 @@ pub(crate) fn spawn_with(
-     let upper = ns.as_ref().and_then(NsEntry::upper);
+@@ -167,7 +167,7 @@
+     let upper = ns.as_ref().map(NsEntry::upper);
      let workdir_host = match userland {
          Some(maps) => crate::userland::userland_workdir(root, maps, &plan.working_dir)?,
 -        None => crate::ns_volume::check_workdir(root, plan, upper).map(|()| None)?,
