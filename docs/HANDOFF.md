@@ -59,7 +59,17 @@ is done. Git and the record keep finished work.
      to COORD-150, T-1540 to T-1542); PodUtils/podvm#692 asks 1, 3 and 4
      (COORD-266, T-1580 to T-1582) and #683 (COORD-261, T-1583).
    - Done on `main`: PodUtils/podvm#695 (COORD-268, security P1,
-     T-1560, T-1561). In work, in `pod-enter`:
+     T-1560, T-1561). A review of the change found three paths that stay
+     open (a join keeps a dumpable child with a descriptor of the host;
+     host root keeps the rights of uid 0 in `/proc/sys`; the chroot
+     fallback runs uid 0 with no pivot) and three failures: the branch
+     `enter-sec2` fixes them (T-1635 and up). `main` has the version
+     `0.87.0` and `docs/releases/v0.87.0.md`; the tag waits for
+     `enter-sec2`. Then: a full check, the push, and one
+     `[gh action] requested` issue with the gates and the release
+     (`docs/maintenance.md`, "A run of a workflow": the MCP dispatch
+     answers "Actions has been disabled for this user", and a push of
+     this session starts no run). In work, in `pod-enter`:
      PodUtils/podvm#689 (COORD-264, an overlay volume and the device
      nodes), #692 ask 2 (the mode of a tmpfs) and #684 (COORD-262, a walk
      that keeps `..` at the root). PodUtils/podrunner#378 and
