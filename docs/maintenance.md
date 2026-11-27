@@ -461,7 +461,9 @@ fourth argument of the script names the list when it is elsewhere.
   has the role table, and "The brief of a worker" has what each brief
   carries. The session coordinates and reviews.
 * Run one cargo build at a time, also with agents: each cargo command
-  takes the lock `flock SCRATCHPAD/cargo.lock`. Cargo names a path crate
+  takes the lock `flock -o SCRATCHPAD/cargo.lock`. The option `-o`
+  closes the lock in the command: a process that a failed test leaves
+  does not hold the lock. Cargo names a path crate
   by its path relative to the workspace root, so two trees in one target
   dir give their artifacts the same names, and a build of one tree takes
   the artifact of the other as fresh. An agent builds in its own

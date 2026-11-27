@@ -7372,7 +7372,7 @@ verified: a run on Windows and macOS; the next `nightly.yml` run proves it.
 **Milestone:** M8
 **Priority:** P1
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -7419,7 +7419,9 @@ of the start and the JSON of `.agents/environment.json`, and runs
 shellcheck on the start scripts. `.agents/environment.json` runs the
 start and the setup at the start of the VM. The documents: the column and
 the start of each harness in `docs/hosted-sessions.md`, `AGENTS.md`
-(sections 3 and 8) and `docs/session-protocol.md`.
+(sections 3 and 8) and `docs/session-protocol.md`. Also read the commits
+of the session tooling of podnet, podvm, podrunner and podssh after the
+ones that T-1385 read, and take each improvement that helps podcrates.
 
 ## Prove
 
@@ -7434,3 +7436,101 @@ In a scratch clone that is not a worktree: `--no-watchers` starts no
 watcher; `--run-watcher runs` holds `.work/runs.lock` with the pid of
 `runs.py`; a second `--run-watcher runs` and the default start exit 0
 and find it.
+
+## Done
+
+2026-11-27, the commits of the branch `hosted799` that name T-1650 (the
+last one sets this entry). Read: podnet `48770ce`, `d79dcc2`, `5809e66`;
+podssh `2f34ecf`, `b981f5f`; podvm `5244ed7`, `5e87281`, `c5ea23c`;
+podrunner `b73a374`, `1453444`, `3d69d83`, `ac7f68b`, `1f66dd3` (shallow
+clones of `main`, `git log` of the start, setup, agent, hook and
+document paths).
+
+| Change | Source | Fate in podcrates |
+| --- | --- | --- |
+| `session-start.sh --no-watchers` | podnet `48770ce`, podssh `2f34ecf` | Taken; it prints the two commands of the daemon tasks |
+| `session-start.sh --run-watcher watch\|runs` (foreground `exec flock -F`) | podnet `48770ce`, podssh `2f34ecf` | Changed: the same lock, log and command line as the detached start, so each mode finds the other; a self-test of that watcher first; exit 0 when it runs; nothing in a worktree; no `flock`: a plain `exec` |
+| Auto skip on `ANTIGRAVITY_APP_DATA_DIR` or `JULES_SESSION_ID`, with an override variable | podnet `48770ce`, podssh `2f34ecf` | Taken as `PODCRATES_NO_WATCHERS` (`auto`, `0`, `1`; another value exits 64) |
+| The watchers of a pinned podcrates commit, by SHA-256 | podnet `48770ce` | Not taken: podcrates runs the watchers of its own tree |
+| `.agents/environment.json` | podnet `48770ce`, podssh `2f34ecf` | Changed: `;` in the place of `&&`, so a start that fails still runs the setup; `check.sh` checks its JSON |
+| `check.sh` loads `cloud-env.sh` | podnet `48770ce` | Changed: each time, not only when a toolchain dir exists; the script keeps each value that is set |
+| `/usr/bin/python3` for PyYAML in `check.sh` | podnet `48770ce` | Taken |
+| The same load in `parity-snapshot.sh` | podnet `48770ce` | Not taken: podcrates has no such script |
+| `cloud-setup.sh --dev-tools`: the musl target | podnet `48770ce` | Not taken: the script adds it by default |
+| `--dev-tools`: `groff`, `mandoc`, `shellcheck` | podnet `48770ce`, `d79dcc2` | Taken; also as root (a cloud container), and with `sudo -n -E` (it keeps the proxy variables), or a `sudo` for `apt-get` alone; `--no-install-recommends`; the install also after a failed update |
+| `--dev-tools`: `musl-tools` | podnet `d79dcc2`, podssh `2f34ecf` | Not taken: podcrates links musl with zig |
+| `-h` / `--help` | podnet `d79dcc2` | Taken in `cloud-setup.sh` and `session-start.sh` (the header comment) |
+| `CARGO_BUILD_JOBS` of `min(nproc, 4)` | podnet `d79dcc2`, podssh `2f34ecf` | Taken in `cloud-env.sh`; 4 on a host with 4 CPUs or more, as before |
+| `/.agents` in the `exclude` of the package | podnet `48770ce` | Not taken: the root of podcrates is a virtual workspace |
+| `flock -nF` for the detached watchers | podvm `5244ed7` | Taken (`lock_cmd`): the pid file and the lock holder are the watcher |
+| `python3 -u` for the watchers | podvm `5244ed7` | Not taken: `watch.py` and `runs.py` flush each line |
+| A relative `CARGO_HOME` made absolute in `cloud-env.sh` | podvm `5244ed7` | Not taken: the default of podcrates is absolute |
+| `flock -o` for the cargo lock of a worker | podrunner `b73a374` | Taken: `docs/hosted-sessions.md`, `docs/maintenance.md` |
+| A test temp dir of its own and the check `tmp-left` | podrunner `b73a374`, `3d69d83` | Not taken now: T-1386 has it; podcrates keeps a short `TMPDIR` (T-920) |
+| `apt-ubuntu.sh` (apt with the Ubuntu sources only) | podrunner `1453444` | Not taken: `--dev-tools` installs after a failed update; the workflows of podcrates did not fail on a source |
+| A pinned actionlint for each workflow | podrunner `ac7f68b` | Not taken now: T-1651 |
+| The hook timeout of 1200 s, the setup in the hook | podnet `5809e66` | Not taken: the start of podcrates runs no setup (T-1385) |
+| The facts of the host: pyenv `python3`, tiers of the subagent tool, a sudo for apt-get | podnet `d79dcc2`, podssh `2f34ecf` | Taken: `docs/hosted-sessions.md`, "Gemini / Antigravity Cloud" |
+| The role table column and the start of each harness | podnet `48770ce`, `72dece5`, podssh `2f34ecf` | Taken: `docs/hosted-sessions.md`, `AGENTS.md`, `docs/session-protocol.md` |
+| A session keeps its turn while a run goes | podssh `b981f5f` | Already here (the ruling "Work until done", "The watchers") |
+
+Small defects fixed in place: shellcheck SC2145 in the detached start
+(`"scripts/agent/$@"`) and SC2016 in `cloud-setup.sh`; `check.sh` now
+runs `sh -n` of `cloud-setup.sh` and shellcheck on the start scripts.
+Proof: `sh -n` and shellcheck 0.11.0 of each changed script: clean. In
+the worktree: `--no-watchers`, `--run-watcher runs`, `--run-watcher
+watch` and the default start each print the worktree line and exit 0; a
+bad flag and `PODCRATES_NO_WATCHERS=2` exit 64. In a scratch clone that
+is not a worktree: `--no-watchers` and `ANTIGRAVITY_APP_DATA_DIR=/x`
+start no watcher and exit 0; the default start runs both watchers as one
+process each (the pid file holds the pid of `python3`), and a second
+start finds them; `--run-watcher runs` holds `.work/runs.lock` with the
+pid of `runs.py`, a second `--run-watcher runs` and the default start
+exit 0 and find it, and `timeout` ends it (124) with the lock free. The
+`--dev-tools` block with a stub `apt-get`: `DEBIAN_FRONTEND` is set, a
+failed update still runs the install with `--no-install-recommends`. The
+watchers of the lead checkout ran with no change during each test.
+`python3 -I scripts/check-history.py`: no narrative history; `cargo todo
+check`: the record agrees. Not verified: a session on Gemini /
+Antigravity Cloud, and `apt-get` through a real `sudo`.
+
+# T-1651: CI and `scripts/agent/check.sh`: lint each workflow with a pinned actionlint
+
+**Source:** T-1650: podrunner `ac7f68b` (podrunner's T-252, `PodUtils/podrunner:scripts/actionlint.sh`).
+**Category:** chore
+**Milestone:** M8
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`scripts/check-workflows.py` checks the rules of podcrates in each
+workflow (the jobs, the permissions, the names that a document gives). It
+does not check the expressions, the contexts and the `run` steps of a
+workflow as actionlint does (a wrong `${{ }}` type, an unknown context, a
+shellcheck fault in a step). Such a fault shows only when the workflow
+runs, and a release workflow runs seldom.
+
+## Premise
+
+- podrunner runs `sh scripts/actionlint.sh .github/workflows/*.yml` in
+  its `check.sh` and in CI, with a pinned actionlint.
+- Not measured: the number of faults that actionlint finds in the
+  workflows of podcrates now.
+
+## Approach
+
+A pinned actionlint release binary for Linux x86_64 and arm64, fetched
+with `scripts/ci/fetch-tool.sh` by its SHA-256, in a script
+`scripts/actionlint.sh`. The job `workflows` of `ci.yml` runs it on each
+workflow; `check.sh` runs it when the binary is there. Fix each fault
+that it finds first, or name each kept one with its reason.
+
+## Prove
+
+```sh
+sh scripts/actionlint.sh .github/workflows/*.yml
+```
+The job `workflows` of `ci.yml` passes with the step.
+

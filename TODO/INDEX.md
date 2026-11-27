@@ -1164,4 +1164,5 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1639](podvm.md) | P2 | S | M6 | defect | done | `pod-enter`: the read-only root keeps `/dev` of the image writable on the disk |
 | [T-1640](podvm.md) | P2 | S | M6 | docs | done | `pod-enter`: more hosts refuse the pivot than call C991 names |
 | [T-1641](podvm.md) | P3 | S | M6 | defect | done | `pod-enter`: the small defects of the lock and of the read-only root (EINTR, SIGPIPE, the proc of the maps, the ambient set, the recursive bind) and the cases that the tests lack |
-| [T-1650](upkeep.md) | P1 | M | M8 | chore | partial | agent tooling: the start, the watchers and the role table for Gemini / Antigravity Cloud (PodUtils/podnet#799) |
+| [T-1650](upkeep.md) | P1 | M | M8 | chore | done | agent tooling: the start, the watchers and the role table for Gemini / Antigravity Cloud (PodUtils/podnet#799) |
+| [T-1651](upkeep.md) | P3 | S | M8 | chore | open | CI and `scripts/agent/check.sh`: lint each workflow with a pinned actionlint |

@@ -37,7 +37,8 @@ cargo todo check
   `origin/main` does not have, stays where it is. A worktree keeps its
   branch and starts no watcher. It changes no global setting. The Claude
   Code hook `.claude/session-start.sh` runs it at each start of a session.
-  In Codex and in each other harness, run it by hand. Its flags:
+  In Codex and in each other harness, run it by hand. Its flags (`--help`
+  prints them):
   * `--no-watchers`: the start with no watcher. It prints the two
     commands of the daemon tasks.
   * `--run-watcher watch` or `--run-watcher runs`: one watcher in the
@@ -54,10 +55,12 @@ cargo todo check
   the machine of the host, and cargo-zigbuild. Each step that has its tool
   already is skipped. Run it on a new host. `--dev-tools` also installs
   `shellcheck`, `groff` and `mandoc` when the host does not have them
-  (with `apt-get`, as root or with `sudo` that asks for no password):
+  (with `apt-get`, as root, with `sudo -n -E`, or with a `sudo` for
+  `apt-get` alone):
   `check.sh` and `scripts/check-man.sh` then run their optional steps.
 * `scripts/cloud-env.sh` puts the tools on `PATH` and sets
-  `CARGO_BUILD_JOBS=4` and `CARGO_INCREMENTAL=0`. Load it in each new
+  `CARGO_BUILD_JOBS=4` (the number of CPUs on a host with fewer) and
+  `CARGO_INCREMENTAL=0`. Load it in each new
   shell. The Claude Code hook loads it for each shell command through
   `CLAUDE_ENV_FILE`. `scripts/agent/check.sh` loads it itself.
 
@@ -85,9 +88,12 @@ The facts of each host:
 
 ### Gemini / Antigravity Cloud
 
-* The host is a VM with a user that is not root. Each command starts a
-  new shell with no `CLAUDE_ENV_FILE`: load `. ./scripts/cloud-env.sh`
-  before a cargo command. `check.sh` loads it itself.
+* The host is a VM with a user that is not root, and `sudo` for
+  `apt-get`. Each command starts a new shell with no `CLAUDE_ENV_FILE`:
+  load `. ./scripts/cloud-env.sh` before a cargo command. `check.sh`
+  loads it itself.
+* The `python3` of `PATH` can lack PyYAML. `check.sh` then runs
+  `scripts/check-workflows.py` with `/usr/bin/python3`.
 * At the start of the VM, `.agents/environment.json` runs
   `sh scripts/session-start.sh --no-watchers` and
   `sh scripts/cloud-setup.sh --dev-tools`. When it did not run, run these
@@ -105,7 +111,10 @@ The facts of each host:
   workflow").
 * The lead makes the worktree of each worker
   (`git worktree add -b NAME .claude/worktrees/NAME main`) before it
-  starts the worker, and the brief names the directory.
+  starts the worker, and the brief names the directory. A worker shares
+  the workspace of the lead: the brief tells it to work only in its
+  worktree. When the harness gives tiers in the place of an effort, use
+  `pro` or `inherit` for Neon and `flash` for Hydrogen.
 
 ## The watchers
 
@@ -209,7 +218,8 @@ Each brief carries these items:
    stash`. Do not commit on `main`, and do not push: the lead merges and
    pushes.
 4. Cargo: run each cargo command under the lock of the session
-   (`flock SCRATCH/cargo.lock cargo ...`), with `CARGO_BUILD_JOBS=4` and
+   (`flock -o SCRATCH/cargo.lock cargo ...`; `-o`: a process that a
+   failed test leaves does not hold the lock), with `CARGO_BUILD_JOBS=4` and
    `CARGO_INCREMENTAL=0`. Build only the crates of the task (`-p CRATE`).
    Build in a `CARGO_TARGET_DIR` of the worker in the scratchpad when
    `df -h /` shows room for it (a debug target of a few crates takes some
