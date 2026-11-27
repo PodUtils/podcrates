@@ -58,9 +58,8 @@ is done. Git and the record keep finished work.
      PodUtils/podrunner#375 (COORD-146, T-1550), #379 to #381 (COORD-148
      to COORD-150, T-1540 to T-1542); PodUtils/podvm#692 asks 1, 3 and 4
      (COORD-266, T-1580 to T-1582) and #683 (COORD-261, T-1583).
-   - In work: PodUtils/podvm#695 (COORD-268, security P1: `pivot_root`,
-     a nested user namespace for the payload, the joins, a read-only
-     root) in `pod-enter`, on the branch `enter695`. After it, in `pod-enter`:
+   - Done on `main`: PodUtils/podvm#695 (COORD-268, security P1,
+     T-1560, T-1561). In work, in `pod-enter`:
      PodUtils/podvm#689 (COORD-264, an overlay volume and the device
      nodes), #692 ask 2 (the mode of a tmpfs) and #684 (COORD-262, a walk
      that keeps `..` at the root). PodUtils/podrunner#378 and
@@ -268,6 +267,19 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   through; `GET /_fake/jobs/ID/logs` gives the step logs of a job that
   ended (404 for no such job, 409 for a job that did not end). No build
   change.
+- T-1560, T-1561 (`pod-enter`, PodUtils/podvm#695, security P1): the
+  namespace rung binds the root onto itself and enters it with
+  `pivot_root` and a detach of the old root (a failed bind or pivot falls
+  back to the chroot rung only for a plan with no volume, tmpfs, PID
+  namespace, host name or read-only root); each own-namespace payload of
+  uid 0 gets a nested user and mount namespace after the mounts (also host
+  root: it loses the capabilities of the initial user namespace, call
+  C990); a join enters the owner of the mount namespace first;
+  `Plan::read_only_root` (call C991). Breaking for podvm: each `Plan`
+  literal adds `read_only_root`; podvm drops `podvm_enter::lock`, the join
+  step of `crates/podvm/src/userns/lock.rs` and `read_only::seal`; a
+  payload reads `0 0 1` in its `uid_map`. This closes
+  PodUtils/podrunner#378 for podrunner.
 - T-1550 (`pod-job`, PodUtils/podrunner#375): `status.v1` has the optional
   `no_tier_served_causes` (`pod_job::NoTierCause { source, kind, cause,
   fix }`); `Status::check` refuses causes when `no_tier_served` is false
