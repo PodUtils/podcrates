@@ -10166,3 +10166,79 @@ version that has it at its next release.
   paths, static and test passed.
 - Not measured: a run of `actions/runner` with a container against the
   fake; podrunner's lane `serve-incus-kvm` does it.
+
+# T-1550: `pod-job`: the causes of `no_tier_served`, as `no_tier_served_causes` in `status.v1` (PodUtils/podrunner#375)
+
+**Source:** PodUtils/podrunner#375 (COORD-146 of podrunner, for PodUtils/podrunner@T-712; author COLLABORATOR)
+**Category:** feature
+**Milestone:** M8
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`serve` and `doctor` of podrunner name, for `no-tier-served`, each
+source, each kind with its boundary or hold below the floor and its
+proof, each claim that the start lowered, and the missing keys of
+`[unit.podvm]`. `status.v1` carries only the flag `no_tier_served`, so
+`podrunner status` and githome (`status --json`) can print only "no unit
+kind meets the floor of a source". The ask: an optional list
+`no_tier_served_causes` of objects `source`, `kind`, `cause` and `fix`
+(a string or null); absent or empty when the flag is false; the schema id
+stays.
+
+## Premise
+
+- Read: PodUtils/podrunner#375; `crates/pod-job/src/status.rs`
+  (`Status::check` holds the rules that serde does not check; each struct
+  has `deny_unknown_fields`); `schemas/CHANGES.md`; T-1529 (the same form
+  for `run-report.v1`).
+- The `fix` of the example is `null` when podrunner knows none: serde reads
+  `null` of an `Option` as absent, and the writer leaves it out (the form
+  of `unit.limits` and of `kinds.warm.paused_reason`).
+- Not measured: the code of podrunner that fills the list.
+
+## Approach
+
+`Status` takes `no_tier_served_causes: Vec<NoTierCause>`, with
+`#[serde(default, skip_serializing_if = "Vec::is_empty")]`. `NoTierCause`
+has `source`, `kind`, `cause` (strings) and `fix: Option<String>`, with
+`deny_unknown_fields`. Call C985: `Status::check` refuses a list that has
+entries when `no_tier_served` is false, because the crate already checks
+rules across fields there (the probe of each kind) and the ask says
+"absent or empty when false"; a list with no entries when the flag is true
+is valid (a writer from before the field). The schema cannot hold that
+rule: the example that breaks it is in `CHECK_ONLY`. The schema file is
+written again, with a row `added` (tag `next`) in `schemas/CHANGES.md`.
+Examples: one valid, one invalid with no `source`, one invalid with an
+unknown field, one invalid with causes and a false flag. A plant proves the
+rule of the flag.
+
+## Prove
+
+```sh
+cargo test -p pod-job --all-features
+python3 -I scripts/check-schemas.py --no-fetch
+```
+
+## Done
+
+2026-11-27, commit a0653859. `pod_job::Status` has `no_tier_served_causes:
+Vec<NoTierCause>`, absent on the wire when empty, and `pod_job::NoTierCause`
+has `source`, `kind`, `cause` and `fix: Option<String>` (absent on the wire
+when `None`), with `deny_unknown_fields`. `Status::check` refuses entries
+when `no_tier_served` is false (call C985). `schemas/status.v1.schema.json`
+written again; the id stays `v1`, with one row `added` (`next`) in
+`schemas/CHANGES.md`. New examples in `crates/pod-job/tests/examples/status/`:
+`valid-no-tier-causes.json`, and the invalid `invalid-no-tier-cause-no-source.json`,
+`invalid-no-tier-cause-extra.json` and
+`invalid-no-tier-causes-without-flag.json`. New tests
+`status::tests::the_causes_of_no_tier_served_read_and_write_back_the_same`
+and `status::tests::a_status_with_no_causes_writes_no_list_and_causes_need_the_flag`;
+plant `job-t1550-no-tier-causes-need-the-flag`. Consumer: a reader of an
+old status reads it (the field has a default). The one `Status { .. }`
+literal of podrunner is `PodUtils/podrunner:crates/podrunner-slots/src/status.rs`
+(`Slots::status`): it needs `no_tier_served_causes` (`Vec::new()` until
+podrunner fills it), as `Status` has no `Default`. The other uses of the
+flag in podrunner read JSON and do not break.

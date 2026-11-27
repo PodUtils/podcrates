@@ -1,0 +1,7 @@
+# pod-job: `Status::check` takes causes of `no_tier_served` when the flag is
+# false (T-1550).
+ENTRY=T-1550
+GROUP=job
+EXPECT='a_status_with_no_causes_writes_no_list_and_causes_need_the_flag \.\.\. FAILED|invalid-no-tier-causes-without-flag'
+RUN='cargo test -p pod-job --all-features --lib status::tests::a_status_with_no_causes_writes_no_list_and_causes_need_the_flag'
+LIMIT=900

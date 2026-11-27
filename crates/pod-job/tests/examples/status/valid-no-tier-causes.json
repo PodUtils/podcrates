@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "host": "host-a",
+  "draining": true,
+  "degraded": "the runner is too old",
+  "no_tier_served": true,
+  "sources": [],
+  "kinds": [],
+  "pins": [],
+  "ended_without_completion": 3,
+  "spooled_reports": 0,
+  "no_tier_served_causes": [
+    {
+      "source": "github-scaleset-main",
+      "kind": "microvm",
+      "cause": "guest-self-test-failed",
+      "fix": "set [unit.podvm] kernel"
+    },
+    {
+      "source": "remote-a",
+      "kind": "container",
+      "cause": "claim lowered at start: no user namespace"
+    }
+  ]
+}
