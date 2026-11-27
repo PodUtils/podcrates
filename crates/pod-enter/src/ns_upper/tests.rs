@@ -5,8 +5,8 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 use super::*;
-use crate::abi::{ResolveKind, resolve_dir_in, resolve_in};
 use crate::VolumeBind;
+use crate::abi::{ResolveKind, resolve_dir_in, resolve_in};
 
 fn plan(volumes: Vec<VolumeBind>) -> Plan {
     Plan { volumes, path_dirs: Vec::new(), ..crate::tests::plain_plan() }
