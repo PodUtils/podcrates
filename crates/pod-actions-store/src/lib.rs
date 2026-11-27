@@ -35,11 +35,11 @@ pub mod images;
 pub mod lock;
 pub mod store;
 
-pub use error::{CheckoutFault, Error, LineFault};
+pub use error::{CheckoutFault, Error, LineFault, SelfFault};
 pub use git::Git;
 pub use images::{ImageSource, by_tag, workflow_images};
 pub use lock::{Lock, Pin, is_commit};
 pub use store::{
-    Forge, Mode, Resolved, Store, add_trees, archive_name, checkout_target, digest, resolve, workflow_trees,
-    workflow_uses,
+    Forge, Mode, Options, Resolved, SELF_PREFIX, Store, add_trees, archive_name, checkout_target, digest, resolve,
+    resolve_with, self_uses, workflow_trees, workflow_uses,
 };

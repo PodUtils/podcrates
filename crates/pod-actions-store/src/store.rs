@@ -11,12 +11,16 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 
-use pod_actions_workflow::{Kind, Limits, Node, Workflow};
+use pod_actions_workflow::{Kind, Node, Workflow};
 use sha2::{Digest, Sha256};
 
 use crate::error::{CheckoutFault, Error};
 pub use crate::git::Git;
 use crate::lock::{Lock, Pin, is_commit};
+
+pub(crate) mod uses;
+pub use uses::{SELF_PREFIX, self_uses, workflow_uses};
+use uses::{composite_uses, excepted, fold, split};
 
 /// A forge that resolves a reference and gives the tar of a commit. An
 /// error is text for the user; [`resolve`] gives it as [`Error::Forge`].
@@ -63,34 +67,6 @@ pub struct Resolved {
     pub changed: bool,
 }
 
-/// A reference of `uses:` split into `OWNER/REPO`, the path in it and the ref.
-fn split(uses: &str) -> Option<(String, String, String)> {
-    let (target, r) = uses.rsplit_once('@')?;
-    let mut parts = target.splitn(3, '/');
-    let (owner, repo) = (parts.next()?, parts.next()?);
-    if owner.is_empty() || repo.is_empty() || r.is_empty() {
-        return None;
-    }
-    Some((format!("{owner}/{repo}"), parts.next().unwrap_or("").trim_matches('/').to_string(), r.to_string()))
-}
-
-/// Each `uses:` of a repository in the steps of the workflow, but a
-/// repository `OWNER/REPO` of `except` (an action that the consumer gives
-/// in its own way, as a stand-in of `actions/checkout`).
-pub fn workflow_uses(w: &Workflow, except: &[&str]) -> Vec<String> {
-    let mut out = Vec::new();
-    for job in &w.jobs {
-        for s in &job.steps {
-            match s.uses.as_deref() {
-                Some(u) if except.iter().any(|r| u.split_once('@').is_some_and(|(t, _)| t == *r)) => {}
-                Some(u) if remote(u) => out.push(u.to_string()),
-                _ => {}
-            }
-        }
-    }
-    out
-}
-
 /// The repository of a checkout of another repository: `OWNER/REPO@REF` of
 /// `with: repository` and `with: ref` (`HEAD` when no ref), or `None` for
 /// the repository of the run (`self_repo`, by any case), which is the
@@ -122,12 +98,14 @@ pub fn checkout_target(with: Option<&Node>, self_repo: &str) -> Result<Option<St
 }
 
 /// Each checkout of another repository in the steps of the workflow
-/// (`uses: actions/checkout@REF` with `with: repository`).
+/// (`uses: actions/checkout@REF` with `with: repository`; the owner and
+/// the name of the checkout match with no case).
 pub fn workflow_trees(w: &Workflow, self_repo: &str) -> Result<Vec<String>, Error> {
     let mut out = Vec::new();
+    let checkout = |u: &str| u.split_once('@').is_some_and(|(n, _)| n.eq_ignore_ascii_case("actions/checkout"));
     for job in &w.jobs {
         for s in &job.steps {
-            if s.uses.as_deref().is_some_and(|u| u.starts_with("actions/checkout@"))
+            if s.uses.as_deref().is_some_and(checkout)
                 && let Some(t) = checkout_target(s.with.as_ref(), self_repo)?
             {
                 out.push(t);
@@ -139,7 +117,8 @@ pub fn workflow_trees(w: &Workflow, self_repo: &str) -> Result<Vec<String>, Erro
 
 /// Resolve and keep each tree of `trees` (`OWNER/REPO@REF`) after the
 /// actions of `out`: pinned and kept as an action is, with no action file
-/// to read.
+/// to read. A tree that `out` has by another case of the owner and the
+/// name takes its commit, with no second fetch.
 pub fn add_trees(
     trees: &[String],
     mut out: Resolved,
@@ -151,34 +130,24 @@ pub fn add_trees(
     for t in trees {
         let (repo, _, r) = split(t).ok_or_else(|| Error::Tree { tree: t.clone() })?;
         let key = format!("{repo}@{r}");
-        if !out.commits.contains_key(&key) {
-            let at = At { repo: &repo, r: &r, key: &key, lock_name };
-            let (commit, _) = fetch(&at, &mut out, store, forge, mode)?;
-            out.commits.insert(key, commit);
+        if out.commits.contains_key(&key) {
+            continue;
         }
+        let other = out.commits.iter().find(|(k, _)| fold(k) == fold(&key)).map(|(k, c)| (k.clone(), c.clone()));
+        let commit = match other {
+            Some((k, commit)) => {
+                if !store.path(&repo, &commit).is_file()
+                    && let Some(tar) = store.get(split(&k).map_or(repo.clone(), |(o, ..)| o).as_str(), &commit)?
+                {
+                    store.put(&repo, &commit, &tar)?;
+                }
+                commit
+            }
+            None => fetch(&At { repo: &repo, r: &r, key: &key, lock_name }, &mut out, store, forge, mode)?.0,
+        };
+        out.commits.insert(key, commit);
     }
     Ok(out)
-}
-
-fn remote(uses: &str) -> bool {
-    !uses.starts_with("./") && !uses.starts_with("docker://")
-}
-
-/// Each `uses:` of a repository in the steps of a composite `action.yml`.
-fn composite_uses(text: &str) -> Result<Vec<String>, String> {
-    let root = pod_actions_workflow::yaml::load(text, Limits::default()).map_err(|e| e.to_string())?;
-    let Some(runs) = root.get("runs") else { return Ok(Vec::new()) };
-    if !matches!(runs.get("using").map(|n| &n.kind), Some(Kind::String(u)) if u == "composite") {
-        return Ok(Vec::new());
-    }
-    let Some(Kind::Seq(steps)) = runs.get("steps").map(|n| &n.kind) else { return Ok(Vec::new()) };
-    Ok(steps
-        .iter()
-        .filter_map(|s| match s.get("uses").map(|n| &n.kind) {
-            Some(Kind::String(u)) if remote(u) => Some(u.clone()),
-            _ => None,
-        })
-        .collect())
 }
 
 /// The `action.yml` (or `action.yaml`) at `path` under the top directory of
@@ -246,11 +215,39 @@ impl Store {
     }
 }
 
+/// The settings of [`resolve_with`].
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Options<'a> {
+    /// The names `OWNER/REPO` (no ref) that the resolve does not fetch,
+    /// does not follow and does not lock, at each depth: an action that
+    /// the consumer gives in its own way, as a stand-in of
+    /// `actions/checkout`. The owner and the name match with no case.
+    pub except: &'a [&'a str],
+}
+
 /// Resolve each reference of `uses`, and of each composite action that they
 /// name, against the lock, the store and the forge. `lock_name` names the
-/// lock file in each error.
+/// lock file in each error. [`resolve_with`] with the default [`Options`].
 pub fn resolve(
     uses: &[String],
+    lock: &Lock,
+    store: &Store,
+    forge: &dyn Forge,
+    mode: Mode,
+    lock_name: &str,
+) -> Result<Resolved, Error> {
+    resolve_with(uses, &Options::default(), lock, store, forge, mode, lock_name)
+}
+
+/// [`resolve`] with `options`. Two spellings of one action (the owner and
+/// the name in another case) give one fetch and one pin: the lock keeps
+/// the first spelling of the run, `commits` has each spelling, and the
+/// store keeps the tar under each spelling. A `uses: $/PATH` of a
+/// composite action is the repository and the ref of that action; in
+/// `uses` it fails ([`SelfFault::NoParent`](crate::SelfFault)).
+pub fn resolve_with(
+    uses: &[String],
+    options: &Options<'_>,
     lock: &Lock,
     store: &Store,
     forge: &dyn Forge,
@@ -260,24 +257,39 @@ pub fn resolve(
     let mut out = Resolved { lock: lock.clone(), ..Resolved::default() };
     let mut queue: VecDeque<String> = uses.iter().cloned().collect();
     let mut seen = BTreeSet::new();
-    let mut tars: BTreeMap<String, Vec<u8>> = BTreeMap::new();
+    // The commit and the tar of each action, by its key with no case.
+    let mut tars: BTreeMap<String, (String, Vec<u8>)> = BTreeMap::new();
     while let Some(u) = queue.pop_front() {
-        if !seen.insert(u.clone()) {
-            continue;
+        if u.starts_with(SELF_PREFIX) {
+            let fault = if u.contains('@') { crate::SelfFault::Ref } else { crate::SelfFault::NoParent };
+            return Err(Error::SelfUses { uses: u, fault });
         }
         let (repo, path, r) = split(&u).ok_or_else(|| Error::Uses { uses: u.clone() })?;
-        let key = format!("{repo}@{r}");
-        if !tars.contains_key(&key) {
-            let at = At { repo: &repo, r: &r, key: &key, lock_name };
-            let (commit, tar) = fetch(&at, &mut out, store, forge, mode)?;
-            out.commits.insert(key.clone(), commit);
-            tars.insert(key.clone(), tar);
+        if excepted(options.except, &repo) {
+            continue;
         }
-        let text = action_file(&tars[&key], &path).map_err(|reason| Error::Tarball { key: key.clone(), reason })?;
+        let key = format!("{repo}@{r}");
+        let folded = fold(&key);
+        if !tars.contains_key(&folded) {
+            let at = At { repo: &repo, r: &r, key: &key, lock_name };
+            tars.insert(folded.clone(), fetch(&at, &mut out, store, forge, mode)?);
+        }
+        let (commit, tar) = &tars[&folded];
+        if !out.commits.contains_key(&key) {
+            // Another spelling of an action of the run: no second fetch.
+            if !store.path(&repo, commit).is_file() {
+                store.put(&repo, commit, tar)?;
+            }
+            out.commits.insert(key.clone(), commit.clone());
+        }
+        if !seen.insert(fold(&format!("{repo}/{path}@{r}"))) {
+            continue;
+        }
+        let text = action_file(tar, &path).map_err(|reason| Error::Tarball { key: key.clone(), reason })?;
         let Some(text) = text else {
             return Err(Error::NoAction { uses: u, path });
         };
-        queue.extend(composite_uses(&text).map_err(|reason| Error::Action { uses: u.clone(), reason })?);
+        queue.extend(composite_uses(&text, &u)?);
     }
     Ok(out)
 }
@@ -299,7 +311,11 @@ fn fetch(
     forge: &dyn Forge,
     mode: Mode,
 ) -> Result<(String, Vec<u8>), Error> {
-    let (repo, key, lock) = (at.repo, at.key.to_string(), at.lock_name.to_string());
+    let (repo, lock) = (at.repo, at.lock_name.to_string());
+    // The pin of the action by any case of the owner and the name: an
+    // error that names the lock names the key of its line.
+    let found = out.lock.pin(at.key).map(|(k, p)| (k.to_string(), p.clone()));
+    let key = found.as_ref().map_or(at.key, |(k, _)| k.as_str()).to_string();
     let forged = |reason| Error::Forge { repo: repo.to_string(), reason };
     let not_locked = || Error::NotLocked { key: key.clone(), lock: lock.clone(), mode };
     // A directory of the caller: a made-up commit that changes with the
@@ -316,7 +332,7 @@ fn fetch(
         }
         return Ok((commit, tar));
     }
-    let pin = out.lock.pins.get(at.key).cloned();
+    let pin = found.as_ref().map(|(_, p)| p.clone());
     let commit = match (&pin, mode) {
         _ if is_commit(at.r) => at.r.to_ascii_lowercase(),
         (Some(p), Mode::Offline) => p.commit.clone(),
@@ -340,8 +356,15 @@ fn fetch(
     {
         return Err(Error::Pinned { key, lock, commit, pinned: p.commit.clone() });
     }
-    let (tar, fresh) = match store.get(repo, &commit)? {
-        Some(tar) => (tar, false),
+    // The tar under this spelling, else under the spelling of the lock.
+    let other = found.as_ref().and_then(|(k, _)| split(k)).map(|(o, ..)| o).filter(|o| o != repo);
+    let held = match (store.get(repo, &commit)?, other) {
+        (Some(tar), _) => Some((tar, false)),
+        (None, Some(o)) => store.get(&o, &commit)?.map(|tar| (tar, true)),
+        (None, None) => None,
+    };
+    let (tar, fresh) = match held {
+        Some(held) => held,
         None if mode == Mode::Offline => return Err(Error::NotStored { key, commit }),
         None if mode == Mode::Frozen && pin.is_none() => return Err(not_locked()),
         None => (forge.tar(repo, &commit).map_err(forged)?, true),
@@ -354,7 +377,7 @@ fn fetch(
         Some(_) => {}
         None if mode == Mode::Frozen => return Err(not_locked()),
         None => {
-            out.lock.pins.insert(key, Pin { commit: commit.clone(), digest: d });
+            out.lock.pins.insert(key.clone(), Pin { commit: commit.clone(), digest: d });
             out.changed = true;
         }
     }
