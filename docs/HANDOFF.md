@@ -54,6 +54,17 @@ is done. Git and the record keep finished work.
      step logs come from `GET /_fake/jobs/ID/logs` of `pod-fake-github`
      (a lane reads `github_job_id` of the githome job). The owner deletes
      `wip/gh373` (the proxy refuses a delete).
+   - Done on `main` (answer each with the next tag):
+     PodUtils/podrunner#375 (COORD-146, T-1550), #379 to #381 (COORD-148
+     to COORD-150, T-1540 to T-1542); PodUtils/podvm#692 asks 1, 3 and 4
+     (COORD-266, T-1580 to T-1582) and #683 (COORD-261, T-1583).
+   - In work: PodUtils/podvm#695 (COORD-268, security P1: `pivot_root`,
+     a nested user namespace for the payload, the joins, a read-only
+     root) in `pod-enter`, T-1560 and up. After it, in `pod-enter`:
+     PodUtils/podvm#689 (COORD-264, an overlay volume and the device
+     nodes), #692 ask 2 (the mode of a tmpfs) and #684 (COORD-262, a walk
+     that keeps `..` at the root). PodUtils/podrunner#378 and
+     PodUtils/podvm#693 are between podrunner and podvm; #695 closes them.
    - Open asks:
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -257,6 +268,48 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   through; `GET /_fake/jobs/ID/logs` gives the step logs of a job that
   ended (404 for no such job, 409 for a job that did not end). No build
   change.
+- T-1550 (`pod-job`, PodUtils/podrunner#375): `status.v1` has the optional
+  `no_tier_served_causes` (`pod_job::NoTierCause { source, kind, cause,
+  fix }`); `Status::check` refuses causes when `no_tier_served` is false
+  (call C985). Breaking for podrunner: the `Status` literal of
+  `crates/podrunner-slots/src/status.rs` adds
+  `no_tier_served_causes: Vec::new()`.
+- T-1540 to T-1542 (`pod-actions-store`, PodUtils/podrunner#379 to #381):
+  `resolve_with(uses, &Options { except }, ..)` (`resolve` keeps its
+  parameters); the owner and the name of an action match with no case in
+  `except`, `workflow_uses`, `workflow_trees`, `resolve` and `add_trees`
+  (one fetch and one pin for two spellings; `Lock::pin` folds the case; a
+  lock with two spellings of one reference fails; call C980); `uses:
+  $/PATH` of a composite action is the repository and the ref of that
+  action; `$/PATH@REF` and a `$/PATH` in the list of `resolve` fail with
+  the new `Error::SelfUses` (calls C981, C982); `self_uses` is public.
+  podrunner: the arm `(Error::Uses { uses }, _) if is_self(uses)` of
+  `crates/podrunner/src/run_local/actions.rs` becomes
+  `Error::SelfUses`; `resolve_with` with `except: &["actions/checkout"]`
+  lets it drop the checkout placeholder of
+  `crates/podrunner-local/src/localrepo.rs`.
+- T-1580 (`pod-oci`, PodUtils/podvm#692 ask 1): `registry::Client::ping`
+  and `Ping { Authenticated, Anonymous }` (`GET /v2/`; a refused login is
+  `Class::Refused` with the reason of the registry; call C995).
+- T-1581 (`pod-supervise`, PodUtils/podvm#692 ask 3):
+  `launcher::EntryFailure { text, code }`; the ready pipe carries the exit
+  code of a failed entry (127, 126); `EntryFailure::of(&failure)` reads it
+  (call C996). An entry that returns `String` builds with no change.
+  podvm drops `CODE_MARK`, `spawn_failure`, `take_code` and `start_coded`.
+- T-1582 (`pod-rootfs`, PodUtils/podvm#692 ask 4):
+  `Settings::keep_existing_hosts` keeps a regular `/etc/hosts` (call
+  C997). A `Settings` literal with no `..Default::default()` adds the
+  field. podvm drops `crates/podvm-complete/src/keep.rs`.
+- T-1583 (`pod-extract`, PodUtils/podvm#683): `xattr::of_path` (Linux; no
+  symlink is followed; the list and each value bounded to 64 KiB; call
+  C998); `pod_hostprobe::sys` gains `llistxattr` and `lgetxattr`. podvm
+  drops `on_disk_readable` of `crates/podvm/src/incus/xattrs.rs`.
+- T-1600, T-1601 (the red nightly 45806031483): the tests of `io_words`
+  (`pod-core`) and of `cleartext` (`pod-relay`) take the code and the
+  words of the system from `pod_testkit::os`; the test of
+  `resume::cap` (`pod-session`) checks the bound of each pointer width.
+  The next nightly proves them on Windows, macOS, arm and armv7. The
+  powerpc64le job failed in `pod-iroh` `tests/road.rs` (T-916).
 - T-1506 (`pod-acme`, feature `standin`): the TLS-ALPN-01 verifier of the
   stand-in takes only the certificate of the challenge (a pinned
   verifier); the error of a refused certificate is the words of the check.
