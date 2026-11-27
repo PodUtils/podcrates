@@ -289,6 +289,8 @@ pub const SYS_FSETXATTR: i64 = nr!(fsetxattr, __NR_fsetxattr);
 /// By the name, with no follow of its last component: a symlink takes an
 /// attribute only through its name.
 pub const SYS_LSETXATTR: i64 = nr!(lsetxattr, __NR_lsetxattr);
+pub const SYS_LGETXATTR: i64 = nr!(lgetxattr, __NR_lgetxattr);
+pub const SYS_LLISTXATTR: i64 = nr!(llistxattr, __NR_llistxattr);
 
 // -------------------------------------------- resource limits
 //

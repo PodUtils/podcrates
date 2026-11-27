@@ -42,6 +42,9 @@ use pod_hostprobe::sys::{self, CBuf, Sysres};
 
 use crate::safety::Dir;
 
+mod on_disk;
+pub use on_disk::of_path;
+
 /// The prefix of the PAX key of an extended attribute.
 pub const PAX_PREFIX: &str = "SCHILY.xattr.";
 /// The prefix of the PAX key of an extended attribute of libarchive: the

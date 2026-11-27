@@ -152,6 +152,14 @@ pub const ECONNREFUSED: Errno = errno(e::ECONNREFUSED);
 pub const EINPROGRESS: Errno = errno(e::EINPROGRESS);
 /// `EISCONN`: a second connect of a socket that is connected.
 pub const EISCONN: Errno = errno(e::EISCONN);
+/// `ERANGE`: a buffer too small for the answer (a list of attribute names
+/// that grew between the ask of its size and its read).
+pub const ERANGE: Errno = errno(e::ERANGE);
+/// `ENODATA`: no attribute of that name.
+pub const ENODATA: Errno = errno(e::ENODATA);
+/// `EOPNOTSUPP`, the same number as `ENOTSUP` on Linux: a file system with
+/// no extended attributes.
+pub const EOPNOTSUPP: Errno = errno(e::EOPNOTSUPP);
 
 pub const O_RDONLY: u64 = g::O_RDONLY as u64;
 pub const O_WRONLY: u64 = g::O_WRONLY as u64;

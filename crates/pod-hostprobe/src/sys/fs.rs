@@ -180,6 +180,20 @@ pub fn lsetxattr(path: &CBuf, name: &CBuf, value: &[u8], flags: u64) -> Sysres {
     unsafe { sys(SYS_LSETXATTR, [path.ptr(), name.ptr(), value.as_ptr() as u64, value.len() as u64, flags, 0]) }
 }
 
+/// `lgetxattr(2)`: [`fgetxattr`] by the path, with no follow of its last
+/// component.
+pub fn lgetxattr(path: &CBuf, name: &CBuf, buf: &mut [u8]) -> Sysres {
+    unsafe { sys(SYS_LGETXATTR, [path.ptr(), name.ptr(), buf.as_mut_ptr() as u64, buf.len() as u64, 0, 0]) }
+}
+
+/// `llistxattr(2)`: the names of the attributes of `path`, each with its
+/// NUL, into `buf`, and their length, with no follow of the last component.
+/// An empty `buf` gives the length alone; a list longer than `buf` is
+/// `ERANGE`.
+pub fn llistxattr(path: &CBuf, buf: &mut [u8]) -> Sysres {
+    unsafe { sys(SYS_LLISTXATTR, [path.ptr(), buf.as_mut_ptr() as u64, buf.len() as u64, 0, 0, 0]) }
+}
+
 pub fn symlinkat(target: &CBuf, dirfd: i64, path: &CBuf) -> Sysres {
     unsafe { sys(SYS_SYMLINKAT, [target.ptr(), dirfd as u64, path.ptr(), 0, 0, 0]) }
 }
