@@ -16530,3 +16530,334 @@ one). podvm drops `podvm_enter::read_only::seal` and `own_mounts`
 (`PodUtils/podvm:crates/podvm-enter/src/read_only.rs`) and sets the flag
 in place of the seal (`PodUtils/podvm:crates/podvm/src/run/read_only.rs`).
 Not measured: an overlay root with the flag.
+
+# T-1635: `pod-enter`: a join holds the descriptors of the caller and stays dumpable in the user namespace of the payload, so a payload of uid 0 opens the host's root through `/proc/PID/fd`
+
+**Source:** the review of the merge `0bc81d44` (T-1560, PodUtils/podvm#695), finding P1-1.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+The child of `spawn_joined` joins the user namespace of the payload
+(`Join::enter`, `crates/pod-enter/src/launch.rs`) and stays dumpable until
+its `execve`. It holds the descriptor of the root (a directory of the mount
+namespace of the caller), and each other descriptor of the caller, and
+`fchdir(root_fd)` makes that directory its working directory.
+`set_dumpable(false)` runs only for an init or a relay (`title::Shown`),
+so not for a join of a run with no PID namespace. A payload of uid 0 in
+that user namespace opens `/proc/PID/fd/N` of the child and walks `..` to
+the host's root; it can stop the child with SIGSTOP to hold it. The
+reviewer measured it: after `setns(pidfd, CLONE_NEWUSER|CLONE_NEWNS)` the
+descriptor of the host's `/` was reachable; with `PR_SET_DUMPABLE` 0
+before the `setns`, `EACCES`.
+
+## Premise
+
+- Read: `launch.rs` (the order of the child), `ns_join.rs`, `title.rs`
+  (`Shown::apply`), the kernel's `__ptrace_may_access` and
+  `cap_ptrace_access_check`: after the join, the child and the payload are
+  in one user namespace, and the payload holds each capability of the
+  child there, so only the dumpable flag stops the access.
+- The `execve` of the payload sets the flag again.
+- Not measured: a kernel with Yama `ptrace_scope` 3 (it does not change
+  the access of `/proc/PID/fd`, which is a read).
+
+## Approach
+
+1. `Join::enter`: `prctl(PR_SET_DUMPABLE, 0)` first, before each `setns`.
+2. `launch.rs`: no `fchdir(root_fd)` for a join; a join that does not land
+   on the root of the run takes the chroot by path, as before.
+3. A case of `tests/locked.rs`: a run with no PID namespace, then a join
+   of it; the test stops the child of the join after its `setns` and
+   before its `execve`, and the payload of the run walks
+   `/proc/PID/fd/N/..` to a host file. It must get `EACCES`.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --test locked
+sh scripts/ci/root-enter-confine-tests.sh
+sh scripts/ci/userns-tests.sh
+```
+
+# T-1636: `pod-enter`: a payload of kuid 0 under the lock writes `/proc/sys` and `/proc/sysrq-trigger` of the host
+
+**Source:** the review of the merge `0bc81d44` (T-1560, PodUtils/podvm#695), finding P1-2.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+The lock of host root (`ns_lock.rs`, the identity `0 0 4294967295`) keeps
+the payload at kuid 0 with no capability of the initial user namespace.
+The fresh proc of the rung (`ns_optional.rs`) is read-write and masks
+nothing. The kernel checks the files of `/proc/sys` by `GLOBAL_ROOT_UID`:
+the payload opens `/proc/sys/kernel/core_pattern` for a write (the
+reviewer measured it) and can run a helper as real root;
+`/proc/sysrq-trigger` takes a write too. With no PID namespace the
+payload can also send a signal to each process of kuid 0 of the host.
+
+## Premise
+
+- Read: `ns_optional.rs`, `ns_lock.rs`, the kernel's `test_perm` of
+  `proc_sysctl.c` (the owner bits only for `GLOBAL_ROOT_UID`),
+  `kill_ok_by_cred` (the same uid passes with no capability), and the
+  lists of docker (`ReadonlyPaths`, `MaskedPaths` of the default spec).
+- The nested mount namespace locks each mount that the rung makes before
+  it (`MNT_LOCK_READONLY`, `MNT_LOCKED`): the payload cannot remount a
+  read-only bind writable, nor unmount a mask.
+- Not measured: a host with `/proc/sys/fs/binfmt_misc` mounted under the
+  fresh proc (a fresh proc has no mount under it).
+
+## Approach
+
+1. Where the effective uid of the caller maps to uid 0 of its parent user
+   namespace (host root): after the mounts of `/proc` and before the
+   pivot, bind `/proc/bus`, `/proc/fs`, `/proc/irq`, `/proc/sys` and
+   `/proc/sysrq-trigger` of the image onto themselves and remount each one
+   read-only with the flags of its mount; put a read-only tmpfs on the
+   masked directories of docker and a bind of `/dev/null` on its masked
+   files. A path that the proc does not have is skipped; each other
+   refusal stops the payload.
+2. Extend call C990: with no PID namespace, the payload of host root can
+   send a signal to each process of kuid 0 of the host.
+3. A case of `tests/locked.rs`: a write to `/proc/sys/kernel/core_pattern`
+   and to `/proc/sysrq-trigger` fails (the probe opens, it never writes).
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --test locked
+sh scripts/ci/root-enter-confine-tests.sh
+```
+
+# T-1637: `pod-enter`: the fallback of the namespace rung to chroot runs a payload of uid 0 with no pivot and no lock, and the image chooses it with no `/tmp`
+
+**Source:** the review of the merge `0bc81d44` (T-1560, PodUtils/podvm#695), finding P1-3.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+`namespace_entry` (`crates/pod-enter/src/entry.rs`) enters chroot when the
+setup of the rung fails, for a plan with no volume, tmpfs, PID namespace,
+host name or read-only root. A payload of uid 0 then runs with no pivot
+and no lock: it leaves the tree with the way out of a `chroot(2)`.
+Conditions that an attacker controls reach it: the image has no `/tmp`
+directory, or its `/tmp` is a link (`ns_tmp_target`); `ENOSPC` of
+`max_user_namespaces` or `max_mnt_namespaces` that another run used up.
+
+## Premise
+
+- Read: `entry.rs` (the fallback closure), `ns_own.rs` (the tmpfs on
+  `/tmp`), `ns_volume::walk` (a mount point made with no link followed).
+- The chroot rung of a caller with no capabilities fails at `chroot(2)`
+  already; the fallback changes for a payload of uid 0 only.
+- Not measured: a host where the kernel refuses `unshare(CLONE_NEWNS)` to
+  host root (a seccomp filter of a container runtime): the test makes one
+  with a filter of its own.
+
+## Approach
+
+1. The fallback closure refuses where the payload of the chroot rung is
+   uid 0 (the effective uid of the caller, or the ids of the plan for uid
+   0 of a user namespace that is not the initial one), with the cause.
+2. The child makes `/tmp` of the image where it is missing, with no link
+   followed (`ns_volume::walk`), and mounts the tmpfs on its descriptor. A
+   `/tmp` that is a link or a file is a refusal before the fork, and in the
+   child a new step byte that stops the payload: never a fallback.
+3. Cases of `tests/locked.rs`: an image with no `/tmp` runs locked; an
+   image whose `/tmp` is a link is refused; a seccomp filter that refuses
+   `unshare(CLONE_NEWNS)` with `ENOSPC` makes the fallback, which a
+   payload of uid 0 refuses.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --test locked
+cargo test -p pod-enter --all-features ns_tmpfs
+sh scripts/ci/root-enter-confine-tests.sh
+```
+
+# T-1638: `pod-enter`: host root cannot raise a hard limit of the payload after the lock
+
+**Source:** the review of the merge `0bc81d44` (T-1560, PodUtils/podvm#695), finding P2-1.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+The child sets `Plan::limits` (`launch.rs`) after the nested user
+namespace of the lock. `setrlimit` over the hard value needs
+`CAP_SYS_RESOURCE` of the initial user namespace, which the payload of
+host root lost. A run of root with `memlock=-1` or a higher `nofile` now
+fails with `EPERM`.
+
+## Premise
+
+- Read: `launch.rs`, `limits.rs`, the kernel's `do_prlimit` (a raise of
+  the hard value checks `CAP_SYS_RESOURCE` in the initial user namespace).
+- A lower value needs no capability.
+
+## Approach
+
+1. In the child, first (before a join and before the lock): for each limit
+   whose hard value is over the current one, raise the hard value and keep
+   the current soft value. The final values stay where they are.
+2. A case of `tests/locked.rs`: as host root, a limit of `memlock` over
+   the hard value of the caller reaches the payload.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --test locked
+sh scripts/ci/root-enter-confine-tests.sh
+```
+
+# T-1639: `pod-enter`: the read-only root keeps `/dev` of the image writable on the disk
+
+**Source:** the review of the merge `0bc81d44` (T-1561, PodUtils/podvm#695), finding P2-2.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+`ns_root.rs` binds `/dev` of the tree onto itself for a read-only root. A
+write to `/dev` lands in the image and stays for the next run; a payload
+can replace `/dev/null` with a link, and `ns_dev_bind::choose` binds
+nothing over a link in the next run. The case `read_only` of
+`tests/locked/cases.rs` checks only that the image has no `made` file at
+its root. Also: `/dev` is checked by path before the fork and bound by
+path in the child, so a link put there later sends the bind elsewhere.
+
+## Premise
+
+- Read: `ns_root.rs`, `ns_dev_bind.rs`, `ns_optional.rs`, and docker's
+  `/dev` (a tmpfs of mode 755 with the device nodes, `pts`, `shm` and the
+  links `fd`, `stdin`, `stdout`, `stderr` and `ptmx`).
+
+## Approach
+
+1. For a read-only root: a tmpfs (`nosuid`, `noexec`, mode 755) on `/dev`
+   of the tree, on a descriptor from a walk with no link followed; in it
+   the directories `pts` and `shm` (a tmpfs of mode 1777), the links of
+   docker, and a bind of each host device of `ns_dev_bind::DEVICES` (made
+   as for an image with no `/dev`). `/dev/pts` takes its mount where the
+   image has that directory, as before.
+2. A case of `tests/locked.rs`: a write to `/dev` passes, the image does
+   not change, and `/dev/null` is the host's device.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --test locked
+sh scripts/ci/root-enter-confine-tests.sh
+sh scripts/ci/userns-tests.sh
+```
+
+# T-1640: `pod-enter`: more hosts refuse the pivot than call C991 names
+
+**Source:** the review of the merge `0bc81d44` (T-1560, PodUtils/podvm#695), finding P2-3.
+**Category:** docs
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+`pivot_root(2)` gives `EINVAL` also where the root of the caller is not
+the root of a mount (a caller in a chroot), and where the parent of its
+root mount is shared (`ns_own.rs` makes only `/` and below private). Call
+C991 and the README name only the initial ramfs. The call of the lead:
+keep the refusal (no fallback with a weaker lock), and record these hosts.
+
+## Premise
+
+- Read: the kernel's `pivot_root` checks (`path_mounted(&root)`, and
+  `IS_MNT_SHARED` of the parent of the new root and of the old root).
+- With T-1637, a payload of uid 0 does not fall back on such a host; a
+  caller with no capabilities has no chroot rung to fall back to.
+
+## Approach
+
+1. Extend call C991 and the README of `pod-enter` with the hosts that
+   refuse the pivot, and with what a payload of uid 0 gets there.
+
+## Prove
+
+```sh
+cargo todo check
+```
+
+# T-1641: `pod-enter`: the small defects of the lock and of the read-only root (EINTR, SIGPIPE, the proc of the maps, the ambient set, the recursive bind) and the cases that the tests lack
+
+**Source:** the review of the merge `0bc81d44` (T-1560, T-1561, PodUtils/podvm#695), the findings P3.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P3
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+1. `ns_lock.rs`: the child does not try the ask and the answer again at
+   `EINTR`; the answer of the parent can raise SIGPIPE where the child
+   ended after its ask.
+2. `ns_lock::serve` names the child by its pid under the `/proc` of the
+   caller, and does not check that this proc is of the PID namespace of
+   the caller.
+3. The lock goes by the effective uid, not by a capability: a caller with
+   an effective uid that is not 0, `CAP_SYS_ADMIN` and an ambient set gives
+   the payload that capability with no lock.
+4. `ns_root.rs`: the bind of the root is recursive and the read-only
+   remount is not, so a mount under the tree stays writable.
+5. `/dev` of a read-only root is checked by path (T-1639 removes it).
+6. The tests have no case for a subordinate range, for the fallback, or
+   for a limit as root on the namespace rung.
+
+## Premise
+
+- Read: `ns_lock.rs`, `ns_root.rs`, `ns_proc_bind::host_proc`, the
+  kernel's `cap_bprm_creds_from_file` (the ambient set crosses `execve`
+  for a uid that is not 0).
+
+## Approach
+
+1. Try the write of the ask and the read of the answer again at `EINTR`;
+   the parent blocks SIGPIPE in its thread for its answer, and takes a
+   pending one back.
+2. `serve` checks that `/proc` is a proc of the PID namespace of the
+   caller (`/proc/self` names its pid) before it writes; else the answer
+   is a refusal.
+3. The child of each entry of the namespace rung clears the ambient set
+   before the exec.
+4. The bind of the root is not recursive for a read-only root.
+5. Cases of `tests/locked.rs`: the lock with a subordinate range (as
+   root: uid 0 of a user namespace of 65536 ids), the fallback (T-1637),
+   a limit as host root (T-1638), and a caller of uid 65534 with
+   `CAP_SYS_ADMIN` in its ambient set.
+
+## Prove
+
+```sh
+cargo test -p pod-enter --all-features --test locked
+cargo test -p pod-enter --all-features ns_lock
+sh scripts/ci/root-enter-confine-tests.sh
+```
