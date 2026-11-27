@@ -1,12 +1,12 @@
 diff --git a/crates/pod-enter/src/launch.rs b/crates/pod-enter/src/launch.rs
 --- a/crates/pod-enter/src/launch.rs
 +++ b/crates/pod-enter/src/launch.rs
-@@ -91,7 +91,7 @@ pub(crate) fn spawn_with(
+@@ -98,7 +98,7 @@ pub(crate) fn spawn_with(
          .ok_or_else(|| nul("the working directory contains a NUL byte".to_string()))?;
      let slash = CBuf::new("/").expect("a literal");
      let dot = CBuf::new(".").expect("a literal");
 -    let tmp_workdir = if ns.is_some() { crate::ns_volume::tmp_workdir_parts(plan) } else { Vec::new() };
 +    let tmp_workdir: Vec<CBuf> = Vec::new();
-     let tmpfs = CBuf::new("tmpfs").expect("a literal");
      // The empty path through which `execveat` execs a descriptor.
      let empty = sys::cempty();
+     // The path by which the namespace rung changes its root (`ns_root`).
