@@ -10224,7 +10224,7 @@ python3 -I scripts/check-schemas.py --no-fetch
 
 ## Done
 
-2026-11-27, commit COMMIT. `pod_job::Status` has `no_tier_served_causes:
+2026-11-27, commit a0653859. `pod_job::Status` has `no_tier_served_causes:
 Vec<NoTierCause>`, absent on the wire when empty, and `pod_job::NoTierCause`
 has `source`, `kind`, `cause` and `fix: Option<String>` (absent on the wire
 when `None`), with `deny_unknown_fields`. `Status::check` refuses entries
@@ -10236,8 +10236,9 @@ written again; the id stays `v1`, with one row `added` (`next`) in
 `invalid-no-tier-causes-without-flag.json`. New tests
 `status::tests::the_causes_of_no_tier_served_read_and_write_back_the_same`
 and `status::tests::a_status_with_no_causes_writes_no_list_and_causes_need_the_flag`;
-plant `job-t1550-no-tier-causes-need-the-flag`. Consumer: the new field
-has a default, so a reader of an old status reads it; a `Status { .. }`
-literal in podrunner needs the new field (`no_tier_served_causes:
-Vec::new()` or `..Default`: `Status` has no `Default`), see the report of
-the worker for the files.
+plant `job-t1550-no-tier-causes-need-the-flag`. Consumer: a reader of an
+old status reads it (the field has a default). The one `Status { .. }`
+literal of podrunner is `crates/podrunner-slots/src/status.rs`
+(`Slots::status`): it needs `no_tier_served_causes` (`Vec::new()` until
+podrunner fills it), as `Status` has no `Default`. The other uses of the
+flag in podrunner read JSON and do not break.
