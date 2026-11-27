@@ -35,15 +35,15 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 
 ## Entries
 
-**1094 entries: 174 open, 31 partial, 6 blocked, 883 done.**
+**1097 entries: 174 open, 31 partial, 6 blocked, 886 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 2 | 2 |
-| P1 | 4 | 9 | 0 | 248 | 261 |
+| P1 | 4 | 9 | 0 | 251 | 264 |
 | P2 | 73 | 12 | 4 | 474 | 563 |
 | P3 | 97 | 10 | 2 | 159 | 268 |
-| **All** | 174 | 31 | 6 | 883 | 1094 |
+| **All** | 174 | 31 | 6 | 886 | 1097 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -1141,3 +1141,6 @@ podvm, M7 The widened scope of podvm, M8 The fleet.
 | [T-1530](fleet.md) | P1 | M | M8 | feature | done | `pod-testkit`: `container:` and `services:` jobs and the step logs of a job in the fake of GitHub (PodUtils/podrunner#373) |
 | [T-1531](roads.md) | P2 | S | M4 | feature | done | `pod-egress`: a parser of a Trojan request on the accept side (PodUtils/podnet#785, ask 1) |
 | [T-1532](roads.md) | P3 | S | M4 | feature | done | `pod-egress`: the accept-side API of Shadowsocks: `Decoder::salt` and the docs of `parse_address` and `Decoder::new` (PodUtils/podnet#785, ask 2) |
+| [T-1540](fleet.md) | P1 | S | M8 | feature | done | `pod-actions-store`: `resolve` takes an `except` list at each depth of a composite action (PodUtils/podrunner#379) |
+| [T-1541](fleet.md) | P1 | S | M8 | feature | done | `pod-actions-store`: the owner and the name of an action match with no case (PodUtils/podrunner#380) |
+| [T-1542](fleet.md) | P1 | S | M8 | feature | done | `pod-actions-store`: `uses: $/PATH` in a composite action is the repository and the ref of that action (PodUtils/podrunner#381) |

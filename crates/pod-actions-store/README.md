@@ -217,7 +217,7 @@ to C324, C376 to C378, C462 to C463):
 | podrunner | `podrunner_local::images::PodvmPull` | stays in podrunner, as an `ImageSource` |
 | podrunner | `podrunner_broker_fake::actions::archive_name` in `Store::path` | `pod_actions_store::archive_name` (the same layout) |
 | podrunner | `resolve(&uses, ...)` and the placeholder tar of `actions/checkout` of its forge (PodUtils/podrunner#379) | `resolve_with(&uses, &Options { except: &["actions/checkout"] }, ...)`; the checkout is not in `commits` |
-| podrunner | `store::self_path`, `self_uses` (T-729) | `pod_actions_store::self_uses(uses, repo, ref)`, an `Error::SelfUses` for `$/PATH@REF` |
+| podrunner | `store::self_path`, `self_uses` (PodUtils/podrunner@T-729) | `pod_actions_store::self_uses(uses, repo, ref)`, an `Error::SelfUses` for `$/PATH@REF` |
 | podrunner | the arm `Error::Uses` of `$/PATH` in `run_local/actions.rs` (`with_fix`) | `Error::SelfUses`: `resolve` follows a `$/PATH` of a composite action |
 | podrunner | `flate2`, `tar`, `ring` in `crates/podrunner-local/Cargo.toml` for the store | removed when nothing else of the crate needs them |
 
