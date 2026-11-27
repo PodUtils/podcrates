@@ -58,22 +58,18 @@ is done. Git and the record keep finished work.
      PodUtils/podrunner#375 (COORD-146, T-1550), #379 to #381 (COORD-148
      to COORD-150, T-1540 to T-1542); PodUtils/podvm#692 asks 1, 3 and 4
      (COORD-266, T-1580 to T-1582) and #683 (COORD-261, T-1583).
-   - Done on `main`: PodUtils/podvm#695 (COORD-268, security P1,
-     T-1560, T-1561). A review of the change found three paths that stay
-     open (a join keeps a dumpable child with a descriptor of the host;
-     host root keeps the rights of uid 0 in `/proc/sys`; the chroot
-     fallback runs uid 0 with no pivot) and three failures: the branch
-     `enter-sec2` fixes them. `main` has the version
-     `0.87.0` and `docs/releases/v0.87.0.md`; the tag waits for
-     `enter-sec2`. Then: a full check, the push, and one
-     `[gh action] requested` issue with the gates and the release
-     (`docs/maintenance.md`, "A run of a workflow": the MCP dispatch
-     answers "Actions has been disabled for this user", and a push of
-     this session starts no run). In work, in `pod-enter`:
-     PodUtils/podvm#689 (COORD-264, an overlay volume and the device
-     nodes), #692 ask 2 (the mode of a tmpfs) and #684 (COORD-262, a walk
-     that keeps `..` at the root). PodUtils/podrunner#378 and
-     PodUtils/podvm#693 are between podrunner and podvm; #695 closes them.
+   - Done on `main`: PodUtils/podvm#695 (COORD-268, security P1:
+     T-1560, T-1561, and the fixes of their review T-1635 to T-1641);
+     PodUtils/podvm#684 (T-1610), #692 ask 2 (T-1611), #689 (T-1612,
+     T-1613). Each goes in `v0.87.0` (`docs/releases/v0.87.0.md`). The
+     MCP dispatch answers "Actions has been disabled for this user" and a
+     push of this session starts no run: the gates and the release go by
+     a `[gh action] requested` issue. Push nothing to `main` from its open
+     until the tag exists.
+   - In work on a branch, merged after the tag: PodUtils/podnet#799
+     (COORD-141 of podnet, accepted by the owner on 2026-11-27): the role
+     column of Gemini / Antigravity Cloud and the start flags of podnet
+     (`--no-watchers`, `--run-watcher`, `.agents/environment.json`).
    - Open asks:
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
