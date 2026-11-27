@@ -13,9 +13,8 @@
   the run on the tag 45785761766 passed. Its hand-off is COORD-158 (#272),
   open until each consumer names the tag (call C780). The hand-off
   COORD-156 (#262) of `v0.85.0` is closed.
-- On `main` after `v0.86.0`, for the next tag: T-1424 (`pod-hostprobe`,
-  `Settings::emulator`, PodUtils/podvm#675) and T-1425 (`pod-oci`,
-  `rootfs` and `check_layers`, PodUtils/podvm#677).
+- On `main` after `v0.86.0`, for the next tag: `docs/HANDOFF.md`, "On
+  `main` after `v0.86.0`", names each change.
 - T-963 is partial. T-975 and T-977 (podvm's asks) are open: their code is
   not on `main`. `release.yml` has steps that run on a tag only, which the
   dry run does not test (T-974; `docs/maintenance.md`, "A release").
@@ -255,8 +254,8 @@ takes the number after the last row of that table.
   (T-1196) and `pod-h2` (T-1095) on crates.io, as for each name of
   `docs/design.md`, section 4: PodUtils/podcrates#261 (T-1372) has the
   steps.
-- Delete the remote branch `wip/t1073` (merged into `main`): the proxy of
-  the sessions refuses `git push origin --delete`.
+- Delete the remote branches `wip/t1073` and `wip/gh373` (merged into
+  `main`): the proxy of the sessions refuses `git push origin --delete`.
 
 The hand-off of each release is a COORD issue `(to all)`
 (`docs/maintenance.md`, "A release").

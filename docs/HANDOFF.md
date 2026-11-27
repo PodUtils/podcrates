@@ -47,9 +47,13 @@ is done. Git and the record keep finished work.
      (T-1505, T-1506). Done on `main`: PodUtils/podnet#782
      (T-1525 to T-1527; ask 5 is T-1528, open). Done on `main`:
      PodUtils/podnet#785 (T-1531, T-1532). Done on `main`:
-     PodUtils/podrunner#367 (COORD-140, T-1529); answer it with the next
-     tag. Not on `main`: PodUtils/podrunner#373 (COORD-145) is on
-     `origin/wip/gh373` (see "Unfinished work").
+     PodUtils/podrunner#367 (COORD-140, T-1529) and PodUtils/podrunner#373
+     (COORD-145, T-1530); answer each with the next tag. The answer to
+     #373 tells podrunner to read `jobServiceContainers` (the name of
+     `AgentJobRequestMessage`), not `serviceContainers`, and that the
+     step logs come from `GET /_fake/jobs/ID/logs` of `pod-fake-github`
+     (a lane reads `github_job_id` of the githome job). The owner deletes
+     `wip/gh373` (the proxy refuses a delete).
    - Open asks:
      PodUtils/podvm#668 (COORD-251) is T-1391; PodUtils/podssh#357
      (COORD-147) asks T-1380, T-1381 and T-1383; PodUtils/podssh#349
@@ -246,6 +250,13 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
   and `standin` turn on `trojan`.
 - T-1532 (`pod-egress`, PodUtils/podnet#785): `shadowsocks::Decoder::salt`
   and the docs of the accept side of the codec.
+- T-1530 (`pod-testkit`, PodUtils/podrunner#373): `POST /_fake/jobs` of
+  `pod-fake-github` takes `container` and `services`; the job message
+  carries `jobContainer` and `jobServiceContainers` as template tokens
+  (`null` when absent); `pod-fake-githome serve --github` passes them
+  through; `GET /_fake/jobs/ID/logs` gives the step logs of a job that
+  ended (404 for no such job, 409 for a job that did not end). No build
+  change.
 - T-1506 (`pod-acme`, feature `standin`): the TLS-ALPN-01 verifier of the
   stand-in takes only the certificate of the challenge (a pinned
   verifier); the error of a refused certificate is the words of the check.
@@ -265,36 +276,6 @@ The hand-off is COORD-158 (#272). The hand-off COORD-156 (#262) of
 
 ## Unfinished work
 
-- `origin/wip/gh373` (`7161b34`, two commits on `a6123151`): the entry
-  of PodUtils/podrunner#373 (COORD-145 of podrunner) with its code in
-  `pod-testkit` and `pod-fake-githome`: `POST /_fake/jobs` takes
-  `container` and `services`, the job message carries `jobContainer` and
-  `jobServiceContainers` (template tokens, `null` when absent),
-  `pod-fake-githome serve --github` passes them through, and
-  `GET /_fake/jobs/ID/logs` gives the step logs of a job that ended (404
-  for an unknown job, 409 for a job that did not end). The entry is `done`
-  on the branch; plant `testkit-t1530-no-service-containers`.
-  `scripts/agent/check.sh` passed on the work commit, and `check.sh
-  notest` on the record commit.
-  The ask names the field `serviceContainers`, but `AgentJobRequestMessage`
-  of actions/runner (`main` at `4812b901a6bf`) has `JobServiceContainers`:
-  the answer to PodUtils/podrunner#373 tells podrunner to read
-  `jobServiceContainers`. The githome fake has no route for the logs: a
-  lane reads `github_job_id` of the githome job and calls
-  `/_fake/jobs/ID/logs` of `pod-fake-github`. No run of the real
-  `actions/runner` with a container or a service against the fake: the
-  lane of podrunner does it.
-  Next steps:
-  1. `git fetch origin wip/gh373 && git merge --no-edit FETCH_HEAD` on
-     `main`. Resolve a conflict in `TODO/` by entry id; run
-     `cargo todo counts`.
-  2. Read the diff and the new entry (Premise: the shape of
-     `jobContainer` and `serviceContainers` that `actions/runner` reads).
-  3. Run `sh scripts/agent/check.sh`, push `main`, and add the change to
-     "On `main` after `v0.86.0`" and to the notes of the next tag.
-  4. Answer PodUtils/podrunner#373 with the tag that has it.
-  The owner deletes `wip/gh373` after the merge (the proxy refuses a
-  delete).
 - `origin/wip/t1073` is merged into `main` (T-1073, T-1070). The proxy
   refuses `git push origin --delete`, so the owner deletes the branch on
   GitHub (`TODO/PROGRESS.md`, "Owner actions").
